@@ -1,3 +1,7 @@
+---
+title: Extension Idea
+---
+
 Đây là application trên OS như MacOS và Windows, nhưng việc copy paste từ native application sang các application khác như Slack, Zalo, Chrome (các ứng dụng khác của Chromenium), ... tốn nhiều thời gian và công sức
 Vì vậy muốn bổ sung thêm một dạng extension của application bằng một custom hot key có thể cài đặt trong màn hình Settings, khi user mở application thì hoàn toàn có thể dịch trực tiếp trên các application khác bằng cách nhấn hot key đã cài trước đó và replace luôn text cũ mà user đang gõ sẵn ở bộ nhập nội dung.
 Riêng với Chrome hoặc các ứng dụng browser khác sử dụng nhân chromium thì sẽ có một dạng Legency Assistant, ở trên browser sẽ có icon (logo) nhỏ của application hiện lên và trong đó user có thể config nhanh để có thể dịch ngôn ngữ. Tuy nhiên config như API Key,... cần config trên native application được cài đặt ở OS
