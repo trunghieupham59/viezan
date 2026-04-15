@@ -1,0 +1,151 @@
+{
+  "name": "check-dup-hardcode",
+  "version": "1.0.0",
+  "description": "Workflow kiểm tra duplicate code và hardcode trong source code, tạo báo cáo có phân loại, mức độ ưu tiên và gợi ý refactor",
+  "type": "workflow",
+  "steps": [
+    {
+      "id": "step-1-scope",
+      "name": "Xác định phạm vi kiểm tra",
+      "description": "Xác định rõ target: toàn bộ codebase, một folder, hay danh sách file cụ thể",
+      "action": "Hỏi hoặc suy luận phạm vi từ yêu cầu người dùng",
+      "options": [
+        {
+          "type": "full-codebase",
+          "label": "Toàn bộ codebase",
+          "note": "Đọc tất cả file source, bỏ qua node_modules, dist, build, .git"
+        },
+        {
+          "type": "folder",
+          "label": "Một folder cụ thể",
+          "note": "Ví dụ: src/services, electron/ipc"
+        },
+        {
+          "type": "files",
+          "label": "Danh sách file cụ thể",
+          "note": "Người dùng cung cấp list file cần kiểm tra"
+        }
+      ]
+    },
+    {
+      "id": "step-2-read",
+      "name": "Đọc toàn bộ source code",
+      "description": "Đọc hết tất cả file trong phạm vi đã xác định trước khi phân tích",
+      "action": "Đọc tuần tự từng file, ghi nhận pattern, không phân tích ngay từng file riêng lẻ",
+      "rules": [
+        "Đọc hết file trước, phân tích sau",
+        "Ghi nhớ các đoạn code có khả năng bị duplicate để đối chiếu",
+        "Ghi nhớ các giá trị literal đáng ngờ để phân tích sau",
+        "Bỏ qua: test fixtures, mock data, generated code"
+      ]
+    },
+    {
+      "id": "step-3-detect-duplicate",
+      "name": "Phát hiện Duplicate Code",
+      "description": "Áp dụng skill check-dup-hardcode (phần duplicate) để tìm code bị lặp",
+      "skill": "check-dup-hardcode",
+      "skill_category": "duplicate-code",
+      "action": "Với mỗi duplicate tìm được: xác định loại clone → tìm tất cả vị trí xuất hiện → ghi file:line → đánh giá severity → đề xuất refactor",
+      "checklist": [
+        "Quét các hàm/method có body tương tự (≥ 5 dòng)",
+        "Quét các component/class có cấu trúc giống nhau",
+        "Tìm các đoạn logic xử lý lặp lại không được abstract",
+        "Tìm các error handling pattern lặp lại",
+        "Tìm các utility function bị implement nhiều lần"
+      ]
+    },
+    {
+      "id": "step-4-detect-hardcode",
+      "name": "Phát hiện Hardcode",
+      "description": "Áp dụng skill check-dup-hardcode (phần hardcode) để tìm giá trị cứng",
+      "skill": "check-dup-hardcode",
+      "skill_category": "hardcode",
+      "action": "Với mỗi hardcode tìm được: xác định loại → trích dẫn code → đánh giá severity → đề xuất tên constant/config phù hợp",
+      "checklist": [
+        "Tìm số literal có nghĩa đặc biệt (timeout, limit, port, size)",
+        "Tìm chuỗi literal lặp hơn 2 lần hoặc có semantic rõ ràng",
+        "Tìm API key, token, password, secret trong code",
+        "Tìm URL endpoint, host, port cứng",
+        "Tìm màu hex, px, font-size cứng không qua design token",
+        "Tìm label text UI không qua i18n"
+      ]
+    },
+    {
+      "id": "step-5-deduplicate-findings",
+      "name": "Loại bỏ trùng lặp trong báo cáo",
+      "description": "Kiểm tra không báo cùng một vấn đề nhiều lần",
+      "action": "Review lại danh sách findings, gộp các vấn đề liên quan, loại false positive",
+      "checks": [
+        "Không báo cùng một đoạn code duplicate 2 lần",
+        "Phân biệt rõ: code tương tự có lý do chính đáng vs duplicate thực sự",
+        "Không đánh dấu constant definitions là hardcode",
+        "Không đánh dấu test data/fixtures là hardcode",
+        "Không đánh dấu intentional inline style là hardcode nếu là one-off"
+      ]
+    },
+    {
+      "id": "step-6-prioritize",
+      "name": "Ưu tiên hóa vấn đề",
+      "description": "Sắp xếp findings theo mức độ ưu tiên cần xử lý",
+      "action": "Phân nhóm theo severity, xác định top issues cần fix ngay",
+      "priority_order": [
+        "🔴 Critical: Hardcode credential, Exact duplicate lớn",
+        "🟠 High: Magic number/string phổ biến, Near duplicate",
+        "🟡 Medium: Hardcode config, Structural duplicate",
+        "🟢 Low: Hardcode UI, Semantic duplicate"
+      ]
+    },
+    {
+      "id": "step-7-report",
+      "name": "Tạo báo cáo",
+      "description": "Xuất báo cáo đầy đủ với format chuẩn",
+      "output_format": {
+        "sections": [
+          "## Tổng quan",
+          "## Duplicate Code",
+          "## Hardcode",
+          "## Tóm tắt & Ưu tiên",
+          "## Kế hoạch refactor gợi ý"
+        ],
+        "per_issue": [
+          "Severity label",
+          "Loại vấn đề",
+          "File path + line number",
+          "Code trích dẫn",
+          "Giải thích vấn đề",
+          "Gợi ý sửa kèm code example"
+        ],
+        "summary_table": {
+          "columns": ["Loại vấn đề", "Critical", "High", "Medium", "Low", "Tổng"],
+          "rows": ["Exact Duplicate", "Near Duplicate", "Structural Duplicate", "Semantic Duplicate", "Hardcode Credential", "Magic Number", "Magic String", "Hardcode Config", "Hardcode UI"]
+        }
+      }
+    },
+    {
+      "id": "step-8-save-report",
+      "name": "Lưu báo cáo",
+      "description": "Lưu báo cáo vào thư mục lotus-agent/fix với tên file theo convention",
+      "action": "Tạo file markdown báo cáo với tên: dup-hardcode-report-YYYYMMDD-HHmm.md",
+      "save_path": "lotus-agent/fix/",
+      "filename_pattern": "dup-hardcode-report-{YYYYMMDD}-{HHmm}.md"
+    }
+  ],
+  "false_positive_guide": {
+    "NOT_duplicate": [
+      "Hai hàm tương tự nhưng serve different domain context (ví dụ: validateUserInput vs validatePaymentInput)",
+      "Code giống nhau nhưng cần tách vì sẽ diverge trong tương lai",
+      "Boilerplate pattern theo convention của framework (ví dụ: Redux slice structure)"
+    ],
+    "NOT_hardcode": [
+      "Số 0, 1, -1 trong context rõ ràng (index, boolean-like, default)",
+      "Chuỗi rỗng '' làm default value",
+      "Constant được define với const/enum rõ ràng",
+      "Test data trong file *.test.ts hoặc *.spec.ts",
+      "Số trong Tailwind class names (p-4, text-sm) theo design system"
+    ]
+  },
+  "references": {
+    "skill": "../../skill/check-dup-hardcode/check-dup-hardcode.json",
+    "readme": "./README.md"
+  }
+}

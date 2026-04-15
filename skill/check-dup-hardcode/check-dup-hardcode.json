@@ -1,0 +1,198 @@
+{
+  "name": "check-dup-hardcode",
+  "version": "1.0.0",
+  "description": "Skill phát hiện duplicate code và hardcode trong source code, cung cấp phân loại, mức độ nghiêm trọng và gợi ý refactor cụ thể",
+  "type": "skill",
+  "categories": [
+    {
+      "id": "duplicate-code",
+      "name": "Duplicate Code",
+      "description": "Phát hiện các đoạn code bị lặp lại không cần thiết",
+      "subtypes": [
+        {
+          "id": "exact-duplicate",
+          "name": "Exact Duplicate (Clone Type 1)",
+          "description": "Đoạn code copy-paste hoàn toàn giống nhau, chỉ khác whitespace/comment",
+          "severity": "critical",
+          "signals": [
+            "Hai hoặc nhiều hàm/block có body gần như giống nhau từng dòng",
+            "Cùng logic xử lý xuất hiện ở nhiều file khác nhau",
+            "Cùng một đoạn render JSX/HTML lặp nhiều lần không có abstraction"
+          ],
+          "fix": "Trích xuất thành hàm/component/module dùng chung"
+        },
+        {
+          "id": "near-duplicate",
+          "name": "Near Duplicate (Clone Type 2)",
+          "description": "Đoạn code tương tự nhau, chỉ khác tên biến hoặc vài giá trị nhỏ",
+          "severity": "high",
+          "signals": [
+            "Hai hàm làm việc giống hệt nhau chỉ khác tên biến",
+            "Switch/if-else lớn với các nhánh cùng cấu trúc xử lý",
+            "Các component React giống nhau chỉ khác prop name"
+          ],
+          "fix": "Tham số hóa (parameterize) phần khác nhau, dùng chung skeleton"
+        },
+        {
+          "id": "structural-duplicate",
+          "name": "Structural Duplicate (Clone Type 3)",
+          "description": "Cùng cấu trúc logic nhưng có thêm/bớt một số câu lệnh",
+          "severity": "medium",
+          "signals": [
+            "Nhiều hàm có flow tương tự: validate → transform → save",
+            "Cùng error handling pattern lặp nhiều chỗ",
+            "Cùng một chuỗi thao thác API lặp lại"
+          ],
+          "fix": "Dùng template method pattern, higher-order function, hoặc custom hook"
+        },
+        {
+          "id": "semantic-duplicate",
+          "name": "Semantic Duplicate (Clone Type 4)",
+          "description": "Cùng mục đích/chức năng nhưng cách implement khác nhau",
+          "severity": "low",
+          "signals": [
+            "Hai hàm utility thực hiện cùng tác vụ nhưng viết khác nhau",
+            "Cùng một giá trị được tính toán theo nhiều cách ở nhiều nơi"
+          ],
+          "fix": "Consolidate thành một implementation chuẩn, xóa bản còn lại"
+        }
+      ],
+      "evaluate": [
+        "Quét toàn bộ file tìm các block code > 5 dòng có điểm tương đồng cao",
+        "Kiểm tra các hàm có signature giống nhau ở nhiều nơi",
+        "Tìm các component/module có chức năng chồng lấp",
+        "Phát hiện các utility function bị implement nhiều lần",
+        "Đếm số lần một logic cụ thể xuất hiện"
+      ]
+    },
+    {
+      "id": "hardcode",
+      "name": "Hardcode",
+      "description": "Phát hiện các giá trị, chuỗi, số được ghi thẳng vào code thay vì dùng constant/config/env",
+      "subtypes": [
+        {
+          "id": "magic-number",
+          "name": "Magic Number",
+          "description": "Số literal không có tên, không rõ ý nghĩa",
+          "severity": "high",
+          "signals": [
+            "Số như 86400, 3600, 1000 xuất hiện trực tiếp trong biểu thức",
+            "Số giới hạn như 100, 50, 10 không được đặt tên",
+            "Index cứng như arr[0], arr[2] không có giải thích",
+            "Timeout, delay cứng như setTimeout(fn, 3000)"
+          ],
+          "fix": "Đặt thành named constant: const MAX_RETRY = 3, const ONE_DAY_MS = 86400000"
+        },
+        {
+          "id": "magic-string",
+          "name": "Magic String",
+          "description": "Chuỗi literal lặp đi lặp lại hoặc có ý nghĩa đặc biệt",
+          "severity": "high",
+          "signals": [
+            "Chuỗi route như '/api/v1/users' xuất hiện nhiều chỗ",
+            "Event name như 'click', 'message' lặp lại",
+            "Status string như 'pending', 'active', 'error' không dùng enum/constant",
+            "Chuỗi locale key lặp nhiều nơi không tập trung"
+          ],
+          "fix": "Tập trung vào constants file hoặc enum: STATUS.PENDING, ROUTES.USERS"
+        },
+        {
+          "id": "hardcode-credential",
+          "name": "Hardcode Credential / Secret",
+          "description": "API key, password, token, URL bị nhúng thẳng vào code",
+          "severity": "critical",
+          "signals": [
+            "API key, secret key viết thẳng trong code",
+            "URL endpoint production cứng trong source",
+            "Username/password hardcode trong file không phải .env",
+            "Token, JWT secret không lấy từ environment variable"
+          ],
+          "fix": "Chuyển sang environment variable, dùng .env file, KHÔNG commit secret"
+        },
+        {
+          "id": "hardcode-config",
+          "name": "Hardcode Configuration",
+          "description": "Giá trị cấu hình không nên cứng trong code",
+          "severity": "medium",
+          "signals": [
+            "Port number cứng như 3000, 8080",
+            "Database name, host cứng trong code",
+            "Feature flag boolean cứng true/false",
+            "File path tuyệt đối cứng trong code",
+            "Language/locale cứng không lấy từ config"
+          ],
+          "fix": "Chuyển vào config file, environment variable, hoặc settings store"
+        },
+        {
+          "id": "hardcode-ui",
+          "name": "Hardcode UI Value",
+          "description": "Giá trị giao diện cứng không qua design token hay theme",
+          "severity": "low",
+          "signals": [
+            "Màu hex cứng như #FF5733 không dùng CSS variable",
+            "Font size pixel cứng không dùng spacing scale",
+            "Khoảng cách px cứng không dùng design system",
+            "Text label cứng trong component không qua i18n"
+          ],
+          "fix": "Dùng CSS variable, Tailwind config token, hoặc i18n key"
+        }
+      ],
+      "evaluate": [
+        "Tìm tất cả số literal ngoài 0 và 1 không phải index rõ ràng",
+        "Tìm chuỗi literal lặp hơn 2 lần trong codebase",
+        "Kiểm tra biến môi trường có được dùng cho secret/config không",
+        "Kiểm tra URL, endpoint, port có cứng trong code không",
+        "Tìm label text UI không qua i18n/localization"
+      ]
+    }
+  ],
+  "severity_levels": [
+    {
+      "level": "critical",
+      "label": "🔴 Critical",
+      "description": "Phải sửa ngay: gây security risk hoặc làm code không thể maintain"
+    },
+    {
+      "level": "high",
+      "label": "🟠 High",
+      "description": "Nên sửa sớm: ảnh hưởng rõ ràng đến quality và maintainability"
+    },
+    {
+      "level": "medium",
+      "label": "🟡 Medium",
+      "description": "Cần refactor: có thể chấp nhận ngắn hạn nhưng tạo tech debt"
+    },
+    {
+      "level": "low",
+      "label": "🟢 Low",
+      "description": "Nên cải thiện: không urgent nhưng là good practice"
+    }
+  ],
+  "output_format": {
+    "per_issue": [
+      "Loại vấn đề (duplicate type / hardcode type)",
+      "Mức độ nghiêm trọng",
+      "File và line number",
+      "Đoạn code bị vi phạm (trích dẫn)",
+      "Giải thích vì sao là vấn đề",
+      "Gợi ý sửa cụ thể kèm code example"
+    ],
+    "summary": [
+      "Tổng số vấn đề theo loại và severity",
+      "File bị ảnh hưởng nhiều nhất",
+      "Top 3 vấn đề ưu tiên sửa nhất"
+    ]
+  },
+  "instructions": [
+    "Đọc toàn bộ codebase trước khi báo cáo, không báo cáo từng file riêng lẻ",
+    "Với duplicate: đối chiếu ít nhất 2 vị trí cụ thể kèm file:line",
+    "Với hardcode: luôn trích dẫn đoạn code vi phạm và đề xuất tên constant phù hợp",
+    "Phân biệt rõ duplicate thực sự vs code tương tự nhưng có lý do khác nhau",
+    "Không báo false positive: kiểm tra kỹ trước khi kết luận là duplicate/hardcode",
+    "Ưu tiên báo critical và high trước, low có thể nhóm lại"
+  ],
+  "references": {
+    "workflow": "../../workflow/check-dup-hardcode/check-dup-hardcode.json",
+    "readme": "./README.md"
+  }
+}
