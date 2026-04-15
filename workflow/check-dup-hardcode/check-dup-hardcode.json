@@ -67,8 +67,26 @@
         "Tìm API key, token, password, secret trong code",
         "Tìm URL endpoint, host, port cứng",
         "Tìm màu hex, px, font-size cứng không qua design token",
-        "Tìm label text UI không qua i18n"
-      ]
+        "Tìm label text UI không qua i18n",
+        "Tìm icon hardcode: <svg> inline, emoji làm icon, import trực tiếp từ thư viện icon bên ngoài mà không qua src/components/ui/icons/"
+      ],
+      "icon_check": {
+        "description": "Kiểm tra icon có được quản lý tập trung không",
+        "registry": "src/components/ui/icons/",
+        "rule": "Mọi icon phải được định nghĩa hoặc tái sử dụng từ src/components/ui/icons/. Không được hardcode <svg> inline hay import thư viện icon trực tiếp vào component.",
+        "how_to_check": [
+          "Grep `<svg` trong toàn bộ file .tsx/.ts ngoài src/components/ui/icons/ — mỗi kết quả là potential hardcode icon",
+          "Grep import từ 'react-icons', 'lucide-react', '@heroicons', '@phosphor-icons' ngoài src/components/ui/icons/ — là vi phạm cần wrap",
+          "Tìm emoji character được render trong JSX như icon (ký tự không phải text content thực sự)",
+          "Kiểm tra src/components/ui/icons/ để biết icon nào đã có sẵn trước khi kết luận cần tạo mới"
+        ],
+        "fix_flow": [
+          "Bước 1: Xác định icon cần dùng",
+          "Bước 2: Kiểm tra src/components/ui/icons/ xem đã có chưa (xem index.ts để biết category)",
+          "Bước 3a: Nếu có → import từ src/components/ui/icons và dùng",
+          "Bước 3b: Nếu chưa có → tạo component mới trong category file phù hợp (actions/navigation/media/status/auth/files), export qua index.ts"
+        ]
+      }
     },
     {
       "id": "step-5-deduplicate-findings",
@@ -117,7 +135,7 @@
         ],
         "summary_table": {
           "columns": ["Loại vấn đề", "Critical", "High", "Medium", "Low", "Tổng"],
-          "rows": ["Exact Duplicate", "Near Duplicate", "Structural Duplicate", "Semantic Duplicate", "Hardcode Credential", "Magic Number", "Magic String", "Hardcode Config", "Hardcode UI"]
+          "rows": ["Exact Duplicate", "Near Duplicate", "Structural Duplicate", "Semantic Duplicate", "Hardcode Credential", "Magic Number", "Magic String", "Hardcode Config", "Hardcode UI", "Hardcode Icon"]
         }
       }
     },

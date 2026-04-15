@@ -135,6 +135,29 @@
             "Text label cứng trong component không qua i18n"
           ],
           "fix": "Dùng CSS variable, Tailwind config token, hoặc i18n key"
+        },
+        {
+          "id": "hardcode-icon",
+          "name": "Hardcode Icon",
+          "description": "Icon được nhúng trực tiếp vào source code thay vì dùng hoặc tạo mới icon component tại src/components/ui/icons/",
+          "severity": "high",
+          "signals": [
+            "Thẻ <svg> với <path>/<g>/<circle> viết inline trực tiếp trong JSX/TSX",
+            "Emoji ký tự (🔴, ✅, ❌, 📋...) dùng làm icon trong UI component",
+            "Import icon từ thư viện bên ngoài (react-icons, lucide-react, heroicons...) trực tiếp trong file component thay vì qua src/components/ui/icons/",
+            "Unicode character (\\u{...}) dùng làm icon không có abstraction",
+            "CSS class font-icon (fa-*) cứng trong JSX mà không wrap qua icon component"
+          ],
+          "fix": "Kiểm tra icon có sẵn tại src/components/ui/icons/ (categories: actions, navigation, media, status, auth, files). Nếu chưa có thì tạo mới icon component trong đúng category file và export qua src/components/ui/icons/index.ts",
+          "icon_registry": "src/components/ui/icons/",
+          "icon_categories": [
+            "actions    — copy, check, trash, arrow-right, download, X, plus, refresh, send, pencil, image, translate, rewrite, layers",
+            "navigation — chevron-down, chevron-right, gear, auto-detect, arrow-up",
+            "media      — spinner, stop, speaker, microphone, monitor, subtitles",
+            "status     — alert-triangle, radio-checked, info-circle, lightbulb, check-circle, user",
+            "auth       — lock, eye, eye-off",
+            "files      — document, clipboard"
+          ]
         }
       ],
       "evaluate": [

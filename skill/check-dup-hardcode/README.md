@@ -53,6 +53,7 @@ Hãy dùng skill check-dup-hardcode để kiểm tra [duplicate | hardcode | c�
 | **Hardcode Credential** | API key, password, token, URL secret | 🔴 Critical |
 | **Magic Number** | Số literal không tên, không rõ nghĩa | 🟠 High |
 | **Magic String** | Chuỗi lặp lại hoặc có nghĩa đặc biệt | 🟠 High |
+| **Hardcode Icon** | SVG inline, emoji icon, import thư viện icon ngoài `src/components/ui/icons/` | 🟠 High |
 | **Hardcode Config** | Port, DB name, feature flag, file path | 🟡 Medium |
 | **Hardcode UI Value** | Màu hex, px cứng, label không qua i18n | 🟢 Low |
 
@@ -79,6 +80,17 @@ const lang = 'vi'
 
 // ❌ Hardcode UI
 <div style={{ color: '#FF5733', fontSize: '14px' }}>
+
+// ❌ Hardcode Icon — SVG inline trong JSX
+<svg width="16" height="16" viewBox="0 0 24 24">
+  <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+</svg>
+
+// ❌ Hardcode Icon — emoji dùng làm icon
+<span>🔍</span>
+
+// ❌ Hardcode Icon — import thẳng từ thư viện ngoài trong component
+import { Search } from 'lucide-react'
 ```
 
 ### Cách sửa Hardcode
@@ -105,6 +117,66 @@ const lang = settingsStore.language
 // ✅ Design Token / i18n
 <div className="text-red-500 text-sm">
 {t('common.label')}
+```
+
+---
+
+## Kiểm tra Hardcode Icon
+
+Icon **không được** hardcode trực tiếp trong source code. Mọi icon phải được quản lý tập trung tại `src/components/ui/icons/`.
+
+### Registry icon hiện có
+
+| Category file | Các icon có sẵn |
+|---------------|----------------|
+| `actions.tsx` | copy, check, trash, arrow-right, download, X, plus, refresh, send, pencil, image, translate, rewrite, layers |
+| `navigation.tsx` | chevron-down, chevron-right, gear, auto-detect, arrow-up |
+| `media.tsx` | spinner, stop, speaker, microphone, monitor, subtitles |
+| `status.tsx` | alert-triangle, radio-checked, info-circle, lightbulb, check-circle, user |
+| `auth.tsx` | lock, eye, eye-off |
+| `files.tsx` | document, clipboard |
+
+### Cách import icon đúng
+
+```tsx
+// ✅ Dùng icon có sẵn từ registry
+import { CopyIcon, CheckIcon, TrashIcon } from '@/components/ui/icons'
+
+// ✅ Hoặc import trực tiếp từ category file
+import { SearchIcon } from '@/components/ui/icons/actions'
+```
+
+### Cách tạo icon mới (nếu chưa có)
+
+```tsx
+// 1. Tạo component trong category file phù hợp, ví dụ: src/components/ui/icons/actions.tsx
+export function SearchIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className}
+         fill="none" stroke="currentColor" strokeWidth={2}>
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.35-4.35" />
+    </svg>
+  )
+}
+
+// 2. Export qua src/components/ui/icons/index.ts (đã tự động qua export * from './actions')
+
+// 3. Dùng trong component
+import { SearchIcon } from '@/components/ui/icons'
+<SearchIcon size={20} className="text-gray-500" />
+```
+
+### Cách phát hiện vi phạm
+
+```bash
+# Grep SVG inline ngoài thư mục icons
+grep -rn "<svg" src/ --include="*.tsx" --include="*.ts" \
+  | grep -v "src/components/ui/icons/"
+
+# Grep import thư viện icon bên ngoài
+grep -rn "from 'lucide-react'\|from 'react-icons'\|from '@heroicons'" src/ \
+  | grep -v "src/components/ui/icons/"
 ```
 
 ---

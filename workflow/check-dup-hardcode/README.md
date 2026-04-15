@@ -83,6 +83,7 @@ Workflow này gọi **skill `check-dup-hardcode`** ở 2 bước:
 | Hardcode Credential | 🔴 Critical | `const KEY = 'sk-abc123'` |
 | Magic Number | 🟠 High | `setTimeout(fn, 3000)` |
 | Magic String | 🟠 High | `if (status === 'pending')` |
+| Hardcode Icon | 🟠 High | `<svg><path d="M12 2..."/></svg>` inline trong JSX |
 | Hardcode Config | 🟡 Medium | `app.listen(3000)` |
 | Hardcode UI Value | 🟢 Low | `color: '#FF5733'` |
 
@@ -101,6 +102,24 @@ Workflow này gọi **skill `check-dup-hardcode`** ở 2 bước:
 - Constant đã được define rõ với `const`/`enum`
 - Test data trong file `*.test.ts` / `*.spec.ts`
 - Class Tailwind theo design system (`p-4`, `text-sm`)
+- `<svg>` nằm **bên trong** `src/components/ui/icons/` — đây là icon definition hợp lệ, KHÔNG phải hardcode
+
+---
+
+## Kiểm tra Icon (Step 4 mở rộng)
+
+Trong Step 4, ngoài các hardcode thông thường, bắt buộc kiểm tra thêm:
+
+| Dấu hiệu vi phạm | Cách phát hiện |
+|-------------------|----------------|
+| `<svg>` inline trong JSX/TSX | `grep -rn "<svg" src/ --include="*.tsx" \| grep -v "ui/icons/"` |
+| Import từ `lucide-react`, `react-icons`, v.v. | `grep -rn "from 'lucide-react'" src/ \| grep -v "ui/icons/"` |
+| Emoji ký tự dùng làm icon trong UI | Tìm emoji render trong JSX không phải text content |
+
+**Quy tắc sửa icon hardcode:**
+1. Kiểm tra `src/components/ui/icons/` — xem `index.ts` để tra cứu icon có sẵn theo category
+2. Nếu icon đã có → import và dùng: `import { XxxIcon } from '@/components/ui/icons'`
+3. Nếu chưa có → tạo mới icon component trong category file phù hợp (`actions/navigation/media/status/auth/files`), export qua `index.ts`
 
 ---
 
@@ -151,7 +170,8 @@ if (!response.ok) throw new Error(...)
 | Magic String        | 0          | 5      | 0        | 0     | 5    |
 | Hardcode Config     | 0          | 0      | 3        | 0     | 3    |
 | Hardcode UI         | 0          | 0      | 0        | 8     | 8    |
-| **Tổng**            | **2**      | **12** | **5**    | **8** | **27** |
+| Hardcode Icon       | 0          | 5      | 0        | 0     | 5    |
+| **Tổng**            | **2**      | **17** | **5**    | **8** | **32** |
 
 **File bị ảnh hưởng nhiều nhất:** `src/services/translationService.ts` (7 vấn đề)
 
