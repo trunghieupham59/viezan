@@ -1,0 +1,660 @@
+{
+  "name": "generate-code",
+  "version": "1.0.0",
+  "description": "Bộ quy tắc để AI generate code chất lượng cao, ánh xạ 1-1 với tiêu chí score-code",
+  "type": "rule",
+  "mapped_from": "../../skill/score-code/score-code.json",
+  "usage": {
+    "simple_task": "Áp dụng rule generate-code với priority: Correctness, Code Quality, Reliability.",
+    "oop_backend": "Áp dụng toàn bộ rule generate-code. Loại project: OOP/Backend.",
+    "self_check": "Sau khi generate xong, tự chấm điểm theo workflow score-code."
+  },
+  "rule_groups": [
+    {
+      "id": "correctness",
+      "name": "Correctness Rules",
+      "priority": "mandatory",
+      "mapped_criterion": "Correctness",
+      "goal": "Code giải quyết đúng bài toán, xử lý đủ trường hợp",
+      "rules": [
+        {
+          "id": "R-COR-01",
+          "name": "Implement đúng spec",
+          "description": "Đọc kỹ yêu cầu trước khi code. Output phải khớp với spec: kiểu dữ liệu, format, đơn vị. Nếu spec mơ hồ, hỏi hoặc ghi rõ assumption.",
+          "bad_examples": [
+            "Assume input luôn là string mà không kiểm tra",
+            "Return số nguyên trong khi spec yêu cầu float",
+            "Không ghi rõ khi bỏ qua một phần của spec"
+          ],
+          "good_examples": [
+            "Đọc và hiểu spec trước khi viết dòng code đầu tiên",
+            "Verify return type khớp với spec",
+            "Comment rõ assumptions nếu có"
+          ]
+        },
+        {
+          "id": "R-COR-02",
+          "name": "Xử lý edge cases",
+          "description": "Luôn xử lý các trường hợp biên trước khi implement happy path.",
+          "edge_cases_to_handle": [
+            "null / undefined / empty string / empty array",
+            "Số âm, số 0, số rất lớn (overflow)",
+            "Chuỗi có ký tự đặc biệt, unicode",
+            "Danh sách 0 phần tử, 1 phần tử, nhiều phần tử trùng nhau",
+            "Concurrent / race condition nếu liên quan async"
+          ]
+        },
+        {
+          "id": "R-COR-03",
+          "name": "Không hard-code kết quả",
+          "description": "Logic phải đúng với mọi input hợp lệ, không chỉ ví dụ mẫu.",
+          "bad_examples": [
+            "return 42; // chỉ đúng với ví dụ test",
+            "if (input === 'hello') return 'world';"
+          ]
+        },
+        {
+          "id": "R-COR-04",
+          "name": "Validate output",
+          "description": "Đảm bảo output đúng format và return type nhất quán.",
+          "rules": [
+            "Return type nhất quán trong mọi code path",
+            "Async function luôn return Promise",
+            "Không lúc trả null, lúc trả undefined cho cùng error case"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "code-quality",
+      "name": "Code Quality Rules",
+      "priority": "mandatory",
+      "mapped_criterion": "Code Quality",
+      "goal": "Code sạch, dễ đọc, không trùng lặp, nhất quán",
+      "rules": [
+        {
+          "id": "R-QUA-01",
+          "name": "Đặt tên rõ nghĩa",
+          "description": "Tên biến, hàm, class phải mô tả rõ ý nghĩa và mục đích.",
+          "naming_conventions": {
+            "variable_function": "camelCase — mô tả hành động hoặc nội dung",
+            "class_type_interface": "PascalCase — danh từ",
+            "constant": "UPPER_SNAKE_CASE hoặc camelCase theo convention dự án",
+            "boolean": "prefix: is, has, can, should (vd: isLoading, hasError, canEdit)",
+            "async_function": "tên mô tả hành động (fetchUserById, không phải getUserAsync)"
+          },
+          "bad_examples": [
+            "const d = new Date();",
+            "function calc(a, b) {}",
+            "let tmp1, tmp2, x;"
+          ],
+          "good_examples": [
+            "const currentDate = new Date();",
+            "function calculateTotalPrice(basePrice, taxRate) {}",
+            "let filteredUsers, sortedResults;"
+          ]
+        },
+        {
+          "id": "R-QUA-02",
+          "name": "Single Responsibility — mỗi hàm một việc",
+          "description": "Mỗi hàm chỉ làm một việc. Không quá 40 dòng (lý tưởng < 20 dòng).",
+          "limits": {
+            "max_function_lines": 40,
+            "ideal_function_lines": 20
+          },
+          "bad_examples": [
+            "function processAndSaveAndNotifyUser(data) { /* validate + transform + save + email */ }"
+          ],
+          "good_examples": [
+            "function validateUserData(data) {}",
+            "function transformUserData(data) {}",
+            "async function saveUser(user) {}",
+            "async function notifyUser(userId) {}"
+          ]
+        },
+        {
+          "id": "R-QUA-03",
+          "name": "Không trùng lặp code (DRY)",
+          "description": "Extract thành hàm/helper khi logic lặp ≥ 2 lần.",
+          "rules": [
+            "Extract helper function khi logic lặp ≥ 2 lần",
+            "Dùng higher-order function thay vì copy-paste với biến khác nhau",
+            "Tạo shared utility thay vì copy-paste giữa modules"
+          ]
+        },
+        {
+          "id": "R-QUA-04",
+          "name": "Không dùng magic number/string",
+          "description": "Đặt tên cho mọi giá trị literal có nghĩa nghiệp vụ.",
+          "bad_examples": [
+            "if (status === 3) {}",
+            "setTimeout(fn, 86400000);"
+          ],
+          "good_examples": [
+            "const STATUS_COMPLETED = 3;",
+            "const ONE_DAY_MS = 24 * 60 * 60 * 1000;",
+            "if (status === STATUS_COMPLETED) {}"
+          ]
+        },
+        {
+          "id": "R-QUA-05",
+          "name": "Điều kiện và vòng lặp rõ ràng",
+          "description": "Extract điều kiện phức tạp thành biến có tên rõ nghĩa.",
+          "bad_examples": [
+            "if (a && b && !c && (d || e)) {}",
+            "data.filter(x => x.active && !x.deleted && x.role !== 'guest' && x.age > 18)"
+          ],
+          "good_examples": [
+            "const isEligibleForPromotion = a && b && !c && (d || e); if (isEligibleForPromotion) {}",
+            "const isActiveUser = (u) => u.active && !u.deleted && u.role !== 'guest' && u.age > 18; data.filter(isActiveUser)"
+          ]
+        },
+        {
+          "id": "R-QUA-06",
+          "name": "Coding style nhất quán",
+          "description": "Nhất quán về quotes, semicolons, spacing, indentation. Ưu tiên dùng linter config có sẵn.",
+          "tools": ["eslint", "prettier", "biome"]
+        }
+      ]
+    },
+    {
+      "id": "structure",
+      "name": "Structure Rules",
+      "priority": "important",
+      "mapped_criterion": "Structure",
+      "goal": "Codebase có tổ chức rõ ràng, dễ điều hướng, phân tầng đúng",
+      "rules": [
+        {
+          "id": "R-STR-01",
+          "name": "Phân tầng rõ ràng",
+          "description": "Mỗi layer chỉ làm đúng nhiệm vụ của nó.",
+          "layers": {
+            "UI Layer": "chỉ render, handle user interaction, gọi service",
+            "Service Layer": "business logic, orchestration",
+            "Data Layer": "database, API calls, persistence",
+            "Utils/Helpers": "pure functions, không side effects"
+          },
+          "bad_examples": [
+            "Gọi fetch() / database query trực tiếp trong React component",
+            "Business logic trong controller/route handler",
+            "UI string format trong service layer"
+          ]
+        },
+        {
+          "id": "R-STR-02",
+          "name": "Mỗi file/module một trách nhiệm",
+          "description": "1 file = 1 concern chính. Tách file nếu > 300 dòng.",
+          "limits": {
+            "max_file_lines": 300
+          },
+          "bad_examples": [
+            "utils.ts chứa mọi thứ không liên quan nhau"
+          ]
+        },
+        {
+          "id": "R-STR-03",
+          "name": "Cấu trúc thư mục phản ánh domain",
+          "description": "Tổ chức theo feature/domain, không theo loại file.",
+          "good_structure": {
+            "src/features/auth/": ["auth.service.ts", "auth.controller.ts", "auth.types.ts"],
+            "src/features/payment/": ["payment.service.ts", "payment.types.ts"],
+            "src/shared/": ["utils/", "types/"]
+          }
+        },
+        {
+          "id": "R-STR-04",
+          "name": "Import có hướng rõ ràng",
+          "description": "Layer trên import layer dưới, không ngược lại. Không có circular import.",
+          "rules": [
+            "UI → Service → Data (không ngược lại)",
+            "Không có circular import giữa các module",
+            "Shared utilities không import từ feature modules"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "maintainability",
+      "name": "Maintainability Rules",
+      "priority": "important",
+      "mapped_criterion": "Maintainability",
+      "goal": "Code dễ sửa, dễ mở rộng, thay đổi 1 chỗ không vỡ nhiều nơi",
+      "rules": [
+        {
+          "id": "R-MNT-01",
+          "name": "Coupling thấp",
+          "description": "Không phụ thuộc trực tiếp vào implementation, phụ thuộc vào interface/abstraction.",
+          "bad_examples": [
+            "Service trực tiếp gọi mysql.query()"
+          ],
+          "good_examples": [
+            "Service nhận IUserRepository qua constructor injection"
+          ]
+        },
+        {
+          "id": "R-MNT-02",
+          "name": "Config tách khỏi code",
+          "description": "Mọi giá trị thay đổi theo môi trường phải nằm trong config/env.",
+          "bad_examples": [
+            "const apiUrl = 'https://api.production.com/v2';",
+            "const maxRetries = 3; // hard-coded"
+          ],
+          "good_examples": [
+            "const apiUrl = process.env.API_URL;",
+            "const maxRetries = config.MAX_RETRIES ?? 3;"
+          ]
+        },
+        {
+          "id": "R-MNT-03",
+          "name": "Không có side effects ẩn",
+          "description": "Hàm không thay đổi state bên ngoài scope. Tránh mutate tham số truyền vào.",
+          "bad_examples": [
+            "function filterUsers(users) { users.splice(0); return users.filter(u => u.active); }"
+          ],
+          "good_examples": [
+            "function filterActiveUsers(users: User[]): User[] { return users.filter(u => u.active); }"
+          ]
+        },
+        {
+          "id": "R-MNT-04",
+          "name": "Dễ mở rộng — Open/Closed Principle",
+          "description": "Thiết kế để thêm feature mới mà không sửa code cũ.",
+          "patterns_to_use": [
+            "Strategy pattern khi logic có thể swap",
+            "Factory pattern khi cần tạo variants",
+            "Plugin/handler map thay vì switch/if-else dài"
+          ]
+        },
+        {
+          "id": "R-MNT-05",
+          "name": "Abstraction phù hợp",
+          "description": "Không under-abstract (copy-paste), không over-abstract (interface cho mọi thứ). Abstract khi có ≥ 2 implementation hoặc cần swap."
+        }
+      ]
+    },
+    {
+      "id": "architecture",
+      "name": "Architecture Rules",
+      "priority": "important",
+      "mapped_criterion": "Architecture",
+      "goal": "Thiết kế tổng thể hợp lý với quy mô bài toán, không over/under-engineer",
+      "rules": [
+        {
+          "id": "R-ARC-01",
+          "name": "Chọn pattern phù hợp quy mô",
+          "description": "Scale pattern theo quy mô thực tế của bài toán.",
+          "scale_guide": {
+            "script_small": "Procedural, functional",
+            "crud_app": "MVC, layered architecture",
+            "complex_monolith": "Clean Architecture, DDD-lite",
+            "microservices": "Event-driven, CQRS khi có nhu cầu thực tế"
+          }
+        },
+        {
+          "id": "R-ARC-02",
+          "name": "Dependency đi đúng hướng",
+          "description": "Domain/Business logic không phụ thuộc vào Infrastructure.",
+          "rules": [
+            "Dùng Dependency Injection hoặc interface để đảo ngược phụ thuộc",
+            "Domain không import từ DB, HTTP, filesystem trực tiếp"
+          ]
+        },
+        {
+          "id": "R-ARC-03",
+          "name": "Không circular dependency",
+          "description": "Module A không import Module B nếu B đang import A.",
+          "detection_tools": ["madge", "dependency-cruiser"],
+          "solution": "Nếu 2 module cần nhau → extract interface hoặc dùng event bus"
+        },
+        {
+          "id": "R-ARC-04",
+          "name": "Không over-engineering",
+          "description": "YAGNI — You Aren't Gonna Need It. Bắt đầu đơn giản, refactor khi có nhu cầu thực tế.",
+          "bad_examples": [
+            "AbstractFactoryBuilderProvider cho class chỉ dùng 1 lần",
+            "EventBus cho app 1 màn hình",
+            "CQRS cho simple CRUD"
+          ]
+        },
+        {
+          "id": "R-ARC-05",
+          "name": "Quyết định kỹ thuật có lý do",
+          "description": "Comment lý do chọn pattern. Ưu tiên solution đơn giản nhất đáp ứng yêu cầu."
+        }
+      ]
+    },
+    {
+      "id": "testing",
+      "name": "Testing Rules",
+      "priority": "recommended",
+      "mapped_criterion": "Testing",
+      "goal": "Code có test cover case quan trọng, test dễ đọc và dễ maintain",
+      "rules": [
+        {
+          "id": "R-TST-01",
+          "name": "Test cover đủ case",
+          "description": "Với mỗi function/module, test đủ 4 nhóm case.",
+          "test_groups": [
+            "Happy path — input bình thường, kết quả mong đợi",
+            "Edge cases — null, empty, boundary values",
+            "Error cases — input sai, exception, network failure",
+            "Integration — khi các module tương tác nhau"
+          ]
+        },
+        {
+          "id": "R-TST-02",
+          "name": "Test có tên mô tả",
+          "description": "Tên test phải nói rõ scenario và expected behavior.",
+          "bad_examples": [
+            "it('test 1', ...)",
+            "it('works', ...)"
+          ],
+          "good_examples": [
+            "it('should return empty array when input is null', ...)",
+            "it('should throw ValidationError when email is invalid', ...)"
+          ]
+        },
+        {
+          "id": "R-TST-03",
+          "name": "Code phải testable",
+          "description": "Thiết kế code để có thể test được.",
+          "rules": [
+            "Inject dependencies thay vì tạo trực tiếp trong hàm",
+            "Không phụ thuộc global state / singleton",
+            "Ưu tiên pure functions cho business logic"
+          ]
+        },
+        {
+          "id": "R-TST-04",
+          "name": "Mock đúng cách",
+          "description": "Chỉ mock external dependencies, cleanup sau mỗi test.",
+          "rules": [
+            "Chỉ mock external dependencies (DB, API, filesystem)",
+            "Không mock implementation detail nội bộ",
+            "Cleanup mock sau mỗi test (afterEach, afterAll)"
+          ]
+        },
+        {
+          "id": "R-TST-05",
+          "name": "Test phải nhanh và stable",
+          "description": "Unit test < 100ms, không phụ thuộc network, dùng fake timers.",
+          "limits": {
+            "max_unit_test_ms": 100
+          }
+        }
+      ]
+    },
+    {
+      "id": "documentation",
+      "name": "Documentation Rules",
+      "priority": "recommended",
+      "mapped_criterion": "Documentation",
+      "goal": "Code được giải thích đủ để người khác hiểu và sử dụng",
+      "rules": [
+        {
+          "id": "R-DOC-01",
+          "name": "README phải có đủ thông tin cơ bản",
+          "description": "README phải cho phép người mới bắt đầu làm việc với dự án.",
+          "required_sections": [
+            "Mô tả ngắn gọn dự án làm gì",
+            "Cách cài đặt (prerequisites, install)",
+            "Cách chạy (development, production)",
+            "Cách chạy test",
+            "Các biến môi trường cần thiết"
+          ]
+        },
+        {
+          "id": "R-DOC-02",
+          "name": "Comment giải thích 'tại sao', không phải 'cái gì'",
+          "description": "Comment nên giải thích lý do, không lặp lại những gì code đã nói rõ.",
+          "bad_examples": [
+            "// Tăng i lên 1 → i++;",
+            "// Lấy user theo id → const user = await getUser(id);"
+          ],
+          "good_examples": [
+            "// Skip first element because API always returns a dummy header record",
+            "// Use setTimeout to avoid race condition with the animation frame"
+          ]
+        },
+        {
+          "id": "R-DOC-03",
+          "name": "Document public API và function phức tạp",
+          "description": "Dùng JSDoc/TSDoc cho public API. Ghi param, return, throws.",
+          "jsdoc_fields": ["@param", "@returns", "@throws", "@example"]
+        },
+        {
+          "id": "R-DOC-04",
+          "name": "Ghi rõ assumptions và limitations",
+          "description": "Comment NOTE: và LIMITATION: cho những ràng buộc quan trọng.",
+          "good_examples": [
+            "// NOTE: This function assumes dates are in UTC timezone.",
+            "// LIMITATION: Maximum 1000 items per batch due to API constraint."
+          ]
+        },
+        {
+          "id": "R-DOC-05",
+          "name": "Không có dead comment",
+          "description": "Xóa comment thừa, code comment-out, TODO quá hạn.",
+          "bad_examples": [
+            "// TODO: fix this (từ 2 năm trước)",
+            "// const oldCode = ...;",
+            "// This function does XYZ (chỉ lặp lại tên hàm)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "performance",
+      "name": "Performance Rules",
+      "priority": "recommended",
+      "mapped_criterion": "Performance",
+      "goal": "Hiệu năng phù hợp yêu cầu, không có bottleneck rõ ràng",
+      "rules": [
+        {
+          "id": "R-PRF-01",
+          "name": "Chọn cấu trúc dữ liệu phù hợp",
+          "description": "Dùng Map/Set cho frequent lookup thay vì Array.find() trong vòng lặp.",
+          "complexity_guide": {
+            "Array.find() in loop": "O(n²) — tránh",
+            "Map/Set lookup": "O(1) — ưu tiên",
+            "Array for ordered access": "O(n) — phù hợp"
+          }
+        },
+        {
+          "id": "R-PRF-02",
+          "name": "Tránh lặp thừa",
+          "description": "Không lặp qua cùng một tập dữ liệu nhiều lần khi có thể gộp.",
+          "bad_examples": [
+            "const names = users.map(u => u.name); const emails = users.map(u => u.email);"
+          ],
+          "good_examples": [
+            "const { names, emails } = users.reduce((acc, u) => { acc.names.push(u.name); acc.emails.push(u.email); return acc; }, { names: [], emails: [] });"
+          ]
+        },
+        {
+          "id": "R-PRF-03",
+          "name": "Không query/fetch trong vòng lặp (N+1 problem)",
+          "description": "Batch queries thay vì gọi trong loop.",
+          "bad_examples": [
+            "for (const id of ids) { await db.query('SELECT * FROM orders WHERE id = ?', [id]); }"
+          ],
+          "good_examples": [
+            "await db.query('SELECT * FROM orders WHERE id IN (?)', [ids]);"
+          ]
+        },
+        {
+          "id": "R-PRF-04",
+          "name": "Lazy loading và pagination",
+          "description": "Không load toàn bộ dataset vào memory nếu không cần."
+        },
+        {
+          "id": "R-PRF-05",
+          "name": "Cache kết quả đắt tiền",
+          "description": "Cache computation nặng hoặc network call. Ghi rõ invalidation strategy."
+        }
+      ]
+    },
+    {
+      "id": "security",
+      "name": "Security Rules",
+      "priority": "mandatory_for_web_app_backend",
+      "mapped_criterion": "Security",
+      "goal": "Không có lỗ hổng bảo mật rõ ràng",
+      "rules": [
+        {
+          "id": "R-SEC-01",
+          "name": "Không hard-code secret",
+          "description": "API keys, passwords, tokens phải nằm trong environment variables.",
+          "bad_examples": [
+            "const apiKey = 'sk-1234567890abcdef';",
+            "const dbPassword = 'admin123';"
+          ],
+          "good_examples": [
+            "const apiKey = process.env.API_KEY;",
+            "const dbPassword = process.env.DB_PASSWORD;"
+          ]
+        },
+        {
+          "id": "R-SEC-02",
+          "name": "Validate tất cả input từ user",
+          "description": "Không tin tưởng bất kỳ input nào từ client. Dùng parameterized query và schema validation.",
+          "bad_examples": [
+            "const query = `SELECT * FROM users WHERE name = '${req.body.name}'`;"
+          ],
+          "good_examples": [
+            "db.query('SELECT * FROM users WHERE name = ?', [req.body.name]);",
+            "const { name } = z.object({ name: z.string().min(1).max(100) }).parse(req.body);"
+          ]
+        },
+        {
+          "id": "R-SEC-03",
+          "name": "Sanitize output để tránh XSS",
+          "description": "Không render user content thẳng vào innerHTML.",
+          "bad_examples": [
+            "element.innerHTML = userInput;"
+          ],
+          "good_examples": [
+            "element.textContent = userInput;",
+            "element.innerHTML = DOMPurify.sanitize(userInput);"
+          ]
+        },
+        {
+          "id": "R-SEC-04",
+          "name": "Không lộ thông tin nhạy cảm trong response/log",
+          "description": "Không trả password, token, stack trace ra client. Không log thông tin nhạy cảm.",
+          "bad_examples": [
+            "return res.json({ user, password: user.password });",
+            "console.log('User login:', { email, password });",
+            "return res.status(500).json({ error: err.stack });"
+          ]
+        },
+        {
+          "id": "R-SEC-05",
+          "name": "Authentication và authorization",
+          "description": "Verify token trước khi xử lý request. Không dựa vào client-side data.",
+          "rules": [
+            "Luôn verify token/session trước khi xử lý request",
+            "Không dựa vào client-side data cho authorization decision",
+            "Implement rate limiting cho authentication endpoints"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reliability",
+      "name": "Reliability Rules",
+      "priority": "mandatory",
+      "mapped_criterion": "Reliability",
+      "goal": "Hệ thống ổn định, không crash vì lỗi có thể xử lý",
+      "rules": [
+        {
+          "id": "R-REL-01",
+          "name": "Xử lý lỗi đầy đủ — không bỏ qua exception",
+          "description": "Mọi exception phải được log và xử lý đúng cách. Không silent fail.",
+          "bad_examples": [
+            "try { await save(); } catch (e) { /* bỏ qua */ }",
+            "promise.catch(() => {});"
+          ],
+          "good_examples": [
+            "try { await save(); } catch (error) { logger.error('Failed', { error }); throw new ServiceError('Could not save', { cause: error }); }"
+          ]
+        },
+        {
+          "id": "R-REL-02",
+          "name": "Fail fast với input không hợp lệ",
+          "description": "Validate input đầu hàm, throw error ngay nếu sai thay vì để lỗi lan truyền.",
+          "good_examples": [
+            "if (amount <= 0) throw new ValidationError(`Amount must be positive, got: ${amount}`);"
+          ]
+        },
+        {
+          "id": "R-REL-03",
+          "name": "Timeout cho external calls",
+          "description": "Mọi network call / external IO phải có timeout.",
+          "bad_examples": [
+            "const response = await fetch(apiUrl); // không timeout"
+          ],
+          "good_examples": [
+            "await axios.get(apiUrl, { timeout: 5000 });",
+            "const controller = new AbortController(); setTimeout(() => controller.abort(), 5000); await fetch(apiUrl, { signal: controller.signal });"
+          ],
+          "default_timeout_ms": 5000
+        },
+        {
+          "id": "R-REL-04",
+          "name": "Retry với exponential backoff cho transient errors",
+          "description": "Tự động retry khi gặp lỗi tạm thời (network timeout, rate limit).",
+          "retry_delays_ms": [200, 400, 800],
+          "max_retries": 3
+        },
+        {
+          "id": "R-REL-05",
+          "name": "Trạng thái hệ thống nhất quán",
+          "description": "Dùng transaction cho atomic operations. Rollback khi partial update thất bại."
+        },
+        {
+          "id": "R-REL-06",
+          "name": "Logging có ý nghĩa",
+          "description": "Log đủ context để debug, không log thừa hoặc thiếu.",
+          "bad_examples": [
+            "console.log('here');",
+            "console.log('error:', e);"
+          ],
+          "good_examples": [
+            "logger.info('Payment processed', { orderId, amount, userId });",
+            "logger.error('Payment failed', { orderId, amount, errorCode: e.code, errorMessage: e.message });"
+          ]
+        }
+      ]
+    }
+  ],
+  "pre_submit_checklist": {
+    "mandatory": [
+      { "code": "COR", "check": "Logic đúng với tất cả input hợp lệ" },
+      { "code": "COR", "check": "Xử lý null/undefined/empty" },
+      { "code": "QUA", "check": "Tên biến/hàm mô tả rõ nghĩa" },
+      { "code": "QUA", "check": "Không có magic number/string" },
+      { "code": "REL", "check": "Không bỏ qua exception" },
+      { "code": "REL", "check": "External calls có timeout" },
+      { "code": "SEC", "check": "Không hard-code secret (nếu có)" },
+      { "code": "SEC", "check": "Input được validate (nếu có user input)" }
+    ],
+    "important": [
+      { "code": "QUA", "check": "Không có hàm > 40 dòng" },
+      { "code": "QUA", "check": "Không có logic trùng lặp" },
+      { "code": "STR", "check": "Logic nằm đúng layer" },
+      { "code": "MNT", "check": "Config tách khỏi code cứng" },
+      { "code": "MNT", "check": "Không mutate tham số input" }
+    ],
+    "recommended": [
+      { "code": "TST", "check": "Có test cho happy path và edge cases" },
+      { "code": "DOC", "check": "Comment giải thích logic không rõ ràng" },
+      { "code": "PRF", "check": "Không có N+1 query hoặc nested loop thừa" }
+    ]
+  },
+  "references": {
+    "skill": "../../skill/score-code/score-code.json",
+    "workflow": "../../workflow/score-code/score-code.json",
+    "readme": "./README.md"
+  }
+}
