@@ -1,0 +1,260 @@
+{
+  "name": "split-ui-component",
+  "version": "1.0.0",
+  "description": "Skill phân loại UI component (Reusable vs Feature-specific), phát hiện SVG icon hardcode inline, phát hiện UI pattern lặp lại chưa được tách component, và đề xuất kế hoạch refactor cụ thể",
+  "type": "skill",
+  "component_classification": {
+    "reusable": {
+      "location": "src/components/ui/",
+      "also_includes": [
+        "src/components/*.tsx — component ở root như Sidebar.tsx, AppLogo.tsx cũng được xem là reusable dù đặt ở root thay vì ui/"
+      ],
+      "description": "Component không biết mình đang phục vụ feature nào. Có thể dùng ở bất kỳ đâu.",
+      "criteria": [
+        {
+          "id": "no-business-logic",
+          "name": "Không import business logic",
+          "description": "Không import store slice cụ thể của feature, service, hay hook feature-specific",
+          "pass_example": "CopyButton không import gì từ useAppStore hay translationService",
+          "fail_example": "SystemPromptDropdown import chatSystemPrompt từ useAppStore"
+        },
+        {
+          "id": "props-only",
+          "name": "Props-only interface",
+          "description": "Mọi data và action đều nhận qua props. Không tự đọc global state bên trong component.",
+          "pass_example": "ButtonGroup nhận value, onChange, options qua props",
+          "fail_example": "Component tự gọi useAppStore() và lấy translatedText bên trong"
+        },
+        {
+          "id": "domain-agnostic",
+          "name": "Domain-agnostic",
+          "description": "Tên component và logic không gắn chặt với domain của một feature cụ thể",
+          "pass_example": "ClearButton, DownloadButton, SpeakButton — tên generic",
+          "fail_example": "VoiceTranslatePanel — tên gắn chặt với voice + translate feature",
+          "note": "Tên có domain không tự động làm component thành feature-specific. ImageTranslateButton tên có 'Image' và 'Translate' nhưng vẫn props-only → reusable"
+        },
+        {
+          "id": "icon-from-registry",
+          "name": "Icon từ registry",
+          "description": "Tất cả icon phải import từ src/components/ui/icons/, không SVG inline trong JSX",
+          "pass_example": "import { CopyIcon } from './icons'",
+          "fail_example": "<svg><path d='M12 2L2 7l10 5 10-5-10-5z'/></svg> viết trực tiếp trong JSX"
+        },
+        {
+          "id": "label-via-props",
+          "name": "Label qua props",
+          "description": "Text hiển thị trên UI truyền vào qua props để support i18n, không hardcode string",
+          "pass_example": "<ClearButton label={t.translate_clear} />",
+          "fail_example": "<button>Clear</button> hoặc <button>Xóa</button> hardcode trong component"
+        }
+      ],
+      "rule": "Component reusable khi thỏa TẤT CẢ 5 tiêu chí. Không cần phải được dùng ở nhiều nơi — dùng 1 lần vẫn là reusable nếu pass 5 tiêu chí."
+    },
+    "feature_specific": {
+      "location": "src/components/{feature}/",
+      "known_features": ["translate", "chat", "sidebar", "live"],
+      "description": "Component gắn chặt với một feature cụ thể, chứa logic hoặc state của domain đó.",
+      "signals": [
+        {
+          "id": "feature-name-in-name",
+          "description": "Tên component đề cập rõ tên feature",
+          "examples": ["VoiceOverlay", "DragOverlay", "ImageAttachmentPreview", "SystemPromptDropdown"]
+        },
+        {
+          "id": "imports-feature-store",
+          "description": "Import store slice, service, hay hook của feature cụ thể",
+          "examples": ["import { useAppStore } from '../../store' và dùng chatSystemPrompt"]
+        },
+        {
+          "id": "domain-specific-layout",
+          "description": "Layout hoặc UX chỉ có ý nghĩa trong ngữ cảnh của feature đó",
+          "examples": ["MessageBubble chỉ có nghĩa trong chat bubbles", "VoiceOverlay chỉ hiển thị khi recording"]
+        },
+        {
+          "id": "complex-domain-state",
+          "description": "Quản lý state phức tạp gắn với domain: drag-and-drop, voice recording, image regions",
+          "examples": ["isDraggingOver, imageRegions, isVoiceActive"]
+        }
+      ],
+      "rule": "Feature-specific khi vi phạm ÍT NHẤT 1 dấu hiệu trên"
+    },
+    "inline_sub_component": {
+      "description": "Sub-component định nghĩa inline bên trong file page hoặc component khác",
+      "rules": [
+        "Dưới 30 dòng: có thể giữ inline trong cùng file",
+        "Từ 30 dòng trở lên: NÊN tách ra file riêng trong thư mục phù hợp",
+        "Nếu inline component pass 5 tiêu chí reusable: tách vào src/components/ui/",
+        "Nếu inline component là feature-specific: tách vào src/components/{feature}/"
+      ],
+      "current_violations": [
+        "MessageBubble trong ChatPage.tsx — 113 dòng, feature-specific → src/components/chat/MessageBubble.tsx",
+        "SidebarItem trong Sidebar.tsx — 28 dòng, gần đến ngưỡng nhưng reusable pattern"
+      ]
+    }
+  },
+  "detection_categories": [
+    {
+      "id": "inline-svg-icon",
+      "name": "SVG Icon Hardcode Inline",
+      "description": "Thẻ <svg> với <path>/<g>/<circle>/<line> viết trực tiếp trong JSX/TSX thay vì dùng icon registry",
+      "severity": "high",
+      "signals": [
+        "Thẻ <svg> xuất hiện trong file ngoài src/components/ui/icons/",
+        "Có thuộc tính viewBox kèm các thẻ con như <path>, <circle>, <g>, <line>, <polyline>",
+        "Giá trị path d='...' chứa tọa độ SVG viết thẳng trong JSX"
+      ],
+      "false_positive": [
+        "<svg> nằm BÊN TRONG src/components/ui/icons/ là hợp lệ — đây là icon definition",
+        "img src='*.svg' không phải inline SVG"
+      ],
+      "fix": {
+        "step1": "Xác định icon cần tạo/dùng",
+        "step2": "Kiểm tra src/components/ui/icons/ — xem index.ts để biết icon có sẵn không",
+        "step3a": "Nếu có → import từ src/components/ui/icons và thay thế SVG inline",
+        "step3b": "Nếu chưa có → tạo mới trong category file phù hợp (actions/navigation/media/status/auth/files), export qua index.ts",
+        "category_guide": {
+          "navigation": "chevron, arrow, gear, home, menu, close, history, chat-bubble, sidebar icons",
+          "actions": "copy, delete, download, upload, rewrite, translate, send, refresh, reuse, edit icons",
+          "media": "speaker, microphone, stop, spinner, camera, video icons",
+          "status": "warning, error, success, info, loading icons",
+          "auth": "lock, eye, user icons",
+          "files": "document, clipboard, folder icons"
+        }
+      },
+      "how_to_detect": "grep -rn '<svg' src/ --include='*.tsx' --include='*.ts' | grep -v 'src/components/ui/icons/'"
+    },
+    {
+      "id": "emoji-as-icon",
+      "name": "Emoji dùng làm Icon",
+      "description": "Ký tự emoji dùng để biểu thị trạng thái/action trong UI thay vì SVG icon",
+      "severity": "medium",
+      "signals": [
+        "Emoji như ⚠, ✅, ❌, 🔍, 📋 render trong JSX như một icon",
+        "Emoji trong span/div không có aria-label phù hợp",
+        "Emoji thay thế cho visual icon trong button hoặc status indicator"
+      ],
+      "false_positive": [
+        "Emoji trong provider badge (p?.emoji) là metadata hợp lệ, không phải UI icon",
+        "Emoji trong text content thực sự của người dùng"
+      ],
+      "fix": "Thay bằng SVG icon component phù hợp từ icon registry hoặc tạo mới"
+    },
+    {
+      "id": "ui-pattern-duplicate",
+      "name": "UI Pattern Duplicate không tách Component",
+      "description": "Đoạn JSX có cấu trúc gần giống nhau lặp lại trong cùng file hoặc nhiều file, chưa được abstract thành component",
+      "severity": "high",
+      "signals": [
+        "Cùng một button pattern (class, icon, onClick, title) xuất hiện 2+ lần",
+        "Cùng một card/container layout lặp lại",
+        "Cùng một empty-state pattern (icon + title + description) lặp nhiều lần",
+        "Inline button với className dài > 3 dòng xuất hiện 2+ lần"
+      ],
+      "fix": "Tách thành component mới, đặt vào ui/ nếu reusable, vào feature/ nếu feature-specific",
+      "example": {
+        "problem": "TranslatePage.tsx có 2 inline download buttons giống nhau cho editedImageUrl và imageRegions",
+        "solution": "Tách thành <DownloadButton onClick={handler} title={label} /> trong src/components/ui/DownloadButton.tsx"
+      }
+    },
+    {
+      "id": "misplaced-component",
+      "name": "Component đặt sai thư mục",
+      "description": "Component reusable đang nằm trong feature folder, hoặc feature-specific đang nằm trong ui/",
+      "severity": "medium",
+      "signals": [
+        "Component trong src/components/ui/ nhưng import store/service của feature",
+        "Component trong src/components/{feature}/ nhưng pass 5 tiêu chí reusable",
+        "Component trong src/pages/*.tsx nhưng >= 30 dòng và nên tách ra"
+      ],
+      "fix": "Di chuyển đến đúng thư mục theo tiêu chí phân loại"
+    },
+    {
+      "id": "large-inline-sub-component",
+      "name": "Sub-component Inline quá lớn",
+      "description": "Component được định nghĩa inline bên trong file page/component khác với kích thước >= 30 dòng",
+      "severity": "medium",
+      "signals": [
+        "function ComponentName() {} được định nghĩa bên trong hoặc cùng file với page component",
+        "Component lớn không có file riêng, khó test và khó reuse"
+      ],
+      "fix": "Tách ra file riêng trong thư mục phù hợp (ui/ hoặc feature/)",
+      "current_violations": [
+        "MessageBubble (113 dòng) inline trong ChatPage.tsx → src/components/chat/MessageBubble.tsx"
+      ]
+    }
+  ],
+  "icon_registry": {
+    "location": "src/components/ui/icons/",
+    "index": "src/components/ui/icons/index.ts",
+    "categories": {
+      "actions": "src/components/ui/icons/actions.tsx — copy, check, trash, arrow-right, download, upload, X, plus, refresh, send, pencil, image, translate, rewrite, layers, swap",
+      "navigation": "src/components/ui/icons/navigation.tsx — chevron-down, chevron-right, gear, auto-detect, arrow-up",
+      "media": "src/components/ui/icons/media.tsx — spinner, stop, speaker, microphone, monitor, subtitles",
+      "status": "src/components/ui/icons/status.tsx — alert-triangle, radio-checked, info-circle, lightbulb, check-circle, user",
+      "auth": "src/components/ui/icons/auth.tsx — lock, eye, eye-off",
+      "files": "src/components/ui/icons/files.tsx — document, clipboard"
+    },
+    "import_convention": "import { IconName } from '@/components/ui/icons' hoặc import { IconName } from '../components/ui/icons'",
+    "create_new_icon": {
+      "template": "export function XxxIcon({ className = 'w-4 h-4' }: IconProps) {\n  return (\n    <svg className={className} viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth={2} aria-hidden='true'>\n      {/* SVG paths */}\n    </svg>\n  )\n}",
+      "rules": [
+        "Thêm vào đúng category file dựa theo chức năng icon",
+        "Export từ category file, sẽ tự động available qua index.ts",
+        "Default className là 'w-4 h-4' cho icon thông thường",
+        "Thêm aria-hidden='true' vào thẻ svg",
+        "Đặt comment mô tả icon ở trên function"
+      ]
+    }
+  },
+  "severity_levels": [
+    {
+      "level": "high",
+      "label": "🟠 High",
+      "description": "Nên sửa sớm: SVG inline, UI pattern duplicate — ảnh hưởng maintainability và consistency"
+    },
+    {
+      "level": "medium",
+      "label": "🟡 Medium",
+      "description": "Cần refactor: component sai vị trí, sub-component quá lớn — tạo tech debt"
+    },
+    {
+      "level": "low",
+      "label": "🟢 Low",
+      "description": "Nên cải thiện: emoji dùng như icon, label hardcode nhỏ"
+    }
+  ],
+  "output_format": {
+    "per_issue": [
+      "Severity label",
+      "Loại vấn đề",
+      "File path + line number",
+      "Đoạn code vi phạm (trích dẫn)",
+      "Giải thích vì sao là vấn đề",
+      "Tên component/icon đề xuất + vị trí đặt",
+      "Code example sau khi sửa"
+    ],
+    "component_map": [
+      "Bảng phân loại toàn bộ component hiện có (Reusable / Feature-specific / Root-reusable)",
+      "Danh sách component cần tách mới",
+      "Danh sách icon cần thêm vào registry"
+    ],
+    "summary": [
+      "Tổng số vấn đề theo loại và severity",
+      "File bị ảnh hưởng nhiều nhất",
+      "Top 3 ưu tiên cần fix"
+    ]
+  },
+  "instructions": [
+    "Đọc toàn bộ src/components/ và src/pages/ trước khi báo cáo",
+    "Kiểm tra src/components/ui/icons/ để biết icon nào đã có trước khi kết luận cần tạo mới",
+    "Phân loại rõ: component nào reusable, component nào feature-specific, component nào cần tách",
+    "Với SVG inline: luôn trích dẫn đoạn SVG và đề xuất tên icon + category file",
+    "Với UI pattern duplicate: chỉ ra tất cả vị trí xuất hiện và đề xuất component mới",
+    "Không báo false positive: <svg> trong src/components/ui/icons/ là hợp lệ",
+    "Không báo false positive: emoji trong provider badge (metadata) là hợp lệ"
+  ],
+  "references": {
+    "workflow": "../../workflow/split-ui-component/split-ui-component.json",
+    "readme": "./README.md"
+  }
+}
