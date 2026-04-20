@@ -1,0 +1,264 @@
+{
+  "name": "fix-vscode-problems",
+  "version": "1.0.0",
+  "description": "Skill đọc danh sách PROBLEMS từ VS Code (errors, warnings, hints), tạo báo cáo phân loại, phân tích nguyên nhân gốc rễ và đề xuất fix cụ thể kèm code example",
+  "type": "skill",
+  "input_sources": [
+    {
+      "id": "user-paste",
+      "label": "User paste trực tiếp",
+      "description": "Người dùng copy nội dung từ tab PROBLEMS của VS Code và paste vào prompt"
+    },
+    {
+      "id": "cli-diagnostics",
+      "label": "CLI / tsc / eslint output",
+      "description": "Chạy lệnh tsc --noEmit, eslint ., biome check... và lấy output"
+    },
+    {
+      "id": "file-reference",
+      "label": "File + line reference",
+      "description": "Người dùng cung cấp file path và line number để AI đọc trực tiếp"
+    }
+  ],
+  "problem_taxonomy": [
+    {
+      "id": "typescript-error",
+      "name": "TypeScript Error",
+      "source": "ts",
+      "severity": "error",
+      "label": "🔴 Error",
+      "description": "Lỗi TypeScript compiler – code không thể build hoặc type không khớp",
+      "common_codes": [
+        { "code": "TS2304", "message": "Cannot find name", "cause": "Biến/type chưa được import hoặc khai báo" },
+        { "code": "TS2322", "message": "Type X is not assignable to type Y", "cause": "Sai kiểu dữ liệu – cần cast hoặc sửa type" },
+        { "code": "TS2345", "message": "Argument of type X is not assignable", "cause": "Truyền sai kiểu vào hàm" },
+        { "code": "TS7006", "message": "Parameter X implicitly has an 'any' type", "cause": "Thiếu type annotation" },
+        { "code": "TS2339", "message": "Property X does not exist on type Y", "cause": "Truy cập thuộc tính không tồn tại – cần thêm vào interface" },
+        { "code": "TS2307", "message": "Cannot find module", "cause": "Module không tồn tại hoặc thiếu type definitions" },
+        { "code": "TS18048", "message": "X is possibly undefined", "cause": "Cần optional chaining hoặc null check" }
+      ],
+      "fix_strategies": [
+        "Kiểm tra import và khai báo biến/type",
+        "Thêm type annotation hoặc generic parameter",
+        "Dùng optional chaining (?.) và nullish coalescing (??)",
+        "Cập nhật interface/type definition",
+        "Thêm type guard hoặc assertion"
+      ]
+    },
+    {
+      "id": "eslint-warning",
+      "name": "ESLint Warning",
+      "source": "eslint",
+      "severity": "warning",
+      "label": "🟠 Warning",
+      "description": "Vi phạm rule ESLint – code chạy được nhưng không đạt chuẩn",
+      "common_rules": [
+        { "rule": "no-unused-vars", "cause": "Biến/import khai báo nhưng không dùng" },
+        { "rule": "react-hooks/exhaustive-deps", "cause": "Dependency array của useEffect/useCallback thiếu deps" },
+        { "rule": "no-console", "cause": "Console.log còn sót trong production code" },
+        { "rule": "prefer-const", "cause": "Dùng let nhưng không reassign" },
+        { "rule": "@typescript-eslint/no-explicit-any", "cause": "Dùng type any thay vì type cụ thể" }
+      ],
+      "fix_strategies": [
+        "Xóa unused import/variable",
+        "Thêm đủ dependencies vào useEffect/useCallback",
+        "Thay console.log bằng proper logging",
+        "Đổi let sang const khi không reassign",
+        "Thay any bằng type cụ thể"
+      ]
+    },
+    {
+      "id": "github-actions-warning",
+      "name": "GitHub Actions / YAML Warning",
+      "source": "github-actions",
+      "severity": "warning",
+      "label": "🟡 Warning",
+      "description": "Cảnh báo trong GitHub Actions workflow YAML – thường liên quan đến context access và secrets",
+      "common_issues": [
+        {
+          "message": "Context access might be invalid: <SECRET_NAME>",
+          "cause": "Secret hoặc variable được dùng trong workflow nhưng chưa được khai báo trong repo Settings → Secrets and variables",
+          "fix": "Vào GitHub repo → Settings → Secrets and variables → Actions → New repository secret, thêm secret với đúng tên"
+        },
+        {
+          "message": "Property is not available",
+          "cause": "Truy cập context property không tồn tại trong event hiện tại (ví dụ: github.event.pull_request trong push event)",
+          "fix": "Kiểm tra event trigger và đảm bảo context property tồn tại với event đó"
+        },
+        {
+          "message": "Unrecognized named-value",
+          "cause": "Dùng expression ${{ xxx }} nhưng xxx không phải context hợp lệ",
+          "fix": "Kiểm tra lại tên context: github, env, secrets, vars, needs, steps, inputs..."
+        },
+        {
+          "message": "Step is missing a 'name'",
+          "cause": "Step trong workflow không có field name → khó debug",
+          "fix": "Thêm name: field cho mỗi step"
+        }
+      ],
+      "fix_strategies": [
+        "Kiểm tra repo Secrets và Variables (Settings → Secrets and variables → Actions)",
+        "Verify tên secret khớp chính xác với workflow expression ${{ secrets.SECRET_NAME }}",
+        "Kiểm tra event trigger phù hợp với context được truy cập",
+        "Dùng if: ${{ secrets.SECRET_NAME != '' }} để guard optional secrets",
+        "Tham khảo GitHub Actions context documentation"
+      ]
+    },
+    {
+      "id": "biome-lint",
+      "name": "Biome Lint",
+      "source": "biome",
+      "severity": "warning",
+      "label": "🟡 Biome",
+      "description": "Vi phạm Biome formatter/linter rules",
+      "common_rules": [
+        { "rule": "noUnusedVariables", "cause": "Biến không dùng" },
+        { "rule": "noExplicitAny", "cause": "Dùng any type" },
+        { "rule": "useConst", "cause": "Nên dùng const thay let" },
+        { "rule": "noConsole", "cause": "Console statement còn trong code" }
+      ],
+      "fix_strategies": [
+        "Chạy biome check --apply để auto-fix",
+        "Xem biome.json để biết rules đang bật",
+        "Tắt rule theo từng dòng nếu có lý do chính đáng: // biome-ignore"
+      ]
+    },
+    {
+      "id": "import-error",
+      "name": "Import / Module Error",
+      "source": "ts",
+      "severity": "error",
+      "label": "🔴 Import Error",
+      "description": "Lỗi liên quan đến import/export – module không tìm thấy hoặc export không đúng",
+      "common_causes": [
+        "File bị xóa hoặc đổi tên nhưng import chưa cập nhật",
+        "Typo trong đường dẫn import",
+        "Package chưa được install (thiếu trong node_modules)",
+        "Named export không tồn tại trong module",
+        "Circular dependency"
+      ],
+      "fix_strategies": [
+        "Kiểm tra file tồn tại và đường dẫn đúng",
+        "Chạy npm install nếu thiếu package",
+        "Kiểm tra package.json và node_modules",
+        "Dùng IDE auto-import để resolve đúng path"
+      ]
+    },
+    {
+      "id": "react-error",
+      "name": "React / JSX Error",
+      "source": "ts",
+      "severity": "error",
+      "label": "🔴 React Error",
+      "description": "Lỗi đặc thù với React components và JSX",
+      "common_issues": [
+        { "message": "JSX element type does not have any construct or call signatures", "cause": "Component không được export default hoặc sai type" },
+        { "message": "Property X does not exist on type IntrinsicElements", "cause": "Custom HTML attribute không được khai báo" },
+        { "message": "React Hook X cannot be called conditionally", "cause": "Vi phạm Rules of Hooks" }
+      ],
+      "fix_strategies": [
+        "Kiểm tra component export và type annotation",
+        "Thêm interface cho custom props",
+        "Đảm bảo hooks không được gọi có điều kiện"
+      ]
+    }
+  ],
+  "root_cause_analysis": {
+    "description": "Phương pháp phân tích nguyên nhân gốc rễ của từng vấn đề",
+    "steps": [
+      {
+        "step": 1,
+        "name": "Đọc message đầy đủ",
+        "action": "Đọc toàn bộ error/warning message, không bỏ qua phần sau dấu ':'",
+        "note": "Message thường chứa context cụ thể (tên biến, tên file, line number)"
+      },
+      {
+        "step": 2,
+        "name": "Mở file tại vị trí được chỉ định",
+        "action": "Đọc file tại file_path:line_number, xem ±10 dòng xung quanh để hiểu context",
+        "note": "Đừng chỉ nhìn vào dòng lỗi – nguyên nhân thường nằm ở dòng trước đó"
+      },
+      {
+        "step": 3,
+        "name": "Tra cứu definition",
+        "action": "Tìm definition của type/variable/function bị lỗi – có thể ở file khác",
+        "tools": ["search_files", "read_file", "list_code_definition_names"]
+      },
+      {
+        "step": 4,
+        "name": "Kiểm tra context xung quanh",
+        "action": "Hiểu tại sao code được viết như vậy trước khi sửa – tránh sửa sai context",
+        "checks": [
+          "Import statements ở đầu file",
+          "Interface/type definitions liên quan",
+          "Config files (tsconfig.json, biome.json, .eslintrc)",
+          "GitHub repo settings (với GitHub Actions issues)"
+        ]
+      },
+      {
+        "step": 5,
+        "name": "Xác định root cause",
+        "action": "Phân loại nguyên nhân: code logic, thiếu config, thiếu setup, version mismatch, v.v.",
+        "categories": [
+          "Code logic: lỗi trong logic của developer",
+          "Missing config: thiếu cấu hình ở môi trường (secret, env var, tsconfig option)",
+          "Missing setup: cần action bên ngoài code (tạo secret trên GitHub, install package)",
+          "Type mismatch: sự không tương thích giữa types",
+          "Deprecated API: dùng API cũ đã bị removed/changed"
+        ]
+      }
+    ]
+  },
+  "fix_guidelines": {
+    "principles": [
+      "Fix nguyên nhân gốc rễ, không phải triệu chứng (không dùng @ts-ignore hay eslint-disable nếu có thể tránh)",
+      "Một fix không nên tạo ra vấn đề mới ở chỗ khác",
+      "Với GitHub Actions: một số 'problems' cần fix ở settings repo, không phải trong code",
+      "Với TypeScript errors: luôn giữ type safety, không cast sang any để ẩn lỗi",
+      "Verify fix bằng cách kiểm tra lại sau khi sửa"
+    ],
+    "escalation": [
+      {
+        "condition": "Problem yêu cầu thay đổi cấu trúc lớn",
+        "action": "Báo cáo rõ phạm vi ảnh hưởng trước khi fix"
+      },
+      {
+        "condition": "Problem liên quan đến missing GitHub Secrets",
+        "action": "Chỉ báo cáo và hướng dẫn – AI không thể tạo secret thay developer"
+      },
+      {
+        "condition": "Problem có nhiều cách fix",
+        "action": "Liệt kê các lựa chọn kèm trade-off để developer quyết định"
+      }
+    ]
+  },
+  "output_format": {
+    "per_problem": [
+      "Severity label (🔴/🟠/🟡/🟢)",
+      "Problem type (TSError / ESLint / GitHub Actions / Biome)",
+      "File path + line:col",
+      "Message gốc từ VS Code",
+      "Root cause: giải thích TẠI SAO xảy ra lỗi này",
+      "Fix action: hành động cụ thể cần làm",
+      "Code example trước/sau (nếu applicable)",
+      "Requires manual action: đánh dấu nếu cần thao tác ngoài code editor"
+    ],
+    "summary": [
+      "Tổng số problems theo severity",
+      "Phân nhóm theo file bị ảnh hưởng",
+      "Phân biệt: fixable in code vs requires external action",
+      "Top priorities cần fix trước"
+    ]
+  },
+  "instructions": [
+    "Luôn đọc file bị ảnh hưởng trước khi đề xuất fix – đừng fix mù",
+    "Phân biệt rõ: 'fix trong code' vs 'fix ở settings/config bên ngoài'",
+    "Với GitHub Actions context warnings: kiểm tra xem secret đã được tạo chưa hay chưa được setup",
+    "Không suppress errors bằng ignore comment trừ khi có lý do rõ ràng",
+    "Sau khi fix, liệt kê các bước verify để đảm bảo fix đúng"
+  ],
+  "references": {
+    "workflow": "../../workflow/fix-vscode-problems/fix-vscode-problems.json",
+    "readme": "./README.md"
+  }
+}

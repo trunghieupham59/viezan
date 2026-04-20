@@ -1,0 +1,259 @@
+{
+  "name": "fix-vscode-problems",
+  "version": "1.0.0",
+  "description": "Workflow đọc PROBLEMS từ VS Code, tạo báo cáo phân loại, phân tích nguyên nhân gốc rễ và apply fix trực tiếp vào code hoặc hướng dẫn fix ở settings bên ngoài",
+  "type": "workflow",
+  "trigger": "Khi có danh sách PROBLEMS từ VS Code (user paste, screenshot, hoặc yêu cầu quét diagnostics)",
+  "steps": [
+    {
+      "id": "step-1-collect",
+      "name": "Thu thập danh sách PROBLEMS",
+      "description": "Lấy toàn bộ danh sách problems từ VS Code tab PROBLEMS",
+      "action": "Thu thập input từ một trong các nguồn sau",
+      "sources": [
+        {
+          "type": "user-paste",
+          "instruction": "Yêu cầu user mở VS Code → View → Problems (Ctrl+Shift+M) → copy toàn bộ nội dung paste vào"
+        },
+        {
+          "type": "cli-run",
+          "instruction": "Chạy lệnh để lấy diagnostics",
+          "commands": [
+            "npx tsc --noEmit 2>&1",
+            "npx eslint . --format compact 2>&1",
+            "npx biome check . 2>&1"
+          ]
+        },
+        {
+          "type": "screenshot-or-description",
+          "instruction": "Đọc từ screenshot hoặc mô tả của user"
+        }
+      ],
+      "output": "Danh sách raw problems với: file_path, line, col, severity, message, source"
+    },
+    {
+      "id": "step-2-parse",
+      "name": "Parse và phân loại PROBLEMS",
+      "description": "Đọc từng problem và phân loại theo taxonomy trong skill fix-vscode-problems",
+      "skill": "fix-vscode-problems",
+      "action": "Với mỗi problem: xác định source (ts/eslint/github-actions/biome), severity, loại vấn đề",
+      "parse_format": {
+        "vs_code_format": "<severity> <message> [<file_path> Ln <line>, Col <col>]",
+        "example": "⚠ Context access might be invalid: APPLE_TEAM_ID [.github/workflows/release.yml Ln 200, Col 34]"
+      },
+      "classify_by": [
+        "Source: TypeScript / ESLint / GitHub Actions / Biome / Other",
+        "Severity: Error (🔴) / Warning (🟠) / Hint (🟡) / Info (🟢)",
+        "Fixable in code: Yes / No (requires external action)"
+      ],
+      "output": "Danh sách problems đã được phân loại với severity label và type"
+    },
+    {
+      "id": "step-3-read-files",
+      "name": "Đọc file bị ảnh hưởng",
+      "description": "Mở và đọc từng file được liệt kê trong problems để hiểu context trước khi phân tích",
+      "action": "Đọc file tại đường dẫn được chỉ định, tập trung vào vùng ±15 dòng xung quanh vị trí lỗi",
+      "rules": [
+        "Đọc TẤT CẢ file bị ảnh hưởng trước khi bắt đầu phân tích bất kỳ problem nào",
+        "Với YAML workflow: đọc toàn bộ file để hiểu cấu trúc jobs và steps",
+        "Với TypeScript: đọc cả file import liên quan nếu cần",
+        "Không đề xuất fix khi chưa đọc file"
+      ],
+      "output": "Nội dung file với context xung quanh từng vị trí lỗi"
+    },
+    {
+      "id": "step-4-root-cause-analysis",
+      "name": "Phân tích nguyên nhân gốc rễ",
+      "description": "Áp dụng skill fix-vscode-problems để phân tích từng problem",
+      "skill": "fix-vscode-problems",
+      "skill_section": "root_cause_analysis",
+      "action": "Với mỗi problem: đọc message → hiểu context code → tra cứu definition → xác định root cause category",
+      "root_cause_categories": [
+        {
+          "id": "code-logic",
+          "label": "Code Logic Error",
+          "description": "Lỗi do developer viết sai logic hoặc sai type",
+          "fix_location": "Sửa trực tiếp trong code"
+        },
+        {
+          "id": "missing-config",
+          "label": "Missing Configuration",
+          "description": "Thiếu cấu hình môi trường: secret, env var, tsconfig option",
+          "fix_location": "Thêm config ở file cấu hình hoặc settings repository"
+        },
+        {
+          "id": "missing-setup",
+          "label": "Missing External Setup",
+          "description": "Cần thao tác bên ngoài code editor: tạo GitHub Secret, install package",
+          "fix_location": "GitHub Settings / Terminal / External service"
+        },
+        {
+          "id": "type-mismatch",
+          "label": "Type Mismatch",
+          "description": "Types không tương thích giữa các phần của code",
+          "fix_location": "Sửa type definitions hoặc cập nhật usage"
+        },
+        {
+          "id": "deprecated-api",
+          "label": "Deprecated / Changed API",
+          "description": "Dùng API đã bị thay thế hoặc signature thay đổi theo version",
+          "fix_location": "Cập nhật code theo API mới"
+        }
+      ],
+      "output": "Danh sách problems kèm root cause category và explanation"
+    },
+    {
+      "id": "step-5-generate-report",
+      "name": "Tạo báo cáo chi tiết",
+      "description": "Xuất báo cáo đầy đủ theo format chuẩn của skill fix-vscode-problems",
+      "action": "Tạo báo cáo Markdown với format: tổng quan → từng problem chi tiết → summary table → action plan",
+      "report_sections": [
+        {
+          "section": "## Tổng quan",
+          "content": "Số lượng problems, file bị ảnh hưởng, tổng severity breakdown"
+        },
+        {
+          "section": "## Chi tiết từng Problem",
+          "content": "Mỗi problem: severity, type, file:line, message gốc, root cause, fix action, code example"
+        },
+        {
+          "section": "## Bảng tóm tắt",
+          "content": "Summary table: type × severity × count, fixable vs requires-manual-action"
+        },
+        {
+          "section": "## Kế hoạch Fix",
+          "content": "Chia thành 2 nhóm: (1) Fix trong code – AI thực hiện, (2) Fix bên ngoài – developer thực hiện"
+        }
+      ],
+      "output": "File markdown báo cáo hoàn chỉnh"
+    },
+    {
+      "id": "step-6-save-report",
+      "name": "Lưu báo cáo",
+      "description": "Lưu báo cáo vào thư mục viezanagent/report/",
+      "action": "Tạo file markdown với tên theo convention timestamp",
+      "save_path": "viezanagent/report/",
+      "filename_pattern": "vscode-problems-report-{YYYYMMDD}-{HHmm}.md",
+      "example_filename": "vscode-problems-report-20260420-1624.md"
+    },
+    {
+      "id": "step-7-fix-in-code",
+      "name": "Apply fix vào code",
+      "description": "Thực hiện fix trực tiếp cho các problems thuộc loại 'fixable in code'",
+      "action": "Với từng problem đã phân tích có fix_location = 'code': mở file → áp dụng thay đổi → verify",
+      "fix_order": [
+        "1. Fix errors trước warnings",
+        "2. Fix problems ảnh hưởng nhiều file trước",
+        "3. Fix problems đơn giản (typo, missing import) trước problems phức tạp",
+        "4. Skip các problems cần external action – ghi vào action plan cho developer"
+      ],
+      "fix_rules": [
+        "Không dùng @ts-ignore, // eslint-disable, // biome-ignore trừ khi thực sự cần thiết",
+        "Mỗi fix phải đi kèm explanation ngắn",
+        "Không sửa logic ngoài phạm vi của problem được báo",
+        "Verify sau khi sửa bằng cách re-read file"
+      ],
+      "output": "Danh sách files đã được sửa kèm mô tả thay đổi"
+    },
+    {
+      "id": "step-8-manual-action-guide",
+      "name": "Hướng dẫn fix bên ngoài code",
+      "description": "Tạo hướng dẫn step-by-step cho các problems cần developer tự fix",
+      "action": "Với mỗi problem có fix_location != 'code': viết hướng dẫn chi tiết từng bước",
+      "common_guides": [
+        {
+          "problem_type": "GitHub Actions: Context access might be invalid",
+          "steps": [
+            "1. Mở GitHub repository trên trình duyệt",
+            "2. Vào Settings → Secrets and variables → Actions",
+            "3. Click 'New repository secret'",
+            "4. Nhập Name: <SECRET_NAME> (đúng với tên trong workflow)",
+            "5. Nhập Value: <secret_value>",
+            "6. Click 'Add secret'",
+            "7. Re-run workflow để kiểm tra warning biến mất"
+          ]
+        },
+        {
+          "problem_type": "Missing npm package",
+          "steps": [
+            "1. Chạy: npm install <package-name>",
+            "2. Hoặc: npm install --save-dev <package-name> (nếu là devDependency)",
+            "3. Commit package-lock.json và package.json sau khi install"
+          ]
+        }
+      ],
+      "output": "File fix-prompts markdown hoặc section trong báo cáo"
+    },
+    {
+      "id": "step-9-verify",
+      "name": "Verify kết quả",
+      "description": "Kiểm tra lại sau khi fix để đảm bảo problems đã được giải quyết",
+      "action": "Re-run diagnostics và compare với danh sách problems ban đầu",
+      "verify_commands": [
+        "npx tsc --noEmit 2>&1 | head -50",
+        "npx biome check . 2>&1 | tail -20"
+      ],
+      "checklist": [
+        "Số lượng problems giảm sau khi fix",
+        "Không có problems mới xuất hiện do fix",
+        "Code vẫn build thành công",
+        "Problems cần manual action đã được ghi rõ trong action plan"
+      ]
+    }
+  ],
+  "decision_tree": {
+    "description": "Luồng quyết định khi gặp một problem",
+    "nodes": [
+      {
+        "question": "Problem có file path và line number không?",
+        "yes": "Đọc file trước khi phân tích",
+        "no": "Phân tích từ message thuần túy"
+      },
+      {
+        "question": "Problem có thể fix bằng cách sửa code không?",
+        "yes": "Apply fix trực tiếp (Step 7)",
+        "no": "Tạo hướng dẫn manual action (Step 8)"
+      },
+      {
+        "question": "Problem là GitHub Actions 'Context access might be invalid'?",
+        "yes": "Root cause = Missing GitHub Secret → hướng dẫn tạo secret trong repo Settings",
+        "no": "Tiếp tục phân tích theo taxonomy"
+      },
+      {
+        "question": "Fix có thể gây breaking change không?",
+        "yes": "Báo cáo phạm vi ảnh hưởng, chờ xác nhận developer",
+        "no": "Apply fix và ghi chú"
+      }
+    ]
+  },
+  "examples": [
+    {
+      "problem": "Context access might be invalid: APPLE_TEAM_ID [.github/workflows/release.yml Ln 200, Col 34]",
+      "classification": "github-actions-warning",
+      "severity": "🟡 Warning (Hint)",
+      "root_cause": "Missing GitHub Secret: APPLE_TEAM_ID chưa được khai báo trong repo Settings → Secrets and variables → Actions",
+      "fix_location": "external",
+      "fix_action": "Vào GitHub repo Settings → Secrets and variables → Actions → New repository secret → Name: APPLE_TEAM_ID → Value: <apple_team_id_value>"
+    },
+    {
+      "problem": "Context access might be invalid: SIGNPATH_API_TOKEN [.github/workflows/release.yml Ln 298, Col 31]",
+      "classification": "github-actions-warning",
+      "severity": "🟠 Warning",
+      "root_cause": "Missing GitHub Secret: SIGNPATH_API_TOKEN chưa được khai báo. Secret này dùng để ký code với SignPath service.",
+      "fix_location": "external",
+      "fix_action": "Vào GitHub repo Settings → Secrets and variables → Actions → New repository secret → Name: SIGNPATH_API_TOKEN → Value: <signpath_api_token>"
+    }
+  ],
+  "false_positive_guide": {
+    "NOT_a_real_problem": [
+      "GitHub Actions warning cho secret chỉ dùng trong optional job (có thể giữ với guard: if: secrets.X != '')",
+      "TypeScript error trong *.d.ts generated file – không cần sửa thủ công",
+      "ESLint warning trong file được eslintignore",
+      "Biome warning trong vendor/generated code"
+    ]
+  },
+  "references": {
+    "skill": "../../skill/fix-vscode-problems/fix-vscode-problems.json",
+    "readme": "./README.md"
+  }
+}
