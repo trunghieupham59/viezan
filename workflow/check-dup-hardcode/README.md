@@ -1,11 +1,58 @@
-# Workflow: check-dup-hardcode
+# Workflow: check-dup-hardcode `v2.0.0`
 
-Workflow kiểm tra **duplicate code** và **hardcode** trong source code, tạo báo cáo có phân loại mức độ nghiêm trọng và kế hoạch refactor cụ thể.
+Workflow kiểm tra **duplicate code** và **hardcode** trong source code theo kiến trúc **Phễu lọc 3 tầng**, tạo báo cáo có phân loại mức độ nghiêm trọng và kế hoạch refactor cụ thể — với mức tiêu thụ token AI thấp nhất có thể.
+
+---
+
+## Kiến trúc: Phễu lọc 3 tầng (Token-Optimal Pipeline)
+
+> **Nguyên tắc cốt lõi:** Tuyệt đối không gửi toàn bộ source code cho AI. Dùng công cụ tĩnh để lọc trước, chỉ đưa snippet hẹp vào LLM.
+
+```mermaid
+graph TD
+    A[Mã nguồn / Pull Request] --> B[Tầng 1: Quét tĩnh SAST - 0 Token\ngrep / semgrep / trufflehog]
+    B --> C{Có dòng nghi ngờ?}
+    C -- Không --> D[✅ Pass: Code sạch]
+    C -- Có --> E[Tầng 2: Trích xuất snippet hẹp\n±5 dòng ngữ cảnh + minify]
+    E --> F[Tầng 3: LLM Adjudicator\nGửi snippet nhỏ + prompt JSON]
+    F --> G[Kết quả: is_hardcoded true/false\n+ fix_suggestion ≤15 từ]
+    G --> H[Tạo báo cáo phân loại\n+ ưu tiên hóa findings]
+    H --> I[💾 Lưu viezanagent/fix/dup-hardcode-report-*.md]
+```
+
+| Tầng | Tên | Token cost | Công cụ |
+|------|-----|-----------|---------|
+| 1 | Static Pre-filter | **0 token** | `grep`, `semgrep`, `trufflehog`, `eslint` |
+| 2 | Context Extraction | Minimal | Line-range ±5, AST parser, minification |
+| 3 | LLM Adjudicator | Low | AI với JSON-only output prompt |
+
+---
 
 ## Mô tả
 
-Workflow này hướng dẫn AI agent thực hiện toàn bộ quy trình phân tích từ đầu đến cuối:
-1. Xác định phạm vi → Đọc code → Phát hiện duplicate → Phát hiện hardcode → Loại false positive → Ưu tiên hóa → Tạo báo cáo → Lưu file
+Workflow hướng dẫn AI agent thực hiện toàn bộ quy trình phân tích từ đầu đến cuối:
+
+```
+Step 0: Pre-filter tĩnh (grep scan, 0 token) → suspected_lines
+   ↓
+Step 1: Xác định phạm vi kiểm tra
+   ↓
+Step 2: Đọc snippet ±5 dòng từ suspected_lines (không đọc toàn file)
+   ↓
+Step 3: Phát hiện Duplicate Code (dùng skill check-dup-hardcode)
+   ↓
+Step 4: LLM Adjudicator xác minh Hardcode (dùng skill check-dup-hardcode)
+   ↓
+Step 5: Loại bỏ trùng lặp & false positive trong findings
+   ↓
+Step 6: Ưu tiên hóa vấn đề theo severity
+   ↓
+Step 7: Tạo báo cáo đầy đủ
+   ↓
+Step 8: Lưu báo cáo vào viezanagent/fix/
+```
+
+---
 
 ## Cách kích hoạt
 
@@ -22,24 +69,72 @@ Hãy dùng workflow check-dup-hardcode để kiểm tra hardcode trong toàn b�
 
 ---
 
-## Các bước trong Workflow
+## Tầng 1: Lệnh grep Pre-filter (Zero Token)
 
+Chạy các lệnh này trước — **không tốn token** — để khoanh vùng dòng code nghi ngờ:
+
+```bash
+# 🔴 Critical: API Key / Secret / Credential
+grep -rn --include='*.ts' --include='*.tsx' --include='*.js' \
+  -E "(api[_-]?key|secret|password|token|credential)\s*=\s*['\"][^'\"]{8,}" \
+  src/ electron/
+
+# 🟡 Medium: Hardcode URL / Endpoint
+grep -rn --include='*.ts' --include='*.tsx' \
+  -E "['\"](https?://[^'\"]+)['\"]" \
+  src/ electron/
+
+# 🟠 High: Magic Number (timeout, port, limit, size)
+grep -rn --include='*.ts' --include='*.tsx' \
+  -E "(setTimeout|setInterval|port|limit|size|delay)\s*[,(]\s*[0-9]{3,}" \
+  src/ electron/
+
+# 🟠 High: SVG inline ngoài ui/icons
+grep -rn --include='*.tsx' '<svg' src/ | grep -v 'ui/icons/'
+
+# 🟠 High: Icon library import vi phạm
+grep -rn --include='*.ts' --include='*.tsx' \
+  -E "from '(lucide-react|react-icons|@heroicons|@phosphor-icons)" \
+  src/ | grep -v 'ui/icons/'
+
+# 🟠 High: Magic String phổ biến
+grep -rn --include='*.ts' --include='*.tsx' \
+  -E "===\s*['\"][a-zA-Z_-]{3,}['\"]" \
+  src/ electron/
+
+# 🟢 Low: Hardcode color / hex
+grep -rn --include='*.ts' --include='*.tsx' --include='*.css' \
+  -E "#[0-9a-fA-F]{3,6}" src/
 ```
-Step 1: Xác định phạm vi kiểm tra
-   ↓
-Step 2: Đọc toàn bộ source code (không phân tích từng file riêng)
-   ↓
-Step 3: Phát hiện Duplicate Code (dùng skill check-dup-hardcode)
-   ↓
-Step 4: Phát hiện Hardcode (dùng skill check-dup-hardcode)
-   ↓
-Step 5: Loại bỏ trùng lặp & false positive trong findings
-   ↓
-Step 6: Ưu tiên hóa vấn đề theo severity
-   ↓
-Step 7: Tạo báo cáo đầy đủ
-   ↓
-Step 8: Lưu báo cáo vào lotus-agent/fix/
+
+---
+
+## Tầng 3: LLM Adjudicator — Prompt Template
+
+Sau khi có snippet ±5 dòng từ Tầng 2, gửi cho LLM với prompt sau:
+
+**System Prompt:**
+```
+Bạn là công cụ kiểm tra bảo mật. Đánh giá đoạn mã JSON dưới đây. 
+Trả về đúng định dạng JSON có khóa `is_hardcoded` (true/false) và `fix_suggestion` (tối đa 15 từ). 
+Không giải thích thêm.
+```
+
+**User Payload:**
+```json
+{
+  "file": "src/services/chatService.ts",
+  "lines": "42-48",
+  "code": "const apiKey = 'sk-abc123xyz789';\nconst response = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });"
+}
+```
+
+**Expected Response:**
+```json
+{
+  "is_hardcoded": true,
+  "fix_suggestion": "Move to import.meta.env.VITE_OPENAI_API_KEY"
+}
 ```
 
 ---
@@ -61,7 +156,7 @@ Workflow này gọi **skill `check-dup-hardcode`** ở 2 bước:
 | Bước | Skill Category | Mục tiêu |
 |------|---------------|----------|
 | Step 3 | `duplicate-code` | Tìm 4 loại clone |
-| Step 4 | `hardcode` | Tìm 5 loại hardcode |
+| Step 4 | `hardcode` | Xác minh findings từ pre-filter + phân tích ngữ nghĩa |
 
 ---
 
@@ -85,6 +180,7 @@ Workflow này gọi **skill `check-dup-hardcode`** ở 2 bước:
 | Magic String | 🟠 High | `if (status === 'pending')` |
 | Hardcode Icon | 🟠 High | `<svg><path d="M12 2..."/></svg>` inline trong JSX |
 | Hardcode Config | 🟡 Medium | `app.listen(3000)` |
+| Hardcode URL | 🟡 Medium | `fetch('https://api.example.com/v1/...')` |
 | Hardcode UI Value | 🟢 Low | `color: '#FF5733'` |
 
 ---
@@ -131,14 +227,14 @@ Trong Step 4, ngoài các hardcode thông thường, bắt buộc kiểm tra th�
 ### [🔴 Critical] Hardcode Credential
 **File:** `src/services/chatService.ts:42`
 **Code:**
-\```ts
+```ts
 const apiKey = "sk-abc123xyz789"
-\```
+```
 **Vấn đề:** API key bị commit thẳng vào source code, nguy cơ lộ secret khi push lên git public
 **Sửa:**
-\```ts
+```ts
 const apiKey = import.meta.env.VITE_OPENAI_API_KEY
-\```
+```
 
 ---
 
@@ -146,11 +242,11 @@ const apiKey = import.meta.env.VITE_OPENAI_API_KEY
 **File 1:** `electron/ipc/translate.ts:28–45`
 **File 2:** `electron/ipc/imageTranslate.ts:31–48`
 **Code (translate.ts):**
-\```ts
+```ts
 const headers = { 'Content-Type': 'application/json', ... }
 const response = await fetch(url, { method: 'POST', headers, body })
 if (!response.ok) throw new Error(...)
-\```
+```
 **Vấn đề:** Logic gọi API lặp lại 100% ở hai file
 **Sửa:** Trích xuất thành `src/utils/apiClient.ts`
 ```
@@ -169,9 +265,10 @@ if (!response.ok) throw new Error(...)
 | Magic Number        | 0          | 4      | 0        | 0     | 4    |
 | Magic String        | 0          | 5      | 0        | 0     | 5    |
 | Hardcode Config     | 0          | 0      | 3        | 0     | 3    |
+| Hardcode URL        | 0          | 0      | 5        | 0     | 5    |
 | Hardcode UI         | 0          | 0      | 0        | 8     | 8    |
 | Hardcode Icon       | 0          | 5      | 0        | 0     | 5    |
-| **Tổng**            | **2**      | **17** | **5**    | **8** | **32** |
+| **Tổng**            | **2**      | **17** | **10**   | **8** | **37** |
 
 **File bị ảnh hưởng nhiều nhất:** `src/services/translationService.ts` (7 vấn đề)
 
@@ -185,3 +282,53 @@ if (!response.ok) throw new Error(...)
 
 ## Lưu báo cáo
 
+```
+viezanagent/fix/dup-hardcode-report-{YYYYMMDD}-{HHmm}.md
+```
+
+Ví dụ: `viezanagent/fix/dup-hardcode-report-20260426-0305.md`
+
+---
+
+## Tích hợp CI/CD
+
+Tạo file `.github/workflows/hardcode-scan.yml` để kích hoạt workflow tự động trên mỗi Pull Request:
+
+```yaml
+name: Hardcode Scan
+on: pull_request
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Layer 1 - Static pre-filter (0 token)
+        run: |
+          grep -rn --include='*.ts' --include='*.tsx' \
+            -E "(api[_-]?key|secret|password)\s*=\s*['\"][^'\"]{8,}" \
+            src/ electron/ > suspected_credentials.txt || true
+          grep -rn --include='*.tsx' '<svg' src/ | grep -v 'ui/icons/' \
+            >> suspected_icons.txt || true
+      
+      - name: Layer 2 - Extract snippets
+        run: |
+          # Script: đọc suspected_*.txt, extract ±5 dòng, minify
+          python3 scripts/extract-snippets.py
+      
+      - name: Layer 3 - LLM Adjudicator
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          # Gửi snippets tới LLM, nhận JSON {is_hardcoded, fix_suggestion}
+          python3 scripts/llm-adjudicator.py
+      
+      - name: Comment violations on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Parse kết quả và comment vào PR nếu is_hardcoded: true
+```
+
+> **Gợi ý bảo mật:** Dùng Local LLM (Ollama + LLaMA 3.2) trong CI runner tự host để giảm chi phí API xuống 0 và không lộ source code ra ngoài.
