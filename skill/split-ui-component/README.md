@@ -4,13 +4,14 @@ Skill phân loại UI component, phát hiện **SVG icon hardcode inline**, **UI
 
 ## Mô tả
 
-Skill này giúp AI agent kiểm tra codebase và đưa ra phân tích toàn diện về tổ chức UI components:
+Skill này giúp AI agent kiểm tra codebase và đưa ra phân tích toàn diện về tổ chức UI components và browser extension UI:
 
 1. **Phân loại component** — Reusable hay Feature-specific theo 5 tiêu chí rõ ràng
 2. **Phát hiện SVG icon hardcode** — Icon viết thẳng vào JSX thay vì dùng icon registry
 3. **Phát hiện UI pattern duplicate** — Đoạn JSX giống nhau lặp lại mà chưa được abstract
 4. **Phát hiện component sai vị trí** — Reusable đặt trong feature/, hoặc ngược lại
 5. **Phát hiện inline sub-component quá lớn** — Component ≥ 30 dòng viết inline trong page
+6. **Phát hiện Extension UI drift** — popup/options/content tooltip lệch visual language, dùng emoji icon hoặc inline SVG trang trí
 
 ## Cách dùng
 
@@ -158,6 +159,30 @@ export function ChatIcon({ className = 'w-4 h-4' }: IconProps) {
 <AlertTriangleIcon className="w-3.5 h-3.5" />
 <span className="tabular-nums">{charCount.toLocaleString()} / {MAX_INPUT_CHARS.toLocaleString()}</span>
 ```
+
+---
+
+### 🟡 Medium: Extension UI Drift
+
+Áp dụng cho `chrome-extension/`, nơi UI viết bằng HTML/CSS/JS thuần thay vì React component registry.
+
+```text
+Popup/options/tooltip dùng palette, radius, state và action label khác nhau
+Emoji hoặc inline SVG provider badge xuất hiện trong popup.js/content.js
+Options không lưu đủ default mà popup/tooltip sử dụng
+```
+
+**Cách phát hiện:**
+```bash
+rg -n '[❌⚠✓🔊⏳]|<svg|provider.*svg|treToken|treTargetLang|treTranslationStyle' chrome-extension
+```
+
+**Quy tắc sửa:**
+1. Dùng shared CSS/token cho popup và options nếu có thể.
+2. Content tooltip phải match cùng visual language nhưng vẫn scope bằng `#tre-result-tooltip`.
+3. Không dùng emoji làm action/status icon; dùng text, status dot, asset icon sẵn có hoặc CSS shape.
+4. Không dùng inline SVG trang trí trong `popup.js`/`content.js`.
+5. Kiểm tra đủ state: missing token, connecting, active, offline, loading, copied, replaced, TTS failed.
 
 ---
 

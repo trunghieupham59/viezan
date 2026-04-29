@@ -1,7 +1,7 @@
 {
   "name": "split-ui-component",
   "version": "1.0.0",
-  "description": "Workflow phân tích tổ chức UI component, phát hiện icon hardcode và UI pattern duplicate, tạo báo cáo và kế hoạch tách component theo nguyên tắc Reusable vs Feature-specific",
+  "description": "Workflow phân tích tổ chức UI component và Extension UI, phát hiện icon hardcode, UI pattern duplicate, Extension UI drift, tạo báo cáo và kế hoạch tách component",
   "type": "workflow",
   "steps": [
     {
@@ -12,7 +12,8 @@
       "default_scope": {
         "include": [
           "src/components/",
-          "src/pages/"
+          "src/pages/",
+          "chrome-extension/ when the request mentions extension, popup, options or browser tooltip"
         ],
         "exclude": [
           "src/components/ui/icons/  ← SVG trong đây là hợp lệ, không báo vi phạm",
@@ -35,7 +36,8 @@
         "2. src/components/ui/ — đọc tất cả reusable components hiện có",
         "3. src/components/{feature}/ — đọc feature-specific components",
         "4. src/components/*.tsx — đọc root-level components (Sidebar, AppLogo...)",
-        "5. src/pages/ — đọc các page components"
+        "5. src/pages/ — đọc các page components",
+        "6. chrome-extension/ — nếu scope chạm extension, đọc popup/options/content CSS/JS"
       ],
       "rules": [
         "Đọc hết tất cả file trước khi phân tích",
@@ -123,7 +125,22 @@
       ]
     },
     {
-      "id": "step-8-deduplicate-findings",
+      "id": "step-8-detect-extension-ui-drift",
+      "name": "Phát hiện Extension UI Drift",
+      "description": "Áp dụng khi scope có chrome-extension/ hoặc yêu cầu nói về browser extension",
+      "skill": "split-ui-component",
+      "skill_section": "detection_categories.extension-ui-drift",
+      "action": "Kiểm tra popup/options/content tooltip có cùng visual language, không emoji action/status icon, không inline SVG trang trí và có đầy đủ state UX.",
+      "checklist": [
+        "Popup/options dùng shared CSS/token nếu có thể",
+        "Content tooltip được scope bằng #tre-result-tooltip và không ảnh hưởng trang host",
+        "Không dùng emoji làm action/status icon trong chrome-extension UI",
+        "Không dùng inline SVG provider/action badge trang trí trong popup.js/content.js",
+        "Options lưu treToken, treTargetLang và treTranslationStyle khi các surface khác đọc các key này"
+      ]
+    },
+    {
+      "id": "step-9-deduplicate-findings",
       "name": "Loại bỏ False Positive và trùng lặp",
       "description": "Review lại danh sách findings, loại bỏ false positive",
       "action": "Đối chiếu với quy tắc false positive trước khi đưa vào báo cáo",
@@ -136,7 +153,7 @@
       ]
     },
     {
-      "id": "step-9-prioritize",
+      "id": "step-10-prioritize",
       "name": "Ưu tiên hóa vấn đề",
       "description": "Sắp xếp findings theo mức độ ưu tiên",
       "priority_order": [
@@ -144,11 +161,12 @@
         "🟠 High ưu tiên 2: UI pattern duplicate có thể tách thành reusable component ngay",
         "🟡 Medium ưu tiên 3: Large inline sub-component cần tách",
         "🟡 Medium ưu tiên 4: Component đặt sai thư mục",
-        "🟡 Low ưu tiên 5: Emoji dùng như icon"
+        "🟡 Medium ưu tiên 5: Extension UI Drift trong popup/options/content tooltip",
+        "🟡 Low ưu tiên 6: Emoji dùng như icon"
       ]
     },
     {
-      "id": "step-10-report",
+      "id": "step-11-report",
       "name": "Tạo báo cáo đầy đủ",
       "description": "Xuất báo cáo với format chuẩn",
       "output_format": {
@@ -160,6 +178,7 @@
           "## Vấn đề: Sub-component Inline quá lớn",
           "## Vấn đề: Component đặt sai thư mục",
             "## Vấn đề: Emoji dùng làm Icon",
+          "## Vấn đề: Extension UI Drift",
           "## Kế hoạch tách component (action plan)",
           "## Tóm tắt & Ưu tiên"
         ],
@@ -184,7 +203,7 @@
       }
     },
     {
-      "id": "step-11-save-report",
+      "id": "step-12-save-report",
       "name": "Lưu báo cáo",
       "description": "Lưu báo cáo vào thư mục viezanagent/report với tên file theo convention",
       "action": "Tạo file markdown với tên: split-ui-report-YYYYMMDD-HHmm.md",

@@ -21,13 +21,15 @@ Step 6: Phát hiện UI Pattern Duplicate không tách Component
    ↓
 Step 7: Phát hiện Sub-component Inline quá lớn (≥ 30 dòng)
    ↓
-Step 8: Loại bỏ False Positive
+Step 8: Phát hiện Extension UI Drift nếu scope có chrome-extension/
    ↓
-Step 9: Ưu tiên hóa vấn đề
+Step 9: Loại bỏ False Positive
    ↓
-Step 10: Tạo báo cáo đầy đủ
+Step 10: Ưu tiên hóa vấn đề
    ↓
-Step 11: Lưu báo cáo vào viezanagent/report/
+Step 11: Tạo báo cáo đầy đủ
+   ↓
+Step 12: Lưu báo cáo vào viezanagent/report/
 ```
 
 ## Cách kích hoạt
@@ -56,6 +58,7 @@ Workflow này gọi **skill `split-ui-component`** ở nhiều bước:
 | Step 5 | `detection_categories.emoji-as-icon` | Tìm emoji làm icon |
 | Step 6 | `detection_categories.ui-pattern-duplicate` | Tìm UI pattern duplicate |
 | Step 7 | `detection_categories.large-inline-sub-component` | Tìm inline component quá lớn |
+| Step 8 | `detection_categories.extension-ui-drift` | Tìm popup/options/tooltip lệch UI hoặc emoji/inline SVG trong extension |
 
 ---
 
@@ -95,6 +98,7 @@ Vi phạm **ÍT NHẤT 1**:
 | Sub-component Inline quá lớn | 🟡 Medium | Function component trong page/feature file dài >= 30 dòng |
 | Component sai thư mục | 🟡 Medium | Feature-specific đặt trong `ui/` hoặc ngược lại |
 | Emoji dùng làm Icon | 🟡 Medium | Emoji status/action render như icon thay vì icon registry |
+| Extension UI Drift | 🟡 Medium | `chrome-extension/` lệch visual language, emoji icon hoặc inline SVG trang trí |
 
 ---
 

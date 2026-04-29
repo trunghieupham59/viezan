@@ -164,6 +164,40 @@
       ]
     },
     {
+      "id": "browser-extension-ux",
+      "name": "Browser Extension UX",
+      "priority": "important",
+      "goal": "Chrome Extension phải là tool dịch nhanh, đồng bộ với app và không phá trang host",
+      "rules": [
+        {
+          "id": "R-VZN-EXT-UI-01",
+          "name": "Popup/options/tooltip dùng chung visual language",
+          "description": "Các surface trong chrome-extension/ phải dùng neutral surface, accent tiết chế, radius tối đa 10px, typography nhỏ gọn và state rõ.",
+          "must": [
+            "Popup, Options và selection tooltip dùng cùng token/pattern UI nếu có thể",
+            "Provider/model badge dùng text + dot màu hoặc asset sẵn có thay vì inline SVG trang trí",
+            "Options lưu cùng default mà popup và tooltip sử dụng: target language, translation style",
+            "Floating button/tooltip clamp trong viewport và không làm thay đổi layout trang host"
+          ],
+          "must_not": [
+            "Dùng emoji làm action/status icon trong extension UI",
+            "Thêm hero/marketing layout vào popup hoặc options",
+            "Persist transient loading/error/result text vào Chrome storage"
+          ]
+        },
+        {
+          "id": "R-VZN-EXT-UI-02",
+          "name": "Local bridge state phải recoverable",
+          "description": "Extension phải hiển thị rõ connecting/active/offline/token invalid/loading/copied/replaced/TTS failed và có đường quay lại Options khi thiếu token.",
+          "checks": [
+            "Missing token state mở được Options",
+            "App offline hoặc token invalid có message hành động được",
+            "Translate, copy, replace, listen không làm layout nhảy bất thường"
+          ]
+        }
+      ]
+    },
+    {
       "id": "reliability-test",
       "name": "Reliability and Test",
       "priority": "mandatory",
@@ -193,6 +227,7 @@
     "IPC channel mới có domain:action, validate input và preload wrapper mỏng không?",
     "Provider/model có cập nhật constants, types, defaults, registry và tests không?",
     "UI text mới đã có VI/EN/JA chưa?",
+    "Nếu chạm Chrome Extension: popup/options/tooltip có đồng bộ UI, không emoji icon, có state offline/loading/error và manual smoke chưa?",
     "Async/audio/stream có cleanup, retry/fallback/error state chưa?",
     "Đã chạy test/build/lint hẹp phù hợp chưa?"
   ],
@@ -202,4 +237,3 @@
     "ship_feature_workflow": "../../workflow/ship-viezan-feature/ship-viezan-feature.json"
   }
 }
-

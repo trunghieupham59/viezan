@@ -11,7 +11,8 @@
   "optional_context_by_domain": {
     "live_translation": ["../../docs/live_trans.md"],
     "tts": ["../../docs/tts.md", "../../docs/TTS_ARCHITECTURE.md"],
-    "general_code_rules": ["../../rule/viezan-product-engineering/rules.json"]
+    "general_code_rules": ["../../rule/viezan-product-engineering/rules.json"],
+    "browser_extension": ["../../rule/viezan-product-engineering/rules.json", "../../../chrome-extension/README.md"]
   },
   "feature_domains": [
     {
@@ -89,12 +90,26 @@
     },
     {
       "id": "browser-extension",
-      "signals": ["chrome extension", "bookmarklet", "browser", "local server"],
+      "signals": ["chrome extension", "bookmarklet", "browser", "local server", "popup", "options", "selection tooltip", "floating translate"],
       "likely_files": [
-        "chrome-extension/",
+        "chrome-extension/popup.html",
+        "chrome-extension/popup.js",
+        "chrome-extension/options.html",
+        "chrome-extension/options.js",
+        "chrome-extension/content.js",
+        "chrome-extension/content.css",
+        "chrome-extension/extension-ui.css",
+        "chrome-extension/background.js",
         "electron/ipc/localServer.ts",
         "electron/preload/localServer.ts",
         "electron/preload/legacyAssistant.ts"
+      ],
+      "ux_checks": [
+        "Popup, Options và selection tooltip dùng cùng visual language",
+        "Không dùng emoji làm action/status icon",
+        "Không dùng inline SVG trang trí trong popup.js/content.js provider/action badges",
+        "Missing token/offline/loading/error/success states rõ và recoverable",
+        "Options lưu cùng target language và translation style mà popup/tooltip dùng"
       ]
     }
   ],
@@ -133,6 +148,12 @@
       "id": "step-7-risks",
       "name": "Risks",
       "action": "Nêu privacy/security/provider/UX/migration risks và cách giảm rủi ro."
+    },
+    {
+      "id": "step-8-extension-ux",
+      "name": "Browser extension UX pass",
+      "condition": "Request thuộc domain browser-extension",
+      "action": "Kiểm tra popup/options/content tooltip theo R-VZN-EXT-UI-01, gồm visual parity, state UX, storage defaults và manual smoke translate/copy/replace/listen."
     }
   ],
   "output_format": {
@@ -151,4 +172,3 @@
     "readme": "./README.md"
   }
 }
-

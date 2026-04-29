@@ -52,19 +52,26 @@
         "Preload wrappers",
         "Renderer services/hooks/store",
         "UI components/pages",
+        "Chrome Extension popup/options/content UI when browser-extension domain is in scope",
         "i18n locales",
         "Tests"
       ]
     },
     {
-      "id": "step-6-security-audit",
+      "id": "step-6-extension-ux-pass",
+      "name": "Chrome Extension UX pass nếu cần",
+      "condition": "Feature chạm chrome-extension/, browser bridge hoặc local server UX",
+      "action": "Kiểm tra popup/options/selection tooltip dùng cùng visual language, không emoji action/status icon, không inline SVG trang trí, có missing-token/offline/loading/error/success states, và Options lưu target language + translation style."
+    },
+    {
+      "id": "step-7-security-audit",
       "name": "Audit security nếu cần",
       "condition": "Feature chạm API key, provider SDK, IPC/preload, external URL, browser bridge, local server, transcript/image/prompt data",
       "skill": "viezan-ipc-security-audit",
       "action": "Kiểm tra renderer boundary, preload surface, IPC validation, key storage, external URL và local-first data flow."
     },
     {
-      "id": "step-7-tests",
+      "id": "step-8-tests",
       "name": "Thêm/cập nhật tests",
       "action": "Cập nhật tests đúng tầng: utils, store, ipc, hooks, pages/components.",
       "test_mapping": {
@@ -75,7 +82,7 @@
       }
     },
     {
-      "id": "step-8-verify",
+      "id": "step-9-verify",
       "name": "Verify",
       "action": "Chạy command phù hợp với phạm vi thay đổi.",
       "commands_by_scope": [
@@ -88,18 +95,22 @@
           "commands": ["npm run build:electron", "npm test -- --run electron/ipc"]
         },
         {
+          "scope": "chrome extension UI/static change",
+          "commands": ["node --check chrome-extension/popup.js", "node --check chrome-extension/options.js", "node --check chrome-extension/content.js", "manual smoke popup/options/selection tooltip in unpacked extension"]
+        },
+        {
           "scope": "broad feature",
           "commands": ["npm test -- --run", "npm run build"]
         }
       ]
     },
     {
-      "id": "step-9-docs-prompts",
+      "id": "step-10-docs-prompts",
       "name": "Cập nhật docs/prompts nếu cần",
       "action": "Cập nhật viezanagent docs hoặc PROMPTS nếu feature thay đổi cách agent/user thao tác."
     },
     {
-      "id": "step-10-final-report",
+      "id": "step-11-final-report",
       "name": "Báo cáo kết quả",
       "action": "Tóm tắt files changed, behavior, verification result, risks/follow-up."
     }
@@ -117,4 +128,3 @@
     "security_audit": "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json"
   }
 }
-

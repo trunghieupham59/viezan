@@ -24,6 +24,7 @@ Kết hợp tốt với:
 | Electron Boundary | Giữ ranh giới Main/Preload/Renderer rõ ràng | Thêm IPC/window/api |
 | Provider Contract | Tích hợp OpenAI/Gemini/Claude nhất quán | Thêm model/provider/tác vụ AI |
 | UX & i18n | Giao diện rõ, nhanh, hỗ trợ VI/EN/JA | Thay đổi UI text |
+| Browser Extension UX | Popup/options/tooltip đồng bộ với app, thao tác dịch nhanh | Chạm `chrome-extension/` hoặc local bridge |
 | Reliability | Retry, fallback, cleanup, mounted guard | Async, stream, audio, network |
 | Test & Release | Có kiểm chứng đúng tầng | Mọi thay đổi có logic |
 
@@ -73,6 +74,15 @@ Viezan phục vụ BrSE/PM/dev làm việc đa ngôn ngữ, đặc biệt Việt
 - Icon dùng registry `src/components/ui/icons/`, không inline SVG trong page/component feature.
 - State loading/error/empty/success phải rõ ràng và không làm layout nhảy bất thường.
 
+### R-VZN-EXT-UI-01: Extension UI phải là công cụ dịch nhanh, không phải trang giới thiệu
+
+- Popup, Options và selection tooltip dùng cùng visual language: neutral surface, accent tiết chế, radius tối đa 10px, typography nhỏ gọn.
+- Không dùng emoji làm icon/action/status trong extension UI; dùng text rõ, status dot, icon asset sẵn có hoặc CSS shape đơn giản.
+- Không inline SVG provider/action trong `popup.js` hoặc `content.js` nếu chỉ để trang trí; provider/model badge ưu tiên text + dot màu.
+- Floating button và tooltip phải clamp trong viewport, không che selection quá mức và không làm layout của trang host bị ảnh hưởng.
+- Trạng thái local bridge phải rõ: connecting, active, offline/token invalid, loading, copied/replaced, TTS failed.
+- Options phải lưu cùng bộ default mà popup/tooltip dùng: target language và translation style.
+
 ### R-VZN-DATA-01: Persist đúng dữ liệu, không persist trạng thái tạm
 
 - Persist settings, history, session/preset cần khôi phục.
@@ -87,4 +97,3 @@ Viezan phục vụ BrSE/PM/dev làm việc đa ngôn ngữ, đặc biệt Việt
 - IPC handler: test trong `electron/ipc/__tests__/`.
 - Page/component workflow: test bằng Testing Library khi behavior user-facing thay đổi.
 - Chạy tối thiểu `npm run build` hoặc test/lint hẹp phù hợp trước khi kết luận.
-

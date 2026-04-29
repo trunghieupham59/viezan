@@ -11,6 +11,7 @@ Dùng workflow release-readiness để kiểm tra trước release.
 ## Phạm vi
 
 - Product smoke test: translate, live, image, chat, TTS/STT, settings, history, extension bridge.
+- Chrome Extension smoke test: popup, options, selection tooltip, copy/replace/listen, offline/token states.
 - Security/local-first audit.
 - i18n completeness.
 - Build/test/package sanity.
@@ -29,4 +30,3 @@ Dùng workflow release-readiness để kiểm tra trước release.
 ## Commands Run
 - ...
 ```
-

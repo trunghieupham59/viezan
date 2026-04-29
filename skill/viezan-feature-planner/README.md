@@ -55,6 +55,17 @@ Thêm tính năng [X] vào Viezan, cần sửa những module nào?
 - Provider/API:
 ```
 
+## Browser Extension impact
+
+Khi yêu cầu chạm browser extension hoặc local bridge, impact map phải xét riêng các surface sau:
+
+- Popup quick translate: `chrome-extension/popup.html`, `chrome-extension/popup.js`, shared extension CSS.
+- Selection tooltip/floating button: `chrome-extension/content.js`, `chrome-extension/content.css`.
+- Options/default settings: `chrome-extension/options.html`, `chrome-extension/options.js`.
+- Local bridge contract: `electron/ipc/localServer.ts`, `electron/preload/localServer.ts`, `electron/preload/legacyAssistant.ts`.
+
+Checklist UX bắt buộc: popup/options/tooltip đồng bộ visual language, không dùng emoji làm action/status icon, provider/model badge không inline SVG trang trí, có missing-token/offline/loading/error/success states và manual smoke cho translate/copy/replace/listen.
+
 ## Checklist phân tích
 
 - Feature thuộc nhóm nào: translate, live, image, chat, voice, TTS, settings, history, browser extension, release?
@@ -62,7 +73,7 @@ Thêm tính năng [X] vào Viezan, cần sửa những module nào?
 - Có chạm IPC hoặc preload không?
 - Có thêm state persisted không?
 - Có thêm UI string/tooltip/error không?
+- Nếu là extension: default target language/style có được lưu và dùng đồng nhất trong popup/tooltip/options không?
 - Có ảnh hưởng lịch sử/session/preset không?
 - Có cần fallback/retry/cancel/cleanup không?
 - Có test ở tầng nào là đủ?
-

@@ -24,7 +24,26 @@
         "AI Chat sends message and restores history",
         "TTS and STT settings render and fail gracefully without key",
         "History tabs load and search works",
-        "Chrome Extension/local bridge path is not broken if enabled"
+        "Chrome Extension popup opens, shows provider/model state, translates typed text, copies result and handles app offline/token invalid states",
+        "Chrome Extension options saves token, default target language and translation style",
+        "Chrome Extension selection tooltip appears near selected text, clamps in viewport, re-translates on language/style change, copy/replace/listen actions work"
+      ]
+    },
+    {
+      "id": "extension-ux",
+      "name": "Chrome Extension UX",
+      "required": true,
+      "checks": [
+        "Popup, Options and selection tooltip share visual language",
+        "No emoji action/status icons in chrome-extension UI",
+        "No decorative inline SVG provider/action badges in popup.js/content.js",
+        "Missing token, connecting, active, offline, loading, copied, replaced and TTS failed states are visible and recoverable",
+        "Floating button and tooltip do not shift host page layout"
+      ],
+      "suggested_commands": [
+        "node --check chrome-extension/popup.js",
+        "node --check chrome-extension/options.js",
+        "node --check chrome-extension/content.js"
       ]
     },
     {
@@ -135,4 +154,3 @@
     "security_workflow": "../audit-local-first-security/audit-local-first-security.json"
   }
 }
-

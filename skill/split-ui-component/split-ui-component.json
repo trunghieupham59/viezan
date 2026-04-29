@@ -1,7 +1,7 @@
 {
   "name": "split-ui-component",
   "version": "1.0.0",
-  "description": "Skill phân loại UI component (Reusable vs Feature-specific), phát hiện SVG icon hardcode inline, phát hiện UI pattern lặp lại chưa được tách component, và đề xuất kế hoạch refactor cụ thể",
+  "description": "Skill phân loại UI component (Reusable vs Feature-specific), phát hiện SVG icon hardcode inline, UI pattern duplicate, Extension UI drift và đề xuất kế hoạch refactor cụ thể",
   "type": "skill",
   "component_classification": {
     "reusable": {
@@ -181,6 +181,28 @@
       "example_findings": [
         "LargeFeaturePanel (30+ dòng) inline trong FeaturePage.tsx → src/components/{feature}/LargeFeaturePanel.tsx"
       ]
+    },
+    {
+      "id": "extension-ui-drift",
+      "name": "Extension UI Drift",
+      "description": "Popup/options/content tooltip trong chrome-extension/ lệch visual language hoặc dùng emoji/inline SVG trang trí",
+      "severity": "medium",
+      "scope": "chrome-extension/",
+      "signals": [
+        "popup.html/options.html/content.css dùng palette, radius hoặc button pattern khác nhau",
+        "popup.js/content.js dùng emoji làm action/status label",
+        "popup.js/content.js chứa inline SVG provider/action badge chỉ để trang trí",
+        "Options không lưu treTranslationStyle trong khi popup/content đọc giá trị này",
+        "Missing token/offline/loading/error/success states không rõ hoặc không recoverable"
+      ],
+      "fix": [
+        "Dùng shared CSS/token cho popup và options nếu có thể",
+        "Scope content tooltip bằng #tre-result-tooltip để không ảnh hưởng trang host",
+        "Thay emoji action/status bằng text rõ, status dot, asset icon sẵn có hoặc CSS shape",
+        "Thay inline SVG trang trí bằng provider text + dot màu",
+        "Manual smoke popup/options/selection tooltip cho translate/copy/replace/listen"
+      ],
+      "how_to_detect": "rg -n '[❌⚠✓🔊⏳]|<svg|provider.*svg|treToken|treTargetLang|treTranslationStyle' chrome-extension"
     }
   ],
   "icon_registry": {
@@ -252,7 +274,8 @@
     "Với SVG inline: luôn trích dẫn đoạn SVG và đề xuất tên icon + category file",
     "Với UI pattern duplicate: chỉ ra tất cả vị trí xuất hiện và đề xuất component mới",
     "Không báo false positive: <svg> trong src/components/ui/icons/ là hợp lệ",
-    "Không báo false positive: emoji trong provider badge (metadata) là hợp lệ"
+    "Không báo false positive: emoji trong provider badge (metadata) là hợp lệ",
+    "Nếu phạm vi là chrome-extension/, áp dụng extension-ui-drift thay vì yêu cầu React icon registry"
   ],
   "references": {
     "workflow": "../../workflow/split-ui-component/split-ui-component.json",
