@@ -14,7 +14,8 @@ Viezan is an Electron app — it has **3 independent execution contexts**:
 │  • Full Node.js + Electron APIs                 │
 │  • Manages BrowserWindow lifecycle              │
 │  • Registers all ipcMain.handle() handlers      │
-│  • Calls AI SDKs (OpenAI, Anthropic, Gemini)    │
+│  • Calls AI SDKs and local OpenAI-compatible    │
+│    runtimes (Ollama, LM Studio, llama.cpp)      │
 │  • Stores API keys via safeStorage (Keychain)   │
 └──────────────────┬──────────────────────────────┘
                    │ IPC (inter-process communication)
@@ -51,7 +52,7 @@ Renderer (React)
         └─► ipcRenderer.invoke('translate', params)
               └─► ipcMain.handle('translate', ...)  ← electron/ipc/translate.ts
                     └─► withRetry(() => translateFn(apiKey, ...))
-                          └─► OpenAI / Anthropic / Gemini SDK
+                          └─► Local runtime / OpenAI / Anthropic / Gemini SDK
                                 └─► { success, translatedText }
                                       └─► (returned up the chain)
 ```
@@ -66,6 +67,7 @@ Renderer (React)
 | `audio:tts` | `ipc/tts.ts` | Text-to-Speech (OpenAI → Gemini → Edge TTS fallback chain) |
 | `chat:send` | `ipc/chat.ts` | Multi-turn AI chat |
 | `image:translate` | `ipc/imageTranslate.ts` | Translate text inside images (Gemini vision) |
+| `local-ai:*` | `ipc/localAi.ts` | Discover local runtimes, benchmark hardware, install Ollama, download/remove local models |
 | `keychain:*` | `ipc/keychain.ts` | Save/get/delete API keys via safeStorage |
 | `models:fetch` | `ipc/models.ts` | Fetch model list from provider API |
 | `subtitle:*` | `ipc/subtitle.ts` | Control the floating subtitle overlay window |
@@ -126,7 +128,15 @@ When adding new state: if it needs to survive a reload, add it to `partialize`. 
 
 ## 4. Provider System
 
-Three providers are supported: **Gemini**, **Claude**, **OpenAI**. Each provider has a config entry in `src/constants/providers.ts` and per-function implementations in `electron/ipc/`.
+Four translation/chat providers are supported: **Local AI**, **Gemini**, **Claude**, and **OpenAI**. Each provider has a config entry in `src/constants/providers.ts` and per-function implementations in `electron/ipc/`.
+
+The `local` provider is keyless. It routes to local OpenAI-compatible runtimes discovered by `electron/ipc/localAi.ts`:
+
+- Ollama: `http://127.0.0.1:11434/v1`
+- LM Studio: `http://127.0.0.1:1234/v1`
+- llama.cpp: `http://127.0.0.1:8080/v1`
+
+Local AI can benchmark CPU/RAM, recommend models, resolve `local-auto`, install/start Ollama, pull curated Ollama models, stream download progress, and remove downloaded models. Renderer code only receives safe runtime/model metadata; local runtime management stays in the Main Process.
 
 ### Provider contract
 
@@ -136,6 +146,7 @@ Each IPC handler uses a **registry pattern** — a plain object mapping provider
 
 ```ts
 const TRANSLATE_PROVIDERS: Record<string, TranslateFn> = {
+  local: translateWithLocal,
   gemini: translateWithGemini,
   claude: translateWithClaude,
   openai: translateWithOpenAI,
@@ -163,18 +174,19 @@ PROVIDERS.push({
 
 **Step 2** — Extend the `Provider` union type (`src/types/index.ts`):
 ```ts
-export type Provider = 'gemini' | 'claude' | 'openai' | 'myprovider'
+export type Provider = 'local' | 'gemini' | 'claude' | 'openai' | 'myprovider'
 ```
 
 **Step 3** — Add to `SUPPORTED_PROVIDERS` in `electron/ipc/providers/types.ts`:
 ```ts
-export const SUPPORTED_PROVIDERS = ['gemini', 'claude', 'openai', 'myprovider'] as const
+export const SUPPORTED_PROVIDERS = ['local', 'gemini', 'claude', 'openai', 'myprovider'] as const
 ```
 
 **Step 4** — Add a `defaultModels` entry in `DEFAULT_SETTINGS` (`src/constants/providers.ts`).
 
 **Step 5** — Implement SDK calls and register in the provider registries:
-- `electron/ipc/translate.ts` — add to `TRANSLATE_PROVIDERS`, `REWRITE_PROVIDERS`, `DETECT_PROVIDERS`, `STREAM_PROVIDERS`
+- `electron/ipc/translateProvider<Provider>.ts` — keep SDK/runtime-specific code out of central registries
+- `electron/ipc/translateProviders.ts` — add to `TRANSLATE_PROVIDERS`, `REWRITE_PROVIDERS`, `DETECT_PROVIDERS`, `STREAM_PROVIDERS`
 - `electron/ipc/chat.ts` — add to `CHAT_PROVIDERS` (if chat is supported)
 - `electron/ipc/tts.ts` — add TTS candidate if provider supports audio synthesis
 - `electron/ipc/models.ts` — add model list fetch (if the provider has an API)
@@ -291,6 +303,7 @@ The entire pipeline lives in `src/hooks/useLiveTranslate.ts`. `LiveTranslatePage
 | Expose a new API to the renderer | `electron/preload/<domain>.ts` + aggregate in `electron/preload.ts` |
 | Add global state | `src/store/slices/` |
 | Add a new provider | See Section 4 above |
+| Maintain Local AI | `electron/ipc/localAi.ts`, `translateProviderLocal.ts`, `src/pages/settings/ApiKeysSection.tsx` |
 | Add a new language | `src/constants/providers.ts` → `LANGUAGES` array |
 | Shared constants (no duplication) | `electron/ipc/ipcConstants.ts` (main) and `src/constants/` (renderer) |
 | Provider type guard | `electron/ipc/providers/types.ts` → `isValidProvider()` |

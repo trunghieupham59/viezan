@@ -19,7 +19,7 @@ Nguyên tắc chung:
 | Lập plan trước khi code | `skill viezan-feature-planner` |
 | Generate/refactor code đúng chuẩn Viezan | `rule viezan-product-engineering` + `rule generate-code` |
 | Thêm hoặc audit provider/model | `skill viezan-provider-integration` |
-| Implement Phase 2 local AI | `viezanagent/docs/phase_2/local-ai-agent-tasks.md` + `skill viezan-provider-integration` |
+| Maintain/audit Local AI | `viezanagent/docs/provider-routing.md` + `viezanagent/docs/phase_2/local-ai-agent-tasks.md` + `skill viezan-provider-integration` |
 | Audit IPC/API key/local-first | `workflow audit-local-first-security` hoặc `skill viezan-ipc-security-audit` |
 | Kiểm tra trước release | `workflow release-readiness` |
 | Tìm duplicate/hardcode | `workflow check-dup-hardcode` |
@@ -65,16 +65,24 @@ Mục tiêu:
 - thêm/cập nhật test phù hợp
 ```
 
-### Implement Phase 2 local AI
+### Maintain hoặc audit Local AI
 
 ```text
-Implement theo task list:
-viezanagent/docs/phase_2/local-ai-agent-tasks.md
+Kiểm tra hoặc mở rộng Local AI trong Viezan theo:
+- viezanagent/docs/provider-routing.md
+- viezanagent/docs/phase_2/local-ai-agent-tasks.md
 
 Áp dụng:
 - rule viezan-product-engineering
 - skill viezan-provider-integration
 - workflow audit-local-first-security trước khi merge
+
+Tập trung vào:
+- local provider contract
+- Ollama/LM Studio/llama.cpp runtime detection
+- hardware benchmark/model recommendation
+- model download progress and uninstall flow
+- Main/Preload/Renderer boundary
 ```
 
 ---

@@ -1,5 +1,8 @@
 # Phase 2: Local AI Provider Agent Tasks
 
+Status: implemented in Viezan v1.1.5. Keep this document as the maintenance
+checklist for Local AI provider work and regression reviews.
+
 ## Scope
 
 Phase 2 adds a free local AI path for Viezan core AI tasks: translate, rewrite,
