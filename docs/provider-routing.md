@@ -72,7 +72,8 @@ Ollama installation is routed through `local-ai:installOllama`, emits
 `local-ai:cancelInstallOllama`, and runs a fixed Main Process command
 (`curl -fsSL https://ollama.com/install.sh | sh`). The renderer cannot pass a
 custom command or arguments. Direct model download uses Ollama's management API
-(`/api/pull`) with curated model IDs. LM Studio and llama.cpp remain supported
-for detected/running model lists and
+(`/api/pull`) with curated model IDs and streams `completed`/`total` progress
+to the renderer through `local-ai:modelDownloadProgress`. LM Studio and
+llama.cpp remain supported for detected/running model lists and
 OpenAI-compatible inference, but installer/model-management flows should stay
 runtime-specific until their APIs are normalized in Viezan.

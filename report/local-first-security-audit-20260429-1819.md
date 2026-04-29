@@ -8,6 +8,7 @@
 - Benchmark, runtime install, install cancellation, and direct model download stay behind preload/IPC: `local-ai:benchmark`, `local-ai:installOllama`, `local-ai:cancelInstallOllama`, and `local-ai:downloadModel`.
 - Local provider uses the placeholder key `local-ai` only for OpenAI-compatible local APIs; no raw API key is exposed to renderer.
 - Direct model download is limited to curated model IDs and Ollama's loopback `/api/pull` endpoint.
+- Model download progress is emitted from Main Process over `local-ai:modelDownloadProgress`; renderer receives only model id, status text, percent, and byte counts.
 - Direct Ollama install uses one fixed Main Process command (`curl -fsSL https://ollama.com/install.sh | sh`); renderer code does not provide shell input, command text, or arguments.
 - Install progress is emitted from Main Process over `local-ai:installProgress`; cancellation only terminates the tracked installer process group.
 - Potential secret search hits are documentation examples or provider key-prefix metadata, not committed live secrets.

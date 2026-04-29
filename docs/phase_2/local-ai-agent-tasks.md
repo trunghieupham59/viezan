@@ -68,6 +68,8 @@ Supported local runtime candidates:
      dedicated Main Process IPC command.
    - Allow direct model download through Ollama `/api/pull` when Ollama is
      running.
+   - Stream model pull progress from Ollama and show a per-model progress bar
+     with percent and downloaded/total GB in Settings.
    - Mark already installed suggested models from the detected model list.
 
 4. Local adapter
