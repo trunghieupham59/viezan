@@ -19,6 +19,7 @@ Nguyên tắc chung:
 | Lập plan trước khi code | `skill viezan-feature-planner` |
 | Generate/refactor code đúng chuẩn Viezan | `rule viezan-product-engineering` + `rule generate-code` |
 | Thêm hoặc audit provider/model | `skill viezan-provider-integration` |
+| Implement Phase 2 local AI | `viezanagent/docs/phase_2/local-ai-agent-tasks.md` + `skill viezan-provider-integration` |
 | Audit IPC/API key/local-first | `workflow audit-local-first-security` hoặc `skill viezan-ipc-security-audit` |
 | Kiểm tra trước release | `workflow release-readiness` |
 | Tìm duplicate/hardcode | `workflow check-dup-hardcode` |
@@ -62,6 +63,18 @@ Mục tiêu:
 - giữ đúng Main/Preload/Renderer boundary
 - giữ i18n VI/EN/JA và icon registry
 - thêm/cập nhật test phù hợp
+```
+
+### Implement Phase 2 local AI
+
+```text
+Implement theo task list:
+viezanagent/docs/phase_2/local-ai-agent-tasks.md
+
+Áp dụng:
+- rule viezan-product-engineering
+- skill viezan-provider-integration
+- workflow audit-local-first-security trước khi merge
 ```
 
 ---
@@ -325,4 +338,3 @@ Báo cáo mặc định: `viezanagent/report/vscode-problems-report-YYYYMMDD-HHm
 | `split-ui-component` | `viezanagent/report/split-ui-report-YYYYMMDD-HHmm.md` |
 | `fix-vscode-problems` | `viezanagent/report/vscode-problems-report-YYYYMMDD-HHmm.md` |
 | `audit-local-first-security` | `viezanagent/report/local-first-security-audit-YYYYMMDD-HHmm.md` |
-
