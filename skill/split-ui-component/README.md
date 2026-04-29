@@ -79,7 +79,7 @@ import { ChatIcon } from '../components/ui/icons'
 
 **Cách phát hiện:**
 ```bash
-grep -rn "<svg" src/ --include="*.tsx" | grep -v "src/components/ui/icons/"
+rg -n --glob '*.tsx' '<svg' src -g '!src/components/ui/icons/**'
 ```
 
 **Quy tắc sửa:**
@@ -95,6 +95,7 @@ grep -rn "<svg" src/ --include="*.tsx" | grep -v "src/components/ui/icons/"
 | `status.tsx` | warning, error, success, info |
 | `auth.tsx` | lock, eye, user |
 | `files.tsx` | document, clipboard, folder |
+| `providers.tsx` | provider logos/icons |
 
 ```tsx
 // Tạo mới trong category file phù hợp
@@ -163,18 +164,18 @@ export function ChatIcon({ className = 'w-4 h-4' }: IconProps) {
 ### 🟡 Medium: Sub-component Inline quá lớn (≥ 30 dòng)
 
 ```tsx
-// ❌ MessageBubble (113 dòng) inline trong ChatPage.tsx
-function MessageBubble({ message, onCopy, ... }) {
-  // 113 dòng logic...
+// ❌ Component lớn inline trong page
+function LargeFeaturePanel({ value, onChange, ... }) {
+  // 30+ dòng logic/render...
 }
-export function ChatPage() { ... }
+export function FeaturePage() { ... }
 
 // ✅ Tách ra file riêng
-// src/components/chat/MessageBubble.tsx
-export function MessageBubble({ message, onCopy, ... }: MessageBubbleProps) { ... }
+// src/components/{feature}/LargeFeaturePanel.tsx
+export function LargeFeaturePanel({ value, onChange, ... }: LargeFeaturePanelProps) { ... }
 
-// ChatPage.tsx
-import { MessageBubble } from '../components/chat/MessageBubble'
+// FeaturePage.tsx
+import { LargeFeaturePanel } from '../components/{feature}/LargeFeaturePanel'
 ```
 
 ---
@@ -210,14 +211,14 @@ import { MessageBubble } from '../components/chat/MessageBubble'
 
 ```
 [🟠 High] SVG Icon Hardcode Inline
-File: src/components/Sidebar.tsx:74-78
+File: path/to/component.tsx:line
 Code:
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path d="M8.625 12a.375.375 0 11-.75 0 ..." />
   </svg>
-Vấn đề: Chat bubble icon viết SVG trực tiếp thay vì dùng icon registry
-Tên đề xuất: ChatIcon
-Category: navigation.tsx (icon điều hướng/chat)
+Vấn đề: Icon viết SVG trực tiếp thay vì dùng icon registry
+Tên đề xuất: <MeaningfulName>Icon
+Category: actions/navigation/media/status/auth/files/providers theo ý nghĩa icon
 Sửa:
   // 1. Thêm vào src/components/ui/icons/navigation.tsx
   export function ChatIcon({ className = 'w-4 h-4' }: IconProps) { ... }

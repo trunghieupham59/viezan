@@ -107,7 +107,7 @@
             "Username/password hardcode trong file không phải .env",
             "Token, JWT secret không lấy từ environment variable"
           ],
-          "fix": "Chuyển sang environment variable, dùng .env file, KHÔNG commit secret"
+          "fix": "Với Viezan: chuyển API key vào Electron safeStorage/keychain và chỉ đọc trong Main Process; không trả raw key qua renderer/preload"
         },
         {
           "id": "hardcode-config",
@@ -143,12 +143,12 @@
           "severity": "high",
           "signals": [
             "Thẻ <svg> với <path>/<g>/<circle> viết inline trực tiếp trong JSX/TSX",
-            "Emoji ký tự (🔴, ✅, ❌, 📋...) dùng làm icon trong UI component",
+            "Emoji ký tự dùng làm icon trong UI component",
             "Import icon từ thư viện bên ngoài (react-icons, lucide-react, heroicons...) trực tiếp trong file component thay vì qua src/components/ui/icons/",
             "Unicode character (\\u{...}) dùng làm icon không có abstraction",
             "CSS class font-icon (fa-*) cứng trong JSX mà không wrap qua icon component"
           ],
-          "fix": "Kiểm tra icon có sẵn tại src/components/ui/icons/ (categories: actions, navigation, media, status, auth, files). Nếu chưa có thì tạo mới icon component trong đúng category file và export qua src/components/ui/icons/index.ts",
+          "fix": "Kiểm tra icon có sẵn tại src/components/ui/icons/ (categories: actions, navigation, media, status, auth, files, providers). Nếu chưa có thì tạo mới icon component trong đúng category file và export qua src/components/ui/icons/index.ts",
           "icon_registry": "src/components/ui/icons/",
           "icon_categories": [
             "actions    — copy, check, trash, arrow-right, download, X, plus, refresh, send, pencil, image, translate, rewrite, layers",
@@ -156,7 +156,8 @@
             "media      — spinner, stop, speaker, microphone, monitor, subtitles",
             "status     — alert-triangle, radio-checked, info-circle, lightbulb, check-circle, user",
             "auth       — lock, eye, eye-off",
-            "files      — document, clipboard"
+            "files      — document, clipboard",
+            "providers  — provider logos/icons"
           ]
         }
       ],
@@ -165,7 +166,8 @@
         "Tìm chuỗi literal lặp hơn 2 lần trong codebase",
         "Kiểm tra biến môi trường có được dùng cho secret/config không",
         "Kiểm tra URL, endpoint, port có cứng trong code không",
-        "Tìm label text UI không qua i18n/localization"
+        "Tìm label text UI không qua i18n/localization",
+        "Với Viezan: tìm raw API key/secret xuất hiện trong src/ hoặc electron/preload/"
       ]
     }
   ],
@@ -209,7 +211,7 @@
   "instructions": [
     "Đọc toàn bộ codebase trước khi báo cáo, không báo cáo từng file riêng lẻ",
     "Với duplicate: đối chiếu ít nhất 2 vị trí cụ thể kèm file:line",
-    "Với hardcode: luôn trích dẫn đoạn code vi phạm và đề xuất tên constant phù hợp",
+    "Với hardcode: luôn trích dẫn đoạn code vi phạm và đề xuất tên constant/config/keychain flow phù hợp",
     "Phân biệt rõ duplicate thực sự vs code tương tự nhưng có lý do khác nhau",
     "Không báo false positive: kiểm tra kỹ trước khi kết luận là duplicate/hardcode",
     "Ưu tiên báo critical và high trước, low có thể nhóm lại"

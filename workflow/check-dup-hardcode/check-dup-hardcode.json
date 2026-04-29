@@ -10,8 +10,8 @@
         "layer": 1,
         "name": "Static Pre-filter",
         "token_cost": 0,
-        "description": "Dùng grep/semgrep để rà quét toàn bộ project, khoanh vùng các dòng code nghi ngờ mà không tốn token nào",
-        "tools": ["grep", "semgrep", "trufflehog", "eslint"]
+        "description": "Dùng rg/git diff để rà quét toàn bộ project, khoanh vùng các dòng code nghi ngờ mà không tốn token nào",
+        "tools": ["rg", "git diff", "trufflehog optional", "biome optional"]
       },
       {
         "layer": 2,
@@ -53,44 +53,49 @@
     {
       "id": "step-0-prefilter",
       "name": "Pre-filter tĩnh (Zero-Token)",
-      "description": "Tầng 1: Dùng grep để rà quét toàn bộ project, khoanh vùng dòng code nghi ngờ trước khi đưa vào AI",
+      "description": "Tầng 1: Dùng rg để rà quét toàn bộ project, khoanh vùng dòng code nghi ngờ trước khi đưa vào AI",
       "token_cost": 0,
-      "action": "Chạy các lệnh grep bên dưới, thu thập danh sách file:line nghi ngờ vào suspected_lines",
-      "grep_commands": [
+      "action": "Chạy các lệnh rg bên dưới, thu thập danh sách file:line nghi ngờ vào suspected_lines",
+      "static_scan_commands": [
         {
           "target": "API Key / Secret / Credential",
-          "command": "grep -rn --include='*.ts' --include='*.tsx' --include='*.js' -E \"(api[_-]?key|secret|password|token|credential)\\s*=\\s*['\\\"][^'\\\"]{8,}\" src/ electron/",
+          "command": "rg -n --glob '*.{ts,tsx,js}' \"(api[_-]?key|secret|password|token|credential)\\s*=\\s*['\\\"][^'\\\"]{8,}\" src electron chrome-extension",
           "severity": "🔴 Critical"
         },
         {
           "target": "Hardcode URL / Endpoint",
-          "command": "grep -rn --include='*.ts' --include='*.tsx' -E \"['\\\"]https?://[^'\\\"]+['\\\"]\" src/ electron/",
+          "command": "rg -n --glob '*.{ts,tsx,js}' \"['\\\"]https?://[^'\\\"]+['\\\"]\" src electron chrome-extension",
           "severity": "🟡 Medium"
         },
         {
           "target": "Magic Number (timeout, port, limit, size)",
-          "command": "grep -rn --include='*.ts' --include='*.tsx' -E \"(setTimeout|setInterval|port|limit|size|delay)\\s*[,(]\\s*[0-9]{3,}\" src/ electron/",
+          "command": "rg -n --glob '*.{ts,tsx,js}' \"(setTimeout|setInterval|port|limit|size|delay)\\s*[,(]\\s*[0-9]{3,}\" src electron chrome-extension",
           "severity": "🟠 High"
         },
         {
           "target": "SVG inline ngoài ui/icons",
-          "command": "grep -rn --include='*.tsx' '<svg' src/ | grep -v 'ui/icons/'",
+          "command": "rg -n --glob '*.{tsx,ts}' '<svg' src -g '!src/components/ui/icons/**'",
           "severity": "🟠 High"
         },
         {
           "target": "Icon library import vi phạm",
-          "command": "grep -rn --include='*.ts' --include='*.tsx' -E \"from '(lucide-react|react-icons|@heroicons|@phosphor-icons)\" src/ | grep -v 'ui/icons/'",
+          "command": "rg -n --glob '*.{ts,tsx}' \"from ['\\\"](lucide-react|react-icons|@heroicons|@phosphor-icons)\" src -g '!src/components/ui/icons/**'",
           "severity": "🟠 High"
         },
         {
           "target": "Magic String phổ biến (status/type literals)",
-          "command": "grep -rn --include='*.ts' --include='*.tsx' -E \"===\\s*['\\\"][a-zA-Z_-]{3,}['\\\"]\" src/ electron/",
+          "command": "rg -n --glob '*.{ts,tsx,js}' \"===\\s*['\\\"][a-zA-Z_-]{3,}['\\\"]\" src electron chrome-extension",
           "severity": "🟠 High"
         },
         {
           "target": "Hardcode color / hex",
-          "command": "grep -rn --include='*.ts' --include='*.tsx' --include='*.css' -E \"#[0-9a-fA-F]{3,6}\" src/",
+          "command": "rg -n --glob '*.{ts,tsx,css}' \"#[0-9a-fA-F]{3,6}\" src chrome-extension",
           "severity": "🟢 Low"
+        },
+        {
+          "target": "Raw key / secret exposure qua renderer hoặc preload",
+          "command": "rg -n \"apiKey|secret|token|password\" src electron/preload chrome-extension",
+          "severity": "🔴 Critical"
         }
       ],
       "output": "Danh sách suspected_lines: [{file, line, content, severity}]"
@@ -167,8 +172,8 @@
         "registry": "src/components/ui/icons/",
         "rule": "Mọi icon phải được định nghĩa hoặc tái sử dụng từ src/components/ui/icons/. Không được hardcode <svg> inline hay import thư viện icon trực tiếp vào component.",
         "how_to_check": [
-          "Grep `<svg` trong toàn bộ file .tsx/.ts ngoài src/components/ui/icons/ — mỗi kết quả là potential hardcode icon",
-          "Grep import từ 'react-icons', 'lucide-react', '@heroicons', '@phosphor-icons' ngoài src/components/ui/icons/ — là vi phạm cần wrap",
+          "Dùng rg tìm `<svg` trong toàn bộ file .tsx/.ts ngoài src/components/ui/icons/ — mỗi kết quả là potential hardcode icon",
+          "Dùng rg tìm import từ 'react-icons', 'lucide-react', '@heroicons', '@phosphor-icons' ngoài src/components/ui/icons/ — là vi phạm cần wrap",
           "Tìm emoji character được render trong JSX như icon (ký tự không phải text content thực sự)",
           "Kiểm tra src/components/ui/icons/ để biết icon nào đã có sẵn trước khi kết luận cần tạo mới"
         ],

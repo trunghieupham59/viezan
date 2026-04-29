@@ -19,8 +19,9 @@
           "type": "cli-run",
           "instruction": "Chạy lệnh để lấy diagnostics",
           "commands": [
-            "npx tsc --noEmit 2>&1",
-            "npx eslint . --format compact 2>&1",
+            "npm run build 2>&1",
+            "npm run build:electron 2>&1",
+            "npm test -- --run 2>&1",
             "npx biome check . 2>&1"
           ]
         },
@@ -36,13 +37,13 @@
       "name": "Parse và phân loại PROBLEMS",
       "description": "Đọc từng problem và phân loại theo taxonomy trong skill fix-vscode-problems",
       "skill": "fix-vscode-problems",
-      "action": "Với mỗi problem: xác định source (ts/eslint/github-actions/biome), severity, loại vấn đề",
+      "action": "Với mỗi problem: xác định source (ts/biome/github-actions/eslint optional), severity, loại vấn đề",
       "parse_format": {
         "vs_code_format": "<severity> <message> [<file_path> Ln <line>, Col <col>]",
         "example": "⚠ Context access might be invalid: APPLE_TEAM_ID [.github/workflows/release.yml Ln 200, Col 34]"
       },
       "classify_by": [
-        "Source: TypeScript / ESLint / GitHub Actions / Biome / Other",
+        "Source: TypeScript / Biome / GitHub Actions / ESLint optional / Other",
         "Severity: Error (🔴) / Warning (🟠) / Hint (🟡) / Info (🟢)",
         "Fixable in code: Yes / No (requires external action)"
       ],
@@ -190,8 +191,10 @@
       "description": "Kiểm tra lại sau khi fix để đảm bảo problems đã được giải quyết",
       "action": "Re-run diagnostics và compare với danh sách problems ban đầu",
       "verify_commands": [
-        "npx tsc --noEmit 2>&1 | head -50",
-        "npx biome check . 2>&1 | tail -20"
+        "npm run build 2>&1 | head -80",
+        "npm run build:electron 2>&1 | head -80",
+        "npm test -- --run 2>&1 | tail -80",
+        "npx biome check . 2>&1 | tail -80"
       ],
       "checklist": [
         "Số lượng problems giảm sau khi fix",
@@ -248,7 +251,7 @@
     "NOT_a_real_problem": [
       "GitHub Actions warning cho secret chỉ dùng trong optional job (có thể giữ với guard: if: secrets.X != '')",
       "TypeScript error trong *.d.ts generated file – không cần sửa thủ công",
-      "ESLint warning trong file được eslintignore",
+      "ESLint warning trong file được eslintignore hoặc khi repo không bật ESLint",
       "Biome warning trong vendor/generated code"
     ]
   },

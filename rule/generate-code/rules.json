@@ -4,6 +4,20 @@
   "description": "Bộ quy tắc để AI generate code chất lượng cao, ánh xạ 1-1 với tiêu chí score-code",
   "type": "rule",
   "mapped_from": "../../skill/score-code/score-code.json",
+  "project_overrides": {
+    "viezan": {
+      "rule": "../viezan-product-engineering/rules.json",
+      "priority": "higher_than_generic_examples",
+      "notes": [
+        "API key không dùng env trong renderer; key chỉ nằm ở Main Process/keychain",
+        "Renderer không import Node/Electron/provider SDK trực tiếp",
+        "IPC channel mới dùng domain:action và validate input",
+        "UI text user-facing cập nhật VI/EN/JA",
+        "Icon dùng src/components/ui/icons/ thay vì inline SVG/import thư viện ngoài",
+        "Không giả định ESLint nếu repo không có config/dependency; ưu tiên TypeScript, Vitest và Biome"
+      ]
+    }
+  },
   "usage": {
     "simple_task": "Áp dụng rule generate-code với priority: Correctness, Code Quality, Reliability.",
     "oop_backend": "Áp dụng toàn bộ rule generate-code. Loại project: OOP/Backend.",
@@ -152,8 +166,8 @@
         {
           "id": "R-QUA-06",
           "name": "Coding style nhất quán",
-          "description": "Nhất quán về quotes, semicolons, spacing, indentation. Ưu tiên dùng linter config có sẵn.",
-          "tools": ["eslint", "prettier", "biome"]
+          "description": "Nhất quán về quotes, semicolons, spacing, indentation. Ưu tiên dùng linter config có sẵn; với Viezan hiện tại ưu tiên TypeScript, Vitest và Biome, không giả định ESLint.",
+          "tools": ["typescript", "vitest", "biome", "eslint optional"]
         }
       ]
     },

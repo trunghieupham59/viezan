@@ -27,7 +27,7 @@ Step 9: Ưu tiên hóa vấn đề
    ↓
 Step 10: Tạo báo cáo đầy đủ
    ↓
-Step 11: Lưu báo cáo vào lotus-agent/report/
+Step 11: Lưu báo cáo vào viezanagent/report/
 ```
 
 ## Cách kích hoạt
@@ -88,13 +88,13 @@ Vi phạm **ÍT NHẤT 1**:
 
 ## Bảng phân loại vấn đề
 
-| Vấn đề | Severity | Ví dụ vi phạm trong codebase |
+| Vấn đề | Severity | Dấu hiệu cần kiểm tra |
 |--------|---------|------------------------------|
-| SVG Icon Hardcode Inline | 🟠 High | `Sidebar.tsx` line 74-78: chat bubble SVG inline |
-| UI Pattern Duplicate | 🟠 High | `TranslatePage.tsx` line 823-855: 2 download buttons |
-| Sub-component Inline quá lớn | 🟡 Medium | `ChatPage.tsx`: `MessageBubble` 113 dòng inline |
+| SVG Icon Hardcode Inline | 🟠 High | `<svg>` xuất hiện ngoài `src/components/ui/icons/` |
+| UI Pattern Duplicate | 🟠 High | Nhiều JSX block/className dài gần giống nhau |
+| Sub-component Inline quá lớn | 🟡 Medium | Function component trong page/feature file dài >= 30 dòng |
 | Component sai thư mục | 🟡 Medium | Feature-specific đặt trong `ui/` hoặc ngược lại |
-| Emoji dùng làm Icon | 🟡 Medium | `TranslatePage.tsx` line 706: `⚠` emoji |
+| Emoji dùng làm Icon | 🟡 Medium | Emoji status/action render như icon thay vì icon registry |
 
 ---
 
@@ -120,18 +120,18 @@ Vi phạm **ÍT NHẤT 1**:
 |-----------|----------|--------|
 | CopyButton.tsx | ✅ Đúng vị trí | Pass 5/5 tiêu chí |
 | ButtonGroup.tsx | ✅ Đúng vị trí | Pass 5/5 tiêu chí |
-| DownloadButton | ❌ Chưa có | Cần tách từ TranslatePage.tsx |
+| DownloadButton | Nếu chưa có | Chỉ đề xuất khi scan hiện tại thấy duplicate |
 
 ### Feature-specific (src/components/{feature}/)
 | Component | Feature | Trạng thái | Ghi chú |
 |-----------|---------|----------|--------|
 | DragOverlay.tsx | translate | ✅ Đúng vị trí | Layout đặc thù |
-| MessageBubble | chat | ❌ Cần tách | 113 dòng inline trong ChatPage |
+| MessageBubble | chat | Đúng nếu đang ở `src/components/chat/` | Không báo lại nếu đã tách |
 
 ### Root-level Reusable (src/components/)
 | Component | Trạng thái | Vấn đề |
 |-----------|----------|--------|
-| Sidebar.tsx | ⚠️ Cần sửa | 2 SVG icon inline |
+| Sidebar.tsx | Kiểm tra bằng scan hiện tại | Không dùng ví dụ cũ làm bằng chứng |
 | AppLogo.tsx | ✅ Đúng | Không vấn đề |
 ```
 
@@ -139,7 +139,7 @@ Vi phạm **ÍT NHẤT 1**:
 
 ```markdown
 ### [🟠 High] SVG Icon Hardcode Inline
-**File:** `src/components/Sidebar.tsx:74-78`
+**File:** `path/to/component.tsx:line`
 **Code:**
 \```tsx
 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -147,9 +147,9 @@ Vi phạm **ÍT NHẤT 1**:
     d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25..." />
 </svg>
 \```
-**Vấn đề:** Chat bubble icon viết SVG trực tiếp vào JSX thay vì dùng icon registry
-**Icon đề xuất:** `ChatIcon`
-**Category:** `navigation.tsx` (icon điều hướng, chat)
+**Vấn đề:** Icon viết SVG trực tiếp vào JSX thay vì dùng icon registry
+**Icon đề xuất:** `<MeaningfulName>Icon`
+**Category:** `actions.tsx` / `navigation.tsx` / `media.tsx` / `status.tsx` / `auth.tsx` / `files.tsx` / `providers.tsx`
 **Sửa:**
 \```tsx
 // 1. Thêm vào src/components/ui/icons/navigation.tsx
@@ -161,8 +161,8 @@ export function ChatIcon({ className = 'w-4 h-4' }: IconProps) {
     </svg>
   )
 }
-// 2. Import và dùng trong Sidebar.tsx
-import { ChatIcon } from './ui/icons'
+// 2. Import và dùng trong component
+import { ChatIcon } from '@/components/ui/icons'
 <ChatIcon className="w-5 h-5" />
 \```
 ```
@@ -174,11 +174,11 @@ import { ChatIcon } from './ui/icons'
 
 | # | Ưu tiên | Action | Chi tiết |
 |---|---------|--------|---------|
-| 1 | 🟠 High | Tạo `ChatIcon` | Thêm vào `navigation.tsx`, thay 3 SVG inline ở Sidebar + HistoryPage |
-| 2 | 🟠 High | Tạo `HistoryIcon` | Thêm vào `navigation.tsx`, thay SVG inline ở Sidebar + HistoryPage |
-| 3 | 🟠 High | Tạo `DownloadButton` | Tách từ 2 inline button ở `TranslatePage.tsx:823-855` |
-| 4 | 🟡 Medium | Tách `MessageBubble` | 113 dòng trong ChatPage → `src/components/chat/MessageBubble.tsx` |
-| 5 | 🟡 Medium | Tạo `ReuseIcon` | Thêm vào `actions.tsx`, thay SVG inline ở `HistoryPage.tsx:170-173` |
+| 1 | 🟠 High | Thay inline SVG | Dựa trên kết quả scan hiện tại, ưu tiên shared/root components |
+| 2 | 🟠 High | Tách duplicate UI pattern | Chỉ khi cùng pattern lặp 2+ lần và props interface rõ |
+| 3 | 🟡 Medium | Tách inline sub-component | Chỉ khi component >= 30 dòng và gây khó đọc/test |
+| 4 | 🟡 Medium | Di chuyển component sai thư mục | Reusable vào `ui/`, feature-specific vào folder feature |
+| 5 | 🟢 Low | Thay emoji icon | Bỏ qua emoji metadata/provider/user content |
 ```
 
 ### Bảng tóm tắt
@@ -188,29 +188,29 @@ import { ChatIcon } from './ui/icons'
 
 | Loại vấn đề | 🟠 High | 🟡 Medium | 🟢 Low | Tổng |
 |-------------|--------|---------|------|------|
-| SVG Icon Hardcode Inline | 14 | 0 | 0 | 14 |
-| UI Pattern Duplicate | 1 | 0 | 0 | 1 |
-| Sub-component Inline quá lớn | 0 | 1 | 0 | 1 |
-| Emoji dùng như Icon | 0 | 1 | 0 | 1 |
-| **Tổng** | **15** | **2** | **0** | **17** |
+| SVG Icon Hardcode Inline | n | 0 | 0 | n |
+| UI Pattern Duplicate | n | 0 | 0 | n |
+| Sub-component Inline quá lớn | 0 | n | 0 | n |
+| Emoji dùng như Icon | 0 | n | n | n |
+| **Tổng** | **n** | **n** | **n** | **n** |
 
-**File bị ảnh hưởng nhiều nhất:** `src/pages/HistoryPage.tsx` (10 SVG inline)
+**File bị ảnh hưởng nhiều nhất:** lấy từ kết quả scan hiện tại, không dùng số liệu report cũ.
 
 **Top 3 ưu tiên sửa:**
-1. Tạo `ChatIcon` + `HistoryIcon` → thay thế 13 SVG inline ở Sidebar + HistoryPage
-2. Tách `DownloadButton` từ 2 inline buttons giống nhau trong TranslatePage
-3. Tách `MessageBubble` ra `src/components/chat/MessageBubble.tsx`
+1. Sửa các finding Critical/High xuất hiện ở shared/root components trước
+2. Tách duplicate UI pattern có ROI rõ
+3. Tách inline component lớn nếu đang làm page khó test/maintain
 ```
 
 ---
 
 ## Lưu báo cáo
 
-Báo cáo được lưu tại `lotus-agent/report/split-ui-report-YYYYMMDD-HHmm.md`
+Báo cáo được lưu tại `viezanagent/report/split-ui-report-YYYYMMDD-HHmm.md`
 
 ```bash
 # Ví dụ tên file
-lotus-agent/report/split-ui-report-20260417-2200.md
+viezanagent/report/split-ui-report-20260417-2200.md
 ```
 
 ---

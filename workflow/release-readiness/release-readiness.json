@@ -1,0 +1,138 @@
+{
+  "name": "release-readiness",
+  "version": "1.0.0",
+  "description": "Workflow kiểm tra Viezan trước release: product smoke tests, security/local-first audit, i18n, build/test/package và docs",
+  "type": "workflow",
+  "trigger": "Khi chuẩn bị release, build bản phân phối hoặc kiểm tra trước khi tag/publish",
+  "rules": [
+    "../../rule/viezan-product-engineering/rules.json"
+  ],
+  "skills": [
+    "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json"
+  ],
+  "gates": [
+    {
+      "id": "product-smoke",
+      "name": "Product smoke test",
+      "required": true,
+      "checks": [
+        "Text translation works with at least one configured provider",
+        "Rewrite/detect/style path still works",
+        "Live translation can start/stop and cleanup audio resources",
+        "Subtitle overlay can open/close if enabled",
+        "Image translation accepts paste/drop and returns/downloads result",
+        "AI Chat sends message and restores history",
+        "TTS and STT settings render and fail gracefully without key",
+        "History tabs load and search works",
+        "Chrome Extension/local bridge path is not broken if enabled"
+      ]
+    },
+    {
+      "id": "security-local-first",
+      "name": "Security and local-first",
+      "required": true,
+      "workflow": "../../workflow/audit-local-first-security/audit-local-first-security.json",
+      "checks": [
+        "No raw API key exposure to renderer/preload",
+        "No new unapproved data egress",
+        "External URLs are allowlisted",
+        "IPC inputs are validated",
+        "No committed secrets"
+      ]
+    },
+    {
+      "id": "i18n",
+      "name": "i18n completeness",
+      "required": true,
+      "checks": [
+        "New UI text has VI/EN/JA translations",
+        "Translations type compiles",
+        "No visible hardcoded labels in changed UI components unless intentional user content"
+      ],
+      "suggested_commands": [
+        "npm run build"
+      ]
+    },
+    {
+      "id": "automated-tests",
+      "name": "Automated tests",
+      "required": true,
+      "checks": [
+        "Unit tests pass",
+        "IPC tests pass",
+        "Store tests pass",
+        "Component/page tests pass where changed"
+      ],
+      "suggested_commands": [
+        "npm test -- --run",
+        "npm run build"
+      ]
+    },
+    {
+      "id": "package-build",
+      "name": "Package build",
+      "required": true,
+      "checks": [
+        "Electron build passes",
+        "Vite build passes",
+        "macOS/Windows build command selected for target release",
+        "Updater and artifact config reviewed if version changes"
+      ],
+      "suggested_commands": [
+        "npm run build",
+        "npm run build:mac",
+        "npm run build:win"
+      ]
+    },
+    {
+      "id": "docs-release-notes",
+      "name": "Docs and release notes",
+      "required": false,
+      "checks": [
+        "README/docs updated for user-visible feature",
+        "viezanagent docs/prompts updated if agent workflow changed",
+        "Release notes mention feature, fixes, known limitations"
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "id": "step-1-version-scope",
+      "name": "Xác định release scope",
+      "action": "Xem version, diff, changelog/release notes dự kiến và target OS."
+    },
+    {
+      "id": "step-2-run-gates",
+      "name": "Chạy từng gate",
+      "action": "Chạy product smoke checklist, security workflow, i18n check, tests và build/package command phù hợp."
+    },
+    {
+      "id": "step-3-classify-blockers",
+      "name": "Phân loại blocker",
+      "action": "Critical security, build failure, broken core translation/live/chat/image path là blocker."
+    },
+    {
+      "id": "step-4-fix-or-report",
+      "name": "Sửa hoặc báo cáo",
+      "action": "Sửa blocker trong scope; nếu không thể, ghi rõ nguyên nhân và command/log liên quan."
+    },
+    {
+      "id": "step-5-final-readiness",
+      "name": "Kết luận readiness",
+      "action": "Trả bảng Gate/Status/Notes, Blocking Issues và Commands Run."
+    }
+  ],
+  "output_format": {
+    "sections": [
+      "Release Readiness",
+      "Blocking Issues",
+      "Commands Run",
+      "Notes"
+    ]
+  },
+  "references": {
+    "readme": "./README.md",
+    "security_workflow": "../audit-local-first-security/audit-local-first-security.json"
+  }
+}
+

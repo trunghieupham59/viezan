@@ -308,6 +308,21 @@ Cách nhớ nhanh:
 | Security | 5 |
 | Documentation | 5 |
 
+### Viezan Electron local-first app
+| Tiêu chí | Điểm |
+|---|---:|
+| Correctness | 20 |
+| Architecture | 15 |
+| Security | 15 |
+| Reliability | 15 |
+| Code Quality | 10 |
+| Maintainability | 10 |
+| Testing | 10 |
+| Performance | 3 |
+| Documentation | 2 |
+
+Áp dụng khi chấm code trong repo Viezan. Security và Reliability được nâng trọng số vì app xử lý API key qua keychain, IPC/preload boundary, provider calls, audio/stream và dữ liệu dịch local-first.
+
 ---
 
 ## Gợi ý định nghĩa ngắn gọn để AI chấm

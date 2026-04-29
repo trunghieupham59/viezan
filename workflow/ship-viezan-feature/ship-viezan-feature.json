@@ -1,0 +1,120 @@
+{
+  "name": "ship-viezan-feature",
+  "version": "1.0.0",
+  "description": "Workflow implement tính năng Viezan từ PRD/issue đến code, i18n, tests, security audit và docs",
+  "type": "workflow",
+  "trigger": "Khi người dùng yêu cầu implement một feature hoặc PRD cho Viezan",
+  "rules": [
+    "../../rule/viezan-product-engineering/rules.json",
+    "../../rule/generate-code/rules.json"
+  ],
+  "skills": [
+    "../../skill/viezan-feature-planner/viezan-feature-planner.json",
+    "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json",
+    "../../skill/viezan-provider-integration/viezan-provider-integration.json"
+  ],
+  "steps": [
+    {
+      "id": "step-1-read-prd",
+      "name": "Đọc PRD và xác định product fit",
+      "action": "Tóm tắt user need, success criteria, non-goals; đối chiếu với product-intro.md.",
+      "output": "Product Fit section"
+    },
+    {
+      "id": "step-2-plan-impact",
+      "name": "Lập impact map",
+      "skill": "viezan-feature-planner",
+      "action": "Phân loại domain, map Main/Preload/Renderer/Store/i18n/Test/Docs và xác định files cần đọc."
+    },
+    {
+      "id": "step-3-read-code",
+      "name": "Đọc code liên quan",
+      "action": "Đọc files/module trong impact map trước khi sửa; ưu tiên patterns hiện có.",
+      "rules": [
+        "Không sửa file ngoài scope nếu không cần",
+        "Không revert thay đổi có sẵn của user",
+        "Tôn trọng architecture hiện tại"
+      ]
+    },
+    {
+      "id": "step-4-design-contracts",
+      "name": "Thiết kế contracts",
+      "action": "Chốt TypeScript types, IPC channel, window.api shape, store fields, i18n keys, provider registry entries nếu cần.",
+      "output": "Contracts list đủ để implement"
+    },
+    {
+      "id": "step-5-implement-by-layer",
+      "name": "Implement theo tầng",
+      "action": "Sửa theo thứ tự dependency để compile dễ: types/constants -> electron/ipc -> preload -> services/hooks/store -> UI -> i18n.",
+      "layer_order": [
+        "Types and constants",
+        "Main Process IPC/provider implementation",
+        "Preload wrappers",
+        "Renderer services/hooks/store",
+        "UI components/pages",
+        "i18n locales",
+        "Tests"
+      ]
+    },
+    {
+      "id": "step-6-security-audit",
+      "name": "Audit security nếu cần",
+      "condition": "Feature chạm API key, provider SDK, IPC/preload, external URL, browser bridge, local server, transcript/image/prompt data",
+      "skill": "viezan-ipc-security-audit",
+      "action": "Kiểm tra renderer boundary, preload surface, IPC validation, key storage, external URL và local-first data flow."
+    },
+    {
+      "id": "step-7-tests",
+      "name": "Thêm/cập nhật tests",
+      "action": "Cập nhật tests đúng tầng: utils, store, ipc, hooks, pages/components.",
+      "test_mapping": {
+        "pure_utils": "src/utils/__tests__/",
+        "store": "src/store/__tests__/",
+        "ipc": "electron/ipc/__tests__/",
+        "pages_components": "src/pages/__tests__/"
+      }
+    },
+    {
+      "id": "step-8-verify",
+      "name": "Verify",
+      "action": "Chạy command phù hợp với phạm vi thay đổi.",
+      "commands_by_scope": [
+        {
+          "scope": "small renderer/component change",
+          "commands": ["npm test -- --run <related-test>", "npm run build"]
+        },
+        {
+          "scope": "ipc/provider/preload change",
+          "commands": ["npm run build:electron", "npm test -- --run electron/ipc"]
+        },
+        {
+          "scope": "broad feature",
+          "commands": ["npm test -- --run", "npm run build"]
+        }
+      ]
+    },
+    {
+      "id": "step-9-docs-prompts",
+      "name": "Cập nhật docs/prompts nếu cần",
+      "action": "Cập nhật viezanagent docs hoặc PROMPTS nếu feature thay đổi cách agent/user thao tác."
+    },
+    {
+      "id": "step-10-final-report",
+      "name": "Báo cáo kết quả",
+      "action": "Tóm tắt files changed, behavior, verification result, risks/follow-up."
+    }
+  ],
+  "output_format": {
+    "sections": [
+      "Done",
+      "Verification",
+      "Notes"
+    ]
+  },
+  "references": {
+    "readme": "./README.md",
+    "feature_planner": "../../skill/viezan-feature-planner/viezan-feature-planner.json",
+    "security_audit": "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json"
+  }
+}
+

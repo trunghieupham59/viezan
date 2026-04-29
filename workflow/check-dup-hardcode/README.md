@@ -10,7 +10,7 @@ Workflow kiểm tra **duplicate code** và **hardcode** trong source code theo k
 
 ```mermaid
 graph TD
-    A[Mã nguồn / Pull Request] --> B[Tầng 1: Quét tĩnh SAST - 0 Token\ngrep / semgrep / trufflehog]
+    A[Mã nguồn / Pull Request] --> B[Tầng 1: Quét tĩnh SAST - 0 Token\nrg / git diff / trufflehog optional]
     B --> C{Có dòng nghi ngờ?}
     C -- Không --> D[✅ Pass: Code sạch]
     C -- Có --> E[Tầng 2: Trích xuất snippet hẹp\n±5 dòng ngữ cảnh + minify]
@@ -22,7 +22,7 @@ graph TD
 
 | Tầng | Tên | Token cost | Công cụ |
 |------|-----|-----------|---------|
-| 1 | Static Pre-filter | **0 token** | `grep`, `semgrep`, `trufflehog`, `eslint` |
+| 1 | Static Pre-filter | **0 token** | `rg`, `git diff`, `trufflehog` optional, `biome` optional |
 | 2 | Context Extraction | Minimal | Line-range ±5, AST parser, minification |
 | 3 | LLM Adjudicator | Low | AI với JSON-only output prompt |
 
@@ -33,7 +33,7 @@ graph TD
 Workflow hướng dẫn AI agent thực hiện toàn bộ quy trình phân tích từ đầu đến cuối:
 
 ```
-Step 0: Pre-filter tĩnh (grep scan, 0 token) → suspected_lines
+Step 0: Pre-filter tĩnh (rg scan, 0 token) → suspected_lines
    ↓
 Step 1: Xác định phạm vi kiểm tra
    ↓
@@ -69,42 +69,40 @@ Hãy dùng workflow check-dup-hardcode để kiểm tra hardcode trong toàn b�
 
 ---
 
-## Tầng 1: Lệnh grep Pre-filter (Zero Token)
+## Tầng 1: Lệnh rg Pre-filter (Zero Token)
 
 Chạy các lệnh này trước — **không tốn token** — để khoanh vùng dòng code nghi ngờ:
 
 ```bash
-# 🔴 Critical: API Key / Secret / Credential
-grep -rn --include='*.ts' --include='*.tsx' --include='*.js' \
-  -E "(api[_-]?key|secret|password|token|credential)\s*=\s*['\"][^'\"]{8,}" \
-  src/ electron/
+# Critical: API Key / Secret / Credential
+rg -n --glob '*.{ts,tsx,js}' \
+  "(api[_-]?key|secret|password|token|credential)\s*=\s*['\"][^'\"]{8,}" \
+  src electron chrome-extension
 
-# 🟡 Medium: Hardcode URL / Endpoint
-grep -rn --include='*.ts' --include='*.tsx' \
-  -E "['\"](https?://[^'\"]+)['\"]" \
-  src/ electron/
+# Medium: Hardcode URL / Endpoint
+rg -n --glob '*.{ts,tsx,js}' "['\"]https?://[^'\"]+['\"]" \
+  src electron chrome-extension
 
-# 🟠 High: Magic Number (timeout, port, limit, size)
-grep -rn --include='*.ts' --include='*.tsx' \
-  -E "(setTimeout|setInterval|port|limit|size|delay)\s*[,(]\s*[0-9]{3,}" \
-  src/ electron/
+# High: Magic Number (timeout, port, limit, size)
+rg -n --glob '*.{ts,tsx,js}' "(setTimeout|setInterval|port|limit|size|delay)\s*[,(]\s*[0-9]{3,}" \
+  src electron chrome-extension
 
-# 🟠 High: SVG inline ngoài ui/icons
-grep -rn --include='*.tsx' '<svg' src/ | grep -v 'ui/icons/'
+# High: SVG inline ngoài ui/icons
+rg -n --glob '*.{tsx,ts}' '<svg' src -g '!src/components/ui/icons/**'
 
-# 🟠 High: Icon library import vi phạm
-grep -rn --include='*.ts' --include='*.tsx' \
-  -E "from '(lucide-react|react-icons|@heroicons|@phosphor-icons)" \
-  src/ | grep -v 'ui/icons/'
+# High: Icon library import vi phạm ngoài icon registry
+rg -n --glob '*.{ts,tsx}' "from ['\"](lucide-react|react-icons|@heroicons|@phosphor-icons)" \
+  src -g '!src/components/ui/icons/**'
 
-# 🟠 High: Magic String phổ biến
-grep -rn --include='*.ts' --include='*.tsx' \
-  -E "===\s*['\"][a-zA-Z_-]{3,}['\"]" \
-  src/ electron/
+# High: Magic String phổ biến
+rg -n --glob '*.{ts,tsx,js}' "===\s*['\"][a-zA-Z_-]{3,}['\"]" \
+  src electron chrome-extension
 
-# 🟢 Low: Hardcode color / hex
-grep -rn --include='*.ts' --include='*.tsx' --include='*.css' \
-  -E "#[0-9a-fA-F]{3,6}" src/
+# Low: Hardcode color / hex
+rg -n --glob '*.{ts,tsx,css}' "#[0-9a-fA-F]{3,6}" src chrome-extension
+
+# Viezan-specific: raw key đi qua renderer/preload
+rg -n "apiKey|secret|token|password" src electron/preload chrome-extension
 ```
 
 ---
@@ -133,7 +131,7 @@ Không giải thích thêm.
 ```json
 {
   "is_hardcoded": true,
-  "fix_suggestion": "Move to import.meta.env.VITE_OPENAI_API_KEY"
+  "fix_suggestion": "Move key to Main Process keychain"
 }
 ```
 
@@ -208,13 +206,13 @@ Trong Step 4, ngoài các hardcode thông thường, bắt buộc kiểm tra th�
 
 | Dấu hiệu vi phạm | Cách phát hiện |
 |-------------------|----------------|
-| `<svg>` inline trong JSX/TSX | `grep -rn "<svg" src/ --include="*.tsx" \| grep -v "ui/icons/"` |
-| Import từ `lucide-react`, `react-icons`, v.v. | `grep -rn "from 'lucide-react'" src/ \| grep -v "ui/icons/"` |
+| `<svg>` inline trong JSX/TSX | `rg -n --glob '*.{tsx,ts}' '<svg' src -g '!src/components/ui/icons/**'` |
+| Import từ `lucide-react`, `react-icons`, v.v. | `rg -n --glob '*.{tsx,ts}' "from ['\"](lucide-react\|react-icons\|@heroicons)" src -g '!src/components/ui/icons/**'` |
 | Emoji ký tự dùng làm icon trong UI | Tìm emoji render trong JSX không phải text content |
 
 **Quy tắc sửa icon hardcode:**
 1. Kiểm tra `src/components/ui/icons/` — xem `index.ts` để tra cứu icon có sẵn theo category
-2. Nếu icon đã có → import và dùng: `import { XxxIcon } from '@/components/ui/icons'`
+2. Nếu icon đã có → import và dùng từ `src/components/ui/icons`
 3. Nếu chưa có → tạo mới icon component trong category file phù hợp (`actions/navigation/media/status/auth/files`), export qua `index.ts`
 
 ---
@@ -233,7 +231,7 @@ const apiKey = "sk-abc123xyz789"
 **Vấn đề:** API key bị commit thẳng vào source code, nguy cơ lộ secret khi push lên git public
 **Sửa:**
 ```ts
-const apiKey = import.meta.env.VITE_OPENAI_API_KEY
+const hasKey = await window.api.keychain.hasKey('openai')
 ```
 
 ---
@@ -248,7 +246,7 @@ const response = await fetch(url, { method: 'POST', headers, body })
 if (!response.ok) throw new Error(...)
 ```
 **Vấn đề:** Logic gọi API lặp lại 100% ở hai file
-**Sửa:** Trích xuất thành `src/utils/apiClient.ts`
+**Sửa:** Trích xuất helper dùng chung trong đúng layer, ví dụ `electron/ipc/providers/request.ts`
 ```
 
 ### Bảng tóm tắt
@@ -306,11 +304,11 @@ jobs:
       
       - name: Layer 1 - Static pre-filter (0 token)
         run: |
-          grep -rn --include='*.ts' --include='*.tsx' \
-            -E "(api[_-]?key|secret|password)\s*=\s*['\"][^'\"]{8,}" \
-            src/ electron/ > suspected_credentials.txt || true
-          grep -rn --include='*.tsx' '<svg' src/ | grep -v 'ui/icons/' \
-            >> suspected_icons.txt || true
+          rg -n --glob '*.{ts,tsx,js}' \
+            "(api[_-]?key|secret|password)\s*=\s*['\"][^'\"]{8,}" \
+            src electron chrome-extension > suspected_credentials.txt || true
+          rg -n --glob '*.{tsx,ts}' '<svg' src -g '!src/components/ui/icons/**' \
+            > suspected_icons.txt || true
       
       - name: Layer 2 - Extract snippets
         run: |

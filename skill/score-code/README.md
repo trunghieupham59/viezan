@@ -32,6 +32,18 @@ Hãy dùng skill score-code để chấm tiêu chí [Correctness | Code Quality 
 | 9 | **Security** | Validate, injection, secret |
 | 10 | **Reliability** | Error handling, robustness |
 
+## Viezan-specific overlay
+
+Khi chấm code trong repo Viezan, luôn áp dụng thêm các điểm sau:
+
+| Tiêu chí | Bổ sung cần chấm |
+|---|---|
+| Architecture | Ranh giới Main / Preload / Renderer, IPC `domain:action`, provider registry |
+| Security | API key chỉ ở Main Process/keychain, không raw key trong renderer/preload, external URL allowlist |
+| Reliability | Retry/fallback provider, cleanup audio/stream/timer, mounted guard |
+| Code Quality | i18n VI/EN/JA cho UI text, icon qua `src/components/ui/icons/` |
+| Testing | IPC tests, store tests, utility tests, component/page tests theo blast radius |
+
 ## Quy tắc không chấm trùng
 
 | Tiêu chí | Không chấm trùng với |

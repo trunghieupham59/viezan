@@ -30,7 +30,7 @@ Hãy dùng workflow fix-vscode-problems để đọc, báo cáo và fix toàn b�
 | Loại | Source | Severity | Ví dụ |
 |------|--------|----------|-------|
 | **TypeScript Error** | `ts` | 🔴 Error | `TS2304: Cannot find name 'X'` |
-| **ESLint Warning** | `eslint` | 🟠 Warning | `no-unused-vars: 'x' is defined but never used` |
+| **ESLint Warning** | `eslint` | 🟠 Warning | Optional nếu VS Code Problems thật sự đến từ ESLint |
 | **GitHub Actions Warning** | `github-actions` | 🟡 Warning | `Context access might be invalid: SECRET_NAME` |
 | **Biome Lint** | `biome` | 🟡 Warning | `noUnusedVariables: This variable is unused` |
 | **Import Error** | `ts` | 🔴 Error | `TS2307: Cannot find module './foo'` |
@@ -100,6 +100,8 @@ user?.name?.toUpperCase()
 
 ### 🟠 ESLint Warnings
 
+> Với Viezan hiện tại, ưu tiên TypeScript, Vitest và Biome. ESLint chỉ xử lý khi output/problem thật sự đến từ ESLint.
+
 ```ts
 // ❌ no-unused-vars
 import { unusedFunction } from './utils'  // không dùng
@@ -124,7 +126,7 @@ useEffect(() => {
 | Quy tắc | Chi tiết |
 |---------|---------|
 | **Đọc file trước** | Luôn đọc file bị ảnh hưởng trước khi đề xuất fix |
-| **Không suppress** | Không dùng `@ts-ignore`, `eslint-disable` trừ khi thực sự cần |
+| **Không suppress** | Không dùng `@ts-ignore`, `eslint-disable`, `biome-ignore` trừ khi thực sự cần |
 | **Phân biệt fix location** | Code fix vs External action rõ ràng |
 | **Context + 10 dòng** | Xem ±10 dòng xung quanh dòng lỗi |
 | **Verify sau fix** | Re-run diagnostics để đảm bảo không có regression |

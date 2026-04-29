@@ -3,6 +3,20 @@
   "version": "1.0.0",
   "description": "Skill chấm điểm source code theo từng tiêu chí cụ thể, có thang điểm rõ ràng và tránh chồng chéo",
   "type": "skill",
+  "project_overlays": {
+    "viezan-electron": {
+      "description": "Overlay khi chấm code trong Viezan: Electron local-first AI translation app",
+      "extra_evidence": [
+        "Main/Preload/Renderer boundary được giữ đúng",
+        "IPC channel theo domain:action và validate input",
+        "API key chỉ ở Main Process/keychain, renderer không nhận raw key",
+        "Provider registry/default models/error classification nhất quán",
+        "UI text qua i18n VI/EN/JA và icon qua src/components/ui/icons/",
+        "Audio/stream/live translate cleanup đầy đủ",
+        "Tests đúng tầng: utils/store/ipc/component"
+      ]
+    }
+  },
   "criteria": [
     {
       "id": "correctness",
@@ -171,6 +185,8 @@
       "evaluate": [
         "Validate và sanitize input",
         "Không lộ secret / API key trong code",
+        "Với Viezan: renderer/preload không nhận raw API key; provider SDK chỉ chạy ở Main Process",
+        "Với Viezan: external URL có allowlist và dữ liệu user không đi qua server trung gian của project",
         "Phân quyền đúng",
         "Tránh SQL injection, XSS, command injection",
         "Mã hóa / password handling đúng chuẩn"
@@ -193,7 +209,8 @@
         "Validate input",
         "Không làm chương trình chết vì lỗi có thể xử lý",
         "Timeout / retry nếu bối cảnh cần",
-        "Trạng thái hệ thống nhất quán"
+        "Trạng thái hệ thống nhất quán",
+        "Với Viezan: stream/audio/timer/listener cleanup và mounted guard đầy đủ"
       ],
       "not_overlap_with": ["Security", "Correctness"],
       "scale": [
@@ -206,7 +223,7 @@
     }
   ],
   "instructions": [
-    "Xác định loại bài để chọn rubric phù hợp",
+    "Xác định loại bài để chọn rubric phù hợp; với repo này ưu tiên overlay viezan-electron",
     "Với mỗi tiêu chí: trích dẫn đoạn code cụ thể làm bằng chứng",
     "Ghi nhận điểm tốt và điểm xấu riêng biệt",
     "Cho điểm theo thang 5 mức tương ứng",

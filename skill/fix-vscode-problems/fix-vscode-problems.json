@@ -11,8 +11,8 @@
     },
     {
       "id": "cli-diagnostics",
-      "label": "CLI / tsc / eslint output",
-      "description": "Chạy lệnh tsc --noEmit, eslint ., biome check... và lấy output"
+      "label": "CLI / TypeScript / Biome output",
+      "description": "Chạy npm run build, npm run build:electron, npm test -- --run, hoặc npx biome check . và lấy output"
     },
     {
       "id": "file-reference",
@@ -51,7 +51,7 @@
       "source": "eslint",
       "severity": "warning",
       "label": "🟠 Warning",
-      "description": "Vi phạm rule ESLint – code chạy được nhưng không đạt chuẩn",
+      "description": "Vi phạm rule ESLint – chỉ áp dụng nếu repo đang có ESLint config hoặc VS Code Problems thật sự đến từ ESLint",
       "common_rules": [
         { "rule": "no-unused-vars", "cause": "Biến/import khai báo nhưng không dùng" },
         { "rule": "react-hooks/exhaustive-deps", "cause": "Dependency array của useEffect/useCallback thiếu deps" },
@@ -64,7 +64,8 @@
         "Thêm đủ dependencies vào useEffect/useCallback",
         "Thay console.log bằng proper logging",
         "Đổi let sang const khi không reassign",
-        "Thay any bằng type cụ thể"
+        "Thay any bằng type cụ thể",
+        "Với Viezan hiện tại: ưu tiên Biome/TypeScript nếu không có ESLint config"
       ]
     },
     {
@@ -118,7 +119,7 @@
         { "rule": "noConsole", "cause": "Console statement còn trong code" }
       ],
       "fix_strategies": [
-        "Chạy biome check --apply để auto-fix",
+        "Chạy npx biome check . --write để auto-fix khi an toàn",
         "Xem biome.json để biết rules đang bật",
         "Tắt rule theo từng dòng nếu có lý do chính đáng: // biome-ignore"
       ]
@@ -182,7 +183,7 @@
         "step": 3,
         "name": "Tra cứu definition",
         "action": "Tìm definition của type/variable/function bị lỗi – có thể ở file khác",
-        "tools": ["search_files", "read_file", "list_code_definition_names"]
+        "tools": ["rg", "sed", "npm run build", "npm run build:electron", "npm test -- --run"]
       },
       {
         "step": 4,
@@ -191,7 +192,7 @@
         "checks": [
           "Import statements ở đầu file",
           "Interface/type definitions liên quan",
-          "Config files (tsconfig.json, biome.json, .eslintrc)",
+          "Config files (tsconfig.json, tsconfig.electron.json, vite.config.ts, vitest.config.ts, biome.json)",
           "GitHub repo settings (với GitHub Actions issues)"
         ]
       },
@@ -211,7 +212,7 @@
   },
   "fix_guidelines": {
     "principles": [
-      "Fix nguyên nhân gốc rễ, không phải triệu chứng (không dùng @ts-ignore hay eslint-disable nếu có thể tránh)",
+      "Fix nguyên nhân gốc rễ, không phải triệu chứng (không dùng @ts-ignore, eslint-disable hoặc biome-ignore nếu có thể tránh)",
       "Một fix không nên tạo ra vấn đề mới ở chỗ khác",
       "Với GitHub Actions: một số 'problems' cần fix ở settings repo, không phải trong code",
       "Với TypeScript errors: luôn giữ type safety, không cast sang any để ẩn lỗi",
@@ -235,7 +236,7 @@
   "output_format": {
     "per_problem": [
       "Severity label (🔴/🟠/🟡/🟢)",
-      "Problem type (TSError / ESLint / GitHub Actions / Biome)",
+      "Problem type (TSError / Biome / GitHub Actions / ESLint optional)",
       "File path + line:col",
       "Message gốc từ VS Code",
       "Root cause: giải thích TẠI SAO xảy ra lỗi này",

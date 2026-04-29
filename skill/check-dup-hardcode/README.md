@@ -4,10 +4,10 @@ Skill phát hiện **duplicate code** và **hardcode** trong source code, phân 
 
 ## Mô tả
 
-Skill này giúp AI agent quét codebase và phân tích hai nhóm vấn đề chất lượng code:
+Skill này giúp AI agent quét codebase Viezan và phân tích hai nhóm vấn đề chất lượng code:
 
 1. **Duplicate Code** – code bị lặp lại không cần thiết theo 4 loại clone
-2. **Hardcode** – giá trị cứng nên được đưa ra constant/config/env
+2. **Hardcode** – giá trị cứng nên được đưa ra constant/config/settings/keychain đúng layer
 
 ## Cách dùng
 
@@ -72,7 +72,7 @@ emit('message-received')
 
 // ❌ Hardcode Credential
 const API_KEY = 'sk-abc123xyz'
-const DB_URL = 'mongodb://prod-server:27017/mydb'
+const rawKey = window.api.keychain.getKey('openai')
 
 // ❌ Hardcode Config
 app.listen(3000)
@@ -106,9 +106,12 @@ import { ROUTES, STATUS, EVENTS } from '@/constants'
 fetch(ROUTES.USERS)
 if (status === STATUS.PENDING)
 
-// ✅ Environment Variable
-const API_KEY = process.env.OPENAI_API_KEY
-const DB_URL = process.env.DATABASE_URL
+// ✅ Viezan local-first key flow
+// Renderer chỉ hỏi trạng thái, không nhận raw key
+const hasOpenAIKey = await window.api.keychain.hasKey('openai')
+
+// Main Process mới được đọc key và gọi provider SDK
+const apiKey = await getStoredApiKey('openai')
 
 // ✅ Config / Settings
 const PORT = config.get('server.port')
@@ -129,12 +132,13 @@ Icon **không được** hardcode trực tiếp trong source code. Mọi icon ph
 
 | Category file | Các icon có sẵn |
 |---------------|----------------|
-| `actions.tsx` | copy, check, trash, arrow-right, download, X, plus, refresh, send, pencil, image, translate, rewrite, layers |
+| `actions.tsx` | copy, check, trash, arrow-right, download, upload, X, plus, refresh, send, pencil, image, translate, rewrite, layers |
 | `navigation.tsx` | chevron-down, chevron-right, gear, auto-detect, arrow-up |
 | `media.tsx` | spinner, stop, speaker, microphone, monitor, subtitles |
 | `status.tsx` | alert-triangle, radio-checked, info-circle, lightbulb, check-circle, user |
 | `auth.tsx` | lock, eye, eye-off |
 | `files.tsx` | document, clipboard |
+| `providers.tsx` | provider logos/icons |
 
 ### Cách import icon đúng
 
@@ -142,8 +146,8 @@ Icon **không được** hardcode trực tiếp trong source code. Mọi icon ph
 // ✅ Dùng icon có sẵn từ registry
 import { CopyIcon, CheckIcon, TrashIcon } from '@/components/ui/icons'
 
-// ✅ Hoặc import trực tiếp từ category file
-import { SearchIcon } from '@/components/ui/icons/actions'
+// ✅ Khi import tương đối trong component gần registry
+import { SearchIcon } from '../ui/icons'
 ```
 
 ### Cách tạo icon mới (nếu chưa có)
@@ -170,13 +174,12 @@ import { SearchIcon } from '@/components/ui/icons'
 ### Cách phát hiện vi phạm
 
 ```bash
-# Grep SVG inline ngoài thư mục icons
-grep -rn "<svg" src/ --include="*.tsx" --include="*.ts" \
-  | grep -v "src/components/ui/icons/"
+# rg SVG inline ngoài thư mục icons
+rg -n --glob '*.{tsx,ts}' '<svg' src -g '!src/components/ui/icons/**'
 
-# Grep import thư viện icon bên ngoài
-grep -rn "from 'lucide-react'\|from 'react-icons'\|from '@heroicons'" src/ \
-  | grep -v "src/components/ui/icons/"
+# rg import thư viện icon bên ngoài
+rg -n --glob '*.{tsx,ts}' "from ['\"](lucide-react|react-icons|@heroicons)" \
+  src -g '!src/components/ui/icons/**'
 ```
 
 ---
@@ -202,7 +205,7 @@ grep -rn "from 'lucide-react'\|from 'react-icons'\|from '@heroicons'" src/ \
 File: src/services/chatService.ts:42
 Code:  const apiKey = "sk-abc123xyz789"
 Vấn đề: API key bị commit thẳng vào source code, nguy cơ lộ secret
-Sửa: const apiKey = import.meta.env.VITE_OPENAI_API_KEY
+Sửa: Chỉ Main Process đọc key từ keychain; Renderer dùng hasKey(provider)
 ```
 
 ### Tóm tắt cuối báo cáo

@@ -4,6 +4,8 @@ Bộ quy tắc để AI generate code đạt chất lượng cao, được xây 
 
 > **Nguyên tắc cốt lõi**: Mỗi rule được ánh xạ 1-1 với một tiêu chí chấm điểm. Code được generate theo đúng các rule này sẽ đạt điểm tốt khi chấm bằng workflow `score-code`.
 
+> **Viezan override**: Khi generate code trong repo Viezan, áp dụng thêm rule [`viezan-product-engineering`](../viezan-product-engineering/README.md). Các yêu cầu local-first, API key trong Main Process/keychain, IPC boundary, i18n VI/EN/JA và icon registry có độ ưu tiên cao hơn ví dụ generic trong file này.
+
 ---
 
 ## Tổng quan bộ rule
@@ -141,6 +143,7 @@ Luôn xử lý các trường hợp biên trước khi implement happy path:
 - Nhất quán về: quotes (single/double), semicolons, trailing comma
 - Nhất quán về: spacing, indentation
 - Ưu tiên dùng linter config có sẵn trong dự án (eslint, prettier, biome)
+- Với Viezan hiện tại: ưu tiên TypeScript strict, Vitest và Biome; không giả định ESLint nếu repo không có config/dependency.
 
 ---
 

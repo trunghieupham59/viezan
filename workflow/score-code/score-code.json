@@ -8,7 +8,7 @@
       "id": "step-1-identify",
       "name": "Xác định loại bài",
       "description": "Xác định loại bài để chọn bộ rubric phù hợp",
-      "action": "Hỏi hoặc suy luận loại bài từ code: cơ bản, OOP/backend, hay project lớn",
+      "action": "Hỏi hoặc suy luận loại bài từ code: cơ bản, OOP/backend, project lớn, hoặc viezan-electron",
       "options": [
         {
           "type": "basic",
@@ -24,6 +24,11 @@
           "type": "project",
           "label": "Project lớn / Đồ án nhóm",
           "criteria": ["Correctness", "Architecture", "Code Quality", "Maintainability", "Testing", "Performance", "Security", "Documentation"]
+        },
+        {
+          "type": "viezan-electron",
+          "label": "Viezan Electron local-first app",
+          "criteria": ["Correctness", "Architecture", "Security", "Reliability", "Code Quality", "Maintainability", "Testing", "Performance", "Documentation"]
         }
       ]
     },
@@ -86,6 +91,17 @@
       "Performance": 10,
       "Security": 5,
       "Documentation": 5
+    },
+    "viezan-electron": {
+      "Correctness": 20,
+      "Architecture": 15,
+      "Security": 15,
+      "Reliability": 15,
+      "Code Quality": 10,
+      "Maintainability": 10,
+      "Testing": 10,
+      "Performance": 3,
+      "Documentation": 2
     }
   },
   "references": {

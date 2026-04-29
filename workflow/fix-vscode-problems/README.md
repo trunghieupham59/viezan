@@ -72,7 +72,7 @@ Workflow này gọi **skill `fix-vscode-problems`** tại 2 bước chính:
 | Loại | Source | Severity | Fix Location |
 |------|--------|----------|-------------|
 | TypeScript Error | `ts` | 🔴 Error | Code |
-| ESLint Warning | `eslint` | 🟠 Warning | Code |
+| ESLint Warning | `eslint` | 🟠 Warning | Code, chỉ khi repo có ESLint output |
 | GitHub Actions Warning | `github-actions` | 🟡 Hint | External (GitHub Settings) |
 | Biome Lint | `biome` | 🟡 Warning | Code |
 | Import Error | `ts` | 🔴 Error | Code / Terminal |
@@ -199,7 +199,7 @@ Nếu không có secret này, workflow sẽ fail hoặc bỏ qua bước code si
 |------------------------|---------|-----------|---------|------------|---------------|
 | GitHub Actions         | 0       | 2         | 1       | 0          | 3             |
 | TypeScript             | 0       | 0         | 0       | 0          | 0             |
-| ESLint / Biome         | 0       | 0         | 0       | 0          | 0             |
+| Biome / ESLint optional | 0       | 0         | 0       | 0          | 0             |
 | **Tổng**               | **0**   | **2**     | **1**   | **0**      | **3**         |
 
 **File bị ảnh hưởng:** `.github/workflows/release.yml`
@@ -221,7 +221,7 @@ Nếu không có secret này, workflow sẽ fail hoặc bỏ qua bước code si
 
 ### YÊU CẦU THAO TÁC BÊN NGOÀI
 - **GitHub Actions `Context access might be invalid`** → tạo secret/variable trong repo Settings
-- **Cannot find module `xxx`** (không trong package.json) → `npm install xxx`
+- **Cannot find module `xxx`** (không trong package.json) → xác nhận với developer trước khi `npm install xxx`
 - **Missing .env variable** → thêm vào `.env` file và `.env.example`
 
 ### KHÔNG SỬA (False Positive)

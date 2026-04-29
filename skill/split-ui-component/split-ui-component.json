@@ -86,9 +86,9 @@
         "Nếu inline component pass 5 tiêu chí reusable: tách vào src/components/ui/",
         "Nếu inline component là feature-specific: tách vào src/components/{feature}/"
       ],
-      "current_violations": [
-        "MessageBubble trong ChatPage.tsx — 113 dòng, feature-specific → src/components/chat/MessageBubble.tsx",
-        "SidebarItem trong Sidebar.tsx — 28 dòng, gần đến ngưỡng nhưng reusable pattern"
+      "example_findings": [
+        "LargeFeaturePanel trong FeaturePage.tsx — 30+ dòng, feature-specific → src/components/{feature}/LargeFeaturePanel.tsx",
+        "Inline reusable picker 30+ dòng → src/components/ui/<Name>.tsx nếu pass 5 tiêu chí reusable"
       ]
     }
   },
@@ -121,7 +121,7 @@
           "files": "document, clipboard, folder icons"
         }
       },
-      "how_to_detect": "grep -rn '<svg' src/ --include='*.tsx' --include='*.ts' | grep -v 'src/components/ui/icons/'"
+      "how_to_detect": "rg -n --glob '*.{tsx,ts}' '<svg' src -g '!src/components/ui/icons/**'"
     },
     {
       "id": "emoji-as-icon",
@@ -178,8 +178,8 @@
         "Component lớn không có file riêng, khó test và khó reuse"
       ],
       "fix": "Tách ra file riêng trong thư mục phù hợp (ui/ hoặc feature/)",
-      "current_violations": [
-        "MessageBubble (113 dòng) inline trong ChatPage.tsx → src/components/chat/MessageBubble.tsx"
+      "example_findings": [
+        "LargeFeaturePanel (30+ dòng) inline trong FeaturePage.tsx → src/components/{feature}/LargeFeaturePanel.tsx"
       ]
     }
   ],
@@ -192,7 +192,8 @@
       "media": "src/components/ui/icons/media.tsx — spinner, stop, speaker, microphone, monitor, subtitles",
       "status": "src/components/ui/icons/status.tsx — alert-triangle, radio-checked, info-circle, lightbulb, check-circle, user",
       "auth": "src/components/ui/icons/auth.tsx — lock, eye, eye-off",
-      "files": "src/components/ui/icons/files.tsx — document, clipboard"
+      "files": "src/components/ui/icons/files.tsx — document, clipboard",
+      "providers": "src/components/ui/icons/providers.tsx — provider logos/icons"
     },
     "import_convention": "import { IconName } from '@/components/ui/icons' hoặc import { IconName } from '../components/ui/icons'",
     "create_new_icon": {

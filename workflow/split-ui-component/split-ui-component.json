@@ -69,7 +69,7 @@
       "skill": "split-ui-component",
       "skill_section": "detection_categories.inline-svg-icon",
       "action": "Quét toàn bộ file .tsx/.ts ngoài src/components/ui/icons/ tìm thẻ <svg>",
-      "grep_command": "grep -rn '<svg' src/ --include='*.tsx' --include='*.ts' | grep -v 'src/components/ui/icons/'",
+      "scan_command": "rg -n --glob '*.{tsx,ts}' '<svg' src -g '!src/components/ui/icons/**'",
       "checklist": [
         "Với mỗi SVG inline tìm được: trích dẫn đoạn code, xác định chức năng icon",
         "Kiểm tra icon registry xem đã có icon tương đương chưa",
@@ -159,13 +159,13 @@
           "## Vấn đề: UI Pattern Duplicate",
           "## Vấn đề: Sub-component Inline quá lớn",
           "## Vấn đề: Component đặt sai thư mục",
-          "## Vấn đề: Emoji dùng làm Icon",
+            "## Vấn đề: Emoji dùng làm Icon",
           "## Kế hoạch tách component (action plan)",
           "## Tóm tắt & Ưu tiên"
         ],
         "component_map_table": {
           "columns": ["Component", "Loại", "Vị trí hiện tại", "Vị trí đúng", "Ghi chú"],
-          "types": ["Reusable ✅", "Feature-specific ✅", "Root-reusable ✅", "Cần tách 🔧", "Sai vị trí ⚠️"]
+          "types": ["Reusable", "Feature-specific", "Root-reusable", "Cần tách", "Sai vị trí"]
         },
         "action_plan_table": {
           "columns": ["Ưu tiên", "Action", "File nguồn", "File đích", "Component/Icon mới"],
@@ -186,9 +186,9 @@
     {
       "id": "step-11-save-report",
       "name": "Lưu báo cáo",
-      "description": "Lưu báo cáo vào thư mục lotus-agent/report với tên file theo convention",
+      "description": "Lưu báo cáo vào thư mục viezanagent/report với tên file theo convention",
       "action": "Tạo file markdown với tên: split-ui-report-YYYYMMDD-HHmm.md",
-      "save_path": "lotus-agent/report/",
+      "save_path": "viezanagent/report/",
       "filename_pattern": "split-ui-report-{YYYYMMDD}-{HHmm}.md"
     }
   ],
