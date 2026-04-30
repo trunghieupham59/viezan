@@ -28,8 +28,8 @@ Bảo Mật Và Riêng Tư
 - Local AI chạy trên máy qua Ollama, LM Studio hoặc llama.cpp.
 - Cloud request đi trực tiếp tới provider bạn chọn.
 - API key được mã hóa bằng Electron safeStorage.
-- Renderer và Chrome Extension không nhận raw API key.
-- Extension kết nối app desktop qua `127.0.0.1:39875` bằng token `X-Viezan-Token`.
+- Renderer và Chrome Extension không nhận raw provider API key.
+- Extension kết nối app desktop qua `127.0.0.1:39875` bằng API key nội bộ dạng `sk-vie-*`.
 - Nội dung chỉ được gửi khi bạn chủ động dịch.
  Phù Hợp Với Ai?
 - BrSE, PM, developer, QA, BA, IT Comtor.
