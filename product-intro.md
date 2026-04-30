@@ -1,39 +1,41 @@
-# VIEZAN — Trợ Lý Dịch Thuật AI Cho Máy Tính
-
-## Câu Chuyện Ra Đời
-
-Mình làm BrSE/PM cho công ty product Nhật Bản. Việc quá dựa vào dịch thuật của IT Comtor, BA hoặc BrSE khiến dev cảm thấy mơ hồ, khó hiểu — thông tin bị tam sao thất bổn, ngữ cảnh kỹ thuật bị mất đi, cả team mất thêm nhiều buổi họp chỉ để làm rõ một yêu cầu đáng lẽ đã rõ từ đầu.
-
-Với tinh thần "工夫" — luôn tìm cách cải tiến — mình đã code (kết hợp vibe code) ra Viezan: bộ công cụ gồm Desktop App (macOS, Windows & Linux) kèm Chrome Extension, giúp mọi người dịch trực tiếp qua nhiều ngôn ngữ bằng AI mà không cần qua người trung gian. Với thời đại AI như hiện nay, mình mong ứng dụng này hỗ trợ được nhiều hơn cho anh chị em trong việc phiên dịch và chat trực tiếp với khách hàng hoặc cấp trên.
-
-Từ bản 1.1.5, Viezan đã có Local AI: phát hiện Ollama, LM Studio hoặc llama.cpp, benchmark phần cứng, đề xuất model phù hợp và tải model qua Ollama ngay trong ứng dụng. Nhờ đó anh chị em có thể dịch và chat local không cần API key nếu công ty không cấp key hoặc muốn giữ dữ liệu trên máy. Vì kinh tế chưa cho phép nên chưa mua được code signing — nếu thấy sản phẩm hữu ích thì mình sẽ cân nhắc đầu tư thêm.
-
-Sản phẩm chạy 100% local trên máy bạn. Mình chỉ dùng API của các provider để gọi model — không có server trung gian, không có dữ liệu nào đi qua hệ thống của mình.
-
----
-
-## Tính Năng Chính
-
-Viezan tích hợp Local AI và 3 nhà cung cấp AI lớn với nhiều model để lựa chọn: Local AI qua Ollama/LM Studio/llama.cpp, Google Gemini, Anthropic Claude và OpenAI GPT. Viezan tự động đề xuất model phù hợp nhất cho từng tác vụ, bạn chuyển đổi provider bất cứ lúc nào.
-
-Dịch văn bản với 7 phong cách — Neutral, Friendly, Professional, Business, Slack, Polite, Technical — phù hợp từng bối cảnh giao tiếp từ tin nhắn team đến tài liệu kỹ thuật. Hỗ trợ Auto/Manual mode tùy thói quen.
-
-Live Translation lắng nghe và dịch song song theo thời gian thực từ microphone hoặc system audio, kèm phụ đề nổi trên màn hình với tùy chỉnh màu sắc, cỡ chữ và độ trong suốt. Sau mỗi phiên có thể tóm tắt toàn bộ nội dung bằng AI.
-
-Dịch ảnh bằng AI Vision: kéo thả hoặc dán ảnh vào, Viezan trích xuất và dịch toàn bộ văn bản trong ảnh, kết quả tải xuống ngay.
-
-Voice Input hỗ trợ Web Speech API, OpenAI Whisper, Gemini STT và Groq Whisper fallback. Text-to-Speech có chuỗi fallback OpenAI, Gemini, Edge TTS và ElevenLabs.
-
-AI Chat tích hợp hoàn chỉnh: đính kèm ảnh, voice input, System Prompt và preset lưu sẵn, lịch sử chat đầy đủ có thể mở lại bất cứ lúc nào.
-
-Furigana tự động cho bản dịch tiếng Nhật — đặc biệt hữu ích cho ai đang học hoặc làm việc với tiếng Nhật hàng ngày. Lịch sử riêng cho Translate, Chat và Live session, có thể tìm kiếm và tái sử dụng bất cứ lúc nào.
-
-Chrome Extension và Bookmarklet dịch trực tiếp trên trình duyệt không cần chuyển cửa sổ. Extension được đóng gói dạng ZIP để cài thủ công, hỗ trợ popup, right-click menu và phím tắt Alt+T. Global Hotkey kích hoạt Viezan từ bất kỳ ứng dụng nào.
-
-API key mã hóa bằng Electron safeStorage — Keychain trên macOS, Credential Manager trên Windows — không ghi ra file, không qua bất kỳ server nào.
-
-Hỗ trợ 19 ngôn ngữ. Giao diện Tiếng Việt, Anh và Nhật. Dark Mode tự động theo hệ thống.
-
----
-
-Tải xuống miễn phí: https://github.com/trunghieupham59/Viezan/releases
+VIEZAN — Công cụ dịch thuật AI local-first
+Viezan là app dịch thuật AI cho macOS, Windows và Linux. App hỗ trợ dịch văn bản, dịch ảnh, phiên dịch trực tiếp, AI Chat và dịch trên trình duyệt.
+Viezan không có server trung gian. Dữ liệu đi trực tiếp từ máy bạn tới Local AI runtime hoặc provider AI bạn chọn.
+Vì Sao Có Viezan?
+Mình làm BrSE/PM trong công ty product Nhật Bản. Trong công việc, thông tin kỹ thuật dễ bị lệch khi đi qua nhiều lớp dịch như dev, BA, BrSE, IT Comtor và khách hàng.
+Viezan giúp mọi người tự dịch, tự hỏi AI và tự kiểm tra ngữ cảnh nhanh hơn. Tinh thần chính là "工夫": cải tiến công việc hằng ngày bằng công cụ thực dụng.
+AI Provider
+- Local AI: Ollama, LM Studio, llama.cpp.
+- Cloud AI: OpenAI GPT, Anthropic Claude, Google Gemini.
+- Local AI có thể phát hiện runtime, benchmark máy, đề xuất model và tải/gỡ model qua Ollama.
+- `local-auto` tự chọn model local phù hợp với máy.
+- Cloud provider dùng API key của chính bạn.
+- API key được lưu trên máy, không đi qua server của Viezan.
+ Tính Năng Chính
+- **AI Dịch**: dịch 19 ngôn ngữ, auto-detect, Auto/Manual mode, 6 phong cách dịch, rewrite, đọc to và voice input.
+- **Phiên âm**: hỗ trợ furigana, pinyin, romanization hoặc phiên âm thuần.
+- **Dịch ảnh**: kéo thả, dán hoặc chọn ảnh; AI đọc chữ trong ảnh, dịch và tạo kết quả tải xuống.
+- **AI Phiên Dịch Trực Tiếp**: nghe microphone, system audio hoặc cả hai; có STT, dịch streaming và phụ đề nổi.
+- **Sau cuộc họp**: tóm tắt nội dung, trích xuất việc cần làm, quyết định chính, phân tích người nói và xuất `.txt` hoặc `.srt`.
+- **Voice Input**: dùng OpenAI Whisper, Gemini STT hoặc Groq Whisper.
+- **TTS**: có Microsoft Edge TTS miễn phí, fallback sang OpenAI, Gemini hoặc ElevenLabs nếu có key.
+- **AI Chat**: chat theo phiên, streaming response, đính kèm ảnh, voice input, System Prompt, preset prompt và lịch sử chat.
+- **Deep Research**: tìm kiếm web qua Tavily, Brave hoặc Jina fallback miễn phí.
+- **Browser Translation**: dịch text trên web bằng extension, floating button, popup, context menu và phím tắt `Alt+T` / `Option+T`.
+- **Lịch sử**: lưu riêng AI Dịch, AI Chat và AI Phiên Dịch; có tìm kiếm, dùng lại và xóa hàng loạt.
+Bảo Mật Và Riêng Tư
+- Không có Viezan-hosted relay server.
+- Local AI chạy trên máy qua Ollama, LM Studio hoặc llama.cpp.
+- Cloud request đi trực tiếp tới provider bạn chọn.
+- API key được mã hóa bằng Electron safeStorage.
+- Renderer và Chrome Extension không nhận raw API key.
+- Extension kết nối app desktop qua `127.0.0.1:39875` bằng token `X-Viezan-Token`.
+- Nội dung chỉ được gửi khi bạn chủ động dịch.
+ Phù Hợp Với Ai?
+- BrSE, PM, developer, QA, BA, IT Comtor.
+- Người học ngoại ngữ hoặc làm việc với tài liệu đa ngôn ngữ.
+- Team cần dịch nhanh chat, meeting, ticket, tài liệu kỹ thuật hoặc nội dung web.
+- Người muốn dùng AI local khi không có API key hoặc muốn giữ dữ liệu trong máy.
+Tải Xuống
+- Viezan miễn phí và mã nguồn mở.
+- Download: https://github.com/trunghieupham59/Viezan/releases
