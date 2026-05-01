@@ -107,15 +107,16 @@ Design notes: [`live_trans.md`](./live_trans.md). Architecture: [`live-translate
 
 ## AI Chat
 
-**UI**: `src/pages/ChatPage.tsx`, `src/components/chat/*`. **Logic**: `src/services/chatService.ts` + `chatSlice.ts`.
+**UI**: `src/pages/ChatPage.tsx`, `src/components/chat/*`, `src/components/markdown/*`. **Logic**: `src/services/chatService.ts`, `smartThinkingService.ts`, `deepResearchService.ts` + `chatSlice.ts`.
 
-- Sessions are persisted; messages contain `role`, `content`, optional `images[]` and a per-message `model` snapshot for history accuracy.
-- Streaming: when `stream: true`, `onDelta` events typewriter into the bubble via `useTypewriter`.
-- **System Prompt** — single editable prompt + a list of saved presets (`systemPromptPresets`).
-- **Multimodal** — drag/drop / paste images; size and MIME validated before IPC.
-- **Web Search** — toggle on the chat page. When enabled, the chat handler runs a search via `webSearch:search` first, injects the top results as a synthetic system message, and answers from there. Provider preference is `Tavily → Brave → Jina` (Jina works without a key).
+- Sessions are persisted through `chatSlice`; assistant replies stream via `chatService.stream()` and render through `MessageBubble` + `MarkdownText`.
+- **System Prompt** — single active prompt plus saved presets (`systemPromptPresets`).
+- **Multimodal input** — drag/drop / paste images; size and MIME are validated before IPC.
+- **Native chart output** — assistant replies may include fenced `chart` JSON blocks. `MarkdownText` validates the JSON shape and renders bar, line or pie charts through `ChartBlock`; invalid chart blocks fall back to code rendering instead of executing arbitrary markup.
+- **Artifact direction** — future rich outputs should follow the same controlled schema pattern: AI proposes structured data, the renderer validates it, and Viezan-owned components render charts, tables, diagrams or generated-image artifacts. Do not render model-produced HTML/SVG directly.
+- **Image generation direction** — generated images should use a dedicated Main Process IPC channel so provider keys remain outside the renderer. Store large image payloads outside persisted chat session JSON and keep only artifact metadata / ids in chat messages.
 - **Deep Research** — `services/deepResearchService.ts` runs an iterative "search → read → reflect" loop using `webSearch:search` + `webSearch:fetchPage` + `chat:send`.
-- **Smart Thinking** — `services/smartThinkingService.ts` adds a hidden chain-of-thought pass that produces a more deliberate final answer.
+- **Smart Thinking** — `services/smartThinkingService.ts` classifies when web context is useful and streams a final answer back into the chat bubble.
 
 ---
 

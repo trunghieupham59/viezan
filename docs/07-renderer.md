@@ -65,6 +65,7 @@ Multi-turn AI chat:
 - Sidebar of saved sessions (CRUD via `chatSlice`).
 - System prompt picker (`SystemPromptDropdown`) with user presets.
 - Streaming reply rendering (`MessageBubble` + `MarkdownText`).
+- Native chart artifact rendering from fenced `chart` JSON blocks (`MarkdownText` + `components/markdown/ChartBlock.tsx`).
 - Image attachments (drag/drop/paste).
 - Voice input (`VoiceRecorder`).
 - Optional Web Search toggle (Tavily / Brave / Jina).
@@ -101,13 +102,14 @@ components/
 ├── AppLogo.tsx
 ├── LanguageSelector.tsx
 ├── MarkdownEditor.tsx
-├── MarkdownText.tsx       Renders model output (sanitized)
+├── MarkdownText.tsx       Renders model output (sanitized Markdown + chart fences)
 ├── ModelSelector.tsx
 ├── ProviderIcon.tsx
 ├── SettingsModal.tsx
 ├── Sidebar.tsx
 ├── VoiceRecorder.tsx
 ├── chat/                  Chat-specific bubbles, prompt dropdown, deep research panel
+├── markdown/              Structured Markdown artifacts such as chart blocks
 ├── live/                  Speaker rows, language bars, segment row, transcription/translation rows
 ├── translate/             Source/target language bars, image preview, voice overlay, toolbar
 └── ui/                    Reusable primitives (buttons, toggles, pickers, icons)

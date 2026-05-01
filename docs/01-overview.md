@@ -30,7 +30,7 @@ Target users:
 | **Live Translate** | Realtime mic / system-audio / mixed transcription, streaming translation, floating subtitle overlay window, post-meeting summary, action items, decisions, speaker analysis, `.txt` / `.srt` export. |
 | **Voice Input** | Web Speech API + Whisper, Gemini STT and Groq Whisper fallbacks. |
 | **TTS** | Edge TTS (free) → OpenAI → Gemini → ElevenLabs fallback chain. |
-| **AI Chat** | Multi-turn chat with image attachments, voice input, system prompt presets, streaming responses, history, optional web search. |
+| **AI Chat** | Multi-turn chat with image attachments, voice input, system prompt presets, streaming responses, history, optional web search, and native chart blocks in model responses. |
 | **Deep Research / Web Search** | Tavily and Brave key support, Jina free fallback. |
 | **Browser Translation** | Chrome Extension + floating button + context menu + `Alt+T` / `Option+T` shortcut, bridged through a local server. |
 | **Quick Chat** | Raycast-style floating panel summoned by a global hotkey. |

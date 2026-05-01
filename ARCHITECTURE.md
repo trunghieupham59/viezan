@@ -126,6 +126,27 @@ When adding new state: if it needs to survive a reload, add it to `partialize`. 
 
 ---
 
+## 3.1 AI Chat Rich Response Artifacts
+
+AI Chat responses are streamed as text, but the renderer may upgrade controlled fenced blocks into rich UI artifacts. The first supported artifact is a `chart` fence:
+
+````md
+```chart
+{ "type": "bar", "title": "Revenue", "labels": ["Jan", "Feb"], "values": [120, 180] }
+```
+````
+
+`src/components/MarkdownText.tsx` parses Markdown blocks and delegates chart fences to `src/components/markdown/ChartBlock.tsx`. The chart renderer validates JSON, limits labels/series sizes and draws bar, line or pie charts with Viezan-owned React/SVG code. Invalid chart JSON falls back to a normal code block.
+
+Future rich response types should keep the same boundary:
+- The model may propose structured JSON only.
+- Renderer code validates the schema before rendering.
+- Never inject model-produced HTML/SVG into the DOM.
+- Large generated images should be stored as external artifacts with ids/metadata in `chatSessions`; avoid persisting large base64 payloads in Zustand localStorage.
+- Provider-backed image generation belongs in a dedicated Main Process IPC handler because API keys must not cross into the renderer.
+
+---
+
 ## 4. Provider System
 
 Four translation/chat providers are supported: **Local AI**, **Gemini**, **Claude**, and **OpenAI**. Each provider has a config entry in `src/constants/providers.ts` and per-function implementations in `electron/ipc/`.
