@@ -28,8 +28,8 @@ The browser extension under `chrome-extension/` lets users translate selected we
 | `popup.html`, `popup.js` | Toolbar popup — quick translate textarea + status indicator (connected / disconnected). |
 | `options.html`, `options.js` | Options page — server URL, connection key, default languages, default provider, theme. |
 | `model-display.js` | Helper to pretty-print provider/model labels (mirrors `src/utils/modelDisplay.ts`). |
+| `provider-meta.js` | Shared extension-side provider badge colors, aligned with `src/constants/providers.ts`. |
 | `icons/` | 16/32/48/128 icons. |
-| `chrome-extension.pem` | Local development key. **Do not** ship in a public release; the official package uses a release key. |
 | `README.md` | User-facing extension guide. |
 
 ## Local Bridge Protocol
@@ -114,11 +114,12 @@ To test against a dev desktop build:
 2. In the extension's Options, paste the connection key from Settings → Browser Extension.
 3. Open any page, select text, click the Viezan button.
 
-To package for release: `chrome://extensions` → "Pack extension" with a stable signing key (the official release uses a CI-managed key, not `chrome-extension.pem`).
+For local ZIP testing, load `chrome-extension/` as an unpacked extension or zip the folder without any signing key. Official CRX packaging is handled by `.github/workflows/release.yml`, which restores the signing key from the `CHROME_EXTENSION_PEM_BASE64` GitHub secret at runtime. Do not commit PEM/private-key files to the repository.
 
 ## Security Notes
 
 - The local server **only binds to `127.0.0.1`** (never `0.0.0.0`).
+- Extension signing keys are CI secrets; PEM/private-key files must stay out of source control.
 - Only `Origin: chrome-extension://<id>` plus a valid bearer key passes the auth filter.
 - Rate limiting is enforced on the local server (per-IP and per-key) to absorb buggy extensions.
 - The extension's content script keeps style + behavior isolated from the host page (no global event listeners, no direct DOM mutation outside its own elements).
