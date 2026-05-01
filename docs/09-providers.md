@@ -171,7 +171,7 @@ Add unit specs under `electron/ipc/__tests__/`:
 
 ### 9. UI
 
-`ApiKeysSection.tsx` reads `PROVIDERS` directly, so a new entry shows up automatically. The `Verify` button calls `translate:verify-key`, which dispatches to `VERIFY_PROVIDERS[provider]`.
+`ApiKeysSection.tsx` reads `PROVIDERS` directly, so a new entry shows up automatically. The `Verify` button calls `translate:verify`, which dispatches to `VERIFY_PROVIDERS[provider]`.
 
 ### 10. Docs / changelog
 

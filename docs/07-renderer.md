@@ -160,7 +160,7 @@ src/constants/
 
 ## i18n
 
-`src/i18n/index.ts` exposes `t(key, params?)` and `setLocale(locale)`. Locale files in `src/i18n/locales/{en,ja,vi}.ts`. Keys are dotted (e.g. `settings.apiKeys.title`). The structure between locales must stay **identical** — the `audit-i18n-coverage` workflow asserts this.
+`src/i18n/index.ts` exposes `TRANSLATIONS` and `LOCALE_NAMES`; components read the active locale through `useT()` from `src/store/useAppStore.ts`. Locale files in `src/i18n/locales/{en,ja,vi}.ts` use flat keys (for example `settings_api_keys_title`) typed by `src/i18n/types.ts`. The structure between locales must stay **identical** — the `audit-i18n-coverage` workflow asserts this.
 
 ## Utils
 
@@ -187,7 +187,7 @@ The renderer reads/writes through one Zustand store. See [`08-state-management.m
 
 - Pages are JSX-first. Push logic into a hook the moment the page exceeds ~250 lines or contains imperative effects.
 - Cross-cutting helpers (especially anything that calls `window.api` more than once) should live in `services/` or `hooks/`.
-- All user-facing strings go through `t(...)`. No hardcoded UI text. The `audit-i18n-coverage` workflow flags violations.
+- All user-facing renderer strings come from the `useT()` translation object. No hardcoded UI text. The `audit-i18n-coverage` workflow flags violations.
 - Icons must come from `components/ui/icons/`. No inline SVG paths in feature components.
 - A new feature with global state goes in a slice under `src/store/slices/`, not in component state.
 - Tests use Vitest + Testing Library (`src/**/__tests__/`).
