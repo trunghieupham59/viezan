@@ -1,0 +1,232 @@
+{
+  "name": "viezan-live-perf-audit",
+  "version": "1.0.0",
+  "description": "Skill audit hiệu năng pipeline Live Translate của Viezan: VAD gating, Whisper STT chunking, hallucination/duplicate filter, sentence boundary, streaming translation, subtitle window, fire-and-forget guard. Mục tiêu giảm latency, tránh memory/CPU leak, tránh setState sau unmount.",
+  "type": "skill",
+  "trigger": "Khi thay đổi src/hooks/useLiveTranslate.ts, src/pages/LiveTranslatePage.tsx, electron/ipc/transcribe.ts, electron/ipc/translate.ts (live-stream), electron/ipc/subtitle.ts hoặc subtitle window",
+  "required_context": [
+    "../../ARCHITECTURE.md",
+    "../../docs/live_trans.md",
+    "../../docs/live-translate-pipeline.md",
+    "../../rule/viezan-product-engineering/rules.json"
+  ],
+  "pipeline_stages": [
+    {
+      "id": "audio-capture",
+      "name": "Audio Capture",
+      "files": [
+        "src/hooks/useLiveTranslate.ts",
+        "src/components/live/",
+        "src/constants/audio.ts"
+      ],
+      "key_concerns": [
+        "AudioContext + AnalyserNode được đóng khi unmount",
+        "MediaStream + track được stop khi đổi nguồn hoặc unmount",
+        "Không tạo nhiều AudioContext lặp khi re-render"
+      ]
+    },
+    {
+      "id": "vad",
+      "name": "VAD 3-gate filter",
+      "files": [
+        "src/hooks/useLiveTranslate.ts",
+        "public/vad/"
+      ],
+      "key_concerns": [
+        "Threshold RMS, sustained, peak được lấy từ constants chứ không hardcode rải rác",
+        "VAD silent reset 30s không gây leak buffer",
+        "VAD worklet được terminate khi unmount"
+      ]
+    },
+    {
+      "id": "stt-whisper",
+      "name": "Whisper STT chunking",
+      "files": [
+        "src/hooks/useLiveTranslate.ts",
+        "electron/ipc/transcribe.ts"
+      ],
+      "key_concerns": [
+        "Chunk 1.5s với VAD early-stop hợp lý",
+        "Confidence gate: noSpeechProb, avgLogprob, compressionRatio, words/chunk, words/sec",
+        "Không gửi chunk silent / quá ngắn cho provider",
+        "Retry/cancel khi user dừng live"
+      ]
+    },
+    {
+      "id": "filter",
+      "name": "Hallucination + Duplicate Filter",
+      "files": [
+        "src/hooks/useLiveTranslate.ts"
+      ],
+      "key_concerns": [
+        "Jaccard similarity > 0.92 reject",
+        "Hallucination phrase list được tách thành constant",
+        "Không O(n^2) trên list chunk lớn"
+      ]
+    },
+    {
+      "id": "sentence-boundary",
+      "name": "Sentence Boundary Detection",
+      "files": [
+        "src/hooks/useLiveTranslate.ts"
+      ],
+      "key_concerns": [
+        "Buffer cho đến khi gặp .!?。 hoặc fallback 2 chunk",
+        "Không giữ buffer vô hạn nếu không có punctuation",
+        "Reset buffer khi đổi sourceLang"
+      ]
+    },
+    {
+      "id": "translation",
+      "name": "Background Translation",
+      "files": [
+        "src/hooks/useLiveTranslate.ts",
+        "electron/ipc/translate.ts",
+        "electron/ipc/translateProviders.ts"
+      ],
+      "key_concerns": [
+        "Fire-and-forget với mountedRef guard, không setState sau unmount",
+        "AbortController hoặc cancellation token khi user dừng",
+        "Không spawn translate cho chunk đã bị filter",
+        "Streaming token gửi đúng subtitle window khi bật"
+      ]
+    },
+    {
+      "id": "subtitle",
+      "name": "Subtitle Overlay Window",
+      "files": [
+        "electron/ipc/subtitle.ts",
+        "electron/preload/subtitle.ts",
+        "public/subtitle.html"
+      ],
+      "key_concerns": [
+        "Window được đóng và unsubscribe IPC khi tắt subtitle",
+        "Không leak listener mỗi lần bật/tắt",
+        "Streaming token được debounce/throttle để tránh repaint storm"
+      ]
+    },
+    {
+      "id": "history-session",
+      "name": "Live Session History",
+      "files": [
+        "src/store/slices/historySlice.ts"
+      ],
+      "key_concerns": [
+        "Session lưu local, không gửi server",
+        "Persist size có giới hạn để tránh localStorage bloat",
+        "Có UX xóa session"
+      ]
+    }
+  ],
+  "audit_categories": [
+    {
+      "id": "lifecycle-safety",
+      "name": "Lifecycle Safety",
+      "severity_if_failed": "high",
+      "checks": [
+        "AudioContext, MediaStream, MediaRecorder, AudioWorklet được dispose khi unmount hoặc dừng live",
+        "useEffect cleanup hủy listener IPC, unsubscribe stream",
+        "mountedRef bảo vệ setState sau unmount",
+        "Không tạo handler mới mỗi render mà không cleanup cái cũ"
+      ],
+      "suggested_searches": [
+        "rg -n \"new AudioContext|getUserMedia|getDisplayMedia|MediaRecorder|AudioWorklet\" src",
+        "rg -n \"mountedRef|isMounted|abortController\" src/hooks src/pages",
+        "rg -n \"useEffect\\(.*\\[\\]\\)\" src/hooks/useLiveTranslate.ts"
+      ]
+    },
+    {
+      "id": "throughput",
+      "name": "Throughput / Latency",
+      "severity_if_failed": "high",
+      "checks": [
+        "Không gửi chunk dưới ngưỡng confidence",
+        "Không double-translate cùng chunk",
+        "Streaming flush/throttle hợp lý (≤ 60fps repaint)",
+        "Không block main thread bằng heavy regex/jaccard trong loop"
+      ]
+    },
+    {
+      "id": "back-pressure",
+      "name": "Back-pressure / Cancellation",
+      "severity_if_failed": "medium",
+      "checks": [
+        "Khi user dừng live: STT inflight + translate inflight được abort hoặc bị ignore khi return",
+        "Khi đổi target language giữa chừng: pipeline cũ bị reset",
+        "Không build queue dài vô hạn nếu provider chậm"
+      ]
+    },
+    {
+      "id": "constants-and-tunables",
+      "name": "Constants & Tunables",
+      "severity_if_failed": "medium",
+      "checks": [
+        "Threshold (RMS, sustained, peak, jaccard, words/sec, chunk size) ở constants chuyên biệt",
+        "Không hardcode magic number rải khắp hook",
+        "Có comment giải thích nguồn gốc threshold (link docs/live-translate-pipeline.md)"
+      ],
+      "suggested_searches": [
+        "rg -n \"0\\.9[0-9]|1\\.5|2000|3000\" src/hooks/useLiveTranslate.ts",
+        "rg -n \"export const \" src/constants/audio.ts"
+      ]
+    },
+    {
+      "id": "subtitle-window-perf",
+      "name": "Subtitle Window Performance",
+      "severity_if_failed": "medium",
+      "checks": [
+        "Subtitle DOM update theo batch/animation frame",
+        "Không append text vô hạn (cần trim hoặc rotate buffer)",
+        "Khi tắt subtitle, IPC listener bị remove"
+      ]
+    }
+  ],
+  "severity_levels": [
+    {
+      "level": "critical",
+      "meaning": "Memory leak chắc chắn, app crash hoặc app tự upload audio mà không có quyền"
+    },
+    {
+      "level": "high",
+      "meaning": "Latency tăng rõ rệt, setState-after-unmount, không cleanup stream"
+    },
+    {
+      "level": "medium",
+      "meaning": "Magic number rải rác, không có cancellation, repaint storm"
+    },
+    {
+      "level": "low",
+      "meaning": "Polish/log noise"
+    }
+  ],
+  "output_format": {
+    "sections": [
+      "Pipeline Map",
+      "Findings",
+      "Lifecycle Verdict",
+      "Performance Verdict",
+      "Required Fixes",
+      "Tunable Constants Suggestion"
+    ],
+    "finding_fields": [
+      "severity",
+      "stage",
+      "category",
+      "file_line",
+      "issue",
+      "recommended_fix"
+    ]
+  },
+  "instructions": [
+    "Luôn map mỗi finding vào một stage cụ thể (audio-capture, vad, stt-whisper, ...)",
+    "Khi đề xuất threshold mới: phải ghi rõ trade-off latency vs accuracy",
+    "Cảnh báo bất kỳ chỗ nào có thể dẫn tới setState sau unmount trong useLiveTranslate.ts",
+    "Không đề xuất gửi audio raw lên analytics/telemetry"
+  ],
+  "references": {
+    "workflow": "../../workflow/audit-live-perf/audit-live-perf.json",
+    "rule": "../../rule/viezan-product-engineering/rules.json",
+    "feature_planner": "../../skill/viezan-feature-planner/viezan-feature-planner.json",
+    "readme": "./README.md"
+  }
+}

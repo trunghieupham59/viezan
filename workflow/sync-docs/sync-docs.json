@@ -1,0 +1,99 @@
+{
+  "name": "sync-docs",
+  "version": "1.0.0",
+  "description": "Workflow đồng bộ docs Viezan (ARCHITECTURE.md, PROMPTS.md, product-intro.md, README.md, viezanagent/docs/, chrome-extension/README.md) với source code: extract truth từ code, diff với docs, đề xuất patch tối thiểu",
+  "type": "workflow",
+  "trigger": "Khi merge feature lớn, đổi IPC/provider/store/locale, hoặc trước release",
+  "rules": [
+    "../../rule/viezan-product-engineering/rules.json"
+  ],
+  "skills": [
+    "../../skill/viezan-doc-sync/viezan-doc-sync.json"
+  ],
+  "steps": [
+    {
+      "id": "step-1-scope",
+      "name": "Xác định scope docs cần đồng bộ",
+      "action": "Mặc định: ARCHITECTURE.md + PROMPTS.md + product-intro.md + README.md + chrome-extension/README.md + viezanagent/docs/. Có thể giới hạn theo yêu cầu user."
+    },
+    {
+      "id": "step-2-extract-truth",
+      "name": "Extract truth từ code",
+      "skill": "viezan-doc-sync",
+      "action": "Chạy các lệnh trong code_truth_anchors để trích xuất nguồn sự thật từ code.",
+      "commands": [
+        "rg -n \"ipcMain\\.handle\\(['\\\"][^'\\\"]+['\\\"]\" electron",
+        "ls electron/preload",
+        "ls src/store/slices",
+        "ls src/i18n/locales",
+        "ls viezanagent/skill viezanagent/workflow",
+        "rg -n \"SUPPORTED_PROVIDERS|PROVIDERS\\.push\" electron src",
+        "rg -n \"save_path|filename_pattern\" viezanagent/workflow"
+      ]
+    },
+    {
+      "id": "step-3-read-docs",
+      "name": "Đọc docs liên quan",
+      "action": "Đọc ARCHITECTURE.md, PROMPTS.md, product-intro.md, README.md, chrome-extension/README.md để build mental map các bảng/section."
+    },
+    {
+      "id": "step-4-diff",
+      "name": "Diff truth vs docs",
+      "skill": "viezan-doc-sync",
+      "action": "Với mỗi anchor: phân loại missing-in-docs, stale-in-docs, broken-paths, report-path-drift, release-notes-coverage."
+    },
+    {
+      "id": "step-5-validate-cross-refs",
+      "name": "Validate cross references trong skill/workflow JSON",
+      "action": "Kiểm tra path ../../... trong viezanagent/skill và viezanagent/workflow JSON có tồn tại file/folder thật không.",
+      "commands": [
+        "rg -n \"\\.\\./\\.\\./\" viezanagent/skill viezanagent/workflow viezanagent/rule"
+      ]
+    },
+    {
+      "id": "step-6-propose-patch",
+      "name": "Đề xuất patch tối thiểu",
+      "action": "Tạo danh sách thay đổi cụ thể (file + section + nội dung mới) thay vì viết lại docs.",
+      "rules": [
+        "Giữ nguyên format bảng/heading hiện có",
+        "Không xóa nội dung nếu chưa chắc feature bị remove",
+        "Khi thêm row vào bảng IPC: thêm đúng cột Channel/File/Purpose"
+      ]
+    },
+    {
+      "id": "step-7-apply-or-output",
+      "name": "Apply patch hoặc output kế hoạch",
+      "action": "Nếu user yêu cầu apply: dùng replace_in_file với SEARCH/REPLACE chính xác. Nếu chỉ audit: trả patch dưới dạng diff trong message."
+    },
+    {
+      "id": "step-8-verify",
+      "name": "Verify",
+      "action": "Đọc lại docs đã sửa, chạy lint markdown nếu có.",
+      "commands": [
+        "npx markdownlint-cli2 \"viezanagent/**/*.md\" \"README.md\" \"chrome-extension/README.md\" || true"
+      ]
+    },
+    {
+      "id": "step-9-report",
+      "name": "Báo cáo",
+      "action": "Trả Drift Summary + Required Updates + Verification. Lưu file report nếu user yêu cầu.",
+      "save_path": "viezanagent/report/",
+      "filename_pattern": "doc-sync-report-{YYYYMMDD}-{HHmm}.md"
+    }
+  ],
+  "output_format": {
+    "sections": [
+      "Drift Summary",
+      "Missing in Docs",
+      "Stale in Docs",
+      "Broken Paths",
+      "Report Path Drift",
+      "Required Updates",
+      "Verification"
+    ]
+  },
+  "references": {
+    "skill": "../../skill/viezan-doc-sync/viezan-doc-sync.json",
+    "readme": "./README.md"
+  }
+}

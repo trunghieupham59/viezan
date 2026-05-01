@@ -26,6 +26,10 @@ Nguyên tắc chung:
 | Chấm điểm chất lượng code | `workflow score-code`, loại bài `viezan-electron` |
 | Kiểm tra/tách UI component | `workflow split-ui-component` |
 | Fix Problems từ VS Code/build/test | `workflow fix-vscode-problems` |
+| Audit i18n VI/EN/JA và hardcoded UI string | `workflow audit-i18n-coverage` |
+| Audit Chrome Extension UX và local bridge | `workflow audit-extension-ux` |
+| Audit hiệu năng/lifecycle pipeline Live Translate | `workflow audit-live-perf` |
+| Đồng bộ docs với code (IPC/provider/locale/skill) | `workflow sync-docs` |
 
 ---
 
@@ -201,6 +205,55 @@ Dùng skill fix-vscode-problems để phân tích problems sau:
 [paste output từ VS Code Problems hoặc terminal]
 ```
 
+### Skill: viezan-i18n-audit
+
+Audit i18n VI/EN/JA: missing key giữa locale, hardcoded UI string, key chưa dùng, parity với Chrome Extension.
+
+```text
+Dùng skill viezan-i18n-audit để kiểm tra i18n giữa vi/en/ja.
+```
+
+```text
+Dùng skill viezan-i18n-audit để tìm UI string hardcode trong:
+[file/folder]
+```
+
+### Skill: viezan-extension-ux
+
+Audit Chrome Extension UX: popup/options/tooltip parity, state UX (missing-token/offline/loading/error/success), options storage, local bridge security.
+
+```text
+Dùng skill viezan-extension-ux để audit popup/options/tooltip Chrome Extension.
+```
+
+```text
+Dùng skill viezan-extension-ux để review thay đổi local bridge giữa extension và Electron app.
+```
+
+### Skill: viezan-live-perf-audit
+
+Audit hiệu năng và lifecycle pipeline Live Translate: AudioContext/MediaStream cleanup, mountedRef guard, Whisper confidence gate, streaming throttle, subtitle window listener.
+
+```text
+Dùng skill viezan-live-perf-audit để review thay đổi useLiveTranslate.ts.
+```
+
+```text
+Dùng skill viezan-live-perf-audit để kiểm tra leak/lag pipeline live trước release.
+```
+
+### Skill: viezan-doc-sync
+
+Phát hiện drift giữa code và docs (ARCHITECTURE.md, PROMPTS.md, product-intro.md, README.md, viezanagent/docs/, chrome-extension/README.md).
+
+```text
+Dùng skill viezan-doc-sync để rà drift giữa code và docs.
+```
+
+```text
+Dùng skill viezan-doc-sync sau khi thêm IPC/provider/locale/skill mới.
+```
+
 ---
 
 ## Workflows
@@ -336,6 +389,66 @@ Dùng workflow fix-vscode-problems để quét diagnostics hiện tại và fix 
 
 Báo cáo mặc định: `viezanagent/report/vscode-problems-report-YYYYMMDD-HHmm.md`.
 
+### Workflow: audit-i18n-coverage
+
+Audit i18n VI/EN/JA: pre-filter `rg`, đối chiếu key giữa 3 locale, tìm hardcoded UI string, kiểm tra parity Chrome Extension.
+
+```text
+Dùng workflow audit-i18n-coverage để kiểm tra i18n giữa vi/en/ja và Chrome Extension.
+```
+
+```text
+Dùng workflow audit-i18n-coverage và lưu report vào viezanagent/report/.
+```
+
+Báo cáo mặc định: `viezanagent/report/i18n-audit-report-YYYYMMDD-HHmm.md`.
+
+### Workflow: audit-extension-ux
+
+Audit Chrome Extension UX và local bridge security: visual parity, state UX, options storage, bind/origin/key safety, manual smoke.
+
+```text
+Dùng workflow audit-extension-ux để audit chrome-extension/ và local bridge.
+```
+
+```text
+Dùng workflow audit-extension-ux trước release Windows/macOS.
+```
+
+Báo cáo mặc định: `viezanagent/report/extension-ux-report-YYYYMMDD-HHmm.md`.
+
+### Workflow: audit-live-perf
+
+Audit hiệu năng và lifecycle pipeline Live Translate: AudioContext/MediaStream cleanup, mountedRef, Whisper confidence gate, streaming throttle, subtitle window listener.
+
+```text
+Dùng workflow audit-live-perf để kiểm tra useLiveTranslate.ts và subtitle pipeline.
+```
+
+```text
+Dùng workflow audit-live-perf trước release để chắc chắn không leak audio/listener.
+```
+
+Báo cáo mặc định: `viezanagent/report/live-perf-report-YYYYMMDD-HHmm.md`.
+
+### Workflow: sync-docs
+
+Đồng bộ docs Viezan với code: extract truth từ code (IPC/provider/store/locale/skill), diff với docs, đề xuất patch tối thiểu.
+
+```text
+Dùng workflow sync-docs để rà drift giữa code và docs.
+```
+
+```text
+Dùng workflow sync-docs sau khi thêm IPC/provider/locale/skill mới.
+```
+
+```text
+Dùng workflow sync-docs và lưu report vào viezanagent/report/.
+```
+
+Báo cáo mặc định: `viezanagent/report/doc-sync-report-YYYYMMDD-HHmm.md`.
+
 ---
 
 ## Report Paths
@@ -346,3 +459,7 @@ Báo cáo mặc định: `viezanagent/report/vscode-problems-report-YYYYMMDD-HHm
 | `split-ui-component` | `viezanagent/report/split-ui-report-YYYYMMDD-HHmm.md` |
 | `fix-vscode-problems` | `viezanagent/report/vscode-problems-report-YYYYMMDD-HHmm.md` |
 | `audit-local-first-security` | `viezanagent/report/local-first-security-audit-YYYYMMDD-HHmm.md` |
+| `audit-i18n-coverage` | `viezanagent/report/i18n-audit-report-YYYYMMDD-HHmm.md` |
+| `audit-extension-ux` | `viezanagent/report/extension-ux-report-YYYYMMDD-HHmm.md` |
+| `audit-live-perf` | `viezanagent/report/live-perf-report-YYYYMMDD-HHmm.md` |
+| `sync-docs` | `viezanagent/report/doc-sync-report-YYYYMMDD-HHmm.md` |
