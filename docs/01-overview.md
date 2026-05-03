@@ -99,7 +99,7 @@ viezan/
 ├── docs/                     Public GitHub Pages site
 ├── scripts/                  Build helpers (notarize, icon gen)
 ├── build/                    electron-builder assets (icons, entitlements)
-└── viezanagent/              Agent rules / skills / workflows / docs
+└── viezanagent/              Purpose agents / rules / skills / workflows / docs
     └── docs/                 ← you are here
 ```
 

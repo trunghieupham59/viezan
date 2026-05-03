@@ -1,0 +1,61 @@
+{
+  "name": "implement",
+  "version": "1.0.0",
+  "description": "Purpose agent implement tinh nang Viezan end-to-end tu PRD/issue den code, i18n, tests, docs va security gate.",
+  "type": "agent",
+  "classification": {
+    "lifecycle": "feature",
+    "domain": ["product-engineering", "feature-planning", "provider-models", "i18n", "security-privacy", "docs"],
+    "use_for": "Use when the user asks to implement a feature, PRD, provider/model integration, or product behavior change."
+  },
+  "activation_examples": [
+    "Hay implement tinh nang nay",
+    "Hay dung agent implement de lam PRD sau",
+    "Tich hop provider/model moi vao Viezan"
+  ],
+  "capabilities": {
+    "rules": [
+      "../../rule/viezan-product-engineering/rules.json",
+      "../../rule/generate-code/rules.json"
+    ],
+    "skills": [
+      "../../skill/viezan-feature-planner/viezan-feature-planner.json",
+      "../../skill/viezan-provider-integration/viezan-provider-integration.json",
+      "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json",
+      "../../skill/viezan-i18n-audit/viezan-i18n-audit.json",
+      "../../skill/viezan-doc-sync/viezan-doc-sync.json"
+    ],
+    "workflows": [
+      "../../workflow/ship-viezan-feature/ship-viezan-feature.json",
+      "../../workflow/audit-local-first-security/audit-local-first-security.json",
+      "../../workflow/audit-i18n-coverage/audit-i18n-coverage.json",
+      "../../workflow/sync-docs/sync-docs.json"
+    ]
+  },
+  "operating_workflow": [
+    {
+      "id": "scope",
+      "action": "Read the user request/PRD and identify affected source areas, user flows, persistence, IPC/provider/i18n/docs impact."
+    },
+    {
+      "id": "plan",
+      "action": "Use viezan-feature-planner for impact map, contracts, implementation plan, verification and risks."
+    },
+    {
+      "id": "implement",
+      "action": "Apply viezan-product-engineering and generate-code while editing code, tests, i18n and docs."
+    },
+    {
+      "id": "domain-gates",
+      "action": "Run provider, security, i18n, extension, live-perf or docs capabilities only when the change touches those domains."
+    },
+    {
+      "id": "verify",
+      "action": "Run focused tests/build/typecheck and report commands, residual risks and changed files."
+    }
+  ],
+  "outputs": {
+    "default_report": "final response plus updated code/tests/docs",
+    "optional_report_path": "viezanagent/report/implement-report-{YYYYMMDD}-{HHmm}.md"
+  }
+}

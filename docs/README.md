@@ -69,4 +69,4 @@ Viezan is a desktop translation workspace (Electron + React) for **text, image, 
 - "Renderer" = code under `src/`. "Main" = code under `electron/`. "Preload" = code under `electron/preload/` aggregated by `electron/preload.ts`.
 - "Local AI" / `local` provider is keyless and routes to localhost OpenAI-compatible runtimes.
 
-For prompt recipes (which rule/skill/workflow to invoke for which task), see [`../PROMPTS.md`](../PROMPTS.md).
+For prompt recipes, start with purpose agents in [`../PROMPTS.md`](../PROMPTS.md) instead of invoking rule/skill/workflow artifacts directly.

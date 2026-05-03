@@ -146,15 +146,15 @@
     },
     {
       "id": "skills-workflows",
-      "name": "Rules, Skills, Workflows and Classification",
-      "extract_method": "List folder trong viezanagent/rule/, viezanagent/skill/, viezanagent/workflow/ và đọc classification trong JSON",
-      "search_command": "jq -r '[.classification.lifecycle,.type,.name,(.classification.domain|join(\",\"))] | @tsv' viezanagent/rule/*/*.json viezanagent/skill/*/*.json viezanagent/workflow/*/*.json | sort",
-      "doc_section": "PROMPTS.md - Taxonomy, Quick Chooser, Category Map, Rules, Skills, Workflows, Report Paths; README.md - Index tables",
+      "name": "Agents, Rules, Skills, Workflows and Classification",
+      "extract_method": "List folder trong viezanagent/agent/, viezanagent/rule/, viezanagent/skill/, viezanagent/workflow/ và đọc classification trong JSON",
+      "search_command": "jq -r '[.classification.lifecycle,.type,.name,(.classification.domain|join(\",\"))] | @tsv' viezanagent/agent/*/*.json viezanagent/rule/*/*.json viezanagent/skill/*/*.json viezanagent/workflow/*/*.json | sort",
+      "doc_section": "PROMPTS.md - Quick Chooser, Agent Catalog, Agent-To-Capability Map, Report Paths; README.md - Agent Chinh and Capability Noi Bo",
       "drift_signals": [
-        "Skill/workflow mới chưa có trong PROMPTS.md",
-        "PROMPTS.md tham chiếu skill/workflow đã xóa",
+        "Agent/skill/workflow mới chưa có trong PROMPTS.md",
+        "PROMPTS.md tham chiếu agent/skill/workflow đã xóa",
         "JSON thiếu classification.lifecycle, classification.domain hoặc classification.use_for",
-        "Lifecycle/domain trong JSON không khớp Category Map hoặc README.md"
+        "Purpose/lifecycle/domain trong JSON không khớp Agent Catalog hoặc README.md"
       ]
     },
     {
@@ -187,7 +187,7 @@
       "checks": [
         "IPC channel mới chưa nêu trong ARCHITECTURE.md",
         "Provider mới chưa nêu trong README/product-intro",
-        "Skill/workflow mới chưa nêu trong PROMPTS.md",
+        "Agent/skill/workflow mới chưa nêu trong PROMPTS.md",
         "Locale mới chưa nêu trong README/product-intro"
       ]
     },
@@ -207,10 +207,10 @@
       "severity_if_failed": "medium",
       "checks": [
         "Đường dẫn trong docs trỏ tới file không tồn tại",
-        "Tài liệu chéo (cross-link) giữa skill/workflow JSON tham chiếu file sai"
+        "Tài liệu chéo (cross-link) giữa agent/skill/workflow JSON tham chiếu file sai"
       ],
       "suggested_searches": [
-        "rg -n \"\\.\\./\\.\\./\" viezanagent/skill viezanagent/workflow viezanagent/rule"
+        "rg -n \"\\.\\./\\.\\./\" viezanagent/agent viezanagent/skill viezanagent/workflow viezanagent/rule"
       ]
     },
     {
@@ -227,10 +227,10 @@
       "name": "Agent classification drift",
       "severity_if_failed": "medium",
       "checks": [
-        "Mọi rule/skill/workflow JSON có classification.lifecycle",
-        "Mọi rule/skill/workflow JSON có classification.domain không rỗng",
-        "Mọi rule/skill/workflow JSON có classification.use_for",
-        "Lifecycle trong JSON khớp PROMPTS.md Category Map và README.md Index"
+        "Mọi agent/rule/skill/workflow JSON có classification.lifecycle",
+        "Mọi agent/rule/skill/workflow JSON có classification.domain không rỗng",
+        "Mọi agent/rule/skill/workflow JSON có classification.use_for",
+        "Purpose/lifecycle trong JSON khớp PROMPTS.md Agent Catalog và README.md"
       ]
     },
     {

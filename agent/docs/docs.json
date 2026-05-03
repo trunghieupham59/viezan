@@ -1,0 +1,56 @@
+{
+  "name": "docs",
+  "version": "1.0.0",
+  "description": "Purpose agent dong bo tai lieu Viezan voi code hien tai: ARCHITECTURE, PROMPTS, product-intro, docs, README va Chrome Extension docs.",
+  "type": "agent",
+  "classification": {
+    "lifecycle": "docs",
+    "domain": ["docs", "drift", "architecture", "product-copy", "release"],
+    "use_for": "Use when the user asks to update, rewrite or sync Viezan documentation with current source code."
+  },
+  "activation_examples": [
+    "Hay cap nhat docs theo code moi nhat",
+    "Hay sync docs",
+    "Viet lai product-intro dua theo source hien tai"
+  ],
+  "capabilities": {
+    "rules": [
+      "../../rule/viezan-product-engineering/rules.json"
+    ],
+    "skills": [
+      "../../skill/viezan-doc-sync/viezan-doc-sync.json",
+      "../../skill/viezan-i18n-audit/viezan-i18n-audit.json"
+    ],
+    "workflows": [
+      "../../workflow/sync-docs/sync-docs.json"
+    ],
+    "source_docs": [
+      "../../ARCHITECTURE.md",
+      "../../PROMPTS.md",
+      "../../product-intro.md",
+      "../../docs/README.md"
+    ]
+  },
+  "operating_workflow": [
+    {
+      "id": "extract-truth",
+      "action": "Inspect code-owned truth for IPC, preload, providers, store slices, locales, extension, release and agent assets."
+    },
+    {
+      "id": "diff-docs",
+      "action": "Compare truth with target docs and classify missing, stale, broken path, report path and agent classification drift."
+    },
+    {
+      "id": "patch",
+      "action": "Apply minimal docs edits in the existing language/style unless the user asks for a rewrite."
+    },
+    {
+      "id": "verify",
+      "action": "Validate Markdown/JSON references and summarize updated files."
+    }
+  ],
+  "outputs": {
+    "report_path": "viezanagent/report/doc-sync-report-{YYYYMMDD}-{HHmm}.md",
+    "sections": ["Drift Summary", "Updated Docs", "Broken Paths", "Verification"]
+  }
+}

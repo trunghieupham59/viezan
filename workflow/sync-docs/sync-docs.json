@@ -31,8 +31,8 @@
         "ls electron/preload",
         "ls src/store/slices",
         "ls src/i18n/locales",
-        "ls viezanagent/rule viezanagent/skill viezanagent/workflow",
-        "jq -r '[.classification.lifecycle,.type,.name,(.classification.domain|join(\",\"))] | @tsv' viezanagent/rule/*/*.json viezanagent/skill/*/*.json viezanagent/workflow/*/*.json | sort",
+        "ls viezanagent/agent viezanagent/rule viezanagent/skill viezanagent/workflow",
+        "jq -r '[.classification.lifecycle,.type,.name,(.classification.domain|join(\",\"))] | @tsv' viezanagent/agent/*/*.json viezanagent/rule/*/*.json viezanagent/skill/*/*.json viezanagent/workflow/*/*.json | sort",
         "rg -n \"SUPPORTED_PROVIDERS|PROVIDERS\\.push\" electron src",
         "rg -n \"save_path|filename_pattern\" viezanagent/workflow"
       ]
@@ -50,11 +50,11 @@
     },
     {
       "id": "step-5-validate-cross-refs",
-      "name": "Validate cross references và classification trong rule/skill/workflow JSON",
-      "action": "Kiểm tra path ../../... trong viezanagent/rule, viezanagent/skill và viezanagent/workflow JSON có tồn tại file/folder thật không; kiểm tra mọi JSON có classification đầy đủ.",
+      "name": "Validate cross references và classification trong agent/rule/skill/workflow JSON",
+      "action": "Kiểm tra path ../../... trong viezanagent/agent, viezanagent/rule, viezanagent/skill và viezanagent/workflow JSON có tồn tại file/folder thật không; kiểm tra mọi JSON có classification đầy đủ.",
       "commands": [
-        "rg -n \"\\.\\./\\.\\./\" viezanagent/skill viezanagent/workflow viezanagent/rule",
-        "jq -e '.classification.lifecycle and (.classification.domain | length > 0) and .classification.use_for' viezanagent/rule/*/*.json viezanagent/skill/*/*.json viezanagent/workflow/*/*.json"
+        "rg -n \"\\.\\./\\.\\./\" viezanagent/agent viezanagent/skill viezanagent/workflow viezanagent/rule",
+        "jq -e '.classification.lifecycle and (.classification.domain | length > 0) and .classification.use_for' viezanagent/agent/*/*.json viezanagent/rule/*/*.json viezanagent/skill/*/*.json viezanagent/workflow/*/*.json"
       ]
     },
     {

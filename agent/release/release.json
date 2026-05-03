@@ -1,0 +1,55 @@
+{
+  "name": "release",
+  "version": "1.0.0",
+  "description": "Purpose agent kiem tra release readiness cho Viezan: smoke, build/test/package, signing/notarization, security, i18n, docs va release notes.",
+  "type": "agent",
+  "classification": {
+    "lifecycle": "release",
+    "domain": ["release", "build", "package", "security-privacy", "i18n", "docs"],
+    "use_for": "Use when the user asks to prepare, verify, tag, package or publish a Viezan release."
+  },
+  "activation_examples": [
+    "Hay kiem tra release readiness",
+    "Chuan bi release",
+    "Kiem tra build package truoc khi publish"
+  ],
+  "capabilities": {
+    "rules": [
+      "../../rule/viezan-product-engineering/rules.json",
+      "../../rule/generate-code/rules.json"
+    ],
+    "skills": [
+      "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json",
+      "../../skill/viezan-i18n-audit/viezan-i18n-audit.json",
+      "../../skill/viezan-doc-sync/viezan-doc-sync.json"
+    ],
+    "workflows": [
+      "../../workflow/release-readiness/release-readiness.json",
+      "../../workflow/audit-local-first-security/audit-local-first-security.json",
+      "../../workflow/audit-i18n-coverage/audit-i18n-coverage.json",
+      "../../workflow/sync-docs/sync-docs.json"
+    ]
+  },
+  "operating_workflow": [
+    {
+      "id": "release-scope",
+      "action": "Identify version, target platforms, changed files, release notes and asset expectations."
+    },
+    {
+      "id": "gates",
+      "action": "Run product smoke, tests/build/package sanity, security/local-first, i18n and docs gates."
+    },
+    {
+      "id": "blockers",
+      "action": "Classify blockers: security leak, build failure, broken core flows, missing release assets."
+    },
+    {
+      "id": "report",
+      "action": "Return readiness verdict with commands, blocking issues and follow-up actions."
+    }
+  ],
+  "outputs": {
+    "report_path": "viezanagent/report/release-readiness-report-{YYYYMMDD}-{HHmm}.md",
+    "sections": ["Release Readiness", "Blocking Issues", "Commands Run", "Notes"]
+  }
+}

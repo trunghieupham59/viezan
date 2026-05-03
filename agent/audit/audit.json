@@ -1,0 +1,55 @@
+{
+  "name": "audit",
+  "version": "1.0.0",
+  "description": "Purpose agent audit Viezan theo security/privacy, i18n, extension UX, live translate performance va local-first gates.",
+  "type": "agent",
+  "classification": {
+    "lifecycle": "audit",
+    "domain": ["security-privacy", "electron-boundary", "i18n", "extension", "live-translate", "performance"],
+    "use_for": "Use when the user asks to audit the system, review risk before merge/release, or inspect a sensitive domain."
+  },
+  "activation_examples": [
+    "Hay audit he thong",
+    "Kiem tra security/privacy truoc merge",
+    "Audit extension va live translate"
+  ],
+  "capabilities": {
+    "rules": [
+      "../../rule/viezan-product-engineering/rules.json"
+    ],
+    "skills": [
+      "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json",
+      "../../skill/viezan-i18n-audit/viezan-i18n-audit.json",
+      "../../skill/viezan-extension-ux/viezan-extension-ux.json",
+      "../../skill/viezan-live-perf-audit/viezan-live-perf-audit.json"
+    ],
+    "workflows": [
+      "../../workflow/audit-local-first-security/audit-local-first-security.json",
+      "../../workflow/audit-i18n-coverage/audit-i18n-coverage.json",
+      "../../workflow/audit-extension-ux/audit-extension-ux.json",
+      "../../workflow/audit-live-perf/audit-live-perf.json"
+    ]
+  },
+  "operating_workflow": [
+    {
+      "id": "scope-risk",
+      "action": "Identify touched domains and select required audit gates."
+    },
+    {
+      "id": "run-gates",
+      "action": "Run security/local-first first, then i18n, extension UX and live-perf gates as relevant."
+    },
+    {
+      "id": "classify",
+      "action": "Classify findings by severity and block merge/release for Critical/High issues."
+    },
+    {
+      "id": "fix-or-report",
+      "action": "Fix in-scope Critical/High issues when safe; otherwise produce a precise remediation queue."
+    }
+  ],
+  "outputs": {
+    "report_path": "viezanagent/report/audit-report-{YYYYMMDD}-{HHmm}.md",
+    "sections": ["Audit Gates", "Findings", "Blocking Issues", "Fixes", "Verification"]
+  }
+}
