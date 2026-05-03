@@ -118,12 +118,12 @@ To test against a dev desktop build:
 2. In the extension's Options, paste the connection key from Settings → Browser Extension.
 3. Open any page, select text, click the Viezan button.
 
-For local ZIP testing, load `chrome-extension/` as an unpacked extension or zip the folder without any signing key. Official CRX packaging is handled by `.github/workflows/release.yml`, which restores the signing key from the `CHROME_EXTENSION_PEM_BASE64` GitHub secret at runtime. Do not commit PEM/private-key files to the repository.
+For local ZIP testing, load `chrome-extension/` as an unpacked extension or zip the folder without any signing key. Official releases use `.github/workflows/release.yml` to create `viezan-chrome-extension.zip`, which contains the `chrome-extension/` folder and excludes PEM/private-key files.
 
 ## Security Notes
 
 - The local server **only binds to `127.0.0.1`** (never `0.0.0.0`).
-- Extension signing keys are CI secrets; PEM/private-key files must stay out of source control.
+- PEM/private-key files must stay out of source control and release ZIPs.
 - Only an allowed extension/local origin plus a valid `X-Viezan-Token` key passes the auth filter.
 - API key values are one-time reveal values in the desktop UI; list responses expose metadata only.
 - The extension's content script keeps style + behavior isolated from the host page (no global event listeners, no direct DOM mutation outside its own elements).

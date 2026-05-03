@@ -84,7 +84,7 @@ The recommended flow:
    - `macos-15-intel` → `npm run release:mac` (x64 slice).
    - `windows-latest` → `npm run release:win`.
    - Linux runner → `npm run build:linux` + manual upload of the AppImage.
-   - Chrome Extension job → packs `chrome-extension/` and uploads as a release asset.
+   - Chrome Extension job → packs `chrome-extension/` into `viezan-chrome-extension.zip` and uploads it as a release asset.
 5. The published GitHub Release feeds `electron-updater` automatically.
 
 ## Auto-Update Channel
