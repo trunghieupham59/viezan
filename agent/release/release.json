@@ -1,6 +1,6 @@
 {
   "name": "release",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Purpose agent kiem tra release readiness cho Viezan: smoke, build/test/package, signing/notarization, security, i18n, docs va release notes.",
   "type": "agent",
   "classification": {
@@ -13,6 +13,7 @@
     "Chuan bi release",
     "Kiem tra build package truoc khi publish"
   ],
+  "primary_workflow": "../../workflow/release-readiness/release-readiness.json",
   "capabilities": {
     "rules": [
       "../../rule/viezan-product-engineering/rules.json",
@@ -21,13 +22,48 @@
     "skills": [
       "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json",
       "../../skill/viezan-i18n-audit/viezan-i18n-audit.json",
-      "../../skill/viezan-doc-sync/viezan-doc-sync.json"
+      "../../skill/viezan-doc-sync/viezan-doc-sync.json",
+      "../../skill/viezan-extension-ux/viezan-extension-ux.json",
+      "../../skill/viezan-live-perf-audit/viezan-live-perf-audit.json"
     ],
     "workflows": [
       "../../workflow/release-readiness/release-readiness.json",
       "../../workflow/audit-local-first-security/audit-local-first-security.json",
       "../../workflow/audit-i18n-coverage/audit-i18n-coverage.json",
+      "../../workflow/audit-extension-ux/audit-extension-ux.json",
+      "../../workflow/audit-live-perf/audit-live-perf.json",
       "../../workflow/sync-docs/sync-docs.json"
+    ]
+  },
+  "capability_resolution": {
+    "mode": "capability-first",
+    "relationship_model": [
+      "agent -> release-readiness workflow",
+      "release-readiness workflow -> product smoke, package, security, i18n, extension, live-perf and docs gates",
+      "gate workflow -> domain skill/rule used for evidence and fixes",
+      "rule -> release edits, workflow fixes and docs updates"
+    ],
+    "requirements": [
+      "Resolve release-readiness and all declared gate workflows before release verdict.",
+      "Do not mark a release ready when a required gate is skipped without a blocker reason.",
+      "Use security, i18n, extension, live-perf and docs capabilities from this registry for the matching gates.",
+      "If package/signing/notarization evidence cannot be gathered, mark the gate Blocked instead of assuming pass."
+    ]
+  },
+  "mandatory_capability_use": {
+    "always": [
+      "workflow: release-readiness",
+      "rule: viezan-product-engineering",
+      "workflow: audit-local-first-security",
+      "workflow: audit-i18n-coverage",
+      "workflow: sync-docs"
+    ],
+    "release_surface_gates": [
+      "workflow: audit-extension-ux",
+      "workflow: audit-live-perf"
+    ],
+    "fixing_release_assets_or_code": [
+      "rule: generate-code"
     ]
   },
   "operating_workflow": [
@@ -50,6 +86,16 @@
   ],
   "outputs": {
     "report_path": "viezanagent/report/release-readiness-report-{YYYYMMDD}-{HHmm}.md",
-    "sections": ["Release Readiness", "Blocking Issues", "Commands Run", "Notes"]
+    "sections": ["Release Gate Matrix", "Capability Coverage", "Release Readiness", "Blocking Issues", "Commands Run", "Notes"]
+  },
+  "completion_rules": [
+    "Do not publish or mark ready without resolving the primary release workflow.",
+    "Security, i18n and docs gates are required for every release pass.",
+    "Extension UX and live/performance gates must run or be explicitly marked Not run/Blocked with reason.",
+    "Final verification must list release workflows/skills/rules actually used."
+  ],
+  "references": {
+    "workflow": "../../workflow/release-readiness/release-readiness.json",
+    "readme": "./README.md"
   }
 }

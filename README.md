@@ -9,6 +9,7 @@ Khi khong chac nen dung gi: mo [`PROMPTS.md`](./PROMPTS.md). Day la entry point 
 ```text
 viezanagent/
 ├── agent/                   <- Purpose agents: implement, maintenance, docs, audit, release
+│   └── CAPABILITY_CONTRACT.md
 ├── workflow/                <- Workflow capability layer; `maintenance/` la workflow tong hop moi
 ├── skill/                   <- Domain analysis capabilities used by agents
 ├── rule/                    <- Foundation guardrails used by agents
@@ -26,10 +27,19 @@ viezanagent/
 | Agent | Khi user noi | Agent se tu dung |
 |---|---|---|
 | [`implement`](./agent/implement/) | `Hay implement ...` | `ship-viezan-feature`, `viezan-feature-planner`, provider/security/i18n/docs gates |
-| [`maintenance`](./agent/maintenance/) | `Hay maintenance he thong` | `workflow maintenance`, diagnostics, hardcode/duplicate, score-code, UI split, docs drift, i18n/security gates |
+| [`maintenance`](./agent/maintenance/) | `Hay maintenance he thong` | `workflow maintenance`, diagnostics, hardcode/duplicate, score-code, UI split, extension drift, docs drift, i18n/security/perf gates |
 | [`docs`](./agent/docs/) | `Hay cap nhat docs` | `sync-docs`, `viezan-doc-sync`, code truth extraction |
 | [`audit`](./agent/audit/) | `Hay audit he thong` | local-first security, i18n, extension UX, live-perf workflows |
 | [`release`](./agent/release/) | `Hay kiem tra release` | `release-readiness`, build/test/package, signing/notarization, docs/release notes gates |
+
+## Capability Contract
+
+Tat ca agent phai tuan theo [`agent/CAPABILITY_CONTRACT.md`](./agent/CAPABILITY_CONTRACT.md):
+
+- Resolve `primary_workflow` hoac `primary_workflows` truoc khi phan tich/sua code.
+- Dung rule/skill/workflow da khai bao trong agent JSON hoac duoc workflow chinh link truc tiep/gian tiep.
+- Neu capability can dung chua ton tai hoac reference bi gay, bao `Capability Drift` va sua registry truoc.
+- Report cuoi phai ghi ro rule, skill va workflow da dung; gate skipped phai co `Not run`/`Blocked` kem ly do.
 
 ## Workflow Da Gom
 
@@ -42,6 +52,8 @@ viezanagent/
 - `sync-docs`
 - `audit-i18n-coverage`
 - `audit-local-first-security`
+- `audit-extension-ux`
+- `audit-live-perf`
 - `release-readiness` khi scope co release/package
 
 Prompt mac dinh:
@@ -53,6 +65,8 @@ Fix Critical/High trong scope va tao bao cao tong hop.
 ```
 
 Bao cao mac dinh: `viezanagent/report/maintenance-report-YYYYMMDD-HHmm.md`.
+
+Report maintenance phai co gate matrix va section rieng cho `System Score`, `Duplicate Code Audit`, `Hardcode & Secret Audit`, `UI/Component/Extension Audit`, `Docs/I18n/Security Gates` va `Report Completeness Checklist`. Gate khong chay phai duoc ghi `Not run`/`Blocked` kem ly do, khong duoc bo qua.
 
 ## Capability Noi Bo
 
@@ -102,4 +116,7 @@ jq -r '[.type,.classification.lifecycle,.name,(.classification.domain|join(","))
 
 # Kiem tra path noi bo
 rg -n "\"\\.\\./" viezanagent/agent viezanagent/workflow viezanagent/skill viezanagent/rule
+
+# Kiem tra agent contract
+jq -e '.capability_resolution and .mandatory_capability_use' viezanagent/agent/*/*.json
 ```

@@ -1,6 +1,6 @@
 {
   "name": "implement",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Purpose agent implement tinh nang Viezan end-to-end tu PRD/issue den code, i18n, tests, docs va security gate.",
   "type": "agent",
   "classification": {
@@ -13,6 +13,7 @@
     "Hay dung agent implement de lam PRD sau",
     "Tich hop provider/model moi vao Viezan"
   ],
+  "primary_workflow": "../../workflow/ship-viezan-feature/ship-viezan-feature.json",
   "capabilities": {
     "rules": [
       "../../rule/viezan-product-engineering/rules.json",
@@ -23,13 +24,66 @@
       "../../skill/viezan-provider-integration/viezan-provider-integration.json",
       "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json",
       "../../skill/viezan-i18n-audit/viezan-i18n-audit.json",
-      "../../skill/viezan-doc-sync/viezan-doc-sync.json"
+      "../../skill/viezan-doc-sync/viezan-doc-sync.json",
+      "../../skill/viezan-extension-ux/viezan-extension-ux.json",
+      "../../skill/viezan-live-perf-audit/viezan-live-perf-audit.json"
     ],
     "workflows": [
       "../../workflow/ship-viezan-feature/ship-viezan-feature.json",
       "../../workflow/audit-local-first-security/audit-local-first-security.json",
       "../../workflow/audit-i18n-coverage/audit-i18n-coverage.json",
+      "../../workflow/audit-extension-ux/audit-extension-ux.json",
+      "../../workflow/audit-live-perf/audit-live-perf.json",
       "../../workflow/sync-docs/sync-docs.json"
+    ]
+  },
+  "capability_resolution": {
+    "mode": "capability-first",
+    "relationship_model": [
+      "agent -> primary workflow -> selected rules/skills/workflows",
+      "workflow -> rules/skills used by its steps",
+      "skill -> domain rubric/checklist and related workflow references",
+      "rule -> guardrail applied during planning, editing and verification"
+    ],
+    "requirements": [
+      "Resolve every capability path before planning or editing.",
+      "Read the primary workflow and relevant skill/rule definitions before implementation.",
+      "Use only capabilities declared here or referenced by the selected workflow unless the user asks to add a new capability.",
+      "If a required capability is missing or a reference is broken, report Capability Drift and fix the agent registry before coding."
+    ]
+  },
+  "mandatory_capability_use": {
+    "always": [
+      "workflow: ship-viezan-feature",
+      "rule: viezan-product-engineering",
+      "rule: generate-code",
+      "skill: viezan-feature-planner"
+    ],
+    "conditional": [
+      {
+        "when": "Provider, model routing, default model or API integration changes",
+        "use": ["skill: viezan-provider-integration", "workflow: audit-local-first-security"]
+      },
+      {
+        "when": "IPC, preload, API key, local server, external URL or sensitive data changes",
+        "use": ["skill: viezan-ipc-security-audit", "workflow: audit-local-first-security"]
+      },
+      {
+        "when": "UI text, locale, extension copy or public-facing text changes",
+        "use": ["skill: viezan-i18n-audit", "workflow: audit-i18n-coverage"]
+      },
+      {
+        "when": "chrome-extension/, browser bridge or extension UX changes",
+        "use": ["skill: viezan-extension-ux", "workflow: audit-extension-ux"]
+      },
+      {
+        "when": "Live Translate, audio, streaming, subtitle, timers or listeners change",
+        "use": ["skill: viezan-live-perf-audit", "workflow: audit-live-perf"]
+      },
+      {
+        "when": "User-visible behavior, docs, prompts or release notes change",
+        "use": ["skill: viezan-doc-sync", "workflow: sync-docs"]
+      }
     ]
   },
   "operating_workflow": [
@@ -57,5 +111,14 @@
   "outputs": {
     "default_report": "final response plus updated code/tests/docs",
     "optional_report_path": "viezanagent/report/implement-report-{YYYYMMDD}-{HHmm}.md"
+  },
+  "completion_rules": [
+    "Do not implement from an ad hoc plan before resolving the primary workflow and mandatory capabilities.",
+    "Every touched domain must map to one declared conditional capability or be called out as Capability Drift.",
+    "Final verification must list the workflows/skills/rules actually used."
+  ],
+  "references": {
+    "workflow": "../../workflow/ship-viezan-feature/ship-viezan-feature.json",
+    "readme": "./README.md"
   }
 }

@@ -6,6 +6,23 @@ Rule, skill va workflow cu van ton tai, nhung chi la capability noi bo. Agent se
 
 ---
 
+## Capability-First Contract
+
+Moi agent phai resolve capability graph da khai bao truoc khi chay:
+
+```text
+agent -> primary workflow(s) -> rules/skills/related workflows -> report
+```
+
+- Khong tu tao quy trinh ad hoc neu rule/skill/workflow phu hop da ton tai.
+- Chi dung capability duoc khai bao trong agent JSON hoac duoc workflow chinh link truc tiep/gian tiep.
+- Neu can capability moi hoac reference bi gay, ghi `Capability Drift` va cap nhat registry agent/workflow/skill/rule truoc.
+- Report cuoi phai ghi ro rule, skill va workflow da dung; gate khong chay phai co `Not run`/`Blocked` kem ly do.
+
+Chi tiet: `viezanagent/agent/CAPABILITY_CONTRACT.md`.
+
+---
+
 ## Quick Chooser
 
 | User muon | Prompt ngan nen dung | Agent chinh |
@@ -35,8 +52,8 @@ Muc dich: ship tinh nang end-to-end.
 Capabilities noi bo:
 
 - Rules: `viezan-product-engineering`, `generate-code`.
-- Skills: `viezan-feature-planner`, `viezan-provider-integration`, `viezan-ipc-security-audit`, `viezan-i18n-audit`, `viezan-doc-sync`.
-- Workflows: `ship-viezan-feature`, `audit-local-first-security`, `audit-i18n-coverage`, `sync-docs`.
+- Skills: `viezan-feature-planner`, `viezan-provider-integration`, `viezan-ipc-security-audit`, `viezan-i18n-audit`, `viezan-doc-sync`, `viezan-extension-ux`, `viezan-live-perf-audit`.
+- Workflows: `ship-viezan-feature`, `audit-local-first-security`, `audit-i18n-coverage`, `audit-extension-ux`, `audit-live-perf`, `sync-docs`.
 
 Prompt mau:
 
@@ -52,8 +69,8 @@ Muc dich: bao tri he thong, gom cac workflow cu thanh mot luong duy nhat.
 Capabilities noi bo:
 
 - Workflow chinh: `workflow maintenance`.
-- Workflows duoc gom: `fix-vscode-problems`, `check-dup-hardcode`, `score-code`, `split-ui-component`, `sync-docs`, `audit-i18n-coverage`, `audit-local-first-security`, `release-readiness`.
-- Skills: `fix-vscode-problems`, `check-dup-hardcode`, `score-code`, `split-ui-component`, `viezan-doc-sync`, `viezan-i18n-audit`, `viezan-ipc-security-audit`.
+- Workflows duoc gom: `fix-vscode-problems`, `check-dup-hardcode`, `score-code`, `split-ui-component`, `sync-docs`, `audit-i18n-coverage`, `audit-local-first-security`, `audit-extension-ux`, `audit-live-perf`, `release-readiness`.
+- Skills: `fix-vscode-problems`, `check-dup-hardcode`, `score-code`, `split-ui-component`, `viezan-doc-sync`, `viezan-i18n-audit`, `viezan-ipc-security-audit`, `viezan-extension-ux`, `viezan-live-perf-audit`.
 - Rules: `viezan-product-engineering`, `generate-code`.
 
 Prompt mau:
@@ -64,6 +81,8 @@ Tu danh gia diagnostics, hardcode/duplicate, code quality, UI drift, docs drift,
 Fix Critical/High trong scope va tao bao cao tong hop.
 ```
 
+Report bat buoc khong duoc bo cac muc: `Maintenance Gate Matrix`, `System Score`, `Duplicate Code Audit`, `Hardcode & Secret Audit`, `UI/Component/Extension Audit`, `Docs/I18n/Security Gates`, `Verification`, `Remaining Queue`, `Report Completeness Checklist`. Neu gate nao khong chay, ghi `Not run`/`Blocked` kem ly do thay vi bo qua.
+
 Bao cao mac dinh: `viezanagent/report/maintenance-report-YYYYMMDD-HHmm.md`.
 
 ### `agent docs`
@@ -73,7 +92,7 @@ Muc dich: dong bo tai lieu voi code that.
 Capabilities noi bo:
 
 - Skill: `viezan-doc-sync`.
-- Workflow: `sync-docs`.
+- Workflow: `sync-docs`, `audit-i18n-coverage` khi docs cham UI text/locale/extension copy.
 - Docs source: `ARCHITECTURE.md`, `PROMPTS.md`, `product-intro.md`, `viezanagent/docs/`, `README.md`, `chrome-extension/README.md`.
 
 Prompt mau:
@@ -145,11 +164,11 @@ Neu user khong chi dinh hep, dung agent purpose-level.
 
 | Agent | Rules | Skills | Workflows |
 |---|---|---|---|
-| `implement` | `viezan-product-engineering`, `generate-code` | `viezan-feature-planner`, `viezan-provider-integration`, `viezan-ipc-security-audit`, `viezan-i18n-audit`, `viezan-doc-sync` | `ship-viezan-feature`, `audit-local-first-security`, `audit-i18n-coverage`, `sync-docs` |
-| `maintenance` | `viezan-product-engineering`, `generate-code` | `fix-vscode-problems`, `check-dup-hardcode`, `score-code`, `split-ui-component`, `viezan-doc-sync`, `viezan-i18n-audit`, `viezan-ipc-security-audit` | `maintenance`, `fix-vscode-problems`, `check-dup-hardcode`, `score-code`, `split-ui-component`, `sync-docs`, `audit-i18n-coverage`, `audit-local-first-security`, `release-readiness` |
-| `docs` | `viezan-product-engineering` | `viezan-doc-sync`, `viezan-i18n-audit` | `sync-docs` |
-| `audit` | `viezan-product-engineering` | `viezan-ipc-security-audit`, `viezan-i18n-audit`, `viezan-extension-ux`, `viezan-live-perf-audit` | `audit-local-first-security`, `audit-i18n-coverage`, `audit-extension-ux`, `audit-live-perf` |
-| `release` | `viezan-product-engineering`, `generate-code` | `viezan-ipc-security-audit`, `viezan-i18n-audit`, `viezan-doc-sync` | `release-readiness`, `audit-local-first-security`, `audit-i18n-coverage`, `sync-docs` |
+| `implement` | `viezan-product-engineering`, `generate-code` | `viezan-feature-planner`, `viezan-provider-integration`, `viezan-ipc-security-audit`, `viezan-i18n-audit`, `viezan-doc-sync`, `viezan-extension-ux`, `viezan-live-perf-audit` | `ship-viezan-feature`, `audit-local-first-security`, `audit-i18n-coverage`, `audit-extension-ux`, `audit-live-perf`, `sync-docs` |
+| `maintenance` | `viezan-product-engineering`, `generate-code` | `fix-vscode-problems`, `check-dup-hardcode`, `score-code`, `split-ui-component`, `viezan-doc-sync`, `viezan-i18n-audit`, `viezan-ipc-security-audit`, `viezan-extension-ux`, `viezan-live-perf-audit` | `maintenance`, `fix-vscode-problems`, `check-dup-hardcode`, `score-code`, `split-ui-component`, `sync-docs`, `audit-i18n-coverage`, `audit-local-first-security`, `audit-extension-ux`, `audit-live-perf`, `release-readiness` |
+| `docs` | `viezan-product-engineering` | `viezan-doc-sync`, `viezan-i18n-audit` | `sync-docs`, `audit-i18n-coverage` |
+| `audit` | `viezan-product-engineering`, `generate-code` | `viezan-ipc-security-audit`, `viezan-i18n-audit`, `viezan-extension-ux`, `viezan-live-perf-audit` | `audit-local-first-security`, `audit-i18n-coverage`, `audit-extension-ux`, `audit-live-perf` |
+| `release` | `viezan-product-engineering`, `generate-code` | `viezan-ipc-security-audit`, `viezan-i18n-audit`, `viezan-doc-sync`, `viezan-extension-ux`, `viezan-live-perf-audit` | `release-readiness`, `audit-local-first-security`, `audit-i18n-coverage`, `audit-extension-ux`, `audit-live-perf`, `sync-docs` |
 
 ---
 
