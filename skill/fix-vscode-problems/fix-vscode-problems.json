@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Skill đọc danh sách PROBLEMS từ VS Code (errors, warnings, hints), tạo báo cáo phân loại, phân tích nguyên nhân gốc rễ và đề xuất fix cụ thể kèm code example",
   "type": "skill",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["diagnostics", "build", "test", "code-quality"],
+    "use_for": "Classify VS Code, TypeScript, Biome, build, and test diagnostics before applying targeted fixes."
+  },
   "input_sources": [
     {
       "id": "user-paste",

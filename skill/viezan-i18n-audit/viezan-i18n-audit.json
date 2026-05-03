@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Skill audit i18n coverage và chất lượng dịch của Viezan: kiểm tra missing key giữa locales VI/EN/JA, hardcoded UI string, key trùng lặp, key chưa dùng và parity giữa renderer + chrome-extension",
   "type": "skill",
+  "classification": {
+    "lifecycle": "audit",
+    "domain": ["i18n", "extension", "ux"],
+    "use_for": "Audit locale parity, hardcoded UI strings, duplicate or unused keys, and renderer-extension i18n coverage."
+  },
   "trigger": "Khi cần kiểm tra i18n coverage, thêm/đổi locale, audit hardcoded string trong UI, hoặc verify trước release",
   "required_context": [
     "../../ARCHITECTURE.md",

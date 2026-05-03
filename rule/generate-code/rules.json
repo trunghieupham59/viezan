@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Bộ quy tắc để AI generate code chất lượng cao, ánh xạ 1-1 với tiêu chí score-code",
   "type": "rule",
+  "classification": {
+    "lifecycle": "foundation",
+    "domain": ["code-quality", "maintainability", "testing", "security", "reliability"],
+    "use_for": "Baseline coding and refactoring guardrails for any implementation task."
+  },
   "mapped_from": "../../skill/score-code/score-code.json",
   "project_overrides": {
     "viezan": {

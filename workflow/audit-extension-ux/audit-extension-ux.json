@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Workflow audit Chrome Extension UX và local bridge security cho Viezan: visual parity, state UX, options storage, bridge bind/origin/key safety, manual smoke",
   "type": "workflow",
+  "classification": {
+    "lifecycle": "audit",
+    "domain": ["extension", "ux", "security-privacy", "i18n"],
+    "use_for": "Run the full Chrome Extension UX and local bridge audit with report output."
+  },
   "trigger": "Khi PR/feature chạm chrome-extension/, electron/ipc/localServer.ts, electron/preload/localServer.ts hoặc trước release",
   "rules": [
     "../../rule/viezan-product-engineering/rules.json"

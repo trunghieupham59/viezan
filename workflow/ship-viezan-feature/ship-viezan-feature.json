@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Workflow implement tính năng Viezan từ PRD/issue đến code, i18n, tests, security audit và docs",
   "type": "workflow",
+  "classification": {
+    "lifecycle": "feature",
+    "domain": ["feature-planning", "product-engineering", "i18n", "security-privacy", "docs"],
+    "use_for": "Ship a Viezan feature end-to-end from PRD or issue through code, tests, docs, and audits."
+  },
   "trigger": "Khi người dùng yêu cầu implement một feature hoặc PRD cho Viezan",
   "rules": [
     "../../rule/viezan-product-engineering/rules.json",

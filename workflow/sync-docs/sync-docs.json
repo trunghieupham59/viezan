@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Workflow đồng bộ docs Viezan (ARCHITECTURE.md, PROMPTS.md, product-intro.md, README.md, viezanagent/docs/, chrome-extension/README.md) với source code: extract truth từ code, diff với docs, đề xuất patch tối thiểu",
   "type": "workflow",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["docs", "drift", "release"],
+    "use_for": "Run the full source-of-truth extraction and documentation drift sync workflow."
+  },
   "trigger": "Khi merge feature lớn, đổi IPC/provider/store/locale, hoặc trước release",
   "rules": [
     "../../rule/viezan-product-engineering/rules.json"
@@ -26,7 +31,8 @@
         "ls electron/preload",
         "ls src/store/slices",
         "ls src/i18n/locales",
-        "ls viezanagent/skill viezanagent/workflow",
+        "ls viezanagent/rule viezanagent/skill viezanagent/workflow",
+        "jq -r '[.classification.lifecycle,.type,.name,(.classification.domain|join(\",\"))] | @tsv' viezanagent/rule/*/*.json viezanagent/skill/*/*.json viezanagent/workflow/*/*.json | sort",
         "rg -n \"SUPPORTED_PROVIDERS|PROVIDERS\\.push\" electron src",
         "rg -n \"save_path|filename_pattern\" viezanagent/workflow"
       ]
@@ -40,14 +46,15 @@
       "id": "step-4-diff",
       "name": "Diff truth vs docs",
       "skill": "viezan-doc-sync",
-      "action": "Với mỗi anchor: phân loại missing-in-docs, stale-in-docs, broken-paths, report-path-drift, release-notes-coverage."
+      "action": "Với mỗi anchor: phân loại missing-in-docs, stale-in-docs, broken-paths, report-path-drift, classification-drift, release-notes-coverage."
     },
     {
       "id": "step-5-validate-cross-refs",
-      "name": "Validate cross references trong skill/workflow JSON",
-      "action": "Kiểm tra path ../../... trong viezanagent/skill và viezanagent/workflow JSON có tồn tại file/folder thật không.",
+      "name": "Validate cross references và classification trong rule/skill/workflow JSON",
+      "action": "Kiểm tra path ../../... trong viezanagent/rule, viezanagent/skill và viezanagent/workflow JSON có tồn tại file/folder thật không; kiểm tra mọi JSON có classification đầy đủ.",
       "commands": [
-        "rg -n \"\\.\\./\\.\\./\" viezanagent/skill viezanagent/workflow viezanagent/rule"
+        "rg -n \"\\.\\./\\.\\./\" viezanagent/skill viezanagent/workflow viezanagent/rule",
+        "jq -e '.classification.lifecycle and (.classification.domain | length > 0) and .classification.use_for' viezanagent/rule/*/*.json viezanagent/skill/*/*.json viezanagent/workflow/*/*.json"
       ]
     },
     {
@@ -88,6 +95,7 @@
       "Stale in Docs",
       "Broken Paths",
       "Report Path Drift",
+      "Classification Drift",
       "Required Updates",
       "Verification"
     ]

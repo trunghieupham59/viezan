@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Skill phát hiện duplicate code và hardcode trong source code, cung cấp phân loại, mức độ nghiêm trọng và gợi ý refactor cụ thể",
   "type": "skill",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["hardcode-duplication", "code-quality", "security-privacy"],
+    "use_for": "Scoped duplicate, magic literal, and hardcode triage before a full workflow report is needed."
+  },
   "categories": [
     {
       "id": "duplicate-code",

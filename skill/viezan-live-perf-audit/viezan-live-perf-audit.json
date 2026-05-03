@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Skill audit hiệu năng pipeline Live Translate của Viezan: VAD gating, Whisper STT chunking, hallucination/duplicate filter, sentence boundary, streaming translation, subtitle window, fire-and-forget guard. Mục tiêu giảm latency, tránh memory/CPU leak, tránh setState sau unmount.",
   "type": "skill",
+  "classification": {
+    "lifecycle": "audit",
+    "domain": ["live-translate", "performance", "reliability"],
+    "use_for": "Audit Live Translate throughput, cleanup, subtitle lifecycle, hallucination filtering, and stream reliability."
+  },
   "trigger": "Khi thay đổi src/hooks/useLiveTranslate.ts, src/pages/LiveTranslatePage.tsx, electron/ipc/transcribe.ts, electron/ipc/translate.ts (live-stream), electron/ipc/subtitle.ts hoặc subtitle window",
   "required_context": [
     "../../ARCHITECTURE.md",

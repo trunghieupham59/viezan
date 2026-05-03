@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Workflow chấm điểm source code theo bộ tiêu chí chuẩn",
   "type": "workflow",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["code-quality", "review", "rubric"],
+    "use_for": "Run the full scoring workflow and produce a quality rubric report."
+  },
   "steps": [
     {
       "id": "step-1-identify",

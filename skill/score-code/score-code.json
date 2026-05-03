@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Skill chấm điểm source code theo từng tiêu chí cụ thể, có thang điểm rõ ràng và tránh chồng chéo",
   "type": "skill",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["code-quality", "review", "rubric"],
+    "use_for": "Score a focused code slice or criterion and produce review evidence."
+  },
   "project_overlays": {
     "viezan-electron": {
       "description": "Overlay khi chấm code trong Viezan: Electron local-first AI translation app",

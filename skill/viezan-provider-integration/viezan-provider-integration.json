@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Skill thêm, sửa hoặc audit AI provider/model/task trong Viezan theo provider contract, registry pattern và security boundary",
   "type": "skill",
+  "classification": {
+    "lifecycle": "feature",
+    "domain": ["provider-models", "local-ai", "security-privacy"],
+    "use_for": "Add or audit provider, model, verification, and AI task integrations through the Viezan provider contract."
+  },
   "trigger": "Khi thêm provider, model, verification, hoặc tác vụ AI mới cho translate/chat/tts/stt/image/models",
   "required_context": [
     "../../ARCHITECTURE.md",
@@ -94,4 +99,3 @@
     "rule": "../../rule/viezan-product-engineering/rules.json"
   }
 }
-

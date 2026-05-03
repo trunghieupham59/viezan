@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Workflow kiểm tra Viezan trước release: product smoke tests, security/local-first audit, i18n, build/test/package và docs",
   "type": "workflow",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["release", "build", "security-privacy", "i18n", "docs"],
+    "use_for": "Gate a release with product smoke, package, security, i18n, test, build, and docs checks."
+  },
   "trigger": "Khi chuẩn bị release, build bản phân phối hoặc kiểm tra trước khi tag/publish",
   "rules": [
     "../../rule/viezan-product-engineering/rules.json"

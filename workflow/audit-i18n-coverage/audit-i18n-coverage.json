@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Workflow audit i18n VI/EN/JA của Viezan: pre-filter bằng rg, đối chiếu key giữa 3 locale, tìm hardcoded UI string, kiểm tra parity với Chrome Extension và lưu báo cáo",
   "type": "workflow",
+  "classification": {
+    "lifecycle": "audit",
+    "domain": ["i18n", "extension", "ux"],
+    "use_for": "Run the full VI/EN/JA locale coverage and hardcoded UI string audit with report output."
+  },
   "trigger": "Khi cần kiểm tra i18n trước release, sau khi thêm/sửa locale, hoặc audit hardcoded UI string",
   "rules": [
     "../../rule/viezan-product-engineering/rules.json"

@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Workflow đọc PROBLEMS từ VS Code, tạo báo cáo phân loại, phân tích nguyên nhân gốc rễ và apply fix trực tiếp vào code hoặc hướng dẫn fix ở settings bên ngoài",
   "type": "workflow",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["diagnostics", "build", "test", "code-quality"],
+    "use_for": "Run the full VS Code Problems, build, test, and Biome diagnostic triage and fix workflow."
+  },
   "trigger": "Khi có danh sách PROBLEMS từ VS Code (user paste, screenshot, hoặc yêu cầu quét diagnostics)",
   "steps": [
     {

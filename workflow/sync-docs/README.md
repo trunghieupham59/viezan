@@ -22,7 +22,7 @@ Dùng workflow sync-docs và lưu report vào viezanagent/report/.
 2. Extract truth từ code (IPC, preload, providers, slices, locales, skills/workflows, report paths).
 3. Đọc docs liên quan.
 4. Diff truth vs docs theo các category của skill `viezan-doc-sync`.
-5. Validate cross-reference trong skill/workflow JSON.
+5. Validate cross-reference và `classification` trong rule/skill/workflow JSON.
 6. Đề xuất patch tối thiểu (giữ format bảng/heading hiện có).
 7. Apply nếu user yêu cầu, hoặc trả patch dạng diff.
 8. Verify bằng markdownlint.

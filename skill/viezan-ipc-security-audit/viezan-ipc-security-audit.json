@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Skill audit bảo mật Electron IPC, preload, keychain, provider calls, external URL và local-first privacy trong Viezan",
   "type": "skill",
+  "classification": {
+    "lifecycle": "audit",
+    "domain": ["security-privacy", "electron-boundary", "provider-models"],
+    "use_for": "Review Electron boundary, key safety, provider calls, external URLs, and local-first data flow."
+  },
   "trigger": "Khi review hoặc implement thay đổi liên quan IPC, preload, API key, provider SDK, browser bridge, local server, external URL hoặc dữ liệu nhạy cảm",
   "required_context": [
     "../../ARCHITECTURE.md",
@@ -138,4 +143,3 @@
     "readme": "./README.md"
   }
 }
-

@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Bộ rule nền để generate, review và refactor code cho Viezan đúng PRD local-first AI translation desktop app",
   "type": "rule",
+  "classification": {
+    "lifecycle": "foundation",
+    "domain": ["product-engineering", "security-privacy", "electron-boundary", "provider-models", "ui-i18n", "extension", "reliability"],
+    "use_for": "Always-on Viezan product guardrails for feature work, refactors, reviews, and release gates."
+  },
   "applies_to": [
     "Electron main/preload/renderer work",
     "AI provider integration",

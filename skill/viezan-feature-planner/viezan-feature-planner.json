@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Skill phân rã PRD/issue/feature request của Viezan thành impact map, contracts, implementation plan, verification và risks",
   "type": "skill",
+  "classification": {
+    "lifecycle": "feature",
+    "domain": ["feature-planning", "product-engineering"],
+    "use_for": "Turn a PRD, issue, or feature request into an impact map, contracts, plan, verification, and risks."
+  },
   "trigger": "Khi cần lập kế hoạch implement một tính năng hoặc PRD cho Viezan",
   "required_context": [
     "../../product-intro.md",

@@ -1,9 +1,14 @@
 # Prompt Guide — Viezan Agent
 
-Tài liệu prompt mẫu để gọi đúng rule, skill và workflow trong `viezanagent/`.
+Tài liệu prompt mẫu để gọi đúng rule, skill và workflow trong `viezanagent/`, phân loại theo vòng đời task để agent chọn nhanh hơn.
 
 Nguyên tắc chung:
 
+- Bắt đầu bằng `classification.lifecycle` trong JSON nếu cần chọn asset bằng máy.
+- `foundation` là rule nền, dùng kèm hầu hết task.
+- `feature` dùng khi tạo hoặc mở rộng năng lực sản phẩm.
+- `maintenance` dùng khi fix, refactor, sync docs, release gate hoặc xử lý debt.
+- `audit` dùng khi cần kiểm tra rủi ro theo domain trước merge/release.
 - Task implement Viezan: ưu tiên `viezan-product-engineering` + `ship-viezan-feature`.
 - Task audit security/privacy: dùng `audit-local-first-security` hoặc `viezan-ipc-security-audit`.
 - Task provider/model: dùng `viezan-provider-integration`.
@@ -11,25 +16,85 @@ Nguyên tắc chung:
 
 ---
 
+## Taxonomy
+
+| Lifecycle | Dùng khi | Ví dụ artifact |
+|---|---|---|
+| `foundation` | Rule nền phải nhớ khi generate, review, refactor, audit | `rule viezan-product-engineering`, `rule generate-code` |
+| `feature` | PRD, tính năng mới, provider/model/task AI mới | `workflow ship-viezan-feature`, `skill viezan-feature-planner`, `skill viezan-provider-integration` |
+| `maintenance` | Fix diagnostics, refactor debt, hardcode/duplicate, docs sync, release readiness | `workflow fix-vscode-problems`, `workflow check-dup-hardcode`, `workflow sync-docs`, `workflow release-readiness` |
+| `audit` | Gate rủi ro security, i18n, extension, live/perf trước merge/release | `workflow audit-local-first-security`, `workflow audit-i18n-coverage`, `workflow audit-extension-ux`, `workflow audit-live-perf` |
+
+Domain tags trong JSON: `product-engineering`, `code-quality`, `security-privacy`, `electron-boundary`, `provider-models`, `local-ai`, `i18n`, `extension`, `live-translate`, `ui-components`, `diagnostics`, `docs`, `release`.
+
+---
+
 ## Quick Chooser
 
-| Muốn làm gì | Nên dùng |
-|---|---|
-| Implement PRD/feature cho Viezan | `workflow ship-viezan-feature` |
-| Lập plan trước khi code | `skill viezan-feature-planner` |
-| Generate/refactor code đúng chuẩn Viezan | `rule viezan-product-engineering` + `rule generate-code` |
-| Thêm hoặc audit provider/model | `skill viezan-provider-integration` |
-| Maintain/audit Local AI | `viezanagent/docs/provider-routing.md` + `viezanagent/docs/phase_2/local-ai-agent-tasks.md` + `skill viezan-provider-integration` |
-| Audit IPC/API key/local-first | `workflow audit-local-first-security` hoặc `skill viezan-ipc-security-audit` |
-| Kiểm tra trước release | `workflow release-readiness` |
-| Tìm duplicate/hardcode | `workflow check-dup-hardcode` |
-| Chấm điểm chất lượng code | `workflow score-code`, loại bài `viezan-electron` |
-| Kiểm tra/tách UI component | `workflow split-ui-component` |
-| Fix Problems từ VS Code/build/test | `workflow fix-vscode-problems` |
-| Audit i18n VI/EN/JA và hardcoded UI string | `workflow audit-i18n-coverage` |
-| Audit Chrome Extension UX và local bridge | `workflow audit-extension-ux` |
-| Audit hiệu năng/lifecycle pipeline Live Translate | `workflow audit-live-perf` |
-| Đồng bộ docs với code (IPC/provider/locale/skill) | `workflow sync-docs` |
+| Nhóm | Muốn làm gì | Nên dùng |
+|---|---|---|
+| Foundation | Generate/review/refactor code đúng chuẩn Viezan | `rule viezan-product-engineering` + `rule generate-code` |
+| Feature | Implement PRD/feature end-to-end | `workflow ship-viezan-feature` |
+| Feature | Lập plan trước khi code | `skill viezan-feature-planner` |
+| Feature | Thêm hoặc audit provider/model/Local AI | `skill viezan-provider-integration` + `viezanagent/docs/provider-routing.md` |
+| Maintenance | Fix Problems từ VS Code/build/test/Biome | `workflow fix-vscode-problems` |
+| Maintenance | Tìm duplicate/hardcode/secret/magic literal | `workflow check-dup-hardcode` |
+| Maintenance | Chấm điểm chất lượng code | `workflow score-code`, loại bài `viezan-electron` |
+| Maintenance | Kiểm tra/tách UI component, icon registry, UI duplicate | `workflow split-ui-component` |
+| Maintenance | Đồng bộ docs với code (IPC/provider/locale/skill) | `workflow sync-docs` |
+| Maintenance | Kiểm tra trước release | `workflow release-readiness` |
+| Audit | Audit IPC/API key/local-first/data egress | `workflow audit-local-first-security` hoặc `skill viezan-ipc-security-audit` |
+| Audit | Audit i18n VI/EN/JA và hardcoded UI string | `workflow audit-i18n-coverage` hoặc `skill viezan-i18n-audit` |
+| Audit | Audit Chrome Extension UX và local bridge | `workflow audit-extension-ux` hoặc `skill viezan-extension-ux` |
+| Audit | Audit hiệu năng/lifecycle pipeline Live Translate | `workflow audit-live-perf` hoặc `skill viezan-live-perf-audit` |
+
+---
+
+## Category Map
+
+### Foundation
+
+| Kind | Artifact | Domain | Dùng khi |
+|---|---|---|---|
+| Rule | `viezan-product-engineering` | product, local-first, Electron, provider, UI/i18n, extension | Mọi task code/product trong Viezan |
+| Rule | `generate-code` | code quality, maintainability, testing, security, reliability | Generate/refactor code tổng quát |
+
+### Feature
+
+| Kind | Artifact | Domain | Dùng khi |
+|---|---|---|---|
+| Workflow | `ship-viezan-feature` | feature planning, product, i18n, security, docs | Implement PRD/feature end-to-end |
+| Skill | `viezan-feature-planner` | planning, contracts, risk | Cần impact map/plan trước khi code |
+| Skill | `viezan-provider-integration` | provider, model, Local AI, key safety | Thêm/audit provider, model hoặc tác vụ AI |
+
+### Maintenance
+
+| Kind | Artifact | Domain | Dùng khi |
+|---|---|---|---|
+| Workflow | `fix-vscode-problems` | diagnostics, build, test, Biome | Xử lý Problems hoặc output lỗi |
+| Skill | `fix-vscode-problems` | diagnostics, root cause | Phân loại nhanh một batch lỗi |
+| Workflow | `check-dup-hardcode` | duplicate, hardcode, secret | Quét toàn repo và tạo report |
+| Skill | `check-dup-hardcode` | duplicate, hardcode | Kiểm tra nhanh file/folder/snippet |
+| Workflow | `score-code` | rubric, review, code quality | Chấm code theo tiêu chí đầy đủ |
+| Skill | `score-code` | rubric, focused review | Chấm một tiêu chí hoặc đoạn code nhỏ |
+| Workflow | `split-ui-component` | UI component, icon, extension drift | Audit/tách UI toàn diện và tạo report |
+| Skill | `split-ui-component` | reusable vs feature UI, SVG, duplicate pattern | Phân tích nhanh component/folder |
+| Workflow | `sync-docs` | docs drift, release docs | Đồng bộ docs với code thực tế |
+| Skill | `viezan-doc-sync` | docs drift | Rà docs sau khi đổi IPC/provider/locale/skill |
+| Workflow | `release-readiness` | release, package, smoke, signing | Kiểm tra trước tag/build/publish |
+
+### Audit
+
+| Kind | Artifact | Domain | Dùng khi |
+|---|---|---|---|
+| Workflow | `audit-local-first-security` | security, privacy, IPC, preload, key | Security/privacy gate đầy đủ |
+| Skill | `viezan-ipc-security-audit` | IPC, preload, keychain, provider | Review boundary bảo mật phạm vi nhỏ |
+| Workflow | `audit-i18n-coverage` | i18n, locale, extension parity | Audit locale/hardcoded string toàn diện |
+| Skill | `viezan-i18n-audit` | locale, key, hardcoded UI string | Audit i18n phạm vi nhỏ |
+| Workflow | `audit-extension-ux` | extension, UX, local bridge, i18n | Audit extension/local bridge toàn diện |
+| Skill | `viezan-extension-ux` | popup, options, tooltip, bridge | Review extension UX phạm vi nhỏ |
+| Workflow | `audit-live-perf` | live translate, audio, performance, cleanup | Audit live pipeline toàn diện |
+| Skill | `viezan-live-perf-audit` | audio, listener, throttle, cleanup | Review live translate pipeline phạm vi nhỏ |
 
 ---
 

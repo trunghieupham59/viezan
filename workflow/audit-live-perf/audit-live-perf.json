@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Workflow audit hiệu năng và lifecycle của pipeline Live Translate trong Viezan: pre-filter rủi ro bằng rg, đọc useLiveTranslate.ts theo stage, phát hiện leak/setState-after-unmount, latency và đề xuất tuning",
   "type": "workflow",
+  "classification": {
+    "lifecycle": "audit",
+    "domain": ["live-translate", "performance", "reliability", "security-privacy"],
+    "use_for": "Run the full Live Translate performance, lifecycle, subtitle, and audio cleanup audit."
+  },
   "trigger": "Khi PR/feature chạm useLiveTranslate.ts, LiveTranslatePage.tsx, transcribe.ts, translate live-stream, subtitle.ts, hoặc trước release",
   "rules": [
     "../../rule/viezan-product-engineering/rules.json"

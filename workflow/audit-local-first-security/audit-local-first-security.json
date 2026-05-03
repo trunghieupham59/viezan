@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Workflow audit local-first privacy, API key safety, Electron IPC/preload boundary, external URL và data flow cho Viezan",
   "type": "workflow",
+  "classification": {
+    "lifecycle": "audit",
+    "domain": ["security-privacy", "electron-boundary", "local-first"],
+    "use_for": "Run the full local-first privacy, IPC, preload, key safety, URL, and data egress audit."
+  },
   "trigger": "Khi cần security/privacy audit cho feature, PR hoặc trước release",
   "skills": [
     "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json"
@@ -100,4 +105,3 @@
     "skill": "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json"
   }
 }
-

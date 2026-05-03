@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Skill phát hiện drift giữa source code Viezan và tài liệu (ARCHITECTURE.md, PROMPTS.md, viezanagent/docs/, README.md, chrome-extension/README.md). Đảm bảo IPC channel, provider list, locale list, hotkey, store slice, file path mô tả trong docs khớp với code thực tế.",
   "type": "skill",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["docs", "drift", "release"],
+    "use_for": "Find and repair drift between current code, agent docs, public docs, and release-facing documentation."
+  },
   "trigger": "Khi sửa IPC/provider/store/preload/i18n/extension hoặc trước release để rà drift docs",
   "required_context": [
     "../../ARCHITECTURE.md",
@@ -141,13 +146,15 @@
     },
     {
       "id": "skills-workflows",
-      "name": "Skills and Workflows",
-      "extract_method": "List folder trong viezanagent/skill/ và viezanagent/workflow/",
-      "search_command": "ls viezanagent/skill viezanagent/workflow",
-      "doc_section": "PROMPTS.md - Quick Chooser, Rules, Skills, Workflows, Report Paths",
+      "name": "Rules, Skills, Workflows and Classification",
+      "extract_method": "List folder trong viezanagent/rule/, viezanagent/skill/, viezanagent/workflow/ và đọc classification trong JSON",
+      "search_command": "jq -r '[.classification.lifecycle,.type,.name,(.classification.domain|join(\",\"))] | @tsv' viezanagent/rule/*/*.json viezanagent/skill/*/*.json viezanagent/workflow/*/*.json | sort",
+      "doc_section": "PROMPTS.md - Taxonomy, Quick Chooser, Category Map, Rules, Skills, Workflows, Report Paths; README.md - Index tables",
       "drift_signals": [
         "Skill/workflow mới chưa có trong PROMPTS.md",
-        "PROMPTS.md tham chiếu skill/workflow đã xóa"
+        "PROMPTS.md tham chiếu skill/workflow đã xóa",
+        "JSON thiếu classification.lifecycle, classification.domain hoặc classification.use_for",
+        "Lifecycle/domain trong JSON không khớp Category Map hoặc README.md"
       ]
     },
     {
@@ -213,6 +220,17 @@
       "checks": [
         "save_path trong workflow JSON khớp PROMPTS.md",
         "Tên file pattern (YYYYMMDD-HHmm) đồng bộ"
+      ]
+    },
+    {
+      "id": "classification-drift",
+      "name": "Agent classification drift",
+      "severity_if_failed": "medium",
+      "checks": [
+        "Mọi rule/skill/workflow JSON có classification.lifecycle",
+        "Mọi rule/skill/workflow JSON có classification.domain không rỗng",
+        "Mọi rule/skill/workflow JSON có classification.use_for",
+        "Lifecycle trong JSON khớp PROMPTS.md Category Map và README.md Index"
       ]
     },
     {

@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Workflow phân tích tổ chức UI component và Extension UI, phát hiện icon hardcode, UI pattern duplicate, Extension UI drift, tạo báo cáo và kế hoạch tách component",
   "type": "workflow",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["ui-components", "extension", "hardcode-duplication"],
+    "use_for": "Run the full UI component classification, icon hardcode, duplicate pattern, and extension drift report workflow."
+  },
   "steps": [
     {
       "id": "step-1-scope",

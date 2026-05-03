@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Skill phân loại UI component (Reusable vs Feature-specific), phát hiện SVG icon hardcode inline, UI pattern duplicate, Extension UI drift và đề xuất kế hoạch refactor cụ thể",
   "type": "skill",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["ui-components", "extension", "hardcode-duplication"],
+    "use_for": "Classify UI components and locate reusable-vs-feature, inline icon, and duplicate UI refactor targets."
+  },
   "component_classification": {
     "reusable": {
       "location": "src/components/ui/",

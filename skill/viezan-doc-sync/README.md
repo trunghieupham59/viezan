@@ -19,7 +19,8 @@ Dùng skill viezan-doc-sync sau khi thêm IPC/provider/locale/skill mới.
 - Providers từ `SUPPORTED_PROVIDERS` và `PROVIDERS`
 - Store slices từ `src/store/slices/`
 - Locales từ `src/i18n/locales/`
-- Skills/Workflows từ `viezanagent/skill/` + `viezanagent/workflow/`
+- Rule/Skill/Workflow từ `viezanagent/rule/` + `viezanagent/skill/` + `viezanagent/workflow/`
+- Agent classification từ JSON `classification.lifecycle` + `classification.domain`
 - Report paths từ workflow JSON `save_path`
 - Live pipeline thresholds từ `src/hooks/useLiveTranslate.ts`
 
@@ -43,6 +44,9 @@ Dùng skill viezan-doc-sync sau khi thêm IPC/provider/locale/skill mới.
 ## Report Path Drift
 | Workflow | save_path in JSON | PROMPTS.md entry |
 
+## Classification Drift
+| Artifact | JSON lifecycle/domain | PROMPTS.md/README.md category |
+
 ## Required Updates
 1. ...
 ```
@@ -51,6 +55,8 @@ Dùng skill viezan-doc-sync sau khi thêm IPC/provider/locale/skill mới.
 
 - IPC channel mới có trong ARCHITECTURE.md không?
 - Provider/locale mới có trong README/product-intro không?
-- Skill/workflow mới có trong PROMPTS.md không?
+- Rule/skill/workflow mới có trong PROMPTS.md và README.md không?
+- JSON của rule/skill/workflow có `classification.lifecycle`, `classification.domain`, `classification.use_for` không?
+- Lifecycle trong JSON có khớp Category Map không?
 - Path tham chiếu chéo trong skill/workflow JSON có còn đúng không?
 - Threshold trong docs có khớp code không?

@@ -3,6 +3,11 @@
   "version": "2.0.0",
   "description": "Workflow kiểm tra duplicate code và hardcode trong source code theo kiến trúc Phễu lọc 3 tầng: Static Analysis (0 token) → Chunking → LLM Adjudicator (token tối thiểu). Tạo báo cáo có phân loại, mức độ ưu tiên và gợi ý refactor.",
   "type": "workflow",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["hardcode-duplication", "code-quality", "security-privacy"],
+    "use_for": "Run the full duplicate and hardcode scan, adjudication, prioritization, and report workflow."
+  },
   "architecture": {
     "name": "Phễu lọc 3 tầng (Token-Optimal Pipeline)",
     "layers": [
