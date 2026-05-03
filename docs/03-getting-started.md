@@ -90,7 +90,7 @@ Outputs land in `release/`. See [`16-build-release.md`](./16-build-release.md) f
 | `tsconfig.node.json` | Node tooling TypeScript |
 | `vite.config.ts` | Renderer build (also handles `quick-chat.html` entry) |
 | `vitest.config.ts` | Test runner config (jsdom, setup file) |
-| `tailwind.config.js`, `postcss.config.mjs` | Tailwind + PostCSS |
+| `tailwind.config.mjs`, `postcss.config.mjs` | Tailwind + PostCSS |
 | `biome.json` | Lint / format |
 | `build/entitlements.mac.plist` | macOS hardened-runtime entitlements (mic, network, JIT) |
 | `scripts/notarize.mjs` | electron-builder `afterSign` hook for macOS notarization |

@@ -463,3 +463,83 @@ Báo cáo mặc định: `viezanagent/report/doc-sync-report-YYYYMMDD-HHmm.md`.
 | `audit-extension-ux` | `viezanagent/report/extension-ux-report-YYYYMMDD-HHmm.md` |
 | `audit-live-perf` | `viezanagent/report/live-perf-report-YYYYMMDD-HHmm.md` |
 | `sync-docs` | `viezanagent/report/doc-sync-report-YYYYMMDD-HHmm.md` |
+
+---
+
+## Appendix: Search Index
+
+Dùng phụ lục này để tìm nhanh prompt, rule, skill, workflow hoặc report bằng `Cmd+F`/`rg`.
+
+### Search by Intent
+
+| Intent / từ khóa | Dùng artifact | Nơi đọc chính | Output thường gặp |
+|---|---|---|---|
+| `implement`, `feature`, `PRD`, `end-to-end`, `ship` | `workflow ship-viezan-feature` | `viezanagent/workflow/ship-viezan-feature/README.md` | Code, tests, docs, i18n |
+| `plan`, `impact map`, `contract`, `risk` | `skill viezan-feature-planner` | `viezanagent/skill/viezan-feature-planner/README.md` | Implementation plan |
+| `generate`, `refactor`, `code quality`, `maintainability` | `rule generate-code` + `rule viezan-product-engineering` | `viezanagent/rule/generate-code/README.md` | Scoped code patch |
+| `review`, `score`, `rubric`, `merge` | `workflow score-code` | `viezanagent/workflow/score-code/README.md` | Score/report |
+| `security`, `privacy`, `IPC`, `preload`, `API key`, `keychain`, `data egress` | `workflow audit-local-first-security` hoặc `skill viezan-ipc-security-audit` | `viezanagent/workflow/audit-local-first-security/README.md` | Security audit report |
+| `provider`, `model`, `OpenAI`, `Gemini`, `Ollama`, `LM Studio`, `llama.cpp`, `Local AI` | `skill viezan-provider-integration` | `viezanagent/skill/viezan-provider-integration/README.md` | Provider patch/audit |
+| `duplicate`, `hardcode`, `secret`, `token`, `PEM`, `magic string` | `workflow check-dup-hardcode` | `viezanagent/workflow/check-dup-hardcode/README.md` | `viezanagent/fix/dup-hardcode-report-*.md` |
+| `UI`, `UX`, `component`, `icon`, `SVG`, `modal`, `popup`, `layout` | `workflow split-ui-component` hoặc `skill split-ui-component` | `viezanagent/workflow/split-ui-component/README.md` | UI split report |
+| `VS Code Problems`, `Biome`, `TypeScript`, `build`, `test`, `diagnostic` | `workflow fix-vscode-problems` | `viezanagent/workflow/fix-vscode-problems/README.md` | Problems report/code fix |
+| `i18n`, `locale`, `vi`, `en`, `ja`, `hardcoded string`, `translation key` | `workflow audit-i18n-coverage` hoặc `skill viezan-i18n-audit` | `viezanagent/workflow/audit-i18n-coverage/README.md` | i18n audit report |
+| `Chrome Extension`, `extension`, `popup`, `options`, `tooltip`, `local bridge` | `workflow audit-extension-ux` hoặc `skill viezan-extension-ux` | `viezanagent/workflow/audit-extension-ux/README.md` | Extension UX report |
+| `Live Translate`, `AudioContext`, `MediaStream`, `Whisper`, `streaming`, `subtitle`, `leak`, `lag` | `workflow audit-live-perf` hoặc `skill viezan-live-perf-audit` | `viezanagent/workflow/audit-live-perf/README.md` | Live perf report |
+| `docs`, `README`, `ARCHITECTURE`, `PROMPTS`, `drift`, `sync` | `workflow sync-docs` hoặc `skill viezan-doc-sync` | `viezanagent/workflow/sync-docs/README.md` | Doc sync report |
+| `release`, `package`, `signing`, `notarization`, `updater`, `smoke` | `workflow release-readiness` | `viezanagent/workflow/release-readiness/README.md` | Release checklist/report |
+
+### Search by Artifact
+
+| Artifact | Search tags | Khi nào dùng |
+|---|---|---|
+| `rule viezan-product-engineering` | `product`, `local-first`, `Electron boundary`, `UX`, `reliability` | Mọi task code/product trong Viezan |
+| `rule generate-code` | `correctness`, `structure`, `testing`, `security`, `maintainability` | Generate/refactor code tổng quát |
+| `skill viezan-feature-planner` | `PRD`, `plan`, `impact`, `contract`, `verification` | Cần plan trước khi code |
+| `skill viezan-provider-integration` | `provider`, `model`, `registry`, `key safety`, `contract` | Thêm/audit provider hoặc model |
+| `skill viezan-ipc-security-audit` | `IPC`, `preload`, `keychain`, `provider`, `local-first` | Review boundary bảo mật phạm vi nhỏ |
+| `skill check-dup-hardcode` | `duplicate`, `hardcode`, `literal`, `secret` | Kiểm tra nhanh một file/folder |
+| `skill score-code` | `rubric`, `criterion`, `score` | Chấm nhanh một tiêu chí/đoạn code |
+| `skill split-ui-component` | `component`, `icon`, `SVG`, `pattern` | Phân tích nhanh component |
+| `skill fix-vscode-problems` | `Problems`, `diagnostic`, `root cause` | Phân loại output lỗi trước khi fix |
+| `skill viezan-i18n-audit` | `locale`, `key`, `hardcoded UI string` | Audit i18n phạm vi nhỏ |
+| `skill viezan-extension-ux` | `popup`, `options`, `tooltip`, `bridge` | Review extension/local bridge |
+| `skill viezan-live-perf-audit` | `audio`, `listener`, `throttle`, `cleanup` | Review live translate pipeline |
+| `skill viezan-doc-sync` | `doc drift`, `architecture`, `README`, `PROMPTS` | Rà docs sau khi đổi code |
+
+### Search by Source Area
+
+| Source area | Từ khóa nên tìm | Artifact nên dùng |
+|---|---|---|
+| `electron/`, `preload`, `ipc` | `IPC`, `preload`, `keychain`, `contextBridge`, `externalUrl` | `audit-local-first-security`, `viezan-ipc-security-audit` |
+| `src/services`, `src/lib`, provider registry | `provider`, `model`, `adapter`, `routing`, `API key` | `viezan-provider-integration`, `score-code` |
+| `src/components`, `src/pages` | `component`, `modal`, `icon`, `i18n`, `layout` | `split-ui-component`, `audit-i18n-coverage` |
+| `chrome-extension/` | `popup`, `options`, `tooltip`, `bridge`, `API Key` | `audit-extension-ux`, `audit-local-first-security` |
+| Live Translate pipeline | `AudioContext`, `MediaStream`, `Whisper`, `subtitle`, `cleanup` | `audit-live-perf` |
+| Locale files | `vi`, `en`, `ja`, `translation key`, `missing key` | `audit-i18n-coverage`, `viezan-i18n-audit` |
+| Public/internal docs | `README`, `ARCHITECTURE`, `product-intro`, `provider-routing` | `sync-docs`, `viezan-doc-sync` |
+| Release/build config | `release`, `package`, `signing`, `notarization`, `updater` | `release-readiness` |
+
+### Search by Report Output
+
+| Report keyword | Path pattern | Workflow |
+|---|---|---|
+| `dup-hardcode-report` | `viezanagent/fix/dup-hardcode-report-YYYYMMDD-HHmm.md` | `check-dup-hardcode` |
+| `split-ui-report` | `viezanagent/report/split-ui-report-YYYYMMDD-HHmm.md` | `split-ui-component` |
+| `vscode-problems-report` | `viezanagent/report/vscode-problems-report-YYYYMMDD-HHmm.md` | `fix-vscode-problems` |
+| `local-first-security-audit` | `viezanagent/report/local-first-security-audit-YYYYMMDD-HHmm.md` | `audit-local-first-security` |
+| `i18n-audit-report` | `viezanagent/report/i18n-audit-report-YYYYMMDD-HHmm.md` | `audit-i18n-coverage` |
+| `extension-ux-report` | `viezanagent/report/extension-ux-report-YYYYMMDD-HHmm.md` | `audit-extension-ux` |
+| `live-perf-report` | `viezanagent/report/live-perf-report-YYYYMMDD-HHmm.md` | `audit-live-perf` |
+| `doc-sync-report` | `viezanagent/report/doc-sync-report-YYYYMMDD-HHmm.md` | `sync-docs` |
+
+### Quick Search Commands
+
+```bash
+rg -n "provider|model|Local AI|Ollama|LM Studio" viezanagent/PROMPTS.md
+rg -n "IPC|preload|API key|keychain|local-first" viezanagent/PROMPTS.md
+rg -n "i18n|locale|vi|en|ja|hardcoded string" viezanagent/PROMPTS.md
+rg -n "Chrome Extension|popup|options|local bridge" viezanagent/PROMPTS.md
+rg -n "Live Translate|AudioContext|MediaStream|Whisper|subtitle" viezanagent/PROMPTS.md
+rg -n "report|YYYYMMDD|dup-hardcode|doc-sync" viezanagent/PROMPTS.md
+```

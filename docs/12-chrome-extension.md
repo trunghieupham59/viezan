@@ -10,13 +10,18 @@ The browser extension under `chrome-extension/` lets users translate selected we
 
 - `manifest_version: 3`.
 - `permissions`: `storage`, `activeTab`, `scripting`, `contextMenus`.
-- `host_permissions`: `http://127.0.0.1/*`, `https://*/*`, `http://*/*` (so the content script can run on any page).
+- `host_permissions`: `http://127.0.0.1:39875/*` for the local bridge. Page
+  access is handled by declared content-script matches plus `activeTab` for
+  user-triggered scripting.
 - `background`: `background.js` (service worker).
 - `action`: popup `popup.html`.
 - `options_page`: `options.html`.
 - `commands`:
   - `translate-selection` — `Alt+T` / `Option+T` (default).
-- `content_scripts` matching `<all_urls>` injecting `content.js` + `content.css` and `extension-ui.css`.
+- `content_scripts` matching `<all_urls>` injecting `content.js` + `content.css`
+  and bridge helpers. Local server calls from content pages are relayed through
+  the extension service worker so the native bridge can keep a narrow CORS
+  policy.
 
 ## Files
 

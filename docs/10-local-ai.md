@@ -84,13 +84,14 @@ Resolution prefers a running runtime, then falls back to the highest-scoring rec
 
 ## Install Ollama
 
-`local-ai:installOllama` runs **a fixed Main-process command**:
+`local-ai:installOllama` downloads Ollama's official installer script in Main,
+performs a minimal provenance check, writes it under the app's user data
+installer cache, and runs the downloaded file via `/bin/sh`. It does not use a
+shell pipeline such as `curl | sh`.
 
-```
-curl -fsSL https://ollama.com/install.sh | sh
-```
-
-The renderer cannot influence the command in any way. This eliminates the risk of an attacker-controlled renderer executing arbitrary shell.
+The renderer cannot influence the script URL, shell, command, or arguments. This
+keeps installer control in Main and avoids attacker-controlled renderer command
+execution.
 
 While the install runs:
 

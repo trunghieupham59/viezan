@@ -65,8 +65,9 @@ Supported local runtime candidates:
      DeepSeek, Qwen, Gemma, Mistral, and Phi.
    - Show a small estimated size note for each suggested model so users can
      judge storage/RAM impact before downloading.
-   - Allow direct Ollama installation through fixed Main Process command:
-     `curl -fsSL https://ollama.com/install.sh | sh`.
+   - Allow direct Ollama installation through Main Process only: download the
+     official installer script, perform a minimal provenance check, and run the
+     downloaded script via `/bin/sh` without a shell pipeline.
    - Surface installer progress in Settings and allow cancellation through a
      dedicated Main Process IPC command.
    - Allow direct model download through Ollama `/api/pull` when Ollama is

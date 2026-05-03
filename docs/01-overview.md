@@ -63,9 +63,9 @@ Target users:
 |---|---|
 | Electron 41 | Desktop shell, native APIs, secure storage |
 | React 18 | Renderer UI |
-| TypeScript 5 | Type safety across renderer + Electron |
+| TypeScript 6 | Type safety across renderer + Electron |
 | Vite 8 | Renderer build pipeline |
-| Tailwind CSS 3 | Styling |
+| Tailwind CSS 4 | Styling |
 | Zustand 5 | Client state (slice pattern + persist) |
 | Electron Builder 26 | Packaging and publishing |
 | Vitest 4 | Unit / integration tests |

@@ -69,11 +69,12 @@ catalog includes multiple model families such as Llama, DeepSeek, Qwen, Gemma,
 Mistral, and Phi. Suggested models include an estimated size in GB. Direct
 Ollama installation is routed through `local-ai:installOllama`, emits
 `local-ai:installProgress`, supports cancellation through
-`local-ai:cancelInstallOllama`, and runs a fixed Main Process command
-(`curl -fsSL https://ollama.com/install.sh | sh`). The renderer cannot pass a
-custom command or arguments. Direct model download uses Ollama's management API
-(`/api/pull`) with curated model IDs and streams `completed`/`total` progress
-to the renderer through `local-ai:modelDownloadProgress`. LM Studio and
-llama.cpp remain supported for detected/running model lists and
-OpenAI-compatible inference, but installer/model-management flows should stay
-runtime-specific until their APIs are normalized in Viezan.
+`local-ai:cancelInstallOllama`, downloads Ollama's official installer script in
+Main, performs a minimal provenance check, then runs that downloaded script via
+`/bin/sh` without a shell pipeline. The renderer cannot pass a custom command
+or arguments. Direct model download uses Ollama's management API (`/api/pull`)
+with curated model IDs and streams `completed`/`total` progress to the renderer
+through `local-ai:modelDownloadProgress`. LM Studio and llama.cpp remain
+supported for detected/running model lists and OpenAI-compatible inference, but
+installer/model-management flows should stay runtime-specific until their APIs
+are normalized in Viezan.

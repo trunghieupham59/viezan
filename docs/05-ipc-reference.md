@@ -222,7 +222,8 @@ Runs a synthetic CPU/RAM workload and (optionally) a short local model completio
 
 ### `local-ai:installOllama`
 
-Runs the fixed Main-process command `curl -fsSL https://ollama.com/install.sh | sh` and streams progress.
+Downloads Ollama's official installer in Main, performs a minimal provenance
+check, runs the downloaded script via `/bin/sh`, and streams progress.
 
 Events:
 

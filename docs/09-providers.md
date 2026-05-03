@@ -185,7 +185,7 @@ The `local` provider is keyless. It uses `LOCAL_AI_PLACEHOLDER_KEY` because Olla
 - Runtime selection happens inside `electron/ipc/localAi.ts` — the renderer never makes raw HTTP calls itself.
 - `local-auto` is a synthetic model id that resolves at request time to the best available `(runtime, modelId)` based on `local-ai:benchmark` recommendations.
 - Curated suggestions span Llama, DeepSeek, Qwen, Gemma, Mistral, Phi families. Sizes are approximate (GB) and used by the recommendation scorer.
-- Direct Ollama install is fixed-command (`curl -fsSL https://ollama.com/install.sh | sh`) and runs entirely in Main; the renderer cannot supply arguments.
+- Direct Ollama install downloads Ollama's official installer in Main, performs a minimal provenance check, then runs the downloaded script via `/bin/sh`; the renderer cannot supply commands or arguments.
 - Model pull uses Ollama's management API (`POST /api/pull`) and streams `completed`/`total` to `local-ai:modelDownloadProgress`.
 
 See [`10-local-ai.md`](./10-local-ai.md) for the full workflow.
