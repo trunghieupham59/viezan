@@ -14,7 +14,7 @@ This page summarizes the threat model, the boundaries enforced, and the audit ch
 | Malicious URL opened via the renderer | `shell.openExternal` is gated by `isAllowedExternalUrl()`. Renderer navigation restricted to `file://` and `localhost:5173`. |
 | Renderer-controlled command execution (e.g. install Ollama) | Install command is **fixed** in Main; the renderer cannot pass any argument. |
 | API key exfiltration | Keys live only in OS keychain via `safeStorage`; renderer can only ask `hasKey` or get a masked display string. |
-| Chrome extension or third-party app talking to the local server | Loopback-only bind, `Origin: chrome-extension://<id>` check, bearer `sk-vie-…` key, per-tab short-lived token, rate limiting. |
+| Chrome extension or third-party app talking to the local server | Loopback-only bind, allowed extension/local origin check, `X-Viezan-Token: sk-vie-...` connection API key, one-time key reveal, metadata-only key listing. |
 | Provider key leaking via logs / errors | Errors are classified and the original message is sanitized server-side. Keys are never serialized to console or shipped logs. |
 | Telemetry / data exfiltration | No analytics. No Viezan-hosted server. The only network egress is to the configured AI provider (or the local runtime). |
 
@@ -102,11 +102,10 @@ Runs in Main via `electron/ipc/localServer.ts`.
 
 - Bound to `127.0.0.1:39875` only — never `0.0.0.0`.
 - Auth requirements:
-  1. `Authorization: Bearer sk-vie-<random>` — matches the encrypted connection key.
-  2. `Origin: chrome-extension://<id>` — extension origin.
-- Rate limiting: per-IP and per-key.
-- Endpoints are intentionally narrow: `/v1/translate`, `/v1/quick-chat`, `/v1/health`. No filesystem or shell access is reachable.
-- Connection key rotation is exposed via `localServer:rotateKey`. Rotation invalidates all extension sessions immediately.
+  1. `X-Viezan-Token: sk-vie-<64 lowercase hex chars>` — matches one active connection API key.
+  2. `Origin: chrome-extension://<id>` or another explicitly allowed local/extension origin.
+- Endpoints are intentionally narrow: `/api/status`, `/api/config`, `/api/translate`, `/api/tts`. No filesystem or shell access is reachable.
+- Key management is exposed through `localServer:createToken`, `localServer:listTokens`, `localServer:deleteToken` and `localServer:regenerateToken`. Key values are returned only on create/regenerate.
 
 ---
 

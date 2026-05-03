@@ -282,11 +282,9 @@ When the user presses the hotkey, the main process sends `hotkey:triggered` to t
 
 | Channel | Payload | Response |
 |---|---|---|
-| `app:openExternal` | `{ url }` | `{ success }` (URL is gated by `isAllowedExternalUrl`) |
-| `app:getInfo` | — | `{ version, platform, arch, locale }` |
-| `app:checkPermissions` | — | `{ microphone, screen }` (macOS) |
-| `app:requestPermissions` | `{ kind: 'microphone' \| 'screen' }` | `{ granted: boolean }` |
-| `app:openLogs` | — | `{ success }` opens the Electron log directory |
+| `app:checkScreenPermission` | — | Screen Recording status (`granted`, `denied`, `restricted`, `unknown`, `not-determined`) |
+| `app:openExternal` | `url: string` | Opens only URLs accepted by `isAllowedExternalUrl()` |
+| `app:relaunch` | — | Relaunches the app and exits the current process |
 
 ---
 
@@ -300,23 +298,28 @@ Events: `updater:checking`, `updater:available`, `updater:not-available`, `updat
 
 ## Local Server (`electron/ipc/localServer.ts`)
 
-The Chrome Extension bridge.
+The Chrome Extension bridge uses named `sk-vie-*` connection API keys. API key
+values are returned only when created or regenerated; list responses never
+include the secret value.
 
 | Channel | Purpose |
 |---|---|
-| `localServer:start` / `localServer:stop` | Lifecycle (also auto-managed at app boot) |
-| `localServer:getStatus` | `{ running: boolean, port: number }` |
-| `localServer:getKey` | Returns the current `sk-vie-…` connection key (renderer-side display) |
-| `localServer:rotateKey` | Rotates the key, invalidates browser sessions |
-| `localServer:setTtl` | Sets the per-session token TTL (Settings → Browser) |
+| `localServer:syncConfig` | Syncs provider/model/TTS preferences so `/api/config` mirrors the desktop app |
+| `localServer:createToken` | Creates a named connection API key and returns the key value once |
+| `localServer:listTokens` | Lists active key metadata (`id`, `name`, `createdAt`, `expiresAt`) and port |
+| `localServer:deleteToken` | Deletes a key immediately |
+| `localServer:regenerateToken` | Replaces a key value and returns the new value once |
 
 Inbound HTTP routes on `127.0.0.1:39875`:
 
-- `POST /v1/translate` → bridges to `lightweightTranslate.ts`
-- `POST /v1/health` → `{ ok: true, version }`
-- `POST /v1/quick-chat` → bridges to `quickChat.ts` helpers
+- `GET /api/status` -> `{ success, version }`
+- `GET /api/config` -> current provider/model/TTS config
+- `POST /api/translate` -> bridges to `lightweightTranslate.ts`
+- `POST /api/tts` -> bridges to `tts.ts`
 
-All requests must include `Authorization: Bearer sk-vie-...` and `Origin: chrome-extension://...`.
+Extension requests must include `X-Viezan-Token: sk-vie-...` and an allowed
+extension/local origin. Legacy Assistant preflights can also pass the same key
+as `corsToken` for CORS visibility.
 
 ---
 

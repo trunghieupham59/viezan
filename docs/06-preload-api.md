@@ -14,10 +14,10 @@ The aggregator imports per-domain modules from `electron/preload/` and merges th
 
 ## Top-Level Shape (TypeScript)
 
-The full type lives in `src/types/index.ts` (search for `interface ViezanApi`). High-level shape:
+The full type lives in `src/types/index.ts` (search for `interface WindowApi`). High-level shape:
 
 ```ts
-interface ViezanApi {
+interface WindowApi {
   // Translation
   translate(params: TranslateParams): Promise<TranslateResult>
   detectLanguage(params: DetectParams): Promise<DetectResult>
@@ -51,10 +51,10 @@ interface ViezanApi {
   }
 
   keychain: {
-    set(provider: Provider, apiKey: string): Promise<{ success: boolean; error?: string }>
-    has(provider: Provider): Promise<boolean>
-    delete(provider: Provider): Promise<void>
-    getMask(provider: Provider): Promise<string>
+    save(provider: Provider, apiKey: string): Promise<{ success: boolean; error?: string }>
+    get(provider: Provider): Promise<{ exists: boolean; masked: string | null; error?: string }>
+    delete(provider: Provider): Promise<{ success: boolean; error?: string }>
+    hasKey(provider: Provider): Promise<{ exists: boolean; error?: string }>
   }
 
   localAi: {
@@ -106,12 +106,25 @@ interface ViezanApi {
   }
 
   localServer: {
-    getStatus(): Promise<{ running: boolean; port: number }>
-    getKey(): Promise<string>
-    rotateKey(): Promise<string>
-    setTtl(ttlSeconds: number): Promise<void>
-    start(): Promise<void>
-    stop(): Promise<void>
+    createToken(params: { name: string; ttlDays: number }): Promise<{
+      success: boolean; token?: string; id?: string; name?: string
+      createdAt?: number; expiresAt?: number; error?: string
+    }>
+    listTokens(): Promise<{
+      success: boolean; port: number
+      tokens: Array<{ id: string; name: string; createdAt: number; expiresAt: number }>
+    }>
+    deleteToken(params: { id: string }): Promise<{ success: boolean; error?: string }>
+    regenerateToken(params: { id: string; ttlDays?: number }): Promise<{
+      success: boolean; token?: string; id?: string; name?: string
+      createdAt?: number; expiresAt?: number; error?: string
+    }>
+    syncConfig(params: {
+      provider: string
+      model: string
+      ttsMode?: 'free' | 'auto' | 'premium'
+      ttsVoice?: 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer'
+    }): Promise<{ success: boolean }>
   }
 
   webSearch: {
@@ -134,7 +147,7 @@ interface ViezanApi {
 }
 
 declare global {
-  interface Window { api: ViezanApi }
+  interface Window { api: WindowApi }
 }
 ```
 

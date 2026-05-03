@@ -71,7 +71,6 @@ User preferences. All fields persisted.
 | `globalHotkey` | Accelerator string |
 | `quickChatHotkey` | Accelerator string |
 | `subtitleStyle` | `{ fontSize, opacity, position }` |
-| `bridgeTokenTtl` | Seconds for browser-extension session token |
 
 Actions: typed setters per field plus `resetSettings()`.
 
@@ -115,7 +114,7 @@ autoTranslate, showFurigana, translationStyle,
 voiceInputProvider, voiceInputModel,
 ttsProvider, ttsVoice, ttsSpeed,
 webSearchProvider, globalHotkey, quickChatHotkey,
-subtitleStyle, bridgeTokenTtl,
+subtitleStyle,
 history, liveSessions, chatSessions, chatSystemPrompt, systemPromptPresets
 ```
 
