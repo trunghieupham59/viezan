@@ -108,7 +108,8 @@ useAppStore  (Zustand + persist) — thin aggregator
 ├── SettingsSlice   ← user preferences (autoTranslate, fontSize, locale, TTS voice…)
 ├── HistorySlice    ← translation history + live session history
 ├── ChatSlice       ← chat sessions + system prompt presets
-└── DictionarySlice ← dictionary lookup history + favorites
+├── DictionarySlice ← dictionary lookup history + favorites
+└── UsageSlice      ← estimated provider/API-key cost totals and display currency
 ```
 
 Each slice lives in its own file under `src/store/slices/` — add new state domains there, not in `useAppStore.ts`.
@@ -119,7 +120,7 @@ Each slice lives in its own file under `src/store/slices/` — add new state dom
 sourceLang, targetLang, selectedProvider, selectedModels,
 autoTranslate, showFurigana, translationStyle, fontSize, locale,
 history, liveSessions, chatSessions, chatSystemPrompt, systemPromptPresets,
-dictionaryEntries
+dictionaryEntries, costCurrency, apiKeyUsageTotals
 
 // NOT persisted: isTranslating, translateError, sourceText, translatedText
 ```
