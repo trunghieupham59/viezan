@@ -13,6 +13,7 @@ AI Provider
 - API key được lưu trên máy, không đi qua server của Viezan.
  Tính Năng Chính
 - **AI Dịch**: dịch 19 ngôn ngữ, auto-detect, Auto/Manual mode, 6 phong cách dịch, rewrite, đọc to và voice input.
+- **Từ điển AI**: tra cứu thuật ngữ bằng provider/model đang chọn, xem nghĩa, bản dịch, ví dụ, ghi chú, lưu lịch sử và đánh dấu favorite.
 - **Phiên âm**: hỗ trợ furigana, pinyin, romanization hoặc phiên âm thuần.
 - **Dịch ảnh**: kéo thả, dán hoặc chọn ảnh; AI đọc chữ trong ảnh, dịch và tạo kết quả tải xuống.
 - **AI Phiên Dịch Trực Tiếp**: nghe microphone, system audio hoặc cả hai; có STT, dịch streaming và phụ đề nổi.
@@ -22,7 +23,7 @@ AI Provider
 - **AI Chat**: chat theo phiên, streaming response, đính kèm ảnh, voice input, System Prompt, preset prompt và lịch sử chat.
 - **Deep Research**: tìm kiếm web qua Tavily, Brave hoặc Jina fallback miễn phí.
 - **Browser Translation**: dịch text trên web bằng extension, floating button, popup, context menu và phím tắt `Alt+T` / `Option+T`.
-- **Lịch sử**: lưu riêng AI Dịch, AI Chat và AI Phiên Dịch; có tìm kiếm, dùng lại và xóa hàng loạt.
+- **Lịch sử**: lưu riêng AI Dịch, AI Chat, AI Phiên Dịch và Từ điển; có tìm kiếm, dùng lại, favorite và thao tác xóa theo từng bề mặt.
 Bảo Mật Và Riêng Tư
 - Không có Viezan-hosted relay server.
 - Local AI chạy trên máy qua Ollama, LM Studio hoặc llama.cpp.
