@@ -128,20 +128,32 @@ window.api.imageTranslate({
 ### `audio:transcribe`
 
 ```ts
-window.api.audio.transcribe({
-  provider: 'openai' | 'gemini' | 'groq',
-  model?: string,
-  audio: ArrayBuffer | { mime: string; base64: string },
+window.api.transcribeAudio({
+  requestId: string,
+  purpose: 'dictation' | 'live',
+  sttProvider: 'auto' | 'whisper' | 'google' | 'groq',
+  audioData: ArrayBuffer,
+  mimeType: string,
   language?: string,
-  prompt?: string,
+  previousText?: string,
 }) → Promise<{
   success: true;
   text: string;
-  segments?: Array<{ start: number; end: number; text: string; avgLogprob?: number; noSpeechProb?: number; compressionRatio?: number; }>;
-} | IpcErr>
+  usedProvider: 'whisper' | 'gemini' | 'groq';
+  segmentTexts?: string[];
+  avgLogprob?: number;
+  noSpeechProb?: number;
+  compressionRatio?: number;
+} | {
+  success: false;
+  errorCode: string;
+  retryable: boolean;
+}>
 ```
 
-The Whisper response includes per-segment metadata used by Live Translate's confidence gates (see `useLiveTranslate.ts`).
+Main validates request IDs, purpose, language, MIME and audio size before contacting a provider.
+Raw provider messages are not returned to the renderer. `audio:cancelTranscription` cancels by
+`requestId`. Whisper metadata remains available to Live Translate's confidence gates.
 
 ### `audio:tts`
 

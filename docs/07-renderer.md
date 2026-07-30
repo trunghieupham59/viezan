@@ -125,7 +125,7 @@ src/hooks/
 ├── useTranslate.ts        Owns translate page state machine
 ├── useLiveTranslate.ts    Owns the audio→STT→translate pipeline
 ├── useTTS.ts              Wraps audio:tts + Audio playback
-├── useVoiceInput.ts       Wraps Web Speech / Whisper / Gemini / Groq STT
+├── useVoiceInput.ts       Appends completed recorded-audio transcripts to the current draft
 ├── useTypewriter.ts       Streaming text typewriter effect
 └── live/
     ├── vadPolicy.ts            Source-aware VAD thresholds, gain constants

@@ -28,7 +28,7 @@ Target users:
 | **Phonetic** | Furigana (Japanese), pinyin (Chinese), romanization (Korean), or generic phonetic. |
 | **Image Translate** | Drag, drop, paste or pick images; AI extracts and translates visible text; can produce a translated image when supported (Gemini vision). |
 | **Live Translate** | Realtime mic / system-audio / mixed transcription, streaming translation, floating subtitle overlay window, post-meeting summary, action items, decisions, speaker analysis, `.txt` / `.srt` export. |
-| **Voice Input** | Web Speech API + Whisper, Gemini STT and Groq Whisper fallbacks. |
+| **Voice Input** | Records a complete clip locally, then transcribes through Electron Main with Whisper, Gemini STT or Groq. |
 | **TTS** | Edge TTS (free) → OpenAI → Gemini → ElevenLabs fallback chain. |
 | **AI Chat** | Multi-turn chat with image attachments, voice input, system prompt presets, streaming responses, history, optional web search, and native chart blocks in model responses. |
 | **Deep Research / Web Search** | Tavily and Brave key support, Jina free fallback. |

@@ -63,7 +63,8 @@ Renderer (React)
 |---|---|---|
 | `translate` | `ipc/translate.ts` | Translate text, detect language, rewrite |
 | `translate:live-stream` | `ipc/translate.ts` | Stream tokens → subtitle window in realtime |
-| `audio:transcribe` | `ipc/transcribe.ts` | Whisper STT (OpenAI) |
+| `audio:transcribe` | `ipc/transcribe.ts` | Validated recorded/chunk audio → Whisper, Gemini STT or Groq |
+| `audio:cancelTranscription` | `ipc/transcribe.ts` | Abort an in-flight STT request by request ID |
 | `audio:tts` | `ipc/tts.ts` | Text-to-Speech (OpenAI → Gemini → Edge TTS fallback chain) |
 | `chat:send` | `ipc/chat.ts` | Multi-turn AI chat |
 | `image:translate` | `ipc/imageTranslate.ts` | Translate text inside images (Gemini vision) |
@@ -117,7 +118,7 @@ Each slice lives in its own file under `src/store/slices/` — add new state dom
 **Persist strategy** — only necessary fields are saved via `partialize`:
 ```ts
 // Persisted to localStorage (debounced 500ms):
-sourceLang, targetLang, selectedProvider, selectedModels,
+sourceLang, targetLang, selectedProvider, selectedModels, translationModels,
 autoTranslate, showFurigana, translationStyle, fontSize, locale,
 history, liveSessions, chatSessions, chatSystemPrompt, systemPromptPresets,
 dictionaryEntries, costCurrency, apiKeyUsageTotals
@@ -288,10 +289,11 @@ Microphone / System Audio
    has speech        silent
         │                └─► discard chunk
         ▼                    (after 30s silence: reset context)
-   MediaRecorder (1.5s chunks with VAD early-stop)
+   MediaRecorder (up to 2s chunks with VAD early-stop)
         │
         ▼
-   ipcRenderer.invoke('audio:transcribe')  →  OpenAI Whisper
+   ipcRenderer.invoke('audio:transcribe', { purpose: 'live', ... })
+        →  OpenAI Whisper / Gemini STT / Groq
         │
    ┌────▼──────────────────────────────────────────┐
    │  Confidence Gates                              │

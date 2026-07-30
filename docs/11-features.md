@@ -14,12 +14,14 @@ This page documents how each user-facing feature is wired end-to-end. For the IP
 User input
   └─► debounced if autoTranslate, else manual click
         └─► useTranslate() builds params from store
-              └─► window.api.translate({ provider, model, sourceLang, targetLang, text, style, showFurigana })
+              ├─► single model → window.api.translate({ provider, model, ... })
+              └─► comparison → up to 3 independent window.api.translate requests
                     └─► ipc 'translate' → withRetry → TRANSLATE_PROVIDERS[provider]
-                          └─► result string → store (translatedText, phoneticText)
+                          └─► result cards update independently as each request finishes
 ```
 
-- **Auto vs Manual** — `settingsSlice.autoTranslate`. Auto uses a 500 ms debounce.
+- **Auto vs Manual** — `settingsSlice.autoTranslate`. Auto uses the configured debounce. Selecting multiple models switches Translate to manual mode so provider cost stays explicit.
+- **Multi-model comparison** — `coreSlice.translationModels` persists up to three provider/model pairs. Each request has its own request id, error, retry and timing state; one provider failure does not hide successful results from the others. The first selected model that succeeds becomes the main translation, and the user can promote another result for swap/phonetic actions.
 - **Style** — `'standard' | 'formal' | 'casual' | 'technical' | 'literal' | 'localized' | 'concise'`. Maps to a tone preamble in `electron/ipc/translatePrompts.ts`.
 - **Phonetic** — `showFurigana` adds furigana / pinyin / romanization to the result. Rendered by `FuriganaText`.
 - **Chunking** — long inputs are split by `splitIntoChunks` (whitespace + punctuation aware) with a per-chunk timeout, then joined.
@@ -40,16 +42,19 @@ File / drop / paste / clipboard
 
 ### Voice input
 
-`useVoiceInput.ts` exposes `start` / `stop` / `transcript`. Provider chosen in Settings → STT:
+`VoiceRecorder.tsx` captures audio with `MediaRecorder`; `useVoiceInput.ts` appends the final
+transcript to the current draft. The completed recording crosses the typed preload boundary
+and is transcribed in Electron Main. Provider preference is chosen in Settings → STT:
 
 | Provider | How |
 |---|---|
-| Web Speech (default) | Browser `SpeechRecognition`, no IPC. |
-| Whisper (OpenAI) | Records to WebM, sends `audio:transcribe`. |
-| Gemini STT | Same flow, different provider. |
-| Groq Whisper | Same flow, different provider. |
+| Auto | Sequential fallback through configured STT providers for one-shot dictation. |
+| Whisper (OpenAI) | Records locally, then sends `audio:transcribe` with `purpose: 'dictation'`. |
+| Gemini STT | Same recorded-audio flow, routed to Gemini in Electron Main. |
+| Groq Whisper | Same recorded-audio flow, routed to Groq in Electron Main. |
 
-When recording, `VoiceOverlay` shows the live waveform via Web Audio + analyser node.
+While recording, the UI shows an explicit recording state, elapsed time and cancel/stop actions.
+The text field is updated only after Electron Main returns a final transcript.
 
 ### Rewrite
 
@@ -75,7 +80,7 @@ The IPC handler internally walks the chain OpenAI → Gemini → Edge → Eleven
 Microphone / System / Mixed audio
   └─ AudioContext + analyserNode
         └─ VAD policy (vadPolicy.ts) — RMS amplitude + sustained ms gates
-              └─ MediaRecorder chunks (~1.5 s, VAD early-stop)
+              └─ MediaRecorder chunks (up to 2 s, VAD early-stop)
                     └─ window.api.audio.transcribe({ provider, audio, language })
                           └─ Whisper / Gemini / Groq → segments + confidence
                                 └─ Confidence gates:
@@ -165,13 +170,18 @@ preferred (or user-default 'edge')
 
 ## STT
 
-`electron/ipc/transcribe.ts` accepts `{ provider, model?, audio, language?, prompt? }` and dispatches to:
+`electron/ipc/transcribe.ts` accepts a validated request containing `requestId`, `purpose`,
+`audioData`, the actual recorder MIME type, language and STT preference. It dispatches to:
 
 - **OpenAI Whisper** (`whisper-1` or `whisper-large-v3`).
 - **Gemini** audio understanding.
 - **Groq Whisper** for low-latency batch.
 
 Whisper-style segment metadata (`avgLogprob`, `noSpeechProb`, `compressionRatio`) is preserved and used by Live Translate's confidence gates.
+
+One-shot `dictation` requests use sequential fallback so one recording is not uploaded to
+multiple providers concurrently. Live Translate uses `purpose: 'live'` and keeps its own
+low-latency routing policy. `audio:cancelTranscription` can abort an in-flight request.
 
 ---
 

@@ -47,6 +47,16 @@ Translation IPC is intentionally split into thin handler code and focused provid
 - `electron/ipc/translateProviderTypes.ts`
   - Defines the adapter function contracts shared by provider modules and registries.
 
+- `electron/ipc/translationReasoning.ts`
+  - Maps the portable `auto | low | medium | high` translation preference to each provider API.
+  - OpenAI uses `reasoning_effort`; Claude 4.6+ uses adaptive thinking with `output_config.effort`; Gemini 2.5 uses `thinkingBudget`, while Gemini 3 uses `thinkingLevel`.
+  - Unknown and local models keep provider defaults instead of receiving an unverified parameter.
+
+Renderer capability discovery lives in `src/utils/translationReasoning.ts`.
+Model-list endpoints do not expose reasoning controls consistently, so this is
+a curated, documented-family registry rather than an inference from display
+names. `auto` always omits provider-specific reasoning fields.
+
 ## Adding A Provider
 
 1. Add the provider ID to `electron/ipc/providers/types.ts`.

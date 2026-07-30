@@ -259,7 +259,7 @@ Detailed model: [`13-security.md`](./13-security.md). Boundaries reference: [`se
 Microphone / System / Mixed audio
    └─ Web Audio + analyser
          └─ VAD policy (src/hooks/live/vadPolicy.ts) — thresholds + adaptive gain
-               └─ MediaRecorder chunks (≈1.5 s with VAD early-stop)
+               └─ MediaRecorder chunks (up to 2 s with VAD early-stop)
                      └─ ipcRenderer.invoke('audio:transcribe')  → Whisper / Gemini / Groq
                            └─ Confidence / hallucination filters
                                  └─ Sentence assembly (transcriptAssembly.ts)

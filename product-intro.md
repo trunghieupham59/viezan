@@ -12,7 +12,7 @@ AI Provider
 - Cloud provider dùng API key của chính bạn.
 - API key được lưu trên máy, không đi qua server của Viezan.
  Tính Năng Chính
-- **AI Dịch**: dịch 19 ngôn ngữ, auto-detect, Auto/Manual mode, 6 phong cách dịch, rewrite, đọc to và voice input.
+- **AI Dịch**: dịch 19 ngôn ngữ, auto-detect, Auto/Manual mode, so sánh đồng thời tối đa 3 mô hình từ nhiều nhà cung cấp, 6 phong cách dịch, rewrite, đọc to và voice input.
 - **Từ điển AI**: tra cứu thuật ngữ bằng provider/model đang chọn, xem nghĩa, bản dịch, ví dụ, ghi chú, lưu lịch sử và đánh dấu favorite.
 - **Phiên âm**: hỗ trợ furigana, pinyin, romanization hoặc phiên âm thuần.
 - **Dịch ảnh**: kéo thả, dán hoặc chọn ảnh; AI đọc chữ trong ảnh, dịch và tạo kết quả tải xuống.

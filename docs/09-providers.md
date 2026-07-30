@@ -202,13 +202,15 @@ A provider is skipped if it requires a key that isn't present. Edge TTS works wi
 
 ## STT Routing
 
-`electron/ipc/transcribe.ts` accepts a `provider` parameter and dispatches to:
+`electron/ipc/transcribe.ts` accepts a typed STT preference and dispatches to:
 
 - OpenAI Whisper (`audio.transcriptions.create`).
 - Gemini's audio understanding endpoint.
 - Groq Whisper (`whisper-large-v3`) — fast, cheap, optional key.
 
-There is no fallback chain here — the renderer chooses explicitly via Settings → STT.
+An explicitly selected provider is provider-only. `auto` dictation uses sequential fallback so
+the same recording is not uploaded concurrently to multiple providers. Live Translate keeps a
+separate low-latency policy selected by the request `purpose`.
 
 ## Validation & Errors
 
