@@ -26,6 +26,13 @@ export interface Translations {
   command_palette_dictionary_description: string
   command_palette_history_description: string
   command_palette_settings_description: string
+  /** `{expression}` is what the user typed, e.g. "25 + 25". */
+  command_palette_calc_description: string
+  command_palette_ask_ai_label: string
+  /** `{query}` is the text the user typed. */
+  command_palette_ask_ai_description: string
+  command_palette_hint_back: string
+  command_palette_answer_disclaimer: string
   /** Tooltip / aria-label on the sidebar collapse button */
   nav_collapse_sidebar: string
   /** Tooltip / aria-label on the sidebar expand button */

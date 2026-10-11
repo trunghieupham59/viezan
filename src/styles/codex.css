@@ -1060,32 +1060,86 @@ html.dark .modal-backdrop {
   opacity: 1;
 }
 
-.cmd-palette-empty {
-  display: flex;
-  min-height: 164px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--vzn-space-2);
-  padding: var(--vzn-space-6);
-  color: var(--vzn-text-muted);
-  font-size: var(--vzn-font-size-md);
-  text-align: center;
+.cmd-palette-item[data-command-kind='calc'] .cmd-palette-item-name {
+  font-size: var(--vzn-font-size-title);
+  font-variant-numeric: tabular-nums;
 }
 
-.cmd-palette-empty-icon {
-  width: var(--vzn-icon-lg);
-  height: var(--vzn-icon-lg);
-  color: var(--vzn-text-soft);
-}
-
-.cmd-palette-empty-query {
-  max-width: 100%;
-  overflow: hidden;
+.cmd-palette-inline-hint {
+  flex: 0 0 auto;
+  padding: var(--vzn-space-3) var(--vzn-space-4) 0;
   color: var(--vzn-text-soft);
   font-size: var(--vzn-font-size-sm);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.cmd-palette-answer {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.cmd-palette-answer-question {
+  flex: 0 0 auto;
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  padding: var(--vzn-space-3) var(--vzn-space-4) 0;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-sm);
+  line-height: var(--vzn-line-normal);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+.cmd-palette-answer-body {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--vzn-space-3) var(--vzn-space-4);
+}
+
+.cmd-palette-answer-text {
+  color: var(--vzn-text);
+  line-height: var(--vzn-line-relaxed);
+}
+
+.cmd-palette-answer-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vzn-space-2);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-md);
+}
+
+.cmd-palette-answer-settings {
+  margin-top: var(--vzn-space-2);
+}
+
+.cmd-palette-answer-footer {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border-top: 1px solid var(--vzn-divider);
+}
+
+.cmd-palette-answer-disclaimer {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.cmd-palette-answer-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--vzn-space-1);
 }
 
 .cmd-palette-footer {
