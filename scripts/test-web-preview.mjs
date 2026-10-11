@@ -68,6 +68,10 @@ try {
     assert(await page.locator('html').getAttribute('data-runtime') === 'web-preview', 'Web Preview API marker is missing')
     assert(await page.locator('#root').isVisible(), 'React root is not visible')
 
+    // The app's default page is not part of this contract: open AI Translate explicitly.
+    // A DOM click keeps keyboard modality, so the later focus() still matches :focus-visible.
+    await page.getByRole('button', { name: /^AI Translate$/ }).first().evaluate(element => element.click())
+
     const disabledSwap = page.locator('.translate-swap-control-disabled')
     await disabledSwap.waitFor()
     await disabledSwap.focus()

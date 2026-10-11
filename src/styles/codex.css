@@ -890,6 +890,22 @@ html.dark .settings-card {
   box-shadow: none !important;
 }
 
+/* Surfaces nested inside a card (stat tiles, info rows, list rows). They sit one
+   step off --vzn-surface and carry a hairline so they stay distinct in dark mode,
+   where the neutral ramp alone maps them onto the card background. */
+.settings-inset {
+  border: 1px solid var(--vzn-border);
+  background: var(--vzn-surface-muted);
+}
+
+.settings-inset-row {
+  border: 1px solid var(--vzn-border);
+}
+
+html.dark .settings-inset-row {
+  border-color: var(--vzn-border-strong);
+}
+
 .floating-panel,
 .modal-surface,
 .chat-research-info-popover,

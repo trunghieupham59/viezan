@@ -191,22 +191,32 @@
   gap: var(--vzn-space-2);
 }
 
+/* Row checkbox: the 16px box is the only visible frame, so the ghost button
+   wrapper must not draw its hover border/background around it. */
+.history-row-checkbox {
+  --vzn-button-hover-border: transparent;
+  --vzn-button-hover-bg: transparent;
+}
+
 .history-tab-count {
   display: inline-flex;
-  min-inline-size: var(--vzn-icon-sm);
-  block-size: var(--vzn-icon-sm);
+  min-inline-size: var(--vzn-space-5);
+  block-size: var(--vzn-space-5);
+  padding-inline: var(--vzn-space-1-5);
   align-items: center;
   justify-content: center;
   border-radius: var(--vzn-radius-pill);
   background: var(--vzn-surface-muted);
   color: var(--vzn-text-muted);
-  font-size: var(--vzn-font-size-meta);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 
 .history-tab-count[data-active='true'] {
   background: var(--vzn-action);
-  color: var(--vzn-text-inverse);
+  color: var(--vzn-action-fg);
 }
 
 .settings-modal-surface {

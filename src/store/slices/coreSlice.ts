@@ -83,7 +83,7 @@ export const createCoreSlice = (set: SliceSet, get: SliceGet): CoreSlice => ({
     model: DEFAULT_SETTINGS.defaultModels[DEFAULT_SETTINGS.defaultProvider],
   }],
   recentModels: [],
-  activePage: 'translate',
+  activePage: 'chat',
   settingsOpen: false,
   langUsage: {},
 

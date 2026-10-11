@@ -238,7 +238,9 @@
     var(--vzn-ai-configuration-max-block) - (var(--vzn-space-12) * 2)
   );
   --vzn-select-menu-max-block: calc(var(--vzn-space-12) * 5);
-  --vzn-translate-model-chip-inline: calc(var(--vzn-space-12) * 6);
+  --vzn-translate-model-chip-min-inline: calc(var(--vzn-space-12) * 4.5);
+  --vzn-translate-model-selected-max-block: calc(var(--vzn-space-12) * 4);
+  --vzn-translate-model-available-min-block: calc(var(--vzn-space-12) * 6);
   --vzn-translate-model-scroll-clearance: calc(
     var(--vzn-control-height-md) + var(--vzn-space-2)
   );

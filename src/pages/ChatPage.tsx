@@ -9,6 +9,7 @@ import { DragOverlay } from '../components/ui/DragOverlay'
 import { ImagePreviewThumbnail } from '../components/ui/ImagePreviewThumbnail'
 import {
   ArrowRightIcon,
+  ChatBubbleIcon,
   CheckIcon,
   ChevronDownIcon,
   GlobeIcon,
@@ -74,7 +75,7 @@ type ResponseMode = 'standard' | 'web' | 'research' | 'image'
 interface ModeOption {
   mode: ResponseMode
   label: string
-  Icon?: typeof GlobeIcon
+  Icon: typeof GlobeIcon
   /** Secondary line under the label, e.g. why the option is unavailable. */
   hint?: string
   title?: string
@@ -1565,7 +1566,7 @@ export function ChatPage() {
         : 'standard'
   const imageModeSupported = supportsChatImageMode(selectedProvider)
   const modeOptions: ModeOption[] = [
-    { mode: 'standard', label: t.chat_mode_standard },
+    { mode: 'standard', label: t.chat_mode_standard, Icon: ChatBubbleIcon },
     { mode: 'web', label: t.chat_menu_web_search, Icon: GlobeIcon },
     { mode: 'research', label: t.chat_menu_deep_research, Icon: TelescopeIcon },
     {
@@ -1810,18 +1811,12 @@ export function ChatPage() {
                 className={`btn-menu-item justify-start gap-3${hint ? ' btn-menu-item-with-hint' : ''}`}
                 onClick={() => selectResponseMode(mode)}
               >
-                {Icon ? (
-                  <Icon className={`w-[18px] h-[18px] flex-shrink-0 ${checked ? 'text-[--vzn-accent]' : 'text-[--vzn-text-muted]'}`} />
-                ) : (
-                  <span className="w-[18px] h-[18px] flex-shrink-0 flex items-center justify-center">
-                    {checked && <CheckIcon className="w-4 h-4 text-[--vzn-accent]" />}
-                  </span>
-                )}
+                <Icon className={`w-[18px] h-[18px] flex-shrink-0 ${checked ? 'text-[--vzn-accent]' : 'text-[--vzn-text-muted]'}`} />
                 <span className="flex min-w-0 flex-1 flex-col text-left">
                   <span>{label}</span>
                   {hint && <span className="ui-micro">{hint}</span>}
                 </span>
-                {Icon && checked && <CheckIcon className="w-4 h-4 flex-shrink-0 text-[--vzn-accent]" />}
+                {checked && <CheckIcon className="w-4 h-4 flex-shrink-0 text-[--vzn-accent]" />}
               </button>
             )
           })}

@@ -1033,6 +1033,17 @@
   font-weight: var(--vzn-weight-regular);
 }
 
+.translate-model-loading {
+  display: flex;
+  min-height: var(--vzn-control-height-xl);
+  align-items: center;
+  gap: var(--vzn-space-2);
+  margin: 0;
+  padding-inline: var(--vzn-space-2);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+}
+
 .translate-model-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1363,18 +1374,26 @@
   flex-direction: column;
 }
 
+/* The selected tray must never starve the catalog: chips sit side by side in a grid, the
+   tray is capped, and it is the tray (not the catalog) that scrolls when space runs out. */
 .translate-model-dialog .translate-model-selected {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  max-height: var(--vzn-translate-model-selected-max-block);
   gap: var(--vzn-space-2);
   padding: var(--vzn-space-3) var(--vzn-space-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border-right: 0;
   border-bottom: 1px solid var(--vzn-divider);
   background: var(--vzn-surface-muted);
 }
 
 .translate-model-dialog .translate-model-selected-list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(var(--vzn-translate-model-chip-min-inline), 1fr)
+  );
   gap: var(--vzn-space-2);
   margin: 0;
   padding: 0;
@@ -1382,7 +1401,7 @@
 }
 
 .translate-model-dialog .translate-model-selected-item {
-  width: min(100%, var(--vzn-translate-model-chip-inline));
+  width: 100%;
 }
 
 .translate-model-dialog .translate-model-selected-copy strong,
@@ -1407,8 +1426,8 @@
 
 .translate-model-dialog .translate-model-available {
   isolation: isolate;
-  min-height: 0;
-  flex: 1 1 auto;
+  min-height: var(--vzn-translate-model-available-min-block);
+  flex: 1 1 0;
   overflow: hidden;
 }
 

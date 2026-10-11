@@ -667,6 +667,8 @@ export interface WindowApi {
   downloadLocalAiModel: (modelId: string) => Promise<LocalAiDownloadResult>
   uninstallLocalAiModel: (modelId: string) => Promise<LocalAiModelActionResult>
   onLocalAiModelDownloadProgress: (cb: (progress: LocalAiModelDownloadProgress) => void) => () => void
+  /** Model pulls still running in the main process (they outlive the Settings view). */
+  getLocalAiActiveDownloads?: () => Promise<LocalAiModelDownloadProgress[]>
   /** Opens the local runtime's download page in the browser (nothing is installed by the app). */
   installOllama: () => Promise<LocalAiInstallResult>
   cancelModelDownload?: (modelId: string) => Promise<{ success: boolean; cancelled?: boolean }>

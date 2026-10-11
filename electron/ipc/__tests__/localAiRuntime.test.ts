@@ -23,6 +23,7 @@ import {
   cancelLocalAiModelDownload,
   downloadLocalAiModel,
   ensureLocalAiRuntime,
+  getLocalAiActiveDownloads,
   resetLocalAiStateForTests,
   stopManagedLocalAiRuntime,
   uninstallLocalAiModel,
@@ -157,6 +158,22 @@ describe('model download', () => {
 
     cancelLocalAiModelDownload(MODEL)
     await first
+  })
+
+  it('reports the latest progress of a running pull so a remounted view can resume it', async () => {
+    mockPull((signal: AbortSignal) => streamOf(['{"status":"pulling","total":100,"completed":40}'], { hang: true, signal }))
+
+    expect(getLocalAiActiveDownloads()).toEqual([])
+    const pending = downloadLocalAiModel(MODEL, sender as never)
+    await vi.waitFor(() => expect(progressStatuses()).toContain('running'))
+
+    expect(getLocalAiActiveDownloads()).toEqual([
+      expect.objectContaining({ model: MODEL, status: 'running', percent: 40 }),
+    ])
+
+    cancelLocalAiModelDownload(MODEL)
+    await pending
+    expect(getLocalAiActiveDownloads()).toEqual([])
   })
 
   it('cancels an in-flight download and releases the stream', async () => {

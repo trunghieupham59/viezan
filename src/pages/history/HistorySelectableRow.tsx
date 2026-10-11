@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Button } from '../../components/ui/atoms'
 import { CheckIcon, ChevronDownIcon } from '../../components/ui/icons'
 
 type HistoryRowTone = 'neutral' | 'muted'
@@ -56,13 +57,17 @@ export function HistorySelectableRow({
       ].join(' ')}
     >
       <div className="flex items-start gap-2.5 px-3 py-3">
-        <button
-          type="button"
+        <Button
+          size="xs"
+          shape="icon"
+          appearance="ghost"
+          role="checkbox"
+          aria-checked={isSelected}
           onClick={(event) => {
             event.stopPropagation()
             onToggleSelect(id)
           }}
-          className="btn-icon btn-icon-xs mt-0.5 flex-shrink-0 border-transparent bg-transparent shadow-none"
+          className="history-row-checkbox mt-0.5 flex-shrink-0"
         >
           <span className={[
             'w-4 h-4 rounded border-2 flex items-center justify-center transition-colors',
@@ -70,7 +75,7 @@ export function HistorySelectableRow({
           ].join(' ')}>
             {isSelected && <CheckIcon className="w-2.5 h-2.5 text-white" />}
           </span>
-        </button>
+        </Button>
 
         <button
           type="button"

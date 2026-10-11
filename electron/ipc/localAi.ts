@@ -167,6 +167,11 @@ let managedOllamaProcess: ChildProcess | null = null
 let ollamaStartFailedAt = 0
 /** In-flight model pulls keyed by Ollama model name, so they can be cancelled and not duplicated. */
 const activeModelDownloads = new Map<string, AbortController>()
+/**
+ * Latest progress of every in-flight pull. The renderer (Settings) unmounts while a pull keeps
+ * running here, so a remounted view reads this snapshot instead of losing the download.
+ */
+const activeModelDownloadProgress = new Map<string, LocalAiModelDownloadProgress>()
 
 /** Test-only: reset module-level runtime/download bookkeeping. */
 export function resetLocalAiStateForTests(): void {
@@ -176,6 +181,7 @@ export function resetLocalAiStateForTests(): void {
   discoveryCache = null
   for (const controller of activeModelDownloads.values()) controller.abort()
   activeModelDownloads.clear()
+  activeModelDownloadProgress.clear()
 }
 
 export function isLocalProvider(provider: string) {
@@ -857,7 +863,17 @@ function getOllamaManagementEndpoint() {
     ?? 'http://127.0.0.1:11434/api'
 }
 
+/** Snapshot of the pulls currently running, for a renderer that (re)mounted mid-download. */
+export function getLocalAiActiveDownloads(): LocalAiModelDownloadProgress[] {
+  return [...activeModelDownloads.keys()].map((model) => (
+    activeModelDownloadProgress.get(model)
+      ?? { model, status: 'running', percent: 1, message: 'Downloading model...' }
+  ))
+}
+
 function emitModelDownloadProgress(sender: WebContents | undefined, progress: LocalAiModelDownloadProgress) {
+  if (progress.status === 'running') activeModelDownloadProgress.set(progress.model, progress)
+  else activeModelDownloadProgress.delete(progress.model)
   if (!sender || sender.isDestroyed()) return
   sender.send('local-ai:modelDownloadProgress', progress)
 }
@@ -1075,7 +1091,10 @@ export async function downloadLocalAiModel(modelId: string, sender?: WebContents
     clearTimeout(idleTimer)
     // Release the connection when we stop reading early (error, cancel, stall).
     try { await reader?.cancel() } catch { /* already closed */ }
-    if (activeModelDownloads.get(model) === controller) activeModelDownloads.delete(model)
+    if (activeModelDownloads.get(model) === controller) {
+      activeModelDownloads.delete(model)
+      activeModelDownloadProgress.delete(model)
+    }
   }
 }
 
@@ -1193,6 +1212,7 @@ export function registerLocalAiHandlers(ipcMain: IpcMain) {
   ipcMain.handle('local-ai:ensureRuntime', async () => ensureLocalAiRuntime(true))
   ipcMain.handle('local-ai:benchmark', async () => benchmarkLocalAiSystem())
   ipcMain.handle('local-ai:downloadModel', async (event, modelId: string) => downloadLocalAiModel(modelId, event.sender))
+  ipcMain.handle('local-ai:getActiveDownloads', async () => getLocalAiActiveDownloads())
   ipcMain.handle('local-ai:cancelModelDownload', async (_event, modelId: unknown) => {
     if (typeof modelId !== 'string' || !SAFE_MODEL_NAME.test(modelId.trim())) {
       return { success: false, cancelled: false, error: 'Invalid model name.' }

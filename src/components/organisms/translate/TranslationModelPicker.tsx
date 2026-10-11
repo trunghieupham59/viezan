@@ -1,5 +1,6 @@
 import { type FocusEvent, useId, useMemo, useState } from 'react'
 import { MAX_TRANSLATION_MODELS, PROVIDERS } from '../../../constants/providers'
+import { useProviderModelCatalog } from '../../../hooks/useProviderModelCatalog'
 import { useAppStore, useT } from '../../../store/useAppStore'
 import type { Provider, TranslationModelSelection } from '../../../types'
 import { dedupeModelsByFamily, formatModelName } from '../../../utils/modelDisplay'
@@ -28,56 +29,38 @@ export function TranslationModelPicker({
   const pickerId = useId()
   const limitNoticeId = `${pickerId}-limit`
   const [search, setSearch] = useState('')
-  const {
-    keyStatus,
-    dynamicModels,
-    modelsLoading,
-    modelsError,
-    setDynamicModels,
-    setModelsLoading,
-    setModelsError,
-  } = useAppStore()
+  const keyStatus = useAppStore((state) => state.keyStatus)
+  const dynamicModels = useAppStore((state) => state.dynamicModels)
+  const modelsLoading = useAppStore((state) => state.modelsLoading)
+  const modelsError = useAppStore((state) => state.modelsError)
+  const { refreshProvider, isPending } = useProviderModelCatalog()
   const selectedKeys = useMemo(() => new Set(models.map(modelKey)), [models])
   const query = search.trim().toLowerCase()
   const isAtLimit = models.length >= MAX_TRANSLATION_MODELS
 
-  const providerGroups = useMemo(() => PROVIDERS.map((provider) => {
+  const providerGroups = PROVIDERS.map((provider) => {
     const providerId = provider.id as Provider
-    const available = dynamicModels[providerId].length > 0
-      ? dynamicModels[providerId]
-      : provider.models
+    const pending = isPending(providerId)
+    const providerMatches = !query || provider.name.toLowerCase().includes(query)
+    // While the live catalog is loading, the bundled fallback list is hidden so that
+    // models the account may not have are never offered as real choices.
+    const available = pending
+      ? []
+      : dynamicModels[providerId].length > 0
+        ? dynamicModels[providerId]
+        : provider.models
     const deduped = dedupeModelsByFamily(providerId, available)
     const visibleModels = query
       ? deduped.filter((model) => {
           const name = formatModelName(providerId, model.id, model.name).toLowerCase()
           return name.includes(query)
             || model.id.toLowerCase().includes(query)
-            || provider.name.toLowerCase().includes(query)
+            || providerMatches
         })
       : deduped
-    return { provider, providerId, models: visibleModels }
-  }).filter((group) => group.models.length > 0), [dynamicModels, query])
-
-  const refreshProvider = async (provider: Provider) => {
-    const config = PROVIDERS.find((candidate) => candidate.id === provider)
-    const hasKey = config?.requiresApiKey === false || keyStatus[provider]
-    if (!hasKey || modelsLoading[provider]) return
-
-    setModelsLoading(provider, true)
-    setModelsError(provider, null)
-    try {
-      const result = await window.api.fetchModels(provider)
-      if (result.success && result.models.length > 0) {
-        setDynamicModels(provider, result.models)
-      } else {
-        setModelsError(provider, result.error || t.model_load_error)
-      }
-    } catch (_error) {
-      setModelsError(provider, t.model_load_error)
-    } finally {
-      setModelsLoading(provider, false)
-    }
-  }
+    const visible = pending ? providerMatches : visibleModels.length > 0
+    return { provider, providerId, pending, models: visibleModels, visible }
+  }).filter((group) => group.visible)
 
   const toggleModel = (selection: TranslationModelSelection) => {
     const key = modelKey(selection)
@@ -174,7 +157,7 @@ export function TranslationModelPicker({
           {providerGroups.length === 0 && (
             <p className="translate-model-empty" role="status">{t.model_picker_no_results}</p>
           )}
-          {providerGroups.map(({ provider, providerId, models: availableModels }) => {
+          {providerGroups.map(({ provider, providerId, pending, models: availableModels }) => {
             const hasKey = provider.requiresApiKey === false || keyStatus[providerId]
             const isLoading = modelsLoading[providerId]
             return (
@@ -203,6 +186,12 @@ export function TranslationModelPicker({
                 </header>
                 {modelsError[providerId] && (
                   <p className="translate-model-load-error" role="alert">{t.model_load_error}</p>
+                )}
+                {pending && (
+                  <p className="translate-model-loading" role="status">
+                    <SpinnerIcon className="translate-model-spinner" />
+                    {t.model_loading}
+                  </p>
                 )}
                 <div className="translate-model-options">
                   {availableModels.map((model) => {

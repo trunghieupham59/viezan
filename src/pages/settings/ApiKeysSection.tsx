@@ -14,13 +14,15 @@ import type {
   Provider,
 } from '../../types'
 
+/** Main-process message for a model whose pull is already in flight (see downloadLocalAiModel). */
+const ALREADY_DOWNLOADING_ERROR = 'This model is already being downloaded.'
+
 function LocalAiProviderCard({
   status,
   benchmark,
   loading,
   benchmarking,
-  downloadingModel,
-  downloadProgress,
+  downloads,
   uninstallingModel,
   openingRuntimePage,
   onRefresh,
@@ -37,8 +39,8 @@ function LocalAiProviderCard({
   benchmark: LocalAiBenchmarkResult | null
   loading: boolean
   benchmarking: boolean
-  downloadingModel: string | null
-  downloadProgress: LocalAiModelDownloadProgress | null
+  /** In-flight pulls keyed by model id; survives Settings being closed and reopened. */
+  downloads: Record<string, LocalAiModelDownloadProgress>
   uninstallingModel: string | null
   openingRuntimePage: boolean
   onRefresh: () => void
@@ -61,6 +63,7 @@ function LocalAiProviderCard({
   const showRuntimeInstallPanel = !canDownloadModels
   const recommended = models.find((model) => model.id === status?.recommendedModel)
     ?? suggestions.find((model) => model.id === (status?.recommendedModel ?? benchmark?.recommendedModel))
+  const anyDownloading = Object.keys(downloads).length > 0
   const formatModelDownloadBytes = (progress: LocalAiModelDownloadProgress) => {
     if (!progress.completedBytes || !progress.totalBytes) return null
     const completedGb = Math.round((progress.completedBytes / 1024 ** 3) * 10) / 10
@@ -98,7 +101,7 @@ function LocalAiProviderCard({
         </span>
       </div>
 
-      <div className="flex items-center justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2 text-xs dark:bg-gray-800/70">
+      <div className="flex items-center justify-between gap-3 settings-inset rounded-lg px-3 py-2 text-xs">
         <div className="min-w-0">
           <p className="font-medium text-gray-700 dark:text-gray-200">
             {recommended ? recommended.name : t.settings_local_ai_model_waiting}
@@ -133,15 +136,15 @@ function LocalAiProviderCard({
 
       {hardware && (
         <div className="grid grid-cols-3 gap-2 text-xs">
-          <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/70">
+          <div className="settings-inset rounded-lg px-3 py-2">
             <p className="text-gray-400">{t.settings_local_ai_tier}</p>
             <p className="font-medium text-gray-700 dark:text-gray-200">{hardware.tier}</p>
           </div>
-          <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/70">
+          <div className="settings-inset rounded-lg px-3 py-2">
             <p className="text-gray-400">RAM</p>
             <p className="font-medium text-gray-700 dark:text-gray-200">{hardware.totalMemoryGb} GB</p>
           </div>
-          <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/70">
+          <div className="settings-inset rounded-lg px-3 py-2">
             <p className="text-gray-400">CPU</p>
             <p className="font-medium text-gray-700 dark:text-gray-200">{hardware.cpuCount} cores</p>
           </div>
@@ -150,15 +153,15 @@ function LocalAiProviderCard({
 
       {metrics && (
         <div className="grid grid-cols-3 gap-2 text-xs">
-          <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/70">
+          <div className="settings-inset rounded-lg px-3 py-2">
             <p className="text-gray-400">{t.settings_local_ai_cpu_score}</p>
             <p className="font-medium text-gray-700 dark:text-gray-200">{metrics.cpuScore}</p>
           </div>
-          <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/70">
+          <div className="settings-inset rounded-lg px-3 py-2">
             <p className="text-gray-400">{t.settings_local_ai_memory_score}</p>
             <p className="font-medium text-gray-700 dark:text-gray-200">{metrics.memoryScore}</p>
           </div>
-          <div className="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/70">
+          <div className="settings-inset rounded-lg px-3 py-2">
             <p className="text-gray-400">
               {metrics.runtimeTokensPerSecond ? t.settings_local_ai_runtime_speed : t.settings_local_ai_benchmark_duration}
             </p>
@@ -169,7 +172,7 @@ function LocalAiProviderCard({
             </p>
           </div>
           {metrics.runtimeLatencyMs && (
-            <div className="col-span-3 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/70">
+            <div className="col-span-3 settings-inset rounded-lg px-3 py-2">
               <p className="text-gray-400">{t.settings_local_ai_runtime_latency}</p>
               <p className="font-medium text-gray-700 dark:text-gray-200">
                 {metrics.runtimeModel} · {metrics.runtimeLatencyMs}ms
@@ -200,7 +203,7 @@ function LocalAiProviderCard({
           </div>
 
           {showRuntimeInstallPanel && (
-            <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-3 text-xs dark:border-gray-700 dark:bg-gray-800/70">
+            <div className="settings-inset rounded-xl px-3 py-3 text-xs">
               <p className="font-semibold text-gray-800 dark:text-gray-100">
                 {t.settings_local_ai_install_runtime_title}
               </p>
@@ -212,9 +215,9 @@ function LocalAiProviderCard({
 
           <div className="space-y-2">
             {suggestions.slice(0, 5).map((model) => {
-              const isDownloading = downloadingModel === model.id
+              const activeDownloadProgress = downloads[model.id] ?? null
+              const isDownloading = activeDownloadProgress !== null
               const isUninstalling = uninstallingModel === model.id
-              const activeDownloadProgress = isDownloading && downloadProgress?.model === model.id ? downloadProgress : null
               const activeDownloadPercent = Math.max(1, Math.min(100, activeDownloadProgress?.percent ?? 1))
               const activeDownloadBytes = activeDownloadProgress ? formatModelDownloadBytes(activeDownloadProgress) : null
               const buttonLabel = model.installed
@@ -225,7 +228,7 @@ function LocalAiProviderCard({
               return (
                 <div
                   key={model.id}
-                  className="rounded-lg border border-gray-100 px-3 py-2 text-xs dark:border-gray-700"
+                  className="settings-inset-row rounded-lg px-3 py-2 text-xs"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
@@ -253,7 +256,7 @@ function LocalAiProviderCard({
                       <button
                         type="button"
                         onClick={() => model.installed ? onUninstallModel(model.id) : onDownloadModel(model.id)}
-                        disabled={isDownloading || isUninstalling || Boolean(downloadingModel) || Boolean(uninstallingModel)}
+                        disabled={anyDownloading || Boolean(uninstallingModel)}
                         className={[
                           'btn-sm flex-shrink-0',
                           model.installed ? 'btn-danger' : 'btn-primary',
@@ -269,7 +272,7 @@ function LocalAiProviderCard({
                             : buttonLabel}
                       </button>
                     ) : (
-                      <span className="hidden flex-shrink-0 rounded-lg bg-gray-50 px-3 py-1.5 font-medium text-gray-400 ring-1 ring-gray-100 dark:bg-gray-800 dark:ring-gray-700 sm:block">
+                      <span className="hidden flex-shrink-0 settings-inset rounded-lg px-3 py-1.5 font-medium text-gray-400 sm:block">
                         {buttonLabel}
                       </span>
                     )}
@@ -326,7 +329,6 @@ export function ApiKeysSection() {
   const setModelsLoading = useAppStore((state) => state.setModelsLoading)
   const setModelsError = useAppStore((state) => state.setModelsError)
   const setSelectedModel = useAppStore((state) => state.setSelectedModel)
-  const selectedModels = useAppStore((state) => state.selectedModels)
   const costCurrency = useAppStore((state) => state.costCurrency)
   const setCostCurrency = useAppStore((state) => state.setCostCurrency)
   const apiKeyUsageTotals = useAppStore((state) => state.apiKeyUsageTotals)
@@ -344,8 +346,9 @@ export function ApiKeysSection() {
   const [localBenchmark, setLocalBenchmark] = useState<LocalAiBenchmarkResult | null>(null)
   const [localLoading, setLocalLoading] = useState(false)
   const [localBenchmarking, setLocalBenchmarking] = useState(false)
-  const [downloadingModel, setDownloadingModel] = useState<string | null>(null)
-  const [downloadProgress, setDownloadProgress] = useState<LocalAiModelDownloadProgress | null>(null)
+  // Pulls keep running in the main process after Settings closes, so this is rebuilt from a
+  // main-process snapshot on mount and then kept current by progress events keyed by model.
+  const [downloads, setDownloads] = useState<Record<string, LocalAiModelDownloadProgress>>({})
   const [uninstallingModel, setUninstallingModel] = useState<string | null>(null)
   const [openingRuntimePage, setOpeningRuntimePage] = useState(false)
   const [downloadError, setDownloadError] = useState<string | null>(null)
@@ -373,7 +376,8 @@ export function ApiKeysSection() {
       // triggers a refresh) would silently reset the model back to the
       // recommended default every single time.
       const installedIds = result.models.map((m) => m.id)
-      const previousLocalModel = selectedModels.local
+      // Read live: this also runs from a long-lived progress listener whose render closure is stale.
+      const previousLocalModel = useAppStore.getState().selectedModels.local
       const previousIsValid = Boolean(previousLocalModel) && (
         installedIds.includes(previousLocalModel) || previousLocalModel === 'local-auto'
       )
@@ -397,10 +401,21 @@ export function ApiKeysSection() {
     }
   }
 
+  const trackDownload = (progress: LocalAiModelDownloadProgress) => {
+    setDownloads((prev) => ({ ...prev, [progress.model]: progress }))
+  }
+
+  const untrackDownload = (modelId: string) => {
+    setDownloads((prev) => {
+      if (!(modelId in prev)) return prev
+      const { [modelId]: _removed, ...rest } = prev
+      return rest
+    })
+  }
+
   const handleDownloadLocalModel = async (modelId: string) => {
     if (!window.api?.downloadLocalAiModel) return
-    setDownloadingModel(modelId)
-    setDownloadProgress({
+    trackDownload({
       model: modelId,
       status: 'running',
       percent: 1,
@@ -413,16 +428,19 @@ export function ApiKeysSection() {
     try {
       const result = await window.api.downloadLocalAiModel(modelId)
       if (!result.success) {
+        // Already running in main (e.g. started before Settings was closed): keep showing
+        // its progress instead of reporting an error for a download that is healthy.
+        if (result.error === ALREADY_DOWNLOADING_ERROR) return
+        untrackDownload(modelId)
         setDownloadError(result.error ?? t.settings_local_ai_download_failed)
         return
       }
+      untrackDownload(modelId)
       setDownloadSuccess(`${t.settings_local_ai_downloaded}: ${result.model}`)
       await refreshLocalAi()
     } catch (err) {
+      untrackDownload(modelId)
       setDownloadError(err instanceof Error ? err.message : t.settings_local_ai_download_failed)
-    } finally {
-      setDownloadingModel(null)
-      setDownloadProgress(null)
     }
   }
 
@@ -474,14 +492,37 @@ export function ApiKeysSection() {
     }
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: subscribe once on mount; the handlers only touch stable setters
   useEffect(() => {
     if (!window.api?.onLocalAiModelDownloadProgress) return
-    return window.api.onLocalAiModelDownloadProgress((progress) => {
-      setDownloadProgress(progress)
+    let active = true
+    const unsubscribe = window.api.onLocalAiModelDownloadProgress((progress) => {
+      if (progress.status === 'running') {
+        trackDownload(progress)
+        return
+      }
+      untrackDownload(progress.model)
       if (progress.status === 'error') {
         setDownloadError(progress.message)
+        return
       }
+      // A pull started before Settings was reopened finishes with no invoke() left to
+      // refresh the catalog, so do it from the event.
+      void refreshLocalAi()
     })
+    // Resume pulls that kept running while Settings was closed.
+    void window.api.getLocalAiActiveDownloads?.().then((running) => {
+      if (!active) return
+      setDownloads((prev) => {
+        const next = { ...prev }
+        for (const progress of running) next[progress.model] ??= progress
+        return next
+      })
+    }).catch(() => { /* snapshot is best-effort; live events still update the UI */ })
+    return () => {
+      active = false
+      unsubscribe()
+    }
   }, [])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount; store setters are stable
@@ -588,8 +629,7 @@ export function ApiKeysSection() {
               benchmark={localBenchmark}
               loading={localLoading}
               benchmarking={localBenchmarking}
-              downloadingModel={downloadingModel}
-              downloadProgress={downloadProgress}
+              downloads={downloads}
               uninstallingModel={uninstallingModel}
               openingRuntimePage={openingRuntimePage}
               onRefresh={refreshLocalAi}

@@ -51,6 +51,14 @@ const isDev = isDevelopmentRuntime(app.isPackaged)
 // Set app name
 app.setName('Viezan')
 
+// Windows taskbar grouping/pinning keys off the AppUserModelID. Match the
+// electron-builder `appId` so the running window shares the NSIS shortcut's
+// identity (and its icon). Skipped in dev so `electron.exe` doesn't hijack the
+// installed app's taskbar group.
+if (process.platform === 'win32' && app.isPackaged) {
+  app.setAppUserModelId('com.Viezan.app')
+}
+
 // ── Window constants ──────────────────────────────────────────────────────────
 /** Keep native startup/fallback colors aligned with renderer design tokens. */
 const WIN_BG_DARK = '#161618'

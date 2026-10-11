@@ -49,6 +49,10 @@ export const translateSection = {
     return () => ipcRenderer.removeListener('local-ai:modelDownloadProgress', listener)
   },
 
+  // Pulls still running in main, so a remounted Settings view can resume showing them
+  getLocalAiActiveDownloads: () =>
+    ipcRenderer.invoke('local-ai:getActiveDownloads'),
+
   // Install the managed local runtime through a fixed main-process installer command
   installOllama: () =>
     ipcRenderer.invoke('local-ai:installOllama'),
