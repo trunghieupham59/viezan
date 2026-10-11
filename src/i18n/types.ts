@@ -716,6 +716,19 @@ export interface Translations {
   chat_used_model: (model: string) => string
   chat_web_search_fallback_title: string
   chat_web_search_fallback: (provider: string, reason: 'auth' | 'quota') => string
+  chat_web_search_unavailable_title: string
+  chat_web_search_unavailable: string
+  settings_chat_images_title: string
+  settings_chat_images_desc: string
+  settings_chat_images_usage: string
+  settings_chat_images_empty: string
+  settings_chat_images_prune: string
+  settings_chat_images_prune_desc: string
+  settings_chat_images_clear: string
+  settings_chat_images_clear_desc: string
+  settings_chat_images_clear_confirm: string
+  settings_chat_images_removed: string
+  chat_image_unavailable: string
   chat_feedback_good: string
   chat_feedback_bad: string
   chat_download_image: string
