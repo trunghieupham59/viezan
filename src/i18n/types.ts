@@ -39,6 +39,8 @@ export interface Translations {
   command_palette_verify_description: string
   /** `{text}` is the text to translate. */
   command_palette_translate_text_description: string
+  /** `{text}` is the word or phrase to look up. */
+  command_palette_dictionary_text_description: string
   /** Tooltip / aria-label on the sidebar collapse button */
   nav_collapse_sidebar: string
   /** Tooltip / aria-label on the sidebar expand button */

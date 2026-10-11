@@ -227,6 +227,8 @@ function stripChatSessionImageData(session: ChatSession): ChatSession {
             text: part.text,
             imageFileName: part.imageFileName,
             imageMimeType: part.imageMimeType,
+            // The pixels themselves live in IndexedDB; only the key is persisted.
+            imageStoreKey: part.imageStoreKey,
           }
           : part,
       ),

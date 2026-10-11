@@ -29,6 +29,7 @@ const vi: Translations = {
   command_palette_verify_label: 'Hỏi AI và tra cứu web',
   command_palette_verify_description: 'Kiểm chứng “{query}” với nguồn trên web',
   command_palette_translate_text_description: 'Dịch “{text}”',
+  command_palette_dictionary_text_description: 'Tra cứu “{text}”',
   nav_collapse_sidebar: 'Thu nhỏ thanh bên',
   nav_expand_sidebar: 'Mở rộng thanh bên',
   translate_placeholder: 'Nhập hoặc dán văn bản…',

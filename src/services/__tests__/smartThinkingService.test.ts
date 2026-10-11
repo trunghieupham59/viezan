@@ -554,6 +554,30 @@ describe('smartThinkingService', () => {
       }))
     })
 
+    it('reports when every search provider failed so the user is told search is not working', async () => {
+      vi.mocked(window.api.chat)
+        .mockResolvedValueOnce({ success: true, reply: '{"needs_web": true, "query": "q", "source_count": 4}' })
+        .mockResolvedValueOnce({ success: true, reply: 'Final answer' })
+      window.api.webSearch = vi.fn().mockResolvedValue({
+        success: false,
+        error: 'Jina 401',
+        errorCode: 'SEARCH_FAILED',
+      })
+      const callbacks = { ...makeCallbacks(), onSearchUnavailable: vi.fn() }
+
+      await smartThinkingService.run({
+        provider: 'gemini',
+        model: 'gemini-2.0-flash',
+        question: 'q',
+        messages: [{ role: 'user', content: [{ type: 'text', text: 'q' }] }],
+        uiText,
+        callbacks,
+        forceWebSearch: true,
+      })
+
+      expect(callbacks.onSearchUnavailable).toHaveBeenCalledTimes(1)
+    })
+
     it('hands the answer model up to 2000 characters per result', async () => {
       vi.mocked(window.api.chat)
         .mockResolvedValueOnce({ success: true, reply: '{"needs_web": true, "query": "q", "source_count": 3}' })

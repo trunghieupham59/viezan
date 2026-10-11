@@ -187,6 +187,12 @@
   --vzn-shadow-lg: 0 20px 52px rgba(28, 28, 30, 0.13);
   --vzn-shadow-overlay: 0 28px 76px rgba(28, 28, 30, 0.22);
   --vzn-prompt-card-shadow-hover: 0 6px 18px rgba(24, 23, 21, 0.06);
+  /* Scrims and media surfaces: modal dim layer, full-screen media viewer
+   * backdrop, the matte behind transparent images, and text on filled danger. */
+  --vzn-scrim: rgba(20, 19, 17, 0.42);
+  --vzn-scrim-media: rgba(12, 12, 11, 0.84);
+  --vzn-media-matte: #ffffff;
+  --vzn-danger-fg: var(--vzn-action-fg);
   --vzn-duration-fast: 120ms;
   --vzn-duration-normal: 180ms;
   --vzn-duration-pulse: 1s;
@@ -331,6 +337,7 @@ html.dark {
   --vzn-shadow-lg: 0 20px 52px rgba(0, 0, 0, 0.36);
   --vzn-shadow-overlay: 0 28px 80px rgba(0, 0, 0, 0.5);
   --vzn-prompt-card-shadow-hover: 0 8px 22px rgba(0, 0, 0, 0.18);
+  --vzn-scrim: rgba(0, 0, 0, 0.58);
   --vzn-skeleton: rgba(255, 255, 255, 0.06);
 }
 

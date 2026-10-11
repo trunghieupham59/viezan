@@ -73,6 +73,19 @@ function uniqueText(items: Array<string | undefined>): string[] {
   return [...new Set(items.map((item) => item?.trim()).filter((item): item is string => Boolean(item)))]
 }
 
+/**
+ * Pair each text item with a unique, order-independent key (the text, plus an occurrence
+ * counter for repeats) so list rows don't depend on the array index.
+ */
+function withStableKeys(items: string[], prefix: string): Array<{ key: string; item: string; position: number }> {
+  const seen = new Map<string, number>()
+  return items.map((item, position) => {
+    const occurrence = (seen.get(item) ?? 0) + 1
+    seen.set(item, occurrence)
+    return { key: `${prefix}-${item}-${occurrence}`, item, position }
+  })
+}
+
 function cleanSelectionText(value: string): string {
   return value.trim().replace(/\s+/g, ' ').slice(0, 80)
 }
@@ -267,6 +280,7 @@ export function DictionaryResultPanel({
               ))}
               {isEnriching && (
                 <span
+                  role="img"
                   aria-label={t.dictionary_enriching}
                   title={t.dictionary_enriching}
                   className="inline-flex h-2 w-2 flex-shrink-0 rounded-full bg-gray-400/60 dark:bg-gray-500/60"
@@ -498,16 +512,16 @@ export function DictionaryResultPanel({
           <section>
             <h3 className="section-label mb-2">{t.dictionary_examples}</h3>
             <ol className="space-y-1.5">
-              {result.examples.map((item, idx) => (
+              {withStableKeys(result.examples, 'ex').map(({ key, item, position }) => (
                 <li
-                  key={`ex-${idx}-${item}`}
+                  key={key}
                   className="flex items-start gap-2.5 text-sm leading-6 text-gray-700 select-text dark:text-gray-300"
                 >
                   <span
                     aria-hidden
                     className="ui-index-dot"
                   >
-                    {idx + 1}
+                    {position + 1}
                   </span>
                   <span className="min-w-0 flex-1">{item}</span>
                 </li>
@@ -521,9 +535,9 @@ export function DictionaryResultPanel({
           <section>
             <h3 className="section-label mb-2">{t.dictionary_notes}</h3>
             <ul className="space-y-1.5">
-              {result.notes.map((item, idx) => (
+              {withStableKeys(result.notes, 'note').map(({ key, item }) => (
                 <li
-                  key={`note-${idx}-${item}`}
+                  key={key}
                   className="flex items-start gap-2.5 text-sm leading-6 text-gray-700 select-text dark:text-gray-300"
                 >
                   <span
@@ -675,13 +689,13 @@ export function DictionaryResultPanel({
                     <section>
                       <h5 className="section-label mb-2">{t.dictionary_examples}</h5>
                       <ol className="space-y-1.5">
-                        {selectionLookup.result.examples.map((item, idx) => (
-                          <li key={`selection-example-${idx}-${item}`} className="flex items-start gap-2.5 select-text">
+                        {withStableKeys(selectionLookup.result.examples, 'selection-example').map(({ key, item, position }) => (
+                          <li key={key} className="flex items-start gap-2.5 select-text">
                             <span
                               aria-hidden
                               className="ui-index-dot"
                             >
-                              {idx + 1}
+                              {position + 1}
                             </span>
                             <span className="min-w-0 flex-1">{item}</span>
                           </li>
@@ -694,8 +708,8 @@ export function DictionaryResultPanel({
                     <section>
                       <h5 className="section-label mb-2">{t.dictionary_notes}</h5>
                       <ul className="space-y-1.5">
-                        {selectionLookup.result.notes.map((item, idx) => (
-                          <li key={`selection-note-${idx}-${item}`} className="flex items-start gap-2.5 select-text">
+                        {withStableKeys(selectionLookup.result.notes, 'selection-note').map(({ key, item }) => (
+                          <li key={key} className="flex items-start gap-2.5 select-text">
                             <span
                               aria-hidden
                               className="mt-2 inline-block h-1 w-1 flex-shrink-0 rounded-full bg-gray-500 dark:bg-gray-400"

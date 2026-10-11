@@ -321,6 +321,12 @@ export interface ChatMessageContent {
   /** Preview URL for display only (not sent to API) */
   imagePreviewUrl?: string
   imageFileName?: string
+  /**
+   * Key of this image's pixel data in the IndexedDB chat image store. Persisted
+   * with the session (unlike `imageBase64`, which is stripped) so an AI-produced
+   * image can be restored after a restart.
+   */
+  imageStoreKey?: string
 }
 
 /**

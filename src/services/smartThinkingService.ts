@@ -34,6 +34,7 @@ import {
   getActionableSearchFallback,
   getCurrentLocaleDateTime,
   hasWebSearchApi,
+  isSearchUnavailable,
 } from './searchResultFormatting'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -76,6 +77,8 @@ export interface SmartThinkingCallbacks {
    * out of quota and the free provider answered instead.
    */
   onSearchFallback?: (info: ActionableSearchFallback) => void
+  /** Optional: fired when every search provider failed, so the answer has no live sources. */
+  onSearchUnavailable?: () => void
 }
 
 export interface SmartThinkingUiText {
@@ -287,6 +290,7 @@ async function runWebSearch(
   uiText: SmartThinkingUiText,
   sourceCount: number,
   onFallback?: (info: ActionableSearchFallback) => void,
+  onUnavailable?: () => void,
 ): Promise<{
   context: string
   sourcesMarkdown: string
@@ -300,6 +304,7 @@ async function runWebSearch(
     })
     const fallback = getActionableSearchFallback(result)
     if (fallback) onFallback?.(fallback)
+    if (isSearchUnavailable(result)) onUnavailable?.()
     if (result.success && result.results?.length) {
       const selectedResults = result.results.slice(0, maxResults)
       const context = formatWebSearchResults(
@@ -585,6 +590,7 @@ export const smartThinkingService = {
           uiText,
           classify.sourceCount,
           callbacks.onSearchFallback,
+          callbacks.onSearchUnavailable,
         )
         webContext = context
         webSourcesMarkdown = sourcesMarkdown

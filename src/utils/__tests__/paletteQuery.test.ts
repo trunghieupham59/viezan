@@ -28,4 +28,11 @@ describe('parsePaletteQuery', () => {
     expect(parsePaletteQuery('t')).toEqual({ mode: 'default', text: 't' })
     expect(parsePaletteQuery('translate this')).toEqual({ mode: 'default', text: 'translate this' })
   })
+
+  it('routes "d <word>" to the dictionary but never a bare "d" or a word starting with d', () => {
+    expect(parsePaletteQuery('d serendipity')).toEqual({ mode: 'dictionary', text: 'serendipity' })
+    expect(parsePaletteQuery('D Hán Việt')).toEqual({ mode: 'dictionary', text: 'Hán Việt' })
+    expect(parsePaletteQuery('d')).toEqual({ mode: 'default', text: 'd' })
+    expect(parsePaletteQuery('dictionary')).toEqual({ mode: 'default', text: 'dictionary' })
+  })
 })

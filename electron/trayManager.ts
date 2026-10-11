@@ -26,24 +26,24 @@ type CloseDialogLabels = { message: string; detail: string; tray: string; quit: 
 
 const CLOSE_DIALOG_LABELS: Record<TrayLocale, CloseDialogLabels> = {
   en: {
-    message: 'Close Viezan?',
-    detail: 'Keep Viezan running in the system tray, or quit completely and release its local server port.',
-    tray: 'Keep in tray',
-    quit: 'Quit completely',
+    message: 'Quit Viezan?',
+    detail: 'Choose No to keep it running in the tray.',
+    tray: 'No',
+    quit: 'OK',
     cancel: 'Cancel',
   },
   vi: {
-    message: 'Đóng Viezan?',
-    detail: 'Giữ Viezan chạy ngầm ở khay hệ thống, hoặc thoát hẳn và giải phóng cổng local server.',
-    tray: 'Chạy ngầm ở khay',
-    quit: 'Thoát hẳn',
+    message: 'Thoát Viezan?',
+    detail: 'Chọn Không để chạy ngầm ở khay.',
+    tray: 'Không',
+    quit: 'Đồng ý',
     cancel: 'Hủy',
   },
   ja: {
-    message: 'Viezan を閉じますか？',
-    detail: 'システムトレイでバックグラウンド実行を続けるか、完全に終了してローカルサーバーのポートを解放します。',
-    tray: 'トレイに常駐',
-    quit: '完全に終了',
+    message: 'Viezan を終了しますか？',
+    detail: '「いいえ」を選ぶとトレイで実行を続けます。',
+    tray: 'いいえ',
+    quit: 'はい',
     cancel: 'キャンセル',
   },
 }
@@ -83,14 +83,14 @@ export function shouldHideMainWindowOnClose(options: {
  */
 export async function promptCloseAction(window: BrowserWindow, osLocale: string | undefined): Promise<CloseAction> {
   const labels = CLOSE_DIALOG_LABELS[resolveTrayLocale(osLocale)]
-  const actions: CloseAction[] = ['tray', 'quit', 'cancel']
+  const actions: CloseAction[] = ['quit', 'tray', 'cancel']
   const { response } = await dialog.showMessageBox(window, {
     type: 'question',
     title: 'Viezan',
     message: labels.message,
     detail: labels.detail,
-    buttons: [labels.tray, labels.quit, labels.cancel],
-    defaultId: 0,
+    buttons: [labels.quit, labels.tray, labels.cancel],
+    defaultId: 1,
     cancelId: 2,
     noLink: true,
   })

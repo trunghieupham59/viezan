@@ -204,7 +204,8 @@ function MessageBubbleImpl({
   }
 
   // ── Normal bubble ─────────────────────────────────────────────────────────
-  const showPinnedActions = !isUser && (isLastAssistant || Boolean(message.error))
+  // A fallback model note is important context, so keep it visible (not hover-only) for that message.
+  const showPinnedActions = !isUser && (isLastAssistant || Boolean(message.error) || Boolean(message.usedModel))
   // Still waiting for the first token: show only the status pill. A timestamp
   // for an unfinished reply is noise, so the actions row waits for content.
   const isPendingReply = Boolean(message.isLoading && !textContent && !message.error)
@@ -230,7 +231,23 @@ function MessageBubbleImpl({
         {/* Image attachments */}
         {imageContents.map((img, i) => {
           const imageSrc = getImageSource(img)
-          return imageSrc && (
+          // Pixel data is gone (old conversation saved before images were kept, or
+          // the user cleared stored images): say so instead of leaving a blank gap.
+          if (!imageSrc) {
+            return (
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: stable index for images
+                key={i}
+                role="img"
+                aria-label={t.chat_image_unavailable}
+                className="max-w-full rounded-xl border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-500
+                           dark:border-neutral-700 dark:text-gray-400"
+              >
+                {t.chat_image_unavailable}
+              </div>
+            )
+          }
+          return (
             <button
               type="button"
               // biome-ignore lint/suspicious/noArrayIndexKey: stable index for images

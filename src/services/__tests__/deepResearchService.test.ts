@@ -491,6 +491,36 @@ describe('deepResearchService research quality', () => {
     expect(finalContent.match(/Sources/g)).toHaveLength(1)
   })
 
+  it('never asks for or keeps citations when no web source was found', async () => {
+    window.api.webSearch = vi.fn().mockResolvedValue({ success: false, error: 'Jina 401', errorCode: 'SEARCH_FAILED' })
+    queueReplies([
+      JSON.stringify({ aspects: ['Aspect one', 'Aspect two'] }),
+      'Finding one',
+      'Finding two',
+      noGaps,
+      'Cross-reference',
+      'Electron is faster to ship [1][5]. Tauri is smaller [2]. Use `items[1]` and [link](https://x.test).',
+    ])
+    const callbacks = { ...makeCallbacks(), onSearchUnavailable: vi.fn() }
+
+    await deepResearchService.run({
+      provider: 'gemini',
+      model: 'gemini-2.5-flash',
+      question: 'Electron or Tauri?',
+      uiText: TEST_UI_TEXT,
+      callbacks,
+    })
+
+    const chatCalls = vi.mocked(window.api.chat).mock.calls.map(([params]) => params)
+    expect(chatCalls[1].systemPrompt).toContain('NO numbered sources')
+    expect(chatCalls[4].systemPrompt).toContain('no numbered sources')
+    expect(chatCalls[5].systemPrompt).toContain('NO numbered sources')
+
+    const finalContent = callbacks.onStepComplete.mock.calls.find(([, , isFinal]) => isFinal)?.[1] as string
+    expect(finalContent).toBe('Electron is faster to ship. Tauri is smaller. Use `items[1]` and [link](https://x.test).')
+    expect(callbacks.onSearchUnavailable).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps a failed survey step out of the findings and tells the synthesis about the gap', async () => {
     window.api.webSearch = vi.fn().mockResolvedValue({ success: false })
     queueReplies([

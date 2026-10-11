@@ -81,6 +81,8 @@ export function DictionaryPage() {
     toggleDictionaryFavorite,
     deleteDictionaryEntry,
     clearDictionaryHistory,
+    pendingDictionaryTerm,
+    setPendingDictionaryTerm,
     sourceLang,
     targetLang,
     setSourceLang,
@@ -97,6 +99,8 @@ export function DictionaryPage() {
 
   const [term, setTerm] = useState('')
   const [context, setContext] = useState('')
+  /** Term handed over by another feature (command palette), looked up once `term` reflects it. */
+  const [handoffTerm, setHandoffTerm] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isEnriching, setIsEnriching] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -206,6 +210,14 @@ export function DictionaryPage() {
     favorite,
     result,
   })
+
+  useEffect(() => {
+    if (!pendingDictionaryTerm) return
+    setTerm(pendingDictionaryTerm)
+    setContext('')
+    setHandoffTerm(pendingDictionaryTerm)
+    setPendingDictionaryTerm(null)
+  }, [pendingDictionaryTerm, setPendingDictionaryTerm])
 
   const runLookup = async () => {
     const cleanTerm = term.trim()
@@ -426,6 +438,14 @@ export function DictionaryPage() {
     setPhoneticText('')
     setActivePage('translate')
   }
+
+  // Runs after the render in which `term` already holds the handed-over word, so `runLookup` sees it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runLookup is recreated every render; only a new handoff should trigger it.
+  useEffect(() => {
+    if (handoffTerm === null || term !== handoffTerm) return
+    setHandoffTerm(null)
+    void runLookup()
+  }, [handoffTerm, term])
 
   const dictionaryErrorContext = model
     ? t.translate_error_context(

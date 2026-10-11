@@ -875,7 +875,7 @@
   .notification-toast-title { color: var(--vzn-text-strong); font-size: var(--vzn-font-size-md); font-weight: var(--vzn-weight-semibold); line-height: var(--vzn-line-tight); }
   .notification-toast-message { color: var(--vzn-text-soft); font-size: var(--vzn-font-size-sm); line-height: var(--vzn-line-normal); }
   .notification-toast-actions { display: inline-flex; flex: 0 0 auto; align-items: center; gap: var(--vzn-space-1); }
-  .notification-viewport { position: absolute; z-index: var(--vzn-layer-context); top: var(--vzn-space-4); right: var(--vzn-space-4); pointer-events: none; }
+  .notification-viewport { position: absolute; z-index: var(--vzn-layer-context-overlay); top: var(--vzn-space-4); right: var(--vzn-space-4); pointer-events: none; }
   .notification-viewport > * { pointer-events: auto; }
 
   /* ══════════════════════════════════════════════════════════════════════

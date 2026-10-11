@@ -429,3 +429,41 @@ describe('persistence quota fallback', () => {
     expect(writeWithQuotaFallback({ setItem }, 'k', 'not json')).toBe(false)
   })
 })
+
+describe('chat image persistence', () => {
+  function persistedMessageContent() {
+    const persisted = useAppStore.persist.getOptions().partialize?.(useAppStore.getState()) as {
+      chatSessions: Array<{ messages: Array<{ content: Array<Record<string, unknown>> }> }>
+    }
+    return persisted.chatSessions[0].messages[0].content
+  }
+
+  it('drops pixel data when persisting but keeps the key needed to restore an AI image', () => {
+    act(() => {
+      const sessionId = useAppStore.getState().createChatSession('openai', 'gpt-4o')
+      useAppStore.getState().addChatMessage(sessionId, {
+        id: 'img-msg',
+        role: 'assistant',
+        timestamp: 1,
+        content: [{
+          type: 'image',
+          imageBase64: 'AAAA',
+          imageMimeType: 'image/png',
+          imagePreviewUrl: 'data:image/png;base64,AAAA',
+          imageFileName: 'generated-image-1.png',
+          imageStoreKey: 'chat-1:img-msg:0',
+        }],
+      })
+    })
+
+    expect(persistedMessageContent()).toEqual([{
+      type: 'image',
+      text: undefined,
+      imageFileName: 'generated-image-1.png',
+      imageMimeType: 'image/png',
+      imageStoreKey: 'chat-1:img-msg:0',
+    }])
+    // The live in-memory message still has its pixels.
+    expect(useAppStore.getState().chatSessions[0].messages[0].content[0].imageBase64).toBe('AAAA')
+  })
+})

@@ -42,6 +42,7 @@ import {
   getActionableSearchFallback,
   getCurrentLocaleDateTime,
   hasWebSearchApi,
+  isSearchUnavailable,
 } from './searchResultFormatting'
 import { stripTrailingSourcesSection } from './smartThinkingService'
 
@@ -118,6 +119,8 @@ export interface DeepResearchCallbacks {
    * key or ran out of quota and the free provider answered instead.
    */
   onSearchFallback?: (info: ActionableSearchFallback) => void
+  /** Fired at most once per run when every search provider failed (no live sources). */
+  onSearchUnavailable?: () => void
 }
 
 
@@ -251,12 +254,14 @@ async function webSearch(
   webSummaryLabel: string,
   registerSources: (results: ResearchSource[]) => number[],
   onFallback?: (info: ActionableSearchFallback) => void,
+  onUnavailable?: () => void,
 ): Promise<string> {
   if (!hasWebSearchApi()) return ''
   try {
     const result = await window.api.webSearch({ query: query.slice(0, 200), maxResults: MAX_SEARCH_RESULTS })
     const fallback = getActionableSearchFallback(result)
     if (fallback) onFallback?.(fallback)
+    if (isSearchUnavailable(result)) onUnavailable?.()
     if (result.success && result.results?.length) {
       return formatWebSearchResults(result.results, result.answer, webSummaryLabel, {
         maxCharsPerResult: MAX_RESULT_CHARS,
@@ -271,6 +276,28 @@ async function webSearch(
 function limitHistory(history: string | undefined): string {
   const trimmed = history?.trim() ?? ''
   return trimmed.length > MAX_HISTORY_CHARS ? trimmed.slice(-MAX_HISTORY_CHARS) : trimmed
+}
+
+/**
+ * Remove citation markers that point at no real source. With `sourceCount`
+ * numbered sources, any [n] above it (or any [n] at all when there are none)
+ * was invented by the model. Code (fenced or inline) and Markdown links are left alone.
+ */
+export function removeUnknownCitations(text: string, sourceCount: number): string {
+  const citation = /(?<=^|[\s.,;:!?)\]])\[(\d{1,3})\](?!\()/gm
+  const parts = text.split(/(```[\s\S]*?```|`[^`\n]*`)/)
+  let removed = false
+  const cleaned = parts
+    .map((part, index) => {
+      if (index % 2 === 1) return part
+      return part.replace(citation, (match, digits: string) => {
+        if (Number(digits) <= sourceCount) return match
+        removed = true
+        return ''
+      })
+    })
+    .join('')
+  return removed ? cleaned.replace(/[ \t]+(?=[.,;:!?])/g, '').replace(/[ \t]+$/gm, '') : text
 }
 
 /** Markdown list of the sources the answer relied on, keeping each source's global [n]. */
@@ -401,7 +428,8 @@ Aspect to analyze: ${aspect}
 ${imageContext ? `Attached image context: ${imageContext}\n` : ''}
 
 No web search available — using training data only.
-Please: state your training cutoff clearly, and mark information that MAY HAVE CHANGED since then.`
+Please: state your training cutoff clearly, and mark information that MAY HAVE CHANGED since then.
+There are NO numbered sources in this research: do not write [n] citation markers.`
 
 const GAP_ANALYSIS_PROMPT = (date: string) =>
   `${LANG_RULE}You are a research quality evaluator. Timestamp: ${date}.
@@ -440,7 +468,7 @@ Perform cross-reference analysis on those findings:
 2. List points UNCERTAIN — from only one source or potentially outdated
 3. List points CONTRADICTED across sources and explain
 
-Refer to each point with its source numbers [n] exactly as they appear in the findings. Be well-structured and do not drop important specifics (names, numbers, dates).`
+${hadWeb ? 'Refer to each point with its source numbers [n] exactly as they appear in the findings. ' : 'There are no numbered sources, so do not write [n] citation markers. '}Be well-structured and do not drop important specifics (names, numbers, dates).`
 
 const CROSS_REFERENCE_CONTENT = (question: string, allFindings: string, imageContext: string) =>
   `Original question: ${question}
@@ -463,11 +491,11 @@ Answer the user's ORIGINAL question directly and completely. Lead with the answe
 
 Structure:
 - Clear headings (##) and bullet points where they help
-- Cite claims inline with the source numbers from the findings, e.g. [2][5]; never invent a number that does not appear in the findings
+- ${hadWeb ? 'Cite claims inline with the source numbers from the findings, e.g. [2][5]; never invent a number that does not appear in the findings' : 'There are NO numbered sources: never write [n] citation markers, and say plainly which claims are model knowledge'}
 - Mark confidence where it matters: Confirmed / Uncertain / Contradicted
 - Surface disagreements between sources instead of merging them
 - End with a "## Conclusion" section
-- Do NOT add a sources / references list: the UI appends the numbered source list automatically`
+- Do NOT add a sources / references list${hadWeb ? ': the UI appends the numbered source list automatically' : ''}`
 }
 
 // ─── Default aspects (English — neutral, no language bias) ───────────────────
@@ -499,6 +527,12 @@ export const deepResearchService = {
       if (searchFallbackReported) return
       searchFallbackReported = true
       callbacks.onSearchFallback?.(info)
+    }
+    let searchUnavailableReported = false
+    const reportSearchUnavailable = () => {
+      if (searchUnavailableReported) return
+      searchUnavailableReported = true
+      callbacks.onSearchUnavailable?.()
     }
     const hasImages = images.length > 0
 
@@ -706,6 +740,7 @@ export const deepResearchService = {
             uiText.webSummary,
             registerSources,
             reportSearchFallback,
+            reportSearchUnavailable,
           )
           if (webCtx) anyWebSearch = true
 
@@ -871,6 +906,7 @@ export const deepResearchService = {
             uiText.webSummary,
             registerSources,
             reportSearchFallback,
+            reportSearchUnavailable,
           )
           if (webCtx) anyWebSearch = true
 
@@ -1009,7 +1045,7 @@ export const deepResearchService = {
       if (!reply) throw new Error(describeChatFailure(result, uiText.errorSynth))
 
       const sourcesTitle = uiText.sourcesTitle ?? 'Sources'
-      const body = stripTrailingSourcesSection(reply, sourcesTitle)
+      const body = removeUnknownCitations(stripTrailingSourcesSection(reply, sourcesTitle), sources.length)
       const synthesis = `${body}${buildSourcesMarkdown(sources, body, sourcesTitle)}`
 
       onStepComplete(synthMsgId, synthesis, true)

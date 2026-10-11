@@ -51,6 +51,17 @@ export function getActionableSearchFallback(
   return fallback as ActionableSearchFallback
 }
 
+/**
+ * True when every search provider failed outright (no configured key worked and
+ * the free fallback was rejected). Without this signal the user only sees a
+ * vague "could not verify" answer and never learns that search is not working.
+ */
+export function isSearchUnavailable(
+  result: { success?: boolean; errorCode?: string } | null | undefined,
+): boolean {
+  return result?.success === false && result.errorCode === 'SEARCH_FAILED'
+}
+
 export function formatWebSearchResults(
   results: SearchResultForFormatting[],
   answer: string | undefined,

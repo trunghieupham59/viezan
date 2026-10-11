@@ -66,13 +66,15 @@ const FOCUSABLE_SELECTOR = 'input, button'
  * Besides commands it answers inline: arithmetic is evaluated locally (Enter copies the
  * result) and any other text can be sent to the selected AI model, whose answer streams
  * into the palette and can be continued in AI Chat. Prefixes route a query directly:
- * `?` asks the AI, `??` asks it with web search, `t <text>` opens AI Translate.
+ * `?` asks the AI, `??` asks it with web search, `t <text>` opens AI Translate and
+ * `d <word>` looks the word up in the Dictionary.
  */
 export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const {
     setActivePage,
     clearTranslation,
     setSourceText,
+    setPendingDictionaryTerm,
     openSettings,
     locale,
     selectedProvider,
@@ -199,6 +201,11 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     }
   }, [askAi, hasKey, model, payload, selectedProvider])
 
+  const openDictionary = useCallback(() => {
+    if (!payload) return
+    navigate('dictionary', () => setPendingDictionaryTerm(payload))
+  }, [navigate, payload, setPendingDictionaryTerm])
+
   const openTranslate = useCallback(() => {
     if (!payload) return
     navigate('translate', () => {
@@ -240,6 +247,17 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         keywords: [],
       }]
     }
+    if (parsed.mode === 'dictionary') {
+      return [{
+        id: 'dictionary-text',
+        kind: 'command',
+        label: t.nav_dictionary,
+        description: tpl(t.command_palette_dictionary_text_description, { text: payload }),
+        icon: <BookIcon className="h-4 w-4" />,
+        action: openDictionary,
+        keywords: [],
+      }]
+    }
     if (parsed.mode === 'verify' && webSearchAvailable) return [verifyRow, askRow]
     if (parsed.mode !== 'default') return aiRows
 
@@ -257,7 +275,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     }
     result.push(...matchingCommands, ...aiRows)
     return result
-  }, [calc, copyCalcResult, matchingCommands, openTranslate, parsed.mode, payload, startAsk, t, webSearchAvailable])
+  }, [calc, copyCalcResult, matchingCommands, openDictionary, openTranslate, parsed.mode, payload, startAsk, t, webSearchAvailable])
 
   const activeItem = inAnswerMode ? undefined : rows[highlighted]
   const activeOptionId = activeItem ? `${listboxId}-${activeItem.id}` : undefined

@@ -920,13 +920,9 @@ html:not(.dark) .ai-config-panel {
 .modal-backdrop,
 html:not(.dark) .modal-backdrop {
   z-index: var(--vzn-layer-modal);
-  background: rgba(20, 19, 17, 0.42);
+  background: var(--vzn-scrim);
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-}
-
-html.dark .modal-backdrop {
-  background: rgba(0, 0, 0, 0.58);
 }
 
 /* Command palette ------------------------------------------------------- */
@@ -1275,7 +1271,7 @@ html:not(.dark) .not-connected-card {
 .toolbar-pill-danger:hover:not(:disabled) {
   border-color: var(--vzn-danger) !important;
   background: var(--vzn-danger) !important;
-  color: #ffffff !important;
+  color: var(--vzn-danger-fg) !important;
 }
 
 .btn-primary:disabled,
@@ -1424,7 +1420,7 @@ html.dark .toolbar-pill-button {
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(12, 12, 11, 0.84);
+  background: var(--vzn-scrim-media);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
@@ -1471,9 +1467,9 @@ html.dark .toolbar-pill-button {
   max-width: 92vw;
   max-height: calc(94vh - 52px);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--vzn-media-matte);
   object-fit: contain;
-  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.38);
+  box-shadow: var(--vzn-shadow-overlay);
 }
 
 @media (max-width: 560px) {

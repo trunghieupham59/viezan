@@ -8,6 +8,7 @@ import { useAppStore, useT } from '../../store/useAppStore'
 import type { ChatSendShortcut, SystemPromptPreset } from '../../types'
 import { DEFAULT_CHAT_NEW_SESSION_SHORTCUT, formatShortcutLabel, keyEventToAccelerator } from '../../utils/keyboardShortcuts'
 import { tpl } from '../../utils/tpl'
+import { ChatImageStorageCard } from './ChatImageStorageCard'
 
 export function ChatPresetsSection() {
   const systemPromptPresets = useAppStore((state) => state.systemPromptPresets)
@@ -258,6 +259,8 @@ export function ChatPresetsSection() {
 
         </div>
       </div>
+
+      <ChatImageStorageCard />
     </section>
   )
 }

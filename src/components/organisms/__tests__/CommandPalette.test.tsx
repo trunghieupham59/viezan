@@ -27,6 +27,7 @@ describe('CommandPalette', () => {
         selectedModels: { ...useAppStore.getState().selectedModels, local: 'local-auto' },
         chatSessions: [],
         activeChatSessionId: null,
+        pendingDictionaryTerm: null,
         sourceText: 'Text to clear',
         translatedText: 'Translated text to clear',
       })
@@ -330,6 +331,21 @@ describe('CommandPalette', () => {
       fireEvent.keyDown(window, { key: 'Enter' })
       expect(useAppStore.getState().activePage).toBe('translate')
       expect(useAppStore.getState().sourceText).toBe('hello world')
+      expect(onClose).toHaveBeenCalledOnce()
+    })
+
+    it('hands "d <word>" to the Dictionary and navigates there', () => {
+      const onClose = vi.fn()
+      render(<CommandPalette open onClose={onClose} />)
+
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'd serendipity' } })
+      const options = screen.getAllByRole('option')
+      expect(options).toHaveLength(1)
+      expect(options[0]).toHaveAccessibleName(/Dictionary\. Look up “serendipity”/)
+
+      fireEvent.keyDown(window, { key: 'Enter' })
+      expect(useAppStore.getState().activePage).toBe('dictionary')
+      expect(useAppStore.getState().pendingDictionaryTerm).toBe('serendipity')
       expect(onClose).toHaveBeenCalledOnce()
     })
 

@@ -121,9 +121,9 @@ describe('promptCloseAction', () => {
 
   it('maps the chosen button onto keep-in-tray, quit or cancel', async () => {
     dialogState.response = 0
-    await expect(promptCloseAction(window, 'en')).resolves.toBe('tray')
-    dialogState.response = 1
     await expect(promptCloseAction(window, 'en')).resolves.toBe('quit')
+    dialogState.response = 1
+    await expect(promptCloseAction(window, 'en')).resolves.toBe('tray')
     dialogState.response = 2
     await expect(promptCloseAction(window, 'en')).resolves.toBe('cancel')
   })
@@ -132,7 +132,7 @@ describe('promptCloseAction', () => {
     await promptCloseAction(window, 'vi-VN')
     expect(showMessageBox).toHaveBeenCalledWith(
       window,
-      expect.objectContaining({ buttons: ['Chạy ngầm ở khay', 'Thoát hẳn', 'Hủy'], cancelId: 2 }),
+      expect.objectContaining({ buttons: ['Đồng ý', 'Không', 'Hủy'], defaultId: 1, cancelId: 2 }),
     )
   })
 })

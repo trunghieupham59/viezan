@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { chromium } from 'playwright'
 
@@ -26,6 +26,15 @@ async function serverAlreadyRunning() {
   }
 }
 
+function stopServer(child) {
+  if (process.platform === 'win32' && child.pid) {
+    // The shell wrapper does not forward signals; kill the whole tree so Vite does not linger.
+    spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+    return
+  }
+  child.kill('SIGTERM')
+}
+
 function assert(condition, message) {
   if (!condition) throw new Error(message)
 }
@@ -39,16 +48,19 @@ function browserLaunchOptions() {
 
 try {
   if (!(await serverAlreadyRunning())) {
+    // On Windows `npm` is npm.cmd, which spawn() can only run through a shell.
     server = spawn('npm', ['run', 'dev:web', '--', '--host', '127.0.0.1'], {
       stdio: 'inherit',
       env: process.env,
+      shell: process.platform === 'win32',
     })
   }
   await waitForServer()
 
   const browser = await chromium.launch(browserLaunchOptions())
   try {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+    // Pin the browser language: the app follows the system language and the assertions use English labels.
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, locale: 'en-US' })
     const pageErrors = []
     page.on('pageerror', error => pageErrors.push(error.message))
     await page.goto(url)
@@ -576,10 +588,14 @@ try {
 
       const search = page.locator('.cmd-palette-input')
       await search.fill('dictionary')
-      const filteredItems = page.locator('.cmd-palette-item')
-      assert(await filteredItems.count() === 1, `Command filtering failed at ${width}px`)
+      // Every query also offers the "Ask AI" rows; only the navigation commands are filtered.
+      const filteredIds = await page.locator('.cmd-palette-item').evaluateAll(
+        elements => elements.map(element => element.getAttribute('data-command-id')),
+      )
+      const filteredCommands = filteredIds.filter(id => id !== 'ask' && id !== 'verify')
+      assert(filteredCommands.length === 1, `Command filtering failed at ${width}px`)
       assert(
-        await filteredItems.first().getAttribute('data-command-id') === 'dictionary',
+        filteredCommands[0] === 'dictionary' && filteredIds[0] === 'dictionary',
         `Command filtering returned the wrong result at ${width}px`,
       )
 
@@ -594,5 +610,5 @@ try {
     await browser.close()
   }
 } finally {
-  if (server) server.kill('SIGTERM')
+  if (server) stopServer(server)
 }

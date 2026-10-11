@@ -47,6 +47,7 @@ import type {
 import { shouldUseCarefulReasoning } from '../utils/carefulReasoning'
 import { localizeChatError, localizeChatException } from '../utils/chatErrors'
 import { supportsChatImageMode } from '../utils/chatImageMode'
+import { chatImageStoreKey, getChatImage, putChatImage } from '../utils/chatImageStore'
 import { createClientId } from '../utils/id'
 import { extractImageFromClipboard, resizeImageFile } from '../utils/imageUtils'
 import { eventMatchesShortcut, shouldSendChatMessage } from '../utils/keyboardShortcuts'
@@ -131,6 +132,17 @@ function buildConversationTranscript(messages: ChatMessage[]): string {
     })
     .filter(Boolean)
     .join('\n')
+}
+
+/**
+ * Save a chat image (AI-produced or attached by the user) to the durable image
+ * store and return the key the message keeps. The chat store strips pixel data
+ * before persisting, so without this the picture would be gone after a restart.
+ */
+function persistChatImage(sessionId: string, messageId: string, imageBase64: string, imageMimeType: string): string {
+  const key = chatImageStoreKey(sessionId, messageId)
+  void putChatImage(key, { imageBase64, imageMimeType })
+  return key
 }
 
 /** Most recent image an assistant message produced (generated or edited) that still has its pixel data. */
@@ -320,6 +332,18 @@ export function ChatPage() {
     const timer = setTimeout(() => setSearchFallbackNotice(null), SEARCH_FALLBACK_NOTICE_MS)
     return () => clearTimeout(timer)
   }, [searchFallbackNotice])
+
+  // Set when every web-search provider failed, so the answer has no live sources.
+  const [searchUnavailable, setSearchUnavailable] = useState(false)
+  const reportSearchUnavailable = useCallback(() => setSearchUnavailable(true), [])
+
+  // Deep Research can run for minutes, so the notice stays up while a request is in
+  // flight and only starts its countdown once the answer is done.
+  useEffect(() => {
+    if (!searchUnavailable || isSending) return
+    const timer = setTimeout(() => setSearchUnavailable(false), SEARCH_FALLBACK_NOTICE_MS)
+    return () => clearTimeout(timer)
+  }, [searchUnavailable, isSending])
   const isVoiceBusy = voiceRecordingState !== 'idle' && voiceRecordingState !== 'error'
   /**
    * AbortController for the in-flight chat request. Held in a ref (not state)
@@ -837,6 +861,7 @@ export function ChatPage() {
           // the run from the last completed phase. The store action accepts
           // `null` to clear the snapshot when synthesis succeeds.
           onSearchFallback: setSearchFallbackNotice,
+          onSearchUnavailable: reportSearchUnavailable,
           onResumeStateChange: (state) => {
             setDeepResearchResumeState(sessionId, state)
           },
@@ -858,6 +883,7 @@ export function ChatPage() {
     addChatMessage,
     updateChatMessage,
     recordChatCost,
+    reportSearchUnavailable,
     setDeepResearchResumeState,
     t,
   ])
@@ -893,6 +919,7 @@ export function ChatPage() {
 
     // ── Build the user message (shared by normal, vision, and Deep Research paths)
     const userContent: ChatMessageContent[] = []
+    const userMsgId = createClientId('msg-u')
     if (attachedImage) {
       userContent.push({
         type: 'image',
@@ -900,6 +927,8 @@ export function ChatPage() {
         imageMimeType: attachedImage.mimeType,
         imagePreviewUrl: attachedImage.previewUrl,
         imageFileName: attachedImage.fileName,
+        // Kept in the image store so the photo is still there when the conversation is reopened.
+        imageStoreKey: persistChatImage(sessionId, userMsgId, attachedImage.base64, attachedImage.mimeType),
       })
     }
     if (text) {
@@ -907,7 +936,7 @@ export function ChatPage() {
     }
 
     const userMsg: ChatMessage = {
-      id: createClientId('msg-u'),
+      id: userMsgId,
       role: 'user',
       content: userContent,
       timestamp: Date.now(),
@@ -1024,7 +1053,8 @@ export function ChatPage() {
         } else if (result.success && result.imageBase64 && result.imageMimeType) {
           // Show the prompt that was actually used so the user can see it and refine it.
           const doneLabel = isEdit ? t.chat_image_edit_done : t.chat_image_generate_done
-          const outputLabel = plan.rewritten ? `${doneLabel}\n\n> ${plan.prompt}` : doneLabel
+          // Image captions render as plain text, so the prompt is quoted rather than Markdown-formatted.
+          const outputLabel = plan.rewritten ? `${doneLabel}\n\n“${plan.prompt}”` : doneLabel
           updateChatMessage(sessionId, assistantMsgId, {
             content: [
               {
@@ -1033,6 +1063,7 @@ export function ChatPage() {
                 imageMimeType: result.imageMimeType,
                 imagePreviewUrl: buildImageDataUrl(result.imageBase64, result.imageMimeType),
                 imageFileName: `${isEdit ? 'edited' : 'generated'}-image-${Date.now()}.${imageExtensionFromMime(result.imageMimeType)}`,
+                imageStoreKey: persistChatImage(sessionId, assistantMsgId, result.imageBase64, result.imageMimeType),
               },
               { type: 'text', text: outputLabel },
             ],
@@ -1162,6 +1193,7 @@ export function ChatPage() {
               })
             },
             onSearchFallback: setSearchFallbackNotice,
+            onSearchUnavailable: reportSearchUnavailable,
             onAnswerStart: () => placeholderMsgId,
             onAnswerToken: (_msgId, content) => {
               updateChatMessage(sessionId, placeholderMsgId, {
@@ -1258,6 +1290,7 @@ export function ChatPage() {
                 imageMimeType: result.imageMimeType,
                 imagePreviewUrl: buildImageDataUrl(result.imageBase64, result.imageMimeType),
                 imageFileName: `edited-image-${Date.now()}.${imageExtensionFromMime(result.imageMimeType)}`,
+                imageStoreKey: persistChatImage(sessionId, assistantMsgId, result.imageBase64, result.imageMimeType),
               },
               { type: 'text', text: outputLabel },
             ],
@@ -1386,6 +1419,7 @@ export function ChatPage() {
     selectedModels,
     chatSystemPrompt,
     recordChatCost,
+    reportSearchUnavailable,
     runDeepResearchPipeline,
     setDeepResearchResumeState,
     setInputText,
@@ -1469,6 +1503,43 @@ export function ChatPage() {
   }, [])
 
   const messages = activeSession?.messages ?? []
+
+  // Restore AI images whose pixel data was stripped when the session was
+  // persisted (they were saved to the image store when created). A key that is
+  // looked up once is never retried, so a missing entry cannot cause a loop.
+  const requestedImageKeysRef = useRef(new Set<string>())
+  useEffect(() => {
+    if (!activeChatSessionId) return
+    const sessionId = activeChatSessionId
+    for (const message of messages) {
+      for (const part of message.content) {
+        const key = part.imageStoreKey
+        if (part.type !== 'image' || !key || part.imageBase64 || requestedImageKeysRef.current.has(key)) continue
+        requestedImageKeysRef.current.add(key)
+        void getChatImage(key).then((stored) => {
+          if (!stored) return
+          // Re-read the message: it may have changed while the lookup was running.
+          const latest = useAppStore
+            .getState()
+            .chatSessions.find((s) => s.id === sessionId)
+            ?.messages.find((m) => m.id === message.id)
+          if (!latest) return
+          updateChatMessage(sessionId, message.id, {
+            content: latest.content.map((p) =>
+              p.imageStoreKey === key && !p.imageBase64
+                ? {
+                    ...p,
+                    imageBase64: stored.imageBase64,
+                    imageMimeType: stored.imageMimeType,
+                    imagePreviewUrl: buildImageDataUrl(stored.imageBase64, stored.imageMimeType),
+                  }
+                : p,
+            ),
+          })
+        })
+      }
+    }
+  }, [activeChatSessionId, messages, updateChatMessage])
   const canResumeDeepResearch = Boolean(
     !isSending
     && !inputText.trim()
@@ -1777,8 +1848,23 @@ export function ChatPage() {
         <DragOverlay label={t.chat_attach_image} zIndex="z-50" showRing />
       )}
 
-      {(voiceErrorMessage || searchFallbackNotice) && (
+      {(voiceErrorMessage || searchFallbackNotice || searchUnavailable) && (
         <div className="notification-viewport">
+          {searchUnavailable && (
+            <NotificationToast
+              tone="warning"
+              title={t.chat_web_search_unavailable_title}
+              message={t.chat_web_search_unavailable}
+              actionLabel={t.translate_error_open_settings}
+              onAction={() => {
+                setSearchUnavailable(false)
+                openSettings()
+              }}
+              dismissLabel={t.translate_error_dismiss}
+              onDismiss={() => setSearchUnavailable(false)}
+              className="fade-in"
+            />
+          )}
           {searchFallbackNotice && (
             <NotificationToast
               tone="warning"

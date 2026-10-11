@@ -35,8 +35,8 @@ import { createClientId } from '../utils/id'
 import { extractImageFromClipboard, resizeImageFile } from '../utils/imageUtils'
 import { eventMatchesShortcut, shouldSendChatMessage } from '../utils/keyboardShortcuts'
 import { formatModelName } from '../utils/modelDisplay'
-import { formatTime } from './history/historyUtils'
 import { estimateUsageCost } from '../utils/usageCost'
+import { formatTime } from './history/historyUtils'
 
 const CHAT_TEXTAREA_MAX_HEIGHT_PX = 160
 const CHAT_STREAM_BUFFER_INTERVAL_MS = 60

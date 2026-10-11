@@ -31,6 +31,7 @@ const en: Translations = {
   command_palette_verify_label: 'Ask AI with web search',
   command_palette_verify_description: 'Check “{query}” against web sources',
   command_palette_translate_text_description: 'Translate “{text}”',
+  command_palette_dictionary_text_description: 'Look up “{text}”',
   translate_placeholder: 'Enter or paste text…',
   translate_result_placeholder: 'Translation will appear here…',
   translate_btn: 'Translate',
