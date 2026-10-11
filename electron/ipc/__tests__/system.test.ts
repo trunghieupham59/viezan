@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const electronMocks = vi.hoisted(() => ({
+  nativeTheme: { themeSource: 'system' },
   relaunch: vi.fn(),
   quit: vi.fn(),
   exit: vi.fn(),
@@ -10,6 +11,7 @@ const electronMocks = vi.hoisted(() => ({
 
 vi.mock('electron', () => ({
   app: { relaunch: electronMocks.relaunch, quit: electronMocks.quit, exit: electronMocks.exit },
+  nativeTheme: electronMocks.nativeTheme,
   shell: { openExternal: electronMocks.openExternal },
   systemPreferences: { getMediaAccessStatus: vi.fn() },
 }))
@@ -59,5 +61,19 @@ describe('system handlers', () => {
     await expect(handlers['app:openExternal']({}, 'https://example.org.evil.io/')).resolves.toBeUndefined()
     expect(electronMocks.openExternal).toHaveBeenCalledTimes(1)
     spy.mockRestore()
+  })
+
+  it('app:setWindowTheme applies only valid themes from the main window', () => {
+    const mainContents = { isDestroyed: () => false }
+    const handlers = setup(() => ({ isDestroyed: () => false, webContents: mainContents }))
+
+    handlers['app:setWindowTheme']({ sender: mainContents }, 'dark')
+    expect(electronMocks.nativeTheme.themeSource).toBe('dark')
+
+    handlers['app:setWindowTheme']({ sender: mainContents }, 'neon')
+    expect(electronMocks.nativeTheme.themeSource).toBe('dark')
+
+    handlers['app:setWindowTheme']({ sender: { isDestroyed: () => false } }, 'light')
+    expect(electronMocks.nativeTheme.themeSource).toBe('dark')
   })
 })

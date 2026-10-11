@@ -64,6 +64,12 @@ function App() {
     return () => mq.removeEventListener('change', handler)
   }, [theme])
 
+  // Keep the native window chrome (Windows caption buttons, startup colour)
+  // in step with the in-app theme choice, not just the OS preference.
+  useEffect(() => {
+    void window.api?.setWindowTheme?.(theme)
+  }, [theme])
+
   // Auto-detect system locale on startup
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally run only once on mount
   useEffect(() => {
@@ -172,6 +178,7 @@ function App() {
   }, [setKeyStatus])
 
   const isMac = window.api?.platform === 'darwin'
+  const hasAppTitlebar = isMac || window.api?.platform === 'win32'
   const fallbackFeatureLabel = activePage === 'live'
     ? t.nav_live_translate
     : activePage === 'dictionary'
@@ -184,7 +191,7 @@ function App() {
 
   return (
     <AppShell
-      showMacTitlebar={isMac}
+      showTitlebar={hasAppTitlebar}
       useNativeMaterial={isMac && theme === 'system'}
       primaryNavigation={<PrimaryNavigationSidebar />}
       contextSidebar={activePage === 'chat' ? <AIChatSidebar /> : undefined}

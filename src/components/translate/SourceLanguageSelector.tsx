@@ -1,6 +1,7 @@
 import { TARGET_LANGUAGES } from '../../constants/providers'
 import { useAppStore, useT } from '../../store/useAppStore'
-import { AutoDetectIcon, ChevronDownIcon, SpinnerIcon } from '../ui/icons'
+import { AutoDetectIcon, SpinnerIcon } from '../ui/icons'
+import { LanguageOverflowPicker } from '../ui/molecules'
 import { getSmartTopLangs } from './langSelectorUtils'
 
 interface SourceLanguageSelectorProps {
@@ -72,28 +73,16 @@ export function SourceLanguageSelector({
         ))}
       </div>
 
-      {/* ↓ overflow dropdown */}
-      <div
-        className={`btn-icon relative flex-shrink-0 border-transparent bg-transparent shadow-none
-                    ${sourceIsOther ? pillActive : 'text-gray-400 dark:bg-transparent dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`}
-      >
-        <ChevronDownIcon className="w-4 h-4" />
-        {sourceIsOther && (
-          <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-gray-600 dark:bg-gray-400 rounded-full" />
-        )}
-        <select
-          value={sourceIsOther ? sourceLang : ''}
-          onChange={(e) => { if (e.target.value) handleSourceChange(e.target.value) }}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-        >
-          <option value="" disabled />
-          {TARGET_LANGUAGES.map((l) => (
-            <option key={l.code} value={l.code}>
-              {langNames[l.code] ?? l.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <LanguageOverflowPicker
+        value={sourceLang === 'auto' ? null : sourceLang}
+        options={TARGET_LANGUAGES}
+        onChange={handleSourceChange}
+        getLabel={(l) => langNames[l.code] ?? l.name}
+        label={t.language_picker_more}
+        searchPlaceholder={t.language_picker_search_placeholder}
+        noResultsLabel={t.language_picker_no_results}
+        active={sourceIsOther}
+      />
     </div>
   )
 }

@@ -4,8 +4,7 @@ import { LiveTargetLangBar } from '../components/live/LiveTargetLangBar'
 import { SegmentRow } from '../components/live/SegmentRow'
 import { TranslationRow } from '../components/live/TranslationRow'
 import { MarkdownText } from '../components/MarkdownText'
-import { ModelSelector } from '../components/ModelSelector'
-import { InterpretAIConfiguration } from '../components/organisms'
+import { AIModelPickerField, InterpretAIConfiguration, InterpretSubtitleConfiguration } from '../components/organisms'
 import { Button } from '../components/ui/atoms'
 import { 
   AlertTriangleIcon,
@@ -19,7 +18,6 @@ import {
   MonitorIcon,
   SpinnerIcon,
   StopIcon,
-  SubtitlesIcon,
   TranslateIcon,
   TrashIcon,
   XIcon,} from '../components/ui/icons'
@@ -94,7 +92,7 @@ export function LiveTranslatePage() {
     isActive, rawTranscript, translation, isTranscribing, isTranslating,
     pipelineError,
     showSubtitles, setShowSubtitles,
-    showSubtitleConfig, setShowSubtitleConfig, subtitleSettings, setSubtitleSettings,
+    subtitleSettings, setSubtitleSettings,
     showSummaryBtn, summary, isSummarizing,
     actionItems, isExtractingActionItems, decisions, isExtractingDecisions,
     speakerNameMap, sessionStartTime,
@@ -276,11 +274,8 @@ export function LiveTranslatePage() {
               translationLabel={t.ai_configuration_translation_section}
               transcriptionLabel={t.ai_configuration_transcription_section}
               outputLabel={t.ai_configuration_output_section}
-              onOpenChange={(open) => {
-                setShowAIConfig(open)
-                if (!open) setShowSubtitleConfig(false)
-              }}
-              modelControl={<ModelSelector />}
+              onOpenChange={setShowAIConfig}
+              modelControl={<AIModelPickerField />}
               audioSourceControl={(
                 <div className="live-ai-config-options">
                       <Button
@@ -322,96 +317,15 @@ export function LiveTranslatePage() {
                     </div>
               )}
               subtitleControl={(
-                <div className="live-ai-config-options live-ai-config-options--relative">
-                      <Button
-                        size="md"
-                        shape="pill"
-                        variant={showSubtitles ? 'primary' : 'neutral'}
-                        appearance={showSubtitles ? 'soft' : 'outline'}
-                        onClick={() => setShowSubtitles(v => !v)}
-                        title={showSubtitles ? t.live_subtitles_hide_title : t.live_subtitles_show_title}
-                      >
-                        <SubtitlesIcon />
-                        <span>{showSubtitles ? t.live_subtitles_on : t.translate_phonetic_off}</span>
-                      </Button>
-                      <Button
-                        size="md"
-                        shape="icon"
-                        variant={showSubtitleConfig ? 'primary' : 'neutral'}
-                        appearance={showSubtitleConfig ? 'soft' : 'ghost'}
-                        onClick={() => setShowSubtitleConfig(v => !v)}
-                        aria-label={t.live_subtitle_config_title}
-                        aria-expanded={showSubtitleConfig}
-                      >
-                        <GearIcon />
-                      </Button>
-
-                      {/* Subtitle settings nested popup */}
-                      {showSubtitleConfig && (
-                        <div className="floating-panel absolute top-full mt-2 left-0 z-50 w-64 p-3 flex flex-col gap-3 select-none">
-                          <div>
-                            <p className="ui-kicker mb-1.5">
-                              {t.live_subtitle_text_color}
-                            </p>
-                            <div className="flex gap-2 flex-wrap">
-                              {subtitleColors.map(({ label, value }) => (
-                                <button
-                                  key={value} type="button" title={label}
-                                  onClick={() => setSubtitleSettings(s => ({ ...s, textColor: value }))}
-                                  className={[
-                                    'btn-swatch',
-                                    subtitleSettings.textColor === value ? 'btn-swatch-active' : '',
-                                  ].join(' ')}
-                                  style={{ background: value }}
-                                  aria-label={label}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                          <div>
-                            <p className="ui-kicker mb-1.5">
-                              {t.live_subtitle_font_size} — {subtitleSettings.fontSize}px
-                            </p>
-                            <div className="segmented-control">
-                              {SUBTITLE_FONT_SIZES.map(({ size, label }) => (
-                                <button
-                                  key={size} type="button"
-                                  onClick={() => setSubtitleSettings(s => ({ ...s, fontSize: size }))}
-                                  className={[
-                                    'btn-segment flex-1',
-                                    subtitleSettings.fontSize === size ? 'btn-segment-active' : '',
-                                  ].join(' ')}
-                                >
-                                  {label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          <div>
-                            <p className="ui-kicker mb-1.5">
-                              {t.live_subtitle_bg_opacity} — {subtitleSettings.bgOpacity}%
-                            </p>
-                            <input
-                              type="range" min={0} max={100} step={5}
-                              value={subtitleSettings.bgOpacity}
-                              onChange={e => setSubtitleSettings(s => ({ ...s, bgOpacity: Number(e.target.value) }))}
-                              className="w-full accent-gray-500 cursor-pointer"
-                            />
-                            <div className="ui-micro mt-0.5 flex justify-between text-gray-300 dark:text-gray-600">
-                              <span>{t.live_subtitle_transparent}</span>
-                              <span>{t.live_subtitle_opaque}</span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setSubtitleSettings({ ...DEFAULT_SUBTITLE_SETTINGS })}
-                            className="btn-link btn-xs justify-center"
-                          >
-                            {t.live_subtitle_reset}
-                          </button>
-                        </div>
-                      )}
-                </div>
+                <InterpretSubtitleConfiguration
+                  enabled={showSubtitles}
+                  onEnabledChange={setShowSubtitles}
+                  settings={subtitleSettings}
+                  onSettingsChange={setSubtitleSettings}
+                  onReset={() => setSubtitleSettings({ ...DEFAULT_SUBTITLE_SETTINGS })}
+                  colors={subtitleColors}
+                  fontSizes={SUBTITLE_FONT_SIZES}
+                />
               )}
             />
             </div>

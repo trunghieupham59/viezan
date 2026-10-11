@@ -1,6 +1,6 @@
 import { TARGET_LANGUAGES } from '../../constants/providers'
-import { useAppStore } from '../../store/useAppStore'
-import { ChevronDownIcon } from '../ui/icons'
+import { useAppStore, useT } from '../../store/useAppStore'
+import { LanguageOverflowPicker } from '../ui/molecules'
 import { getSmartTopLangs } from './langSelectorUtils'
 
 interface TargetLanguageSelectorProps {
@@ -15,6 +15,7 @@ export function TargetLanguageSelector({
   langNames,
 }: TargetLanguageSelectorProps) {
   const { langUsage, recordLangUsage } = useAppStore()
+  const t = useT()
 
   const targetTopLangs = getSmartTopLangs(langUsage, targetLang)
   const targetIsOther = !targetTopLangs.includes(targetLang)
@@ -48,27 +49,16 @@ export function TargetLanguageSelector({
         ))}
       </div>
 
-      {/* ↓ overflow dropdown */}
-      <div
-        className={`btn-icon relative flex-shrink-0 border-transparent bg-transparent shadow-none
-                    ${targetIsOther ? pillActive : 'text-gray-400 dark:bg-transparent dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'}`}
-      >
-        <ChevronDownIcon className="w-4 h-4" />
-        {targetIsOther && (
-          <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-gray-600 dark:bg-gray-400 rounded-full" />
-        )}
-        <select
-          value={targetLang}
-          onChange={(e) => handleTargetChange(e.target.value)}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-        >
-          {TARGET_LANGUAGES.map((l) => (
-            <option key={l.code} value={l.code}>
-              {langNames[l.code] ?? l.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <LanguageOverflowPicker
+        value={targetLang}
+        options={TARGET_LANGUAGES}
+        onChange={handleTargetChange}
+        getLabel={(l) => langNames[l.code] ?? l.name}
+        label={t.language_picker_more}
+        searchPlaceholder={t.language_picker_search_placeholder}
+        noResultsLabel={t.language_picker_no_results}
+        active={targetIsOther}
+      />
     </div>
   )
 }

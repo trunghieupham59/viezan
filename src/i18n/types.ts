@@ -127,6 +127,7 @@ export interface Translations {
   ai_configuration_new_chat_scope: string
   ai_configuration_translate_scope: string
   ai_configuration_interpret_scope: string
+  ai_configuration_dictionary_scope: string
   ai_configuration_interpret_active_scope: string
   ai_configuration_models_section: string
   ai_configuration_translation_section: string
@@ -137,6 +138,7 @@ export interface Translations {
   translate_to_label: string
   language_picker_search_placeholder: string
   language_picker_no_results: string
+  language_picker_more: string
   translate_source_content_label: string
   translate_result_content_label: string
   translate_detecting_language: string
@@ -360,6 +362,9 @@ export interface Translations {
   settings_local_ai_runtime_speed: string
   settings_local_ai_runtime_latency: string
   settings_local_ai_benchmark_duration: string
+  settings_local_ai_gpu_none: string
+  settings_local_ai_gpu_offload: string
+  settings_local_ai_gpu_spill_warning: string
   settings_local_ai_suggested_models: string
   settings_local_ai_model_size: string
   settings_local_ai_download_hint: string

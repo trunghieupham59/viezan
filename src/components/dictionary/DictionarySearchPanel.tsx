@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { LANGUAGES, TARGET_LANGUAGES } from '../../constants/providers'
 import type { Translations } from '../../i18n'
+import { LanguageSelector } from '../LanguageSelector'
 import {
   AlertTriangleIcon,
   BookIcon,
@@ -76,30 +76,21 @@ export function DictionarySearchPanel({
   const charLength = term.length
   const isCharOver = charLength > maxTermChars
 
-  const sourceOptions = LANGUAGES
-  const targetOptions = TARGET_LANGUAGES
-
   return (
     <form onSubmit={handleSubmit} className="flex-shrink-0 space-y-2">
       {/* ── Hero command bar ───────────────────────────────────────────── */}
       <div className="surface-panel surface-panel-focus">
         <div className="flex items-center gap-1.5 p-1.5">
-          {/* Source language — borderless inline select */}
-          <div className="relative flex-shrink-0">
-            <select
-              value={sourceLang}
-              onChange={(e) => onSourceLangChange(e.target.value)}
-              className="h-9 cursor-pointer appearance-none rounded-md bg-transparent pl-3 pr-7 text-sm font-medium text-gray-700 outline-none transition-colors hover:bg-gray-100 focus:bg-gray-100 dark:text-gray-200 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
-              aria-label={t.dictionary_source_lang}
-            >
-              {sourceOptions.map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {t.lang_names[lang.code] ?? lang.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-400" />
-          </div>
+          {/* Source language — borderless inline picker */}
+          <LanguageSelector
+            value={sourceLang}
+            onChange={onSourceLangChange}
+            includeAuto
+            variant="inline"
+            label={t.dictionary_source_lang}
+            labelVisuallyHidden
+            className="flex-shrink-0"
+          />
 
           <span aria-hidden className="h-5 w-px flex-shrink-0 bg-gray-200 dark:bg-neutral-800" />
 
@@ -141,21 +132,14 @@ export function DictionarySearchPanel({
           <span aria-hidden className="h-5 w-px flex-shrink-0 bg-gray-200 dark:bg-neutral-800" />
 
           {/* Target language */}
-          <div className="relative flex-shrink-0">
-            <select
-              value={targetLang}
-              onChange={(e) => onTargetLangChange(e.target.value)}
-              className="h-9 cursor-pointer appearance-none rounded-md bg-transparent pl-3 pr-7 text-sm font-medium text-gray-700 outline-none transition-colors hover:bg-gray-100 focus:bg-gray-100 dark:text-gray-200 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
-              aria-label={t.dictionary_target_lang}
-            >
-              {targetOptions.map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {t.lang_names[lang.code] ?? lang.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDownIcon className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-400" />
-          </div>
+          <LanguageSelector
+            value={targetLang}
+            onChange={onTargetLangChange}
+            variant="inline"
+            label={t.dictionary_target_lang}
+            labelVisuallyHidden
+            className="flex-shrink-0"
+          />
 
           {/* Submit */}
           <button

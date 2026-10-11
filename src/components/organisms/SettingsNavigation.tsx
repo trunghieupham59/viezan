@@ -49,7 +49,11 @@ export function SettingsNavigation<Id extends string>({
               aria-current={active ? 'true' : undefined}
             >
               <Icon className={mode === 'sidebar' ? 'w-4 h-4 flex-shrink-0' : 'w-3.5 h-3.5 flex-shrink-0'} />
-              <span className={mode === 'sidebar' ? 'min-w-0 flex-1 truncate' : undefined}>
+              {/* `truncate` clips overflow; the button's line-height: 1 would cut
+                  Vietnamese diacritics and descenders, so restore a token line height. */}
+              <span className={mode === 'sidebar'
+                ? 'min-w-0 flex-1 truncate leading-[var(--vzn-line-normal)]'
+                : undefined}>
                 {itemLabel}
               </span>
             </Button>

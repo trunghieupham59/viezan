@@ -1,5 +1,5 @@
 import type { BrowserWindow, IpcMain } from 'electron'
-import { app, shell, systemPreferences } from 'electron'
+import { app, nativeTheme, shell, systemPreferences } from 'electron'
 import { isAllowedExternalUrl } from './externalUrl'
 import { isSenderWindow } from './senderGuard'
 
@@ -20,6 +20,15 @@ export function registerSystemHandlers(ipc: IpcMain, getMainWindow?: () => Brows
     } catch (err) {
       console.error('[openExternal] failed:', err)
     }
+  })
+
+  // ── Sync native window chrome with the in-app theme ─────────────────────
+  // `themeSource` drives nativeTheme.shouldUseDarkColors, which in turn
+  // refreshes the window background and Windows title bar overlay.
+  ipc.handle('app:setWindowTheme', (event, theme: unknown) => {
+    if (getMainWindow && !isSenderWindow(event, getMainWindow)) return
+    if (theme !== 'light' && theme !== 'dark' && theme !== 'system') return
+    nativeTheme.themeSource = theme
   })
 
   // Relaunch through the normal quit path so `will-quit` cleanup (global

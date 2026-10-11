@@ -168,7 +168,6 @@ export function useLiveTranslate() {
   // ── Subtitle overlay state ─────────────────────────────────────────────────
   const [showSubtitles,      setShowSubtitles]      = useState(false)
   const [latestSubtitle,     setLatestSubtitle]     = useState('')
-  const [showSubtitleConfig, setShowSubtitleConfig] = useState(false)
   const [subtitleSettings,   setSubtitleSettings]   = useState<SubtitleSettings>({ ...DEFAULT_SUBTITLE_SETTINGS })
   // Ref so processChunk (a stable useCallback) can read current subtitle state
   const showSubtitlesRef = useRef(false)
@@ -1835,8 +1834,6 @@ export function useLiveTranslate() {
     showSubtitles,
     setShowSubtitles,
     latestSubtitle,
-    showSubtitleConfig,
-    setShowSubtitleConfig,
     subtitleSettings,
     setSubtitleSettings,
     // Realtime segments + interim text

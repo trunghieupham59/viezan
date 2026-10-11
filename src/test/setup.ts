@@ -100,6 +100,7 @@ if (typeof window !== 'undefined') {
       checkScreenPermission: vi.fn().mockResolvedValue('denied'),
       openExternal: vi.fn().mockResolvedValue(undefined),
       relaunchApp: vi.fn().mockResolvedValue(undefined),
+      setWindowTheme: vi.fn().mockResolvedValue(undefined),
       keychain: {
         save: vi.fn().mockResolvedValue({ success: true }),
         get: vi.fn().mockResolvedValue({ exists: false, masked: null }),

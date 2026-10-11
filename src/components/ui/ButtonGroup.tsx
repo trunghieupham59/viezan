@@ -37,18 +37,14 @@ export function ButtonGroup<T extends string | number>({
   containerClassName = '',
 }: ButtonGroupProps<T>) {
   return (
-    <div className={`inline-flex items-center gap-2 ${containerClassName}`}>
+    <div className={`segmented-control ${containerClassName}`}>
       {options.map((opt) => (
         <button
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
-          className={[
-            'btn-segment min-h-10 rounded-lg border border-transparent px-4 shadow-none',
-            value === opt.value
-              ? 'btn-segment-active border-[var(--vzn-accent-border)]'
-              : 'bg-transparent hover:bg-[var(--vzn-surface-hover)]',
-          ].join(' ')}
+          aria-pressed={value === opt.value}
+          className={`btn-segment px-4 shadow-none ${value === opt.value ? 'btn-segment-active' : ''}`}
         >
           {opt.label}
         </button>

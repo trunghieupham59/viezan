@@ -347,7 +347,10 @@ export function ChatPageV2() {
   useEffect(() => {
     if (!showAIConfig) return
     const handleOutside = (e: MouseEvent) => {
-      if (aiConfigRef.current && !aiConfigRef.current.contains(e.target as Node)) setShowAIConfig(false)
+      const target = e.target as Element
+      // The model picker is portaled to document.body, so it sits outside aiConfigRef.
+      if (target.closest?.('.model-picker-panel')) return
+      if (aiConfigRef.current && !aiConfigRef.current.contains(target)) setShowAIConfig(false)
     }
     document.addEventListener('mousedown', handleOutside)
     return () => document.removeEventListener('mousedown', handleOutside)

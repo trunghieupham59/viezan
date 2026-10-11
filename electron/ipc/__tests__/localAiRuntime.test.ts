@@ -450,7 +450,8 @@ describe('managed Ollama runtime', () => {
       stopManagedLocalAiRuntime()
 
       expect(killSpy).toHaveBeenCalledWith(-child.pid, 'SIGTERM')
-      expect(cp.execFileSync).not.toHaveBeenCalled()
+      // GPU detection also uses execFileSync (nvidia-smi); only taskkill is off-limits here.
+      expect(cp.execFileSync).not.toHaveBeenCalledWith('taskkill', expect.anything(), expect.anything())
     })
 
     it('falls back to child.kill when taskkill fails', async () => {

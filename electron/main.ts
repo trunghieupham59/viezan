@@ -62,7 +62,12 @@ if (process.platform === 'win32' && app.isPackaged) {
 // ── Window constants ──────────────────────────────────────────────────────────
 /** Keep native startup/fallback colors aligned with renderer design tokens. */
 const WIN_BG_DARK = '#161618'
-const WIN_BG_LIGHT = '#ECECEF'
+const WIN_BG_LIGHT = '#EEEEEF'
+/** Windows title bar overlay: strip colour = --vzn-titlebar-bg, glyphs = --vzn-text-muted family. */
+const WIN_TITLEBAR_DARK = { color: '#242426', symbolColor: '#E5E5EA' }
+const WIN_TITLEBAR_LIGHT = { color: '#EEEEEF', symbolColor: '#48484A' }
+/** Must match --vzn-titlebar-height in tokens.css. */
+const TITLEBAR_HEIGHT_PX = 40
 const MACOS_WINDOW_VIBRANCY = 'under-window' as const
 const QUICK_CHAT_WIDTH = 860
 const QUICK_CHAT_HEIGHT = 540
@@ -83,6 +88,11 @@ function getMainWindowBackgroundColor(): string {
   return nativeTheme.shouldUseDarkColors ? WIN_BG_DARK : WIN_BG_LIGHT
 }
 
+function getWindowsTitleBarOverlay() {
+  const colors = nativeTheme.shouldUseDarkColors ? WIN_TITLEBAR_DARK : WIN_TITLEBAR_LIGHT
+  return { ...colors, height: TITLEBAR_HEIGHT_PX }
+}
+
 function shouldUseMacWindowMaterial(): boolean {
   return process.platform === 'darwin'
     && !nativeTheme.prefersReducedTransparency
@@ -95,6 +105,9 @@ function syncMainWindowAppearance(): void {
   mainWindow.setBackgroundColor(getMainWindowBackgroundColor())
   if (process.platform === 'darwin') {
     mainWindow.setVibrancy(shouldUseMacWindowMaterial() ? MACOS_WINDOW_VIBRANCY : null)
+  }
+  if (process.platform === 'win32') {
+    mainWindow.setTitleBarOverlay(getWindowsTitleBarOverlay())
   }
 }
 
@@ -115,8 +128,13 @@ function createWindow() {
     minWidth: 1200,
     minHeight: 700,
     title: 'Viezan',
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    // macOS and Windows hide the native title bar; the renderer's AppShell
+    // draws the draggable strip and the OS keeps its window controls on top.
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : process.platform === 'win32' ? 'hidden' : 'default',
     trafficLightPosition: { x: 16, y: 14 },
+    ...(process.platform === 'win32'
+      ? { titleBarOverlay: getWindowsTitleBarOverlay(), autoHideMenuBar: true }
+      : {}),
     backgroundColor: getMainWindowBackgroundColor(),
     ...(useMacWindowMaterial
       ? { vibrancy: MACOS_WINDOW_VIBRANCY, visualEffectState: 'followWindow' as const }

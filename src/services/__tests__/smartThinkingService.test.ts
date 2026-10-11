@@ -337,6 +337,87 @@ describe('smartThinkingService', () => {
     expect(finalPrompt).toContain('Scale depth to the task')
   })
 
+  it('skips the classifier model call for local providers unless web search is forced', async () => {
+    vi.mocked(window.api.chat).mockResolvedValueOnce({ success: true, reply: 'Hôm nay là thứ Hai.' })
+
+    await smartThinkingService.run({
+      provider: 'local',
+      model: 'gemma3:12b',
+      question: 'hôm nay là thứ mấy?',
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'hôm nay là thứ mấy?' }] }],
+      uiText: {
+        webSearchStepLabelPrefix: 'Search',
+        webSearchSummaryTitle: 'Summary',
+        webSearchDefaultReason: 'Search is needed.',
+        webSearchSourcesTitle: 'Sources',
+        webSearchNoSources: 'No sources',
+        webSearchNoResults: 'No matching web results.',
+        webSearchErrorFallback: 'Search failed',
+        noResponseError: 'No response',
+        unknownError: 'Unknown error',
+      },
+      callbacks: {
+        onStepStart: vi.fn(() => 'step-1'),
+        onStepComplete: vi.fn(),
+        onStepError: vi.fn(),
+        onAnswerStart: vi.fn(() => 'answer-1'),
+        onAnswerToken: vi.fn(),
+        onAnswerComplete: vi.fn(),
+        onAnswerError: vi.fn(),
+      },
+    })
+
+    // Only the answer call reaches the model; no JSON routing call precedes it.
+    expect(window.api.chat).toHaveBeenCalledTimes(1)
+    const answerCall = vi.mocked(window.api.chat).mock.calls[0][0]
+    expect(answerCall.systemPrompt ?? '').toContain('You are Smart Thinking')
+    expect(answerCall.systemPrompt ?? '').not.toContain('Trace root causes')
+    expect(window.api.webSearch).not.toHaveBeenCalled()
+  })
+
+  it('searches the web for time-sensitive local questions without a classifier call', async () => {
+    window.api.webSearch = vi.fn().mockResolvedValue({
+      success: true,
+      results: [{ title: 'Jack album', url: 'https://example.com/jack', content: 'New album released.' }],
+    })
+    vi.mocked(window.api.chat).mockResolvedValueOnce({ success: true, reply: 'Album mới nhất là ... [1]' })
+
+    const callbacks = {
+      onStepStart: vi.fn(() => 'step-1'),
+      onStepComplete: vi.fn(),
+      onStepError: vi.fn(),
+      onAnswerStart: vi.fn(() => 'answer-1'),
+      onAnswerToken: vi.fn(),
+      onAnswerComplete: vi.fn(),
+      onAnswerError: vi.fn(),
+    }
+
+    await smartThinkingService.run({
+      provider: 'local',
+      model: 'gemma3:12b',
+      question: 'album nhạc mới nhất của Jack',
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'album nhạc mới nhất của Jack' }] }],
+      uiText: {
+        webSearchStepLabelPrefix: 'Search',
+        webSearchSummaryTitle: 'Summary',
+        webSearchDefaultReason: 'Search is needed.',
+        webSearchSourcesTitle: 'Sources',
+        webSearchNoSources: 'No sources',
+        webSearchNoResults: 'No matching web results.',
+        webSearchErrorFallback: 'Search failed',
+        noResponseError: 'No response',
+        unknownError: 'Unknown error',
+      },
+      callbacks,
+    })
+
+    expect(window.api.webSearch).toHaveBeenCalledTimes(1)
+    expect(callbacks.onStepStart).toHaveBeenCalledTimes(1)
+    // One model call only: the grounded answer. No routing call before it.
+    expect(window.api.chat).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(window.api.chat).mock.calls[0][0].systemPrompt ?? '').toContain('WEB SEARCH RESULTS')
+  })
+
   it('guards real-time answers when Smart Thinking cannot retrieve usable web evidence', async () => {
     const classifierReply = JSON.stringify({
       needs_web: true,

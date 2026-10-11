@@ -2,10 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { DictionaryHistoryPanel, type DictionaryListTab } from '../components/dictionary/DictionaryHistoryPanel'
 import { DictionaryResultPanel, type SelectionLookupSaveParams } from '../components/dictionary/DictionaryResultPanel'
 import { DictionarySearchPanel } from '../components/dictionary/DictionarySearchPanel'
-import { ModelSelector } from '../components/ModelSelector'
+import { DictionaryAIConfiguration } from '../components/organisms'
 import { DictionaryWorkbenchTemplate } from '../components/templates'
-import { Button } from '../components/ui/atoms'
-import { GearIcon } from '../components/ui/icons'
 import { RecoverableError } from '../components/ui/molecules'
 import {
   dictionaryService,
@@ -114,20 +112,8 @@ export function DictionaryPage() {
   const lookupAbortRef = useRef<AbortController | null>(null)
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  /** Controls visibility of the AI config popup — mirrors TranslatePage. */
+  /** Controls visibility of the AI configuration popover. */
   const [showAIConfig, setShowAIConfig] = useState(false)
-  const aiConfigRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!showAIConfig) return
-    const handleOutside = (e: MouseEvent) => {
-      if (aiConfigRef.current && !aiConfigRef.current.contains(e.target as Node)) {
-        setShowAIConfig(false)
-      }
-    }
-    document.addEventListener('mousedown', handleOutside)
-    return () => document.removeEventListener('mousedown', handleOutside)
-  }, [showAIConfig])
 
   useEffect(() => {
     const cleanTerm = term.trim()
@@ -462,30 +448,14 @@ export function DictionaryPage() {
               <h1 className="reliability-page-title text-base font-bold">{t.dictionary_title}</h1>
               <p className="reliability-page-subtitle mt-0.5 text-xs">{t.dictionary_subtitle}</p>
             </div>
-            <div className="relative flex-shrink-0" ref={aiConfigRef}>
-              <Button
-                size="md"
-                shape="icon"
-                variant={showAIConfig ? 'primary' : 'neutral'}
-                appearance={showAIConfig ? 'soft' : 'ghost'}
-                onClick={() => setShowAIConfig((visible) => !visible)}
-                title={t.translate_ai_config_title}
-                aria-expanded={showAIConfig}
-                aria-haspopup="dialog"
-              >
-                <GearIcon className="h-3.5 w-3.5"/>
-              </Button>
-              {showAIConfig && (
-                <div
-                  className="dictionary-ai-config-panel floating-panel ai-config-panel absolute top-full right-0 mt-2 z-50 p-4 flex flex-col gap-3"
-                  role="dialog"
-                  aria-label={t.translate_ai_config_title}
-                >
-                  <h2 className="popover-title">{t.translate_ai_config_title}</h2>
-                  <ModelSelector/>
-                </div>
-              )}
-            </div>
+            <DictionaryAIConfiguration
+              open={showAIConfig}
+              title={t.ai_configuration_title}
+              scopeDescription={t.ai_configuration_dictionary_scope}
+              closeLabel={t.settings_close}
+              modelsLabel={t.ai_configuration_models_section}
+              onOpenChange={setShowAIConfig}
+            />
           </div>
       )}
       search={(

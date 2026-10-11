@@ -77,6 +77,12 @@
   padding: var(--vzn-space-3);
 }
 
+/* With several sections the popover body scrolls; sections must keep their
+   content height instead of shrinking and letting an expanded list overlap the next one. */
+.ai-config-section:not(:only-child) {
+  flex-shrink: 0;
+}
+
 .ai-config-section[aria-disabled='true'] {
   opacity: var(--vzn-opacity-disabled);
 }
@@ -122,6 +128,9 @@
 .ai-model-field__model,
 .ai-model-field__provider {
   overflow: hidden;
+  /* Button sets line-height: 1; with overflow clipping that cuts descenders
+     and Vietnamese diacritics. */
+  line-height: var(--vzn-line-normal);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -239,4 +248,116 @@
   min-width: 0;
   justify-content: space-between;
   padding-inline: var(--vzn-space-3);
+}
+
+.ai-subtitle-config {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-3);
+}
+
+.ai-switch-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--vzn-space-3);
+}
+
+.ai-switch-row__icon {
+  width: var(--vzn-icon-md);
+  height: var(--vzn-icon-md);
+  flex: 0 0 auto;
+  color: var(--vzn-text-muted);
+}
+
+.ai-switch-row__copy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--vzn-space-1);
+}
+
+.ai-switch-row__title {
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-lg);
+  font-weight: var(--vzn-weight-medium);
+  line-height: var(--vzn-line-tight);
+}
+
+.ai-switch-row__hint {
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+  line-height: var(--vzn-line-normal);
+}
+
+.ai-subtitle-config__appearance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-3);
+  padding: var(--vzn-space-3);
+  border: 1px solid var(--vzn-border);
+  border-radius: var(--vzn-radius-control);
+  background: var(--vzn-surface-muted);
+}
+
+.ai-subtitle-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ai-subtitle-field__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--vzn-space-2);
+  width: 100%;
+  padding: 0;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-medium);
+}
+
+.ai-subtitle-field__value {
+  color: var(--vzn-text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-subtitle-field__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-1);
+}
+
+.ai-subtitle-swatch {
+  display: block;
+  width: var(--vzn-icon-md);
+  height: var(--vzn-icon-md);
+  border: 1px solid var(--vzn-border-strong);
+  border-radius: var(--vzn-radius-pill);
+}
+
+.ai-subtitle-slider {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--vzn-action);
+  cursor: pointer;
+}
+
+.ai-subtitle-field__scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.ai-subtitle-config__footer {
+  display: flex;
+  justify-content: flex-end;
 }

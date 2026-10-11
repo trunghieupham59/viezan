@@ -135,10 +135,20 @@ function LocalAiProviderCard({
       </div>
 
       {hardware && (
-        <div className="grid grid-cols-3 gap-2 text-xs">
+        <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="settings-inset rounded-lg px-3 py-2">
             <p className="text-gray-400">{t.settings_local_ai_tier}</p>
             <p className="font-medium text-gray-700 dark:text-gray-200">{hardware.tier}</p>
+          </div>
+          <div className="settings-inset rounded-lg px-3 py-2">
+            <p className="text-gray-400">GPU</p>
+            <p className="font-medium text-gray-700 dark:text-gray-200" data-testid="local-ai-gpu">
+              {hardware.vramGb === undefined
+                ? '—'
+                : hardware.vramGb > 0
+                  ? `${hardware.gpuName ? `${hardware.gpuName} · ` : ''}${hardware.vramGb} GB`
+                  : t.settings_local_ai_gpu_none}
+            </p>
           </div>
           <div className="settings-inset rounded-lg px-3 py-2">
             <p className="text-gray-400">RAM</p>
@@ -152,32 +162,48 @@ function LocalAiProviderCard({
       )}
 
       {metrics && (
-        <div className="grid grid-cols-3 gap-2 text-xs">
-          <div className="settings-inset rounded-lg px-3 py-2">
-            <p className="text-gray-400">{t.settings_local_ai_cpu_score}</p>
-            <p className="font-medium text-gray-700 dark:text-gray-200">{metrics.cpuScore}</p>
-          </div>
-          <div className="settings-inset rounded-lg px-3 py-2">
-            <p className="text-gray-400">{t.settings_local_ai_memory_score}</p>
-            <p className="font-medium text-gray-700 dark:text-gray-200">{metrics.memoryScore}</p>
-          </div>
-          <div className="settings-inset rounded-lg px-3 py-2">
-            <p className="text-gray-400">
-              {metrics.runtimeTokensPerSecond ? t.settings_local_ai_runtime_speed : t.settings_local_ai_benchmark_duration}
-            </p>
-            <p className="font-medium text-gray-700 dark:text-gray-200">
-              {metrics.runtimeTokensPerSecond
-                ? `${metrics.runtimeTokensPerSecond} tok/s`
-                : `${Math.round(metrics.durationMs / 100) / 10}s`}
-            </p>
-          </div>
-          {metrics.runtimeLatencyMs && (
-            <div className="col-span-3 settings-inset rounded-lg px-3 py-2">
-              <p className="text-gray-400">{t.settings_local_ai_runtime_latency}</p>
+        <div className="space-y-2 text-xs">
+          {/* One compact row: the benchmark result must not push the model list down. */}
+          <div className="flex gap-2">
+            <div className="settings-inset min-w-0 flex-1 rounded-lg px-3 py-2">
+              <p className="truncate text-gray-400" title={metrics.runtimeModel}>
+                {metrics.runtimeTokensPerSecond
+                  ? `${t.settings_local_ai_runtime_speed}${metrics.runtimeModel ? ` · ${metrics.runtimeModel}` : ''}`
+                  : t.settings_local_ai_benchmark_duration}
+              </p>
               <p className="font-medium text-gray-700 dark:text-gray-200">
-                {metrics.runtimeModel} · {metrics.runtimeLatencyMs}ms
+                {metrics.runtimeTokensPerSecond
+                  ? `${metrics.runtimeTokensPerSecond} tok/s`
+                  : `${Math.round(metrics.durationMs / 100) / 10}s`}
               </p>
             </div>
+            {metrics.runtimeGpuPercent !== undefined && (
+              <div className="settings-inset min-w-0 flex-1 rounded-lg px-3 py-2">
+                <p className="truncate text-gray-400">{t.settings_local_ai_gpu_offload}</p>
+                <p className="font-medium text-gray-700 dark:text-gray-200" data-testid="local-ai-gpu-percent">
+                  {metrics.runtimeGpuPercent}%
+                </p>
+              </div>
+            )}
+            {metrics.runtimeLatencyMs && (
+              <div className="settings-inset min-w-0 flex-1 rounded-lg px-3 py-2">
+                <p className="truncate text-gray-400">{t.settings_local_ai_runtime_latency}</p>
+                <p className="font-medium text-gray-700 dark:text-gray-200">{metrics.runtimeLatencyMs}ms</p>
+              </div>
+            )}
+          </div>
+          {metrics.runtimeGpuPercent !== undefined && metrics.runtimeGpuPercent < 100 && (
+            <p
+              role="status"
+              className="rounded-lg border px-3 py-2"
+              style={{
+                color: 'var(--vzn-warning)',
+                background: 'var(--vzn-warning-soft)',
+                borderColor: 'var(--vzn-warning-border)',
+              }}
+            >
+              {t.settings_local_ai_gpu_spill_warning}
+            </p>
           )}
         </div>
       )}

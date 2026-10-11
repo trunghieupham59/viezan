@@ -28,6 +28,7 @@
  */
 import type { ChatMessage as IpcChatMessage } from './chatService'
 import { chatService } from './chatService'
+import { needsWebSearchHeuristic } from './localWebIntent'
 import {
   type ActionableSearchFallback,
   formatWebSearchResults,
@@ -53,6 +54,7 @@ const SEARCH_CONTEXT_CHARS_PER_RESULT = 2300
 const SEARCH_RESULT_SNIPPET_CHARS = 2000
 const MAX_CLASSIFIER_CONTEXT_MESSAGES = 8
 const MAX_CLASSIFIER_CONTEXT_CHARS = 4000
+const LOCAL_PROVIDER_ID = 'local'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -354,6 +356,17 @@ Core operating contract:
 
 Do not expose a long hidden reasoning trace. Give the user the conclusions, key rationale, tradeoffs, and next actions that matter.`
 
+/**
+ * Compact variant for local models: prompt tokens are re-processed on every turn on
+ * local hardware (often partly on CPU), so the full reasoning contract is trimmed to
+ * the rules that change answer quality.
+ */
+const LOCAL_ANSWER_PROMPT = (date: string) =>
+  `You are Smart Thinking, a careful assistant. Current time: ${date}.
+  • Answer the actual question directly; scale depth to the task and be concise for simple requests.
+  • State assumptions or uncertainty when they matter; do not present time-sensitive facts as verified without current evidence.
+  • Reply in the same language as the user's latest message unless the user asks otherwise.`
+
 const CLASSIFY_PROMPT = (date: string, forceWebSearch = false) =>
   `You are the routing and evidence-planning stage for Smart Thinking. Current time: ${date}.
 ${forceWebSearch
@@ -521,7 +534,21 @@ export const smartThinkingService = {
     // The classifier also runs in forced mode: it resolves follow-up references
     // into a self-contained query and plans freshness/reliability. Its failure
     // is harmless because the forced defaults above already search the raw question.
-    if (hasWebSearchApi() && !signal?.aborted) {
+    // Local models skip the classifier unless Web Search is forced: it is a full,
+    // non-streaming model call, which doubles time-to-first-token on local hardware.
+    // Rule-based intent detection stands in so time-sensitive questions still search.
+    const isLocal = provider === LOCAL_PROVIDER_ID
+    const skipClassifier = isLocal && !forceWebSearch
+    if (skipClassifier && hasWebSearchApi() && needsWebSearchHeuristic(question)) {
+      classify = {
+        ...classify,
+        needsWeb: true,
+        query: question.slice(0, 200),
+        sourceCount: SEARCH_RESULT_BUDGET.fallback,
+        freshnessRequirement: 'current-as-of-now',
+      }
+    }
+    if (hasWebSearchApi() && !signal?.aborted && !skipClassifier) {
       try {
         const classifierContext = formatClassifierContext(messages, question)
         const result = await chatService.send({
@@ -631,7 +658,10 @@ export const smartThinkingService = {
             freshnessRequirement: classify.freshnessRequirement,
             reliabilityRequirement: classify.reliabilityRequirement,
           })
-      : combineSystemPrompt(SMART_THINKING_ANSWER_PROMPT(date), systemPrompt)
+      : combineSystemPrompt(
+          isLocal ? LOCAL_ANSWER_PROMPT(date) : SMART_THINKING_ANSWER_PROMPT(date),
+          systemPrompt,
+        )
 
     let streamed = ''
 

@@ -131,6 +131,7 @@ export function TranslationSourcePane({
               onChange={(event) => onSourceChange(event.target.value)}
               onKeyDown={handleInputKeyDown}
               placeholder={t.translate_placeholder}
+              spellCheck={false}
               aria-busy={isVoiceActive}
               aria-describedby={isVoiceActive ? helperId : `${helperId} ${counterId}`}
               className={`translate-source-input${isVoiceInterim ? ' translate-source-input-interim' : ''}`}

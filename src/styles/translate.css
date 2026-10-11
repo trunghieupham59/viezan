@@ -212,8 +212,7 @@
   background: var(--vzn-surface-raised);
 }
 
-.translate-setting-label,
-.language-picker-label {
+.translate-setting-label {
   color: var(--vzn-text-muted);
   font-size: var(--vzn-font-size-caption);
   font-weight: var(--vzn-weight-semibold);
@@ -238,11 +237,6 @@
   background-color: var(--vzn-surface);
   color: var(--vzn-text);
   font-size: var(--vzn-font-size-md);
-}
-
-.phonetic-select:focus-within .phonetic-select-display {
-  border-color: var(--vzn-action-border);
-  box-shadow: 0 0 0 3px var(--vzn-action-soft);
 }
 
 .translate-workbench {
@@ -355,164 +349,6 @@
 .translate-language-picker {
   width: 100%;
   min-width: 0;
-}
-
-.language-picker {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--vzn-space-1);
-}
-
-.language-picker-trigger.ui-button {
-  width: 100%;
-  justify-content: flex-start;
-  padding-inline: var(--vzn-space-3);
-  font-weight: var(--vzn-weight-medium);
-  line-height: var(--vzn-line-normal);
-}
-
-.language-picker-trigger-label {
-  min-width: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
-  color: var(--vzn-text-strong);
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.language-picker-trigger-status {
-  display: inline-flex;
-  min-width: 0;
-  max-width: 45%;
-  flex: 0 1 auto;
-  align-items: center;
-  gap: var(--vzn-space-1);
-  overflow: hidden;
-  color: var(--vzn-text-muted);
-  font-size: var(--vzn-font-size-caption);
-  font-weight: var(--vzn-weight-regular);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.language-picker-trigger-status > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.language-picker-status-spinner {
-  width: var(--vzn-icon-xs);
-  height: var(--vzn-icon-xs);
-  flex: 0 0 var(--vzn-icon-xs);
-  animation: spin 1s linear infinite;
-}
-
-.language-picker-chevron {
-  width: var(--vzn-icon-xs);
-  height: var(--vzn-icon-xs);
-  flex: 0 0 var(--vzn-icon-xs);
-  color: var(--vzn-text-soft);
-  transition: transform var(--vzn-duration-fast) var(--vzn-ease-standard);
-}
-
-.language-picker-chevron--open {
-  transform: rotate(180deg);
-}
-
-.language-picker-panel {
-  display: flex;
-  min-height: 0;
-  flex-direction: column;
-  gap: var(--vzn-space-2);
-  padding: var(--vzn-space-2);
-  overflow: hidden;
-  border: 1px solid var(--vzn-border);
-  border-radius: var(--vzn-radius-md);
-  background: var(--vzn-surface-raised);
-  box-shadow: var(--vzn-shadow-overlay);
-  animation: fadeSlideIn var(--vzn-duration-fast) var(--vzn-ease-standard);
-}
-
-.language-picker-search-shell {
-  position: relative;
-  flex: 0 0 auto;
-}
-
-.language-picker-search-icon {
-  position: absolute;
-  top: 50%;
-  left: var(--vzn-space-3);
-  z-index: 1;
-  width: var(--vzn-icon-sm);
-  height: var(--vzn-icon-sm);
-  color: var(--vzn-text-soft);
-  pointer-events: none;
-  transform: translateY(-50%);
-}
-
-.language-picker-search.ui-input {
-  padding-left: calc(var(--vzn-space-3) + var(--vzn-icon-sm) + var(--vzn-space-2));
-}
-
-.language-picker-list {
-  display: flex;
-  min-height: 0;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: var(--vzn-space-0-5);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.language-picker-option.ui-button {
-  width: 100%;
-  justify-content: flex-start;
-  padding-inline: var(--vzn-space-3);
-  font-weight: var(--vzn-weight-medium);
-  line-height: var(--vzn-line-normal);
-}
-
-.language-picker-option-copy {
-  display: flex;
-  min-width: 0;
-  flex: 1 1 auto;
-  align-items: center;
-  gap: var(--vzn-space-3);
-}
-
-.language-picker-option-label {
-  overflow: hidden;
-  color: currentColor;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.language-picker-option-native {
-  min-width: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
-  color: var(--vzn-text-soft);
-  font-size: var(--vzn-font-size-sm);
-  font-weight: var(--vzn-weight-regular);
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.language-picker-check {
-  width: var(--vzn-icon-sm);
-  height: var(--vzn-icon-sm);
-  flex: 0 0 var(--vzn-icon-sm);
-}
-
-.language-picker-empty {
-  margin: 0;
-  padding: var(--vzn-space-5) var(--vzn-space-3);
-  color: var(--vzn-text-muted);
-  font-size: var(--vzn-font-size-sm);
-  text-align: center;
 }
 
 .translate-swap-control {
@@ -2119,9 +1955,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .translate-options-panel,
-  .language-picker-panel,
-  .language-picker-status-spinner,
-  .language-picker-chevron,
   .translate-loading-icon,
   .translate-result-state-icon,
   .translate-swap-button svg,

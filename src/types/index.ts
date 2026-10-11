@@ -188,6 +188,10 @@ export interface LocalAiHardwareProfile {
   cpuCount: number
   totalMemoryGb: number
   tier: LocalAiHardwareTier
+  gpuName?: string
+  /** Model-usable accelerator memory in GB; 0 = CPU-only, undefined = unknown. */
+  vramGb?: number
+  gpuMemoryKind?: 'dedicated' | 'unified'
 }
 
 export interface LocalAiDiscoveryResult {
@@ -213,7 +217,11 @@ export interface LocalAiBenchmarkResult {
     durationMs: number
     runtimeModel?: string
     runtimeLatencyMs?: number
+    runtimeLoadMs?: number
     runtimeTokensPerSecond?: number
+    /** Share of the loaded model resident in GPU memory (100 = fully on GPU). */
+    runtimeGpuPercent?: number
+    runtimeVramGb?: number
   }
 }
 
@@ -815,6 +823,8 @@ export interface WindowApi {
   checkScreenPermission: () => Promise<string>
   openExternal: (url: string) => Promise<void>
   relaunchApp: () => Promise<void>
+  /** Aligns native window chrome (title bar overlay, window background) with the in-app theme. */
+  setWindowTheme?: (theme: 'light' | 'dark' | 'system') => Promise<void>
   /**
    * Pre-flight STT availability check — call before starting a Live Translate session.
    * Checks which STT keys are configured (instant, no API call, no decryption) and

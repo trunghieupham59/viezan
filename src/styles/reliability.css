@@ -142,10 +142,6 @@
   color: var(--vzn-text-soft);
 }
 
-.dictionary-ai-config-panel {
-  inline-size: min(var(--vzn-popover-wide), calc(100vw - var(--vzn-space-8)));
-}
-
 .history-search-control {
   position: relative;
   inline-size: min(100%, var(--vzn-history-search-width));

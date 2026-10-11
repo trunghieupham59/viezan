@@ -61,6 +61,7 @@ html.quick-chat-window #root {
 }
 
 .app-titlebar-drag {
+  height: var(--vzn-titlebar-height);
   background: var(--vzn-titlebar-bg);
 }
 
@@ -941,6 +942,12 @@ html:not(.dark) .modal-backdrop {
   -webkit-backdrop-filter: none !important;
 }
 
+/* The OS-drawn window controls (Windows caption overlay) cannot be dimmed, so
+ * modal scrims stop at the app title bar instead of tinting only half of it. */
+.app-shell[data-titlebar="app"] .modal-backdrop {
+  top: var(--vzn-titlebar-height);
+}
+
 /* Command palette ------------------------------------------------------- */
 
 .cmd-palette-backdrop {
@@ -1384,7 +1391,6 @@ html.dark .toolbar-pill-button {
 .field-input,
 .field-textarea,
 .search-field,
-.select-field,
 .inline-pill-input {
   border-color: var(--vzn-border);
   background-color: var(--vzn-surface);
@@ -1395,7 +1401,6 @@ html.dark .toolbar-pill-button {
 .field-input:hover:not(:disabled),
 .field-textarea:hover:not(:disabled),
 .search-field:hover:not(:disabled),
-.select-field:hover:not(:disabled),
 .inline-pill-input:hover:not(:disabled) {
   border-color: var(--vzn-border-strong);
   box-shadow: none;

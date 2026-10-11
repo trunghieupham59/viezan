@@ -4,8 +4,13 @@
  */
 export { AIChatSidebar } from './AIChatSidebar'
 export { AIConfigurationPopover, type AIConfigurationPopoverProps } from './AIConfigurationPopover'
+export { AIModelPickerField } from './AIModelPickerField'
 export { CommandPalette } from './CommandPalette'
 export { ChatAIConfiguration, type ChatAIConfigurationProps } from './chat/ChatAIConfiguration'
+export {
+  DictionaryAIConfiguration,
+  type DictionaryAIConfigurationProps,
+} from './dictionary/DictionaryAIConfiguration'
 export {
   HistoryNavigation,
   type HistoryNavigationItem,
@@ -15,6 +20,12 @@ export {
   InterpretAIConfiguration,
   type InterpretAIConfigurationProps,
 } from './live/InterpretAIConfiguration'
+export {
+  InterpretSubtitleConfiguration,
+  type InterpretSubtitleConfigurationProps,
+  type SubtitleColorOption,
+  type SubtitleFontSizeOption,
+} from './live/InterpretSubtitleConfiguration'
 export { PrimaryNavigationSidebar, PrimaryNavigationSidebar as Sidebar } from './PrimaryNavigationSidebar'
 export {
   SettingsNavigation,
