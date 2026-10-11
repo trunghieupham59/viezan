@@ -53,22 +53,8 @@ export const translateSection = {
   installOllama: () =>
     ipcRenderer.invoke('local-ai:installOllama'),
 
-  cancelOllamaInstall: () =>
-    ipcRenderer.invoke('local-ai:cancelInstallOllama'),
-
-  onLocalAiInstallProgress: (cb: (progress: {
-    status: 'running' | 'success' | 'error' | 'cancelled'
-    percent: number
-    message: string
-  }) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, progress: {
-      status: 'running' | 'success' | 'error' | 'cancelled'
-      percent: number
-      message: string
-    }) => cb(progress)
-    ipcRenderer.on('local-ai:installProgress', listener)
-    return () => ipcRenderer.removeListener('local-ai:installProgress', listener)
-  },
+  cancelModelDownload: (modelId: string) =>
+    ipcRenderer.invoke('local-ai:cancelModelDownload', modelId),
 
   // Verify API key (test call to provider)
   verifyKey: (provider: string, apiKey: string) =>

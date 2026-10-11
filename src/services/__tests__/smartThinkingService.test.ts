@@ -463,10 +463,119 @@ describe('smartThinkingService', () => {
     })
 
     expect(webSearchMock).toHaveBeenCalledWith(expect.objectContaining({
-      maxResults: 4,
+      maxResults: 6,
       query: 'current disputed market claim',
     }))
-    expect(callbacks.onAnswerComplete).toHaveBeenCalledWith('answer-1', expect.stringContaining('Source 4'))
-    expect(callbacks.onAnswerComplete).toHaveBeenCalledWith('answer-1', expect.not.stringContaining('Source 5'))
+    expect(callbacks.onAnswerComplete).toHaveBeenCalledWith('answer-1', expect.stringContaining('Source 6'))
+    expect(callbacks.onAnswerComplete).toHaveBeenCalledWith('answer-1', expect.not.stringContaining('Source 7'))
+  })
+
+  describe('forced web search (Web Search mode)', () => {
+    const uiText = {
+      webSearchStepLabelPrefix: 'Search',
+      webSearchSummaryTitle: 'Summary',
+      webSearchDefaultReason: 'Search is needed.',
+      webSearchSourcesTitle: 'Sources',
+      webSearchNoSources: 'No sources',
+      webSearchNoResults: 'No matching web results.',
+      webSearchErrorFallback: 'Search failed',
+      noResponseError: 'No response',
+      unknownError: 'Unknown error',
+    }
+
+    const makeCallbacks = () => ({
+      onStepStart: vi.fn(() => 'step-1'),
+      onStepComplete: vi.fn(),
+      onStepError: vi.fn(),
+      onAnswerStart: vi.fn(() => 'answer-1'),
+      onAnswerToken: vi.fn(),
+      onAnswerComplete: vi.fn(),
+      onAnswerError: vi.fn(),
+    })
+
+    const history = [
+      { role: 'user' as const, content: [{ type: 'text' as const, text: 'Who founded Example Corp?' }] },
+      { role: 'assistant' as const, content: [{ type: 'text' as const, text: 'Jane Doe founded it.' }] },
+      { role: 'user' as const, content: [{ type: 'text' as const, text: 'and when?' }] },
+    ]
+
+    it('lets the classifier rewrite a follow-up into a self-contained query and raises the source floor', async () => {
+      vi.mocked(window.api.chat)
+        .mockResolvedValueOnce({
+          success: true,
+          reply: JSON.stringify({
+            needs_web: false,
+            query: 'Example Corp founding date',
+            source_count: 1,
+          }),
+        })
+        .mockResolvedValueOnce({ success: true, reply: 'Final answer' })
+      const webSearchMock = vi.fn().mockResolvedValue({ success: false })
+      window.api.webSearch = webSearchMock
+
+      await smartThinkingService.run({
+        provider: 'gemini',
+        model: 'gemini-2.0-flash',
+        question: 'and when?',
+        messages: history,
+        uiText,
+        callbacks: makeCallbacks(),
+        forceWebSearch: true,
+      })
+
+      const classifierCall = vi.mocked(window.api.chat).mock.calls[0][0]
+      expect(classifierCall.systemPrompt).toContain('explicitly turned on Web Search')
+      expect(webSearchMock).toHaveBeenCalledWith(expect.objectContaining({
+        query: 'Example Corp founding date',
+        maxResults: 4,
+      }))
+    })
+
+    it('still searches the raw question with a wide budget when the classifier fails', async () => {
+      vi.mocked(window.api.chat)
+        .mockResolvedValueOnce({ success: false, error: 'boom' })
+        .mockResolvedValueOnce({ success: true, reply: 'Final answer' })
+      const webSearchMock = vi.fn().mockResolvedValue({ success: false })
+      window.api.webSearch = webSearchMock
+
+      await smartThinkingService.run({
+        provider: 'gemini',
+        model: 'gemini-2.0-flash',
+        question: 'latest example news',
+        messages: [{ role: 'user', content: [{ type: 'text', text: 'latest example news' }] }],
+        uiText,
+        callbacks: makeCallbacks(),
+        forceWebSearch: true,
+      })
+
+      expect(webSearchMock).toHaveBeenCalledWith(expect.objectContaining({
+        query: 'latest example news',
+        maxResults: 5,
+      }))
+    })
+
+    it('hands the answer model up to 2000 characters per result', async () => {
+      vi.mocked(window.api.chat)
+        .mockResolvedValueOnce({ success: true, reply: '{"needs_web": true, "query": "q", "source_count": 3}' })
+        .mockResolvedValueOnce({ success: true, reply: 'Final answer' })
+      window.api.webSearch = vi.fn().mockResolvedValue({
+        success: true,
+        results: [{ title: 'Long', url: 'https://example.com/long', content: 'x'.repeat(3000), score: 0.9 }],
+      })
+
+      await smartThinkingService.run({
+        provider: 'gemini',
+        model: 'gemini-2.0-flash',
+        question: 'q',
+        messages: [{ role: 'user', content: [{ type: 'text', text: 'q' }] }],
+        uiText,
+        callbacks: makeCallbacks(),
+        forceWebSearch: true,
+      })
+
+      const finalPrompt = vi.mocked(window.api.chat).mock.calls[1][0].systemPrompt ?? ''
+      expect(finalPrompt).toContain('x'.repeat(2000))
+      expect(finalPrompt).not.toContain('x'.repeat(2001))
+    })
   })
 })

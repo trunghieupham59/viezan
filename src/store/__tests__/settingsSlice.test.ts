@@ -217,6 +217,23 @@ describe('setTranslationReasoningEffort', () => {
   })
 })
 
+describe('setImageProviderFallback', () => {
+  it('defaults to off so images only go to the chosen provider', () => {
+    act(() => useAppStore.setState({ imageProviderFallback: false }))
+    expect(useAppStore.getState().imageProviderFallback).toBe(false)
+  })
+
+  it('updates and persists the opt-in', () => {
+    act(() => useAppStore.getState().setImageProviderFallback(true))
+    expect(useAppStore.getState().imageProviderFallback).toBe(true)
+
+    // biome-ignore lint/suspicious/noExplicitAny: persist middleware test hook
+    const partialize = (useAppStore as any).persist.getOptions().partialize
+    expect(partialize(useAppStore.getState()).imageProviderFallback).toBe(true)
+    act(() => useAppStore.getState().setImageProviderFallback(false))
+  })
+})
+
 describe('setTtsVoice', () => {
   it('sets TTS voice to alloy', () => {
     act(() => useAppStore.getState().setTtsVoice('alloy'))

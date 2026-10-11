@@ -178,6 +178,12 @@ describe('ChatPage', () => {
       expect(activeFooter).toBeInTheDocument()
       if (!(activeFooter instanceof HTMLElement)) throw new Error('Active-chat composer footer is missing')
 
+      const messagesScroller = document.querySelector('.chat-messages-scroll')
+      expect(messagesScroller).toBeInTheDocument()
+      if (!(messagesScroller instanceof HTMLElement)) throw new Error('Active-chat message scroller is missing')
+      expect(messagesScroller.nextElementSibling).toBe(activeFooter)
+      expect(messagesScroller.querySelector('.chat-message-stage > .chat-messages-end')).toHaveAttribute('aria-hidden', 'true')
+
       const composer = activeFooter.querySelector('.chat-composer.chat-page-composer')
       expect(composer).toBeInTheDocument()
       if (!(composer instanceof HTMLElement)) throw new Error('Active-chat composer is missing')
@@ -186,7 +192,7 @@ describe('ChatPage', () => {
       expect(screen.queryByRole('button', { name: TRANSLATIONS.en.chat_clear })).not.toBeInTheDocument()
 
       const controls = composer.querySelectorAll<HTMLButtonElement>('[data-ui-control="button"]')
-      expect(controls.length).toBeGreaterThanOrEqual(6)
+      expect(controls.length).toBeGreaterThanOrEqual(5)
       for (const control of controls) {
         expect(control).toHaveAttribute('data-control-size', 'md')
       }
@@ -196,16 +202,17 @@ describe('ChatPage', () => {
         .toHaveAttribute('aria-haspopup', 'menu')
       expect(composerQueries.getByRole('button', { name: TRANSLATIONS.en.chat_attach_image }))
         .toHaveAttribute('aria-expanded', 'false')
-      const imageModeButton = composerQueries.getByRole('button', { name: TRANSLATIONS.en.chat_mode_chip_image })
-      expect(imageModeButton).toHaveAttribute('aria-pressed', 'false')
-      expect(imageModeButton).toHaveAttribute('data-control-variant', 'neutral')
-      fireEvent.click(imageModeButton)
-      expect(imageModeButton).toHaveAttribute('aria-pressed', 'true')
+      // Image generation is one of the response modes, not a separate toggle.
+      expect(composerQueries.queryByRole('button', { name: TRANSLATIONS.en.chat_mode_chip_image })).not.toBeInTheDocument()
+      const modeButton = composerQueries.getByRole('button', { name: `${TRANSLATIONS.en.chat_response_mode}: ${TRANSLATIONS.en.chat_mode_standard}` })
+      expect(modeButton).toHaveAttribute('aria-haspopup', 'menu')
+      expect(modeButton).toHaveAttribute('aria-expanded', 'false')
+      expect(modeButton).toHaveAttribute('data-control-variant', 'neutral')
+      fireEvent.click(modeButton)
+      fireEvent.click(screen.getByRole('menuitemradio', { name: TRANSLATIONS.en.chat_mode_chip_image }))
+      const imageModeButton = composerQueries.getByRole('button', { name: `${TRANSLATIONS.en.chat_response_mode}: ${TRANSLATIONS.en.chat_mode_chip_image}` })
       expect(imageModeButton).toHaveAttribute('data-control-variant', 'primary')
-      expect(composerQueries.getByRole('button', { name: TRANSLATIONS.en.settings_mode_auto }))
-        .toHaveAttribute('aria-haspopup', 'menu')
-      expect(composerQueries.getByRole('button', { name: TRANSLATIONS.en.settings_mode_auto }))
-        .toHaveAttribute('aria-expanded', 'false')
+      expect(imageModeButton).toHaveAttribute('aria-expanded', 'false')
       expect(composer.querySelector('button[aria-haspopup="dialog"]'))
         .toHaveAttribute('aria-expanded', 'false')
       expect(composerQueries.getByRole('button', { name: TRANSLATIONS.en.chat_voice_record }))
@@ -225,6 +232,68 @@ describe('ChatPage', () => {
         Reflect.deleteProperty(globalThis, 'MediaRecorder')
       }
     }
+  })
+
+  describe('response mode menu', () => {
+    const modeTriggerName = `${TRANSLATIONS.en.chat_response_mode}: ${TRANSLATIONS.en.chat_mode_standard}`
+
+    // Pending (pre-session) mode flags live in the store and would leak from earlier tests.
+    beforeEach(() => {
+      act(() => {
+        useAppStore.setState({
+          chatPendingImageMode: false,
+          chatPendingWebSearchMode: false,
+          chatPendingDeepResearchMode: false,
+        })
+      })
+    })
+
+    it('is a keyboard-operable radio menu that returns focus to its trigger', () => {
+      render(<ChatPage />)
+      const trigger = screen.getByRole('button', { name: modeTriggerName })
+      fireEvent.click(trigger)
+
+      const menu = screen.getByRole('menu', { name: TRANSLATIONS.en.chat_response_mode })
+      expect(trigger).toHaveAttribute('aria-controls', menu.id)
+      const items = within(menu).getAllByRole('menuitemradio')
+      expect(items).toHaveLength(4)
+      expect(items[0]).toHaveAttribute('aria-checked', 'true')
+      expect(items[0]).toHaveFocus()
+
+      fireEvent.keyDown(items[0], { key: 'ArrowDown' })
+      expect(items[1]).toHaveFocus()
+      fireEvent.keyDown(items[1], { key: 'End' })
+      expect(items[3]).toHaveFocus()
+      fireEvent.keyDown(items[3], { key: 'ArrowDown' })
+      expect(items[0]).toHaveFocus()
+      fireEvent.keyDown(items[0], { key: 'ArrowUp' })
+      expect(items[3]).toHaveFocus()
+
+      fireEvent.keyDown(items[3], { key: 'Escape' })
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      expect(trigger).toHaveFocus()
+    })
+
+    it('explains image mode in the composer placeholder once selected', () => {
+      render(<ChatPage />)
+      fireEvent.click(screen.getByRole('button', { name: modeTriggerName }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: TRANSLATIONS.en.chat_mode_chip_image }))
+
+      expect(screen.getByPlaceholderText(TRANSLATIONS.en.chat_image_mode_hint)).toBeInTheDocument()
+      expect(screen.queryByPlaceholderText(TRANSLATIONS.en.chat_placeholder)).not.toBeInTheDocument()
+    })
+
+    it('disables image mode with a reason when the provider cannot generate images', () => {
+      act(() => {
+        useAppStore.setState({ selectedProvider: 'claude' })
+      })
+      render(<ChatPage />)
+      fireEvent.click(screen.getByRole('button', { name: modeTriggerName }))
+
+      const imageItem = screen.getByRole('menuitemradio', { name: new RegExp(TRANSLATIONS.en.chat_mode_chip_image) })
+      expect(imageItem).toBeDisabled()
+      expect(imageItem).toHaveTextContent(TRANSLATIONS.en.chat_image_mode_unsupported_provider)
+    })
   })
 
   it('keeps contextual navigation outside the page component', () => {
@@ -275,6 +344,7 @@ describe('ChatPage', () => {
     })
 
     render(<ChatPage />)
+    fireEvent.click(screen.getByRole('button', { name: /Model: local-auto/i }))
     await waitFor(() => expect(window.api.fetchModels).toHaveBeenCalledWith('local'))
     act(() => useAppStore.getState().setActiveChatSession(sessionB.id))
 
@@ -437,8 +507,8 @@ describe('ChatPage', () => {
     try {
       render(<ChatPage />)
 
-      fireEvent.click(screen.getByRole('button', { name: TRANSLATIONS.en.settings_mode_auto }))
-      fireEvent.click(screen.getByRole('button', { name: TRANSLATIONS.en.chat_menu_deep_research }))
+      fireEvent.click(screen.getByRole('button', { name: `${TRANSLATIONS.en.chat_response_mode}: ${TRANSLATIONS.en.chat_mode_standard}` }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: TRANSLATIONS.en.chat_menu_deep_research }))
 
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
       fireEvent.change(fileInput, {

@@ -6,9 +6,7 @@ import { MarkdownText } from '../../MarkdownText'
 import { ProviderIcon } from '../../ProviderIcon'
 import { Button } from '../../ui/atoms'
 import {
-  AlertTriangleIcon,
   CheckIcon,
-  ClockIcon,
   CopyIcon,
   InfoCircleIcon,
   RefreshIcon,
@@ -16,6 +14,7 @@ import {
   SpinnerIcon,
   StopIcon,
 } from '../../ui/icons'
+import { ModelRunStatus, TranslationResultTab } from '../../ui/molecules'
 
 interface TranslationComparisonPaneProps {
   headingId: string
@@ -30,6 +29,7 @@ interface TranslationComparisonPaneProps {
   onSpeak: (result: TranslationComparisonResult) => void
   onRetry: (selection: TranslationModelSelection) => void
   onOpenSettings: () => void
+  onChooseModel: () => void
 }
 
 /** Parallel translation results with desktop comparison columns and compact tabs. */
@@ -46,6 +46,7 @@ export function TranslationComparisonPane({
   onSpeak,
   onRetry,
   onOpenSettings,
+  onChooseModel,
 }: TranslationComparisonPaneProps) {
   const t = useT()
   const tabsId = useId()
@@ -55,6 +56,13 @@ export function TranslationComparisonPane({
     result.status === 'success' || result.status === 'error'
   )).length
   const liveStatus = t.translate_compare_progress(completedCount, results.length)
+  const hasStarted = results.some((result) => result.status !== 'idle')
+  const getStatusLabel = (status: TranslationComparisonResult['status']) => {
+    if (status === 'loading') return t.translate_compare_status_running
+    if (status === 'success') return t.translate_compare_status_complete
+    if (status === 'error') return t.translate_compare_status_failed
+    return t.translate_compare_status_ready
+  }
 
   useEffect(() => {
     const availableKeys = new Set(results.map((result) => result.key))
@@ -93,8 +101,15 @@ export function TranslationComparisonPane({
       )}
 
       <div className="translate-comparison-summary">
-        <strong>{t.translate_compare_heading(results.length)}</strong>
-        {isTranslating && <span>{liveStatus}</span>}
+        <div className="translate-comparison-summary__copy">
+          <strong>{t.translate_compare_heading(results.length)}</strong>
+          <span>{t.translate_compare_independent_notice}</span>
+        </div>
+        {hasStarted && (
+          <span className="translate-comparison-progress" role="status" aria-live="polite">
+            {liveStatus}
+          </span>
+        )}
       </div>
 
       <div
@@ -105,47 +120,26 @@ export function TranslationComparisonPane({
         {results.map((result, index) => {
           const modelName = formatModelName(result.provider, result.model)
           const providerName = getProviderDisplayName(result.provider)
-          const statusLabel = result.status === 'loading'
-            ? t.translate_btn_loading
-            : result.status === 'success'
-              ? t.translate_result_ready
-              : result.status === 'error'
-                ? t.translate_error_generic
-                : t.translate_compare_idle_short
+          const statusLabel = getStatusLabel(result.status)
           const tabId = `${tabsId}-tab-${index}`
           return (
-            <Button
+            <TranslationResultTab
               key={result.key}
-              ref={(node) => {
+              tabRef={(node) => {
                 if (node) tabRefs.current.set(result.key, node)
                 else tabRefs.current.delete(result.key)
               }}
               id={tabId}
-              size="sm"
-              shape="rect"
-              variant={compactResultKey === result.key ? 'primary' : 'neutral'}
-              appearance={compactResultKey === result.key ? 'soft' : 'ghost'}
-              role="tab"
-              aria-label={`${modelName} · ${providerName} · ${statusLabel}`}
-              aria-selected={compactResultKey === result.key}
-              aria-controls={`${tabsId}-panel-${index}`}
-              aria-busy={result.status === 'loading'}
-              tabIndex={compactResultKey === result.key ? 0 : -1}
+              controls={`${tabsId}-panel-${index}`}
+              selected={compactResultKey === result.key}
+              provider={result.provider}
+              modelName={modelName}
+              providerName={providerName}
+              status={result.status}
+              statusLabel={statusLabel}
               onClick={() => selectCompactTab(result.key)}
               onKeyDown={(event) => handleTabKeyDown(event, index)}
-            >
-              <ProviderIcon provider={result.provider} size={14} />
-              <span className="translate-comparison-tab-label">{modelName}</span>
-              <span
-                className={`translate-comparison-tab-status translate-comparison-tab-status-${result.status}`}
-                aria-hidden="true"
-              >
-                {result.status === 'loading' && <SpinnerIcon />}
-                {result.status === 'success' && <CheckIcon />}
-                {result.status === 'error' && <AlertTriangleIcon />}
-                {result.status === 'idle' && <ClockIcon />}
-              </span>
-            </Button>
+            />
           )
         })}
       </div>
@@ -158,7 +152,7 @@ export function TranslationComparisonPane({
           </div>
         )}
 
-        <div className="translate-comparison-list">
+        <div className="translate-comparison-list" data-result-count={results.length}>
           {results.map((result, index) => (
             <div
               key={result.key}
@@ -178,6 +172,7 @@ export function TranslationComparisonPane({
                 onSpeak={onSpeak}
                 onRetry={onRetry}
                 onOpenSettings={onOpenSettings}
+                onChooseModel={onChooseModel}
               />
             </div>
           ))}
@@ -197,6 +192,7 @@ interface ComparisonResultCardProps {
   onSpeak: (result: TranslationComparisonResult) => void
   onRetry: (selection: TranslationModelSelection) => void
   onOpenSettings: () => void
+  onChooseModel: () => void
 }
 
 function ComparisonResultCard({
@@ -209,14 +205,39 @@ function ComparisonResultCard({
   onSpeak,
   onRetry,
   onOpenSettings,
+  onChooseModel,
 }: ComparisonResultCardProps) {
   const t = useT()
   const modelName = formatModelName(result.provider, result.model)
   const providerName = getProviderDisplayName(result.provider)
   const isApiKeyError = result.errorCode === 'NO_API_KEY' || result.errorCode === 'INVALID_KEY'
+  const isModelUnavailable = result.errorCode === 'MODEL_UNAVAILABLE'
+  const isUnknownError = result.errorCode === 'UNKNOWN'
+  const showRetry = !isApiKeyError && !isModelUnavailable
+  const showChangeModel = isApiKeyError || isModelUnavailable || isUnknownError
+  const errorMessage = result.errorCode === 'NO_API_KEY'
+    ? t.translate_compare_error_missing_key(providerName)
+    : result.errorCode === 'INVALID_KEY'
+      ? t.translate_compare_error_invalid_key(providerName)
+      : result.errorCode === 'RATE_LIMIT'
+        ? t.translate_compare_error_rate_limit(providerName)
+        : result.errorCode === 'MODEL_UNAVAILABLE'
+          ? t.translate_compare_error_model_unavailable(modelName, providerName)
+          : result.errorCode === 'NETWORK'
+            ? t.translate_compare_error_network(providerName)
+            : result.errorCode === 'UNKNOWN'
+              ? t.translate_compare_error_unknown(modelName)
+              : result.error ?? t.translate_compare_error_unknown(modelName)
   const duration = result.durationMs === null
     ? null
     : t.translate_compare_duration((result.durationMs / 1000).toFixed(result.durationMs < 10_000 ? 1 : 0))
+  const statusLabel = result.status === 'loading'
+    ? t.translate_compare_status_running
+    : result.status === 'success'
+      ? [t.translate_compare_status_complete, duration].filter(Boolean).join(' · ')
+      : result.status === 'error'
+        ? t.translate_compare_status_failed
+        : t.translate_compare_status_ready
 
   return (
     <article
@@ -232,19 +253,7 @@ function ComparisonResultCard({
           <strong>{modelName}</strong>
           <span>{providerName}</span>
         </span>
-        <span className={`translate-comparison-status translate-comparison-status-${result.status}`}>
-          {result.status === 'loading' && <SpinnerIcon />}
-          {result.status === 'error' && <AlertTriangleIcon />}
-          <span>
-            {result.status === 'loading'
-              ? t.translate_btn_loading
-              : result.status === 'success'
-                ? duration
-                : result.status === 'error'
-                  ? t.translate_error_generic
-                  : t.translate_compare_idle_short}
-          </span>
-        </span>
+        <ModelRunStatus status={result.status} label={statusLabel} />
       </header>
 
       <div className="translate-comparison-card-body">
@@ -256,19 +265,32 @@ function ComparisonResultCard({
           </div>
         ) : result.status === 'error' ? (
           <div className="translate-comparison-error" role="alert">
-            <p>{result.error}</p>
+            <p>{errorMessage}</p>
             <div className="translate-comparison-error-actions">
-              <Button
-                size="sm"
-                shape="rect"
-                variant="neutral"
-                appearance="outline"
-                disabled={!canRetry}
-                onClick={() => onRetry(result)}
-              >
-                <RefreshIcon />
-                {t.translate_compare_retry}
-              </Button>
+              {showRetry && (
+                <Button
+                  size="sm"
+                  shape="rect"
+                  variant="neutral"
+                  appearance="outline"
+                  disabled={!canRetry}
+                  onClick={() => onRetry(result)}
+                >
+                  <RefreshIcon />
+                  {t.translate_compare_retry}
+                </Button>
+              )}
+              {showChangeModel && (
+                <Button
+                  size="sm"
+                  shape="rect"
+                  variant="neutral"
+                  appearance="outline"
+                  onClick={onChooseModel}
+                >
+                  {t.translate_compare_change_model}
+                </Button>
+              )}
               {isApiKeyError && (
                 <Button size="sm" shape="rect" variant="primary" appearance="soft" onClick={onOpenSettings}>
                   {t.translate_error_open_settings}

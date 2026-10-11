@@ -14,12 +14,12 @@ import { CHAT_RUNTIME_MESSAGES } from '../chatMessages'
 import type { ChatMessage } from '../chatValidation'
 import { MAX_CHAT_OUTPUT_TOKENS } from '../ipcConstants'
 import { LOCAL_AI_PLACEHOLDER_KEY, resolveLocalAiRequestModel } from '../localAi'
+import { formatOpenAIChatMessages } from './chatProviderOpenAI'
 import {
   CHAT_STREAM_CANCELLED_MESSAGE,
   type ChatProviderOptions,
   type ChatStreamTokenHandler,
 } from './chatProviderTypes'
-import { formatOpenAIChatMessages } from './chatProviderOpenAI'
 
 
 /**

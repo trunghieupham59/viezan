@@ -1,7 +1,8 @@
 import path from 'node:path'
-import { app, BrowserWindow, desktopCapturer, ipcMain, nativeImage, nativeTheme, screen, shell } from 'electron'
+import type { Session, Tray } from 'electron'
+import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeImage, nativeTheme, screen, session, shell } from 'electron'
+import { configureApplicationMenu, isDevelopmentRuntime } from './applicationMenu'
 import { registerChatHandlers } from './ipc/chat'
-import { isAllowedExternalUrl } from './ipc/externalUrl'
 import { initGlobalHotkey } from './ipc/globalHotkey'
 import { registerImageTranslateHandlers } from './ipc/imageTranslate'
 import { registerKeychainHandlers } from './ipc/keychain'
@@ -9,6 +10,7 @@ import { initLegacyAssistant, setLocalServerAccessors } from './ipc/legacyAssist
 import { registerLocalAiHandlers, stopManagedLocalAiRuntime } from './ipc/localAi'
 import { getServerToken, LOCAL_SERVER_PORT, startLocalServer, stopLocalServer } from './ipc/localServer'
 import { registerModelsHandlers } from './ipc/models'
+import { createWindowOpenHandler, isAllowedAppNavigation, isAllowedPermission, type NavigationPolicy } from './ipc/navigationGuard'
 import { registerQuickChatHandlers } from './ipc/quickChat'
 import { registerSubtitleHandlers } from './ipc/subtitle'
 import { registerSystemHandlers } from './ipc/system'
@@ -17,6 +19,7 @@ import { registerTranslateHandlers } from './ipc/translate'
 import { registerTtsHandlers } from './ipc/tts'
 import { registerUpdaterHandlers } from './ipc/updater'
 import { registerWebSearchHandlers } from './ipc/webSearch'
+import { createAppTray, promptCloseAction, shouldHideMainWindowOnClose, supportsTrayResidency } from './trayManager'
 
 // Allow audio autoplay after async operations (TTS API calls lose user-gesture context)
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
@@ -30,15 +33,20 @@ if (process.platform === 'darwin') {
 // ── Single-instance guard ─────────────────────────────────────────────────────
 // Prevent a second launch from binding the same local-server port (EADDRINUSE).
 // If another instance is already running, focus its window and quit immediately.
-if (!app.requestSingleInstanceLock()) {
+const hasSingleInstanceLock = app.requestSingleInstanceLock()
+if (!hasSingleInstanceLock) {
   app.quit()
 } else {
   app.on('second-instance', () => {
+    if (!app.isReady()) return // whenReady() creates the window
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      createWindow()
+    }
     showMainWindow({ focus: true })
   })
 }
 
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
+const isDev = isDevelopmentRuntime(app.isPackaged)
 
 // Set app name
 app.setName('Viezan')
@@ -51,7 +59,17 @@ const MACOS_WINDOW_VIBRANCY = 'under-window' as const
 const QUICK_CHAT_WIDTH = 860
 const QUICK_CHAT_HEIGHT = 540
 
+const navigationPolicy: NavigationPolicy = {
+  isDev,
+  distDir: path.resolve(__dirname, '..', 'dist'),
+}
+
 let mainWindow: BrowserWindow | null = null
+let appTray: Tray | null = null
+/** True once a real quit has begun, so closing the main window must not just hide it. */
+let isQuitting = false
+/** Guards against stacking close-confirmation dialogs on repeated X clicks. */
+let isClosePromptOpen = false
 
 function getMainWindowBackgroundColor(): string {
   return nativeTheme.shouldUseDarkColors ? WIN_BG_DARK : WIN_BG_LIGHT
@@ -100,6 +118,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      devTools: isDev,
     },
     show: false,
     icon: process.platform === 'win32'
@@ -136,18 +155,95 @@ function createWindow() {
     }
   })
 
-  // Open external links in browser
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (isAllowedExternalUrl(url)) {
-      shell.openExternal(url)
-    }
-    return { action: 'deny' }
+  // Child windows / external links are handled for every webContents in the
+  // `web-contents-created` hook below.
+
+  // Windows/Linux: the X button asks whether to keep the app running in the system
+  // tray or quit completely (a resident process keeps the local server port bound).
+  // Real quits (tray menu, updater, relaunch, OS shutdown) set `isQuitting` first
+  // so this handler lets the window close.
+  mainWindow.on('close', (event) => {
+    if (!shouldHideMainWindowOnClose({ platform: process.platform, isQuitting, hasTray: appTray !== null })) return
+    event.preventDefault()
+    const window = mainWindow
+    if (!window || isClosePromptOpen) return
+    isClosePromptOpen = true
+    promptCloseAction(window, app.getLocale())
+      .then((action) => {
+        if (action === 'tray') {
+          if (!window.isDestroyed()) window.hide()
+        } else if (action === 'quit') {
+          app.quit()
+        }
+      })
+      .catch((err) => {
+        console.error('[main] close prompt failed, hiding to tray:', err)
+        if (!window.isDestroyed()) window.hide()
+      })
+      .finally(() => {
+        isClosePromptOpen = false
+      })
   })
 
+  // Windows emits this when the user logs off or shuts down; never block it.
+  mainWindow.on('session-end', () => {
+    isQuitting = true
+  })
+
+  mainWindow.on('closed', () => {
+    mainWindow = null
+  })
+}
+
+/** Bring the main window back (recreating it if it was destroyed), e.g. from the tray. */
+function openMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow()
+    return
+  }
+  showMainWindow({ focus: true })
+}
+
+function resolveTrayIconPath(): string {
+  // `public/icon.png` is copied into `dist/` by Vite, so it ships inside the app
+  // bundle (the `build/` folder is not packaged).
+  return isDev
+    ? path.join(__dirname, '..', 'public', 'icon.png')
+    : path.join(__dirname, '..', 'dist', 'icon.png')
+}
+
+function setupTray(): void {
+  if (!supportsTrayResidency(process.platform) || appTray) return
+  appTray = createAppTray({
+    iconPath: resolveTrayIconPath(),
+    osLocale: app.getLocale(),
+    onOpen: openMainWindow,
+    onQuit: () => app.quit(),
+  })
+}
+
+async function openExternalSafely(url: string): Promise<void> {
+  try {
+    await shell.openExternal(url)
+  } catch (err) {
+    console.error('[main] openExternal failed:', err)
+  }
+}
+
+/**
+ * Default-session hardening: permission allow-list plus the display-media
+ * handler. All app windows share the default session.
+ */
+function configureSessionSecurity(ses: Session): void {
   // Required for getDisplayMedia to work in Electron renderer process.
   // Without this handler, getDisplayMedia throws "Not supported".
   // 'loopback' captures system audio on macOS (requires Screen Recording permission).
-  mainWindow.webContents.session.setDisplayMediaRequestHandler((_request, callback) => {
+  ses.setDisplayMediaRequestHandler((request, callback) => {
+    const frameUrl = request.frame?.url
+    if (frameUrl !== undefined && !isAllowedAppNavigation(frameUrl, navigationPolicy)) {
+      callback({})
+      return
+    }
     desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
       if (sources.length > 0) {
         callback({ video: sources[0], audio: 'loopback' })
@@ -159,8 +255,14 @@ function createWindow() {
     })
   })
 
-  mainWindow.on('closed', () => {
-    mainWindow = null
+  ses.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    const requestingUrl = details.requestingUrl || webContents.getURL()
+    callback(isAllowedPermission(permission) && isAllowedAppNavigation(requestingUrl, navigationPolicy))
+  })
+
+  ses.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
+    const requestingUrl = details.requestingUrl || webContents?.getURL() || requestingOrigin
+    return isAllowedPermission(permission) && isAllowedAppNavigation(requestingUrl, navigationPolicy)
   })
 }
 
@@ -200,6 +302,7 @@ function createQuickChatWindow(): BrowserWindow {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      devTools: isDev,
     },
   })
 
@@ -222,6 +325,11 @@ function createQuickChatWindow(): BrowserWindow {
   return win
 }
 
+function sendQuickChatShow(win: BrowserWindow): void {
+  if (win.isDestroyed() || win.webContents.isDestroyed()) return
+  win.webContents.send('quick-chat:show')
+}
+
 function toggleQuickChatWindow(): void {
   if (!quickChatWindow || quickChatWindow.isDestroyed()) {
     quickChatWindow = createQuickChatWindow()
@@ -230,10 +338,20 @@ function toggleQuickChatWindow(): void {
     return
   }
 
-  positionQuickChatWindow(quickChatWindow)
-  quickChatWindow.show()
-  quickChatWindow.focus()
-  quickChatWindow.webContents.send('quick-chat:show')
+  const win = quickChatWindow
+  positionQuickChatWindow(win)
+  win.show()
+  win.focus()
+
+  // While the renderer is still loading (freshly created or reloading) an
+  // immediate send would be lost. Deliver it once the page finished loading.
+  // The renderer also runs its show-time logic itself on mount, so a missed
+  // first event is harmless.
+  if (win.webContents.isLoading()) {
+    win.webContents.once('did-finish-load', () => sendQuickChatShow(win))
+  } else {
+    sendQuickChatShow(win)
+  }
 }
 
 // ── Floating Subtitle Window ──────────────────────────────────────────────────
@@ -266,6 +384,7 @@ function createSubtitleWindow() {
       contextIsolation: true,
       nodeIntegration:  false,
       sandbox: true,
+      devTools: isDev,
     },
   })
 
@@ -286,12 +405,20 @@ function createSubtitleWindow() {
 
   subtitleWindow.on('closed', () => {
     subtitleWindow = null
-    // Notify the main window so the toggle button goes back to off state
-    mainWindow?.webContents.send('subtitle:closed')
+    // Notify the main window so the toggle button goes back to off state.
+    // This is the single place `subtitle:closed` is emitted (every close path
+    // ends in this event).
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('subtitle:closed')
+    }
   })
 }
 
 app.whenReady().then(() => {
+  // A second instance has already called app.quit(); do not register windows,
+  // the local server or global hotkeys from it.
+  if (!hasSingleInstanceLock) return
+
   // Set macOS dock icon using base64 (no file path dependency)
   if (process.platform === 'darwin') {
     try {
@@ -313,10 +440,13 @@ app.whenReady().then(() => {
   }
 
   nativeTheme.on('updated', syncMainWindowAppearance)
+  configureApplicationMenu({ isPackaged: app.isPackaged, platform: process.platform })
+  configureSessionSecurity(session.defaultSession)
+  setupTray()
   createWindow()
 
   // Register IPC handlers
-  registerKeychainHandlers(ipcMain)
+  registerKeychainHandlers(ipcMain, () => mainWindow)
   registerTranslateHandlers(ipcMain)
   registerModelsHandlers(ipcMain)
   registerTranscribeHandlers(ipcMain)
@@ -341,7 +471,7 @@ app.whenReady().then(() => {
   registerSubtitleHandlers(ipcMain, () => subtitleWindow, () => mainWindow, createSubtitleWindow)
 
   // System handlers — screen permission & openExternal
-  registerSystemHandlers(ipcMain)
+  registerSystemHandlers(ipcMain, () => mainWindow)
 
   // Auto-updater — check & install updates from GitHub Releases
   registerUpdaterHandlers(ipcMain, () => mainWindow)
@@ -363,27 +493,45 @@ app.whenReady().then(() => {
 
 })
 
+// Every quit path (tray menu, updater, relaunch, OS shutdown, Cmd+Q) goes through
+// `before-quit`; flag it so window close handlers stop hiding to the tray.
+app.on('before-quit', () => {
+  isQuitting = true
+})
+
 app.on('will-quit', () => {
   // Unregister all global shortcuts before quitting
-  const { globalShortcut } = require('electron')
   globalShortcut.unregisterAll()
   stopLocalServer()
   stopManagedLocalAiRuntime()
+  appTray?.destroy()
+  appTray = null
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+  // With a tray icon the app stays resident (reachable from the tray) even if the
+  // main window was destroyed; without one nothing could reopen it, so quit.
+  if (process.platform !== 'darwin' && !appTray) {
     app.quit()
   }
 })
 
-// Security: Prevent new window creation
+// Security: pin every webContents to the app's own renderer build (and the
+// dev server origin in development). Covers direct navigation, server
+// redirects and subframe navigation.
 app.on('web-contents-created', (_event, contents) => {
-  contents.on('will-navigate', (event, navigationUrl) => {
-    const parsedUrl = new URL(navigationUrl)
-    const isAllowedDevUrl = isDev && navigationUrl.startsWith('http://localhost:5173/')
-    if (parsedUrl.protocol !== 'file:' && !isAllowedDevUrl) {
+  const blockUnlessAppUrl = (event: { url?: string; preventDefault: () => void }, positionalUrl?: string) => {
+    const target = event.url ?? positionalUrl
+    if (!isAllowedAppNavigation(target, navigationPolicy)) {
       event.preventDefault()
     }
-  })
+  }
+
+  contents.on('will-navigate', (event, navigationUrl) => blockUnlessAppUrl(event, navigationUrl))
+  contents.on('will-redirect', (event, redirectUrl) => blockUnlessAppUrl(event, redirectUrl))
+  contents.on('will-frame-navigate', (event) => blockUnlessAppUrl(event))
+
+  // Main, Quick Chat and Subtitle windows all expose the privileged preload, so
+  // none of them may open a child window; allowed http(s) links open externally.
+  contents.setWindowOpenHandler(createWindowOpenHandler(openExternalSafely))
 })

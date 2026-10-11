@@ -8,10 +8,12 @@ import {
   useState,
 } from 'react'
 import { MAX_CHAT_INPUT_CHARS } from '../../constants/providers'
-import { usePaletteAiAnswer } from '../../hooks/usePaletteAiAnswer'
+import { type PaletteAnswerMode, usePaletteAiAnswer } from '../../hooks/usePaletteAiAnswer'
+import { hasWebSearchApi } from '../../services/searchResultFormatting'
 import { useAppStore, useT } from '../../store/useAppStore'
 import type { AppPage } from '../../types'
 import { createClientId } from '../../utils/id'
+import { parsePaletteQuery } from '../../utils/paletteQuery'
 import { evaluateQuickCalc } from '../../utils/quickCalc'
 import { tpl } from '../../utils/tpl'
 import { MarkdownText } from '../MarkdownText'
@@ -23,6 +25,7 @@ import {
   ClockIcon,
   CopyIcon,
   GearIcon,
+  GlobeIcon,
   MicrophoneIcon,
   SearchIcon,
   SparklesIcon,
@@ -62,12 +65,14 @@ const FOCUSABLE_SELECTOR = 'input, button'
  *
  * Besides commands it answers inline: arithmetic is evaluated locally (Enter copies the
  * result) and any other text can be sent to the selected AI model, whose answer streams
- * into the palette and can be continued in AI Chat.
+ * into the palette and can be continued in AI Chat. Prefixes route a query directly:
+ * `?` asks the AI, `??` asks it with web search, `t <text>` opens AI Translate.
  */
 export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const {
     setActivePage,
     clearTranslation,
+    setSourceText,
     openSettings,
     locale,
     selectedProvider,
@@ -164,16 +169,21 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     },
   ], [clearTranslation, navigate, onClose, openSettings, t])
 
-  const trimmedQuery = query.trim()
+  const parsed = useMemo(() => parsePaletteQuery(query), [query])
+  const isDefaultMode = parsed.mode === 'default'
+  /** The text sent to the AI / translator: the query without its routing prefix. */
+  const payload = parsed.text
   const normalizedQuery = normalizeSearchValue(query)
-  const matchingCommands = useMemo(() => (
-    normalizedQuery
+  const matchingCommands = useMemo(() => {
+    if (!isDefaultMode) return []
+    return normalizedQuery
       ? commands.filter((item) => [item.label, item.description, ...item.keywords]
         .some(value => normalizeSearchValue(value).includes(normalizedQuery)))
       : commands
-  ), [commands, normalizedQuery])
+  }, [commands, isDefaultMode, normalizedQuery])
 
-  const calc = useMemo(() => evaluateQuickCalc(query, locale), [locale, query])
+  const calc = useMemo(() => (isDefaultMode ? evaluateQuickCalc(query, locale) : null), [isDefaultMode, locale, query])
+  const webSearchAvailable = hasWebSearchApi()
 
   const copyCalcResult = useCallback(() => {
     if (!calc) return
@@ -181,15 +191,58 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     onClose()
   }, [calc, onClose])
 
-  const startAsk = useCallback(() => {
-    if (!trimmedQuery) return
-    setAnswerQuestion(trimmedQuery)
-    if (hasKey && trimmedQuery.length <= MAX_CHAT_INPUT_CHARS) {
-      void askAi(trimmedQuery, selectedProvider, model)
+  const startAsk = useCallback((mode: PaletteAnswerMode) => {
+    if (!payload) return
+    setAnswerQuestion(payload)
+    if (hasKey && payload.length <= MAX_CHAT_INPUT_CHARS) {
+      void askAi(payload, selectedProvider, model, mode)
     }
-  }, [askAi, hasKey, model, selectedProvider, trimmedQuery])
+  }, [askAi, hasKey, model, payload, selectedProvider])
+
+  const openTranslate = useCallback(() => {
+    if (!payload) return
+    navigate('translate', () => {
+      clearTranslation()
+      setSourceText(payload)
+    })
+  }, [clearTranslation, navigate, payload, setSourceText])
 
   const rows = useMemo<PaletteItem[]>(() => {
+    const askRow: PaletteItem = {
+      id: 'ask',
+      kind: 'ask',
+      label: t.command_palette_ask_ai_label,
+      description: tpl(t.command_palette_ask_ai_description, { query: payload }),
+      icon: <SparklesIcon className="h-4 w-4" />,
+      action: () => startAsk('quick'),
+      keywords: [],
+    }
+    const verifyRow: PaletteItem = {
+      id: 'verify',
+      kind: 'ask',
+      label: t.command_palette_verify_label,
+      description: tpl(t.command_palette_verify_description, { query: payload }),
+      icon: <GlobeIcon className="h-4 w-4" />,
+      action: () => startAsk('web'),
+      keywords: [],
+    }
+    const aiRows = webSearchAvailable ? [askRow, verifyRow] : [askRow]
+
+    if (!payload) return [...matchingCommands]
+    if (parsed.mode === 'translate') {
+      return [{
+        id: 'translate-text',
+        kind: 'command',
+        label: t.nav_translate,
+        description: tpl(t.command_palette_translate_text_description, { text: payload }),
+        icon: <TranslateIcon className="h-4 w-4" />,
+        action: openTranslate,
+        keywords: [],
+      }]
+    }
+    if (parsed.mode === 'verify' && webSearchAvailable) return [verifyRow, askRow]
+    if (parsed.mode !== 'default') return aiRows
+
     const result: PaletteItem[] = []
     if (calc) {
       result.push({
@@ -202,20 +255,9 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         keywords: [],
       })
     }
-    result.push(...matchingCommands)
-    if (trimmedQuery) {
-      result.push({
-        id: 'ask',
-        kind: 'ask',
-        label: t.command_palette_ask_ai_label,
-        description: tpl(t.command_palette_ask_ai_description, { query: trimmedQuery }),
-        icon: <SparklesIcon className="h-4 w-4" />,
-        action: startAsk,
-        keywords: [],
-      })
-    }
+    result.push(...matchingCommands, ...aiRows)
     return result
-  }, [calc, copyCalcResult, matchingCommands, startAsk, t, trimmedQuery])
+  }, [calc, copyCalcResult, matchingCommands, openTranslate, parsed.mode, payload, startAsk, t, webSearchAvailable])
 
   const activeItem = inAnswerMode ? undefined : rows[highlighted]
   const activeOptionId = activeItem ? `${listboxId}-${activeItem.id}` : undefined
@@ -359,7 +401,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
   if (!open) return null
 
-  const showNoCommandHint = Boolean(trimmedQuery) && !inAnswerMode && !calc && matchingCommands.length === 0
+  const showNoCommandHint = isDefaultMode && Boolean(payload) && !inAnswerMode && !calc && matchingCommands.length === 0
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: backdrop is pointer-only; the dialog owns Escape handling.
@@ -455,7 +497,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
               ) : (
                 <span className="cmd-palette-answer-pending" role="status">
                   <SpinnerIcon className="h-4 w-4 animate-spin" />
-                  {t.chat_thinking}
+                  {ai.searching ? t.chat_smart_thinking_searching : t.chat_thinking}
                 </span>
               )}
             </div>

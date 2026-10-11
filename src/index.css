@@ -1,154 +1,9 @@
 @import "tailwindcss";
 @config "../tailwind.config.mjs";
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   VIEZAN GLASS — Design System 2026
-   Indigo accent · Glass morphism surfaces · Refined dark/light theme
-   ═══════════════════════════════════════════════════════════════════════════ */
+/* Legacy component styles. Canonical design tokens live in styles/tokens.css. */
 
 @layer base {
-  :root {
-    /* ── Background ─────────────────────────────────────────────────────── */
-    --vzn-app-bg: #F5F5FA;
-    --vzn-bg:     #F5F5FA;
-
-    /* ── Surfaces ───────────────────────────────────────────────────────── */
-    --vzn-surface:        #FFFFFF;
-    --vzn-surface-raised: #F9F9FC;
-    --vzn-surface-muted:  #F2F2F7;
-    --vzn-surface-subtle: #E8E8F0;
-    --vzn-surface-hover:  #DDDDE8;
-
-    /* ── Text ───────────────────────────────────────────────────────────── */
-    --vzn-text:          #1C1C2E;
-    --vzn-text-strong:   #0D0D1A;
-    --vzn-text-muted:    #52526A;
-    --vzn-text-soft:     #8080A0;
-    --vzn-text-disabled: #B4B4CC;
-    --vzn-text-inverse:  #FFFFFF;
-
-    /* ── Borders ────────────────────────────────────────────────────────── */
-    --vzn-border:        rgba(0, 0, 0, 0.08);
-    --vzn-border-strong: rgba(0, 0, 0, 0.14);
-    --vzn-divider:       rgba(0, 0, 0, 0.05);
-
-    /* ── Indigo accent ──────────────────────────────────────────────────── */
-    --vzn-accent:        #5B5BD6;
-    --vzn-accent-hover:  #4646BF;
-    --vzn-accent-active: #3535A8;
-    --vzn-accent-soft:   rgba(91, 91, 214, 0.08);
-    --vzn-accent-border: rgba(91, 91, 214, 0.22);
-    --vzn-accent-glow:   rgba(91, 91, 214, 0.14);
-
-    /* ── Semantic actions ─────────────────────────────────────────────── */
-    --vzn-action:        #2563EB;
-    --vzn-action-hover:  #1D4ED8;
-    --vzn-action-active: #1E40AF;
-    --vzn-action-soft:   #EFF6FF;
-    --vzn-action-border: #93C5FD;
-    --vzn-action-fg:     #FFFFFF;
-    --vzn-disabled-bg:     #E8E8F0;
-    --vzn-disabled-border: rgba(0, 0, 0, 0.08);
-    --vzn-disabled-fg:     #8080A0;
-
-    /* ── Semantic ───────────────────────────────────────────────────────── */
-    --vzn-success:        #059669;
-    --vzn-success-soft:   #ECFDF5;
-    --vzn-success-border: #6EE7B7;
-    --vzn-warning:        #D97706;
-    --vzn-warning-soft:   #FFFBEB;
-    --vzn-warning-border: #FCD34D;
-    --vzn-danger:         #DC2626;
-    --vzn-danger-hover:   #B91C1C;
-    --vzn-danger-soft:    #FEF2F2;
-    --vzn-danger-border:  #FCA5A5;
-
-    /* ── System ─────────────────────────────────────────────────────────── */
-    --vzn-shadow-sm:     0 1px 3px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.05);
-    --vzn-shadow-md:     0 4px 16px rgba(0, 0, 0, 0.10), 0 2px 6px rgba(0, 0, 0, 0.07);
-    --vzn-shadow-lg:     0 16px 48px rgba(0, 0, 0, 0.14), 0 4px 16px rgba(0, 0, 0, 0.08);
-    --vzn-shadow-glow:   0 0 20px rgba(91, 91, 214, 0.14);
-    --vzn-skeleton:      rgba(0, 0, 0, 0.06);
-    --vzn-blur:          blur(20px) saturate(180%);
-    --vzn-blur-sm:       blur(12px) saturate(160%);
-
-    /* ── Radius ─────────────────────────────────────────────────────────── */
-    --vzn-radius-xs: 8px;
-    --vzn-radius-sm: 12px;
-    --vzn-radius-md: 16px;
-    --vzn-radius-lg: 20px;
-    --vzn-radius-xl: 24px;
-
-    /* ── Layout ─────────────────────────────────────────────────────────── */
-    --vzn-sidebar-width:  60px;
-    --vzn-workspace-pad:  18px;
-    --vzn-panel-gap:      12px;
-
-    /* ── Atomic controls ───────────────────────────────────────────────── */
-    --vzn-control-height-sm: 32px;
-    --vzn-control-height-md: 36px;
-    --vzn-control-height-lg: 40px;
-  }
-
-  /* ── Dark mode ────────────────────────────────────────────────────────── */
-  html.dark {
-    --vzn-app-bg: #090911;
-    --vzn-bg:     #090911;
-
-    /* Clear surface elevation above the deep background */
-    --vzn-surface:        rgba(16, 16, 28, 0.97);
-    --vzn-surface-raised: rgba(22, 22, 36, 0.98);
-    --vzn-surface-muted:  rgba(11, 11, 22, 0.94);
-    --vzn-surface-subtle: rgba(30, 30, 48, 0.90);
-    --vzn-surface-hover:  rgba(38, 38, 58, 0.96);
-
-    --vzn-text:          #E0E0F0;
-    --vzn-text-strong:   #F0F0FF;
-    --vzn-text-muted:    #8A8AAA;
-    --vzn-text-soft:     #484868;
-    --vzn-text-disabled: #2C2C46;
-    --vzn-text-inverse:  #0C0C14;
-
-    /* Refined neutral borders in dark mode */
-    --vzn-border:        rgba(255, 255, 255, 0.07);
-    --vzn-border-strong: rgba(255, 255, 255, 0.12);
-    --vzn-divider:       rgba(255, 255, 255, 0.04);
-
-    --vzn-accent:        #818CF8;
-    --vzn-accent-hover:  #A5B4FC;
-    --vzn-accent-active: #6366F1;
-    --vzn-accent-soft:   rgba(99, 102, 241, 0.12);
-    --vzn-accent-border: rgba(129, 140, 248, 0.26);
-    --vzn-accent-glow:   rgba(99, 102, 241, 0.20);
-
-    --vzn-action:        #60A5FA;
-    --vzn-action-hover:  #93C5FD;
-    --vzn-action-active: #3B82F6;
-    --vzn-action-soft:   rgba(96, 165, 250, 0.14);
-    --vzn-action-border: rgba(96, 165, 250, 0.38);
-    --vzn-action-fg:     #0B1220;
-    --vzn-disabled-bg:     rgba(255, 255, 255, 0.07);
-    --vzn-disabled-border: rgba(255, 255, 255, 0.08);
-    --vzn-disabled-fg:     #62627A;
-
-    --vzn-success:        #4ADE80;
-    --vzn-success-soft:   rgba(74, 222, 128, 0.10);
-    --vzn-success-border: rgba(74, 222, 128, 0.28);
-    --vzn-warning:        #FCD34D;
-    --vzn-warning-soft:   rgba(252, 211, 77, 0.10);
-    --vzn-warning-border: rgba(252, 211, 77, 0.28);
-    --vzn-danger:         #FF6B7A;
-    --vzn-danger-hover:   #FF9BA5;
-    --vzn-danger-soft:    rgba(255, 107, 122, 0.14);
-    --vzn-danger-border:  rgba(255, 107, 122, 0.30);
-
-    --vzn-shadow-sm:   0 1px 4px rgba(0,0,0,0.50), 0 0 0 1px rgba(255,255,255,0.04);
-    --vzn-shadow-md:   0 8px 28px rgba(0,0,0,0.58), 0 0 0 1px rgba(255,255,255,0.05);
-    --vzn-shadow-lg:   0 24px 64px rgba(0,0,0,0.70), 0 0 0 1px rgba(255,255,255,0.06);
-    --vzn-shadow-glow: 0 0 32px rgba(99,102,241,0.26), 0 0 10px rgba(99,102,241,0.14);
-    --vzn-skeleton:    rgba(255,255,255,0.06);
-  }
-
   /* ── Base reset ─────────────────────────────────────────────────────── */
   *, *::before, *::after { box-sizing: border-box; }
   html, body, #root { height: 100%; margin: 0; padding: 0; }
@@ -1210,20 +1065,17 @@
 
   /* Thinking states */
   .thinking-state-pill {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 5px 12px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: var(--vzn-space-2);
+    height: var(--vzn-control-height-xs);
+    padding: 0 var(--vzn-space-3); border-radius: var(--vzn-radius-pill);
     border: 1px solid var(--vzn-border);
     background: var(--vzn-surface-subtle);
     color: var(--vzn-text-muted);
-    font-size: 12px; font-weight: 600; user-select: none;
-  }
-  html.dark .thinking-state-pill {
-    background: rgba(20, 20, 34, 0.90);
-    border-color: rgba(255,255,255,0.09);
+    font-size: var(--vzn-font-size-sm); font-weight: 500; user-select: none;
   }
   .thinking-state-pill-shimmer { position: relative; overflow: hidden; }
   .thinking-state-pill-error { border-color: var(--vzn-danger-border) !important; background: var(--vzn-danger-soft) !important; color: var(--vzn-danger) !important; }
-  .thinking-inline-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--vzn-text-soft); user-select: none; }
+  .thinking-inline-label { display: inline-flex; align-items: center; gap: var(--vzn-space-1-5); font-size: var(--vzn-font-size-sm); font-weight: 500; color: var(--vzn-text-soft); user-select: none; }
 
   /* Chat pills */
   .chat-pill {
@@ -1439,7 +1291,7 @@
 /* Thinking dots */
 @keyframes thinkingDot {
   0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-  40%           { transform: translateY(-4px); opacity: 1; }
+  40%           { transform: translateY(calc(var(--vzn-space-1) * -1)); opacity: 1; }
 }
 .thinking-dot { animation: thinkingDot 1.2s ease-in-out infinite both; }
 

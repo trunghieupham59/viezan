@@ -25,7 +25,7 @@ const ttsPlayer = Bridge.createTtsController({
     const msg = err?.message || 'TTS failed'
     if (msg.includes('401') || msg.includes('Unauthorized')) {
       showStatus('Invalid API key. Update it in Options.', 'error')
-    } else if (msg.includes('fetch') || msg.includes('Failed')) {
+    } else if (Bridge.isNetworkError(msg)) {
       showStatus('Cannot reach Viezan app. Is it running?', 'error')
     } else {
       showStatus(msg, 'error')
@@ -231,7 +231,7 @@ $('btn-translate').addEventListener('click', async () => {
     const msg = err.message || 'Unknown error'
     if (msg.includes('401') || msg.includes('Unauthorized')) {
       showStatus('Invalid API key. Update it in Options.', 'error')
-    } else if (msg.includes('fetch') || msg.includes('Failed')) {
+    } else if (Bridge.isNetworkError(msg)) {
       showStatus('Cannot reach Viezan app. Is it running?', 'error')
     } else {
       showStatus(msg, 'error')
@@ -268,7 +268,7 @@ $('btn-speak-result').addEventListener('click', async () => {
     const msg = err.message || 'TTS failed'
     if (msg.includes('401') || msg.includes('Unauthorized')) {
       showStatus('Invalid API key. Update it in Options.', 'error')
-    } else if (msg.includes('fetch') || msg.includes('Failed')) {
+    } else if (Bridge.isNetworkError(msg)) {
       showStatus('Cannot reach Viezan app. Is it running?', 'error')
     } else {
       showStatus(msg, 'error')

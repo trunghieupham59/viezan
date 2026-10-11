@@ -12,7 +12,7 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { TRANSLATIONS, type Translations } from '../i18n'
-import type { ChatSession } from '../types'
+import type { ChatSession, LiveSession } from '../types'
 import { type ChatSlice, createChatSlice } from './slices/chatSlice'
 import { type CoreSlice, createCoreSlice } from './slices/coreSlice'
 import { createDictionarySlice, type DictionarySlice } from './slices/dictionarySlice'
@@ -71,6 +71,94 @@ export function flushPersistedStore(): void {
   flushDebouncedWrite()
 }
 
+/**
+ * Read-only persistence for secondary windows.
+ *
+ * Every window owns its own Zustand instance over the SAME localStorage key and
+ * zustand's `persist` writes the whole partialized snapshot on every `set` — even
+ * for ephemeral state such as `keyStatus` or a rehydrate. A window that only reads
+ * the shared settings (the standalone Quick Chat popup) would therefore overwrite
+ * newer history / chat sessions / live sessions / dictionary entries written by the
+ * main window with its stale snapshot. Such windows call this once at startup: they
+ * keep hydrating from storage but never write or remove it.
+ */
+let persistWritesEnabled = true
+
+export function disablePersistedStoreWrites(): void {
+  persistWritesEnabled = false
+}
+
+type PersistedBlob = { state?: Record<string, unknown>; version?: number }
+
+/**
+ * Progressively shrink a serialized persist blob so it can still be stored after the
+ * browser rejects the full payload. Settings (provider, model, theme, language …) are
+ * always kept; bulky, re-creatable data goes first:
+ *   1. per-segment live transcripts, 2. all but the most recent sessions/history,
+ *   3. every bulky collection.
+ * Returns null when the payload cannot be parsed or no further shrinking is possible.
+ */
+export function compactPersistedValue(value: string, level: 1 | 2 | 3): string | null {
+  let blob: PersistedBlob
+  try {
+    blob = JSON.parse(value) as PersistedBlob
+  } catch {
+    return null
+  }
+  const state = blob?.state
+  if (!state || typeof state !== 'object') return null
+
+  const keepRecent = (key: string, count: number) => {
+    const list = state[key]
+    if (Array.isArray(list)) state[key] = list.slice(0, count)
+  }
+
+  if (level === 1) {
+    if (Array.isArray(state.liveSessions)) {
+      state.liveSessions = (state.liveSessions as LiveSession[]).map(({ segments: _segments, ...rest }) => rest)
+    }
+  } else if (level === 2) {
+    keepRecent('liveSessions', 5)
+    keepRecent('chatSessions', 5)
+    keepRecent('history', 30)
+    keepRecent('dictionaryEntries', 100)
+    if (Array.isArray(state.liveSessions)) {
+      state.liveSessions = (state.liveSessions as LiveSession[]).map(({ segments: _segments, ...rest }) => rest)
+    }
+  } else {
+    for (const key of ['liveSessions', 'chatSessions', 'history', 'dictionaryEntries']) {
+      if (Array.isArray(state[key])) state[key] = []
+    }
+  }
+  return JSON.stringify(blob)
+}
+
+/** Write to storage; on quota errors retry with progressively smaller payloads. */
+export function writeWithQuotaFallback(
+  storage: Pick<Storage, 'setItem'>,
+  key: string,
+  value: string,
+): boolean {
+  try {
+    storage.setItem(key, value)
+    return true
+  } catch (error) {
+    console.warn('[store] Persisting full state failed; retrying with a compacted payload.', error)
+  }
+  for (const level of [1, 2, 3] as const) {
+    const compacted = compactPersistedValue(value, level)
+    if (compacted === null) return false
+    try {
+      storage.setItem(key, compacted)
+      return true
+    } catch {
+      // try the next, smaller level
+    }
+  }
+  console.warn('[store] Could not persist state even after compaction; skipping this write.')
+  return false
+}
+
 function createDebouncedStorage(delay = 500) {
   let timer: ReturnType<typeof setTimeout> | null = null
   let pendingKey: string | null = null
@@ -81,10 +169,18 @@ function createDebouncedStorage(delay = 500) {
       clearTimeout(timer)
       timer = null
     }
-    if (pendingKey !== null && pendingValue !== null) {
-      localStorage.setItem(pendingKey, pendingValue)
+    if (!persistWritesEnabled) {
       pendingKey = null
       pendingValue = null
+      return
+    }
+    if (pendingKey !== null && pendingValue !== null) {
+      const key = pendingKey
+      const value = pendingValue
+      // Clear first so a failing write can never wedge every later flush.
+      pendingKey = null
+      pendingValue = null
+      writeWithQuotaFallback(localStorage, key, value)
     }
   }
   flushDebouncedWrite = flush
@@ -92,12 +188,14 @@ function createDebouncedStorage(delay = 500) {
   return {
     getItem: (key: string) => localStorage.getItem(key),
     setItem: (key: string, value: string) => {
+      if (!persistWritesEnabled) return
       pendingKey = key
       pendingValue = value
       if (timer) clearTimeout(timer)
       timer = setTimeout(flush, delay)
     },
     removeItem: (key: string) => {
+      if (!persistWritesEnabled) return
       if (timer) {
         clearTimeout(timer)
         timer = null
@@ -162,6 +260,7 @@ export const useAppStore = create<AppState>()(
         phoneticMode: state.phoneticMode,
         translationStyle: state.translationStyle,
         translationReasoningEffort: state.translationReasoningEffort,
+        imageProviderFallback: state.imageProviderFallback,
         ttsMode: state.ttsMode,
         ttsVoice: state.ttsVoice,
         fontSize: state.fontSize,

@@ -156,7 +156,10 @@ describe('model max output token resolution', () => {
     })))
 
     await expect(resolveModelMaxOutputTokens('gemini', 'gemini-test-metadata', 'fake-key')).resolves.toBe(12_345)
-    expect(fetch).toHaveBeenCalledWith('https://generativelanguage.googleapis.com/v1beta/models/gemini-test-metadata?key=fake-key')
+    expect(fetch).toHaveBeenCalledWith(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-test-metadata',
+      expect.objectContaining({ headers: { 'x-goog-api-key': 'fake-key' } }),
+    )
   })
 
   it('falls back to current-family limits when Gemini metadata is unavailable', async () => {
@@ -417,7 +420,7 @@ describe('registerChatHandlers — image editing', () => {
       provider: 'gemini',
       model: 'gemini-2.0-flash',
       prompt: 'Sửa thành phông nền màu trắng',
-      imageBase64: 'source-base64',
+      imageBase64: 'c291cmNlLWJ5dGVz',
       imageMimeType: 'image/png',
     })
 
@@ -468,7 +471,7 @@ describe('registerChatHandlers — image editing', () => {
       provider: 'gemini',
       model: 'gemini-2.0-flash',
       prompt: 'Sửa thành phông nền màu trắng',
-      imageBase64: 'source-base64',
+      imageBase64: 'c291cmNlLWJ5dGVz',
       imageMimeType: 'image/png',
     })
 
@@ -500,7 +503,7 @@ describe('registerChatHandlers — image editing', () => {
       provider: 'gemini',
       model: 'gemini-2.0-flash',
       prompt: 'Sửa thành phông nền màu trắng',
-      imageBase64: 'source-base64',
+      imageBase64: 'c291cmNlLWJ5dGVz',
       imageMimeType: 'image/png',
     })
 
@@ -514,7 +517,7 @@ describe('registerChatHandlers — image editing', () => {
       provider: 'claude',
       model: 'claude-3-5-sonnet-20241022',
       prompt: 'Change the background',
-      imageBase64: 'source-base64',
+      imageBase64: 'c291cmNlLWJ5dGVz',
       imageMimeType: 'image/png',
     })
 
@@ -558,6 +561,28 @@ describe('registerChatHandlers — error code categorization', () => {
     expect(result.success).toBe(false)
     // Error code should be categorized even when caught
     expect(['INVALID_KEY', undefined]).toContain(result.errorCode)
+  })
+
+  it('classifies from the structured status on the error object, not only its message', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.doMock('@google/generative-ai', () => ({
+      GoogleGenerativeAI: class {
+        getGenerativeModel() {
+          return {
+            startChat: () => ({
+              sendMessage: async () => {
+                throw Object.assign(new Error('Upstream gateway rejected the call'), { status: 401 })
+              },
+            }),
+          }
+        }
+      },
+    }))
+    const result = await invoke('chat:send', {
+      provider: 'gemini', model: 'gemini-2.0-flash',
+      messages: [textMsg('user', 'Hello')],
+    })
+    expect(result).toMatchObject({ success: false, errorCode: 'INVALID_KEY' })
   })
 
   it('returns success: false with errorCode RATE_LIMIT for 429 error', async () => {

@@ -1,3 +1,4 @@
+import { hasOwnKey } from './ipcValidation'
 import type { PhoneticMode, TranslationStyle } from './translateValidation'
 
 export const STYLE_TONE: Record<TranslationStyle, string> = {
@@ -84,7 +85,7 @@ export function buildPrompt(
     return `Add phonetic annotations to the following ${targetLang} text. Do NOT translate or change the text content in any way — only add phonetic annotations. Return only the annotated text, no explanations, no notes.\n\n${phoneticInstruction}\n\nText to annotate:\n${sourceText}`
   }
 
-  const tone = STYLE_TONE[style] ?? STYLE_TONE.general
+  const tone = hasOwnKey(STYLE_TONE, style) ? STYLE_TONE[style] : STYLE_TONE.general
   let phoneticInstruction = ''
   if (showFurigana) {
     if (targetLang === 'ja') {
@@ -102,7 +103,7 @@ export function buildPrompt(
 
 export function buildRewritePrompt(text: string, lang: string, style?: TranslationStyle): string {
   const styleName = style ?? 'general'
-  const toneDesc = STYLE_TONE[styleName] ?? STYLE_TONE.general
+  const toneDesc = hasOwnKey(STYLE_TONE, styleName) ? STYLE_TONE[styleName] : STYLE_TONE.general
 
   return `Make the text below indistinguishable from something a confident, articulate native speaker of ${lang} would genuinely write or say — not a polished translation, but authentic original expression.
 

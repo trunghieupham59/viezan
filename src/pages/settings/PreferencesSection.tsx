@@ -12,6 +12,8 @@ export function PreferencesSection() {
   const setAutoTranslateDelay = useAppStore((state) => state.setAutoTranslateDelay)
   const phoneticMode = useAppStore((state) => state.phoneticMode)
   const setPhoneticMode = useAppStore((state) => state.setPhoneticMode)
+  const imageProviderFallback = useAppStore((state) => state.imageProviderFallback)
+  const setImageProviderFallback = useAppStore((state) => state.setImageProviderFallback)
   const locale = useAppStore((state) => state.locale)
   const localeAuto = useAppStore((state) => state.localeAuto)
   const setLocale = useAppStore((state) => state.setLocale)
@@ -120,6 +122,19 @@ export function PreferencesSection() {
             checked={phoneticMode !== 'off'}
             onChange={(v) => setPhoneticMode(v ? 'standard' : 'off')}
             aria-label={t.settings_furigana}
+          />
+        </div>
+
+        {/* Image translation: allow uploading the image to another provider as a fallback */}
+        <div className="flex items-center justify-between gap-4 px-4 py-3.5">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_image_provider_fallback}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_image_provider_fallback_desc}</p>
+          </div>
+          <ToggleSwitch
+            checked={imageProviderFallback}
+            onChange={setImageProviderFallback}
+            aria-label={t.settings_image_provider_fallback}
           />
         </div>
 

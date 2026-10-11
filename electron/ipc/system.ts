@@ -1,8 +1,9 @@
-import type { IpcMain } from 'electron'
+import type { BrowserWindow, IpcMain } from 'electron'
 import { app, shell, systemPreferences } from 'electron'
 import { isAllowedExternalUrl } from './externalUrl'
+import { isSenderWindow } from './senderGuard'
 
-export function registerSystemHandlers(ipc: IpcMain) {
+export function registerSystemHandlers(ipc: IpcMain, getMainWindow?: () => BrowserWindow | null) {
   // ── Check Screen Recording permission (macOS) ───────────────────────────
   ipc.handle('app:checkScreenPermission', () => {
     if (process.platform === 'darwin') {
@@ -21,8 +22,14 @@ export function registerSystemHandlers(ipc: IpcMain) {
     }
   })
 
-  ipc.handle('app:relaunch', () => {
+  // Relaunch through the normal quit path so `will-quit` cleanup (global
+  // hotkeys, local server, managed Ollama) runs. `app.exit()` would skip it.
+  ipc.handle('app:relaunch', (event) => {
+    if (getMainWindow && !isSenderWindow(event, getMainWindow)) {
+      return { success: false, error: 'Untrusted sender' }
+    }
     app.relaunch()
-    app.exit(0)
+    app.quit()
+    return { success: true }
   })
 }

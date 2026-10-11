@@ -44,7 +44,8 @@ describe('translateChunking', () => {
     expect(seen.length).toBeGreaterThan(1)
     expect(seen[0]).toContain('part 1 of')
     expect(seen[1]).toContain('immediately preceding source text')
-    expect(result).toBe(seen.map((_, index) => `tx-${index + 1}`).join('\n'))
+    // Translations are re-joined with the exact whitespace that separated the source chunks.
+    expect(result).toBe(seen.map((_, index) => `tx-${index + 1}`).join(' '))
   })
 })
 

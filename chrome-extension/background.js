@@ -145,7 +145,11 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 // ── Message relay from content script ─────────────────────────────────────────
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Only our own content scripts (which always carry a tab) may use these relays.
+  if (sender?.id !== chrome.runtime.id || sender.tab?.id == null) return
+  if (!message || typeof message !== 'object') return
+
   if (message.type === 'VIEZAN_TRANSLATE') {
     handleTranslate(message).then(sendResponse).catch((err) => {
       sendResponse({ success: false, error: err.message })

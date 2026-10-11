@@ -3,7 +3,10 @@ import { DictionaryHistoryPanel, type DictionaryListTab } from '../components/di
 import { DictionaryResultPanel, type SelectionLookupSaveParams } from '../components/dictionary/DictionaryResultPanel'
 import { DictionarySearchPanel } from '../components/dictionary/DictionarySearchPanel'
 import { ModelSelector } from '../components/ModelSelector'
+import { DictionaryWorkbenchTemplate } from '../components/templates'
+import { Button } from '../components/ui/atoms'
 import { GearIcon } from '../components/ui/icons'
+import { RecoverableError } from '../components/ui/molecules'
 import {
   dictionaryService,
   MAX_DICTIONARY_CONTEXT_CHARS,
@@ -20,6 +23,7 @@ import type {
 import { localizeChatError } from '../utils/chatErrors'
 import { normalizeContextKey } from '../utils/dictionary'
 import { createClientId } from '../utils/id'
+import { formatModelName, getProviderDisplayName } from '../utils/modelDisplay'
 import { combineUsageCosts, estimateUsageCost } from '../utils/usageCost'
 
 function createDictionaryEntryId(): string {
@@ -87,6 +91,7 @@ export function DictionaryPage() {
     setTranslatedText,
     setPhoneticText,
     setActivePage,
+    openSettings,
     recordUsageCost,
   } = useAppStore()
 
@@ -95,6 +100,7 @@ export function DictionaryPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isEnriching, setIsEnriching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorRecoverable, setErrorRecoverable] = useState(false)
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(
     dictionaryEntries[0]?.id ?? null,
   )
@@ -205,18 +211,22 @@ export function DictionaryPage() {
     const cleanTerm = term.trim()
     const cleanContext = context.trim()
     if (!cleanTerm) {
+      setErrorRecoverable(false)
       setError(t.dictionary_error_required)
       return
     }
     if (cleanTerm.length > MAX_DICTIONARY_TERM_CHARS) {
+      setErrorRecoverable(false)
       setError(t.dictionary_error_too_long)
       return
     }
     if (cleanContext.length > MAX_DICTIONARY_CONTEXT_CHARS) {
+      setErrorRecoverable(false)
       setError(t.dictionary_error_context_too_long)
       return
     }
     if (sourceLang && targetLang && sourceLang !== 'auto' && sourceLang === targetLang) {
+      setErrorRecoverable(false)
       setError(t.dictionary_error_same_lang)
       return
     }
@@ -242,6 +252,7 @@ export function DictionaryPage() {
     const usableCache = cacheIsCurrent ? cachedEntry : null
 
     setError(null)
+    setErrorRecoverable(false)
     if (usableCache && hasDictionaryDetails(usableCache)) {
       // Fully cached, current model — just promote it to the top of "Recent".
       const refreshed = createLookupEntry({
@@ -278,6 +289,7 @@ export function DictionaryPage() {
 
       if (!preview.success || !preview.result) {
         if (preview.errorCode !== 'CANCELLED') {
+          setErrorRecoverable(true)
           setError(localizeError(preview.errorCode, preview.error))
         }
         return
@@ -328,6 +340,7 @@ export function DictionaryPage() {
             detailed.errorCode !== 'INVALID_RESPONSE' &&
             detailed.errorCode !== 'TRUNCATED_RESPONSE'
           ) {
+            setErrorRecoverable(true)
             setError(localizeError(detailed.errorCode, detailed.error))
           }
           return
@@ -358,6 +371,7 @@ export function DictionaryPage() {
       if (controller.signal.aborted) return
       if (requestId !== lookupRequestRef.current) return
       const message = err instanceof Error ? err.message : String(err ?? '')
+      setErrorRecoverable(true)
       setError(message || t.dictionary_error_failed)
     } finally {
       if (requestId === lookupRequestRef.current) {
@@ -413,38 +427,56 @@ export function DictionaryPage() {
     setActivePage('translate')
   }
 
+  const dictionaryErrorContext = model
+    ? t.translate_error_context(
+        getProviderDisplayName(selectedProvider),
+        formatModelName(selectedProvider, model),
+      )
+    : ''
+
   return (
-    <div className="app-page">
-      <div className="app-workspace">
-
-        {/* Single glass panel wrapping everything */}
-        <div className="glass-panel flex-1 min-h-0 flex flex-col overflow-hidden">
-
-          {/* Panel header: title + model config */}
-          <div className="page-section-header">
+    <DictionaryWorkbenchTemplate
+      header={(
+        <div className="page-section-header">
             <div className="flex-1 min-w-0">
-              <h1 className="text-base font-bold" style={{color:'var(--vzn-text-strong)'}}>{t.dictionary_title}</h1>
-              <p className="text-xs mt-0.5" style={{color:'var(--vzn-text-soft)'}}>{t.dictionary_subtitle}</p>
+              <h1 className="reliability-page-title text-base font-bold">{t.dictionary_title}</h1>
+              <p className="reliability-page-subtitle mt-0.5 text-xs">{t.dictionary_subtitle}</p>
             </div>
             <div className="relative flex-shrink-0" ref={aiConfigRef}>
-              <button type="button" onClick={()=>setShowAIConfig(v=>!v)} title={t.translate_ai_config_title}
-                className={`btn-icon ${showAIConfig?'btn-active':''}`}>
+              <Button
+                size="md"
+                shape="icon"
+                variant={showAIConfig ? 'primary' : 'neutral'}
+                appearance={showAIConfig ? 'soft' : 'ghost'}
+                onClick={() => setShowAIConfig((visible) => !visible)}
+                title={t.translate_ai_config_title}
+                aria-expanded={showAIConfig}
+                aria-haspopup="dialog"
+              >
                 <GearIcon className="h-3.5 w-3.5"/>
-              </button>
+              </Button>
               {showAIConfig && (
-                <div className="floating-panel ai-config-panel absolute top-full right-0 mt-2 z-50 w-[420px] p-4 flex flex-col gap-3">
+                <div
+                  className="dictionary-ai-config-panel floating-panel ai-config-panel absolute top-full right-0 mt-2 z-50 p-4 flex flex-col gap-3"
+                  role="dialog"
+                  aria-label={t.translate_ai_config_title}
+                >
                   <h2 className="popover-title">{t.translate_ai_config_title}</h2>
                   <ModelSelector/>
                 </div>
               )}
             </div>
           </div>
-
-          {/* Search bar row */}
-          <div className="flex-shrink-0 px-4 py-3" style={{borderBottom:'1px solid var(--vzn-border)'}}>
+      )}
+      search={(
+        <>
             <DictionarySearchPanel
               term={term}
-              onTermChange={v=>{setTerm(v);if(error)setError(null)}}
+              onTermChange={(value) => {
+                setTerm(value)
+                if (error) setError(null)
+                setErrorRecoverable(false)
+              }}
               context={context}
               onContextChange={setContext}
               sourceLang={sourceLang}
@@ -453,17 +485,41 @@ export function DictionaryPage() {
               onTargetLangChange={setTargetLang}
               isLoading={isLoading}
               canSubmit={Boolean(model)}
-              error={error}
+              error={errorRecoverable ? null : error}
               maxTermChars={MAX_DICTIONARY_TERM_CHARS}
               maxContextChars={MAX_DICTIONARY_CONTEXT_CHARS}
               onSubmit={()=>void runLookup()}
               t={t}
             />
-          </div>
-
-          {/* Content: result + history */}
-          <div className="flex flex-1 min-h-0 overflow-hidden p-3 gap-3">
-            <div className="glass-panel flex-1 min-h-0 overflow-hidden order-2 lg:order-1">
+            {error && errorRecoverable && (
+              <div className="mt-2">
+                <RecoverableError
+                  message={error}
+                  context={dictionaryErrorContext}
+                  retryAction={{
+                    label: t.dictionary_error_retry,
+                    onClick: () => void runLookup(),
+                    disabled: !term.trim() || !model || isLoading,
+                  }}
+                  alternativeAction={{
+                    label: t.translate_error_choose_model,
+                    onClick: () => setShowAIConfig(true),
+                  }}
+                  settingsAction={{
+                    label: t.translate_error_open_settings,
+                    onClick: openSettings,
+                  }}
+                  dismissLabel={t.translate_error_dismiss}
+                  onDismiss={() => {
+                    setError(null)
+                    setErrorRecoverable(false)
+                  }}
+                />
+              </div>
+            )}
+        </>
+      )}
+      result={(
               <DictionaryResultPanel
                 entry={selectedEntry}
                 copied={copied}
@@ -474,8 +530,9 @@ export function DictionaryPage() {
                 onSelectionLookupComplete={handleSelectionLookupComplete}
                 t={t}
               />
-            </div>
-            <div className="w-full lg:w-[280px] flex-shrink-0 order-1 lg:order-2">
+      )}
+      resultLabel={t.dictionary_title}
+      history={(
               <DictionaryHistoryPanel
                 entries={dictionaryEntries}
                 selectedEntryId={selectedEntry?.id??null}
@@ -487,11 +544,7 @@ export function DictionaryPage() {
                 onClearHistory={clearDictionaryHistory}
                 t={t}
               />
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </div>
+      )}
+    />
   )
 }

@@ -54,9 +54,19 @@ function renderComparison(results = IDLE_RESULTS) {
         onSpeak={vi.fn()}
         onRetry={vi.fn()}
         onOpenSettings={vi.fn()}
+        onChooseModel={vi.fn()}
       />
     </>,
   )
+}
+
+function errorResult(errorCode: string): TranslationComparisonResult {
+  return {
+    ...IDLE_RESULTS[1],
+    status: 'error',
+    error: 'Raw provider detail',
+    errorCode,
+  }
 }
 
 beforeEach(() => {
@@ -70,6 +80,12 @@ describe('TranslationComparisonPane compact tabs', () => {
     const tabs = within(screen.getByRole('tablist', { name: 'Translation results' }))
       .getAllByRole('tab')
     const panels = screen.getAllByRole('tabpanel')
+
+    expect(screen.getByText('Each model runs independently. One failure will not stop the other results.'))
+      .toBeInTheDocument()
+    expect(panels[0]?.parentElement)
+      .toHaveAttribute('data-result-count', '3')
+    expect(tabs.every((tab) => tab.getAttribute('aria-label')?.endsWith('Ready'))).toBe(true)
 
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true')
     expect(tabs[0]).toHaveAttribute('tabindex', '0')
@@ -131,12 +147,45 @@ describe('TranslationComparisonPane compact tabs', () => {
     ])
 
     const tablist = screen.getByRole('tablist', { name: 'Translation results' })
-    expect(within(tablist).getByRole('tab', { name: /Gemini 2.0 Flash.*Translating/i }))
+    expect(within(tablist).getByRole('tab', { name: /Gemini 2.0 Flash.*Running/i }))
       .toHaveAttribute('aria-busy', 'true')
-    expect(within(tablist).getByRole('tab', { name: /GPT 4o.*Translation ready/i }))
+    expect(within(tablist).getByRole('tab', { name: /GPT 4o.*Complete/i }))
       .toHaveAttribute('aria-busy', 'false')
-    expect(within(tablist).getByRole('tab', { name: /Claude Sonnet 4.*Translation failed/i }))
+    expect(within(tablist).getByRole('tab', { name: /Claude Sonnet 4.*Failed/i }))
       .toHaveAttribute('aria-busy', 'false')
+  })
+
+  it.each([
+    ['NO_API_KEY', 'Add an API key for OpenAI before retrying.', false, true, true],
+    ['INVALID_KEY', 'The API key for OpenAI is invalid. Check it in Settings.', false, true, true],
+    ['RATE_LIMIT', 'OpenAI is rate limited. Wait briefly, then retry this model.', true, false, false],
+    ['MODEL_UNAVAILABLE', 'GPT 4o is unavailable from OpenAI. Choose another model.', false, false, true],
+    ['NETWORK', 'Could not reach OpenAI. Check your connection, then retry.', true, false, false],
+    ['UNKNOWN', 'GPT 4o could not complete this translation. Retry or choose another model.', true, false, true],
+  ])('maps %s to model-specific copy and recovery actions', (
+    errorCode,
+    message,
+    hasRetry,
+    hasSettings,
+    hasChangeModel,
+  ) => {
+    renderComparison([errorResult(errorCode as string)])
+    const card = screen.getByRole('article', { name: /GPT 4o.*OpenAI/i })
+
+    expect(within(card).getByText(message as string)).toBeInTheDocument()
+    expect(Boolean(within(card).queryByRole('button', { name: 'Retry this model' }))).toBe(hasRetry)
+    expect(Boolean(within(card).queryByRole('button', { name: 'Open Settings' }))).toBe(hasSettings)
+    expect(Boolean(within(card).queryByRole('button', { name: 'Change model' }))).toBe(hasChangeModel)
+  })
+
+  it('keeps aggregate completion visible after independent outcomes settle', () => {
+    renderComparison([
+      { ...IDLE_RESULTS[0], status: 'success', translatedText: 'Done', durationMs: 300 },
+      errorResult('NETWORK'),
+      IDLE_RESULTS[2],
+    ])
+
+    expect(screen.getByRole('status', { name: '' })).toHaveTextContent('2 of 3 complete')
   })
 
   it('keeps the selected model across status updates and falls back when it is removed', () => {
@@ -164,6 +213,7 @@ describe('TranslationComparisonPane compact tabs', () => {
           onSpeak={vi.fn()}
           onRetry={vi.fn()}
           onOpenSettings={vi.fn()}
+          onChooseModel={vi.fn()}
         />
       </>,
     )
@@ -186,6 +236,7 @@ describe('TranslationComparisonPane compact tabs', () => {
           onSpeak={vi.fn()}
           onRetry={vi.fn()}
           onOpenSettings={vi.fn()}
+          onChooseModel={vi.fn()}
         />
       </>,
     )

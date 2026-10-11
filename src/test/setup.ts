@@ -96,8 +96,6 @@ if (typeof window !== 'undefined') {
       uninstallLocalAiModel: vi.fn().mockResolvedValue({ success: false, model: '' }),
       onLocalAiModelDownloadProgress: vi.fn().mockReturnValue(() => {}),
       installOllama: vi.fn().mockResolvedValue({ success: false }),
-      cancelOllamaInstall: vi.fn().mockResolvedValue({ success: false }),
-      onLocalAiInstallProgress: vi.fn().mockReturnValue(() => {}),
       verifyKey: vi.fn().mockResolvedValue({ success: false }),
       checkScreenPermission: vi.fn().mockResolvedValue('denied'),
       openExternal: vi.fn().mockResolvedValue(undefined),

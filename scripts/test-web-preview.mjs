@@ -131,11 +131,250 @@ try {
       )
     }
 
+    for (const width of [1440, 800]) {
+      await page.setViewportSize({ width, height: 900 })
+      const configurationTrigger = page.getByRole('button', { name: 'AI configuration' })
+      await configurationTrigger.click()
+      const configurationDialog = page.getByRole('dialog', { name: 'AI configuration' })
+      await configurationDialog.waitFor()
+
+      const configurationBounds = await configurationDialog.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        return {
+          top: bounds.top,
+          right: bounds.right,
+          bottom: bounds.bottom,
+          left: bounds.left,
+          viewportWidth: window.innerWidth,
+          viewportHeight: window.innerHeight,
+        }
+      })
+      assert(
+        configurationBounds.top >= 0
+          && configurationBounds.left >= 0
+          && configurationBounds.right <= configurationBounds.viewportWidth
+          && configurationBounds.bottom <= configurationBounds.viewportHeight,
+        `AI configuration popover is clipped at ${width}px`,
+      )
+
+      const styleSelect = configurationDialog.getByRole('button', { name: /^Style / })
+      await styleSelect.click()
+      const styleListbox = page.getByRole('listbox', { name: 'Style' })
+      await styleListbox.waitFor()
+      const selectBounds = await styleListbox.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        return {
+          top: bounds.top,
+          right: bounds.right,
+          bottom: bounds.bottom,
+          left: bounds.left,
+          viewportWidth: window.innerWidth,
+          viewportHeight: window.innerHeight,
+        }
+      })
+      assert(
+        selectBounds.top >= 0
+          && selectBounds.left >= 0
+          && selectBounds.right <= selectBounds.viewportWidth
+          && selectBounds.bottom <= selectBounds.viewportHeight,
+        `Shared AI configuration Select is clipped at ${width}px`,
+      )
+
+      await page.keyboard.press('Escape')
+      await styleListbox.waitFor({ state: 'detached' })
+      assert(await configurationDialog.isVisible(), `Select Escape closed AI configuration at ${width}px`)
+      assert(
+        await styleSelect.evaluate(element => element === document.activeElement),
+        `Select trigger does not regain focus at ${width}px`,
+      )
+
+      await page.keyboard.press('Escape')
+      await configurationDialog.waitFor({ state: 'detached' })
+      assert(
+        await configurationTrigger.evaluate(element => element === document.activeElement),
+        `AI configuration trigger does not regain focus at ${width}px`,
+      )
+    }
+
     const input = page.locator('textarea').first()
     await input.fill('Hello, how are you?')
     await page.getByText('Xin chào, bạn khỏe không?', { exact: true }).waitFor({ timeout: 5_000 })
 
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.getByRole('button', { name: /AI configuration, 1 model/i }).click()
+    await page.getByRole('button', { name: /Choose translation models, 1 selected/i }).click()
+    const modelDialog = page.getByRole('dialog', { name: 'Translation models' })
+    await modelDialog.waitFor()
+    await modelDialog.getByRole('button', { name: /Qwen3 4B.*Select model/i }).click()
+    await modelDialog.getByRole('button', { name: 'Apply 2 models' }).click()
+    await page.getByRole('button', { name: /AI configuration, 2 models/i }).waitFor()
+    await page.getByText('2 independent requests', { exact: true }).waitFor()
+
     for (const width of [1440, 800]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.waitForTimeout(180)
+
+      const comparisonLayout = await page.evaluate(() => {
+        const main = document.querySelector('.app-main')
+        const list = document.querySelector('.translate-comparison-list[data-result-count="2"]')
+        const tabs = document.querySelector('.translate-comparison-mobile-tabs')
+        const shells = Array.from(document.querySelectorAll('.translate-comparison-card-shell'))
+        if (!(main instanceof HTMLElement)
+          || !(list instanceof HTMLElement)
+          || !(tabs instanceof HTMLElement)
+          || shells.length !== 2
+          || shells.some(shell => !(shell instanceof HTMLElement))) return null
+
+        const shellBounds = shells.map(shell => shell.getBoundingClientRect())
+        const visibleShellCount = shells.filter(shell => {
+          const bounds = shell.getBoundingClientRect()
+          return getComputedStyle(shell).display !== 'none' && bounds.width > 0 && bounds.height > 0
+        }).length
+
+        return {
+          mainWidth: main.getBoundingClientRect().width,
+          listDisplay: getComputedStyle(list).display,
+          tabsDisplay: getComputedStyle(tabs).display,
+          visibleShellCount,
+          sideBySide: Math.abs(shellBounds[0].top - shellBounds[1].top) <= 1
+            && shellBounds[1].left > shellBounds[0].left,
+        }
+      })
+
+      assert(comparisonLayout !== null, `Two-model comparison is incomplete at ${width}px`)
+      const compact = comparisonLayout.mainWidth <= 899
+      assert(
+        compact
+          ? comparisonLayout.tabsDisplay === 'flex'
+            && comparisonLayout.listDisplay === 'block'
+            && comparisonLayout.visibleShellCount === 1
+          : comparisonLayout.tabsDisplay === 'none'
+            && comparisonLayout.listDisplay === 'grid'
+            && comparisonLayout.visibleShellCount === 2
+            && comparisonLayout.sideBySide,
+        `Two-model results use the wrong responsive presentation at ${width}px`,
+      )
+    }
+
+    for (const scenario of [
+      { width: 1440, dark: false },
+      { width: 800, dark: false },
+      { width: 800, dark: true },
+    ]) {
+      await page.setViewportSize({ width: scenario.width, height: 900 })
+      await page.locator('html').evaluate((element, dark) => {
+        element.classList.toggle('dark', dark)
+      }, scenario.dark)
+
+      await page.getByRole('button', { name: /AI configuration, 2 models/i }).click()
+      await page.getByRole('button', { name: /Choose translation models, 2 selected/i }).click()
+      const picker = page.getByRole('dialog', { name: 'Translation models' })
+      await picker.waitFor()
+
+      const pickerLayout = await picker.evaluate((element) => {
+        const bounds = element.getBoundingClientRect()
+        const search = element.querySelector('.translate-model-search-shell')
+        const available = element.querySelector('.translate-model-available')
+        const toolbar = element.querySelector('.translate-model-catalog-toolbar')
+        const list = element.querySelector('.translate-model-available-list')
+        const stickyHeading = element.querySelector('.translate-model-provider-heading')
+        const chips = Array.from(element.querySelectorAll('.selected-model-chip'))
+        const positions = Array.from(element.querySelectorAll('.selected-model-chip__position'))
+        if (!(search instanceof HTMLElement)
+          || !(available instanceof HTMLElement)
+          || !(toolbar instanceof HTMLElement)
+          || !(list instanceof HTMLElement)
+          || !(stickyHeading instanceof HTMLElement)) return null
+        const toolbarBounds = toolbar.getBoundingClientRect()
+        const listBounds = list.getBoundingClientRect()
+        return {
+          bounds: {
+            top: bounds.top,
+            right: bounds.right,
+            bottom: bounds.bottom,
+            left: bounds.left,
+          },
+          viewportWidth: window.innerWidth,
+          viewportHeight: window.innerHeight,
+          searchRatio: search.getBoundingClientRect().width / available.getBoundingClientRect().width,
+          catalogOverflow: getComputedStyle(available).overflow,
+          toolbarClearsList: toolbarBounds.bottom <= listBounds.top + 1,
+          stickySurface: getComputedStyle(stickyHeading).backgroundColor,
+          chipCount: chips.length,
+          positionCount: positions.length,
+          surface: getComputedStyle(element).backgroundColor,
+          text: getComputedStyle(element).color,
+        }
+      })
+      assert(pickerLayout !== null, `Translation model picker is incomplete at ${scenario.width}px`)
+      assert(
+        pickerLayout.bounds.top >= 0
+          && pickerLayout.bounds.left >= 0
+          && pickerLayout.bounds.right <= pickerLayout.viewportWidth
+          && pickerLayout.bounds.bottom <= pickerLayout.viewportHeight,
+        `Translation model picker is clipped at ${scenario.width}px`,
+      )
+      assert(pickerLayout.searchRatio >= 0.9, `Model search lacks hierarchy at ${scenario.width}px`)
+      assert(
+        pickerLayout.catalogOverflow === 'hidden' && pickerLayout.toolbarClearsList,
+        `Search/catalog layers overlap at ${scenario.width}px`,
+      )
+      assert(
+        pickerLayout.stickySurface !== 'rgba(0, 0, 0, 0)',
+        `Sticky provider heading is translucent at ${scenario.width}px`,
+      )
+      assert(
+        pickerLayout.chipCount === 2 && pickerLayout.positionCount === 2,
+        `Selected model ordering is not visible at ${scenario.width}px`,
+      )
+      assert(
+        pickerLayout.surface !== 'rgba(0, 0, 0, 0)' && pickerLayout.surface !== pickerLayout.text,
+        `Model picker surface/text separation failed in ${scenario.dark ? 'dark' : 'light'} mode`,
+      )
+      assert(
+        await picker.getByRole('button', { name: /Needs API key/i }).first().isDisabled(),
+        `Unavailable model is not disabled at ${scenario.width}px`,
+      )
+
+      const catalogRows = picker.locator('.model-selection-row')
+      const rowCount = await catalogRows.count()
+      const checkpoints = [0, Math.floor(rowCount / 2), rowCount - 1]
+      for (const checkpoint of checkpoints) {
+        const row = catalogRows.nth(checkpoint)
+        await row.evaluate((element) => {
+          element.scrollIntoView({ block: 'nearest' })
+          if (element instanceof HTMLButtonElement && !element.disabled) element.focus()
+        })
+        await page.waitForTimeout(60)
+        const rowVisibility = await row.evaluate((element) => {
+          const list = element.closest('.translate-model-available-list')
+          const heading = element.closest('.translate-model-provider-group')
+            ?.querySelector('.translate-model-provider-heading')
+          if (!(list instanceof HTMLElement) || !(heading instanceof HTMLElement)) return null
+          const rowBounds = element.getBoundingClientRect()
+          const listBounds = list.getBoundingClientRect()
+          const headingBounds = heading.getBoundingClientRect()
+          return {
+            rowTop: rowBounds.top,
+            rowBottom: rowBounds.bottom,
+            visibleTop: Math.max(listBounds.top, headingBounds.bottom),
+            visibleBottom: listBounds.bottom,
+          }
+        })
+        assert(rowVisibility !== null, `Could not inspect catalog row ${checkpoint}`)
+        assert(
+          rowVisibility.rowTop >= rowVisibility.visibleTop - 1
+            && rowVisibility.rowBottom <= rowVisibility.visibleBottom + 1,
+          `Catalog row ${checkpoint} is clipped at ${scenario.width}px`,
+        )
+      }
+
+      await picker.getByRole('button', { name: 'Cancel' }).click()
+      await picker.waitFor({ state: 'detached' })
+    }
+    await page.locator('html').evaluate(element => element.classList.remove('dark'))
+
+    for (const width of [1440, 760]) {
       await page.setViewportSize({ width, height: 900 })
 
       const compact = width < 900 ? 'true' : 'false'
@@ -153,10 +392,11 @@ try {
 
       const backdrop = page.locator('.modal-backdrop')
       await backdrop.waitFor()
+      await page.locator('.settings-shell').waitFor()
 
       const settingsNavigationItems = page.locator('.settings-shell > aside .btn-nav-item')
-      await settingsNavigationItems.first().waitFor()
-      const settingsNavigationIsLeftAligned = await settingsNavigationItems.evaluateAll((items) => {
+      const desktopSettingsNavigationVisible = await settingsNavigationItems.first().isVisible()
+      const settingsNavigationIsLeftAligned = !desktopSettingsNavigationVisible || await settingsNavigationItems.evaluateAll((items) => {
         const rows = items.map((item) => {
           const icon = item.querySelector('svg')
           const label = item.querySelector('span')
@@ -182,6 +422,22 @@ try {
       assert(
         settingsNavigationIsLeftAligned,
         `Settings navigation is not left-aligned at ${width}px`,
+      )
+
+      const compactSettingsLayoutUsesFullWidth = desktopSettingsNavigationVisible || await page.evaluate(() => {
+        const shell = document.querySelector('.settings-shell')
+        const sidebar = shell?.querySelector(':scope > aside')
+        const content = shell?.querySelector(':scope > div')
+        if (!(shell instanceof HTMLElement)
+          || !(sidebar instanceof HTMLElement)
+          || !(content instanceof HTMLElement)) return false
+        if (getComputedStyle(sidebar).display !== 'none') return true
+
+        return content.getBoundingClientRect().width >= shell.getBoundingClientRect().width * 0.9
+      })
+      assert(
+        compactSettingsLayoutUsesFullWidth,
+        `Compact Settings content is stranded in a desktop grid column at ${width}px`,
       )
 
       assert(
@@ -333,7 +589,7 @@ try {
 
     assert(pageErrors.length === 0, `Browser errors: ${pageErrors.join('; ')}`)
 
-    console.log('Web Preview smoke test passed: render + translation + modal layering + command palette')
+    console.log('Web Preview smoke test passed: render + translation + AI configuration + modal layering + command palette')
   } finally {
     await browser.close()
   }

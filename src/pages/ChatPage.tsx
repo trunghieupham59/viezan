@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useShallow } from 'zustand/react/shallow'
 import { MessageBubble } from '../components/chat/MessageBubble'
 import { ResearchStepsPanel } from '../components/chat/ResearchStepsPanel'
-import { ModelSelector } from '../components/ModelSelector'
+import { ChatAIConfiguration } from '../components/organisms'
 import { AppLogoIcon, Button } from '../components/ui/atoms'
 import { DragOverlay } from '../components/ui/DragOverlay'
 import { ImagePreviewThumbnail } from '../components/ui/ImagePreviewThumbnail'
@@ -32,6 +32,8 @@ import { useVoiceInput } from '../hooks/useVoiceInput'
 import type { VoiceErrorTranslationKey } from '../i18n/types'
 import { chatService } from '../services/chatService'
 import { DEEP_RESEARCH_CANCELLED_ERROR, deepResearchService } from '../services/deepResearchService'
+import { planImageRequest } from '../services/imagePromptService'
+import type { ActionableSearchFallback } from '../services/searchResultFormatting'
 import { smartThinkingService } from '../services/smartThinkingService'
 import { useAppStore, useT } from '../store/useAppStore'
 import type {
@@ -42,7 +44,9 @@ import type {
   Provider,
 } from '../types'
 
+import { shouldUseCarefulReasoning } from '../utils/carefulReasoning'
 import { localizeChatError, localizeChatException } from '../utils/chatErrors'
+import { supportsChatImageMode } from '../utils/chatImageMode'
 import { createClientId } from '../utils/id'
 import { extractImageFromClipboard, resizeImageFile } from '../utils/imageUtils'
 import { eventMatchesShortcut, shouldSendChatMessage } from '../utils/keyboardShortcuts'
@@ -59,6 +63,25 @@ const CHAT_TEXTAREA_MAX_HEIGHT_PX = 160
  * ~70% of the per-token re-renders ChatPage would otherwise pay for.
  */
 const CHAT_STREAM_BUFFER_INTERVAL_MS = 60
+
+/** How long the web-search fallback notice stays up; longer than a plain toast because it offers an action. */
+const SEARCH_FALLBACK_NOTICE_MS = 10_000
+
+/** Response modes are mutually exclusive; each maps onto the per-session mode flags. */
+type ResponseMode = 'standard' | 'web' | 'research' | 'image'
+
+interface ModeOption {
+  mode: ResponseMode
+  label: string
+  Icon?: typeof GlobeIcon
+  /** Secondary line under the label, e.g. why the option is unavailable. */
+  hint?: string
+  title?: string
+  disabled?: boolean
+}
+
+const MODE_MENU_ID = 'chat-response-mode-menu'
+const MODE_MENU_ITEM_SELECTOR = '[role="menuitemradio"]'
 
 
 // DUP-05: resizeImageToBase64 replaced by shared resizeImageFile from imageUtils.ts
@@ -91,6 +114,45 @@ function toIpcHistory(messages: ChatMessage[]) {
   return messages
     .filter((m) => !m.isLoading && !m.error && !m.isResearchStep && !m.isSmartThinkingStep)
     .map(toIpcMessage)
+}
+
+/**
+ * Plain transcript of the latest turns, handed to Deep Research so a follow-up
+ * such as "compare it with the previous one" keeps its subject.
+ */
+function buildConversationTranscript(messages: ChatMessage[]): string {
+  const MAX_TURNS = 8
+  const MAX_CHARS_PER_TURN = 1200
+  return toIpcHistory(messages)
+    .slice(-MAX_TURNS)
+    .map((message) => {
+      const text = message.content.map((c) => c.text ?? '').join(' ').trim()
+      return text ? `${message.role.toUpperCase()}: ${text.slice(0, MAX_CHARS_PER_TURN)}` : ''
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
+/** Most recent image an assistant message produced (generated or edited) that still has its pixel data. */
+function findLatestAssistantImage(messages: ChatMessage[]): { base64: string; mimeType: string } | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]
+    if (message.role !== 'assistant' || message.error) continue
+    const image = message.content.find((c) => c.type === 'image' && c.imageBase64 && c.imageMimeType)
+    if (image?.imageBase64 && image.imageMimeType) {
+      return { base64: image.imageBase64, mimeType: image.imageMimeType }
+    }
+  }
+  return undefined
+}
+
+/** Text of the most recent user message, used to decide per-request prompt options. */
+function latestUserText(messages: ReturnType<typeof toIpcHistory>): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role !== 'user') continue
+    return messages[i].content.map((c) => c.text ?? '').join(' ')
+  }
+  return ''
 }
 
 function flattenChatCostInput(messages: ReturnType<typeof toIpcHistory>, systemPrompt?: string): string {
@@ -249,6 +311,15 @@ export function ChatPage() {
   const [isSending, setIsSending] = useState(false)
   const [voiceRecordingState, setVoiceRecordingState] = useState<VoiceRecordingState>('idle')
   const [voiceErrorCode, setVoiceErrorCode] = useState<AudioTranscriptionErrorCode | null>(null)
+  // Set when a configured web-search provider (Tavily/Brave) rejected the key or ran out of
+  // quota and free search answered instead — transient notice, auto-dismissed below.
+  const [searchFallbackNotice, setSearchFallbackNotice] = useState<ActionableSearchFallback | null>(null)
+
+  useEffect(() => {
+    if (!searchFallbackNotice) return
+    const timer = setTimeout(() => setSearchFallbackNotice(null), SEARCH_FALLBACK_NOTICE_MS)
+    return () => clearTimeout(timer)
+  }, [searchFallbackNotice])
   const isVoiceBusy = voiceRecordingState !== 'idle' && voiceRecordingState !== 'error'
   /**
    * AbortController for the in-flight chat request. Held in a ref (not state)
@@ -481,6 +552,14 @@ export function ChatPage() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [showModeMenu])
+  // Move focus into the menu on open: the checked item, else the first enabled one.
+  useEffect(() => {
+    if (!showModeMenu) return
+    const menu = modeMenuRef.current
+    const target = menu?.querySelector<HTMLButtonElement>(`${MODE_MENU_ITEM_SELECTOR}[aria-checked="true"]:not(:disabled)`)
+      ?? menu?.querySelector<HTMLButtonElement>(`${MODE_MENU_ITEM_SELECTOR}:not(:disabled)`)
+    target?.focus()
+  }, [showModeMenu])
 
   // ── Ensure active session exists for current provider/model ──
   const ensureSession = useCallback(() => {
@@ -560,6 +639,7 @@ export function ChatPage() {
       content: [{ type: 'text', text: '' }],
       isLoading: true,
       error: undefined,
+      usedModel: undefined,
       timestamp: Date.now(),
     })
 
@@ -571,7 +651,7 @@ export function ChatPage() {
           model: selectedModels[selectedProvider],
           messages: historyMessages.map(toIpcMessage),
           systemPrompt: chatSystemPrompt || undefined,
-          carefulReasoning: true,
+          carefulReasoning: shouldUseCarefulReasoning(latestUserText(historyMessages.map(toIpcMessage))),
         },
         {
           // Buffer tokens so the store update fires at most once per ~60 ms
@@ -602,6 +682,7 @@ export function ChatPage() {
         updateChatMessage(activeChatSessionId, assistantMsgId, {
           content: [{ type: 'text', text: result.reply }],
           isLoading: false,
+          usedModel: result.usedModel,
         })
         recordChatCost(
           activeChatSessionId,
@@ -660,11 +741,13 @@ export function ChatPage() {
   const runDeepResearchPipeline = useCallback(async ({
     sessionId,
     question,
+    history,
     images,
     resumeState,
   }: {
     sessionId: string
     question: string
+    history?: string
     images: { imageBase64: string; imageMimeType: string }[]
     resumeState?: DeepResearchResumeState
   }) => {
@@ -678,7 +761,8 @@ export function ChatPage() {
         provider: selectedProvider,
         model: selectedModels[selectedProvider],
         question,
-        carefulReasoning: true,
+        history,
+        carefulReasoning: shouldUseCarefulReasoning(question),
         images: images.length > 0 ? images : undefined,
         resumeState,
         uiText: {
@@ -710,6 +794,7 @@ export function ChatPage() {
           errorSynth: t.chat_deep_research_error_synth,
           errorUnknown: t.chat_deep_research_error_unknown,
           webSummary: t.chat_deep_research_web_summary,
+          sourcesTitle: t.chat_smart_thinking_sources_title,
         },
         callbacks: {
           onStepStart: (label, meta) => {
@@ -751,6 +836,7 @@ export function ChatPage() {
           // Persist phase-level snapshots so a Stop / page reload can resume
           // the run from the last completed phase. The store action accepts
           // `null` to clear the snapshot when synthesis succeeds.
+          onSearchFallback: setSearchFallbackNotice,
           onResumeStateChange: (state) => {
             setDeepResearchResumeState(sessionId, state)
           },
@@ -829,6 +915,10 @@ export function ChatPage() {
 
     // ── Deep Research path ────────────────────────────────────────────────────
     if (deepResearchMode && (text || attachedImage)) {
+      // Snapshot the earlier turns before the new question joins the session.
+      const history = buildConversationTranscript(
+        useAppStore.getState().chatSessions.find((s) => s.id === sessionId)?.messages ?? [],
+      )
       addChatMessage(sessionId, userMsg)
       setDeepResearchResumeState(sessionId, null)
       setInputText('')
@@ -836,6 +926,7 @@ export function ChatPage() {
       await runDeepResearchPipeline({
         sessionId,
         question: text || t.chat_deep_research_image_only_prompt,
+        history,
         images: attachedImage
           ? [{ imageBase64: attachedImage.base64, imageMimeType: attachedImage.mimeType }]
           : [],
@@ -848,6 +939,9 @@ export function ChatPage() {
     // - With attached image + text prompt → edit the image.
     // - Without attached image → generate a new image from the text prompt.
     if (imageMode && (text || attachedImage)) {
+      // Earlier turns, captured before this message joins the session: they
+      // give the planner its context and the image a follow-up may refine.
+      const priorMessages = useAppStore.getState().chatSessions.find((s) => s.id === sessionId)?.messages ?? []
       addChatMessage(sessionId, userMsg)
       setInputText('')
       const capturedImage = attachedImage
@@ -866,10 +960,36 @@ export function ChatPage() {
       })
 
       try {
-        const isEdit = Boolean(capturedImage && text)
+        // An attached image with no instruction has nothing to generate or edit.
+        if (!text) {
+          updateChatMessage(sessionId, assistantMsgId, { isLoading: false, error: t.chat_image_mode_hint })
+          return
+        }
+
+        // Rewrite the request into a detailed prompt and decide whether it
+        // refines the image generated earlier in this conversation.
+        const previousImage = capturedImage ? undefined : findLatestAssistantImage(priorMessages)
+        const plan = await planImageRequest({
+          provider: selectedProvider,
+          model: selectedModels[selectedProvider],
+          text,
+          history: buildConversationTranscript(priorMessages),
+          hasPreviousImage: Boolean(previousImage),
+          hasAttachedImage: Boolean(capturedImage),
+          signal: imgController.signal,
+        })
+        if (imgController.signal.aborted) {
+          updateChatMessage(sessionId, assistantMsgId, { isLoading: false })
+          return
+        }
+
+        const sourceImage = capturedImage
+          ? { base64: capturedImage.base64, mimeType: capturedImage.mimeType }
+          : plan.editPrevious ? previousImage : undefined
+        const isEdit = Boolean(sourceImage)
         let result: Awaited<ReturnType<typeof chatService.editImage>>
 
-        if (isEdit && capturedImage) {
+        if (sourceImage) {
           if (typeof window.api.editChatImage !== 'function') {
             updateChatMessage(sessionId, assistantMsgId, {
               isLoading: false,
@@ -880,9 +1000,9 @@ export function ChatPage() {
           result = await chatService.editImage({
             provider: selectedProvider,
             model: selectedModels[selectedProvider],
-            prompt: text,
-            imageBase64: capturedImage.base64,
-            imageMimeType: capturedImage.mimeType,
+            prompt: plan.prompt,
+            imageBase64: sourceImage.base64,
+            imageMimeType: sourceImage.mimeType,
           })
         } else {
           if (typeof window.api.generateChatImage !== 'function') {
@@ -895,14 +1015,16 @@ export function ChatPage() {
           result = await chatService.generateImage({
             provider: selectedProvider,
             model: selectedModels[selectedProvider],
-            prompt: text || '',
+            prompt: plan.prompt,
           })
         }
 
         if (imgController.signal.aborted) {
           updateChatMessage(sessionId, assistantMsgId, { isLoading: false })
         } else if (result.success && result.imageBase64 && result.imageMimeType) {
-          const outputLabel = isEdit ? t.chat_image_edit_done : t.chat_image_generate_done
+          // Show the prompt that was actually used so the user can see it and refine it.
+          const doneLabel = isEdit ? t.chat_image_edit_done : t.chat_image_generate_done
+          const outputLabel = plan.rewritten ? `${doneLabel}\n\n> ${plan.prompt}` : doneLabel
           updateChatMessage(sessionId, assistantMsgId, {
             content: [
               {
@@ -962,9 +1084,11 @@ export function ChatPage() {
     // ── Smart Thinking path (DEFAULT for text-only chat) ─────────────────────
     // AI itself classifies the question and decides whether to web-search.
     // Skipped only when:
-    //   • The user attached an image (vision flow uses straight chatService.stream)
+    //   • The user attached an image without Web Search mode (vision flow uses
+    //     straight chatService.stream). With Web Search on, the image stays in
+    //     the history for the final answer and the search still runs.
     //   • There is no text (image-only message)
-    if (text && !attachedImage) {
+    if (text && (!attachedImage || webSearchMode)) {
       // Single morphing placeholder bubble shared across all Smart Thinking phases:
       //   1. Initial "Thinking…" — while AI classifier decides whether to web-search.
       //   2. "Smart Thinking…" pill — shown only if the classifier triggered a web search.
@@ -989,7 +1113,7 @@ export function ChatPage() {
           question: text,
           messages: ipcHistory,
           systemPrompt: chatSystemPrompt || undefined,
-          carefulReasoning: true,
+          carefulReasoning: shouldUseCarefulReasoning(text),
           forceWebSearch: webSearchMode,
           uiText: {
 
@@ -1037,6 +1161,7 @@ export function ChatPage() {
                 researchStepLabel: undefined,
               })
             },
+            onSearchFallback: setSearchFallbackNotice,
             onAnswerStart: () => placeholderMsgId,
             onAnswerToken: (_msgId, content) => {
               updateChatMessage(sessionId, placeholderMsgId, {
@@ -1185,7 +1310,7 @@ export function ChatPage() {
           model: selectedModels[selectedProvider],
           messages: ipcHistory,
           systemPrompt: chatSystemPrompt || undefined,
-          carefulReasoning: true,
+          carefulReasoning: shouldUseCarefulReasoning(text),
         },
         {
           // Same buffering rationale as the regenerate path — see the constant.
@@ -1214,6 +1339,7 @@ export function ChatPage() {
         updateChatMessage(sessionId, assistantMsgId, {
           content: [{ type: 'text', text: result.reply }],
           isLoading: false,
+          usedModel: result.usedModel,
         })
         recordChatCost(
           sessionId,
@@ -1351,6 +1477,75 @@ export function ChatPage() {
     && activeSession.deepResearchResumeState.lastCompletedPhase !== 'synth',
   )
 
+  const activeModeLabel = deepResearchMode
+    ? t.chat_mode_chip_research
+    : webSearchMode
+      ? t.chat_mode_chip_web
+      : imageMode
+        ? t.chat_mode_chip_image
+        : t.chat_mode_standard
+
+  const activeMode: ResponseMode = deepResearchMode
+    ? 'research'
+    : webSearchMode
+      ? 'web'
+      : imageMode
+        ? 'image'
+        : 'standard'
+  const imageModeSupported = supportsChatImageMode(selectedProvider)
+  const modeOptions: ModeOption[] = [
+    { mode: 'standard', label: t.chat_mode_standard },
+    { mode: 'web', label: t.chat_menu_web_search, Icon: GlobeIcon },
+    { mode: 'research', label: t.chat_menu_deep_research, Icon: TelescopeIcon },
+    {
+      mode: 'image',
+      label: t.chat_mode_chip_image,
+      Icon: ImageSparkleIcon,
+      title: t.chat_menu_image_mode,
+      disabled: !imageModeSupported && activeMode !== 'image',
+      hint: imageModeSupported ? undefined : t.chat_image_mode_unsupported_provider,
+    },
+  ]
+  const composerPlaceholder = imageMode
+    ? (imageModeSupported ? t.chat_image_mode_hint : t.chat_image_mode_unsupported_provider)
+    : t.chat_placeholder
+
+  const selectResponseMode = (mode: ResponseMode) => {
+    setWebSearchMode(mode === 'web')
+    setDeepResearchMode(mode === 'research')
+    setImageMode(mode === 'image')
+    setShowModeMenu(false)
+    textareaRef.current?.focus()
+  }
+
+  /** Roving focus for the mode menu: arrows/Home/End move, Escape returns to the trigger. */
+  const handleModeMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      e.stopPropagation()
+      setShowModeMenu(false)
+      modeBtnRef.current?.focus()
+      return
+    }
+    if (e.key === 'Tab') {
+      setShowModeMenu(false)
+      return
+    }
+    const items = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>(`${MODE_MENU_ITEM_SELECTOR}:not(:disabled)`))
+    if (items.length === 0) return
+    const current = items.indexOf(document.activeElement as HTMLButtonElement)
+    let next: number
+    switch (e.key) {
+      case 'ArrowDown': next = (current + 1) % items.length; break
+      case 'ArrowUp': next = current <= 0 ? items.length - 1 : current - 1; break
+      case 'Home': next = 0; break
+      case 'End': next = items.length - 1; break
+      default: return
+    }
+    e.preventDefault()
+    items[next]?.focus()
+  }
+
   /** Shared input area — reused in both empty-state and messages-state layouts */
   const inputArea = (
     <div className="flex flex-col">
@@ -1382,7 +1577,7 @@ export function ChatPage() {
           onChange={(e) => { setInputText(e.target.value); if (isVoiceActive) resetVoicePrefix() }}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder={t.chat_placeholder}
+          placeholder={composerPlaceholder}
           rows={1}
           disabled={isSending}
           readOnly={isVoiceBusy}
@@ -1416,37 +1611,18 @@ export function ChatPage() {
             <PlusIcon />
           </Button>
 
-          {/* Ảnh — image mode toggle */}
-          <Button
-            size="md"
-            shape="pill"
-            variant={imageMode ? 'primary' : 'neutral'}
-            appearance={imageMode ? 'soft' : 'ghost'}
-            className={`chat-mode-pill ${imageMode ? 'chat-mode-pill-active' : ''}`}
-            aria-pressed={imageMode}
-            disabled={isVoiceBusy}
-            onClick={() => {
-              const next = !imageMode
-              setImageMode(next)
-              if (next) { setWebSearchMode(false); setDeepResearchMode(false) }
-              textareaRef.current?.focus()
-            }}
-            title={t.chat_menu_image_mode}
-          >
-            <ImageSparkleIcon className="h-3.5 w-3.5 flex-shrink-0" />
-            <span>{t.chat_mode_chip_image}</span>
-          </Button>
-
-          {/* Tự động ▼ — processing mode dropdown */}
+          {/* Tiêu chuẩn ▼ — response mode dropdown (standard / web / research / image) */}
           <Button
             ref={modeBtnRef}
             size="md"
             shape="pill"
-            variant={(webSearchMode || deepResearchMode || showModeMenu) ? 'primary' : 'neutral'}
-            appearance={(webSearchMode || deepResearchMode || showModeMenu) ? 'soft' : 'ghost'}
-            className={`chat-mode-pill ${(webSearchMode || deepResearchMode) ? 'chat-mode-pill-active' : ''}`}
+            variant={(webSearchMode || deepResearchMode || imageMode || showModeMenu) ? 'primary' : 'neutral'}
+            appearance={(webSearchMode || deepResearchMode || imageMode || showModeMenu) ? 'soft' : 'ghost'}
+            className={`chat-mode-pill ${(webSearchMode || deepResearchMode || imageMode) ? 'chat-mode-pill-active' : ''}`}
             aria-haspopup="menu"
+            aria-label={`${t.chat_response_mode}: ${activeModeLabel}`}
             aria-expanded={showModeMenu}
+            aria-controls={showModeMenu ? MODE_MENU_ID : undefined}
             disabled={isVoiceBusy}
             onClick={showModeMenu ? () => setShowModeMenu(false) : openModeMenu}
           >
@@ -1454,14 +1630,10 @@ export function ChatPage() {
               ? <TelescopeIcon className="h-3.5 w-3.5 flex-shrink-0" />
               : webSearchMode
                 ? <GlobeIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                : null}
-            <span>
-              {deepResearchMode
-                ? t.chat_mode_chip_research
-                : webSearchMode
-                  ? t.chat_mode_chip_web
-                  : t.settings_mode_auto}
-            </span>
+                : imageMode
+                  ? <ImageSparkleIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                  : null}
+            <span>{activeModeLabel}</span>
             <ChevronDownIcon className={`w-3 h-3 flex-shrink-0 transition-transform duration-150 ${showModeMenu ? 'rotate-180' : ''}`} />
           </Button>
         </div>
@@ -1473,9 +1645,8 @@ export function ChatPage() {
           )}
           {!isVoiceBusy && (
             <>
-              <ModelSelector
-                compact
-                selectionContextKey={activeChatSessionId}
+              <ChatAIConfiguration
+                conversationId={activeChatSessionId}
                 onSelectionChange={handleChatModelChange}
               />
               <span className="w-px h-3.5 flex-shrink-0" style={{ background: 'var(--vzn-border-strong)' }} />
@@ -1544,63 +1715,45 @@ export function ChatPage() {
         document.body
       )}
 
-      {/* Mode dropdown portal — Tự động / Tìm kiếm / Nghiên cứu */}
+      {/* Mode dropdown portal — Tiêu chuẩn / Tìm kiếm / Nghiên cứu / Tạo ảnh */}
       {showModeMenu && createPortal(
         <div
+          id={MODE_MENU_ID}
           ref={modeMenuRef}
+          role="menu"
+          aria-label={t.chat_response_mode}
+          onKeyDown={handleModeMenuKeyDown}
           className="floating-panel overflow-hidden"
           style={{ position: 'fixed', bottom: modeMenuPos.bottom, left: modeMenuPos.left, width: 220, zIndex: 9999 }}
         >
-          {/* Tự động — no special mode */}
-          <button
-            type="button"
-            className="btn-menu-item justify-start gap-3"
-            onClick={() => {
-              setWebSearchMode(false)
-              setDeepResearchMode(false)
-              setShowModeMenu(false)
-              textareaRef.current?.focus()
-            }}
-          >
-            <span className="w-[18px] h-[18px] flex-shrink-0 flex items-center justify-center">
-              {!webSearchMode && !deepResearchMode && <CheckIcon className="w-4 h-4 text-[--vzn-accent]" />}
-            </span>
-            <span className="flex-1 text-left">{t.settings_mode_auto}</span>
-          </button>
-
-          {/* Tìm kiếm trên mạng */}
-          <button
-            type="button"
-            className="btn-menu-item justify-start gap-3"
-            onClick={() => {
-              setWebSearchMode(true)
-              setDeepResearchMode(false)
-              setImageMode(false)
-              setShowModeMenu(false)
-              textareaRef.current?.focus()
-            }}
-          >
-            <GlobeIcon className={`w-[18px] h-[18px] flex-shrink-0 ${webSearchMode ? 'text-[--vzn-accent]' : 'text-[--vzn-text-muted]'}`} />
-            <span className="flex-1 text-left">{t.chat_menu_web_search}</span>
-            {webSearchMode && <CheckIcon className="w-4 h-4 flex-shrink-0 text-[--vzn-accent]" />}
-          </button>
-
-          {/* Nghiên cứu chuyên sâu */}
-          <button
-            type="button"
-            className="btn-menu-item justify-start gap-3"
-            onClick={() => {
-              setDeepResearchMode(true)
-              setWebSearchMode(false)
-              setImageMode(false)
-              setShowModeMenu(false)
-              textareaRef.current?.focus()
-            }}
-          >
-            <TelescopeIcon className={`w-[18px] h-[18px] flex-shrink-0 ${deepResearchMode ? 'text-[--vzn-accent]' : 'text-[--vzn-text-muted]'}`} />
-            <span className="flex-1 text-left">{t.chat_menu_deep_research}</span>
-            {deepResearchMode && <CheckIcon className="w-4 h-4 flex-shrink-0 text-[--vzn-accent]" />}
-          </button>
+          {modeOptions.map(({ mode, label, Icon, hint, title, disabled }) => {
+            const checked = mode === activeMode
+            return (
+              <button
+                key={mode}
+                type="button"
+                role="menuitemradio"
+                aria-checked={checked}
+                disabled={disabled}
+                title={title}
+                className={`btn-menu-item justify-start gap-3${hint ? ' btn-menu-item-with-hint' : ''}`}
+                onClick={() => selectResponseMode(mode)}
+              >
+                {Icon ? (
+                  <Icon className={`w-[18px] h-[18px] flex-shrink-0 ${checked ? 'text-[--vzn-accent]' : 'text-[--vzn-text-muted]'}`} />
+                ) : (
+                  <span className="w-[18px] h-[18px] flex-shrink-0 flex items-center justify-center">
+                    {checked && <CheckIcon className="w-4 h-4 text-[--vzn-accent]" />}
+                  </span>
+                )}
+                <span className="flex min-w-0 flex-1 flex-col text-left">
+                  <span>{label}</span>
+                  {hint && <span className="ui-micro">{hint}</span>}
+                </span>
+                {Icon && checked && <CheckIcon className="w-4 h-4 flex-shrink-0 text-[--vzn-accent]" />}
+              </button>
+            )
+          })}
         </div>,
         document.body
       )}
@@ -1624,23 +1777,43 @@ export function ChatPage() {
         <DragOverlay label={t.chat_attach_image} zIndex="z-50" showRing />
       )}
 
-      {voiceErrorMessage && (
+      {(voiceErrorMessage || searchFallbackNotice) && (
         <div className="notification-viewport">
-          <NotificationToast
-            tone={voiceErrorCode ? getVoiceNotificationTone(voiceErrorCode) : 'error'}
-            title={t.voice_transcription_error_title}
-            message={voiceErrorMessage}
-            actionLabel={canOpenSettingsForVoiceError ? t.translate_error_open_settings : undefined}
-            onAction={canOpenSettingsForVoiceError
-              ? () => {
-                  setVoiceErrorCode(null)
-                  openSettings()
-                }
-              : undefined}
-            dismissLabel={t.translate_error_dismiss}
-            onDismiss={() => setVoiceErrorCode(null)}
-            className="fade-in"
-          />
+          {searchFallbackNotice && (
+            <NotificationToast
+              tone="warning"
+              title={t.chat_web_search_fallback_title}
+              message={t.chat_web_search_fallback(
+                searchFallbackNotice.from === 'tavily' ? 'Tavily' : 'Brave Search',
+                searchFallbackNotice.reason,
+              )}
+              actionLabel={t.translate_error_open_settings}
+              onAction={() => {
+                setSearchFallbackNotice(null)
+                openSettings()
+              }}
+              dismissLabel={t.translate_error_dismiss}
+              onDismiss={() => setSearchFallbackNotice(null)}
+              className="fade-in"
+            />
+          )}
+          {voiceErrorMessage && (
+            <NotificationToast
+              tone={voiceErrorCode ? getVoiceNotificationTone(voiceErrorCode) : 'error'}
+              title={t.voice_transcription_error_title}
+              message={voiceErrorMessage}
+              actionLabel={canOpenSettingsForVoiceError ? t.translate_error_open_settings : undefined}
+              onAction={canOpenSettingsForVoiceError
+                ? () => {
+                    setVoiceErrorCode(null)
+                    openSettings()
+                  }
+                : undefined}
+              dismissLabel={t.translate_error_dismiss}
+              onDismiss={() => setVoiceErrorCode(null)}
+              className="fade-in"
+            />
+          )}
         </div>
       )}
 
@@ -1753,11 +1926,11 @@ export function ChatPage() {
                     }
                     return rendered
                   })()}
-                  <div ref={messagesEndRef} />
+                  <div ref={messagesEndRef} className="chat-messages-end" aria-hidden="true" />
                 </div>
               </div>
 
-              {/* Input — sticky footer, max-width centered */}
+              {/* Input — in-flow footer, max-width centered */}
               <div className="chat-active-composer-footer">
                 <div className="chat-active-composer-inner">
                   <div className="chat-composer chat-page-composer">

@@ -2,9 +2,10 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { AIChatSidebar, CommandPalette, PrimaryNavigationSidebar } from './components/organisms'
 import { SettingsModal } from './components/SettingsModal'
 import { AppShell } from './components/templates'
+import { FeatureLoadingState } from './components/ui/molecules'
 import { PROVIDERS } from './constants/providers'
-import { flushPersistedStore, useAppStore } from './store/useAppStore'
-import type { Provider, QuickChatSeedPayload } from './types'
+import { flushPersistedStore, useAppStore, useT } from './store/useAppStore'
+import type { AppPage, Provider, QuickChatSeedPayload } from './types'
 import { detectSystemLocale } from './utils/locale'
 
 const TranslatePage = lazy(() => import('./pages/TranslatePage').then(m => ({ default: m.TranslatePage })))
@@ -22,11 +23,15 @@ function closeResponsiveNavigation() {
   window.dispatchEvent(new CustomEvent(CLOSE_CONTEXT_SIDEBARS_EVENT))
 }
 
-function PageFallback() {
+export function PageFallback({ page, label }: { page: AppPage; label: string }) {
+  if (page === 'live') return <FeatureLoadingState label={label} layout="split" />
+  if (page === 'dictionary') return <FeatureLoadingState label={label} layout="split" />
+  if (page === 'history') return <FeatureLoadingState label={label} layout="list" />
   return <div className="app-page" aria-hidden="true" />
 }
 
 function App() {
+  const t = useT()
   const {
     activePage, localeAuto, setKeyStatus, setLocaleFromSystem, fontSize, theme,
     selectedProvider, selectedModels, ttsMode, ttsVoice,
@@ -167,6 +172,15 @@ function App() {
   }, [setKeyStatus])
 
   const isMac = window.api?.platform === 'darwin'
+  const fallbackFeatureLabel = activePage === 'live'
+    ? t.nav_live_translate
+    : activePage === 'dictionary'
+      ? t.dictionary_title
+      : activePage === 'history'
+        ? t.history_title
+        : activePage === 'chat'
+          ? t.nav_chat
+          : t.nav_translate
 
   return (
     <AppShell
@@ -184,7 +198,14 @@ function App() {
         </>
       }
     >
-      <Suspense fallback={<PageFallback />}>
+      <Suspense
+        fallback={(
+          <PageFallback
+            page={activePage}
+            label={t.route_loading(fallbackFeatureLabel)}
+          />
+        )}
+      >
         {activePage === 'translate' ? (
           <TranslatePage />
         ) : activePage === 'live' ? (

@@ -33,6 +33,8 @@ const PICKER_MAX_HEIGHT = 440
 
 interface ModelSelectorProps {
   compact?: boolean
+  /** Renders the searchable catalog immediately inside an owning configuration surface. */
+  embedded?: boolean
   /** Renders the picker inside the owning surface instead of a portal. */
   inline?: boolean
   /** Opens directly into the searchable model list. */
@@ -54,6 +56,7 @@ interface ModelSelectorProps {
 
 export function ModelSelector({
   compact = false,
+  embedded = false,
   inline = false,
   directModelList = false,
   hideTriggerWhenOpen = false,
@@ -73,8 +76,8 @@ export function ModelSelector({
   } = useAppStore()
   const t = useT()
 
-  const [open, setOpen] = useState(false)
-  const [view, setView] = useState<PickerView>('root')
+  const [open, setOpen] = useState(embedded)
+  const [view, setView] = useState<PickerView>(embedded ? 'models' : 'root')
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [pickerPosition, setPickerPosition] = useState<PickerPosition | null>(null)
@@ -628,7 +631,7 @@ export function ModelSelector({
 
   return (
     <>
-      {(!open || !hideTriggerWhenOpen) && <Button
+      {!embedded && (!open || !hideTriggerWhenOpen) && <Button
         ref={triggerRef}
         size="md"
         shape={compact ? 'pill' : 'rect'}

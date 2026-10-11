@@ -548,8 +548,10 @@
     // entriesBySegId: segId → { entry, srcEl, txEl }
     // Entries are created IMMEDIATELY when source text arrives, before translation.
     const entriesBySegId        = {}
-    let currentStreamEntry      = null   // the entry currently being streamed into
-    let currentStreamSegId      = null   // segId of the current stream
+    // activeStreams: stream key → { entryData, text, segId }. Streams are keyed by
+    // segId so overlapping segments never write into each other's line. A stream
+    // started without a segId uses the legacy key ''.
+    const activeStreams         = {}
     const pendingTranslationQueue = []   // ordered segIds waiting for non-streaming translation
 
     // ── Populate language dropdown ─────────────────────────────────────────────
@@ -650,8 +652,7 @@
       // Clear all segment tracking state
       for (const k of Object.keys(entriesBySegId)) delete entriesBySegId[k]
       pendingTranslationQueue.length = 0
-      currentStreamEntry = null
-      currentStreamSegId = null
+      for (const k of Object.keys(activeStreams)) delete activeStreams[k]
       lastFinalizedText  = ''
       streamText         = ''
       isStreaming        = false
@@ -807,57 +808,62 @@
 
     // Streaming
     // ── Streaming path ─────────────────────────────────────────────────────────
-    window.subtitleAPI.onStreamStart(({ segId }) => {
-      isStreaming = true
-      streamText = ''
-      currentStreamSegId = segId || null
+    const streamKey = (segId) => segId || ''
+
+    window.subtitleAPI.onStreamStart(({ segId } = {}) => {
+      const key = streamKey(segId)
 
       // Find the entry pre-created by onSourceText; fall back to creating a new one
-      const entryData = segId ? entriesBySegId[segId] : null
-      if (entryData) {
-        currentStreamEntry = entryData
-        currentStreamEntry.txEl.textContent = ''      // clear placeholder
-        currentStreamEntry.txEl.style.opacity = '1'
-      } else {
+      let entryData = segId ? entriesBySegId[segId] : null
+      if (!entryData) {
         // onSourceText hasn't arrived yet — create entry now without source text
-        currentStreamEntry = createEntryForSeg('', segId)
-        currentStreamEntry.txEl.textContent = ''
-        currentStreamEntry.txEl.style.opacity = '1'
+        entryData = createEntryForSeg('', segId)
       }
+      entryData.txEl.textContent = ''      // clear placeholder
+      entryData.txEl.style.opacity = '1'
+
+      activeStreams[key] = { entryData, text: '', segId: segId || null }
+      isStreaming = true
+      streamText = ''
     })
 
-    window.subtitleAPI.onStreamToken((token) => {
-      streamText += token
-      if (currentStreamEntry) {
-        currentStreamEntry.txEl.innerHTML = escHtml(streamText)
-        scrollToBottom()
-      }
+    // `segId` identifies the stream the token belongs to; tokens for one segment
+    // never append to another segment's line.
+    window.subtitleAPI.onStreamToken((token, segId) => {
+      const stream = activeStreams[streamKey(segId)]
+      if (!stream) return
+      stream.text += token
+      streamText = stream.text
+      stream.entryData.txEl.innerHTML = escHtml(stream.text)
+      scrollToBottom()
     })
 
-    window.subtitleAPI.onStreamEnd(() => {
-      isStreaming = false
+    window.subtitleAPI.onStreamEnd(({ segId } = {}) => {
+      const key = streamKey(segId)
+      const stream = activeStreams[key]
+      delete activeStreams[key]
+      isStreaming = Object.keys(activeStreams).length > 0
+      if (!stream) return
 
-      if (currentStreamEntry) {
-        const deduped = stripOverlap(lastFinalizedText, streamText)
-        if (deduped === null) {
-          // Pure duplicate — remove entry
-          subtitleList.removeChild(currentStreamEntry.entry)
-          if (currentStreamSegId) delete entriesBySegId[currentStreamSegId]
-        } else {
-          if (deduped !== streamText) {
-            currentStreamEntry.txEl.innerHTML = escHtml(deduped)
-          }
-          currentStreamEntry.txEl.style.opacity = '1'
-          lastFinalizedText = deduped
+      const deduped = stripOverlap(lastFinalizedText, stream.text)
+      if (deduped === null) {
+        // Pure duplicate — remove entry
+        if (stream.entryData.entry.parentNode === subtitleList) {
+          subtitleList.removeChild(stream.entryData.entry)
         }
+        if (stream.segId) delete entriesBySegId[stream.segId]
+      } else {
+        if (deduped !== stream.text) {
+          stream.entryData.txEl.innerHTML = escHtml(deduped)
+        }
+        stream.entryData.txEl.style.opacity = '1'
+        lastFinalizedText = deduped
       }
 
       // Remove from pending queue
-      const idx = pendingTranslationQueue.indexOf(currentStreamSegId)
+      const idx = pendingTranslationQueue.indexOf(stream.segId)
       if (idx !== -1) pendingTranslationQueue.splice(idx, 1)
 
-      currentStreamEntry = null
-      currentStreamSegId = null
       trimHistory()
     })
 

@@ -10,7 +10,7 @@ export const updaterSection = {
       ipcRenderer.invoke('updater:check') as Promise<{ success: boolean; error?: string }>,
     /** Start downloading an available update. macOS downloads the DMG without opening Finder. */
     download: () =>
-      ipcRenderer.invoke('updater:download') as Promise<{ success: boolean; error?: string; filePath?: string }>,
+      ipcRenderer.invoke('updater:download') as Promise<{ success: boolean; error?: string; errorCode?: string; filePath?: string; verified?: boolean }>,
     /** Quit and install, or delegate to the platform updater. */
     install: () =>
       ipcRenderer.invoke('updater:install') as Promise<{ success: boolean; error?: string }>,

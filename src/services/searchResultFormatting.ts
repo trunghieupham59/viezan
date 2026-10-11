@@ -11,7 +11,16 @@ interface FormatWebSearchOptions {
   query?: string
   provider?: string
   resultCount?: number
+  /** Max characters of each result's content. Defaults to 700. */
+  maxCharsPerResult?: number
+  /**
+   * Citation numbers to print for each result (parallel to `results`). Lets a
+   * multi-search run keep one global numbering instead of restarting at [1].
+   */
+  numbers?: number[]
 }
+
+const DEFAULT_MAX_CHARS_PER_RESULT = 700
 
 export function getCurrentLocaleDateTime() {
   const locale = typeof navigator !== 'undefined' ? navigator.language : undefined
@@ -20,6 +29,26 @@ export function getCurrentLocaleDateTime() {
 
 export function hasWebSearchApi() {
   return typeof window !== 'undefined' && typeof window.api?.webSearch === 'function'
+}
+
+/** Set by the main process when a configured web-search provider failed and a lower-priority one answered. */
+export interface WebSearchFallbackInfo {
+  from: 'tavily' | 'brave'
+  reason: 'auth' | 'quota' | 'error'
+}
+
+export type ActionableSearchFallback = WebSearchFallbackInfo & { reason: 'auth' | 'quota' }
+
+/**
+ * The fallback worth telling the user about: a rejected key or exhausted quota is
+ * something they can act on, while a transient error is not.
+ */
+export function getActionableSearchFallback(
+  result: { fallback?: WebSearchFallbackInfo } | null | undefined,
+): ActionableSearchFallback | null {
+  const fallback = result?.fallback
+  if (!fallback || fallback.reason === 'error') return null
+  return fallback as ActionableSearchFallback
 }
 
 export function formatWebSearchResults(
@@ -44,10 +73,10 @@ export function formatWebSearchResults(
   if (answer) lines.push(`**${summaryLabel}:** ${answer}`, '')
   results.forEach((result, index) => {
     lines.push(
-      `**[${index + 1}] ${result.title}**`,
+      `**[${formatOptions?.numbers?.[index] ?? index + 1}] ${result.title}**`,
       `URL: ${result.url}`,
       `Relevance score: ${Number.isFinite(result.score) ? result.score.toFixed(2) : 'unknown'}`,
-      result.content.slice(0, 700),
+      result.content.slice(0, formatOptions?.maxCharsPerResult ?? DEFAULT_MAX_CHARS_PER_RESULT),
       '',
     )
   })

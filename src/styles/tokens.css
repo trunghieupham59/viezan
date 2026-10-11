@@ -115,6 +115,7 @@
   --vzn-disabled-bg: var(--vzn-neutral-100);
   --vzn-disabled-border: var(--vzn-neutral-200);
   --vzn-disabled-fg: var(--vzn-neutral-400);
+  --vzn-opacity-disabled: 0.48;
 
   /* Typography ---------------------------------------------------------- */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -185,6 +186,7 @@
   --vzn-shadow-md: 0 10px 30px rgba(28, 28, 30, 0.08);
   --vzn-shadow-lg: 0 20px 52px rgba(28, 28, 30, 0.13);
   --vzn-shadow-overlay: 0 28px 76px rgba(28, 28, 30, 0.22);
+  --vzn-prompt-card-shadow-hover: 0 6px 18px rgba(24, 23, 21, 0.06);
   --vzn-duration-fast: 120ms;
   --vzn-duration-normal: 180ms;
   --vzn-duration-pulse: 1s;
@@ -193,6 +195,8 @@
 
   /* Layering ------------------------------------------------------------ */
   --vzn-layer-context-overlay: 60;
+  --vzn-layer-local-sticky: 1;
+  --vzn-layer-local-toolbar: 2;
   --vzn-layer-navigation-backdrop: 65;
   --vzn-layer-navigation-overlay: 70;
   --vzn-layer-modal: 80;
@@ -208,10 +212,34 @@
   --vzn-chat-composer-max: 1040px;
   --vzn-translate-workspace-max: 1440px;
   --vzn-chat-gutter: clamp(16px, 2.2vw, 40px);
+  --vzn-chat-message-end-clearance: var(--vzn-space-4);
+  --vzn-chat-avatar-size: 2rem;
   --vzn-composer-min-height: 116px;
-  --vzn-prompt-card-min-height: 132px;
+  --vzn-prompt-card-min-height: 116px;
   --vzn-workspace-pad: var(--vzn-space-4);
   --vzn-panel-gap: var(--vzn-space-3);
+  --vzn-empty-state-copy-max: calc(var(--vzn-space-12) * 4);
+  --vzn-dictionary-result-min-inline: calc(var(--vzn-space-12) * 10);
+  --vzn-dictionary-history-width: calc(var(--vzn-space-12) * 6);
+  --vzn-dictionary-pane-min-block: calc(var(--vzn-space-12) * 6);
+  --vzn-popover-wide: 420px;
+  --vzn-ai-configuration-inline: var(--vzn-popover-wide);
+  --vzn-ai-configuration-max-block: min(
+    calc(100dvh - var(--vzn-space-8)),
+    calc(var(--vzn-space-12) * 10)
+  );
+  --vzn-ai-configuration-content-max-block: calc(
+    var(--vzn-ai-configuration-max-block) - (var(--vzn-space-12) * 2)
+  );
+  --vzn-select-menu-max-block: calc(var(--vzn-space-12) * 5);
+  --vzn-translate-model-chip-inline: calc(var(--vzn-space-12) * 6);
+  --vzn-translate-model-scroll-clearance: calc(
+    var(--vzn-control-height-md) + var(--vzn-space-2)
+  );
+  --vzn-history-search-width: calc(var(--vzn-space-12) * 5);
+  --vzn-settings-modal-max-inline: 1040px;
+  --vzn-settings-modal-max-block: 860px;
+  --vzn-modal-viewport-block: 90vh;
 
   /* Compatibility aliases ---------------------------------------------- */
   --vzn-accent: var(--vzn-action);
@@ -302,6 +330,7 @@ html.dark {
   --vzn-shadow-md: 0 10px 28px rgba(0, 0, 0, 0.26);
   --vzn-shadow-lg: 0 20px 52px rgba(0, 0, 0, 0.36);
   --vzn-shadow-overlay: 0 28px 80px rgba(0, 0, 0, 0.5);
+  --vzn-prompt-card-shadow-hover: 0 8px 22px rgba(0, 0, 0, 0.18);
   --vzn-skeleton: rgba(255, 255, 255, 0.06);
 }
 

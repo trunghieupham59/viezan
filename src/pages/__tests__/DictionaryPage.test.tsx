@@ -355,4 +355,26 @@ describe('DictionaryPage', () => {
 
     expect(screen.getByText(/Enter a term|Nhập từ|語句を入力/i)).toBeInTheDocument()
   })
+
+  it('keeps a failed lookup recoverable without clearing the term', async () => {
+    vi.mocked(dictionaryService.lookupPreview)
+      .mockResolvedValueOnce({ success: false, error: 'Provider unavailable' })
+      .mockResolvedValueOnce({ success: false, error: 'Still unavailable' })
+
+    render(<DictionaryPage />)
+    const input = screen.getByPlaceholderText(/Enter a word|Nhập từ|単語/i)
+    fireEvent.change(input, { target: { value: 'reliable' } })
+    fireEvent.click(screen.getByRole('button', { name: /Look up|Tra cứu|検索/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Provider unavailable')
+    expect(input).toHaveValue('reliable')
+
+    fireEvent.click(screen.getByRole('button', { name: /Retry|Thử lại|再試行/i }))
+    await waitFor(() => expect(dictionaryService.lookupPreview).toHaveBeenCalledTimes(2))
+
+    fireEvent.click(screen.getByRole('button', { name: /Choose another model|Chọn model khác|別のモデル/i }))
+    expect(screen.getByRole('dialog', {
+      name: /Adjust translation style|Điều chỉnh phong cách dịch|翻訳スタイル/i,
+    })).toBeInTheDocument()
+  })
 })

@@ -26,10 +26,10 @@ import * as path from 'node:path'
 import { app } from 'electron'
 import { EXT_DEFAULT_GEMINI_MODEL } from './ipcConstants'
 import { invalidIpcInput, isNonEmptyString, isRecord } from './ipcValidation'
-import { lightweightTranslate } from './lightweightTranslate'
+import { type LightweightTranslateParams, lightweightTranslate } from './lightweightTranslate'
 import { isValidProvider } from './providers/types'
 import { hasStoredApiKey } from './storage'
-import { synthesizeTts, type TtsMode, type TtsParams } from './tts'
+import { parseTtsParams, synthesizeTts, type TtsMode, type TtsParams } from './tts'
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -56,6 +56,8 @@ export type TokenInfo = Omit<TokenEntry, 'token'>
 
 let activeTokens: TokenEntry[] = []
 let server: http.Server | null = null
+/** True only while the HTTP server is actually bound to LOCAL_SERVER_PORT. */
+let serverListening = false
 
 /**
  * Active provider/model synced from the renderer (Zustand store).
@@ -86,8 +88,21 @@ function getLegacyTokenPath (): string {
   return path.join(app.getPath('userData'), LEGACY_TOKEN_FILE)
 }
 
+/**
+ * Persist API keys atomically: write a private (0600) temp file next to the
+ * target, then rename over it so a crash never leaves a truncated key file.
+ * Failures are logged (never the key material) instead of swallowed silently.
+ */
 function saveTokens (tokens: TokenEntry[]): void {
-  try { fs.writeFileSync(getTokensPath(), JSON.stringify(tokens), 'utf-8') } catch { /* ignore */ }
+  const target = getTokensPath()
+  const tmp = `${target}.${process.pid}.tmp`
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(tokens), { encoding: 'utf-8', mode: 0o600 })
+    fs.renameSync(tmp, target)
+  } catch (error) {
+    console.error('[LocalServer] Failed to persist API keys:', error instanceof Error ? error.message : 'unknown error')
+    try { fs.rmSync(tmp, { force: true }) } catch { /* best effort */ }
+  }
 }
 
 function loadTokens (): TokenEntry[] {
@@ -204,8 +219,34 @@ const LISTEN_RETRY_DELAY_MS = 500
 
 // ── HTTP server ───────────────────────────────────────────────────────────────
 
-function getRequestUrl(req: http.IncomingMessage): URL {
-  return new URL(req.url ?? '/', `http://127.0.0.1:${LOCAL_SERVER_PORT}`)
+const REQUEST_URL_BASE = `http://127.0.0.1:${LOCAL_SERVER_PORT}`
+
+/** Body caps (bytes). /api/tts text is capped at 5 000 chars (<= ~20 KB UTF-8). */
+export const MAX_TRANSLATE_BODY_BYTES = 256 * 1024
+export const MAX_TTS_BODY_BYTES = 32 * 1024
+const BODY_READ_TIMEOUT_MS = 15_000
+/** After a 413/408 reply, how long a connection may keep draining before it is destroyed. */
+const BODY_ERROR_SOCKET_GRACE_MS = 1_000
+
+/**
+ * Parse the request target relative to the loopback base. Returns null for
+ * anything that is not a plain origin-form path (`//host`, `/\host`, absolute
+ * URLs, control characters), which `new URL` would otherwise throw on or
+ * reinterpret as a different authority.
+ */
+function parseRequestUrl(rawUrl: string | undefined): URL | null {
+  const target = rawUrl ?? '/'
+  if (!target.startsWith('/') || /^\/[/\\]/.test(target)) return null
+  try {
+    const url = new URL(target, REQUEST_URL_BASE)
+    return url.origin === REQUEST_URL_BASE ? url : null
+  } catch {
+    return null
+  }
+}
+
+function getRequestUrl(req: http.IncomingMessage): URL | null {
+  return parseRequestUrl(req.url)
 }
 
 function isTrustedBrowserOrigin(origin: string): boolean {
@@ -224,7 +265,7 @@ function isTrustedBrowserOrigin(origin: string): boolean {
 }
 
 function hasValidLegacyCorsToken(req: http.IncomingMessage): boolean {
-  const corsToken = getRequestUrl(req).searchParams.get('corsToken')
+  const corsToken = getRequestUrl(req)?.searchParams.get('corsToken')
   if (!corsToken) return false
   purgeExpired()
   const now = Date.now()
@@ -238,7 +279,13 @@ function resolveCorsOrigin(req: http.IncomingMessage): string | null {
   return hasValidLegacyCorsToken(req) ? origin : null
 }
 
-function sendJSON (req: http.IncomingMessage, res: http.ServerResponse, statusCode: number, data: unknown): void {
+function sendJSON (
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  statusCode: number,
+  data: unknown,
+  extraHeaders?: Record<string, string>,
+): void {
   const corsOrigin = resolveCorsOrigin(req)
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -247,6 +294,7 @@ function sendJSON (req: http.IncomingMessage, res: http.ServerResponse, statusCo
     // Required for Chrome Private Network Access (PNA) — allows extension pages
     // and trusted local pages to fetch from 127.0.0.1.
     'Access-Control-Allow-Private-Network': 'true',
+    ...extraHeaders,
   }
   if (corsOrigin) {
     headers['Access-Control-Allow-Origin'] = corsOrigin
@@ -261,16 +309,168 @@ function getPublicRequestErrorMessage(error: unknown, fallback: string): string 
   return fallback
 }
 
-function readBody (req: http.IncomingMessage): Promise<string> {
+class BodyReadError extends Error {
+  constructor (readonly statusCode: 408 | 413, message: string) {
+    super(message)
+    this.name = 'BodyReadError'
+  }
+}
+
+/**
+ * Read the request body with a byte cap and an overall timeout.
+ * Rejects with BodyReadError (413 over the cap, 408 on timeout); the caller
+ * is responsible for responding and tearing the socket down.
+ */
+function readBody (
+  req: http.IncomingMessage,
+  maxBytes: number,
+  timeoutMs = BODY_READ_TIMEOUT_MS,
+): Promise<string> {
   return new Promise((resolve, reject) => {
-    let body = ''
-    req.on('data', (chunk) => { body += chunk })
-    req.on('end', () => resolve(body))
-    req.on('error', reject)
+    const declared = Number(req.headers?.['content-length'])
+    if (Number.isFinite(declared) && declared > maxBytes) {
+      reject(new BodyReadError(413, 'Payload too large'))
+      return
+    }
+
+    const chunks: Buffer[] = []
+    let received = 0
+    let settled = false
+
+    const finish = (action: () => void) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      req.off('data', onData)
+      req.off('end', onEnd)
+      req.off('error', onError)
+      req.off('close', onClose)
+      action()
+    }
+    const onData = (chunk: Buffer | string) => {
+      const buf = typeof chunk === 'string' ? Buffer.from(chunk) : chunk
+      received += buf.length
+      if (received > maxBytes) {
+        finish(() => reject(new BodyReadError(413, 'Payload too large')))
+        return
+      }
+      chunks.push(buf)
+    }
+    const onEnd = () => finish(() => resolve(Buffer.concat(chunks).toString('utf-8')))
+    const onError = (error: Error) => finish(() => reject(error))
+    const onClose = () => finish(() => reject(new Error('Request closed before body was received')))
+    const timer = setTimeout(
+      () => finish(() => reject(new BodyReadError(408, 'Request timeout'))),
+      timeoutMs,
+    )
+
+    req.on('data', onData)
+    req.on('end', onEnd)
+    req.on('error', onError)
+    req.on('close', onClose)
   })
 }
 
+/**
+ * Respond to a body-read failure; for 413/408 the connection is closed afterwards.
+ *
+ * Node destroys the socket right after a `Connection: close` response is flushed. If the
+ * client is still uploading, the kernel then answers its remaining data with a RST, which
+ * can discard the reply before the client reads it. So: announce `Connection: close`,
+ * half-close (FIN after the reply) instead of destroying, keep discarding the rest of the
+ * upload, and only force-destroy after a short grace period as a hard bound against a
+ * slow or endless sender.
+ */
+function sendBodyReadError (req: http.IncomingMessage, res: http.ServerResponse, error: BodyReadError): void {
+  const socket = req.socket
+  if (socket && typeof socket.end === 'function') {
+    socket.destroySoon = () => { socket.end() }
+  }
+  res.once?.('finish', () => {
+    req.resume()
+    const timer = setTimeout(() => {
+      req.destroy()
+      socket?.destroy()
+    }, BODY_ERROR_SOCKET_GRACE_MS)
+    timer.unref?.()
+    const clear = () => clearTimeout(timer)
+    req.once?.('close', clear)
+    socket?.once?.('close', clear)
+  })
+  sendJSON(req, res, error.statusCode, { success: false, error: error.message }, { Connection: 'close' })
+}
+
+/** Read and JSON-parse a bounded request body. Returns undefined after replying on failure. */
+async function readJsonBody (
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  maxBytes: number,
+): Promise<unknown | undefined> {
+  let raw: string
+  try {
+    raw = await readBody(req, maxBytes)
+  } catch (error) {
+    if (error instanceof BodyReadError) {
+      sendBodyReadError(req, res, error)
+    } else {
+      sendJSON(req, res, 400, { success: false, error: 'Could not read request body' })
+    }
+    return undefined
+  }
+  try {
+    return JSON.parse(raw)
+  } catch {
+    sendJSON(req, res, 400, { success: false, error: 'Invalid JSON payload' })
+    return undefined
+  }
+}
+
+function isOptionalStringField (value: unknown): value is string | undefined {
+  return value === undefined || typeof value === 'string'
+}
+
+/** Whitelist + type-check the /api/translate body; semantic validation lives in lightweightTranslate. */
+function parseTranslateBody (body: unknown): LightweightTranslateParams | null {
+  if (!isRecord(body)) return null
+  const { text, targetLang, provider, model, translationStyle } = body
+  if (typeof text !== 'string' || typeof targetLang !== 'string') return null
+  if (!isOptionalStringField(provider) || !isOptionalStringField(model) || !isOptionalStringField(translationStyle)) {
+    return null
+  }
+  return {
+    text,
+    targetLang,
+    ...(provider !== undefined ? { provider } : {}),
+    ...(model !== undefined ? { model } : {}),
+    ...(translationStyle !== undefined
+      ? { translationStyle: translationStyle as LightweightTranslateParams['translationStyle'] }
+      : {}),
+  }
+}
+
+/**
+ * Top-level request handler. Never rejects: any unexpected failure becomes a
+ * generic 500 (when headers are not already sent) so no unhandled rejection can
+ * escape from http.createServer.
+ */
 export async function handleLocalServerRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  try {
+    await routeLocalServerRequest(req, res)
+  } catch (error) {
+    console.error('[LocalServer] Unhandled request error:', error instanceof Error ? error.message : 'unknown error')
+    try {
+      if (!res.headersSent) {
+        sendJSON(req, res, 500, { success: false, error: 'Internal server error' })
+      } else if (!res.writableEnded) {
+        res.end()
+      }
+    } catch {
+      // Socket already gone — nothing more to do.
+    }
+  }
+}
+
+async function routeLocalServerRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
   if (req.headers.origin && !resolveCorsOrigin(req)) {
     sendJSON(req, res, 403, { success: false, error: 'Origin not allowed' })
     return
@@ -288,7 +488,12 @@ export async function handleLocalServerRequest(req: http.IncomingMessage, res: h
     return
   }
 
-  const { pathname: url } = getRequestUrl(req)
+  const parsedUrl = getRequestUrl(req)
+  if (!parsedUrl) {
+    sendJSON(req, res, 400, { success: false, error: 'Malformed request URL' })
+    return
+  }
+  const { pathname: url } = parsedUrl
 
   if (req.method === 'GET' && url === '/api/status') {
     sendJSON(req, res, 200, { success: true, version: app.getVersion(), appName: app.getName() })
@@ -312,8 +517,15 @@ export async function handleLocalServerRequest(req: http.IncomingMessage, res: h
   }
 
   if (req.method === 'POST' && url === '/api/translate') {
+    const body = await readJsonBody(req, res, MAX_TRANSLATE_BODY_BYTES)
+    if (body === undefined) return
+    const params = parseTranslateBody(body)
+    if (!params) {
+      sendJSON(req, res, 400, { success: false, error: 'Invalid translation request' })
+      return
+    }
     try {
-      const result = await lightweightTranslate(JSON.parse(await readBody(req)))
+      const result = await lightweightTranslate(params)
       sendJSON(req, res, 200, result)
     } catch (e) {
       sendJSON(req, res, 400, { success: false, error: getPublicRequestErrorMessage(e, 'Translation request failed') })
@@ -322,16 +534,21 @@ export async function handleLocalServerRequest(req: http.IncomingMessage, res: h
   }
 
   if (req.method === 'POST' && url === '/api/tts') {
+    const body = await readJsonBody(req, res, MAX_TTS_BODY_BYTES)
+    if (body === undefined) return
+    // Reuse the IPC validator so the text-length cap and language rules match.
+    // Voice/mode always come from the app's synced config, never from the caller.
+    const parsed = parseTtsParams(isRecord(body)
+      ? { text: typeof body.text === 'string' ? body.text.trim() : body.text, lang: body.lang }
+      : body)
+    if (!parsed.ok) {
+      sendJSON(req, res, 400, { success: false, error: parsed.response.error ?? 'Invalid TTS request' })
+      return
+    }
     try {
-      const body = JSON.parse(await readBody(req))
-      const text = typeof body?.text === 'string' ? body.text.trim() : ''
-      if (!text) {
-        sendJSON(req, res, 400, { success: false, error: 'Missing text' })
-        return
-      }
       const result = await synthesizeTts({
-        text,
-        lang: typeof body?.lang === 'string' ? body.lang : undefined,
+        text: parsed.value.text,
+        lang: parsed.value.lang,
         mode: cachedConfig.ttsMode,
         voice: cachedConfig.ttsVoice,
       })
@@ -362,24 +579,43 @@ function listenWithRetry (attempt = 0): void {
     server.removeAllListeners()
     server.close()
   }
+  serverListening = false
 
-  server = createHttpServer()
+  const instance = createHttpServer()
+  server = instance
 
-  server.listen(LOCAL_SERVER_PORT, '127.0.0.1', () => {
+  instance.on('listening', () => {
+    if (server !== instance) return
+    serverListening = true
     console.log(`[LocalServer] Listening on http://127.0.0.1:${LOCAL_SERVER_PORT}`)
   })
 
-  server.on('error', (err: NodeJS.ErrnoException) => {
+  instance.on('error', (err: NodeJS.ErrnoException) => {
+    if (server !== instance) return
+    serverListening = false
     if (err.code === 'EADDRINUSE' && attempt < MAX_LISTEN_RETRIES) {
       const delay = LISTEN_RETRY_DELAY_MS * (attempt + 1)
       console.warn(
         `[LocalServer] Port ${LOCAL_SERVER_PORT} in use — retry ${attempt + 1}/${MAX_LISTEN_RETRIES} in ${delay} ms`
       )
-      setTimeout(() => listenWithRetry(attempt + 1), delay)
+      setTimeout(() => {
+        // stopLocalServer() may have run while we were waiting.
+        if (server === instance) listenWithRetry(attempt + 1)
+      }, delay)
     } else {
-      console.error('[LocalServer] Error:', err)
+      // Gave up: make sure nothing reports this port as live.
+      console.error('[LocalServer] Error — server is NOT listening:', err)
+      server = null
+      try { instance.close() } catch { /* not running */ }
     }
   })
+
+  instance.listen(LOCAL_SERVER_PORT, '127.0.0.1')
+}
+
+/** True while the extension bridge is actually bound to LOCAL_SERVER_PORT. */
+export function isLocalServerListening (): boolean {
+  return serverListening
 }
 
 export function startLocalServer (ipcMain: Electron.IpcMain): void {
@@ -446,6 +682,8 @@ export function startLocalServer (ipcMain: Electron.IpcMain): void {
     return {
       success: true,
       port: LOCAL_SERVER_PORT,
+      // Additive: false when the bind failed so the UI can avoid advertising a dead port.
+      listening: serverListening,
       tokens: activeTokens.map(({ id, name, createdAt, expiresAt }) => ({ id, name, createdAt, expiresAt })),
     }
   })
@@ -487,6 +725,7 @@ export function startLocalServer (ipcMain: Electron.IpcMain): void {
 }
 
 export function stopLocalServer (): void {
+  serverListening = false
   server?.close()
   server = null
 }

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
-import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { smartThinkingService } from '../../../services/smartThinkingService'
 import { useAppStore } from '../../../store/useAppStore'
 import { CommandPalette } from '../CommandPalette'
 
@@ -36,7 +37,7 @@ describe('CommandPalette', () => {
     render(<CommandPalette open onClose={vi.fn()} />)
 
     const dialog = screen.getByRole('dialog', { name: 'Command palette' })
-    const search = within(dialog).getByRole('combobox', { name: 'Search commands…' })
+    const search = within(dialog).getByRole('combobox', { name: 'Search commands, calculate, or ask AI…' })
     await waitFor(() => expect(search).toHaveFocus())
 
     expect(within(dialog).getAllByRole('option')).toHaveLength(6)
@@ -82,7 +83,7 @@ describe('CommandPalette', () => {
     act(() => useAppStore.setState({ locale: 'vi' }))
     render(<CommandPalette open onClose={vi.fn()} />)
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Tìm lệnh…' }), {
+    fireEvent.change(screen.getByRole('combobox', { name: 'Tìm lệnh, tính toán hoặc hỏi AI…' }), {
       target: { value: 'cai dat' },
     })
 
@@ -99,7 +100,7 @@ describe('CommandPalette', () => {
     opener.focus()
     fireEvent.click(opener)
 
-    const search = await screen.findByRole('combobox', { name: 'Search commands…' })
+    const search = await screen.findByRole('combobox', { name: 'Search commands, calculate, or ask AI…' })
     await waitFor(() => expect(search).toHaveFocus())
 
     fireEvent.keyDown(window, { key: 'Tab' })
@@ -270,6 +271,108 @@ describe('CommandPalette', () => {
 
       await act(async () => { resolveStream({ success: true, reply: 'stale reply' }) })
       expect(screen.queryByText('stale reply')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('prefixes and web verification', () => {
+    const win = window as unknown as { api: Record<string, unknown> }
+    const originalWebSearch = win.api.webSearch
+
+    beforeEach(() => {
+      win.api.webSearch = vi.fn()
+      ;(window.api.chatStream as unknown as Mock).mockClear()
+    })
+
+    afterEach(() => {
+      win.api.webSearch = originalWebSearch
+      vi.restoreAllMocks()
+    })
+
+    it('offers both quick and web-verified answers for a plain query', () => {
+      render(<CommandPalette open onClose={vi.fn()} />)
+
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Thủ đô của Việt Nam?' } })
+      expect(screen.getAllByRole('option').map(option => option.getAttribute('data-command-id'))).toEqual(['ask', 'verify'])
+    })
+
+    it('hides the web-verified row when web search is unavailable', () => {
+      win.api.webSearch = undefined
+      render(<CommandPalette open onClose={vi.fn()} />)
+
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: '?? giá vàng hôm nay' } })
+      expect(screen.getAllByRole('option').map(option => option.getAttribute('data-command-id'))).toEqual(['ask'])
+    })
+
+    it('routes "?" to the AI and "??" to web verification, skipping commands and the calculator', () => {
+      render(<CommandPalette open onClose={vi.fn()} />)
+      const search = screen.getByRole('combobox')
+
+      fireEvent.change(search, { target: { value: '? chat 2 + 2' } })
+      expect(screen.getAllByRole('option').map(option => option.getAttribute('data-command-id'))).toEqual(['ask', 'verify'])
+      expect(screen.getByRole('option', { name: /Ask AI\./ })).toHaveAccessibleName(/“chat 2 \+ 2”/)
+
+      fireEvent.change(search, { target: { value: '?? giá vàng hôm nay' } })
+      const options = screen.getAllByRole('option')
+      expect(options.map(option => option.getAttribute('data-command-id'))).toEqual(['verify', 'ask'])
+      expect(options[0]).toHaveAttribute('aria-selected', 'true')
+      expect(options[0]).toHaveAccessibleName(/“giá vàng hôm nay”/)
+    })
+
+    it('opens AI Translate with the text for "t <text>"', () => {
+      const onClose = vi.fn()
+      render(<CommandPalette open onClose={onClose} />)
+
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: 't hello world' } })
+      const options = screen.getAllByRole('option')
+      expect(options).toHaveLength(1)
+      expect(options[0]).toHaveAccessibleName(/Translate “hello world”/)
+
+      fireEvent.keyDown(window, { key: 'Enter' })
+      expect(useAppStore.getState().activePage).toBe('translate')
+      expect(useAppStore.getState().sourceText).toBe('hello world')
+      expect(onClose).toHaveBeenCalledOnce()
+    })
+
+    it('answers with forced web search, showing the searching state before the cited answer', async () => {
+      let release: () => void = () => {}
+      const run = vi.spyOn(smartThinkingService, 'run').mockImplementation(async ({ callbacks }) => {
+        callbacks.onStepStart('search')
+        await new Promise<void>((resolve) => { release = resolve })
+        callbacks.onStepComplete('s', 'sources')
+        const id = callbacks.onAnswerStart()
+        callbacks.onAnswerComplete(id, 'Giá vàng hôm nay là 80 triệu [1].')
+      })
+      render(<CommandPalette open onClose={vi.fn()} />)
+
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: '?? giá vàng hôm nay' } })
+      fireEvent.keyDown(window, { key: 'Enter' })
+
+      expect(await screen.findByRole('status')).toHaveTextContent('Searching the web…')
+      expect(run).toHaveBeenCalledOnce()
+      expect(run.mock.calls[0][0]).toMatchObject({
+        provider: 'local',
+        model: 'local-auto',
+        question: 'giá vàng hôm nay',
+        forceWebSearch: true,
+      })
+      expect(window.api.chatStream).not.toHaveBeenCalled()
+
+      await act(async () => { release() })
+      expect(await screen.findByText(/Giá vàng hôm nay là 80 triệu/)).toBeInTheDocument()
+      expect(screen.queryByText('Searching the web…')).not.toBeInTheDocument()
+    })
+
+    it('shows a localized error when the web-verified answer fails', async () => {
+      vi.spyOn(smartThinkingService, 'run').mockImplementation(async ({ callbacks }) => {
+        const id = callbacks.onAnswerStart()
+        callbacks.onAnswerError(id, 'boom', 'RATE_LIMIT')
+      })
+      render(<CommandPalette open onClose={vi.fn()} />)
+
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: '?? giá vàng hôm nay' } })
+      fireEvent.keyDown(window, { key: 'Enter' })
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Rate limit exceeded. Please wait and try again.')
     })
   })
 })

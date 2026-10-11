@@ -10,7 +10,6 @@ import { useAppStore, useT } from '../../store/useAppStore'
 import type {
   LocalAiBenchmarkResult,
   LocalAiDiscoveryResult,
-  LocalAiInstallProgress,
   LocalAiModelDownloadProgress,
   Provider,
 } from '../../types'
@@ -23,7 +22,7 @@ function LocalAiProviderCard({
   downloadingModel,
   downloadProgress,
   uninstallingModel,
-  installingOllama,
+  openingRuntimePage,
   onRefresh,
   onBenchmark,
   onDownloadModel,
@@ -33,11 +32,6 @@ function LocalAiProviderCard({
   downloadSuccess,
   installError,
   installSuccess,
-  installProgress,
-  showRestartPrompt,
-  onCancelInstall,
-  onRestartApp,
-  onDismissRestartPrompt,
 }: {
   status: LocalAiDiscoveryResult | null
   benchmark: LocalAiBenchmarkResult | null
@@ -46,7 +40,7 @@ function LocalAiProviderCard({
   downloadingModel: string | null
   downloadProgress: LocalAiModelDownloadProgress | null
   uninstallingModel: string | null
-  installingOllama: boolean
+  openingRuntimePage: boolean
   onRefresh: () => void
   onBenchmark: () => void
   onDownloadModel: (modelId: string) => void
@@ -56,11 +50,6 @@ function LocalAiProviderCard({
   downloadSuccess: string | null
   installError: string | null
   installSuccess: string | null
-  installProgress: LocalAiInstallProgress | null
-  showRestartPrompt: boolean
-  onCancelInstall: () => void
-  onRestartApp: () => void
-  onDismissRestartPrompt: () => void
 }) {
   const t = useT()
   const available = status?.available ?? false
@@ -70,7 +59,6 @@ function LocalAiProviderCard({
   const metrics = benchmark?.metrics
   const canDownloadModels = status?.engine === 'ollama'
   const showRuntimeInstallPanel = !canDownloadModels
-  const activeInstallPercent = Math.max(5, Math.min(100, installProgress?.percent ?? 8))
   const recommended = models.find((model) => model.id === status?.recommendedModel)
     ?? suggestions.find((model) => model.id === (status?.recommendedModel ?? benchmark?.recommendedModel))
   const formatModelDownloadBytes = (progress: LocalAiModelDownloadProgress) => {
@@ -203,59 +191,22 @@ function LocalAiProviderCard({
               <button
                 type="button"
                 onClick={onInstallOllama}
-                disabled={installingOllama}
+                disabled={openingRuntimePage}
                 className="btn-primary btn-sm flex-shrink-0"
               >
-                {installingOllama && <SpinnerIcon className="h-3.5 w-3.5 animate-spin" />}
-                {installingOllama ? t.settings_local_ai_installing_ollama : t.settings_local_ai_install_ollama}
+                {t.settings_local_ai_install_ollama}
               </button>
             )}
           </div>
 
           {showRuntimeInstallPanel && (
-            <div className={[
-              'rounded-xl border px-3 py-3 text-xs',
-              installingOllama
-                ? 'border-gray-100 bg-gray-50/80 dark:border-gray-900/50 dark:bg-gray-950/20'
-                : 'border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/70',
-            ].join(' ')}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    {installingOllama && <SpinnerIcon className="h-3.5 w-3.5 animate-spin text-gray-600 dark:text-gray-300" />}
-                    <p className="font-semibold text-gray-800 dark:text-gray-100">
-                      {installingOllama ? t.settings_local_ai_installing_ollama : t.settings_local_ai_install_runtime_title}
-                    </p>
-                    {installingOllama && (
-                      <span className="rounded-full bg-white px-2 py-0.5 font-medium text-gray-700 ring-1 ring-gray-100 dark:bg-gray-950 dark:text-gray-300 dark:ring-gray-900">
-                        {activeInstallPercent}%
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 text-gray-500 dark:text-gray-400">
-                    {installingOllama
-                      ? installProgress?.message ?? t.settings_local_ai_installing_ollama
-                      : t.settings_local_ai_install_runtime_desc}
-                  </p>
-                </div>
-                {installingOllama && (
-                  <button
-                    type="button"
-                    onClick={onCancelInstall}
-                    className="btn-secondary btn-sm flex-shrink-0"
-                  >
-                    {t.settings_local_ai_cancel_install}
-                  </button>
-                )}
-              </div>
-              {installingOllama && (
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80 ring-1 ring-gray-100 dark:bg-gray-950 dark:ring-gray-900">
-                  <div
-                    className="h-full rounded-full bg-gray-600 transition-[width] duration-500"
-                    style={{ width: `${activeInstallPercent}%` }}
-                  />
-                </div>
-              )}
+            <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-3 text-xs dark:border-gray-700 dark:bg-gray-800/70">
+              <p className="font-semibold text-gray-800 dark:text-gray-100">
+                {t.settings_local_ai_install_runtime_title}
+              </p>
+              <p className="mt-1 text-gray-500 dark:text-gray-400">
+                {t.settings_local_ai_install_runtime_desc}
+              </p>
             </div>
           )}
 
@@ -359,40 +310,6 @@ function LocalAiProviderCard({
         </p>
       )}
 
-      {showRestartPrompt && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="local-ai-restart-title"
-        >
-          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-2xl ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-700">
-            <h3 id="local-ai-restart-title" className="text-base font-semibold text-gray-900 dark:text-gray-100">
-              {t.settings_local_ai_restart_title}
-            </h3>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-              {t.settings_local_ai_restart_desc}
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={onDismissRestartPrompt}
-                className="btn-secondary"
-              >
-                {t.settings_local_ai_restart_later}
-              </button>
-              <button
-                type="button"
-                onClick={onRestartApp}
-                className="btn-primary"
-              >
-                {t.settings_local_ai_restart_now}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {!available && (
         <p className="text-xs text-gray-500 dark:text-gray-400">
           {t.settings_local_ai_start_runtime}
@@ -406,6 +323,8 @@ export function ApiKeysSection() {
   const setKeyStatus = useAppStore((state) => state.setKeyStatus)
   const keyStatus = useAppStore((state) => state.keyStatus)
   const setDynamicModels = useAppStore((state) => state.setDynamicModels)
+  const setModelsLoading = useAppStore((state) => state.setModelsLoading)
+  const setModelsError = useAppStore((state) => state.setModelsError)
   const setSelectedModel = useAppStore((state) => state.setSelectedModel)
   const selectedModels = useAppStore((state) => state.selectedModels)
   const costCurrency = useAppStore((state) => state.costCurrency)
@@ -428,13 +347,11 @@ export function ApiKeysSection() {
   const [downloadingModel, setDownloadingModel] = useState<string | null>(null)
   const [downloadProgress, setDownloadProgress] = useState<LocalAiModelDownloadProgress | null>(null)
   const [uninstallingModel, setUninstallingModel] = useState<string | null>(null)
-  const [installingOllama, setInstallingOllama] = useState(false)
+  const [openingRuntimePage, setOpeningRuntimePage] = useState(false)
   const [downloadError, setDownloadError] = useState<string | null>(null)
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null)
   const [installError, setInstallError] = useState<string | null>(null)
   const [installSuccess, setInstallSuccess] = useState<string | null>(null)
-  const [installProgress, setInstallProgress] = useState<LocalAiInstallProgress | null>(null)
-  const [showRestartPrompt, setShowRestartPrompt] = useState(false)
 
   const refreshLocalAi = async (): Promise<LocalAiDiscoveryResult | null> => {
     if (!window.api?.discoverLocalAi) return null
@@ -534,14 +451,11 @@ export function ApiKeysSection() {
     }
   }
 
+  // Viezan only opens the runtime's download page; the user installs it, comes back
+  // and presses Refresh. There is no installer process, so no progress or cancel.
   const handleInstallOllama = async () => {
     if (!window.api?.installOllama) return
-    setInstallingOllama(true)
-    setInstallProgress({
-      status: 'running',
-      percent: 5,
-      message: t.settings_local_ai_installing_ollama,
-    })
+    setOpeningRuntimePage(true)
     setDownloadError(null)
     setDownloadSuccess(null)
     setInstallError(null)
@@ -549,53 +463,16 @@ export function ApiKeysSection() {
     try {
       const result = await window.api.installOllama()
       if (!result.success) {
-        setInstallError(result.cancelled ? t.settings_local_ai_install_cancelled : result.error ?? t.settings_local_ai_install_failed)
+        setInstallError(result.error ?? t.settings_local_ai_install_failed)
         return
       }
-      if (result.manual) {
-        setInstallSuccess(t.settings_local_ai_manual_install_opened)
-        return
-      }
-      setInstallSuccess(t.settings_local_ai_checking_runtime)
-      const discovery = await refreshLocalAi()
-      if (!discovery?.available) {
-        setInstallSuccess(null)
-        setShowRestartPrompt(true)
-        return
-      }
-      setInstallSuccess(t.settings_local_ai_ollama_installed)
+      setInstallSuccess(t.settings_local_ai_manual_install_opened)
     } catch (err) {
       setInstallError(err instanceof Error ? err.message : t.settings_local_ai_install_failed)
     } finally {
-      setInstallingOllama(false)
+      setOpeningRuntimePage(false)
     }
   }
-
-  const handleCancelOllamaInstall = async () => {
-    await window.api?.cancelOllamaInstall?.()
-  }
-
-  const handleRestartApp = () => {
-    void window.api?.relaunchApp?.()
-  }
-
-  useEffect(() => {
-    if (!window.api?.onLocalAiInstallProgress) return
-    return window.api.onLocalAiInstallProgress((progress) => {
-      setInstallProgress(progress)
-      if (progress.status === 'cancelled') {
-        setInstallingOllama(false)
-        setInstallError(t.settings_local_ai_install_cancelled)
-      }
-      if (progress.status === 'error') {
-        setInstallingOllama(false)
-        setInstallError(progress.message || t.settings_local_ai_install_failed)
-      }
-      if (progress.status === 'success') {
-        setInstallingOllama(false)
-      }
-    })
-  }, [t.settings_local_ai_install_cancelled, t.settings_local_ai_install_failed])
 
   useEffect(() => {
     if (!window.api?.onLocalAiModelDownloadProgress) return
@@ -628,6 +505,7 @@ export function ApiKeysSection() {
 
   const handleSaveKey = async (providerId: string, key: string) => {
     if (!window.api) throw new Error('App API not available')
+    const provider = providerId as Provider
     const result = await window.api.keychain.save(providerId, key)
     if (!result.success) throw new Error(result.error || 'Failed to save key')
     const updated = await window.api.keychain.get(providerId)
@@ -635,14 +513,39 @@ export function ApiKeysSection() {
       ...prev,
       [providerId]: { exists: updated.exists ?? false, masked: updated.masked ?? null },
     }))
-    setKeyStatus(providerId as Provider, true)
-    setDynamicModels(providerId as Provider, [])
-    resetProviderUsageCost(providerId as Provider)
+    setKeyStatus(provider, true)
+    setDynamicModels(provider, [])
+    resetProviderUsageCost(provider)
+
+    // A stored key immediately unlocks the provider's model catalog. Model
+    // discovery is best-effort: billing/permission/network issues must not
+    // turn a successful keychain write into a failed save operation.
+    setModelsLoading(provider, true)
+    setModelsError(provider, null)
+    try {
+      const modelsResult = await window.api.fetchModels(providerId)
+      if (!modelsResult.success || modelsResult.models.length === 0) {
+        setModelsError(provider, modelsResult.error || 'No models available')
+        return
+      }
+
+      setDynamicModels(provider, modelsResult.models)
+      const availableIds = new Set(modelsResult.models.map((model) => model.id))
+      const currentModel = useAppStore.getState().selectedModels[provider]
+      if (!currentModel || !availableIds.has(currentModel)) {
+        setSelectedModel(provider, modelsResult.recommendedModel ?? modelsResult.models[0].id)
+      }
+    } catch (error) {
+      setModelsError(provider, error instanceof Error ? error.message : 'Failed to load models')
+    } finally {
+      setModelsLoading(provider, false)
+    }
   }
 
   const handleDeleteKey = async (providerId: string) => {
     if (!window.api) throw new Error('App API not available')
-    await window.api.keychain.delete(providerId)
+    const result = await window.api.keychain.delete(providerId)
+    if (!result.success) throw new Error(result.error || t.settings_key_store_failed)
     setKeyData((prev) => ({
       ...prev,
       [providerId]: { exists: false, masked: null },
@@ -688,7 +591,7 @@ export function ApiKeysSection() {
               downloadingModel={downloadingModel}
               downloadProgress={downloadProgress}
               uninstallingModel={uninstallingModel}
-              installingOllama={installingOllama}
+              openingRuntimePage={openingRuntimePage}
               onRefresh={refreshLocalAi}
               onBenchmark={runLocalBenchmark}
               onDownloadModel={handleDownloadLocalModel}
@@ -698,11 +601,6 @@ export function ApiKeysSection() {
               downloadSuccess={downloadSuccess}
               installError={installError}
               installSuccess={installSuccess}
-              installProgress={installProgress}
-              showRestartPrompt={showRestartPrompt}
-              onCancelInstall={handleCancelOllamaInstall}
-              onRestartApp={handleRestartApp}
-              onDismissRestartPrompt={() => setShowRestartPrompt(false)}
             />
           ) : (
             <ApiKeyInput

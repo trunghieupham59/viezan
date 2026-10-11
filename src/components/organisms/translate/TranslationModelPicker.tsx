@@ -1,11 +1,12 @@
-import { useId, useMemo, useState } from 'react'
+import { type FocusEvent, useId, useMemo, useState } from 'react'
 import { MAX_TRANSLATION_MODELS, PROVIDERS } from '../../../constants/providers'
 import { useAppStore, useT } from '../../../store/useAppStore'
 import type { Provider, TranslationModelSelection } from '../../../types'
 import { dedupeModelsByFamily, formatModelName } from '../../../utils/modelDisplay'
 import { ProviderIcon } from '../../ProviderIcon'
 import { Button, Input } from '../../ui/atoms'
-import { CheckIcon, RefreshIcon, SearchIcon, SpinnerIcon, XIcon } from '../../ui/icons'
+import { RefreshIcon, SearchIcon, SpinnerIcon } from '../../ui/icons'
+import { ModelSelectionRow, SelectedModelChip } from '../../ui/molecules'
 
 interface TranslationModelPickerProps {
   models: TranslationModelSelection[]
@@ -88,6 +89,27 @@ export function TranslationModelPicker({
     onChange([...models, selection])
   }
 
+  const keepFocusedModelVisible = (event: FocusEvent<HTMLButtonElement>) => {
+    const row = event.currentTarget
+    const scrollRegion = row.closest<HTMLElement>('.translate-model-available-list')
+    const providerGroup = row.closest<HTMLElement>('.translate-model-provider-group')
+    const providerHeading = providerGroup?.querySelector<HTMLElement>(
+      '.translate-model-provider-heading',
+    )
+    if (!scrollRegion || !providerHeading) return
+
+    const rowBounds = row.getBoundingClientRect()
+    const scrollBounds = scrollRegion.getBoundingClientRect()
+    const headingBounds = providerHeading.getBoundingClientRect()
+    const visibleTop = Math.max(scrollBounds.top, headingBounds.bottom)
+
+    if (rowBounds.top < visibleTop) {
+      scrollRegion.scrollTop += rowBounds.top - visibleTop
+    } else if (rowBounds.bottom > scrollBounds.bottom) {
+      scrollRegion.scrollTop += rowBounds.bottom - scrollBounds.bottom
+    }
+  }
+
   return (
     <div className="translate-model-picker">
       <section className="translate-model-selected" aria-labelledby={`${pickerId}-selected`}>
@@ -98,33 +120,20 @@ export function TranslationModelPicker({
 
         {models.length > 0 ? (
           <ul className="translate-model-selected-list">
-            {models.map((selection) => {
+            {models.map((selection, index) => {
               const key = modelKey(selection)
               const provider = PROVIDERS.find((candidate) => candidate.id === selection.provider)
               const modelName = formatModelName(selection.provider, selection.model)
               return (
-                <li
-                  key={key}
-                  className="translate-model-selected-item"
-                  aria-label={`${modelName} · ${provider?.name ?? selection.provider}`}
-                >
-                  <span className="translate-model-provider-icon" aria-hidden="true">
-                    <ProviderIcon provider={selection.provider} size={16} />
-                  </span>
-                  <span className="translate-model-selected-copy">
-                    <strong>{modelName}</strong>
-                    <span>{provider?.name ?? selection.provider}</span>
-                  </span>
-                  <Button
-                    size="xs"
-                    shape="icon"
-                    variant="neutral"
-                    appearance="ghost"
-                    aria-label={`${t.translate_models_remove}: ${modelName}`}
-                    onClick={() => toggleModel(selection)}
-                  >
-                    <XIcon />
-                  </Button>
+                <li key={key} className="translate-model-selected-item">
+                  <SelectedModelChip
+                    provider={selection.provider}
+                    modelName={modelName}
+                    providerName={provider?.name ?? selection.provider}
+                    positionLabel={t.translate_models_result_position(index + 1)}
+                    removeLabel={t.translate_models_remove}
+                    onRemove={() => toggleModel(selection)}
+                  />
                 </li>
               )
             })}
@@ -202,30 +211,24 @@ export function TranslationModelPicker({
                     const disabledByLimit = !isSelected && isAtLimit
                     const disabled = !hasKey || disabledByLimit
                     const modelName = formatModelName(providerId, model.id, model.name)
-                    const selectionLabel = isSelected
+                    const selectionLabel = !hasKey
+                      ? t.translate_models_needs_key
+                      : disabledByLimit
+                        ? t.translate_models_limit_reached
+                        : isSelected
                       ? t.translate_models_selected_state
                       : t.translate_models_select
                     return (
-                      <Button
+                      <ModelSelectionRow
                         key={model.id}
-                        size="md"
-                        shape="rect"
-                        variant={isSelected ? 'primary' : 'neutral'}
-                        appearance={isSelected ? 'soft' : 'ghost'}
+                        modelName={modelName}
+                        providerName={provider.name}
+                        selected={isSelected}
                         disabled={disabled}
-                        aria-pressed={isSelected}
-                        aria-describedby={disabledByLimit ? limitNoticeId : undefined}
-                        aria-label={`${modelName} · ${provider.name} · ${selectionLabel}`}
-                        title={model.id}
-                        onClick={() => toggleModel(selection)}
-                        className="translate-model-option"
-                      >
-                        <span className="translate-model-option-copy">
-                          <strong>{modelName}</strong>
-                          <span>{provider.name}</span>
-                        </span>
-                        {isSelected && <CheckIcon />}
-                      </Button>
+                        statusLabel={selectionLabel}
+                        onSelect={() => toggleModel(selection)}
+                        onFocus={keepFocusedModelVisible}
+                      />
                     )
                   })}
                 </div>

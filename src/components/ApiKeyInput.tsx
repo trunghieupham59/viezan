@@ -21,7 +21,15 @@ interface ApiKeyInputProps {
   onResetUsage: () => void
 }
 
-type VerifyStatus = 'idle' | 'verifying' | 'valid' | 'rate_limited' | 'invalid' | 'network_error'
+type VerifyStatus =
+  | 'idle'
+  | 'verifying'
+  | 'valid'
+  | 'rate_limited'
+  | 'billing'
+  | 'permission'
+  | 'invalid'
+  | 'network_error'
 
 export function ApiKeyInput({
   provider,
@@ -41,10 +49,25 @@ export function ApiKeyInput({
   const [verifyMessage, setVerifyMessage] = useState('')
 
   const isVerifying = verifyStatus === 'verifying'
-  const isSuccess = verifyStatus === 'valid' || verifyStatus === 'rate_limited'
+  const isSuccess = ['valid', 'rate_limited', 'billing', 'permission'].includes(verifyStatus)
   const isError = verifyStatus === 'invalid' || verifyStatus === 'network_error'
   const messageTone: CredentialMessageTone =
-    isSuccess ? 'success' : verifyStatus === 'network_error' ? 'warning' : 'error'
+    verifyStatus === 'valid'
+      ? 'success'
+      : ['rate_limited', 'billing', 'permission', 'network_error'].includes(verifyStatus)
+        ? 'warning'
+        : 'error'
+
+  const saveVerifiedKey = async (status: VerifyStatus, message: string) => {
+    await onSave(inputValue.trim())
+    setVerifyStatus(status)
+    setVerifyMessage(message)
+    setInputValue('')
+    setTimeout(() => {
+      setVerifyStatus('idle')
+      setVerifyMessage('')
+    }, VERIFY_STATUS_RESET_DELAY_MS)
+  }
 
   const handleVerify = async () => {
     if (!inputValue.trim()) return
@@ -52,20 +75,18 @@ export function ApiKeyInput({
     setVerifyMessage('')
     try {
       const result = await window.api.verifyKey(provider.id, inputValue.trim())
-      if (result.success || result.valid) {
-        await onSave(inputValue.trim())
-        setVerifyStatus(result.valid ? 'rate_limited' : 'valid')
-        setVerifyMessage(result.valid ? t.settings_msg_rate_limited : t.settings_msg_valid)
-        setInputValue('')
-        setTimeout(() => setVerifyStatus('idle'), VERIFY_STATUS_RESET_DELAY_MS)
+      if (result.success) {
+        await saveVerifiedKey('valid', t.settings_msg_valid)
       } else {
         switch (result.errorCode) {
           case 'RATE_LIMIT':
-            await onSave(inputValue.trim())
-            setVerifyStatus('rate_limited')
-            setVerifyMessage(t.settings_msg_rate_limited)
-            setInputValue('')
-            setTimeout(() => setVerifyStatus('idle'), VERIFY_STATUS_RESET_DELAY_MS)
+            await saveVerifiedKey('rate_limited', t.settings_msg_rate_limited)
+            break
+          case 'BILLING':
+            await saveVerifiedKey('billing', t.settings_msg_billing)
+            break
+          case 'PERMISSION':
+            await saveVerifiedKey('permission', t.settings_msg_permission)
             break
           case 'INVALID_KEY':
             setVerifyStatus('invalid')
@@ -92,7 +113,14 @@ export function ApiKeyInput({
     setVerifyStatus('idle')
     setVerifyMessage('')
     setInputValue('')
-    try { await onDelete() } finally { setIsDeleting(false) }
+    try {
+      await onDelete()
+    } catch (err) {
+      setVerifyStatus('invalid')
+      setVerifyMessage(`✗ ${err instanceof Error ? err.message : t.settings_key_store_failed}`)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const handleResetUsage = () => {

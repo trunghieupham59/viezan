@@ -19,10 +19,11 @@
  *  • 127.0.0.1 is exempt from mixed-content restrictions in modern browsers,
  *    so this works on both HTTP and HTTPS pages.
  */
-import { exec, execSync } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { app } from 'electron'
+import { invalidIpcInput, isRecord, isSafeLanguageCode } from './ipcValidation'
 
 // These are imported lazily to avoid circular deps — call the getters below.
 let _getToken: () => string = () => ''
@@ -95,10 +96,37 @@ function getSettingsPath () {
   return path.join(app.getPath('userData'), SETTINGS_FILE)
 }
 
+function isValidTargetLang (value: unknown): value is string {
+  return isSafeLanguageCode(value) && value !== 'auto'
+}
+
+/**
+ * Whitelist known fields and drop anything malformed. Used for both settings
+ * loaded from disk and IPC patches so a tampered value can never reach the
+ * generated injection script.
+ */
+export function sanitizeLegacyAssistantSettings (
+  raw: unknown,
+  base: LegacyAssistantSettings = DEFAULT,
+): LegacyAssistantSettings {
+  const next = { ...base }
+  if (!isRecord(raw)) return next
+  if (typeof raw.enabled === 'boolean') next.enabled = raw.enabled
+  if (isValidTargetLang(raw.targetLang)) next.targetLang = raw.targetLang
+  return next
+}
+
+function validateLegacyAssistantPatch (patch: unknown): string | null {
+  if (!isRecord(patch)) return 'Legacy assistant settings must be an object'
+  if (patch.enabled !== undefined && typeof patch.enabled !== 'boolean') return 'Invalid enabled flag'
+  if (patch.targetLang !== undefined && !isValidTargetLang(patch.targetLang)) return 'Invalid target language'
+  return null
+}
+
 function loadSettings (): LegacyAssistantSettings {
   try {
     const p = getSettingsPath()
-    if (fs.existsSync(p)) return { ...DEFAULT, ...JSON.parse(fs.readFileSync(p, 'utf-8')) }
+    if (fs.existsSync(p)) return sanitizeLegacyAssistantSettings(JSON.parse(fs.readFileSync(p, 'utf-8')))
   } catch { /* ignore */ }
   return { ...DEFAULT }
 }
@@ -126,57 +154,60 @@ function scriptLiteral(value: unknown): string {
   return JSON.stringify(value)
 }
 
-function buildAssistantScript (token: string, port: number, targetLang: string): string {
+/**
+ * The generated script is whitespace-collapsed before it is embedded (AppleScript
+ * string / bookmarklet URL), so it must never contain `//` line comments and
+ * every statement must be terminated explicitly.
+ */
+export function buildAssistantScript (token: string, port: number, targetLang: string): string {
   return `(function(){
-	if(window.__viezanLA)return;window.__viezanLA=true;
-	var TK=${scriptLiteral(token)},PT=${Number(port)},TL=${scriptLiteral(targetLang)};
-	// --- button ---
-	var b=document.createElement('div');
-	b.id='__viezanLA_btn';
-	b.style.cssText=${scriptLiteral(LEGACY_ASSISTANT_BUTTON_CSS)};
-	b.textContent=${scriptLiteral(LEGACY_ASSISTANT_BUTTON_TEXT)};
-	b.addEventListener('mouseover',function(){b.style.transform='scale(1.08)';b.style.opacity='1';});
-	b.addEventListener('mouseout',function(){b.style.transform='';b.style.opacity='.85';});
-	document.body.appendChild(b);
-	// --- tooltip ---
-	var t=document.createElement('div');
-	t.id='__viezanLA_tip';
-	t.style.cssText=${scriptLiteral(LEGACY_ASSISTANT_TOOLTIP_CSS)};
-	document.body.appendChild(t);
-	var timer;
-	var MSG=${scriptLiteral(LEGACY_ASSISTANT_MESSAGES)};
-	function clearTip(){while(t.firstChild)t.removeChild(t.firstChild);}
-	function display(dur){t.style.display='block';clearTimeout(timer);if(dur)timer=setTimeout(function(){t.style.display='none';},dur);}
-	function showText(msg,dur){clearTip();t.textContent=msg;display(dur);}
-	function showTranslating(){clearTip();var s=document.createElement('span');s.style.cssText='opacity:.6;font-size:11px';s.textContent=MSG.translating;t.appendChild(s);display(0);}
-	function showTranslation(text,dur){clearTip();var h=document.createElement('span');h.style.cssText='opacity:.55;font-size:10px;display:block;margin-bottom:3px';h.textContent=MSG.header;t.appendChild(h);t.appendChild(document.createTextNode(text));display(dur);}
-// --- click ---
+if(window.__viezanLA)return;
+window.__viezanLA=true;
+var TK=${scriptLiteral(token)},PT=${Number(port)},TL=${scriptLiteral(targetLang)};
+var b=document.createElement('div');
+b.id='__viezanLA_btn';
+b.style.cssText=${scriptLiteral(LEGACY_ASSISTANT_BUTTON_CSS)};
+b.textContent=${scriptLiteral(LEGACY_ASSISTANT_BUTTON_TEXT)};
+b.addEventListener('mouseover',function(){b.style.transform='scale(1.08)';b.style.opacity='1';});
+b.addEventListener('mouseout',function(){b.style.transform='';b.style.opacity='.85';});
+document.body.appendChild(b);
+var t=document.createElement('div');
+t.id='__viezanLA_tip';
+t.style.cssText=${scriptLiteral(LEGACY_ASSISTANT_TOOLTIP_CSS)};
+document.body.appendChild(t);
+var timer;
+var MSG=${scriptLiteral(LEGACY_ASSISTANT_MESSAGES)};
+function clearTip(){while(t.firstChild)t.removeChild(t.firstChild);}
+function display(dur){t.style.display='block';clearTimeout(timer);if(dur)timer=setTimeout(function(){t.style.display='none';},dur);}
+function showText(msg,dur){clearTip();t.textContent=msg;display(dur);}
+function showTranslating(){clearTip();var s=document.createElement('span');s.style.cssText='opacity:.6;font-size:11px';s.textContent=MSG.translating;t.appendChild(s);display(0);}
+function showTranslation(text,dur){clearTip();var h=document.createElement('span');h.style.cssText='opacity:.55;font-size:10px;display:block;margin-bottom:3px';h.textContent=MSG.header;t.appendChild(h);t.appendChild(document.createTextNode(text));display(dur);}
 b.addEventListener('click',function(){
-  var sel=window.getSelection(),txt=sel?sel.toString().trim():'';
-  if(!txt){showText(MSG.noText,3000);return;}
-  showTranslating();
-  fetch('http://127.0.0.1:'+PT+'/api/translate?corsToken='+encodeURIComponent(TK),{
-    method:'POST',
-    headers:{'Content-Type':'application/json','X-Viezan-Token':TK},
-    body:JSON.stringify({text:txt,targetLang:TL})
-  }).then(function(r){return r.json();}).then(function(d){
-    if(d.success){
-      showTranslation(d.translatedText,9000);
-      try{navigator.clipboard.writeText(d.translatedText);}catch(e){}
-    } else {
-      showText('Error: '+(d.error||MSG.failed),5000);
-    }
-  }).catch(function(){showText(MSG.offline,5000);});
+var sel=window.getSelection(),txt=sel?sel.toString().trim():'';
+if(!txt){showText(MSG.noText,3000);return;}
+showTranslating();
+fetch('http://127.0.0.1:'+PT+'/api/translate?corsToken='+encodeURIComponent(TK),{
+method:'POST',
+headers:{'Content-Type':'application/json','X-Viezan-Token':TK},
+body:JSON.stringify({text:txt,targetLang:TL})
+}).then(function(r){return r.json();}).then(function(d){
+if(d.success){
+showTranslation(d.translatedText,9000);
+try{navigator.clipboard.writeText(d.translatedText);}catch(e){}
+}else{
+showText('Error: '+(d.error||MSG.failed),5000);
+}
+}).catch(function(){showText(MSG.offline,5000);});
 });
 document.addEventListener('mousedown',function(e){
-  if(e.target!==b&&e.target!==t&&!t.contains(e.target))t.style.display='none';
+if(e.target!==b&&e.target!==t&&!t.contains(e.target))t.style.display='none';
 });
 })();`
 }
 
 // ── osascript injection ───────────────────────────────────────────────────────
 
-function escapeForAppleScript (js: string): string {
+export function escapeForAppleScript (js: string): string {
   // Minify whitespace, then escape for embedding inside a double-quoted AS string
   return js
     .replace(/\s+/g, ' ')
@@ -184,36 +215,66 @@ function escapeForAppleScript (js: string): string {
     .replace(/"/g, '\\"')
 }
 
+export function buildChromeLikeAppleScript (appName: string, js: string): string {
+  return `tell application "${appName}" to execute front window's active tab javascript "${escapeForAppleScript(js)}"`
+}
+
+export function buildSafariAppleScript (js: string): string {
+  return `tell application "Safari" to do JavaScript "${escapeForAppleScript(js)}" in current tab of front window`
+}
+
+/**
+ * Run an AppleScript without a shell (argv array, so quoting in the script can
+ * never break out). Failures are logged without the script text because it
+ * embeds the local-server token.
+ */
+function runOsascript (appleScript: string, timeout: number, label: string, onDone?: (stdout: string) => void): void {
+  execFile('osascript', ['-e', appleScript], { timeout }, (error, stdout) => {
+    if (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      console.warn(`[LegacyAssistant] ${label} failed${code ? ` (${String(code)})` : ''}`)
+      onDone?.('')
+      return
+    }
+    onDone?.(String(stdout ?? ''))
+  })
+}
+
 function injectIntoChromeLike (appName: string, js: string): void {
-  const escaped = escapeForAppleScript(js)
-  exec(
-    `osascript -e 'tell application "${appName}" to execute front window\\'s active tab javascript "${escaped}"'`,
-    { timeout: 3000 },
-    (_err) => { /* silently ignore */ }
-  )
+  runOsascript(buildChromeLikeAppleScript(appName, js), 3000, `inject into ${appName}`)
 }
 
 function injectIntoSafari (js: string): void {
-  const escaped = escapeForAppleScript(js)
-  exec(
-    `osascript -e 'tell application "Safari" to do JavaScript "${escaped}" in current tab of front window'`,
-    { timeout: 3000 },
-    (_err) => { /* silently ignore */ }
-  )
+  runOsascript(buildSafariAppleScript(js), 3000, 'inject into Safari')
 }
 
-function getFrontmostApp (): string {
-  try {
-    return execSync(
-      `osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`,
-      { timeout: 1500, stdio: 'pipe' }
-    ).toString().trim()
-  } catch {
-    return ''
-  }
+const FRONTMOST_APP_SCRIPT =
+  'tell application "System Events" to get name of first application process whose frontmost is true'
+let frontmostInFlight: Promise<string> | null = null
+
+function getFrontmostApp (): Promise<string> {
+  if (frontmostInFlight) return frontmostInFlight
+  const lookup = new Promise<string>((resolve) => {
+    try {
+      runOsascript(FRONTMOST_APP_SCRIPT, 1500, 'frontmost app lookup', (stdout) => {
+        resolve(stdout.trim())
+      })
+    } catch {
+      // execFile can throw synchronously (e.g. invalid arguments). Resolve a safe
+      // default so the in-flight guard never stays a rejected promise.
+      console.warn('[LegacyAssistant] frontmost app lookup failed (spawn)')
+      resolve('')
+    }
+  })
+  frontmostInFlight = lookup
+  // Clear the guard once settled (also covers a lookup that settles synchronously).
+  void lookup.finally(() => {
+    if (frontmostInFlight === lookup) frontmostInFlight = null
+  })
+  return lookup
 }
 
-function tryInject (): void {
+async function tryInject (): Promise<void> {
   if (!currentSettings.enabled) return
   if (process.platform !== 'darwin') return
 
@@ -221,8 +282,8 @@ function tryInject (): void {
   const port  = _getPort()
   if (!token) return
 
-  const frontApp = getFrontmostApp()
-  if (!frontApp) return
+  const frontApp = await getFrontmostApp()
+  if (!frontApp || !currentSettings.enabled) return
 
   const script = buildAssistantScript(token, port, currentSettings.targetLang)
 
@@ -250,8 +311,8 @@ let timer: NodeJS.Timeout | null = null
 function startLoop () {
   if (timer) return
   // First injection almost immediately, then every 2.5 s
-  timer = setInterval(tryInject, 2500)
-  setTimeout(tryInject, 400)
+  timer = setInterval(() => { void tryInject() }, 2500)
+  setTimeout(() => { void tryInject() }, 400)
 }
 
 function stopLoop () {
@@ -264,8 +325,10 @@ export function initLegacyAssistant (ipcMain: Electron.IpcMain): void {
   currentSettings = loadSettings()
   if (currentSettings.enabled) startLoop()
 
-  ipcMain.handle('legacyAssistant:update', (_event, patch: Partial<LegacyAssistantSettings>) => {
-    currentSettings = { ...currentSettings, ...patch }
+  ipcMain.handle('legacyAssistant:update', (_event, patch: unknown) => {
+    const invalid = validateLegacyAssistantPatch(patch)
+    if (invalid) return invalidIpcInput(invalid)
+    currentSettings = sanitizeLegacyAssistantSettings(patch, currentSettings)
     saveSettings(currentSettings)
     if (currentSettings.enabled) { startLoop() } else { stopLoop() }
     return { success: true, settings: currentSettings }
@@ -286,8 +349,8 @@ export function initLegacyAssistant (ipcMain: Electron.IpcMain): void {
     }
   })
 
-  ipcMain.handle('legacyAssistant:injectNow', () => {
-    tryInject()
+  ipcMain.handle('legacyAssistant:injectNow', async () => {
+    await tryInject()
     return { success: true }
   })
 }

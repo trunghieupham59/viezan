@@ -19,6 +19,7 @@ export function HotkeySection() {
   const selectedProvider = useAppStore((state) => state.selectedProvider)
   const selectedModels = useAppStore((state) => state.selectedModels)
   const targetLang = useAppStore((state) => state.targetLang)
+  const locale = useAppStore((state) => state.locale)
   const t = useT()
 
   const [hotkeyEnabled, setHotkeyEnabled] = useState(false)
@@ -75,16 +76,25 @@ export function HotkeySection() {
       provider: hotkeyProvider,
       model: hotkeyModel,
       targetLang: hotkeyTargetLang,
+      uiLanguage: locale,
       ...overrides,
     }
     const res = await window.api.hotkey.update(settings)
     if (!res?.success && res?.error) {
       setHotkeyError(res.error)
-      setHotkeyEnabled(false)
+      // The backend keeps the previously registered shortcut when an update is
+      // rejected, so mirror what it actually has instead of forcing the toggle off.
+      const kept = res.settings
+      if (kept) {
+        setHotkeyEnabled(kept.enabled === true)
+        setHotkeyValue(typeof kept.hotkey === 'string' ? kept.hotkey : '')
+      } else {
+        setHotkeyEnabled(false)
+      }
     } else {
       setHotkeyError('')
     }
-  }, [hotkeyValue, hotkeyEnabled, hotkeyProvider, hotkeyModel, hotkeyTargetLang])
+  }, [hotkeyValue, hotkeyEnabled, hotkeyProvider, hotkeyModel, hotkeyTargetLang, locale])
 
   // Convert a KeyboardEvent to an Electron accelerator string
   const keyEventToAccelerator = (e: React.KeyboardEvent): string => {
@@ -105,7 +115,7 @@ export function HotkeySection() {
   useEffect(() => {
     if (!window.api?.hotkey || !hotkeyValue) return
     saveHotkeySettings()
-  }, [hotkeyProvider, hotkeyModel, hotkeyTargetLang])
+  }, [hotkeyProvider, hotkeyModel, hotkeyTargetLang, locale])
 
   const handleHotkeyKeyDown = (e: React.KeyboardEvent) => {
     e.preventDefault()
@@ -153,7 +163,13 @@ export function HotkeySection() {
     const res = await window.api.hotkey.chat.update(settings)
     if (!res?.success && res?.error) {
       setChatHotkeyError(res.error)
-      setChatHotkeyEnabled(false)
+      const kept = res.settings
+      if (kept) {
+        setChatHotkeyEnabled(kept.enabled === true)
+        setChatHotkeyValue(typeof kept.hotkey === 'string' ? kept.hotkey : '')
+      } else {
+        setChatHotkeyEnabled(false)
+      }
     } else {
       setChatHotkeyError('')
     }

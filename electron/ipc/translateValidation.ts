@@ -1,5 +1,5 @@
 import { MAX_TRANSLATE_SOURCE_CHARS } from './ipcConstants'
-import { invalidIpcInput, isNonEmptyString, isOptionalBoolean, isRecord, isSafeLanguageCode } from './ipcValidation'
+import { invalidIpcInput, isNonEmptyString, isOptionalBoolean, isRecord, isSafeLanguageCode, isSafeTargetLanguageCode } from './ipcValidation'
 import { isValidProvider, unknownProviderError } from './providers/types'
 
 export type TranslationStyle = 'general' | 'formal' | 'casual' | 'business' | 'technical' | 'natural'
@@ -44,6 +44,8 @@ const TRANSLATION_STYLES = new Set<TranslationStyle>([
 const PHONETIC_MODES = new Set<PhoneticMode>(['off', 'standard', 'phonetic'])
 const REASONING_EFFORTS = new Set<TranslationReasoningEffort>(['auto', 'low', 'medium', 'high'])
 const MAX_MODEL_ID_CHARS = 200
+/** Sentinel the renderer sends to rewrite text in its own language when the source language is 'auto'. */
+const REWRITE_SAME_LANGUAGE = 'the same language as the input text'
 
 function parseProvider(value: unknown): ParsedParams<string> {
   if (!isNonEmptyString(value)) {
@@ -103,7 +105,7 @@ export function parseTranslateParams(rawParams: unknown): ParsedParams<Translate
   if (!isSafeLanguageCode(rawParams.sourceLang)) {
     return { ok: false, response: invalidIpcInput('Invalid source language') }
   }
-  if (!isSafeLanguageCode(rawParams.targetLang)) {
+  if (!isSafeTargetLanguageCode(rawParams.targetLang)) {
     return { ok: false, response: invalidIpcInput('Invalid target language') }
   }
   if (!isOptionalBoolean(rawParams.showFurigana) || !isOptionalBoolean(rawParams.phoneticOnly)) {
@@ -164,7 +166,7 @@ export function parseRewriteParams(rawParams: unknown): ParsedParams<RewritePara
       },
     }
   }
-  if (!isSafeLanguageCode(rawParams.lang)) {
+  if (typeof rawParams.lang !== 'string' || (!isSafeTargetLanguageCode(rawParams.lang) && rawParams.lang !== REWRITE_SAME_LANGUAGE)) {
     return { ok: false, response: invalidIpcInput('Invalid language') }
   }
   const translationStyle = parseTranslationStyle(rawParams.translationStyle)

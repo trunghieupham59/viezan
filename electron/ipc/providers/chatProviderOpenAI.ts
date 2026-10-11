@@ -234,6 +234,8 @@ export async function chatWithOpenAI(
       // Fetch the best actual chat-capable model from the API
       const bestModel = await fetchBestOpenAIChatModel(apiKey)
       if (bestModel !== model) {
+        // Tell the caller which model actually answered (silent fallback otherwise).
+        options.onModelFallback?.(bestModel)
         return await tryChat(bestModel)
       }
     }
@@ -291,12 +293,15 @@ export async function streamChatWithOpenAI(
     return await tryChat(model)
   } catch (err: unknown) {
     // Bubble user cancellation as-is — never fall back to a different model.
-    if (signal?.aborted || isAbortError(err)) {
+    if (isAbortError(err, signal)) {
       throw new Error(CHAT_STREAM_CANCELLED_MESSAGE)
     }
     if (!emittedToken && isOpenAIChatEndpointError(err)) {
       const bestModel = await fetchBestOpenAIChatModel(apiKey)
-      if (bestModel !== model) return await tryChat(bestModel)
+      if (bestModel !== model) {
+        options.onModelFallback?.(bestModel)
+        return await tryChat(bestModel)
+      }
     }
     throw err
   }

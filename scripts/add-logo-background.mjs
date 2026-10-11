@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Add white background to release icons / logo images.
+ * Build platform release icons from the transparent Viezan mark.
  *
  * Per-target strategy:
  *   - build/icon-mac.png        : 1024×1024 white squircle (macOS Big Sur+ shape).
@@ -10,10 +10,11 @@
  *                                 size embedded inside the ICNS shares the
  *                                 squircle background.
  *   - build/icon.iconset/*      : Same squircle artwork resampled per slot.
- *   - build/icon-win.png        : 256×256 solid white square (Windows taskbar
- *                                 / Start menu show square thumbnails).
- *   - build/icon.ico            : Multi-size ICO regenerated from the white
- *                                 square so every embedded size has the bg.
+ *   - build/icon-win.png        : 256×256 circular Windows badge. The mark is
+ *                                 optically enlarged after transparent padding
+ *                                 is trimmed from the source.
+ *   - build/icon.ico            : Multi-size ICO with dedicated 16–256px frames
+ *                                 regenerated from the circular Windows badge.
  *   - build/icon.png            : 1024×1024 squircle (used as Electron tray /
  *                                 Linux fallback icon — squircle still works
  *                                 on Linux desktops, white square would also
@@ -28,16 +29,17 @@
  * transparency on dark browser tabs.
 
  *
- * Idempotent: each run starts from the artwork stored in build/source/ if it
- * exists, otherwise it falls back to the current PNG (so re-running won't
- * keep stacking white backgrounds).
+ * macOS remains idempotent by starting from artwork stored in build/source/.
+ * Windows always starts from public/logo.png, the canonical transparent mark,
+ * so a fresh clone cannot accidentally treat an already composed icon as its
+ * source and shrink the mark again.
  */
 
 import { execFileSync } from 'node:child_process'
 import {
   closeSync,
-  constants as fsConstants,
   existsSync,
+  constants as fsConstants,
   mkdirSync,
   openSync,
   readFileSync,
@@ -180,18 +182,72 @@ function composeOnBackground(sourcePath, backgroundPath, outPath, options = {}) 
     ...RGB_FLAGS,
     outPath,
   )
-  // Cleanup
-  execFileSync('rm', ['-f', tempArt])
+  unlinkSync(tempArt)
 }
 
 /**
- * Place artwork on a solid white square (Windows / web favicons).
+ * Composite transparent artwork after removing its empty source padding.
+ * Windows taskbar sizes need the visible mark, not its 512px source canvas,
+ * to determine optical scale.
  */
-function composeOnWhiteSquare(sourcePath, outPath, size, artworkScale = 0.86) {
+function composeTrimmedOnBackground(
+  sourcePath,
+  backgroundPath,
+  outPath,
+  { artworkScale, canvasSize },
+) {
+  const artworkSize = Math.round(canvasSize * artworkScale)
+  const tempArt = `${outPath}.art.png`
+  magick(
+    sourcePath,
+    '-trim',
+    '+repage',
+    '-filter',
+    'Lanczos',
+    '-resize',
+    `${artworkSize}x${artworkSize}`,
+    ...RGB_FLAGS,
+    tempArt,
+  )
+  magick(
+    backgroundPath,
+    tempArt,
+    '-gravity',
+    'center',
+    '-composite',
+    ...RGB_FLAGS,
+    outPath,
+  )
+  unlinkSync(tempArt)
+}
+
+/**
+ * Place the two-tone mark on a compact white circle for Windows.
+ *
+ * The 4% transparent perimeter prevents taskbar clipping, while the 82% mark
+ * width keeps its inner negative space readable at 16px without repeating the
+ * old small-logo-in-a-square appearance.
+ */
+function composeOnWindowsCircle(sourcePath, outPath, size) {
   const bg = `${outPath}.bg.png`
-  magick('-size', `${size}x${size}`, 'xc:white', ...RGB_FLAGS, bg)
-  composeOnBackground(sourcePath, bg, outPath, { artworkScale, canvasSize: size })
-  execFileSync('rm', ['-f', bg])
+  const inset = Math.max(1, Math.round(size * 0.04))
+  const center = (size - 1) / 2
+  magick(
+    '-size',
+    `${size}x${size}`,
+    'xc:none',
+    '-fill',
+    'white',
+    '-draw',
+    `circle ${center},${center} ${center},${inset}`,
+    ...RGB_FLAGS,
+    bg,
+  )
+  composeTrimmedOnBackground(sourcePath, bg, outPath, {
+    artworkScale: 0.82,
+    canvasSize: size,
+  })
+  unlinkSync(bg)
 }
 
 /**
@@ -201,7 +257,7 @@ function composeOnSquircle(sourcePath, outPath, size, artworkScale = 0.78) {
   const bg = `${outPath}.bg.png`
   buildSquircleBackground(size, bg)
   composeOnBackground(sourcePath, bg, outPath, { artworkScale, canvasSize: size })
-  execFileSync('rm', ['-f', bg])
+  unlinkSync(bg)
 }
 
 // ─── 1. build/icon-mac.png – 1024 squircle ────────────────────────────────
@@ -237,24 +293,27 @@ for (const [name, size] of iconsetSizes) {
 }
 console.log('✓ build/icon.iconset/* regenerated')
 
-// ─── 4. build/icon-win.png – 256 white square ─────────────────────────────
-const winSrc = ensureSource('build/icon-win.png')
+// ─── 4. build/icon-win.png – 256 Windows circle ──────────────────────────
+const winSrc = join(ROOT, 'public', 'logo.png')
+if (!existsSync(winSrc)) {
+  throw new Error('Missing canonical Windows icon source: public/logo.png')
+}
 const winOut = join(ROOT, 'build/icon-win.png')
-composeOnWhiteSquare(winSrc, winOut, 256)
-console.log('✓ build/icon-win.png (256 white square)')
+composeOnWindowsCircle(winSrc, winOut, 256)
+console.log('✓ build/icon-win.png (256 circular Windows badge)')
 
-// ─── 5. build/icon.ico – multi-size, all white square ─────────────────────
+// ─── 5. build/icon.ico – dedicated multi-size Windows frames ──────────────
 const icoSizes = [16, 24, 32, 48, 64, 128, 256]
 const icoTmpDir = join(SOURCE_DIR, 'ico-tmp')
 mkdirSync(icoTmpDir, { recursive: true })
 const icoLayers = []
 for (const size of icoSizes) {
   const out = join(icoTmpDir, `${size}.png`)
-  composeOnWhiteSquare(winSrc, out, size)
+  composeOnWindowsCircle(winSrc, out, size)
   icoLayers.push(out)
 }
 magick(...icoLayers, join(ROOT, 'build/icon.ico'))
-console.log('✓ build/icon.ico (multi-size white square)')
+console.log('✓ build/icon.ico (multi-size circular Windows badge)')
 
 // ─── 6. build/icon.icns – rebuild from iconset ────────────────────────────
 const icnsOut = join(ROOT, 'build/icon.icns')
@@ -273,5 +332,5 @@ try {
 // public/logo.png and public/icon.png are intentionally left transparent —
 // see the file header for the rationale.
 
-console.log('\nRelease icons (build/) now have a white background.')
+console.log('\nRelease icons (build/) now use platform-appropriate backgrounds.')
 console.log('In-app logos (public/) were left transparent on purpose.')
