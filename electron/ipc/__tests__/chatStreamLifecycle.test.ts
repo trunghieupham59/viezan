@@ -62,6 +62,8 @@ function setup() {
 /** OpenAI SDK double whose stream yields tokens slowly and honours the abort signal. */
 function mockOpenAI(options: {
   tokens?: string[]
+  /** Delay before each token; keep it well above `vi.waitFor`'s 50ms poll when a test must act mid-stream. */
+  tokenDelayMs?: number
   onCreate?: (params: { model: string }) => void
   failModels?: string[]
   models?: string[]
@@ -80,7 +82,7 @@ function mockOpenAI(options: {
             const tokens = options.tokens ?? ['a', 'b', 'c']
             return (async function* stream() {
               for (const token of tokens) {
-                await new Promise((resolve) => setTimeout(resolve, 5))
+                await new Promise((resolve) => setTimeout(resolve, options.tokenDelayMs ?? 5))
                 if (requestOptions?.signal?.aborted) return
                 yield { choices: [{ delta: { content: token } }] }
               }
@@ -201,7 +203,8 @@ describe('chat:stream lifecycle', () => {
   })
 
   it('stops the provider and never throws when the sender is destroyed mid-stream', async () => {
-    mockOpenAI({ tokens: ['a', 'b', 'c', 'd', 'e', 'f'] })
+    // Slow tokens so the stream is still running when `waitFor` (50ms poll) sees the first one.
+    mockOpenAI({ tokens: ['a', 'b', 'c', 'd', 'e', 'f'], tokenDelayMs: 60 })
     const api = setup()
     const sender = makeSender(1)
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
