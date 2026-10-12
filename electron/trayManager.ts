@@ -101,6 +101,8 @@ export async function promptCloseAction(window: BrowserWindow, osLocale: string 
 export interface AppTrayOptions {
   /** Absolute path of a PNG/ICO to use as the tray icon. */
   iconPath: string
+  /** Overrides the localized tooltip, e.g. "Viezan (Dev)" for a development run. */
+  tooltip?: string
   osLocale: string | undefined
   onOpen: () => void
   onQuit: () => void
@@ -116,7 +118,7 @@ export function createAppTray(options: AppTrayOptions): Tray | null {
 
   const labels = getTrayLabels(options.osLocale)
   const tray = new Tray(source.resize({ width: TRAY_ICON_SIZE, height: TRAY_ICON_SIZE }))
-  tray.setToolTip(labels.tooltip)
+  tray.setToolTip(options.tooltip ?? labels.tooltip)
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: labels.open, click: options.onOpen },

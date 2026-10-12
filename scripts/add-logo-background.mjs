@@ -10,11 +10,12 @@
  *                                 size embedded inside the ICNS shares the
  *                                 squircle background.
  *   - build/icon.iconset/*      : Same squircle artwork resampled per slot.
- *   - build/icon-win.png        : 256×256 circular Windows badge. The mark is
- *                                 optically enlarged after transparent padding
- *                                 is trimmed from the source.
- *   - build/icon.ico            : Multi-size ICO with dedicated 16–256px frames
- *                                 regenerated from the circular Windows badge.
+ *   - build/icon-win.png        : 256×256 transparent Windows mark. Source padding
+ *                                 is trimmed and the mark fills ~96% of the
+ *                                 canvas so it matches other taskbar glyphs.
+ *   - build/icon.ico            : Multi-size ICO with dedicated 16–256px frames,
+ *                                 each rendered from the trimmed mark (small
+ *                                 frames are supersampled and sharpened).
  *   - build/icon.png            : 1024×1024 squircle (used as Electron tray /
  *                                 Linux fallback icon — squircle still works
  *                                 on Linux desktops, white square would also
@@ -186,68 +187,43 @@ function composeOnBackground(sourcePath, backgroundPath, outPath, options = {}) 
 }
 
 /**
- * Composite transparent artwork after removing its empty source padding.
- * Windows taskbar sizes need the visible mark, not its 512px source canvas,
- * to determine optical scale.
+ * Place the two-tone mark full-bleed on a transparent canvas for Windows.
+ *
+ * Taskbar apps such as Chrome and VS Code ship a solid glyph with no
+ * container, so the mark itself fills ~96% of the slot width. Frames up to
+ * 32px are rendered from a supersampled canvas and lightly sharpened so the
+ * thin tail and inner negative space stay readable instead of blurring.
  */
-function composeTrimmedOnBackground(
-  sourcePath,
-  backgroundPath,
-  outPath,
-  { artworkScale, canvasSize },
-) {
-  const artworkSize = Math.round(canvasSize * artworkScale)
-  const tempArt = `${outPath}.art.png`
+function composeOnWindowsTransparent(sourcePath, outPath, size) {
+  const artworkSize = Math.round(size * 0.96)
+  const supersample = 8
+  const bigCanvas = size * supersample
+  const bigArt = artworkSize * supersample
+  const small = size <= 32
   magick(
+    '-size',
+    `${bigCanvas}x${bigCanvas}`,
+    'xc:none',
+    '(',
     sourcePath,
     '-trim',
     '+repage',
     '-filter',
     'Lanczos',
     '-resize',
-    `${artworkSize}x${artworkSize}`,
-    ...RGB_FLAGS,
-    tempArt,
-  )
-  magick(
-    backgroundPath,
-    tempArt,
+    `${bigArt}x${bigArt}`,
+    ')',
     '-gravity',
     'center',
     '-composite',
+    '-filter',
+    'Lanczos',
+    '-resize',
+    `${size}x${size}`,
+    ...(small ? ['-unsharp', '0x0.6+0.9+0'] : []),
     ...RGB_FLAGS,
     outPath,
   )
-  unlinkSync(tempArt)
-}
-
-/**
- * Place the two-tone mark on a compact white circle for Windows.
- *
- * The 4% transparent perimeter prevents taskbar clipping, while the 82% mark
- * width keeps its inner negative space readable at 16px without repeating the
- * old small-logo-in-a-square appearance.
- */
-function composeOnWindowsCircle(sourcePath, outPath, size) {
-  const bg = `${outPath}.bg.png`
-  const inset = Math.max(1, Math.round(size * 0.04))
-  const center = (size - 1) / 2
-  magick(
-    '-size',
-    `${size}x${size}`,
-    'xc:none',
-    '-fill',
-    'white',
-    '-draw',
-    `circle ${center},${center} ${center},${inset}`,
-    ...RGB_FLAGS,
-    bg,
-  )
-  composeTrimmedOnBackground(sourcePath, bg, outPath, {
-    artworkScale: 0.82,
-    canvasSize: size,
-  })
-  unlinkSync(bg)
 }
 
 /**
@@ -299,8 +275,8 @@ if (!existsSync(winSrc)) {
   throw new Error('Missing canonical Windows icon source: public/logo.png')
 }
 const winOut = join(ROOT, 'build/icon-win.png')
-composeOnWindowsCircle(winSrc, winOut, 256)
-console.log('✓ build/icon-win.png (256 circular Windows badge)')
+composeOnWindowsTransparent(winSrc, winOut, 256)
+console.log('✓ build/icon-win.png (256 transparent full-bleed Windows mark)')
 
 // ─── 5. build/icon.ico – dedicated multi-size Windows frames ──────────────
 const icoSizes = [16, 24, 32, 48, 64, 128, 256]
@@ -309,11 +285,11 @@ mkdirSync(icoTmpDir, { recursive: true })
 const icoLayers = []
 for (const size of icoSizes) {
   const out = join(icoTmpDir, `${size}.png`)
-  composeOnWindowsCircle(winSrc, out, size)
+  composeOnWindowsTransparent(winSrc, out, size)
   icoLayers.push(out)
 }
 magick(...icoLayers, join(ROOT, 'build/icon.ico'))
-console.log('✓ build/icon.ico (multi-size circular Windows badge)')
+console.log('✓ build/icon.ico (multi-size transparent full-bleed Windows mark)')
 
 // ─── 6. build/icon.icns – rebuild from iconset ────────────────────────────
 const icnsOut = join(ROOT, 'build/icon.icns')

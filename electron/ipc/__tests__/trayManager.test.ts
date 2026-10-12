@@ -108,6 +108,12 @@ describe('createAppTray', () => {
     expect(events).toEqual(expect.arrayContaining(['click', 'double-click']))
   })
 
+  it('lets a development run override the tooltip so it is distinguishable from the official app', () => {
+    createAppTray({ iconPath: 'icon.png', tooltip: 'Viezan (Dev)', osLocale: 'vi-VN', onOpen: vi.fn(), onQuit: vi.fn() })
+
+    expect(trayInstances[0].setToolTip).toHaveBeenCalledWith('Viezan (Dev)')
+  })
+
   it('returns null instead of an invisible tray when the icon cannot be loaded', () => {
     imageIsEmpty = true
     vi.spyOn(console, 'warn').mockImplementation(() => {})
