@@ -12,7 +12,7 @@ import { TranslateToolbar } from '../../translate/TranslateToolbar'
 import { AutoTranslateToggle } from '../../ui/AutoTranslateToggle'
 import { Button } from '../../ui/atoms'
 import { GearIcon, InfoCircleIcon } from '../../ui/icons'
-import { AIModelField, ConfigSection } from '../../ui/molecules'
+import { AIModelField, ConfigSection, type SelectFieldOption } from '../../ui/molecules'
 import { AIConfigurationPopover } from '../AIConfigurationPopover'
 import { TranslationModelDialog } from './TranslationModelDialog'
 
@@ -75,6 +75,14 @@ export function TranslationControlsHeader({
     technical: t.translate_style_technical,
     natural: t.translate_style_natural,
   }
+  const styleOptions: readonly SelectFieldOption[] = [
+    { value: 'general', label: styleLabels.general, description: t.translate_style_general_desc },
+    { value: 'formal', label: styleLabels.formal, description: t.translate_style_formal_desc },
+    { value: 'casual', label: styleLabels.casual, description: t.translate_style_casual_desc },
+    { value: 'business', label: styleLabels.business, description: t.translate_style_business_desc },
+    { value: 'technical', label: styleLabels.technical, description: t.translate_style_technical_desc },
+    { value: 'natural', label: styleLabels.natural, description: t.translate_style_natural_desc },
+  ]
   const phoneticLabels: Record<Exclude<PhoneticMode, 'off'>, string> = {
     standard: t.translate_phonetic_standard,
     phonetic: t.translate_phonetic_transcription,
@@ -211,12 +219,7 @@ export function TranslationControlsHeader({
                   labelReasoningHigh={t.translate_reasoning_high}
                   labelReasoningUnsupported={t.translate_reasoning_unsupported}
                   labelStyleLabel={t.translate_style_label}
-                  labelStyleGeneral={t.translate_style_general}
-                  labelStyleFormal={t.translate_style_formal}
-                  labelStyleCasual={t.translate_style_casual}
-                  labelStyleBusiness={t.translate_style_business}
-                  labelStyleTechnical={t.translate_style_technical}
-                  labelStyleNatural={t.translate_style_natural}
+                  styleOptions={styleOptions}
                   labelPhoneticSection={t.translate_phonetic}
                   labelPhoneticOff={t.translate_phonetic_off}
                   labelPhoneticStandard={t.translate_phonetic_standard}

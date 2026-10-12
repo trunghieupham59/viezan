@@ -100,6 +100,12 @@ export interface Translations {
   translate_style_business: string
   translate_style_technical: string
   translate_style_natural: string
+  translate_style_general_desc: string
+  translate_style_formal_desc: string
+  translate_style_casual_desc: string
+  translate_style_business_desc: string
+  translate_style_technical_desc: string
+  translate_style_natural_desc: string
   translate_reasoning_label: string
   translate_reasoning_auto: string
   translate_reasoning_low: string

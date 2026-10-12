@@ -36,6 +36,25 @@ describe('SelectField', () => {
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 
+  it('shows an option description beside its label', () => {
+    render(
+      <SelectField
+        label="Style"
+        value="general"
+        options={[
+          { value: 'general', label: 'General', description: 'Balanced' },
+          { value: 'formal', label: 'Formal', description: 'Official letters' },
+        ]}
+        onChange={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Style General' }))
+    const formal = screen.getByRole('option', { name: 'Formal' })
+    expect(formal).toHaveAccessibleDescription('Official letters')
+    expect(screen.getByText('Official letters')).toHaveAttribute('title', 'Official letters')
+  })
+
   it('closes on Escape without changing the value', () => {
     const onChange = vi.fn()
     render(
