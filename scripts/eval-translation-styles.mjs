@@ -47,7 +47,8 @@ const model = args.get('model') ?? 'gemma3:4b'
 const apiKeyEnv = args.get('api-key-env')
 const apiKey = apiKeyEnv ? process.env[apiKeyEnv] : undefined
 if (apiKeyEnv && !apiKey) {
-  console.error(`Environment variable ${apiKeyEnv} is not set.`)
+  // Deliberately generic: nothing derived from the key lookup is printed.
+  console.error('The environment variable named by --api-key-env is not set.')
   process.exit(1)
 }
 const samples = Number(args.get('n') ?? 3)
