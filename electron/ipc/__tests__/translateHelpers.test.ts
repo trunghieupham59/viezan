@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { splitIntoChunks, translateChunked } from '../translateChunking'
 import { normalizeDetectedLang } from '../translateLanguage'
-import { buildDetectLanguagePrompt, buildPrompt, buildRewritePrompt } from '../translatePrompts'
+import { buildDetectLanguagePrompt, buildPrompt, buildRewritePrompt, getStyleTone, STYLE_TONE, SYSTEM_PROMPT } from '../translatePrompts'
 
 describe('translatePrompts', () => {
   it('builds normal translation prompts with the requested style and target language', () => {
@@ -11,6 +11,36 @@ describe('translatePrompts', () => {
     expect(prompt).toContain('Translate into vi')
     expect(prompt).toContain('Tone: precise, technical')
     expect(prompt).toContain('Hello world')
+  })
+
+  it('adds a register hint for Vietnamese and Japanese targets only', () => {
+    expect(buildPrompt('Hello', 'en', 'vi', false, 'formal')).toContain('ạ')
+    expect(buildPrompt('Hello', 'en', 'ja', false, 'business')).toContain('business Japanese')
+    expect(buildRewritePrompt('Xin chào', 'vi', 'casual')).toContain('nhé')
+    expect(getStyleTone('formal', 'fr')).toBe(STYLE_TONE.formal)
+    expect(getStyleTone('formal')).toBe(STYLE_TONE.formal)
+  })
+
+  it('adds the Japanese surname list only when the source has a romaji honorific', () => {
+    const withHonorific = buildPrompt('Please tell Yokoyama-san that Tanaka-sensei is here.', 'en', 'ja', false, 'general')
+    expect(withHonorific).toContain('Always convert common Japanese surnames')
+    expect(buildPrompt('Are you free tonight?', 'en', 'ja', false, 'general')).not.toContain('Yokoyama')
+    expect(buildPrompt('Please tell Yokoyama-san hello.', 'en', 'vi', false, 'general')).not.toContain('Always convert common Japanese surnames')
+    expect(SYSTEM_PROMPT).not.toContain('横山')
+  })
+
+  it('keeps every clause and avoids slash-separated pronoun alternatives', () => {
+    expect(buildPrompt('If X then Y.', 'en', 'ja', false, 'business')).toContain('omit nothing')
+    expect(STYLE_TONE.business).not.toMatch(/concise/i)
+    expect(getStyleTone('formal', 'vi')).toContain('never write alternatives separated by a slash')
+    expect(getStyleTone('technical', 'vi')).toBe(STYLE_TONE.technical)
+    expect(getStyleTone('formal', 'ja')).not.toContain('slash')
+  })
+
+  it('falls back to the general tone for unknown styles and ignores inherited keys', () => {
+    expect(getStyleTone('shouting', 'vi')).toContain(STYLE_TONE.general)
+    expect(getStyleTone('formal', 'constructor')).toBe(STYLE_TONE.formal)
+    expect(getStyleTone('constructor', 'vi')).toContain(STYLE_TONE.general)
   })
 
   it('builds rewrite prompts that preserve target language constraints', () => {
