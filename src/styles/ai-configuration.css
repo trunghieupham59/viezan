@@ -250,6 +250,27 @@
   padding-inline: var(--vzn-space-3);
 }
 
+.ai-select-field__option-copy {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--vzn-space-2);
+}
+
+.ai-select-field__option-label {
+  flex: 0 0 auto;
+}
+
+.ai-select-field__option-description {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-regular);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ai-subtitle-config {
   display: flex;
   flex-direction: column;

@@ -5,6 +5,8 @@ import { CheckIcon, ChevronDownIcon, SpinnerIcon } from '../icons'
 export interface SelectFieldOption {
   value: string
   label: string
+  /** Short hint shown beside the label so similar choices stay distinguishable. */
+  description?: string
   disabled?: boolean
 }
 
@@ -140,6 +142,8 @@ export function SelectField({
               id={`${fieldId}-option-${index}`}
               role="option"
               aria-selected={option.value === value}
+              aria-label={option.label}
+              aria-describedby={option.description ? `${fieldId}-option-${index}-description` : undefined}
               size="md"
               shape="rect"
               variant={option.value === value ? 'primary' : 'neutral'}
@@ -166,7 +170,18 @@ export function SelectField({
                 }
               }}
             >
-              <span>{option.label}</span>
+              <span className="ai-select-field__option-copy">
+                <span className="ai-select-field__option-label">{option.label}</span>
+                {option.description && (
+                  <span
+                    id={`${fieldId}-option-${index}-description`}
+                    className="ai-select-field__option-description"
+                    title={option.description}
+                  >
+                    {option.description}
+                  </span>
+                )}
+              </span>
               {option.value === value && <CheckIcon className="ai-select-field__check" />}
             </Button>
           ))}
