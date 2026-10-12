@@ -19,6 +19,7 @@ import { registerTranslateHandlers } from './ipc/translate'
 import { registerTtsHandlers } from './ipc/tts'
 import { registerUpdaterHandlers } from './ipc/updater'
 import { registerWebSearchHandlers } from './ipc/webSearch'
+import { isQuitRequest } from './quitRequest'
 import { createAppTray, promptCloseAction, shouldHideMainWindowOnClose, supportsTrayResidency } from './trayManager'
 
 // Allow audio autoplay after async operations (TTS API calls lose user-gesture context)
@@ -37,7 +38,13 @@ const hasSingleInstanceLock = app.requestSingleInstanceLock()
 if (!hasSingleInstanceLock) {
   app.quit()
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, argv) => {
+    // The Windows installer/uninstaller asks the tray-resident app to exit
+    // cleanly (`Viezan.exe --quit`) before it resorts to killing the process.
+    if (isQuitRequest(argv)) {
+      app.quit()
+      return
+    }
     if (!app.isReady()) return // whenReady() creates the window
     if (!mainWindow || mainWindow.isDestroyed()) {
       createWindow()
