@@ -20,6 +20,7 @@ import { registerTtsHandlers } from './ipc/tts'
 import { registerUpdaterHandlers } from './ipc/updater'
 import { registerWebSearchHandlers } from './ipc/webSearch'
 import { isQuitRequest } from './quitRequest'
+import { resolveRuntimeProfile } from './runtimeProfile'
 import { createAppTray, promptCloseAction, shouldHideMainWindowOnClose, supportsTrayResidency } from './trayManager'
 
 // Allow audio autoplay after async operations (TTS API calls lose user-gesture context)
@@ -31,9 +32,20 @@ if (process.platform === 'darwin') {
   app.commandLine.appendSwitch('disable-features', 'UseSkiaRenderer')
 }
 
+// ── Runtime profile (official build vs development run) ───────────────────────
+// A development run gets its own userData folder, local-server port and window
+// title so it can coexist with the installed app (which may be resident in the
+// tray). This MUST run before the single-instance lock below: the lock is keyed
+// on userData, so a shared folder would make `npm run dev` quit immediately.
+const runtimeProfile = resolveRuntimeProfile(app.isPackaged, process.env)
+if (runtimeProfile.userDataDirName) {
+  app.setPath('userData', path.join(app.getPath('appData'), runtimeProfile.userDataDirName))
+}
+
 // ── Single-instance guard ─────────────────────────────────────────────────────
-// Prevent a second launch from binding the same local-server port (EADDRINUSE).
-// If another instance is already running, focus its window and quit immediately.
+// Prevent a second launch of the SAME build from binding the same local-server
+// port (EADDRINUSE). If that build is already running, focus its window and quit
+// immediately.
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
 if (!hasSingleInstanceLock) {
   app.quit()
@@ -55,8 +67,8 @@ if (!hasSingleInstanceLock) {
 
 const isDev = isDevelopmentRuntime(app.isPackaged)
 
-// Set app name
-app.setName('Viezan')
+// Set app name ("Viezan Dev" in development so the OS can tell the two apart)
+app.setName(runtimeProfile.appName)
 
 // Windows taskbar grouping/pinning keys off the AppUserModelID. Match the
 // electron-builder `appId` so the running window shares the NSIS shortcut's
@@ -134,7 +146,7 @@ function createWindow() {
     height: 700,
     minWidth: 1200,
     minHeight: 700,
-    title: 'Viezan',
+    title: runtimeProfile.windowTitle,
     // macOS and Windows hide the native title bar; the renderer's AppShell
     // draws the draggable strip and the OS keeps its window controls on top.
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : process.platform === 'win32' ? 'hidden' : 'default',
@@ -158,6 +170,12 @@ function createWindow() {
       ? path.join(__dirname, '..', 'build', 'icon.ico')
       : path.join(__dirname, '..', 'build', 'icon.png'),
   })
+
+  // The renderer's <title> is the product name; keep the dev marker visible in
+  // the taskbar / Alt-Tab instead of letting the page title overwrite it.
+  if (isDev) {
+    mainWindow.on('page-title-updated', (event) => event.preventDefault())
+  }
 
   mainWindow.once('ready-to-show', () => {
     showMainWindow()
@@ -246,9 +264,12 @@ function resolveTrayIconPath(): string {
 }
 
 function setupTray(): void {
-  if (!supportsTrayResidency(process.platform) || appTray) return
+  // Development runs quit with their window (opt in with VIEZAN_DEV_TRAY=1) so a
+  // stale dev process never keeps the dev port and hotkeys bound in the background.
+  if (!runtimeProfile.trayEnabled || !supportsTrayResidency(process.platform) || appTray) return
   appTray = createAppTray({
     iconPath: resolveTrayIconPath(),
+    tooltip: runtimeProfile.windowTitle,
     osLocale: app.getLocale(),
     onOpen: openMainWindow,
     onQuit: () => app.quit(),

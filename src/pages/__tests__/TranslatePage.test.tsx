@@ -350,8 +350,10 @@ describe('TranslatePage', () => {
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith('Bản dịch OpenAI')
     })
-    expect(within(openAiCard).getByText(/Copied/)).toBeInTheDocument()
-    expect(within(geminiCard).getByText('Copy')).toBeInTheDocument()
+    expect(await within(openAiCard).findByRole('button', { name: /Copied!: GPT 4o.*OpenAI/i }))
+      .toBeInTheDocument()
+    expect(within(geminiCard).getByRole('button', { name: /Copy: Gemini 2.0 Flash.*Google Gemini/i }))
+      .toBeInTheDocument()
 
     const comparisonHistory = useAppStore.getState().history
       .filter((item) => item.sourceText === 'Translate this')

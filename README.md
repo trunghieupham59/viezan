@@ -152,6 +152,26 @@ npm run dev:web
 Then open `http://localhost:5173`. Translation, chat, models, settings and
 history remain interactive; native-only features return safe preview results.
 
+### Dev vs installed app
+
+`npm run dev` can run next to the installed Viezan (even while it is resident in the
+system tray) because a development run is isolated from the official build:
+
+| | Installed app | `npm run dev` |
+| --- | --- | --- |
+| Data folder (settings, API keys, tokens) | `%APPDATA%\viezan` | `%APPDATA%\viezan-dev` |
+| Local server port | `39875` | `39876` |
+| Window title / tray tooltip | `Viezan` | `Viezan (Dev)` |
+| Closing the window | asks: tray or quit | quits (tray: `VIEZAN_DEV_TRAY=1`) |
+
+- Override the dev port with `VIEZAN_LOCAL_PORT` (1024-65535). Environment overrides
+  are ignored by the packaged app.
+- The Chrome extension is built for `39875`, so it talks to the installed app. To test
+  it against a dev run, quit the installed app and start dev with `VIEZAN_LOCAL_PORT=39875`.
+- Global hotkeys are OS-wide: if both builds are running, the second one to start reports
+  its hotkey as "in use". Quit the installed app to test hotkeys in dev.
+- A dev run starts with empty settings; add your API keys in the dev window once.
+
 ### Test
 
 ```bash
