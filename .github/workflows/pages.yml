@@ -1,40 +1,40 @@
 name: Deploy GitHub Pages
 
 on:
-  push:
-    branches: [develop, main]
-    paths: [docs/**]
-  workflow_dispatch:
+    push:
+        branches: [develop, main]
+        paths: [docs/**]
+    workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+    contents: read
+    pages: write
+    id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+    group: pages
+    cancel-in-progress: false
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout (no submodules)
-        uses: actions/checkout@v6
-        with:
-          submodules: false
+    deploy:
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout (no submodules)
+              uses: actions/checkout@v6
+              with:
+                  submodules: false
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v6
+            - name: Setup Pages
+              uses: actions/configure-pages@v6
 
-      - name: Upload docs/ folder
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: docs
+            - name: Upload docs/ folder
+              uses: actions/upload-pages-artifact@v5
+              with:
+                  path: docs
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+            - name: Deploy to GitHub Pages
+              id: deployment
+              uses: actions/deploy-pages@v5

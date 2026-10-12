@@ -140,6 +140,17 @@ describe('updater handlers', () => {
     })
   })
 
+  describe('Windows/Linux install', () => {
+    it('runs the installer silently and relaunches the app', async () => {
+      restorePlatform = setPlatform('win32')
+      const { call } = setup()
+
+      expect(await call('updater:install')).toEqual({ success: true })
+      expect(mocks.quitAndInstall).toHaveBeenCalledTimes(1)
+      expect(mocks.quitAndInstall).toHaveBeenCalledWith(true, true)
+    })
+  })
+
   describe('Windows/Linux error reporting', () => {
     beforeEach(() => {
       restorePlatform = setPlatform('linux')

@@ -803,7 +803,10 @@ export function registerUpdaterHandlers(
         return { success: false, error: msg }
       }
     }
-    autoUpdater.quitAndInstall(false, true)
+    // Silent: without /S the NSIS installer opens its full wizard during an
+    // in-app update. Run it unattended (scope/dir stay as already installed)
+    // and relaunch the app when it finishes.
+    autoUpdater.quitAndInstall(true, true)
     return { success: true }
   })
 

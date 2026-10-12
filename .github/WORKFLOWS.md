@@ -18,16 +18,15 @@ Tài liệu tổng quan về toàn bộ pipeline CI/CD và automation của Viez
 │                                  │                                     │
 │                                  ▼                                     │
 │  ┌────────────────────────────────────────────────────────────────┐    │
-│  │  PR-only: dependency-review · pr-title · labeler · size-label  │    │
+│  │      PR-only: dependency-review · pr-checks (title + labels)   │    │
 │  └────────────────────────────────────────────────────────────────┘    │
 └────────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────────┐
 │                          SCHEDULED / TAG                               │
-│  • nightly.yml         (mỗi đêm — build artifact dev)                  │
 │  • codeql.yml          (mỗi tuần — security audit)                     │
-│  • stale.yml           (mỗi ngày — close stale issues/PRs)             │
 │  • dependabot.yml      (mỗi tuần — npm + actions update)               │
+│  • auto-tag.yml        (develop đổi version — tạo tag + gọi release)   │
 │  • release.yml         (tag v*  — publish DMG/EXE/AppImage + ZIP)      │
 │  • pages.yml           (push docs/** — deploy GitHub Pages)            │
 └────────────────────────────────────────────────────────────────────────┘
@@ -37,15 +36,15 @@ Tài liệu tổng quan về toàn bộ pipeline CI/CD và automation của Viez
 
 | File                                       | Mục đích                                                                    |
 | ------------------------------------------ | --------------------------------------------------------------------------- |
-| `workflows/ci.yml`                         | Lint (Biome + Atomic boundaries) + TypeCheck + Vitest + build matrix        |
+| `workflows/ci.yml`                         | Lint (Biome + Atomic boundaries) + TypeCheck + Vitest + build matrix (artifact 5 ngày) + smoke test installer Windows |
 | `workflows/codeql.yml`                     | Phân tích bảo mật JS/TS định kỳ + theo PR                                   |
 | `workflows/dependency-review.yml`          | Chặn dependency có CVE / license không tương thích trong PR                 |
-| `workflows/pr-title.yml`                   | Bắt buộc tiêu đề PR theo Conventional Commits                               |
-| `workflows/labeler.yml`                    | Auto-gán nhãn theo path file + size PR                                      |
-| `workflows/stale.yml`                      | Đóng issues/PRs không hoạt động                                             |
-| `workflows/nightly.yml`                    | Build dev nightly cho cả 3 OS — không publish, upload artifact 14 ngày      |
-| `workflows/release.yml`                    | **(đã có)** Tag `v*` → build & publish DMG/EXE/AppImage + extension ZIP     |
-| `workflows/pages.yml`                      | **(đã có)** Deploy `docs/` lên GitHub Pages                                 |
+| `workflows/pr-checks.yml`                  | Bắt buộc tiêu đề PR theo Conventional Commits + auto-gán nhãn theo path file |
+| `workflows/auto-tag.yml`                   | Đổi `version` trong `package.json` trên `develop` → tạo tag `vX.Y.Z` + gọi release |
+| `workflows/release.yml`                    | Tag `v*` (hoặc dispatch từ auto-tag) → build & publish DMG/EXE/AppImage + extension ZIP |
+| `workflows/pages.yml`                      | Deploy `docs/` lên GitHub Pages                                             |
+| `actions/install-linux-deps`               | Composite action: cài system deps build Linux (dùng ở ci/release)   |
+| `actions/sync-version`                     | Composite action: đồng bộ `package.json` version theo tag (dùng ở release)  |
 | `labeler.yml`                              | Định nghĩa rule cho `actions/labeler`                                       |
 | `dependabot.yml`                           | Cập nhật npm + GitHub Actions hàng tuần (theo group)                        |
 | `release.yml`                              | Cấu hình "auto-generated release notes" của GitHub                          |
@@ -76,6 +75,10 @@ Tài liệu tổng quan về toàn bộ pipeline CI/CD và automation của Viez
 | -------------------------------- | ----------------------------------- |
 | `APPLE_TEAM_ID`                  | `release.yml`                       |
 | `SIGNPATH_ORGANIZATION_ID`       | `release.yml`                       |
+| `SIGNPATH_PROJECT_SLUG`          | `release.yml` — mặc định `tre-assistant` |
+| `SIGNPATH_SIGNING_POLICY_SLUG`   | `release.yml` — mặc định `release-signing` |
+| `SIGNPATH_ARTIFACT_CONFIGURATION_SLUG` | `release.yml` — mặc định `windows-installer` |
+| `REQUIRE_WINDOWS_SIGNING`        | `release.yml` — `true` = bắt buộc ký: thiếu secret hoặc ký lỗi thì release fail, không đẩy installer chưa ký |
 
 ## 🏷️ Quy ước Conventional Commits
 
@@ -97,20 +100,21 @@ Ví dụ:
 
 ## 🚀 Quy trình release
 
-```bash
-# App release (DMG / EXE / AppImage / latest.yml + extension ZIP)
-git tag v2.1.0
-git push origin v2.1.0
-```
+1. Bump `version` trong `package.json` và merge vào `develop`.
+2. `auto-tag.yml` tự tạo tag `vX.Y.Z` (bỏ qua nếu tag đã tồn tại) rồi gọi
+   `release.yml` trên tag đó. Nếu bỏ lỡ, chạy tay **Actions → Auto Tag Release**.
+3. `release.yml` build và upload DMG / EXE / AppImage / `latest.yml` + extension
+   ZIP lên GitHub Release tương ứng.
 
-`release.yml` sẽ tự build và upload artifact lên GitHub Release tương ứng.
+Có thể tag tay (`git tag vX.Y.Z && git push origin vX.Y.Z`); `release.yml` vẫn
+chạy theo tag push và `auto-tag.yml` sẽ thấy tag đã có nên bỏ qua. Không chạy
+`release.yml` bằng tay từ một branch — chỉ từ tag.
 
-## 🌙 Nightly build
+## 📦 Bản build dev
 
-- Chạy tự động lúc 01:00 sáng (giờ VN) trên branch `develop`.
-- Hoặc trigger thủ công: **Actions → Nightly Build → Run workflow** và nhập
-  branch / commit muốn build.
-- Artifact lưu 14 ngày trong tab Actions, không tạo GitHub Release.
+Không còn nightly. Muốn bản dev để thử, tải artifact `viezan-<OS>-<sha>` (giữ 5
+ngày) từ run của `ci.yml` trên `develop`, hoặc chạy tay **Actions → CI → Run
+workflow**.
 
 ## 🤖 Dependabot — chiến lược group
 
