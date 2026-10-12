@@ -229,4 +229,77 @@ describe('ModelSelector', () => {
     expect(await screen.findByText('claude-sonnet-4-6')).toBeInTheDocument()
     expect(useAppStore.getState().selectedModels.claude).toBe('claude-sonnet-4-6')
   })
+
+  it('loads keyed cloud catalogs while Local is selected and hides pending fallback choices', async () => {
+    act(() => {
+      useAppStore.setState({
+        keyStatus: { local: false, gemini: false, claude: true, openai: true },
+      })
+    })
+    const resolvers = new Map<string, (result: FetchModelsResult) => void>()
+    vi.mocked(window.api.fetchModels).mockImplementation((provider) => new Promise((resolve) => {
+      resolvers.set(provider, resolve)
+    }))
+    const onSelectionChange = vi.fn()
+    render(<ModelSelector embedded inline directModelList onSelectionChange={onSelectionChange} />)
+
+    await waitFor(() => expect(window.api.fetchModels).toHaveBeenCalledTimes(2))
+    expect(window.api.fetchModels).toHaveBeenCalledWith('openai')
+    expect(window.api.fetchModels).toHaveBeenCalledWith('claude')
+    expect(window.api.fetchModels).not.toHaveBeenCalledWith('gemini')
+    expect(window.api.fetchModels).not.toHaveBeenCalledWith('local')
+    expect(screen.queryByRole('button', { name: 'GPT 5 Mini' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Claude Sonnet 5' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Refresh: OpenAI GPT' })).toBeDisabled()
+
+    await act(async () => {
+      resolvers.get('openai')?.({ success: true, models: [{ id: 'gpt-live-1', name: 'GPT Live 1', description: '' }] })
+      resolvers.get('claude')?.({ success: true, models: [{ id: 'claude-live-1', name: 'Claude Live 1', description: '' }] })
+    })
+    expect(await screen.findByRole('button', { name: 'GPT Live 1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Claude Live 1' })).toBeInTheDocument()
+    expect(useAppStore.getState().selectedProvider).toBe('local')
+    expect(onSelectionChange).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'GPT Live 1' }))
+    expect(onSelectionChange).toHaveBeenCalledWith('openai', 'gpt-live-1')
+  })
+
+  it('shows a cloud catalog error and retries without requiring a provider switch', async () => {
+    act(() => {
+      useAppStore.setState({ keyStatus: { local: false, gemini: false, claude: false, openai: true } })
+    })
+    render(<ModelSelector embedded inline directModelList />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to load')
+    vi.mocked(window.api.fetchModels).mockResolvedValue({
+      success: true,
+      models: [{ id: 'gpt-retry-1', name: 'GPT Retry 1', description: '' }],
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh: OpenAI GPT' }))
+    expect(await screen.findByRole('button', { name: 'GPT Retry 1' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(window.api.fetchModels).toHaveBeenCalledTimes(2)
+    expect(useAppStore.getState().selectedProvider).toBe('local')
+  })
+
+  it('does not overwrite a different conversation when a catalog refresh finishes', async () => {
+    act(() => {
+      useAppStore.setState({
+        selectedProvider: 'claude',
+        keyStatus: { local: false, gemini: false, claude: true, openai: false },
+        dynamicModels: { local: LOCAL_MODELS, gemini: [], claude: [{ id: 'claude-old', name: 'Claude Old', description: '' }], openai: [] },
+      })
+    })
+    let resolveFetch!: (result: FetchModelsResult) => void
+    vi.mocked(window.api.fetchModels).mockReturnValue(new Promise((resolve) => { resolveFetch = resolve }))
+    const onSelectionChange = vi.fn()
+    const { rerender } = render(<ModelSelector embedded inline directModelList selectionContextKey="conversation-a" onSelectionChange={onSelectionChange} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh: Anthropic Claude' }))
+    rerender(<ModelSelector embedded inline directModelList selectionContextKey="conversation-b" onSelectionChange={onSelectionChange} />)
+    await act(async () => {
+      resolveFetch({ success: true, models: [{ id: 'claude-new', name: 'Claude New', description: '' }], recommendedModel: 'claude-new' })
+    })
+    expect(await screen.findByRole('button', { name: 'Claude New' })).toBeInTheDocument()
+    expect(useAppStore.getState().selectedModels.claude).toBe('claude-sonnet-4-20250514')
+    expect(onSelectionChange).not.toHaveBeenCalled()
+  })
 })

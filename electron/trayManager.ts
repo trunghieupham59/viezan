@@ -101,6 +101,8 @@ export async function promptCloseAction(window: BrowserWindow, osLocale: string 
 export interface AppTrayOptions {
   /** Absolute path of a PNG/ICO to use as the tray icon. */
   iconPath: string
+  /** Defaults to the running OS; Windows uses the ICO's native DPI frames. */
+  platform?: NodeJS.Platform
   /** Overrides the localized tooltip, e.g. "Viezan (Dev)" for a development run. */
   tooltip?: string
   osLocale: string | undefined
@@ -117,7 +119,13 @@ export function createAppTray(options: AppTrayOptions): Tray | null {
   }
 
   const labels = getTrayLabels(options.osLocale)
-  const tray = new Tray(source.resize({ width: TRAY_ICON_SIZE, height: TRAY_ICON_SIZE }))
+  // Pass the ICO path directly so Windows can pick the right embedded frame
+  // for the display DPI instead of stretching an already flattened 16px image.
+  const tray = new Tray(
+    (options.platform ?? process.platform) === 'win32'
+      ? options.iconPath
+      : source.resize({ width: TRAY_ICON_SIZE, height: TRAY_ICON_SIZE }),
+  )
   tray.setToolTip(options.tooltip ?? labels.tooltip)
   tray.setContextMenu(
     Menu.buildFromTemplate([

@@ -308,7 +308,11 @@ export function AIChatSidebar() {
     >
       <div className="ai-chat-sidebar-header">
         {!effectiveCollapsed && <h2 className="ai-chat-sidebar-title">{t.nav_chat}</h2>}
-        <button
+        <Button
+          size="md"
+          shape="icon"
+          variant="neutral"
+          appearance="ghost"
           ref={sidebarToggleRef}
           type="button"
           className="ai-chat-sidebar-toggle"
@@ -336,7 +340,7 @@ export function AIChatSidebar() {
           {effectiveCollapsed
             ? <ChevronRightIcon className="h-4 w-4" />
             : <ChevronLeftIcon className="h-4 w-4" />}
-        </button>
+        </Button>
       </div>
 
       {effectiveCollapsed && (

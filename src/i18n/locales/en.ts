@@ -817,6 +817,7 @@ const en: Translations = {
   settings_chat_preset_content: 'Prompt',
   settings_chat_preset_set_default: 'Set as default',
   settings_chat_preset_is_default: 'Default',
+  settings_chat_preset_edit: 'Edit',
   settings_chat_preset_delete: 'Delete',
   settings_chat_preset_save: 'Save',
   settings_chat_preset_cancel: 'Cancel',

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button } from '@/components/ui/atoms'
 import type { Translations } from '../../i18n'
 import { LanguageSelector } from '../LanguageSelector'
 import {
@@ -118,14 +119,19 @@ export function DictionarySearchPanel({
               </span>
             )}
             {term && (
-              <button
+              <Button
+                size="xs"
+                shape="icon"
+                variant="neutral"
+                appearance="ghost"
+                aria-label={t.history_search_clear}
                 type="button"
                 onClick={() => onTermChange('')}
                 title={t.history_search_clear}
-                className="btn-icon btn-icon-xs absolute right-1.5 top-1/2 -translate-y-1/2 border-transparent bg-transparent text-gray-400 shadow-none dark:bg-transparent"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2"
               >
                 <XIcon className="h-3 w-3" />
-              </button>
+              </Button>
             )}
           </div>
 
@@ -142,10 +148,14 @@ export function DictionarySearchPanel({
           />
 
           {/* Submit */}
-          <button
+          <Button
+            size="md"
+            shape="rect"
+            variant="primary"
+            appearance="solid"
             type="submit"
             disabled={isLoading || !canSubmit}
-            className="btn-primary flex-shrink-0"
+            className="flex-shrink-0"
           >
             {isLoading ? (
               <RefreshIcon className="h-3.5 w-3.5 spinner" />
@@ -155,16 +165,20 @@ export function DictionarySearchPanel({
             <span className="hidden sm:inline">
               {isLoading ? t.dictionary_lookup_loading : t.dictionary_lookup}
             </span>
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* ── Context disclosure (inline, low-key) ──────────────────────── */}
       <div className="flex items-center justify-between gap-2 px-1">
-        <button
+        <Button
+          size="sm"
+          shape="rect"
+          variant="neutral"
+          appearance="ghost"
           type="button"
           onClick={() => setContextOpen((v) => !v)}
-          className="btn-ghost btn-xs"
+          aria-expanded={contextOpen}
         >
           {contextOpen ? (
             <ChevronDownIcon className="h-3 w-3" />
@@ -177,7 +191,7 @@ export function DictionarySearchPanel({
               {context.trim().length}
             </span>
           )}
-        </button>
+        </Button>
       </div>
 
       {contextOpen && (

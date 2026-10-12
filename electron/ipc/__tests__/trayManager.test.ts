@@ -89,6 +89,16 @@ describe('tray labels', () => {
 })
 
 describe('createAppTray', () => {
+  it('passes the multi-resolution ICO to Windows without flattening its DPI frames', () => {
+    createAppTray({ iconPath: 'tray.ico', platform: 'win32', osLocale: 'en', onOpen: vi.fn(), onQuit: vi.fn() })
+    expect(trayInstances[0].image).toBe('tray.ico')
+  })
+
+  it('keeps the existing 16px native image behavior on Linux', () => {
+    createAppTray({ iconPath: 'icon.png', platform: 'linux', osLocale: 'en', onOpen: vi.fn(), onQuit: vi.fn() })
+    expect(trayInstances[0].image).toEqual({ resized: { width: 16, height: 16 } })
+  })
+
   it('builds a tray with an open/quit menu and restores on click', () => {
     const onOpen = vi.fn()
     const onQuit = vi.fn()

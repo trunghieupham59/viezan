@@ -502,13 +502,13 @@ html.dark .sidebar-brand-surface {
 .ai-chat-sidebar-toggle,
 .ai-chat-sidebar-new-collapsed {
   display: inline-flex;
-  width: 34px;
-  height: 34px;
+  width: var(--vzn-control-height-md);
+  height: var(--vzn-control-height-md);
   align-items: center;
   justify-content: center;
-  flex: 0 0 34px;
+  flex: 0 0 var(--vzn-control-height-md);
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--vzn-radius-control);
   background: transparent;
   color: var(--vzn-text-soft);
   cursor: pointer;

@@ -256,11 +256,12 @@ function openMainWindow(): void {
 }
 
 function resolveTrayIconPath(): string {
-  // `public/icon.png` is copied into `dist/` by Vite, so it ships inside the app
+  // Public assets are copied into `dist/` by Vite, so they ship inside the app
   // bundle (the `build/` folder is not packaged).
+  const filename = process.platform === 'win32' ? 'tray.ico' : 'icon.png'
   return isDev
-    ? path.join(__dirname, '..', 'public', 'icon.png')
-    : path.join(__dirname, '..', 'dist', 'icon.png')
+    ? path.join(__dirname, '..', 'public', filename)
+    : path.join(__dirname, '..', 'dist', filename)
 }
 
 function setupTray(): void {

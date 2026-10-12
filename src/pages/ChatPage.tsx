@@ -379,15 +379,6 @@ export function ChatPage() {
     }
     return s.chatPendingDeepResearchMode
   })
-  const setDeepResearchMode = useCallback((updater: boolean | ((v: boolean) => boolean)) => {
-    setDeepResearchModeLocal((prev) => {
-      const next = typeof updater === 'function' ? updater(prev) : updater
-      const sid = useAppStore.getState().activeChatSessionId
-      if (sid) setChatSessionDeepResearchMode(sid, next)
-      else setChatPendingDeepResearchMode(next)
-      return next
-    })
-  }, [setChatSessionDeepResearchMode, setChatPendingDeepResearchMode])
 
   /** Whether Web Search mode is active — always forces a web search, persisted per session */
   const [webSearchMode, setWebSearchModeLocal] = useState(() => {
@@ -397,15 +388,6 @@ export function ChatPage() {
     }
     return s.chatPendingWebSearchMode
   })
-  const setWebSearchMode = useCallback((updater: boolean | ((v: boolean) => boolean)) => {
-    setWebSearchModeLocal((prev) => {
-      const next = typeof updater === 'function' ? updater(prev) : updater
-      const sid = useAppStore.getState().activeChatSessionId
-      if (sid) setChatSessionWebSearchMode(sid, next)
-      else setChatPendingWebSearchMode(next)
-      return next
-    })
-  }, [setChatSessionWebSearchMode, setChatPendingWebSearchMode])
 
   /** Image Mode — tạo ảnh từ text hoặc sửa ảnh đính kèm bằng AI, persisted per session */
   const [imageMode, setImageModeLocal] = useState(() => {
@@ -415,15 +397,6 @@ export function ChatPage() {
     }
     return s.chatPendingImageMode
   })
-  const setImageMode = useCallback((updater: boolean | ((v: boolean) => boolean)) => {
-    setImageModeLocal((prev) => {
-      const next = typeof updater === 'function' ? updater(prev) : updater
-      const sid = useAppStore.getState().activeChatSessionId
-      if (sid) setChatSessionImageMode(sid, next)
-      else setChatPendingImageMode(next)
-      return next
-    })
-  }, [setChatSessionImageMode, setChatPendingImageMode])
 
   const platform = window.api?.platform
   // ── Voice input — shared hook (same logic as TranslatePage) ──
@@ -1583,9 +1556,19 @@ export function ChatPage() {
     : t.chat_placeholder
 
   const selectResponseMode = (mode: ResponseMode) => {
-    setWebSearchMode(mode === 'web')
-    setDeepResearchMode(mode === 'research')
-    setImageMode(mode === 'image')
+    setWebSearchModeLocal(mode === 'web')
+    setDeepResearchModeLocal(mode === 'research')
+    setImageModeLocal(mode === 'image')
+    const sid = useAppStore.getState().activeChatSessionId
+    if (sid) {
+      setChatSessionWebSearchMode(sid, mode === 'web')
+      setChatSessionDeepResearchMode(sid, mode === 'research')
+      setChatSessionImageMode(sid, mode === 'image')
+    } else {
+      setChatPendingWebSearchMode(mode === 'web')
+      setChatPendingDeepResearchMode(mode === 'research')
+      setChatPendingImageMode(mode === 'image')
+    }
     setShowModeMenu(false)
     textareaRef.current?.focus()
   }
@@ -1625,9 +1608,17 @@ export function ChatPage() {
       {attachImageError && (
         <div className="px-4 pt-2 flex items-center gap-2">
           <p className="ui-error-text text-xs">{attachImageError}</p>
-          <button type="button" onClick={() => setAttachImageError(null)} className="btn-icon btn-icon-xs btn-icon-danger" aria-label={t.translate_error_dismiss}>
+          <Button
+            size="xs"
+            shape="icon"
+            variant="danger"
+            appearance="soft"
+            type="button"
+            onClick={() => setAttachImageError(null)}
+            aria-label={t.translate_error_dismiss}
+          >
             <XIcon className="w-3 h-3" />
-          </button>
+          </Button>
         </div>
       )}
 
@@ -1678,7 +1669,7 @@ export function ChatPage() {
             aria-haspopup="menu"
             aria-expanded={showPlusMenu}
             disabled={isVoiceBusy}
-            className={`chat-action-button flex-shrink-0 ${showPlusMenu ? 'chat-action-button-active-neutral' : ''}`}
+            className="chat-action-button flex-shrink-0"
           >
             <PlusIcon />
           </Button>
@@ -1690,7 +1681,7 @@ export function ChatPage() {
             shape="pill"
             variant={(webSearchMode || deepResearchMode || imageMode || showModeMenu) ? 'primary' : 'neutral'}
             appearance={(webSearchMode || deepResearchMode || imageMode || showModeMenu) ? 'soft' : 'ghost'}
-            className={`chat-mode-pill ${(webSearchMode || deepResearchMode || imageMode) ? 'chat-mode-pill-active' : ''}`}
+            className="chat-mode-pill"
             aria-haspopup="menu"
             aria-label={`${t.chat_response_mode}: ${activeModeLabel}`}
             aria-expanded={showModeMenu}
@@ -1743,16 +1734,44 @@ export function ChatPage() {
             disabled={isSending}
           />
           {!isVoiceBusy && (isSending ? (
-            <Button size="md" shape="icon" variant="danger" appearance="soft" onClick={handleStop} title={t.chat_stop} aria-label={t.chat_stop} className="chat-stop-button">
+            <Button
+              size="md"
+              shape="icon"
+              variant="danger"
+              appearance="soft"
+              onClick={handleStop}
+              title={t.chat_stop}
+              aria-label={t.chat_stop}
+              className="chat-stop-button"
+            >
               <StopSquareIcon className="w-5 h-5" />
             </Button>
           ) : canResumeDeepResearch ? (
-            <Button size="md" shape="pill" variant="primary" appearance="solid" onClick={handleResumeDeepResearch} title={t.chat_deep_research_resume} aria-label={t.chat_deep_research_resume} className="chat-resume-button">
+            <Button
+              size="md"
+              shape="pill"
+              variant="primary"
+              appearance="solid"
+              onClick={handleResumeDeepResearch}
+              title={t.chat_deep_research_resume}
+              aria-label={t.chat_deep_research_resume}
+              className="chat-resume-button"
+            >
               <span className="chat-primary-action-label">{t.chat_deep_research_resume_short}</span>
               <ArrowRightIcon className="h-3.5 w-3.5" />
             </Button>
           ) : (
-            <Button size="md" shape="icon" variant="primary" appearance="solid" onClick={handleSend} disabled={(!inputText.trim() && !attachedImage) || !hasKey} title={t.chat_send} aria-label={t.chat_send} className="chat-send-button">
+            <Button
+              size="md"
+              shape="icon"
+              variant="primary"
+              appearance="solid"
+              onClick={handleSend}
+              disabled={(!inputText.trim() && !attachedImage) || !hasKey}
+              title={t.chat_send}
+              aria-label={t.chat_send}
+              className="chat-send-button"
+            >
               <SendIcon />
             </Button>
           ))}
@@ -1916,9 +1935,16 @@ export function ChatPage() {
                 {!hasKey && (
                   <div className="flex flex-col items-center gap-2">
                     <p className="text-sm" style={{ color: 'var(--vzn-text-muted)' }}>{t.chat_error_no_key}</p>
-                    <button type="button" onClick={() => openSettings()} className="btn-primary btn-sm">
+                    <Button
+                      size="sm"
+                      shape="rect"
+                      variant="primary"
+                      appearance="solid"
+                      type="button"
+                      onClick={() => openSettings()}
+                    >
                       {t.chat_error_open_settings}
-                    </button>
+                    </Button>
                   </div>
                 )}
 
@@ -1926,7 +1952,7 @@ export function ChatPage() {
                   <div className="chat-suggestion-grid">
                     {([
                       { tone: 'blue', icon: <TranslateIcon className="h-4 w-4" />, title: t.chat_suggest_translate, desc: t.chat_suggest_translate_desc, prompt: t.chat_suggest_translate_prompt },
-                      { tone: 'violet', icon: <TelescopeIcon className="h-4 w-4" />, title: t.chat_suggest_research, desc: t.chat_suggest_research_desc, prompt: t.chat_suggest_research_prompt },
+                      { tone: 'violet', icon: <TelescopeIcon className="h-4 w-4" />, title: t.chat_suggest_research, desc: t.chat_suggest_research_desc, prompt: t.chat_suggest_research_prompt, mode: 'research' },
                       { tone: 'green', icon: <LightbulbIcon className="h-4 w-4" />, title: t.chat_suggest_explain, desc: t.chat_suggest_explain_desc, prompt: t.chat_suggest_explain_prompt },
                       { tone: 'orange', icon: <PencilIcon className="h-4 w-4" />, title: t.chat_suggest_write, desc: t.chat_suggest_write_desc, prompt: t.chat_suggest_write_prompt },
                     ] as const).map((item) => (
@@ -1937,6 +1963,7 @@ export function ChatPage() {
                         title={item.title}
                         description={item.desc}
                         onClick={() => {
+                          if ('mode' in item) selectResponseMode(item.mode)
                           setInputText(item.prompt)
                           setTimeout(() => textareaRef.current?.focus(), 0)
                         }}

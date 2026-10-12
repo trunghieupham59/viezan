@@ -817,6 +817,7 @@ const ja: Translations = {
   settings_chat_preset_content: 'プロンプト内容',
   settings_chat_preset_set_default: 'デフォルトに設定',
   settings_chat_preset_is_default: 'デフォルト',
+  settings_chat_preset_edit: '編集',
   settings_chat_preset_delete: '削除',
   settings_chat_preset_save: '保存',
   settings_chat_preset_cancel: 'キャンセル',

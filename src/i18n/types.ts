@@ -921,6 +921,7 @@ export interface Translations {
   settings_chat_preset_content: string
   settings_chat_preset_set_default: string
   settings_chat_preset_is_default: string
+  settings_chat_preset_edit: string
   settings_chat_preset_delete: string
   settings_chat_preset_save: string
   settings_chat_preset_cancel: string

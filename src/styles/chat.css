@@ -397,6 +397,9 @@ html:not(.dark) .chat-research-final {
 /* Prompt cards are quiet neutral surfaces; tones are reserved for icons. */
 .prompt-card.ui-button,
 .chat-suggest-chip {
+  /* Rich cards share button states but grow beyond the toolbar control grid. */
+  --vzn-button-height: auto;
+  --vzn-button-min-height: var(--vzn-prompt-card-min-height);
   --vzn-button-bg: var(--vzn-surface);
   --vzn-button-border: var(--vzn-border);
   --vzn-button-fg: var(--vzn-text);

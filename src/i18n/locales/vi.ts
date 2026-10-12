@@ -817,6 +817,7 @@ const vi: Translations = {
   settings_chat_preset_content: 'Nội dung prompt',
   settings_chat_preset_set_default: 'Đặt làm mặc định',
   settings_chat_preset_is_default: 'Mặc định',
+  settings_chat_preset_edit: 'Chỉnh sửa',
   settings_chat_preset_delete: 'Xóa',
   settings_chat_preset_save: 'Lưu',
   settings_chat_preset_cancel: 'Hủy',

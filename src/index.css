@@ -45,6 +45,8 @@
     --vzn-button-hover-bg: var(--vzn-surface-muted);
     --vzn-button-hover-border: var(--vzn-border-strong);
     --vzn-button-hover-fg: var(--vzn-text-strong);
+    height: var(--vzn-button-height) !important;
+    min-height: var(--vzn-button-min-height, var(--vzn-button-height)) !important;
     display: inline-flex;
     box-sizing: border-box;
     min-width: 0;
@@ -70,14 +72,15 @@
   .ui-button.ui-button-pill { border-radius: var(--vzn-radius-pill); padding-inline: var(--vzn-space-3); }
   .ui-button.ui-button-rect { border-radius: var(--vzn-radius-control); padding-inline: var(--vzn-space-3); }
   .ui-button.ui-button-icon { border-radius: var(--vzn-radius-control); }
-  .ui-button.ui-button-xs { height: var(--vzn-control-height-xs); min-height: var(--vzn-control-height-xs); font-size: var(--vzn-font-size-sm); }
-  .ui-button.ui-button-sm { height: var(--vzn-control-height-sm); min-height: var(--vzn-control-height-sm); }
-  .ui-button.ui-button-md { height: var(--vzn-control-height-md); min-height: var(--vzn-control-height-md); }
-  .ui-button.ui-button-lg { height: var(--vzn-control-height-lg); min-height: var(--vzn-control-height-lg); }
-  .ui-button.ui-button-icon.ui-button-xs { width: var(--vzn-control-height-xs); padding: 0; }
-  .ui-button.ui-button-icon.ui-button-sm { width: var(--vzn-control-height-sm); padding: 0; }
-  .ui-button.ui-button-icon.ui-button-md { width: var(--vzn-control-height-md); padding: 0; }
-  .ui-button.ui-button-icon.ui-button-lg { width: var(--vzn-control-height-lg); padding: 0; }
+  /* Standard control geometry wins over feature CSS; rich prompt cards grow with content. */
+  .ui-button.ui-button-xs { --vzn-button-height: var(--vzn-control-height-xs); font-size: var(--vzn-font-size-sm); }
+  .ui-button.ui-button-sm { --vzn-button-height: var(--vzn-control-height-sm); }
+  .ui-button.ui-button-md { --vzn-button-height: var(--vzn-control-height-md); }
+  .ui-button.ui-button-lg { --vzn-button-height: var(--vzn-control-height-lg); }
+  .ui-button.ui-button-icon.ui-button-xs { width: var(--vzn-control-height-xs) !important; padding: 0 !important; }
+  .ui-button.ui-button-icon.ui-button-sm { width: var(--vzn-control-height-sm) !important; padding: 0 !important; }
+  .ui-button.ui-button-icon.ui-button-md { width: var(--vzn-control-height-md) !important; padding: 0 !important; }
+  .ui-button.ui-button-icon.ui-button-lg { width: var(--vzn-control-height-lg) !important; padding: 0 !important; }
 
   .ui-button.ui-button-appearance-ghost { --vzn-button-bg: transparent; --vzn-button-border: transparent; }
   .ui-button.ui-button-appearance-soft { --vzn-button-border: transparent; }
@@ -115,7 +118,7 @@
   .ui-button.ui-button-variant-danger.ui-button-appearance-ghost {
     --vzn-button-bg: transparent; --vzn-button-border: transparent; --vzn-button-fg: var(--vzn-danger);
   }
-  .ui-button:disabled {
+  .ui-button[data-ui-control="button"]:disabled {
     border-color: var(--vzn-disabled-border) !important;
     background: var(--vzn-disabled-bg) !important;
     color: var(--vzn-disabled-fg) !important;

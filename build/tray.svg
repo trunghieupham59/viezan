@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <!-- Small-size optical redraw of the two interlocking Viezan waves.
+       Transparent canvas, fuller tips and open negative space at 16px. -->
+  <path fill="#087fc1" d="M14 30C5 28 1 22 1 15C1 7 7 2 14 2C22 2 26 8 23 15L21 18C23 10 19 6 14 6C8 6 5 10 5 16C5 22 9 27 14 30Z"/>
+  <path fill="#087fc1" d="M27 1C34 9 32 20 24 24C18 27 12 24 10 20C16 24 23 23 27 18C31 13 29 6 27 1Z"/>
+  <path fill="#428fe0" d="M18 9C13 8 10 12 10 17C10 24 17 28 24 27L28 25C24 32 15 32 9 27C4 23 4 15 7 10C10 5 15 6 18 9Z"/>
+</svg>

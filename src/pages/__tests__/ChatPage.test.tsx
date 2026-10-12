@@ -68,6 +68,10 @@ beforeEach(() => {
       selectedModels: { gemini: 'gemini-2.0-flash', claude: 'claude-3-5-haiku-20241022', openai: 'gpt-4o', local: 'local-auto' },
       locale: 'en',
       chatSystemPrompt: '',
+      chatPendingDraft: '',
+      chatPendingDeepResearchMode: false,
+      chatPendingWebSearchMode: false,
+      chatPendingImageMode: false,
       systemPromptPresets: [],
       chatSendShortcut: DEFAULT_CHAT_SEND_SHORTCUT,
       chatNewSessionShortcut: DEFAULT_CHAT_NEW_SESSION_SHORTCUT,
@@ -293,6 +297,77 @@ describe('ChatPage', () => {
       const imageItem = screen.getByRole('menuitemradio', { name: new RegExp(TRANSLATIONS.en.chat_mode_chip_image) })
       expect(imageItem).toBeDisabled()
       expect(imageItem).toHaveTextContent(TRANSLATIONS.en.chat_image_mode_unsupported_provider)
+    })
+  })
+
+  describe('research starter card', () => {
+    const researchModeName = `${TRANSLATIONS.en.chat_response_mode}: ${TRANSLATIONS.en.chat_mode_chip_research}`
+    const researchCardName = `${TRANSLATIONS.en.chat_suggest_research}${TRANSLATIONS.en.chat_suggest_research_desc}`
+
+    it.each(['web', 'image'] as const)('replaces %s mode with research without sending the pending draft', async (mode) => {
+      act(() => {
+        useAppStore.setState({
+          keyStatus: { gemini: true, claude: false, openai: false, local: false },
+          chatPendingWebSearchMode: mode === 'web',
+          chatPendingImageMode: mode === 'image',
+        })
+      })
+      render(<ChatPage />)
+
+      fireEvent.click(screen.getByRole('button', { name: researchCardName }))
+
+      const input = screen.getByRole('textbox')
+      expect(input).toHaveValue(TRANSLATIONS.en.chat_suggest_research_prompt)
+      await waitFor(() => expect(input).toHaveFocus())
+      expect(screen.getByRole('button', { name: researchModeName })).toBeInTheDocument()
+      expect(useAppStore.getState()).toMatchObject({
+        chatPendingDraft: TRANSLATIONS.en.chat_suggest_research_prompt,
+        chatPendingDeepResearchMode: true,
+        chatPendingWebSearchMode: false,
+        chatPendingImageMode: false,
+        activeChatSessionId: null,
+        chatSessions: [],
+      })
+      expect(window.api.chatStream).not.toHaveBeenCalled()
+      expect(window.api.chat).not.toHaveBeenCalled()
+    })
+
+    it('restores each conversation draft and mode when switching sessions', async () => {
+      const sessionA = {
+        id: 'research-card-a', title: 'Research', provider: 'gemini' as const,
+        model: 'gemini-2.0-flash', messages: [], createdAt: 1, updatedAt: 1,
+        imageMode: true,
+      }
+      const sessionB = {
+        ...sessionA, id: 'research-card-b', title: 'Other conversation',
+        draftInput: 'Keep this draft', imageMode: false, webSearchMode: true,
+      }
+      act(() => {
+        useAppStore.setState({
+          keyStatus: { gemini: true, claude: false, openai: false, local: false },
+          chatSessions: [sessionA, sessionB], activeChatSessionId: sessionA.id,
+        })
+      })
+      render(<ChatPage />)
+      fireEvent.click(screen.getByRole('button', { name: researchCardName }))
+      await waitFor(() => expect(screen.getByRole('textbox')).toHaveFocus())
+
+      act(() => useAppStore.getState().setActiveChatSession(sessionB.id))
+      expect(screen.getByRole('textbox')).toHaveValue(sessionB.draftInput)
+      expect(screen.getByRole('button', {
+        name: `${TRANSLATIONS.en.chat_response_mode}: ${TRANSLATIONS.en.chat_mode_chip_web}`,
+      })).toBeInTheDocument()
+      expect(useAppStore.getState().chatSessions.find((s) => s.id === sessionB.id)).toEqual(sessionB)
+
+      act(() => useAppStore.getState().setActiveChatSession(sessionA.id))
+      expect(screen.getByRole('textbox')).toHaveValue(TRANSLATIONS.en.chat_suggest_research_prompt)
+      expect(screen.getByRole('button', { name: researchModeName })).toBeInTheDocument()
+      const restoredSession = useAppStore.getState().chatSessions.find((s) => s.id === sessionA.id)
+      expect(restoredSession).toMatchObject({ deepResearchMode: true, messages: [] })
+      expect(restoredSession?.webSearchMode).toBeFalsy()
+      expect(restoredSession?.imageMode).toBeFalsy()
+      expect(window.api.chatStream).not.toHaveBeenCalled()
+      expect(window.api.chat).not.toHaveBeenCalled()
     })
   })
 
