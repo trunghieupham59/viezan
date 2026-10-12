@@ -85,3 +85,15 @@ Var pid
 
   !insertmacro _CHECK_APP_RUNNING
 !macroend
+
+; Make Windows show the new icon right after an upgrade.
+;
+; Shortcuts and the taskbar button point at Viezan.exe, and Explorer caches
+; their icons. After an in-app update installs a version with a new icon, the
+; stale cached icon keeps showing until the user signs out or clears the cache.
+; Broadcasting SHCNE_ASSOCCHANGED (0x08000000) with SHCNF_FLUSH (0x1000) tells
+; the shell to drop its cached icons and re-read them from the new executable.
+; It does not restart Explorer and is harmless on a fresh install.
+!macro customInstall
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0x1000, ${SYSTYPE_PTR}0, ${SYSTYPE_PTR}0)'
+!macroend
