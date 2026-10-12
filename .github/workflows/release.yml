@@ -17,7 +17,7 @@ jobs:
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
               with:
                   fetch-depth: 0
 
@@ -157,10 +157,10 @@ jobs:
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
 
             - name: Setup Node
-              uses: actions/setup-node@v6
+              uses: actions/setup-node@v7
               with:
                   node-version: 22
                   cache: npm
@@ -194,10 +194,10 @@ jobs:
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
 
             - name: Setup Node
-              uses: actions/setup-node@v6
+              uses: actions/setup-node@v7
               with:
                   node-version: 22
                   cache: npm
@@ -243,10 +243,10 @@ jobs:
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
 
             - name: Setup Node
-              uses: actions/setup-node@v6
+              uses: actions/setup-node@v7
               with:
                   node-version: 22
                   cache: npm
@@ -331,7 +331,7 @@ jobs:
               # Optional signing keeps going on failure (unsigned fallback below);
               # mandatory signing (REQUIRE_WINDOWS_SIGNING) fails the job instead.
               continue-on-error: ${{ vars.REQUIRE_WINDOWS_SIGNING != 'true' }}
-              uses: signpath/github-action-submit-signing-request@v2
+              uses: signpath/github-action-submit-signing-request@v3
               with:
                   api-token: "${{ secrets.SIGNPATH_API_TOKEN || '' }}"
                   organization-id: "${{ vars.SIGNPATH_ORGANIZATION_ID || '' }}"
@@ -404,10 +404,10 @@ jobs:
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
 
             - name: Setup Node
-              uses: actions/setup-node@v6
+              uses: actions/setup-node@v7
               with:
                   node-version: 22
                   cache: npm
@@ -438,7 +438,7 @@ jobs:
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
 
             - name: Package Chrome Extension as ZIP
               shell: bash
