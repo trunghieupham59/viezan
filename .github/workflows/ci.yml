@@ -113,14 +113,88 @@ jobs:
                   retention-days: 7
 
     # ─────────────────────────────────────────────
-    # 4. Build matrix — verify the app compiles on
-    #    macOS / Windows / Linux on every PR + push.
+    # 4. Compile check — cheap build (tsc + esbuild +
+    #    vite) on every PR. Catches broken bundling
+    #    without packaging for three operating systems.
+    # ─────────────────────────────────────────────
+    compile:
+        name: Compile (renderer + electron)
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7
+
+            - name: Setup Node
+              uses: actions/setup-node@v7
+              with:
+                  node-version: 22
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci --no-audit --no-fund
+
+            - name: Build (renderer + electron)
+              run: npm run build
+
+    # ─────────────────────────────────────────────
+    # 5. Decide whether the packaging matrix is needed.
+    #    Pull requests only repackage the app when a
+    #    file that affects packaging or the installer
+    #    changed. Pushes to main/develop and manual
+    #    runs always build everything.
+    # ─────────────────────────────────────────────
+    changes:
+        name: Detect packaging changes
+        runs-on: ubuntu-latest
+        outputs:
+            packaging: ${{ steps.filter.outputs.packaging }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7
+              with:
+                  # On pull_request the checkout is a merge commit; depth 2 keeps both parents.
+                  fetch-depth: 2
+
+            - name: Check changed files
+              id: filter
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+                  PACKAGING_PATHS: '^(package\.json|package-lock\.json|build/|scripts/|electron-builder\.|vite\.config\.|tsconfig[^/]*\.json|\.github/(workflows|actions)/)'
+              shell: bash
+              run: |
+                  if [ "$EVENT_NAME" != "pull_request" ]; then
+                    echo "Not a pull request: running the full build matrix."
+                    echo "packaging=true" >> "$GITHUB_OUTPUT"
+                    exit 0
+                  fi
+                  # First parent of the merge commit is the base branch.
+                  if ! files=$(git diff --name-only HEAD^1 HEAD); then
+                    echo "Could not diff against the base branch: running the full build matrix."
+                    echo "packaging=true" >> "$GITHUB_OUTPUT"
+                    exit 0
+                  fi
+                  echo "Changed files:"
+                  echo "$files"
+                  if echo "$files" | grep -Eq "$PACKAGING_PATHS"; then
+                    echo "A packaging-related file changed: running the full build matrix."
+                    echo "packaging=true" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "No packaging-related file changed: skipping the build matrix."
+                    echo "packaging=false" >> "$GITHUB_OUTPUT"
+                  fi
+
+    # ─────────────────────────────────────────────
+    # 6. Build matrix — verify the app packages on
+    #    macOS / Windows / Linux. Runs on pushes to
+    #    main/develop, manual runs, and on pull
+    #    requests that touch packaging (see `changes`).
     #    We do NOT publish; we just make sure the
     #    full electron-builder pipeline runs cleanly.
     # ─────────────────────────────────────────────
     build:
         name: Build (${{ matrix.os }})
-        needs: [lint, typecheck, test]
+        needs: [lint, typecheck, test, changes]
+        if: needs.changes.outputs.packaging == 'true'
         runs-on: ${{ matrix.os }}
         strategy:
             fail-fast: false

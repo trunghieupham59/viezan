@@ -11,7 +11,7 @@ Tài liệu tổng quan về toàn bộ pipeline CI/CD và automation của Viez
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
 │  │   lint   │  │ typecheck│  │   test   │  │ build x3 │  │  CodeQL  │  │
 │  │ (Biome)  │  │ tsc x2   │  │ (Vitest) │  │ mac/win/ │  │ security │  │
-│  │          │  │          │  │          │  │  linux   │  │          │  │
+│  │          │  │          │  │          │  │  linux * │  │          │  │
 │  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
 │        │             │             │             │                     │
 │        └─────────────┴─────────────┴─────────────┘                     │
@@ -20,6 +20,9 @@ Tài liệu tổng quan về toàn bộ pipeline CI/CD và automation của Viez
 │  ┌────────────────────────────────────────────────────────────────┐    │
 │  │      PR-only: dependency-review · pr-checks (title + labels)   │    │
 │  └────────────────────────────────────────────────────────────────┘    │
+│  * build x3 chỉ chạy khi push main/develop, chạy tay, hoặc PR đổi file │
+│    đóng gói (xem "Khi nào chạy build" bên dưới). Mọi PR đều có thêm    │
+│    job `compile` (npm run build trên Linux, ~1 phút).                  │
 └────────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -36,7 +39,7 @@ Tài liệu tổng quan về toàn bộ pipeline CI/CD và automation của Viez
 
 | File                                       | Mục đích                                                                    |
 | ------------------------------------------ | --------------------------------------------------------------------------- |
-| `workflows/ci.yml`                         | Lint (Biome + Atomic boundaries) + TypeCheck + Vitest + build matrix (artifact 5 ngày) + smoke test installer Windows |
+| `workflows/ci.yml`                         | Lint (Biome + Atomic boundaries) + TypeCheck + Vitest + compile check + build matrix có điều kiện (artifact 5 ngày) + smoke test installer Windows |
 | `workflows/codeql.yml`                     | Phân tích bảo mật JS/TS định kỳ + theo PR                                   |
 | `workflows/dependency-review.yml`          | Chặn dependency có CVE / license không tương thích trong PR                 |
 | `workflows/pr-checks.yml`                  | Bắt buộc tiêu đề PR theo Conventional Commits + auto-gán nhãn theo path file |
@@ -109,6 +112,22 @@ Ví dụ:
 Có thể tag tay (`git tag vX.Y.Z && git push origin vX.Y.Z`); `release.yml` vẫn
 chạy theo tag push và `auto-tag.yml` sẽ thấy tag đã có nên bỏ qua. Không chạy
 `release.yml` bằng tay từ một branch — chỉ từ tag.
+
+## 🏗️ Khi nào chạy build
+
+Build đóng gói 3 hệ điều hành mất khoảng 20 phút nên không chạy ở mọi PR:
+
+| Sự kiện                                  | Lint / TypeCheck / Test / `compile` | Build x3 + smoke test installer |
+| ---------------------------------------- | ----------------------------------- | -------------------------------- |
+| Pull request                             | Luôn chạy                           | Chỉ khi PR đổi file đóng gói     |
+| Push `main` / `develop`                  | Luôn chạy                           | Luôn chạy                        |
+| Chạy tay (Actions → CI → Run workflow)  | Luôn chạy                           | Luôn chạy                        |
+
+File đóng gói (job `changes` trong `ci.yml`): `package.json`, `package-lock.json`,
+`build/**`, `scripts/**`, `electron-builder.*`, `vite.config.*`, `tsconfig*.json`,
+`.github/workflows/**`, `.github/actions/**`. Muốn đổi danh sách này, sửa biến
+`PACKAGING_PATHS`. Nếu không so sánh được với nhánh gốc, job `changes` chọn build
+đầy đủ. Build **phát hành** chỉ chạy khi bump version (xem `auto-tag.yml`).
 
 ## 📦 Bản build dev
 
