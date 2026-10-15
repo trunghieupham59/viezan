@@ -686,7 +686,8 @@ button:focus-visible {
   gap: 7px;
 }
 
-.field label {
+.field label,
+.field .field-label {
   color: var(--vzn-control);
   font-size: 12px;
   font-weight: 800;
