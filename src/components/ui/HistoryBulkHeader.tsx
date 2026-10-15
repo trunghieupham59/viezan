@@ -1,3 +1,4 @@
+import { Button } from './atoms'
 import { CheckIcon, TrashIcon } from './icons'
 
 interface HistoryBulkHeaderProps {
@@ -28,11 +29,16 @@ export function HistoryBulkHeader({
     <div className="flex-shrink-0 flex min-h-11 items-center justify-between gap-3 px-3
                     border-b border-gray-100 bg-white/95 dark:border-gray-800 dark:bg-neutral-900">
       <div className="min-w-0 flex items-center gap-3">
-        <button
+        <Button
+          size="sm"
+          shape="rect"
+          variant="neutral"
+          appearance="ghost"
           type="button"
           onClick={onSelectAll}
           disabled={totalCount === 0}
-          className="btn-ghost btn-xs -ml-1"
+          aria-pressed={isIndeterminate ? 'mixed' : isAllSelected}
+          className="-ml-1"
         >
           <span className={[
             'w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors',
@@ -44,7 +50,7 @@ export function HistoryBulkHeader({
             {isIndeterminate && !isAllSelected && <span className="w-2 h-0.5 bg-white rounded-full block" />}
           </span>
           {labelSelectAll}
-        </button>
+        </Button>
 
         <span className="truncate text-xs font-semibold text-gray-500 dark:text-gray-400">
           {selectedCount > 0 ? labelSelected : countLabel}
@@ -53,14 +59,17 @@ export function HistoryBulkHeader({
 
       <div className="flex-shrink-0 flex items-center gap-2">
         {selectedCount > 0 && (
-          <button
+          <Button
+            size="sm"
+            shape="rect"
+            variant="danger"
+            appearance="soft"
             type="button"
             onClick={onDeleteSelected}
-            className="btn-danger btn-xs"
           >
             <TrashIcon className="w-3.5 h-3.5" />
             {labelDeleteSelected}
-          </button>
+          </Button>
         )}
       </div>
     </div>

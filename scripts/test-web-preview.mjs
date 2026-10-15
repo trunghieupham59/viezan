@@ -1,6 +1,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { chromium } from 'playwright'
+import { checkTextClipping } from './check-text-clipping.mjs'
 
 const url = 'http://127.0.0.1:5173'
 let server
@@ -607,6 +608,45 @@ try {
       await palette.waitFor({ state: 'detached' })
     }
 
+    // Regression: a long translation must never push the per-result actions out of reach.
+    await page.setViewportSize({ width: 1440, height: 900 })
+    const longText = Array.from({ length: 60 }, (_, index) => `Sentence ${index + 1} of a deliberately long source.`).join(' ')
+    await page.locator('textarea').first().fill(longText)
+    await page.getByRole('button', { name: /Translate with 2 models/i }).click()
+    await page.locator('.translate-comparison-card-actions').first().waitFor({ timeout: 5_000 })
+
+    for (const width of [1440, 800]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.waitForTimeout(180)
+
+      const longResult = await page.evaluate(() => {
+        const card = Array.from(document.querySelectorAll('.translate-comparison-card'))
+          .find(element => element instanceof HTMLElement && element.offsetParent !== null)
+        const body = document.querySelector('.translate-comparison-body')
+        const cardBody = card?.querySelector('.translate-comparison-card-body')
+        const actions = card?.querySelector('.translate-comparison-card-actions')
+        if (!(card instanceof HTMLElement)
+          || !(body instanceof HTMLElement)
+          || !(cardBody instanceof HTMLElement)
+          || !(actions instanceof HTMLElement)) return null
+        const actionBounds = actions.getBoundingClientRect()
+        return {
+          actionsInViewport: actionBounds.top >= 0 && actionBounds.bottom <= window.innerHeight,
+          cardBodyScrolls: cardBody.scrollHeight > cardBody.clientHeight,
+          hasFooter: card.querySelector('footer') !== null,
+        }
+      })
+
+      assert(longResult !== null, `Long-text comparison result is incomplete at ${width}px`)
+      assert(!longResult.hasFooter, `Result actions moved back to a footer at ${width}px`)
+      assert(longResult.cardBodyScrolls, `Long result does not scroll inside its card at ${width}px`)
+      assert(
+        longResult.actionsInViewport,
+        `Read aloud and copy are out of reach for a long result at ${width}px`,
+      )
+    }
+
+    await checkTextClipping(page)
     assert(pageErrors.length === 0, `Browser errors: ${pageErrors.join('; ')}`)
 
     console.log('Web Preview smoke test passed: render + translation + AI configuration + modal layering + command palette')

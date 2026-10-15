@@ -128,8 +128,7 @@
 .ai-model-field__model,
 .ai-model-field__provider {
   overflow: hidden;
-  /* Button sets line-height: 1; with overflow clipping that cuts descenders
-     and Vietnamese diacritics. */
+  /* Keep clipped labels safe even when used outside a Button. */
   line-height: var(--vzn-line-normal);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -248,6 +247,27 @@
   min-width: 0;
   justify-content: space-between;
   padding-inline: var(--vzn-space-3);
+}
+
+.ai-select-field__option-copy {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--vzn-space-2);
+}
+
+.ai-select-field__option-label {
+  flex: 0 0 auto;
+}
+
+.ai-select-field__option-description {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-regular);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ai-subtitle-config {

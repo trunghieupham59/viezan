@@ -5,6 +5,7 @@ import type {
   TranscribeAudioParams,
   TranscribeResult,
 } from '../../shared/audioTranscription'
+import type { UpdateStatus } from '../../shared/updater'
 
 export type {
   AudioTranscriptionErrorCode,
@@ -351,6 +352,8 @@ export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: ChatMessageContent[]
+  /** Applied task instructions, separate from the text displayed to the user. */
+  taskInstruction?: string
   timestamp: number
   isLoading?: boolean
   error?: string
@@ -475,6 +478,7 @@ export interface ChatSession extends AIModelSelection {
    * ChatGPT/Claude pattern. Attachments are intentionally NOT persisted.
    */
   draftInput?: string
+  taskState?: import('./chatTask').ChatTaskStarterState | null
   /**
    * Per-session Deep Research toggle state — preserves the mode across page
    * navigation within the same session. Resets to off for new sessions.
@@ -936,6 +940,7 @@ export interface WindowApi {
 
   /** Auto-updater — check and install updates from GitHub Releases */
   updater: {
+    getStatus?: () => Promise<UpdateStatus | null>
     check: () => Promise<{ success: boolean; error?: string }>
     /** In-app download. macOS downloads the unsigned DMG without opening Finder. */
     download: () => Promise<{ success: boolean; error?: string; errorCode?: string; filePath?: string; verified?: boolean }>
@@ -949,18 +954,7 @@ export interface WindowApi {
      * Fallback only — falls back to GitHub Releases page.
      */
     openDownload: (url?: string) => Promise<{ success: boolean }>
-    onStatus: (cb: (status: {
-      type: 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error-codesign' | 'error'
-      version?: string
-      percent?: number
-      bytesPerSecond?: number
-      transferred?: number
-      total?: number
-      installMode?: 'restart' | 'open-installer'
-      error?: string
-      /** macOS only: direct asset URL (DMG) or release page URL. */
-      downloadUrl?: string
-    }) => void) => () => void
+    onStatus: (cb: (status: UpdateStatus) => void) => () => void
   }
 
   /** Local HTTP server — Chrome Extension bridge (multi-API-key) */

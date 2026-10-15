@@ -244,3 +244,66 @@ describe('TranslationComparisonPane compact tabs', () => {
     expect(within(tablist).getAllByRole('tab')[0]).toHaveAttribute('aria-selected', 'true')
   })
 })
+
+describe('TranslationComparisonPane result actions', () => {
+  const LONG_TEXT = Array.from({ length: 200 }, (_, index) => `Sentence ${index}.`).join(' ')
+
+  it('keeps read-aloud and copy in the card header so long text cannot hide them', () => {
+    const onCopy = vi.fn()
+    const onSpeak = vi.fn()
+    const result: TranslationComparisonResult = {
+      ...IDLE_RESULTS[1],
+      status: 'success',
+      translatedText: LONG_TEXT,
+      durationMs: 1200,
+    }
+    render(
+      <>
+        <h2 id="translation-results-heading">Translation results</h2>
+        <TranslationComparisonPane
+          headingId="translation-results-heading"
+          results={[result]}
+          copiedResultKey={null}
+          speakingResultKey={null}
+          speakLoading={false}
+          isTranslating={false}
+          isResultStale={false}
+          canRetry
+          onCopy={onCopy}
+          onSpeak={onSpeak}
+          onRetry={vi.fn()}
+          onOpenSettings={vi.fn()}
+          onChooseModel={vi.fn()}
+        />
+      </>,
+    )
+
+    const card = screen.getByRole('article', { name: /GPT 4o.*OpenAI/i })
+    const header = card.querySelector('header')
+    expect(header).not.toBeNull()
+    expect(card.querySelector('footer')).toBeNull()
+
+    const headerActions = within(header as HTMLElement)
+    fireEvent.click(headerActions.getByRole('button', { name: /Read aloud: GPT 4o.*OpenAI/i }))
+    fireEvent.click(headerActions.getByRole('button', { name: /Copy: GPT 4o.*OpenAI/i }))
+    expect(onSpeak).toHaveBeenCalledWith(result)
+    expect(onCopy).toHaveBeenCalledWith(result)
+  })
+
+  it('offers no result actions until a model has a translation', () => {
+    renderComparison([errorResult('NETWORK')])
+
+    expect(screen.queryByRole('button', { name: /^Copy:/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Read aloud:/ })).not.toBeInTheDocument()
+  })
+
+  it('shows the independence notice only before the first run', () => {
+    const view = renderComparison()
+    const notice = 'Each model runs independently. One failure will not stop the other results.'
+    expect(screen.getByText(notice)).toBeInTheDocument()
+
+    view.unmount()
+    renderComparison([{ ...IDLE_RESULTS[0], status: 'success', translatedText: 'Done', durationMs: 300 }])
+    expect(screen.queryByText(notice)).not.toBeInTheDocument()
+  })
+})

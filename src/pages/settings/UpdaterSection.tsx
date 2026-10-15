@@ -1,22 +1,15 @@
 import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/atoms'
 import { CheckUpdateButton } from '../../components/ui/CheckUpdateButton'
 import { AlertTriangleIcon, CheckCircleIcon, CheckIcon, DownloadIcon, SpinnerIcon } from '../../components/ui/icons'
 import { useT } from '../../store/useAppStore'
+import { useUpdaterStore } from '../../store/useUpdaterStore'
 import { tpl } from '../../utils/tpl'
-
-type UpdaterStatusType = {
-  type: 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error-codesign' | 'error'
-  version?: string
-  percent?: number
-  installMode?: 'restart' | 'open-installer'
-  error?: string
-  /** Present on macOS (unsigned build): direct link to the DMG asset or release page. */
-  downloadUrl?: string
-}
 
 export function UpdaterSection() {
   const t = useT()
-  const [updaterStatus, setUpdaterStatus] = useState<UpdaterStatusType>({ type: 'idle' })
+  const updaterStatus = useUpdaterStore((state) => state.status)
+  const setUpdaterStatus = useUpdaterStore((state) => state.receive)
   const [appVersion, setAppVersion] = useState('')
 
   useEffect(() => {
@@ -25,10 +18,10 @@ export function UpdaterSection() {
       if (res?.version) setAppVersion(res.version)
     })
     const unsub = window.api.updater.onStatus((status) => {
-      setUpdaterStatus(status as UpdaterStatusType)
+      setUpdaterStatus(status)
     })
     return unsub
-  }, [])
+  }, [setUpdaterStatus])
 
   const handleCheckUpdate = async () => {
     if (!window.api?.updater) return
@@ -78,13 +71,17 @@ export function UpdaterSection() {
                   <DownloadIcon className="w-4 h-4 flex-shrink-0" />
                   <span>{tpl(t.settings_update_available, { version: updaterStatus.version ?? '' })}</span>
                 </div>
-                <button
+                <Button
+                  size="sm"
+                  shape="rect"
+                  variant="primary"
+                  appearance="solid"
                   type="button"
                   onClick={handleDownloadUpdate}
-                  className="btn-primary btn-sm flex-shrink-0"
+                  className="flex-shrink-0"
                 >
                   {updaterStatus.downloadUrl ? t.settings_update_download_installer : t.settings_update_download}
-                </button>
+                </Button>
               </div>
             )}
 
@@ -123,21 +120,27 @@ export function UpdaterSection() {
                 </div>
                 <div className="flex flex-shrink-0 items-center gap-2">
                   {showManualInstaller && (
-                    <button
+                    <Button
+                      size="sm"
+                      shape="rect"
+                      variant="neutral"
+                      appearance="outline"
                       type="button"
                       onClick={handleOpenInstaller}
-                      className="btn-secondary btn-sm"
                     >
                       {t.settings_update_open_installer}
-                    </button>
+                    </Button>
                   )}
-                  <button
+                  <Button
+                    size="sm"
+                    shape="rect"
+                    variant="primary"
+                    appearance="solid"
                     type="button"
                     onClick={handleInstallUpdate}
-                    className="btn-primary btn-sm"
                   >
                     {installerMode ? t.settings_update_open_installer : t.settings_update_install}
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}

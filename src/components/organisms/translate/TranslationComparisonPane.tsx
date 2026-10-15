@@ -103,7 +103,8 @@ export function TranslationComparisonPane({
       <div className="translate-comparison-summary">
         <div className="translate-comparison-summary__copy">
           <strong>{t.translate_compare_heading(results.length)}</strong>
-          <span>{t.translate_compare_independent_notice}</span>
+          {/* The notice only matters before the first run; afterwards it costs a line of result height. */}
+          {!hasStarted && <span>{t.translate_compare_independent_notice}</span>}
         </div>
         {hasStarted && (
           <span className="translate-comparison-progress" role="status" aria-live="polite">
@@ -251,9 +252,42 @@ function ComparisonResultCard({
         </span>
         <span className="translate-comparison-card-heading">
           <strong>{modelName}</strong>
-          <span>{providerName}</span>
+          <span className="translate-comparison-card-meta">
+            <span>{providerName}</span>
+            <ModelRunStatus status={result.status} label={statusLabel} />
+          </span>
         </span>
-        <ModelRunStatus status={result.status} label={statusLabel} />
+        {/* Actions live in the header so long text never pushes them out of view. */}
+        {result.status === 'success' && (
+          <div className="translate-comparison-card-actions">
+            <Button
+              size="sm"
+              shape="icon"
+              variant={isSpeaking ? 'danger' : 'neutral'}
+              appearance="ghost"
+              aria-label={`${isSpeaking ? t.translate_speak_stop : t.translate_speak}: ${modelName} · ${providerName}`}
+              title={isSpeaking ? t.translate_speak_stop : t.translate_speak}
+              onClick={() => onSpeak(result)}
+            >
+              {speakLoading && isSpeaking
+                ? <SpinnerIcon />
+                : isSpeaking
+                  ? <StopIcon />
+                  : <SpeakerIcon />}
+            </Button>
+            <Button
+              size="sm"
+              shape="icon"
+              variant={isCopied ? 'primary' : 'neutral'}
+              appearance={isCopied ? 'soft' : 'ghost'}
+              aria-label={`${isCopied ? t.translate_copied : t.translate_copy}: ${modelName} · ${providerName}`}
+              title={isCopied ? t.translate_copied : t.translate_copy}
+              onClick={() => onCopy(result)}
+            >
+              {isCopied ? <CheckIcon /> : <CopyIcon />}
+            </Button>
+          </div>
+        )}
       </header>
 
       <div className="translate-comparison-card-body">
@@ -304,36 +338,6 @@ function ComparisonResultCard({
           <p className="translate-comparison-idle">{t.translate_compare_idle}</p>
         )}
       </div>
-
-      {result.status === 'success' && (
-        <footer className="translate-comparison-card-footer">
-          <Button
-            size="sm"
-            shape="icon"
-            variant={isSpeaking ? 'danger' : 'neutral'}
-            appearance="ghost"
-            aria-label={`${isSpeaking ? t.translate_speak_stop : t.translate_speak}: ${modelName} · ${providerName}`}
-            onClick={() => onSpeak(result)}
-          >
-            {speakLoading && isSpeaking
-              ? <SpinnerIcon />
-              : isSpeaking
-                ? <StopIcon />
-                : <SpeakerIcon />}
-          </Button>
-          <Button
-            size="sm"
-            shape="rect"
-            variant={isCopied ? 'primary' : 'neutral'}
-            appearance={isCopied ? 'soft' : 'ghost'}
-            aria-label={`${isCopied ? t.translate_copied : t.translate_copy}: ${modelName} · ${providerName}`}
-            onClick={() => onCopy(result)}
-          >
-            {isCopied ? <CheckIcon /> : <CopyIcon />}
-            {isCopied ? t.translate_copied : t.translate_copy}
-          </Button>
-        </footer>
-      )}
     </article>
   )
 }
