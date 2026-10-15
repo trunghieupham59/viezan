@@ -193,7 +193,7 @@ describe('translate', () => {
   })
 
   it('surfaces EMPTY_RESPONSE / OUTPUT_TRUNCATED codes from providers', async () => {
-    const { emptyResponseError, truncatedOutputError } = await import('../errorUtils')
+    const { emptyResponseError, truncatedOutputError } = await import('../errorUtils.js')
     providers.translate.mockRejectedValueOnce(emptyResponseError('openai'))
     expect((await invoke('translate', baseTranslate)).errorCode).toBe('EMPTY_RESPONSE')
     providers.translate.mockRejectedValue(truncatedOutputError('openai'))
