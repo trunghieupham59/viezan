@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Button } from '@/components/ui/atoms'
 import {
   GitHubIcon, KeyIcon,
   PlusIcon, RefreshIcon, SpinnerIcon, TrashIcon, XIcon,
@@ -187,28 +188,34 @@ export function BrowserIntegrationSection() {
             ))}
           </div>
           {/* H-1 + H-2: use GitHubIcon component + GITHUB_RELEASES_URL constant */}
-          <button
+          <Button
+            size="md"
+            shape="rect"
+            variant="primary"
+            appearance="solid"
             type="button"
             onClick={() => window.api?.openExternal(GITHUB_RELEASES_URL)}
-            className="btn-primary btn-sm"
           >
             <GitHubIcon />
             {t.settings_extension_download_btn}
-          </button>
+          </Button>
         </div>
 
         <div className="px-4 py-3.5 space-y-3">
           {/* Header: Manage tokens + Create button */}
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_token_manage}</p>
-            <button
+            <Button
+              size="md"
+              shape="rect"
+              variant="neutral"
+              appearance="outline"
               type="button"
               onClick={() => setShowCreateForm(v => !v)}
-              className="btn-secondary btn-xs"
             >
               <PlusIcon />
               {t.settings_token_create}
-            </button>
+            </Button>
           </div>
 
           {/* Create form */}
@@ -268,26 +275,35 @@ export function BrowserIntegrationSection() {
                     {t.settings_token_reveal_body}
                   </p>
                 </div>
-                <button
+                <Button
+                  size="md"
+                  shape="icon"
+                  variant="neutral"
+                  appearance="ghost"
+                  aria-label={t.settings_token_close}
                   type="button"
                   onClick={() => setRevealedToken(null)}
-                  className="btn-icon btn-icon-sm flex-shrink-0 border-transparent bg-transparent text-gray-400 shadow-none dark:bg-transparent"
+                  className="flex-shrink-0"
                   title={t.settings_token_close}
                 >
                   <XIcon />
-                </button>
+                </Button>
               </div>
               <div className="flex items-center gap-2 bg-white dark:bg-gray-900 rounded-lg px-3 py-2 border border-gray-200 dark:border-gray-800">
                 <code className="text-xs text-gray-800 dark:text-gray-200 font-mono break-all flex-1 select-all">
                   {revealedToken.token}
                 </code>
-                <button
+                <Button
+                  size="md"
+                  shape="rect"
+                  variant={revealedCopied ? 'primary' : 'neutral'}
+                  appearance={revealedCopied ? 'soft' : 'outline'}
                   type="button"
                   onClick={handleCopyRevealed}
-                  className={`btn-primary btn-xs flex-shrink-0 ${revealedCopied ? 'btn-active' : ''}`}
+                  className={`flex-shrink-0`}
                 >
                   {revealedCopied ? t.settings_token_copied : t.settings_token_copy}
-                </button>
+                </Button>
               </div>
               <p className="ui-meta">
                 {t.settings_token_expires_label} {formatDate(revealedToken.expiresAt, locale)}
@@ -299,6 +315,7 @@ export function BrowserIntegrationSection() {
             <InlineErrorBanner
               message={tokenActionError}
               onDismiss={() => setTokenActionError('')}
+              dismissLabel={t.settings_token_close}
             />
           )}
           {extTokensError && (
@@ -353,26 +370,33 @@ export function BrowserIntegrationSection() {
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {/* Regenerate */}
-                      <button
+                      <Button
+                        size="md"
+                        shape="rect"
+                        variant="neutral"
+                        appearance="outline"
                         type="button"
                         onClick={() => handleRegenerateToken(tk.id)}
                         disabled={isRegen || isDel}
                         title={t.settings_token_regenerate_title}
-                        className="btn-secondary btn-xs"
                       >
                         {isRegen ? <SpinnerIcon className="w-3 h-3 animate-spin" /> : <RefreshIcon />}
                         {t.settings_token_regenerate}
-                      </button>
+                      </Button>
                       {/* Delete */}
-                      <button
+                      <Button
+                        size="md"
+                        shape="icon"
+                        variant="danger"
+                        appearance="soft"
+                        aria-label={t.settings_token_delete_title}
                         type="button"
                         onClick={() => handleDeleteToken(tk.id)}
                         disabled={isDel || isRegen}
                         title={t.settings_token_delete_title}
-                        className="btn-icon btn-icon-sm btn-icon-danger"
                       >
                         {isDel ? <SpinnerIcon className="w-3.5 h-3.5 animate-spin" /> : <TrashIcon />}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )

@@ -13,6 +13,7 @@ import type {
   UsageCost,
 } from '../../types'
 
+import type { ChatTaskStarterState } from '../../types/chatTask'
 import { createClientId } from '../../utils/id'
 import type { SliceSet } from './sliceTypes'
 
@@ -35,6 +36,8 @@ export interface ChatSlice {
    * (so the user's pre-send work doesn't vanish) and cleared.
    */
   chatPendingDraft: string
+  chatPendingTaskState: ChatTaskStarterState | null
+  setChatTaskState: (sessionId: string | null, task: ChatTaskStarterState | null) => void
   chatPendingDeepResearchMode: boolean
   chatPendingWebSearchMode: boolean
   chatPendingImageMode: boolean
@@ -89,6 +92,7 @@ export const createChatSlice = (set: SliceSet): ChatSlice => ({
   chatSystemPrompt: '',
   systemPromptPresets: [],
   chatPendingDraft: '',
+  chatPendingTaskState: null,
   chatPendingDeepResearchMode: false,
   chatPendingWebSearchMode: false,
   chatPendingImageMode: false,
@@ -106,6 +110,7 @@ export const createChatSlice = (set: SliceSet): ChatSlice => ({
         updatedAt: Date.now(),
         provider,
         model,
+        taskState: state.chatPendingTaskState,
         ...(state.chatPendingDraft ? { draftInput: state.chatPendingDraft } : {}),
         ...(state.chatPendingDeepResearchMode ? { deepResearchMode: true } : {}),
       ...(state.chatPendingWebSearchMode ? { webSearchMode: true } : {}),
@@ -116,6 +121,7 @@ export const createChatSlice = (set: SliceSet): ChatSlice => ({
         chatSessions: [session, ...state.chatSessions].slice(0, MAX_CHAT_SESSIONS),
         activeChatSessionId: id,
         chatPendingDraft: '',
+  chatPendingTaskState: null,
         chatPendingDeepResearchMode: false,
         chatPendingWebSearchMode: false,
         chatPendingImageMode: false,
@@ -234,6 +240,7 @@ export const createChatSlice = (set: SliceSet): ChatSlice => ({
               // is no longer relevant.
               deepResearchResumeState: undefined,
               draftInput: undefined,
+              taskState: null,
               updatedAt: Date.now(),
             }
           : s
@@ -282,6 +289,10 @@ export const createChatSlice = (set: SliceSet): ChatSlice => ({
         s.id === sessionId ? { ...s, imageMode: mode || undefined } : s
       ),
     })),
+
+  setChatTaskState: (sessionId, taskState) => set((state: ChatSlice) => sessionId
+    ? { chatSessions: state.chatSessions.map((session) => session.id === sessionId ? { ...session, taskState } : session) }
+    : { chatPendingTaskState: taskState }),
 
   setChatPendingDraft: (draft) => set({ chatPendingDraft: draft }),
 

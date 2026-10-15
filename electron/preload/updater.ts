@@ -2,9 +2,11 @@
  * Auto-updater preload API — check, download, and install app updates.
  */
 import { ipcRenderer } from 'electron'
+import type { UpdateStatus } from '../../shared/updater'
 
 export const updaterSection = {
   updater: {
+    getStatus: () => ipcRenderer.invoke('updater:getStatus') as Promise<UpdateStatus | null>,
     /** Trigger a check for updates. Status is pushed via onStatus(). */
     check: () =>
       ipcRenderer.invoke('updater:check') as Promise<{ success: boolean; error?: string }>,
@@ -31,17 +33,7 @@ export const updaterSection = {
      * Subscribe to update status events pushed from the main process.
      * Returns a cleanup function — call it to unsubscribe.
      */
-    onStatus: (cb: (status: {
-      type: 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error-codesign' | 'error'
-      version?: string
-      percent?: number
-      bytesPerSecond?: number
-      transferred?: number
-      total?: number
-      installMode?: 'restart' | 'open-installer'
-      error?: string
-      downloadUrl?: string
-    }) => void) => {
+    onStatus: (cb: (status: UpdateStatus) => void) => {
       const handler = (_: unknown, status: Parameters<typeof cb>[0]) => cb(status)
       ipcRenderer.on('updater:status', handler)
       return () => ipcRenderer.removeListener('updater:status', handler)

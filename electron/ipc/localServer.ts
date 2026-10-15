@@ -24,6 +24,7 @@ import * as fs from 'node:fs'
 import * as http from 'node:http'
 import * as path from 'node:path'
 import { app } from 'electron'
+import { resolveRuntimeProfile } from '../runtimeProfile'
 import { EXT_DEFAULT_GEMINI_MODEL } from './ipcConstants'
 import { invalidIpcInput, isNonEmptyString, isRecord } from './ipcValidation'
 import { type LightweightTranslateParams, lightweightTranslate } from './lightweightTranslate'
@@ -33,7 +34,8 @@ import { parseTtsParams, synthesizeTts, type TtsMode, type TtsParams } from './t
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-export const LOCAL_SERVER_PORT = 39875
+/** 39875 for the packaged app; a separate port in development (see runtimeProfile). */
+export const LOCAL_SERVER_PORT = resolveRuntimeProfile(Boolean(app.isPackaged), process.env).localServerPort
 /** Multi-API-key file (replaces legacy single-secret file) */
 const TOKENS_FILE = 'local-server-tokens.json'
 /** Legacy single-secret file — migrated only when it already contains a valid sk-vie API key */

@@ -1,5 +1,6 @@
 import { TARGET_LANGUAGES } from '../../constants/providers'
 import { useAppStore, useT } from '../../store/useAppStore'
+import { Button } from '../ui/atoms'
 import { LanguageOverflowPicker } from '../ui/molecules'
 import { getSmartTopLangs } from './langSelectorUtils'
 
@@ -20,11 +21,6 @@ export function TargetLanguageSelector({
   const targetTopLangs = getSmartTopLangs(langUsage, targetLang)
   const targetIsOther = !targetTopLangs.includes(targetLang)
 
-  const pillBase =
-    'btn-language-tab relative flex-shrink-0 whitespace-nowrap'
-  const pillActive = 'text-gray-700 dark:text-gray-200'
-  const pillInactive = 'text-gray-500 dark:text-gray-400'
-
   const handleTargetChange = (lang: string) => {
     recordLangUsage(lang)
     onTargetLangChange(lang)
@@ -35,17 +31,19 @@ export function TargetLanguageSelector({
       <div className="flex flex-1 min-w-0 items-center overflow-hidden">
         {/* Smart top-3 target language pills */}
         {targetTopLangs.map((code) => (
-          <button
+          <Button
+            size="md"
+            shape="pill"
             key={code}
             type="button"
             onClick={() => handleTargetChange(code)}
-            className={`${pillBase} ${targetLang === code ? pillActive : pillInactive}`}
+            variant={targetLang === code ? 'primary' : 'neutral'}
+            appearance={targetLang === code ? 'soft' : 'ghost'}
+            aria-pressed={targetLang === code}
+            className="whitespace-nowrap"
           >
             {langNames[code] ?? code}
-            {targetLang === code && (
-              <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-gray-600 dark:bg-gray-400 rounded-full" />
-            )}
-          </button>
+          </Button>
         ))}
       </div>
 

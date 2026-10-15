@@ -4,7 +4,7 @@ import type { PhoneticMode, TranslationReasoningEffort, TranslationStyle } from 
 import { getEffectiveTranslationReasoningEffort, getTranslationReasoningEfforts } from '../../utils/translationReasoning'
 import { type ModelPickerInlineView, ModelSelector } from '../ModelSelector'
 import { AutoTranslateToggle } from '../ui/AutoTranslateToggle'
-import { SelectField } from '../ui/molecules'
+import { SelectField, type SelectFieldOption } from '../ui/molecules'
 
 export type TranslateSettingsSubview = ModelPickerInlineView
 
@@ -35,12 +35,8 @@ interface TranslateToolbarProps {
   labelReasoningHigh: string
   labelReasoningUnsupported: string
   labelStyleLabel: string
-  labelStyleGeneral: string
-  labelStyleFormal: string
-  labelStyleCasual: string
-  labelStyleBusiness: string
-  labelStyleTechnical: string
-  labelStyleNatural: string
+  /** Style choices (label + hint); the value is a TranslationStyle. */
+  styleOptions: readonly SelectFieldOption[]
   labelPhoneticOff: string
   labelPhoneticStandard: string
   labelPhoneticTranscription: string
@@ -68,8 +64,7 @@ export function TranslateToolbar({
   labelReasoningAuto, labelReasoningLow, labelReasoningMedium, labelReasoningHigh,
   labelReasoningUnsupported,
   labelStyleLabel,
-  labelStyleGeneral, labelStyleFormal, labelStyleCasual,
-  labelStyleBusiness, labelStyleTechnical, labelStyleNatural,
+  styleOptions,
   labelPhoneticOff, labelPhoneticStandard, labelPhoneticTranscription,
   labelPhoneticSection, labelAutoSection,
   titleAutoMode, titleManualMode, labelAutoMode,
@@ -123,14 +118,7 @@ export function TranslateToolbar({
           id={styleId}
           label={labelStyleLabel}
           value={translationStyle}
-          options={[
-            { value: 'general', label: labelStyleGeneral },
-            { value: 'formal', label: labelStyleFormal },
-            { value: 'casual', label: labelStyleCasual },
-            { value: 'business', label: labelStyleBusiness },
-            { value: 'technical', label: labelStyleTechnical },
-            { value: 'natural', label: labelStyleNatural },
-          ]}
+          options={styleOptions}
           onChange={(value) => onStyleChange(value as TranslationStyle)}
           autoFocusTarget
           className="translate-setting-control"

@@ -237,7 +237,11 @@ export function LiveTranslatePage() {
               </div>
 
             {/* ▶ Bắt Đầu / ■ Dừng */}
-            <button
+            <Button
+              size="sm"
+              shape="rect"
+              variant={isActive ? 'danger' : 'primary'}
+              appearance="solid"
               type="button"
               onClick={isActive ? handleStop : () => {
                 if ((audioMode === 'system' || audioMode === 'both') && isMac && screenPermission !== 'granted') {
@@ -247,21 +251,14 @@ export function LiveTranslatePage() {
                 }
               }}
               disabled={!hasOpenAIKey || !hasAnyKey}
-              className={[
-                'btn-sm flex-shrink-0',
-                isActive
-                  ? 'btn-danger'
-                  : (!hasOpenAIKey || !hasAnyKey)
-                    ? 'btn-secondary'
-                    : 'btn-primary',
-              ].join(' ')}
+              className="flex-shrink-0"
             >
               {isActive ? (
                 <><StopIcon className="w-3.5 h-3.5" />{t.live_stop}</>
               ) : (
                 <><MicrophoneIcon className="w-3.5 h-3.5" />{t.live_start}</>
               )}
-            </button>
+            </Button>
 
             <InterpretAIConfiguration
               open={showAIConfig}
@@ -339,9 +336,16 @@ export function LiveTranslatePage() {
           {!hasOpenAIKey && (
             <Notice>
               {t.live_no_openai_key}{' '}
-              <button type="button" onClick={() => openSettings()} className="btn-link">
+              <Button
+                size="md"
+                shape="rect"
+                variant="neutral"
+                appearance="ghost"
+                type="button"
+                onClick={() => openSettings()}
+              >
                 {t.translate_error_open_settings}
-              </button>
+              </Button>
             </Notice>
           )}
 
@@ -548,28 +552,32 @@ export function LiveTranslatePage() {
 
               {/* Right panel footer — Copy icon + Tổng hợp nội dung button */}
               <div className="surface-footer">
-                <button
+                <Button
+                  size="sm"
+                  shape="icon"
+                  variant={copiedTx ? 'primary' : 'neutral'}
+                  appearance={copiedTx ? 'soft' : 'ghost'}
+                  aria-label={t.translate_copy}
                   type="button"
                   disabled={!translation}
                   onClick={() => handleCopy(translation, setCopiedTx)}
                   title={t.translate_copy}
-                  className={[
-                    'btn-icon',
-                    copiedTx ? 'btn-active' : '',
-                  ].join(' ')}
                 >
                   {copiedTx ? <CheckIcon className="w-4 h-4" /> : <CopyIcon className="w-4 h-4" />}
-                </button>
+                </Button>
 
                 {showSummaryBtn && (
-                  <button
+                  <Button
+                    size="sm"
+                    shape="rect"
+                    variant="primary"
+                    appearance="solid"
                     type="button"
                     onClick={handleOpenSummaryPopup}
-                    className="btn-primary btn-sm"
                   >
                     <LightbulbIcon className="w-3.5 h-3.5" />
                     {t.live_summarize}
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -605,29 +613,33 @@ export function LiveTranslatePage() {
                 <LightbulbIcon className="w-4 h-4 text-gray-500" />
                 <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t.live_summary_title}</h2>
               </div>
-              <button
+              <Button
+                size="sm"
+                shape="icon"
+                variant="neutral"
+                appearance="ghost"
                 type="button"
                 onClick={() => setShowSummaryPopup(false)}
-                className="btn-icon btn-icon-sm"
               >
                 <XIcon className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
 
             {/* Tabs */}
             <div className="flex items-center gap-1 px-5 pt-3 pb-1 flex-shrink-0">
               {(['summary', 'actions', 'decisions'] as PostTab[]).map(tab => (
-                <button
+                <Button
+                  size="md"
+                  shape="rect"
+                  variant={postTab === tab ? 'primary' : 'neutral'}
+                  appearance={postTab === tab ? 'soft' : 'ghost'}
                   key={tab}
                   type="button"
                   onClick={() => setPostTab(tab)}
-                  className={[
-                    'btn-segment whitespace-nowrap',
-                    postTab === tab ? 'btn-segment-active' : '',
-                  ].join(' ')}
+                  className="whitespace-nowrap"
                 >
                   {tab === 'summary' ? t.live_post_tab_summary : tab === 'actions' ? t.live_post_tab_actions : t.live_post_tab_decisions}
-                </button>
+                </Button>
               ))}
             </div>
 
@@ -680,34 +692,43 @@ export function LiveTranslatePage() {
             <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 gap-2">
               {/* Copy active tab content */}
               {postTab === 'summary' && summary && !isSummarizing && (
-                <button
+                <Button
+                  size="sm"
+                  shape="rect"
+                  variant={copiedSummary ? 'primary' : 'neutral'}
+                  appearance={copiedSummary ? 'soft' : 'outline'}
                   type="button"
                   onClick={() => handleCopy(summary, setCopiedSummary)}
-                  className={`btn-secondary btn-xs ${copiedSummary ? 'btn-active' : ''}`}
                 >
                   {copiedSummary ? <CheckIcon className="w-3.5 h-3.5" /> : <CopyIcon className="w-3.5 h-3.5" />}
                   {copiedSummary ? t.translate_copied : t.translate_copy}
-                </button>
+                </Button>
               )}
               {postTab === 'actions' && actionItems && !isExtractingActionItems && (
-                <button
+                <Button
+                  size="sm"
+                  shape="rect"
+                  variant={copiedActions ? 'primary' : 'neutral'}
+                  appearance={copiedActions ? 'soft' : 'outline'}
                   type="button"
                   onClick={() => handleCopy(actionItems, setCopiedActions)}
-                  className={`btn-secondary btn-xs ${copiedActions ? 'btn-active' : ''}`}
                 >
                   {copiedActions ? <CheckIcon className="w-3.5 h-3.5" /> : <CopyIcon className="w-3.5 h-3.5" />}
                   {copiedActions ? t.translate_copied : t.translate_copy}
-                </button>
+                </Button>
               )}
               {postTab === 'decisions' && decisions && !isExtractingDecisions && (
-                <button
+                <Button
+                  size="sm"
+                  shape="rect"
+                  variant={copiedDecisions ? 'primary' : 'neutral'}
+                  appearance={copiedDecisions ? 'soft' : 'outline'}
                   type="button"
                   onClick={() => handleCopy(decisions, setCopiedDecisions)}
-                  className={`btn-secondary btn-xs ${copiedDecisions ? 'btn-active' : ''}`}
                 >
                   {copiedDecisions ? <CheckIcon className="w-3.5 h-3.5" /> : <CopyIcon className="w-3.5 h-3.5" />}
                   {copiedDecisions ? t.translate_copied : t.translate_copy}
-                </button>
+                </Button>
               )}
               {/* Spacer if no copy button */}
               {((postTab === 'summary' && (!summary || isSummarizing)) ||
@@ -719,34 +740,43 @@ export function LiveTranslatePage() {
               {/* Right-side action button per tab */}
               <div className="flex items-center gap-2 ml-auto">
                 {postTab === 'summary' && !isSummarizing && (
-                  <button
+                  <Button
+                    size="sm"
+                    shape="rect"
+                    variant="primary"
+                    appearance="solid"
                     type="button"
                     onClick={handleSummarize}
-                    className="btn-primary btn-sm"
                   >
                     <LightbulbIcon className="w-3.5 h-3.5" />
                     {summary ? t.live_summarize_again : t.live_summarize}
-                  </button>
+                  </Button>
                 )}
                 {postTab === 'actions' && !isExtractingActionItems && (
-                  <button
+                  <Button
+                    size="sm"
+                    shape="rect"
+                    variant="primary"
+                    appearance="solid"
                     type="button"
                     onClick={handleExtractActionItems}
-                    className="btn-primary btn-sm"
                   >
                     <CheckIcon className="w-3.5 h-3.5" />
                     {actionItems ? t.live_action_items_extract_again : t.live_action_items_extract}
-                  </button>
+                  </Button>
                 )}
                 {postTab === 'decisions' && !isExtractingDecisions && (
-                  <button
+                  <Button
+                    size="sm"
+                    shape="rect"
+                    variant="primary"
+                    appearance="solid"
                     type="button"
                     onClick={handleExtractDecisions}
-                    className="btn-primary btn-sm"
                   >
                     <CheckIcon className="w-3.5 h-3.5" />
                     {decisions ? t.live_decisions_extract_again : t.live_decisions_extract}
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -790,14 +820,21 @@ export function LiveTranslatePage() {
 
             {/* Actions */}
             <div className="flex items-center justify-end gap-2 pt-1">
-              <button
+              <Button
+                size="sm"
+                shape="rect"
+                variant="neutral"
+                appearance="outline"
                 type="button"
                 onClick={() => setShowScreenPermModal(false)}
-                className="btn-secondary btn-sm"
               >
                 {t.translate_error_dismiss}
-              </button>
-              <button
+              </Button>
+              <Button
+                size="sm"
+                shape="rect"
+                variant="primary"
+                appearance="solid"
                 type="button"
                 onClick={() => {
                   if (typeof window.api?.openExternal === 'function') {
@@ -807,11 +844,10 @@ export function LiveTranslatePage() {
                   }
                   setShowScreenPermModal(false)
                 }}
-                className="btn-primary btn-sm"
               >
                 <GearIcon className="w-3.5 h-3.5" />
                 {t.live_open_system_settings}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

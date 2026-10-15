@@ -68,6 +68,7 @@ describe('persisted STT provider migration', () => {
     expect(migrated).toEqual({
       sttProvider: 'auto',
       locale: 'vi',
+      chatPendingTaskState: null,
     })
   })
 
@@ -84,6 +85,7 @@ describe('persisted STT provider migration', () => {
       expect(migratePersistedStore(persisted)).toEqual({
         ...persisted,
         sttProvider: 'auto',
+        chatPendingTaskState: null,
       })
     },
   )
@@ -91,7 +93,7 @@ describe('persisted STT provider migration', () => {
   it.each(['auto', 'whisper', 'google', 'groq'])('preserves supported provider %s', (sttProvider) => {
     const persisted = { sttProvider, locale: 'vi' }
 
-    expect(migratePersistedStore(persisted)).toBe(persisted)
+    expect(migratePersistedStore(persisted)).toEqual({ ...persisted, chatPendingTaskState: null })
   })
 })
 

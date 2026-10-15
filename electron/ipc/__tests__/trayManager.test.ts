@@ -89,6 +89,16 @@ describe('tray labels', () => {
 })
 
 describe('createAppTray', () => {
+  it('passes the multi-resolution ICO to Windows without flattening its DPI frames', () => {
+    createAppTray({ iconPath: 'tray.ico', platform: 'win32', osLocale: 'en', onOpen: vi.fn(), onQuit: vi.fn() })
+    expect(trayInstances[0].image).toBe('tray.ico')
+  })
+
+  it('keeps the existing 16px native image behavior on Linux', () => {
+    createAppTray({ iconPath: 'icon.png', platform: 'linux', osLocale: 'en', onOpen: vi.fn(), onQuit: vi.fn() })
+    expect(trayInstances[0].image).toEqual({ resized: { width: 16, height: 16 } })
+  })
+
   it('builds a tray with an open/quit menu and restores on click', () => {
     const onOpen = vi.fn()
     const onQuit = vi.fn()
@@ -106,6 +116,12 @@ describe('createAppTray', () => {
 
     const events = trayInstances[0].on.mock.calls.map(([name]) => name)
     expect(events).toEqual(expect.arrayContaining(['click', 'double-click']))
+  })
+
+  it('lets a development run override the tooltip so it is distinguishable from the official app', () => {
+    createAppTray({ iconPath: 'icon.png', tooltip: 'Viezan (Dev)', osLocale: 'vi-VN', onOpen: vi.fn(), onQuit: vi.fn() })
+
+    expect(trayInstances[0].setToolTip).toHaveBeenCalledWith('Viezan (Dev)')
   })
 
   it('returns null instead of an invisible tray when the icon cannot be loaded', () => {
@@ -128,11 +144,20 @@ describe('promptCloseAction', () => {
     await expect(promptCloseAction(window, 'en')).resolves.toBe('cancel')
   })
 
-  it('localizes the dialog and makes dismissal a cancel', async () => {
-    await promptCloseAction(window, 'vi-VN')
+  it.each([
+    ['vi-VN', 'Đóng Viezan', 'Bạn muốn Viezan tiếp tục chạy nền?', ['Chạy nền', 'Thoát hẳn', 'Hủy']],
+    ['en-US', 'Close Viezan', 'Do you want Viezan to keep running in the background?', ['Run in background', 'Quit', 'Cancel']],
+    ['ja-JP', 'Viezan を閉じる', 'Viezan をバックグラウンドで実行し続けますか？', ['バックグラウンドで実行', '終了', 'キャンセル']],
+  ])('localizes the minimal native dialog for %s with safe defaults', async (locale, title, message, buttons) => {
+    await promptCloseAction(window, locale)
     expect(showMessageBox).toHaveBeenCalledWith(
       window,
-      expect.objectContaining({ buttons: ['Thu nhỏ xuống khay', 'Thoát hẳn', 'Hủy'], defaultId: 0, cancelId: 2 }),
+      { type: 'question', title, message, buttons, defaultId: 0, cancelId: 2, noLink: true },
     )
+  })
+
+  it('treats an unexpected dialog response as cancel', async () => {
+    dialogState.response = -1
+    await expect(promptCloseAction(window, 'en')).resolves.toBe('cancel')
   })
 })
