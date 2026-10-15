@@ -1,16 +1,134 @@
 import { BrowserWindow, nativeTheme, screen } from 'electron'
 
-type HotkeyIndicatorState = 'busy' | 'copying' | 'translating' | 'done' | 'warning' | 'error'
+export type HotkeyIndicatorState = 'busy' | 'copying' | 'translating' | 'done' | 'warning' | 'error'
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+// The indicator is a standalone data: URL window, so it cannot load
+// src/styles/tokens.css. Every literal value (colors, copy) is centralised here
+// so the window stays consistent with the renderer palette and is easy to
+// re-point at tokens when a main-process token bridge exists.
 
 const INDICATOR_WIDTH = 320
 const INDICATOR_HEIGHT = 76
 const INDICATOR_TOP_MARGIN = 28
 const DEFAULT_HIDE_DELAY_MS = 1_500
+const TRANSPARENT_BACKGROUND = '#00000000'
+
+/** Colors, keyed by CSS custom property name (without the leading `--`). */
+const INDICATOR_COLORS = {
+  light: {
+    'vzn-surface': 'rgba(255, 255, 255, 0.94)',
+    'vzn-text': '#18202b',
+    'vzn-text-muted': '#5e6a78',
+    'vzn-border': 'rgba(216, 224, 232, 0.92)',
+    'vzn-accent': '#0f766e',
+    'vzn-accent-soft': 'rgba(15, 118, 110, 0.20)',
+    'vzn-success': '#15803d',
+    'vzn-warning': '#b45309',
+    'vzn-danger': '#be123c',
+    'vzn-mark-text': '#ffffff',
+    'vzn-shadow': '0 16px 44px rgba(15, 23, 32, 0.22), 0 2px 8px rgba(15, 23, 32, 0.10)',
+  },
+  dark: {
+    'vzn-surface': 'rgba(24, 27, 33, 0.94)',
+    'vzn-text': '#e8edf2',
+    'vzn-text-muted': '#a4afbb',
+    'vzn-border': 'rgba(72, 81, 95, 0.70)',
+    'vzn-accent': '#2dd4bf',
+    'vzn-accent-soft': 'rgba(45, 212, 191, 0.22)',
+    'vzn-success': '#4ade80',
+    'vzn-warning': '#fbbf24',
+    'vzn-danger': '#fb7185',
+    'vzn-mark-text': '#ffffff',
+    'vzn-shadow': '0 16px 44px rgba(0, 0, 0, 0.34), 0 2px 8px rgba(0, 0, 0, 0.18)',
+  },
+} as const
+
+export type HotkeyIndicatorLanguage = 'vi' | 'en' | 'ja'
+
+interface IndicatorCopy {
+  title: string
+  messages: Record<HotkeyIndicatorState, string>
+}
+
+/** Indicator copy by UI language. Vietnamese stays the default (historic behavior). */
+const INDICATOR_COPY: Record<HotkeyIndicatorLanguage, IndicatorCopy> = {
+  vi: {
+    title: 'Dịch nhanh',
+    messages: {
+      busy: 'Đang xử lý yêu cầu trước...',
+      copying: 'Đang lấy văn bản đang chọn...',
+      translating: 'Đang dịch và chuẩn bị thay thế...',
+      done: 'Đã thay thế văn bản.',
+      warning: 'Không có văn bản được chọn.',
+      error: 'Không thể dịch văn bản.',
+    },
+  },
+  en: {
+    title: 'Quick translate',
+    messages: {
+      busy: 'Finishing the previous request...',
+      copying: 'Reading the selected text...',
+      translating: 'Translating and preparing to replace...',
+      done: 'Text replaced.',
+      warning: 'No text is selected.',
+      error: 'Could not translate the text.',
+    },
+  },
+  ja: {
+    title: 'クイック翻訳',
+    messages: {
+      busy: '前のリクエストを処理しています...',
+      copying: '選択したテキストを取得しています...',
+      translating: '翻訳して置き換えを準備しています...',
+      done: 'テキストを置き換えました。',
+      warning: 'テキストが選択されていません。',
+      error: 'テキストを翻訳できませんでした。',
+    },
+  },
+}
+
+const DEFAULT_INDICATOR_LANGUAGE: HotkeyIndicatorLanguage = 'vi'
+const INDICATOR_MARKS: Record<HotkeyIndicatorState, string> = {
+  busy: 'V',
+  copying: 'V',
+  translating: 'V',
+  done: '✓',
+  warning: '!',
+  error: '!',
+}
+const IN_PROGRESS_STATES: ReadonlySet<HotkeyIndicatorState> = new Set(['copying', 'translating'])
+
+export function isHotkeyIndicatorLanguage(value: unknown): value is HotkeyIndicatorLanguage {
+  return value === 'vi' || value === 'en' || value === 'ja'
+}
+
+let indicatorLanguage: HotkeyIndicatorLanguage = DEFAULT_INDICATOR_LANGUAGE
+
+/**
+ * Select the indicator copy language. The main process has no UI-language
+ * source of its own, so the renderer must push it (see `uiLanguage` on
+ * `hotkey:update`).
+ */
+export function setHotkeyIndicatorLanguage(language: HotkeyIndicatorLanguage): void {
+  indicatorLanguage = language
+}
+
+// ── Window state ──────────────────────────────────────────────────────────────
 
 let indicatorWindow: BrowserWindow | null = null
 let hideTimer: NodeJS.Timeout | null = null
+/** State currently displayed (null when no live window). */
+let currentState: HotkeyIndicatorState | null = null
+/** Windows for which close() was requested but 'closed' has not fired yet. */
+const closingWindows = new WeakSet<BrowserWindow>()
+
+function cssVariables(palette: Record<string, string>): string {
+  return Object.entries(palette).map(([name, value]) => `      --${name}: ${value};`).join('\n')
+}
 
 function buildIndicatorHtml(): string {
+  const copy = INDICATOR_COPY[indicatorLanguage]
   return `<!doctype html>
 <html>
 <head>
@@ -19,16 +137,7 @@ function buildIndicatorHtml(): string {
   <style>
     * { box-sizing: border-box; }
     :root {
-      --vzn-surface: rgba(255, 255, 255, 0.94);
-      --vzn-text: #18202b;
-      --vzn-text-muted: #5e6a78;
-      --vzn-border: rgba(216, 224, 232, 0.92);
-      --vzn-accent: #0f766e;
-      --vzn-accent-soft: rgba(15, 118, 110, 0.20);
-      --vzn-success: #15803d;
-      --vzn-warning: #b45309;
-      --vzn-danger: #be123c;
-      --vzn-shadow: 0 16px 44px rgba(15, 23, 32, 0.22), 0 2px 8px rgba(15, 23, 32, 0.10);
+${cssVariables(INDICATOR_COLORS.light)}
     }
     html, body {
       width: 100%;
@@ -71,7 +180,7 @@ function buildIndicatorHtml(): string {
       flex: 0 0 auto;
       display: grid;
       place-items: center;
-      color: #fff;
+      color: var(--vzn-mark-text);
       background: var(--vzn-accent);
       border-radius: 8px;
       font-size: 14px;
@@ -150,27 +259,7 @@ function buildIndicatorHtml(): string {
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --vzn-surface: rgba(24, 27, 33, 0.94);
-        --vzn-text: #e8edf2;
-        --vzn-text-muted: #a4afbb;
-        --vzn-border: rgba(72, 81, 95, 0.70);
-        --vzn-accent: #2dd4bf;
-        --vzn-accent-soft: rgba(45, 212, 191, 0.22);
-        --vzn-success: #4ade80;
-        --vzn-warning: #fbbf24;
-        --vzn-danger: #fb7185;
-        --vzn-shadow: 0 16px 44px rgba(0, 0, 0, 0.34), 0 2px 8px rgba(0, 0, 0, 0.18);
-      }
-
-      .pill {
-        color: var(--vzn-text);
-        background: var(--vzn-surface);
-        border-color: var(--vzn-border);
-        box-shadow: var(--vzn-shadow);
-      }
-
-      .message {
-        color: var(--vzn-text-muted);
+${cssVariables(INDICATOR_COLORS.dark)}
       }
     }
 
@@ -188,10 +277,10 @@ function buildIndicatorHtml(): string {
 </head>
 <body data-state="copying">
   <div class="pill" role="status" aria-live="polite">
-    <div class="mark" id="mark">V</div>
+    <div class="mark" id="mark">${INDICATOR_MARKS.copying}</div>
     <div class="content">
-      <div class="title" id="title">Dịch nhanh</div>
-      <div class="message" id="message">Đang nhận phím tắt...</div>
+      <div class="title" id="title">${copy.title}</div>
+      <div class="message" id="message">${copy.messages.copying}</div>
     </div>
   </div>
   <script>
@@ -219,7 +308,7 @@ function createIndicatorWindow(): BrowserWindow {
     skipTaskbar: true,
     resizable: false,
     movable: false,
-    backgroundColor: '#00000000',
+    backgroundColor: TRANSPARENT_BACKGROUND,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -231,17 +320,35 @@ function createIndicatorWindow(): BrowserWindow {
   win.setIgnoreMouseEvents(true)
   win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(buildIndicatorHtml())}`)
   win.on('closed', () => {
-    indicatorWindow = null
+    closingWindows.delete(win)
+    // A replacement window may already be active — only clear our own reference.
+    if (indicatorWindow === win) {
+      indicatorWindow = null
+      currentState = null
+    }
   })
 
   return win
 }
 
+/** True when `win` can still be shown (exists, not destroyed, not mid-close). */
+function isUsable(win: BrowserWindow | null): win is BrowserWindow {
+  return Boolean(win) && !win?.isDestroyed() && !closingWindows.has(win as BrowserWindow)
+}
+
 function getIndicatorWindow(): BrowserWindow {
-  if (!indicatorWindow || indicatorWindow.isDestroyed()) {
+  if (!isUsable(indicatorWindow)) {
     indicatorWindow = createIndicatorWindow()
+    currentState = null
   }
   return indicatorWindow
+}
+
+function closeIndicatorWindow(win: BrowserWindow): void {
+  if (win.isDestroyed() || closingWindows.has(win)) return
+  closingWindows.add(win)
+  win.close()
+  if (indicatorWindow === win) currentState = null
 }
 
 function positionIndicatorWindow(win: BrowserWindow): void {
@@ -257,20 +364,8 @@ function positionIndicatorWindow(win: BrowserWindow): void {
 }
 
 function getIndicatorCopy(state: HotkeyIndicatorState, message?: string): { title: string; message: string; mark: string } {
-  switch (state) {
-    case 'busy':
-      return { title: 'Dịch nhanh', message: message ?? 'Đang xử lý yêu cầu trước...', mark: 'V' }
-    case 'copying':
-      return { title: 'Dịch nhanh', message: message ?? 'Đang lấy văn bản đang chọn...', mark: 'V' }
-    case 'translating':
-      return { title: 'Dịch nhanh', message: message ?? 'Đang dịch và chuẩn bị thay thế...', mark: 'V' }
-    case 'done':
-      return { title: 'Dịch nhanh', message: message ?? 'Đã thay thế văn bản.', mark: '✓' }
-    case 'warning':
-      return { title: 'Dịch nhanh', message: message ?? 'Không có văn bản được chọn.', mark: '!' }
-    case 'error':
-      return { title: 'Dịch nhanh', message: message ?? 'Không thể dịch văn bản.', mark: '!' }
-  }
+  const copy = INDICATOR_COPY[indicatorLanguage]
+  return { title: copy.title, message: message ?? copy.messages[state], mark: INDICATOR_MARKS[state] }
 }
 
 export function showHotkeyIndicator(
@@ -278,6 +373,12 @@ export function showHotkeyIndicator(
   message?: string,
   hideAfterMs?: number
 ): void {
+  // A repeated press while a translation is in flight must not replace the live
+  // copying/translating indicator, nor schedule a close that would hide it.
+  if (state === 'busy' && currentState && IN_PROGRESS_STATES.has(currentState) && isUsable(indicatorWindow)) {
+    return
+  }
+
   const win = getIndicatorWindow()
   const copy = getIndicatorCopy(state, message)
 
@@ -287,6 +388,7 @@ export function showHotkeyIndicator(
   }
 
   positionIndicatorWindow(win)
+  currentState = state
 
   const prefersDark = nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
 
@@ -309,17 +411,18 @@ export function showHotkeyIndicator(
 
   if (typeof hideAfterMs === 'number') {
     hideTimer = setTimeout(() => {
-      if (!win.isDestroyed()) win.close()
+      closeIndicatorWindow(win)
       hideTimer = null
     }, hideAfterMs)
   }
 }
 
 export function hideHotkeyIndicator(delayMs = DEFAULT_HIDE_DELAY_MS): void {
-  if (!indicatorWindow || indicatorWindow.isDestroyed()) return
+  if (!isUsable(indicatorWindow)) return
   if (hideTimer) clearTimeout(hideTimer)
+  const win = indicatorWindow
   hideTimer = setTimeout(() => {
-    if (indicatorWindow && !indicatorWindow.isDestroyed()) indicatorWindow.close()
+    closeIndicatorWindow(win)
     hideTimer = null
   }, delayMs)
 }

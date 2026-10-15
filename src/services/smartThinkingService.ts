@@ -28,19 +28,33 @@
  */
 import type { ChatMessage as IpcChatMessage } from './chatService'
 import { chatService } from './chatService'
-import { formatWebSearchResults, getCurrentLocaleDateTime, hasWebSearchApi } from './searchResultFormatting'
+import { needsWebSearchHeuristic } from './localWebIntent'
+import {
+  type ActionableSearchFallback,
+  formatWebSearchResults,
+  getActionableSearchFallback,
+  getCurrentLocaleDateTime,
+  hasWebSearchApi,
+  isSearchUnavailable,
+} from './searchResultFormatting'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SEARCH_RESULT_BUDGET = {
   min: 1,
   fallback: 2,
-  max: 4,
+  max: 6,
+  /** Web Search mode: the user asked for sources, so never answer from a single snippet. */
+  forcedMin: 4,
+  forcedFallback: 5,
 } as const
-const SEARCH_CONTEXT_BASE_CHARS = 1200
-const SEARCH_CONTEXT_CHARS_PER_RESULT = 900
+const SEARCH_CONTEXT_BASE_CHARS = 1500
+const SEARCH_CONTEXT_CHARS_PER_RESULT = 2300
+/** Per-result snippet cap handed to the answer model (matches the IPC sanitizer cap). */
+const SEARCH_RESULT_SNIPPET_CHARS = 2000
 const MAX_CLASSIFIER_CONTEXT_MESSAGES = 8
 const MAX_CLASSIFIER_CONTEXT_CHARS = 4000
+const LOCAL_PROVIDER_ID = 'local'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,6 +74,13 @@ export interface SmartThinkingCallbacks {
   onAnswerComplete: (msgId: string, content: string) => void
   /** Called when the final answer errors. */
   onAnswerError: (msgId: string, error: string, errorCode?: string) => void
+  /**
+   * Optional: fired when a configured web-search provider rejected the key or ran
+   * out of quota and the free provider answered instead.
+   */
+  onSearchFallback?: (info: ActionableSearchFallback) => void
+  /** Optional: fired when every search provider failed, so the answer has no live sources. */
+  onSearchUnavailable?: () => void
 }
 
 export interface SmartThinkingUiText {
@@ -210,7 +231,7 @@ function formatClassifierContext(messages: IpcChatMessage[], fallbackQuestion: s
  *   - English fallbacks: "Sources", "References", "Citations"
  *   - Lines that start with "[1]" / "[2]" markdown reference style at the very end
  */
-function stripTrailingSourcesSection(text: string, localizedTitle: string): string {
+export function stripTrailingSourcesSection(text: string, localizedTitle: string): string {
   if (!text) return text
   const titles = [
     localizedTitle,
@@ -266,7 +287,13 @@ function stripTrailingSourcesSection(text: string, localizedTitle: string): stri
   return text
 }
 
-async function runWebSearch(query: string, uiText: SmartThinkingUiText, sourceCount: number): Promise<{
+async function runWebSearch(
+  query: string,
+  uiText: SmartThinkingUiText,
+  sourceCount: number,
+  onFallback?: (info: ActionableSearchFallback) => void,
+  onUnavailable?: () => void,
+): Promise<{
   context: string
   sourcesMarkdown: string
 }> {
@@ -277,6 +304,9 @@ async function runWebSearch(query: string, uiText: SmartThinkingUiText, sourceCo
       query: query.slice(0, 200),
       maxResults,
     })
+    const fallback = getActionableSearchFallback(result)
+    if (fallback) onFallback?.(fallback)
+    if (isSearchUnavailable(result)) onUnavailable?.()
     if (result.success && result.results?.length) {
       const selectedResults = result.results.slice(0, maxResults)
       const context = formatWebSearchResults(
@@ -289,6 +319,7 @@ async function runWebSearch(query: string, uiText: SmartThinkingUiText, sourceCo
           query,
           provider: result.provider,
           resultCount: selectedResults.length,
+          maxCharsPerResult: SEARCH_RESULT_SNIPPET_CHARS,
         },
       )
       const sourcesMarkdown = selectedResults
@@ -325,10 +356,24 @@ Core operating contract:
 
 Do not expose a long hidden reasoning trace. Give the user the conclusions, key rationale, tradeoffs, and next actions that matter.`
 
-const CLASSIFY_PROMPT = (date: string) =>
-  `You are the routing and evidence-planning stage for Smart Thinking. Current time: ${date}.
-Decide whether the user's latest message requires web evidence before the final answer.
+/**
+ * Compact variant for local models: prompt tokens are re-processed on every turn on
+ * local hardware (often partly on CPU), so the full reasoning contract is trimmed to
+ * the rules that change answer quality.
+ */
+const LOCAL_ANSWER_PROMPT = (date: string) =>
+  `You are Smart Thinking, a careful assistant. Current time: ${date}.
+  • Answer the actual question directly; scale depth to the task and be concise for simple requests.
+  • State assumptions or uncertainty when they matter; do not present time-sensitive facts as verified without current evidence.
+  • Reply in the same language as the user's latest message unless the user asks otherwise.`
 
+const CLASSIFY_PROMPT = (date: string, forceWebSearch = false) =>
+  `You are the routing and evidence-planning stage for Smart Thinking. Current time: ${date}.
+${forceWebSearch
+    ? `The user explicitly turned on Web Search for this message, so set needs_web to true and plan the best possible search: a self-contained query, a source_count of at least 4, and the freshness/reliability the answer needs.
+`
+    : `Decide whether the user's latest message requires web evidence before the final answer.
+`}
 Think internally with this process:
   • Identify the real problem and requested answer target, not just surface keywords.
   • Identify assumptions, uncertainty, and missing information.
@@ -361,8 +406,9 @@ Source-count rules when needs_web=true:
   • 1 = a direct fact, exact wording check, or likely-primary-source lookup is enough.
   • 2 = a concrete claim needs light corroboration.
   • 3 = current information may vary across official/provider/news pages.
-  • 4 = only for contested, comparative, or multi-perspective topics.
-  • If a broad investigation needs more than 4 sources, keep source_count at 4 and let the final answer suggest Deep Research.
+  • 4 = current information that must be confirmed across several independent pages.
+  • 5-6 = contested, comparative, or multi-perspective topics where coverage matters more than speed.
+  • If a broad investigation needs more than 6 sources, keep source_count at 6 and let the final answer suggest Deep Research.
 
 Return ONLY valid JSON with this shape, no other text:
 {"needs_web": true, "query": "concise 1-line web search query in user's language", "reason": "very brief reason (max 1 sentence)", "answer_focus": "what the final answer must directly provide", "source_guidance": "what source quality is needed", "source_count": 2, "freshness_requirement": "current-as-of-now", "reliability_requirement": "official or primary source preferred; corroborate if sources conflict"}
@@ -480,12 +526,29 @@ export const smartThinkingService = {
       reason: '',
       answerFocus: '',
       sourceGuidance: '',
-      sourceCount: SEARCH_RESULT_BUDGET.fallback,
+      sourceCount: forceWebSearch ? SEARCH_RESULT_BUDGET.forcedFallback : SEARCH_RESULT_BUDGET.fallback,
       freshnessRequirement: '',
       reliabilityRequirement: '',
     }
 
-    if (!forceWebSearch && hasWebSearchApi() && !signal?.aborted) {
+    // The classifier also runs in forced mode: it resolves follow-up references
+    // into a self-contained query and plans freshness/reliability. Its failure
+    // is harmless because the forced defaults above already search the raw question.
+    // Local models skip the classifier unless Web Search is forced: it is a full,
+    // non-streaming model call, which doubles time-to-first-token on local hardware.
+    // Rule-based intent detection stands in so time-sensitive questions still search.
+    const isLocal = provider === LOCAL_PROVIDER_ID
+    const skipClassifier = isLocal && !forceWebSearch
+    if (skipClassifier && hasWebSearchApi() && needsWebSearchHeuristic(question)) {
+      classify = {
+        ...classify,
+        needsWeb: true,
+        query: question.slice(0, 200),
+        sourceCount: SEARCH_RESULT_BUDGET.fallback,
+        freshnessRequirement: 'current-as-of-now',
+      }
+    }
+    if (hasWebSearchApi() && !signal?.aborted && !skipClassifier) {
       try {
         const classifierContext = formatClassifierContext(messages, question)
         const result = await chatService.send({
@@ -503,7 +566,7 @@ export const smartThinkingService = {
               ].join('\n'),
             }],
           }],
-          systemPrompt: CLASSIFY_PROMPT(date),
+          systemPrompt: CLASSIFY_PROMPT(date, forceWebSearch),
           bypassLengthCheck: true,
         })
         const reply = result.success ? result.reply?.trim() : null
@@ -531,6 +594,10 @@ export const smartThinkingService = {
         /* classifier failed — fall through to plain chat */
       }
     }
+    if (forceWebSearch) {
+      classify.needsWeb = true
+      classify.sourceCount = Math.max(classify.sourceCount, SEARCH_RESULT_BUDGET.forcedMin)
+    }
     if (classify.needsWeb) {
       classify.query = composeSearchQuery(question, classify.query)
       classify.sourceCount = normalizeSourceCount(classify.sourceCount)
@@ -545,7 +612,13 @@ export const smartThinkingService = {
       const stepMsgId = onStepStart(stepLabel)
 
       try {
-        const { context, sourcesMarkdown } = await runWebSearch(classify.query, uiText, classify.sourceCount)
+        const { context, sourcesMarkdown } = await runWebSearch(
+          classify.query,
+          uiText,
+          classify.sourceCount,
+          callbacks.onSearchFallback,
+          callbacks.onSearchUnavailable,
+        )
         webContext = context
         webSourcesMarkdown = sourcesMarkdown
 
@@ -585,7 +658,10 @@ export const smartThinkingService = {
             freshnessRequirement: classify.freshnessRequirement,
             reliabilityRequirement: classify.reliabilityRequirement,
           })
-      : combineSystemPrompt(SMART_THINKING_ANSWER_PROMPT(date), systemPrompt)
+      : combineSystemPrompt(
+          isLocal ? LOCAL_ANSWER_PROMPT(date) : SMART_THINKING_ANSWER_PROMPT(date),
+          systemPrompt,
+        )
 
     let streamed = ''
 

@@ -36,19 +36,36 @@ import type { DeepResearchResumeState } from '../types'
 import { tpl } from '../utils/tpl'
 import type { ChatMessageContent } from './chatService'
 import { chatService } from './chatService'
-import { formatWebSearchResults, getCurrentLocaleDateTime, hasWebSearchApi } from './searchResultFormatting'
+import {
+  type ActionableSearchFallback,
+  formatWebSearchResults,
+  getActionableSearchFallback,
+  getCurrentLocaleDateTime,
+  hasWebSearchApi,
+  isSearchUnavailable,
+} from './searchResultFormatting'
+import { stripTrailingSourcesSection } from './smartThinkingService'
 
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /** Maximum number of gap-analysis → targeted-search iterations */
-const MAX_GAP_ITERATIONS = 2
+const MAX_GAP_ITERATIONS = 3
 
 /** Maximum number of gaps to chase per iteration */
-const MAX_GAPS_PER_ROUND = 3
+const MAX_GAPS_PER_ROUND = 4
+
+/** Maximum number of aspects investigated in the survey phase */
+const MAX_ASPECTS = 6
 
 /** Maximum search results per query */
-const MAX_SEARCH_RESULTS = 5
+const MAX_SEARCH_RESULTS = 8
+
+/** Characters of each search result handed to the analysis step */
+const MAX_RESULT_CHARS = 1500
+
+/** Maximum characters of earlier conversation given to the pipeline for resolving references */
+const MAX_HISTORY_CHARS = 4000
 
 export const DEEP_RESEARCH_CANCELLED_ERROR = 'deep-research-cancelled'
 
@@ -97,6 +114,13 @@ export interface DeepResearchCallbacks {
    * Optional: callers that don't care about resume can omit this.
    */
   onResumeStateChange?: (state: DeepResearchResumeState | null) => void
+  /**
+   * Fired at most once per run when a configured web-search provider rejected the
+   * key or ran out of quota and the free provider answered instead.
+   */
+  onSearchFallback?: (info: ActionableSearchFallback) => void
+  /** Fired at most once per run when every search provider failed (no live sources). */
+  onSearchUnavailable?: () => void
 }
 
 
@@ -131,17 +155,23 @@ export interface DeepResearchUiText {
   gapsFound: string
   deeperLabel: string
   /** Template `{error}` */
-  cannotAnalyze: string
+  /** @deprecated Unused: a failed step is reported through `onStepError`, never stored as a finding. */
+  cannotAnalyze?: string
   /** Template `{error}` */
-  cannotResearch: string
+  /** @deprecated Unused — see `cannotAnalyze`. */
+  cannotResearch?: string
   /** Template `{error}` */
-  crossFailed: string
+  /** @deprecated Unused — see `cannotAnalyze`. */
+  crossFailed?: string
   /** Template `{error}` */
-  crossFailedInline: string
+  /** @deprecated Unused — see `cannotAnalyze`. */
+  crossFailedInline?: string
   /** Template `{error}` */
-  synthFailed: string
+  /** @deprecated Unused — see `cannotAnalyze`. */
+  synthFailed?: string
   /** Template `{error}` */
-  errorInline: string
+  /** @deprecated Unused — see `cannotAnalyze`. */
+  errorInline?: string
   errorAnalyze: string
   errorGeneric: string
   errorEval: string
@@ -149,12 +179,20 @@ export interface DeepResearchUiText {
   errorSynth: string
   errorUnknown: string
   webSummary: string
+  /** Heading of the source list appended to the final answer. Defaults to "Sources". */
+  sourcesTitle?: string
 }
 
 export interface DeepResearchParams {
   provider: string
   model: string
   question: string
+  /**
+   * Plain-text transcript of the conversation before `question`. Used only to
+   * resolve references such as "compare it with the previous one"; it is never
+   * researched itself.
+   */
+  history?: string
   images?: DeepResearchImageAttachment[]
   uiText: DeepResearchUiText
   callbacks: DeepResearchCallbacks
@@ -201,15 +239,76 @@ type ChatServiceResult = Awaited<ReturnType<typeof chatService.send>>
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function webSearch(query: string, webSummaryLabel: string): Promise<string> {
+interface ResearchSource {
+  title: string
+  url: string
+}
+
+/**
+ * Run one web search and format it for the analysis step. Results are numbered
+ * through `registerSources` so every citation in the run is globally unique
+ * ([1] always means the same page) instead of restarting at [1] per search.
+ */
+async function webSearch(
+  query: string,
+  webSummaryLabel: string,
+  registerSources: (results: ResearchSource[]) => number[],
+  onFallback?: (info: ActionableSearchFallback) => void,
+  onUnavailable?: () => void,
+): Promise<string> {
   if (!hasWebSearchApi()) return ''
   try {
     const result = await window.api.webSearch({ query: query.slice(0, 200), maxResults: MAX_SEARCH_RESULTS })
+    const fallback = getActionableSearchFallback(result)
+    if (fallback) onFallback?.(fallback)
+    if (isSearchUnavailable(result)) onUnavailable?.()
     if (result.success && result.results?.length) {
-      return formatWebSearchResults(result.results, result.answer, webSummaryLabel)
+      return formatWebSearchResults(result.results, result.answer, webSummaryLabel, {
+        maxCharsPerResult: MAX_RESULT_CHARS,
+        numbers: registerSources(result.results),
+      })
     }
   } catch { /* ignore */ }
   return ''
+}
+
+/** Compact transcript of the most recent conversation, newest turns kept when over budget. */
+function limitHistory(history: string | undefined): string {
+  const trimmed = history?.trim() ?? ''
+  return trimmed.length > MAX_HISTORY_CHARS ? trimmed.slice(-MAX_HISTORY_CHARS) : trimmed
+}
+
+/**
+ * Remove citation markers that point at no real source. With `sourceCount`
+ * numbered sources, any [n] above it (or any [n] at all when there are none)
+ * was invented by the model. Code (fenced or inline) and Markdown links are left alone.
+ */
+export function removeUnknownCitations(text: string, sourceCount: number): string {
+  const citation = /(?<=^|[\s.,;:!?)\]])\[(\d{1,3})\](?!\()/gm
+  const parts = text.split(/(```[\s\S]*?```|`[^`\n]*`)/)
+  let removed = false
+  const cleaned = parts
+    .map((part, index) => {
+      if (index % 2 === 1) return part
+      return part.replace(citation, (match, digits: string) => {
+        if (Number(digits) <= sourceCount) return match
+        removed = true
+        return ''
+      })
+    })
+    .join('')
+  return removed ? cleaned.replace(/[ \t]+(?=[.,;:!?])/g, '').replace(/[ \t]+$/gm, '') : text
+}
+
+/** Markdown list of the sources the answer relied on, keeping each source's global [n]. */
+function buildSourcesMarkdown(sources: ResearchSource[], answer: string, title: string): string {
+  if (sources.length === 0) return ''
+  const cited = new Set([...answer.matchAll(/\[(\d{1,3})\]/g)].map((match) => Number(match[1])))
+  const lines = sources
+    .map((source, index) => ({ source, number: index + 1 }))
+    .filter(({ number }) => cited.size === 0 || cited.has(number))
+    .map(({ source, number }) => `- **[${number}]** [${source.title || source.url}](${source.url})`)
+  return lines.length > 0 ? `\n\n---\n**${title}**\n${lines.join('\n')}` : ''
 }
 
 function getReply(result: ChatServiceResult): string | null {
@@ -244,14 +343,20 @@ function parseStringArray(value: unknown): string[] {
     .map((item) => item.trim())
 }
 
+/**
+ * Build a web-search query. AI-planned topics are already self-contained, so
+ * appending the whole question only dilutes them; the question is added solely
+ * when the topic is a generic fallback (`includeQuestion`).
+ */
 function buildSearchQuery(
   topic: string,
   question: string,
   imageContext: string,
   imageSearchTerms: string[],
+  includeQuestion = false,
 ): string {
   const visualContext = imageSearchTerms.length > 0 ? imageSearchTerms.join(' ') : imageContext
-  return [visualContext, topic, question]
+  return [visualContext, topic, includeQuestion ? question : '']
     .map((part) => part.trim())
     .filter(Boolean)
     .join(' ')
@@ -297,7 +402,9 @@ ${hasImages
     ? `The user attached image(s) as part of the research request. Inspect the image(s), identify visible entities/text/context, and use that visual information when choosing research aspects and search terms.
 
 `
-    : ''}Analyze the user's question and identify 3-4 most important aspects to research in depth.
+    : ''}Analyze the user's question and identify the 4-6 most important aspects to research in depth. Cover different angles (facts, causes, current status, comparisons, risks, counter-arguments) rather than restating the same point.
+The question may be followed by earlier conversation context: use it only to resolve references (e.g. "it", "the previous one") so every aspect names its concrete subject.
+Each aspect MUST be a self-contained phrase that names the main subject explicitly, because it is also used as a standalone web search query.
 Return ONLY valid JSON, no other text:
 ${hasImages
     ? '{"aspects": ["aspect 1", "aspect 2", "aspect 3"], "imageContext": "concise visual context from the attached image(s)", "searchTerms": ["specific entity or keyword from image 1", "specific entity or keyword from image 2"]}'
@@ -314,14 +421,15 @@ ${imageContext ? `Attached image context: ${imageContext}\n` : ''}
 ${webCtx}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Analyze the web data above. Cite sources. Note contradictions if any. Prioritize web data over your training knowledge.`
+Analyze the web data above in depth. Extract concrete facts (names, numbers, dates, versions, quotes) and state the effective date when it matters. Cite every claim with the source number exactly as printed in the results, e.g. [3] — these numbers are global for the whole research and must not be renumbered. Note contradictions and weak or outdated sources. Prioritize web data over your training knowledge, and say clearly when the results do not answer the aspect.`
     : `${LANG_RULE}You are an expert analyst. Timestamp: ${date}.
 Original question: ${question}
 Aspect to analyze: ${aspect}
 ${imageContext ? `Attached image context: ${imageContext}\n` : ''}
 
 No web search available — using training data only.
-Please: state your training cutoff clearly, and mark information that MAY HAVE CHANGED since then.`
+Please: state your training cutoff clearly, and mark information that MAY HAVE CHANGED since then.
+There are NO numbered sources in this research: do not write [n] citation markers.`
 
 const GAP_ANALYSIS_PROMPT = (date: string) =>
   `${LANG_RULE}You are a research quality evaluator. Timestamp: ${date}.
@@ -330,6 +438,9 @@ Is the research sufficient to answer the original question ACCURATELY and COMPLE
 - What important information is still missing?
 - Are there any contradictions that need verification?
 - Which aspects need deeper investigation?
+- Which important claims have no numbered source [n] behind them?
+
+Each entry in "queries" must be a self-contained web search query that names its subject explicitly (it is sent to a search engine as-is, without the original question). Provide one query per gap, in the same order.
 
 Return ONLY valid JSON:
 {
@@ -357,7 +468,7 @@ Perform cross-reference analysis on those findings:
 2. List points UNCERTAIN — from only one source or potentially outdated
 3. List points CONTRADICTED across sources and explain
 
-Be concise and well-structured.`
+${hadWeb ? 'Refer to each point with its source numbers [n] exactly as they appear in the findings. ' : 'There are no numbered sources, so do not write [n] citation markers. '}Be well-structured and do not drop important specifics (names, numbers, dates).`
 
 const CROSS_REFERENCE_CONTENT = (question: string, allFindings: string, imageContext: string) =>
   `Original question: ${question}
@@ -367,19 +478,24 @@ ${imageContext ? `Attached image context: ${imageContext}\n` : ''}
 ${allFindings}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━`
 
-const SYNTHESIS_PROMPT = (date: string, hadWeb: boolean) => {
+const SYNTHESIS_PROMPT = (date: string, hadWeb: boolean, unresearched: string[]) => {
   const note = hadWeb
-    ? 'Data sourced from real-time web search. High accuracy expected.'
+    ? 'Findings cite web sources by global number, e.g. [3]. Claims without a number come from model knowledge: say so instead of presenting them as verified.'
     : 'Data from AI training only. Add a "## Accuracy Note" section at the end to warn the user about potential staleness.'
-  return `${LANG_RULE}You are a research synthesis expert. Timestamp: ${date}. ${note}
+  const gaps = unresearched.length > 0
+    ? `\n\nThese aspects could NOT be researched because their step failed: ${unresearched.join('; ')}. State this limitation honestly in the answer instead of filling the gap with guesses.`
+    : ''
+  return `${LANG_RULE}You are a research synthesis expert. Timestamp: ${date}. ${note}${gaps}
 
-Create a COMPREHENSIVE and ACCURATE final answer with:
-## Structure:
-- Clear headings (##)
-- Bullet points where appropriate
-- Source citations where available
-- Confidence indicators: Confirmed / Uncertain / Contradicted
-- A "## Conclusion" section at the end`
+Answer the user's ORIGINAL question directly and completely. Lead with the answer, then support it. Keep concrete specifics (names, numbers, dates, versions) from the findings; do not generalise them away.
+
+Structure:
+- Clear headings (##) and bullet points where they help
+- ${hadWeb ? 'Cite claims inline with the source numbers from the findings, e.g. [2][5]; never invent a number that does not appear in the findings' : 'There are NO numbered sources: never write [n] citation markers, and say plainly which claims are model knowledge'}
+- Mark confidence where it matters: Confirmed / Uncertain / Contradicted
+- Surface disagreements between sources instead of merging them
+- End with a "## Conclusion" section
+- Do NOT add a sources / references list${hadWeb ? ': the UI appends the numbered source list automatically' : ''}`
 }
 
 // ─── Default aspects (English — neutral, no language bias) ───────────────────
@@ -393,11 +509,31 @@ const DEFAULT_ASPECTS = [
 // ─── Main pipeline ────────────────────────────────────────────────────────────
 
 export const deepResearchService = {
-  async run({ provider, model, question, images = [], uiText, callbacks, signal, carefulReasoning, resumeState }: DeepResearchParams): Promise<void> {
+  async run({ provider, model, question, history, images = [], uiText, callbacks, signal, carefulReasoning, resumeState }: DeepResearchParams): Promise<void> {
 
     const date = getCurrentLocaleDateTime()
+    // `question` stays the raw user text (search queries, resume snapshot). The
+    // framed version adds earlier conversation so the model can resolve
+    // references like "compare it with the previous one".
+    const conversationContext = limitHistory(history)
+    const framedQuestion = conversationContext
+      ? `${question}\n\n(Earlier conversation, only to resolve references in the question:\n${conversationContext})`
+      : question
     const webAvailable = hasWebSearchApi()
     const { onStepStart, onStepComplete, onStepError, onResumeStateChange } = callbacks
+    // Report a search-provider fallback once per run, not once per query.
+    let searchFallbackReported = false
+    const reportSearchFallback = (info: ActionableSearchFallback) => {
+      if (searchFallbackReported) return
+      searchFallbackReported = true
+      callbacks.onSearchFallback?.(info)
+    }
+    let searchUnavailableReported = false
+    const reportSearchUnavailable = () => {
+      if (searchUnavailableReported) return
+      searchUnavailableReported = true
+      callbacks.onSearchUnavailable?.()
+    }
     const hasImages = images.length > 0
 
     /**
@@ -462,6 +598,20 @@ export const deepResearchService = {
     let anyWebSearch = resumeState?.anyWebSearch ?? false
     let imageContext = resumeState?.imageContext ?? ''
     let imageSearchTerms: string[] = resumeState?.imageSearchTerms ?? []
+    /** True while the aspects are the generic fallback list, which is too vague to search without the question. */
+    const aspectsAreFallback = () =>
+      aspects.length === DEFAULT_ASPECTS.length && aspects.every((aspect, index) => aspect === DEFAULT_ASPECTS[index])
+    // Global citation registry: [n] in every finding is index n-1 here.
+    const sources: ResearchSource[] = resumeState?.sources ? resumeState.sources.map((s) => ({ ...s })) : []
+    const registerSources = (results: ResearchSource[]): number[] =>
+      results.map((result) => {
+        const existing = sources.findIndex((source) => source.url === result.url)
+        if (existing >= 0) return existing + 1
+        sources.push({ title: result.title, url: result.url })
+        return sources.length
+      })
+    // Deep-dive queries whose step failed — reported honestly to the synthesis.
+    const failedDeepAspects: string[] = []
 
     // ── Phase 1: Initial Analysis ─────────────────────────────────────────
     let aspects: string[] = resumeState?.aspects ?? DEFAULT_ASPECTS
@@ -500,6 +650,7 @@ export const deepResearchService = {
       imageContext,
       imageSearchTerms,
       anyWebSearch,
+      sources: sources.map((source) => ({ ...source })),
       crossContent: crossContentValue,
       activeGapRound: activeGapRoundValue
         ? {
@@ -521,7 +672,7 @@ export const deepResearchService = {
       try {
         const result = await sendChat({
           provider, model,
-          messages: [{ role: 'user', content: buildResearchContent(question, images) }],
+          messages: [{ role: 'user', content: buildResearchContent(framedQuestion, images) }],
           systemPrompt: ANALYZE_PROMPT(date, hasImages),
         })
         throwIfCancelled()
@@ -532,7 +683,7 @@ export const deepResearchService = {
             try {
               const p = JSON.parse(m[0])
               const parsedAspects = parseStringArray(p.aspects)
-              if (parsedAspects.length >= 2) aspects = parsedAspects.slice(0, 4)
+              if (parsedAspects.length >= 2) aspects = parsedAspects.slice(0, MAX_ASPECTS)
               if (hasImages && typeof p.imageContext === 'string') {
                 imageContext = p.imageContext.trim()
               }
@@ -585,20 +736,28 @@ export const deepResearchService = {
 
         try {
           const webCtx = await webSearch(
-            buildSearchQuery(aspect, question, imageContext, imageSearchTerms),
+            buildSearchQuery(aspect, question, imageContext, imageSearchTerms, aspectsAreFallback()),
             uiText.webSummary,
+            registerSources,
+            reportSearchFallback,
+            reportSearchUnavailable,
           )
           if (webCtx) anyWebSearch = true
 
           const result = await sendChat({
             provider, model,
             messages: [{ role: 'user', content: buildResearchContent(`Analyze this aspect: ${aspect}`, images) }],
-            systemPrompt: RESEARCH_PROMPT(date, aspect, question, webCtx, imageContext),
+            systemPrompt: RESEARCH_PROMPT(date, aspect, framedQuestion, webCtx, imageContext),
           })
           throwIfCancelled()
-          const content = getReply(result) ?? tpl(uiText.cannotAnalyze, {
-            error: describeChatFailure(result, uiText.errorUnknown),
-          })
+          const content = getReply(result)
+          if (!content) {
+            // A failed step is reported as an error and left unfinished (so a
+            // resume retries it). Its error text must never enter the
+            // knowledge base, where the synthesis would read it as a finding.
+            onStepError(msgId, describeChatFailure(result, uiText.errorUnknown))
+            continue
+          }
           knowledgeBase.push({ label: aspect, content })
           surveyCompletedIndexes.add(aspectIndex)
           onStepComplete(msgId, content, false)
@@ -610,9 +769,7 @@ export const deepResearchService = {
             onStepError(msgId, CANCELLED)
             throw err
           }
-          const e = err instanceof Error ? err.message : uiText.errorGeneric
-          onStepError(msgId, e)
-          knowledgeBase.push({ label: aspect, content: tpl(uiText.errorInline, { error: e }) })
+          onStepError(msgId, err instanceof Error ? err.message : uiText.errorGeneric)
         }
       }
     }
@@ -671,25 +828,28 @@ export const deepResearchService = {
         try {
           const result = await sendChat({
             provider, model,
-            messages: [{ role: 'user', content: buildResearchContent(GAP_ANALYSIS_CONTENT(question, allFindings, imageContext), images) }],
+            messages: [{ role: 'user', content: buildResearchContent(GAP_ANALYSIS_CONTENT(framedQuestion, allFindings, imageContext), images) }],
             systemPrompt: GAP_ANALYSIS_PROMPT(date),
             bypassLengthCheck: true,
           })
           throwIfCancelled()
 
           const reply = getReply(result)
-          if (reply) {
-            const m = reply.match(/\{[\s\S]*\}/)
-            if (m) {
-              try {
-                const p = JSON.parse(m[0])
-                gapResult = {
-                  isComplete: Boolean(p.isComplete),
-                  gaps: Array.isArray(p.gaps) ? p.gaps.slice(0, MAX_GAPS_PER_ROUND) : [],
-                  queries: Array.isArray(p.queries) ? p.queries.slice(0, MAX_GAPS_PER_ROUND) : [],
-                }
-              } catch { gapResult.isComplete = true }
-            }
+          // An empty reply must not be reported as "research complete".
+          if (!reply) throw new Error(describeChatFailure(result, uiText.errorEval))
+          const m = reply.match(/\{[\s\S]*\}/)
+          if (m) {
+            try {
+              const p = JSON.parse(m[0])
+              const gaps = parseStringArray(p.gaps).slice(0, MAX_GAPS_PER_ROUND)
+              const queries = parseStringArray(p.queries).slice(0, MAX_GAPS_PER_ROUND)
+              gapResult = {
+                isComplete: Boolean(p.isComplete),
+                gaps,
+                // Fall back to the gap descriptions when no usable queries came back.
+                queries: queries.length > 0 ? queries : gaps,
+              }
+            } catch { gapResult.isComplete = true }
           }
 
           const gapContent = gapResult.isComplete
@@ -739,21 +899,29 @@ export const deepResearchService = {
 
 
         try {
+          // The planned query is already targeted: sending the original question
+          // along with it would only pull the results back toward the broad topic.
           const webCtx = await webSearch(
             buildSearchQuery(query, question, imageContext, imageSearchTerms),
             uiText.webSummary,
+            registerSources,
+            reportSearchFallback,
+            reportSearchUnavailable,
           )
           if (webCtx) anyWebSearch = true
 
           const result = await sendChat({
             provider, model,
             messages: [{ role: 'user', content: buildResearchContent(`Deep dive research: ${gapLabel}`, images) }],
-            systemPrompt: RESEARCH_PROMPT(date, gapLabel, question, webCtx, imageContext),
+            systemPrompt: RESEARCH_PROMPT(date, gapLabel, framedQuestion, webCtx, imageContext),
           })
           throwIfCancelled()
-          const content = getReply(result) ?? tpl(uiText.cannotResearch, {
-            error: describeChatFailure(result, uiText.errorUnknown),
-          })
+          const content = getReply(result)
+          if (!content) {
+            onStepError(deepMsgId, describeChatFailure(result, uiText.errorUnknown))
+            failedDeepAspects.push(gapLabel)
+            continue
+          }
           knowledgeBase.push({ label: `${uiText.deeperLabel} ${gapLabel}`, content })
           activeGapRound = activeGapRound ?? {
             iteration,
@@ -775,9 +943,8 @@ export const deepResearchService = {
             onStepError(deepMsgId, CANCELLED)
             throw err
           }
-          const e = err instanceof Error ? err.message : uiText.errorGeneric
-          onStepError(deepMsgId, e)
-          knowledgeBase.push({ label: gapLabel, content: tpl(uiText.errorInline, { error: e }) })
+          onStepError(deepMsgId, err instanceof Error ? err.message : uiText.errorGeneric)
+          failedDeepAspects.push(gapLabel)
         }
       }
       activeGapRound = undefined
@@ -798,23 +965,27 @@ export const deepResearchService = {
       try {
         const result = await sendChat({
           provider, model,
-          messages: [{ role: 'user', content: buildResearchContent(CROSS_REFERENCE_CONTENT(question, allFindingsCross, imageContext), images) }],
+          messages: [{ role: 'user', content: buildResearchContent(CROSS_REFERENCE_CONTENT(framedQuestion, allFindingsCross, imageContext), images) }],
           systemPrompt: CROSS_REFERENCE_PROMPT(date, anyWebSearch),
           bypassLengthCheck: true,
         })
         throwIfCancelled()
-        crossContent = getReply(result)
-          ?? tpl(uiText.crossFailed, { error: describeChatFailure(result, uiText.errorUnknown) })
-        onStepComplete(crossMsgId, crossContent, false)
-        onResumeStateChange?.(buildSnapshot('cross', resumeState?.lastGapIteration ?? 0, crossContent))
+        const reply = getReply(result)
+        if (reply) {
+          crossContent = reply
+          onStepComplete(crossMsgId, crossContent, false)
+          onResumeStateChange?.(buildSnapshot('cross', resumeState?.lastGapIteration ?? 0, crossContent))
+        } else {
+          // The synthesis simply proceeds without a cross-reference section;
+          // no failure text is passed along as if it were analysis.
+          onStepError(crossMsgId, describeChatFailure(result, uiText.errorCross))
+        }
       } catch (err) {
         if (isCancelledError(err)) {
           onStepError(crossMsgId, CANCELLED)
           throw err
         }
-        const e = err instanceof Error ? err.message : uiText.errorCross
-        onStepError(crossMsgId, e)
-        crossContent = tpl(uiText.crossFailedInline, { error: e })
+        onStepError(crossMsgId, err instanceof Error ? err.message : uiText.errorCross)
       }
     }
 
@@ -829,13 +1000,26 @@ export const deepResearchService = {
       .map((k, i) => `### ${i + 1}. ${k.label}\n${k.content}`)
       .join('\n\n---\n\n')
 
+    const sourceListForSynthesis = sources.length > 0
+      ? [
+          '## Source list (cite as [n])',
+          sources.map((source, index) => `[${index + 1}] ${source.title || source.url} — ${source.url}`).join('\n'),
+        ].join('\n')
+      : ''
+
     const synthContext = [
-      `## Research Findings (${knowledgeBase.length} sources)`,
+      `## Research Findings (${knowledgeBase.length} items)`,
       allFindingsFinal,
-      '---',
-      '## Cross-Reference Analysis',
-      crossContent,
-    ].join('\n\n')
+      sourceListForSynthesis,
+      crossContent ? `---\n## Cross-Reference Analysis\n\n${crossContent}` : '',
+    ].filter(Boolean).join('\n\n')
+
+    // Aspects that never produced a finding (their step failed) are surfaced to
+    // the synthesis so it states the limitation instead of guessing.
+    const unresearched = [
+      ...aspects.filter((_, index) => !surveyCompletedIndexes.has(index)),
+      ...failedDeepAspects,
+    ]
 
     try {
       const result = await sendChat({
@@ -843,21 +1027,26 @@ export const deepResearchService = {
         messages: [{
           role: 'user',
           content: buildResearchContent([
-            `Original question: ${question}`,
+            `Original question: ${framedQuestion}`,
             imageContext ? `Attached image context: ${imageContext}` : '',
             synthContext,
           ].filter(Boolean).join('\n\n'), images),
         }],
-        systemPrompt: SYNTHESIS_PROMPT(date, anyWebSearch),
+        systemPrompt: SYNTHESIS_PROMPT(date, anyWebSearch, unresearched),
         bypassLengthCheck: true,
         maxOutputTokens: 'model-max',
         carefulReasoning,
       })
       throwIfCancelled()
 
+      const reply = getReply(result)
+      // A failed synthesis is an error (the resume snapshot stays so the user
+      // can retry), never a "final answer" made of an error message.
+      if (!reply) throw new Error(describeChatFailure(result, uiText.errorSynth))
 
-      const synthesis = getReply(result)
-        ?? tpl(uiText.synthFailed, { error: describeChatFailure(result, uiText.errorUnknown) })
+      const sourcesTitle = uiText.sourcesTitle ?? 'Sources'
+      const body = removeUnknownCitations(stripTrailingSourcesSection(reply, sourcesTitle), sources.length)
+      const synthesis = `${body}${buildSourcesMarkdown(sources, body, sourcesTitle)}`
 
       onStepComplete(synthMsgId, synthesis, true)
       // Pipeline finished — clear the resume snapshot so the renderer hides

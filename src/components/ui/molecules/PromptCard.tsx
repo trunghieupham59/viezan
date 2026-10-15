@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Button } from '../atoms/Button'
 
 export type PromptCardTone = 'blue' | 'violet' | 'green' | 'orange'
 
@@ -19,8 +20,11 @@ export function PromptCard({
   onClick,
 }: PromptCardProps) {
   return (
-    <button
-      type="button"
+    <Button
+      size="lg"
+      shape="rect"
+      variant="neutral"
+      appearance="outline"
       className={`prompt-card prompt-card-${tone}`}
       onClick={onClick}
     >
@@ -29,6 +33,6 @@ export function PromptCard({
         <span className="prompt-card-title">{title}</span>
         <span className="prompt-card-description">{description}</span>
       </span>
-    </button>
+    </Button>
   )
 }

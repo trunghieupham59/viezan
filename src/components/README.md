@@ -66,6 +66,13 @@ attention does it deserve?” Keep those decisions separate:
 Use `rect` for full-width/task actions, `pill` for compact labels/modes, and
 `icon` only when the icon has an accessible name.
 
+Standard controls keep their atom height even when feature styles are attached.
+Prompt cards deliberately grow with their multi-line content and use the
+existing prompt-card tokens instead of toolbar heights. Native buttons remain
+for full-surface backdrops, image previews, renameable speaker badges, and
+content-driven menu/list/choice rows in migration-zone components; these are
+not toolbar controls. New ordinary actions must use the `Button` atom.
+
 ## Visual foundation
 
 `src/styles/tokens.css` is the canonical source for the rendered application.

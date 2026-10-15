@@ -1,7 +1,22 @@
-import { MAX_OUTPUT_TOKENS_CLAUDE, VERIFY_MAX_TOKENS, VERIFY_MODEL_CLAUDE } from './ipcConstants'
+import { blockedSafetyError } from './errorUtils'
+import { clampMaxOutputTokens, MAX_OUTPUT_TOKENS_CLAUDE } from './ipcConstants'
 import { buildPrompt, buildRewritePrompt, REWRITE_SYSTEM_PROMPT, SYSTEM_PROMPT } from './translatePrompts'
+import { finalizeProviderText, joinClaudeText, nonEmptyProviderText } from './translateProviderOutput'
 import type { DetectFn, RewriteFn, StreamFn, TranslateFn, TranslateRequestOptions, VerifyFn } from './translateProviderTypes'
 import { getClaudeReasoningConfig } from './translationReasoning'
+
+/** Single retry layer: `withRetry` handles transient failures, so the SDK must not retry on its own. */
+const CLIENT_OPTIONS = { maxRetries: 0 } as const
+
+/** Claude text answer; `stop_reason: "refusal"` is a safety block, `max_tokens` a truncation. */
+function messageText(message: { content: ReadonlyArray<{ type: string; text?: string }>; stop_reason?: string | null }): string {
+  if (message.stop_reason === 'refusal') throw blockedSafetyError('claude', 'stop_reason=refusal')
+  return finalizeProviderText('claude', joinClaudeText(message.content), message.stop_reason === 'max_tokens')
+}
+
+function requestOptions(options: TranslateRequestOptions = {}) {
+  return options.signal ? { signal: options.signal } : undefined
+}
 
 export const translateWithClaude: TranslateFn = async (
   apiKey,
@@ -17,70 +32,74 @@ export const translateWithClaude: TranslateFn = async (
   options: TranslateRequestOptions = {},
 ) => {
   const Anthropic = (await import('@anthropic-ai/sdk')).default
-  const client = new Anthropic({ apiKey })
+  const client = new Anthropic({ apiKey, ...CLIENT_OPTIONS })
   const message = await client.messages.create(
     {
       model,
-      max_tokens: MAX_OUTPUT_TOKENS_CLAUDE,
+      max_tokens: clampMaxOutputTokens('claude', model, MAX_OUTPUT_TOKENS_CLAUDE),
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: buildPrompt(sourceText, sourceLang, targetLang, showFurigana, style, phoneticOnly, phoneticMode) }],
       ...getClaudeReasoningConfig(model, reasoningEffort),
     },
-    options.signal ? { signal: options.signal } : undefined,
+    requestOptions(options),
   )
-  const block = message.content.find((content) => content.type === 'text')
-  if (block?.type === 'text') return block.text.trim()
-  throw new Error('Unexpected response type from Claude')
+  return messageText(message)
 }
 
-export const rewriteWithClaude: RewriteFn = async (apiKey, model, text, lang, style) => {
+export const rewriteWithClaude: RewriteFn = async (apiKey, model, text, lang, style, options = {}) => {
   const Anthropic = (await import('@anthropic-ai/sdk')).default
-  const client = new Anthropic({ apiKey })
-  const message = await client.messages.create({
-    model,
-    max_tokens: MAX_OUTPUT_TOKENS_CLAUDE,
-    system: REWRITE_SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: buildRewritePrompt(text, lang, style) }],
-  })
-  const block = message.content[0]
-  if (block.type === 'text') return block.text.trim()
-  throw new Error('Unexpected response type from Claude')
+  const client = new Anthropic({ apiKey, ...CLIENT_OPTIONS })
+  const message = await client.messages.create(
+    {
+      model,
+      max_tokens: clampMaxOutputTokens('claude', model, MAX_OUTPUT_TOKENS_CLAUDE),
+      system: REWRITE_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: buildRewritePrompt(text, lang, style) }],
+    },
+    requestOptions(options),
+  )
+  return messageText(message)
 }
 
-export const detectWithClaude: DetectFn = async (apiKey, model, prompt) => {
+export const detectWithClaude: DetectFn = async (apiKey, model, prompt, options = {}) => {
   const Anthropic = (await import('@anthropic-ai/sdk')).default
-  const client = new Anthropic({ apiKey })
-  const message = await client.messages.create({
-    model,
-    max_tokens: 10,
-    messages: [{ role: 'user', content: prompt }],
-  })
-  const block = message.content[0]
-  if (block.type === 'text') return block.text.trim()
-  throw new Error('Unexpected response type from Claude')
+  const client = new Anthropic({ apiKey, ...CLIENT_OPTIONS })
+  const message = await client.messages.create(
+    {
+      model,
+      max_tokens: 10,
+      messages: [{ role: 'user', content: prompt }],
+    },
+    requestOptions(options),
+  )
+  if (message.stop_reason === 'refusal') throw blockedSafetyError('claude', 'stop_reason=refusal')
+  return nonEmptyProviderText('claude', joinClaudeText(message.content))
 }
 
-export const verifyClaudeKey: VerifyFn = async (apiKey) => {
+export const verifyClaudeKey: VerifyFn = async (apiKey, options = {}) => {
   const Anthropic = (await import('@anthropic-ai/sdk')).default
-  const client = new Anthropic({ apiKey })
-  const message = await client.messages.create({
-    model: VERIFY_MODEL_CLAUDE,
-    max_tokens: VERIFY_MAX_TOKENS,
-    messages: [{ role: 'user', content: 'Say "ok".' }],
-  })
-  if (!message.content[0]) throw new Error('No response from Claude')
+  const client = new Anthropic({ apiKey, ...CLIENT_OPTIONS })
+  // Authentication must not depend on a particular Messages model. A valid
+  // key can outlive any fixed model ID, while the Models API is explicitly
+  // intended to report the models available to the authenticated workspace.
+  await client.models.list({ limit: 1 }, requestOptions(options))
 }
 
-export const streamWithClaude: StreamFn = async (apiKey, model, prompt, onToken) => {
+export const streamWithClaude: StreamFn = async (apiKey, model, prompt, onToken, options = {}) => {
   const Anthropic = (await import('@anthropic-ai/sdk')).default
+  // Streaming is not wrapped by withRetry, so it keeps the SDK's own connection retries.
   const client = new Anthropic({ apiKey })
   let fullText = ''
-  const stream = client.messages.stream({
-    model,
-    max_tokens: MAX_OUTPUT_TOKENS_CLAUDE,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: prompt }],
-  })
+  let stopReason: string | null | undefined
+  const stream = client.messages.stream(
+    {
+      model,
+      max_tokens: clampMaxOutputTokens('claude', model, MAX_OUTPUT_TOKENS_CLAUDE),
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: prompt }],
+    },
+    requestOptions(options),
+  )
   for await (const event of stream) {
     if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
       const token = event.delta.text
@@ -88,7 +107,11 @@ export const streamWithClaude: StreamFn = async (apiKey, model, prompt, onToken)
         fullText += token
         onToken(token)
       }
+    } else if (event.type === 'message_delta' && event.delta.stop_reason) {
+      stopReason = event.delta.stop_reason
     }
   }
+  if (stopReason === 'refusal') throw blockedSafetyError('claude', 'stop_reason=refusal')
+  finalizeProviderText('claude', fullText, stopReason === 'max_tokens')
   return fullText
 }

@@ -8,6 +8,7 @@ type ChatStreamEvent = {
   type: 'start' | 'token' | 'end' | 'error'
   token?: string
   reply?: string
+  usedModel?: string
   error?: string
   errorCode?: string
 }
@@ -56,6 +57,7 @@ export const chatSection = {
     imageMimeType: string
     sourceLang: string
     targetLang: string
+    allowProviderFallback?: boolean
   }) => ipcRenderer.invoke('image:translate', params),
 
   /**

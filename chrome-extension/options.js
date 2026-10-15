@@ -64,7 +64,7 @@ $('btn-test').addEventListener('click', async () => {
     const msg = err?.message || String(err)
     if (msg.includes('401') || msg.includes('Unauthorized')) {
       showStatus('API key is invalid. Copy it again from the Viezan app.', 'error')
-    } else if (msg.includes('fetch') || msg.includes('Failed') || msg.includes('NetworkError')) {
+    } else if (Bridge.isNetworkError(msg)) {
       showStatus(
         `Cannot reach Viezan app on port ${Bridge.PORT}. ` +
         'Make sure the app is running. If it is, try reloading the extension (chrome://extensions > Reload).',

@@ -61,7 +61,11 @@ interface ChatImageEditParams {
 interface ChatStreamCallbacks {
   onStart?: () => void
   onToken?: (token: string) => void
-  onEnd?: (reply: string) => void
+  /**
+   * `meta.usedModel` is set when the provider answered with a different model
+   * than the one requested (silent fallback), so the UI can disclose it.
+   */
+  onEnd?: (reply: string, meta?: { usedModel?: string }) => void
   onError?: (error: string, errorCode?: string) => void
   /**
    * AbortSignal for user-initiated cancellation. When the signal aborts mid
@@ -243,7 +247,7 @@ export const chatService = {
         // Drain the buffer before announcing the end so the renderer doesn't
         // see a stale partial reply.
         flushNow()
-        callbacks.onEnd?.(event.reply)
+        callbacks.onEnd?.(event.reply, event.usedModel ? { usedModel: event.usedModel } : undefined)
       }
       if (event.type === 'error' && event.error) {
         flushNow()

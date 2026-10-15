@@ -1,4 +1,4 @@
-import { type ChildProcess, spawn } from 'node:child_process'
+import { type ChildProcess, execFileSync, spawn } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -34,6 +34,14 @@ export interface LocalAiHardwareProfile {
   cpuCount: number
   totalMemoryGb: number
   tier: LocalAiHardwareTier
+  /** Accelerator name when one was identified (NVIDIA via nvidia-smi, Apple Silicon). */
+  gpuName?: string
+  /**
+   * Memory a model can occupy on the accelerator, in GB. `0` means CPU-only (no accelerator
+   * identified); `undefined` means unknown and falls back to the RAM/CPU tier.
+   */
+  vramGb?: number
+  gpuMemoryKind?: 'dedicated' | 'unified'
 }
 
 export interface LocalAiDiscoveryResult {
@@ -52,6 +60,8 @@ export interface LocalAiDownloadResult {
   success: boolean
   model: string
   error?: string
+  /** True when the download was stopped by the user (see cancelLocalAiModelDownload). */
+  cancelled?: boolean
 }
 
 export interface LocalAiModelActionResult {
@@ -74,14 +84,7 @@ export interface LocalAiInstallResult {
   error?: string
   message?: string
   output?: string
-  cancelled?: boolean
   manual?: boolean
-}
-
-export interface LocalAiInstallProgress {
-  status: 'running' | 'success' | 'error' | 'cancelled'
-  percent: number
-  message: string
 }
 
 export interface LocalAiBenchmarkMetrics {
@@ -90,8 +93,15 @@ export interface LocalAiBenchmarkMetrics {
   combinedScore: number
   durationMs: number
   runtimeModel?: string
+  /** Generation latency of the benchmark prompt, excluding model load time. */
   runtimeLatencyMs?: number
+  /** Time Ollama spent loading the model into memory (cold start). */
+  runtimeLoadMs?: number
   runtimeTokensPerSecond?: number
+  /** Share of the loaded model resident in GPU memory (100 = fully on GPU). Ollama only. */
+  runtimeGpuPercent?: number
+  /** GPU memory the loaded model occupies, in GB. Ollama only. */
+  runtimeVramGb?: number
 }
 
 export interface LocalAiBenchmarkResult {
@@ -106,6 +116,26 @@ interface OpenAiChatCompletion {
     message?: {
       content?: string
     }
+  }>
+  usage?: {
+    completion_tokens?: number
+  }
+}
+
+/** Native `/api/generate` response; durations are nanoseconds. */
+interface OllamaGenerateResponse {
+  eval_count?: number
+  eval_duration?: number
+  load_duration?: number
+  total_duration?: number
+}
+
+interface OllamaPsPayload {
+  models?: Array<{
+    name?: string
+    model?: string
+    size?: number
+    size_vram?: number
   }>
 }
 
@@ -137,10 +167,40 @@ export const LOCAL_AI_PLACEHOLDER_KEY = 'local-ai'
 
 const LOCAL_AI_PROBE_TIMEOUT_MS = 1200
 const LOCAL_AI_CACHE_TTL_MS = 5000
-const LOCAL_AI_RUNTIME_BENCHMARK_TIMEOUT_MS = 15_000
+/** Includes a cold multi-GB model load, which dominates the first request. */
+const LOCAL_AI_RUNTIME_BENCHMARK_TIMEOUT_MS = 45_000
+const LOCAL_AI_RUNTIME_BENCHMARK_PS_TIMEOUT_MS = 2_000
+const LOCAL_AI_GPU_PROBE_TIMEOUT_MS = 2_000
+/** Headroom kept free on the accelerator for the KV cache, context buffers and the desktop. */
+const GPU_MEMORY_RESERVE_GB = 1.5
+/** Share of unified memory Metal lets the GPU address on Apple Silicon. */
+const APPLE_GPU_MEMORY_SHARE = 0.65
+/** Practical ceiling for CPU-only inference; larger models drop below a usable token rate. */
+const CPU_ONLY_MAX_MODEL_GB = 5.5
 const LOCAL_AI_RUNTIME_START_TIMEOUT_MS = 18_000
 const LOCAL_AI_RUNTIME_START_POLL_MS = 600
 const OLLAMA_DOWNLOAD_URL = 'https://ollama.com/download'
+/** After a failed managed-Ollama start, chat requests skip the ~54 s wait/spawn for this long. */
+const OLLAMA_START_COOLDOWN_MS = 60_000
+/** A model pull that produces no bytes/progress for this long is aborted. */
+/** No stream activity at all for this long means the pull is stalled. */
+const OLLAMA_PULL_IDLE_TIMEOUT_MS = 300_000
+/**
+ * Ollama emits no progress while it verifies the sha256 of multi-GB blobs or writes the
+ * manifest, which can take many minutes on a slow disk. Use a longer idle limit while the
+ * last reported status is one of those silent phases.
+ */
+const OLLAMA_PULL_VERIFY_IDLE_TIMEOUT_MS = 1_200_000
+const OLLAMA_PULL_SILENT_STATUS = /verifying|writing manifest/i
+/** Best-effort management calls (unload) must not hang the uninstall flow. */
+const OLLAMA_MANAGEMENT_TIMEOUT_MS = 8_000
+const OLLAMA_UNLOAD_TIMEOUT_MS = 5_000
+/** How long Ollama keeps a chat model resident after the last request. */
+const OLLAMA_KEEP_ALIVE = '30m'
+/** Covers a cold multi-GB model load; the chat request would pay the same cost anyway. */
+const OLLAMA_KEEP_ALIVE_REQUEST_TIMEOUT_MS = 120_000
+const TASKKILL_TIMEOUT_MS = 3_000
+const SAFE_MODEL_NAME = /^[A-Za-z0-9][A-Za-z0-9._:/@-]{0,199}$/
 
 export const LOCAL_AI_RUNTIME_CANDIDATES: LocalAiRuntimeCandidate[] = [
   { engine: 'ollama', endpoint: 'http://127.0.0.1:11434/v1', managementEndpoint: 'http://127.0.0.1:11434/api' },
@@ -151,19 +211,121 @@ export const LOCAL_AI_RUNTIME_CANDIDATES: LocalAiRuntimeCandidate[] = [
 let discoveryCache: { expiresAt: number; result: LocalAiDiscoveryResult } | null = null
 let activeOllamaStart: Promise<LocalAiDiscoveryResult> | null = null
 let managedOllamaProcess: ChildProcess | null = null
+/** Timestamp of the last failed managed-Ollama start (0 = none / recovered). */
+let ollamaStartFailedAt = 0
+/** In-flight model pulls keyed by Ollama model name, so they can be cancelled and not duplicated. */
+const activeModelDownloads = new Map<string, AbortController>()
+/**
+ * Latest progress of every in-flight pull. The renderer (Settings) unmounts while a pull keeps
+ * running here, so a remounted view reads this snapshot instead of losing the download.
+ */
+const activeModelDownloadProgress = new Map<string, LocalAiModelDownloadProgress>()
+
+/** Test-only: reset module-level runtime/download bookkeeping. */
+export function resetLocalAiStateForTests(): void {
+  managedOllamaProcess = null
+  ollamaStartFailedAt = 0
+  activeOllamaStart = null
+  discoveryCache = null
+  cachedGpuInfo = null
+  for (const controller of activeModelDownloads.values()) controller.abort()
+  activeModelDownloads.clear()
+  activeModelDownloadProgress.clear()
+}
 
 export function isLocalProvider(provider: string) {
   return provider === LOCAL_PROVIDER_ID
 }
 
+interface GpuInfo {
+  name?: string
+  /** Usable accelerator memory in GB; 0 when no accelerator was identified. */
+  vramGb: number
+  kind?: 'dedicated' | 'unified'
+}
+
+const TIER_ORDER: LocalAiHardwareTier[] = ['low', 'balanced', 'powerful', 'max']
+
+let cachedGpuInfo: GpuInfo | null = null
+
+const roundTo1 = (value: number) => Math.round(value * 10) / 10
+
+/**
+ * Parse `nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits`.
+ * With several GPUs the largest one is reported: a model that must be split across
+ * cards is not something to recommend by default.
+ */
+export function parseNvidiaSmiOutput(output: string): GpuInfo | null {
+  let best: GpuInfo | null = null
+  for (const line of output.split(/\r?\n/)) {
+    const separator = line.lastIndexOf(',')
+    if (separator < 0) continue
+    const name = line.slice(0, separator).trim()
+    const memoryMib = Number.parseFloat(line.slice(separator + 1))
+    if (!name || !Number.isFinite(memoryMib) || memoryMib <= 0) continue
+    const vramGb = roundTo1(memoryMib / 1024)
+    if (!best || vramGb > best.vramGb) best = { name, vramGb, kind: 'dedicated' }
+  }
+  return best
+}
+
+function probeNvidiaGpu(): GpuInfo | null {
+  try {
+    const output = execFileSync(
+      'nvidia-smi',
+      ['--query-gpu=name,memory.total', '--format=csv,noheader,nounits'],
+      { encoding: 'utf8', timeout: LOCAL_AI_GPU_PROBE_TIMEOUT_MS, windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] },
+    )
+    return parseNvidiaSmiOutput(String(output ?? ''))
+  } catch {
+    // No NVIDIA driver / nvidia-smi on PATH: treat the machine as having no known accelerator.
+    return null
+  }
+}
+
+/** GPU facts never change within a session, so they are probed once. */
+function detectGpuInfo(totalMemoryGb: number): GpuInfo {
+  if (cachedGpuInfo) return cachedGpuInfo
+  if (process.platform === 'darwin' && process.arch === 'arm64') {
+    cachedGpuInfo = { name: 'Apple Silicon', vramGb: roundTo1(totalMemoryGb * APPLE_GPU_MEMORY_SHARE), kind: 'unified' }
+  } else {
+    cachedGpuInfo = probeNvidiaGpu() ?? { vramGb: 0 }
+  }
+  return cachedGpuInfo
+}
+
+function tierFromRamAndCpu(totalMemoryGb: number, cpuCount: number): LocalAiHardwareTier {
+  if (totalMemoryGb >= 32 && cpuCount >= 8) return 'max'
+  if (totalMemoryGb >= 16 && cpuCount >= 6) return 'powerful'
+  if (totalMemoryGb >= 8 && cpuCount >= 4) return 'balanced'
+  return 'low'
+}
+
+function tierFromModelBudget(budgetGb: number): LocalAiHardwareTier {
+  if (budgetGb >= 16) return 'max'
+  if (budgetGb >= 8) return 'powerful'
+  if (budgetGb >= 4) return 'balanced'
+  return 'low'
+}
+
+function gpuModelBudgetGb(vramGb: number): number {
+  return Math.max(vramGb - GPU_MEMORY_RESERVE_GB, 1)
+}
+
+/**
+ * Hardware tier. Local LLM speed is decided by whether the model fits in accelerator memory,
+ * not by RAM or core count: a model spilling to the CPU runs several times slower. So the tier
+ * follows GPU memory when an accelerator is known, and CPU-only machines are capped.
+ */
 export function getLocalAiHardwareProfile(): LocalAiHardwareProfile {
   const totalMemoryGb = Math.round((os.totalmem() / 1024 ** 3) * 10) / 10
   const cpuCount = Math.max(os.cpus().length, 1)
-  let tier: LocalAiHardwareTier = 'low'
+  const ramTier = tierFromRamAndCpu(totalMemoryGb, cpuCount)
+  const gpu = detectGpuInfo(totalMemoryGb)
 
-  if (totalMemoryGb >= 32 && cpuCount >= 8) tier = 'max'
-  else if (totalMemoryGb >= 16 && cpuCount >= 6) tier = 'powerful'
-  else if (totalMemoryGb >= 8 && cpuCount >= 4) tier = 'balanced'
+  const tier = gpu.vramGb > 0
+    ? tierFromModelBudget(gpuModelBudgetGb(gpu.vramGb))
+    : TIER_ORDER[Math.min(TIER_ORDER.indexOf(ramTier), TIER_ORDER.indexOf('balanced'))]
 
   return {
     platform: process.platform,
@@ -171,6 +333,9 @@ export function getLocalAiHardwareProfile(): LocalAiHardwareProfile {
     cpuCount,
     totalMemoryGb,
     tier,
+    ...(gpu.name ? { gpuName: gpu.name } : {}),
+    vramGb: gpu.vramGb,
+    ...(gpu.kind ? { gpuMemoryKind: gpu.kind } : {}),
   }
 }
 
@@ -198,6 +363,22 @@ function maxRecommendedModelSizeGb(tier: LocalAiHardwareTier): number {
   if (tier === 'powerful') return 10
   if (tier === 'balanced') return 5.5
   return 2.5
+}
+
+/**
+ * Largest model, in GB of weights, that should run at a usable speed on this machine.
+ * Known accelerator memory wins; CPU-only is capped; an unknown profile uses the tier.
+ */
+export function getModelBudgetGb(hardware: LocalAiHardwareProfile): number {
+  const tierBudget = maxRecommendedModelSizeGb(hardware.tier)
+  if (hardware.vramGb === undefined) return tierBudget
+  if (hardware.vramGb <= 0) return Math.min(tierBudget, CPU_ONLY_MAX_MODEL_GB)
+  return gpuModelBudgetGb(hardware.vramGb)
+}
+
+/** Reasoning models emit a long hidden "thinking" pass before answering, which hurts chat latency. */
+function isReasoningModel(modelId: string): boolean {
+  return /qwen3(?!-vl|-coder)|deepseek-r1|\br1\b|qwq|magistral/i.test(modelId)
 }
 
 function getLocalAiModelCatalog(hardware = getLocalAiHardwareProfile()): LocalAiModel[] {
@@ -310,10 +491,12 @@ function getLocalAiModelCatalog(hardware = getLocalAiHardwareProfile()): LocalAi
 export function scoreLocalModelForHardware(model: LocalAiModel, hardware = getLocalAiHardwareProfile()): number {
   const id = model.id.toLowerCase()
   const sizeGb = getModelSizeHintGb(model.id, model.sizeBytes)
-  const maxSizeGb = maxRecommendedModelSizeGb(hardware.tier)
+  const budgetGb = getModelBudgetGb(hardware)
   let score = 100
 
-  if (sizeGb > maxSizeGb) score -= (sizeGb - maxSizeGb) * 35
+  // A model that spills out of accelerator memory runs several times slower, so overshoot is
+  // penalised far harder than the per-GB quality bonus a larger model earns inside the budget.
+  if (sizeGb > budgetGb) score -= (sizeGb - budgetGb) * 45
   else score += sizeGb * 8
 
   if (id.includes('qwen3')) score += 42
@@ -328,19 +511,16 @@ export function scoreLocalModelForHardware(model: LocalAiModel, hardware = getLo
   if (id.includes('rerank')) score -= 120
   if (id.includes('coder') || id.includes('code')) score -= 12
   if (id.includes('base')) score -= 25
-
-  if (hardware.tier === 'low' && sizeGb <= 2.5) score += 22
-  if (hardware.tier === 'balanced' && sizeGb >= 2.5 && sizeGb <= 5.5) score += 22
-  if (hardware.tier === 'powerful' && sizeGb >= 5 && sizeGb <= 10) score += 20
-  if (hardware.tier === 'max' && sizeGb >= 8 && sizeGb <= 22) score += 18
+  if (isReasoningModel(id)) score -= 30
 
   return score
 }
 
 export function recommendLocalModel(models: LocalAiModel[], hardware = getLocalAiHardwareProfile()): string | undefined {
-  const chatModels = models.filter((model) => scoreLocalModelForHardware(model, hardware) > 0)
-  if (chatModels.length === 0) return models[0]?.id
-  return chatModels.reduce((best, model) =>
+  if (models.length === 0) return undefined
+  // Highest score wins even when every installed model overshoots the budget: the least
+  // oversized model is the right pick, not whichever happens to be listed first.
+  return models.reduce((best, model) =>
     scoreLocalModelForHardware(model, hardware) > scoreLocalModelForHardware(best, hardware) ? model : best
   ).id
 }
@@ -389,26 +569,84 @@ function estimateTokenCount(text: string) {
   return Math.max(Math.ceil(trimmed.length / 4), trimmed.split(/\s+/).length)
 }
 
-async function runRuntimeBenchmark(discovery: LocalAiDiscoveryResult): Promise<Partial<LocalAiBenchmarkMetrics>> {
-  if (!discovery.available || !discovery.endpoint) return {}
-  const model = discovery.recommendedModel ?? discovery.models[0]?.id
-  if (!model) return {}
+const BENCHMARK_PROMPT = 'Reply with exactly eight words about local AI performance.'
+/** Enough tokens for a stable rate while keeping reasoning models from thinking for long. */
+const BENCHMARK_MAX_TOKENS = 48
+const NS_PER_MS = 1_000_000
+const NS_PER_SECOND = 1_000_000_000
 
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), LOCAL_AI_RUNTIME_BENCHMARK_TIMEOUT_MS)
+/** Which share of the loaded model Ollama actually placed in GPU memory. */
+async function readOllamaGpuResidency(model: string): Promise<Partial<LocalAiBenchmarkMetrics>> {
+  try {
+    const payload = await fetchJsonWithTimeout(
+      `${getOllamaManagementEndpoint()}/ps`,
+      LOCAL_AI_RUNTIME_BENCHMARK_PS_TIMEOUT_MS,
+    ) as OllamaPsPayload
+    const loaded = payload.models?.find((item) => item.name === model || item.model === model)
+    const size = loaded?.size ?? 0
+    if (!loaded || size <= 0) return {}
+    const vram = Math.min(Math.max(loaded.size_vram ?? 0, 0), size)
+    return {
+      runtimeGpuPercent: Math.round((vram / size) * 100),
+      runtimeVramGb: roundTo1(vram / 1024 ** 3),
+    }
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * Ollama reports exact token counts and phase timings, so speed excludes the cold model load
+ * and prompt processing that a wall-clock measurement would fold in.
+ */
+async function runOllamaNativeBenchmark(model: string): Promise<Partial<LocalAiBenchmarkMetrics>> {
+  try {
+    const response = await fetch(`${getOllamaManagementEndpoint()}/generate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      signal: AbortSignal.timeout(LOCAL_AI_RUNTIME_BENCHMARK_TIMEOUT_MS),
+      body: JSON.stringify({
+        model,
+        prompt: BENCHMARK_PROMPT,
+        stream: false,
+        keep_alive: OLLAMA_KEEP_ALIVE,
+        options: { num_predict: BENCHMARK_MAX_TOKENS, temperature: 0 },
+      }),
+    })
+    if (!response.ok) return {}
+    const payload = await response.json() as OllamaGenerateResponse
+    const evalCount = payload.eval_count ?? 0
+    const evalNs = payload.eval_duration ?? 0
+    if (evalCount <= 0 || evalNs <= 0) return {}
+    const loadNs = payload.load_duration ?? 0
+    const generationNs = Math.max((payload.total_duration ?? 0) - loadNs, evalNs)
+    return {
+      runtimeModel: model,
+      runtimeTokensPerSecond: roundTo1(evalCount / (evalNs / NS_PER_SECOND)),
+      runtimeLatencyMs: Math.round(generationNs / NS_PER_MS),
+      runtimeLoadMs: Math.round(loadNs / NS_PER_MS),
+      ...(await readOllamaGpuResidency(model)),
+    }
+  } catch {
+    return {}
+  }
+}
+
+/** Fallback for LM Studio / llama.cpp, which expose only the OpenAI-compatible API. */
+async function runOpenAiCompatibleBenchmark(endpoint: string, model: string): Promise<Partial<LocalAiBenchmarkMetrics>> {
   const startedAt = performance.now()
   try {
-    const response = await fetch(`${discovery.endpoint}/chat/completions`, {
+    const response = await fetch(`${endpoint}/chat/completions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${LOCAL_AI_PLACEHOLDER_KEY}` },
-      signal: controller.signal,
+      signal: AbortSignal.timeout(LOCAL_AI_RUNTIME_BENCHMARK_TIMEOUT_MS),
       body: JSON.stringify({
         model,
         messages: [
           { role: 'system', content: 'You are a concise local AI benchmark responder.' },
-          { role: 'user', content: 'Reply with exactly eight words about local AI performance.' },
+          { role: 'user', content: BENCHMARK_PROMPT },
         ],
-        max_tokens: 32,
+        max_tokens: BENCHMARK_MAX_TOKENS,
         temperature: 0,
         stream: false,
       }),
@@ -417,16 +655,46 @@ async function runRuntimeBenchmark(discovery: LocalAiDiscoveryResult): Promise<P
     const payload = await response.json() as OpenAiChatCompletion
     const content = payload.choices?.[0]?.message?.content ?? ''
     const latencyMs = Math.max(performance.now() - startedAt, 1)
-    const tokens = estimateTokenCount(content)
+    const tokens = payload.usage?.completion_tokens || estimateTokenCount(content)
     return {
       runtimeModel: model,
       runtimeLatencyMs: Math.round(latencyMs),
-      runtimeTokensPerSecond: Math.round((tokens / latencyMs) * 1000 * 10) / 10,
+      runtimeTokensPerSecond: roundTo1((tokens / latencyMs) * 1000),
     }
   } catch {
     return {}
-  } finally {
-    clearTimeout(timer)
+  }
+}
+
+async function runRuntimeBenchmark(discovery: LocalAiDiscoveryResult): Promise<Partial<LocalAiBenchmarkMetrics>> {
+  if (!discovery.available || !discovery.endpoint) return {}
+  const model = discovery.recommendedModel ?? discovery.models[0]?.id
+  if (!model) return {}
+
+  if (discovery.engine === 'ollama') {
+    const native = await runOllamaNativeBenchmark(model)
+    if (native.runtimeTokensPerSecond) return native
+  }
+  return runOpenAiCompatibleBenchmark(discovery.endpoint, model)
+}
+
+/**
+ * Measured GPU residency is hard evidence of accelerator capacity. When it exceeds what
+ * detection found (an AMD/Intel GPU, say), trust it — as a lower bound, since the loaded
+ * model may simply have been smaller than the card.
+ */
+function refineHardwareWithRuntime(
+  hardware: LocalAiHardwareProfile,
+  metrics: Partial<LocalAiBenchmarkMetrics>,
+): LocalAiHardwareProfile {
+  if (!metrics.runtimeVramGb || metrics.runtimeVramGb <= 0) return hardware
+  const measuredVramGb = roundTo1(metrics.runtimeVramGb + GPU_MEMORY_RESERVE_GB)
+  if (measuredVramGb <= (hardware.vramGb ?? 0)) return hardware
+  return {
+    ...hardware,
+    vramGb: measuredVramGb,
+    gpuMemoryKind: hardware.gpuMemoryKind ?? 'dedicated',
+    tier: tierFromModelBudget(gpuModelBudgetGb(measuredVramGb)),
   }
 }
 
@@ -437,10 +705,7 @@ export async function benchmarkLocalAiSystem(): Promise<LocalAiBenchmarkResult> 
   const memoryScore = runMemoryBenchmark()
   const combinedScore = Math.round(cpuScore * 0.65 + memoryScore * 0.35)
   const runtimeMetrics = await runRuntimeBenchmark(await discoverLocalAiRuntimes(true))
-  const hardware = {
-    ...baseHardware,
-    tier: tierFromBenchmark(baseHardware, combinedScore),
-  }
+  const hardware = refineHardwareWithRuntime(baseHardware, runtimeMetrics)
   const suggestedModels = getLocalAiModelCatalog(hardware)
   return {
     hardware,
@@ -456,17 +721,10 @@ export async function benchmarkLocalAiSystem(): Promise<LocalAiBenchmarkResult> 
   }
 }
 
-function tierFromBenchmark(hardware: LocalAiHardwareProfile, combinedScore: number): LocalAiHardwareTier {
-  if (hardware.totalMemoryGb >= 32 && hardware.cpuCount >= 8 && combinedScore >= 250) return 'max'
-  if (hardware.totalMemoryGb >= 16 && hardware.cpuCount >= 6 && combinedScore >= 160) return 'powerful'
-  if (hardware.totalMemoryGb >= 8 && hardware.cpuCount >= 4 && combinedScore >= 80) return 'balanced'
-  return 'low'
-}
-
 function describeLocalModel(model: LocalAiModel, hardware: LocalAiHardwareProfile): string {
   if (model.id === LOCAL_AI_AUTO_MODEL) return 'Auto-select best local model'
   const sizeGb = getModelSizeHintGb(model.id, model.sizeBytes)
-  const fit = sizeGb <= maxRecommendedModelSizeGb(hardware.tier) ? 'Recommended fit' : 'May be slow'
+  const fit = sizeGb <= getModelBudgetGb(hardware) ? 'Recommended fit' : 'May be slow'
   return model.supportsVision ? `${fit} · Vision` : fit
 }
 
@@ -580,6 +838,7 @@ function createUnavailableLocalAiResult(error: string): LocalAiDiscoveryResult {
 
 function getBundledOllamaExecutablePath() {
   const resourcesPath = process.resourcesPath
+  if (!resourcesPath) return null
   const executable = process.platform === 'win32' ? 'ollama.exe' : 'ollama'
   const platformDir = process.platform === 'darwin'
     ? 'macos'
@@ -594,6 +853,11 @@ function getBundledOllamaExecutablePath() {
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? null
 }
 
+function isManagedOllamaAlive(): boolean {
+  const child = managedOllamaProcess
+  return Boolean(child) && child?.exitCode === null && child?.signalCode === null
+}
+
 function startDetachedProcess(command: string, args: string[], options: { env?: NodeJS.ProcessEnv; trackManaged?: boolean } = {}) {
   return new Promise<boolean>((resolve) => {
     let settled = false
@@ -601,6 +865,7 @@ function startDetachedProcess(command: string, args: string[], options: { env?: 
       detached: true,
       env: options.env,
       stdio: 'ignore',
+      windowsHide: true,
     })
     const settle = (started: boolean) => {
       if (settled) return
@@ -614,6 +879,10 @@ function startDetachedProcess(command: string, args: string[], options: { env?: 
 
     child.once('error', () => settle(false))
     child.once('spawn', () => settle(true))
+    // Forget the child as soon as it dies so a later start can respawn cleanly.
+    child.once('exit', () => {
+      if (managedOllamaProcess === child) managedOllamaProcess = null
+    })
   })
 }
 
@@ -635,11 +904,14 @@ async function startBundledOllamaRuntime() {
   const executablePath = getBundledOllamaExecutablePath()
   if (!executablePath) return null
 
-  const started = await startDetachedProcess(executablePath, ['serve'], {
-    env: { ...process.env, OLLAMA_HOST: '127.0.0.1:11434' },
-    trackManaged: true,
-  })
-  if (!started) return null
+  // Never spawn a second `ollama serve` while one we started is still alive.
+  if (!isManagedOllamaAlive()) {
+    const started = await startDetachedProcess(executablePath, ['serve'], {
+      env: { ...process.env, OLLAMA_HOST: '127.0.0.1:11434' },
+      trackManaged: true,
+    })
+    if (!started) return null
+  }
   return waitForOllamaRuntime()
 }
 
@@ -671,6 +943,10 @@ async function startInstalledOllamaApp() {
 }
 
 async function startOllamaCliRuntime() {
+  // A live managed child (e.g. the bundled server that is still warming up) is the
+  // same `ollama serve`; spawning another would leak the first and fight over the port.
+  if (isManagedOllamaAlive()) return null
+
   const executable = process.platform === 'win32' ? 'ollama.exe' : 'ollama'
   const started = await startDetachedProcess(executable, ['serve'], {
     env: { ...process.env, OLLAMA_HOST: '127.0.0.1:11434' },
@@ -680,10 +956,36 @@ async function startOllamaCliRuntime() {
   return waitForOllamaRuntime()
 }
 
-async function startManagedOllamaRuntime(): Promise<LocalAiDiscoveryResult> {
-  const existing = await probeLocalAiRuntime(getOllamaRuntimeCandidate())
-  if (existing?.available) return existing
+function isInOllamaStartCooldown(): boolean {
+  return ollamaStartFailedAt > 0 && Date.now() - ollamaStartFailedAt < OLLAMA_START_COOLDOWN_MS
+}
 
+const OLLAMA_UNAVAILABLE_MESSAGE = 'No local AI runtime found. Install Ollama or start LM Studio/llama.cpp and refresh.'
+
+async function startManagedOllamaRuntime(force: boolean): Promise<LocalAiDiscoveryResult> {
+  const existing = await probeLocalAiRuntime(getOllamaRuntimeCandidate())
+  if (existing?.available) {
+    ollamaStartFailedAt = 0
+    return existing
+  }
+
+  // Automatic callers (chat requests) back off after a failed start; explicit
+  // user actions (force) always retry.
+  if (!force && isInOllamaStartCooldown()) {
+    return createUnavailableLocalAiResult(OLLAMA_UNAVAILABLE_MESSAGE)
+  }
+
+  const runtime = await tryStartOllamaRuntime()
+  if (runtime?.available) {
+    ollamaStartFailedAt = 0
+    return runtime
+  }
+
+  ollamaStartFailedAt = Date.now()
+  return createUnavailableLocalAiResult(OLLAMA_UNAVAILABLE_MESSAGE)
+}
+
+async function tryStartOllamaRuntime(): Promise<LocalAiDiscoveryResult | null> {
   const bundled = await startBundledOllamaRuntime()
   if (bundled?.available) return bundled
 
@@ -692,16 +994,15 @@ async function startManagedOllamaRuntime(): Promise<LocalAiDiscoveryResult> {
 
   const cliRuntime = await startOllamaCliRuntime()
   if (cliRuntime?.available) return cliRuntime
-
-  return createUnavailableLocalAiResult('No local AI runtime found. Install Ollama or start LM Studio/llama.cpp and refresh.')
+  return null
 }
 
-async function ensureOllamaRuntime(): Promise<LocalAiDiscoveryResult> {
+async function ensureOllamaRuntime(force = false): Promise<LocalAiDiscoveryResult> {
   const existing = await probeLocalAiRuntime(getOllamaRuntimeCandidate())
   if (existing?.available) return existing
 
   if (!activeOllamaStart) {
-    activeOllamaStart = startManagedOllamaRuntime()
+    activeOllamaStart = startManagedOllamaRuntime(force)
       .finally(() => {
         activeOllamaStart = null
       })
@@ -709,25 +1010,50 @@ async function ensureOllamaRuntime(): Promise<LocalAiDiscoveryResult> {
   return activeOllamaStart
 }
 
-export async function ensureLocalAiRuntime(): Promise<LocalAiDiscoveryResult> {
+/**
+ * Resolve a running local runtime. Any detected engine (Ollama, LM Studio, llama.cpp)
+ * is used as-is — Ollama is only spawned when NONE is running. Pass `force` for an
+ * explicit user action to bypass the post-failure start cool-down.
+ */
+export async function ensureLocalAiRuntime(force = false): Promise<LocalAiDiscoveryResult> {
   const discovered = await discoverLocalAiRuntimes(true)
   if (discovered.available) return discovered
 
-  return ensureOllamaRuntime()
+  return ensureOllamaRuntime(force)
 }
 
 export function stopManagedLocalAiRuntime() {
   const child = managedOllamaProcess
   managedOllamaProcess = null
   if (!child?.pid) return
-  try {
-    process.kill(-child.pid, 'SIGTERM')
-  } catch {
+  const pid = child.pid
+
+  if (process.platform === 'win32') {
+    // process.kill(-pid) is POSIX-only. taskkill /T /F ends the whole tree
+    // (ollama.exe plus its runner children); argv array, no shell.
     try {
-      child.kill('SIGTERM')
+      execFileSync('taskkill', ['/pid', String(pid), '/T', '/F'], {
+        stdio: 'ignore',
+        timeout: TASKKILL_TIMEOUT_MS,
+        windowsHide: true,
+      })
+      return
     } catch {
-      // Managed runtime shutdown is best-effort; a user-owned Ollama app is never killed here.
+      // Already exited or taskkill failed — fall back to a direct kill below.
     }
+  } else {
+    try {
+      process.kill(-pid, 'SIGTERM')
+      return
+    } catch {
+      // Not a group leader / already gone — fall back to a direct kill below.
+    }
+  }
+
+  try {
+    child.kill('SIGTERM')
+  } catch {
+    // Managed runtime shutdown is best-effort; a user-owned Ollama app is never killed here.
   }
 }
 
@@ -741,6 +1067,26 @@ export async function resolveLocalAiRequestModel(model: string): Promise<{ baseU
     throw new Error('No local AI model is available. Download a model in your local runtime and refresh.')
   }
   return { baseURL: discovery.endpoint, model: resolvedModel, engine: discovery.engine }
+}
+
+/**
+ * Ollama's OpenAI-compatible `/v1` endpoint ignores `keep_alive`, so models fall out of
+ * memory after the 5-minute default and the next chat pays a multi-second reload. An empty
+ * native `/api/generate` call loads the model (a no-op when already loaded) and extends its
+ * residency. Best-effort: a failure here must never block the chat request itself.
+ */
+export async function keepOllamaModelLoaded(model: string, signal?: AbortSignal): Promise<void> {
+  const timeout = AbortSignal.timeout(OLLAMA_KEEP_ALIVE_REQUEST_TIMEOUT_MS)
+  try {
+    await fetch(`${getOllamaManagementEndpoint()}/generate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model, prompt: '', keep_alive: OLLAMA_KEEP_ALIVE, stream: false }),
+      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+    })
+  } catch {
+    // Warm-up only; the chat request surfaces any real runtime error.
+  }
 }
 
 export function getLocalAiStaticModels(): LocalAiModel[] {
@@ -763,7 +1109,17 @@ function getOllamaManagementEndpoint() {
     ?? 'http://127.0.0.1:11434/api'
 }
 
+/** Snapshot of the pulls currently running, for a renderer that (re)mounted mid-download. */
+export function getLocalAiActiveDownloads(): LocalAiModelDownloadProgress[] {
+  return [...activeModelDownloads.keys()].map((model) => (
+    activeModelDownloadProgress.get(model)
+      ?? { model, status: 'running', percent: 1, message: 'Downloading model...' }
+  ))
+}
+
 function emitModelDownloadProgress(sender: WebContents | undefined, progress: LocalAiModelDownloadProgress) {
+  if (progress.status === 'running') activeModelDownloadProgress.set(progress.model, progress)
+  else activeModelDownloadProgress.delete(progress.model)
   if (!sender || sender.isDestroyed()) return
   sender.send('local-ai:modelDownloadProgress', progress)
 }
@@ -807,6 +1163,7 @@ function removeOllamaModelWithCli(model: string): Promise<LocalAiModelActionResu
     const child = spawn(getOllamaCliExecutable(), ['rm', model], {
       env: { ...process.env, OLLAMA_HOST: '127.0.0.1:11434' },
       stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
     })
     let output = ''
     const append = (chunk: Buffer | string) => {
@@ -829,6 +1186,20 @@ function removeOllamaModelWithCli(model: string): Promise<LocalAiModelActionResu
   })
 }
 
+/**
+ * Cancel an in-flight model download. Accepts the catalog id or the Ollama model name.
+ * Returns whether a download was actually running.
+ */
+export function cancelLocalAiModelDownload(modelId: string): { success: boolean; cancelled: boolean } {
+  const name = String(modelId).trim()
+  const catalogMatch = getLocalAiModelCatalog().find((model) => model.id === name || model.downloadModel === name)
+  const key = catalogMatch?.downloadModel ?? name
+  const controller = activeModelDownloads.get(key)
+  if (!controller) return { success: true, cancelled: false }
+  controller.abort()
+  return { success: true, cancelled: true }
+}
+
 export async function downloadLocalAiModel(modelId: string, sender?: WebContents): Promise<LocalAiDownloadResult> {
   const hardware = getLocalAiHardwareProfile()
   const suggestedModels = getLocalAiModelCatalog(hardware)
@@ -837,92 +1208,150 @@ export async function downloadLocalAiModel(modelId: string, sender?: WebContents
   if (!target?.downloadModel) {
     return { success: false, model: modelId, error: `Unsupported local model: ${modelId}` }
   }
+  const model = target.downloadModel
 
-  const ollamaProbe = await ensureOllamaRuntime()
-  if (!ollamaProbe?.available) {
-    return {
-      success: false,
-      model: target.downloadModel,
-      error: 'Ollama is required for direct model downloads. Install Ollama or start a local runtime and try again.',
-    }
+  // One pull per model at a time. Reserve the slot before any await.
+  if (activeModelDownloads.has(model)) {
+    return { success: false, model, error: 'This model is already being downloaded.' }
   }
-
-  const response = await fetch(`${getOllamaManagementEndpoint()}/pull`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ model: target.downloadModel, stream: true }),
-  })
-
-  if (!response.ok) {
-    const body = await response.text()
-    return { success: false, model: target.downloadModel, error: `Download failed (${response.status}): ${body}` }
-  }
-
-  emitModelDownloadProgress(sender, {
-    model: target.downloadModel,
-    status: 'running',
-    percent: 1,
-    message: 'Starting model download...',
-  })
+  const controller = new AbortController()
+  activeModelDownloads.set(model, controller)
 
   let percent = 1
-  let streamError: string | null = null
-  const reader = response.body?.getReader()
-  if (reader) {
-    const decoder = new TextDecoder()
-    let buffer = ''
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed) continue
-        try {
-          const payload = JSON.parse(trimmed) as OllamaPullProgress
-          if (payload.error) {
-            streamError = payload.error
-            break
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
+  let idleTimer: ReturnType<typeof setTimeout> | undefined
+  let stalled = false
+  let idleLimitMs = OLLAMA_PULL_IDLE_TIMEOUT_MS
+  const armIdleTimer = () => {
+    clearTimeout(idleTimer)
+    idleTimer = setTimeout(() => {
+      stalled = true
+      controller.abort()
+    }, idleLimitMs)
+  }
+  const fail = (message: string, extra: Partial<LocalAiDownloadResult> = {}): LocalAiDownloadResult => {
+    emitModelDownloadProgress(sender, { model, status: 'error', percent, message })
+    return { success: false, model, error: message, ...extra }
+  }
+
+  try {
+    const ollamaProbe = await ensureOllamaRuntime(true)
+    if (!ollamaProbe?.available) {
+      return {
+        success: false,
+        model,
+        error: 'Ollama is required for direct model downloads. Install Ollama or start a local runtime and try again.',
+      }
+    }
+    if (controller.signal.aborted) return fail('Download cancelled.', { cancelled: true })
+
+    armIdleTimer()
+    const response = await fetch(`${getOllamaManagementEndpoint()}/pull`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model, stream: true }),
+      signal: controller.signal,
+    })
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '')
+      return fail(`Download failed (${response.status}): ${body}`)
+    }
+
+    emitModelDownloadProgress(sender, {
+      model,
+      status: 'running',
+      percent: 1,
+      message: 'Starting model download...',
+    })
+
+    // Object (not bare lets) so closure writes are visible to control-flow analysis.
+    const pull = { error: null as string | null, sawSuccess: false }
+    const handlePayload = (payload: OllamaPullProgress) => {
+      if (payload.error) {
+        pull.error = payload.error
+        return
+      }
+      if (payload.status === 'success') pull.sawSuccess = true
+      idleLimitMs = typeof payload.status === 'string' && OLLAMA_PULL_SILENT_STATUS.test(payload.status)
+        ? OLLAMA_PULL_VERIFY_IDLE_TIMEOUT_MS
+        : OLLAMA_PULL_IDLE_TIMEOUT_MS
+      percent = emitPullProgress(sender, model, payload, percent)
+    }
+
+    reader = response.body?.getReader()
+    if (reader) {
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+          try {
+            handlePayload(JSON.parse(trimmed) as OllamaPullProgress)
+          } catch {
+            // Ignore malformed stream lines; Ollama progress is best-effort.
           }
-          percent = emitPullProgress(sender, target.downloadModel, payload, percent)
+          if (pull.error) break
+        }
+        // Re-arm after parsing so the limit reflects the latest status (silent phases get more time).
+        armIdleTimer()
+        if (pull.error) break
+      }
+      const tail = buffer.trim()
+      if (tail && !pull.error) {
+        try {
+          handlePayload(JSON.parse(tail) as OllamaPullProgress)
         } catch {
-          // Ignore malformed stream lines; Ollama progress is best-effort.
+          // Ignore malformed trailing line.
         }
       }
-      if (streamError) break
     }
-    const tail = buffer.trim()
-    if (tail && !streamError) {
-      try {
-        const payload = JSON.parse(tail) as OllamaPullProgress
-        if (payload.error) streamError = payload.error
-        else percent = emitPullProgress(sender, target.downloadModel, payload, percent)
-      } catch {
-        // Ignore malformed trailing line.
-      }
-    }
-  }
 
-  if (streamError) {
+    if (pull.error) return fail(pull.error)
+
+    // A stream that ends without Ollama's final {"status":"success"} line was cut off.
+    if (!pull.sawSuccess) return fail('Download ended before completion. Please try again.')
+
+    discoveryCache = null
     emitModelDownloadProgress(sender, {
-      model: target.downloadModel,
-      status: 'error',
-      percent,
-      message: streamError,
+      model,
+      status: 'success',
+      percent: 100,
+      message: 'Model downloaded.',
     })
-    return { success: false, model: target.downloadModel, error: streamError }
+    return { success: true, model }
+  } catch (error) {
+    if (controller.signal.aborted) {
+      return stalled
+        ? fail('Download stalled with no progress. Please try again.')
+        : fail('Download cancelled.', { cancelled: true })
+    }
+    const message = error instanceof Error ? error.message : String(error)
+    return fail(`Download failed: ${message}`)
+  } finally {
+    clearTimeout(idleTimer)
+    // Release the connection when we stop reading early (error, cancel, stall).
+    try { await reader?.cancel() } catch { /* already closed */ }
+    if (activeModelDownloads.get(model) === controller) {
+      activeModelDownloads.delete(model)
+      activeModelDownloadProgress.delete(model)
+    }
   }
+}
 
-  discoveryCache = null
-  emitModelDownloadProgress(sender, {
-    model: target.downloadModel,
-    status: 'success',
-    percent: 100,
-    message: 'Model downloaded.',
-  })
-  return { success: true, model: target.downloadModel }
+function isTimeoutOrAbort(error: unknown): boolean {
+  return error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')
+}
+
+/** Ollama reports an already-removed model as HTTP 404 / "model '...' not found". */
+function isModelNotFound(status: number, text: string | undefined): boolean {
+  return status === 404 || /not found|does not exist/i.test(text ?? '')
 }
 
 export async function uninstallLocalAiModel(modelId: string): Promise<LocalAiModelActionResult> {
@@ -931,7 +1360,11 @@ export async function uninstallLocalAiModel(modelId: string): Promise<LocalAiMod
     return { success: false, model: modelId, error: 'Model is required.' }
   }
 
-  const ollamaProbe = await ensureOllamaRuntime()
+  if (!SAFE_MODEL_NAME.test(model)) {
+    return { success: false, model, error: 'Invalid model name.' }
+  }
+
+  const ollamaProbe = await ensureOllamaRuntime(true)
   if (!ollamaProbe?.available) {
     return {
       success: false,
@@ -948,33 +1381,43 @@ export async function uninstallLocalAiModel(modelId: string): Promise<LocalAiMod
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ model, prompt: '', keep_alive: 0, stream: false }),
+      signal: AbortSignal.timeout(OLLAMA_UNLOAD_TIMEOUT_MS),
     })
   } catch {
     // Unloading is best-effort; delete/rm below will return the actionable error.
   }
 
   const apiErrors: string[] = []
+  // A request that timed out or was aborted may still have been processed by Ollama, so
+  // a later "model not found" then means the delete actually succeeded.
+  let requestMayHaveSucceeded = false
   for (const method of ['DELETE', 'POST']) {
     try {
       const response = await fetch(`${managementEndpoint}/delete`, {
         method,
         headers: { 'content-type': 'application/json' },
         body,
+        signal: AbortSignal.timeout(OLLAMA_MANAGEMENT_TIMEOUT_MS),
       })
       if (response.ok) {
         discoveryCache = null
         return { success: true, model }
       }
       const responseText = await readResponseText(response)
+      if (requestMayHaveSucceeded && isModelNotFound(response.status, responseText)) {
+        discoveryCache = null
+        return { success: true, model }
+      }
       apiErrors.push(`${method} /api/delete returned ${response.status}${responseText ? `: ${responseText}` : ''}`)
     } catch (error) {
+      if (isTimeoutOrAbort(error)) requestMayHaveSucceeded = true
       const message = error instanceof Error ? error.message : String(error)
       apiErrors.push(`${method} /api/delete failed: ${message}`)
     }
   }
 
   const cliResult = await removeOllamaModelWithCli(model)
-  if (cliResult.success) {
+  if (cliResult.success || (requestMayHaveSucceeded && isModelNotFound(0, cliResult.error))) {
     discoveryCache = null
     return { success: true, model }
   }
@@ -987,48 +1430,43 @@ export async function uninstallLocalAiModel(modelId: string): Promise<LocalAiMod
   }
 }
 
-function emitInstallProgress(sender: WebContents | undefined, progress: LocalAiInstallProgress) {
-  if (!sender || sender.isDestroyed()) return
-  sender.send('local-ai:installProgress', progress)
-}
-
-export async function installOllamaRuntime(sender?: WebContents): Promise<LocalAiInstallResult> {
-  emitInstallProgress(sender, {
-    status: 'running',
-    percent: 30,
-    message: 'Opening local runtime download page...',
-  })
-
+/**
+ * Opens the vendor's runtime download page in the user's browser. Viezan does not
+ * download or run an installer itself, so there is no progress to report and
+ * nothing to cancel; the user installs the runtime, returns and refreshes Local AI.
+ */
+export async function openOllamaDownloadPage(): Promise<LocalAiInstallResult> {
   try {
     await shell.openExternal(OLLAMA_DOWNLOAD_URL)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    emitInstallProgress(sender, {
-      status: 'error',
-      percent: 30,
-      message: 'Could not open the local runtime download page.',
-    })
     return {
       success: false,
       error: `Could not open the local runtime download page: ${message}`,
     }
   }
 
-  const message = 'Opened the local runtime download page. Install it there, then return to Viezan and refresh Local AI.'
-  emitInstallProgress(sender, {
-    status: 'success',
-    percent: 100,
-    message,
-  })
-  return { success: true, manual: true, message }
+  return {
+    success: true,
+    manual: true,
+    message: 'Opened the local runtime download page. Install it there, then return to Viezan and refresh Local AI.',
+  }
 }
 
 export function registerLocalAiHandlers(ipcMain: IpcMain) {
   ipcMain.handle('local-ai:discover', async (_event, force?: boolean) => discoverLocalAiRuntimes(Boolean(force)))
-  ipcMain.handle('local-ai:ensureRuntime', async () => ensureLocalAiRuntime())
+  // Explicit user action: bypass the automatic-start cool-down.
+  ipcMain.handle('local-ai:ensureRuntime', async () => ensureLocalAiRuntime(true))
   ipcMain.handle('local-ai:benchmark', async () => benchmarkLocalAiSystem())
   ipcMain.handle('local-ai:downloadModel', async (event, modelId: string) => downloadLocalAiModel(modelId, event.sender))
+  ipcMain.handle('local-ai:getActiveDownloads', async () => getLocalAiActiveDownloads())
+  ipcMain.handle('local-ai:cancelModelDownload', async (_event, modelId: unknown) => {
+    if (typeof modelId !== 'string' || !SAFE_MODEL_NAME.test(modelId.trim())) {
+      return { success: false, cancelled: false, error: 'Invalid model name.' }
+    }
+    return cancelLocalAiModelDownload(modelId)
+  })
   ipcMain.handle('local-ai:uninstallModel', async (_event, modelId: string) => uninstallLocalAiModel(modelId))
-  ipcMain.handle('local-ai:installOllama', async (event) => installOllamaRuntime(event.sender))
-  ipcMain.handle('local-ai:cancelInstallOllama', async () => ({ success: false }))
+  // Channel name kept for preload compatibility; it only opens the download page.
+  ipcMain.handle('local-ai:installOllama', async () => openOllamaDownloadPage())
 }

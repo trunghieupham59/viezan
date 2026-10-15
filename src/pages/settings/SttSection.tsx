@@ -11,6 +11,7 @@
  * The Groq API key is stored in the OS keychain — add it in the card below the selector.
  */
 import { type ReactNode, useEffect, useState } from 'react'
+import { Button } from '@/components/ui/atoms'
 import { CredentialSecretInputRow, CredentialStatusBadge, CredentialStatusMessage } from '../../components/ui/CredentialCard'
 import {
   AlertTriangleIcon,
@@ -161,7 +162,11 @@ export function SttSection() {
     setGroqSaving(true)
     setGroqSaveMsg(null)
     try {
-      await window.api.keychain.save('groq', groqInput.trim())
+      const saved = await window.api.keychain.save('groq', groqInput.trim())
+      if (!saved.success) {
+        setGroqSaveMsg({ text: saved.error ?? t.settings_stt_groq_failed, ok: false })
+        return
+      }
       const updated = await window.api.keychain.get('groq')
       setGroqKeyExists(updated.exists ?? false)
       setGroqMasked(updated.masked ?? null)
@@ -182,12 +187,18 @@ export function SttSection() {
     if (!window.api) return
     setGroqDeleting(true)
     try {
-      await window.api.keychain.delete('groq')
+      const removed = await window.api.keychain.delete('groq')
+      if (!removed.success) {
+        setGroqSaveMsg({ text: t.settings_key_store_failed, ok: false })
+        return
+      }
       setGroqKeyExists(false)
       setGroqMasked(null)
       setGroqInput('')
       setGroqSaveMsg(null)
-    } catch {/* ignore */} finally {
+    } catch {
+      setGroqSaveMsg({ text: t.settings_key_store_failed, ok: false })
+    } finally {
       setGroqDeleting(false)
     }
   }
@@ -277,13 +288,16 @@ export function SttSection() {
                 <h3 className="font-semibold text-gray-900 dark:text-gray-100">
                   {t.settings_stt_groq_key}
                 </h3>
-                <button
+                <Button
+                  size="md"
+                  shape="rect"
+                  variant="neutral"
+                  appearance="ghost"
                   type="button"
                   onClick={() => window.api?.openExternal(GROQ_CONSOLE_URL)}
-                  className="btn-link text-xs"
                 >
                   {t.settings_get_key}
-                </button>
+                </Button>
               </div>
             </div>
             <CredentialStatusBadge

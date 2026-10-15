@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TRANSLATIONS } from '../../i18n'
 import { deepResearchService } from '../../services/deepResearchService'
+import { smartThinkingService } from '../../services/smartThinkingService'
 import { useAppStore } from '../../store/useAppStore'
 import type { ChatResult, ChatStreamEvent } from '../../types'
 import { DEFAULT_CHAT_NEW_SESSION_SHORTCUT, DEFAULT_CHAT_SEND_SHORTCUT } from '../../utils/keyboardShortcuts'
@@ -68,6 +69,11 @@ beforeEach(() => {
       selectedModels: { gemini: 'gemini-2.0-flash', claude: 'claude-3-5-haiku-20241022', openai: 'gpt-4o', local: 'local-auto' },
       locale: 'en',
       chatSystemPrompt: '',
+      chatPendingDraft: '',
+      chatPendingTaskState: null,
+      chatPendingDeepResearchMode: false,
+      chatPendingWebSearchMode: false,
+      chatPendingImageMode: false,
       systemPromptPresets: [],
       chatSendShortcut: DEFAULT_CHAT_SEND_SHORTCUT,
       chatNewSessionShortcut: DEFAULT_CHAT_NEW_SESSION_SHORTCUT,
@@ -96,6 +102,9 @@ describe('ChatPage', () => {
     // Empty state title should be visible
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
     expect(document.querySelector('.chat-empty-composer .chat-page-composer')).toBeInTheDocument()
+    const scrollRegion = document.querySelector('.chat-empty-scroll')
+    expect(scrollRegion?.querySelector('.chat-empty-hero')).toBeInTheDocument()
+    expect(scrollRegion?.querySelector('.chat-composer')).toBeNull()
     expect(document.querySelector('.chat-active-composer-frame')).not.toBeInTheDocument()
   })
 
@@ -178,6 +187,12 @@ describe('ChatPage', () => {
       expect(activeFooter).toBeInTheDocument()
       if (!(activeFooter instanceof HTMLElement)) throw new Error('Active-chat composer footer is missing')
 
+      const messagesScroller = document.querySelector('.chat-messages-scroll')
+      expect(messagesScroller).toBeInTheDocument()
+      if (!(messagesScroller instanceof HTMLElement)) throw new Error('Active-chat message scroller is missing')
+      expect(messagesScroller.nextElementSibling).toBe(activeFooter)
+      expect(messagesScroller.querySelector('.chat-message-stage > .chat-messages-end')).toHaveAttribute('aria-hidden', 'true')
+
       const composer = activeFooter.querySelector('.chat-composer.chat-page-composer')
       expect(composer).toBeInTheDocument()
       if (!(composer instanceof HTMLElement)) throw new Error('Active-chat composer is missing')
@@ -186,7 +201,7 @@ describe('ChatPage', () => {
       expect(screen.queryByRole('button', { name: TRANSLATIONS.en.chat_clear })).not.toBeInTheDocument()
 
       const controls = composer.querySelectorAll<HTMLButtonElement>('[data-ui-control="button"]')
-      expect(controls.length).toBeGreaterThanOrEqual(6)
+      expect(controls.length).toBeGreaterThanOrEqual(5)
       for (const control of controls) {
         expect(control).toHaveAttribute('data-control-size', 'md')
       }
@@ -196,16 +211,17 @@ describe('ChatPage', () => {
         .toHaveAttribute('aria-haspopup', 'menu')
       expect(composerQueries.getByRole('button', { name: TRANSLATIONS.en.chat_attach_image }))
         .toHaveAttribute('aria-expanded', 'false')
-      const imageModeButton = composerQueries.getByRole('button', { name: TRANSLATIONS.en.chat_mode_chip_image })
-      expect(imageModeButton).toHaveAttribute('aria-pressed', 'false')
-      expect(imageModeButton).toHaveAttribute('data-control-variant', 'neutral')
-      fireEvent.click(imageModeButton)
-      expect(imageModeButton).toHaveAttribute('aria-pressed', 'true')
+      // Image generation is one of the response modes, not a separate toggle.
+      expect(composerQueries.queryByRole('button', { name: TRANSLATIONS.en.chat_mode_chip_image })).not.toBeInTheDocument()
+      const modeButton = composerQueries.getByRole('button', { name: `${TRANSLATIONS.en.chat_response_mode}: ${TRANSLATIONS.en.chat_mode_standard}` })
+      expect(modeButton).toHaveAttribute('aria-haspopup', 'menu')
+      expect(modeButton).toHaveAttribute('aria-expanded', 'false')
+      expect(modeButton).toHaveAttribute('data-control-variant', 'neutral')
+      fireEvent.click(modeButton)
+      fireEvent.click(screen.getByRole('menuitemradio', { name: TRANSLATIONS.en.chat_mode_chip_image }))
+      const imageModeButton = composerQueries.getByRole('button', { name: `${TRANSLATIONS.en.chat_response_mode}: ${TRANSLATIONS.en.chat_mode_chip_image}` })
       expect(imageModeButton).toHaveAttribute('data-control-variant', 'primary')
-      expect(composerQueries.getByRole('button', { name: TRANSLATIONS.en.settings_mode_auto }))
-        .toHaveAttribute('aria-haspopup', 'menu')
-      expect(composerQueries.getByRole('button', { name: TRANSLATIONS.en.settings_mode_auto }))
-        .toHaveAttribute('aria-expanded', 'false')
+      expect(imageModeButton).toHaveAttribute('aria-expanded', 'false')
       expect(composer.querySelector('button[aria-haspopup="dialog"]'))
         .toHaveAttribute('aria-expanded', 'false')
       expect(composerQueries.getByRole('button', { name: TRANSLATIONS.en.chat_voice_record }))
@@ -225,6 +241,314 @@ describe('ChatPage', () => {
         Reflect.deleteProperty(globalThis, 'MediaRecorder')
       }
     }
+  })
+
+  describe('response mode menu', () => {
+    const modeTriggerName = `${TRANSLATIONS.en.chat_response_mode}: ${TRANSLATIONS.en.chat_mode_standard}`
+
+    // Pending (pre-session) mode flags live in the store and would leak from earlier tests.
+    beforeEach(() => {
+      act(() => {
+        useAppStore.setState({
+          chatPendingImageMode: false,
+          chatPendingWebSearchMode: false,
+          chatPendingDeepResearchMode: false,
+        })
+      })
+    })
+
+    it('is a keyboard-operable radio menu that returns focus to its trigger', () => {
+      render(<ChatPage />)
+      const trigger = screen.getByRole('button', { name: modeTriggerName })
+      fireEvent.click(trigger)
+
+      const menu = screen.getByRole('menu', { name: TRANSLATIONS.en.chat_response_mode })
+      expect(trigger).toHaveAttribute('aria-controls', menu.id)
+      const items = within(menu).getAllByRole('menuitemradio')
+      expect(items).toHaveLength(4)
+      expect(items[0]).toHaveAttribute('aria-checked', 'true')
+      expect(items[0]).toHaveFocus()
+
+      fireEvent.keyDown(items[0], { key: 'ArrowDown' })
+      expect(items[1]).toHaveFocus()
+      fireEvent.keyDown(items[1], { key: 'End' })
+      expect(items[3]).toHaveFocus()
+      fireEvent.keyDown(items[3], { key: 'ArrowDown' })
+      expect(items[0]).toHaveFocus()
+      fireEvent.keyDown(items[0], { key: 'ArrowUp' })
+      expect(items[3]).toHaveFocus()
+
+      fireEvent.keyDown(items[3], { key: 'Escape' })
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      expect(trigger).toHaveFocus()
+    })
+
+    it('explains image mode in the composer placeholder once selected', () => {
+      render(<ChatPage />)
+      fireEvent.click(screen.getByRole('button', { name: modeTriggerName }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: TRANSLATIONS.en.chat_mode_chip_image }))
+
+      expect(screen.getByPlaceholderText(TRANSLATIONS.en.chat_image_mode_hint)).toBeInTheDocument()
+      expect(screen.queryByPlaceholderText(TRANSLATIONS.en.chat_placeholder)).not.toBeInTheDocument()
+    })
+
+    it('disables image mode with a reason when the provider cannot generate images', () => {
+      act(() => {
+        useAppStore.setState({ selectedProvider: 'claude' })
+      })
+      render(<ChatPage />)
+      fireEvent.click(screen.getByRole('button', { name: modeTriggerName }))
+
+      const imageItem = screen.getByRole('menuitemradio', { name: new RegExp(TRANSLATIONS.en.chat_mode_chip_image) })
+      expect(imageItem).toBeDisabled()
+      expect(imageItem).toHaveTextContent(TRANSLATIONS.en.chat_image_mode_unsupported_provider)
+    })
+  })
+
+  describe('research starter card', () => {
+    const researchModeName = `${TRANSLATIONS.en.chat_response_mode}: ${TRANSLATIONS.en.chat_mode_chip_research}`
+    const researchCardName = `${TRANSLATIONS.en.chat_suggest_research}${TRANSLATIONS.en.chat_suggest_research_desc}`
+
+    it.each(['web', 'image'] as const)('replaces %s mode with research without sending the pending draft', async (mode) => {
+      act(() => {
+        useAppStore.setState({
+          keyStatus: { gemini: true, claude: false, openai: false, local: false },
+          chatPendingWebSearchMode: mode === 'web',
+          chatPendingImageMode: mode === 'image',
+        })
+      })
+      render(<ChatPage />)
+
+      fireEvent.click(screen.getByRole('button', { name: researchCardName }))
+      fireEvent.click(screen.getByRole('button', { name: TRANSLATIONS.en.chat_task_apply }))
+
+      const input = screen.getByRole('textbox')
+      expect(input).toHaveValue('')
+      await waitFor(() => expect(input).toHaveFocus())
+      expect(screen.getByRole('button', { name: researchModeName })).toBeInTheDocument()
+      expect(useAppStore.getState()).toMatchObject({
+        chatPendingDraft: '',
+        chatPendingDeepResearchMode: true,
+        chatPendingWebSearchMode: false,
+        chatPendingImageMode: false,
+        activeChatSessionId: null,
+        chatSessions: [],
+      })
+      expect(window.api.chatStream).not.toHaveBeenCalled()
+      expect(window.api.chat).not.toHaveBeenCalled()
+    })
+
+    it('restores each conversation draft and mode when switching sessions', async () => {
+      const sessionA = {
+        id: 'research-card-a', title: 'Research', provider: 'gemini' as const,
+        model: 'gemini-2.0-flash', messages: [], createdAt: 1, updatedAt: 1,
+        imageMode: true,
+      }
+      const sessionB = {
+        ...sessionA, id: 'research-card-b', title: 'Other conversation',
+        draftInput: 'Keep this draft', imageMode: false, webSearchMode: true,
+      }
+      act(() => {
+        useAppStore.setState({
+          keyStatus: { gemini: true, claude: false, openai: false, local: false },
+          chatSessions: [sessionA, sessionB], activeChatSessionId: sessionA.id,
+        })
+      })
+      render(<ChatPage />)
+      fireEvent.click(screen.getByRole('button', { name: researchCardName }))
+      fireEvent.click(screen.getByRole('button', { name: TRANSLATIONS.en.chat_task_apply }))
+      await waitFor(() => expect(screen.getByRole('textbox')).toHaveFocus())
+
+      act(() => useAppStore.getState().setActiveChatSession(sessionB.id))
+      expect(screen.getByRole('textbox')).toHaveValue(sessionB.draftInput)
+      expect(screen.getByRole('button', {
+        name: `${TRANSLATIONS.en.chat_response_mode}: ${TRANSLATIONS.en.chat_mode_chip_web}`,
+      })).toBeInTheDocument()
+      expect(useAppStore.getState().chatSessions.find((s) => s.id === sessionB.id)).toEqual(sessionB)
+
+      act(() => useAppStore.getState().setActiveChatSession(sessionA.id))
+      expect(screen.getByRole('textbox')).toHaveValue('')
+      expect(screen.getByRole('button', { name: researchModeName })).toBeInTheDocument()
+      const restoredSession = useAppStore.getState().chatSessions.find((s) => s.id === sessionA.id)
+      expect(restoredSession).toMatchObject({ deepResearchMode: true, messages: [] })
+      expect(restoredSession?.webSearchMode).toBeFalsy()
+      expect(restoredSession?.imageMode).toBeFalsy()
+      expect(window.api.chatStream).not.toHaveBeenCalled()
+      expect(window.api.chat).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('task starter options', () => {
+    const t = TRANSLATIONS.en
+    beforeEach(() => {
+      act(() => useAppStore.setState({
+        keyStatus: { gemini: true, claude: false, openai: false, local: false },
+        chatPendingDraft: 'My original text', chatPendingDeepResearchMode: true,
+      }))
+    })
+
+    it.each([
+      { depth: 'research', manualStandard: false, research: true },
+      { depth: 'overview', manualStandard: false, research: false },
+      { depth: 'research', manualStandard: true, research: false },
+    ])('routes the send using the actual mode: %j', async ({ depth, manualStandard, research }) => {
+      const deep = vi.spyOn(deepResearchService, 'run').mockResolvedValue(undefined)
+      const standard = vi.spyOn(smartThinkingService, 'run').mockResolvedValue(undefined)
+      try {
+        render(<ChatPage />)
+        fireEvent.click(screen.getByRole('button', { name: t.chat_suggest_research + t.chat_suggest_research_desc }))
+        if (depth === 'overview') {
+          fireEvent.click(screen.getByRole('button', { name: `${t.chat_task_depth} ${t.chat_menu_deep_research}` }))
+          fireEvent.click(screen.getByRole('option', { name: t.chat_task_overview }))
+        }
+        fireEvent.click(screen.getByRole('button', { name: t.chat_task_apply }))
+        if (manualStandard) {
+          fireEvent.click(screen.getByRole('button', { name: `${t.chat_response_mode}: ${t.chat_mode_chip_research}` }))
+          fireEvent.click(screen.getByRole('menuitemradio', { name: t.chat_mode_standard }))
+          expect(screen.getByText(t.chat_task_mode_changed)).toBeInTheDocument()
+        }
+        fireEvent.click(screen.getByRole('button', { name: t.chat_send }))
+        await waitFor(() => expect(research ? deep : standard).toHaveBeenCalledOnce())
+        const request = (research ? deep : standard).mock.calls[0][0]
+        expect(request.question).toContain(t.chat_task_research_template.replace('{option}', depth === 'research' ? t.chat_menu_deep_research : t.chat_task_overview))
+        expect(request.question).toContain('My original text')
+        const sent = useAppStore.getState().chatSessions[0].messages.find(message => message.role === 'user')
+        expect(sent?.content).toEqual([{ type: 'text', text: 'My original text' }])
+        expect(sent?.taskInstruction).toBeTruthy()
+        expect(useAppStore.getState().chatSessions[0].taskState?.applied?.placement).toBe('instruction')
+        expect(research ? standard : deep).not.toHaveBeenCalled()
+        expect(window.api.chatStream).not.toHaveBeenCalled()
+      } finally {
+        deep.mockRestore()
+        standard.mockRestore()
+      }
+    })
+
+    it('keeps an authored matching template intact through Apply and Back', () => {
+      const authored = `${t.chat_task_explain_template.replace('{option}', t.chat_task_simple)}\n\nAuthored topic`
+      act(() => useAppStore.setState({ chatPendingDraft: authored }))
+      render(<ChatPage />)
+      fireEvent.click(screen.getByRole('button', { name: t.chat_suggest_explain + t.chat_suggest_explain_desc }))
+      fireEvent.click(screen.getByRole('button', { name: t.chat_task_apply }))
+      fireEvent.click(screen.getByRole('button', { name: t.chat_task_back }))
+      expect(screen.getByRole('textbox')).toHaveValue(authored)
+    })
+
+    it('restores pending and applied configuration after page unmount and locale change', () => {
+      const view = render(<ChatPage />)
+      fireEvent.click(screen.getByRole('button', { name: t.chat_suggest_explain + t.chat_suggest_explain_desc }))
+      fireEvent.click(screen.getByRole('button', { name: t.chat_task_apply }))
+      fireEvent.click(screen.getByRole('button', { name: `${t.chat_task_level} ${t.chat_task_simple}` }))
+      fireEvent.click(screen.getByRole('option', { name: t.chat_task_steps }))
+      view.unmount()
+      act(() => useAppStore.setState({ locale: 'vi' }))
+      const viText = TRANSLATIONS.vi
+      render(<ChatPage />)
+      expect(screen.getByRole('button', { name: `${viText.chat_task_level} ${viText.chat_task_steps}` })).toBeInTheDocument()
+      expect(screen.getByRole('status')).toHaveTextContent(viText.chat_task_unapplied)
+      fireEvent.click(screen.getByRole('button', { name: viText.chat_task_apply }))
+      fireEvent.click(screen.getByRole('button', { name: viText.chat_task_apply }))
+      expect(screen.getByRole('textbox')).toHaveValue('My original text')
+      expect(useAppStore.getState().chatPendingTaskState?.applied?.option).toBe('steps')
+      fireEvent.click(screen.getByRole('button', { name: viText.chat_task_back }))
+      expect(screen.getByRole('textbox')).toHaveValue('My original text')
+    })
+
+    it.each(['translate', 'explain', 'write'] as const)('only applies %s on explicit request and Back keeps user content', (task) => {
+      render(<ChatPage />)
+      fireEvent.click(screen.getByRole('button', { name: t[`chat_suggest_${task}`] + t[`chat_suggest_${task}_desc`] }))
+      expect(screen.getByRole('textbox')).toHaveValue('My original text')
+      expect(useAppStore.getState().chatPendingDeepResearchMode).toBe(true)
+      fireEvent.click(screen.getByRole('button', { name: t.chat_task_apply }))
+      expect(useAppStore.getState().chatPendingDeepResearchMode).toBe(false)
+      expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toContain('My original text')
+      fireEvent.click(screen.getByRole('button', { name: t.chat_task_back }))
+      expect(screen.getByRole('textbox')).toHaveValue('My original text')
+      expect(document.querySelectorAll('.prompt-card')).toHaveLength(4)
+      expect(window.api.chatStream).not.toHaveBeenCalled()
+    })
+
+    it('returns before Apply without changing draft or mode', () => {
+      render(<ChatPage />)
+      fireEvent.click(screen.getByRole('button', { name: t.chat_suggest_research + t.chat_suggest_research_desc }))
+      fireEvent.click(screen.getByRole('button', { name: t.chat_task_back }))
+      expect(screen.getByRole('textbox')).toHaveValue('My original text')
+      expect(useAppStore.getState().chatPendingDeepResearchMode).toBe(true)
+    })
+
+    it.each(['', 'Saved topic'])('preserves an unowned restored template with content %j on Back', (content) => {
+      const prefix = `${t.chat_task_research_template.replace('{option}', t.chat_menu_deep_research)}\n\n`
+      act(() => useAppStore.setState({ chatPendingDraft: prefix + content }))
+      render(<ChatPage />)
+      fireEvent.click(screen.getByRole('button', { name: t.chat_suggest_research + t.chat_suggest_research_desc }))
+      fireEvent.click(screen.getByRole('button', { name: t.chat_task_back }))
+      expect(screen.getByRole('textbox')).toHaveValue(prefix + content)
+      expect(useAppStore.getState().chatPendingDeepResearchMode).toBe(true)
+      expect(document.querySelectorAll('.prompt-card')).toHaveLength(4)
+    })
+
+    it('preserves manually edited instructions when leaving an applied task', () => {
+      render(<ChatPage />)
+      fireEvent.click(screen.getByRole('button', { name: t.chat_suggest_explain + t.chat_suggest_explain_desc }))
+      fireEvent.click(screen.getByRole('button', { name: t.chat_task_apply }))
+      const edited = `My custom introduction\n${(screen.getByRole('textbox') as HTMLTextAreaElement).value}`
+      fireEvent.change(screen.getByRole('textbox'), { target: { value: edited } })
+      expect(screen.getByRole('textbox')).toHaveValue(edited)
+      fireEvent.click(screen.getByRole('button', { name: t.chat_suggest_explain + t.chat_suggest_explain_desc }))
+      expect(screen.getByRole('textbox')).toHaveValue(edited)
+      fireEvent.click(screen.getByRole('button', { name: t.chat_task_back }))
+      expect(screen.getByRole('textbox')).toHaveValue(edited)
+    })
+
+    it('blocks a bare template through Send and keyboard, then accepts authored text', () => {
+      act(() => useAppStore.setState({ chatPendingDraft: '', chatPendingDeepResearchMode: false }))
+      render(<ChatPage />)
+      fireEvent.click(screen.getByRole('button', { name: t.chat_suggest_explain + t.chat_suggest_explain_desc }))
+      fireEvent.click(screen.getByRole('button', { name: t.chat_task_apply }))
+      expect(screen.getByRole('button', { name: t.chat_send })).toBeDisabled()
+      expect(screen.getByText(t.chat_task_needs_content)).toBeInTheDocument()
+      const input = screen.getByRole('textbox')
+      fireEvent.keyDown(input, { key: 'Enter' })
+      fireEvent.keyDown(input, { key: 'Enter', ctrlKey: true })
+      expect(window.api.chatStream).not.toHaveBeenCalled()
+      expect(window.api.chat).not.toHaveBeenCalled()
+      fireEvent.change(input, { target: { value: 'Explain recursion with an example' } })
+      expect(screen.getByRole('button', { name: t.chat_send })).toBeEnabled()
+      fireEvent.click(screen.getByRole('button', { name: t.chat_task_back }))
+      expect(input).toHaveValue('Explain recursion with an example')
+    })
+
+    it('keeps pending choices separate from applied settings across conversations', () => {
+      const a = { id: 'task-a', title: 'A', provider: 'gemini' as const, model: 'gemini-2.0-flash', messages: [], createdAt: 1, updatedAt: 1, draftInput: 'Topic A' }
+      const b = { ...a, id: 'task-b', title: 'B', draftInput: 'Topic B' }
+      act(() => useAppStore.setState({ chatSessions: [a, b], activeChatSessionId: a.id }))
+      render(<ChatPage />)
+      fireEvent.click(screen.getByRole('button', { name: t.chat_suggest_explain + t.chat_suggest_explain_desc }))
+      fireEvent.click(screen.getByRole('button', { name: t.chat_task_apply }))
+      fireEvent.click(screen.getByRole('button', { name: `${t.chat_task_level} ${t.chat_task_simple}` }))
+      fireEvent.click(screen.getByRole('option', { name: t.chat_task_steps }))
+      act(() => useAppStore.getState().setActiveChatSession(b.id))
+      expect(screen.getByRole('textbox')).toHaveValue('Topic B')
+      expect(document.querySelectorAll('.prompt-card')).toHaveLength(4)
+      act(() => useAppStore.getState().setActiveChatSession(a.id))
+      expect(screen.getByRole('button', { name: `${t.chat_task_level} ${t.chat_task_steps}` })).toBeInTheDocument()
+      expect(screen.getByRole('status')).toHaveTextContent(t.chat_task_unapplied)
+      expect(useAppStore.getState().chatSessions.find(s => s.id === a.id)?.taskState?.applied?.option).toBe('simple')
+      expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toContain('Topic A')
+    })
+
+    it('allows a bare template with an attached image without making a live request', async () => {
+      act(() => useAppStore.setState({ chatPendingDraft: '', chatPendingDeepResearchMode: false }))
+      render(<ChatPage />)
+      fireEvent.click(screen.getByRole('button', { name: t.chat_suggest_explain + t.chat_suggest_explain_desc }))
+      fireEvent.click(screen.getByRole('button', { name: t.chat_task_apply }))
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
+      fireEvent.change(fileInput, { target: { files: [new File(['fake'], 'research.png', { type: 'image/png' })] } })
+      await waitFor(() => expect(screen.getByAltText('research.png')).toBeInTheDocument())
+      expect(screen.getByRole('button', { name: t.chat_send })).toBeEnabled()
+      expect(screen.queryByText(t.chat_task_needs_content)).not.toBeInTheDocument()
+      expect(window.api.chatStream).not.toHaveBeenCalled()
+    })
   })
 
   it('keeps contextual navigation outside the page component', () => {
@@ -275,6 +599,7 @@ describe('ChatPage', () => {
     })
 
     render(<ChatPage />)
+    fireEvent.click(screen.getByRole('button', { name: /Model: local-auto/i }))
     await waitFor(() => expect(window.api.fetchModels).toHaveBeenCalledWith('local'))
     act(() => useAppStore.getState().setActiveChatSession(sessionB.id))
 
@@ -437,8 +762,8 @@ describe('ChatPage', () => {
     try {
       render(<ChatPage />)
 
-      fireEvent.click(screen.getByRole('button', { name: TRANSLATIONS.en.settings_mode_auto }))
-      fireEvent.click(screen.getByRole('button', { name: TRANSLATIONS.en.chat_menu_deep_research }))
+      fireEvent.click(screen.getByRole('button', { name: `${TRANSLATIONS.en.chat_response_mode}: ${TRANSLATIONS.en.chat_mode_standard}` }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: TRANSLATIONS.en.chat_menu_deep_research }))
 
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
       fireEvent.change(fileInput, {

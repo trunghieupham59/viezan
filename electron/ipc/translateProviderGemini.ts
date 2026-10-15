@@ -1,9 +1,48 @@
+import { blockedSafetyError } from './errorUtils'
 import { VERIFY_MODEL_GEMINI } from './ipcConstants'
 import { buildPrompt, buildRewritePrompt, REWRITE_SYSTEM_PROMPT, SYSTEM_PROMPT } from './translatePrompts'
+import { finalizeProviderText, nonEmptyProviderText } from './translateProviderOutput'
 import type { DetectFn, RewriteFn, StreamFn, TranslateFn, TranslateRequestOptions, VerifyFn } from './translateProviderTypes'
-import { getGeminiThinkingConfig } from './translationReasoning'
+import { getGeminiMaxOutputTokens, getGeminiThinkingConfig } from './translationReasoning'
 
 const TRANSLATE_CANCELLED_MESSAGE = 'translate-cancelled'
+
+function requestOptions(options: TranslateRequestOptions = {}) {
+  return options.signal ? { signal: options.signal } : undefined
+}
+
+interface GeminiResponseLike {
+  text(): string
+  candidates?: Array<{ finishReason?: string }>
+  promptFeedback?: { blockReason?: string }
+}
+
+/** Finish reasons where Gemini returns no text because the content was filtered (text() does not throw). */
+const SAFETY_FINISH_REASONS = new Set(['SAFETY', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII'])
+
+/** Throw BLOCKED_SAFETY when the prompt or the candidate was filtered by Gemini. */
+function assertNotBlocked(response: GeminiResponseLike): void {
+  const blockReason = response.promptFeedback?.blockReason
+  if (blockReason) throw blockedSafetyError('gemini', `blockReason=${blockReason}`)
+  const finishReason = response.candidates?.[0]?.finishReason
+  if (finishReason && SAFETY_FINISH_REASONS.has(finishReason)) {
+    throw blockedSafetyError('gemini', `finishReason=${finishReason}`)
+  }
+}
+
+/** Read Gemini text; MAX_TOKENS is a truncation error, filtering is BLOCKED_SAFETY, empty text is an empty-response error. */
+function geminiText(response: GeminiResponseLike): string {
+  assertNotBlocked(response)
+  const truncated = response.candidates?.[0]?.finishReason === 'MAX_TOKENS'
+  let text = ''
+  try {
+    text = response.text()
+  } catch (error) {
+    // text() throws for blocked candidates; a truncated answer should surface as truncation instead.
+    if (!truncated) throw error
+  }
+  return finalizeProviderText('gemini', text, truncated)
+}
 
 export const translateWithGemini: TranslateFn = async (
   apiKey,
@@ -22,51 +61,64 @@ export const translateWithGemini: TranslateFn = async (
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
   const genAI = new GoogleGenerativeAI(apiKey)
   const thinkingConfig = getGeminiThinkingConfig(model, reasoningEffort)
-  const generationConfig = thinkingConfig === undefined
-    ? undefined
-    : { thinkingConfig }
+  const generationConfig = {
+    maxOutputTokens: getGeminiMaxOutputTokens(model),
+    ...(thinkingConfig === undefined ? {} : { thinkingConfig }),
+  }
   const genModel = genAI.getGenerativeModel({
     model,
     systemInstruction: SYSTEM_PROMPT,
     // The legacy SDK forwards generationConfig verbatim but predates this API field in its types.
     generationConfig: generationConfig as never,
   })
-  const result = await genModel.generateContent(buildPrompt(sourceText, sourceLang, targetLang, showFurigana, style, phoneticOnly, phoneticMode))
+  const result = await genModel.generateContent(
+    buildPrompt(sourceText, sourceLang, targetLang, showFurigana, style, phoneticOnly, phoneticMode),
+    requestOptions(options),
+  )
   if (options.signal?.aborted) throw new Error(TRANSLATE_CANCELLED_MESSAGE)
-  return result.response.text().trim()
+  return geminiText(result.response)
 }
 
-export const rewriteWithGemini: RewriteFn = async (apiKey, model, text, lang, style) => {
+export const rewriteWithGemini: RewriteFn = async (apiKey, model, text, lang, style, options = {}) => {
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
   const genAI = new GoogleGenerativeAI(apiKey)
-  const genModel = genAI.getGenerativeModel({ model, systemInstruction: REWRITE_SYSTEM_PROMPT })
-  const result = await genModel.generateContent(buildRewritePrompt(text, lang, style))
-  return result.response.text().trim()
+  const genModel = genAI.getGenerativeModel({
+    model,
+    systemInstruction: REWRITE_SYSTEM_PROMPT,
+    generationConfig: { maxOutputTokens: getGeminiMaxOutputTokens(model) },
+  })
+  const result = await genModel.generateContent(buildRewritePrompt(text, lang, style), requestOptions(options))
+  return geminiText(result.response)
 }
 
-export const detectWithGemini: DetectFn = async (apiKey, model, prompt) => {
+export const detectWithGemini: DetectFn = async (apiKey, model, prompt, options = {}) => {
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
   const genAI = new GoogleGenerativeAI(apiKey)
   const genModel = genAI.getGenerativeModel({ model })
-  const result = await genModel.generateContent(prompt)
-  return result.response.text().trim()
+  const result = await genModel.generateContent(prompt, requestOptions(options))
+  assertNotBlocked(result.response)
+  return nonEmptyProviderText('gemini', result.response.text())
 }
 
-export const verifyGeminiKey: VerifyFn = async (apiKey) => {
+export const verifyGeminiKey: VerifyFn = async (apiKey, options = {}) => {
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
   const genAI = new GoogleGenerativeAI(apiKey)
   const model = genAI.getGenerativeModel({ model: VERIFY_MODEL_GEMINI })
-  const result = await model.generateContent('Say "ok" in one word.')
+  const result = await model.generateContent('Say "ok" in one word.', requestOptions(options))
   const text = result.response.text()
   if (!text) throw new Error('No response from Gemini')
 }
 
-export const streamWithGemini: StreamFn = async (apiKey, model, prompt, onToken) => {
+export const streamWithGemini: StreamFn = async (apiKey, model, prompt, onToken, options = {}) => {
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
   const genAI = new GoogleGenerativeAI(apiKey)
-  const genModel = genAI.getGenerativeModel({ model, systemInstruction: SYSTEM_PROMPT })
+  const genModel = genAI.getGenerativeModel({
+    model,
+    systemInstruction: SYSTEM_PROMPT,
+    generationConfig: { maxOutputTokens: getGeminiMaxOutputTokens(model) },
+  })
   let fullText = ''
-  const result = await genModel.generateContentStream(prompt)
+  const result = await genModel.generateContentStream(prompt, requestOptions(options))
   for await (const chunk of result.stream) {
     const token = chunk.text()
     if (token) {
@@ -74,5 +126,9 @@ export const streamWithGemini: StreamFn = async (apiKey, model, prompt, onToken)
       onToken(token)
     }
   }
+  // The aggregated response carries the final finishReason (MAX_TOKENS / safety filters).
+  const final = await result.response
+  assertNotBlocked(final)
+  finalizeProviderText('gemini', fullText, final.candidates?.[0]?.finishReason === 'MAX_TOKENS')
   return fullText
 }

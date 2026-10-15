@@ -13,6 +13,7 @@ import { IMAGE_TRANSLATED_SENTINEL, useTranslate } from '../hooks/useTranslate'
 import type { VoiceErrorTranslationKey } from '../i18n/types'
 import { useAppStore, useT } from '../store/useAppStore'
 import type { AudioTranscriptionErrorCode, TranslationComparisonResult } from '../types'
+import { formatModelName, getProviderDisplayName } from '../utils/modelDisplay'
 import { canResolveVoiceErrorInSettings, getVoiceNotificationTone } from '../utils/voiceErrors'
 import '../styles/translate.css'
 
@@ -24,6 +25,7 @@ export function TranslatePage() {
   const t = useT()
   const { setSourceLang, openSettings, recordLangUsage } = useAppStore()
   const [voiceErrorCode, setVoiceErrorCode] = useState<AudioTranscriptionErrorCode | null>(null)
+  const [modelsOpen, setModelsOpen] = useState(false)
   const {
     sourceText,
     translatedText,
@@ -108,6 +110,13 @@ export function TranslatePage() {
   const canOpenSettingsForVoiceError = voiceErrorCode
     ? canResolveVoiceErrorInSettings(voiceErrorCode)
     : false
+  const activeTranslationModel = translationModels[0]
+  const translateErrorContext = activeTranslationModel
+    ? t.translate_error_context(
+        getProviderDisplayName(activeTranslationModel.provider),
+        formatModelName(activeTranslationModel.provider, activeTranslationModel.model),
+      )
+    : ''
 
   const handleVoiceError = useCallback((code: AudioTranscriptionErrorCode) => {
     setVoiceErrorCode(code === 'CANCELLED' ? null : code)
@@ -178,6 +187,8 @@ export function TranslatePage() {
       isComparisonMode={isComparisonMode}
       translationModels={translationModels}
       onTranslationModelsChange={setTranslationModels}
+      modelsOpen={modelsOpen}
+      onModelsOpenChange={setModelsOpen}
       onOpenSettings={openSettings}
     />
   )
@@ -233,6 +244,7 @@ export function TranslatePage() {
       onSpeak={handleSpeakComparison}
       onRetry={handleRetryComparison}
       onOpenSettings={openSettings}
+      onChooseModel={() => setModelsOpen(true)}
     />
   ) : (
     <TranslationResultPane
@@ -246,6 +258,7 @@ export function TranslatePage() {
       hasImageAttachment={Boolean(imageAttachment)}
       isTranslating={isTranslating}
       translateError={translateError}
+      translateErrorContext={translateErrorContext}
       isApiKeyError={isApiKeyError}
       isResultStale={isResultStale}
       autoTranslate={autoTranslate}
@@ -257,6 +270,7 @@ export function TranslatePage() {
       onRetry={handleTranslate}
       onDismissError={handleDismissError}
       onOpenSettings={openSettings}
+      onChooseModel={() => setModelsOpen(true)}
       onSpeak={handleSpeak}
       onDownloadEdited={handleDownloadEditedImage}
       onDownloadTranslated={handleDownloadTranslatedImage}

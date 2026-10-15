@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { trapTabFocus } from '../../../utils/focusTrap'
 import { Button, CopyIcon, DownloadIcon, XIcon } from '../atoms'
 
 export interface ImageLightboxProps {
@@ -47,21 +48,7 @@ export function ImageLightbox({
         onClose()
         return
       }
-      if (event.key !== 'Tab') return
-
-      const controls = Array.from(
-        dialogRef.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [],
-      )
-      if (controls.length === 0) return
-      const firstControl = controls[0]
-      const lastControl = controls[controls.length - 1]
-      if (event.shiftKey && document.activeElement === firstControl) {
-        event.preventDefault()
-        lastControl.focus()
-      } else if (!event.shiftKey && document.activeElement === lastControl) {
-        event.preventDefault()
-        firstControl.focus()
-      }
+      trapTabFocus(event, dialogRef.current, 'button:not(:disabled)')
     }
 
     window.addEventListener('keydown', handleKeyDown)

@@ -5,6 +5,7 @@ export const CHAT_IMAGE_EDIT_VALIDATION_MESSAGES = {
   modelTooLong: 'Model is too long',
   promptRequired: 'Image edit prompt is required',
   noImageData: 'No image data provided',
+  invalidImageData: 'Invalid image data',
   unsupportedImageMimeType: 'Unsupported image MIME type',
   promptTooLong: (maxChars: number) =>
     `Image edit prompt is too long. Maximum is ${maxChars} characters.`,
@@ -28,6 +29,10 @@ export const CHAT_RUNTIME_MESSAGES = {
   openAiStreamEmptyResponse: 'OpenAI returned an empty response.',
   openAiImageUrlDownloadFailed: (status: number) =>
     `OpenAI image edit returned a URL, but downloading it failed (${status}).`,
+  remoteImageInvalidUrl: 'Returned image URL is not a valid https URL.',
+  remoteImageNotAnImage: 'Returned image URL did not serve a supported image.',
+  remoteImageTooLarge: (maxBytes: number) =>
+    `Returned image is larger than ${Math.round(maxBytes / (1024 * 1024))} MB.`,
   openAiNoEditedImage: 'OpenAI image edit did not return an image.',
   localAiEmptyResponse: (finishReason: string) =>
     `Local AI returned an empty response (finish_reason=${finishReason}).`,
@@ -35,6 +40,7 @@ export const CHAT_RUNTIME_MESSAGES = {
   imageEditUnsupportedProvider:
     'Image editing is currently available with Gemini or OpenAI. Switch provider to edit images directly.',
   streamRequestIdRequired: 'Chat stream requestId is required',
+  streamRequestIdInUse: 'A chat stream with this requestId is already in progress',
   chatFailed: (message: string) => `Chat failed: ${message}`,
 } as const
 

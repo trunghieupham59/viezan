@@ -19,6 +19,7 @@ interface TranslationResultPaneProps {
   hasImageAttachment: boolean
   isTranslating: boolean
   translateError: string | null
+  translateErrorContext: string
   isApiKeyError: boolean
   isResultStale: boolean
   autoTranslate: boolean
@@ -30,6 +31,7 @@ interface TranslationResultPaneProps {
   onRetry: () => void
   onDismissError: () => void
   onOpenSettings: () => void
+  onChooseModel: () => void
   onSpeak: (text: string, lang: string, panel: SpeakPanel) => void
   onDownloadEdited: () => void
   onDownloadTranslated: () => void
@@ -48,6 +50,7 @@ export function TranslationResultPane({
   hasImageAttachment,
   isTranslating,
   translateError,
+  translateErrorContext,
   isApiKeyError,
   isResultStale,
   autoTranslate,
@@ -59,6 +62,7 @@ export function TranslationResultPane({
   onRetry,
   onDismissError,
   onOpenSettings,
+  onChooseModel,
   onSpeak,
   onDownloadEdited,
   onDownloadTranslated,
@@ -111,12 +115,15 @@ export function TranslationResultPane({
         {translateError ? (
           <TranslateError
             error={translateError}
+            context={translateErrorContext}
             isApiKeyError={isApiKeyError}
             canRetry={canRetry}
             onRetry={onRetry}
             onDismiss={onDismissError}
             onOpenSettings={onOpenSettings}
+            onChooseModel={onChooseModel}
             labelRetry={t.translate_error_retry}
+            labelChooseModel={t.translate_error_choose_model}
             labelOpenSettings={t.translate_error_open_settings}
             labelDismiss={t.translate_error_dismiss}
           />

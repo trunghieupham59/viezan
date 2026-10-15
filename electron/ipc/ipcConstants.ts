@@ -34,6 +34,35 @@ export const MAX_OUTPUT_TOKENS_CLAUDE = 16_000
  */
 export const MAX_OUTPUT_TOKENS_OPENAI = 16_384
 
+/**
+ * Per-family output-token ceilings for models older than the fixed translation defaults above.
+ * Sending a larger `max_tokens` to these models fails with HTTP 400, so requests are clamped.
+ * Conservative on purpose: unknown or newer models keep the requested value.
+ */
+const MODEL_OUTPUT_TOKEN_LIMITS: Array<{ provider: string; pattern: RegExp; limit: number }> = [
+  { provider: 'claude', pattern: /^claude-3-haiku/i, limit: 4_096 },
+  { provider: 'claude', pattern: /^claude-3-(?:opus|sonnet)(?:-|$)/i, limit: 4_096 },
+  { provider: 'claude', pattern: /^claude-3-5-(?:haiku|sonnet)/i, limit: 8_192 },
+  // The Anthropic SDK refuses NON-streaming requests above 8 192 tokens for these exact Opus 4.0/4.1
+  // ids ("Streaming is required"). Newer Opus (4.5+) and Sonnet 4.x are deliberately not matched.
+  { provider: 'claude', pattern: /^claude-opus-4(?:-0|-1)?(?:-\d{8})?$/i, limit: 8_192 },
+  { provider: 'openai', pattern: /^gpt-4(?:-|$)/i, limit: 4_096 },
+  { provider: 'openai', pattern: /^gpt-3\.5(?:-|$)/i, limit: 4_096 },
+]
+
+/**
+ * Clamp a requested output-token budget to what the model family accepts.
+ * `gpt-4o`, `gpt-4.1`, `claude-sonnet-4`... are not matched by the legacy patterns and
+ * therefore return `requested` unchanged.
+ */
+export function clampMaxOutputTokens(provider: string, model: string, requested: number): number {
+  const id = model.trim().toLowerCase()
+  for (const rule of MODEL_OUTPUT_TOKEN_LIMITS) {
+    if (rule.provider === provider && rule.pattern.test(id)) return Math.min(requested, rule.limit)
+  }
+  return requested
+}
+
 // ── Chat / image-translate output token limits ────────────────────────────────
 /**
  * HC-02: Max output tokens for chat and image-translate responses.
@@ -83,9 +112,6 @@ export const VERIFY_MAX_TOKENS = 10
 
 /** Cheapest Gemini model suitable for a minimal generateContent call. */
 export const VERIFY_MODEL_GEMINI = 'gemini-2.5-flash-lite'
-
-/** Current Claude model suitable for a minimal messages.create call. */
-export const VERIFY_MODEL_CLAUDE = 'claude-sonnet-4-20250514'
 
 /** Current OpenAI chat model suitable for a minimal chat.completions.create call. */
 export const VERIFY_MODEL_OPENAI = 'gpt-4.1-mini'
@@ -318,7 +344,7 @@ export const STT_RECOVERY_PROBE_DELAY_MS = 60_000
 export const EXT_DEFAULT_OPENAI_MODEL = 'gpt-5-mini'
 
 /** Default Claude model for lightweight translation. */
-export const EXT_DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-20250514'
+export const EXT_DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-6'
 
 // ── Edge TTS timeout ──────────────────────────────────────────────────────────
 /**
@@ -362,11 +388,32 @@ export const MAX_IMAGE_BASE64_CHARS = 35 * 1024 * 1024
 export const TRANSLATE_CHUNK_CHAR_LIMIT = 12_000
 
 /**
- * HC-10: Timeout (ms) per individual chunk request.
- * 90 s is generous enough for large, complex translation chunks on slower models.
- * Prevents a single stalled chunk from blocking the entire translateChunked pipeline.
+ * HC-10: Base timeout (ms) per translate / rewrite request to a cloud provider.
+ * The effective deadline grows with input size and reasoning effort, see `getTranslateTimeoutMs`.
  */
 export const TRANSLATE_CHUNK_TIMEOUT_MS = 90_000
+
+/** Deadline (ms) for a translate / rewrite request to the local provider (CPU inference is slow). */
+export const TRANSLATE_LOCAL_TIMEOUT_MS = 900_000
+
+/** Extra time (ms) granted per 1 000 input characters for cloud providers. */
+const TRANSLATE_TIMEOUT_PER_1K_CHARS_MS = 10_000
+
+/** Hard ceiling (ms) of the size/effort-scaled cloud deadline. */
+export const TRANSLATE_TIMEOUT_MAX_MS = 600_000
+
+/**
+ * Deadline (ms) for one translate / rewrite request.
+ *  - `local`: a fixed long deadline (CPU Ollama can legitimately take minutes).
+ *  - cloud: base + a per-1k-chars allowance, multiplied for medium (x2) / high (x3) reasoning
+ *    effort, capped at TRANSLATE_TIMEOUT_MAX_MS.
+ */
+export function getTranslateTimeoutMs(provider: string | undefined, textLength: number, reasoningEffort?: string): number {
+  if (provider === 'local') return TRANSLATE_LOCAL_TIMEOUT_MS
+  const sizeMs = TRANSLATE_CHUNK_TIMEOUT_MS + Math.floor(Math.max(0, textLength) / 1_000) * TRANSLATE_TIMEOUT_PER_1K_CHARS_MS
+  const factor = reasoningEffort === 'high' ? 3 : reasoningEffort === 'medium' ? 2 : 1
+  return Math.min(sizeMs * factor, TRANSLATE_TIMEOUT_MAX_MS)
+}
 
 /**
  * HC-11: Max concurrent chunk requests.
@@ -381,3 +428,52 @@ export const TRANSLATE_CHUNK_CONCURRENCY = 5
  * across chunk boundaries without sending the full prior chunk (saves tokens).
  */
 export const TRANSLATE_CONTEXT_TAIL_CHARS = 400
+
+// ── Timeouts for non-chunked IPC calls ────────────────────────────────────────
+/** Timeout (ms) for auxiliary provider calls: language detection and API key verification. */
+export const TRANSLATE_AUX_TIMEOUT_MS = 30_000
+
+/** Base timeout (ms) for a lightweight (hotkey / extension) translation request to a cloud provider. */
+export const LIGHTWEIGHT_TRANSLATE_TIMEOUT_MS = 60_000
+
+/** Lightweight translation timeout (ms) for the local provider: CPU inference can be very slow. */
+export const LIGHTWEIGHT_TRANSLATE_LOCAL_TIMEOUT_MS = 600_000
+
+/** Extra lightweight-translation time (ms) granted per 1 000 input characters (cloud providers). */
+const LIGHTWEIGHT_TIMEOUT_PER_1K_CHARS_MS = 5_000
+
+/** Upper bound (ms) of the size-scaled lightweight timeout for cloud providers. */
+const LIGHTWEIGHT_TIMEOUT_MAX_MS = 180_000
+
+/** Timeout (ms) for a lightweight translation, scaled by provider and input size. */
+export function getLightweightTranslateTimeoutMs(provider: string, textLength: number): number {
+  if (provider === 'local') return LIGHTWEIGHT_TRANSLATE_LOCAL_TIMEOUT_MS
+  const extra = Math.floor(Math.max(0, textLength) / 1_000) * LIGHTWEIGHT_TIMEOUT_PER_1K_CHARS_MS
+  return Math.min(LIGHTWEIGHT_TRANSLATE_TIMEOUT_MS + extra, LIGHTWEIGHT_TIMEOUT_MAX_MS)
+}
+
+/**
+ * Max characters accepted by lightweight translation.
+ *
+ * Aligned with the output cap: MAX_LIGHTWEIGHT_TRANSLATE_TOKENS (2 048) is the default budget, and the
+ * output budget is raised with the input (see `getLightweightMaxOutputTokens`) up to
+ * LIGHTWEIGHT_MAX_OUTPUT_TOKENS_CEILING, which comfortably holds a translation of this many characters
+ * even into token-hungry scripts.
+ */
+export const MAX_LIGHTWEIGHT_TRANSLATE_CHARS = 20_000
+
+/** Highest output budget lightweight translation will request. */
+export const LIGHTWEIGHT_MAX_OUTPUT_TOKENS_CEILING = 16_000
+
+/**
+ * Output-token budget for a lightweight translation of `textLength` characters.
+ * Pessimistic estimate: 1 char ~ 1 token (CJK / Thai / Hindi output), times a 1.5 safety factor,
+ * clamped to [MAX_LIGHTWEIGHT_TRANSLATE_TOKENS, LIGHTWEIGHT_MAX_OUTPUT_TOKENS_CEILING].
+ */
+export function getLightweightMaxOutputTokens(textLength: number): number {
+  const estimate = Math.ceil(Math.max(0, textLength) * 1.5)
+  return Math.min(LIGHTWEIGHT_MAX_OUTPUT_TOKENS_CEILING, Math.max(MAX_LIGHTWEIGHT_TRANSLATE_TOKENS, estimate))
+}
+
+/** Timeout (ms) for provider model-list fetches used to populate the model picker. */
+export const MODELS_FETCH_TIMEOUT_MS = 10_000

@@ -6,7 +6,7 @@ import { AppLogoIcon } from '../AppLogo'
 import { MarkdownText } from '../MarkdownText'
 import { Button } from '../ui/atoms'
 import { CopyIcon, DownloadIcon, LightbulbIcon, RefreshIcon, SparklesIcon, SpinnerIcon, ThumbsDownIcon, ThumbsUpIcon, UserIcon } from '../ui/icons'
-import { ImageLightbox } from '../ui/molecules'
+import { ImageLightbox, stripTrailingEllipsis, ThinkingDots, ThinkingPill } from '../ui/molecules'
 import { UsageCostBadge } from '../ui/UsageCostBadge'
 
 /**
@@ -22,96 +22,25 @@ const MESSAGE_DOWNLOAD_BUTTON_CLASS = MESSAGE_ACTION_BUTTON_CLASS
 const MESSAGE_REGENERATE_BUTTON_CLASS = MESSAGE_ACTION_BUTTON_CLASS
 
 /**
- * Strip any trailing ellipsis/dot punctuation a locale baked into its loading
- * copy. Both `chat_thinking_label` and `chat_smart_thinking_badge` are reused
- * in places that don't animate dots, so locales sometimes ship them with "…"
- * already appended ("Thinking…", "考え中…"). Without stripping, the polished
- * pill ends up with awkward double ellipses next to the bouncing dots.
- */
-function stripTrailingEllipsis(label: string): string {
-  return label.replace(/[…．.\s]+$/u, '')
-}
-
-/**
- * Three little bouncing dots — purely CSS-driven via .thinking-dot.
- * Each dot is staggered by 160 ms so they ripple smoothly. Replaces the old
- * cycling-string approach so the label width never reflows as the animation
- * progresses.
- */
-function BouncingDots({ size = 'md', tone = 'gray' }: {
-  size?: 'sm' | 'md'
-  tone?: 'gray'
-} = {}) {
-  const dotSize = size === 'sm' ? 'h-[4px] w-[4px]' : 'h-[5px] w-[5px]'
-  const colour = { gray: 'bg-gray-400 dark:bg-gray-500' }[tone]
-  return (
-    <span className="inline-flex items-end gap-[3px] pb-[2px]" aria-hidden="true">
-      <span className={`thinking-dot ${dotSize} rounded-full ${colour}`} style={{ animationDelay: '0ms' }} />
-      <span className={`thinking-dot ${dotSize} rounded-full ${colour}`} style={{ animationDelay: '160ms' }} />
-      <span className={`thinking-dot ${dotSize} rounded-full ${colour}`} style={{ animationDelay: '320ms' }} />
-    </span>
-  )
-}
-
-/**
- * Polished "Thinking…" pill — neutral sparkle, label, and three bouncing dots.
- * The `muted` variant is used inside the collapsed
+ * "Thinking…" indicator. The `muted` variant is used inside the collapsed
  * research-step header where the label has to sit on a neutral surface.
  */
 function ThinkingLabel({ muted = false }: { muted?: boolean } = {}) {
   const t = useT()
-  const baseLabel = stripTrailingEllipsis(t.chat_thinking_label)
   if (muted) {
     return (
       <span className="thinking-inline-label">
-        <BouncingDots size="sm" tone="gray" />
-        <span>{baseLabel}</span>
+        <ThinkingDots tone="muted" />
+        <span>{stripTrailingEllipsis(t.chat_thinking_label)}</span>
       </span>
     )
   }
-  return (
-    <span
-      className="thinking-state-pill"
-      role="status"
-      aria-live="polite"
-    >
-      <span className="relative inline-flex h-3.5 w-3.5 items-center justify-center">
-        <span className="thinking-glow absolute inset-0 rounded-full bg-gray-400/25 blur-[3px] dark:bg-gray-300/20" aria-hidden />
-        <SparklesIcon className="relative h-3.5 w-3.5 text-gray-500 dark:text-gray-300" />
-      </span>
-      <span className="tracking-[0.01em]">{baseLabel}</span>
-      <BouncingDots tone="gray" />
-    </span>
-  )
+  return <ThinkingPill label={t.chat_thinking_label} />
 }
 
-/**
- * Polished Smart Thinking pill — same shape as ThinkingLabel but with a
- * quiet neutral treatment for web-grounded work.
- */
+/** Smart Thinking pill — same shape as ThinkingLabel with a quiet shimmer. */
 function SmartThinkingLabel({ label }: { label: string }) {
-  const baseLabel = stripTrailingEllipsis(label)
-  return (
-    <span
-      className="thinking-state-pill thinking-state-pill-shimmer"
-      title={label}
-      role="status"
-      aria-live="polite"
-    >
-      <span
-        className="thinking-shimmer pointer-events-none absolute inset-0 bg-white/40 dark:bg-white/5"
-        aria-hidden
-      />
-      <span className="relative inline-flex h-3.5 w-3.5 items-center justify-center">
-        <span className="thinking-glow absolute inset-0 rounded-full bg-gray-400/25 blur-[3px] dark:bg-gray-300/20" aria-hidden />
-        <SparklesIcon className="relative h-3.5 w-3.5 text-gray-500 dark:text-gray-300" />
-      </span>
-      <span className="relative tracking-[0.01em]">{baseLabel}</span>
-      <span className="relative">
-        <BouncingDots tone="gray" />
-      </span>
-    </span>
-  )
+  return <ThinkingPill label={label} title={label} shimmer />
 }
 
 
@@ -221,7 +150,7 @@ function MessageBubbleImpl({
     return (
       <div className="chat-message-row group flex gap-3 items-start">
         {/* Avatar */}
-        <div className="chat-message-avatar chat-message-avatar-assistant flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shadow-sm">
+        <div className="chat-message-avatar chat-message-avatar-assistant flex-shrink-0 rounded-full flex items-center justify-center overflow-hidden shadow-sm">
           <AppLogoIcon size="sm" />
         </div>
 
@@ -275,7 +204,11 @@ function MessageBubbleImpl({
   }
 
   // ── Normal bubble ─────────────────────────────────────────────────────────
-  const showPinnedActions = !isUser && (isLastAssistant || Boolean(message.error))
+  // A fallback model note is important context, so keep it visible (not hover-only) for that message.
+  const showPinnedActions = !isUser && (isLastAssistant || Boolean(message.error) || Boolean(message.usedModel))
+  // Still waiting for the first token: show only the status pill. A timestamp
+  // for an unfinished reply is noise, so the actions row waits for content.
+  const isPendingReply = Boolean(message.isLoading && !textContent && !message.error)
 
   return (
     <div
@@ -283,7 +216,7 @@ function MessageBubbleImpl({
       data-message-role={isUser ? 'user' : 'assistant'}
     >
       {/* Avatar */}
-      <div className={`chat-message-avatar flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shadow-sm
+      <div className={`chat-message-avatar flex-shrink-0 rounded-full flex items-center justify-center overflow-hidden shadow-sm
                        ${isUser
                          ? 'chat-message-avatar-user'
                          : 'chat-message-avatar-assistant'}`}>
@@ -298,7 +231,23 @@ function MessageBubbleImpl({
         {/* Image attachments */}
         {imageContents.map((img, i) => {
           const imageSrc = getImageSource(img)
-          return imageSrc && (
+          // Pixel data is gone (old conversation saved before images were kept, or
+          // the user cleared stored images): say so instead of leaving a blank gap.
+          if (!imageSrc) {
+            return (
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: stable index for images
+                key={i}
+                role="img"
+                aria-label={t.chat_image_unavailable}
+                className="max-w-full rounded-xl border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-500
+                           dark:border-neutral-700 dark:text-gray-400"
+              >
+                {t.chat_image_unavailable}
+              </div>
+            )
+          }
+          return (
             <button
               type="button"
               // biome-ignore lint/suspicious/noArrayIndexKey: stable index for images
@@ -324,7 +273,7 @@ function MessageBubbleImpl({
          * Both states have a blinking/animated indicator so the user clearly
          * sees the AI is working. */}
         {message.isLoading && !textContent ? (
-          <div className="px-1 py-2">
+          <div className="chat-message-status px-1">
             {message.isSmartThinkingStep ? (
               <SmartThinkingLabel
                 label={message.researchStepLabel ?? t.chat_smart_thinking_badge}
@@ -357,6 +306,7 @@ function MessageBubbleImpl({
         {/* Timestamp + Copy + Regenerate — hover-reveal except for the
          * always-visible last assistant / error message which gets pinned so
          * the user always sees regenerate / copy without hunting for it. */}
+        {!isPendingReply && (
         <div className={`chat-message-actions ${showPinnedActions ? 'chat-message-actions-pinned' : ''} flex items-center gap-1 px-1
                          ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
           <span className="ui-micro tabular-nums">
@@ -364,6 +314,15 @@ function MessageBubbleImpl({
           </span>
           {!isUser && message.cost && (
             <UsageCostBadge cost={message.cost} currency={costCurrency} />
+          )}
+          {!isUser && message.usedModel && !message.isLoading && (
+            <span
+              className="ui-micro min-w-0 truncate"
+              title={t.chat_used_model(message.usedModel)}
+              data-testid="chat-used-model"
+            >
+              {t.chat_used_model(message.usedModel)}
+            </span>
           )}
 
           {/* Copy button */}
@@ -443,6 +402,7 @@ function MessageBubbleImpl({
             </Button>
           )}
         </div>
+        )}
       </div>
 
       {previewImage && previewImageSrc && (
@@ -500,6 +460,7 @@ function areMessageBubblePropsEqual(prev: MessageBubbleProps, next: MessageBubbl
   if (a.isSmartThinkingStep !== b.isSmartThinkingStep) return false
   if (a.researchStepLabel !== b.researchStepLabel) return false
   if (a.cost !== b.cost) return false
+  if (a.usedModel !== b.usedModel) return false
   if (a.content !== b.content && a.content.length !== b.content.length) return false
   // Compare each content slot — text is the only frequently-changing leaf.
   if (a.content !== b.content) {

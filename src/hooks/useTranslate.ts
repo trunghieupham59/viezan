@@ -66,6 +66,55 @@ function translationModelKey({ provider, model }: TranslationModelSelection) {
   return `${provider}:${model}`
 }
 
+function normalizeComparisonErrorCode(
+  errorCode: string | null | undefined,
+  error: string | null | undefined,
+) {
+  const normalizedCode = errorCode?.trim().toUpperCase()
+  if (normalizedCode === 'NO_API_KEY'
+    || normalizedCode === 'INVALID_KEY'
+    || normalizedCode === 'RATE_LIMIT'
+    || normalizedCode === 'NETWORK') return normalizedCode
+  if (normalizedCode?.includes('MODEL')
+    && (normalizedCode.includes('NOT_FOUND') || normalizedCode.includes('UNAVAILABLE'))) {
+    return 'MODEL_UNAVAILABLE'
+  }
+
+  const normalizedError = error?.trim().toLowerCase() ?? ''
+  if (normalizedError.includes('api key') && normalizedError.includes('missing')) return 'NO_API_KEY'
+  if (normalizedError.includes('api key') && (
+    normalizedError.includes('invalid')
+    || normalizedError.includes('unauthorized')
+    || normalizedError.includes('401')
+  )) return 'INVALID_KEY'
+  if (normalizedError.includes('429')
+    || normalizedError.includes('rate limit')
+    || normalizedError.includes('quota')) return 'RATE_LIMIT'
+  if (normalizedError.includes('network')
+    || normalizedError.includes('enotfound')
+    || normalizedError.includes('econn')
+    || normalizedError.includes('fetch failed')) return 'NETWORK'
+  const modelUnavailable = normalizedError.includes('model') && (
+    normalizedError.includes('404')
+    || normalizedError.includes('not found')
+    || normalizedError.includes('not_found')
+    || normalizedError.includes('unavailable')
+    || normalizedError.includes('does not exist')
+  )
+  if (modelUnavailable) return 'MODEL_UNAVAILABLE'
+  if (normalizedCode && [
+    'TIMEOUT',
+    'EMPTY_RESPONSE',
+    'BLOCKED_CONTENT',
+    'BLOCKED_SAFETY',
+    'BLOCKED_RECITATION',
+    'OUTPUT_TRUNCATED',
+    'INVALID_RESPONSE',
+    'CANCELLED',
+  ].includes(normalizedCode)) return normalizedCode
+  return 'UNKNOWN'
+}
+
 function createComparisonResult(
   selection: TranslationModelSelection,
   status: TranslationComparisonResult['status'] = 'idle',
@@ -101,6 +150,8 @@ function localizeTranslationError(
   fallback: string,
 ) {
   if (errorCode === 'NO_API_KEY') return t.translate_error_no_key
+  if (errorCode === 'OUTPUT_TRUNCATED') return t.translate_error_output_truncated
+  if (errorCode === 'INVALID_RESPONSE') return t.translate_error_invalid_response
   const localized = localizeChatError(t, { error, errorCode }, fallback)
   if (localized === t.chat_error_empty_response) return t.translate_error_empty_response
   if (localized === t.chat_error_blocked_recitation) return t.translate_error_blocked_recitation
@@ -168,7 +219,11 @@ export function useTranslate() {
   const {
     sourceText, translatedText, phoneticText, sourceLang, targetLang,
     isTranslating, translateError, translateErrorCode,
-    selectedProvider, selectedModels, translationModels, autoTranslate, autoTranslateDelay, keyStatus, phoneticMode, translationStyle, translationReasoningEffort,
+    selectedProvider: legacySelectedProvider,
+    selectedModels: legacySelectedModels,
+    translationModels,
+    autoTranslate, autoTranslateDelay, keyStatus, phoneticMode, translationStyle, translationReasoningEffort,
+    imageProviderFallback,
     ttsMode, ttsVoice,
     setSourceText, setTranslatedText, setPhoneticText, setTargetLang,
     setIsTranslating, setTranslateError, setActivePage, setPhoneticMode, setTranslationStyle, setTranslationReasoningEffort, setAutoTranslate, addHistory, upsertHistory,
@@ -178,27 +233,32 @@ export function useTranslate() {
   const t = useT()
 
   const activeTranslationModels = useMemo<TranslationModelSelection[]>(() => {
-    const singleSelection = {
-      provider: selectedProvider,
-      model: selectedModels[selectedProvider],
-    }
-    if (!translationModels || translationModels.length <= 1) return [singleSelection]
-    return translationModels
-  }, [selectedModels, selectedProvider, translationModels])
+    if (translationModels?.length) return translationModels
+    return [{
+      provider: legacySelectedProvider,
+      model: legacySelectedModels[legacySelectedProvider],
+    }]
+  }, [legacySelectedModels, legacySelectedProvider, translationModels])
+  const primaryTranslationModel = activeTranslationModels[0] ?? {
+    provider: legacySelectedProvider,
+    model: legacySelectedModels[legacySelectedProvider],
+  }
+  const selectedProvider = primaryTranslationModel.provider
+  const selectedModel = primaryTranslationModel.model
   const translationModelsKey = activeTranslationModels.map(translationModelKey).join('|')
   const isComparisonMode = activeTranslationModels.length > 1
 
+  // Keep the legacy app-wide selection as a compatibility mirror for callers
+  // not migrated to the canonical AI Translate selection set yet.
   useEffect(() => {
-    if (!isComparisonMode) return
-    const firstSelection = activeTranslationModels[0]
     const state = useAppStore.getState()
-    if (state.selectedProvider !== firstSelection.provider) {
-      state.setSelectedProvider(firstSelection.provider)
+    if (state.selectedProvider !== selectedProvider) {
+      state.setSelectedProvider(selectedProvider)
     }
-    if (state.selectedModels[firstSelection.provider] !== firstSelection.model) {
-      state.setSelectedModel(firstSelection.provider, firstSelection.model)
+    if (state.selectedModels[selectedProvider] !== selectedModel) {
+      state.setSelectedModel(selectedProvider, selectedModel)
     }
-  }, [activeTranslationModels, isComparisonMode])
+  }, [selectedModel, selectedProvider])
 
   useEffect(() => {
     if (isComparisonMode && autoTranslate) setAutoTranslate(false)
@@ -624,7 +684,7 @@ export function useTranslate() {
     setPhoneticText('')
     void translationService.translate({
       provider: selectedProvider,
-      model: selectedModels[selectedProvider],
+      model: selectedModel,
       requestId: ipcRequestId,
       sourceText: text,
       sourceLang: targetLang,
@@ -648,7 +708,7 @@ export function useTranslate() {
   }, [
     hasKey,
     selectedProvider,
-    selectedModels,
+    selectedModel,
     targetLang,
     translationStyle,
     setPhoneticText,
@@ -711,18 +771,19 @@ export function useTranslate() {
       try {
         const result = await window.api.translateImage({
           provider: selectedProvider,
-          model: selectedModels[selectedProvider],
+          model: selectedModel,
           requestId,
           imageBase64: imageAttachment.base64,
           imageMimeType: imageAttachment.mimeType,
           sourceLang,
           targetLang,
+          allowProviderFallback: imageProviderFallback,
         })
         // Bail out silently if the user cancelled while we were waiting
         if (translateGenerationRef.current !== generation) return
         if (result.success && result.editedImageBase64) {
           // ── Gemini image-edit: show the directly edited image ──
-          const mimeType = imageAttachment.mimeType
+          const mimeType = result.editedImageMimeType ?? imageAttachment.mimeType
           setEditedImageUrl(`data:${mimeType};base64,${result.editedImageBase64}`)
           setTranslatedText(IMAGE_TRANSLATED_SENTINEL) // non-empty so conditional buttons render
           setImageRegions(null)
@@ -761,7 +822,7 @@ export function useTranslate() {
         // Show notice if system auto-switched to a different model/provider
         if (result.success && (result.usedModel || result.usedProvider)) {
           setImageSwitchNotice({
-            model: result.usedModel ?? selectedModels[selectedProvider],
+            model: result.usedModel ?? selectedModel,
             provider: result.usedProvider ?? selectedProvider,
           })
         } else {
@@ -857,18 +918,21 @@ export function useTranslate() {
             updateResult(nextResult)
             recordTranslationOutcome(trigger, result.translatedText, selection, { recordHistory: false })
           } else {
+            const normalizedErrorCode = normalizeComparisonErrorCode(result.errorCode, result.error)
             updateResult({
               ...createComparisonResult(selection, 'error'),
-              error: localizeTranslationError(t, result.error, result.errorCode, t.translate_error_generic),
-              errorCode: result.errorCode ?? null,
+              error: localizeTranslationError(t, result.error, normalizedErrorCode, t.translate_error_generic),
+              errorCode: normalizedErrorCode,
               durationMs: Date.now() - startedAt,
             })
           }
         } catch (error) {
           if (translateGenerationRef.current !== generation) return
+          const rawError = error instanceof Error ? error.message : String(error ?? '')
           updateResult({
             ...createComparisonResult(selection, 'error'),
             error: localizeTranslationException(t, error, t.translate_error_unexpected),
+            errorCode: normalizeComparisonErrorCode(null, rawError),
             durationMs: Date.now() - startedAt,
           })
         } finally {
@@ -910,7 +974,7 @@ export function useTranslate() {
     try {
       const baseParams = {
         provider: selectedProvider,
-        model: selectedModels[selectedProvider],
+        model: selectedModel,
         requestId,
         sourceText,
         sourceLang,
@@ -933,7 +997,7 @@ export function useTranslate() {
 
         recordTranslationOutcome(trigger, plainText, {
           provider: selectedProvider,
-          model: selectedModels[selectedProvider],
+          model: selectedModel,
         })
 
         // Second pass: add phonetic output for the mode that is active when the
@@ -944,7 +1008,7 @@ export function useTranslate() {
 
         // Background language detection — runs in parallel with phonetic pass.
         // Identifies the source language so the swap button can set the correct target.
-        detectLanguageInBackground(sourceText, generation, selectedProvider, selectedModels[selectedProvider])
+        detectLanguageInBackground(sourceText, generation, selectedProvider, selectedModel)
       } else {
         setTranslateError(
           localizeTranslationError(
@@ -963,9 +1027,9 @@ export function useTranslate() {
       if (translateGenerationRef.current === generation) setIsTranslating(false)
       if (translateGenerationRef.current === generation) activeTranslateRequestIdRef.current = null
     }
-  }, [imageAttachment, sourceText, sourceLang, targetLang, selectedProvider, selectedModels,
+  }, [imageAttachment, sourceText, sourceLang, targetLang, selectedProvider, selectedModel,
        activeTranslationModels, isComparisonMode, keyStatus,
-       hasKey, translationStyle, translationReasoningEffort,
+       hasKey, translationStyle, translationReasoningEffort, imageProviderFallback,
        setIsTranslating, setTranslateError, setTranslatedText, setPhoneticText, t,
        detectLanguageInBackground, recordTranslationOutcome, generatePhoneticText,
        cancelActiveTranslation, invalidateRewrite, markResultCurrent])
@@ -1121,7 +1185,7 @@ export function useTranslate() {
     }
     if (!autoTranslateRef.current) return
     runTranslateRef.current('auto')
-  }, [selectedProvider, selectedModels[selectedProvider]])
+  }, [selectedProvider, selectedModel])
 
   /** Swap translation panels — puts translated text into source, sets detected language as target. */
   const handleSwapLanguages = useCallback(() => {
@@ -1177,7 +1241,7 @@ export function useTranslate() {
     try {
       const result = await translationService.rewriteText({
         provider: selectedProvider,
-        model: selectedModels[selectedProvider],
+        model: selectedModel,
         text,
         lang,
         translationStyle,
@@ -1205,7 +1269,7 @@ export function useTranslate() {
       if (rewriteGenerationRef.current === rewriteGeneration) setIsRewriting(null)
     }
   }, [isRewriting, hasKey, sourceText, translatedText, sourceLang, targetLang, translationStyle,
-      selectedProvider, selectedModels, generatePhoneticText,
+      selectedProvider, selectedModel, generatePhoneticText,
       invalidateActiveTranslation, setSourceText, setTranslatedText, setPhoneticText, setTranslateError, t])
 
   /** Handles MarkdownEditor source text changes */
