@@ -1,8 +1,9 @@
 import { MAX_TRANSLATE_SOURCE_CHARS } from './ipcConstants'
-import { invalidIpcInput, isNonEmptyString, isOptionalBoolean, isRecord, isSafeLanguageCode } from './ipcValidation'
+import { invalidIpcInput, isNonEmptyString, isOptionalBoolean, isRecord, isSafeLanguageCode, isSafeTargetLanguageCode } from './ipcValidation'
 import { isValidProvider, unknownProviderError } from './providers/types'
 
-export type TranslationStyle = 'general' | 'formal' | 'casual' | 'business' | 'technical' | 'natural'
+export const TRANSLATION_STYLES = ['general', 'formal', 'casual', 'business', 'technical', 'natural'] as const
+export type TranslationStyle = (typeof TRANSLATION_STYLES)[number]
 export type PhoneticMode = 'off' | 'standard' | 'phonetic'
 export type TranslationReasoningEffort = 'auto' | 'low' | 'medium' | 'high'
 
@@ -32,18 +33,13 @@ export type ParsedParams<T> =
   | { ok: true; value: T }
   | { ok: false; response: { success: false; error: string; errorCode?: string } }
 
-const TRANSLATION_STYLES = new Set<TranslationStyle>([
-  'general',
-  'formal',
-  'casual',
-  'business',
-  'technical',
-  'natural',
-])
+const TRANSLATION_STYLE_SET: ReadonlySet<string> = new Set(TRANSLATION_STYLES)
 
 const PHONETIC_MODES = new Set<PhoneticMode>(['off', 'standard', 'phonetic'])
 const REASONING_EFFORTS = new Set<TranslationReasoningEffort>(['auto', 'low', 'medium', 'high'])
 const MAX_MODEL_ID_CHARS = 200
+/** Sentinel the renderer sends to rewrite text in its own language when the source language is 'auto'. */
+const REWRITE_SAME_LANGUAGE = 'the same language as the input text'
 
 function parseProvider(value: unknown): ParsedParams<string> {
   if (!isNonEmptyString(value)) {
@@ -69,7 +65,7 @@ function parseModel(value: unknown): ParsedParams<string> {
 
 function parseTranslationStyle(value: unknown): ParsedParams<TranslationStyle | undefined> {
   if (value === undefined) return { ok: true, value: undefined }
-  if (typeof value !== 'string' || !TRANSLATION_STYLES.has(value as TranslationStyle)) {
+  if (typeof value !== 'string' || !TRANSLATION_STYLE_SET.has(value)) {
     return { ok: false, response: invalidIpcInput('Invalid translation style') }
   }
   return { ok: true, value: value as TranslationStyle }
@@ -103,7 +99,7 @@ export function parseTranslateParams(rawParams: unknown): ParsedParams<Translate
   if (!isSafeLanguageCode(rawParams.sourceLang)) {
     return { ok: false, response: invalidIpcInput('Invalid source language') }
   }
-  if (!isSafeLanguageCode(rawParams.targetLang)) {
+  if (!isSafeTargetLanguageCode(rawParams.targetLang)) {
     return { ok: false, response: invalidIpcInput('Invalid target language') }
   }
   if (!isOptionalBoolean(rawParams.showFurigana) || !isOptionalBoolean(rawParams.phoneticOnly)) {
@@ -164,7 +160,7 @@ export function parseRewriteParams(rawParams: unknown): ParsedParams<RewritePara
       },
     }
   }
-  if (!isSafeLanguageCode(rawParams.lang)) {
+  if (typeof rawParams.lang !== 'string' || (!isSafeTargetLanguageCode(rawParams.lang) && rawParams.lang !== REWRITE_SAME_LANGUAGE)) {
     return { ok: false, response: invalidIpcInput('Invalid language') }
   }
   const translationStyle = parseTranslationStyle(rawParams.translationStyle)

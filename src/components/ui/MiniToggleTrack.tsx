@@ -1,7 +1,7 @@
 /**
  * MiniToggleTrack — reusable inline mini-toggle pill (track + thumb).
  *
- * Used inside pill-style buttons like AutoTranslateToggle and PhoneticToggle
+ * Used inside pill-style buttons like AutoTranslateToggle
  * to show a small visual on/off indicator embedded in the button label.
  *
  * NOT a standalone interactive control — the parent button handles click events.

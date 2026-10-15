@@ -17,3 +17,10 @@ export function detectSystemLocale(): AppLocale {
   const lang = (navigator.language || 'en').split('-')[0]
   return SUPPORTED_LOCALES.includes(lang as AppLocale) ? (lang as AppLocale) : 'en'
 }
+
+const NUMBER_FORMAT_TAGS: Record<AppLocale, string> = { en: 'en-US', vi: 'vi-VN', ja: 'ja-JP' }
+
+/** Format a number for display using the app's UI language, not the OS regional settings. */
+export function formatNumberForLocale(value: number, locale: AppLocale): string {
+  return value.toLocaleString(NUMBER_FORMAT_TAGS[locale] ?? NUMBER_FORMAT_TAGS.en)
+}

@@ -1,9 +1,14 @@
+import { Button } from '@/components/ui/atoms'
 import { ToggleSwitch } from '../../components/ui/atoms'
 import { FontSizePicker } from '../../components/ui/FontSizePicker'
-import { ChevronDownIcon } from '../../components/ui/icons'
+import { OptionPicker } from '../../components/ui/molecules'
 import { type AppLocale, LOCALE_NAMES } from '../../i18n'
 import { useAppStore, useT } from '../../store/useAppStore'
 import { detectSystemLocale } from '../../utils/locale'
+
+const localeOptions = (Object.entries(LOCALE_NAMES) as [AppLocale, string][]).map(
+  ([value, label]) => ({ value, label }),
+)
 
 export function PreferencesSection() {
   const autoTranslate = useAppStore((state) => state.autoTranslate)
@@ -12,6 +17,8 @@ export function PreferencesSection() {
   const setAutoTranslateDelay = useAppStore((state) => state.setAutoTranslateDelay)
   const phoneticMode = useAppStore((state) => state.phoneticMode)
   const setPhoneticMode = useAppStore((state) => state.setPhoneticMode)
+  const imageProviderFallback = useAppStore((state) => state.imageProviderFallback)
+  const setImageProviderFallback = useAppStore((state) => state.setImageProviderFallback)
   const locale = useAppStore((state) => state.locale)
   const localeAuto = useAppStore((state) => state.localeAuto)
   const setLocale = useAppStore((state) => state.setLocale)
@@ -57,20 +64,12 @@ export function PreferencesSection() {
             <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_app_language}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_app_language_desc}</p>
           </div>
-          <div className="relative">
-            <select
-              value={locale}
-              onChange={(e) => setLocale(e.target.value as AppLocale)}
-              className="select-field min-w-[130px] pl-3 pr-8"
-            >
-              {(Object.entries(LOCALE_NAMES) as [AppLocale, string][]).map(([code, name]) => (
-                <option key={code} value={code}>{name}</option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute right-2.5 inset-y-0 flex items-center">
-              <ChevronDownIcon className="w-3.5 h-3.5 text-gray-400" />
-            </div>
-          </div>
+          <OptionPicker
+            value={locale}
+            options={localeOptions}
+            onChange={(code) => setLocale(code as AppLocale)}
+            label={t.settings_app_language}
+          />
         </div>
 
         {/* Appearance / Theme */}
@@ -81,14 +80,18 @@ export function PreferencesSection() {
           </div>
           <div className="segmented-control flex-shrink-0">
             {(['light', 'system', 'dark'] as const).map((v) => (
-              <button
+              <Button
+                size="md"
+                shape="rect"
+                variant={theme === v ? 'primary' : 'neutral'}
+                appearance={theme === v ? 'soft' : 'ghost'}
                 key={v}
                 type="button"
                 onClick={() => setTheme(v)}
-                className={`btn-segment px-3 text-xs ${theme === v ? 'btn-segment-active' : ''}`}
+                aria-pressed={theme === v}
               >
                 {v === 'light' ? t.settings_theme_light : v === 'dark' ? t.settings_theme_dark : t.settings_theme_system}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -120,6 +123,19 @@ export function PreferencesSection() {
             checked={phoneticMode !== 'off'}
             onChange={(v) => setPhoneticMode(v ? 'standard' : 'off')}
             aria-label={t.settings_furigana}
+          />
+        </div>
+
+        {/* Image translation: allow uploading the image to another provider as a fallback */}
+        <div className="flex items-center justify-between gap-4 px-4 py-3.5">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_image_provider_fallback}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_image_provider_fallback_desc}</p>
+          </div>
+          <ToggleSwitch
+            checked={imageProviderFallback}
+            onChange={setImageProviderFallback}
+            aria-label={t.settings_image_provider_fallback}
           />
         </div>
 

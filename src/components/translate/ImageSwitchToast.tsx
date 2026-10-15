@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/atoms'
 import { useT } from '../../store/useAppStore'
 import { tpl } from '../../utils/tpl'
 import { AlertTriangleIcon, XIcon } from '../ui/icons'
@@ -31,14 +32,18 @@ export function ImageSwitchToast({
             {' '}— {bodyLabel}
           </p>
         </div>
-        <button
+        <Button
+          size="md"
+          shape="icon"
+          variant="neutral"
+          appearance="ghost"
           type="button"
           onClick={onDismiss}
-          className="btn-icon btn-icon-sm mt-0.5 flex-shrink-0 border-white/10 bg-transparent text-white/70 shadow-none hover:bg-white/10 hover:text-white"
+          className="mt-0.5 flex-shrink-0"
           aria-label={t.translate_error_dismiss}
         >
           <XIcon className="w-3.5 h-3.5" />
-        </button>
+        </Button>
       </div>
     </div>
   )

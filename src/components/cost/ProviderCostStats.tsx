@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/atoms'
 /**
  * ProviderCostStats — compact stats strip rendered under the provider title
  * inside ApiKeyInput's CredentialCard `meta` slot.
@@ -87,14 +88,18 @@ export function ProviderCostStats({
         />
       ) : null}
 
-      <button
+      <Button
+        size="sm"
+        shape="rect"
+        variant="danger"
+        appearance="soft"
         type="button"
         onClick={onReset}
         title={resetTitle}
-        className="btn-danger btn-xs ml-auto"
+        className="ml-auto"
       >
         {t.settings_cost_reset_provider}
-      </button>
+      </Button>
     </div>
   )
 }

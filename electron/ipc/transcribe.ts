@@ -42,6 +42,10 @@ import { getStoredApiKey, hasStoredApiKey } from './storage'
 // ── Whisper cache ─────────────────────────────────────────────────────────────
 let whisperSessionAvailable = true
 let whisperUnavailableUntilMs = 0
+// Bumped on every new Whisper/Gemini ban so a recovery probe can tell whether the ban
+// it was scheduled for is still the current one.
+let whisperBanGeneration = 0
+let geminiBanGeneration = 0
 
 // Counts consecutive Whisper failures with unrecognised error codes (no errorCode).
 // After WHISPER_CONSECUTIVE_FAIL_LIMIT failures the session is switched away from
@@ -59,31 +63,38 @@ function isWhisperAvailableNow(): boolean {
   return whisperSessionAvailable
 }
 
-/**
- * Mark Whisper as unavailable for this session (or a timed window).
- *
- *   NO_API_KEY / INVALID_KEY → permanent until app restart or key change
- *   RATE_LIMIT / TIMEOUT     → WHISPER_RATE_LIMIT_BAN_MS timed ban
- *   CONNECTION_ERROR         → STT_CONNECTION_ERROR_BAN_MS short ban (30 s)
- *   CONSECUTIVE_FAIL         → WHISPER_CONSECUTIVE_FAIL_BAN_MS short ban (60 s)
- */
+// Provider session ban policy shared by Whisper and Gemini.
+//   NO_API_KEY / INVALID_KEY → permanent until app restart, key change or pre-flight
+//   RATE_LIMIT               → WHISPER_RATE_LIMIT_BAN_MS timed ban
+//   TIMEOUT / CONNECTION_ERROR → STT_CONNECTION_ERROR_BAN_MS short ban (transient)
+//   CONSECUTIVE_FAIL         → WHISPER_CONSECUTIVE_FAIL_BAN_MS short ban
+//   anything else            → short timed ban (never permanent: live chunks have a
+//                              3 s timeout, so one slow response must not disable a
+//                              provider for the whole session)
+const PERMANENT_BAN_CODES = new Set(['NO_API_KEY', 'INVALID_KEY'])
+
+/** Pure ban classification. `banMs === Infinity` means "permanent for the session". */
+export function classifySttBan(errorCode: string): { permanent: boolean; banMs: number } {
+  if (PERMANENT_BAN_CODES.has(errorCode)) return { permanent: true, banMs: Number.POSITIVE_INFINITY }
+  if (errorCode === 'RATE_LIMIT') return { permanent: false, banMs: WHISPER_RATE_LIMIT_BAN_MS }
+  if (errorCode === 'CONSECUTIVE_FAIL') return { permanent: false, banMs: WHISPER_CONSECUTIVE_FAIL_BAN_MS }
+  return { permanent: false, banMs: STT_CONNECTION_ERROR_BAN_MS }
+}
+
+function banExpiryMs(errorCode: string): number {
+  const { permanent, banMs } = classifySttBan(errorCode)
+  return permanent ? Number.MAX_SAFE_INTEGER : Date.now() + banMs
+}
+
+/** Mark Whisper as unavailable for this session (or a timed window). */
 function markWhisperUnavailable(errorCode: string): void {
+  whisperBanGeneration++
   whisperSessionAvailable = false
-  if (errorCode === 'RATE_LIMIT' || errorCode === 'TIMEOUT') {
-    const banMs = WHISPER_RATE_LIMIT_BAN_MS
-    whisperUnavailableUntilMs = Date.now() + banMs
-    console.log(`[transcribe] Whisper marked unavailable for ${banMs / 1000} s (${errorCode})`)
-  } else if (errorCode === 'CONNECTION_ERROR') {
-    whisperUnavailableUntilMs = Date.now() + STT_CONNECTION_ERROR_BAN_MS
-    console.log(`[transcribe] Whisper marked unavailable for ${STT_CONNECTION_ERROR_BAN_MS / 1000} s (CONNECTION_ERROR)`)
-  } else if (errorCode === 'CONSECUTIVE_FAIL') {
-    whisperUnavailableUntilMs = Date.now() + WHISPER_CONSECUTIVE_FAIL_BAN_MS
-    console.log(`[transcribe] Whisper marked unavailable for ${WHISPER_CONSECUTIVE_FAIL_BAN_MS / 1000} s (${errorCode})`)
-  } else {
-    // NO_API_KEY, INVALID_KEY → permanent
-    whisperUnavailableUntilMs = Number.MAX_SAFE_INTEGER
-    console.log(`[transcribe] Whisper marked unavailable for session (${errorCode})`)
-  }
+  whisperUnavailableUntilMs = banExpiryMs(errorCode)
+  const { permanent, banMs } = classifySttBan(errorCode)
+  console.log(permanent
+    ? `[transcribe] Whisper marked unavailable for session (${errorCode})`
+    : `[transcribe] Whisper marked unavailable for ${banMs / 1000} s (${errorCode})`)
 }
 
 // ── Gemini cache ──────────────────────────────────────────────────────────────
@@ -103,31 +114,36 @@ function isGeminiAvailableNow(): boolean {
   return geminiSessionAvailable
 }
 
-/**
- * Mark Gemini STT as unavailable for this session (or a timed window).
- *
- *   NO_API_KEY / INVALID_KEY → permanent until key changes
- *   RATE_LIMIT               → WHISPER_RATE_LIMIT_BAN_MS timed ban (same as Whisper)
- *   CONNECTION_ERROR         → STT_CONNECTION_ERROR_BAN_MS short ban (30 s)
- */
+/** Mark Gemini STT as unavailable for this session (or a timed window). */
 function markGeminiUnavailable(errorCode: string): void {
+  geminiBanGeneration++
   geminiSessionAvailable = false
-  if (errorCode === 'RATE_LIMIT') {
-    geminiUnavailableUntilMs = Date.now() + WHISPER_RATE_LIMIT_BAN_MS
-    console.log(`[transcribe] Gemini marked unavailable for ${WHISPER_RATE_LIMIT_BAN_MS / 1000} s (RATE_LIMIT)`)
-  } else if (errorCode === 'CONNECTION_ERROR') {
-    geminiUnavailableUntilMs = Date.now() + STT_CONNECTION_ERROR_BAN_MS
-    console.log(`[transcribe] Gemini marked unavailable for ${STT_CONNECTION_ERROR_BAN_MS / 1000} s (CONNECTION_ERROR)`)
-  } else {
-    geminiUnavailableUntilMs = Number.MAX_SAFE_INTEGER
-    console.log(`[transcribe] Gemini marked unavailable for session (${errorCode})`)
-  }
+  geminiUnavailableUntilMs = banExpiryMs(errorCode)
+  const { permanent, banMs } = classifySttBan(errorCode)
+  console.log(permanent
+    ? `[transcribe] Gemini marked unavailable for session (${errorCode})`
+    : `[transcribe] Gemini marked unavailable for ${banMs / 1000} s (${errorCode})`)
+}
+
+/** Test-only: restore the module-level provider session caches. */
+export function resetSttSessionStateForTests(): void {
+  whisperSessionAvailable = true
+  whisperUnavailableUntilMs = 0
+  whisperConsecutiveFailures = 0
+  geminiSessionAvailable = true
+  geminiUnavailableUntilMs = 0
+  whisperBanGeneration = 0
+  geminiBanGeneration = 0
+  for (const { timer } of pendingProbes.values()) clearTimeout(timer)
+  pendingProbes.clear()
+}
+
+/** Test-only: read the provider session caches. */
+export function getSttSessionStateForTests(): { whisperAvailable: boolean; geminiAvailable: boolean } {
+  return { whisperAvailable: isWhisperAvailableNow(), geminiAvailable: isGeminiAvailableNow() }
 }
 
 // ─── Error codes that trigger fallback behaviour ──────────────────────────────
-// CONNECTION_ERROR is now also a PERMANENT code (short timed ban) — in live meeting
-// context, retrying on every chunk is wasteful because the same network issue persists.
-const PERMANENT_FALLBACK_CODES = new Set(['NO_API_KEY', 'INVALID_KEY', 'RATE_LIMIT', 'TIMEOUT', 'CONNECTION_ERROR'])
 // All codes that trigger next-provider fallback on this chunk
 const FALLBACK_CODES = new Set(['NO_API_KEY', 'INVALID_KEY', 'RATE_LIMIT', 'CONNECTION_ERROR', 'TIMEOUT'])
 
@@ -164,28 +180,68 @@ function createSilenceWav(): ArrayBuffer {
  * Schedule a background recovery probe for a banned provider.
  *
  * The probe runs in a setTimeout so it never blocks the calling audio chunk.
- * If the provider responds (success OR any error ≠ the banning errorCode), the
- * session cache is cleared so the very next real chunk can use that provider.
+ * If the provider responds (success OR an error that is neither connectivity-related
+ * nor a permanent key failure), the session cache is cleared so the very next real
+ * chunk can use that provider.
+ *
+ * A probe is bound to the ban generation it was scheduled for: a newer ban replaces
+ * the pending probe, and a probe never clears a ban that is newer than its own (or a
+ * permanent one).
  */
+interface PendingProbe {
+  generation: number
+  timer: NodeJS.Timeout
+}
+const pendingProbes = new Map<'whisper' | 'gemini', PendingProbe>()
+
+/** Codes that mean "this provider will keep failing" - never evidence of recovery. */
+function isUnrecoveredProbeCode(errorCode: string | undefined): boolean {
+  return errorCode === 'CONNECTION_ERROR'
+    || errorCode === 'TIMEOUT'
+    || errorCode === 'RATE_LIMIT'
+    || errorCode === 'CANCELLED'
+    || (errorCode !== undefined && PERMANENT_BAN_CODES.has(errorCode))
+}
+
+function currentBanGeneration(provider: 'whisper' | 'gemini'): number {
+  return provider === 'whisper' ? whisperBanGeneration : geminiBanGeneration
+}
+
+/** True while the ban the probe was scheduled for is still the live, timed ban. */
+function isProbeBanCurrent(provider: 'whisper' | 'gemini', generation: number): boolean {
+  if (currentBanGeneration(provider) !== generation) return false
+  const unavailableUntil = provider === 'whisper' ? whisperUnavailableUntilMs : geminiUnavailableUntilMs
+  const available = provider === 'whisper' ? isWhisperAvailableNow() : isGeminiAvailableNow()
+  return !available && unavailableUntil !== Number.MAX_SAFE_INTEGER
+}
+
 function scheduleRecoveryProbe(provider: 'whisper' | 'gemini', afterMs: number): void {
-  setTimeout(async () => {
+  const generation = currentBanGeneration(provider)
+  const existing = pendingProbes.get(provider)
+  // One probe per ban at a time - repeated failures must not stack timers.
+  if (existing?.generation === generation) return
+  if (existing) clearTimeout(existing.timer)
+
+  const timer = setTimeout(async () => {
+    if (pendingProbes.get(provider)?.timer === timer) pendingProbes.delete(provider)
+    if (!isProbeBanCurrent(provider, generation)) return  // recovered, expired or superseded
     const silenceWav = createSilenceWav()
     try {
       if (provider === 'whisper') {
-        if (isWhisperAvailableNow()) return  // already recovered via natural expiry
         const result = await transcribeWithWhisper(silenceWav, 'audio/wav', undefined, undefined, false)
-        // Treat success OR any non-connectivity error as "provider is back"
-        if (result.success || (result.errorCode !== 'CONNECTION_ERROR' && result.errorCode !== 'TIMEOUT')) {
+        // The ban may have been replaced (or made permanent) while the probe was in flight.
+        if (!isProbeBanCurrent('whisper', generation)) return
+        if (result.success || !isUnrecoveredProbeCode(result.errorCode)) {
           whisperSessionAvailable   = true
           whisperUnavailableUntilMs = 0
           console.log('[transcribe] Background probe: Whisper recovered → session ban reset')
         }
       } else {
-        if (isGeminiAvailableNow()) return  // already recovered
         const geminiKey = await getStoredApiKey('gemini')
         if (!geminiKey) return
         const result = await transcribeWithGeminiSTT(silenceWav, 'audio/wav', undefined, geminiKey)
-        if (result.success || (result.errorCode !== 'RATE_LIMIT' && result.errorCode !== 'CONNECTION_ERROR')) {
+        if (!isProbeBanCurrent('gemini', generation)) return
+        if (result.success || !isUnrecoveredProbeCode(result.errorCode)) {
           geminiSessionAvailable   = true
           geminiUnavailableUntilMs = 0
           console.log('[transcribe] Background probe: Gemini recovered → session ban reset')
@@ -195,6 +251,9 @@ function scheduleRecoveryProbe(provider: 'whisper' | 'gemini', afterMs: number):
       // Probe errors are silently swallowed — never block live transcription
     }
   }, afterMs)
+  pendingProbes.set(provider, { generation, timer })
+  // Never keep the process alive just for a background probe.
+  timer.unref?.()
 }
 
 // ─── Shared IPC contract and validation ───────────────────────────────────────
@@ -338,25 +397,61 @@ function isCancellationError(error: unknown): boolean {
   return error.name === 'AbortError' || message.includes('aborted') || message.includes('cancelled')
 }
 
-function classifyTranscriptionError(error: unknown, providerName: string): InternalTranscribeFailure {
+function readNumericStatus(error: unknown): number | undefined {
+  if (!isRecord(error)) return undefined
+  const direct = error.status ?? error.statusCode
+  if (typeof direct === 'number') return direct
+  const response = error.response
+  if (isRecord(response) && typeof response.status === 'number') return response.status
+  return undefined
+}
+
+function readErrorCodes(error: unknown): string[] {
+  if (!isRecord(error)) return []
+  const codes: string[] = []
+  for (const value of [error.code, error.type, isRecord(error.cause) ? error.cause.code : undefined]) {
+    if (typeof value === 'string') codes.push(value.toLowerCase())
+  }
+  return codes
+}
+
+export function classifyTranscriptionError(error: unknown, providerName: string): InternalTranscribeFailure {
   if (isCancellationError(error)) {
     return internalTranscriptionFailure('CANCELLED', false)
   }
 
   const message = error instanceof Error ? error.message : String(error)
-  const lower = message.toLowerCase()
-  if (lower.includes('401') || lower.includes('invalid_api_key') || lower.includes('unauthorized')) {
+
+  // 1. Structured signals first: HTTP status, then provider/Node error codes.
+  const status = readNumericStatus(error)
+  const codes = readErrorCodes(error)
+  if (status === 401 || codes.includes('invalid_api_key')) {
     return internalTranscriptionFailure('INVALID_KEY', false, message)
   }
-  if (lower.includes('429') || lower.includes('rate_limit') || lower.includes('quota')) {
+  if (status === 429 || codes.some(code => code === 'rate_limit_exceeded' || code === 'insufficient_quota')) {
     return internalTranscriptionFailure('RATE_LIMIT', true, message)
   }
-  if (lower.includes('timeout') || lower.includes('timed out')) {
+  if (status === 408 || status === 504
+      || codes.some(code => code === 'etimedout' || code === 'und_err_connect_timeout' || code === 'und_err_headers_timeout')) {
     return internalTranscriptionFailure('TIMEOUT', true, message)
   }
-  if (lower.includes('enotfound') || lower.includes('econnrefused')
-      || lower.includes('failed to fetch') || lower.includes('fetch failed')
-      || lower.includes('connection error')) {
+  if ((status !== undefined && status >= 500)
+      || codes.some(code => ['enotfound', 'econnrefused', 'econnreset', 'eai_again', 'und_err_socket'].includes(code))) {
+    return internalTranscriptionFailure('CONNECTION_ERROR', true, message)
+  }
+
+  // 2. Message text fallback — word-boundary matches so "4012 ms" or "port 4290"
+  //    is not mistaken for an HTTP status.
+  if (/\b401\b/.test(message) || /\binvalid_api_key\b|\bunauthorized\b/i.test(message)) {
+    return internalTranscriptionFailure('INVALID_KEY', false, message)
+  }
+  if (/\b429\b/.test(message) || /\brate[_ ]limit(?:ed|_exceeded)?\b|\bquota\b/i.test(message)) {
+    return internalTranscriptionFailure('RATE_LIMIT', true, message)
+  }
+  if (/\btime(?:d[ -]?)?out\b/i.test(message)) {
+    return internalTranscriptionFailure('TIMEOUT', true, message)
+  }
+  if (/\b(?:enotfound|econnrefused)\b|failed to fetch|fetch failed|connection error/i.test(message)) {
     return internalTranscriptionFailure('CONNECTION_ERROR', true, message)
   }
   return internalTranscriptionFailure('UNKNOWN', false, `${providerName}: ${message}`)
@@ -729,6 +824,17 @@ async function transcribeWithGroq(
 //
 // Returns { result, fromWhisper } so the caller can update caches appropriately.
 
+interface HedgedOutcome {
+  result: InternalTranscribeResult
+  fromWhisper: boolean
+  /**
+   * Each provider's OWN failure. Both are set when both failed; only whisperFailure is
+   * set when Whisper failed early and Gemini then won the race.
+   */
+  whisperFailure?: InternalTranscribeFailure
+  geminiFailure?: InternalTranscribeFailure
+}
+
 async function transcribeHedged(
   audioData: ArrayBuffer,
   mimeType: string,
@@ -736,7 +842,7 @@ async function transcribeHedged(
   previousText: string | undefined,
   geminiKey: string,
   signal?: AbortSignal,
-): Promise<{ result: InternalTranscribeResult; fromWhisper: boolean }> {
+): Promise<HedgedOutcome> {
   return new Promise(resolve => {
     let settled = false
     let geminiLaunched = false
@@ -752,18 +858,29 @@ async function transcribeHedged(
     if (signal?.aborted) abortChildren()
     else signal?.addEventListener('abort', abortChildren, { once: true })
 
-    const finish = (result: InternalTranscribeResult, fromWhisper: boolean) => {
+    const finish = (
+      result: InternalTranscribeResult,
+      fromWhisper: boolean,
+      failures?: { whisper?: InternalTranscribeFailure; gemini?: InternalTranscribeFailure },
+    ) => {
       if (settled) return
       settled = true
       clearTimeout(hedgeTimer)
       signal?.removeEventListener('abort', abortChildren)
       if (fromWhisper) geminiController.abort()
       else whisperController.abort()
-      resolve({ result, fromWhisper })
+      resolve({
+        result,
+        fromWhisper,
+        ...(failures?.whisper ? { whisperFailure: failures.whisper } : {}),
+        ...(failures?.gemini ? { geminiFailure: failures.gemini } : {}),
+      })
     }
 
     const finishIfBothFailed = () => {
-      if (whisperFailure && geminiFailure) finish(geminiFailure, false)
+      if (whisperFailure && geminiFailure) {
+        finish(geminiFailure, false, { whisper: whisperFailure, gemini: geminiFailure })
+      }
     }
 
     const launchGemini = () => {
@@ -777,7 +894,8 @@ async function transcribeHedged(
         geminiController.signal,
         WHISPER_TIMEOUT_MS,
       ).then(result => {
-        if (result.success) finish(result, false)
+        // Report Whisper's own early failure too, so the caller can ban it.
+        if (result.success) finish(result, false, whisperFailure ? { whisper: whisperFailure } : undefined)
         else {
           geminiFailure = result
           finishIfBothFailed()
@@ -811,6 +929,36 @@ async function transcribeHedged(
   })
 }
 
+// ─── Failure → ban + recovery probe ───────────────────────────────────────────
+
+/**
+ * Record a Whisper failure from the auto route: ban per classifySttBan, schedule a
+ * recovery probe for timed bans, and count unrecognised codes towards the
+ * consecutive-failure ban.
+ */
+function applyWhisperFailure(code: string): void {
+  if (code === 'CANCELLED') return
+  if (FALLBACK_CODES.has(code)) {
+    markWhisperUnavailable(code)
+    whisperConsecutiveFailures = 0
+    if (!classifySttBan(code).permanent) scheduleRecoveryProbe('whisper', STT_RECOVERY_PROBE_DELAY_MS)
+    return
+  }
+  whisperConsecutiveFailures++
+  if (whisperConsecutiveFailures >= WHISPER_CONSECUTIVE_FAIL_LIMIT) {
+    markWhisperUnavailable('CONSECUTIVE_FAIL')
+    whisperConsecutiveFailures = 0
+    scheduleRecoveryProbe('whisper', STT_RECOVERY_PROBE_DELAY_MS)
+  }
+}
+
+/** Record a Gemini failure from the auto route (see applyWhisperFailure). */
+function applyGeminiFailure(code: string): void {
+  if (!FALLBACK_CODES.has(code)) return
+  markGeminiUnavailable(code)
+  if (!classifySttBan(code).permanent) scheduleRecoveryProbe('gemini', STT_RECOVERY_PROBE_DELAY_MS)
+}
+
 // ─── Auto mode: smart routing with session cache ───────────────────────────────
 
 /**
@@ -842,9 +990,10 @@ async function transcribeAuto(
   // sequential Whisper-timeout → fall-to-Gemini delay that breaks real-time
   // performance when Whisper is slow or flaky.
   if (whisperAvail && geminiAvail && geminiKey) {
-    const { result, fromWhisper } = await transcribeHedged(
+    const hedged = await transcribeHedged(
       audioData, mimeType, language, previousText, geminiKey, signal,
     )
+    const { result, fromWhisper } = hedged
 
     if (result.success) {
       if (fromWhisper) {
@@ -865,8 +1014,15 @@ async function transcribeAuto(
         //
         // The hedge continues on every subsequent chunk and will naturally prefer
         // whichever provider is faster.  Whisper is only banned when it actually
-        // returns an error (handled in the "Both failed" branch below).
-        console.log('[transcribe] auto: Gemini won hedge race (Whisper was slower) — keeping both in hedge')
+        // returns an error: either it failed before Gemini won (below) or both failed
+        // (the branch after this one).
+        if (hedged.whisperFailure) {
+          // Whisper errored (e.g. INVALID_KEY) and Gemini rescued the chunk: still apply
+          // Whisper's ban so later chunks stop sending doomed Whisper requests.
+          applyWhisperFailure(hedged.whisperFailure.errorCode)
+        } else {
+          console.log('[transcribe] auto: Gemini won hedge race (Whisper was slower) — keeping both in hedge')
+        }
         if (!geminiSessionAvailable) {
           geminiSessionAvailable   = true
           geminiUnavailableUntilMs = 0
@@ -877,14 +1033,11 @@ async function transcribeAuto(
     }
     if (result.errorCode === 'CANCELLED') return result
 
-    // Both Whisper and Gemini failed in the hedged race → ban both, fall to Groq
-    const code = result.errorCode
-    console.log(`[transcribe] auto: Hedged race failed (${code}) → Groq STT`)
-    if (PERMANENT_FALLBACK_CODES.has(code)) {
-      markWhisperUnavailable(code)
-      markGeminiUnavailable(code)
-      whisperConsecutiveFailures = 0
-    }
+    // Both Whisper and Gemini failed in the hedged race → ban each by its OWN
+    // failure code (never pass one provider's code to the other), then fall to Groq.
+    console.log(`[transcribe] auto: Hedged race failed (${result.errorCode}) → Groq STT`)
+    if (hedged.whisperFailure) applyWhisperFailure(hedged.whisperFailure.errorCode)
+    if (hedged.geminiFailure) applyGeminiFailure(hedged.geminiFailure.errorCode)
     // Fall through to Groq
   }
 
@@ -911,16 +1064,7 @@ async function transcribeAuto(
     if (whisperResult.errorCode === 'CANCELLED') return whisperResult
 
     const code = whisperResult.errorCode
-    if (PERMANENT_FALLBACK_CODES.has(code)) {
-      markWhisperUnavailable(code); whisperConsecutiveFailures = 0
-      if (code === 'CONNECTION_ERROR' || code === 'TIMEOUT') scheduleRecoveryProbe('whisper', STT_RECOVERY_PROBE_DELAY_MS)
-    } else if (!FALLBACK_CODES.has(code)) {
-      whisperConsecutiveFailures++
-      if (whisperConsecutiveFailures >= WHISPER_CONSECUTIVE_FAIL_LIMIT) {
-        markWhisperUnavailable('CONSECUTIVE_FAIL'); whisperConsecutiveFailures = 0
-        scheduleRecoveryProbe('whisper', STT_RECOVERY_PROBE_DELAY_MS)
-      }
-    }
+    applyWhisperFailure(code)
     console.log(`[transcribe] auto: Whisper-only failed (${code || 'unknown'}) → Groq STT`)
     // Fall through to Groq (no Gemini key)
   }
@@ -946,8 +1090,7 @@ async function transcribeAuto(
 
     const geminiCode = geminiResult.errorCode
     if (FALLBACK_CODES.has(geminiCode)) {
-      markGeminiUnavailable(geminiCode)
-      if (geminiCode === 'RATE_LIMIT' || geminiCode === 'CONNECTION_ERROR') scheduleRecoveryProbe('gemini', STT_RECOVERY_PROBE_DELAY_MS)
+      applyGeminiFailure(geminiCode)
       console.log(`[transcribe] auto: Gemini-only failed (${geminiCode}) → Groq STT`)
     } else {
       return geminiResult  // non-recoverable error

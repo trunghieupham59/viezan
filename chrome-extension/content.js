@@ -20,6 +20,21 @@
   const Bridge = globalThis.ViezanLocalBridge
   if (!Bridge?.createTtsController) return
 
+  // ── Idempotency guard ──────────────────────────────────────────────────────
+  // background.js re-injects this script after a failed PING, and the manifest
+  // also injects it at document_idle, so two instances can race on one tab.
+  // A live earlier instance wins; a dead one (invalidated context) is disposed
+  // so its listeners and UI cannot linger next to ours.
+  const previousInstance = globalThis.__viezanContent
+  if (previousInstance) {
+    let previousAlive = false
+    try { previousAlive = previousInstance.isAlive() } catch { /* dead context */ }
+    if (previousAlive) return
+    try { previousInstance.dispose() } catch { /* ignore */ }
+  }
+  const listenerAbort = new AbortController()
+  const listenerSignal = listenerAbort.signal
+
   function populateFallbackSelect (select, encodedOptions) {
     if (!select) return
     const previousValue = select.value
@@ -184,11 +199,27 @@
   let savedInputStart = 0        // textarea selectionStart
   let savedInputEnd = 0          // textarea selectionEnd
   let currentTranslation = ''
+  let currentSource = ''         // text that produced currentTranslation
+  let tooltipVisible = false     // explicit flag: inline display is '' before first show
+  let requestSeq = 0             // monotonically increasing translate request id
+  let pendingBtnId = 0           // request id of an in-flight button/shortcut translate
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   function isContextValid () {
     try { return !!chrome.runtime?.id } catch { return false }
+  }
+
+  /** Map a failure to a user-facing sentence; only real network failures read as "app offline". */
+  function describeError (err) {
+    const msg = err?.message || 'Unknown error'
+    if (/\b401\b|Unauthorized/i.test(msg)) {
+      return 'API key is invalid. Please update it in the Options page.'
+    }
+    if (Bridge.isNetworkError(msg)) {
+      return 'Cannot connect to Viezan app. Make sure the Viezan app is running.'
+    }
+    return msg
   }
 
   function retireInvalidContextUi () {
@@ -385,8 +416,32 @@
     resetBtnIcon()
   }
 
-  function showTooltip (text, rect, range, targetLang, translationStyle) {
+  function renderTooltip (source, resultText, rect) {
+    // Left panel: original / source text (the text that was actually translated)
+    tooltip.querySelector('.tre-source-text').textContent = String(source || '').replace(/\n{2,}/g, '\n')
+
+    // Right panel: translation result (or notice)
+    tooltip.querySelector('.tre-tooltip-text').textContent = String(resultText || '').replace(/\n{2,}/g, '\n')
+
+    tooltip.style.display = 'flex'
+    tooltipVisible = true
+    copyBtn.textContent = COPY_LABEL
+    ttsPlayer.stop()
+    // Force reflow so offsetWidth is available
+    tooltip.getBoundingClientRect()
+    positionElement(tooltip, rect)
+  }
+
+  /** Show a message in the tooltip instead of a translation (Copy/Replace stay inert). */
+  function showTooltipNotice (message, rect, source) {
+    currentTranslation = ''
+    currentSource = source || ''
+    renderTooltip(currentSource, message, rect)
+  }
+
+  function showTooltip (text, rect, range, targetLang, translationStyle, source) {
     currentTranslation = text
+    currentSource = source || ''
     // Only update savedRange if a valid range is provided.
     // Clicking the translate button clears the browser selection, so `range`
     // from the btn click handler is often null — we must keep the range that
@@ -403,22 +458,15 @@
       styleSelect.value = translationStyle
     }
 
-    // Left panel: original / source text
-    tooltip.querySelector('.tre-source-text').textContent = lastSelection.replace(/\n{2,}/g, '\n')
-
-    // Right panel: translation result
-    tooltip.querySelector('.tre-tooltip-text').textContent = text.replace(/\n{2,}/g, '\n')
-
-    tooltip.style.display = 'flex'
-    copyBtn.textContent = COPY_LABEL
-    ttsPlayer.stop()
-    // Force reflow so offsetWidth is available
-    tooltip.getBoundingClientRect()
-    positionElement(tooltip, rect)
+    renderTooltip(currentSource, text, rect)
   }
 
   function hideTooltip () {
     tooltip.style.display = 'none'
+    tooltipVisible = false
+    // Dismissing the tooltip (or starting a new selection) cancels any
+    // in-flight translation so its late response cannot reappear or hit the clipboard.
+    requestSeq++
     ttsPlayer.stop()
   }
 
@@ -545,6 +593,8 @@
 
   copyBtn.addEventListener('click', async (e) => {
     e.stopPropagation()
+    // While re-translating (or on an error notice) there is no result to copy; never write ''.
+    if (!currentTranslation) return
     try {
       await navigator.clipboard.writeText(currentTranslation)
       copyBtn.textContent = 'Copied'
@@ -573,7 +623,33 @@
 
   // ── Language selector → re-translate ──────────────────────────────────────
 
-  langSelect.addEventListener('change', async (e) => {
+  /** Re-translate the text currently shown in the tooltip with overridden settings. */
+  async function retranslateCurrent (overrides) {
+    const source = currentSource || lastSelection
+    if (!source) return
+
+    const requestId = ++requestSeq
+    const tooltipText = tooltip.querySelector('.tre-tooltip-text')
+    ttsPlayer.stop()
+    currentTranslation = ''   // never copy/replace a result for the previous language/style
+    tooltipText.textContent = 'Translating...'
+
+    try {
+      const settings = { ...(await getSettings()), ...overrides }
+      const translated = await translateText(source, settings)
+      if (requestId !== requestSeq) return   // superseded or dismissed
+      currentTranslation = translated
+      currentSource = source
+      tooltipText.textContent = translated.replace(/\n{2,}/g, '\n')
+      copyBtn.textContent = COPY_LABEL
+      try { await navigator.clipboard.writeText(translated) } catch { /* ignore */ }
+    } catch (err) {
+      if (requestId !== requestSeq) return
+      tooltipText.textContent = describeError(err)
+    }
+  }
+
+  langSelect.addEventListener('change', (e) => {
     e.stopPropagation()
     const newLang = langSelect.value
 
@@ -582,28 +658,12 @@
       try { chrome.storage.local.set({ treTargetLang: newLang }) } catch { /* ignore */ }
     }
 
-    if (!lastSelection) return
-
-    const tooltipText = tooltip.querySelector('.tre-tooltip-text')
-    ttsPlayer.stop()
-    tooltipText.textContent = 'Translating...'
-
-    try {
-      const settings = await getSettings()
-      settings.targetLang = newLang          // use the just-selected language
-      const translated = await translateText(lastSelection, settings)
-      currentTranslation = translated
-      tooltipText.textContent = translated.replace(/\n{2,}/g, '\n')
-      copyBtn.textContent = COPY_LABEL
-      try { await navigator.clipboard.writeText(translated) } catch { /* ignore */ }
-    } catch (err) {
-      tooltipText.textContent = err.message || 'Translation failed'
-    }
+    retranslateCurrent({ targetLang: newLang })   // use the just-selected language
   })
 
   // ── Style selector → re-translate ─────────────────────────────────────────
 
-  styleSelect.addEventListener('change', async (e) => {
+  styleSelect.addEventListener('change', (e) => {
     e.stopPropagation()
     const newStyle = styleSelect.value
 
@@ -612,23 +672,7 @@
       try { chrome.storage.local.set({ treTranslationStyle: newStyle }) } catch { /* ignore */ }
     }
 
-    if (!lastSelection) return
-
-    const tooltipText = tooltip.querySelector('.tre-tooltip-text')
-    ttsPlayer.stop()
-    tooltipText.textContent = 'Translating...'
-
-    try {
-      const settings = await getSettings()
-      settings.translationStyle = newStyle   // use the just-selected style
-      const translated = await translateText(lastSelection, settings)
-      currentTranslation = translated
-      tooltipText.textContent = translated.replace(/\n{2,}/g, '\n')
-      copyBtn.textContent = COPY_LABEL
-      try { await navigator.clipboard.writeText(translated) } catch { /* ignore */ }
-    } catch (err) {
-      tooltipText.textContent = err.message || 'Translation failed'
-    }
+    retranslateCurrent({ translationStyle: newStyle })   // use the just-selected style
   })
 
   // ── Replace button ─────────────────────────────────────────────────────────
@@ -641,6 +685,18 @@
     // ── Case 1: textarea / input ───────────────────────────────────────────
     if (savedInputEl && typeof savedInputEl.selectionStart === 'number') {
       const el = savedInputEl
+      if (!el.isConnected || el.disabled || el.readOnly) {
+        replaceBtn.textContent = 'Failed'
+        setTimeout(() => { replaceBtn.textContent = REPLACE_LABEL }, 1500)
+        return
+      }
+      // The field may have been edited since the selection was recorded; replacing stale
+      // offsets would overwrite the wrong characters, so only proceed if the text still matches.
+      if (el.value.substring(savedInputStart, savedInputEnd).trim() !== currentSource.trim()) {
+        replaceBtn.textContent = 'Failed'
+        setTimeout(() => { replaceBtn.textContent = REPLACE_LABEL }, 1500)
+        return
+      }
       el.focus()
       el.setSelectionRange(savedInputStart, savedInputEnd)
       // Try native insertText first (preserves undo history)
@@ -701,6 +757,27 @@
       const sel = window.getSelection()
       const text = sel ? sel.toString().trim() : ''
 
+      // Mouse selection inside <input>/<textarea>: window.getSelection() has no
+      // usable range there, so record the element and its selection bounds
+      // (same data the keyboard path stores) to keep Replace working.
+      const activeEl = document.activeElement
+      const activeTag = activeEl?.tagName?.toLowerCase()
+      if ((activeTag === 'input' || activeTag === 'textarea') && typeof activeEl.selectionStart === 'number') {
+        const start = activeEl.selectionStart
+        const end = activeEl.selectionEnd
+        const inputText = end > start ? activeEl.value.substring(start, end).trim() : ''
+        if (inputText.length > 1) {
+          lastSelection = inputText
+          savedInputEl    = activeEl
+          savedInputStart = start
+          savedInputEnd   = end
+          savedRange      = null
+          showButton(activeEl.getBoundingClientRect())
+          hideTooltip()
+          return
+        }
+      }
+
       if (text.length > 1) {
         lastSelection = text
         savedInputEl = null  // this is a DOM selection, not textarea
@@ -713,7 +790,7 @@
         hideButton()
       }
     }, 10)
-  })
+  }, { signal: listenerSignal })
 
   // ── Selection listener — keyboard (Cmd+A / Ctrl+A / Shift+Arrow etc.) ──────
 
@@ -741,7 +818,9 @@
           return
         }
       }
+      // Selection collapsed/too short: also cancel any in-flight translation of the old one.
       hideButton()
+      hideTooltip()
       return
     }
 
@@ -770,6 +849,7 @@
       hideTooltip()
     } else {
       hideButton()
+      hideTooltip()
     }
   }
 
@@ -794,7 +874,7 @@
     if (isSelectAll || isShiftSelection) {
       setTimeout(checkKeyboardSelection, 50)
     }
-  })
+  }, { signal: listenerSignal })
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
@@ -812,7 +892,7 @@
     }
 
     // ── Tooltip keyboard shortcuts (only when tooltip is visible) ─────────
-    if (tooltip.style.display !== 'none') {
+    if (tooltipVisible && currentTranslation) {
       const mod = e.metaKey || e.ctrlKey
       // Cmd/Ctrl+C → Copy translation
       if (mod && e.key === 'c') {
@@ -825,7 +905,7 @@
         replaceBtn.click()
       }
     }
-  })
+  }, { signal: listenerSignal })
 
   document.addEventListener('mousedown', (e) => {
     if (
@@ -835,7 +915,7 @@
       hideButton()
       hideTooltip()
     }
-  })
+  }, { signal: listenerSignal })
 
   // ── Button click → translate ──────────────────────────────────────────────
 
@@ -843,49 +923,54 @@
     const text = lastSelection
     if (!text) return
 
+    // Ignore a second click while the current request is still in flight
+    if (pendingBtnId && pendingBtnId === requestSeq) return
+    const requestId = ++requestSeq
+    pendingBtnId = requestId
+
     // Show loading spinner inside the round button
     btn.classList.add('tre-loading')
     btn.innerHTML = '<span class="tre-inline-spinner" aria-hidden="true"></span>'
 
+    // Determine rect for tooltip positioning:
+    // - For DOM selections (page text): use getSelection range
+    // - For input/textarea (Cmd+A): use lastSelectionRect saved when button was shown
+    const sel = window.getSelection()
+    let rect = lastSelectionRect || { top: 100, bottom: 120, left: 100, width: 100 }
+    let range = null
+    if (sel && sel.rangeCount > 0) {
+      range = sel.getRangeAt(0).cloneRange()
+      const selRect = range.getBoundingClientRect()
+      if (selRect && selRect.width > 0) rect = selRect
+    }
+
     try {
       const settings = await getSettings()
+      if (requestId !== requestSeq) return
       if (!settings.token) {
         hideButton()
-        alert('Viezan Extension: Please set your connection API key in the extension Options page first.')
+        showTooltipNotice('Please set your connection API key in the extension Options page first.', rect, text)
         return
       }
 
-      // Determine rect for tooltip positioning:
-      // - For DOM selections (page text): use getSelection range
-      // - For input/textarea (Cmd+A): use lastSelectionRect saved when button was shown
-      const sel = window.getSelection()
-      let rect = lastSelectionRect || { top: 100, bottom: 120, left: 100, width: 100 }
-      let range = null
-      if (sel && sel.rangeCount > 0) {
-        range = sel.getRangeAt(0).cloneRange()
-        const selRect = range.getBoundingClientRect()
-        if (selRect && selRect.width > 0) rect = selRect
-      }
-
       const translated = await translateText(text, settings)
+      if (requestId !== requestSeq) return   // stale: newer request or dismissed
       hideButton()
-      showTooltip(translated, rect, range, settings.targetLang, settings.translationStyle)
+      showTooltip(translated, rect, range, settings.targetLang, settings.translationStyle, text)
       // Update provider/model info in header (non-blocking)
       updateAiInfo(settings.token)
 
       try { await navigator.clipboard.writeText(translated) } catch { /* ignore */ }
     } catch (err) {
+      if (requestId !== requestSeq) return
       hideButton()
-      const errMsg = err.message || 'Unknown error'
-      if (errMsg.includes('context invalidated')) {
+      if ((err?.message || '').includes('context invalidated')) {
         retireInvalidContextUi()
-      } else if (errMsg.includes('401') || errMsg.includes('Unauthorized')) {
-        alert('Viezan Extension: API key is invalid. Please update it in the Options page.')
-      } else if (errMsg.includes('fetch') || errMsg.includes('Failed to fetch')) {
-        alert('Viezan Extension: Cannot connect to Viezan app. Make sure the Viezan app is running.')
       } else {
-        alert(`Viezan Extension: ${errMsg}`)
+        showTooltipNotice(describeError(err), rect, text)
       }
+    } finally {
+      if (pendingBtnId === requestId) pendingBtnId = 0
     }
   })
 
@@ -893,14 +978,61 @@
   // background.js sends VIEZAN_PING periodically; if we respond, it knows the context
   // is valid and skips re-injection. No response = dead context = re-inject.
 
-  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-    if (msg.type === 'VIEZAN_PING') {
+  function onRuntimeMessage (msg, sender, sendResponse) {
+    // Only accept messages from this extension's own background worker.
+    if (!isContextValid() || sender?.id !== chrome.runtime.id) return
+
+    if (msg?.type === 'VIEZAN_PING') {
       sendResponse({ alive: true })
       return true
     }
 
+    // ── Context menu: translate the selection text reported by Chrome ──────
+    if (msg?.type === 'VIEZAN_TRANSLATE_SELECTION') {
+      const text = typeof msg.text === 'string' ? msg.text.trim() : ''
+      if (!text) {
+        sendResponse({ ok: false })
+        return true
+      }
+
+      lastSelection = text
+      let rect = null
+      const activeEl = document.activeElement
+      const tag = activeEl?.tagName?.toLowerCase()
+      const sel = window.getSelection()
+
+      // Re-derive replace targets from the live selection, but only when it is
+      // the text Chrome reported; otherwise Replace would hit the wrong place.
+      if ((tag === 'input' || tag === 'textarea') && typeof activeEl.selectionStart === 'number' &&
+          activeEl.selectionEnd > activeEl.selectionStart &&
+          normalizeSelectionText(activeEl.value.substring(activeEl.selectionStart, activeEl.selectionEnd)) === normalizeSelectionText(text)) {
+        savedInputEl    = activeEl
+        savedInputStart = activeEl.selectionStart
+        savedInputEnd   = activeEl.selectionEnd
+        savedRange      = null
+        rect = activeEl.getBoundingClientRect()
+      } else {
+        savedInputEl = null
+        savedRange = null
+        if (sel && sel.rangeCount > 0 && normalizeSelectionText(sel.toString()) === normalizeSelectionText(text)) {
+          try {
+            savedRange = sel.getRangeAt(0).cloneRange()
+            rect = savedRange.getBoundingClientRect()
+          } catch { savedRange = null }
+        }
+      }
+
+      if (!rect || (rect.width === 0 && rect.height === 0)) {
+        rect = lastSelectionRect || { top: 100, bottom: 120, left: window.innerWidth / 2, width: 0 }
+      }
+      showButton(rect)
+      setTimeout(() => btn.click(), 50)
+      sendResponse({ ok: true })
+      return true
+    }
+
     // ── Keyboard shortcut: translate currently selected text ───────────────
-    if (msg.type === 'VIEZAN_TRANSLATE_SHORTCUT') {
+    if (msg?.type === 'VIEZAN_TRANSLATE_SHORTCUT') {
       const activeEl = document.activeElement
       const tag = activeEl?.tagName?.toLowerCase()
 
@@ -943,6 +1075,18 @@
       sendResponse({ ok: true })
       return true
     }
-  })
+  }
+
+  chrome.runtime.onMessage.addListener(onRuntimeMessage)
+
+  // Expose liveness/teardown so a later injection can stay idempotent.
+  globalThis.__viezanContent = {
+    isAlive: isContextValid,
+    dispose () {
+      listenerAbort.abort()
+      try { chrome.runtime.onMessage.removeListener(onRuntimeMessage) } catch { /* ignore */ }
+      retireInvalidContextUi()
+    },
+  }
 
 })()

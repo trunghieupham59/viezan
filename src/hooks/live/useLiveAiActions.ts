@@ -25,6 +25,11 @@ export function useLiveAiActions(
     fallbackError,
     request,
   }: LiveAiActionConfig) => {
+    // Capture the session the action was started for: the user may start a new
+    // session while the request is in flight, and its result must not leak there.
+    const originSessionId = getSessionId()
+    const isOriginSessionActive = () => getSessionId() === originSessionId
+
     setLoading(true)
     setOutput(null)
 
@@ -32,20 +37,21 @@ export function useLiveAiActions(
       const result = await window.api.chat(request)
 
       if (result.success && result.reply) {
-        setOutput(result.reply)
-        const sessionId = getSessionId()
-        if (sessionId) {
-          updateLiveSession(sessionId, { [historyField]: result.reply } as Partial<LiveSession>)
+        // Always persist to the originating session; only show it while that session is active.
+        if (originSessionId) {
+          updateLiveSession(originSessionId, { [historyField]: result.reply } as Partial<LiveSession>)
         }
+        if (isOriginSessionActive()) setOutput(result.reply)
       } else {
+        // Failures are display-only (never written to session history).
         const errMsg = result.error ?? fallbackError
         console.error(`[${logLabel}] Backend error:`, errMsg)
-        setOutput(`Error: ${errMsg}`)
+        if (isOriginSessionActive()) setOutput(`Error: ${errMsg}`)
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       console.error(`[${logLabel}] Exception:`, msg)
-      setOutput(`Error: ${msg}`)
+      if (isOriginSessionActive()) setOutput(`Error: ${msg}`)
     } finally {
       setLoading(false)
     }

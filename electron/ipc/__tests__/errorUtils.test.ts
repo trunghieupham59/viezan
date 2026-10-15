@@ -7,7 +7,17 @@
  *   2. noApiKeyResponse()      — generates the standard NO_API_KEY response for a provider
  */
 import { describe, expect, it } from 'vitest'
-import { classifyProviderError, noApiKeyResponse } from '../errorUtils'
+import {
+  blockedSafetyError,
+  classifyProviderError,
+  emptyResponseError,
+  getErrorStatus,
+  getRetryAfterMs,
+  getStatusFromMessage,
+  invalidResponseError,
+  noApiKeyResponse,
+  truncatedOutputError,
+} from '../errorUtils'
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('classifyProviderError', () => {
@@ -231,5 +241,107 @@ describe('noApiKeyResponse', () => {
     expect(result.success).toBe(false)
     expect(result.errorCode).toBe('NO_API_KEY')
     expect(result.error).toContain('my-custom-provider')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('classifyProviderError — structured status and false positives', () => {
+  it('does not map a token count containing "401" to INVALID_KEY', () => {
+    const result = classifyProviderError(
+      "This model's maximum context length is 128000 tokens. However, you requested 140401 tokens.",
+    )
+    expect(result.errorCode).toBeUndefined()
+  })
+
+  it('does not map "429" inside a longer number to RATE_LIMIT', () => {
+    expect(classifyProviderError('request id 1429876 failed').errorCode).toBeUndefined()
+  })
+
+  it('prefers the structured status over message text', () => {
+    const err = Object.assign(new Error('Something odd happened'), { status: 401 })
+    expect(classifyProviderError(err).errorCode).toBe('INVALID_KEY')
+    const limited = Object.assign(new Error('Something odd happened'), { status: 429 })
+    expect(classifyProviderError(limited).errorCode).toBe('RATE_LIMIT')
+  })
+
+  it('recognises HTTP-looking statuses in short SDK messages', () => {
+    expect(classifyProviderError('[GoogleGenerativeAI Error]: Error fetching: [429 Too Many Requests] busy').errorCode).toBe('RATE_LIMIT')
+    expect(classifyProviderError('status: 401').errorCode).toBe('INVALID_KEY')
+    expect(classifyProviderError('401 {"type":"error"}').errorCode).toBe('INVALID_KEY')
+  })
+
+  it('accepts a thrown Error as well as a message string', () => {
+    expect(classifyProviderError(new Error('ENOTFOUND api.openai.com')).errorCode).toBe('NETWORK')
+  })
+})
+
+describe('classifyProviderError — empty / truncated / invalid output', () => {
+  it('maps emptyResponseError to EMPTY_RESPONSE', () => {
+    const result = classifyProviderError(emptyResponseError('openai'))
+    expect(result.errorCode).toBe('EMPTY_RESPONSE')
+    expect(result.error).toContain('No response')
+  })
+
+  it('maps truncatedOutputError to OUTPUT_TRUNCATED with a user-facing message', () => {
+    const result = classifyProviderError(truncatedOutputError('claude'))
+    expect(result.errorCode).toBe('OUTPUT_TRUNCATED')
+    expect(result.error.toLowerCase()).toContain('cut off')
+  })
+
+  it('maps invalidResponseError to INVALID_RESPONSE', () => {
+    expect(classifyProviderError(invalidResponseError('gemini', 'no JSON')).errorCode).toBe('INVALID_RESPONSE')
+  })
+})
+
+describe('getErrorStatus / getRetryAfterMs / getStatusFromMessage', () => {
+  it('reads status from status, statusCode and response.status', () => {
+    expect(getErrorStatus({ status: 503 })).toBe(503)
+    expect(getErrorStatus({ statusCode: 429 })).toBe(429)
+    expect(getErrorStatus({ response: { status: 502 } })).toBe(502)
+    expect(getErrorStatus({ code: 'ECONNRESET' })).toBeUndefined()
+    expect(getErrorStatus(new Error('x'))).toBeUndefined()
+    expect(getErrorStatus('429')).toBeUndefined()
+  })
+
+  it('parses Retry-After seconds, HTTP date, retry-after-ms and Headers objects', () => {
+    expect(getRetryAfterMs({ headers: { 'retry-after': '3' } })).toBe(3_000)
+    expect(getRetryAfterMs({ headers: { 'Retry-After': '1.5' } })).toBe(1_500)
+    expect(getRetryAfterMs({ headers: { 'retry-after-ms': '250' } })).toBe(250)
+    expect(getRetryAfterMs({ headers: new Headers({ 'retry-after': '2' }) })).toBe(2_000)
+    expect(getRetryAfterMs({ response: { headers: { 'retry-after': '4' } } })).toBe(4_000)
+    const now = Date.parse('2026-01-01T00:00:00Z')
+    expect(getRetryAfterMs({ headers: { 'retry-after': 'Thu, 01 Jan 2026 00:00:10 GMT' } }, now)).toBe(10_000)
+    expect(getRetryAfterMs({ headers: {} })).toBeUndefined()
+    expect(getRetryAfterMs(new Error('x'))).toBeUndefined()
+  })
+
+  it('only extracts HTTP-looking statuses from messages', () => {
+    expect(getStatusFromMessage('HTTP 503 Service Unavailable')).toBe(503)
+    expect(getStatusFromMessage('you requested 140401 tokens')).toBeUndefined()
+    expect(getStatusFromMessage('you requested 401 tokens')).toBeUndefined()
+  })
+})
+
+describe('classifyProviderError — Gemini key rejection and safety refusals', () => {
+  it.each([
+    'API key not valid. Please pass a valid API key.',
+    '[GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com: [400 Bad Request] API key not valid. Please pass a valid API key. [{"reason":"API_KEY_INVALID"}]',
+    'API key expired. Please renew the API key.',
+    'Incorrect or invalid API key supplied',
+    'API_KEY_INVALID',
+  ])('maps %j to INVALID_KEY even without a 401', (message) => {
+    expect(classifyProviderError(message).errorCode).toBe('INVALID_KEY')
+    expect(classifyProviderError(Object.assign(new Error(message), { status: 400 })).errorCode).toBe('INVALID_KEY')
+  })
+
+  it('does not flag unrelated API-key wording as an invalid key', () => {
+    expect(classifyProviderError('Missing API key header').errorCode).toBeUndefined()
+  })
+
+  it('maps blockedSafetyError to BLOCKED_SAFETY with the standard safety message', () => {
+    const result = classifyProviderError(blockedSafetyError('claude', 'stop_reason=refusal'))
+    expect(result.errorCode).toBe('BLOCKED_SAFETY')
+    expect(result.error).toBe('The model blocked this response due to safety filters. Try rephrasing your prompt.')
+    expect(classifyProviderError('blocked due to safety').error).toBe(result.error)
   })
 })

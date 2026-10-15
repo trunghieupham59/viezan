@@ -24,14 +24,16 @@ export type RewriteFn = (
   text: string,
   lang: string,
   style?: TranslationStyle,
+  options?: TranslateRequestOptions,
 ) => Promise<string>
 
-export type DetectFn = (apiKey: string, model: string, prompt: string) => Promise<string>
-export type VerifyFn = (apiKey: string) => Promise<void>
+export type DetectFn = (apiKey: string, model: string, prompt: string, options?: TranslateRequestOptions) => Promise<string>
+export type VerifyFn = (apiKey: string, options?: TranslateRequestOptions) => Promise<void>
 
 export type StreamFn = (
   apiKey: string,
   model: string,
   prompt: string,
   onToken: (token: string) => void,
+  options?: TranslateRequestOptions,
 ) => Promise<string>

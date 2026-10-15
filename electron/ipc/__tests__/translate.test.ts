@@ -52,8 +52,12 @@ describe('splitIntoChunks', () => {
     const text = `${block1}\n\n${block2}`
     const result = splitIntoChunks(text, 80)
     expect(result).toHaveLength(2)
-    expect(result[0]).toBe(block1)
+    // Lossless: the paragraph break stays with the first chunk so the join is exact.
+    expect(result[0]).toBe(`${block1}
+
+`)
     expect(result[1]).toBe(block2)
+    expect(result.join('')).toBe(text)
   })
 
   it('splits on single newline when no paragraph break is available', () => {
@@ -440,10 +444,10 @@ describe('normalizeDetectedLang', () => {
     expect(normalizeDetectedLang('xx')).toBeNull()
   })
 
-  it('returns first partial-match language for empty string (every lang starts with "")', () => {
-    // empty string partial-matches every lang code because every string starts with '',
-    // so the function returns the first entry in KNOWN_LANG_CODES ('vi') rather than null
-    expect(normalizeDetectedLang('')).toBe('vi')
+  it('returns null for an empty or whitespace-only answer (no loose prefix matching)', () => {
+    expect(normalizeDetectedLang('')).toBeNull()
+    expect(normalizeDetectedLang('   ')).toBeNull()
+    expect(normalizeDetectedLang('""')).toBeNull()
   })
 
   it('returns null for random gibberish', () => {

@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { LiveSourceLangBar } from '../components/live/LiveSourceLangBar'
 import { LiveTargetLangBar } from '../components/live/LiveTargetLangBar'
 import { SegmentRow } from '../components/live/SegmentRow'
 import { TranslationRow } from '../components/live/TranslationRow'
 import { MarkdownText } from '../components/MarkdownText'
-import { ModelSelector } from '../components/ModelSelector'
+import { AIModelPickerField, InterpretAIConfiguration, InterpretSubtitleConfiguration } from '../components/organisms'
+import { Button } from '../components/ui/atoms'
 import { 
   AlertTriangleIcon,
   CheckIcon,
@@ -17,13 +18,15 @@ import {
   MonitorIcon,
   SpinnerIcon,
   StopIcon,
-  SubtitlesIcon,
   TranslateIcon,
   TrashIcon,
   XIcon,} from '../components/ui/icons'
+import { EmptyPanelState } from '../components/ui/molecules'
 import { COPY_FEEDBACK_DURATION_MS, DEFAULT_SEGMENT_DURATION_MS, MIN_SEGMENT_DURATION_MS } from '../constants/ui'
 import { MACOS_SCREEN_RECORDING_PREFS } from '../constants/urls'
+import type { LiveAudioMode } from '../hooks/live/vadPolicy'
 import { DEFAULT_SUBTITLE_SETTINGS, useLiveTranslate } from '../hooks/useLiveTranslate'
+import type { Translations } from '../i18n/types'
 import { useAppStore, useT } from '../store/useAppStore'
 
 /**
@@ -50,6 +53,35 @@ const SUBTITLE_FONT_SIZES = [
 
 type PostTab = 'summary' | 'actions' | 'decisions'
 
+type LiveInputCopySource = Pick<
+  Translations,
+  | 'live_empty_desc'
+  | 'live_empty_system_desc'
+  | 'live_empty_both_desc'
+  | 'live_status_listening_mic'
+  | 'live_status_listening_system'
+  | 'live_status_listening_both'
+>
+
+export function getLiveInputCopy(audioMode: LiveAudioMode, t: LiveInputCopySource) {
+  if (audioMode === 'system') {
+    return {
+      emptyDescription: t.live_empty_system_desc,
+      listeningLabel: t.live_status_listening_system,
+    }
+  }
+  if (audioMode === 'both') {
+    return {
+      emptyDescription: t.live_empty_both_desc,
+      listeningLabel: t.live_status_listening_both,
+    }
+  }
+  return {
+    emptyDescription: t.live_empty_desc,
+    listeningLabel: t.live_status_listening_mic,
+  }
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export function LiveTranslatePage() {
   const { targetLang, setTargetLang, openSettings } = useAppStore()
@@ -60,7 +92,7 @@ export function LiveTranslatePage() {
     isActive, rawTranscript, translation, isTranscribing, isTranslating,
     pipelineError,
     showSubtitles, setShowSubtitles,
-    showSubtitleConfig, setShowSubtitleConfig, subtitleSettings, setSubtitleSettings,
+    subtitleSettings, setSubtitleSettings,
     showSummaryBtn, summary, isSummarizing,
     actionItems, isExtractingActionItems, decisions, isExtractingDecisions,
     speakerNameMap, sessionStartTime,
@@ -80,22 +112,9 @@ export function LiveTranslatePage() {
   const [showScreenPermModal, setShowScreenPermModal] = useState(false)
   const [showSummaryPopup, setShowSummaryPopup] = useState(false)
 
-  /** CẤU HÌNH AI NÂNG CAO popup — contains Model + Nguồn + Phụ Đề + Transcript */
+  /** Session-scoped AI configuration. Transcript actions stay with transcript output. */
   const [showAIConfig, setShowAIConfig] = useState(false)
-  const aiConfigRef = useRef<HTMLDivElement>(null)
-
-  // ── Close popup on outside click ──
-  useEffect(() => {
-    if (!showAIConfig) return
-    const handleOutside = (e: MouseEvent) => {
-      if (aiConfigRef.current && !aiConfigRef.current.contains(e.target as Node)) {
-        setShowAIConfig(false)
-        setShowSubtitleConfig(false)
-      }
-    }
-    document.addEventListener('mousedown', handleOutside)
-    return () => document.removeEventListener('mousedown', handleOutside)
-  }, [showAIConfig, setShowSubtitleConfig])
+  const liveInputCopy = getLiveInputCopy(audioMode, t)
 
   // ── Global Escape handler for open modals ──
   // Backdrop-level onKeyDown only fires when the backdrop or its descendants
@@ -218,7 +237,11 @@ export function LiveTranslatePage() {
               </div>
 
             {/* ▶ Bắt Đầu / ■ Dừng */}
-            <button
+            <Button
+              size="sm"
+              shape="rect"
+              variant={isActive ? 'danger' : 'primary'}
+              appearance="solid"
               type="button"
               onClick={isActive ? handleStop : () => {
                 if ((audioMode === 'system' || audioMode === 'both') && isMac && screenPermission !== 'granted') {
@@ -228,259 +251,80 @@ export function LiveTranslatePage() {
                 }
               }}
               disabled={!hasOpenAIKey || !hasAnyKey}
-              className={[
-                'btn-sm flex-shrink-0',
-                isActive
-                  ? 'btn-danger'
-                  : (!hasOpenAIKey || !hasAnyKey)
-                    ? 'btn-secondary'
-                    : 'btn-primary',
-              ].join(' ')}
+              className="flex-shrink-0"
             >
               {isActive ? (
                 <><StopIcon className="w-3.5 h-3.5" />{t.live_stop}</>
               ) : (
                 <><MicrophoneIcon className="w-3.5 h-3.5" />{t.live_start}</>
               )}
-            </button>
+            </Button>
 
-            {/* Advanced AI config popup */}
-            <div className="relative flex-shrink-0" ref={aiConfigRef}>
-              <button
-                type="button"
-                onClick={() => setShowAIConfig((v) => !v)}
-                title={t.translate_ai_config_title}
-                className={`toolbar-icon-button ai-config-button cursor-pointer ${showAIConfig ? 'toolbar-icon-button-active' : ''}`}
-              >
-                <GearIcon className="w-3.5 h-3.5" />
-              </button>
-
-              {showAIConfig && (
-                <div className="floating-panel ai-config-panel absolute top-full right-0 mt-2 z-50 w-[440px] max-w-[calc(100vw-2rem)] p-4 flex flex-col gap-4">
-                  <h2 className="popover-title">
-                    {t.translate_ai_config_title}
-                  </h2>
-
-                  {/* Model */}
-                  <ModelSelector />
-
-                  {/* Divider */}
-                  <div className="border-t border-gray-100 dark:border-gray-800" />
-
-                  {/* Nguồn âm thanh */}
-                  <div className="flex flex-col gap-2">
-                    <span className="ui-kicker">
-                      {t.live_audio_source_label}
-                    </span>
-                    <div className="inline-flex w-fit items-center gap-2">
-                      <button
-                        type="button" disabled={isActive} onClick={() => setAudioMode('mic')}
+            <InterpretAIConfiguration
+              open={showAIConfig}
+              active={isActive}
+              title={t.ai_configuration_title}
+              scopeDescription={isActive
+                ? t.ai_configuration_interpret_active_scope
+                : t.ai_configuration_interpret_scope}
+              closeLabel={t.settings_close}
+              translationLabel={t.ai_configuration_translation_section}
+              transcriptionLabel={t.ai_configuration_transcription_section}
+              outputLabel={t.ai_configuration_output_section}
+              onOpenChange={setShowAIConfig}
+              modelControl={<AIModelPickerField />}
+              audioSourceControl={(
+                <div className="live-ai-config-options">
+                      <Button
+                        size="md"
+                        shape="pill"
+                        variant={audioMode === 'mic' ? 'primary' : 'neutral'}
+                        appearance={audioMode === 'mic' ? 'soft' : 'ghost'}
+                        disabled={isActive}
+                        onClick={() => setAudioMode('mic')}
                         title={t.live_audio_mode_mic_title}
-                        className={[
-                          'btn-segment min-h-10 rounded-lg border border-transparent px-3 shadow-none',
-                          audioMode === 'mic'
-                            ? 'btn-segment-active border-[var(--vzn-accent-border)]'
-                            : 'bg-transparent hover:bg-[var(--vzn-surface-hover)]',
-                          isActive ? 'opacity-50' : '',
-                        ].join(' ')}
                       >
-                        <MicrophoneIcon className="w-3 h-3" />
+                        <MicrophoneIcon />
                         <span>{t.live_audio_mode_mic}</span>
-                      </button>
-                      <button
-                        type="button" disabled={isActive} onClick={() => setAudioMode('system')}
+                      </Button>
+                      <Button
+                        size="md"
+                        shape="pill"
+                        variant={audioMode === 'system' ? 'primary' : 'neutral'}
+                        appearance={audioMode === 'system' ? 'soft' : 'ghost'}
+                        disabled={isActive}
+                        onClick={() => setAudioMode('system')}
                         title={t.live_audio_mode_system_title}
-                        className={[
-                          'btn-segment min-h-10 rounded-lg border border-transparent px-3 shadow-none',
-                          audioMode === 'system'
-                            ? 'btn-segment-active border-[var(--vzn-accent-border)]'
-                            : 'bg-transparent hover:bg-[var(--vzn-surface-hover)]',
-                          isActive ? 'opacity-50' : '',
-                        ].join(' ')}
                       >
-                        <MonitorIcon className="w-3 h-3" />
+                        <MonitorIcon />
                         <span>{t.live_audio_mode_system}</span>
-                      </button>
-                      <button
-                        type="button" disabled={isActive} onClick={() => setAudioMode('both')}
+                      </Button>
+                      <Button
+                        size="md"
+                        shape="pill"
+                        variant={audioMode === 'both' ? 'primary' : 'neutral'}
+                        appearance={audioMode === 'both' ? 'soft' : 'ghost'}
+                        disabled={isActive}
+                        onClick={() => setAudioMode('both')}
                         title={t.live_audio_mode_both_title}
-                        className={[
-                          'btn-segment min-h-10 rounded-lg border border-transparent px-3 shadow-none',
-                          audioMode === 'both'
-                            ? 'btn-segment-active border-[var(--vzn-accent-border)]'
-                            : 'bg-transparent hover:bg-[var(--vzn-surface-hover)]',
-                          isActive ? 'opacity-50' : '',
-                        ].join(' ')}
                       >
-                        <span className="relative inline-flex items-center w-4 h-3 flex-shrink-0">
-                          <MicrophoneIcon className="w-2.5 h-2.5 absolute left-0" />
-                          <MonitorIcon className="w-2.5 h-2.5 absolute right-0" />
-                        </span>
+                        <MicrophoneIcon />
                         <span>{t.live_audio_mode_both}</span>
-                      </button>
+                      </Button>
                     </div>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="border-t border-gray-100 dark:border-gray-800" />
-
-                  {/* Phụ đề */}
-                  <div className="flex flex-col gap-2">
-                    <span className="ui-kicker">
-                      {t.live_subtitles}
-                    </span>
-                    <div className="flex items-center gap-2 relative">
-                      <button
-                        type="button"
-                        onClick={() => setShowSubtitles(v => !v)}
-                        title={showSubtitles ? t.live_subtitles_hide_title : t.live_subtitles_show_title}
-                        className={[
-                          showSubtitles ? 'btn-primary' : 'btn-secondary',
-                          'btn-sm',
-                        ].join(' ')}
-                      >
-                        <SubtitlesIcon className="w-3.5 h-3.5" />
-                        <span>{showSubtitles ? t.live_subtitles_on : t.translate_phonetic_off}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowSubtitleConfig(v => !v)}
-                        title={t.live_subtitle_config_title}
-                        className={[
-                          'btn-icon',
-                          showSubtitleConfig ? 'btn-active' : '',
-                        ].join(' ')}
-                      >
-                        <GearIcon className="w-3 h-3" />
-                      </button>
-
-                      {/* Subtitle settings nested popup */}
-                      {showSubtitleConfig && (
-                        <div className="floating-panel absolute top-full mt-2 left-0 z-50 w-64 p-3 flex flex-col gap-3 select-none">
-                          <div>
-                            <p className="ui-kicker mb-1.5">
-                              {t.live_subtitle_text_color}
-                            </p>
-                            <div className="flex gap-2 flex-wrap">
-                              {subtitleColors.map(({ label, value }) => (
-                                <button
-                                  key={value} type="button" title={label}
-                                  onClick={() => setSubtitleSettings(s => ({ ...s, textColor: value }))}
-                                  className={[
-                                    'btn-swatch',
-                                    subtitleSettings.textColor === value ? 'btn-swatch-active' : '',
-                                  ].join(' ')}
-                                  style={{ background: value }}
-                                  aria-label={label}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                          <div>
-                            <p className="ui-kicker mb-1.5">
-                              {t.live_subtitle_font_size} — {subtitleSettings.fontSize}px
-                            </p>
-                            <div className="segmented-control">
-                              {SUBTITLE_FONT_SIZES.map(({ size, label }) => (
-                                <button
-                                  key={size} type="button"
-                                  onClick={() => setSubtitleSettings(s => ({ ...s, fontSize: size }))}
-                                  className={[
-                                    'btn-segment flex-1',
-                                    subtitleSettings.fontSize === size ? 'btn-segment-active' : '',
-                                  ].join(' ')}
-                                >
-                                  {label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                          <div>
-                            <p className="ui-kicker mb-1.5">
-                              {t.live_subtitle_bg_opacity} — {subtitleSettings.bgOpacity}%
-                            </p>
-                            <input
-                              type="range" min={0} max={100} step={5}
-                              value={subtitleSettings.bgOpacity}
-                              onChange={e => setSubtitleSettings(s => ({ ...s, bgOpacity: Number(e.target.value) }))}
-                              className="w-full accent-gray-500 cursor-pointer"
-                            />
-                            <div className="ui-micro mt-0.5 flex justify-between text-gray-300 dark:text-gray-600">
-                              <span>{t.live_subtitle_transparent}</span>
-                              <span>{t.live_subtitle_opaque}</span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setSubtitleSettings({ ...DEFAULT_SUBTITLE_SETTINGS })}
-                            className="btn-link btn-xs justify-center"
-                          >
-                            {t.live_subtitle_reset}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="border-t border-gray-100 dark:border-gray-800" />
-
-                  {/* Transcript actions */}
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="ui-kicker">
-                        {t.live_transcript_label}
-                      </span>
-                      {wordCount > 0 && (
-                        <span className="text-xs text-gray-400 tabular-nums">
-                          {wordCount.toLocaleString()} {t.live_words}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        disabled={!rawTranscript}
-                        onClick={() => { handleClear(); setShowAIConfig(false) }}
-                        className={[
-                          'btn-danger btn-xs',
-                          rawTranscript ? '' : 'opacity-45',
-                        ].join(' ')}
-                      >
-                        <TrashIcon className="w-3.5 h-3.5" />
-                        {t.live_clear}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!rawTranscript}
-                        onClick={handleExportTxt}
-                        title={t.live_export_txt}
-                        className={[
-                          'btn-secondary btn-xs',
-                          rawTranscript ? '' : 'opacity-45',
-                        ].join(' ')}
-                      >
-                        <DownloadIcon className="w-3.5 h-3.5" />
-                        TXT
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!segments.length}
-                        onClick={handleExportSrt}
-                        title={t.live_export_srt}
-                        className={[
-                          'btn-secondary btn-xs',
-                          segments.length ? '' : 'opacity-45',
-                        ].join(' ')}
-                      >
-                        <DownloadIcon className="w-3.5 h-3.5" />
-                        SRT
-                      </button>
-                    </div>
-                  </div>
-                </div>
               )}
-            </div>
+              subtitleControl={(
+                <InterpretSubtitleConfiguration
+                  enabled={showSubtitles}
+                  onEnabledChange={setShowSubtitles}
+                  settings={subtitleSettings}
+                  onSettingsChange={setSubtitleSettings}
+                  onReset={() => setSubtitleSettings({ ...DEFAULT_SUBTITLE_SETTINGS })}
+                  colors={subtitleColors}
+                  fontSizes={SUBTITLE_FONT_SIZES}
+                />
+              )}
+            />
             </div>
           </div>
           {/* ── End controls ── */}
@@ -492,9 +336,16 @@ export function LiveTranslatePage() {
           {!hasOpenAIKey && (
             <Notice>
               {t.live_no_openai_key}{' '}
-              <button type="button" onClick={() => openSettings()} className="btn-link">
+              <Button
+                size="md"
+                shape="rect"
+                variant="neutral"
+                appearance="ghost"
+                type="button"
+                onClick={() => openSettings()}
+              >
                 {t.translate_error_open_settings}
-              </button>
+              </Button>
             </Notice>
           )}
 
@@ -532,7 +383,7 @@ export function LiveTranslatePage() {
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{background:'var(--vzn-text-soft)'}} />
                           <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{background:'var(--vzn-text-muted)'}} />
                         </span>
-                        <span className="ui-micro font-medium" style={{color:'var(--vzn-text-muted)'}}>{t.live_status_listening}</span>
+                        <span className="ui-micro font-medium" style={{color:'var(--vzn-text-muted)'}}>{liveInputCopy.listeningLabel}</span>
                       </>
                     )}
                   </span>
@@ -575,35 +426,72 @@ export function LiveTranslatePage() {
                     {isActive && <span className="inline-block ml-0.5 w-0.5 h-4 animate-pulse align-middle" style={{background:'var(--vzn-text-soft)'}} />}
                   </p>
                 ) : (
-                  <EmptyPanel
-                    icon="mic"
-                    label={t.live_start}
-                    onClick={hasOpenAIKey && hasAnyKey ? () => {
+                  <EmptyPanelState
+                    icon={<MicrophoneIcon />}
+                    actionLabel={t.live_start}
+                    description={liveInputCopy.emptyDescription}
+                    onAction={hasOpenAIKey && hasAnyKey ? () => {
                       if ((audioMode === 'system' || audioMode === 'both') && isMac && screenPermission !== 'granted') {
                         setShowScreenPermModal(true)
                       } else {
                         handleStart()
                       }
                     } : undefined}
-                  >{t.live_empty}</EmptyPanel>
+                  />
                 )}
                 <div ref={rawEndRef} />
               </div>
 
-              {/* Left panel footer — Copy icon + word count */}
+              {/* Transcript actions belong to transcript output, not AI configuration. */}
               <div className="surface-footer">
-                <button
-                  type="button"
-                  disabled={!rawTranscript}
-                  onClick={() => handleCopy(rawTranscript, setCopiedRaw)}
-                  title={t.translate_copy}
-                  className={[
-                    'btn-icon',
-                    copiedRaw ? 'btn-active' : '',
-                  ].join(' ')}
-                >
-                  {copiedRaw ? <CheckIcon className="w-4 h-4" /> : <CopyIcon className="w-4 h-4" />}
-                </button>
+                <div className="live-transcript-actions">
+                  <Button
+                    size="xs"
+                    shape="icon"
+                    variant={copiedRaw ? 'primary' : 'neutral'}
+                    appearance="ghost"
+                    disabled={!rawTranscript}
+                    onClick={() => handleCopy(rawTranscript, setCopiedRaw)}
+                    aria-label={t.translate_copy}
+                  >
+                    {copiedRaw ? <CheckIcon /> : <CopyIcon />}
+                  </Button>
+                  <Button
+                    size="xs"
+                    shape="rect"
+                    variant="danger"
+                    appearance="soft"
+                    disabled={!rawTranscript}
+                    onClick={handleClear}
+                  >
+                    <TrashIcon />
+                    {t.live_clear}
+                  </Button>
+                  <Button
+                    size="xs"
+                    shape="rect"
+                    variant="neutral"
+                    appearance="ghost"
+                    disabled={!rawTranscript}
+                    onClick={handleExportTxt}
+                    title={t.live_export_txt}
+                  >
+                    <DownloadIcon />
+                    TXT
+                  </Button>
+                  <Button
+                    size="xs"
+                    shape="rect"
+                    variant="neutral"
+                    appearance="ghost"
+                    disabled={!segments.length}
+                    onClick={handleExportSrt}
+                    title={t.live_export_srt}
+                  >
+                    <DownloadIcon />
+                    SRT
+                  </Button>
+                </div>
                 {wordCount > 0 && (
                   <span className="text-xs tabular-nums select-none" style={{color:'var(--vzn-text-muted)'}}>
                     {wordCount.toLocaleString()} {t.live_words}
@@ -654,35 +542,42 @@ export function LiveTranslatePage() {
                     {translation}
                   </p>
                 ) : (
-                  <EmptyPanel icon="translate">{t.live_empty_desc}</EmptyPanel>
+                  <EmptyPanelState
+                    icon={<TranslateIcon />}
+                    description={t.translate_result_placeholder}
+                  />
                 )}
                 <div ref={txEndRef} />
               </div>
 
               {/* Right panel footer — Copy icon + Tổng hợp nội dung button */}
               <div className="surface-footer">
-                <button
+                <Button
+                  size="sm"
+                  shape="icon"
+                  variant={copiedTx ? 'primary' : 'neutral'}
+                  appearance={copiedTx ? 'soft' : 'ghost'}
+                  aria-label={t.translate_copy}
                   type="button"
                   disabled={!translation}
                   onClick={() => handleCopy(translation, setCopiedTx)}
                   title={t.translate_copy}
-                  className={[
-                    'btn-icon',
-                    copiedTx ? 'btn-active' : '',
-                  ].join(' ')}
                 >
                   {copiedTx ? <CheckIcon className="w-4 h-4" /> : <CopyIcon className="w-4 h-4" />}
-                </button>
+                </Button>
 
                 {showSummaryBtn && (
-                  <button
+                  <Button
+                    size="sm"
+                    shape="rect"
+                    variant="primary"
+                    appearance="solid"
                     type="button"
                     onClick={handleOpenSummaryPopup}
-                    className="btn-primary btn-sm"
                   >
                     <LightbulbIcon className="w-3.5 h-3.5" />
                     {t.live_summarize}
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -718,29 +613,33 @@ export function LiveTranslatePage() {
                 <LightbulbIcon className="w-4 h-4 text-gray-500" />
                 <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t.live_summary_title}</h2>
               </div>
-              <button
+              <Button
+                size="sm"
+                shape="icon"
+                variant="neutral"
+                appearance="ghost"
                 type="button"
                 onClick={() => setShowSummaryPopup(false)}
-                className="btn-icon btn-icon-sm"
               >
                 <XIcon className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
 
             {/* Tabs */}
             <div className="flex items-center gap-1 px-5 pt-3 pb-1 flex-shrink-0">
               {(['summary', 'actions', 'decisions'] as PostTab[]).map(tab => (
-                <button
+                <Button
+                  size="md"
+                  shape="rect"
+                  variant={postTab === tab ? 'primary' : 'neutral'}
+                  appearance={postTab === tab ? 'soft' : 'ghost'}
                   key={tab}
                   type="button"
                   onClick={() => setPostTab(tab)}
-                  className={[
-                    'btn-segment whitespace-nowrap',
-                    postTab === tab ? 'btn-segment-active' : '',
-                  ].join(' ')}
+                  className="whitespace-nowrap"
                 >
                   {tab === 'summary' ? t.live_post_tab_summary : tab === 'actions' ? t.live_post_tab_actions : t.live_post_tab_decisions}
-                </button>
+                </Button>
               ))}
             </div>
 
@@ -793,34 +692,43 @@ export function LiveTranslatePage() {
             <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 gap-2">
               {/* Copy active tab content */}
               {postTab === 'summary' && summary && !isSummarizing && (
-                <button
+                <Button
+                  size="sm"
+                  shape="rect"
+                  variant={copiedSummary ? 'primary' : 'neutral'}
+                  appearance={copiedSummary ? 'soft' : 'outline'}
                   type="button"
                   onClick={() => handleCopy(summary, setCopiedSummary)}
-                  className={`btn-secondary btn-xs ${copiedSummary ? 'btn-active' : ''}`}
                 >
                   {copiedSummary ? <CheckIcon className="w-3.5 h-3.5" /> : <CopyIcon className="w-3.5 h-3.5" />}
                   {copiedSummary ? t.translate_copied : t.translate_copy}
-                </button>
+                </Button>
               )}
               {postTab === 'actions' && actionItems && !isExtractingActionItems && (
-                <button
+                <Button
+                  size="sm"
+                  shape="rect"
+                  variant={copiedActions ? 'primary' : 'neutral'}
+                  appearance={copiedActions ? 'soft' : 'outline'}
                   type="button"
                   onClick={() => handleCopy(actionItems, setCopiedActions)}
-                  className={`btn-secondary btn-xs ${copiedActions ? 'btn-active' : ''}`}
                 >
                   {copiedActions ? <CheckIcon className="w-3.5 h-3.5" /> : <CopyIcon className="w-3.5 h-3.5" />}
                   {copiedActions ? t.translate_copied : t.translate_copy}
-                </button>
+                </Button>
               )}
               {postTab === 'decisions' && decisions && !isExtractingDecisions && (
-                <button
+                <Button
+                  size="sm"
+                  shape="rect"
+                  variant={copiedDecisions ? 'primary' : 'neutral'}
+                  appearance={copiedDecisions ? 'soft' : 'outline'}
                   type="button"
                   onClick={() => handleCopy(decisions, setCopiedDecisions)}
-                  className={`btn-secondary btn-xs ${copiedDecisions ? 'btn-active' : ''}`}
                 >
                   {copiedDecisions ? <CheckIcon className="w-3.5 h-3.5" /> : <CopyIcon className="w-3.5 h-3.5" />}
                   {copiedDecisions ? t.translate_copied : t.translate_copy}
-                </button>
+                </Button>
               )}
               {/* Spacer if no copy button */}
               {((postTab === 'summary' && (!summary || isSummarizing)) ||
@@ -832,34 +740,43 @@ export function LiveTranslatePage() {
               {/* Right-side action button per tab */}
               <div className="flex items-center gap-2 ml-auto">
                 {postTab === 'summary' && !isSummarizing && (
-                  <button
+                  <Button
+                    size="sm"
+                    shape="rect"
+                    variant="primary"
+                    appearance="solid"
                     type="button"
                     onClick={handleSummarize}
-                    className="btn-primary btn-sm"
                   >
                     <LightbulbIcon className="w-3.5 h-3.5" />
                     {summary ? t.live_summarize_again : t.live_summarize}
-                  </button>
+                  </Button>
                 )}
                 {postTab === 'actions' && !isExtractingActionItems && (
-                  <button
+                  <Button
+                    size="sm"
+                    shape="rect"
+                    variant="primary"
+                    appearance="solid"
                     type="button"
                     onClick={handleExtractActionItems}
-                    className="btn-primary btn-sm"
                   >
                     <CheckIcon className="w-3.5 h-3.5" />
                     {actionItems ? t.live_action_items_extract_again : t.live_action_items_extract}
-                  </button>
+                  </Button>
                 )}
                 {postTab === 'decisions' && !isExtractingDecisions && (
-                  <button
+                  <Button
+                    size="sm"
+                    shape="rect"
+                    variant="primary"
+                    appearance="solid"
                     type="button"
                     onClick={handleExtractDecisions}
-                    className="btn-primary btn-sm"
                   >
                     <CheckIcon className="w-3.5 h-3.5" />
                     {decisions ? t.live_decisions_extract_again : t.live_decisions_extract}
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -903,14 +820,21 @@ export function LiveTranslatePage() {
 
             {/* Actions */}
             <div className="flex items-center justify-end gap-2 pt-1">
-              <button
+              <Button
+                size="sm"
+                shape="rect"
+                variant="neutral"
+                appearance="outline"
                 type="button"
                 onClick={() => setShowScreenPermModal(false)}
-                className="btn-secondary btn-sm"
               >
                 {t.translate_error_dismiss}
-              </button>
-              <button
+              </Button>
+              <Button
+                size="sm"
+                shape="rect"
+                variant="primary"
+                appearance="solid"
                 type="button"
                 onClick={() => {
                   if (typeof window.api?.openExternal === 'function') {
@@ -920,11 +844,10 @@ export function LiveTranslatePage() {
                   }
                   setShowScreenPermModal(false)
                 }}
-                className="btn-primary btn-sm"
               >
                 <GearIcon className="w-3.5 h-3.5" />
                 {t.live_open_system_settings}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -956,28 +879,3 @@ function Notice({ children }: { children: React.ReactNode; variant?: 'warning' |
   )
 }
 
-function EmptyPanel({ children, icon, onClick, label }: { children: React.ReactNode; icon: 'mic' | 'translate'; onClick?: () => void; label?: string }) {
-  const iconEl = icon === 'mic'
-    ? <MicrophoneIcon className="w-6 h-6 text-gray-400" />
-    : <TranslateIcon className="w-6 h-6 text-gray-300 dark:text-gray-700" />
-
-  return (
-    <div className="h-full flex flex-col items-center justify-center gap-3 select-none">
-      {onClick ? (
-        <button
-          type="button"
-          onClick={onClick}
-          aria-label={label ?? (icon === 'mic' ? 'Start recording' : 'Translate')}
-          className="btn-icon btn-icon-2xl"
-        >
-          {iconEl}
-        </button>
-      ) : (
-        <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center transition-all duration-150">
-          {iconEl}
-        </div>
-      )}
-      <p className="text-xs text-gray-400 dark:text-gray-600 text-center max-w-[160px]">{children}</p>
-    </div>
-  )
-}

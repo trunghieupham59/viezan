@@ -59,23 +59,32 @@ export async function chatWithClaude(
 
   const formattedMessages = formatClaudeMessages(messages)
 
-  const message = await client.messages.create({
+  const request = {
     model,
     max_tokens: maxOutputTokens,  // HC-02
     system: buildEnforcedSystemPrompt(systemPrompt || '', {
       carefulReasoning: options.carefulReasoning,
     }),
     messages: formattedMessages,
-  })
+  }
 
+  // Always stream and await the final message: the SDK refuses non-streaming
+  // `create()` calls above a per-model token cap (e.g. 8192 for Opus 4/4.1),
+  // which a fixed threshold cannot predict.
+  const message = await client.messages.stream(request).finalMessage()
 
-  const block = message.content[0]
-  if (block.type === 'text') {
+  // The first block may be `thinking` (or content may be empty), so look for
+  // the first text block instead of trusting content[0].
+  const block = message.content.find((candidate) => candidate.type === 'text')
+  if (block && block.type === 'text') {
     const text = block.text.trim()
     if (!text) {
       throw new Error(CHAT_RUNTIME_MESSAGES.claudeEmptyResponse(message.stop_reason ?? 'unknown'))
     }
     return text
+  }
+  if (message.content.length === 0) {
+    throw new Error(CHAT_RUNTIME_MESSAGES.claudeEmptyResponse(message.stop_reason ?? 'unknown'))
   }
   throw new Error(CHAT_RUNTIME_MESSAGES.claudeUnexpectedResponseType)
 }
@@ -122,6 +131,7 @@ export async function streamChatWithClaude(
   }
   signal?.addEventListener('abort', onAbort, { once: true })
 
+  let finished = false
   try {
     for await (const event of stream) {
       if (signal?.aborted) throw new Error(CHAT_STREAM_CANCELLED_MESSAGE)
@@ -133,8 +143,12 @@ export async function streamChatWithClaude(
         }
       }
     }
+    finished = true
   } finally {
     signal?.removeEventListener('abort', onAbort)
+    // If the loop exited early (onToken threw, abort, SDK error) make sure the
+    // SSE connection is not left running in the background.
+    if (!finished) onAbort()
   }
 
   const text = fullText.trim()

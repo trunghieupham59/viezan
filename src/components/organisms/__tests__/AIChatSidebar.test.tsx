@@ -57,8 +57,11 @@ describe('AIChatSidebar', () => {
     const older = screen.getByRole('button', { name: /^Older conversation,/ })
 
     expect(sidebar).toHaveAttribute('data-sidebar-scope', 'chat')
+    expect(sidebar).toHaveClass('ai-chat-sidebar')
     expect(newest.compareDocumentPosition(older) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(older).toHaveAttribute('aria-current', 'true')
+    expect(older.closest('li')).toHaveClass('chat-session-item', 'chat-session-item--active')
+    expect(screen.getByText('Recent')).toHaveClass('ai-chat-session-heading')
   })
 
   it('restores the selected conversation provider and model', () => {

@@ -10,7 +10,7 @@
  */
 import { DEFAULT_SETTINGS, MAX_TRANSLATION_MODELS } from '../../constants/providers'
 import { TRANSLATIONS, type Translations } from '../../i18n'
-import type { AppPage, Provider, TranslationModelSelection } from '../../types'
+import type { AIModelSelection, AppPage, Provider } from '../../types'
 import type { SliceGet, SliceSet } from './sliceTypes'
 
 export interface CoreSlice {
@@ -28,8 +28,8 @@ export interface CoreSlice {
   // Provider/Model selection
   selectedProvider: Provider
   selectedModels: Record<Provider, string>
-  /** Ordered AI Translate comparison set; the first entry syncs legacy single-model state. */
-  translationModels: TranslationModelSelection[]
+  /** Canonical ordered AI Translate selection set, including single-model mode. */
+  translationModels: AIModelSelection[]
   recentModels: Array<{ provider: Provider; modelId: string }>
   recordModelUsage: (provider: Provider, modelId: string) => void
 
@@ -56,7 +56,7 @@ export interface CoreSlice {
   setTranslateError: (err: string | null, errorCode?: string | null) => void
   setSelectedProvider: (provider: Provider) => void
   setSelectedModel: (provider: Provider, model: string) => void
-  setTranslationModels: (models: TranslationModelSelection[]) => void
+  setTranslationModels: (models: AIModelSelection[]) => void
   setActivePage: (page: AppPage) => void
   openSettings: () => void
   closeSettings: () => void
@@ -83,7 +83,7 @@ export const createCoreSlice = (set: SliceSet, get: SliceGet): CoreSlice => ({
     model: DEFAULT_SETTINGS.defaultModels[DEFAULT_SETTINGS.defaultProvider],
   }],
   recentModels: [],
-  activePage: 'translate',
+  activePage: 'chat',
   settingsOpen: false,
   langUsage: {},
 

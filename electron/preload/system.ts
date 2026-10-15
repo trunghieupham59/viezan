@@ -16,6 +16,10 @@ export const systemSection = {
   relaunchApp: () =>
     ipcRenderer.invoke('app:relaunch'),
 
+  // Sync native window chrome with the in-app theme preference
+  setWindowTheme: (theme: 'light' | 'dark' | 'system') =>
+    ipcRenderer.invoke('app:setWindowTheme', theme) as Promise<void>,
+
   // App metadata
   platform: process.platform,
   version: process.env.npm_package_version || '1.0.0',

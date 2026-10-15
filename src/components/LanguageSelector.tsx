@@ -11,6 +11,7 @@ interface LanguageSelectorProps {
   disabled?: boolean
   status?: string
   statusBusy?: boolean
+  variant?: 'field' | 'inline'
   className?: string
 }
 
@@ -23,6 +24,7 @@ export function LanguageSelector({
   disabled = false,
   status,
   statusBusy = false,
+  variant,
   className,
 }: LanguageSelectorProps) {
   const t = useT()
@@ -41,6 +43,7 @@ export function LanguageSelector({
       status={status}
       statusBusy={statusBusy}
       disabled={disabled}
+      variant={variant}
       className={className}
     />
   )

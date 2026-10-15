@@ -91,6 +91,15 @@
     return { 'X-Viezan-Token': token }
   }
 
+  // True only for real transport failures (app not running / port closed).
+  // Browsers surface these as TypeError: "Failed to fetch" (Chromium),
+  // "NetworkError when attempting to fetch resource" (Firefox) or
+  // "Load failed" (Safari). Server-reported errors must not match.
+  function isNetworkError (err) {
+    const msg = typeof err === 'string' ? err : err?.message || ''
+    return /failed to fetch|networkerror|load failed/i.test(msg)
+  }
+
   async function readJsonResponse (resp, fallbackError) {
     const data = await resp.json().catch(() => null)
     if (!resp.ok) throw new Error(data?.error || `HTTP ${resp.status}`)
@@ -275,6 +284,7 @@
   root.ViezanLocalBridge = {
     PORT,
     BASE_URL,
+    isNetworkError,
     getStatus,
     getAppConfig,
     translateText,
