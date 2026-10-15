@@ -23,7 +23,7 @@ async function loadClaude(client: Record<string, unknown>) {
       messages = client
     },
   }))
-  return await import('../providers/chatProviderClaude')
+  return await import('../providers/chatProviderClaude.js')
 }
 
 /** Claude client whose `stream().finalMessage()` resolves to `message`. */
@@ -99,7 +99,7 @@ describe('Gemini provider cancellation', () => {
         }
       },
     }))
-    return import('../providers/chatProviderGemini')
+    return import('../providers/chatProviderGemini.js')
   }
 
   it('forwards the abort signal to sendMessageStream', async () => {
