@@ -9,7 +9,7 @@
  * All DOM-related setup is guarded so this file can be safely loaded in both
  * jsdom (src tests) and Node (electron/__tests__ tests).
  */
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom/vitest'
 import { vi } from 'vitest'
 
 // Only set up DOM mocks when running in a browser-like environment (jsdom).
