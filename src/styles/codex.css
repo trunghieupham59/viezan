@@ -138,7 +138,7 @@ html.dark .sidebar-brand-surface {
   color: var(--vzn-text);
   font-size: 13px;
   font-weight: 500;
-  line-height: 1.2;
+  line-height: var(--vzn-line-normal);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -806,7 +806,7 @@ html.dark .sidebar-brand-surface {
   color: var(--vzn-text);
   font-size: var(--vzn-font-size-sm);
   font-weight: var(--vzn-weight-medium);
-  line-height: 1.25;
+  line-height: var(--vzn-line-normal);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -823,7 +823,7 @@ html.dark .sidebar-brand-surface {
   gap: 4px;
   color: var(--vzn-text-soft);
   font-size: var(--vzn-font-size-micro);
-  line-height: 1.2;
+  line-height: var(--vzn-line-normal);
 }
 
 .chat-session-research-dot {
@@ -931,7 +931,46 @@ html:not(.dark) .ai-config-panel {
 }
 
 .modal-surface {
-  border-radius: 16px;
+  border-radius: var(--vzn-radius-lg);
+}
+
+.update-notification-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--vzn-space-4);
+}
+
+.modal-surface.update-notification {
+  width: 100%;
+  max-width: var(--vzn-update-dialog-max-inline);
+  max-height: var(--vzn-modal-viewport-block);
+  overflow: auto;
+  padding: var(--vzn-space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-4);
+  color: var(--vzn-text);
+  background: var(--vzn-surface);
+  box-shadow: var(--vzn-shadow-overlay);
+}
+
+.update-notification h2 {
+  font-size: var(--vzn-font-size-title);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.update-notification p {
+  font-size: var(--vzn-font-size-lg);
+  color: var(--vzn-text-muted);
+}
+
+.update-notification-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--vzn-space-2);
 }
 
 .modal-backdrop,
@@ -1069,7 +1108,7 @@ html:not(.dark) .modal-backdrop {
   color: var(--vzn-text-strong);
   font-size: var(--vzn-font-size-md);
   font-weight: var(--vzn-weight-semibold);
-  line-height: var(--vzn-line-tight);
+  line-height: var(--vzn-line-normal);
   white-space: nowrap;
 }
 
@@ -1079,7 +1118,7 @@ html:not(.dark) .modal-backdrop {
   color: var(--vzn-text-soft);
   font-size: var(--vzn-font-size-sm);
   font-weight: var(--vzn-weight-regular);
-  line-height: var(--vzn-line-tight);
+  line-height: var(--vzn-line-normal);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

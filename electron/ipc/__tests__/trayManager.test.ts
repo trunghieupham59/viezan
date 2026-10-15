@@ -144,11 +144,20 @@ describe('promptCloseAction', () => {
     await expect(promptCloseAction(window, 'en')).resolves.toBe('cancel')
   })
 
-  it('localizes the dialog and makes dismissal a cancel', async () => {
-    await promptCloseAction(window, 'vi-VN')
+  it.each([
+    ['vi-VN', 'Đóng Viezan', 'Bạn muốn Viezan tiếp tục chạy nền?', ['Chạy nền', 'Thoát hẳn', 'Hủy']],
+    ['en-US', 'Close Viezan', 'Do you want Viezan to keep running in the background?', ['Run in background', 'Quit', 'Cancel']],
+    ['ja-JP', 'Viezan を閉じる', 'Viezan をバックグラウンドで実行し続けますか？', ['バックグラウンドで実行', '終了', 'キャンセル']],
+  ])('localizes the minimal native dialog for %s with safe defaults', async (locale, title, message, buttons) => {
+    await promptCloseAction(window, locale)
     expect(showMessageBox).toHaveBeenCalledWith(
       window,
-      expect.objectContaining({ buttons: ['Thu nhỏ xuống khay', 'Thoát hẳn', 'Hủy'], defaultId: 0, cancelId: 2 }),
+      { type: 'question', title, message, buttons, defaultId: 0, cancelId: 2, noLink: true },
     )
+  })
+
+  it('treats an unexpected dialog response as cancel', async () => {
+    dialogState.response = -1
+    await expect(promptCloseAction(window, 'en')).resolves.toBe('cancel')
   })
 })

@@ -698,6 +698,33 @@ export interface Translations {
   chat_sidebar_expand: string
   chat_sidebar_switch_sessions: string
   chat_sidebar_conversations: string
+  chat_task_language: string
+  chat_task_depth: string
+  chat_task_level: string
+  chat_task_format: string
+  chat_task_overview: string
+  chat_task_simple: string
+  chat_task_steps: string
+  chat_task_technical: string
+  chat_task_email: string
+  chat_task_article: string
+  chat_task_rewrite: string
+  chat_task_current_mode: string
+  chat_task_planned_mode: string
+  chat_task_mode_changed: string
+  chat_task_back: string
+  chat_task_unapplied: string
+  chat_task_applied: string
+  chat_task_needs_content: string
+  chat_task_close: string
+  chat_task_show: string
+  chat_task_apply: string
+  chat_task_instructions: string
+  chat_task_hint: string
+  chat_task_translate_template: string
+  chat_task_research_template: string
+  chat_task_explain_template: string
+  chat_task_write_template: string
   chat_suggest_translate: string
   chat_suggest_translate_desc: string
   chat_suggest_translate_prompt: string
@@ -806,6 +833,10 @@ export interface Translations {
 
   // Settings — Updates
   settings_update_section: string
+  update_notification_description: string
+  update_notification_later: string
+  update_notification_release_notes: string
+  update_notification_action_error: string
   settings_update_section_desc: string
   settings_update_current_version: string
   settings_update_check: string

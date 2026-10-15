@@ -3,21 +3,13 @@ import { Button } from '@/components/ui/atoms'
 import { CheckUpdateButton } from '../../components/ui/CheckUpdateButton'
 import { AlertTriangleIcon, CheckCircleIcon, CheckIcon, DownloadIcon, SpinnerIcon } from '../../components/ui/icons'
 import { useT } from '../../store/useAppStore'
+import { useUpdaterStore } from '../../store/useUpdaterStore'
 import { tpl } from '../../utils/tpl'
-
-type UpdaterStatusType = {
-  type: 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error-codesign' | 'error'
-  version?: string
-  percent?: number
-  installMode?: 'restart' | 'open-installer'
-  error?: string
-  /** Present on macOS (unsigned build): direct link to the DMG asset or release page. */
-  downloadUrl?: string
-}
 
 export function UpdaterSection() {
   const t = useT()
-  const [updaterStatus, setUpdaterStatus] = useState<UpdaterStatusType>({ type: 'idle' })
+  const updaterStatus = useUpdaterStore((state) => state.status)
+  const setUpdaterStatus = useUpdaterStore((state) => state.receive)
   const [appVersion, setAppVersion] = useState('')
 
   useEffect(() => {
@@ -26,10 +18,10 @@ export function UpdaterSection() {
       if (res?.version) setAppVersion(res.version)
     })
     const unsub = window.api.updater.onStatus((status) => {
-      setUpdaterStatus(status as UpdaterStatusType)
+      setUpdaterStatus(status)
     })
     return unsub
-  }, [])
+  }, [setUpdaterStatus])
 
   const handleCheckUpdate = async () => {
     if (!window.api?.updater) return

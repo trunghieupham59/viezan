@@ -128,8 +128,7 @@
 .ai-model-field__model,
 .ai-model-field__provider {
   overflow: hidden;
-  /* Button sets line-height: 1; with overflow clipping that cuts descenders
-     and Vietnamese diacritics. */
+  /* Keep clipped labels safe even when used outside a Button. */
   line-height: var(--vzn-line-normal);
   text-overflow: ellipsis;
   white-space: nowrap;

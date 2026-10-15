@@ -7,8 +7,10 @@ import path from 'node:path'
 import type { BrowserWindow, IpcMain } from 'electron'
 import { app, net, shell } from 'electron'
 import { autoUpdater } from 'electron-updater'
+import type { UpdateStatus } from '../../shared/updater'
 import { isAllowedExternalUrl } from './externalUrl'
 import { isSenderWindow } from './senderGuard'
+import { startUpdateSchedule } from './updateSchedule'
 
 // ─── GitHub repo for update checks (macOS fallback) ────────────────────────
 // On macOS we build with identity: null (unsigned). Squirrel.Mac — which
@@ -567,13 +569,23 @@ export function registerUpdaterHandlers(
   let downloadedMacInstaller: DownloadedInstaller | null = null
 
   autoUpdater.autoDownload         = false
-  autoUpdater.autoInstallOnAppQuit = true
+  autoUpdater.autoInstallOnAppQuit = false
   autoUpdater.logger               = null
 
+  let backgroundCheck = false
+  let lastStatus: UpdateStatus | null = null
   const push = (payload: UpdaterStatus) => {
+    const next: UpdateStatus = {
+      ...payload,
+      ...(payload.type === 'downloading' ? { version: lastStatus?.version } : {}),
+      ...(backgroundCheck ? { background: true } : {}),
+    }
+    if (!(backgroundCheck && (payload.type === 'checking' || payload.type === 'error' || payload.type === 'error-codesign'))) {
+      lastStatus = next
+    }
     const win = getMainWindow()
     if (win && !win.isDestroyed()) {
-      win.webContents.send('updater:status', payload)
+      win.webContents.send('updater:status', next)
     }
   }
 
@@ -720,8 +732,7 @@ export function registerUpdaterHandlers(
 
   // ── IPC handlers ────────────────────────────────────────────────────────
 
-  ipc.handle('updater:check', async (event) => {
-    if (!isTrusted(event)) return UNTRUSTED
+  const checkForUpdate = async () => {
     if (isDev) {
       setTimeout(() => push({ type: 'not-available', version: app.getVersion() }), 800)
       return { success: true }
@@ -763,11 +774,35 @@ export function registerUpdaterHandlers(
       const msg = err instanceof Error ? err.message : String(err)
       return { success: false, error: msg }
     }
-  })
+  }
+
+  let checkInFlight: Promise<{ success: boolean; error?: string }> | null = null
+  const check = (background = false) => {
+    if (checkInFlight) {
+      if (!background) backgroundCheck = false
+      return checkInFlight
+    }
+    if (lastStatus?.type === 'downloading' || lastStatus?.type === 'downloaded') {
+      return Promise.resolve({ success: true })
+    }
+    backgroundCheck = background
+    checkInFlight = checkForUpdate().finally(() => {
+      checkInFlight = null
+      backgroundCheck = false
+    })
+    return checkInFlight
+  }
+  ipc.handle('updater:check', (event) => isTrusted(event) ? check() : UNTRUSTED)
+  ipc.handle('updater:getStatus', (event) => isTrusted(event) ? lastStatus : null)
+  if (!isDev) {
+    const stopSchedule = startUpdateSchedule(() => check(true))
+    app.once('before-quit', stopSchedule)
+  }
 
   ipc.handle('updater:download', async (event) => {
     if (!isTrusted(event)) return UNTRUSTED
     if (isDev)          return { success: false, error: 'Not available in development mode' }
+    if (checkInFlight) await checkInFlight
     if (useMacFallback) {
       // Concurrent calls share one download instead of racing on the same file.
       if (!macDownloadInFlight) {

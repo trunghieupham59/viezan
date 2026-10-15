@@ -68,10 +68,54 @@ describe('LanguagePicker', () => {
     expect(screen.queryByRole('dialog', { name: 'Translate from' })).not.toBeInTheDocument()
   })
 
+  it('selects the first filtered language with Enter and restores trigger focus', async () => {
+    const onChange = vi.fn()
+    render(<StatefulPicker onChange={onChange} />)
+    const trigger = screen.getByRole('button', { name: /Translate from/i })
+    fireEvent.click(trigger)
+    const search = screen.getByRole('searchbox')
+    fireEvent.change(search, { target: { value: 'n' } })
+    expect(screen.getAllByRole('option')).toHaveLength(3)
+
+    fireEvent.keyDown(search, { key: 'Enter' })
+
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('en')
+    expect(trigger).toHaveTextContent('English')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(trigger).toHaveFocus())
+  })
+
+  it('closes on Enter when the first result is already selected', () => {
+    const onChange = vi.fn()
+    render(<StatefulPicker onChange={onChange} />)
+    fireEvent.click(screen.getByRole('button', { name: /Translate from/i }))
+    fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Enter' })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    { isComposing: true },
+    { keyCode: 229 },
+  ])('does not select while confirming IME input (%j)', (composition) => {
+    const onChange = vi.fn()
+    render(<StatefulPicker onChange={onChange} />)
+    fireEvent.click(screen.getByRole('button', { name: /Translate from/i }))
+    const search = screen.getByRole('searchbox')
+    fireEvent.change(search, { target: { value: '日本' } })
+    fireEvent.keyDown(search, { key: 'Enter', ...composition })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
   it('shows a localized empty state when no option matches', () => {
-    render(<StatefulPicker />)
+    const onChange = vi.fn()
+    render(<StatefulPicker onChange={onChange} />)
     fireEvent.click(screen.getByRole('button', { name: /Translate from/i }))
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'Klingon' } })
     expect(screen.getByText('No languages found')).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Enter' })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })

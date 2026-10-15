@@ -60,7 +60,8 @@
     font: inherit;
     font-size: var(--vzn-font-size-md);
     font-weight: var(--vzn-weight-semibold);
-    line-height: 1;
+    /* Truncated child labels need room for Vietnamese marks and descenders. */
+    line-height: var(--vzn-line-normal);
     cursor: pointer;
     transition: background var(--vzn-duration-fast) var(--vzn-ease-standard), border-color var(--vzn-duration-fast) var(--vzn-ease-standard), color var(--vzn-duration-fast) var(--vzn-ease-standard), box-shadow var(--vzn-duration-fast) var(--vzn-ease-standard);
   }
@@ -487,7 +488,7 @@
   /* Shared base (reference only — not applied via @apply) */
   .btn-base {
     display: inline-flex; align-items: center; justify-content: center;
-    gap: 6px; font-weight: 600; line-height: 1;
+    gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal);
     transition: all 0.15s ease; cursor: pointer; user-select: none;
     border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
   }
@@ -496,7 +497,7 @@
   /* Primary – indigo gradient */
   .btn-primary {
     display: inline-flex; align-items: center; justify-content: center;
-    gap: 6px; font-weight: 600; line-height: 1; cursor: pointer; user-select: none;
+    gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
     border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
     letter-spacing: -0.01em;
     transition: all 0.14s ease;
@@ -520,7 +521,7 @@
   /* Secondary – glass */
   .btn-secondary {
     display: inline-flex; align-items: center; justify-content: center;
-    gap: 6px; font-weight: 600; line-height: 1; cursor: pointer; user-select: none;
+    gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
     border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
     transition: all 0.15s ease;
     height: 36px; padding: 0 14px;
@@ -533,7 +534,7 @@
   /* Soft */
   .btn-soft {
     display: inline-flex; align-items: center; justify-content: center;
-    gap: 6px; font-weight: 600; line-height: 1; cursor: pointer; user-select: none;
+    gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
     border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
     transition: all 0.15s ease;
     height: 36px; padding: 0 14px;
@@ -546,7 +547,7 @@
   /* Ghost */
   .btn-ghost {
     display: inline-flex; align-items: center; justify-content: center;
-    gap: 6px; font-weight: 600; line-height: 1; cursor: pointer; user-select: none;
+    gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
     border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
     transition: all 0.15s ease;
     height: 36px; padding: 0 14px;
@@ -559,7 +560,7 @@
   /* Danger */
   .btn-danger {
     display: inline-flex; align-items: center; justify-content: center;
-    gap: 6px; font-weight: 600; line-height: 1; cursor: pointer; user-select: none;
+    gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
     border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
     transition: all 0.15s ease;
     height: 36px; padding: 0 14px;
@@ -572,7 +573,7 @@
   /* Link */
   .btn-link {
     display: inline-flex; align-items: center; justify-content: center;
-    gap: 6px; font-weight: 600; line-height: 1; cursor: pointer; user-select: none;
+    gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
     border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
     transition: all 0.15s ease;
     padding: 2px 4px; background: transparent; border: none;
@@ -585,7 +586,7 @@
   /* Icon button */
   .btn-icon {
     display: inline-flex; align-items: center; justify-content: center;
-    gap: 6px; font-weight: 600; line-height: 1; cursor: pointer; user-select: none;
+    gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
     border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
     transition: all 0.15s ease;
     width: 36px; height: 36px; padding: 0;
@@ -614,7 +615,7 @@
   /* Toolbar aliases — duplicate btn-icon / btn-secondary styles */
   .toolbar-icon-button {
     display: inline-flex; align-items: center; justify-content: center;
-    gap: 6px; font-weight: 600; line-height: 1; cursor: pointer; user-select: none;
+    gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
     border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
     transition: all 0.15s ease;
     width: 36px; height: 36px; padding: 0;
@@ -626,7 +627,7 @@
 
   .toolbar-pill-button {
     display: inline-flex; align-items: center; justify-content: center;
-    gap: 6px; font-weight: 500; line-height: 1; cursor: pointer; user-select: none;
+    gap: 6px; font-weight: 500; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
     border-radius: 999px; outline: none; font-size: 13px;
     transition: all 0.15s ease;
     height: 34px; padding: 0 14px;
@@ -655,7 +656,7 @@
   /* Language tab */
   .btn-language-tab {
     display: inline-flex; align-items: center; justify-content: center;
-    gap: 6px; font-weight: 600; line-height: 1; cursor: pointer; user-select: none;
+    gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
     border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
     transition: all 0.15s ease;
     height: 36px; padding: 0 12px;
@@ -674,7 +675,7 @@
   /* Nav / segment */
   .btn-nav-item, .btn-segment {
     display: inline-flex; align-items: center; justify-content: center;
-    gap: 6px; font-weight: 600; line-height: 1; cursor: pointer; user-select: none;
+    gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
     border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
     transition: all 0.15s ease;
     height: 36px; padding: 0 12px;
@@ -692,7 +693,7 @@
   /* Menu item */
   .btn-menu-item {
     display: inline-flex; align-items: center; justify-content: flex-start;
-    gap: 10px; font-weight: 400; line-height: 1; cursor: pointer; user-select: none;
+    gap: 10px; font-weight: 400; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
     border-radius: var(--vzn-radius-sm); outline: none; font-size: 14px;
     transition: background 0.12s ease, color 0.12s ease;
     width: calc(100% - 8px); height: 38px; padding: 0 10px; margin: 0 4px;
@@ -702,7 +703,7 @@
 
   .btn-select {
     display: inline-flex; align-items: center; justify-content: space-between;
-    gap: 6px; font-weight: 600; line-height: 1; cursor: pointer; user-select: none;
+    gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
     border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
     transition: all 0.15s ease;
     height: 36px; padding: 0 12px;

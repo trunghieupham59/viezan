@@ -160,6 +160,7 @@ function createWindow() {
       : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      spellcheck: false,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -354,6 +355,7 @@ function createQuickChatWindow(): BrowserWindow {
     ...(process.platform === 'darwin' ? { type: 'panel' as const } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      spellcheck: false,
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -436,6 +438,7 @@ function createSubtitleWindow() {
     movable:     true,
     webPreferences: {
       preload: path.join(__dirname, 'subtitle-preload.js'),
+      spellcheck: false,
       contextIsolation: true,
       nodeIntegration:  false,
       sandbox: true,
