@@ -54,8 +54,6 @@ function createWebPreviewApi(): WindowApi {
     uninstallLocalAiModel: async (modelId: string) => ({ success: true, model: modelId }),
     onLocalAiModelDownloadProgress: noopSubscription,
     installOllama: async () => ({ success: false, error: 'Desktop only in Web Preview' }),
-    cancelOllamaInstall: ok,
-    onLocalAiInstallProgress: noopSubscription,
     verifyKey: async () => ({ success: true, valid: true }),
     translate: async (params: { sourceText: string; targetLang: string }) => ({ success: true, translatedText: previewTranslation(params.sourceText, params.targetLang) }),
     cancelTranslate: ok,

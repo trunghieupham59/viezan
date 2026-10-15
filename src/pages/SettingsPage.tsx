@@ -1,4 +1,6 @@
 import { type ElementType, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { SettingsNavigation } from '../components/organisms'
+import { SettingsTemplate } from '../components/templates'
 import {
   ChatBubbleIcon,
   GearIcon,
@@ -52,8 +54,8 @@ const MemoAboutSection = memo(AboutSection)
 
 export function SettingsPage() {
   const t = useT()
-  const scrollRef = useRef<HTMLDivElement | null>(null)
-  const sectionRefs = useRef<Record<SettingsSectionId, HTMLDivElement | null>>({
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const sectionRefs = useRef<Record<SettingsSectionId, HTMLElement | null>>({
     api: null,
     preferences: null,
     stt: null,
@@ -166,86 +168,50 @@ export function SettingsPage() {
 
   const scrollToSection = (id: SettingsSectionId) => {
     updateActiveSection(id)
-    sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const root = scrollRef.current
+    const section = sectionRefs.current[id]
+    if (!root || !section) return
+    const contentOrigin = sectionRefs.current.preferences?.offsetTop ?? 0
+    const top = Math.max(0, section.offsetTop - contentOrigin)
+    section.focus({ preventScroll: true })
+    requestAnimationFrame(() => {
+      if (scrollRef.current === root) root.scrollTop = top
+    })
   }
 
   return (
-    <div className="settings-shell">
-      <aside className="hidden md:flex min-h-0 flex-col" style={{ borderRight: '1px solid var(--vzn-border)', background: 'var(--vzn-surface-muted)' }}>
-        <nav className="flex-1 overflow-auto p-2.5" aria-label={t.settings_title}>
-          <div className="space-y-0.5">
-            {sections.map(({ id, label, description, Icon }) => {
-              const active = activeSection === id
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => scrollToSection(id)}
-                  title={description}
-                  className="btn-nav-item flex w-full items-center justify-start gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium transition-all"
-                  style={{
-                    background: active ? 'var(--vzn-surface-subtle)' : 'transparent',
-                    color: active ? 'var(--vzn-text-strong)' : 'var(--vzn-text-muted)',
-                    border: active ? '1px solid var(--vzn-border)' : '1px solid transparent',
-                    boxShadow: 'none',
-                  }}
-                  aria-current={active ? 'true' : undefined}
-                  onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = 'var(--vzn-surface-subtle)'; e.currentTarget.style.color = 'var(--vzn-text)'; } }}
-                  onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--vzn-text-muted)'; } }}
-                >
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span className="min-w-0 flex-1 truncate">{label}</span>
-                </button>
-              )
-            })}
-          </div>
-        </nav>
-      </aside>
-
-      <div className="flex min-h-0 flex-col">
-        <div className="md:hidden" style={{ borderBottom: '1px solid var(--vzn-border)', background: 'var(--vzn-surface-muted)' }}>
-          <nav className="overflow-x-auto px-3 py-2" aria-label={t.settings_title}>
-            <div className="flex gap-1">
-              {sections.map(({ id, label, description, Icon }) => {
-                const active = activeSection === id
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => scrollToSection(id)}
-                    title={description}
-                    className="btn-sm whitespace-nowrap rounded-lg flex items-center gap-1.5"
-                    style={{
-                      background: active ? 'var(--vzn-surface-subtle)' : 'transparent',
-                      color: active ? 'var(--vzn-text-strong)' : 'var(--vzn-text-muted)',
-                      border: active ? '1px solid var(--vzn-border)' : '1px solid transparent',
-                    }}
-                    aria-current={active ? 'true' : undefined}
-                  >
-                    <Icon className="w-3.5 h-3.5 flex-shrink-0" />
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
-          </nav>
-        </div>
-
-        <div ref={scrollRef} className="settings-scroll-viewport flex-1 min-h-0 overflow-auto">
-          <div className="max-w-3xl mx-auto px-4 py-5 md:px-6 md:py-6 space-y-8">
-            {sections.map(({ id, Component }) => (
-              <div
-                key={id}
-                ref={(node) => { sectionRefs.current[id] = node }}
-                data-settings-section={id}
-                className="scroll-mt-6"
-              >
-                <Component />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
+    <SettingsTemplate
+      scrollRef={scrollRef}
+      sidebarNavigation={(
+        <SettingsNavigation
+          items={sections}
+          activeId={activeSection}
+          label={t.settings_title}
+          mode="sidebar"
+          onSelect={scrollToSection}
+        />
+      )}
+      compactNavigation={(
+        <SettingsNavigation
+          items={sections}
+          activeId={activeSection}
+          label={t.settings_title}
+          mode="tabs"
+          onSelect={scrollToSection}
+        />
+      )}
+    >
+      {sections.map(({ id, label, Component }) => (
+        <section
+          key={id}
+          ref={(node) => { sectionRefs.current[id] = node }}
+          data-settings-section={id}
+          aria-label={label}
+          tabIndex={-1}
+        >
+          <Component />
+        </section>
+      ))}
+    </SettingsTemplate>
   )
 }

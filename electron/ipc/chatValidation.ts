@@ -44,6 +44,63 @@ const CHAT_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 
 const MAX_CHAT_MODEL_ID_CHARS = 200
 const MAX_SYSTEM_PROMPT_CHARS = 20_000
 const MAX_CHAT_REQUEST_ID_CHARS = 100
+const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/
+
+/**
+ * Strict-enough base64 check for image payloads: standard alphabet, optional
+ * trailing padding, no data-URI prefix, no whitespace. Exported so
+ * `chat:image-edit` shares the exact same rule as `chat:send`.
+ */
+export function isValidBase64Payload(value: unknown): value is string {
+  return typeof value === 'string' && value.length % 4 !== 1 && BASE64_PATTERN.test(value)
+}
+
+export const CHAT_IMAGE_MIME_TYPE_ALLOWLIST: ReadonlySet<string> = CHAT_IMAGE_MIME_TYPES
+
+/** Standard `PAYLOAD_TOO_LARGE` rejection shared by chat and image-edit payloads. */
+export function payloadTooLargeResponse(payloadBytes: number) {
+  const mb = (payloadBytes / (1024 * 1024)).toFixed(1)
+  const limitMb = (MAX_CHAT_PAYLOAD_BYTES / (1024 * 1024)).toFixed(0)
+  return {
+    success: false as const,
+    error: `Chat payload too large (${mb} MB). Maximum is ${limitMb} MB. Try removing an image attachment.`,
+    errorCode: 'PAYLOAD_TOO_LARGE',
+  }
+}
+
+function hasUsableContent(content: ChatMessageContent): boolean {
+  return content.type === 'image' || (typeof content.text === 'string' && content.text.trim().length > 0)
+}
+
+/**
+ * Drop messages with no usable content (e.g. the empty assistant bubble left by
+ * a cancelled/failed stream), strip leading/trailing assistant turns so the
+ * conversation starts and ends with a user turn, and merge adjacent same-role
+ * turns. Real content is never reordered.
+ */
+function normalizeChatMessages(messages: ChatMessage[]): ChatMessage[] {
+  const usable = messages
+    .map((message) => ({ ...message, content: message.content.filter(hasUsableContent) }))
+    .filter((message) => message.content.length > 0)
+
+  while (usable.length > 0 && usable[0].role !== 'user') usable.shift()
+  while (usable.length > 0 && usable[usable.length - 1].role !== 'user') usable.pop()
+
+  return usable
+}
+
+function mergeAdjacentSameRole(messages: ChatMessage[]): ChatMessage[] {
+  const merged: ChatMessage[] = []
+  for (const message of messages) {
+    const previous = merged[merged.length - 1]
+    if (previous && previous.role === message.role) {
+      previous.content = [...previous.content, ...message.content]
+    } else {
+      merged.push({ role: message.role, content: [...message.content] })
+    }
+  }
+  return merged
+}
 
 /**
  * Cheaply estimate the IPC payload size by counting the base64 and text
@@ -83,16 +140,7 @@ export function parseChatParams(rawParams: unknown): ParsedChatParams {
   // ~1.5 MB), so a violation indicates either a bug or a hostile caller.
   const payloadBytes = estimateChatPayloadBytes(params)
   if (payloadBytes > MAX_CHAT_PAYLOAD_BYTES) {
-    const mb = (payloadBytes / (1024 * 1024)).toFixed(1)
-    const limitMb = (MAX_CHAT_PAYLOAD_BYTES / (1024 * 1024)).toFixed(0)
-    return {
-      ok: false,
-      response: {
-        success: false,
-        error: `Chat payload too large (${mb} MB). Maximum is ${limitMb} MB. Try removing an image attachment.`,
-        errorCode: 'PAYLOAD_TOO_LARGE',
-      },
-    }
+    return { ok: false, response: payloadTooLargeResponse(payloadBytes) }
   }
 
 
@@ -121,7 +169,12 @@ export function parseChatParams(rawParams: unknown): ParsedChatParams {
         }
         content.push({ type: 'text', text: item.text })
       } else {
-        if (!isNonEmptyString(item.imageBase64) || !isNonEmptyString(item.imageMimeType) || !CHAT_IMAGE_MIME_TYPES.has(item.imageMimeType)) {
+        if (
+          !isNonEmptyString(item.imageBase64) ||
+          !isNonEmptyString(item.imageMimeType) ||
+          !CHAT_IMAGE_MIME_TYPES.has(item.imageMimeType) ||
+          !isValidBase64Payload(item.imageBase64)
+        ) {
           return { ok: false, response: invalidIpcInput('Invalid chat image content') }
         }
         content.push({ type: 'image', imageBase64: item.imageBase64, imageMimeType: item.imageMimeType })
@@ -154,8 +207,15 @@ export function parseChatParams(rawParams: unknown): ParsedChatParams {
     }
   }
 
+  // Merge adjacent same-role turns BEFORE any length check: the provider sees
+  // the merged turn, so the cap must apply to what is actually sent.
+  const normalized = mergeAdjacentSameRole(normalizeChatMessages(messages))
+  if (normalized.length === 0) {
+    return { ok: false, response: invalidIpcInput('No user message with content provided') }
+  }
+
   if (!params.bypassLengthCheck) {
-    const lastMsg = messages[messages.length - 1]
+    const lastMsg = normalized[normalized.length - 1]
     if (lastMsg.role === 'user') {
       const lastMsgTextChars = lastMsg.content.reduce((sum, c) => sum + (c.text?.length ?? 0), 0)
       if (lastMsgTextChars > MAX_CHAT_REQUEST_CHARS) {
@@ -175,7 +235,7 @@ export function parseChatParams(rawParams: unknown): ParsedChatParams {
     value: {
       provider,
       model,
-      messages,
+      messages: normalized,
       systemPrompt: params.systemPrompt,
       bypassLengthCheck: params.bypassLengthCheck,
       maxOutputTokens: params.maxOutputTokens as MaxOutputTokensRequest | undefined,

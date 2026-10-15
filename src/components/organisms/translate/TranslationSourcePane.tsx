@@ -1,8 +1,9 @@
 import { type ClipboardEventHandler, type DragEventHandler, type RefObject, useId } from 'react'
 import { ACCEPTED_IMAGE_MIME_TYPES } from '../../../constants/image'
 import { TRANSLATE_INPUT_WARNING_CHARS } from '../../../constants/providers'
-import { useT } from '../../../store/useAppStore'
+import { useAppStore, useT } from '../../../store/useAppStore'
 import type { AudioTranscriptionErrorCode } from '../../../types'
+import { formatNumberForLocale } from '../../../utils/locale'
 import { ImageAttachmentPreview } from '../../translate/ImageAttachmentPreview'
 import type { ImageAttachment } from '../../translate/ImageTranslator'
 import { SourcePanelActions } from '../../translate/SourcePanelActions'
@@ -82,6 +83,7 @@ export function TranslationSourcePane({
   onDrop,
 }: TranslationSourcePaneProps) {
   const t = useT()
+  const appLocale = useAppStore((state) => state.locale)
   const inputId = useId()
   const helperId = useId()
   const counterId = useId()
@@ -129,6 +131,7 @@ export function TranslationSourcePane({
               onChange={(event) => onSourceChange(event.target.value)}
               onKeyDown={handleInputKeyDown}
               placeholder={t.translate_placeholder}
+              spellCheck={false}
               aria-busy={isVoiceActive}
               aria-describedby={isVoiceActive ? helperId : `${helperId} ${counterId}`}
               className={`translate-source-input${isVoiceInterim ? ' translate-source-input-interim' : ''}`}
@@ -191,7 +194,7 @@ export function TranslationSourcePane({
               title={isLongInput ? longInputNotice : undefined}
             >
               {isLongInput && <InfoCircleIcon />}
-              <span>{charCount.toLocaleString()} {t.translate_chars}</span>
+              <span>{formatNumberForLocale(charCount, appLocale)} {t.translate_chars}</span>
               {isLongInput && (
                 <>
                   <span aria-hidden="true">·</span>

@@ -1,12 +1,47 @@
+import { hasOwnKey } from './ipcValidation'
 import type { PhoneticMode, TranslationStyle } from './translateValidation'
 
 export const STYLE_TONE: Record<TranslationStyle, string> = {
   general: 'clear, natural, well-balanced — suitable for general everyday use; neither overly formal nor overly casual; reads naturally to any native speaker',
-  formal: 'formal, polished, and respectful — appropriate for official correspondence, letters, reports, or interactions with superiors and unfamiliar parties; uses proper honorifics where applicable; avoids contractions and casual expressions',
-  casual: 'casual, relaxed, conversational — like chatting with a close friend; uses informal language, contractions, colloquialisms, and expressive wording; feels natural in everyday conversation, texting, or social media',
-  business: 'formal business register — highly concise, precise, and objective; appropriate for corporate emails, executive communication, and business documents; avoids unnecessary words; maintains a professional and authoritative tone',
-  technical: 'precise, technical, and domain-specific — uses accurate industry-standard terminology; sentences are clear, unambiguous, and logically structured; suitable for documentation, specs, or expert-to-expert communication; prioritizes exactness; avoids casual language, metaphors, and any imprecision',
-  natural: 'authentic, idiomatic, and naturally fluent — as if a confident native speaker originally wrote it in the target language; uses natural collocations, real idioms, and native rhythm; eliminates any trace of translation or foreignness; prioritizes how a real native would genuinely express the idea',
+  formal: 'formal, polished, and respectful — appropriate for official correspondence, letters, reports, or interactions with superiors and unfamiliar parties; uses proper honorifics where applicable; avoids contractions, slang, and casual expressions',
+  casual: 'casual, relaxed, conversational — like chatting with a close friend; uses informal language, colloquialisms, and expressive wording where the source allows it; feels natural in everyday conversation, texting, or social media; never adds slang, emoji, or content that is not in the source',
+  business: 'professional business register — clear, objective, courteous, and direct; appropriate for corporate emails, workplace communication, and business documents; keeps every condition, figure, and request from the source',
+  technical: 'precise, technical, and domain-specific — uses accurate industry-standard terminology; sentences are clear, unambiguous, and logically structured; suitable for documentation, specs, or expert-to-expert communication; prioritizes exactness; avoids casual language and imprecision; keeps established terms untranslated when that is standard practice in the target language',
+  natural: 'authentic, idiomatic, and naturally fluent — as if a confident native speaker originally wrote it in the target language; uses natural collocations and native rhythm; eliminates any trace of translation or foreignness; keeps the meaning and facts intact and never adds idioms or content that the source does not imply',
+}
+
+// Register is carried by different grammar in each language (pronouns and
+// particles in Vietnamese, speech levels and keigo in Japanese), so the generic
+// tone above is paired with a per-language hint keyed by target language code.
+// Small models answer a pronoun-choice problem by printing both choices ("anh/chị").
+const VI_PRONOUN_RULE = ' Choose one pronoun per person; never write alternatives separated by a slash.'
+const PRONOUN_RULE_STYLES: readonly TranslationStyle[] = ['general', 'formal', 'casual', 'business']
+
+const LANGUAGE_STYLE_HINTS: Record<string, Partial<Record<TranslationStyle, string>>> = {
+  vi: {
+    general: 'In Vietnamese use neutral pronouns (tôi, bạn) unless the source implies a specific relationship.',
+    formal: 'In Vietnamese use a respectful, official register: complete sentences, polite particles such as "ạ" where natural, no slang or abbreviations. Keep the same speaker and addressee as the source.',
+    casual: 'In Vietnamese use a friendly spoken register: casual pronouns (mình, bạn, anh, chị, em as the source implies) and particles such as "nhé", "nha", "nhỉ" where natural.',
+    business: 'In Vietnamese use a courteous workplace register with standard business vocabulary; polite but not over-deferential. Keep the same speaker and addressee as the source.',
+    natural: 'In Vietnamese use natural Vietnamese word order and avoid literal Sino-Vietnamese or English-shaped phrasing.',
+  },
+  // Kept deliberately terse: example phrases or names in a hint get copied into the output by small models.
+  ja: {
+    general: 'In Japanese use polite です・ます form.',
+    formal: 'In Japanese use polite です・ます form with appropriate 敬語.',
+    casual: 'In Japanese use the plain form (だ/ない), colloquial contractions, and sentence-final particles such as よ, ね, さ where natural.',
+    business: 'In Japanese use polite business Japanese (です・ます form).',
+  },
+}
+
+/** Tone description for a style, extended with a hint for the target language when one exists. */
+export function getStyleTone(style: string, targetLang?: string): string {
+  const resolved: TranslationStyle = hasOwnKey(STYLE_TONE, style) ? (style as TranslationStyle) : 'general'
+  const hints = targetLang !== undefined && hasOwnKey(LANGUAGE_STYLE_HINTS, targetLang) ? LANGUAGE_STYLE_HINTS[targetLang] : undefined
+  const hint = hints && hasOwnKey(hints, resolved) ? hints[resolved] : undefined
+  if (!hint) return STYLE_TONE[resolved]
+  const rule = targetLang === 'vi' && PRONOUN_RULE_STYLES.includes(resolved) ? VI_PRONOUN_RULE : ''
+  return `${STYLE_TONE[resolved]}. ${hint}${rule}`
 }
 
 export const SYSTEM_PROMPT = `You are an expert translator and linguist with deep knowledge of cultural nuance. Your translations sound completely natural to native speakers of the target language.
@@ -19,10 +54,23 @@ Core rules:
 
 CRITICAL — Proper names and honorifics:
 - When names appear with honorific suffixes, treat them correctly for the target language.
-- Translating INTO Japanese: "Yokoyama-san" → "横山さん", "Tanaka-kun" → "田中くん", "Sato-chan" → "佐藤ちゃん", "Suzuki-sama" → "鈴木様", "Yamada-sensei" → "山田先生". Always convert common Japanese surnames from romaji to kanji: Yokoyama→横山, Tanaka→田中, Sato/Satou→佐藤, Suzuki→鈴木, Watanabe→渡辺, Ito/Itou→伊藤, Yamamoto→山本, Nakamura→中村, Kobayashi→小林, Kato/Katou→加藤, Yamada→山田, Hayashi→林, Inoue→井上, Kimura→木村, Saito/Saitou→斉藤, Matsumoto→松本, Fujiwara→藤原, Ogawa→小川, Nishimura→西村, Hashimoto→橋本. If the surname is not on this list but ends with a Japanese-style romanization, keep it in katakana.
+- Translating INTO Japanese: convert a romaji name with an honorific suffix (-san, -kun, -chan, -sama, -sensei) to its Japanese form with the matching Japanese suffix.
 - Translating OUT OF Japanese: render honorifics naturally in the target language, or retain the "-san"/"-kun" etc. suffix where culturally appropriate.
 - For Vietnamese relational address pronouns used as names or titles (Anh, Em, Chị, Cô, Chú, Bác, Ông, Bà): preserve or adapt them appropriately to fit the target language's cultural register.
 - Korean honorifics (씨, 님, 선생님 etc.) and Chinese honorifics (先生, 女士, 老师 etc.) should similarly be adapted appropriately.`
+
+// The surname list and worked examples below are only useful when the source
+// actually contains a romaji honorific. Kept in the system prompt they leaked
+// into unrelated translations as invented names (e.g. "横山さん") on small models,
+// so they are appended to the request only when the source needs them.
+const JAPANESE_HONORIFIC_SOURCE = /\b[A-Z][a-z]+[- ](?:san|kun|chan|sama|sensei|senpai|dono)\b/
+const JAPANESE_HONORIFIC_NOTE = `
+- Translating INTO Japanese: "Yokoyama-san" → "横山さん", "Tanaka-kun" → "田中くん", "Sato-chan" → "佐藤ちゃん", "Suzuki-sama" → "鈴木様", "Yamada-sensei" → "山田先生". Always convert common Japanese surnames from romaji to kanji: Yokoyama→横山, Tanaka→田中, Sato/Satou→佐藤, Suzuki→鈴木, Watanabe→渡辺, Ito/Itou→伊藤, Yamamoto→山本, Nakamura→中村, Kobayashi→小林, Kato/Katou→加藤, Yamada→山田, Hayashi→林, Inoue→井上, Kimura→木村, Saito/Saitou→斉藤, Matsumoto→松本, Fujiwara→藤原, Ogawa→小川, Nishimura→西村, Hashimoto→橋本. If the surname is not on this list but ends with a Japanese-style romanization, keep it in katakana.
+`
+
+function japaneseHonorificNote(sourceText: string, targetLang: string): string {
+  return targetLang === 'ja' && JAPANESE_HONORIFIC_SOURCE.test(sourceText) ? JAPANESE_HONORIFIC_NOTE : ''
+}
 
 export const REWRITE_SYSTEM_PROMPT = `You are a brilliant native writer — not a translator, not an editor of translations. You have never "fixed" translated text in your life. Your only instinct when reading text is: "Would a real native speaker of this language actually write or say this?" If not, you reimagine it entirely from the inside out.
 
@@ -84,7 +132,7 @@ export function buildPrompt(
     return `Add phonetic annotations to the following ${targetLang} text. Do NOT translate or change the text content in any way — only add phonetic annotations. Return only the annotated text, no explanations, no notes.\n\n${phoneticInstruction}\n\nText to annotate:\n${sourceText}`
   }
 
-  const tone = STYLE_TONE[style] ?? STYLE_TONE.general
+  const tone = getStyleTone(style, targetLang)
   let phoneticInstruction = ''
   if (showFurigana) {
     if (targetLang === 'ja') {
@@ -97,12 +145,12 @@ export function buildPrompt(
       phoneticInstruction = ' For every word in the translation, wrap it with its pronunciation or phonetic transcription in the format {word|pronunciation} (e.g. {hello|həˈloʊ}). Use IPA notation where applicable.'
     }
   }
-  return `Translate into ${targetLang}. Tone: ${tone}. Preserve meaning, intent, and nuance exactly. Use natural wording for a native speaker. Keep names, numbers, links, email addresses, code, and formatting unchanged unless localization is requested. Output only the translation.${phoneticInstruction}\n\n${sourceText}`
+  return `Translate into ${targetLang}. Tone: ${tone}. Preserve meaning, intent, and nuance exactly, and translate every clause including conditions and qualifiers — omit nothing. Use natural wording for a native speaker. Keep names, numbers, links, email addresses, code, and formatting unchanged unless localization is requested. Output only the translation.${phoneticInstruction}${japaneseHonorificNote(sourceText, targetLang)}\n\n${sourceText}`
 }
 
 export function buildRewritePrompt(text: string, lang: string, style?: TranslationStyle): string {
   const styleName = style ?? 'general'
-  const toneDesc = STYLE_TONE[styleName] ?? STYLE_TONE.general
+  const toneDesc = getStyleTone(styleName, lang)
 
   return `Make the text below indistinguishable from something a confident, articulate native speaker of ${lang} would genuinely write or say — not a polished translation, but authentic original expression.
 

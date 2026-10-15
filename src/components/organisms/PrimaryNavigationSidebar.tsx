@@ -39,8 +39,11 @@ function PrimaryNavItem({ icon, label, active, badge, badgeLabel, onClick }: Pri
   const accessibleLabel = badge && badgeLabel ? `${label}: ${badgeLabel}` : label
 
   return (
-    <button
-      type="button"
+    <Button
+      size="lg"
+      shape="rect"
+      variant={active ? 'primary' : 'neutral'}
+      appearance={active ? 'soft' : 'ghost'}
       onClick={onClick}
       title={label}
       aria-label={accessibleLabel}
@@ -49,8 +52,13 @@ function PrimaryNavItem({ icon, label, active, badge, badgeLabel, onClick }: Pri
     >
       <span className="sidebar-nav-icon">{icon}</span>
       <span className="sidebar-nav-label">{label}</span>
-      {badge && <span className="sidebar-nav-badge" aria-hidden="true" />}
-    </button>
+      {badge && (
+        <span className="sidebar-nav-status" aria-hidden="true">
+          <span className="sidebar-nav-badge" />
+          <span className="sidebar-nav-status-label">{badgeLabel}</span>
+        </span>
+      )}
+    </Button>
   )
 }
 

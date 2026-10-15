@@ -71,8 +71,13 @@ describe('isRetriableError', () => {
     expect(isRetriableError(new Error('authentication failed'))).toBe(false)
   })
 
-  it('returns false for 429 rate limit', () => {
-    expect(isRetriableError(new Error('429 rate_limit exceeded'))).toBe(false)
+  it('returns true for 429 rate limit (backoff clears it)', () => {
+    expect(isRetriableError(new Error('429 rate_limit exceeded'))).toBe(true)
+  })
+
+  it('returns false for 429 caused by exhausted quota', () => {
+    expect(isRetriableError(new Error('429 You exceeded your current quota'))).toBe(false)
+    expect(isRetriableError(new Error('429 insufficient_quota'))).toBe(false)
   })
 
   it('returns false for quota exceeded', () => {
@@ -150,13 +155,21 @@ describe('withRetry', () => {
     expect(fn).toHaveBeenCalledTimes(1)
   })
 
-  it('does NOT retry for rate limit errors (429)', async () => {
+  it('retries rate limit errors (429) with bounded attempts', async () => {
     const rateLimitError = new Error('429 rate_limit exceeded')
     const fn = vi.fn().mockRejectedValue(rateLimitError)
 
     await expect(
       withRetry(fn, { maxAttempts: 3, initialDelayMs: 1 })
     ).rejects.toThrow('429 rate_limit')
+
+    expect(fn).toHaveBeenCalledTimes(3)
+  })
+
+  it('does NOT retry quota exhaustion', async () => {
+    const fn = vi.fn().mockRejectedValue(new Error('429 You exceeded your current quota'))
+
+    await expect(withRetry(fn, { maxAttempts: 3, initialDelayMs: 1 })).rejects.toThrow('quota')
 
     expect(fn).toHaveBeenCalledTimes(1)
   })
@@ -211,5 +224,104 @@ describe('withRetry', () => {
     await expect(
       withRetry(fn, { maxAttempts: 1 })
     ).rejects.toThrow('string rejection')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('isRetriableError — 5xx, overload and structured status', () => {
+  it('retries 5xx statuses and overload wording', () => {
+    expect(isRetriableError(new Error('500 Internal Server Error'))).toBe(true)
+    expect(isRetriableError(new Error('503 Service Unavailable'))).toBe(true)
+    expect(isRetriableError(new Error('[GoogleGenerativeAI Error]: Error fetching: [503 Service Unavailable] The model is overloaded'))).toBe(true)
+    expect(isRetriableError(new Error('Overloaded'))).toBe(true)
+    expect(isRetriableError(new Error('The server is overloaded, please retry'))).toBe(true)
+    expect(isRetriableError(new Error('Bad Gateway'))).toBe(true)
+  })
+
+  it('trusts the structured status before the message', () => {
+    expect(isRetriableError(Object.assign(new Error('boom'), { status: 529 }))).toBe(true)
+    expect(isRetriableError(Object.assign(new Error('boom'), { status: 503 }))).toBe(true)
+    expect(isRetriableError(Object.assign(new Error('boom'), { status: 429 }))).toBe(true)
+    expect(isRetriableError(Object.assign(new Error('boom'), { status: 408 }))).toBe(true)
+    // A structured 401 wins even when the message looks transient.
+    expect(isRetriableError(Object.assign(new Error('connection error'), { status: 401 }))).toBe(false)
+    expect(isRetriableError(Object.assign(new Error('timeout'), { status: 400 }))).toBe(false)
+    expect(isRetriableError(Object.assign(new Error('boom'), { status: 422 }))).toBe(false)
+    expect(isRetriableError(Object.assign(new Error('boom'), { status: 403 }))).toBe(false)
+  })
+
+  it('does not retry auth / validation errors', () => {
+    expect(isRetriableError(new Error('400 Bad Request: invalid parameter'))).toBe(false)
+    expect(isRetriableError(new Error('401 Unauthorized'))).toBe(false)
+    expect(isRetriableError(new Error('invalid_api_key'))).toBe(false)
+  })
+
+  it('does not misread digits inside numbers as statuses', () => {
+    // Would have been 'hard failure' (401) or 'transient' (503) under raw includes().
+    expect(isRetriableError(new Error('you requested 140401 tokens'))).toBe(false)
+    expect(isRetriableError(new Error('limit is 450300 tokens'))).toBe(false)
+  })
+
+  it('never retries an AbortError', () => {
+    const abort = Object.assign(new Error('The operation was aborted: connection error'), { name: 'AbortError' })
+    expect(isRetriableError(abort)).toBe(false)
+  })
+})
+
+describe('withRetry — Retry-After and abort', () => {
+  it('retries a 503 and succeeds', async () => {
+    const fn = vi.fn()
+      .mockRejectedValueOnce(Object.assign(new Error('Service Unavailable'), { status: 503 }))
+      .mockResolvedValueOnce('ok')
+    await expect(withRetry(fn, { initialDelayMs: 1 })).resolves.toBe('ok')
+    expect(fn).toHaveBeenCalledTimes(2)
+  })
+
+  it('honours Retry-After as a minimum wait', async () => {
+    vi.useFakeTimers()
+    try {
+      const err = Object.assign(new Error('rate limited'), { status: 429, headers: { 'retry-after': '2' } })
+      const fn = vi.fn().mockRejectedValueOnce(err).mockResolvedValueOnce('ok')
+      const pending = withRetry(fn, { initialDelayMs: 10 })
+      await vi.advanceTimersByTimeAsync(1_500)
+      expect(fn).toHaveBeenCalledTimes(1) // still waiting: backoff alone would be 10 ms
+      await vi.advanceTimersByTimeAsync(600)
+      await expect(pending).resolves.toBe('ok')
+      expect(fn).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('gives up immediately when Retry-After exceeds maxRetryAfterMs', async () => {
+    const err = Object.assign(new Error('rate limited'), { status: 429, headers: { 'retry-after': '600' } })
+    const fn = vi.fn().mockRejectedValue(err)
+    await expect(withRetry(fn, { initialDelayMs: 1 })).rejects.toThrow('rate limited')
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('stays bounded by maxAttempts on persistent 5xx', async () => {
+    const fn = vi.fn().mockRejectedValue(Object.assign(new Error('overloaded'), { status: 529 }))
+    await expect(withRetry(fn, { maxAttempts: 4, initialDelayMs: 1 })).rejects.toThrow('overloaded')
+    expect(fn).toHaveBeenCalledTimes(4)
+  })
+
+  it('stops retrying once the signal is aborted', async () => {
+    const controller = new AbortController()
+    const fn = vi.fn().mockImplementation(async () => {
+      controller.abort()
+      throw new Error('ENOTFOUND')
+    })
+    await expect(withRetry(fn, { initialDelayMs: 1, signal: controller.signal })).rejects.toThrow('ENOTFOUND')
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('cuts the backoff wait short when aborted', async () => {
+    const controller = new AbortController()
+    const fn = vi.fn().mockRejectedValue(new Error('ENOTFOUND'))
+    const pending = withRetry(fn, { initialDelayMs: 60_000, maxDelayMs: 60_000, signal: controller.signal })
+    setTimeout(() => controller.abort(), 5)
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+    expect(fn).toHaveBeenCalledTimes(1)
   })
 })

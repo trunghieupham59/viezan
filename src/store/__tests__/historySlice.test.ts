@@ -6,6 +6,7 @@
 
 import { act } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
+import type { LiveSession } from '../../types'
 import { useAppStore } from '../useAppStore'
 
 // Reset history state before each test
@@ -35,7 +36,7 @@ function makeHistoryItem(id: string, overrides = {}) {
   }
 }
 
-function makeLiveSession(id: string, overrides = {}) {
+function makeLiveSession(id: string, overrides: Partial<LiveSession> = {}): LiveSession {
   return {
     id,
     createdAt: Date.now(),

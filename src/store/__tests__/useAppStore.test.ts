@@ -1,6 +1,6 @@
 import { act } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
-import { useAppStore } from '../useAppStore'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { compactPersistedValue, useAppStore, writeWithQuotaFallback } from '../useAppStore'
 
 // Reset relevant store slices before each test
 beforeEach(() => {
@@ -368,5 +368,102 @@ describe('clearTranslation', () => {
     expect(state.translatedText).toBe('')
     expect(state.phoneticText).toBe('')
     expect(state.translateError).toBeNull()
+  })
+})
+
+// ─── Persistence quota handling ────────────────────────────────────────────────
+describe('persistence quota fallback', () => {
+  const blob = JSON.stringify({
+    version: 1,
+    state: {
+      theme: 'dark',
+      selectedProvider: 'gemini',
+      history: Array.from({ length: 60 }, (_, i) => ({ id: `h${i}` })),
+      chatSessions: Array.from({ length: 12 }, (_, i) => ({ id: `c${i}` })),
+      liveSessions: Array.from({ length: 8 }, (_, i) => ({ id: `l${i}`, segments: [{ text: 'x'.repeat(50) }] })),
+      dictionaryEntries: [],
+    },
+  })
+
+  it('stores the full payload when the browser accepts it', () => {
+    const setItem = vi.fn()
+    expect(writeWithQuotaFallback({ setItem }, 'k', blob)).toBe(true)
+    expect(setItem).toHaveBeenCalledTimes(1)
+    expect(setItem).toHaveBeenCalledWith('k', blob)
+  })
+
+  it('drops live segments first and keeps settings and history', () => {
+    const level1 = JSON.parse(compactPersistedValue(blob, 1) as string).state
+    expect(level1.theme).toBe('dark')
+    expect(level1.history).toHaveLength(60)
+    expect(level1.liveSessions).toHaveLength(8)
+    expect(level1.liveSessions.every((s: { segments?: unknown }) => s.segments === undefined)).toBe(true)
+  })
+
+  it('keeps only recent items at level 2 and no bulky data at level 3', () => {
+    const level2 = JSON.parse(compactPersistedValue(blob, 2) as string).state
+    expect(level2.history).toHaveLength(30)
+    expect(level2.chatSessions).toHaveLength(5)
+    expect(level2.liveSessions).toHaveLength(5)
+    const level3 = JSON.parse(compactPersistedValue(blob, 3) as string).state
+    expect(level3.history).toEqual([])
+    expect(level3.selectedProvider).toBe('gemini')
+  })
+
+  it('retries with a smaller payload after a quota error instead of throwing', () => {
+    const limit = compactPersistedValue(blob, 2)?.length ?? 0
+    const setItem = vi.fn((_k: string, value: string) => {
+      if (value.length > limit) throw new DOMException('full', 'QuotaExceededError')
+    })
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(writeWithQuotaFallback({ setItem }, 'k', blob)).toBe(true)
+    const last = JSON.parse(setItem.mock.calls[setItem.mock.calls.length - 1][1]).state
+    expect(last.theme).toBe('dark')
+    expect(last.history.length).toBeLessThanOrEqual(30)
+  })
+
+  it('gives up quietly (no throw) when even settings do not fit', () => {
+    const setItem = vi.fn(() => { throw new DOMException('full', 'QuotaExceededError') })
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(writeWithQuotaFallback({ setItem }, 'k', blob)).toBe(false)
+    expect(writeWithQuotaFallback({ setItem }, 'k', 'not json')).toBe(false)
+  })
+})
+
+describe('chat image persistence', () => {
+  function persistedMessageContent() {
+    const persisted = useAppStore.persist.getOptions().partialize?.(useAppStore.getState()) as {
+      chatSessions: Array<{ messages: Array<{ content: Array<Record<string, unknown>> }> }>
+    }
+    return persisted.chatSessions[0].messages[0].content
+  }
+
+  it('drops pixel data when persisting but keeps the key needed to restore an AI image', () => {
+    act(() => {
+      const sessionId = useAppStore.getState().createChatSession('openai', 'gpt-4o')
+      useAppStore.getState().addChatMessage(sessionId, {
+        id: 'img-msg',
+        role: 'assistant',
+        timestamp: 1,
+        content: [{
+          type: 'image',
+          imageBase64: 'AAAA',
+          imageMimeType: 'image/png',
+          imagePreviewUrl: 'data:image/png;base64,AAAA',
+          imageFileName: 'generated-image-1.png',
+          imageStoreKey: 'chat-1:img-msg:0',
+        }],
+      })
+    })
+
+    expect(persistedMessageContent()).toEqual([{
+      type: 'image',
+      text: undefined,
+      imageFileName: 'generated-image-1.png',
+      imageMimeType: 'image/png',
+      imageStoreKey: 'chat-1:img-msg:0',
+    }])
+    // The live in-memory message still has its pixels.
+    expect(useAppStore.getState().chatSessions[0].messages[0].content[0].imageBase64).toBe('AAAA')
   })
 })

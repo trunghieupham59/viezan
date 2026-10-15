@@ -77,6 +77,15 @@ If the test fails, confirm that Viezan is running and that local requests to `12
 - Webpage content is sent only when you trigger a translation.
 - The desktop app decides whether translation uses Local AI or a configured cloud provider.
 
+### Permission notes
+
+- `host_permissions` keeps `<all_urls>` on purpose. The content script is declared for every page, and `background.js` re-injects it (`chrome.scripting`) into background and stale tabs after an extension reload or update. `activeTab` only covers the tab the user just invoked, so it cannot replace this for tabs the user has not clicked. Narrowing the list to the content-script `matches` would not reduce access because those are also `<all_urls>`. Removing it would disable automatic recovery, so users would have to refresh each open page after a reload.
+- `web_accessible_resources` exposes only `icons/icon48.png` (the floating button and tooltip logo, loaded through `chrome.runtime.getURL`). It uses `use_dynamic_url`, so the resource URL is per-session and a website cannot probe a fixed extension ID to detect the install. Popup, options and toolbar icons are extension pages and do not need to be web-accessible.
+
+## Known Limitations
+
+- The selection button and tooltip run in the top frame only (`all_frames` is not enabled). Text selected inside an iframe (embedded editors, some documents, cross-origin widgets) shows no floating button. The toolbar popup and `Alt+T` also act on the top frame only. Enabling `all_frames` is not safe today: background messages (`Alt+T`, context menu, ping) are broadcast to every frame, so each frame would open its own tooltip, and positioning is relative to each frame's small viewport. Frame-aware messaging (`frameId` targeting) is needed first. Workaround: use the context menu or open the framed document in its own tab.
+
 ## Localization Policy
 
 The desktop app owns the localized product experience. The Chrome Extension UI is intentionally English-only in this package; translate/provider output still follows the target language and model settings selected by the user.

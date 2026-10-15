@@ -29,7 +29,12 @@
  */
 import type { IpcMain, IpcMainInvokeEvent } from 'electron'
 import { CHAT_IPC_CHANNELS } from './chatConfig'
-import { CHAT_IMAGE_EDIT_PROVIDERS, CHAT_IMAGE_GENERATE_PROVIDERS, parseChatImageEditParams } from './chatImageEdit'
+import {
+  CHAT_IMAGE_EDIT_PROVIDERS,
+  CHAT_IMAGE_GENERATE_PROVIDERS,
+  parseChatImageEditParams,
+  parseChatImageGenerateParams,
+} from './chatImageEdit'
 import { CHAT_LOG_MESSAGES, CHAT_RUNTIME_MESSAGES } from './chatMessages'
 import { resolveChatOutputTokens } from './chatTokenResolver'
 import { parseChatParams } from './chatValidation'
@@ -66,18 +71,42 @@ export {
 
 // ── Stream cancellation registry ─────────────────────────────────────────────
 //
-// Module-scoped map of in-flight stream `requestId` → AbortController. The
-// renderer cancels via `chat:stream:cancel` (which calls `controller.abort()`),
-// and the stream handler converts the resulting rejection into a typed
-// `CANCELLED` event the renderer can suppress.
-const activeStreamControllers = new Map<string, AbortController>()
+// Module-scoped map of in-flight stream `requestId` → AbortController (plus the
+// owning webContents id, so only the window that started a stream can cancel
+// it). The renderer cancels via `chat:stream:cancel` (which calls
+// `controller.abort()`), and the stream handler converts the resulting
+// rejection into a typed `CANCELLED` event the renderer can suppress.
+interface ActiveChatStream {
+  controller: AbortController
+  ownerId: number | undefined
+}
+
+const activeStreams = new Map<string, ActiveChatStream>()
+
+// A cancel can arrive before the stream handler has registered its controller
+// (IPC ordering is not guaranteed across channels). Remember such cancels for a
+// short time so cancel-before-start still takes effect.
+const CANCEL_BEFORE_START_TTL_MS = 30_000
+const MAX_PENDING_CANCELS = 200
+const pendingCancels = new Map<string, { ownerId: number | undefined; expiresAt: number }>()
+
+function prunePendingCancels(now: number) {
+  for (const [id, entry] of pendingCancels) {
+    if (entry.expiresAt <= now) pendingCancels.delete(id)
+  }
+  while (pendingCancels.size >= MAX_PENDING_CANCELS) {
+    const oldest = pendingCancels.keys().next().value
+    if (oldest === undefined) break
+    pendingCancels.delete(oldest)
+  }
+}
 
 // ── Stream event typing ──────────────────────────────────────────────────────
 
 type ChatStreamEventPayload =
   | { type: 'start' }
   | { type: 'token'; token: string }
-  | { type: 'end'; reply: string }
+  | { type: 'end'; reply: string; usedModel?: string }
   | { type: 'error'; error: string; errorCode?: string }
 
 type ChatStreamEvent = { requestId: string } & ChatStreamEventPayload
@@ -99,12 +128,30 @@ function getProviderCredential(provider: string): string | null {
  */
 function toChatFailure(error: unknown) {
   const msg = error instanceof Error ? error.message : String(error)
-  const classified = classifyProviderError(msg)
+  // Pass the error object (not just its message) so structured `status` /
+  // `errorCode` fields on SDK errors drive classification.
+  const classified = classifyProviderError(error)
   return { ...classified, error: classified.errorCode ? classified.error : CHAT_RUNTIME_MESSAGES.chatFailed(msg) }
 }
 
-function sendChatStreamEvent(event: IpcMainInvokeEvent, payload: ChatStreamEvent) {
-  event.sender.send(CHAT_IPC_CHANNELS.streamEvent, payload)
+function isSenderDestroyed(event: IpcMainInvokeEvent): boolean {
+  const sender = event.sender as { isDestroyed?: () => boolean }
+  return typeof sender.isDestroyed === 'function' && sender.isDestroyed()
+}
+
+/**
+ * Deliver a stream event to the owning renderer. Returns false (and never
+ * throws) when the sender is gone, so a closed window cannot crash the handler
+ * or its error path.
+ */
+function sendChatStreamEvent(event: IpcMainInvokeEvent, payload: ChatStreamEvent): boolean {
+  if (isSenderDestroyed(event)) return false
+  try {
+    event.sender.send(CHAT_IPC_CHANNELS.streamEvent, payload)
+    return true
+  } catch {
+    return false
+  }
 }
 
 // ── IPC registration ─────────────────────────────────────────────────────────
@@ -137,6 +184,7 @@ function registerChatSendHandler(ipcMain: IpcMain) {
     if (!apiKey) return noApiKeyResponse(provider)
     const maxOutputTokens = await resolveChatOutputTokens(provider, model, apiKey, requested)
 
+    let usedModel: string | undefined
     try {
       // Registry lookup — `unknownProviderError` returns a typed response with
       // a hint listing supported providers.
@@ -146,9 +194,12 @@ function registerChatSendHandler(ipcMain: IpcMain) {
       // withRetry adds exponential backoff for transient network errors.
       // Hard failures (auth, rate limit) are surfaced immediately.
       const reply = await withRetry(() => chatFn(
-        apiKey, model, messages, systemPrompt, maxOutputTokens, { carefulReasoning },
+        apiKey, model, messages, systemPrompt, maxOutputTokens, {
+          carefulReasoning,
+          onModelFallback: (fallbackModel) => { usedModel = fallbackModel },
+        },
       ))
-      return { success: true, reply }
+      return usedModel ? { success: true, reply, usedModel } : { success: true, reply }
     } catch (error: unknown) {
       console.error(CHAT_LOG_MESSAGES.providerError(provider), error)
       return toChatFailure(error)
@@ -197,16 +248,9 @@ function registerChatImageEditHandler(ipcMain: IpcMain) {
 
 function registerChatImageGenerateHandler(ipcMain: IpcMain) {
   ipcMain.handle(CHAT_IPC_CHANNELS.imageGenerate, async (_event, rawParams: unknown) => {
-    if (!rawParams || typeof rawParams !== 'object') {
-      return { success: false, error: 'Invalid payload', errorCode: 'INVALID_INPUT' }
-    }
-    const p = rawParams as Record<string, unknown>
-    const provider = typeof p.provider === 'string' ? p.provider.trim() : ''
-    const model = typeof p.model === 'string' ? p.model.trim() : ''
-    const prompt = typeof p.prompt === 'string' ? p.prompt.trim() : ''
-    if (!provider || !model || !prompt) {
-      return { success: false, error: 'provider, model and prompt are required', errorCode: 'INVALID_INPUT' }
-    }
+    const parsed = parseChatImageGenerateParams(rawParams)
+    if (!parsed.ok) return parsed.response
+    const { provider, model, prompt } = parsed.value
 
     const generateFn = CHAT_IMAGE_GENERATE_PROVIDERS[provider]
     if (!generateFn) {
@@ -255,28 +299,66 @@ function registerChatStreamHandler(ipcMain: IpcMain) {
       }
     }
 
-    const emit = (payload: ChatStreamEventPayload) => {
-      sendChatStreamEvent(event, { requestId, ...payload })
+    // A second stream with the same id would clobber the first one's controller
+    // (making it uncancellable) and interleave events on the same requestId.
+    // Reject it without touching the existing stream or emitting events.
+    if (activeStreams.has(requestId)) {
+      return {
+        success: false,
+        error: CHAT_RUNTIME_MESSAGES.streamRequestIdInUse,
+        errorCode: 'INVALID_INPUT',
+      }
     }
 
-    emit({ type: 'start' })
-
-    const apiKey = getProviderCredential(provider)
-    if (!apiKey) {
-      const response = noApiKeyResponse(provider)
-      emit({ type: 'error', error: response.error, errorCode: response.errorCode })
-      return response
-    }
-    const maxOutputTokens = await resolveChatOutputTokens(provider, model, apiKey, requested)
-
-    // Register an AbortController for this stream so the renderer can cancel
-    // via `chat:stream:cancel`. We pass `controller.signal` into the provider
-    // so token streaming halts as soon as the user clicks Stop. The entry is
-    // removed in `finally` to keep the registry tidy.
+    // Register the AbortController BEFORE any await so a cancel that arrives
+    // while we resolve the token budget (or the key) finds it. The signal is
+    // passed into every async step and into the provider; the entry is removed
+    // in `finally`.
     const controller = new AbortController()
-    activeStreamControllers.set(requestId, controller)
+    const ownerId = event.sender?.id
+    const entry: ActiveChatStream = { controller, ownerId }
+    activeStreams.set(requestId, entry)
+
+    // Honour a cancel that raced ahead of this handler.
+    const earlyCancel = pendingCancels.get(requestId)
+    if (earlyCancel) {
+      pendingCancels.delete(requestId)
+      if (earlyCancel.expiresAt > Date.now() && earlyCancel.ownerId === ownerId) controller.abort()
+    }
+
+    // A destroyed window can no longer receive tokens - stop the provider call.
+    const sender = event.sender as {
+      once?: (name: string, listener: () => void) => void
+      removeListener?: (name: string, listener: () => void) => void
+    }
+    const onSenderDestroyed = () => controller.abort()
+    sender.once?.('destroyed', onSenderDestroyed)
+
+    const emit = (payload: ChatStreamEventPayload) => {
+      if (!sendChatStreamEvent(event, { requestId, ...payload }) && isSenderDestroyed(event)) {
+        controller.abort()
+      }
+    }
+
+    const cancelled = () => {
+      emit({ type: 'error', error: CHAT_STREAM_CANCELLED_MESSAGE, errorCode: 'CANCELLED' })
+      return { success: false, error: CHAT_STREAM_CANCELLED_MESSAGE, errorCode: 'CANCELLED' }
+    }
 
     try {
+      emit({ type: 'start' })
+
+      const apiKey = getProviderCredential(provider)
+      if (!apiKey) {
+        const response = noApiKeyResponse(provider)
+        emit({ type: 'error', error: response.error, errorCode: response.errorCode })
+        return response
+      }
+
+      if (controller.signal.aborted) return cancelled()
+      const maxOutputTokens = await resolveChatOutputTokens(provider, model, apiKey, requested, controller.signal)
+      if (controller.signal.aborted) return cancelled()
+
       const chatFn = CHAT_STREAM_PROVIDERS[provider]
       if (!chatFn) {
         const response = unknownProviderError(provider)
@@ -284,32 +366,41 @@ function registerChatStreamHandler(ipcMain: IpcMain) {
         return response
       }
 
+      let usedModel: string | undefined
       const reply = await chatFn(
         apiKey, model, messages, systemPrompt, maxOutputTokens,
         (token) => { emit({ type: 'token', token }) },
         controller.signal,
-        { carefulReasoning },
+        {
+          carefulReasoning,
+          onModelFallback: (fallbackModel) => { usedModel = fallbackModel },
+        },
       )
 
+      // Nobody is listening any more: report cancellation instead of a reply
+      // that can never be delivered (providers may swallow the abort).
+      if (isSenderDestroyed(event)) return cancelled()
 
+      if (usedModel) {
+        emit({ type: 'end', reply, usedModel })
+        return { success: true, reply, usedModel }
+      }
       emit({ type: 'end', reply })
       return { success: true, reply }
     } catch (error: unknown) {
       // User-initiated cancellation: emit a typed `CANCELLED` error code so
       // the renderer can suppress the visible error bubble; partial tokens
       // already streamed remain visible.
-      if (controller.signal.aborted || isAbortError(error)) {
-        emit({ type: 'error', error: CHAT_STREAM_CANCELLED_MESSAGE, errorCode: 'CANCELLED' })
-        return { success: false, error: CHAT_STREAM_CANCELLED_MESSAGE, errorCode: 'CANCELLED' }
-      }
+      if (isAbortError(error, controller.signal)) return cancelled()
       console.error(CHAT_LOG_MESSAGES.streamProviderError(provider), error)
       const response = toChatFailure(error)
       emit({ type: 'error', error: response.error, errorCode: response.errorCode })
       return response
     } finally {
+      sender.removeListener?.('destroyed', onSenderDestroyed)
       // Idempotent: a late cancel may have already removed the entry.
-      if (activeStreamControllers.get(requestId) === controller) {
-        activeStreamControllers.delete(requestId)
+      if (activeStreams.get(requestId) === entry) {
+        activeStreams.delete(requestId)
       }
     }
   })
@@ -318,19 +409,34 @@ function registerChatStreamHandler(ipcMain: IpcMain) {
 // ── chat:stream:cancel ───────────────────────────────────────────────────────
 
 function registerChatStreamCancelHandler(ipcMain: IpcMain) {
-  ipcMain.handle(CHAT_IPC_CHANNELS.streamCancel, async (_event, rawParams: unknown) => {
+  ipcMain.handle(CHAT_IPC_CHANNELS.streamCancel, async (event, rawParams: unknown) => {
     if (!isRecord(rawParams) || !isNonEmptyString(rawParams.requestId)) {
       return { success: false, error: 'INVALID_INPUT' }
     }
-    const requestId = rawParams.requestId
-    const controller = activeStreamControllers.get(requestId)
-    if (!controller) return { success: false, error: 'NOT_FOUND' }
-    try {
-      controller.abort()
-    } catch {
-      /* abort cannot throw in normal cases — swallow defensively */
+    // Same normalisation as parseChatParams (trimmed id) so cancel matches the
+    // key the stream registered under and the pending-cancel set.
+    const requestId = rawParams.requestId.trim()
+    if (!requestId) return { success: false, error: 'INVALID_INPUT' }
+    const ownerId = event.sender?.id
+    const active = activeStreams.get(requestId)
+
+    if (!active) {
+      // The stream may not have registered yet - remember the cancel briefly.
+      const now = Date.now()
+      prunePendingCancels(now)
+      pendingCancels.set(requestId, { ownerId, expiresAt: now + CANCEL_BEFORE_START_TTL_MS })
+      return { success: false, error: 'NOT_FOUND' }
     }
-    activeStreamControllers.delete(requestId)
+
+    // Only the window that owns the stream may cancel it.
+    if (active.ownerId !== ownerId) return { success: false, error: 'NOT_FOUND' }
+
+    try {
+      active.controller.abort()
+    } catch {
+      /* abort cannot throw in normal cases - swallow defensively */
+    }
+    activeStreams.delete(requestId)
     return { success: true }
   })
 }

@@ -38,6 +38,14 @@ const CHAT_READING_DISCIPLINE =
   'READ CAREFULLY: Treat every user-stated assumption, number, percentage, rule, or constraint as authoritative — do NOT silently override it with a common-case default, and do NOT skip a stated condition because it looks unusual. If a stated condition conflicts with the textbook scenario, follow the user and acknowledge the deviation explicitly.'
 
 /**
+ * The chat UI renders Markdown but has no math renderer, so LaTeX delimiters
+ * would appear verbatim (`\(500 / 5 = 100\)`). Always attached because any
+ * answer that contains a calculation can trigger it, not only carefulReasoning.
+ */
+const CHAT_MATH_FORMATTING =
+  'FORMATTING: Write formulas and calculations in plain text (e.g. "500 / 5 = 100", "45 + 36 + 27 = 108"). Do NOT use LaTeX or math delimiters such as \\( \\), \\[ \\], $...$ or $$...$$ — the chat cannot render them. Use Markdown tables or lists for step-by-step working.'
+
+/**
  * Heavier directive — appended only when the renderer flags the request as
  * carefulReasoning. Used for math/finance/tax/quantitative questions where a
  * silent miscalculation produces a confidently wrong answer.
@@ -76,6 +84,7 @@ export function buildEnforcedSystemPrompt(
   // common "model overrides stated constraints" failure even for users who
   // never enable Careful Reasoning explicitly.
   sections.push(CHAT_READING_DISCIPLINE)
+  sections.push(CHAT_MATH_FORMATTING)
 
   if (options.carefulReasoning) sections.push(CHAT_REASONING_DISCIPLINE)
 

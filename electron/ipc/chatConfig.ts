@@ -3,6 +3,7 @@ export type ChatProviderId = 'openai' | 'claude' | 'gemini'
 type ModelTokenRule =
   | { includes: string; maxOutputTokens: number }
   | { startsWith: string; maxOutputTokens: number }
+  | { equals: string; maxOutputTokens: number }
 
 export const CHAT_IPC_CHANNELS = {
   send: 'chat:send',
@@ -33,10 +34,22 @@ export const CHAT_MODEL_OUTPUT_TOKEN_RULES: Record<ChatProviderId, readonly Mode
     { startsWith: 'gpt-4.1', maxOutputTokens: 32_768 },
     { startsWith: 'gpt-4o', maxOutputTokens: 16_384 },
     { startsWith: 'chatgpt-4o', maxOutputTokens: 16_384 },
+    // Older families with smaller completion limits. newer `gpt-4.x` / `gpt-4o`
+    // families keep their own limits above.
+    { equals: 'gpt-4', maxOutputTokens: 4_096 },
+    { startsWith: 'gpt-4-', maxOutputTokens: 4_096 },
+    { startsWith: 'gpt-3.5', maxOutputTokens: 4_096 },
   ],
   claude: [
     { startsWith: 'claude-sonnet-4', maxOutputTokens: 64_000 },
     { startsWith: 'claude-opus-4', maxOutputTokens: 32_000 },
+    // Claude 3.x families keep their smaller completion limits. Prefixes are
+    // exact so `claude-3-7-sonnet` and every 4.x id fall through to the default.
+    { startsWith: 'claude-3-5-sonnet', maxOutputTokens: 8_192 },
+    { startsWith: 'claude-3-5-haiku', maxOutputTokens: 8_192 },
+    { startsWith: 'claude-3-opus', maxOutputTokens: 4_096 },
+    { startsWith: 'claude-3-sonnet', maxOutputTokens: 4_096 },
+    { startsWith: 'claude-3-haiku', maxOutputTokens: 4_096 },
   ],
   gemini: [
     { includes: '2.5', maxOutputTokens: 65_536 },

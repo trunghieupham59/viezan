@@ -28,9 +28,10 @@ paths:
   inline `style={{}}`, and Tailwind arbitrary-value brackets all count).
   `check:design`/`check:atomic` only scan atoms/molecules/organisms/templates;
   manually verify `src/pages`, migration-zone feature dirs, and `.css` files
-  too. Known debt not to extend: `codex.css` has a dead duplicate token
-  `:root`/`html.dark` block, and `tailwind.config.mjs` keeps its own
-  font-size/animation scale — migrate rather than add beside them.
+  too. Known debt not to extend: `src/index.css` still has literal colors in
+  legacy rules (see the `check:design` inventory) and `tailwind.config.mjs`
+  keeps a few literals (line heights, `pulse-fast` easing) — migrate rather
+  than add beside them.
 - Use `Input` for reusable single-line fields and the same size token as nearby
   buttons. Verify light/dark plus relevant responsive states.
 - Use container queries for feature geometry. Keep chat messages, suggestion

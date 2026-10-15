@@ -1,16 +1,19 @@
 /**
  * withRetry — exponential-backoff retry wrapper for IPC handlers.
  *
- * Designed for AI provider API calls that may fail transiently due to network
- * issues (DNS, connection reset, timeout). Retries are limited to clearly
- * transient errors — hard failures (auth, rate limit, invalid model) are
- * rethrown immediately without retrying.
+ * Designed for AI provider API calls that may fail transiently: network issues
+ * (DNS, connection reset, timeout), overloaded/5xx responses and 429 rate limits.
+ * Hard failures (auth, validation, quota exhaustion, invalid model) are rethrown
+ * immediately without retrying. A provider `Retry-After` hint is honoured, bounded
+ * by `maxRetryAfterMs`.
  *
  * Usage:
  * ```ts
  * const result = await withRetry(() => translateWithGemini(apiKey, model, ...))
  * ```
  */
+
+import { getErrorStatus, getRetryAfterMs, getStatusFromMessage } from './errorUtils'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -27,47 +30,77 @@ export interface RetryOptions {
    * Override to customize: e.g. retry on specific status codes or messages.
    */
   shouldRetry?: (error: Error) => boolean
+  /**
+   * Longest provider-requested `Retry-After` wait honoured, in ms (default: 15000).
+   * A larger hint means "come back much later", so the error is thrown instead of waiting.
+   */
+  maxRetryAfterMs?: number
+  /** Aborting stops further attempts and cuts any backoff wait short. */
+  signal?: AbortSignal
 }
 
-// ── Default shouldRetry: network errors only ──────────────────────────────────
+// ── Default shouldRetry ───────────────────────────────────────────────────────
+
+/** Quota / billing exhaustion — waiting a few seconds will not help, so do not retry. */
+const QUOTA_EXHAUSTED_PATTERN = /insufficient_quota|quota|resource_exhausted|billing/
+/** Plain rate limiting (no quota wording) — a short backoff usually clears it. */
+const RATE_LIMIT_PATTERN = /rate_limit|rate limit|too many requests/
+const TRANSIENT_PATTERN = new RegExp([
+  'enotfound', 'econnrefused', 'etimedout', 'econnreset', 'failed to fetch', 'fetcherror',
+  'fetch failed', 'network socket disconnected', 'socket hang up', 'connection reset',
+  'connection error', 'timeout', 'overloaded', 'service unavailable', 'bad gateway',
+  'gateway timeout', 'internal server error',
+].join('|'))
+const HARD_FAILURE_PATTERN = /invalid_api_key|authentication|unknown provider|not found/
 
 /**
- * Returns true for transient network errors that are safe to retry.
- * Returns false for auth errors (401), rate limits (429), or invalid requests —
- * retrying those won't help and would waste quota.
+ * Returns true for transient failures that are safe to retry: network errors, 408/425,
+ * 5xx (incl. 503 and Anthropic 529 "overloaded") and non-quota 429.
+ * Returns false for auth (401/403), validation/4xx, quota exhaustion and unknown models —
+ * retrying those cannot succeed and would waste quota.
+ *
+ * Structured `status` on the error is trusted first; message text is only a fallback and is
+ * matched with HTTP-looking patterns (never a raw substring such as "401" inside a token count).
  */
 export function isRetriableError(err: Error): boolean {
+  if (err.name === 'AbortError') return false
   const msg = err.message.toLowerCase()
-  // Hard failures — do NOT retry
-  if (
-    msg.includes('401') ||
-    msg.includes('403') ||
-    msg.includes('invalid_api_key') ||
-    msg.includes('authentication') ||
-    msg.includes('429') ||
-    msg.includes('rate_limit') ||
-    msg.includes('quota') ||
-    msg.includes('resource_exhausted') ||
-    msg.includes('unknown provider') ||
-    msg.includes('not found')
-  ) {
-    return false
+  const status = getErrorStatus(err) ?? getStatusFromMessage(err.message)
+
+  if (status !== undefined) {
+    if (status === 429) return !QUOTA_EXHAUSTED_PATTERN.test(msg)
+    if (status === 408 || status === 425 || status >= 500) return true
+    if (status >= 400) return false
   }
-  // Transient network errors — retry
-  return (
-    msg.includes('enotfound') ||
-    msg.includes('econnrefused') ||
-    msg.includes('etimedout') ||
-    msg.includes('econnreset') ||
-    msg.includes('failed to fetch') ||
-    msg.includes('fetcherror') ||
-    msg.includes('fetch failed') ||
-    msg.includes('network socket disconnected') ||
-    msg.includes('socket hang up') ||
-    msg.includes('connection reset') ||
-    msg.includes('connection error') ||
-    msg.includes('timeout')
-  )
+
+  // Hard failures — do NOT retry
+  if (HARD_FAILURE_PATTERN.test(msg) || QUOTA_EXHAUSTED_PATTERN.test(msg)) return false
+  // Transient failures — retry
+  return RATE_LIMIT_PATTERN.test(msg) || TRANSIENT_PATTERN.test(msg)
+}
+
+function abortError(): Error {
+  const error = new Error('Retry aborted')
+  error.name = 'AbortError'
+  return error
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(abortError())
+      return
+    }
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(abortError())
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
 }
 
 // ── Main retry function ───────────────────────────────────────────────────────
@@ -91,6 +124,8 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
     initialDelayMs = 500,
     maxDelayMs = 8_000,
     shouldRetry = isRetriableError,
+    maxRetryAfterMs = 15_000,
+    signal,
   } = opts
 
   let lastError: Error = new Error('Unknown error')
@@ -101,17 +136,20 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err))
 
-      // Non-retriable error or last attempt → throw immediately
-      if (attempt === maxAttempts || !shouldRetry(lastError)) {
+      // Non-retriable error, cancelled caller or last attempt → throw immediately
+      if (signal?.aborted || attempt === maxAttempts || !shouldRetry(lastError)) {
         throw lastError
       }
 
-      const delay = Math.min(initialDelayMs * (2 ** (attempt - 1)), maxDelayMs)
+      const backoff = Math.min(initialDelayMs * (2 ** (attempt - 1)), maxDelayMs)
+      const retryAfter = getRetryAfterMs(lastError)
+      if (retryAfter !== undefined && retryAfter > maxRetryAfterMs) throw lastError
+      const delay = retryAfter === undefined ? backoff : Math.max(backoff, retryAfter)
       console.warn(
         `[retry] Attempt ${attempt}/${maxAttempts} failed: ${lastError.message}. ` +
         `Retrying in ${delay}ms...`
       )
-      await new Promise<void>((resolve) => setTimeout(resolve, delay))
+      await sleep(delay, signal)
     }
   }
 

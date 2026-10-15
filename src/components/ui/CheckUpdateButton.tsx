@@ -1,3 +1,4 @@
+import { Button } from './atoms'
 /**
  * CheckUpdateButton — "Check for updates" button that adapts its appearance
  * to the current updater state (idle → checking → downloaded).
@@ -32,17 +33,17 @@ export function CheckUpdateButton({
   const isDownloaded = status === 'downloaded'
 
   return (
-    <button
+    <Button
+      size="sm"
+      shape="rect"
+      variant={isDownloaded ? 'primary' : 'neutral'}
+      appearance={isDownloaded ? 'solid' : 'outline'}
       type="button"
       onClick={onClick}
       disabled={isDisabled}
-      className={[
-        isDownloaded ? 'btn-primary' : 'btn-secondary',
-        'btn-sm',
-      ].join(' ')}
     >
       {status === 'checking' && <SpinnerIcon className="w-3 h-3 animate-spin" />}
       {status === 'checking' ? checkingLabel : checkLabel}
-    </button>
+    </Button>
   )
 }

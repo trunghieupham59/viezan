@@ -38,9 +38,9 @@ export const PROVIDERS: ProviderConfig[] = [
     requiresApiKey: true,
     models: [
       // ★ When adding a new Claude model, mark the fastest/best translation model as tag:'recommended'
-      { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', description: 'Balanced performance', tag: 'recommended' },
-      { id: 'claude-opus-4-20250514', name: 'Claude Opus 4', description: 'Most capable', tag: 'balanced' },
-      { id: 'claude-opus-4-1-20250805', name: 'Claude Opus 4.1', description: 'Highest capability', tag: 'powerful' },
+      { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', description: 'Fast & capable', tag: 'recommended' },
+      { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', description: 'Latest balanced model', tag: 'balanced' },
+      { id: 'claude-opus-4-8', name: 'Claude Opus 4.8', description: 'Highest capability', tag: 'powerful' },
     ],
   },
   {

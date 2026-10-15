@@ -68,6 +68,7 @@ describe('persisted STT provider migration', () => {
     expect(migrated).toEqual({
       sttProvider: 'auto',
       locale: 'vi',
+      chatPendingTaskState: null,
     })
   })
 
@@ -84,6 +85,7 @@ describe('persisted STT provider migration', () => {
       expect(migratePersistedStore(persisted)).toEqual({
         ...persisted,
         sttProvider: 'auto',
+        chatPendingTaskState: null,
       })
     },
   )
@@ -91,7 +93,7 @@ describe('persisted STT provider migration', () => {
   it.each(['auto', 'whisper', 'google', 'groq'])('preserves supported provider %s', (sttProvider) => {
     const persisted = { sttProvider, locale: 'vi' }
 
-    expect(migratePersistedStore(persisted)).toBe(persisted)
+    expect(migratePersistedStore(persisted)).toEqual({ ...persisted, chatPendingTaskState: null })
   })
 })
 
@@ -214,6 +216,23 @@ describe('setTranslationReasoningEffort', () => {
     // biome-ignore lint/suspicious/noExplicitAny: persist middleware test hook
     const partialize = (useAppStore as any).persist.getOptions().partialize
     expect(partialize(useAppStore.getState()).translationReasoningEffort).toBe('medium')
+  })
+})
+
+describe('setImageProviderFallback', () => {
+  it('defaults to off so images only go to the chosen provider', () => {
+    act(() => useAppStore.setState({ imageProviderFallback: false }))
+    expect(useAppStore.getState().imageProviderFallback).toBe(false)
+  })
+
+  it('updates and persists the opt-in', () => {
+    act(() => useAppStore.getState().setImageProviderFallback(true))
+    expect(useAppStore.getState().imageProviderFallback).toBe(true)
+
+    // biome-ignore lint/suspicious/noExplicitAny: persist middleware test hook
+    const partialize = (useAppStore as any).persist.getOptions().partialize
+    expect(partialize(useAppStore.getState()).imageProviderFallback).toBe(true)
+    act(() => useAppStore.getState().setImageProviderFallback(false))
   })
 })
 

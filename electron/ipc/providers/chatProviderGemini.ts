@@ -7,9 +7,10 @@
  *
  * Multimodal: text + inline base64 images are mapped into Gemini `Part`s.
  *
- * Cancellation: the SDK does not accept an AbortSignal directly, so the
- * stream loop polls `signal.aborted` between chunk boundaries and raises the
- * shared CHAT_STREAM_CANCELLED_MESSAGE sentinel that the IPC handler
+ * Cancellation: `sendMessageStream(parts, { signal })` forwards the AbortSignal
+ * to fetch, so the HTTP request (and body read) is torn down on abort. The
+ * stream loop additionally checks `signal.aborted` at chunk boundaries and
+ * raises the shared CHAT_STREAM_CANCELLED_MESSAGE sentinel that the IPC handler
  * translates into a typed `CANCELLED` event.
  */
 import type { Content, Part } from '@google/generative-ai'
@@ -57,15 +58,15 @@ function buildGeminiChatPayload(messages: ChatMessage[]) {
   return { history, parts }
 }
 
-/** Non-streaming Gemini chat — returns the trimmed reply text. */
-export async function chatWithGemini(
+/** Build the Gemini chat session (model + enforced system prompt + history) shared by both paths. */
+async function startGeminiChat(
   apiKey: string,
   model: string,
   messages: ChatMessage[],
-  systemPrompt?: string,
-  maxOutputTokens = MAX_CHAT_OUTPUT_TOKENS,
-  options: ChatProviderOptions = {},
-): Promise<string> {
+  systemPrompt: string | undefined,
+  maxOutputTokens: number,
+  options: ChatProviderOptions,
+) {
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
   const genAI = new GoogleGenerativeAI(apiKey)
   const genModel = genAI.getGenerativeModel({
@@ -75,11 +76,20 @@ export async function chatWithGemini(
     }),
     generationConfig: { maxOutputTokens },
   })
-
-
   const { history, parts } = buildGeminiChatPayload(messages)
+  return { chat: genModel.startChat({ history }), parts }
+}
 
-  const chat = genModel.startChat({ history })
+/** Non-streaming Gemini chat — returns the trimmed reply text. */
+export async function chatWithGemini(
+  apiKey: string,
+  model: string,
+  messages: ChatMessage[],
+  systemPrompt?: string,
+  maxOutputTokens = MAX_CHAT_OUTPUT_TOKENS,
+  options: ChatProviderOptions = {},
+): Promise<string> {
+  const { chat, parts } = await startGeminiChat(apiKey, model, messages, systemPrompt, maxOutputTokens, options)
   const result = await chat.sendMessage(parts)
   const text = result.response.text().trim()
   if (!text) {
@@ -105,25 +115,14 @@ export async function streamChatWithGemini(
   options: ChatProviderOptions = {},
 ): Promise<string> {
   if (signal?.aborted) throw new Error(CHAT_STREAM_CANCELLED_MESSAGE)
-  const { GoogleGenerativeAI } = await import('@google/generative-ai')
-  const genAI = new GoogleGenerativeAI(apiKey)
-  const genModel = genAI.getGenerativeModel({
-    model,
-    systemInstruction: buildEnforcedSystemPrompt(systemPrompt || '', {
-      carefulReasoning: options.carefulReasoning,
-    }),
-    generationConfig: { maxOutputTokens },
-  })
-
-  const { history, parts } = buildGeminiChatPayload(messages)
-  const chat = genModel.startChat({ history })
-  const result = await chat.sendMessageStream(parts)
+  const { chat, parts } = await startGeminiChat(apiKey, model, messages, systemPrompt, maxOutputTokens, options)
+  const result = await chat.sendMessageStream(parts, signal ? { signal } : undefined)
   let fullText = ''
   let lastFinishReason: string | undefined
 
   for await (const chunk of result.stream) {
-    // Honour user cancellation between chunks. The Gemini SDK does not accept
-    // an AbortSignal directly, so we poll the flag at chunk boundaries.
+    // Belt and braces: the signal is wired into the request above, but also
+    // stop promptly at chunk boundaries.
     if (signal?.aborted) throw new Error(CHAT_STREAM_CANCELLED_MESSAGE)
     // Capture finishReason from each chunk; Gemini sets it (e.g. RECITATION, SAFETY)
     // even when the chunk yields no text, so the SDK's chunk.text() may throw.
@@ -141,6 +140,8 @@ export async function streamChatWithGemini(
       onToken(token)
     }
   }
+
+  if (signal?.aborted) throw new Error(CHAT_STREAM_CANCELLED_MESSAGE)
 
   if (!fullText.trim()) {
     try {

@@ -42,6 +42,12 @@ function capDictionaryEntries(entries: DictionaryEntry[]): DictionaryEntry[] {
 
 export interface DictionarySlice {
   dictionaryEntries: DictionaryEntry[]
+  /**
+   * One-shot term handed to the Dictionary page by another feature (e.g. the command
+   * palette). The page looks it up and clears it; it is never persisted.
+   */
+  pendingDictionaryTerm: string | null
+  setPendingDictionaryTerm: (term: string | null) => void
   addDictionaryEntry: (entry: DictionaryEntry) => void
   toggleDictionaryFavorite: (id: string) => void
   deleteDictionaryEntry: (id: string) => void
@@ -50,6 +56,9 @@ export interface DictionarySlice {
 
 export const createDictionarySlice = (set: SliceSet): DictionarySlice => ({
   dictionaryEntries: [],
+  pendingDictionaryTerm: null,
+
+  setPendingDictionaryTerm: (term) => set({ pendingDictionaryTerm: term }),
 
   addDictionaryEntry: (entry) =>
     set((state: DictionarySlice) => {

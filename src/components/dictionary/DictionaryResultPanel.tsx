@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button } from '@/components/ui/atoms'
 import type { Translations } from '../../i18n'
 import { dictionaryService } from '../../services/dictionaryService'
 import type { DictionaryEntry, DictionaryResult, DictionaryTranslation, Provider } from '../../types'
@@ -71,6 +72,19 @@ function getTranslationKey(item: DictionaryTranslation): string {
 
 function uniqueText(items: Array<string | undefined>): string[] {
   return [...new Set(items.map((item) => item?.trim()).filter((item): item is string => Boolean(item)))]
+}
+
+/**
+ * Pair each text item with a unique, order-independent key (the text, plus an occurrence
+ * counter for repeats) so list rows don't depend on the array index.
+ */
+function withStableKeys(items: string[], prefix: string): Array<{ key: string; item: string; position: number }> {
+  const seen = new Map<string, number>()
+  return items.map((item, position) => {
+    const occurrence = (seen.get(item) ?? 0) + 1
+    seen.set(item, occurrence)
+    return { key: `${prefix}-${item}-${occurrence}`, item, position }
+  })
 }
 
 function cleanSelectionText(value: string): string {
@@ -267,6 +281,7 @@ export function DictionaryResultPanel({
               ))}
               {isEnriching && (
                 <span
+                  role="img"
                   aria-label={t.dictionary_enriching}
                   title={t.dictionary_enriching}
                   className="inline-flex h-2 w-2 flex-shrink-0 rounded-full bg-gray-400/60 dark:bg-gray-500/60"
@@ -277,32 +292,43 @@ export function DictionaryResultPanel({
           </div>
 
           <div className="flex flex-shrink-0 items-center gap-1">
-            <button
+            <Button
+              size="sm"
+              shape="icon"
+              aria-pressed={entry.favorite}
+              variant={entry.favorite ? 'primary' : 'neutral'}
+              appearance={entry.favorite ? 'soft' : 'ghost'}
+              aria-label={entry.favorite ? t.dictionary_unfavorite : t.dictionary_favorite}
               type="button"
               onClick={onFavorite}
               title={entry.favorite ? t.dictionary_unfavorite : t.dictionary_favorite}
-              className={`toolbar-icon-button ${
-                entry.favorite ? 'toolbar-icon-button-active text-gray-500 dark:text-gray-300' : ''
-              }`}
             >
               <StarIcon className="h-4 w-4" />
-            </button>
-            <button
+            </Button>
+            <Button
+              size="sm"
+              shape="icon"
+              variant={copied ? 'primary' : 'neutral'}
+              appearance={copied ? 'soft' : 'ghost'}
+              aria-label={copied ? t.dictionary_copied : t.dictionary_copy}
               type="button"
               onClick={onCopy}
               title={copied ? t.dictionary_copied : t.dictionary_copy}
-              className={`toolbar-icon-button ${copied ? 'toolbar-icon-button-active' : ''}`}
             >
               {copied ? <CheckIcon className="h-4 w-4" /> : <CopyIcon className="h-4 w-4" />}
-            </button>
-            <button
+            </Button>
+            <Button
+              size="sm"
+              shape="icon"
+              variant="neutral"
+              appearance="ghost"
+              aria-label={t.dictionary_reuse_translate}
               type="button"
               onClick={onReuse}
               title={t.dictionary_reuse_translate}
-              className="toolbar-icon-button"
             >
               <ReuseIcon className="h-4 w-4" />
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -399,15 +425,19 @@ export function DictionaryResultPanel({
                         {t.dictionary_translation_detail}
                       </p>
                     </div>
-                    <button
+                    <Button
+                      size="sm"
+                      shape="icon"
+                      variant="neutral"
+                      appearance="ghost"
                       type="button"
                       title={t.dictionary_translation_close}
                       aria-label={t.dictionary_translation_close}
                       onClick={() => setSelectedTranslation(null)}
-                      className="toolbar-icon-button h-8 w-8 flex-shrink-0"
+                      className="flex-shrink-0"
                     >
                       <XIcon className="h-4 w-4" />
-                    </button>
+                    </Button>
                   </div>
 
                   <div className="max-h-[calc(82vh-84px)] space-y-4 overflow-auto px-5 py-4 text-sm leading-6 text-gray-700 dark:text-gray-300">
@@ -498,16 +528,16 @@ export function DictionaryResultPanel({
           <section>
             <h3 className="section-label mb-2">{t.dictionary_examples}</h3>
             <ol className="space-y-1.5">
-              {result.examples.map((item, idx) => (
+              {withStableKeys(result.examples, 'ex').map(({ key, item, position }) => (
                 <li
-                  key={`ex-${idx}-${item}`}
+                  key={key}
                   className="flex items-start gap-2.5 text-sm leading-6 text-gray-700 select-text dark:text-gray-300"
                 >
                   <span
                     aria-hidden
                     className="ui-index-dot"
                   >
-                    {idx + 1}
+                    {position + 1}
                   </span>
                   <span className="min-w-0 flex-1">{item}</span>
                 </li>
@@ -521,9 +551,9 @@ export function DictionaryResultPanel({
           <section>
             <h3 className="section-label mb-2">{t.dictionary_notes}</h3>
             <ul className="space-y-1.5">
-              {result.notes.map((item, idx) => (
+              {withStableKeys(result.notes, 'note').map(({ key, item }) => (
                 <li
-                  key={`note-${idx}-${item}`}
+                  key={key}
                   className="flex items-start gap-2.5 text-sm leading-6 text-gray-700 select-text dark:text-gray-300"
                 >
                   <span
@@ -539,7 +569,11 @@ export function DictionaryResultPanel({
       </div>
 
       {selectionAction && (
-        <button
+        <Button
+          size="lg"
+          shape="icon"
+          variant="neutral"
+          appearance="ghost"
           type="button"
           title={t.dictionary_selection_lookup}
           aria-label={`${t.dictionary_selection_lookup}: ${selectionAction.text}`}
@@ -547,11 +581,11 @@ export function DictionaryResultPanel({
           onClick={() => {
             void runSelectionLookup()
           }}
-          className="btn-icon btn-icon-lg fixed z-50"
+          className="fixed z-50"
           style={{ left: selectionAction.x, top: selectionAction.y }}
         >
           <SearchIcon className="h-4 w-4" />
-        </button>
+        </Button>
       )}
 
       {selectionLookup && (
@@ -602,15 +636,19 @@ export function DictionaryResultPanel({
                   </span>
                 </p>
               </div>
-              <button
+              <Button
+                size="sm"
+                shape="icon"
+                variant="neutral"
+                appearance="ghost"
                 type="button"
                 title={t.dictionary_translation_close}
                 aria-label={t.dictionary_translation_close}
                 onClick={closeSelectionLookup}
-                className="toolbar-icon-button h-8 w-8 flex-shrink-0"
+                className="flex-shrink-0"
               >
                 <XIcon className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
 
             <div className="max-h-[calc(82vh-84px)] space-y-5 overflow-auto px-5 py-4 text-sm leading-6 text-gray-700 dark:text-gray-300">
@@ -675,13 +713,13 @@ export function DictionaryResultPanel({
                     <section>
                       <h5 className="section-label mb-2">{t.dictionary_examples}</h5>
                       <ol className="space-y-1.5">
-                        {selectionLookup.result.examples.map((item, idx) => (
-                          <li key={`selection-example-${idx}-${item}`} className="flex items-start gap-2.5 select-text">
+                        {withStableKeys(selectionLookup.result.examples, 'selection-example').map(({ key, item, position }) => (
+                          <li key={key} className="flex items-start gap-2.5 select-text">
                             <span
                               aria-hidden
                               className="ui-index-dot"
                             >
-                              {idx + 1}
+                              {position + 1}
                             </span>
                             <span className="min-w-0 flex-1">{item}</span>
                           </li>
@@ -694,8 +732,8 @@ export function DictionaryResultPanel({
                     <section>
                       <h5 className="section-label mb-2">{t.dictionary_notes}</h5>
                       <ul className="space-y-1.5">
-                        {selectionLookup.result.notes.map((item, idx) => (
-                          <li key={`selection-note-${idx}-${item}`} className="flex items-start gap-2.5 select-text">
+                        {withStableKeys(selectionLookup.result.notes, 'selection-note').map(({ key, item }) => (
+                          <li key={key} className="flex items-start gap-2.5 select-text">
                             <span
                               aria-hidden
                               className="mt-2 inline-block h-1 w-1 flex-shrink-0 rounded-full bg-gray-500 dark:bg-gray-400"

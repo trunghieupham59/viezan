@@ -29,6 +29,12 @@ export interface SettingsSlice {
   phoneticMode: PhoneticMode
   translationStyle: TranslationStyle
   translationReasoningEffort: TranslationReasoningEffort
+  /**
+   * When true, image translation may upload the image to another provider that has a
+   * stored key if the selected provider cannot read images. Off by default so an image
+   * is never sent to a provider the user did not choose.
+   */
+  imageProviderFallback: boolean
   ttsMode: TtsMode
   ttsVoice: TtsVoice
   fontSize: 'small' | 'medium' | 'large'
@@ -68,6 +74,7 @@ export interface SettingsSlice {
   setPhoneticMode: (mode: PhoneticMode) => void
   setTranslationStyle: (style: TranslationStyle) => void
   setTranslationReasoningEffort: (effort: TranslationReasoningEffort) => void
+  setImageProviderFallback: (v: boolean) => void
   setTtsMode: (mode: TtsMode) => void
   setTtsVoice: (voice: TtsVoice) => void
   setFontSize: (size: 'small' | 'medium' | 'large') => void
@@ -102,6 +109,7 @@ export const createSettingsSlice = (set: SliceSet): SettingsSlice => ({
   phoneticMode: 'off' as PhoneticMode,
   translationStyle: 'general' as TranslationStyle,
   translationReasoningEffort: 'auto' as TranslationReasoningEffort,
+  imageProviderFallback: false,
   ttsMode: 'free' as TtsMode,
   ttsVoice: 'nova' as TtsVoice,
   fontSize: 'medium' as const,
@@ -131,6 +139,7 @@ export const createSettingsSlice = (set: SliceSet): SettingsSlice => ({
   setPhoneticMode: (mode) => set({ phoneticMode: mode }),
   setTranslationStyle: (style) => set({ translationStyle: style }),
   setTranslationReasoningEffort: (effort) => set({ translationReasoningEffort: effort }),
+  setImageProviderFallback: (v) => set({ imageProviderFallback: v }),
   setTtsMode: (mode) => set({ ttsMode: mode }),
   setTtsVoice: (voice) => set({ ttsVoice: voice }),
   setFontSize: (size) => set({ fontSize: size }),
