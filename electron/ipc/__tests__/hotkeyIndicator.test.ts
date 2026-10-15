@@ -71,7 +71,7 @@ describe('hotkey indicator', () => {
     vi.useFakeTimers()
     fake.windows.length = 0
     vi.resetModules()
-    mod = await import('../hotkeyIndicator')
+    mod = await import('../hotkeyIndicator.js')
   })
 
   afterEach(() => {
