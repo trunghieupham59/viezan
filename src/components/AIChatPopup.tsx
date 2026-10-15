@@ -14,10 +14,12 @@
  * Mounted by quick-chat.html, not by the main app shell.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Button } from '@/components/ui/atoms'
 import { MAX_CHAT_INPUT_CHARS } from '../constants/providers'
 import type { ChatMessage } from '../services/chatService'
 import { smartThinkingService } from '../services/smartThinkingService'
 import { useAppStore, useT } from '../store/useAppStore'
+import { shouldUseCarefulReasoning } from '../utils/carefulReasoning'
 import { localizeChatError, localizeChatException } from '../utils/chatErrors'
 import { shouldSendChatMessage } from '../utils/keyboardShortcuts'
 import { formatModelName } from '../utils/modelDisplay'
@@ -36,38 +38,9 @@ import {
   SpinnerIcon,
   XIcon,
 } from './ui/icons'
+import { ThinkingPill } from './ui/molecules'
 
 const QUICK_TEXTAREA_MAX_HEIGHT_PX = 120
-
-/**
- * Strip any trailing punctuation locales add to the loading copy
- * ("Đang suy nghĩ…", "Thinking…", "考え中…") so the polished pill can render
- * the label cleanly without doubled-up ellipses next to the bouncing dots.
- */
-function stripTrailingEllipsis(label: string): string {
-  return label.replace(/[…．.\s]+$/u, '')
-}
-
-/**
- * Three little bouncing dots — purely CSS-driven via .thinking-dot.
- * Each dot is staggered by 160 ms so they ripple smoothly. We keep them
- * fixed-size and absolutely-positioned-in-flow with `inline-flex` so the
- * surrounding label text doesn't reflow as the dots animate.
- */
-function BouncingDots({ tone = 'gray' }: { tone?: 'gray' | 'white' } = {}) {
-  const dotClass = `thinking-dot h-[5px] w-[5px] rounded-full ${tone === 'white' ? 'bg-white/85' : ''}`
-  const dotStyle = (delay: string) => tone === 'white'
-    ? { animationDelay: delay }
-    : { animationDelay: delay, background: 'var(--vzn-text-soft)' }
-  return (
-    <span className="inline-flex items-end gap-[3px] pb-[2px]" aria-hidden="true">
-      <span className={dotClass} style={dotStyle('0ms')} />
-      <span className={dotClass} style={dotStyle('160ms')} />
-      <span className={dotClass} style={dotStyle('320ms')} />
-    </span>
-  )
-}
-
 
 /** Conversation kept this long after dismissal; after that, full reset on next show. */
 const HISTORY_TTL_MS = 5 * 60 * 1000
@@ -102,32 +75,6 @@ function KeyCap({ children }: { children: React.ReactNode }) {
     </kbd>
   )
 }
-
-/**
- * Polished "Thinking…" pill — quiet neutral halo, label, and three bouncing dots.
- * Used while the model is mulling the
- * question over before any tokens arrive. The pill styling matches the Smart
- * Thinking pill so phase transitions feel cohesive.
- */
-function ThinkingLabel({ label }: { label: string }) {
-  const baseLabel = stripTrailingEllipsis(label)
-  return (
-    <span
-      className="thinking-state-pill"
-      role="status"
-      aria-live="polite"
-    >
-      <span className="relative inline-flex h-3.5 w-3.5 items-center justify-center">
-        <span className="thinking-glow absolute inset-0 rounded-full bg-gray-400/25 blur-[3px]" aria-hidden />
-        <SparklesIcon className="relative h-3.5 w-3.5 text-gray-500 dark:text-gray-300" />
-      </span>
-      <span className="tracking-[0.01em]">{baseLabel}</span>
-      <BouncingDots tone="gray" />
-    </span>
-  )
-}
-
-
 
 export function AIChatPopup() {
   const {
@@ -353,10 +300,10 @@ export function AIChatPopup() {
           question: userText,
           messages: payload,
           systemPrompt: chatSystemPrompt || undefined,
-          // Careful Reasoning is always on by default (handled in the IPC
-          // layer): the small token cost is well worth preventing silent
-          // miscalculations on quantitative questions.
-          carefulReasoning: true,
+          // Careful Reasoning protects quantitative questions from silent
+          // miscalculation, but stiffens every other answer — attach it only
+          // when the question contains numbers.
+          carefulReasoning: shouldUseCarefulReasoning(userText),
           uiText: {
 
             webSearchStepLabelPrefix: t.chat_smart_thinking_step_label_prefix,
@@ -578,21 +525,24 @@ export function AIChatPopup() {
 
         {/* === Header / prompt bar ============================================ */}
         <div className="quick-chat-header titlebar-drag flex flex-shrink-0 items-center gap-2 border-b px-3 py-2.5">
-          <button
+          <Button
+            size="md"
+            shape="icon"
+            variant="neutral"
+            appearance="ghost"
+            aria-label={hasContext ? `New conversation (${primaryModifierShortcut}+N)` : 'Quick AI'}
             type="button"
             onClick={hasContext ? handleNewConversation : undefined}
             disabled={!hasContext}
             title={hasContext ? `New conversation (${primaryModifierShortcut}+N)` : 'Quick AI'}
-            className={`titlebar-no-drag btn-icon btn-icon-lg flex-shrink-0 ${
-              hasContext ? '' : 'cursor-default'
-            }`}
+            className={`titlebar-no-drag flex-shrink-0 ${hasContext ? "" : "cursor-default"}`}
           >
             {hasContext ? (
               <PlusIcon className="h-4 w-4 text-gray-700" />
             ) : (
               <AppLogoIcon size={24} />
             )}
-          </button>
+          </Button>
 
           <div className="titlebar-no-drag relative flex min-w-0 flex-1 items-center">
             <textarea
@@ -608,24 +558,32 @@ export function AIChatPopup() {
               aria-label={t.ai_chat_popup_title}
             />
             {input && !isSending && (
-              <button
+              <Button
+                size="xs"
+                shape="icon"
+                variant="neutral"
+                appearance="ghost"
                 type="button"
                 onClick={handleClearInput}
-                className="btn-icon btn-icon-xs absolute right-1.5 top-1/2 -translate-y-1/2 border-transparent bg-transparent text-gray-400 shadow-none"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2"
                 aria-label={t.chat_clear}
                 title={t.chat_clear}
               >
                 <XIcon className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             )}
           </div>
 
-          <button
+          <Button
+            size="md"
+            shape="icon"
+            variant="primary"
+            appearance="solid"
             type="button"
             onClick={handleSend}
             disabled={!canSend}
             title={t.chat_send}
-            className="titlebar-no-drag btn-primary btn-icon-lg flex-shrink-0 p-0"
+            className="titlebar-no-drag flex-shrink-0"
             aria-label={t.chat_send}
           >
             {isSending ? (
@@ -633,7 +591,7 @@ export function AIChatPopup() {
             ) : (
               <SendIcon className="h-4 w-4" />
             )}
-          </button>
+          </Button>
         </div>
 
         {/* === Body — Q&A list ============================================== */}
@@ -647,13 +605,17 @@ export function AIChatPopup() {
                 <AppLogoIcon size={28} />
               </div>
               <p className="max-w-sm text-sm leading-6" style={{ color: 'var(--vzn-text-muted)' }}>{t.chat_error_no_key}</p>
-              <button
+              <Button
+                size="sm"
+                shape="rect"
+                variant="neutral"
+                appearance="outline"
                 type="button"
                 onClick={handleOpenSettings}
-                className="titlebar-no-drag btn-secondary btn-sm"
+                className="titlebar-no-drag"
               >
                 {t.chat_error_open_settings}
-              </button>
+              </Button>
             </EmptyContainer>
           ) : inputTooLong ? (
             <EmptyContainer>
@@ -757,10 +719,14 @@ export function AIChatPopup() {
 
         {/* === Footer ========================================================= */}
         <div className="quick-chat-footer titlebar-drag flex flex-shrink-0 items-center justify-between gap-3 border-t px-3 py-2 text-sm">
-          <button
+          <Button
+            size="xs"
+            shape="rect"
+            variant="neutral"
+            appearance="ghost"
             type="button"
             onClick={handleOpenSettings}
-            className="titlebar-no-drag btn-ghost btn-xs group min-w-0"
+            className="titlebar-no-drag group min-w-0"
             title={hasKey ? 'Change model in Settings' : t.chat_error_open_settings}
           >
             <span
@@ -787,14 +753,17 @@ export function AIChatPopup() {
                 · {tpl(t.ai_chat_popup_turns, { count: turnCount })}
               </span>
             )}
-          </button>
+          </Button>
 
           <div className="titlebar-no-drag flex flex-shrink-0 items-center gap-1">
-            <button
+            <Button
+              size="xs"
+              shape="rect"
+              variant="neutral"
+              appearance="ghost"
               type="button"
               onClick={() => handleCopy(response, 'footer')}
               disabled={!response.trim()}
-              className="btn-ghost btn-xs"
             >
               {copiedKey === 'footer' ? (
                 <CheckIcon className="h-3.5 w-3.5 text-gray-700" />
@@ -802,14 +771,17 @@ export function AIChatPopup() {
                 <CopyIcon className="h-3.5 w-3.5" />
               )}
               <span>{copiedKey === 'footer' ? t.chat_copied : t.chat_copy}</span>
-            </button>
+            </Button>
 
             <span className="quick-chat-divider mx-0.5 h-4 w-px" aria-hidden />
 
-            <button
+            <Button
+              size="xs"
+              shape="rect"
+              variant="neutral"
+              appearance="ghost"
               type="button"
               onClick={handleOpenInChat}
-              className="btn-ghost btn-xs"
             >
               <span>{t.ai_chat_popup_open_in_chat}</span>
               <ArrowRightIcon className="h-3 w-3" />
@@ -817,7 +789,7 @@ export function AIChatPopup() {
                 <KeyCap>{primaryModifierKey}</KeyCap>
                 <KeyCap>↵</KeyCap>
               </span>
-            </button>
+            </Button>
           </div>
         </div>
       </section>
@@ -854,11 +826,14 @@ function CardActions({
 }) {
   return (
     <div className="quick-chat-card-actions titlebar-no-drag flex items-center justify-end gap-1 border-t px-3 py-1.5">
-      <button
+      <Button
+        size="xs"
+        shape="rect"
+        variant="neutral"
+        appearance="ghost"
         type="button"
         onClick={onCopy}
         disabled={copyDisabled}
-        className="btn-ghost btn-xs"
         title={copyLabel}
       >
         {isCopied ? (
@@ -867,17 +842,20 @@ function CardActions({
           <CopyIcon className="h-3 w-3" />
         )}
         <span>{isCopied ? copiedLabel : copyLabel}</span>
-      </button>
-      <button
+      </Button>
+      <Button
+        size="xs"
+        shape="rect"
+        variant="neutral"
+        appearance="ghost"
         type="button"
         onClick={onRegenerate}
         disabled={!onRegenerate}
-        className="btn-ghost btn-xs"
         title={regenerateLabel}
       >
         <RefreshIcon className="h-3 w-3" />
         <span>{regenerateLabel}</span>
-      </button>
+      </Button>
     </div>
   )
 }
@@ -986,7 +964,7 @@ function ActiveQACard({
             {smartStep?.status === 'running' ? (
               <SmartThinkingStep step={smartStep} badgeLabel={smartThinkingLabel} />
             ) : (
-              <ThinkingLabel label={thinkingLabel} />
+              <ThinkingPill label={thinkingLabel} />
             )}
             <div className="space-y-2.5 pt-1">
               <div className="h-2 w-3/4 animate-pulse rounded-full bg-gray-200/80" />
@@ -1033,48 +1011,13 @@ function SmartThinkingStep({
   // visible UI never shows search queries / sources / reasoning inline.
   const tooltip = isError ? (step.content || step.label || badgeLabel) : badgeLabel
 
-  if (isError) {
-    return (
-      <span
-        className="thinking-state-pill thinking-state-pill-error"
-        title={tooltip}
-        role="status"
-      >
-        <SparklesIcon className="h-3.5 w-3.5" />
-        <span>{badgeLabel}</span>
-      </span>
-    )
-  }
-
   return (
-    <span
-      className="thinking-state-pill thinking-state-pill-shimmer"
+    <ThinkingPill
+      label={badgeLabel}
       title={tooltip}
-      role="status"
-      aria-live="polite"
-    >
-      {/* Subtle wash — animated only while the step is running. */}
-      {isRunning && (
-        <span
-          className="thinking-shimmer pointer-events-none absolute inset-0 bg-white/40 dark:bg-white/5"
-          aria-hidden
-        />
-      )}
-      <span className="relative inline-flex h-3.5 w-3.5 items-center justify-center">
-        {isRunning && (
-          <span
-            className="thinking-glow absolute inset-0 rounded-full bg-gray-400/25 blur-[3px]"
-            aria-hidden
-          />
-        )}
-        <SparklesIcon className="relative h-3.5 w-3.5 text-gray-500 dark:text-gray-300" />
-      </span>
-      <span className="relative tracking-[0.01em]">{badgeLabel}</span>
-      {isRunning && (
-        <span className="relative">
-          <BouncingDots tone="gray" />
-        </span>
-      )}
-    </span>
+      shimmer
+      running={isRunning}
+      tone={isError ? 'error' : 'default'}
+    />
   )
 }

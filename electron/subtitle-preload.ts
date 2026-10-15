@@ -17,9 +17,20 @@ contextBridge.exposeInMainWorld('subtitleAPI', {
   onStreamStart: (callback: (data: { segId?: string }) => void) => {
     ipcRenderer.on('subtitle:stream:start', (_event, data) => callback(data ?? {}))
   },
-  /** Fired for each token as the AI generates it — append to current text */
-  onStreamToken: (callback: (token: string) => void) => {
-    ipcRenderer.on('subtitle:stream:token', (_event, token: string) => callback(token))
+  /**
+   * Fired for each token as the AI generates it. `segId` identifies the stream
+   * the token belongs to (undefined for a legacy bare-string payload).
+   */
+  onStreamToken: (callback: (token: string, segId?: string) => void) => {
+    ipcRenderer.on('subtitle:stream:token', (_event, payload: string | { token?: unknown; segId?: unknown }) => {
+      if (typeof payload === 'string') {
+        callback(payload)
+        return
+      }
+      if (payload && typeof payload.token === 'string') {
+        callback(payload.token, typeof payload.segId === 'string' ? payload.segId : undefined)
+      }
+    })
   },
   /** Fired when the streaming is complete — carries segId */
   onStreamEnd: (callback: (data: { segId?: string }) => void) => {

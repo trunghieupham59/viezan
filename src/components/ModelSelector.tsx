@@ -1,6 +1,7 @@
 import { type RefObject, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { PROVIDERS } from '../constants/providers'
+import { useProviderModelCatalog } from '../hooks/useProviderModelCatalog'
 import { useAppStore, useT } from '../store/useAppStore'
 import type { Provider } from '../types'
 import { dedupeModelsByFamily, formatModelName } from '../utils/modelDisplay'
@@ -33,6 +34,8 @@ const PICKER_MAX_HEIGHT = 440
 
 interface ModelSelectorProps {
   compact?: boolean
+  /** Renders the searchable catalog immediately inside an owning configuration surface. */
+  embedded?: boolean
   /** Renders the picker inside the owning surface instead of a portal. */
   inline?: boolean
   /** Opens directly into the searchable model list. */
@@ -54,6 +57,7 @@ interface ModelSelectorProps {
 
 export function ModelSelector({
   compact = false,
+  embedded = false,
   inline = false,
   directModelList = false,
   hideTriggerWhenOpen = false,
@@ -72,9 +76,10 @@ export function ModelSelector({
     setDynamicModels, setModelsLoading, setModelsError, recordModelUsage,
   } = useAppStore()
   const t = useT()
+  const { isPending } = useProviderModelCatalog()
 
-  const [open, setOpen] = useState(false)
-  const [view, setView] = useState<PickerView>('root')
+  const [open, setOpen] = useState(embedded)
+  const [view, setView] = useState<PickerView>(embedded ? 'models' : 'root')
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [pickerPosition, setPickerPosition] = useState<PickerPosition | null>(null)
@@ -192,7 +197,7 @@ export function ModelSelector({
 
   const fetchModels = async (provider: Provider) => {
     const requiresKey = PROVIDERS.find((p) => p.id === provider)?.requiresApiKey !== false
-    if ((requiresKey && !keyStatus[provider]) || !window.api) return
+    if ((requiresKey && !keyStatus[provider]) || !window.api || useAppStore.getState().modelsLoading[provider]) return
     const requestContextKey = selectionContextKey
     const modelAtRequestStart = useAppStore.getState().selectedModels[provider]
     setModelsLoading(provider, true)
@@ -227,7 +232,9 @@ export function ModelSelector({
   useEffect(() => {
     const hasKey = PROVIDERS.find((provider) => provider.id === selectedProvider)?.requiresApiKey === false
       || keyStatus[selectedProvider]
-    if (hasKey && dynamicModels[selectedProvider].length === 0 && !modelsLoading[selectedProvider]) {
+    // Keyed providers use the shared catalog hook. Keep local runtime discovery
+    // and its conversation-aware model fallback on the existing selection path.
+    if (selectedProvider === 'local' && hasKey && dynamicModels[selectedProvider].length === 0 && !modelsLoading[selectedProvider]) {
       fetchModels(selectedProvider)
     }
   }, [selectedProvider, keyStatus])
@@ -236,10 +243,10 @@ export function ModelSelector({
     return PROVIDERS.map((provider) => {
       const providerId = provider.id as Provider
       const dynamic = dynamicModels[providerId]
-      const raw = dynamic.length > 0 ? dynamic : provider.models
+      const raw = isPending(providerId) ? [] : dynamic.length > 0 ? dynamic : provider.models
       return { provider, models: dedupeModelsByFamily(providerId, raw) }
     })
-  }, [dynamicModels])
+  }, [dynamicModels, isPending])
 
   const currentProviderConfig = PROVIDERS.find((provider) => provider.id === selectedProvider) ?? PROVIDERS[0]
   const currentDynamic = dynamicModels[selectedProvider]
@@ -511,8 +518,23 @@ export function ModelSelector({
                 <span aria-hidden="true"><ProviderIcon provider={providerId} size={13} /></span>
                 <span id={sectionId}>{group.provider.name}</span>
                 {!hasKey && <span className="model-picker-status">{t.model_no_key}</span>}
-                {isLoading && <SpinnerIcon className="model-picker-spinner" />}
+                {hasKey && (
+                  <Button
+                    size="xs"
+                    shape="icon"
+                    variant="neutral"
+                    appearance="ghost"
+                    disabled={isLoading}
+                    aria-label={`${t.model_refresh}: ${group.provider.name}`}
+                    onClick={() => void fetchModels(providerId)}
+                  >
+                    {isLoading ? <SpinnerIcon className="model-picker-spinner" /> : <RefreshIcon />}
+                  </Button>
+                )}
               </div>
+              {isPending(providerId) && (
+                <p className="model-picker-status" role="status">{t.model_loading}</p>
+              )}
               {error && (
                 <p className="model-picker-error model-picker-error--inline" role="alert">{t.model_load_error}</p>
               )}
@@ -628,7 +650,7 @@ export function ModelSelector({
 
   return (
     <>
-      {(!open || !hideTriggerWhenOpen) && <Button
+      {!embedded && (!open || !hideTriggerWhenOpen) && <Button
         ref={triggerRef}
         size="md"
         shape={compact ? 'pill' : 'rect'}

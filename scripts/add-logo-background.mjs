@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Add white background to release icons / logo images.
+ * Build platform release icons from the transparent Viezan mark.
  *
  * Per-target strategy:
  *   - build/icon-mac.png        : 1024×1024 white squircle (macOS Big Sur+ shape).
@@ -10,10 +10,12 @@
  *                                 size embedded inside the ICNS shares the
  *                                 squircle background.
  *   - build/icon.iconset/*      : Same squircle artwork resampled per slot.
- *   - build/icon-win.png        : 256×256 solid white square (Windows taskbar
- *                                 / Start menu show square thumbnails).
- *   - build/icon.ico            : Multi-size ICO regenerated from the white
- *                                 square so every embedded size has the bg.
+ *   - build/icon-win.png        : 256×256 transparent Windows mark. Source padding
+ *                                 is trimmed and the mark fills ~96% of the
+ *                                 canvas so it matches other taskbar glyphs.
+ *   - build/icon.ico            : Multi-size ICO with dedicated 16–256px frames,
+ *                                 each rendered from the trimmed mark (small
+ *                                 frames are supersampled and sharpened).
  *   - build/icon.png            : 1024×1024 squircle (used as Electron tray /
  *                                 Linux fallback icon — squircle still works
  *                                 on Linux desktops, white square would also
@@ -28,16 +30,17 @@
  * transparency on dark browser tabs.
 
  *
- * Idempotent: each run starts from the artwork stored in build/source/ if it
- * exists, otherwise it falls back to the current PNG (so re-running won't
- * keep stacking white backgrounds).
+ * macOS remains idempotent by starting from artwork stored in build/source/.
+ * Windows always starts from public/logo.png, the canonical transparent mark,
+ * so a fresh clone cannot accidentally treat an already composed icon as its
+ * source and shrink the mark again.
  */
 
 import { execFileSync } from 'node:child_process'
 import {
   closeSync,
-  constants as fsConstants,
   existsSync,
+  constants as fsConstants,
   mkdirSync,
   openSync,
   readFileSync,
@@ -180,18 +183,47 @@ function composeOnBackground(sourcePath, backgroundPath, outPath, options = {}) 
     ...RGB_FLAGS,
     outPath,
   )
-  // Cleanup
-  execFileSync('rm', ['-f', tempArt])
+  unlinkSync(tempArt)
 }
 
 /**
- * Place artwork on a solid white square (Windows / web favicons).
+ * Place the two-tone mark full-bleed on a transparent canvas for Windows.
+ *
+ * Taskbar apps such as Chrome and VS Code ship a solid glyph with no
+ * container, so the mark itself fills ~96% of the slot width. Frames up to
+ * 32px are rendered from a supersampled canvas and lightly sharpened so the
+ * thin tail and inner negative space stay readable instead of blurring.
  */
-function composeOnWhiteSquare(sourcePath, outPath, size, artworkScale = 0.86) {
-  const bg = `${outPath}.bg.png`
-  magick('-size', `${size}x${size}`, 'xc:white', ...RGB_FLAGS, bg)
-  composeOnBackground(sourcePath, bg, outPath, { artworkScale, canvasSize: size })
-  execFileSync('rm', ['-f', bg])
+function composeOnWindowsTransparent(sourcePath, outPath, size) {
+  const artworkSize = Math.round(size * 0.96)
+  const supersample = 8
+  const bigCanvas = size * supersample
+  const bigArt = artworkSize * supersample
+  const small = size <= 32
+  magick(
+    '-size',
+    `${bigCanvas}x${bigCanvas}`,
+    'xc:none',
+    '(',
+    sourcePath,
+    '-trim',
+    '+repage',
+    '-filter',
+    'Lanczos',
+    '-resize',
+    `${bigArt}x${bigArt}`,
+    ')',
+    '-gravity',
+    'center',
+    '-composite',
+    '-filter',
+    'Lanczos',
+    '-resize',
+    `${size}x${size}`,
+    ...(small ? ['-unsharp', '0x0.6+0.9+0'] : []),
+    ...RGB_FLAGS,
+    outPath,
+  )
 }
 
 /**
@@ -201,7 +233,7 @@ function composeOnSquircle(sourcePath, outPath, size, artworkScale = 0.78) {
   const bg = `${outPath}.bg.png`
   buildSquircleBackground(size, bg)
   composeOnBackground(sourcePath, bg, outPath, { artworkScale, canvasSize: size })
-  execFileSync('rm', ['-f', bg])
+  unlinkSync(bg)
 }
 
 // ─── 1. build/icon-mac.png – 1024 squircle ────────────────────────────────
@@ -237,24 +269,27 @@ for (const [name, size] of iconsetSizes) {
 }
 console.log('✓ build/icon.iconset/* regenerated')
 
-// ─── 4. build/icon-win.png – 256 white square ─────────────────────────────
-const winSrc = ensureSource('build/icon-win.png')
+// ─── 4. build/icon-win.png – 256 Windows circle ──────────────────────────
+const winSrc = join(ROOT, 'public', 'logo.png')
+if (!existsSync(winSrc)) {
+  throw new Error('Missing canonical Windows icon source: public/logo.png')
+}
 const winOut = join(ROOT, 'build/icon-win.png')
-composeOnWhiteSquare(winSrc, winOut, 256)
-console.log('✓ build/icon-win.png (256 white square)')
+composeOnWindowsTransparent(winSrc, winOut, 256)
+console.log('✓ build/icon-win.png (256 transparent full-bleed Windows mark)')
 
-// ─── 5. build/icon.ico – multi-size, all white square ─────────────────────
+// ─── 5. build/icon.ico – dedicated multi-size Windows frames ──────────────
 const icoSizes = [16, 24, 32, 48, 64, 128, 256]
 const icoTmpDir = join(SOURCE_DIR, 'ico-tmp')
 mkdirSync(icoTmpDir, { recursive: true })
 const icoLayers = []
 for (const size of icoSizes) {
   const out = join(icoTmpDir, `${size}.png`)
-  composeOnWhiteSquare(winSrc, out, size)
+  composeOnWindowsTransparent(winSrc, out, size)
   icoLayers.push(out)
 }
 magick(...icoLayers, join(ROOT, 'build/icon.ico'))
-console.log('✓ build/icon.ico (multi-size white square)')
+console.log('✓ build/icon.ico (multi-size transparent full-bleed Windows mark)')
 
 // ─── 6. build/icon.icns – rebuild from iconset ────────────────────────────
 const icnsOut = join(ROOT, 'build/icon.icns')
@@ -273,5 +308,5 @@ try {
 // public/logo.png and public/icon.png are intentionally left transparent —
 // see the file header for the rationale.
 
-console.log('\nRelease icons (build/) now have a white background.')
+console.log('\nRelease icons (build/) now use platform-appropriate backgrounds.')
 console.log('In-app logos (public/) were left transparent on purpose.')

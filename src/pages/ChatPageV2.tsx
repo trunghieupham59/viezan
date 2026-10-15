@@ -35,8 +35,8 @@ import { createClientId } from '../utils/id'
 import { extractImageFromClipboard, resizeImageFile } from '../utils/imageUtils'
 import { eventMatchesShortcut, shouldSendChatMessage } from '../utils/keyboardShortcuts'
 import { formatModelName } from '../utils/modelDisplay'
-import { formatTime } from './history/historyUtils'
 import { estimateUsageCost } from '../utils/usageCost'
+import { formatTime } from './history/historyUtils'
 
 const CHAT_TEXTAREA_MAX_HEIGHT_PX = 160
 const CHAT_STREAM_BUFFER_INTERVAL_MS = 60
@@ -347,7 +347,10 @@ export function ChatPageV2() {
   useEffect(() => {
     if (!showAIConfig) return
     const handleOutside = (e: MouseEvent) => {
-      if (aiConfigRef.current && !aiConfigRef.current.contains(e.target as Node)) setShowAIConfig(false)
+      const target = e.target as Element
+      // The model picker is portaled to document.body, so it sits outside aiConfigRef.
+      if (target.closest?.('.model-picker-panel')) return
+      if (aiConfigRef.current && !aiConfigRef.current.contains(target)) setShowAIConfig(false)
     }
     document.addEventListener('mousedown', handleOutside)
     return () => document.removeEventListener('mousedown', handleOutside)

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Button } from '@/components/ui/atoms'
 import type { Translations } from '../../i18n'
 import type { SystemPromptPreset } from '../../types'
 import {
@@ -177,37 +178,68 @@ export function SystemPromptDropdown({
             className="field-textarea field-textarea-sm"
           />
           <div className="flex items-center gap-2 justify-end">
-            <button type="button" onClick={handleCancelAdd} className="btn-secondary btn-xs">
+            <Button
+              size="md"
+              shape="rect"
+              variant="neutral"
+              appearance="outline"
+              type="button"
+              onClick={handleCancelAdd}
+            >
               {t.settings_chat_preset_cancel}
-            </button>
-            <button
+            </Button>
+            <Button
+              size="md"
+              shape="rect"
+              variant="primary"
+              appearance="solid"
               type="button"
               onClick={handleSavePreset}
               disabled={!newName.trim() || !newContent.trim()}
-              className="btn-primary btn-xs"
             >
               {t.settings_chat_preset_save}
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       <div className="px-3 py-2.5 flex items-center justify-between border-t border-gray-100 dark:border-gray-700">
         {!showAddForm ? (
-          <button type="button" onClick={handleOpenAddForm} className="btn-link text-xs">
+          <Button
+            size="md"
+            shape="rect"
+            variant="neutral"
+            appearance="ghost"
+            type="button"
+            onClick={handleOpenAddForm}
+          >
             <PlusIcon />
             {t.settings_chat_preset_add}
-          </button>
+          </Button>
         ) : (
-          <button type="button" onClick={handleCancelAdd} className="btn-link text-xs text-gray-400 dark:text-gray-500">
+          <Button
+            size="md"
+            shape="rect"
+            variant="neutral"
+            appearance="ghost"
+            type="button"
+            onClick={handleCancelAdd}
+          >
             <XIcon className="w-3 h-3" />
             {t.settings_chat_preset_cancel}
-          </button>
+          </Button>
         )}
-        <button type="button" onClick={() => { setShowDropdown(false); onNavigateSettings() }} className="btn-link text-xs">
+        <Button
+          size="md"
+          shape="rect"
+          variant="neutral"
+          appearance="ghost"
+          type="button"
+          onClick={() => { setShowDropdown(false); onNavigateSettings() }}
+        >
           {t.settings_title}
           <ChevronRightIcon />
-        </button>
+        </Button>
       </div>
     </div>,
     document.body
@@ -215,14 +247,18 @@ export function SystemPromptDropdown({
 
   return (
     <>
-      <button
+      <Button
+        size="md"
+        shape="rect"
+        variant={isActive ? 'primary' : 'neutral'}
+        appearance={isActive ? 'soft' : 'outline'}
         ref={triggerRef}
         type="button"
         onClick={showDropdown ? () => { setShowDropdown(false); setShowAddForm(false) } : openDropdown}
         title={t.chat_system_prompt}
-        className={compact
-          ? `toolbar-pill-button whitespace-nowrap ${isActive ? 'btn-active' : ''}`
-          : `btn-secondary w-full justify-start whitespace-nowrap ${isActive ? 'btn-active' : ''}`}
+        aria-expanded={showDropdown}
+        aria-haspopup="dialog"
+        className={compact ? `whitespace-nowrap` : `w-full justify-start whitespace-nowrap`}
       >
         <DocumentIcon />
         <span className="max-w-[120px] truncate">
@@ -230,7 +266,7 @@ export function SystemPromptDropdown({
         </span>
         {isActive && <span className="w-1.5 h-1.5 rounded-full bg-gray-500 flex-shrink-0" />}
         <ChevronDownIcon className="w-2.5 h-2.5 flex-shrink-0" />
-      </button>
+      </Button>
       {panel}
     </>
   )

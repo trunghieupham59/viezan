@@ -1,13 +1,13 @@
 import type { IpcMain } from 'electron'
-import { classifyProviderError, noApiKeyResponse } from './errorUtils'
-import { DETECT_LANG_MAX_CHARS } from './ipcConstants'
-import { isNonEmptyString, isRecord } from './ipcValidation'
+import { classifyProviderError, getErrorStatus, getStatusFromMessage, noApiKeyResponse } from './errorUtils'
+import { DETECT_LANG_MAX_CHARS, getTranslateTimeoutMs, TRANSLATE_AUX_TIMEOUT_MS } from './ipcConstants'
+import { invalidIpcInput, isNonEmptyString, isRecord } from './ipcValidation'
 import { isLocalProvider, LOCAL_AI_PLACEHOLDER_KEY } from './localAi'
 import { isAbortError } from './providers/chatProviderTypes'
 import { isValidProvider, unknownProviderError } from './providers/types'
 import { withRetry } from './retry'
 import { getStoredApiKey } from './storage'
-import { CHUNK_CHAR_LIMIT, promisePool, splitIntoChunks, translateChunked, withTimeout } from './translateChunking'
+import { CHUNK_CHAR_LIMIT, promisePool, runWithTimeout, splitIntoChunks, translateChunked, withTimeout } from './translateChunking'
 import { normalizeDetectedLang } from './translateLanguage'
 import { buildDetectLanguagePrompt, buildPrompt, buildRewritePrompt } from './translatePrompts'
 import {
@@ -39,6 +39,21 @@ function getProviderCredential(provider: string) {
 }
 
 const TRANSLATE_CANCELLED_MESSAGE = 'translate-cancelled'
+
+function isOutputTruncated(error: unknown): boolean {
+  return (error as { errorCode?: string } | null)?.errorCode === 'OUTPUT_TRUNCATED'
+}
+
+/** Chunk size that splits a `length`-char text into (at least) two pieces. */
+function halfChunkLimit(length: number): number {
+  return Math.max(1, Math.ceil(length / 2))
+}
+const MAX_API_KEY_CHARS = 2_048
+
+/** Abort-like error that is a real cancellation, not a dropped connection (ECONNRESET). */
+function isUserAbort(error: unknown): boolean {
+  return isAbortError(error) && (error as { code?: string }).code !== 'ECONNRESET'
+}
 const activeTranslateControllers = new Map<string, AbortController>()
 
 export function registerTranslateHandlers(ipcMain: IpcMain) {
@@ -53,28 +68,62 @@ export function registerTranslateHandlers(ipcMain: IpcMain) {
     return { success: true }
   })
 
-  ipcMain.handle('translate:verify', async (_event, provider: string, apiKey: string) => {
-    if (!isLocalProvider(provider) && !apiKey?.trim()) {
-      return { success: false, error: 'API key is empty' }
+  ipcMain.handle('translate:verify', async (_event, rawProvider: unknown, rawApiKey: unknown) => {
+    if (typeof rawProvider !== 'string' || !rawProvider.trim()) return invalidIpcInput('Provider is required')
+    const provider = rawProvider.trim()
+    const local = isLocalProvider(provider)
+    if (!local) {
+      if (typeof rawApiKey !== 'string') return invalidIpcInput('API key must be a string')
+      if (!rawApiKey.trim()) return { success: false, error: 'API key is empty' }
+      if (rawApiKey.length > MAX_API_KEY_CHARS) return invalidIpcInput('API key is too long')
     }
     if (!isValidProvider(provider)) return unknownProviderError(provider)
 
     try {
       const verifyFn = VERIFY_PROVIDERS[provider]
       if (!verifyFn) return unknownProviderError(provider)
-      await verifyFn(isLocalProvider(provider) ? LOCAL_AI_PLACEHOLDER_KEY : apiKey)
+      const apiKey = local ? LOCAL_AI_PLACEHOLDER_KEY : (rawApiKey as string).trim()
+      await runWithTimeout((signal) => verifyFn(apiKey, { signal }), TRANSLATE_AUX_TIMEOUT_MS, 'verify key')
       return { success: true }
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error)
-      if (msg.includes('401') || msg.includes('invalid_api_key') || msg.includes('authentication') || msg.includes('API key')) {
+      const status = getErrorStatus(error) ?? getStatusFromMessage(msg)
+      const classified = classifyProviderError(error)
+      if (status === 401) {
         return { success: false, error: 'Invalid API key', errorCode: 'INVALID_KEY' }
       }
-      if (msg.includes('429') || msg.includes('quota') || msg.includes('rate_limit')) {
+      if (status === 402) {
+        return {
+          success: false,
+          error: 'The API key is valid, but provider billing requires attention.',
+          errorCode: 'BILLING',
+          valid: true,
+        }
+      }
+      if (status === 403) {
+        return {
+          success: false,
+          error: 'The API key is valid, but it does not have permission to access this resource.',
+          errorCode: 'PERMISSION',
+          valid: true,
+        }
+      }
+      if (status === 429) {
         return { success: false, error: 'Rate limit hit, but key is valid!', errorCode: 'RATE_LIMIT', valid: true }
       }
-      if (msg.includes('ENOTFOUND') || msg.includes('network')) {
+      // Some providers report invalid keys or rate limits through a nonstandard
+      // status/body combination, so retain the shared text-based fallback after
+      // the authoritative HTTP statuses above have been handled.
+      if (classified.errorCode === 'INVALID_KEY') {
+        return { success: false, error: 'Invalid API key', errorCode: 'INVALID_KEY' }
+      }
+      if (classified.errorCode === 'RATE_LIMIT') {
+        return { success: false, error: 'Rate limit hit, but key is valid!', errorCode: 'RATE_LIMIT', valid: true }
+      }
+      if (classified.errorCode === 'NETWORK' || msg.toLowerCase().includes('network')) {
         return { success: false, error: 'No internet connection', errorCode: 'NETWORK' }
       }
+      if (classified.errorCode) return classified
       return { success: false, error: msg }
     }
   })
@@ -92,26 +141,44 @@ export function registerTranslateHandlers(ipcMain: IpcMain) {
     const apiKey = getProviderCredential(provider)
     if (!apiKey) return noApiKeyResponse(provider)
 
+    let controller: AbortController | null = null
     try {
       const translateFn = TRANSLATE_PROVIDERS[provider]
       if (!translateFn) return unknownProviderError(provider)
 
-      const controller = requestId ? new AbortController() : null
+      controller = requestId ? new AbortController() : null
       if (requestId && controller) activeTranslateControllers.set(requestId, controller)
-      const options = controller ? { signal: controller.signal } : undefined
+      const parentSignal = controller?.signal
+      const callProvider = (text: string, signal: AbortSignal | undefined, phoneticOnlyCall: boolean) =>
+        translateFn(apiKey, model, text, sourceLang, targetLang, !!showFurigana, translationStyle ?? 'general', phoneticOnlyCall, effectivePhoneticMode, reasoningEffort ?? 'auto', signal ? { signal } : undefined)
       const needsChunking = !phoneticOnly && sourceText.length > CHUNK_CHAR_LIMIT
       try {
-        const translatedText = needsChunking
-          ? await translateChunked(
-              (text) => {
-                if (controller?.signal.aborted) throw new Error(TRANSLATE_CANCELLED_MESSAGE)
-                return translateFn(apiKey, model, text, sourceLang, targetLang, !!showFurigana, translationStyle ?? 'general', false, effectivePhoneticMode, reasoningEffort ?? 'auto', options)
-              },
-              sourceText,
+        const chunkOptions = {
+          signal: parentSignal,
+          getTimeoutMs: (text: string) => getTranslateTimeoutMs(provider, text.length, reasoningEffort),
+        }
+        const runChunked = (limit: number) =>
+          translateChunked((text, signal) => callProvider(text, signal, false), sourceText, limit, chunkOptions)
+        let translatedText: string
+        if (needsChunking) {
+          translatedText = await runChunked(CHUNK_CHAR_LIMIT)
+        } else {
+          try {
+            translatedText = await withRetry(
+              () => runWithTimeout(
+                (signal) => callProvider(sourceText, signal, !!phoneticOnly),
+                getTranslateTimeoutMs(provider, sourceText.length, reasoningEffort),
+                'translation',
+                parentSignal,
+              ),
+              { signal: parentSignal },
             )
-          : await withRetry(() =>
-              translateFn(apiKey, model, sourceText, sourceLang, targetLang, !!showFurigana, translationStyle ?? 'general', !!phoneticOnly, effectivePhoneticMode, reasoningEffort ?? 'auto', options)
-            )
+          } catch (error) {
+            // The output hit the provider's ceiling: translate the same text in smaller pieces instead of failing.
+            if (!isOutputTruncated(error) || phoneticOnly) throw error
+            translatedText = await runChunked(halfChunkLimit(sourceText.length))
+          }
+        }
 
         return { success: true, translatedText }
       } finally {
@@ -120,13 +187,13 @@ export function registerTranslateHandlers(ipcMain: IpcMain) {
         }
       }
     } catch (error: unknown) {
-      if (isAbortError(error)) {
+      if (controller?.signal.aborted || isUserAbort(error)) {
         return { success: false, error: TRANSLATE_CANCELLED_MESSAGE, errorCode: 'CANCELLED' }
       }
       const msg = error instanceof Error ? error.message : String(error)
       // Log only the message — full error objects may include request URLs/headers containing API keys.
       console.error(`Translation error with ${provider}: ${msg.slice(0, 200)}`)
-      const classified = classifyProviderError(msg)
+      const classified = classifyProviderError(error)
       return { ...classified, error: classified.errorCode ? classified.error : `Translation failed: ${msg}` }
     }
   })
@@ -146,15 +213,33 @@ export function registerTranslateHandlers(ipcMain: IpcMain) {
       const rewriteFn = REWRITE_PROVIDERS[provider]
       if (!rewriteFn) return unknownProviderError(provider)
 
-      const rewrittenText = text.length > CHUNK_CHAR_LIMIT
-        ? await translateChunked((t) => rewriteFn(apiKey, model, t, lang, translationStyle), text)
-        : await rewriteFn(apiKey, model, text, lang, translationStyle)
+      const callProvider = (input: string, signal: AbortSignal | undefined) =>
+        rewriteFn(apiKey, model, input, lang, translationStyle, signal ? { signal } : undefined)
+      const chunkOptions = {
+        mode: 'rewrite' as const,
+        getTimeoutMs: (input: string) => getTranslateTimeoutMs(provider, input.length),
+      }
+      let rewrittenText: string
+      if (text.length > CHUNK_CHAR_LIMIT) {
+        rewrittenText = await translateChunked(callProvider, text, CHUNK_CHAR_LIMIT, chunkOptions)
+      } else {
+        try {
+          rewrittenText = await withRetry(() => runWithTimeout(
+            (signal) => callProvider(text, signal),
+            getTranslateTimeoutMs(provider, text.length),
+            'rewrite',
+          ))
+        } catch (error) {
+          if (!isOutputTruncated(error)) throw error
+          rewrittenText = await translateChunked(callProvider, text, halfChunkLimit(text.length), chunkOptions)
+        }
+      }
 
       return { success: true, translatedText: rewrittenText }
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error)
       console.error(`Rewrite error with ${provider}: ${msg.slice(0, 200)}`)
-      const classified = classifyProviderError(msg)
+      const classified = classifyProviderError(error)
       return { ...classified, error: classified.errorCode ? classified.error : `Rewrite failed: ${msg}` }
     }
   })
@@ -175,12 +260,11 @@ export function registerTranslateHandlers(ipcMain: IpcMain) {
       const detectFn = DETECT_PROVIDERS[provider]
       if (!detectFn) return unknownProviderError(provider)
 
-      let raw = ''
-      try {
-        raw = await detectFn(apiKey, model, prompt)
-      } catch {
-        return { success: false, error: 'Detection call failed' }
-      }
+      const raw = await runWithTimeout(
+        (signal) => detectFn(apiKey, model, prompt, { signal }),
+        TRANSLATE_AUX_TIMEOUT_MS,
+        'language detection',
+      )
 
       const lang = normalizeDetectedLang(raw)
       if (!lang) return { success: false, error: `Unrecognized language code: "${raw}"` }
@@ -188,7 +272,8 @@ export function registerTranslateHandlers(ipcMain: IpcMain) {
       return { success: true, lang }
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error)
-      const classified = classifyProviderError(msg)
+      console.error(`Language detection error with ${provider}: ${msg.slice(0, 200)}`)
+      const classified = classifyProviderError(error)
       return { ...classified, error: classified.errorCode ? classified.error : `Language detection failed: ${msg}` }
     }
   })

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Button } from './atoms'
 import { CheckCircleIcon, CheckIcon, SpinnerIcon, TrashIcon } from './icons'
 
 export type CredentialMessageTone = 'success' | 'warning' | 'error'
@@ -121,35 +122,37 @@ export function CredentialSecretInputRow({
           spellCheck={false}
         />
         {showMasked && hasSecret && (
-          <button
+          <Button
+            size="md"
+            shape="icon"
+            variant="danger"
+            appearance="soft"
+            aria-label={labels.remove}
             type="button"
             onClick={onDelete}
             disabled={isDeleting}
             title={labels.remove}
-            className="btn-icon btn-icon-sm btn-icon-danger absolute right-2 top-1/2 -translate-y-1/2"
+            className="absolute right-2 top-1/2 -translate-y-1/2"
           >
             {isDeleting ? (
               <SpinnerIcon className="w-4 h-4 animate-spin" />
             ) : (
               <TrashIcon className="w-4 h-4" />
             )}
-          </button>
+          </Button>
         )}
       </div>
 
       {!showMasked && (
-        <button
+        <Button
+          size="md"
+          shape="rect"
+          variant={isError ? 'danger' : 'primary'}
+          appearance="solid"
           type="button"
           onClick={onSubmit}
           disabled={!inputValue.trim() || isBusy}
-          className={[
-            'whitespace-nowrap',
-            isSuccess
-              ? 'btn-primary'
-              : isError
-                ? 'btn-danger'
-                : 'btn-primary',
-          ].join(' ')}
+          className="whitespace-nowrap"
         >
           {isBusy ? (
             <>
@@ -169,7 +172,7 @@ export function CredentialSecretInputRow({
               {labels.submit}
             </>
           )}
-        </button>
+        </Button>
       )}
     </div>
   )
@@ -247,13 +250,16 @@ export function CredentialCard({
           </div>
           <div>
             <h3 className="font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
-            <button
+            <Button
+              size="md"
+              shape="rect"
+              variant="neutral"
+              appearance="ghost"
               type="button"
               onClick={onOpenDocs}
-              className="btn-link text-xs"
             >
               {docsLabel}
-            </button>
+            </Button>
             {meta && <div className="mt-1">{meta}</div>}
           </div>
         </div>

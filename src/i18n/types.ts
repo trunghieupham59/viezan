@@ -15,6 +15,7 @@ export interface Translations {
   nav_dictionary: string
   nav_command_palette: string
   nav_primary_sidebar: string
+  route_loading: (feature: string) => string
   command_palette_search_placeholder: string
   command_palette_no_results: string
   command_palette_hint_navigate: string
@@ -26,6 +27,20 @@ export interface Translations {
   command_palette_dictionary_description: string
   command_palette_history_description: string
   command_palette_settings_description: string
+  /** `{expression}` is what the user typed, e.g. "25 + 25". */
+  command_palette_calc_description: string
+  command_palette_ask_ai_label: string
+  /** `{query}` is the text the user typed. */
+  command_palette_ask_ai_description: string
+  command_palette_hint_back: string
+  command_palette_answer_disclaimer: string
+  command_palette_verify_label: string
+  /** `{query}` is the text the user typed. */
+  command_palette_verify_description: string
+  /** `{text}` is the text to translate. */
+  command_palette_translate_text_description: string
+  /** `{text}` is the word or phrase to look up. */
+  command_palette_dictionary_text_description: string
   /** Tooltip / aria-label on the sidebar collapse button */
   nav_collapse_sidebar: string
   /** Tooltip / aria-label on the sidebar expand button */
@@ -51,6 +66,8 @@ export interface Translations {
   translate_error_dismiss: string
   /** Button label to retry the last failed translation */
   translate_error_retry: string
+  translate_error_choose_model: string
+  translate_error_context: (provider: string, model: string) => string
   /** Error shown when rewrite fails */
   translate_error_rewrite: string
   /** Error shown when copy to clipboard fails */
@@ -61,6 +78,8 @@ export interface Translations {
   translate_error_generic: string
   /** Provider returned no usable translation */
   translate_error_empty_response: string
+  translate_error_output_truncated: string
+  translate_error_invalid_response: string
   /** Provider blocked the result because it resembled protected text */
   translate_error_blocked_recitation: string
   /** Provider blocked the translation through its safety filter */
@@ -81,6 +100,12 @@ export interface Translations {
   translate_style_business: string
   translate_style_technical: string
   translate_style_natural: string
+  translate_style_general_desc: string
+  translate_style_formal_desc: string
+  translate_style_casual_desc: string
+  translate_style_business_desc: string
+  translate_style_technical_desc: string
+  translate_style_natural_desc: string
   translate_reasoning_label: string
   translate_reasoning_auto: string
   translate_reasoning_low: string
@@ -103,11 +128,23 @@ export interface Translations {
   translate_options: string
   translate_settings_scope: string
   translate_settings_reset: string
+  ai_configuration_title: string
+  ai_configuration_chat_scope: string
+  ai_configuration_new_chat_scope: string
+  ai_configuration_translate_scope: string
+  ai_configuration_interpret_scope: string
+  ai_configuration_dictionary_scope: string
+  ai_configuration_interpret_active_scope: string
+  ai_configuration_models_section: string
+  ai_configuration_translation_section: string
+  ai_configuration_transcription_section: string
+  ai_configuration_output_section: string
   translate_add_image: string
   translate_from_label: string
   translate_to_label: string
   language_picker_search_placeholder: string
   language_picker_no_results: string
+  language_picker_more: string
   translate_source_content_label: string
   translate_result_content_label: string
   translate_detecting_language: string
@@ -133,6 +170,9 @@ export interface Translations {
   translate_models_replace_notice: string
   translate_models_select: string
   translate_models_selected_state: string
+  translate_models_result_position: (position: number) => string
+  translate_models_needs_key: string
+  translate_models_limit_reached: string
   translate_models_manual_notice: string
   translate_models_cancel: string
   translate_models_apply: (count: number) => string
@@ -141,9 +181,21 @@ export interface Translations {
   translate_compare_mobile_tabs: string
   translate_compare_idle: string
   translate_compare_idle_short: string
+  translate_compare_status_ready: string
+  translate_compare_status_running: string
+  translate_compare_status_complete: string
+  translate_compare_status_failed: string
+  translate_compare_error_missing_key: (provider: string) => string
+  translate_compare_error_invalid_key: (provider: string) => string
+  translate_compare_error_rate_limit: (provider: string) => string
+  translate_compare_error_model_unavailable: (model: string, provider: string) => string
+  translate_compare_error_network: (provider: string) => string
+  translate_compare_error_unknown: (model: string) => string
+  translate_compare_change_model: string
   translate_compare_retry: string
   translate_compare_duration: (seconds: string) => string
   translate_compare_request_count: (count: number) => string
+  translate_compare_independent_notice: string
   translate_compare_submit: (count: number) => string
   translate_compare_submitting: (count: number) => string
 
@@ -316,6 +368,9 @@ export interface Translations {
   settings_local_ai_runtime_speed: string
   settings_local_ai_runtime_latency: string
   settings_local_ai_benchmark_duration: string
+  settings_local_ai_gpu_none: string
+  settings_local_ai_gpu_offload: string
+  settings_local_ai_gpu_spill_warning: string
   settings_local_ai_suggested_models: string
   settings_local_ai_model_size: string
   settings_local_ai_download_hint: string
@@ -323,19 +378,10 @@ export interface Translations {
   settings_local_ai_installed: string
   settings_local_ai_download: string
   settings_local_ai_install_ollama: string
-  settings_local_ai_installing_ollama: string
   settings_local_ai_install_runtime_title: string
   settings_local_ai_install_runtime_desc: string
   settings_local_ai_waiting_runtime: string
-  settings_local_ai_cancel_install: string
-  settings_local_ai_install_cancelled: string
   settings_local_ai_manual_install_opened: string
-  settings_local_ai_ollama_installed: string
-  settings_local_ai_checking_runtime: string
-  settings_local_ai_restart_title: string
-  settings_local_ai_restart_desc: string
-  settings_local_ai_restart_now: string
-  settings_local_ai_restart_later: string
   settings_local_ai_install_failed: string
   settings_local_ai_need_ollama: string
   settings_local_ai_downloaded: string
@@ -363,8 +409,11 @@ export interface Translations {
   settings_remove: string
   settings_msg_valid: string
   settings_msg_rate_limited: string
+  settings_msg_billing: string
+  settings_msg_permission: string
   settings_msg_invalid: string
   settings_msg_network: string
+  settings_key_store_failed: string
   settings_prefs: string
   settings_auto_translate: string
   settings_auto_translate_desc: string
@@ -390,6 +439,8 @@ export interface Translations {
   settings_theme_system: string
   settings_furigana: string
   settings_furigana_desc: string
+  settings_image_provider_fallback: string
+  settings_image_provider_fallback_desc: string
   // Settings — Speech-to-Text section
   settings_stt_section: string
   /** Label for the "Provider" sub-header in STT section */
@@ -540,6 +591,11 @@ export interface Translations {
   live_chunk_hint: string
   live_empty: string
   live_empty_desc: string
+  live_empty_system_desc: string
+  live_empty_both_desc: string
+  live_status_listening_mic: string
+  live_status_listening_system: string
+  live_status_listening_both: string
   live_entries_label: string
   live_clear: string
   live_copy_all: string
@@ -642,6 +698,33 @@ export interface Translations {
   chat_sidebar_expand: string
   chat_sidebar_switch_sessions: string
   chat_sidebar_conversations: string
+  chat_task_language: string
+  chat_task_depth: string
+  chat_task_level: string
+  chat_task_format: string
+  chat_task_overview: string
+  chat_task_simple: string
+  chat_task_steps: string
+  chat_task_technical: string
+  chat_task_email: string
+  chat_task_article: string
+  chat_task_rewrite: string
+  chat_task_current_mode: string
+  chat_task_planned_mode: string
+  chat_task_mode_changed: string
+  chat_task_back: string
+  chat_task_unapplied: string
+  chat_task_applied: string
+  chat_task_needs_content: string
+  chat_task_close: string
+  chat_task_show: string
+  chat_task_apply: string
+  chat_task_instructions: string
+  chat_task_hint: string
+  chat_task_translate_template: string
+  chat_task_research_template: string
+  chat_task_explain_template: string
+  chat_task_write_template: string
   chat_suggest_translate: string
   chat_suggest_translate_desc: string
   chat_suggest_translate_prompt: string
@@ -658,6 +741,8 @@ export interface Translations {
   chat_mode_chip_image: string
   chat_mode_chip_web: string
   chat_mode_chip_research: string
+  chat_mode_standard: string
+  chat_response_mode: string
   chat_system_prompt: string
 
   chat_system_prompt_placeholder: string
@@ -666,6 +751,22 @@ export interface Translations {
   /** HC-NEW-04: Description for the "None" option in SystemPromptDropdown */
   chat_system_prompt_none_desc: string
   chat_regenerate: string
+  chat_used_model: (model: string) => string
+  chat_web_search_fallback_title: string
+  chat_web_search_fallback: (provider: string, reason: 'auth' | 'quota') => string
+  chat_web_search_unavailable_title: string
+  chat_web_search_unavailable: string
+  settings_chat_images_title: string
+  settings_chat_images_desc: string
+  settings_chat_images_usage: string
+  settings_chat_images_empty: string
+  settings_chat_images_prune: string
+  settings_chat_images_prune_desc: string
+  settings_chat_images_clear: string
+  settings_chat_images_clear_desc: string
+  settings_chat_images_clear_confirm: string
+  settings_chat_images_removed: string
+  chat_image_unavailable: string
   chat_feedback_good: string
   chat_feedback_bad: string
   chat_download_image: string
@@ -732,6 +833,10 @@ export interface Translations {
 
   // Settings — Updates
   settings_update_section: string
+  update_notification_description: string
+  update_notification_later: string
+  update_notification_release_notes: string
+  update_notification_action_error: string
   settings_update_section_desc: string
   settings_update_current_version: string
   settings_update_check: string
@@ -847,6 +952,7 @@ export interface Translations {
   settings_chat_preset_content: string
   settings_chat_preset_set_default: string
   settings_chat_preset_is_default: string
+  settings_chat_preset_edit: string
   settings_chat_preset_delete: string
   settings_chat_preset_save: string
   settings_chat_preset_cancel: string
@@ -946,6 +1052,8 @@ export interface Translations {
 
   chat_image_mode_badge: string
   chat_image_mode_hint: string
+  /** Shown when the selected provider has no image generation/editing support. */
+  chat_image_mode_unsupported_provider: string
   chat_image_generate_done: string
   chat_error_image_generate_failed: string
   chat_error_image_generate_reload_required: string

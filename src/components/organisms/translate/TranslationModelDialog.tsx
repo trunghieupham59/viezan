@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useAppStore, useT } from '../../../store/useAppStore'
 import type { TranslationModelSelection } from '../../../types'
+import { trapTabFocus } from '../../../utils/focusTrap'
 import { Button } from '../../ui/atoms'
 import { InfoCircleIcon, XIcon } from '../../ui/icons'
 import { TranslationModelPicker } from './TranslationModelPicker'
@@ -48,21 +49,7 @@ export function TranslationModelDialog({
         onCancel()
         return
       }
-      if (event.key !== 'Tab') return
-
-      const controls = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
-        'button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])',
-      ) ?? [])
-      if (controls.length === 0) return
-      const firstControl = controls[0]
-      const lastControl = controls[controls.length - 1]
-      if (event.shiftKey && document.activeElement === firstControl) {
-        event.preventDefault()
-        lastControl.focus()
-      } else if (!event.shiftKey && document.activeElement === lastControl) {
-        event.preventDefault()
-        firstControl.focus()
-      }
+      trapTabFocus(event, dialogRef.current)
     }
 
     window.addEventListener('keydown', handleKeyDown)

@@ -12,8 +12,8 @@
   --vzn-neutral-0: #ffffff;
   --vzn-neutral-25: #fdfdfd;
   --vzn-neutral-50: #fafafa;
-  --vzn-neutral-100: #f2f2f7;
-  --vzn-neutral-200: #e5e5ea;
+  --vzn-neutral-100: #f2f2f4;
+  --vzn-neutral-200: #e6e6e9;
   --vzn-neutral-300: #d1d1d6;
   --vzn-neutral-400: #aeaeb2;
   --vzn-neutral-500: #8e8e93;
@@ -54,18 +54,21 @@
   --vzn-tone-orange: #ef6a32;
 
   /* Semantic colors ----------------------------------------------------- */
-  --vzn-app-bg: #ececef;
-  --vzn-bg: var(--vzn-neutral-100);
+  /* Surface ladder (light): primary chrome (title bar + sidebar) is the
+   * darkest step, the chat sidebar sits between, the page canvas is the
+   * lightest, and cards/composer are pure white on top. */
+  --vzn-app-bg: #eeeeef;
+  --vzn-bg: var(--vzn-neutral-50);
   --vzn-canvas: var(--vzn-neutral-0);
-  --vzn-titlebar-bg: #f4f4f6;
-  --vzn-sidebar-bg: #f4f4f6;
-  --vzn-chat-sidebar-bg: #f8f8fa;
+  --vzn-titlebar-bg: #eeeeef;
+  --vzn-sidebar-bg: #eeeeef;
+  --vzn-chat-sidebar-bg: #f5f5f6;
 
   --vzn-surface: var(--vzn-neutral-0);
   --vzn-surface-raised: var(--vzn-neutral-25);
-  --vzn-surface-muted: #f6f6f8;
+  --vzn-surface-muted: #f6f6f7;
   --vzn-surface-subtle: var(--vzn-neutral-100);
-  --vzn-surface-hover: #eaeaee;
+  --vzn-surface-hover: #e6e6e9;
   --vzn-surface-selected: rgba(0, 122, 255, 0.1);
 
   --vzn-text: var(--vzn-neutral-800);
@@ -115,6 +118,7 @@
   --vzn-disabled-bg: var(--vzn-neutral-100);
   --vzn-disabled-border: var(--vzn-neutral-200);
   --vzn-disabled-fg: var(--vzn-neutral-400);
+  --vzn-opacity-disabled: 0.48;
 
   /* Typography ---------------------------------------------------------- */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -141,6 +145,7 @@
 
   /* 4px spacing grid ---------------------------------------------------- */
   --vzn-space-0: 0;
+  --vzn-border-width: 1px;
   --vzn-space-0-5: 2px;
   --vzn-space-1: 4px;
   --vzn-space-1-5: 6px;
@@ -185,6 +190,13 @@
   --vzn-shadow-md: 0 10px 30px rgba(28, 28, 30, 0.08);
   --vzn-shadow-lg: 0 20px 52px rgba(28, 28, 30, 0.13);
   --vzn-shadow-overlay: 0 28px 76px rgba(28, 28, 30, 0.22);
+  --vzn-prompt-card-shadow-hover: 0 6px 18px rgba(24, 23, 21, 0.06);
+  /* Scrims and media surfaces: modal dim layer, full-screen media viewer
+   * backdrop, the matte behind transparent images, and text on filled danger. */
+  --vzn-scrim: rgba(20, 19, 17, 0.42);
+  --vzn-scrim-media: rgba(12, 12, 11, 0.84);
+  --vzn-media-matte: #ffffff;
+  --vzn-danger-fg: var(--vzn-action-fg);
   --vzn-duration-fast: 120ms;
   --vzn-duration-normal: 180ms;
   --vzn-duration-pulse: 1s;
@@ -193,6 +205,8 @@
 
   /* Layering ------------------------------------------------------------ */
   --vzn-layer-context-overlay: 60;
+  --vzn-layer-local-sticky: 1;
+  --vzn-layer-local-toolbar: 2;
   --vzn-layer-navigation-backdrop: 65;
   --vzn-layer-navigation-overlay: 70;
   --vzn-layer-modal: 80;
@@ -200,6 +214,7 @@
   /* Layout -------------------------------------------------------------- */
   --vzn-sidebar-width: 60px;
   --vzn-sidebar-expanded-width: 236px;
+  --vzn-titlebar-height: 40px;
   --vzn-chat-sidebar-width: 260px;
   --vzn-chat-sidebar-collapsed-width: 48px;
   --vzn-content-max: 980px;
@@ -208,10 +223,38 @@
   --vzn-chat-composer-max: 1040px;
   --vzn-translate-workspace-max: 1440px;
   --vzn-chat-gutter: clamp(16px, 2.2vw, 40px);
+  --vzn-chat-message-end-clearance: var(--vzn-space-4);
+  --vzn-chat-avatar-size: 2rem;
   --vzn-composer-min-height: 116px;
-  --vzn-prompt-card-min-height: 132px;
+  --vzn-chat-textarea-max-height: 140px;
+  --vzn-prompt-card-min-height: 116px;
   --vzn-workspace-pad: var(--vzn-space-4);
   --vzn-panel-gap: var(--vzn-space-3);
+  --vzn-empty-state-copy-max: calc(var(--vzn-space-12) * 4);
+  --vzn-dictionary-result-min-inline: calc(var(--vzn-space-12) * 10);
+  --vzn-dictionary-history-width: calc(var(--vzn-space-12) * 6);
+  --vzn-dictionary-pane-min-block: calc(var(--vzn-space-12) * 6);
+  --vzn-popover-wide: 420px;
+  --vzn-ai-configuration-inline: var(--vzn-popover-wide);
+  --vzn-ai-configuration-max-block: min(
+    calc(100dvh - var(--vzn-space-8)),
+    calc(var(--vzn-space-12) * 10)
+  );
+  --vzn-ai-configuration-content-max-block: calc(
+    var(--vzn-ai-configuration-max-block) - (var(--vzn-space-12) * 2)
+  );
+  --vzn-select-menu-max-block: calc(var(--vzn-space-12) * 5);
+  --vzn-translate-model-chip-min-inline: calc(var(--vzn-space-12) * 4.5);
+  --vzn-translate-model-selected-max-block: calc(var(--vzn-space-12) * 4);
+  --vzn-translate-model-available-min-block: calc(var(--vzn-space-12) * 6);
+  --vzn-translate-model-scroll-clearance: calc(
+    var(--vzn-control-height-md) + var(--vzn-space-2)
+  );
+  --vzn-history-search-width: calc(var(--vzn-space-12) * 5);
+  --vzn-settings-modal-max-inline: 1040px;
+  --vzn-settings-modal-max-block: 860px;
+  --vzn-modal-viewport-block: 90vh;
+  --vzn-update-dialog-max-inline: 560px;
 
   /* Compatibility aliases ---------------------------------------------- */
   --vzn-accent: var(--vzn-action);
@@ -302,6 +345,8 @@ html.dark {
   --vzn-shadow-md: 0 10px 28px rgba(0, 0, 0, 0.26);
   --vzn-shadow-lg: 0 20px 52px rgba(0, 0, 0, 0.36);
   --vzn-shadow-overlay: 0 28px 80px rgba(0, 0, 0, 0.5);
+  --vzn-prompt-card-shadow-hover: 0 8px 22px rgba(0, 0, 0, 0.18);
+  --vzn-scrim: rgba(0, 0, 0, 0.58);
   --vzn-skeleton: rgba(255, 255, 255, 0.06);
 }
 

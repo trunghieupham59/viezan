@@ -1,7 +1,15 @@
 import type { IpcMain } from 'electron'
-import { classifyProviderError, noApiKeyResponse } from './errorUtils'
+import {
+  blockedSafetyError,
+  classifyProviderError,
+  emptyResponseError,
+  invalidResponseError,
+  noApiKeyResponse,
+  truncatedOutputError,
+} from './errorUtils'
 import {
   ANTHROPIC_API_BASE, ANTHROPIC_API_VERSION,ANTHROPIC_MODELS_LIMIT,
+  CHAT_IMAGE_EDIT_TIMEOUT_MS,
   GEMINI_API_BASE, GEMINI_IMAGE_EDIT_MODEL,
   GEMINI_MODELS_PAGE_SIZE,
   MAX_CHAT_OUTPUT_TOKENS, MAX_IMAGE_BASE64_CHARS,
@@ -9,9 +17,9 @@ import {
   VISION_SCORE_CHEAP, VISION_SCORE_GEN_WEIGHT, VISION_SCORE_LITE_PENALTY,VISION_SCORE_MID,
   VISION_SCORE_SLOW,
 } from './ipcConstants'
-import { invalidIpcInput, isNonEmptyString, isRecord, isSafeLanguageCode, parseProviderModel } from './ipcValidation'
-import { isAbortError } from './providers/chatProviderTypes'
+import { invalidIpcInput, isNonEmptyString, isRecord, isSafeLanguageCode, isSafeTargetLanguageCode, parseProviderModel } from './ipcValidation'
 import { getStoredApiKey } from './storage'
+import { joinClaudeText } from './translateProviderOutput'
 
 /** Allowed image MIME types for Gemini image-edit (whitelist prevents injection via IPC). */
 const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
@@ -30,6 +38,36 @@ function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number, 
     })
 }
 
+/**
+ * Run `task` with a hard deadline covering the whole operation (request AND body read).
+ * A deadline hit rejects with a plain "timed out" Error, never an AbortError, so it cannot be
+ * mistaken for a user cancellation; only `parentSignal` aborts surface as aborts.
+ */
+async function runWithDeadline<T>(
+  timeoutMs: number,
+  parentSignal: AbortSignal | undefined,
+  task: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const controller = new AbortController()
+  let timedOut = false
+  const timer = setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, timeoutMs)
+  const onParentAbort = () => controller.abort()
+  if (parentSignal?.aborted) controller.abort()
+  else parentSignal?.addEventListener('abort', onParentAbort, { once: true })
+  try {
+    return await task(controller.signal)
+  } catch (error) {
+    if (timedOut && !parentSignal?.aborted) throw new Error(`Request timed out after ${timeoutMs / 1000}s`)
+    throw error
+  } finally {
+    clearTimeout(timer)
+    parentSignal?.removeEventListener('abort', onParentAbort)
+  }
+}
+
 // ── Vision model discovery (no hardcoded model IDs) ───────────────────────────
 
 /**
@@ -38,13 +76,27 @@ function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number, 
  */
 const NON_VISION_PATTERN = /tts|embed|aqa|image-generation|learnlm|thinking|whisper|dall-?e|moderation|realtime|transcribe|instruct|codex/i
 
+/**
+ * Explicit "this model cannot take images" wordings. Deliberately narrow: bare words such as
+ * "vision", "not enabled" or "does not support" also appear in unrelated errors (quota, org
+ * settings, streaming) and must not trigger a fallback that re-sends the user's image.
+ */
+const VISION_UNSUPPORTED_PATTERNS = [
+  // OpenAI: "Invalid content type. image_url is only supported by certain models."
+  /image_url.*(?:only )?supported/,
+  /only supported by certain models/,
+  /image input/,
+  /image modality/,
+  /modality.{0,40}(?:not|unsupported)/,
+  /does not support (?:image|vision|multimodal)/,
+  /(?:vision|multimodal).{0,40}(?:not supported|unsupported|not enabled|not available)/,
+  /(?:not supported|unsupported|not enabled|not available).{0,40}(?:vision|multimodal|image)/,
+]
+
 /** Returns true if the error indicates the model does not support image/vision input. */
 function isVisionUnsupportedError(msg: string): boolean {
   const lower = msg.toLowerCase()
-  return lower.includes('image input') || lower.includes('modality') ||
-    lower.includes('vision') || lower.includes('multimodal') ||
-    lower.includes('not enabled') || lower.includes('does not support') ||
-    lower.includes('image generation') || lower.includes('image modality')
+  return VISION_UNSUPPORTED_PATTERNS.some((pattern) => pattern.test(lower))
 }
 
 /**
@@ -184,6 +236,11 @@ interface ImageTranslateParams {
   imageMimeType: string
   sourceLang: string
   targetLang: string
+  /**
+   * Explicit opt-in to retry on ANOTHER provider (which uploads the image to that provider)
+   * when no model of the selected provider can read images. Default: false.
+   */
+  allowProviderFallback: boolean
 }
 
 type ParsedImageTranslateParams =
@@ -223,8 +280,11 @@ function parseImageTranslateParams(rawParams: unknown): ParsedImageTranslatePara
   if (!isSafeLanguageCode(params.sourceLang)) {
     return { ok: false, response: invalidIpcInput('Invalid source language') }
   }
-  if (!isSafeLanguageCode(params.targetLang)) {
+  if (!isSafeTargetLanguageCode(params.targetLang)) {
     return { ok: false, response: invalidIpcInput('Invalid target language') }
+  }
+  if (params.allowProviderFallback !== undefined && typeof params.allowProviderFallback !== 'boolean') {
+    return { ok: false, response: invalidIpcInput('Invalid allowProviderFallback flag') }
   }
 
   return {
@@ -237,6 +297,7 @@ function parseImageTranslateParams(rawParams: unknown): ParsedImageTranslatePara
       imageMimeType: params.imageMimeType,
       sourceLang: params.sourceLang,
       targetLang: params.targetLang,
+      allowProviderFallback: params.allowProviderFallback === true,
     },
   }
 }
@@ -251,6 +312,154 @@ export interface TextRegion {
   fontSize: number  // 0.0–1.0 fraction of image height
   bgColor: string   // estimated background color hex
   textColor: string // estimated text color hex
+}
+
+const MAX_REGION_TEXT_CHARS = 5_000
+const DEFAULT_REGION_FONT_SIZE = 0.04
+const DEFAULT_REGION_BG_COLOR = '#ffffff'
+const DEFAULT_REGION_TEXT_COLOR = '#000000'
+const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
+
+/** Slice out the bracket-balanced array starting at `start` (string-aware). null if it never closes. */
+function extractBalancedArray(text: string, start: number): string | null {
+  let depth = 0
+  let inString = false
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i]
+    if (inString) {
+      if (ch === '\\') i++
+      else if (ch === '"') inString = false
+      continue
+    }
+    if (ch === '"') inString = true
+    else if (ch === '[') depth++
+    else if (ch === ']') {
+      depth--
+      if (depth === 0) return text.slice(start, i + 1)
+    }
+  }
+  return null
+}
+
+/** An empty array ("no text found") or one containing at least one region-like object. */
+function looksLikeRegionArray(value: unknown[]): boolean {
+  return value.length === 0 || value.some((item) => isRecord(item) && 'translatedText' in item)
+}
+
+/**
+ * Find the first valid JSON array in a model answer (markdown fences and prose are tolerated).
+ * Returns the parsed array, 'truncated' when an array starts but never closes, or null.
+ */
+function findJsonArray(text: string): unknown[] | 'truncated' | null {
+  let sawUnclosed = false
+  for (let start = text.indexOf('['); start !== -1; start = text.indexOf('[', start + 1)) {
+    const candidate = extractBalancedArray(text, start)
+    if (candidate === null) {
+      sawUnclosed = true
+      continue
+    }
+    try {
+      const parsed: unknown = JSON.parse(candidate)
+      if (Array.isArray(parsed) && looksLikeRegionArray(parsed)) return parsed
+    } catch {
+      // Not JSON (e.g. a "[Note]" in prose) — keep scanning.
+    }
+    // JSON but not a region list (prose such as "[1]" or "[true]") — keep scanning.
+  }
+  return sawUnclosed ? 'truncated' : null
+}
+
+function toFiniteNumber(value: unknown): number | null {
+  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value
+  return typeof n === 'number' && Number.isFinite(n) ? n : null
+}
+
+function clamp01(value: unknown): number | null {
+  const n = toFiniteNumber(value)
+  return n === null ? null : Math.min(1, Math.max(0, n))
+}
+
+/** Tolerance for models that overshoot 1.0 by rounding (1.0004 is still a fraction). */
+const FRACTION_TOLERANCE = 1.001
+/** A single overshooting box in an otherwise fractional answer is clamped up to this, dropped beyond it. */
+const FRACTION_OUTLIER_CLAMP_MAX = 1.5
+/** Largest value read as a percentage (0-100). Anything above is pixel units and cannot be placed. */
+const PERCENT_MAX = 100
+
+type GeometryUnit = 'fraction' | 'percent' | 'invalid'
+
+function classifyGeometry(values: number[]): GeometryUnit {
+  const peak = Math.max(...values)
+  if (peak <= FRACTION_TOLERANCE) return 'fraction'
+  return peak <= PERCENT_MAX ? 'percent' : 'invalid'
+}
+
+/**
+ * Validate and clamp raw model output into usable regions; unusable entries are dropped.
+ *
+ * Geometry is expected as 0-1 fractions. Models sometimes answer in percentages (0-100) or pixels:
+ * when most boxes carry a value above 1.0 and every value is at most 100 the whole answer is read as
+ * percentages (divided by 100); boxes with values above 100 (pixel units) are dropped rather than
+ * clamped into a bogus full-image box, which makes an all-pixel answer an INVALID_RESPONSE.
+ */
+function sanitizeRegions(raw: unknown[]): TextRegion[] {
+  const candidates: Array<{ item: Record<string, unknown>; values: number[]; unit: GeometryUnit }> = []
+  for (const item of raw) {
+    if (!isRecord(item)) continue
+    const values = [item.x, item.y, item.width, item.height].map(toFiniteNumber)
+    if (values.some((v) => v === null)) continue
+    const numbers = values as number[]
+    candidates.push({ item, values: numbers, unit: classifyGeometry(numbers) })
+  }
+  const percentMode = candidates.filter((c) => c.unit === 'percent').length > candidates.filter((c) => c.unit === 'fraction').length
+
+  const regions: TextRegion[] = []
+  for (const { item, values, unit } of candidates) {
+    let scale = 1
+    if (percentMode) {
+      if (unit === 'invalid') continue
+      scale = 1 / PERCENT_MAX
+    } else if (unit === 'invalid' || (unit === 'percent' && Math.max(...values) > FRACTION_OUTLIER_CLAMP_MAX)) {
+      continue
+    }
+    const [x, y, width, height] = values.map((v) => clamp01(v * scale)) as number[]
+    if (typeof item.translatedText !== 'string' || !item.translatedText.trim()) continue
+    const fontSize = clamp01(item.fontSize)
+    regions.push({
+      x,
+      y,
+      // A box may not extend past the image edge.
+      width: Math.min(width, 1 - x),
+      height: Math.min(height, 1 - y),
+      originalText: typeof item.originalText === 'string' ? item.originalText.slice(0, MAX_REGION_TEXT_CHARS) : '',
+      translatedText: item.translatedText.slice(0, MAX_REGION_TEXT_CHARS),
+      fontSize: fontSize !== null && fontSize > 0 ? fontSize : DEFAULT_REGION_FONT_SIZE,
+      bgColor: typeof item.bgColor === 'string' && HEX_COLOR_PATTERN.test(item.bgColor.trim()) ? item.bgColor.trim() : DEFAULT_REGION_BG_COLOR,
+      textColor: typeof item.textColor === 'string' && HEX_COLOR_PATTERN.test(item.textColor.trim()) ? item.textColor.trim() : DEFAULT_REGION_TEXT_COLOR,
+    })
+  }
+  return regions.filter((region) => region.width > 0 && region.height > 0)
+}
+
+/**
+ * Turn a provider's text answer into regions.
+ *  - `[]` from the model means "no text found" and is a legitimate empty success.
+ *  - Empty answer, truncated output, unparseable output, or an array with no usable region throw
+ *    a structured error instead of masquerading as "no text found".
+ */
+function parseRegionsFromText(provider: string, text: string, truncated: boolean): TextRegion[] {
+  if (truncated) throw truncatedOutputError(provider)
+  const trimmed = text.trim()
+  if (!trimmed) throw emptyResponseError(provider)
+
+  const found = findJsonArray(trimmed)
+  if (found === 'truncated') throw truncatedOutputError(provider)
+  if (found === null) throw invalidResponseError(provider, 'no JSON array found')
+  if (found.length === 0) return []
+
+  const regions = sanitizeRegions(found)
+  if (regions.length === 0) throw invalidResponseError(provider, 'no usable text region')
+  return regions
 }
 
 function buildPrompt(sourceLang: string, targetLang: string): string {
@@ -289,10 +498,23 @@ Rules:
 - Return ONLY valid JSON. No extra text.`
 }
 
+/** Edited image returned by the Gemini image-edit model. */
+export interface GeminiEditedImage {
+  imageBase64: string
+  /** MIME type reported by Gemini for the edited image (falls back to the input MIME type). */
+  mimeType: string
+}
+
+interface GeminiInlineData {
+  data?: string
+  mimeType?: string
+  mime_type?: string
+}
+
 /**
  * Use Gemini image-generation/editing model to translate text inside the image directly.
- * Returns the base64 of the edited image (with translated text rendered by Gemini).
- * Falls back to null if the model does not return an image part.
+ * Returns the edited image (base64 + MIME type) with translated text rendered by Gemini.
+ * Returns null if the model does not return an image part.
  */
 async function translateImageWithGeminiEdit(
   apiKey: string,
@@ -301,7 +523,7 @@ async function translateImageWithGeminiEdit(
   sourceLang: string,
   targetLang: string,
   signal?: AbortSignal,
-): Promise<string | null> {
+): Promise<GeminiEditedImage | null> {
   // R-SEC-02: Whitelist validate MIME type before embedding in JSON request body
   if (!ALLOWED_IMAGE_MIME_TYPES.has(imageMimeType)) {
     throw new Error(`Unsupported image MIME type: ${imageMimeType}`)
@@ -336,36 +558,47 @@ async function translateImageWithGeminiEdit(
     },
   }
 
-  // R-REL-03: Use fetchWithTimeout (already defined above) to prevent indefinite hang
-  const res = await fetchWithTimeout(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey,
-    },
-    body: JSON.stringify(body),
-  }, VISION_DISCOVERY_TIMEOUT_MS, signal)
+  // Image editing can take minutes, so it gets the long image-edit deadline (not the 5 s
+  // model-discovery one). The deadline covers the response body read as well.
+  const json = await runWithDeadline(CHAT_IMAGE_EDIT_TIMEOUT_MS, signal, async (deadlineSignal) => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify(body),
+      signal: deadlineSignal,
+    })
 
-  if (!res.ok) {
-    const errText = await res.text()
-    throw new Error(`Gemini image edit failed: ${res.status} ${errText}`)
-  }
+    if (!res.ok) {
+      const errText = await res.text()
+      throw new Error(`Gemini image edit failed: ${res.status} ${errText}`)
+    }
 
-  const json = await res.json() as {
-    candidates?: Array<{
-      content?: {
-        parts?: Array<{
-          text?: string
-          inline_data?: { mime_type: string; data: string }
-        }>
-      }
-    }>
-  }
+    return await res.json() as {
+      candidates?: Array<{
+        content?: {
+          parts?: Array<{
+            text?: string
+            inlineData?: GeminiInlineData
+            inline_data?: GeminiInlineData
+          }>
+        }
+      }>
+    }
+  })
 
+  // REST responses use camelCase (`inlineData` / `mimeType`); tolerate snake_case as well.
   const parts = json.candidates?.[0]?.content?.parts ?? []
   for (const part of parts) {
-    if (part.inline_data?.data) {
-      return part.inline_data.data // base64 of the edited image
+    const inlineData = part.inlineData ?? part.inline_data
+    if (inlineData?.data) {
+      const mimeType = inlineData.mimeType ?? inlineData.mime_type
+      return {
+        imageBase64: inlineData.data, // base64 of the edited image
+        mimeType: mimeType && ALLOWED_IMAGE_MIME_TYPES.has(mimeType) ? mimeType : imageMimeType,
+      }
     }
   }
   return null
@@ -393,13 +626,14 @@ async function translateImageWithGemini(
       },
     },
     buildPrompt(sourceLang, targetLang),
-  ])
+  ], signal ? { signal } : undefined)
   if (signal?.aborted) throw new Error('image-translate-cancelled')
 
-  const text = result.response.text().trim()
-  const jsonMatch = text.match(/\[[\s\S]*\]/)
-  if (!jsonMatch) return []
-  try { return JSON.parse(jsonMatch[0]) as TextRegion[] } catch { return [] }
+  const finishReason = result.response.candidates?.[0]?.finishReason
+  if (finishReason && ['SAFETY', 'BLOCKLIST', 'PROHIBITED_CONTENT', 'SPII'].includes(finishReason)) {
+    throw blockedSafetyError('gemini', `finishReason=${finishReason}`)
+  }
+  return parseRegionsFromText('gemini', result.response.text(), finishReason === 'MAX_TOKENS')
 }
 
 async function translateImageWithClaude(
@@ -441,12 +675,23 @@ async function translateImageWithClaude(
     signal ? { signal } : undefined,
   )
 
-  const block = message.content[0]
-  if (block.type !== 'text') return []
-  const text = block.text.trim()
-  const jsonMatch = text.match(/\[[\s\S]*\]/)
-  if (!jsonMatch) return []
-  try { return JSON.parse(jsonMatch[0]) as TextRegion[] } catch { return [] }
+  if (message.stop_reason === 'refusal') throw blockedSafetyError('claude', 'stop_reason=refusal')
+  return parseRegionsFromText('claude', joinClaudeText(message.content), message.stop_reason === 'max_tokens')
+}
+
+/** Vision-capable model used when the selected OpenAI model cannot read images. */
+const OPENAI_VISION_FALLBACK_MODEL = 'gpt-4o'
+
+/**
+ * gpt-4-class and older OpenAI ids that reject `image_url` content: the base gpt-4 (and its dated /
+ * 32k snapshots), the *-preview turbo snapshots and every gpt-3.5 model. `gpt-4-turbo` and newer
+ * (gpt-4o, gpt-4.1, ...) do accept images and are deliberately not matched.
+ */
+const OPENAI_NON_VISION_MODEL = /^(?:gpt-3\.5(?:-|$)|gpt-4(?:-(?:\d{4}|32k(?:-\d{4})?|turbo-preview|\d{4}-preview))?$)/i
+
+/** Map a non-vision OpenAI model to a vision model on the same provider; other ids pass through. */
+function resolveOpenAIVisionModel(model: string): string {
+  return model.includes('o1') || OPENAI_NON_VISION_MODEL.test(model.trim()) ? OPENAI_VISION_FALLBACK_MODEL : model
 }
 
 async function translateImageWithOpenAI(
@@ -462,7 +707,7 @@ async function translateImageWithOpenAI(
   const client = new OpenAI({ apiKey })
 
   // Ensure we use a vision-capable model
-  const visionModel = model.includes('o1') || model === 'gpt-3.5-turbo' ? 'gpt-4o' : model
+  const visionModel = resolveOpenAIVisionModel(model)
 
   const completion = await client.chat.completions.create(
     {
@@ -490,10 +735,11 @@ async function translateImageWithOpenAI(
     signal ? { signal } : undefined,
   )
 
-  const text = (completion.choices[0]?.message?.content ?? '').trim()
-  const jsonMatch = text.match(/\[[\s\S]*\]/)
-  if (!jsonMatch) return []
-  try { return JSON.parse(jsonMatch[0]) as TextRegion[] } catch { return [] }
+  const choice = completion.choices[0]
+  if (choice?.finish_reason === 'content_filter' || choice?.message?.refusal?.trim()) {
+    throw blockedSafetyError('openai', choice.finish_reason === 'content_filter' ? 'finish_reason=content_filter' : 'refusal')
+  }
+  return parseRegionsFromText('openai', choice?.message?.content ?? '', choice?.finish_reason === 'length')
 }
 
 // ── Exported for unit testing ─────────────────────────────────────────────────
@@ -503,7 +749,12 @@ export {
   isModelNotFoundError,
   isVisionUnsupportedError,
   langName,
+  parseRegionsFromText,
+  resolveOpenAIVisionModel,
+  runWithDeadline,
+  sanitizeRegions,
   scoreModelForVision,
+  translateImageWithGeminiEdit,
 }
 
 // ── Provider registry — DUP-04 / DUP-06 ──────────────────────────────────────
@@ -542,7 +793,7 @@ export function registerImageTranslateHandlers(ipcMain: IpcMain) {
     const parsed = parseImageTranslateParams(rawParams)
     if (!parsed.ok) return parsed.response
     const params = parsed.value
-    const { provider, model, requestId, imageBase64, imageMimeType, sourceLang, targetLang } = params
+    const { provider, model, requestId, imageBase64, imageMimeType, sourceLang, targetLang, allowProviderFallback } = params
 
     if (!imageBase64) {
       return { success: false, error: 'No image data provided' }
@@ -571,14 +822,21 @@ export function registerImageTranslateHandlers(ipcMain: IpcMain) {
       // ── Gemini: try image-edit model first for best quality ───────────────
       if (provider === 'gemini') {
         try {
-          const editedImageBase64 = await translateImageWithGeminiEdit(
+          const edited = await translateImageWithGeminiEdit(
             apiKey, imageBase64, imageMimeType, sourceLang, targetLang, controller?.signal
           )
-          if (editedImageBase64) {
-            return { success: true, editedImageBase64, regions: [] }
+          if (edited) {
+            return {
+              success: true,
+              editedImageBase64: edited.imageBase64,
+              editedImageMimeType: edited.mimeType,
+              regions: [],
+            }
           }
         } catch (editErr) {
-          if (controller?.signal.aborted || isAbortError(editErr)) throw editErr
+          // Only a caller cancellation stops here. A timeout or any other edit failure falls
+          // through to the OCR + regions approach below.
+          if (controller?.signal.aborted) throw editErr
           const msg = editErr instanceof Error ? editErr.message : String(editErr)
           console.warn(`Gemini image-edit failed, falling back to regions: ${msg.slice(0, 200)}`)
           // Fall through to OCR+regions approach below
@@ -590,8 +848,9 @@ export function registerImageTranslateHandlers(ipcMain: IpcMain) {
       //   1. Try user's selected model first (always, regardless of type)
       //   2. On vision/not-found error → fetch available models from the same provider API,
       //      filter vision-capable, sort cheapest/fastest first, try each
-      //   3. If all same-provider models fail → try other providers (if key available),
-      //      using their dynamically-fetched vision models
+      //   3. Only if the request opted in (allowProviderFallback === true): try other providers
+      //      (if key available), using their dynamically-fetched vision models. Without the
+      //      opt-in the user's image is never uploaded to a provider they did not select.
       // No hardcoded model IDs — always uses live data from the provider's models API.
 
       // Start with just the user's model; fallback candidates are fetched lazily on first failure
@@ -632,6 +891,7 @@ export function registerImageTranslateHandlers(ipcMain: IpcMain) {
           succeeded = true
           break
         } catch (err) {
+          if (controller?.signal.aborted) throw err
           const msg = err instanceof Error ? err.message : String(err)
           const retryable = isVisionUnsupportedError(msg) || isModelNotFoundError(msg)
 
@@ -652,19 +912,21 @@ export function registerImageTranslateHandlers(ipcMain: IpcMain) {
               if (fb !== model) candidates.push({ p: provider, m: fb })
             }
 
-            // Cross-provider fallbacks: fetch all other providers in parallel (R-PRF-02)
-            const otherProviders = Object.keys(IMAGE_TRANSLATE_PROVIDERS)
-              .filter(op => op !== provider)
-              .map(op => ({ op, key: getStoredApiKey(op) }))
-              .filter((x): x is { op: string; key: string } => !!x.key)
+            // Cross-provider fallbacks (explicit opt-in only): fetch other providers in parallel (R-PRF-02)
+            if (allowProviderFallback) {
+              const otherProviders = Object.keys(IMAGE_TRANSLATE_PROVIDERS)
+                .filter(op => op !== provider)
+                .map(op => ({ op, key: getStoredApiKey(op) }))
+                .filter((x): x is { op: string; key: string } => !!x.key)
 
-            const crossResults = await Promise.all(
-              otherProviders.map(({ op, key }) =>
-                fetchVisionModels(op, key).then(models => ({ op, models }))
+              const crossResults = await Promise.all(
+                otherProviders.map(({ op, key }) =>
+                  fetchVisionModels(op, key).then(models => ({ op, models }))
+                )
               )
-            )
-            for (const { op, models } of crossResults) {
-              if (models.length > 0) candidates.push({ p: op, m: models[0] })
+              for (const { op, models } of crossResults) {
+                if (models.length > 0) candidates.push({ p: op, m: models[0] })
+              }
             }
           }
           // Continue loop — next iteration picks the next candidate
@@ -672,10 +934,18 @@ export function registerImageTranslateHandlers(ipcMain: IpcMain) {
       }
 
       if (!succeeded) {
+        // Providers that hold a stored key but were NOT tried because they would receive the image.
+        const untriedProviders = allowProviderFallback
+          ? []
+          : Object.keys(IMAGE_TRANSLATE_PROVIDERS).filter(op => op !== provider && !!getStoredApiKey(op))
         return {
           success: false,
-          error: 'No vision-capable model available. Please select a vision-capable model (e.g. gemini-2.0-flash, gpt-4o, claude-3-5-haiku).',
+          error: 'No vision-capable model available. Please select a vision-capable model (e.g. gemini-2.0-flash, gpt-4o, claude-3-5-haiku).' +
+            (untriedProviders.length > 0
+              ? ' Other configured providers were not tried because they would receive your image; allow provider fallback to try them.'
+              : ''),
           errorCode: 'NO_VISION',
+          ...(untriedProviders.length > 0 ? { fallbackProviders: untriedProviders } : {}),
         }
       }
 
@@ -686,14 +956,16 @@ export function registerImageTranslateHandlers(ipcMain: IpcMain) {
         ...(switched ? { usedModel, usedProvider } : {}),
       }
     } catch (error: unknown) {
-      if (controller?.signal.aborted || isAbortError(error)) {
+      // Cancelled only when the caller's signal fired (or our own cancel marker was thrown);
+      // timeouts and dropped connections are reported as such, not as a user cancel.
+      if (controller?.signal.aborted || (error instanceof Error && error.message === IMAGE_TRANSLATE_CANCELLED_MESSAGE)) {
         return { success: false, error: IMAGE_TRANSLATE_CANCELLED_MESSAGE, errorCode: 'CANCELLED' }
       }
       const msg = error instanceof Error ? error.message : String(error)
       // Log only message — full error objects may include request URLs/headers containing API keys.
       console.error(`Image translation error with ${provider}: ${msg.slice(0, 200)}`)
       // DUP-01: use classifyProviderError for standard error categorization
-      return classifyProviderError(msg)
+      return classifyProviderError(error)
     } finally {
       if (requestId && activeImageTranslateControllers.get(requestId) === controller) {
         activeImageTranslateControllers.delete(requestId)

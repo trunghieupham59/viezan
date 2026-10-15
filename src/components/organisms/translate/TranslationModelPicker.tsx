@@ -1,11 +1,13 @@
-import { useId, useMemo, useState } from 'react'
+import { type FocusEvent, useId, useMemo, useState } from 'react'
 import { MAX_TRANSLATION_MODELS, PROVIDERS } from '../../../constants/providers'
+import { useProviderModelCatalog } from '../../../hooks/useProviderModelCatalog'
 import { useAppStore, useT } from '../../../store/useAppStore'
 import type { Provider, TranslationModelSelection } from '../../../types'
 import { dedupeModelsByFamily, formatModelName } from '../../../utils/modelDisplay'
 import { ProviderIcon } from '../../ProviderIcon'
 import { Button, Input } from '../../ui/atoms'
-import { CheckIcon, RefreshIcon, SearchIcon, SpinnerIcon, XIcon } from '../../ui/icons'
+import { RefreshIcon, SearchIcon, SpinnerIcon } from '../../ui/icons'
+import { ModelSelectionRow, SelectedModelChip } from '../../ui/molecules'
 
 interface TranslationModelPickerProps {
   models: TranslationModelSelection[]
@@ -27,56 +29,38 @@ export function TranslationModelPicker({
   const pickerId = useId()
   const limitNoticeId = `${pickerId}-limit`
   const [search, setSearch] = useState('')
-  const {
-    keyStatus,
-    dynamicModels,
-    modelsLoading,
-    modelsError,
-    setDynamicModels,
-    setModelsLoading,
-    setModelsError,
-  } = useAppStore()
+  const keyStatus = useAppStore((state) => state.keyStatus)
+  const dynamicModels = useAppStore((state) => state.dynamicModels)
+  const modelsLoading = useAppStore((state) => state.modelsLoading)
+  const modelsError = useAppStore((state) => state.modelsError)
+  const { refreshProvider, isPending } = useProviderModelCatalog()
   const selectedKeys = useMemo(() => new Set(models.map(modelKey)), [models])
   const query = search.trim().toLowerCase()
   const isAtLimit = models.length >= MAX_TRANSLATION_MODELS
 
-  const providerGroups = useMemo(() => PROVIDERS.map((provider) => {
+  const providerGroups = PROVIDERS.map((provider) => {
     const providerId = provider.id as Provider
-    const available = dynamicModels[providerId].length > 0
-      ? dynamicModels[providerId]
-      : provider.models
+    const pending = isPending(providerId)
+    const providerMatches = !query || provider.name.toLowerCase().includes(query)
+    // While the live catalog is loading, the bundled fallback list is hidden so that
+    // models the account may not have are never offered as real choices.
+    const available = pending
+      ? []
+      : dynamicModels[providerId].length > 0
+        ? dynamicModels[providerId]
+        : provider.models
     const deduped = dedupeModelsByFamily(providerId, available)
     const visibleModels = query
       ? deduped.filter((model) => {
           const name = formatModelName(providerId, model.id, model.name).toLowerCase()
           return name.includes(query)
             || model.id.toLowerCase().includes(query)
-            || provider.name.toLowerCase().includes(query)
+            || providerMatches
         })
       : deduped
-    return { provider, providerId, models: visibleModels }
-  }).filter((group) => group.models.length > 0), [dynamicModels, query])
-
-  const refreshProvider = async (provider: Provider) => {
-    const config = PROVIDERS.find((candidate) => candidate.id === provider)
-    const hasKey = config?.requiresApiKey === false || keyStatus[provider]
-    if (!hasKey || modelsLoading[provider]) return
-
-    setModelsLoading(provider, true)
-    setModelsError(provider, null)
-    try {
-      const result = await window.api.fetchModels(provider)
-      if (result.success && result.models.length > 0) {
-        setDynamicModels(provider, result.models)
-      } else {
-        setModelsError(provider, result.error || t.model_load_error)
-      }
-    } catch (_error) {
-      setModelsError(provider, t.model_load_error)
-    } finally {
-      setModelsLoading(provider, false)
-    }
-  }
+    const visible = pending ? providerMatches : visibleModels.length > 0
+    return { provider, providerId, pending, models: visibleModels, visible }
+  }).filter((group) => group.visible)
 
   const toggleModel = (selection: TranslationModelSelection) => {
     const key = modelKey(selection)
@@ -86,6 +70,27 @@ export function TranslationModelPicker({
     }
     if (isAtLimit) return
     onChange([...models, selection])
+  }
+
+  const keepFocusedModelVisible = (event: FocusEvent<HTMLButtonElement>) => {
+    const row = event.currentTarget
+    const scrollRegion = row.closest<HTMLElement>('.translate-model-available-list')
+    const providerGroup = row.closest<HTMLElement>('.translate-model-provider-group')
+    const providerHeading = providerGroup?.querySelector<HTMLElement>(
+      '.translate-model-provider-heading',
+    )
+    if (!scrollRegion || !providerHeading) return
+
+    const rowBounds = row.getBoundingClientRect()
+    const scrollBounds = scrollRegion.getBoundingClientRect()
+    const headingBounds = providerHeading.getBoundingClientRect()
+    const visibleTop = Math.max(scrollBounds.top, headingBounds.bottom)
+
+    if (rowBounds.top < visibleTop) {
+      scrollRegion.scrollTop += rowBounds.top - visibleTop
+    } else if (rowBounds.bottom > scrollBounds.bottom) {
+      scrollRegion.scrollTop += rowBounds.bottom - scrollBounds.bottom
+    }
   }
 
   return (
@@ -98,33 +103,20 @@ export function TranslationModelPicker({
 
         {models.length > 0 ? (
           <ul className="translate-model-selected-list">
-            {models.map((selection) => {
+            {models.map((selection, index) => {
               const key = modelKey(selection)
               const provider = PROVIDERS.find((candidate) => candidate.id === selection.provider)
               const modelName = formatModelName(selection.provider, selection.model)
               return (
-                <li
-                  key={key}
-                  className="translate-model-selected-item"
-                  aria-label={`${modelName} · ${provider?.name ?? selection.provider}`}
-                >
-                  <span className="translate-model-provider-icon" aria-hidden="true">
-                    <ProviderIcon provider={selection.provider} size={16} />
-                  </span>
-                  <span className="translate-model-selected-copy">
-                    <strong>{modelName}</strong>
-                    <span>{provider?.name ?? selection.provider}</span>
-                  </span>
-                  <Button
-                    size="xs"
-                    shape="icon"
-                    variant="neutral"
-                    appearance="ghost"
-                    aria-label={`${t.translate_models_remove}: ${modelName}`}
-                    onClick={() => toggleModel(selection)}
-                  >
-                    <XIcon />
-                  </Button>
+                <li key={key} className="translate-model-selected-item">
+                  <SelectedModelChip
+                    provider={selection.provider}
+                    modelName={modelName}
+                    providerName={provider?.name ?? selection.provider}
+                    positionLabel={t.translate_models_result_position(index + 1)}
+                    removeLabel={t.translate_models_remove}
+                    onRemove={() => toggleModel(selection)}
+                  />
                 </li>
               )
             })}
@@ -165,7 +157,7 @@ export function TranslationModelPicker({
           {providerGroups.length === 0 && (
             <p className="translate-model-empty" role="status">{t.model_picker_no_results}</p>
           )}
-          {providerGroups.map(({ provider, providerId, models: availableModels }) => {
+          {providerGroups.map(({ provider, providerId, pending, models: availableModels }) => {
             const hasKey = provider.requiresApiKey === false || keyStatus[providerId]
             const isLoading = modelsLoading[providerId]
             return (
@@ -195,6 +187,12 @@ export function TranslationModelPicker({
                 {modelsError[providerId] && (
                   <p className="translate-model-load-error" role="alert">{t.model_load_error}</p>
                 )}
+                {pending && (
+                  <p className="translate-model-loading" role="status">
+                    <SpinnerIcon className="translate-model-spinner" />
+                    {t.model_loading}
+                  </p>
+                )}
                 <div className="translate-model-options">
                   {availableModels.map((model) => {
                     const selection = { provider: providerId, model: model.id }
@@ -202,30 +200,24 @@ export function TranslationModelPicker({
                     const disabledByLimit = !isSelected && isAtLimit
                     const disabled = !hasKey || disabledByLimit
                     const modelName = formatModelName(providerId, model.id, model.name)
-                    const selectionLabel = isSelected
+                    const selectionLabel = !hasKey
+                      ? t.translate_models_needs_key
+                      : disabledByLimit
+                        ? t.translate_models_limit_reached
+                        : isSelected
                       ? t.translate_models_selected_state
                       : t.translate_models_select
                     return (
-                      <Button
+                      <ModelSelectionRow
                         key={model.id}
-                        size="md"
-                        shape="rect"
-                        variant={isSelected ? 'primary' : 'neutral'}
-                        appearance={isSelected ? 'soft' : 'ghost'}
+                        modelName={modelName}
+                        providerName={provider.name}
+                        selected={isSelected}
                         disabled={disabled}
-                        aria-pressed={isSelected}
-                        aria-describedby={disabledByLimit ? limitNoticeId : undefined}
-                        aria-label={`${modelName} · ${provider.name} · ${selectionLabel}`}
-                        title={model.id}
-                        onClick={() => toggleModel(selection)}
-                        className="translate-model-option"
-                      >
-                        <span className="translate-model-option-copy">
-                          <strong>{modelName}</strong>
-                          <span>{provider.name}</span>
-                        </span>
-                        {isSelected && <CheckIcon />}
-                      </Button>
+                        statusLabel={selectionLabel}
+                        onSelect={() => toggleModel(selection)}
+                        onFocus={keepFocusedModelVisible}
+                      />
                     )
                   })}
                 </div>

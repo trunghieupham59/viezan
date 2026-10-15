@@ -1,16 +1,21 @@
-name: Validate PR Title
+name: PR Checks
+
+# Kiểm tra metadata của PR: tiêu đề Conventional Commits + nhãn theo path.
+# Dùng pull_request_target để token có quyền ghi cả với PR từ fork. An toàn vì
+# không job nào checkout hay chạy code của PR.
 
 on:
-    pull_request:
-        types: [opened, edited, reopened, synchronize]
+    pull_request_target:
+        types: [opened, synchronize, reopened, edited]
 
 permissions:
+    contents: read
     pull-requests: write
     statuses: write
 
 jobs:
-    semantic-pr:
-        name: Conventional Commits
+    title:
+        name: Conventional Commits title
         runs-on: ubuntu-latest
         steps:
             - uses: amannn/action-semantic-pull-request@v6
@@ -45,3 +50,13 @@ jobs:
                       Subject của PR ("{subject}") phải bắt đầu bằng chữ thường.
                       Ví dụ hợp lệ: "feat: add streaming translate"
                   validateSingleCommit: false
+
+    labels:
+        name: Label by file paths
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/labeler@v7
+              with:
+                  repo-token: ${{ secrets.GITHUB_TOKEN }}
+                  configuration-path: .github/labeler.yml
+                  sync-labels: true

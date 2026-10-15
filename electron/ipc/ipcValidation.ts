@@ -14,6 +14,12 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/** Own-property check (ES2020-safe `Object.hasOwn`); blocks `__proto__` / `constructor` lookups. */
+export function hasOwnKey(obj: object, key: string): boolean {
+  // biome-ignore lint/suspicious/noPrototypeBuiltins: tsconfig lib is ES2020, which has no Object.hasOwn
+  return Object.prototype.hasOwnProperty.call(obj, key)
+}
+
 export function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
@@ -28,6 +34,11 @@ export function isOptionalBoolean(value: unknown): value is boolean | undefined 
 
 export function isSafeLanguageCode(value: unknown): value is string {
   return typeof value === 'string' && /^(auto|[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})?)$/.test(value)
+}
+
+/** A concrete language code. Unlike `isSafeLanguageCode`, the `auto` source placeholder is rejected. */
+export function isSafeTargetLanguageCode(value: unknown): value is string {
+  return isSafeLanguageCode(value) && value !== 'auto'
 }
 
 export interface ParsedProviderModel {

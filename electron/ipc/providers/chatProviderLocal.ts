@@ -13,13 +13,13 @@
 import { CHAT_RUNTIME_MESSAGES } from '../chatMessages'
 import type { ChatMessage } from '../chatValidation'
 import { MAX_CHAT_OUTPUT_TOKENS } from '../ipcConstants'
-import { LOCAL_AI_PLACEHOLDER_KEY, resolveLocalAiRequestModel } from '../localAi'
+import { keepOllamaModelLoaded, LOCAL_AI_PLACEHOLDER_KEY, resolveLocalAiRequestModel } from '../localAi'
+import { formatOpenAIChatMessages } from './chatProviderOpenAI'
 import {
   CHAT_STREAM_CANCELLED_MESSAGE,
   type ChatProviderOptions,
   type ChatStreamTokenHandler,
 } from './chatProviderTypes'
-import { formatOpenAIChatMessages } from './chatProviderOpenAI'
 
 
 /**
@@ -37,6 +37,7 @@ export async function chatWithLocal(
 ): Promise<string> {
   const OpenAI = (await import('openai')).default
   const local = await resolveLocalAiRequestModel(model)
+  if (local.engine === 'ollama') await keepOllamaModelLoaded(local.model)
   const client = new OpenAI({ apiKey: LOCAL_AI_PLACEHOLDER_KEY, baseURL: local.baseURL })
   const completion = await client.chat.completions.create({
     model: local.model,
@@ -66,6 +67,8 @@ export async function streamChatWithLocal(
   if (signal?.aborted) throw new Error(CHAT_STREAM_CANCELLED_MESSAGE)
   const OpenAI = (await import('openai')).default
   const local = await resolveLocalAiRequestModel(model)
+  if (local.engine === 'ollama') await keepOllamaModelLoaded(local.model, signal)
+  if (signal?.aborted) throw new Error(CHAT_STREAM_CANCELLED_MESSAGE)
   const client = new OpenAI({ apiKey: LOCAL_AI_PLACEHOLDER_KEY, baseURL: local.baseURL })
   let fullText = ''
   const stream = await client.chat.completions.create(

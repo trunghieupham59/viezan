@@ -1,3 +1,4 @@
+import { Button } from './atoms'
 /**
  * ImagePreviewThumbnail — reusable 32×32 image preview with hover-to-reveal remove button.
  *
@@ -31,14 +32,19 @@ export function ImagePreviewThumbnail({ src, alt, removeTitle, onRemove }: Image
                      border border-gray-200 dark:border-gray-700"
         />
         {/* × remove button — visible on hover */}
-        <button
+        <Button
+          size="xs"
+          shape="icon"
+          variant="danger"
+          appearance="soft"
+          aria-label={removeTitle}
           type="button"
           onClick={onRemove}
           title={removeTitle}
-          className="btn-icon btn-icon-xs absolute -top-2 -right-2 z-10 border-gray-700 bg-gray-700/90 text-white shadow-md opacity-0 group-hover:opacity-100 hover:border-gray-900 hover:bg-gray-900 hover:text-white"
+          className="absolute -top-2 -right-2 z-10 opacity-0 group-hover:opacity-100"
         >
           <XIcon className="w-3.5 h-3.5" />
-        </button>
+        </Button>
       </div>
     </div>
   )

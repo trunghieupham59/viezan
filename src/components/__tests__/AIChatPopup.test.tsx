@@ -69,6 +69,14 @@ describe('AIChatPopup quick window', () => {
     // injects results into the final system prompt, but the UI must NOT
     // expose the internal search query, sources list, or AI reasoning to
     // the user — only a small "Smart Thinking" indicator should be visible.
+    // Cloud provider: local models skip the AI routing call (rule-based intent instead).
+    vi.mocked(window.api.keychain.hasKey).mockResolvedValue({ exists: true })
+    act(() => {
+      useAppStore.setState({
+        selectedProvider: 'gemini',
+        keyStatus: { gemini: true, claude: false, openai: false, local: true },
+      })
+    })
     vi.mocked(window.api.chat).mockResolvedValueOnce({
       success: true,
       reply: JSON.stringify({

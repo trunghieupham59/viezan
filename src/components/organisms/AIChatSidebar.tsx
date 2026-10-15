@@ -60,6 +60,47 @@ function sessionMatchesQuery(session: ChatSession, query: string): boolean {
     .some((value) => value.toLocaleLowerCase().includes(query))
 }
 
+interface SessionListProps {
+  sessions: ChatSession[]
+  emptyLabel: string
+  activeSessionId: string | null
+  t: ReturnType<typeof useT>
+  onSelect: (id: string) => void
+  onDelete: (id: string) => void
+}
+
+/** Conversation rows (or the empty state) shared by the sidebar and the compact switcher. */
+function SessionList({ sessions, emptyLabel, activeSessionId, t, onSelect, onDelete }: SessionListProps) {
+  if (sessions.length === 0) {
+    return <p className="ai-chat-session-empty">{emptyLabel}</p>
+  }
+  return (
+    <ul className="ai-chat-session-list">
+      {sessions.map((session) => (
+        <ChatSessionListItem
+          key={session.id}
+          id={session.id}
+          title={session.title}
+          provider={session.provider}
+          model={session.model}
+          timeLabel={formatSessionTime(session.updatedAt, t)}
+          messageCount={session.messages.filter((message) => !message.isLoading && !message.error).length}
+          messageUnitLabel={t.history_chat_messages}
+          active={session.id === activeSessionId}
+          deleteLabel={t.history_chat_delete}
+          pendingResearchLabel={t.chat_deep_research_resume}
+          hasPendingResearch={Boolean(
+            session.deepResearchResumeState
+            && session.deepResearchResumeState.lastCompletedPhase !== 'synth'
+          )}
+          onSelect={onSelect}
+          onDelete={onDelete}
+        />
+      ))}
+    </ul>
+  )
+}
+
 /** Contextual navigation for AI Chat conversations only. */
 export function AIChatSidebar() {
   const {
@@ -267,7 +308,11 @@ export function AIChatSidebar() {
     >
       <div className="ai-chat-sidebar-header">
         {!effectiveCollapsed && <h2 className="ai-chat-sidebar-title">{t.nav_chat}</h2>}
-        <button
+        <Button
+          size="md"
+          shape="icon"
+          variant="neutral"
+          appearance="ghost"
           ref={sidebarToggleRef}
           type="button"
           className="ai-chat-sidebar-toggle"
@@ -295,7 +340,7 @@ export function AIChatSidebar() {
           {effectiveCollapsed
             ? <ChevronRightIcon className="h-4 w-4" />
             : <ChevronLeftIcon className="h-4 w-4" />}
-        </button>
+        </Button>
       </div>
 
       {effectiveCollapsed && (
@@ -381,37 +426,14 @@ export function AIChatSidebar() {
           </label>
           <div className="ai-chat-session-switcher-list">
             <div className="ai-chat-session-heading">{t.chat_sidebar_recent}</div>
-            {sessions.length === 0 ? (
-              <p className="ai-chat-session-empty">
-                {normalizedQuery ? t.chat_sidebar_no_results : t.chat_session_panel_empty}
-              </p>
-            ) : (
-              <ul className="ai-chat-session-list">
-                {sessions.map((session) => (
-                  <ChatSessionListItem
-                    key={session.id}
-                    id={session.id}
-                    title={session.title}
-                    provider={session.provider}
-                    model={session.model}
-                    timeLabel={formatSessionTime(session.updatedAt, t)}
-                    messageCount={session.messages.filter(
-                      (message) => !message.isLoading && !message.error,
-                    ).length}
-                    messageUnitLabel={t.history_chat_messages}
-                    active={session.id === activeChatSessionId}
-                    deleteLabel={t.history_chat_delete}
-                    pendingResearchLabel={t.chat_deep_research_resume}
-                    hasPendingResearch={Boolean(
-                      session.deepResearchResumeState
-                      && session.deepResearchResumeState.lastCompletedPhase !== 'synth'
-                    )}
-                    onSelect={handleSelect}
-                    onDelete={deleteChatSession}
-                  />
-                ))}
-              </ul>
-            )}
+            <SessionList
+              sessions={sessions}
+              emptyLabel={normalizedQuery ? t.chat_sidebar_no_results : t.chat_session_panel_empty}
+              activeSessionId={activeChatSessionId}
+              t={t}
+              onSelect={handleSelect}
+              onDelete={deleteChatSession}
+            />
           </div>
         </div>,
         document.body,
@@ -454,35 +476,14 @@ export function AIChatSidebar() {
 
         <div className="ai-chat-session-section">
           <div className="ai-chat-session-heading">{t.chat_sidebar_recent}</div>
-          {sessions.length === 0 ? (
-            <p className="ai-chat-session-empty">
-              {normalizedQuery ? t.chat_sidebar_no_results : t.chat_session_panel_empty}
-            </p>
-          ) : (
-            <ul className="ai-chat-session-list">
-              {sessions.map((session) => (
-                <ChatSessionListItem
-                  key={session.id}
-                  id={session.id}
-                  title={session.title}
-                  provider={session.provider}
-                  model={session.model}
-                  timeLabel={formatSessionTime(session.updatedAt, t)}
-                  messageCount={session.messages.filter((message) => !message.isLoading && !message.error).length}
-                  messageUnitLabel={t.history_chat_messages}
-                  active={session.id === activeChatSessionId}
-                  deleteLabel={t.history_chat_delete}
-                  pendingResearchLabel={t.chat_deep_research_resume}
-                  hasPendingResearch={Boolean(
-                    session.deepResearchResumeState
-                    && session.deepResearchResumeState.lastCompletedPhase !== 'synth'
-                  )}
-                  onSelect={handleSelect}
-                  onDelete={deleteChatSession}
-                />
-              ))}
-            </ul>
-          )}
+          <SessionList
+            sessions={sessions}
+            emptyLabel={normalizedQuery ? t.chat_sidebar_no_results : t.chat_session_panel_empty}
+            activeSessionId={activeChatSessionId}
+            t={t}
+            onSelect={handleSelect}
+            onDelete={deleteChatSession}
+          />
         </div>
       </div>
     </aside>

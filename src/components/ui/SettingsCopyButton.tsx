@@ -1,3 +1,4 @@
+import { Button } from './atoms'
 /**
  * SettingsCopyButton — bordered copy button used in Settings panels.
  * Toggles between a "copy" state and a neutral "copied" confirmation state.
@@ -26,17 +27,20 @@ export function SettingsCopyButton({
   title,
 }: SettingsCopyButtonProps) {
   return (
-    <button
+    <Button
+      size="sm"
+      shape="rect"
+      variant={copied ? 'primary' : 'neutral'}
+      appearance={copied ? 'soft' : 'outline'}
       type="button"
       onClick={onClick}
       title={title}
-      className={`btn-secondary btn-xs ${copied ? 'btn-active' : ''}`}
     >
       {copied ? (
         <><CheckIcon className="w-3 h-3" />{labelCopied}</>
       ) : (
         <><CopyIcon className="w-3 h-3" />{labelCopy}</>
       )}
-    </button>
+    </Button>
   )
 }
