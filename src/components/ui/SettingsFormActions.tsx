@@ -1,3 +1,4 @@
+import { Button } from './atoms'
 /**
  * SettingsFormActions — cancel + submit button pair for settings forms.
  * Handles optional submitting spinner and disabled state.
@@ -15,8 +16,8 @@ interface SettingsFormActionsProps {
   /** Shows a spinner on the submit button while an async action is running. */
   submitting?: boolean
   /**
-   * 'sm' → py-1 padding (compact inline forms)
-   * 'md' → py-1.5 padding (default, roomier forms)
+   * 'sm' → compact controls (32px)
+   * 'md' → default form controls (36px)
    */
   size?: 'sm' | 'md'
   /** Adds pt-1 top-padding to the container row. */
@@ -33,26 +34,30 @@ export function SettingsFormActions({
   size = 'md',
   topPadding = false,
 }: SettingsFormActionsProps) {
-  const buttonSize = size === 'sm' ? 'btn-xs' : 'btn-sm'
-
   return (
     <div className={`flex gap-2 justify-end${topPadding ? ' pt-1' : ''}`}>
-      <button
+      <Button
+        size={size}
+        shape="rect"
+        variant="neutral"
+        appearance="outline"
         type="button"
         onClick={onCancel}
-        className={`btn-secondary ${buttonSize}`}
       >
         {cancelLabel}
-      </button>
-      <button
+      </Button>
+      <Button
+        size={size}
+        shape="rect"
+        variant="primary"
+        appearance="solid"
         type="button"
         onClick={onSubmit}
         disabled={disabled || submitting}
-        className={`btn-primary ${buttonSize}`}
       >
         {submitting && <SpinnerIcon className="w-3 h-3 animate-spin" />}
         {submitLabel}
-      </button>
+      </Button>
     </div>
   )
 }

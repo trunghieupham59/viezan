@@ -431,7 +431,10 @@ describe('translate hotkey flow', () => {
 
     expect(env.exec).toHaveBeenCalled()
     for (const call of env.exec.mock.calls) {
-      expect(call[1]).toMatchObject({ timeout: 5_000 })
+      expect(call[1]).toMatchObject({ timeout: 5_000, windowsHide: true })
+      if (process.platform === 'win32') {
+        expect(call[0]).toContain('-NonInteractive -WindowStyle Hidden')
+      }
     }
   })
 

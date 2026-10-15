@@ -13,6 +13,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { TRANSLATIONS, type Translations } from '../i18n'
 import type { ChatSession, LiveSession } from '../types'
+import { normalizeChatTaskState } from '../types/chatTask'
 import { type ChatSlice, createChatSlice } from './slices/chatSlice'
 import { type CoreSlice, createCoreSlice } from './slices/coreSlice'
 import { createDictionarySlice, type DictionarySlice } from './slices/dictionarySlice'
@@ -27,10 +28,10 @@ type AppState = CoreSlice & SettingsSlice & HistorySlice & ChatSlice & Dictionar
 const STORE_PERSIST_KEY = 'translate-app-settings'
 
 /**
- * Persist schema v1 removes the renderer-only Web Speech STT mode. Voice input
- * now always records audio before the Electron main process transcribes it.
+ * Schema v3 separates owned task instructions from drafts. It retains v2 task
+ * configuration and the v1 Web Speech STT normalization.
  */
-export const STORE_PERSIST_VERSION = 1
+export const STORE_PERSIST_VERSION = 3
 
 const PERSISTED_STT_PROVIDERS = new Set(['auto', 'whisper', 'google', 'groq'])
 
@@ -46,13 +47,29 @@ export function migratePersistedStore<T>(persistedState: T): T {
   }
 
   const state = persistedState as Record<string, unknown>
-  if (typeof state.sttProvider === 'string' && PERSISTED_STT_PROVIDERS.has(state.sttProvider)) {
-    return persistedState
+  const migrateDraft = (draft: unknown, value: unknown) => {
+    const taskState = normalizeChatTaskState(value)
+    const applied = taskState?.applied
+    if (!applied || applied.placement === 'instruction') return { draft, taskState }
+    // Move only the exact prefix recorded by Apply; edited/unowned text stays intact.
+    if (typeof draft === 'string' && draft.startsWith(applied.prompt)) {
+      return { draft: draft.slice(applied.prompt.length), taskState: { ...taskState, applied: { ...applied, placement: 'instruction' as const } } }
+    }
+    return { draft, taskState: { ...taskState, applied: null } }
   }
-
+  const pending = migrateDraft(state.chatPendingDraft, state.chatPendingTaskState)
   return {
     ...state,
-    sttProvider: 'auto',
+    sttProvider: typeof state.sttProvider === 'string' && PERSISTED_STT_PROVIDERS.has(state.sttProvider) ? state.sttProvider : 'auto',
+    ...(typeof pending.draft === 'string' ? { chatPendingDraft: pending.draft } : {}),
+    chatPendingTaskState: pending.taskState,
+    ...(Array.isArray(state.chatSessions) ? {
+      chatSessions: state.chatSessions.map((session) => {
+        if (!session || typeof session !== 'object') return session
+        const migrated = migrateDraft(session.draftInput, session.taskState)
+        return { ...session, ...(typeof migrated.draft === 'string' ? { draftInput: migrated.draft } : {}), taskState: migrated.taskState }
+      }),
+    } : {}),
   } as T
 }
 
@@ -286,6 +303,7 @@ export const useAppStore = create<AppState>()(
         chatSystemPrompt: state.chatSystemPrompt,
         systemPromptPresets: state.systemPromptPresets,
         chatPendingDraft: state.chatPendingDraft,
+        chatPendingTaskState: state.chatPendingTaskState,
         chatPendingDeepResearchMode: state.chatPendingDeepResearchMode,
         chatPendingWebSearchMode: state.chatPendingWebSearchMode,
         chatPendingImageMode: state.chatPendingImageMode,

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Button } from '@/components/ui/atoms'
 import { MAX_TRANSLATE_IMAGE_DIMENSION } from '../../constants/image'
 import { useT } from '../../store/useAppStore'
 import { resizeImageFile } from '../../utils/imageUtils'
@@ -86,7 +87,7 @@ export function ImageTranslator({ onImageReady, onClose }: ImageTranslatorProps)
       aria-label={t.image_translate_title}
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
     >
-      {/* Backdrop */}
+      {/* Native full-surface dismiss target; fixed-size Button would constrain the backdrop. */}
       <button
         type="button"
         aria-label={t.translate_error_dismiss}
@@ -108,13 +109,17 @@ export function ImageTranslator({ onImageReady, onClose }: ImageTranslatorProps)
               {t.image_translate_title}
             </h2>
           </div>
-          <button
+          <Button
+            size="md"
+            shape="icon"
+            variant="neutral"
+            appearance="ghost"
             type="button"
             onClick={onClose}
-            className="btn-icon btn-icon-sm"
+            aria-label={t.translate_error_dismiss}
           >
             <XIcon className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
 
         {/* Body */}

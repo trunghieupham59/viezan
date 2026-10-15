@@ -14,6 +14,7 @@
  * Mounted by quick-chat.html, not by the main app shell.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Button } from '@/components/ui/atoms'
 import { MAX_CHAT_INPUT_CHARS } from '../constants/providers'
 import type { ChatMessage } from '../services/chatService'
 import { smartThinkingService } from '../services/smartThinkingService'
@@ -524,21 +525,24 @@ export function AIChatPopup() {
 
         {/* === Header / prompt bar ============================================ */}
         <div className="quick-chat-header titlebar-drag flex flex-shrink-0 items-center gap-2 border-b px-3 py-2.5">
-          <button
+          <Button
+            size="md"
+            shape="icon"
+            variant="neutral"
+            appearance="ghost"
+            aria-label={hasContext ? `New conversation (${primaryModifierShortcut}+N)` : 'Quick AI'}
             type="button"
             onClick={hasContext ? handleNewConversation : undefined}
             disabled={!hasContext}
             title={hasContext ? `New conversation (${primaryModifierShortcut}+N)` : 'Quick AI'}
-            className={`titlebar-no-drag btn-icon btn-icon-lg flex-shrink-0 ${
-              hasContext ? '' : 'cursor-default'
-            }`}
+            className={`titlebar-no-drag flex-shrink-0 ${hasContext ? "" : "cursor-default"}`}
           >
             {hasContext ? (
               <PlusIcon className="h-4 w-4 text-gray-700" />
             ) : (
               <AppLogoIcon size={24} />
             )}
-          </button>
+          </Button>
 
           <div className="titlebar-no-drag relative flex min-w-0 flex-1 items-center">
             <textarea
@@ -554,24 +558,32 @@ export function AIChatPopup() {
               aria-label={t.ai_chat_popup_title}
             />
             {input && !isSending && (
-              <button
+              <Button
+                size="xs"
+                shape="icon"
+                variant="neutral"
+                appearance="ghost"
                 type="button"
                 onClick={handleClearInput}
-                className="btn-icon btn-icon-xs absolute right-1.5 top-1/2 -translate-y-1/2 border-transparent bg-transparent text-gray-400 shadow-none"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2"
                 aria-label={t.chat_clear}
                 title={t.chat_clear}
               >
                 <XIcon className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             )}
           </div>
 
-          <button
+          <Button
+            size="md"
+            shape="icon"
+            variant="primary"
+            appearance="solid"
             type="button"
             onClick={handleSend}
             disabled={!canSend}
             title={t.chat_send}
-            className="titlebar-no-drag btn-primary btn-icon-lg flex-shrink-0 p-0"
+            className="titlebar-no-drag flex-shrink-0"
             aria-label={t.chat_send}
           >
             {isSending ? (
@@ -579,7 +591,7 @@ export function AIChatPopup() {
             ) : (
               <SendIcon className="h-4 w-4" />
             )}
-          </button>
+          </Button>
         </div>
 
         {/* === Body — Q&A list ============================================== */}
@@ -593,13 +605,17 @@ export function AIChatPopup() {
                 <AppLogoIcon size={28} />
               </div>
               <p className="max-w-sm text-sm leading-6" style={{ color: 'var(--vzn-text-muted)' }}>{t.chat_error_no_key}</p>
-              <button
+              <Button
+                size="sm"
+                shape="rect"
+                variant="neutral"
+                appearance="outline"
                 type="button"
                 onClick={handleOpenSettings}
-                className="titlebar-no-drag btn-secondary btn-sm"
+                className="titlebar-no-drag"
               >
                 {t.chat_error_open_settings}
-              </button>
+              </Button>
             </EmptyContainer>
           ) : inputTooLong ? (
             <EmptyContainer>
@@ -703,10 +719,14 @@ export function AIChatPopup() {
 
         {/* === Footer ========================================================= */}
         <div className="quick-chat-footer titlebar-drag flex flex-shrink-0 items-center justify-between gap-3 border-t px-3 py-2 text-sm">
-          <button
+          <Button
+            size="xs"
+            shape="rect"
+            variant="neutral"
+            appearance="ghost"
             type="button"
             onClick={handleOpenSettings}
-            className="titlebar-no-drag btn-ghost btn-xs group min-w-0"
+            className="titlebar-no-drag group min-w-0"
             title={hasKey ? 'Change model in Settings' : t.chat_error_open_settings}
           >
             <span
@@ -733,14 +753,17 @@ export function AIChatPopup() {
                 · {tpl(t.ai_chat_popup_turns, { count: turnCount })}
               </span>
             )}
-          </button>
+          </Button>
 
           <div className="titlebar-no-drag flex flex-shrink-0 items-center gap-1">
-            <button
+            <Button
+              size="xs"
+              shape="rect"
+              variant="neutral"
+              appearance="ghost"
               type="button"
               onClick={() => handleCopy(response, 'footer')}
               disabled={!response.trim()}
-              className="btn-ghost btn-xs"
             >
               {copiedKey === 'footer' ? (
                 <CheckIcon className="h-3.5 w-3.5 text-gray-700" />
@@ -748,14 +771,17 @@ export function AIChatPopup() {
                 <CopyIcon className="h-3.5 w-3.5" />
               )}
               <span>{copiedKey === 'footer' ? t.chat_copied : t.chat_copy}</span>
-            </button>
+            </Button>
 
             <span className="quick-chat-divider mx-0.5 h-4 w-px" aria-hidden />
 
-            <button
+            <Button
+              size="xs"
+              shape="rect"
+              variant="neutral"
+              appearance="ghost"
               type="button"
               onClick={handleOpenInChat}
-              className="btn-ghost btn-xs"
             >
               <span>{t.ai_chat_popup_open_in_chat}</span>
               <ArrowRightIcon className="h-3 w-3" />
@@ -763,7 +789,7 @@ export function AIChatPopup() {
                 <KeyCap>{primaryModifierKey}</KeyCap>
                 <KeyCap>↵</KeyCap>
               </span>
-            </button>
+            </Button>
           </div>
         </div>
       </section>
@@ -800,11 +826,14 @@ function CardActions({
 }) {
   return (
     <div className="quick-chat-card-actions titlebar-no-drag flex items-center justify-end gap-1 border-t px-3 py-1.5">
-      <button
+      <Button
+        size="xs"
+        shape="rect"
+        variant="neutral"
+        appearance="ghost"
         type="button"
         onClick={onCopy}
         disabled={copyDisabled}
-        className="btn-ghost btn-xs"
         title={copyLabel}
       >
         {isCopied ? (
@@ -813,17 +842,20 @@ function CardActions({
           <CopyIcon className="h-3 w-3" />
         )}
         <span>{isCopied ? copiedLabel : copyLabel}</span>
-      </button>
-      <button
+      </Button>
+      <Button
+        size="xs"
+        shape="rect"
+        variant="neutral"
+        appearance="ghost"
         type="button"
         onClick={onRegenerate}
         disabled={!onRegenerate}
-        className="btn-ghost btn-xs"
         title={regenerateLabel}
       >
         <RefreshIcon className="h-3 w-3" />
         <span>{regenerateLabel}</span>
-      </button>
+      </Button>
     </div>
   )
 }

@@ -1163,6 +1163,7 @@ function removeOllamaModelWithCli(model: string): Promise<LocalAiModelActionResu
     const child = spawn(getOllamaCliExecutable(), ['rm', model], {
       env: { ...process.env, OLLAMA_HOST: '127.0.0.1:11434' },
       stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
     })
     let output = ''
     const append = (chunk: Buffer | string) => {

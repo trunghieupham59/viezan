@@ -1,3 +1,4 @@
+import { Button } from './atoms'
 /**
  * ButtonGroup — generic "pick one from a set" button row.
  *
@@ -39,15 +40,18 @@ export function ButtonGroup<T extends string | number>({
   return (
     <div className={`segmented-control ${containerClassName}`}>
       {options.map((opt) => (
-        <button
+        <Button
+          size="md"
+          shape="rect"
+          variant={value === opt.value ? 'primary' : 'neutral'}
+          appearance={value === opt.value ? 'soft' : 'ghost'}
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
           aria-pressed={value === opt.value}
-          className={`btn-segment px-4 shadow-none ${value === opt.value ? 'btn-segment-active' : ''}`}
         >
           {opt.label}
-        </button>
+        </Button>
       ))}
     </div>
   )

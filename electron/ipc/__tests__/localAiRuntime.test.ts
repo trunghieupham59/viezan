@@ -325,6 +325,11 @@ describe('model uninstall', () => {
     mockCli(1, `Error: model '${MODEL}' not found`)
 
     expect(await uninstallLocalAiModel(MODEL)).toEqual({ success: true, model: MODEL })
+    expect(cp.spawn).toHaveBeenCalledWith(
+      expect.any(String),
+      ['rm', MODEL],
+      expect.objectContaining({ windowsHide: true }),
+    )
   })
 
   it('still fails when the model is not found without any preceding timeout', async () => {
@@ -390,6 +395,7 @@ describe('managed Ollama runtime', () => {
     expect(first.available).toBe(false)
     expect(cp.spawn).toHaveBeenCalledTimes(1)
     expect(cp.spawn.mock.calls[0][1]).toEqual(['serve'])
+    expect(cp.spawn.mock.calls[0][2]).toMatchObject({ windowsHide: true })
 
     // Automatic request within the cool-down: no spawn, no waiting.
     const startedAt = Date.now()
