@@ -48,11 +48,17 @@ html:not(.dark) .chat-composer {
 }
 
 .chat-input-field {
-  min-height: 48px;
-  padding: 12px 14px 8px;
+  min-height: var(--vzn-space-12);
+  max-height: var(--vzn-chat-textarea-max-height);
+  overflow-y: auto;
+  padding: var(--vzn-space-3) var(--vzn-space-4) var(--vzn-space-2);
   color: var(--vzn-text-strong);
-  font-size: 15px;
-  line-height: 1.45;
+  font-size: var(--vzn-font-size-subtitle);
+  line-height: var(--vzn-line-normal);
+}
+
+.chat-page .chat-input-field {
+  padding: var(--vzn-space-1) var(--vzn-space-0);
 }
 
 .chat-input-field::placeholder,
@@ -285,26 +291,40 @@ html:not(.dark) .chat-research-final {
   min-height: 0;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: var(--vzn-space-6);
+  overflow: hidden;
+  padding: 0 var(--vzn-chat-local-gutter) var(--vzn-space-5);
+}
+
+.chat-empty-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   overflow-y: auto;
-  padding: var(--vzn-space-8) var(--vzn-chat-local-gutter) var(--vzn-space-5);
+  overflow-x: hidden;
+  overflow-anchor: none;
+  scrollbar-gutter: stable both-edges;
+  padding: var(--vzn-space-6) 0 0;
 }
 
 .chat-empty-hero {
   display: flex;
   width: min(100%, var(--vzn-chat-local-stage-max));
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--vzn-space-6);
+  gap: var(--vzn-space-3);
 }
 
 .chat-hero-mark {
   display: grid;
-  width: 60px;
-  height: 60px;
+  width: var(--vzn-brand-mark-lg);
+  height: var(--vzn-brand-mark-lg);
   place-items: center;
   border: 0;
   border-radius: 0;
@@ -323,10 +343,9 @@ html:not(.dark) .chat-research-final {
 .chat-empty-heading {
   margin: 0;
   color: var(--vzn-text-strong);
-  font-size: clamp(25px, 3vw, 36px);
-  font-weight: 450;
-  letter-spacing: -0.035em;
-  line-height: 1.16;
+  font-size: var(--vzn-font-size-display);
+  font-weight: 400;
+  line-height: var(--vzn-line-tight);
   text-align: center;
   text-wrap: balance;
 }
@@ -334,14 +353,14 @@ html:not(.dark) .chat-research-final {
 .chat-suggestion-grid {
   display: grid;
   width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--vzn-space-3);
 }
 
 .chat-empty-composer {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
+  /* Independent flex row at the bottom; the hero scrolls above it. */
+  position: static;
+  flex: 0 0 auto;
   width: min(100%, var(--vzn-chat-local-composer-max));
   margin-top: 0;
   padding-top: 0;
@@ -351,6 +370,24 @@ html:not(.dark) .chat-research-final {
 .chat-page-composer {
   min-height: var(--vzn-composer-min-height);
   border-radius: var(--vzn-radius-lg);
+}
+
+.chat-composer-content {
+  min-height: inherit;
+}
+
+.chat-composer-toolbar {
+  margin-top: auto;
+}
+
+.chat-composer-actions .ai-configuration-anchor {
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.chat-composer-actions .ai-model-field--compact {
+  max-width: 100%;
+  min-width: 0;
 }
 
 .chat-active-composer-footer {
@@ -397,6 +434,9 @@ html:not(.dark) .chat-research-final {
 /* Prompt cards are quiet neutral surfaces; tones are reserved for icons. */
 .prompt-card.ui-button,
 .chat-suggest-chip {
+  /* Rich cards share button states but grow beyond the toolbar control grid. */
+  --vzn-button-height: auto;
+  --vzn-button-min-height: var(--vzn-prompt-card-min-height);
   --vzn-button-bg: var(--vzn-surface);
   --vzn-button-border: var(--vzn-border);
   --vzn-button-fg: var(--vzn-text);
@@ -931,7 +971,7 @@ html.dark .chat-suggest-chip:hover {
   color: inherit;
   font-size: 13px;
   font-weight: 500;
-  line-height: 1.3;
+  line-height: var(--vzn-line-normal);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -942,7 +982,7 @@ html.dark .chat-suggest-chip:hover {
   overflow: hidden;
   color: var(--vzn-text-soft);
   font-size: 11px;
-  line-height: 1.3;
+  line-height: var(--vzn-line-normal);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1016,7 +1056,7 @@ html.dark .chat-suggest-chip:hover {
 
 @media (max-width: 720px) {
   .chat-empty-state {
-    padding-inline: 12px;
+    padding-inline: var(--vzn-space-3);
   }
 
   .chat-suggestion-grid {
@@ -1051,13 +1091,12 @@ html.dark .chat-suggest-chip:hover {
     gap: var(--vzn-space-2);
   }
 
-  .chat-page .chat-empty-state {
-    justify-content: flex-start;
-    padding-top: var(--vzn-space-5);
+  .chat-page .chat-empty-scroll {
+    padding-top: var(--vzn-space-3);
   }
 
   .chat-page .chat-empty-hero {
-    gap: var(--vzn-space-4);
+    gap: var(--vzn-space-3);
   }
 
   .chat-page .chat-page-composer {
@@ -1151,3 +1190,73 @@ html.dark .chat-suggest-chip:hover {
   }
 }
 
+
+/* Task choices share the empty-state stage and preserve the single composer. */
+.chat-task-starters {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-4);
+}
+.chat-page .chat-suggestion-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.chat-task-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--vzn-space-2);
+}
+.chat-task-tabs > .ui-button {
+  min-width: 0;
+}
+.chat-task-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-3);
+  text-align: start;
+}
+.chat-task-config-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--vzn-space-2);
+}
+.chat-task-option-field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.chat-task-instructions {
+  font-size: var(--vzn-font-size-sm);
+  color: var(--vzn-text-muted);
+}
+.chat-task-instructions p { margin-top: var(--vzn-space-2); }
+.chat-task-hint {
+  margin: 0;
+  font-size: var(--vzn-font-size-sm);
+  color: var(--vzn-text-muted);
+}
+.chat-task-options[hidden] {
+  display: none;
+}
+.chat-task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--vzn-space-2);
+}
+
+@container app-main (max-width: 479px) {
+  .chat-page .chat-suggestion-grid { grid-template-columns: 1fr; }
+  .chat-task-option-field { flex-basis: 100%; }
+  .chat-task-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .chat-composer-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--vzn-space-2);
+  }
+  .chat-composer-actions {
+    justify-content: flex-end;
+  }
+}

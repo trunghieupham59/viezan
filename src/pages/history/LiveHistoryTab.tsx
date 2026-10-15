@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from '@/components/ui/atoms'
 import { MarkdownText } from '../../components/MarkdownText'
 import { HistoryBulkHeader } from '../../components/ui/HistoryBulkHeader'
 import { HistoryDeleteButton } from '../../components/ui/HistoryDeleteButton'
@@ -186,14 +187,17 @@ export function LiveHistoryTab({ query }: LiveHistoryTabProps) {
 
                       {/* Actions */}
                       <div className="flex items-center gap-2">
-                        <button
+                        <Button
+                          size="sm"
+                          shape="rect"
+                          variant="neutral"
+                          appearance="outline"
                           type="button"
                           onClick={() => handleOpenLive(session.id)}
-                          className="btn-secondary btn-sm"
                         >
                           <MicrophoneIcon className="w-3.5 h-3.5" />
                           {t.history_live_view}
-                        </button>
+                        </Button>
                         <HistoryDeleteButton onClick={() => deleteLiveSession(session.id)} label={t.history_live_delete} />
                       </div>
                     </div>

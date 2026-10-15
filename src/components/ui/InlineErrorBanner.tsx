@@ -1,8 +1,10 @@
+import { Button } from './atoms'
 import { AlertTriangleIcon, XIcon } from './icons'
 
 export interface InlineErrorBannerProps {
   message: string
   onDismiss?: () => void
+  dismissLabel?: string
   retryLabel?: string
   onRetry?: () => void
 }
@@ -14,6 +16,7 @@ export interface InlineErrorBannerProps {
 export function InlineErrorBanner({
   message,
   onDismiss,
+  dismissLabel,
   retryLabel,
   onRetry,
 }: InlineErrorBannerProps) {
@@ -22,22 +25,29 @@ export function InlineErrorBanner({
       <AlertTriangleIcon className="ui-error-icon w-3.5 h-3.5" />
       <span className="flex-1">{message}</span>
       {onDismiss && (
-        <button
+        <Button
+          size="sm"
+          shape="icon"
+          variant="neutral"
+          appearance="ghost"
+          aria-label={dismissLabel}
           type="button"
           onClick={onDismiss}
-          className="btn-icon btn-icon-sm btn-icon-danger"
         >
           <XIcon className="w-3 h-3" />
-        </button>
+        </Button>
       )}
       {onRetry && retryLabel && (
-        <button
+        <Button
+          size="sm"
+          shape="rect"
+          variant="neutral"
+          appearance="ghost"
           type="button"
           onClick={onRetry}
-          className="btn-link ui-error-text text-xs"
         >
           {retryLabel}
-        </button>
+        </Button>
       )}
     </div>
   )

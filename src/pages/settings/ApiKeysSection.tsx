@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/atoms'
 import { ApiKeyInput } from '../../components/ApiKeyInput'
 import { DeepResearchApiSection } from '../../components/chat/DeepResearchApiSection'
 import { CostOverviewCard } from '../../components/cost/CostOverviewCard'
@@ -113,24 +114,30 @@ function LocalAiProviderCard({
           </p>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
-          <button
+          <Button
+            size="md"
+            shape="rect"
+            variant="neutral"
+            appearance="outline"
             type="button"
             onClick={onBenchmark}
             disabled={benchmarking}
-            className="btn-secondary btn-sm"
           >
             {benchmarking ? <SpinnerIcon className="w-3.5 h-3.5 animate-spin" /> : null}
             {benchmarking ? t.settings_local_ai_benchmarking : t.settings_local_ai_benchmark}
-          </button>
-          <button
+          </Button>
+          <Button
+            size="md"
+            shape="rect"
+            variant="neutral"
+            appearance="outline"
             type="button"
             onClick={onRefresh}
             disabled={loading}
-            className="btn-secondary btn-sm"
           >
             {loading ? <SpinnerIcon className="w-3.5 h-3.5 animate-spin" /> : <RefreshIcon className="w-3.5 h-3.5" />}
             {t.model_refresh}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -217,14 +224,18 @@ function LocalAiProviderCard({
             {canDownloadModels ? (
               <span className="ui-meta text-gray-400">{t.settings_local_ai_download_hint}</span>
             ) : (
-              <button
+              <Button
+                size="md"
+                shape="rect"
+                variant="primary"
+                appearance="solid"
                 type="button"
                 onClick={onInstallOllama}
                 disabled={openingRuntimePage}
-                className="btn-primary btn-sm flex-shrink-0"
+                className="flex-shrink-0"
               >
                 {t.settings_local_ai_install_ollama}
-              </button>
+              </Button>
             )}
           </div>
 
@@ -279,14 +290,15 @@ function LocalAiProviderCard({
                       <p className="text-gray-500 dark:text-gray-400">{model.description}</p>
                     </div>
                     {canDownloadModels ? (
-                      <button
+                      <Button
+                        size="md"
+                        shape="rect"
+                        variant={model.installed ? 'danger' : 'primary'}
+                        appearance={model.installed ? 'soft' : 'solid'}
                         type="button"
                         onClick={() => model.installed ? onUninstallModel(model.id) : onDownloadModel(model.id)}
                         disabled={anyDownloading || Boolean(uninstallingModel)}
-                        className={[
-                          'btn-sm flex-shrink-0',
-                          model.installed ? 'btn-danger' : 'btn-primary',
-                        ].join(' ')}
+                        className="flex-shrink-0"
                       >
                         {(isDownloading || isUninstalling) && <SpinnerIcon className="w-3.5 h-3.5 animate-spin" />}
                         {!model.installed && !isDownloading && <DownloadIcon className="w-3.5 h-3.5" />}
@@ -296,7 +308,7 @@ function LocalAiProviderCard({
                           : isUninstalling
                             ? t.settings_local_ai_uninstalling
                             : buttonLabel}
-                      </button>
+                      </Button>
                     ) : (
                       <span className="hidden flex-shrink-0 settings-inset rounded-lg px-3 py-1.5 font-medium text-gray-400 sm:block">
                         {buttonLabel}
@@ -691,13 +703,16 @@ export function ApiKeysSection() {
           <h2 className="section-label">{t.settings_web_search_section}</h2>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             {t.settings_web_search_desc_prefix}{' '}
-            <button
+            <Button
+              size="md"
+              shape="rect"
+              variant="neutral"
+              appearance="ghost"
               type="button"
               onClick={() => window.api?.openExternal(JINA_DOCS_URL)}
-              className="btn-link"
             >
               Jina AI
-            </button>
+            </Button>
             {' '}{t.settings_web_search_desc_suffix}
           </p>
         </div>

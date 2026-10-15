@@ -22,28 +22,28 @@ const TRAY_LABELS: Record<TrayLocale, TrayLabels> = {
 
 type CloseAction = 'tray' | 'quit' | 'cancel'
 
-type CloseDialogLabels = { message: string; detail: string; tray: string; quit: string; cancel: string }
+type CloseDialogLabels = { title: string; message: string; tray: string; quit: string; cancel: string }
 
 const CLOSE_DIALOG_LABELS: Record<TrayLocale, CloseDialogLabels> = {
   en: {
-    message: 'Close Viezan?',
-    detail: 'Viezan can keep running in the system tray, or quit completely.',
-    tray: 'Minimize to tray',
-    quit: 'Quit completely',
+    title: 'Close Viezan',
+    message: 'Do you want Viezan to keep running in the background?',
+    tray: 'Run in background',
+    quit: 'Quit',
     cancel: 'Cancel',
   },
   vi: {
-    message: 'Đóng Viezan?',
-    detail: 'Viezan có thể tiếp tục chạy nền ở khay hệ thống, hoặc thoát hẳn.',
-    tray: 'Thu nhỏ xuống khay',
+    title: 'Đóng Viezan',
+    message: 'Bạn muốn Viezan tiếp tục chạy nền?',
+    tray: 'Chạy nền',
     quit: 'Thoát hẳn',
     cancel: 'Hủy',
   },
   ja: {
-    message: 'Viezan を閉じますか？',
-    detail: 'Viezan はシステムトレイで実行を続けることも、完全に終了することもできます。',
-    tray: 'トレイに最小化',
-    quit: '完全に終了',
+    title: 'Viezan を閉じる',
+    message: 'Viezan をバックグラウンドで実行し続けますか？',
+    tray: 'バックグラウンドで実行',
+    quit: '終了',
     cancel: 'キャンセル',
   },
 }
@@ -87,9 +87,8 @@ export async function promptCloseAction(window: BrowserWindow, osLocale: string 
   const actions: CloseAction[] = ['tray', 'quit', 'cancel']
   const { response } = await dialog.showMessageBox(window, {
     type: 'question',
-    title: 'Viezan',
+    title: labels.title,
     message: labels.message,
-    detail: labels.detail,
     buttons: [labels.tray, labels.quit, labels.cancel],
     defaultId: 0,
     cancelId: 2,
@@ -101,6 +100,8 @@ export async function promptCloseAction(window: BrowserWindow, osLocale: string 
 export interface AppTrayOptions {
   /** Absolute path of a PNG/ICO to use as the tray icon. */
   iconPath: string
+  /** Defaults to the running OS; Windows uses the ICO's native DPI frames. */
+  platform?: NodeJS.Platform
   /** Overrides the localized tooltip, e.g. "Viezan (Dev)" for a development run. */
   tooltip?: string
   osLocale: string | undefined
@@ -117,7 +118,13 @@ export function createAppTray(options: AppTrayOptions): Tray | null {
   }
 
   const labels = getTrayLabels(options.osLocale)
-  const tray = new Tray(source.resize({ width: TRAY_ICON_SIZE, height: TRAY_ICON_SIZE }))
+  // Pass the ICO path directly so Windows can pick the right embedded frame
+  // for the display DPI instead of stretching an already flattened 16px image.
+  const tray = new Tray(
+    (options.platform ?? process.platform) === 'win32'
+      ? options.iconPath
+      : source.resize({ width: TRAY_ICON_SIZE, height: TRAY_ICON_SIZE }),
+  )
   tray.setToolTip(options.tooltip ?? labels.tooltip)
   tray.setContextMenu(
     Menu.buildFromTemplate([

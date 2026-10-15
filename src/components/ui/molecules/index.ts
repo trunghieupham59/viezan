@@ -7,6 +7,7 @@ export { HistoryEmptyState } from '../HistoryEmptyState'
 export { InlineErrorBanner, type InlineErrorBannerProps } from '../InlineErrorBanner'
 export { AIModelField, type AIModelFieldProps } from './AIModelField'
 export { ChatSessionListItem, type ChatSessionListItemProps } from './ChatSessionListItem'
+export { type ChatTaskStarterState, ChatTaskStarters } from './ChatTaskStarters'
 export { ConfigSection, type ConfigSectionProps } from './ConfigSection'
 export { EmptyPanelState, type EmptyPanelStateProps } from './EmptyPanelState'
 export {

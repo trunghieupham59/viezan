@@ -1,6 +1,7 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { chromium } from 'playwright'
+import { checkTextClipping } from './check-text-clipping.mjs'
 
 const url = 'http://127.0.0.1:5173'
 let server
@@ -645,6 +646,7 @@ try {
       )
     }
 
+    await checkTextClipping(page)
     assert(pageErrors.length === 0, `Browser errors: ${pageErrors.join('; ')}`)
 
     console.log('Web Preview smoke test passed: render + translation + AI configuration + modal layering + command palette')

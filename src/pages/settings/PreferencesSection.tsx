@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/atoms'
 import { ToggleSwitch } from '../../components/ui/atoms'
 import { FontSizePicker } from '../../components/ui/FontSizePicker'
 import { OptionPicker } from '../../components/ui/molecules'
@@ -79,14 +80,18 @@ export function PreferencesSection() {
           </div>
           <div className="segmented-control flex-shrink-0">
             {(['light', 'system', 'dark'] as const).map((v) => (
-              <button
+              <Button
+                size="md"
+                shape="rect"
+                variant={theme === v ? 'primary' : 'neutral'}
+                appearance={theme === v ? 'soft' : 'ghost'}
                 key={v}
                 type="button"
                 onClick={() => setTheme(v)}
-                className={`btn-segment px-3 text-xs ${theme === v ? 'btn-segment-active' : ''}`}
+                aria-pressed={theme === v}
               >
                 {v === 'light' ? t.settings_theme_light : v === 'dark' ? t.settings_theme_dark : t.settings_theme_system}
-              </button>
+              </Button>
             ))}
           </div>
         </div>

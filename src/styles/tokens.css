@@ -145,6 +145,7 @@
 
   /* 4px spacing grid ---------------------------------------------------- */
   --vzn-space-0: 0;
+  --vzn-border-width: 1px;
   --vzn-space-0-5: 2px;
   --vzn-space-1: 4px;
   --vzn-space-1-5: 6px;
@@ -225,6 +226,7 @@
   --vzn-chat-message-end-clearance: var(--vzn-space-4);
   --vzn-chat-avatar-size: 2rem;
   --vzn-composer-min-height: 116px;
+  --vzn-chat-textarea-max-height: 140px;
   --vzn-prompt-card-min-height: 116px;
   --vzn-workspace-pad: var(--vzn-space-4);
   --vzn-panel-gap: var(--vzn-space-3);
@@ -252,6 +254,7 @@
   --vzn-settings-modal-max-inline: 1040px;
   --vzn-settings-modal-max-block: 860px;
   --vzn-modal-viewport-block: 90vh;
+  --vzn-update-dialog-max-inline: 560px;
 
   /* Compatibility aliases ---------------------------------------------- */
   --vzn-accent: var(--vzn-action);
