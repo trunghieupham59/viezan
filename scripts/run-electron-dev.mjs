@@ -10,6 +10,7 @@ delete env.ELECTRON_RUN_AS_NODE
 const child = spawn(electronPath, ['dist-electron/main.js'], {
   env,
   stdio: ['inherit', 'pipe', 'pipe'],
+  windowsHide: true,
 })
 
 // Filter noisy Chromium GPU/Skia compositor warnings on macOS that have no

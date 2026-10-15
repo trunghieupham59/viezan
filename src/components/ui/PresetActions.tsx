@@ -1,3 +1,4 @@
+import { Button } from './atoms'
 /**
  * PresetActions — icon-button row for a single system-prompt preset item.
  * Renders: Set Default (conditional) · Apply · Edit · Delete.
@@ -13,6 +14,7 @@ interface PresetActionsProps {
   onDelete: () => void
   setDefaultTitle: string
   applyTitle: string
+  editTitle: string
   deleteTitle: string
 }
 
@@ -24,47 +26,65 @@ export function PresetActions({
   onDelete,
   setDefaultTitle,
   applyTitle,
+  editTitle,
   deleteTitle,
 }: PresetActionsProps) {
   return (
     <div className="flex items-center gap-1 flex-shrink-0">
       {/* Set default */}
       {!isDefault && (
-        <button
+        <Button
+          size="sm"
+          shape="icon"
+          variant="neutral"
+          appearance="ghost"
+          aria-label={setDefaultTitle}
           type="button"
           onClick={onSetDefault}
           title={setDefaultTitle}
-          className="btn-icon btn-icon-sm border-transparent bg-transparent shadow-none"
         >
           <CheckIcon />
-        </button>
+        </Button>
       )}
       {/* Apply to current prompt */}
-      <button
+      <Button
+        size="sm"
+        shape="icon"
+        variant="neutral"
+        appearance="ghost"
+        aria-label={applyTitle}
         type="button"
         onClick={onApply}
         title={applyTitle}
-        className="btn-icon btn-icon-sm border-transparent bg-transparent shadow-none"
       >
         <ClipboardIcon className="w-3.5 h-3.5" />
-      </button>
+      </Button>
       {/* Edit */}
-      <button
+      <Button
+        size="sm"
+        shape="icon"
+        variant="neutral"
+        appearance="ghost"
         type="button"
         onClick={onEdit}
-        className="btn-icon btn-icon-sm border-transparent bg-transparent shadow-none"
+        aria-label={editTitle}
+        title={editTitle}
       >
         <PencilIcon />
-      </button>
+      </Button>
       {/* Delete */}
-      <button
+      <Button
+        size="sm"
+        shape="icon"
+        variant="danger"
+        appearance="soft"
+        aria-label={deleteTitle}
         type="button"
         onClick={onDelete}
         title={deleteTitle}
-        className="btn-icon btn-icon-sm btn-icon-danger"
       >
         <TrashIcon />
-      </button>
+      </Button>
     </div>
   )
 }

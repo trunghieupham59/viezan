@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from '@/components/ui/atoms'
 import { HistoryBulkHeader } from '../../components/ui/HistoryBulkHeader'
 import { HistoryDeleteButton } from '../../components/ui/HistoryDeleteButton'
 import { HistoryEmptyState } from '../../components/ui/HistoryEmptyState'
@@ -137,14 +138,17 @@ export function ChatHistoryTab({ query }: ChatHistoryTabProps) {
                           </div>
                         )}
                         <div className="flex items-center gap-2">
-                          <button
+                          <Button
+                            size="sm"
+                            shape="rect"
+                            variant="neutral"
+                            appearance="outline"
                             type="button"
                             onClick={() => handleOpen(session)}
-                            className="btn-secondary btn-sm"
                           >
                             <ChatBubbleIcon className="w-3.5 h-3.5" />
                             {t.history_chat_open}
-                          </button>
+                          </Button>
                           <HistoryDeleteButton onClick={() => deleteChatSession(session.id)} label={t.history_chat_delete} />
                         </div>
                       </div>

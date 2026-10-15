@@ -103,18 +103,16 @@ export function DictionaryHistoryPanel({
           {tabs.map(({ id, label, count }) => {
             const isActive = activeTab === id
             return (
-              <button
+              <Button
+                size="md"
+                shape="rect"
+                variant={isActive ? 'primary' : 'neutral'}
+                appearance={isActive ? 'soft' : 'ghost'}
                 key={id}
                 type="button"
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => onTabChange(id)}
-                className={[
-                  'btn-segment min-h-10 rounded-lg border border-transparent px-2 shadow-none',
-                  isActive
-                    ? 'btn-segment-active border-[var(--vzn-accent-border)]'
-                    : 'bg-transparent hover:bg-[var(--vzn-surface-hover)]',
-                ].join(' ')}
               >
                 <span className="truncate">{label}</span>
                 <span
@@ -127,7 +125,7 @@ export function DictionaryHistoryPanel({
                 >
                   {count}
                 </span>
-              </button>
+              </Button>
             )
           })}
         </div>
@@ -143,14 +141,19 @@ export function DictionaryHistoryPanel({
               className="h-7 w-full rounded-md border border-gray-200 bg-gray-50/60 pl-7 pr-7 text-xs text-gray-700 outline-none transition-colors placeholder:text-gray-400 focus:bg-white dark:border-neutral-800 dark:bg-neutral-950/45 dark:text-gray-200 dark:placeholder:text-gray-600 dark:focus:bg-neutral-900"
             />
             {filter && (
-              <button
+              <Button
+                size="xs"
+                shape="icon"
+                variant="neutral"
+                appearance="ghost"
+                aria-label={t.history_search_clear}
                 type="button"
                 onClick={() => setFilter('')}
                 title={t.history_search_clear}
-                className="btn-icon btn-icon-xs absolute right-1 top-1/2 -translate-y-1/2 border-transparent bg-transparent text-gray-400 shadow-none dark:bg-transparent"
+                className="absolute right-1 top-1/2 -translate-y-1/2"
               >
                 <XIcon className="h-2.5 w-2.5" />
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -227,22 +230,21 @@ export function DictionaryHistoryPanel({
                       </p>
                     </button>
 
-                    <button
+                    <Button
+                      size="xs"
+                      shape="icon"
+                      variant={entry.favorite ? 'primary' : 'neutral'}
+                      appearance={entry.favorite ? 'soft' : 'ghost'}
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
                         onToggleFavorite(entry.id)
                       }}
                       aria-label={entry.favorite ? t.dictionary_unfavorite : t.dictionary_favorite}
-                      className={[
-                        'btn-icon btn-icon-xs flex-shrink-0 border-transparent bg-transparent shadow-none dark:bg-transparent',
-                        entry.favorite
-                          ? 'btn-active opacity-100'
-                          : 'text-gray-300 opacity-0 group-hover:opacity-100 dark:text-gray-600',
-                      ].join(' ')}
+                      className={["flex-shrink-0", entry.favorite ? "opacity-100" : "opacity-0 group-hover:opacity-100"].join(' ')}
                     >
                       <StarIcon className="h-3.5 w-3.5" />
-                    </button>
+                    </Button>
                   </div>
                 </li>
               )

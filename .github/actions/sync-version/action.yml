@@ -1,0 +1,17 @@
+name: Sync package.json version with tag
+description: Set package.json version to the pushed tag (vX.Y.Z -> X.Y.Z) without creating a git tag.
+
+runs:
+    using: composite
+    steps:
+        - name: Update version in package.json
+          shell: bash
+          run: |
+              VERSION="${GITHUB_REF#refs/tags/v}"
+              CURRENT=$(node -p "require('./package.json').version")
+              if [ "$CURRENT" != "$VERSION" ]; then
+                echo "Updating package.json from $CURRENT to $VERSION"
+                npm version "$VERSION" --no-git-tag-version
+              else
+                echo "package.json already at version $VERSION, skipping."
+              fi

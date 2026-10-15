@@ -4,6 +4,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { PassThrough } from 'node:stream'
+import { autoUpdater } from 'electron-updater'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -26,6 +27,7 @@ vi.mock('electron', () => ({
     isPackaged: true,
     getPath: (name: string) => (name === 'exe' ? '/Applications/Viezan.app/Contents/MacOS/Viezan' : mocks.tmpDir),
     quit: mocks.quit,
+    once: vi.fn(),
   },
   net: { fetch: mocks.fetch },
   shell: { openExternal: mocks.openExternal, openPath: mocks.openPath },
@@ -112,6 +114,7 @@ describe('updater handlers', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     restorePlatform()
     fs.rmSync(mocks.tmpDir, { recursive: true, force: true })
   })
@@ -137,6 +140,59 @@ describe('updater handlers', () => {
       expect(await call('updater:openDownload', 'http://127.0.0.1/')).toEqual({ success: false, error: 'Blocked external URL' })
       expect(await handlers['updater:openDownload']({ sender: {} })).toEqual({ success: false, error: 'Untrusted sender' })
       expect(mocks.openExternal).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('Windows/Linux install', () => {
+    it('disables automatic download and installation on quit', () => {
+      setup()
+      expect(autoUpdater.autoDownload).toBe(false)
+      expect(autoUpdater.autoInstallOnAppQuit).toBe(false)
+      expect(mocks.downloadUpdate).not.toHaveBeenCalled()
+      expect(mocks.quitAndInstall).not.toHaveBeenCalled()
+    })
+
+    it('shares concurrent checks and preserves a downloaded update during scheduled checks', async () => {
+      restorePlatform = setPlatform('win32')
+      vi.useFakeTimers()
+      let resolve: () => void = () => undefined
+      mocks.checkForUpdates.mockImplementation(() => new Promise<void>((done) => { resolve = done }))
+      const { call } = setup()
+      const first = call('updater:check')
+      const second = call('updater:check')
+      await vi.advanceTimersByTimeAsync(30_000)
+      expect(mocks.checkForUpdates).toHaveBeenCalledTimes(1)
+      resolve()
+      await Promise.all([first, second])
+      mocks.autoUpdaterHandlers['update-available']({ version: '9.9.9' })
+      mocks.autoUpdaterHandlers['download-progress']({ percent: 50, bytesPerSecond: 1, transferred: 1, total: 2 })
+      expect(await call('updater:getStatus')).toMatchObject({ type: 'downloading', version: '9.9.9' })
+      mocks.autoUpdaterHandlers['update-downloaded']({ version: '9.9.9' })
+      await vi.advanceTimersByTimeAsync(24 * 60 * 60 * 1_000)
+      expect(mocks.checkForUpdates).toHaveBeenCalledTimes(1)
+      expect(await call('updater:getStatus')).toMatchObject({ type: 'downloaded', version: '9.9.9' })
+      expect(mocks.quitAndInstall).not.toHaveBeenCalled()
+    })
+
+    it('marks background errors and protects the status snapshot from untrusted senders', async () => {
+      restorePlatform = setPlatform('win32')
+      vi.useFakeTimers()
+      mocks.checkForUpdates.mockRejectedValue(new Error('offline'))
+      const { call, handlers, statuses } = setup()
+      mocks.autoUpdaterHandlers['update-available']({ version: '9.9.9' })
+      await vi.advanceTimersByTimeAsync(30_000)
+      expect(statuses()[statuses().length - 1]).toMatchObject({ type: 'error', background: true })
+      expect(await call('updater:getStatus')).toMatchObject({ type: 'available', version: '9.9.9' })
+      expect(await handlers['updater:getStatus']({ sender: {} })).toBeNull()
+    })
+
+    it('runs the installer silently and relaunches the app', async () => {
+      restorePlatform = setPlatform('win32')
+      const { call } = setup()
+
+      expect(await call('updater:install')).toEqual({ success: true })
+      expect(mocks.quitAndInstall).toHaveBeenCalledTimes(1)
+      expect(mocks.quitAndInstall).toHaveBeenCalledWith(true, true)
     })
   })
 
