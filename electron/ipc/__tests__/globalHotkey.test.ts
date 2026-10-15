@@ -106,7 +106,7 @@ describe('hotkey accelerator helpers', () => {
 
   beforeEach(async () => {
     vi.resetModules()
-    mod = await import('../globalHotkey')
+    mod = await import('../globalHotkey.js')
   })
 
   it('accepts modifier + key accelerators and bare function keys', () => {
@@ -181,7 +181,7 @@ describe('hotkey settings IPC', () => {
       fs.writeFileSync(path.join(env.userData, 'ai-chat-hotkey-settings.json'), JSON.stringify(persisted.chat))
     }
     vi.resetModules()
-    mod = await import('../globalHotkey')
+    mod = await import('../globalHotkey.js')
     const handlers: Record<string, (...args: unknown[]) => unknown> = {}
     const ipcMain = { handle: (channel: string, fn: (...args: unknown[]) => unknown) => { handlers[channel] = fn } }
     mod.initGlobalHotkey(ipcMain as never, () => null, vi.fn())
@@ -394,7 +394,7 @@ describe('translate hotkey flow', () => {
 
   async function initAndGetPress() {
     vi.resetModules()
-    const mod = await import('../globalHotkey')
+    const mod = await import('../globalHotkey.js')
     const handlers: Record<string, (...args: unknown[]) => unknown> = {}
     const ipcMain = { handle: (channel: string, fn: (...args: unknown[]) => unknown) => { handlers[channel] = fn } }
     const window = { webContents: { send: env.send } }
