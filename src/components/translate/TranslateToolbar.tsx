@@ -4,7 +4,7 @@ import type { PhoneticMode, TranslationReasoningEffort, TranslationStyle } from 
 import { getEffectiveTranslationReasoningEffort, getTranslationReasoningEfforts } from '../../utils/translationReasoning'
 import { type ModelPickerInlineView, ModelSelector } from '../ModelSelector'
 import { AutoTranslateToggle } from '../ui/AutoTranslateToggle'
-import { PhoneticToggle } from '../ui/PhoneticToggle'
+import { SelectField, type SelectFieldOption } from '../ui/molecules'
 
 export type TranslateSettingsSubview = ModelPickerInlineView
 
@@ -35,12 +35,8 @@ interface TranslateToolbarProps {
   labelReasoningHigh: string
   labelReasoningUnsupported: string
   labelStyleLabel: string
-  labelStyleGeneral: string
-  labelStyleFormal: string
-  labelStyleCasual: string
-  labelStyleBusiness: string
-  labelStyleTechnical: string
-  labelStyleNatural: string
+  /** Style choices (label + hint); the value is a TranslationStyle. */
+  styleOptions: readonly SelectFieldOption[]
   labelPhoneticOff: string
   labelPhoneticStandard: string
   labelPhoneticTranscription: string
@@ -68,8 +64,7 @@ export function TranslateToolbar({
   labelReasoningAuto, labelReasoningLow, labelReasoningMedium, labelReasoningHigh,
   labelReasoningUnsupported,
   labelStyleLabel,
-  labelStyleGeneral, labelStyleFormal, labelStyleCasual,
-  labelStyleBusiness, labelStyleTechnical, labelStyleNatural,
+  styleOptions,
   labelPhoneticOff, labelPhoneticStandard, labelPhoneticTranscription,
   labelPhoneticSection, labelAutoSection,
   titleAutoMode, titleManualMode, labelAutoMode,
@@ -94,28 +89,14 @@ export function TranslateToolbar({
     onModelPickerViewChange?.(view)
   }
 
-  const reasoningControl = (
-    <div className="translate-setting-control translate-setting-control-reasoning">
-      <label htmlFor={reasoningId} className="translate-setting-label">
-        {labelReasoning}
-      </label>
-      <select
-        id={reasoningId}
-        value={effectiveReasoningEffort}
-        disabled={!reasoningConfigurable}
-        title={!reasoningConfigurable ? labelReasoningUnsupported : undefined}
-        onChange={(event) => onReasoningEffortChange(event.target.value as TranslationReasoningEffort)}
-        className="select-field translate-setting-select"
-      >
-        <option value="auto">
-          {reasoningConfigurable ? labelReasoningAuto : labelReasoningUnsupported}
-        </option>
-        {reasoningConfigurable && <option value="low">{labelReasoningLow}</option>}
-        {reasoningConfigurable && <option value="medium">{labelReasoningMedium}</option>}
-        {reasoningConfigurable && <option value="high">{labelReasoningHigh}</option>}
-      </select>
-    </div>
-  )
+  const reasoningOptions = reasoningConfigurable
+    ? [
+        { value: 'auto', label: labelReasoningAuto },
+        { value: 'low', label: labelReasoningLow },
+        { value: 'medium', label: labelReasoningMedium },
+        { value: 'high', label: labelReasoningHigh },
+      ]
+    : [{ value: 'auto', label: labelReasoningUnsupported }]
 
   return (
     <div className={`translate-settings-grid${modelPickerOpen ? ' translate-settings-grid-model-open' : ''}`}>
@@ -132,43 +113,46 @@ export function TranslateToolbar({
         </div>
       )}
 
-      {showSecondaryControls && <div className="translate-setting-control">
-          <label htmlFor={styleId} className="translate-setting-label">
-            {labelStyleLabel}
-          </label>
-          <div className="relative">
-            <select
-              id={styleId}
-              value={translationStyle}
-              onChange={(e) => onStyleChange(e.target.value as TranslationStyle)}
-              className="select-field translate-setting-select"
-            >
-              <option value="general">{labelStyleGeneral}</option>
-              <option value="formal">{labelStyleFormal}</option>
-              <option value="casual">{labelStyleCasual}</option>
-              <option value="business">{labelStyleBusiness}</option>
-              <option value="technical">{labelStyleTechnical}</option>
-              <option value="natural">{labelStyleNatural}</option>
-            </select>
-          </div>
-      </div>}
+      {showSecondaryControls && (
+        <SelectField
+          id={styleId}
+          label={labelStyleLabel}
+          value={translationStyle}
+          options={styleOptions}
+          onChange={(value) => onStyleChange(value as TranslationStyle)}
+          autoFocusTarget
+          className="translate-setting-control"
+        />
+      )}
 
-      {showSecondaryControls && <div className="translate-setting-control">
-          <label htmlFor={phoneticId} className="translate-setting-label">
-            {labelPhoneticSection}
-          </label>
-          <PhoneticToggle
-            id={phoneticId}
-            phoneticMode={phoneticMode}
-            onChange={onPhoneticModeChange}
-            labelOff={labelPhoneticOff}
-            labelStandard={labelPhoneticStandard}
-            labelPhonetic={labelPhoneticTranscription}
-            isLoading={isPhoneticLoading}
-          />
-      </div>}
+      {showSecondaryControls && (
+        <SelectField
+          id={phoneticId}
+          label={labelPhoneticSection}
+          value={phoneticMode}
+          options={[
+            { value: 'off', label: labelPhoneticOff },
+            { value: 'standard', label: labelPhoneticStandard },
+            { value: 'phonetic', label: labelPhoneticTranscription },
+          ]}
+          onChange={(value) => onPhoneticModeChange(value as PhoneticMode)}
+          busy={isPhoneticLoading}
+          className="translate-setting-control"
+        />
+      )}
 
-      {showSecondaryControls && reasoningControl}
+      {showSecondaryControls && (
+        <SelectField
+          id={reasoningId}
+          label={labelReasoning}
+          value={effectiveReasoningEffort}
+          options={reasoningOptions}
+          onChange={(value) => onReasoningEffortChange(value as TranslationReasoningEffort)}
+          disabled={!reasoningConfigurable}
+          disabledHint={labelReasoningUnsupported}
+          className="translate-setting-control translate-setting-control-reasoning"
+        />
+      )}
 
       {showSecondaryControls && !hideAutoToggle && (
         <div className="translate-setting-control">

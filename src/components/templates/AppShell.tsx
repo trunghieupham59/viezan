@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react'
 
-const MACOS_TITLEBAR_HEIGHT_PX = 40
-
 export interface AppShellProps {
   /** Persistent app-wide navigation rail. */
   primaryNavigation: ReactNode
@@ -11,8 +9,12 @@ export interface AppShellProps {
   children: ReactNode
   /** Portals, dialogs, and command surfaces rendered above the page. */
   overlays?: ReactNode
-  /** Reserves the native traffic-light area in the macOS Electron window. */
-  showMacTitlebar?: boolean
+  /**
+   * Renders the app-owned title bar strip. The Electron window hides its
+   * native title bar on macOS (traffic lights) and Windows (caption-button
+   * overlay), so this strip is the draggable area behind those controls.
+   */
+  showTitlebar?: boolean
   /** Reveals the native macOS material behind chrome while the system theme is active. */
   useNativeMaterial?: boolean
 }
@@ -26,17 +28,20 @@ export function AppShell({
   contextSidebar,
   children,
   overlays,
-  showMacTitlebar = false,
+  showTitlebar = false,
   useNativeMaterial = false,
 }: AppShellProps) {
   return (
-    <div className="app-shell" data-window-material={useNativeMaterial ? 'native' : 'opaque'}>
-      {showMacTitlebar && (
+    <div
+      className="app-shell"
+      data-window-material={useNativeMaterial ? 'native' : 'opaque'}
+      data-titlebar={showTitlebar ? 'app' : 'none'}
+    >
+      {showTitlebar && (
         <>
           <div
             aria-hidden="true"
             className="titlebar-drag app-titlebar-drag flex-shrink-0 w-full"
-            style={{ height: MACOS_TITLEBAR_HEIGHT_PX }}
           />
           <div
             aria-hidden="true"

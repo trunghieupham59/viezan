@@ -77,12 +77,13 @@ pages -> templates -> organisms -> molecules -> atoms
   literal (e.g. do not add `font-size: 15px` beside `--vzn-font-size-lg: 14px`
   / `--vzn-font-size-title: 16px`); if no token fits, add one to `tokens.css`
   and reuse it everywhere that need recurs.
-- Known pre-existing debt, do not extend it further: `src/styles/codex.css`
-  still carries a dead duplicate `:root`/`html.dark` token block (the later
-  `tokens.css` import overrides it in the cascade), and `tailwind.config.mjs`
-  keeps an independently maintained font-size/animation scale instead of
-  deriving from `tokens.css`. If you touch a rule in either, migrate it to
-  reference `tokens.css` rather than adding a new literal beside it.
+- Known pre-existing debt, do not extend it further: `src/index.css` still
+  carries literal colors in legacy rules (`npm run check:design` prints the
+  inventory; `codex.css` is at zero), and `tailwind.config.mjs` keeps a few
+  literals of its own (line heights, the `pulse-fast` easing) beside the
+  font-size/radius/shadow/duration scales it already derives from
+  `tokens.css`. If you touch a rule there, migrate it to reference
+  `tokens.css` rather than adding a new literal beside it.
 - `npm run check:design` and `npm run check:atomic` only scan
   `src/components/ui/{atoms,molecules}`, `src/components/organisms`, and
   `src/components/templates` — they do not cover `src/pages`, the

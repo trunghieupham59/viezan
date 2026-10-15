@@ -1,0 +1,383 @@
+.ai-configuration-anchor {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.ai-configuration-anchor > .ui-button {
+  anchor-name: --vzn-ai-configuration-trigger;
+}
+
+.ai-configuration-popover {
+  position: fixed;
+  position-anchor: --vzn-ai-configuration-trigger;
+  top: anchor(bottom);
+  left: anchor(right);
+  z-index: var(--vzn-layer-context-overlay);
+  display: flex;
+  width: min(var(--vzn-ai-configuration-inline), calc(100vw - var(--vzn-space-8)));
+  max-height: var(--vzn-ai-configuration-max-block);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--vzn-border);
+  border-radius: var(--vzn-radius-md);
+  background: var(--vzn-surface-raised);
+  box-shadow: var(--vzn-shadow-md);
+  margin-top: var(--vzn-space-2);
+  transform: translateX(-100%);
+}
+
+.ai-configuration-popover--above {
+  top: auto;
+  bottom: anchor(top);
+  margin-top: 0;
+  margin-bottom: var(--vzn-space-2);
+}
+
+.ai-configuration-popover__header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--vzn-space-3);
+  padding: var(--vzn-space-3);
+  border-bottom: 1px solid var(--vzn-divider);
+}
+
+.ai-configuration-popover__heading {
+  min-width: 0;
+}
+
+.ai-configuration-popover__title {
+  margin: 0;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-lg);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: var(--vzn-line-tight);
+}
+
+.ai-configuration-popover__scope {
+  margin: var(--vzn-space-1) 0 0;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  line-height: var(--vzn-line-normal);
+}
+
+.ai-configuration-popover__body {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.ai-config-section {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-3);
+}
+
+/* With several sections the popover body scrolls; sections must keep their
+   content height instead of shrinking and letting an expanded list overlap the next one. */
+.ai-config-section:not(:only-child) {
+  flex-shrink: 0;
+}
+
+.ai-config-section[aria-disabled='true'] {
+  opacity: var(--vzn-opacity-disabled);
+}
+
+.ai-config-section + .ai-config-section {
+  border-top: 1px solid var(--vzn-divider);
+}
+
+.ai-config-section__heading {
+  margin: 0;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: var(--vzn-line-tight);
+}
+
+.ai-config-section__description {
+  margin: 0;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+  line-height: var(--vzn-line-normal);
+}
+
+.ai-model-field {
+  width: 100%;
+  min-width: 0;
+  justify-content: flex-start;
+}
+
+.ai-model-field--compact {
+  width: auto;
+  max-width: var(--vzn-ai-configuration-inline);
+}
+
+.ai-model-field__copy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: baseline;
+  gap: var(--vzn-space-1);
+}
+
+.ai-model-field__model,
+.ai-model-field__provider {
+  overflow: hidden;
+  /* Keep clipped labels safe even when used outside a Button. */
+  line-height: var(--vzn-line-normal);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-model-field__model {
+  color: currentColor;
+  font-weight: var(--vzn-weight-medium);
+}
+
+.ai-model-field__provider {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.ai-model-field__chevron {
+  width: var(--vzn-icon-xs);
+  height: var(--vzn-icon-xs);
+  flex: 0 0 auto;
+}
+
+.ai-configuration-inline-picker .model-picker-panel--inline {
+  position: static;
+  width: 100%;
+  min-width: 0;
+  max-height: var(--vzn-ai-configuration-content-max-block);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.live-transcript-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--vzn-space-1);
+}
+
+.live-ai-config-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-2);
+}
+
+.live-ai-config-options--relative {
+  position: relative;
+}
+
+.ai-select-field {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--vzn-space-1);
+}
+
+.ai-select-field__label {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-medium);
+}
+
+.ai-select-field__trigger.ui-button {
+  width: 100%;
+  min-width: 0;
+  justify-content: space-between;
+  padding-inline: var(--vzn-space-3);
+}
+
+.ai-select-field__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-select-field__chevron,
+.ai-select-field__spinner,
+.ai-select-field__check {
+  width: var(--vzn-icon-sm);
+  height: var(--vzn-icon-sm);
+  flex: 0 0 var(--vzn-icon-sm);
+}
+
+.ai-select-field__spinner {
+  animation: spin var(--vzn-duration-spin) linear infinite;
+}
+
+.ai-select-field__menu {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: var(--vzn-layer-context-overlay);
+  display: flex;
+  max-height: var(--vzn-select-menu-max-block);
+  flex-direction: column;
+  gap: var(--vzn-space-1);
+  overflow-y: auto;
+  padding: var(--vzn-space-1);
+  border: 1px solid var(--vzn-border);
+  border-radius: var(--vzn-radius-control);
+  background: var(--vzn-surface-raised);
+  box-shadow: var(--vzn-shadow-md);
+}
+
+.ai-select-field__menu--below {
+  top: calc(100% + var(--vzn-space-1));
+}
+
+.ai-select-field__menu--above {
+  bottom: calc(100% + var(--vzn-space-1));
+}
+
+.ai-select-field__option.ui-button {
+  width: 100%;
+  min-width: 0;
+  justify-content: space-between;
+  padding-inline: var(--vzn-space-3);
+}
+
+.ai-select-field__option-copy {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--vzn-space-2);
+}
+
+.ai-select-field__option-label {
+  flex: 0 0 auto;
+}
+
+.ai-select-field__option-description {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-regular);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-subtitle-config {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-3);
+}
+
+.ai-switch-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--vzn-space-3);
+}
+
+.ai-switch-row__icon {
+  width: var(--vzn-icon-md);
+  height: var(--vzn-icon-md);
+  flex: 0 0 auto;
+  color: var(--vzn-text-muted);
+}
+
+.ai-switch-row__copy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--vzn-space-1);
+}
+
+.ai-switch-row__title {
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-lg);
+  font-weight: var(--vzn-weight-medium);
+  line-height: var(--vzn-line-tight);
+}
+
+.ai-switch-row__hint {
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+  line-height: var(--vzn-line-normal);
+}
+
+.ai-subtitle-config__appearance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-3);
+  padding: var(--vzn-space-3);
+  border: 1px solid var(--vzn-border);
+  border-radius: var(--vzn-radius-control);
+  background: var(--vzn-surface-muted);
+}
+
+.ai-subtitle-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ai-subtitle-field__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--vzn-space-2);
+  width: 100%;
+  padding: 0;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-medium);
+}
+
+.ai-subtitle-field__value {
+  color: var(--vzn-text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-subtitle-field__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-1);
+}
+
+.ai-subtitle-swatch {
+  display: block;
+  width: var(--vzn-icon-md);
+  height: var(--vzn-icon-md);
+  border: 1px solid var(--vzn-border-strong);
+  border-radius: var(--vzn-radius-pill);
+}
+
+.ai-subtitle-slider {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--vzn-action);
+  cursor: pointer;
+}
+
+.ai-subtitle-field__scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.ai-subtitle-config__footer {
+  display: flex;
+  justify-content: flex-end;
+}

@@ -17,6 +17,7 @@ export const hotkeySection = {
       model?: string
       sourceLang?: string
       targetLang?: string
+      uiLanguage?: 'vi' | 'en' | 'ja'
     }) => ipcRenderer.invoke('hotkey:update', settings),
 
     /** Get the currently persisted hotkey settings. */

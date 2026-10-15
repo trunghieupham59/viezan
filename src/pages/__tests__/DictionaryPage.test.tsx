@@ -31,6 +31,7 @@ beforeEach(() => {
   act(() => {
     useAppStore.setState({
       dictionaryEntries: [],
+      pendingDictionaryTerm: null,
       activePage: 'dictionary',
       sourceLang: 'auto',
       targetLang: 'vi',
@@ -42,6 +43,28 @@ beforeEach(() => {
 })
 
 describe('DictionaryPage', () => {
+  it('looks up a term handed over by the command palette once, then clears the handoff', async () => {
+    vi.mocked(dictionaryService.lookupPreview).mockResolvedValueOnce({ success: false, error: 'stop here', errorCode: 'INVALID_RESPONSE' })
+    act(() => useAppStore.getState().setPendingDictionaryTerm('serendipity'))
+
+    render(<DictionaryPage />)
+
+    await waitFor(() => expect(dictionaryService.lookupPreview).toHaveBeenCalledOnce())
+    expect(dictionaryService.lookupPreview).toHaveBeenCalledWith(
+      expect.objectContaining({ term: 'serendipity', context: '', provider: 'local', model: 'local-auto' }),
+      expect.anything(),
+    )
+    expect(screen.getByPlaceholderText(/Enter a word|Nhập từ|単語/i)).toHaveValue('serendipity')
+    expect(useAppStore.getState().pendingDictionaryTerm).toBeNull()
+  })
+
+  it('does not look anything up when no term is handed over', async () => {
+    render(<DictionaryPage />)
+    await act(async () => {})
+
+    expect(dictionaryService.lookupPreview).not.toHaveBeenCalled()
+  })
+
   it('renders the dictionary empty state', () => {
     render(<DictionaryPage />)
 
@@ -354,5 +377,27 @@ describe('DictionaryPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Look up|Tra cứu|検索/i }))
 
     expect(screen.getByText(/Enter a term|Nhập từ|語句を入力/i)).toBeInTheDocument()
+  })
+
+  it('keeps a failed lookup recoverable without clearing the term', async () => {
+    vi.mocked(dictionaryService.lookupPreview)
+      .mockResolvedValueOnce({ success: false, error: 'Provider unavailable' })
+      .mockResolvedValueOnce({ success: false, error: 'Still unavailable' })
+
+    render(<DictionaryPage />)
+    const input = screen.getByPlaceholderText(/Enter a word|Nhập từ|単語/i)
+    fireEvent.change(input, { target: { value: 'reliable' } })
+    fireEvent.click(screen.getByRole('button', { name: /Look up|Tra cứu|検索/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Provider unavailable')
+    expect(input).toHaveValue('reliable')
+
+    fireEvent.click(screen.getByRole('button', { name: /Retry|Thử lại|再試行/i }))
+    await waitFor(() => expect(dictionaryService.lookupPreview).toHaveBeenCalledTimes(2))
+
+    fireEvent.click(screen.getByRole('button', { name: /Choose another model|Chọn model khác|別のモデル/i }))
+    expect(screen.getByRole('dialog', {
+      name: /AI configuration|Cấu hình AI|AI 設定/i,
+    })).toBeInTheDocument()
   })
 })

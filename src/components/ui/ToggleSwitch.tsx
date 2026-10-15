@@ -10,6 +10,8 @@ interface ToggleSwitchProps {
   onChange: (value: boolean) => void
   /** Aria label for accessibility */
   'aria-label'?: string
+  'aria-labelledby'?: string
+  'aria-describedby'?: string
   disabled?: boolean
   className?: string
 }
@@ -18,6 +20,8 @@ export function ToggleSwitch({
   checked,
   onChange,
   'aria-label': ariaLabel,
+  'aria-labelledby': ariaLabelledBy,
+  'aria-describedby': ariaDescribedBy,
   disabled = false,
   className = '',
 }: ToggleSwitchProps) {
@@ -27,6 +31,8 @@ export function ToggleSwitch({
       role="switch"
       aria-checked={checked}
       aria-label={ariaLabel}
+      aria-labelledby={ariaLabelledBy}
+      aria-describedby={ariaDescribedBy}
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={[

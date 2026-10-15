@@ -72,8 +72,15 @@ type ParsedTtsParams =
 const TTS_VOICES = new Set(['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'])
 const TTS_MODES = new Set(['free', 'auto', 'premium'])
 const MAX_TTS_TEXT_CHARS = 5_000
+/** Upper bound for OpenAI / ElevenLabs synthesis requests (including body read). */
+const TTS_FETCH_TIMEOUT_MS = 30_000
+/**
+ * Gemini TTS returns the whole audio in one JSON response and is noticeably slower on
+ * long text (up to MAX_TTS_TEXT_CHARS), so it gets a longer upper bound.
+ */
+const GEMINI_TTS_FETCH_TIMEOUT_MS = 60_000
 
-function parseTtsParams(rawParams: unknown): ParsedTtsParams {
+export function parseTtsParams(rawParams: unknown): ParsedTtsParams {
   if (!isRecord(rawParams)) {
     return { ok: false, response: invalidIpcInput('TTS payload must be an object') }
   }
@@ -114,6 +121,57 @@ function getSafeErrorCode(error: unknown): string {
     return /^[A-Z0-9_-]{1,40}$/i.test(code) ? code : 'UNKNOWN'
   }
   return 'UNKNOWN'
+}
+
+/**
+ * Run `run` with an AbortSignal that fires after `timeoutMs`. A timeout surfaces
+ * as an error with `code: 'TIMEOUT'` so the caller treats it as a soft failure.
+ */
+async function withAbortTimeout<T>(
+  timeoutMs: number,
+  run: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await run(controller.signal)
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw Object.assign(new Error('TTS request timed out'), { code: 'TIMEOUT' })
+    }
+    throw error
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * Decide whether a provider failure is a hard failure that must be surfaced
+ * (invalid key / rate limit) or a soft one that falls through to the next
+ * candidate. Edge TTS needs no user key, so its failures are ALWAYS soft: a
+ * WebSocket "Unexpected server response: 403/429" is a rejected Sec-MS-GEC
+ * token or clock skew, not the user's API key or quota.
+ */
+export function classifyTtsProviderFailure(
+  provider: TtsCandidate['provider'],
+  error: unknown,
+): 'INVALID_KEY' | 'RATE_LIMIT' | null {
+  if (provider === 'edge') return null
+  const record = error && typeof error === 'object'
+    ? error as { code?: unknown; status?: unknown; statusCode?: unknown }
+    : {}
+  if (record.code === 'INVALID_KEY' || record.code === 'RATE_LIMIT') return record.code
+  const status = typeof record.status === 'number'
+    ? record.status
+    : typeof record.statusCode === 'number' ? record.statusCode : undefined
+  if (status === 401 || status === 403) return 'INVALID_KEY'
+  if (status === 429) return 'RATE_LIMIT'
+  if (status !== undefined) return null
+  // Message fallback for SDK errors without a status field (word-boundary only).
+  const msg = error instanceof Error ? error.message : ''
+  if (/\b(?:401|403)\b|invalid_api_key|API_KEY_INVALID/.test(msg)) return 'INVALID_KEY'
+  if (/\b429\b|RESOURCE_EXHAUSTED/.test(msg)) return 'RATE_LIMIT'
+  return null
 }
 
 // ── Provider ranking ──────────────────────────────────────────────────────────
@@ -201,16 +259,18 @@ async function ttsWithOpenAI(
   const OpenAI = (await import('openai')).default
   const client = new OpenAI({ apiKey })
 
-  const response = await client.audio.speech.create({
-    model: OPENAI_TTS_MODEL,
-    voice,
-    input: text,
-    response_format: 'mp3',
-  })
+  return withAbortTimeout(TTS_FETCH_TIMEOUT_MS, async (signal) => {
+    const response = await client.audio.speech.create({
+      model: OPENAI_TTS_MODEL,
+      voice,
+      input: text,
+      response_format: 'mp3',
+    }, { signal })
 
-  const arrayBuffer = await response.arrayBuffer()
-  const base64 = Buffer.from(arrayBuffer).toString('base64')
-  return { success: true, audioBase64: base64, mimeType: 'audio/mpeg', provider: 'openai' }
+    const arrayBuffer = await response.arrayBuffer()
+    const base64 = Buffer.from(arrayBuffer).toString('base64')
+    return { success: true, audioBase64: base64, mimeType: 'audio/mpeg', provider: 'openai' }
+  })
 }
 
 // ── Edge TTS (Microsoft Neural TTS — free) ────────────────────────────────────
@@ -358,7 +418,9 @@ async function ttsWithEdge(text: string, lang?: string): Promise<TtsResult> {
 
     ws.on('close', () => {
       clearTimeout(timeout)
-      if (audioChunks.length > 0 || gotTurnEnd) {
+      // A close without turn.end means the stream was cut off: never return
+      // truncated audio as a success.
+      if (gotTurnEnd && audioChunks.length > 0) {
         const combined = Buffer.concat(audioChunks)
         resolve({
           success: true,
@@ -366,6 +428,8 @@ async function ttsWithEdge(text: string, lang?: string): Promise<TtsResult> {
           mimeType: 'audio/mpeg',
           provider: 'edge',
         })
+      } else if (audioChunks.length > 0) {
+        reject(new Error('Edge TTS: connection closed before turn.end (truncated audio)'))
       } else {
         reject(new Error('Edge TTS: no audio received'))
       }
@@ -386,7 +450,7 @@ async function ttsWithEdge(text: string, lang?: string): Promise<TtsResult> {
  * Returns base64-encoded WAV audio.
  *
  * Request shape:
- *   POST /v1beta/models/{model}:generateContent?key={apiKey}
+ *   POST /v1beta/models/{model}:generateContent  (x-goog-api-key header)
  *   { contents: [{parts:[{text}]}], generationConfig: { responseModalities:['AUDIO'],
  *     speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } } }
  *
@@ -394,49 +458,53 @@ async function ttsWithEdge(text: string, lang?: string): Promise<TtsResult> {
  *   { candidates: [{ content: { parts: [{ inlineData: { mimeType, data } }] } }] }
  */
 async function ttsWithGemini(text: string, apiKey: string): Promise<TtsResult> {
-  const url = `${GEMINI_API_BASE}/models/${GEMINI_TTS_MODEL}:generateContent?key=${apiKey}`
+  const url = `${GEMINI_API_BASE}/models/${GEMINI_TTS_MODEL}:generateContent`
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text }] }],
-      generationConfig: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: GEMINI_TTS_VOICE_NAME },
+  return withAbortTimeout(GEMINI_TTS_FETCH_TIMEOUT_MS, async (signal) => {
+    const response = await fetch(url, {
+      method: 'POST',
+      // Key travels in a header, never in the URL (URLs end up in logs/errors).
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      signal,
+      body: JSON.stringify({
+        contents: [{ parts: [{ text }] }],
+        generationConfig: {
+          responseModalities: ['AUDIO'],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: GEMINI_TTS_VOICE_NAME },
+            },
           },
         },
-      },
-    }),
+      }),
+    })
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '')
+      const status = response.status
+      if (status === 401 || status === 403 || (status === 400 && errText.includes('API_KEY_INVALID'))) {
+        throw Object.assign(new Error('Gemini TTS: invalid API key'), { code: 'INVALID_KEY', status })
+      }
+      if (status === 429) {
+        throw Object.assign(new Error('Gemini TTS: rate limit exceeded'), { code: 'RATE_LIMIT', status })
+      }
+      throw Object.assign(new Error(`Gemini TTS HTTP ${status}`), { status })
+    }
+
+    // biome-ignore lint/suspicious/noExplicitAny: Gemini REST response shape
+    const data: any = await response.json()
+    const inlineData = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData
+    if (!inlineData?.data) {
+      throw new Error('Gemini TTS: no audio data in response')
+    }
+
+    return {
+      success: true,
+      audioBase64: inlineData.data as string,
+      mimeType: (inlineData.mimeType as string) ?? 'audio/wav',
+      provider: 'gemini',
+    }
   })
-
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '')
-    const status = response.status
-    if (status === 401 || status === 403) {
-      throw Object.assign(new Error('Gemini TTS: invalid API key'), { code: 'INVALID_KEY' })
-    }
-    if (status === 429) {
-      throw Object.assign(new Error('Gemini TTS: rate limit exceeded'), { code: 'RATE_LIMIT' })
-    }
-    throw new Error(`Gemini TTS HTTP ${status}: ${errText}`)
-  }
-
-  // biome-ignore lint/suspicious/noExplicitAny: Gemini REST response shape
-  const data: any = await response.json()
-  const inlineData = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData
-  if (!inlineData?.data) {
-    throw new Error('Gemini TTS: no audio data in response')
-  }
-
-  return {
-    success: true,
-    audioBase64: inlineData.data as string,
-    mimeType: (inlineData.mimeType as string) ?? 'audio/wav',
-    provider: 'gemini',
-  }
 }
 
 // ── ElevenLabs TTS ────────────────────────────────────────────────────────────
@@ -452,35 +520,37 @@ async function ttsWithElevenLabs(
 ): Promise<TtsResult> {
   const url = `${ELEVENLABS_API_BASE}/v1/text-to-speech/${voiceId}`
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'xi-api-key': apiKey,
-    },
-    body: JSON.stringify({
-      text,
-      model_id: ELEVENLABS_TTS_MODEL,
-      voice_settings: {
-        stability: ELEVENLABS_STABILITY,
-        similarity_boost: ELEVENLABS_SIMILARITY_BOOST,
-        style: ELEVENLABS_STYLE,
-        use_speaker_boost: true,
+  return withAbortTimeout(TTS_FETCH_TIMEOUT_MS, async (signal) => {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'xi-api-key': apiKey,
       },
-    }),
+      signal,
+      body: JSON.stringify({
+        text,
+        model_id: ELEVENLABS_TTS_MODEL,
+        voice_settings: {
+          stability: ELEVENLABS_STABILITY,
+          similarity_boost: ELEVENLABS_SIMILARITY_BOOST,
+          style: ELEVENLABS_STYLE,
+          use_speaker_boost: true,
+        },
+      }),
+    })
+
+    if (!response.ok) {
+      const status = response.status
+      if (status === 401) throw Object.assign(new Error('ElevenLabs: invalid API key'), { code: 'INVALID_KEY', status })
+      if (status === 429) throw Object.assign(new Error('ElevenLabs: rate limit exceeded'), { code: 'RATE_LIMIT', status })
+      throw Object.assign(new Error(`ElevenLabs TTS HTTP ${status}`), { status })
+    }
+
+    const arrayBuffer = await response.arrayBuffer()
+    const base64 = Buffer.from(arrayBuffer).toString('base64')
+    return { success: true, audioBase64: base64, mimeType: 'audio/mpeg', provider: 'elevenlabs' }
   })
-
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '')
-    const status = response.status
-    if (status === 401) throw Object.assign(new Error('ElevenLabs: invalid API key'), { code: 'INVALID_KEY' })
-    if (status === 429) throw Object.assign(new Error('ElevenLabs: rate limit exceeded'), { code: 'RATE_LIMIT' })
-    throw new Error(`ElevenLabs TTS HTTP ${status}: ${errText}`)
-  }
-
-  const arrayBuffer = await response.arrayBuffer()
-  const base64 = Buffer.from(arrayBuffer).toString('base64')
-  return { success: true, audioBase64: base64, mimeType: 'audio/mpeg', provider: 'elevenlabs' }
 }
 
 export async function synthesizeTts(params: TtsParams): Promise<TtsResult> {
@@ -531,31 +601,19 @@ export async function synthesizeTts(params: TtsParams): Promise<TtsResult> {
         return result
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      // biome-ignore lint/suspicious/noExplicitAny: error code from thrown object
-      const code = (err as any)?.code
-
       console.warn(`[tts] ${candidate.provider} TTS failed:`, { code: getSafeErrorCode(err) })
 
-      // Hard failures — surface immediately without trying next provider
-      if (
-        code === 'INVALID_KEY' ||
-        msg.includes('401') ||
-        msg.includes('403') ||
-        msg.includes('invalid_api_key') ||
-        msg.includes('API_KEY_INVALID')
-      ) {
+      // Hard failures — surface immediately without trying next provider.
+      // Edge failures are never hard (see classifyTtsProviderFailure).
+      const hard = classifyTtsProviderFailure(candidate.provider, err)
+      if (hard === 'INVALID_KEY') {
         return {
           success: false,
           error: `Invalid ${candidate.provider} API key.`,
           errorCode: 'INVALID_KEY',
         }
       }
-      if (
-        code === 'RATE_LIMIT' ||
-        msg.includes('429') ||
-        msg.includes('RESOURCE_EXHAUSTED')
-      ) {
+      if (hard === 'RATE_LIMIT') {
         return {
           success: false,
           error: `${candidate.provider} rate limit exceeded.`,

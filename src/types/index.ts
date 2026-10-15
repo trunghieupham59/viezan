@@ -5,6 +5,7 @@ import type {
   TranscribeAudioParams,
   TranscribeResult,
 } from '../../shared/audioTranscription'
+import type { UpdateStatus } from '../../shared/updater'
 
 export type {
   AudioTranscriptionErrorCode,
@@ -22,16 +23,20 @@ export type {
 
 export type Provider = 'gemini' | 'claude' | 'openai' | 'local'
 
-/** A provider/model pair selected for one AI Translate comparison run. */
-export interface TranslationModelSelection {
+/** Canonical provider/model identity used by every AI feature. */
+export interface AIModelSelection {
   provider: Provider
+  /** Stable provider model ID; never replace this with a display label. */
   model: string
 }
+
+/** @deprecated Prefer AIModelSelection for new cross-feature contracts. */
+export type TranslationModelSelection = AIModelSelection
 
 export type TranslationComparisonStatus = 'idle' | 'loading' | 'success' | 'error'
 
 /** Renderer-owned state for one independently retryable comparison result. */
-export interface TranslationComparisonResult extends TranslationModelSelection {
+export interface TranslationComparisonResult extends AIModelSelection {
   key: string
   status: TranslationComparisonStatus
   translatedText: string
@@ -163,7 +168,7 @@ export interface KeychainResult {
 export interface VerifyResult {
   success: boolean
   error?: string
-  errorCode?: 'INVALID_KEY' | 'RATE_LIMIT' | 'NETWORK' | string
+  errorCode?: 'INVALID_KEY' | 'BILLING' | 'PERMISSION' | 'RATE_LIMIT' | 'NETWORK' | string
   valid?: boolean
 }
 
@@ -184,6 +189,10 @@ export interface LocalAiHardwareProfile {
   cpuCount: number
   totalMemoryGb: number
   tier: LocalAiHardwareTier
+  gpuName?: string
+  /** Model-usable accelerator memory in GB; 0 = CPU-only, undefined = unknown. */
+  vramGb?: number
+  gpuMemoryKind?: 'dedicated' | 'unified'
 }
 
 export interface LocalAiDiscoveryResult {
@@ -209,7 +218,11 @@ export interface LocalAiBenchmarkResult {
     durationMs: number
     runtimeModel?: string
     runtimeLatencyMs?: number
+    runtimeLoadMs?: number
     runtimeTokensPerSecond?: number
+    /** Share of the loaded model resident in GPU memory (100 = fully on GPU). */
+    runtimeGpuPercent?: number
+    runtimeVramGb?: number
   }
 }
 
@@ -239,14 +252,7 @@ export interface LocalAiInstallResult {
   error?: string
   message?: string
   output?: string
-  cancelled?: boolean
   manual?: boolean
-}
-
-export interface LocalAiInstallProgress {
-  status: 'running' | 'success' | 'error' | 'cancelled'
-  percent: number
-  message: string
 }
 
 export interface TtsResult {
@@ -278,6 +284,10 @@ export interface ImageTranslateResult {
   regions?: ImageTextRegion[]
   /** base64 of the fully edited image (returned when Gemini image-edit is used) */
   editedImageBase64?: string
+  /** MIME type of `editedImageBase64` as returned by the model (may differ from the source image). */
+  editedImageMimeType?: string
+  /** Providers with a stored key that were not tried because provider fallback was off (NO_VISION). */
+  fallbackProviders?: string[]
   error?: string
   errorCode?: 'NO_API_KEY' | 'INVALID_KEY' | 'RATE_LIMIT' | 'NO_VISION' | string
   /**
@@ -320,6 +330,12 @@ export interface ChatMessageContent {
   /** Preview URL for display only (not sent to API) */
   imagePreviewUrl?: string
   imageFileName?: string
+  /**
+   * Key of this image's pixel data in the IndexedDB chat image store. Persisted
+   * with the session (unlike `imageBase64`, which is stripped) so an AI-produced
+   * image can be restored after a restart.
+   */
+  imageStoreKey?: string
 }
 
 /**
@@ -336,6 +352,8 @@ export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: ChatMessageContent[]
+  /** Applied task instructions, separate from the text displayed to the user. */
+  taskInstruction?: string
   timestamp: number
   isLoading?: boolean
   error?: string
@@ -367,6 +385,8 @@ export interface ChatMessage {
   isSmartThinkingStep?: boolean
   /** Estimated provider API cost for this assistant response. */
   cost?: UsageCost
+  /** Set when the provider answered with a different model than the one selected (fallback). */
+  usedModel?: string
 }
 
 /**
@@ -404,6 +424,11 @@ export interface DeepResearchResumeState {
   imageSearchTerms: string[]
   /** Whether any web search succeeded — controls synthesis prompt tone. */
   anyWebSearch: boolean
+  /**
+   * Every web source cited so far, in global citation order: findings refer to
+   * them as [1], [2], … so resume must keep the numbering stable.
+   */
+  sources?: Array<{ title: string; url: string }>
   /** Cross-reference output (only set after Phase 4 completes). */
   crossContent?: string
   /**
@@ -433,11 +458,9 @@ export interface DeepResearchResumeState {
   carefulReasoning?: boolean
 }
 
-export interface ChatSession {
+export interface ChatSession extends AIModelSelection {
   id: string
   title: string
-  provider: Provider
-  model: string
   messages: ChatMessage[]
   createdAt: number
   updatedAt: number
@@ -455,6 +478,7 @@ export interface ChatSession {
    * ChatGPT/Claude pattern. Attachments are intentionally NOT persisted.
    */
   draftInput?: string
+  taskState?: import('./chatTask').ChatTaskStarterState | null
   /**
    * Per-session Deep Research toggle state — preserves the mode across page
    * navigation within the same session. Resets to off for new sessions.
@@ -477,6 +501,8 @@ export interface ChatSession {
 export interface ChatResult {
   success: boolean
   reply?: string
+  /** Model that actually answered when the provider fell back from the requested one. */
+  usedModel?: string
   error?: string
   errorCode?: 'NO_API_KEY' | 'INVALID_KEY' | 'RATE_LIMIT' | 'NETWORK' | 'TIMEOUT' | 'EMPTY_RESPONSE' | 'BLOCKED_RECITATION' | 'BLOCKED_SAFETY' | string
 }
@@ -496,6 +522,7 @@ export interface ChatStreamEvent {
   type: 'start' | 'token' | 'end' | 'error'
   token?: string
   reply?: string
+  usedModel?: string
   error?: string
   errorCode?: 'NO_API_KEY' | 'INVALID_KEY' | 'RATE_LIMIT' | 'NETWORK' | 'TIMEOUT' | 'EMPTY_RESPONSE' | 'BLOCKED_RECITATION' | 'BLOCKED_SAFETY' | string
 }
@@ -580,13 +607,11 @@ export interface DictionaryLookupResult {
 
 // ─── Live Session History ─────────────────────────────────────────────────────
 
-export interface LiveSession {
+export interface LiveSession extends AIModelSelection {
   id: string
   createdAt: number
   sourceLang: string
   targetLang: string
-  provider: string
-  model: string
   rawTranscript: string
   translation: string
   summary?: string
@@ -654,9 +679,11 @@ export interface WindowApi {
   downloadLocalAiModel: (modelId: string) => Promise<LocalAiDownloadResult>
   uninstallLocalAiModel: (modelId: string) => Promise<LocalAiModelActionResult>
   onLocalAiModelDownloadProgress: (cb: (progress: LocalAiModelDownloadProgress) => void) => () => void
+  /** Model pulls still running in the main process (they outlive the Settings view). */
+  getLocalAiActiveDownloads?: () => Promise<LocalAiModelDownloadProgress[]>
+  /** Opens the local runtime's download page in the browser (nothing is installed by the app). */
   installOllama: () => Promise<LocalAiInstallResult>
-  cancelOllamaInstall: () => Promise<{ success: boolean }>
-  onLocalAiInstallProgress: (cb: (progress: LocalAiInstallProgress) => void) => () => void
+  cancelModelDownload?: (modelId: string) => Promise<{ success: boolean; cancelled?: boolean }>
   verifyKey: (provider: string, apiKey: string) => Promise<VerifyResult>
   translate: (params: TranslateParams) => Promise<TranslateResult>
   cancelTranslate?: (params: { requestId: string }) => Promise<{ success: boolean; error?: string }>
@@ -691,6 +718,8 @@ export interface WindowApi {
     imageMimeType: string
     sourceLang: string
     targetLang: string
+    /** Opt-in: allow uploading the image to another provider that has a stored key. */
+    allowProviderFallback?: boolean
   }) => Promise<ImageTranslateResult>
   /**
    * Subscribe to model/provider switch events pushed during image translation fallback.
@@ -707,7 +736,11 @@ export interface WindowApi {
     results?: Array<{ title: string; url: string; content: string; score: number }>
     answer?: string
     error?: string
+    errorCode?: string
+    /** Which provider actually served the request */
     provider?: 'tavily' | 'brave' | 'jina'
+    /** Present when a configured provider failed and a lower-priority one answered. */
+    fallback?: { from: 'tavily' | 'brave'; reason: 'auth' | 'quota' | 'error' }
   }>
   /**
    * Verify a web search API key by making a real minimal request.
@@ -794,6 +827,8 @@ export interface WindowApi {
   checkScreenPermission: () => Promise<string>
   openExternal: (url: string) => Promise<void>
   relaunchApp: () => Promise<void>
+  /** Aligns native window chrome (title bar overlay, window background) with the in-app theme. */
+  setWindowTheme?: (theme: 'light' | 'dark' | 'system') => Promise<void>
   /**
    * Pre-flight STT availability check — call before starting a Live Translate session.
    * Checks which STT keys are configured (instant, no API call, no decryption) and
@@ -867,7 +902,9 @@ export interface WindowApi {
       model?: string
       sourceLang?: string
       targetLang?: string
-    }) => Promise<{ success: boolean; settings?: Record<string, unknown>; error?: string }>
+      /** UI language for the floating hotkey indicator strings. */
+      uiLanguage?: 'vi' | 'en' | 'ja'
+    }) => Promise<{ success: boolean; settings?: Record<string, unknown>; error?: string; errorCode?: 'INVALID' | 'IN_USE' | 'CONFLICT' | string }>
     get: () => Promise<{ success: boolean; settings?: Record<string, unknown> }>
     disable: () => Promise<{ success: boolean }>
     onTranslating: (cb: (data: { text: string }) => void) => () => void
@@ -876,7 +913,7 @@ export interface WindowApi {
     /** AI Chat quick-ask hotkey — opens a popup in the renderer */
     chat: {
       update: (settings: { hotkey?: string; enabled?: boolean }) =>
-        Promise<{ success: boolean; settings?: Record<string, unknown>; error?: string }>
+        Promise<{ success: boolean; settings?: Record<string, unknown>; error?: string; errorCode?: 'INVALID' | 'IN_USE' | 'CONFLICT' | string }>
       get: () => Promise<{ success: boolean; settings?: Record<string, unknown> }>
       /** Listen for the chat-open event. Returns a cleanup function. */
       onOpen: (cb: () => void) => () => void
@@ -903,9 +940,10 @@ export interface WindowApi {
 
   /** Auto-updater — check and install updates from GitHub Releases */
   updater: {
+    getStatus?: () => Promise<UpdateStatus | null>
     check: () => Promise<{ success: boolean; error?: string }>
     /** In-app download. macOS downloads the unsigned DMG without opening Finder. */
-    download: () => Promise<{ success: boolean; error?: string; filePath?: string }>
+    download: () => Promise<{ success: boolean; error?: string; errorCode?: string; filePath?: string; verified?: boolean }>
     /** Quit and install, or delegate to the platform updater. */
     install: () => Promise<{ success: boolean; error?: string }>
     /** Manual fallback for macOS: open the downloaded DMG in Finder. */
@@ -916,18 +954,7 @@ export interface WindowApi {
      * Fallback only — falls back to GitHub Releases page.
      */
     openDownload: (url?: string) => Promise<{ success: boolean }>
-    onStatus: (cb: (status: {
-      type: 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error-codesign' | 'error'
-      version?: string
-      percent?: number
-      bytesPerSecond?: number
-      transferred?: number
-      total?: number
-      installMode?: 'restart' | 'open-installer'
-      error?: string
-      /** macOS only: direct asset URL (DMG) or release page URL. */
-      downloadUrl?: string
-    }) => void) => () => void
+    onStatus: (cb: (status: UpdateStatus) => void) => () => void
   }
 
   /** Local HTTP server — Chrome Extension bridge (multi-API-key) */

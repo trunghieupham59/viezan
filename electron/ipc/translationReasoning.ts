@@ -1,7 +1,10 @@
 import type { TranslationReasoningEffort } from './translateValidation'
 
+/** Reasoning families that accept `reasoning_effort`; chat-tuned gpt-5 and o1-mini/preview reject it. */
+const OPENAI_REASONING_MODEL = /^(?!gpt-5-chat|o1-(?:mini|preview))(?:gpt-5(?:[.-]|$)|o[134](?:[.-]|$))/i
+
 export function getOpenAIReasoningEffort(model: string, effort: TranslationReasoningEffort) {
-  if (effort === 'auto' || !/^(?:gpt-5(?:[.-]|$)|o[134](?:[.-]|$))/i.test(model)) return undefined
+  if (effort === 'auto' || !OPENAI_REASONING_MODEL.test(model)) return undefined
   return effort
 }
 
@@ -30,4 +33,18 @@ export function getGeminiThinkingConfig(model: string, effort: TranslationReason
       high: 24_576,
     }[effort],
   }
+}
+
+/** Output ceiling of current Gemini families (2.5 and newer). */
+const GEMINI_LARGE_OUTPUT_TOKENS = 65_536
+/** Output ceiling shared by older Gemini families (1.x / 2.0). */
+const GEMINI_LEGACY_OUTPUT_TOKENS = 8_192
+
+/**
+ * Explicit `maxOutputTokens` for Gemini translate / rewrite requests, so the ceiling is known
+ * (and a MAX_TOKENS stop is reported) instead of depending on an implicit server default.
+ * Thinking tokens count against this budget, hence the large value for the 2.5+ families.
+ */
+export function getGeminiMaxOutputTokens(model: string): number {
+  return /^gemini-(?:2\.5|[3-9](?:\.\d+)?)(?:-|$)/i.test(model.trim()) ? GEMINI_LARGE_OUTPUT_TOKENS : GEMINI_LEGACY_OUTPUT_TOKENS
 }

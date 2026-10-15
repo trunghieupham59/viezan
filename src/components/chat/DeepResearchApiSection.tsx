@@ -105,7 +105,12 @@ function KeyCard({ provider, onStatusChange }: KeyCardProps) {
     // Step 2 — Save to secure keychain
     setVerifyStatus('saving')
     try {
-      await window.api.keychain.save(provider.id, key)
+      const saved = await window.api.keychain.save(provider.id, key)
+      if (!saved.success) {
+        setVerifyStatus('invalid')
+        setVerifyMessage(saved.error ?? t.settings_key_store_failed)
+        return
+      }
       const updated = await window.api.keychain.get(provider.id)
       const e = updated.exists ?? false
       setExists(e)
@@ -129,11 +134,19 @@ function KeyCard({ provider, onStatusChange }: KeyCardProps) {
     setVerifyMessage('')
     setInputValue('')
     try {
-      await window.api.keychain.delete(provider.id)
+      const removed = await window.api.keychain.delete(provider.id)
+      if (!removed.success) {
+        setVerifyStatus('invalid')
+        setVerifyMessage(t.settings_key_store_failed)
+        return
+      }
       setExists(false)
       setMasked(null)
       onStatusChange(false)
-    } catch { /* ignore */ } finally {
+    } catch {
+      setVerifyStatus('invalid')
+      setVerifyMessage(t.settings_key_store_failed)
+    } finally {
       setIsDeleting(false)
     }
   }

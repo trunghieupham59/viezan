@@ -37,6 +37,14 @@ describe('buildEnforcedSystemPrompt', () => {
     expect(out).toContain('do NOT silently override')
   })
 
+  it('always tells the model not to emit LaTeX, which the chat UI cannot render', () => {
+    for (const carefulReasoning of [false, true]) {
+      const out = buildEnforcedSystemPrompt('', { carefulReasoning })
+      expect(out).toContain('FORMATTING')
+      expect(out).toContain('Do NOT use LaTeX')
+    }
+  })
+
   it('omits the reasoning-discipline directive when carefulReasoning is false (default)', () => {
     const out = buildEnforcedSystemPrompt('Speak only in Vietnamese.')
     expect(out).not.toContain('REASONING DISCIPLINE')
