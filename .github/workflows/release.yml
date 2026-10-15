@@ -4,6 +4,8 @@ on:
     push:
         tags:
             - "v*"
+    # Chạy từ auto-tag.yml với --ref <tag> (GITHUB_REF vẫn là refs/tags/vX.Y.Z)
+    workflow_dispatch:
 
 permissions:
     contents: write
@@ -12,12 +14,10 @@ permissions:
 jobs:
     create-release:
         runs-on: ubuntu-latest
-        outputs:
-            release_id: ${{ steps.create_release.outputs.id }}
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
               with:
                   fetch-depth: 0
 
@@ -157,25 +157,16 @@ jobs:
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
 
             - name: Setup Node
-              uses: actions/setup-node@v6
+              uses: actions/setup-node@v7
               with:
                   node-version: 22
                   cache: npm
 
-            - name: Update version in package.json
-              shell: bash
-              run: |
-                  VERSION="${GITHUB_REF#refs/tags/v}"
-                  CURRENT=$(node -p "require('./package.json').version")
-                  if [ "$CURRENT" != "$VERSION" ]; then
-                    echo "Updating package.json from $CURRENT to $VERSION"
-                    npm version "$VERSION" --no-git-tag-version
-                  else
-                    echo "package.json already at version $VERSION, skipping."
-                  fi
+            - name: Sync package.json version with tag
+              uses: ./.github/actions/sync-version
 
             - name: Install dependencies
               run: npm ci
@@ -186,7 +177,7 @@ jobs:
             - name: Build and publish (macOS arm64)
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  CSC_IDENTITY_AUTO_DISCOVERY: false
+                  CSC_IDENTITY_AUTO_DISCOVERY: "false"
                   APPLE_ID: ${{ secrets.APPLE_ID }}
                   APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
                   APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID || '' }}
@@ -203,25 +194,16 @@ jobs:
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
 
             - name: Setup Node
-              uses: actions/setup-node@v6
+              uses: actions/setup-node@v7
               with:
                   node-version: 22
                   cache: npm
 
-            - name: Update version in package.json
-              shell: bash
-              run: |
-                  VERSION="${GITHUB_REF#refs/tags/v}"
-                  CURRENT=$(node -p "require('./package.json').version")
-                  if [ "$CURRENT" != "$VERSION" ]; then
-                    echo "Updating package.json from $CURRENT to $VERSION"
-                    npm version "$VERSION" --no-git-tag-version
-                  else
-                    echo "package.json already at version $VERSION, skipping."
-                  fi
+            - name: Sync package.json version with tag
+              uses: ./.github/actions/sync-version
 
             - name: Install dependencies
               run: npm ci
@@ -232,22 +214,28 @@ jobs:
             - name: Build and publish (macOS x64)
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  CSC_IDENTITY_AUTO_DISCOVERY: false
+                  CSC_IDENTITY_AUTO_DISCOVERY: "false"
                   APPLE_ID: ${{ secrets.APPLE_ID }}
                   APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
                   APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID || '' }}
               run: npx electron-builder --mac --x64 --publish always
 
     # ─────────────────────────────────────────────
-    # Windows build → SignPath signing (free for OSS, optional)
-    # If SIGNPATH secrets are not configured, unsigned installer is
-    # uploaded directly. Set up SignPath to get a trusted signature:
+    # Windows build → SignPath signing (free for OSS)
+    # By default signing is optional: without the SignPath secrets, or when
+    # signing fails, the unsigned installer is uploaded instead. Set the repo
+    # variable REQUIRE_WINDOWS_SIGNING=true to make signing mandatory (the
+    # release job then fails rather than shipping an unsigned installer).
+    #
+    # Set up SignPath to get a trusted signature:
     #   1. Register at https://signpath.io → "Open Source" free plan
     #   2. Link your GitHub repo in SignPath project settings
-    #   3. Create project slug: "tre-assistant"
-    #   4. Create signing policy slug: "release-signing"
-    #   5. Create artifact config slug: "windows-installer"
-    #   6. Add SIGNPATH_API_TOKEN as a repo secret, SIGNPATH_ORGANIZATION_ID as a repo variable
+    #   3. Create a project, a signing policy and an artifact configuration
+    #      (build/signpath-artifact-config.xml). Their slugs default to
+    #      "tre-assistant" / "release-signing" / "windows-installer"; override
+    #      with the repo variables SIGNPATH_PROJECT_SLUG,
+    #      SIGNPATH_SIGNING_POLICY_SLUG and SIGNPATH_ARTIFACT_CONFIGURATION_SLUG.
+    #   4. Add SIGNPATH_API_TOKEN as a repo secret, SIGNPATH_ORGANIZATION_ID as a repo variable
     # ─────────────────────────────────────────────
     build-windows:
         needs: create-release
@@ -255,25 +243,16 @@ jobs:
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
 
             - name: Setup Node
-              uses: actions/setup-node@v6
+              uses: actions/setup-node@v7
               with:
                   node-version: 22
                   cache: npm
 
-            - name: Update version in package.json
-              shell: bash
-              run: |
-                  VERSION="${GITHUB_REF#refs/tags/v}"
-                  CURRENT=$(node -p "require('./package.json').version")
-                  if [ "$CURRENT" != "$VERSION" ]; then
-                    echo "Updating package.json from $CURRENT to $VERSION"
-                    npm version "$VERSION" --no-git-tag-version
-                  else
-                    echo "package.json already at version $VERSION, skipping."
-                  fi
+            - name: Sync package.json version with tag
+              uses: ./.github/actions/sync-version
 
             - name: Install dependencies
               run: npm ci
@@ -306,12 +285,17 @@ jobs:
                     echo "ENABLED=true" >> "$GITHUB_OUTPUT"
                     echo "SignPath secrets found — will attempt signing."
                   else
+                    if [ "$REQUIRE_SIGNING" = "true" ]; then
+                      echo "::error::REQUIRE_WINDOWS_SIGNING is true but SIGNPATH_API_TOKEN / SIGNPATH_ORGANIZATION_ID are not configured."
+                      exit 1
+                    fi
                     echo "ENABLED=false" >> "$GITHUB_OUTPUT"
                     echo "SignPath secrets not configured — will upload unsigned installer."
                   fi
               env:
                   SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN || '' }}
                   SIGNPATH_ORG_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID || '' }}
+                  REQUIRE_SIGNING: ${{ vars.REQUIRE_WINDOWS_SIGNING || 'false' }}
 
             # ── SignPath signing (only when secrets are configured) ──────
             - name: Package installer + app PE files into ZIP for SignPath
@@ -344,14 +328,16 @@ jobs:
             - name: Sign bundle via SignPath.io
               id: sign
               if: steps.check_signpath.outputs.ENABLED == 'true'
-              continue-on-error: true
-              uses: signpath/github-action-submit-signing-request@v2
+              # Optional signing keeps going on failure (unsigned fallback below);
+              # mandatory signing (REQUIRE_WINDOWS_SIGNING) fails the job instead.
+              continue-on-error: ${{ vars.REQUIRE_WINDOWS_SIGNING != 'true' }}
+              uses: signpath/github-action-submit-signing-request@v3
               with:
                   api-token: "${{ secrets.SIGNPATH_API_TOKEN || '' }}"
                   organization-id: "${{ vars.SIGNPATH_ORGANIZATION_ID || '' }}"
-                  project-slug: "tre-assistant"
-                  signing-policy-slug: "release-signing"
-                  artifact-configuration-slug: "windows-installer"
+                  project-slug: "${{ vars.SIGNPATH_PROJECT_SLUG || 'tre-assistant' }}"
+                  signing-policy-slug: "${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}"
+                  artifact-configuration-slug: "${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG || 'windows-installer' }}"
                   github-artifact-id: "${{ steps.upload_unsigned.outputs.artifact-id }}"
                   wait-for-completion: true
                   output-artifact-directory: "release-signed"
@@ -366,15 +352,21 @@ jobs:
                   cd release-signed
                   SIGNED_ZIP=$(ls *.zip | head -n 1)
                   unzip -o "$SIGNED_ZIP" -d unpacked-signed
-                  SIGNED_EXE=$(ls unpacked-signed/*Setup*.exe unpacked-signed/*setup*.exe 2>/dev/null | head -n 1)
-                  if [ -z "$SIGNED_EXE" ]; then
-                    SIGNED_EXE=$(ls unpacked-signed/*.exe | head -n 1)
-                  fi
                   INSTALLER_NAME="${{ steps.find_installer.outputs.INSTALLER_NAME }}"
-                  cp "$SIGNED_EXE" "../release-final-${INSTALLER_NAME}"
+                  # The bundle also holds the signed app PE files; pick the installer by name.
+                  SIGNED_EXE="unpacked-signed/${INSTALLER_NAME}"
+                  if [ ! -f "$SIGNED_EXE" ]; then
+                    echo "::error::Signed installer ${INSTALLER_NAME} not found in the SignPath output."
+                    ls unpacked-signed
+                    exit 1
+                  fi
                   cd ..
-                  echo "Uploading signed: release-final-${INSTALLER_NAME}"
-                  gh release upload "$TAG" "release-final-${INSTALLER_NAME}" --clobber
+                  # Upload under the ORIGINAL name: latest.yml points at it, so a renamed
+                  # asset would make in-app updates 404.
+                  echo "Uploading signed: ${INSTALLER_NAME}"
+                  gh release upload "$TAG" "release-signed/${SIGNED_EXE}" --clobber
+                  # Signing changed the file, so refresh the checksum electron-updater verifies.
+                  node scripts/update-latest-yml.mjs release/latest.yml "release-signed/${SIGNED_EXE}"
 
             # ── Fallback: upload unsigned when SignPath is not configured or failed ──
             - name: Upload unsigned installer to GitHub Release (fallback)
@@ -412,35 +404,19 @@ jobs:
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
 
             - name: Setup Node
-              uses: actions/setup-node@v6
+              uses: actions/setup-node@v7
               with:
                   node-version: 22
                   cache: npm
 
-            - name: Install system dependencies
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y \
-                    libgtk-3-dev \
-                    libwebkit2gtk-4.1-dev \
-                    libayatana-appindicator3-dev \
-                    librsvg2-dev \
-                    patchelf
+            - name: Install Linux build deps
+              uses: ./.github/actions/install-linux-deps
 
-            - name: Update version in package.json
-              shell: bash
-              run: |
-                  VERSION="${GITHUB_REF#refs/tags/v}"
-                  CURRENT=$(node -p "require('./package.json').version")
-                  if [ "$CURRENT" != "$VERSION" ]; then
-                    echo "Updating package.json from $CURRENT to $VERSION"
-                    npm version "$VERSION" --no-git-tag-version
-                  else
-                    echo "package.json already at version $VERSION, skipping."
-                  fi
+            - name: Sync package.json version with tag
+              uses: ./.github/actions/sync-version
 
             - name: Install dependencies
               run: npm ci
@@ -462,7 +438,7 @@ jobs:
 
         steps:
             - name: Checkout
-              uses: actions/checkout@v6
+              uses: actions/checkout@v7
 
             - name: Package Chrome Extension as ZIP
               shell: bash

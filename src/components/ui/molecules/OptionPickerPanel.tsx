@@ -172,6 +172,13 @@ export function OptionPickerPanel({
   }
 
   const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      event.stopPropagation()
+      if (filteredOptions.length > 0) selectOption(filteredOptions[0])
+      return
+    }
     if (event.key !== 'ArrowDown' || filteredOptions.length === 0) return
     event.preventDefault()
     const selectedIsVisible = filteredOptions.some((option) => option.value === value)

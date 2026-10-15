@@ -5,11 +5,10 @@ import { isLocalProvider, LOCAL_AI_PLACEHOLDER_KEY } from './localAi'
 import { isSenderWindow } from './senderGuard'
 import { getStoredApiKey } from './storage'
 import { streamTranslation } from './translate'
+import { TRANSLATION_STYLES, type TranslationStyle } from './translateValidation'
 
 const MAX_MODEL_ID_CHARS = 200
 const MAX_SEG_ID_CHARS = 200
-const LIVE_TRANSLATION_STYLES = ['general', 'formal', 'casual', 'business', 'technical', 'natural'] as const
-type LiveTranslationStyle = (typeof LIVE_TRANSLATION_STYLES)[number]
 
 export function registerSubtitleHandlers(
   ipc: IpcMain,
@@ -173,15 +172,15 @@ export function registerSubtitleHandlers(
     if (!isSafeLanguageCode(params.targetLang)) return invalidIpcInput('Invalid target language')
     const { sourceLang, targetLang } = params
 
-    let translationStyle: LiveTranslationStyle = 'general'
+    let translationStyle: TranslationStyle = 'general'
     if (params.translationStyle !== undefined) {
       if (
         typeof params.translationStyle !== 'string'
-        || !LIVE_TRANSLATION_STYLES.includes(params.translationStyle as LiveTranslationStyle)
+        || !TRANSLATION_STYLES.includes(params.translationStyle as TranslationStyle)
       ) {
         return invalidIpcInput('Invalid translation style')
       }
-      translationStyle = params.translationStyle as LiveTranslationStyle
+      translationStyle = params.translationStyle as TranslationStyle
     }
 
     if (params.segId !== undefined && (typeof params.segId !== 'string' || params.segId.length > MAX_SEG_ID_CHARS)) {

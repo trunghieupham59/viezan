@@ -14,19 +14,10 @@ import { isLocalProvider, LOCAL_AI_PLACEHOLDER_KEY, resolveLocalAiRequestModel }
 import { isValidProvider } from './providers/types'
 import { getStoredApiKey } from './storage'
 import { runWithTimeout } from './translateChunking'
+import { getStyleTone, STYLE_TONE } from './translatePrompts'
 import { joinClaudeText } from './translateProviderOutput'
+import type { TranslationStyle } from './translateValidation'
 import { getGeminiMaxOutputTokens } from './translationReasoning'
-
-type TranslationStyle = 'general' | 'formal' | 'casual' | 'business' | 'technical' | 'natural'
-
-const STYLE_TONE: Record<TranslationStyle, string> = {
-  general:   'clear, natural, well-balanced — suitable for general everyday use; neither overly formal nor overly casual; reads naturally to any native speaker',
-  formal:    'formal, polished, and respectful — appropriate for official correspondence, letters, reports, or interactions with superiors and unfamiliar parties; uses proper honorifics where applicable; avoids contractions and casual expressions',
-  casual:    'casual, relaxed, conversational — like chatting with a close friend; uses informal language, contractions, colloquialisms, and expressive wording; feels natural in everyday conversation, texting, or social media',
-  business:  'formal business register — highly concise, precise, and objective; appropriate for corporate emails, executive communication, and business documents; avoids unnecessary words; maintains a professional and authoritative tone',
-  technical: 'precise, technical, and domain-specific — uses accurate industry-standard terminology; sentences are clear, unambiguous, and logically structured; suitable for documentation, specs, or expert-to-expert communication; prioritizes exactness; avoids casual language, metaphors, and any imprecision',
-  natural:   'authentic, idiomatic, and naturally fluent — as if a confident native speaker originally wrote it in the target language; uses natural collocations, real idioms, and native rhythm; eliminates any trace of translation or foreignness; prioritizes how a real native would genuinely express the idea',
-}
 
 const MAX_MODEL_ID_CHARS = 200
 
@@ -88,7 +79,7 @@ export async function lightweightTranslate(params: LightweightTranslateParams): 
   const apiKey = isLocalProvider(provider) ? LOCAL_AI_PLACEHOLDER_KEY : await getStoredApiKey(provider)
   if (!apiKey) return { success: false, error: `No API key configured for ${provider}`, errorCode: 'NO_API_KEY' }
 
-  const tone = STYLE_TONE[translationStyle as TranslationStyle]
+  const tone = getStyleTone(translationStyle, targetLang)
   const prompt = `Translate into ${targetLang}. Tone: ${tone}. Output only the translation.\n\n${text}`
 
   try {

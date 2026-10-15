@@ -1,4 +1,5 @@
 import { type KeyboardEvent, useRef, useState } from 'react'
+import { Button } from '@/components/ui/atoms'
 import { ButtonGroup } from '../../components/ui/ButtonGroup'
 import { HotkeyRecordButton } from '../../components/ui/HotkeyRecordButton'
 import { PlusIcon, XIcon } from '../../components/ui/icons'
@@ -106,23 +107,30 @@ export function ChatPresetsSection() {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {chatNewSessionShortcut && !isRecordingNewChatShortcut && (
-                <button
+                <Button
+                  size="md"
+                  shape="icon"
+                  variant="danger"
+                  appearance="soft"
+                  aria-label={t.settings_hotkey_clear}
                   type="button"
                   onClick={() => setChatNewSessionShortcut('')}
-                  className="btn-icon btn-icon-sm btn-icon-danger"
                   title={t.settings_hotkey_clear}
                 >
                   <XIcon />
-                </button>
+                </Button>
               )}
               {!chatNewSessionShortcut && !isRecordingNewChatShortcut && (
-                <button
+                <Button
+                  size="md"
+                  shape="rect"
+                  variant="neutral"
+                  appearance="outline"
                   type="button"
                   onClick={() => setChatNewSessionShortcut(DEFAULT_CHAT_NEW_SESSION_SHORTCUT)}
-                  className="btn-secondary btn-xs"
                 >
                   {t.settings_chat_shortcut_restore_default}
-                </button>
+                </Button>
               )}
               <HotkeyRecordButton
                 inputRef={newChatShortcutRef}
@@ -145,14 +153,17 @@ export function ChatPresetsSection() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_chat_presets}</p>
-            <button
+            <Button
+              size="md"
+              shape="rect"
+              variant="neutral"
+              appearance="outline"
               type="button"
               onClick={() => { setShowAddForm((v) => !v); setEditingPresetId(null) }}
-              className="btn-secondary btn-xs"
             >
               <PlusIcon />
               {t.settings_chat_preset_add}
-            </button>
+            </Button>
           </div>
 
           {/* Add form */}
@@ -182,7 +193,7 @@ export function ChatPresetsSection() {
                 cancelLabel={t.settings_chat_preset_cancel}
                 submitLabel={t.settings_chat_preset_save}
                 disabled={!newPresetName.trim() || !newPresetContent.trim()}
-                size="sm"
+                size="md"
               />
             </div>
           )}
@@ -220,7 +231,7 @@ export function ChatPresetsSection() {
                         cancelLabel={t.settings_chat_preset_cancel}
                         submitLabel={t.settings_chat_preset_save}
                         disabled={!editName.trim() || !editContent.trim()}
-                        size="sm"
+                        size="md"
                       />
                     </div>
                   ) : (
@@ -248,6 +259,7 @@ export function ChatPresetsSection() {
                         onDelete={() => deleteSystemPromptPreset(preset.id)}
                         setDefaultTitle={t.settings_chat_preset_set_default}
                         applyTitle={t.settings_preset_use_prompt}
+                        editTitle={t.settings_chat_preset_edit}
                         deleteTitle={t.settings_chat_preset_delete}
                       />
                     </div>

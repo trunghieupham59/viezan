@@ -304,7 +304,7 @@ function keystrokeCommand(key: 'c' | 'v'): string {
     return `osascript -e 'tell application "System Events" to keystroke "${key}" using command down'`
   }
   if (process.platform === 'win32') {
-    return `powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^${key}')"`
+    return `powershell -NoProfile -NonInteractive -WindowStyle Hidden -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^${key}')"`
   }
   // Linux — requires xdotool
   return `xdotool key ctrl+${key}`

@@ -1,5 +1,6 @@
 import { TARGET_LANGUAGES } from '../../constants/providers'
 import { useAppStore, useT } from '../../store/useAppStore'
+import { Button } from '../ui/atoms'
 import { AutoDetectIcon, SpinnerIcon } from '../ui/icons'
 import { LanguageOverflowPicker } from '../ui/molecules'
 import { getSmartTopLangs } from './langSelectorUtils'
@@ -25,11 +26,6 @@ export function SourceLanguageSelector({
   const sourceTopLangs = getSmartTopLangs(langUsage, sourceLang)
   const sourceIsOther = sourceLang !== 'auto' && !sourceTopLangs.includes(sourceLang)
 
-  const pillBase =
-    'btn-language-tab relative flex-shrink-0 whitespace-nowrap'
-  const pillActive = 'text-gray-700 dark:text-gray-200'
-  const pillInactive = 'text-gray-500 dark:text-gray-400'
-
   const handleSourceChange = (lang: string) => {
     if (lang !== 'auto') recordLangUsage(lang)
     onSourceLangChange(lang)
@@ -39,10 +35,15 @@ export function SourceLanguageSelector({
     <div className="flex items-center flex-1 min-w-0">
       <div className="flex flex-1 min-w-0 items-center overflow-hidden">
         {/* "Tự động nhận dạng" pill — always first */}
-        <button
+        <Button
+          size="md"
+          shape="pill"
           type="button"
           onClick={() => onSourceLangChange('auto')}
-          className={`${pillBase} flex items-center gap-1.5 ${sourceLang === 'auto' ? pillActive : pillInactive}`}
+          variant={sourceLang === 'auto' ? 'primary' : 'neutral'}
+          appearance={sourceLang === 'auto' ? 'soft' : 'ghost'}
+          aria-pressed={sourceLang === 'auto'}
+          className="whitespace-nowrap"
         >
           {isDetectingLang
             ? <SpinnerIcon className="w-3.5 h-3.5 animate-spin flex-shrink-0" />
@@ -52,24 +53,23 @@ export function SourceLanguageSelector({
               ? (langNames[detectedSourceLang] ?? detectedSourceLang)
               : t.lang_auto}
           </span>
-          {sourceLang === 'auto' && (
-            <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-gray-600 dark:bg-gray-400 rounded-full" />
-          )}
-        </button>
+        </Button>
 
         {/* Smart top-3 source language pills */}
         {sourceTopLangs.map((code) => (
-          <button
+          <Button
+            size="md"
+            shape="pill"
             key={code}
             type="button"
             onClick={() => handleSourceChange(code)}
-            className={`${pillBase} ${sourceLang === code ? pillActive : pillInactive}`}
+            variant={sourceLang === code ? 'primary' : 'neutral'}
+            appearance={sourceLang === code ? 'soft' : 'ghost'}
+            aria-pressed={sourceLang === code}
+            className="whitespace-nowrap"
           >
             {langNames[code] ?? code}
-            {sourceLang === code && (
-              <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-gray-600 dark:bg-gray-400 rounded-full" />
-            )}
-          </button>
+          </Button>
         ))}
       </div>
 

@@ -1,6 +1,6 @@
 {
   "name": "viezan",
-  "version": "2.1.5",
+  "version": "2.2.1",
   "description": "Viezan - Local AI Translation - macOS & Windows",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -31,7 +31,8 @@
     "test:web": "node scripts/test-web-preview.mjs",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "generate-icons": "node scripts/add-logo-background.mjs"
+    "generate-icons": "node scripts/add-logo-background.mjs",
+    "eval:translation-styles": "node scripts/eval-translation-styles.mjs"
   },
   "keywords": [
     "translation",

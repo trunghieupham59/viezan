@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { AIChatSidebar, CommandPalette, PrimaryNavigationSidebar } from './components/organisms'
+import { AIChatSidebar, CommandPalette, PrimaryNavigationSidebar, UpdateNotification } from './components/organisms'
 import { SettingsModal } from './components/SettingsModal'
 import { AppShell } from './components/templates'
 import { FeatureLoadingState } from './components/ui/molecules'
@@ -198,6 +198,7 @@ function App() {
       overlays={
         <>
           <SettingsModal />
+          <UpdateNotification blocked={settingsOpen || cmdPaletteOpen} />
           <CommandPalette
             open={cmdPaletteOpen && !settingsOpen}
             onClose={() => setCmdPaletteOpen(false)}

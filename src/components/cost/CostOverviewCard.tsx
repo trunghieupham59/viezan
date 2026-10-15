@@ -14,6 +14,7 @@
 import { useT } from '../../store/useAppStore'
 import type { Provider, UsageCurrency, UsageFeature, UsageTotal } from '../../types'
 import { formatTokenCount, formatUsageAmount } from '../../utils/usageCost'
+import { Button } from '../ui/atoms'
 import { CurrencyPicker } from '../ui/CurrencyPicker'
 import { CalculatorIcon, ChartBarIcon, CoinsIcon, PulseIcon } from '../ui/icons'
 
@@ -97,12 +98,12 @@ export function CostOverviewCard({ totals, currency, onCurrencyChange, onResetAl
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
       {/* Header row */}
-      <div className="flex items-center justify-between gap-3 border-b border-gray-100 bg-gray-50 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-gray-600 ring-1 ring-gray-200 dark:bg-neutral-800 dark:text-gray-300 dark:ring-neutral-700">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-gray-50 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900">
+        <div className="flex min-w-0 basis-1/2 grow items-center gap-2.5">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-gray-600 ring-1 ring-gray-200 dark:bg-neutral-800 dark:text-gray-300 dark:ring-neutral-700">
             <CoinsIcon className="h-4 w-4" />
           </span>
-          <div className="leading-tight">
+          <div className="min-w-0 leading-tight">
             <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
               {t.settings_cost_section_title}
             </h3>
@@ -111,20 +112,22 @@ export function CostOverviewCard({ totals, currency, onCurrencyChange, onResetAl
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <CurrencyPicker
             value={currency}
             onChange={onCurrencyChange}
             ariaLabel={t.settings_cost_currency}
           />
           {hasData ? (
-            <button
-              type="button"
+            <Button
+              size="md"
+              variant="danger"
+              appearance="outline"
+              className="whitespace-nowrap"
               onClick={handleResetAll}
-              className="btn-danger btn-xs"
             >
               {t.settings_cost_reset_all}
-            </button>
+            </Button>
           ) : null}
         </div>
       </div>

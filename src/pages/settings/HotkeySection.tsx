@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Button } from '@/components/ui/atoms'
 import { ToggleSwitch } from '../../components/ui/atoms'
 import { HotkeyRecordButton } from '../../components/ui/HotkeyRecordButton'
 import { SpinnerIcon, XIcon } from '../../components/ui/icons'
@@ -224,18 +225,22 @@ export function HotkeySection() {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {hotkeyValue && !isRecording && (
-                <button
+                <Button
+                  size="md"
+                  shape="icon"
+                  variant="danger"
+                  appearance="soft"
+                  aria-label={t.settings_hotkey_clear}
                   type="button"
                   onClick={() => {
                     setHotkeyValue('')
                     setHotkeyEnabled(false)
                     saveHotkeySettings({ hotkey: '', enabled: false })
                   }}
-                  className="btn-icon btn-icon-sm btn-icon-danger"
                   title={t.settings_hotkey_clear}
                 >
                   <XIcon />
-                </button>
+                </Button>
               )}
               <HotkeyRecordButton
                 inputRef={hotkeyInputRef}
@@ -300,18 +305,22 @@ export function HotkeySection() {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {chatHotkeyValue && !isChatRecording && (
-                <button
+                <Button
+                  size="md"
+                  shape="icon"
+                  variant="danger"
+                  appearance="soft"
+                  aria-label={t.settings_chat_hotkey_clear}
                   type="button"
                   onClick={() => {
                     setChatHotkeyValue('')
                     setChatHotkeyEnabled(false)
                     saveChatHotkeySettings({ hotkey: '', enabled: false })
                   }}
-                  className="btn-icon btn-icon-sm btn-icon-danger"
                   title={t.settings_chat_hotkey_clear}
                 >
                   <XIcon />
-                </button>
+                </Button>
               )}
               <HotkeyRecordButton
                 inputRef={chatHotkeyInputRef}
