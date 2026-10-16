@@ -39,3 +39,13 @@ export const DEFAULT_SEGMENT_DURATION_MS = 3_000
 
 /** Minimum subtitle segment display duration (ms) to avoid flash-of-content. */
 export const MIN_SEGMENT_DURATION_MS = 500
+
+/** Analyser RMS (byte time-domain, 0–128) shown as a full input-level meter.
+ *  Speech thresholds in vadPolicy sit around 8–18, so normal speech fills about half. */
+export const LIVE_INPUT_LEVEL_FULL_SCALE_RMS = 40
+
+/** How often (ms) the live input-level meter samples the analyser. */
+export const LIVE_INPUT_LEVEL_POLL_MS = 100
+
+/** Distance (px) from the bottom within which a live transcript keeps following new text. */
+export const LIVE_FOLLOW_LATEST_THRESHOLD_PX = 48

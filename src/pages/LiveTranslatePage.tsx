@@ -1,27 +1,32 @@
 import { useEffect, useState } from 'react'
+import { BilingualSegmentRow } from '../components/live/BilingualSegmentRow'
 import { SegmentRow } from '../components/live/SegmentRow'
 import { TranslationRow } from '../components/live/TranslationRow'
 import { MarkdownText } from '../components/MarkdownText'
-import { AIModelPickerField, InterpretAIConfiguration, InterpretSubtitleConfiguration, LanguagePairControls } from '../components/organisms'
+import { AIModelPickerField, InterpretAIConfiguration, InterpretSubtitleConfiguration, LanguagePairControls, LiveSessionStatus } from '../components/organisms'
 import { Button } from '../components/ui/atoms'
 import { 
   AlertTriangleIcon,
   CheckIcon,
+  ChevronDownIcon,
   CopyIcon,
   DownloadIcon,
   GearIcon,
   InfoCircleIcon,
+  LayersIcon,
   LightbulbIcon,
   MicrophoneIcon,
   MonitorIcon,
   SpinnerIcon,
   StopIcon,
+  SubtitlesIcon,
   TranslateIcon,
   TrashIcon,
   XIcon,} from '../components/ui/icons'
 import { EmptyPanelState } from '../components/ui/molecules'
 import { COPY_FEEDBACK_DURATION_MS, DEFAULT_SEGMENT_DURATION_MS, MIN_SEGMENT_DURATION_MS } from '../constants/ui'
 import { MACOS_SCREEN_RECORDING_PREFS } from '../constants/urls'
+import { useFollowLatest } from '../hooks/live/useFollowLatest'
 import type { LiveAudioMode } from '../hooks/live/vadPolicy'
 import { DEFAULT_SUBTITLE_SETTINGS, useLiveTranslate } from '../hooks/useLiveTranslate'
 import type { Translations } from '../i18n/types'
@@ -51,6 +56,27 @@ const SUBTITLE_FONT_SIZES = [
 ]
 
 type PostTab = 'summary' | 'actions' | 'decisions'
+
+/** Side-by-side panels, or each segment paired with its translation. */
+export type LiveViewMode = 'split' | 'paired'
+const LIVE_VIEW_MODE_STORAGE_KEY = 'viezan.live.viewMode'
+
+/** Per-viewer layout preference; storage may be unavailable, so fall back to split. */
+function readStoredViewMode(): LiveViewMode {
+  try {
+    return localStorage.getItem(LIVE_VIEW_MODE_STORAGE_KEY) === 'paired' ? 'paired' : 'split'
+  } catch {
+    return 'split'
+  }
+}
+
+function writeStoredViewMode(mode: LiveViewMode) {
+  try {
+    localStorage.setItem(LIVE_VIEW_MODE_STORAGE_KEY, mode)
+  } catch {
+    // Preference is a convenience only.
+  }
+}
 
 type LiveInputCopySource = Pick<
   Translations,
@@ -98,7 +124,7 @@ export function LiveTranslatePage() {
     segments, pendingText,
     handleStart, handleStop, handleClear, handleSummarize,
     handleExtractActionItems, handleExtractDecisions, handleRenameSpeaker,
-    rawEndRef, txEndRef, wordCount, isMac, hasOpenAIKey, hasAnyKey,
+    getInputLevel, wordCount, isMac, hasOpenAIKey, hasAnyKey,
     activeSttProvider,
   } = useLiveTranslate()
 
@@ -114,6 +140,22 @@ export function LiveTranslatePage() {
   /** Session-scoped AI configuration. Transcript actions stay with transcript output. */
   const [showAIConfig, setShowAIConfig] = useState(false)
   const liveInputCopy = getLiveInputCopy(audioMode, t)
+  const startBlockedReason = !hasOpenAIKey ? t.live_no_openai_key
+    : !hasAnyKey ? t.live_no_translate_key
+    : !isActive && liveLanguagesLocked ? t.language_pairs_locked
+    : undefined
+  const startSession = () => {
+    if ((audioMode === 'system' || audioMode === 'both') && isMac && screenPermission !== 'granted') {
+      setShowScreenPermModal(true)
+    } else {
+      handleStart()
+    }
+  }
+  const audioModes: { mode: LiveAudioMode; label: string; title: string; icon: React.ReactNode }[] = [
+    { mode: 'mic', label: t.live_audio_mode_mic, title: t.live_audio_mode_mic_title, icon: <MicrophoneIcon /> },
+    { mode: 'system', label: t.live_audio_mode_system, title: t.live_audio_mode_system_title, icon: <MonitorIcon /> },
+    { mode: 'both', label: t.live_audio_mode_both, title: t.live_audio_mode_both_title, icon: <LayersIcon /> },
+  ]
 
   // ── Global Escape handler for open modals ──
   // Backdrop-level onKeyDown only fires when the backdrop or its descendants
@@ -201,6 +243,234 @@ export function LiveTranslatePage() {
     }
   }
 
+  // ── Layout + follow-latest scrolling ───────────────────────────────────────
+  const [viewMode, setViewMode] = useState<LiveViewMode>(readStoredViewMode)
+  const changeViewMode = (mode: LiveViewMode) => {
+    setViewMode(mode)
+    writeStoredViewMode(mode)
+  }
+  const rawFollow = useFollowLatest(viewMode)
+  const txFollow = useFollowLatest(viewMode)
+  const pairedFollow = useFollowLatest(viewMode)
+  const hasTranscript = Boolean(rawTranscript) || segments.length > 0
+
+  // ── Shared toolbar / footer pieces (used by both layouts) ──────────────────
+  const statusLabel = isTranscribing ? t.voice_transcribing
+    : isTranslating ? t.live_status_translating
+    : pendingText ? t.voice_recording
+    : liveInputCopy.listeningLabel
+
+  const audioSourceGroup = (
+    <fieldset className="live-audio-source-group" aria-label={t.live_audio_source_label}>
+      {audioModes.map(({ mode, label, title, icon }) => (
+        <Button
+          key={mode}
+          size="sm"
+          shape="pill"
+          variant={audioMode === mode ? 'primary' : 'neutral'}
+          appearance={audioMode === mode ? 'soft' : 'ghost'}
+          aria-pressed={audioMode === mode}
+          disabled={isActive}
+          onClick={() => setAudioMode(mode)}
+          title={title}
+        >
+          {icon}
+          <span>{label}</span>
+        </Button>
+      ))}
+    </fieldset>
+  )
+
+  const sessionStatus = isActive ? (
+    <LiveSessionStatus
+      startedAt={sessionStartTime}
+      label={statusLabel}
+      busy={isTranscribing || isTranslating}
+      getInputLevel={getInputLevel}
+      inputLevelLabel={t.live_input_level}
+      elapsedLabel={t.live_elapsed}
+    />
+  ) : null
+
+  const sttBadge = isActive ? (
+    <span className="ui-badge-xs gap-1.5 select-none" style={{background:'var(--vzn-surface-muted)',color:'var(--vzn-text-soft)'}}>
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{background:'var(--vzn-text-muted)'}} />
+      {activeSttProvider === 'whisper' ? 'Whisper' :
+       activeSttProvider === 'gemini'  ? 'Gemini' :
+       activeSttProvider === 'groq'    ? 'Groq (free)' :
+       t.live_stt_backend_none}
+    </span>
+  ) : null
+
+  const viewToggle = (
+    <fieldset className="live-audio-source-group" aria-label={t.live_view_mode_label}>
+      {([['split', t.live_view_split], ['paired', t.live_view_paired]] as const).map(([mode, label]) => (
+        <Button
+          key={mode}
+          size="sm"
+          shape="pill"
+          variant={viewMode === mode ? 'primary' : 'neutral'}
+          appearance={viewMode === mode ? 'soft' : 'ghost'}
+          aria-pressed={viewMode === mode}
+          onClick={() => changeViewMode(mode)}
+        >
+          {label}
+        </Button>
+      ))}
+    </fieldset>
+  )
+
+  const subtitleToggle = (
+    <Button
+      size="sm"
+      shape="pill"
+      variant={showSubtitles ? 'primary' : 'neutral'}
+      appearance={showSubtitles ? 'soft' : 'ghost'}
+      aria-pressed={showSubtitles}
+      onClick={() => setShowSubtitles(!showSubtitles)}
+      title={showSubtitles ? t.live_subtitles_hide_title : t.live_subtitles_show_title}
+    >
+      <SubtitlesIcon />
+      <span>{t.live_subtitles}</span>
+    </Button>
+  )
+
+  const jumpToLatest = (follow: ReturnType<typeof useFollowLatest>) => !follow.following && (
+    <Button
+      size="sm"
+      shape="pill"
+      variant="neutral"
+      appearance="outline"
+      className="live-jump-latest"
+      onClick={follow.jumpToLatest}
+    >
+      <ChevronDownIcon />
+      {t.live_jump_latest}
+    </Button>
+  )
+
+  const pendingRow = (
+    <>
+      {isActive && pendingText && (
+        <div className="flex items-start gap-2 opacity-50">
+          <span className="ui-badge-xs mt-0.5 flex-shrink-0" style={{color:'var(--vzn-text-muted)'}}>
+            {segments.length > 0
+              ? (speakerNameMap[segments[segments.length - 1].speaker] || segments[segments.length - 1].speaker)
+              : t.live_speaker_default}
+          </span>
+          <span className="ui-reader-text italic" style={{color:'var(--vzn-text-muted)'}}>
+            {pendingText}
+            <span className="not-italic inline-block ml-0.5 w-0.5 h-4 animate-pulse align-middle" style={{background:'var(--vzn-text-soft)'}} />
+          </span>
+        </div>
+      )}
+      {isActive && !pendingText && (
+        <div className="flex items-center gap-2 pl-1">
+          <span className="inline-block w-0.5 h-4 animate-pulse" style={{background:'var(--vzn-text-soft)'}} />
+        </div>
+      )}
+    </>
+  )
+
+  const startEmptyState = (
+    <EmptyPanelState
+      icon={<MicrophoneIcon />}
+      actionLabel={t.live_start}
+      description={liveInputCopy.emptyDescription}
+      onAction={startBlockedReason ? undefined : startSession}
+    />
+  )
+
+  const transcriptActions = (
+    <div className="live-transcript-actions">
+      <Button
+        size="xs"
+        shape="icon"
+        variant={copiedRaw ? 'primary' : 'neutral'}
+        appearance="ghost"
+        disabled={!rawTranscript}
+        onClick={() => handleCopy(rawTranscript, setCopiedRaw)}
+        aria-label={t.live_copy_original}
+        title={t.live_copy_original}
+      >
+        {copiedRaw ? <CheckIcon /> : <CopyIcon />}
+      </Button>
+      <Button
+        size="xs"
+        shape="rect"
+        variant="danger"
+        appearance="soft"
+        disabled={!rawTranscript}
+        onClick={handleClear}
+      >
+        <TrashIcon />
+        {t.live_clear}
+      </Button>
+      <Button
+        size="xs"
+        shape="rect"
+        variant="neutral"
+        appearance="ghost"
+        disabled={!rawTranscript}
+        onClick={handleExportTxt}
+        title={t.live_export_txt}
+      >
+        <DownloadIcon />
+        TXT
+      </Button>
+      <Button
+        size="xs"
+        shape="rect"
+        variant="neutral"
+        appearance="ghost"
+        disabled={!segments.length}
+        onClick={handleExportSrt}
+        title={t.live_export_srt}
+      >
+        <DownloadIcon />
+        SRT
+      </Button>
+    </div>
+  )
+
+  const wordCountLabel = wordCount > 0 && (
+    <span className="text-xs tabular-nums select-none" style={{color:'var(--vzn-text-muted)'}}>
+      {wordCount.toLocaleString()} {t.live_words}
+    </span>
+  )
+
+  const translationActions = (
+    <>
+      <Button
+        size="xs"
+        shape="icon"
+        variant={copiedTx ? 'primary' : 'neutral'}
+        appearance="ghost"
+        aria-label={t.live_copy_translation}
+        type="button"
+        disabled={!translation}
+        onClick={() => handleCopy(translation, setCopiedTx)}
+        title={t.live_copy_translation}
+      >
+        {copiedTx ? <CheckIcon /> : <CopyIcon />}
+      </Button>
+
+      {showSummaryBtn && (
+        <Button
+          size="xs"
+          shape="rect"
+          variant="primary"
+          appearance="solid"
+          type="button"
+          onClick={handleOpenSummaryPopup}
+        >
+          <LightbulbIcon />
+          {t.live_summarize}
+        </Button>
+      )}
+    </>
+  )
+
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="app-page relative">
@@ -209,103 +479,61 @@ export function LiveTranslatePage() {
       <div className="app-workspace">
         <div className="glass-panel flex-1 min-h-0 flex flex-col overflow-hidden">
 
-          <LanguagePairControls scope="live" sourceHeadingId="live-source-language" resultHeadingId="live-target-language" />
+          <LanguagePairControls
+            scope="live"
+            sourceHeadingId="live-source-language"
+            resultHeadingId="live-target-language"
+            actions={(
+              <>
+                {/* ▶ Bắt Đầu / ■ Dừng */}
+                <Button
+                  size="md"
+                  shape="rect"
+                  variant={isActive ? 'danger' : 'primary'}
+                  appearance="solid"
+                  type="button"
+                  onClick={isActive ? handleStop : startSession}
+                  disabled={Boolean(startBlockedReason)}
+                  title={startBlockedReason}
+                  className="flex-shrink-0"
+                >
+                  {isActive ? (
+                    <><StopIcon className="w-3.5 h-3.5" />{t.live_stop}</>
+                  ) : (
+                    <><MicrophoneIcon className="w-3.5 h-3.5" />{t.live_start}</>
+                  )}
+                </Button>
+
+                <InterpretAIConfiguration
+                  open={showAIConfig}
+                  active={isActive}
+                  title={t.ai_configuration_title}
+                  scopeDescription={isActive
+                    ? t.ai_configuration_interpret_active_scope
+                    : t.ai_configuration_interpret_scope}
+                  closeLabel={t.settings_close}
+                  translationLabel={t.ai_configuration_translation_section}
+                  outputLabel={t.ai_configuration_output_section}
+                  onOpenChange={setShowAIConfig}
+                  modelControl={<AIModelPickerField />}
+                  subtitleControl={(
+                    <InterpretSubtitleConfiguration
+                      enabled={showSubtitles}
+                      onEnabledChange={setShowSubtitles}
+                      settings={subtitleSettings}
+                      onSettingsChange={setSubtitleSettings}
+                      onReset={() => setSubtitleSettings({ ...DEFAULT_SUBTITLE_SETTINGS })}
+                      colors={subtitleColors}
+                      fontSizes={SUBTITLE_FONT_SIZES}
+                    />
+                  )}
+                />
+              </>
+            )}
+          />
           {(rawTranscript || translation) && (liveSourceLang !== sessionLanguages.sourceLang || liveTargetLang !== sessionLanguages.targetLang) && (
             <p className="language-pair-notice">{t.language_pairs_previous_session}: {t.lang_names[sessionLanguages.sourceLang] ?? sessionLanguages.sourceLang} → {t.lang_names[sessionLanguages.targetLang] ?? sessionLanguages.targetLang}</p>
           )}
-          <div className="live-language-actions">
-            <div className="flex items-center gap-3">
-            {/* ▶ Bắt Đầu / ■ Dừng */}
-            <Button
-              size="sm"
-              shape="rect"
-              variant={isActive ? 'danger' : 'primary'}
-              appearance="solid"
-              type="button"
-              onClick={isActive ? handleStop : () => {
-                if ((audioMode === 'system' || audioMode === 'both') && isMac && screenPermission !== 'granted') {
-                  setShowScreenPermModal(true)
-                } else {
-                  handleStart()
-                }
-              }}
-              disabled={!hasOpenAIKey || !hasAnyKey || (!isActive && liveLanguagesLocked)}
-              className="flex-shrink-0"
-            >
-              {isActive ? (
-                <><StopIcon className="w-3.5 h-3.5" />{t.live_stop}</>
-              ) : (
-                <><MicrophoneIcon className="w-3.5 h-3.5" />{t.live_start}</>
-              )}
-            </Button>
-
-            <InterpretAIConfiguration
-              open={showAIConfig}
-              active={isActive}
-              title={t.ai_configuration_title}
-              scopeDescription={isActive
-                ? t.ai_configuration_interpret_active_scope
-                : t.ai_configuration_interpret_scope}
-              closeLabel={t.settings_close}
-              translationLabel={t.ai_configuration_translation_section}
-              transcriptionLabel={t.ai_configuration_transcription_section}
-              outputLabel={t.ai_configuration_output_section}
-              onOpenChange={setShowAIConfig}
-              modelControl={<AIModelPickerField />}
-              audioSourceControl={(
-                <div className="live-ai-config-options">
-                      <Button
-                        size="md"
-                        shape="pill"
-                        variant={audioMode === 'mic' ? 'primary' : 'neutral'}
-                        appearance={audioMode === 'mic' ? 'soft' : 'ghost'}
-                        disabled={isActive}
-                        onClick={() => setAudioMode('mic')}
-                        title={t.live_audio_mode_mic_title}
-                      >
-                        <MicrophoneIcon />
-                        <span>{t.live_audio_mode_mic}</span>
-                      </Button>
-                      <Button
-                        size="md"
-                        shape="pill"
-                        variant={audioMode === 'system' ? 'primary' : 'neutral'}
-                        appearance={audioMode === 'system' ? 'soft' : 'ghost'}
-                        disabled={isActive}
-                        onClick={() => setAudioMode('system')}
-                        title={t.live_audio_mode_system_title}
-                      >
-                        <MonitorIcon />
-                        <span>{t.live_audio_mode_system}</span>
-                      </Button>
-                      <Button
-                        size="md"
-                        shape="pill"
-                        variant={audioMode === 'both' ? 'primary' : 'neutral'}
-                        appearance={audioMode === 'both' ? 'soft' : 'ghost'}
-                        disabled={isActive}
-                        onClick={() => setAudioMode('both')}
-                        title={t.live_audio_mode_both_title}
-                      >
-                        <MicrophoneIcon />
-                        <span>{t.live_audio_mode_both}</span>
-                      </Button>
-                    </div>
-              )}
-              subtitleControl={(
-                <InterpretSubtitleConfiguration
-                  enabled={showSubtitles}
-                  onEnabledChange={setShowSubtitles}
-                  settings={subtitleSettings}
-                  onSettingsChange={setSubtitleSettings}
-                  onReset={() => setSubtitleSettings({ ...DEFAULT_SUBTITLE_SETTINGS })}
-                  colors={subtitleColors}
-                  fontSizes={SUBTITLE_FONT_SIZES}
-                />
-              )}
-            />
-            </div>
-          </div>
           {/* ── End controls ── */}
 
           {/* ── Body: notices + panels ── */}
@@ -327,240 +555,163 @@ export function LiveTranslatePage() {
               </Button>
             </Notice>
           )}
+          {hasOpenAIKey && !hasAnyKey && (
+            <Notice>
+              {t.live_no_translate_key}{' '}
+              <Button
+                size="md"
+                shape="rect"
+                variant="neutral"
+                appearance="ghost"
+                type="button"
+                onClick={() => openSettings()}
+              >
+                {t.translate_error_open_settings}
+              </Button>
+            </Notice>
+          )}
 
-
-          {/* ── Two panels: Nguyên Bản | Bản Dịch ── */}
+          {/* ── Panels: side-by-side (Nguyên Bản | Bản Dịch) or paired by sentence ── */}
+          {viewMode === 'paired' ? (
+            <div className="glass-panel live-paired-panel">
+              <div className="live-panel-toolbar">
+                <div className="live-toolbar-start">{audioSourceGroup}{sessionStatus}</div>
+                <div className="live-toolbar-end">{sttBadge}{viewToggle}{subtitleToggle}</div>
+              </div>
+              <div className="live-scroll-region">
+                <div ref={pairedFollow.scrollRef} onScroll={pairedFollow.onScroll} className="live-scroll-viewport">
+                  <div ref={pairedFollow.contentRef} className="live-scroll-content">
+                    {segments.length > 0 || (isActive && pendingText) ? (
+                      <>
+                        {segments.map((seg, index) => (
+                          <BilingualSegmentRow
+                            key={seg.id}
+                            speaker={seg.speaker}
+                            original={seg.rawText}
+                            translation={seg.translation}
+                            speakerNameMap={speakerNameMap}
+                            onRename={handleRenameSpeaker}
+                            pendingTranslationLabel={isActive && isTranslating && index === segments.length - 1
+                              ? t.live_status_translating
+                              : undefined}
+                          />
+                        ))}
+                        {pendingRow}
+                      </>
+                    ) : rawTranscript || translation ? (
+                      <>
+                        <p className="ui-reader-text whitespace-pre-wrap p-1">{rawTranscript}</p>
+                        <p className="ui-reader-text font-medium whitespace-pre-wrap p-1">{translation}</p>
+                      </>
+                    ) : startEmptyState}
+                  </div>
+                </div>
+                {jumpToLatest(pairedFollow)}
+              </div>
+              {(hasTranscript || translation || showSummaryBtn) && (
+                <div className="surface-footer">
+                  {transcriptActions}
+                  <div className="live-transcript-actions">
+                    {wordCountLabel}
+                    {translationActions}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
           <div className="app-panel-grid">
 
             {/* Left: Nguyên Bản */}
             <div className="glass-panel h-full flex flex-col">
-              {/* Status indicator bar (only when active) */}
-              {isActive && (
-                <div className="flex-shrink-0 flex items-center px-4 pt-2 pb-1">
-                  <span className="flex items-center gap-1.5 select-none">
-                    {isTranscribing ? (
+              {/* Audio source stays visible; it is locked while a session runs. */}
+              <div className="live-panel-toolbar">
+                {audioSourceGroup}
+                {sessionStatus}
+              </div>
+              <div className="live-scroll-region">
+                <div ref={rawFollow.scrollRef} onScroll={rawFollow.onScroll} className="live-scroll-viewport">
+                  <div ref={rawFollow.contentRef} className="live-scroll-content">
+                    {segments.length > 0 || (isActive && pendingText) ? (
                       <>
-                        <span className="flex-shrink-0" style={{color:'var(--vzn-text-muted)'}}><SpinnerIcon className="w-2.5 h-2.5 animate-spin" /></span>
-                        <span className="ui-micro font-medium" style={{color:'var(--vzn-text-muted)'}}>{t.voice_transcribing}</span>
+                        {segments.map((seg) => (
+                          <SegmentRow
+                            key={seg.id}
+                            speaker={seg.speaker}
+                            text={seg.rawText}
+                            speakerNameMap={speakerNameMap}
+                            onRename={handleRenameSpeaker}
+                          />
+                        ))}
+                        {pendingRow}
                       </>
-                    ) : isTranslating ? (
-                      <>
-                        <span className="flex-shrink-0" style={{color:'var(--vzn-text-muted)'}}><SpinnerIcon className="w-2.5 h-2.5 animate-spin" /></span>
-                        <span className="ui-micro font-medium" style={{color:'var(--vzn-text-muted)'}}>{t.live_status_translating}</span>
-                      </>
-                    ) : pendingText ? (
-                      <>
-                        <span className="relative flex h-1.5 w-1.5 flex-shrink-0">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{background:'var(--vzn-text-soft)'}} />
-                          <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{background:'var(--vzn-text-muted)'}} />
-                        </span>
-                        <span className="ui-micro font-medium" style={{color:'var(--vzn-text-muted)'}}>{t.voice_recording}</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="relative flex h-1.5 w-1.5 flex-shrink-0">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{background:'var(--vzn-text-soft)'}} />
-                          <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{background:'var(--vzn-text-muted)'}} />
-                        </span>
-                        <span className="ui-micro font-medium" style={{color:'var(--vzn-text-muted)'}}>{liveInputCopy.listeningLabel}</span>
-                      </>
-                    )}
-                  </span>
+                    ) : rawTranscript ? (
+                      <p className="ui-reader-text whitespace-pre-wrap p-1">{rawTranscript}</p>
+                    ) : startEmptyState}
+                  </div>
                 </div>
-              )}
-              <div className="flex-1 overflow-y-auto p-4 space-y-1.5">
-                {segments.length > 0 || (isActive && pendingText) ? (
-                  <>
-                    {segments.map((seg) => (
-                      <SegmentRow
-                        key={seg.id}
-                        speaker={seg.speaker}
-                        text={seg.rawText}
-                        speakerNameMap={speakerNameMap}
-                        onRename={handleRenameSpeaker}
-                      />
-                    ))}
-                    {isActive && pendingText && (
-                      <div className="flex items-start gap-2 opacity-50">
-                        <span className="ui-badge-xs mt-0.5 flex-shrink-0" style={{color:'var(--vzn-text-muted)'}}>
-                          {segments.length > 0
-                            ? (speakerNameMap[segments[segments.length - 1].speaker] || segments[segments.length - 1].speaker)
-                            : t.live_speaker_default}
-                        </span>
-                        <span className="ui-reader-text italic" style={{color:'var(--vzn-text-muted)'}}>
-                          {pendingText}
-                          <span className="not-italic inline-block ml-0.5 w-0.5 h-4 animate-pulse align-middle" style={{background:'var(--vzn-text-soft)'}} />
-                        </span>
-                      </div>
-                    )}
-                    {isActive && !pendingText && (
-                      <div className="flex items-center gap-2 pl-1">
-                        <span className="inline-block w-0.5 h-4 animate-pulse" style={{background:'var(--vzn-text-soft)'}} />
-                      </div>
-                    )}
-                  </>
-                ) : rawTranscript ? (
-                  <p className="ui-reader-text whitespace-pre-wrap p-1">
-                    {rawTranscript}
-                    {isActive && <span className="inline-block ml-0.5 w-0.5 h-4 animate-pulse align-middle" style={{background:'var(--vzn-text-soft)'}} />}
-                  </p>
-                ) : (
-                  <EmptyPanelState
-                    icon={<MicrophoneIcon />}
-                    actionLabel={t.live_start}
-                    description={liveInputCopy.emptyDescription}
-                    onAction={hasOpenAIKey && hasAnyKey ? () => {
-                      if ((audioMode === 'system' || audioMode === 'both') && isMac && screenPermission !== 'granted') {
-                        setShowScreenPermModal(true)
-                      } else {
-                        handleStart()
-                      }
-                    } : undefined}
-                  />
-                )}
-                <div ref={rawEndRef} />
+                {jumpToLatest(rawFollow)}
               </div>
 
               {/* Transcript actions belong to transcript output, not AI configuration. */}
-              <div className="surface-footer">
-                <div className="live-transcript-actions">
-                  <Button
-                    size="xs"
-                    shape="icon"
-                    variant={copiedRaw ? 'primary' : 'neutral'}
-                    appearance="ghost"
-                    disabled={!rawTranscript}
-                    onClick={() => handleCopy(rawTranscript, setCopiedRaw)}
-                    aria-label={t.translate_copy}
-                  >
-                    {copiedRaw ? <CheckIcon /> : <CopyIcon />}
-                  </Button>
-                  <Button
-                    size="xs"
-                    shape="rect"
-                    variant="danger"
-                    appearance="soft"
-                    disabled={!rawTranscript}
-                    onClick={handleClear}
-                  >
-                    <TrashIcon />
-                    {t.live_clear}
-                  </Button>
-                  <Button
-                    size="xs"
-                    shape="rect"
-                    variant="neutral"
-                    appearance="ghost"
-                    disabled={!rawTranscript}
-                    onClick={handleExportTxt}
-                    title={t.live_export_txt}
-                  >
-                    <DownloadIcon />
-                    TXT
-                  </Button>
-                  <Button
-                    size="xs"
-                    shape="rect"
-                    variant="neutral"
-                    appearance="ghost"
-                    disabled={!segments.length}
-                    onClick={handleExportSrt}
-                    title={t.live_export_srt}
-                  >
-                    <DownloadIcon />
-                    SRT
-                  </Button>
+              {hasTranscript && (
+                <div className="surface-footer">
+                  {transcriptActions}
+                  {wordCountLabel}
                 </div>
-                {wordCount > 0 && (
-                  <span className="text-xs tabular-nums select-none" style={{color:'var(--vzn-text-muted)'}}>
-                    {wordCount.toLocaleString()} {t.live_words}
-                  </span>
-                )}
-              </div>
+              )}
             </div>
 
             {/* Right: Bản Dịch */}
             <div className="glass-panel h-full flex flex-col">
-              {/* STT provider badge — top-right, only when active */}
-              {isActive && (
-                <div className="flex-shrink-0 flex items-center justify-end px-4 pt-2 pb-1">
-                  <span className="ui-badge-xs gap-1.5 select-none" style={{background:'var(--vzn-surface-muted)',color:'var(--vzn-text-soft)'}}>
-                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{background:'var(--vzn-text-muted)'}} />
-                    {activeSttProvider === 'whisper' ? 'Whisper' :
-                     activeSttProvider === 'gemini'  ? 'Gemini' :
-                     activeSttProvider === 'groq'    ? 'Groq (free)' :
-                     t.live_stt_backend_none}
-                  </span>
-                </div>
-              )}
-              <div className="flex-1 overflow-y-auto p-4 space-y-1.5">
-                {segments.length > 0 ? (
-                  <>
-                    {segments.map((seg) => (
-                      <TranslationRow
-                        key={seg.id}
-                        speaker={seg.speaker}
-                        text={seg.translation}
-                        speakerNameMap={speakerNameMap}
+              {/* STT provider badge (only when active), layout + floating subtitle toggles */}
+              <div className="live-panel-toolbar">
+                {sttBadge ?? <span />}
+                <div className="live-toolbar-end">{viewToggle}{subtitleToggle}</div>
+              </div>
+              <div className="live-scroll-region">
+                <div ref={txFollow.scrollRef} onScroll={txFollow.onScroll} className="live-scroll-viewport">
+                  <div ref={txFollow.contentRef} className="live-scroll-content">
+                    {segments.length > 0 ? (
+                      <>
+                        {segments.map((seg) => (
+                          <TranslationRow
+                            key={seg.id}
+                            speaker={seg.speaker}
+                            text={seg.translation}
+                            speakerNameMap={speakerNameMap}
+                          />
+                        ))}
+                        {isActive && isTranslating && (
+                          <div className="flex items-center gap-2 pl-1">
+                            <span style={{color:'var(--vzn-text-muted)'}}><SpinnerIcon className="w-3 h-3 animate-spin" /></span>
+                            <span className="text-xs italic" style={{color:'var(--vzn-text-muted)'}}>{t.live_status_translating}</span>
+                          </div>
+                        )}
+                      </>
+                    ) : translation ? (
+                      <p className="ui-reader-text font-medium whitespace-pre-wrap p-1">
+                        {translation}
+                      </p>
+                    ) : (
+                      <EmptyPanelState
+                        icon={<TranslateIcon />}
+                        description={t.translate_result_placeholder}
                       />
-                    ))}
-                    {isActive && isTranslating && (
-                      <div className="flex items-center gap-2 pl-1">
-                        <span style={{color:'var(--vzn-text-muted)'}}><SpinnerIcon className="w-3 h-3 animate-spin" /></span>
-                        <span className="text-xs italic" style={{color:'var(--vzn-text-muted)'}}>{t.live_status_translating}</span>
-                      </div>
                     )}
-                    {isActive && !isTranslating && (
-                      <div className="flex items-center gap-2 pl-1">
-                        <span className="inline-block w-0.5 h-4 animate-pulse" style={{background:'var(--vzn-border)'}} />
-                      </div>
-                    )}
-                  </>
-                ) : translation ? (
-                  <p className="ui-reader-text font-medium whitespace-pre-wrap p-1">
-                    {translation}
-                  </p>
-                ) : (
-                  <EmptyPanelState
-                    icon={<TranslateIcon />}
-                    description={t.translate_result_placeholder}
-                  />
-                )}
-                <div ref={txEndRef} />
+                  </div>
+                </div>
+                {jumpToLatest(txFollow)}
               </div>
 
               {/* Right panel footer — Copy icon + Tổng hợp nội dung button */}
-              <div className="surface-footer">
-                <Button
-                  size="sm"
-                  shape="icon"
-                  variant={copiedTx ? 'primary' : 'neutral'}
-                  appearance={copiedTx ? 'soft' : 'ghost'}
-                  aria-label={t.translate_copy}
-                  type="button"
-                  disabled={!translation}
-                  onClick={() => handleCopy(translation, setCopiedTx)}
-                  title={t.translate_copy}
-                >
-                  {copiedTx ? <CheckIcon className="w-4 h-4" /> : <CopyIcon className="w-4 h-4" />}
-                </Button>
-
-                {showSummaryBtn && (
-                  <Button
-                    size="sm"
-                    shape="rect"
-                    variant="primary"
-                    appearance="solid"
-                    type="button"
-                    onClick={handleOpenSummaryPopup}
-                  >
-                    <LightbulbIcon className="w-3.5 h-3.5" />
-                    {t.live_summarize}
-                  </Button>
-                )}
-              </div>
+              {(translation || showSummaryBtn) && (
+                <div className="surface-footer">
+                  {translationActions}
+                </div>
+              )}
             </div>
           </div>
+          )}
           {/* ── End two panels ── */}
 
           </div>

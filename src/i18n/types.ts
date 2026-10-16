@@ -1140,6 +1140,14 @@ export interface Translations {
 
   // Live — subtitle on/off toggle label
   live_subtitles_on: string
+  live_view_mode_label: string
+  live_view_split: string
+  live_view_paired: string
+  live_jump_latest: string
+  live_copy_original: string
+  live_copy_translation: string
+  live_input_level: string
+  live_elapsed: string
   // Live — transcript section label
   live_transcript_label: string
   // Live — default speaker label

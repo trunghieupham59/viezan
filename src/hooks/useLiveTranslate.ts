@@ -15,7 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createAudioTranscriptionRequestId, getSupportedAudioMimeType } from '../constants/audio'
 import { LANG_NAMES_FOR_AI } from '../constants/langNames'
-import { MIN_AUDIO_BLOB_BYTES } from '../constants/ui'
+import { LIVE_INPUT_LEVEL_FULL_SCALE_RMS, MIN_AUDIO_BLOB_BYTES } from '../constants/ui'
 import { useAppStore, useT } from '../store/useAppStore'
 import type { AIModelSelection, Provider, SttBackend, SubtitleSettings, UsageCost } from '../types'
 import { createClientId } from '../utils/id'
@@ -339,8 +339,6 @@ export function useLiveTranslate() {
   // Timer ref for auto-clearing pipelineError — avoids stale closures in processChunk
   const pipelineErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const rawEndRef        = useRef<HTMLDivElement>(null)
-  const txEndRef         = useRef<HTMLDivElement>(null)
   const sessionIdRef     = useRef<string | null>(null)
   const sessionStartRef  = useRef<number>(0)
   // Mirror refs for segments + speakerNameMap — readable from stable useCallbacks
@@ -382,10 +380,18 @@ export function useLiveTranslate() {
   useEffect(() => { segmentsRef.current = segments }, [segments])
   useEffect(() => { speakerNameMapRef.current = speakerNameMap }, [speakerNameMap])
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: rawTranscript.length is the intentional trigger
-  useEffect(() => { rawEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [rawTranscript.length])
-  // biome-ignore lint/correctness/useExhaustiveDependencies: translation.length is the intentional trigger
-  useEffect(() => { txEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [translation.length])
+  /**
+   * Current input level in [0, 1], or null when no capture analyser exists.
+   * Read on demand so a meter can poll it without re-rendering the whole page.
+   */
+  const getInputLevel = useCallback((): number | null => {
+    const analyser = analyserRef.current
+    if (!analyser) return null
+    const data = new Uint8Array(analyser.fftSize)
+    analyser.getByteTimeDomainData(data)
+    const rms = Math.sqrt(data.reduce((sum, v) => sum + (v - 128) ** 2, 0) / data.length)
+    return Math.min(1, rms / LIVE_INPUT_LEVEL_FULL_SCALE_RMS)
+  }, [])
 
   // ── Restore historical session when navigating from history ───────────────
   // When the user clicks "Xem" on a live history item, viewingLiveSessionId is
@@ -1899,9 +1905,8 @@ export function useLiveTranslate() {
     handleExtractActionItems,
     handleExtractDecisions,
     handleRenameSpeaker,
-    // DOM refs
-    rawEndRef,
-    txEndRef,
+    // Input level for the live meter (polled by the meter itself)
+    getInputLevel,
     // Computed
     wordCount,
     isMac,
