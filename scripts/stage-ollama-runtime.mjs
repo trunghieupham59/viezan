@@ -23,6 +23,8 @@ const files = {}
 function copy(directory, relative = '') {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const name = path.posix.join(relative, entry.name)
+    // A previously staged archive has a manifest; regenerate it without hashing itself.
+    if (name === 'runtime.json') continue
     if (entry.isSymbolicLink()) throw new Error('Runtime symlinks are not supported')
     if (entry.isDirectory()) copy(path.join(directory, entry.name), name)
     else if (entry.isFile()) {
