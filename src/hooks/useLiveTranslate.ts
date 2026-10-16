@@ -423,6 +423,8 @@ export function useLiveTranslate() {
     sessionIdRef.current         = session.id
   }, [viewingLiveSessionId])
 
+  const dismissMicError = useCallback(() => setMicError(null), [])
+
   // Centralised pipeline-error display: clears any prior timer before scheduling
   // the next auto-dismiss so back-to-back errors don't truncate each other.
   const showPipelineError = useCallback((msg: string) => {
@@ -1871,6 +1873,7 @@ export function useLiveTranslate() {
     isTranscribing,
     isTranslating,
     micError,
+    dismissMicError,
     pipelineError,
     // Subtitle state
     showSubtitles,

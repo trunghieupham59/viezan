@@ -1012,6 +1012,7 @@ const vi: Translations = {
   chat_deep_research_summarizing: 'Đang tổng hợp kết quả…',
 
   chat_deep_research_badge: 'Deep Research',
+  live_error_title: 'Lỗi phiên dịch trực tiếp',
   live_error_stt_failed: 'Nhận dạng thất bại — đang thử lại',
   live_error_system_audio_unavailable: 'Không có âm thanh hệ thống — vui lòng bật "Share audio" trong hộp thoại chia sẻ màn hình, rồi thử lại.',
   live_error_screen_permission_denied: 'Không có quyền Screen Recording. Bật trong System Settings → Privacy → Screen Recording.',

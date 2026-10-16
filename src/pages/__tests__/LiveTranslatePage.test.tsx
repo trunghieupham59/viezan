@@ -17,7 +17,7 @@ function liveState(overrides: Record<string, unknown> = {}) {
   return {
     audioMode: 'system', setAudioMode: vi.fn(), screenPermission: 'granted',
     isActive: false, liveLanguagesLocked: false, sessionLanguages: { sourceLang: 'auto', targetLang: 'vi' },
-    rawTranscript: '', translation: '', isTranscribing: false, isTranslating: false, pipelineError: null,
+    rawTranscript: '', translation: '', isTranscribing: false, isTranslating: false, micError: null, dismissMicError: vi.fn(), pipelineError: null,
     showSubtitles: false, setShowSubtitles: vi.fn(),
     subtitleSettings: {}, setSubtitleSettings: vi.fn(),
     showSummaryBtn: false, summary: '', isSummarizing: false,
@@ -77,6 +77,36 @@ describe('AI Interpret screen', () => {
     expect(start).toBeDisabled()
     expect(start).toHaveAttribute('title', t.live_no_translate_key)
     expect(screen.getByText(t.live_no_translate_key, { exact: false })).toBeInTheDocument()
+  })
+
+  it('shows a missing speech-recognition key as a dismissible top-right notification', () => {
+    const openSettings = vi.fn()
+    useAppStore.setState({ openSettings })
+    live.state = liveState({ hasOpenAIKey: false })
+    render(<LiveTranslatePage />)
+    const viewport = document.querySelector('.notification-viewport') as HTMLElement
+    expect(within(viewport).getByText(t.live_no_openai_key)).toBeInTheDocument()
+    fireEvent.click(within(viewport).getByRole('button', { name: t.translate_error_open_settings }))
+    expect(openSettings).toHaveBeenCalled()
+    fireEvent.click(within(viewport).getByRole('button', { name: t.translate_error_dismiss }))
+    expect(screen.queryByText(t.live_no_openai_key)).not.toBeInTheDocument()
+  })
+
+  it('surfaces start failures instead of dropping them, and lets the user dismiss them', () => {
+    live.state = liveState({ micError: t.live_error_mic_denied })
+    render(<LiveTranslatePage />)
+    const viewport = document.querySelector('.notification-viewport') as HTMLElement
+    const alert = within(viewport).getByRole('alert')
+    expect(alert).toHaveTextContent(t.live_error_mic_denied)
+    fireEvent.click(within(alert).getByRole('button', { name: t.translate_error_dismiss }))
+    expect(live.state.dismissMicError).toHaveBeenCalled()
+  })
+
+  it('shows transient pipeline errors in the same notification stack', () => {
+    live.state = liveState({ pipelineError: t.live_error_stt_failed })
+    render(<LiveTranslatePage />)
+    const viewport = document.querySelector('.notification-viewport') as HTMLElement
+    expect(within(viewport).getByText(t.live_error_stt_failed)).toBeInTheDocument()
   })
 
   it('hides transcript and translation toolbars until there is output', () => {

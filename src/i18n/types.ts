@@ -1183,6 +1183,7 @@ export interface Translations {
 
 
   // Live — runtime error messages
+  live_error_title: string
   live_error_stt_failed: string
   live_error_system_audio_unavailable: string
   live_error_screen_permission_denied: string

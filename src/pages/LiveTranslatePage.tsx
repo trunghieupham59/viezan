@@ -6,7 +6,6 @@ import { MarkdownText } from '../components/MarkdownText'
 import { AIModelPickerField, InterpretAIConfiguration, InterpretSubtitleConfiguration, LanguagePairControls, LiveSessionStatus } from '../components/organisms'
 import { Button } from '../components/ui/atoms'
 import { 
-  AlertTriangleIcon,
   CheckIcon,
   ChevronDownIcon,
   CopyIcon,
@@ -23,7 +22,7 @@ import {
   TranslateIcon,
   TrashIcon,
   XIcon,} from '../components/ui/icons'
-import { EmptyPanelState } from '../components/ui/molecules'
+import { EmptyPanelState, NotificationToast } from '../components/ui/molecules'
 import { COPY_FEEDBACK_DURATION_MS, DEFAULT_SEGMENT_DURATION_MS, MIN_SEGMENT_DURATION_MS } from '../constants/ui'
 import { MACOS_SCREEN_RECORDING_PREFS } from '../constants/urls'
 import { useFollowLatest } from '../hooks/live/useFollowLatest'
@@ -115,7 +114,7 @@ export function LiveTranslatePage() {
   const {
     audioMode, setAudioMode, screenPermission,
     isActive, liveLanguagesLocked, sessionLanguages, rawTranscript, translation, isTranscribing, isTranslating,
-    pipelineError,
+    micError, dismissMicError, pipelineError,
     showSubtitles, setShowSubtitles,
     subtitleSettings, setSubtitleSettings,
     showSummaryBtn, summary, isSummarizing,
@@ -144,6 +143,18 @@ export function LiveTranslatePage() {
     : !hasAnyKey ? t.live_no_translate_key
     : !isActive && liveLanguagesLocked ? t.language_pairs_locked
     : undefined
+  // Missing-key toast: dismissible, and it comes back if the key is removed again later.
+  const missingKeyNotice = !hasOpenAIKey
+    ? { id: 'stt', message: t.live_no_openai_key }
+    : !hasAnyKey
+      ? { id: 'translate', message: t.live_no_translate_key }
+      : null
+  const [dismissedKeyNotice, setDismissedKeyNotice] = useState<string | null>(null)
+  const missingKeyNoticeId = missingKeyNotice?.id ?? null
+  const activeKeyNotice = missingKeyNotice && missingKeyNotice.id !== dismissedKeyNotice ? missingKeyNotice : null
+  useEffect(() => {
+    if (missingKeyNoticeId === null) setDismissedKeyNotice(null)
+  }, [missingKeyNoticeId])
   const startSession = () => {
     if ((audioMode === 'system' || audioMode === 'both') && isMac && screenPermission !== 'granted') {
       setShowScreenPermModal(true)
@@ -538,38 +549,6 @@ export function LiveTranslatePage() {
 
           {/* ── Body: notices + panels ── */}
           <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-3 gap-2">
-
-          {/* Notices */}
-          {!hasOpenAIKey && (
-            <Notice>
-              {t.live_no_openai_key}{' '}
-              <Button
-                size="md"
-                shape="rect"
-                variant="neutral"
-                appearance="ghost"
-                type="button"
-                onClick={() => openSettings()}
-              >
-                {t.translate_error_open_settings}
-              </Button>
-            </Notice>
-          )}
-          {hasOpenAIKey && !hasAnyKey && (
-            <Notice>
-              {t.live_no_translate_key}{' '}
-              <Button
-                size="md"
-                shape="rect"
-                variant="neutral"
-                appearance="ghost"
-                type="button"
-                onClick={() => openSettings()}
-              >
-                {t.translate_error_open_settings}
-              </Button>
-            </Notice>
-          )}
 
           {/* ── Panels: side-by-side (Nguyên Bản | Bản Dịch) or paired by sentence ── */}
           {viewMode === 'paired' ? (
@@ -983,13 +962,34 @@ export function LiveTranslatePage() {
         </div>
       )}
 
-      {/* Pipeline error toast */}
-      {pipelineError && (
-        <div className="pointer-events-none absolute bottom-14 inset-x-0 flex justify-center px-4 z-50">
-          <div className="ui-error-box flex items-center gap-2 text-xs font-medium shadow-md
-                          animate-[fadeIn_0.15s_ease-out]">
-            <AlertTriangleIcon className="w-3.5 h-3.5 flex-shrink-0" />
-            {pipelineError}
+      {/* Notifications: one top-right stack shared with the other pages */}
+      {(micError || pipelineError || activeKeyNotice) && (
+        <div className="notification-viewport">
+          <div className="flex flex-col gap-2">
+            {micError && (
+              <NotificationToast
+                tone="error"
+                title={t.live_error_title}
+                message={micError}
+                dismissLabel={t.translate_error_dismiss}
+                onDismiss={dismissMicError}
+                className="fade-in"
+              />
+            )}
+            {pipelineError && (
+              <NotificationToast tone="warning" message={pipelineError} className="fade-in" />
+            )}
+            {activeKeyNotice && (
+              <NotificationToast
+                tone="warning"
+                message={activeKeyNotice.message}
+                actionLabel={t.translate_error_open_settings}
+                onAction={() => openSettings()}
+                dismissLabel={t.translate_error_dismiss}
+                onDismiss={() => setDismissedKeyNotice(activeKeyNotice.id)}
+                className="fade-in"
+              />
+            )}
           </div>
         </div>
       )}
@@ -997,15 +997,3 @@ export function LiveTranslatePage() {
     </div>
   )
 }
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-function Notice({ children }: { children: React.ReactNode; variant?: 'warning' | 'error' }) {
-  const cls = 'ui-error-box'
-  return (
-    <div className={`flex-shrink-0 flex items-start gap-2 p-3 rounded-lg border text-sm ${cls}`}>
-      <AlertTriangleIcon className="ui-error-icon mt-0.5 h-4 w-4 flex-shrink-0" />
-      <span>{children}</span>
-    </div>
-  )
-}
-
