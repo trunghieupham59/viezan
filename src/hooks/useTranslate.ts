@@ -228,7 +228,7 @@ export function useTranslate() {
     setSourceText, setTranslatedText, setPhoneticText, setTargetLang,
     setIsTranslating, setTranslateError, setActivePage, setPhoneticMode, setTranslationStyle, setTranslationReasoningEffort, setAutoTranslate, addHistory, upsertHistory,
     recordUsageCost, setTranslationModels,
-    swapLanguages,
+    setLanguagePair,
   } = useAppStore()
   const t = useT()
 
@@ -1156,6 +1156,14 @@ export function useTranslate() {
     runTranslateRef.current('auto')
   }, [translationReasoningEffort])
 
+  const restartForLanguageRef = useRef(false)
+  const handleLanguagePairChange = useCallback((pair: { source: string; target: string }) => {
+    if (pair.source === sourceLang && pair.target === targetLang) return
+    restartForLanguageRef.current = isTranslatingRef.current
+    invalidateActiveTranslation()
+    setLanguagePair('translate', pair)
+  }, [sourceLang, targetLang, invalidateActiveTranslation, setLanguagePair])
+
   // Re-translate when target or source language changes (skip first render, skip manual mode).
   // Special case: if a translation is already in flight, restart it with the new lang pair so
   // the stale result (targeting the old language) does not surface — this is intentional and
@@ -1163,9 +1171,12 @@ export function useTranslate() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: lang changes are the triggers; sourceText/imageAttachment/runTranslate accessed via stable refs
   useEffect(() => {
     if (!langInitRef.current) { langInitRef.current = true; return }
+    setDetectedSourceLang(null)
+    setIsDetectingLang(false)
     invalidateRewrite()
     if (!sourceTextRef.current.trim() && !imageAttachmentRef.current) return
-    if (isTranslatingRef.current) {
+    if (restartForLanguageRef.current || isTranslatingRef.current) {
+      restartForLanguageRef.current = false
       runTranslateRef.current(autoTranslateRef.current ? 'auto' : 'manual')
       return
     }
@@ -1187,33 +1198,18 @@ export function useTranslate() {
     runTranslateRef.current('auto')
   }, [selectedProvider, selectedModel])
 
-  /** Swap translation panels — puts translated text into source, sets detected language as target. */
-  const handleSwapLanguages = useCallback(() => {
-    if (!translatedText || translatedText === IMAGE_TRANSLATED_SENTINEL || imageAttachment) return
-    const resolvedSourceLang = sourceLang === 'auto' ? detectedSourceLang : sourceLang
-    if (!resolvedSourceLang) return
-    translateGenerationRef.current++
-    imageProcessGenerationRef.current++
-    invalidateRewrite()
-    cancelActiveTranslation()
-    stopSpeak()
-    swapLanguages(resolvedSourceLang)
-    setResultContext({
-      sourceText: translatedText,
-      imageAttachment: null,
-      sourceLang: targetLang,
-      targetLang: resolvedSourceLang,
-      modelsKey: translationModelsKey,
-      translationStyle,
-      reasoningEffort: translationReasoningEffort,
-    })
-    setTranslateError(null)
-    setIsTranslating(false)
-    setDetectedSourceLang(null)
-    setIsDetectingLang(false)
-  }, [translatedText, detectedSourceLang, imageAttachment, sourceLang, targetLang,
-      translationModelsKey, translationStyle, translationReasoningEffort, stopSpeak, swapLanguages,
-      setTranslateError, setIsTranslating, cancelActiveTranslation, invalidateRewrite])
+  const handleUseAsSource = useCallback((text: string) => {
+    if (!text || isResultStale || isTranslating || imageAttachment) return
+    const resolvedSource = sourceLang === 'auto' ? detectedSourceLang : sourceLang
+    invalidateActiveTranslation()
+    setSourceText(text)
+    setLanguagePair('translate', { source: targetLang, target: resolvedSource ?? targetLang })
+    setTranslatedText('')
+    setPhoneticText('')
+    setComparisonResults([])
+    setResultContext(null)
+  }, [sourceLang, targetLang, detectedSourceLang, imageAttachment, isResultStale, isTranslating,
+    invalidateActiveTranslation, setLanguagePair, setSourceText, setTranslatedText, setPhoneticText])
 
   const handleCopy = async () => {
     const textToCopy = showFurigana && phoneticText ? phoneticText : translatedText
@@ -1397,7 +1393,8 @@ export function useTranslate() {
     // ── Handlers ───────────────────────────────────────────────────────────
     handleTranslate,
     handleRewrite,
-    handleSwapLanguages,
+    handleUseAsSource,
+    handleLanguagePairChange,
     handleCopy,
     handleCopyComparison,
     handleRetryComparison,

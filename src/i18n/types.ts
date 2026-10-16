@@ -59,6 +59,15 @@ export interface Translations {
   translate_chars: string
   translate_long_text_label: string
   translate_long_text_notice: (limit: number) => string
+  language_pairs_previous_session: string
+  language_pairs_pinned: string
+  language_pairs_pin: string
+  language_pairs_saved: string
+  language_pairs_manage: string
+  language_pairs_unpin: string
+  language_pairs_locked: string
+  language_pairs_same: string
+  translate_use_as_source: string
   translate_swap: string
   translate_error_no_key: string
   translate_error_open_settings: string
@@ -361,6 +370,29 @@ export interface Translations {
   settings_local_ai_models_found: string
   settings_local_ai_start_runtime: string
   settings_local_ai_benchmark: string
+  settings_local_perf_title: string
+  settings_local_perf_description: string
+  settings_local_perf_model: string
+  settings_local_perf_compare: string
+  settings_local_perf_reload_warning: string
+  settings_local_perf_start: string
+  settings_local_perf_dismiss: string
+  settings_local_perf_stop: string
+  settings_local_perf_running: string
+  settings_local_perf_gpu: string
+  settings_local_perf_hybrid: string
+  settings_local_perf_auto: string
+  settings_local_perf_mode: string
+  settings_local_perf_ttft: string
+  settings_local_perf_memory: string
+  settings_local_perf_metrics_note: string
+  settings_local_perf_recommended: string
+  settings_local_perf_selected: string
+  settings_local_perf_apply_note: string
+  settings_local_perf_failed: string
+  settings_local_perf_details: string
+  settings_local_perf_recovered: string
+  settings_local_perf_recovery_note: string
   settings_local_ai_benchmarking: string
   settings_local_ai_tier: string
   settings_local_ai_cpu_score: string
@@ -699,6 +731,16 @@ export interface Translations {
   chat_sidebar_switch_sessions: string
   chat_sidebar_conversations: string
   chat_task_language: string
+  chat_task_configuration: string
+  chat_web_source: string
+  chat_web_source_hint: string
+  chat_task_deep: string
+  chat_task_none: string
+  chat_task_next_message: string
+  chat_task_translate_placeholder: string
+  chat_task_research_placeholder: string
+  chat_task_explain_placeholder: string
+  chat_task_write_placeholder: string
   chat_task_depth: string
   chat_task_level: string
   chat_task_format: string
@@ -1123,6 +1165,8 @@ export interface Translations {
   /** Label on the "Resume Deep Research" button in ResearchStepsPanel
    *  shown when a stopped pipeline has a persisted resume snapshot. */
   chat_deep_research_resume: string
+  chat_deep_research_retry: string
+  chat_deep_research_retry_short: string
   /** Short label used inside the compact composer Resume button. */
   chat_deep_research_resume_short: string
 

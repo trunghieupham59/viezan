@@ -43,7 +43,7 @@ const CHAT_ROLES = new Set(['user', 'assistant'])
 const CHAT_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 const MAX_CHAT_MODEL_ID_CHARS = 200
 const MAX_SYSTEM_PROMPT_CHARS = 20_000
-const MAX_CHAT_REQUEST_ID_CHARS = 100
+export const MAX_CHAT_REQUEST_ID_CHARS = 100
 const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/
 
 /**

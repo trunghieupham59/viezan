@@ -1,7 +1,22 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAppStore } from '../../store/useAppStore'
-import { Sidebar } from '../Sidebar'
+import { Sidebar as NavigationSidebar } from '../Sidebar'
+import { AppShell } from '../templates'
+
+function Sidebar() {
+  const [toggleHost, setToggleHost] = useState<HTMLDivElement | null>(null)
+  return (
+    <AppShell
+      showTitlebar
+      headerControls={<div ref={setToggleHost} className="app-header-navigation titlebar-no-drag" />}
+      primaryNavigation={<NavigationSidebar toggleHost={toggleHost} />}
+    >
+      <span>Page</span>
+    </AppShell>
+  )
+}
 
 describe('Sidebar', () => {
   beforeEach(() => {
@@ -91,7 +106,7 @@ describe('Sidebar', () => {
     expect(useAppStore.getState().sidebarCollapsed).toBe(false)
   })
 
-  it('persists a manual desktop collapse and keeps logo and toggle in separate rows', () => {
+  it('persists a manual desktop collapse and keeps its control in the header', () => {
     render(<Sidebar />)
     const sidebar = screen.getByRole('navigation', { name: 'Main navigation' })
 
@@ -103,7 +118,39 @@ describe('Sidebar', () => {
     expect(useAppStore.getState().sidebarCollapsed).toBe(true)
     expect(logo).toBeInTheDocument()
     expect(logo).not.toContainElement(expandButton)
-    expect(expandButton.closest('.primary-navigation-collapsed-toggle-row')).toBeInTheDocument()
+    expect(sidebar).not.toContainElement(expandButton)
+    expect(expandButton.closest('.app-titlebar-drag')).toBeInTheDocument()
+    expect(expandButton).toHaveClass('titlebar-no-drag')
+    expect(expandButton).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('closes the compact overlay from the header without reopening on pointer click', () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 800 })
+    render(<Sidebar />)
+    fireEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }))
+    const collapseButton = screen.getByRole('button', { name: 'Collapse sidebar' })
+    fireEvent.pointerDown(collapseButton)
+    fireEvent.click(collapseButton)
+    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toHaveAttribute('aria-expanded', 'false')
+    expect(useAppStore.getState().sidebarCollapsed).toBe(false)
+  })
+
+  it('restores the desktop preference after a compact overlay and viewport resize', () => {
+    render(<Sidebar />)
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
+    act(() => {
+      window.innerWidth = 800
+      window.dispatchEvent(new Event('resize'))
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }))
+    expect(useAppStore.getState().sidebarCollapsed).toBe(true)
+    act(() => {
+      window.innerWidth = 1440
+      window.dispatchEvent(new Event('resize'))
+    })
+    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('navigation')).toHaveAttribute('data-overlay-open', 'false')
+    expect(useAppStore.getState().sidebarCollapsed).toBe(true)
   })
 
   it('preserves desktop expansion when navigating from another feature back to AI Chat', () => {

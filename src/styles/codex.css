@@ -63,6 +63,20 @@ html.quick-chat-window #root {
 .app-titlebar-drag {
   height: var(--vzn-titlebar-height);
   background: var(--vzn-titlebar-bg);
+  display: flex;
+  align-items: center;
+}
+
+.app-header-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--vzn-sidebar-width);
+  flex: 0 0 auto;
+}
+
+.app-titlebar-drag[data-mac-window-controls="true"] {
+  padding-left: var(--vzn-titlebar-mac-controls-width);
 }
 
 .app-shell[data-window-material="native"] .app-titlebar-drag {
@@ -393,21 +407,8 @@ html.dark .sidebar-brand-surface {
 }
 
 .primary-navigation-toggle {
-  margin-left: auto;
   flex: 0 0 auto;
   color: var(--vzn-text-soft);
-}
-
-.primary-navigation-collapsed-toggle-row {
-  display: flex;
-  width: 40px;
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
-}
-
-.primary-navigation-collapsed-toggle-row .primary-navigation-toggle {
-  margin-left: 0;
 }
 
 .primary-navigation-toggle:hover,
@@ -437,6 +438,58 @@ html.dark .sidebar-brand-surface {
 
 /* AI Chat contextual sidebar ------------------------------------------- */
 
+.ai-chat-workspace-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--vzn-space-2);
+  height: var(--vzn-chat-header-height);
+  padding-inline: var(--vzn-space-3);
+  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
+  background: var(--vzn-bg);
+}
+
+.ai-chat-workspace-title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-lg);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.ai-chat-header-new {
+  flex: 0 0 auto;
+  gap: var(--vzn-space-2);
+}
+
+.ai-chat-header-shortcut {
+  font-family: inherit;
+  font-size: var(--vzn-font-size-xs);
+  color: var(--vzn-text-soft);
+  white-space: nowrap;
+}
+
+.app-feature-workspace {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app-feature-body {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .ai-chat-sidebar {
   display: flex;
   width: var(--vzn-chat-sidebar-width);
@@ -444,10 +497,9 @@ html.dark .sidebar-brand-surface {
   flex: 0 0 auto;
   flex-direction: column;
   overflow: hidden;
-  border-right: 1px solid var(--vzn-border-strong);
+  border-right: var(--vzn-border-width) solid var(--vzn-border-strong);
   background: var(--vzn-chat-sidebar-bg);
   color: var(--vzn-text);
-  transition: width 180ms ease;
 }
 
 .app-shell[data-window-material="native"] .ai-chat-sidebar {
@@ -455,8 +507,8 @@ html.dark .sidebar-brand-surface {
   background: var(--vzn-context-nav-material);
 }
 
-.ai-chat-sidebar[data-collapsed="true"] {
-  width: var(--vzn-chat-sidebar-collapsed-width);
+.ai-chat-sidebar[hidden] {
+  display: none;
 }
 
 .ai-chat-sidebar[data-responsive-overlay="true"] {
@@ -464,7 +516,7 @@ html.dark .sidebar-brand-surface {
   z-index: var(--vzn-layer-context-overlay);
   top: 0;
   bottom: 0;
-  left: var(--vzn-sidebar-width);
+  left: 0;
   width: var(--vzn-chat-sidebar-width);
   border-right-color: var(--vzn-material-border);
   background: var(--vzn-overlay-material);
@@ -477,186 +529,28 @@ html.dark .sidebar-brand-surface {
 
 .ai-chat-sidebar-header {
   display: flex;
-  min-height: 52px;
+  min-height: var(--vzn-chat-header-height);
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px 4px 14px;
-}
-
-.ai-chat-sidebar[data-collapsed="true"] .ai-chat-sidebar-header {
-  justify-content: center;
-  padding-inline: 6px;
+  padding-inline: var(--vzn-space-3);
 }
 
 .ai-chat-sidebar-title {
   min-width: 0;
   overflow: hidden;
-  flex: 1 1 auto;
   color: var(--vzn-text-strong);
-  font-size: 15px;
-  font-weight: 650;
+  font-size: var(--vzn-font-size-lg);
+  font-weight: var(--vzn-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.ai-chat-sidebar-toggle,
-.ai-chat-sidebar-new-collapsed {
-  display: inline-flex;
-  width: var(--vzn-control-height-md);
-  height: var(--vzn-control-height-md);
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 var(--vzn-control-height-md);
-  border: 0;
-  border-radius: var(--vzn-radius-control);
-  background: transparent;
-  color: var(--vzn-text-soft);
-  cursor: pointer;
-}
-
-.ai-chat-sidebar-toggle:hover,
-.ai-chat-sidebar-toggle:focus-visible,
-.ai-chat-sidebar-new-collapsed:hover,
-.ai-chat-sidebar-new-collapsed:focus-visible {
-  background: var(--vzn-surface-subtle);
-  color: var(--vzn-text-strong);
-  box-shadow: inset 0 0 0 1px var(--vzn-border);
-}
-
-.ai-chat-sidebar-collapsed-actions {
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  gap: var(--vzn-space-1);
-  padding-block: var(--vzn-space-1);
-}
-
-.ai-chat-sidebar-new-collapsed,
-.ai-chat-session-switcher-button {
-  margin-inline: auto;
-}
-
-.ai-chat-sidebar-new-collapsed:hover,
-.ai-chat-sidebar-new-collapsed:focus-visible {
-  border-color: transparent;
-  background: var(--vzn-action-soft);
-  color: var(--vzn-action-text);
-}
-
-.ai-chat-session-switcher-button {
-  position: relative;
-}
-
-.ai-chat-session-switcher-button[data-active="true"] {
-  background: var(--vzn-action-soft);
-  color: var(--vzn-action-text);
-}
-
-.ai-chat-session-switcher-active-dot {
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  width: 6px;
-  height: 6px;
-  border: 1px solid var(--vzn-chat-sidebar-bg);
-  border-radius: var(--vzn-radius-pill);
-  background: var(--vzn-action);
-}
-
-.ai-chat-session-switcher-panel {
-  position: fixed;
-  z-index: 70;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: var(--vzn-space-2);
-  border: 1px solid var(--vzn-border);
-  border-radius: var(--vzn-radius-md);
-  background: var(--vzn-surface);
-  box-shadow: var(--vzn-shadow-overlay);
-  color: var(--vzn-text);
-}
-
-.ai-chat-session-switcher-header {
-  display: flex;
-  min-height: var(--vzn-control-height-sm);
-  align-items: center;
-  padding-inline: var(--vzn-space-2);
-  margin-bottom: var(--vzn-space-1);
-}
-
-.ai-chat-session-switcher-title {
-  color: var(--vzn-text-strong);
-  font-size: var(--vzn-font-size-md);
-  font-weight: var(--vzn-weight-semibold);
-}
-
-.ai-chat-session-switcher-search {
-  margin-bottom: var(--vzn-space-2);
-}
-
-.ai-chat-session-switcher-list {
-  display: flex;
-  min-height: 0;
-  flex: 1 1 auto;
-  flex-direction: column;
-  overflow-y: auto;
-}
-
-.ai-chat-session-switcher-panel .ai-chat-session-list {
-  min-height: 0;
-  flex: 1 1 auto;
-  overflow-y: auto;
-}
-
-.ai-chat-session-switcher-panel[data-layout="drawer"] {
-  bottom: var(--vzn-space-3);
-  border-radius: var(--vzn-radius-lg);
 }
 
 .ai-chat-sidebar-content {
   display: flex;
   min-height: 0;
-  flex: 1 1 auto;
+  flex: 1;
   flex-direction: column;
-  gap: 10px;
-  padding: 4px 10px 10px;
-}
-
-.ai-chat-sidebar[data-collapsed="true"] .ai-chat-sidebar-content {
-  display: none;
-}
-
-.ai-chat-new-button {
-  display: flex;
-  width: 100%;
-  height: var(--vzn-control-height-md);
-  min-height: var(--vzn-control-height-md);
-  align-items: center;
   gap: var(--vzn-space-2);
-  padding: 0 var(--vzn-space-3);
-  border-radius: var(--vzn-radius-control);
-  font-size: var(--vzn-font-size-md);
-  font-weight: var(--vzn-weight-semibold);
-  text-align: left;
-  cursor: pointer;
-  box-shadow: none;
-}
-
-.ai-chat-new-button:hover,
-.ai-chat-new-button:focus-visible {
-  border-color: transparent;
-  background: var(--vzn-action-soft);
-  color: var(--vzn-action-text);
-  box-shadow: none;
-}
-
-.ai-chat-shortcut {
-  margin-left: auto;
-  color: var(--vzn-text-soft);
-  font-family: inherit;
-  font-size: 10px;
-  font-weight: 500;
+  padding: var(--vzn-space-1) var(--vzn-space-3) var(--vzn-space-3);
 }
 
 .ai-chat-search {
@@ -985,6 +879,26 @@ html:not(.dark) .modal-backdrop {
  * modal scrims stop at the app title bar instead of tinting only half of it. */
 .app-shell[data-titlebar="app"] .modal-backdrop {
   top: var(--vzn-titlebar-height);
+}
+
+/* Native caption buttons sit above renderer content. Keep media previews in
+ * the content area too, so the title bar stays visually continuous. */
+.app-shell[data-titlebar="app"] .image-lightbox {
+  top: var(--vzn-titlebar-height);
+}
+
+.app-shell[data-titlebar="app"] .image-lightbox-content {
+  max-height: 100%;
+}
+
+.app-shell[data-titlebar="app"] .image-lightbox-image {
+  /* Reserve both gutters, the toolbar (including padding/border), and its gap.
+   * Use the larger desktop gutter at compact widths as a safe upper bound. */
+  max-height: calc(
+    100dvh - var(--vzn-titlebar-height) - var(--vzn-space-5) * 2
+    - var(--vzn-control-height-md) - var(--vzn-space-2) * 2
+    - var(--vzn-border-width) * 2
+  );
 }
 
 /* Command palette ------------------------------------------------------- */
@@ -1611,12 +1525,9 @@ html:not(.dark) .quick-chat-answer-card {
   color: var(--vzn-text-strong) !important;
 }
 
-/* Atomic Button focus is preserved even though the desktop shell suppresses
- * native outlines. Size is owned by the atom; feature classes own colour. */
+/* Keep keyboard focus inside the control, without an extra outer frame. */
 .ui-button:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--vzn-canvas),
-    0 0 0 3px var(--vzn-border-strong) !important;
+  box-shadow: inset 0 0 0 var(--vzn-border-width) var(--vzn-focus-ring) !important;
 }
 
 /* The desktop product intentionally does not draw an extra focus frame. */

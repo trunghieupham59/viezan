@@ -18,20 +18,22 @@ import { type ChatSlice, createChatSlice } from './slices/chatSlice'
 import { type CoreSlice, createCoreSlice } from './slices/coreSlice'
 import { createDictionarySlice, type DictionarySlice } from './slices/dictionarySlice'
 import { createHistorySlice, type HistorySlice } from './slices/historySlice'
+import { createLanguagePairSlice, type LanguagePairSlice, migrateLanguagePairs } from './slices/languagePairSlice'
 import { createSettingsSlice, type SettingsSlice } from './slices/settingsSlice'
 import { createUsageSlice, type UsageSlice } from './slices/usageSlice'
 
 /** Full app state = core + all feature slices */
-type AppState = CoreSlice & SettingsSlice & HistorySlice & ChatSlice & DictionarySlice & UsageSlice
+type AppState = CoreSlice & SettingsSlice & HistorySlice & ChatSlice & DictionarySlice & UsageSlice & LanguagePairSlice
 
 /** Zustand persist storage key — change this value to force-reset all persisted state */
 const STORE_PERSIST_KEY = 'translate-app-settings'
 
 /**
- * Schema v3 separates owned task instructions from drafts. It retains v2 task
+ * Schema v4 separates live languages and adds pinned pairs. v3 separates owned
+ * task instructions from drafts. It retains v2 task
  * configuration and the v1 Web Speech STT normalization.
  */
-export const STORE_PERSIST_VERSION = 3
+export const STORE_PERSIST_VERSION = 4
 
 const PERSISTED_STT_PROVIDERS = new Set(['auto', 'whisper', 'google', 'groq'])
 
@@ -60,6 +62,7 @@ export function migratePersistedStore<T>(persistedState: T): T {
   const pending = migrateDraft(state.chatPendingDraft, state.chatPendingTaskState)
   return {
     ...state,
+    ...migrateLanguagePairs(state),
     sttProvider: typeof state.sttProvider === 'string' && PERSISTED_STT_PROVIDERS.has(state.sttProvider) ? state.sttProvider : 'auto',
     ...(typeof pending.draft === 'string' ? { chatPendingDraft: pending.draft } : {}),
     chatPendingTaskState: pending.taskState,
@@ -257,6 +260,7 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       ...createCoreSlice(set, get),
+      ...createLanguagePairSlice(set, get),
       ...createSettingsSlice(set),
       ...createHistorySlice(set),
       ...createChatSlice(set),
@@ -269,6 +273,10 @@ export const useAppStore = create<AppState>()(
       storage: createJSONStorage(() => createDebouncedStorage(500)),
       migrate: (persistedState) => migratePersistedStore(persistedState as AppState),
       partialize: (state) => ({
+        liveSourceLang: state.liveSourceLang,
+        liveTargetLang: state.liveTargetLang,
+        pinnedLanguagePairs: state.pinnedLanguagePairs,
+        languagePairDirections: state.languagePairDirections,
         sourceLang: state.sourceLang,
         targetLang: state.targetLang,
         selectedProvider: state.selectedProvider,

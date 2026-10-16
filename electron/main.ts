@@ -512,7 +512,7 @@ app.whenReady().then(() => {
   registerImageTranslateHandlers(ipcMain)
   registerChatHandlers(ipcMain)
   registerWebSearchHandlers(ipcMain)
-  registerLocalAiHandlers(ipcMain)
+  registerLocalAiHandlers(ipcMain, () => mainWindow)
   registerQuickChatHandlers(ipcMain, () => mainWindow, () => quickChatWindow)
 
   // Global hotkey — translate selected text in any OS application

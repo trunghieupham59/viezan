@@ -291,14 +291,14 @@ html:not(.dark) .chat-research-final {
   min-height: 0;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: var(--vzn-space-6);
   overflow: hidden;
   padding: 0 var(--vzn-chat-local-gutter) var(--vzn-space-5);
 }
 
 .chat-empty-scroll {
-  flex: 1 1 0;
+  flex: 0 1 auto;
   min-height: 0;
   width: 100%;
   display: flex;
@@ -308,7 +308,7 @@ html:not(.dark) .chat-research-final {
   overflow-x: hidden;
   overflow-anchor: none;
   scrollbar-gutter: stable both-edges;
-  padding: var(--vzn-space-6) 0 0;
+  padding: 0;
 }
 
 .chat-empty-hero {
@@ -343,8 +343,8 @@ html:not(.dark) .chat-research-final {
 .chat-empty-heading {
   margin: 0;
   color: var(--vzn-text-strong);
-  font-size: var(--vzn-font-size-display);
-  font-weight: 400;
+  font-size: var(--vzn-font-size-heading-lg);
+  font-weight: var(--vzn-weight-regular);
   line-height: var(--vzn-line-tight);
   text-align: center;
   text-wrap: balance;
@@ -358,7 +358,7 @@ html:not(.dark) .chat-research-final {
 }
 
 .chat-empty-composer {
-  /* Independent flex row at the bottom; the hero scrolls above it. */
+  /* The hero and composer form one centered task-entry area. */
   position: static;
   flex: 0 0 auto;
   width: min(100%, var(--vzn-chat-local-composer-max));
@@ -1191,72 +1191,51 @@ html.dark .chat-suggest-chip:hover {
 }
 
 
-/* Task choices share the empty-state stage and preserve the single composer. */
-.chat-task-starters {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: var(--vzn-space-4);
-}
-.chat-page .chat-suggestion-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.chat-task-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--vzn-space-2);
-}
-.chat-task-tabs > .ui-button {
-  min-width: 0;
-}
-.chat-task-options {
-  display: flex;
-  flex-direction: column;
-  gap: var(--vzn-space-3);
-  text-align: start;
-}
-.chat-task-config-row {
+/* Keep task selection and its options directly beside the input. */
+.chat-empty-starters { margin-top: var(--vzn-space-4); }
+.chat-starter-actions {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  justify-content: center;
   gap: var(--vzn-space-2);
 }
-.chat-task-option-field {
-  flex: 1 1 auto;
+.chat-task-configuration {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-2);
   min-width: 0;
+  max-width: 100%;
 }
-.chat-task-instructions {
-  font-size: var(--vzn-font-size-sm);
-  color: var(--vzn-text-muted);
+.chat-task-configuration > .ui-button { max-width: 100%; }
+.chat-task-trigger-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.chat-task-instructions p { margin-top: var(--vzn-space-2); }
+.chat-task-inline-option {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+.chat-task-inline-option > .ui-button {
+  max-width: var(--vzn-translate-model-chip-min-inline);
+}
 .chat-task-hint {
   margin: 0;
   font-size: var(--vzn-font-size-sm);
   color: var(--vzn-text-muted);
 }
-.chat-task-options[hidden] {
-  display: none;
-}
-.chat-task-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--vzn-space-2);
-}
-
 @container app-main (max-width: 479px) {
-  .chat-page .chat-suggestion-grid { grid-template-columns: 1fr; }
-  .chat-task-option-field { flex-basis: 100%; }
-  .chat-task-tabs {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  .chat-empty-heading { font-size: var(--vzn-font-size-heading); }
+  .chat-starter-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chat-starter-actions > .ui-button { min-width: 0; padding-inline: var(--vzn-space-2); }
+  .chat-starter-actions svg { display: none; }
   .chat-composer-toolbar {
     flex-direction: column;
     align-items: stretch;
     gap: var(--vzn-space-2);
   }
-  .chat-composer-actions {
-    justify-content: flex-end;
-  }
+  .chat-composer-actions { justify-content: flex-end; }
 }

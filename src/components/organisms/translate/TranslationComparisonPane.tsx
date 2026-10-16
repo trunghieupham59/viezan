@@ -6,6 +6,7 @@ import { MarkdownText } from '../../MarkdownText'
 import { ProviderIcon } from '../../ProviderIcon'
 import { Button } from '../../ui/atoms'
 import {
+  ArrowLeftIcon,
   CheckIcon,
   CopyIcon,
   InfoCircleIcon,
@@ -25,6 +26,7 @@ interface TranslationComparisonPaneProps {
   isTranslating: boolean
   isResultStale: boolean
   canRetry: boolean
+  onUseAsSource: (result: TranslationComparisonResult) => void
   onCopy: (result: TranslationComparisonResult) => void
   onSpeak: (result: TranslationComparisonResult) => void
   onRetry: (selection: TranslationModelSelection) => void
@@ -42,6 +44,7 @@ export function TranslationComparisonPane({
   isTranslating,
   isResultStale,
   canRetry,
+  onUseAsSource,
   onCopy,
   onSpeak,
   onRetry,
@@ -169,6 +172,8 @@ export function TranslationComparisonPane({
                 isSpeaking={speakingResultKey === result.key}
                 speakLoading={speakLoading}
                 canRetry={canRetry && result.status !== 'loading'}
+                canUseAsSource={!isTranslating && !isResultStale}
+                onUseAsSource={onUseAsSource}
                 onCopy={onCopy}
                 onSpeak={onSpeak}
                 onRetry={onRetry}
@@ -184,11 +189,13 @@ export function TranslationComparisonPane({
 }
 
 interface ComparisonResultCardProps {
+  canUseAsSource: boolean
   result: TranslationComparisonResult
   isCopied: boolean
   isSpeaking: boolean
   speakLoading: boolean
   canRetry: boolean
+  onUseAsSource: (result: TranslationComparisonResult) => void
   onCopy: (result: TranslationComparisonResult) => void
   onSpeak: (result: TranslationComparisonResult) => void
   onRetry: (selection: TranslationModelSelection) => void
@@ -197,11 +204,13 @@ interface ComparisonResultCardProps {
 }
 
 function ComparisonResultCard({
+  canUseAsSource,
   result,
   isCopied,
   isSpeaking,
   speakLoading,
   canRetry,
+  onUseAsSource,
   onCopy,
   onSpeak,
   onRetry,
@@ -260,6 +269,9 @@ function ComparisonResultCard({
         {/* Actions live in the header so long text never pushes them out of view. */}
         {result.status === 'success' && (
           <div className="translate-comparison-card-actions">
+            <Button size="sm" shape="icon" variant="neutral" appearance="ghost" disabled={!canUseAsSource}
+              aria-label={`${t.translate_use_as_source}: ${modelName} · ${providerName}`} title={t.translate_use_as_source}
+              onClick={() => onUseAsSource(result)}><ArrowLeftIcon /></Button>
             <Button
               size="sm"
               shape="icon"

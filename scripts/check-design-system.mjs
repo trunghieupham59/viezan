@@ -110,7 +110,7 @@ for (const selector of ['.chat-composer', '.chat-empty-state', '.chat-page', '.m
 }
 
 const chatSidebarStyleContracts = [
-  'border-right: 1px solid var(--vzn-border-strong)',
+  'border-right: var(--vzn-border-width) solid var(--vzn-border-strong)',
   'background: var(--vzn-surface);\n  box-shadow: inset 0 0 0 1px var(--vzn-divider)',
   'background: var(--vzn-surface-hover);\n  box-shadow: inset 0 0 0 1px var(--vzn-border-strong)',
   'background: var(--vzn-action-soft);\n  box-shadow: inset 0 0 0 1px var(--vzn-action-border)',

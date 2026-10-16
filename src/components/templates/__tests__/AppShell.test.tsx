@@ -3,6 +3,22 @@ import { describe, expect, it } from 'vitest'
 import { AppShell } from '../AppShell'
 
 describe('AppShell', () => {
+  it('keeps the feature header above both contextual navigation and page content', () => {
+    render(
+      <AppShell
+        primaryNavigation={null}
+        featureHeader={<header>Chat controls</header>}
+        contextSidebar={<aside aria-label="History" />}
+      >
+        <h1>Chat</h1>
+      </AppShell>,
+    )
+    const header = screen.getByText('Chat controls')
+    const body = screen.getByRole('main').parentElement
+    expect(body).toContainElement(screen.getByRole('complementary', { name: 'History' }))
+    expect(body).not.toContainElement(header)
+    expect(header.nextElementSibling).toBe(body)
+  })
   it('composes the navigation, page, and overlay slots', () => {
     render(
       <AppShell
@@ -40,5 +56,20 @@ describe('AppShell', () => {
     expect(container.querySelector('.app-titlebar-drag')).not.toBeInTheDocument()
     expect(container.querySelector('.app-shell')).toHaveAttribute('data-window-material', 'opaque')
     expect(container.querySelector('.app-shell')).toHaveAttribute('data-titlebar', 'none')
+  })
+
+  it('hosts accessible header controls even on platforms with a native title bar', () => {
+    const { container } = render(
+      <AppShell
+        primaryNavigation={null}
+        macWindowControls
+        headerControls={<span>Navigation control</span>}
+      >
+        <span>Page</span>
+      </AppShell>,
+    )
+    expect(screen.getByText('Navigation control').closest('.app-titlebar-drag')).toHaveAttribute('data-mac-window-controls', 'true')
+    expect(screen.getByText('Navigation control').closest('[aria-hidden="true"]')).toBeNull()
+    expect(container.querySelector('.app-shell')).toHaveAttribute('data-titlebar', 'app')
   })
 })

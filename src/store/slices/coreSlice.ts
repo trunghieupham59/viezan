@@ -49,7 +49,7 @@ export interface CoreSlice {
   setPhoneticText: (text: string) => void
   setSourceLang: (lang: string) => void
   setTargetLang: (lang: string) => void
-  /** Swap source ↔ target languages + texts.
+  /** Swap source ↔ target languages, preserving input.
    * @param detectedLang — optional AI-detected source lang to use as the new target. */
   swapLanguages: (detectedLang?: string) => void
   setIsTranslating: (v: boolean) => void
@@ -102,8 +102,8 @@ export const createCoreSlice = (set: SliceSet, get: SliceGet): CoreSlice => ({
   setSourceText: (text) => set({ sourceText: text, translateError: null, translateErrorCode: null }),
   setTranslatedText: (text) => set({ translatedText: text }),
   setPhoneticText: (text) => set({ phoneticText: text }),
-  setSourceLang: (lang) => set({ sourceLang: lang }),
-  setTargetLang: (lang) => set({ targetLang: lang }),
+  setSourceLang: (lang) => get().setLanguagePair('translate', { source: lang, target: get().targetLang }),
+  setTargetLang: (lang) => get().setLanguagePair('translate', { source: get().sourceLang, target: lang }),
 
   recordLangUsage: (lang) => {
     if (!lang || lang === 'auto') return
@@ -118,19 +118,12 @@ export const createCoreSlice = (set: SliceSet, get: SliceGet): CoreSlice => ({
     }))
   },
 
-  swapLanguages: (detectedLang?: string) =>
-    set((state: CoreSlice) => {
-      // Prefer the AI-detected source language as the new target (passed from UI layer).
-      // When absent, fall back to sourceLang — but 'auto' can't be a target, so use 'ja'.
-      const newTargetLang = detectedLang ?? (state.sourceLang === 'auto' ? 'ja' : state.sourceLang)
-      return {
-        sourceLang: state.targetLang,
-        targetLang: newTargetLang,
-        sourceText: state.translatedText,
-        translatedText: state.sourceText,
-        phoneticText: '',
-      }
-    }),
+  swapLanguages: (detectedLang?: string) => {
+    const state = get()
+    const source = state.sourceLang === 'auto' ? detectedLang : state.sourceLang
+    if (!source || source === 'auto' || source === state.targetLang) return
+    state.setLanguagePair('translate', { source: state.targetLang, target: source })
+  },
 
   setIsTranslating: (v) => set({ isTranslating: v }),
   setTranslateError: (err, errorCode) =>

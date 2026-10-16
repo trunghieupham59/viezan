@@ -125,4 +125,5 @@ export type ChatImageEditFn = (
   prompt: string,
   imageBase64: string,
   imageMimeType: string,
+  signal?: AbortSignal,
 ) => Promise<ChatImageEditResultPayload>

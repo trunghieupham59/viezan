@@ -1188,3 +1188,53 @@ describe('TranslatePage', () => {
     expect(window.api.translate).toHaveBeenCalledWith(expect.objectContaining({ sourceText: longText }))
   })
 })
+
+
+describe('language pair workflow', () => {
+  it('swaps languages without moving the translated result into the draft', async () => {
+    vi.mocked(window.api.translate).mockResolvedValue({ success: true, translatedText: 'Xin chào' })
+    act(() => useAppStore.setState({ sourceLang: 'en', targetLang: 'vi', sourceText: 'Hello' }))
+    render(<TranslatePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Translate' }))
+    await screen.findByRole('button', { name: 'Use as source' })
+    fireEvent.click(screen.getByRole('button', { name: 'Swap languages' }))
+    expect(useAppStore.getState()).toMatchObject({ sourceLang: 'vi', targetLang: 'en', sourceText: 'Hello', translatedText: 'Xin chào' })
+    expect(screen.getAllByText(TRANSLATIONS.en.translate_result_stale_manual).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('button', { name: 'Use as source' })).not.toBeInTheDocument()
+    expect(window.api.translate).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses the selected model result as source and permits swapping in comparison mode', async () => {
+    vi.mocked(window.api.translate).mockImplementation(async ({ provider }) => ({ success: true,
+      translatedText: provider === 'gemini' ? 'First translation' : 'Chosen translation' }))
+    act(() => useAppStore.setState({ sourceLang: 'en', targetLang: 'vi', sourceText: 'Hello',
+      translationModels: [{ provider: 'gemini', model: 'gemini-2.0-flash' }, { provider: 'openai', model: 'gpt-4o' }],
+      keyStatus: { gemini: true, claude: false, openai: true, local: false } }))
+    render(<TranslatePage />)
+    expect(screen.getByRole('button', { name: 'Swap languages' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Translate with 2 models' }))
+    const useResult = await screen.findByRole('button', { name: /Use as source: GPT 4o/ })
+    await waitFor(() => expect(useResult).toBeEnabled())
+    fireEvent.click(useResult)
+    expect(useAppStore.getState()).toMatchObject({ sourceText: 'Chosen translation', sourceLang: 'vi', targetLang: 'en', translatedText: '' })
+    expect(window.api.translate).toHaveBeenCalledTimes(2)
+  })
+
+  it('switches both languages atomically while a manual request is running', async () => {
+    let resolveOld!: (value: Awaited<ReturnType<typeof window.api.translate>>) => void
+    vi.mocked(window.api.translate).mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve }))
+      .mockResolvedValueOnce({ success: true, translatedText: 'New pair result' })
+    act(() => useAppStore.setState({ sourceLang: 'en', targetLang: 'vi', sourceText: 'Hello',
+      pinnedLanguagePairs: [{ source: 'vi', target: 'ja' }], languagePairDirections: { translate: {}, live: {} } }))
+    render(<TranslatePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Translate' }))
+    await waitFor(() => expect(window.api.translate).toHaveBeenCalledTimes(1))
+    fireEvent.click(screen.getByRole('button', { name: 'Language pairs' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Language pairs' })).getByRole('button', { name: 'Vietnamese–Japanese' }))
+    await waitFor(() => expect(useAppStore.getState().translatedText).toBe('New pair result'))
+    expect(window.api.translate).toHaveBeenCalledTimes(2)
+    expect(window.api.translate).toHaveBeenLastCalledWith(expect.objectContaining({ sourceLang: 'vi', targetLang: 'ja' }))
+    await act(async () => { resolveOld({ success: true, translatedText: 'Late old result' }) })
+    expect(useAppStore.getState().translatedText).toBe('New pair result')
+  })
+})

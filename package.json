@@ -135,7 +135,9 @@
       "category": "public.app-category.productivity"
     },
     "afterSign": "scripts/notarize.mjs",
+    "beforePack": "scripts/verify-ollama-package.mjs",
     "win": {
+      "extraResources": [{ "from": "resources/local-ai/ollama-patched/windows/x64", "to": "local-ai/ollama-patched/windows/x64" }],
       "icon": "build/icon.ico",
       "legalTrademarks": "Viezan",
       "requestedExecutionLevel": "asInvoker",

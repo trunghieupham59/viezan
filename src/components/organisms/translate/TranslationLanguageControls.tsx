@@ -9,6 +9,7 @@ interface TranslationLanguageControlsProps {
   targetLang: string
   detectedSourceLang: string | null
   isDetectingLang: boolean
+  disabled?: boolean
   canSwap: boolean
   swapDisabledReason: string
   onSourceLangChange: (language: string) => void
@@ -24,6 +25,7 @@ export function TranslationLanguageControls({
   targetLang,
   detectedSourceLang,
   isDetectingLang,
+  disabled = false,
   canSwap,
   swapDisabledReason,
   onSourceLangChange,
@@ -42,6 +44,7 @@ export function TranslationLanguageControls({
           {t.translate_source_content_label}
         </h2>
         <LanguageSelector
+          disabled={disabled}
           value={sourceLang}
           onChange={onSourceLangChange}
           includeAuto
@@ -68,6 +71,7 @@ export function TranslationLanguageControls({
           {t.translate_result_content_label}
         </h2>
         <LanguageSelector
+          disabled={disabled}
           value={targetLang}
           onChange={onTargetLangChange}
           label={t.translate_to_label}

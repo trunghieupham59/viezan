@@ -26,6 +26,28 @@ const sessions: ChatSession[] = [
 ]
 
 describe('AIChatSidebar', () => {
+  it.each([
+    ['win32', 'CommandOrControl+N', 'Ctrl+N'],
+    ['darwin', 'CommandOrControl+N', 'Cmd+N'],
+    ['linux', 'CommandOrControl+Shift+N', 'Ctrl+Shift+N'],
+    ['win32', '', ''],
+  ])('shows the configured header shortcut for %s (%s)', (platform, shortcut, label) => {
+    const originalApi = window.api
+    const originalShortcut = useAppStore.getState().chatNewSessionShortcut
+    window.api = { ...originalApi, platform }
+    try {
+      act(() => useAppStore.setState({ chatNewSessionShortcut: shortcut }))
+      render(<AIChatSidebar />)
+      const button = screen.getByRole('button', { name: 'New Chat' })
+      expect(button).toHaveAttribute('title', label ? `New Chat (${label})` : 'New Chat')
+      if (label) expect(button.querySelector('kbd')).toHaveTextContent(label)
+      else expect(button.querySelector('kbd')).toBeNull()
+    } finally {
+      window.api = originalApi
+      act(() => useAppStore.setState({ chatNewSessionShortcut: originalShortcut }))
+    }
+  })
+
   beforeEach(() => {
     Object.defineProperty(window, 'innerWidth', {
       configurable: true,
@@ -52,7 +74,7 @@ describe('AIChatSidebar', () => {
   it('is a separate contextual landmark and sorts newest conversations first', () => {
     render(<AIChatSidebar />)
 
-    const sidebar = screen.getByRole('complementary', { name: 'AI Chat conversations' })
+    const sidebar = document.querySelector('.ai-chat-sidebar')
     const newest = screen.getByRole('button', { name: /^Newest conversation,/ })
     const older = screen.getByRole('button', { name: /^Older conversation,/ })
 
@@ -93,7 +115,7 @@ describe('AIChatSidebar', () => {
 
   it('filters conversations and persists its collapse independently of primary navigation', () => {
     const { unmount } = render(<AIChatSidebar />)
-    const sidebar = screen.getByRole('complementary', { name: 'AI Chat conversations' })
+    const sidebar = document.querySelector('.ai-chat-sidebar')
 
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search conversations…' }), {
       target: { value: 'newest' },
@@ -103,60 +125,78 @@ describe('AIChatSidebar', () => {
     expect(screen.getByRole('button', { name: /^Newest conversation,/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Older conversation,/ })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse AI Chat sidebar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Hide conversation history' }))
     expect(sidebar).toHaveAttribute('data-collapsed', 'true')
-    expect(screen.getByRole('button', { name: 'Expand AI Chat sidebar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show conversation history' })).toBeInTheDocument()
 
     unmount()
     render(<AIChatSidebar />)
-    expect(screen.getByRole('complementary', { name: 'AI Chat conversations' }))
-      .toHaveAttribute('data-collapsed', 'true')
+    expect(document.querySelector('.ai-chat-sidebar')).toHaveAttribute('hidden')
   })
 
-  it('switches conversations from a searchable flyout while remaining collapsed', async () => {
-    act(() => useAppStore.setState({ aiChatSidebarCollapsed: true }))
+  it('keeps history and New Chat in the header while the entire sidebar is hidden', () => {
+    act(() => useAppStore.setState({ aiChatSidebarCollapsed: true, sidebarCollapsed: false }))
     render(<AIChatSidebar />)
-
-    const switcher = screen.getByRole('button', { name: 'Switch conversation' })
-    expect(switcher).toHaveAttribute('aria-expanded', 'false')
-    fireEvent.click(switcher)
-
-    const dialog = screen.getByRole('dialog', { name: 'Switch conversation' })
-    expect(switcher).toHaveAttribute('aria-expanded', 'true')
-    expect(dialog).toHaveAttribute('data-layout', 'popover')
-    expect(screen.getByRole('complementary', { name: 'AI Chat conversations' }))
-      .not.toContainElement(dialog)
-    expect(screen.getByText('Conversations')).toBeInTheDocument()
-    expect(screen.getByRole('searchbox', { name: 'Search conversations…' })).toHaveFocus()
-    expect(dialog).toContainElement(screen.getByRole('button', { name: /^Newest conversation,/ }))
-
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search conversations…' }), {
-      target: { value: 'newest' },
-    })
-    expect(screen.queryByRole('button', { name: /^Older conversation,/ })).not.toBeInTheDocument()
+    const toggle = screen.getByRole('button', { name: 'Show conversation history' })
+    const newChat = screen.getByRole('button', { name: 'New Chat' })
+    expect(toggle.closest('header')).toContainElement(newChat)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
+    expect(document.querySelector('.ai-chat-sidebar')).toHaveAttribute('hidden')
+    fireEvent.click(toggle)
+    expect(screen.getByRole('complementary')).toBeVisible()
+    expect(useAppStore.getState().sidebarCollapsed).toBe(false)
     fireEvent.click(screen.getByRole('button', { name: /^Newest conversation,/ }))
-
     expect(useAppStore.getState().activeChatSessionId).toBe('newer-chat')
+    expect(toggle.closest('header')).toHaveTextContent('Newest conversation')
+    fireEvent.click(screen.getByRole('button', { name: 'Hide conversation history' }))
+    fireEvent.click(newChat)
+    expect(useAppStore.getState().activeChatSessionId).toBeNull()
+    expect(useAppStore.getState().chatSessions).toHaveLength(2)
     expect(useAppStore.getState().aiChatSidebarCollapsed).toBe(true)
-    expect(screen.queryByRole('dialog', { name: 'Switch conversation' })).not.toBeInTheDocument()
+  })
 
-    fireEvent.click(switcher)
+  it('opens compact history without changing either stored preference and restores focus on Escape', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 800 })
+    act(() => useAppStore.setState({ aiChatSidebarCollapsed: true, sidebarCollapsed: true }))
+    render(<AIChatSidebar />)
+    const toggle = screen.getByRole('button', { name: 'Show conversation history' })
+    fireEvent.click(toggle)
+    expect(screen.getByRole('searchbox')).toHaveFocus()
+    expect(useAppStore.getState().aiChatSidebarCollapsed).toBe(true)
+    expect(useAppStore.getState().sidebarCollapsed).toBe(true)
+    fireEvent.pointerDown(toggle)
+    fireEvent.click(toggle)
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
+    fireEvent.click(toggle)
     fireEvent.keyDown(window, { key: 'Escape' })
-    await waitFor(() => expect(switcher).toHaveFocus())
-    expect(screen.queryByRole('dialog', { name: 'Switch conversation' })).not.toBeInTheDocument()
+    await waitFor(() => expect(toggle).toHaveFocus())
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
+    fireEvent.click(toggle)
+    fireEvent.click(screen.getByRole('button', { name: /^Newest conversation,/ }))
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
+    expect(useAppStore.getState().aiChatSidebarCollapsed).toBe(true)
+    fireEvent.click(toggle)
+    fireEvent(window, new CustomEvent('viezan:close-context-sidebars'))
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
+    act(() => {
+      window.innerWidth = 1440
+      window.dispatchEvent(new Event('resize'))
+    })
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
   })
 
   it('auto-compacts into a temporary overlay without overwriting the user preference', async () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 800 })
     render(<AIChatSidebar />)
 
-    const sidebar = screen.getByRole('complementary', { name: 'AI Chat conversations' })
+    const sidebar = document.querySelector('.ai-chat-sidebar')
     expect(sidebar).toHaveAttribute('data-responsive-compact', 'true')
     expect(sidebar).toHaveAttribute('data-collapsed', 'true')
     expect(sidebar).toHaveAttribute('data-user-collapsed', 'false')
     expect(useAppStore.getState().aiChatSidebarCollapsed).toBe(false)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Expand AI Chat sidebar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Show conversation history' }))
     expect(sidebar).toHaveAttribute('data-responsive-overlay', 'true')
     expect(sidebar).toHaveAttribute('data-collapsed', 'false')
 
@@ -173,7 +213,7 @@ describe('AIChatSidebar', () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1200 })
     render(<AIChatSidebar />)
 
-    const sidebar = screen.getByRole('complementary', { name: 'AI Chat conversations' })
+    const sidebar = document.querySelector('.ai-chat-sidebar')
     expect(sidebar).toHaveAttribute('data-responsive-compact', 'false')
     expect(sidebar).toHaveAttribute('data-collapsed', 'false')
   })

@@ -121,6 +121,8 @@ export interface SmartThinkingParams {
    * the step-by-step discipline directive.
    */
   carefulReasoning?: boolean
+  /** Explicitly disable external sources for composer tasks that do not request web evidence. */
+  allowWebSearch?: boolean
   /**
    * When true, skip the AI classifier and always run a web search before
    * answering. Used by "Web Search" mode where the user explicitly wants
@@ -505,6 +507,7 @@ export const smartThinkingService = {
     signal,
     carefulReasoning,
     forceWebSearch,
+    allowWebSearch = true,
   }: SmartThinkingParams): Promise<void> {
 
     const date = getCurrentLocaleDateTime()
@@ -521,7 +524,7 @@ export const smartThinkingService = {
     // ── Step 1: Classify (best-effort; failures fall through to no-search) ──
     // When forceWebSearch=true, skip the AI classifier entirely and always search.
     let classify: ClassifyResult = {
-      needsWeb: forceWebSearch ?? false,
+      needsWeb: allowWebSearch && (forceWebSearch ?? false),
       query: forceWebSearch ? question.slice(0, 200) : '',
       reason: '',
       answerFocus: '',
@@ -538,8 +541,8 @@ export const smartThinkingService = {
     // non-streaming model call, which doubles time-to-first-token on local hardware.
     // Rule-based intent detection stands in so time-sensitive questions still search.
     const isLocal = provider === LOCAL_PROVIDER_ID
-    const skipClassifier = isLocal && !forceWebSearch
-    if (skipClassifier && hasWebSearchApi() && needsWebSearchHeuristic(question)) {
+    const skipClassifier = !allowWebSearch || (isLocal && !forceWebSearch)
+    if (allowWebSearch && skipClassifier && hasWebSearchApi() && needsWebSearchHeuristic(question)) {
       classify = {
         ...classify,
         needsWeb: true,
@@ -594,7 +597,7 @@ export const smartThinkingService = {
         /* classifier failed — fall through to plain chat */
       }
     }
-    if (forceWebSearch) {
+    if (allowWebSearch && forceWebSearch) {
       classify.needsWeb = true
       classify.sourceCount = Math.max(classify.sourceCount, SEARCH_RESULT_BUDGET.forcedMin)
     }
@@ -607,7 +610,7 @@ export const smartThinkingService = {
     let webContext = ''
     let webSourcesMarkdown = ''
 
-    if (classify.needsWeb && classify.query) {
+    if (allowWebSearch && classify.needsWeb && classify.query) {
       const stepLabel = `${uiText.webSearchStepLabelPrefix} ${classify.query}`.trim()
       const stepMsgId = onStepStart(stepLabel)
 

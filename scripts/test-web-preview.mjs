@@ -3,7 +3,9 @@ import { existsSync } from 'node:fs'
 import { chromium } from 'playwright'
 import { checkTextClipping } from './check-text-clipping.mjs'
 
-const url = 'http://127.0.0.1:5173'
+const port = Number(process.env.VIEZAN_WEB_TEST_PORT || 5173)
+if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Invalid web test port')
+const url = `http://127.0.0.1:${port}`
 let server
 
 async function waitForServer() {
@@ -48,12 +50,15 @@ function browserLaunchOptions() {
 }
 
 try {
-  if (!(await serverAlreadyRunning())) {
+  const alreadyRunning = await serverAlreadyRunning()
+  if (alreadyRunning && process.env.VIEZAN_WEB_TEST_PORT) throw new Error(`Dedicated web test port is occupied: ${port}`)
+  if (!alreadyRunning) {
     // On Windows `npm` is npm.cmd, which spawn() can only run through a shell.
-    server = spawn('npm', ['run', 'dev:web', '--', '--host', '127.0.0.1'], {
+    server = spawn('npm', ['run', 'dev:web', '--', '--host', '127.0.0.1', '--port', String(port)], {
       stdio: 'inherit',
       env: process.env,
       shell: process.platform === 'win32',
+      windowsHide: true,
     })
   }
   await waitForServer()
@@ -134,9 +139,7 @@ try {
         `Translation panes do not match their container mode at ${width}px`,
       )
       assert(
-        shouldStack
-          ? translateLayout.swapTransform !== 'none'
-          : translateLayout.swapTransform === 'none',
+        translateLayout.swapTransform === 'none',
         `Language swap icon has the wrong orientation at ${width}px`,
       )
       assert(translateLayout.headingsVisible, `Translation pane headings are hidden at ${width}px`)
@@ -524,6 +527,13 @@ try {
           || !(list instanceof HTMLElement)) return null
 
         const viewport = { width: window.innerWidth, height: window.innerHeight }
+        const shell = backdrop.closest('.app-shell')
+        const hasTitlebar = shell?.getAttribute('data-titlebar') === 'app'
+        const titlebar = shell?.querySelector('.app-titlebar-drag')
+        if (hasTitlebar && !(titlebar instanceof HTMLElement)) return null
+        // Modal scrims cover content below the rendered titlebar, leaving native
+        // window controls undimmed. Without a titlebar they cover the viewport.
+        const expectedBackdropTop = hasTitlebar ? titlebar.getBoundingClientRect().bottom : 0
         const backdropBounds = backdrop.getBoundingClientRect()
         const panelBounds = element.getBoundingClientRect()
         const itemBounds = firstItem.getBoundingClientRect()
@@ -533,6 +543,7 @@ try {
 
         return {
           viewport,
+          expectedBackdropTop,
           backdropBounds: {
             top: backdropBounds.top,
             left: backdropBounds.left,
@@ -557,12 +568,13 @@ try {
       assert(paletteLayout !== null, `Command palette layout is incomplete at ${width}px`)
       assert(
         paletteLayout.backdropPosition === 'fixed'
-          && Math.abs(paletteLayout.backdropBounds.top) <= 1
+          && Math.abs(paletteLayout.backdropBounds.top - paletteLayout.expectedBackdropTop) <= 1
           && Math.abs(paletteLayout.backdropBounds.left) <= 1
           && Math.abs(paletteLayout.backdropBounds.width - paletteLayout.viewport.width) <= 1
-          && Math.abs(paletteLayout.backdropBounds.height - paletteLayout.viewport.height) <= 1,
-        `Command palette backdrop does not cover the viewport at ${width}px`,
+          && Math.abs(paletteLayout.backdropBounds.height - (paletteLayout.viewport.height - paletteLayout.expectedBackdropTop)) <= 1,
+        `Command palette backdrop does not cover the content below the titlebar at ${width}px`,
       )
+      console.log(`Command palette backdrop passed at ${width}px: top=${paletteLayout.backdropBounds.top}, height=${paletteLayout.backdropBounds.height}`)
       assert(
         paletteLayout.panelDisplay === 'flex'
           && paletteLayout.panelDirection === 'column'

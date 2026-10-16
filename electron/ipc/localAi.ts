@@ -3,7 +3,12 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
-import { type IpcMain, shell, type WebContents } from 'electron'
+import { app, type BrowserWindow, type IpcMain, shell, type WebContents } from 'electron'
+import { cancelLocalAiPerformance, compareLocalAiPerformance, configureLocalAiPerformancePort, configureLocalAiPerformanceStorage, getLocalAiPerformanceProfile, getLocalAiPerformanceState, isLocalAiPerformanceBusy, isLocalAiPerformanceModel, localAiProfileOptions, selectLocalAiPerformance } from './localAiPerformance'
+import { allocateOllamaPort, findPatchedOllama, PATCHED_OLLAMA_VERSION } from './ollamaPatchedRuntime'
+import { getOllamaServeLaunch } from './ollamaProcess'
+import { createOllamaProfileFetch } from './ollamaProfileFetch'
+import { isSenderWindow } from './senderGuard'
 
 export type LocalAiEngine = 'ollama' | 'lmstudio' | 'llamacpp'
 export type LocalAiHardwareTier = 'low' | 'balanced' | 'powerful' | 'max'
@@ -211,6 +216,8 @@ export const LOCAL_AI_RUNTIME_CANDIDATES: LocalAiRuntimeCandidate[] = [
 let discoveryCache: { expiresAt: number; result: LocalAiDiscoveryResult } | null = null
 let activeOllamaStart: Promise<LocalAiDiscoveryResult> | null = null
 let managedOllamaProcess: ChildProcess | null = null
+let patchedCandidate: LocalAiRuntimeCandidate | null = null
+let managedRuntimeGeneration = 0
 /** Timestamp of the last failed managed-Ollama start (0 = none / recovered). */
 let ollamaStartFailedAt = 0
 /** In-flight model pulls keyed by Ollama model name, so they can be cancelled and not duplicated. */
@@ -223,7 +230,9 @@ const activeModelDownloadProgress = new Map<string, LocalAiModelDownloadProgress
 
 /** Test-only: reset module-level runtime/download bookkeeping. */
 export function resetLocalAiStateForTests(): void {
+  managedRuntimeGeneration++
   managedOllamaProcess = null
+  patchedCandidate = null
   ollamaStartFailedAt = 0
   activeOllamaStart = null
   discoveryCache = null
@@ -796,6 +805,7 @@ export async function probeLocalAiRuntime(candidate: LocalAiRuntimeCandidate): P
 }
 
 export async function discoverLocalAiRuntimes(force = false): Promise<LocalAiDiscoveryResult> {
+  if (getPatchedOllamaExecutable()) return ensureOllamaRuntime(force)
   const now = Date.now()
   if (!force && discoveryCache && discoveryCache.expiresAt > now) {
     return discoveryCache.result
@@ -822,7 +832,12 @@ export async function discoverLocalAiRuntimes(force = false): Promise<LocalAiDis
 }
 
 function getOllamaRuntimeCandidate() {
+  if (patchedCandidate) return patchedCandidate
   return LOCAL_AI_RUNTIME_CANDIDATES.find((candidate) => candidate.engine === 'ollama') ?? LOCAL_AI_RUNTIME_CANDIDATES[0]
+}
+
+function getPatchedOllamaExecutable() {
+  return findPatchedOllama(process.resourcesPath, process.defaultApp === true ? path.resolve('resources') : undefined)
 }
 
 function createUnavailableLocalAiResult(error: string): LocalAiDiscoveryResult {
@@ -858,15 +873,11 @@ function isManagedOllamaAlive(): boolean {
   return Boolean(child) && child?.exitCode === null && child?.signalCode === null
 }
 
-function startDetachedProcess(command: string, args: string[], options: { env?: NodeJS.ProcessEnv; trackManaged?: boolean } = {}) {
+function startOllamaProcess(command: string, options: { env: NodeJS.ProcessEnv; trackManaged?: boolean }) {
   return new Promise<boolean>((resolve) => {
     let settled = false
-    const child = spawn(command, args, {
-      detached: true,
-      env: options.env,
-      stdio: 'ignore',
-      windowsHide: true,
-    })
+    const launch = getOllamaServeLaunch(command, options.env)
+    const child = spawn(launch.command, launch.args, launch.options)
     const settle = (started: boolean) => {
       if (settled) return
       settled = true
@@ -890,6 +901,13 @@ async function waitForOllamaRuntime(timeoutMs = LOCAL_AI_RUNTIME_START_TIMEOUT_M
   const candidate = getOllamaRuntimeCandidate()
   const expiresAt = Date.now() + timeoutMs
   while (Date.now() < expiresAt) {
+    if (patchedCandidate) {
+      if (!isManagedOllamaAlive()) return null
+      try {
+        const version = await fetchJsonWithTimeout(`${candidate.managementEndpoint}/version`) as { version?: string }
+        if (version.version !== PATCHED_OLLAMA_VERSION) return null
+      } catch { await delay(LOCAL_AI_RUNTIME_START_POLL_MS); continue }
+    }
     const result = await probeLocalAiRuntime(candidate)
     if (result?.available) {
       discoveryCache = { expiresAt: Date.now() + LOCAL_AI_CACHE_TTL_MS, result }
@@ -906,7 +924,7 @@ async function startBundledOllamaRuntime() {
 
   // Never spawn a second `ollama serve` while one we started is still alive.
   if (!isManagedOllamaAlive()) {
-    const started = await startDetachedProcess(executablePath, ['serve'], {
+    const started = await startOllamaProcess(executablePath, {
       env: { ...process.env, OLLAMA_HOST: '127.0.0.1:11434' },
       trackManaged: true,
     })
@@ -948,7 +966,7 @@ async function startOllamaCliRuntime() {
   if (isManagedOllamaAlive()) return null
 
   const executable = process.platform === 'win32' ? 'ollama.exe' : 'ollama'
-  const started = await startDetachedProcess(executable, ['serve'], {
+  const started = await startOllamaProcess(executable, {
     env: { ...process.env, OLLAMA_HOST: '127.0.0.1:11434' },
     trackManaged: true,
   })
@@ -963,6 +981,23 @@ function isInOllamaStartCooldown(): boolean {
 const OLLAMA_UNAVAILABLE_MESSAGE = 'No local AI runtime found. Install Ollama or start LM Studio/llama.cpp and refresh.'
 
 async function startManagedOllamaRuntime(force: boolean): Promise<LocalAiDiscoveryResult> {
+  const patched = getPatchedOllamaExecutable()
+  if (patched) {
+    if (!force && isInOllamaStartCooldown()) return createUnavailableLocalAiResult(OLLAMA_UNAVAILABLE_MESSAGE)
+    if (!isManagedOllamaAlive()) {
+      const generation = managedRuntimeGeneration
+      const port = await allocateOllamaPort()
+      if (generation !== managedRuntimeGeneration) return createUnavailableLocalAiResult('Local AI startup was cancelled')
+      patchedCandidate = { engine: 'ollama', endpoint: `http://127.0.0.1:${port}/v1`, managementEndpoint: `http://127.0.0.1:${port}/api` }
+      configureLocalAiPerformancePort(port)
+      discoveryCache = null
+      await startOllamaProcess(patched, { env: { ...process.env, OLLAMA_HOST: `127.0.0.1:${port}` }, trackManaged: true })
+    }
+    const result = await waitForOllamaRuntime()
+    ollamaStartFailedAt = result ? 0 : Date.now()
+    // Never silently route back to the unpatched external server on failure.
+    return result ?? createUnavailableLocalAiResult('The Viezan local AI runtime could not start. Retry Local AI.')
+  }
   const existing = await probeLocalAiRuntime(getOllamaRuntimeCandidate())
   if (existing?.available) {
     ollamaStartFailedAt = 0
@@ -998,7 +1033,8 @@ async function tryStartOllamaRuntime(): Promise<LocalAiDiscoveryResult | null> {
 }
 
 async function ensureOllamaRuntime(force = false): Promise<LocalAiDiscoveryResult> {
-  const existing = await probeLocalAiRuntime(getOllamaRuntimeCandidate())
+  const patched = getPatchedOllamaExecutable()
+  const existing = !patched ? await probeLocalAiRuntime(getOllamaRuntimeCandidate()) : null
   if (existing?.available) return existing
 
   if (!activeOllamaStart) {
@@ -1011,11 +1047,11 @@ async function ensureOllamaRuntime(force = false): Promise<LocalAiDiscoveryResul
 }
 
 /**
- * Resolve a running local runtime. Any detected engine (Ollama, LM Studio, llama.cpp)
- * is used as-is — Ollama is only spawned when NONE is running. Pass `force` for an
- * explicit user action to bypass the post-failure start cool-down.
+ * Prefer the verified app-owned Windows runtime when packaged. Otherwise reuse
+ * a detected engine before starting Ollama. `force` bypasses the start cooldown.
  */
 export async function ensureLocalAiRuntime(force = false): Promise<LocalAiDiscoveryResult> {
+  if (getPatchedOllamaExecutable()) return ensureOllamaRuntime(force)
   const discovered = await discoverLocalAiRuntimes(true)
   if (discovered.available) return discovered
 
@@ -1023,6 +1059,7 @@ export async function ensureLocalAiRuntime(force = false): Promise<LocalAiDiscov
 }
 
 export function stopManagedLocalAiRuntime() {
+  managedRuntimeGeneration++
   const child = managedOllamaProcess
   managedOllamaProcess = null
   if (!child?.pid) return
@@ -1030,7 +1067,7 @@ export function stopManagedLocalAiRuntime() {
 
   if (process.platform === 'win32') {
     // process.kill(-pid) is POSIX-only. taskkill /T /F ends the whole tree
-    // (ollama.exe plus its runner children); argv array, no shell.
+    // (the supervisor, ollama.exe, and its runners); argv array, no shell.
     try {
       execFileSync('taskkill', ['/pid', String(pid), '/T', '/F'], {
         stdio: 'ignore',
@@ -1057,7 +1094,8 @@ export function stopManagedLocalAiRuntime() {
   }
 }
 
-export async function resolveLocalAiRequestModel(model: string): Promise<{ baseURL: string; model: string; engine: LocalAiEngine }> {
+export async function resolveLocalAiRequestModel(model: string): Promise<{ baseURL: string; model: string; engine: LocalAiEngine; fetch?: typeof fetch }> {
+  if (isLocalAiPerformanceBusy()) throw new Error('Local AI comparison is running. Wait for it to finish or cancel it.')
   const discovery = await ensureLocalAiRuntime()
   if (!discovery.available || !discovery.endpoint || !discovery.engine) {
     throw new Error(discovery.error ?? 'Local AI runtime is not running')
@@ -1066,7 +1104,8 @@ export async function resolveLocalAiRequestModel(model: string): Promise<{ baseU
   if (!resolvedModel) {
     throw new Error('No local AI model is available. Download a model in your local runtime and refresh.')
   }
-  return { baseURL: discovery.endpoint, model: resolvedModel, engine: discovery.engine }
+  const configuredFetch = discovery.engine === 'ollama' ? createOllamaProfileFetch(discovery.endpoint, getLocalAiPerformanceProfile(resolvedModel)) : undefined
+  return { baseURL: discovery.endpoint, model: resolvedModel, engine: discovery.engine, ...(configuredFetch ? { fetch: configuredFetch } : {}) }
 }
 
 /**
@@ -1081,7 +1120,7 @@ export async function keepOllamaModelLoaded(model: string, signal?: AbortSignal)
     await fetch(`${getOllamaManagementEndpoint()}/generate`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model, prompt: '', keep_alive: OLLAMA_KEEP_ALIVE, stream: false }),
+      body: JSON.stringify({ model, prompt: '', keep_alive: OLLAMA_KEEP_ALIVE, stream: false, options: localAiProfileOptions(getLocalAiPerformanceProfile(model)) }),
       signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
     })
   } catch {
@@ -1105,7 +1144,7 @@ export function getLocalAiStaticModels(): LocalAiModel[] {
 }
 
 function getOllamaManagementEndpoint() {
-  return LOCAL_AI_RUNTIME_CANDIDATES.find((candidate) => candidate.engine === 'ollama')?.managementEndpoint
+  return getOllamaRuntimeCandidate()?.managementEndpoint
     ?? 'http://127.0.0.1:11434/api'
 }
 
@@ -1155,13 +1194,13 @@ async function readResponseText(response: Response) {
 }
 
 function getOllamaCliExecutable() {
-  return getBundledOllamaExecutablePath() ?? (process.platform === 'win32' ? 'ollama.exe' : 'ollama')
+  return getPatchedOllamaExecutable() ?? getBundledOllamaExecutablePath() ?? (process.platform === 'win32' ? 'ollama.exe' : 'ollama')
 }
 
 function removeOllamaModelWithCli(model: string): Promise<LocalAiModelActionResult> {
   return new Promise((resolve) => {
     const child = spawn(getOllamaCliExecutable(), ['rm', model], {
-      env: { ...process.env, OLLAMA_HOST: '127.0.0.1:11434' },
+      env: { ...process.env, OLLAMA_HOST: new URL(getOllamaManagementEndpoint()).host },
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     })
@@ -1453,7 +1492,28 @@ export async function openOllamaDownloadPage(): Promise<LocalAiInstallResult> {
   }
 }
 
-export function registerLocalAiHandlers(ipcMain: IpcMain) {
+export function registerLocalAiHandlers(ipcMain: IpcMain, getMainWindow?: () => BrowserWindow | null) {
+  configureLocalAiPerformanceStorage(() => path.join(app.getPath('userData'), 'local-ai-performance.json'))
+  const trusted = (event: Parameters<typeof isSenderWindow>[0]) => Boolean(getMainWindow && isSenderWindow(event, getMainWindow))
+  ipcMain.handle('local-ai:performance:get', (event, model: unknown) => {
+    if (!trusted(event) || !isLocalAiPerformanceModel(model)) throw new Error('Invalid performance settings request')
+    return getLocalAiPerformanceState(model)
+  })
+  ipcMain.handle('local-ai:performance:compare', async (event, request: unknown) => {
+    const r = request as { model?: unknown; consentToReload?: unknown } | null
+    if (!trusted(event) || !r || !isLocalAiPerformanceModel(r.model) || r.consentToReload !== true) throw new Error('Model reload consent is required')
+    const runtime = await ensureOllamaRuntime(true)
+    if (!runtime.available) throw new Error(runtime.error)
+    return compareLocalAiPerformance(r.model, true)
+  })
+  ipcMain.handle('local-ai:performance:select', (event, model: unknown, mode: unknown) => {
+    if (!trusted(event) || !isLocalAiPerformanceModel(model) || !['auto', 'gpu', 'hybrid'].includes(String(mode))) throw new Error('Invalid performance selection')
+    return selectLocalAiPerformance(model, mode as 'auto' | 'gpu' | 'hybrid')
+  })
+  ipcMain.handle('local-ai:performance:cancel', event => {
+    if (!trusted(event)) throw new Error('Untrusted sender')
+    cancelLocalAiPerformance()
+  })
   ipcMain.handle('local-ai:discover', async (_event, force?: boolean) => discoverLocalAiRuntimes(Boolean(force)))
   // Explicit user action: bypass the automatic-start cool-down.
   ipcMain.handle('local-ai:ensureRuntime', async () => ensureLocalAiRuntime(true))

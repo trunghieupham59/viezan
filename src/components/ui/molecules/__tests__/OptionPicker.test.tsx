@@ -71,6 +71,26 @@ describe('OptionPicker', () => {
     expect(screen.getByRole('option', { name: 'JPY' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'USD' })).not.toBeInTheDocument()
   })
+
+  it('skips unavailable options with keyboard navigation and explains why they are disabled', async () => {
+    const onChange = vi.fn()
+    render(<OptionPicker value="chat" label="Task" onChange={onChange} options={[
+      { value: 'chat', label: 'Chat' },
+      { value: 'image', label: 'Create image', disabled: true, hint: 'Choose a supported provider' },
+      { value: 'write', label: 'Write' },
+    ]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Task: Chat' }))
+    const chat = screen.getByRole('option', { name: 'Chat' })
+    await waitFor(() => expect(chat).toHaveFocus())
+    fireEvent.keyDown(chat, { key: 'ArrowDown' })
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Write' })).toHaveFocus())
+    const image = screen.getByRole('option', { name: 'Create image' })
+    expect(image).toBeDisabled()
+    expect(image).toHaveAttribute('aria-description', 'Choose a supported provider')
+    expect(screen.getByText('Choose a supported provider')).toBeVisible()
+    fireEvent.click(image)
+    expect(onChange).not.toHaveBeenCalled()
+  })
 })
 
 describe('OptionPicker inside a window-level Escape host', () => {

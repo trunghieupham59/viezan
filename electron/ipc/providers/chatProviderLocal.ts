@@ -38,7 +38,7 @@ export async function chatWithLocal(
   const OpenAI = (await import('openai')).default
   const local = await resolveLocalAiRequestModel(model)
   if (local.engine === 'ollama') await keepOllamaModelLoaded(local.model)
-  const client = new OpenAI({ apiKey: LOCAL_AI_PLACEHOLDER_KEY, baseURL: local.baseURL })
+  const client = new OpenAI({ apiKey: LOCAL_AI_PLACEHOLDER_KEY, baseURL: local.baseURL, fetch: local.fetch })
   const completion = await client.chat.completions.create({
     model: local.model,
     messages: formatOpenAIChatMessages(messages, systemPrompt, options),
@@ -69,7 +69,7 @@ export async function streamChatWithLocal(
   const local = await resolveLocalAiRequestModel(model)
   if (local.engine === 'ollama') await keepOllamaModelLoaded(local.model, signal)
   if (signal?.aborted) throw new Error(CHAT_STREAM_CANCELLED_MESSAGE)
-  const client = new OpenAI({ apiKey: LOCAL_AI_PLACEHOLDER_KEY, baseURL: local.baseURL })
+  const client = new OpenAI({ apiKey: LOCAL_AI_PLACEHOLDER_KEY, baseURL: local.baseURL, fetch: local.fetch })
   let fullText = ''
   const stream = await client.chat.completions.create(
     {

@@ -37,7 +37,7 @@ import {
 } from './chatImageEdit'
 import { CHAT_LOG_MESSAGES, CHAT_RUNTIME_MESSAGES } from './chatMessages'
 import { resolveChatOutputTokens } from './chatTokenResolver'
-import { parseChatParams } from './chatValidation'
+import { MAX_CHAT_REQUEST_ID_CHARS, parseChatParams } from './chatValidation'
 import { classifyProviderError, noApiKeyResponse } from './errorUtils'
 import { isNonEmptyString, isRecord } from './ipcValidation'
 import { isLocalProvider, LOCAL_AI_PLACEHOLDER_KEY } from './localAi'
@@ -82,6 +82,46 @@ interface ActiveChatStream {
 }
 
 const activeStreams = new Map<string, ActiveChatStream>()
+
+/** Image requests share the owner-scoped cancellation channel used by chat streams. */
+async function runImageRequest(
+  event: IpcMainInvokeEvent,
+  rawParams: unknown,
+  operation: (signal: AbortSignal) => Promise<Record<string, unknown>>,
+) {
+  const rawId = isRecord(rawParams) ? rawParams.requestId : undefined
+  if (rawId !== undefined && (!isNonEmptyString(rawId) || rawId.length > MAX_CHAT_REQUEST_ID_CHARS)) {
+    return { success: false, error: 'Invalid requestId', errorCode: 'INVALID_INPUT' }
+  }
+  const requestId = typeof rawId === 'string' ? rawId.trim() : undefined
+  if (requestId && activeStreams.has(requestId)) {
+    return { success: false, error: CHAT_RUNTIME_MESSAGES.streamRequestIdInUse, errorCode: 'INVALID_INPUT' }
+  }
+  const controller = new AbortController()
+  const ownerId = event.sender?.id
+  const entry = { controller, ownerId }
+  if (requestId) {
+    activeStreams.set(requestId, entry)
+    const earlyCancel = pendingCancels.get(requestId)
+    if (earlyCancel) {
+      pendingCancels.delete(requestId)
+      if (earlyCancel.expiresAt > Date.now() && earlyCancel.ownerId === ownerId) controller.abort()
+    }
+  }
+  const onDestroyed = () => controller.abort()
+  event.sender?.once?.('destroyed', onDestroyed)
+  const cancelled = () => ({ success: false, error: CHAT_STREAM_CANCELLED_MESSAGE, errorCode: 'CANCELLED' })
+  try {
+    if (controller.signal.aborted) return cancelled()
+    const result = await operation(controller.signal)
+    return controller.signal.aborted ? cancelled() : result
+  } catch (error) {
+    return controller.signal.aborted ? cancelled() : toChatFailure(error)
+  } finally {
+    event.sender?.removeListener?.('destroyed', onDestroyed)
+    if (requestId && activeStreams.get(requestId) === entry) activeStreams.delete(requestId)
+  }
+}
 
 // A cancel can arrive before the stream handler has registered its controller
 // (IPC ordering is not guaranteed across channels). Remember such cancels for a
@@ -211,7 +251,7 @@ function registerChatSendHandler(ipcMain: IpcMain) {
 // ── chat:image-edit ──────────────────────────────────────────────────────────
 
 function registerChatImageEditHandler(ipcMain: IpcMain) {
-  ipcMain.handle(CHAT_IPC_CHANNELS.imageEdit, async (_event, rawParams: unknown) => {
+  ipcMain.handle(CHAT_IPC_CHANNELS.imageEdit, async (event, rawParams: unknown) => {
     const parsed = parseChatImageEditParams(rawParams)
     if (!parsed.ok) return parsed.response
     const { provider, model, prompt, imageBase64, imageMimeType } = parsed.value
@@ -228,8 +268,8 @@ function registerChatImageEditHandler(ipcMain: IpcMain) {
     const apiKey = getProviderCredential(provider)
     if (!apiKey) return noApiKeyResponse(provider)
 
-    try {
-      const result = await withRetry(() => editFn(apiKey, model, prompt, imageBase64, imageMimeType))
+    return runImageRequest(event, rawParams, async (signal) => {
+      const result = await withRetry(() => editFn(apiKey, model, prompt, imageBase64, imageMimeType, signal), { signal })
       return {
         success: true,
         imageBase64: result.imageBase64,
@@ -237,17 +277,14 @@ function registerChatImageEditHandler(ipcMain: IpcMain) {
         usedProvider: provider,
         usedModel: result.usedModel,
       }
-    } catch (error: unknown) {
-      console.error(CHAT_LOG_MESSAGES.imageEditProviderError(provider), error)
-      return toChatFailure(error)
-    }
+    })
   })
 }
 
 // ── chat:image-generate ───────────────────────────────────────────────────────
 
 function registerChatImageGenerateHandler(ipcMain: IpcMain) {
-  ipcMain.handle(CHAT_IPC_CHANNELS.imageGenerate, async (_event, rawParams: unknown) => {
+  ipcMain.handle(CHAT_IPC_CHANNELS.imageGenerate, async (event, rawParams: unknown) => {
     const parsed = parseChatImageGenerateParams(rawParams)
     if (!parsed.ok) return parsed.response
     const { provider, model, prompt } = parsed.value
@@ -264,8 +301,8 @@ function registerChatImageGenerateHandler(ipcMain: IpcMain) {
     const apiKey = getProviderCredential(provider)
     if (!apiKey) return noApiKeyResponse(provider)
 
-    try {
-      const result = await withRetry(() => generateFn(apiKey, model, prompt))
+    return runImageRequest(event, rawParams, async (signal) => {
+      const result = await withRetry(() => generateFn(apiKey, model, prompt, signal), { signal })
       return {
         success: true,
         imageBase64: result.imageBase64,
@@ -273,10 +310,7 @@ function registerChatImageGenerateHandler(ipcMain: IpcMain) {
         usedProvider: provider,
         usedModel: result.usedModel,
       }
-    } catch (error: unknown) {
-      console.error(CHAT_LOG_MESSAGES.imageEditProviderError(provider), error)
-      return toChatFailure(error)
-    }
+    })
   })
 }
 

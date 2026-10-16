@@ -7,12 +7,11 @@ import { Button } from '../ui/atoms'
 import {
   BookIcon,
   ChatBubbleIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   ClockIcon,
   GearIcon,
   MicrophoneIcon,
   SearchIcon,
+  SidebarPanelIcon,
   TranslateIcon,
 } from '../ui/icons'
 
@@ -63,7 +62,7 @@ function PrimaryNavItem({ icon, label, active, badge, badgeLabel, onClick }: Pri
 }
 
 /** Persistent app-wide navigation. Feature-specific navigation belongs elsewhere. */
-export function PrimaryNavigationSidebar() {
+export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLElement | null }) {
   const {
     activePage,
     setActivePage,
@@ -85,6 +84,7 @@ export function PrimaryNavigationSidebar() {
   const commandShortcut = window.api?.platform === 'darwin' ? '⌘K' : 'Ctrl K'
   const responsiveCompact = viewportWidth < PRIMARY_NAVIGATION_NARROW_BREAKPOINT
   const effectiveCollapsed = responsiveCompact ? !responsiveOverlayOpen : sidebarCollapsed
+  const toggleLabel = effectiveCollapsed ? t.nav_expand_sidebar : t.nav_collapse_sidebar
 
   const updateOverlayPosition = useCallback(() => {
     const rect = sidebarRef.current?.getBoundingClientRect()
@@ -143,7 +143,8 @@ export function PrimaryNavigationSidebar() {
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node
-      if (sidebarRef.current?.contains(target) || panelRef.current?.contains(target)) return
+      if (sidebarRef.current?.contains(target) || panelRef.current?.contains(target)
+        || toggleRef.current?.contains(target)) return
       closeResponsiveOverlay()
     }
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -172,6 +173,24 @@ export function PrimaryNavigationSidebar() {
     }
   }, [responsiveOverlayOpen, updateOverlayPosition])
 
+  const toggle = (
+    <Button
+      ref={toggleRef}
+      size="sm"
+      shape="icon"
+      variant="neutral"
+      appearance="ghost"
+      className="primary-navigation-toggle titlebar-no-drag"
+      title={toggleLabel}
+      aria-label={toggleLabel}
+      aria-expanded={!effectiveCollapsed}
+      aria-controls={contentId}
+      onClick={handleToggle}
+    >
+      <SidebarPanelIcon className="h-4 w-4" action={effectiveCollapsed ? 'expand' : 'collapse'} />
+    </Button>
+  )
+
   const navigationPanel = (
     <div
       ref={panelRef}
@@ -190,44 +209,7 @@ export function PrimaryNavigationSidebar() {
           <AppLogoIcon size="sm" />
         </div>
         {!effectiveCollapsed && <span className="sidebar-brand-title">Viezan</span>}
-        {!effectiveCollapsed && (
-          <Button
-            ref={toggleRef}
-            size="sm"
-            shape="icon"
-            variant="neutral"
-            appearance="ghost"
-            className="primary-navigation-toggle"
-            title={t.nav_collapse_sidebar}
-            aria-label={t.nav_collapse_sidebar}
-            aria-expanded="true"
-            aria-controls={contentId}
-            onClick={handleToggle}
-          >
-            <ChevronLeftIcon className="h-4 w-4" />
-          </Button>
-        )}
       </div>
-
-      {effectiveCollapsed && (
-        <div className="primary-navigation-collapsed-toggle-row">
-          <Button
-            ref={toggleRef}
-            size="sm"
-            shape="icon"
-            variant="neutral"
-            appearance="ghost"
-            className="primary-navigation-toggle"
-            title={t.nav_expand_sidebar}
-            aria-label={t.nav_expand_sidebar}
-            aria-expanded="false"
-            aria-controls={contentId}
-            onClick={handleToggle}
-          >
-            <ChevronRightIcon className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
 
       <div className="app-sidebar-divider" />
 
@@ -307,6 +289,7 @@ export function PrimaryNavigationSidebar() {
       data-user-collapsed={sidebarCollapsed}
       data-sidebar-scope="primary"
     >
+      {toggleHost && createPortal(toggle, toggleHost)}
       {!responsiveOverlayOpen && navigationPanel}
       {responsiveOverlayOpen && overlayPosition && createPortal(
         <>

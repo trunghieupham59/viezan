@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
-import { LiveSourceLangBar } from '../components/live/LiveSourceLangBar'
-import { LiveTargetLangBar } from '../components/live/LiveTargetLangBar'
 import { SegmentRow } from '../components/live/SegmentRow'
 import { TranslationRow } from '../components/live/TranslationRow'
 import { MarkdownText } from '../components/MarkdownText'
-import { AIModelPickerField, InterpretAIConfiguration, InterpretSubtitleConfiguration } from '../components/organisms'
+import { AIModelPickerField, InterpretAIConfiguration, InterpretSubtitleConfiguration, LanguagePairControls } from '../components/organisms'
 import { Button } from '../components/ui/atoms'
 import { 
   AlertTriangleIcon,
@@ -28,6 +26,7 @@ import type { LiveAudioMode } from '../hooks/live/vadPolicy'
 import { DEFAULT_SUBTITLE_SETTINGS, useLiveTranslate } from '../hooks/useLiveTranslate'
 import type { Translations } from '../i18n/types'
 import { useAppStore, useT } from '../store/useAppStore'
+import '../styles/translate.css'
 
 /**
  * DUP-04: Shared helper for downloading text content as a file.
@@ -84,12 +83,12 @@ export function getLiveInputCopy(audioMode: LiveAudioMode, t: LiveInputCopySourc
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function LiveTranslatePage() {
-  const { targetLang, setTargetLang, openSettings } = useAppStore()
+  const { openSettings, liveSourceLang, liveTargetLang } = useAppStore()
   const t = useT()
 
   const {
     audioMode, setAudioMode, screenPermission,
-    isActive, rawTranscript, translation, isTranscribing, isTranslating,
+    isActive, liveLanguagesLocked, sessionLanguages, rawTranscript, translation, isTranscribing, isTranslating,
     pipelineError,
     showSubtitles, setShowSubtitles,
     subtitleSettings, setSubtitleSettings,
@@ -210,32 +209,12 @@ export function LiveTranslatePage() {
       <div className="app-workspace">
         <div className="glass-panel flex-1 min-h-0 flex flex-col overflow-hidden">
 
-          {/* Controls: source lang | target lang + start/stop + settings */}
-          <div className="translate-panel-header">
-
-            {/* Source language — always auto-detect */}
-            <div className="flex-1 min-w-0 overflow-hidden">
-              <LiveSourceLangBar
-                sourceLang="auto"
-                onSourceLangChange={() => {}}
-                detectedSourceLang={null}
-                isDetectingLang={false}
-                langNames={t.lang_names}
-              />
-            </div>
-
-            {/* No swap control — source is always auto-detected. */}
-
-            {/* Target language selector + Start/Stop + Gear */}
-            <div className="flex-1 min-w-0 flex items-center gap-3">
-              <div className="flex-1 min-w-0 overflow-hidden">
-                <LiveTargetLangBar
-                  targetLang={targetLang}
-                  onTargetLangChange={setTargetLang}
-                  langNames={t.lang_names}
-                />
-              </div>
-
+          <LanguagePairControls scope="live" sourceHeadingId="live-source-language" resultHeadingId="live-target-language" />
+          {(rawTranscript || translation) && (liveSourceLang !== sessionLanguages.sourceLang || liveTargetLang !== sessionLanguages.targetLang) && (
+            <p className="language-pair-notice">{t.language_pairs_previous_session}: {t.lang_names[sessionLanguages.sourceLang] ?? sessionLanguages.sourceLang} → {t.lang_names[sessionLanguages.targetLang] ?? sessionLanguages.targetLang}</p>
+          )}
+          <div className="live-language-actions">
+            <div className="flex items-center gap-3">
             {/* ▶ Bắt Đầu / ■ Dừng */}
             <Button
               size="sm"
@@ -250,7 +229,7 @@ export function LiveTranslatePage() {
                   handleStart()
                 }
               }}
-              disabled={!hasOpenAIKey || !hasAnyKey}
+              disabled={!hasOpenAIKey || !hasAnyKey || (!isActive && liveLanguagesLocked)}
               className="flex-shrink-0"
             >
               {isActive ? (

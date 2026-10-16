@@ -250,6 +250,7 @@ function parseHttpsUrl(value: string | URL): URL {
  */
 export async function convertRemoteImageUrlToBase64(
   url: string,
+  signal?: AbortSignal,
 ): Promise<{ imageBase64: string; imageMimeType: string }> {
   let currentUrl = parseHttpsUrl(url)
 
@@ -258,7 +259,7 @@ export async function convertRemoteImageUrlToBase64(
   try {
     let response: Response | undefined
     for (let hop = 0; hop <= MAX_REMOTE_IMAGE_REDIRECTS; hop += 1) {
-      response = await fetch(currentUrl, { signal: controller.signal, redirect: 'manual' })
+      response = await fetch(currentUrl, { signal: signal ? AbortSignal.any([controller.signal, signal]) : controller.signal, redirect: 'manual' })
       if (response.status < 300 || response.status >= 400) break
 
       const location = response.headers.get('location')
@@ -302,6 +303,7 @@ export async function editChatImageWithOpenAI(
   prompt: string,
   imageBase64: string,
   imageMimeType: string,
+  signal?: AbortSignal,
 ): Promise<ChatImageEditResultPayload> {
   const openaiModule = await import('openai')
   const OpenAI = openaiModule.default
@@ -318,7 +320,7 @@ export async function editChatImageWithOpenAI(
     image,
     prompt: buildChatImageEditPrompt(prompt),
     ...OPENAI_IMAGE_EDIT_OPTIONS,
-  })
+  }, { signal })
   const result = response.data?.[0]
 
   if (result?.b64_json) {
@@ -330,7 +332,7 @@ export async function editChatImageWithOpenAI(
   }
 
   if (result?.url) {
-    const downloaded = await convertRemoteImageUrlToBase64(result.url)
+    const downloaded = await convertRemoteImageUrlToBase64(result.url, signal)
     return { ...downloaded, usedModel: imageModel }
   }
 
@@ -437,6 +439,7 @@ async function postGeminiImageRequest(
   apiKey: string,
   imageModel: string,
   body: unknown,
+  signal?: AbortSignal,
 ): Promise<Array<GeminiInlineDataPart>> {
   const url = `${GEMINI_API_BASE}/models/${imageModel}:generateContent`
   const controller = new AbortController()
@@ -449,7 +452,7 @@ async function postGeminiImageRequest(
         'x-goog-api-key': apiKey,
       },
       body: JSON.stringify(body),
-      signal: controller.signal,
+      signal: signal ? AbortSignal.any([controller.signal, signal]) : controller.signal,
     })
 
     if (!response.ok) {
@@ -491,6 +494,7 @@ async function requestGeminiImageEdit(
   prompt: string,
   imageBase64: string,
   imageMimeType: string,
+  signal?: AbortSignal,
 ): Promise<ChatImageEditResultPayload> {
   const body = {
     contents: [
@@ -511,7 +515,7 @@ async function requestGeminiImageEdit(
     },
   }
 
-  return extractGeminiImage(await postGeminiImageRequest(apiKey, imageModel, body), imageModel)
+  return extractGeminiImage(await postGeminiImageRequest(apiKey, imageModel, body, signal), imageModel)
 }
 
 export async function editChatImageWithGemini(
@@ -520,9 +524,10 @@ export async function editChatImageWithGemini(
   prompt: string,
   imageBase64: string,
   imageMimeType: string,
+  signal?: AbortSignal,
 ): Promise<ChatImageEditResultPayload> {
   return runGeminiImageLadder(model, (imageModel) =>
-    requestGeminiImageEdit(apiKey, imageModel, prompt, imageBase64, imageMimeType),
+    requestGeminiImageEdit(apiKey, imageModel, prompt, imageBase64, imageMimeType, signal),
   )
 }
 
@@ -544,12 +549,14 @@ export type ChatImageGenerateFn = (
   apiKey: string,
   model: string,
   prompt: string,
+  signal?: AbortSignal,
 ) => Promise<ChatImageEditResultPayload>
 
 export async function generateChatImageWithOpenAI(
   apiKey: string,
   model: string,
   prompt: string,
+  signal?: AbortSignal,
 ): Promise<ChatImageEditResultPayload> {
   const openaiModule = await import('openai')
   const OpenAI = openaiModule.default
@@ -560,7 +567,7 @@ export async function generateChatImageWithOpenAI(
     model: imageModel,
     prompt,
     ...OPENAI_IMAGE_EDIT_OPTIONS,
-  })
+  }, { signal })
   const result = response.data?.[0]
 
   if (result?.b64_json) {
@@ -572,7 +579,7 @@ export async function generateChatImageWithOpenAI(
   }
 
   if (result?.url) {
-    const downloaded = await convertRemoteImageUrlToBase64(result.url)
+    const downloaded = await convertRemoteImageUrlToBase64(result.url, signal)
     return { ...downloaded, usedModel: imageModel }
   }
 
@@ -583,21 +590,23 @@ async function requestGeminiImageGenerate(
   apiKey: string,
   imageModel: string,
   prompt: string,
+  signal?: AbortSignal,
 ): Promise<ChatImageEditResultPayload> {
   const body = {
     contents: [{ parts: [{ text: prompt }] }],
     generationConfig: { responseModalities: CHAT_IMAGE_EDIT_RESPONSE_MODALITIES },
   }
 
-  return extractGeminiImage(await postGeminiImageRequest(apiKey, imageModel, body), imageModel)
+  return extractGeminiImage(await postGeminiImageRequest(apiKey, imageModel, body, signal), imageModel)
 }
 
 export async function generateChatImageWithGemini(
   apiKey: string,
   model: string,
   prompt: string,
+  signal?: AbortSignal,
 ): Promise<ChatImageEditResultPayload> {
-  return runGeminiImageLadder(model, (imageModel) => requestGeminiImageGenerate(apiKey, imageModel, prompt))
+  return runGeminiImageLadder(model, (imageModel) => requestGeminiImageGenerate(apiKey, imageModel, prompt, signal))
 }
 
 /** Provider → image-generate-fn registry (text-to-image). */

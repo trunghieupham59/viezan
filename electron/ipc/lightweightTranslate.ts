@@ -147,7 +147,7 @@ async function callProvider(
   if (provider === 'local') {
     const OpenAI = (await import('openai')).default
     const local = await resolveLocalAiRequestModel(model)
-    const client = new OpenAI({ apiKey: LOCAL_AI_PLACEHOLDER_KEY, baseURL: local.baseURL })
+    const client = new OpenAI({ apiKey: LOCAL_AI_PLACEHOLDER_KEY, baseURL: local.baseURL, fetch: local.fetch })
     const completion = await client.chat.completions.create(
       {
         model: local.model,

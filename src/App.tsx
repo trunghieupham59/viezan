@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, type ReactNode, Suspense, useEffect, useState } from 'react'
 import { AIChatSidebar, CommandPalette, PrimaryNavigationSidebar, UpdateNotification } from './components/organisms'
 import { SettingsModal } from './components/SettingsModal'
 import { AppShell } from './components/templates'
@@ -40,6 +40,7 @@ function App() {
   } = useAppStore()
 
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false)
+  const [navigationToggleHost, setNavigationToggleHost] = useState<HTMLDivElement | null>(null)
 
   // Apply dark class based on user preference or OS preference
   useEffect(() => {
@@ -189,12 +190,15 @@ function App() {
           ? t.nav_chat
           : t.nav_translate
 
-  return (
+  const renderShell = (contextSidebar?: ReactNode, featureHeader?: ReactNode) => (
     <AppShell
       showTitlebar={hasAppTitlebar}
+      macWindowControls={isMac}
+      headerControls={<div className="app-header-navigation titlebar-no-drag" ref={setNavigationToggleHost} />}
       useNativeMaterial={isMac && theme === 'system'}
-      primaryNavigation={<PrimaryNavigationSidebar />}
-      contextSidebar={activePage === 'chat' ? <AIChatSidebar /> : undefined}
+      primaryNavigation={<PrimaryNavigationSidebar toggleHost={navigationToggleHost} />}
+      contextSidebar={contextSidebar}
+      featureHeader={featureHeader}
       overlays={
         <>
           <SettingsModal />
@@ -228,6 +232,10 @@ function App() {
       </Suspense>
     </AppShell>
   )
+
+  return activePage === 'chat'
+    ? <AIChatSidebar>{({ sidebar, header }) => renderShell(sidebar, header)}</AIChatSidebar>
+    : renderShell()
 }
 
 export default App
