@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { type LanguagePair, type LanguageScope, languagePairKey } from '../../../store/slices/languagePairSlice'
 import { useAppStore, useT } from '../../../store/useAppStore'
@@ -14,11 +14,13 @@ interface LanguagePairControlsProps {
   detectedSourceLang?: string | null
   isDetectingLang?: boolean
   onPairChange?: (pair: LanguagePair) => void
+  /** Feature actions kept on the same row as the language fields. */
+  actions?: ReactNode
 }
 
 /** Shared controls; preferences are shared, working languages belong to each feature. */
 export function LanguagePairControls({ scope, sourceHeadingId, resultHeadingId, detectedSourceLang = null,
-  isDetectingLang = false, onPairChange }: LanguagePairControlsProps) {
+  isDetectingLang = false, onPairChange, actions }: LanguagePairControlsProps) {
   const t = useT()
   const state = useAppStore()
   const pair = scope === 'live'
@@ -83,6 +85,8 @@ export function LanguagePairControls({ scope, sourceHeadingId, resultHeadingId, 
   const pinned = state.pinnedLanguagePairs.some(p => languagePairKey(p) === key)
   const resolvedSource = pair.source === 'auto' ? (scope === 'translate' ? detectedSourceLang : null) : pair.source
   const canSwap = !locked && Boolean(resolvedSource && resolvedSource !== pair.target)
+  // Live never resolves an auto-detected source, so swapping could never be enabled there.
+  const showSwap = !(scope === 'live' && pair.source === 'auto')
   const change = (next: LanguagePair) => {
     if (locked) return
     if (onPairChange) onPairChange(next)
@@ -97,10 +101,10 @@ export function LanguagePairControls({ scope, sourceHeadingId, resultHeadingId, 
   )
   return (
     <div className="language-pair-controls">
-      <div className="language-pair-fields">
+      <div className={actions ? 'language-pair-fields language-pair-fields-with-actions' : 'language-pair-fields'}>
         <TranslationLanguageControls sourceHeadingId={sourceHeadingId} resultHeadingId={resultHeadingId}
           sourceLang={pair.source} targetLang={pair.target} detectedSourceLang={detectedSourceLang} isDetectingLang={isDetectingLang}
-          disabled={locked} canSwap={canSwap} swapDisabledReason={locked ? t.language_pairs_locked
+          disabled={locked} showSwap={showSwap} canSwap={canSwap} swapDisabledReason={locked ? t.language_pairs_locked
             : resolvedSource === pair.target ? t.language_pairs_same : t.translate_swap_disabled_auto}
           onSourceLangChange={source => change({ ...pair, source })} onTargetLangChange={target => change({ ...pair, target })}
           onSwap={() => { if (canSwap && resolvedSource) change({ source: pair.target, target: resolvedSource }) }} />
@@ -112,6 +116,7 @@ export function LanguagePairControls({ scope, sourceHeadingId, resultHeadingId, 
             <TranslateIcon /><span>{t.language_pairs_manage}</span><ChevronDownIcon className="language-pair-trigger-chevron" />
           </Button>
         </div>
+        {actions && <div className="language-pair-actions-slot">{actions}</div>}
       </div>
       {open && !locked && createPortal(
         <div ref={panelRef} id={panelId} role="dialog" aria-label={t.language_pairs_manage} className="language-pair-popover"

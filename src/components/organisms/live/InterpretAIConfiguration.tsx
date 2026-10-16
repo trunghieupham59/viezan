@@ -11,10 +11,11 @@ export interface InterpretAIConfigurationProps {
   scopeDescription: string
   closeLabel: string
   translationLabel: string
-  transcriptionLabel: string
+  transcriptionLabel?: string
   outputLabel: string
   modelControl: ReactNode
-  audioSourceControl: ReactNode
+  /** Omit when the feature shows its audio source outside this popover. */
+  audioSourceControl?: ReactNode
   subtitleControl: ReactNode
   onOpenChange: (open: boolean) => void
 }
@@ -50,6 +51,7 @@ export function InterpretAIConfiguration({
         variant={open ? 'primary' : 'neutral'}
         appearance={open ? 'soft' : 'ghost'}
         aria-label={title}
+        title={title}
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={() => onOpenChange(!open)}
@@ -65,9 +67,11 @@ export function InterpretAIConfiguration({
         onClose={() => onOpenChange(false)}
       >
         <ConfigSection title={translationLabel}>{modelControl}</ConfigSection>
-        <ConfigSection title={transcriptionLabel} disabled={active}>
-          {audioSourceControl}
-        </ConfigSection>
+        {audioSourceControl && transcriptionLabel && (
+          <ConfigSection title={transcriptionLabel} disabled={active}>
+            {audioSourceControl}
+          </ConfigSection>
+        )}
         <ConfigSection title={outputLabel}>{subtitleControl}</ConfigSection>
       </AIConfigurationPopover>
     </div>

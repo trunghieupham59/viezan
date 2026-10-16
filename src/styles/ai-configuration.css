@@ -166,6 +166,196 @@
   gap: var(--vzn-space-1);
 }
 
+/* Panel-top toolbar: audio source / status (source) and subtitles / STT badge (translation). */
+.live-panel-toolbar {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
+}
+
+.live-audio-source-group {
+  display: flex;
+  min-inline-size: 0;
+  align-items: center;
+  gap: var(--vzn-space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.live-toolbar-start,
+.live-toolbar-end {
+  display: flex;
+  min-inline-size: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-2);
+}
+
+.live-toolbar-end {
+  margin-inline-start: auto;
+}
+
+/* Paired layout: one panel that fills the workspace in place of the split grid. */
+.live-paired-panel {
+  display: flex;
+  flex: 1 1 auto;
+  min-block-size: 0;
+  flex-direction: column;
+}
+
+/* Scrollable transcript area with a floating "jump to latest" control. */
+.live-scroll-region {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-block-size: 0;
+}
+
+.live-scroll-viewport {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+  padding: var(--vzn-space-4);
+}
+
+.live-scroll-content {
+  display: flex;
+  min-block-size: 100%;
+  flex-direction: column;
+  gap: var(--vzn-space-1-5);
+}
+
+.live-scroll-content > .empty-panel-state {
+  flex: 1 1 auto;
+}
+
+.live-jump-latest.ui-button {
+  position: absolute;
+  inset-block-end: var(--vzn-space-3);
+  inset-inline-start: 50%;
+  z-index: var(--vzn-layer-local-toolbar);
+  transform: translateX(-50%);
+  background: var(--vzn-surface-raised);
+  box-shadow: var(--vzn-shadow-sm);
+}
+
+/* One segment as an original/translation pair. */
+.live-bilingual-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--vzn-space-2);
+  padding-block: var(--vzn-space-2);
+  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
+}
+
+.live-bilingual-row:last-of-type {
+  border-bottom: 0;
+}
+
+.live-bilingual-text {
+  display: flex;
+  min-inline-size: 0;
+  flex-direction: column;
+  gap: var(--vzn-space-1);
+}
+
+.live-bilingual-original,
+.live-bilingual-translation,
+.live-bilingual-pending {
+  margin: 0;
+  line-height: var(--vzn-line-height-reading);
+  overflow-wrap: anywhere;
+}
+
+.live-bilingual-original {
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-md);
+}
+
+.live-bilingual-translation {
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-subtitle);
+  font-weight: 500;
+}
+
+.live-bilingual-pending {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-md);
+  font-style: italic;
+}
+
+/* Running-session status: state label, input-level meter and elapsed time. */
+.live-session-status {
+  display: inline-flex;
+  min-inline-size: 0;
+  align-items: center;
+  gap: var(--vzn-space-2);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: 500;
+  user-select: none;
+}
+
+.live-session-status-icon {
+  inline-size: var(--vzn-icon-xs);
+  block-size: var(--vzn-icon-xs);
+  flex-shrink: 0;
+}
+
+.live-session-status-dot {
+  inline-size: var(--vzn-space-1-5);
+  block-size: var(--vzn-space-1-5);
+  flex-shrink: 0;
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-success);
+}
+
+.live-session-status-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-input-meter {
+  inline-size: var(--vzn-space-10);
+  block-size: var(--vzn-space-1);
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-surface-muted);
+  appearance: none;
+}
+
+.live-input-meter::-webkit-meter-bar {
+  block-size: 100%;
+  border: 0;
+  border-radius: inherit;
+  background: var(--vzn-surface-muted);
+}
+
+.live-input-meter::-webkit-meter-optimum-value {
+  border-radius: inherit;
+  background: var(--vzn-action);
+  transition: inline-size var(--vzn-duration-fast) var(--vzn-ease-standard);
+}
+
+.live-input-meter::-moz-meter-bar {
+  border-radius: inherit;
+  background: var(--vzn-action);
+}
+
+.live-session-elapsed {
+  color: var(--vzn-text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
 .live-ai-config-options {
   display: flex;
   flex-wrap: wrap;

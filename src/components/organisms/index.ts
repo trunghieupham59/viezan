@@ -27,6 +27,7 @@ export {
   type SubtitleColorOption,
   type SubtitleFontSizeOption,
 } from './live/InterpretSubtitleConfiguration'
+export { LiveSessionStatus, type LiveSessionStatusProps } from './live/LiveSessionStatus'
 export { PrimaryNavigationSidebar, PrimaryNavigationSidebar as Sidebar } from './PrimaryNavigationSidebar'
 export {
   SettingsNavigation,

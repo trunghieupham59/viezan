@@ -1,5 +1,6 @@
 import { useT } from '../../../store/useAppStore'
 import { LanguageSelector } from '../../LanguageSelector'
+import { ArrowRightIcon } from '../../ui/icons'
 import { TranslationSwapControl } from './TranslationSwapControl'
 
 interface TranslationLanguageControlsProps {
@@ -10,6 +11,8 @@ interface TranslationLanguageControlsProps {
   detectedSourceLang: string | null
   isDetectingLang: boolean
   disabled?: boolean
+  /** When false, the swap gutter shows a static direction arrow instead. */
+  showSwap?: boolean
   canSwap: boolean
   swapDisabledReason: string
   onSourceLangChange: (language: string) => void
@@ -26,6 +29,7 @@ export function TranslationLanguageControls({
   detectedSourceLang,
   isDetectingLang,
   disabled = false,
+  showSwap = true,
   canSwap,
   swapDisabledReason,
   onSourceLangChange,
@@ -60,11 +64,17 @@ export function TranslationLanguageControls({
         />
       </div>
 
-      <TranslationSwapControl
-        canSwap={canSwap}
-        disabledReason={swapDisabledReason}
-        onSwap={onSwap}
-      />
+      {showSwap ? (
+        <TranslationSwapControl
+          canSwap={canSwap}
+          disabledReason={swapDisabledReason}
+          onSwap={onSwap}
+        />
+      ) : (
+        <span className="translate-swap-control translate-direction-indicator" aria-hidden="true">
+          <ArrowRightIcon />
+        </span>
+      )}
 
       <div className="translate-language-control translate-result-language-control">
         <h2 id={resultHeadingId} className="translate-pane-heading">

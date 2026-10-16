@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { Button } from '../../ui/atoms'
 import { InterpretAIConfiguration } from '../live/InterpretAIConfiguration'
 
-function Harness() {
+function Harness({ withAudioSource = true }: { withAudioSource?: boolean }) {
   const [open, setOpen] = useState(false)
   return (
     <InterpretAIConfiguration
@@ -17,7 +17,7 @@ function Harness() {
       transcriptionLabel="Transcription"
       outputLabel="Output"
       modelControl={<Button>Model choice</Button>}
-      audioSourceControl={<Button>Audio source</Button>}
+      audioSourceControl={withAudioSource ? <Button>Audio source</Button> : undefined}
       subtitleControl={<Button>Subtitles</Button>}
       onOpenChange={setOpen}
     />
@@ -34,5 +34,14 @@ describe('InterpretAIConfiguration', () => {
     expect(dialog).toHaveTextContent('Transcription')
     expect(dialog).toHaveTextContent('Output')
     expect(dialog).not.toHaveTextContent(/Clear|TXT|SRT/)
+  })
+
+  it('omits the transcription section when the audio source lives outside the popover', () => {
+    render(<Harness withAudioSource={false} />)
+    fireEvent.click(screen.getByRole('button', { name: 'AI configuration' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'AI configuration' })
+    expect(dialog).not.toHaveTextContent('Transcription')
+    expect(dialog).toHaveTextContent('Output')
   })
 })

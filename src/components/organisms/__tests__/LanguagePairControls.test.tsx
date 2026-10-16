@@ -22,9 +22,18 @@ describe('shared pair controls', () => {
   it('never resolves Auto from audio detection or permits changing a running session', () => {
     useAppStore.setState({ liveLanguagesLocked: true })
     render(<LanguagePairControls scope="live" sourceHeadingId="source" resultHeadingId="target" detectedSourceLang="ja" />)
-    expect(screen.getByRole('button', { name: 'Swap languages' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Swap languages' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Translate from/ })).toBeDisabled()
     expect(document.querySelector('.language-pair-notice')).toHaveTextContent(TRANSLATIONS.en.language_pairs_locked)
+  })
+  it('swaps an explicit live pair and keeps feature actions on the language row', () => {
+    useAppStore.setState({ liveSourceLang: 'ja', liveTargetLang: 'vi' })
+    render(<LanguagePairControls scope="live" sourceHeadingId="source" resultHeadingId="target"
+      actions={<button type="button">Start</button>} />)
+    const row = document.querySelector('.language-pair-fields') as HTMLElement
+    expect(within(row).getByRole('button', { name: 'Start' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Swap languages' }))
+    expect(useAppStore.getState()).toMatchObject({ liveSourceLang: 'vi', liveTargetLang: 'ja' })
   })
   it('resolves text Auto explicitly without replacing the input', () => {
     useAppStore.setState({ sourceLang: 'auto', targetLang: 'vi', sourceText: 'Hello' })

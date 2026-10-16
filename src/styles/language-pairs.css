@@ -33,7 +33,18 @@
   padding: 0 0 var(--vzn-space-2); border: 0; transform: none;
 }
 .language-pair-controls .language-pair-fields .translate-swap-button svg { transform: none; }
-.live-language-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); }
+.language-pair-fields-with-actions { grid-template-columns: minmax(0, 1fr) var(--vzn-control-height-xl) minmax(0, 1fr) auto auto; }
+.language-pair-fields-with-actions .language-pair-trigger-slot { padding-right: var(--vzn-space-2); }
+.language-pair-actions-slot {
+  grid-column: 5; grid-row: 1; align-self: end; display: flex; align-items: center; gap: var(--vzn-space-2);
+  padding: 0 var(--vzn-space-3) var(--vzn-space-2) 0;
+}
+/* Static direction arrow where a swap can never apply (Live with an auto-detected source). */
+.language-pair-controls .language-pair-fields > .translate-direction-indicator { justify-content: center; color: var(--vzn-text-soft); }
+.translate-direction-indicator svg {
+  inline-size: var(--vzn-icon-md); block-size: var(--vzn-icon-md);
+  margin-block: calc((var(--vzn-control-height-md) - var(--vzn-icon-md)) / 2);
+}
 @container app-main (min-width: 900px) {
   .translate-workbench-single .language-pair-fields {
     grid-template-columns: minmax(0, calc(50% - var(--vzn-control-height-xl) / 2)) var(--vzn-control-height-xl) minmax(0, 1fr) auto;
@@ -54,4 +65,10 @@
 @container app-main (max-width: 759px) {
   .translate-workbench.translate-workbench-comparison { grid-template-rows: auto minmax(0, auto) minmax(0, auto); }
   .translate-workbench.translate-workbench-comparison > .translate-result-pane { grid-row: 3; }
+}
+/* Narrow feature width: feature actions drop to their own row so the language fields stay usable. */
+@container app-main (max-width: 639px) {
+  .language-pair-fields-with-actions { grid-template-columns: minmax(0, 1fr) var(--vzn-control-height-md) minmax(0, 1fr) auto; }
+  .language-pair-fields-with-actions .language-pair-trigger-slot { padding-right: var(--vzn-space-2); }
+  .language-pair-actions-slot { grid-column: 1 / -1; grid-row: 2; justify-content: flex-end; padding: 0 var(--vzn-space-2) var(--vzn-space-2); }
 }

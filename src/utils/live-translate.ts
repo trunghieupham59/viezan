@@ -189,3 +189,12 @@ function _sliceAtBounds(text: string, bounds: number[]): string[] {
   if (tail) results.push(tail)
   return results.filter(Boolean)
 }
+
+/** Format an elapsed duration as m:ss, or h:mm:ss from one hour on. */
+export function formatElapsed(ms: number): string {
+  const totalSec = Math.max(0, Math.floor(ms / 1000))
+  const h = Math.floor(totalSec / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  const s = String(totalSec % 60).padStart(2, '0')
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`
+}

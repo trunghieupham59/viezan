@@ -17,6 +17,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   extractCompleteSentences,
+  formatElapsed,
   isHallucination,
   jaccardSimilarity,
   splitSentences,
@@ -434,5 +435,16 @@ describe('splitSentences', () => {
   it('returns single element for text with no trailing boundary (accumulating chunk)', () => {
     const result = splitSentences('This is still being spoken')
     expect(result).toEqual(['This is still being spoken'])
+  })
+})
+
+describe('formatElapsed', () => {
+  it.each([
+    [0, '0:00'],
+    [65_000, '1:05'],
+    [3_600_000 + 2 * 60_000 + 3_000, '1:02:03'],
+    [-500, '0:00'],
+  ])('formats %i ms as %s', (ms, expected) => {
+    expect(formatElapsed(ms)).toBe(expected)
   })
 })
