@@ -207,6 +207,8 @@ export interface LocalAiDiscoveryResult {
   error?: string
 }
 
+export type { LocalAiExecutionMode, LocalAiPerformanceComparison, LocalAiPerformanceMeasurement, LocalAiPerformanceProfile, LocalAiPerformanceState } from '../../shared/localAiPerformance'
+
 export interface LocalAiBenchmarkResult {
   hardware: LocalAiHardwareProfile
   suggestedModels: FetchedModel[]
@@ -348,12 +350,24 @@ export interface ChatMessageContent {
  */
 export type ResearchStepPhase = 'analyze' | 'survey' | 'gap' | 'deep' | 'cross' | 'synth'
 
+export interface ChatRequestConfiguration {
+  provider: Provider
+  model: string
+  systemPrompt?: string
+  task: import('./chatTask').ChatTaskStarterState | null
+  imageMode: boolean
+  deepResearchMode: boolean
+  webSearchMode: boolean
+  imagePlan?: { prompt: string; editPrevious: boolean; rewritten: boolean }
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: ChatMessageContent[]
-  /** Applied task instructions, separate from the text displayed to the user. */
+  /** Immutable task instruction captured at send time; reused when retrying this turn. */
   taskInstruction?: string
+  requestConfiguration?: ChatRequestConfiguration
   timestamp: number
   isLoading?: boolean
   error?: string
@@ -401,6 +415,7 @@ export interface ChatMessage {
  * this snapshot exists and no draft prompt is being edited.
  */
 export interface DeepResearchResumeState {
+  requestConfiguration?: ChatRequestConfiguration
   /** Original user question that kicked off the pipeline. */
   question: string
   /** Aspects discovered in Phase 1 — drives the survey loop. */
@@ -676,6 +691,10 @@ export interface WindowApi {
   discoverLocalAi: (force?: boolean) => Promise<LocalAiDiscoveryResult>
   ensureLocalAiRuntime: () => Promise<LocalAiDiscoveryResult>
   benchmarkLocalAi: () => Promise<LocalAiBenchmarkResult>
+  getLocalAiPerformance: (model: string) => Promise<import('../../shared/localAiPerformance').LocalAiPerformanceState>
+  compareLocalAiPerformance: (request: import('../../shared/localAiPerformance').LocalAiPerformanceRequest) => Promise<import('../../shared/localAiPerformance').LocalAiPerformanceState>
+  selectLocalAiPerformance: (model: string, mode: import('../../shared/localAiPerformance').LocalAiExecutionMode | 'auto') => Promise<import('../../shared/localAiPerformance').LocalAiPerformanceState>
+  cancelLocalAiPerformance: () => Promise<void>
   downloadLocalAiModel: (modelId: string) => Promise<LocalAiDownloadResult>
   uninstallLocalAiModel: (modelId: string) => Promise<LocalAiModelActionResult>
   onLocalAiModelDownloadProgress: (cb: (progress: LocalAiModelDownloadProgress) => void) => () => void
@@ -776,6 +795,7 @@ export interface WindowApi {
     carefulReasoning?: boolean
   }) => Promise<ChatResult>
   editChatImage?: (params: {
+    requestId?: string
     provider: string
     model: string
     prompt: string
@@ -783,6 +803,7 @@ export interface WindowApi {
     imageMimeType: string
   }) => Promise<ChatImageEditResult>
   generateChatImage?: (params: {
+    requestId?: string
     provider: string
     model: string
     prompt: string

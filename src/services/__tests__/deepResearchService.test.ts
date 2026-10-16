@@ -449,6 +449,23 @@ describe('deepResearchService research quality', () => {
     vi.mocked(window.api.onChatStreamEvent).mockReturnValue(() => {})
   })
 
+  it.each(['Model does not exist', 'Invalid API key', 'Network unavailable'])('stops after the initial provider failure: %s', async (error) => {
+    window.api.webSearch = vi.fn()
+    queueReplies([{ success: false, error }])
+    const callbacks = makeCallbacks()
+
+    await expect(deepResearchService.run({
+      provider: 'openai', model: 'qa-nonexistent-model', question: 'Research Unicode',
+      uiText: TEST_UI_TEXT, callbacks,
+    })).rejects.toThrow(error)
+
+    expect(window.api.chat).toHaveBeenCalledTimes(1)
+    expect(window.api.webSearch).not.toHaveBeenCalled()
+    expect(callbacks.onStepError).toHaveBeenCalledWith('step-1', error)
+    expect(callbacks.onStepComplete).not.toHaveBeenCalled()
+    expect(callbacks.onResumeStateChange).not.toHaveBeenCalled()
+  })
+
   it('numbers sources globally across searches and appends only the cited ones to the answer', async () => {
     window.api.webSearch = vi.fn()
       .mockResolvedValueOnce({ success: true, results: [result('Alpha', 'https://a.test'), result('Beta', 'https://b.test')] })

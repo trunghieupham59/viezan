@@ -3,6 +3,7 @@
  * live-stream, model fetching, and API key verification.
  */
 import { ipcRenderer } from 'electron'
+import type { LocalAiExecutionMode, LocalAiPerformanceRequest } from '../../shared/localAiPerformance'
 
 export const translateSection = {
   // Fetch available models from provider API
@@ -20,6 +21,11 @@ export const translateSection = {
   // Benchmark this machine and return local model recommendations
   benchmarkLocalAi: () =>
     ipcRenderer.invoke('local-ai:benchmark'),
+
+  getLocalAiPerformance: (model: string) => ipcRenderer.invoke('local-ai:performance:get', model),
+  compareLocalAiPerformance: (request: LocalAiPerformanceRequest) => ipcRenderer.invoke('local-ai:performance:compare', request),
+  selectLocalAiPerformance: (model: string, mode: LocalAiExecutionMode | 'auto') => ipcRenderer.invoke('local-ai:performance:select', model, mode),
+  cancelLocalAiPerformance: () => ipcRenderer.invoke('local-ai:performance:cancel'),
 
   // Download a supported local model through the local runtime when available
   downloadLocalAiModel: (modelId: string) =>

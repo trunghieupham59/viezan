@@ -13,7 +13,7 @@ import type {
   UsageCost,
 } from '../../types'
 
-import type { ChatTaskStarterState } from '../../types/chatTask'
+import { type ChatTaskStarterState, getChatTaskExecution } from '../../types/chatTask'
 import { createClientId } from '../../utils/id'
 import type { SliceSet } from './sliceTypes'
 
@@ -50,6 +50,7 @@ export interface ChatSlice {
   setChatSessionModel: (sessionId: string, provider: Provider, model: string) => void
   addChatMessage: (sessionId: string, message: ChatMessage) => void
   updateChatMessage: (sessionId: string, messageId: string, updates: Partial<ChatMessage>) => void
+  restartChatResearch: (sessionId: string, userMessageId: string) => void
   addChatSessionCost: (sessionId: string, cost: UsageCost) => void
   clearChatSession: (sessionId: string) => void
   /** Persist the per-session composer draft text. */
@@ -121,7 +122,7 @@ export const createChatSlice = (set: SliceSet): ChatSlice => ({
         chatSessions: [session, ...state.chatSessions].slice(0, MAX_CHAT_SESSIONS),
         activeChatSessionId: id,
         chatPendingDraft: '',
-  chatPendingTaskState: null,
+        chatPendingTaskState: null,
         chatPendingDeepResearchMode: false,
         chatPendingWebSearchMode: false,
         chatPendingImageMode: false,
@@ -291,8 +292,23 @@ export const createChatSlice = (set: SliceSet): ChatSlice => ({
     })),
 
   setChatTaskState: (sessionId, taskState) => set((state: ChatSlice) => sessionId
-    ? { chatSessions: state.chatSessions.map((session) => session.id === sessionId ? { ...session, taskState } : session) }
-    : { chatPendingTaskState: taskState }),
+    ? { chatSessions: state.chatSessions.map((session) => session.id === sessionId ? { ...session, taskState,
+      ...(taskState?.unified ? getChatTaskExecution(taskState) : {}) } : session) }
+    : { chatPendingTaskState: taskState, ...(taskState?.unified ? {
+      chatPendingImageMode: getChatTaskExecution(taskState).imageMode,
+      chatPendingDeepResearchMode: getChatTaskExecution(taskState).deepResearchMode,
+      chatPendingWebSearchMode: getChatTaskExecution(taskState).webSearchMode,
+    } : {}) }),
+
+  restartChatResearch: (sessionId, userMessageId) => set((state: ChatSlice) => ({
+    chatSessions: state.chatSessions.map((session) => {
+      if (session.id !== sessionId) return session
+      const lastUser = [...session.messages].reverse().find((message) => message.role === 'user')
+      if (lastUser?.id !== userMessageId) return session
+      const index = session.messages.findIndex((message) => message.id === userMessageId)
+      return { ...session, messages: session.messages.slice(0, index + 1), deepResearchResumeState: undefined }
+    }),
+  })),
 
   setChatPendingDraft: (draft) => set({ chatPendingDraft: draft }),
 

@@ -5,6 +5,14 @@ Tài liệu tổng quan về toàn bộ pipeline CI/CD và automation của Viez
 
 ## 🚦 Pipeline tổng quan
 
+Windows CI và release dùng `.github/actions/stage-ollama-runtime` trước khi đóng
+gói. Action tải archive từ prerelease `ollama-runtime-0.40.4-viezan-http-test`,
+kiểm tra SHA-256 đã pin trong action, rồi chạy staging và kiểm chứng manifest.
+Không bỏ qua bước này hoặc dùng binary thay thế khi tải/kiểm chứng thất bại.
+Runtime nằm ngoài Git; khi cập nhật phải kiểm chứng bộ binary mới và cập nhật
+cả digest archive lẫn các hash binary được pin trong script staging.
+Tag runtime không bắt đầu bằng `v`, không kích hoạt workflow phát hành ứng dụng.
+
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
 │                          PUSH / PULL REQUEST                           │

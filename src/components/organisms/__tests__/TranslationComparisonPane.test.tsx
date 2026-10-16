@@ -50,6 +50,7 @@ function renderComparison(results = IDLE_RESULTS) {
         isTranslating={results.some((result) => result.status === 'loading')}
         isResultStale={false}
         canRetry
+        onUseAsSource={vi.fn()}
         onCopy={vi.fn()}
         onSpeak={vi.fn()}
         onRetry={vi.fn()}
@@ -209,7 +210,8 @@ describe('TranslationComparisonPane compact tabs', () => {
           isTranslating={false}
           isResultStale={false}
           canRetry
-          onCopy={vi.fn()}
+          onUseAsSource={vi.fn()}
+        onCopy={vi.fn()}
           onSpeak={vi.fn()}
           onRetry={vi.fn()}
           onOpenSettings={vi.fn()}
@@ -232,7 +234,8 @@ describe('TranslationComparisonPane compact tabs', () => {
           isTranslating={false}
           isResultStale={false}
           canRetry
-          onCopy={vi.fn()}
+          onUseAsSource={vi.fn()}
+        onCopy={vi.fn()}
           onSpeak={vi.fn()}
           onRetry={vi.fn()}
           onOpenSettings={vi.fn()}
@@ -269,7 +272,8 @@ describe('TranslationComparisonPane result actions', () => {
           isTranslating={false}
           isResultStale={false}
           canRetry
-          onCopy={onCopy}
+          onUseAsSource={vi.fn()}
+        onCopy={onCopy}
           onSpeak={onSpeak}
           onRetry={vi.fn()}
           onOpenSettings={vi.fn()}

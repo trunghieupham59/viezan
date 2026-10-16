@@ -4,6 +4,17 @@
  */
 import type { IconProps } from './types'
 
+/** Window panel with a chevron indicating the next sidebar action. */
+export function SidebarPanelIcon({ className = 'w-4 h-4', action }: IconProps & { action: 'expand' | 'collapse' }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="3" />
+      <path d="M9 4v16" />
+      <path d={action === 'expand' ? 'm13 9 3 3-3 3' : 'm16 9-3 3 3 3'} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 /** Chevron-down icon — used on dropdown selects and collapsible menus. */
 export function ChevronDownIcon({ className = 'w-3.5 h-3.5' }: IconProps) {
   return (

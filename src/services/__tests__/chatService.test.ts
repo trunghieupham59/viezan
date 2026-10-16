@@ -74,4 +74,31 @@ describe('chatService usedModel plumbing', () => {
     expect(result.usedModel).toBe('m2')
     expect(api.chat).toHaveBeenCalledTimes(1)
   })
+
+  it.each(['generateImage', 'editImage'] as const)('cancels %s immediately through IPC and ignores late results', async (method) => {
+    const api = installApi([], {})
+    let finish: (value: { success: boolean; imageBase64: string; imageMimeType: string }) => void = () => {}
+    const invoke = vi.fn(() => new Promise<{ success: boolean; imageBase64: string; imageMimeType: string }>((resolve) => { finish = resolve }))
+    Object.assign(api, { generateChatImage: invoke, editChatImage: invoke })
+    const controller = new AbortController()
+    const result = chatService[method]({ provider: 'openai', model: 'gpt-image-1', prompt: 'Apple', imageBase64: 'input', imageMimeType: 'image/png' }, { signal: controller.signal })
+    await vi.waitFor(() => expect(invoke).toHaveBeenCalledTimes(1))
+    const requestId = (invoke.mock.calls[0] as unknown as [{ requestId: string }])[0].requestId
+    expect(requestId).toMatch(/^chat-image-/)
+    controller.abort()
+    await expect(result).resolves.toMatchObject({ success: false, errorCode: 'CANCELLED' })
+    expect(api.chatStreamCancel).toHaveBeenCalledWith({ requestId })
+    finish({ success: true, imageBase64: 'late-pixels', imageMimeType: 'image/png' })
+    await expect(result).resolves.toMatchObject({ success: false, errorCode: 'CANCELLED' })
+  })
+
+  it('does not start an image IPC request for an already aborted signal', async () => {
+    const api = installApi([], {})
+    const invoke = vi.fn()
+    Object.assign(api, { generateChatImage: invoke })
+    const controller = new AbortController()
+    controller.abort()
+    await expect(chatService.generateImage({ provider: 'openai', model: 'gpt-image-1', prompt: 'Apple' }, { signal: controller.signal })).resolves.toMatchObject({ errorCode: 'CANCELLED' })
+    expect(invoke).not.toHaveBeenCalled()
+  })
 })

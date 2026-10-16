@@ -14,6 +14,7 @@ import type {
   LocalAiModelDownloadProgress,
   Provider,
 } from '../../types'
+import { LocalAiPerformanceSection } from './LocalAiPerformanceSection'
 
 /** Main-process message for a model whose pull is already in flight (see downloadLocalAiModel). */
 const ALREADY_DOWNLOADING_ERROR = 'This model is already being downloaded.'
@@ -214,6 +215,8 @@ function LocalAiProviderCard({
           )}
         </div>
       )}
+
+      {status?.engine === 'ollama' && <LocalAiPerformanceSection models={models} />}
 
       {suggestions.length > 0 && (
         <div className="space-y-2">

@@ -116,6 +116,31 @@ export function cancelChatStream(requestId: string): void {
   }
 }
 
+/** Cancel images through the existing owner-scoped chat cancellation channel. */
+function sendAbortableImage(
+  invoke: (requestId?: string) => Promise<ChatImageEditResult>,
+  signal?: AbortSignal,
+): Promise<ChatImageEditResult> {
+  if (!signal) return invoke()
+  const cancelled: ChatImageEditResult = { success: false, error: CHAT_STREAM_CANCELLED_MESSAGE, errorCode: CHAT_STREAM_CANCELLED_ERROR_CODE }
+  if (signal.aborted) return Promise.resolve(cancelled)
+  const requestId = createClientId('chat-image')
+  return new Promise((resolve, reject) => {
+    const cleanup = () => signal.removeEventListener('abort', onAbort)
+    const onAbort = () => {
+      cleanup()
+      cancelChatStream(requestId)
+      resolve(cancelled)
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+    // A late result is consumed but cannot replace the resolved cancellation.
+    Promise.resolve().then(() => signal.aborted ? cancelled : invoke(requestId)).then(
+      (result) => { cleanup(); resolve(result) },
+      (error) => { cleanup(); reject(error) },
+    )
+  })
+}
+
 export const chatService = {
   /** Send a conversational message — supports text + image content, multi-turn. */
   send: (params: ChatParams): Promise<ChatResult> =>
@@ -180,19 +205,19 @@ export const chatService = {
    * to `t.chat_error_image_edit_reload_required` via `localizeChatError`.
    * It is only shown if a future caller bypasses that mapper.
    */
-  editImage: (params: ChatImageEditParams): Promise<ChatImageEditResult> =>
-    window.api.editChatImage?.(params) ?? Promise.resolve({
+  editImage: (params: ChatImageEditParams, options: { signal?: AbortSignal } = {}): Promise<ChatImageEditResult> =>
+    sendAbortableImage((requestId) => window.api.editChatImage?.({ ...params, ...(requestId ? { requestId } : {}) }) ?? Promise.resolve({
       success: false,
       error: 'Image editing bridge is unavailable. Restart Viezan and try again.',
       errorCode: 'PRELOAD_OUTDATED',
-    }),
+    }), options.signal),
 
-  generateImage: (params: { provider: string; model: string; prompt: string }): Promise<ChatImageEditResult> =>
-    window.api.generateChatImage?.(params) ?? Promise.resolve({
+  generateImage: (params: { provider: string; model: string; prompt: string }, options: { signal?: AbortSignal } = {}): Promise<ChatImageEditResult> =>
+    sendAbortableImage((requestId) => window.api.generateChatImage?.({ ...params, ...(requestId ? { requestId } : {}) }) ?? Promise.resolve({
       success: false,
       error: 'Image generation bridge is unavailable. Restart Viezan and try again.',
       errorCode: 'PRELOAD_OUTDATED',
-    }),
+    }), options.signal),
 
   /** Stream a conversational message and receive provider tokens as they arrive. */
   stream: async (params: ChatParams, callbacks: ChatStreamCallbacks = {}): Promise<ChatResult> => {

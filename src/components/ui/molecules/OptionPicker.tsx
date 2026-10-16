@@ -73,7 +73,6 @@ export function OptionPicker({
         label={label}
         searchPlaceholder={searchPlaceholder}
         noResultsLabel={noResultsLabel}
-        minWidth={160}
       />
     </div>
   )

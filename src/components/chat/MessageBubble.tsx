@@ -178,9 +178,9 @@ function MessageBubbleImpl({
             </div>
           )}
 
-          {/* Timestamp + copy — hover-only */}
+          {/* The final research response supports the same retry action as other answers. */}
           {!message.isLoading && textContent && (
-            <div className="chat-message-actions flex items-center gap-1 px-1">
+            <div className={`chat-message-actions ${isLastAssistant ? 'chat-message-actions-pinned' : ''} flex items-center gap-1 px-1`}>
               <span className="ui-micro">
                 {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
@@ -196,6 +196,12 @@ function MessageBubbleImpl({
               >
                 <CopyIcon className="w-3.5 h-3.5" />
               </Button>
+              {isLastAssistant && onRegenerate && <Button size="xs" shape="icon" variant="primary" appearance="soft"
+                onClick={onRegenerate} disabled={isSending}
+                title={regenerateLabel ?? t.chat_regenerate} aria-label={regenerateLabel ?? t.chat_regenerate}
+                className={MESSAGE_REGENERATE_BUTTON_CLASS}>
+                <RefreshIcon className="w-3.5 h-3.5" />
+              </Button>}
             </div>
           )}
         </div>

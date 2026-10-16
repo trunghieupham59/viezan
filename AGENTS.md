@@ -101,7 +101,9 @@ pages -> templates -> organisms -> molecules -> atoms
 - Sidebar responsive policy must not change the primary navigation merely
   because a feature adds contextual navigation. At `>=900px`, both sidebars
   respect their independent stored states across feature navigation; `<900px`
-  compacts both into rails with mutually exclusive overlays.
+  keeps primary navigation as a rail and hides AI Chat history until requested.
+  Compact overlays remain mutually exclusive. AI Chat history and New Chat
+  controls live in the chat header; collapsed history consumes no layout width.
 - Preserve readable density and hierarchy at both desktop and narrow widths.
 - Size feature layouts from their actual container, not only the outer window.
   Chat uses one shared stage for messages, suggestions, and composer; cap the

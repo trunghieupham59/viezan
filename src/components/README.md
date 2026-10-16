@@ -179,13 +179,19 @@ expanded layout column. The stored user preference survives navigation, and an
 expanded primary column sits before—not above—the independent AI Chat session
 sidebar. At compact widths only, labelled mode becomes a portal overlay and
 closes after navigation, outside click, or Escape. The logo and toggle always
-occupy separate layout slots.
+occupy separate layout slots: the logo stays in navigation and the toggle is
+hosted in the window header, outside its draggable region. On macOS the header
+reserves space for native traffic lights.
 
 Sidebar structure does not change merely because a feature adds contextual
 navigation. At `>=900px`, primary and AI Chat sidebars respect their independent
-stored preferences across feature navigation. Below `900px`, both use compact
-rails and mutually exclusive overlays. Effective responsive states never
-rewrite preferences.
+stored preferences across feature navigation. Collapsed AI Chat history is
+fully hidden and consumes no layout width. Its history toggle and New Chat
+action stay in the feature header beside the current conversation title.
+Below `900px`, primary navigation keeps its rail; chat history opens from its
+header as a temporary overlay. The overlays are mutually exclusive and close
+on selection, outside click, or Escape. Effective responsive states never
+rewrite preferences, including when opening history from a saved collapsed state.
 
 ## Imports
 

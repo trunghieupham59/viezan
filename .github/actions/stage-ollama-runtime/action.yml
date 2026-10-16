@@ -1,0 +1,25 @@
+name: Stage verified Windows Ollama runtime
+description: Download the pinned runtime archive, verify its digest and stage verified binaries before packaging.
+
+runs:
+    using: composite
+    steps:
+        - name: Download and verify runtime archive
+          shell: pwsh
+          env:
+              RUNTIME_URL: https://github.com/trunghieupham59/viezan/releases/download/ollama-runtime-0.40.4-viezan-http-test/ollama-runtime-windows-x64.zip
+              RUNTIME_SHA256: C4155C7CDE435932C4F90DF81807798AEAD8C644E78842239D6DD9470C6BD81E
+          run: |
+              $ErrorActionPreference = 'Stop'
+              $runtimeTemp = Join-Path $env:RUNNER_TEMP ([guid]::NewGuid().ToString())
+              New-Item -ItemType Directory -Path $runtimeTemp | Out-Null
+              $runtimeArchive = Join-Path $runtimeTemp 'runtime.zip'
+              Invoke-WebRequest -Uri $env:RUNTIME_URL -OutFile $runtimeArchive
+              $actualHash = (Get-FileHash -LiteralPath $runtimeArchive -Algorithm SHA256).Hash
+              if ($actualHash -ne $env:RUNTIME_SHA256) { throw 'Ollama runtime archive SHA-256 mismatch' }
+              $runtimeSource = Join-Path $runtimeTemp 'runtime'
+              Expand-Archive -LiteralPath $runtimeArchive -DestinationPath $runtimeSource
+              node scripts/stage-ollama-runtime.mjs $runtimeSource
+              if ($LASTEXITCODE -ne 0) { throw 'Ollama runtime staging failed' }
+              node --input-type=module -e "import verify from './scripts/verify-ollama-package.mjs'; await verify({electronPlatformName:'win32',packager:{projectDir:process.cwd()}})"
+              if ($LASTEXITCODE -ne 0) { throw 'Ollama staged runtime verification failed' }

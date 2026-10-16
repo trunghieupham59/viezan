@@ -5,7 +5,8 @@ import { MarkdownText } from '../../MarkdownText'
 import { FuriganaText } from '../../translate/FuriganaText'
 import { ResultPanelActions } from '../../translate/ResultPanelActions'
 import { TranslateError } from '../../translate/TranslateError'
-import { InfoCircleIcon, SpinnerIcon } from '../../ui/icons'
+import { Button } from '../../ui/atoms'
+import { ArrowLeftIcon, InfoCircleIcon, SpinnerIcon } from '../../ui/icons'
 import type { SpeakPanel } from '../../ui/SpeakButton'
 
 interface TranslationResultPaneProps {
@@ -36,6 +37,7 @@ interface TranslationResultPaneProps {
   onDownloadEdited: () => void
   onDownloadTranslated: () => void
   onRewrite: (panel: 'source' | 'translated') => void
+  onUseAsSource: () => void
   onCopy: () => void
 }
 
@@ -67,6 +69,7 @@ export function TranslationResultPane({
   onDownloadEdited,
   onDownloadTranslated,
   onRewrite,
+  onUseAsSource,
   onCopy,
 }: TranslationResultPaneProps) {
   const t = useT()
@@ -169,6 +172,9 @@ export function TranslationResultPane({
 
       <footer className={`translate-pane-footer translate-result-footer${canUseResultActions ? ' translate-result-footer-active' : ''}`}>
         {canUseResultActions && (
+          <>
+          {!hasImageAttachment && <Button size="xs" shape="icon" variant="neutral" appearance="ghost"
+            aria-label={t.translate_use_as_source} title={t.translate_use_as_source} onClick={onUseAsSource}><ArrowLeftIcon /></Button>}
           <ResultPanelActions
             translatedText={displayText}
             targetLang={targetLang}
@@ -193,6 +199,7 @@ export function TranslationResultPane({
             labelCopy={t.translate_copy}
             labelCopied={t.translate_copied}
           />
+          </>
         )}
       </footer>
     </section>

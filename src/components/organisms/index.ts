@@ -7,6 +7,7 @@ export { AIConfigurationPopover, type AIConfigurationPopoverProps } from './AICo
 export { AIModelPickerField } from './AIModelPickerField'
 export { CommandPalette } from './CommandPalette'
 export { ChatAIConfiguration, type ChatAIConfigurationProps } from './chat/ChatAIConfiguration'
+export { ChatTaskConfiguration } from './chat/ChatTaskConfiguration'
 export {
   DictionaryAIConfiguration,
   type DictionaryAIConfigurationProps,
@@ -32,6 +33,7 @@ export {
   type SettingsNavigationItem,
   type SettingsNavigationProps,
 } from './SettingsNavigation'
+export { LanguagePairControls } from './translate/LanguagePairControls'
 export { TranslationComparisonPane } from './translate/TranslationComparisonPane'
 export { TranslationControlsHeader } from './translate/TranslationControlsHeader'
 export { TranslationLanguageControls } from './translate/TranslationLanguageControls'

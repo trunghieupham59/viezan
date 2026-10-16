@@ -10,7 +10,7 @@ async function getLocalOpenAIClient(model: string) {
   const local = await resolveLocalAiRequestModel(model)
   return {
     // maxRetries 0: `withRetry` is the single retry layer.
-    client: new OpenAI({ apiKey: LOCAL_AI_PLACEHOLDER_KEY, baseURL: local.baseURL, maxRetries: 0 }),
+    client: new OpenAI({ apiKey: LOCAL_AI_PLACEHOLDER_KEY, baseURL: local.baseURL, maxRetries: 0, fetch: local.fetch }),
     model: local.model,
   }
 }

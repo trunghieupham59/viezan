@@ -91,19 +91,19 @@ describe('swapLanguages', () => {
     const state = useAppStore.getState()
     expect(state.sourceLang).toBe('vi')
     expect(state.targetLang).toBe('en')
-    expect(state.sourceText).toBe('Xin chào')
-    expect(state.translatedText).toBe('Hello')
+    expect(state.sourceText).toBe('Hello')
+    expect(state.translatedText).toBe('Xin chào')
     expect(state.phoneticText).toBe('')
   })
 
-  it('falls back to "ja" when sourceLang is "auto"', () => {
+  it('does not guess a language when Auto has not resolved', () => {
     act(() => {
       useAppStore.setState({ sourceLang: 'auto', targetLang: 'vi', sourceText: 'test', translatedText: 'kiểm tra' })
       useAppStore.getState().swapLanguages()
     })
     const state = useAppStore.getState()
-    expect(state.sourceLang).toBe('vi')
-    expect(state.targetLang).toBe('ja') // falls back to 'ja', not 'auto'
+    expect(state.sourceLang).toBe('auto')
+    expect(state.targetLang).toBe('vi')
   })
 
   it('uses detectedLang as new targetLang when provided', () => {
@@ -114,8 +114,8 @@ describe('swapLanguages', () => {
     const state = useAppStore.getState()
     expect(state.sourceLang).toBe('vi')
     expect(state.targetLang).toBe('en') // detectedLang wins over 'auto' → 'ja' fallback
-    expect(state.sourceText).toBe('Xin chào')
-    expect(state.translatedText).toBe('Hello')
+    expect(state.sourceText).toBe('Hello')
+    expect(state.translatedText).toBe('Xin chào')
   })
 
   it('uses detectedLang over sourceLang when both are present', () => {

@@ -210,13 +210,15 @@
   --vzn-layer-navigation-backdrop: 65;
   --vzn-layer-navigation-overlay: 70;
   --vzn-layer-modal: 80;
+  --vzn-layer-picker: 90;
 
   /* Layout -------------------------------------------------------------- */
   --vzn-sidebar-width: 60px;
   --vzn-sidebar-expanded-width: 236px;
   --vzn-titlebar-height: 40px;
+  --vzn-titlebar-mac-controls-width: 80px;
   --vzn-chat-sidebar-width: 260px;
-  --vzn-chat-sidebar-collapsed-width: 48px;
+  --vzn-chat-header-height: calc(var(--vzn-control-height-sm) + var(--vzn-space-2) * 2);
   --vzn-content-max: 980px;
   --vzn-chat-stage-max: 1040px;
   --vzn-chat-reading-max: 820px;
@@ -235,6 +237,8 @@
   --vzn-dictionary-history-width: calc(var(--vzn-space-12) * 6);
   --vzn-dictionary-pane-min-block: calc(var(--vzn-space-12) * 6);
   --vzn-popover-wide: 420px;
+  --vzn-picker-min-inline: 280px;
+  --vzn-picker-max-block: 360px;
   --vzn-ai-configuration-inline: var(--vzn-popover-wide);
   --vzn-ai-configuration-max-block: min(
     calc(100dvh - var(--vzn-space-8)),

@@ -19,6 +19,23 @@ describe('smartThinkingService', () => {
     window.api.onChatStreamEvent = originalOnChatStreamEvent
   })
 
+  it.each(['gemini', 'local'])('does not classify or search externally when web sources are off for %s', async (provider) => {
+    vi.mocked(window.api.chat).mockResolvedValue({ success: true, reply: 'Offline-source answer' })
+    const callbacks = { onStepStart: vi.fn(() => 'step'), onStepComplete: vi.fn(), onStepError: vi.fn(),
+      onAnswerStart: vi.fn(() => 'answer'), onAnswerToken: vi.fn(), onAnswerComplete: vi.fn(), onAnswerError: vi.fn() }
+    await smartThinkingService.run({ provider, model: 'test-model', question: 'What is the latest news today?',
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'What is the latest news today?' }] }],
+      allowWebSearch: false, forceWebSearch: true, callbacks,
+      uiText: { webSearchStepLabelPrefix: 'Search', webSearchSummaryTitle: 'Summary', webSearchDefaultReason: 'Reason',
+        webSearchSourcesTitle: 'Sources', webSearchNoSources: 'None', webSearchNoResults: 'None',
+        webSearchErrorFallback: 'Error', noResponseError: 'Empty', unknownError: 'Unknown' },
+    })
+    expect(window.api.webSearch).not.toHaveBeenCalled()
+    expect(window.api.chat).toHaveBeenCalledTimes(1)
+    expect(callbacks.onStepStart).not.toHaveBeenCalled()
+    expect(callbacks.onAnswerComplete).toHaveBeenCalledWith('answer', 'Offline-source answer')
+  })
+
   it('keeps overlapping planned web queries concise without dropping answer focus', async () => {
     const classifierReply = JSON.stringify({
       needs_web: true,

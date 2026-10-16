@@ -133,11 +133,11 @@ const MAX_PREVIOUS_TEXT_CHARS = 200
 export function useLiveTranslate() {
   const t = useT()
   const {
-    sourceLang, targetLang, selectedProvider, selectedModels, keyStatus,
+    liveSourceLang: sourceLang, liveTargetLang: targetLang, selectedProvider, selectedModels, keyStatus,
     sttProvider, locale,
     addLiveSession, updateLiveSession,
     viewingLiveSessionId, liveSessions, setViewingLiveSession,
-    setSelectedProvider, setSelectedModel, setTargetLang,
+    setSelectedProvider, setSelectedModel, setLanguagePair, setLiveLanguagesLocked, liveLanguagesLocked,
     recordUsageCost,
   } = useAppStore()
 
@@ -204,6 +204,12 @@ export function useLiveTranslate() {
   const [sessionStartTime, setSessionStartTime] = useState<number>(0)
 
   // Stable ref so audio callbacks always read fresh params
+  const sessionLanguagesRef = useRef({ sourceLang, targetLang })
+  const captureDrainRef = useRef<Promise<unknown>>(Promise.resolve())
+  const recorderDrainRef = useRef(new Map<MediaRecorder, () => void>())
+  const setTargetLang = useCallback((target: string) => {
+    setLanguagePair('live', { source: useAppStore.getState().liveSourceLang, target })
+  }, [setLanguagePair])
   const paramsRef = useRef({ sourceLang, targetLang, selectedProvider, selectedModels, sttProvider })
   useEffect(() => {
     paramsRef.current = { sourceLang, targetLang, selectedProvider, selectedModels, sttProvider }
@@ -399,6 +405,7 @@ export function useLiveTranslate() {
     setActionItems(session.actionItems ?? null)
     setDecisions(session.decisions ?? null)
     setSpeakerNameMap(session.speakerNameMap ?? {})
+    sessionLanguagesRef.current = { sourceLang: session.sourceLang, targetLang: session.targetLang }
     if (session.segments?.length) setSegments(session.segments)
     setShowSummaryBtn(!!session.rawTranscript)
     aiModelBoundaryRef.current.restore({
@@ -431,6 +438,7 @@ export function useLiveTranslate() {
    */
   const teardown = useCallback((opts?: { flush?: boolean }) => {
     const flush = opts?.flush === true
+    const drains: Promise<unknown>[] = []
     activeRef.current = false
     sessionSeqRef.current += 1
 
@@ -448,7 +456,7 @@ export function useLiveTranslate() {
       finalFlushingRef.current = flush
       const clearFlush = () => { finalFlushingRef.current = false }
       try {
-        void Promise.resolve(vad.destroy()).catch(() => undefined).then(clearFlush)
+        drains.push(Promise.resolve(vad.destroy()).catch(() => undefined).then(clearFlush))
       } catch {
         clearFlush()
       }
@@ -460,9 +468,10 @@ export function useLiveTranslate() {
 
     const recorder = recorderRef.current
     recorderRef.current = null
-    if (recorder && recorder.state !== 'inactive') {
+    if (recorder) {
       if (flush) finalFlushRecorderRef.current = recorder
-      try { recorder.stop() } catch { /* recorder already inactive */ }
+      if (flush) drains.push(new Promise<void>(resolve => { recorderDrainRef.current.set(recorder, resolve) }))
+      try { if (recorder.state !== 'inactive') recorder.stop() } catch { recorderDrainRef.current.get(recorder)?.(); recorderDrainRef.current.delete(recorder) }
     }
 
     const streams = [...captureStreamsRef.current, streamRef.current]
@@ -473,6 +482,7 @@ export function useLiveTranslate() {
     audioCtxRef.current = null
     analyserRef.current = null
     releaseCaptureResources({ streams, analyser, audioCtx })
+    captureDrainRef.current = Promise.allSettled(drains)
   }, [])
 
   /**
@@ -484,7 +494,7 @@ export function useLiveTranslate() {
     const raw = fullRawForSummaryRef.current.trim()
     const id = sessionIdRef.current
     if (!raw || !id) return
-    const { sourceLang, targetLang } = paramsRef.current
+    const { sourceLang, targetLang } = sessionLanguagesRef.current
     const aiModel = getSessionAIModel()
     const fields = {
       sourceLang,
@@ -524,14 +534,24 @@ export function useLiveTranslate() {
     setIsActive(false)
     setIsTranscribing(false)
     setIsTranslating(false)
+    setLiveLanguagesLocked(true)
     teardown({ flush: opts.flush })
+    const stoppedGeneration = generationRef.current
+    void (async () => {
+      await captureDrainRef.current
+      await queueRef.current.catch(() => undefined)
+      if (generationRef.current === stoppedGeneration && !activeRef.current) {
+        saveSession()
+        setLiveLanguagesLocked(false)
+      }
+    })()
 
     if (fullRawForSummaryRef.current.trim()) {
       setShowSummaryBtn(true)
       // Auto-save session to history
       saveSession()
     }
-  }, [cancelActiveSttRequests, teardown, saveSession])
+  }, [cancelActiveSttRequests, teardown, saveSession, setLiveLanguagesLocked])
 
   // ── Core pipeline ───────────────────────────────────────────────────────────
   const processChunk = useCallback(async (blob: Blob, mimeType: string, opts?: { finalFlush?: boolean }) => {
@@ -545,7 +565,8 @@ export function useLiveTranslate() {
     // ── Adaptive VAD: count chunk in rolling evaluation window ────────────
     adaptiveChunksRef.current += 1
 
-    const { sourceLang, targetLang, sttProvider } = paramsRef.current
+    const { sourceLang, targetLang } = sessionLanguagesRef.current
+    const { sttProvider } = paramsRef.current
     const aiModel = getSessionAIModel()
 
     // ── STT call — keep reference to full result for confidence gate ──────
@@ -880,7 +901,7 @@ export function useLiveTranslate() {
       })(segId, sourceText)
       if (opts?.finalFlush) flushTranslations.push(translationTask)
     }
-    if (opts?.finalFlush) void Promise.allSettled(flushTranslations).then(persistFlushedChunk)
+    if (opts?.finalFlush) await Promise.allSettled(flushTranslations).then(persistFlushedChunk)
   }, [addLiveUsageCost, getSessionAIModel, saveSession, showPipelineError, stopSession, t])
 
   // ── Recorder cycling with VAD ─────────────────────────────────────────────────
@@ -990,86 +1011,92 @@ export function useLiveTranslate() {
     recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
 
     recorder.onstop = () => {
-      // Does this recorder still belong to the live session? After Stop/teardown
-      // (or a newer Start) recorderRef no longer points at it, so a late onstop
-      // must not restart capture or touch the new session's VAD timer.
-      const ownsSession = recorderRef.current === recorder
-      if (ownsSession && vadTimerRef.current) { clearInterval(vadTimerRef.current); vadTimerRef.current = null }
+      try {
+        // Does this recorder still belong to the live session? After Stop/teardown
+        // (or a newer Start) recorderRef no longer points at it, so a late onstop
+        // must not restart capture or touch the new session's VAD timer.
+        const ownsSession = recorderRef.current === recorder
+        if (ownsSession && vadTimerRef.current) { clearInterval(vadTimerRef.current); vadTimerRef.current = null }
 
-      const hadSpeech = hasSpeechRef.current
-      const recMime   = recorder.mimeType || mimeType || 'audio/webm'
-      const blob      = new Blob(audioChunksRef.current, { type: recMime })
+        const hadSpeech = hasSpeechRef.current
+        const recMime   = recorder.mimeType || mimeType || 'audio/webm'
+        const blob      = new Blob(audioChunksRef.current, { type: recMime })
 
-      // ── Online VAD quality monitoring & policy adaptation ─────────────────
-      // Measure stability via flip rate (SPEECH↔SILENCE transitions per chunk).
-      //
-      // High flip rate → unstable VAD (music, noise bursts, clipping):
-      //   Increase hangover by 1 sample (capped at VAD_MAX_HANGOVER_SAMPLES) so
-      //   the state machine becomes less reactive until conditions improve.
-      //
-      // Low flip rate after instability → audio is stable again:
-      //   Relax hangover by 1 sample toward the source-appropriate default.
-      //
-      // Only the hangover is adapted here; speechRmsThreshold and peakRmsThreshold
-      // stay at the source policy default — adapting them online risks masking
-      // legitimate quiet speech.
-      const defaultHangover = getInitialVadPolicy(vadModeRef.current).hangoverSamples
-      if (vadFlipCount > VAD_FLIP_RATE_HIGH) {
-        vadPolicyRef.current = {
-          ...vadPolicyRef.current,
-          hangoverSamples: Math.min(vadPolicyRef.current.hangoverSamples + 1, VAD_MAX_HANGOVER_SAMPLES),
+        // ── Online VAD quality monitoring & policy adaptation ─────────────────
+        // Measure stability via flip rate (SPEECH↔SILENCE transitions per chunk).
+        //
+        // High flip rate → unstable VAD (music, noise bursts, clipping):
+        //   Increase hangover by 1 sample (capped at VAD_MAX_HANGOVER_SAMPLES) so
+        //   the state machine becomes less reactive until conditions improve.
+        //
+        // Low flip rate after instability → audio is stable again:
+        //   Relax hangover by 1 sample toward the source-appropriate default.
+        //
+        // Only the hangover is adapted here; speechRmsThreshold and peakRmsThreshold
+        // stay at the source policy default — adapting them online risks masking
+        // legitimate quiet speech.
+        const defaultHangover = getInitialVadPolicy(vadModeRef.current).hangoverSamples
+        if (vadFlipCount > VAD_FLIP_RATE_HIGH) {
+          vadPolicyRef.current = {
+            ...vadPolicyRef.current,
+            hangoverSamples: Math.min(vadPolicyRef.current.hangoverSamples + 1, VAD_MAX_HANGOVER_SAMPLES),
+          }
+        } else if (vadFlipCount < VAD_FLIP_RATE_LOW && vadPolicyRef.current.hangoverSamples > defaultHangover) {
+          vadPolicyRef.current = {
+            ...vadPolicyRef.current,
+            hangoverSamples: Math.max(vadPolicyRef.current.hangoverSamples - 1, defaultHangover),
+          }
         }
-      } else if (vadFlipCount < VAD_FLIP_RATE_LOW && vadPolicyRef.current.hangoverSamples > defaultHangover) {
-        vadPolicyRef.current = {
-          ...vadPolicyRef.current,
-          hangoverSamples: Math.max(vadPolicyRef.current.hangoverSamples - 1, defaultHangover),
+
+        if (hadSpeech) {
+          // Capture silence count before reset — used by processChunk for speaker detection
+          if (silentChunkCountRef.current > 0) {
+            silenceBeforeChunkRef.current = silentChunkCountRef.current
+          }
+          // Speech detected — reset silence counter and queue the chunk.
+          // Capture the enqueue timestamp so stale chunks can be discarded if the
+          // queue falls behind — prevents latency stacking during slow API responses.
+          silentChunkCountRef.current = 0
+          const queuedAt = Date.now()
+          // Orderly Stop stopped this recorder mid-utterance: its last chunk must
+          // still be transcribed even though activeRef is already false.
+          const isFlushRecorder = finalFlushRecorderRef.current === recorder
+          if (isFlushRecorder) finalFlushRecorderRef.current = null
+          // Valid only if no Clear/Start bumped the generation since Stop recorded it.
+          const finalFlush = !activeRef.current && isFlushRecorder
+            && isFlushGenerationValid(flushGenerationRef.current, generationRef.current)
+          const flushGeneration = flushGenerationRef.current
+          // A stale recorder (not the live one and not a valid flush) never queues.
+          if (ownsSession || finalFlush) {
+            queueRef.current = queueRef.current.then(async () => {
+              if (Date.now() - queuedAt > CHUNK_MAX_QUEUE_AGE_MS) return // discard stale chunk
+              if (finalFlush && !isFlushGenerationValid(flushGeneration, generationRef.current)) return // cleared/restarted since Stop
+              await processChunk(blob, recMime, finalFlush ? { finalFlush: true } : undefined)
+            })
+          }
+        } else {
+          // No speech — increment counter; reset decoder context on long silence
+          silentChunkCountRef.current += 1
+          if (silentChunkCountRef.current >= SILENCE_RESET_CHUNKS) {
+            // ≥15 s of consecutive silence: wipe all context so the next
+            // decode cycle starts fresh and can't drift on stale text.
+            silentChunkCountRef.current  = 0
+            lastChunkTextRef.current     = ''
+            pendingBufferRef.current     = ''
+            pendingChunkCountRef.current = 0
+            recentSentencesRef.current   = []
+          }
         }
+
+        // Guard: do NOT restart energy VAD if we upgraded to Silero mid-chunk.
+        // Also skip when this recorder was superseded (Stop → Start finished before
+        // this async onstop fired) — otherwise two recorder loops would run.
+        if (ownsSession && activeRef.current && vadModeStateRef.current === 'energy') startChunk()
+      } finally {
+        if (recorderRef.current === recorder && recorder.state === 'inactive') recorderRef.current = null
+        recorderDrainRef.current.get(recorder)?.()
+        recorderDrainRef.current.delete(recorder)
       }
-
-      if (hadSpeech) {
-        // Capture silence count before reset — used by processChunk for speaker detection
-        if (silentChunkCountRef.current > 0) {
-          silenceBeforeChunkRef.current = silentChunkCountRef.current
-        }
-        // Speech detected — reset silence counter and queue the chunk.
-        // Capture the enqueue timestamp so stale chunks can be discarded if the
-        // queue falls behind — prevents latency stacking during slow API responses.
-        silentChunkCountRef.current = 0
-        const queuedAt = Date.now()
-        // Orderly Stop stopped this recorder mid-utterance: its last chunk must
-        // still be transcribed even though activeRef is already false.
-        const isFlushRecorder = finalFlushRecorderRef.current === recorder
-        if (isFlushRecorder) finalFlushRecorderRef.current = null
-        // Valid only if no Clear/Start bumped the generation since Stop recorded it.
-        const finalFlush = !activeRef.current && isFlushRecorder
-          && isFlushGenerationValid(flushGenerationRef.current, generationRef.current)
-        const flushGeneration = flushGenerationRef.current
-        // A stale recorder (not the live one and not a valid flush) never queues.
-        if (ownsSession || finalFlush) {
-          queueRef.current = queueRef.current.then(async () => {
-            if (Date.now() - queuedAt > CHUNK_MAX_QUEUE_AGE_MS) return // discard stale chunk
-            if (finalFlush && !isFlushGenerationValid(flushGeneration, generationRef.current)) return // cleared/restarted since Stop
-            await processChunk(blob, recMime, finalFlush ? { finalFlush: true } : undefined)
-          })
-        }
-      } else {
-        // No speech — increment counter; reset decoder context on long silence
-        silentChunkCountRef.current += 1
-        if (silentChunkCountRef.current >= SILENCE_RESET_CHUNKS) {
-          // ≥15 s of consecutive silence: wipe all context so the next
-          // decode cycle starts fresh and can't drift on stale text.
-          silentChunkCountRef.current  = 0
-          lastChunkTextRef.current     = ''
-          pendingBufferRef.current     = ''
-          pendingChunkCountRef.current = 0
-          recentSentencesRef.current   = []
-        }
-      }
-
-      // Guard: do NOT restart energy VAD if we upgraded to Silero mid-chunk.
-      // Also skip when this recorder was superseded (Stop → Start finished before
-      // this async onstop fired) — otherwise two recorder loops would run.
-      if (ownsSession && activeRef.current && vadModeStateRef.current === 'energy') startChunk()
     }
 
     recorder.start()
@@ -1086,6 +1113,11 @@ export function useLiveTranslate() {
 
   // ── Session start / stop ────────────────────────────────────────────────────
   const handleStart = useCallback(async () => {
+    if (useAppStore.getState().liveLanguagesLocked) return
+    setLiveLanguagesLocked(true)
+    saveSession()
+    const state = useAppStore.getState()
+    sessionLanguagesRef.current = { sourceLang: state.liveSourceLang, targetLang: state.liveTargetLang }
     // Release anything a previous session left behind (idempotent) so a new
     // Start can never overwrite refs and leak the first stream/AudioContext.
     teardown()
@@ -1366,10 +1398,11 @@ export function useLiveTranslate() {
       // Setup never reached the live state (error, cancelled picker, no system
       // audio, or superseded): stop every acquired track and close the context.
       if (!sessionLive) {
+        if (sessionSeqRef.current === sessionSeq) setLiveLanguagesLocked(false)
         releaseCaptureResources({ streams: acquiredStreams, analyser: pendingAnalyser, audioCtx: pendingAudioCtx })
       }
     }
-  }, [startChunk, audioMode, setViewingLiveSession, processChunk, t, cancelActiveSttRequests, getConfiguredAIModel, teardown])
+  }, [startChunk, audioMode, setViewingLiveSession, processChunk, t, cancelActiveSttRequests, getConfiguredAIModel, teardown, saveSession, setLiveLanguagesLocked])
 
   const handleStop = useCallback(() => {
     stopSession({ flush: true })
@@ -1409,13 +1442,13 @@ export function useLiveTranslate() {
     setSpeakerNameMap({})
     setSegments([])
     setPendingText('')
-    if (!activeRef.current) aiModelBoundaryRef.current.clear()
+    if (!activeRef.current) { aiModelBoundaryRef.current.clear(); setLiveLanguagesLocked(false) }
     currentSpeakerRef.current        = INITIAL_SPEAKER_DIARIZATION_STATE.currentSpeaker
     speakerCountRef.current          = INITIAL_SPEAKER_DIARIZATION_STATE.speakerCount
     silenceBeforeChunkRef.current    = 0
     lastSpeakerChangeTimeRef.current = INITIAL_SPEAKER_DIARIZATION_STATE.lastSpeakerChangeTime
     speakerTurnHistoryRef.current    = [...INITIAL_SPEAKER_DIARIZATION_STATE.turnHistory]
-  }, [cancelActiveSttRequests])
+  }, [cancelActiveSttRequests, setLiveLanguagesLocked])
 
   /**
    * handleNewSession — triggered by the "Mới" button in the subtitle overlay.
@@ -1450,7 +1483,7 @@ export function useLiveTranslate() {
     let tx  = fullTxForSummaryRef.current
     if (!raw) return
 
-    const { targetLang } = paramsRef.current
+    const { targetLang } = sessionLanguagesRef.current
     const aiModel = getSessionAIModel()
 
     // Truncate each section to the last N chars so the AI receives the most recent,
@@ -1511,7 +1544,7 @@ export function useLiveTranslate() {
     let raw = fullRawForSummaryRef.current
     if (!raw) return
 
-    const { targetLang } = paramsRef.current
+    const { targetLang } = sessionLanguagesRef.current
     const aiModel = getSessionAIModel()
 
     // Truncate to prevent token limit errors
@@ -1569,7 +1602,7 @@ export function useLiveTranslate() {
     let raw = fullRawForSummaryRef.current
     if (!raw) return
 
-    const { targetLang } = paramsRef.current
+    const { targetLang } = sessionLanguagesRef.current
     const aiModel = getSessionAIModel()
     const langName = LANG_NAMES_FOR_AI[targetLang] ?? targetLang
 
@@ -1616,7 +1649,7 @@ export function useLiveTranslate() {
     let raw = fullRawForSummaryRef.current
     if (!raw) return
 
-    const { targetLang } = paramsRef.current
+    const { targetLang } = sessionLanguagesRef.current
     const aiModel = getSessionAIModel()
     const langName = LANG_NAMES_FOR_AI[targetLang] ?? targetLang
 
@@ -1807,6 +1840,7 @@ export function useLiveTranslate() {
       // Stop saves the session; if the page unmounts mid-recording nobody else will.
       // Only when still active, so an already-stopped (already-saved) session is not duplicated.
       if (wasActive) saveSessionRef.current()
+      useAppStore.getState().setLiveLanguagesLocked(false)
       // Close the OS subtitle window when leaving the page
       window.api?.subtitle?.hide()
     }
@@ -1824,6 +1858,8 @@ export function useLiveTranslate() {
     screenPermission,
     // Core state
     isActive,
+    liveLanguagesLocked,
+    sessionLanguages: sessionLanguagesRef.current,
     rawTranscript,
     translation,
     isTranscribing,

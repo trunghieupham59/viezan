@@ -15,4 +15,5 @@ Thumbs.db
 # Snapshot of original transparent icon artwork (used by
 # scripts/add-logo-background.mjs to make the background pass idempotent).
 build/source/
+resources/local-ai/ollama-patched/
 

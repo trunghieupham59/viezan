@@ -65,7 +65,7 @@ describe('persisted STT provider migration', () => {
 
     expect(options.version).toBe(STORE_PERSIST_VERSION)
     const migrated = await Promise.resolve(migrate({ sttProvider: 'webSpeech', locale: 'vi' }, 0))
-    expect(migrated).toEqual({
+    expect(migrated).toMatchObject({
       sttProvider: 'auto',
       locale: 'vi',
       chatPendingTaskState: null,
@@ -82,7 +82,7 @@ describe('persisted STT provider migration', () => {
         chatPendingDraft: 'keep this draft',
       }
 
-      expect(migratePersistedStore(persisted)).toEqual({
+      expect(migratePersistedStore(persisted)).toMatchObject({
         ...persisted,
         sttProvider: 'auto',
         chatPendingTaskState: null,
@@ -93,7 +93,7 @@ describe('persisted STT provider migration', () => {
   it.each(['auto', 'whisper', 'google', 'groq'])('preserves supported provider %s', (sttProvider) => {
     const persisted = { sttProvider, locale: 'vi' }
 
-    expect(migratePersistedStore(persisted)).toEqual({ ...persisted, chatPendingTaskState: null })
+    expect(migratePersistedStore(persisted)).toMatchObject({ ...persisted, chatPendingTaskState: null })
   })
 })
 

@@ -54,6 +54,7 @@ export function ThinkingPill({
   const isError = tone === 'error'
   const className = [
     'thinking-state-pill',
+    'max-w-full',
     shimmer && !isError ? 'thinking-state-pill-shimmer' : '',
     isError ? 'thinking-state-pill-error' : '',
   ].filter(Boolean).join(' ')
@@ -61,22 +62,22 @@ export function ThinkingPill({
   return (
     <span
       className={className}
-      title={title}
+      title={title ?? label}
       role="status"
       aria-live={isError ? undefined : 'polite'}
     >
       {shimmer && running && !isError && (
         <span className="thinking-shimmer thinking-shimmer-sheen pointer-events-none absolute inset-0" aria-hidden />
       )}
-      <span className="relative inline-flex h-3.5 w-3.5 items-center justify-center">
+      <span className="relative inline-flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center">
         {running && !isError && (
           <span className="thinking-glow thinking-glow-halo absolute inset-0 rounded-full" aria-hidden />
         )}
         <SparklesIcon className="relative h-3.5 w-3.5" />
       </span>
-      <span className="relative">{stripTrailingEllipsis(label)}</span>
+      <span className="relative min-w-0 truncate">{stripTrailingEllipsis(label)}</span>
       {running && !isError && (
-        <span className="relative">
+        <span className="relative flex-shrink-0">
           <ThinkingDots />
         </span>
       )}

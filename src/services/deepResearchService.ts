@@ -676,6 +676,7 @@ export const deepResearchService = {
           systemPrompt: ANALYZE_PROMPT(date, hasImages),
         })
         throwIfCancelled()
+        if (!result.success) throw new Error(describeChatFailure(result, uiText.errorAnalyze))
         const reply = getReply(result)
         if (reply) {
           const m = reply.match(/\{[\s\S]*\}/)

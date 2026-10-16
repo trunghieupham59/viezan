@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react'
 import {
+  LanguagePairControls,
   TranslationComparisonPane,
   TranslationControlsHeader,
-  TranslationLanguageControls,
   TranslationResultPane,
   TranslationSourcePane,
 } from '../components/organisms'
@@ -23,7 +23,7 @@ const TRANSLATE_RESULT_HEADING_ID = 'translate-result-heading'
 
 export function TranslatePage() {
   const t = useT()
-  const { setSourceLang, openSettings, recordLangUsage } = useAppStore()
+  const { openSettings } = useAppStore()
   const [voiceErrorCode, setVoiceErrorCode] = useState<AudioTranscriptionErrorCode | null>(null)
   const [modelsOpen, setModelsOpen] = useState(false)
   const {
@@ -41,7 +41,6 @@ export function TranslatePage() {
     selectedProvider,
     translationModels,
     setTranslationModels,
-    setTargetLang,
     setPhoneticMode,
     setTranslationStyle,
     setTranslationReasoningEffort,
@@ -74,7 +73,8 @@ export function TranslatePage() {
     fileInputRef,
     handleTranslate,
     handleRewrite,
-    handleSwapLanguages,
+    handleUseAsSource,
+    handleLanguagePairChange,
     handleCopy,
     handleCopyComparison,
     handleRetryComparison,
@@ -91,18 +91,6 @@ export function TranslatePage() {
     handleSourcePanelDrop,
   } = useTranslate()
 
-  const hasCurrentTextResult = Boolean(
-    translatedText
-    && translatedText !== IMAGE_TRANSLATED_SENTINEL
-    && !imageAttachment
-    && !isResultStale,
-  )
-  const canSwapLanguages = !imageAttachment && !isComparisonMode && (
-    sourceLang !== 'auto' || (hasCurrentTextResult && Boolean(detectedSourceLang))
-  )
-  const swapDisabledReason = imageAttachment
-    ? t.translate_swap_disabled_image
-    : t.translate_swap_disabled_auto
   const voiceContextKey = `translate:${sourceLang}:${sourceText}`
   const voiceErrorMessage = voiceErrorCode
     ? t[`voice_error_${voiceErrorCode.toLowerCase()}` as VoiceErrorTranslationKey]
@@ -143,30 +131,6 @@ export function TranslatePage() {
     setVoiceErrorCode(null)
     handleSourceChange(value)
   }, [handleSourceChange])
-
-  const handleSourceLanguageChange = (language: string) => {
-    setVoiceErrorCode(null)
-    if (language !== 'auto') recordLangUsage(language)
-    setSourceLang(language)
-  }
-
-  const handleTargetLanguageChange = (language: string) => {
-    recordLangUsage(language)
-    setTargetLang(language)
-  }
-
-  const handleSwap = () => {
-    if (hasCurrentTextResult) {
-      handleSwapLanguages()
-      return
-    }
-    if (sourceLang === 'auto' || imageAttachment) return
-
-    setSourceLang(targetLang)
-    setTargetLang(sourceLang)
-    recordLangUsage(targetLang)
-    recordLangUsage(sourceLang)
-  }
 
   const header = (
     <TranslationControlsHeader
@@ -240,6 +204,7 @@ export function TranslatePage() {
       isTranslating={isTranslating}
       isResultStale={isResultStale}
       canRetry={Boolean(sourceText.trim()) && !isTranslating}
+      onUseAsSource={result => handleUseAsSource(result.translatedText)}
       onCopy={handleCopyComparison}
       onSpeak={handleSpeakComparison}
       onRetry={handleRetryComparison}
@@ -275,6 +240,7 @@ export function TranslatePage() {
       onDownloadEdited={handleDownloadEditedImage}
       onDownloadTranslated={handleDownloadTranslatedImage}
       onRewrite={handleRewrite}
+      onUseAsSource={() => handleUseAsSource(translatedText)}
       onCopy={handleCopy}
     />
   )
@@ -286,18 +252,13 @@ export function TranslatePage() {
         layout={isComparisonMode ? 'comparison' : 'single'}
         header={header}
         languageControls={(
-          <TranslationLanguageControls
+          <LanguagePairControls
+            scope="translate"
             sourceHeadingId={TRANSLATE_SOURCE_HEADING_ID}
             resultHeadingId={TRANSLATE_RESULT_HEADING_ID}
-            sourceLang={sourceLang}
-            targetLang={targetLang}
-            detectedSourceLang={detectedSourceLang}
+            detectedSourceLang={isResultStale ? null : detectedSourceLang}
             isDetectingLang={isDetectingLang}
-            canSwap={canSwapLanguages}
-            swapDisabledReason={swapDisabledReason}
-            onSourceLangChange={handleSourceLanguageChange}
-            onTargetLangChange={handleTargetLanguageChange}
-            onSwap={handleSwap}
+            onPairChange={handleLanguagePairChange}
           />
         )}
         sourcePanel={sourcePanel}

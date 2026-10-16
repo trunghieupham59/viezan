@@ -389,12 +389,25 @@ describe('managed Ollama runtime', () => {
     return pending
   }
 
+  it('reuses an already-running runtime without launching a supervisor', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ data: [{ id: 'gemma3:4b' }] }))
+    const result = await ensureLocalAiRuntime(true)
+    expect(result.available).toBe(true)
+    expect(result.models.map(model => model.id)).toContain('gemma3:4b')
+    expect(cp.spawn).not.toHaveBeenCalled()
+  })
+
   it('never spawns a second `ollama serve` while the first is alive and backs off after a failed start', async () => {
     const first = await runEnsure(true)
 
     expect(first.available).toBe(false)
     expect(cp.spawn).toHaveBeenCalledTimes(1)
-    expect(cp.spawn.mock.calls[0][1]).toEqual(['serve'])
+    if (process.platform === 'win32') {
+      expect(cp.spawn.mock.calls[0][0]).toMatch(/powershell\.exe$/)
+      expect(cp.spawn.mock.calls[0][2].env.VIEZAN_OLLAMA_EXECUTABLE).toMatch(/ollama\.exe$/)
+    } else {
+      expect(cp.spawn.mock.calls[0][1]).toEqual(['serve'])
+    }
     expect(cp.spawn.mock.calls[0][2]).toMatchObject({ windowsHide: true })
 
     // Automatic request within the cool-down: no spawn, no waiting.

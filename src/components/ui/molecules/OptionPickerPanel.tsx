@@ -1,5 +1,6 @@
 import {
   type KeyboardEvent,
+  type ReactNode,
   type RefObject,
   useCallback,
   useEffect,
@@ -14,18 +15,16 @@ import '../../../styles/language-picker.css'
 import { Button, Input } from '../atoms'
 import { CheckIcon, SearchIcon } from '../icons'
 
-const VIEWPORT_MARGIN = 8
-const PICKER_GAP = 6
-const PICKER_MAX_HEIGHT = 360
-const PICKER_MIN_HEIGHT = 120
-
 export interface PickerOption {
   value: string
   label: string
+  /** Decorative leading icon; the label remains the accessible name. */
+  icon?: ReactNode
   /** Secondary text shown at the row end, e.g. a native language name. */
   hint?: string
   /** Extra text matched by the search box in addition to the label and hint. */
   searchText?: string
+  disabled?: boolean
 }
 
 interface PanelPosition {
@@ -70,12 +69,13 @@ export function OptionPickerPanel({
   label,
   searchPlaceholder,
   noResultsLabel = '',
-  minWidth = 280,
+  minWidth,
 }: OptionPickerPanelProps) {
   const listId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const optionRefs = useRef(new Map<string, HTMLButtonElement>())
+  const placementRef = useRef<'above' | 'below' | null>(null)
   const [query, setQuery] = useState('')
   const [position, setPosition] = useState<PanelPosition | null>(null)
   const searchable = searchPlaceholder !== undefined
@@ -95,21 +95,35 @@ export function OptionPickerPanel({
     if (!anchor) return
 
     const rect = anchor.getBoundingClientRect()
-    const availableBelow = window.innerHeight - rect.bottom - PICKER_GAP - VIEWPORT_MARGIN
-    const availableAbove = rect.top - PICKER_GAP - VIEWPORT_MARGIN
-    const placement = availableBelow >= Math.min(PICKER_MAX_HEIGHT, availableAbove) ? 'below' : 'above'
+    const tokens = getComputedStyle(document.documentElement)
+    const pixels = (name: string) => Number.parseFloat(tokens.getPropertyValue(name)) || 0
+    const margin = pixels('--vzn-space-2')
+    const gap = pixels('--vzn-space-1-5')
+    const maximumHeight = pixels('--vzn-picker-max-block')
+    const availableBelow = Math.max(0, window.innerHeight - rect.bottom - gap - margin)
+    const availableAbove = Math.max(0, rect.top - gap - margin)
+    // Layout height excludes the opening animation's temporary scale transform.
+    const measuredHeight = panelRef.current?.offsetHeight ?? 0
+    const preferred = placementRef.current
+    const preferredSpace = preferred === 'above' ? availableAbove : availableBelow
+    const placement = preferred && preferredSpace >= Math.min(measuredHeight, maximumHeight)
+      ? preferred : availableBelow >= Math.min(measuredHeight, availableAbove) ? 'below' : 'above'
+    placementRef.current = placement
     const available = placement === 'below' ? availableBelow : availableAbove
-    const maxHeight = Math.max(PICKER_MIN_HEIGHT, Math.min(PICKER_MAX_HEIGHT, available))
-    const width = Math.min(Math.max(rect.width, minWidth), window.innerWidth - VIEWPORT_MARGIN * 2)
+    const maxHeight = Math.min(maximumHeight, available)
+    const height = Math.min(measuredHeight, maxHeight)
+    const width = Math.min(Math.max(rect.width, minWidth ?? pixels('--vzn-picker-min-inline')), Math.max(0, window.innerWidth - margin * 2))
     const left = Math.min(
-      Math.max(VIEWPORT_MARGIN, rect.left),
-      Math.max(VIEWPORT_MARGIN, window.innerWidth - width - VIEWPORT_MARGIN),
+      Math.max(margin, rect.left),
+      Math.max(margin, window.innerWidth - width - margin),
     )
     const top = placement === 'below'
-      ? rect.bottom + PICKER_GAP
-      : Math.max(VIEWPORT_MARGIN, rect.top - PICKER_GAP - maxHeight)
+      ? rect.bottom + gap
+      : Math.max(margin, rect.top - gap - height)
 
-    setPosition({ top, left, width, maxHeight, placement })
+    setPosition((current) => current?.top === top && current.left === left && current.width === width
+      && current.maxHeight === maxHeight && current.placement === placement
+      ? current : { top, left, width, maxHeight, placement })
   }, [anchorRef, minWidth])
 
   useLayoutEffect(() => {
@@ -119,6 +133,7 @@ export function OptionPickerPanel({
     }
     setQuery('')
     setPosition(null)
+    placementRef.current = null
   }, [open, updatePosition])
 
   useEffect(() => {
@@ -130,9 +145,15 @@ export function OptionPickerPanel({
         searchRef.current.focus()
         return
       }
-      const target = (value && optionRefs.current.get(value)) || optionRefs.current.values().next().value
+      const initial = filteredOptions.find((option) => option.value === value && !option.disabled)
+        ?? filteredOptions.find((option) => !option.disabled)
+      const target = initial ? optionRefs.current.get(initial.value) : null
       target?.focus()
     })
+    // Filtering, wrapping, or a layout change can resize either surface while open.
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updatePosition)
+    if (panelRef.current) observer?.observe(panelRef.current)
+    if (anchorRef.current) observer?.observe(anchorRef.current)
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target
       if (!(target instanceof Node)) return
@@ -153,16 +174,18 @@ export function OptionPickerPanel({
     window.addEventListener('scroll', updatePosition, true)
     return () => {
       window.cancelAnimationFrame(frame)
+      observer?.disconnect()
       document.removeEventListener('pointerdown', handlePointerDown)
       document.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('resize', updatePosition)
       window.removeEventListener('scroll', updatePosition, true)
     }
-  }, [anchorRef, onClose, open, updatePosition, value])
+  }, [anchorRef, onClose, open, updatePosition, value, filteredOptions])
 
   if (!open) return null
 
   const selectOption = (option: PickerOption) => {
+    if (option.disabled) return
     if (option.value !== value) onChange(option.value)
     onClose(true)
   }
@@ -176,21 +199,25 @@ export function OptionPickerPanel({
     if (event.key === 'Enter') {
       event.preventDefault()
       event.stopPropagation()
-      if (filteredOptions.length > 0) selectOption(filteredOptions[0])
+      const first = filteredOptions.find((option) => !option.disabled)
+      if (first) selectOption(first)
       return
     }
     if (event.key !== 'ArrowDown' || filteredOptions.length === 0) return
     event.preventDefault()
     const selectedIsVisible = filteredOptions.some((option) => option.value === value)
-    focusOption(selectedIsVisible && value ? value : filteredOptions[0].value)
+    const first = filteredOptions.find((option) => !option.disabled)
+    if (first) focusOption(selectedIsVisible && value && !filteredOptions.find((option) => option.value === value)?.disabled ? value : first.value)
   }
 
   const handleOptionKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const enabled = filteredOptions.map((option, i) => option.disabled ? -1 : i).filter((i) => i >= 0)
+    const current = enabled.indexOf(index)
     let nextIndex: number | null = null
-    if (event.key === 'ArrowDown') nextIndex = Math.min(index + 1, filteredOptions.length - 1)
-    if (event.key === 'ArrowUp') nextIndex = index === 0 ? null : index - 1
-    if (event.key === 'Home') nextIndex = 0
-    if (event.key === 'End') nextIndex = filteredOptions.length - 1
+    if (event.key === 'ArrowDown') nextIndex = enabled[Math.min(current + 1, enabled.length - 1)] ?? null
+    if (event.key === 'ArrowUp') nextIndex = current === 0 ? null : enabled[current - 1]
+    if (event.key === 'Home') nextIndex = enabled[0] ?? null
+    if (event.key === 'End') nextIndex = enabled[enabled.length - 1] ?? null
     if (nextIndex === null) {
       if (event.key === 'ArrowUp' && index === 0 && searchable) {
         event.preventDefault()
@@ -211,12 +238,12 @@ export function OptionPickerPanel({
       className={`language-picker-panel language-picker-panel--${position?.placement ?? 'below'}`}
       style={{
         position: 'fixed',
-        top: position?.top ?? VIEWPORT_MARGIN,
-        left: position?.left ?? VIEWPORT_MARGIN,
-        width: position?.width ?? minWidth,
-        maxHeight: position?.maxHeight ?? PICKER_MAX_HEIGHT,
+        top: position?.top ?? 'var(--vzn-space-2)',
+        left: position?.left ?? 'var(--vzn-space-2)',
+        width: position?.width ?? minWidth ?? 'var(--vzn-picker-min-inline)',
+        maxHeight: position?.maxHeight ?? 'var(--vzn-picker-max-block)',
         visibility: position ? 'visible' : 'hidden',
-        zIndex: 9999,
+        zIndex: 'var(--vzn-layer-picker)',
       }}
     >
       {searchable && (
@@ -256,14 +283,19 @@ export function OptionPickerPanel({
               variant={isSelected ? 'primary' : 'neutral'}
               appearance={isSelected ? 'soft' : 'ghost'}
               role="option"
+              aria-label={option.label}
+              aria-description={option.hint}
               aria-selected={isSelected}
+              disabled={option.disabled}
+              title={option.label}
               onClick={() => selectOption(option)}
               onKeyDown={(event) => handleOptionKeyDown(event, index)}
               className="language-picker-option"
             >
+              {option.icon && <span className="option-picker-option-icon" aria-hidden="true">{option.icon}</span>}
               <span className="language-picker-option-copy">
                 <span className="language-picker-option-label">{option.label}</span>
-                {option.hint && (
+                {option.hint && !option.disabled && (
                   <span className="language-picker-option-native">{option.hint}</span>
                 )}
               </span>
@@ -272,6 +304,9 @@ export function OptionPickerPanel({
           )
         })}
       </div>
+      {filteredOptions.filter((option) => option.disabled && option.hint).map((option) => (
+        <p key={option.value} className="option-picker-disabled-hint">{option.hint}</p>
+      ))}
     </div>,
     document.body,
   )

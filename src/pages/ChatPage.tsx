@@ -1,27 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useShallow } from 'zustand/react/shallow'
 import { MessageBubble } from '../components/chat/MessageBubble'
 import { ResearchStepsPanel } from '../components/chat/ResearchStepsPanel'
-import { ChatAIConfiguration } from '../components/organisms'
+import { ChatAIConfiguration, ChatTaskConfiguration } from '../components/organisms'
 import { AppLogoIcon, Button } from '../components/ui/atoms'
 import { DragOverlay } from '../components/ui/DragOverlay'
 import { ImagePreviewThumbnail } from '../components/ui/ImagePreviewThumbnail'
 import {
   ArrowRightIcon,
-  ChatBubbleIcon,
-  CheckIcon,
-  ChevronDownIcon,
   GlobeIcon,
-  ImageSparkleIcon,
   PaperclipIcon,
   PlusIcon,
+  RefreshIcon,
   SendIcon,
   StopSquareIcon,
-  TelescopeIcon,
   XIcon,
 } from '../components/ui/icons'
-import { ChatTaskStarters, NotificationToast } from '../components/ui/molecules'
+import { NotificationToast } from '../components/ui/molecules'
 
 import { VoiceRecorder, type VoiceRecordingState } from '../components/VoiceRecorder'
 import { MAX_CHAT_IMAGE_DIMENSION, MAX_IMAGE_INPUT_BYTES } from '../constants/image'
@@ -39,14 +35,16 @@ import type {
   AudioTranscriptionErrorCode,
   ChatMessage,
   ChatMessageContent,
+  ChatRequestConfiguration,
   DeepResearchResumeState,
   Provider,
 } from '../types'
-
+import { canUseChatWebSearch, getChatTaskExecution, resolveChatTaskState } from '../types/chatTask'
 import { shouldUseCarefulReasoning } from '../utils/carefulReasoning'
 import { localizeChatError, localizeChatException } from '../utils/chatErrors'
 import { supportsChatImageMode } from '../utils/chatImageMode'
 import { chatImageStoreKey, getChatImage, putChatImage } from '../utils/chatImageStore'
+import { getChatTaskInstruction, selectChatTask } from '../utils/chatTaskConfiguration'
 import { isEmptyChatTask } from '../utils/chatTaskDraft'
 import { createClientId } from '../utils/id'
 import { extractImageFromClipboard, resizeImageFile } from '../utils/imageUtils'
@@ -64,23 +62,6 @@ const CHAT_STREAM_BUFFER_INTERVAL_MS = 60
 
 /** How long the web-search fallback notice stays up; longer than a plain toast because it offers an action. */
 const SEARCH_FALLBACK_NOTICE_MS = 10_000
-
-/** Response modes are mutually exclusive; each maps onto the per-session mode flags. */
-type ResponseMode = 'standard' | 'web' | 'research' | 'image'
-
-interface ModeOption {
-  mode: ResponseMode
-  label: string
-  Icon: typeof GlobeIcon
-  /** Secondary line under the label, e.g. why the option is unavailable. */
-  hint?: string
-  title?: string
-  disabled?: boolean
-}
-
-const MODE_MENU_ID = 'chat-response-mode-menu'
-const MODE_MENU_ITEM_SELECTOR = '[role="menuitemradio"]'
-
 
 // DUP-05: resizeImageToBase64 replaced by shared resizeImageFile from imageUtils.ts
 // HC-09: MAX_CHAT_IMAGE_DIMENSION imported from constants/image.ts
@@ -159,15 +140,6 @@ function findLatestAssistantImage(messages: ChatMessage[]): { base64: string; mi
     }
   }
   return undefined
-}
-
-/** Text of the most recent user message, used to decide per-request prompt options. */
-function latestUserText(messages: ReturnType<typeof toIpcHistory>): string {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role !== 'user') continue
-    return messages[i].content.map((c) => c.text ?? '').join(' ')
-  }
-  return ''
 }
 
 function flattenChatCostInput(messages: ReturnType<typeof toIpcHistory>, systemPrompt?: string): string {
@@ -251,11 +223,20 @@ async function copyImageToClipboard(imageUrl: string): Promise<void> {
 }
 
 // ─── Main ChatPage ────────────────────────────────────────────────────────────
+/** Close only when sending; later responses must not dismiss reopened settings. */
+function collapseChatTaskOptions(sessionId: string) {
+  const store = useAppStore.getState()
+  const task = store.chatSessions.find((session) => session.id === sessionId)?.taskState
+  if (task?.open) store.setChatTaskState(sessionId, { ...task, open: false })
+}
+
 export function ChatPage() {
-  const taskState = useAppStore((state) => state.activeChatSessionId
+  const storedTaskState = useAppStore((state) => state.activeChatSessionId
     ? state.chatSessions.find((session) => session.id === state.activeChatSessionId)?.taskState
     : state.chatPendingTaskState)
   const setChatTaskState = useAppStore((state) => state.setChatTaskState)
+  const pendingModes = useAppStore(useShallow((s) => ({ imageMode: s.chatPendingImageMode,
+    deepResearchMode: s.chatPendingDeepResearchMode, webSearchMode: s.chatPendingWebSearchMode })))
   const locale = useAppStore((s) => s.locale)
   // Subscribe with `useShallow` so ChatPage only re-renders when one of the
   // listed slices actually changes (instead of on every unrelated store mutation
@@ -268,8 +249,8 @@ export function ChatPage() {
     createChatSession, setActiveChatSession, setChatSessionModel, addChatMessage, updateChatMessage,
     addChatSessionCost, openSettings,
     recordUsageCost, setDeepResearchResumeState,
-    setChatSessionDraft, setChatSessionDeepResearchMode, setChatSessionWebSearchMode, setChatSessionImageMode,
-    setChatPendingDraft, setChatPendingDeepResearchMode, setChatPendingWebSearchMode, setChatPendingImageMode,
+    setChatSessionDraft,
+    setChatPendingDraft,
   } = useAppStore(
     useShallow((s) => ({
       selectedProvider: s.selectedProvider,
@@ -292,13 +273,7 @@ export function ChatPage() {
       recordUsageCost: s.recordUsageCost,
       setDeepResearchResumeState: s.setDeepResearchResumeState,
       setChatSessionDraft: s.setChatSessionDraft,
-      setChatSessionDeepResearchMode: s.setChatSessionDeepResearchMode,
-      setChatSessionWebSearchMode: s.setChatSessionWebSearchMode,
-      setChatSessionImageMode: s.setChatSessionImageMode,
       setChatPendingDraft: s.setChatPendingDraft,
-      setChatPendingDeepResearchMode: s.setChatPendingDeepResearchMode,
-      setChatPendingWebSearchMode: s.setChatPendingWebSearchMode,
-      setChatPendingImageMode: s.setChatPendingImageMode,
     })),
   )
 
@@ -373,38 +348,6 @@ export function ChatPage() {
   const [plusMenuPos, setPlusMenuPos] = useState<{ bottom: number; left: number }>({ bottom: 0, left: 0 })
   const plusBtnRef = useRef<HTMLButtonElement>(null)
   const plusMenuRef = useRef<HTMLDivElement>(null)
-  /** Mode dropdown (Tự động / Tìm kiếm / Nghiên cứu) */
-  const [showModeMenu, setShowModeMenu] = useState(false)
-  const [modeMenuPos, setModeMenuPos] = useState<{ bottom: number; left: number }>({ bottom: 0, left: 0 })
-  const modeBtnRef = useRef<HTMLButtonElement>(null)
-  const modeMenuRef = useRef<HTMLDivElement>(null)
-  /** Whether Deep Research multi-step pipeline is active — persisted per session */
-  const [deepResearchMode, setDeepResearchModeLocal] = useState(() => {
-    const s = useAppStore.getState()
-    if (s.activeChatSessionId) {
-      return s.chatSessions.find((x) => x.id === s.activeChatSessionId)?.deepResearchMode ?? false
-    }
-    return s.chatPendingDeepResearchMode
-  })
-
-  /** Whether Web Search mode is active — always forces a web search, persisted per session */
-  const [webSearchMode, setWebSearchModeLocal] = useState(() => {
-    const s = useAppStore.getState()
-    if (s.activeChatSessionId) {
-      return s.chatSessions.find((x) => x.id === s.activeChatSessionId)?.webSearchMode ?? false
-    }
-    return s.chatPendingWebSearchMode
-  })
-
-  /** Image Mode — tạo ảnh từ text hoặc sửa ảnh đính kèm bằng AI, persisted per session */
-  const [imageMode, setImageModeLocal] = useState(() => {
-    const s = useAppStore.getState()
-    if (s.activeChatSessionId) {
-      return s.chatSessions.find((x) => x.id === s.activeChatSessionId)?.imageMode ?? false
-    }
-    return s.chatPendingImageMode
-  })
-
   const platform = window.api?.platform
   // ── Voice input — shared hook (same logic as TranslatePage) ──
   const {
@@ -422,7 +365,6 @@ export function ChatPage() {
     if (state === 'requesting') setVoiceErrorCode(null)
     if (state !== 'idle' && state !== 'error') {
       setShowPlusMenu(false)
-      setShowModeMenu(false)
     }
   }, [])
 
@@ -437,6 +379,12 @@ export function ChatPage() {
 
   // Active session
   const activeSession = chatSessions.find((s) => s.id === activeChatSessionId) ?? null
+  const taskState = useMemo(() => resolveChatTaskState(storedTaskState, activeChatSessionId ? {
+    imageMode: activeSession?.imageMode, deepResearchMode: activeSession?.deepResearchMode ?? Boolean(activeSession?.deepResearchResumeState), webSearchMode: activeSession?.webSearchMode,
+  } : pendingModes), [storedTaskState, activeChatSessionId, activeSession?.imageMode, activeSession?.deepResearchMode, activeSession?.deepResearchResumeState, activeSession?.webSearchMode, pendingModes])
+  const { imageMode, webSearchMode } = getChatTaskExecution(taskState)
+  const imageModeSupported = supportsChatImageMode(selectedProvider)
+
   const voiceContextKey = `chat:${activeChatSessionId ?? 'pending'}:${inputText}`
   const voiceErrorMessage = voiceErrorCode
     ? t[`voice_error_${voiceErrorCode.toLowerCase()}` as VoiceErrorTranslationKey]
@@ -464,11 +412,11 @@ export function ChatPage() {
     setChatSessionModel(activeChatSessionId, provider, model)
   }, [activeChatSessionId, setChatSessionModel])
 
-  const recordChatCost = useCallback((sessionId: string, messageId: string, inputText: string, reply: string) => {
+  const recordChatCost = useCallback((sessionId: string, messageId: string, inputText: string, reply: string, configuration?: ChatRequestConfiguration) => {
     const cost = estimateUsageCost({
       feature: 'chat',
-      provider: selectedProvider,
-      model: selectedModels[selectedProvider],
+      provider: configuration?.provider ?? selectedProvider,
+      model: configuration?.model ?? selectedModels[selectedProvider],
       inputText,
       outputText: reply,
     })
@@ -499,14 +447,8 @@ export function ChatPage() {
     if (activeChatSessionId) {
       const session = s.chatSessions.find((x) => x.id === activeChatSessionId)
       setInputTextLocal(session?.draftInput ?? '')
-      setDeepResearchModeLocal(session?.deepResearchMode ?? false)
-      setWebSearchModeLocal(session?.webSearchMode ?? false)
-      setImageModeLocal(session?.imageMode ?? false)
     } else {
       setInputTextLocal(s.chatPendingDraft)
-      setDeepResearchModeLocal(s.chatPendingDeepResearchMode)
-      setWebSearchModeLocal(s.chatPendingWebSearchMode)
-      setImageModeLocal(s.chatPendingImageMode)
     }
     setAttachedImage(null)
   }, [activeChatSessionId])
@@ -530,34 +472,6 @@ export function ChatPage() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [showPlusMenu])
-
-  // ── Mode dropdown (Tự động / Tìm kiếm / Nghiên cứu) ──
-  const openModeMenu = () => {
-    if (modeBtnRef.current) {
-      const rect = modeBtnRef.current.getBoundingClientRect()
-      setModeMenuPos({ bottom: window.innerHeight - rect.top + 6, left: rect.left })
-    }
-    setShowModeMenu(true)
-  }
-  useEffect(() => {
-    if (!showModeMenu) return
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node
-      if (!modeBtnRef.current?.contains(target) && !modeMenuRef.current?.contains(target)) {
-        setShowModeMenu(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [showModeMenu])
-  // Move focus into the menu on open: the checked item, else the first enabled one.
-  useEffect(() => {
-    if (!showModeMenu) return
-    const menu = modeMenuRef.current
-    const target = menu?.querySelector<HTMLButtonElement>(`${MODE_MENU_ITEM_SELECTOR}[aria-checked="true"]:not(:disabled)`)
-      ?? menu?.querySelector<HTMLButtonElement>(`${MODE_MENU_ITEM_SELECTOR}:not(:disabled)`)
-    target?.focus()
-  }, [showModeMenu])
 
   // ── Ensure active session exists for current provider/model ──
   const ensureSession = useCallback(() => {
@@ -610,119 +524,6 @@ export function ChatPage() {
 
   // ── Send message ──
   // ── Regenerate last assistant response ──
-  const handleRegenerate = useCallback(async () => {
-    if (isSending || !activeChatSessionId) return
-    const session = useAppStore.getState().chatSessions.find((s) => s.id === activeChatSessionId)
-    if (!session) return
-
-    // Find last assistant message
-    const msgs = session.messages
-    const lastAssistantIdx = [...msgs].map((m, i) => ({ m, i })).reverse().find(({ m }) => m.role === 'assistant')
-    if (!lastAssistantIdx) return
-    const assistantMsgId = lastAssistantIdx.m.id
-
-    // History = all messages up to (not including) the last assistant message
-    const historyMessages = msgs
-      .slice(0, lastAssistantIdx.i)
-      .filter((m) => !m.isLoading && !m.error && !m.isResearchStep && !m.isSmartThinkingStep)
-
-    if (historyMessages.length === 0) return
-
-    const controller = new AbortController()
-    abortControllerRef.current = controller
-    setIsSending(true)
-
-    // Reset assistant message to loading
-    updateChatMessage(activeChatSessionId, assistantMsgId, {
-      content: [{ type: 'text', text: '' }],
-      isLoading: true,
-      error: undefined,
-      usedModel: undefined,
-      timestamp: Date.now(),
-    })
-
-    try {
-      let streamedText = ''
-      const result = await chatService.stream(
-        {
-          provider: selectedProvider,
-          model: selectedModels[selectedProvider],
-          messages: historyMessages.map(toIpcMessage),
-          systemPrompt: chatSystemPrompt || undefined,
-          carefulReasoning: shouldUseCarefulReasoning(latestUserText(historyMessages.map(toIpcMessage))),
-        },
-        {
-          // Buffer tokens so the store update fires at most once per ~60 ms
-          // instead of for every provider token. This caps the streaming-time
-          // re-render rate while keeping the perceived latency below 100 ms.
-          bufferIntervalMs: CHAT_STREAM_BUFFER_INTERVAL_MS,
-          onToken: (token) => {
-            streamedText += token
-            updateChatMessage(activeChatSessionId, assistantMsgId, {
-              content: [{ type: 'text', text: streamedText }],
-              isLoading: true,
-              error: undefined,
-            })
-          },
-          signal: controller.signal,
-        },
-      )
-
-      // User cancelled mid-stream — keep partial tokens, no error banner.
-      if (result.errorCode === 'CANCELLED' || controller.signal.aborted) {
-
-        updateChatMessage(activeChatSessionId, assistantMsgId, {
-
-          content: [{ type: 'text', text: streamedText }],
-          isLoading: false,
-        })
-      } else if (result.success && result.reply) {
-        updateChatMessage(activeChatSessionId, assistantMsgId, {
-          content: [{ type: 'text', text: result.reply }],
-          isLoading: false,
-          usedModel: result.usedModel,
-        })
-        recordChatCost(
-          activeChatSessionId,
-          assistantMsgId,
-          flattenChatCostInput(historyMessages.map(toIpcMessage), chatSystemPrompt || undefined),
-          result.reply,
-        )
-      } else {
-        updateChatMessage(activeChatSessionId, assistantMsgId, {
-          isLoading: false,
-          error: localizeChatError(t, result, t.chat_error_failed_regenerate),
-        })
-      }
-    } catch (err) {
-      if (controller.signal.aborted) {
-        // Cancellation thrown as exception — finalise without error banner.
-        updateChatMessage(activeChatSessionId, assistantMsgId, {
-          isLoading: false,
-        })
-      } else {
-        updateChatMessage(activeChatSessionId, assistantMsgId, {
-          isLoading: false,
-          error: localizeChatException(t, err, t.chat_error_unexpected),
-        })
-      }
-    } finally {
-      if (abortControllerRef.current === controller) {
-        abortControllerRef.current = null
-      }
-      setIsSending(false)
-    }
-  }, [
-    isSending,
-    activeChatSessionId,
-    updateChatMessage,
-    selectedProvider,
-    selectedModels,
-    chatSystemPrompt,
-    recordChatCost,
-    t,
-  ])
-
   /**
    * Run (or resume) the Deep Research pipeline against an active session.
    *
@@ -742,12 +543,14 @@ export function ChatPage() {
     history,
     images,
     resumeState,
+    configuration,
   }: {
     sessionId: string
     question: string
     history?: string
     images: { imageBase64: string; imageMimeType: string }[]
     resumeState?: DeepResearchResumeState
+    configuration?: ChatRequestConfiguration
   }) => {
     const drController = new AbortController()
     abortControllerRef.current = drController
@@ -756,8 +559,8 @@ export function ChatPage() {
     try {
       await deepResearchService.run({
         signal: drController.signal,
-        provider: selectedProvider,
-        model: selectedModels[selectedProvider],
+        provider: configuration?.provider ?? selectedProvider,
+        model: configuration?.model ?? selectedModels[selectedProvider],
         question,
         history,
         carefulReasoning: shouldUseCarefulReasoning(question),
@@ -819,7 +622,7 @@ export function ChatPage() {
               ...(isFinal ? { researchStepLabel: undefined } : {}),
             })
             if (isFinal) {
-              recordChatCost(sessionId, msgId, question, content)
+              recordChatCost(sessionId, msgId, question, content, configuration)
             }
           },
           onStepError: (msgId, error) => {
@@ -837,7 +640,7 @@ export function ChatPage() {
           onSearchFallback: setSearchFallbackNotice,
           onSearchUnavailable: reportSearchUnavailable,
           onResumeStateChange: (state) => {
-            setDeepResearchResumeState(sessionId, state)
+            setDeepResearchResumeState(sessionId, state ? { ...state, requestConfiguration: configuration } : null)
           },
         },
       })
@@ -879,64 +682,94 @@ export function ChatPage() {
       question: resumeState.question,
       images: [],
       resumeState,
+      configuration: resumeState.requestConfiguration,
     })
   }, [isSending, activeChatSessionId, runDeepResearchPipeline])
 
-  const handleSend = useCallback(async () => {
+  const executeChatRequest = useCallback(async (retry?: {
+    sessionId: string; message: ChatMessage; history: ChatMessage[]; assistantMsgId?: string;
+    image: { base64: string; mimeType: string; previewUrl: string; fileName: string } | null;
+  }) => {
+    const configuration: ChatRequestConfiguration = retry?.message.requestConfiguration ?? {
+      provider: selectedProvider, model: selectedModels[selectedProvider], systemPrompt: chatSystemPrompt || undefined,
+      task: taskState ? { ...taskState, options: { ...taskState.options }, open: false } : null,
+      ...getChatTaskExecution(taskState),
+    }
+    const draft = retry ? retry.message.content.filter((part) => part.type === 'text').map((part) => part.text ?? '').join('') : inputText
+    const requestImage = retry ? retry.image : attachedImage
+    const requestProvider = configuration.provider
+    const requestModel = configuration.model
+    const requestSystemPrompt = configuration.systemPrompt
+    const requestDeepResearch = configuration.deepResearchMode
+    const requestWebSearch = configuration.webSearchMode
+    const requestImageMode = configuration.imageMode
+    const requestHasKey = requestProvider === 'local' || useAppStore.getState().keyStatus[requestProvider]
+    const recordRequestCost = (sessionId: string, messageId: string, input: string, reply: string) => recordChatCost(sessionId, messageId, input, reply, configuration)
 
-    const text = inputText.trim()
-    if (isEmptyChatTask(inputText) && !attachedImage) return
-    if ((!text && !attachedImage) || isSending || isVoiceBusy) return
-    if (!hasKey) return
 
-    const taskInstruction = taskState?.applied?.placement === 'instruction' ? taskState.applied.prompt : undefined
+    const text = draft.trim()
+    if (isEmptyChatTask(draft) && !requestImage) return
+    if ((!text && !requestImage) || isSending || abortControllerRef.current || isVoiceBusy || (requestImageMode && !text)) return
+    if (!requestHasKey) return
+    if (requestImageMode && !supportsChatImageMode(requestProvider)) return
+
+    // Snapshot the current choices once; retries use the instruction saved on this user message.
+    const taskInstruction = retry ? retry.message.taskInstruction : getChatTaskInstruction(t, configuration.task)
     const requestText = taskInstruction ? taskInstruction + text : text
 
 
-    const sessionId = ensureSession()
+    const sessionId = retry?.sessionId ?? ensureSession()
+    collapseChatTaskOptions(sessionId)
+    setShowPlusMenu(false)
 
     // ── Build the user message (shared by normal, vision, and Deep Research paths)
     const userContent: ChatMessageContent[] = []
     const userMsgId = createClientId('msg-u')
-    if (attachedImage) {
+    if (requestImage && !retry) {
       userContent.push({
         type: 'image',
-        imageBase64: attachedImage.base64,
-        imageMimeType: attachedImage.mimeType,
-        imagePreviewUrl: attachedImage.previewUrl,
-        imageFileName: attachedImage.fileName,
+        imageBase64: requestImage.base64,
+        imageMimeType: requestImage.mimeType,
+        imagePreviewUrl: requestImage.previewUrl,
+        imageFileName: requestImage.fileName,
         // Kept in the image store so the photo is still there when the conversation is reopened.
-        imageStoreKey: persistChatImage(sessionId, userMsgId, attachedImage.base64, attachedImage.mimeType),
+        imageStoreKey: persistChatImage(sessionId, userMsgId, requestImage.base64, requestImage.mimeType),
       })
     }
     if (text) {
       userContent.push({ type: 'text', text })
     }
 
-    const userMsg: ChatMessage = {
+    const userMsg: ChatMessage = retry?.message ?? {
       id: userMsgId,
       role: 'user',
       content: userContent,
       taskInstruction,
+      requestConfiguration: configuration,
       timestamp: Date.now(),
     }
 
     // ── Deep Research path ────────────────────────────────────────────────────
-    if (deepResearchMode && (text || attachedImage)) {
+    const publishResponse = (message: ChatMessage) => {
+      if (retry?.assistantMsgId) updateChatMessage(sessionId, retry.assistantMsgId, { ...message, id: retry.assistantMsgId, error: undefined, usedModel: undefined, cost: undefined, isResearchStep: undefined, isResearchFinal: undefined, isSmartThinkingStep: undefined })
+      else addChatMessage(sessionId, message)
+    }
+    if (requestDeepResearch && (text || requestImage)) {
       // Snapshot the earlier turns before the new question joins the session.
       const history = buildConversationTranscript(
-        useAppStore.getState().chatSessions.find((s) => s.id === sessionId)?.messages ?? [],
+        retry?.history ?? useAppStore.getState().chatSessions.find((s) => s.id === sessionId)?.messages ?? [],
       )
-      addChatMessage(sessionId, userMsg)
+      if (!retry) addChatMessage(sessionId, userMsg)
       setDeepResearchResumeState(sessionId, null)
-      setInputText('')
-      setAttachedImage(null)
+      if (!retry) setInputText('')
+      if (!retry) setAttachedImage(null)
       await runDeepResearchPipeline({
         sessionId,
+        configuration,
         question: requestText || t.chat_deep_research_image_only_prompt,
         history,
-        images: attachedImage
-          ? [{ imageBase64: attachedImage.base64, imageMimeType: attachedImage.mimeType }]
+        images: requestImage
+          ? [{ imageBase64: requestImage.base64, imageMimeType: requestImage.mimeType }]
           : [],
       })
       return
@@ -946,20 +779,20 @@ export function ChatPage() {
     // Only available when the user explicitly enables Image Mode.
     // - With attached image + text prompt → edit the image.
     // - Without attached image → generate a new image from the text prompt.
-    if (imageMode && (text || attachedImage)) {
+    if (requestImageMode && (text || requestImage)) {
       // Earlier turns, captured before this message joins the session: they
       // give the planner its context and the image a follow-up may refine.
-      const priorMessages = useAppStore.getState().chatSessions.find((s) => s.id === sessionId)?.messages ?? []
-      addChatMessage(sessionId, userMsg)
-      setInputText('')
-      const capturedImage = attachedImage
-      setAttachedImage(null)
+      const priorMessages = retry?.history ?? useAppStore.getState().chatSessions.find((s) => s.id === sessionId)?.messages ?? []
+      if (!retry) addChatMessage(sessionId, userMsg)
+      if (!retry) setInputText('')
+      const capturedImage = requestImage
+      if (!retry) setAttachedImage(null)
       const imgController = new AbortController()
       abortControllerRef.current = imgController
       setIsSending(true)
 
-      const assistantMsgId = createClientId('msg-a')
-      addChatMessage(sessionId, {
+      const assistantMsgId = retry?.assistantMsgId ?? createClientId('msg-a')
+      publishResponse({
         id: assistantMsgId,
         role: 'assistant',
         content: [{ type: 'text', text: '' }],
@@ -977,9 +810,9 @@ export function ChatPage() {
         // Rewrite the request into a detailed prompt and decide whether it
         // refines the image generated earlier in this conversation.
         const previousImage = capturedImage ? undefined : findLatestAssistantImage(priorMessages)
-        const plan = await planImageRequest({
-          provider: selectedProvider,
-          model: selectedModels[selectedProvider],
+        const plan = configuration.imagePlan ?? await planImageRequest({
+          provider: requestProvider,
+          model: requestModel,
           text: requestText,
           history: buildConversationTranscript(priorMessages),
           hasPreviousImage: Boolean(previousImage),
@@ -990,6 +823,9 @@ export function ChatPage() {
           updateChatMessage(sessionId, assistantMsgId, { isLoading: false })
           return
         }
+        if (!configuration.imagePlan) updateChatMessage(sessionId, userMsg.id, {
+          requestConfiguration: { ...configuration, imagePlan: { ...plan } },
+        })
 
         const sourceImage = capturedImage
           ? { base64: capturedImage.base64, mimeType: capturedImage.mimeType }
@@ -1006,12 +842,12 @@ export function ChatPage() {
             return
           }
           result = await chatService.editImage({
-            provider: selectedProvider,
-            model: selectedModels[selectedProvider],
+            provider: requestProvider,
+            model: requestModel,
             prompt: plan.prompt,
             imageBase64: sourceImage.base64,
             imageMimeType: sourceImage.mimeType,
-          })
+          }, { signal: imgController.signal })
         } else {
           if (typeof window.api.generateChatImage !== 'function') {
             updateChatMessage(sessionId, assistantMsgId, {
@@ -1021,10 +857,10 @@ export function ChatPage() {
             return
           }
           result = await chatService.generateImage({
-            provider: selectedProvider,
-            model: selectedModels[selectedProvider],
+            provider: requestProvider,
+            model: requestModel,
             prompt: plan.prompt,
-          })
+          }, { signal: imgController.signal })
         }
 
         if (imgController.signal.aborted) {
@@ -1048,7 +884,7 @@ export function ChatPage() {
             ],
             isLoading: false,
           })
-          recordChatCost(sessionId, assistantMsgId, text, outputLabel)
+          recordRequestCost(sessionId, assistantMsgId, text, outputLabel)
         } else {
           updateChatMessage(sessionId, assistantMsgId, {
             isLoading: false,
@@ -1078,17 +914,17 @@ export function ChatPage() {
       return
     }
 
-    addChatMessage(sessionId, userMsg)
+    if (!retry) addChatMessage(sessionId, userMsg)
     setDeepResearchResumeState(sessionId, null)
-    setInputText('')
-    setAttachedImage(null)
+    if (!retry) setInputText('')
+    if (!retry) setAttachedImage(null)
     const sendController = new AbortController()
     abortControllerRef.current = sendController
     setIsSending(true)
 
     // Build IPC-format conversation history (includes the user message just added).
     const ipcHistory = toIpcHistory(
-      useAppStore.getState().chatSessions.find((s) => s.id === sessionId)?.messages ?? []
+      retry ? [...retry.history, userMsg] : useAppStore.getState().chatSessions.find((s) => s.id === sessionId)?.messages ?? []
     )
 
     // ── Smart Thinking path (DEFAULT for text-only chat) ─────────────────────
@@ -1098,7 +934,7 @@ export function ChatPage() {
     //     straight chatService.stream). With Web Search on, the image stays in
     //     the history for the final answer and the search still runs.
     //   • There is no text (image-only message)
-    if (text && (!attachedImage || webSearchMode)) {
+    if (text && (!requestImage || requestWebSearch)) {
       // Single morphing placeholder bubble shared across all Smart Thinking phases:
       //   1. Initial "Thinking…" — while AI classifier decides whether to web-search.
       //   2. "Smart Thinking…" pill — shown only if the classifier triggered a web search.
@@ -1106,8 +942,8 @@ export function ChatPage() {
       //   4. Streaming tokens — final answer fills the same bubble.
       // Reusing one bubble (instead of swapping between a step bubble and an answer bubble)
       // matches modern chat UIs and keeps the conversation flow visually stable.
-      const placeholderMsgId = createClientId('msg-a')
-      addChatMessage(sessionId, {
+      const placeholderMsgId = retry?.assistantMsgId ?? createClientId('msg-a')
+      publishResponse({
         id: placeholderMsgId,
         role: 'assistant',
         content: [{ type: 'text', text: '' }],
@@ -1118,13 +954,14 @@ export function ChatPage() {
       try {
         await smartThinkingService.run({
           signal: sendController.signal,
-          provider: selectedProvider,
-          model: selectedModels[selectedProvider],
+          provider: requestProvider,
+          model: requestModel,
           question: requestText,
           messages: ipcHistory,
-          systemPrompt: chatSystemPrompt || undefined,
+          systemPrompt: requestSystemPrompt || undefined,
           carefulReasoning: shouldUseCarefulReasoning(text),
-          forceWebSearch: webSearchMode,
+          forceWebSearch: requestWebSearch,
+          allowWebSearch: requestWebSearch,
           uiText: {
 
             webSearchStepLabelPrefix: t.chat_smart_thinking_step_label_prefix,
@@ -1190,10 +1027,10 @@ export function ChatPage() {
                 isSmartThinkingStep: false,
                 researchStepLabel: undefined,
               })
-              recordChatCost(
+              recordRequestCost(
                 sessionId,
                 placeholderMsgId,
-                flattenChatCostInput(ipcHistory, chatSystemPrompt || undefined),
+                flattenChatCostInput(ipcHistory, requestSystemPrompt || undefined),
                 content,
               )
             },
@@ -1221,11 +1058,11 @@ export function ChatPage() {
     // ── Image edit path ──────────────────────────────────────────────────────
     // Chat/vision endpoints can analyze images but cannot return edited pixels.
     // When the prompt asks for a visual edit, call the dedicated image-edit API.
-    const shouldEditImage = Boolean(attachedImage && text && shouldRouteToImageEdit(text, true))
+    const shouldEditImage = Boolean(requestImage && text && configuration.task?.selected == null && shouldRouteToImageEdit(text, true))
 
-    if (attachedImage && shouldEditImage) {
-      const assistantMsgId = createClientId('msg-a')
-      addChatMessage(sessionId, {
+    if (requestImage && shouldEditImage) {
+      const assistantMsgId = retry?.assistantMsgId ?? createClientId('msg-a')
+      publishResponse({
         id: assistantMsgId,
         role: 'assistant',
         content: [{ type: 'text', text: '' }],
@@ -1247,16 +1084,15 @@ export function ChatPage() {
 
       try {
         const result = await chatService.editImage({
-          provider: selectedProvider,
-          model: selectedModels[selectedProvider],
+          provider: requestProvider,
+          model: requestModel,
           prompt: requestText,
-          imageBase64: attachedImage.base64,
-          imageMimeType: attachedImage.mimeType,
-        })
+          imageBase64: requestImage.base64,
+          imageMimeType: requestImage.mimeType,
+        }, { signal: sendController.signal })
 
-        // The edit IPC does not yet accept an AbortSignal — if the user clicked
-        // Stop while the backend was running, finalise the bubble silently and
-        // discard the result instead of overwriting with edited content.
+        // Cancellation aborts the provider; also guard against a result racing
+        // with Stop so it cannot replace the cancelled response.
         if (sendController.signal.aborted) {
           updateChatMessage(sessionId, assistantMsgId, { isLoading: false })
         } else if (result.success && result.imageBase64 && result.imageMimeType) {
@@ -1275,7 +1111,7 @@ export function ChatPage() {
             ],
             isLoading: false,
           })
-          recordChatCost(sessionId, assistantMsgId, text, outputLabel)
+          recordRequestCost(sessionId, assistantMsgId, text, outputLabel)
         } else {
           updateChatMessage(sessionId, assistantMsgId, {
             isLoading: false,
@@ -1304,7 +1140,7 @@ export function ChatPage() {
     // Smart Thinking does not support images; non-edit image prompts use vision chat.
 
     // Placeholder assistant message
-    const assistantMsgId = createClientId('msg-a')
+    const assistantMsgId = retry?.assistantMsgId ?? createClientId('msg-a')
     const assistantPlaceholder: ChatMessage = {
       id: assistantMsgId,
       role: 'assistant',
@@ -1318,10 +1154,10 @@ export function ChatPage() {
       let streamedText = ''
       const result = await chatService.stream(
         {
-          provider: selectedProvider,
-          model: selectedModels[selectedProvider],
+          provider: requestProvider,
+          model: requestModel,
           messages: ipcHistory,
-          systemPrompt: chatSystemPrompt || undefined,
+          systemPrompt: requestSystemPrompt || undefined,
           carefulReasoning: shouldUseCarefulReasoning(text),
         },
         {
@@ -1353,10 +1189,10 @@ export function ChatPage() {
           isLoading: false,
           usedModel: result.usedModel,
         })
-        recordChatCost(
+        recordRequestCost(
           sessionId,
           assistantMsgId,
-          flattenChatCostInput(ipcHistory, chatSystemPrompt || undefined),
+          flattenChatCostInput(ipcHistory, requestSystemPrompt || undefined),
           result.reply,
         )
       } else {
@@ -1388,10 +1224,6 @@ export function ChatPage() {
     attachedImage,
     isSending,
     isVoiceBusy,
-    hasKey,
-    deepResearchMode,
-    webSearchMode,
-    imageMode,
     ensureSession,
     addChatMessage,
     updateChatMessage,
@@ -1406,6 +1238,43 @@ export function ChatPage() {
     t,
   ])
 
+
+  const handleSend = useCallback(() => executeChatRequest(), [executeChatRequest])
+  const handleRegenerate = useCallback(async () => {
+    if (isSending || isVoiceBusy || !activeChatSessionId) return
+    const sessionId = activeChatSessionId
+    const session = useAppStore.getState().chatSessions.find((item) => item.id === sessionId)
+    if (!session) return
+    const assistant = [...session.messages].reverse().find((message) => message.role === 'assistant')
+    if (!assistant) return
+    const assistantIndex = session.messages.findIndex((message) => message.id === assistant.id)
+    const preceding = session.messages.slice(0, assistantIndex)
+    const user = [...preceding].reverse().find((message) => message.role === 'user')
+    if (!user) return
+    const userIndex = session.messages.findIndex((message) => message.id === user.id)
+    const originalImage = user.content.find((part) => part.type === 'image')
+    let image = null
+    if (originalImage) {
+      const stored = !originalImage.imageBase64 && originalImage.imageStoreKey ? await getChatImage(originalImage.imageStoreKey) : null
+      const base64 = originalImage.imageBase64 ?? stored?.imageBase64
+      const mimeType = originalImage.imageMimeType ?? stored?.imageMimeType
+      if (!base64 || !mimeType) { setAttachImageError(t.chat_image_unavailable); return }
+      image = { base64, mimeType, previewUrl: originalImage.imagePreviewUrl ?? buildImageDataUrl(base64, mimeType), fileName: originalImage.imageFileName ?? 'image' }
+    }
+    const message = user.requestConfiguration ? user : { ...user, requestConfiguration: {
+      provider: session.provider, model: session.model, task: null, imageMode: false,
+      deepResearchMode: false, webSearchMode: false, systemPrompt: chatSystemPrompt || undefined,
+    } }
+    const originalConfiguration = message.requestConfiguration
+    if (!originalConfiguration) return
+    if (originalConfiguration.provider !== 'local' && !useAppStore.getState().keyStatus[originalConfiguration.provider]) {
+      setAttachImageError(t.chat_error_no_key); return
+    }
+    if (!user.requestConfiguration) useAppStore.getState().updateChatMessage(sessionId, user.id, { requestConfiguration: message.requestConfiguration })
+    if (originalConfiguration.deepResearchMode) useAppStore.getState().restartChatResearch(sessionId, user.id)
+    await executeChatRequest({ sessionId, message, history: session.messages.slice(0, userIndex),
+      assistantMsgId: originalConfiguration.deepResearchMode ? undefined : assistant.id, image })
+  }, [activeChatSessionId, isSending, isVoiceBusy, executeChatRequest, chatSystemPrompt, t])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
 
@@ -1521,107 +1390,54 @@ export function ChatPage() {
     }
   }, [activeChatSessionId, messages, updateChatMessage])
   const canResumeDeepResearch = Boolean(
-    !isSending
+    getChatTaskExecution(taskState).deepResearchMode
+    && !isSending
     && !inputText.trim()
     && !attachedImage
     && activeSession?.deepResearchResumeState
     && activeSession.deepResearchResumeState.lastCompletedPhase !== 'synth',
   )
+  const canRetryDeepResearch = Boolean(
+    getChatTaskExecution(taskState).deepResearchMode
+    && !isSending && !inputText.trim() && !attachedImage
+    && !activeSession?.deepResearchResumeState
+    && messages[messages.length - 1]?.isResearchStep
+    && [...messages].reverse().find((message) => message.role === 'user')?.requestConfiguration?.deepResearchMode,
+  )
 
-  const activeModeLabel = deepResearchMode
-    ? t.chat_mode_chip_research
-    : webSearchMode
-      ? t.chat_mode_chip_web
-      : imageMode
-        ? t.chat_mode_chip_image
-        : t.chat_mode_standard
-
-  const activeMode: ResponseMode = deepResearchMode
-    ? 'research'
-    : webSearchMode
-      ? 'web'
-      : imageMode
-        ? 'image'
-        : 'standard'
-  const imageModeSupported = supportsChatImageMode(selectedProvider)
-  const modeOptions: ModeOption[] = [
-    { mode: 'standard', label: t.chat_mode_standard, Icon: ChatBubbleIcon },
-    { mode: 'web', label: t.chat_menu_web_search, Icon: GlobeIcon },
-    { mode: 'research', label: t.chat_menu_deep_research, Icon: TelescopeIcon },
-    {
-      mode: 'image',
-      label: t.chat_mode_chip_image,
-      Icon: ImageSparkleIcon,
-      title: t.chat_menu_image_mode,
-      disabled: !imageModeSupported && activeMode !== 'image',
-      hint: imageModeSupported ? undefined : t.chat_image_mode_unsupported_provider,
-    },
-  ]
   const composerPlaceholder = imageMode
     ? (imageModeSupported ? t.chat_image_mode_hint : t.chat_image_mode_unsupported_provider)
-    : t.chat_placeholder
+    : taskState?.selected == null ? t.chat_placeholder : [
+      t.chat_task_translate_placeholder, t.chat_task_research_placeholder,
+      t.chat_task_explain_placeholder, t.chat_task_write_placeholder,
+    ][taskState.selected]
 
-  const selectResponseMode = (mode: ResponseMode) => {
-    setWebSearchModeLocal(mode === 'web')
-    setDeepResearchModeLocal(mode === 'research')
-    setImageModeLocal(mode === 'image')
-    const sid = useAppStore.getState().activeChatSessionId
-    if (sid) {
-      setChatSessionWebSearchMode(sid, mode === 'web')
-      setChatSessionDeepResearchMode(sid, mode === 'research')
-      setChatSessionImageMode(sid, mode === 'image')
-    } else {
-      setChatPendingWebSearchMode(mode === 'web')
-      setChatPendingDeepResearchMode(mode === 'research')
-      setChatPendingImageMode(mode === 'image')
-    }
-    setShowModeMenu(false)
-    textareaRef.current?.focus()
+  const handleTaskSelect = (index: number | null, option?: string) => {
+    if (index === 4 && !imageModeSupported) return
+    const next = selectChatTask(t, locale, taskState, index, option)
+    setChatTaskState(activeChatSessionId, next)
+    if (!option) requestAnimationFrame(() => textareaRef.current?.focus({ preventScroll: true }))
   }
+  const handleTaskOpenChange = useCallback((open: boolean) => {
+    const store = useAppStore.getState()
+    const stored = activeChatSessionId
+      ? store.chatSessions.find((session) => session.id === activeChatSessionId)?.taskState
+      : store.chatPendingTaskState
+    const owner = activeChatSessionId ? store.chatSessions.find((session) => session.id === activeChatSessionId) : null
+    const current = resolveChatTaskState(stored, owner ?? { imageMode: store.chatPendingImageMode,
+      deepResearchMode: store.chatPendingDeepResearchMode, webSearchMode: store.chatPendingWebSearchMode })
+    setChatTaskState(activeChatSessionId, { selected: null, options: {}, applied: null, ...current, unified: true, open })
+  }, [activeChatSessionId, setChatTaskState])
 
-  /** Roving focus for the mode menu: arrows/Home/End move, Escape returns to the trigger. */
-  const handleModeMenuKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape') {
-      e.preventDefault()
-      e.stopPropagation()
-      setShowModeMenu(false)
-      modeBtnRef.current?.focus()
-      return
-    }
-    if (e.key === 'Tab') {
-      setShowModeMenu(false)
-      return
-    }
-    const items = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>(`${MODE_MENU_ITEM_SELECTOR}:not(:disabled)`))
-    if (items.length === 0) return
-    const current = items.indexOf(document.activeElement as HTMLButtonElement)
-    let next: number
-    switch (e.key) {
-      case 'ArrowDown': next = (current + 1) % items.length; break
-      case 'ArrowUp': next = current <= 0 ? items.length - 1 : current - 1; break
-      case 'Home': next = 0; break
-      case 'End': next = items.length - 1; break
-      default: return
-    }
-    e.preventDefault()
-    items[next]?.focus()
-  }
-
-  /** Shared input area — reused in both empty-state and messages-state layouts */
-  const taskControls = hasKey && (
-    <ChatTaskStarters
-      key={activeChatSessionId ?? 'pending'} t={t} locale={locale} state={taskState} actualMode={activeMode}
-      onStateChange={(state) => setChatTaskState(activeChatSessionId, state)}
-      onBack={(hasApplied) => { if (hasApplied) selectResponseMode('standard') }}
-      onApply={(_prompt, mode) => {
-        selectResponseMode(mode)
-        textareaRef.current?.focus({ preventScroll: true })
-      }}
-    />
-  )
-  const needsTaskContent = !attachedImage && (isEmptyChatTask(inputText) || (Boolean(taskState?.applied) && !inputText.trim()))
+  /** Shared input area — one task trigger and one composer for every state. */
+  const needsTaskContent = !attachedImage && isEmptyChatTask(inputText)
   const inputArea = (
     <div className="chat-composer-content flex flex-col">
+      {hasKey && <div className="px-3 pt-2">
+        <ChatTaskConfiguration t={t} state={taskState} disabled={isVoiceBusy} imageSupported={imageModeSupported}
+          contextKey={`${activeChatSessionId ?? 'pending'}:${messages.filter((message) => message.role === 'user').length}`}
+          onSelect={handleTaskSelect} onOpenChange={handleTaskOpenChange} />
+      </div>}
       {/* Error row */}
       {attachImageError && (
         <div className="px-4 pt-2 flex items-center gap-2">
@@ -1696,31 +1512,14 @@ export function ChatPage() {
             <PlusIcon />
           </Button>
 
-          {/* Tiêu chuẩn ▼ — response mode dropdown (standard / web / research / image) */}
-          <Button
-            ref={modeBtnRef}
-            size="md"
-            shape="pill"
-            variant={(webSearchMode || deepResearchMode || imageMode || showModeMenu) ? 'primary' : 'neutral'}
-            appearance={(webSearchMode || deepResearchMode || imageMode || showModeMenu) ? 'soft' : 'ghost'}
-            className="chat-mode-pill"
-            aria-haspopup="menu"
-            aria-label={`${t.chat_response_mode}: ${activeModeLabel}`}
-            aria-expanded={showModeMenu}
-            aria-controls={showModeMenu ? MODE_MENU_ID : undefined}
-            disabled={isVoiceBusy}
-            onClick={showModeMenu ? () => setShowModeMenu(false) : openModeMenu}
-          >
-            {deepResearchMode
-              ? <TelescopeIcon className="h-3.5 w-3.5 flex-shrink-0" />
-              : webSearchMode
-                ? <GlobeIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                : imageMode
-                  ? <ImageSparkleIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                  : null}
-            <span>{activeModeLabel}</span>
-            <ChevronDownIcon className={`w-3 h-3 flex-shrink-0 transition-transform duration-150 ${showModeMenu ? 'rotate-180' : ''}`} />
-          </Button>
+          {canUseChatWebSearch(taskState) && <Button size="md" shape="pill"
+            variant={webSearchMode ? 'primary' : 'neutral'} appearance={webSearchMode ? 'soft' : 'ghost'}
+            aria-label={t.chat_web_source} aria-pressed={webSearchMode} title={t.chat_web_source_hint}
+            disabled={isVoiceBusy} onClick={() => setChatTaskState(activeChatSessionId, {
+              selected: null, options: {}, applied: null, open: false, ...taskState, unified: true, webSearch: !webSearchMode,
+            })}>
+            <GlobeIcon className="h-4 w-4" /><span>{t.chat_web_source}</span>
+          </Button>}
         </div>
 
         {/* Right: char count · model · voice · send */}
@@ -1782,6 +1581,13 @@ export function ChatPage() {
               <span className="chat-primary-action-label">{t.chat_deep_research_resume_short}</span>
               <ArrowRightIcon className="h-3.5 w-3.5" />
             </Button>
+          ) : canRetryDeepResearch ? (
+            <Button size="md" shape="pill" variant="primary" appearance="solid"
+              onClick={handleRegenerate} title={t.chat_deep_research_retry} aria-label={t.chat_deep_research_retry}
+              className="chat-resume-button">
+              <span className="chat-primary-action-label">{t.chat_deep_research_retry_short}</span>
+              <RefreshIcon className="h-3.5 w-3.5" />
+            </Button>
           ) : (
             <Button
               size="md"
@@ -1789,7 +1595,7 @@ export function ChatPage() {
               variant="primary"
               appearance="solid"
               onClick={handleSend}
-              disabled={((!inputText.trim() || isEmptyChatTask(inputText)) && !attachedImage) || !hasKey}
+              disabled={((!inputText.trim() || isEmptyChatTask(inputText)) && !attachedImage) || !hasKey || (imageMode && (!imageModeSupported || !inputText.trim()))}
               title={t.chat_send}
               aria-label={t.chat_send}
               className="chat-send-button"
@@ -1829,41 +1635,6 @@ export function ChatPage() {
       )}
 
       {/* Mode dropdown portal — Tiêu chuẩn / Tìm kiếm / Nghiên cứu / Tạo ảnh */}
-      {showModeMenu && createPortal(
-        <div
-          id={MODE_MENU_ID}
-          ref={modeMenuRef}
-          role="menu"
-          aria-label={t.chat_response_mode}
-          onKeyDown={handleModeMenuKeyDown}
-          className="floating-panel overflow-hidden"
-          style={{ position: 'fixed', bottom: modeMenuPos.bottom, left: modeMenuPos.left, width: 220, zIndex: 9999 }}
-        >
-          {modeOptions.map(({ mode, label, Icon, hint, title, disabled }) => {
-            const checked = mode === activeMode
-            return (
-              <button
-                key={mode}
-                type="button"
-                role="menuitemradio"
-                aria-checked={checked}
-                disabled={disabled}
-                title={title}
-                className={`btn-menu-item justify-start gap-3${hint ? ' btn-menu-item-with-hint' : ''}`}
-                onClick={() => selectResponseMode(mode)}
-              >
-                <Icon className={`w-[18px] h-[18px] flex-shrink-0 ${checked ? 'text-[--vzn-accent]' : 'text-[--vzn-text-muted]'}`} />
-                <span className="flex min-w-0 flex-1 flex-col text-left">
-                  <span>{label}</span>
-                  {hint && <span className="ui-micro">{hint}</span>}
-                </span>
-                {checked && <CheckIcon className="w-4 h-4 flex-shrink-0 text-[--vzn-accent]" />}
-              </button>
-            )
-          })}
-        </div>,
-        document.body
-      )}
     </div>
   )
 
@@ -1971,7 +1742,6 @@ export function ChatPage() {
                     </div>
                   )}
 
-                  {taskControls}
                 </div>
               </div>
 
@@ -1988,7 +1758,6 @@ export function ChatPage() {
               {/* Messages list — scrollable, max-width centered */}
               <div className="chat-messages-scroll flex-1 overflow-y-auto">
                 <div className="chat-message-stage">
-                  {taskState?.selected !== null && taskState?.selected !== undefined && taskControls}
                   {(() => {
                     const lastAssistantIdx = messages.reduce(
                       (acc, m, i) => (m.role === 'assistant' ? i : acc), -1

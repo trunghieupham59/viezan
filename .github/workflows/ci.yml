@@ -219,6 +219,10 @@ jobs:
             - name: Build (renderer + electron)
               run: npm run build
 
+            - name: Stage verified Windows Ollama runtime
+              if: runner.os == 'Windows'
+              uses: ./.github/actions/stage-ollama-runtime
+
             - name: Build artifacts (no publish)
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

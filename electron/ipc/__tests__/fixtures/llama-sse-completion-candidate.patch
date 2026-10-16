@@ -1,0 +1,13 @@
+--- a/tools/server/server-http.cpp
++++ b/tools/server/server-http.cpp
+@@ -607,7 +607,9 @@
+                 sink.done();
+                 SRV_DBG("%s", "http: stream ended\n");
+             }
+-            return has_next;
++            // done() ends the body. Returning false means cancellation to
++            // cpp-httplib and forces the connection closed after success.
++            return true;
+         };
+         const auto on_complete = [request = q_ptr, response = r_ptr](bool) mutable {
+             response->on_complete();
