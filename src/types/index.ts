@@ -207,7 +207,7 @@ export interface LocalAiDiscoveryResult {
   error?: string
 }
 
-export type { LocalAiExecutionMode, LocalAiPerformanceProfile, LocalAiPerformanceComparison, LocalAiPerformanceMeasurement, LocalAiPerformanceState } from '../../shared/localAiPerformance'
+export type { LocalAiExecutionMode, LocalAiPerformanceComparison, LocalAiPerformanceMeasurement, LocalAiPerformanceProfile, LocalAiPerformanceState } from '../../shared/localAiPerformance'
 
 export interface LocalAiBenchmarkResult {
   hardware: LocalAiHardwareProfile
