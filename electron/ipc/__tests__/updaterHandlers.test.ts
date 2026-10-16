@@ -174,6 +174,25 @@ describe('updater handlers', () => {
       expect(mocks.quitAndInstall).not.toHaveBeenCalled()
     })
 
+    it('recovers a failed startup check on retry and publishes the available update', async () => {
+      restorePlatform = setPlatform('win32')
+      vi.useFakeTimers()
+      mocks.checkForUpdates.mockRejectedValueOnce(new Error('offline'))
+        .mockImplementationOnce(async () => {
+          mocks.autoUpdaterHandlers['update-available']({ version: '2.2.2' })
+        })
+      const { call, statuses } = setup()
+      await vi.advanceTimersByTimeAsync(30_000)
+      expect(mocks.checkForUpdates).toHaveBeenCalledTimes(1)
+      expect(await call('updater:getStatus')).toBeNull()
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(mocks.checkForUpdates).toHaveBeenCalledTimes(2)
+      expect(statuses()[statuses().length - 1]).toMatchObject({ type: 'available', version: '2.2.2', background: true })
+      expect(await call('updater:getStatus')).toMatchObject({ type: 'available', version: '2.2.2' })
+      expect(mocks.downloadUpdate).not.toHaveBeenCalled()
+      expect(mocks.quitAndInstall).not.toHaveBeenCalled()
+    })
+
     it('marks background errors and protects the status snapshot from untrusted senders', async () => {
       restorePlatform = setPlatform('win32')
       vi.useFakeTimers()

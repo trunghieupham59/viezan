@@ -575,6 +575,10 @@ export function registerUpdaterHandlers(
   let backgroundCheck = false
   let lastStatus: UpdateStatus | null = null
   const push = (payload: UpdaterStatus) => {
+    // Never log upstream messages or download URLs: they may carry credentials.
+    if (payload.type !== 'downloading') {
+      console.info('[updater] Status', { type: payload.type, background: backgroundCheck })
+    }
     const next: UpdateStatus = {
       ...payload,
       ...(payload.type === 'downloading' ? { version: lastStatus?.version } : {}),
