@@ -16,11 +16,13 @@ interface LanguagePairControlsProps {
   onPairChange?: (pair: LanguagePair) => void
   /** Feature actions kept on the same row as the language fields. */
   actions?: ReactNode
+  /** Line the source/target fields up with a two-column panel grid below (Live). */
+  alignToPanels?: boolean
 }
 
 /** Shared controls; preferences are shared, working languages belong to each feature. */
 export function LanguagePairControls({ scope, sourceHeadingId, resultHeadingId, detectedSourceLang = null,
-  isDetectingLang = false, onPairChange, actions }: LanguagePairControlsProps) {
+  isDetectingLang = false, onPairChange, actions, alignToPanels = false }: LanguagePairControlsProps) {
   const t = useT()
   const state = useAppStore()
   const pair = scope === 'live'
@@ -101,10 +103,11 @@ export function LanguagePairControls({ scope, sourceHeadingId, resultHeadingId, 
   )
   return (
     <div className="language-pair-controls">
-      <div className={actions ? 'language-pair-fields language-pair-fields-with-actions' : 'language-pair-fields'}>
+      <div className={['language-pair-fields', actions && 'language-pair-fields-with-actions',
+        alignToPanels && 'language-pair-fields-panel-aligned'].filter(Boolean).join(' ')}>
         <TranslationLanguageControls sourceHeadingId={sourceHeadingId} resultHeadingId={resultHeadingId}
           sourceLang={pair.source} targetLang={pair.target} detectedSourceLang={detectedSourceLang} isDetectingLang={isDetectingLang}
-          disabled={locked} showSwap={showSwap} canSwap={canSwap} swapDisabledReason={locked ? t.language_pairs_locked
+          disabled={locked} showSwap={showSwap} canSwap={canSwap} swapSize={alignToPanels ? 'xs' : 'md'} swapDisabledReason={locked ? t.language_pairs_locked
             : resolvedSource === pair.target ? t.language_pairs_same : t.translate_swap_disabled_auto}
           onSourceLangChange={source => change({ ...pair, source })} onTargetLangChange={target => change({ ...pair, target })}
           onSwap={() => { if (canSwap && resolvedSource) change({ source: pair.target, target: resolvedSource }) }} />

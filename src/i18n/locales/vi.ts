@@ -559,7 +559,7 @@ const vi: Translations = {
   live_clear: 'Xóa',
   live_copy_all: 'Sao chép tất cả',
   live_copied: 'Đã sao chép!',
-  live_no_openai_key: 'Cần OpenAI API key để nhận dạng giọng nói (Whisper).',
+  live_no_stt_key: 'Thêm API key nhận dạng giọng nói (OpenAI, Gemini hoặc Groq) trong Cài đặt.',
   live_no_translate_key: 'Chưa cấu hình API key để dịch.',
   live_status_translating: 'Đang dịch…',
   live_panel_original: 'Bản gốc',
@@ -1012,6 +1012,7 @@ const vi: Translations = {
   chat_deep_research_summarizing: 'Đang tổng hợp kết quả…',
 
   chat_deep_research_badge: 'Deep Research',
+  live_error_title: 'Lỗi phiên dịch trực tiếp',
   live_error_stt_failed: 'Nhận dạng thất bại — đang thử lại',
   live_error_system_audio_unavailable: 'Không có âm thanh hệ thống — vui lòng bật "Share audio" trong hộp thoại chia sẻ màn hình, rồi thử lại.',
   live_error_screen_permission_denied: 'Không có quyền Screen Recording. Bật trong System Settings → Privacy → Screen Recording.',

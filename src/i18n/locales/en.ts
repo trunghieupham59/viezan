@@ -559,7 +559,7 @@ const en: Translations = {
   live_clear: 'Clear',
   live_copy_all: 'Copy All',
   live_copied: 'Copied!',
-  live_no_openai_key: 'OpenAI API key required for speech recognition (Whisper).',
+  live_no_stt_key: 'Add a speech recognition API key (OpenAI, Gemini, or Groq) in Settings.',
   live_no_translate_key: 'No translation API key configured.',
   live_status_translating: 'Translating…',
   live_panel_original: 'Original',
@@ -1012,6 +1012,7 @@ const en: Translations = {
   chat_deep_research_summarizing: 'Synthesizing results…',
 
   chat_deep_research_badge: 'Deep Research',
+  live_error_title: 'Live interpretation error',
   live_error_stt_failed: 'STT failed — retrying next chunk',
   live_error_system_audio_unavailable: 'System audio not available — please check "Share audio" in the screen sharing dialog, then try again.',
   live_error_screen_permission_denied: 'Screen Recording permission denied. Enable it in System Settings → Privacy → Screen Recording.',

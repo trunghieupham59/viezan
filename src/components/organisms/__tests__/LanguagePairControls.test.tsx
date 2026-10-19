@@ -35,6 +35,16 @@ describe('shared pair controls', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Swap languages' }))
     expect(useAppStore.getState()).toMatchObject({ liveSourceLang: 'vi', liveTargetLang: 'ja' })
   })
+  it('opts into the panel-aligned row with a compact swap only when asked', () => {
+    useAppStore.setState({ liveSourceLang: 'ja', liveTargetLang: 'vi' })
+    const { unmount } = render(<LanguagePairControls scope="live" sourceHeadingId="source" resultHeadingId="target" alignToPanels />)
+    expect(document.querySelector('.language-pair-fields')).toHaveClass('language-pair-fields-panel-aligned')
+    expect(screen.getByRole('button', { name: 'Swap languages' })).toHaveAttribute('data-control-size', 'xs')
+    unmount()
+    render(<LanguagePairControls scope="live" sourceHeadingId="source" resultHeadingId="target" />)
+    expect(document.querySelector('.language-pair-fields')).not.toHaveClass('language-pair-fields-panel-aligned')
+    expect(screen.getByRole('button', { name: 'Swap languages' })).toHaveAttribute('data-control-size', 'md')
+  })
   it('resolves text Auto explicitly without replacing the input', () => {
     useAppStore.setState({ sourceLang: 'auto', targetLang: 'vi', sourceText: 'Hello' })
     render(<LanguagePairControls scope="translate" sourceHeadingId="source" resultHeadingId="target" detectedSourceLang="en" />)

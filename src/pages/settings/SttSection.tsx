@@ -134,6 +134,7 @@ export function SttSection() {
   const keyStatus = useAppStore((state) => state.keyStatus)
   const sttProvider = useAppStore((state) => state.sttProvider)
   const setSttProvider = useAppStore((state) => state.setSttProvider)
+  const bumpSttCredentialsRevision = useAppStore((state) => state.bumpSttCredentialsRevision)
   const t = useT()
   const hasOpenAIKey = keyStatus.openai
   const hasGeminiKey = keyStatus.gemini
@@ -171,6 +172,7 @@ export function SttSection() {
       setGroqKeyExists(updated.exists ?? false)
       setGroqMasked(updated.masked ?? null)
       setGroqInput('')
+      bumpSttCredentialsRevision()
       setGroqSaveMsg({ text: t.settings_stt_groq_saved, ok: true })
       setTimeout(() => setGroqSaveMsg(null), TOAST_DISMISS_DELAY_MS)
     } catch (err) {
@@ -196,6 +198,7 @@ export function SttSection() {
       setGroqMasked(null)
       setGroqInput('')
       setGroqSaveMsg(null)
+      bumpSttCredentialsRevision()
     } catch {
       setGroqSaveMsg({ text: t.settings_key_store_failed, ok: false })
     } finally {

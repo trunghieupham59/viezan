@@ -72,3 +72,32 @@
   .language-pair-fields-with-actions .language-pair-trigger-slot { padding-right: var(--vzn-space-2); }
   .language-pair-actions-slot { grid-column: 1 / -1; grid-row: 2; justify-content: flex-end; padding: 0 var(--vzn-space-2) var(--vzn-space-2); }
 }
+/* Panel-aligned row (Live): the source field spans exactly the left panel and the target field plus
+   actions span the right panel. Padding and the middle column mirror the panel body (p-3) and
+   --vzn-panel-gap; the breakpoint matches .app-panel-grid, below which the panels stack. */
+@media (min-width: 1024px) {
+  .language-pair-fields.language-pair-fields-panel-aligned {
+    grid-template-columns: calc(50% - var(--vzn-panel-gap) / 2) var(--vzn-panel-gap) minmax(0, 1fr) auto auto;
+    padding-inline: var(--vzn-space-3);
+  }
+  .language-pair-controls .language-pair-fields-panel-aligned > .translate-language-control { padding-inline: 0; }
+  .language-pair-fields-panel-aligned .language-pair-trigger-slot,
+  .language-pair-fields-panel-aligned .language-pair-actions-slot { padding-right: 0; padding-left: var(--vzn-space-2); }
+  /* The arrow / swap becomes a small badge straddling the gap, centred on the selects. */
+  .language-pair-controls .language-pair-fields-panel-aligned > .translate-swap-control {
+    justify-self: center; align-self: end; justify-content: center; align-items: center;
+    width: var(--vzn-control-height-xs); height: var(--vzn-control-height-xs); padding: 0;
+    margin-bottom: calc(var(--vzn-space-2) + (var(--vzn-control-height-md) - var(--vzn-control-height-xs)) / 2);
+    border-radius: var(--vzn-radius-pill); background: var(--vzn-surface);
+    box-shadow: 0 0 0 var(--vzn-border-width) var(--vzn-border);
+  }
+  .language-pair-fields-panel-aligned .translate-direction-indicator svg { margin-block: 0; }
+  /* Keep the chevron / label clear of the part of the badge that overlaps each field. */
+  .language-pair-fields-panel-aligned .translate-source-language-control .language-picker-trigger.ui-button {
+    padding-inline-end: calc(var(--vzn-space-3) + (var(--vzn-control-height-xs) - var(--vzn-panel-gap)) / 2);
+  }
+  .language-pair-fields-panel-aligned .translate-result-language-control .language-picker-trigger.ui-button {
+    padding-inline-start: calc(var(--vzn-space-3) + (var(--vzn-control-height-xs) - var(--vzn-panel-gap)) / 2);
+  }
+  .language-pair-fields-panel-aligned .translate-swap-button.ui-button { border-radius: var(--vzn-radius-pill); }
+}

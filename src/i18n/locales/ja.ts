@@ -559,7 +559,7 @@ const ja: Translations = {
   live_clear: 'クリア',
   live_copy_all: 'すべてコピー',
   live_copied: 'コピーしました！',
-  live_no_openai_key: '音声認識（Whisper）にOpenAI APIキーが必要です。',
+  live_no_stt_key: '設定で音声認識用のAPIキー（OpenAI、Gemini、またはGroq）を追加してください。',
   live_no_translate_key: '翻訳用APIキーが設定されていません。',
   live_status_translating: '翻訳中…',
   live_panel_original: '原文',
@@ -1011,6 +1011,7 @@ const ja: Translations = {
   chat_deep_research_summarizing: '結果を統合中…',
 
   chat_deep_research_badge: 'Deep Research',
+  live_error_title: 'ライブ通訳エラー',
   live_error_stt_failed: 'STT失敗 — 次のチャンクで再試行中',
   live_error_system_audio_unavailable: 'システムオーディオが利用できません — 画面共有ダイアログで「オーディオを共有」を有効にしてから再試行してください。',
   live_error_screen_permission_denied: '画面録画の権限がありません。システム設定 → プライバシーとセキュリティ → 画面録画で有効にしてください。',
