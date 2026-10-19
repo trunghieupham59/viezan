@@ -494,6 +494,7 @@ export function LiveTranslatePage() {
             scope="live"
             sourceHeadingId="live-source-language"
             resultHeadingId="live-target-language"
+            alignToPanels
             actions={(
               <>
                 {/* ▶ Bắt Đầu / ■ Dừng */}
@@ -548,7 +549,7 @@ export function LiveTranslatePage() {
           {/* ── End controls ── */}
 
           {/* ── Body: notices + panels ── */}
-          <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-3 gap-2">
+          <div className="live-panels-body">
 
           {/* ── Panels: side-by-side (Nguyên Bản | Bản Dịch) or paired by sentence ── */}
           {viewMode === 'paired' ? (

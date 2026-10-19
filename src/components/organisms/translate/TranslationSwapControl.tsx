@@ -7,6 +7,8 @@ interface TranslationSwapControlProps {
   canSwap: boolean
   disabledReason: string
   onSwap: () => void
+  /** Button size; a compact size fits the narrow panel gap in panel-aligned rows. */
+  size?: 'xs' | 'md'
 }
 
 /** Swap control rendered in the dedicated gutter between language selectors. */
@@ -14,12 +16,13 @@ export function TranslationSwapControl({
   canSwap,
   disabledReason,
   onSwap,
+  size = 'md',
 }: TranslationSwapControlProps) {
   const t = useT()
   const tooltipId = useId()
   const swapButton = (
     <Button
-      size="md"
+      size={size}
       shape="icon"
       variant="neutral"
       appearance="ghost"

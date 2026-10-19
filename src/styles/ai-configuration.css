@@ -160,6 +160,12 @@
   box-shadow: none;
 }
 
+/* Padding and gap are mirrored by .language-pair-fields-panel-aligned so the language row lines up with the panels. */
+.live-panels-body {
+  display: flex; flex: 1 1 0%; min-height: 0; flex-direction: column; overflow: hidden;
+  padding: var(--vzn-space-3); gap: var(--vzn-space-2);
+}
+
 .live-transcript-actions {
   display: flex;
   align-items: center;

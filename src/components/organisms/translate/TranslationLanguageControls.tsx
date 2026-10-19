@@ -18,6 +18,7 @@ interface TranslationLanguageControlsProps {
   onSourceLangChange: (language: string) => void
   onTargetLangChange: (language: string) => void
   onSwap: () => void
+  swapSize?: 'xs' | 'md'
 }
 
 /** Language selection row with a dedicated, non-overlapping swap column. */
@@ -35,6 +36,7 @@ export function TranslationLanguageControls({
   onSourceLangChange,
   onTargetLangChange,
   onSwap,
+  swapSize = 'md',
 }: TranslationLanguageControlsProps) {
   const t = useT()
   const detectedLanguageName = detectedSourceLang
@@ -69,6 +71,7 @@ export function TranslationLanguageControls({
           canSwap={canSwap}
           disabledReason={swapDisabledReason}
           onSwap={onSwap}
+          size={swapSize}
         />
       ) : (
         <span className="translate-swap-control translate-direction-indicator" aria-hidden="true">
