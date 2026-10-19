@@ -559,7 +559,7 @@ const en: Translations = {
   live_clear: 'Clear',
   live_copy_all: 'Copy All',
   live_copied: 'Copied!',
-  live_no_openai_key: 'OpenAI API key required for speech recognition (Whisper).',
+  live_no_stt_key: 'Add a speech recognition API key (OpenAI, Gemini, or Groq) in Settings.',
   live_no_translate_key: 'No translation API key configured.',
   live_status_translating: 'Translating…',
   live_panel_original: 'Original',

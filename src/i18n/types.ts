@@ -632,7 +632,7 @@ export interface Translations {
   live_clear: string
   live_copy_all: string
   live_copied: string
-  live_no_openai_key: string
+  live_no_stt_key: string
   live_no_translate_key: string
   live_status_translating: string
   live_status_stt: string

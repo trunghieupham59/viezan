@@ -164,6 +164,9 @@ export function useLiveTranslate() {
    * the user always knows which backend will handle their audio.
    */
   const [activeSttProvider, setActiveSttProvider] = useState<SttBackend | 'none'>('none')
+  // Providers the main process found keys for (includes Groq, which is not in keyStatus).
+  // null until the first pre-flight check resolves.
+  const [availableSttProviders, setAvailableSttProviders] = useState<SttBackend[] | null>(null)
 
   // ── Subtitle overlay state ─────────────────────────────────────────────────
   const [showSubtitles,      setShowSubtitles]      = useState(false)
@@ -345,7 +348,15 @@ export function useLiveTranslate() {
   const segmentsRef       = useRef<LiveSegment[]>([])
   const speakerNameMapRef = useRef<Record<string, string>>({})
 
-  const hasOpenAIKey = keyStatus.openai
+  // Start is allowed when the selected STT provider has a key; 'auto' needs any of the
+  // Whisper -> Gemini -> Groq chain. Groq lives only in the keychain, so it comes from the
+  // pre-flight check. While that check is pending, don't flash a missing-key warning.
+  const sttCheckPending = availableSttProviders === null && Boolean(window.api?.checkSttProviders)
+  const hasGroqKey = availableSttProviders?.includes('groq') ?? sttCheckPending
+  const hasSttKey = sttProvider === 'whisper' ? keyStatus.openai
+    : sttProvider === 'google' ? keyStatus.gemini
+    : sttProvider === 'groq' ? hasGroqKey
+    : keyStatus.openai || keyStatus.gemini || hasGroqKey
   // Object.values(...).some() is cheap enough that useMemo overhead dwarfs
   // the saving on every render.
   const hasAnyKey    = Object.values(keyStatus).some(Boolean)
@@ -1827,7 +1838,9 @@ export function useLiveTranslate() {
     if (!window.api?.checkSttProviders) return  // guard: running in tests / web builds
     window.api.checkSttProviders()
       .then((result) => {
-        if (mountedRef.current) setActiveSttProvider(result.primary)
+        if (!mountedRef.current) return
+        setActiveSttProvider(result.primary)
+        setAvailableSttProviders(result.available)
       })
       .catch(() => { /* ignore — activeSttProvider stays 'none' */ })
   }, [keyStatus])
@@ -1913,7 +1926,7 @@ export function useLiveTranslate() {
     // Computed
     wordCount,
     isMac,
-    hasOpenAIKey,
+    hasSttKey,
     hasAnyKey,
     // Adaptive VAD mode — 'energy' (default) or 'silero' (auto-upgraded when noisy)
     vadMode,

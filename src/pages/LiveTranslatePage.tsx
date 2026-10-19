@@ -123,7 +123,7 @@ export function LiveTranslatePage() {
     segments, pendingText,
     handleStart, handleStop, handleClear, handleSummarize,
     handleExtractActionItems, handleExtractDecisions, handleRenameSpeaker,
-    getInputLevel, wordCount, isMac, hasOpenAIKey, hasAnyKey,
+    getInputLevel, wordCount, isMac, hasSttKey, hasAnyKey,
     activeSttProvider,
   } = useLiveTranslate()
 
@@ -139,13 +139,13 @@ export function LiveTranslatePage() {
   /** Session-scoped AI configuration. Transcript actions stay with transcript output. */
   const [showAIConfig, setShowAIConfig] = useState(false)
   const liveInputCopy = getLiveInputCopy(audioMode, t)
-  const startBlockedReason = !hasOpenAIKey ? t.live_no_openai_key
+  const startBlockedReason = !hasSttKey ? t.live_no_stt_key
     : !hasAnyKey ? t.live_no_translate_key
     : !isActive && liveLanguagesLocked ? t.language_pairs_locked
     : undefined
   // Missing-key toast: dismissible, and it comes back if the key is removed again later.
-  const missingKeyNotice = !hasOpenAIKey
-    ? { id: 'stt', message: t.live_no_openai_key }
+  const missingKeyNotice = !hasSttKey
+    ? { id: 'stt', message: t.live_no_stt_key }
     : !hasAnyKey
       ? { id: 'translate', message: t.live_no_translate_key }
       : null

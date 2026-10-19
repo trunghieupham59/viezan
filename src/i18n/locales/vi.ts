@@ -559,7 +559,7 @@ const vi: Translations = {
   live_clear: 'Xóa',
   live_copy_all: 'Sao chép tất cả',
   live_copied: 'Đã sao chép!',
-  live_no_openai_key: 'Cần OpenAI API key để nhận dạng giọng nói (Whisper).',
+  live_no_stt_key: 'Thêm API key nhận dạng giọng nói (OpenAI, Gemini hoặc Groq) trong Cài đặt.',
   live_no_translate_key: 'Chưa cấu hình API key để dịch.',
   live_status_translating: 'Đang dịch…',
   live_panel_original: 'Bản gốc',

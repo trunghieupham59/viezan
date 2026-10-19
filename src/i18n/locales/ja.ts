@@ -559,7 +559,7 @@ const ja: Translations = {
   live_clear: 'クリア',
   live_copy_all: 'すべてコピー',
   live_copied: 'コピーしました！',
-  live_no_openai_key: '音声認識（Whisper）にOpenAI APIキーが必要です。',
+  live_no_stt_key: '設定で音声認識用のAPIキー（OpenAI、Gemini、またはGroq）を追加してください。',
   live_no_translate_key: '翻訳用APIキーが設定されていません。',
   live_status_translating: '翻訳中…',
   live_panel_original: '原文',
