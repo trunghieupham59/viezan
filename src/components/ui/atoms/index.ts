@@ -22,3 +22,4 @@ export {
   type SkeletonBlockProps,
   type SkeletonBlockShape,
 } from './SkeletonBlock'
+export { Textarea, type TextareaProps } from './Textarea'

@@ -1,17 +1,11 @@
 import { type RefObject, useMemo } from 'react'
 import type { Language } from '../../../types'
-import { OptionPickerPanel, type PickerOption } from './OptionPickerPanel'
+import { OptionPickerPanel, type OptionPickerPanelProps, type PickerOption } from './OptionPickerPanel'
 
-export interface LanguagePickerPanelProps {
-  id?: string
-  open: boolean
+export interface LanguagePickerPanelProps extends Omit<OptionPickerPanelProps, 'options' | 'searchPlaceholder' | 'noResultsLabel'> {
   anchorRef: RefObject<HTMLElement | null>
-  onClose: (restoreFocus: boolean) => void
-  value: string | null
   options: readonly Language[]
-  onChange: (language: string) => void
   getLabel: (language: Language) => string
-  label: string
   searchPlaceholder: string
   noResultsLabel: string
 }

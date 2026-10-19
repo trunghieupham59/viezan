@@ -105,6 +105,7 @@ export function TranslationComparisonPane({
 
       <div className="translate-comparison-summary">
         <div className="translate-comparison-summary__copy">
+          <h2 id={headingId} className="translate-pane-heading">{t.translate_result_content_label}</h2>
           <strong>{t.translate_compare_heading(results.length)}</strong>
           {/* The notice only matters before the first run; afterwards it costs a line of result height. */}
           {!hasStarted && <span>{t.translate_compare_independent_notice}</span>}

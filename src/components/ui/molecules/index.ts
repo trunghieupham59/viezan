@@ -9,12 +9,20 @@ export { AIModelField, type AIModelFieldProps } from './AIModelField'
 export { ChatSessionListItem, type ChatSessionListItemProps } from './ChatSessionListItem'
 export { type ChatTaskStarterState, ChatTaskStarters } from './ChatTaskStarters'
 export { ConfigSection, type ConfigSectionProps } from './ConfigSection'
+export { DialogShell, type DialogShellProps, type DialogShellSize } from './DialogShell'
+export {
+  type DictionaryEntryChip,
+  type DictionaryEntryParagraph,
+  DictionaryEntrySections,
+  type DictionaryEntrySectionsProps,
+} from './DictionaryEntrySections'
 export { EmptyPanelState, type EmptyPanelStateProps } from './EmptyPanelState'
 export {
   type FeatureLoadingLayout,
   FeatureLoadingState,
   type FeatureLoadingStateProps,
 } from './FeatureLoadingState'
+export { FilterInput, type FilterInputProps } from './FilterInput'
 export { ImageLightbox, type ImageLightboxProps } from './ImageLightbox'
 export { LanguageOverflowPicker, type LanguageOverflowPickerProps } from './LanguageOverflowPicker'
 export { LanguagePicker, type LanguagePickerProps } from './LanguagePicker'
@@ -27,7 +35,7 @@ export {
   type NotificationToastTone,
 } from './NotificationToast'
 export { OptionPicker, type OptionPickerProps } from './OptionPicker'
-export { OptionPickerPanel, type OptionPickerPanelProps, type PickerOption } from './OptionPickerPanel'
+export { OptionPickerPanel, type OptionPickerPanelProps, type PickerChip, type PickerOption } from './OptionPickerPanel'
 export { PromptCard, type PromptCardProps, type PromptCardTone } from './PromptCard'
 export {
   RecoverableError,
@@ -40,6 +48,7 @@ export {
   type SelectFieldOption,
   type SelectFieldProps,
 } from './SelectField'
+export { TabBar, type TabBarProps, type TabBarTab } from './TabBar'
 export {
   stripTrailingEllipsis,
   ThinkingDots,
@@ -48,3 +57,4 @@ export {
   type ThinkingPillProps,
 } from './ThinkingPill'
 export { TranslationResultTab, type TranslationResultTabProps } from './TranslationResultTab'
+export { UsageCostBadge, type UsageCostBadgeProps } from './UsageCostBadge'

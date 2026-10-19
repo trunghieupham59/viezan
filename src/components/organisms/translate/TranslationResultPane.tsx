@@ -114,6 +114,9 @@ export function TranslationResultPane({
       <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {liveStatus}
       </span>
+      <header className="translate-pane-header">
+        <h2 id={headingId} className="translate-pane-heading">{t.translate_result_content_label}</h2>
+      </header>
       <div className="translate-pane-body translate-result-body">
         {translateError ? (
           <TranslateError

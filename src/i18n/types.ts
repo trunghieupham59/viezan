@@ -63,9 +63,14 @@ export interface Translations {
   language_pairs_pinned: string
   language_pairs_pin: string
   language_pairs_saved: string
-  language_pairs_manage: string
+  /** Accessible name of the connected source / target control. */
+  language_pairs_label: string
+  /** Heading of the recent / pinned pair chips in the language picker. */
+  language_pairs_recent: string
   language_pairs_unpin: string
   language_pairs_locked: string
+  /** Short lock tooltip while a Live session is running. */
+  language_pairs_locked_short: string
   language_pairs_same: string
   translate_use_as_source: string
   translate_swap: string
@@ -313,6 +318,9 @@ export interface Translations {
   dictionary_clear_history_confirm: string
   /** Accessible label on the pulsing dot shown while detail enrichment is in progress */
   dictionary_enriching: string
+  dictionary_lookup_needs_model: string
+  dictionary_clear_history_cancel: string
+  dictionary_history_label: string
 
   // Language selector
   lang_auto: string

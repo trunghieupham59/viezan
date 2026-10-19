@@ -43,11 +43,11 @@ try {
                   if (Math.min(a.rect.right, b.rect.right) - Math.max(a.rect.left, b.rect.left) > 1 && Math.min(a.rect.bottom, b.rect.bottom) - Math.max(a.rect.top, b.rect.top) > 1) problems.push(`Overlap: ${a.name} / ${b.name}`)
                 }
               }
-              const source = document.querySelector('.translate-source-pane').getBoundingClientRect()
-              const result = document.querySelector('.translate-result-pane').getBoundingClientRect()
-              if (Math.abs(source.top - result.top) < 1) {
-                const swap = document.querySelector('.translate-swap-button').getBoundingClientRect()
-                if (Math.abs((swap.left + swap.right) / 2 - result.left) > 2) problems.push('Swap is not centered on the pane divider')
+              const bar = document.querySelector('.language-pair-bar')
+              if (!bar) problems.push('Language pair bar is missing from the command row')
+              else {
+                const barBounds = bar.getBoundingClientRect()
+                if (barBounds.left < 0 || barBounds.right > innerWidth) problems.push('Language pair bar is clipped')
               }
               return problems
             })

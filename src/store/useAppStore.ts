@@ -276,6 +276,7 @@ export const useAppStore = create<AppState>()(
         liveSourceLang: state.liveSourceLang,
         liveTargetLang: state.liveTargetLang,
         pinnedLanguagePairs: state.pinnedLanguagePairs,
+        recentLanguagePairs: state.recentLanguagePairs,
         languagePairDirections: state.languagePairDirections,
         sourceLang: state.sourceLang,
         targetLang: state.targetLang,

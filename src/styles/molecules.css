@@ -1,0 +1,414 @@
+/* Shared molecule styles: DialogShell, TabBar, FilterInput, DictionaryEntrySections.
+   Every value comes from tokens.css. */
+
+/* DialogShell ------------------------------------------------------------- */
+
+.dialog-shell-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--vzn-layer-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--vzn-space-6);
+}
+
+.dialog-shell-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: var(--vzn-scrim);
+  cursor: default;
+  animation: fadeIn var(--vzn-duration-normal) var(--vzn-ease-standard);
+}
+
+.dialog-shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  inline-size: 100%;
+  max-block-size: var(--vzn-modal-viewport-block);
+  flex-direction: column;
+  overflow: hidden;
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-lg);
+  background: var(--vzn-surface);
+  color: var(--vzn-text);
+  box-shadow: var(--vzn-shadow-overlay);
+  animation: fadeIn var(--vzn-duration-normal) var(--vzn-ease-standard);
+}
+
+.dialog-shell--sm {
+  max-inline-size: var(--vzn-dialog-sm-max-inline);
+}
+
+.dialog-shell--md {
+  max-inline-size: var(--vzn-dialog-md-max-inline);
+}
+
+.dialog-shell--lg {
+  max-inline-size: var(--vzn-dialog-lg-max-inline);
+}
+
+.dialog-shell-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--vzn-space-4);
+  padding: var(--vzn-space-4) var(--vzn-space-5);
+  border-block-end: var(--vzn-border-width) solid var(--vzn-divider);
+}
+
+.dialog-shell-heading {
+  min-inline-size: 0;
+  flex: 1 1 auto;
+}
+
+.dialog-shell-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--vzn-space-2);
+  row-gap: var(--vzn-space-1);
+  margin: 0;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-title-lg);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: var(--vzn-line-tight);
+  user-select: text;
+}
+
+.dialog-shell-subtitle {
+  display: flex;
+  align-items: center;
+  gap: var(--vzn-space-1-5);
+  margin: var(--vzn-space-1) 0 0;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.dialog-shell-close {
+  flex: 0 0 auto;
+}
+
+.dialog-shell-body {
+  min-block-size: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: var(--vzn-space-4) var(--vzn-space-5);
+  color: var(--vzn-text);
+  font-size: var(--vzn-font-size-lg);
+  line-height: var(--vzn-line-relaxed);
+}
+
+.dialog-shell-footer {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-3) var(--vzn-space-5);
+  border-block-start: var(--vzn-border-width) solid var(--vzn-divider);
+  background: var(--vzn-surface-muted);
+}
+
+/* TabBar ------------------------------------------------------------------ */
+
+.tab-bar {
+  display: flex;
+  gap: var(--vzn-space-1-5);
+}
+
+.tab-bar > .ui-button.tab-bar-tab {
+  min-inline-size: 0;
+  flex: 1 1 0;
+  gap: var(--vzn-space-2);
+}
+
+.tab-bar-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.tab-bar-icon > svg {
+  inline-size: var(--vzn-icon-sm);
+  block-size: var(--vzn-icon-sm);
+}
+
+.tab-bar-label {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-bar-count {
+  display: inline-flex;
+  min-inline-size: var(--vzn-space-5);
+  block-size: var(--vzn-space-5);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--vzn-space-1-5);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-surface-subtle);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.tab-bar-count[data-active='true'] {
+  background: var(--vzn-action);
+  color: var(--vzn-action-fg);
+}
+
+/* FilterInput ------------------------------------------------------------- */
+
+.filter-input {
+  position: relative;
+  display: flex;
+  min-inline-size: 0;
+  align-items: center;
+  gap: var(--vzn-space-1);
+  padding-inline: var(--vzn-space-2) var(--vzn-space-1);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-control);
+  background: var(--vzn-surface);
+  transition:
+    border-color var(--vzn-duration-fast) var(--vzn-ease-standard),
+    box-shadow var(--vzn-duration-fast) var(--vzn-ease-standard);
+}
+
+.filter-input:hover {
+  border-color: var(--vzn-border-strong);
+}
+
+.filter-input:focus-within {
+  border-color: var(--vzn-action-border);
+  box-shadow: inset 0 0 0 var(--vzn-border-width) var(--vzn-focus-ring);
+}
+
+.filter-input[data-invalid='true'] {
+  border-color: var(--vzn-danger-border);
+  box-shadow: 0 0 0 var(--vzn-space-0-5) var(--vzn-danger-soft);
+}
+
+.filter-input--sm {
+  block-size: var(--vzn-control-height-sm);
+}
+
+.filter-input--md {
+  block-size: var(--vzn-control-height-md);
+}
+
+.filter-input--lg {
+  block-size: var(--vzn-control-height-lg);
+}
+
+.filter-input-icon {
+  inline-size: var(--vzn-icon-sm);
+  block-size: var(--vzn-icon-sm);
+  flex: 0 0 auto;
+  color: var(--vzn-text-soft);
+  pointer-events: none;
+}
+
+/* The wrapper draws the frame, so the inner atom is borderless and fills it. */
+.filter-input > .ui-input.filter-input-field {
+  block-size: 100%;
+  min-inline-size: 0;
+  flex: 1 1 auto;
+  padding-inline: var(--vzn-space-1);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  user-select: text;
+}
+
+.filter-input > .ui-input.filter-input-field:focus-visible {
+  outline: none !important;
+}
+
+.filter-input--sm > .ui-input.filter-input-field {
+  font-size: var(--vzn-font-size-sm);
+}
+
+.filter-input-trailing {
+  flex: 0 0 auto;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-micro);
+  font-weight: var(--vzn-weight-medium);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.filter-input-trailing [data-invalid='true'] {
+  color: var(--vzn-danger);
+}
+
+.filter-input-clear {
+  flex: 0 0 auto;
+}
+
+.filter-input-clear > svg {
+  inline-size: var(--vzn-icon-xs);
+  block-size: var(--vzn-icon-xs);
+}
+
+/* DictionaryEntrySections ------------------------------------------------- */
+
+.entry-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-5);
+  color: var(--vzn-text);
+  font-size: var(--vzn-font-size-lg);
+  line-height: var(--vzn-line-relaxed);
+}
+
+.entry-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
+}
+
+.entry-section-label {
+  margin: 0;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-bold);
+  letter-spacing: 0.07em;
+  line-height: var(--vzn-line-tight);
+  text-transform: uppercase;
+}
+
+.entry-meaning {
+  margin: 0;
+  padding-inline-start: var(--vzn-space-3);
+  border-inline-start: var(--vzn-space-0-5) solid var(--vzn-text-muted);
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-subtitle);
+  line-height: var(--vzn-line-height-reading);
+  user-select: text;
+}
+
+.entry-paragraph {
+  margin: 0;
+  user-select: text;
+}
+
+.entry-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vzn-space-1-5);
+}
+
+.entry-chip,
+.entry-chip--static {
+  display: inline-flex;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  align-items: baseline;
+  gap: var(--vzn-space-1-5);
+}
+
+.entry-chip--static {
+  block-size: var(--vzn-control-height-sm);
+  align-items: center;
+  padding-inline: var(--vzn-space-3);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-surface-muted);
+  color: var(--vzn-text);
+  user-select: text;
+}
+
+.entry-chip-text {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--vzn-font-size-md);
+  font-weight: var(--vzn-weight-medium);
+}
+
+.entry-chip-pronunciation {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--vzn-text-soft);
+  font-family: var(--vzn-font-mono);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-regular);
+}
+
+.entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-1-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--vzn-space-2);
+  user-select: text;
+}
+
+.entry-list-index {
+  display: inline-flex;
+  inline-size: var(--vzn-icon-md);
+  block-size: var(--vzn-icon-md);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  margin-block-start: var(--vzn-space-0-5);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-surface-subtle);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-micro);
+  font-weight: var(--vzn-weight-bold);
+  line-height: 1;
+}
+
+.entry-list-bullet {
+  display: inline-block;
+  inline-size: var(--vzn-space-1);
+  block-size: var(--vzn-space-1);
+  flex: 0 0 auto;
+  margin-block-start: var(--vzn-space-2);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-text-muted);
+}
+
+.entry-list-text {
+  min-inline-size: 0;
+  flex: 1 1 auto;
+}
+
+.entry-phrase {
+  display: inline-flex;
+  padding: var(--vzn-space-1) var(--vzn-space-2);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-xs);
+  background: var(--vzn-surface-muted);
+  color: var(--vzn-text);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-medium);
+  user-select: text;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog-shell,
+  .dialog-shell-backdrop {
+    animation: none;
+  }
+}

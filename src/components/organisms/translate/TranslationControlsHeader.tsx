@@ -1,4 +1,4 @@
-import { useCallback, useId, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useId, useRef, useState } from 'react'
 import { PROVIDERS } from '../../../constants/providers'
 import { useT } from '../../../store/useAppStore'
 import type {
@@ -18,6 +18,8 @@ import { TranslationModelDialog } from './TranslationModelDialog'
 
 interface TranslationControlsHeaderProps {
   titleId: string
+  /** Language pair control shown at the start of the command row. */
+  languageControls?: ReactNode
   translationStyle: TranslationStyle
   onStyleChange: (style: TranslationStyle) => void
   reasoningEffort: TranslationReasoningEffort
@@ -38,6 +40,7 @@ interface TranslationControlsHeaderProps {
 /** Translation utility bar with a focused model dialog and compact output settings. */
 export function TranslationControlsHeader({
   titleId,
+  languageControls,
   translationStyle,
   onStyleChange,
   reasoningEffort,
@@ -119,7 +122,8 @@ export function TranslationControlsHeader({
   return (
     <div className="translate-header-stack">
       <header className="translate-page-header">
-        <h1 id={titleId} className="translate-page-title">{t.nav_translate}</h1>
+        <h1 id={titleId} className="sr-only">{t.nav_translate}</h1>
+        {languageControls}
 
         <fieldset className="translate-header-controls">
           <legend className="sr-only">{t.translate_controls_label}</legend>

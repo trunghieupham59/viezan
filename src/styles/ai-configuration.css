@@ -160,7 +160,6 @@
   box-shadow: none;
 }
 
-/* Padding and gap are mirrored by .language-pair-fields-panel-aligned so the language row lines up with the panels. */
 .live-panels-body {
   display: flex; flex: 1 1 0%; min-height: 0; flex-direction: column; overflow: hidden;
   padding: var(--vzn-space-3); gap: var(--vzn-space-2);
@@ -205,6 +204,30 @@
 
 .live-toolbar-end {
   margin-inline-start: auto;
+}
+
+/* Panel title: first item of the panel toolbar, separated from the controls that follow it. */
+.live-panel-title {
+  margin: 0;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-md);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: var(--vzn-line-tight);
+  white-space: nowrap;
+}
+
+.live-toolbar-start > .live-panel-title:not(:last-child) {
+  padding-inline-end: var(--vzn-space-2);
+  border-inline-end: var(--vzn-border-width) solid var(--vzn-divider);
+}
+
+/* Recorded-session notice under the command row when the working pair no longer matches it. */
+.live-language-notice {
+  margin: 0;
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
 }
 
 /* Paired layout: one panel that fills the workspace in place of the split grid. */
