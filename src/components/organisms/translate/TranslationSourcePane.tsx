@@ -108,6 +108,9 @@ export function TranslationSourcePane({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
+      <header className="translate-pane-header">
+        <h2 id={headingId} className="translate-pane-heading">{t.translate_source_content_label}</h2>
+      </header>
       <div
         className="translate-pane-body translate-source-body"
       >

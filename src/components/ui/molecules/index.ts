@@ -27,7 +27,7 @@ export {
   type NotificationToastTone,
 } from './NotificationToast'
 export { OptionPicker, type OptionPickerProps } from './OptionPicker'
-export { OptionPickerPanel, type OptionPickerPanelProps, type PickerOption } from './OptionPickerPanel'
+export { OptionPickerPanel, type OptionPickerPanelProps, type PickerChip, type PickerOption } from './OptionPickerPanel'
 export { PromptCard, type PromptCardProps, type PromptCardTone } from './PromptCard'
 export {
   RecoverableError,

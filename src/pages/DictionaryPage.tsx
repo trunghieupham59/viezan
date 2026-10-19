@@ -83,8 +83,7 @@ export function DictionaryPage() {
     setPendingDictionaryTerm,
     sourceLang,
     targetLang,
-    setSourceLang,
-    setTargetLang,
+    setLanguagePair,
     selectedProvider,
     selectedModels,
     setSourceText,
@@ -417,8 +416,7 @@ export function DictionaryPage() {
 
   const handleReuse = () => {
     if (!selectedEntry) return
-    setSourceLang(selectedEntry.sourceLang)
-    setTargetLang(selectedEntry.targetLang)
+    setLanguagePair('translate', { source: selectedEntry.sourceLang, target: selectedEntry.targetLang })
     setSourceText(selectedEntry.term)
     setTranslatedText('')
     setPhoneticText('')
@@ -469,10 +467,7 @@ export function DictionaryPage() {
               }}
               context={context}
               onContextChange={setContext}
-              sourceLang={sourceLang}
-              onSourceLangChange={setSourceLang}
-              targetLang={targetLang}
-              onTargetLangChange={setTargetLang}
+              onLanguagePairChange={(pair) => setLanguagePair('translate', pair)}
               isLoading={isLoading}
               canSubmit={Boolean(model)}
               error={errorRecoverable ? null : error}

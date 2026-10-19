@@ -1,0 +1,277 @@
+/* LanguagePairBar: source ⇄ target as one connected control. Density and fill
+   are modifiers; every value comes from tokens.css. */
+
+.language-pair-bar {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  height: var(--vzn-control-height-md);
+  flex: 0 1 auto;
+  align-items: stretch;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-control);
+  background: var(--vzn-surface);
+  /* Not overflow: hidden — the middle slot's tooltip hangs below the bar. */
+  --language-pair-inner-radius: calc(var(--vzn-radius-control) - var(--vzn-border-width));
+}
+
+.language-pair-bar > .ui-button.language-pair-half {
+  height: 100% !important;
+  min-height: 0 !important;
+  min-width: 0;
+  max-width: var(--vzn-language-pair-half-max);
+  flex: 0 1 auto;
+  justify-content: flex-start;
+  gap: var(--vzn-space-2);
+  padding-inline: var(--vzn-space-3);
+  border-color: transparent !important;
+  border-radius: 0;
+  font-weight: var(--vzn-weight-medium);
+}
+
+/* The halves round only the outer corners so hover / open fills stay inside the frame. */
+.language-pair-bar > .ui-button.language-pair-half--source {
+  border-start-start-radius: var(--language-pair-inner-radius);
+  border-end-start-radius: var(--language-pair-inner-radius);
+}
+
+.language-pair-bar > .ui-button.language-pair-half--target,
+.language-pair-bar--single > .ui-button.language-pair-half--target {
+  border-start-end-radius: var(--language-pair-inner-radius);
+  border-end-end-radius: var(--language-pair-inner-radius);
+}
+
+.language-pair-bar--single > .ui-button.language-pair-half--target {
+  border-start-start-radius: var(--language-pair-inner-radius);
+  border-end-start-radius: var(--language-pair-inner-radius);
+}
+
+.language-pair-bar > .ui-button.language-pair-half:not(:disabled) {
+  color: var(--vzn-text-strong) !important;
+}
+
+.language-pair-bar > .ui-button.language-pair-half[aria-expanded="true"]:not(:disabled) {
+  color: var(--vzn-action-text) !important;
+}
+
+.language-pair-half-label {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.language-pair-half-icon {
+  width: var(--vzn-icon-sm);
+  height: var(--vzn-icon-sm);
+  flex: 0 0 var(--vzn-icon-sm);
+  color: var(--vzn-text-soft);
+}
+
+.language-pair-half-spinner {
+  animation: spin 1s linear infinite;
+}
+
+.language-pair-tag {
+  display: inline-flex;
+  height: calc(var(--vzn-control-height-xs) - var(--vzn-space-2) - var(--vzn-space-0-5));
+  flex: 0 0 auto;
+  align-items: center;
+  padding-inline: var(--vzn-space-1-5);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-action-soft);
+  color: var(--vzn-action-text);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: var(--vzn-line-tight);
+}
+
+.language-pair-chevron {
+  width: var(--vzn-icon-xs);
+  height: var(--vzn-icon-xs);
+  flex: 0 0 var(--vzn-icon-xs);
+  color: var(--vzn-text-soft);
+  transition: transform var(--vzn-duration-fast) var(--vzn-ease-standard);
+}
+
+.language-pair-chevron--open {
+  transform: rotate(180deg);
+}
+
+/* The middle slot is always the same width whether it holds swap, arrow, or lock. */
+.language-pair-mid {
+  position: relative;
+  display: flex;
+  width: var(--vzn-control-height-md);
+  min-width: 0;
+  flex: 0 0 var(--vzn-control-height-md);
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-inline: var(--vzn-border-width) solid var(--vzn-divider);
+  color: var(--vzn-text-muted);
+}
+
+.language-pair-bar .language-pair-mid > .ui-button.ui-button-icon.language-pair-mid-button {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  border-color: transparent !important;
+  border-radius: 0;
+}
+
+.language-pair-mid--static {
+  color: var(--vzn-text-soft);
+}
+
+.language-pair-mid--static > svg,
+.language-pair-mid-button > svg {
+  width: var(--vzn-icon-sm);
+  height: var(--vzn-icon-sm);
+}
+
+/* Disabled swap / lock: the group is focusable so the reason is reachable from the keyboard. */
+.language-pair-mid--disabled:focus-visible,
+.language-pair-mid--locked:focus-visible {
+  outline: none !important;
+}
+
+.language-pair-mid--disabled:focus-visible .ui-button:disabled,
+.language-pair-mid--locked:focus-visible .ui-button:disabled {
+  box-shadow: inset 0 0 0 var(--vzn-border-width) var(--vzn-focus-ring) !important;
+}
+
+.language-pair-tooltip {
+  position: absolute;
+  top: calc(100% + var(--vzn-space-2));
+  left: 50%;
+  z-index: var(--vzn-layer-picker);
+  width: max-content;
+  max-width: min(var(--vzn-picker-min-inline), calc(100vw - var(--vzn-space-6)));
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-control);
+  background: var(--vzn-surface-raised);
+  box-shadow: var(--vzn-shadow-md);
+  color: var(--vzn-text);
+  font-size: var(--vzn-font-size-caption);
+  line-height: var(--vzn-line-normal);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity var(--vzn-duration-fast) var(--vzn-ease-standard);
+  visibility: hidden;
+  white-space: normal;
+}
+
+.language-pair-mid:hover .language-pair-tooltip,
+.language-pair-mid:focus-visible .language-pair-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Locked: the whole control reads as disabled, not only its halves. */
+.language-pair-bar--locked {
+  border-color: var(--vzn-disabled-border);
+  background: var(--vzn-disabled-bg);
+}
+
+.language-pair-bar--locked .language-pair-mid {
+  border-inline-color: var(--vzn-disabled-border);
+  color: var(--vzn-disabled-fg);
+}
+
+.language-pair-bar--locked .language-pair-chevron,
+.language-pair-bar--locked .language-pair-half-icon {
+  color: var(--vzn-disabled-fg);
+}
+
+/* inline: no outer frame, only the middle slot's dividers (composite inputs, command bars). */
+.language-pair-bar--inline {
+  border-color: transparent;
+  background: transparent;
+}
+
+.language-pair-bar--inline > .ui-button.language-pair-half {
+  padding-inline: var(--vzn-space-2);
+}
+
+/* compact: language codes instead of names, tighter padding. */
+.language-pair-bar--compact > .ui-button.language-pair-half {
+  padding-inline: var(--vzn-space-2);
+  font-size: var(--vzn-font-size-sm);
+}
+
+/* fill: halves share the row equally. */
+.language-pair-bar--fill {
+  display: flex;
+  width: 100%;
+}
+
+.language-pair-bar--fill > .ui-button.language-pair-half {
+  max-width: none;
+  flex: 1 1 0;
+  justify-content: space-between;
+}
+
+.language-pair-bar--single {
+  display: inline-flex;
+}
+
+/* Command row that hosts the bar: bar at the start, feature actions at the end. */
+.feature-command-bar {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-2) var(--vzn-space-3);
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
+  background: var(--vzn-surface);
+}
+
+.feature-command-bar-end {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-2);
+  margin-inline-start: auto;
+}
+
+/* Narrow feature width: the field bar fills its own row, actions drop below it, right-aligned. */
+@container app-main (max-width: 639px) {
+  .language-pair-bar--field {
+    display: flex;
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .language-pair-bar--field > .ui-button.language-pair-half {
+    max-width: none;
+    flex: 1 1 0;
+    justify-content: space-between;
+    padding-inline: var(--vzn-space-2);
+  }
+
+  .feature-command-bar-end {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .language-pair-chevron,
+  .language-pair-tooltip,
+  .language-pair-half-spinner {
+    animation: none;
+    transition: none;
+  }
+}

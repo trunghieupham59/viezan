@@ -40,9 +40,9 @@ beforeEach(() => {
 })
 
 describe('AI Interpret screen', () => {
-  it('keeps Start on the language row and shows a direction arrow instead of a dead swap', () => {
+  it('keeps Start on the command row and shows a direction arrow instead of a dead swap', () => {
     render(<LiveTranslatePage />)
-    const row = document.querySelector('.language-pair-fields') as HTMLElement
+    const row = document.querySelector('.feature-command-bar') as HTMLElement
     expect(within(row).getByRole('button', { name: t.live_start })).toBeEnabled()
     expect(within(row).getByRole('button', { name: t.ai_configuration_title })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: t.translate_swap })).not.toBeInTheDocument()
@@ -72,7 +72,7 @@ describe('AI Interpret screen', () => {
   it('explains why Start is unavailable when no translation key is configured', () => {
     live.state = liveState({ hasAnyKey: false })
     render(<LiveTranslatePage />)
-    const row = document.querySelector('.language-pair-fields') as HTMLElement
+    const row = document.querySelector('.feature-command-bar') as HTMLElement
     const start = within(row).getByRole('button', { name: t.live_start })
     expect(start).toBeDisabled()
     expect(start).toHaveAttribute('title', t.live_no_translate_key)
@@ -95,7 +95,7 @@ describe('AI Interpret screen', () => {
   it('blocks Start with the speech-recognition message when no STT provider has a key', () => {
     live.state = liveState({ hasSttKey: false })
     render(<LiveTranslatePage />)
-    const row = document.querySelector('.language-pair-fields') as HTMLElement
+    const row = document.querySelector('.feature-command-bar') as HTMLElement
     const start = within(row).getByRole('button', { name: t.live_start })
     expect(start).toBeDisabled()
     expect(start).toHaveAttribute('title', t.live_no_stt_key)
@@ -104,7 +104,7 @@ describe('AI Interpret screen', () => {
   it('keeps Start enabled and shows no key notice when an STT provider is usable', () => {
     live.state = liveState({ hasSttKey: true, activeSttProvider: 'gemini' })
     render(<LiveTranslatePage />)
-    const row = document.querySelector('.language-pair-fields') as HTMLElement
+    const row = document.querySelector('.feature-command-bar') as HTMLElement
     expect(within(row).getByRole('button', { name: t.live_start })).toBeEnabled()
     expect(screen.queryByText(t.live_no_stt_key)).not.toBeInTheDocument()
   })

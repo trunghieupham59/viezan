@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import {
-  LanguagePairControls,
+  LanguagePairBar,
   TranslationComparisonPane,
   TranslationControlsHeader,
   TranslationResultPane,
@@ -135,6 +135,14 @@ export function TranslatePage() {
   const header = (
     <TranslationControlsHeader
       titleId={TRANSLATE_PAGE_TITLE_ID}
+      languageControls={(
+        <LanguagePairBar
+          scope="translate"
+          detectedSourceLang={isResultStale ? null : detectedSourceLang}
+          isDetectingLang={isDetectingLang}
+          onPairChange={handleLanguagePairChange}
+        />
+      )}
       translationStyle={translationStyle}
       onStyleChange={setTranslationStyle}
       reasoningEffort={translationReasoningEffort}
@@ -251,16 +259,6 @@ export function TranslatePage() {
         titleId={TRANSLATE_PAGE_TITLE_ID}
         layout={isComparisonMode ? 'comparison' : 'single'}
         header={header}
-        languageControls={(
-          <LanguagePairControls
-            scope="translate"
-            sourceHeadingId={TRANSLATE_SOURCE_HEADING_ID}
-            resultHeadingId={TRANSLATE_RESULT_HEADING_ID}
-            detectedSourceLang={isResultStale ? null : detectedSourceLang}
-            isDetectingLang={isDetectingLang}
-            onPairChange={handleLanguagePairChange}
-          />
-        )}
         sourcePanel={sourcePanel}
         resultPanel={resultPanel}
       />

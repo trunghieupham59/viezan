@@ -3,7 +3,7 @@ import { BilingualSegmentRow } from '../components/live/BilingualSegmentRow'
 import { SegmentRow } from '../components/live/SegmentRow'
 import { TranslationRow } from '../components/live/TranslationRow'
 import { MarkdownText } from '../components/MarkdownText'
-import { AIModelPickerField, InterpretAIConfiguration, InterpretSubtitleConfiguration, LanguagePairControls, LiveSessionStatus } from '../components/organisms'
+import { AIModelPickerField, InterpretAIConfiguration, InterpretSubtitleConfiguration, LanguagePairBar, LiveSessionStatus } from '../components/organisms'
 import { Button } from '../components/ui/atoms'
 import { 
   CheckIcon,
@@ -490,61 +490,60 @@ export function LiveTranslatePage() {
       <div className="app-workspace">
         <div className="glass-panel flex-1 min-h-0 flex flex-col overflow-hidden">
 
-          <LanguagePairControls
-            scope="live"
-            sourceHeadingId="live-source-language"
-            resultHeadingId="live-target-language"
-            alignToPanels
-            actions={(
-              <>
-                {/* ▶ Bắt Đầu / ■ Dừng */}
-                <Button
-                  size="md"
-                  shape="rect"
-                  variant={isActive ? 'danger' : 'primary'}
-                  appearance="solid"
-                  type="button"
-                  onClick={isActive ? handleStop : startSession}
-                  disabled={Boolean(startBlockedReason)}
-                  title={startBlockedReason}
-                  className="flex-shrink-0"
-                >
-                  {isActive ? (
-                    <><StopIcon className="w-3.5 h-3.5" />{t.live_stop}</>
-                  ) : (
-                    <><MicrophoneIcon className="w-3.5 h-3.5" />{t.live_start}</>
-                  )}
-                </Button>
+          <div className="feature-command-bar">
+            <h1 className="sr-only">{t.nav_live_translate}</h1>
+            <LanguagePairBar
+              scope="live"
+              lockedReason={isActive ? t.language_pairs_locked_short : t.language_pairs_locked}
+            />
+            <div className="feature-command-bar-end">
+              <InterpretAIConfiguration
+                open={showAIConfig}
+                active={isActive}
+                title={t.ai_configuration_title}
+                scopeDescription={isActive
+                  ? t.ai_configuration_interpret_active_scope
+                  : t.ai_configuration_interpret_scope}
+                closeLabel={t.settings_close}
+                translationLabel={t.ai_configuration_translation_section}
+                outputLabel={t.ai_configuration_output_section}
+                onOpenChange={setShowAIConfig}
+                modelControl={<AIModelPickerField />}
+                subtitleControl={(
+                  <InterpretSubtitleConfiguration
+                    enabled={showSubtitles}
+                    onEnabledChange={setShowSubtitles}
+                    settings={subtitleSettings}
+                    onSettingsChange={setSubtitleSettings}
+                    onReset={() => setSubtitleSettings({ ...DEFAULT_SUBTITLE_SETTINGS })}
+                    colors={subtitleColors}
+                    fontSizes={SUBTITLE_FONT_SIZES}
+                  />
+                )}
+              />
 
-                <InterpretAIConfiguration
-                  open={showAIConfig}
-                  active={isActive}
-                  title={t.ai_configuration_title}
-                  scopeDescription={isActive
-                    ? t.ai_configuration_interpret_active_scope
-                    : t.ai_configuration_interpret_scope}
-                  closeLabel={t.settings_close}
-                  translationLabel={t.ai_configuration_translation_section}
-                  outputLabel={t.ai_configuration_output_section}
-                  onOpenChange={setShowAIConfig}
-                  modelControl={<AIModelPickerField />}
-                  subtitleControl={(
-                    <InterpretSubtitleConfiguration
-                      enabled={showSubtitles}
-                      onEnabledChange={setShowSubtitles}
-                      settings={subtitleSettings}
-                      onSettingsChange={setSubtitleSettings}
-                      onReset={() => setSubtitleSettings({ ...DEFAULT_SUBTITLE_SETTINGS })}
-                      colors={subtitleColors}
-                      fontSizes={SUBTITLE_FONT_SIZES}
-                    />
-                  )}
-                />
-              </>
-            )}
-          />
+              {/* ▶ Bắt Đầu / ■ Dừng — the row's single solid action */}
+              <Button
+                size="md"
+                shape="rect"
+                variant={isActive ? 'danger' : 'primary'}
+                appearance="solid"
+                type="button"
+                onClick={isActive ? handleStop : startSession}
+                disabled={Boolean(startBlockedReason)}
+                title={startBlockedReason}
+                className="flex-shrink-0"
+              >
+                {isActive ? (
+                  <><StopIcon className="w-3.5 h-3.5" />{t.live_stop}</>
+                ) : (
+                  <><MicrophoneIcon className="w-3.5 h-3.5" />{t.live_start}</>
+                )}
+              </Button>
+            </div>
+          </div>
           {(rawTranscript || translation) && (liveSourceLang !== sessionLanguages.sourceLang || liveTargetLang !== sessionLanguages.targetLang) && (
-            <p className="language-pair-notice">{t.language_pairs_previous_session}: {t.lang_names[sessionLanguages.sourceLang] ?? sessionLanguages.sourceLang} → {t.lang_names[sessionLanguages.targetLang] ?? sessionLanguages.targetLang}</p>
+            <p className="live-language-notice">{t.language_pairs_previous_session}: {t.lang_names[sessionLanguages.sourceLang] ?? sessionLanguages.sourceLang} → {t.lang_names[sessionLanguages.targetLang] ?? sessionLanguages.targetLang}</p>
           )}
           {/* ── End controls ── */}
 
@@ -605,7 +604,10 @@ export function LiveTranslatePage() {
             <div className="glass-panel h-full flex flex-col">
               {/* Audio source stays visible; it is locked while a session runs. */}
               <div className="live-panel-toolbar">
-                {audioSourceGroup}
+                <div className="live-toolbar-start">
+                  <h2 className="live-panel-title">{t.live_panel_original}</h2>
+                  {audioSourceGroup}
+                </div>
                 {sessionStatus}
               </div>
               <div className="live-scroll-region">
@@ -645,7 +647,10 @@ export function LiveTranslatePage() {
             <div className="glass-panel h-full flex flex-col">
               {/* STT provider badge (only when active), layout + floating subtitle toggles */}
               <div className="live-panel-toolbar">
-                {sttBadge ?? <span />}
+                <div className="live-toolbar-start">
+                  <h2 className="live-panel-title">{t.live_panel_translation}</h2>
+                  {sttBadge}
+                </div>
                 <div className="live-toolbar-end">{viewToggle}{subtitleToggle}</div>
               </div>
               <div className="live-scroll-region">

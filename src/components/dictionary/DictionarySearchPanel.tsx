@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/atoms'
 import type { Translations } from '../../i18n'
-import { LanguageSelector } from '../LanguageSelector'
+import { LanguagePairBar } from '../organisms'
 import {
   AlertTriangleIcon,
   BookIcon,
@@ -17,10 +17,8 @@ interface DictionarySearchPanelProps {
   onTermChange: (value: string) => void
   context: string
   onContextChange: (value: string) => void
-  sourceLang: string
-  onSourceLangChange: (lang: string) => void
-  targetLang: string
-  onTargetLangChange: (lang: string) => void
+  /** Both sides change together so a recent-pair chip is one update. */
+  onLanguagePairChange: (pair: { source: string; target: string }) => void
   isLoading: boolean
   canSubmit: boolean
   error: string | null
@@ -34,19 +32,16 @@ interface DictionarySearchPanelProps {
  * Compact "command-bar" style search for the Dictionary screen.
  *
  * Visually it reads as a single elevated input row containing every
- * primary control: source language → search field → target language →
- * submit.  An optional context box opens inline as a single-row
- * disclosure underneath, keeping the panel quiet by default.
+ * primary control: language pair → search field → submit.  An optional
+ * context box opens inline as a single-row disclosure underneath, keeping
+ * the panel quiet by default.
  */
 export function DictionarySearchPanel({
   term,
   onTermChange,
   context,
   onContextChange,
-  sourceLang,
-  onSourceLangChange,
-  targetLang,
-  onTargetLangChange,
+  onLanguagePairChange,
   isLoading,
   canSubmit,
   error,
@@ -82,16 +77,8 @@ export function DictionarySearchPanel({
       {/* ── Hero command bar ───────────────────────────────────────────── */}
       <div className="surface-panel surface-panel-focus">
         <div className="flex items-center gap-1.5 p-1.5">
-          {/* Source language — borderless inline picker */}
-          <LanguageSelector
-            value={sourceLang}
-            onChange={onSourceLangChange}
-            includeAuto
-            variant="inline"
-            label={t.dictionary_source_lang}
-            labelVisuallyHidden
-            className="flex-shrink-0"
-          />
+          {/* Language pair — one connected inline control, shared with Translate and Live */}
+          <LanguagePairBar scope="dictionary" density="inline" onPairChange={onLanguagePairChange} />
 
           <span aria-hidden className="h-5 w-px flex-shrink-0 bg-gray-200 dark:bg-neutral-800" />
 
@@ -134,18 +121,6 @@ export function DictionarySearchPanel({
               </Button>
             )}
           </div>
-
-          <span aria-hidden className="h-5 w-px flex-shrink-0 bg-gray-200 dark:bg-neutral-800" />
-
-          {/* Target language */}
-          <LanguageSelector
-            value={targetLang}
-            onChange={onTargetLangChange}
-            variant="inline"
-            label={t.dictionary_target_lang}
-            labelVisuallyHidden
-            className="flex-shrink-0"
-          />
 
           {/* Submit */}
           <Button

@@ -108,6 +108,61 @@
   padding-left: calc(var(--vzn-space-3) + var(--vzn-icon-sm) + var(--vzn-space-2));
 }
 
+/* Quick-pick chips (recent / pinned pairs) above the searchable list. */
+.language-picker-chips {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: var(--vzn-space-1-5);
+  margin: 0;
+  padding: 0 0 var(--vzn-space-2);
+  border: 0;
+  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
+}
+
+.language-picker-section-label {
+  float: left;
+  width: 100%;
+  margin: 0;
+  padding: 0 var(--vzn-space-1);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: var(--vzn-line-tight);
+}
+
+.language-picker-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vzn-space-1);
+}
+
+.language-picker-chip {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+}
+
+.language-picker-chip-select.ui-button {
+  min-width: 0;
+  max-width: 100%;
+  font-weight: var(--vzn-weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.language-picker-chip-pin > svg {
+  width: var(--vzn-icon-sm);
+  height: var(--vzn-icon-sm);
+}
+
+.language-picker-chip-pin--active > svg {
+  fill: currentColor;
+}
+
 .language-picker-list {
   display: flex;
   min-height: 0;

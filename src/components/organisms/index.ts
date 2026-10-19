@@ -17,6 +17,7 @@ export {
   type HistoryNavigationItem,
   type HistoryNavigationProps,
 } from './HistoryNavigation'
+export { LanguagePairBar, type LanguagePairBarDensity, type LanguagePairBarProps, type LanguagePairBarScope } from './LanguagePairBar'
 export {
   InterpretAIConfiguration,
   type InterpretAIConfigurationProps,
@@ -34,12 +35,9 @@ export {
   type SettingsNavigationItem,
   type SettingsNavigationProps,
 } from './SettingsNavigation'
-export { LanguagePairControls } from './translate/LanguagePairControls'
 export { TranslationComparisonPane } from './translate/TranslationComparisonPane'
 export { TranslationControlsHeader } from './translate/TranslationControlsHeader'
-export { TranslationLanguageControls } from './translate/TranslationLanguageControls'
 export { TranslationModelPicker } from './translate/TranslationModelPicker'
 export { TranslationResultPane } from './translate/TranslationResultPane'
 export { TranslationSourcePane } from './translate/TranslationSourcePane'
-export { TranslationSwapControl } from './translate/TranslationSwapControl'
 export { UpdateNotification } from './UpdateNotification'

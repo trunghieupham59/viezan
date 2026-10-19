@@ -4,7 +4,6 @@ export interface TranslateWorkbenchTemplateProps {
   titleId: string
   layout?: 'single' | 'comparison'
   header: ReactNode
-  languageControls: ReactNode
   sourcePanel: ReactNode
   resultPanel: ReactNode
 }
@@ -14,12 +13,12 @@ export interface TranslateWorkbenchTemplateProps {
  *
  * The page owns data and behavior; this template only establishes the shared
  * workbench geometry so source and result remain one coherent task surface.
+ * Language selection lives in the header's command row, not in the workbench.
  */
 export function TranslateWorkbenchTemplate({
   titleId,
   layout = 'single',
   header,
-  languageControls,
   sourcePanel,
   resultPanel,
 }: TranslateWorkbenchTemplateProps) {
@@ -32,7 +31,6 @@ export function TranslateWorkbenchTemplate({
           aria-labelledby={titleId}
           data-layout={layout}
         >
-          {languageControls}
           {sourcePanel}
           {resultPanel}
         </section>

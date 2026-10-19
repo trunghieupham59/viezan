@@ -78,11 +78,11 @@ try {
     // A DOM click keeps keyboard modality, so the later focus() still matches :focus-visible.
     await page.getByRole('button', { name: /^AI Translate$/ }).first().evaluate(element => element.click())
 
-    const disabledSwap = page.locator('.translate-swap-control-disabled')
+    const disabledSwap = page.locator('.language-pair-mid--disabled')
     await disabledSwap.waitFor()
     await disabledSwap.focus()
     assert(
-      await page.locator('.translate-swap-tooltip').evaluate(
+      await page.locator('.language-pair-tooltip').evaluate(
         element => getComputedStyle(element).visibility === 'visible',
       ),
       'Disabled language swap explanation is not keyboard discoverable',
@@ -96,7 +96,7 @@ try {
         const main = document.querySelector('.app-main')
         const source = document.querySelector('.translate-source-pane')
         const result = document.querySelector('.translate-result-pane')
-        const swapIcon = document.querySelector('.translate-swap-button svg')
+        const swapIcon = document.querySelector('.language-pair-swap-button svg')
         const resultFooter = document.querySelector('.translate-result-footer')
         const headings = Array.from(document.querySelectorAll('.translate-pane-heading'))
         if (!(main instanceof HTMLElement)

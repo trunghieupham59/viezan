@@ -13,7 +13,7 @@ import {
 import { createPortal } from 'react-dom'
 import '../../../styles/language-picker.css'
 import { Button, Input } from '../atoms'
-import { CheckIcon, SearchIcon } from '../icons'
+import { CheckIcon, SearchIcon, StarIcon } from '../icons'
 
 export interface PickerOption {
   value: string
@@ -25,6 +25,16 @@ export interface PickerOption {
   /** Extra text matched by the search box in addition to the label and hint. */
   searchText?: string
   disabled?: boolean
+}
+
+/** A quick-pick chip shown above the option list, e.g. a recent language pair. */
+export interface PickerChip {
+  key: string
+  label: string
+  /** True when the chip matches the current selection. */
+  selected?: boolean
+  /** Pinned chips stay first and expose an unpin control instead of pin. */
+  pinned?: boolean
 }
 
 interface PanelPosition {
@@ -52,6 +62,15 @@ export interface OptionPickerPanelProps {
   noResultsLabel?: string
   /** Smallest panel width in px; the panel is never narrower than its anchor. */
   minWidth?: number
+  /** Quick-pick chips rendered above the list; omit or pass an empty list to hide the section. */
+  chips?: readonly PickerChip[]
+  chipsLabel?: string
+  /** Called with the chip key; the panel closes afterwards. */
+  onChipSelect?: (key: string) => void
+  /** Called with the chip key and the requested pinned state; the panel stays open. */
+  onChipPinChange?: (key: string, pinned: boolean) => void
+  pinLabel?: string
+  unpinLabel?: string
 }
 
 /**
@@ -70,8 +89,15 @@ export function OptionPickerPanel({
   searchPlaceholder,
   noResultsLabel = '',
   minWidth,
+  chips,
+  chipsLabel,
+  onChipSelect,
+  onChipPinChange,
+  pinLabel,
+  unpinLabel,
 }: OptionPickerPanelProps) {
   const listId = useId()
+  const chipsLabelId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const optionRefs = useRef(new Map<string, HTMLButtonElement>())
@@ -190,6 +216,11 @@ export function OptionPickerPanel({
     onClose(true)
   }
 
+  const selectChip = (chip: PickerChip) => {
+    onChipSelect?.(chip.key)
+    onClose(true)
+  }
+
   const focusOption = (optionValue: string) => {
     window.requestAnimationFrame(() => optionRefs.current.get(optionValue)?.focus())
   }
@@ -262,6 +293,45 @@ export function OptionPickerPanel({
             className="language-picker-search"
           />
         </div>
+      )}
+
+      {chips && chips.length > 0 && (
+        <fieldset className="language-picker-chips" aria-labelledby={chipsLabelId}>
+          {chipsLabel && <legend id={chipsLabelId} className="language-picker-section-label">{chipsLabel}</legend>}
+          <div className="language-picker-chip-row">
+            {chips.map((chip) => (
+              <span key={chip.key} className="language-picker-chip">
+                <Button
+                  size="xs"
+                  shape="pill"
+                  variant={chip.selected ? 'primary' : 'neutral'}
+                  appearance={chip.selected ? 'soft' : 'outline'}
+                  aria-pressed={Boolean(chip.selected)}
+                  title={chip.label}
+                  onClick={() => selectChip(chip)}
+                  className="language-picker-chip-select"
+                >
+                  {chip.label}
+                </Button>
+                {onChipPinChange && (pinLabel || unpinLabel) && (
+                  <Button
+                    size="xs"
+                    shape="icon"
+                    variant={chip.pinned ? 'primary' : 'neutral'}
+                    appearance="ghost"
+                    aria-pressed={Boolean(chip.pinned)}
+                    aria-label={`${chip.pinned ? unpinLabel ?? pinLabel : pinLabel ?? unpinLabel}: ${chip.label}`}
+                    title={chip.pinned ? unpinLabel ?? pinLabel : pinLabel ?? unpinLabel}
+                    onClick={() => onChipPinChange(chip.key, !chip.pinned)}
+                    className={`language-picker-chip-pin${chip.pinned ? ' language-picker-chip-pin--active' : ''}`}
+                  >
+                    <StarIcon />
+                  </Button>
+                )}
+              </span>
+            ))}
+          </div>
+        </fieldset>
       )}
 
       <div id={listId} role="listbox" aria-label={label} className="language-picker-list">
