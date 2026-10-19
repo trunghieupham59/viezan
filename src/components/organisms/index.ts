@@ -12,6 +12,10 @@ export {
   DictionaryAIConfiguration,
   type DictionaryAIConfigurationProps,
 } from './dictionary/DictionaryAIConfiguration'
+export { DictionaryEmptyState, type DictionaryEmptyStateProps } from './dictionary/DictionaryEmptyState'
+export { DictionaryHistoryPanel, type DictionaryHistoryPanelProps } from './dictionary/DictionaryHistoryPanel'
+export { DictionaryResultPanel, type DictionaryResultPanelProps } from './dictionary/DictionaryResultPanel'
+export { DictionarySearchPanel, type DictionarySearchPanelProps } from './dictionary/DictionarySearchPanel'
 export {
   HistoryNavigation,
   type HistoryNavigationItem,

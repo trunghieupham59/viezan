@@ -272,6 +272,9 @@ const ja: Translations = {
   dictionary_error_same_lang: 'ソース言語とターゲット言語は異なる必要があります。',
   dictionary_clear_history_confirm: 'お気に入り以外の履歴をすべて消去しますか？この操作は元に戻せません。',
   dictionary_enriching: '詳細を補完中…',
+  dictionary_lookup_needs_model: 'AI 設定でモデルを選ぶと検索できます。',
+  dictionary_clear_history_cancel: 'キャンセル',
+  dictionary_history_label: '検索履歴',
   lang_auto: '自動検出',
   lang_names: {
     auto: '自動検出',

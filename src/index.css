@@ -150,6 +150,8 @@
   .ui-input:focus-visible { border-color: var(--vzn-action-border); box-shadow: inset 0 0 0 var(--vzn-border-width) var(--vzn-focus-ring); }
   .ui-input[aria-invalid="true"] { border-color: var(--vzn-danger-border); box-shadow: 0 0 0 3px var(--vzn-danger-soft); }
   .ui-input:disabled { border-color: var(--vzn-disabled-border); background: var(--vzn-disabled-bg); color: var(--vzn-disabled-fg); cursor: not-allowed; }
+  /* Atomic Textarea — the Input contract on a growing, multi-line box. */
+  .ui-input.ui-textarea { height: auto; min-height: calc(var(--vzn-control-height-md) * 2); padding: var(--vzn-space-2) var(--vzn-space-3); resize: vertical; }
 
 
   /* ── App shell ─────────────────────────────────────────────────────────

@@ -272,6 +272,9 @@ const en: Translations = {
   dictionary_error_same_lang: 'Source and target languages must differ.',
   dictionary_clear_history_confirm: 'Clear all non-favorite history entries? This cannot be undone.',
   dictionary_enriching: 'Enriching entry…',
+  dictionary_lookup_needs_model: 'Choose a model in AI configuration to look up terms.',
+  dictionary_clear_history_cancel: 'Cancel',
+  dictionary_history_label: 'Lookup history',
   lang_auto: 'Auto Detect',
   lang_names: {
     auto: 'Auto Detect',

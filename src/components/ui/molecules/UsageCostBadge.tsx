@@ -9,13 +9,13 @@
  * Hovering reveals a native title with the input/output token breakdown,
  * so power users can audit how the number was estimated.
  */
-import type { UsageCost, UsageCurrency } from '../../types'
-import { formatTokenCount, formatUsageAmount } from '../../utils/usageCost'
+import type { UsageCost, UsageCurrency } from '../../../types'
+import { formatTokenCount, formatUsageAmount } from '../../../utils/usageCost'
 
 type BadgeSize = 'sm' | 'md'
 type BadgeTone = 'neutral'
 
-interface UsageCostBadgeProps {
+export interface UsageCostBadgeProps {
   cost?: Pick<UsageCost, 'amountUsd' | 'estimated' | 'inputTokens' | 'outputTokens' | 'totalTokens'>
   currency: UsageCurrency
   label?: string

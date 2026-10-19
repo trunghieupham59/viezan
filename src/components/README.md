@@ -16,7 +16,8 @@ src/pages/            Page state, data access, and feature orchestration
 ```
 
 The existing `ui/`, root component files, and feature directories (`chat/`,
-`dictionary/`, `live/`, and `translate/`) are migration zones. Their components
+`live/`, and `translate/`) are migration zones; Dictionary already lives in
+`organisms/dictionary/` on top of shared molecules. Their components
 are re-exported from the appropriate layer first, then can be moved in focused
 follow-up changes without breaking current imports.
 

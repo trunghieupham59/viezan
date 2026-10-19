@@ -87,8 +87,8 @@ pages -> templates -> organisms -> molecules -> atoms
 - `npm run check:design` and `npm run check:atomic` only scan
   `src/components/ui/{atoms,molecules}`, `src/components/organisms`, and
   `src/components/templates` — they do not cover `src/pages`, the
-  migration-zone feature directories (`chat/`, `dictionary/`, `live/`,
-  `translate/`), or any `.css`/`tailwind.config.*` file. When editing visual
+  migration-zone feature directories (`chat/`, `live/`, `translate/`), or any
+  `.css`/`tailwind.config.*` file. When editing visual
   code anywhere in the repo, manually check for literal values duplicating a
   token before reporting the change complete, even where the scripts pass.
 - The global app sidebar and the AI Chat conversation sidebar are different

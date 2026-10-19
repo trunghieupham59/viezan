@@ -7,7 +7,7 @@ import { MarkdownText } from '../MarkdownText'
 import { Button } from '../ui/atoms'
 import { CopyIcon, DownloadIcon, LightbulbIcon, RefreshIcon, SparklesIcon, SpinnerIcon, ThumbsDownIcon, ThumbsUpIcon, UserIcon } from '../ui/icons'
 import { ImageLightbox, stripTrailingEllipsis, ThinkingDots, ThinkingPill } from '../ui/molecules'
-import { UsageCostBadge } from '../ui/UsageCostBadge'
+import { UsageCostBadge } from '../ui/molecules/UsageCostBadge'
 
 /**
  * Shared button shells for the message-action toolbar (copy / download /

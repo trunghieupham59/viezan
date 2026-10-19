@@ -19,11 +19,11 @@ export function DictionaryWorkbenchTemplate({
   return (
     <div className="app-page">
       <div className="app-workspace">
-        <div className="glass-panel flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="dictionary-workbench">
           {header}
           <div className="dictionary-search-region">{search}</div>
           <div className="dictionary-workbench-content">
-            <section className="dictionary-result-region glass-panel" aria-label={resultLabel}>
+            <section className="dictionary-result-region" aria-label={resultLabel}>
               {result}
             </section>
             <aside className="dictionary-history-region">{history}</aside>

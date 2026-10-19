@@ -318,6 +318,9 @@ export interface Translations {
   dictionary_clear_history_confirm: string
   /** Accessible label on the pulsing dot shown while detail enrichment is in progress */
   dictionary_enriching: string
+  dictionary_lookup_needs_model: string
+  dictionary_clear_history_cancel: string
+  dictionary_history_label: string
 
   // Language selector
   lang_auto: string

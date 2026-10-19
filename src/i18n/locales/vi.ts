@@ -272,6 +272,9 @@ const vi: Translations = {
   dictionary_error_same_lang: 'Ngôn ngữ nguồn và đích phải khác nhau.',
   dictionary_clear_history_confirm: 'Xóa tất cả mục lịch sử không yêu thích? Không thể hoàn tác.',
   dictionary_enriching: 'Đang bổ sung chi tiết…',
+  dictionary_lookup_needs_model: 'Chọn model trong Cấu hình AI để tra cứu.',
+  dictionary_clear_history_cancel: 'Hủy',
+  dictionary_history_label: 'Lịch sử tra cứu',
   lang_auto: 'Tự động nhận dạng',
   lang_names: {
     auto: 'Tự động nhận dạng',

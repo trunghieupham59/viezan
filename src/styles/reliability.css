@@ -105,35 +105,6 @@
   font-size: var(--vzn-font-size-sm);
 }
 
-.dictionary-search-region {
-  flex: 0 0 auto;
-  padding: var(--vzn-space-3) var(--vzn-space-4);
-  border-block-end: 1px solid var(--vzn-divider);
-}
-
-.dictionary-workbench-content {
-  display: flex;
-  min-block-size: 0;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
-  gap: var(--vzn-panel-gap);
-  padding: var(--vzn-space-3);
-  overflow: auto;
-}
-
-.dictionary-result-region {
-  min-inline-size: min(100%, var(--vzn-dictionary-result-min-inline));
-  min-block-size: var(--vzn-dictionary-pane-min-block);
-  flex: 999 1 var(--vzn-dictionary-result-min-inline);
-  overflow: hidden;
-}
-
-.dictionary-history-region {
-  min-inline-size: min(100%, var(--vzn-dictionary-history-width));
-  min-block-size: var(--vzn-dictionary-pane-min-block);
-  flex: 1 1 var(--vzn-dictionary-history-width);
-}
-
 .reliability-page-title {
   color: var(--vzn-text-strong);
 }

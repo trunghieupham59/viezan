@@ -262,6 +262,11 @@
   --vzn-settings-modal-max-block: 860px;
   --vzn-modal-viewport-block: 90vh;
   --vzn-update-dialog-max-inline: 560px;
+  --vzn-dialog-sm-max-inline: 420px;
+  --vzn-dialog-md-max-inline: 560px;
+  --vzn-dialog-lg-max-inline: 720px;
+  --vzn-dictionary-headword-size: var(--vzn-font-size-heading);
+  --vzn-dictionary-hint-chip-max: calc(var(--vzn-space-12) * 5);
 
   /* Compatibility aliases ---------------------------------------------- */
   --vzn-accent: var(--vzn-action);
