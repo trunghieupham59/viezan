@@ -63,6 +63,20 @@ describe('useLiveTranslate hasSttKey', () => {
     expect((await renderLive()).result.current.hasSttKey).toBe(true)
   })
 
+  it('re-checks providers when a keychain-only Groq key is saved or deleted', async () => {
+    setup({}, 'auto', false)
+    const { result } = await renderLive()
+    expect(result.current.hasSttKey).toBe(false)
+
+    checkSttProviders.mockResolvedValue({ primary: 'groq', available: ['groq'] })
+    await act(async () => { useAppStore.getState().bumpSttCredentialsRevision() })
+    expect(result.current.hasSttKey).toBe(true)
+
+    checkSttProviders.mockResolvedValue({ primary: 'none', available: [] })
+    await act(async () => { useAppStore.getState().bumpSttCredentialsRevision() })
+    expect(result.current.hasSttKey).toBe(false)
+  })
+
   it('does not flash a missing-key state while the pre-flight check is pending', () => {
     checkSttProviders.mockReturnValue(new Promise(() => {}))
     useAppStore.setState({ sttProvider: 'groq' })

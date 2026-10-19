@@ -134,6 +134,7 @@ export function useLiveTranslate() {
   const t = useT()
   const {
     liveSourceLang: sourceLang, liveTargetLang: targetLang, selectedProvider, selectedModels, keyStatus,
+    sttCredentialsRevision,
     sttProvider, locale,
     addLiveSession, updateLiveSession,
     viewingLiveSessionId, liveSessions, setViewingLiveSession,
@@ -1831,9 +1832,10 @@ export function useLiveTranslate() {
   //      chunk of a new session goes directly to the best available provider — zero
   //      wasted attempts on unavailable backends.
   //
-  // keyStatus is the intentional trigger: it changes only when the user saves or deletes
-  // an API key, which is exactly when we need to re-evaluate the fallback chain.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: keyStatus is the intentional dependency
+  // keyStatus and sttCredentialsRevision are the intentional triggers: they change only when
+  // the user saves or deletes an API key (Groq lives only in the keychain, so it bumps the
+  // revision instead of keyStatus), which is exactly when we need to re-evaluate the chain.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyStatus and sttCredentialsRevision are the intentional dependencies
   useEffect(() => {
     if (!window.api?.checkSttProviders) return  // guard: running in tests / web builds
     window.api.checkSttProviders()
@@ -1843,7 +1845,7 @@ export function useLiveTranslate() {
         setAvailableSttProviders(result.available)
       })
       .catch(() => { /* ignore — activeSttProvider stays 'none' */ })
-  }, [keyStatus])
+  }, [keyStatus, sttCredentialsRevision])
 
   // Cleanup on unmount — stop audio pipeline, mark component as unmounted, close subtitle window.
   // mountedRef.current = false prevents in-flight async callbacks (STT, translation) from

@@ -91,6 +91,11 @@ export interface SettingsSlice {
   hasTavilyKey: boolean
   /** Whether a Brave Search API key is stored (Deep Research fallback) */
   hasBraveKey: boolean
+  /**
+   * Bumped whenever a keychain-only STT credential (Groq) is saved or deleted, so
+   * views that cache the STT pre-flight result re-run it. Not persisted.
+   */
+  sttCredentialsRevision: number
 
   // Actions — provider state
   setKeyStatus: (provider: Provider, hasKey: boolean) => void
@@ -99,6 +104,7 @@ export interface SettingsSlice {
   setModelsError: (provider: Provider, error: string | null) => void
   setHasTavilyKey: (v: boolean) => void
   setHasBraveKey: (v: boolean) => void
+  bumpSttCredentialsRevision: () => void
 }
 
 export const createSettingsSlice = (set: SliceSet): SettingsSlice => ({
@@ -127,6 +133,7 @@ export const createSettingsSlice = (set: SliceSet): SettingsSlice => ({
   modelsError: Object.fromEntries(PROVIDERS.map((p): [string, string | null] => [p.id, null])) as Record<Provider, string | null>,
   hasTavilyKey: false,
   hasBraveKey: false,
+  sttCredentialsRevision: 0,
 
   // Locale — explicit user choice turns off auto-follow
   setLocale: (locale) => set({ locale, localeAuto: false }),
@@ -163,4 +170,6 @@ export const createSettingsSlice = (set: SliceSet): SettingsSlice => ({
     set((state: SettingsSlice) => ({ modelsError: { ...state.modelsError, [provider]: error } })),
   setHasTavilyKey: (v) => set({ hasTavilyKey: v }),
   setHasBraveKey: (v) => set({ hasBraveKey: v }),
+  bumpSttCredentialsRevision: () =>
+    set((state: SettingsSlice) => ({ sttCredentialsRevision: state.sttCredentialsRevision + 1 })),
 })
