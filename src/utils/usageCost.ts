@@ -7,6 +7,7 @@ interface UsageCostEstimateInput {
   model: string
   inputText: string
   outputText: string
+  tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number }
 }
 
 interface ModelPrice {
@@ -73,9 +74,10 @@ export function estimateUsageCost({
   model,
   inputText,
   outputText,
+  tokenUsage,
 }: UsageCostEstimateInput): UsageCost {
-  const inputTokens = estimateTokens(inputText)
-  const outputTokens = estimateTokens(outputText)
+  const inputTokens = tokenUsage?.inputTokens ?? estimateTokens(inputText)
+  const outputTokens = tokenUsage?.outputTokens ?? estimateTokens(outputText)
   const price = resolveModelPrice(provider, model)
   const amountUsd = provider === 'local'
     ? 0
@@ -89,7 +91,7 @@ export function estimateUsageCost({
     amountUsd,
     inputTokens,
     outputTokens,
-    totalTokens: inputTokens + outputTokens,
+    totalTokens: tokenUsage?.totalTokens ?? inputTokens + outputTokens,
     estimated: true,
     createdAt: Date.now(),
   }

@@ -1,5 +1,6 @@
 import { blockedSafetyError } from './errorUtils'
 import { VERIFY_MODEL_GEMINI } from './ipcConstants'
+import { buildLivePrompt, LIVE_SYSTEM_PROMPT, liveOutputBudget } from './liveTranslationPolicy'
 import { buildPrompt, buildRewritePrompt, REWRITE_SYSTEM_PROMPT, SYSTEM_PROMPT } from './translatePrompts'
 import { finalizeProviderText, nonEmptyProviderText } from './translateProviderOutput'
 import type { DetectFn, RewriteFn, StreamFn, TranslateFn, TranslateRequestOptions, VerifyFn } from './translateProviderTypes'
@@ -13,7 +14,7 @@ function requestOptions(options: TranslateRequestOptions = {}) {
 
 interface GeminiResponseLike {
   text(): string
-  candidates?: Array<{ finishReason?: string }>
+  candidates?: Array<{ finishReason?: string; content?: { parts?: Array<{ thought?: boolean; text?: string }> } }>
   promptFeedback?: { blockReason?: string }
 }
 
@@ -36,7 +37,8 @@ function geminiText(response: GeminiResponseLike): string {
   const truncated = response.candidates?.[0]?.finishReason === 'MAX_TOKENS'
   let text = ''
   try {
-    text = response.text()
+    const parts = response.candidates?.[0]?.content?.parts
+    text = parts ? parts.filter(part => !part.thought).map(part => part.text ?? '').join('') : response.text()
   } catch (error) {
     // text() throws for blocked candidates; a truncated answer should surface as truncation instead.
     if (!truncated) throw error
@@ -60,21 +62,25 @@ export const translateWithGemini: TranslateFn = async (
   if (options.signal?.aborted) throw new Error(TRANSLATE_CANCELLED_MESSAGE)
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
   const genAI = new GoogleGenerativeAI(apiKey)
-  const thinkingConfig = getGeminiThinkingConfig(model, reasoningEffort)
+  const thinkingConfig = options.live && /^gemini-2\.5-flash/.test(model)
+    ? { thinkingBudget: 0 }
+    : getGeminiThinkingConfig(model, reasoningEffort)
   const generationConfig = {
-    maxOutputTokens: getGeminiMaxOutputTokens(model),
+    maxOutputTokens: options.live ? liveOutputBudget(sourceText) + (thinkingConfig && !('thinkingBudget' in thinkingConfig && thinkingConfig.thinkingBudget === 0) ? 1_024 : 0) : getGeminiMaxOutputTokens(model),
     ...(thinkingConfig === undefined ? {} : { thinkingConfig }),
   }
   const genModel = genAI.getGenerativeModel({
     model,
-    systemInstruction: SYSTEM_PROMPT,
+    systemInstruction: options.live ? LIVE_SYSTEM_PROMPT : SYSTEM_PROMPT,
     // The legacy SDK forwards generationConfig verbatim but predates this API field in its types.
     generationConfig: generationConfig as never,
   })
   const result = await genModel.generateContent(
-    buildPrompt(sourceText, sourceLang, targetLang, showFurigana, style, phoneticOnly, phoneticMode),
+    options.live ? buildLivePrompt(sourceText, sourceLang, targetLang, options.live.context) : buildPrompt(sourceText, sourceLang, targetLang, showFurigana, style, phoneticOnly, phoneticMode),
     requestOptions(options),
   )
+  const usage = result.response.usageMetadata
+  if (usage) options.onUsage?.({ inputTokens: usage.promptTokenCount, outputTokens: Math.max(usage.candidatesTokenCount, usage.totalTokenCount - usage.promptTokenCount), totalTokens: usage.totalTokenCount, estimated: false })
   if (options.signal?.aborted) throw new Error(TRANSLATE_CANCELLED_MESSAGE)
   return geminiText(result.response)
 }

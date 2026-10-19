@@ -65,6 +65,11 @@ if (typeof window !== 'undefined') {
   // Tests that need specific return values should override individual mocks per test.
   Object.defineProperty(window, 'api', {
     value: {
+      liveInterpretation: {
+        begin: vi.fn().mockResolvedValue(undefined),
+        cancel: vi.fn().mockResolvedValue(undefined),
+        translate: vi.fn().mockResolvedValue({ success: false, errorCode: 'UNKNOWN' }),
+      },
       translate: vi.fn().mockResolvedValue({ success: false }),
       cancelTranslate: vi.fn().mockResolvedValue({ success: false, error: 'NOT_FOUND' }),
       rewriteText: vi.fn().mockResolvedValue({ success: false }),

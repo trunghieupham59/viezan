@@ -254,9 +254,9 @@ export const WHISPER_MODEL = 'whisper-1'
  * Gemini model used for audio transcription (STT fallback when Whisper is unavailable).
  * Uses the Gemini generateContent API with audio inline_data — same API key as translation,
  * no additional Google Cloud APIs or GCP Console setup required.
- * gemini-2.0-flash: fast, accurate, supports 100+ languages, handles all common audio formats.
+ * Stable Flash-Lite supports audio input; avoid the retired Gemini 2.0 endpoint.
  */
-export const GEMINI_STT_MODEL = 'gemini-2.0-flash'
+export const GEMINI_STT_MODEL = 'gemini-3.1-flash-lite'
 
 // ── Groq STT (Whisper-compatible free fallback) ───────────────────────────────
 /**

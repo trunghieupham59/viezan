@@ -7,6 +7,7 @@ import { initGlobalHotkey } from './ipc/globalHotkey'
 import { registerImageTranslateHandlers } from './ipc/imageTranslate'
 import { registerKeychainHandlers } from './ipc/keychain'
 import { initLegacyAssistant, setLocalServerAccessors } from './ipc/legacyAssistant'
+import { registerLiveInterpretationHandlers } from './ipc/liveInterpretation'
 import { registerLocalAiHandlers, stopManagedLocalAiRuntime } from './ipc/localAi'
 import { getServerToken, LOCAL_SERVER_PORT, startLocalServer, stopLocalServer } from './ipc/localServer'
 import { registerModelsHandlers } from './ipc/models'
@@ -508,6 +509,7 @@ app.whenReady().then(() => {
   registerTranslateHandlers(ipcMain)
   registerModelsHandlers(ipcMain)
   registerTranscribeHandlers(ipcMain)
+  registerLiveInterpretationHandlers(ipcMain, () => mainWindow, () => subtitleWindow)
   registerTtsHandlers(ipcMain)
   registerImageTranslateHandlers(ipcMain)
   registerChatHandlers(ipcMain)

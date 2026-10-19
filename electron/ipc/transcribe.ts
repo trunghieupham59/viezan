@@ -370,6 +370,7 @@ function parseTranscribeParams(rawParams: unknown): ParsedTranscribeParams {
       || !STT_PROVIDERS.has(rawParams.sttProvider as SttProvider)) {
     return { ok: false, response: invalidInput() }
   }
+  if (rawParams.liveRouting !== undefined && rawParams.liveRouting !== 'economy' && rawParams.liveRouting !== 'latency') return { ok: false, response: invalidInput() }
 
   return {
     ok: true,
@@ -381,6 +382,7 @@ function parseTranscribeParams(rawParams: unknown): ParsedTranscribeParams {
       language: rawParams.language as string | undefined,
       previousText: rawParams.previousText,
       sttProvider: rawParams.sttProvider as SttProvider,
+      liveRouting: rawParams.liveRouting as TranscribeAudioParams['liveRouting'],
     },
   }
 }
@@ -521,22 +523,9 @@ const LANG_TO_BCP47: Record<string, string> = {
 
 // ─── Whisper prompt builder ───────────────────────────────────────────────────
 
-function buildWhisperPrompt(language: string | undefined, previousText?: string): string {
-  const opener = (() => {
-    switch (language) {
-      case 'vi': return 'Xin chào, hôm nay chúng ta sẽ nói về'
-      case 'ja': return 'はい、えーと、今日は'
-      case 'ko': return '안녕하세요, 오늘은'
-      case 'zh': return '好的，今天我们来讨论'
-      default:   return 'Um, so,'
-    }
-  })()
-
-  if (previousText) {
-    const ctx = previousText.trim().slice(-200)
-    return `${opener} ${ctx}`
-  }
-  return opener
+function buildWhisperPrompt(previousText?: string): string {
+  // Decoder hints must contain actual prior speech, never an invented opening.
+  return previousText?.trim().slice(-200) ?? ''
 }
 
 // ─── Confidence aggregation (Whisper verbose_json segments) ──────────────────
@@ -598,7 +587,7 @@ async function transcribeWithWhisper(
         language: whisperLang,
         response_format: 'verbose_json',
         temperature: 0,
-        prompt: buildWhisperPrompt(whisperLang, previousText),
+        prompt: buildWhisperPrompt(previousText),
       },
       { signal: abortScope.signal, timeout: timeoutMs, maxRetries: 0 },
     )
@@ -688,7 +677,7 @@ async function transcribeWithGeminiSTT(
             { text: prompt },
           ],
         }],
-        generationConfig: { temperature: 0, maxOutputTokens: 1024 },
+        generationConfig: { temperature: 0, maxOutputTokens: 2048, thinkingConfig: { thinkingLevel: 'low' } },
       }),
     })
 
@@ -715,7 +704,13 @@ async function transcribeWithGeminiSTT(
 
     // biome-ignore lint/suspicious/noExplicitAny: dynamic Gemini response shape
     const data: any = await response.json()
-    const text: string = (data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim()
+    const candidate = data?.candidates?.[0]
+    if (data?.promptFeedback?.blockReason || (candidate?.finishReason && candidate.finishReason !== 'STOP')) {
+      return internalTranscriptionFailure('UNKNOWN', false)
+    }
+    const text: string = (candidate?.content?.parts ?? [])
+      .filter((part: { thought?: boolean; text?: unknown }) => !part.thought && typeof part.text === 'string')
+      .map((part: { text: string }) => part.text).join('').trim()
     if (!text) return { success: true, text: '', usedProvider: 'gemini' }
     return { success: true, text, usedProvider: 'gemini' }
   } catch (error) {
@@ -782,7 +777,7 @@ async function transcribeWithGroq(
         language: groqLang,
         response_format: 'verbose_json',
         temperature: 0,
-        prompt: buildWhisperPrompt(groqLang, previousText),
+        prompt: buildWhisperPrompt(previousText),
       },
       { signal: abortScope.signal, timeout: timeoutMs, maxRetries: 0 },
     ) as unknown as VerboseResponse
@@ -1225,6 +1220,26 @@ async function transcribeLive(
   params: TranscribeAudioParams,
   signal: AbortSignal,
 ): Promise<InternalTranscribeResult> {
+  if (params.liveRouting === 'economy') {
+    const candidates: Exclude<SttProvider, 'auto'>[] = params.sttProvider === 'auto'
+      ? ['whisper', 'google', 'groq'] : [params.sttProvider]
+    let last: InternalTranscribeResult = internalTranscriptionFailure('ALL_PROVIDERS_EXHAUSTED', false)
+    for (const provider of candidates) {
+      if (signal.aborted) return internalTranscriptionFailure('CANCELLED', false)
+      if (provider === 'whisper' && !isWhisperAvailableNow()) continue
+      if (provider === 'google' && !isGeminiAvailableNow()) continue
+      last = await transcribeWithSelectedProvider(provider, params, signal, 8_000, false)
+      if (last.success || last.errorCode === 'CANCELLED') return last
+      // Economy routing recovers on real audio after the cooldown; no paid silence probes.
+      if (provider === 'whisper') markWhisperUnavailable(last.errorCode)
+      if (provider === 'google') markGeminiUnavailable(last.errorCode)
+      if (!FALLBACK_CODES.has(last.errorCode)) return last
+    }
+    if (params.sttProvider === 'auto' && !last.success && PERMANENT_BAN_CODES.has(last.errorCode)) {
+      return internalTranscriptionFailure('ALL_PROVIDERS_EXHAUSTED', false)
+    }
+    return last
+  }
   if (params.sttProvider === 'auto') {
     return transcribeAuto(
       params.audioData,

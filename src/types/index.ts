@@ -681,6 +681,7 @@ export interface SubtitleSettings {
 // ─── Window API (exposed via contextBridge) ───────────────────────────────────
 
 export interface WindowApi {
+  liveInterpretation: import('../../shared/liveInterpretation').LiveInterpretationApi
   keychain: {
     save: (provider: string, key: string) => Promise<KeychainResult>
     get: (provider: string) => Promise<KeychainResult>

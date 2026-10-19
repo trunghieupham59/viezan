@@ -1,7 +1,11 @@
+import type { LiveTokenUsage } from '../../shared/liveInterpretation'
 import type { PhoneticMode, TranslationReasoningEffort, TranslationStyle } from './translateValidation'
 
 export interface TranslateRequestOptions {
   signal?: AbortSignal
+  /** Main-process-only profile; ordinary translation requests keep their existing behavior. */
+  live?: { context: string }
+  onUsage?: (usage: LiveTokenUsage) => void
 }
 
 export type TranslateFn = (
