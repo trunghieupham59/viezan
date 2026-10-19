@@ -10,6 +10,8 @@
   flex: 1 1 auto;
   flex-direction: column;
   overflow: hidden;
+  container-name: dictionary-workbench;
+  container-type: inline-size;
   border: var(--vzn-border-width) solid var(--vzn-border);
   border-radius: var(--vzn-radius-md);
   background: var(--vzn-surface);
@@ -50,6 +52,16 @@
   gap: var(--vzn-panel-gap);
   padding: var(--vzn-space-3);
   overflow: auto;
+}
+
+/* Side by side (result min 480px + history 288px + gap and padding): a single
+   flex line takes the workbench height, so each pane scrolls its own body
+   instead of the whole content area. Stacked panes keep the outer scroll. */
+@container dictionary-workbench (min-width: 820px) {
+  .dictionary-workbench-content {
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
 }
 
 .dictionary-result-region {
