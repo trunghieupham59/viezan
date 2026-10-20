@@ -15,6 +15,8 @@ describe('App quick chat bridge', () => {
         aiChatSidebarCollapsed: false,
         chatSessions: [],
         activeChatSessionId: null,
+        chatPendingDraft: '',
+        chatPendingTaskState: null,
         selectedProvider: 'local',
         keyStatus: { gemini: false, claude: false, openai: false, local: false },
       })
@@ -55,6 +57,38 @@ describe('App quick chat bridge', () => {
       { role: 'user', content: [{ type: 'text', text: 'Summarize this release' }] },
       { role: 'assistant', content: [{ type: 'text', text: 'Release summary is ready.' }] },
     ])
+  })
+
+  it('opens an unanswered quick chat question as an editable draft without sending', async () => {
+    let openInChat: ((payload: QuickChatSeedPayload | null) => void) | null = null
+    vi.mocked(window.api.quickChat.onOpenInChat).mockImplementation((cb) => {
+      openInChat = cb
+      return vi.fn()
+    })
+    vi.mocked(window.api.chatStream).mockClear()
+    act(() => useAppStore.setState({ activePage: 'chat' }))
+    render(<App />)
+    await screen.findByPlaceholderText('Ask anything…')
+
+    act(() => {
+      openInChat?.({
+        provider: 'local',
+        model: 'local-auto',
+        question: 'What is 5 + 7?',
+      })
+    })
+
+    const state = useAppStore.getState()
+    expect(state.chatSessions).toHaveLength(1)
+    expect(state.chatSessions[0]).toMatchObject({
+      provider: 'local',
+      model: 'local-auto',
+      draftInput: 'What is 5 + 7?',
+      messages: [],
+    })
+    await waitFor(() => expect(screen.getByPlaceholderText('Ask anything…')).toHaveValue('What is 5 + 7?'))
+    expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
+    expect(window.api.chatStream).not.toHaveBeenCalled()
   })
 
   it('composes primary navigation and AI Chat navigation as separate landmarks', async () => {

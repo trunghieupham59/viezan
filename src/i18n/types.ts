@@ -980,6 +980,21 @@ export interface Translations {
   settings_chat_hotkey_clear: string
   settings_chat_hotkey_none: string
   settings_chat_hotkey_status_conflict: string
+  launcher_title: string
+  launcher_placeholder: string
+  launcher_results: string
+  launcher_ai: string
+  launcher_web: string
+  launcher_app: string
+  launcher_command: string
+  launcher_loading: string
+  launcher_apps_unavailable: string
+  launcher_retry: string
+  launcher_open_failed: string
+  launcher_select: string
+  launcher_open: string
+  launcher_back: string
+  launcher_hotkey_failed: string
 
   // Settings — AI Chat section
   settings_chat_section: string
