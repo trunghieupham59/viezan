@@ -43,7 +43,7 @@ const HALLUCINATION_PATTERNS: RegExp[] = [
  * Returns `true` when the text is a known Whisper hallucination OR structurally invalid.
  *
  * Checks (in order):
- *   1. Too short (< 4 chars after trimming)
+ *   1. No letters or numbers (short replies are valid speech)
  *   2. Matches a known hallucination pattern
  *   3. Single-character repetition ≥ 4 times covering > 60% of text
  *   4. Word-level n-gram repetition: any bigram or trigram repeating ≥ 3 times
@@ -51,7 +51,7 @@ const HALLUCINATION_PATTERNS: RegExp[] = [
  */
 export function isHallucination(text: string): boolean {
   const t = text.trim()
-  if (t.length < 4) return true
+  if (!/[\p{L}\p{N}]/u.test(t)) return true
 
   if (HALLUCINATION_PATTERNS.some(p => p.test(t))) return true
 

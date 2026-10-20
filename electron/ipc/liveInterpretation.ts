@@ -1,5 +1,5 @@
 import type { BrowserWindow, IpcMain } from 'electron'
-import type { LiveTranslationRequest } from '../../shared/liveInterpretation'
+import type { LiveAssemblyRequest, LiveTranslationRequest } from '../../shared/liveInterpretation'
 import { LiveInterpretationService } from '../services/LiveInterpretationService'
 import { isRecord } from './ipcValidation'
 import { LIVE_CONTEXT_CHARS, LIVE_SOURCE_CHARS } from './liveTranslationPolicy'
@@ -30,11 +30,30 @@ export function registerLiveInterpretationHandlers(ipc: IpcMain, getMainWindow: 
   ipc.handle('live:cancel', (event, sessionId: unknown) => {
     if (isSenderWindow(event, getMainWindow) && validId(sessionId)) service.cancel(sessionId)
   })
+  ipc.handle('live:assemble', (event, raw: unknown) => {
+    if (!isSenderWindow(event, getMainWindow)) return { success: false, errorCode: 'PERMISSION_DENIED' }
+    if (!isRecord(raw) || !validId(raw.sessionId)
+      || !['append', 'silence', 'stop'].includes(String(raw.action))
+      || typeof raw.sourceText !== 'string' || raw.sourceText.length > LIVE_SOURCE_CHARS
+      || (raw.action === 'append' && !raw.sourceText.trim())
+      || (raw.action !== 'append' && raw.sourceText !== '')
+      || typeof raw.sourceLang !== 'string' || !/^(?:auto|[a-z]{2,3}(?:-[A-Za-z]{2,4})?)$/.test(raw.sourceLang)
+      || typeof raw.targetLang !== 'string' || !/^[a-z]{2,3}(?:-[A-Za-z]{2,4})?$/.test(raw.targetLang)
+      || typeof raw.speaker !== 'string' || raw.speaker.length > 80
+      || typeof raw.pause !== 'boolean'
+      || !Number.isSafeInteger(raw.sequence) || (raw.sequence as number) < 0
+      || typeof raw.durationMs !== 'number' || !Number.isFinite(raw.durationMs) || raw.durationMs < 0 || raw.durationMs > 60_000
+      || typeof raw.timestamp !== 'number' || !Number.isFinite(raw.timestamp) || raw.timestamp < 0) {
+      return { success: false, errorCode: 'INVALID_INPUT' }
+    }
+    return service.assemble(raw as unknown as LiveAssemblyRequest)
+  })
   ipc.handle('live:translate', async (event, raw: unknown) => {
     if (!isSenderWindow(event, getMainWindow)) return { success: false, errorCode: 'PERMISSION_DENIED' }
     if (!isRecord(raw) || !validId(raw.sessionId) || !validId(raw.segmentId)
       || typeof raw.context !== 'string' || raw.context.length > LIVE_CONTEXT_CHARS
       || typeof raw.sourceText !== 'string' || !raw.sourceText.trim() || raw.sourceText.length > LIVE_SOURCE_CHARS
+      || (raw.revision !== undefined && (!Number.isSafeInteger(raw.revision) || (raw.revision as number) < 1))
       || typeof raw.subtitles !== 'boolean' || !parseTranslateParams(raw).ok) {
       return { success: false, errorCode: 'INVALID_INPUT' }
     }
@@ -43,7 +62,9 @@ export function registerLiveInterpretationHandlers(ipc: IpcMain, getMainWindow: 
     const result = await service.translate(request)
     // Only validated complete translations are published. Raw provider tokens can contain reasoning.
     const subtitle = getSubtitleWindow()
-    if (result.success && service.isActive(request.sessionId, revision) && request.subtitles && subtitle && !subtitle.isDestroyed()) {
+    // Provisional translations stay in the main UI, where they have an explicit
+    // label. The overlay only receives the settled revision.
+    if (result.success && request.revision === undefined && service.isActive(request.sessionId, revision) && request.subtitles && subtitle && !subtitle.isDestroyed()) {
       subtitle.webContents.send('subtitle:stream:start', { segId: request.segmentId })
       subtitle.webContents.send('subtitle:stream:token', { segId: request.segmentId, token: result.translatedText })
       subtitle.webContents.send('subtitle:stream:end', { segId: request.segmentId })

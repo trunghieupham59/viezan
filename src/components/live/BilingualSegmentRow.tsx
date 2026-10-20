@@ -15,6 +15,7 @@ interface BilingualSegmentRowProps {
   onRename: (original: string, newName: string) => void
   /** Shown in place of a translation that has not arrived yet. */
   pendingTranslationLabel?: string
+  statusLabel?: string
 }
 
 export function BilingualSegmentRow({
@@ -24,6 +25,7 @@ export function BilingualSegmentRow({
   speakerNameMap,
   onRename,
   pendingTranslationLabel,
+  statusLabel,
 }: BilingualSegmentRowProps) {
   const displayName = speakerNameMap[speaker] || speaker
   const displayedOriginal = useTypewriter(original)
@@ -39,6 +41,7 @@ export function BilingualSegmentRow({
       />
       <div className="live-bilingual-text">
         <p className="live-bilingual-original">{displayedOriginal}</p>
+        {statusLabel && <p className="live-bilingual-pending" role="status">{statusLabel}</p>}
         {translation ? (
           <p className="live-bilingual-translation">{displayedTranslation}</p>
         ) : pendingTranslationLabel ? (

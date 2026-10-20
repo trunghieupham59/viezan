@@ -646,6 +646,8 @@ export interface LiveSession extends AIModelSelection {
     translation: string
     speaker: string
     timestamp: number
+    revision?: number
+    state?: import('../../shared/liveInterpretation').LiveSegmentState
   }>
   /** User-assigned speaker display names, e.g. { 'Speaker 1': 'Alice' } */
   speakerNameMap?: Record<string, string>

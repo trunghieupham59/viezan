@@ -42,6 +42,7 @@ import { getStoredApiKey, hasStoredApiKey } from './storage'
 // ── Whisper cache ─────────────────────────────────────────────────────────────
 let whisperSessionAvailable = true
 let whisperUnavailableUntilMs = 0
+let whisperUnavailableCode: AudioTranscriptionErrorCode = 'NO_API_KEY'
 // Bumped on every new Whisper/Gemini ban so a recovery probe can tell whether the ban
 // it was scheduled for is still the current one.
 let whisperBanGeneration = 0
@@ -87,10 +88,11 @@ function banExpiryMs(errorCode: string): number {
 }
 
 /** Mark Whisper as unavailable for this session (or a timed window). */
-function markWhisperUnavailable(errorCode: string): void {
+function markWhisperUnavailable(errorCode: AudioTranscriptionErrorCode | 'CONSECUTIVE_FAIL'): void {
   whisperBanGeneration++
   whisperSessionAvailable = false
   whisperUnavailableUntilMs = banExpiryMs(errorCode)
+  whisperUnavailableCode = errorCode === 'CONSECUTIVE_FAIL' ? 'UNKNOWN' : errorCode
   const { permanent, banMs } = classifySttBan(errorCode)
   console.log(permanent
     ? `[transcribe] Whisper marked unavailable for session (${errorCode})`
@@ -103,6 +105,7 @@ function markWhisperUnavailable(errorCode: string): void {
 
 let geminiSessionAvailable = true
 let geminiUnavailableUntilMs = 0
+let geminiUnavailableCode: AudioTranscriptionErrorCode = 'NO_API_KEY'
 
 function isGeminiAvailableNow(): boolean {
   if (geminiSessionAvailable) return true
@@ -115,10 +118,11 @@ function isGeminiAvailableNow(): boolean {
 }
 
 /** Mark Gemini STT as unavailable for this session (or a timed window). */
-function markGeminiUnavailable(errorCode: string): void {
+function markGeminiUnavailable(errorCode: AudioTranscriptionErrorCode): void {
   geminiBanGeneration++
   geminiSessionAvailable = false
   geminiUnavailableUntilMs = banExpiryMs(errorCode)
+  geminiUnavailableCode = errorCode
   const { permanent, banMs } = classifySttBan(errorCode)
   console.log(permanent
     ? `[transcribe] Gemini marked unavailable for session (${errorCode})`
@@ -129,9 +133,11 @@ function markGeminiUnavailable(errorCode: string): void {
 export function resetSttSessionStateForTests(): void {
   whisperSessionAvailable = true
   whisperUnavailableUntilMs = 0
+  whisperUnavailableCode = 'NO_API_KEY'
   whisperConsecutiveFailures = 0
   geminiSessionAvailable = true
   geminiUnavailableUntilMs = 0
+  geminiUnavailableCode = 'NO_API_KEY'
   whisperBanGeneration = 0
   geminiBanGeneration = 0
   for (const { timer } of pendingProbes.values()) clearTimeout(timer)
@@ -570,7 +576,7 @@ async function transcribeWithWhisper(
     return internalTranscriptionFailure('NO_API_KEY', false)
   }
 
-  const abortScope = createAbortScope(signal, timeoutMs)
+  let abortScope: ReturnType<typeof createAbortScope> | undefined
   try {
     const OpenAI = (await import('openai')).default
     const client = new OpenAI({ apiKey, maxRetries: 0, timeout: timeoutMs })
@@ -579,6 +585,11 @@ async function transcribeWithWhisper(
     const ext = audioFileExtension(mimeType)
     const file = new File([buffer], `audio.${ext}`, { type: mimeType })
     const whisperLang = language && language !== 'auto' ? language.split('-')[0] : undefined
+    // Cold SDK/file initialization must not consume the network deadline.
+    // Clear/navigation while loading must also never start a paid request.
+    if (signal?.aborted) return internalTranscriptionFailure('CANCELLED', false)
+    abortScope = createAbortScope(signal, timeoutMs)
+    const requestSignal = abortScope.signal
 
     const createCall = () => client.audio.transcriptions.create(
       {
@@ -589,7 +600,7 @@ async function transcribeWithWhisper(
         temperature: 0,
         prompt: buildWhisperPrompt(previousText),
       },
-      { signal: abortScope.signal, timeout: timeoutMs, maxRetries: 0 },
+      { signal: requestSignal, timeout: timeoutMs, maxRetries: 0 },
     )
 
     const apiCall = useRetry ? withRetry(createCall) : createCall()
@@ -611,13 +622,13 @@ async function transcribeWithWhisper(
       ...(segmentTexts.length > 1 ? { segmentTexts } : {}),
     }
   } catch (error) {
-    const failure = abortScope.didTimeOut()
+    const failure = abortScope?.didTimeOut()
       ? internalTranscriptionFailure('TIMEOUT', true)
       : classifyTranscriptionError(error, 'OpenAI')
     console.error('[transcribe] Whisper failed:', failure.errorCode)
     return failure
   } finally {
-    abortScope.cleanup()
+    abortScope?.cleanup()
   }
 }
 
@@ -751,7 +762,7 @@ async function transcribeWithGroq(
     return internalTranscriptionFailure('NO_API_KEY', false)
   }
 
-  const abortScope = createAbortScope(signal, timeoutMs)
+  let abortScope: ReturnType<typeof createAbortScope> | undefined
   try {
     const OpenAI = (await import('openai')).default
     // Reuse the OpenAI SDK — only the baseURL changes.
@@ -768,6 +779,8 @@ async function transcribeWithGroq(
     const ext = audioFileExtension(mimeType)
     const file = new File([buffer], `audio.${ext}`, { type: mimeType })
     const groqLang = language && language !== 'auto' ? language.split('-')[0] : undefined
+    if (signal?.aborted) return internalTranscriptionFailure('CANCELLED', false)
+    abortScope = createAbortScope(signal, timeoutMs)
 
     // Single attempt, no retry — used as a fallback, want fast response.
     const rawResponse = await client.audio.transcriptions.create(
@@ -797,13 +810,13 @@ async function transcribeWithGroq(
       ...(segmentTexts.length > 1 ? { segmentTexts } : {}),
     }
   } catch (error) {
-    const failure = abortScope.didTimeOut()
+    const failure = abortScope?.didTimeOut()
       ? internalTranscriptionFailure('TIMEOUT', true)
       : classifyTranscriptionError(error, 'Groq')
     console.error('[transcribe] Groq STT failed:', failure.errorCode)
     return failure
   } finally {
-    abortScope.cleanup()
+    abortScope?.cleanup()
   }
 }
 
@@ -931,7 +944,7 @@ async function transcribeHedged(
  * recovery probe for timed bans, and count unrecognised codes towards the
  * consecutive-failure ban.
  */
-function applyWhisperFailure(code: string): void {
+function applyWhisperFailure(code: AudioTranscriptionErrorCode): void {
   if (code === 'CANCELLED') return
   if (FALLBACK_CODES.has(code)) {
     markWhisperUnavailable(code)
@@ -948,7 +961,7 @@ function applyWhisperFailure(code: string): void {
 }
 
 /** Record a Gemini failure from the auto route (see applyWhisperFailure). */
-function applyGeminiFailure(code: string): void {
+function applyGeminiFailure(code: AudioTranscriptionErrorCode): void {
   if (!FALLBACK_CODES.has(code)) return
   markGeminiUnavailable(code)
   if (!classifySttBan(code).permanent) scheduleRecoveryProbe('gemini', STT_RECOVERY_PROBE_DELAY_MS)
@@ -1224,17 +1237,32 @@ async function transcribeLive(
     const candidates: Exclude<SttProvider, 'auto'>[] = params.sttProvider === 'auto'
       ? ['whisper', 'google', 'groq'] : [params.sttProvider]
     let last: InternalTranscribeResult = internalTranscriptionFailure('ALL_PROVIDERS_EXHAUSTED', false)
+    let transient: InternalTranscribeResult | undefined
     for (const provider of candidates) {
       if (signal.aborted) return internalTranscriptionFailure('CANCELLED', false)
-      if (provider === 'whisper' && !isWhisperAvailableNow()) continue
-      if (provider === 'google' && !isGeminiAvailableNow()) continue
+      const unavailable = provider === 'whisper' ? !isWhisperAvailableNow()
+        : provider === 'google' ? !isGeminiAvailableNow() : false
+      if (unavailable) {
+        const code = provider === 'whisper' ? whisperUnavailableCode : geminiUnavailableCode
+        // A rate-limit/network cooldown is not a missing credential. Keep its
+        // real error visible rather than stopping the session as "exhausted".
+        if (!PERMANENT_BAN_CODES.has(code)) transient = internalTranscriptionFailure(code, true)
+        else last = internalTranscriptionFailure(code, false)
+        continue
+      }
       last = await transcribeWithSelectedProvider(provider, params, signal, 8_000, false)
       if (last.success || last.errorCode === 'CANCELLED') return last
-      // Economy routing recovers on real audio after the cooldown; no paid silence probes.
-      if (provider === 'whisper') markWhisperUnavailable(last.errorCode)
-      if (provider === 'google') markGeminiUnavailable(last.errorCode)
+      if (last.retryable) transient = last
+      // One slow chunk is not evidence that the next real utterance will fail.
+      // Never resend failed audio or probe with silence. Still honor rate limits
+      // and permanent credential failures across chunks and Start/Stop cycles.
+      if (last.errorCode === 'RATE_LIMIT' || PERMANENT_BAN_CODES.has(last.errorCode)) {
+        if (provider === 'whisper') markWhisperUnavailable(last.errorCode)
+        if (provider === 'google') markGeminiUnavailable(last.errorCode)
+      }
       if (!FALLBACK_CODES.has(last.errorCode)) return last
     }
+    if (transient) return transient
     if (params.sttProvider === 'auto' && !last.success && PERMANENT_BAN_CODES.has(last.errorCode)) {
       return internalTranscriptionFailure('ALL_PROVIDERS_EXHAUSTED', false)
     }
@@ -1285,6 +1313,10 @@ async function checkSttProviders(): Promise<SttProviderCheckResult> {
 
   const primary = available[0] ?? 'none'
 
+  // Import only: no client, credential decryption, network request or model.
+  // The eventual request still starts its deadline after initialization.
+  if (hasOpenAI || hasGroq) void import('openai').catch(() => undefined)
+
   // ── Pre-warm session caches ───────────────────────────────────────────────
   // If a provider is not configured, mark it unavailable so the first real
   // audio chunk goes directly to the next available provider.
@@ -1293,8 +1325,9 @@ async function checkSttProviders(): Promise<SttProviderCheckResult> {
   if (!hasOpenAI && whisperSessionAvailable) {
     whisperSessionAvailable   = false
     whisperUnavailableUntilMs = Number.MAX_SAFE_INTEGER
+    whisperUnavailableCode = 'NO_API_KEY'
     console.log('[transcribe] pre-flight: no OpenAI key → Whisper pre-marked unavailable for session')
-  } else if (hasOpenAI && !whisperSessionAvailable) {
+  } else if (hasOpenAI && !whisperSessionAvailable && PERMANENT_BAN_CODES.has(whisperUnavailableCode)) {
     whisperSessionAvailable   = true
     whisperUnavailableUntilMs = 0
     console.log('[transcribe] pre-flight: OpenAI key present → Whisper session cache reset to available')
@@ -1303,8 +1336,9 @@ async function checkSttProviders(): Promise<SttProviderCheckResult> {
   if (!hasGemini && geminiSessionAvailable) {
     geminiSessionAvailable   = false
     geminiUnavailableUntilMs = Number.MAX_SAFE_INTEGER
+    geminiUnavailableCode = 'NO_API_KEY'
     console.log('[transcribe] pre-flight: no Gemini key → Gemini pre-marked unavailable for session')
-  } else if (hasGemini && !geminiSessionAvailable) {
+  } else if (hasGemini && !geminiSessionAvailable && PERMANENT_BAN_CODES.has(geminiUnavailableCode)) {
     // Key was added or a previous ban expired — reset so Gemini is tried next chunk
     geminiSessionAvailable   = true
     geminiUnavailableUntilMs = 0

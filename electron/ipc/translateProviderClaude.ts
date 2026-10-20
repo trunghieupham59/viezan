@@ -1,6 +1,6 @@
 import { blockedSafetyError } from './errorUtils'
 import { clampMaxOutputTokens, MAX_OUTPUT_TOKENS_CLAUDE } from './ipcConstants'
-import { buildLivePrompt, LIVE_SYSTEM_PROMPT, liveOutputBudget } from './liveTranslationPolicy'
+import { buildLivePrompt, buildLiveSystemPrompt, liveOutputBudget } from './liveTranslationPolicy'
 import { buildPrompt, buildRewritePrompt, REWRITE_SYSTEM_PROMPT, SYSTEM_PROMPT } from './translatePrompts'
 import { finalizeProviderText, joinClaudeText, nonEmptyProviderText } from './translateProviderOutput'
 import type { DetectFn, RewriteFn, StreamFn, TranslateFn, TranslateRequestOptions, VerifyFn } from './translateProviderTypes'
@@ -38,7 +38,7 @@ export const translateWithClaude: TranslateFn = async (
     {
       model,
       max_tokens: clampMaxOutputTokens('claude', model, options.live ? liveOutputBudget(sourceText) : MAX_OUTPUT_TOKENS_CLAUDE),
-      system: options.live ? LIVE_SYSTEM_PROMPT : SYSTEM_PROMPT,
+      system: options.live ? buildLiveSystemPrompt(sourceLang, targetLang) : SYSTEM_PROMPT,
       messages: [{ role: 'user', content: options.live ? buildLivePrompt(sourceText, sourceLang, targetLang, options.live.context) : buildPrompt(sourceText, sourceLang, targetLang, showFurigana, style, phoneticOnly, phoneticMode) }],
       ...(options.live ? {} : getClaudeReasoningConfig(model, reasoningEffort)),
     },

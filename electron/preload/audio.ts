@@ -24,6 +24,7 @@ export const audioSection = {
   liveInterpretation: {
     begin: (sessionId) => ipcRenderer.invoke('live:begin', sessionId),
     translate: (request) => ipcRenderer.invoke('live:translate', request),
+    assemble: (request) => ipcRenderer.invoke('live:assemble', request),
     cancel: (sessionId) => ipcRenderer.invoke('live:cancel', sessionId),
   } satisfies LiveInterpretationApi,
   /**

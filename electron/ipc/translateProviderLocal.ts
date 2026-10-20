@@ -1,6 +1,6 @@
 import { blockedSafetyError } from './errorUtils'
 import { MAX_OUTPUT_TOKENS_OPENAI } from './ipcConstants'
-import { buildLivePrompt, LIVE_SYSTEM_PROMPT, liveOutputBudget } from './liveTranslationPolicy'
+import { buildLivePrompt, buildLiveSystemPrompt, liveOutputBudget } from './liveTranslationPolicy'
 import { discoverLocalAiRuntimes, LOCAL_AI_PLACEHOLDER_KEY, resolveLocalAiRequestModel } from './localAi'
 import { buildPrompt, buildRewritePrompt, REWRITE_SYSTEM_PROMPT, SYSTEM_PROMPT } from './translatePrompts'
 import { finalizeProviderText, nonEmptyProviderText } from './translateProviderOutput'
@@ -46,10 +46,11 @@ export const translateWithLocal: TranslateFn = async (
     {
       model: resolvedModel,
       messages: [
-        { role: 'system', content: options.live ? LIVE_SYSTEM_PROMPT : SYSTEM_PROMPT },
+        { role: 'system', content: options.live ? buildLiveSystemPrompt(sourceLang, targetLang) : SYSTEM_PROMPT },
         { role: 'user', content: options.live ? buildLivePrompt(sourceText, sourceLang, targetLang, options.live.context) : buildPrompt(sourceText, sourceLang, targetLang, showFurigana, style, phoneticOnly, phoneticMode) },
       ],
       max_tokens: options.live ? liveOutputBudget(sourceText) : MAX_OUTPUT_TOKENS_OPENAI,
+      ...(options.live ? { temperature: 0 } : {}),
     },
     requestOptions(options),
   )

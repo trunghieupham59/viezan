@@ -18,6 +18,7 @@ import {
   VISION_SCORE_SLOW,
 } from './ipcConstants'
 import { invalidIpcInput, isNonEmptyString, isRecord, isSafeLanguageCode, isSafeTargetLanguageCode, parseProviderModel } from './ipcValidation'
+import { langName } from './languageNames'
 import { getStoredApiKey } from './storage'
 import { joinClaudeText } from './translateProviderOutput'
 
@@ -213,20 +214,6 @@ async function fetchVisionModels(provider: string, apiKey: string): Promise<stri
 // DUP-02: Removed local `getApiKey` wrapper — call getStoredApiKey directly.
 // HC-06: Gemini base URL now uses GEMINI_API_BASE constant.
 // HC-02: Token limits now use MAX_CHAT_OUTPUT_TOKENS constant.
-
-/** Map language codes → human-readable English names for prompts */
-const LANG_NAMES: Record<string, string> = {
-  auto: 'the detected language',
-  vi: 'Vietnamese', en: 'English', zh: 'Simplified Chinese',
-  'zh-TW': 'Traditional Chinese', ja: 'Japanese', ko: 'Korean',
-  fr: 'French', de: 'German', es: 'Spanish', pt: 'Portuguese',
-  ru: 'Russian', ar: 'Arabic', th: 'Thai', id: 'Indonesian',
-  it: 'Italian', nl: 'Dutch', pl: 'Polish', tr: 'Turkish', hi: 'Hindi',
-}
-
-function langName(code: string): string {
-  return LANG_NAMES[code] ?? code
-}
 
 interface ImageTranslateParams {
   provider: string

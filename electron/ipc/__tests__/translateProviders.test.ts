@@ -72,14 +72,25 @@ beforeEach(() => {
 })
 
 describe('dedicated live translation profiles', () => {
+  it('uses deterministic local live decoding and keeps ordinary translation defaults', async () => {
+    openAiCreate.mockResolvedValue(openAiReply('Xin chào'))
+    await translateWithLocal('', 'gemma3:4b', ...args, { live: { context: '' } })
+    expect(openAiCreate.mock.calls[0][0]).toMatchObject({ temperature: 0, max_tokens: 96 })
+    expect(openAiCreate.mock.calls[0][0].messages[0].content).toContain('Translate English into Vietnamese.')
+    expect(openAiCreate.mock.calls[0][0].messages[1].content).toBe('Hello')
+    expect(openAiCreate.mock.calls[0][0].messages[1].content).not.toContain('Reference only:')
+    await translateWithLocal('', 'gemma3:4b', ...args)
+    expect(openAiCreate.mock.calls[1][0].temperature).toBeUndefined()
+  })
+
   it('uses a short prompt, bounded output and actual OpenAI usage', async () => {
     openAiCreate.mockResolvedValue({ ...openAiReply('Xin chào'), usage: { prompt_tokens: 40, completion_tokens: 9, total_tokens: 49 } })
     const onUsage = vi.fn()
     await translateWithOpenAI('k', 'gpt-4o-mini', ...args, { live: { context: 'Greeting' }, onUsage })
     const body = openAiCreate.mock.calls[0][0]
-    expect(body.max_completion_tokens).toBe(192)
+    expect(body.max_completion_tokens).toBe(96)
     expect(body.messages[0].content.length + body.messages[1].content.length).toBeLessThan(500)
-    expect(body.messages[1].content).toContain('Greeting')
+    expect(body.messages[1].content).not.toContain('Greeting')
     expect(onUsage).toHaveBeenCalledWith({ inputTokens: 40, outputTokens: 9, totalTokens: 49, estimated: false })
   })
 
@@ -87,11 +98,11 @@ describe('dedicated live translation profiles', () => {
     claudeCreate.mockResolvedValue(claudeReply([{ type: 'text', text: 'Xin chào' }]))
     await translateWithClaude('k', 'claude-sonnet-4-6', ...args, { live: { context: '' } })
     expect(claudeCreate.mock.calls[0][0].thinking).toBeUndefined()
-    expect(claudeCreate.mock.calls[0][0].max_tokens).toBe(192)
+    expect(claudeCreate.mock.calls[0][0].max_tokens).toBe(96)
     geminiGenerate.mockResolvedValue({ response: { ...geminiReply('Xin chào').response, usageMetadata: { promptTokenCount: 30, candidatesTokenCount: 10, totalTokenCount: 60 } } })
     const onUsage = vi.fn()
     await translateWithGemini('k', 'gemini-2.5-flash', ...args, { live: { context: '' }, onUsage })
-    expect(geminiModelParams.mock.calls[0][0].generationConfig).toMatchObject({ thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 192 })
+    expect(geminiModelParams.mock.calls[0][0].generationConfig).toMatchObject({ thinkingConfig: { thinkingBudget: 0 }, maxOutputTokens: 96 })
     expect(onUsage).toHaveBeenCalledWith({ inputTokens: 30, outputTokens: 30, totalTokens: 60, estimated: false })
   })
 

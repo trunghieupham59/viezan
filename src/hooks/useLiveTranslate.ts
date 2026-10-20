@@ -13,6 +13,7 @@
  * `copiedSummary`) and pure render logic.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { LiveAssemblyRequest, LiveAssemblyUpdate, LiveSegmentState } from '../../shared/liveInterpretation'
 import { createAudioTranscriptionRequestId, getSupportedAudioMimeType } from '../constants/audio'
 import { LANG_NAMES_FOR_AI } from '../constants/langNames'
 import { LIVE_INPUT_LEVEL_FULL_SCALE_RMS, MIN_AUDIO_BLOB_BYTES } from '../constants/ui'
@@ -31,26 +32,31 @@ import {
   releaseCaptureResources,
   resolveLiveSessionSave,
 } from './live/liveSessionHelpers'
+import { liveMicrophoneConstraints, localVadWasmPaths } from './live/microphonePolicy'
+import { hasQuietMicrophoneSpeech } from './live/microphoneSpeech'
+import { prepareSpeechAudio } from './live/prepareSpeechAudio'
 import {
   DEFAULT_SPEAKER_DIARIZATION_POLICY,
   INITIAL_SPEAKER_DIARIZATION_STATE,
   resolveSpeakerForCompletedChunk,
 } from './live/speakerDiarization'
-import { appendRawTranscript, assembleCompletedSentences, getWhisperParts } from './live/transcriptAssembly'
+import { appendRawTranscript } from './live/transcriptAssembly'
 import { useLiveAiActions } from './live/useLiveAiActions'
 import {
   ADAPTIVE_VAD_DISCARD_THRESHOLD,
   ADAPTIVE_VAD_EVAL_WINDOW,
   ADAPTIVE_VAD_MIN_CHUNKS,
-  AVG_LOGPROB_MIN,
-  COMPRESSION_RATIO_MAX,
   exceedsSpeechRate,
   getInitialVadPolicy,
+  hasUnreliableTranscription,
   MAX_QUEUED_AUDIO_MS,
   MAX_RAW_TRANSCRIPT_CHARS,
   MIN_CHUNK_RECORD_MS,
-  NO_SPEECH_PROB_MAX,
+  quietMicSpeechThreshold,
+  quietSpeechFrames,
+  quietSystemSpeechThreshold,
   SILENCE_RESET_CHUNKS,
+  shouldFlushShortSpeech,
   VAD_FLIP_RATE_HIGH,
   VAD_FLIP_RATE_LOW,
   VAD_MAX_HANGOVER_SAMPLES,
@@ -68,25 +74,8 @@ import {
  */
 const CHUNK_DURATION_MS    = 6000
 
-/**
- * STT chunks accumulate into a pending buffer until a sentence boundary is
- * detected (. ! ? 。 ！ ？ etc.).  Only complete sentences are translated —
- * they are then locked and never re-translated.
- *
- * FALLBACK: if MAX_PENDING_CHUNKS STT results arrive with no punctuation
- * (common with Japanese / Whisper), the whole buffer is force-translated so
- * the user is never stuck waiting indefinitely.
- *
- * Stop and long silence also flush any incomplete final sentence.
- */
-const MAX_PENDING_CHUNKS   = 2
-
-/**
- * Number of recently-completed sentences to send as translation CONTEXT.
- * Gives the AI enough background to understand names, terms, and topic flow
- * without growing the prompt indefinitely.
- */
-const CONTEXT_SENTENCES    = 2
+// Allow a breath before asking the main-process assembler to settle a unit.
+const SENTENCE_SILENCE_MS = 1_600
 
 /**
  * A single translated segment with speaker label.
@@ -99,6 +88,8 @@ export interface LiveSegment {
   translation: string
   speaker: string    // e.g. 'Speaker 1', 'Speaker 2'
   timestamp: number
+  revision?: number
+  state?: LiveSegmentState
 }
 
 /** Default subtitle appearance settings — also used by reset button in LiveTranslatePage */
@@ -117,12 +108,6 @@ const MAX_SUMMARIZE_SECTION_CHARS = 10_000
 
 /** How long (ms) a pipeline error toast is shown before auto-dismissing. */
 const PIPELINE_ERROR_DISPLAY_MS = 4_000
-
-/**
- * Maximum chars of `previousText` passed to Whisper as decoder prompt.
- * Whisper's prompt window is ~224 tokens; keep well under to avoid truncation.
- */
-const MAX_PREVIOUS_TEXT_CHARS = 200
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
@@ -223,9 +208,12 @@ export function useLiveTranslate() {
     aiModelBoundaryRef.current.resolve(getConfiguredAIModel())
   ), [getConfiguredAIModel])
 
-  const pendingBufferRef     = useRef('')
-  const pendingChunkCountRef = useRef(0)
-  const recentSentencesRef   = useRef<string[]>([])
+  const assemblySequenceRef = useRef(0)
+  const hasOpenUnitRef = useRef(false)
+  const silenceSettledRef = useRef(false)
+  const lastSpeechAtRef = useRef(0)
+  const neuralSpeechRef = useRef(false)
+  const assemblyQueueRef = useRef<Promise<void>>(Promise.resolve())
   const fullRawForSummaryRef = useRef('')
   const fullTxForSummaryRef  = useRef('')
   const lastChunkTextRef     = useRef('')
@@ -541,31 +529,49 @@ export function useLiveTranslate() {
   const saveSessionRef = useRef(saveSession)
   useEffect(() => { saveSessionRef.current = saveSession }, [saveSession])
 
-  const translateSentences = useCallback((sentences: string[], generation: number, speaker: string) => {
+  const applyAssemblyUpdates = useCallback((updates: LiveAssemblyUpdate[], generation: number) => {
     const { sourceLang, targetLang } = sessionLanguagesRef.current
     const aiModel = getSessionAIModel()
-    for (const sourceText of sentences) {
+    const publishSubtitle = (segment: LiveSegment) => {
+      if (!segment.translation || segment.state !== 'final'
+        || segmentOrderRef.current[segmentOrderRef.current.length - 1] !== segment.id) return
+      setLatestSubtitle(segment.translation)
+      if (showSubtitlesRef.current) void window.api.subtitle.setSourceText(segment.rawText, segment.id)
+    }
+    for (const update of updates) {
       if (generation !== generationRef.current || !mountedRef.current) return
       const sessionId = sessionIdRef.current
       if (!sessionId) return
-      const segId = createClientId('seg')
-      const context = recentSentencesRef.current.join(' ').slice(-320)
-      recentSentencesRef.current = [...recentSentencesRef.current, sourceText].slice(-CONTEXT_SENTENCES)
-      segmentOrderRef.current.push(segId)
-      const segment: LiveSegment = { id: segId, rawText: sourceText, translation: '', speaker, timestamp: Date.now() }
-      segmentsRef.current = [...segmentsRef.current, segment]
+      const { segmentId: segId, sourceText, context, revision, state, speaker, timestamp } = update
+      const previous = segmentsRef.current.find(item => item.id === segId)
+      // Never leave an outdated preview presented as the final translation.
+      const keepTranslation = previous?.revision === revision || state === 'provisional'
+      const segment: LiveSegment = {
+        id: segId, rawText: sourceText, translation: keepTranslation ? previous?.translation ?? '' : '',
+        speaker, timestamp, revision, state,
+      }
+      if (!previous) segmentOrderRef.current.push(segId)
+      segmentsRef.current = previous
+        ? segmentsRef.current.map(item => item.id === segId ? segment : item)
+        : [...segmentsRef.current, segment]
+      if (!keepTranslation) segmentTranslationsRef.current.delete(segId)
+      fullTxForSummaryRef.current = joinTranslationsInOrder(segmentOrderRef.current, segmentTranslationsRef.current)
+      setTranslation(fullTxForSummaryRef.current)
       setSegments(segmentsRef.current)
-      if (showSubtitlesRef.current) void window.api?.subtitle?.setSourceText(sourceText, segId)
+      publishSubtitle(segment)
+      if (!update.translate) continue
       setIsTranslating(true)
       const task = (async () => {
         try {
           const result = await window.api.liveInterpretation.translate({
             sessionId, segmentId: segId, provider: aiModel.provider, model: aiModel.model,
-            sourceText, context, sourceLang, targetLang, subtitles: showSubtitlesRef.current,
+            sourceText, context, sourceLang, targetLang, revision, subtitles: false,
           })
           if (!mountedRef.current || generation !== generationRef.current) return
           if (result.usage) addLiveUsageCost(estimateUsageCost({ feature: 'live', provider: aiModel.provider, model: aiModel.model,
             inputText: '', outputText: '', tokenUsage: result.usage }))
+          const current = segmentsRef.current.find(item => item.id === segId)
+          if (current?.revision !== revision) return
           if (!result.success) {
             if (result.errorCode !== 'CANCELLED') showPipelineError(t.live_error_translation_failed)
             return
@@ -575,9 +581,9 @@ export function useLiveTranslate() {
           const ordered = joinTranslationsInOrder(segmentOrderRef.current, segmentTranslationsRef.current)
           fullTxForSummaryRef.current = ordered
           setTranslation(ordered)
-          if (segmentOrderRef.current[segmentOrderRef.current.length - 1] === segId) setLatestSubtitle(newTx)
           segmentsRef.current = segmentsRef.current.map(item => item.id === segId ? { ...item, translation: newTx } : item)
           setSegments(segmentsRef.current)
+          publishSubtitle({ ...current, translation: newTx })
         } catch {
           if (mountedRef.current && generation === generationRef.current) showPipelineError(t.live_error_translation_failed)
         }
@@ -590,13 +596,42 @@ export function useLiveTranslate() {
     }
   }, [addLiveUsageCost, getSessionAIModel, showPipelineError, t])
 
-  const flushPendingText = useCallback(() => {
-    const tail = pendingBufferRef.current.trim()
-    pendingBufferRef.current = ''
-    pendingChunkCountRef.current = 0
-    if (mountedRef.current) setPendingText('')
-    if (tail) translateSentences([tail], generationRef.current, currentSpeakerRef.current)
-  }, [translateSentences])
+  const assembleText = useCallback((action: LiveAssemblyRequest['action'], sourceText = '', durationMs = 0, generation = generationRef.current, pause = false) => {
+    const sessionId = sessionIdRef.current
+    if (!sessionId) return Promise.resolve()
+    const request: LiveAssemblyRequest = {
+      sessionId, action, sourceText, durationMs, pause, sequence: action === 'append' ? ++assemblySequenceRef.current : assemblySequenceRef.current,
+      ...sessionLanguagesRef.current, speaker: currentSpeakerRef.current, timestamp: Date.now(),
+    }
+    const task = assemblyQueueRef.current.catch(() => undefined).then(async () => {
+      if (!mountedRef.current || generation !== generationRef.current) return
+      try {
+        const result = await window.api.liveInterpretation.assemble(request)
+        if (!mountedRef.current || generation !== generationRef.current) return
+        if (!result.success) { showPipelineError(t.live_error_translation_failed); return }
+        hasOpenUnitRef.current = result.hasOpen
+        setPendingText('')
+        applyAssemblyUpdates(result.updates, generation)
+      } catch {
+        if (mountedRef.current && generation === generationRef.current) showPipelineError(t.live_error_translation_failed)
+      }
+    })
+    assemblyQueueRef.current = task
+    return task
+  }, [applyAssemblyUpdates, showPipelineError, t])
+
+  const flushPendingText = useCallback(() => assembleText('silence'), [assembleText])
+
+  useEffect(() => {
+    if (!isActive) return
+    const timer = setInterval(() => {
+      if (!activeRef.current || !hasOpenUnitRef.current || silenceSettledRef.current || neuralSpeechRef.current
+        || queuedAudioMsRef.current > 0 || Date.now() - lastSpeechAtRef.current < SENTENCE_SILENCE_MS) return
+      silenceSettledRef.current = true
+      void flushPendingText()
+    }, 200)
+    return () => clearInterval(timer)
+  }, [isActive, flushPendingText])
 
   /** Orderly end of a session: teardown + UI reset + auto-save to history. */
   const stopSession = useCallback((opts: { flush: boolean }) => {
@@ -613,7 +648,7 @@ export function useLiveTranslate() {
       await queueRef.current.catch(() => undefined)
       if (generationRef.current !== stoppedGeneration || !mountedRef.current) return
       if (opts.flush) {
-        flushPendingText()
+        await assembleText('stop')
         await Promise.allSettled([...translationTasksRef.current])
       }
       if (generationRef.current !== stoppedGeneration || !mountedRef.current) return
@@ -628,10 +663,10 @@ export function useLiveTranslate() {
     stopTaskRef.current = task
     void promise.finally(() => { if (stopTaskRef.current === task) stopTaskRef.current = null })
     return promise
-  }, [cancelActiveSttRequests, teardown, saveSession, setLiveLanguagesLocked, flushPendingText])
+  }, [cancelActiveSttRequests, teardown, saveSession, setLiveLanguagesLocked, assembleText])
 
   // ── Core pipeline ───────────────────────────────────────────────────────────
-  const processChunk = useCallback(async (blob: Blob, mimeType: string, opts: { durationMs: number; generation: number }) => {
+  const processChunk = useCallback(async (blob: Blob, _mimeType: string, opts: { durationMs: number; generation: number; utteranceEnd: boolean; microphone: boolean }) => {
     if (blob.size < MIN_AUDIO_BLOB_BYTES) return
     // Session/clear-aware guards: skip stale chunks left over from a previous
     // session whose API requests resolved late. The one exception is the final
@@ -651,25 +686,32 @@ export function useLiveTranslate() {
     const requestId = createAudioTranscriptionRequestId()
     activeSttRequestIdsRef.current.add(requestId)
     try {
-      const buf = await blob.arrayBuffer()
+      const prepared = await prepareSpeechAudio(blob, opts.microphone, hasQuietMicrophoneSpeech)
       if (chunkGeneration !== generationRef.current || !mountedRef.current) return
-      // Cap previousText so it never approaches Whisper's ~224-token prompt window.
-      const prev = lastChunkTextRef.current
-      const cappedPrev = prev && prev.length > MAX_PREVIOUS_TEXT_CHARS
-        ? prev.slice(-MAX_PREVIOUS_TEXT_CHARS)
-        : prev
+      if (!prepared) {
+        silentChunkCountRef.current += opts.durationMs / 2_000
+        if (silentChunkCountRef.current >= SILENCE_RESET_CHUNKS) {
+          silentChunkCountRef.current = 0
+          lastChunkTextRef.current = ''
+        }
+        return
+      }
+      if (opts.microphone) {
+        if (silentChunkCountRef.current > 0) silenceBeforeChunkRef.current = silentChunkCountRef.current
+        silentChunkCountRef.current = 0
+      }
+      const buf = await prepared.arrayBuffer()
+      if (chunkGeneration !== generationRef.current || !mountedRef.current) return
       stt = await window.api?.transcribeAudio({
         requestId,
         purpose:     'live',
         liveRouting: 'economy',
         audioData:    buf,
-        mimeType,
+        mimeType:     prepared.type,
         language:     sourceLang === 'auto' ? undefined : sourceLang,
-        // Pass the last successfully transcribed text as Whisper's prompt
-        // context.  Whisper treats it as "speech already in progress",
-        // maintaining terminology consistency across chunks and preventing
-        // the decoder from drifting to a YouTube-caption style opening.
-        previousText: cappedPrev || undefined,
+        // Independent utterances must not inherit a possibly incorrect decoder
+        // prompt. Keep prior text only for local duplicate detection.
+        previousText: undefined,
         sttProvider,
       })
     } catch {
@@ -721,7 +763,9 @@ export function useLiveTranslate() {
     }
 
     const newText = stt.text.trim()
-    if (!newText || isHallucination(newText)) {
+    const unreliable = hasUnreliableTranscription(stt)
+    if (unreliable && newText) showPipelineError(t.live_error_stt_failed)
+    if (!newText || isHallucination(newText) || unreliable) {
       // ── Adaptive VAD: noise-discard (empty / hallucinated output) ────────
       adaptiveDiscardRef.current += 1
       if (vadModeStateRef.current === 'energy') {
@@ -737,33 +781,6 @@ export function useLiveTranslate() {
       }
       return
     }
-
-    // ── Whisper confidence gate (verbose_json segment signals) ────────────
-    // These are Whisper's own internal estimates returned via verbose_json.
-    // They are the most reliable hallucination indicators available from
-    // the OpenAI API and should be treated as mandatory gates.
-    //
-    //  noSpeechProb    > NO_SPEECH_PROB_MAX    → model is ≥65% sure no speech
-    //  avgLogprob      < AVG_LOGPROB_MIN       → model is not confident in tokens
-    //  compressionRatio > COMPRESSION_RATIO_MAX → output is anomalously repetitive
-    if (typeof stt.noSpeechProb === 'number' && stt.noSpeechProb > NO_SPEECH_PROB_MAX) {
-      // ── Adaptive VAD: Whisper says no speech detected ────────────────────
-      adaptiveDiscardRef.current += 1
-      if (vadModeStateRef.current === 'energy') {
-        if (adaptiveChunksRef.current >= ADAPTIVE_VAD_MIN_CHUNKS &&
-            adaptiveDiscardRef.current / adaptiveChunksRef.current > ADAPTIVE_VAD_DISCARD_THRESHOLD) {
-          void upgradeVADRef.current?.()
-          adaptiveChunksRef.current  = 0
-          adaptiveDiscardRef.current = 0
-        } else if (adaptiveChunksRef.current >= ADAPTIVE_VAD_EVAL_WINDOW) {
-          adaptiveChunksRef.current  = 0
-          adaptiveDiscardRef.current = 0
-        }
-      }
-      return
-    }
-    if (typeof stt.avgLogprob === 'number'      && stt.avgLogprob      < AVG_LOGPROB_MIN)       return
-    if (typeof stt.compressionRatio === 'number' && stt.compressionRatio > COMPRESSION_RATIO_MAX) return
 
     if (exceedsSpeechRate(newText, opts.durationMs)) return
 
@@ -789,21 +806,6 @@ export function useLiveTranslate() {
       MAX_RAW_TRANSCRIPT_CHARS,
     )
     if (mountedRef.current) setRawTranscript(fullRawForSummaryRef.current)
-
-    const assembly = assembleCompletedSentences(
-      getWhisperParts(newText, stt.segmentTexts),
-      {
-        pendingBuffer: pendingBufferRef.current,
-        pendingChunkCount: pendingChunkCountRef.current,
-      },
-      MAX_PENDING_CHUNKS,
-    )
-    pendingBufferRef.current = assembly.pendingBuffer
-    pendingChunkCountRef.current = assembly.pendingChunkCount
-    if (mountedRef.current) setPendingText(assembly.pendingText)
-    const { completedSentences } = assembly
-
-    if (completedSentences.length === 0) return
 
     // ── VAD-based speaker diarization (smart cycling) ─────────────────────
     // Runs once per chunk — the same speaker label is assigned to all sentences
@@ -838,16 +840,15 @@ export function useLiveTranslate() {
     speakerCountRef.current = speakerState.speakerCount
     lastSpeakerChangeTimeRef.current = speakerState.lastSpeakerChangeTime
     speakerTurnHistoryRef.current = speakerState.turnHistory
-    const currentSpeaker = speakerState.currentSpeaker
+    silenceSettledRef.current = false
+    await assembleText('append', newText, opts.durationMs, chunkGeneration, opts.utteranceEnd)
+  }, [showPipelineError, stopSession, t, assembleText])
 
-    translateSentences(completedSentences, chunkGeneration, currentSpeaker)
-  }, [showPipelineError, stopSession, t, translateSentences])
-
-  const enqueueAudio = useCallback((blob: Blob, mimeType: string, durationMs: number, generation: number) => {
+  const enqueueAudio = useCallback((blob: Blob, mimeType: string, durationMs: number, generation: number, utteranceEnd = false, microphone = false) => {
     if (generation !== generationRef.current) return
     queuedAudioMsRef.current += durationMs
     queueRef.current = queueRef.current.catch(() => undefined).then(async () => {
-      try { await processChunk(blob, mimeType, { durationMs, generation }) }
+      try { await processChunk(blob, mimeType, { durationMs, generation, utteranceEnd, microphone }) }
       finally { if (generation === generationRef.current) queuedAudioMsRef.current -= durationMs }
     })
     // Stop accepting new audio rather than silently dropping accepted speech.
@@ -897,6 +898,9 @@ export function useLiveTranslate() {
     // Required to fire at least once above policy.peakRmsThreshold before speech
     // is confirmed, ruling out constant-level AC hum.
     let chunkPeakRms = 0
+    const rmsTrace: number[] = []
+    let quietThreshold: number | null = null
+    const rmsData = new Float32Array(analyserRef.current?.fftSize ?? 512)
 
     // ── VAD state machine (WebRTC-style hysteresis) ──────────────────────────
     //
@@ -919,12 +923,22 @@ export function useLiveTranslate() {
     vadTimerRef.current = setInterval(() => {
       const analyser = analyserRef.current
       if (!analyser) return
-      const data = new Uint8Array(analyser.fftSize)
-      analyser.getByteTimeDomainData(data)
-      const rms = Math.sqrt(data.reduce((sum, v) => sum + (v - 128) ** 2, 0) / data.length)
+      analyser.getFloatTimeDomainData(rmsData)
+      const rms = 128 * Math.sqrt(rmsData.reduce((sum, v) => sum + v * v, 0) / rmsData.length)
+      if (vadModeRef.current === 'system' && rms > 0.15) lastSpeechAtRef.current = Date.now()
       if (rms > chunkPeakRms) chunkPeakRms = rms
+      // Keep the full mic trace for the final noise-floor check. A device-open
+      // transient must not latch steady background noise as speech forever.
+      if (quietThreshold === null || vadModeRef.current !== 'system') {
+        rmsTrace.push(...quietSpeechFrames(rmsData, audioCtxRef.current?.sampleRate ?? 48_000))
+        quietThreshold = vadModeRef.current === 'system'
+          ? quietSystemSpeechThreshold(rmsTrace, 20)
+          : quietMicSpeechThreshold(rmsTrace, 20)
+        if (quietThreshold !== null) hasSpeechRef.current = true
+      }
 
-      const isSpeechFrame = rms > policy.speechRmsThreshold
+      const isSpeechFrame = rms > (quietThreshold ?? policy.speechRmsThreshold)
+      if (isSpeechFrame && (vadModeRef.current === 'system' || quietThreshold !== null)) lastSpeechAtRef.current = Date.now()
       // Count every SPEECH ↔ SILENCE transition for the quality monitor
       if (isSpeechFrame !== prevWasSpeech) { vadFlipCount++; prevWasSpeech = isSpeechFrame }
 
@@ -977,7 +991,13 @@ export function useLiveTranslate() {
         }
         if (!ownsSession && finalFlushRecorderRef.current !== recorder) return
 
-        const hadSpeech = hasSpeechRef.current
+        const isFinalFlush = finalFlushRecorderRef.current === recorder
+          && isFlushGenerationValid(flushGenerationRef.current, captureGeneration)
+        // Mic speech is decided from decoded PCM in the queue. Polling can miss
+        // short vowels, while a device-open peak can falsely latch steady noise.
+        const shouldInspectAudio = vadModeRef.current !== 'system'
+          || hasSpeechRef.current || (isFinalFlush
+            && shouldFlushShortSpeech(policy, speechCountRef.current, chunkPeakRms, Date.now() - recordStartTime))
         const recMime   = recorder.mimeType || mimeType || 'audio/webm'
         const blob      = new Blob(audioChunks, { type: recMime })
 
@@ -1007,13 +1027,14 @@ export function useLiveTranslate() {
           }
         }
 
-        if (hadSpeech) {
+        if (shouldInspectAudio) {
           // Capture silence count before reset — used by processChunk for speaker detection
-          if (silentChunkCountRef.current > 0) {
-            silenceBeforeChunkRef.current = silentChunkCountRef.current
+          if (vadModeRef.current === 'system') {
+            if (silentChunkCountRef.current > 0) silenceBeforeChunkRef.current = silentChunkCountRef.current
+            silentChunkCountRef.current = 0
           }
           // Speech detected — reset silence counter and preserve it in the queue.
-          silentChunkCountRef.current = 0
+          // Mic classification/reset happens after decoding in that same queue.
           // Orderly Stop stopped this recorder mid-utterance: its last chunk must
           // still be transcribed even though activeRef is already false.
           const isFlushRecorder = finalFlushRecorderRef.current === recorder
@@ -1023,7 +1044,8 @@ export function useLiveTranslate() {
             && isFlushGenerationValid(flushGenerationRef.current, generationRef.current)
           // A stale recorder (not the live one and not a valid flush) never queues.
           if (ownsSession || finalFlush) {
-            enqueueAudio(blob, recMime, Date.now() - recordStartTime, captureGeneration)
+            enqueueAudio(blob, recMime, Date.now() - recordStartTime, captureGeneration,
+              isFinalFlush || postSpeechSilenceSamples >= policy.hangoverSamples, vadModeRef.current !== 'system')
           }
         } else {
           // No speech — increment counter; reset decoder context on long silence
@@ -1033,10 +1055,6 @@ export function useLiveTranslate() {
             // decode cycle starts fresh and can't drift on stale text.
             silentChunkCountRef.current  = 0
             lastChunkTextRef.current     = ''
-            flushPendingText()
-            pendingBufferRef.current     = ''
-            pendingChunkCountRef.current = 0
-            recentSentencesRef.current   = []
           }
         }
 
@@ -1061,7 +1079,7 @@ export function useLiveTranslate() {
       chunkTimeoutRef.current = null
       if (recorder.state === 'recording') recorder.stop()
     }, CHUNK_DURATION_MS)
-  }, [enqueueAudio, flushPendingText, stopSession])
+  }, [enqueueAudio, stopSession])
 
   // ── Session start / stop ────────────────────────────────────────────────────
   const handleStart = useCallback(async () => {
@@ -1086,9 +1104,13 @@ export function useLiveTranslate() {
     setViewingLiveSession(null)
     setRawTranscript('')
     setTranslation('')
-    pendingBufferRef.current     = ''
-    pendingChunkCountRef.current = 0
-    recentSentencesRef.current   = []
+    setLatestSubtitle('')
+    assemblySequenceRef.current = 0
+    assemblyQueueRef.current = Promise.resolve()
+    hasOpenUnitRef.current = false
+    silenceSettledRef.current = false
+    lastSpeechAtRef.current = Date.now()
+    neuralSpeechRef.current = false
     fullRawForSummaryRef.current = ''
     fullTxForSummaryRef.current  = ''
     segmentOrderRef.current      = []
@@ -1141,7 +1163,9 @@ export function useLiveTranslate() {
       pendingAudioCtx = audioCtx
       const analyser = audioCtx.createAnalyser()
       pendingAnalyser = analyser
-      analyser.fftSize = 512
+      // Cover the full polling interval. At 48 kHz, the old 512-sample
+      // snapshot observed only 11 ms out of each 80 ms and could miss syllables.
+      analyser.fftSize = Math.min(32768, 2 ** Math.ceil(Math.log2(audioCtx.sampleRate * VAD_SAMPLE_INTERVAL / 1_000)))
 
       let captureStream: MediaStream
 
@@ -1153,7 +1177,9 @@ export function useLiveTranslate() {
         // "Invalid capture constraints" errors from Chromium's constraint validator.
         const displayStream = await (navigator.mediaDevices as MediaDevices).getDisplayMedia({
           video: true,
-          audio: true,
+          // Loopback already contains clean playback. Microphone processing
+          // suppresses its own source and can damage short syllables/tones.
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
         } as DisplayMediaStreamOptions)
         // Keep the whole display stream so Stop/unmount/error can stop every track.
         acquiredStreams.push(displayStream)
@@ -1172,7 +1198,7 @@ export function useLiveTranslate() {
         // 'both' mode: also mix in microphone so both speakers are captured
         if (audioMode === 'both') {
           try {
-            const micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+            const micStream = await navigator.mediaDevices.getUserMedia(liveMicrophoneConstraints('both'))
             acquiredStreams.push(micStream)
             inputs.push(micStream)
           } catch { throw new Error(t.live_error_mic_denied) }
@@ -1188,16 +1214,7 @@ export function useLiveTranslate() {
         // Stage 2 (auto-upgrade) — Silero ML VAD
         //   • Triggered when noise-discard rate > ADAPTIVE_VAD_DISCARD_THRESHOLD
         //   • One-way (energy → Silero, never back); reuses the existing mic stream
-        const rawMicStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl:  true,
-            sampleRate:       { ideal: 16_000 },
-            channelCount:     { exact: 1 },
-          },
-          video: false,
-        })
+        const rawMicStream = await navigator.mediaDevices.getUserMedia(liveMicrophoneConstraints('mic'))
         acquiredStreams.push(rawMicStream)
         // Superseded while the permission prompt was open — don't install this
         // attempt's VAD-upgrade hook over a newer session's (`finally` releases us).
@@ -1224,15 +1241,14 @@ export function useLiveTranslate() {
             const micVad = await MicVAD.new({
               baseAssetPath:    './vad/',
               onnxWASMBasePath: './vad/',
+              ortConfig: ort => {
+                ort.env.logLevel = 'error'
+                ort.env.wasm.wasmPaths = localVadWasmPaths(window.location.href)
+              },
               model: 'v5',
               submitUserSpeechOnPause: true,
               getStream: async () => existingStream
-                ?? navigator.mediaDevices.getUserMedia({
-                    audio: { echoCancellation: true, noiseSuppression: true,
-                             autoGainControl: true, sampleRate: { ideal: 16_000 },
-                             channelCount: { exact: 1 } },
-                    video: false,
-                  }),
+                ?? navigator.mediaDevices.getUserMedia(liveMicrophoneConstraints('mic')),
               positiveSpeechThreshold: 0.50,
               negativeSpeechThreshold: 0.35,
               minSpeechMs:    384,
@@ -1242,6 +1258,7 @@ export function useLiveTranslate() {
                 if (!activeRef.current || sessionSeqRef.current !== sessionSeq) return
                 speechGeneration = generationRef.current
                 hasSpeechRef.current = true
+                neuralSpeechRef.current = true
               },
               onSpeechEnd: (samples: Float32Array) => {
                 // An orderly Stop destroys the VAD, which emits the in-progress
@@ -1252,6 +1269,8 @@ export function useLiveTranslate() {
                 if (speechGeneration !== generationRef.current) return
                 if (!(activeRef.current && sessionSeqRef.current === sessionSeq) && !finalFlush) return
                 hasSpeechRef.current = false
+                neuralSpeechRef.current = false
+                lastSpeechAtRef.current = Date.now()
                 const now = Date.now()
                 if (lastSpeechEndTimeRef.current > 0) {
                   const gapMs     = Math.max(0, now - lastSpeechEndTimeRef.current - samples.length / 16)
@@ -1260,16 +1279,12 @@ export function useLiveTranslate() {
                   if (gapChunks >= SILENCE_RESET_CHUNKS) {
                     silentChunkCountRef.current  = 0
                     lastChunkTextRef.current     = ''
-                    flushPendingText()
-                    pendingBufferRef.current     = ''
-                    pendingChunkCountRef.current = 0
-                    recentSentencesRef.current   = []
                   }
                 }
                 lastSpeechEndTimeRef.current = now
                 silentChunkCountRef.current  = 0
                 const blob = float32ToWav(samples, 16_000)
-                enqueueAudio(blob, 'audio/wav', samples.length / 16, speechGeneration)
+                enqueueAudio(blob, 'audio/wav', samples.length / 16, speechGeneration, true)
               },
               onVADMisfire: () => { if (sessionSeqRef.current === sessionSeq) silentChunkCountRef.current += 1 },
             })
@@ -1337,7 +1352,7 @@ export function useLiveTranslate() {
         releaseCaptureResources({ streams: acquiredStreams, analyser: pendingAnalyser, audioCtx: pendingAudioCtx })
       }
     }
-  }, [startChunk, audioMode, setViewingLiveSession, enqueueAudio, flushPendingText, t, cancelActiveSttRequests, getConfiguredAIModel, teardown, saveSession, setLiveLanguagesLocked])
+  }, [startChunk, audioMode, setViewingLiveSession, enqueueAudio, t, cancelActiveSttRequests, getConfiguredAIModel, teardown, saveSession, setLiveLanguagesLocked])
 
   const handleStop = useCallback(() => {
     stopSession({ flush: true })
@@ -1359,9 +1374,10 @@ export function useLiveTranslate() {
     queuedAudioMsRef.current = 0
     translationTasksRef.current.clear()
     segmentsRef.current = []
-    pendingBufferRef.current     = ''
-    pendingChunkCountRef.current = 0
-    recentSentencesRef.current   = []
+    assemblySequenceRef.current = 0
+    assemblyQueueRef.current = Promise.resolve()
+    hasOpenUnitRef.current = false
+    silenceSettledRef.current = false
     fullRawForSummaryRef.current = ''
     fullTxForSummaryRef.current  = ''
     segmentOrderRef.current      = []
@@ -1374,6 +1390,7 @@ export function useLiveTranslate() {
     setIsTranscribing(false)
     setRawTranscript('')
     setTranslation('')
+    setLatestSubtitle('')
     setSummary(null)
     setShowSummaryBtn(false)
     setSpeakerAnalysis(null)

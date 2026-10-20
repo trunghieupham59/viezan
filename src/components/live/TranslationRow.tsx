@@ -14,9 +14,10 @@ interface TranslationRowProps {
   speaker: string
   text: string
   speakerNameMap: Record<string, string>
+  statusLabel?: string
 }
 
-export function TranslationRow({ speaker, text, speakerNameMap }: TranslationRowProps) {
+export function TranslationRow({ speaker, text, speakerNameMap, statusLabel }: TranslationRowProps) {
   const displayName = speakerNameMap[speaker] || speaker
   const colorClass = getSpeakerColorClass(speaker)
 
@@ -26,10 +27,11 @@ export function TranslationRow({ speaker, text, speakerNameMap }: TranslationRow
   return (
     <div className="flex items-start gap-2">
       <SpeakerBadge name={displayName} colorClass={colorClass} />
-      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 leading-relaxed">
+      <span className="text-sm font-medium leading-relaxed" style={{ color: 'var(--vzn-text-muted)' }}>
+        {statusLabel && <span className="block" style={{ color: 'var(--vzn-text-soft)' }} role="status">{statusLabel}</span>}
         {displayedText}
         {displayedText !== text && (
-          <span className="inline-block ml-0.5 w-0.5 h-3.5 bg-gray-400 dark:bg-gray-600 animate-pulse align-middle" />
+          <span className="inline-block ml-0.5 w-0.5 h-3.5 animate-pulse align-middle" style={{ background: 'var(--vzn-text-soft)' }} />
         )}
       </span>
     </div>

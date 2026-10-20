@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { LiveSegmentState } from '../../shared/liveInterpretation'
 import { BilingualSegmentRow } from '../components/live/BilingualSegmentRow'
 import { SegmentRow } from '../components/live/SegmentRow'
 import { TranslationRow } from '../components/live/TranslationRow'
@@ -31,6 +32,13 @@ import { DEFAULT_SUBTITLE_SETTINGS, useLiveTranslate } from '../hooks/useLiveTra
 import type { Translations } from '../i18n/types'
 import { useAppStore, useT } from '../store/useAppStore'
 import '../styles/translate.css'
+
+function segmentStatus(state: LiveSegmentState | undefined, t: Translations): string | undefined {
+  if (state === 'pending') return t.live_sentence_pending
+  if (state === 'provisional') return t.live_sentence_provisional
+  if (state === 'incomplete') return t.live_sentence_incomplete
+  return undefined
+}
 
 /**
  * DUP-04: Shared helper for downloading text content as a file.
@@ -568,6 +576,7 @@ export function LiveTranslatePage() {
                             speaker={seg.speaker}
                             original={seg.rawText}
                             translation={seg.translation}
+                            statusLabel={segmentStatus(seg.state, t)}
                             speakerNameMap={speakerNameMap}
                             onRename={handleRenameSpeaker}
                             pendingTranslationLabel={isActive && isTranslating && index === segments.length - 1
@@ -663,6 +672,7 @@ export function LiveTranslatePage() {
                             key={seg.id}
                             speaker={seg.speaker}
                             text={seg.translation}
+                            statusLabel={segmentStatus(seg.state, t)}
                             speakerNameMap={speakerNameMap}
                           />
                         ))}

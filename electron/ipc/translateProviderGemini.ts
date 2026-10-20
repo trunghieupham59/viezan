@@ -1,6 +1,6 @@
 import { blockedSafetyError } from './errorUtils'
 import { VERIFY_MODEL_GEMINI } from './ipcConstants'
-import { buildLivePrompt, LIVE_SYSTEM_PROMPT, liveOutputBudget } from './liveTranslationPolicy'
+import { buildLivePrompt, buildLiveSystemPrompt, liveOutputBudget } from './liveTranslationPolicy'
 import { buildPrompt, buildRewritePrompt, REWRITE_SYSTEM_PROMPT, SYSTEM_PROMPT } from './translatePrompts'
 import { finalizeProviderText, nonEmptyProviderText } from './translateProviderOutput'
 import type { DetectFn, RewriteFn, StreamFn, TranslateFn, TranslateRequestOptions, VerifyFn } from './translateProviderTypes'
@@ -71,7 +71,7 @@ export const translateWithGemini: TranslateFn = async (
   }
   const genModel = genAI.getGenerativeModel({
     model,
-    systemInstruction: options.live ? LIVE_SYSTEM_PROMPT : SYSTEM_PROMPT,
+    systemInstruction: options.live ? buildLiveSystemPrompt(sourceLang, targetLang) : SYSTEM_PROMPT,
     // The legacy SDK forwards generationConfig verbatim but predates this API field in its types.
     generationConfig: generationConfig as never,
   })

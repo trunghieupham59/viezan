@@ -8,7 +8,43 @@ export interface LiveTranslationRequest {
   sourceText: string
   context: string
   subtitles: boolean
+  /** Source revision issued by the session assembler; omitted for legacy callers. */
+  revision?: number
 }
+
+export type LiveSegmentState = 'pending' | 'provisional' | 'final' | 'incomplete'
+
+export interface LiveAssemblyRequest {
+  sessionId: string
+  action: 'append' | 'silence' | 'stop'
+  sourceLang: string
+  targetLang: string
+  /** Strictly increasing per session; duplicate/late chunks are rejected. */
+  sequence: number
+  sourceText: string
+  durationMs: number
+  /** A capture pause is only a hint; a hard recording-window cut is false. */
+  pause: boolean
+  speaker: string
+  timestamp: number
+}
+
+export interface LiveAssemblyUpdate {
+  segmentId: string
+  revision: number
+  sourceText: string
+  context: string
+  speaker: string
+  timestamp: number
+  state: LiveSegmentState
+  translate: boolean
+}
+
+export type LiveAssemblyResult = {
+  success: true
+  updates: LiveAssemblyUpdate[]
+  hasOpen: boolean
+} | { success: false; errorCode: string }
 
 export interface LiveTokenUsage {
   inputTokens: number
@@ -24,10 +60,13 @@ export type LiveTranslationResult = {
   usage: LiveTokenUsage
   cached: boolean
   attempts: number
+  /** Measured service stages, excluding renderer capture/STT latency. */
+  timing?: { queueMs: number; providerMs: number }
 } | { success: false; errorCode: string; usage?: LiveTokenUsage }
 
 export interface LiveInterpretationApi {
   begin: (sessionId: string) => Promise<void>
   translate: (request: LiveTranslationRequest) => Promise<LiveTranslationResult>
+  assemble: (request: LiveAssemblyRequest) => Promise<LiveAssemblyResult>
   cancel: (sessionId: string) => Promise<void>
 }

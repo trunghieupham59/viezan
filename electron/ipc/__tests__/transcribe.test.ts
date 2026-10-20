@@ -230,6 +230,41 @@ describe('live economy routing', () => {
     expect(providerMocks.fetch).not.toHaveBeenCalled()
     expect(providerMocks.groqCreate).not.toHaveBeenCalled()
   })
+
+  it.each(['TIMEOUT', 'CONNECTION_ERROR'])('lets the next real utterance recover after %s without replaying the failed audio', async errorCode => {
+    vi.mocked(getStoredApiKey).mockImplementation(provider => provider === 'openai' ? 'test-key' : null)
+    providerMocks.openAiCreate.mockRejectedValueOnce(new Error(errorCode === 'TIMEOUT' ? 'request timed out' : 'fetch failed'))
+      .mockResolvedValueOnce({ text: 'はい', segments: [] })
+    const params = makeParams({ purpose: 'live', liveRouting: 'economy', sttProvider: 'whisper' })
+    await expect(invoke('audio:transcribe', params)).resolves.toMatchObject({ success: false, errorCode, retryable: true })
+    expect(providerMocks.openAiCreate).toHaveBeenCalledOnce()
+    await expect(invoke('audio:transcribe', { ...params, requestId: 'next-utterance' })).resolves.toMatchObject({ success: true, text: 'はい' })
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(providerMocks.openAiCreate).toHaveBeenCalledTimes(2)
+    expect(providerMocks.fetch).not.toHaveBeenCalled()
+  })
+
+  it('keeps an auto-route transient failure instead of masking it with missing fallback keys', async () => {
+    vi.mocked(getStoredApiKey).mockImplementation(provider => provider === 'openai' ? 'test-key' : null)
+    providerMocks.openAiCreate.mockRejectedValueOnce(new Error('request timed out'))
+    await expect(invoke('audio:transcribe', makeParams({ purpose: 'live', liveRouting: 'economy' })))
+      .resolves.toMatchObject({ success: false, errorCode: 'TIMEOUT', retryable: true })
+  })
+
+  it('honors a rate-limit cooldown across preflight, reports RATE_LIMIT and recovers on real audio at expiry', async () => {
+    vi.mocked(hasStoredApiKey).mockImplementation(provider => provider === 'openai')
+    providerMocks.openAiCreate.mockRejectedValueOnce(Object.assign(new Error('rate limit'), { status: 429 }))
+      .mockResolvedValueOnce({ text: 'はい', segments: [] })
+    const params = makeParams({ purpose: 'live', liveRouting: 'economy', sttProvider: 'whisper' })
+    await expect(invoke('audio:transcribe', params)).resolves.toMatchObject({ errorCode: 'RATE_LIMIT' })
+    await invoke('audio:checkSttProviders')
+    await expect(invoke('audio:transcribe', { ...params, requestId: 'during-cooldown' })).resolves.toMatchObject({ errorCode: 'RATE_LIMIT', retryable: true })
+    expect(providerMocks.openAiCreate).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(90_001)
+    expect(providerMocks.openAiCreate).toHaveBeenCalledOnce() // No paid probe.
+    await expect(invoke('audio:transcribe', { ...params, requestId: 'after-cooldown' })).resolves.toMatchObject({ success: true, text: 'はい' })
+    expect(providerMocks.openAiCreate).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('STT ban classification', () => {

@@ -72,6 +72,7 @@ function createWebPreviewApi(): WindowApi {
     liveInterpretation: {
       begin: async () => undefined,
       cancel: async () => undefined,
+      assemble: async () => ({ success: true as const, updates: [], hasOpen: false }),
       translate: async (params: { sourceText: string; targetLang: string }) => ({
         success: true as const, translatedText: previewTranslation(params.sourceText, params.targetLang),
         cached: false, attempts: 0, usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0, estimated: true },

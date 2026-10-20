@@ -1194,6 +1194,9 @@ export interface Translations {
   live_error_title: string
   live_error_stt_failed: string
   live_error_translation_failed: string
+  live_sentence_pending: string
+  live_sentence_provisional: string
+  live_sentence_incomplete: string
   live_error_backlog: string
   live_error_system_audio_unavailable: string
   live_error_screen_permission_denied: string

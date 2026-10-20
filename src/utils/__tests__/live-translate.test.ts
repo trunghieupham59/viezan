@@ -26,21 +26,16 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('isHallucination', () => {
 
-  // ── Check 1: too short ────────────────────────────────────────────────────
-  describe('text too short (< 4 chars after trim)', () => {
+  describe('empty or nonverbal text, without discarding short replies', () => {
     it('returns true for empty string', () => {
       expect(isHallucination('')).toBe(true)
     })
 
-    it('returns true for single character', () => {
-      expect(isHallucination('A')).toBe(true)
+    it.each(['A', 'Ừ', 'Dạ', 'はい', 'どうぞ', 'OK', 'Yes', '1'])('preserves the short utterance %s', text => {
+      expect(isHallucination(text)).toBe(false)
     })
 
-    it('returns true for 3-character string', () => {
-      expect(isHallucination('abc')).toBe(true)
-    })
-
-    it('returns true for whitespace-only string (trims to < 4 chars)', () => {
+    it('returns true for whitespace-only string', () => {
       expect(isHallucination('   ')).toBe(true)
     })
 
@@ -60,7 +55,7 @@ describe('isHallucination', () => {
   // genuine speech. Those are filtered by Whisper's verbose_json confidence
   // metrics upstream in processChunk.
   describe('structural: lone punctuation / whitespace only (Pattern A)', () => {
-    it('returns true for "..." — 3 chars, caught by check 1 (< 4)', () => {
+    it('returns true for punctuation-only "..."', () => {
       expect(isHallucination('...')).toBe(true)
     })
 

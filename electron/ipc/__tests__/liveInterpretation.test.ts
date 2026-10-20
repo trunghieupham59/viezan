@@ -35,6 +35,21 @@ describe('live interpretation IPC boundary', () => {
     expect(provider).not.toHaveBeenCalled()
   })
 
+  it('validates assembly input and never calls a provider merely to decide a boundary', async () => {
+    await invoke('live:begin', 'session-1')
+    const append = { sessionId: 'session-1', action: 'append', sequence: 1, sourceText: 'Tôi chỉ ký nếu',
+      sourceLang: 'vi', targetLang: 'ja', speaker: 'Speaker 1', timestamp: 1, durationMs: 2_000, pause: true }
+    await expect(invoke('live:assemble', append, false)).resolves.toMatchObject({ errorCode: 'PERMISSION_DENIED' })
+    for (const patch of [{ sourceText: 'x'.repeat(4001) }, { sequence: NaN }, { durationMs: Infinity }, { pause: 'yes' }, { action: 'reset' }]) {
+      await expect(invoke('live:assemble', { ...append, ...patch })).resolves.toMatchObject({ errorCode: 'INVALID_INPUT' })
+    }
+    await expect(invoke('live:assemble', append)).resolves.toMatchObject({ success: true, hasOpen: true, updates: [{ state: 'pending', translate: false }] })
+    await expect(invoke('live:assemble', { ...append, sourceText: '', action: 'stop' })).resolves.toMatchObject({
+      success: true, hasOpen: false, updates: [{ sourceText: 'Tôi chỉ ký nếu', state: 'incomplete', translate: true }],
+    })
+    expect(provider).not.toHaveBeenCalled()
+  })
+
   it('publishes only the validated answer and supplies the dedicated live profile', async () => {
     await invoke('live:begin', 'session-1')
     await expect(invoke('live:translate', request)).resolves.toMatchObject({ success: true })
@@ -58,5 +73,17 @@ describe('live interpretation IPC boundary', () => {
     finish('Old answer')
     await expect(result).resolves.toMatchObject({ errorCode: 'CANCELLED' })
     expect(send).not.toHaveBeenCalled()
+  })
+
+  it('does not publish or retry output in a clearly wrong script or copied background', async () => {
+    await invoke('live:begin', 'session-1')
+    provider.mockResolvedValue('Which book would you like to see?')
+    await expect(invoke('live:translate', request)).resolves.toMatchObject({ errorCode: 'INVALID_OUTPUT' })
+    expect(send).not.toHaveBeenCalled()
+    expect(provider).toHaveBeenCalledOnce()
+    provider.mockResolvedValue('chị chờ một chút đi. bên này hả? 正しいですか。')
+    await expect(invoke('live:translate', { ...request, segmentId: 'segment-2', sourceText: 'Đúng rồi.', context: 'Chị chờ một chút đi. Bên này hả?' })).resolves.toMatchObject({ errorCode: 'INVALID_OUTPUT' })
+    expect(send).not.toHaveBeenCalled()
+    expect(provider).toHaveBeenCalledTimes(2)
   })
 })
