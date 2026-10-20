@@ -25,6 +25,7 @@ export const quickChatSection = {
       openApp: (id: string) => ipcRenderer.invoke('launcher:open-app', id),
       searchWeb: (query: string) => ipcRenderer.invoke('launcher:search-web', query),
     } satisfies LauncherApi,
+    setLayout: (layout: 'compact' | 'expanded', contentHeight?: number) => ipcRenderer.invoke('quick-chat:set-layout', layout, contentHeight),
     hide: () => ipcRenderer.invoke('quick-chat:hide'),
     openSettings: () => ipcRenderer.invoke('quick-chat:open-settings'),
     openInChat: (payload?: QuickChatSeedPayload) => ipcRenderer.invoke('quick-chat:open-in-chat', payload),

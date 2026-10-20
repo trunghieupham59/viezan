@@ -134,6 +134,7 @@ if (typeof window !== 'undefined') {
         },
       },
       quickChat: {
+        setLayout: vi.fn().mockResolvedValue({ success: true }),
         launcher: {
           listApps: vi.fn().mockResolvedValue({ success: true, apps: [] }),
           getIcons: vi.fn().mockResolvedValue({ success: true, icons: [] }),

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { LauncherApp, LauncherIcon, LauncherResult } from '../../shared/launcher'
 import { AIChatPopup, type QuickChatLaunchRequest } from '../components/AIChatPopup'
 import { Button } from '../components/ui/atoms'
-import { GearIcon, MonitorIcon, SearchIcon, SparklesIcon, XIcon } from '../components/ui/icons'
+import { GearIcon, MonitorIcon, SearchIcon, SparklesIcon } from '../components/ui/icons'
 import { FilterInput } from '../components/ui/molecules'
 import { useAppStore, useT } from '../store/useAppStore'
 
@@ -26,7 +26,43 @@ export function QuickLauncher() {
   const [revision, setRevision] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const busyRef = useRef(false)
+  const panelRef = useRef<HTMLElement>(null)
   const search = query.trim()
+  const expanded = search.length > 0
+
+  useLayoutEffect(() => {
+    if (mode === 'chat' || !expanded) {
+      void window.api?.quickChat?.setLayout(mode === 'chat' ? 'expanded' : 'compact')
+      return
+    }
+    const panel = panelRef.current
+    const list = panel?.querySelector<HTMLElement>('.launcher-results')
+    const rows = panel?.querySelector<HTMLElement>('.launcher-result-list')
+    if (!panel || !list || !rows) return
+    let previousHeight: number | undefined
+    const resize = () => {
+      let height = panel.offsetHeight - panel.clientHeight
+      for (const child of Array.from(panel.children)) {
+        if (child === list) {
+          const style = getComputedStyle(list)
+          // Measure the natural rows, not the scroller's current allocated height.
+          height += rows.getBoundingClientRect().height + list.offsetHeight - list.clientHeight
+            + (Number.parseFloat(style.paddingTop) || 0) + (Number.parseFloat(style.paddingBottom) || 0)
+        } else height += child.getBoundingClientRect().height
+      }
+      height = Math.ceil(height)
+      if (height === previousHeight) return
+      previousHeight = height
+      void window.api?.quickChat?.setLayout('expanded', height)
+    }
+    resize()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(resize)
+    observer.observe(panel)
+    observer.observe(rows)
+    for (const child of Array.from(panel.children)) observer.observe(child)
+    return () => observer.disconnect()
+  }, [mode, expanded])
   const mergeIcons = useCallback((updates: LauncherIcon[]) => {
     if (!updates.length) return
     iconsRef.current = { ...iconsRef.current, ...Object.fromEntries(updates.map(icon => [icon.id, icon.dataUrl])) }
@@ -88,6 +124,7 @@ export function QuickLauncher() {
   }, [mode, revision])
 
   const results = useMemo<Result[]>(() => {
+    if (!search) return []
     const needle = normalize(search)
     const compactNeedle = needle.replace(/\s+/g, '')
     const tokens = needle.split(/\s+/)
@@ -119,7 +156,6 @@ export function QuickLauncher() {
       || (compactNeedle.length >= 2 && aliases(app.name).some(alias => alias.startsWith(compactNeedle))))
       .sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name))
       .slice(0, 8).map(app => ({ id: app.id, label: app.name, kind: 'app' as const }))
-    if (!search) return [...commands, ...matchedApps]
     return [
       ...matchedApps,
       ...commands.filter(command => command.kind !== 'ai' && matches(command.label)),
@@ -144,9 +180,17 @@ export function QuickLauncher() {
     return () => { cancelled = true }
   }, [visibleAppIds, mode, revision, mergeIcons])
 
-  useEffect(() => {
-    document.getElementById(`launcher-result-${activeIndex}`)?.scrollIntoView?.({ block: 'nearest' })
-  }, [activeIndex])
+  useLayoutEffect(() => {
+    const list = document.getElementById('launcher-results')
+    const item = document.getElementById(`launcher-result-${activeIndex}`)
+    // The native resize is asynchronous. Never scroll a zero-height list or
+    // let scrollIntoView move the document while it still has compact bounds.
+    if (!search || !list || !item || list.clientHeight < item.offsetHeight) return
+    const row = item.getBoundingClientRect()
+    const viewport = list.getBoundingClientRect()
+    if (row.top < viewport.top) list.scrollTop -= viewport.top - row.top
+    else if (row.bottom > viewport.bottom) list.scrollTop += row.bottom - viewport.bottom
+  }, [activeIndex, search])
 
   const execute = useCallback(async (result: Result) => {
     if (busyRef.current) return
@@ -193,25 +237,19 @@ export function QuickLauncher() {
     <>
       {mode === 'search' && (
         <main className="launcher-shell">
-          <section className="launcher-panel" aria-label={t.launcher_title}>
-            <header className="launcher-heading titlebar-drag">
-              <span>{t.launcher_title}</span>
-              <Button size="sm" shape="icon" appearance="ghost" className="titlebar-no-drag"
-                aria-label={t.ai_chat_popup_close} onClick={() => window.api?.quickChat?.hide()}>
-                <XIcon />
-              </Button>
-            </header>
-            <div className="launcher-search">
-              <FilterInput ref={inputRef} value={query} maxLength={500}
+          <section ref={panelRef} className="launcher-panel" data-expanded={expanded} aria-label={t.launcher_title}>
+            <div className="launcher-search titlebar-drag">
+              <FilterInput ref={inputRef} value={query} maxLength={500} wrapperClassName="titlebar-no-drag"
                 onValueChange={value => { setQuery(value); setSelected(0); setError(false) }}
                 placeholder={t.launcher_placeholder} aria-label={t.launcher_placeholder}
-                clearLabel={t.chat_clear} role="combobox" aria-expanded="true"
-                aria-controls="launcher-results" aria-autocomplete="list"
-                aria-activedescendant={`launcher-result-${activeIndex}`}
+                clearLabel={t.chat_clear} role="combobox" aria-expanded={expanded}
+                aria-controls={expanded ? 'launcher-results' : undefined} aria-autocomplete="list"
+                aria-activedescendant={expanded ? `launcher-result-${activeIndex}` : undefined}
                 onKeyDown={event => {
                   if (event.nativeEvent.isComposing || event.keyCode === 229 || event.repeat) return
                   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                     event.preventDefault()
+                    if (!results.length) return
                     const direction = event.key === 'ArrowDown' ? 1 : -1
                     setSelected((activeIndex + direction + results.length) % results.length)
                   } else if (event.key === 'Enter') {
@@ -220,49 +258,53 @@ export function QuickLauncher() {
                     // during this event; do not let the same key open full Chat.
                     event.stopPropagation()
                     const result = event.metaKey || event.ctrlKey
-                      ? results.find(item => item.kind === 'ai') : results[activeIndex]
+                      ? { id: 'ai', label: t.launcher_ai, kind: 'ai' as const } : results[activeIndex]
                     if (result) void execute(result)
                   }
                 }} />
             </div>
-            <div className="launcher-results" id="launcher-results" role="listbox" aria-label={t.launcher_results} aria-busy={busy}>
-              {results.map((result, index) => (
-                <Button key={result.id} id={`launcher-result-${index}`} role="option"
-                  aria-label={`${result.label} ${result.kind === 'app' ? t.launcher_app : t.launcher_command}`}
-                  aria-selected={index === activeIndex} tabIndex={-1} disabled={busy}
-                  size="lg" shape="rect" variant={index === activeIndex ? 'primary' : 'neutral'}
-                  appearance={index === activeIndex ? 'soft' : 'ghost'} className="launcher-result"
-                  onMouseEnter={() => setSelected(index)} onMouseDown={event => event.preventDefault()}
-                  onClick={() => void execute(result)}>
-                  {result.kind === 'app' && icons[result.id]
-                    ? <img className="launcher-app-icon" src={icons[result.id]} alt="" draggable={false}
-                        onError={() => {
-                          const next = { ...iconsRef.current }
-                          delete next[result.id]
-                          iconsRef.current = next
-                          setIcons(next)
-                        }} />
-                    : result.kind === 'ai' || result.kind === 'chat' ? <SparklesIcon /> :
-                    result.kind === 'settings' ? <GearIcon /> : result.kind === 'web' ? <SearchIcon /> : <MonitorIcon />}
-                  <span className="launcher-result-name">{result.label}</span>
-                  <span className="launcher-result-kind">{result.kind === 'app' ? t.launcher_app : t.launcher_command}</span>
-                </Button>
-              ))}
-            </div>
-            {loading && <p className="launcher-notice" role="status">{t.launcher_loading}</p>}
-            {catalogError && (
-              <div className="launcher-notice" role="status">
-                <span>{t.launcher_apps_unavailable}</span>
-                <Button size="sm" appearance="ghost" onClick={() => setRevision(value => value + 1)}>{t.launcher_retry}</Button>
+            {expanded && <>
+              <div className="launcher-results" id="launcher-results" role="listbox" aria-label={t.launcher_results} aria-busy={busy}>
+                <div className="launcher-result-list">
+                {results.map((result, index) => (
+                  <Button key={result.id} id={`launcher-result-${index}`} role="option"
+                    aria-label={`${result.label} ${result.kind === 'app' ? t.launcher_app : t.launcher_command}`}
+                    aria-selected={index === activeIndex} tabIndex={-1} disabled={busy}
+                    size="lg" shape="rect" variant={index === activeIndex ? 'primary' : 'neutral'}
+                    appearance={index === activeIndex ? 'soft' : 'ghost'} className="launcher-result"
+                    onMouseEnter={() => setSelected(index)} onMouseDown={event => event.preventDefault()}
+                    onClick={() => void execute(result)}>
+                    {result.kind === 'app' && icons[result.id]
+                      ? <img className="launcher-app-icon" src={icons[result.id]} alt="" draggable={false}
+                          onError={() => {
+                            const next = { ...iconsRef.current }
+                            delete next[result.id]
+                            iconsRef.current = next
+                            setIcons(next)
+                          }} />
+                      : result.kind === 'ai' || result.kind === 'chat' ? <SparklesIcon /> :
+                      result.kind === 'settings' ? <GearIcon /> : result.kind === 'web' ? <SearchIcon /> : <MonitorIcon />}
+                    <span className="launcher-result-name">{result.label}</span>
+                    <span className="launcher-result-kind">{result.kind === 'app' ? t.launcher_app : t.launcher_command}</span>
+                  </Button>
+                ))}
+                </div>
               </div>
-            )}
-            {error && <p className="launcher-notice ui-error-text" role="alert">{t.launcher_open_failed}</p>}
-            <footer className="launcher-footer">
-              <span>↑ ↓ {t.launcher_select}</span>
-              <span>↵ {t.launcher_open}</span>
-              <span>{window.api?.platform === 'darwin' ? '⌘' : 'Ctrl'} ↵ {t.launcher_ai}</span>
-              <span>Esc {t.ai_chat_popup_close}</span>
-            </footer>
+              {loading && <p className="launcher-notice" role="status">{t.launcher_loading}</p>}
+              {catalogError && (
+                <div className="launcher-notice" role="status">
+                  <span>{t.launcher_apps_unavailable}</span>
+                  <Button size="sm" appearance="ghost" onClick={() => setRevision(value => value + 1)}>{t.launcher_retry}</Button>
+                </div>
+              )}
+              {error && <p className="launcher-notice ui-error-text" role="alert">{t.launcher_open_failed}</p>}
+              <footer className="launcher-footer">
+                <span>↑ ↓ {t.launcher_select}</span>
+                <span>↵ {t.launcher_open}</span>
+                <span>{window.api?.platform === 'darwin' ? '⌘' : 'Ctrl'} ↵ {t.launcher_ai}</span>
+                <span>Esc {t.ai_chat_popup_close}</span>
+              </footer>
+            </>}
           </section>
         </main>
       )}

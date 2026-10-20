@@ -11,6 +11,9 @@ import { installWebPreviewApi } from './web-preview/installWebPreviewApi'
 
 installWebPreviewApi()
 
+// Windows window capture must see an opaque native surface, without a transparent gutter.
+document.documentElement.dataset.popupFrame = window.api?.platform === 'win32' ? 'native' : 'transparent'
+
 // The popup only reads the shared settings; never let its snapshot overwrite the main window's.
 disablePersistedStoreWrites()
 

@@ -560,7 +560,7 @@ export function AIChatPopup({
 
   return (
     <div
-      className="quick-chat-shell titlebar-drag h-screen w-screen bg-transparent p-3"
+      className="quick-chat-shell titlebar-drag h-screen w-screen bg-transparent"
       onWheel={handleWheel}
     >
       <section

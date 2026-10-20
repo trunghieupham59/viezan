@@ -1479,6 +1479,7 @@ html.dark .toolbar-pill-button {
 /* Quick chat ------------------------------------------------------------ */
 
 .quick-chat-shell {
+  padding: var(--vzn-space-0);
   color: var(--vzn-text);
 }
 
@@ -1496,7 +1497,8 @@ html:not(.dark) .quick-chat-answer-card {
 }
 
 .quick-chat-panel {
-  border-radius: 16px !important;
+  border-radius: var(--vzn-radius-lg) !important;
+  box-shadow: none !important;
 }
 
 .quick-chat-answer-card {
