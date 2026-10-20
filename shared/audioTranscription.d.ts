@@ -30,6 +30,8 @@ export interface TranscribeAudioParams {
   language?: string
   previousText?: string
   sttProvider: SttProvider
+  /** Live economy routing waits for a provider failure before trying another. */
+  liveRouting?: 'economy' | 'latency'
 }
 
 export interface TranscribeSuccess {

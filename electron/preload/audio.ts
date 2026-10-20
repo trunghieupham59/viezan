@@ -16,10 +16,17 @@ import type {
   TranscribeAudioParams,
   TranscribeResult,
 } from '../../shared/audioTranscription'
+import type { LiveInterpretationApi } from '../../shared/liveInterpretation'
 
 type TtsMode = 'free' | 'auto' | 'premium'
 
 export const audioSection = {
+  liveInterpretation: {
+    begin: (sessionId) => ipcRenderer.invoke('live:begin', sessionId),
+    translate: (request) => ipcRenderer.invoke('live:translate', request),
+    assemble: (request) => ipcRenderer.invoke('live:assemble', request),
+    cancel: (sessionId) => ipcRenderer.invoke('live:cancel', sessionId),
+  } satisfies LiveInterpretationApi,
   /**
    * Audio transcription — routes to the appropriate STT backend based on `sttProvider`.
    *

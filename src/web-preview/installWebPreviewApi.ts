@@ -69,6 +69,15 @@ function createWebPreviewApi(): WindowApi {
       usedProvider: 'whisper' as const,
     }),
     cancelAudioTranscription: async () => ({ success: true as const, cancelled: false }),
+    liveInterpretation: {
+      begin: async () => undefined,
+      cancel: async () => undefined,
+      assemble: async () => ({ success: true as const, updates: [], hasOpen: false }),
+      translate: async (params: { sourceText: string; targetLang: string }) => ({
+        success: true as const, translatedText: previewTranslation(params.sourceText, params.targetLang),
+        cached: false, attempts: 0, usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0, estimated: true },
+      }),
+    },
     speakText: async () => ({ success: false, error: 'Audio playback requires the desktop app.' }),
     translateImage: async () => ({ success: true, regions: [{ x: 0.1, y: 0.1, width: 0.8, height: 0.15, originalText: 'Sample image text', translatedText: 'Văn bản ảnh mẫu', fontSize: 0.05, bgColor: '#ffffff', textColor: '#111111' }] }),
     onImageModelSwitched: noopSubscription,

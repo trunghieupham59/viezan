@@ -178,6 +178,95 @@ describe('audio transcription IPC', () => {
   })
 })
 
+describe('live economy routing', () => {
+  let invoke: ReturnType<typeof buildMockIpcMain>['invoke']
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.clearAllMocks()
+    resetSttSessionStateForTests()
+    vi.stubGlobal('fetch', providerMocks.fetch)
+    vi.mocked(getStoredApiKey).mockReturnValue('test-only-key')
+    const mock = buildMockIpcMain()
+    registerTranscribeHandlers(mock.ipcMain as Parameters<typeof registerTranscribeHandlers>[0])
+    invoke = mock.invoke
+  })
+  afterEach(() => { resetSttSessionStateForTests(); vi.useRealTimers(); vi.unstubAllGlobals() })
+
+  it('does not hedge a slow successful recognizer or invent a decoder prompt', async () => {
+    let finish!: (value: unknown) => void
+    providerMocks.openAiCreate.mockImplementation(() => new Promise(resolve => { finish = resolve }))
+    const pending = invoke('audio:transcribe', makeParams({ purpose: 'live', liveRouting: 'economy', language: 'vi' }))
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(providerMocks.fetch).not.toHaveBeenCalled()
+    expect(providerMocks.groqCreate).not.toHaveBeenCalled()
+    expect(providerMocks.openAiCreate.mock.calls[0][0].prompt).toBe('')
+    finish({ text: 'Quyển sách này.', segments: [] })
+    await expect(pending).resolves.toMatchObject({ success: true, usedProvider: 'whisper' })
+  })
+
+  it('falls back only after failure, filters Gemini thoughts and schedules no paid silence probe', async () => {
+    providerMocks.openAiCreate.mockRejectedValue(Object.assign(new Error('rate limited'), { status: 429 }))
+    providerMocks.fetch.mockResolvedValue({ ok: true, json: async () => ({ candidates: [{ finishReason: 'STOP', content: { parts: [{ thought: true, text: 'Reasoning' }, { text: 'Quyển ' }, { text: 'sách này.' }] } }] }) })
+    await expect(invoke('audio:transcribe', makeParams({ purpose: 'live', liveRouting: 'economy' }))).resolves.toMatchObject({ text: 'Quyển sách này.', usedProvider: 'gemini' })
+    expect(providerMocks.openAiCreate).toHaveBeenCalledOnce()
+    expect(providerMocks.fetch.mock.calls[0][0]).toContain('gemini-3.1-flash-lite')
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(providerMocks.openAiCreate).toHaveBeenCalledOnce()
+    expect(providerMocks.fetch).toHaveBeenCalledOnce()
+    expect(providerMocks.groqCreate).not.toHaveBeenCalled()
+  })
+
+  it('does not interpret silent successful audio as a reason to pay another provider', async () => {
+    providerMocks.openAiCreate.mockResolvedValue({ text: '', segments: [] })
+    await expect(invoke('audio:transcribe', makeParams({ purpose: 'live', liveRouting: 'economy' }))).resolves.toMatchObject({ success: true, text: '' })
+    expect(providerMocks.fetch).not.toHaveBeenCalled()
+    expect(providerMocks.groqCreate).not.toHaveBeenCalled()
+  })
+
+  it('reports exhaustion when no configured provider can accept audio', async () => {
+    vi.mocked(getStoredApiKey).mockReturnValue(null)
+    await expect(invoke('audio:transcribe', makeParams({ purpose: 'live', liveRouting: 'economy' }))).resolves.toMatchObject({ success: false, errorCode: 'ALL_PROVIDERS_EXHAUSTED' })
+    expect(providerMocks.openAiCreate).not.toHaveBeenCalled()
+    expect(providerMocks.fetch).not.toHaveBeenCalled()
+    expect(providerMocks.groqCreate).not.toHaveBeenCalled()
+  })
+
+  it.each(['TIMEOUT', 'CONNECTION_ERROR'])('lets the next real utterance recover after %s without replaying the failed audio', async errorCode => {
+    vi.mocked(getStoredApiKey).mockImplementation(provider => provider === 'openai' ? 'test-key' : null)
+    providerMocks.openAiCreate.mockRejectedValueOnce(new Error(errorCode === 'TIMEOUT' ? 'request timed out' : 'fetch failed'))
+      .mockResolvedValueOnce({ text: 'はい', segments: [] })
+    const params = makeParams({ purpose: 'live', liveRouting: 'economy', sttProvider: 'whisper' })
+    await expect(invoke('audio:transcribe', params)).resolves.toMatchObject({ success: false, errorCode, retryable: true })
+    expect(providerMocks.openAiCreate).toHaveBeenCalledOnce()
+    await expect(invoke('audio:transcribe', { ...params, requestId: 'next-utterance' })).resolves.toMatchObject({ success: true, text: 'はい' })
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(providerMocks.openAiCreate).toHaveBeenCalledTimes(2)
+    expect(providerMocks.fetch).not.toHaveBeenCalled()
+  })
+
+  it('keeps an auto-route transient failure instead of masking it with missing fallback keys', async () => {
+    vi.mocked(getStoredApiKey).mockImplementation(provider => provider === 'openai' ? 'test-key' : null)
+    providerMocks.openAiCreate.mockRejectedValueOnce(new Error('request timed out'))
+    await expect(invoke('audio:transcribe', makeParams({ purpose: 'live', liveRouting: 'economy' })))
+      .resolves.toMatchObject({ success: false, errorCode: 'TIMEOUT', retryable: true })
+  })
+
+  it('honors a rate-limit cooldown across preflight, reports RATE_LIMIT and recovers on real audio at expiry', async () => {
+    vi.mocked(hasStoredApiKey).mockImplementation(provider => provider === 'openai')
+    providerMocks.openAiCreate.mockRejectedValueOnce(Object.assign(new Error('rate limit'), { status: 429 }))
+      .mockResolvedValueOnce({ text: 'はい', segments: [] })
+    const params = makeParams({ purpose: 'live', liveRouting: 'economy', sttProvider: 'whisper' })
+    await expect(invoke('audio:transcribe', params)).resolves.toMatchObject({ errorCode: 'RATE_LIMIT' })
+    await invoke('audio:checkSttProviders')
+    await expect(invoke('audio:transcribe', { ...params, requestId: 'during-cooldown' })).resolves.toMatchObject({ errorCode: 'RATE_LIMIT', retryable: true })
+    expect(providerMocks.openAiCreate).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(90_001)
+    expect(providerMocks.openAiCreate).toHaveBeenCalledOnce() // No paid probe.
+    await expect(invoke('audio:transcribe', { ...params, requestId: 'after-cooldown' })).resolves.toMatchObject({ success: true, text: 'はい' })
+    expect(providerMocks.openAiCreate).toHaveBeenCalledTimes(2)
+  })
+})
+
 describe('STT ban classification', () => {
   it('bans only missing/invalid keys permanently', () => {
     expect(classifySttBan('NO_API_KEY').permanent).toBe(true)

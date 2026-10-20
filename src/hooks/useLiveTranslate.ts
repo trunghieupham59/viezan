@@ -13,6 +13,7 @@
  * `copiedSummary`) and pure render logic.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { LiveAssemblyRequest, LiveAssemblyUpdate, LiveSegmentState } from '../../shared/liveInterpretation'
 import { createAudioTranscriptionRequestId, getSupportedAudioMimeType } from '../constants/audio'
 import { LANG_NAMES_FOR_AI } from '../constants/langNames'
 import { LIVE_INPUT_LEVEL_FULL_SCALE_RMS, MIN_AUDIO_BLOB_BYTES } from '../constants/ui'
@@ -23,6 +24,7 @@ import { countWords, isHallucination } from '../utils/live-translate'
 import { combineUsageCosts, estimateUsageCost } from '../utils/usageCost'
 import { float32ToWav } from '../utils/wav-encoder'
 import { createLiveAIModelSelectionBoundary } from './live/aiModelSelectionBoundary'
+import { createLiveAudioGraph } from './live/audioGraph'
 import {
   checkDuplicateChunk,
   isFlushGenerationValid,
@@ -30,29 +32,31 @@ import {
   releaseCaptureResources,
   resolveLiveSessionSave,
 } from './live/liveSessionHelpers'
+import { liveMicrophoneConstraints, localVadWasmPaths } from './live/microphonePolicy'
+import { hasQuietMicrophoneSpeech } from './live/microphoneSpeech'
+import { prepareSpeechAudio } from './live/prepareSpeechAudio'
 import {
   DEFAULT_SPEAKER_DIARIZATION_POLICY,
   INITIAL_SPEAKER_DIARIZATION_STATE,
   resolveSpeakerForCompletedChunk,
 } from './live/speakerDiarization'
-import { appendRawTranscript, assembleCompletedSentences, getWhisperParts } from './live/transcriptAssembly'
+import { appendRawTranscript } from './live/transcriptAssembly'
 import { useLiveAiActions } from './live/useLiveAiActions'
 import {
   ADAPTIVE_VAD_DISCARD_THRESHOLD,
   ADAPTIVE_VAD_EVAL_WINDOW,
   ADAPTIVE_VAD_MIN_CHUNKS,
-  AVG_LOGPROB_MIN,
-  CHUNK_MAX_QUEUE_AGE_MS,
-  COMPRESSION_RATIO_MAX,
+  exceedsSpeechRate,
   getInitialVadPolicy,
+  hasUnreliableTranscription,
+  MAX_QUEUED_AUDIO_MS,
   MAX_RAW_TRANSCRIPT_CHARS,
-  MAX_WORDS_PER_CHUNK,
-  MAX_WORDS_PER_SEC,
-  MIC_GAIN,
   MIN_CHUNK_RECORD_MS,
-  NO_SPEECH_PROB_MAX,
+  quietMicSpeechThreshold,
+  quietSpeechFrames,
+  quietSystemSpeechThreshold,
   SILENCE_RESET_CHUNKS,
-  SYSTEM_AUD_GAIN,
+  shouldFlushShortSpeech,
   VAD_FLIP_RATE_HIGH,
   VAD_FLIP_RATE_LOW,
   VAD_MAX_HANGOVER_SAMPLES,
@@ -65,32 +69,13 @@ import {
 /**
  * Maximum recording window per chunk.
  *
- * 2000 ms gives Whisper enough audio context to decode words accurately.
- * Combined with VAD early-stop (below), typical chunks finish in 800-1600 ms.
- * Whisper performs better with slightly longer chunks — 2 s is a safe floor.
+ * VAD ends a chunk at a natural pause; continuous speech is bounded at 6 s
+ * to retain more word context without an unbounded live delay.
  */
-const CHUNK_DURATION_MS    = 2000
+const CHUNK_DURATION_MS    = 6000
 
-/**
- * STT chunks accumulate into a pending buffer until a sentence boundary is
- * detected (. ! ? 。 ！ ？ etc.).  Only complete sentences are translated —
- * they are then locked and never re-translated.
- *
- * FALLBACK: if MAX_PENDING_CHUNKS STT results arrive with no punctuation
- * (common with Japanese / Whisper), the whole buffer is force-translated so
- * the user is never stuck waiting indefinitely.
- *
- * Reduced from 3 to 2 — force-translate after 3 s of incomplete sentences
- * instead of 4.5 s.
- */
-const MAX_PENDING_CHUNKS   = 2
-
-/**
- * Number of recently-completed sentences to send as translation CONTEXT.
- * Gives the AI enough background to understand names, terms, and topic flow
- * without growing the prompt indefinitely.
- */
-const CONTEXT_SENTENCES    = 2
+// Allow a breath before asking the main-process assembler to settle a unit.
+const SENTENCE_SILENCE_MS = 1_600
 
 /**
  * A single translated segment with speaker label.
@@ -103,6 +88,8 @@ export interface LiveSegment {
   translation: string
   speaker: string    // e.g. 'Speaker 1', 'Speaker 2'
   timestamp: number
+  revision?: number
+  state?: LiveSegmentState
 }
 
 /** Default subtitle appearance settings — also used by reset button in LiveTranslatePage */
@@ -121,12 +108,6 @@ const MAX_SUMMARIZE_SECTION_CHARS = 10_000
 
 /** How long (ms) a pipeline error toast is shown before auto-dismissing. */
 const PIPELINE_ERROR_DISPLAY_MS = 4_000
-
-/**
- * Maximum chars of `previousText` passed to Whisper as decoder prompt.
- * Whisper's prompt window is ~224 tokens; keep well under to avoid truncation.
- */
-const MAX_PREVIOUS_TEXT_CHARS = 200
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
@@ -227,9 +208,12 @@ export function useLiveTranslate() {
     aiModelBoundaryRef.current.resolve(getConfiguredAIModel())
   ), [getConfiguredAIModel])
 
-  const pendingBufferRef     = useRef('')
-  const pendingChunkCountRef = useRef(0)
-  const recentSentencesRef   = useRef<string[]>([])
+  const assemblySequenceRef = useRef(0)
+  const hasOpenUnitRef = useRef(false)
+  const silenceSettledRef = useRef(false)
+  const lastSpeechAtRef = useRef(0)
+  const neuralSpeechRef = useRef(false)
+  const assemblyQueueRef = useRef<Promise<void>>(Promise.resolve())
   const fullRawForSummaryRef = useRef('')
   const fullTxForSummaryRef  = useRef('')
   const lastChunkTextRef     = useRef('')
@@ -246,19 +230,21 @@ export function useLiveTranslate() {
 
   const streamRef      = useRef<MediaStream | null>(null)
   const recorderRef    = useRef<MediaRecorder | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
+  const translationTasksRef = useRef(new Set<Promise<void>>())
+  const queuedAudioMsRef = useRef(0)
   const activeRef      = useRef(false)
   const queueRef       = useRef<Promise<void>>(Promise.resolve())
   /** Main-process STT requests that still belong to this mounted live session. */
   const activeSttRequestIdsRef = useRef(new Set<string>())
   /**
-   * Generation token — bumped on every handleStart/handleClear/handleStop.
+   * Generation token — bumped on Start, Clear, and cancellation (not orderly Stop).
    * In-flight processChunk callbacks compare their captured generation with
    * the current ref; if mismatched, they skip all setState/ref writes to
    * prevent ghost transcript/translation appearing after the user clears or
    * starts a new session while old chunks are still resolving.
    */
   const generationRef  = useRef(0)
+  const stopTaskRef = useRef<{ generation: number; promise: Promise<void> } | null>(null)
   /** setTimeout handle for the per-chunk hard-stop fallback; cleared on stop. */
   const chunkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   /**
@@ -279,7 +265,7 @@ export function useLiveTranslate() {
   /** Recorder whose last chunk must still be transcribed (set by an orderly Stop only). */
   const finalFlushRecorderRef = useRef<MediaRecorder | null>(null)
   /**
-   * Generation captured right AFTER an orderly Stop bumped it (null otherwise).
+   * Generation being drained by an orderly Stop (null otherwise).
    * A final-flush chunk is only valid while generationRef still equals this —
    * any later Clear/Start/unmount bumps the generation and invalidates it.
    */
@@ -296,6 +282,7 @@ export function useLiveTranslate() {
   const cancelActiveSttRequests = useCallback(() => {
     const requestIds = [...activeSttRequestIdsRef.current]
     activeSttRequestIdsRef.current.clear()
+    if (sessionIdRef.current) void window.api?.liveInterpretation?.cancel(sessionIdRef.current).catch(() => undefined)
     for (const requestId of requestIds) {
       void window.api.cancelAudioTranscription({ requestId }).catch(() => undefined)
     }
@@ -542,87 +529,200 @@ export function useLiveTranslate() {
   const saveSessionRef = useRef(saveSession)
   useEffect(() => { saveSessionRef.current = saveSession }, [saveSession])
 
+  const applyAssemblyUpdates = useCallback((updates: LiveAssemblyUpdate[], generation: number) => {
+    const { sourceLang, targetLang } = sessionLanguagesRef.current
+    const aiModel = getSessionAIModel()
+    const publishSubtitle = (segment: LiveSegment) => {
+      if (!segment.translation || segment.state !== 'final'
+        || segmentOrderRef.current[segmentOrderRef.current.length - 1] !== segment.id) return
+      setLatestSubtitle(segment.translation)
+      if (showSubtitlesRef.current) void window.api.subtitle.setSourceText(segment.rawText, segment.id)
+    }
+    for (const update of updates) {
+      if (generation !== generationRef.current || !mountedRef.current) return
+      const sessionId = sessionIdRef.current
+      if (!sessionId) return
+      const { segmentId: segId, sourceText, context, revision, state, speaker, timestamp } = update
+      const previous = segmentsRef.current.find(item => item.id === segId)
+      // Never leave an outdated preview presented as the final translation.
+      const keepTranslation = previous?.revision === revision || state === 'provisional'
+      const segment: LiveSegment = {
+        id: segId, rawText: sourceText, translation: keepTranslation ? previous?.translation ?? '' : '',
+        speaker, timestamp, revision, state,
+      }
+      if (!previous) segmentOrderRef.current.push(segId)
+      segmentsRef.current = previous
+        ? segmentsRef.current.map(item => item.id === segId ? segment : item)
+        : [...segmentsRef.current, segment]
+      if (!keepTranslation) segmentTranslationsRef.current.delete(segId)
+      fullTxForSummaryRef.current = joinTranslationsInOrder(segmentOrderRef.current, segmentTranslationsRef.current)
+      setTranslation(fullTxForSummaryRef.current)
+      setSegments(segmentsRef.current)
+      publishSubtitle(segment)
+      if (!update.translate) continue
+      setIsTranslating(true)
+      const task = (async () => {
+        try {
+          const result = await window.api.liveInterpretation.translate({
+            sessionId, segmentId: segId, provider: aiModel.provider, model: aiModel.model,
+            sourceText, context, sourceLang, targetLang, revision, subtitles: false,
+          })
+          if (!mountedRef.current || generation !== generationRef.current) return
+          if (result.usage) addLiveUsageCost(estimateUsageCost({ feature: 'live', provider: aiModel.provider, model: aiModel.model,
+            inputText: '', outputText: '', tokenUsage: result.usage }))
+          const current = segmentsRef.current.find(item => item.id === segId)
+          if (current?.revision !== revision) return
+          if (!result.success) {
+            if (result.errorCode !== 'CANCELLED') showPipelineError(t.live_error_translation_failed)
+            return
+          }
+          const newTx = result.translatedText
+          segmentTranslationsRef.current.set(segId, newTx)
+          const ordered = joinTranslationsInOrder(segmentOrderRef.current, segmentTranslationsRef.current)
+          fullTxForSummaryRef.current = ordered
+          setTranslation(ordered)
+          segmentsRef.current = segmentsRef.current.map(item => item.id === segId ? { ...item, translation: newTx } : item)
+          setSegments(segmentsRef.current)
+          publishSubtitle({ ...current, translation: newTx })
+        } catch {
+          if (mountedRef.current && generation === generationRef.current) showPipelineError(t.live_error_translation_failed)
+        }
+      })()
+      translationTasksRef.current.add(task)
+      void task.finally(() => {
+        translationTasksRef.current.delete(task)
+        if (mountedRef.current && generation === generationRef.current) setIsTranslating(translationTasksRef.current.size > 0)
+      })
+    }
+  }, [addLiveUsageCost, getSessionAIModel, showPipelineError, t])
+
+  const assembleText = useCallback((action: LiveAssemblyRequest['action'], sourceText = '', durationMs = 0, generation = generationRef.current, pause = false) => {
+    const sessionId = sessionIdRef.current
+    if (!sessionId) return Promise.resolve()
+    const request: LiveAssemblyRequest = {
+      sessionId, action, sourceText, durationMs, pause, sequence: action === 'append' ? ++assemblySequenceRef.current : assemblySequenceRef.current,
+      ...sessionLanguagesRef.current, speaker: currentSpeakerRef.current, timestamp: Date.now(),
+    }
+    const task = assemblyQueueRef.current.catch(() => undefined).then(async () => {
+      if (!mountedRef.current || generation !== generationRef.current) return
+      try {
+        const result = await window.api.liveInterpretation.assemble(request)
+        if (!mountedRef.current || generation !== generationRef.current) return
+        if (!result.success) { showPipelineError(t.live_error_translation_failed); return }
+        hasOpenUnitRef.current = result.hasOpen
+        setPendingText('')
+        applyAssemblyUpdates(result.updates, generation)
+      } catch {
+        if (mountedRef.current && generation === generationRef.current) showPipelineError(t.live_error_translation_failed)
+      }
+    })
+    assemblyQueueRef.current = task
+    return task
+  }, [applyAssemblyUpdates, showPipelineError, t])
+
+  const flushPendingText = useCallback(() => assembleText('silence'), [assembleText])
+
+  useEffect(() => {
+    if (!isActive) return
+    const timer = setInterval(() => {
+      if (!activeRef.current || !hasOpenUnitRef.current || silenceSettledRef.current || neuralSpeechRef.current
+        || queuedAudioMsRef.current > 0 || Date.now() - lastSpeechAtRef.current < SENTENCE_SILENCE_MS) return
+      silenceSettledRef.current = true
+      void flushPendingText()
+    }, 200)
+    return () => clearInterval(timer)
+  }, [isActive, flushPendingText])
+
   /** Orderly end of a session: teardown + UI reset + auto-save to history. */
   const stopSession = useCallback((opts: { flush: boolean }) => {
-    // Bump generation so any STT/translation already in flight stops writing
-    // back into the now-stopped session's state.
-    generationRef.current += 1
-    // The flush chunk is valid only for THIS generation: a later Clear/Start
-    // bumps it, so the old recorder/VAD flush can never reach a fresh session.
-    flushGenerationRef.current = opts.flush ? generationRef.current : null
-    cancelActiveSttRequests()
-    setIsActive(false)
-    setIsTranscribing(false)
-    setIsTranslating(false)
-    setLiveLanguagesLocked(true)
-    teardown({ flush: opts.flush })
-    const stoppedGeneration = generationRef.current
-    void (async () => {
+    if (opts.flush && stopTaskRef.current?.generation === generationRef.current) return stopTaskRef.current.promise
+    const promise = (async () => {
+      // Stop drains the current generation. Destructive cancellation invalidates it.
+      if (!opts.flush) { generationRef.current += 1; cancelActiveSttRequests() }
+      const stoppedGeneration = generationRef.current
+      flushGenerationRef.current = opts.flush ? stoppedGeneration : null
+      setIsActive(false)
+      setLiveLanguagesLocked(true)
+      teardown({ flush: opts.flush })
       await captureDrainRef.current
       await queueRef.current.catch(() => undefined)
-      if (generationRef.current === stoppedGeneration && !activeRef.current) {
-        saveSession()
-        setLiveLanguagesLocked(false)
+      if (generationRef.current !== stoppedGeneration || !mountedRef.current) return
+      if (opts.flush) {
+        await assembleText('stop')
+        await Promise.allSettled([...translationTasksRef.current])
       }
-    })()
-
-    if (fullRawForSummaryRef.current.trim()) {
-      setShowSummaryBtn(true)
-      // Auto-save session to history
+      if (generationRef.current !== stoppedGeneration || !mountedRef.current) return
+      flushGenerationRef.current = null
       saveSession()
-    }
-  }, [cancelActiveSttRequests, teardown, saveSession, setLiveLanguagesLocked])
+      setShowSummaryBtn(Boolean(fullRawForSummaryRef.current.trim()))
+      setIsTranscribing(false)
+      setIsTranslating(false)
+      setLiveLanguagesLocked(false)
+    })()
+    const task = { generation: generationRef.current, promise }
+    stopTaskRef.current = task
+    void promise.finally(() => { if (stopTaskRef.current === task) stopTaskRef.current = null })
+    return promise
+  }, [cancelActiveSttRequests, teardown, saveSession, setLiveLanguagesLocked, assembleText])
 
   // ── Core pipeline ───────────────────────────────────────────────────────────
-  const processChunk = useCallback(async (blob: Blob, mimeType: string, opts?: { finalFlush?: boolean }) => {
+  const processChunk = useCallback(async (blob: Blob, _mimeType: string, opts: { durationMs: number; generation: number; utteranceEnd: boolean; microphone: boolean }) => {
     if (blob.size < MIN_AUDIO_BLOB_BYTES) return
     // Session/clear-aware guards: skip stale chunks left over from a previous
     // session whose API requests resolved late. The one exception is the final
     // chunk flushed by an orderly Stop (VAD/recorder end-of-utterance).
-    if (!activeRef.current && !opts?.finalFlush) return
-    const chunkGeneration = generationRef.current
+    const chunkGeneration = opts.generation
+    if (chunkGeneration !== generationRef.current) return
+    if (!activeRef.current && !isFlushGenerationValid(flushGenerationRef.current, chunkGeneration)) return
 
     // ── Adaptive VAD: count chunk in rolling evaluation window ────────────
     adaptiveChunksRef.current += 1
 
-    const { sourceLang, targetLang } = sessionLanguagesRef.current
+    const { sourceLang } = sessionLanguagesRef.current
     const { sttProvider } = paramsRef.current
-    const aiModel = getSessionAIModel()
-
     // ── STT call — keep reference to full result for confidence gate ──────
     if (mountedRef.current) setIsTranscribing(true)
     let stt: Awaited<ReturnType<typeof window.api.transcribeAudio>> | null = null
     const requestId = createAudioTranscriptionRequestId()
     activeSttRequestIdsRef.current.add(requestId)
     try {
-      const buf = await blob.arrayBuffer()
-      // Cap previousText so it never approaches Whisper's ~224-token prompt window.
-      const prev = lastChunkTextRef.current
-      const cappedPrev = prev && prev.length > MAX_PREVIOUS_TEXT_CHARS
-        ? prev.slice(-MAX_PREVIOUS_TEXT_CHARS)
-        : prev
+      const prepared = await prepareSpeechAudio(blob, opts.microphone, hasQuietMicrophoneSpeech)
+      if (chunkGeneration !== generationRef.current || !mountedRef.current) return
+      if (!prepared) {
+        silentChunkCountRef.current += opts.durationMs / 2_000
+        if (silentChunkCountRef.current >= SILENCE_RESET_CHUNKS) {
+          silentChunkCountRef.current = 0
+          lastChunkTextRef.current = ''
+        }
+        return
+      }
+      if (opts.microphone) {
+        if (silentChunkCountRef.current > 0) silenceBeforeChunkRef.current = silentChunkCountRef.current
+        silentChunkCountRef.current = 0
+      }
+      const buf = await prepared.arrayBuffer()
+      if (chunkGeneration !== generationRef.current || !mountedRef.current) return
       stt = await window.api?.transcribeAudio({
         requestId,
         purpose:     'live',
+        liveRouting: 'economy',
         audioData:    buf,
-        mimeType,
+        mimeType:     prepared.type,
         language:     sourceLang === 'auto' ? undefined : sourceLang,
-        // Pass the last successfully transcribed text as Whisper's prompt
-        // context.  Whisper treats it as "speech already in progress",
-        // maintaining terminology consistency across chunks and preventing
-        // the decoder from drifting to a YouTube-caption style opening.
-        previousText: cappedPrev || undefined,
+        // Independent utterances must not inherit a possibly incorrect decoder
+        // prompt. Keep prior text only for local duplicate detection.
+        previousText: undefined,
         sttProvider,
       })
     } catch {
-      showPipelineError(t.live_error_stt_failed)
+      if (mountedRef.current && chunkGeneration === generationRef.current) showPipelineError(t.live_error_stt_failed)
     }
     finally {
       activeSttRequestIdsRef.current.delete(requestId)
-      if (mountedRef.current) setIsTranscribing(false)
+      if (mountedRef.current && chunkGeneration === generationRef.current) setIsTranscribing(false)
     }
 
-    // Drop result if user stopped/cleared/restarted while STT was in flight —
+    // Drop result if user cleared/restarted while STT was in flight —
     // continuing would push old text into the new session's transcript.
     if (chunkGeneration !== generationRef.current) return
 
@@ -663,7 +763,9 @@ export function useLiveTranslate() {
     }
 
     const newText = stt.text.trim()
-    if (!newText || isHallucination(newText)) {
+    const unreliable = hasUnreliableTranscription(stt)
+    if (unreliable && newText) showPipelineError(t.live_error_stt_failed)
+    if (!newText || isHallucination(newText) || unreliable) {
       // ── Adaptive VAD: noise-discard (empty / hallucinated output) ────────
       adaptiveDiscardRef.current += 1
       if (vadModeStateRef.current === 'energy') {
@@ -680,40 +782,7 @@ export function useLiveTranslate() {
       return
     }
 
-    // ── Whisper confidence gate (verbose_json segment signals) ────────────
-    // These are Whisper's own internal estimates returned via verbose_json.
-    // They are the most reliable hallucination indicators available from
-    // the OpenAI API and should be treated as mandatory gates.
-    //
-    //  noSpeechProb    > NO_SPEECH_PROB_MAX    → model is ≥65% sure no speech
-    //  avgLogprob      < AVG_LOGPROB_MIN       → model is not confident in tokens
-    //  compressionRatio > COMPRESSION_RATIO_MAX → output is anomalously repetitive
-    if (typeof stt.noSpeechProb === 'number' && stt.noSpeechProb > NO_SPEECH_PROB_MAX) {
-      // ── Adaptive VAD: Whisper says no speech detected ────────────────────
-      adaptiveDiscardRef.current += 1
-      if (vadModeStateRef.current === 'energy') {
-        if (adaptiveChunksRef.current >= ADAPTIVE_VAD_MIN_CHUNKS &&
-            adaptiveDiscardRef.current / adaptiveChunksRef.current > ADAPTIVE_VAD_DISCARD_THRESHOLD) {
-          void upgradeVADRef.current?.()
-          adaptiveChunksRef.current  = 0
-          adaptiveDiscardRef.current = 0
-        } else if (adaptiveChunksRef.current >= ADAPTIVE_VAD_EVAL_WINDOW) {
-          adaptiveChunksRef.current  = 0
-          adaptiveDiscardRef.current = 0
-        }
-      }
-      return
-    }
-    if (typeof stt.avgLogprob === 'number'      && stt.avgLogprob      < AVG_LOGPROB_MIN)       return
-    if (typeof stt.compressionRatio === 'number' && stt.compressionRatio > COMPRESSION_RATIO_MAX) return
-
-    // ── Max-words-per-chunk guard ─────────────────────────────────────────
-    const wordCountGuard = newText.split(/\s+/).filter(Boolean).length
-    if (wordCountGuard > MAX_WORDS_PER_CHUNK) return
-
-    // ── Words-per-second rate guard ───────────────────────────────────────
-    const wordsPerSec = wordCountGuard / (CHUNK_DURATION_MS / 1000)
-    if (wordsPerSec > MAX_WORDS_PER_SEC) return
+    if (exceedsSpeechRate(newText, opts.durationMs)) return
 
     // ── Duplicate / near-duplicate detection (enhanced) ───────────────────
     // 1. Exact match of the immediately previous chunk within a short window → drop
@@ -737,30 +806,6 @@ export function useLiveTranslate() {
       MAX_RAW_TRANSCRIPT_CHARS,
     )
     if (mountedRef.current) setRawTranscript(fullRawForSummaryRef.current)
-
-    const assembly = assembleCompletedSentences(
-      getWhisperParts(newText, stt.segmentTexts),
-      {
-        pendingBuffer: pendingBufferRef.current,
-        pendingChunkCount: pendingChunkCountRef.current,
-      },
-      MAX_PENDING_CHUNKS,
-    )
-    pendingBufferRef.current = assembly.pendingBuffer
-    pendingChunkCountRef.current = assembly.pendingChunkCount
-    if (mountedRef.current) setPendingText(assembly.pendingText)
-    const { completedSentences } = assembly
-
-    // Orderly Stop saves the session synchronously, BEFORE this last chunk was
-    // transcribed/translated. Once the flush chunk (and its translations) settle
-    // and no Clear/Start happened since, persist again (upsert) so it isn't lost.
-    const flushTranslations: Promise<void>[] = []
-    const persistFlushedChunk = () => {
-      if (!opts?.finalFlush || chunkGeneration !== generationRef.current) return
-      if (mountedRef.current) setShowSummaryBtn(true)
-      saveSession()
-    }
-    if (completedSentences.length === 0) { persistFlushedChunk(); return }
 
     // ── VAD-based speaker diarization (smart cycling) ─────────────────────
     // Runs once per chunk — the same speaker label is assigned to all sentences
@@ -795,134 +840,23 @@ export function useLiveTranslate() {
     speakerCountRef.current = speakerState.speakerCount
     lastSpeakerChangeTimeRef.current = speakerState.lastSpeakerChangeTime
     speakerTurnHistoryRef.current = speakerState.turnHistory
-    const currentSpeaker = speakerState.currentSpeaker
+    silenceSettledRef.current = false
+    await assembleText('append', newText, opts.durationMs, chunkGeneration, opts.utteranceEnd)
+  }, [showPipelineError, stopSession, t, assembleText])
 
-    // ── Create one segment per completed sentence ─────────────────────────────
-    // Each sentence from completedSentences gets its own row, segment ID, and
-    // background translation — no more merged multi-sentence rows.
-    for (const sentenceText of completedSentences) {
-      // Add segment immediately so it shows in the left panel while translating.
-      // Translation runs in the background — the queue is NOT blocked so the next
-      // audio chunk can be STT'd immediately without waiting for translation.
-      const segId = createClientId('seg')
-      segmentOrderRef.current.push(segId)
-      if (mountedRef.current) {
-        const newSegment: LiveSegment = {
-          id: segId,
-          rawText: sentenceText,
-          translation: '',   // will be filled in when background translation finishes
-          speaker: currentSpeaker,
-          timestamp: Date.now(),
-        }
-        // Mirror synchronously: the segmentsRef effect only catches up after the
-        // next render, and the post-Stop flush save below reads this ref.
-        segmentsRef.current = [...segmentsRef.current, newSegment]
-        setSegments(prev => [...prev, newSegment])
-      }
-
-      // Update context BEFORE launching background translation so the next sentence
-      // has the correct context even while this sentence is still being translated.
-      recentSentencesRef.current.push(sentenceText)
-      if (recentSentencesRef.current.length > CONTEXT_SENTENCES) recentSentencesRef.current.shift()
-
-      // Fire translation in background (NOT awaited) — allows the STT queue to
-      // continue processing the next audio chunk immediately.
-      // Capture per-sentence values in IIFE params to avoid closure-over-loop bugs.
-      const contextText = recentSentencesRef.current.slice(0, -1).join(' ') // context = previous sentences
-      const sourceText  = contextText
-        ? `[Context — for reference only, already translated. Do NOT retranslate]:\n"${contextText}"\n\n[Translate to ${targetLang}]:\n${sentenceText}`
-        : sentenceText
-
-      // Push the raw sentence to subtitle window so it can show the source text above translation.
-      // Also pass segId so the subtitle window can create the entry immediately with a placeholder.
-      if (showSubtitlesRef.current) {
-        void window.api?.subtitle?.setSourceText(sentenceText, segId)
-      }
-
-      // Capture the chunk's generation so we can skip writing translation
-      // results back into a session that has since been cleared/restarted.
-      const capturedGeneration = chunkGeneration
-      const translationTask = (async (capturedSegId: string, capturedSourceText: string) => {
-        // Guard: skip all setState calls if component was unmounted while this
-        // background translation was queued (e.g. user navigated away quickly).
-        if (!mountedRef.current) return
-        if (capturedGeneration !== generationRef.current) return
-        setIsTranslating(true)
-        try {
-          const batchParams = {
-            provider: aiModel.provider,
-            model: aiModel.model,
-            sourceText: capturedSourceText,
-            sourceLang,
-            targetLang,
-            translationStyle: 'general' as const,
-            showFurigana: false,
-          }
-
-          let txResult: { success: boolean; translatedText?: string }
-
-          if (showSubtitlesRef.current) {
-            try {
-              txResult = await window.api?.translateStream({
-                provider: aiModel.provider,
-                model: aiModel.model,
-                sourceText: capturedSourceText,
-                sourceLang,
-                targetLang,
-                translationStyle: 'general',
-                segId: capturedSegId,
-              })
-            } catch {
-              txResult = { success: false }
-            }
-            if (!txResult.success) {
-              txResult = await window.api?.translate(batchParams)
-            }
-          } else {
-            txResult = await window.api?.translate(batchParams)
-          }
-
-          // Re-check mounted AND generation after awaited API calls (can take
-          // 1–3 s). Generation mismatch means the user cleared/restarted the
-          // session — silently drop the result so it doesn't bleed into the
-          // new transcript.
-          if (!mountedRef.current) return
-          if (capturedGeneration !== generationRef.current) return
-          if (txResult.success && txResult.translatedText) {
-            const newTx = txResult.translatedText.trim()
-            addLiveUsageCost(estimateUsageCost({
-              feature: 'live',
-              provider: aiModel.provider,
-              model: aiModel.model,
-              inputText: capturedSourceText,
-              outputText: newTx,
-            }))
-            // Streams finish out of order — rebuild the aggregate from segment order.
-            segmentTranslationsRef.current.set(capturedSegId, newTx)
-            const orderedTx = joinTranslationsInOrder(segmentOrderRef.current, segmentTranslationsRef.current)
-            setTranslation(orderedTx)
-            setLatestSubtitle(newTx)
-            fullTxForSummaryRef.current = orderedTx
-            segmentsRef.current = segmentsRef.current.map(seg =>
-              seg.id === capturedSegId ? { ...seg, translation: newTx } : seg
-            )
-            setSegments(prev => prev.map(seg =>
-              seg.id === capturedSegId ? { ...seg, translation: newTx } : seg
-            ))
-          }
-        } catch {
-          // Translation failed silently — segment stays with empty translation
-        } finally {
-          // Guard the finally block: mountedRef may have flipped during the API call
-          if (mountedRef.current && capturedGeneration === generationRef.current) {
-            setIsTranslating(false)
-          }
-        }
-      })(segId, sourceText)
-      if (opts?.finalFlush) flushTranslations.push(translationTask)
+  const enqueueAudio = useCallback((blob: Blob, mimeType: string, durationMs: number, generation: number, utteranceEnd = false, microphone = false) => {
+    if (generation !== generationRef.current) return
+    queuedAudioMsRef.current += durationMs
+    queueRef.current = queueRef.current.catch(() => undefined).then(async () => {
+      try { await processChunk(blob, mimeType, { durationMs, generation, utteranceEnd, microphone }) }
+      finally { if (generation === generationRef.current) queuedAudioMsRef.current -= durationMs }
+    })
+    // Stop accepting new audio rather than silently dropping accepted speech.
+    if (activeRef.current && queuedAudioMsRef.current > MAX_QUEUED_AUDIO_MS) {
+      setMicError(t.live_error_backlog)
+      void stopSession({ flush: true })
     }
-    if (opts?.finalFlush) await Promise.allSettled(flushTranslations).then(persistFlushedChunk)
-  }, [addLiveUsageCost, getSessionAIModel, saveSession, showPipelineError, stopSession, t])
+  }, [processChunk, stopSession, t])
 
   // ── Recorder cycling with VAD ─────────────────────────────────────────────────
   const startChunk = useCallback(() => {
@@ -948,7 +882,8 @@ export function useLiveTranslate() {
         return
       }
     }
-    audioChunksRef.current = []
+    const audioChunks: Blob[] = []
+    const captureGeneration = generationRef.current
     recorderRef.current = recorder
 
     hasSpeechRef.current   = false
@@ -963,6 +898,9 @@ export function useLiveTranslate() {
     // Required to fire at least once above policy.peakRmsThreshold before speech
     // is confirmed, ruling out constant-level AC hum.
     let chunkPeakRms = 0
+    const rmsTrace: number[] = []
+    let quietThreshold: number | null = null
+    const rmsData = new Float32Array(analyserRef.current?.fftSize ?? 512)
 
     // ── VAD state machine (WebRTC-style hysteresis) ──────────────────────────
     //
@@ -985,12 +923,22 @@ export function useLiveTranslate() {
     vadTimerRef.current = setInterval(() => {
       const analyser = analyserRef.current
       if (!analyser) return
-      const data = new Uint8Array(analyser.fftSize)
-      analyser.getByteTimeDomainData(data)
-      const rms = Math.sqrt(data.reduce((sum, v) => sum + (v - 128) ** 2, 0) / data.length)
+      analyser.getFloatTimeDomainData(rmsData)
+      const rms = 128 * Math.sqrt(rmsData.reduce((sum, v) => sum + v * v, 0) / rmsData.length)
+      if (vadModeRef.current === 'system' && rms > 0.15) lastSpeechAtRef.current = Date.now()
       if (rms > chunkPeakRms) chunkPeakRms = rms
+      // Keep the full mic trace for the final noise-floor check. A device-open
+      // transient must not latch steady background noise as speech forever.
+      if (quietThreshold === null || vadModeRef.current !== 'system') {
+        rmsTrace.push(...quietSpeechFrames(rmsData, audioCtxRef.current?.sampleRate ?? 48_000))
+        quietThreshold = vadModeRef.current === 'system'
+          ? quietSystemSpeechThreshold(rmsTrace, 20)
+          : quietMicSpeechThreshold(rmsTrace, 20)
+        if (quietThreshold !== null) hasSpeechRef.current = true
+      }
 
-      const isSpeechFrame = rms > policy.speechRmsThreshold
+      const isSpeechFrame = rms > (quietThreshold ?? policy.speechRmsThreshold)
+      if (isSpeechFrame && (vadModeRef.current === 'system' || quietThreshold !== null)) lastSpeechAtRef.current = Date.now()
       // Count every SPEECH ↔ SILENCE transition for the quality monitor
       if (isSpeechFrame !== prevWasSpeech) { vadFlipCount++; prevWasSpeech = isSpeechFrame }
 
@@ -1028,7 +976,7 @@ export function useLiveTranslate() {
       }
     }, VAD_SAMPLE_INTERVAL)
 
-    recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data) }
 
     recorder.onstop = () => {
       try {
@@ -1037,10 +985,21 @@ export function useLiveTranslate() {
         // must not restart capture or touch the new session's VAD timer.
         const ownsSession = recorderRef.current === recorder
         if (ownsSession && vadTimerRef.current) { clearInterval(vadTimerRef.current); vadTimerRef.current = null }
+        if (captureGeneration !== generationRef.current) {
+          if (ownsSession && activeRef.current && vadModeStateRef.current === 'energy') startChunk()
+          return
+        }
+        if (!ownsSession && finalFlushRecorderRef.current !== recorder) return
 
-        const hadSpeech = hasSpeechRef.current
+        const isFinalFlush = finalFlushRecorderRef.current === recorder
+          && isFlushGenerationValid(flushGenerationRef.current, captureGeneration)
+        // Mic speech is decided from decoded PCM in the queue. Polling can miss
+        // short vowels, while a device-open peak can falsely latch steady noise.
+        const shouldInspectAudio = vadModeRef.current !== 'system'
+          || hasSpeechRef.current || (isFinalFlush
+            && shouldFlushShortSpeech(policy, speechCountRef.current, chunkPeakRms, Date.now() - recordStartTime))
         const recMime   = recorder.mimeType || mimeType || 'audio/webm'
-        const blob      = new Blob(audioChunksRef.current, { type: recMime })
+        const blob      = new Blob(audioChunks, { type: recMime })
 
         // ── Online VAD quality monitoring & policy adaptation ─────────────────
         // Measure stability via flip rate (SPEECH↔SILENCE transitions per chunk).
@@ -1068,16 +1027,14 @@ export function useLiveTranslate() {
           }
         }
 
-        if (hadSpeech) {
+        if (shouldInspectAudio) {
           // Capture silence count before reset — used by processChunk for speaker detection
-          if (silentChunkCountRef.current > 0) {
-            silenceBeforeChunkRef.current = silentChunkCountRef.current
+          if (vadModeRef.current === 'system') {
+            if (silentChunkCountRef.current > 0) silenceBeforeChunkRef.current = silentChunkCountRef.current
+            silentChunkCountRef.current = 0
           }
-          // Speech detected — reset silence counter and queue the chunk.
-          // Capture the enqueue timestamp so stale chunks can be discarded if the
-          // queue falls behind — prevents latency stacking during slow API responses.
-          silentChunkCountRef.current = 0
-          const queuedAt = Date.now()
+          // Speech detected — reset silence counter and preserve it in the queue.
+          // Mic classification/reset happens after decoding in that same queue.
           // Orderly Stop stopped this recorder mid-utterance: its last chunk must
           // still be transcribed even though activeRef is already false.
           const isFlushRecorder = finalFlushRecorderRef.current === recorder
@@ -1085,26 +1042,19 @@ export function useLiveTranslate() {
           // Valid only if no Clear/Start bumped the generation since Stop recorded it.
           const finalFlush = !activeRef.current && isFlushRecorder
             && isFlushGenerationValid(flushGenerationRef.current, generationRef.current)
-          const flushGeneration = flushGenerationRef.current
           // A stale recorder (not the live one and not a valid flush) never queues.
           if (ownsSession || finalFlush) {
-            queueRef.current = queueRef.current.then(async () => {
-              if (Date.now() - queuedAt > CHUNK_MAX_QUEUE_AGE_MS) return // discard stale chunk
-              if (finalFlush && !isFlushGenerationValid(flushGeneration, generationRef.current)) return // cleared/restarted since Stop
-              await processChunk(blob, recMime, finalFlush ? { finalFlush: true } : undefined)
-            })
+            enqueueAudio(blob, recMime, Date.now() - recordStartTime, captureGeneration,
+              isFinalFlush || postSpeechSilenceSamples >= policy.hangoverSamples, vadModeRef.current !== 'system')
           }
         } else {
           // No speech — increment counter; reset decoder context on long silence
-          silentChunkCountRef.current += 1
+          silentChunkCountRef.current += (Date.now() - recordStartTime) / 2_000
           if (silentChunkCountRef.current >= SILENCE_RESET_CHUNKS) {
-            // ≥15 s of consecutive silence: wipe all context so the next
+            // Long silence: flush the tail before resetting context so the next
             // decode cycle starts fresh and can't drift on stale text.
             silentChunkCountRef.current  = 0
             lastChunkTextRef.current     = ''
-            pendingBufferRef.current     = ''
-            pendingChunkCountRef.current = 0
-            recentSentencesRef.current   = []
           }
         }
 
@@ -1129,7 +1079,7 @@ export function useLiveTranslate() {
       chunkTimeoutRef.current = null
       if (recorder.state === 'recording') recorder.stop()
     }, CHUNK_DURATION_MS)
-  }, [processChunk, stopSession])
+  }, [enqueueAudio, stopSession])
 
   // ── Session start / stop ────────────────────────────────────────────────────
   const handleStart = useCallback(async () => {
@@ -1154,9 +1104,13 @@ export function useLiveTranslate() {
     setViewingLiveSession(null)
     setRawTranscript('')
     setTranslation('')
-    pendingBufferRef.current     = ''
-    pendingChunkCountRef.current = 0
-    recentSentencesRef.current   = []
+    setLatestSubtitle('')
+    assemblySequenceRef.current = 0
+    assemblyQueueRef.current = Promise.resolve()
+    hasOpenUnitRef.current = false
+    silenceSettledRef.current = false
+    lastSpeechAtRef.current = Date.now()
+    neuralSpeechRef.current = false
     fullRawForSummaryRef.current = ''
     fullTxForSummaryRef.current  = ''
     segmentOrderRef.current      = []
@@ -1164,6 +1118,9 @@ export function useLiveTranslate() {
     lastChunkTextRef.current     = ''
     lastChunkAtRef.current       = 0
     liveCostRef.current          = undefined
+    queuedAudioMsRef.current = 0
+    queueRef.current = Promise.resolve()
+    translationTasksRef.current.clear()
 
     setMicError(null)
     setVadMode('energy')
@@ -1181,6 +1138,7 @@ export function useLiveTranslate() {
     setIsExtractingDecisions(false)
     setSpeakerNameMap({})
     setSegments([])
+    segmentsRef.current = []
     setPendingText('')
     currentSpeakerRef.current        = INITIAL_SPEAKER_DIARIZATION_STATE.currentSpeaker
     speakerCountRef.current          = INITIAL_SPEAKER_DIARIZATION_STATE.speakerCount
@@ -1205,7 +1163,9 @@ export function useLiveTranslate() {
       pendingAudioCtx = audioCtx
       const analyser = audioCtx.createAnalyser()
       pendingAnalyser = analyser
-      analyser.fftSize = 512
+      // Cover the full polling interval. At 48 kHz, the old 512-sample
+      // snapshot observed only 11 ms out of each 80 ms and could miss syllables.
+      analyser.fftSize = Math.min(32768, 2 ** Math.ceil(Math.log2(audioCtx.sampleRate * VAD_SAMPLE_INTERVAL / 1_000)))
 
       let captureStream: MediaStream
 
@@ -1217,7 +1177,9 @@ export function useLiveTranslate() {
         // "Invalid capture constraints" errors from Chromium's constraint validator.
         const displayStream = await (navigator.mediaDevices as MediaDevices).getDisplayMedia({
           video: true,
-          audio: true,
+          // Loopback already contains clean playback. Microphone processing
+          // suppresses its own source and can damage short syllables/tones.
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
         } as DisplayMediaStreamOptions)
         // Keep the whole display stream so Stop/unmount/error can stop every track.
         acquiredStreams.push(displayStream)
@@ -1227,42 +1189,22 @@ export function useLiveTranslate() {
 
         const sysAudioTracks = displayStream.getAudioTracks()
 
-        const dest = audioCtx.createMediaStreamDestination()
-
-        if (sysAudioTracks.length > 0) {
-          // Apply software gain to system audio — remote call audio is quieter than mic
-          const sysGain = audioCtx.createGain()
-          sysGain.gain.value = SYSTEM_AUD_GAIN
-          const sysSource = audioCtx.createMediaStreamSource(new MediaStream(sysAudioTracks))
-          // ── High-pass filter: cut low-frequency noise ───────────────────
-          // Removes AC hum, fan rumble, and wind noise below 80 Hz.
-          // These low-frequency components raise the RMS without contributing
-          // speech information, causing false-positive VAD frames.
-          const highPass = audioCtx.createBiquadFilter()
-          highPass.type = 'highpass'
-          highPass.frequency.value = 80
-          sysSource.connect(highPass)
-          highPass.connect(sysGain)
-          sysGain.connect(analyser)   // VAD reads filtered + boosted signal
-          sysGain.connect(dest)       // Whisper receives filtered + boosted signal
-        } else {
-          // A superseded attempt must not overwrite the newer session's error state.
+        if (sysAudioTracks.length === 0) {
           if (sessionSeqRef.current === sessionSeq) setMicError(t.live_error_system_audio_unavailable)
-          return   // `finally` stops the display stream and closes the AudioContext
+          return
         }
+        const inputs = [new MediaStream(sysAudioTracks)]
 
         // 'both' mode: also mix in microphone so both speakers are captured
         if (audioMode === 'both') {
           try {
-            const micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+            const micStream = await navigator.mediaDevices.getUserMedia(liveMicrophoneConstraints('both'))
             acquiredStreams.push(micStream)
-            const micSource = audioCtx.createMediaStreamSource(micStream)
-            micSource.connect(dest)
-            for (const track of micStream.getTracks()) dest.stream.addTrack(track)
-          } catch { /* mic optional in both mode */ }
+            inputs.push(micStream)
+          } catch { throw new Error(t.live_error_mic_denied) }
         }
 
-        captureStream = dest.stream
+        captureStream = createLiveAudioGraph(audioCtx, inputs, analyser)
         acquiredStreams.push(captureStream)
       } else {
         // ── Mic-only mode: Adaptive VAD ───────────────────────────────────────
@@ -1272,29 +1214,12 @@ export function useLiveTranslate() {
         // Stage 2 (auto-upgrade) — Silero ML VAD
         //   • Triggered when noise-discard rate > ADAPTIVE_VAD_DISCARD_THRESHOLD
         //   • One-way (energy → Silero, never back); reuses the existing mic stream
-        const rawMicStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl:  true,
-            sampleRate:       { ideal: 16_000 },
-            channelCount:     { exact: 1 },
-          },
-          video: false,
-        })
+        const rawMicStream = await navigator.mediaDevices.getUserMedia(liveMicrophoneConstraints('mic'))
         acquiredStreams.push(rawMicStream)
         // Superseded while the permission prompt was open — don't install this
         // attempt's VAD-upgrade hook over a newer session's (`finally` releases us).
         if (sessionSeqRef.current !== sessionSeq) return
-        const rawSource = audioCtx.createMediaStreamSource(rawMicStream)
-        const gainNode  = audioCtx.createGain()
-        gainNode.gain.value = MIC_GAIN
-        rawSource.connect(gainNode)
-        gainNode.connect(analyser)
-        const micDest = audioCtx.createMediaStreamDestination()
-        gainNode.connect(micDest)
-        for (const track of rawMicStream.getTracks()) micDest.stream.addTrack(track)
-        captureStream = micDest.stream
+        captureStream = createLiveAudioGraph(audioCtx, [rawMicStream], analyser)
         acquiredStreams.push(captureStream)
 
         // ── Adaptive VAD upgrade function (called by processChunk) ─────────
@@ -1308,6 +1233,7 @@ export function useLiveTranslate() {
           if (recorderRef.current?.state === 'recording') recorderRef.current.stop()
           // Reuse existing stream — avoids a second getUserMedia permission prompt
           const existingStream = streamRef.current
+          let speechGeneration = generationRef.current
           try {
             const { MicVAD } = await import('@ricky0123/vad-web')
             // Stop (or a newer Start) during the import: don't even build a VAD.
@@ -1315,53 +1241,52 @@ export function useLiveTranslate() {
             const micVad = await MicVAD.new({
               baseAssetPath:    './vad/',
               onnxWASMBasePath: './vad/',
+              ortConfig: ort => {
+                ort.env.logLevel = 'error'
+                ort.env.wasm.wasmPaths = localVadWasmPaths(window.location.href)
+              },
               model: 'v5',
+              submitUserSpeechOnPause: true,
               getStream: async () => existingStream
-                ?? navigator.mediaDevices.getUserMedia({
-                    audio: { echoCancellation: true, noiseSuppression: true,
-                             autoGainControl: true, sampleRate: { ideal: 16_000 },
-                             channelCount: { exact: 1 } },
-                    video: false,
-                  }),
+                ?? navigator.mediaDevices.getUserMedia(liveMicrophoneConstraints('mic')),
               positiveSpeechThreshold: 0.50,
               negativeSpeechThreshold: 0.35,
               minSpeechMs:    384,
               preSpeechPadMs: 960,
               redemptionMs:   600,
-              onSpeechStart: () => { if (!activeRef.current) return; hasSpeechRef.current = true },
+              onSpeechStart: () => {
+                if (!activeRef.current || sessionSeqRef.current !== sessionSeq) return
+                speechGeneration = generationRef.current
+                hasSpeechRef.current = true
+                neuralSpeechRef.current = true
+              },
               onSpeechEnd: (samples: Float32Array) => {
                 // An orderly Stop destroys the VAD, which emits the in-progress
                 // utterance here after activeRef is already false — still process it.
                 // Valid only while no Clear/Start bumped the generation since Stop.
                 const finalFlush = !activeRef.current && finalFlushingRef.current
                   && isFlushGenerationValid(flushGenerationRef.current, generationRef.current)
-                if (!activeRef.current && !finalFlush) return
+                if (speechGeneration !== generationRef.current) return
+                if (!(activeRef.current && sessionSeqRef.current === sessionSeq) && !finalFlush) return
                 hasSpeechRef.current = false
+                neuralSpeechRef.current = false
+                lastSpeechAtRef.current = Date.now()
                 const now = Date.now()
                 if (lastSpeechEndTimeRef.current > 0) {
-                  const gapMs     = now - lastSpeechEndTimeRef.current
-                  const gapChunks = Math.floor(gapMs / CHUNK_DURATION_MS)
+                  const gapMs     = Math.max(0, now - lastSpeechEndTimeRef.current - samples.length / 16)
+                  const gapChunks = Math.floor(gapMs / 2_000)
                   silenceBeforeChunkRef.current = gapChunks
                   if (gapChunks >= SILENCE_RESET_CHUNKS) {
                     silentChunkCountRef.current  = 0
                     lastChunkTextRef.current     = ''
-                    pendingBufferRef.current     = ''
-                    pendingChunkCountRef.current = 0
-                    recentSentencesRef.current   = []
                   }
                 }
                 lastSpeechEndTimeRef.current = now
                 silentChunkCountRef.current  = 0
                 const blob = float32ToWav(samples, 16_000)
-                const queuedAt = Date.now()
-                const flushGeneration = flushGenerationRef.current
-                queueRef.current = queueRef.current.then(async () => {
-                  if (Date.now() - queuedAt > CHUNK_MAX_QUEUE_AGE_MS) return
-                  if (finalFlush && !isFlushGenerationValid(flushGeneration, generationRef.current)) return // cleared/restarted since Stop
-                  await processChunk(blob, 'audio/wav', finalFlush ? { finalFlush: true } : undefined)
-                })
+                enqueueAudio(blob, 'audio/wav', samples.length / 16, speechGeneration, true)
               },
-              onVADMisfire: () => { silentChunkCountRef.current += 1 },
+              onVADMisfire: () => { if (sessionSeqRef.current === sessionSeq) silentChunkCountRef.current += 1 },
             })
             // Stop (or a newer Start) while MicVAD was loading: destroy it now
             // instead of keeping a running VAD that nothing will ever tear down.
@@ -1369,8 +1294,8 @@ export function useLiveTranslate() {
               void Promise.resolve(micVad.destroy()).catch(() => undefined)
               return
             }
-            micVad.start()
             micVadRef.current = micVad
+            await micVad.start()
           } catch (upgradeErr) {
             if (sessionSeqRef.current !== sessionSeq) return // stale session — nothing to revert
             console.error('[adaptive-vad] Silero upgrade failed — reverting:', upgradeErr)
@@ -1383,6 +1308,11 @@ export function useLiveTranslate() {
 
       // A Stop/teardown or a newer Start happened while we awaited the screen
       // picker / mic prompt — abandon this attempt (`finally` releases it).
+      if (sessionSeqRef.current !== sessionSeq) return
+
+      const liveSessionId = sessionIdRef.current
+      if (!liveSessionId) return
+      await window.api.liveInterpretation.begin(liveSessionId)
       if (sessionSeqRef.current !== sessionSeq) return
 
       // ── Shared setup: all audio modes (system / both / mic-energy) ───────
@@ -1422,7 +1352,7 @@ export function useLiveTranslate() {
         releaseCaptureResources({ streams: acquiredStreams, analyser: pendingAnalyser, audioCtx: pendingAudioCtx })
       }
     }
-  }, [startChunk, audioMode, setViewingLiveSession, processChunk, t, cancelActiveSttRequests, getConfiguredAIModel, teardown, saveSession, setLiveLanguagesLocked])
+  }, [startChunk, audioMode, setViewingLiveSession, enqueueAudio, t, cancelActiveSttRequests, getConfiguredAIModel, teardown, saveSession, setLiveLanguagesLocked])
 
   const handleStop = useCallback(() => {
     stopSession({ flush: true })
@@ -1437,9 +1367,17 @@ export function useLiveTranslate() {
     finalFlushingRef.current      = false
     flushGenerationRef.current    = null
     cancelActiveSttRequests()
-    pendingBufferRef.current     = ''
-    pendingChunkCountRef.current = 0
-    recentSentencesRef.current   = []
+    if (activeRef.current && sessionIdRef.current) {
+      void window.api.liveInterpretation.begin(sessionIdRef.current).catch(() => { void stopSession({ flush: false }) })
+    }
+    queueRef.current = Promise.resolve()
+    queuedAudioMsRef.current = 0
+    translationTasksRef.current.clear()
+    segmentsRef.current = []
+    assemblySequenceRef.current = 0
+    assemblyQueueRef.current = Promise.resolve()
+    hasOpenUnitRef.current = false
+    silenceSettledRef.current = false
     fullRawForSummaryRef.current = ''
     fullTxForSummaryRef.current  = ''
     segmentOrderRef.current      = []
@@ -1449,8 +1387,10 @@ export function useLiveTranslate() {
     liveCostRef.current          = undefined
     // In-flight translations skip their own reset once the generation changed.
     setIsTranslating(false)
+    setIsTranscribing(false)
     setRawTranscript('')
     setTranslation('')
+    setLatestSubtitle('')
     setSummary(null)
     setShowSummaryBtn(false)
     setSpeakerAnalysis(null)
@@ -1468,7 +1408,7 @@ export function useLiveTranslate() {
     silenceBeforeChunkRef.current    = 0
     lastSpeakerChangeTimeRef.current = INITIAL_SPEAKER_DIARIZATION_STATE.lastSpeakerChangeTime
     speakerTurnHistoryRef.current    = [...INITIAL_SPEAKER_DIARIZATION_STATE.turnHistory]
-  }, [cancelActiveSttRequests, setLiveLanguagesLocked])
+  }, [cancelActiveSttRequests, setLiveLanguagesLocked, stopSession])
 
   /**
    * handleNewSession — triggered by the "Mới" button in the subtitle overlay.
@@ -1481,10 +1421,10 @@ export function useLiveTranslate() {
    *   • If stopped but has data → save manually to history, then clear
    *   • If no data → just clear (nothing to save)
    */
-  const handleNewSession = useCallback(() => {
-    if (activeRef.current) {
+  const handleNewSession = useCallback(async () => {
+    if (activeRef.current || stopTaskRef.current) {
       // Recording is active → stop it; handleStop auto-saves to history
-      handleStop()
+      await stopSession({ flush: true })
     } else {
       // Not recording — save any accumulated data manually before clearing
       // Shared upsert: Stop may already have saved this session id.
@@ -1492,7 +1432,7 @@ export function useLiveTranslate() {
     }
     // Reset UI state for a fresh session
     handleClear()
-  }, [handleStop, handleClear, saveSession])
+  }, [stopSession, handleClear, saveSession])
 
   const getCurrentSessionId = useCallback(() => sessionIdRef.current, [])
   const runLiveAiAction = useLiveAiActions(updateLiveSession, getCurrentSessionId)

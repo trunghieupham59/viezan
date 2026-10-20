@@ -1,5 +1,6 @@
 import { blockedSafetyError } from './errorUtils'
 import { clampMaxOutputTokens, MAX_OUTPUT_TOKENS_OPENAI, VERIFY_MAX_TOKENS, VERIFY_MODEL_OPENAI } from './ipcConstants'
+import { buildLivePrompt, buildLiveSystemPrompt, liveOutputBudget } from './liveTranslationPolicy'
 import { buildPrompt, buildRewritePrompt, REWRITE_SYSTEM_PROMPT, SYSTEM_PROMPT } from './translatePrompts'
 import { finalizeProviderText, nonEmptyProviderText } from './translateProviderOutput'
 import type { DetectFn, RewriteFn, StreamFn, TranslateFn, TranslateRequestOptions, VerifyFn } from './translateProviderTypes'
@@ -49,14 +50,15 @@ export const translateWithOpenAI: TranslateFn = async (
     {
       model,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: buildPrompt(sourceText, sourceLang, targetLang, showFurigana, style, phoneticOnly, phoneticMode) },
+        { role: 'system', content: options.live ? buildLiveSystemPrompt(sourceLang, targetLang) : SYSTEM_PROMPT },
+        { role: 'user', content: options.live ? buildLivePrompt(sourceText, sourceLang, targetLang, options.live.context) : buildPrompt(sourceText, sourceLang, targetLang, showFurigana, style, phoneticOnly, phoneticMode) },
       ],
-      max_completion_tokens: clampMaxOutputTokens('openai', model, MAX_OUTPUT_TOKENS_OPENAI),
+      max_completion_tokens: clampMaxOutputTokens('openai', model, options.live ? liveOutputBudget(sourceText) + (getOpenAIReasoningEffort(model, 'low') ? 1_024 : 0) : MAX_OUTPUT_TOKENS_OPENAI),
       reasoning_effort: getOpenAIReasoningEffort(model, reasoningEffort),
     },
     requestOptions(options),
   )
+  if (completion.usage) options.onUsage?.({ inputTokens: completion.usage.prompt_tokens, outputTokens: completion.usage.completion_tokens, totalTokens: completion.usage.total_tokens, estimated: false })
   return completionText(completion)
 }
 
