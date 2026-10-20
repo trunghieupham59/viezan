@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
+import { mkdir, open, rename, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { LauncherIcon } from '../../shared/launcher'
 import type { IndexedLauncherApp } from './launcherApps'
@@ -42,8 +42,24 @@ export class LauncherIconCache {
 
   private async readSaved(): Promise<Map<string, SavedIcon>> {
     try {
-      if ((await stat(this.options.file)).size > MAX_CACHE_BYTES) return new Map()
-      const data = JSON.parse(await readFile(this.options.file, 'utf8'))
+      // Keep one handle for the entire read, and enforce the byte limit while
+      // reading: replacing or growing the pathname cannot bypass a size check.
+      const handle = await open(this.options.file, 'r')
+      const chunks: Buffer[] = []
+      let byteCount = 0
+      try {
+        while (byteCount <= MAX_CACHE_BYTES) {
+          const chunk = Buffer.alloc(Math.min(64 * 1024, MAX_CACHE_BYTES - byteCount + 1))
+          const { bytesRead } = await handle.read(chunk)
+          if (!bytesRead) break
+          byteCount += bytesRead
+          if (byteCount > MAX_CACHE_BYTES) return new Map()
+          chunks.push(chunk.subarray(0, bytesRead))
+        }
+      } finally {
+        await handle.close()
+      }
+      const data = JSON.parse(Buffer.concat(chunks).toString('utf8'))
       if (data.version !== 1 || !Array.isArray(data.icons) || data.icons.length > MAX_ENTRIES) return new Map()
       return new Map(data.icons.filter((row: SavedIcon) => row
         && /^[a-f0-9]{64}$/.test(row.id) && /^[a-f0-9]{64}$/.test(row.fingerprint)

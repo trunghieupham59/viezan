@@ -150,6 +150,23 @@ describe('launcher icon cache', () => {
     },
   )
 
+  it.each([0, 1])('enforces the disk cache byte limit while reading (extra bytes: %i)', async extraBytes => {
+    const original = makeCache()
+    await original.updateCatalog(apps)
+    await original.get([apps[0].id])
+    await original.flush()
+    const content = await readFile(file, 'utf8')
+    // JSON permits trailing whitespace, so rejection must come from the byte
+    // limit rather than a parse failure. The exact boundary remains usable.
+    await writeFile(file, content.padEnd(16 * 1024 * 1024 + extraBytes, ' '))
+
+    const restarted = makeCache()
+    await restarted.updateCatalog(apps)
+    expect(restarted.peek(apps[0].id)).toBe(extraBytes ? undefined : dataUrl)
+    expect(await restarted.get([apps[0].id])).toEqual([{ id: apps[0].id, dataUrl }])
+    expect(extract).toHaveBeenCalledTimes(extraBytes ? 2 : 1)
+  })
+
   it('retains memory icons when the disk cache is unwritable or the popup closes', async () => {
     file = path.join(directory, 'not-a-directory', 'icons.json')
     await writeFile(path.dirname(file), 'file')
