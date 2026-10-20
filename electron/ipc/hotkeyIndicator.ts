@@ -8,8 +8,8 @@ export type HotkeyIndicatorState = 'busy' | 'copying' | 'translating' | 'done' |
 // so the window stays consistent with the renderer palette and is easy to
 // re-point at tokens when a main-process token bridge exists.
 
-const INDICATOR_WIDTH = 320
-const INDICATOR_HEIGHT = 76
+const INDICATOR_WIDTH = 304
+const INDICATOR_HEIGHT = 60
 const INDICATOR_TOP_MARGIN = 28
 const DEFAULT_HIDE_DELAY_MS = 1_500
 const TRANSPARENT_BACKGROUND = '#00000000'
@@ -17,7 +17,7 @@ const TRANSPARENT_BACKGROUND = '#00000000'
 /** Colors, keyed by CSS custom property name (without the leading `--`). */
 const INDICATOR_COLORS = {
   light: {
-    'vzn-surface': 'rgba(255, 255, 255, 0.94)',
+    'vzn-surface': '#ffffff',
     'vzn-text': '#18202b',
     'vzn-text-muted': '#5e6a78',
     'vzn-border': 'rgba(216, 224, 232, 0.92)',
@@ -30,7 +30,7 @@ const INDICATOR_COLORS = {
     'vzn-shadow': '0 16px 44px rgba(15, 23, 32, 0.22), 0 2px 8px rgba(15, 23, 32, 0.10)',
   },
   dark: {
-    'vzn-surface': 'rgba(24, 27, 33, 0.94)',
+    'vzn-surface': '#181b21',
     'vzn-text': '#e8edf2',
     'vzn-text-muted': '#a4afbb',
     'vzn-border': 'rgba(72, 81, 95, 0.70)',
@@ -153,7 +153,7 @@ ${cssVariables(INDICATOR_COLORS.light)}
     body {
       display: grid;
       place-items: center;
-      padding: 8px;
+      padding: 0;
     }
 
     .pill {
@@ -167,8 +167,7 @@ ${cssVariables(INDICATOR_COLORS.light)}
       background: var(--vzn-surface);
       border: 1px solid var(--vzn-border);
       border-radius: 8px;
-      box-shadow: var(--vzn-shadow);
-      transform: translateY(8px) scale(0.98);
+      /* Keep the transparent gutter clear: an outer shadow is clipped by the native window. */
       opacity: 0;
       animation: enter 160ms ease-out forwards;
     }
@@ -301,14 +300,18 @@ function createIndicatorWindow(): BrowserWindow {
     height: INDICATOR_HEIGHT,
     show: false,
     frame: false,
-    transparent: true,
+    transparent: process.platform !== 'win32',
+    roundedCorners: true,
+    thickFrame: false,
     alwaysOnTop: true,
     focusable: false,
     hasShadow: false,
     skipTaskbar: true,
     resizable: false,
     movable: false,
-    backgroundColor: TRANSPARENT_BACKGROUND,
+    backgroundColor: process.platform === 'win32'
+      ? INDICATOR_COLORS[nativeTheme.shouldUseDarkColors ? 'dark' : 'light']['vzn-surface']
+      : TRANSPARENT_BACKGROUND,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,

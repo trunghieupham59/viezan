@@ -111,6 +111,7 @@ function createWebPreviewApi(): WindowApi {
     version: 'web-preview',
     hotkey: { update: async (settings: Record<string, unknown>) => ({ success: true, settings }), get: async () => ({ success: true, settings: {} }), disable: ok, onTranslating: noopSubscription, onTranslated: noopSubscription, onError: noopSubscription, chat: { update: async (settings: Record<string, unknown>) => ({ success: true, settings }), get: async () => ({ success: true, settings: {} }), onOpen: noopSubscription } },
     quickChat: {
+      setLayout: ok,
       launcher: {
         listApps: async () => ({ success: true, apps: [{ id: 'preview-calculator', name: 'Calculator (preview)' }, { id: 'preview-notes', name: 'Notes (preview)' }] }),
         getIcons: async () => ({ success: true, icons: [] }),

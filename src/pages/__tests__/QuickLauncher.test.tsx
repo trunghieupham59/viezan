@@ -29,17 +29,52 @@ beforeEach(() => {
 })
 
 describe('QuickLauncher', () => {
+  it('shows only search until a nonblank query, then collapses again on clear and reopen', async () => {
+    render(<QuickLauncher />)
+    const input = screen.getByRole('combobox')
+    await act(async () => {})
+    expect(input).toHaveFocus()
+    expect(input).toHaveAttribute('aria-expanded', 'false')
+    expect(input).not.toHaveAttribute('aria-activedescendant')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument()
+    expect(screen.queryByRole('contentinfo')).not.toBeInTheDocument()
+    expect(window.api.quickChat.setLayout).toHaveBeenLastCalledWith('compact')
+    for (const value of ['', '   ']) {
+      fireEvent.change(input, { target: { value } })
+      fireEvent.keyDown(input, { key: 'ArrowDown' })
+      fireEvent.keyDown(input, { key: 'Enter' })
+      expect(screen.queryByRole('option')).not.toBeInTheDocument()
+    }
+    expect(window.api.chatStream).not.toHaveBeenCalled()
+    expect(window.api.quickChat.launcher.openApp).not.toHaveBeenCalled()
+    fireEvent.change(input, { target: { value: 'Editor' } })
+    expect(input).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('option', { selected: true })).toHaveTextContent('Editor')
+    expect(window.api.quickChat.setLayout).toHaveBeenLastCalledWith('expanded', expect.any(Number))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(window.api.quickChat.setLayout).toHaveBeenLastCalledWith('compact')
+    fireEvent.change(input, { target: { value: 'Calculator' } })
+    act(() => show?.())
+    expect(input).toHaveValue('')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(window.api.quickChat.setLayout).toHaveBeenLastCalledWith('compact')
+  })
+
   it.each(['Claude', 'Google Chrome', 'Visual Studio Code'])('renders cached %s icons with the first search result without another icon request', async name => {
     vi.mocked(window.api.quickChat.launcher.listApps).mockResolvedValue({
       success: true, apps: [{ id: 'cached', name, iconDataUrl: 'data:image/png;base64,cached' }],
     })
     render(<QuickLauncher />)
-    await screen.findByRole('option', { name: `${name} Application` })
+    await waitFor(() => expect(window.api.quickChat.launcher.listApps).toHaveBeenCalled())
     fireEvent.change(screen.getByRole('combobox'), { target: { value: name } })
     expect(screen.getByRole('option', { selected: true }).querySelector('img')).toHaveAttribute('src', 'data:image/png;base64,cached')
     expect(window.api.quickChat.launcher.getIcons).not.toHaveBeenCalled()
     act(() => show?.())
     await waitFor(() => expect(screen.queryByText('Loading applications…')).not.toBeInTheDocument())
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: name } })
     expect(screen.getByRole('option', { name: `${name} Application` }).querySelector('img')).toHaveAttribute('src', 'data:image/png;base64,cached')
     expect(window.api.quickChat.launcher.getIcons).not.toHaveBeenCalled()
   })
@@ -52,7 +87,7 @@ describe('QuickLauncher', () => {
       ],
     })
     const { unmount } = render(<QuickLauncher />)
-    await screen.findByRole('option', { name: 'App 0 Application' })
+    await act(async () => {})
     act(() => receiveIcons?.([{ id: 'code', dataUrl: 'data:image/png;base64,prefetched' }]))
     vi.mocked(window.api.quickChat.launcher.getIcons).mockClear()
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'vs code' } })
@@ -67,7 +102,7 @@ describe('QuickLauncher', () => {
       { id: 'insiders', name: 'Visual Studio Code Insiders' }, { id: 'code', name: 'Visual Studio Code' },
     ] })
     render(<QuickLauncher />)
-    await screen.findByRole('option', { name: 'Visual Studio Code Application' })
+    await act(async () => {})
     fireEvent.change(screen.getByRole('combobox'), { target: { value: query } })
     expect(screen.getByRole('option', { selected: true })).toHaveTextContent('Visual Studio CodeApplication')
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
@@ -80,7 +115,7 @@ describe('QuickLauncher', () => {
       { id: 'inside', name: 'SuperClaude' }, { id: 'code', name: 'Claude Code' },
     ] })
     render(<QuickLauncher />)
-    await screen.findByRole('option', { name: 'Claude Application' })
+    await act(async () => {})
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'CLAUDE' } })
     expect(screen.getAllByRole('option').slice(0, 5).map(element => element.textContent))
       .toEqual(['ClaudeApplication', 'Claude CodeApplication', 'Claude DevApplication', 'My ClaudeApplication', 'SuperClaudeApplication'])
@@ -93,7 +128,8 @@ describe('QuickLauncher', () => {
       success: true, icons: [{ id: 'editor', dataUrl: 'data:image/png;base64,test' }],
     })
     const { container } = render(<QuickLauncher />)
-    await screen.findByRole('option', { name: 'Editor Application' })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Editor' } })
+    await act(async () => {})
     await waitFor(() => expect(container.querySelector('.launcher-app-icon')).toHaveAttribute('src', 'data:image/png;base64,test'))
     fireEvent.error(container.querySelector('.launcher-app-icon') as HTMLImageElement)
     expect(container.querySelector('.launcher-app-icon')).toBeNull()
@@ -103,7 +139,7 @@ describe('QuickLauncher', () => {
 
   it('filters apps without accents, selects with arrows and opens the catalog ID', async () => {
     render(<QuickLauncher />)
-    await screen.findByRole('option', { name: 'Editor Application' })
+    await act(async () => {})
     const input = screen.getByRole('combobox')
     expect(input).toHaveFocus()
     fireEvent.change(input, { target: { value: 'tu dien' } })
@@ -137,7 +173,7 @@ describe('QuickLauncher', () => {
 
   it.each(['click', 'enter'])('sends Ask AI immediately once via %s, including in Strict Mode', async action => {
     render(<StrictMode><QuickLauncher /></StrictMode>)
-    await screen.findByRole('option', { name: 'Editor Application' })
+    await act(async () => {})
     fireEvent.change(screen.getByRole('combobox'), { target: { value: '  Explain caching  ' } })
     if (action === 'click') fireEvent.click(screen.getByRole('option', { name: 'Ask AI Command' }))
     else fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
@@ -150,9 +186,9 @@ describe('QuickLauncher', () => {
     expect(window.api.chatStream).toHaveBeenCalledOnce()
   })
 
-  it('opens an empty composer without sending when Ask AI has no query', async () => {
+  it('keeps the explicit AI shortcut available without a query', async () => {
     render(<QuickLauncher />)
-    fireEvent.click(screen.getByRole('option', { name: 'Ask AI Command' }))
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter', ctrlKey: true })
     await waitFor(() => expect(screen.getByRole('textbox')).toHaveFocus())
     expect(screen.getByRole('textbox')).toHaveValue('')
     expect(window.api.chatStream).not.toHaveBeenCalled()
@@ -179,7 +215,7 @@ describe('QuickLauncher', () => {
 
   it('does not execute during IME composition and requires an explicit web action', async () => {
     render(<QuickLauncher />)
-    await screen.findByRole('option', { name: 'Editor Application' })
+    await act(async () => {})
     const input = screen.getByRole('combobox')
     fireEvent.change(input, { target: { value: '日本語 & query' } })
     fireEvent.keyDown(input, { key: 'Enter', isComposing: true })
@@ -192,14 +228,14 @@ describe('QuickLauncher', () => {
 
   it('clears the query before dismissing and restores search on global shortcut reopen', async () => {
     render(<QuickLauncher />)
-    await screen.findByRole('option', { name: 'Editor Application' })
+    await act(async () => {})
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Editor' } })
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
     expect(screen.getByRole('combobox')).toHaveValue('')
     expect(window.api.quickChat.hide).not.toHaveBeenCalled()
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
     expect(window.api.quickChat.hide).toHaveBeenCalledOnce()
-    fireEvent.click(screen.getByRole('option', { name: 'Ask AI Command' }))
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter', ctrlKey: true })
     act(() => show?.())
     expect(screen.getByRole('combobox')).toHaveFocus()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
@@ -209,6 +245,9 @@ describe('QuickLauncher', () => {
   it('reports a catalog failure while retaining commands and retries', async () => {
     vi.mocked(window.api.quickChat.launcher.listApps).mockRejectedValue(new Error('unavailable'))
     render(<QuickLauncher />)
+    await act(async () => {})
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Editor' } })
     expect(await screen.findByText(/Applications are unavailable/)).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Ask AI Command' })).toBeInTheDocument()
     vi.mocked(window.api.quickChat.launcher.listApps).mockResolvedValue({ success: true, apps: [{ id: 'editor', name: 'Editor' }] })
@@ -221,6 +260,7 @@ describe('QuickLauncher', () => {
     let resolve: (value: { success: boolean }) => void = () => {}
     vi.mocked(window.api.quickChat.launcher.openApp).mockReturnValue(new Promise(done => { resolve = done }))
     render(<QuickLauncher />)
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Editor' } })
     const app = await screen.findByRole('option', { name: 'Editor Application' })
     fireEvent.click(app)
     fireEvent.click(app)

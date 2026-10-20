@@ -1,6 +1,20 @@
-import type { BrowserWindow, IpcMain } from 'electron'
+import type { BrowserWindow, IpcMain, Rectangle } from 'electron'
 import { MAX_CHAT_REQUEST_CHARS } from './ipcConstants'
 import { registerLauncherHandlers } from './launcher'
+
+export const QUICK_CHAT_COMPACT_HEIGHT = 62
+export const QUICK_CHAT_EXPANDED_HEIGHT = 540
+
+// Windows fixes min/max bounds for non-resizable windows. Clear the size
+// constraints without toggling the native frame style, which causes a flash.
+export function setQuickChatWindowBounds(win: BrowserWindow, bounds: Rectangle): void {
+  const current = win.getBounds()
+  if (current.x === bounds.x && current.y === bounds.y
+    && current.width === bounds.width && current.height === bounds.height) return
+  win.setMinimumSize(0, 0)
+  win.setMaximumSize(0, 0)
+  win.setBounds(bounds)
+}
 
 export interface QuickChatSeedPayload {
   question: string
@@ -48,6 +62,23 @@ export function registerQuickChatHandlers(
 ): void {
   const warmLauncher = registerLauncherHandlers(ipcMain, getQuickChatWindow)
   void warmLauncher()
+
+  // Only the popup main frame may request a content height; width and position remain native-owned.
+  ipcMain.handle('quick-chat:set-layout', (event, layout: unknown, contentHeight: unknown) => {
+    const win = getQuickChatWindow()
+    if (!win || win.isDestroyed() || event.sender !== win.webContents
+      || event.senderFrame !== win.webContents.mainFrame
+      || (layout !== 'compact' && layout !== 'expanded')
+      || (contentHeight !== undefined && (layout !== 'expanded' || typeof contentHeight !== 'number'
+        || !Number.isSafeInteger(contentHeight) || contentHeight < 0))) return { success: false }
+    setQuickChatWindowBounds(win, {
+      ...win.getBounds(),
+      height: layout === 'compact' ? QUICK_CHAT_COMPACT_HEIGHT
+        : Math.max(QUICK_CHAT_COMPACT_HEIGHT, Math.min(QUICK_CHAT_EXPANDED_HEIGHT,
+          typeof contentHeight === 'number' ? contentHeight : QUICK_CHAT_EXPANDED_HEIGHT)),
+    })
+    return { success: true }
+  })
 
   ipcMain.handle('quick-chat:hide', () => {
     getQuickChatWindow()?.hide()

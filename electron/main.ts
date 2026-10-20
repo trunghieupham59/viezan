@@ -12,7 +12,7 @@ import { registerLocalAiHandlers, stopManagedLocalAiRuntime } from './ipc/localA
 import { getServerToken, LOCAL_SERVER_PORT, startLocalServer, stopLocalServer } from './ipc/localServer'
 import { registerModelsHandlers } from './ipc/models'
 import { createWindowOpenHandler, isAllowedAppNavigation, isAllowedPermission, type NavigationPolicy } from './ipc/navigationGuard'
-import { registerQuickChatHandlers } from './ipc/quickChat'
+import { QUICK_CHAT_COMPACT_HEIGHT, registerQuickChatHandlers, setQuickChatWindowBounds } from './ipc/quickChat'
 import { registerSubtitleHandlers } from './ipc/subtitle'
 import { registerSystemHandlers } from './ipc/system'
 import { registerTranscribeHandlers } from './ipc/transcribe'
@@ -90,7 +90,6 @@ const WIN_TITLEBAR_LIGHT = { color: '#EEEEEF', symbolColor: '#48484A' }
 const TITLEBAR_HEIGHT_PX = 40
 const MACOS_WINDOW_VIBRANCY = 'under-window' as const
 const QUICK_CHAT_WIDTH = 860
-const QUICK_CHAT_HEIGHT = 540
 
 const navigationPolicy: NavigationPolicy = {
   isDev,
@@ -329,9 +328,9 @@ let quickChatWindow: BrowserWindow | null = null
 function positionQuickChatWindow(win: BrowserWindow): void {
   const cursor = screen.getCursorScreenPoint()
   const { workArea } = screen.getDisplayNearestPoint(cursor)
-  win.setBounds({
+  setQuickChatWindowBounds(win, {
     width: QUICK_CHAT_WIDTH,
-    height: QUICK_CHAT_HEIGHT,
+    height: QUICK_CHAT_COMPACT_HEIGHT,
     x: Math.round(workArea.x + workArea.width / 2 - QUICK_CHAT_WIDTH / 2),
     y: Math.round(workArea.y + workArea.height * 0.22),
   })
@@ -340,16 +339,19 @@ function positionQuickChatWindow(win: BrowserWindow): void {
 function createQuickChatWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: QUICK_CHAT_WIDTH,
-    height: QUICK_CHAT_HEIGHT,
+    height: QUICK_CHAT_COMPACT_HEIGHT,
     show: false,
     frame: false,
-    transparent: true,
+    // Layered transparent Windows windows make window snips include the desktop behind them.
+    transparent: process.platform !== 'win32',
+    roundedCorners: true,
+    thickFrame: false,
     alwaysOnTop: true,
     hasShadow: false,
     skipTaskbar: true,
     resizable: false,
     movable: true,
-    backgroundColor: '#00000000',
+    backgroundColor: process.platform === 'win32' ? getMainWindowBackgroundColor() : '#00000000',
     // On macOS, use a panel-style window so showing/hiding the Quick Chat
     // does NOT activate the Viezan app or transfer focus to the main window
     // when it gets hidden. Behaves like Raycast/Spotlight.

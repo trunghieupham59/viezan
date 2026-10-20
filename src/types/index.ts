@@ -946,6 +946,7 @@ export interface WindowApi {
 
   /** Standalone Raycast-style AI Chat quick window */
   quickChat: {
+    setLayout: (layout: 'compact' | 'expanded', contentHeight?: number) => Promise<{ success: boolean }>
     launcher: import('../../shared/launcher').LauncherApi
     hide: () => Promise<{ success: boolean; error?: string }>
     openSettings: () => Promise<{ success: boolean; error?: string }>
