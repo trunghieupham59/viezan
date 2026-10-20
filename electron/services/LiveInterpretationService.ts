@@ -103,7 +103,7 @@ export class LiveInterpretationService {
     if (cached !== undefined) {
       const result = Promise.resolve(zeroCost(cached))
       this.segments.set(segmentKey, { key, result })
-      if (this.segments.size > 256) this.segments.delete(request.segmentId)
+      if (this.segments.size > 256) this.segments.delete(segmentKey)
       return result
     }
     if (this.queue.length >= 64) return Promise.resolve({ success: false, errorCode: 'BACKLOG' })
@@ -145,7 +145,7 @@ export class LiveInterpretationService {
               const translated = conditional
                 ? conditional.prefix + validateLiveOutput(output, providerRequest.sourceText, request.targetLang)
                 : output
-              return validateLiveOutput(translated, request.sourceText, request.targetLang, request.context)
+              return validateLiveOutput(translated, request.sourceText, request.targetLang, context)
             }, { maxAttempts: request.revision === undefined ? 2 : 1, initialDelayMs: 250, maxRetryAfterMs: 1_000, signal })
             if (signal.aborted || !this.isCurrentTranslation(request)) {
               resolve({ success: false, errorCode: 'CANCELLED', ...(usage.totalTokens ? { usage } : {}) }); return

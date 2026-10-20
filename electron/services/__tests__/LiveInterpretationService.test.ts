@@ -24,6 +24,34 @@ const revisionRequest = (update: LiveAssemblyUpdate) => request(update.segmentId
 afterEach(() => vi.useRealTimers())
 
 describe('LiveInterpretationService', () => {
+  it('does not reject a faithful translation matching background that was never sent to the model', async () => {
+    const provider = vi.fn<ConstructorParameters<typeof LiveInterpretationService>[0]>(async () => 'Bạn muốn xem quyển sách nào?')
+    const service = new LiveInterpretationService(provider)
+    service.begin('session-1')
+    const result = await service.translate(request('question', {
+      sourceLang: 'ja', targetLang: 'vi', sourceText: 'どの本をご覧になりたいですか？',
+      context: 'Bạn muốn xem quyển sách nào?',
+    }))
+    expect(result).toMatchObject({ success: true, translatedText: 'Bạn muốn xem quyển sách nào?' })
+    expect(provider).toHaveBeenCalledOnce()
+    expect(provider.mock.calls[0][1]).toMatchObject({ live: { context: '' } })
+  })
+
+  it('bounds retained request metadata when a long meeting repeatedly hits the translation cache', async () => {
+    const provider = vi.fn(async () => 'Vâng')
+    const service = new LiveInterpretationService(provider)
+    service.begin('session-1')
+    for (let sequence = 1; sequence <= 1_000; sequence++) {
+      const assembled = service.assemble(assemblyRequest(sequence, 'はい', { sourceLang: 'ja', targetLang: 'vi' }))
+      if (!assembled.success) throw new Error(assembled.errorCode)
+      const result = await service.translate({ ...revisionRequest(assembled.updates[0]), sourceLang: 'ja', targetLang: 'vi' })
+      expect(result.success).toBe(true)
+    }
+    expect(provider).toHaveBeenCalledOnce()
+    // Resource bound, including revision-keyed cache hits rather than only provider jobs.
+    expect(Reflect.get(service, 'segments').size).toBeLessThanOrEqual(256)
+  })
+
   it('translates a Stop after nếu once, restores the condition, and caches only the original conditional meaning', async () => {
     const provider = vi.fn().mockResolvedValue('契約書に署名することに同意します。')
     const service = new LiveInterpretationService(provider)

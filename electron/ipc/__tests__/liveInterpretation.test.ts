@@ -82,7 +82,7 @@ describe('live interpretation IPC boundary', () => {
     expect(send).not.toHaveBeenCalled()
     expect(provider).toHaveBeenCalledOnce()
     provider.mockResolvedValue('chị chờ một chút đi. bên này hả? 正しいですか。')
-    await expect(invoke('live:translate', { ...request, segmentId: 'segment-2', sourceText: 'Đúng rồi.', context: 'Chị chờ một chút đi. Bên này hả?' })).resolves.toMatchObject({ errorCode: 'INVALID_OUTPUT' })
+    await expect(invoke('live:translate', { ...request, segmentId: 'segment-2', sourceText: 'Quyển này à?', context: 'Chị chờ một chút đi.' })).resolves.toMatchObject({ errorCode: 'INVALID_OUTPUT' })
     expect(send).not.toHaveBeenCalled()
     expect(provider).toHaveBeenCalledTimes(2)
   })
