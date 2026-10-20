@@ -134,6 +134,13 @@ if (typeof window !== 'undefined') {
         },
       },
       quickChat: {
+        launcher: {
+          listApps: vi.fn().mockResolvedValue({ success: true, apps: [] }),
+          getIcons: vi.fn().mockResolvedValue({ success: true, icons: [] }),
+          onIcons: vi.fn().mockReturnValue(() => {}),
+          openApp: vi.fn().mockResolvedValue({ success: true }),
+          searchWeb: vi.fn().mockResolvedValue({ success: true }),
+        },
         hide: vi.fn().mockResolvedValue({ success: true }),
         openSettings: vi.fn().mockResolvedValue({ success: true }),
         openInChat: vi.fn().mockResolvedValue({ success: true }),

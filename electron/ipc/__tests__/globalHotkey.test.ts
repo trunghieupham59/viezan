@@ -351,6 +351,22 @@ describe('hotkey settings IPC', () => {
     expect((await invoke('hotkey:chat:get')).settings).toMatchObject({ enabled: false, hotkey: 'Alt+Shift+C' })
   })
 
+  it('offers the platform launcher default without changing the translate shortcut or enabling either shortcut', async () => {
+    await init()
+    expect((await invoke('hotkey:chat:get')).settings).toEqual({
+      hotkey: process.platform === 'darwin' ? 'Command+Space' : 'Alt+Space', enabled: false,
+    })
+    expect((await invoke('hotkey:get')).settings).toMatchObject({ hotkey: '', enabled: false })
+    expect(env.registered.size).toBe(0)
+  })
+
+  it('preserves an explicitly cleared launcher shortcut', async () => {
+    await init({ chat: { hotkey: '', enabled: false }, translate: { hotkey: 'Alt+C', enabled: true } })
+    expect((await invoke('hotkey:chat:get')).settings).toEqual({ hotkey: '', enabled: false })
+    expect((await invoke('hotkey:get')).settings).toMatchObject({ hotkey: 'Alt+C', enabled: true })
+    expect([...env.registered.keys()]).toEqual(['Alt+C'])
+  })
+
   it('ignores invalid persisted settings instead of trusting them', async () => {
     await init({ translate: { enabled: true, hotkey: 'rm -rf /', provider: 'x' } })
 

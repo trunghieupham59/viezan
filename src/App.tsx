@@ -35,7 +35,7 @@ function App() {
   const {
     activePage, localeAuto, setKeyStatus, setLocaleFromSystem, fontSize, theme,
     selectedProvider, selectedModels, ttsMode, ttsVoice,
-    createChatSession, setActiveChatSession, addChatMessage,
+    createChatSession, setActiveChatSession, addChatMessage, setChatSessionDraft,
     setActivePage, settingsOpen, openSettings, closeSettings,
   } = useAppStore()
 
@@ -143,24 +143,26 @@ function App() {
       const provider = payload.provider as Provider
       const sessionId = createChatSession(provider, payload.model)
       setActiveChatSession(sessionId)
-      addChatMessage(sessionId, {
-        id: `msg-${Date.now()}-quick-u`,
-        role: 'user',
-        content: [{ type: 'text', text: payload.question }],
-        timestamp: Date.now(),
-      })
       if (payload.response) {
+        addChatMessage(sessionId, {
+          id: `msg-${Date.now()}-quick-u`,
+          role: 'user',
+          content: [{ type: 'text', text: payload.question }],
+          timestamp: Date.now(),
+        })
         addChatMessage(sessionId, {
           id: `msg-${Date.now()}-quick-a`,
           role: 'assistant',
           content: [{ type: 'text', text: payload.response }],
           timestamp: Date.now(),
         })
+      } else {
+        setChatSessionDraft(sessionId, payload.question)
       }
       setActivePage('chat')
     })
     return () => { unsubSettings(); unsubChat() }
-  }, [openSettings, setActivePage, createChatSession, setActiveChatSession, addChatMessage])
+  }, [openSettings, setActivePage, createChatSession, setActiveChatSession, addChatMessage, setChatSessionDraft])
 
   // Check API keys in keychain on startup
   useEffect(() => {

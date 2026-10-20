@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAppStore } from '../../store/useAppStore'
 import type { ChatResult, ChatStreamEvent } from '../../types'
@@ -45,6 +46,58 @@ beforeEach(() => {
 })
 
 describe('AIChatPopup quick window', () => {
+  it('waits for provider readiness, submits each launcher action once and does not replay it on reopen', async () => {
+    let resolveKey!: (value: { exists: boolean }) => void
+    vi.mocked(window.api.keychain.hasKey).mockImplementation(() => new Promise(resolve => { resolveKey = resolve }))
+    useAppStore.setState({ selectedProvider: 'openai' })
+    mockStreamingChat()
+    const onBack = vi.fn()
+    const request = { id: 1, text: 'Say hello' }
+    const { rerender } = render(<StrictMode><AIChatPopup launchRequest={request} onBack={onBack} /></StrictMode>)
+    expect(window.api.chatStream).not.toHaveBeenCalled()
+    await act(async () => resolveKey({ exists: true }))
+    expect(await screen.findByText('Hello there')).toBeInTheDocument()
+    expect(window.api.chatStream).toHaveBeenCalledOnce()
+    rerender(<StrictMode><AIChatPopup active={false} launchRequest={request} onBack={onBack} /></StrictMode>)
+    rerender(<StrictMode><AIChatPopup launchRequest={request} onBack={onBack} /></StrictMode>)
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveFocus())
+    expect(window.api.chatStream).toHaveBeenCalledOnce()
+    rerender(<StrictMode><AIChatPopup launchRequest={{ id: 2, text: request.text }} onBack={onBack} /></StrictMode>)
+    await waitFor(() => expect(window.api.chatStream).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(window.api.chatStream).mock.calls[1][0].messages).toEqual([
+      { role: 'user', content: [{ type: 'text', text: 'Say hello' }] },
+      { role: 'assistant', content: [{ type: 'text', text: 'Hello there' }] },
+      { role: 'user', content: [{ type: 'text', text: 'Say hello' }] },
+    ])
+  })
+
+  it('keeps a launcher question editable when no key exists and does not send it later without another action', async () => {
+    useAppStore.setState({ selectedProvider: 'openai' })
+    render(<AIChatPopup launchRequest={{ id: 1, text: 'Keep this question' }} />)
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveFocus())
+    expect(screen.getByRole('textbox')).toHaveValue('Keep this question')
+    expect(screen.getByTitle('Send')).toBeDisabled()
+    expect(window.api.chatStream).not.toHaveBeenCalled()
+    act(() => useAppStore.setState({ selectedProvider: 'local' }))
+    await waitFor(() => expect(screen.getByTitle('Send')).toBeEnabled())
+    expect(window.api.chatStream).not.toHaveBeenCalled()
+  })
+
+  it('does not overlap sends or lose a new launcher question while the previous answer is streaming', async () => {
+    let finish!: (value: ChatResult) => void
+    vi.mocked(window.api.chatStream).mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+      .mockResolvedValue({ success: true, reply: 'Second answer' })
+    const onBack = vi.fn()
+    const { rerender } = render(<AIChatPopup onBack={onBack} launchRequest={{ id: 1, text: 'First question' }} />)
+    await waitFor(() => expect(window.api.chatStream).toHaveBeenCalledOnce())
+    rerender(<AIChatPopup onBack={onBack} launchRequest={{ id: 2, text: 'Second question' }} />)
+    expect(window.api.chatStream).toHaveBeenCalledOnce()
+    await act(async () => finish({ success: true, reply: 'First answer' }))
+    expect(await screen.findByText('Second answer')).toBeInTheDocument()
+    expect(window.api.chatStream).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(window.api.chatStream).mock.calls[1][0].messages).toHaveLength(3)
+  })
+
   it('focuses the input when mounted', async () => {
     render(<AIChatPopup />)
 
@@ -181,6 +234,7 @@ describe('AIChatPopup quick window', () => {
     fireEvent.keyDown(input, { key: 'Enter' })
     await screen.findByText('Hello there')
 
+    fireEvent.change(input, { target: { value: '   ' } })
     fireEvent.click(screen.getByText('Open in Chat'))
 
     expect(window.api.quickChat.openInChat).toHaveBeenCalledWith({
@@ -189,6 +243,32 @@ describe('AIChatPopup quick window', () => {
       provider: 'local',
       model: 'local-auto',
     })
+  })
+
+  it.each(['button', 'shortcut'])('forwards a new draft without the previous answer via %s', async (action) => {
+    window.api.platform = 'win32'
+    mockStreamingChat()
+    render(<AIChatPopup />)
+
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'Say hello' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await screen.findByText('Hello there')
+    fireEvent.change(input, { target: { value: '  What is 5 + 7?  ' } })
+
+    if (action === 'button') {
+      fireEvent.click(screen.getByText('Open in Chat'))
+    } else {
+      fireEvent.keyDown(input, { key: 'Enter', ctrlKey: true })
+    }
+
+    expect(window.api.quickChat.openInChat).toHaveBeenCalledExactlyOnceWith({
+      question: 'What is 5 + 7?',
+      response: undefined,
+      provider: 'local',
+      model: 'local-auto',
+    })
+    expect(window.api.chatStream).toHaveBeenCalledTimes(1)
   })
 
   it('starts a new conversation with Cmd+N on macOS', async () => {

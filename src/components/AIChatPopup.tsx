@@ -76,7 +76,16 @@ function KeyCap({ children }: { children: React.ReactNode }) {
   )
 }
 
-export function AIChatPopup() {
+export interface QuickChatLaunchRequest {
+  id: number
+  text: string
+}
+
+export function AIChatPopup({
+  active = true,
+  launchRequest,
+  onBack,
+}: { active?: boolean; launchRequest?: QuickChatLaunchRequest; onBack?: () => void } = {}) {
   const {
     selectedProvider,
     selectedModels,
@@ -94,6 +103,10 @@ export function AIChatPopup() {
   const [response, setResponse] = useState('')
   const [smartStep, setSmartStep] = useState<SmartStep | null>(null)
   const [isSending, setIsSending] = useState(false)
+  const sendingRef = useRef(false)
+  const handledLaunchRequestRef = useRef<number | null>(null)
+  const [preparedLaunchRequest, setPreparedLaunchRequest] = useState<number | null>(null)
+  const [checkedProvider, setCheckedProvider] = useState<typeof selectedProvider | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // ── Conversation memory ───────────────────────────────────────────────
@@ -204,28 +217,41 @@ export function AIChatPopup() {
 
   // Mount lifecycle: tag <html> for popup-only CSS, run show-time logic.
   useEffect(() => {
-    document.documentElement.classList.add('quick-chat-window')
+    if (!active) return
     handleShow()
+    setInput(launchRequest?.text ?? '')
+    setPreparedLaunchRequest(launchRequest?.id ?? null)
+    if (onBack) {
+      return () => { lastHideAtRef.current = Date.now() }
+    }
+    document.documentElement.classList.add('quick-chat-window')
     return () => document.documentElement.classList.remove('quick-chat-window')
-  }, [handleShow])
+  }, [active, launchRequest, onBack, handleShow])
 
   // Subsequent shows from main process.
   useEffect(() => {
-    if (!window.api?.quickChat?.onShow) return
+    if (onBack || !active || !window.api?.quickChat?.onShow) return
     return window.api.quickChat.onShow(handleShow)
-  }, [handleShow])
+  }, [active, onBack, handleShow])
 
   // Detect API key for the selected provider.
   useEffect(() => {
+    let cancelled = false
+    setCheckedProvider(null)
     if (selectedProvider === 'local') {
       setKeyStatus('local', true)
+      setCheckedProvider(selectedProvider)
       return
     }
-    if (!window.api?.keychain?.hasKey) return
-    window.api.keychain
-      .hasKey(selectedProvider)
-      .then((result) => setKeyStatus(selectedProvider, Boolean(result.exists)))
-      .catch(() => setKeyStatus(selectedProvider, false))
+    const check = async () => {
+      let exists = false
+      try { exists = Boolean((await window.api?.keychain?.hasKey(selectedProvider))?.exists) } catch { /* Keep configuration error visible. */ }
+      if (cancelled) return
+      setKeyStatus(selectedProvider, exists)
+      setCheckedProvider(selectedProvider)
+    }
+    void check()
+    return () => { cancelled = true }
   }, [selectedProvider, setKeyStatus])
 
   // Auto-grow textarea height to fit content (capped).
@@ -238,6 +264,7 @@ export function AIChatPopup() {
 
   // Measure scroll-container height so the active Q&A card can fill the viewport.
   useEffect(() => {
+    if (!active) return
     const el = scrollContainerRef.current
     if (!el) return
     const update = () => setViewportHeight(el.clientHeight)
@@ -250,7 +277,7 @@ export function AIChatPopup() {
       ro?.disconnect()
       window.removeEventListener('resize', update)
     }
-  }, [])
+  }, [active])
 
   // When a brand-new turn starts, snap the active card to the top.
   useEffect(() => {
@@ -285,6 +312,8 @@ export function AIChatPopup() {
    */
   const streamTurn = useCallback(
     async (historySnapshot: Turn[], userText: string) => {
+      if (sendingRef.current) return
+      sendingRef.current = true
       setActiveQuestion(userText)
       setResponse('')
       setSmartStep(null)
@@ -352,6 +381,7 @@ export function AIChatPopup() {
       } catch (err) {
         setError(localizeChatException(t, err, t.chat_error_unexpected))
       } finally {
+        sendingRef.current = false
         setIsSending(false)
         focusInput()
       }
@@ -361,9 +391,9 @@ export function AIChatPopup() {
 
 
   /** Send a new question (or follow-up). Folds previous answer into history. */
-  const handleSend = useCallback(async () => {
-    const text = input.trim()
-    if (!text || inputTooLong || isSending || !hasKey) return
+  const sendQuestion = useCallback(async (question: string) => {
+    const text = question.trim()
+    if (!text || text.length > MAX_CHAT_INPUT_CHARS || sendingRef.current || !hasKey) return
 
     let nextHistory = history
     if (activeQuestion && response.trim()) {
@@ -377,7 +407,19 @@ export function AIChatPopup() {
 
     setInput('')
     await streamTurn(nextHistory, text)
-  }, [input, inputTooLong, isSending, hasKey, history, activeQuestion, response, streamTurn])
+  }, [hasKey, history, activeQuestion, response, streamTurn])
+
+  const handleSend = useCallback(() => sendQuestion(input), [input, sendQuestion])
+
+  useEffect(() => {
+    if (!active || !launchRequest || preparedLaunchRequest !== launchRequest.id
+      || handledLaunchRequestRef.current === launchRequest.id || checkedProvider !== selectedProvider) return
+    if (isSending || sendingRef.current) return
+    // Consume the explicit action once, including when configuration prevents
+    // sending. Reopening or changing provider must not replay an old request.
+    handledLaunchRequestRef.current = launchRequest.id
+    if (input === launchRequest.text) void sendQuestion(launchRequest.text)
+  }, [active, launchRequest, preparedLaunchRequest, checkedProvider, selectedProvider, input, isSending, sendQuestion])
 
   /**
    * Re-run the LLM for the given question.
@@ -393,7 +435,7 @@ export function AIChatPopup() {
 
       if (typeof pairIdx === 'number') {
         const userTurn = history[pairIdx * 2]
-        if (!userTurn || userTurn.role !== 'user') return
+        if (userTurn?.role !== 'user') return
         const truncated = history.slice(0, pairIdx * 2)
         setHistory(truncated)
         await streamTurn(truncated, userTurn.text)
@@ -454,7 +496,8 @@ export function AIChatPopup() {
     }
     window.api?.quickChat?.openInChat({
       question,
-      response: response.trim() || undefined,
+      // An unsent draft has no answer yet; the visible response belongs to activeQuestion.
+      response: draft ? undefined : response.trim() || undefined,
       provider: selectedProvider,
       model,
     })
@@ -462,6 +505,7 @@ export function AIChatPopup() {
 
   // Keyboard shortcuts: Esc closes; Cmd/Ctrl+N starts over; Cmd/Ctrl+Enter opens full Chat.
   useEffect(() => {
+    if (!active) return
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         hidePopup()
@@ -481,7 +525,7 @@ export function AIChatPopup() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [error, handleNewConversation, handleOpenInChat, hasContext, hidePopup, input])
+  }, [active, error, handleNewConversation, handleOpenInChat, hasContext, hidePopup, input])
 
   // Mark dismissal time whenever the popup loses visibility (any path).
   useEffect(() => {
@@ -512,6 +556,8 @@ export function AIChatPopup() {
     container.scrollTop += e.deltaY
   }, [])
 
+  if (!active) return null
+
   return (
     <div
       className="quick-chat-shell titlebar-drag h-screen w-screen bg-transparent p-3"
@@ -525,6 +571,12 @@ export function AIChatPopup() {
 
         {/* === Header / prompt bar ============================================ */}
         <div className="quick-chat-header titlebar-drag flex flex-shrink-0 items-center gap-2 border-b px-3 py-2.5">
+          {onBack && (
+            <Button size="md" shape="rect" variant="neutral" appearance="ghost"
+              className="titlebar-no-drag" onClick={onBack}>
+              {t.launcher_back}
+            </Button>
+          )}
           <Button
             size="md"
             shape="icon"

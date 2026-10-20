@@ -3,6 +3,7 @@
  * the main renderer without exposing Node primitives.
  */
 import { ipcRenderer } from 'electron'
+import type { LauncherApi, LauncherIcon } from '../../shared/launcher'
 
 export interface QuickChatSeedPayload {
   question: string
@@ -13,6 +14,17 @@ export interface QuickChatSeedPayload {
 
 export const quickChatSection = {
   quickChat: {
+    launcher: {
+      listApps: () => ipcRenderer.invoke('launcher:list-apps'),
+      getIcons: (ids: string[]) => ipcRenderer.invoke('launcher:get-icons', ids),
+      onIcons: (callback: (icons: LauncherIcon[]) => void) => {
+        const handler = (_: unknown, icons: LauncherIcon[]) => callback(icons)
+        ipcRenderer.on('launcher:icons', handler)
+        return () => ipcRenderer.removeListener('launcher:icons', handler)
+      },
+      openApp: (id: string) => ipcRenderer.invoke('launcher:open-app', id),
+      searchWeb: (query: string) => ipcRenderer.invoke('launcher:search-web', query),
+    } satisfies LauncherApi,
     hide: () => ipcRenderer.invoke('quick-chat:hide'),
     openSettings: () => ipcRenderer.invoke('quick-chat:open-settings'),
     openInChat: (payload?: QuickChatSeedPayload) => ipcRenderer.invoke('quick-chat:open-in-chat', payload),

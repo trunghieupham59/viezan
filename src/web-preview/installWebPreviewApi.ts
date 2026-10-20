@@ -110,7 +110,16 @@ function createWebPreviewApi(): WindowApi {
     platform: 'web',
     version: 'web-preview',
     hotkey: { update: async (settings: Record<string, unknown>) => ({ success: true, settings }), get: async () => ({ success: true, settings: {} }), disable: ok, onTranslating: noopSubscription, onTranslated: noopSubscription, onError: noopSubscription, chat: { update: async (settings: Record<string, unknown>) => ({ success: true, settings }), get: async () => ({ success: true, settings: {} }), onOpen: noopSubscription } },
-    quickChat: { hide: ok, openSettings: ok, openInChat: ok, onShow: noopSubscription, onOpenSettings: noopSubscription, onOpenInChat: noopSubscription },
+    quickChat: {
+      launcher: {
+        listApps: async () => ({ success: true, apps: [{ id: 'preview-calculator', name: 'Calculator (preview)' }, { id: 'preview-notes', name: 'Notes (preview)' }] }),
+        getIcons: async () => ({ success: true, icons: [] }),
+        onIcons: noopSubscription,
+        openApp: async () => ({ success: false, errorCode: 'UNAVAILABLE' }),
+        searchWeb: async () => ({ success: false, errorCode: 'UNAVAILABLE' }),
+      },
+      hide: ok, openSettings: ok, openInChat: ok, onShow: noopSubscription, onOpenSettings: noopSubscription, onOpenInChat: noopSubscription,
+    },
     legacyAssistant: { get: async () => ({ success: true, settings: {} }), update: ok, getBookmarklet: async () => ({ success: true, bookmarklet: '' }), injectNow: ok },
     updater: { check: ok, download: async () => ({ success: false, error: 'Desktop only in Web Preview' }), install: async () => ({ success: false, error: 'Desktop only in Web Preview' }), openInstaller: async () => ({ success: false, error: 'Desktop only in Web Preview' }), getVersion: async () => ({ version: 'web-preview' }), openDownload: ok, onStatus: noopSubscription },
     localServer: { createToken: async () => ({ success: false, error: 'Desktop only in Web Preview' }), listTokens: async () => ({ success: true, port: 39875, tokens: [] }), deleteToken: ok, regenerateToken: async () => ({ success: false, error: 'Desktop only in Web Preview' }), syncConfig: ok },

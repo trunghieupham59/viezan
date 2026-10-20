@@ -1,5 +1,6 @@
 import type { BrowserWindow, IpcMain } from 'electron'
 import { MAX_CHAT_REQUEST_CHARS } from './ipcConstants'
+import { registerLauncherHandlers } from './launcher'
 
 export interface QuickChatSeedPayload {
   question: string
@@ -45,6 +46,9 @@ export function registerQuickChatHandlers(
   getMainWindow: () => BrowserWindow | null,
   getQuickChatWindow: () => BrowserWindow | null,
 ): void {
+  const warmLauncher = registerLauncherHandlers(ipcMain, getQuickChatWindow)
+  void warmLauncher()
+
   ipcMain.handle('quick-chat:hide', () => {
     getQuickChatWindow()?.hide()
     return { success: true }

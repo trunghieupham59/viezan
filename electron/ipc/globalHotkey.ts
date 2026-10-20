@@ -139,7 +139,7 @@ const DEFAULT_SETTINGS: HotkeySettings = {
 }
 
 const DEFAULT_CHAT_SETTINGS: AIChatHotkeySettings = {
-  hotkey: '',
+  hotkey: process.platform === 'darwin' ? 'Command+Space' : 'Alt+Space',
   enabled: false,
 }
 

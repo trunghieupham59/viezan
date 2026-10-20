@@ -7,7 +7,7 @@ import { STATUS_RESET_DELAY_MS, STATUS_RESET_LONG_MS } from '../../constants/ui'
 import { useAppStore, useT } from '../../store/useAppStore'
 
 const DEFAULT_HOTKEY = 'Alt+Shift+T'
-const DEFAULT_CHAT_HOTKEY = 'Alt+Shift+C'
+const getDefaultChatHotkey = () => window.api?.platform === 'darwin' ? 'Command+Space' : 'Alt+Space'
 
 const KEY_MAP: Record<string, string> = {
   ' ': 'Space', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right',
@@ -147,9 +147,9 @@ export function HotkeySection() {
       if (res?.success && res.settings) {
         const s = res.settings
         setChatHotkeyEnabled(s.enabled === true)
-        setChatHotkeyValue(typeof s.hotkey === 'string' && s.hotkey ? s.hotkey : DEFAULT_CHAT_HOTKEY)
+        setChatHotkeyValue(typeof s.hotkey === 'string' && s.hotkey ? s.hotkey : getDefaultChatHotkey())
       } else {
-        setChatHotkeyValue(DEFAULT_CHAT_HOTKEY)
+        setChatHotkeyValue(getDefaultChatHotkey())
       }
     })
   }, [])
@@ -163,7 +163,8 @@ export function HotkeySection() {
     }
     const res = await window.api.hotkey.chat.update(settings)
     if (!res?.success && res?.error) {
-      setChatHotkeyError(res.error)
+      setChatHotkeyError(res.errorCode === 'IN_USE' || res.errorCode === 'CONFLICT'
+        ? t.settings_chat_hotkey_status_conflict : t.launcher_hotkey_failed)
       const kept = res.settings
       if (kept) {
         setChatHotkeyEnabled(kept.enabled === true)
@@ -174,7 +175,7 @@ export function HotkeySection() {
     } else {
       setChatHotkeyError('')
     }
-  }, [chatHotkeyValue, chatHotkeyEnabled])
+  }, [chatHotkeyValue, chatHotkeyEnabled, t])
 
   const handleChatHotkeyKeyDown = (e: React.KeyboardEvent) => {
     e.preventDefault()
