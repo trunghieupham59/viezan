@@ -17,7 +17,7 @@
   --vzn-neutral-300: #d1d1d6;
   --vzn-neutral-400: #aeaeb2;
   --vzn-neutral-500: #8e8e93;
-  --vzn-neutral-600: #6e6e73;
+  --vzn-neutral-600: #66666c;
   --vzn-neutral-700: #48484a;
   --vzn-neutral-800: #2c2c2e;
   --vzn-neutral-900: #1c1c1e;
@@ -35,6 +35,8 @@
   --vzn-blue-900: #003e84;
 
   /* Glass and Midnight preset accent ramp. */
+  --vzn-sky-600: #0284c7;
+  --vzn-sky-700: #0369a1;
   --vzn-cyan-300: #67e8f9;
   --vzn-cyan-400: #22d3ee;
   --vzn-cyan-500: #06b6d4;
@@ -50,7 +52,7 @@
   --vzn-green-600: #059669;
   --vzn-amber-50: #fffbeb;
   --vzn-amber-500: #f59e0b;
-  --vzn-amber-600: #d97706;
+  --vzn-amber-600: #c96a04;
 
   /* Illustrative tones: feature/prompt-card icon accents, not status colors. */
   --vzn-tone-blue: #3485f6;
@@ -530,14 +532,14 @@ html.dark {
   --vzn-action-text: #0066cc;
   --vzn-action-fg: var(--vzn-neutral-0);
   --vzn-focus-ring: rgba(10, 132, 255, 0.55);
-  --vzn-action-fill: linear-gradient(135deg, var(--vzn-blue-500) 0%, var(--vzn-cyan-400) 100%);
-  --vzn-action-fill-hover: linear-gradient(135deg, var(--vzn-blue-600) 0%, var(--vzn-cyan-500) 100%);
+  --vzn-action-fill: linear-gradient(135deg, var(--vzn-blue-700) 0%, var(--vzn-sky-600) 100%);
+  --vzn-action-fill-hover: linear-gradient(135deg, var(--vzn-blue-800) 0%, var(--vzn-sky-700) 100%);
   --vzn-accent-glow: rgba(10, 132, 255, 0.35);
   --vzn-shadow-glow: 0 8px 24px rgba(10, 132, 255, 0.25);
   --vzn-send-bg: var(--vzn-action-fill);
   --vzn-send-bg-hover: var(--vzn-action-fill-hover);
   --vzn-send-fg: var(--vzn-action-fg);
-  --vzn-user-bubble-bg: linear-gradient(135deg, var(--vzn-blue-500) 0%, var(--vzn-cyan-400) 100%);
+  --vzn-user-bubble-bg: linear-gradient(135deg, var(--vzn-blue-700) 0%, var(--vzn-sky-600) 100%);
   --vzn-user-bubble-fg: var(--vzn-neutral-0);
   --vzn-user-bubble-border: transparent;
 
@@ -624,23 +626,23 @@ html.dark[data-theme="glass"] {
   --vzn-assistant-avatar-bg: rgba(32, 36, 52, 0.7);
 
   /* Accent */
-  --vzn-action: var(--vzn-blue-400);
-  --vzn-action-hover: var(--vzn-blue-300);
-  --vzn-action-active: var(--vzn-blue-500);
+  --vzn-action: var(--vzn-blue-500);
+  --vzn-action-hover: var(--vzn-blue-600);
+  --vzn-action-active: var(--vzn-blue-700);
   --vzn-action-soft: rgba(64, 156, 255, 0.18);
   --vzn-action-soft-hover: rgba(64, 156, 255, 0.26);
   --vzn-action-border: rgba(64, 156, 255, 0.45);
   --vzn-action-text: var(--vzn-blue-300);
   --vzn-action-fg: #ffffff;
   --vzn-focus-ring: rgba(64, 156, 255, 0.6);
-  --vzn-action-fill: linear-gradient(135deg, var(--vzn-blue-400) 0%, var(--vzn-cyan-400) 100%);
-  --vzn-action-fill-hover: linear-gradient(135deg, var(--vzn-blue-300) 0%, var(--vzn-cyan-300) 100%);
+  --vzn-action-fill: linear-gradient(135deg, var(--vzn-blue-500) 0%, var(--vzn-sky-600) 100%);
+  --vzn-action-fill-hover: linear-gradient(135deg, var(--vzn-blue-600) 0%, var(--vzn-sky-700) 100%);
   --vzn-accent-glow: rgba(64, 156, 255, 0.4);
   --vzn-shadow-glow: 0 8px 28px rgba(64, 156, 255, 0.3);
   --vzn-send-bg: var(--vzn-action-fill);
   --vzn-send-bg-hover: var(--vzn-action-fill-hover);
   --vzn-send-fg: var(--vzn-action-fg);
-  --vzn-user-bubble-bg: linear-gradient(135deg, var(--vzn-blue-400) 0%, var(--vzn-cyan-400) 100%);
+  --vzn-user-bubble-bg: linear-gradient(135deg, var(--vzn-blue-500) 0%, var(--vzn-sky-600) 100%);
   --vzn-user-bubble-fg: #ffffff;
   --vzn-user-bubble-border: transparent;
 
@@ -1362,6 +1364,11 @@ body {
 :where(button, a, input, textarea, select, [tabindex]):focus-visible {
   outline: 2px solid var(--vzn-focus-ring) !important;
   outline-offset: 2px !important;
+}
+
+/* Text selection follows the preset accent instead of the browser default. */
+::selection {
+  background: color-mix(in srgb, var(--vzn-action) 28%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
