@@ -297,7 +297,8 @@ describe('TranslationComparisonPane result actions', () => {
     fireEvent.click(footerActions.getByRole('button', { name: /Copy: GPT 4o.*OpenAI/i }))
     expect(onSpeak).toHaveBeenCalledWith(result)
     expect(onCopy).toHaveBeenCalledWith(result)
-    expect(footer).toHaveTextContent(/2[,.\s]?689 chars/)
+    // The strip above already reports the source length; columns stay free of counters.
+    expect(footer).not.toHaveTextContent(/chars/)
   })
 
   it('offers one pick per finished translation and reflects the picked column', () => {
@@ -374,6 +375,17 @@ describe('TranslationComparisonPane result actions', () => {
     expect(toggle).toHaveAttribute('aria-pressed', 'false')
     expect(geminiCard.querySelector('mark')).toBeNull()
     expect(geminiCard).toHaveTextContent('The quick fox')
+  })
+
+  it('replaces the highlight toggle with a note when every model agrees', () => {
+    renderComparison([
+      { ...IDLE_RESULTS[0], status: 'success', translatedText: 'The quick fox', durationMs: 300 },
+      { ...IDLE_RESULTS[1], status: 'success', translatedText: 'The quick fox', durationMs: 400 },
+    ])
+
+    expect(screen.queryByRole('button', { name: 'Highlight differences' })).not.toBeInTheDocument()
+    expect(screen.getByText('All translations match')).toBeInTheDocument()
+    expect(document.querySelector('mark')).toBeNull()
   })
 
   it('offers no result actions until a model has a translation', () => {

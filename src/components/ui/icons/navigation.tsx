@@ -77,11 +77,11 @@ export function SearchIcon({ className = 'w-3.5 h-3.5' }: IconProps) {
   )
 }
 
-/** Arrow-up icon — used on the bookmarklet drag hint (drag to bookmarks bar). */
-export function ArrowUpIcon({ className = 'w-3.5 h-3.5' }: IconProps) {
+/** Arrow-up icon — "send upward": use a result as the source above, and the bookmarklet drag hint. */
+export function ArrowUpIcon({ className = 'w-4 h-4' }: IconProps) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19V5m0 0l-7 7m7-7l7 7" />
     </svg>
   )
 }

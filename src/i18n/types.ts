@@ -216,6 +216,8 @@ export interface Translations {
   translate_compare_dismiss_failure: string
   translate_compare_pick: string
   translate_compare_picked: string
+  translate_compare_pick_short: string
+  translate_compare_identical: string
   translate_compare_source_expand: string
   translate_compare_source_collapse: string
 

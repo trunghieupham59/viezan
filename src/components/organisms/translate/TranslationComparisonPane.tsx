@@ -1,14 +1,13 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { useAppStore, useT } from '../../../store/useAppStore'
+import { useT } from '../../../store/useAppStore'
 import type { TranslationComparisonResult, TranslationModelSelection } from '../../../types'
-import { formatNumberForLocale } from '../../../utils/locale'
 import { formatModelName, getProviderDisplayName } from '../../../utils/modelDisplay'
 import { type DiffSegment, highlightTranslationDifferences } from '../../../utils/translationDiff'
 import { MarkdownText } from '../../MarkdownText'
 import { ProviderIcon } from '../../ProviderIcon'
 import { Button } from '../../ui/atoms'
 import {
-  ArrowLeftIcon,
+  ArrowUpIcon,
   CheckIcon,
   CopyIcon,
   InfoCircleIcon,
@@ -86,6 +85,10 @@ export function TranslationComparisonPane({
   ))
   const columnCount = results.filter((result) => result.status !== 'error').length
   const canHighlight = successfulResults.length >= 2
+  // Nothing to mark when every model agrees; say so instead of showing an inert toggle.
+  const allIdentical = canHighlight && successfulResults.every((result) => (
+    result.translatedText === successfulResults[0].translatedText
+  ))
   const getStatusLabel = (status: TranslationComparisonResult['status']) => {
     if (status === 'loading') return t.translate_compare_status_running
     if (status === 'success') return t.translate_compare_status_complete
@@ -155,7 +158,9 @@ export function TranslationComparisonPane({
         >
           {hasStarted ? liveStatus : t.translate_compare_heading(results.length)}
         </span>
-        {canHighlight && (
+        {allIdentical ? (
+          <span className="translate-comparison-identical">{t.translate_compare_identical}</span>
+        ) : canHighlight && (
           <Button
             size="xs"
             shape="rect"
@@ -413,7 +418,6 @@ function ComparisonResultCard({
   onChooseModel,
 }: ComparisonResultCardProps) {
   const t = useT()
-  const appLocale = useAppStore((state) => state.locale)
   const modelName = formatModelName(result.provider, result.model)
   const providerName = getProviderDisplayName(result.provider)
   const recovery = useErrorRecovery(result)
@@ -443,7 +447,7 @@ function ComparisonResultCard({
         <span className="translate-comparison-card-heading">
           <strong>{modelName}</strong>
           <span className="translate-comparison-card-meta">
-            <span>{providerName}</span>
+            <span className="translate-comparison-card-provider">{providerName}</span>
             {/* Idle has nothing to report; the body already invites the run. */}
             {result.status !== 'idle' && (
               <ModelRunStatus status={result.status} label={statusLabel} />
@@ -463,7 +467,11 @@ function ComparisonResultCard({
             className="translate-comparison-pick"
           >
             {isSelected && <CheckIcon />}
-            {pickLabel}
+            {/* Narrow columns keep the model name and shorten the verb instead. */}
+            <span className="translate-comparison-pick-label">{pickLabel}</span>
+            <span className="translate-comparison-pick-label-short" aria-hidden="true">
+              {isSelected ? t.translate_compare_picked : t.translate_compare_pick_short}
+            </span>
           </Button>
         )}
       </header>
@@ -547,11 +555,8 @@ function ComparisonResultCard({
             title={t.translate_use_as_source}
             onClick={() => onUseAsSource(result)}
           >
-            <ArrowLeftIcon />
+            <ArrowUpIcon />
           </Button>
-          <span className="translate-comparison-card-count">
-            {formatNumberForLocale(result.translatedText.length, appLocale)} {t.translate_chars}
-          </span>
         </footer>
       )}
     </article>

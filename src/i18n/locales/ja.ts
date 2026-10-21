@@ -181,6 +181,8 @@ const ja: Translations = {
   translate_compare_dismiss_failure: 'このエラーを閉じる',
   translate_compare_pick: 'この訳を選ぶ',
   translate_compare_picked: '選択中',
+  translate_compare_pick_short: '選ぶ',
+  translate_compare_identical: 'すべての訳が一致',
   translate_compare_source_expand: '原文を展開',
   translate_compare_source_collapse: '原文を折りたたむ',
   voice_record: '音声録音',

@@ -9,7 +9,7 @@ import type { ImageAttachment } from '../../translate/ImageTranslator'
 import { SourcePanelActions } from '../../translate/SourcePanelActions'
 import { Button } from '../../ui/atoms'
 import { DragOverlay } from '../../ui/DragOverlay'
-import { ChevronDownIcon, InfoCircleIcon } from '../../ui/icons'
+import { ChevronRightIcon, InfoCircleIcon } from '../../ui/icons'
 import type { SpeakPanel } from '../../ui/SpeakButton'
 import { TranslateButton } from '../../ui/TranslateButton'
 import type { VoiceRecordingState } from '../../VoiceRecorder'
@@ -110,8 +110,8 @@ export function TranslationSourcePane({
   }
 
   if (collapsible && collapsed) {
-    // Once translations exist the source is reference material: one line, the
-    // count, and the way back to editing. Everything else waits behind "expand".
+    // Once translations exist the source is reference material: one disclosure
+    // row holding the text, the count, and the way back to editing.
     return (
       <section
         className="translate-pane translate-source-pane translate-source-pane-collapsed"
@@ -127,32 +127,23 @@ export function TranslationSourcePane({
           aria-label={t.translate_compare_source_expand}
           title={t.translate_compare_source_expand}
           onClick={() => onCollapsedChange?.(false)}
-          className="translate-source-collapsed-preview"
+          className="translate-source-disclosure translate-source-collapsed-preview"
         >
+          <ChevronRightIcon className="translate-source-disclosure-chevron" />
           <span className="translate-source-collapsed-text">{sourceText}</span>
         </Button>
         <span className="translate-char-count">
           {formatNumberForLocale(charCount, appLocale)} {t.translate_chars}
         </span>
-        <TranslateButton
-          isTranslating={isTranslating}
-          disabled={!hasSource}
-          onClick={onTranslate}
-          labelTranslate={t.translate_compare_submit(translationModelCount)}
-          labelLoading={t.translate_compare_submitting(translationModelCount)}
-        />
-        <Button
-          size="md"
-          shape="icon"
-          variant="neutral"
-          appearance="ghost"
-          aria-expanded={false}
-          aria-label={t.translate_compare_source_expand}
-          title={t.translate_compare_source_expand}
-          onClick={() => onCollapsedChange?.(false)}
-        >
-          <ChevronDownIcon />
-        </Button>
+        {!autoTranslate && (
+          <TranslateButton
+            isTranslating={isTranslating}
+            disabled={!hasSource}
+            onClick={onTranslate}
+            labelTranslate={t.translate_compare_submit(translationModelCount)}
+            labelLoading={t.translate_compare_submitting(translationModelCount)}
+          />
+        )}
       </section>
     )
   }
@@ -167,21 +158,27 @@ export function TranslationSourcePane({
       onDrop={onDrop}
     >
       <header className="translate-pane-header">
-        <h2 id={headingId} className="translate-pane-heading">{t.translate_source_content_label}</h2>
-        {collapsible && canCollapse && (
-          <Button
-            size="sm"
-            shape="icon"
-            variant="neutral"
-            appearance="ghost"
-            aria-expanded
-            aria-label={t.translate_compare_source_collapse}
-            title={t.translate_compare_source_collapse}
-            onClick={() => onCollapsedChange?.(true)}
-            className="translate-source-collapse"
-          >
-            <ChevronDownIcon className="translate-source-collapse-chevron" />
-          </Button>
+        {collapsible && canCollapse ? (
+          // The heading doubles as a disclosure: its name stays "Source content",
+          // aria-expanded carries the state, and the chevron sits where it will
+          // also sit on the collapsed strip.
+          <h2 id={headingId} className="translate-pane-heading">
+            <Button
+              size="md"
+              shape="rect"
+              variant="neutral"
+              appearance="ghost"
+              aria-expanded
+              title={t.translate_compare_source_collapse}
+              onClick={() => onCollapsedChange?.(true)}
+              className="translate-source-disclosure translate-source-heading-toggle"
+            >
+              <ChevronRightIcon className="translate-source-disclosure-chevron translate-source-disclosure-chevron-open" />
+              {t.translate_source_content_label}
+            </Button>
+          </h2>
+        ) : (
+          <h2 id={headingId} className="translate-pane-heading">{t.translate_source_content_label}</h2>
         )}
       </header>
       <div
