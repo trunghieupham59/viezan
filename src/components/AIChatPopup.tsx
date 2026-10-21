@@ -161,6 +161,7 @@ export function AIChatPopup({
     chatSendShortcut,
     theme,
     themePreset,
+    themeAccent,
   } = useAppStore()
 
   const t = useT()
@@ -298,6 +299,11 @@ export function AIChatPopup({
   useEffect(() => {
     document.documentElement.dataset.theme = themePreset
   }, [themePreset])
+
+  useEffect(() => {
+    if (themeAccent === 'auto') delete document.documentElement.dataset.accent
+    else document.documentElement.dataset.accent = themeAccent
+  }, [themeAccent])
 
   useEffect(() => {
     const root = document.documentElement

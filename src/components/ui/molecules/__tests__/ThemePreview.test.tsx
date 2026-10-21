@@ -27,4 +27,11 @@ describe('ThemePreview', () => {
     render(<ThemePreview preset="glass" dark={false} labels={labels} />)
     expect(screen.getByRole('img')).toHaveAttribute('data-mode', 'light')
   })
+
+  it('carries an accent override only when one is set', () => {
+    const { rerender } = render(<ThemePreview preset="glass" dark={false} accent="auto" labels={labels} />)
+    expect(screen.getByRole('img')).not.toHaveAttribute('data-accent')
+    rerender(<ThemePreview preset="glass" dark={false} accent="teal" labels={labels} />)
+    expect(screen.getByRole('img')).toHaveAttribute('data-accent', 'teal')
+  })
 })

@@ -1,4 +1,4 @@
-import type { ThemePreset } from '../../shared/theme'
+import type { ThemeAccent, ThemePreset } from '../../shared/theme'
 
 /**
  * Style presets available in Settings > Appearance, in display order. Each
@@ -14,8 +14,9 @@ export interface ThemePresetTraits {
   /** The preset only ships a dark variant; the app keeps `html.dark` on regardless of the mode setting. */
   darkOnly: boolean
   /**
-   * The preset wants the native window material (macOS vibrancy) behind a
-   * transparent shell in every mode, not only when the mode follows the OS.
+   * The preset wants the OS window material (macOS vibrancy, Windows 11
+   * acrylic) behind a transparent shell in every mode, not only when the
+   * mode follows the OS.
    */
   nativeMaterial: boolean
 }
@@ -28,6 +29,15 @@ export const THEME_PRESET_TRAITS: Record<ThemePreset, ThemePresetTraits> = {
   midnight: { darkOnly: true, nativeMaterial: false },
 }
 
+/** Accent choices in display order; 'auto' follows the style preset. Each other id has a `[data-accent]` pair in tokens.css. */
+export const THEME_ACCENTS = ['auto', 'violet', 'pink', 'teal', 'green', 'amber', 'red'] as const satisfies readonly ThemeAccent[]
+
+export const DEFAULT_THEME_ACCENT: ThemeAccent = 'auto'
+
+export function isThemeAccent(value: unknown): value is ThemeAccent {
+  return typeof value === 'string' && (THEME_ACCENTS as readonly string[]).includes(value)
+}
+
 export function isThemePreset(value: unknown): value is ThemePreset {
   return typeof value === 'string' && (THEME_PRESETS as readonly string[]).includes(value)
 }
@@ -37,4 +47,4 @@ export function resolveThemeMode(theme: 'light' | 'dark' | 'system', preset: The
   return THEME_PRESET_TRAITS[preset].darkOnly ? 'dark' : theme
 }
 
-export type { ThemePreset }
+export type { ThemeAccent, ThemePreset }

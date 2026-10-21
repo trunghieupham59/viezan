@@ -1,6 +1,7 @@
 import { type KeyboardEvent, useRef } from 'react'
 import { Button } from '../atoms/Button'
 import { CheckIcon } from '../icons'
+import { nextRadioIndex } from './radioStripNavigation'
 import '../../../styles/molecules.css'
 
 export interface ThemePresetOption<T extends string> {
@@ -32,35 +33,14 @@ export interface ThemePresetPickerProps<T extends string> {
 export function ThemePresetPicker<T extends string>({ label, value, options, onChange, onPreview }: ThemePresetPickerProps<T>) {
   const tileRefs = useRef<Map<T, HTMLButtonElement>>(new Map())
 
-  const moveTo = (index: number) => {
-    const next = options[(index + options.length) % options.length]
-    if (!next) return
-    onChange(next.value)
-    tileRefs.current.get(next.value)?.focus()
-  }
-
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
-    switch (event.key) {
-      case 'ArrowRight':
-      case 'ArrowDown':
-        event.preventDefault()
-        moveTo(index + 1)
-        break
-      case 'ArrowLeft':
-      case 'ArrowUp':
-        event.preventDefault()
-        moveTo(index - 1)
-        break
-      case 'Home':
-        event.preventDefault()
-        moveTo(0)
-        break
-      case 'End':
-        event.preventDefault()
-        moveTo(options.length - 1)
-        break
-      default:
-    }
+    const next = nextRadioIndex(event.key, index, options.length)
+    if (next === null) return
+    event.preventDefault()
+    const option = options[next]
+    if (!option) return
+    onChange(option.value)
+    tileRefs.current.get(option.value)?.focus()
   }
 
   return (

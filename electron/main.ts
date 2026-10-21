@@ -124,6 +124,18 @@ function shouldUseMacWindowMaterial(): boolean {
     && !nativeTheme.shouldUseHighContrastColors
 }
 
+/**
+ * Windows 11 acrylic behind the main window, only for presets that ask for a
+ * material (Glass). Older Windows ignores the call and keeps the opaque
+ * background colour, which the renderer's CSS blur and backdrop wash cover.
+ */
+function shouldUseWindowsMaterial(): boolean {
+  return process.platform === 'win32'
+    && WINDOW_PALETTES[activeWindowPalette].material
+    && !nativeTheme.prefersReducedTransparency
+    && !nativeTheme.shouldUseHighContrastColors
+}
+
 function syncMainWindowAppearance(): void {
   if (!mainWindow || mainWindow.isDestroyed()) return
 
@@ -133,6 +145,7 @@ function syncMainWindowAppearance(): void {
   }
   if (process.platform === 'win32') {
     mainWindow.setTitleBarOverlay(getWindowsTitleBarOverlay())
+    mainWindow.setBackgroundMaterial(shouldUseWindowsMaterial() ? 'acrylic' : 'none')
   }
 }
 

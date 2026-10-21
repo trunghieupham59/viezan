@@ -24,6 +24,8 @@ export function UpdatePopupPage() {
     if (!snapshot) return
     document.documentElement.lang = snapshot.locale
     document.documentElement.dataset.theme = snapshot.themePreset
+    if (snapshot.themeAccent === 'auto') delete document.documentElement.dataset.accent
+    else document.documentElement.dataset.accent = snapshot.themeAccent
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     const mode = resolveThemeMode(snapshot.theme, snapshot.themePreset)
     const apply = () => document.documentElement.classList.toggle('dark', mode === 'dark' || (mode === 'system' && media.matches))

@@ -84,8 +84,11 @@ pages -> templates -> organisms -> molecules -> atoms
   duration scales it already derives from `tokens.css`. If you touch a rule
   there, migrate it to reference `tokens.css` rather than adding a new
   literal beside it.
-- Theme has two independent axes: light/dark mode (`html.dark`, from
-  `theme`) and the style preset (`html[data-theme]`, from `themePreset`). A
+- Theme has three independent axes: light/dark mode (`html.dark`, from
+  `theme`), the style preset (`html[data-theme]`, from `themePreset`) and an
+  optional accent hue (`html[data-accent]`, from `themeAccent`; `'auto'` sets
+  no attribute). An accent block in `tokens.css` replaces only the accent
+  family of whichever preset is active and is declared after the presets. A
   preset is a persona, not a repaint: it owns surfaces, accent intensity
   (`--vzn-action-fill`, glow, user bubble), primary chrome
   (`--vzn-chrome-*`, read only by the title bar and primary navigation),

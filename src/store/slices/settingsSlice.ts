@@ -6,7 +6,7 @@
  * fetched model lists — all independently versioned from chat/history state.
  */
 import { DEFAULT_SETTINGS, PROVIDERS } from '../../constants/providers'
-import { DEFAULT_THEME_PRESET, type ThemePreset } from '../../constants/themePresets'
+import { DEFAULT_THEME_ACCENT, DEFAULT_THEME_PRESET, type ThemeAccent, type ThemePreset } from '../../constants/themePresets'
 import type { AppLocale } from '../../i18n'
 import type { ChatSendShortcut, FetchedModel, PhoneticMode, Provider, SttProvider, TranslateComparisonView, TranslationReasoningEffort, TranslationStyle, TtsMode, TtsVoice } from '../../types'
 import { DEFAULT_CHAT_NEW_SESSION_SHORTCUT, DEFAULT_CHAT_SEND_SHORTCUT } from '../../utils/keyboardShortcuts'
@@ -43,6 +43,8 @@ export interface SettingsSlice {
   theme: 'light' | 'dark' | 'system'
   /** Colour palette preset; independent from the light/dark mode above. */
   themePreset: ThemePreset
+  /** Accent hue layered on the preset; 'auto' keeps the preset's own. */
+  themeAccent: ThemeAccent
   /**
    * Preferred STT provider. Default 'auto' tries Whisper first then falls back
    * to Google Cloud STT (using the Gemini key), keeping voice input resilient
@@ -85,6 +87,7 @@ export interface SettingsSlice {
   setFontSize: (size: 'small' | 'medium' | 'large') => void
   setTheme: (theme: 'light' | 'dark' | 'system') => void
   setThemePreset: (preset: ThemePreset) => void
+  setThemeAccent: (accent: ThemeAccent) => void
   setSttProvider: (provider: SttProvider) => void
   setChatSendShortcut: (shortcut: ChatSendShortcut) => void
   setChatNewSessionShortcut: (shortcut: string) => void
@@ -128,6 +131,7 @@ export const createSettingsSlice = (set: SliceSet): SettingsSlice => ({
   fontSize: 'medium' as const,
   theme: 'system' as const,
   themePreset: DEFAULT_THEME_PRESET,
+  themeAccent: DEFAULT_THEME_ACCENT,
   sttProvider: 'auto' as SttProvider,
   chatSendShortcut: DEFAULT_CHAT_SEND_SHORTCUT,
   chatNewSessionShortcut: DEFAULT_CHAT_NEW_SESSION_SHORTCUT,
@@ -161,6 +165,7 @@ export const createSettingsSlice = (set: SliceSet): SettingsSlice => ({
   setFontSize: (size) => set({ fontSize: size }),
   setTheme: (theme) => set({ theme }),
   setThemePreset: (preset) => set({ themePreset: preset }),
+  setThemeAccent: (accent) => set({ themeAccent: accent }),
   setSttProvider: (provider) => set({ sttProvider: provider }),
   setChatSendShortcut: (shortcut) => set({ chatSendShortcut: shortcut }),
   setChatNewSessionShortcut: (shortcut) => set({ chatNewSessionShortcut: shortcut }),

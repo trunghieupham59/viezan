@@ -1331,6 +1331,295 @@ html.dark[data-theme="midnight"],
   --vzn-app-backdrop: none;
 }
 
+/* Accent overrides --------------------------------------------------------
+ * A user-picked hue layered on top of any preset: `data-accent` on <html>,
+ * or on any element that also pins `data-mode` (the Settings preview and
+ * the accent swatches). Each block replaces only the accent family;
+ * surfaces, chrome text, shape and type stay with the preset. The doubled
+ * attribute lifts specificity above a preset's own `data-mode` block. */
+
+/* Accent: violet. */
+html[data-accent="violet"],
+[data-accent="violet"][data-accent][data-mode="light"] {
+  --vzn-action: #7c3aed;
+  --vzn-action-hover: #6d28d9;
+  --vzn-action-active: #5b21b6;
+  --vzn-action-text: #6d28d9;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(139, 92, 246, 0.12);
+  --vzn-action-soft-hover: rgba(139, 92, 246, 0.18);
+  --vzn-action-border: rgba(139, 92, 246, 0.34);
+  --vzn-focus-ring: rgba(139, 92, 246, 0.55);
+  --vzn-surface-selected: rgba(139, 92, 246, 0.12);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+html.dark[data-accent="violet"],
+[data-accent="violet"][data-accent][data-mode="dark"] {
+  --vzn-action: #a78bfa;
+  --vzn-action-hover: #c4b5fd;
+  --vzn-action-active: #8b5cf6;
+  --vzn-action-text: #c4b5fd;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(139, 92, 246, 0.16);
+  --vzn-action-soft-hover: rgba(139, 92, 246, 0.24);
+  --vzn-action-border: rgba(139, 92, 246, 0.42);
+  --vzn-focus-ring: rgba(139, 92, 246, 0.6);
+  --vzn-surface-selected: rgba(139, 92, 246, 0.16);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+/* Accent: pink. */
+html[data-accent="pink"],
+[data-accent="pink"][data-accent][data-mode="light"] {
+  --vzn-action: #db2777;
+  --vzn-action-hover: #be185d;
+  --vzn-action-active: #9d174d;
+  --vzn-action-text: #be185d;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(236, 72, 153, 0.12);
+  --vzn-action-soft-hover: rgba(236, 72, 153, 0.18);
+  --vzn-action-border: rgba(236, 72, 153, 0.34);
+  --vzn-focus-ring: rgba(236, 72, 153, 0.55);
+  --vzn-surface-selected: rgba(236, 72, 153, 0.12);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+html.dark[data-accent="pink"],
+[data-accent="pink"][data-accent][data-mode="dark"] {
+  --vzn-action: #f472b6;
+  --vzn-action-hover: #f9a8d4;
+  --vzn-action-active: #ec4899;
+  --vzn-action-text: #f9a8d4;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(236, 72, 153, 0.16);
+  --vzn-action-soft-hover: rgba(236, 72, 153, 0.24);
+  --vzn-action-border: rgba(236, 72, 153, 0.42);
+  --vzn-focus-ring: rgba(236, 72, 153, 0.6);
+  --vzn-surface-selected: rgba(236, 72, 153, 0.16);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+/* Accent: teal. */
+html[data-accent="teal"],
+[data-accent="teal"][data-accent][data-mode="light"] {
+  --vzn-action: #0d9488;
+  --vzn-action-hover: #0f766e;
+  --vzn-action-active: #115e59;
+  --vzn-action-text: #0f766e;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(20, 184, 166, 0.12);
+  --vzn-action-soft-hover: rgba(20, 184, 166, 0.18);
+  --vzn-action-border: rgba(20, 184, 166, 0.34);
+  --vzn-focus-ring: rgba(20, 184, 166, 0.55);
+  --vzn-surface-selected: rgba(20, 184, 166, 0.12);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+html.dark[data-accent="teal"],
+[data-accent="teal"][data-accent][data-mode="dark"] {
+  --vzn-action: #2dd4bf;
+  --vzn-action-hover: #5eead4;
+  --vzn-action-active: #14b8a6;
+  --vzn-action-text: #5eead4;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(20, 184, 166, 0.16);
+  --vzn-action-soft-hover: rgba(20, 184, 166, 0.24);
+  --vzn-action-border: rgba(20, 184, 166, 0.42);
+  --vzn-focus-ring: rgba(20, 184, 166, 0.6);
+  --vzn-surface-selected: rgba(20, 184, 166, 0.16);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+/* Accent: green. */
+html[data-accent="green"],
+[data-accent="green"][data-accent][data-mode="light"] {
+  --vzn-action: #16a34a;
+  --vzn-action-hover: #15803d;
+  --vzn-action-active: #166534;
+  --vzn-action-text: #15803d;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(34, 197, 94, 0.12);
+  --vzn-action-soft-hover: rgba(34, 197, 94, 0.18);
+  --vzn-action-border: rgba(34, 197, 94, 0.34);
+  --vzn-focus-ring: rgba(34, 197, 94, 0.55);
+  --vzn-surface-selected: rgba(34, 197, 94, 0.12);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+html.dark[data-accent="green"],
+[data-accent="green"][data-accent][data-mode="dark"] {
+  --vzn-action: #4ade80;
+  --vzn-action-hover: #86efac;
+  --vzn-action-active: #22c55e;
+  --vzn-action-text: #86efac;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(34, 197, 94, 0.16);
+  --vzn-action-soft-hover: rgba(34, 197, 94, 0.24);
+  --vzn-action-border: rgba(34, 197, 94, 0.42);
+  --vzn-focus-ring: rgba(34, 197, 94, 0.6);
+  --vzn-surface-selected: rgba(34, 197, 94, 0.16);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+/* Accent: amber. */
+html[data-accent="amber"],
+[data-accent="amber"][data-accent][data-mode="light"] {
+  --vzn-action: #d97706;
+  --vzn-action-hover: #b45309;
+  --vzn-action-active: #92400e;
+  --vzn-action-text: #b45309;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(245, 158, 11, 0.12);
+  --vzn-action-soft-hover: rgba(245, 158, 11, 0.18);
+  --vzn-action-border: rgba(245, 158, 11, 0.34);
+  --vzn-focus-ring: rgba(245, 158, 11, 0.55);
+  --vzn-surface-selected: rgba(245, 158, 11, 0.12);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+html.dark[data-accent="amber"],
+[data-accent="amber"][data-accent][data-mode="dark"] {
+  --vzn-action: #fbbf24;
+  --vzn-action-hover: #fcd34d;
+  --vzn-action-active: #f59e0b;
+  --vzn-action-text: #fcd34d;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(245, 158, 11, 0.16);
+  --vzn-action-soft-hover: rgba(245, 158, 11, 0.24);
+  --vzn-action-border: rgba(245, 158, 11, 0.42);
+  --vzn-focus-ring: rgba(245, 158, 11, 0.6);
+  --vzn-surface-selected: rgba(245, 158, 11, 0.16);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+/* Accent: red. */
+html[data-accent="red"],
+[data-accent="red"][data-accent][data-mode="light"] {
+  --vzn-action: #dc2626;
+  --vzn-action-hover: #b91c1c;
+  --vzn-action-active: #991b1b;
+  --vzn-action-text: #b91c1c;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(239, 68, 68, 0.12);
+  --vzn-action-soft-hover: rgba(239, 68, 68, 0.18);
+  --vzn-action-border: rgba(239, 68, 68, 0.34);
+  --vzn-focus-ring: rgba(239, 68, 68, 0.55);
+  --vzn-surface-selected: rgba(239, 68, 68, 0.12);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+html.dark[data-accent="red"],
+[data-accent="red"][data-accent][data-mode="dark"] {
+  --vzn-action: #f87171;
+  --vzn-action-hover: #fca5a5;
+  --vzn-action-active: #ef4444;
+  --vzn-action-text: #fca5a5;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(239, 68, 68, 0.16);
+  --vzn-action-soft-hover: rgba(239, 68, 68, 0.24);
+  --vzn-action-border: rgba(239, 68, 68, 0.42);
+  --vzn-focus-ring: rgba(239, 68, 68, 0.6);
+  --vzn-surface-selected: rgba(239, 68, 68, 0.16);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
 body {
   font-family: var(--vzn-font-sans);
   font-size: var(--vzn-font-size-lg);

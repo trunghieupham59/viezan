@@ -26,6 +26,7 @@ beforeEach(() => {
       sttProvider: 'auto',
       fontSize: 'medium',
       themePreset: 'graphite',
+      themeAccent: 'auto',
       chatSendShortcut: DEFAULT_CHAT_SEND_SHORTCUT,
       chatNewSessionShortcut: DEFAULT_CHAT_NEW_SESSION_SHORTCUT,
       keyStatus: { gemini: false, claude: false, openai: false, local: false } as Record<string, boolean>,
@@ -81,6 +82,21 @@ describe('themePreset defaults and persistence', () => {
 
   it('keeps a known persisted palette', () => {
     expect(migratePersistedStore({ themePreset: 'corporate' })).toMatchObject({ themePreset: 'corporate' })
+  })
+})
+
+describe('themeAccent defaults and persistence', () => {
+  it('follows the style by default and persists an explicit hue', () => {
+    expect(useAppStore.getState().themeAccent).toBe('auto')
+    act(() => useAppStore.getState().setThemeAccent('teal'))
+    expect(useAppStore.getState().themeAccent).toBe('teal')
+    // biome-ignore lint/suspicious/noExplicitAny: persist middleware test hook
+    const partialize = (useAppStore as any).persist.getOptions().partialize
+    expect(partialize(useAppStore.getState()).themeAccent).toBe('teal')
+  })
+
+  it.each(['blue', '', null, 7])('migrates unknown persisted accent %s back to auto', (themeAccent) => {
+    expect(migratePersistedStore({ themeAccent })).toMatchObject({ themeAccent: 'auto' })
   })
 })
 

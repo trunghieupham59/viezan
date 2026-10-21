@@ -7,7 +7,7 @@ import { AppearanceSection } from '../AppearanceSection'
 const en = TRANSLATIONS.en
 
 beforeEach(() => {
-  act(() => useAppStore.setState({ locale: 'en', theme: 'light', themePreset: 'graphite', fontSize: 'medium' }))
+  act(() => useAppStore.setState({ locale: 'en', theme: 'light', themePreset: 'graphite', themeAccent: 'auto', fontSize: 'medium' }))
 })
 afterEach(cleanup)
 
@@ -28,6 +28,23 @@ describe('AppearanceSection', () => {
 
     fireEvent.mouseLeave(screen.getByRole('radio', { name: /Paper/ }))
     expect(screen.getByRole('img')).toHaveAttribute('data-theme', 'graphite')
+  })
+
+  it('previews and applies an accent on top of the style', () => {
+    render(<AppearanceSection />)
+
+    expect(screen.getByRole('img')).not.toHaveAttribute('data-accent')
+    fireEvent.mouseEnter(screen.getByRole('radio', { name: en.settings_theme_accent_teal }))
+    expect(screen.getByRole('img')).toHaveAttribute('data-accent', 'teal')
+    expect(useAppStore.getState().themeAccent).toBe('auto')
+    fireEvent.mouseLeave(screen.getByRole('radio', { name: en.settings_theme_accent_teal }))
+    expect(screen.getByRole('img')).not.toHaveAttribute('data-accent')
+
+    fireEvent.click(screen.getByRole('radio', { name: en.settings_theme_accent_violet }))
+    expect(useAppStore.getState().themeAccent).toBe('violet')
+    expect(screen.getByRole('img')).toHaveAttribute('data-accent', 'violet')
+    fireEvent.click(screen.getByRole('radio', { name: en.settings_theme_accent_auto }))
+    expect(useAppStore.getState().themeAccent).toBe('auto')
   })
 
   it('applies a style on click and pins dark mode for a dark-only style', () => {

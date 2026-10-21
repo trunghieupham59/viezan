@@ -509,6 +509,15 @@ export interface Translations {
   settings_theme_preview_assistant: string
   settings_theme_preview_user: string
   settings_theme_preview_placeholder: string
+  settings_theme_accent: string
+  settings_theme_accent_desc: string
+  settings_theme_accent_auto: string
+  settings_theme_accent_violet: string
+  settings_theme_accent_pink: string
+  settings_theme_accent_teal: string
+  settings_theme_accent_green: string
+  settings_theme_accent_amber: string
+  settings_theme_accent_red: string
   settings_theme_palette: string
   settings_theme_palette_desc: string
   settings_theme_preset_graphite: string

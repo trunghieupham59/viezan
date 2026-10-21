@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_THEME_PRESET, isThemePreset, resolveThemeMode, THEME_PRESET_TRAITS, THEME_PRESETS } from '../themePresets'
+import {
+  DEFAULT_THEME_ACCENT,
+  DEFAULT_THEME_PRESET,
+  isThemeAccent,
+  isThemePreset,
+  resolveThemeMode,
+  THEME_ACCENTS,
+  THEME_PRESET_TRAITS,
+  THEME_PRESETS,
+} from '../themePresets'
 
 describe('theme presets', () => {
   it('lists every preset once, starting with the default', () => {
@@ -12,6 +21,14 @@ describe('theme presets', () => {
     expect(isThemePreset('midnight')).toBe(true)
     expect(isThemePreset('studio')).toBe(false)
     expect(isThemePreset(null)).toBe(false)
+  })
+
+  it('lists accents starting with the follow-the-style default', () => {
+    expect(THEME_ACCENTS[0]).toBe(DEFAULT_THEME_ACCENT)
+    expect(DEFAULT_THEME_ACCENT).toBe('auto')
+    expect(isThemeAccent('teal')).toBe(true)
+    expect(isThemeAccent('blue')).toBe(false)
+    expect(isThemeAccent(undefined)).toBe(false)
   })
 
   it('pins dark mode for dark-only presets and leaves the others alone', () => {

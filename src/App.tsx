@@ -35,7 +35,7 @@ export function PageFallback({ page, label }: { page: AppPage; label: string }) 
 function App() {
   const t = useT()
   const {
-    activePage, localeAuto, setKeyStatus, setLocaleFromSystem, fontSize, theme, themePreset,
+    activePage, localeAuto, setKeyStatus, setLocaleFromSystem, fontSize, theme, themePreset, themeAccent,
     selectedProvider, selectedModels, ttsMode, ttsVoice,
     createChatSession, setActiveChatSession, addChatMessage, setChatSessionDraft,
     setActivePage, settingsOpen, openSettings, closeSettings,
@@ -75,6 +75,13 @@ function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = themePreset
   }, [themePreset])
+
+  // Accent is a third axis: a `[data-accent]` block in tokens.css replaces the
+  // accent family of whichever preset is active; 'auto' leaves it alone.
+  useEffect(() => {
+    if (themeAccent === 'auto') delete document.documentElement.dataset.accent
+    else document.documentElement.dataset.accent = themeAccent
+  }, [themeAccent])
 
   // Keep the native window chrome (Windows caption buttons, startup colour)
   // in step with the in-app theme choice, not just the OS preference.
@@ -207,7 +214,8 @@ function App() {
   }, [setKeyStatus])
 
   const isMac = window.api?.platform === 'darwin'
-  const hasAppTitlebar = isMac || window.api?.platform === 'win32'
+  const isWin = window.api?.platform === 'win32'
+  const hasAppTitlebar = isMac || isWin
   const fallbackFeatureLabel = activePage === 'live'
     ? t.nav_live_translate
     : activePage === 'dictionary'
@@ -223,7 +231,10 @@ function App() {
       showTitlebar={hasAppTitlebar}
       macWindowControls={isMac}
       headerControls={<div className="app-header-navigation titlebar-no-drag" ref={setNavigationToggleHost} />}
-      useNativeMaterial={isMac && (theme === 'system' || THEME_PRESET_TRAITS[themePreset].nativeMaterial)}
+      useNativeMaterial={
+        (isMac && (theme === 'system' || THEME_PRESET_TRAITS[themePreset].nativeMaterial))
+        || (isWin && THEME_PRESET_TRAITS[themePreset].nativeMaterial)
+      }
       primaryNavigation={<PrimaryNavigationSidebar toggleHost={navigationToggleHost} />}
       contextSidebar={contextSidebar}
       featureHeader={featureHeader}

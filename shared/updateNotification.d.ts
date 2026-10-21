@@ -1,10 +1,11 @@
-import type { ThemeMode, ThemePreset } from './theme'
+import type { ThemeAccent, ThemeMode, ThemePreset } from './theme'
 
 export interface UpdateNotificationPreferences {
   enabled: boolean
   locale: 'en' | 'vi' | 'ja'
   theme: ThemeMode
   themePreset: ThemePreset
+  themeAccent: ThemeAccent
 }
 
 export interface UpdateNotificationSnapshot extends UpdateNotificationPreferences {

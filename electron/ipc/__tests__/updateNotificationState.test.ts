@@ -3,13 +3,13 @@ import { describe, expect, it } from 'vitest'
 import { readNotificationState } from '../updateNotificationState'
 
 describe('readNotificationState', () => {
-  it('defaults the palette to Graphite and keeps a known preset', () => {
-    expect(readNotificationState(null).themePreset).toBe('graphite')
-    expect(readNotificationState({ themePreset: 'paper' }).themePreset).toBe('paper')
+  it('defaults the palette to Graphite and the accent to auto, keeping known values', () => {
+    expect(readNotificationState(null)).toMatchObject({ themePreset: 'graphite', themeAccent: 'auto' })
+    expect(readNotificationState({ themePreset: 'paper', themeAccent: 'teal' })).toMatchObject({ themePreset: 'paper', themeAccent: 'teal' })
   })
 
-  it('rejects an unknown palette without dropping the other preferences', () => {
-    const state = readNotificationState({ themePreset: 'neon', theme: 'dark', locale: 'vi' })
-    expect(state).toMatchObject({ themePreset: 'graphite', theme: 'dark', locale: 'vi' })
+  it('rejects unknown palette and accent values without dropping the other preferences', () => {
+    const state = readNotificationState({ themePreset: 'neon', themeAccent: 'blue', theme: 'dark', locale: 'vi' })
+    expect(state).toMatchObject({ themePreset: 'graphite', themeAccent: 'auto', theme: 'dark', locale: 'vi' })
   })
 })

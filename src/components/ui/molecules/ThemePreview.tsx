@@ -15,6 +15,8 @@ export interface ThemePreviewProps {
   preset: string
   /** Mode to render, pinned locally through `data-mode` so it can differ from the window's. */
   dark: boolean
+  /** Accent override id; omit or pass 'auto' to keep the preset's own accent. */
+  accent?: string
   labels: ThemePreviewLabels
 }
 
@@ -24,9 +26,16 @@ export interface ThemePreviewProps {
  * type, and a composer with the accent send action. No colour lives here;
  * `data-theme` and `data-mode` select the token blocks in tokens.css.
  */
-export function ThemePreview({ preset, dark, labels }: ThemePreviewProps) {
+export function ThemePreview({ preset, dark, accent, labels }: ThemePreviewProps) {
   return (
-    <div className="theme-preview" data-theme={preset} data-mode={dark ? 'dark' : 'light'} role="img" aria-label={labels.label}>
+    <div
+      className="theme-preview"
+      data-theme={preset}
+      data-mode={dark ? 'dark' : 'light'}
+      data-accent={accent && accent !== 'auto' ? accent : undefined}
+      role="img"
+      aria-label={labels.label}
+    >
       <div className="theme-preview-titlebar">
         <span className="theme-preview-traffic" />
         <span className="theme-preview-traffic" />

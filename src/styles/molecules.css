@@ -813,3 +813,45 @@
   background: var(--vzn-picker-ring);
   color: var(--vzn-action-fg);
 }
+
+/* Accent strip ------------------------------------------------------------- */
+
+.accent-strip {
+  --vzn-picker-ring: var(--vzn-action);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vzn-space-2);
+}
+
+.accent-swatch.ui-button {
+  --vzn-button-bg: transparent;
+  --vzn-button-border: transparent;
+  --vzn-button-hover-bg: var(--vzn-surface-subtle);
+  --vzn-button-hover-border: transparent;
+  width: var(--vzn-control-height-lg);
+  padding: 0;
+  border-radius: var(--vzn-radius-pill);
+}
+
+.accent-swatch-dot {
+  display: inline-flex;
+  inline-size: var(--vzn-icon-xl);
+  block-size: var(--vzn-icon-xl);
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-action-fill);
+  color: var(--vzn-action-fg);
+  box-shadow: inset 0 0 0 var(--vzn-border-width) var(--vzn-action-border);
+}
+
+/* "Follow the style" shows a neutral ring with the preset's accent inside. */
+.accent-swatch.ui-button[data-auto="true"] .accent-swatch-dot {
+  background: var(--vzn-surface);
+  color: var(--vzn-action);
+  box-shadow: inset 0 0 0 var(--vzn-space-0-5) var(--vzn-action);
+}
+
+.accent-swatch.ui-button[data-selected="true"] {
+  box-shadow: 0 0 0 var(--vzn-space-0-5) var(--vzn-picker-ring);
+}

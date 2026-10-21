@@ -6,3 +6,6 @@ export type ThemeMode = 'light' | 'dark' | 'system'
  * ships a light and a dark variant in `src/styles/tokens.css`.
  */
 export type ThemePreset = 'graphite' | 'glass' | 'paper' | 'corporate' | 'midnight'
+
+/** Accent hue layered on a preset; 'auto' keeps the preset's own accent. */
+export type ThemeAccent = 'auto' | 'violet' | 'pink' | 'teal' | 'green' | 'amber' | 'red'
