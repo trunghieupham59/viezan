@@ -501,6 +501,16 @@ export interface Translations {
   settings_theme_light: string
   settings_theme_dark: string
   settings_theme_system: string
+  settings_theme_palette: string
+  settings_theme_palette_desc: string
+  settings_theme_preset_graphite: string
+  settings_theme_preset_graphite_desc: string
+  settings_theme_preset_cosmos: string
+  settings_theme_preset_cosmos_desc: string
+  settings_theme_preset_forest: string
+  settings_theme_preset_forest_desc: string
+  settings_theme_preset_ember: string
+  settings_theme_preset_ember_desc: string
   settings_furigana: string
   settings_furigana_desc: string
   settings_image_provider_fallback: string

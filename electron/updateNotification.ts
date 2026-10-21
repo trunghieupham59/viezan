@@ -5,6 +5,7 @@ import type { UpdateNotificationSnapshot } from '../shared/updateNotification'
 import type { UpdateStatus } from '../shared/updater'
 import { isSenderWindow } from './ipc/senderGuard'
 import { isNotificationStatus, NOTIFICATION_SNOOZE_MS, readNotificationState } from './ipc/updateNotificationState'
+import { isThemePreset } from './windowPalette'
 
 /** Main owns notification policy even while every renderer is hidden. */
 export function createUpdateNotification(
@@ -23,7 +24,7 @@ export function createUpdateNotification(
   let pendingOpenSettings = false
   let actionRunning = false
   let reminderSaveFailed = false
-  const preferences = () => ({ enabled: state.enabled, locale: state.locale, theme: state.theme })
+  const preferences = () => ({ enabled: state.enabled, locale: state.locale, theme: state.theme, themePreset: state.themePreset })
   const snapshot = (): UpdateNotificationSnapshot => ({
     ...preferences(), version: status?.version ?? '', ready: status?.type === 'downloaded',
     downloading: status?.type === 'downloading', percent: status?.percent, error: reminderSaveFailed || !!status?.error,
@@ -117,6 +118,7 @@ export function createUpdateNotification(
       ...(typeof input.enabled === 'boolean' ? { enabled: input.enabled } : {}),
       ...(['en', 'vi', 'ja'].includes(String(input.locale)) ? { locale: input.locale } : {}),
       ...(['light', 'dark', 'system'].includes(String(input.theme)) ? { theme: input.theme } : {}),
+      ...(isThemePreset(input.themePreset) ? { themePreset: input.themePreset } : {}),
     })
     if (!save()) { state = previous; return null }
     refresh()

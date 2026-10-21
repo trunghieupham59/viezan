@@ -25,6 +25,7 @@ beforeEach(() => {
       ttsVoice: 'nova',
       sttProvider: 'auto',
       fontSize: 'medium',
+      themePreset: 'graphite',
       chatSendShortcut: DEFAULT_CHAT_SEND_SHORTCUT,
       chatNewSessionShortcut: DEFAULT_CHAT_NEW_SESSION_SHORTCUT,
       keyStatus: { gemini: false, claude: false, openai: false, local: false } as Record<string, boolean>,
@@ -52,6 +53,34 @@ describe('ttsMode defaults and persistence', () => {
     const partialize = (useAppStore as any).persist.getOptions().partialize
     const persisted = partialize(useAppStore.getState())
     expect(persisted.ttsMode).toBe('auto')
+  })
+})
+
+describe('themePreset defaults and persistence', () => {
+  it('defaults to the Graphite palette', () => {
+    expect(useAppStore.getState().themePreset).toBe('graphite')
+  })
+
+  it('switches the palette without touching the light/dark mode', () => {
+    act(() => useAppStore.getState().setTheme('dark'))
+    act(() => useAppStore.getState().setThemePreset('cosmos'))
+    expect(useAppStore.getState().themePreset).toBe('cosmos')
+    expect(useAppStore.getState().theme).toBe('dark')
+  })
+
+  it('includes the palette in persisted settings', () => {
+    act(() => useAppStore.getState().setThemePreset('forest'))
+    // biome-ignore lint/suspicious/noExplicitAny: persist middleware test hook
+    const partialize = (useAppStore as any).persist.getOptions().partialize
+    expect(partialize(useAppStore.getState()).themePreset).toBe('forest')
+  })
+
+  it.each(['neon', '', null, undefined, 42])('migrates unknown persisted palette %s back to Graphite', (themePreset) => {
+    expect(migratePersistedStore({ themePreset, locale: 'ja' })).toMatchObject({ themePreset: 'graphite', locale: 'ja' })
+  })
+
+  it('keeps a known persisted palette', () => {
+    expect(migratePersistedStore({ themePreset: 'ember' })).toMatchObject({ themePreset: 'ember' })
   })
 })
 

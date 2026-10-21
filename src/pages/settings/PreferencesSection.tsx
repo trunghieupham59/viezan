@@ -1,7 +1,8 @@
 import { Button } from '@/components/ui/atoms'
 import { ToggleSwitch } from '../../components/ui/atoms'
 import { FontSizePicker } from '../../components/ui/FontSizePicker'
-import { OptionPicker } from '../../components/ui/molecules'
+import { OptionPicker, ThemePresetPicker } from '../../components/ui/molecules'
+import { THEME_PRESETS } from '../../constants/themePresets'
 import { type AppLocale, LOCALE_NAMES } from '../../i18n'
 import { useAppStore, useT } from '../../store/useAppStore'
 import { detectSystemLocale } from '../../utils/locale'
@@ -28,7 +29,15 @@ export function PreferencesSection() {
   const setFontSize = useAppStore((state) => state.setFontSize)
   const theme = useAppStore((state) => state.theme)
   const setTheme = useAppStore((state) => state.setTheme)
+  const themePreset = useAppStore((state) => state.themePreset)
+  const setThemePreset = useAppStore((state) => state.setThemePreset)
   const t = useT()
+
+  const themePresetOptions = THEME_PRESETS.map((preset) => ({
+    value: preset,
+    label: t[`settings_theme_preset_${preset}`],
+    description: t[`settings_theme_preset_${preset}_desc`],
+  }))
 
   const handleToggleLocaleAuto = () => {
     if (localeAuto) {
@@ -97,6 +106,20 @@ export function PreferencesSection() {
               </Button>
             ))}
           </div>
+        </div>
+
+        {/* Colour palette preset */}
+        <div className="flex flex-col gap-3 px-4 py-3.5">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_theme_palette}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_theme_palette_desc}</p>
+          </div>
+          <ThemePresetPicker
+            label={t.settings_theme_palette}
+            value={themePreset}
+            options={themePresetOptions}
+            onChange={setThemePreset}
+          />
         </div>
 
         {/* Font Size */}

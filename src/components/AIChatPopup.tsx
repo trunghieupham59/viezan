@@ -159,6 +159,7 @@ export function AIChatPopup({
     setKeyStatus,
     chatSendShortcut,
     theme,
+    themePreset,
   } = useAppStore()
 
   const t = useT()
@@ -292,6 +293,10 @@ export function AIChatPopup({
   const hidePopup = useCallback(() => {
     window.api?.quickChat?.hide()
   }, [])
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = themePreset
+  }, [themePreset])
 
   useEffect(() => {
     const root = document.documentElement

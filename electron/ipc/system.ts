@@ -1,9 +1,15 @@
 import type { BrowserWindow, IpcMain } from 'electron'
 import { app, nativeTheme, shell, systemPreferences } from 'electron'
+import type { ThemePreset } from '../../shared/theme'
+import { isThemePreset } from '../windowPalette'
 import { isAllowedExternalUrl } from './externalUrl'
 import { isSenderWindow } from './senderGuard'
 
-export function registerSystemHandlers(ipc: IpcMain, getMainWindow?: () => BrowserWindow | null) {
+export function registerSystemHandlers(
+  ipc: IpcMain,
+  getMainWindow?: () => BrowserWindow | null,
+  applyWindowPalette?: (preset: ThemePreset) => void,
+) {
   // ── Check Screen Recording permission (macOS) ───────────────────────────
   ipc.handle('app:checkScreenPermission', () => {
     if (process.platform === 'darwin') {
@@ -24,10 +30,12 @@ export function registerSystemHandlers(ipc: IpcMain, getMainWindow?: () => Brows
 
   // ── Sync native window chrome with the in-app theme ─────────────────────
   // `themeSource` drives nativeTheme.shouldUseDarkColors, which in turn
-  // refreshes the window background and Windows title bar overlay.
-  ipc.handle('app:setWindowTheme', (event, theme: unknown) => {
+  // refreshes the window background and Windows title bar overlay. The
+  // palette preset picks which colour table that refresh reads from.
+  ipc.handle('app:setWindowTheme', (event, theme: unknown, preset?: unknown) => {
     if (getMainWindow && !isSenderWindow(event, getMainWindow)) return
     if (theme !== 'light' && theme !== 'dark' && theme !== 'system') return
+    if (preset !== undefined && isThemePreset(preset)) applyWindowPalette?.(preset)
     nativeTheme.themeSource = theme
   })
 

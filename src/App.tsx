@@ -34,7 +34,7 @@ export function PageFallback({ page, label }: { page: AppPage; label: string }) 
 function App() {
   const t = useT()
   const {
-    activePage, localeAuto, setKeyStatus, setLocaleFromSystem, fontSize, theme,
+    activePage, localeAuto, setKeyStatus, setLocaleFromSystem, fontSize, theme, themePreset,
     selectedProvider, selectedModels, ttsMode, ttsVoice,
     createChatSession, setActiveChatSession, addChatMessage, setChatSessionDraft,
     setActivePage, settingsOpen, openSettings, closeSettings,
@@ -67,11 +67,17 @@ function App() {
     return () => mq.removeEventListener('change', handler)
   }, [theme])
 
+  // The palette preset is a second axis next to light/dark: tokens.css keys
+  // every `[data-theme]` block off this attribute.
+  useEffect(() => {
+    document.documentElement.dataset.theme = themePreset
+  }, [themePreset])
+
   // Keep the native window chrome (Windows caption buttons, startup colour)
   // in step with the in-app theme choice, not just the OS preference.
   useEffect(() => {
-    void window.api?.setWindowTheme?.(theme)
-  }, [theme])
+    void window.api?.setWindowTheme?.(theme, themePreset)
+  }, [theme, themePreset])
 
   // Auto-detect system locale on startup
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally run only once on mount

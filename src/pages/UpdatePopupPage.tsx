@@ -22,6 +22,7 @@ export function UpdatePopupPage() {
   useEffect(() => {
     if (!snapshot) return
     document.documentElement.lang = snapshot.locale
+    document.documentElement.dataset.theme = snapshot.themePreset
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     const apply = () => document.documentElement.classList.toggle('dark', snapshot.theme === 'dark' || (snapshot.theme === 'system' && media.matches))
     apply()

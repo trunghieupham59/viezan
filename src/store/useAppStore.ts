@@ -11,6 +11,7 @@
  */
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
+import { DEFAULT_THEME_PRESET, isThemePreset } from '../constants/themePresets'
 import { TRANSLATIONS, type Translations } from '../i18n'
 import type { ChatSession, LiveSession } from '../types'
 import { normalizeChatTaskState } from '../types/chatTask'
@@ -64,6 +65,7 @@ export function migratePersistedStore<T>(persistedState: T): T {
     ...state,
     ...migrateLanguagePairs(state),
     sttProvider: typeof state.sttProvider === 'string' && PERSISTED_STT_PROVIDERS.has(state.sttProvider) ? state.sttProvider : 'auto',
+    themePreset: isThemePreset(state.themePreset) ? state.themePreset : DEFAULT_THEME_PRESET,
     ...(typeof pending.draft === 'string' ? { chatPendingDraft: pending.draft } : {}),
     chatPendingTaskState: pending.taskState,
     ...(Array.isArray(state.chatSessions) ? {
@@ -293,6 +295,7 @@ export const useAppStore = create<AppState>()(
         ttsVoice: state.ttsVoice,
         fontSize: state.fontSize,
         theme: state.theme,
+        themePreset: state.themePreset,
         sttProvider: state.sttProvider,
         chatSendShortcut: state.chatSendShortcut,
         chatNewSessionShortcut: state.chatNewSessionShortcut,

@@ -20,10 +20,10 @@ import { registerSystemHandlers } from '../system'
 
 type Handler = (event: unknown, ...args: unknown[]) => unknown
 
-function setup(getMainWindow?: () => unknown) {
+function setup(getMainWindow?: () => unknown, applyWindowPalette?: (preset: string) => void) {
   const handlers: Record<string, Handler> = {}
   const ipc = { handle: (channel: string, handler: Handler) => { handlers[channel] = handler } }
-  registerSystemHandlers(ipc as never, getMainWindow as never)
+  registerSystemHandlers(ipc as never, getMainWindow as never, applyWindowPalette as never)
   return handlers
 }
 
@@ -75,5 +75,23 @@ describe('system handlers', () => {
 
     handlers['app:setWindowTheme']({ sender: { isDestroyed: () => false } }, 'light')
     expect(electronMocks.nativeTheme.themeSource).toBe('dark')
+  })
+
+  it('app:setWindowTheme forwards only known palette presets to the window', () => {
+    const mainContents = { isDestroyed: () => false }
+    const applyWindowPalette = vi.fn()
+    const handlers = setup(() => ({ isDestroyed: () => false, webContents: mainContents }), applyWindowPalette)
+
+    handlers['app:setWindowTheme']({ sender: mainContents }, 'light', 'cosmos')
+    expect(applyWindowPalette).toHaveBeenCalledWith('cosmos')
+    expect(electronMocks.nativeTheme.themeSource).toBe('light')
+
+    handlers['app:setWindowTheme']({ sender: mainContents }, 'dark', 'neon')
+    expect(applyWindowPalette).toHaveBeenCalledTimes(1)
+    expect(electronMocks.nativeTheme.themeSource).toBe('dark')
+
+    handlers['app:setWindowTheme']({ sender: mainContents }, 'system')
+    expect(applyWindowPalette).toHaveBeenCalledTimes(1)
+    expect(electronMocks.nativeTheme.themeSource).toBe('system')
   })
 })

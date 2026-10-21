@@ -56,6 +56,7 @@ export {
   type SelectFieldProps,
 } from './SelectField'
 export { TabBar, type TabBarProps, type TabBarTab } from './TabBar'
+export { type ThemePresetOption, ThemePresetPicker, type ThemePresetPickerProps } from './ThemePresetPicker'
 export {
   stripTrailingEllipsis,
   ThinkingDots,
