@@ -46,6 +46,7 @@ function renderComparison(results = IDLE_RESULTS) {
         results={results}
         copiedResultKey={null}
         speakingResultKey={null}
+        selectedResultKey={null}
         speakLoading={false}
         isTranslating={results.some((result) => result.status === 'loading')}
         isResultStale={false}
@@ -53,6 +54,7 @@ function renderComparison(results = IDLE_RESULTS) {
         onUseAsSource={vi.fn()}
         onCopy={vi.fn()}
         onSpeak={vi.fn()}
+        onSelect={vi.fn()}
         onRetry={vi.fn()}
         onOpenSettings={vi.fn()}
         onChooseModel={vi.fn()}
@@ -204,6 +206,7 @@ describe('TranslationComparisonPane compact tabs', () => {
           ))}
           copiedResultKey={null}
           speakingResultKey={null}
+          selectedResultKey={null}
           speakLoading={false}
           isTranslating={false}
           isResultStale={false}
@@ -211,6 +214,7 @@ describe('TranslationComparisonPane compact tabs', () => {
           onUseAsSource={vi.fn()}
         onCopy={vi.fn()}
           onSpeak={vi.fn()}
+          onSelect={vi.fn()}
           onRetry={vi.fn()}
           onOpenSettings={vi.fn()}
           onChooseModel={vi.fn()}
@@ -228,6 +232,7 @@ describe('TranslationComparisonPane compact tabs', () => {
           results={[IDLE_RESULTS[0], IDLE_RESULTS[2]]}
           copiedResultKey={null}
           speakingResultKey={null}
+          selectedResultKey={null}
           speakLoading={false}
           isTranslating={false}
           isResultStale={false}
@@ -235,6 +240,7 @@ describe('TranslationComparisonPane compact tabs', () => {
           onUseAsSource={vi.fn()}
         onCopy={vi.fn()}
           onSpeak={vi.fn()}
+          onSelect={vi.fn()}
           onRetry={vi.fn()}
           onOpenSettings={vi.fn()}
           onChooseModel={vi.fn()}
@@ -249,7 +255,7 @@ describe('TranslationComparisonPane compact tabs', () => {
 describe('TranslationComparisonPane result actions', () => {
   const LONG_TEXT = Array.from({ length: 200 }, (_, index) => `Sentence ${index}.`).join(' ')
 
-  it('keeps read-aloud and copy in the card header so long text cannot hide them', () => {
+  it('keeps read-aloud and copy in a fixed card footer so long text cannot hide them', () => {
     const onCopy = vi.fn()
     const onSpeak = vi.fn()
     const result: TranslationComparisonResult = {
@@ -266,6 +272,7 @@ describe('TranslationComparisonPane result actions', () => {
           results={[result]}
           copiedResultKey={null}
           speakingResultKey={null}
+          selectedResultKey={null}
           speakLoading={false}
           isTranslating={false}
           isResultStale={false}
@@ -273,6 +280,7 @@ describe('TranslationComparisonPane result actions', () => {
           onUseAsSource={vi.fn()}
         onCopy={onCopy}
           onSpeak={onSpeak}
+          onSelect={vi.fn()}
           onRetry={vi.fn()}
           onOpenSettings={vi.fn()}
           onChooseModel={vi.fn()}
@@ -281,15 +289,91 @@ describe('TranslationComparisonPane result actions', () => {
     )
 
     const card = screen.getByRole('article', { name: /GPT 4o.*OpenAI/i })
-    const header = card.querySelector('header')
-    expect(header).not.toBeNull()
-    expect(card.querySelector('footer')).toBeNull()
+    const footer = card.querySelector('footer')
+    expect(footer).not.toBeNull()
 
-    const headerActions = within(header as HTMLElement)
-    fireEvent.click(headerActions.getByRole('button', { name: /Read aloud: GPT 4o.*OpenAI/i }))
-    fireEvent.click(headerActions.getByRole('button', { name: /Copy: GPT 4o.*OpenAI/i }))
+    const footerActions = within(footer as HTMLElement)
+    fireEvent.click(footerActions.getByRole('button', { name: /Read aloud: GPT 4o.*OpenAI/i }))
+    fireEvent.click(footerActions.getByRole('button', { name: /Copy: GPT 4o.*OpenAI/i }))
     expect(onSpeak).toHaveBeenCalledWith(result)
     expect(onCopy).toHaveBeenCalledWith(result)
+    expect(footer).toHaveTextContent(/2[,.\s]?689 chars/)
+  })
+
+  it('offers one pick per finished translation and reflects the picked column', () => {
+    const onSelect = vi.fn()
+    const results: TranslationComparisonResult[] = [
+      { ...IDLE_RESULTS[0], status: 'success', translatedText: 'Alpha', durationMs: 300 },
+      { ...IDLE_RESULTS[1], status: 'success', translatedText: 'Beta', durationMs: 400 },
+      IDLE_RESULTS[2],
+    ]
+    render(
+      <>
+        <h2 id="translation-results-heading">Translation results</h2>
+        <TranslationComparisonPane
+          headingId="translation-results-heading"
+          results={results}
+          copiedResultKey={null}
+          speakingResultKey={null}
+          selectedResultKey={results[1].key}
+          speakLoading={false}
+          isTranslating={false}
+          isResultStale={false}
+          canRetry
+          onUseAsSource={vi.fn()}
+          onCopy={vi.fn()}
+          onSpeak={vi.fn()}
+          onSelect={onSelect}
+          onRetry={vi.fn()}
+          onOpenSettings={vi.fn()}
+          onChooseModel={vi.fn()}
+        />
+      </>,
+    )
+
+    const pickGemini = screen.getByRole('button', { name: /Pick this one: Gemini 2.0 Flash/ })
+    const pickedOpenAi = screen.getByRole('button', { name: /Picked: GPT 4o/ })
+    expect(pickGemini).toHaveAttribute('aria-pressed', 'false')
+    expect(pickedOpenAi).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: /Pick this one: Claude Sonnet 4/ })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('tabpanel')[1]).toHaveAttribute('data-selected', 'true')
+
+    fireEvent.click(pickGemini)
+    expect(onSelect).toHaveBeenCalledWith(results[0])
+  })
+
+  it('folds failed models into a recovery row and lets the reader dismiss it', () => {
+    renderComparison([
+      { ...IDLE_RESULTS[0], status: 'success', translatedText: 'Done', durationMs: 300 },
+      errorResult('NETWORK'),
+    ])
+
+    const failures = screen.getByRole('list', { name: 'Models that did not finish' })
+    const row = within(failures).getByRole('alert')
+    expect(row).toHaveTextContent('GPT 4o')
+    expect(row).toHaveTextContent('Could not reach OpenAI. Check your connection, then retry.')
+    expect(within(row).getByRole('button', { name: 'Retry this model' })).toBeInTheDocument()
+    expect(screen.getAllByRole('tabpanel')[1]).toHaveAttribute('data-status', 'error')
+
+    fireEvent.click(within(row).getByRole('button', { name: 'Hide this failure: GPT 4o' }))
+    expect(screen.queryByRole('list', { name: 'Models that did not finish' })).not.toBeInTheDocument()
+  })
+
+  it('marks where finished translations disagree and can switch the marks off', () => {
+    renderComparison([
+      { ...IDLE_RESULTS[0], status: 'success', translatedText: 'The quick fox', durationMs: 300 },
+      { ...IDLE_RESULTS[1], status: 'success', translatedText: 'The slow fox', durationMs: 400 },
+    ])
+
+    const toggle = screen.getByRole('button', { name: 'Highlight differences' })
+    expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    const geminiCard = screen.getByRole('article', { name: /Gemini 2.0 Flash/ })
+    expect(Array.from(geminiCard.querySelectorAll('mark')).map((mark) => mark.textContent)).toEqual(['quick'])
+
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    expect(geminiCard.querySelector('mark')).toBeNull()
+    expect(geminiCard).toHaveTextContent('The quick fox')
   })
 
   it('offers no result actions until a model has a translation', () => {
@@ -317,13 +401,13 @@ describe('TranslationComparisonPane result actions', () => {
     expect(doneStatus).not.toHaveTextContent('Complete')
   })
 
-  it('exposes the pane heading and aggregate progress without a visible summary row', () => {
+  it('reports aggregate progress in the toolbar and keeps the pane heading for assistive tech', () => {
     renderComparison([
       { ...IDLE_RESULTS[0], status: 'success', translatedText: 'Done', durationMs: 300 },
       IDLE_RESULTS[1],
     ])
 
-    expect(screen.queryByText(/Compare 2 translations/)).not.toBeInTheDocument()
-    expect(screen.getByRole('status', { name: '' })).toHaveClass('sr-only')
+    expect(screen.getByRole('status')).toHaveTextContent('1 of 2 complete')
+    expect(screen.queryByRole('button', { name: 'Highlight differences' })).not.toBeInTheDocument()
   })
 })
