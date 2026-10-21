@@ -7,8 +7,6 @@ const trayInstances: Array<{
   on: ReturnType<typeof vi.fn>
 }> = []
 let imageIsEmpty = false
-const dialogState = vi.hoisted(() => ({ response: 0 }))
-const showMessageBox = vi.hoisted(() => vi.fn(async () => ({ response: dialogState.response })))
 let menuTemplate: Array<{ label?: string; type?: string; click?: () => void }> = []
 
 vi.mock('electron', () => {
@@ -24,7 +22,6 @@ vi.mock('electron', () => {
   }
   return {
     Tray,
-    dialog: { showMessageBox },
     Menu: {
       buildFromTemplate: vi.fn((template: typeof menuTemplate) => {
         menuTemplate = template
@@ -43,7 +40,7 @@ vi.mock('electron', () => {
 import {
   createAppTray,
   getTrayLabels,
-  promptCloseAction,
+  handleMainWindowClose,
   resolveTrayLocale,
   shouldHideMainWindowOnClose,
   supportsTrayResidency,
@@ -53,8 +50,6 @@ beforeEach(() => {
   trayInstances.length = 0
   imageIsEmpty = false
   menuTemplate = []
-  dialogState.response = 0
-  showMessageBox.mockClear()
 })
 
 describe('shouldHideMainWindowOnClose', () => {
@@ -116,6 +111,9 @@ describe('createAppTray', () => {
 
     const events = trayInstances[0].on.mock.calls.map(([name]) => name)
     expect(events).toEqual(expect.arrayContaining(['click', 'double-click']))
+    for (const [, listener] of trayInstances[0].on.mock.calls) listener()
+    expect(onOpen).toHaveBeenCalledTimes(3)
+    expect(onQuit).toHaveBeenCalledTimes(1)
   })
 
   it('lets a development run override the tooltip so it is distinguishable from the official app', () => {
@@ -132,32 +130,31 @@ describe('createAppTray', () => {
   })
 })
 
-describe('promptCloseAction', () => {
-  const window = {} as never
+describe('handleMainWindowClose', () => {
+  it('immediately hides on repeated close requests without destroying the window', () => {
+    const event = { preventDefault: vi.fn() }
+    const window = { hide: vi.fn(), destroy: vi.fn() }
+    const options = { platform: 'win32' as const, isQuitting: false, hasTray: true }
 
-  it('maps the chosen button onto keep-in-tray, quit or cancel', async () => {
-    dialogState.response = 0
-    await expect(promptCloseAction(window, 'en')).resolves.toBe('tray')
-    dialogState.response = 1
-    await expect(promptCloseAction(window, 'en')).resolves.toBe('quit')
-    dialogState.response = 2
-    await expect(promptCloseAction(window, 'en')).resolves.toBe('cancel')
+    handleMainWindowClose(event, window, options)
+    handleMainWindowClose(event, window, options)
+
+    expect(event.preventDefault).toHaveBeenCalledTimes(2)
+    expect(window.hide).toHaveBeenCalledTimes(2)
+    expect(window.destroy).not.toHaveBeenCalled()
   })
 
   it.each([
-    ['vi-VN', 'Đóng Viezan', 'Bạn muốn Viezan tiếp tục chạy nền?', ['Chạy nền', 'Thoát hẳn', 'Hủy']],
-    ['en-US', 'Close Viezan', 'Do you want Viezan to keep running in the background?', ['Run in background', 'Quit', 'Cancel']],
-    ['ja-JP', 'Viezan を閉じる', 'Viezan をバックグラウンドで実行し続けますか？', ['バックグラウンドで実行', '終了', 'キャンセル']],
-  ])('localizes the minimal native dialog for %s with safe defaults', async (locale, title, message, buttons) => {
-    await promptCloseAction(window, locale)
-    expect(showMessageBox).toHaveBeenCalledWith(
-      window,
-      { type: 'question', title, message, buttons, defaultId: 0, cancelId: 2, noLink: true },
-    )
-  })
+    { platform: 'win32' as const, isQuitting: true, hasTray: true },
+    { platform: 'win32' as const, isQuitting: false, hasTray: false },
+    { platform: 'darwin' as const, isQuitting: false, hasTray: false },
+  ])('allows native close for %j', (options) => {
+    const event = { preventDefault: vi.fn() }
+    const window = { hide: vi.fn() }
 
-  it('treats an unexpected dialog response as cancel', async () => {
-    dialogState.response = -1
-    await expect(promptCloseAction(window, 'en')).resolves.toBe('cancel')
+    handleMainWindowClose(event, window, options)
+
+    expect(event.preventDefault).not.toHaveBeenCalled()
+    expect(window.hide).not.toHaveBeenCalled()
   })
 })
