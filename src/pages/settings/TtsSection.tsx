@@ -1,5 +1,4 @@
 import { type ReactNode, useEffect, useState } from 'react'
-import { Button } from '@/components/ui/atoms'
 import { CredentialSecretInputRow, CredentialStatusBadge, CredentialStatusMessage } from '../../components/ui/CredentialCard'
 import {
   AutoModeIcon,
@@ -94,7 +93,10 @@ export function TtsSection() {
 
   return (
     <section className="space-y-3">
-      <h2 className="section-label">{t.settings_tts_section}</h2>
+      <div>
+        <h2 className="settings-section-title">{t.settings_tts_section}</h2>
+        <p className="settings-section-desc mt-1">{t.settings_tts_section_desc}</p>
+      </div>
 
       <div className="card divide-y divide-gray-100 dark:divide-gray-700">
 
@@ -177,19 +179,17 @@ export function TtsSection() {
                 <ElevenLabsIcon size={21} />
               </ProviderLogoFrame>
               <div className="min-w-0">
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                <h3 className="settings-card-title">
                   {t.settings_tts_elevenlabs_key}
                 </h3>
-                <Button
-                  size="md"
-                  shape="rect"
-                  variant="neutral"
-                  appearance="ghost"
+                {/* Native exception: text link in copy, not a boxed control (see .settings-inline-link). */}
+                <button
                   type="button"
+                  className="settings-inline-link"
                   onClick={() => window.api?.openExternal(ELEVENLABS_DOCS_URL)}
                 >
                   {t.settings_get_key}
-                </Button>
+                </button>
               </div>
             </div>
             <CredentialStatusBadge

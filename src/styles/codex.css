@@ -1485,6 +1485,51 @@ html.dark .toolbar-pill-button {
   }
 }
 
+/* Settings typography: section title > group/card title > row label. The
+   section heading must read as the parent of every card beneath it, so it
+   carries the title size while card titles step down to the body scale. */
+.settings-section-title {
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-title);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: var(--vzn-line-tight);
+}
+
+.settings-section-desc {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-md);
+  line-height: var(--vzn-line-normal);
+}
+
+.settings-card-title {
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-lg);
+  font-weight: var(--vzn-weight-medium);
+  line-height: var(--vzn-line-tight);
+}
+
+/* Text-style link control (opens an external page). Deliberately not a
+   boxed Button: it sits in copy next to a title and must not add control
+   height to the row. */
+.settings-inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vzn-space-1);
+  padding: var(--vzn-space-0);
+  border: 0;
+  background: transparent;
+  color: var(--vzn-action);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-medium);
+  line-height: var(--vzn-line-normal);
+  cursor: pointer;
+}
+
+.settings-inline-link:hover {
+  color: var(--vzn-action-hover);
+  text-decoration: underline;
+}
+
 /* Quick chat ------------------------------------------------------------ */
 
 .quick-chat-shell {

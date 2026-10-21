@@ -17,7 +17,10 @@ export function AboutSection() {
 
   return (
     <section className="space-y-3">
-      <h2 className="section-label">{t.settings_about}</h2>
+      <div>
+        <h2 className="settings-section-title">{t.settings_about}</h2>
+        <p className="settings-section-desc mt-1">{t.settings_about_desc}</p>
+      </div>
       <div className="card px-4 py-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">

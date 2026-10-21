@@ -335,6 +335,8 @@ export interface Translations {
   settings_security_macos: string
   settings_security_windows: string
   settings_api_keys: string
+  /** Settings navigation: one-line purpose of the AI Providers section. */
+  settings_api_keys_desc: string
   settings_configured: string
   settings_cost_currency: string
   settings_cost_total: string
@@ -455,6 +457,7 @@ export interface Translations {
   settings_msg_network: string
   settings_key_store_failed: string
   settings_prefs: string
+  settings_prefs_desc: string
   settings_auto_translate: string
   settings_auto_translate_desc: string
   settings_translate_delay: string
@@ -483,6 +486,7 @@ export interface Translations {
   settings_image_provider_fallback_desc: string
   // Settings — Speech-to-Text section
   settings_stt_section: string
+  settings_stt_section_desc: string
   /** Label for the "Provider" sub-header in STT section */
   settings_stt_provider_label: string
   settings_stt_provider_desc: string
@@ -520,6 +524,7 @@ export interface Translations {
   settings_stt_needs_groq: string
 
   settings_tts_section: string
+  settings_tts_section_desc: string
   /** Short description of TTS provider priority order */
   settings_tts_priority_desc: string
   /** Label for the "Priority" sub-header in TTS section */
@@ -551,6 +556,7 @@ export interface Translations {
   settings_tts_voice_nova: string
   settings_tts_voice_shimmer: string
   settings_about: string
+  settings_about_desc: string
   settings_about_version: string
   settings_about_platform: string
   settings_about_supports: string
@@ -826,6 +832,9 @@ export interface Translations {
   chat_close_image_preview: string
   chat_image_edit_done: string
 
+  // Settings — Shortcuts (navigation entry covering every hotkey group)
+  settings_hotkeys_nav: string
+  settings_hotkeys_nav_desc: string
   // Settings — Global Hotkey
   settings_hotkey_section: string
   settings_hotkey_section_desc: string

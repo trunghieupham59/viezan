@@ -81,7 +81,7 @@ function LocalAiProviderCard({
             <ProviderIcon provider="local" size={22} />
           </div>
           <div className="min-w-0">
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{t.settings_local_ai_title}</h3>
+            <h3 className="settings-card-title">{t.settings_local_ai_title}</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
               {available
                 ? `${status?.engine ?? 'local'} · ${status?.endpoint ?? ''}`
@@ -657,7 +657,10 @@ export function ApiKeysSection() {
       {/* AI Provider API Keys */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="section-label">{t.settings_api_keys}</h2>
+          <div>
+            <h2 className="settings-section-title">{t.settings_api_keys}</h2>
+            <p className="settings-section-desc mt-1">{t.settings_api_keys_desc}</p>
+          </div>
           <span className="text-xs text-gray-400">
             {configuredCount}/{PROVIDERS.length} {t.settings_configured}
           </span>
@@ -703,19 +706,17 @@ export function ApiKeysSection() {
       {/* Deep Research Web Search API Keys */}
       <section className="space-y-3 border-t border-gray-200 pt-6 dark:border-gray-700">
         <div>
-          <h2 className="section-label">{t.settings_web_search_section}</h2>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          <h2 className="settings-section-title">{t.settings_web_search_section}</h2>
+          <p className="settings-section-desc mt-1">
             {t.settings_web_search_desc_prefix}{' '}
-            <Button
-              size="md"
-              shape="rect"
-              variant="neutral"
-              appearance="ghost"
+            {/* Native exception: text link in copy, not a boxed control (see .settings-inline-link). */}
+            <button
               type="button"
+              className="settings-inline-link"
               onClick={() => window.api?.openExternal(JINA_DOCS_URL)}
             >
               Jina AI
-            </Button>
+            </button>
             {' '}{t.settings_web_search_desc_suffix}
           </p>
         </div>

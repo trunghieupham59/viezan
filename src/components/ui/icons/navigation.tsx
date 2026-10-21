@@ -125,3 +125,13 @@ export function ClockIcon({ className = 'w-5 h-5' }: IconProps) {
     </svg>
   )
 }
+
+/** Keyboard outline — settings navigation entry for shortcuts/hotkeys. */
+export function KeyboardIcon({ className = 'w-4 h-4' }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+      <rect x="2" y="6" width="20" height="12" rx="2" />
+      <path strokeLinecap="round" d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" />
+    </svg>
+  )
+}

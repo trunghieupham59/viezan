@@ -196,8 +196,8 @@ export function HotkeySection() {
     <section className="space-y-3">
       {/* ── Quick Translate Hotkey ── */}
       <div>
-        <h2 className="section-label">{t.settings_hotkey_section}</h2>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_hotkey_section_desc}</p>
+        <h2 className="settings-section-title">{t.settings_hotkey_section}</h2>
+        <p className="settings-section-desc mt-1">{t.settings_hotkey_section_desc}</p>
       </div>
 
       <div className="card divide-y divide-gray-100 dark:divide-gray-700">
@@ -276,8 +276,8 @@ export function HotkeySection() {
 
       {/* ── AI Chat Hotkey ── */}
       <div className="mt-6">
-        <h2 className="section-label">{t.settings_chat_hotkey_section}</h2>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_chat_hotkey_section_desc}</p>
+        <h2 className="settings-section-title">{t.settings_chat_hotkey_section}</h2>
+        <p className="settings-section-desc mt-1">{t.settings_chat_hotkey_section_desc}</p>
       </div>
 
       <div className="card divide-y divide-gray-100 dark:divide-gray-700">
