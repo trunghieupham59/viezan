@@ -170,6 +170,8 @@ export function LiveTranslatePage() {
   }, [missingKeyNoticeId])
 
   // ── Notices go to the app-level toast stack ──
+  // Each effect dismisses its own toast on cleanup so page-scoped notices
+  // leave with the page instead of following the user to other features.
   const notify = useNotificationStore((state) => state.notify)
   const dismissNotification = useNotificationStore((state) => state.dismiss)
   useEffect(() => {
@@ -178,6 +180,7 @@ export function LiveTranslatePage() {
       return
     }
     notify({ key: MIC_ERROR_KEY, tone: 'error', title: t.live_error_title, message: micError, onDismiss: dismissMicError })
+    return () => dismissNotification(MIC_ERROR_KEY)
   }, [micError, dismissMicError, notify, dismissNotification, t])
   useEffect(() => {
     if (!pipelineError) {
@@ -186,6 +189,7 @@ export function LiveTranslatePage() {
     }
     // The hook clears pipelineError on its own timer; the toast follows that state.
     notify({ key: PIPELINE_ERROR_KEY, tone: 'warning', message: pipelineError, dismissible: false })
+    return () => dismissNotification(PIPELINE_ERROR_KEY)
   }, [pipelineError, notify, dismissNotification])
   const activeKeyNoticeId = activeKeyNotice?.id ?? null
   const activeKeyNoticeMessage = activeKeyNotice?.message ?? null
@@ -201,6 +205,7 @@ export function LiveTranslatePage() {
       actions: [{ label: t.translate_error_open_settings, onClick: () => openSettings() }],
       onDismiss: () => setDismissedKeyNotice(activeKeyNoticeId),
     })
+    return () => dismissNotification(MISSING_KEY_NOTICE_KEY)
   }, [activeKeyNoticeId, activeKeyNoticeMessage, notify, dismissNotification, openSettings, t])
   const startSession = () => {
     if ((audioMode === 'system' || audioMode === 'both') && isMac && screenPermission !== 'granted') {
