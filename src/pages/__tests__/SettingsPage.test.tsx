@@ -41,8 +41,8 @@ describe('SettingsPage section navigation', () => {
     const viewport = container.querySelector<HTMLElement>('.settings-scroll-viewport')
     if (!viewport) throw new Error('viewport missing')
 
-    // Lay the nine sections out top to bottom; jsdom reports offsetTop 0 otherwise.
-    const sectionTops = [0, 800, 1600, 2000, 2400, 2800, 3200, 3600, 4000]
+    // Lay the ten sections out top to bottom; jsdom reports offsetTop 0 otherwise.
+    const sectionTops = [0, 400, 800, 1600, 2000, 2400, 2800, 3200, 3600, 4000]
     const regions = Array.from(viewport.querySelectorAll<HTMLElement>('[data-settings-section]'))
     expect(regions).toHaveLength(sectionTops.length)
     regions.forEach((region, index) => {

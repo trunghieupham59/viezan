@@ -1,6 +1,4 @@
-import { Button } from '@/components/ui/atoms'
 import { ToggleSwitch } from '../../components/ui/atoms'
-import { FontSizePicker } from '../../components/ui/FontSizePicker'
 import { OptionPicker } from '../../components/ui/molecules'
 import { type AppLocale, LOCALE_NAMES } from '../../i18n'
 import { useAppStore, useT } from '../../store/useAppStore'
@@ -24,10 +22,6 @@ export function PreferencesSection() {
   const setLocale = useAppStore((state) => state.setLocale)
   const setLocaleAuto = useAppStore((state) => state.setLocaleAuto)
   const setLocaleFromSystem = useAppStore((state) => state.setLocaleFromSystem)
-  const fontSize = useAppStore((state) => state.fontSize)
-  const setFontSize = useAppStore((state) => state.setFontSize)
-  const theme = useAppStore((state) => state.theme)
-  const setTheme = useAppStore((state) => state.setTheme)
   const t = useT()
 
   const handleToggleLocaleAuto = () => {
@@ -72,47 +66,6 @@ export function PreferencesSection() {
             options={localeOptions}
             onChange={(code) => setLocale(code as AppLocale)}
             label={t.settings_app_language}
-          />
-        </div>
-
-        {/* Appearance / Theme */}
-        <div className="settings-choice-row flex items-center justify-between px-4 py-3.5 gap-4">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_theme}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_theme_desc}</p>
-          </div>
-          <div className="segmented-control flex-shrink-0">
-            {(['light', 'system', 'dark'] as const).map((v) => (
-              <Button
-                size="md"
-                shape="rect"
-                variant={theme === v ? 'primary' : 'neutral'}
-                appearance={theme === v ? 'soft' : 'ghost'}
-                key={v}
-                type="button"
-                onClick={() => setTheme(v)}
-                aria-pressed={theme === v}
-              >
-                {v === 'light' ? t.settings_theme_light : v === 'dark' ? t.settings_theme_dark : t.settings_theme_system}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Font Size */}
-        <div className="settings-choice-row flex items-center justify-between px-4 py-3.5 gap-4">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_font_size}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_font_size_desc}</p>
-          </div>
-          <FontSizePicker
-            value={fontSize}
-            onChange={setFontSize}
-            labels={{
-              small: t.settings_font_size_small,
-              medium: t.settings_font_size_medium,
-              large: t.settings_font_size_large,
-            }}
           />
         </div>
 

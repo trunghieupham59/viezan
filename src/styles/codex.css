@@ -16,7 +16,8 @@ body,
 html.dark .app-shell,
 html:not(.dark) .app-shell {
   background: var(--vzn-app-bg) !important;
-  background-image: none !important;
+  /* Presets may wash the opaque shell; a transparent native shell drops it. */
+  background-image: var(--vzn-app-backdrop) !important;
   color: var(--vzn-text);
 }
 
@@ -35,19 +36,27 @@ html.quick-chat-window #root {
   background: transparent !important;
 }
 
+/* The shell already paints the app background (and a preset's backdrop wash);
+ * the body stays clear so that wash reaches the canvas. */
 .app-body {
   position: relative;
-  background: var(--vzn-app-bg);
+  background: transparent;
 }
 
 .app-shell[data-window-material="native"] .app-body {
   background: transparent;
 }
 
-.app-main,
+/* Only the main column paints the canvas; nested page wrappers stay clear so
+ * a translucent preset canvas does not stack into an opaque one. */
+.app-main {
+  background: var(--vzn-bg);
+  background-image: none !important;
+}
+
 .app-page,
 .app-workspace {
-  background: var(--vzn-bg);
+  background: transparent;
   background-image: none !important;
 }
 
@@ -93,11 +102,31 @@ html:not(.dark) .app-sidebar {
   gap: 2px;
   overflow: hidden;
   background: var(--vzn-sidebar-bg) !important;
-  border-right: 1px solid var(--vzn-divider) !important;
+  border-right: 1px solid var(--vzn-chrome-divider) !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   transition: width 180ms ease, padding 180ms ease;
+}
+
+/* Primary chrome (title bar + primary navigation) reads the chrome-* palette
+ * so a preset can paint it darker or lighter than the canvas. Button atoms
+ * inside it remap their contract to the same tokens. */
+.app-sidebar .ui-button,
+.app-titlebar-drag .ui-button {
+  --vzn-button-fg: var(--vzn-chrome-fg-muted);
+  --vzn-button-hover-bg: var(--vzn-chrome-item-hover);
+  --vzn-button-hover-border: transparent;
+  --vzn-button-hover-fg: var(--vzn-chrome-fg-strong);
+}
+
+.app-sidebar .ui-button.ui-button-variant-primary,
+.app-titlebar-drag .ui-button.ui-button-variant-primary {
+  --vzn-button-bg: var(--vzn-chrome-item-active);
+  --vzn-button-border: transparent;
+  --vzn-button-fg: var(--vzn-chrome-item-active-fg);
+  --vzn-button-hover-bg: var(--vzn-chrome-item-active);
+  --vzn-button-hover-fg: var(--vzn-chrome-item-active-fg);
 }
 
 .app-sidebar[data-collapsed="false"] {
@@ -149,7 +178,7 @@ html.dark .sidebar-brand-surface {
 .sidebar-label {
   min-width: 0;
   overflow: hidden;
-  color: var(--vzn-text);
+  color: var(--vzn-chrome-fg);
   font-size: 13px;
   font-weight: 500;
   line-height: var(--vzn-line-normal);
@@ -158,13 +187,14 @@ html.dark .sidebar-brand-surface {
 }
 
 .sidebar-brand-name {
-  color: var(--vzn-text-strong);
+  color: var(--vzn-chrome-fg-strong);
   font-size: 15px;
   font-weight: 650;
 }
 
 .sidebar-brand-title {
-  color: var(--vzn-text-strong);
+  font-family: var(--vzn-font-display);
+  color: var(--vzn-chrome-fg-strong);
   font-size: 15px;
   font-weight: 650;
 }
@@ -191,7 +221,7 @@ html.dark .sidebar-brand-surface {
 
 .sidebar-shortcut {
   margin-left: auto;
-  color: var(--vzn-text-soft);
+  color: var(--vzn-chrome-fg-soft);
   font-size: 10px;
 }
 
@@ -217,7 +247,7 @@ html.dark .sidebar-brand-surface {
 
 .sidebar-section-label {
   padding: 18px 10px 6px;
-  color: var(--vzn-text-soft);
+  color: var(--vzn-chrome-fg-soft);
   font-size: 11px;
   font-weight: 500;
 }
@@ -243,8 +273,8 @@ html.dark .sidebar-brand-surface {
 .sidebar-nav-btn,
 .nav-item {
   border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--vzn-text-muted);
+  border-radius: var(--vzn-radius-sm);
+  color: var(--vzn-chrome-fg-muted);
   box-shadow: none !important;
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
@@ -252,21 +282,21 @@ html.dark .sidebar-brand-surface {
 .sidebar-nav-btn:hover,
 .nav-item:hover {
   border-color: transparent;
-  background: var(--vzn-surface-subtle);
-  color: var(--vzn-text-strong);
+  background: var(--vzn-chrome-item-hover);
+  color: var(--vzn-chrome-fg-strong);
 }
 
 .sidebar-nav-btn.active,
 .nav-item.active {
   border-color: transparent;
-  background: var(--vzn-action-soft);
-  color: var(--vzn-text-strong);
+  background: var(--vzn-chrome-item-active);
+  color: var(--vzn-chrome-item-active-fg);
   box-shadow: none !important;
 }
 
 .sidebar-nav-btn.active .sidebar-nav-icon,
 .nav-item.active .sidebar-nav-icon {
-  color: var(--vzn-action-text);
+  color: var(--vzn-chrome-accent);
 }
 
 .sidebar-nav-btn.active::before,
@@ -276,7 +306,7 @@ html.dark .sidebar-brand-surface {
 
 .app-sidebar-divider {
   width: calc(100% - 12px);
-  background: var(--vzn-divider);
+  background: var(--vzn-chrome-divider);
 }
 
 .sidebar-collapse-button,
@@ -291,21 +321,21 @@ html.dark .sidebar-brand-surface {
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: var(--vzn-text-soft);
+  color: var(--vzn-chrome-fg-soft);
   cursor: pointer;
 }
 
 .sidebar-collapse-button:hover,
 .sidebar-collapse-toggle:hover {
-  background: var(--vzn-surface-subtle);
-  color: var(--vzn-text-strong);
+  background: var(--vzn-chrome-item-hover);
+  color: var(--vzn-chrome-fg-strong);
 }
 
 .sidebar-nav-btn:focus-visible,
 .sidebar-collapse-button:focus-visible,
 .sidebar-collapse-toggle:focus-visible {
-  background: var(--vzn-surface-subtle);
-  color: var(--vzn-text-strong);
+  background: var(--vzn-chrome-item-hover);
+  color: var(--vzn-chrome-fg-strong);
 }
 
 .app-sidebar[data-collapsed="true"] .sidebar-brand-row {
@@ -379,7 +409,7 @@ html.dark .sidebar-brand-surface {
 .primary-navigation-panel[data-expanded="true"] {
   align-items: stretch;
   padding: 10px;
-  border-right-color: var(--vzn-divider);
+  border-right-color: var(--vzn-chrome-divider);
 }
 
 .primary-navigation-panel[data-expanded="true"] .sidebar-brand-row {
@@ -397,24 +427,24 @@ html.dark .sidebar-brand-surface {
   position: fixed;
   z-index: var(--vzn-layer-navigation-overlay);
   width: var(--vzn-sidebar-expanded-width);
-  border-right-color: var(--vzn-material-border);
-  background: var(--vzn-overlay-material);
+  border-right-color: var(--vzn-chrome-divider);
+  background: var(--vzn-sidebar-bg);
   box-shadow: var(--vzn-shadow-lg);
 }
 
 .app-shell[data-window-material="native"] .primary-navigation-panel[data-overlay-open="true"] {
-  background: var(--vzn-overlay-material);
+  background: var(--vzn-primary-nav-material);
 }
 
 .primary-navigation-toggle {
   flex: 0 0 auto;
-  color: var(--vzn-text-soft);
+  color: var(--vzn-chrome-fg-soft);
 }
 
 .primary-navigation-toggle:hover,
 .primary-navigation-toggle:focus-visible {
-  background: var(--vzn-surface-subtle);
-  color: var(--vzn-text-strong);
+  background: var(--vzn-chrome-item-hover);
+  color: var(--vzn-chrome-fg-strong);
 }
 
 .primary-navigation-backdrop {
@@ -450,6 +480,7 @@ html.dark .sidebar-brand-surface {
 }
 
 .ai-chat-workspace-title {
+  font-family: var(--vzn-font-display);
   min-width: 0;
   flex: 1;
   overflow: hidden;
@@ -535,6 +566,7 @@ html.dark .sidebar-brand-surface {
 }
 
 .ai-chat-sidebar-title {
+  font-family: var(--vzn-font-display);
   min-width: 0;
   overflow: hidden;
   color: var(--vzn-text-strong);
@@ -814,10 +846,10 @@ html:not(.dark) .chat-research-info-popover,
 html.dark .ai-config-panel,
 html:not(.dark) .ai-config-panel {
   border: 1px solid var(--vzn-border-strong) !important;
-  background: var(--vzn-surface) !important;
+  background: var(--vzn-overlay-material) !important;
   box-shadow: var(--vzn-shadow-lg) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+  backdrop-filter: var(--vzn-blur) !important;
+  -webkit-backdrop-filter: var(--vzn-blur) !important;
 }
 
 .floating-panel {
@@ -1489,6 +1521,7 @@ html.dark .toolbar-pill-button {
    section heading must read as the parent of every card beneath it, so it
    carries the title size while card titles step down to the body scale. */
 .settings-section-title {
+  font-family: var(--vzn-font-display);
   color: var(--vzn-text-strong);
   font-size: var(--vzn-font-size-title);
   font-weight: var(--vzn-weight-semibold);
@@ -1502,6 +1535,7 @@ html.dark .toolbar-pill-button {
 }
 
 .settings-card-title {
+  font-family: var(--vzn-font-display);
   color: var(--vzn-text-strong);
   font-size: var(--vzn-font-size-lg);
   font-weight: var(--vzn-weight-medium);

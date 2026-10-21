@@ -38,12 +38,9 @@ export default {
         },
       },
       fontFamily: {
-        // Keep body CSS and Tailwind utilities aligned with the native system font stack.
-        sans: [
-          '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto',
-          'Helvetica', 'Arial', 'sans-serif',
-          '"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"',
-        ],
+        // Tailwind utilities read the same token as body CSS so a palette
+        // preset can swap the interface font in one place.
+        sans: ['var(--vzn-font-sans)'],
       },
       fontSize: {
         xs: ['var(--vzn-font-size-sm)', { lineHeight: '1.4' }],

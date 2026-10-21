@@ -5,6 +5,7 @@ import type {
   TranscribeAudioParams,
   TranscribeResult,
 } from '../../shared/audioTranscription'
+import type { ThemePreset } from '../../shared/theme'
 import type { UpdateNotificationPreferences } from '../../shared/updateNotification'
 import type { UpdateStatus } from '../../shared/updater'
 
@@ -857,8 +858,11 @@ export interface WindowApi {
   checkScreenPermission: () => Promise<string>
   openExternal: (url: string) => Promise<void>
   relaunchApp: () => Promise<void>
-  /** Aligns native window chrome (title bar overlay, window background) with the in-app theme. */
-  setWindowTheme?: (theme: 'light' | 'dark' | 'system') => Promise<void>
+  /**
+   * Aligns native window chrome (title bar overlay, window background) with the
+   * in-app light/dark mode and, when given, the palette preset.
+   */
+  setWindowTheme?: (theme: 'light' | 'dark' | 'system', preset?: ThemePreset) => Promise<void>
   /**
    * Pre-flight STT availability check — call before starting a Live Translate session.
    * Checks which STT keys are configured (instant, no API call, no decryption) and

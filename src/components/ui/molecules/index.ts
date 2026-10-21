@@ -4,6 +4,7 @@ export { PROVIDER_COLORS, ProviderIcon } from '../../ProviderIcon'
 export { ButtonGroup } from '../ButtonGroup'
 export { CredentialCard } from '../CredentialCard'
 export { HistoryEmptyState } from '../HistoryEmptyState'
+export { type AccentOption, AccentPicker, type AccentPickerProps } from './AccentPicker'
 export { AIModelField, type AIModelFieldProps } from './AIModelField'
 export { ChatSessionListItem, type ChatSessionListItemProps } from './ChatSessionListItem'
 export { type ChatTaskStarterState, ChatTaskStarters } from './ChatTaskStarters'
@@ -56,6 +57,8 @@ export {
   type SelectFieldProps,
 } from './SelectField'
 export { TabBar, type TabBarProps, type TabBarTab } from './TabBar'
+export { type ThemePresetOption, ThemePresetPicker, type ThemePresetPickerProps } from './ThemePresetPicker'
+export { ThemePreview, type ThemePreviewLabels, type ThemePreviewProps } from './ThemePreview'
 export {
   stripTrailingEllipsis,
   ThinkingDots,

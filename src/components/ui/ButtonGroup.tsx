@@ -29,6 +29,8 @@ interface ButtonGroupProps<T extends string | number> {
   options: ButtonGroupOption<T>[]
   /** Extra Tailwind classes for the container `<div>`. */
   containerClassName?: string
+  /** Disables every option, e.g. while a style pins the value. */
+  disabled?: boolean
 }
 
 export function ButtonGroup<T extends string | number>({
@@ -36,6 +38,7 @@ export function ButtonGroup<T extends string | number>({
   onChange,
   options,
   containerClassName = '',
+  disabled = false,
 }: ButtonGroupProps<T>) {
   return (
     <div className={`segmented-control ${containerClassName}`}>
@@ -47,6 +50,7 @@ export function ButtonGroup<T extends string | number>({
           appearance={value === opt.value ? 'soft' : 'ghost'}
           key={opt.value}
           type="button"
+          disabled={disabled}
           onClick={() => onChange(opt.value)}
           aria-pressed={value === opt.value}
         >

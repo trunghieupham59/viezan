@@ -15,6 +15,8 @@ export function UpdateNotification({ blocked = false }: { blocked?: boolean }) {
   const t = useT()
   const locale = useAppStore((state) => state.locale)
   const theme = useAppStore((state) => state.theme)
+  const themePreset = useAppStore((state) => state.themePreset)
+  const themeAccent = useAppStore((state) => state.themeAccent)
   const nativeNotification = !!window.api?.updater?.getNotificationPreferences
   const { status, snoozes, receive, snooze } = useUpdaterStore()
   const [now, setNow] = useState(Date.now)
@@ -36,8 +38,8 @@ export function UpdateNotification({ blocked = false }: { blocked?: boolean }) {
   }, [version, snooze])
 
   useEffect(() => {
-    void window.api?.updater?.setNotificationPreferences?.({ locale, theme }).catch(() => undefined)
-  }, [locale, theme])
+    void window.api?.updater?.setNotificationPreferences?.({ locale, theme, themePreset, themeAccent }).catch(() => undefined)
+  }, [locale, theme, themePreset, themeAccent])
 
   useEffect(() => {
     const api = window.api?.updater

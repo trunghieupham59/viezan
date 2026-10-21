@@ -77,13 +77,31 @@ pages -> templates -> organisms -> molecules -> atoms
   literal (e.g. do not add `font-size: 15px` beside `--vzn-font-size-lg: 14px`
   / `--vzn-font-size-title: 16px`); if no token fits, add one to `tokens.css`
   and reuse it everywhere that need recurs.
-- Known pre-existing debt, do not extend it further: `src/index.css` still
-  carries literal colors in legacy rules (`npm run check:design` prints the
-  inventory; `codex.css` is at zero), and `tailwind.config.mjs` keeps a few
-  literals of its own (line heights, the `pulse-fast` easing) beside the
-  font-size/radius/shadow/duration scales it already derives from
-  `tokens.css`. If you touch a rule there, migrate it to reference
-  `tokens.css` rather than adding a new literal beside it.
+- Every stylesheet under `src/` is now at zero literal colors (`npm run
+  check:design` prints the inventory); keep it that way. Remaining debt, do
+  not extend it: `tailwind.config.mjs` keeps a few literals of its own (line
+  heights, the `pulse-fast` easing) beside the font-size/radius/shadow/
+  duration scales it already derives from `tokens.css`. If you touch a rule
+  there, migrate it to reference `tokens.css` rather than adding a new
+  literal beside it.
+- Theme has three independent axes: light/dark mode (`html.dark`, from
+  `theme`), the style preset (`html[data-theme]`, from `themePreset`) and an
+  optional accent hue (`html[data-accent]`, from `themeAccent`; `'auto'` sets
+  no attribute). An accent block in `tokens.css` replaces only the accent
+  family of whichever preset is active and is declared after the presets. A
+  preset is a persona, not a repaint: it owns surfaces, accent intensity
+  (`--vzn-action-fill`, glow, user bubble), primary chrome
+  (`--vzn-chrome-*`, read only by the title bar and primary navigation),
+  illustrative tones, shape (`--vzn-radius-*`), depth (`--vzn-shadow-*`,
+  `--vzn-blur`), and reading type (`--vzn-font-reading`, `--vzn-line-reading`,
+  used by chat and translate content). Each preset in `tokens.css` redeclares
+  that whole token set for both modes, so a `data-theme` on any element (the
+  Settings preview card) renders that persona. A new preset needs a
+  `[data-theme]` pair in `tokens.css`, an entry (with its traits: `darkOnly`,
+  `nativeMaterial`) in `src/constants/themePresets.ts`,
+  `electron/windowPalette.ts`, and i18n labels. A dark-only preset pins
+  `html.dark` through `resolveThemeMode`; a native-material preset shows the
+  macOS window vibrancy through a transparent shell in every mode.
 - `npm run check:design` and `npm run check:atomic` only scan
   `src/components/ui/{atoms,molecules}`, `src/components/organisms`, and
   `src/components/templates` — they do not cover `src/pages`, the

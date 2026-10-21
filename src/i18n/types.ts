@@ -496,11 +496,40 @@ export interface Translations {
   settings_font_size_small: string
   settings_font_size_medium: string
   settings_font_size_large: string
-  settings_theme: string
+  settings_appearance: string
+  settings_appearance_desc: string
+  settings_theme_mode: string
   settings_theme_desc: string
   settings_theme_light: string
   settings_theme_dark: string
   settings_theme_system: string
+  settings_theme_dark_only_hint: string
+  settings_theme_dark_only_badge: string
+  settings_theme_preview_label: string
+  settings_theme_preview_assistant: string
+  settings_theme_preview_user: string
+  settings_theme_preview_placeholder: string
+  settings_theme_accent: string
+  settings_theme_accent_desc: string
+  settings_theme_accent_auto: string
+  settings_theme_accent_violet: string
+  settings_theme_accent_pink: string
+  settings_theme_accent_teal: string
+  settings_theme_accent_green: string
+  settings_theme_accent_amber: string
+  settings_theme_accent_red: string
+  settings_theme_palette: string
+  settings_theme_palette_desc: string
+  settings_theme_preset_graphite: string
+  settings_theme_preset_graphite_desc: string
+  settings_theme_preset_glass: string
+  settings_theme_preset_glass_desc: string
+  settings_theme_preset_paper: string
+  settings_theme_preset_paper_desc: string
+  settings_theme_preset_corporate: string
+  settings_theme_preset_corporate_desc: string
+  settings_theme_preset_midnight: string
+  settings_theme_preset_midnight_desc: string
   settings_furigana: string
   settings_furigana_desc: string
   settings_image_provider_fallback: string

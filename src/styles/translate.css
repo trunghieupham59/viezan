@@ -366,9 +366,9 @@
   border: 0;
   background: transparent;
   color: var(--vzn-text-strong);
-  font-family: var(--vzn-font-sans);
+  font-family: var(--vzn-font-reading);
   font-size: var(--vzn-font-size-title);
-  line-height: var(--vzn-line-relaxed);
+  line-height: var(--vzn-line-reading);
   user-select: text;
 }
 
@@ -512,8 +512,9 @@
 .translate-result-text {
   max-width: 48rem;
   color: var(--vzn-text-strong);
+  font-family: var(--vzn-font-reading);
   font-size: var(--vzn-font-size-title);
-  line-height: var(--vzn-line-relaxed);
+  line-height: var(--vzn-line-reading);
   user-select: text;
 }
 

@@ -9,12 +9,14 @@ import {
   KeyIcon,
   MicrophoneIcon,
   MonitorIcon,
+  PaletteIcon,
   RefreshIcon,
   SpeakerIcon,
 } from '../components/ui/icons'
 import { useAppStore, useT } from '../store/useAppStore'
 import { AboutSection } from './settings/AboutSection'
 import { ApiKeysSection } from './settings/ApiKeysSection'
+import { AppearanceSection } from './settings/AppearanceSection'
 import { BrowserIntegrationSection } from './settings/BrowserIntegrationSection'
 import { ChatPresetsSection } from './settings/ChatPresetsSection'
 import { HotkeySection } from './settings/HotkeySection'
@@ -25,6 +27,7 @@ import { UpdaterSection } from './settings/UpdaterSection'
 
 type SettingsSectionId =
   | 'preferences'
+  | 'appearance'
   | 'api'
   | 'stt'
   | 'tts'
@@ -48,6 +51,7 @@ const ACTIVE_SECTION_LINE_RATIO = 0.25
 const SCROLL_LOCK_MS = 600
 
 const MemoPreferencesSection = memo(PreferencesSection)
+const MemoAppearanceSection = memo(AppearanceSection)
 const MemoApiKeysSection = memo(ApiKeysSection)
 const MemoSttSection = memo(SttSection)
 const MemoTtsSection = memo(TtsSection)
@@ -63,6 +67,7 @@ export function SettingsPage() {
   const sectionRefs = useRef<Record<SettingsSectionId, HTMLElement | null>>({
     api: null,
     preferences: null,
+    appearance: null,
     stt: null,
     tts: null,
     hotkeys: null,
@@ -88,6 +93,13 @@ export function SettingsPage() {
       description: t.settings_prefs_desc,
       Icon: GearIcon,
       Component: MemoPreferencesSection,
+    },
+    {
+      id: 'appearance',
+      label: t.settings_appearance,
+      description: t.settings_appearance_desc,
+      Icon: PaletteIcon,
+      Component: MemoAppearanceSection,
     },
     {
       id: 'api',

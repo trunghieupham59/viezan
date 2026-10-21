@@ -1,6 +1,7 @@
 import path from 'node:path'
 import type { Session, Tray } from 'electron'
 import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeImage, nativeTheme, screen, session, shell } from 'electron'
+import type { ThemePreset } from '../shared/theme'
 import { configureApplicationMenu, isDevelopmentRuntime } from './applicationMenu'
 import { registerChatHandlers } from './ipc/chat'
 import { initGlobalHotkey } from './ipc/globalHotkey'
@@ -25,6 +26,7 @@ import { isQuitRequest } from './quitRequest'
 import { resolveRuntimeProfile } from './runtimeProfile'
 import { createAppTray, handleMainWindowClose, supportsTrayResidency } from './trayManager'
 import { createUpdateNotification } from './updateNotification'
+import { DEFAULT_WINDOW_PALETTE, WINDOW_PALETTES } from './windowPalette'
 
 // Allow audio autoplay after async operations (TTS API calls lose user-gesture context)
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
@@ -82,12 +84,8 @@ if (process.platform === 'win32' && app.isPackaged) {
 }
 
 // ── Window constants ──────────────────────────────────────────────────────────
-/** Keep native startup/fallback colors aligned with renderer design tokens. */
-const WIN_BG_DARK = '#161618'
-const WIN_BG_LIGHT = '#EEEEEF'
-/** Windows title bar overlay: strip colour = --vzn-titlebar-bg, glyphs = --vzn-text-muted family. */
-const WIN_TITLEBAR_DARK = { color: '#242426', symbolColor: '#E5E5EA' }
-const WIN_TITLEBAR_LIGHT = { color: '#EEEEEF', symbolColor: '#48484A' }
+/** Palette preset the renderer last applied; colours come from windowPalette.ts. */
+let activeWindowPalette: ThemePreset = DEFAULT_WINDOW_PALETTE
 /** Must match --vzn-titlebar-height in tokens.css. */
 const TITLEBAR_HEIGHT_PX = 40
 const MACOS_WINDOW_VIBRANCY = 'under-window' as const
@@ -104,16 +102,36 @@ let appTray: Tray | null = null
 let isQuitting = false
 
 function getMainWindowBackgroundColor(): string {
-  return nativeTheme.shouldUseDarkColors ? WIN_BG_DARK : WIN_BG_LIGHT
+  const { background } = WINDOW_PALETTES[activeWindowPalette]
+  return nativeTheme.shouldUseDarkColors ? background.dark : background.light
 }
 
 function getWindowsTitleBarOverlay() {
-  const colors = nativeTheme.shouldUseDarkColors ? WIN_TITLEBAR_DARK : WIN_TITLEBAR_LIGHT
+  const { titleBar } = WINDOW_PALETTES[activeWindowPalette]
+  const colors = nativeTheme.shouldUseDarkColors ? titleBar.dark : titleBar.light
   return { ...colors, height: TITLEBAR_HEIGHT_PX }
+}
+
+function applyWindowPalette(preset: ThemePreset): void {
+  if (preset === activeWindowPalette) return
+  activeWindowPalette = preset
+  syncMainWindowAppearance()
 }
 
 function shouldUseMacWindowMaterial(): boolean {
   return process.platform === 'darwin'
+    && !nativeTheme.prefersReducedTransparency
+    && !nativeTheme.shouldUseHighContrastColors
+}
+
+/**
+ * Windows 11 acrylic behind the main window, only for presets that ask for a
+ * material (Glass). Older Windows ignores the call and keeps the opaque
+ * background colour, which the renderer's CSS blur and backdrop wash cover.
+ */
+function shouldUseWindowsMaterial(): boolean {
+  return process.platform === 'win32'
+    && WINDOW_PALETTES[activeWindowPalette].material
     && !nativeTheme.prefersReducedTransparency
     && !nativeTheme.shouldUseHighContrastColors
 }
@@ -127,6 +145,7 @@ function syncMainWindowAppearance(): void {
   }
   if (process.platform === 'win32') {
     mainWindow.setTitleBarOverlay(getWindowsTitleBarOverlay())
+    mainWindow.setBackgroundMaterial(shouldUseWindowsMaterial() ? 'acrylic' : 'none')
   }
 }
 
@@ -521,7 +540,7 @@ app.whenReady().then(() => {
   registerSubtitleHandlers(ipcMain, () => subtitleWindow, () => mainWindow, createSubtitleWindow)
 
   // System handlers — screen permission & openExternal
-  registerSystemHandlers(ipcMain, () => mainWindow)
+  registerSystemHandlers(ipcMain, () => mainWindow, applyWindowPalette)
 
   // Auto-updater — check & install updates from GitHub Releases
   let updater: ReturnType<typeof registerUpdaterHandlers>

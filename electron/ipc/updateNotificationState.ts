@@ -1,5 +1,6 @@
 import type { UpdateNotificationPreferences } from '../../shared/updateNotification'
 import type { UpdateStatus } from '../../shared/updater'
+import { DEFAULT_WINDOW_PALETTE, isThemeAccent, isThemePreset } from '../windowPalette'
 
 export const NOTIFICATION_SNOOZE_MS = 24 * 60 * 60 * 1000
 export interface NotificationState extends UpdateNotificationPreferences {
@@ -12,6 +13,8 @@ export function readNotificationState(value: unknown): NotificationState {
     enabled: typeof raw.enabled === 'boolean' ? raw.enabled : true,
     locale: raw.locale === 'vi' || raw.locale === 'ja' ? raw.locale : 'en',
     theme: raw.theme === 'light' || raw.theme === 'dark' ? raw.theme : 'system',
+    themePreset: isThemePreset(raw.themePreset) ? raw.themePreset : DEFAULT_WINDOW_PALETTE,
+    themeAccent: isThemeAccent(raw.themeAccent) ? raw.themeAccent : 'auto',
     snoozes: Object.fromEntries(Object.entries(raw.snoozes && typeof raw.snoozes === 'object' ? raw.snoozes : {})
       .filter(([version, until]) => version.length <= 128 && typeof until === 'number' && Number.isFinite(until) && until > Date.now())),
   }
