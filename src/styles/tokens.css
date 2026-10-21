@@ -232,6 +232,9 @@
   --vzn-translate-body-min-block: 10rem;
   --vzn-translate-compare-source-min-block: 8rem;
   --vzn-translate-compare-source-max-block: 24rem;
+  /* By-sentence comparison: source column share and the assembled-text preview cap. */
+  --vzn-translate-compare-sentence-source-inline: 30%;
+  --vzn-translate-compare-assembly-max-block: calc(var(--vzn-space-12) * 2.5);
   --vzn-live-panel-min-block: 16rem;
   --vzn-notification-max-inline: 400px;
   --vzn-chat-gutter: clamp(16px, 2.2vw, 40px);

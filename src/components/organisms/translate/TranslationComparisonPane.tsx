@@ -19,10 +19,13 @@ import {
   XIcon,
 } from '../../ui/icons'
 import { ModelRunStatus, TranslationResultTab } from '../../ui/molecules'
+import { TranslationSentenceGrid } from './TranslationSentenceGrid'
 
 interface TranslationComparisonPaneProps {
   headingId: string
   results: TranslationComparisonResult[]
+  /** Source the results were produced from; drives the by-sentence rows. */
+  sourceText: string
   copiedResultKey: string | null
   speakingResultKey: string | null
   selectedResultKey: string | null
@@ -49,11 +52,15 @@ type ErrorRecovery = {
 /**
  * Parallel translation results. Successful models become full-height columns the
  * reader picks from, failed models fold into a slim recovery row, and compact
- * widths fall back to tabs.
+ * widths fall back to tabs. Once two models have finished, a stored preference
+ * can swap the columns for a sentence-by-sentence grid on wide layouts; the
+ * columns stay in the tree so compact widths keep their tabs without a resize
+ * listener, and CSS shows one or the other.
  */
 export function TranslationComparisonPane({
   headingId,
   results,
+  sourceText,
   copiedResultKey,
   speakingResultKey,
   selectedResultKey,
@@ -74,6 +81,8 @@ export function TranslationComparisonPane({
   const tabRefs = useRef(new Map<string, HTMLButtonElement>())
   const [compactResultKey, setCompactResultKey] = useState(results[0]?.key ?? null)
   const [highlightDifferences, setHighlightDifferences] = useState(true)
+  const comparisonView = useAppStore((state) => state.translateComparisonView)
+  const setComparisonView = useAppStore((state) => state.setTranslateComparisonView)
   const [dismissedFailureKeys, setDismissedFailureKeys] = useState<string[]>([])
   const completedCount = results.filter((result) => (
     result.status === 'success' || result.status === 'error'
@@ -86,6 +95,8 @@ export function TranslationComparisonPane({
   ))
   const columnCount = results.filter((result) => result.status !== 'error').length
   const canHighlight = successfulResults.length >= 2
+  // The sentence grid needs two finished translations; until then the columns show progress.
+  const effectiveView = canHighlight ? comparisonView : 'columns'
   const getStatusLabel = (status: TranslationComparisonResult['status']) => {
     if (status === 'loading') return t.translate_compare_status_running
     if (status === 'success') return t.translate_compare_status_complete
@@ -156,17 +167,42 @@ export function TranslationComparisonPane({
           {hasStarted ? liveStatus : t.translate_compare_heading(results.length)}
         </span>
         {canHighlight && (
-          <Button
-            size="xs"
-            shape="rect"
-            variant={highlightDifferences ? 'primary' : 'neutral'}
-            appearance={highlightDifferences ? 'soft' : 'ghost'}
-            aria-pressed={highlightDifferences}
-            title={t.translate_compare_highlight_hint}
-            onClick={() => setHighlightDifferences((value) => !value)}
-          >
-            {t.translate_compare_highlight}
-          </Button>
+          <div className="translate-comparison-toolbar-actions">
+            <fieldset className="translate-comparison-view-switch">
+              <legend className="sr-only">{t.translate_compare_view_label}</legend>
+              <Button
+                size="xs"
+                shape="rect"
+                variant={effectiveView === 'columns' ? 'primary' : 'neutral'}
+                appearance={effectiveView === 'columns' ? 'soft' : 'ghost'}
+                aria-pressed={effectiveView === 'columns'}
+                onClick={() => setComparisonView('columns')}
+              >
+                {t.translate_compare_view_columns}
+              </Button>
+              <Button
+                size="xs"
+                shape="rect"
+                variant={effectiveView === 'sentences' ? 'primary' : 'neutral'}
+                appearance={effectiveView === 'sentences' ? 'soft' : 'ghost'}
+                aria-pressed={effectiveView === 'sentences'}
+                onClick={() => setComparisonView('sentences')}
+              >
+                {t.translate_compare_view_sentences}
+              </Button>
+            </fieldset>
+            <Button
+              size="xs"
+              shape="rect"
+              variant={highlightDifferences ? 'primary' : 'neutral'}
+              appearance={highlightDifferences ? 'soft' : 'ghost'}
+              aria-pressed={highlightDifferences}
+              title={t.translate_compare_highlight_hint}
+              onClick={() => setHighlightDifferences((value) => !value)}
+            >
+              {t.translate_compare_highlight}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -202,7 +238,7 @@ export function TranslationComparisonPane({
         })}
       </div>
 
-      <div className="translate-pane-body translate-comparison-body">
+      <div className="translate-pane-body translate-comparison-body" data-view={effectiveView}>
         {isResultStale && !isTranslating && (
           <div className="translate-result-state-banner">
             <InfoCircleIcon className="translate-result-state-icon" />
@@ -243,6 +279,19 @@ export function TranslationComparisonPane({
             </div>
           ))}
         </div>
+
+        {effectiveView === 'sentences' && (
+          <TranslationSentenceGrid
+            sourceText={sourceText}
+            results={successfulResults}
+            selectedResultKey={selectedResultKey}
+            copiedResultKey={copiedResultKey}
+            highlightDifferences={highlightDifferences}
+            canSelect={!isTranslating && !isResultStale}
+            onSelect={onSelect}
+            onCopy={onCopy}
+          />
+        )}
 
         {failedResults.length > 0 && (
           <ul className="translate-comparison-failures" aria-label={t.translate_compare_failures_label}>

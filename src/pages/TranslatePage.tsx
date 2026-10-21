@@ -64,6 +64,7 @@ export function TranslatePage() {
     isResultStale,
     isComparisonMode,
     comparisonResults,
+    comparisonSourceText,
     copiedComparisonKey,
     selectedComparisonKey,
     speakingPanel,
@@ -292,6 +293,7 @@ export function TranslatePage() {
     <TranslationComparisonPane
       headingId={TRANSLATE_RESULT_HEADING_ID}
       results={comparisonResults}
+      sourceText={comparisonSourceText}
       copiedResultKey={copiedComparisonKey}
       speakingResultKey={speakingComparisonKey}
       selectedResultKey={selectedComparisonKey}
