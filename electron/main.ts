@@ -89,7 +89,7 @@ const WIN_TITLEBAR_LIGHT = { color: '#EEEEEF', symbolColor: '#48484A' }
 /** Must match --vzn-titlebar-height in tokens.css. */
 const TITLEBAR_HEIGHT_PX = 40
 const MACOS_WINDOW_VIBRANCY = 'under-window' as const
-const QUICK_CHAT_WIDTH = 860
+const QUICK_CHAT_WIDTH = 760
 
 const navigationPolicy: NavigationPolicy = {
   isDev,
@@ -347,7 +347,9 @@ function createQuickChatWindow(): BrowserWindow {
     roundedCorners: true,
     thickFrame: false,
     alwaysOnTop: true,
-    hasShadow: false,
+    // macOS draws the floating-panel shadow around the rounded alpha shape;
+    // Windows keeps the opaque native frame without a shadow.
+    hasShadow: process.platform === 'darwin',
     skipTaskbar: true,
     resizable: false,
     movable: true,
@@ -356,6 +358,11 @@ function createQuickChatWindow(): BrowserWindow {
     // does NOT activate the Viezan app or transfer focus to the main window
     // when it gets hidden. Behaves like Raycast/Spotlight.
     ...(process.platform === 'darwin' ? { type: 'panel' as const } : {}),
+    // Same selective material as the main window: the panel surface stays
+    // nearly opaque (--vzn-overlay-material) so blur only softens the edges.
+    ...(shouldUseMacWindowMaterial()
+      ? { vibrancy: 'popover' as const, visualEffectState: 'active' as const }
+      : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       spellcheck: false,

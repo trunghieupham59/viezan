@@ -197,6 +197,14 @@
   box-shadow: 0 0 0 var(--vzn-space-0-5) var(--vzn-danger-soft);
 }
 
+.filter-input--bare,
+.filter-input--bare:hover,
+.filter-input--bare:focus-within {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
 .filter-input--sm {
   block-size: var(--vzn-control-height-sm);
 }
@@ -257,6 +265,101 @@
 .filter-input-clear > svg {
   inline-size: var(--vzn-icon-xs);
   block-size: var(--vzn-icon-xs);
+}
+
+/* LauncherResultRow ------------------------------------------------------- */
+
+.ui-button.launcher-result {
+  display: flex;
+  inline-size: 100%;
+  justify-content: flex-start;
+  gap: var(--vzn-space-3);
+  padding-inline: var(--vzn-space-2);
+  text-align: left;
+  font-weight: var(--vzn-weight-regular);
+}
+
+.ui-button.launcher-result.ui-button-appearance-ghost {
+  --vzn-button-fg: var(--vzn-text);
+}
+
+.launcher-result-name {
+  flex: 0 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-lg);
+}
+
+.launcher-result-detail {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.launcher-result-kind {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.launcher-icon-tile {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--vzn-icon-2xl);
+  block-size: var(--vzn-icon-2xl);
+  overflow: hidden;
+  border-radius: var(--vzn-radius-sm);
+  background: var(--vzn-surface-subtle);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-lg);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: var(--vzn-line-tight);
+}
+
+.launcher-icon-tile > svg {
+  inline-size: var(--vzn-icon-md);
+  block-size: var(--vzn-icon-md);
+}
+
+.launcher-icon-tile > img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+.launcher-icon-tile[data-tone='app'] {
+  background: transparent;
+  border-radius: 0;
+}
+
+.launcher-icon-tile[data-tone='blue'] {
+  background: var(--vzn-tone-blue);
+  color: var(--vzn-text-inverse);
+}
+
+.launcher-icon-tile[data-tone='violet'] {
+  background: var(--vzn-tone-violet);
+  color: var(--vzn-text-inverse);
+}
+
+.launcher-icon-tile[data-tone='green'] {
+  background: var(--vzn-tone-green);
+  color: var(--vzn-text-inverse);
+}
+
+.launcher-icon-tile[data-tone='orange'] {
+  background: var(--vzn-tone-orange);
+  color: var(--vzn-text-inverse);
 }
 
 /* DictionaryEntrySections ------------------------------------------------- */

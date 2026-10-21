@@ -1,3 +1,4 @@
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { app, type BrowserWindow, type IpcMain, shell } from 'electron'
@@ -8,12 +9,35 @@ import { openWindowsLauncherApp } from '../services/launcherSystemApps'
 import { isSenderWindow } from './senderGuard'
 
 const CATALOG_TTL_MS = 60_000
+const MAX_RECENT_APPS = 8
+
+async function readRecentIds(file: string): Promise<string[]> {
+  try {
+    const parsed: unknown = JSON.parse(await readFile(file, 'utf-8'))
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string' && /^[a-f0-9]{64}$/.test(id)) : []
+  } catch {
+    return []
+  }
+}
 
 /** Renderer sends catalog IDs, never executable paths, arguments, or shell commands. */
 export function registerLauncherHandlers(ipc: IpcMain, getWindow: () => BrowserWindow | null): () => Promise<void> {
   let catalog: IndexedLauncherApp[] = []
   let refreshedAt = 0
   let pending: Promise<IndexedLauncherApp[]> | undefined
+  const recentFile = path.join(app.getPath('userData'), 'launcher-recent-v1.json')
+  let recent: string[] | undefined
+  const loadRecent = async () => {
+    recent ??= await readRecentIds(recentFile)
+    return recent
+  }
+  const rememberRecent = async (id: string) => {
+    recent = [id, ...(await loadRecent()).filter(entry => entry !== id)].slice(0, MAX_RECENT_APPS)
+    try {
+      await mkdir(path.dirname(recentFile), { recursive: true })
+      await writeFile(recentFile, JSON.stringify(recent), 'utf-8')
+    } catch { /* Recents are a convenience; the launch already succeeded. */ }
+  }
   const icons = new LauncherIconCache({
     file: path.join(app.getPath('userData'), 'launcher-icons-v1.json'),
     platform: process.platform,
@@ -50,8 +74,13 @@ export function registerLauncherHandlers(ipc: IpcMain, getWindow: () => BrowserW
       return { ...failure('UNAVAILABLE'), apps: [] }
     }
     try {
-      const apps = await refresh()
-      return { success: true, apps: apps.map(({ id, name }) => ({ id, name, iconDataUrl: icons.peek(id) })) }
+      const [apps, recentIds] = await Promise.all([refresh(), loadRecent()])
+      const known = new Set(apps.map(entry => entry.id))
+      return {
+        success: true,
+        apps: apps.map(({ id, name }) => ({ id, name, iconDataUrl: icons.peek(id) })),
+        recent: recentIds.filter(id => known.has(id)),
+      }
     } catch {
       return { ...failure('UNAVAILABLE'), apps: [] }
     }
@@ -81,6 +110,7 @@ export function registerLauncherHandlers(ipc: IpcMain, getWindow: () => BrowserW
         if (error) return failure('OPEN_FAILED')
       }
       getWindow()?.hide()
+      await rememberRecent(id)
       return { success: true }
     } catch {
       return failure('OPEN_FAILED')

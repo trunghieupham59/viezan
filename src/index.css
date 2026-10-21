@@ -803,10 +803,11 @@
   /* ── Keyboard key ────────────────────────────────────────────────────── */
   .keyboard-key {
     display: inline-flex; align-items: center; justify-content: center;
-    height: 20px; min-width: 20px; padding: 0 4px;
-    border: 1px solid var(--vzn-border); border-radius: 4px;
+    height: var(--vzn-space-5); min-width: var(--vzn-space-5); padding: 0 var(--vzn-space-1);
+    border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-2xs);
     background: var(--vzn-surface-raised); color: var(--vzn-text-soft);
-    font-size: 11px; font-weight: 500;
+    font-size: var(--vzn-font-size-caption); font-weight: var(--vzn-weight-medium);
+    font-family: var(--vzn-font-sans); line-height: var(--vzn-line-tight);
   }
 
   /* ══════════════════════════════════════════════════════════════════════

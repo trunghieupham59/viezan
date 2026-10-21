@@ -15,25 +15,73 @@ html[data-popup-frame="native"] .quick-chat-panel {
   color: var(--vzn-text);
 }
 
+/* One surface: the panel draws every edge, the search field stays frameless. */
 .launcher-panel {
   display: flex;
   flex-direction: column;
-  max-height: 100%;
+  height: 100%;
   overflow: hidden;
   border: var(--vzn-border-width) solid var(--vzn-border-strong);
   border-radius: var(--vzn-radius-lg);
   background: var(--vzn-surface);
 }
 
-.launcher-panel[data-expanded="true"] {
-  height: 100%;
+html[data-popup-frame="transparent"] .launcher-panel {
+  background: var(--vzn-overlay-material);
 }
 
-.launcher-panel[data-expanded="false"] .launcher-search {
-  border-bottom: none;
+.launcher-search {
+  flex-shrink: 0;
+  padding: var(--vzn-space-1) var(--vzn-space-3);
+  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
 }
 
-.launcher-footer,
+.launcher-search .filter-input {
+  block-size: var(--vzn-control-height-xl);
+  gap: var(--vzn-space-2);
+  padding-inline: var(--vzn-space-1);
+}
+
+.launcher-search .filter-input-icon {
+  inline-size: var(--vzn-icon-lg);
+  block-size: var(--vzn-icon-lg);
+}
+
+.launcher-search .filter-input > .ui-input.filter-input-field {
+  font-size: var(--vzn-font-size-title-lg);
+}
+
+.launcher-search .filter-input-trailing {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vzn-space-1);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-regular);
+}
+
+.launcher-results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--vzn-space-1) var(--vzn-space-2) var(--vzn-space-2);
+}
+
+.launcher-result-list {
+  display: flow-root;
+}
+
+.launcher-section-title {
+  padding: var(--vzn-space-2) var(--vzn-space-2) var(--vzn-space-1);
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.launcher-result-list .launcher-result {
+  margin-bottom: var(--vzn-space-0-5);
+}
+
 .launcher-notice {
   display: flex;
   align-items: center;
@@ -44,53 +92,62 @@ html[data-popup-frame="native"] .quick-chat-panel {
   flex-shrink: 0;
 }
 
-.launcher-search {
-  flex-shrink: 0;
-  padding: var(--vzn-space-3);
-  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
-}
-
-.launcher-results {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: var(--vzn-space-2);
-}
-
-.launcher-result-list {
-  display: flow-root;
-}
-
-.launcher-result {
+/* Footer is an action bar: what is selected, and what Enter / Tab will do. */
+.launcher-footer {
   display: flex;
-  width: 100%;
-  margin-bottom: var(--vzn-space-1);
-  text-align: left;
+  align-items: center;
+  gap: var(--vzn-space-3);
+  flex-shrink: 0;
+  padding: var(--vzn-space-1-5) var(--vzn-space-3);
+  border-top: var(--vzn-border-width) solid var(--vzn-divider);
+  background: var(--vzn-surface-muted);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
 }
 
-.launcher-result-name {
-  flex: 1;
+.launcher-footer-context {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  gap: var(--vzn-space-2);
+  color: var(--vzn-text);
+}
+
+.launcher-footer-context .launcher-icon-tile {
+  inline-size: var(--vzn-icon-lg);
+  block-size: var(--vzn-icon-lg);
+  border-radius: var(--vzn-radius-2xs);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.launcher-footer-context .launcher-icon-tile > svg {
+  inline-size: var(--vzn-icon-xs);
+  block-size: var(--vzn-icon-xs);
+}
+
+.launcher-footer-label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.launcher-app-icon {
-  width: var(--vzn-icon-lg);
-  height: var(--vzn-icon-lg);
-  object-fit: contain;
+.launcher-footer-actions {
+  display: flex;
   flex-shrink: 0;
+  align-items: center;
+  gap: var(--vzn-space-2);
 }
 
-.launcher-result-kind {
-  color: var(--vzn-text-muted);
-  font-size: var(--vzn-font-size-caption);
+.launcher-footer-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vzn-space-1);
 }
 
-.launcher-footer {
-  flex-wrap: wrap;
-  border-top: var(--vzn-border-width) solid var(--vzn-divider);
-  background: var(--vzn-surface-muted);
-  font-size: var(--vzn-font-size-caption);
+.launcher-footer-divider {
+  inline-size: var(--vzn-border-width);
+  block-size: var(--vzn-space-4);
+  background: var(--vzn-divider);
 }

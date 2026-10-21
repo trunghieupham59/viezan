@@ -3,7 +3,7 @@
  * the main renderer without exposing Node primitives.
  */
 import { ipcRenderer } from 'electron'
-import type { LauncherApi, LauncherIcon } from '../../shared/launcher'
+import type { LauncherApi, LauncherFeatureRequest, LauncherIcon } from '../../shared/launcher'
 
 export interface QuickChatSeedPayload {
   question: string
@@ -29,6 +29,7 @@ export const quickChatSection = {
     hide: () => ipcRenderer.invoke('quick-chat:hide'),
     openSettings: () => ipcRenderer.invoke('quick-chat:open-settings'),
     openInChat: (payload?: QuickChatSeedPayload) => ipcRenderer.invoke('quick-chat:open-in-chat', payload),
+    openFeature: (payload: LauncherFeatureRequest) => ipcRenderer.invoke('quick-chat:open-feature', payload),
     onShow: (cb: () => void) => {
       const handler = () => cb()
       ipcRenderer.on('quick-chat:show', handler)
@@ -38,6 +39,11 @@ export const quickChatSection = {
       const handler = () => cb()
       ipcRenderer.on('quick-chat:open-settings', handler)
       return () => ipcRenderer.removeListener('quick-chat:open-settings', handler)
+    },
+    onOpenFeature: (cb: (payload: LauncherFeatureRequest) => void) => {
+      const handler = (_: unknown, payload: LauncherFeatureRequest) => cb(payload)
+      ipcRenderer.on('quick-chat:open-feature', handler)
+      return () => ipcRenderer.removeListener('quick-chat:open-feature', handler)
     },
     onOpenInChat: (cb: (payload: QuickChatSeedPayload | null) => void) => {
       const handler = (_: unknown, payload: QuickChatSeedPayload | null) => cb(payload)
