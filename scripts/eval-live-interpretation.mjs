@@ -67,7 +67,7 @@ const service = new LiveInterpretationService(async (request, options) => {
     body: JSON.stringify({
       model: values.model, temperature: 0, max_tokens: liveOutputBudget(request.sourceText),
       messages: [
-        { role: 'system', content: buildLiveSystemPrompt(request.sourceLang, request.targetLang) },
+        { role: 'system', content: buildLiveSystemPrompt(request.sourceLang, request.targetLang, request.sourceText, options.live.context) },
         { role: 'user', content: buildLivePrompt(request.sourceText, request.sourceLang, request.targetLang, options.live.context) },
       ],
     }),

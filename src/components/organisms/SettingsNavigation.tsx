@@ -1,4 +1,4 @@
-import type { ElementType } from 'react'
+import { type ElementType, useEffect, useRef } from 'react'
 import { Button } from '../ui/atoms'
 
 export interface SettingsNavigationItem<Id extends string = string> {
@@ -24,8 +24,32 @@ export function SettingsNavigation<Id extends string>({
   mode,
   onSelect,
 }: SettingsNavigationProps<Id>) {
+  const navRef = useRef<HTMLElement>(null)
+
+  // The rendered aria-current marker changes when the active section changes.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: follow scroll-driven section selection
+  useEffect(() => {
+    if (mode !== 'tabs') return
+    const nav = navRef.current
+    if (!nav) return
+    const revealActive = () => {
+      const active = nav.querySelector<HTMLElement>('[aria-current="true"]')
+      if (!active || nav.clientWidth === 0) return
+      const viewport = nav.getBoundingClientRect()
+      const item = active.getBoundingClientRect()
+      if (item.left < viewport.left) nav.scrollLeft += item.left - viewport.left
+      else if (item.right > viewport.right) nav.scrollLeft += item.right - viewport.right
+    }
+    revealActive()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(revealActive)
+    observer.observe(nav)
+    return () => observer.disconnect()
+  }, [activeId, mode])
+
   return (
     <nav
+      ref={navRef}
       className={mode === 'sidebar'
         ? 'flex-1 overflow-auto p-2.5'
         : 'overflow-x-auto px-3 py-2'}

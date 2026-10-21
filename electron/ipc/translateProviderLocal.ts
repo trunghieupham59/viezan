@@ -46,7 +46,7 @@ export const translateWithLocal: TranslateFn = async (
     {
       model: resolvedModel,
       messages: [
-        { role: 'system', content: options.live ? buildLiveSystemPrompt(sourceLang, targetLang) : SYSTEM_PROMPT },
+        { role: 'system', content: options.live ? buildLiveSystemPrompt(sourceLang, targetLang, sourceText, options.live.context) : SYSTEM_PROMPT },
         { role: 'user', content: options.live ? buildLivePrompt(sourceText, sourceLang, targetLang, options.live.context) : buildPrompt(sourceText, sourceLang, targetLang, showFurigana, style, phoneticOnly, phoneticMode) },
       ],
       max_tokens: options.live ? liveOutputBudget(sourceText) : MAX_OUTPUT_TOKENS_OPENAI,

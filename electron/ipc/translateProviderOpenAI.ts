@@ -50,7 +50,7 @@ export const translateWithOpenAI: TranslateFn = async (
     {
       model,
       messages: [
-        { role: 'system', content: options.live ? buildLiveSystemPrompt(sourceLang, targetLang) : SYSTEM_PROMPT },
+        { role: 'system', content: options.live ? buildLiveSystemPrompt(sourceLang, targetLang, sourceText, options.live.context) : SYSTEM_PROMPT },
         { role: 'user', content: options.live ? buildLivePrompt(sourceText, sourceLang, targetLang, options.live.context) : buildPrompt(sourceText, sourceLang, targetLang, showFurigana, style, phoneticOnly, phoneticMode) },
       ],
       max_completion_tokens: clampMaxOutputTokens('openai', model, options.live ? liveOutputBudget(sourceText) + (getOpenAIReasoningEffort(model, 'low') ? 1_024 : 0) : MAX_OUTPUT_TOKENS_OPENAI),

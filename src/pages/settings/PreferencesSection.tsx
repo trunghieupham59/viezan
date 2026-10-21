@@ -73,7 +73,7 @@ export function PreferencesSection() {
         </div>
 
         {/* Appearance / Theme */}
-        <div className="flex items-center justify-between px-4 py-3.5 gap-4">
+        <div className="settings-choice-row flex items-center justify-between px-4 py-3.5 gap-4">
           <div className="min-w-0">
             <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_theme}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_theme_desc}</p>
@@ -97,7 +97,7 @@ export function PreferencesSection() {
         </div>
 
         {/* Font Size */}
-        <div className="flex items-center justify-between px-4 py-3.5 gap-4">
+        <div className="settings-choice-row flex items-center justify-between px-4 py-3.5 gap-4">
           <div className="min-w-0">
             <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_font_size}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_font_size_desc}</p>
@@ -143,7 +143,7 @@ export function PreferencesSection() {
         <div className="flex items-center justify-between gap-4 px-4 py-3.5">
           <div className="min-w-0">
             <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-              {`${t.settings_translate_mode} — ${autoTranslate ? t.settings_mode_auto : t.settings_mode_manual}`}
+              {`${t.settings_translate_mode}: ${autoTranslate ? t.settings_mode_auto : t.settings_mode_manual}`}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               {t.settings_translate_mode_desc}

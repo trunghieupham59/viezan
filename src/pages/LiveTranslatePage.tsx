@@ -393,10 +393,10 @@ export function LiveTranslatePage() {
 
   const startEmptyState = (
     <EmptyPanelState
-      icon={<MicrophoneIcon />}
+      icon={audioMode === 'system' ? <MonitorIcon /> : audioMode === 'both' ? <LayersIcon /> : <MicrophoneIcon />}
       actionLabel={t.live_start}
-      description={liveInputCopy.emptyDescription}
-      onAction={startBlockedReason ? undefined : startSession}
+      description={isActive ? liveInputCopy.listeningLabel : liveInputCopy.emptyDescription}
+      onAction={isActive || startBlockedReason ? undefined : startSession}
     />
   )
 
@@ -556,14 +556,51 @@ export function LiveTranslatePage() {
           {/* ── End controls ── */}
 
           {/* ── Body: notices + panels ── */}
-          <div className="live-panels-body">
+          <div className="live-panels-body" data-view-mode={viewMode}>
+            {/* In-flow notices keep language and Start controls unobstructed. */}
+            {(micError || pipelineError || activeKeyNotice) && (
+              <div className="notification-viewport live-notification-viewport">
+                <div className="flex flex-col gap-2">
+                  {micError && (
+                    <NotificationToast
+                      tone="error"
+                      title={t.live_error_title}
+                      message={micError}
+                      dismissLabel={t.translate_error_dismiss}
+                      onDismiss={dismissMicError}
+                      className="fade-in"
+                    />
+                  )}
+                  {pipelineError && (
+                    <NotificationToast tone="warning" message={pipelineError} className="fade-in" />
+                  )}
+                  {activeKeyNotice && (
+                    <NotificationToast
+                      tone="warning"
+                      message={activeKeyNotice.message}
+                      actionLabel={t.translate_error_open_settings}
+                      onAction={() => openSettings()}
+                      dismissLabel={t.translate_error_dismiss}
+                      onDismiss={() => setDismissedKeyNotice(activeKeyNotice.id)}
+                      className="fade-in"
+                    />
+                  )}
+                </div>
+              </div>
+            )}
 
           {/* ── Panels: side-by-side (Nguyên Bản | Bản Dịch) or paired by sentence ── */}
           {viewMode === 'paired' ? (
             <div className="glass-panel live-paired-panel">
               <div className="live-panel-toolbar">
-                <div className="live-toolbar-start">{audioSourceGroup}{sessionStatus}</div>
-                <div className="live-toolbar-end">{sttBadge}{viewToggle}{subtitleToggle}</div>
+                <div className="live-toolbar-start">
+                  <span className="live-control-label">{t.live_audio_source_label}</span>
+                  {audioSourceGroup}{sessionStatus}
+                </div>
+                <div className="live-toolbar-end">
+                  <span className="live-control-label">{t.live_view_mode_label}</span>
+                  {viewToggle}<span className="live-subtitle-control">{subtitleToggle}</span>{sttBadge}
+                </div>
               </div>
               <div className="live-scroll-region">
                 <div ref={pairedFollow.scrollRef} onScroll={pairedFollow.onScroll} className="live-scroll-viewport">
@@ -978,37 +1015,7 @@ export function LiveTranslatePage() {
         </div>
       )}
 
-      {/* Notifications: one top-right stack shared with the other pages */}
-      {(micError || pipelineError || activeKeyNotice) && (
-        <div className="notification-viewport">
-          <div className="flex flex-col gap-2">
-            {micError && (
-              <NotificationToast
-                tone="error"
-                title={t.live_error_title}
-                message={micError}
-                dismissLabel={t.translate_error_dismiss}
-                onDismiss={dismissMicError}
-                className="fade-in"
-              />
-            )}
-            {pipelineError && (
-              <NotificationToast tone="warning" message={pipelineError} className="fade-in" />
-            )}
-            {activeKeyNotice && (
-              <NotificationToast
-                tone="warning"
-                message={activeKeyNotice.message}
-                actionLabel={t.translate_error_open_settings}
-                onAction={() => openSettings()}
-                dismissLabel={t.translate_error_dismiss}
-                onDismiss={() => setDismissedKeyNotice(activeKeyNotice.id)}
-                className="fade-in"
-              />
-            )}
-          </div>
-        </div>
-      )}
+
 
     </div>
   )

@@ -225,6 +225,11 @@
   --vzn-chat-reading-max: 820px;
   --vzn-chat-composer-max: 1040px;
   --vzn-translate-workspace-max: 1440px;
+  --vzn-translate-source-min-block: 18rem;
+  --vzn-translate-result-min-block: 15rem;
+  --vzn-translate-body-min-block: 10rem;
+  --vzn-live-panel-min-block: 16rem;
+  --vzn-notification-max-inline: 400px;
   --vzn-chat-gutter: clamp(16px, 2.2vw, 40px);
   --vzn-chat-message-end-clearance: var(--vzn-space-4);
   --vzn-chat-avatar-size: 2rem;
@@ -236,6 +241,7 @@
   --vzn-empty-state-copy-max: calc(var(--vzn-space-12) * 4);
   --vzn-dictionary-result-min-inline: calc(var(--vzn-space-12) * 10);
   --vzn-dictionary-history-width: calc(var(--vzn-space-12) * 6);
+  --vzn-dictionary-context-max-block: calc(var(--vzn-control-height-md) * 3);
   --vzn-dictionary-pane-min-block: calc(var(--vzn-space-12) * 6);
   --vzn-popover-wide: 420px;
   --vzn-picker-min-inline: 280px;

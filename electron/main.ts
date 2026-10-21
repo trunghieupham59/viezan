@@ -20,9 +20,11 @@ import { registerTranslateHandlers } from './ipc/translate'
 import { registerTtsHandlers } from './ipc/tts'
 import { registerUpdaterHandlers } from './ipc/updater'
 import { registerWebSearchHandlers } from './ipc/webSearch'
+import { mainWindowGeometry } from './mainWindowGeometry'
 import { isQuitRequest } from './quitRequest'
 import { resolveRuntimeProfile } from './runtimeProfile'
 import { createAppTray, promptCloseAction, shouldHideMainWindowOnClose, supportsTrayResidency } from './trayManager'
+import { createUpdateNotification } from './updateNotification'
 
 // Allow audio autoplay after async operations (TTS API calls lose user-gesture context)
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
@@ -140,12 +142,10 @@ function showMainWindow(options: { focus?: boolean } = {}) {
 
 function createWindow() {
   const useMacWindowMaterial = shouldUseMacWindowMaterial()
+  const workArea = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea
 
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 700,
-    minWidth: 1200,
-    minHeight: 700,
+    ...mainWindowGeometry(workArea),
     title: runtimeProfile.windowTitle,
     // macOS and Windows hide the native title bar; the renderer's AppShell
     // draws the draggable strip and the OS keeps its window controls on top.
@@ -536,7 +536,12 @@ app.whenReady().then(() => {
   registerSystemHandlers(ipcMain, () => mainWindow)
 
   // Auto-updater — check & install updates from GitHub Releases
-  registerUpdaterHandlers(ipcMain, () => mainWindow)
+  let updater: ReturnType<typeof registerUpdaterHandlers>
+  const notifyUpdate = createUpdateNotification(ipcMain, () => mainWindow, openMainWindow, {
+    download: () => updater.download(),
+    install: () => updater.install(),
+  })
+  updater = registerUpdaterHandlers(ipcMain, () => mainWindow, notifyUpdate)
 
   app.on('activate', () => {
     // Recreate the main window if it has been closed (X button on macOS).

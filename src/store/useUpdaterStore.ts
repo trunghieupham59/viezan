@@ -29,8 +29,10 @@ export const useUpdaterStore = create<UpdaterState>((set) => ({
     // Background checks never surface errors or replace an actionable update
     // with a transient checking indicator.
     if (status.background && (status.type === 'error' || status.type === 'error-codesign' || status.type === 'checking')) return state
-    if (status.type === 'error' && (state.status.type === 'downloading' || state.status.type === 'downloaded')) {
-      return { status: { ...state.status, type: state.status.type === 'downloaded' ? 'downloaded' : 'available', error: status.error } }
+    if ((status.type === 'error' || status.type === 'error-codesign') &&
+      (state.status.type === 'available' || state.status.type === 'downloading' || state.status.type === 'downloaded')) {
+      return { status: { ...state.status, type: state.status.type === 'downloaded' ? 'downloaded' : 'available',
+        error: status.error ?? 'Code signature verification failed' } }
     }
     return { status: status.type === 'downloading' || status.type === 'downloaded'
       ? { ...status, version: status.version ?? state.status.version }

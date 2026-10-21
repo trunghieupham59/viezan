@@ -12,7 +12,7 @@ import {
   SpeakerIcon,
   UploadIcon,
 } from '../components/ui/icons'
-import { useT } from '../store/useAppStore'
+import { useAppStore, useT } from '../store/useAppStore'
 import { AboutSection } from './settings/AboutSection'
 import { ApiKeysSection } from './settings/ApiKeysSection'
 import { BrowserIntegrationSection } from './settings/BrowserIntegrationSection'
@@ -166,7 +166,7 @@ export function SettingsPage() {
     return () => observer.disconnect()
   }, [sections, updateActiveSection])
 
-  const scrollToSection = (id: SettingsSectionId) => {
+  const scrollToSection = useCallback((id: SettingsSectionId) => {
     updateActiveSection(id)
     const root = scrollRef.current
     const section = sectionRefs.current[id]
@@ -177,7 +177,15 @@ export function SettingsPage() {
     requestAnimationFrame(() => {
       if (scrollRef.current === root) root.scrollTop = top
     })
-  }
+  }, [updateActiveSection])
+
+  const initialSection = useAppStore((state) => state.settingsInitialSection)
+  useEffect(() => {
+    if (initialSection) {
+      scrollToSection(initialSection)
+      useAppStore.setState({ settingsInitialSection: null })
+    }
+  }, [initialSection, scrollToSection])
 
   return (
     <SettingsTemplate

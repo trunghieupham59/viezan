@@ -60,7 +60,7 @@ export function UsageCostBadge({
         TONE_CLASSES[tone],
         className ?? '',
       ].join(' ')}
-      title={tooltipParts.join(' — ')}
+      title={tooltipParts.join('; ')}
     >
       {label ? <span className="usage-cost-badge-label">{label}</span> : null}
       <span className="usage-cost-badge-amount">

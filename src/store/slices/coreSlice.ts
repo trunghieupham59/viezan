@@ -38,6 +38,7 @@ export interface CoreSlice {
 
   // Settings modal
   settingsOpen: boolean
+  settingsInitialSection: 'updates' | null
 
   // Language usage tracking (for smart top-3 pills in language bar)
   langUsage: Record<string, { count: number; lastUsed: number }>
@@ -85,6 +86,7 @@ export const createCoreSlice = (set: SliceSet, get: SliceGet): CoreSlice => ({
   recentModels: [],
   activePage: 'chat',
   settingsOpen: false,
+  settingsInitialSection: null,
   langUsage: {},
 
   // Computed getter — reads locale from SettingsSlice at access time.
@@ -164,7 +166,7 @@ export const createCoreSlice = (set: SliceSet, get: SliceGet): CoreSlice => ({
     }),
 
   setActivePage: (page) => set({ activePage: page }),
-  openSettings: () => set({ settingsOpen: true }),
+  openSettings: () => set({ settingsOpen: true, settingsInitialSection: null }),
   closeSettings: () => set({ settingsOpen: false }),
   clearTranslation: () =>
     set({ sourceText: '', translatedText: '', phoneticText: '', translateError: null, translateErrorCode: null }),

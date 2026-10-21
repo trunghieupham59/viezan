@@ -29,7 +29,7 @@ export function ImageSwitchToast({
           <p className="text-xs opacity-90 leading-snug mt-0.5">
             <strong>{tpl(usingLabel, { model })}</strong>
             {provider !== currentProvider && <> ({provider})</>}
-            {' '}— {bodyLabel}
+            {'. '}{bodyLabel}
           </p>
         </div>
         <Button

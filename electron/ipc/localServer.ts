@@ -486,7 +486,7 @@ async function routeLocalServerRequest(req: http.IncomingMessage, res: http.Serv
   purgeExpired()
   const valid = activeTokens.some(t => tokenMatches(t.token, incomingToken) && t.expiresAt > now)
   if (!valid) {
-    sendJSON(req, res, 401, { success: false, error: 'Unauthorized — API key expired or invalid' })
+    sendJSON(req, res, 401, { success: false, error: 'Unauthorized: API key expired or invalid' })
     return
   }
 

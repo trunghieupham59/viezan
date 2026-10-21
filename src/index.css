@@ -864,7 +864,7 @@
   .ui-error-banner { padding: 8px 12px; border-radius: var(--vzn-radius-sm); font-size: 12px; border: 1px solid var(--vzn-danger-border); background: var(--vzn-danger-soft); color: var(--vzn-danger); }
   .ui-error-divider-top { border-top: 1px solid var(--vzn-danger-border); }
   .ui-alert-toast  { padding: 12px 16px; border-radius: var(--vzn-radius-sm); background: var(--vzn-danger); color: white; box-shadow: var(--vzn-shadow-lg); }
-  .notification-toast { --notification-toast-accent: var(--vzn-text-soft); --notification-toast-border: var(--vzn-border); display: flex; width: min(400px, calc(100vw - var(--vzn-space-8))); align-items: flex-start; gap: var(--vzn-space-2); padding: var(--vzn-space-3); border: 1px solid var(--notification-toast-border); border-radius: var(--vzn-radius-lg); background: var(--vzn-surface-raised); color: var(--vzn-text); box-shadow: var(--vzn-shadow-overlay); }
+  .notification-toast { --notification-toast-accent: var(--vzn-text-soft); --notification-toast-border: var(--vzn-border); display: flex; width: 100%; max-width: var(--vzn-notification-max-inline); align-items: flex-start; gap: var(--vzn-space-2); padding: var(--vzn-space-3); border: var(--vzn-border-width) solid var(--notification-toast-border); border-radius: var(--vzn-radius-lg); background: var(--vzn-surface-raised); color: var(--vzn-text); box-shadow: var(--vzn-shadow-overlay); }
   .notification-toast--info { --notification-toast-accent: var(--vzn-action-text); --notification-toast-border: var(--vzn-action-border); }
   .notification-toast--success { --notification-toast-accent: var(--vzn-success); --notification-toast-border: var(--vzn-success-border); }
   .notification-toast--warning { --notification-toast-accent: var(--vzn-warning); --notification-toast-border: var(--vzn-warning-border); }
@@ -874,7 +874,7 @@
   .notification-toast-title { color: var(--vzn-text-strong); font-size: var(--vzn-font-size-md); font-weight: var(--vzn-weight-semibold); line-height: var(--vzn-line-tight); }
   .notification-toast-message { color: var(--vzn-text-soft); font-size: var(--vzn-font-size-sm); line-height: var(--vzn-line-normal); }
   .notification-toast-actions { display: inline-flex; flex: 0 0 auto; align-items: center; gap: var(--vzn-space-1); }
-  .notification-viewport { position: absolute; z-index: var(--vzn-layer-context-overlay); top: var(--vzn-space-4); right: var(--vzn-space-4); pointer-events: none; }
+  .notification-viewport { position: absolute; z-index: var(--vzn-layer-context-overlay); top: var(--vzn-space-4); right: var(--vzn-space-4); width: min(var(--vzn-notification-max-inline), calc(100% - var(--vzn-space-8))); pointer-events: none; }
   .notification-viewport > * { pointer-events: auto; }
 
   /* ══════════════════════════════════════════════════════════════════════

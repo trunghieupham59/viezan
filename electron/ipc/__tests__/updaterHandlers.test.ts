@@ -68,12 +68,12 @@ function setup() {
   const mainContents = { send, isDestroyed: () => false }
   const win = { isDestroyed: () => false, webContents: mainContents }
   const ipc = { handle: (channel: string, handler: Handler) => { handlers[channel] = handler } }
-  registerUpdaterHandlers(ipc as never, () => win as never)
+  const updater = registerUpdaterHandlers(ipc as never, () => win as never)
 
   const event = { sender: mainContents }
   const call = (channel: string, ...args: unknown[]) => handlers[channel](event, ...args)
   const statuses = () => send.mock.calls.filter((c) => c[0] === 'updater:status').map((c) => c[1] as { type: string })
-  return { handlers, call, statuses, event }
+  return { handlers, call, statuses, event, updater }
 }
 
 function releaseResponse(digest?: unknown) {
@@ -144,6 +144,48 @@ describe('updater handlers', () => {
   })
 
   describe('Windows/Linux install', () => {
+    it('allows explicit retry after synchronous and asynchronous installer errors', async () => {
+      restorePlatform = setPlatform('win32')
+      const { call } = setup()
+      mocks.autoUpdaterHandlers['update-downloaded']({ version: '3.0.0' })
+      mocks.quitAndInstall.mockImplementationOnce(() => {
+        mocks.autoUpdaterHandlers.error(new Error('installer launch failed'))
+      })
+      expect(await call('updater:install')).toMatchObject({ success: false })
+      expect(await call('updater:install')).toEqual({ success: true })
+      mocks.autoUpdaterHandlers.error(new Error('installer exited early'))
+      expect(await call('updater:install')).toEqual({ success: true })
+      expect(mocks.quitAndInstall).toHaveBeenCalledTimes(3)
+    })
+
+    it('shares popup/main downloads and suppresses checks before the first progress event', async () => {
+      restorePlatform = setPlatform('win32')
+      let finish: () => void = () => undefined
+      mocks.downloadUpdate.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+      const { call, updater } = setup()
+      mocks.autoUpdaterHandlers['update-available']({ version: '3.0.0' })
+      const popup = updater.download()
+      const main = call('updater:download')
+      await call('updater:check')
+      expect(mocks.downloadUpdate).toHaveBeenCalledTimes(1)
+      expect(mocks.checkForUpdates).not.toHaveBeenCalled()
+      expect(await updater.install()).toMatchObject({ success: false })
+      finish()
+      await Promise.all([popup, main])
+      expect(mocks.quitAndInstall).not.toHaveBeenCalled()
+    })
+
+    it('preserves a retryable snapshot and version after download failure', async () => {
+      restorePlatform = setPlatform('win32')
+      mocks.downloadUpdate.mockRejectedValueOnce(new Error('checksum mismatch')).mockResolvedValueOnce(undefined)
+      const { call } = setup()
+      mocks.autoUpdaterHandlers['update-available']({ version: '3.0.0' })
+      await call('updater:download')
+      expect(await call('updater:getStatus')).toMatchObject({ type: 'available', version: '3.0.0', error: 'checksum mismatch' })
+      await call('updater:download')
+      mocks.autoUpdaterHandlers['download-progress']({ percent: 10 })
+      expect(await call('updater:getStatus')).toMatchObject({ type: 'downloading', version: '3.0.0' })
+    })
     it('disables automatic download and installation on quit', () => {
       setup()
       expect(autoUpdater.autoDownload).toBe(false)
@@ -208,7 +250,10 @@ describe('updater handlers', () => {
     it('runs the installer silently and relaunches the app', async () => {
       restorePlatform = setPlatform('win32')
       const { call } = setup()
-
+      expect(await call('updater:install')).toMatchObject({ success: false })
+      expect(mocks.quitAndInstall).not.toHaveBeenCalled()
+      mocks.autoUpdaterHandlers['update-downloaded']({ version: '3.0.0' })
+      expect(await call('updater:install')).toEqual({ success: true })
       expect(await call('updater:install')).toEqual({ success: true })
       expect(mocks.quitAndInstall).toHaveBeenCalledTimes(1)
       expect(mocks.quitAndInstall).toHaveBeenCalledWith(true, true)

@@ -5,6 +5,7 @@ import type {
   TranscribeAudioParams,
   TranscribeResult,
 } from '../../shared/audioTranscription'
+import type { UpdateNotificationPreferences } from '../../shared/updateNotification'
 import type { UpdateStatus } from '../../shared/updater'
 
 export type {
@@ -966,6 +967,10 @@ export interface WindowApi {
 
   /** Auto-updater — check and install updates from GitHub Releases */
   updater: {
+    consumeOpenSettings?: () => Promise<boolean>
+    getNotificationPreferences?: () => Promise<UpdateNotificationPreferences | null>
+    setNotificationPreferences?: (patch: Partial<UpdateNotificationPreferences>) => Promise<UpdateNotificationPreferences | null>
+    onOpenSettings?: (callback: () => void) => () => void
     getStatus?: () => Promise<UpdateStatus | null>
     check: () => Promise<{ success: boolean; error?: string }>
     /** In-app download. macOS downloads the unsigned DMG without opening Finder. */
