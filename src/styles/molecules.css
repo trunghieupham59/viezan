@@ -577,7 +577,7 @@
   overflow: hidden;
   border: var(--vzn-border-width) solid var(--vzn-border);
   border-radius: var(--vzn-radius-sm);
-  background: var(--vzn-bg);
+  background: var(--vzn-app-backdrop), var(--vzn-app-bg);
   box-shadow: var(--vzn-shadow-xs);
 }
 
@@ -616,6 +616,7 @@
   gap: var(--vzn-space-1);
   padding: var(--vzn-space-1-5);
   background: var(--vzn-bg);
+  backdrop-filter: var(--vzn-blur-sm);
 }
 
 .theme-preset-swatch-type {

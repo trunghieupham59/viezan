@@ -34,9 +34,12 @@ paths:
 - Style presets live in `tokens.css` as `[data-theme="<id>"]` blocks (light)
   and `html.dark [data-theme="<id>"], html.dark[data-theme="<id>"]` (dark),
   each with the identical token set (surfaces, accent, chrome, tones, shape,
-  depth, type). Never style a preset from TSX. Primary chrome (title bar and
-  primary navigation) reads `--vzn-chrome-*`, not the canvas text tokens, so a
-  preset can paint it darker than the workspace.
+  depth, type, backdrop). Never style a preset from TSX. Primary chrome (title
+  bar and primary navigation) reads `--vzn-chrome-*`, not the canvas text
+  tokens, so a preset can paint it darker than the workspace. Only `.app-shell`
+  and `.app-main` paint backgrounds; `.app-body`, `.app-page` and
+  `.app-workspace` stay transparent so a translucent canvas (Glass) and the
+  shell's `--vzn-app-backdrop` wash show through.
 - Use `Input` for reusable single-line fields and the same size token as nearby
   buttons. Verify light/dark plus relevant responsive states.
 - Use container queries for feature geometry. Keep chat messages, suggestion

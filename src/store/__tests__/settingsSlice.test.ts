@@ -63,8 +63,8 @@ describe('themePreset defaults and persistence', () => {
 
   it('switches the palette without touching the light/dark mode', () => {
     act(() => useAppStore.getState().setTheme('dark'))
-    act(() => useAppStore.getState().setThemePreset('studio'))
-    expect(useAppStore.getState().themePreset).toBe('studio')
+    act(() => useAppStore.getState().setThemePreset('glass'))
+    expect(useAppStore.getState().themePreset).toBe('glass')
     expect(useAppStore.getState().theme).toBe('dark')
   })
 
@@ -75,7 +75,7 @@ describe('themePreset defaults and persistence', () => {
     expect(partialize(useAppStore.getState()).themePreset).toBe('paper')
   })
 
-  it.each(['neon', 'cosmos', '', null, undefined, 42])('migrates unknown persisted palette %s back to Graphite', (themePreset) => {
+  it.each(['neon', 'cosmos', 'studio', '', null, undefined, 42])('migrates unknown persisted palette %s back to Graphite', (themePreset) => {
     expect(migratePersistedStore({ themePreset, locale: 'ja' })).toMatchObject({ themePreset: 'graphite', locale: 'ja' })
   })
 

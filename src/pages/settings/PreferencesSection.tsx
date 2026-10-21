@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/atoms'
 import { ToggleSwitch } from '../../components/ui/atoms'
 import { FontSizePicker } from '../../components/ui/FontSizePicker'
 import { OptionPicker, ThemePresetPicker } from '../../components/ui/molecules'
-import { THEME_PRESETS } from '../../constants/themePresets'
+import { THEME_PRESET_TRAITS, THEME_PRESETS } from '../../constants/themePresets'
 import { type AppLocale, LOCALE_NAMES } from '../../i18n'
 import { useAppStore, useT } from '../../store/useAppStore'
 import { detectSystemLocale } from '../../utils/locale'
@@ -33,6 +33,7 @@ export function PreferencesSection() {
   const setThemePreset = useAppStore((state) => state.setThemePreset)
   const t = useT()
 
+  const modeLocked = THEME_PRESET_TRAITS[themePreset].darkOnly
   const themePresetOptions = THEME_PRESETS.map((preset) => ({
     value: preset,
     label: t[`settings_theme_preset_${preset}`],
@@ -88,7 +89,9 @@ export function PreferencesSection() {
         <div className="settings-choice-row flex items-center justify-between px-4 py-3.5 gap-4">
           <div className="min-w-0">
             <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_theme}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_theme_desc}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              {modeLocked ? t.settings_theme_dark_only_hint : t.settings_theme_desc}
+            </p>
           </div>
           <div className="segmented-control flex-shrink-0">
             {(['light', 'system', 'dark'] as const).map((v) => (
@@ -99,6 +102,7 @@ export function PreferencesSection() {
                 appearance={theme === v ? 'soft' : 'ghost'}
                 key={v}
                 type="button"
+                disabled={modeLocked}
                 onClick={() => setTheme(v)}
                 aria-pressed={theme === v}
               >

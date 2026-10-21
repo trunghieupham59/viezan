@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, KeyCap } from '@/components/ui/atoms'
 import type { QuickAiSession, QuickAiTurn } from '../../shared/quickAi'
 import { MAX_CHAT_INPUT_CHARS } from '../constants/providers'
+import { resolveThemeMode } from '../constants/themePresets'
 import type { ChatMessage } from '../services/chatService'
 import { needsWebSearchHeuristic } from '../services/localWebIntent'
 import { smartThinkingService } from '../services/smartThinkingService'
@@ -300,11 +301,12 @@ export function AIChatPopup({
 
   useEffect(() => {
     const root = document.documentElement
-    if (theme === 'dark') {
+    const mode = resolveThemeMode(theme, themePreset)
+    if (mode === 'dark') {
       root.classList.add('dark')
       return
     }
-    if (theme === 'light') {
+    if (mode === 'light') {
       root.classList.remove('dark')
       return
     }
@@ -319,7 +321,7 @@ export function AIChatPopup({
     const handleChange = (event: MediaQueryListEvent) => applyTheme(event.matches)
     media.addEventListener('change', handleChange)
     return () => media.removeEventListener('change', handleChange)
-  }, [theme])
+  }, [theme, themePreset])
 
   // Mount lifecycle: tag <html> for popup-only CSS, run show-time logic.
   useEffect(() => {

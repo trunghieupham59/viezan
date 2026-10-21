@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { UpdateNotificationAction, UpdateNotificationSnapshot, UpdatePopupApi } from '../../shared/updateNotification'
 import { AppLogoIcon, Button, XIcon } from '../components/ui/atoms'
+import { resolveThemeMode } from '../constants/themePresets'
 import { TRANSLATIONS } from '../i18n'
 import { tpl } from '../utils/tpl'
 
@@ -24,7 +25,8 @@ export function UpdatePopupPage() {
     document.documentElement.lang = snapshot.locale
     document.documentElement.dataset.theme = snapshot.themePreset
     const media = window.matchMedia('(prefers-color-scheme: dark)')
-    const apply = () => document.documentElement.classList.toggle('dark', snapshot.theme === 'dark' || (snapshot.theme === 'system' && media.matches))
+    const mode = resolveThemeMode(snapshot.theme, snapshot.themePreset)
+    const apply = () => document.documentElement.classList.toggle('dark', mode === 'dark' || (mode === 'system' && media.matches))
     apply()
     media.addEventListener('change', apply)
     return () => media.removeEventListener('change', apply)

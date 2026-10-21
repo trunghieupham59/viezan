@@ -19,18 +19,23 @@ export const WINDOW_PALETTES: Record<ThemePreset, WindowPalette> = {
     background: { light: '#EEEEEF', dark: '#161618' },
     titleBar: { light: { color: '#EEEEEF', symbolColor: '#48484A' }, dark: { color: '#242426', symbolColor: '#E5E5EA' } },
   },
-  studio: {
-    background: { light: '#EFEAFB', dark: '#0E0A1C' },
-    titleBar: { light: { color: '#EFEAFB', symbolColor: '#675C86' }, dark: { color: '#1A1330', symbolColor: '#D9D2EE' } },
+  glass: {
+    background: { light: '#F0F2F8', dark: '#0F1118' },
+    titleBar: { light: { color: '#EEF0F7', symbolColor: '#596283' }, dark: { color: '#171A26', symbolColor: '#9AA3BD' } },
   },
   paper: {
-    background: { light: '#EBE6DC', dark: '#1A1714' },
-    titleBar: { light: { color: '#EBE6DC', symbolColor: '#6A5F54' }, dark: { color: '#26211C', symbolColor: '#D9CFC0' } },
+    background: { light: '#ECE5D6', dark: '#1A1714' },
+    titleBar: { light: { color: '#ECE5D6', symbolColor: '#6A5F54' }, dark: { color: '#26211C', symbolColor: '#D9CFC0' } },
   },
   corporate: {
     background: { light: '#F3F4F6', dark: '#0B1020' },
     /* Corporate paints its chrome navy even in light mode. */
     titleBar: { light: { color: '#141C2E', symbolColor: '#C7CFDD' }, dark: { color: '#080C17', symbolColor: '#B5C0D3' } },
+  },
+  midnight: {
+    /* Dark only: the renderer pins dark mode, so both columns match. */
+    background: { light: '#000000', dark: '#000000' },
+    titleBar: { light: { color: '#000000', symbolColor: '#8D92A6' }, dark: { color: '#000000', symbolColor: '#8D92A6' } },
   },
 }
 

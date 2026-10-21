@@ -16,7 +16,8 @@ body,
 html.dark .app-shell,
 html:not(.dark) .app-shell {
   background: var(--vzn-app-bg) !important;
-  background-image: none !important;
+  /* Presets may wash the opaque shell; a transparent native shell drops it. */
+  background-image: var(--vzn-app-backdrop) !important;
   color: var(--vzn-text);
 }
 
@@ -35,19 +36,27 @@ html.quick-chat-window #root {
   background: transparent !important;
 }
 
+/* The shell already paints the app background (and a preset's backdrop wash);
+ * the body stays clear so that wash reaches the canvas. */
 .app-body {
   position: relative;
-  background: var(--vzn-app-bg);
+  background: transparent;
 }
 
 .app-shell[data-window-material="native"] .app-body {
   background: transparent;
 }
 
-.app-main,
+/* Only the main column paints the canvas; nested page wrappers stay clear so
+ * a translucent preset canvas does not stack into an opaque one. */
+.app-main {
+  background: var(--vzn-bg);
+  background-image: none !important;
+}
+
 .app-page,
 .app-workspace {
-  background: var(--vzn-bg);
+  background: transparent;
   background-image: none !important;
 }
 
@@ -184,6 +193,7 @@ html.dark .sidebar-brand-surface {
 }
 
 .sidebar-brand-title {
+  font-family: var(--vzn-font-display);
   color: var(--vzn-chrome-fg-strong);
   font-size: 15px;
   font-weight: 650;
@@ -470,6 +480,7 @@ html.dark .sidebar-brand-surface {
 }
 
 .ai-chat-workspace-title {
+  font-family: var(--vzn-font-display);
   min-width: 0;
   flex: 1;
   overflow: hidden;
@@ -555,6 +566,7 @@ html.dark .sidebar-brand-surface {
 }
 
 .ai-chat-sidebar-title {
+  font-family: var(--vzn-font-display);
   min-width: 0;
   overflow: hidden;
   color: var(--vzn-text-strong);
@@ -1509,6 +1521,7 @@ html.dark .toolbar-pill-button {
    section heading must read as the parent of every card beneath it, so it
    carries the title size while card titles step down to the body scale. */
 .settings-section-title {
+  font-family: var(--vzn-font-display);
   color: var(--vzn-text-strong);
   font-size: var(--vzn-font-size-title);
   font-weight: var(--vzn-weight-semibold);
@@ -1522,6 +1535,7 @@ html.dark .toolbar-pill-button {
 }
 
 .settings-card-title {
+  font-family: var(--vzn-font-display);
   color: var(--vzn-text-strong);
   font-size: var(--vzn-font-size-lg);
   font-weight: var(--vzn-weight-medium);

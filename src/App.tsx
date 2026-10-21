@@ -5,6 +5,7 @@ import { SettingsModal } from './components/SettingsModal'
 import { AppShell } from './components/templates'
 import { FeatureLoadingState } from './components/ui/molecules'
 import { PROVIDERS } from './constants/providers'
+import { resolveThemeMode, THEME_PRESET_TRAITS } from './constants/themePresets'
 import { flushPersistedStore, useAppStore, useT } from './store/useAppStore'
 import type { AppPage, Provider, QuickChatSeedPayload, UsageCost } from './types'
 import { detectSystemLocale } from './utils/locale'
@@ -44,13 +45,15 @@ function App() {
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false)
   const [navigationToggleHost, setNavigationToggleHost] = useState<HTMLDivElement | null>(null)
 
-  // Apply dark class based on user preference or OS preference
+  // Apply dark class based on user preference or OS preference; a dark-only
+  // preset (Midnight) pins it on.
   useEffect(() => {
-    if (theme === 'dark') {
+    const mode = resolveThemeMode(theme, themePreset)
+    if (mode === 'dark') {
       document.documentElement.classList.add('dark')
       return
     }
-    if (theme === 'light') {
+    if (mode === 'light') {
       document.documentElement.classList.remove('dark')
       return
     }
@@ -65,9 +68,9 @@ function App() {
     const handler = (e: MediaQueryListEvent) => apply(e.matches)
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
-  }, [theme])
+  }, [theme, themePreset])
 
-  // The palette preset is a second axis next to light/dark: tokens.css keys
+  // The style preset is a second axis next to light/dark: tokens.css keys
   // every `[data-theme]` block off this attribute.
   useEffect(() => {
     document.documentElement.dataset.theme = themePreset
@@ -76,7 +79,7 @@ function App() {
   // Keep the native window chrome (Windows caption buttons, startup colour)
   // in step with the in-app theme choice, not just the OS preference.
   useEffect(() => {
-    void window.api?.setWindowTheme?.(theme, themePreset)
+    void window.api?.setWindowTheme?.(resolveThemeMode(theme, themePreset), themePreset)
   }, [theme, themePreset])
 
   // Auto-detect system locale on startup
@@ -220,7 +223,7 @@ function App() {
       showTitlebar={hasAppTitlebar}
       macWindowControls={isMac}
       headerControls={<div className="app-header-navigation titlebar-no-drag" ref={setNavigationToggleHost} />}
-      useNativeMaterial={isMac && theme === 'system'}
+      useNativeMaterial={isMac && (theme === 'system' || THEME_PRESET_TRAITS[themePreset].nativeMaterial)}
       primaryNavigation={<PrimaryNavigationSidebar toggleHost={navigationToggleHost} />}
       contextSidebar={contextSidebar}
       featureHeader={featureHeader}

@@ -501,16 +501,19 @@ export interface Translations {
   settings_theme_light: string
   settings_theme_dark: string
   settings_theme_system: string
+  settings_theme_dark_only_hint: string
   settings_theme_palette: string
   settings_theme_palette_desc: string
   settings_theme_preset_graphite: string
   settings_theme_preset_graphite_desc: string
-  settings_theme_preset_studio: string
-  settings_theme_preset_studio_desc: string
+  settings_theme_preset_glass: string
+  settings_theme_preset_glass_desc: string
   settings_theme_preset_paper: string
   settings_theme_preset_paper_desc: string
   settings_theme_preset_corporate: string
   settings_theme_preset_corporate_desc: string
+  settings_theme_preset_midnight: string
+  settings_theme_preset_midnight_desc: string
   settings_furigana: string
   settings_furigana_desc: string
   settings_image_provider_fallback: string

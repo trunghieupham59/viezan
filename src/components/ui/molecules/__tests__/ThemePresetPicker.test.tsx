@@ -4,25 +4,25 @@ import { ThemePresetPicker } from '../ThemePresetPicker'
 
 const options = [
   { value: 'graphite', label: 'Graphite', description: 'Quiet and compact' },
-  { value: 'studio', label: 'Studio', description: 'Vivid gradients' },
+  { value: 'glass', label: 'Glass', description: 'Translucent glass' },
 ]
 
 describe('ThemePresetPicker', () => {
   it('renders a labelled group of pressable cards that preview their own persona', () => {
-    const { container } = render(<ThemePresetPicker label="Style" value="studio" options={options} onChange={() => {}} />)
+    const { container } = render(<ThemePresetPicker label="Style" value="glass" options={options} onChange={() => {}} />)
 
     expect(screen.getByRole('group', { name: 'Style' })).toBeInTheDocument()
     const graphite = screen.getByRole('button', { name: /Graphite/ })
-    const studio = screen.getByRole('button', { name: /Studio/ })
-    expect(studio).toHaveAttribute('aria-pressed', 'true')
-    expect(studio).toHaveAttribute('data-selected', 'true')
-    expect(studio).toHaveAttribute('data-control-variant', 'primary')
-    expect(studio).toHaveAttribute('data-theme', 'studio')
+    const glass = screen.getByRole('button', { name: /Glass/ })
+    expect(glass).toHaveAttribute('aria-pressed', 'true')
+    expect(glass).toHaveAttribute('data-selected', 'true')
+    expect(glass).toHaveAttribute('data-control-variant', 'primary')
+    expect(glass).toHaveAttribute('data-theme', 'glass')
     expect(graphite).toHaveAttribute('aria-pressed', 'false')
     expect(graphite).not.toHaveAttribute('data-selected')
     expect(graphite).toHaveAttribute('data-control-variant', 'neutral')
     expect(graphite).toHaveAttribute('data-theme', 'graphite')
-    expect(screen.getByText('Vivid gradients')).toBeInTheDocument()
+    expect(screen.getByText('Translucent glass')).toBeInTheDocument()
     // The miniature window is decorative: one per card, hidden from AT, with
     // the persona's chrome, reading type sample and accent action inside.
     const swatches = container.querySelectorAll('.theme-preset-swatch[aria-hidden="true"]')
@@ -36,7 +36,7 @@ describe('ThemePresetPicker', () => {
     const onChange = vi.fn()
     render(<ThemePresetPicker label="Style" value="graphite" options={options} onChange={onChange} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Studio/ }))
-    expect(onChange).toHaveBeenCalledWith('studio')
+    fireEvent.click(screen.getByRole('button', { name: /Glass/ }))
+    expect(onChange).toHaveBeenCalledWith('glass')
   })
 })

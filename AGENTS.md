@@ -94,9 +94,11 @@ pages -> templates -> organisms -> molecules -> atoms
   used by chat and translate content). Each preset in `tokens.css` redeclares
   that whole token set for both modes, so a `data-theme` on any element (the
   Settings preview card) renders that persona. A new preset needs a
-  `[data-theme]` pair in `tokens.css`, an entry in
-  `src/constants/themePresets.ts`, `electron/windowPalette.ts`, and i18n
-  labels.
+  `[data-theme]` pair in `tokens.css`, an entry (with its traits: `darkOnly`,
+  `nativeMaterial`) in `src/constants/themePresets.ts`,
+  `electron/windowPalette.ts`, and i18n labels. A dark-only preset pins
+  `html.dark` through `resolveThemeMode`; a native-material preset shows the
+  macOS window vibrancy through a transparent shell in every mode.
 - `npm run check:design` and `npm run check:atomic` only scan
   `src/components/ui/{atoms,molecules}`, `src/components/organisms`, and
   `src/components/templates` — they do not cover `src/pages`, the
