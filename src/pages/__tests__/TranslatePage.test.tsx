@@ -302,6 +302,52 @@ describe('TranslatePage', () => {
     expect(within(openAiCard).queryByText('Existing Gemini result')).not.toBeInTheDocument()
   })
 
+  it('assembles a translation sentence by sentence and keeps one history entry for the dominant model', async () => {
+    vi.mocked(window.api.translate).mockImplementation(async ({ provider }) => ({
+      success: true,
+      translatedText: provider === 'gemini' ? 'Eins. Zwei. Drei.' : 'Uno. Dos. Tres.',
+    }))
+    act(() => {
+      useAppStore.setState({
+        sourceText: 'First one. Second one. Third one.',
+        translationModels: [
+          { provider: 'gemini', model: 'gemini-2.0-flash' },
+          { provider: 'openai', model: 'gpt-4o' },
+        ],
+        keyStatus: { gemini: true, claude: false, openai: true, local: false },
+        translateComparisonView: 'sentences',
+        history: [],
+      })
+    })
+
+    render(<TranslatePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Translate · 2 models' }))
+    const table = await screen.findByRole('table', { name: 'Translations by sentence' })
+    const rows = within(table).getAllByRole('row')
+    expect(rows).toHaveLength(4)
+    expect(within(rows[1]).getByRole('rowheader')).toHaveTextContent('First one.')
+
+    const assembly = screen.getByLabelText('Assembled translation')
+    fireEvent.click(within(rows[2]).getByRole('button', { name: 'Use this sentence: Sentence 2 · GPT 4o' }))
+    expect(assembly).toHaveTextContent('Eins. Dos. Drei.')
+
+    const historyFor = () => useAppStore.getState().history
+      .filter((item) => item.sourceText === 'First one. Second one. Third one.')
+    fireEvent.click(within(assembly).getByRole('button', { name: 'Pick this one: Assembled translation' }))
+    expect(historyFor()).toHaveLength(1)
+    expect(historyFor()[0]).toMatchObject({ provider: 'gemini', translatedText: 'Eins. Dos. Drei.' })
+    expect(within(assembly).getByRole('button', { name: 'Picked: Assembled translation' }))
+      .toHaveAttribute('aria-pressed', 'true')
+
+    // Changing a sentence after the pick reopens the choice; re-picking replaces the same entry.
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Use this sentence: Sentence 1 · GPT 4o' }))
+    fireEvent.click(within(rows[3]).getByRole('button', { name: 'Use this sentence: Sentence 3 · GPT 4o' }))
+    expect(assembly).toHaveTextContent('Uno. Dos. Tres.')
+    fireEvent.click(within(assembly).getByRole('button', { name: 'Pick this one: Assembled translation' }))
+    expect(historyFor()).toHaveLength(1)
+    expect(historyFor()[0]).toMatchObject({ provider: 'openai', translatedText: 'Uno. Dos. Tres.' })
+  })
+
   it('runs selected provider models in parallel and presents equal result actions', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', {

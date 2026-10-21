@@ -220,6 +220,19 @@ export interface Translations {
   translate_compare_identical: string
   translate_compare_source_expand: string
   translate_compare_source_collapse: string
+  translate_compare_view_label: string
+  translate_compare_view_columns: string
+  translate_compare_view_sentences: string
+  translate_compare_sentences_label: string
+  translate_compare_sentence_source: string
+  translate_compare_sentence_row: (position: number) => string
+  translate_compare_sentence_use: string
+  translate_compare_sentence_used: string
+  translate_compare_sentence_misaligned: (count: number, expected: number) => string
+  translate_compare_sentences_unavailable: string
+  translate_compare_assembly_label: string
+  translate_compare_assembly_single: (model: string) => string
+  translate_compare_assembly_mixed: (count: number, model: string) => string
 
   // Voice recording
   voice_record: string

@@ -7,7 +7,7 @@
  */
 import { DEFAULT_SETTINGS, PROVIDERS } from '../../constants/providers'
 import type { AppLocale } from '../../i18n'
-import type { ChatSendShortcut, FetchedModel, PhoneticMode, Provider, SttProvider, TranslationReasoningEffort, TranslationStyle, TtsMode, TtsVoice } from '../../types'
+import type { ChatSendShortcut, FetchedModel, PhoneticMode, Provider, SttProvider, TranslateComparisonView, TranslationReasoningEffort, TranslationStyle, TtsMode, TtsVoice } from '../../types'
 import { DEFAULT_CHAT_NEW_SESSION_SHORTCUT, DEFAULT_CHAT_SEND_SHORTCUT } from '../../utils/keyboardShortcuts'
 import type { SliceSet } from './sliceTypes'
 
@@ -52,6 +52,8 @@ export interface SettingsSlice {
   sidebarCollapsed: boolean
   /** Independent collapsed preference for the contextual AI Chat sidebar. */
   aiChatSidebarCollapsed: boolean
+  /** Columns or sentence rows for the multi-model translation comparison; survives navigation. */
+  translateComparisonView: TranslateComparisonView
 
   // Provider / key status
   keyStatus: Record<Provider, boolean>
@@ -86,6 +88,7 @@ export interface SettingsSlice {
   toggleSidebar: () => void
   setAiChatSidebarCollapsed: (collapsed: boolean) => void
   toggleAiChatSidebar: () => void
+  setTranslateComparisonView: (view: TranslateComparisonView) => void
 
   /** Whether a Tavily API key is stored (used for Deep Research web search) */
   hasTavilyKey: boolean
@@ -125,6 +128,7 @@ export const createSettingsSlice = (set: SliceSet): SettingsSlice => ({
   chatNewSessionShortcut: DEFAULT_CHAT_NEW_SESSION_SHORTCUT,
   sidebarCollapsed: false,
   aiChatSidebarCollapsed: false,
+  translateComparisonView: 'columns' as TranslateComparisonView,
   // Build initial provider maps from PROVIDERS registry — adding a new provider only requires
   // updating constants/providers.ts; no need to touch this slice.
   keyStatus: Object.fromEntries(PROVIDERS.map((p) => [p.id, false])) as Record<Provider, boolean>,
@@ -159,6 +163,7 @@ export const createSettingsSlice = (set: SliceSet): SettingsSlice => ({
   setAiChatSidebarCollapsed: (collapsed) => set({ aiChatSidebarCollapsed: collapsed }),
   toggleAiChatSidebar: () =>
     set((state: SettingsSlice) => ({ aiChatSidebarCollapsed: !state.aiChatSidebarCollapsed })),
+  setTranslateComparisonView: (view) => set({ translateComparisonView: view }),
 
   setKeyStatus: (provider, hasKey) =>
     set((state: SettingsSlice) => ({ keyStatus: { ...state.keyStatus, [provider]: hasKey } })),

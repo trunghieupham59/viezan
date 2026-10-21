@@ -43,6 +43,7 @@ function renderComparison(results = IDLE_RESULTS) {
       <h2 id="translation-results-heading">Translation results</h2>
       <TranslationComparisonPane
         headingId="translation-results-heading"
+        sourceText="Source text."
         results={results}
         copiedResultKey={null}
         speakingResultKey={null}
@@ -73,7 +74,7 @@ function errorResult(errorCode: string): TranslationComparisonResult {
 }
 
 beforeEach(() => {
-  useAppStore.setState({ locale: 'en', localeAuto: false })
+  useAppStore.setState({ locale: 'en', localeAuto: false, translateComparisonView: 'columns' })
 })
 
 describe('TranslationComparisonPane compact tabs', () => {
@@ -199,6 +200,7 @@ describe('TranslationComparisonPane compact tabs', () => {
         <h2 id="translation-results-heading">Translation results</h2>
         <TranslationComparisonPane
           headingId="translation-results-heading"
+          sourceText="Source text."
           results={IDLE_RESULTS.map((result) => (
             result.key === IDLE_RESULTS[1].key
               ? { ...result, status: 'success', translatedText: 'Done', durationMs: 500 }
@@ -229,6 +231,7 @@ describe('TranslationComparisonPane compact tabs', () => {
         <h2 id="translation-results-heading">Translation results</h2>
         <TranslationComparisonPane
           headingId="translation-results-heading"
+          sourceText="Source text."
           results={[IDLE_RESULTS[0], IDLE_RESULTS[2]]}
           copiedResultKey={null}
           speakingResultKey={null}
@@ -269,6 +272,7 @@ describe('TranslationComparisonPane result actions', () => {
         <h2 id="translation-results-heading">Translation results</h2>
         <TranslationComparisonPane
           headingId="translation-results-heading"
+          sourceText="Source text."
           results={[result]}
           copiedResultKey={null}
           speakingResultKey={null}
@@ -313,6 +317,7 @@ describe('TranslationComparisonPane result actions', () => {
         <h2 id="translation-results-heading">Translation results</h2>
         <TranslationComparisonPane
           headingId="translation-results-heading"
+          sourceText="Source text."
           results={results}
           copiedResultKey={null}
           speakingResultKey={null}
@@ -421,5 +426,198 @@ describe('TranslationComparisonPane result actions', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('1 of 2 complete')
     expect(screen.queryByRole('button', { name: 'Highlight differences' })).not.toBeInTheDocument()
+  })
+})
+
+describe('TranslationComparisonPane by-sentence view', () => {
+  const SOURCE = 'First one. Second one. Third one.'
+  const GEMINI_KEY = IDLE_RESULTS[0].key
+  const OPENAI_KEY = IDLE_RESULTS[1].key
+  const alignedResults = (): TranslationComparisonResult[] => [
+    { ...IDLE_RESULTS[0], status: 'success', translatedText: 'Eins. Zwei. Drei.', durationMs: 300 },
+    { ...IDLE_RESULTS[1], status: 'success', translatedText: 'Uno. Dos. Tres.', durationMs: 400 },
+  ]
+
+  function renderSentences(
+    results: TranslationComparisonResult[],
+    options: {
+      sourceText?: string
+      selectedResultKey?: string | null
+      onSelect?: (result: TranslationComparisonResult) => void
+      onCopy?: (result: TranslationComparisonResult) => void
+    } = {},
+  ) {
+    return render(
+      <>
+        <h2 id="translation-results-heading">Translation results</h2>
+        <TranslationComparisonPane
+          headingId="translation-results-heading"
+          results={results}
+          sourceText={options.sourceText ?? SOURCE}
+          copiedResultKey={null}
+          speakingResultKey={null}
+          selectedResultKey={options.selectedResultKey ?? null}
+          speakLoading={false}
+          isTranslating={false}
+          isResultStale={false}
+          canRetry
+          onUseAsSource={vi.fn()}
+          onCopy={options.onCopy ?? vi.fn()}
+          onSpeak={vi.fn()}
+          onSelect={options.onSelect ?? vi.fn()}
+          onRetry={vi.fn()}
+          onOpenSettings={vi.fn()}
+          onChooseModel={vi.fn()}
+        />
+      </>,
+    )
+  }
+
+  const getTable = () => screen.getByRole('table', { name: 'Translations by sentence' })
+  const getAssembly = () => screen.getByLabelText('Assembled translation')
+
+  it('offers the view switch once two models finished and stores the choice', () => {
+    const view = renderSentences([alignedResults()[0], IDLE_RESULTS[1]])
+    expect(screen.queryByRole('group', { name: 'Comparison view' })).not.toBeInTheDocument()
+    view.unmount()
+
+    renderSentences(alignedResults())
+    const group = screen.getByRole('group', { name: 'Comparison view' })
+    const columns = within(group).getByRole('button', { name: 'Columns' })
+    const sentences = within(group).getByRole('button', { name: 'By sentence' })
+    expect(columns).toHaveAttribute('aria-pressed', 'true')
+    expect(sentences).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+
+    fireEvent.click(sentences)
+    expect(sentences).toHaveAttribute('aria-pressed', 'true')
+    expect(columns).toHaveAttribute('aria-pressed', 'false')
+    expect(useAppStore.getState().translateComparisonView).toBe('sentences')
+    expect(getTable()).toBeInTheDocument()
+    expect(getTable().closest('.translate-comparison-body')).toHaveAttribute('data-view', 'sentences')
+  })
+
+  it('lines up source and translations sentence by sentence and assembles the chosen pieces', () => {
+    useAppStore.setState({ translateComparisonView: 'sentences' })
+    const onSelect = vi.fn()
+    const onCopy = vi.fn()
+    renderSentences(alignedResults(), { onSelect, onCopy })
+
+    const rows = within(getTable()).getAllByRole('row')
+    expect(rows).toHaveLength(4)
+    expect(within(rows[0]).getAllByRole('columnheader').map((cell) => cell.textContent))
+      .toEqual(['Source', expect.stringContaining('Gemini 2.0 Flash'), expect.stringContaining('GPT 4o')])
+    expect(within(rows[2]).getByRole('rowheader')).toHaveTextContent('Second one.')
+    expect(within(rows[2]).getAllByRole('cell').map((cell) => cell.textContent))
+      .toEqual([expect.stringContaining('Zwei.'), expect.stringContaining('Dos.')])
+
+    const assembly = getAssembly()
+    expect(assembly).toHaveTextContent('Eins. Zwei. Drei.')
+    expect(assembly).toHaveTextContent('Every sentence from Gemini 2.0 Flash')
+    expect(within(rows[2]).getByRole('button', { name: 'Used: Sentence 2 · Gemini 2.0 Flash' }))
+      .toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(within(rows[2]).getByRole('button', { name: 'Use this sentence: Sentence 2 · GPT 4o' }))
+    expect(within(rows[2]).getByRole('button', { name: 'Used: Sentence 2 · GPT 4o' }))
+      .toHaveAttribute('aria-pressed', 'true')
+    expect(within(rows[2]).getAllByRole('cell')[1]).toHaveAttribute('data-chosen', 'true')
+    expect(within(rows[2]).getAllByRole('cell')[0]).toHaveAttribute('data-chosen', 'false')
+    expect(assembly).toHaveTextContent('Eins. Dos. Drei.')
+    expect(assembly).toHaveTextContent('Sentences from 2 models, mostly Gemini 2.0 Flash')
+
+    fireEvent.click(within(assembly).getByRole('button', { name: 'Copy: Assembled translation' }))
+    expect(onCopy).toHaveBeenCalledWith(expect.objectContaining({
+      key: 'assembled',
+      translatedText: 'Eins. Dos. Drei.',
+    }))
+
+    fireEvent.click(within(assembly).getByRole('button', { name: 'Pick this one: Assembled translation' }))
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({
+      key: 'assembled',
+      provider: 'gemini',
+      model: 'gemini-2.0-flash',
+      translatedText: 'Eins. Dos. Drei.',
+    }))
+  })
+
+  it('defaults every row to the picked column and attributes the majority to it', () => {
+    useAppStore.setState({ translateComparisonView: 'sentences' })
+    const onSelect = vi.fn()
+    renderSentences(alignedResults(), { onSelect, selectedResultKey: OPENAI_KEY })
+
+    const assembly = getAssembly()
+    expect(assembly).toHaveTextContent('Uno. Dos. Tres.')
+    expect(within(getTable()).getByRole('button', { name: /Picked: GPT 4o/ })).toHaveAttribute('aria-pressed', 'true')
+
+    const rows = within(getTable()).getAllByRole('row')
+    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Use this sentence: Sentence 1 · Gemini 2.0 Flash' }))
+    expect(assembly).toHaveTextContent('Eins. Dos. Tres.')
+
+    fireEvent.click(within(assembly).getByRole('button', { name: 'Pick this one: Assembled translation' }))
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({
+      key: 'assembled',
+      provider: 'openai',
+      translatedText: 'Eins. Dos. Tres.',
+    }))
+  })
+
+  it('keeps a translation with a different sentence count whole and out of the assembly', () => {
+    useAppStore.setState({ translateComparisonView: 'sentences' })
+    const [gemini, openai] = alignedResults()
+    renderSentences([gemini, { ...openai, translatedText: 'Uno y dos. Tres.' }], { selectedResultKey: OPENAI_KEY })
+
+    const rows = within(getTable()).getAllByRole('row')
+    expect(within(rows[0]).getAllByRole('columnheader')[2])
+      .toHaveTextContent('2 sentences instead of 3; shown whole and left out of the assembly.')
+    expect(within(getTable()).queryByRole('button', { name: /GPT 4o$/ })).not.toBeInTheDocument()
+    expect(within(rows[1]).getAllByRole('cell')[1]).toBeEmptyDOMElement()
+    expect(within(rows[3]).getAllByRole('cell')[1]).toHaveTextContent('Uno y dos. Tres.')
+    expect(within(rows[3]).getAllByRole('cell')[1]).toHaveAttribute('data-aligned', 'false')
+    // The picked column cannot be assembled, so the rows default to the first aligned one.
+    expect(getAssembly()).toHaveTextContent('Eins. Zwei. Drei.')
+    expect(getAssembly()).toHaveTextContent('Every sentence from Gemini 2.0 Flash')
+  })
+
+  it('marks disagreements within each row and can switch the marks off', () => {
+    useAppStore.setState({ translateComparisonView: 'sentences' })
+    const [gemini, openai] = alignedResults()
+    renderSentences([
+      { ...gemini, translatedText: 'The quick fox. It ran.' },
+      { ...openai, translatedText: 'The slow fox. It ran.' },
+    ], { sourceText: 'A fox. It ran.' })
+
+    const rows = within(getTable()).getAllByRole('row')
+    const marks = (row: HTMLElement) => Array.from(row.querySelectorAll('mark')).map((mark) => mark.textContent)
+    expect(marks(rows[1])).toEqual(['quick', 'slow'])
+    expect(marks(rows[2])).toEqual([])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Highlight differences' }))
+    expect(marks(rows[1])).toEqual([])
+    expect(rows[1]).toHaveTextContent('The quick fox.')
+  })
+
+  it('explains when nothing can be assembled', () => {
+    useAppStore.setState({ translateComparisonView: 'sentences' })
+    const [gemini, openai] = alignedResults()
+    renderSentences([
+      { ...gemini, translatedText: 'Eins und zwei. Drei.' },
+      { ...openai, translatedText: 'Uno y dos. Tres.' },
+    ])
+
+    expect(getAssembly()).toHaveTextContent(
+      'No translation splits into the same number of sentences as the source, so nothing can be assembled.',
+    )
+    expect(screen.queryByRole('button', { name: 'Pick this one: Assembled translation' })).not.toBeInTheDocument()
+    expect(within(getTable()).queryByRole('button', { name: /^Use this sentence/ })).not.toBeInTheDocument()
+  })
+
+  it('falls back to columns while fewer than two models have finished', () => {
+    useAppStore.setState({ translateComparisonView: 'sentences' })
+    renderSentences([alignedResults()[0], { ...IDLE_RESULTS[1], status: 'loading' }])
+
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Comparison view' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('tabpanel')[0].parentElement?.parentElement).toHaveAttribute('data-view', 'columns')
+    expect(screen.getByRole('article', { name: new RegExp(GEMINI_KEY.split(':')[0], 'i') })).toBeInTheDocument()
   })
 })

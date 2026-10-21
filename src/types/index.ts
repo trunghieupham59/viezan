@@ -48,6 +48,9 @@ export interface TranslationComparisonResult extends AIModelSelection {
 export type LocalAiEngine = 'ollama' | 'lmstudio' | 'llamacpp'
 export type LocalAiHardwareTier = 'low' | 'balanced' | 'powerful' | 'max'
 
+/** How the multi-model comparison lays out finished translations on wide layouts. */
+export type TranslateComparisonView = 'columns' | 'sentences'
+
 export type TranslationStyle = 'general' | 'formal' | 'casual' | 'business' | 'technical' | 'natural'
 
 /**

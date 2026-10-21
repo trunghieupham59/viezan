@@ -1468,7 +1468,8 @@
   box-shadow: none;
 }
 
-.translate-comparison-card-shell[data-selected="true"] > .translate-comparison-card {
+.translate-comparison-card-shell[data-selected="true"] > .translate-comparison-card,
+.translate-comparison-assembly[data-selected="true"] {
   box-shadow: inset 0 0 0 2px var(--vzn-accent-border);
 }
 
@@ -1561,11 +1562,201 @@
   white-space: pre-wrap;
 }
 
-.translate-comparison-text-diff > mark {
+/* By-sentence comparison -------------------------------------------------
+   One row per source sentence, one cell per finished model, and an assembly
+   footer that stays put while the rows scroll. The columns remain in the DOM
+   so compact widths keep their tabs; the two container queries at the end of
+   this block decide which of the two is visible. */
+.translate-comparison-toolbar-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--vzn-space-1);
+}
+
+/* A fieldset so the pair reads as one named group; its own chrome is reset. */
+.translate-comparison-view-switch {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--vzn-space-0-5);
+  margin: 0 var(--vzn-space-1) 0 0;
+  padding: 0 var(--vzn-space-1) 0 0;
+  border: 0;
+  border-right: 1px solid var(--vzn-divider);
+}
+
+.translate-comparison-sentences {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.translate-comparison-sentences-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+.translate-comparison-sentence-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  font-size: var(--vzn-font-size-lg);
+}
+
+.translate-comparison-sentence-table th,
+.translate-comparison-sentence-table td {
+  padding: var(--vzn-space-3) var(--vzn-space-4);
+  border-bottom: 1px solid var(--vzn-divider);
+  text-align: left;
+  vertical-align: top;
+}
+
+.translate-comparison-sentence-table thead th {
+  position: sticky;
+  z-index: var(--vzn-layer-local-sticky);
+  top: 0;
+  padding-block: var(--vzn-space-2);
+  background: var(--vzn-surface);
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.translate-comparison-sentence-table thead th[data-selected="true"] {
+  box-shadow: inset 0 calc(var(--vzn-space-0-5) * -1) 0 var(--vzn-accent-border);
+}
+
+.translate-comparison-sentence-source {
+  width: var(--vzn-translate-compare-sentence-source-inline);
+}
+
+.translate-comparison-sentence-table tbody th {
+  color: var(--vzn-text-muted);
+  font-weight: var(--vzn-weight-regular);
+}
+
+.translate-comparison-sentence-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--vzn-space-2);
+}
+
+.translate-comparison-sentence-number {
+  flex: 0 0 auto;
+  min-width: var(--vzn-space-5);
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.translate-comparison-sentence-head {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-2);
+}
+
+.translate-comparison-sentence-head-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.translate-comparison-sentence-notice {
+  color: var(--vzn-warning);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-regular);
+}
+
+.translate-comparison-sentence-table td[data-chosen="true"] {
+  background: var(--vzn-surface-selected);
+}
+
+.translate-comparison-sentence-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--vzn-space-2);
+}
+
+.translate-comparison-sentence-text {
+  min-width: 0;
+  margin: 0;
+  line-height: var(--vzn-line-height-reading);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.translate-comparison-text-diff > mark,
+.translate-comparison-sentence-text > mark {
   border-radius: var(--vzn-radius-xs);
   background: var(--vzn-warning-soft);
   box-shadow: 0 0 0 1px var(--vzn-warning-border);
   color: inherit;
+}
+
+.translate-comparison-assembly {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  gap: var(--vzn-space-3);
+  padding: var(--vzn-space-2) var(--vzn-space-3) var(--vzn-space-2) var(--vzn-space-4);
+  border-top: 1px solid var(--vzn-divider);
+  background: var(--vzn-surface-muted);
+}
+
+.translate-comparison-assembly-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--vzn-space-0-5);
+}
+
+.translate-comparison-assembly-title {
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.translate-comparison-assembly-summary {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.translate-comparison-assembly-text {
+  max-height: var(--vzn-translate-compare-assembly-max-block);
+  margin: 0;
+  overflow: auto;
+  font-size: var(--vzn-font-size-lg);
+  line-height: var(--vzn-line-height-reading);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.translate-comparison-assembly-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--vzn-space-1);
+  padding-top: var(--vzn-space-0-5);
+}
+
+@container app-main (min-width: 900px) {
+  .translate-comparison-body[data-view="sentences"] > .translate-comparison-list {
+    display: none;
+  }
+}
+
+@container app-main (max-width: 899px) {
+  .translate-comparison-view-switch,
+  .translate-comparison-sentences {
+    display: none;
+  }
 }
 
 /* Column header mirrors .translate-pane-header so both panes share one rhythm. */
