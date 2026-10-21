@@ -545,6 +545,8 @@ export interface ChatStreamEvent {
 export interface QuickChatSeedPayload {
   question: string
   response?: string
+  /** Earlier complete Quick AI turns, oldest first, carried into the main chat. */
+  history?: import('../../shared/quickAi').QuickAiTurn[]
   provider: string
   model: string
 }
@@ -947,6 +949,11 @@ export interface WindowApi {
   /** Standalone Raycast-style AI Chat quick window */
   quickChat: {
     setLayout: (layout: 'compact' | 'expanded', contentHeight?: number) => Promise<{ success: boolean }>
+    session: {
+      get: () => Promise<{ success: boolean; session: import('../../shared/quickAi').QuickAiSession | null }>
+      save: (session: import('../../shared/quickAi').QuickAiSession) => Promise<{ success: boolean; error?: string }>
+      clear: () => Promise<{ success: boolean; error?: string }>
+    }
     launcher: import('../../shared/launcher').LauncherApi
     hide: () => Promise<{ success: boolean; error?: string }>
     openSettings: () => Promise<{ success: boolean; error?: string }>

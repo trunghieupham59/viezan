@@ -145,6 +145,15 @@ function App() {
       const provider = payload.provider as Provider
       const sessionId = createChatSession(provider, payload.model)
       setActiveChatSession(sessionId)
+      const seededAt = Date.now()
+      payload.history?.forEach((turn, index) => {
+        addChatMessage(sessionId, {
+          id: `msg-${seededAt}-quick-h${index}`,
+          role: turn.role,
+          content: [{ type: 'text', text: turn.text }],
+          timestamp: seededAt,
+        })
+      })
       if (payload.response) {
         addChatMessage(sessionId, {
           id: `msg-${Date.now()}-quick-u`,

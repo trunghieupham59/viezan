@@ -31,6 +31,9 @@ function detectPreviewLanguage(text: string): string {
   return 'en'
 }
 
+/** Quick AI session survives reloads only in memory in Web Preview. */
+let previewQuickAiSession: import('../../shared/quickAi').QuickAiSession | null = null
+
 function createWebPreviewApi(): WindowApi {
   const keys = new Map<string, string>()
   const streamListeners = new Map<string, (event: ChatStreamEvent) => void>()
@@ -112,6 +115,11 @@ function createWebPreviewApi(): WindowApi {
     hotkey: { update: async (settings: Record<string, unknown>) => ({ success: true, settings }), get: async () => ({ success: true, settings: {} }), disable: ok, onTranslating: noopSubscription, onTranslated: noopSubscription, onError: noopSubscription, chat: { update: async (settings: Record<string, unknown>) => ({ success: true, settings }), get: async () => ({ success: true, settings: {} }), onOpen: noopSubscription } },
     quickChat: {
       setLayout: ok,
+      session: {
+        get: async () => ({ success: true, session: previewQuickAiSession }),
+        save: async (session: import('../../shared/quickAi').QuickAiSession) => { previewQuickAiSession = session; return { success: true } },
+        clear: async () => { previewQuickAiSession = null; return { success: true } },
+      },
       launcher: {
         listApps: async () => ({ success: true, apps: [{ id: 'preview-calculator', name: 'Calculator (preview)' }, { id: 'preview-notes', name: 'Notes (preview)' }], recent: ['preview-notes'] }),
         getIcons: async () => ({ success: true, icons: [] }),

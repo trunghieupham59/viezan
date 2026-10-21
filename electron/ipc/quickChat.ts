@@ -1,5 +1,8 @@
-import type { BrowserWindow, IpcMain, Rectangle } from 'electron'
+import path from 'node:path'
+import { app, type BrowserWindow, type IpcMain, type IpcMainInvokeEvent, type Rectangle } from 'electron'
 import type { LauncherFeatureRequest } from '../../shared/launcher'
+import type { QuickAiSession, QuickAiTurn } from '../../shared/quickAi'
+import { parseQuickAiSession, parseQuickAiTurns, QuickAiSessionStore } from '../services/quickAiSession'
 import { MAX_CHAT_REQUEST_CHARS } from './ipcConstants'
 import { registerLauncherHandlers } from './launcher'
 
@@ -22,6 +25,8 @@ export function setQuickChatWindowBounds(win: BrowserWindow, bounds: Rectangle):
 export interface QuickChatSeedPayload {
   question: string
   response?: string
+  /** Earlier complete turns of the Quick AI conversation, oldest first. */
+  history?: QuickAiTurn[]
   provider: string
   model: string
 }
@@ -55,7 +60,14 @@ export function parseQuickChatSeedPayload(rawPayload: unknown): QuickChatSeedPay
     response = cleanedResponse
   }
 
-  return { question, response, provider, model }
+  let history: QuickAiTurn[] | undefined
+  if (rawPayload.history !== undefined) {
+    const parsed = parseQuickAiTurns(rawPayload.history)
+    if (!parsed) return null
+    if (parsed.length) history = parsed
+  }
+
+  return { question, response, history, provider, model }
 }
 
 const LAUNCHER_FEATURES = new Set<LauncherFeatureRequest['feature']>(['translate', 'dictionary', 'live'])
@@ -78,6 +90,45 @@ export function registerQuickChatHandlers(
 ): void {
   const warmLauncher = registerLauncherHandlers(ipcMain, getQuickChatWindow)
   void warmLauncher()
+
+  // Only the popup main frame may read or replace the persisted Quick AI session.
+  const isPopupSender = (event: IpcMainInvokeEvent) => {
+    const win = getQuickChatWindow()
+    return Boolean(win && !win.isDestroyed() && event.sender === win.webContents
+      && event.senderFrame === win.webContents.mainFrame)
+  }
+  let sessionStore: QuickAiSessionStore | undefined
+  const sessions = () => {
+    sessionStore ??= new QuickAiSessionStore(path.join(app.getPath('userData'), 'quick-ai-session-v1.json'))
+    return sessionStore
+  }
+
+  ipcMain.handle('quick-chat:session:get', async (event): Promise<{ success: boolean; session: QuickAiSession | null }> => {
+    if (!isPopupSender(event)) return { success: false, session: null }
+    return { success: true, session: await sessions().get() }
+  })
+
+  ipcMain.handle('quick-chat:session:save', async (event, rawSession: unknown) => {
+    if (!isPopupSender(event)) return { success: false, error: 'Unauthorized sender.' }
+    const session = parseQuickAiSession(rawSession)
+    if (!session) return { success: false, error: 'Invalid Quick AI session.' }
+    try {
+      await sessions().save(session)
+      return { success: true }
+    } catch {
+      return { success: false, error: 'Could not save the Quick AI session.' }
+    }
+  })
+
+  ipcMain.handle('quick-chat:session:clear', async (event) => {
+    if (!isPopupSender(event)) return { success: false, error: 'Unauthorized sender.' }
+    try {
+      await sessions().clear()
+      return { success: true }
+    } catch {
+      return { success: false, error: 'Could not clear the Quick AI session.' }
+    }
+  })
 
   // Only the popup main frame may request a content height; width and position remain native-owned.
   ipcMain.handle('quick-chat:set-layout', (event, layout: unknown, contentHeight: unknown) => {

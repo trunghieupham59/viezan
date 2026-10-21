@@ -898,6 +898,8 @@ const ja: Translations = {
   launcher_dictionary: '辞書で調べる',
   launcher_live: 'AI通訳',
   launcher_ai_hint: 'AIに質問',
+  launcher_continue: 'Quick AIを続ける',
+  launcher_ai_followup: 'AIに続けて質問',
   settings_chat_section: 'AIチャット',
   settings_chat_section_desc: 'デフォルトのシステムプロンプトを設定し、チャットセッションを管理します。',
   settings_chat_go_to_chat: 'AIチャットを開く',

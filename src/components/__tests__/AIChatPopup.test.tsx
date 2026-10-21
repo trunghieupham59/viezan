@@ -40,7 +40,10 @@ beforeEach(() => {
   vi.mocked(window.api.onChatStreamEvent).mockReturnValue(() => {})
   ;(window.api as unknown as { webSearch?: typeof window.api.webSearch }).webSearch = undefined
   vi.mocked(window.api.quickChat.openInChat).mockClear()
+  vi.mocked(window.api.quickChat.openInChat).mockResolvedValue({ success: true })
   vi.mocked(window.api.quickChat.openSettings).mockClear()
+  vi.mocked(window.api.quickChat.session.save).mockClear()
+  vi.mocked(window.api.quickChat.session.clear).mockClear()
   vi.mocked(window.api.keychain.hasKey).mockResolvedValue({ exists: false })
   window.api.platform = 'darwin'
 })
@@ -265,10 +268,132 @@ describe('AIChatPopup quick window', () => {
     expect(window.api.quickChat.openInChat).toHaveBeenCalledExactlyOnceWith({
       question: 'What is 5 + 7?',
       response: undefined,
+      history: [
+        { role: 'user', text: 'Say hello' },
+        { role: 'assistant', text: 'Hello there' },
+      ],
       provider: 'local',
       model: 'local-auto',
     })
     expect(window.api.chatStream).toHaveBeenCalledTimes(1)
+  })
+
+  it('persists each answered pair, hands the session back, and clears it on Cmd+N', async () => {
+    mockStreamingChat()
+    const onSessionChange = vi.fn()
+    render(<AIChatPopup onSessionChange={onSessionChange} />)
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'Say hello' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await screen.findByText('Hello there')
+    await waitFor(() => expect(window.api.quickChat.session.save).toHaveBeenCalledOnce())
+    const saved = vi.mocked(window.api.quickChat.session.save).mock.calls[0][0]
+    expect(saved).toMatchObject({ turns: [{ role: 'user', text: 'Say hello' }, { role: 'assistant', text: 'Hello there' }] })
+    expect(saved.id).toMatch(/^quick-ai-/)
+    expect(onSessionChange).toHaveBeenLastCalledWith(saved)
+    expect(screen.getByText(/1 turn/)).toBeInTheDocument()
+
+    fireEvent.change(input, { target: { value: 'And again' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(window.api.quickChat.session.save).toHaveBeenCalledTimes(2))
+    const next = vi.mocked(window.api.quickChat.session.save).mock.calls[1][0]
+    expect(next.id).toBe(saved.id)
+    expect(next.turns).toHaveLength(4)
+
+    fireEvent.keyDown(window, { key: 'n', metaKey: true })
+    expect(window.api.quickChat.session.clear).toHaveBeenCalledOnce()
+    expect(onSessionChange).toHaveBeenLastCalledWith(null)
+    fireEvent.change(input, { target: { value: 'Fresh' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(window.api.quickChat.session.save).toHaveBeenCalledTimes(3))
+    expect(vi.mocked(window.api.quickChat.session.save).mock.calls[2][0].id).not.toBe(saved.id)
+  })
+
+  it('does not persist a failed answer', async () => {
+    vi.mocked(window.api.chatStream).mockResolvedValue({ success: false, error: 'boom' })
+    const { container } = render(<AIChatPopup />)
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'Say hello' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(container.querySelector('.ui-error-box')).toBeInTheDocument())
+    expect(window.api.quickChat.session.save).not.toHaveBeenCalled()
+  })
+
+  it('resumes a launcher session, sends the follow-up with its context, and keeps the same id', async () => {
+    mockStreamingChat()
+    const session = {
+      id: 'quick-ai-stored', updatedAt: Date.now(),
+      turns: [
+        { role: 'user' as const, text: 'Earlier question' }, { role: 'assistant' as const, text: 'Earlier answer' },
+        { role: 'user' as const, text: 'Latest question' }, { role: 'assistant' as const, text: 'Latest answer' },
+      ],
+    }
+    const { rerender } = render(<AIChatPopup launchRequest={{ id: 1, text: '', session }} onBack={() => {}} />)
+    expect(screen.getByText('Latest answer')).toBeInTheDocument()
+    expect(screen.getByText('Earlier answer')).toBeInTheDocument()
+    expect(screen.getByText(/2 turns/)).toBeInTheDocument()
+    expect(window.api.chatStream).not.toHaveBeenCalled()
+
+    rerender(<AIChatPopup launchRequest={{ id: 2, text: 'Follow up', session }} onBack={() => {}} />)
+    await screen.findByText('Hello there')
+    expect(vi.mocked(window.api.chatStream).mock.calls[0][0].messages.map(message => message.content[0]))
+      .toEqual([
+        { type: 'text', text: 'Earlier question' }, { type: 'text', text: 'Earlier answer' },
+        { type: 'text', text: 'Latest question' }, { type: 'text', text: 'Latest answer' },
+        { type: 'text', text: 'Follow up' },
+      ])
+    const saved = vi.mocked(window.api.quickChat.session.save).mock.calls[0][0]
+    expect(saved.id).toBe('quick-ai-stored')
+    expect(saved.turns).toHaveLength(6)
+
+    rerender(<AIChatPopup launchRequest={{ id: 3, text: '', session: null }} onBack={() => {}} />)
+    expect(screen.queryByText('Hello there')).not.toBeInTheDocument()
+    expect(screen.queryByText('Earlier answer')).not.toBeInTheDocument()
+  })
+
+  it('sends only the newest six pairs within the character budget', async () => {
+    mockStreamingChat()
+    const turns = Array.from({ length: 16 }, (_, index) => index % 2 === 0
+      ? { role: 'user' as const, text: `Q${index / 2}` }
+      : { role: 'assistant' as const, text: `A${(index - 1) / 2}` })
+    render(<AIChatPopup launchRequest={{ id: 1, text: 'Latest', session: { id: 'quick-ai-long', turns, updatedAt: Date.now() } }} onBack={() => {}} />)
+    await screen.findByText('Hello there')
+    const sent = vi.mocked(window.api.chatStream).mock.calls[0][0].messages.map(message => message.content[0].text)
+    expect(sent).toEqual(['Q2', 'A2', 'Q3', 'A3', 'Q4', 'A4', 'Q5', 'A5', 'Q6', 'A6', 'Q7', 'A7', 'Latest'])
+
+    vi.mocked(window.api.chatStream).mockClear()
+    const bulky = [
+      { role: 'user' as const, text: 'Old' }, { role: 'assistant' as const, text: 'x'.repeat(5_000) },
+      { role: 'user' as const, text: 'Recent' }, { role: 'assistant' as const, text: 'y'.repeat(1_500) },
+    ]
+    render(<AIChatPopup launchRequest={{ id: 2, text: 'Latest', session: { id: 'quick-ai-bulky', turns: bulky, updatedAt: Date.now() } }} onBack={() => {}} />)
+    await waitFor(() => expect(window.api.chatStream).toHaveBeenCalledOnce())
+    expect(vi.mocked(window.api.chatStream).mock.calls[0][0].messages.map(message => message.content[0].text))
+      .toEqual(['Recent', 'y'.repeat(1_500), 'Latest'])
+  })
+
+  it('clears the popup and the stored session once the main chat takes the conversation', async () => {
+    mockStreamingChat()
+    const onSessionChange = vi.fn()
+    render(<AIChatPopup onSessionChange={onSessionChange} />)
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'Carry this' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await screen.findByText('Hello there')
+    fireEvent.click(screen.getByText('Open in Chat'))
+    await waitFor(() => expect(window.api.quickChat.session.clear).toHaveBeenCalledOnce())
+    expect(screen.queryByText('Hello there')).not.toBeInTheDocument()
+    expect(onSessionChange).toHaveBeenLastCalledWith(null)
+
+    vi.mocked(window.api.quickChat.session.clear).mockClear()
+    vi.mocked(window.api.quickChat.openInChat).mockResolvedValueOnce({ success: false, error: 'no main window' })
+    fireEvent.change(input, { target: { value: 'Keep me' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await screen.findByText('Hello there')
+    fireEvent.click(screen.getByText('Open in Chat'))
+    await waitFor(() => expect(window.api.quickChat.openInChat).toHaveBeenCalledTimes(2))
+    expect(screen.getByText('Hello there')).toBeInTheDocument()
+    expect(window.api.quickChat.session.clear).not.toHaveBeenCalled()
   })
 
   it('starts a new conversation with Cmd+N on macOS', async () => {

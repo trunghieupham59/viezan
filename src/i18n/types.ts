@@ -1003,6 +1003,8 @@ export interface Translations {
   launcher_dictionary: string
   launcher_live: string
   launcher_ai_hint: string
+  launcher_continue: string
+  launcher_ai_followup: string
 
   // Settings — AI Chat section
   settings_chat_section: string
