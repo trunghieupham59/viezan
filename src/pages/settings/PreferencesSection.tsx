@@ -41,7 +41,10 @@ export function PreferencesSection() {
 
   return (
     <section className="space-y-3">
-      <h2 className="section-label">{t.settings_prefs}</h2>
+      <div>
+        <h2 className="settings-section-title">{t.settings_prefs}</h2>
+        <p className="settings-section-desc mt-1">{t.settings_prefs_desc}</p>
+      </div>
 
       <div className="card divide-y divide-gray-100 dark:divide-gray-700">
 

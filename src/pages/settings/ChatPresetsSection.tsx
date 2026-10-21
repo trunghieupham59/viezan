@@ -74,13 +74,16 @@ export function ChatPresetsSection() {
 
   return (
     <section className="space-y-3">
-      <h2 className="section-label">{t.settings_chat_section}</h2>
-      <p className="text-xs text-gray-500 dark:text-gray-400 -mt-1">{t.settings_chat_section_desc}</p>
+      <div>
+        <h2 className="settings-section-title">{t.settings_chat_section}</h2>
+        <p className="settings-section-desc mt-1">{t.settings_chat_section_desc}</p>
+      </div>
 
       <div className="card divide-y divide-gray-100 dark:divide-gray-700">
-        <div className="px-4 py-3.5">
-          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_chat_shortcuts}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_chat_shortcuts_desc}</p>
+        {/* Group header: kicker, matching the Browser section, so it is not mistaken for a row missing its control. */}
+        <div className="px-4 pt-3 pb-1">
+          <p className="ui-kicker">{t.settings_chat_shortcuts}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t.settings_chat_shortcuts_desc}</p>
         </div>
 
         <div className="flex items-center justify-between gap-4 px-4 py-3.5">

@@ -230,17 +230,11 @@ export function CredentialCard({
             {icon}
           </div>
           <div>
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
-            <Button
-              size="md"
-              shape="rect"
-              variant="neutral"
-              appearance="ghost"
-              type="button"
-              onClick={onOpenDocs}
-            >
+            <h3 className="settings-card-title">{title}</h3>
+            {/* Native exception: text link in copy, not a boxed control (see .settings-inline-link). */}
+            <button type="button" className="settings-inline-link" onClick={onOpenDocs}>
               {docsLabel}
-            </Button>
+            </button>
             {meta && <div className="mt-1">{meta}</div>}
           </div>
         </div>

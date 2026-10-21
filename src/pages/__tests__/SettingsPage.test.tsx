@@ -35,4 +35,38 @@ describe('SettingsPage section navigation', () => {
     await waitFor(() => expect(viewport).toHaveProperty('scrollTop', 520))
     expect(section).toHaveFocus()
   })
+
+  it('highlights the section whose top crossed the reading line while scrolling', async () => {
+    const { container } = render(<SettingsPage />)
+    const viewport = container.querySelector<HTMLElement>('.settings-scroll-viewport')
+    if (!viewport) throw new Error('viewport missing')
+
+    // Lay the nine sections out top to bottom; jsdom reports offsetTop 0 otherwise.
+    const sectionTops = [0, 800, 1600, 2000, 2400, 2800, 3200, 3600, 4000]
+    const regions = Array.from(viewport.querySelectorAll<HTMLElement>('[data-settings-section]'))
+    expect(regions).toHaveLength(sectionTops.length)
+    regions.forEach((region, index) => {
+      Object.defineProperty(region, 'offsetTop', { configurable: true, value: sectionTops[index] })
+    })
+    Object.defineProperty(viewport, 'clientHeight', { configurable: true, value: 400 })
+    Object.defineProperty(viewport, 'scrollHeight', { configurable: true, value: 4400 })
+    Object.defineProperty(viewport, 'scrollTop', { configurable: true, writable: true, value: 0 })
+
+    const navButton = (name: string) => screen.getAllByRole('button', { name })[0]
+
+    // Providers' top (800) sits 100px below the reading line (750 + 100 = 850 > 800): already active.
+    viewport.scrollTop = 750
+    fireEvent.scroll(viewport)
+    await waitFor(() => expect(navButton(TRANSLATIONS.en.settings_api_keys)).toHaveAttribute('aria-current', 'true'))
+
+    // STT's top (1600) is still below the reading line at 1400 + 100.
+    viewport.scrollTop = 1400
+    fireEvent.scroll(viewport)
+    await waitFor(() => expect(navButton(TRANSLATIONS.en.settings_api_keys)).toHaveAttribute('aria-current', 'true'))
+
+    // At the very bottom the last section wins even though it is short.
+    viewport.scrollTop = 4000
+    fireEvent.scroll(viewport)
+    await waitFor(() => expect(navButton(TRANSLATIONS.en.settings_about)).toHaveAttribute('aria-current', 'true'))
+  })
 })

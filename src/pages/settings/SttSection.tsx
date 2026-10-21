@@ -11,7 +11,6 @@
  * The Groq API key is stored in the OS keychain — add it in the card below the selector.
  */
 import { type ReactNode, useEffect, useState } from 'react'
-import { Button } from '@/components/ui/atoms'
 import { CredentialSecretInputRow, CredentialStatusBadge } from '../../components/ui/CredentialCard'
 import {
   AlertTriangleIcon,
@@ -255,7 +254,10 @@ export function SttSection() {
 
   return (
     <section className="space-y-3">
-      <h2 className="section-label">{t.settings_stt_section}</h2>
+      <div>
+        <h2 className="settings-section-title">{t.settings_stt_section}</h2>
+        <p className="settings-section-desc mt-1">{t.settings_stt_section_desc}</p>
+      </div>
 
       <div className="card divide-y divide-gray-100 dark:divide-gray-700">
         {/* STT provider selector */}
@@ -285,19 +287,17 @@ export function SttSection() {
                 <GroqIcon size={10} />
               </ProviderLogoFrame>
               <div className="min-w-0">
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                <h3 className="settings-card-title">
                   {t.settings_stt_groq_key}
                 </h3>
-                <Button
-                  size="md"
-                  shape="rect"
-                  variant="neutral"
-                  appearance="ghost"
+                {/* Native exception: text link in copy, not a boxed control (see .settings-inline-link). */}
+                <button
                   type="button"
+                  className="settings-inline-link"
                   onClick={() => window.api?.openExternal(GROQ_CONSOLE_URL)}
                 >
                   {t.settings_get_key}
-                </Button>
+                </button>
               </div>
             </div>
             <CredentialStatusBadge

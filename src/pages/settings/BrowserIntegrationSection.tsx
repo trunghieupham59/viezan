@@ -178,8 +178,8 @@ export function BrowserIntegrationSection() {
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="section-label">{t.settings_extension_section}</h2>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_legacy_section_desc}</p>
+        <h2 className="settings-section-title">{t.settings_extension_section}</h2>
+        <p className="settings-section-desc mt-1">{t.settings_legacy_section_desc}</p>
       </div>
 
       {/* ── Chrome Extension token card ── */}
