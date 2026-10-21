@@ -1,4 +1,5 @@
 import type { BrowserWindow, IpcMain, Rectangle } from 'electron'
+import type { LauncherFeatureRequest } from '../../shared/launcher'
 import { MAX_CHAT_REQUEST_CHARS } from './ipcConstants'
 import { registerLauncherHandlers } from './launcher'
 
@@ -14,6 +15,8 @@ export function setQuickChatWindowBounds(win: BrowserWindow, bounds: Rectangle):
   win.setMinimumSize(0, 0)
   win.setMaximumSize(0, 0)
   win.setBounds(bounds)
+  // A transparent macOS window keeps its old shadow outline after a resize.
+  if (process.platform === 'darwin' && typeof win.invalidateShadow === 'function') win.invalidateShadow()
 }
 
 export interface QuickChatSeedPayload {
@@ -53,6 +56,19 @@ export function parseQuickChatSeedPayload(rawPayload: unknown): QuickChatSeedPay
   }
 
   return { question, response, provider, model }
+}
+
+const LAUNCHER_FEATURES = new Set<LauncherFeatureRequest['feature']>(['translate', 'dictionary', 'live'])
+const MAX_LAUNCHER_SEED_CHARS = 500
+
+export function parseLauncherFeatureRequest(rawPayload: unknown): LauncherFeatureRequest | null {
+  if (!isPlainRecord(rawPayload)) return null
+  const feature = rawPayload.feature
+  if (typeof feature !== 'string' || !LAUNCHER_FEATURES.has(feature as LauncherFeatureRequest['feature'])) return null
+  if (rawPayload.text === undefined) return { feature: feature as LauncherFeatureRequest['feature'] }
+  const text = cleanText(rawPayload.text, MAX_LAUNCHER_SEED_CHARS)
+  if (text === null) return null
+  return { feature: feature as LauncherFeatureRequest['feature'], text }
 }
 
 export function registerQuickChatHandlers(
@@ -111,6 +127,26 @@ export function registerQuickChatHandlers(
     mainWindow.show()
     mainWindow.focus()
     mainWindow.webContents.send('quick-chat:open-in-main-chat', payload)
+    return { success: true }
+  })
+
+  // Only the launcher window may deep-link a main-window feature with a short seed text.
+  ipcMain.handle('quick-chat:open-feature', (event, rawPayload: unknown) => {
+    const win = getQuickChatWindow()
+    if (!win || win.isDestroyed() || event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame) {
+      return { success: false, error: 'Unauthorized sender.' }
+    }
+    const payload = parseLauncherFeatureRequest(rawPayload)
+    if (!payload) return { success: false, error: 'Invalid launcher feature payload.' }
+
+    win.hide()
+    const mainWindow = getMainWindow()
+    if (!mainWindow) return { success: false, error: 'Main window is not available.' }
+
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+    mainWindow.focus()
+    mainWindow.webContents.send('quick-chat:open-feature', payload)
     return { success: true }
   })
 }

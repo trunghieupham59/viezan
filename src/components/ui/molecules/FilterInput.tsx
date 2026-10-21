@@ -13,6 +13,8 @@ export interface FilterInputProps extends Omit<InputProps, 'value' | 'onChange' 
   invalid?: boolean
   /** Extra inline content before the clear button, e.g. a character counter. */
   trailing?: ReactNode
+  /** Frameless field for launcher-style surfaces: the host panel draws the edges. */
+  bare?: boolean
   wrapperClassName?: string
 }
 
@@ -27,6 +29,7 @@ export const FilterInput = forwardRef<HTMLInputElement, FilterInputProps>(functi
   size = 'md',
   invalid = false,
   trailing,
+  bare = false,
   wrapperClassName = '',
   className = '',
   ...props
@@ -36,7 +39,7 @@ export const FilterInput = forwardRef<HTMLInputElement, FilterInputProps>(functi
 
   return (
     <div
-      className={`filter-input filter-input--${size}${wrapperClassName ? ` ${wrapperClassName}` : ''}`}
+      className={`filter-input filter-input--${size}${bare ? ' filter-input--bare' : ''}${wrapperClassName ? ` ${wrapperClassName}` : ''}`}
       data-invalid={invalid || undefined}
     >
       <SearchIcon className="filter-input-icon" />

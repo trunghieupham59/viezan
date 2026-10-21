@@ -14,7 +14,7 @@
  * Mounted by quick-chat.html, not by the main app shell.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button } from '@/components/ui/atoms'
+import { Button, KeyCap } from '@/components/ui/atoms'
 import { MAX_CHAT_INPUT_CHARS } from '../constants/providers'
 import type { ChatMessage } from '../services/chatService'
 import { smartThinkingService } from '../services/smartThinkingService'
@@ -65,15 +65,6 @@ interface SmartStep {
   label: string
   content: string
   status: 'running' | 'complete' | 'error'
-}
-
-/** Small visual key cap used for keyboard hints. */
-function KeyCap({ children }: { children: React.ReactNode }) {
-  return (
-    <kbd className="keyboard-key">
-      {children}
-    </kbd>
-  )
 }
 
 export interface QuickChatLaunchRequest {

@@ -1,14 +1,45 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { LauncherApp, LauncherIcon, LauncherResult } from '../../shared/launcher'
 import { AIChatPopup, type QuickChatLaunchRequest } from '../components/AIChatPopup'
-import { Button } from '../components/ui/atoms'
-import { GearIcon, MonitorIcon, SearchIcon, SparklesIcon } from '../components/ui/icons'
-import { FilterInput } from '../components/ui/molecules'
+import { Button, KeyCap } from '../components/ui/atoms'
+import {
+  BookIcon,
+  GearIcon,
+  MicrophoneIcon,
+  SearchIcon,
+  SparklesIcon,
+  TranslateIcon,
+} from '../components/ui/icons'
+import { FilterInput, LauncherIconTile, type LauncherIconTone, LauncherResultRow } from '../components/ui/molecules'
 import { useAppStore, useT } from '../store/useAppStore'
+import { tpl } from '../utils/tpl'
 
-type Command = 'ai' | 'web' | 'chat' | 'settings'
-type Result = { id: string; label: string; kind: 'app' | Command }
+type Command = 'ai' | 'web' | 'chat' | 'settings' | 'translate' | 'dictionary' | 'live'
+type Result = { id: string; label: string; kind: 'app' | Command; detail?: string }
+type Section = { id: 'recent' | 'apps' | 'viezan' | 'use'; title: string; items: Result[] }
+
+const MAX_APP_RESULTS = 8
+const MAX_RECENT_RESULTS = 5
+const LETTER_TONES: LauncherIconTone[] = ['blue', 'violet', 'green', 'orange']
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/đ/gi, 'd').toLowerCase()
+
+/** Stable colour per app name so the letter fallback never flickers between renders. */
+function letterTone(name: string): LauncherIconTone {
+  let hash = 0
+  for (const char of name) hash = (hash * 31 + (char.codePointAt(0) ?? 0)) % 1_000_003
+  return LETTER_TONES[hash % LETTER_TONES.length]
+}
+
+function commandIcon(kind: Command): ReactNode {
+  switch (kind) {
+    case 'ai': case 'chat': return <SparklesIcon />
+    case 'translate': return <TranslateIcon />
+    case 'dictionary': return <BookIcon />
+    case 'live': return <MicrophoneIcon />
+    case 'settings': return <GearIcon />
+    case 'web': return <SearchIcon />
+  }
+}
 
 export function QuickLauncher() {
   const t = useT()
@@ -16,6 +47,7 @@ export function QuickLauncher() {
   const [query, setQuery] = useState('')
   const [chatRequest, setChatRequest] = useState<QuickChatLaunchRequest>()
   const [apps, setApps] = useState<LauncherApp[]>([])
+  const [recent, setRecent] = useState<string[]>([])
   const [icons, setIcons] = useState<Record<string, string>>({})
   const iconsRef = useRef<Record<string, string>>({})
   const [selected, setSelected] = useState(0)
@@ -28,11 +60,13 @@ export function QuickLauncher() {
   const busyRef = useRef(false)
   const panelRef = useRef<HTMLElement>(null)
   const search = query.trim()
-  const expanded = search.length > 0
+  const primaryModifierKey = window.api?.platform === 'darwin' ? '⌘' : 'Ctrl'
 
+  // The window is sized by the main process; report the natural content height
+  // so the popup grows with the rows instead of leaving an empty canvas.
   useLayoutEffect(() => {
-    if (mode === 'chat' || !expanded) {
-      void window.api?.quickChat?.setLayout(mode === 'chat' ? 'expanded' : 'compact')
+    if (mode === 'chat') {
+      void window.api?.quickChat?.setLayout('expanded')
       return
     }
     const panel = panelRef.current
@@ -62,7 +96,7 @@ export function QuickLauncher() {
     observer.observe(rows)
     for (const child of Array.from(panel.children)) observer.observe(child)
     return () => observer.disconnect()
-  }, [mode, expanded])
+  }, [mode])
   const mergeIcons = useCallback((updates: LauncherIcon[]) => {
     if (!updates.length) return
     iconsRef.current = { ...iconsRef.current, ...Object.fromEntries(updates.map(icon => [icon.id, icon.dataUrl])) }
@@ -107,9 +141,10 @@ export function QuickLauncher() {
           mergeIcons(result.apps.flatMap(app => app.iconDataUrl ? [{ id: app.id, dataUrl: app.iconDataUrl }] : []))
         }
         setApps(result?.success ? result.apps : [])
+        setRecent(result?.success ? result.recent ?? [] : [])
         setCatalogError(!result?.success)
       } catch {
-        if (!cancelled) { setApps([]); setCatalogError(true) }
+        if (!cancelled) { setApps([]); setRecent([]); setCatalogError(true) }
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -123,8 +158,24 @@ export function QuickLauncher() {
     if (mode === 'search') inputRef.current?.focus()
   }, [mode, revision])
 
-  const results = useMemo<Result[]>(() => {
-    if (!search) return []
+  const sections = useMemo<Section[]>(() => {
+    const toResult = (app: LauncherApp): Result => ({ id: app.id, label: app.name, kind: 'app' })
+    const viezanCommands: Result[] = [
+      { id: 'translate', label: t.launcher_translate, kind: 'translate' },
+      { id: 'dictionary', label: t.launcher_dictionary, kind: 'dictionary' },
+      { id: 'live', label: t.launcher_live, kind: 'live' },
+      { id: 'chat', label: t.ai_chat_popup_open_in_chat, kind: 'chat' },
+      { id: 'settings', label: t.chat_error_open_settings, kind: 'settings' },
+    ]
+    if (!search) {
+      const byId = new Map(apps.map(app => [app.id, app]))
+      const recentApps = recent.flatMap(id => { const app = byId.get(id); return app ? [toResult(app)] : [] })
+        .slice(0, MAX_RECENT_RESULTS)
+      return [
+        ...(recentApps.length ? [{ id: 'recent' as const, title: t.launcher_section_recent, items: recentApps }] : []),
+        { id: 'viezan', title: t.launcher_section_viezan, items: viezanCommands },
+      ]
+    }
     const needle = normalize(search)
     const compactNeedle = needle.replace(/\s+/g, '')
     const tokens = needle.split(/\s+/)
@@ -138,11 +189,6 @@ export function QuickLauncher() {
         return words.slice(0, count).map(word => word[0]).join('') + words.slice(count).join('')
       })
     }
-    const commands: Result[] = [
-      { id: 'ai', label: t.launcher_ai, kind: 'ai' },
-      { id: 'chat', label: t.ai_chat_popup_open_in_chat, kind: 'chat' },
-      { id: 'settings', label: t.chat_error_open_settings, kind: 'settings' },
-    ]
     const rank = (name: string) => {
       const value = normalize(name).trim()
       if (value === needle) return 0
@@ -155,15 +201,25 @@ export function QuickLauncher() {
     const matchedApps = apps.filter(app => matches(app.name)
       || (compactNeedle.length >= 2 && aliases(app.name).some(alias => alias.startsWith(compactNeedle))))
       .sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name))
-      .slice(0, 8).map(app => ({ id: app.id, label: app.name, kind: 'app' as const }))
-    return [
-      ...matchedApps,
-      ...commands.filter(command => command.kind !== 'ai' && matches(command.label)),
-      { id: 'ai', label: t.launcher_ai, kind: 'ai' },
-      { id: 'web', label: t.launcher_web, kind: 'web' },
+      .slice(0, MAX_APP_RESULTS).map(toResult)
+    // Text commands always appear under "Use with…"; only navigation commands are searched by name.
+    const matchedCommands = viezanCommands.filter(command =>
+      !['translate', 'dictionary'].includes(command.kind) && matches(command.label))
+    const useWith: Result[] = [
+      { id: 'ai', label: t.launcher_ai, kind: 'ai', detail: search },
+      { id: 'translate', label: t.launcher_translate, kind: 'translate', detail: search },
+      { id: 'dictionary', label: t.launcher_dictionary, kind: 'dictionary', detail: search },
+      { id: 'web', label: t.launcher_web, kind: 'web', detail: search },
     ]
-  }, [apps, search, t])
+    return [
+      ...(matchedApps.length ? [{ id: 'apps' as const, title: t.launcher_section_apps, items: matchedApps }] : []),
+      ...(matchedCommands.length ? [{ id: 'viezan' as const, title: t.launcher_section_viezan, items: matchedCommands }] : []),
+      { id: 'use', title: tpl(t.launcher_section_use_with, { query: search }), items: useWith },
+    ]
+  }, [apps, recent, search, t])
+  const results = useMemo(() => sections.flatMap(section => section.items), [sections])
   const activeIndex = Math.min(selected, results.length - 1)
+  const activeResult = results[activeIndex]
   const visibleAppIds = results.filter(result => result.kind === 'app').map(result => result.id).join(',')
 
   // Startup prefetch and disk-cache hits already populate icons before typing.
@@ -185,12 +241,12 @@ export function QuickLauncher() {
     const item = document.getElementById(`launcher-result-${activeIndex}`)
     // The native resize is asynchronous. Never scroll a zero-height list or
     // let scrollIntoView move the document while it still has compact bounds.
-    if (!search || !list || !item || list.clientHeight < item.offsetHeight) return
+    if (!list || !item || list.clientHeight < item.offsetHeight) return
     const row = item.getBoundingClientRect()
     const viewport = list.getBoundingClientRect()
     if (row.top < viewport.top) list.scrollTop -= viewport.top - row.top
     else if (row.bottom > viewport.bottom) list.scrollTop += row.bottom - viewport.bottom
-  }, [activeIndex, search])
+  }, [activeIndex])
 
   const execute = useCallback(async (result: Result) => {
     if (busyRef.current) return
@@ -209,6 +265,11 @@ export function QuickLauncher() {
         case 'web': outcome = await window.api?.quickChat?.launcher?.searchWeb(search); break
         case 'chat': outcome = await window.api?.quickChat?.openInChat(); break
         case 'settings': outcome = await window.api?.quickChat?.openSettings(); break
+        case 'translate':
+        case 'dictionary':
+          outcome = await window.api?.quickChat?.openFeature({ feature: result.kind, ...(search ? { text: search } : {}) })
+          break
+        case 'live': outcome = await window.api?.quickChat?.openFeature({ feature: 'live' }); break
       }
       setError(!outcome?.success)
     } catch {
@@ -218,6 +279,7 @@ export function QuickLauncher() {
       setBusy(false)
     }
   }, [search])
+  const askAI = useCallback(() => execute({ id: 'ai', label: t.launcher_ai, kind: 'ai' }), [execute, t.launcher_ai])
 
   useEffect(() => {
     if (mode !== 'search') return
@@ -233,18 +295,40 @@ export function QuickLauncher() {
     return () => window.removeEventListener('keydown', keydown)
   }, [mode, query])
 
+  const renderIcon = (result: Result) => {
+    if (result.kind !== 'app') return <LauncherIconTile>{commandIcon(result.kind)}</LauncherIconTile>
+    const icon = icons[result.id]
+    if (icon) {
+      return (
+        <LauncherIconTile tone="app">
+          <img className="launcher-app-icon" src={icon} alt="" draggable={false}
+            onError={() => {
+              const next = { ...iconsRef.current }
+              delete next[result.id]
+              iconsRef.current = next
+              setIcons(next)
+            }} />
+        </LauncherIconTile>
+      )
+    }
+    return <LauncherIconTile tone={letterTone(result.label)}>{result.label.trim().charAt(0).toLocaleUpperCase()}</LauncherIconTile>
+  }
+  const kindLabel = (result: Result) => result.kind === 'app' ? t.launcher_app : t.launcher_command
+
+  let flatIndex = 0
   return (
     <>
       {mode === 'search' && (
         <main className="launcher-shell">
-          <section ref={panelRef} className="launcher-panel" data-expanded={expanded} aria-label={t.launcher_title}>
+          <section ref={panelRef} className="launcher-panel" aria-label={t.launcher_title}>
             <div className="launcher-search titlebar-drag">
-              <FilterInput ref={inputRef} value={query} maxLength={500} wrapperClassName="titlebar-no-drag"
+              <FilterInput ref={inputRef} value={query} maxLength={500} bare size="lg" wrapperClassName="titlebar-no-drag"
                 onValueChange={value => { setQuery(value); setSelected(0); setError(false) }}
                 placeholder={t.launcher_placeholder} aria-label={t.launcher_placeholder}
-                clearLabel={t.chat_clear} role="combobox" aria-expanded={expanded}
-                aria-controls={expanded ? 'launcher-results' : undefined} aria-autocomplete="list"
-                aria-activedescendant={expanded ? `launcher-result-${activeIndex}` : undefined}
+                clearLabel={t.chat_clear} role="combobox" aria-expanded="true"
+                aria-controls="launcher-results" aria-autocomplete="list"
+                aria-activedescendant={activeResult ? `launcher-result-${activeIndex}` : undefined}
+                trailing={<><span>{t.launcher_ai_hint}</span><KeyCap>Tab</KeyCap></>}
                 onKeyDown={event => {
                   if (event.nativeEvent.isComposing || event.keyCode === 229 || event.repeat) return
                   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -252,59 +336,70 @@ export function QuickLauncher() {
                     if (!results.length) return
                     const direction = event.key === 'ArrowDown' ? 1 : -1
                     setSelected((activeIndex + direction + results.length) % results.length)
+                  } else if (event.key === 'Tab' && !event.shiftKey) {
+                    // Raycast-style: Tab hands the current text to Quick AI.
+                    event.preventDefault()
+                    event.stopPropagation()
+                    void askAI()
                   } else if (event.key === 'Enter') {
                     event.preventDefault()
                     // Changing mode can mount Quick Chat's window shortcuts
                     // during this event; do not let the same key open full Chat.
                     event.stopPropagation()
-                    const result = event.metaKey || event.ctrlKey
-                      ? { id: 'ai', label: t.launcher_ai, kind: 'ai' as const } : results[activeIndex]
-                    if (result) void execute(result)
+                    if (event.metaKey || event.ctrlKey) void askAI()
+                    else if (activeResult) void execute(activeResult)
                   }
                 }} />
             </div>
-            {expanded && <>
-              <div className="launcher-results" id="launcher-results" role="listbox" aria-label={t.launcher_results} aria-busy={busy}>
-                <div className="launcher-result-list">
-                {results.map((result, index) => (
-                  <Button key={result.id} id={`launcher-result-${index}`} role="option"
-                    aria-label={`${result.label} ${result.kind === 'app' ? t.launcher_app : t.launcher_command}`}
-                    aria-selected={index === activeIndex} tabIndex={-1} disabled={busy}
-                    size="lg" shape="rect" variant={index === activeIndex ? 'primary' : 'neutral'}
-                    appearance={index === activeIndex ? 'soft' : 'ghost'} className="launcher-result"
-                    onMouseEnter={() => setSelected(index)} onMouseDown={event => event.preventDefault()}
-                    onClick={() => void execute(result)}>
-                    {result.kind === 'app' && icons[result.id]
-                      ? <img className="launcher-app-icon" src={icons[result.id]} alt="" draggable={false}
-                          onError={() => {
-                            const next = { ...iconsRef.current }
-                            delete next[result.id]
-                            iconsRef.current = next
-                            setIcons(next)
-                          }} />
-                      : result.kind === 'ai' || result.kind === 'chat' ? <SparklesIcon /> :
-                      result.kind === 'settings' ? <GearIcon /> : result.kind === 'web' ? <SearchIcon /> : <MonitorIcon />}
-                    <span className="launcher-result-name">{result.label}</span>
-                    <span className="launcher-result-kind">{result.kind === 'app' ? t.launcher_app : t.launcher_command}</span>
-                  </Button>
+            <div className="launcher-results" id="launcher-results" role="listbox" aria-label={t.launcher_results} aria-busy={busy}>
+              <div className="launcher-result-list">
+                {sections.map(section => (
+                  // biome-ignore lint/a11y/useSemanticElements: ARIA listbox option groups are not form fieldsets.
+                  <div key={section.id} role="group" aria-label={section.title}>
+                    <p className="launcher-section-title" aria-hidden="true">{section.title}</p>
+                    {section.items.map(result => {
+                      const index = flatIndex++
+                      return (
+                        <LauncherResultRow key={`${section.id}:${result.id}`} id={`launcher-result-${index}`}
+                          icon={renderIcon(result)} label={result.label} detail={result.detail}
+                          kindLabel={kindLabel(result)} selected={index === activeIndex} disabled={busy}
+                          onSelect={() => setSelected(index)} onActivate={() => void execute(result)} />
+                      )
+                    })}
+                  </div>
                 ))}
-                </div>
               </div>
-              {loading && <p className="launcher-notice" role="status">{t.launcher_loading}</p>}
-              {catalogError && (
-                <div className="launcher-notice" role="status">
-                  <span>{t.launcher_apps_unavailable}</span>
-                  <Button size="sm" appearance="ghost" onClick={() => setRevision(value => value + 1)}>{t.launcher_retry}</Button>
-                </div>
-              )}
-              {error && <p className="launcher-notice ui-error-text" role="alert">{t.launcher_open_failed}</p>}
-              <footer className="launcher-footer">
-                <span>↑ ↓ {t.launcher_select}</span>
-                <span>↵ {t.launcher_open}</span>
-                <span>{window.api?.platform === 'darwin' ? '⌘' : 'Ctrl'} ↵ {t.launcher_ai}</span>
-                <span>Esc {t.ai_chat_popup_close}</span>
-              </footer>
-            </>}
+            </div>
+            {loading && !apps.length && <p className="launcher-notice" role="status">{t.launcher_loading}</p>}
+            {catalogError && (
+              <div className="launcher-notice" role="status">
+                <span>{t.launcher_apps_unavailable}</span>
+                <Button size="sm" appearance="ghost" onClick={() => setRevision(value => value + 1)}>{t.launcher_retry}</Button>
+              </div>
+            )}
+            {error && <p className="launcher-notice ui-error-text" role="alert">{t.launcher_open_failed}</p>}
+            <footer className="launcher-footer">
+              <div className="launcher-footer-context">
+                {activeResult && (
+                  <>
+                    {renderIcon(activeResult)}
+                    <span className="launcher-footer-label">{activeResult.label}</span>
+                  </>
+                )}
+              </div>
+              <div className="launcher-footer-actions">
+                <span className="launcher-footer-action">
+                  <span>{activeResult?.kind === 'ai' ? t.launcher_ai : t.launcher_open}</span>
+                  <KeyCap>↵</KeyCap>
+                </span>
+                <span className="launcher-footer-divider" aria-hidden="true" />
+                <span className="launcher-footer-action">
+                  <span>{t.launcher_ai}</span>
+                  <KeyCap>{primaryModifierKey}</KeyCap>
+                  <KeyCap>↵</KeyCap>
+                </span>
+              </div>
+            </footer>
           </section>
         </main>
       )}

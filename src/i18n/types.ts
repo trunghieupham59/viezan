@@ -995,6 +995,14 @@ export interface Translations {
   launcher_open: string
   launcher_back: string
   launcher_hotkey_failed: string
+  launcher_section_recent: string
+  launcher_section_apps: string
+  launcher_section_viezan: string
+  launcher_section_use_with: string
+  launcher_translate: string
+  launcher_dictionary: string
+  launcher_live: string
+  launcher_ai_hint: string
 
   // Settings — AI Chat section
   settings_chat_section: string

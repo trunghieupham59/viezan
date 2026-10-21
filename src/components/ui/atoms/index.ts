@@ -17,6 +17,7 @@ export {
   type ButtonVariant,
 } from './Button'
 export { Input, type InputProps, type InputSize } from './Input'
+export { KeyCap, type KeyCapProps } from './KeyCap'
 export {
   SkeletonBlock,
   type SkeletonBlockProps,

@@ -11,7 +11,11 @@ let bounds: Rectangle
 const win = {
   webContents: contents, isDestroyed: () => false, getBounds: () => bounds,
   setBounds: vi.fn((next: Rectangle) => { bounds = next }),
-  setMinimumSize: vi.fn(), setMaximumSize: vi.fn(), setResizable: vi.fn(),
+  setMinimumSize: vi.fn(), setMaximumSize: vi.fn(), setResizable: vi.fn(), hide: vi.fn(),
+}
+const mainWindow = {
+  isMinimized: () => false, restore: vi.fn(), show: vi.fn(), focus: vi.fn(),
+  webContents: { send: vi.fn() },
 }
 const handlers = new Map<string, (event: IpcMainInvokeEvent, layout: unknown, contentHeight?: unknown) => unknown>()
 const invoke = (layout: unknown, contentHeight?: unknown, sender = contents, senderFrame = mainFrame) =>
@@ -22,7 +26,31 @@ beforeEach(() => {
   handlers.clear()
   bounds = { x: 100, y: 200, width: 860, height: 540 }
   registerQuickChatHandlers({ handle: (name: string, handler: (event: IpcMainInvokeEvent, layout: unknown, contentHeight?: unknown) => unknown) => handlers.set(name, handler) } as unknown as IpcMain,
-    () => null, () => win as unknown as BrowserWindow)
+    () => mainWindow as unknown as BrowserWindow, () => win as unknown as BrowserWindow)
+})
+
+describe('quick chat feature deep links', () => {
+  const open = (payload: unknown, sender: unknown = contents, senderFrame: unknown = mainFrame) =>
+    handlers.get('quick-chat:open-feature')?.({ sender, senderFrame } as IpcMainInvokeEvent, payload)
+
+  it('forwards validated feature requests to the main window and hides the popup', () => {
+    expect(open({ feature: 'translate', text: ' hello ' })).toEqual({ success: true })
+    expect(mainWindow.webContents.send).toHaveBeenLastCalledWith('quick-chat:open-feature', { feature: 'translate', text: 'hello' })
+    expect(open({ feature: 'live' })).toEqual({ success: true })
+    expect(mainWindow.webContents.send).toHaveBeenLastCalledWith('quick-chat:open-feature', { feature: 'live' })
+    expect(win.hide).toHaveBeenCalledTimes(2)
+    expect(mainWindow.show).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects unknown features, oversized or blank text, and other senders', () => {
+    for (const payload of [{ feature: 'shell' }, { feature: 'translate', text: '' }, { feature: 'dictionary', text: 'x'.repeat(501) }, 'translate', null]) {
+      expect(open(payload)).toMatchObject({ success: false })
+    }
+    expect(open({ feature: 'live' }, { mainFrame: {} })).toMatchObject({ success: false })
+    expect(open({ feature: 'live' }, contents, {})).toMatchObject({ success: false })
+    expect(mainWindow.webContents.send).not.toHaveBeenCalled()
+    expect(win.hide).not.toHaveBeenCalled()
+  })
 })
 
 describe('quick chat layout IPC', () => {

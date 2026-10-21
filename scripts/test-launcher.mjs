@@ -32,7 +32,7 @@ try {
     headless: true,
     ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {}),
   })
-  const page = await browser.newPage({ viewport: { width: 860, height: 540 }, locale: 'en-US' })
+  const page = await browser.newPage({ viewport: { width: 760, height: 540 }, locale: 'en-US' })
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
   await page.addInitScript(() => {
@@ -61,7 +61,7 @@ try {
   await installResizeBridge()
   assert.equal(await page.getByRole('option').count(), 0, 'Empty search must not show suggestions')
   assert(await page.getByRole('combobox').evaluate(element => document.activeElement === element), 'Search not focused')
-  for (const width of [860, 420]) {
+  for (const width of [760, 420]) {
     await page.setViewportSize({ width, height: 62 })
     const bounds = await page.locator('.launcher-panel').boundingBox()
     assert.deepEqual(bounds, { x: 0, y: 0, width, height: 62 }, 'Compact panel must fill its capture bounds without a transparent gutter')
@@ -92,7 +92,7 @@ try {
   assert.deepEqual(await page.locator('.quick-chat-panel').boundingBox(), { x: 0, y: 0, width: 420, height: 540 }, 'Chat panel must fill the same native capture bounds')
   await page.screenshot({ path: path.join(output, 'launcher-chat-420.png') })
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Chat horizontal overflow')
-  await page.setViewportSize({ width: 860, height: 540 })
+  await page.setViewportSize({ width: 760, height: 540 })
   await page.screenshot({ path: path.join(output, 'launcher-chat.png') })
   await page.getByRole('button', { name: 'Search', exact: true }).click()
   await page.getByRole('combobox').fill('')

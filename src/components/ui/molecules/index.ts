@@ -27,6 +27,13 @@ export { ImageLightbox, type ImageLightboxProps } from './ImageLightbox'
 export { LanguageOverflowPicker, type LanguageOverflowPickerProps } from './LanguageOverflowPicker'
 export { LanguagePicker, type LanguagePickerProps } from './LanguagePicker'
 export { LanguagePickerPanel, type LanguagePickerPanelProps } from './LanguagePickerPanel'
+export {
+  LauncherIconTile,
+  type LauncherIconTileProps,
+  type LauncherIconTone,
+  LauncherResultRow,
+  type LauncherResultRowProps,
+} from './LauncherResultRow'
 export { ModelRunStatus, type ModelRunStatusProps } from './ModelRunStatus'
 export { ModelSelectionRow, type ModelSelectionRowProps } from './ModelSelectionRow'
 export {

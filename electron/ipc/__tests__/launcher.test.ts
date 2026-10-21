@@ -65,6 +65,24 @@ describe('launcher IPC boundary', () => {
     expect(window.hide).toHaveBeenCalledOnce()
   })
 
+  it.skipIf(!['win32', 'darwin'].includes(process.platform))('remembers launched apps as recents and drops IDs missing from the catalog', async () => {
+    const other = 'b'.repeat(64)
+    env.scan.mockResolvedValue([
+      { id, name: 'Editor', target: { kind: 'path', path: '/Applications/Editor.app' } },
+      { id: other, name: 'Notes', target: { kind: 'path', path: '/Applications/Notes.app' } },
+    ])
+    expect(await invoke('launcher:list-apps')).toMatchObject({ success: true, recent: [] })
+    expect(await invoke('launcher:open-app', other)).toEqual({ success: true })
+    expect(await invoke('launcher:open-app', id)).toEqual({ success: true })
+    expect(await invoke('launcher:open-app', other)).toEqual({ success: true })
+    expect(await invoke('launcher:list-apps')).toMatchObject({ success: true, recent: [other, id] })
+    const { writeFile } = await import('node:fs/promises')
+    expect(vi.mocked(writeFile)).toHaveBeenLastCalledWith(expect.stringContaining('launcher-recent-v1.json'), JSON.stringify([other, id]), 'utf-8')
+    env.openPath.mockResolvedValueOnce('Not found')
+    expect(await invoke('launcher:open-app', id)).toMatchObject({ errorCode: 'OPEN_FAILED' })
+    expect(await invoke('launcher:list-apps')).toMatchObject({ recent: [other, id] })
+  })
+
   it('rejects arbitrary paths, malformed IDs and undiscovered entries', async () => {
     for (const input of ['C:\\Windows\\cmd.exe', 'https://example.com', { id }, id]) {
       expect(await invoke('launcher:open-app', input)).toMatchObject({ success: false })
@@ -80,7 +98,7 @@ describe('launcher IPC boundary', () => {
     expect(env.icons).toHaveBeenCalledOnce()
     expect(env.icons.mock.calls[0][0]).toHaveLength(1)
     expect(contents.send).toHaveBeenCalledWith('launcher:icons', [{ id, dataUrl }])
-    expect(await invoke('launcher:list-apps')).toEqual({ success: true, apps: [{ id, name: 'Editor', iconDataUrl: dataUrl }] })
+    expect(await invoke('launcher:list-apps')).toEqual({ success: true, apps: [{ id, name: 'Editor', iconDataUrl: dataUrl }], recent: [] })
     for (const invalid of ['C:\\private.png', [id, 'C:\\private.png'], Array(17).fill(id)]) {
       expect(await invoke('launcher:get-icons', invalid)).toMatchObject({ errorCode: 'INVALID' })
     }

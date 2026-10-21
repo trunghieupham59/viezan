@@ -1,4 +1,5 @@
 import { lazy, type ReactNode, Suspense, useEffect, useState } from 'react'
+import type { LauncherFeatureRequest } from '../shared/launcher'
 import { AIChatSidebar, CommandPalette, PrimaryNavigationSidebar, UpdateNotification } from './components/organisms'
 import { SettingsModal } from './components/SettingsModal'
 import { AppShell } from './components/templates'
@@ -37,6 +38,7 @@ function App() {
     selectedProvider, selectedModels, ttsMode, ttsVoice,
     createChatSession, setActiveChatSession, addChatMessage, setChatSessionDraft,
     setActivePage, settingsOpen, openSettings, closeSettings,
+    setSourceText, setPendingDictionaryTerm,
   } = useAppStore()
 
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false)
@@ -161,8 +163,13 @@ function App() {
       }
       setActivePage('chat')
     })
-    return () => { unsubSettings(); unsubChat() }
-  }, [openSettings, setActivePage, createChatSession, setActiveChatSession, addChatMessage, setChatSessionDraft])
+    const unsubFeature = window.api.quickChat.onOpenFeature?.((payload: LauncherFeatureRequest) => {
+      if (payload.feature === 'translate' && payload.text) setSourceText(payload.text)
+      if (payload.feature === 'dictionary' && payload.text) setPendingDictionaryTerm(payload.text)
+      setActivePage(payload.feature)
+    })
+    return () => { unsubSettings(); unsubChat(); unsubFeature?.() }
+  }, [openSettings, setActivePage, createChatSession, setActiveChatSession, addChatMessage, setChatSessionDraft, setSourceText, setPendingDictionaryTerm])
 
   // Check API keys in keychain on startup
   useEffect(() => {

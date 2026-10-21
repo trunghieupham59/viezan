@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { LauncherFeatureRequest } from '../../shared/launcher'
 import App from '../App'
 import { useAppStore } from '../store/useAppStore'
 import type { QuickChatSeedPayload } from '../types'
@@ -25,6 +26,30 @@ describe('App quick chat bridge', () => {
     vi.mocked(window.api.quickChat.onOpenInChat).mockReturnValue(() => {})
     vi.mocked(window.api.quickChat.onOpenSettings).mockReset()
     vi.mocked(window.api.quickChat.onOpenSettings).mockReturnValue(() => {})
+    vi.mocked(window.api.quickChat.onOpenFeature).mockReset()
+    vi.mocked(window.api.quickChat.onOpenFeature).mockReturnValue(() => {})
+  })
+
+  it('seeds Translate and Dictionary from launcher feature requests', async () => {
+    let openFeature: ((payload: LauncherFeatureRequest) => void) | null = null
+    vi.mocked(window.api.quickChat.onOpenFeature).mockImplementation((cb) => {
+      openFeature = cb
+      return vi.fn()
+    })
+    render(<App />)
+    await waitFor(() => expect(window.api.quickChat.onOpenFeature).toHaveBeenCalled())
+
+    act(() => openFeature?.({ feature: 'translate', text: 'good morning' }))
+    expect(useAppStore.getState().activePage).toBe('translate')
+    expect(useAppStore.getState().sourceText).toBe('good morning')
+
+    act(() => openFeature?.({ feature: 'dictionary', text: 'serendipity' }))
+    expect(useAppStore.getState().activePage).toBe('dictionary')
+    expect(useAppStore.getState().pendingDictionaryTerm).toBe('serendipity')
+
+    act(() => openFeature?.({ feature: 'live' }))
+    expect(useAppStore.getState().activePage).toBe('live')
+    expect(useAppStore.getState().sourceText).toBe('good morning')
   })
 
   it('opens the main chat with a seeded quick chat conversation', async () => {
