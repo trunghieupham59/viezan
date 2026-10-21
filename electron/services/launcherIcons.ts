@@ -1,10 +1,15 @@
-import { app } from 'electron'
+import { nativeImage } from 'electron'
 import type { LauncherIcon } from '../../shared/launcher'
 import type { IndexedLauncherApp } from './launcherApps'
 import { runWindowsScript } from './launcherSystemApps'
 
+// Launcher tiles are 32px (--vzn-icon-2xl); keep 2x pixels so icons stay sharp
+// on Retina and HiDPI (125-200%) displays. Shared by every platform reader.
+export const LAUNCHER_ICON_PIXELS = 64
+
 // Native shell icons work for both packaged AppsFolder entries and shortcuts.
 // Run extraction in a bounded child process, never on Electron's UI thread.
+// Only the module-level pixel constant is interpolated; targets arrive via env.
 const WINDOWS_ICONS_SCRIPT = `
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
@@ -71,7 +76,7 @@ public static class LauncherIconReader {
     try {
       Guid iid = typeof(IImageFactory).GUID;
       SHCreateItemFromParsingName(path, IntPtr.Zero, ref iid, out item);
-      Marshal.ThrowExceptionForHR(item.GetImage(new Size { X = 32, Y = 32 }, 4, out bitmap));
+      Marshal.ThrowExceptionForHR(item.GetImage(new Size { X = ${LAUNCHER_ICON_PIXELS}, Y = ${LAUNCHER_ICON_PIXELS} }, 4, out bitmap));
       return EncodePng(bitmap);
     } finally {
       if (bitmap != IntPtr.Zero) DeleteObject(bitmap);
@@ -107,12 +112,19 @@ export async function readLauncherIcons(entries: IndexedLauncherApp[], platform:
       return [{ id: row.id, dataUrl: `data:image/png;base64,${row.png}` }]
     })
   }
+  // createThumbnailFromPath exists on macOS and Windows only; the launcher is
+  // not offered on other platforms, so never reach into Electron there.
+  if (platform !== 'darwin') return []
   const icons = await Promise.all(entries.map(async ({ id, target }): Promise<LauncherIcon | null> => {
     if (target.kind !== 'path') return null
     try {
-      const image = await app.getFileIcon(target.path, { size: 'normal' })
+      // app.getFileIcon only knows the generic ".app" type icon on macOS. Quick
+      // Look renders the bundle's own icon, including asset-catalog-only ones.
+      const size = { width: LAUNCHER_ICON_PIXELS, height: LAUNCHER_ICON_PIXELS }
+      const image = await nativeImage.createThumbnailFromPath(target.path, size)
       if (image.isEmpty()) return null
-      const dataUrl = image.toDataURL()
+      // Quick Look returns oversized pixel data; resample to the tile's 2x size.
+      const dataUrl = image.resize({ ...size, quality: 'best' }).toDataURL()
       return dataUrl.length <= 64_000 ? { id, dataUrl } : null
     } catch { return null }
   }))

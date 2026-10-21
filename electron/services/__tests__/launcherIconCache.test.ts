@@ -141,7 +141,7 @@ describe('launcher icon cache', () => {
     expect(extract).toHaveBeenCalledTimes(2)
   })
 
-  it.each(['not json', '{"version":99,"icons":[]}', '{"version":1,"icons":[null,{"id":"bad","dataUrl":"https://example.com"}]}'])(
+  it.each(['not json', '{"version":99,"icons":[]}', '{"version":2,"icons":[null,{"id":"bad","dataUrl":"https://example.com"}]}'])(
     'recovers from an invalid disk cache: %s', async content => {
       await writeFile(file, content)
       const cache = makeCache()
