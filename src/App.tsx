@@ -1,6 +1,6 @@
 import { lazy, type ReactNode, Suspense, useEffect, useState } from 'react'
 import type { LauncherFeatureRequest } from '../shared/launcher'
-import { AIChatSidebar, CommandPalette, PrimaryNavigationSidebar, UpdateNotification } from './components/organisms'
+import { AIChatSidebar, CommandPalette, NotificationViewport, PrimaryNavigationSidebar, UpdateNotification } from './components/organisms'
 import { SettingsModal } from './components/SettingsModal'
 import { AppShell } from './components/templates'
 import { FeatureLoadingState } from './components/ui/molecules'
@@ -226,6 +226,7 @@ function App() {
             open={cmdPaletteOpen && !settingsOpen}
             onClose={() => setCmdPaletteOpen(false)}
           />
+          <NotificationViewport />
         </>
       }
     >

@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { NotificationViewport } from '../../components/organisms/NotificationViewport'
 import { TRANSLATE_INPUT_WARNING_CHARS } from '../../constants/providers'
 import { IMAGE_AUTO_TRANSLATE_DELAY_MS } from '../../constants/ui'
 import { TRANSLATIONS } from '../../i18n'
@@ -468,7 +469,7 @@ describe('TranslatePage', () => {
     })
 
     try {
-      render(<TranslatePage />)
+      render(<><TranslatePage /><NotificationViewport /></>)
       fireEvent.click(screen.getByRole('button', { name: TRANSLATIONS.en.voice_record }))
 
       const alert = await screen.findByRole('alert')
@@ -991,7 +992,7 @@ describe('TranslatePage', () => {
       useAppStore.setState({ sourceText: 'Hello', locale: 'vi', localeAuto: false })
     })
 
-    render(<TranslatePage />)
+    render(<><TranslatePage /><NotificationViewport /></>)
     fireEvent.click(screen.getByRole('button', { name: /^Dịch$/i }))
 
     expect(await screen.findByText('API key không hợp lệ. Vui lòng kiểm tra trong Cài đặt.')).toBeInTheDocument()
@@ -1003,7 +1004,7 @@ describe('TranslatePage', () => {
       useAppStore.setState({ sourceText: 'Hello', locale: 'vi', localeAuto: false })
     })
 
-    render(<TranslatePage />)
+    render(<><TranslatePage /><NotificationViewport /></>)
     fireEvent.click(screen.getByRole('button', { name: /^Dịch$/i }))
 
     expect(await screen.findByText('Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.')).toBeInTheDocument()
@@ -1020,7 +1021,7 @@ describe('TranslatePage', () => {
       useAppStore.setState({ sourceText: 'Hello', locale: 'vi', localeAuto: false })
     })
 
-    render(<TranslatePage />)
+    render(<><TranslatePage /><NotificationViewport /></>)
     fireEvent.click(screen.getByRole('button', { name: /^Dịch$/i }))
 
     expect(await screen.findByText(
@@ -1057,7 +1058,7 @@ describe('TranslatePage', () => {
     act(() => {
       useAppStore.setState({ translateError: 'API key invalid' })
     })
-    render(<TranslatePage />)
+    render(<><TranslatePage /><NotificationViewport /></>)
     expect(screen.getByText('API key invalid')).toBeInTheDocument()
   })
 
@@ -1070,7 +1071,7 @@ describe('TranslatePage', () => {
       })
     })
 
-    render(<TranslatePage />)
+    render(<><TranslatePage /><NotificationViewport /></>)
     expect(getSourceInput()).toHaveValue('Keep this draft')
     expect(screen.getByRole('alert')).toHaveTextContent('Google Gemini · Gemini 2.0 Flash')
 
@@ -1089,7 +1090,7 @@ describe('TranslatePage', () => {
       })
     })
 
-    render(<TranslatePage />)
+    render(<><TranslatePage /><NotificationViewport /></>)
     fireEvent.click(screen.getByRole('button', { name: 'Open Settings' }))
     expect(useAppStore.getState().settingsOpen).toBe(true)
     expect(getSourceInput()).toHaveValue('Keep this draft')

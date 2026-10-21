@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '../../components/ui/atoms'
 import { useAppStore, useT } from '../../store/useAppStore'
+import { useNotificationStore } from '../../store/useNotificationStore'
 import {
   type ChatImageStoreStats,
   clearAllChatImages,
@@ -23,8 +24,11 @@ function formatBytes(bytes: number): string {
 export function ChatImageStorageCard() {
   const t = useT()
   const [stats, setStats] = useState<ChatImageStoreStats | null>(null)
-  const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
+  const notify = useNotificationStore((state) => state.notify)
+  /** Cleanup results go to the toast stack. */
+  const reportRemoved = (count: number) =>
+    notify({ key: 'settings-chat-images', tone: 'success', message: tpl(t.settings_chat_images_removed, { count }) })
 
   const refresh = useCallback(async () => setStats(await getChatImageStoreStats()), [])
 
@@ -36,7 +40,7 @@ export function ChatImageStorageCard() {
     setBusy(true)
     const referenced = collectReferencedImageKeys(useAppStore.getState().chatSessions)
     const removed = await pruneUnusedChatImages(referenced)
-    setStatus(tpl(t.settings_chat_images_removed, { count: removed }))
+    reportRemoved(removed)
     await refresh()
     setBusy(false)
   }
@@ -46,7 +50,7 @@ export function ChatImageStorageCard() {
     setBusy(true)
     const removed = stats?.count ?? 0
     await clearAllChatImages()
-    setStatus(tpl(t.settings_chat_images_removed, { count: removed }))
+    reportRemoved(removed)
     await refresh()
     setBusy(false)
   }
@@ -88,9 +92,6 @@ export function ChatImageStorageCard() {
         </Button>
       </div>
 
-      {status && (
-        <p className="px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400" role="status">{status}</p>
-      )}
     </div>
   )
 }

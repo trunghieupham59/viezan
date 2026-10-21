@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 import { Button } from './atoms'
 import { CheckCircleIcon, CheckIcon, SpinnerIcon, TrashIcon } from './icons'
 
-export type CredentialMessageTone = 'success' | 'warning' | 'error'
 
 interface CredentialLabels {
   saved: string
@@ -116,6 +115,8 @@ export function CredentialSecretInputRow({
                 : isError
                   ? 'field-input-error'
                   : '',
+            // Reserve room for the inline delete control so the masked value never sits under it.
+            showMasked && hasSecret ? 'pr-10' : '',
           ].join(' ')}
           autoComplete="off"
           autoCorrect="off"
@@ -123,7 +124,7 @@ export function CredentialSecretInputRow({
         />
         {showMasked && hasSecret && (
           <Button
-            size="md"
+            size="xs"
             shape="icon"
             variant="danger"
             appearance="soft"
@@ -132,7 +133,7 @@ export function CredentialSecretInputRow({
             onClick={onDelete}
             disabled={isDeleting}
             title={labels.remove}
-            className="absolute right-2 top-1/2 -translate-y-1/2"
+            className="absolute right-1 top-1/2 -translate-y-1/2"
           >
             {isDeleting ? (
               <SpinnerIcon className="w-4 h-4 animate-spin" />
@@ -178,24 +179,6 @@ export function CredentialSecretInputRow({
   )
 }
 
-interface CredentialStatusMessageProps {
-  message: string
-  tone: CredentialMessageTone
-}
-
-export function CredentialStatusMessage({ message, tone }: CredentialStatusMessageProps) {
-  return (
-    <div className={[
-      'px-3 py-2 rounded-lg text-xs font-medium',
-      tone === 'success'
-        ? 'bg-gray-50 text-gray-700 dark:bg-gray-900/20 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
-        : 'ui-error-box text-xs font-medium',
-    ].join(' ')}>
-      {message}
-    </div>
-  )
-}
-
 interface CredentialCardProps {
   icon: ReactNode
   title: string
@@ -209,7 +192,6 @@ interface CredentialCardProps {
   isSuccess?: boolean
   isError?: boolean
   isDeleting?: boolean
-  statusMessage?: { text: string; tone: CredentialMessageTone }
   meta?: ReactNode
   onOpenDocs: () => void
   onInputChange: (value: string) => void
@@ -231,7 +213,6 @@ export function CredentialCard({
   isSuccess = false,
   isError = false,
   isDeleting = false,
-  statusMessage,
   meta,
   onOpenDocs,
   onInputChange,
@@ -281,10 +262,6 @@ export function CredentialCard({
         onDelete={onDelete}
         onStatusReset={onStatusReset}
       />
-
-      {statusMessage && (
-        <CredentialStatusMessage message={statusMessage.text} tone={statusMessage.tone} />
-      )}
     </div>
   )
 }

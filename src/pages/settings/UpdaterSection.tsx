@@ -1,38 +1,65 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button, ToggleSwitch } from '@/components/ui/atoms'
 import { CheckUpdateButton } from '../../components/ui/CheckUpdateButton'
-import { AlertTriangleIcon, CheckCircleIcon, CheckIcon, DownloadIcon, SpinnerIcon } from '../../components/ui/icons'
+import { CheckCircleIcon, CheckIcon, DownloadIcon, SpinnerIcon } from '../../components/ui/icons'
 import { useT } from '../../store/useAppStore'
+import { useNotificationStore } from '../../store/useNotificationStore'
 import { useUpdaterStore } from '../../store/useUpdaterStore'
 import { tpl } from '../../utils/tpl'
+
+/** Toast owner keys so updater notices replace each other instead of stacking. */
+const PREFERENCE_ERROR_KEY = 'settings-update-preference'
+const UPDATE_ERROR_KEY = 'settings-update-error'
 
 export function UpdaterSection() {
   const t = useT()
   const updaterStatus = useUpdaterStore((state) => state.status)
   const setUpdaterStatus = useUpdaterStore((state) => state.receive)
+  const notify = useNotificationStore((state) => state.notify)
+  const dismissNotification = useNotificationStore((state) => state.dismiss)
   const [appVersion, setAppVersion] = useState('')
   const [notifications, setNotifications] = useState<boolean | null>(null)
   const [saving, setSaving] = useState(false)
-  const [preferenceError, setPreferenceError] = useState(false)
+  const reportPreferenceError = useCallback(() => {
+    notify({ key: PREFERENCE_ERROR_KEY, tone: 'error', message: t.update_notification_action_error })
+  }, [notify, t.update_notification_action_error])
 
   useEffect(() => {
     let active = true
     void window.api?.updater?.getNotificationPreferences?.().then((preferences) => {
       if (active && preferences) setNotifications(preferences.enabled)
-    }).catch(() => { if (active) setPreferenceError(true) })
+    }).catch(() => { if (active) reportPreferenceError() })
     return () => { active = false }
-  }, [])
+  }, [reportPreferenceError])
 
   const toggleNotifications = async (enabled: boolean) => {
     setSaving(true)
-    setPreferenceError(false)
+    dismissNotification(PREFERENCE_ERROR_KEY)
     try {
       const result = await window.api?.updater?.setNotificationPreferences?.({ enabled })
       if (result) setNotifications(result.enabled)
-      else setPreferenceError(true)
-    } catch { setPreferenceError(true) }
+      else reportPreferenceError()
+    } catch { reportPreferenceError() }
     finally { setSaving(false) }
   }
+
+  // Check/download failures surface in the toast stack; the status row keeps
+  // only the actionable states (available, downloading, downloaded, up to date).
+  const updateErrorMessage = updaterStatus.type === 'error'
+    ? `${t.settings_update_error}${updaterStatus.error ? `: ${updaterStatus.error}` : ''}`
+    : updaterStatus.type === 'error-codesign'
+      ? t.settings_update_error_codesign
+      : updaterStatus.error
+        ? t.update_notification_action_error
+        : null
+  const updateErrorTone = updaterStatus.type === 'error-codesign' ? 'warning' : 'error'
+  useEffect(() => {
+    if (!updateErrorMessage) {
+      dismissNotification(UPDATE_ERROR_KEY)
+      return
+    }
+    notify({ key: UPDATE_ERROR_KEY, tone: updateErrorTone, message: updateErrorMessage })
+  }, [updateErrorMessage, updateErrorTone, notify, dismissNotification])
 
   useEffect(() => {
     if (!window.api?.updater) return
@@ -74,7 +101,6 @@ export function UpdaterSection() {
             <ToggleSwitch checked={notifications} disabled={saving} onChange={(enabled) => void toggleNotifications(enabled)} aria-label={t.update_popup_enabled} />
           </div>
         )}
-        {preferenceError && <p role="alert" className="px-4 py-3 text-sm">{t.update_notification_action_error}</p>}
 
         {/* Current version + Check button */}
         <div className="flex items-center justify-between gap-4 px-4 py-3.5">
@@ -92,12 +118,9 @@ export function UpdaterSection() {
           />
         </div>
 
-        {/* Status row — shown when not idle or checking */}
-        {updaterStatus.type !== 'idle' && updaterStatus.type !== 'checking' && (
+        {/* Status row — actionable states only; errors go to the toast stack */}
+        {updaterStatus.type !== 'idle' && updaterStatus.type !== 'checking' && updaterStatus.type !== 'error' && updaterStatus.type !== 'error-codesign' && (
           <div className="px-4 py-3 space-y-2">
-            {updaterStatus.error && updaterStatus.type !== 'error' && (
-              <p role="alert" className="ui-error-text text-xs">{t.update_notification_action_error}</p>
-            )}
 
             {/* Update available */}
             {updaterStatus.type === 'available' && (
@@ -177,22 +200,6 @@ export function UpdaterSection() {
                     {installerMode ? t.settings_update_open_installer : t.settings_update_install}
                   </Button>
                 </div>
-              </div>
-            )}
-
-            {/* Code-signature error (macOS unsigned app) */}
-            {updaterStatus.type === 'error-codesign' && (
-              <div className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400">
-                <AlertTriangleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span>{t.settings_update_error_codesign}</span>
-              </div>
-            )}
-
-            {/* Generic error */}
-            {updaterStatus.type === 'error' && (
-              <div className="ui-error-text flex items-start gap-2 text-xs">
-                <AlertTriangleIcon className="ui-error-icon w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span>{t.settings_update_error}{updaterStatus.error ? `: ${updaterStatus.error}` : ''}</span>
               </div>
             )}
 

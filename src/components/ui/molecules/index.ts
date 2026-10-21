@@ -4,7 +4,6 @@ export { PROVIDER_COLORS, ProviderIcon } from '../../ProviderIcon'
 export { ButtonGroup } from '../ButtonGroup'
 export { CredentialCard } from '../CredentialCard'
 export { HistoryEmptyState } from '../HistoryEmptyState'
-export { InlineErrorBanner, type InlineErrorBannerProps } from '../InlineErrorBanner'
 export { AIModelField, type AIModelFieldProps } from './AIModelField'
 export { ChatSessionListItem, type ChatSessionListItemProps } from './ChatSessionListItem'
 export { type ChatTaskStarterState, ChatTaskStarters } from './ChatTaskStarters'
@@ -38,6 +37,7 @@ export { ModelRunStatus, type ModelRunStatusProps } from './ModelRunStatus'
 export { ModelSelectionRow, type ModelSelectionRowProps } from './ModelSelectionRow'
 export {
   NotificationToast,
+  type NotificationToastAction,
   type NotificationToastProps,
   type NotificationToastTone,
 } from './NotificationToast'

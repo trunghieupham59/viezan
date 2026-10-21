@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { UpdateStatus } from '../../../../shared/updater'
 import { useAppStore } from '../../../store/useAppStore'
 import { UPDATE_SNOOZE_MS, useUpdaterStore } from '../../../store/useUpdaterStore'
+import { NotificationViewport } from '../NotificationViewport'
 import { UpdateNotification } from '../UpdateNotification'
 
 let emit: (status: UpdateStatus) => void
@@ -107,7 +108,7 @@ describe('update notification', () => {
       emit({ type: 'error', error: 'offline' })
       return { success: false }
     })
-    render(<UpdateNotification />)
+    render(<><UpdateNotification /><NotificationViewport /></>)
     available()
     await act(async () => fireEvent.click(screen.getByText('Download Update')))
     expect(screen.getByRole('alert')).toBeVisible()

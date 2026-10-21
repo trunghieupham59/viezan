@@ -200,7 +200,7 @@ Use a layer public API from outside that layer:
 
 ```tsx
 import { ToggleSwitch } from '@/components/ui/atoms'
-import { InlineErrorBanner } from '@/components/ui/molecules'
+import { NotificationToast } from '@/components/ui/molecules'
 import { Sidebar } from '@/components/organisms'
 import { AppShell } from '@/components/templates'
 ```

@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { NotificationViewport } from '../../../components/organisms/NotificationViewport'
 import { useAppStore } from '../../../store/useAppStore'
 import * as imageStore from '../../../utils/chatImageStore'
 import { ChatImageStorageCard } from '../ChatImageStorageCard'
@@ -40,14 +41,14 @@ describe('ChatImageStorageCard', () => {
   })
 
   it('shows how many images are stored and how much space they use', async () => {
-    render(<ChatImageStorageCard />)
+    render(<><ChatImageStorageCard /><NotificationViewport /></>)
 
     expect(await screen.findByText('3 images · 3.0 MB')).toBeInTheDocument()
     expect(screen.getByText(/Nothing is removed automatically/)).toBeInTheDocument()
   })
 
   it('removes only images no conversation references', async () => {
-    render(<ChatImageStorageCard />)
+    render(<><ChatImageStorageCard /><NotificationViewport /></>)
     await screen.findByText('3 images · 3.0 MB')
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove unused images' }))
@@ -60,7 +61,7 @@ describe('ChatImageStorageCard', () => {
 
   it('deletes everything only after the user confirms', async () => {
     const confirm = vi.spyOn(window, 'confirm')
-    render(<ChatImageStorageCard />)
+    render(<><ChatImageStorageCard /><NotificationViewport /></>)
     await screen.findByText('3 images · 3.0 MB')
 
     confirm.mockReturnValueOnce(false)
@@ -75,7 +76,7 @@ describe('ChatImageStorageCard', () => {
 
   it('disables both actions when nothing is stored', async () => {
     vi.mocked(imageStore.getChatImageStoreStats).mockResolvedValue({ count: 0, bytes: 0 })
-    render(<ChatImageStorageCard />)
+    render(<><ChatImageStorageCard /><NotificationViewport /></>)
 
     expect(await screen.findByText('No stored images')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Remove unused images' })).toBeDisabled()

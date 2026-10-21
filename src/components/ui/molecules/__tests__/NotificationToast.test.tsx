@@ -32,4 +32,32 @@ describe('NotificationToast', () => {
     expect(onAction).toHaveBeenCalledOnce()
     expect(onDismiss).toHaveBeenCalledOnce()
   })
+
+  it('renders a detail line and a list of recovery actions, emphasising the first', () => {
+    const retry = vi.fn()
+    const pick = vi.fn()
+
+    render(
+      <NotificationToast
+        tone="error"
+        message="Chat failed: no local runtime."
+        detail="OpenAI · GPT 6.1"
+        actions={[
+          { label: 'Retry', onClick: retry, disabled: true },
+          { label: 'Choose another model', onClick: pick },
+        ]}
+        dismissLabel="Dismiss"
+        onDismiss={vi.fn()}
+      />,
+    )
+
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent('OpenAI · GPT 6.1')
+    const retryButton = screen.getByRole('button', { name: 'Retry' })
+    expect(retryButton).toBeDisabled()
+    expect(retryButton).toHaveAttribute('data-control-size', 'sm')
+    fireEvent.click(screen.getByRole('button', { name: 'Choose another model' }))
+    expect(pick).toHaveBeenCalledOnce()
+    expect(retry).not.toHaveBeenCalled()
+  })
 })

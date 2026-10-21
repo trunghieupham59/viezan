@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { NotificationViewport } from '../../components/organisms/NotificationViewport'
 import { TRANSLATIONS } from '../../i18n'
 import { DEEP_RESEARCH_CANCELLED_ERROR, deepResearchService } from '../../services/deepResearchService'
 import * as imagePromptService from '../../services/imagePromptService'
@@ -126,7 +127,7 @@ describe('ChatPage', () => {
     })
 
     try {
-      render(<ChatPage />)
+      render(<><ChatPage /><NotificationViewport /></>)
       fireEvent.click(screen.getByRole('button', { name: TRANSLATIONS.en.chat_voice_record }))
 
       const alert = await screen.findByRole('alert')

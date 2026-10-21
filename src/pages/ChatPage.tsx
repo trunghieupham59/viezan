@@ -15,9 +15,7 @@ import {
   RefreshIcon,
   SendIcon,
   StopSquareIcon,
-  XIcon,
 } from '../components/ui/icons'
-import { NotificationToast } from '../components/ui/molecules'
 
 import { VoiceRecorder, type VoiceRecordingState } from '../components/VoiceRecorder'
 import { MAX_CHAT_IMAGE_DIMENSION, MAX_IMAGE_INPUT_BYTES } from '../constants/image'
@@ -31,6 +29,7 @@ import { planImageRequest } from '../services/imagePromptService'
 import type { ActionableSearchFallback } from '../services/searchResultFormatting'
 import { smartThinkingService } from '../services/smartThinkingService'
 import { useAppStore, useT } from '../store/useAppStore'
+import { useNotificationStore } from '../store/useNotificationStore'
 import type {
   AudioTranscriptionErrorCode,
   ChatMessage,
@@ -62,6 +61,12 @@ const CHAT_STREAM_BUFFER_INTERVAL_MS = 60
 
 /** How long the web-search fallback notice stays up; longer than a plain toast because it offers an action. */
 const SEARCH_FALLBACK_NOTICE_MS = 10_000
+/** Toast owner keys: a newer notice of the same kind replaces the previous one. */
+const VOICE_ERROR_KEY = 'chat-voice-error'
+const SEARCH_FALLBACK_KEY = 'chat-web-search-fallback'
+const SEARCH_UNAVAILABLE_KEY = 'chat-web-search-unavailable'
+const ATTACH_IMAGE_ERROR_KEY = 'chat-attach-image'
+const COPIED_KEY = 'chat-copied'
 
 // DUP-05: resizeImageToBase64 replaced by shared resizeImageFile from imageUtils.ts
 // HC-09: MAX_CHAT_IMAGE_DIMENSION imported from constants/image.ts
@@ -335,12 +340,15 @@ export function ChatPage() {
    * batched state queue. Reset to `null` once the request settles.
    */
   const abortControllerRef = useRef<AbortController | null>(null)
-  const [copiedId, setCopiedId] = useState<string | null>(null)
   const [attachedImage, setAttachedImage] = useState<{
     base64: string; mimeType: string; previewUrl: string; fileName: string
   } | null>(null)
-  /** User-visible error shown in the input area when image processing fails. */
-  const [attachImageError, setAttachImageError] = useState<string | null>(null)
+  const notify = useNotificationStore((state) => state.notify)
+  const dismissNotification = useNotificationStore((state) => state.dismiss)
+  /** Image processing failures go to the toast stack; a new attempt clears the old one. */
+  const reportAttachImageError = useCallback((message: string) => {
+    notify({ key: ATTACH_IMAGE_ERROR_KEY, tone: 'error', message })
+  }, [notify])
   /** Visual feedback state when user drags a file over the chat area */
   const [isDraggingOver, setIsDraggingOver] = useState(false)
   /** Plus menu (attach/tools) popup */
@@ -392,6 +400,57 @@ export function ChatPage() {
   const canOpenSettingsForVoiceError = voiceErrorCode
     ? canResolveVoiceErrorInSettings(voiceErrorCode)
     : false
+
+  // ── Notices go to the app-level toast stack ──
+  useEffect(() => {
+    if (!voiceErrorCode || !voiceErrorMessage) {
+      dismissNotification(VOICE_ERROR_KEY)
+      return
+    }
+    notify({
+      key: VOICE_ERROR_KEY,
+      tone: getVoiceNotificationTone(voiceErrorCode),
+      title: t.voice_transcription_error_title,
+      message: voiceErrorMessage,
+      actions: canOpenSettingsForVoiceError
+        ? [{ label: t.translate_error_open_settings, onClick: () => { setVoiceErrorCode(null); openSettings() } }]
+        : undefined,
+      onDismiss: () => setVoiceErrorCode(null),
+    })
+  }, [voiceErrorCode, voiceErrorMessage, canOpenSettingsForVoiceError, notify, dismissNotification, openSettings, t])
+
+  useEffect(() => {
+    if (!searchFallbackNotice) {
+      dismissNotification(SEARCH_FALLBACK_KEY)
+      return
+    }
+    notify({
+      key: SEARCH_FALLBACK_KEY,
+      tone: 'warning',
+      title: t.chat_web_search_fallback_title,
+      message: t.chat_web_search_fallback(
+        searchFallbackNotice.from === 'tavily' ? 'Tavily' : 'Brave Search',
+        searchFallbackNotice.reason,
+      ),
+      actions: [{ label: t.translate_error_open_settings, onClick: () => { setSearchFallbackNotice(null); openSettings() } }],
+      onDismiss: () => setSearchFallbackNotice(null),
+    })
+  }, [searchFallbackNotice, notify, dismissNotification, openSettings, t])
+
+  useEffect(() => {
+    if (!searchUnavailable) {
+      dismissNotification(SEARCH_UNAVAILABLE_KEY)
+      return
+    }
+    notify({
+      key: SEARCH_UNAVAILABLE_KEY,
+      tone: 'warning',
+      title: t.chat_web_search_unavailable_title,
+      message: t.chat_web_search_unavailable,
+      actions: [{ label: t.translate_error_open_settings, onClick: () => { setSearchUnavailable(false); openSettings() } }],
+      onDismiss: () => setSearchUnavailable(false),
+    })
+  }, [searchUnavailable, notify, dismissNotification, openSettings, t])
 
   // Re-activate on mount so a model selected in another feature cannot leak
   // into this conversation after navigating back to Chat.
@@ -483,13 +542,13 @@ export function ChatPage() {
 
   // ── Image attachment ──
   const handleImageSelect = useCallback(async (file: File) => {
-    setAttachImageError(null)
+    dismissNotification(ATTACH_IMAGE_ERROR_KEY)
     // Hard upper-bound check before decoding — a 50 MP RAW/HEIC dropped into
     // the composer would otherwise allocate hundreds of megabytes of canvas
     // memory inside resizeImageFile and freeze the renderer.
     if (file.size > MAX_IMAGE_INPUT_BYTES) {
       const maxMb = Math.round(MAX_IMAGE_INPUT_BYTES / (1024 * 1024))
-      setAttachImageError(t.image_translate_size_error(maxMb))
+      reportAttachImageError(t.image_translate_size_error(maxMb))
       return
     }
     try {
@@ -499,9 +558,9 @@ export function ChatPage() {
     } catch (err) {
       // Show error in the UI so the user knows the attachment failed
       const msg = err instanceof Error ? err.message : t.image_translate_error_failed
-      setAttachImageError(msg)
+      reportAttachImageError(msg)
     }
-  }, [t.image_translate_error_failed, t.image_translate_size_error])
+  }, [t.image_translate_error_failed, t.image_translate_size_error, dismissNotification, reportAttachImageError])
 
   const handleFileDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -509,11 +568,11 @@ export function ChatPage() {
     const file = e.dataTransfer.files[0]
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      setAttachImageError(t.image_translate_type_error)
+      reportAttachImageError(t.image_translate_type_error)
       return
     }
     handleImageSelect(file)
-  }, [handleImageSelect, t])
+  }, [handleImageSelect, reportAttachImageError, t])
 
   const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     // Only clear when leaving the container itself, not a child element
@@ -1258,7 +1317,7 @@ export function ChatPage() {
       const stored = !originalImage.imageBase64 && originalImage.imageStoreKey ? await getChatImage(originalImage.imageStoreKey) : null
       const base64 = originalImage.imageBase64 ?? stored?.imageBase64
       const mimeType = originalImage.imageMimeType ?? stored?.imageMimeType
-      if (!base64 || !mimeType) { setAttachImageError(t.chat_image_unavailable); return }
+      if (!base64 || !mimeType) { reportAttachImageError(t.chat_image_unavailable); return }
       image = { base64, mimeType, previewUrl: originalImage.imagePreviewUrl ?? buildImageDataUrl(base64, mimeType), fileName: originalImage.imageFileName ?? 'image' }
     }
     const message = user.requestConfiguration ? user : { ...user, requestConfiguration: {
@@ -1268,13 +1327,13 @@ export function ChatPage() {
     const originalConfiguration = message.requestConfiguration
     if (!originalConfiguration) return
     if (originalConfiguration.provider !== 'local' && !useAppStore.getState().keyStatus[originalConfiguration.provider]) {
-      setAttachImageError(t.chat_error_no_key); return
+      reportAttachImageError(t.chat_error_no_key); return
     }
     if (!user.requestConfiguration) useAppStore.getState().updateChatMessage(sessionId, user.id, { requestConfiguration: message.requestConfiguration })
     if (originalConfiguration.deepResearchMode) useAppStore.getState().restartChatResearch(sessionId, user.id)
     await executeChatRequest({ sessionId, message, history: session.messages.slice(0, userIndex),
       assistantMsgId: originalConfiguration.deepResearchMode ? undefined : assistant.id, image })
-  }, [activeChatSessionId, isSending, isVoiceBusy, executeChatRequest, chatSystemPrompt, t])
+  }, [activeChatSessionId, isSending, isVoiceBusy, executeChatRequest, chatSystemPrompt, reportAttachImageError, t])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
 
@@ -1293,9 +1352,8 @@ export function ChatPage() {
   }, [handleImageSelect])
 
   const showCopiedToast = useCallback(() => {
-    setCopiedId(String(Date.now()))
-    setTimeout(() => setCopiedId(null), COPY_FEEDBACK_DURATION_MS)
-  }, [])
+    notify({ key: COPIED_KEY, tone: 'success', message: t.chat_copied, durationMs: COPY_FEEDBACK_DURATION_MS })
+  }, [notify, t.chat_copied])
 
   const handleDownloadImage = useCallback((content: ChatMessageContent) => {
     const imageUrl = getChatImageUrl(content)
@@ -1438,24 +1496,6 @@ export function ChatPage() {
           contextKey={`${activeChatSessionId ?? 'pending'}:${messages.filter((message) => message.role === 'user').length}`}
           onSelect={handleTaskSelect} onOpenChange={handleTaskOpenChange} />
       </div>}
-      {/* Error row */}
-      {attachImageError && (
-        <div className="px-4 pt-2 flex items-center gap-2">
-          <p className="ui-error-text text-xs">{attachImageError}</p>
-          <Button
-            size="xs"
-            shape="icon"
-            variant="danger"
-            appearance="soft"
-            type="button"
-            onClick={() => setAttachImageError(null)}
-            aria-label={t.translate_error_dismiss}
-          >
-            <XIcon className="w-3 h-3" />
-          </Button>
-        </div>
-      )}
-
       {/* Image preview */}
       {attachedImage && (
         <ImagePreviewThumbnail
@@ -1655,61 +1695,6 @@ export function ChatPage() {
         <DragOverlay label={t.chat_attach_image} zIndex="z-50" showRing />
       )}
 
-      {(voiceErrorMessage || searchFallbackNotice || searchUnavailable) && (
-        <div className="notification-viewport">
-          {searchUnavailable && (
-            <NotificationToast
-              tone="warning"
-              title={t.chat_web_search_unavailable_title}
-              message={t.chat_web_search_unavailable}
-              actionLabel={t.translate_error_open_settings}
-              onAction={() => {
-                setSearchUnavailable(false)
-                openSettings()
-              }}
-              dismissLabel={t.translate_error_dismiss}
-              onDismiss={() => setSearchUnavailable(false)}
-              className="fade-in"
-            />
-          )}
-          {searchFallbackNotice && (
-            <NotificationToast
-              tone="warning"
-              title={t.chat_web_search_fallback_title}
-              message={t.chat_web_search_fallback(
-                searchFallbackNotice.from === 'tavily' ? 'Tavily' : 'Brave Search',
-                searchFallbackNotice.reason,
-              )}
-              actionLabel={t.translate_error_open_settings}
-              onAction={() => {
-                setSearchFallbackNotice(null)
-                openSettings()
-              }}
-              dismissLabel={t.translate_error_dismiss}
-              onDismiss={() => setSearchFallbackNotice(null)}
-              className="fade-in"
-            />
-          )}
-          {voiceErrorMessage && (
-            <NotificationToast
-              tone={voiceErrorCode ? getVoiceNotificationTone(voiceErrorCode) : 'error'}
-              title={t.voice_transcription_error_title}
-              message={voiceErrorMessage}
-              actionLabel={canOpenSettingsForVoiceError ? t.translate_error_open_settings : undefined}
-              onAction={canOpenSettingsForVoiceError
-                ? () => {
-                    setVoiceErrorCode(null)
-                    openSettings()
-                  }
-                : undefined}
-              dismissLabel={t.translate_error_dismiss}
-              onDismiss={() => setVoiceErrorCode(null)}
-              className="fade-in"
-            />
-          )}
-        </div>
-      )}
-
       {/* ── Main area ── */}
       <div className="flex-1 flex flex-col min-h-0">
         <div className="app-workspace">
@@ -1824,13 +1809,6 @@ export function ChatPage() {
         </div>
       </div>
 
-      {/* ── Copied toast ── */}
-      {copiedId && (
-        <div className="pointer-events-none fixed bottom-20 left-1/2 -translate-x-1/2
-                        bg-gray-800 text-white text-xs px-3 py-1.5 rounded-full shadow-lg fade-in z-50">
-          {t.chat_copied}
-        </div>
-      )}
     </div>
   )
 }

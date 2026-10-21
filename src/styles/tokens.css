@@ -213,6 +213,7 @@
   --vzn-layer-navigation-overlay: 70;
   --vzn-layer-modal: 80;
   --vzn-layer-picker: 90;
+  --vzn-layer-notification: 100;
 
   /* Layout -------------------------------------------------------------- */
   --vzn-sidebar-width: 60px;

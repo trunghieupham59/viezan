@@ -212,23 +212,6 @@
   color: var(--vzn-danger);
 }
 
-.dictionary-inline-error {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--vzn-space-2);
-}
-
-.dictionary-inline-error > svg {
-  inline-size: var(--vzn-icon-md);
-  block-size: var(--vzn-icon-md);
-  flex: 0 0 auto;
-  margin-block-start: var(--vzn-space-0-5);
-}
-
-.dictionary-recoverable-error {
-  margin-block-start: var(--vzn-space-2);
-}
-
 /* Result ------------------------------------------------------------------- */
 
 .dictionary-result-header {

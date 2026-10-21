@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { NotificationViewport } from '../../../components/organisms/NotificationViewport'
 import { useAppStore } from '../../../store/useAppStore'
 import { useUpdaterStore } from '../../../store/useUpdaterStore'
 import { UpdaterSection } from '../UpdaterSection'
@@ -15,7 +16,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); delete window.api.updater.getNotificationPreferences; delete window.api.updater.setNotificationPreferences })
 
 it('loads and saves the floating notification preference without disabling manual checks', async () => {
-  await act(async () => { render(<UpdaterSection />) })
+  await act(async () => { render(<><UpdaterSection /><NotificationViewport /></>) })
   const toggle = screen.getByRole('switch', { name: 'Floating update notifications' })
   expect(toggle).toHaveAttribute('aria-checked', 'true')
   await act(async () => fireEvent.click(toggle))
@@ -26,7 +27,7 @@ it('loads and saves the floating notification preference without disabling manua
 
 it('retains the previous setting and reports a failed save', async () => {
   window.api.updater.setNotificationPreferences = vi.fn().mockResolvedValue(null)
-  await act(async () => { render(<UpdaterSection />) })
+  await act(async () => { render(<><UpdaterSection /><NotificationViewport /></>) })
   await act(async () => fireEvent.click(screen.getByRole('switch')))
   expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true')
   expect(screen.getByRole('alert')).toBeVisible()
@@ -34,7 +35,7 @@ it('retains the previous setting and reports a failed save', async () => {
 
 it('keeps the retry action and an error message after a failed download', async () => {
   useUpdaterStore.setState({ status: { type: 'available', version: '3.0.0', error: 'checksum mismatch' } })
-  await act(async () => { render(<UpdaterSection />) })
+  await act(async () => { render(<><UpdaterSection /><NotificationViewport /></>) })
   expect(screen.getByRole('alert')).toBeVisible()
   expect(screen.getByRole('button', { name: 'Download Update' })).toBeEnabled()
 })

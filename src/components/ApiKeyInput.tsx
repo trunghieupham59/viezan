@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { VERIFY_STATUS_RESET_DELAY_MS } from '../constants/ui'
 import { useT } from '../store/useAppStore'
+import { type NotificationTone, useNotificationStore } from '../store/useNotificationStore'
 import type { ProviderConfig, UsageCurrency, UsageTotal } from '../types'
 import { tpl } from '../utils/tpl'
 import { ProviderCostStats } from './cost/ProviderCostStats'
 import { ProviderIcon } from './ProviderIcon'
-import { CredentialCard, type CredentialMessageTone } from './ui/CredentialCard'
+import { CredentialCard } from './ui/CredentialCard'
 
 interface ApiKeyInputProps {
   provider: ProviderConfig
@@ -46,33 +47,42 @@ export function ApiKeyInput({
   const [inputValue, setInputValue] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>('idle')
-  const [verifyMessage, setVerifyMessage] = useState('')
+  const notify = useNotificationStore((state) => state.notify)
+  const dismissNotification = useNotificationStore((state) => state.dismiss)
+  const notificationKey = `settings-api-key-${provider.id}`
 
   const isVerifying = verifyStatus === 'verifying'
   const isSuccess = ['valid', 'rate_limited', 'billing', 'permission'].includes(verifyStatus)
   const isError = verifyStatus === 'invalid' || verifyStatus === 'network_error'
-  const messageTone: CredentialMessageTone =
-    verifyStatus === 'valid'
-      ? 'success'
-      : ['rate_limited', 'billing', 'permission', 'network_error'].includes(verifyStatus)
-        ? 'warning'
-        : 'error'
+
+  /** Verification outcomes go to the toast stack; a saved key's notice clears with its badge. */
+  const report = (status: VerifyStatus, message: string) => {
+    const tone: NotificationTone =
+      status === 'valid'
+        ? 'success'
+        : ['rate_limited', 'billing', 'permission', 'network_error'].includes(status)
+          ? 'warning'
+          : 'error'
+    notify({
+      key: notificationKey,
+      tone,
+      message,
+      durationMs: status === 'invalid' || status === 'network_error' ? null : VERIFY_STATUS_RESET_DELAY_MS,
+    })
+  }
 
   const saveVerifiedKey = async (status: VerifyStatus, message: string) => {
     await onSave(inputValue.trim())
     setVerifyStatus(status)
-    setVerifyMessage(message)
+    report(status, message)
     setInputValue('')
-    setTimeout(() => {
-      setVerifyStatus('idle')
-      setVerifyMessage('')
-    }, VERIFY_STATUS_RESET_DELAY_MS)
+    setTimeout(() => setVerifyStatus('idle'), VERIFY_STATUS_RESET_DELAY_MS)
   }
 
   const handleVerify = async () => {
     if (!inputValue.trim()) return
     setVerifyStatus('verifying')
-    setVerifyMessage('')
+    dismissNotification(notificationKey)
     try {
       const result = await window.api.verifyKey(provider.id, inputValue.trim())
       if (result.success) {
@@ -90,20 +100,20 @@ export function ApiKeyInput({
             break
           case 'INVALID_KEY':
             setVerifyStatus('invalid')
-            setVerifyMessage(t.settings_msg_invalid)
+            report('invalid', t.settings_msg_invalid)
             break
           case 'NETWORK':
             setVerifyStatus('network_error')
-            setVerifyMessage(t.settings_msg_network)
+            report('network_error', t.settings_msg_network)
             break
           default:
             setVerifyStatus('invalid')
-            setVerifyMessage(`✗ ${result.error ?? 'Verification failed'}`)
+            report('invalid', result.error ?? 'Verification failed')
         }
       }
     } catch (err) {
       setVerifyStatus('invalid')
-      setVerifyMessage(`✗ ${err instanceof Error ? err.message : 'Unexpected error'}`)
+      report('invalid', err instanceof Error ? err.message : 'Unexpected error')
     }
   }
 
@@ -111,13 +121,13 @@ export function ApiKeyInput({
     if (!confirm(`${t.settings_remove} API key for ${provider.name}?`)) return
     setIsDeleting(true)
     setVerifyStatus('idle')
-    setVerifyMessage('')
+    dismissNotification(notificationKey)
     setInputValue('')
     try {
       await onDelete()
     } catch (err) {
       setVerifyStatus('invalid')
-      setVerifyMessage(`✗ ${err instanceof Error ? err.message : t.settings_key_store_failed}`)
+      report('invalid', err instanceof Error ? err.message : t.settings_key_store_failed)
     } finally {
       setIsDeleting(false)
     }
@@ -162,7 +172,6 @@ export function ApiKeyInput({
       isSuccess={isSuccess}
       isError={isError}
       isDeleting={isDeleting}
-      statusMessage={verifyMessage ? { text: verifyMessage, tone: messageTone } : undefined}
       onOpenDocs={() => window.api?.openExternal(provider.docsUrl)}
       onInputChange={setInputValue}
       onSubmit={handleVerify}

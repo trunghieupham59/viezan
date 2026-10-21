@@ -8,6 +8,7 @@ import { DownloadIcon, RefreshIcon, SpinnerIcon, TrashIcon } from '../../compone
 import { PROVIDERS } from '../../constants/providers'
 import { JINA_DOCS_URL } from '../../constants/urls'
 import { useAppStore, useT } from '../../store/useAppStore'
+import { useNotificationStore } from '../../store/useNotificationStore'
 import type {
   LocalAiBenchmarkResult,
   LocalAiDiscoveryResult,
@@ -18,6 +19,8 @@ import { LocalAiPerformanceSection } from './LocalAiPerformanceSection'
 
 /** Main-process message for a model whose pull is already in flight (see downloadLocalAiModel). */
 const ALREADY_DOWNLOADING_ERROR = 'This model is already being downloaded.'
+/** Toast owner key for local-runtime model/install outcomes. */
+const LOCAL_AI_NOTICE_KEY = 'settings-local-ai'
 
 function LocalAiProviderCard({
   status,
@@ -32,10 +35,6 @@ function LocalAiProviderCard({
   onDownloadModel,
   onUninstallModel,
   onInstallOllama,
-  downloadError,
-  downloadSuccess,
-  installError,
-  installSuccess,
 }: {
   status: LocalAiDiscoveryResult | null
   benchmark: LocalAiBenchmarkResult | null
@@ -50,10 +49,6 @@ function LocalAiProviderCard({
   onDownloadModel: (modelId: string) => void
   onUninstallModel: (modelId: string) => void
   onInstallOllama: () => void
-  downloadError: string | null
-  downloadSuccess: string | null
-  installError: string | null
-  installSuccess: string | null
 }) {
   const t = useT()
   const available = status?.available ?? false
@@ -343,17 +338,6 @@ function LocalAiProviderCard({
         </div>
       )}
 
-      {(downloadError || downloadSuccess || installError || installSuccess) && (
-        <p className={[
-          'rounded-lg px-3 py-2 text-xs font-medium',
-          downloadError || installError
-            ? 'ui-error-box text-xs font-medium'
-            : 'bg-gray-50 text-gray-700 dark:bg-gray-900/20 dark:text-gray-300',
-        ].join(' ')}>
-          {downloadError ?? installError ?? downloadSuccess ?? installSuccess}
-        </p>
-      )}
-
       {!available && (
         <p className="text-xs text-gray-500 dark:text-gray-400">
           {t.settings_local_ai_start_runtime}
@@ -392,10 +376,11 @@ export function ApiKeysSection() {
   const [downloads, setDownloads] = useState<Record<string, LocalAiModelDownloadProgress>>({})
   const [uninstallingModel, setUninstallingModel] = useState<string | null>(null)
   const [openingRuntimePage, setOpeningRuntimePage] = useState(false)
-  const [downloadError, setDownloadError] = useState<string | null>(null)
-  const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null)
-  const [installError, setInstallError] = useState<string | null>(null)
-  const [installSuccess, setInstallSuccess] = useState<string | null>(null)
+  const notify = useNotificationStore((state) => state.notify)
+  const dismissNotification = useNotificationStore((state) => state.dismiss)
+  /** Download/uninstall/install outcomes go to the toast stack, one at a time. */
+  const reportLocalAi = (tone: 'success' | 'error', message: string) =>
+    notify({ key: LOCAL_AI_NOTICE_KEY, tone, message })
 
   const refreshLocalAi = async (): Promise<LocalAiDiscoveryResult | null> => {
     if (!window.api?.discoverLocalAi) return null
@@ -462,10 +447,7 @@ export function ApiKeysSection() {
       percent: 1,
       message: t.settings_local_ai_downloading_model,
     })
-    setDownloadError(null)
-    setDownloadSuccess(null)
-    setInstallError(null)
-    setInstallSuccess(null)
+    dismissNotification(LOCAL_AI_NOTICE_KEY)
     try {
       const result = await window.api.downloadLocalAiModel(modelId)
       if (!result.success) {
@@ -473,38 +455,35 @@ export function ApiKeysSection() {
         // its progress instead of reporting an error for a download that is healthy.
         if (result.error === ALREADY_DOWNLOADING_ERROR) return
         untrackDownload(modelId)
-        setDownloadError(result.error ?? t.settings_local_ai_download_failed)
+        reportLocalAi('error', result.error ?? t.settings_local_ai_download_failed)
         return
       }
       untrackDownload(modelId)
-      setDownloadSuccess(`${t.settings_local_ai_downloaded}: ${result.model}`)
+      reportLocalAi('success', `${t.settings_local_ai_downloaded}: ${result.model}`)
       await refreshLocalAi()
     } catch (err) {
       untrackDownload(modelId)
-      setDownloadError(err instanceof Error ? err.message : t.settings_local_ai_download_failed)
+      reportLocalAi('error', err instanceof Error ? err.message : t.settings_local_ai_download_failed)
     }
   }
 
   const handleUninstallLocalModel = async (modelId: string) => {
     setUninstallingModel(modelId)
-    setDownloadError(null)
-    setDownloadSuccess(null)
-    setInstallError(null)
-    setInstallSuccess(null)
+    dismissNotification(LOCAL_AI_NOTICE_KEY)
     try {
       if (!window.api?.uninstallLocalAiModel) {
-        setDownloadError(t.settings_local_ai_uninstall_failed)
+        reportLocalAi('error', t.settings_local_ai_uninstall_failed)
         return
       }
       const result = await window.api.uninstallLocalAiModel(modelId)
       if (!result.success) {
-        setDownloadError(result.error ?? t.settings_local_ai_uninstall_failed)
+        reportLocalAi('error', result.error ?? t.settings_local_ai_uninstall_failed)
         return
       }
-      setDownloadSuccess(`${t.settings_local_ai_uninstalled}: ${result.model}`)
+      reportLocalAi('success', `${t.settings_local_ai_uninstalled}: ${result.model}`)
       await refreshLocalAi()
     } catch (err) {
-      setDownloadError(err instanceof Error ? err.message : t.settings_local_ai_uninstall_failed)
+      reportLocalAi('error', err instanceof Error ? err.message : t.settings_local_ai_uninstall_failed)
     } finally {
       setUninstallingModel(null)
     }
@@ -515,19 +494,16 @@ export function ApiKeysSection() {
   const handleInstallOllama = async () => {
     if (!window.api?.installOllama) return
     setOpeningRuntimePage(true)
-    setDownloadError(null)
-    setDownloadSuccess(null)
-    setInstallError(null)
-    setInstallSuccess(null)
+    dismissNotification(LOCAL_AI_NOTICE_KEY)
     try {
       const result = await window.api.installOllama()
       if (!result.success) {
-        setInstallError(result.error ?? t.settings_local_ai_install_failed)
+        reportLocalAi('error', result.error ?? t.settings_local_ai_install_failed)
         return
       }
-      setInstallSuccess(t.settings_local_ai_manual_install_opened)
+      reportLocalAi('success', t.settings_local_ai_manual_install_opened)
     } catch (err) {
-      setInstallError(err instanceof Error ? err.message : t.settings_local_ai_install_failed)
+      reportLocalAi('error', err instanceof Error ? err.message : t.settings_local_ai_install_failed)
     } finally {
       setOpeningRuntimePage(false)
     }
@@ -544,7 +520,7 @@ export function ApiKeysSection() {
       }
       untrackDownload(progress.model)
       if (progress.status === 'error') {
-        setDownloadError(progress.message)
+        reportLocalAi('error', progress.message)
         return
       }
       // A pull started before Settings was reopened finishes with no invoke() left to
@@ -681,10 +657,6 @@ export function ApiKeysSection() {
               onDownloadModel={handleDownloadLocalModel}
               onUninstallModel={handleUninstallLocalModel}
               onInstallOllama={handleInstallOllama}
-              downloadError={downloadError}
-              downloadSuccess={downloadSuccess}
-              installError={installError}
-              installSuccess={installSuccess}
             />
           ) : (
             <ApiKeyInput

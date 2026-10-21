@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { NotificationViewport } from '../../components/organisms/NotificationViewport'
 import { dictionaryService } from '../../services/dictionaryService'
 import { useAppStore } from '../../store/useAppStore'
 import { DictionaryPage } from '../DictionaryPage'
@@ -373,7 +374,7 @@ describe('DictionaryPage', () => {
   })
 
   it('shows a localized validation error for empty terms', () => {
-    render(<DictionaryPage />)
+    render(<><DictionaryPage /><NotificationViewport /></>)
     fireEvent.click(screen.getByRole('button', { name: /Look up|Tra cứu|検索/i }))
 
     expect(screen.getByText(/Enter a term|Nhập từ|語句を入力/i)).toBeInTheDocument()
@@ -384,7 +385,7 @@ describe('DictionaryPage', () => {
       .mockResolvedValueOnce({ success: false, error: 'Provider unavailable' })
       .mockResolvedValueOnce({ success: false, error: 'Still unavailable' })
 
-    render(<DictionaryPage />)
+    render(<><DictionaryPage /><NotificationViewport /></>)
     const input = screen.getByPlaceholderText(/Enter a word|Nhập từ|単語/i)
     fireEvent.change(input, { target: { value: 'reliable' } })
     fireEvent.click(screen.getByRole('button', { name: /Look up|Tra cứu|検索/i }))

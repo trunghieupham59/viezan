@@ -369,10 +369,6 @@ export function DictionaryResultPanel({
             </div>
           )}
 
-          {selectionLookup.error && (
-            <p className="ui-error-box dictionary-fade-in" role="alert">{selectionLookup.error}</p>
-          )}
-
           {selectionLookup.result && (
             <div className="dictionary-fade-in">
               <DictionaryEntrySections

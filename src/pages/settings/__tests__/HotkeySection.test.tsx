@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { NotificationViewport } from '../../../components/organisms/NotificationViewport'
 import { useAppStore } from '../../../store/useAppStore'
 import { HotkeySection } from '../HotkeySection'
 
@@ -13,7 +14,7 @@ beforeEach(() => {
 describe('launcher shortcut settings', () => {
   it.each([['darwin', 'Command+Space'], ['win32', 'Alt+Space']])('suggests %s default without registering until enabled', async (platform, shortcut) => {
     window.api.platform = platform
-    render(<HotkeySection />)
+    render(<><HotkeySection /><NotificationViewport /></>)
     expect(await screen.findByRole('button', { name: shortcut })).toBeInTheDocument()
     expect(window.api.hotkey.chat.update).not.toHaveBeenCalled()
     fireEvent.click(screen.getAllByRole('switch')[1])
@@ -27,7 +28,7 @@ describe('launcher shortcut settings', () => {
       success: false, errorCode: 'IN_USE', error: 'raw backend error',
       settings: { hotkey: 'Alt+Shift+C', enabled: true },
     })
-    render(<HotkeySection />)
+    render(<><HotkeySection /><NotificationViewport /></>)
     const recorder = await screen.findByRole('button', { name: 'Alt+Shift+C' })
     fireEvent.click(recorder)
     fireEvent.keyDown(recorder, { key: ' ', metaKey: true })
