@@ -5,7 +5,7 @@ import { readNotificationState } from '../updateNotificationState'
 describe('readNotificationState', () => {
   it('defaults the palette to Graphite and keeps a known preset', () => {
     expect(readNotificationState(null).themePreset).toBe('graphite')
-    expect(readNotificationState({ themePreset: 'ember' }).themePreset).toBe('ember')
+    expect(readNotificationState({ themePreset: 'paper' }).themePreset).toBe('paper')
   })
 
   it('rejects an unknown palette without dropping the other preferences', () => {

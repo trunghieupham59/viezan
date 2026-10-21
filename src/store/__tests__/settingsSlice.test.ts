@@ -63,24 +63,24 @@ describe('themePreset defaults and persistence', () => {
 
   it('switches the palette without touching the light/dark mode', () => {
     act(() => useAppStore.getState().setTheme('dark'))
-    act(() => useAppStore.getState().setThemePreset('cosmos'))
-    expect(useAppStore.getState().themePreset).toBe('cosmos')
+    act(() => useAppStore.getState().setThemePreset('studio'))
+    expect(useAppStore.getState().themePreset).toBe('studio')
     expect(useAppStore.getState().theme).toBe('dark')
   })
 
   it('includes the palette in persisted settings', () => {
-    act(() => useAppStore.getState().setThemePreset('forest'))
+    act(() => useAppStore.getState().setThemePreset('paper'))
     // biome-ignore lint/suspicious/noExplicitAny: persist middleware test hook
     const partialize = (useAppStore as any).persist.getOptions().partialize
-    expect(partialize(useAppStore.getState()).themePreset).toBe('forest')
+    expect(partialize(useAppStore.getState()).themePreset).toBe('paper')
   })
 
-  it.each(['neon', '', null, undefined, 42])('migrates unknown persisted palette %s back to Graphite', (themePreset) => {
+  it.each(['neon', 'cosmos', '', null, undefined, 42])('migrates unknown persisted palette %s back to Graphite', (themePreset) => {
     expect(migratePersistedStore({ themePreset, locale: 'ja' })).toMatchObject({ themePreset: 'graphite', locale: 'ja' })
   })
 
   it('keeps a known persisted palette', () => {
-    expect(migratePersistedStore({ themePreset: 'ember' })).toMatchObject({ themePreset: 'ember' })
+    expect(migratePersistedStore({ themePreset: 'corporate' })).toMatchObject({ themePreset: 'corporate' })
   })
 })
 

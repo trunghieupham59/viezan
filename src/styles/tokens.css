@@ -34,19 +34,17 @@
   --vzn-blue-800: #0050aa;
   --vzn-blue-900: #003e84;
 
-  --vzn-indigo-300: #a5b4fc;
-  --vzn-indigo-400: #818cf8;
-  --vzn-indigo-500: #6366f1;
-  --vzn-indigo-600: #4f46e5;
-  --vzn-indigo-700: #4338ca;
-  --vzn-indigo-800: #3730a3;
-
-  --vzn-orange-300: #fdba74;
-  --vzn-orange-400: #fb923c;
-  --vzn-orange-500: #f97316;
-  --vzn-orange-700: #c2410c;
-  --vzn-orange-800: #9a3412;
-  --vzn-orange-900: #7c2d12;
+  /* Studio preset accent ramp. */
+  --vzn-violet-300: #c4b5fd;
+  --vzn-violet-400: #a78bfa;
+  --vzn-violet-500: #8b5cf6;
+  --vzn-violet-600: #7c3aed;
+  --vzn-violet-700: #6d28d9;
+  --vzn-violet-800: #5b21b6;
+  --vzn-pink-400: #f472b6;
+  --vzn-pink-500: #ec4899;
+  --vzn-pink-600: #db2777;
+  --vzn-pink-700: #be185d;
 
   --vzn-red-50: #fef2f2;
   --vzn-red-200: #fecaca;
@@ -55,13 +53,8 @@
   --vzn-red-700: #b91c1c;
 
   --vzn-green-50: #ecfdf5;
-  --vzn-green-300: #86efac;
-  --vzn-green-400: #4ade80;
   --vzn-green-500: #10b981;
   --vzn-green-600: #059669;
-  --vzn-green-700: #15803d;
-  --vzn-green-800: #166534;
-  --vzn-green-900: #14532d;
   --vzn-amber-50: #fffbeb;
   --vzn-amber-500: #f59e0b;
   --vzn-amber-600: #d97706;
@@ -86,32 +79,28 @@
  * lightest, and cards/composer are pure white on top. */
 :root,
 [data-theme="graphite"] {
+  /* Surfaces */
   --vzn-app-bg: #eeeeef;
   --vzn-bg: var(--vzn-neutral-50);
   --vzn-canvas: var(--vzn-neutral-0);
   --vzn-titlebar-bg: #eeeeef;
   --vzn-sidebar-bg: #eeeeef;
   --vzn-chat-sidebar-bg: #f5f5f6;
-
   --vzn-surface: var(--vzn-neutral-0);
   --vzn-surface-raised: var(--vzn-neutral-25);
   --vzn-surface-muted: #f6f6f7;
   --vzn-surface-subtle: var(--vzn-neutral-100);
   --vzn-surface-hover: #e6e6e9;
   --vzn-surface-selected: rgba(0, 122, 255, 0.1);
-
   --vzn-text: var(--vzn-neutral-800);
   --vzn-text-strong: var(--vzn-neutral-900);
   --vzn-text-muted: var(--vzn-neutral-600);
   --vzn-text-soft: #74747a;
   --vzn-text-disabled: var(--vzn-neutral-400);
   --vzn-text-inverse: var(--vzn-neutral-0);
-
   --vzn-border: rgba(60, 60, 67, 0.16);
   --vzn-border-strong: rgba(60, 60, 67, 0.23);
   --vzn-divider: rgba(60, 60, 67, 0.12);
-
-  /* Selective material: native vibrancy supplies blur on macOS. */
   --vzn-titlebar-material: rgba(246, 246, 248, 0.78);
   --vzn-primary-nav-material: rgba(244, 244, 247, 0.74);
   --vzn-context-nav-material: rgba(250, 250, 252, 0.86);
@@ -122,6 +111,7 @@
   --vzn-user-avatar-fg: #f5f5f7;
   --vzn-assistant-avatar-bg: rgba(255, 255, 255, 0.72);
 
+  /* Accent */
   --vzn-action: var(--vzn-blue-600);
   --vzn-action-hover: var(--vzn-blue-700);
   --vzn-action-active: var(--vzn-blue-800);
@@ -131,6 +121,59 @@
   --vzn-action-text: #0066cc;
   --vzn-action-fg: var(--vzn-neutral-0);
   --vzn-focus-ring: color-mix(in srgb, var(--vzn-blue-500) 52%, transparent);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: var(--vzn-surface-muted);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-divider);
+
+  /* Primary chrome */
+  --vzn-chrome-fg: var(--vzn-text);
+  --vzn-chrome-fg-strong: var(--vzn-text-strong);
+  --vzn-chrome-fg-muted: var(--vzn-text-muted);
+  --vzn-chrome-fg-soft: var(--vzn-text-soft);
+  --vzn-chrome-divider: var(--vzn-divider);
+  --vzn-chrome-item-hover: var(--vzn-surface-subtle);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+  --vzn-chrome-item-active-fg: var(--vzn-text-strong);
+  --vzn-chrome-accent: var(--vzn-action-text);
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #3485f6;
+  --vzn-tone-violet: #8b5cf6;
+  --vzn-tone-green: #1aa75b;
+  --vzn-tone-orange: #ef6a32;
+
+  /* Shape */
+  --vzn-radius-2xs: 4px;
+  --vzn-radius-xs: 6px;
+  --vzn-radius-sm: 8px;
+  --vzn-radius-control: 10px;
+  --vzn-radius-md: 12px;
+  --vzn-radius-lg: 16px;
+  --vzn-radius-xl: 20px;
+  --vzn-radius-2xl: 24px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: 0 1px 1px rgba(28, 28, 30, 0.025);
+  --vzn-shadow-sm: 0 1px 2px rgba(28, 28, 30, 0.045), 0 6px 18px rgba(28, 28, 30, 0.035);
+  --vzn-shadow-md: 0 10px 30px rgba(28, 28, 30, 0.08);
+  --vzn-shadow-lg: 0 20px 52px rgba(28, 28, 30, 0.13);
+  --vzn-shadow-overlay: 0 28px 76px rgba(28, 28, 30, 0.22);
+  --vzn-prompt-card-shadow-hover: 0 6px 18px rgba(24, 23, 21, 0.06);
+  --vzn-blur: none;
+  --vzn-blur-sm: none;
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: var(--vzn-font-sans);
+  --vzn-line-reading: 1.6;
 }
 
 :root {
@@ -152,8 +195,6 @@
   --vzn-opacity-disabled: 0.48;
 
   /* Typography ---------------------------------------------------------- */
-  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --vzn-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --vzn-font-size-micro: 10px;
   --vzn-font-size-caption: 11px;
@@ -191,14 +232,6 @@
   --vzn-space-12: 48px;
 
   /* Shape --------------------------------------------------------------- */
-  --vzn-radius-2xs: 4px;
-  --vzn-radius-xs: 6px;
-  --vzn-radius-sm: 8px;
-  --vzn-radius-control: 10px;
-  --vzn-radius-md: 12px;
-  --vzn-radius-lg: 16px;
-  --vzn-radius-xl: 20px;
-  --vzn-radius-2xl: 24px;
   --vzn-radius-pill: 999px;
 
   /* Controls and icons -------------------------------------------------- */
@@ -218,12 +251,6 @@
   --vzn-brand-mark-lg: 48px;
 
   /* Elevation and motion ------------------------------------------------ */
-  --vzn-shadow-xs: 0 1px 1px rgba(28, 28, 30, 0.025);
-  --vzn-shadow-sm: 0 1px 2px rgba(28, 28, 30, 0.045), 0 6px 18px rgba(28, 28, 30, 0.035);
-  --vzn-shadow-md: 0 10px 30px rgba(28, 28, 30, 0.08);
-  --vzn-shadow-lg: 0 20px 52px rgba(28, 28, 30, 0.13);
-  --vzn-shadow-overlay: 0 28px 76px rgba(28, 28, 30, 0.22);
-  --vzn-prompt-card-shadow-hover: 0 6px 18px rgba(24, 23, 21, 0.06);
   /* Scrims and media surfaces: modal dim layer, full-screen media viewer
    * backdrop, the matte behind transparent images, and text on filled danger. */
   --vzn-scrim: rgba(20, 19, 17, 0.42);
@@ -311,7 +338,7 @@
   --vzn-dialog-lg-max-inline: 720px;
   --vzn-dictionary-headword-size: var(--vzn-font-size-heading);
   --vzn-theme-preset-card-min-inline: calc(var(--vzn-space-12) * 3);
-  --vzn-theme-preset-swatch-block: var(--vzn-space-12);
+  --vzn-theme-preset-swatch-block: calc(var(--vzn-space-12) + var(--vzn-space-6));
   --vzn-dictionary-hint-chip-max: calc(var(--vzn-space-12) * 5);
 
   /* Compatibility aliases ---------------------------------------------- */
@@ -320,14 +347,7 @@
   --vzn-accent-active: var(--vzn-action-active);
   --vzn-accent-soft: var(--vzn-action-soft);
   --vzn-accent-border: var(--vzn-action-border);
-  --vzn-accent-glow: transparent;
-  --vzn-send-bg: var(--vzn-action);
-  --vzn-send-bg-hover: var(--vzn-action-hover);
-  --vzn-send-fg: var(--vzn-action-fg);
-  --vzn-shadow-glow: none;
   --vzn-skeleton: color-mix(in srgb, var(--vzn-neutral-900) 6%, transparent);
-  --vzn-blur: none;
-  --vzn-blur-sm: none;
 }
 
 html.dark {
@@ -338,6 +358,7 @@ html.dark {
 html.dark,
 html.dark [data-theme="graphite"],
 html.dark[data-theme="graphite"] {
+  /* Surfaces */
   --vzn-app-bg: #161618;
   --vzn-bg: #1c1c1e;
   --vzn-canvas: #1c1c1e;
@@ -350,18 +371,15 @@ html.dark[data-theme="graphite"] {
   --vzn-surface-subtle: #303033;
   --vzn-surface-hover: #3a3a3c;
   --vzn-surface-selected: rgba(10, 132, 255, 0.16);
-
   --vzn-text: #e5e5ea;
   --vzn-text-strong: #f5f5f7;
   --vzn-text-muted: #aeaeb2;
   --vzn-text-soft: #8e8e93;
   --vzn-text-disabled: #636366;
   --vzn-text-inverse: #161618;
-
   --vzn-border: rgba(235, 235, 245, 0.12);
   --vzn-border-strong: rgba(235, 235, 245, 0.2);
   --vzn-divider: rgba(235, 235, 245, 0.1);
-
   --vzn-titlebar-material: rgba(30, 30, 32, 0.76);
   --vzn-primary-nav-material: rgba(34, 34, 37, 0.76);
   --vzn-context-nav-material: rgba(28, 28, 30, 0.88);
@@ -372,6 +390,7 @@ html.dark[data-theme="graphite"] {
   --vzn-user-avatar-fg: #ffffff;
   --vzn-assistant-avatar-bg: rgba(44, 44, 46, 0.78);
 
+  /* Accent */
   --vzn-action: var(--vzn-blue-500);
   --vzn-action-hover: var(--vzn-blue-400);
   --vzn-action-active: var(--vzn-blue-600);
@@ -381,6 +400,59 @@ html.dark[data-theme="graphite"] {
   --vzn-action-text: #409cff;
   --vzn-action-fg: #ffffff;
   --vzn-focus-ring: rgba(10, 132, 255, 0.62);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: var(--vzn-surface-muted);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-divider);
+
+  /* Primary chrome */
+  --vzn-chrome-fg: var(--vzn-text);
+  --vzn-chrome-fg-strong: var(--vzn-text-strong);
+  --vzn-chrome-fg-muted: var(--vzn-text-muted);
+  --vzn-chrome-fg-soft: var(--vzn-text-soft);
+  --vzn-chrome-divider: var(--vzn-divider);
+  --vzn-chrome-item-hover: var(--vzn-surface-subtle);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+  --vzn-chrome-item-active-fg: var(--vzn-text-strong);
+  --vzn-chrome-accent: var(--vzn-action-text);
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #72a7ff;
+  --vzn-tone-violet: #ae8aff;
+  --vzn-tone-green: #55c982;
+  --vzn-tone-orange: #ff8a57;
+
+  /* Shape */
+  --vzn-radius-2xs: 4px;
+  --vzn-radius-xs: 6px;
+  --vzn-radius-sm: 8px;
+  --vzn-radius-control: 10px;
+  --vzn-radius-md: 12px;
+  --vzn-radius-lg: 16px;
+  --vzn-radius-xl: 20px;
+  --vzn-radius-2xl: 24px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.14);
+  --vzn-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.18);
+  --vzn-shadow-md: 0 10px 28px rgba(0, 0, 0, 0.26);
+  --vzn-shadow-lg: 0 20px 52px rgba(0, 0, 0, 0.36);
+  --vzn-shadow-overlay: 0 28px 80px rgba(0, 0, 0, 0.5);
+  --vzn-prompt-card-shadow-hover: 0 8px 22px rgba(0, 0, 0, 0.18);
+  --vzn-blur: none;
+  --vzn-blur-sm: none;
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: var(--vzn-font-sans);
+  --vzn-line-reading: 1.6;
 }
 
 html.dark {
@@ -400,314 +472,613 @@ html.dark {
   --vzn-disabled-border: rgba(255, 255, 255, 0.08);
   --vzn-disabled-fg: #667085;
 
-  --vzn-tone-blue: #72a7ff;
-  --vzn-tone-violet: #ae8aff;
-  --vzn-tone-green: #55c982;
-  --vzn-tone-orange: #ff8a57;
-
-  --vzn-shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.14);
-  --vzn-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.18);
-  --vzn-shadow-md: 0 10px 28px rgba(0, 0, 0, 0.26);
-  --vzn-shadow-lg: 0 20px 52px rgba(0, 0, 0, 0.36);
-  --vzn-shadow-overlay: 0 28px 80px rgba(0, 0, 0, 0.5);
-  --vzn-prompt-card-shadow-hover: 0 8px 22px rgba(0, 0, 0, 0.18);
   --vzn-scrim: rgba(0, 0, 0, 0.58);
   --vzn-skeleton: rgba(255, 255, 255, 0.06);
 }
 
 /* Palette presets ----------------------------------------------------------
  * Selected in Settings > Appearance and applied as `data-theme` on <html>.
- * Each preset declares the full palette token set for both modes so a
- * nested preview never inherits a stray value from the window's palette. */
+ * A preset is a persona, not a repaint: it owns surfaces, accent intensity,
+ * primary chrome, shape, depth/material, and reading type. Every preset
+ * declares the identical token set for light and dark so an element carrying
+ * `data-theme` (the Settings preview card) renders that persona exactly,
+ * never inheriting a stray value from the window's palette.
+ * This section is generated from a value table; keep blocks in lockstep. */
 
-/* Cosmos: indigo accent on blue-tinted neutrals. */
-[data-theme="cosmos"] {
-  --vzn-app-bg: #ebecf7;
-  --vzn-bg: #f6f6fc;
+/* Studio: creators and students. Violet-to-pink gradient actions, lavender canvas, rounded glass surfaces. */
+[data-theme="studio"] {
+  /* Surfaces */
+  --vzn-app-bg: #efeafb;
+  --vzn-bg: #f3eefd;
   --vzn-canvas: var(--vzn-neutral-0);
-  --vzn-titlebar-bg: #ebecf7;
-  --vzn-sidebar-bg: #ebecf7;
-  --vzn-chat-sidebar-bg: #f2f2fa;
-
+  --vzn-titlebar-bg: #efeafb;
+  --vzn-sidebar-bg: #efeafb;
+  --vzn-chat-sidebar-bg: #f1ecfb;
   --vzn-surface: var(--vzn-neutral-0);
-  --vzn-surface-raised: #fdfdff;
-  --vzn-surface-muted: #f4f4fb;
-  --vzn-surface-subtle: #eeeff8;
-  --vzn-surface-hover: #e4e5f3;
-  --vzn-surface-selected: rgba(99, 102, 241, 0.12);
-
-  --vzn-text: #292b45;
-  --vzn-text-strong: #15162d;
-  --vzn-text-muted: #5f6283;
-  --vzn-text-soft: #777a9a;
-  --vzn-text-disabled: #a9abc3;
+  --vzn-surface-raised: #fdfcff;
+  --vzn-surface-muted: #f5f1fd;
+  --vzn-surface-subtle: #ede7fa;
+  --vzn-surface-hover: #e3dbf6;
+  --vzn-surface-selected: rgba(139, 92, 246, 0.14);
+  --vzn-text: #2e2544;
+  --vzn-text-strong: #1a1230;
+  --vzn-text-muted: #675c86;
+  --vzn-text-soft: #8a7fa8;
+  --vzn-text-disabled: #b7aed0;
   --vzn-text-inverse: var(--vzn-neutral-0);
+  --vzn-border: rgba(88, 64, 150, 0.16);
+  --vzn-border-strong: rgba(88, 64, 150, 0.26);
+  --vzn-divider: rgba(88, 64, 150, 0.12);
+  --vzn-titlebar-material: rgba(243, 238, 253, 0.72);
+  --vzn-primary-nav-material: rgba(241, 236, 252, 0.68);
+  --vzn-context-nav-material: rgba(249, 246, 254, 0.8);
+  --vzn-overlay-material: rgba(251, 249, 255, 0.82);
+  --vzn-material-border: rgba(88, 64, 150, 0.14);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.8);
+  --vzn-user-avatar-bg: #5b3fd1;
+  --vzn-user-avatar-fg: #ffffff;
+  --vzn-assistant-avatar-bg: rgba(255, 255, 255, 0.8);
 
-  --vzn-border: rgba(58, 60, 110, 0.16);
-  --vzn-border-strong: rgba(58, 60, 110, 0.24);
-  --vzn-divider: rgba(58, 60, 110, 0.12);
-
-  --vzn-titlebar-material: rgba(240, 241, 250, 0.78);
-  --vzn-primary-nav-material: rgba(238, 239, 249, 0.74);
-  --vzn-context-nav-material: rgba(248, 248, 253, 0.86);
-  --vzn-overlay-material: rgba(248, 248, 253, 0.96);
-  --vzn-material-border: rgba(58, 60, 110, 0.14);
-  --vzn-material-highlight: rgba(255, 255, 255, 0.72);
-  --vzn-user-avatar-bg: #3f4170;
-  --vzn-user-avatar-fg: #f5f5fb;
-  --vzn-assistant-avatar-bg: rgba(255, 255, 255, 0.72);
-
-  --vzn-action: var(--vzn-indigo-600);
-  --vzn-action-hover: var(--vzn-indigo-700);
-  --vzn-action-active: var(--vzn-indigo-800);
-  --vzn-action-soft: rgba(99, 102, 241, 0.12);
-  --vzn-action-soft-hover: rgba(99, 102, 241, 0.18);
-  --vzn-action-border: rgba(99, 102, 241, 0.32);
-  --vzn-action-text: var(--vzn-indigo-600);
+  /* Accent */
+  --vzn-action: var(--vzn-violet-600);
+  --vzn-action-hover: var(--vzn-violet-700);
+  --vzn-action-active: var(--vzn-violet-800);
+  --vzn-action-soft: rgba(124, 58, 237, 0.12);
+  --vzn-action-soft-hover: rgba(124, 58, 237, 0.18);
+  --vzn-action-border: rgba(124, 58, 237, 0.34);
+  --vzn-action-text: var(--vzn-violet-700);
   --vzn-action-fg: var(--vzn-neutral-0);
-  --vzn-focus-ring: color-mix(in srgb, var(--vzn-indigo-500) 52%, transparent);
+  --vzn-focus-ring: rgba(139, 92, 246, 0.55);
+  --vzn-action-fill: linear-gradient(135deg, var(--vzn-violet-600) 0%, var(--vzn-pink-600) 100%);
+  --vzn-action-fill-hover: linear-gradient(135deg, var(--vzn-violet-700) 0%, var(--vzn-pink-700) 100%);
+  --vzn-accent-glow: rgba(124, 58, 237, 0.35);
+  --vzn-shadow-glow: 0 8px 24px rgba(124, 58, 237, 0.22);
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: linear-gradient(135deg, var(--vzn-violet-600) 0%, var(--vzn-pink-600) 100%);
+  --vzn-user-bubble-fg: var(--vzn-neutral-0);
+  --vzn-user-bubble-border: transparent;
+
+  /* Primary chrome */
+  --vzn-chrome-fg: #3a2f58;
+  --vzn-chrome-fg-strong: #1a1230;
+  --vzn-chrome-fg-muted: #675c86;
+  --vzn-chrome-fg-soft: #8a7fa8;
+  --vzn-chrome-divider: rgba(88, 64, 150, 0.12);
+  --vzn-chrome-item-hover: rgba(124, 58, 237, 0.08);
+  --vzn-chrome-item-active: rgba(124, 58, 237, 0.14);
+  --vzn-chrome-item-active-fg: #4c1d95;
+  --vzn-chrome-accent: var(--vzn-violet-600);
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #3b82f6;
+  --vzn-tone-violet: #a855f7;
+  --vzn-tone-green: #22c55e;
+  --vzn-tone-orange: #f97316;
+
+  /* Shape */
+  --vzn-radius-2xs: 6px;
+  --vzn-radius-xs: 8px;
+  --vzn-radius-sm: 12px;
+  --vzn-radius-control: 14px;
+  --vzn-radius-md: 16px;
+  --vzn-radius-lg: 20px;
+  --vzn-radius-xl: 24px;
+  --vzn-radius-2xl: 28px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: 0 1px 2px rgba(60, 30, 120, 0.06);
+  --vzn-shadow-sm: 0 2px 6px rgba(60, 30, 120, 0.08), 0 10px 24px rgba(60, 30, 120, 0.06);
+  --vzn-shadow-md: 0 12px 32px rgba(60, 30, 120, 0.12);
+  --vzn-shadow-lg: 0 24px 60px rgba(60, 30, 120, 0.18);
+  --vzn-shadow-overlay: 0 32px 90px rgba(60, 30, 120, 0.28);
+  --vzn-prompt-card-shadow-hover: 0 10px 28px rgba(124, 58, 237, 0.14);
+  --vzn-blur: blur(20px);
+  --vzn-blur-sm: blur(10px);
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: var(--vzn-font-sans);
+  --vzn-line-reading: 1.6;
 }
 
-html.dark [data-theme="cosmos"],
-html.dark[data-theme="cosmos"] {
-  --vzn-app-bg: #0f1020;
-  --vzn-bg: #15162a;
-  --vzn-canvas: #15162a;
-  --vzn-titlebar-bg: #1b1c31;
-  --vzn-sidebar-bg: #1b1c31;
-  --vzn-chat-sidebar-bg: #18192c;
-
-  --vzn-surface: #202138;
-  --vzn-surface-raised: #262740;
-  --vzn-surface-muted: #1c1d33;
-  --vzn-surface-subtle: #24253d;
-  --vzn-surface-hover: #2e2f4b;
-  --vzn-surface-selected: rgba(129, 140, 248, 0.18);
-
-  --vzn-text: #e2e3f3;
-  --vzn-text-strong: #f5f5fb;
-  --vzn-text-muted: #aeb0cc;
-  --vzn-text-soft: #8c8ea9;
-  --vzn-text-disabled: #62648a;
-  --vzn-text-inverse: #0f1020;
-
-  --vzn-border: rgba(200, 204, 255, 0.12);
-  --vzn-border-strong: rgba(200, 204, 255, 0.2);
-  --vzn-divider: rgba(200, 204, 255, 0.1);
-
-  --vzn-titlebar-material: rgba(26, 27, 47, 0.76);
-  --vzn-primary-nav-material: rgba(28, 29, 50, 0.76);
-  --vzn-context-nav-material: rgba(21, 22, 42, 0.88);
-  --vzn-overlay-material: rgba(32, 33, 56, 0.96);
-  --vzn-material-border: rgba(200, 204, 255, 0.12);
+html.dark [data-theme="studio"],
+html.dark[data-theme="studio"] {
+  /* Surfaces */
+  --vzn-app-bg: #0e0a1c;
+  --vzn-bg: #150f28;
+  --vzn-canvas: #150f28;
+  --vzn-titlebar-bg: #1a1330;
+  --vzn-sidebar-bg: #1a1330;
+  --vzn-chat-sidebar-bg: #17112b;
+  --vzn-surface: #211a3a;
+  --vzn-surface-raised: #281f45;
+  --vzn-surface-muted: #1c1532;
+  --vzn-surface-subtle: #251c40;
+  --vzn-surface-hover: #30264f;
+  --vzn-surface-selected: rgba(167, 139, 250, 0.2);
+  --vzn-text: #e6e0f5;
+  --vzn-text-strong: #f7f4ff;
+  --vzn-text-muted: #b0a6cf;
+  --vzn-text-soft: #8d83ab;
+  --vzn-text-disabled: #5f5680;
+  --vzn-text-inverse: #0e0a1c;
+  --vzn-border: rgba(200, 180, 255, 0.14);
+  --vzn-border-strong: rgba(200, 180, 255, 0.22);
+  --vzn-divider: rgba(200, 180, 255, 0.1);
+  --vzn-titlebar-material: rgba(26, 19, 48, 0.7);
+  --vzn-primary-nav-material: rgba(28, 21, 52, 0.7);
+  --vzn-context-nav-material: rgba(21, 15, 40, 0.82);
+  --vzn-overlay-material: rgba(33, 26, 58, 0.84);
+  --vzn-material-border: rgba(200, 180, 255, 0.14);
   --vzn-material-highlight: rgba(255, 255, 255, 0.08);
-  --vzn-user-avatar-bg: #5c5e8c;
+  --vzn-user-avatar-bg: #7c5cf0;
   --vzn-user-avatar-fg: #ffffff;
-  --vzn-assistant-avatar-bg: rgba(32, 33, 56, 0.78);
+  --vzn-assistant-avatar-bg: rgba(33, 26, 58, 0.8);
 
-  --vzn-action: var(--vzn-indigo-400);
-  --vzn-action-hover: var(--vzn-indigo-300);
-  --vzn-action-active: var(--vzn-indigo-500);
-  --vzn-action-soft: rgba(129, 140, 248, 0.16);
-  --vzn-action-soft-hover: rgba(129, 140, 248, 0.24);
-  --vzn-action-border: rgba(129, 140, 248, 0.42);
-  --vzn-action-text: var(--vzn-indigo-300);
+  /* Accent */
+  --vzn-action: var(--vzn-violet-400);
+  --vzn-action-hover: var(--vzn-violet-300);
+  --vzn-action-active: var(--vzn-violet-500);
+  --vzn-action-soft: rgba(167, 139, 250, 0.18);
+  --vzn-action-soft-hover: rgba(167, 139, 250, 0.26);
+  --vzn-action-border: rgba(167, 139, 250, 0.45);
+  --vzn-action-text: var(--vzn-violet-300);
   --vzn-action-fg: #ffffff;
-  --vzn-focus-ring: rgba(129, 140, 248, 0.62);
+  --vzn-focus-ring: rgba(167, 139, 250, 0.6);
+  --vzn-action-fill: linear-gradient(135deg, var(--vzn-violet-500) 0%, var(--vzn-pink-500) 100%);
+  --vzn-action-fill-hover: linear-gradient(135deg, var(--vzn-violet-400) 0%, var(--vzn-pink-400) 100%);
+  --vzn-accent-glow: rgba(139, 92, 246, 0.45);
+  --vzn-shadow-glow: 0 8px 28px rgba(139, 92, 246, 0.35);
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: linear-gradient(135deg, var(--vzn-violet-500) 0%, var(--vzn-pink-500) 100%);
+  --vzn-user-bubble-fg: #ffffff;
+  --vzn-user-bubble-border: transparent;
+
+  /* Primary chrome */
+  --vzn-chrome-fg: #d9d2ee;
+  --vzn-chrome-fg-strong: #f7f4ff;
+  --vzn-chrome-fg-muted: #a79dc6;
+  --vzn-chrome-fg-soft: #8278a3;
+  --vzn-chrome-divider: rgba(200, 180, 255, 0.1);
+  --vzn-chrome-item-hover: rgba(167, 139, 250, 0.1);
+  --vzn-chrome-item-active: rgba(167, 139, 250, 0.2);
+  --vzn-chrome-item-active-fg: #f7f4ff;
+  --vzn-chrome-accent: var(--vzn-violet-300);
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #60a5fa;
+  --vzn-tone-violet: #c084fc;
+  --vzn-tone-green: #4ade80;
+  --vzn-tone-orange: #fb923c;
+
+  /* Shape */
+  --vzn-radius-2xs: 6px;
+  --vzn-radius-xs: 8px;
+  --vzn-radius-sm: 12px;
+  --vzn-radius-control: 14px;
+  --vzn-radius-md: 16px;
+  --vzn-radius-lg: 20px;
+  --vzn-radius-xl: 24px;
+  --vzn-radius-2xl: 28px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --vzn-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.35);
+  --vzn-shadow-md: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --vzn-shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.55);
+  --vzn-shadow-overlay: 0 32px 90px rgba(0, 0, 0, 0.65);
+  --vzn-prompt-card-shadow-hover: 0 10px 28px rgba(139, 92, 246, 0.25);
+  --vzn-blur: blur(20px);
+  --vzn-blur-sm: blur(10px);
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: var(--vzn-font-sans);
+  --vzn-line-reading: 1.6;
 }
 
-/* Forest: deep green accent on cool sage neutrals. */
-[data-theme="forest"] {
-  --vzn-app-bg: #ebeee9;
-  --vzn-bg: #f5f7f3;
+/* Paper: translators, writers, scholars. Ivory paper, ink actions, terracotta highlights, serif reading type. */
+[data-theme="paper"] {
+  /* Surfaces */
+  --vzn-app-bg: #ebe6dc;
+  --vzn-bg: #f7f3ea;
+  --vzn-canvas: #fbf8f1;
+  --vzn-titlebar-bg: #ebe6dc;
+  --vzn-sidebar-bg: #ebe6dc;
+  --vzn-chat-sidebar-bg: #f1ece2;
+  --vzn-surface: #fbf8f1;
+  --vzn-surface-raised: #fdfbf6;
+  --vzn-surface-muted: #f3eee3;
+  --vzn-surface-subtle: #ece6d9;
+  --vzn-surface-hover: #e3dccc;
+  --vzn-surface-selected: rgba(120, 70, 40, 0.1);
+  --vzn-text: #2b2520;
+  --vzn-text-strong: #171310;
+  --vzn-text-muted: #6a5f54;
+  --vzn-text-soft: #8b8074;
+  --vzn-text-disabled: #b5aa9c;
+  --vzn-text-inverse: #fbf8f1;
+  --vzn-border: rgba(70, 50, 30, 0.18);
+  --vzn-border-strong: rgba(70, 50, 30, 0.3);
+  --vzn-divider: rgba(70, 50, 30, 0.14);
+  --vzn-titlebar-material: rgba(235, 230, 220, 0.86);
+  --vzn-primary-nav-material: rgba(235, 230, 220, 0.84);
+  --vzn-context-nav-material: rgba(241, 236, 226, 0.9);
+  --vzn-overlay-material: rgba(251, 248, 241, 0.97);
+  --vzn-material-border: rgba(70, 50, 30, 0.16);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.5);
+  --vzn-user-avatar-bg: #3d322a;
+  --vzn-user-avatar-fg: #f7f3ea;
+  --vzn-assistant-avatar-bg: rgba(251, 248, 241, 0.8);
+
+  /* Accent */
+  --vzn-action: #1f1a16;
+  --vzn-action-hover: #3a302a;
+  --vzn-action-active: #000000;
+  --vzn-action-soft: rgba(31, 26, 22, 0.08);
+  --vzn-action-soft-hover: rgba(31, 26, 22, 0.14);
+  --vzn-action-border: rgba(31, 26, 22, 0.3);
+  --vzn-action-text: #1f1a16;
+  --vzn-action-fg: #fbf8f1;
+  --vzn-focus-ring: rgba(176, 88, 52, 0.5);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: #f3eee3;
+  --vzn-user-bubble-fg: #171310;
+  --vzn-user-bubble-border: rgba(70, 50, 30, 0.18);
+
+  /* Primary chrome */
+  --vzn-chrome-fg: #3d322a;
+  --vzn-chrome-fg-strong: #171310;
+  --vzn-chrome-fg-muted: #6a5f54;
+  --vzn-chrome-fg-soft: #8b8074;
+  --vzn-chrome-divider: rgba(70, 50, 30, 0.14);
+  --vzn-chrome-item-hover: rgba(70, 50, 30, 0.07);
+  --vzn-chrome-item-active: rgba(176, 88, 52, 0.14);
+  --vzn-chrome-item-active-fg: #171310;
+  --vzn-chrome-accent: #b05834;
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #5a6d8a;
+  --vzn-tone-violet: #7a5c8a;
+  --vzn-tone-green: #5e7a4e;
+  --vzn-tone-orange: #b05834;
+
+  /* Shape */
+  --vzn-radius-2xs: 3px;
+  --vzn-radius-xs: 4px;
+  --vzn-radius-sm: 5px;
+  --vzn-radius-control: 6px;
+  --vzn-radius-md: 6px;
+  --vzn-radius-lg: 8px;
+  --vzn-radius-xl: 10px;
+  --vzn-radius-2xl: 12px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: none;
+  --vzn-shadow-sm: 0 1px 0 rgba(70, 50, 30, 0.08);
+  --vzn-shadow-md: 0 2px 6px rgba(70, 50, 30, 0.1);
+  --vzn-shadow-lg: 0 8px 24px rgba(70, 50, 30, 0.14);
+  --vzn-shadow-overlay: 0 16px 48px rgba(70, 50, 30, 0.2);
+  --vzn-prompt-card-shadow-hover: 0 2px 8px rgba(70, 50, 30, 0.1);
+  --vzn-blur: none;
+  --vzn-blur-sm: none;
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: "Iowan Old Style", "Palatino Linotype", Charter, Georgia,
+    "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif", serif;
+  --vzn-line-reading: 1.75;
+}
+
+html.dark [data-theme="paper"],
+html.dark[data-theme="paper"] {
+  /* Surfaces */
+  --vzn-app-bg: #1a1714;
+  --vzn-bg: #211d19;
+  --vzn-canvas: #211d19;
+  --vzn-titlebar-bg: #26211c;
+  --vzn-sidebar-bg: #26211c;
+  --vzn-chat-sidebar-bg: #231e1a;
+  --vzn-surface: #2a2521;
+  --vzn-surface-raised: #302a25;
+  --vzn-surface-muted: #262119;
+  --vzn-surface-subtle: #2e2823;
+  --vzn-surface-hover: #39322c;
+  --vzn-surface-selected: rgba(214, 160, 120, 0.14);
+  --vzn-text: #e8e0d4;
+  --vzn-text-strong: #f6f0e6;
+  --vzn-text-muted: #b3a797;
+  --vzn-text-soft: #8f8475;
+  --vzn-text-disabled: #665c52;
+  --vzn-text-inverse: #1a1714;
+  --vzn-border: rgba(240, 220, 195, 0.14);
+  --vzn-border-strong: rgba(240, 220, 195, 0.22);
+  --vzn-divider: rgba(240, 220, 195, 0.1);
+  --vzn-titlebar-material: rgba(38, 33, 28, 0.86);
+  --vzn-primary-nav-material: rgba(38, 33, 28, 0.84);
+  --vzn-context-nav-material: rgba(35, 30, 26, 0.9);
+  --vzn-overlay-material: rgba(42, 37, 33, 0.97);
+  --vzn-material-border: rgba(240, 220, 195, 0.12);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.05);
+  --vzn-user-avatar-bg: #6b5a4b;
+  --vzn-user-avatar-fg: #f6f0e6;
+  --vzn-assistant-avatar-bg: rgba(42, 37, 33, 0.8);
+
+  /* Accent */
+  --vzn-action: #ead9c3;
+  --vzn-action-hover: #fff6e8;
+  --vzn-action-active: #d6c3a8;
+  --vzn-action-soft: rgba(234, 217, 195, 0.1);
+  --vzn-action-soft-hover: rgba(234, 217, 195, 0.16);
+  --vzn-action-border: rgba(234, 217, 195, 0.3);
+  --vzn-action-text: #ead9c3;
+  --vzn-action-fg: #1a1714;
+  --vzn-focus-ring: rgba(224, 130, 90, 0.55);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: #2e2823;
+  --vzn-user-bubble-fg: #f6f0e6;
+  --vzn-user-bubble-border: rgba(240, 220, 195, 0.14);
+
+  /* Primary chrome */
+  --vzn-chrome-fg: #d9cfc0;
+  --vzn-chrome-fg-strong: #f6f0e6;
+  --vzn-chrome-fg-muted: #a89c8c;
+  --vzn-chrome-fg-soft: #857a6c;
+  --vzn-chrome-divider: rgba(240, 220, 195, 0.1);
+  --vzn-chrome-item-hover: rgba(240, 220, 195, 0.07);
+  --vzn-chrome-item-active: rgba(224, 130, 90, 0.18);
+  --vzn-chrome-item-active-fg: #f6f0e6;
+  --vzn-chrome-accent: #e0825a;
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #8ea3c4;
+  --vzn-tone-violet: #a98cbd;
+  --vzn-tone-green: #8fae7e;
+  --vzn-tone-orange: #e0825a;
+
+  /* Shape */
+  --vzn-radius-2xs: 3px;
+  --vzn-radius-xs: 4px;
+  --vzn-radius-sm: 5px;
+  --vzn-radius-control: 6px;
+  --vzn-radius-md: 6px;
+  --vzn-radius-lg: 8px;
+  --vzn-radius-xl: 10px;
+  --vzn-radius-2xl: 12px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: none;
+  --vzn-shadow-sm: 0 1px 0 rgba(0, 0, 0, 0.25);
+  --vzn-shadow-md: 0 2px 6px rgba(0, 0, 0, 0.3);
+  --vzn-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --vzn-shadow-overlay: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --vzn-prompt-card-shadow-hover: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --vzn-blur: none;
+  --vzn-blur-sm: none;
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: "Iowan Old Style", "Palatino Linotype", Charter, Georgia,
+    "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif", serif;
+  --vzn-line-reading: 1.75;
+}
+
+/* Corporate: business and enterprise users. Navy chrome over a crisp white workspace, square geometry, strong borders. */
+[data-theme="corporate"] {
+  /* Surfaces */
+  --vzn-app-bg: #f3f4f6;
+  --vzn-bg: #f8f9fb;
   --vzn-canvas: var(--vzn-neutral-0);
-  --vzn-titlebar-bg: #ebeee9;
-  --vzn-sidebar-bg: #ebeee9;
-  --vzn-chat-sidebar-bg: #f1f4ee;
-
+  --vzn-titlebar-bg: #141c2e;
+  --vzn-sidebar-bg: #141c2e;
+  --vzn-chat-sidebar-bg: #eef1f5;
   --vzn-surface: var(--vzn-neutral-0);
-  --vzn-surface-raised: #fdfefc;
-  --vzn-surface-muted: #f3f6f0;
-  --vzn-surface-subtle: #ecf0e8;
-  --vzn-surface-hover: #e1e7dc;
-  --vzn-surface-selected: rgba(21, 128, 61, 0.12);
-
-  --vzn-text: #26312a;
-  --vzn-text-strong: #141c17;
-  --vzn-text-muted: #5d6a61;
-  --vzn-text-soft: #76837a;
-  --vzn-text-disabled: #a7b1aa;
+  --vzn-surface-raised: var(--vzn-neutral-0);
+  --vzn-surface-muted: #f3f5f8;
+  --vzn-surface-subtle: #e9edf2;
+  --vzn-surface-hover: #dde3ea;
+  --vzn-surface-selected: rgba(11, 99, 160, 0.12);
+  --vzn-text: #1f2937;
+  --vzn-text-strong: #0b1220;
+  --vzn-text-muted: #4b5563;
+  --vzn-text-soft: #6b7280;
+  --vzn-text-disabled: #9ca3af;
   --vzn-text-inverse: var(--vzn-neutral-0);
-
-  --vzn-border: rgba(50, 70, 55, 0.16);
-  --vzn-border-strong: rgba(50, 70, 55, 0.24);
-  --vzn-divider: rgba(50, 70, 55, 0.12);
-
-  --vzn-titlebar-material: rgba(241, 245, 239, 0.78);
-  --vzn-primary-nav-material: rgba(239, 243, 236, 0.74);
-  --vzn-context-nav-material: rgba(248, 250, 246, 0.86);
-  --vzn-overlay-material: rgba(248, 250, 246, 0.96);
-  --vzn-material-border: rgba(50, 70, 55, 0.14);
-  --vzn-material-highlight: rgba(255, 255, 255, 0.72);
-  --vzn-user-avatar-bg: #35483b;
-  --vzn-user-avatar-fg: #f4f7f2;
-  --vzn-assistant-avatar-bg: rgba(255, 255, 255, 0.72);
-
-  --vzn-action: var(--vzn-green-700);
-  --vzn-action-hover: var(--vzn-green-800);
-  --vzn-action-active: var(--vzn-green-900);
-  --vzn-action-soft: rgba(21, 128, 61, 0.12);
-  --vzn-action-soft-hover: rgba(21, 128, 61, 0.18);
-  --vzn-action-border: rgba(21, 128, 61, 0.32);
-  --vzn-action-text: var(--vzn-green-700);
-  --vzn-action-fg: var(--vzn-neutral-0);
-  --vzn-focus-ring: color-mix(in srgb, var(--vzn-green-500) 52%, transparent);
-}
-
-html.dark [data-theme="forest"],
-html.dark[data-theme="forest"] {
-  --vzn-app-bg: #111614;
-  --vzn-bg: #171d19;
-  --vzn-canvas: #171d19;
-  --vzn-titlebar-bg: #1d2420;
-  --vzn-sidebar-bg: #1d2420;
-  --vzn-chat-sidebar-bg: #1a211d;
-
-  --vzn-surface: #222b26;
-  --vzn-surface-raised: #28322c;
-  --vzn-surface-muted: #1e2622;
-  --vzn-surface-subtle: #262f2a;
-  --vzn-surface-hover: #303b34;
-  --vzn-surface-selected: rgba(74, 222, 128, 0.16);
-
-  --vzn-text: #e1e8e3;
-  --vzn-text-strong: #f3f7f4;
-  --vzn-text-muted: #a9b5ad;
-  --vzn-text-soft: #87938b;
-  --vzn-text-disabled: #5f6a63;
-  --vzn-text-inverse: #111614;
-
-  --vzn-border: rgba(220, 240, 228, 0.12);
-  --vzn-border-strong: rgba(220, 240, 228, 0.2);
-  --vzn-divider: rgba(220, 240, 228, 0.1);
-
-  --vzn-titlebar-material: rgba(28, 35, 31, 0.76);
-  --vzn-primary-nav-material: rgba(30, 38, 33, 0.76);
-  --vzn-context-nav-material: rgba(23, 29, 25, 0.88);
-  --vzn-overlay-material: rgba(34, 43, 38, 0.96);
-  --vzn-material-border: rgba(220, 240, 228, 0.12);
-  --vzn-material-highlight: rgba(255, 255, 255, 0.08);
-  --vzn-user-avatar-bg: #55675c;
+  --vzn-border: rgba(15, 23, 42, 0.2);
+  --vzn-border-strong: rgba(15, 23, 42, 0.32);
+  --vzn-divider: rgba(15, 23, 42, 0.14);
+  --vzn-titlebar-material: rgba(20, 28, 46, 0.94);
+  --vzn-primary-nav-material: rgba(20, 28, 46, 0.94);
+  --vzn-context-nav-material: rgba(238, 241, 245, 0.96);
+  --vzn-overlay-material: rgba(255, 255, 255, 0.98);
+  --vzn-material-border: rgba(15, 23, 42, 0.18);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.06);
+  --vzn-user-avatar-bg: #1e3a8a;
   --vzn-user-avatar-fg: #ffffff;
-  --vzn-assistant-avatar-bg: rgba(34, 43, 38, 0.78);
+  --vzn-assistant-avatar-bg: var(--vzn-neutral-0);
 
-  --vzn-action: var(--vzn-green-400);
-  --vzn-action-hover: var(--vzn-green-300);
-  --vzn-action-active: var(--vzn-green-500);
-  --vzn-action-soft: rgba(74, 222, 128, 0.14);
-  --vzn-action-soft-hover: rgba(74, 222, 128, 0.22);
-  --vzn-action-border: rgba(74, 222, 128, 0.4);
-  --vzn-action-text: var(--vzn-green-300);
-  /* Bright green fills need dark glyphs to stay legible. */
-  --vzn-action-fg: #072b14;
-  --vzn-focus-ring: rgba(74, 222, 128, 0.62);
-}
-
-/* Ember: burnt-orange accent on warm sand neutrals. */
-[data-theme="ember"] {
-  --vzn-app-bg: #f0ebe5;
-  --vzn-bg: #f9f6f2;
-  --vzn-canvas: #fffdfb;
-  --vzn-titlebar-bg: #f0ebe5;
-  --vzn-sidebar-bg: #f0ebe5;
-  --vzn-chat-sidebar-bg: #f5f1ec;
-
-  --vzn-surface: #fffdfb;
-  --vzn-surface-raised: #fffefc;
-  --vzn-surface-muted: #f6f1eb;
-  --vzn-surface-subtle: #efe8e0;
-  --vzn-surface-hover: #e6dcd1;
-  --vzn-surface-selected: rgba(194, 65, 12, 0.12);
-
-  --vzn-text: #332a23;
-  --vzn-text-strong: #1f1813;
-  --vzn-text-muted: #6b5f55;
-  --vzn-text-soft: #85786e;
-  --vzn-text-disabled: #b3a79d;
-  --vzn-text-inverse: #fffdfb;
-
-  --vzn-border: rgba(80, 60, 45, 0.16);
-  --vzn-border-strong: rgba(80, 60, 45, 0.24);
-  --vzn-divider: rgba(80, 60, 45, 0.12);
-
-  --vzn-titlebar-material: rgba(246, 242, 237, 0.78);
-  --vzn-primary-nav-material: rgba(244, 239, 233, 0.74);
-  --vzn-context-nav-material: rgba(251, 249, 246, 0.86);
-  --vzn-overlay-material: rgba(251, 249, 246, 0.96);
-  --vzn-material-border: rgba(80, 60, 45, 0.14);
-  --vzn-material-highlight: rgba(255, 255, 255, 0.72);
-  --vzn-user-avatar-bg: #4a3b31;
-  --vzn-user-avatar-fg: #f9f6f2;
-  --vzn-assistant-avatar-bg: rgba(255, 253, 251, 0.72);
-
-  --vzn-action: var(--vzn-orange-700);
-  --vzn-action-hover: var(--vzn-orange-800);
-  --vzn-action-active: var(--vzn-orange-900);
-  --vzn-action-soft: rgba(194, 65, 12, 0.12);
-  --vzn-action-soft-hover: rgba(194, 65, 12, 0.18);
-  --vzn-action-border: rgba(194, 65, 12, 0.32);
-  --vzn-action-text: #b43a0a;
+  /* Accent */
+  --vzn-action: #0b63a0;
+  --vzn-action-hover: #084d7d;
+  --vzn-action-active: #063a5e;
+  --vzn-action-soft: rgba(11, 99, 160, 0.1);
+  --vzn-action-soft-hover: rgba(11, 99, 160, 0.16);
+  --vzn-action-border: rgba(11, 99, 160, 0.38);
+  --vzn-action-text: #0b63a0;
   --vzn-action-fg: var(--vzn-neutral-0);
-  --vzn-focus-ring: color-mix(in srgb, var(--vzn-orange-500) 52%, transparent);
+  --vzn-focus-ring: rgba(11, 99, 160, 0.55);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: #e9edf2;
+  --vzn-user-bubble-fg: #0b1220;
+  --vzn-user-bubble-border: rgba(15, 23, 42, 0.14);
+
+  /* Primary chrome */
+  --vzn-chrome-fg: #c7cfdd;
+  --vzn-chrome-fg-strong: #ffffff;
+  --vzn-chrome-fg-muted: #a3aec2;
+  --vzn-chrome-fg-soft: #7f8aa0;
+  --vzn-chrome-divider: rgba(255, 255, 255, 0.1);
+  --vzn-chrome-item-hover: rgba(255, 255, 255, 0.08);
+  --vzn-chrome-item-active: rgba(56, 189, 248, 0.18);
+  --vzn-chrome-item-active-fg: #ffffff;
+  --vzn-chrome-accent: #38bdf8;
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #2563eb;
+  --vzn-tone-violet: #7c3aed;
+  --vzn-tone-green: #15803d;
+  --vzn-tone-orange: #c2410c;
+
+  /* Shape */
+  --vzn-radius-2xs: 3px;
+  --vzn-radius-xs: 4px;
+  --vzn-radius-sm: 6px;
+  --vzn-radius-control: 6px;
+  --vzn-radius-md: 8px;
+  --vzn-radius-lg: 10px;
+  --vzn-radius-xl: 12px;
+  --vzn-radius-2xl: 14px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: 0 1px 1px rgba(15, 23, 42, 0.06);
+  --vzn-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
+  --vzn-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.1);
+  --vzn-shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.16);
+  --vzn-shadow-overlay: 0 20px 60px rgba(15, 23, 42, 0.24);
+  --vzn-prompt-card-shadow-hover: 0 4px 12px rgba(15, 23, 42, 0.1);
+  --vzn-blur: none;
+  --vzn-blur-sm: none;
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: var(--vzn-font-sans);
+  --vzn-line-reading: 1.5;
 }
 
-html.dark [data-theme="ember"],
-html.dark[data-theme="ember"] {
-  --vzn-app-bg: #181311;
-  --vzn-bg: #1e1815;
-  --vzn-canvas: #1e1815;
-  --vzn-titlebar-bg: #251e1a;
-  --vzn-sidebar-bg: #251e1a;
-  --vzn-chat-sidebar-bg: #211b17;
-
-  --vzn-surface: #2c2420;
-  --vzn-surface-raised: #332a25;
-  --vzn-surface-muted: #28201c;
-  --vzn-surface-subtle: #302723;
-  --vzn-surface-hover: #3b312b;
-  --vzn-surface-selected: rgba(251, 146, 60, 0.16);
-
-  --vzn-text: #ebe3dc;
-  --vzn-text-strong: #f8f3ee;
-  --vzn-text-muted: #b5a89d;
-  --vzn-text-soft: #93867b;
-  --vzn-text-disabled: #6a5e55;
-  --vzn-text-inverse: #181311;
-
-  --vzn-border: rgba(250, 230, 215, 0.12);
-  --vzn-border-strong: rgba(250, 230, 215, 0.2);
-  --vzn-divider: rgba(250, 230, 215, 0.1);
-
-  --vzn-titlebar-material: rgba(36, 29, 25, 0.76);
-  --vzn-primary-nav-material: rgba(38, 31, 27, 0.76);
-  --vzn-context-nav-material: rgba(30, 24, 21, 0.88);
-  --vzn-overlay-material: rgba(44, 36, 32, 0.96);
-  --vzn-material-border: rgba(250, 230, 215, 0.12);
-  --vzn-material-highlight: rgba(255, 255, 255, 0.08);
-  --vzn-user-avatar-bg: #6b5a4f;
+html.dark [data-theme="corporate"],
+html.dark[data-theme="corporate"] {
+  /* Surfaces */
+  --vzn-app-bg: #0b1020;
+  --vzn-bg: #111827;
+  --vzn-canvas: #111827;
+  --vzn-titlebar-bg: #080c17;
+  --vzn-sidebar-bg: #080c17;
+  --vzn-chat-sidebar-bg: #0f1524;
+  --vzn-surface: #1a2234;
+  --vzn-surface-raised: #1f2a3f;
+  --vzn-surface-muted: #161d2d;
+  --vzn-surface-subtle: #1d2638;
+  --vzn-surface-hover: #273246;
+  --vzn-surface-selected: rgba(56, 189, 248, 0.16);
+  --vzn-text: #dbe2ee;
+  --vzn-text-strong: #f8fafc;
+  --vzn-text-muted: #a6b1c4;
+  --vzn-text-soft: #7f8aa0;
+  --vzn-text-disabled: #525c70;
+  --vzn-text-inverse: #0b1020;
+  --vzn-border: rgba(203, 213, 225, 0.14);
+  --vzn-border-strong: rgba(203, 213, 225, 0.24);
+  --vzn-divider: rgba(203, 213, 225, 0.1);
+  --vzn-titlebar-material: rgba(8, 12, 23, 0.94);
+  --vzn-primary-nav-material: rgba(8, 12, 23, 0.94);
+  --vzn-context-nav-material: rgba(15, 21, 36, 0.96);
+  --vzn-overlay-material: rgba(26, 34, 52, 0.98);
+  --vzn-material-border: rgba(203, 213, 225, 0.14);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.05);
+  --vzn-user-avatar-bg: #3b5bb5;
   --vzn-user-avatar-fg: #ffffff;
-  --vzn-assistant-avatar-bg: rgba(44, 36, 32, 0.78);
+  --vzn-assistant-avatar-bg: rgba(26, 34, 52, 0.9);
 
-  --vzn-action: var(--vzn-orange-400);
-  --vzn-action-hover: var(--vzn-orange-300);
-  --vzn-action-active: var(--vzn-orange-500);
-  --vzn-action-soft: rgba(251, 146, 60, 0.14);
-  --vzn-action-soft-hover: rgba(251, 146, 60, 0.22);
-  --vzn-action-border: rgba(251, 146, 60, 0.4);
-  --vzn-action-text: var(--vzn-orange-300);
-  /* Bright orange fills need dark glyphs to stay legible. */
-  --vzn-action-fg: #2a1206;
-  --vzn-focus-ring: rgba(251, 146, 60, 0.62);
+  /* Accent */
+  --vzn-action: #38bdf8;
+  --vzn-action-hover: #7dd3fc;
+  --vzn-action-active: #0ea5e9;
+  --vzn-action-soft: rgba(56, 189, 248, 0.14);
+  --vzn-action-soft-hover: rgba(56, 189, 248, 0.22);
+  --vzn-action-border: rgba(56, 189, 248, 0.45);
+  --vzn-action-text: #7dd3fc;
+  --vzn-action-fg: #06213a;
+  --vzn-focus-ring: rgba(56, 189, 248, 0.6);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: #1d2638;
+  --vzn-user-bubble-fg: #f8fafc;
+  --vzn-user-bubble-border: rgba(203, 213, 225, 0.12);
+
+  /* Primary chrome */
+  --vzn-chrome-fg: #b5c0d3;
+  --vzn-chrome-fg-strong: #ffffff;
+  --vzn-chrome-fg-muted: #8d99b0;
+  --vzn-chrome-fg-soft: #6b7891;
+  --vzn-chrome-divider: rgba(255, 255, 255, 0.08);
+  --vzn-chrome-item-hover: rgba(255, 255, 255, 0.07);
+  --vzn-chrome-item-active: rgba(56, 189, 248, 0.18);
+  --vzn-chrome-item-active-fg: #ffffff;
+  --vzn-chrome-accent: #38bdf8;
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #60a5fa;
+  --vzn-tone-violet: #a78bfa;
+  --vzn-tone-green: #4ade80;
+  --vzn-tone-orange: #fb923c;
+
+  /* Shape */
+  --vzn-radius-2xs: 3px;
+  --vzn-radius-xs: 4px;
+  --vzn-radius-sm: 6px;
+  --vzn-radius-control: 6px;
+  --vzn-radius-md: 8px;
+  --vzn-radius-lg: 10px;
+  --vzn-radius-xl: 12px;
+  --vzn-radius-2xl: 14px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.3);
+  --vzn-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --vzn-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --vzn-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+  --vzn-shadow-overlay: 0 20px 60px rgba(0, 0, 0, 0.6);
+  --vzn-prompt-card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --vzn-blur: none;
+  --vzn-blur-sm: none;
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: var(--vzn-font-sans);
+  --vzn-line-reading: 1.5;
 }
 
 body {

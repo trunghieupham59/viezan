@@ -99,7 +99,7 @@
     --vzn-button-fg: var(--vzn-action-text); --vzn-button-border: var(--vzn-action-border); --vzn-button-bg: var(--vzn-surface); --vzn-button-hover-bg: var(--vzn-action-soft); --vzn-button-hover-border: var(--vzn-action-border); --vzn-button-hover-fg: var(--vzn-action-text);
   }
   .ui-button.ui-button-variant-primary.ui-button-appearance-solid {
-    --vzn-button-bg: var(--vzn-action); --vzn-button-border: var(--vzn-action); --vzn-button-fg: var(--vzn-action-fg); --vzn-button-hover-bg: var(--vzn-action-hover); --vzn-button-hover-border: var(--vzn-action-hover); --vzn-button-hover-fg: var(--vzn-action-fg);
+    --vzn-button-bg: var(--vzn-action-fill); --vzn-button-border: var(--vzn-action); --vzn-button-fg: var(--vzn-action-fg); --vzn-button-hover-bg: var(--vzn-action-fill-hover); --vzn-button-hover-border: var(--vzn-action-hover); --vzn-button-hover-fg: var(--vzn-action-fg);
   }
   .ui-button.ui-button-variant-primary.ui-button-appearance-soft {
     --vzn-button-bg: var(--vzn-action-soft); --vzn-button-border: transparent; --vzn-button-fg: var(--vzn-action-text); --vzn-button-hover-bg: var(--vzn-action-soft-hover);

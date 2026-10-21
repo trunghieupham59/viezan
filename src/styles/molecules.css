@@ -517,8 +517,8 @@
 }
 
 /* ThemePresetPicker ------------------------------------------------------- */
-/* Cards carry `data-theme`, so every colour below resolves to the preset the
-   card represents rather than the window's palette. */
+/* Cards carry `data-theme`, so every colour, radius, shadow and font below
+   resolves to the persona the card represents, not the window's palette. */
 
 .theme-preset-picker {
   display: grid;
@@ -551,58 +551,105 @@
   border-radius: var(--vzn-radius-md);
   background: var(--vzn-surface);
   color: var(--vzn-text);
+  font-family: var(--vzn-font-sans);
   text-align: left;
-  box-shadow: none;
+  box-shadow: var(--vzn-shadow-xs);
 }
 
 .theme-preset-card.ui-button:hover:not(:disabled) {
   border-color: var(--vzn-border-strong);
   background: var(--vzn-surface-raised);
+  box-shadow: var(--vzn-shadow-sm);
 }
 
 .theme-preset-card.ui-button[data-selected="true"] {
   border-color: var(--vzn-action);
   background: var(--vzn-action-soft);
-  box-shadow: inset 0 0 0 var(--vzn-border-width) var(--vzn-action);
+  box-shadow: inset 0 0 0 var(--vzn-border-width) var(--vzn-action), var(--vzn-shadow-glow);
 }
 
+/* Miniature window: title bar across the top, primary chrome column, canvas. */
 .theme-preset-swatch {
-  display: flex;
+  display: grid;
+  grid-template-columns: var(--vzn-space-5) 1fr;
+  grid-template-rows: var(--vzn-space-2) 1fr;
   block-size: var(--vzn-theme-preset-swatch-block);
   overflow: hidden;
   border: var(--vzn-border-width) solid var(--vzn-border);
   border-radius: var(--vzn-radius-sm);
-  background: var(--vzn-app-bg);
+  background: var(--vzn-bg);
+  box-shadow: var(--vzn-shadow-xs);
+}
+
+.theme-preset-swatch-titlebar {
+  grid-column: 1 / -1;
+  border-block-end: var(--vzn-border-width) solid var(--vzn-chrome-divider);
+  background: var(--vzn-titlebar-bg);
 }
 
 .theme-preset-swatch-chrome {
-  flex: 0 0 var(--vzn-space-4);
-  border-inline-end: var(--vzn-border-width) solid var(--vzn-divider);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--vzn-space-1);
+  padding-block: var(--vzn-space-1);
+  border-inline-end: var(--vzn-border-width) solid var(--vzn-chrome-divider);
   background: var(--vzn-sidebar-bg);
+}
+
+.theme-preset-swatch-nav {
+  inline-size: var(--vzn-space-3);
+  block-size: var(--vzn-space-3);
+  border-radius: var(--vzn-radius-2xs);
+  background: var(--vzn-chrome-item-hover);
+}
+
+.theme-preset-swatch-nav-active {
+  background: var(--vzn-chrome-item-active);
+  box-shadow: inset 0 0 0 var(--vzn-space-0-5) var(--vzn-chrome-accent);
 }
 
 .theme-preset-swatch-canvas {
   display: flex;
-  flex: 1 1 auto;
-  align-items: flex-end;
+  flex-direction: column;
+  justify-content: space-between;
   gap: var(--vzn-space-1);
   padding: var(--vzn-space-1-5);
   background: var(--vzn-bg);
 }
 
-.theme-preset-swatch-accent {
-  flex: 0 0 var(--vzn-space-4);
-  block-size: var(--vzn-space-2);
-  border-radius: var(--vzn-radius-pill);
-  background: var(--vzn-action);
+.theme-preset-swatch-type {
+  font-family: var(--vzn-font-reading);
+  font-size: var(--vzn-font-size-lg);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: 1;
+  color: var(--vzn-text-strong);
+}
+
+.theme-preset-swatch-card {
+  display: flex;
+  align-items: center;
+  gap: var(--vzn-space-1);
+  padding: var(--vzn-space-1);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-md);
+  background: var(--vzn-surface);
+  box-shadow: var(--vzn-shadow-sm);
 }
 
 .theme-preset-swatch-line {
   flex: 1 1 auto;
-  block-size: var(--vzn-space-2);
+  block-size: var(--vzn-space-1-5);
   border-radius: var(--vzn-radius-pill);
-  border: var(--vzn-border-width) solid var(--vzn-border);
-  background: var(--vzn-surface);
+  background: var(--vzn-surface-subtle);
+}
+
+.theme-preset-swatch-action {
+  flex: 0 0 var(--vzn-space-4);
+  block-size: var(--vzn-space-2);
+  border-radius: var(--vzn-radius-control);
+  background: var(--vzn-action-fill);
+  box-shadow: var(--vzn-shadow-glow);
 }
 
 .theme-preset-copy {

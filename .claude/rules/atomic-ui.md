@@ -31,9 +31,12 @@ paths:
   too. All `src/` stylesheets are at zero literal colors; keep them there.
   Known debt not to extend: `tailwind.config.mjs` keeps a few literals (line
   heights, `pulse-fast` easing) — migrate rather than add beside them.
-- Palette presets live in `tokens.css` as `[data-theme="<id>"]` blocks (light)
+- Style presets live in `tokens.css` as `[data-theme="<id>"]` blocks (light)
   and `html.dark [data-theme="<id>"], html.dark[data-theme="<id>"]` (dark),
-  each with the full palette token set. Never style a preset from TSX.
+  each with the identical token set (surfaces, accent, chrome, tones, shape,
+  depth, type). Never style a preset from TSX. Primary chrome (title bar and
+  primary navigation) reads `--vzn-chrome-*`, not the canvas text tokens, so a
+  preset can paint it darker than the workspace.
 - Use `Input` for reusable single-line fields and the same size token as nearby
   buttons. Verify light/dark plus relevant responsive states.
 - Use container queries for feature geometry. Keep chat messages, suggestion

@@ -17,8 +17,10 @@ export interface ThemePresetPickerProps<T extends string> {
 
 /**
  * Palette preset chooser. Each card sets `data-theme` on itself so the
- * swatches are painted by that preset's own tokens, in the current
- * light/dark mode, without a second copy of the colours in TypeScript.
+ * miniature window inside it (title bar, primary chrome with an active nav
+ * item, canvas, reading type sample, surface card and accent action) is
+ * painted by that preset's own tokens, in the current light/dark mode,
+ * without a second copy of the design in TypeScript.
  */
 export function ThemePresetPicker<T extends string>({ label, value, options, onChange }: ThemePresetPickerProps<T>) {
   return (
@@ -40,10 +42,18 @@ export function ThemePresetPicker<T extends string>({ label, value, options, onC
             onClick={() => onChange(option.value)}
           >
             <span className="theme-preset-swatch" aria-hidden="true">
-              <span className="theme-preset-swatch-chrome" />
+              <span className="theme-preset-swatch-titlebar" />
+              <span className="theme-preset-swatch-chrome">
+                <span className="theme-preset-swatch-nav theme-preset-swatch-nav-active" />
+                <span className="theme-preset-swatch-nav" />
+                <span className="theme-preset-swatch-nav" />
+              </span>
               <span className="theme-preset-swatch-canvas">
-                <span className="theme-preset-swatch-accent" />
-                <span className="theme-preset-swatch-line" />
+                <span className="theme-preset-swatch-type">Aa</span>
+                <span className="theme-preset-swatch-card">
+                  <span className="theme-preset-swatch-line" />
+                  <span className="theme-preset-swatch-action" />
+                </span>
               </span>
             </span>
             <span className="theme-preset-copy">

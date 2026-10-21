@@ -85,11 +85,17 @@ pages -> templates -> organisms -> molecules -> atoms
   there, migrate it to reference `tokens.css` rather than adding a new
   literal beside it.
 - Theme has two independent axes: light/dark mode (`html.dark`, from
-  `theme`) and the palette preset (`html[data-theme]`, from `themePreset`).
-  Each preset in `tokens.css` redeclares the full palette token set for both
-  modes, so a `data-theme` on any element (e.g. a preview card) renders that
-  palette. A new preset needs a `[data-theme]` pair in `tokens.css`, an entry
-  in `src/constants/themePresets.ts`, `electron/windowPalette.ts`, and i18n
+  `theme`) and the style preset (`html[data-theme]`, from `themePreset`). A
+  preset is a persona, not a repaint: it owns surfaces, accent intensity
+  (`--vzn-action-fill`, glow, user bubble), primary chrome
+  (`--vzn-chrome-*`, read only by the title bar and primary navigation),
+  illustrative tones, shape (`--vzn-radius-*`), depth (`--vzn-shadow-*`,
+  `--vzn-blur`), and reading type (`--vzn-font-reading`, `--vzn-line-reading`,
+  used by chat and translate content). Each preset in `tokens.css` redeclares
+  that whole token set for both modes, so a `data-theme` on any element (the
+  Settings preview card) renders that persona. A new preset needs a
+  `[data-theme]` pair in `tokens.css`, an entry in
+  `src/constants/themePresets.ts`, `electron/windowPalette.ts`, and i18n
   labels.
 - `npm run check:design` and `npm run check:atomic` only scan
   `src/components/ui/{atoms,molecules}`, `src/components/organisms`, and

@@ -505,12 +505,12 @@ export interface Translations {
   settings_theme_palette_desc: string
   settings_theme_preset_graphite: string
   settings_theme_preset_graphite_desc: string
-  settings_theme_preset_cosmos: string
-  settings_theme_preset_cosmos_desc: string
-  settings_theme_preset_forest: string
-  settings_theme_preset_forest_desc: string
-  settings_theme_preset_ember: string
-  settings_theme_preset_ember_desc: string
+  settings_theme_preset_studio: string
+  settings_theme_preset_studio_desc: string
+  settings_theme_preset_paper: string
+  settings_theme_preset_paper_desc: string
+  settings_theme_preset_corporate: string
+  settings_theme_preset_corporate_desc: string
   settings_furigana: string
   settings_furigana_desc: string
   settings_image_provider_fallback: string

@@ -5,4 +5,4 @@ export type ThemeMode = 'light' | 'dark' | 'system'
  * Colour palette preset, independent from the light/dark mode. Each preset
  * ships a light and a dark variant in `src/styles/tokens.css`.
  */
-export type ThemePreset = 'graphite' | 'cosmos' | 'forest' | 'ember'
+export type ThemePreset = 'graphite' | 'studio' | 'paper' | 'corporate'

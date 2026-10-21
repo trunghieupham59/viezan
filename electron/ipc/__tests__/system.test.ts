@@ -82,8 +82,8 @@ describe('system handlers', () => {
     const applyWindowPalette = vi.fn()
     const handlers = setup(() => ({ isDestroyed: () => false, webContents: mainContents }), applyWindowPalette)
 
-    handlers['app:setWindowTheme']({ sender: mainContents }, 'light', 'cosmos')
-    expect(applyWindowPalette).toHaveBeenCalledWith('cosmos')
+    handlers['app:setWindowTheme']({ sender: mainContents }, 'light', 'corporate')
+    expect(applyWindowPalette).toHaveBeenCalledWith('corporate')
     expect(electronMocks.nativeTheme.themeSource).toBe('light')
 
     handlers['app:setWindowTheme']({ sender: mainContents }, 'dark', 'neon')

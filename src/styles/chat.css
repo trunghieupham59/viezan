@@ -53,6 +53,7 @@ html:not(.dark) .chat-composer {
   overflow-y: auto;
   padding: var(--vzn-space-3) var(--vzn-space-4) var(--vzn-space-2);
   color: var(--vzn-text-strong);
+  font-family: var(--vzn-font-reading);
   font-size: var(--vzn-font-size-subtitle);
   line-height: var(--vzn-line-normal);
 }
@@ -115,10 +116,10 @@ html:not(.dark) .chat-composer {
 }
 
 .chat-bubble-user {
-  border: 1px solid var(--vzn-divider);
+  border: 1px solid var(--vzn-user-bubble-border);
   border-radius: var(--vzn-radius-lg) var(--vzn-radius-lg) var(--vzn-radius-xs) var(--vzn-radius-lg);
-  background: var(--vzn-surface-muted);
-  color: var(--vzn-text-strong);
+  background: var(--vzn-user-bubble-bg);
+  color: var(--vzn-user-bubble-fg);
   box-shadow: none;
 }
 
@@ -343,6 +344,7 @@ html:not(.dark) .chat-research-final {
 .chat-empty-heading {
   margin: 0;
   color: var(--vzn-text-strong);
+  font-family: var(--vzn-font-reading);
   font-size: var(--vzn-font-size-heading-lg);
   font-weight: var(--vzn-weight-regular);
   line-height: var(--vzn-line-tight);
@@ -421,6 +423,10 @@ html:not(.dark) .chat-research-final {
 
 .chat-message-row {
   width: 100%;
+}
+
+.chat-message-content {
+  font-family: var(--vzn-font-reading);
 }
 
 .chat-message-row:not([data-message-role="user"]) .chat-message-content {
