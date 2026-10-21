@@ -33,6 +33,42 @@ export interface QuickChatSeedPayload {
 
 const MAX_QUICK_CHAT_RESPONSE_CHARS = 80_000
 const QUICK_CHAT_PROVIDERS = new Set(['local', 'gemini', 'claude', 'openai'])
+const USAGE_FEATURES = new Set(['chat', 'translate', 'live', 'dictionary'])
+
+/** Mirrors the renderer's UsageCost: aggregate numbers only, never key material. */
+export interface QuickChatUsagePayload {
+  id: string
+  feature: string
+  provider: string
+  model: string
+  amountUsd: number
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  estimated: boolean
+  createdAt: number
+}
+
+const isNonNegativeNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0
+
+export function parseQuickChatUsagePayload(rawPayload: unknown): QuickChatUsagePayload | null {
+  if (!isPlainRecord(rawPayload)) return null
+  const id = cleanText(rawPayload.id, 80)
+  const feature = cleanText(rawPayload.feature, 32)
+  const provider = cleanText(rawPayload.provider, 32)
+  const model = cleanText(rawPayload.model, 160)
+  if (!id || !feature || !provider || !model || !USAGE_FEATURES.has(feature) || !QUICK_CHAT_PROVIDERS.has(provider)) return null
+  const { amountUsd, inputTokens, outputTokens, totalTokens, estimated, createdAt } = rawPayload
+  if (![amountUsd, inputTokens, outputTokens, totalTokens].every(isNonNegativeNumber)) return null
+  if (typeof estimated !== 'boolean' || !isNonNegativeNumber(createdAt) || createdAt === 0) return null
+  return {
+    id, feature, provider, model,
+    amountUsd: amountUsd as number, inputTokens: inputTokens as number,
+    outputTokens: outputTokens as number, totalTokens: totalTokens as number,
+    estimated, createdAt: createdAt as number,
+  }
+}
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -102,6 +138,17 @@ export function registerQuickChatHandlers(
     sessionStore ??= new QuickAiSessionStore(path.join(app.getPath('userData'), 'quick-ai-session-v1.json'))
     return sessionStore
   }
+
+  // Quick AI answers are billed in the main window, which owns the usage store.
+  ipcMain.handle('quick-chat:record-usage', (event, rawPayload: unknown) => {
+    if (!isPopupSender(event)) return { success: false, error: 'Unauthorized sender.' }
+    const payload = parseQuickChatUsagePayload(rawPayload)
+    if (!payload) return { success: false, error: 'Invalid usage payload.' }
+    const mainWindow = getMainWindow()
+    if (!mainWindow || mainWindow.isDestroyed()) return { success: false, error: 'Main window is not available.' }
+    mainWindow.webContents.send('quick-chat:usage', payload)
+    return { success: true }
+  })
 
   ipcMain.handle('quick-chat:session:get', async (event): Promise<{ success: boolean; session: QuickAiSession | null }> => {
     if (!isPopupSender(event)) return { success: false, session: null }

@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LauncherIcon } from '../../../shared/launcher'
+import { clearQuickAiAnswerCache } from '../../components/AIChatPopup'
 import { useAppStore } from '../../store/useAppStore'
 import { QuickLauncher } from '../QuickLauncher'
 
@@ -29,6 +30,7 @@ beforeEach(() => {
   vi.mocked(window.api.quickChat.session.save).mockClear()
   vi.mocked(window.api.quickChat.session.clear).mockClear()
   vi.mocked(window.api.chatStream).mockResolvedValue({ success: true, reply: 'A saved answer' })
+  clearQuickAiAnswerCache()
 })
 
 describe('QuickLauncher', () => {

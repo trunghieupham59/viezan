@@ -37,6 +37,12 @@ export const quickChatSection = {
     openSettings: () => ipcRenderer.invoke('quick-chat:open-settings'),
     openInChat: (payload?: QuickChatSeedPayload) => ipcRenderer.invoke('quick-chat:open-in-chat', payload),
     openFeature: (payload: LauncherFeatureRequest) => ipcRenderer.invoke('quick-chat:open-feature', payload),
+    recordUsage: (cost: unknown) => ipcRenderer.invoke('quick-chat:record-usage', cost),
+    onUsage: (cb: (cost: unknown) => void) => {
+      const handler = (_: unknown, cost: unknown) => cb(cost)
+      ipcRenderer.on('quick-chat:usage', handler)
+      return () => ipcRenderer.removeListener('quick-chat:usage', handler)
+    },
     onShow: (cb: () => void) => {
       const handler = () => cb()
       ipcRenderer.on('quick-chat:show', handler)

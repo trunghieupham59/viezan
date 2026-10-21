@@ -151,6 +151,8 @@ if (typeof window !== 'undefined') {
         openSettings: vi.fn().mockResolvedValue({ success: true }),
         openInChat: vi.fn().mockResolvedValue({ success: true }),
         openFeature: vi.fn().mockResolvedValue({ success: true }),
+        recordUsage: vi.fn().mockResolvedValue({ success: true }),
+        onUsage: vi.fn().mockReturnValue(() => {}),
         onShow: vi.fn().mockReturnValue(() => {}),
         onOpenFeature: vi.fn().mockReturnValue(() => {}),
         onOpenSettings: vi.fn().mockReturnValue(() => {}),

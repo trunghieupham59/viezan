@@ -3,7 +3,28 @@ import { StrictMode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAppStore } from '../../store/useAppStore'
 import type { ChatResult, ChatStreamEvent } from '../../types'
-import { AIChatPopup } from '../AIChatPopup'
+import { AIChatPopup, clearQuickAiAnswerCache, QUICK_AI_SYSTEM_PROMPT } from '../AIChatPopup'
+
+/** Emits one partial token, then stays open until the test settles the stream. */
+function mockInterruptibleChat() {
+  let listener: ((event: ChatStreamEvent) => void) | null = null
+  let settle: ((result: ChatResult) => void) | null = null
+  vi.mocked(window.api.onChatStreamEvent).mockImplementation((_requestId, cb) => {
+    listener = cb
+    return vi.fn()
+  })
+  vi.mocked(window.api.chatStream).mockImplementation(() => new Promise<ChatResult>(resolve => {
+    settle = resolve
+    listener?.({ requestId: 'quick-chat-test', type: 'token', token: 'Partial' })
+  }))
+  return {
+    cancel: () => settle?.({ success: false, error: 'Stream cancelled', errorCode: 'CANCELLED' }),
+    finish: () => {
+      listener?.({ requestId: 'quick-chat-test', type: 'end', reply: 'Partial answer' })
+      settle?.({ success: true, reply: 'Partial answer' })
+    },
+  }
+}
 
 function mockStreamingChat() {
   let listener: ((event: ChatStreamEvent) => void) | null = null
@@ -45,6 +66,8 @@ beforeEach(() => {
   vi.mocked(window.api.quickChat.session.save).mockClear()
   vi.mocked(window.api.quickChat.session.clear).mockClear()
   vi.mocked(window.api.keychain.hasKey).mockResolvedValue({ exists: false })
+  vi.mocked(window.api.quickChat.recordUsage).mockClear()
+  clearQuickAiAnswerCache()
   window.api.platform = 'darwin'
 })
 
@@ -159,7 +182,7 @@ describe('AIChatPopup quick window', () => {
     render(<AIChatPopup />)
 
     const input = screen.getByRole('textbox')
-    fireEvent.change(input, { target: { value: 'What is the current Viezan release?' } })
+    fireEvent.change(input, { target: { value: 'What is the latest Viezan release?' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 
     // Web search must still run with the AI-generated query.
@@ -182,6 +205,115 @@ describe('AIChatPopup quick window', () => {
     // Web evidence must still reach the model via the system prompt.
     const streamCall = vi.mocked(window.api.chatStream).mock.calls[0]?.[0]
     expect(streamCall?.systemPrompt).toContain('WEB SEARCH RESULTS')
+  })
+
+  it('answers timeless questions without the routing call and with the Quick AI prompt', async () => {
+    vi.mocked(window.api.keychain.hasKey).mockResolvedValue({ exists: true })
+    act(() => {
+      useAppStore.setState({
+        selectedProvider: 'gemini',
+        keyStatus: { gemini: true, claude: false, openai: false, local: true },
+        chatSystemPrompt: 'Always answer as a pirate.',
+      })
+    })
+    const webSearchMock = vi.fn()
+    ;(window.api as unknown as { webSearch: typeof webSearchMock }).webSearch = webSearchMock
+    mockStreamingChat()
+    render(<AIChatPopup />)
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'What is Chrome?' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(await screen.findByText('Hello there')).toBeInTheDocument()
+    expect(window.api.chat).not.toHaveBeenCalled()
+    expect(webSearchMock).not.toHaveBeenCalled()
+    const streamCall = vi.mocked(window.api.chatStream).mock.calls[0]?.[0]
+    expect(streamCall?.systemPrompt).toContain(QUICK_AI_SYSTEM_PROMPT)
+    expect(streamCall?.systemPrompt).not.toContain('pirate')
+  })
+
+  it('reports estimated usage for a completed answer', async () => {
+    mockStreamingChat()
+    render(<AIChatPopup />)
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'Say hello' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await screen.findByText('Hello there')
+    await waitFor(() => expect(window.api.quickChat.recordUsage).toHaveBeenCalledOnce())
+    expect(vi.mocked(window.api.quickChat.recordUsage).mock.calls[0][0]).toMatchObject({
+      feature: 'chat', provider: 'local', model: 'local-auto', amountUsd: 0, estimated: true,
+    })
+    expect(vi.mocked(window.api.quickChat.recordUsage).mock.calls[0][0].outputTokens).toBeGreaterThan(0)
+  })
+
+  it('Stop keeps the partial answer, persists it and skips usage', async () => {
+    const stream = mockInterruptibleChat()
+    render(<AIChatPopup />)
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'Long question' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(await screen.findByText('Partial')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }))
+    await act(async () => stream.cancel())
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Stop' })).not.toBeInTheDocument())
+    expect(screen.getByText('Partial')).toBeInTheDocument()
+    expect(window.api.quickChat.session.save).toHaveBeenCalledOnce()
+    expect(vi.mocked(window.api.quickChat.session.save).mock.calls[0][0].turns[1]).toEqual({ role: 'assistant', text: 'Partial' })
+    expect(window.api.quickChat.recordUsage).not.toHaveBeenCalled()
+    expect(input).not.toBeDisabled()
+  })
+
+  it('Cmd+N discards an answer in flight without persisting it', async () => {
+    const stream = mockInterruptibleChat()
+    render(<AIChatPopup />)
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'Long question' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(await screen.findByText('Partial')).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'n', metaKey: true })
+    expect(screen.queryByText('Partial')).not.toBeInTheDocument()
+    await act(async () => stream.finish())
+    expect(screen.queryByText('Partial answer')).not.toBeInTheDocument()
+    expect(screen.queryByText('Partial')).not.toBeInTheDocument()
+    expect(window.api.quickChat.session.save).not.toHaveBeenCalled()
+    expect(window.api.quickChat.session.clear).toHaveBeenCalledOnce()
+    await waitFor(() => expect(input).not.toBeDisabled())
+  })
+
+  it('Regenerate aborts the current answer before asking again', async () => {
+    const stream = mockInterruptibleChat()
+    const session = { id: 'quick-ai-r', updatedAt: Date.now(), turns: [{ role: 'user' as const, text: 'Earlier' }, { role: 'assistant' as const, text: 'Old answer' }] }
+    render(<AIChatPopup launchRequest={{ id: 1, text: '', session }} onBack={() => {}} />)
+    expect(screen.getByText('Old answer')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Regenerate response' }))
+    expect(await screen.findByText('Partial')).toBeInTheDocument()
+    expect(window.api.chatStream).toHaveBeenCalledOnce()
+    await act(async () => stream.finish())
+    expect(await screen.findByText('Partial answer')).toBeInTheDocument()
+    expect(vi.mocked(window.api.quickChat.session.save).mock.calls[0][0].turns).toEqual([
+      { role: 'user', text: 'Earlier' }, { role: 'assistant', text: 'Partial answer' },
+    ])
+  })
+
+  it('serves a repeated launcher question from the cache but never a manual one', async () => {
+    mockStreamingChat()
+    const { rerender } = render(<AIChatPopup launchRequest={{ id: 1, text: 'What is Vite?', session: null }} onBack={() => {}} />)
+    expect(await screen.findByText('Hello there')).toBeInTheDocument()
+    expect(window.api.chatStream).toHaveBeenCalledOnce()
+    rerender(<AIChatPopup launchRequest={{ id: 2, text: '  what is  vite? ', session: null }} onBack={() => {}} />)
+    expect(await screen.findByText('Hello there')).toBeInTheDocument()
+    expect(window.api.chatStream).toHaveBeenCalledOnce()
+    await waitFor(() => expect(window.api.quickChat.session.save).toHaveBeenCalledTimes(2))
+    expect(window.api.quickChat.recordUsage).toHaveBeenCalledOnce()
+
+    fireEvent.keyDown(window, { key: 'n', metaKey: true })
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'What is Vite?' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(window.api.chatStream).toHaveBeenCalledTimes(2))
+
+    act(() => useAppStore.setState({ selectedModels: { gemini: '', claude: '', openai: '', local: 'other-model' } }))
+    rerender(<AIChatPopup launchRequest={{ id: 3, text: 'What is Vite?', session: null }} onBack={() => {}} />)
+    await waitFor(() => expect(window.api.chatStream).toHaveBeenCalledTimes(3))
   })
 
   it('localizes provider content blocks instead of showing raw SDK errors', async () => {

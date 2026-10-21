@@ -6,7 +6,7 @@ import { AppShell } from './components/templates'
 import { FeatureLoadingState } from './components/ui/molecules'
 import { PROVIDERS } from './constants/providers'
 import { flushPersistedStore, useAppStore, useT } from './store/useAppStore'
-import type { AppPage, Provider, QuickChatSeedPayload } from './types'
+import type { AppPage, Provider, QuickChatSeedPayload, UsageCost } from './types'
 import { detectSystemLocale } from './utils/locale'
 
 const TranslatePage = lazy(() => import('./pages/TranslatePage').then(m => ({ default: m.TranslatePage })))
@@ -38,7 +38,7 @@ function App() {
     selectedProvider, selectedModels, ttsMode, ttsVoice,
     createChatSession, setActiveChatSession, addChatMessage, setChatSessionDraft,
     setActivePage, settingsOpen, openSettings, closeSettings,
-    setSourceText, setPendingDictionaryTerm,
+    setSourceText, setPendingDictionaryTerm, recordUsageCost,
   } = useAppStore()
 
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false)
@@ -177,8 +177,9 @@ function App() {
       if (payload.feature === 'dictionary' && payload.text) setPendingDictionaryTerm(payload.text)
       setActivePage(payload.feature)
     })
-    return () => { unsubSettings(); unsubChat(); unsubFeature?.() }
-  }, [openSettings, setActivePage, createChatSession, setActiveChatSession, addChatMessage, setChatSessionDraft, setSourceText, setPendingDictionaryTerm])
+    const unsubUsage = window.api.quickChat.onUsage?.((cost: UsageCost) => recordUsageCost(cost))
+    return () => { unsubSettings(); unsubChat(); unsubFeature?.(); unsubUsage?.() }
+  }, [openSettings, setActivePage, createChatSession, setActiveChatSession, addChatMessage, setChatSessionDraft, setSourceText, setPendingDictionaryTerm, recordUsageCost])
 
   // Check API keys in keychain on startup
   useEffect(() => {

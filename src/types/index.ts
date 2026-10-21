@@ -959,6 +959,8 @@ export interface WindowApi {
     openSettings: () => Promise<{ success: boolean; error?: string }>
     openInChat: (payload?: QuickChatSeedPayload) => Promise<{ success: boolean; error?: string }>
     openFeature: (payload: import('../../shared/launcher').LauncherFeatureRequest) => Promise<{ success: boolean; error?: string }>
+    recordUsage: (cost: UsageCost) => Promise<{ success: boolean; error?: string }>
+    onUsage: (cb: (cost: UsageCost) => void) => () => void
     onShow: (cb: () => void) => () => void
     onOpenFeature: (cb: (payload: import('../../shared/launcher').LauncherFeatureRequest) => void) => () => void
     onOpenSettings: (cb: () => void) => () => void
