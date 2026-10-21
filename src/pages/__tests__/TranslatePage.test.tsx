@@ -423,9 +423,19 @@ describe('TranslatePage', () => {
     expect(historyFor()).toHaveLength(1)
     expect(historyFor()[0]).toMatchObject({ provider: 'gemini', translatedText: 'Bản dịch Gemini' })
 
-    // With results on screen the source folds into a strip; expand it to edit.
+    // With results on screen the source folds into a strip; one disclosure
+    // control reopens it, and the same control (now the heading) folds it again.
     expect(screen.queryByRole('textbox', { name: /Source content/i })).not.toBeInTheDocument()
-    fireEvent.click(screen.getAllByRole('button', { name: 'Expand source text' })[0])
+    const expandToggle = screen.getByRole('button', { name: 'Expand source text' })
+    expect(expandToggle).toHaveAttribute('aria-expanded', 'false')
+    expect(expandToggle).toHaveTextContent('Translate this')
+    fireEvent.click(expandToggle)
+    const collapseToggle = screen.getByRole('button', { name: 'Source content' })
+    expect(collapseToggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.queryByRole('button', { name: 'Expand source text' })).not.toBeInTheDocument()
+    fireEvent.click(collapseToggle)
+    expect(screen.queryByRole('textbox', { name: /Source content/i })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Expand source text' }))
     fireEvent.change(getSourceInput(), { target: { value: 'Translate this updated' } })
     expect(screen.getByText('The source changed. Translate again to update this result.'))
       .toBeInTheDocument()

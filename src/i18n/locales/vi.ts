@@ -181,6 +181,8 @@ const vi: Translations = {
   translate_compare_dismiss_failure: 'Ẩn thông báo lỗi',
   translate_compare_pick: 'Chọn bản này',
   translate_compare_picked: 'Đã chọn',
+  translate_compare_pick_short: 'Chọn',
+  translate_compare_identical: 'Các bản dịch giống nhau',
   translate_compare_source_expand: 'Mở rộng nội dung gốc',
   translate_compare_source_collapse: 'Thu gọn nội dung gốc',
   translate_compare_view_label: 'Chế độ so sánh',

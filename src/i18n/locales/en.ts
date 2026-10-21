@@ -181,6 +181,8 @@ const en: Translations = {
   translate_compare_dismiss_failure: 'Hide this failure',
   translate_compare_pick: 'Pick this one',
   translate_compare_picked: 'Picked',
+  translate_compare_pick_short: 'Pick',
+  translate_compare_identical: 'All translations match',
   translate_compare_source_expand: 'Expand source text',
   translate_compare_source_collapse: 'Collapse source text',
   translate_compare_view_label: 'Comparison view',

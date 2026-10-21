@@ -279,7 +279,9 @@
   flex-direction: row;
   align-items: center;
   gap: var(--vzn-space-2);
-  padding: var(--vzn-space-1) var(--vzn-space-2) var(--vzn-space-1) var(--vzn-space-3);
+  /* The disclosure button carries its own inline padding, so the strip only
+     adds enough to land the chevron in the same gutter as the pane header. */
+  padding: var(--vzn-space-1) var(--vzn-space-2) var(--vzn-space-1) var(--vzn-space-1);
 }
 
 .translate-source-collapsed-preview.ui-button {
@@ -300,12 +302,27 @@
   white-space: nowrap;
 }
 
-.translate-source-collapse {
-  margin-left: auto;
+/* Disclosure toggle: one control for both states, chevron first, pointing
+   right when folded and down when open, like a Finder/Xcode disclosure. */
+.translate-source-disclosure.ui-button {
+  gap: var(--vzn-space-2);
 }
 
-.translate-source-collapse-chevron {
-  transform: rotate(180deg);
+.translate-source-heading-toggle.ui-button {
+  --vzn-button-fg: var(--vzn-text-strong);
+  margin-inline-start: calc(-1 * var(--vzn-space-3));
+}
+
+.translate-source-disclosure-chevron {
+  width: var(--vzn-icon-sm);
+  height: var(--vzn-icon-sm);
+  flex: 0 0 var(--vzn-icon-sm);
+  color: var(--vzn-text-soft);
+  transition: transform var(--vzn-duration-fast) var(--vzn-ease-standard);
+}
+
+.translate-source-disclosure-chevron-open {
+  transform: rotate(90deg);
 }
 
 /* Pane header: the pane title is the first item of its toolbar, not a dropdown label. */
@@ -1397,6 +1414,28 @@
 .translate-comparison-card-shell {
   min-width: 0;
   min-height: 0;
+  /* Columns size their own header chrome from their actual width. */
+  container: translate-column / inline-size;
+}
+
+.translate-comparison-pick-label-short {
+  display: none;
+}
+
+/* A narrow column keeps the model name readable: the provider is already
+   carried by its icon, and the pick verb shortens before the name truncates. */
+@container translate-column (max-width: 359px) {
+  .translate-comparison-card-provider {
+    display: none;
+  }
+
+  .translate-comparison-pick-label {
+    display: none;
+  }
+
+  .translate-comparison-pick-label-short {
+    display: inline;
+  }
 }
 
 @container app-main (min-width: 900px) {
@@ -1461,12 +1500,10 @@
   border-top: 1px solid var(--vzn-divider);
 }
 
-.translate-comparison-card-count {
-  margin-left: auto;
+/* Every model agrees: a quiet note replaces the (pointless) highlight toggle. */
+.translate-comparison-identical {
   color: var(--vzn-text-muted);
   font-size: var(--vzn-font-size-caption);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .translate-comparison-failures {
@@ -1844,6 +1881,15 @@
 
   .translate-pane-header {
     padding-inline: var(--vzn-space-3);
+  }
+
+  .translate-source-pane-collapsed {
+    padding-inline-start: 0;
+  }
+
+  /* A folded source is one strip: do not hold the editor's minimum row height for it. */
+  .translate-workbench-comparison:has(> .translate-source-pane-collapsed) {
+    grid-template-rows: auto minmax(var(--vzn-translate-result-min-block), auto);
   }
 
   .translate-pane-body {
