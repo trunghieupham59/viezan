@@ -7,8 +7,9 @@ import { formatNumberForLocale } from '../../../utils/locale'
 import { ImageAttachmentPreview } from '../../translate/ImageAttachmentPreview'
 import type { ImageAttachment } from '../../translate/ImageTranslator'
 import { SourcePanelActions } from '../../translate/SourcePanelActions'
+import { Button } from '../../ui/atoms'
 import { DragOverlay } from '../../ui/DragOverlay'
-import { InfoCircleIcon } from '../../ui/icons'
+import { ChevronDownIcon, InfoCircleIcon } from '../../ui/icons'
 import type { SpeakPanel } from '../../ui/SpeakButton'
 import { TranslateButton } from '../../ui/TranslateButton'
 import type { VoiceRecordingState } from '../../VoiceRecorder'
@@ -20,6 +21,11 @@ interface TranslationSourcePaneProps {
   voiceContextKey: string
   charCount: number
   translationModelCount: number
+  /** Comparison mode: the pane can fold into a one-line strip once results exist. */
+  collapsible?: boolean
+  collapsed?: boolean
+  canCollapse?: boolean
+  onCollapsedChange?: (collapsed: boolean) => void
   autoTranslate: boolean
   isTranslating: boolean
   isDraggingOver: boolean
@@ -55,6 +61,10 @@ export function TranslationSourcePane({
   voiceContextKey,
   charCount,
   translationModelCount,
+  collapsible = false,
+  collapsed = false,
+  canCollapse = false,
+  onCollapsedChange,
   autoTranslate,
   isTranslating,
   isDraggingOver,
@@ -99,6 +109,54 @@ export function TranslationSourcePane({
     onTranslate()
   }
 
+  if (collapsible && collapsed) {
+    // Once translations exist the source is reference material: one line, the
+    // count, and the way back to editing. Everything else waits behind "expand".
+    return (
+      <section
+        className="translate-pane translate-source-pane translate-source-pane-collapsed"
+        aria-labelledby={headingId}
+      >
+        <h2 id={headingId} className="sr-only">{t.translate_source_content_label}</h2>
+        <Button
+          size="md"
+          shape="rect"
+          variant="neutral"
+          appearance="ghost"
+          aria-expanded={false}
+          aria-label={t.translate_compare_source_expand}
+          title={t.translate_compare_source_expand}
+          onClick={() => onCollapsedChange?.(false)}
+          className="translate-source-collapsed-preview"
+        >
+          <span className="translate-source-collapsed-text">{sourceText}</span>
+        </Button>
+        <span className="translate-char-count">
+          {formatNumberForLocale(charCount, appLocale)} {t.translate_chars}
+        </span>
+        <TranslateButton
+          isTranslating={isTranslating}
+          disabled={!hasSource}
+          onClick={onTranslate}
+          labelTranslate={t.translate_compare_submit(translationModelCount)}
+          labelLoading={t.translate_compare_submitting(translationModelCount)}
+        />
+        <Button
+          size="md"
+          shape="icon"
+          variant="neutral"
+          appearance="ghost"
+          aria-expanded={false}
+          aria-label={t.translate_compare_source_expand}
+          title={t.translate_compare_source_expand}
+          onClick={() => onCollapsedChange?.(false)}
+        >
+          <ChevronDownIcon />
+        </Button>
+      </section>
+    )
+  }
+
   return (
     <section
       className={`translate-pane translate-source-pane${isDraggingOver ? ' translate-pane-drop-active' : ''}`}
@@ -110,6 +168,21 @@ export function TranslationSourcePane({
     >
       <header className="translate-pane-header">
         <h2 id={headingId} className="translate-pane-heading">{t.translate_source_content_label}</h2>
+        {collapsible && canCollapse && (
+          <Button
+            size="sm"
+            shape="icon"
+            variant="neutral"
+            appearance="ghost"
+            aria-expanded
+            aria-label={t.translate_compare_source_collapse}
+            title={t.translate_compare_source_collapse}
+            onClick={() => onCollapsedChange?.(true)}
+            className="translate-source-collapse"
+          >
+            <ChevronDownIcon className="translate-source-collapse-chevron" />
+          </Button>
+        )}
       </header>
       <div
         className="translate-pane-body translate-source-body"

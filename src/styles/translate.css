@@ -247,18 +247,65 @@
 }
 
 /*
- * Multi-model comparison keeps the single-mode geometry: source on the left,
- * results on the right. Each model becomes one column inside the result pane,
- * so the full workbench height stays available for reading.
+ * Multi-model comparison is about picking a translation, so the source is an
+ * input strip above the results rather than a reading column beside them: the
+ * full width and nearly the full height go to the model columns.
  */
 .translate-workbench-comparison {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
-@container app-main (min-width: 1200px) {
-  .translate-workbench-comparison {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-  }
+.translate-workbench-comparison .translate-source-pane {
+  grid-column: 1;
+  grid-row: 1;
+  max-height: var(--vzn-translate-compare-source-max-block);
+  border-bottom: 1px solid var(--vzn-divider);
+}
+
+.translate-workbench-comparison .translate-source-body {
+  min-height: var(--vzn-translate-compare-source-min-block);
+}
+
+.translate-workbench-comparison .translate-result-pane {
+  grid-column: 1;
+  grid-row: 2;
+  border-left: 0;
+}
+
+.translate-source-pane-collapsed {
+  display: flex;
+  min-height: var(--vzn-control-height-xl);
+  flex-direction: row;
+  align-items: center;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-1) var(--vzn-space-2) var(--vzn-space-1) var(--vzn-space-3);
+}
+
+.translate-source-collapsed-preview.ui-button {
+  min-width: 0;
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  font-weight: var(--vzn-weight-regular);
+}
+
+.translate-source-collapsed-text {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vzn-text);
+  font-size: var(--vzn-font-size-md);
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.translate-source-collapse {
+  margin-left: auto;
+}
+
+.translate-source-collapse-chevron {
+  transform: rotate(180deg);
 }
 
 /* Pane header: the pane title is the first item of its toolbar, not a dropdown label. */
@@ -1352,25 +1399,21 @@
   min-height: 0;
 }
 
-.translate-comparison-card-shell + .translate-comparison-card-shell {
-  border-top: 1px solid var(--vzn-divider);
-}
-
-@container app-main (min-width: 1200px) {
+@container app-main (min-width: 900px) {
   .translate-comparison-list {
-    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-template-columns: none;
+    grid-template-rows: minmax(0, 1fr);
   }
 
-  .translate-comparison-list[data-result-count="2"] {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* A failed model is reported in the recovery row below, not as an empty column. */
+  .translate-comparison-card-shell[data-status="error"] {
+    display: none;
   }
 
-  .translate-comparison-list[data-result-count="3"] {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .translate-comparison-card-shell + .translate-comparison-card-shell {
-    border-top: 0;
+  .translate-comparison-card-shell:not([data-status="error"])
+    ~ .translate-comparison-card-shell:not([data-status="error"]) {
     border-left: 1px solid var(--vzn-divider);
   }
 }
@@ -1384,6 +1427,108 @@
   border-radius: 0;
   background: var(--vzn-surface);
   box-shadow: none;
+}
+
+.translate-comparison-card-shell[data-selected="true"] > .translate-comparison-card {
+  box-shadow: inset 0 0 0 2px var(--vzn-accent-border);
+}
+
+.translate-comparison-toolbar {
+  display: flex;
+  min-height: calc(var(--vzn-control-height-sm) + var(--vzn-space-2));
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vzn-space-2);
+  padding: 0 var(--vzn-space-4);
+  border-bottom: 1px solid var(--vzn-divider);
+  background: var(--vzn-surface);
+}
+
+.translate-comparison-progress {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.translate-comparison-card-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--vzn-space-1);
+  padding: var(--vzn-space-1) var(--vzn-space-3);
+  border-top: 1px solid var(--vzn-divider);
+}
+
+.translate-comparison-card-count {
+  margin-left: auto;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.translate-comparison-failures {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--vzn-divider);
+  background: var(--vzn-surface-muted);
+}
+
+.translate-comparison-failure {
+  display: flex;
+  min-height: var(--vzn-control-height-lg);
+  align-items: center;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-1) var(--vzn-space-3) var(--vzn-space-1) var(--vzn-space-4);
+}
+
+.translate-comparison-failure + .translate-comparison-failure {
+  border-top: 1px solid var(--vzn-divider);
+}
+
+.translate-comparison-failure-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.translate-comparison-failure-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--vzn-space-1) var(--vzn-space-2);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.translate-comparison-failure-copy > strong {
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.translate-comparison-failure-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--vzn-space-1);
+}
+
+.translate-comparison-text-diff {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.translate-comparison-text-diff > mark {
+  border-radius: var(--vzn-radius-xs);
+  background: var(--vzn-warning-soft);
+  box-shadow: 0 0 0 1px var(--vzn-warning-border);
+  color: inherit;
 }
 
 /* Column header mirrors .translate-pane-header so both panes share one rhythm. */
@@ -1524,8 +1669,8 @@
     height: auto;
   }
 
-  .translate-comparison-card-shell + .translate-comparison-card-shell {
-    border-top: 0;
+  .translate-comparison-failures {
+    display: none;
   }
 
   .translate-comparison-card {

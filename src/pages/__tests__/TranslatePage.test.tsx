@@ -333,8 +333,10 @@ describe('TranslatePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Translate · 2 models' }))
 
     await waitFor(() => expect(window.api.translate).toHaveBeenCalledTimes(2))
-    expect(await screen.findByText('Bản dịch Gemini')).toBeInTheDocument()
-    expect(await screen.findByText('Bản dịch OpenAI')).toBeInTheDocument()
+    // Differences are highlighted, so the text is split across marks; match on the card.
+    await waitFor(() => expect(screen.getByRole('article', { name: /Gemini 2.0 Flash/ }))
+      .toHaveTextContent('Bản dịch Gemini'))
+    expect(screen.getByRole('article', { name: /GPT 4o/ })).toHaveTextContent('Bản dịch OpenAI')
     expect(useAppStore.getState().translatedText).toBe('')
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument()
     expect(screen.queryByRole('radio')).not.toBeInTheDocument()
@@ -361,14 +363,22 @@ describe('TranslatePage', () => {
     expect(within(geminiCard).getByRole('button', { name: /Copy: Gemini 2.0 Flash.*Google Gemini/i }))
       .toBeInTheDocument()
 
-    const comparisonHistory = useAppStore.getState().history
+    // One comparison is one history entry, written when the reader picks a result
+    // and replaced (not duplicated) when they change their mind.
+    const historyFor = () => useAppStore.getState().history
       .filter((item) => item.sourceText === 'Translate this')
-    expect(comparisonHistory).toHaveLength(2)
-    expect(comparisonHistory.map((item) => item.translatedText).sort()).toEqual([
-      'Bản dịch Gemini',
-      'Bản dịch OpenAI',
-    ])
+    expect(historyFor()).toHaveLength(0)
+    fireEvent.click(within(openAiCard).getByRole('button', { name: /Pick this one: GPT 4o/ }))
+    expect(historyFor()).toHaveLength(1)
+    expect(historyFor()[0]).toMatchObject({ provider: 'openai', translatedText: 'Bản dịch OpenAI' })
+    expect(within(openAiCard).getByRole('button', { name: /Picked: GPT 4o/ })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(within(geminiCard).getByRole('button', { name: /Pick this one: Gemini 2.0 Flash/ }))
+    expect(historyFor()).toHaveLength(1)
+    expect(historyFor()[0]).toMatchObject({ provider: 'gemini', translatedText: 'Bản dịch Gemini' })
 
+    // With results on screen the source folds into a strip; expand it to edit.
+    expect(screen.queryByRole('textbox', { name: /Source content/i })).not.toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Expand source text' })[0])
     fireEvent.change(getSourceInput(), { target: { value: 'Translate this updated' } })
     expect(screen.getByText('The source changed. Translate again to update this result.'))
       .toBeInTheDocument()

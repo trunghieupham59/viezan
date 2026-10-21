@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   LanguagePairBar,
   TranslationComparisonPane,
@@ -61,6 +61,7 @@ export function TranslatePage() {
     isComparisonMode,
     comparisonResults,
     copiedComparisonKey,
+    selectedComparisonKey,
     speakingPanel,
     speakLoading,
     handleSpeak,
@@ -78,6 +79,7 @@ export function TranslatePage() {
     handleCopy,
     handleCopyComparison,
     handleRetryComparison,
+    handleSelectComparison,
     handleDismissError,
     handleDownloadTranslatedImage,
     handleDownloadEditedImage,
@@ -90,6 +92,20 @@ export function TranslatePage() {
     handleSourcePanelDragLeave,
     handleSourcePanelDrop,
   } = useTranslate()
+
+  // In comparison mode the source folds away once results exist; the user can
+  // reopen it, and the next run folds it again.
+  const [sourceCollapsedOverride, setSourceCollapsedOverride] = useState<boolean | null>(null)
+  const hasComparisonResult = isComparisonMode
+    && comparisonResults.some((result) => result.status === 'success')
+  const sourceCollapsed = isComparisonMode && (sourceCollapsedOverride ?? hasComparisonResult)
+  useEffect(() => {
+    if (!hasComparisonResult) setSourceCollapsedOverride(null)
+  }, [hasComparisonResult])
+  const handleTranslateRequest = useCallback(() => {
+    setSourceCollapsedOverride(null)
+    handleTranslate()
+  }, [handleTranslate])
 
   const voiceContextKey = `translate:${sourceLang}:${sourceText}`
   const voiceErrorMessage = voiceErrorCode
@@ -174,6 +190,10 @@ export function TranslatePage() {
       voiceContextKey={voiceContextKey}
       charCount={charCount}
       translationModelCount={imageAttachment ? 1 : translationModels.length}
+      collapsible={isComparisonMode}
+      collapsed={sourceCollapsed}
+      canCollapse={hasComparisonResult}
+      onCollapsedChange={setSourceCollapsedOverride}
       autoTranslate={autoTranslate}
       isTranslating={isTranslating}
       isDraggingOver={isDraggingOver}
@@ -185,7 +205,7 @@ export function TranslatePage() {
       speakLoading={speakLoading}
       fileInputRef={fileInputRef}
       onSourceChange={handleSourceTextChange}
-      onTranslate={handleTranslate}
+      onTranslate={handleTranslateRequest}
       onVoiceTranscript={handleVoiceTranscriptResult}
       onVoiceRecordingChange={handleVoiceRecordingChange}
       onVoiceStateChange={handleVoiceLifecycleChange}
@@ -209,6 +229,7 @@ export function TranslatePage() {
       results={comparisonResults}
       copiedResultKey={copiedComparisonKey}
       speakingResultKey={speakingComparisonKey}
+      selectedResultKey={selectedComparisonKey}
       speakLoading={speakLoading}
       isTranslating={isTranslating}
       isResultStale={isResultStale}
@@ -216,6 +237,7 @@ export function TranslatePage() {
       onUseAsSource={result => handleUseAsSource(result.translatedText)}
       onCopy={handleCopyComparison}
       onSpeak={handleSpeakComparison}
+      onSelect={handleSelectComparison}
       onRetry={handleRetryComparison}
       onOpenSettings={openSettings}
       onChooseModel={() => setModelsOpen(true)}

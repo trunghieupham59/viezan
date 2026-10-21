@@ -321,6 +321,10 @@ export function useTranslate() {
   const [copied, setCopied] = useState(false)
   const [copiedComparisonKey, setCopiedComparisonKey] = useState<string | null>(null)
   const [comparisonResults, setComparisonResults] = useState<TranslationComparisonResult[]>([])
+  /** The translation the user picked as the outcome of the current comparison run. */
+  const [selectedComparisonKey, setSelectedComparisonKey] = useState<string | null>(null)
+  /** History entry owned by the current comparison run; re-picking replaces it instead of adding. */
+  const comparisonHistoryIdRef = useRef<string | null>(null)
   const [isRewriting, setIsRewriting] = useState<'source' | 'translated' | null>(null)
   /** Shown when image translation silently switched to a different model/provider */
   const [imageSwitchNotice, setImageSwitchNotice] = useState<{ model: string; provider: string } | null>(null)
@@ -452,6 +456,9 @@ export function useTranslate() {
     invalidateActiveTranslation()
     setTranslationModels(nextModels)
     setComparisonResults(nextResults)
+    if (selectedComparisonKey && !nextModels.some((selection) => translationModelKey(selection) === selectedComparisonKey)) {
+      setSelectedComparisonKey(null)
+    }
 
     if (!imageAttachment) {
       const singleResult = nextModels.length === 1 ? nextResults[0] : null
@@ -472,6 +479,7 @@ export function useTranslate() {
     imageAttachment,
     invalidateActiveTranslation,
     isResultStale,
+    selectedComparisonKey,
     setPhoneticText,
     setTranslatedText,
     setTranslationModels,
@@ -501,6 +509,7 @@ export function useTranslate() {
       setImageRegions(null)
       setEditedImageUrl(null)
       setComparisonResults([])
+      setSelectedComparisonKey(null)
       setTranslatedText('')
       setPhoneticText('')
       setResultContext(null)
@@ -868,6 +877,8 @@ export function useTranslate() {
         setTranslatedText('')
         setPhoneticText('')
         setResultContext(null)
+        setSelectedComparisonKey(null)
+        comparisonHistoryIdRef.current = null
       }
 
       const updateResult = (nextResult: TranslationComparisonResult) => {
@@ -953,14 +964,8 @@ export function useTranslate() {
         setTranslatedText('')
         setPhoneticText('')
         markResultCurrent()
-        for (const result of successfulResults) {
-          recordTranslationOutcome(
-            trigger,
-            result.translatedText,
-            result,
-            { recordCost: false },
-          )
-        }
+        // Costs were recorded per model above. History waits for the user's pick
+        // so one comparison stays one entry, attributed to the chosen model.
         const detectionResult = successfulResults[0]
         detectLanguageInBackground(
           sourceText,
@@ -1041,6 +1046,32 @@ export function useTranslate() {
   const handleRetryComparison = useCallback((selection: TranslationModelSelection) => {
     void runTranslate('manual', selection)
   }, [runTranslate])
+
+  const handleSelectComparison = useCallback((result: TranslationComparisonResult) => {
+    if (result.status !== 'success' || !result.translatedText) return
+    setSelectedComparisonKey(result.key)
+    const timestamp = Date.now()
+    const id = comparisonHistoryIdRef.current ?? createHistoryId(timestamp)
+    comparisonHistoryIdRef.current = id
+    upsertHistory({
+      id,
+      timestamp,
+      provider: result.provider,
+      model: result.model,
+      sourceLang,
+      targetLang,
+      translationStyle,
+      sourceText,
+      translatedText: result.translatedText,
+      cost: estimateUsageCost({
+        feature: 'translate',
+        provider: result.provider,
+        model: result.model,
+        inputText: sourceText,
+        outputText: result.translatedText,
+      }),
+    })
+  }, [sourceLang, sourceText, targetLang, translationStyle, upsertHistory])
 
   const handleCopyComparison = useCallback(async (result: TranslationComparisonResult) => {
     if (!result.translatedText) return
@@ -1209,6 +1240,7 @@ export function useTranslate() {
     setTranslatedText('')
     setPhoneticText('')
     setComparisonResults([])
+    setSelectedComparisonKey(null)
     setResultContext(null)
   }, [sourceLang, targetLang, detectedSourceLang, imageAttachment, isResultStale, isTranslating,
     invalidateActiveTranslation, setLanguagePair, setSourceText, setTranslatedText, setPhoneticText])
@@ -1295,6 +1327,7 @@ export function useTranslate() {
     setPhoneticText('')
     setComparisonResults([])
     setCopiedComparisonKey(null)
+    setSelectedComparisonKey(null)
     setResultContext(null)
     setTranslateError(null)
     setDetectedSourceLang(null)
@@ -1316,6 +1349,7 @@ export function useTranslate() {
     setTranslatedText('')
     setPhoneticText('')
     setComparisonResults([])
+    setSelectedComparisonKey(null)
     setResultContext(null)
     setTranslateError(null)
     setImageSwitchNotice(null)
@@ -1379,6 +1413,7 @@ export function useTranslate() {
     isComparisonMode: isComparisonMode && !imageAttachment,
     comparisonResults: visibleComparisonResults,
     copiedComparisonKey,
+    selectedComparisonKey,
     // ── TTS ────────────────────────────────────────────────────────────────
     speakingPanel,
     speakLoading,
@@ -1400,6 +1435,7 @@ export function useTranslate() {
     handleCopy,
     handleCopyComparison,
     handleRetryComparison,
+    handleSelectComparison,
     handleDismissError,
     handleDownloadTranslatedImage,
     handleDownloadEditedImage,
