@@ -107,6 +107,7 @@ export interface Translations {
   translate_phonetic_standard: string
   /** Phonetic mode dropdown — full phonetic transcription */
   translate_phonetic_transcription: string
+  translate_phonetic_compare_unsupported: string
   translate_style_label: string
   translate_style_general: string
   translate_style_formal: string
@@ -137,7 +138,6 @@ export interface Translations {
   /** Stable label on the automatic translation toggle. */
   translate_mode_auto: string
   /** Static mode label used by multi-model comparison. */
-  translate_mode_manual: string
   translate_controls_label: string
   translate_options: string
   translate_settings_scope: string
@@ -190,7 +190,6 @@ export interface Translations {
   translate_models_manual_notice: string
   translate_models_cancel: string
   translate_models_apply: (count: number) => string
-  translate_compare_heading: (count: number) => string
   translate_compare_progress: (completed: number, total: number) => string
   translate_compare_mobile_tabs: string
   translate_compare_idle: string
@@ -208,8 +207,6 @@ export interface Translations {
   translate_compare_change_model: string
   translate_compare_retry: string
   translate_compare_duration: (seconds: string) => string
-  translate_compare_request_count: (count: number) => string
-  translate_compare_independent_notice: string
   translate_compare_submit: (count: number) => string
   translate_compare_submitting: (count: number) => string
 

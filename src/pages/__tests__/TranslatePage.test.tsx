@@ -172,12 +172,18 @@ describe('TranslatePage', () => {
       { provider: 'gemini', model: 'gemini-2.0-flash' },
       { provider: 'openai', model: 'gpt-4o' },
     ])
-    expect(useAppStore.getState().autoTranslate).toBe(false)
+    // The stored preference survives; comparison only suspends it.
+    expect(useAppStore.getState().autoTranslate).toBe(true)
     expect(screen.getByRole('button', { name: 'AI configuration, 2 models' }))
       .toHaveTextContent('AI configuration·2 models')
-    expect(screen.queryByRole('button', { name: 'Auto translate' })).not.toBeInTheDocument()
-    expect(screen.getByText('Manual translate')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Translate with 2 models' })).toBeDisabled()
+    const suspendedToggle = screen.getByRole('button', { name: 'Auto translate' })
+    expect(suspendedToggle).toBeDisabled()
+    expect(suspendedToggle).toHaveAttribute('aria-pressed', 'false')
+    expect(suspendedToggle).toHaveAttribute(
+      'title',
+      'Comparison runs manually. Each model sends a separate provider request.',
+    )
+    expect(screen.getByRole('button', { name: 'Translate · 2 models' })).toBeDisabled()
     expect(screen.getByRole('region', { name: 'AI Translate' }))
       .toHaveAttribute('data-layout', 'comparison')
   })
@@ -320,12 +326,11 @@ describe('TranslatePage', () => {
     render(<TranslatePage />)
     expect(screen.getByRole('button', { name: 'AI configuration, 2 models' }))
       .toHaveTextContent('2 models')
-    expect(screen.getByText('2 independent requests')).toBeInTheDocument()
-    expect(screen.getByText('Each model runs independently. One failure will not stop the other results.'))
-      .toBeInTheDocument()
-    expect(screen.getAllByRole('article').every((card) => within(card).getByText('Ready')))
-      .toBe(true)
-    fireEvent.click(screen.getByRole('button', { name: 'Translate with 2 models' }))
+    expect(screen.queryByText('2 independent requests')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('article').every((card) => (
+      within(card).getByText('Choose Translate to run this model.')
+    ))).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Translate · 2 models' }))
 
     await waitFor(() => expect(window.api.translate).toHaveBeenCalledTimes(2))
     expect(await screen.findByText('Bản dịch Gemini')).toBeInTheDocument()
@@ -337,8 +342,9 @@ describe('TranslatePage', () => {
 
     const geminiCard = screen.getByRole('article', { name: /Gemini 2.0 Flash.*Google Gemini/i })
     const openAiCard = screen.getByRole('article', { name: /GPT 4o.*OpenAI/i })
-    expect(within(geminiCard).getByText(/Complete/)).toBeInTheDocument()
-    expect(within(openAiCard).getByText(/Complete/)).toBeInTheDocument()
+    // Completed columns report elapsed time; the check icon carries "complete".
+    expect(geminiCard.querySelector('header [data-run-status]')).toHaveAttribute('data-run-status', 'success')
+    expect(openAiCard.querySelector('header [data-run-status]')).toHaveAttribute('data-run-status', 'success')
     expect(within(geminiCard).getByRole('button', {
       name: /Read aloud: Gemini 2.0 Flash.*Google Gemini/i,
     })).toBeInTheDocument()
@@ -389,7 +395,7 @@ describe('TranslatePage', () => {
     })
 
     render(<TranslatePage />)
-    fireEvent.click(screen.getByRole('button', { name: 'Translate with 2 models' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Translate · 2 models' }))
 
     expect(await screen.findByText('Gemini succeeded')).toBeInTheDocument()
     const openAiCard = screen.getByRole('article', { name: /GPT 4o.*OpenAI/i })
@@ -432,7 +438,7 @@ describe('TranslatePage', () => {
     })
 
     render(<TranslatePage />)
-    fireEvent.click(screen.getByRole('button', { name: 'Translate with 2 models' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Translate · 2 models' }))
 
     const openAiCard = screen.getByRole('article', { name: /GPT 4o.*OpenAI/i })
     expect(await within(openAiCard).findByText(
@@ -1212,7 +1218,7 @@ describe('language pair workflow', () => {
       keyStatus: { gemini: true, claude: false, openai: true, local: false } }))
     render(<TranslatePage />)
     expect(screen.getByRole('button', { name: 'Swap languages' })).toBeEnabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Translate with 2 models' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Translate · 2 models' }))
     const useResult = await screen.findByRole('button', { name: /Use as source: GPT 4o/ })
     await waitFor(() => expect(useResult).toBeEnabled())
     fireEvent.click(useResult)

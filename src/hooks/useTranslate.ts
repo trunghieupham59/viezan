@@ -222,7 +222,8 @@ export function useTranslate() {
     selectedProvider: legacySelectedProvider,
     selectedModels: legacySelectedModels,
     translationModels,
-    autoTranslate, autoTranslateDelay, keyStatus, phoneticMode, translationStyle, translationReasoningEffort,
+    autoTranslate: storedAutoTranslate,
+    autoTranslateDelay, keyStatus, phoneticMode, translationStyle, translationReasoningEffort,
     imageProviderFallback,
     ttsMode, ttsVoice,
     setSourceText, setTranslatedText, setPhoneticText, setTargetLang,
@@ -247,6 +248,9 @@ export function useTranslate() {
   const selectedModel = primaryTranslationModel.model
   const translationModelsKey = activeTranslationModels.map(translationModelKey).join('|')
   const isComparisonMode = activeTranslationModels.length > 1
+  // Comparison always runs manually, but the stored preference is left untouched
+  // so automatic translation resumes as soon as a single model is selected again.
+  const autoTranslate = storedAutoTranslate && !isComparisonMode
 
   // Keep the legacy app-wide selection as a compatibility mirror for callers
   // not migrated to the canonical AI Translate selection set yet.
@@ -259,10 +263,6 @@ export function useTranslate() {
       state.setSelectedModel(selectedProvider, selectedModel)
     }
   }, [selectedModel, selectedProvider])
-
-  useEffect(() => {
-    if (isComparisonMode && autoTranslate) setAutoTranslate(false)
-  }, [autoTranslate, isComparisonMode, setAutoTranslate])
 
   // Derived boolean — true when any phonetic mode is active
   const showFurigana = phoneticMode !== 'off'
@@ -451,7 +451,6 @@ export function useTranslate() {
 
     invalidateActiveTranslation()
     setTranslationModels(nextModels)
-    if (nextModels.length > 1 && autoTranslate) setAutoTranslate(false)
     setComparisonResults(nextResults)
 
     if (!imageAttachment) {
@@ -468,13 +467,11 @@ export function useTranslate() {
     }
   }, [
     activeTranslationModels,
-    autoTranslate,
     comparisonResults,
     currentResultContext,
     imageAttachment,
     invalidateActiveTranslation,
     isResultStale,
-    setAutoTranslate,
     setPhoneticText,
     setTranslatedText,
     setTranslationModels,
@@ -850,7 +847,12 @@ export function useTranslate() {
 
     if (isComparisonMode) {
       activeTranslateRequestIdRef.current = null
-      const selectionsToRun = onlyModel ? [onlyModel] : activeTranslationModels
+      // A single-model retry is only meaningful while every card still reflects
+      // the current source; once the input changed, rerun the whole set so the
+      // cards never mix translations of different texts.
+      const retryOnly = onlyModel && !isResultStale ? onlyModel : null
+      const runsAllModels = retryOnly === null
+      const selectionsToRun = retryOnly ? [retryOnly] : activeTranslationModels
       const keysToRun = new Set(selectionsToRun.map(translationModelKey))
       const outcomes = new Map<string, TranslationComparisonResult>()
 
@@ -862,7 +864,7 @@ export function useTranslate() {
           return createComparisonResult(selection, 'loading')
         })
       })
-      if (!onlyModel) {
+      if (runsAllModels) {
         setTranslatedText('')
         setPhoneticText('')
         setResultContext(null)
@@ -1028,7 +1030,7 @@ export function useTranslate() {
       if (translateGenerationRef.current === generation) activeTranslateRequestIdRef.current = null
     }
   }, [imageAttachment, sourceText, sourceLang, targetLang, selectedProvider, selectedModel,
-       activeTranslationModels, isComparisonMode, keyStatus,
+       activeTranslationModels, isComparisonMode, isResultStale, keyStatus,
        hasKey, translationStyle, translationReasoningEffort, imageProviderFallback,
        setIsTranslating, setTranslateError, setTranslatedText, setPhoneticText, t,
        detectLanguageInBackground, recordTranslationOutcome, generatePhoneticText,

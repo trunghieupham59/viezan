@@ -11,7 +11,7 @@ import { formatModelName } from '../../../utils/modelDisplay'
 import { TranslateToolbar } from '../../translate/TranslateToolbar'
 import { AutoTranslateToggle } from '../../ui/AutoTranslateToggle'
 import { Button } from '../../ui/atoms'
-import { GearIcon, InfoCircleIcon } from '../../ui/icons'
+import { GearIcon } from '../../ui/icons'
 import { AIModelField, ConfigSection, type SelectFieldOption } from '../../ui/molecules'
 import { AIConfigurationPopover } from '../AIConfigurationPopover'
 import { TranslationModelDialog } from './TranslationModelDialog'
@@ -95,9 +95,12 @@ export function TranslationControlsHeader({
     medium: t.translate_reasoning_medium,
     high: t.translate_reasoning_high,
   }
+  // Comparison runs every model without a phonetic pass, so the summary must not
+  // advertise a reading mode that produces nothing.
+  const phoneticActive = phoneticMode !== 'off' && !isComparisonMode
   const activeOptionsSummary = [
     translationStyle !== 'general' ? styleLabels[translationStyle] : null,
-    phoneticMode !== 'off' ? phoneticLabels[phoneticMode] : null,
+    phoneticActive ? phoneticLabels[phoneticMode as Exclude<PhoneticMode, 'off'>] : null,
     reasoningEffort !== 'auto' ? reasoningLabels[reasoningEffort] : null,
   ].filter(Boolean).join(' · ')
   const hasCustomOptions = translationStyle !== 'general'
@@ -127,23 +130,16 @@ export function TranslationControlsHeader({
 
         <fieldset className="translate-header-controls">
           <legend className="sr-only">{t.translate_controls_label}</legend>
-          {isComparisonMode ? (
-            <span
-              className="translate-manual-mode-chip"
-              title={t.translate_models_manual_notice}
-            >
-              <InfoCircleIcon />
-              <span>{t.translate_mode_manual}</span>
-            </span>
-          ) : (
-            <AutoTranslateToggle
-              autoTranslate={autoTranslate}
-              onChange={onAutoTranslateChange}
-              titleOn={t.translate_mode_auto_title}
-              titleOff={t.translate_mode_manual_title}
-              label={t.translate_mode_auto}
-            />
-          )}
+          {/* Comparison runs manually: the toggle stays in place but reads as
+              unavailable instead of being replaced by a look-alike chip. */}
+          <AutoTranslateToggle
+            autoTranslate={autoTranslate}
+            onChange={onAutoTranslateChange}
+            titleOn={t.translate_mode_auto_title}
+            titleOff={isComparisonMode ? t.translate_models_manual_notice : t.translate_mode_manual_title}
+            label={t.translate_mode_auto}
+            disabled={isComparisonMode}
+          />
 
           <div className="ai-configuration-anchor">
             <Button
@@ -214,7 +210,9 @@ export function TranslationControlsHeader({
                   onAutoTranslateChange={onAutoTranslateChange}
                   phoneticMode={phoneticMode}
                   onPhoneticModeChange={onPhoneticModeChange}
-                  isPhoneticLoading={isPhoneticLoading}
+                  isPhoneticLoading={isPhoneticLoading && !isComparisonMode}
+                  phoneticDisabled={isComparisonMode}
+                  labelPhoneticUnsupported={t.translate_phonetic_compare_unsupported}
                   labelModel={t.model_picker_model}
                   labelReasoning={t.translate_reasoning_label}
                   labelReasoningAuto={t.translate_reasoning_auto}
