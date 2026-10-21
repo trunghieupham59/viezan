@@ -5,12 +5,12 @@ import {
   ChatBubbleIcon,
   GearIcon,
   InfoCircleIcon,
+  KeyboardIcon,
   KeyIcon,
   MicrophoneIcon,
   MonitorIcon,
   RefreshIcon,
   SpeakerIcon,
-  UploadIcon,
 } from '../components/ui/icons'
 import { useAppStore, useT } from '../store/useAppStore'
 import { AboutSection } from './settings/AboutSection'
@@ -42,6 +42,11 @@ interface SettingsSection {
   Component: ElementType
 }
 
+/** Fraction of the viewport height below which a section's top counts as "being read". */
+const ACTIVE_SECTION_LINE_RATIO = 0.25
+/** How long a nav click pins its entry while the viewport scrolls to it. */
+const SCROLL_LOCK_MS = 600
+
 const MemoPreferencesSection = memo(PreferencesSection)
 const MemoApiKeysSection = memo(ApiKeysSection)
 const MemoSttSection = memo(SttSection)
@@ -68,6 +73,7 @@ export function SettingsPage() {
   })
   const [activeSection, setActiveSection] = useState<SettingsSectionId>('preferences')
   const activeSectionRef = useRef<SettingsSectionId>('preferences')
+  const scrollLockUntilRef = useRef(0)
 
   const updateActiveSection = useCallback((id: SettingsSectionId) => {
     if (activeSectionRef.current === id) return
@@ -79,28 +85,28 @@ export function SettingsPage() {
     {
       id: 'preferences',
       label: t.settings_prefs,
-      description: t.settings_translate_mode_desc,
+      description: t.settings_prefs_desc,
       Icon: GearIcon,
       Component: MemoPreferencesSection,
     },
     {
       id: 'api',
       label: t.settings_api_keys,
-      description: t.settings_subtitle,
+      description: t.settings_api_keys_desc,
       Icon: KeyIcon,
       Component: MemoApiKeysSection,
     },
     {
       id: 'stt',
       label: t.settings_stt_section,
-      description: t.settings_stt_provider_desc,
+      description: t.settings_stt_section_desc,
       Icon: MicrophoneIcon,
       Component: MemoSttSection,
     },
     {
       id: 'tts',
       label: t.settings_tts_section,
-      description: t.settings_tts_priority_desc,
+      description: t.settings_tts_section_desc,
       Icon: SpeakerIcon,
       Component: MemoTtsSection,
     },
@@ -113,9 +119,9 @@ export function SettingsPage() {
     },
     {
       id: 'hotkeys',
-      label: t.settings_hotkey_section,
-      description: t.settings_hotkey_section_desc,
-      Icon: UploadIcon,
+      label: t.settings_hotkeys_nav,
+      description: t.settings_hotkeys_nav_desc,
+      Icon: KeyboardIcon,
       Component: MemoHotkeySection,
     },
     {
@@ -135,35 +141,51 @@ export function SettingsPage() {
     {
       id: 'about',
       label: t.settings_about,
-      description: t.settings_about_footer,
+      description: t.settings_about_desc,
       Icon: InfoCircleIcon,
       Component: MemoAboutSection,
     },
   ]), [t])
 
+  /**
+   * Scroll-spy. The active entry is the last section whose top has crossed a
+   * reading line a fixed fraction down the viewport, so the highlight follows
+   * what the reader is looking at instead of whichever section happens to
+   * intersect a narrow band the most. At the very bottom the last section wins
+   * even when it is too short to reach the line.
+   */
   useEffect(() => {
     const root = scrollRef.current
     if (!root) return
 
-    const observer = new IntersectionObserver((entries) => {
-      const visible = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]
+    let frame = 0
+    const syncActiveSection = () => {
+      frame = 0
+      if (scrollLockUntilRef.current > performance.now()) return
+      const contentOrigin = sectionRefs.current.preferences?.offsetTop ?? 0
+      const readingLine = root.scrollTop + root.clientHeight * ACTIVE_SECTION_LINE_RATIO
+      const atBottom = root.scrollTop + root.clientHeight >= root.scrollHeight - 1
+      let current = sections[0]?.id
+      if (atBottom && root.scrollHeight > root.clientHeight) {
+        current = sections[sections.length - 1]?.id
+      } else {
+        for (const section of sections) {
+          const node = sectionRefs.current[section.id]
+          if (node && node.offsetTop - contentOrigin <= readingLine) current = section.id
+        }
+      }
+      if (current) updateActiveSection(current)
+    }
+    const handleScroll = () => {
+      if (frame) return
+      frame = requestAnimationFrame(syncActiveSection)
+    }
 
-      const id = visible?.target.getAttribute('data-settings-section') as SettingsSectionId | null
-      if (id) updateActiveSection(id)
-    }, {
-      root,
-      rootMargin: '-18% 0px -62% 0px',
-      threshold: [0.1, 0.3, 0.6],
-    })
-
-    sections.forEach((section) => {
-      const node = sectionRefs.current[section.id]
-      if (node) observer.observe(node)
-    })
-
-    return () => observer.disconnect()
+    root.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      root.removeEventListener('scroll', handleScroll)
+      if (frame) cancelAnimationFrame(frame)
+    }
   }, [sections, updateActiveSection])
 
   const scrollToSection = useCallback((id: SettingsSectionId) => {
@@ -173,6 +195,9 @@ export function SettingsPage() {
     if (!root || !section) return
     const contentOrigin = sectionRefs.current.preferences?.offsetTop ?? 0
     const top = Math.max(0, section.offsetTop - contentOrigin)
+    // Keep the chosen entry highlighted while the programmatic scroll settles,
+    // otherwise a short target near the end would be re-assigned mid-scroll.
+    scrollLockUntilRef.current = performance.now() + SCROLL_LOCK_MS
     section.focus({ preventScroll: true })
     requestAnimationFrame(() => {
       if (scrollRef.current === root) root.scrollTop = top
