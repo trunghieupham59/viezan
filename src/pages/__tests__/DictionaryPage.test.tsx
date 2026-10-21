@@ -380,6 +380,20 @@ describe('DictionaryPage', () => {
     expect(screen.getByText(/Enter a term|Nhập từ|語句を入力/i)).toBeInTheDocument()
   })
 
+  it('drops the lookup error toast when the screen unmounts', async () => {
+    vi.mocked(dictionaryService.lookupPreview)
+      .mockResolvedValueOnce({ success: false, error: 'Provider unavailable' })
+
+    const view = render(<><DictionaryPage /><NotificationViewport /></>)
+    fireEvent.change(screen.getByPlaceholderText(/Enter a word|Nhập từ|単語/i), { target: { value: 'reliable' } })
+    fireEvent.click(screen.getByRole('button', { name: /Look up|Tra cứu|検索/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Provider unavailable')
+
+    view.unmount()
+    render(<NotificationViewport />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('keeps a failed lookup recoverable without clearing the term', async () => {
     vi.mocked(dictionaryService.lookupPreview)
       .mockResolvedValueOnce({ success: false, error: 'Provider unavailable' })

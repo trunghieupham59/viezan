@@ -127,7 +127,7 @@ describe('ChatPage', () => {
     })
 
     try {
-      render(<><ChatPage /><NotificationViewport /></>)
+      const view = render(<><ChatPage /><NotificationViewport /></>)
       fireEvent.click(screen.getByRole('button', { name: TRANSLATIONS.en.chat_voice_record }))
 
       const alert = await screen.findByRole('alert')
@@ -135,6 +135,11 @@ describe('ChatPage', () => {
       expect(alert.closest('.notification-viewport')).toBeInTheDocument()
       expect(within(alert).queryByRole('button', { name: /Open Settings/i })).not.toBeInTheDocument()
       expect(screen.queryByText('Sensitive browser permission detail')).not.toBeInTheDocument()
+
+      // The notice is page-scoped: leaving Chat takes it out of the app-level stack.
+      view.unmount()
+      render(<NotificationViewport />)
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     } finally {
       if (mediaDevicesDescriptor) {
         Object.defineProperty(navigator, 'mediaDevices', mediaDevicesDescriptor)

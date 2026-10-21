@@ -59,6 +59,8 @@ export function UpdaterSection() {
       return
     }
     notify({ key: UPDATE_ERROR_KEY, tone: updateErrorTone, message: updateErrorMessage })
+    // Leaves with the section when Settings closes; it is re-raised on reopen.
+    return () => dismissNotification(UPDATE_ERROR_KEY)
   }, [updateErrorMessage, updateErrorTone, notify, dismissNotification])
 
   useEffect(() => {

@@ -71,6 +71,8 @@ export function DictionaryPage() {
         : undefined,
       onDismiss: () => lookupRef.current.clearError(),
     })
+    // Leaves with the page instead of following the user to other features.
+    return () => dismissNotification(LOOKUP_ERROR_KEY)
   }, [lookupError, errorRecoverable])
 
   return (

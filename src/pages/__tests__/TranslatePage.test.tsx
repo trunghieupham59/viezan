@@ -1128,6 +1128,18 @@ describe('TranslatePage', () => {
     expect(screen.getByText('API key invalid')).toBeInTheDocument()
   })
 
+  it('drops the error toast when the screen unmounts without clearing the error itself', () => {
+    act(() => {
+      useAppStore.setState({ translateError: 'API key invalid' })
+    })
+    const view = render(<><TranslatePage /><NotificationViewport /></>)
+    expect(screen.getByText('API key invalid')).toBeInTheDocument()
+    view.unmount()
+    render(<NotificationViewport />)
+    expect(screen.queryByText('API key invalid')).not.toBeInTheDocument()
+    expect(useAppStore.getState().translateError).toBe('API key invalid')
+  })
+
   it('preserves the draft and opens the model picker from a recoverable error', () => {
     act(() => {
       useAppStore.setState({
