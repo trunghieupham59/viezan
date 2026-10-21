@@ -298,6 +298,7 @@ export const useAppStore = create<AppState>()(
         chatNewSessionShortcut: state.chatNewSessionShortcut,
         sidebarCollapsed: state.sidebarCollapsed,
         aiChatSidebarCollapsed: state.aiChatSidebarCollapsed,
+        translateComparisonView: state.translateComparisonView,
         locale: state.locale,
         localeAuto: state.localeAuto,
         history: state.history,

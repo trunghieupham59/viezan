@@ -370,3 +370,16 @@ describe('setModelsError', () => {
     expect(useAppStore.getState().modelsError.gemini).toBe('Rate limit')
   })
 })
+
+describe('translateComparisonView', () => {
+  it('defaults to columns', () => {
+    expect(useAppStore.getState().translateComparisonView).toBe('columns')
+  })
+
+  it('switches to sentence rows and persists the choice', () => {
+    act(() => useAppStore.getState().setTranslateComparisonView('sentences'))
+    expect(useAppStore.getState().translateComparisonView).toBe('sentences')
+    const partialize = useAppStore.persist.getOptions().partialize
+    expect(partialize?.(useAppStore.getState())).toMatchObject({ translateComparisonView: 'sentences' })
+  })
+})

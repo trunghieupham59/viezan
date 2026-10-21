@@ -1,4 +1,3 @@
-
 /**
  * useTranslate — encapsulates all business logic for the Translate page.
  *
@@ -1047,6 +1046,12 @@ export function useTranslate() {
     void runTranslate('manual', selection)
   }, [runTranslate])
 
+  /**
+   * Records the picked translation as the one history entry of this comparison.
+   * A result assembled sentence by sentence arrives under ASSEMBLED_TRANSLATION_KEY
+   * (see utils/sentenceSegments) carrying the provider and model that contributed
+   * the most sentences, so the entry and its cost estimate go to that dominant model.
+   */
   const handleSelectComparison = useCallback((result: TranslationComparisonResult) => {
     if (result.status !== 'success' || !result.translatedText) return
     setSelectedComparisonKey(result.key)
@@ -1412,6 +1417,8 @@ export function useTranslate() {
     isResultStale,
     isComparisonMode: isComparisonMode && !imageAttachment,
     comparisonResults: visibleComparisonResults,
+    /** Source the current results were produced from, so sentence rows stay aligned while the draft changes. */
+    comparisonSourceText: resultContext?.sourceText ?? sourceText,
     copiedComparisonKey,
     selectedComparisonKey,
     // ── TTS ────────────────────────────────────────────────────────────────
