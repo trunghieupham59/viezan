@@ -127,6 +127,21 @@ describe('AI Interpret screen', () => {
     expect(within(viewport).getByText(t.live_error_stt_failed)).toBeInTheDocument()
   })
 
+  it('drops its page-scoped notices when the screen unmounts', () => {
+    live.state = liveState({ hasSttKey: false, micError: t.live_error_mic_denied, pipelineError: t.live_error_stt_failed })
+    const { unmount } = render(<><LiveTranslatePage /><NotificationViewport /></>)
+    const viewport = document.querySelector('.notification-viewport') as HTMLElement
+    expect(within(viewport).getByText(t.live_no_stt_key)).toBeInTheDocument()
+    expect(within(viewport).getByText(t.live_error_mic_denied)).toBeInTheDocument()
+    expect(within(viewport).getByText(t.live_error_stt_failed)).toBeInTheDocument()
+    unmount()
+    render(<NotificationViewport />)
+    expect(screen.queryByText(t.live_no_stt_key)).not.toBeInTheDocument()
+    expect(screen.queryByText(t.live_error_mic_denied)).not.toBeInTheDocument()
+    expect(screen.queryByText(t.live_error_stt_failed)).not.toBeInTheDocument()
+    expect(live.state.dismissMicError).not.toHaveBeenCalled()
+  })
+
   it('hides transcript and translation toolbars until there is output', () => {
     const { unmount } = render(<LiveTranslatePage />)
     expect(screen.queryByRole('button', { name: /TXT/ })).not.toBeInTheDocument()

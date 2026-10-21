@@ -402,6 +402,8 @@ export function ChatPage() {
     : false
 
   // ── Notices go to the app-level toast stack ──
+  // Each effect dismisses its own toast on cleanup so page-scoped notices
+  // leave with the page instead of following the user to other features.
   useEffect(() => {
     if (!voiceErrorCode || !voiceErrorMessage) {
       dismissNotification(VOICE_ERROR_KEY)
@@ -417,6 +419,7 @@ export function ChatPage() {
         : undefined,
       onDismiss: () => setVoiceErrorCode(null),
     })
+    return () => dismissNotification(VOICE_ERROR_KEY)
   }, [voiceErrorCode, voiceErrorMessage, canOpenSettingsForVoiceError, notify, dismissNotification, openSettings, t])
 
   useEffect(() => {
@@ -435,6 +438,7 @@ export function ChatPage() {
       actions: [{ label: t.translate_error_open_settings, onClick: () => { setSearchFallbackNotice(null); openSettings() } }],
       onDismiss: () => setSearchFallbackNotice(null),
     })
+    return () => dismissNotification(SEARCH_FALLBACK_KEY)
   }, [searchFallbackNotice, notify, dismissNotification, openSettings, t])
 
   useEffect(() => {
@@ -450,6 +454,7 @@ export function ChatPage() {
       actions: [{ label: t.translate_error_open_settings, onClick: () => { setSearchUnavailable(false); openSettings() } }],
       onDismiss: () => setSearchUnavailable(false),
     })
+    return () => dismissNotification(SEARCH_UNAVAILABLE_KEY)
   }, [searchUnavailable, notify, dismissNotification, openSettings, t])
 
   // Re-activate on mount so a model selected in another feature cannot leak

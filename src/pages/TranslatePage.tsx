@@ -132,6 +132,8 @@ export function TranslatePage() {
   }, [])
 
   // ── Notices go to the app-level toast stack ──
+  // Each effect dismisses its own toast on cleanup so page-scoped notices
+  // leave with the page instead of following the user to other features.
   const notify = useNotificationStore((state) => state.notify)
   const dismissNotification = useNotificationStore((state) => state.dismiss)
 
@@ -150,6 +152,7 @@ export function TranslatePage() {
         : undefined,
       onDismiss: () => setVoiceErrorCode(null),
     })
+    return () => dismissNotification(VOICE_ERROR_KEY)
   }, [voiceErrorCode, voiceErrorMessage, canOpenSettingsForVoiceError, notify, dismissNotification, openSettings, t])
 
   // Recovery actions read the latest handlers through a ref so the toast stays
@@ -175,6 +178,7 @@ export function TranslatePage() {
       ],
       onDismiss: () => recoveryRef.current.handleDismissError(),
     })
+    return () => dismissNotification(TRANSLATE_ERROR_KEY)
   }, [translateError, isApiKeyError])
 
   useEffect(() => {
@@ -190,6 +194,7 @@ export function TranslatePage() {
       message: `${tpl(t.image_model_switched_using, { model: imageSwitchNotice.model })}${provider}. ${t.image_model_switched_body}`,
       onDismiss: () => setImageSwitchNotice(null),
     })
+    return () => dismissNotification(IMAGE_MODEL_SWITCHED_KEY)
   }, [imageSwitchNotice, selectedProvider, notify, dismissNotification, setImageSwitchNotice, t])
 
   const speakingComparisonKey = speakingPanel?.startsWith('comparison:')

@@ -33,6 +33,16 @@ it('retains the previous setting and reports a failed save', async () => {
   expect(screen.getByRole('alert')).toBeVisible()
 })
 
+it('drops the update error toast when the section unmounts', async () => {
+  useUpdaterStore.setState({ status: { type: 'available', version: '3.0.0', error: 'checksum mismatch' } })
+  let view!: ReturnType<typeof render>
+  await act(async () => { view = render(<><UpdaterSection /><NotificationViewport /></>) })
+  expect(screen.getByRole('alert')).toBeVisible()
+  view.unmount()
+  render(<NotificationViewport />)
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+})
+
 it('keeps the retry action and an error message after a failed download', async () => {
   useUpdaterStore.setState({ status: { type: 'available', version: '3.0.0', error: 'checksum mismatch' } })
   await act(async () => { render(<><UpdaterSection /><NotificationViewport /></>) })

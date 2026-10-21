@@ -114,6 +114,8 @@ export function BrowserIntegrationSection() {
       message: extTokensError,
       actions: [{ label: t.settings_token_retry, onClick: () => void loadTokenList() }],
     })
+    // Leaves with the section so its retry action never outlives the loader it calls.
+    return () => dismissNotification(TOKEN_LIST_ERROR_KEY)
   }, [extTokensError, loadTokenList, notify, dismissNotification, t])
 
   // ── Token mutation handlers ────────────────────────────────────────────────
