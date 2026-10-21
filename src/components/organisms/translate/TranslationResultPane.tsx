@@ -4,7 +4,6 @@ import type { PhoneticMode } from '../../../types'
 import { MarkdownText } from '../../MarkdownText'
 import { FuriganaText } from '../../translate/FuriganaText'
 import { ResultPanelActions } from '../../translate/ResultPanelActions'
-import { TranslateError } from '../../translate/TranslateError'
 import { Button } from '../../ui/atoms'
 import { ArrowLeftIcon, InfoCircleIcon, SpinnerIcon } from '../../ui/icons'
 import type { SpeakPanel } from '../../ui/SpeakButton'
@@ -19,20 +18,14 @@ interface TranslationResultPaneProps {
   hasImageRegions: boolean
   hasImageAttachment: boolean
   isTranslating: boolean
+  /** Set while the last request failed; the toast stack shows the message itself. */
   translateError: string | null
-  translateErrorContext: string
-  isApiKeyError: boolean
   isResultStale: boolean
   autoTranslate: boolean
   copied: boolean
   isRewriting: 'source' | 'translated' | null
   speakingPanel: SpeakPanel | null
   speakLoading: boolean
-  canRetry: boolean
-  onRetry: () => void
-  onDismissError: () => void
-  onOpenSettings: () => void
-  onChooseModel: () => void
   onSpeak: (text: string, lang: string, panel: SpeakPanel) => void
   onDownloadEdited: () => void
   onDownloadTranslated: () => void
@@ -52,19 +45,12 @@ export function TranslationResultPane({
   hasImageAttachment,
   isTranslating,
   translateError,
-  translateErrorContext,
-  isApiKeyError,
   isResultStale,
   autoTranslate,
   copied,
   isRewriting,
   speakingPanel,
   speakLoading,
-  canRetry,
-  onRetry,
-  onDismissError,
-  onOpenSettings,
-  onChooseModel,
   onSpeak,
   onDownloadEdited,
   onDownloadTranslated,
@@ -118,58 +104,39 @@ export function TranslationResultPane({
         <h2 id={headingId} className="translate-pane-heading">{t.translate_result_content_label}</h2>
       </header>
       <div className="translate-pane-body translate-result-body">
-        {translateError ? (
-          <TranslateError
-            error={translateError}
-            context={translateErrorContext}
-            isApiKeyError={isApiKeyError}
-            canRetry={canRetry}
-            onRetry={onRetry}
-            onDismiss={onDismissError}
-            onOpenSettings={onOpenSettings}
-            onChooseModel={onChooseModel}
-            labelRetry={t.translate_error_retry}
-            labelChooseModel={t.translate_error_choose_model}
-            labelOpenSettings={t.translate_error_open_settings}
-            labelDismiss={t.translate_error_dismiss}
-          />
-        ) : (
-          <>
-            {(isResultStale || (isTranslating && hasResult)) && (
-              <div className="translate-result-state-banner">
-                {isTranslating
-                  ? <SpinnerIcon className="translate-result-state-icon translate-result-state-spinner" />
-                  : <InfoCircleIcon className="translate-result-state-icon" />}
-                <span>
-                  {isTranslating
-                    ? t.translate_btn_loading
-                    : autoTranslate
-                      ? t.translate_result_stale_auto
-                      : t.translate_result_stale_manual}
-                </span>
-              </div>
-            )}
+        {(isResultStale || (isTranslating && hasResult)) && (
+          <div className="translate-result-state-banner">
+            {isTranslating
+              ? <SpinnerIcon className="translate-result-state-icon translate-result-state-spinner" />
+              : <InfoCircleIcon className="translate-result-state-icon" />}
+            <span>
+              {isTranslating
+                ? t.translate_btn_loading
+                : autoTranslate
+                  ? t.translate_result_stale_auto
+                  : t.translate_result_stale_manual}
+            </span>
+          </div>
+        )}
 
-            {hasResult ? (
-              <div className={isResultStale || isTranslating ? 'translate-result-pending' : undefined}>
-                {resultContent}
-              </div>
-            ) : isTranslating ? (
-              <div className="translate-loading-state">
-                <SpinnerIcon className="translate-loading-icon" />
-                <span>{t.translate_btn_loading}</span>
-                <div className="translate-loading-lines" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </div>
-              </div>
-            ) : (
-              <div className="translate-empty-state">
-                <p>{autoTranslate ? t.translate_empty_auto_hint : t.translate_empty_manual_hint}</p>
-              </div>
-            )}
-          </>
+        {hasResult ? (
+          <div className={isResultStale || isTranslating ? 'translate-result-pending' : undefined}>
+            {resultContent}
+          </div>
+        ) : isTranslating ? (
+          <div className="translate-loading-state">
+            <SpinnerIcon className="translate-loading-icon" />
+            <span>{t.translate_btn_loading}</span>
+            <div className="translate-loading-lines" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
+        ) : (
+          <div className="translate-empty-state">
+            <p>{autoTranslate ? t.translate_empty_auto_hint : t.translate_empty_manual_hint}</p>
+          </div>
         )}
       </div>
 

@@ -12,7 +12,7 @@
  */
 import { type ReactNode, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/atoms'
-import { CredentialSecretInputRow, CredentialStatusBadge, CredentialStatusMessage } from '../../components/ui/CredentialCard'
+import { CredentialSecretInputRow, CredentialStatusBadge } from '../../components/ui/CredentialCard'
 import {
   AlertTriangleIcon,
   AutoModeIcon,
@@ -20,9 +20,9 @@ import {
   GroqIcon,
   OpenAIProviderIcon,
 } from '../../components/ui/icons'
-import { TOAST_DISMISS_DELAY_MS } from '../../constants/ui'
 import { GROQ_CONSOLE_URL } from '../../constants/urls'
 import { useAppStore, useT } from '../../store/useAppStore'
+import { useNotificationStore } from '../../store/useNotificationStore'
 import type { SttProvider } from '../../types'
 import { tpl } from '../../utils/tpl'
 
@@ -143,8 +143,11 @@ export function SttSection() {
   const [groqKeyExists,  setGroqKeyExists]  = useState(false)
   const [groqMasked,     setGroqMasked]     = useState<string | null>(null)
   const [groqInput,      setGroqInput]      = useState('')
-  const [groqSaveMsg,    setGroqSaveMsg]    = useState<{ text: string; ok: boolean } | null>(null)
   const [groqSaving,     setGroqSaving]     = useState(false)
+  const notify = useNotificationStore((state) => state.notify)
+  /** Save/delete outcomes go to the toast stack; one key so results never pile up. */
+  const reportGroq = (message: string, ok: boolean) =>
+    notify({ key: 'settings-groq-key', tone: ok ? 'success' : 'error', message })
   const [groqDeleting,   setGroqDeleting]   = useState(false)
 
   // Load Groq key status on mount
@@ -161,11 +164,10 @@ export function SttSection() {
   const handleSaveGroq = async () => {
     if (!groqInput.trim() || !window.api) return
     setGroqSaving(true)
-    setGroqSaveMsg(null)
     try {
       const saved = await window.api.keychain.save('groq', groqInput.trim())
       if (!saved.success) {
-        setGroqSaveMsg({ text: saved.error ?? t.settings_stt_groq_failed, ok: false })
+        reportGroq(saved.error ?? t.settings_stt_groq_failed, false)
         return
       }
       const updated = await window.api.keychain.get('groq')
@@ -173,13 +175,9 @@ export function SttSection() {
       setGroqMasked(updated.masked ?? null)
       setGroqInput('')
       bumpSttCredentialsRevision()
-      setGroqSaveMsg({ text: t.settings_stt_groq_saved, ok: true })
-      setTimeout(() => setGroqSaveMsg(null), TOAST_DISMISS_DELAY_MS)
+      reportGroq(t.settings_stt_groq_saved, true)
     } catch (err) {
-      setGroqSaveMsg({
-        text: err instanceof Error ? err.message : t.settings_stt_groq_failed,
-        ok: false,
-      })
+      reportGroq(err instanceof Error ? err.message : t.settings_stt_groq_failed, false)
     } finally {
       setGroqSaving(false)
     }
@@ -191,16 +189,15 @@ export function SttSection() {
     try {
       const removed = await window.api.keychain.delete('groq')
       if (!removed.success) {
-        setGroqSaveMsg({ text: t.settings_key_store_failed, ok: false })
+        reportGroq(t.settings_key_store_failed, false)
         return
       }
       setGroqKeyExists(false)
       setGroqMasked(null)
       setGroqInput('')
-      setGroqSaveMsg(null)
       bumpSttCredentialsRevision()
     } catch {
-      setGroqSaveMsg({ text: t.settings_key_store_failed, ok: false })
+      reportGroq(t.settings_key_store_failed, false)
     } finally {
       setGroqDeleting(false)
     }
@@ -328,20 +325,10 @@ export function SttSection() {
               tryAgain: t.settings_try_again,
               submit: t.settings_verify_save,
             }}
-            onInputChange={(value) => {
-              setGroqInput(value)
-              if (groqSaveMsg) setGroqSaveMsg(null)
-            }}
+            onInputChange={setGroqInput}
             onSubmit={handleSaveGroq}
             onDelete={handleDeleteGroq}
           />
-
-          {groqSaveMsg && (
-            <CredentialStatusMessage
-              message={groqSaveMsg.text}
-              tone={groqSaveMsg.ok ? 'success' : 'error'}
-            />
-          )}
         </div>
       </div>
 

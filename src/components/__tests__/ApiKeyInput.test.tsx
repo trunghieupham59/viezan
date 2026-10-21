@@ -4,6 +4,7 @@ import { PROVIDERS } from '../../constants/providers'
 import { VERIFY_STATUS_RESET_DELAY_MS } from '../../constants/ui'
 import { useAppStore } from '../../store/useAppStore'
 import { ApiKeyInput } from '../ApiKeyInput'
+import { NotificationViewport } from '../organisms/NotificationViewport'
 
 function requireClaudeProvider() {
   const provider = PROVIDERS.find((candidate) => candidate.id === 'claude')
@@ -15,16 +16,19 @@ const claude = requireClaudeProvider()
 
 function renderClaudeInput(onSave = vi.fn(async () => {})) {
   render(
-    <ApiKeyInput
-      provider={claude}
-      onSave={onSave}
-      onDelete={vi.fn(async () => {})}
-      hasKey={false}
-      maskedKey={null}
-      usageCurrency="USD"
-      usageLabel="Cost"
-      onResetUsage={vi.fn()}
-    />,
+    <>
+      <ApiKeyInput
+        provider={claude}
+        onSave={onSave}
+        onDelete={vi.fn(async () => {})}
+        hasKey={false}
+        maskedKey={null}
+        usageCurrency="USD"
+        usageLabel="Cost"
+        onResetUsage={vi.fn()}
+      />
+      <NotificationViewport />
+    </>,
   )
   return onSave
 }

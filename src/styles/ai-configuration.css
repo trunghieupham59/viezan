@@ -629,13 +629,6 @@
   justify-content: flex-end;
 }
 
-.live-panels-body > .live-notification-viewport {
-  position: static;
-  width: 100%;
-  flex: 0 0 auto;
-}
-.live-notification-viewport .notification-toast { max-width: none; }
-
 /* The paired transcript owns scrolling; its controls stay outside that viewport. */
 .live-panels-body[data-view-mode="paired"] { overflow: hidden; }
 .live-paired-panel { flex: 1 1 0%; }

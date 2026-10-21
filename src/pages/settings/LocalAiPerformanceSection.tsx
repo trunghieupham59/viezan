@@ -1,18 +1,27 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/ui/atoms'
 import { SelectField } from '../../components/ui/molecules'
 import { useT } from '../../store/useAppStore'
+import { useNotificationStore } from '../../store/useNotificationStore'
 import type { LocalAiExecutionMode, LocalAiPerformanceState } from '../../types'
+
+/** Toast owner key so a newer performance error replaces the previous one. */
+const PERF_ERROR_KEY = 'settings-local-ai-performance'
 
 export function LocalAiPerformanceSection({ models }: { models: Array<{ id: string; name: string }> }) {
   const t = useT()
+  // Errors go to the toast stack; the store actions are stable, so this is too.
+  const setError = useCallback((message: string) => {
+    const { notify, dismiss } = useNotificationStore.getState()
+    if (message) notify({ key: PERF_ERROR_KEY, tone: 'error', message })
+    else dismiss(PERF_ERROR_KEY)
+  }, [])
   const installed = models.filter(model => model.id !== 'local-auto')
   const [model, setModel] = useState(installed[0]?.id ?? '')
   const [state, setState] = useState<LocalAiPerformanceState>({})
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const currentModel = useRef(model)
   currentModel.current = model
   useEffect(() => {
@@ -25,7 +34,7 @@ export function LocalAiPerformanceSection({ models }: { models: Array<{ id: stri
     void window.api.getLocalAiPerformance(model).then(result => { if (active) { setState(result); setBusy(Boolean(result.running)) } })
       .catch(err => { if (active) setError(String(err)) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [model])
+  }, [model, setError])
   useEffect(() => {
     if (!busy || !model || !window.api?.getLocalAiPerformance) return
     let active = true
@@ -76,7 +85,6 @@ export function LocalAiPerformanceSection({ models }: { models: Array<{ id: stri
         </div>
       </div>}
       {busy && <p role="status" className="text-xs">{t.settings_local_perf_running}</p>}
-      {error && <p role="alert" className="text-xs text-danger">{error}</p>}
       {state.comparison && <>
         <p className="text-xs text-muted">{model} · {new Date(state.comparison.measuredAt).toLocaleString()}</p>
         <div className="overflow-x-auto">

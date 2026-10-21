@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   LanguagePairBar,
   TranslationComparisonPane,
@@ -7,19 +7,23 @@ import {
   TranslationSourcePane,
 } from '../components/organisms'
 import { TranslateWorkbenchTemplate } from '../components/templates'
-import { ImageSwitchToast } from '../components/translate/ImageSwitchToast'
-import { NotificationToast } from '../components/ui/molecules'
 import { IMAGE_TRANSLATED_SENTINEL, useTranslate } from '../hooks/useTranslate'
 import type { VoiceErrorTranslationKey } from '../i18n/types'
 import { useAppStore, useT } from '../store/useAppStore'
+import { useNotificationStore } from '../store/useNotificationStore'
 import type { AudioTranscriptionErrorCode, TranslationComparisonResult } from '../types'
 import { formatModelName, getProviderDisplayName } from '../utils/modelDisplay'
+import { tpl } from '../utils/tpl'
 import { canResolveVoiceErrorInSettings, getVoiceNotificationTone } from '../utils/voiceErrors'
 import '../styles/translate.css'
 
 const TRANSLATE_PAGE_TITLE_ID = 'translate-page-title'
 const TRANSLATE_SOURCE_HEADING_ID = 'translate-source-heading'
 const TRANSLATE_RESULT_HEADING_ID = 'translate-result-heading'
+/** Toast owner keys: a newer notice of the same kind replaces the previous one. */
+const VOICE_ERROR_KEY = 'translate-voice-error'
+const TRANSLATE_ERROR_KEY = 'translate-error'
+const IMAGE_MODEL_SWITCHED_KEY = 'translate-image-model-switched'
 
 export function TranslatePage() {
   const t = useT()
@@ -109,6 +113,67 @@ export function TranslatePage() {
   const handleVoiceError = useCallback((code: AudioTranscriptionErrorCode) => {
     setVoiceErrorCode(code === 'CANCELLED' ? null : code)
   }, [])
+
+  // ── Notices go to the app-level toast stack ──
+  const notify = useNotificationStore((state) => state.notify)
+  const dismissNotification = useNotificationStore((state) => state.dismiss)
+
+  useEffect(() => {
+    if (!voiceErrorCode || !voiceErrorMessage) {
+      dismissNotification(VOICE_ERROR_KEY)
+      return
+    }
+    notify({
+      key: VOICE_ERROR_KEY,
+      tone: getVoiceNotificationTone(voiceErrorCode),
+      title: t.voice_transcription_error_title,
+      message: voiceErrorMessage,
+      actions: canOpenSettingsForVoiceError
+        ? [{ label: t.translate_error_open_settings, onClick: () => { setVoiceErrorCode(null); openSettings() } }]
+        : undefined,
+      onDismiss: () => setVoiceErrorCode(null),
+    })
+  }, [voiceErrorCode, voiceErrorMessage, canOpenSettingsForVoiceError, notify, dismissNotification, openSettings, t])
+
+  // Recovery actions read the latest handlers through a ref so the toast stays
+  // correct while it outlives the render that created it.
+  const canRetry = Boolean(sourceText.trim() || imageAttachment)
+  const recoveryRef = useRef({ handleTranslate, handleDismissError, canRetry })
+  recoveryRef.current = { handleTranslate, handleDismissError, canRetry }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-notify only when the error itself changes
+  useEffect(() => {
+    if (!translateError) {
+      dismissNotification(TRANSLATE_ERROR_KEY)
+      return
+    }
+    notify({
+      key: TRANSLATE_ERROR_KEY,
+      tone: 'error',
+      message: translateError,
+      detail: translateErrorContext,
+      actions: [
+        { label: t.translate_error_retry, onClick: () => recoveryRef.current.handleTranslate(), disabled: !recoveryRef.current.canRetry },
+        { label: t.translate_error_choose_model, onClick: () => setModelsOpen(true) },
+        ...(isApiKeyError ? [{ label: t.translate_error_open_settings, onClick: openSettings }] : []),
+      ],
+      onDismiss: () => recoveryRef.current.handleDismissError(),
+    })
+  }, [translateError, isApiKeyError])
+
+  useEffect(() => {
+    if (!imageSwitchNotice) {
+      dismissNotification(IMAGE_MODEL_SWITCHED_KEY)
+      return
+    }
+    const provider = imageSwitchNotice.provider !== selectedProvider ? ` (${imageSwitchNotice.provider})` : ''
+    notify({
+      key: IMAGE_MODEL_SWITCHED_KEY,
+      tone: 'warning',
+      title: t.image_model_switched_title,
+      message: `${tpl(t.image_model_switched_using, { model: imageSwitchNotice.model })}${provider}. ${t.image_model_switched_body}`,
+      onDismiss: () => setImageSwitchNotice(null),
+    })
+  }, [imageSwitchNotice, selectedProvider, notify, dismissNotification, setImageSwitchNotice, t])
 
   const speakingComparisonKey = speakingPanel?.startsWith('comparison:')
     ? speakingPanel.slice('comparison:'.length)
@@ -231,19 +296,12 @@ export function TranslatePage() {
       hasImageAttachment={Boolean(imageAttachment)}
       isTranslating={isTranslating}
       translateError={translateError}
-      translateErrorContext={translateErrorContext}
-      isApiKeyError={isApiKeyError}
       isResultStale={isResultStale}
       autoTranslate={autoTranslate}
       copied={copied}
       isRewriting={isRewriting}
       speakingPanel={speakingPanel}
       speakLoading={speakLoading}
-      canRetry={Boolean(sourceText.trim() || imageAttachment)}
-      onRetry={handleTranslate}
-      onDismissError={handleDismissError}
-      onOpenSettings={openSettings}
-      onChooseModel={() => setModelsOpen(true)}
       onSpeak={handleSpeak}
       onDownloadEdited={handleDownloadEditedImage}
       onDownloadTranslated={handleDownloadTranslatedImage}
@@ -254,46 +312,12 @@ export function TranslatePage() {
   )
 
   return (
-    <>
-      <TranslateWorkbenchTemplate
-        titleId={TRANSLATE_PAGE_TITLE_ID}
-        layout={isComparisonMode ? 'comparison' : 'single'}
-        header={header}
-        sourcePanel={sourcePanel}
-        resultPanel={resultPanel}
-      />
-
-      {voiceErrorMessage && (
-        <div className="notification-viewport">
-          <NotificationToast
-            tone={voiceErrorCode ? getVoiceNotificationTone(voiceErrorCode) : 'error'}
-            title={t.voice_transcription_error_title}
-            message={voiceErrorMessage}
-            actionLabel={canOpenSettingsForVoiceError ? t.translate_error_open_settings : undefined}
-            onAction={canOpenSettingsForVoiceError
-              ? () => {
-                  setVoiceErrorCode(null)
-                  openSettings()
-                }
-              : undefined}
-            dismissLabel={t.translate_error_dismiss}
-            onDismiss={() => setVoiceErrorCode(null)}
-            className="fade-in"
-          />
-        </div>
-      )}
-
-      {imageSwitchNotice && (
-        <ImageSwitchToast
-          model={imageSwitchNotice.model}
-          provider={imageSwitchNotice.provider}
-          currentProvider={selectedProvider}
-          onDismiss={() => setImageSwitchNotice(null)}
-          titleLabel={t.image_model_switched_title}
-          bodyLabel={t.image_model_switched_body}
-          usingLabel={t.image_model_switched_using}
-        />
-      )}
-    </>
+    <TranslateWorkbenchTemplate
+      titleId={TRANSLATE_PAGE_TITLE_ID}
+      layout={isComparisonMode ? 'comparison' : 'single'}
+      header={header}
+      sourcePanel={sourcePanel}
+      resultPanel={resultPanel}
+    />
   )
 }

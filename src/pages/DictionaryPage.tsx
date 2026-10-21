@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   DictionaryAIConfiguration,
   DictionaryHistoryPanel,
@@ -6,11 +6,14 @@ import {
   DictionarySearchPanel,
 } from '../components/organisms'
 import { DictionaryWorkbenchTemplate } from '../components/templates'
-import { RecoverableError } from '../components/ui/molecules'
 import { useDictionaryLookup } from '../hooks/useDictionaryLookup'
 import { useAppStore, useT } from '../store/useAppStore'
+import { useNotificationStore } from '../store/useNotificationStore'
 import { formatModelName, getProviderDisplayName } from '../utils/modelDisplay'
 import '../styles/dictionary.css'
+
+/** Owner key so a new lookup error replaces the previous toast instead of stacking. */
+const LOOKUP_ERROR_KEY = 'dictionary-lookup-error'
 
 export function DictionaryPage() {
   const t = useT()
@@ -35,6 +38,41 @@ export function DictionaryPage() {
       )
     : ''
 
+  // Lookup failures surface in the app-level toast stack. The toast's recovery
+  // actions read the latest lookup state through a ref, so they stay correct
+  // while the toast outlives the render that created it.
+  const notify = useNotificationStore((state) => state.notify)
+  const dismissNotification = useNotificationStore((state) => state.dismiss)
+  const lookupRef = useRef(lookup)
+  lookupRef.current = lookup
+  const { error: lookupError, errorRecoverable } = lookup
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-notify only when the error itself changes
+  useEffect(() => {
+    if (!lookupError) {
+      dismissNotification(LOOKUP_ERROR_KEY)
+      return
+    }
+    const current = lookupRef.current
+    notify({
+      key: LOOKUP_ERROR_KEY,
+      tone: 'error',
+      message: lookupError,
+      detail: errorRecoverable ? dictionaryErrorContext : undefined,
+      actions: errorRecoverable
+        ? [
+            {
+              label: t.dictionary_error_retry,
+              onClick: () => void lookupRef.current.runLookup(),
+              disabled: !current.term.trim() || !current.canSubmit || current.isLoading,
+            },
+            { label: t.translate_error_choose_model, onClick: () => setShowAIConfig(true) },
+            { label: t.translate_error_open_settings, onClick: openSettings },
+          ]
+        : undefined,
+      onDismiss: () => lookupRef.current.clearError(),
+    })
+  }, [lookupError, errorRecoverable])
+
   return (
     <DictionaryWorkbenchTemplate
       header={(
@@ -54,46 +92,20 @@ export function DictionaryPage() {
         </div>
       )}
       search={(
-        <>
-          <DictionarySearchPanel
-            term={lookup.term}
-            onTermChange={lookup.setTerm}
-            context={lookup.context}
-            onContextChange={lookup.setContext}
-            onLanguagePairChange={(pair) => setLanguagePair('translate', pair)}
-            isLoading={lookup.isLoading}
-            canSubmit={lookup.canSubmit}
-            cannotSubmitReason={t.dictionary_lookup_needs_model}
-            error={lookup.errorRecoverable ? null : lookup.error}
-            maxTermChars={lookup.maxTermChars}
-            maxContextChars={lookup.maxContextChars}
-            onSubmit={() => void lookup.runLookup()}
-            t={t}
-          />
-          {lookup.error && lookup.errorRecoverable && (
-            <div className="dictionary-recoverable-error">
-              <RecoverableError
-                message={lookup.error}
-                context={dictionaryErrorContext}
-                retryAction={{
-                  label: t.dictionary_error_retry,
-                  onClick: () => void lookup.runLookup(),
-                  disabled: !lookup.term.trim() || !lookup.canSubmit || lookup.isLoading,
-                }}
-                alternativeAction={{
-                  label: t.translate_error_choose_model,
-                  onClick: () => setShowAIConfig(true),
-                }}
-                settingsAction={{
-                  label: t.translate_error_open_settings,
-                  onClick: openSettings,
-                }}
-                dismissLabel={t.translate_error_dismiss}
-                onDismiss={lookup.clearError}
-              />
-            </div>
-          )}
-        </>
+        <DictionarySearchPanel
+          term={lookup.term}
+          onTermChange={lookup.setTerm}
+          context={lookup.context}
+          onContextChange={lookup.setContext}
+          onLanguagePairChange={(pair) => setLanguagePair('translate', pair)}
+          isLoading={lookup.isLoading}
+          canSubmit={lookup.canSubmit}
+          cannotSubmitReason={t.dictionary_lookup_needs_model}
+          maxTermChars={lookup.maxTermChars}
+          maxContextChars={lookup.maxContextChars}
+          onSubmit={() => void lookup.runLookup()}
+          t={t}
+        />
       )}
       result={(
         <DictionaryResultPanel

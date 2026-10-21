@@ -10,6 +10,7 @@
  */
 import { type ReactNode, useEffect, useState } from 'react'
 import { useAppStore, useT } from '../../store/useAppStore'
+import { useNotificationStore } from '../../store/useNotificationStore'
 import { tpl } from '../../utils/tpl'
 import { CredentialCard } from '../ui/CredentialCard'
 import { BraveSearchIcon, TavilyIcon } from '../ui/icons'
@@ -53,7 +54,12 @@ function KeyCard({ provider, onStatusChange }: KeyCardProps) {
   const [inputValue, setInputValue] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [verifyStatus, setVerifyStatus] = useState<VerifyStatus>('idle')
-  const [verifyMessage, setVerifyMessage] = useState('')
+  const notify = useNotificationStore((state) => state.notify)
+  const dismissNotification = useNotificationStore((state) => state.dismiss)
+  const notificationKey = `settings-web-search-key-${provider.id}`
+  /** Verification outcomes go to the toast stack; failures stay until read. */
+  const report = (ok: boolean, message: string) =>
+    notify({ key: notificationKey, tone: ok ? 'success' : 'error', message })
 
   const t = useT()
   const isVerifying = verifyStatus === 'verifying' || verifyStatus === 'saving'
@@ -74,7 +80,7 @@ function KeyCard({ provider, onStatusChange }: KeyCardProps) {
   const handleVerify = async () => {
     const key = inputValue.trim()
     if (!key || !window.api) return
-    setVerifyMessage('')
+    dismissNotification(notificationKey)
 
     // Step 1 — Verify the key
     if (typeof window.api.webSearchVerify === 'function') {
@@ -83,7 +89,7 @@ function KeyCard({ provider, onStatusChange }: KeyCardProps) {
         const verifyResult = await window.api.webSearchVerify({ provider: provider.id, apiKey: key })
         if (!verifyResult.valid) {
           setVerifyStatus('invalid')
-          setVerifyMessage(verifyResult.error ?? t.settings_msg_invalid)
+          report(false, verifyResult.error ?? t.settings_msg_invalid)
           return
         }
       } catch (err) {
@@ -95,7 +101,7 @@ function KeyCard({ provider, onStatusChange }: KeyCardProps) {
           msg.includes('ERR_IPC')
         if (!isIpcMissing) {
           setVerifyStatus('invalid')
-          setVerifyMessage(msg || t.settings_msg_invalid)
+          report(false, msg || t.settings_msg_invalid)
           return
         }
         // IPC not available → fall through to save directly
@@ -108,7 +114,7 @@ function KeyCard({ provider, onStatusChange }: KeyCardProps) {
       const saved = await window.api.keychain.save(provider.id, key)
       if (!saved.success) {
         setVerifyStatus('invalid')
-        setVerifyMessage(saved.error ?? t.settings_key_store_failed)
+        report(false, saved.error ?? t.settings_key_store_failed)
         return
       }
       const updated = await window.api.keychain.get(provider.id)
@@ -117,13 +123,13 @@ function KeyCard({ provider, onStatusChange }: KeyCardProps) {
       setMasked(updated.masked ?? null)
       onStatusChange(e)
       setVerifyStatus('valid')
-      setVerifyMessage(t.settings_msg_valid)
+      report(true, t.settings_msg_valid)
       setInputValue('')
       const VERIFY_STATUS_RESET_MS = 5_000  // Reset verify badge after 5s
       setTimeout(() => setVerifyStatus('idle'), VERIFY_STATUS_RESET_MS)
     } catch (err) {
       setVerifyStatus('invalid')
-      setVerifyMessage(err instanceof Error ? err.message : t.settings_msg_invalid)
+      report(false, err instanceof Error ? err.message : t.settings_msg_invalid)
     }
   }
 
@@ -131,13 +137,13 @@ function KeyCard({ provider, onStatusChange }: KeyCardProps) {
     if (!confirm(`${t.settings_remove} API key for ${provider.name}?`)) return
     setIsDeleting(true)
     setVerifyStatus('idle')
-    setVerifyMessage('')
+    dismissNotification(notificationKey)
     setInputValue('')
     try {
       const removed = await window.api.keychain.delete(provider.id)
       if (!removed.success) {
         setVerifyStatus('invalid')
-        setVerifyMessage(t.settings_key_store_failed)
+        report(false, t.settings_key_store_failed)
         return
       }
       setExists(false)
@@ -145,7 +151,7 @@ function KeyCard({ provider, onStatusChange }: KeyCardProps) {
       onStatusChange(false)
     } catch {
       setVerifyStatus('invalid')
-      setVerifyMessage(t.settings_key_store_failed)
+      report(false, t.settings_key_store_failed)
     } finally {
       setIsDeleting(false)
     }
@@ -174,7 +180,6 @@ function KeyCard({ provider, onStatusChange }: KeyCardProps) {
       isSuccess={isSuccess}
       isError={isError}
       isDeleting={isDeleting}
-      statusMessage={verifyMessage ? { text: verifyMessage, tone: isSuccess ? 'success' : 'error' } : undefined}
       onOpenDocs={() => window.api?.openExternal(provider.docsUrl)}
       onInputChange={setInputValue}
       onSubmit={handleVerify}

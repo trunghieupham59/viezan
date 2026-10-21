@@ -1,5 +1,6 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { NotificationViewport } from '../../../components/organisms/NotificationViewport'
 import { useAppStore } from '../../../store/useAppStore'
 import type { LocalAiDiscoveryResult, LocalAiModelDownloadProgress } from '../../../types'
 import { ApiKeysSection } from '../ApiKeysSection'
@@ -50,7 +51,7 @@ describe('ApiKeysSection local model downloads', () => {
   it('resumes the progress of a pull that kept running while Settings was closed', async () => {
     window.api.getLocalAiActiveDownloads = vi.fn().mockResolvedValue([progress('qwen3:14b', 42)])
 
-    render(<ApiKeysSection />)
+    render(<><ApiKeysSection /><NotificationViewport /></>)
 
     expect(await screen.findByText('42%', { selector: 'button' })).toBeTruthy()
     // One pull at a time: the other model cannot be started on top of it.
@@ -60,7 +61,7 @@ describe('ApiKeysSection local model downloads', () => {
 
   it('keeps each model on its own progress when two pulls report interleaved events', async () => {
     window.api.getLocalAiActiveDownloads = vi.fn().mockResolvedValue([])
-    render(<ApiKeysSection />)
+    render(<><ApiKeysSection /><NotificationViewport /></>)
     await screen.findAllByRole('button', { name: /Download/ })
 
     act(() => {
@@ -75,7 +76,7 @@ describe('ApiKeysSection local model downloads', () => {
 
   it('refreshes the model catalog when a resumed pull finishes', async () => {
     window.api.getLocalAiActiveDownloads = vi.fn().mockResolvedValue([progress('qwen3:14b', 99)])
-    render(<ApiKeysSection />)
+    render(<><ApiKeysSection /><NotificationViewport /></>)
     await screen.findByText('99%', { selector: 'button' })
     vi.mocked(window.api.ensureLocalAiRuntime).mockClear()
     vi.mocked(window.api.ensureLocalAiRuntime).mockResolvedValue(runtime(['qwen3:14b']))
@@ -94,7 +95,7 @@ describe('ApiKeysSection local model downloads', () => {
       model: 'qwen3:14b',
       error: 'This model is already being downloaded.',
     })
-    render(<ApiKeysSection />)
+    render(<><ApiKeysSection /><NotificationViewport /></>)
     const [download] = await screen.findAllByRole('button', { name: /Download/ })
 
     act(() => download.click())

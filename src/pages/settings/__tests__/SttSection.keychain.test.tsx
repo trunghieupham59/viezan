@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { NotificationViewport } from '../../../components/organisms/NotificationViewport'
 import { useAppStore } from '../../../store/useAppStore'
 import { SttSection } from '../SttSection'
 
@@ -21,7 +22,7 @@ describe('SttSection Groq keychain results', () => {
   it('shows the failure and keeps the key unsaved when keychain.save reports failure', async () => {
     keychain.get.mockResolvedValue({ exists: false, masked: null })
     keychain.save.mockResolvedValue({ success: false, error: 'keychain locked' })
-    render(<SttSection />)
+    render(<><SttSection /><NotificationViewport /></>)
 
     const input = screen.getByPlaceholderText('Paste your Groq API key…')
     fireEvent.change(input, { target: { value: 'gsk_test' } })
@@ -38,7 +39,7 @@ describe('SttSection Groq keychain results', () => {
       .mockResolvedValueOnce({ exists: false, masked: null })
       .mockResolvedValueOnce({ exists: true, masked: 'gsk_****' })
     keychain.save.mockResolvedValue({ success: true })
-    render(<SttSection />)
+    render(<><SttSection /><NotificationViewport /></>)
 
     const input = screen.getByPlaceholderText('Paste your Groq API key…')
     fireEvent.change(input, { target: { value: 'gsk_test' } })
@@ -50,7 +51,7 @@ describe('SttSection Groq keychain results', () => {
   it('surfaces a failed delete instead of silently removing the key', async () => {
     keychain.get.mockResolvedValue({ exists: true, masked: 'gsk_****' })
     keychain.delete.mockResolvedValue({ success: false, error: 'denied' })
-    render(<SttSection />)
+    render(<><SttSection /><NotificationViewport /></>)
 
     const removeButton = await screen.findByTitle('Remove')
     fireEvent.click(removeButton)

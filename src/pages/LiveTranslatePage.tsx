@@ -23,7 +23,7 @@ import {
   TranslateIcon,
   TrashIcon,
   XIcon,} from '../components/ui/icons'
-import { EmptyPanelState, NotificationToast } from '../components/ui/molecules'
+import { EmptyPanelState } from '../components/ui/molecules'
 import { COPY_FEEDBACK_DURATION_MS, DEFAULT_SEGMENT_DURATION_MS, MIN_SEGMENT_DURATION_MS } from '../constants/ui'
 import { MACOS_SCREEN_RECORDING_PREFS } from '../constants/urls'
 import { useFollowLatest } from '../hooks/live/useFollowLatest'
@@ -31,6 +31,7 @@ import type { LiveAudioMode } from '../hooks/live/vadPolicy'
 import { DEFAULT_SUBTITLE_SETTINGS, useLiveTranslate } from '../hooks/useLiveTranslate'
 import type { Translations } from '../i18n/types'
 import { useAppStore, useT } from '../store/useAppStore'
+import { useNotificationStore } from '../store/useNotificationStore'
 import '../styles/translate.css'
 
 function segmentStatus(state: LiveSegmentState | undefined, t: Translations): string | undefined {
@@ -67,6 +68,10 @@ type PostTab = 'summary' | 'actions' | 'decisions'
 /** Side-by-side panels, or each segment paired with its translation. */
 export type LiveViewMode = 'split' | 'paired'
 const LIVE_VIEW_MODE_STORAGE_KEY = 'viezan.live.viewMode'
+/** Toast owner keys: a newer notice of the same kind replaces the previous one. */
+const MIC_ERROR_KEY = 'live-mic-error'
+const PIPELINE_ERROR_KEY = 'live-pipeline-error'
+const MISSING_KEY_NOTICE_KEY = 'live-missing-key'
 
 /** Per-viewer layout preference; storage may be unavailable, so fall back to split. */
 function readStoredViewMode(): LiveViewMode {
@@ -163,6 +168,40 @@ export function LiveTranslatePage() {
   useEffect(() => {
     if (missingKeyNoticeId === null) setDismissedKeyNotice(null)
   }, [missingKeyNoticeId])
+
+  // ── Notices go to the app-level toast stack ──
+  const notify = useNotificationStore((state) => state.notify)
+  const dismissNotification = useNotificationStore((state) => state.dismiss)
+  useEffect(() => {
+    if (!micError) {
+      dismissNotification(MIC_ERROR_KEY)
+      return
+    }
+    notify({ key: MIC_ERROR_KEY, tone: 'error', title: t.live_error_title, message: micError, onDismiss: dismissMicError })
+  }, [micError, dismissMicError, notify, dismissNotification, t])
+  useEffect(() => {
+    if (!pipelineError) {
+      dismissNotification(PIPELINE_ERROR_KEY)
+      return
+    }
+    // The hook clears pipelineError on its own timer; the toast follows that state.
+    notify({ key: PIPELINE_ERROR_KEY, tone: 'warning', message: pipelineError, dismissible: false })
+  }, [pipelineError, notify, dismissNotification])
+  const activeKeyNoticeId = activeKeyNotice?.id ?? null
+  const activeKeyNoticeMessage = activeKeyNotice?.message ?? null
+  useEffect(() => {
+    if (!activeKeyNoticeId || !activeKeyNoticeMessage) {
+      dismissNotification(MISSING_KEY_NOTICE_KEY)
+      return
+    }
+    notify({
+      key: MISSING_KEY_NOTICE_KEY,
+      tone: 'warning',
+      message: activeKeyNoticeMessage,
+      actions: [{ label: t.translate_error_open_settings, onClick: () => openSettings() }],
+      onDismiss: () => setDismissedKeyNotice(activeKeyNoticeId),
+    })
+  }, [activeKeyNoticeId, activeKeyNoticeMessage, notify, dismissNotification, openSettings, t])
   const startSession = () => {
     if ((audioMode === 'system' || audioMode === 'both') && isMac && screenPermission !== 'granted') {
       setShowScreenPermModal(true)
@@ -555,40 +594,8 @@ export function LiveTranslatePage() {
           )}
           {/* ── End controls ── */}
 
-          {/* ── Body: notices + panels ── */}
+          {/* ── Body: panels (notices live in the app toast stack) ── */}
           <div className="live-panels-body" data-view-mode={viewMode}>
-            {/* In-flow notices keep language and Start controls unobstructed. */}
-            {(micError || pipelineError || activeKeyNotice) && (
-              <div className="notification-viewport live-notification-viewport">
-                <div className="flex flex-col gap-2">
-                  {micError && (
-                    <NotificationToast
-                      tone="error"
-                      title={t.live_error_title}
-                      message={micError}
-                      dismissLabel={t.translate_error_dismiss}
-                      onDismiss={dismissMicError}
-                      className="fade-in"
-                    />
-                  )}
-                  {pipelineError && (
-                    <NotificationToast tone="warning" message={pipelineError} className="fade-in" />
-                  )}
-                  {activeKeyNotice && (
-                    <NotificationToast
-                      tone="warning"
-                      message={activeKeyNotice.message}
-                      actionLabel={t.translate_error_open_settings}
-                      onAction={() => openSettings()}
-                      dismissLabel={t.translate_error_dismiss}
-                      onDismiss={() => setDismissedKeyNotice(activeKeyNotice.id)}
-                      className="fade-in"
-                    />
-                  )}
-                </div>
-              </div>
-            )}
-
           {/* ── Panels: side-by-side (Nguyên Bản | Bản Dịch) or paired by sentence ── */}
           {viewMode === 'paired' ? (
             <div className="glass-panel live-paired-panel">

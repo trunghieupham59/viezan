@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { NotificationViewport } from '../../components/organisms/NotificationViewport'
 import { TRANSLATIONS } from '../../i18n'
 import { useAppStore } from '../../store/useAppStore'
 import { LiveTranslatePage } from '../LiveTranslatePage'
@@ -71,7 +72,7 @@ describe('AI Interpret screen', () => {
 
   it('explains why Start is unavailable when no translation key is configured', () => {
     live.state = liveState({ hasAnyKey: false })
-    render(<LiveTranslatePage />)
+    render(<><LiveTranslatePage /><NotificationViewport /></>)
     const row = document.querySelector('.feature-command-bar') as HTMLElement
     const start = within(row).getByRole('button', { name: t.live_start })
     expect(start).toBeDisabled()
@@ -79,11 +80,11 @@ describe('AI Interpret screen', () => {
     expect(screen.getByText(t.live_no_translate_key, { exact: false })).toBeInTheDocument()
   })
 
-  it('shows a missing speech-recognition key as a dismissible in-flow notification', () => {
+  it('shows a missing speech-recognition key as a dismissible notification', () => {
     const openSettings = vi.fn()
     useAppStore.setState({ openSettings })
     live.state = liveState({ hasSttKey: false })
-    render(<LiveTranslatePage />)
+    render(<><LiveTranslatePage /><NotificationViewport /></>)
     const viewport = document.querySelector('.notification-viewport') as HTMLElement
     expect(within(viewport).getByText(t.live_no_stt_key)).toBeInTheDocument()
     fireEvent.click(within(viewport).getByRole('button', { name: t.translate_error_open_settings }))
@@ -103,7 +104,7 @@ describe('AI Interpret screen', () => {
 
   it('keeps Start enabled and shows no key notice when an STT provider is usable', () => {
     live.state = liveState({ hasSttKey: true, activeSttProvider: 'gemini' })
-    render(<LiveTranslatePage />)
+    render(<><LiveTranslatePage /><NotificationViewport /></>)
     const row = document.querySelector('.feature-command-bar') as HTMLElement
     expect(within(row).getByRole('button', { name: t.live_start })).toBeEnabled()
     expect(screen.queryByText(t.live_no_stt_key)).not.toBeInTheDocument()
@@ -111,7 +112,7 @@ describe('AI Interpret screen', () => {
 
   it('surfaces start failures instead of dropping them, and lets the user dismiss them', () => {
     live.state = liveState({ micError: t.live_error_mic_denied })
-    render(<LiveTranslatePage />)
+    render(<><LiveTranslatePage /><NotificationViewport /></>)
     const viewport = document.querySelector('.notification-viewport') as HTMLElement
     const alert = within(viewport).getByRole('alert')
     expect(alert).toHaveTextContent(t.live_error_mic_denied)
@@ -121,7 +122,7 @@ describe('AI Interpret screen', () => {
 
   it('shows transient pipeline errors in the same notification stack', () => {
     live.state = liveState({ pipelineError: t.live_error_stt_failed })
-    render(<LiveTranslatePage />)
+    render(<><LiveTranslatePage /><NotificationViewport /></>)
     const viewport = document.querySelector('.notification-viewport') as HTMLElement
     expect(within(viewport).getByText(t.live_error_stt_failed)).toBeInTheDocument()
   })

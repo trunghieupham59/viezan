@@ -18,6 +18,7 @@ import {
   normalizeDictionaryTerm,
 } from '../services/dictionaryService'
 import { useAppStore, useT } from '../store/useAppStore'
+import { useNotificationStore } from '../store/useNotificationStore'
 import type {
   DictionaryEntry,
   DictionaryLookupParams,
@@ -35,7 +36,6 @@ export interface DictionarySelectionLookupState {
   term: string
   loading: boolean
   result: DictionaryResult | null
-  error: string | null
 }
 
 /** How long the copy button shows its confirmation state. */
@@ -449,6 +449,12 @@ export function useDictionaryLookup() {
     setSelectionLookup(null)
   }
 
+  /** A failed selection lookup closes its dialog and reports in the toast stack. */
+  const failSelectionLookup = (message: string) => {
+    setSelectionLookup(null)
+    useNotificationStore.getState().notify({ key: 'dictionary-selection-lookup', tone: 'error', message })
+  }
+
   /**
    * Look up text highlighted inside the current entry. The entry's target
    * language is kept so the user's preferred output language stays, but the
@@ -467,7 +473,7 @@ export function useDictionaryLookup() {
     const requestId = selectionRequestRef.current + 1
     selectionRequestRef.current = requestId
 
-    setSelectionLookup({ term: lookupTerm, loading: true, result: null, error: null })
+    setSelectionLookup({ term: lookupTerm, loading: true, result: null })
 
     const lookupContext = selectionLookupContext(entry)
     let lookup: DictionaryLookupResult
@@ -486,7 +492,7 @@ export function useDictionaryLookup() {
     } catch (err) {
       if (requestId !== selectionRequestRef.current || controller.signal.aborted) return
       const message = err instanceof Error ? err.message : String(err ?? '')
-      setSelectionLookup({ term: lookupTerm, loading: false, result: null, error: message || t.dictionary_error_failed })
+      failSelectionLookup(message || t.dictionary_error_failed)
       return
     }
 
@@ -494,16 +500,11 @@ export function useDictionaryLookup() {
 
     if (!lookup.success || !lookup.result) {
       if (lookup.errorCode === 'CANCELLED') return
-      setSelectionLookup({
-        term: lookupTerm,
-        loading: false,
-        result: null,
-        error: lookup.error ?? t.dictionary_error_failed,
-      })
+      failSelectionLookup(lookup.error ?? t.dictionary_error_failed)
       return
     }
 
-    setSelectionLookup({ term: lookupTerm, loading: false, result: lookup.result, error: null })
+    setSelectionLookup({ term: lookupTerm, loading: false, result: lookup.result })
 
     // Persist the result to history and record its cost.
     const saved: DictionaryEntry = {

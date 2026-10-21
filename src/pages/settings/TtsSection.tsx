@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/atoms'
-import { CredentialSecretInputRow, CredentialStatusBadge, CredentialStatusMessage } from '../../components/ui/CredentialCard'
+import { CredentialSecretInputRow, CredentialStatusBadge } from '../../components/ui/CredentialCard'
 import {
   AutoModeIcon,
   ElevenLabsIcon,
@@ -8,9 +8,9 @@ import {
   PremiumModeIcon,
 } from '../../components/ui/icons'
 import { TtsVoicePicker } from '../../components/ui/TtsVoicePicker'
-import { TOAST_DISMISS_DELAY_MS } from '../../constants/ui'
 import { ELEVENLABS_DOCS_URL } from '../../constants/urls'
 import { useAppStore, useT } from '../../store/useAppStore'
+import { useNotificationStore } from '../../store/useNotificationStore'
 import type { TtsMode } from '../../types'
 
 function ProviderLogoFrame({
@@ -46,7 +46,10 @@ export function TtsSection() {
   const [elInput, setElInput]     = useState('')
   const [elSaving, setElSaving]   = useState(false)
   const [elDeleting, setElDeleting] = useState(false)
-  const [elMsg, setElMsg]         = useState<{ text: string; ok: boolean } | null>(null)
+  const notify = useNotificationStore((state) => state.notify)
+  /** Save outcomes go to the toast stack; one key so results never pile up. */
+  const reportElevenLabs = (message: string, ok: boolean) =>
+    notify({ key: 'settings-elevenlabs-key', tone: ok ? 'success' : 'error', message })
 
   useEffect(() => {
     if (!window.api) return
@@ -60,20 +63,18 @@ export function TtsSection() {
   const handleElSave = async () => {
     if (!elInput.trim() || !window.api) return
     setElSaving(true)
-    setElMsg(null)
     try {
       const result = await window.api.keychain.save('elevenlabs', elInput.trim())
       if (result.success) {
         const updated = await window.api.keychain.get('elevenlabs')
         setElKey({ exists: updated.exists ?? false, masked: updated.masked ?? null })
         setElInput('')
-        setElMsg({ text: t.settings_tts_el_saved, ok: true })
-        setTimeout(() => setElMsg(null), TOAST_DISMISS_DELAY_MS)
+        reportElevenLabs(t.settings_tts_el_saved, true)
       } else {
-        setElMsg({ text: `✗ ${result.error ?? t.settings_tts_el_failed}`, ok: false })
+        reportElevenLabs(result.error ?? t.settings_tts_el_failed, false)
       }
     } catch (err) {
-      setElMsg({ text: `✗ ${err instanceof Error ? err.message : t.settings_tts_el_failed}`, ok: false })
+      reportElevenLabs(err instanceof Error ? err.message : t.settings_tts_el_failed, false)
     } finally {
       setElSaving(false)
     }
@@ -86,7 +87,6 @@ export function TtsSection() {
       await window.api.keychain.delete('elevenlabs')
       setElKey({ exists: false, masked: null })
       setElInput('')
-      setElMsg(null)
     } finally {
       setElDeleting(false)
     }
@@ -218,16 +218,10 @@ export function TtsSection() {
               tryAgain: t.settings_try_again,
               submit: t.settings_verify_save,
             }}
-            onInputChange={(value) => {
-              setElInput(value)
-              if (elMsg) setElMsg(null)
-            }}
+            onInputChange={setElInput}
             onSubmit={handleElSave}
             onDelete={handleElDelete}
           />
-
-          {/* Result message */}
-          {elMsg && <CredentialStatusMessage message={elMsg.text} tone={elMsg.ok ? 'success' : 'error'} />}
         </div>
 
       </div>

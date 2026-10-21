@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { GITHUB_RELEASES_URL } from '../../constants/urls'
 import { useAppStore, useT } from '../../store/useAppStore'
+import { useNotificationStore } from '../../store/useNotificationStore'
 import { useUpdaterStore } from '../../store/useUpdaterStore'
 import { trapTabFocus } from '../../utils/focusTrap'
 import { tpl } from '../../utils/tpl'
 import { Button } from '../ui/atoms'
+
+/** Toast owner key for download/install failures raised from this dialog. */
+const UPDATE_ACTION_ERROR_KEY = 'update-notification-action'
 
 /** Keeps the updater subscription alive independently of the Settings modal. */
 export function UpdateNotification({ blocked = false }: { blocked?: boolean }) {
@@ -16,6 +20,8 @@ export function UpdateNotification({ blocked = false }: { blocked?: boolean }) {
   const [now, setNow] = useState(Date.now)
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState(false)
+  const notify = useNotificationStore((state) => state.notify)
+  const dismissNotification = useNotificationStore((state) => state.dismiss)
   const [visible, setVisible] = useState(document.visibilityState !== 'hidden')
   const dialogRef = useRef<HTMLElement>(null)
   const laterRef = useRef<HTMLButtonElement>(null)
@@ -100,6 +106,15 @@ export function UpdateNotification({ blocked = false }: { blocked?: boolean }) {
     finally { setBusy(false) }
   }
 
+  const showActionError = open && (actionError || Boolean(status.error))
+  useEffect(() => {
+    if (!showActionError) {
+      dismissNotification(UPDATE_ACTION_ERROR_KEY)
+      return
+    }
+    notify({ key: UPDATE_ACTION_ERROR_KEY, tone: 'error', message: t.update_notification_action_error })
+  }, [showActionError, notify, dismissNotification, t])
+
   if (!open) return null
   return (
     <div className="modal-backdrop update-notification-backdrop">
@@ -107,7 +122,6 @@ export function UpdateNotification({ blocked = false }: { blocked?: boolean }) {
         <h2 id={titleId}>{tpl(status.type === 'downloaded' ? t.settings_update_downloaded : t.settings_update_available, { version })}</h2>
         <p id={descriptionId}>{t.update_notification_description}</p>
         {status.type === 'downloading' && <p role="status">{tpl(t.settings_update_downloading, { percent: status.percent ?? 0 })}</p>}
-        {(actionError || status.error) && <p role="alert">{t.update_notification_action_error}</p>}
         <div className="update-notification-actions">
           <Button size="md" variant="neutral" appearance="ghost" disabled={busy} onClick={() => void run('openDownload')}>{t.update_notification_release_notes}</Button>
           <Button ref={laterRef} size="md" variant="neutral" appearance="outline" onClick={dismiss}>{t.update_notification_later}</Button>

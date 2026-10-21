@@ -2,11 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/atoms'
 import { ToggleSwitch } from '../../components/ui/atoms'
 import { HotkeyRecordButton } from '../../components/ui/HotkeyRecordButton'
-import { SpinnerIcon, XIcon } from '../../components/ui/icons'
+import { XIcon } from '../../components/ui/icons'
 import { STATUS_RESET_DELAY_MS, STATUS_RESET_LONG_MS } from '../../constants/ui'
 import { useAppStore, useT } from '../../store/useAppStore'
+import { useNotificationStore } from '../../store/useNotificationStore'
 
 const DEFAULT_HOTKEY = 'Alt+Shift+T'
+/** Toast owner keys: progress → done/error replace each other for one shortcut run. */
+const HOTKEY_ERROR_KEY = 'settings-hotkey-register'
+const HOTKEY_RUN_KEY = 'settings-hotkey-run'
+const CHAT_HOTKEY_ERROR_KEY = 'settings-chat-hotkey-register'
 const getDefaultChatHotkey = () => window.api?.platform === 'darwin' ? 'Command+Space' : 'Alt+Space'
 
 const KEY_MAP: Record<string, string> = {
@@ -26,9 +31,8 @@ export function HotkeySection() {
   const [hotkeyEnabled, setHotkeyEnabled] = useState(false)
   const [hotkeyValue, setHotkeyValue] = useState('')
   const [isRecording, setIsRecording] = useState(false)
-  const [hotkeyError, setHotkeyError] = useState('')
-  const [hotkeyStatus, setHotkeyStatus] = useState<'idle' | 'translating' | 'done' | 'error'>('idle')
-  const [hotkeyStatusMsg, setHotkeyStatusMsg] = useState('')
+  const notify = useNotificationStore((state) => state.notify)
+  const dismissNotification = useNotificationStore((state) => state.dismiss)
   const hotkeyInputRef = useRef<HTMLButtonElement>(null)
 
   const hotkeyProvider = selectedProvider
@@ -53,21 +57,16 @@ export function HotkeySection() {
   useEffect(() => {
     if (!window.api?.hotkey) return
     const unsub1 = window.api.hotkey.onTranslating(() => {
-      setHotkeyStatus('translating')
-      setHotkeyStatusMsg(t.settings_hotkey_status_translating)
+      notify({ key: HOTKEY_RUN_KEY, tone: 'info', message: t.settings_hotkey_status_translating, durationMs: null, dismissible: false })
     })
     const unsub2 = window.api.hotkey.onTranslated(() => {
-      setHotkeyStatus('done')
-      setHotkeyStatusMsg(t.settings_hotkey_status_done)
-      setTimeout(() => setHotkeyStatus('idle'), STATUS_RESET_DELAY_MS)
+      notify({ key: HOTKEY_RUN_KEY, tone: 'success', message: t.settings_hotkey_status_done, durationMs: STATUS_RESET_DELAY_MS })
     })
     const unsub3 = window.api.hotkey.onError((data: { error: string }) => {
-      setHotkeyStatus('error')
-      setHotkeyStatusMsg(data?.error ?? t.settings_hotkey_status_error)
-      setTimeout(() => setHotkeyStatus('idle'), STATUS_RESET_LONG_MS)
+      notify({ key: HOTKEY_RUN_KEY, tone: 'error', message: data?.error ?? t.settings_hotkey_status_error, durationMs: STATUS_RESET_LONG_MS })
     })
     return () => { unsub1(); unsub2(); unsub3() }
-  }, [t])
+  }, [t, notify])
 
   const saveHotkeySettings = useCallback(async (overrides: Record<string, unknown> = {}) => {
     if (!window.api?.hotkey) return
@@ -82,7 +81,7 @@ export function HotkeySection() {
     }
     const res = await window.api.hotkey.update(settings)
     if (!res?.success && res?.error) {
-      setHotkeyError(res.error)
+      notify({ key: HOTKEY_ERROR_KEY, tone: 'error', message: res.error })
       // The backend keeps the previously registered shortcut when an update is
       // rejected, so mirror what it actually has instead of forcing the toggle off.
       const kept = res.settings
@@ -93,9 +92,9 @@ export function HotkeySection() {
         setHotkeyEnabled(false)
       }
     } else {
-      setHotkeyError('')
+      dismissNotification(HOTKEY_ERROR_KEY)
     }
-  }, [hotkeyValue, hotkeyEnabled, hotkeyProvider, hotkeyModel, hotkeyTargetLang, locale])
+  }, [hotkeyValue, hotkeyEnabled, hotkeyProvider, hotkeyModel, hotkeyTargetLang, locale, notify, dismissNotification])
 
   // Convert a KeyboardEvent to an Electron accelerator string
   const keyEventToAccelerator = (e: React.KeyboardEvent): string => {
@@ -137,7 +136,6 @@ export function HotkeySection() {
   const [chatHotkeyEnabled, setChatHotkeyEnabled] = useState(false)
   const [chatHotkeyValue, setChatHotkeyValue] = useState('')
   const [isChatRecording, setIsChatRecording] = useState(false)
-  const [chatHotkeyError, setChatHotkeyError] = useState('')
   const chatHotkeyInputRef = useRef<HTMLButtonElement>(null)
 
   // Load saved AI Chat hotkey settings
@@ -163,8 +161,12 @@ export function HotkeySection() {
     }
     const res = await window.api.hotkey.chat.update(settings)
     if (!res?.success && res?.error) {
-      setChatHotkeyError(res.errorCode === 'IN_USE' || res.errorCode === 'CONFLICT'
-        ? t.settings_chat_hotkey_status_conflict : t.launcher_hotkey_failed)
+      notify({
+        key: CHAT_HOTKEY_ERROR_KEY,
+        tone: 'error',
+        message: res.errorCode === 'IN_USE' || res.errorCode === 'CONFLICT'
+          ? t.settings_chat_hotkey_status_conflict : t.launcher_hotkey_failed,
+      })
       const kept = res.settings
       if (kept) {
         setChatHotkeyEnabled(kept.enabled === true)
@@ -173,9 +175,9 @@ export function HotkeySection() {
         setChatHotkeyEnabled(false)
       }
     } else {
-      setChatHotkeyError('')
+      dismissNotification(CHAT_HOTKEY_ERROR_KEY)
     }
-  }, [chatHotkeyValue, chatHotkeyEnabled, t])
+  }, [chatHotkeyValue, chatHotkeyEnabled, t, notify, dismissNotification])
 
   const handleChatHotkeyKeyDown = (e: React.KeyboardEvent) => {
     e.preventDefault()
@@ -255,22 +257,7 @@ export function HotkeySection() {
               />
             </div>
           </div>
-          {hotkeyError && (
-            <p className="ui-error-text text-xs">{hotkeyError}</p>
-          )}
         </div>
-
-        {/* Status indicator */}
-        {hotkeyStatus !== 'idle' && (
-          <div className={`px-4 py-3 flex items-center gap-2 text-xs ${
-            hotkeyStatus === 'translating' ? 'text-gray-600 dark:text-gray-400' :
-            hotkeyStatus === 'done' ? 'text-gray-600 dark:text-gray-400' :
-            'ui-error-text'
-          }`}>
-            {hotkeyStatus === 'translating' && <SpinnerIcon className="w-3.5 h-3.5 animate-spin" />}
-            <span>{hotkeyStatusMsg}</span>
-          </div>
-        )}
 
       </div>
 
@@ -335,9 +322,6 @@ export function HotkeySection() {
               />
             </div>
           </div>
-          {chatHotkeyError && (
-            <p className="ui-error-text text-xs">{chatHotkeyError}</p>
-          )}
         </div>
 
       </div>

@@ -10,7 +10,14 @@
  * jsdom (src tests) and Node (electron/__tests__ tests).
  */
 import '@testing-library/jest-dom/vitest'
-import { vi } from 'vitest'
+import { afterEach, vi } from 'vitest'
+import { useNotificationStore } from '../store/useNotificationStore'
+
+// Toasts live in a module-level store; drop them between tests so one test's
+// notification never satisfies another test's assertion.
+afterEach(() => {
+  useNotificationStore.getState().clear()
+})
 
 // Only set up DOM mocks when running in a browser-like environment (jsdom).
 // Electron IPC tests use @vitest-environment node which has no `window`.

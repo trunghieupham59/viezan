@@ -4,11 +4,11 @@ import {
   GitHubIcon, KeyIcon,
   PlusIcon, RefreshIcon, SpinnerIcon, TrashIcon, XIcon,
 } from '../../components/ui/icons'
-import { InlineErrorBanner } from '../../components/ui/molecules'
 import { SettingsFormActions } from '../../components/ui/SettingsFormActions'
 import { TokenTtlPicker } from '../../components/ui/TokenTtlPicker'
 import { GITHUB_RELEASES_URL } from '../../constants/urls'
 import { useAppStore, useT } from '../../store/useAppStore'
+import { useNotificationStore } from '../../store/useNotificationStore'
 import { formatDate, tpl } from '../../utils/tpl'
 
 // ── Token-scoped constants ────────────────────────────────────────────────────
@@ -27,6 +27,9 @@ const TOKEN_COPY_FEEDBACK_MS = 2_000
 
 /** Prefix used when auto-generating a default token name. */
 const DEFAULT_TOKEN_NAME_PREFIX = 'Chrome Extension'
+/** Toast owner keys so repeated failures replace each other instead of stacking. */
+const TOKEN_ACTION_ERROR_KEY = 'settings-ext-token-action'
+const TOKEN_LIST_ERROR_KEY = 'settings-ext-token-list'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -50,7 +53,12 @@ export function BrowserIntegrationSection() {
   const [creating, setCreating] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null)
-  const [tokenActionError, setTokenActionError] = useState('')
+  const notify = useNotificationStore((state) => state.notify)
+  const dismissNotification = useNotificationStore((state) => state.dismiss)
+  /** Token create/delete/regenerate failures go to the toast stack. */
+  const reportTokenActionError = useCallback((message: string) => {
+    notify({ key: TOKEN_ACTION_ERROR_KEY, tone: 'error', message })
+  }, [notify])
 
   const defaultTokenName = () => {
     const today = formatDate(Date.now(), locale)
@@ -60,11 +68,11 @@ export function BrowserIntegrationSection() {
   // ── D-2: Token request helper — removes guard+try/catch duplication ────────
   async function tokenRequest<T>(fn: () => Promise<T>): Promise<T | null> {
     if (!window.api?.localServer) return null
-    setTokenActionError('')
+    dismissNotification(TOKEN_ACTION_ERROR_KEY)
     try {
       return await fn()
     } catch (e) {
-      setTokenActionError(e instanceof Error ? e.message : String(e))
+      reportTokenActionError(e instanceof Error ? e.message : String(e))
       return null
     }
   }
@@ -93,6 +101,21 @@ export function BrowserIntegrationSection() {
 
   useEffect(() => { loadTokenList() }, [loadTokenList])
 
+  // A failed list load is reported as a toast with a retry path; the state itself
+  // still gates the empty-state copy below.
+  useEffect(() => {
+    if (!extTokensError) {
+      dismissNotification(TOKEN_LIST_ERROR_KEY)
+      return
+    }
+    notify({
+      key: TOKEN_LIST_ERROR_KEY,
+      tone: 'error',
+      message: extTokensError,
+      actions: [{ label: t.settings_token_retry, onClick: () => void loadTokenList() }],
+    })
+  }, [extTokensError, loadTokenList, notify, dismissNotification, t])
+
   // ── Token mutation handlers ────────────────────────────────────────────────
 
   const handleCreateToken = async () => {
@@ -111,7 +134,7 @@ export function BrowserIntegrationSection() {
       setNewTokenTtl(DEFAULT_TOKEN_TTL_DAYS)
       await loadTokenList()
     } else if (res && !res.success) {
-      setTokenActionError(res.error ?? t.settings_token_error_create)
+      reportTokenActionError(res.error ?? t.settings_token_error_create)
     }
     setCreating(false)
   }
@@ -138,7 +161,7 @@ export function BrowserIntegrationSection() {
       setRevealedCopied(false)
       await loadTokenList()
     } else if (res && !res.success) {
-      setTokenActionError(res.error ?? t.settings_token_error_regenerate)
+      reportTokenActionError(res.error ?? t.settings_token_error_regenerate)
     }
     setRegeneratingId(null)
   }
@@ -309,21 +332,6 @@ export function BrowserIntegrationSection() {
                 {t.settings_token_expires_label} {formatDate(revealedToken.expiresAt, locale)}
               </p>
             </div>
-          )}
-
-          {tokenActionError && (
-            <InlineErrorBanner
-              message={tokenActionError}
-              onDismiss={() => setTokenActionError('')}
-              dismissLabel={t.settings_token_close}
-            />
-          )}
-          {extTokensError && (
-            <InlineErrorBanner
-              message={extTokensError}
-              retryLabel={t.settings_token_retry}
-              onRetry={loadTokenList}
-            />
           )}
 
           {/* Loading */}

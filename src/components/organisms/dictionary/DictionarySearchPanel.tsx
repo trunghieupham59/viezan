@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Translations } from '../../../i18n'
 import { Button, Textarea } from '../../ui/atoms'
-import { AlertTriangleIcon, BookIcon, ChevronDownIcon, PlusIcon, RefreshIcon } from '../../ui/icons'
+import { BookIcon, ChevronDownIcon, PlusIcon, RefreshIcon } from '../../ui/icons'
 import { FilterInput } from '../../ui/molecules'
 import { LanguagePairBar } from '../LanguagePairBar'
 
@@ -16,7 +16,6 @@ export interface DictionarySearchPanelProps {
   canSubmit: boolean
   /** Tooltip explaining a disabled submit, e.g. no model selected. */
   cannotSubmitReason?: string
-  error: string | null
   maxTermChars: number
   maxContextChars: number
   onSubmit: () => void
@@ -37,7 +36,6 @@ export function DictionarySearchPanel({
   isLoading,
   canSubmit,
   cannotSubmitReason,
-  error,
   maxTermChars,
   maxContextChars,
   onSubmit,
@@ -140,12 +138,6 @@ export function DictionarySearchPanel({
         </div>
       )}
 
-      {error && (
-        <div className="ui-error-box dictionary-inline-error" role="alert">
-          <AlertTriangleIcon className="ui-error-icon" />
-          <span>{error}</span>
-        </div>
-      )}
     </form>
   )
 }
