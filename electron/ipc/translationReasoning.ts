@@ -48,3 +48,17 @@ const GEMINI_LEGACY_OUTPUT_TOKENS = 8_192
 export function getGeminiMaxOutputTokens(model: string): number {
   return /^gemini-(?:2\.5|[3-9](?:\.\d+)?)(?:-|$)/i.test(model.trim()) ? GEMINI_LARGE_OUTPUT_TOKENS : GEMINI_LEGACY_OUTPUT_TOKENS
 }
+
+/** Live translation has a small text-only budget. Sonnet 5+ thinks by default;
+ * 5.5 uses between_tools (without tools, text only), while 5 uses disabled.
+ * https://platform.claude.com/docs/en/models/sonnet-5-5/migration-guide
+ */
+export function getClaudeLiveThinkingConfig(model: string) {
+  if (/^claude-sonnet-5-5(?:-|$)/i.test(model)) {
+    return { thinking: { type: 'between_tools' as const }, output_config: { effort: 'low' as const } }
+  }
+  if (/^claude-sonnet-5(?:-\d{8})?$/i.test(model)) {
+    return { thinking: { type: 'disabled' as const }, output_config: { effort: 'low' as const } }
+  }
+  return {}
+}

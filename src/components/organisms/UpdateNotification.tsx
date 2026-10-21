@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { GITHUB_RELEASES_URL } from '../../constants/urls'
-import { useT } from '../../store/useAppStore'
+import { useAppStore, useT } from '../../store/useAppStore'
 import { useUpdaterStore } from '../../store/useUpdaterStore'
 import { trapTabFocus } from '../../utils/focusTrap'
 import { tpl } from '../../utils/tpl'
@@ -9,6 +9,9 @@ import { Button } from '../ui/atoms'
 /** Keeps the updater subscription alive independently of the Settings modal. */
 export function UpdateNotification({ blocked = false }: { blocked?: boolean }) {
   const t = useT()
+  const locale = useAppStore((state) => state.locale)
+  const theme = useAppStore((state) => state.theme)
+  const nativeNotification = !!window.api?.updater?.getNotificationPreferences
   const { status, snoozes, receive, snooze } = useUpdaterStore()
   const [now, setNow] = useState(Date.now)
   const [busy, setBusy] = useState(false)
@@ -21,10 +24,28 @@ export function UpdateNotification({ blocked = false }: { blocked?: boolean }) {
   const version = status.version
   const until = version ? snoozes[version] ?? 0 : 0
   const actionable = status.type === 'available' || status.type === 'downloading' || status.type === 'downloaded'
-  const open = actionable && !!version && until <= now && !blocked && visible
+  const open = !nativeNotification && actionable && !!version && until <= now && !blocked && visible
   const dismiss = useCallback(() => {
     if (version) snooze(version)
   }, [version, snooze])
+
+  useEffect(() => {
+    void window.api?.updater?.setNotificationPreferences?.({ locale, theme }).catch(() => undefined)
+  }, [locale, theme])
+
+  useEffect(() => {
+    const api = window.api?.updater
+    const open = async () => {
+      try {
+        if (await api?.consumeOpenSettings?.()) {
+          useAppStore.setState({ settingsOpen: true, settingsInitialSection: 'updates' })
+        }
+      } catch { /* A later notification can retry when main is available. */ }
+    }
+    const unsubscribe = api?.onOpenSettings?.(() => void open())
+    void open()
+    return () => unsubscribe?.()
+  }, [])
 
   useEffect(() => {
     const api = window.api?.updater

@@ -106,6 +106,38 @@ describe('dedicated live translation profiles', () => {
     expect(onUsage).toHaveBeenCalledWith({ inputTokens: 30, outputTokens: 30, totalTokens: 60, estimated: false })
   })
 
+  it.each([
+    ['claude-sonnet-5-5', 'between_tools'],
+    ['claude-sonnet-5', 'disabled'],
+  ])('keeps %s live requests within a text-only budget', async (model, type) => {
+    claudeCreate.mockResolvedValue(claudeReply([{ type: 'text', text: 'こんにちは。' }]))
+    await expect(translateWithClaude('k', model, ...args, { live: { context: '' } })).resolves.toBe('こんにちは。')
+    expect(claudeCreate.mock.calls[0][0]).toMatchObject({ thinking: { type }, output_config: { effort: 'low' }, max_tokens: 96 })
+    await translateWithClaude('k', model, ...args)
+    expect(claudeCreate.mock.calls[1][0].thinking?.type).not.toBe(type)
+  })
+
+  it('separates Japanese live directions from speech in every provider request', async () => {
+    const source = 'Hôm nay chúng ta kiểm tra giao diện phiên dịch song song.'
+    const jaArgs = [source, 'vi', 'ja', false, 'general', false, 'off', 'auto'] as const
+    const options = { live: { context: '' } }
+    claudeCreate.mockResolvedValue(claudeReply([{ type: 'text', text: '今日は確認します。' }]))
+    openAiCreate.mockResolvedValue(openAiReply('今日は確認します。'))
+    geminiGenerate.mockResolvedValue(geminiReply('今日は確認します。'))
+    await translateWithClaude('k', 'claude-sonnet-5-5', ...jaArgs, options)
+    expect(claudeCreate.mock.calls[0][0].messages[0].content).toBe(source)
+    expect(claudeCreate.mock.calls[0][0].system).toContain('Omit unnecessary pronouns.')
+    await translateWithOpenAI('k', 'gpt-4o-mini', ...jaArgs, options)
+    await translateWithLocal('', 'gemma3:4b', ...jaArgs, options)
+    for (const [body] of openAiCreate.mock.calls) {
+      expect(body.messages[1].content).toBe(source)
+      expect(body.messages[0].content).toContain('Omit unnecessary pronouns.')
+    }
+    await translateWithGemini('k', 'gemini-2.5-flash', ...jaArgs, options)
+    expect(geminiModelParams.mock.calls[0][0].systemInstruction).toContain('Omit unnecessary pronouns.')
+    expect(geminiGenerate.mock.calls[0][0]).toBe(source)
+  })
+
   it('never exposes structured Gemini thought parts even with the older SDK', async () => {
     geminiGenerate.mockResolvedValue({ response: {
       text: () => '思考中。こんにちは。',

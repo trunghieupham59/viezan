@@ -16,10 +16,27 @@ beforeEach(() => {
   window.api.updater.install = vi.fn().mockResolvedValue({ success: true })
   window.api.updater.openDownload = vi.fn().mockResolvedValue({ success: true })
 })
-afterEach(() => { cleanup(); vi.useRealTimers() })
+afterEach(() => {
+  cleanup(); vi.useRealTimers()
+  delete window.api.updater.getNotificationPreferences
+  delete window.api.updater.setNotificationPreferences
+  delete window.api.updater.consumeOpenSettings
+  delete window.api.updater.onOpenSettings
+})
 const available = (version = '3.0.0') => act(() => emit({ type: 'available', version, background: true }))
 
 describe('update notification', () => {
+  it('uses the native popup without an in-app duplicate and restores a pending Settings request', async () => {
+    window.api.updater.getNotificationPreferences = vi.fn().mockResolvedValue({ enabled: true, locale: 'en', theme: 'system' })
+    window.api.updater.setNotificationPreferences = vi.fn().mockResolvedValue({ enabled: true, locale: 'en', theme: 'system' })
+    window.api.updater.consumeOpenSettings = vi.fn().mockResolvedValueOnce(true).mockResolvedValue(false)
+    await act(async () => { render(<UpdateNotification />) })
+    available()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(useAppStore.getState().settingsOpen).toBe(true)
+    expect(useAppStore.getState().settingsInitialSection).toBe('updates')
+    expect(window.api.updater.setNotificationPreferences).toHaveBeenCalledWith(expect.objectContaining({ locale: 'en' }))
+  })
   it('does not download or install until clicked, opens version-specific changes', async () => {
     render(<UpdateNotification />)
     available()

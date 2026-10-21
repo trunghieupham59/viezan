@@ -33,6 +33,19 @@
   margin-bottom: var(--vzn-space-2);
 }
 
+/* Compact windows need a viewport-bounded dialog rather than an anchor that
+   can leave too little room above or below the trigger. */
+@media (max-width: 720px), (max-height: 600px) {
+  .ai-configuration-popover {
+    top: calc(var(--vzn-titlebar-height) + var(--vzn-space-3));
+    bottom: auto;
+    left: 50%;
+    max-height: calc(100dvh - var(--vzn-titlebar-height) - var(--vzn-space-6));
+    margin: 0;
+    transform: translateX(-50%);
+  }
+}
+
 .ai-configuration-popover__header {
   display: flex;
   flex: 0 0 auto;
@@ -163,6 +176,21 @@
 .live-panels-body {
   display: flex; flex: 1 1 0%; min-height: 0; flex-direction: column; overflow: hidden;
   padding: var(--vzn-space-3); gap: var(--vzn-space-2);
+}
+
+@container app-main (max-width: 899px) {
+  .live-panels-body { overflow-y: auto; }
+  .live-panels-body > .app-panel-grid {
+    flex: 0 0 auto;
+    grid-template-columns: minmax(0, 1fr);
+    /* Bound each stacked panel so its transcript retains its own scroll area. */
+    grid-template-rows: repeat(2, var(--vzn-live-panel-min-block));
+  }
+  .live-paired-panel > .live-panel-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .live-paired-panel .live-toolbar-end { margin-inline-start: 0; }
 }
 
 .live-transcript-actions {
@@ -599,4 +627,23 @@
 .ai-subtitle-config__footer {
   display: flex;
   justify-content: flex-end;
+}
+
+.live-panels-body > .live-notification-viewport {
+  position: static;
+  width: 100%;
+  flex: 0 0 auto;
+}
+.live-notification-viewport .notification-toast { max-width: none; }
+
+/* The paired transcript owns scrolling; its controls stay outside that viewport. */
+.live-panels-body[data-view-mode="paired"] { overflow: hidden; }
+.live-paired-panel { flex: 1 1 0%; }
+.live-control-label {
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+}
+.live-subtitle-control {
+  border-inline-start: var(--vzn-border-width) solid var(--vzn-divider);
+  padding-inline-start: var(--vzn-space-2);
 }

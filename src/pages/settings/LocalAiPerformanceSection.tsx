@@ -95,8 +95,8 @@ export function LocalAiPerformanceSection({ models }: { models: Array<{ id: stri
                   {[...new Set(result.runnerRecoveryErrors)].map(message => <p key={message}>{message}</p>)}
                 </details>}
               </th>
-              <td className="p-2">{result.status === 'ok' ? `${result.tokensPerSecond} tok/s` : '—'}</td>
-              <td className="p-2">{result.status === 'ok' ? `${result.firstTokenMs} ms` : '—'}</td>
+              <td className="p-2">{result.status === 'ok' ? `${result.tokensPerSecond} tok/s` : '-'}</td>
+              <td className="p-2">{result.status === 'ok' ? `${result.firstTokenMs} ms` : '-'}</td>
               <td className="p-2">{result.status === 'ok' ? `${((result.vramBytes ?? 0) / 1024 ** 3).toFixed(2)} / ${((result.modelRamBytes ?? 0) / 1024 ** 3).toFixed(2)} GB`
                 : <>{t.settings_local_perf_failed}<details><summary>{t.settings_local_perf_details}</summary>{result.error}</details></>}</td>
             </tr>)}</tbody>

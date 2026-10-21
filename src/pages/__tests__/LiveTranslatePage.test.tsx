@@ -79,7 +79,7 @@ describe('AI Interpret screen', () => {
     expect(screen.getByText(t.live_no_translate_key, { exact: false })).toBeInTheDocument()
   })
 
-  it('shows a missing speech-recognition key as a dismissible top-right notification', () => {
+  it('shows a missing speech-recognition key as a dismissible in-flow notification', () => {
     const openSettings = vi.fn()
     useAppStore.setState({ openSettings })
     live.state = liveState({ hasSttKey: false })
@@ -145,7 +145,8 @@ describe('AI Interpret screen', () => {
     render(<LiveTranslatePage />)
     expect(screen.getByRole('meter', { name: t.live_input_level })).toHaveAttribute('value', '0.5')
     expect(screen.getByText('1:05')).toBeInTheDocument()
-    expect(screen.getByText(t.live_status_listening_system)).toBeInTheDocument()
+    expect(screen.getAllByText(t.live_status_listening_system)).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: t.live_start })).not.toBeInTheDocument()
   })
 
   it('pairs each original with its translation and remembers the layout', () => {

@@ -1526,8 +1526,9 @@
   }
 
   .translate-workbench {
+    flex: 0 0 auto;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(18rem, auto) minmax(10rem, auto);
+    grid-template-rows: minmax(var(--vzn-translate-source-min-block), auto) minmax(var(--vzn-translate-result-min-block), auto);
   }
 
   .translate-source-pane {
@@ -1547,7 +1548,7 @@
   }
 
   .translate-pane-body {
-    min-height: 10rem;
+    min-height: var(--vzn-translate-body-min-block);
   }
 
   .translate-comparison-body {

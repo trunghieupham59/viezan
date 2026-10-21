@@ -90,6 +90,24 @@ try {
   if (output) await page.screenshot({ path: path.join(output, 'update-ready.png') })
   await page.keyboard.press('Escape')
   assert(await page.getByRole('dialog').count() === 0, 'Escape did not snooze popup')
+  // Native mode keeps status in Settings and suppresses the renderer modal.
+  await page.evaluate(async () => {
+    const { useAppStore } = await import('/src/store/useAppStore.ts')
+    const { useUpdaterStore } = await import('/src/store/useUpdaterStore.ts')
+    let preferences = { enabled: true, locale: 'en', theme: 'light' }
+    window.api.updater.getNotificationPreferences = async () => preferences
+    window.api.updater.setNotificationPreferences = async patch => (preferences = { ...preferences, ...patch })
+    useAppStore.setState({ settingsOpen: true, settingsInitialSection: 'updates' })
+    useUpdaterStore.getState().receive({ type: 'available', version: '3.2.0' })
+  })
+  const notificationToggle = page.getByRole('switch', { name: 'Floating update notifications' })
+  await notificationToggle.waitFor()
+  assert(await page.locator('.update-notification').count() === 0, 'Native mode duplicated the popup in the renderer')
+  await notificationToggle.click()
+  assert(await notificationToggle.getAttribute('aria-checked') === 'false', 'Notification preference was not disabled')
+  await notificationToggle.click()
+  assert(await notificationToggle.getAttribute('aria-checked') === 'true', 'Notification preference was not enabled')
+  if (output) await page.screenshot({ path: path.join(output, 'update-settings-toggle.png') })
   assert(errors.length === 0, `Browser errors: ${errors.join('; ')}`)
   console.log('Update popup QA passed: 12 width/theme/locale combinations, progress, ready, Escape, snooze across reload; native actions simulated.')
 } finally {

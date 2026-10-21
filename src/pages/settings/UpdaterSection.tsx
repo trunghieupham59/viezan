@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button } from '@/components/ui/atoms'
+import { Button, ToggleSwitch } from '@/components/ui/atoms'
 import { CheckUpdateButton } from '../../components/ui/CheckUpdateButton'
 import { AlertTriangleIcon, CheckCircleIcon, CheckIcon, DownloadIcon, SpinnerIcon } from '../../components/ui/icons'
 import { useT } from '../../store/useAppStore'
@@ -11,6 +11,28 @@ export function UpdaterSection() {
   const updaterStatus = useUpdaterStore((state) => state.status)
   const setUpdaterStatus = useUpdaterStore((state) => state.receive)
   const [appVersion, setAppVersion] = useState('')
+  const [notifications, setNotifications] = useState<boolean | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [preferenceError, setPreferenceError] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    void window.api?.updater?.getNotificationPreferences?.().then((preferences) => {
+      if (active && preferences) setNotifications(preferences.enabled)
+    }).catch(() => { if (active) setPreferenceError(true) })
+    return () => { active = false }
+  }, [])
+
+  const toggleNotifications = async (enabled: boolean) => {
+    setSaving(true)
+    setPreferenceError(false)
+    try {
+      const result = await window.api?.updater?.setNotificationPreferences?.({ enabled })
+      if (result) setNotifications(result.enabled)
+      else setPreferenceError(true)
+    } catch { setPreferenceError(true) }
+    finally { setSaving(false) }
+  }
 
   useEffect(() => {
     if (!window.api?.updater) return
@@ -43,13 +65,23 @@ export function UpdaterSection() {
       </div>
 
       <div className="card divide-y divide-gray-100 dark:divide-gray-700">
+        {notifications !== null && (
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium">{t.update_popup_enabled}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t.update_popup_enabled_description}</p>
+            </div>
+            <ToggleSwitch checked={notifications} disabled={saving} onChange={(enabled) => void toggleNotifications(enabled)} aria-label={t.update_popup_enabled} />
+          </div>
+        )}
+        {preferenceError && <p role="alert" className="px-4 py-3 text-sm">{t.update_notification_action_error}</p>}
 
         {/* Current version + Check button */}
         <div className="flex items-center justify-between gap-4 px-4 py-3.5">
           <div className="min-w-0">
             <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_update_current_version}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-mono">
-              v{appVersion || window.api?.version || '—'}
+              v{appVersion || window.api?.version || '-'}
             </p>
           </div>
           <CheckUpdateButton
@@ -63,6 +95,9 @@ export function UpdaterSection() {
         {/* Status row — shown when not idle or checking */}
         {updaterStatus.type !== 'idle' && updaterStatus.type !== 'checking' && (
           <div className="px-4 py-3 space-y-2">
+            {updaterStatus.error && updaterStatus.type !== 'error' && (
+              <p role="alert" className="ui-error-text text-xs">{t.update_notification_action_error}</p>
+            )}
 
             {/* Update available */}
             {updaterStatus.type === 'available' && (

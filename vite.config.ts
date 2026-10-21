@@ -18,6 +18,7 @@ export default defineConfig({
       input: {
         main: path.resolve(__dirname, 'index.html'),
         quickChat: path.resolve(__dirname, 'quick-chat.html'),
+        updateNotification: path.resolve(__dirname, 'update-notification.html'),
       },
       output: {
         manualChunks: (id) => {

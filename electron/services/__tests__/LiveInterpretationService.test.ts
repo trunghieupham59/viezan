@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LiveAssemblyRequest, LiveAssemblyUpdate, LiveTranslationRequest } from '../../../shared/liveInterpretation'
-import { buildLivePrompt, LIVE_SYSTEM_PROMPT, liveOutputBudget } from '../../ipc/liveTranslationPolicy'
+import { buildLivePrompt, buildLiveSystemPrompt, liveOutputBudget } from '../../ipc/liveTranslationPolicy'
 import { buildPrompt, SYSTEM_PROMPT } from '../../ipc/translatePrompts'
 import { LiveInterpretationService } from '../LiveInterpretationService'
 
@@ -251,7 +251,7 @@ describe('LiveInterpretationService', () => {
 
   it('uses a substantially shorter bounded prompt without losing source data', () => {
     const source = 'Của chị đây!'
-    const live = LIVE_SYSTEM_PROMPT + buildLivePrompt(source, 'vi', 'ja', '')
+    const live = buildLiveSystemPrompt('vi', 'ja', source) + buildLivePrompt(source, 'vi', 'ja', '')
     const old = SYSTEM_PROMPT + buildPrompt(source, 'vi', 'ja', false, 'general', false, 'off')
     expect(live.length).toBeLessThan(old.length / 3)
     expect(live).toContain(source)

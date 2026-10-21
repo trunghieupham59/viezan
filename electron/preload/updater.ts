@@ -2,10 +2,18 @@
  * Auto-updater preload API — check, download, and install app updates.
  */
 import { ipcRenderer } from 'electron'
+import type { UpdateNotificationPreferences } from '../../shared/updateNotification'
 import type { UpdateStatus } from '../../shared/updater'
 
 export const updaterSection = {
   updater: {
+    consumeOpenSettings: () => ipcRenderer.invoke('updater:consumeOpenSettings') as Promise<boolean>,
+    getNotificationPreferences: () => ipcRenderer.invoke('updater:notificationPreferences') as Promise<UpdateNotificationPreferences | null>,
+    setNotificationPreferences: (patch: Partial<UpdateNotificationPreferences>) => ipcRenderer.invoke('updater:setNotificationPreferences', patch) as Promise<UpdateNotificationPreferences | null>,
+    onOpenSettings: (callback: () => void) => {
+      ipcRenderer.on('updater:openSettings', callback)
+      return () => ipcRenderer.removeListener('updater:openSettings', callback)
+    },
     getStatus: () => ipcRenderer.invoke('updater:getStatus') as Promise<UpdateStatus | null>,
     /** Trigger a check for updates. Status is pushed via onStatus(). */
     check: () =>

@@ -71,7 +71,7 @@ export const translateWithGemini: TranslateFn = async (
   }
   const genModel = genAI.getGenerativeModel({
     model,
-    systemInstruction: options.live ? buildLiveSystemPrompt(sourceLang, targetLang) : SYSTEM_PROMPT,
+    systemInstruction: options.live ? buildLiveSystemPrompt(sourceLang, targetLang, sourceText, options.live.context) : SYSTEM_PROMPT,
     // The legacy SDK forwards generationConfig verbatim but predates this API field in its types.
     generationConfig: generationConfig as never,
   })

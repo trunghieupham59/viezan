@@ -195,6 +195,8 @@
 }
 
 .dictionary-context-field {
+  max-block-size: var(--vzn-dictionary-context-max-block);
+  overflow-y: auto;
   font-size: var(--vzn-font-size-lg);
 }
 
@@ -558,5 +560,16 @@
   .dictionary-submit-spinner,
   .dictionary-fade-in {
     animation: none;
+  }
+}
+
+/* Short windows scroll the workbench instead of squeezing results below the form. */
+@media (max-height: 600px) {
+  .dictionary-workbench { overflow-y: auto; }
+  .dictionary-workbench > .page-section-header { flex-shrink: 0; }
+  .dictionary-workbench-content {
+    flex: 0 0 auto;
+    min-block-size: var(--vzn-dictionary-pane-min-block);
+    overflow: visible;
   }
 }

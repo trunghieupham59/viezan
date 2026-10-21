@@ -883,6 +883,17 @@ export interface Translations {
 
   // Settings — Updates
   settings_update_section: string
+  update_popup_download: string
+  update_popup_title: string
+  update_popup_ready_title: string
+  update_popup_version: string
+  update_popup_description: string
+  update_popup_ready_description: string
+  update_popup_enabled: string
+  update_popup_enabled_description: string
+  update_popup_view: string
+  update_popup_later: string
+  update_popup_close: string
   update_notification_description: string
   update_notification_later: string
   update_notification_release_notes: string

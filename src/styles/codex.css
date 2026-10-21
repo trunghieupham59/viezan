@@ -1474,6 +1474,15 @@ html.dark .toolbar-pill-button {
 
 .settings-scroll-viewport {
   background: var(--vzn-bg);
+  container: settings-content / inline-size;
+}
+
+@container settings-content (max-width: 520px) {
+  .settings-choice-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--vzn-space-2);
+  }
 }
 
 /* Quick chat ------------------------------------------------------------ */

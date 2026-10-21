@@ -4,7 +4,7 @@ import { buildLivePrompt, buildLiveSystemPrompt, liveOutputBudget } from './live
 import { buildPrompt, buildRewritePrompt, REWRITE_SYSTEM_PROMPT, SYSTEM_PROMPT } from './translatePrompts'
 import { finalizeProviderText, joinClaudeText, nonEmptyProviderText } from './translateProviderOutput'
 import type { DetectFn, RewriteFn, StreamFn, TranslateFn, TranslateRequestOptions, VerifyFn } from './translateProviderTypes'
-import { getClaudeReasoningConfig } from './translationReasoning'
+import { getClaudeLiveThinkingConfig, getClaudeReasoningConfig } from './translationReasoning'
 
 /** Single retry layer: `withRetry` handles transient failures, so the SDK must not retry on its own. */
 const CLIENT_OPTIONS = { maxRetries: 0 } as const
@@ -38,9 +38,9 @@ export const translateWithClaude: TranslateFn = async (
     {
       model,
       max_tokens: clampMaxOutputTokens('claude', model, options.live ? liveOutputBudget(sourceText) : MAX_OUTPUT_TOKENS_CLAUDE),
-      system: options.live ? buildLiveSystemPrompt(sourceLang, targetLang) : SYSTEM_PROMPT,
+      system: options.live ? buildLiveSystemPrompt(sourceLang, targetLang, sourceText, options.live.context) : SYSTEM_PROMPT,
       messages: [{ role: 'user', content: options.live ? buildLivePrompt(sourceText, sourceLang, targetLang, options.live.context) : buildPrompt(sourceText, sourceLang, targetLang, showFurigana, style, phoneticOnly, phoneticMode) }],
-      ...(options.live ? {} : getClaudeReasoningConfig(model, reasoningEffort)),
+      ...(options.live ? getClaudeLiveThinkingConfig(model) : getClaudeReasoningConfig(model, reasoningEffort)),
     },
     requestOptions(options),
   )

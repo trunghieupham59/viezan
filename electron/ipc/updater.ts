@@ -556,6 +556,7 @@ interface DownloadedInstaller {
 export function registerUpdaterHandlers(
   ipc: IpcMain,
   getMainWindow: () => BrowserWindow | null,
+  notify?: (status: UpdateStatus) => void,
 ) {
   const isDev = !app.isPackaged
 
@@ -574,6 +575,7 @@ export function registerUpdaterHandlers(
 
   let backgroundCheck = false
   let lastStatus: UpdateStatus | null = null
+  let installInFlight: Promise<{ success: boolean; error?: string }> | null = null
   const push = (payload: UpdaterStatus) => {
     // Never log upstream messages or download URLs: they may carry credentials.
     if (payload.type !== 'downloading') {
@@ -585,9 +587,16 @@ export function registerUpdaterHandlers(
       ...(backgroundCheck ? { background: true } : {}),
     }
     if (!(backgroundCheck && (payload.type === 'checking' || payload.type === 'error' || payload.type === 'error-codesign'))) {
-      lastStatus = next
+      if ((payload.type === 'error' || payload.type === 'error-codesign') && lastStatus &&
+        ['available', 'downloading', 'downloaded'].includes(lastStatus.type)) {
+        // A reloaded main renderer must recover the same retry/install state as
+        // the popup, including the version needed by subsequent progress events.
+        lastStatus = { ...lastStatus, type: lastStatus.type === 'downloaded' ? 'downloaded' : 'available',
+          error: payload.type === 'error' ? payload.error : 'Code signature verification failed' }
+      } else lastStatus = next
     }
     const win = getMainWindow()
+    try { notify?.(next) } catch { console.warn('[updater] Could not show update notification') }
     if (win && !win.isDestroyed()) {
       win.webContents.send('updater:status', next)
     }
@@ -644,7 +653,12 @@ export function registerUpdaterHandlers(
     push({ type: 'downloaded', version: info.version })
   )
 
-  autoUpdater.on('error', (err) => reportUpdaterError(err))
+  autoUpdater.on('error', (err) => {
+    // quitAndInstall reports some launch failures through this event instead
+    // of throwing. Release the shared dispatch guard so an explicit retry works.
+    installInFlight = null
+    reportUpdaterError(err)
+  })
 
   // ── macOS download (single in-flight) ───────────────────────────────────
   type MacDownloadResult = {
@@ -781,12 +795,13 @@ export function registerUpdaterHandlers(
   }
 
   let checkInFlight: Promise<{ success: boolean; error?: string }> | null = null
+  let downloadInFlight: Promise<{ success: boolean; error?: string }> | null = null
   const check = (background = false) => {
     if (checkInFlight) {
       if (!background) backgroundCheck = false
       return checkInFlight
     }
-    if (lastStatus?.type === 'downloading' || lastStatus?.type === 'downloaded') {
+    if (downloadInFlight || lastStatus?.type === 'downloading' || lastStatus?.type === 'downloaded') {
       return Promise.resolve({ success: true })
     }
     backgroundCheck = background
@@ -803,8 +818,7 @@ export function registerUpdaterHandlers(
     app.once('before-quit', stopSchedule)
   }
 
-  ipc.handle('updater:download', async (event) => {
-    if (!isTrusted(event)) return UNTRUSTED
+  const performDownload = async () => {
     if (isDev)          return { success: false, error: 'Not available in development mode' }
     if (checkInFlight) await checkInFlight
     if (useMacFallback) {
@@ -825,10 +839,16 @@ export function registerUpdaterHandlers(
       const msg = err instanceof Error ? err.message : String(err)
       return { success: false, error: msg }
     }
-  })
+  }
+  const download = () => {
+    if (!downloadInFlight) {
+      downloadInFlight = performDownload().finally(() => { downloadInFlight = null })
+    }
+    return downloadInFlight
+  }
+  ipc.handle('updater:download', (event) => isTrusted(event) ? download() : UNTRUSTED)
 
-  ipc.handle('updater:install', async (event, requestedPath?: unknown) => {
-    if (!isTrusted(event)) return UNTRUSTED
+  const performInstall = async (requestedPath?: unknown) => {
     if (isDev)          return { success: false, error: 'Not available in development mode' }
     if (useMacFallback) {
       const installer = await resolveDownloadedInstaller(requestedPath)
@@ -845,9 +865,26 @@ export function registerUpdaterHandlers(
     // Silent: without /S the NSIS installer opens its full wizard during an
     // in-app update. Run it unattended (scope/dir stay as already installed)
     // and relaunch the app when it finishes.
+    if (downloadInFlight || lastStatus?.type !== 'downloaded') {
+      return { success: false, error: 'No downloaded update is ready to install' }
+    }
+    beginOperation()
     autoUpdater.quitAndInstall(true, true)
+    if (errorReported) return { success: false, error: 'Could not start the update installer' }
     return { success: true }
-  })
+  }
+  const install = (requestedPath?: unknown) => {
+    // A successful dispatch is terminal: share it until the app quits. Failed
+    // dispatches release the guard so the user can explicitly retry.
+    if (!installInFlight) {
+      installInFlight = performInstall(requestedPath).then((result) => {
+        if (!result.success) installInFlight = null
+        return result
+      }, (error: unknown) => { installInFlight = null; throw error })
+    }
+    return installInFlight
+  }
+  ipc.handle('updater:install', (event, requestedPath?: unknown) => isTrusted(event) ? install(requestedPath) : UNTRUSTED)
 
   ipc.handle('updater:openInstaller', async (event) => {
     if (!isTrusted(event)) return UNTRUSTED
@@ -885,4 +922,5 @@ export function registerUpdaterHandlers(
       return { success: false, error: msg }
     }
   })
+  return { download, install }
 }

@@ -139,7 +139,7 @@ export class LiveInterpretationService {
                 signal,
               )
               if (!reported) {
-                const estimate = estimateLiveUsage(buildLiveSystemPrompt(request.sourceLang, request.targetLang) + buildLivePrompt(providerRequest.sourceText, request.sourceLang, request.targetLang, context), output)
+                const estimate = estimateLiveUsage(buildLiveSystemPrompt(request.sourceLang, request.targetLang, providerRequest.sourceText, context) + buildLivePrompt(providerRequest.sourceText, request.sourceLang, request.targetLang, context), output)
                 usage = { inputTokens: usage.inputTokens + estimate.inputTokens, outputTokens: usage.outputTokens + estimate.outputTokens, totalTokens: usage.totalTokens + estimate.totalTokens, estimated: true }
               }
               const translated = conditional

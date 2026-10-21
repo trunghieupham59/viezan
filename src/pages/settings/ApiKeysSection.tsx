@@ -152,7 +152,7 @@ function LocalAiProviderCard({
             <p className="text-gray-400">GPU</p>
             <p className="font-medium text-gray-700 dark:text-gray-200" data-testid="local-ai-gpu">
               {hardware.vramGb === undefined
-                ? '—'
+                ? '-'
                 : hardware.vramGb > 0
                   ? `${hardware.gpuName ? `${hardware.gpuName} · ` : ''}${hardware.vramGb} GB`
                   : t.settings_local_ai_gpu_none}

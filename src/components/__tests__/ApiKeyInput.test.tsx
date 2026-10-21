@@ -42,7 +42,7 @@ describe('ApiKeyInput verification outcomes', () => {
   it.each([
     ['BILLING', 'Key verified and saved, but provider billing requires attention.'],
     ['PERMISSION', 'Key verified and saved, but it does not have permission to list or use models.'],
-    ['RATE_LIMIT', 'Rate limited, but key looks valid — saved to Keychain.'],
+    ['RATE_LIMIT', 'Rate limited, but key looks valid. Saved to Keychain.'],
   ])('saves an authenticated key when verification returns %s', async (errorCode, message) => {
     vi.mocked(window.api.verifyKey).mockResolvedValue({ success: false, errorCode, valid: true })
     const onSave = renderClaudeInput()
@@ -65,7 +65,7 @@ describe('ApiKeyInput verification outcomes', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Verify' }))
 
-    expect(await screen.findByText('Invalid API key — please check and try again.')).toBeInTheDocument()
+    expect(await screen.findByText('Invalid API key. Please check and try again.')).toBeInTheDocument()
     expect(onSave).not.toHaveBeenCalled()
   })
 
