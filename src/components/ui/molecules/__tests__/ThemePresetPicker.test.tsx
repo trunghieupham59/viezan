@@ -3,40 +3,63 @@ import { describe, expect, it, vi } from 'vitest'
 import { ThemePresetPicker } from '../ThemePresetPicker'
 
 const options = [
-  { value: 'graphite', label: 'Graphite', description: 'Quiet and compact' },
-  { value: 'glass', label: 'Glass', description: 'Translucent glass' },
+  { value: 'graphite', label: 'Graphite' },
+  { value: 'glass', label: 'Glass' },
+  { value: 'midnight', label: 'Midnight', badge: 'Always dark' },
 ]
 
 describe('ThemePresetPicker', () => {
-  it('renders a labelled group of pressable cards that preview their own persona', () => {
-    const { container } = render(<ThemePresetPicker label="Style" value="glass" options={options} onChange={() => {}} />)
+  it('renders one radio group whose tiles paint their own style', () => {
+    render(<ThemePresetPicker label="Style" value="glass" options={options} onChange={() => {}} />)
 
-    expect(screen.getByRole('group', { name: 'Style' })).toBeInTheDocument()
-    const graphite = screen.getByRole('button', { name: /Graphite/ })
-    const glass = screen.getByRole('button', { name: /Glass/ })
-    expect(glass).toHaveAttribute('aria-pressed', 'true')
-    expect(glass).toHaveAttribute('data-selected', 'true')
-    expect(glass).toHaveAttribute('data-control-variant', 'primary')
+    expect(screen.getByRole('radiogroup', { name: 'Style' })).toBeInTheDocument()
+    const radios = screen.getAllByRole('radio')
+    expect(radios).toHaveLength(3)
+    const glass = screen.getByRole('radio', { name: /Glass/ })
+    expect(glass).toHaveAttribute('aria-checked', 'true')
+    expect(glass).toHaveAttribute('tabindex', '0')
     expect(glass).toHaveAttribute('data-theme', 'glass')
-    expect(graphite).toHaveAttribute('aria-pressed', 'false')
+    expect(glass).toHaveAttribute('data-selected', 'true')
+    const graphite = screen.getByRole('radio', { name: /Graphite/ })
+    expect(graphite).toHaveAttribute('aria-checked', 'false')
+    expect(graphite).toHaveAttribute('tabindex', '-1')
     expect(graphite).not.toHaveAttribute('data-selected')
-    expect(graphite).toHaveAttribute('data-control-variant', 'neutral')
-    expect(graphite).toHaveAttribute('data-theme', 'graphite')
-    expect(screen.getByText('Translucent glass')).toBeInTheDocument()
-    // The miniature window is decorative: one per card, hidden from AT, with
-    // the persona's chrome, reading type sample and accent action inside.
-    const swatches = container.querySelectorAll('.theme-preset-swatch[aria-hidden="true"]')
-    expect(swatches).toHaveLength(2)
-    expect(swatches[0].querySelector('.theme-preset-swatch-nav-active')).not.toBeNull()
-    expect(swatches[0].querySelector('.theme-preset-swatch-type')).toHaveTextContent('Aa')
-    expect(swatches[0].querySelector('.theme-preset-swatch-action')).not.toBeNull()
+    expect(screen.getByText('Always dark')).toBeInTheDocument()
   })
 
-  it('reports the chosen preset', () => {
+  it('selects on click and moves the selection with arrow, Home and End keys', () => {
     const onChange = vi.fn()
     render(<ThemePresetPicker label="Style" value="graphite" options={options} onChange={onChange} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /Glass/ }))
-    expect(onChange).toHaveBeenCalledWith('glass')
+    fireEvent.click(screen.getByRole('radio', { name: /Midnight/ }))
+    expect(onChange).toHaveBeenLastCalledWith('midnight')
+
+    const graphite = screen.getByRole('radio', { name: /Graphite/ })
+    graphite.focus()
+    fireEvent.keyDown(graphite, { key: 'ArrowRight' })
+    expect(onChange).toHaveBeenLastCalledWith('glass')
+    expect(screen.getByRole('radio', { name: /Glass/ })).toHaveFocus()
+
+    fireEvent.keyDown(graphite, { key: 'ArrowLeft' })
+    expect(onChange).toHaveBeenLastCalledWith('midnight')
+    fireEvent.keyDown(graphite, { key: 'End' })
+    expect(onChange).toHaveBeenLastCalledWith('midnight')
+    fireEvent.keyDown(graphite, { key: 'Home' })
+    expect(onChange).toHaveBeenLastCalledWith('graphite')
+  })
+
+  it('previews the tile under the pointer or focus and clears when it leaves', () => {
+    const onPreview = vi.fn()
+    render(<ThemePresetPicker label="Style" value="graphite" options={options} onChange={() => {}} onPreview={onPreview} />)
+
+    const glass = screen.getByRole('radio', { name: /Glass/ })
+    fireEvent.mouseEnter(glass)
+    expect(onPreview).toHaveBeenLastCalledWith('glass')
+    fireEvent.mouseLeave(glass)
+    expect(onPreview).toHaveBeenLastCalledWith(null)
+    fireEvent.focus(glass)
+    expect(onPreview).toHaveBeenLastCalledWith('glass')
+    fireEvent.blur(glass)
+    expect(onPreview).toHaveBeenLastCalledWith(null)
   })
 })

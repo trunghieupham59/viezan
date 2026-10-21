@@ -84,3 +84,15 @@ export function StopSquareIcon({ className = 'w-3.5 h-3.5' }: IconProps) {
     </svg>
   )
 }
+
+/** Palette icon — appearance and style settings. */
+export function PaletteIcon({ className = 'w-4 h-4' }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3a9 9 0 1 0 0 18h1.2a2 2 0 0 0 1.6-3.2 2 2 0 0 1 1.6-3.2H18a3 3 0 0 0 3-3A8.8 8.8 0 0 0 12 3Z" />
+      <circle cx="7.5" cy="11.5" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="10.5" cy="7.5" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="15.5" cy="7.5" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}

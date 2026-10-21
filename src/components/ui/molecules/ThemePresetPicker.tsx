@@ -1,68 +1,115 @@
+import { type KeyboardEvent, useRef } from 'react'
 import { Button } from '../atoms/Button'
+import { CheckIcon } from '../icons'
 import '../../../styles/molecules.css'
 
 export interface ThemePresetOption<T extends string> {
   value: T
   label: string
-  description?: string
+  /** Short badge on the tile, e.g. "Always dark". */
+  badge?: string
 }
 
 export interface ThemePresetPickerProps<T extends string> {
-  /** Accessible name for the whole group. */
+  /** Accessible name for the radio group. */
   label: string
   value: T
   options: ThemePresetOption<T>[]
   onChange: (value: T) => void
+  /**
+   * Fired with the option under the pointer or keyboard focus, and with null
+   * when it leaves, so a caller can preview a style before committing it.
+   */
+  onPreview?: (value: T | null) => void
 }
 
 /**
- * Palette preset chooser. Each card sets `data-theme` on itself so the
- * miniature window inside it (title bar, primary chrome with an active nav
- * item, canvas, reading type sample, surface card and accent action) is
- * painted by that preset's own tokens, in the current light/dark mode,
- * without a second copy of the design in TypeScript.
+ * Horizontal strip of style tiles behaving as one radio group: arrow keys
+ * move the selection, each tile paints its own swatch through `data-theme`,
+ * and the selected ring uses the window's accent (captured on the strip) so
+ * it reads the same on every tile.
  */
-export function ThemePresetPicker<T extends string>({ label, value, options, onChange }: ThemePresetPickerProps<T>) {
+export function ThemePresetPicker<T extends string>({ label, value, options, onChange, onPreview }: ThemePresetPickerProps<T>) {
+  const tileRefs = useRef<Map<T, HTMLButtonElement>>(new Map())
+
+  const moveTo = (index: number) => {
+    const next = options[(index + options.length) % options.length]
+    if (!next) return
+    onChange(next.value)
+    tileRefs.current.get(next.value)?.focus()
+  }
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        event.preventDefault()
+        moveTo(index + 1)
+        break
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        event.preventDefault()
+        moveTo(index - 1)
+        break
+      case 'Home':
+        event.preventDefault()
+        moveTo(0)
+        break
+      case 'End':
+        event.preventDefault()
+        moveTo(options.length - 1)
+        break
+      default:
+    }
+  }
+
   return (
-    <fieldset className="theme-preset-picker">
-      <legend className="sr-only">{label}</legend>
-      {options.map((option) => {
+    <div className="theme-preset-strip" role="radiogroup" aria-label={label}>
+      {options.map((option, index) => {
         const selected = option.value === value
         return (
           <Button
             key={option.value}
+            ref={(node) => {
+              if (node) tileRefs.current.set(option.value, node)
+              else tileRefs.current.delete(option.value)
+            }}
+            role="radio"
+            aria-checked={selected}
+            tabIndex={selected ? 0 : -1}
             size="lg"
             shape="rect"
-            variant={selected ? 'primary' : 'neutral'}
-            appearance={selected ? 'soft' : 'outline'}
-            className="theme-preset-card"
+            variant="neutral"
+            appearance="outline"
+            className="theme-preset-tile"
             data-theme={option.value}
             data-selected={selected ? 'true' : undefined}
-            aria-pressed={selected}
             onClick={() => onChange(option.value)}
+            onKeyDown={(event) => handleKeyDown(event, index)}
+            onMouseEnter={() => onPreview?.(option.value)}
+            onMouseLeave={() => onPreview?.(null)}
+            onFocus={() => onPreview?.(option.value)}
+            onBlur={() => onPreview?.(null)}
           >
-            <span className="theme-preset-swatch" aria-hidden="true">
-              <span className="theme-preset-swatch-titlebar" />
-              <span className="theme-preset-swatch-chrome">
-                <span className="theme-preset-swatch-nav theme-preset-swatch-nav-active" />
-                <span className="theme-preset-swatch-nav" />
-                <span className="theme-preset-swatch-nav" />
+            <span className="theme-preset-tile-swatch" aria-hidden="true">
+              <span className="theme-preset-tile-chrome">
+                <span className="theme-preset-tile-nav" />
               </span>
-              <span className="theme-preset-swatch-canvas">
-                <span className="theme-preset-swatch-type">Aa</span>
-                <span className="theme-preset-swatch-card">
-                  <span className="theme-preset-swatch-line" />
-                  <span className="theme-preset-swatch-action" />
-                </span>
+              <span className="theme-preset-tile-canvas">
+                <span className="theme-preset-tile-type">Aa</span>
+                <span className="theme-preset-tile-accent" />
               </span>
             </span>
-            <span className="theme-preset-copy">
-              <span className="theme-preset-title">{option.label}</span>
-              {option.description ? <span className="theme-preset-description">{option.description}</span> : null}
-            </span>
+            <span className="theme-preset-tile-name">{option.label}</span>
+            {option.badge ? <span className="theme-preset-tile-badge">{option.badge}</span> : null}
+            {selected ? (
+              <span className="theme-preset-tile-check" aria-hidden="true">
+                <CheckIcon className="h-3 w-3" />
+              </span>
+            ) : null}
           </Button>
         )
       })}
-    </fieldset>
+    </div>
   )
 }

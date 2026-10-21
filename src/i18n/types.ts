@@ -496,12 +496,19 @@ export interface Translations {
   settings_font_size_small: string
   settings_font_size_medium: string
   settings_font_size_large: string
-  settings_theme: string
+  settings_appearance: string
+  settings_appearance_desc: string
+  settings_theme_mode: string
   settings_theme_desc: string
   settings_theme_light: string
   settings_theme_dark: string
   settings_theme_system: string
   settings_theme_dark_only_hint: string
+  settings_theme_dark_only_badge: string
+  settings_theme_preview_label: string
+  settings_theme_preview_assistant: string
+  settings_theme_preview_user: string
+  settings_theme_preview_placeholder: string
   settings_theme_palette: string
   settings_theme_palette_desc: string
   settings_theme_preset_graphite: string

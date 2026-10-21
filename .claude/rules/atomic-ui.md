@@ -34,7 +34,9 @@ paths:
 - Style presets live in `tokens.css` as `[data-theme="<id>"]` blocks (light)
   and `html.dark [data-theme="<id>"], html.dark[data-theme="<id>"]` (dark),
   each with the identical token set (surfaces, accent, chrome, tones, shape,
-  depth, type, backdrop). Never style a preset from TSX. Primary chrome (title
+  depth, type, backdrop). An element may add `data-mode="light|dark"` to pin
+  its own mode (the Settings `ThemePreview` does). Never style a preset from
+  TSX. Primary chrome (title
   bar and primary navigation) reads `--vzn-chrome-*`, not the canvas text
   tokens, so a preset can paint it darker than the workspace. Only `.app-shell`
   and `.app-main` paint backgrounds; `.app-body`, `.app-page` and

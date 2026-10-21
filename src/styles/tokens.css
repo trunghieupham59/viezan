@@ -73,7 +73,8 @@
  * darkest step, the chat sidebar sits between, the page canvas is the
  * lightest, and cards/composer are pure white on top. */
 :root,
-[data-theme="graphite"] {
+[data-theme="graphite"],
+:root [data-theme="graphite"][data-mode="light"] {
   /* Surfaces */
   --vzn-app-bg: #eeeeef;
   --vzn-bg: var(--vzn-neutral-50);
@@ -336,8 +337,11 @@
   --vzn-dialog-md-max-inline: 560px;
   --vzn-dialog-lg-max-inline: 720px;
   --vzn-dictionary-headword-size: var(--vzn-font-size-heading);
-  --vzn-theme-preset-card-min-inline: calc(var(--vzn-space-12) * 3);
-  --vzn-theme-preset-swatch-block: calc(var(--vzn-space-12) + var(--vzn-space-6));
+  --vzn-theme-preview-block: calc(var(--vzn-space-12) * 5);
+  --vzn-theme-preview-sidebar-inline: calc(var(--vzn-space-12) + var(--vzn-space-4));
+  --vzn-theme-preview-bubble-max-inline: calc(var(--vzn-space-12) * 4);
+  --vzn-theme-preset-tile-min-inline: calc(var(--vzn-space-12) * 2);
+  --vzn-theme-preset-tile-swatch-block: var(--vzn-space-10);
   --vzn-dictionary-hint-chip-max: calc(var(--vzn-space-12) * 5);
 
   /* Compatibility aliases ---------------------------------------------- */
@@ -356,7 +360,8 @@ html.dark {
 /* Palette (dark) --------------------------------------------------------- */
 html.dark,
 html.dark [data-theme="graphite"],
-html.dark[data-theme="graphite"] {
+html.dark[data-theme="graphite"],
+:root [data-theme="graphite"][data-mode="dark"] {
   /* Surfaces */
   --vzn-app-bg: #161618;
   --vzn-bg: #1c1c1e;
@@ -484,12 +489,15 @@ html.dark {
  * A preset is a persona, not a repaint: it owns surfaces, accent intensity,
  * primary chrome, shape, depth/material, and reading type. Every preset
  * declares the identical token set for light and dark so an element carrying
- * `data-theme` (the Settings preview card) renders that persona exactly,
- * never inheriting a stray value from the window's palette.
+ * `data-theme` (the Settings preview) renders that persona exactly, never
+ * inheriting a stray value from the window's palette. An element may also
+ * carry `data-mode="light|dark"` to pin its own mode regardless of
+ * `html.dark`, which is how the preview shows a mode before it is applied.
  * This section is generated from a value table; keep blocks in lockstep. */
 
 /* Glass: Liquid Glass look. Translucent surfaces with blur and a light rim, ocean gradient actions; the window material shows through on macOS. */
-[data-theme="glass"] {
+[data-theme="glass"],
+:root [data-theme="glass"][data-mode="light"] {
   /* Surfaces */
   --vzn-app-bg: #f0f2f8;
   --vzn-bg: rgba(248, 249, 253, 0.42);
@@ -592,7 +600,8 @@ html.dark {
 }
 
 html.dark [data-theme="glass"],
-html.dark[data-theme="glass"] {
+html.dark[data-theme="glass"],
+:root [data-theme="glass"][data-mode="dark"] {
   /* Surfaces */
   --vzn-app-bg: #0f1118;
   --vzn-bg: rgba(18, 20, 30, 0.4);
@@ -695,7 +704,8 @@ html.dark[data-theme="glass"] {
 }
 
 /* Paper: translators, writers, scholars. Warm editorial: cream paper, terracotta actions, serif display and reading type. */
-[data-theme="paper"] {
+[data-theme="paper"],
+:root [data-theme="paper"][data-mode="light"] {
   /* Surfaces */
   --vzn-app-bg: #ece5d6;
   --vzn-bg: #f6f1e6;
@@ -800,7 +810,8 @@ html.dark[data-theme="glass"] {
 }
 
 html.dark [data-theme="paper"],
-html.dark[data-theme="paper"] {
+html.dark[data-theme="paper"],
+:root [data-theme="paper"][data-mode="dark"] {
   /* Surfaces */
   --vzn-app-bg: #1a1714;
   --vzn-bg: #211d19;
@@ -905,7 +916,8 @@ html.dark[data-theme="paper"] {
 }
 
 /* Corporate: business and enterprise users. Navy chrome over a crisp white workspace, square geometry, strong borders. */
-[data-theme="corporate"] {
+[data-theme="corporate"],
+:root [data-theme="corporate"][data-mode="light"] {
   /* Surfaces */
   --vzn-app-bg: #f3f4f6;
   --vzn-bg: #f8f9fb;
@@ -1008,7 +1020,8 @@ html.dark[data-theme="paper"] {
 }
 
 html.dark [data-theme="corporate"],
-html.dark[data-theme="corporate"] {
+html.dark[data-theme="corporate"],
+:root [data-theme="corporate"][data-mode="dark"] {
   /* Surfaces */
   --vzn-app-bg: #0b1020;
   --vzn-bg: #111827;
@@ -1111,7 +1124,8 @@ html.dark[data-theme="corporate"] {
 }
 
 /* Midnight: night owls and power users. OLED black with a cyan accent and faint glow; dark in both modes (the app forces dark mode for it). */
-[data-theme="midnight"] {
+[data-theme="midnight"],
+:root [data-theme="midnight"][data-mode="light"] {
   /* Surfaces */
   --vzn-app-bg: #000000;
   --vzn-bg: #050507;
@@ -1214,7 +1228,8 @@ html.dark[data-theme="corporate"] {
 }
 
 html.dark [data-theme="midnight"],
-html.dark[data-theme="midnight"] {
+html.dark[data-theme="midnight"],
+:root [data-theme="midnight"][data-mode="dark"] {
   /* Surfaces */
   --vzn-app-bg: #000000;
   --vzn-bg: #050507;
