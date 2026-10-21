@@ -5,6 +5,9 @@ import type { LauncherIcon } from '../../shared/launcher'
 import type { IndexedLauncherApp } from './launcherApps'
 import { readLauncherIcons } from './launcherIcons'
 
+// Bump whenever extraction output changes (reader, pixel size) so every
+// platform re-reads icons instead of serving stale ones for up to HIT_TTL_MS.
+const CACHE_VERSION = 2
 const MAX_CACHE_BYTES = 16 * 1024 * 1024
 const MAX_ENTRIES = 4096
 const HIT_TTL_MS = 24 * 60 * 60 * 1000
@@ -60,7 +63,7 @@ export class LauncherIconCache {
         await handle.close()
       }
       const data = JSON.parse(Buffer.concat(chunks).toString('utf8'))
-      if (data.version !== 1 || !Array.isArray(data.icons) || data.icons.length > MAX_ENTRIES) return new Map()
+      if (data.version !== CACHE_VERSION || !Array.isArray(data.icons) || data.icons.length > MAX_ENTRIES) return new Map()
       return new Map(data.icons.filter((row: SavedIcon) => row
         && /^[a-f0-9]{64}$/.test(row.id) && /^[a-f0-9]{64}$/.test(row.fingerprint)
         && Number.isFinite(row.checkedAt) && row.checkedAt > 0 && row.checkedAt <= Date.now()
@@ -157,7 +160,7 @@ export class LauncherIconCache {
     this.writing = this.writing.then(async () => {
       const icons = [...this.entries.values()].filter(entry => entry.checkedAt)
         .slice(0, MAX_ENTRIES).map(({ id, fingerprint, checkedAt, dataUrl }) => ({ id, fingerprint, checkedAt, dataUrl }))
-      const data = JSON.stringify({ version: 1, icons })
+      const data = JSON.stringify({ version: CACHE_VERSION, icons })
       if (Buffer.byteLength(data) > MAX_CACHE_BYTES) return
       await mkdir(path.dirname(this.options.file), { recursive: true })
       await writeFile(`${this.options.file}.tmp`, data, 'utf8')

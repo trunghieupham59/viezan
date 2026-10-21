@@ -1,10 +1,10 @@
 // @vitest-environment node
-import { app } from 'electron'
+import { nativeImage } from 'electron'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { readLauncherIcons } from '../launcherIcons'
+import { LAUNCHER_ICON_PIXELS, readLauncherIcons } from '../launcherIcons'
 import { runWindowsScript } from '../launcherSystemApps'
 
-vi.mock('electron', () => ({ app: { getFileIcon: vi.fn() } }))
+vi.mock('electron', () => ({ nativeImage: { createThumbnailFromPath: vi.fn() } }))
 vi.mock('../launcherSystemApps', () => ({ runWindowsScript: vi.fn() }))
 const entries = [{ id: 'claude', name: 'Claude', target: { kind: 'windows-app' as const, appId: 'Claude_package!Claude' } }]
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg=='
@@ -17,6 +17,7 @@ describe('launcher system icons', () => {
     expect(await readLauncherIcons(entries, 'win32')).toEqual([{ id: 'claude', dataUrl: `data:image/png;base64,${png}` }])
     const [script, env] = vi.mocked(runWindowsScript).mock.calls[0]
     expect(script).toContain('SHCreateItemFromParsingName')
+    expect(script).toContain(`new Size { X = ${LAUNCHER_ICON_PIXELS}, Y = ${LAUNCHER_ICON_PIXELS} }`)
     expect(script).toContain('DeleteObject(bitmap)')
     expect(script).toContain('Marshal.ReleaseComObject(item)')
     expect(script).not.toContain('Claude_package')
@@ -31,11 +32,21 @@ describe('launcher system icons', () => {
     expect(await readLauncherIcons(entries, 'win32')).toEqual([])
   })
 
-  it('loads macOS bundle icons through Electron and tolerates missing icons', async () => {
-    vi.mocked(app.getFileIcon).mockResolvedValueOnce({ isEmpty: () => false, toDataURL: () => `data:image/png;base64,${png}` } as never)
+  it('renders macOS bundle icons through Quick Look at tile size and tolerates missing icons', async () => {
+    // app.getFileIcon would only yield the generic ".app" type icon on macOS.
+    const resize = vi.fn(() => ({ toDataURL: () => `data:image/png;base64,${png}` }))
+    vi.mocked(nativeImage.createThumbnailFromPath).mockResolvedValueOnce({ isEmpty: () => false, resize } as never)
       .mockRejectedValueOnce(new Error('missing'))
     const apps = ['Editor', 'Deleted'].map(name => ({ id: name, name, target: { kind: 'path' as const, path: `/Applications/${name}.app` } }))
     expect(await readLauncherIcons(apps, 'darwin')).toEqual([{ id: 'Editor', dataUrl: `data:image/png;base64,${png}` }])
-    expect(app.getFileIcon).toHaveBeenCalledWith('/Applications/Editor.app', { size: 'normal' })
+    expect(nativeImage.createThumbnailFromPath).toHaveBeenCalledWith('/Applications/Editor.app', { width: 64, height: 64 })
+    expect(resize).toHaveBeenCalledWith({ width: 64, height: 64, quality: 'best' })
+  })
+
+  it('returns no icons on platforms without a launcher instead of calling platform-only APIs', async () => {
+    const apps = [{ id: 'editor', name: 'Editor', target: { kind: 'path' as const, path: '/usr/share/applications/editor.desktop' } }]
+    expect(await readLauncherIcons(apps, 'linux')).toEqual([])
+    expect(nativeImage.createThumbnailFromPath).not.toHaveBeenCalled()
+    expect(runWindowsScript).not.toHaveBeenCalled()
   })
 })
