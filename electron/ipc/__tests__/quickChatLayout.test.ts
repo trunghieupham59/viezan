@@ -17,7 +17,7 @@ const win = {
   setMinimumSize: vi.fn(), setMaximumSize: vi.fn(), setResizable: vi.fn(), hide: vi.fn(),
 }
 const mainWindow = {
-  isMinimized: () => false, restore: vi.fn(), show: vi.fn(), focus: vi.fn(),
+  isMinimized: () => false, isDestroyed: () => false, restore: vi.fn(), show: vi.fn(), focus: vi.fn(),
   webContents: { send: vi.fn() },
 }
 const handlers = new Map<string, (event: IpcMainInvokeEvent, layout: unknown, contentHeight?: unknown) => unknown>()
@@ -66,6 +66,32 @@ describe('quick chat session persistence', () => {
     expect(mainWindow.webContents.send).toHaveBeenLastCalledWith('quick-chat:open-in-main-chat', { ...base, history: undefined, response: undefined })
     expect(await call('quick-chat:open-in-chat', { ...base, history: [{ role: 'user', text: 'orphan' }] })).toMatchObject({ success: false })
     expect(mainWindow.webContents.send).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('quick chat usage relay', () => {
+  const relay = (payload: unknown, sender: unknown = contents, senderFrame: unknown = mainFrame) =>
+    handlers.get('quick-chat:record-usage')?.({ sender, senderFrame } as IpcMainInvokeEvent, payload)
+  const cost = {
+    id: 'cost-1', feature: 'chat', provider: 'gemini', model: 'gemini-2.0-flash',
+    amountUsd: 0.0012, inputTokens: 40, outputTokens: 80, totalTokens: 120, estimated: true, createdAt: 1_700_000_000_000,
+  }
+
+  it('forwards a validated cost to the main window', () => {
+    expect(relay(cost)).toEqual({ success: true })
+    expect(mainWindow.webContents.send).toHaveBeenLastCalledWith('quick-chat:usage', cost)
+    expect(win.hide).not.toHaveBeenCalled()
+  })
+
+  it('rejects unknown providers or features, bad numbers and other senders', () => {
+    for (const bad of [
+      { ...cost, provider: 'shell' }, { ...cost, feature: 'billing' }, { ...cost, amountUsd: -1 },
+      { ...cost, inputTokens: Number.NaN }, { ...cost, estimated: 'yes' }, { ...cost, createdAt: 0 }, { ...cost, id: '' }, null,
+    ]) {
+      expect(relay(bad)).toMatchObject({ success: false })
+    }
+    expect(relay(cost, { mainFrame: {} })).toMatchObject({ success: false })
+    expect(mainWindow.webContents.send).not.toHaveBeenCalled()
   })
 })
 

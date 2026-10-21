@@ -127,7 +127,7 @@ function createWebPreviewApi(): WindowApi {
         openApp: async () => ({ success: false, errorCode: 'UNAVAILABLE' }),
         searchWeb: async () => ({ success: false, errorCode: 'UNAVAILABLE' }),
       },
-      hide: ok, openSettings: ok, openInChat: ok, openFeature: ok, onShow: noopSubscription, onOpenSettings: noopSubscription, onOpenInChat: noopSubscription, onOpenFeature: noopSubscription,
+      hide: ok, openSettings: ok, openInChat: ok, openFeature: ok, recordUsage: ok, onShow: noopSubscription, onOpenSettings: noopSubscription, onOpenInChat: noopSubscription, onOpenFeature: noopSubscription, onUsage: noopSubscription,
     },
     legacyAssistant: { get: async () => ({ success: true, settings: {} }), update: ok, getBookmarklet: async () => ({ success: true, bookmarklet: '' }), injectNow: ok },
     updater: { check: ok, download: async () => ({ success: false, error: 'Desktop only in Web Preview' }), install: async () => ({ success: false, error: 'Desktop only in Web Preview' }), openInstaller: async () => ({ success: false, error: 'Desktop only in Web Preview' }), getVersion: async () => ({ version: 'web-preview' }), openDownload: ok, onStatus: noopSubscription },

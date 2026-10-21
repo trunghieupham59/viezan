@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LauncherFeatureRequest } from '../../shared/launcher'
 import App from '../App'
 import { useAppStore } from '../store/useAppStore'
-import type { QuickChatSeedPayload } from '../types'
+import type { QuickChatSeedPayload, UsageCost } from '../types'
 
 describe('App quick chat bridge', () => {
   beforeEach(() => {
@@ -28,6 +28,24 @@ describe('App quick chat bridge', () => {
     vi.mocked(window.api.quickChat.onOpenSettings).mockReturnValue(() => {})
     vi.mocked(window.api.quickChat.onOpenFeature).mockReset()
     vi.mocked(window.api.quickChat.onOpenFeature).mockReturnValue(() => {})
+    vi.mocked(window.api.quickChat.onUsage).mockReset()
+    vi.mocked(window.api.quickChat.onUsage).mockReturnValue(() => {})
+  })
+
+  it('books Quick AI usage into the shared cost totals', async () => {
+    let onUsage: ((cost: UsageCost) => void) | null = null
+    vi.mocked(window.api.quickChat.onUsage).mockImplementation((cb) => {
+      onUsage = cb
+      return vi.fn()
+    })
+    act(() => useAppStore.setState({ apiKeyUsageTotals: {} }))
+    render(<App />)
+    await waitFor(() => expect(window.api.quickChat.onUsage).toHaveBeenCalled())
+    act(() => onUsage?.({
+      id: 'cost-quick', feature: 'chat', provider: 'gemini', model: 'gemini-2.0-flash',
+      amountUsd: 0.5, inputTokens: 10, outputTokens: 20, totalTokens: 30, estimated: true, createdAt: Date.now(),
+    }))
+    expect(useAppStore.getState().apiKeyUsageTotals.gemini?.byFeature?.chat).toMatchObject({ amountUsd: 0.5 })
   })
 
   it('seeds Translate and Dictionary from launcher feature requests', async () => {

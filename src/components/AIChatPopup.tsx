@@ -18,6 +18,7 @@ import { Button, KeyCap } from '@/components/ui/atoms'
 import type { QuickAiSession, QuickAiTurn } from '../../shared/quickAi'
 import { MAX_CHAT_INPUT_CHARS } from '../constants/providers'
 import type { ChatMessage } from '../services/chatService'
+import { needsWebSearchHeuristic } from '../services/localWebIntent'
 import { smartThinkingService } from '../services/smartThinkingService'
 import { useAppStore, useT } from '../store/useAppStore'
 import { shouldUseCarefulReasoning } from '../utils/carefulReasoning'
@@ -26,6 +27,7 @@ import { createClientId } from '../utils/id'
 import { shouldSendChatMessage } from '../utils/keyboardShortcuts'
 import { formatModelName } from '../utils/modelDisplay'
 import { tpl } from '../utils/tpl'
+import { estimateUsageCost } from '../utils/usageCost'
 import { AppLogoIcon } from './AppLogo'
 import { MarkdownText } from './MarkdownText'
 import { ProviderIcon } from './ProviderIcon'
@@ -38,6 +40,7 @@ import {
   SendIcon,
   SparklesIcon,
   SpinnerIcon,
+  StopSquareIcon,
   XIcon,
 } from './ui/icons'
 import { ThinkingPill } from './ui/molecules'
@@ -49,6 +52,59 @@ const MAX_CONTEXT_PAIRS = 6
 const MAX_CONTEXT_CHARS = 6_000
 /** Ten pairs survive on disk; must match MAX_QUICK_AI_TURNS in the main process. */
 const MAX_PERSISTED_TURNS = 20
+
+/**
+ * Quick AI never asks back: launcher queries are often bare keywords and a
+ * popup answer has to be usable at a glance. This replaces the main chat's
+ * configurable system prompt for every Quick AI turn.
+ */
+export const QUICK_AI_SYSTEM_PROMPT = [
+  'You are Quick AI, answering inside a desktop launcher popup.',
+  'Reply in the language of the question, directly and concisely: a short paragraph or a brief list.',
+  'Never ask a clarifying question. A bare keyword (an app, product, term or name) is a request to explain it;',
+  'when a query is ambiguous, state the most common interpretation and answer that.',
+].join(' ')
+
+/**
+ * Answers to launcher questions asked without any context are cached for a
+ * short while so re-typing the same query reopens the answer instantly.
+ * Follow-ups and Regenerate always reach the model.
+ */
+const ANSWER_CACHE_MAX = 20
+const ANSWER_CACHE_TTL_MS = 10 * 60 * 1000
+const answerCache = new Map<string, { answer: string; at: number }>()
+
+const answerCacheKey = (provider: string, model: string, question: string) =>
+  `${provider}|${model}|${question.normalize('NFC').replace(/\s+/g, ' ').trim().toLocaleLowerCase()}`
+
+function readCachedAnswer(key: string): string | null {
+  const entry = answerCache.get(key)
+  if (!entry) return null
+  answerCache.delete(key)
+  if (Date.now() - entry.at >= ANSWER_CACHE_TTL_MS) return null
+  answerCache.set(key, entry)
+  return entry.answer
+}
+
+function writeCachedAnswer(key: string, answer: string): void {
+  answerCache.delete(key)
+  answerCache.set(key, { answer, at: Date.now() })
+  while (answerCache.size > ANSWER_CACHE_MAX) {
+    const oldest = answerCache.keys().next().value
+    if (oldest === undefined) break
+    answerCache.delete(oldest)
+  }
+}
+
+/** The cache is module-level so it outlives popup remounts; tests reset it here. */
+export function clearQuickAiAnswerCache(): void {
+  answerCache.clear()
+}
+
+type StreamOptions = {
+  /** Serve and fill the launcher answer cache (context-free questions only). */
+  useCache?: boolean
+}
 
 const isMacPlatform = () => window.api?.platform === 'darwin'
 const getPrimaryModifierKeyLabel = () => (isMacPlatform() ? '⌘' : 'Ctrl')
@@ -101,7 +157,6 @@ export function AIChatPopup({
     selectedModels,
     keyStatus,
     setKeyStatus,
-    chatSystemPrompt,
     chatSendShortcut,
     theme,
   } = useAppStore()
@@ -114,6 +169,10 @@ export function AIChatPopup({
   const [smartStep, setSmartStep] = useState<SmartStep | null>(null)
   const [isSending, setIsSending] = useState(false)
   const sendingRef = useRef(false)
+  /** Controller of the answer in flight; aborted by Stop, Regenerate and Cmd+N. */
+  const abortRef = useRef<AbortController | null>(null)
+  const abortReasonRef = useRef<'stop' | 'discard' | null>(null)
+  const inFlightRef = useRef<Promise<void> | null>(null)
   const handledLaunchRequestRef = useRef<number | null>(null)
   const [preparedLaunchRequest, setPreparedLaunchRequest] = useState<number | null>(null)
   const [checkedProvider, setCheckedProvider] = useState<typeof selectedProvider | null>(null)
@@ -361,13 +420,54 @@ export function AIChatPopup({
   )
 
   /**
+   * Abort the answer in flight. `stop` keeps the partial text as the answer;
+   * `discard` drops it (Regenerate, Cmd+N). Resolves once the run has settled.
+   */
+  const cancelStream = useCallback((reason: 'stop' | 'discard'): Promise<void> => {
+    const controller = abortRef.current
+    if (!controller) return Promise.resolve()
+    abortReasonRef.current = reason
+    if (!controller.signal.aborted) controller.abort()
+    return inFlightRef.current ?? Promise.resolve()
+  }, [])
+
+  /** Estimated token cost of one answered turn, booked by the main window. */
+  const recordUsage = useCallback((payload: ChatMessage[], answer: string) => {
+    const inputText = [
+      QUICK_AI_SYSTEM_PROMPT,
+      ...payload.map(message => message.content.map(part => (part.type === 'text' ? part.text : '')).join('\n')),
+    ].join('\n')
+    const cost = estimateUsageCost({ feature: 'chat', provider: selectedProvider, model, inputText, outputText: answer })
+    void window.api?.quickChat?.recordUsage?.(cost).catch(() => {})
+  }, [selectedProvider, model])
+
+  /**
    * Stream a single user turn using the given history snapshot. Used by both
    * "send a new question" and "regenerate the active answer".
    */
   const streamTurn = useCallback(
-    async (historySnapshot: Turn[], userText: string) => {
+    async (historySnapshot: Turn[], userText: string, options: StreamOptions = {}) => {
       if (sendingRef.current) return
+      const contextFree = historySnapshot.length === 0
+      const cacheKey = answerCacheKey(selectedProvider, model, userText)
+      if (options.useCache && contextFree) {
+        const cached = readCachedAnswer(cacheKey)
+        if (cached) {
+          setActiveQuestion(userText)
+          setResponse(cached)
+          setSmartStep(null)
+          setError(null)
+          persistSession([{ role: 'user', text: userText }, { role: 'assistant', text: cached }])
+          focusInput()
+          return
+        }
+      }
       sendingRef.current = true
+      const controller = new AbortController()
+      abortRef.current = controller
+      abortReasonRef.current = null
+      /** True once Cmd+N or Regenerate threw this answer away; its callbacks are ignored. */
+      const discarded = () => controller.signal.aborted && abortReasonRef.current === 'discard'
       setActiveQuestion(userText)
       setResponse('')
       setSmartStep(null)
@@ -378,13 +478,18 @@ export function AIChatPopup({
       let finalAnswer = ''
       let failed = false
 
+      const run = (async () => {
       try {
         await smartThinkingService.run({
           provider: selectedProvider,
           model,
           question: userText,
           messages: payload,
-          systemPrompt: chatSystemPrompt || undefined,
+          systemPrompt: QUICK_AI_SYSTEM_PROMPT,
+          signal: controller.signal,
+          // The routing call costs a full non-streaming request before the
+          // answer; a launcher answer only needs it for time-sensitive asks.
+          allowWebSearch: needsWebSearchHeuristic(userText),
           // Careful Reasoning protects quantitative questions from silent
           // miscalculation, but stiffens every other answer — attach it only
           // when the question contains numbers.
@@ -409,51 +514,63 @@ export function AIChatPopup({
             //   • error     → same as complete (the model will answer from
             //                  internal knowledge); no detail surfaced in UI
             onStepStart: (label) => {
-              setSmartStep({ label, content: '', status: 'running' })
+              if (!discarded()) setSmartStep({ label, content: '', status: 'running' })
               return 'quick-chat-smart-step'
             },
             onStepComplete: () => {
-              setSmartStep(null)
+              if (!discarded()) setSmartStep(null)
             },
             onStepError: () => {
-              setSmartStep(null)
+              if (!discarded()) setSmartStep(null)
             },
             onAnswerStart: () => {
-              setSmartStep(null)
-              setResponse('')
+              if (!discarded()) {
+                setSmartStep(null)
+                setResponse('')
+              }
               return 'quick-chat-smart-answer'
             },
             onAnswerToken: (_msgId, content) => {
-              setResponse(content)
+              if (!discarded()) setResponse(content)
             },
             onAnswerComplete: (_msgId, content) => {
               finalAnswer = content
-              setResponse(content)
+              if (!discarded()) setResponse(content)
             },
             onAnswerError: (_msgId, message, errorCode) => {
               failed = true
-              setError(localizeChatError(t, { error: message, errorCode }, t.chat_error_failed_response))
+              if (!discarded()) setError(localizeChatError(t, { error: message, errorCode }, t.chat_error_failed_response))
             },
           },
         })
       } catch (err) {
         failed = true
-        setError(localizeChatException(t, err, t.chat_error_unexpected))
+        if (!discarded()) setError(localizeChatException(t, err, t.chat_error_unexpected))
       } finally {
         sendingRef.current = false
         setIsSending(false)
         focusInput()
       }
-      if (!failed && finalAnswer.trim()) {
-        persistSession([...historySnapshot, { role: 'user', text: userText }, { role: 'assistant', text: finalAnswer }])
+      })()
+      inFlightRef.current = run
+      await run
+      if (abortRef.current === controller) {
+        abortRef.current = null
+        inFlightRef.current = null
       }
+      if (discarded() || failed || !finalAnswer.trim()) return
+      persistSession([...historySnapshot, { role: 'user', text: userText }, { role: 'assistant', text: finalAnswer }])
+      // A stopped answer is partial: keep it, but neither cache nor bill it as complete.
+      if (controller.signal.aborted) return
+      if (options.useCache && contextFree) writeCachedAnswer(cacheKey, finalAnswer)
+      recordUsage(payload, finalAnswer)
     },
-    [buildMessages, selectedProvider, model, chatSystemPrompt, t, focusInput, persistSession],
+    [buildMessages, selectedProvider, model, t, focusInput, persistSession, recordUsage],
   )
 
 
   /** Send a new question (or follow-up). Folds previous answer into history. */
-  const sendQuestion = useCallback(async (question: string) => {
+  const sendQuestion = useCallback(async (question: string, options: StreamOptions = {}) => {
     const text = question.trim()
     if (!text || text.length > MAX_CHAT_INPUT_CHARS || sendingRef.current || !hasKey) return
 
@@ -468,7 +585,7 @@ export function AIChatPopup({
     }
 
     setInput('')
-    await streamTurn(nextHistory, text)
+    await streamTurn(nextHistory, text, options)
   }, [hasKey, history, activeQuestion, response, streamTurn])
 
   const handleSend = useCallback(() => sendQuestion(input), [input, sendQuestion])
@@ -480,7 +597,7 @@ export function AIChatPopup({
     // Consume the explicit action once, including when configuration prevents
     // sending. Reopening or changing provider must not replay an old request.
     handledLaunchRequestRef.current = launchRequest.id
-    if (input === launchRequest.text) void sendQuestion(launchRequest.text)
+    if (input === launchRequest.text) void sendQuestion(launchRequest.text, { useCache: true })
   }, [active, launchRequest, preparedLaunchRequest, checkedProvider, selectedProvider, input, isSending, sendQuestion])
 
   /**
@@ -493,7 +610,8 @@ export function AIChatPopup({
    */
   const handleRegenerate = useCallback(
     async (pairIdx?: number) => {
-      if (isSending || !hasKey) return
+      if (!hasKey) return
+      await cancelStream('discard')
 
       if (typeof pairIdx === 'number') {
         const userTurn = history[pairIdx * 2]
@@ -507,7 +625,7 @@ export function AIChatPopup({
       if (!activeQuestion.trim()) return
       await streamTurn(history, activeQuestion)
     },
-    [isSending, hasKey, history, activeQuestion, streamTurn],
+    [hasKey, history, activeQuestion, streamTurn, cancelStream],
   )
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -524,6 +642,7 @@ export function AIChatPopup({
   }, [focusInput])
 
   const handleNewConversation = useCallback(() => {
+    void cancelStream('discard')
     setHistory([])
     setActiveQuestion('')
     setResponse('')
@@ -532,7 +651,7 @@ export function AIChatPopup({
     setError(null)
     clearSession()
     focusInput()
-  }, [clearSession, focusInput])
+  }, [cancelStream, clearSession, focusInput])
 
   const handleOpenSettings = useCallback(() => {
     window.api?.quickChat?.openSettings()
@@ -868,6 +987,19 @@ export function AIChatPopup({
           </Button>
 
           <div className="titlebar-no-drag flex flex-shrink-0 items-center gap-1">
+            {isSending && (
+              <Button
+                size="xs"
+                shape="rect"
+                variant="danger"
+                appearance="ghost"
+                type="button"
+                onClick={() => void cancelStream('stop')}
+              >
+                <StopSquareIcon className="h-3.5 w-3.5" />
+                <span>{t.chat_stop}</span>
+              </Button>
+            )}
             <Button
               size="xs"
               shape="rect"
