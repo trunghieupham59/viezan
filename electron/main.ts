@@ -23,7 +23,7 @@ import { registerWebSearchHandlers } from './ipc/webSearch'
 import { mainWindowGeometry } from './mainWindowGeometry'
 import { isQuitRequest } from './quitRequest'
 import { resolveRuntimeProfile } from './runtimeProfile'
-import { createAppTray, promptCloseAction, shouldHideMainWindowOnClose, supportsTrayResidency } from './trayManager'
+import { createAppTray, handleMainWindowClose, supportsTrayResidency } from './trayManager'
 import { createUpdateNotification } from './updateNotification'
 
 // Allow audio autoplay after async operations (TTS API calls lose user-gesture context)
@@ -102,8 +102,6 @@ let mainWindow: BrowserWindow | null = null
 let appTray: Tray | null = null
 /** True once a real quit has begun, so closing the main window must not just hide it. */
 let isQuitting = false
-/** Guards against stacking close-confirmation dialogs on repeated X clicks. */
-let isClosePromptOpen = false
 
 function getMainWindowBackgroundColor(): string {
   return nativeTheme.shouldUseDarkColors ? WIN_BG_DARK : WIN_BG_LIGHT
@@ -210,31 +208,14 @@ function createWindow() {
   // Child windows / external links are handled for every webContents in the
   // `web-contents-created` hook below.
 
-  // Windows/Linux: the X button asks whether to keep the app running in the system
-  // tray or quit completely (a resident process keeps the local server port bound).
-  // Real quits (tray menu, updater, relaunch, OS shutdown) set `isQuitting` first
-  // so this handler lets the window close.
-  mainWindow.on('close', (event) => {
-    if (!shouldHideMainWindowOnClose({ platform: process.platform, isQuitting, hasTray: appTray !== null })) return
-    event.preventDefault()
-    const window = mainWindow
-    if (!window || isClosePromptOpen) return
-    isClosePromptOpen = true
-    promptCloseAction(window, app.getLocale())
-      .then((action) => {
-        if (action === 'tray') {
-          if (!window.isDestroyed()) window.hide()
-        } else if (action === 'quit') {
-          app.quit()
-        }
-      })
-      .catch((err) => {
-        console.error('[main] close prompt failed, hiding to tray:', err)
-        if (!window.isDestroyed()) window.hide()
-      })
-      .finally(() => {
-        isClosePromptOpen = false
-      })
+  // X / Alt+F4 hides immediately; explicit quits bypass tray residency.
+  const window = mainWindow
+  window.on('close', (event) => {
+    handleMainWindowClose(event, window, {
+      platform: process.platform,
+      isQuitting,
+      hasTray: appTray !== null,
+    })
   })
 
   // Windows emits this when the user logs off or shuts down; never block it.
@@ -567,8 +548,8 @@ app.whenReady().then(() => {
 
 })
 
-// Every quit path (tray menu, updater, relaunch, OS shutdown, Cmd+Q) goes through
-// `before-quit`; flag it so window close handlers stop hiding to the tray.
+// Explicit quits (tray menu, updater, relaunch, Cmd+Q) go through `before-quit`.
+// Windows shutdown/logoff uses the window session-end event instead.
 app.on('before-quit', () => {
   isQuitting = true
 })
