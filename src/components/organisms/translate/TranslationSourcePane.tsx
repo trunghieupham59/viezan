@@ -8,7 +8,7 @@ import { ImageAttachmentPreview } from '../../translate/ImageAttachmentPreview'
 import type { ImageAttachment } from '../../translate/ImageTranslator'
 import { SourcePanelActions } from '../../translate/SourcePanelActions'
 import { DragOverlay } from '../../ui/DragOverlay'
-import { InfoCircleIcon, LayersIcon } from '../../ui/icons'
+import { InfoCircleIcon } from '../../ui/icons'
 import type { SpeakPanel } from '../../ui/SpeakButton'
 import { TranslateButton } from '../../ui/TranslateButton'
 import type { VoiceRecordingState } from '../../VoiceRecorder'
@@ -212,12 +212,6 @@ export function TranslationSourcePane({
 
           {!autoTranslate && (
             <>
-              {isComparisonMode && (
-                <span className="translate-comparison-request-notice">
-                  <LayersIcon />
-                  {t.translate_compare_request_count(translationModelCount)}
-                </span>
-              )}
               <span className="translate-shortcut-hint">{t.translate_manual_shortcut}</span>
               <TranslateButton
                 isTranslating={isTranslating}

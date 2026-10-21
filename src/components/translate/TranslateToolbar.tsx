@@ -18,6 +18,9 @@ interface TranslateToolbarProps {
   phoneticMode: PhoneticMode
   onPhoneticModeChange: (mode: PhoneticMode) => void
   isPhoneticLoading: boolean
+  /** Locks the phonetic selector when the current run mode cannot produce a reading. */
+  phoneticDisabled?: boolean
+  labelPhoneticUnsupported?: string
   /** When true, hides the embedded ModelSelector (useful when parent renders it separately) */
   hideModelSelector?: boolean
   /** When true, the owning surface renders the always-visible Auto/Manual control. */
@@ -54,6 +57,8 @@ export function TranslateToolbar({
   reasoningEffort, onReasoningEffortChange,
   autoTranslate, onAutoTranslateChange,
   phoneticMode, onPhoneticModeChange, isPhoneticLoading,
+  phoneticDisabled = false,
+  labelPhoneticUnsupported,
   hideModelSelector = false,
   hideAutoToggle = false,
   inlineModelSelector = false,
@@ -136,7 +141,9 @@ export function TranslateToolbar({
             { value: 'phonetic', label: labelPhoneticTranscription },
           ]}
           onChange={(value) => onPhoneticModeChange(value as PhoneticMode)}
-          busy={isPhoneticLoading}
+          busy={isPhoneticLoading && !phoneticDisabled}
+          disabled={phoneticDisabled}
+          disabledHint={labelPhoneticUnsupported}
           className="translate-setting-control"
         />
       )}

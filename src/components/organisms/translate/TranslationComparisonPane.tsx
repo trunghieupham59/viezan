@@ -97,25 +97,14 @@ export function TranslationComparisonPane({
       aria-labelledby={headingId}
       aria-busy={isTranslating}
     >
-      {isTranslating && (
+      {/* Each result column carries its own header, so the pane heading and the
+          aggregate progress are exposed to assistive tech without spending a row. */}
+      <h2 id={headingId} className="sr-only">{t.translate_result_content_label}</h2>
+      {hasStarted && (
         <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
           {liveStatus}
         </span>
       )}
-
-      <div className="translate-comparison-summary">
-        <div className="translate-comparison-summary__copy">
-          <h2 id={headingId} className="translate-pane-heading">{t.translate_result_content_label}</h2>
-          <strong>{t.translate_compare_heading(results.length)}</strong>
-          {/* The notice only matters before the first run; afterwards it costs a line of result height. */}
-          {!hasStarted && <span>{t.translate_compare_independent_notice}</span>}
-        </div>
-        {hasStarted && (
-          <span className="translate-comparison-progress" role="status" aria-live="polite">
-            {liveStatus}
-          </span>
-        )}
-      </div>
 
       <div
         className="translate-comparison-mobile-tabs"
@@ -242,10 +231,11 @@ function ComparisonResultCard({
   const duration = result.durationMs === null
     ? null
     : t.translate_compare_duration((result.durationMs / 1000).toFixed(result.durationMs < 10_000 ? 1 : 0))
+  // The check icon already says "complete"; the elapsed time is the useful part.
   const statusLabel = result.status === 'loading'
     ? t.translate_compare_status_running
     : result.status === 'success'
-      ? [t.translate_compare_status_complete, duration].filter(Boolean).join(' · ')
+      ? duration ?? t.translate_compare_status_complete
       : result.status === 'error'
         ? t.translate_compare_status_failed
         : t.translate_compare_status_ready
@@ -264,7 +254,10 @@ function ComparisonResultCard({
           <strong>{modelName}</strong>
           <span className="translate-comparison-card-meta">
             <span>{providerName}</span>
-            <ModelRunStatus status={result.status} label={statusLabel} />
+            {/* Idle has nothing to report; the body already invites the run. */}
+            {result.status !== 'idle' && (
+              <ModelRunStatus status={result.status} label={statusLabel} />
+            )}
           </span>
         </span>
         {/* Actions live in the header so long text never pushes them out of view. */}

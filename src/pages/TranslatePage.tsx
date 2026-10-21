@@ -153,6 +153,7 @@ export function TranslatePage() {
       onPhoneticModeChange={setPhoneticMode}
       isPhoneticLoading={
         phoneticMode !== 'off'
+        && !isComparisonMode
         && !phoneticText
         && (isTranslating || Boolean(translatedText && translatedText !== IMAGE_TRANSLATED_SENTINEL))
       }

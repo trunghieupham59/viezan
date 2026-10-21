@@ -82,8 +82,6 @@ describe('TranslationComparisonPane compact tabs', () => {
       .getAllByRole('tab')
     const panels = screen.getAllByRole('tabpanel')
 
-    expect(screen.getByText('Each model runs independently. One failure will not stop the other results.'))
-      .toBeInTheDocument()
     expect(panels[0]?.parentElement)
       .toHaveAttribute('data-result-count', '3')
     expect(tabs.every((tab) => tab.getAttribute('aria-label')?.endsWith('Ready'))).toBe(true)
@@ -301,13 +299,31 @@ describe('TranslationComparisonPane result actions', () => {
     expect(screen.queryByRole('button', { name: /^Read aloud:/ })).not.toBeInTheDocument()
   })
 
-  it('shows the independence notice only before the first run', () => {
-    const view = renderComparison()
-    const notice = 'Each model runs independently. One failure will not stop the other results.'
-    expect(screen.getByText(notice)).toBeInTheDocument()
+  it('keeps idle column headers free of status chrome and reports elapsed time once complete', () => {
+    renderComparison([
+      IDLE_RESULTS[0],
+      { ...IDLE_RESULTS[1], status: 'success', translatedText: 'Done', durationMs: 1200 },
+    ])
 
-    view.unmount()
-    renderComparison([{ ...IDLE_RESULTS[0], status: 'success', translatedText: 'Done', durationMs: 300 }])
-    expect(screen.queryByText(notice)).not.toBeInTheDocument()
+    const idleCard = screen.getByRole('article', { name: /Gemini 2.0 Flash.*Google/i })
+    const idleHeader = idleCard.querySelector('header') as HTMLElement
+    expect(idleHeader.querySelector('[data-run-status]')).toBeNull()
+    expect(within(idleCard).getByText('Choose Translate to run this model.')).toBeInTheDocument()
+
+    const doneCard = screen.getByRole('article', { name: /GPT 4o.*OpenAI/i })
+    const doneStatus = doneCard.querySelector('header [data-run-status]') as HTMLElement
+    expect(doneStatus).toHaveAttribute('data-run-status', 'success')
+    expect(doneStatus).toHaveTextContent('1.2s')
+    expect(doneStatus).not.toHaveTextContent('Complete')
+  })
+
+  it('exposes the pane heading and aggregate progress without a visible summary row', () => {
+    renderComparison([
+      { ...IDLE_RESULTS[0], status: 'success', translatedText: 'Done', durationMs: 300 },
+      IDLE_RESULTS[1],
+    ])
+
+    expect(screen.queryByText(/Compare 2 translations/)).not.toBeInTheDocument()
+    expect(screen.getByRole('status', { name: '' })).toHaveClass('sr-only')
   })
 })
