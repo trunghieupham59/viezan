@@ -209,6 +209,15 @@ export interface Translations {
   translate_compare_duration: (seconds: string) => string
   translate_compare_submit: (count: number) => string
   translate_compare_submitting: (count: number) => string
+  translate_compare_heading: (count: number) => string
+  translate_compare_highlight: string
+  translate_compare_highlight_hint: string
+  translate_compare_failures_label: string
+  translate_compare_dismiss_failure: string
+  translate_compare_pick: string
+  translate_compare_picked: string
+  translate_compare_source_expand: string
+  translate_compare_source_collapse: string
 
   // Voice recording
   voice_record: string

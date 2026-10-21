@@ -230,6 +230,8 @@
   --vzn-translate-source-min-block: 18rem;
   --vzn-translate-result-min-block: 15rem;
   --vzn-translate-body-min-block: 10rem;
+  --vzn-translate-compare-source-min-block: 8rem;
+  --vzn-translate-compare-source-max-block: 24rem;
   --vzn-live-panel-min-block: 16rem;
   --vzn-notification-max-inline: 400px;
   --vzn-chat-gutter: clamp(16px, 2.2vw, 40px);
