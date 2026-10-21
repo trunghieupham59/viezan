@@ -15,12 +15,14 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, KeyCap } from '@/components/ui/atoms'
+import type { QuickAiSession, QuickAiTurn } from '../../shared/quickAi'
 import { MAX_CHAT_INPUT_CHARS } from '../constants/providers'
 import type { ChatMessage } from '../services/chatService'
 import { smartThinkingService } from '../services/smartThinkingService'
 import { useAppStore, useT } from '../store/useAppStore'
 import { shouldUseCarefulReasoning } from '../utils/carefulReasoning'
 import { localizeChatError, localizeChatException } from '../utils/chatErrors'
+import { createClientId } from '../utils/id'
 import { shouldSendChatMessage } from '../utils/keyboardShortcuts'
 import { formatModelName } from '../utils/modelDisplay'
 import { tpl } from '../utils/tpl'
@@ -42,8 +44,11 @@ import { ThinkingPill } from './ui/molecules'
 
 const QUICK_TEXTAREA_MAX_HEIGHT_PX = 120
 
-/** Conversation kept this long after dismissal; after that, full reset on next show. */
-const HISTORY_TTL_MS = 5 * 60 * 1000
+/** Context sent to the model: the newest complete pairs within both caps. */
+const MAX_CONTEXT_PAIRS = 6
+const MAX_CONTEXT_CHARS = 6_000
+/** Ten pairs survive on disk; must match MAX_QUICK_AI_TURNS in the main process. */
+const MAX_PERSISTED_TURNS = 20
 
 const isMacPlatform = () => window.api?.platform === 'darwin'
 const getPrimaryModifierKeyLabel = () => (isMacPlatform() ? '⌘' : 'Ctrl')
@@ -70,13 +75,27 @@ interface SmartStep {
 export interface QuickChatLaunchRequest {
   id: number
   text: string
+  /**
+   * Conversation to show before `text` is sent: an object resumes it, `null`
+   * starts fresh, and leaving it out keeps whatever the popup already shows.
+   */
+  session?: QuickAiSession | null
+}
+
+export interface AIChatPopupProps {
+  active?: boolean
+  launchRequest?: QuickChatLaunchRequest
+  onBack?: () => void
+  /** Fired after the persisted Quick AI session changes, `null` once cleared. */
+  onSessionChange?: (session: QuickAiSession | null) => void
 }
 
 export function AIChatPopup({
   active = true,
   launchRequest,
   onBack,
-}: { active?: boolean; launchRequest?: QuickChatLaunchRequest; onBack?: () => void } = {}) {
+  onSessionChange,
+}: AIChatPopupProps = {}) {
   const {
     selectedProvider,
     selectedModels,
@@ -121,8 +140,10 @@ export function AIChatPopup({
   /** Wrapper around the active Q&A card — sized to fill the viewport. */
   const activeWrapperRef = useRef<HTMLDivElement>(null)
   const [viewportHeight, setViewportHeight] = useState<number>(0)
-  /** Wall-clock of last dismissal — drives the HISTORY_TTL_MS check. */
-  const lastHideAtRef = useRef<number>(0)
+  /** Persisted session the visible conversation belongs to; null until the first answer. */
+  const sessionIdRef = useRef<string | null>(null)
+  /** Launch request whose `session` has already been applied. */
+  const hydratedRequestRef = useRef<number | null>(null)
 
   const model = selectedModels[selectedProvider] ?? ''
   const hasKey = selectedProvider === 'local' || keyStatus[selectedProvider]
@@ -167,19 +188,49 @@ export function AIChatPopup({
     // the popup becomes visible so the user actually sees the latest config
     // (otherwise the popup keeps the snapshot it had on first mount).
     useAppStore.persist?.rehydrate?.()
-    const elapsed = Date.now() - lastHideAtRef.current
-    if (elapsed >= HISTORY_TTL_MS) {
-      hardReset()
-    }
     setInput('')
     setError(null)
     setCopiedKey(null)
     focusInput()
-  }, [hardReset, focusInput])
+  }, [focusInput])
 
+  /** Show a stored conversation (or none); never interrupts an answer in flight. */
+  const hydrateSession = useCallback((session: QuickAiSession | null) => {
+    if (sendingRef.current) return
+    if (!session?.turns.length) {
+      sessionIdRef.current = null
+      hardReset()
+      return
+    }
+    const turns = session.turns.slice(-MAX_PERSISTED_TURNS)
+    const lastUser = turns[turns.length - 2]
+    const lastAssistant = turns[turns.length - 1]
+    sessionIdRef.current = session.id
+    setHistory(turns.slice(0, -2))
+    setActiveQuestion(lastUser?.text ?? '')
+    setResponse(lastAssistant?.text ?? '')
+    setSmartStep(null)
+    setError(null)
+    setCopiedKey(null)
+  }, [hardReset])
+
+  /** Write the conversation (finalized pairs plus the answered active pair) to disk. */
+  const persistSession = useCallback((turns: QuickAiTurn[]) => {
+    const kept = turns.slice(-MAX_PERSISTED_TURNS)
+    if (!kept.length) return
+    sessionIdRef.current ??= createClientId('quick-ai')
+    const session: QuickAiSession = { id: sessionIdRef.current, turns: kept, updatedAt: Date.now() }
+    void window.api?.quickChat?.session?.save(session).catch(() => {})
+    onSessionChange?.(session)
+  }, [onSessionChange])
+
+  const clearSession = useCallback(() => {
+    sessionIdRef.current = null
+    void window.api?.quickChat?.session?.clear().catch(() => {})
+    onSessionChange?.(null)
+  }, [onSessionChange])
 
   const hidePopup = useCallback(() => {
-    lastHideAtRef.current = Date.now()
     window.api?.quickChat?.hide()
   }, [])
 
@@ -210,14 +261,16 @@ export function AIChatPopup({
   useEffect(() => {
     if (!active) return
     handleShow()
+    if (launchRequest && launchRequest.session !== undefined && hydratedRequestRef.current !== launchRequest.id) {
+      hydratedRequestRef.current = launchRequest.id
+      hydrateSession(launchRequest.session)
+    }
     setInput(launchRequest?.text ?? '')
     setPreparedLaunchRequest(launchRequest?.id ?? null)
-    if (onBack) {
-      return () => { lastHideAtRef.current = Date.now() }
-    }
+    if (onBack) return
     document.documentElement.classList.add('quick-chat-window')
     return () => document.documentElement.classList.remove('quick-chat-window')
-  }, [active, launchRequest, onBack, handleShow])
+  }, [active, launchRequest, onBack, handleShow, hydrateSession])
 
   // Subsequent shows from main process.
   useEffect(() => {
@@ -283,14 +336,24 @@ export function AIChatPopup({
     }
   }, [activeQuestion])
 
-  /** Build IPC payload from full history + the next user turn. */
+  /**
+   * Build the IPC payload from the newest history pairs that fit the context
+   * caps, plus the next user turn. Pairs are kept whole so the model never
+   * sees an answer without its question.
+   */
   const buildMessages = useCallback(
     (turns: Turn[], nextUserText: string): ChatMessage[] => {
-      const all: ChatMessage[] = []
-      for (const turn of turns) {
-        if (!turn.text.trim()) continue
-        all.push({ role: turn.role, content: [{ type: 'text', text: turn.text }] })
+      const kept: Turn[] = []
+      let chars = 0
+      for (let index = turns.length - 2; index >= 0 && kept.length / 2 < MAX_CONTEXT_PAIRS; index -= 2) {
+        const user = turns[index]
+        const assistant = turns[index + 1]
+        if (!user || !assistant || !user.text.trim() || !assistant.text.trim()) continue
+        chars += user.text.length + assistant.text.length
+        if (chars > MAX_CONTEXT_CHARS) break
+        kept.unshift(user, assistant)
       }
+      const all: ChatMessage[] = kept.map(turn => ({ role: turn.role, content: [{ type: 'text', text: turn.text }] }))
       all.push({ role: 'user', content: [{ type: 'text', text: nextUserText }] })
       return all
     },
@@ -312,6 +375,8 @@ export function AIChatPopup({
       setIsSending(true)
 
       const payload = buildMessages(historySnapshot, userText)
+      let finalAnswer = ''
+      let failed = false
 
       try {
         await smartThinkingService.run({
@@ -362,22 +427,28 @@ export function AIChatPopup({
               setResponse(content)
             },
             onAnswerComplete: (_msgId, content) => {
+              finalAnswer = content
               setResponse(content)
             },
             onAnswerError: (_msgId, message, errorCode) => {
+              failed = true
               setError(localizeChatError(t, { error: message, errorCode }, t.chat_error_failed_response))
             },
           },
         })
       } catch (err) {
+        failed = true
         setError(localizeChatException(t, err, t.chat_error_unexpected))
       } finally {
         sendingRef.current = false
         setIsSending(false)
         focusInput()
       }
+      if (!failed && finalAnswer.trim()) {
+        persistSession([...historySnapshot, { role: 'user', text: userText }, { role: 'assistant', text: finalAnswer }])
+      }
     },
-    [buildMessages, selectedProvider, model, chatSystemPrompt, t, focusInput],
+    [buildMessages, selectedProvider, model, chatSystemPrompt, t, focusInput, persistSession],
   )
 
 
@@ -459,8 +530,9 @@ export function AIChatPopup({
     setSmartStep(null)
     setInput('')
     setError(null)
+    clearSession()
     focusInput()
-  }, [focusInput])
+  }, [clearSession, focusInput])
 
   const handleOpenSettings = useCallback(() => {
     window.api?.quickChat?.openSettings()
@@ -478,21 +550,34 @@ export function AIChatPopup({
     [],
   )
 
-  const handleOpenInChat = useCallback(() => {
+  const handleOpenInChat = useCallback(async () => {
     const draft = input.trim()
     const question = draft || activeQuestion
     if (!question) {
-      window.api?.quickChat?.openInChat()
+      void window.api?.quickChat?.openInChat()
       return
     }
-    window.api?.quickChat?.openInChat({
+    const answer = response.trim()
+    // A draft follows the whole answered conversation; otherwise the active
+    // pair is the seed and only the earlier pairs travel as history.
+    const carried: QuickAiTurn[] = draft && activeQuestion && answer
+      ? [...history, { role: 'user', text: activeQuestion }, { role: 'assistant', text: answer }]
+      : history
+    const carriedHistory = carried.filter(turn => turn.text.trim()).slice(-MAX_PERSISTED_TURNS)
+    const result = await window.api?.quickChat?.openInChat({
       question,
       // An unsent draft has no answer yet; the visible response belongs to activeQuestion.
-      response: draft ? undefined : response.trim() || undefined,
+      response: draft ? undefined : answer || undefined,
+      ...(carriedHistory.length ? { history: carriedHistory } : {}),
       provider: selectedProvider,
       model,
     })
-  }, [input, activeQuestion, response, selectedProvider, model])
+    // The main chat now owns the conversation; the popup starts fresh next time.
+    if (result?.success) {
+      hardReset()
+      clearSession()
+    }
+  }, [input, activeQuestion, response, history, selectedProvider, model, hardReset, clearSession])
 
   // Keyboard shortcuts: Esc closes; Cmd/Ctrl+N starts over; Cmd/Ctrl+Enter opens full Chat.
   useEffect(() => {
@@ -511,28 +596,12 @@ export function AIChatPopup({
       }
       if (isPrimaryModifierShortcut(e, 'enter')) {
         e.preventDefault()
-        handleOpenInChat()
+        void handleOpenInChat()
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [active, error, handleNewConversation, handleOpenInChat, hasContext, hidePopup, input])
-
-  // Mark dismissal time whenever the popup loses visibility (any path).
-  useEffect(() => {
-    const onVis = () => {
-      if (document.visibilityState === 'hidden') lastHideAtRef.current = Date.now()
-    }
-    const onBlur = () => {
-      lastHideAtRef.current = Date.now()
-    }
-    document.addEventListener('visibilitychange', onVis)
-    window.addEventListener('blur', onBlur)
-    return () => {
-      document.removeEventListener('visibilitychange', onVis)
-      window.removeEventListener('blur', onBlur)
-    }
-  }, [])
 
   /**
    * Forward wheel events from anywhere on the popup into the inner scroll
@@ -791,7 +860,7 @@ export function AIChatPopup({
               <SparklesIcon className="h-3 w-3" />
               <span>{t.chat_smart_thinking_badge}</span>
             </span>
-            {turnCount > 1 && (
+            {turnCount > 0 && (
               <span className="ui-meta ml-1 hidden sm:inline">
                 · {tpl(t.ai_chat_popup_turns, { count: turnCount })}
               </span>
@@ -824,7 +893,7 @@ export function AIChatPopup({
               variant="neutral"
               appearance="ghost"
               type="button"
-              onClick={handleOpenInChat}
+              onClick={() => void handleOpenInChat()}
             >
               <span>{t.ai_chat_popup_open_in_chat}</span>
               <ArrowRightIcon className="h-3 w-3" />

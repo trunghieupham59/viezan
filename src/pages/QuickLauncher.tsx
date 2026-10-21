@@ -1,9 +1,11 @@
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { LauncherApp, LauncherIcon, LauncherResult } from '../../shared/launcher'
+import type { QuickAiSession } from '../../shared/quickAi'
 import { AIChatPopup, type QuickChatLaunchRequest } from '../components/AIChatPopup'
 import { Button, KeyCap } from '../components/ui/atoms'
 import {
   BookIcon,
+  ChatBubbleIcon,
   GearIcon,
   MicrophoneIcon,
   SearchIcon,
@@ -14,12 +16,14 @@ import { FilterInput, LauncherIconTile, type LauncherIconTone, LauncherResultRow
 import { useAppStore, useT } from '../store/useAppStore'
 import { tpl } from '../utils/tpl'
 
-type Command = 'ai' | 'web' | 'chat' | 'settings' | 'translate' | 'dictionary' | 'live'
+type Command = 'ai' | 'continue' | 'web' | 'chat' | 'settings' | 'translate' | 'dictionary' | 'live'
 type Result = { id: string; label: string; kind: 'app' | Command; detail?: string }
 type Section = { id: 'recent' | 'apps' | 'viezan' | 'use'; title: string; items: Result[] }
 
 const MAX_APP_RESULTS = 8
 const MAX_RECENT_RESULTS = 5
+/** A Quick AI conversation this recent is offered first and receives follow-ups. */
+const QUICK_AI_FRESH_MS = 30 * 60 * 1000
 const LETTER_TONES: LauncherIconTone[] = ['blue', 'violet', 'green', 'orange']
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/đ/gi, 'd').toLowerCase()
 
@@ -33,6 +37,7 @@ function letterTone(name: string): LauncherIconTone {
 function commandIcon(kind: Command): ReactNode {
   switch (kind) {
     case 'ai': case 'chat': return <SparklesIcon />
+    case 'continue': return <ChatBubbleIcon />
     case 'translate': return <TranslateIcon />
     case 'dictionary': return <BookIcon />
     case 'live': return <MicrophoneIcon />
@@ -48,6 +53,7 @@ export function QuickLauncher() {
   const [chatRequest, setChatRequest] = useState<QuickChatLaunchRequest>()
   const [apps, setApps] = useState<LauncherApp[]>([])
   const [recent, setRecent] = useState<string[]>([])
+  const [session, setSession] = useState<QuickAiSession | null>(null)
   const [icons, setIcons] = useState<Record<string, string>>({})
   const iconsRef = useRef<Record<string, string>>({})
   const [selected, setSelected] = useState(0)
@@ -60,6 +66,7 @@ export function QuickLauncher() {
   const busyRef = useRef(false)
   const panelRef = useRef<HTMLElement>(null)
   const search = query.trim()
+  const sessionFresh = Boolean(session && Date.now() - session.updatedAt < QUICK_AI_FRESH_MS)
   const primaryModifierKey = window.api?.platform === 'darwin' ? '⌘' : 'Ctrl'
 
   // The window is sized by the main process; report the natural content height
@@ -158,6 +165,15 @@ export function QuickLauncher() {
     if (mode === 'search') inputRef.current?.focus()
   }, [mode, revision])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: each show re-reads the persisted Quick AI session.
+  useEffect(() => {
+    let cancelled = false
+    void window.api?.quickChat?.session?.get().then(result => {
+      if (!cancelled && result?.success) setSession(result.session)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [revision])
+
   const sections = useMemo<Section[]>(() => {
     const toResult = (app: LauncherApp): Result => ({ id: app.id, label: app.name, kind: 'app' })
     const viezanCommands: Result[] = [
@@ -167,13 +183,20 @@ export function QuickLauncher() {
       { id: 'chat', label: t.ai_chat_popup_open_in_chat, kind: 'chat' },
       { id: 'settings', label: t.chat_error_open_settings, kind: 'settings' },
     ]
+    const userTurns = session?.turns.filter(turn => turn.role === 'user') ?? []
+    const lastQuestion = userTurns[userTurns.length - 1]?.text
+    const continueItem: Result | null = lastQuestion
+      ? { id: 'continue', label: t.launcher_continue, kind: 'continue', detail: lastQuestion }
+      : null
     if (!search) {
       const byId = new Map(apps.map(app => [app.id, app]))
       const recentApps = recent.flatMap(id => { const app = byId.get(id); return app ? [toResult(app)] : [] })
         .slice(0, MAX_RECENT_RESULTS)
+      // A fresh conversation leads the Viezan group; an older one waits under Recent.
+      const recentItems = [...recentApps, ...(continueItem && !sessionFresh ? [continueItem] : [])]
       return [
-        ...(recentApps.length ? [{ id: 'recent' as const, title: t.launcher_section_recent, items: recentApps }] : []),
-        { id: 'viezan', title: t.launcher_section_viezan, items: viezanCommands },
+        ...(recentItems.length ? [{ id: 'recent' as const, title: t.launcher_section_recent, items: recentItems }] : []),
+        { id: 'viezan', title: t.launcher_section_viezan, items: [...(continueItem && sessionFresh ? [continueItem] : []), ...viezanCommands] },
       ]
     }
     const needle = normalize(search)
@@ -206,7 +229,7 @@ export function QuickLauncher() {
     const matchedCommands = viezanCommands.filter(command =>
       !['translate', 'dictionary'].includes(command.kind) && matches(command.label))
     const useWith: Result[] = [
-      { id: 'ai', label: t.launcher_ai, kind: 'ai', detail: search },
+      { id: 'ai', label: sessionFresh ? t.launcher_ai_followup : t.launcher_ai, kind: 'ai', detail: search },
       { id: 'translate', label: t.launcher_translate, kind: 'translate', detail: search },
       { id: 'dictionary', label: t.launcher_dictionary, kind: 'dictionary', detail: search },
       { id: 'web', label: t.launcher_web, kind: 'web', detail: search },
@@ -216,7 +239,7 @@ export function QuickLauncher() {
       ...(matchedCommands.length ? [{ id: 'viezan' as const, title: t.launcher_section_viezan, items: matchedCommands }] : []),
       { id: 'use', title: tpl(t.launcher_section_use_with, { query: search }), items: useWith },
     ]
-  }, [apps, recent, search, t])
+  }, [apps, recent, search, session, sessionFresh, t])
   const results = useMemo(() => sections.flatMap(section => section.items), [sections])
   const activeIndex = Math.min(selected, results.length - 1)
   const activeResult = results[activeIndex]
@@ -250,8 +273,10 @@ export function QuickLauncher() {
 
   const execute = useCallback(async (result: Result) => {
     if (busyRef.current) return
-    if (result.kind === 'ai') {
-      setChatRequest(previous => ({ id: (previous?.id ?? 0) + 1, text: search }))
+    if (result.kind === 'ai' || result.kind === 'continue') {
+      // Follow-ups join a fresh conversation; "Continue" resumes it at any age.
+      const resumed = result.kind === 'continue' || sessionFresh ? session : null
+      setChatRequest(previous => ({ id: (previous?.id ?? 0) + 1, text: result.kind === 'continue' ? '' : search, session: resumed }))
       setMode('chat')
       return
     }
@@ -278,7 +303,7 @@ export function QuickLauncher() {
       busyRef.current = false
       setBusy(false)
     }
-  }, [search])
+  }, [search, session, sessionFresh])
   const askAI = useCallback(() => execute({ id: 'ai', label: t.launcher_ai, kind: 'ai' }), [execute, t.launcher_ai])
 
   useEffect(() => {
@@ -389,7 +414,7 @@ export function QuickLauncher() {
               </div>
               <div className="launcher-footer-actions">
                 <span className="launcher-footer-action">
-                  <span>{activeResult?.kind === 'ai' ? t.launcher_ai : t.launcher_open}</span>
+                  <span>{activeResult?.kind === 'ai' ? activeResult.label : t.launcher_open}</span>
                   <KeyCap>↵</KeyCap>
                 </span>
                 <span className="launcher-footer-divider" aria-hidden="true" />
@@ -403,7 +428,7 @@ export function QuickLauncher() {
           </section>
         </main>
       )}
-      <AIChatPopup active={mode === 'chat'} launchRequest={chatRequest} onBack={back} />
+      <AIChatPopup active={mode === 'chat'} launchRequest={chatRequest} onBack={back} onSessionChange={setSession} />
     </>
   )
 }

@@ -84,6 +84,30 @@ describe('App quick chat bridge', () => {
     ])
   })
 
+  it('seeds earlier Quick AI turns before the active pair', async () => {
+    let openInChat: ((payload: QuickChatSeedPayload | null) => void) | null = null
+    vi.mocked(window.api.quickChat.onOpenInChat).mockImplementation((cb) => {
+      openInChat = cb
+      return vi.fn()
+    })
+    render(<App />)
+    await waitFor(() => expect(window.api.quickChat.onOpenInChat).toHaveBeenCalled())
+    act(() => {
+      openInChat?.({
+        provider: 'local', model: 'local-auto',
+        history: [{ role: 'user', text: 'First' }, { role: 'assistant', text: 'First answer' }],
+        question: 'Second', response: 'Second answer',
+      })
+    })
+    const session = useAppStore.getState().chatSessions[0]
+    expect(session.messages.map(message => [message.role, message.content[0]]))
+      .toEqual([
+        ['user', { type: 'text', text: 'First' }], ['assistant', { type: 'text', text: 'First answer' }],
+        ['user', { type: 'text', text: 'Second' }], ['assistant', { type: 'text', text: 'Second answer' }],
+      ])
+    expect(new Set(session.messages.map(message => message.id)).size).toBe(4)
+  })
+
   it('opens an unanswered quick chat question as an editable draft without sending', async () => {
     let openInChat: ((payload: QuickChatSeedPayload | null) => void) | null = null
     vi.mocked(window.api.quickChat.onOpenInChat).mockImplementation((cb) => {

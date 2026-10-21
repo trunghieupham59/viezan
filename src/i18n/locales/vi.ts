@@ -898,6 +898,8 @@ const vi: Translations = {
   launcher_dictionary: 'Tra từ điển',
   launcher_live: 'Phiên dịch AI',
   launcher_ai_hint: 'Hỏi AI',
+  launcher_continue: 'Tiếp tục Quick AI',
+  launcher_ai_followup: 'Hỏi tiếp AI',
   settings_chat_section: 'AI Chat',
   settings_chat_section_desc: 'Cấu hình system prompt mặc định và quản lý cuộc trò chuyện.',
   settings_chat_go_to_chat: 'Mở AI Chat',

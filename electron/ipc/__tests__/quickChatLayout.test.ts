@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { registerQuickChatHandlers } from '../quickChat'
 
 vi.mock('../launcher', () => ({ registerLauncherHandlers: () => async () => {} }))
+vi.mock('electron', () => ({ app: { getPath: () => '/userData' } }))
+const fs = vi.hoisted(() => ({ readFile: vi.fn(), writeFile: vi.fn(), rename: vi.fn(), mkdir: vi.fn(), rm: vi.fn() }))
+vi.mock('node:fs/promises', () => fs)
 
 const mainFrame = {}
 const contents = { mainFrame }
@@ -24,9 +27,46 @@ const invoke = (layout: unknown, contentHeight?: unknown, sender = contents, sen
 beforeEach(() => {
   vi.clearAllMocks()
   handlers.clear()
+  fs.readFile.mockRejectedValue(new Error('ENOENT'))
+  for (const op of [fs.writeFile, fs.rename, fs.mkdir, fs.rm]) op.mockResolvedValue(undefined)
   bounds = { x: 100, y: 200, width: 860, height: 540 }
   registerQuickChatHandlers({ handle: (name: string, handler: (event: IpcMainInvokeEvent, layout: unknown, contentHeight?: unknown) => unknown) => handlers.set(name, handler) } as unknown as IpcMain,
     () => mainWindow as unknown as BrowserWindow, () => win as unknown as BrowserWindow)
+})
+
+describe('quick chat session persistence', () => {
+  const call = (channel: string, payload?: unknown, sender: unknown = contents, senderFrame: unknown = mainFrame) =>
+    handlers.get(channel)?.({ sender, senderFrame } as IpcMainInvokeEvent, payload)
+  const turns = [{ role: 'user', text: 'Hi' }, { role: 'assistant', text: 'Hello' }]
+  const session = { id: 'quick-ai-1', turns, updatedAt: 1_700_000_000_000 }
+
+  it('stores a validated session under userData and returns it until cleared', async () => {
+    expect(await call('quick-chat:session:get')).toEqual({ success: true, session: null })
+    expect(await call('quick-chat:session:save', session)).toEqual({ success: true })
+    expect(fs.rename).toHaveBeenCalledWith('/userData/quick-ai-session-v1.json.tmp', '/userData/quick-ai-session-v1.json')
+    expect(await call('quick-chat:session:get')).toEqual({ success: true, session })
+    expect(await call('quick-chat:session:clear')).toEqual({ success: true })
+    expect(await call('quick-chat:session:get')).toEqual({ success: true, session: null })
+  })
+
+  it('rejects malformed sessions and other senders', async () => {
+    expect(await call('quick-chat:session:save', { id: 'x', turns: [{ role: 'user', text: 'orphan' }], updatedAt: 1 })).toMatchObject({ success: false })
+    expect(await call('quick-chat:session:save', session, { mainFrame: {} })).toMatchObject({ success: false })
+    expect(await call('quick-chat:session:get', undefined, contents, {})).toEqual({ success: false, session: null })
+    expect(await call('quick-chat:session:clear', undefined, { mainFrame: {} })).toMatchObject({ success: false })
+    expect(fs.writeFile).not.toHaveBeenCalled()
+    expect(fs.rm).not.toHaveBeenCalled()
+  })
+
+  it('carries validated history into the main chat and rejects broken history', async () => {
+    const base = { question: 'Next?', provider: 'local', model: 'local-auto' }
+    expect(await call('quick-chat:open-in-chat', { ...base, history: turns })).toEqual({ success: true })
+    expect(mainWindow.webContents.send).toHaveBeenLastCalledWith('quick-chat:open-in-main-chat', { ...base, history: turns, response: undefined })
+    expect(await call('quick-chat:open-in-chat', { ...base, history: [] })).toEqual({ success: true })
+    expect(mainWindow.webContents.send).toHaveBeenLastCalledWith('quick-chat:open-in-main-chat', { ...base, history: undefined, response: undefined })
+    expect(await call('quick-chat:open-in-chat', { ...base, history: [{ role: 'user', text: 'orphan' }] })).toMatchObject({ success: false })
+    expect(mainWindow.webContents.send).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('quick chat feature deep links', () => {

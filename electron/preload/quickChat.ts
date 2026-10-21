@@ -4,10 +4,12 @@
  */
 import { ipcRenderer } from 'electron'
 import type { LauncherApi, LauncherFeatureRequest, LauncherIcon } from '../../shared/launcher'
+import type { QuickAiSession, QuickAiTurn } from '../../shared/quickAi'
 
 export interface QuickChatSeedPayload {
   question: string
   response?: string
+  history?: QuickAiTurn[]
   provider: string
   model: string
 }
@@ -25,6 +27,11 @@ export const quickChatSection = {
       openApp: (id: string) => ipcRenderer.invoke('launcher:open-app', id),
       searchWeb: (query: string) => ipcRenderer.invoke('launcher:search-web', query),
     } satisfies LauncherApi,
+    session: {
+      get: () => ipcRenderer.invoke('quick-chat:session:get'),
+      save: (session: QuickAiSession) => ipcRenderer.invoke('quick-chat:session:save', session),
+      clear: () => ipcRenderer.invoke('quick-chat:session:clear'),
+    },
     setLayout: (layout: 'compact' | 'expanded', contentHeight?: number) => ipcRenderer.invoke('quick-chat:set-layout', layout, contentHeight),
     hide: () => ipcRenderer.invoke('quick-chat:hide'),
     openSettings: () => ipcRenderer.invoke('quick-chat:open-settings'),

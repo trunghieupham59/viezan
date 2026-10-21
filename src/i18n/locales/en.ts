@@ -898,6 +898,8 @@ const en: Translations = {
   launcher_dictionary: 'Look up in Dictionary',
   launcher_live: 'AI Interpret',
   launcher_ai_hint: 'Ask AI',
+  launcher_continue: 'Continue Quick AI',
+  launcher_ai_followup: 'Ask AI (follow-up)',
   settings_chat_section: 'AI Chat',
   settings_chat_section_desc: 'Configure default system prompt and manage chat sessions.',
   settings_chat_go_to_chat: 'Open AI Chat',

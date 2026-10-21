@@ -25,6 +25,9 @@ beforeEach(() => {
   vi.mocked(window.api.quickChat.launcher.openApp).mockResolvedValue({ success: true })
   vi.mocked(window.api.quickChat.launcher.searchWeb).mockResolvedValue({ success: true })
   vi.mocked(window.api.quickChat.launcher.getIcons).mockResolvedValue({ success: true, icons: [] })
+  vi.mocked(window.api.quickChat.session.get).mockResolvedValue({ success: true, session: null })
+  vi.mocked(window.api.quickChat.session.save).mockClear()
+  vi.mocked(window.api.quickChat.session.clear).mockClear()
   vi.mocked(window.api.chatStream).mockResolvedValue({ success: true, reply: 'A saved answer' })
 })
 
@@ -73,6 +76,58 @@ describe('QuickLauncher', () => {
     expect(screen.queryByRole('option', { name: 'Editor Application' })).not.toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
     await waitFor(() => expect(window.api.quickChat.launcher.openApp).toHaveBeenCalledWith('calc'))
+  })
+
+  it('offers to continue a fresh Quick AI session first and files an old one under Recent', async () => {
+    const turns = [{ role: 'user' as const, text: 'What is Vite?' }, { role: 'assistant' as const, text: 'A build tool.' }]
+    vi.mocked(window.api.quickChat.session.get).mockResolvedValue({ success: true, session: { id: 'quick-ai-1', turns, updatedAt: Date.now() - 60_000 } })
+    const { unmount } = render(<QuickLauncher />)
+    await act(async () => {})
+    const fresh = screen.getAllByRole('option')[0]
+    expect(fresh).toHaveAttribute('aria-label', 'Continue Quick AI Command')
+    expect(fresh).toHaveTextContent('What is Vite?')
+    expect(screen.getByRole('group', { name: 'Viezan' })).toContainElement(fresh)
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'more' } })
+    expect(screen.getByRole('option', { name: 'Ask AI (follow-up) Command' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Continue Quick AI Command' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('option', { name: 'Continue Quick AI Command' }))
+    expect(await screen.findByText('A build tool.')).toBeInTheDocument()
+    expect(window.api.chatStream).not.toHaveBeenCalled()
+    unmount()
+
+    vi.mocked(window.api.quickChat.session.get).mockResolvedValue({ success: true, session: { id: 'quick-ai-1', turns, updatedAt: Date.now() - 45 * 60_000 } })
+    render(<QuickLauncher />)
+    await act(async () => {})
+    const stale = screen.getByRole('option', { name: 'Continue Quick AI Command' })
+    expect(screen.getByRole('group', { name: 'Recent' })).toContainElement(stale)
+    expect(screen.getAllByRole('option')[0]).toHaveAttribute('aria-label', 'Continue Quick AI Command')
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'more' } })
+    expect(screen.getByRole('option', { name: 'Ask AI Command' })).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Tab' })
+    expect(await screen.findByText('A saved answer')).toBeInTheDocument()
+    expect(screen.queryByText('A build tool.')).not.toBeInTheDocument()
+    expect(vi.mocked(window.api.chatStream).mock.calls[0][0].messages).toHaveLength(1)
+  })
+
+  it('sends a Tab follow-up inside a fresh session and drops the Continue entry after Cmd+N', async () => {
+    const turns = [{ role: 'user' as const, text: 'What is Vite?' }, { role: 'assistant' as const, text: 'A build tool.' }]
+    vi.mocked(window.api.quickChat.session.get).mockResolvedValue({ success: true, session: { id: 'quick-ai-1', turns, updatedAt: Date.now() } })
+    render(<QuickLauncher />)
+    await act(async () => {})
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'And Rollup?' } })
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Tab' })
+    expect(await screen.findByText('A saved answer')).toBeInTheDocument()
+    expect(screen.getByText('A build tool.')).toBeInTheDocument()
+    expect(vi.mocked(window.api.chatStream).mock.calls[0][0].messages.map(message => message.content[0].text))
+      .toEqual(['What is Vite?', 'A build tool.', 'And Rollup?'])
+    await waitFor(() => expect(window.api.quickChat.session.save).toHaveBeenCalledOnce())
+    expect(vi.mocked(window.api.quickChat.session.save).mock.calls[0][0]).toMatchObject({ id: 'quick-ai-1' })
+
+    fireEvent.keyDown(window, { key: 'n', metaKey: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }))
+    expect(screen.queryByRole('option', { name: 'Continue Quick AI Command' })).not.toBeInTheDocument()
+    expect(window.api.quickChat.session.clear).toHaveBeenCalledOnce()
   })
 
   it('hands the typed text to Quick AI with Tab', async () => {
