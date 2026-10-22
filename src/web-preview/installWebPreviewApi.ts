@@ -123,7 +123,7 @@ function createWebPreviewApi(): WindowApi {
         clear: async () => { previewQuickAiSession = null; return { success: true } },
       },
       launcher: {
-        listApps: async () => ({ success: true, apps: [{ id: 'preview-calculator', name: 'Calculator (preview)' }, { id: 'preview-notes', name: 'Notes (preview)' }], recent: ['preview-notes'] }),
+        listApps: async () => ({ success: true, apps: [{ id: 'preview-calculator', name: 'Calculator (preview)' }, { id: 'preview-notes', name: 'Notes (preview)', aliases: ['Ghi chú'] }], recent: ['preview-notes'] }),
         getIcons: async () => ({ success: true, icons: [] }),
         onIcons: noopSubscription,
         openApp: async () => ({ success: false, errorCode: 'UNAVAILABLE' }),

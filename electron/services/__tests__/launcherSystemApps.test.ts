@@ -55,12 +55,29 @@ describe('native launcher application discovery', () => {
   })
 
   it('finds macOS app bundles on indexed volumes, preserving spaces and skipping embedded helpers', async () => {
-    respond('/Volumes/Work/Apps/My Editor.app\0/Users/me/Tools/Claude.app\0/Applications/Host.app/Contents/Helper.app\0relative.app\0')
+    respond(['/Volumes/Work/Apps/My Editor.app   kMDItemDisplayName = My Editor', '/Users/me/Tools/Claude.app   kMDItemDisplayName = Claude',
+      '/Applications/Host.app/Contents/Helper.app   kMDItemDisplayName = Helper',
+      '/System/Library/Frameworks/PaperKit.framework/Contents/LinkedNotesUIService.app   kMDItemDisplayName = LinkedNotesUIService',
+      'relative.app   kMDItemDisplayName = relative', ''].join('\0'))
     expect(await readSystemLauncherApps('darwin')).toEqual([
       { name: 'My Editor', target: { kind: 'path', path: '/Volumes/Work/Apps/My Editor.app' } },
       { name: 'Claude', target: { kind: 'path', path: '/Users/me/Tools/Claude.app' } },
     ])
-    expect(command.mock.calls[0].slice(0, 2)).toEqual(['/usr/bin/mdfind', ['-0', 'kMDItemContentType == "com.apple.application-bundle"']])
+    expect(command.mock.calls[0].slice(0, 2)).toEqual(['/usr/bin/mdfind',
+      ['-0', '-attr', 'kMDItemDisplayName', 'kMDItemContentType == "com.apple.application-bundle"']])
+  })
+
+  it('names macOS apps by their localized display name and keeps the bundle name as an alias', async () => {
+    respond(['/System/Applications/Notes.app   kMDItemDisplayName = Ghi chú', '/System/Applications/Stickies.app   kMDItemDisplayName = Giấy ghi chú.app',
+      '/Applications/Safari.app   kMDItemDisplayName = safari', '/Applications/Legacy.app   kMDItemDisplayName = (null)',
+      '/Applications/Plain.app', ''].join('\0'))
+    expect(await readSystemLauncherApps('darwin')).toEqual([
+      { name: 'Ghi chú', aliases: ['Notes'], target: { kind: 'path', path: '/System/Applications/Notes.app' } },
+      { name: 'Giấy ghi chú', aliases: ['Stickies'], target: { kind: 'path', path: '/System/Applications/Stickies.app' } },
+      { name: 'safari', target: { kind: 'path', path: '/Applications/Safari.app' } },
+      { name: 'Legacy', target: { kind: 'path', path: '/Applications/Legacy.app' } },
+      { name: 'Plain', target: { kind: 'path', path: '/Applications/Plain.app' } },
+    ])
   })
 
   it('activates the AppsFolder item with an ID passed as data, without relying on Explorer exit codes', async () => {

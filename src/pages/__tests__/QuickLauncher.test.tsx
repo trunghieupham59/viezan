@@ -219,6 +219,18 @@ describe('QuickLauncher', () => {
     await waitFor(() => expect(window.api.quickChat.launcher.openApp).toHaveBeenCalledWith('code'))
   })
 
+  it.each(['Ghi chú', 'ghi chu', 'notes', 'Notes'])('finds a localized app by its display name or bundle alias using %s', async query => {
+    vi.mocked(window.api.quickChat.launcher.listApps).mockResolvedValue({ success: true, apps: [
+      { id: 'linked', name: 'LinkedNotesUIService' }, { id: 'notes', name: 'Ghi chú', aliases: ['Notes'] },
+    ] })
+    render(<QuickLauncher />)
+    await act(async () => {})
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: query } })
+    expect(screen.getByRole('option', { selected: true })).toHaveTextContent('Ghi chúApplication')
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
+    await waitFor(() => expect(window.api.quickChat.launcher.openApp).toHaveBeenCalledWith('notes'))
+  })
+
   it('ranks exact names before prefixes, word matches and substrings, independently of catalog order', async () => {
     vi.mocked(window.api.quickChat.launcher.listApps).mockResolvedValue({ success: true, apps: [
       { id: 'dev', name: 'Claude Dev' }, { id: 'exact', name: 'Claude' }, { id: 'word', name: 'My Claude' },

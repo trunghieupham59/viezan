@@ -1,6 +1,9 @@
 export interface LauncherApp {
   id: string
+  /** Display name in the OS language, e.g. "Ghi chú" for Notes on a Vietnamese macOS. */
   name: string
+  /** Other searchable names for the same app, such as the English bundle name beside a localized display name. */
+  aliases?: string[]
   iconDataUrl?: string
 }
 

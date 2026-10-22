@@ -224,9 +224,13 @@ export function QuickLauncher() {
       if (value.split(/[\s._-]+/).some(word => word.startsWith(needle))) return 4
       return 5
     }
-    const matchedApps = apps.filter(app => matches(app.name)
-      || (compactNeedle.length >= 2 && aliases(app.name).some(alias => alias.startsWith(compactNeedle))))
-      .sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name))
+    // A localized display name ("Ghi chú") and its bundle name ("Notes") both find the app.
+    const labels = (app: LauncherApp) => [app.name, ...(app.aliases ?? [])]
+    const matchesApp = (label: string) => matches(label)
+      || (compactNeedle.length >= 2 && aliases(label).some(alias => alias.startsWith(compactNeedle)))
+    const rankApp = (app: LauncherApp) => Math.min(...labels(app).map(rank))
+    const matchedApps = apps.filter(app => labels(app).some(matchesApp))
+      .sort((a, b) => rankApp(a) - rankApp(b) || a.name.localeCompare(b.name))
       .slice(0, MAX_APP_RESULTS).map(toResult)
     // Text commands always appear under "Use with…"; only navigation commands are searched by name.
     const matchedCommands = viezanCommands.filter(command =>

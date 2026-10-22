@@ -78,7 +78,7 @@ export function registerLauncherHandlers(ipc: IpcMain, getWindow: () => BrowserW
       const known = new Set(apps.map(entry => entry.id))
       return {
         success: true,
-        apps: apps.map(({ id, name }) => ({ id, name, iconDataUrl: icons.peek(id) })),
+        apps: apps.map(({ id, name, aliases }) => ({ id, name, ...(aliases?.length ? { aliases } : {}), iconDataUrl: icons.peek(id) })),
         recent: recentIds.filter(id => known.has(id)),
       }
     } catch {

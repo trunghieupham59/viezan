@@ -7,6 +7,7 @@ export type LauncherTarget =
 
 export interface SystemLauncherApp {
   name: string
+  aliases?: string[]
   target: LauncherTarget
   executable?: string
   args?: string
@@ -109,6 +110,9 @@ export function parseWindowsApps(output: string): SystemLauncherApp[] {
   })
 }
 
+const MAC_DISPLAY_NAME_ATTRIBUTE = 'kMDItemDisplayName'
+const MAC_DISPLAY_NAME_MARKER = `${MAC_DISPLAY_NAME_ATTRIBUTE} = `
+
 export async function readSystemLauncherApps(platform: string): Promise<SystemLauncherApp[]> {
   if (platform === 'win32') {
     const output = await runWindowsScript(WINDOWS_CATALOG_SCRIPT)
@@ -117,13 +121,27 @@ export async function readSystemLauncherApps(platform: string): Promise<SystemLa
   if (platform === 'darwin') {
     // Spotlight covers indexed app bundles outside the standard Applications
     // folders, including applications on other indexed volumes.
-    const output = await runFile('/usr/bin/mdfind', ['-0', 'kMDItemContentType == "com.apple.application-bundle"'])
-    return output.split('\0').filter(value => path.posix.isAbsolute(value) && value.endsWith('.app')
-      && !/\.app\//i.test(value) && !value.includes('\n')).map(value => ({
-      name: path.posix.basename(value, '.app'), target: { kind: 'path' as const, path: value },
-    }))
+    const output = await runFile('/usr/bin/mdfind', ['-0', '-attr', MAC_DISPLAY_NAME_ATTRIBUTE, 'kMDItemContentType == "com.apple.application-bundle"'])
+    return output.split('\0').flatMap(record => parseMacApp(record) ?? [])
   }
   return []
+}
+
+/**
+ * A `-attr` record reads `<path>   kMDItemDisplayName = <value>`. The display
+ * name follows the system language (Notes.app is "Ghi chú" on a Vietnamese
+ * Mac), so it becomes the name while the bundle name stays searchable as an
+ * alias. Bundles embedded in other bundles or frameworks are services, not apps.
+ */
+export function parseMacApp(record: string): SystemLauncherApp | undefined {
+  const marker = record.lastIndexOf(MAC_DISPLAY_NAME_MARKER)
+  const appPath = (marker >= 0 ? record.slice(0, marker) : record).trimEnd()
+  if (!path.posix.isAbsolute(appPath) || !appPath.endsWith('.app') || /\.(?:app|framework)\//i.test(appPath) || appPath.includes('\n')) return undefined
+  const bundleName = path.posix.basename(appPath, '.app')
+  const displayName = marker >= 0 ? record.slice(marker + MAC_DISPLAY_NAME_MARKER.length).trim().replace(/\.app$/i, '') : ''
+  const name = displayName && displayName !== '(null)' ? displayName : bundleName
+  const aliases = name.toLowerCase() === bundleName.toLowerCase() ? {} : { aliases: [bundleName] }
+  return { name, ...aliases, target: { kind: 'path', path: appPath } }
 }
 
 /** Only a main-process catalog entry reaches this function; never script text. */
