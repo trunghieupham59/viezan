@@ -85,7 +85,8 @@ describe('TranslationHistoryPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear translation history' }))
     const dialog = screen.getByRole('dialog', { name: 'Clear translation history' })
     // The shell's close control and the footer action share the Cancel label.
-    fireEvent.click(within(dialog).getAllByRole('button', { name: 'Cancel' }).at(-1) as HTMLElement)
+    const cancelButtons = within(dialog).getAllByRole('button', { name: 'Cancel' })
+    fireEvent.click(cancelButtons[cancelButtons.length - 1] as HTMLElement)
     expect(onClearHistory).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear translation history' }))
