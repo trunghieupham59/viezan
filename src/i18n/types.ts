@@ -657,6 +657,7 @@ export interface Translations {
   time_m_ago: string
   time_h_ago: string
   time_d_ago: string
+  history_trigger_label: string
   history_translate_count: string
   history_models_count: (count: number) => string
   history_live_count: string
@@ -692,6 +693,8 @@ export interface Translations {
   live_panel_original: string
   live_panel_translation: string
   live_history_title: string
+  live_history_toggle_show: string
+  live_history_toggle_hide: string
   live_history_open: string
   live_history_empty: string
   live_history_clear: string

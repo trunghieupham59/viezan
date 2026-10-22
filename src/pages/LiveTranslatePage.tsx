@@ -9,7 +9,6 @@ import { Button } from '../components/ui/atoms'
 import { 
   CheckIcon,
   ChevronDownIcon,
-  ClockIcon,
   CopyIcon,
   DownloadIcon,
   GearIcon,
@@ -24,7 +23,7 @@ import {
   TranslateIcon,
   TrashIcon,
   XIcon,} from '../components/ui/icons'
-import { DialogShell, EmptyPanelState } from '../components/ui/molecules'
+import { DialogShell, EmptyPanelState, HistoryTrigger } from '../components/ui/molecules'
 import { COPY_FEEDBACK_DURATION_MS, DEFAULT_SEGMENT_DURATION_MS, MIN_SEGMENT_DURATION_MS } from '../constants/ui'
 import { MACOS_SCREEN_RECORDING_PREFS } from '../constants/urls'
 import { useFollowLatest } from '../hooks/live/useFollowLatest'
@@ -555,22 +554,15 @@ export function LiveTranslatePage() {
               lockedReason={isActive ? t.language_pairs_locked_short : t.language_pairs_locked}
             />
             <div className="feature-command-bar-end">
-              <Button
-                size="md"
-                shape="rect"
-                variant="neutral"
-                appearance={showHistory ? 'soft' : 'outline'}
-                type="button"
-                aria-haspopup="dialog"
-                aria-expanded={showHistory}
-                title={t.live_history_title}
-                onClick={() => setShowHistory(true)}
-                className="flex-shrink-0"
-              >
-                <ClockIcon className="w-3.5 h-3.5" />
-                <span>{t.live_history_title}</span>
-                {liveSessions.length > 0 && <span className="history-trigger-count">{liveSessions.length}</span>}
-              </Button>
+              <HistoryTrigger
+                label={t.history_trigger_label}
+                count={liveSessions.length}
+                expanded={showHistory}
+                hideLabel={t.live_history_toggle_hide}
+                showLabel={t.live_history_toggle_show}
+                hasPopup="dialog"
+                onToggle={() => setShowHistory(true)}
+              />
 
               <InterpretAIConfiguration
                 open={showAIConfig}

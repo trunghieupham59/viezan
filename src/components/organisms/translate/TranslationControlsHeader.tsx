@@ -11,8 +11,8 @@ import { formatModelName } from '../../../utils/modelDisplay'
 import { TranslateToolbar } from '../../translate/TranslateToolbar'
 import { AutoTranslateToggle } from '../../ui/AutoTranslateToggle'
 import { Button } from '../../ui/atoms'
-import { ClockIcon, GearIcon } from '../../ui/icons'
-import { AIModelField, ConfigSection, type SelectFieldOption } from '../../ui/molecules'
+import { GearIcon } from '../../ui/icons'
+import { AIModelField, ConfigSection, HistoryTrigger, type SelectFieldOption } from '../../ui/molecules'
 import { AIConfigurationPopover } from '../AIConfigurationPopover'
 import { TranslationModelDialog } from './TranslationModelDialog'
 
@@ -149,23 +149,14 @@ export function TranslationControlsHeader({
           />
 
           {onHistoryToggle && (
-            <Button
-              size="md"
-              shape="rect"
-              variant="neutral"
-              appearance={historyOpen ? 'soft' : 'outline'}
-              aria-pressed={historyOpen}
-              aria-label={historyOpen ? t.translate_history_toggle_hide : t.translate_history_toggle_show}
-              title={historyOpen ? t.translate_history_toggle_hide : t.translate_history_toggle_show}
-              onClick={onHistoryToggle}
-              className="translate-history-trigger"
-            >
-              <ClockIcon />
-              <span>{t.translate_history_title}</span>
-              {historyCount > 0 && (
-                <span className="history-trigger-count">{historyCount}</span>
-              )}
-            </Button>
+            <HistoryTrigger
+              label={t.history_trigger_label}
+              count={historyCount}
+              expanded={historyOpen ?? false}
+              hideLabel={t.translate_history_toggle_hide}
+              showLabel={t.translate_history_toggle_show}
+              onToggle={onHistoryToggle}
+            />
           )}
 
           <div className="ai-configuration-anchor">
