@@ -59,6 +59,8 @@ export interface SettingsSlice {
   aiChatSidebarCollapsed: boolean
   /** Columns or sentence rows for the multi-model translation comparison; survives navigation. */
   translateComparisonView: TranslateComparisonView
+  /** Collapsed preference for the history panel beside the AI Translate workbench. */
+  translateHistoryCollapsed: boolean
 
   // Provider / key status
   keyStatus: Record<Provider, boolean>
@@ -96,6 +98,7 @@ export interface SettingsSlice {
   setAiChatSidebarCollapsed: (collapsed: boolean) => void
   toggleAiChatSidebar: () => void
   setTranslateComparisonView: (view: TranslateComparisonView) => void
+  setTranslateHistoryCollapsed: (collapsed: boolean) => void
 
   /** Whether a Tavily API key is stored (used for Deep Research web search) */
   hasTavilyKey: boolean
@@ -138,6 +141,7 @@ export const createSettingsSlice = (set: SliceSet): SettingsSlice => ({
   sidebarCollapsed: false,
   aiChatSidebarCollapsed: false,
   translateComparisonView: 'columns' as TranslateComparisonView,
+  translateHistoryCollapsed: false,
   // Build initial provider maps from PROVIDERS registry — adding a new provider only requires
   // updating constants/providers.ts; no need to touch this slice.
   keyStatus: Object.fromEntries(PROVIDERS.map((p) => [p.id, false])) as Record<Provider, boolean>,
@@ -175,6 +179,7 @@ export const createSettingsSlice = (set: SliceSet): SettingsSlice => ({
   toggleAiChatSidebar: () =>
     set((state: SettingsSlice) => ({ aiChatSidebarCollapsed: !state.aiChatSidebarCollapsed })),
   setTranslateComparisonView: (view) => set({ translateComparisonView: view }),
+  setTranslateHistoryCollapsed: (collapsed) => set({ translateHistoryCollapsed: collapsed }),
 
   setKeyStatus: (provider, hasKey) =>
     set((state: SettingsSlice) => ({ keyStatus: { ...state.keyStatus, [provider]: hasKey } })),

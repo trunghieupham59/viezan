@@ -380,6 +380,8 @@ export function useTranslate() {
   const [selectedComparisonKey, setSelectedComparisonKey] = useState<string | null>(null)
   const selectedComparisonKeyRef = useRef(selectedComparisonKey)
   selectedComparisonKeyRef.current = selectedComparisonKey
+  /** History entry shown on the workbench, so the history panel can mark it. */
+  const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null)
   /** History entry owned by the current comparison run; re-picking replaces it instead of adding. */
   const comparisonHistoryIdRef = useRef<string | null>(null)
   /** Latest comparison results, readable from async completions and pick handlers without stale closures. */
@@ -468,6 +470,11 @@ export function useTranslate() {
     && resultContext
     && !isSameResultContext(resultContext, currentResultContext),
   )
+
+  // Read when an auto-translate timer fires: a result that still matches the
+  // draft (for example one just reopened from history) is not run again.
+  const resultFreshRef = useRef(false)
+  resultFreshRef.current = hasVisibleResult && !isResultStale
 
   const markResultCurrent = useCallback(() => {
     setResultContext(currentResultContext)
@@ -714,11 +721,14 @@ export function useTranslate() {
         : createHistoryId(timestamp)
 
       upsertHistory({ ...baseItem, id })
+      setActiveHistoryId(id)
       autoHistoryDraftRef.current = { id, contextKey, sourceText, timestamp }
       return
     }
 
-    addHistory({ ...baseItem, id: createHistoryId(timestamp) })
+    const id = createHistoryId(timestamp)
+    addHistory({ ...baseItem, id })
+    setActiveHistoryId(id)
     autoHistoryDraftRef.current = null
   }, [addHistory, upsertHistory, recordUsageCost, sourceLang, targetLang, translationStyle, sourceText])
 
@@ -1047,7 +1057,10 @@ export function useTranslate() {
           results: finishedResults,
           picked: pickedKey ? finishedResults.find((result) => result.key === pickedKey) ?? null : null,
         })
-        if (historyItem) upsertHistory(historyItem)
+        if (historyItem) {
+          upsertHistory(historyItem)
+          setActiveHistoryId(historyItem.id)
+        }
         const detectionResult = successfulResults[0]
         detectLanguageInBackground(
           sourceText,
@@ -1153,7 +1166,10 @@ export function useTranslate() {
       )),
       picked: result,
     })
-    if (historyItem) upsertHistory(historyItem)
+    if (historyItem) {
+      upsertHistory(historyItem)
+      setActiveHistoryId(historyItem.id)
+    }
   }, [sourceLang, sourceText, targetLang, translationStyle, upsertHistory])
 
   const handleCopyComparison = useCallback(async (result: TranslationComparisonResult) => {
@@ -1232,7 +1248,10 @@ export function useTranslate() {
   useEffect(() => {
     if (!autoTranslate || !sourceText.trim() || isVoiceActive) return
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => { runTranslateRef.current('auto') }, autoTranslateDelay)
+    debounceRef.current = setTimeout(() => {
+      if (resultFreshRef.current) return
+      runTranslateRef.current('auto')
+    }, autoTranslateDelay)
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [autoTranslate, autoTranslateDelay, sourceText, isVoiceActive])
 
@@ -1411,6 +1430,7 @@ export function useTranslate() {
     setComparisonResults([])
     setCopiedComparisonKey(null)
     setSelectedComparisonKey(null)
+    setActiveHistoryId(null)
     setResultContext(null)
     setTranslateError(null)
     setDetectedSourceLang(null)
@@ -1460,6 +1480,7 @@ export function useTranslate() {
     setPendingTranslateRestore(null)
     if (!item) return
     invalidateActiveTranslation()
+    setActiveHistoryId(item.id)
     const savedResults = item.results ?? []
     if (savedResults.length > 1) {
       const restoredResults = savedResults.map((saved) => ({
@@ -1536,6 +1557,7 @@ export function useTranslate() {
     comparisonSourceText: resultContext?.sourceText ?? sourceText,
     copiedComparisonKey,
     selectedComparisonKey,
+    activeHistoryId,
     // ── TTS ────────────────────────────────────────────────────────────────
     speakingPanel,
     speakLoading,

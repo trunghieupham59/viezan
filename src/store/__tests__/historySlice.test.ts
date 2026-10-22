@@ -267,3 +267,52 @@ describe('setViewingLiveSession', () => {
     expect(useAppStore.getState().viewingLiveSessionId).toBeNull()
   })
 })
+
+describe('reuseTranslationHistory', () => {
+  it('restores a comparison entry with every model and asks the translate screen to reopen it', () => {
+    act(() => {
+      useAppStore.setState({
+        translatedText: 'stale',
+        translationModels: [{ provider: 'claude', model: 'claude-sonnet-4-5' }],
+        pendingTranslateRestoreId: null,
+      })
+      useAppStore.getState().reuseTranslationHistory(makeHistoryItem('compare', {
+        provider: 'openai',
+        model: 'gpt-4o',
+        sourceText: 'Hello',
+        translatedText: 'Xin chào',
+        translationStyle: 'formal',
+        results: [
+          { provider: 'gemini', model: 'gemini-2.0-flash', translatedText: 'Chào' },
+          { provider: 'openai', model: 'gpt-4o', translatedText: 'Xin chào' },
+        ],
+      }))
+    })
+    const state = useAppStore.getState()
+    expect(state.translationModels).toEqual([
+      { provider: 'gemini', model: 'gemini-2.0-flash' },
+      { provider: 'openai', model: 'gpt-4o' },
+    ])
+    expect(state.sourceText).toBe('Hello')
+    expect(state.translatedText).toBe('')
+    expect(state.translationStyle).toBe('formal')
+    expect(state.pendingTranslateRestoreId).toBe('compare')
+  })
+
+  it('restores a single-model entry with its translation', () => {
+    act(() => {
+      useAppStore.getState().reuseTranslationHistory(makeHistoryItem('single', {
+        sourceText: 'Hello',
+        translatedText: 'Xin chào',
+        sourceLang: 'en',
+        targetLang: 'vi',
+      }))
+    })
+    const state = useAppStore.getState()
+    expect(state.translationModels).toEqual([{ provider: 'gemini', model: 'gemini-2.0-flash' }])
+    expect(state.translatedText).toBe('Xin chào')
+    expect(state.sourceLang).toBe('en')
+    expect(state.targetLang).toBe('vi')
+    expect(state.pendingTranslateRestoreId).toBe('single')
+  })
+})

@@ -219,6 +219,13 @@ export interface Translations {
   translate_compare_pick: string
   translate_compare_picked: string
   translate_compare_pick_short: string
+  translate_history_title: string
+  translate_history_toggle_show: string
+  translate_history_toggle_hide: string
+  translate_history_close: string
+  translate_history_empty: string
+  translate_history_clear: string
+  translate_history_clear_confirm: string
   translate_compare_identical: string
   translate_compare_source_expand: string
   translate_compare_source_collapse: string

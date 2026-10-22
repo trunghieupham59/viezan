@@ -3,6 +3,7 @@ import type { DictionaryListTab } from '../../../hooks/useDictionaryLookup'
 import type { Translations } from '../../../i18n'
 import type { DictionaryEntry, UsageCurrency } from '../../../types'
 import { formatDictionaryPronunciation } from '../../../utils/dictionary'
+import { formatRelativeTime } from '../../../utils/relativeTime'
 import { Button } from '../../ui/atoms'
 import { BookIcon, StarIcon, TrashIcon } from '../../ui/icons'
 import { DialogShell, EmptyPanelState, FilterInput, TabBar, UsageCostBadge } from '../../ui/molecules'
@@ -22,27 +23,6 @@ export interface DictionaryHistoryPanelProps {
 
 /** Rows below this count do not need a filter field. */
 const FILTER_THRESHOLD = 4
-
-/**
- * Format a timestamp as a compact relative time ("5m", "2h", "3d"). Stays
- * locale-neutral by using single-character suffixes.
- */
-function formatRelativeTime(ts: number): string {
-  const diff = Date.now() - ts
-  const sec = Math.floor(diff / 1000)
-  if (sec < 30) return '·'
-  if (sec < 60) return `${sec}s`
-  const min = Math.floor(sec / 60)
-  if (min < 60) return `${min}m`
-  const hr = Math.floor(min / 60)
-  if (hr < 24) return `${hr}h`
-  const day = Math.floor(hr / 24)
-  if (day < 7) return `${day}d`
-  const wk = Math.floor(day / 7)
-  if (wk < 4) return `${wk}w`
-  const mo = Math.floor(day / 30)
-  return `${mo}mo`
-}
 
 /** Recent / favourite lookups with a filter, selectable rows and destructive footer actions. */
 export function DictionaryHistoryPanel({

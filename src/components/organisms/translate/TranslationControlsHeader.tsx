@@ -11,7 +11,7 @@ import { formatModelName } from '../../../utils/modelDisplay'
 import { TranslateToolbar } from '../../translate/TranslateToolbar'
 import { AutoTranslateToggle } from '../../ui/AutoTranslateToggle'
 import { Button } from '../../ui/atoms'
-import { GearIcon } from '../../ui/icons'
+import { ClockIcon, GearIcon } from '../../ui/icons'
 import { AIModelField, ConfigSection, type SelectFieldOption } from '../../ui/molecules'
 import { AIConfigurationPopover } from '../AIConfigurationPopover'
 import { TranslationModelDialog } from './TranslationModelDialog'
@@ -35,6 +35,10 @@ interface TranslationControlsHeaderProps {
   modelsOpen: boolean
   onModelsOpenChange: (open: boolean) => void
   onOpenSettings: () => void
+  /** Whether the saved-translations panel is showing; `undefined` hides the toggle. */
+  historyOpen?: boolean
+  historyCount?: number
+  onHistoryToggle?: () => void
 }
 
 /** Translation utility bar with a focused model dialog and compact output settings. */
@@ -56,6 +60,9 @@ export function TranslationControlsHeader({
   modelsOpen,
   onModelsOpenChange,
   onOpenSettings,
+  historyOpen,
+  historyCount = 0,
+  onHistoryToggle,
 }: TranslationControlsHeaderProps) {
   const t = useT()
   const optionsId = useId()
@@ -140,6 +147,26 @@ export function TranslationControlsHeader({
             label={t.translate_mode_auto}
             disabled={isComparisonMode}
           />
+
+          {onHistoryToggle && (
+            <Button
+              size="md"
+              shape="rect"
+              variant="neutral"
+              appearance={historyOpen ? 'soft' : 'outline'}
+              aria-pressed={historyOpen}
+              aria-label={historyOpen ? t.translate_history_toggle_hide : t.translate_history_toggle_show}
+              title={historyOpen ? t.translate_history_toggle_hide : t.translate_history_toggle_show}
+              onClick={onHistoryToggle}
+              className="translate-history-trigger"
+            >
+              <ClockIcon />
+              <span>{t.translate_history_title}</span>
+              {historyCount > 0 && (
+                <span className="translate-history-trigger-count">{historyCount}</span>
+              )}
+            </Button>
+          )}
 
           <div className="ai-configuration-anchor">
             <Button

@@ -22,13 +22,7 @@ export function TranslationHistoryTab({ query }: TranslationHistoryTabProps) {
     history,
     deleteHistoryItem,
     setActivePage,
-    setSourceText,
-    setTranslatedText,
-    setSourceLang,
-    setTargetLang,
-    setTranslationModels,
-    setTranslationStyle,
-    setPendingTranslateRestore,
+    reuseTranslationHistory,
     costCurrency,
   } = useAppStore()
   const t = useT()
@@ -52,17 +46,7 @@ export function TranslationHistoryTab({ query }: TranslationHistoryTabProps) {
   // A comparison entry reopens with every model it kept; the translate hook
   // then restores the per-model results and the pick from the entry id.
   const handleReuse = (item: HistoryItem) => {
-    const savedResults = item.results ?? []
-    const isComparison = savedResults.length > 1
-    setSourceText(item.sourceText)
-    setTranslatedText(isComparison ? '' : item.translatedText)
-    setSourceLang(item.sourceLang)
-    setTargetLang(item.targetLang)
-    setTranslationModels(isComparison
-      ? savedResults.map(({ provider, model }) => ({ provider, model }))
-      : [{ provider: item.provider, model: item.model }])
-    if (item.translationStyle) setTranslationStyle(item.translationStyle)
-    setPendingTranslateRestore(item.id)
+    reuseTranslationHistory(item)
     setActivePage('translate')
   }
 

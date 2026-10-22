@@ -42,6 +42,7 @@ export {
 } from './SettingsNavigation'
 export { TranslationComparisonPane } from './translate/TranslationComparisonPane'
 export { TranslationControlsHeader } from './translate/TranslationControlsHeader'
+export { TranslationHistoryPanel, type TranslationHistoryPanelProps } from './translate/TranslationHistoryPanel'
 export { TranslationModelPicker } from './translate/TranslationModelPicker'
 export { TranslationResultPane } from './translate/TranslationResultPane'
 export { TranslationSourcePane } from './translate/TranslationSourcePane'
