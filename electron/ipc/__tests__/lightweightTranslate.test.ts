@@ -176,11 +176,11 @@ describe('lightweightTranslate — output budget and deadlines', () => {
     expect((await call({ text: 'hello', targetLang: 'es' })).errorCode).toBe('BLOCKED_SAFETY')
   })
 
-  it('maps OpenAI refusals and Claude stop_reason refusal to BLOCKED_SAFETY', async () => {
+  it('maps OpenAI refusals to BLOCKED_SAFETY and Claude stop_reason refusal to MODEL_REFUSAL', async () => {
     openAiCreate.mockResolvedValue({ choices: [{ finish_reason: 'stop', message: { content: null, refusal: 'no' } }] })
     expect((await call({ text: 'hello', targetLang: 'es', provider: 'openai' })).errorCode).toBe('BLOCKED_SAFETY')
     claudeCreate.mockResolvedValue({ content: [], stop_reason: 'refusal' })
-    expect((await call({ text: 'hello', targetLang: 'es', provider: 'claude' })).errorCode).toBe('BLOCKED_SAFETY')
+    expect((await call({ text: 'hello', targetLang: 'es', provider: 'claude' })).errorCode).toBe('MODEL_REFUSAL')
   })
 
   it('gives a local model a much longer deadline than the cloud 60 s', async () => {

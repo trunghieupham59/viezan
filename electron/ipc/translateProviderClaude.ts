@@ -1,4 +1,4 @@
-import { blockedSafetyError } from './errorUtils'
+import { modelRefusalError } from './errorUtils'
 import { clampMaxOutputTokens, MAX_OUTPUT_TOKENS_CLAUDE } from './ipcConstants'
 import { buildLivePrompt, buildLiveSystemPrompt, liveOutputBudget } from './liveTranslationPolicy'
 import { buildPrompt, buildRewritePrompt, REWRITE_SYSTEM_PROMPT, SYSTEM_PROMPT } from './translatePrompts'
@@ -9,9 +9,9 @@ import { getClaudeLiveThinkingConfig, getClaudeReasoningConfig } from './transla
 /** Single retry layer: `withRetry` handles transient failures, so the SDK must not retry on its own. */
 const CLIENT_OPTIONS = { maxRetries: 0 } as const
 
-/** Claude text answer; `stop_reason: "refusal"` is a safety block, `max_tokens` a truncation. */
+/** Claude text answer; `stop_reason: "refusal"` is a model refusal (retried once by withRetry), `max_tokens` a truncation. */
 function messageText(message: { content: ReadonlyArray<{ type: string; text?: string }>; stop_reason?: string | null }): string {
-  if (message.stop_reason === 'refusal') throw blockedSafetyError('claude', 'stop_reason=refusal')
+  if (message.stop_reason === 'refusal') throw modelRefusalError('claude', 'stop_reason=refusal')
   return finalizeProviderText('claude', joinClaudeText(message.content), message.stop_reason === 'max_tokens')
 }
 
@@ -74,7 +74,7 @@ export const detectWithClaude: DetectFn = async (apiKey, model, prompt, options 
     },
     requestOptions(options),
   )
-  if (message.stop_reason === 'refusal') throw blockedSafetyError('claude', 'stop_reason=refusal')
+  if (message.stop_reason === 'refusal') throw modelRefusalError('claude', 'stop_reason=refusal')
   return nonEmptyProviderText('claude', joinClaudeText(message.content))
 }
 
@@ -113,7 +113,7 @@ export const streamWithClaude: StreamFn = async (apiKey, model, prompt, onToken,
       stopReason = event.delta.stop_reason
     }
   }
-  if (stopReason === 'refusal') throw blockedSafetyError('claude', 'stop_reason=refusal')
+  if (stopReason === 'refusal') throw modelRefusalError('claude', 'stop_reason=refusal')
   finalizeProviderText('claude', fullText, stopReason === 'max_tokens')
   return fullText
 }

@@ -98,6 +98,8 @@ export interface Translations {
   translate_error_blocked_recitation: string
   /** Provider blocked the translation through its safety filter */
   translate_error_blocked_safety: string
+  /** The model itself declined (Claude refusal); already retried once by the main process */
+  translate_error_model_refusal: string
   /** Error shown when downloading the translated image fails */
   translate_error_download: string
   translate_phonetic: string
@@ -1232,6 +1234,7 @@ export interface Translations {
   chat_error_empty_response: string
   chat_error_blocked_recitation: string
   chat_error_blocked_safety: string
+  chat_error_model_refusal: string
   chat_error_no_image_edit: string
 
   // Live — audio source section label

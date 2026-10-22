@@ -45,6 +45,8 @@ export function localizeChatError(t: Translations, result: ChatErrorLike, fallba
       return t.chat_error_blocked_recitation
     case 'BLOCKED_SAFETY':
       return t.chat_error_blocked_safety
+    case 'MODEL_REFUSAL':
+      return t.chat_error_model_refusal
     case 'NO_IMAGE_EDIT':
       return t.chat_error_no_image_edit
     case 'PRELOAD_OUTDATED':

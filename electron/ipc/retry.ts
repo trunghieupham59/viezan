@@ -13,7 +13,7 @@
  * ```
  */
 
-import { getErrorStatus, getRetryAfterMs, getStatusFromMessage } from './errorUtils'
+import { getErrorStatus, getRetryAfterMs, getStatusFromMessage, isModelRefusalError } from './errorUtils'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -129,12 +129,23 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
   } = opts
 
   let lastError: Error = new Error('Unknown error')
+  // A model refusal (Claude `stop_reason: "refusal"`) is not transient in the network
+  // sense, but the provider's safety classifier is not deterministic and also fires on
+  // harmless text. It gets exactly one extra attempt, independent of `shouldRetry`.
+  let refusalRetried = false
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       return await fn()
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err))
+
+      if (isModelRefusalError(lastError)) {
+        if (signal?.aborted || attempt === maxAttempts || refusalRetried) throw lastError
+        refusalRetried = true
+        console.warn(`[retry] Attempt ${attempt}/${maxAttempts} was refused by the model. Retrying once...`)
+        continue
+      }
 
       // Non-retriable error, cancelled caller or last attempt → throw immediately
       if (signal?.aborted || attempt === maxAttempts || !shouldRetry(lastError)) {

@@ -15,7 +15,7 @@ export interface IpcErrorResponse {
 // ── Structured error helpers ─────────────────────────────────────────────────
 
 /** Error codes thrown by the app itself when a provider returns an unusable result. */
-export type ProviderResponseErrorCode = 'EMPTY_RESPONSE' | 'OUTPUT_TRUNCATED' | 'INVALID_RESPONSE' | 'BLOCKED_SAFETY'
+export type ProviderResponseErrorCode = 'EMPTY_RESPONSE' | 'OUTPUT_TRUNCATED' | 'INVALID_RESPONSE' | 'BLOCKED_SAFETY' | 'MODEL_REFUSAL'
 
 /**
  * Error carrying a structured `errorCode`. Thrown when a provider call "succeeds" at the
@@ -53,6 +53,20 @@ export function truncatedOutputError(provider: string): ProviderResponseError {
  */
 export function blockedSafetyError(provider: string, reason: string): ProviderResponseError {
   return new ProviderResponseError(`Response blocked by ${provider} safety filters: ${reason}`, 'BLOCKED_SAFETY')
+}
+
+/**
+ * The model itself declined to answer (Claude `stop_reason: "refusal"`): the provider's
+ * safety classifier stopped the reply. Unlike BLOCKED_SAFETY this is not a verdict on the
+ * input text: the classifier also fires on harmless passages and is not deterministic, so
+ * `withRetry` gives it exactly one more attempt before the error reaches the user.
+ */
+export function modelRefusalError(provider: string, reason: string): ProviderResponseError {
+  return new ProviderResponseError(`${provider} declined to answer: ${reason}`, 'MODEL_REFUSAL')
+}
+
+export function isModelRefusalError(error: unknown): boolean {
+  return asRecord(error)?.errorCode === 'MODEL_REFUSAL'
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -148,6 +162,7 @@ const RESPONSE_ERROR_MESSAGES: Record<ProviderResponseErrorCode, string> = {
   INVALID_RESPONSE: 'The model returned a response that could not be read. Please try again or choose another model.',
   OUTPUT_TRUNCATED: 'The output was cut off because it reached the maximum output length. Try a shorter text or a model with a larger output limit.',
   BLOCKED_SAFETY: 'The model blocked this response due to safety filters. Try rephrasing your prompt.',
+  MODEL_REFUSAL: 'The model declined to answer (provider safety classifier). It was retried once; try again or choose another model.',
 }
 
 /** Key-rejection wordings that arrive without a 401 (Gemini: HTTP 400 `API_KEY_INVALID`). */
@@ -174,6 +189,7 @@ export function classifyProviderError(input: unknown): IpcErrorResponse {
     || structuredCode === 'OUTPUT_TRUNCATED'
     || structuredCode === 'INVALID_RESPONSE'
     || structuredCode === 'BLOCKED_SAFETY'
+    || structuredCode === 'MODEL_REFUSAL'
   ) {
     return { success: false, error: RESPONSE_ERROR_MESSAGES[structuredCode], errorCode: structuredCode }
   }
