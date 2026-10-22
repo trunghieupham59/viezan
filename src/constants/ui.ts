@@ -9,6 +9,13 @@
  *  Used in TranslatePage and ChatPage to ensure consistent UX. */
 export const COPY_FEEDBACK_DURATION_MS = 1_500
 
+/**
+ * Narrowest AI Translate container (px) that keeps the history panel beside the
+ * workbench; below it the panel opens as a temporary overlay. Mirrors the
+ * `app-main` 900px container query in translate.css.
+ */
+export const TRANSLATE_HISTORY_INLINE_MIN_WIDTH = 900
+
 /** Debounce delay (ms) before auto-translating an image attachment.
  *  Images don't have typed text to debounce on, so a short fixed delay is used. */
 export const IMAGE_AUTO_TRANSLATE_DELAY_MS = 300

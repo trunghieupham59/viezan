@@ -285,6 +285,7 @@
   --vzn-chat-reading-max: 820px;
   --vzn-chat-composer-max: 1040px;
   --vzn-translate-workspace-max: 1440px;
+  --vzn-translate-history-width: calc(var(--vzn-space-12) * 6);
   --vzn-translate-source-min-block: 18rem;
   --vzn-translate-result-min-block: 15rem;
   --vzn-translate-body-min-block: 10rem;

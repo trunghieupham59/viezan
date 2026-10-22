@@ -5,7 +5,7 @@
  * independently of chat state and user settings.
  */
 import type { HistoryItem, LiveSession } from '../../types'
-import type { SliceSet } from './sliceTypes'
+import type { SliceGet, SliceSet } from './sliceTypes'
 
 /** Maximum number of translation history entries to keep. */
 const MAX_HISTORY = 100
@@ -32,6 +32,12 @@ export interface HistorySlice {
   deleteHistoryItem: (id: string) => void
   clearHistory: () => void
   setPendingTranslateRestore: (id: string | null) => void
+  /**
+   * Put a saved translation back on the AI Translate screen: text, languages,
+   * style and models go to the store here; the translate hook then restores
+   * the per-model results and the pick from `pendingTranslateRestoreId`.
+   */
+  reuseTranslationHistory: (item: HistoryItem) => void
 
   // Live session actions
   addLiveSession: (session: LiveSession) => void
@@ -41,7 +47,7 @@ export interface HistorySlice {
   setViewingLiveSession: (id: string | null) => void
 }
 
-export const createHistorySlice = (set: SliceSet): HistorySlice => ({
+export const createHistorySlice = (set: SliceSet, get: SliceGet): HistorySlice => ({
   history: [],
   liveSessions: [],
   viewingLiveSessionId: null,
@@ -65,6 +71,26 @@ export const createHistorySlice = (set: SliceSet): HistorySlice => ({
   clearHistory: () => set({ history: [] }),
 
   setPendingTranslateRestore: (id) => set({ pendingTranslateRestoreId: id }),
+
+  reuseTranslationHistory: (item) => {
+    const savedResults = item.results ?? []
+    const isComparison = savedResults.length > 1
+    // Through the core setter so the legacy provider/model mirror stays in sync.
+    get().setTranslationModels(isComparison
+      ? savedResults.map(({ provider, model }) => ({ provider, model }))
+      : [{ provider: item.provider, model: item.model }])
+    set({
+      sourceText: item.sourceText,
+      translatedText: isComparison ? '' : item.translatedText,
+      phoneticText: '',
+      sourceLang: item.sourceLang,
+      targetLang: item.targetLang,
+      ...(item.translationStyle ? { translationStyle: item.translationStyle } : {}),
+      translateError: null,
+      translateErrorCode: null,
+      pendingTranslateRestoreId: item.id,
+    })
+  },
 
   addLiveSession: (session) =>
     set((state: HistorySlice) => ({

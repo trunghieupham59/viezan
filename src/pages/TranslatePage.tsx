@@ -3,10 +3,14 @@ import {
   LanguagePairBar,
   TranslationComparisonPane,
   TranslationControlsHeader,
+  TranslationHistoryPanel,
   TranslationResultPane,
   TranslationSourcePane,
 } from '../components/organisms'
 import { TranslateWorkbenchTemplate } from '../components/templates'
+import { DialogShell } from '../components/ui/molecules'
+import { TRANSLATE_HISTORY_INLINE_MIN_WIDTH } from '../constants/ui'
+import { useElementInlineSize } from '../hooks/useElementInlineSize'
 import { IMAGE_TRANSLATED_SENTINEL, useTranslate } from '../hooks/useTranslate'
 import type { VoiceErrorTranslationKey } from '../i18n/types'
 import { useAppStore, useT } from '../store/useAppStore'
@@ -27,7 +31,15 @@ const IMAGE_MODEL_SWITCHED_KEY = 'translate-image-model-switched'
 
 export function TranslatePage() {
   const t = useT()
-  const { openSettings } = useAppStore()
+  const {
+    openSettings,
+    history,
+    translateHistoryCollapsed,
+    setTranslateHistoryCollapsed,
+    deleteHistoryItem,
+    clearHistory,
+    reuseTranslationHistory,
+  } = useAppStore()
   const [voiceErrorCode, setVoiceErrorCode] = useState<AudioTranscriptionErrorCode | null>(null)
   const [modelsOpen, setModelsOpen] = useState(false)
   const {
@@ -67,6 +79,7 @@ export function TranslatePage() {
     comparisonSourceText,
     copiedComparisonKey,
     selectedComparisonKey,
+    activeHistoryId,
     speakingPanel,
     speakLoading,
     handleSpeak,
@@ -111,6 +124,29 @@ export function TranslatePage() {
     setSourceCollapsedOverride(null)
     handleTranslate()
   }, [handleTranslate])
+
+  // ── Saved translations ──
+  // Beside the workbench while the container has room (the stored preference
+  // decides whether it shows); a temporary overlay below that width, so the
+  // preference is never overwritten by a narrow window.
+  const pageRef = useRef<HTMLDivElement>(null)
+  const pageWidth = useElementInlineSize(pageRef)
+  const historyIsOverlay = pageWidth !== null && pageWidth < TRANSLATE_HISTORY_INLINE_MIN_WIDTH
+  const [historyOverlayOpen, setHistoryOverlayOpen] = useState(false)
+  useEffect(() => {
+    if (!historyIsOverlay) setHistoryOverlayOpen(false)
+  }, [historyIsOverlay])
+  const historyOpen = historyIsOverlay ? historyOverlayOpen : !translateHistoryCollapsed
+  const handleHistoryToggle = useCallback(() => {
+    if (historyIsOverlay) setHistoryOverlayOpen((open) => !open)
+    else setTranslateHistoryCollapsed(!translateHistoryCollapsed)
+  }, [historyIsOverlay, setTranslateHistoryCollapsed, translateHistoryCollapsed])
+  const closeHistoryOverlay = useCallback(() => setHistoryOverlayOpen(false), [])
+  const handleHistoryReuse = useCallback((item: Parameters<typeof reuseTranslationHistory>[0]) => {
+    setSourceCollapsedOverride(null)
+    reuseTranslationHistory(item)
+    setHistoryOverlayOpen(false)
+  }, [reuseTranslationHistory])
 
   const voiceContextKey = `translate:${sourceLang}:${sourceText}`
   const voiceErrorMessage = voiceErrorCode
@@ -250,6 +286,20 @@ export function TranslatePage() {
       modelsOpen={modelsOpen}
       onModelsOpenChange={setModelsOpen}
       onOpenSettings={openSettings}
+      historyOpen={historyOpen}
+      historyCount={history.length}
+      onHistoryToggle={handleHistoryToggle}
+    />
+  )
+  const historyPanel = (variant: 'panel' | 'overlay') => (
+    <TranslationHistoryPanel
+      entries={history}
+      activeEntryId={activeHistoryId}
+      onReuse={handleHistoryReuse}
+      onDelete={deleteHistoryItem}
+      onClearHistory={clearHistory}
+      variant={variant}
+      t={t}
     />
   )
 
@@ -342,12 +392,29 @@ export function TranslatePage() {
   )
 
   return (
-    <TranslateWorkbenchTemplate
-      titleId={TRANSLATE_PAGE_TITLE_ID}
-      layout={isComparisonMode ? 'comparison' : 'single'}
-      header={header}
-      sourcePanel={sourcePanel}
-      resultPanel={resultPanel}
-    />
+    <>
+      <TranslateWorkbenchTemplate
+        containerRef={pageRef}
+        titleId={TRANSLATE_PAGE_TITLE_ID}
+        layout={isComparisonMode ? 'comparison' : 'single'}
+        header={header}
+        sourcePanel={sourcePanel}
+        resultPanel={resultPanel}
+        history={!historyIsOverlay && historyOpen ? historyPanel('panel') : undefined}
+      />
+      {historyIsOverlay && historyOverlayOpen && (
+        <DialogShell
+          size="md"
+          label={t.translate_history_title}
+          title={t.translate_history_title}
+          subtitle={tpl(t.history_translate_count, { n: history.length })}
+          closeLabel={t.translate_history_close}
+          onClose={closeHistoryOverlay}
+          backdropTestId="translate-history-overlay-backdrop"
+        >
+          <div className="translate-history-overlay">{historyPanel('overlay')}</div>
+        </DialogShell>
+      )}
+    </>
   )
 }

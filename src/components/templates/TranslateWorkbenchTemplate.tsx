@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 
 export interface TranslateWorkbenchTemplateProps {
   titleId: string
@@ -6,6 +6,10 @@ export interface TranslateWorkbenchTemplateProps {
   header: ReactNode
   sourcePanel: ReactNode
   resultPanel: ReactNode
+  /** Saved translations beside the workbench; omitted when the panel is hidden. */
+  history?: ReactNode
+  /** The page measures this root to decide between the side panel and an overlay. */
+  containerRef?: Ref<HTMLDivElement>
 }
 
 /**
@@ -21,19 +25,24 @@ export function TranslateWorkbenchTemplate({
   header,
   sourcePanel,
   resultPanel,
+  history,
+  containerRef,
 }: TranslateWorkbenchTemplateProps) {
   return (
-    <div className="app-page translate-page">
+    <div ref={containerRef} className="app-page translate-page">
       <div className="translate-workspace">
         {header}
-        <section
-          className={`translate-workbench translate-workbench-${layout}`}
-          aria-labelledby={titleId}
-          data-layout={layout}
-        >
-          {sourcePanel}
-          {resultPanel}
-        </section>
+        <div className="translate-stage" data-history={history ? 'open' : 'closed'}>
+          <section
+            className={`translate-workbench translate-workbench-${layout}`}
+            aria-labelledby={titleId}
+            data-layout={layout}
+          >
+            {sourcePanel}
+            {resultPanel}
+          </section>
+          {history && <aside className="translate-history-region">{history}</aside>}
+        </div>
       </div>
     </div>
   )

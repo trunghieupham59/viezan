@@ -306,7 +306,9 @@ describe('TranslatePage', () => {
 
     render(<TranslatePage />)
     fireEvent.click(screen.getByRole('button', { name: /^Translate$/i }))
-    expect(await screen.findByText('Existing Gemini result')).toBeInTheDocument()
+    // The result shows on the workbench and, once saved, as a row of the history panel.
+    expect(await screen.findAllByText('Existing Gemini result')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Use this: Translate this' })).toHaveAttribute('aria-current', 'true')
 
     const dialog = openTranslationModelDialog()
     fireEvent.click(within(dialog).getByRole('button', { name: /GPT 4o.*Select model/i }))
@@ -317,6 +319,51 @@ describe('TranslatePage', () => {
     expect(within(geminiCard).getByText('Existing Gemini result')).toBeInTheDocument()
     expect(within(openAiCard).getByText('Choose Translate to run this model.')).toBeInTheDocument()
     expect(within(openAiCard).queryByText('Existing Gemini result')).not.toBeInTheDocument()
+  })
+
+  it('shows the history panel beside the workbench and remembers when it is hidden', () => {
+    act(() => {
+      useAppStore.setState({ history: [COMPARISON_ENTRY], translateHistoryCollapsed: false })
+    })
+    render(<TranslatePage />)
+    expect(screen.getByRole('region', { name: 'History' })).toBeInTheDocument()
+    const toggle = screen.getByRole('button', { name: 'Hide translation history' })
+    expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    expect(toggle).toHaveTextContent('1')
+
+    fireEvent.click(toggle)
+    expect(useAppStore.getState().translateHistoryCollapsed).toBe(true)
+    expect(screen.queryByRole('region', { name: 'History' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show translation history' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('reopens a comparison entry from the panel without leaving the screen', async () => {
+    act(() => {
+      useAppStore.setState({
+        activePage: 'translate',
+        sourceText: '',
+        translatedText: '',
+        translationModels: [{ provider: 'gemini', model: 'gemini-2.0-flash' }],
+        keyStatus: { gemini: true, claude: false, openai: true, local: false },
+        history: [COMPARISON_ENTRY],
+        translateHistoryCollapsed: false,
+        pendingTranslateRestoreId: null,
+      })
+    })
+    render(<TranslatePage />)
+    const row = screen.getByRole('button', { name: 'Use this: Translate this' })
+    expect(row).not.toHaveAttribute('aria-current')
+    fireEvent.click(row)
+
+    const geminiCard = await screen.findByRole('article', { name: /Gemini 2.0 Flash/ })
+    const openAiCard = screen.getByRole('article', { name: /GPT 4o/ })
+    await waitFor(() => expect(geminiCard).toHaveTextContent('Bản dịch Gemini'))
+    expect(openAiCard).toHaveTextContent('Bản dịch OpenAI')
+    expect(within(openAiCard).getByRole('button', { name: /Picked: GPT 4o/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Use this: Translate this' })).toHaveAttribute('aria-current', 'true')
+    expect(useAppStore.getState().activePage).toBe('translate')
+    expect(useAppStore.getState().pendingTranslateRestoreId).toBeNull()
+    expect(window.api.translate).not.toHaveBeenCalled()
   })
 
   it('reopens a comparison entry from history with every model and the pick', async () => {
