@@ -15,6 +15,8 @@ import {
   getRetryAfterMs,
   getStatusFromMessage,
   invalidResponseError,
+  isModelRefusalError,
+  modelRefusalError,
   noApiKeyResponse,
   truncatedOutputError,
 } from '../errorUtils'
@@ -339,9 +341,20 @@ describe('classifyProviderError — Gemini key rejection and safety refusals', (
   })
 
   it('maps blockedSafetyError to BLOCKED_SAFETY with the standard safety message', () => {
-    const result = classifyProviderError(blockedSafetyError('claude', 'stop_reason=refusal'))
+    const result = classifyProviderError(blockedSafetyError('gemini', 'finishReason=SAFETY'))
     expect(result.errorCode).toBe('BLOCKED_SAFETY')
     expect(result.error).toBe('The model blocked this response due to safety filters. Try rephrasing your prompt.')
     expect(classifyProviderError('blocked due to safety').error).toBe(result.error)
+  })
+
+  it('maps a model refusal to MODEL_REFUSAL, distinct from the input-safety verdict', () => {
+    const error = modelRefusalError('claude', 'stop_reason=refusal')
+    expect(isModelRefusalError(error)).toBe(true)
+    expect(isModelRefusalError(blockedSafetyError('claude', 'x'))).toBe(false)
+    expect(isModelRefusalError(new Error('claude declined to answer'))).toBe(false)
+    const result = classifyProviderError(error)
+    expect(result.errorCode).toBe('MODEL_REFUSAL')
+    expect(result.error).toContain('declined')
+    expect(result.error).toContain('retried once')
   })
 })

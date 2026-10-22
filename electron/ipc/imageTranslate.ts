@@ -4,6 +4,7 @@ import {
   classifyProviderError,
   emptyResponseError,
   invalidResponseError,
+  modelRefusalError,
   noApiKeyResponse,
   truncatedOutputError,
 } from './errorUtils'
@@ -662,7 +663,7 @@ async function translateImageWithClaude(
     signal ? { signal } : undefined,
   )
 
-  if (message.stop_reason === 'refusal') throw blockedSafetyError('claude', 'stop_reason=refusal')
+  if (message.stop_reason === 'refusal') throw modelRefusalError('claude', 'stop_reason=refusal')
   return parseRegionsFromText('claude', joinClaudeText(message.content), message.stop_reason === 'max_tokens')
 }
 

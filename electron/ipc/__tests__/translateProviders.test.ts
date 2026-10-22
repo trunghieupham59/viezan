@@ -337,11 +337,11 @@ describe('single retry layer: SDK clients are built with maxRetries 0', () => {
 describe('safety refusals map to BLOCKED_SAFETY', () => {
   const code = (error: unknown) => classifyProviderError(error).errorCode
 
-  it('Claude stop_reason "refusal" (translate, rewrite, detect)', async () => {
+  it('Claude stop_reason "refusal" is a MODEL_REFUSAL (translate, rewrite, detect)', async () => {
     claudeCreate.mockResolvedValue(claudeReply([], 'refusal'))
-    expect(code(await translateWithClaude('k', 'claude-sonnet-4-6', ...args).catch((e) => e))).toBe('BLOCKED_SAFETY')
-    expect(code(await rewriteWithClaude('k', 'claude-sonnet-4-6', 'text', 'en').catch((e) => e))).toBe('BLOCKED_SAFETY')
-    expect(code(await detectWithClaude('k', 'claude-sonnet-4-6', 'prompt').catch((e) => e))).toBe('BLOCKED_SAFETY')
+    expect(code(await translateWithClaude('k', 'claude-sonnet-4-6', ...args).catch((e) => e))).toBe('MODEL_REFUSAL')
+    expect(code(await rewriteWithClaude('k', 'claude-sonnet-4-6', 'text', 'en').catch((e) => e))).toBe('MODEL_REFUSAL')
+    expect(code(await detectWithClaude('k', 'claude-sonnet-4-6', 'prompt').catch((e) => e))).toBe('MODEL_REFUSAL')
   })
 
   it('OpenAI message.refusal, with or without content', async () => {
@@ -439,7 +439,7 @@ describe('streaming providers', () => {
     claudeStream.mockReturnValue(iterate([delta('cut'), stop('max_tokens')]))
     expect(classifyProviderError(await streamWithClaude('k', 'claude-sonnet-4-6', 'p', () => {}).catch((e) => e)).errorCode).toBe('OUTPUT_TRUNCATED')
     claudeStream.mockReturnValue(iterate([stop('refusal')]))
-    expect(classifyProviderError(await streamWithClaude('k', 'claude-sonnet-4-6', 'p', () => {}).catch((e) => e)).errorCode).toBe('BLOCKED_SAFETY')
+    expect(classifyProviderError(await streamWithClaude('k', 'claude-sonnet-4-6', 'p', () => {}).catch((e) => e)).errorCode).toBe('MODEL_REFUSAL')
     claudeStream.mockReturnValue(iterate([stop('end_turn')]))
     expect(classifyProviderError(await streamWithClaude('k', 'claude-sonnet-4-6', 'p', () => {}).catch((e) => e)).errorCode).toBe('EMPTY_RESPONSE')
   })

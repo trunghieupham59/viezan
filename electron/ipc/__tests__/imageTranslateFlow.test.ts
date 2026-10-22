@@ -448,12 +448,12 @@ describe('image:translate — OpenAI and Gemini request wiring', () => {
     expect(geminiGenerate.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal)
   })
 
-  it('maps provider refusals to BLOCKED_SAFETY', async () => {
+  it('maps provider safety blocks to BLOCKED_SAFETY and a Claude refusal to MODEL_REFUSAL', async () => {
     geminiGenerate.mockResolvedValue({ response: { text: () => '', candidates: [{ finishReason: 'PROHIBITED_CONTENT' }] } })
     expect(await invoke('image:translate', baseParams)).toMatchObject({ success: false, errorCode: 'BLOCKED_SAFETY' })
     claudeCreate.mockResolvedValue({ content: [], stop_reason: 'refusal' })
     expect(await invoke('image:translate', { ...baseParams, provider: 'claude', model: 'claude-sonnet-4-5' }))
-      .toMatchObject({ success: false, errorCode: 'BLOCKED_SAFETY' })
+      .toMatchObject({ success: false, errorCode: 'MODEL_REFUSAL' })
     openAiCreate.mockResolvedValue({ choices: [{ finish_reason: 'stop', message: { content: null, refusal: 'no' } }] })
     expect(await invoke('image:translate', { ...baseParams, provider: 'openai', model: 'gpt-4o' }))
       .toMatchObject({ success: false, errorCode: 'BLOCKED_SAFETY' })

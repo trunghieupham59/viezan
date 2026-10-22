@@ -7,6 +7,7 @@
  *   2. withRetry()        — retry count, backoff, success on retry, non-retriable passthrough
  */
 import { describe, expect, it, vi } from 'vitest'
+import { modelRefusalError } from '../errorUtils'
 import { isRetriableError, withRetry } from '../retry'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -265,6 +266,51 @@ describe('isRetriableError — 5xx, overload and structured status', () => {
   it('never retries an AbortError', () => {
     const abort = Object.assign(new Error('The operation was aborted: connection error'), { name: 'AbortError' })
     expect(isRetriableError(abort)).toBe(false)
+  })
+})
+
+describe('withRetry — model refusal', () => {
+  const refusal = () => modelRefusalError('claude', 'stop_reason=refusal')
+
+  it('is not a transient error for the default predicate', () => {
+    expect(isRetriableError(refusal())).toBe(false)
+  })
+
+  it('retries a refusal exactly once and succeeds', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const fn = vi.fn().mockRejectedValueOnce(refusal()).mockResolvedValueOnce('translated')
+    await expect(withRetry(fn, { initialDelayMs: 1 })).resolves.toBe('translated')
+    expect(fn).toHaveBeenCalledTimes(2)
+    warn.mockRestore()
+  })
+
+  it('gives up after the second refusal even when attempts remain', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const fn = vi.fn().mockRejectedValue(refusal())
+    await expect(withRetry(fn, { maxAttempts: 5, initialDelayMs: 1 })).rejects.toMatchObject({ errorCode: 'MODEL_REFUSAL' })
+    expect(fn).toHaveBeenCalledTimes(2)
+    warn.mockRestore()
+  })
+
+  it('retries a refusal even when the custom predicate refuses everything, but not past maxAttempts', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const fn = vi.fn().mockRejectedValueOnce(refusal()).mockResolvedValueOnce('ok')
+    await expect(withRetry(fn, { shouldRetry: () => false, initialDelayMs: 1 })).resolves.toBe('ok')
+    const once = vi.fn().mockRejectedValue(refusal())
+    await expect(withRetry(once, { maxAttempts: 1 })).rejects.toMatchObject({ errorCode: 'MODEL_REFUSAL' })
+    expect(once).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
+  })
+
+  it('still retries a transient error after the refusal retry was spent', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const fn = vi.fn()
+      .mockRejectedValueOnce(refusal())
+      .mockRejectedValueOnce(new Error('ECONNRESET'))
+      .mockResolvedValueOnce('ok')
+    await expect(withRetry(fn, { maxAttempts: 3, initialDelayMs: 1 })).resolves.toBe('ok')
+    expect(fn).toHaveBeenCalledTimes(3)
+    warn.mockRestore()
   })
 })
 

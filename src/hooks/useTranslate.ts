@@ -106,6 +106,7 @@ function normalizeComparisonErrorCode(
     'EMPTY_RESPONSE',
     'BLOCKED_CONTENT',
     'BLOCKED_SAFETY',
+    'MODEL_REFUSAL',
     'BLOCKED_RECITATION',
     'OUTPUT_TRUNCATED',
     'INVALID_RESPONSE',
@@ -151,6 +152,7 @@ function localizeTranslationError(
   if (errorCode === 'NO_API_KEY') return t.translate_error_no_key
   if (errorCode === 'OUTPUT_TRUNCATED') return t.translate_error_output_truncated
   if (errorCode === 'INVALID_RESPONSE') return t.translate_error_invalid_response
+  if (errorCode === 'MODEL_REFUSAL') return t.translate_error_model_refusal
   const localized = localizeChatError(t, { error, errorCode }, fallback)
   if (localized === t.chat_error_empty_response) return t.translate_error_empty_response
   if (localized === t.chat_error_blocked_recitation) return t.translate_error_blocked_recitation

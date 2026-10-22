@@ -1,4 +1,4 @@
-import { blockedSafetyError, classifyProviderError, emptyResponseError, truncatedOutputError } from './errorUtils'
+import { blockedSafetyError, classifyProviderError, emptyResponseError, modelRefusalError, truncatedOutputError } from './errorUtils'
 import {
   clampMaxOutputTokens,
   EXT_DEFAULT_CLAUDE_MODEL,
@@ -169,7 +169,7 @@ async function callProvider(
     },
     { signal },
   )
-  if (msg.stop_reason === 'refusal') throw blockedSafetyError('claude', 'stop_reason=refusal')
+  if (msg.stop_reason === 'refusal') throw modelRefusalError('claude', 'stop_reason=refusal')
   if (msg.stop_reason === 'max_tokens') throw truncatedOutputError('claude')
   const out = joinClaudeText(msg.content).trim()
   if (!out) throw emptyResponseError('claude')
