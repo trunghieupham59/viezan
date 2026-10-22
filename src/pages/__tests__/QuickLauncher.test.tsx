@@ -63,6 +63,20 @@ describe('QuickLauncher', () => {
     expect(window.api.quickChat.launcher.openApp).not.toHaveBeenCalled()
   })
 
+  it('re-reports the content height on every reopen, even when nothing changed', async () => {
+    render(<QuickLauncher />)
+    await act(async () => {})
+    expect(window.api.quickChat.setLayout).toHaveBeenLastCalledWith('expanded', expect.any(Number))
+    const calls = vi.mocked(window.api.quickChat.setLayout).mock.calls
+    const firstHeight = calls[calls.length - 1]?.[1]
+    vi.mocked(window.api.quickChat.setLayout).mockClear()
+    // The main process shows the window at its previous size and asks the
+    // renderer to reset; identical rows must still produce a height report.
+    act(() => show?.())
+    expect(window.api.quickChat.setLayout).toHaveBeenCalledWith('expanded', firstHeight)
+    expect(window.api.quickChat.setLayout).not.toHaveBeenCalledWith('compact')
+  })
+
   it('lists recently opened apps first and opens the selected one with Enter', async () => {
     vi.mocked(window.api.quickChat.launcher.listApps).mockResolvedValue({
       success: true, recent: ['calc', 'missing'], apps: [{ id: 'editor', name: 'Editor' }, { id: 'calc', name: 'Calculator' }],

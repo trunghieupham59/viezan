@@ -328,9 +328,12 @@ let quickChatWindow: BrowserWindow | null = null
 function positionQuickChatWindow(win: BrowserWindow): void {
   const cursor = screen.getCursorScreenPoint()
   const { workArea } = screen.getDisplayNearestPoint(cursor)
+  // Keep the height the renderer last reported (compact on a fresh window):
+  // collapsing on every show would make the popup flash from a bare input bar
+  // to its full height each time it is reopened.
   setQuickChatWindowBounds(win, {
     width: QUICK_CHAT_WIDTH,
-    height: QUICK_CHAT_COMPACT_HEIGHT,
+    height: win.getBounds().height,
     x: Math.round(workArea.x + workArea.width / 2 - QUICK_CHAT_WIDTH / 2),
     y: Math.round(workArea.y + workArea.height * 0.22),
   })

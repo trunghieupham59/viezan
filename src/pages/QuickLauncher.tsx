@@ -70,7 +70,10 @@ export function QuickLauncher() {
   const primaryModifierKey = window.api?.platform === 'darwin' ? '⌘' : 'Ctrl'
 
   // The window is sized by the main process; report the natural content height
-  // so the popup grows with the rows instead of leaving an empty canvas.
+  // so the popup grows with the rows instead of leaving an empty canvas. Every
+  // show re-reports it: the content is often identical to the previous open,
+  // and a height that is only sent on change would leave the window compact.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-measure on each show (revision).
   useLayoutEffect(() => {
     if (mode === 'chat') {
       void window.api?.quickChat?.setLayout('expanded')
@@ -103,7 +106,7 @@ export function QuickLauncher() {
     observer.observe(rows)
     for (const child of Array.from(panel.children)) observer.observe(child)
     return () => observer.disconnect()
-  }, [mode])
+  }, [mode, revision])
   const mergeIcons = useCallback((updates: LauncherIcon[]) => {
     if (!updates.length) return
     iconsRef.current = { ...iconsRef.current, ...Object.fromEntries(updates.map(icon => [icon.id, icon.dataUrl])) }
