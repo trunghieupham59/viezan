@@ -5,7 +5,8 @@ import type { ChatSession } from '../../types'
 import { formatShortcutLabel } from '../../utils/keyboardShortcuts'
 import { tpl } from '../../utils/tpl'
 import { Button, Input } from '../ui/atoms'
-import { ClockIcon, PencilIcon, SearchIcon } from '../ui/icons'
+import { PencilIcon, SearchIcon } from '../ui/icons'
+import { HistoryTrigger } from '../ui/molecules'
 import { ChatSessionListItem } from '../ui/molecules/ChatSessionListItem'
 
 interface RelativeTimeText {
@@ -173,17 +174,17 @@ export function AIChatSidebar({ children }: {
 
   const header = (
     <header className="ai-chat-workspace-header" ref={headerRef}>
-      <Button ref={sidebarToggleRef} size="sm" shape="icon"
-        variant={effectiveCollapsed ? 'neutral' : 'primary'}
-        appearance={effectiveCollapsed ? 'ghost' : 'soft'}
+      <HistoryTrigger ref={sidebarToggleRef}
+        label={t.history_trigger_label}
+        count={chatSessions.length}
+        expanded={!effectiveCollapsed}
+        hideLabel={t.chat_sidebar_collapse}
+        showLabel={t.chat_sidebar_expand}
+        controlsId={contentId}
         className="ai-chat-history-toggle"
-        title={effectiveCollapsed ? t.chat_sidebar_expand : t.chat_sidebar_collapse}
-        aria-label={effectiveCollapsed ? t.chat_sidebar_expand : t.chat_sidebar_collapse}
-        aria-expanded={!effectiveCollapsed} aria-controls={contentId} onClick={handleToggle}>
-        <ClockIcon className="h-4 w-4" />
-      </Button>
+        onToggle={handleToggle} />
       <span className="ai-chat-workspace-title" title={activeTitle}>{activeTitle}</span>
-      <Button size="sm" shape="rect" variant="primary" appearance="ghost"
+      <Button size="md" shape="rect" variant="primary" appearance="ghost"
         className="ai-chat-header-new" aria-label={t.chat_new_session}
         title={shortcut ? `${t.chat_new_session} (${shortcut})` : t.chat_new_session}
         onClick={handleNewChat}>

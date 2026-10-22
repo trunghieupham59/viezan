@@ -65,8 +65,11 @@ describe('AI Interpret screen', () => {
       viewingLiveSessionId: null,
     })
     render(<LiveTranslatePage />)
-    const trigger = screen.getByRole('button', { name: /^Saved sessions/ })
+    const trigger = screen.getByRole('button', { name: 'Show session history' })
     expect(trigger).toHaveAttribute('aria-haspopup', 'dialog')
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    expect(trigger).toHaveAttribute('data-control-size', 'md')
+    expect(trigger).toHaveTextContent('History')
     expect(trigger).toHaveTextContent('1')
 
     fireEvent.click(trigger)

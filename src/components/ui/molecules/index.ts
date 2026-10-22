@@ -22,6 +22,7 @@ export {
   type FeatureLoadingStateProps,
 } from './FeatureLoadingState'
 export { FilterInput, type FilterInputProps } from './FilterInput'
+export { HistoryTrigger, type HistoryTriggerProps } from './HistoryTrigger'
 export { ImageLightbox, type ImageLightboxProps } from './ImageLightbox'
 export { LanguageOverflowPicker, type LanguageOverflowPickerProps } from './LanguageOverflowPicker'
 export { LanguagePicker, type LanguagePickerProps } from './LanguagePicker'

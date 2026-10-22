@@ -236,10 +236,6 @@
   }
 }
 
-.translate-history-trigger {
-  white-space: nowrap;
-}
-
 .translate-workbench {
   display: grid;
   min-height: 0;

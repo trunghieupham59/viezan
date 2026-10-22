@@ -221,7 +221,18 @@
   line-height: var(--vzn-line-relaxed);
 }
 
-/* Entry count inside the command-bar button that opens a panel. */
+/* Command-bar button that opens a feature's history (panel or dialog). */
+.history-trigger {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.history-trigger > svg {
+  width: var(--vzn-icon-sm);
+  height: var(--vzn-icon-sm);
+}
+
+/* Entry count inside the trigger. */
 .history-trigger-count {
   color: var(--vzn-text-muted);
   font-size: var(--vzn-font-size-sm);

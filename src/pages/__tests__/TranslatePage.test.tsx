@@ -328,13 +328,15 @@ describe('TranslatePage', () => {
     render(<TranslatePage />)
     expect(screen.getByRole('region', { name: 'History' })).toBeInTheDocument()
     const toggle = screen.getByRole('button', { name: 'Hide translation history' })
-    expect(toggle).toHaveAttribute('aria-pressed', 'true')
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(toggle).toHaveAttribute('data-control-size', 'md')
+    expect(toggle).toHaveAttribute('data-control-appearance', 'soft')
     expect(toggle).toHaveTextContent('1')
 
     fireEvent.click(toggle)
     expect(useAppStore.getState().translateHistoryCollapsed).toBe(true)
     expect(screen.queryByRole('region', { name: 'History' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Show translation history' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Show translation history' })).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('reopens a comparison entry from the panel without leaving the screen', async () => {
