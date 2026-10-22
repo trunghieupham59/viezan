@@ -3,7 +3,7 @@
  * the main renderer without exposing Node primitives.
  */
 import { ipcRenderer } from 'electron'
-import type { LauncherApi, LauncherFeatureRequest, LauncherIcon } from '../../shared/launcher'
+import type { CurrencyConversionRequest, LauncherApi, LauncherFeatureRequest, LauncherIcon } from '../../shared/launcher'
 import type { QuickAiSession, QuickAiTurn } from '../../shared/quickAi'
 
 export interface QuickChatSeedPayload {
@@ -26,6 +26,12 @@ export const quickChatSection = {
       },
       openApp: (id: string) => ipcRenderer.invoke('launcher:open-app', id),
       searchWeb: (query: string) => ipcRenderer.invoke('launcher:search-web', query),
+      searchFiles: (query: string) => ipcRenderer.invoke('launcher:search-files', query),
+      openFile: (id: string) => ipcRenderer.invoke('launcher:open-file', id),
+      revealFile: (id: string) => ipcRenderer.invoke('launcher:reveal-file', id),
+      convertCurrency: (request: CurrencyConversionRequest) => ipcRenderer.invoke('launcher:convert-currency', request),
+      getCurrencyTarget: () => ipcRenderer.invoke('launcher:get-currency-target'),
+      setCurrencyTarget: (code: string | null) => ipcRenderer.invoke('launcher:set-currency-target', code),
     } satisfies LauncherApi,
     session: {
       get: () => ipcRenderer.invoke('quick-chat:session:get'),

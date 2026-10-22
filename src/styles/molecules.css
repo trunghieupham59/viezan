@@ -310,6 +310,21 @@
   font-size: var(--vzn-font-size-sm);
 }
 
+.launcher-result-line {
+  display: flex;
+  align-items: center;
+  gap: var(--vzn-space-1);
+}
+
+.launcher-result-line > .ui-button.launcher-result {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.launcher-result-accessory {
+  flex: 0 0 auto;
+}
+
 .launcher-icon-tile {
   display: inline-flex;
   flex: 0 0 auto;

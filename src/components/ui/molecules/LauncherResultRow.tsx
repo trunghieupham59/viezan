@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import { Button } from '../atoms'
 import '../../../styles/molecules.css'
 
@@ -28,9 +28,19 @@ export interface LauncherResultRowProps {
   detail?: string
   /** Right-aligned category text: Application / Command. */
   kindLabel: string
+  /**
+   * A control shown after the option, outside it, e.g. a currency picker. It
+   * replaces the visible category text; `kindLabel` still names the option.
+   */
+  accessory?: ReactNode
   selected: boolean
   disabled?: boolean
-  onSelect: () => void
+  /**
+   * Called while the pointer moves over the row. Movement, not entry, drives
+   * selection so a row that appears under a resting pointer (after a menu
+   * closes or the list re-renders) is not selected by a synthetic event.
+   */
+  onSelect: (event: MouseEvent<HTMLButtonElement>) => void
   onActivate: () => void
 }
 
@@ -44,12 +54,13 @@ export function LauncherResultRow({
   label,
   detail,
   kindLabel,
+  accessory,
   selected,
   disabled = false,
   onSelect,
   onActivate,
 }: LauncherResultRowProps) {
-  return (
+  const option = (
     <Button
       id={id}
       role="option"
@@ -62,14 +73,22 @@ export function LauncherResultRow({
       variant="neutral"
       appearance={selected ? 'soft' : 'ghost'}
       className="launcher-result"
-      onMouseEnter={onSelect}
+      onMouseMove={onSelect}
       onMouseDown={(event) => event.preventDefault()}
       onClick={onActivate}
     >
       {icon}
       <span className="launcher-result-name">{label}</span>
       {detail && <span className="launcher-result-detail">{detail}</span>}
-      <span className="launcher-result-kind">{kindLabel}</span>
+      {!accessory && <span className="launcher-result-kind">{kindLabel}</span>}
     </Button>
+  )
+  if (!accessory) return option
+  // Interactive content cannot nest inside the option button; the accessory sits beside it.
+  return (
+    <div className="launcher-result-line">
+      {option}
+      <div className="launcher-result-accessory">{accessory}</div>
+    </div>
   )
 }

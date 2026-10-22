@@ -49,17 +49,21 @@ export async function scanLauncherApps(options: CatalogOptions): Promise<Indexed
   const seen = new Set<string>()
   const names = new Set<string>()
   const executables = new Set<string>()
-  const add = (name: string, target: LauncherTarget, executable?: string, args = '') => {
+  const add = (name: string, target: LauncherTarget, executable?: string, args = '', aliases: string[] = []) => {
     if (isAuxiliary(name, executable)) return
     const value = target.kind === 'path' ? target.path : target.appId
     const identity = `${target.kind}:${options.platform === 'win32' ? value.toLowerCase() : value}`
-    const nameKey = `${normalizedName(name)}\0${args.trim()}`
+    // An alias claims its name too, so the fallback scan cannot re-add "Notes"
+    // beside the Spotlight entry already listed as "Ghi chú".
+    const nameKeys = [name, ...aliases].map(label => `${normalizedName(label)}\0${args.trim()}`)
     const executableKey = executable ? `${path.win32.normalize(executable).toLowerCase()}\0${args.trim()}` : ''
-    if (seen.has(identity) || names.has(nameKey) || (executableKey && executables.has(executableKey))) return
+    if (seen.has(identity) || nameKeys.some(key => names.has(key)) || (executableKey && executables.has(executableKey))) return
     seen.add(identity)
-    names.add(nameKey)
+    for (const key of nameKeys) names.add(key)
     if (executableKey) executables.add(executableKey)
-    apps.push({ id: createHash('sha256').update(identity).digest('hex'), name, target, iconSourcePath: executable })
+    apps.push({
+      id: createHash('sha256').update(identity).digest('hex'), name, ...(aliases.length ? { aliases } : {}), target, iconSourcePath: executable,
+    })
   }
   const systemApps = await readSystemLauncherApps(options.platform).catch(() => [])
   for (const item of systemApps) {
@@ -70,7 +74,7 @@ export async function scanLauncherApps(options: CatalogOptions): Promise<Indexed
       if (!(await stat(appPath).catch(() => null))?.isDirectory()) continue
       target = { kind: 'path', path: await realpath(appPath).catch(() => appPath) }
     }
-    add(item.name, target, item.executable ?? (options.platform === 'win32' && target.kind === 'path' ? target.path : undefined), item.args)
+    add(item.name, target, item.executable ?? (options.platform === 'win32' && target.kind === 'path' ? target.path : undefined), item.args, item.aliases)
   }
   let visited = 0
   const visit = async (directory: string, depth: number): Promise<void> => {

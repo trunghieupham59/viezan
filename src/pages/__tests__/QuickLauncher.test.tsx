@@ -26,6 +26,15 @@ beforeEach(() => {
   vi.mocked(window.api.quickChat.launcher.openApp).mockResolvedValue({ success: true })
   vi.mocked(window.api.quickChat.launcher.searchWeb).mockResolvedValue({ success: true })
   vi.mocked(window.api.quickChat.launcher.getIcons).mockResolvedValue({ success: true, icons: [] })
+  vi.mocked(window.api.quickChat.launcher.convertCurrency).mockImplementation(async ({ amount, from, to }) => {
+    const rates: Record<string, number> = { USD: 1, VND: 25_000, JPY: 150, EUR: 0.9 }
+    if (!rates[from] || !rates[to]) return { success: false, errorCode: 'NOT_FOUND' }
+    const rate = rates[to] / rates[from]
+    return { success: true, conversion: { amount, from, to, rate, converted: amount * rate, rateUpdatedAt: Date.UTC(2026, 9, 22, 12) } }
+  })
+  vi.mocked(window.api.quickChat.launcher.getCurrencyTarget).mockResolvedValue({ success: true, code: null })
+  vi.mocked(window.api.quickChat.launcher.setCurrencyTarget).mockResolvedValue({ success: true })
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText: vi.fn().mockResolvedValue(undefined) }, configurable: true })
   vi.mocked(window.api.quickChat.session.get).mockResolvedValue({ success: true, session: null })
   vi.mocked(window.api.quickChat.session.save).mockClear()
   vi.mocked(window.api.quickChat.session.clear).mockClear()
@@ -219,6 +228,18 @@ describe('QuickLauncher', () => {
     await waitFor(() => expect(window.api.quickChat.launcher.openApp).toHaveBeenCalledWith('code'))
   })
 
+  it.each(['Ghi chú', 'ghi chu', 'notes', 'Notes'])('finds a localized app by its display name or bundle alias using %s', async query => {
+    vi.mocked(window.api.quickChat.launcher.listApps).mockResolvedValue({ success: true, apps: [
+      { id: 'linked', name: 'LinkedNotesUIService' }, { id: 'notes', name: 'Ghi chú', aliases: ['Notes'] },
+    ] })
+    render(<QuickLauncher />)
+    await act(async () => {})
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: query } })
+    expect(screen.getByRole('option', { selected: true })).toHaveTextContent('Ghi chúApplication')
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
+    await waitFor(() => expect(window.api.quickChat.launcher.openApp).toHaveBeenCalledWith('notes'))
+  })
+
   it('ranks exact names before prefixes, word matches and substrings, independently of catalog order', async () => {
     vi.mocked(window.api.quickChat.launcher.listApps).mockResolvedValue({ success: true, apps: [
       { id: 'dev', name: 'Claude Dev' }, { id: 'exact', name: 'Claude' }, { id: 'word', name: 'My Claude' },
@@ -376,5 +397,156 @@ describe('QuickLauncher', () => {
     expect(window.api.quickChat.launcher.openApp).toHaveBeenCalledOnce()
     await act(async () => resolve({ success: false }))
     expect(screen.getByRole('alert')).toHaveTextContent('Could not open this item')
+  })
+
+  it('answers arithmetic at the top, copies the result with Enter and keeps the other sections', async () => {
+    render(<QuickLauncher />)
+    await act(async () => {})
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '1 + 1' } })
+    const groups = screen.getAllByRole('group').map(group => group.getAttribute('aria-label'))
+    expect(groups).toEqual(['Calculator', 'Use "1 + 1" with…'])
+    const option = screen.getByRole('option', { name: '1 + 1 = 2 Calculator' })
+    expect(option).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('contentinfo')).toHaveTextContent('Copy')
+    expect(screen.getByRole('option', { name: 'Ask AI Command' })).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith('2'))
+    expect(window.api.quickChat.hide).toHaveBeenCalledOnce()
+    expect(window.api.quickChat.launcher.convertCurrency).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '15% of 80' } })
+    expect(screen.getByRole('option', { name: '15% of 80 = 12 Calculator' })).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '2*(3+4)' } })
+    expect(screen.getByRole('option', { name: '2*(3+4) = 14 Calculator' })).toBeInTheDocument()
+  })
+
+  it('converts "2$" into the UI language currency, with the rate date, and copies the amount', async () => {
+    useAppStore.setState({ locale: 'vi' })
+    render(<QuickLauncher />)
+    await act(async () => {})
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '2$' } })
+    expect(screen.getByRole('option', { name: '2 USD → VND Tiền tệ' })).toHaveTextContent('Đang tải tỷ giá…')
+    const row = await screen.findByRole('option', { name: '2 USD = 50.000 VND Tiền tệ' })
+    expect(row).toHaveAttribute('aria-selected', 'true')
+    expect(row).toHaveTextContent('1 USD = 25.000 VND · Tỷ giá ngày 22/10/2026')
+    expect(window.api.quickChat.launcher.convertCurrency).toHaveBeenLastCalledWith({ amount: 2, from: 'USD', to: 'VND' })
+    expect(screen.getByRole('group', { name: 'Tiền tệ' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Dùng "2$" với…' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Đổi sang: VND' })).toHaveAttribute('aria-haspopup', 'dialog')
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '20$' } })
+    // The confirmed rate answers immediately; the round trip only confirms it.
+    expect(screen.getByRole('option', { name: '20 USD = 500.000 VND Tiền tệ' })).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith('500.000'))
+    expect(window.api.quickChat.hide).toHaveBeenCalledOnce()
+  })
+
+  it('changes the target currency from the pull-down, remembers it, and lets the query override it', async () => {
+    render(<QuickLauncher />)
+    await act(async () => {})
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '300 yen' } })
+    await screen.findByRole('option', { name: '300 JPY = 2.00 USD Currency' })
+    fireEvent.click(screen.getByRole('button', { name: 'Convert to: USD' }))
+    fireEvent.mouseMove(screen.getByRole('option', { name: /^EUR/ }), { clientX: 40, clientY: 90 })
+    fireEvent.click(screen.getByRole('option', { name: /^EUR/ }))
+    await screen.findByRole('option', { name: '300 JPY = 1.80 EUR Currency' })
+    expect(window.api.quickChat.launcher.setCurrencyTarget).toHaveBeenCalledExactlyOnceWith('EUR')
+    expect(useAppStore.getState().launcherCurrency).toBe('EUR')
+    expect(screen.getByRole('button', { name: 'Convert to: EUR' })).toHaveAttribute('aria-expanded', 'false')
+    await waitFor(() => expect(screen.getByRole('combobox')).toHaveFocus())
+    expect(screen.getByRole('option', { name: '300 JPY = 1.80 EUR Currency' })).toHaveAttribute('aria-selected', 'true')
+    // A replayed pointer event at the resting position must not steal the selection; real movement may.
+    fireEvent.mouseEnter(screen.getByRole('option', { name: 'Ask AI Command' }))
+    fireEvent.mouseMove(screen.getByRole('option', { name: 'Ask AI Command' }), { clientX: 40, clientY: 90 })
+    expect(screen.getByRole('option', { name: '300 JPY = 1.80 EUR Currency' })).toHaveAttribute('aria-selected', 'true')
+    fireEvent.mouseMove(screen.getByRole('option', { name: 'Ask AI Command' }), { clientX: 41, clientY: 95 })
+    expect(screen.getByRole('option', { name: 'Ask AI Command' })).toHaveAttribute('aria-selected', 'true')
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '2 usd to vnd' } })
+    await screen.findByRole('option', { name: '2 USD = 50,000 VND Currency' })
+    expect(screen.getByRole('button', { name: 'Convert to: VND' })).toBeDisabled()
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '2 usd' } })
+    await screen.findByRole('option', { name: '2 USD = 1.80 EUR Currency' })
+    // Typing the remembered currency itself falls back to the UI-language default.
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '9 eur' } })
+    await screen.findByRole('option', { name: '9 EUR = 10.00 USD Currency' })
+    expect(screen.getByRole('button', { name: 'Convert to: USD' })).toBeEnabled()
+  })
+
+  it('loads the remembered target from the main process and explains missing rates', async () => {
+    vi.mocked(window.api.quickChat.launcher.getCurrencyTarget).mockResolvedValue({ success: true, code: 'JPY' })
+    vi.mocked(window.api.quickChat.launcher.convertCurrency).mockResolvedValue({ success: false, errorCode: 'UNAVAILABLE' })
+    render(<QuickLauncher />)
+    await act(async () => {})
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '50€' } })
+    const row = await screen.findByRole('option', { name: '50 EUR → JPY Currency' })
+    await waitFor(() => expect(row).toHaveTextContent('Exchange rates are unavailable offline'))
+    expect(window.api.quickChat.launcher.convertCurrency).toHaveBeenCalledTimes(1)
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
+    await waitFor(() => expect(window.api.quickChat.launcher.convertCurrency).toHaveBeenCalledTimes(2))
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled()
+    expect(window.api.quickChat.hide).not.toHaveBeenCalled()
+  })
+
+  it('adds no calculator or currency rows for ordinary queries', async () => {
+    render(<QuickLauncher />)
+    await act(async () => {})
+    for (const query of ['Editor', '2025-10-11', 'thông tư 25', '2', '1password']) {
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: query } })
+      expect(screen.queryByRole('group', { name: 'Calculator' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('group', { name: 'Currency' })).not.toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Ask AI Command' })).toBeInTheDocument()
+    }
+    expect(window.api.quickChat.launcher.convertCurrency).not.toHaveBeenCalled()
+  })
+
+  it('lists indexed files under Applications after a typing pause, opens with Enter and reveals with Shift+Enter', async () => {
+    const files = [
+      { id: 'f'.repeat(64), name: 'Quarterly report.pdf', folder: '~/Documents', kind: 'file' as const, iconDataUrl: 'data:image/png;base64,pdf' },
+      { id: 'd'.repeat(64), name: 'Reports', folder: '~/Documents/Work', kind: 'folder' as const },
+    ]
+    vi.mocked(window.api.quickChat.launcher.searchFiles).mockResolvedValue({ success: true, files })
+    vi.mocked(window.api.quickChat.launcher.listApps).mockResolvedValue({ success: true, apps: [{ id: 'editor', name: 'Report Editor' }] })
+    render(<QuickLauncher />)
+    await act(async () => {})
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'r' } })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'report' } })
+    const file = await screen.findByRole('option', { name: 'Quarterly report.pdf File' })
+    expect(window.api.quickChat.launcher.searchFiles).toHaveBeenCalledExactlyOnceWith('report')
+    expect(screen.getAllByRole('group').map(group => group.getAttribute('aria-label'))).toEqual(['Applications', 'Files', 'Use "report" with…'])
+    expect(file).toHaveTextContent('~/Documents')
+    expect(file.querySelector('img')).toHaveAttribute('src', 'data:image/png;base64,pdf')
+    expect(screen.getByRole('option', { name: 'Reports Folder' })).toHaveTextContent('~/Documents/Work')
+    expect(screen.getByRole('option', { selected: true })).toHaveAttribute('aria-label', 'Report Editor Application')
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'ArrowDown' })
+    expect(screen.getByRole('contentinfo')).toHaveTextContent('Show in folder')
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter', shiftKey: true })
+    await waitFor(() => expect(window.api.quickChat.launcher.revealFile).toHaveBeenCalledWith('f'.repeat(64)))
+    expect(window.api.quickChat.launcher.openFile).not.toHaveBeenCalled()
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'ArrowDown' })
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
+    await waitFor(() => expect(window.api.quickChat.launcher.openFile).toHaveBeenCalledWith('d'.repeat(64)))
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '' } })
+    expect(screen.queryByRole('group', { name: 'Files' })).not.toBeInTheDocument()
+  })
+
+  it('ignores a late answer to an earlier file query and skips the index for calculations', async () => {
+    let resolveFirst: (value: { success: boolean; files: typeof first }) => void = () => {}
+    const first = [{ id: 'a'.repeat(64), name: 'old-notes.txt', folder: '~', kind: 'file' as const }]
+    vi.mocked(window.api.quickChat.launcher.searchFiles)
+      .mockReturnValueOnce(new Promise(resolve => { resolveFirst = resolve }))
+      .mockResolvedValueOnce({ success: true, files: [{ id: 'b'.repeat(64), name: 'new-notes.txt', folder: '~', kind: 'file' as const }] })
+    render(<QuickLauncher />)
+    await act(async () => {})
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'old' } })
+    await waitFor(() => expect(window.api.quickChat.launcher.searchFiles).toHaveBeenCalledWith('old'))
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'new' } })
+    await screen.findByRole('option', { name: 'new-notes.txt File' })
+    await act(async () => resolveFirst({ success: true, files: first }))
+    expect(screen.queryByRole('option', { name: 'old-notes.txt File' })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'new-notes.txt File' })).toBeInTheDocument()
+    vi.mocked(window.api.quickChat.launcher.searchFiles).mockClear()
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '2 + 2' } })
+    await screen.findByRole('option', { name: '2 + 2 = 4 Calculator' })
+    await new Promise(resolve => setTimeout(resolve, 200))
+    expect(window.api.quickChat.launcher.searchFiles).not.toHaveBeenCalled()
   })
 })

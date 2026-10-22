@@ -1,27 +1,48 @@
-import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { LauncherApp, LauncherIcon, LauncherResult } from '../../shared/launcher'
+import { type MouseEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { CurrencyConversion, LauncherApp, LauncherFile, LauncherIcon, LauncherResult } from '../../shared/launcher'
 import type { QuickAiSession } from '../../shared/quickAi'
 import { AIChatPopup, type QuickChatLaunchRequest } from '../components/AIChatPopup'
 import { Button, KeyCap } from '../components/ui/atoms'
 import {
   BookIcon,
+  CalculatorIcon,
   ChatBubbleIcon,
+  CoinsIcon,
+  FileIcon,
+  FolderIcon,
   GearIcon,
   MicrophoneIcon,
   SearchIcon,
   SparklesIcon,
   TranslateIcon,
 } from '../components/ui/icons'
-import { FilterInput, LauncherIconTile, type LauncherIconTone, LauncherResultRow } from '../components/ui/molecules'
+import { FilterInput, LauncherIconTile, type LauncherIconTone, LauncherResultRow, OptionPicker } from '../components/ui/molecules'
+import { LAUNCHER_CURRENCIES } from '../constants/currencies'
 import { useAppStore, useT } from '../store/useAppStore'
-import { tpl } from '../utils/tpl'
+import {
+  currencyDisplayName,
+  defaultCurrencyTarget,
+  formatConvertedAmount,
+  formatCurrencyAmount,
+  formatCurrencyRate,
+  parseCurrencyQuery,
+} from '../utils/currencyQuery'
+import { evaluateQuickCalc } from '../utils/quickCalc'
+import { formatDate, tpl } from '../utils/tpl'
 
 type Command = 'ai' | 'continue' | 'web' | 'chat' | 'settings' | 'translate' | 'dictionary' | 'live'
-type Result = { id: string; label: string; kind: 'app' | Command; detail?: string }
-type Section = { id: 'recent' | 'apps' | 'viezan' | 'use'; title: string; items: Result[] }
+/** Answers computed from the query itself; Enter copies them. */
+type Inline = 'calc' | 'currency'
+type Entry = 'file' | 'folder'
+type Result = { id: string; label: string; kind: 'app' | Command | Inline | Entry; detail?: string }
+type Section = { id: 'recent' | 'apps' | 'files' | 'viezan' | 'use' | Inline; title: string; items: Result[] }
+type ConversionState = { status: 'loading' | 'ready' | 'unavailable'; value?: CurrencyConversion }
 
 const MAX_APP_RESULTS = 8
 const MAX_RECENT_RESULTS = 5
+/** Index queries wait for a typing pause; the OS index is fast but not free. */
+const FILE_SEARCH_DEBOUNCE_MS = 150
+const MIN_FILE_QUERY_CHARS = 2
 /** A Quick AI conversation this recent is offered first and receives follow-ups. */
 const QUICK_AI_FRESH_MS = 30 * 60 * 1000
 const LETTER_TONES: LauncherIconTone[] = ['blue', 'violet', 'green', 'orange']
@@ -34,8 +55,12 @@ function letterTone(name: string): LauncherIconTone {
   return LETTER_TONES[hash % LETTER_TONES.length]
 }
 
-function commandIcon(kind: Command): ReactNode {
+function commandIcon(kind: Command | Inline | Entry): ReactNode {
   switch (kind) {
+    case 'file': return <FileIcon />
+    case 'folder': return <FolderIcon />
+    case 'calc': return <CalculatorIcon />
+    case 'currency': return <CoinsIcon />
     case 'ai': case 'chat': return <SparklesIcon />
     case 'continue': return <ChatBubbleIcon />
     case 'translate': return <TranslateIcon />
@@ -68,6 +93,18 @@ export function QuickLauncher() {
   const search = query.trim()
   const sessionFresh = Boolean(session && Date.now() - session.updatedAt < QUICK_AI_FRESH_MS)
   const primaryModifierKey = window.api?.platform === 'darwin' ? '⌘' : 'Ctrl'
+  const locale = useAppStore(state => state.locale)
+  const launcherCurrency = useAppStore(state => state.launcherCurrency)
+  const setLauncherCurrency = useAppStore(state => state.setLauncherCurrency)
+  const calc = useMemo(() => evaluateQuickCalc(search, locale), [search, locale])
+  const currencyQuery = useMemo(() => (calc ? null : parseCurrencyQuery(search, locale)), [calc, search, locale])
+  // A target typed into the query wins over the remembered picker choice.
+  const currencyTarget = currencyQuery?.to ?? defaultCurrencyTarget(locale, launcherCurrency, currencyQuery?.from)
+  const [conversion, setConversion] = useState<ConversionState>()
+  const [conversionAttempt, setConversionAttempt] = useState(0)
+  const [files, setFiles] = useState<LauncherFile[]>([])
+  const fileSearchRef = useRef(0)
+  const fileQuery = calc || currencyQuery || search.length < MIN_FILE_QUERY_CHARS ? '' : search
 
   // The window is sized by the main process; report the natural content height
   // so the popup grows with the rows instead of leaving an empty canvas. Every
@@ -177,6 +214,54 @@ export function QuickLauncher() {
     return () => { cancelled = true }
   }, [revision])
 
+  // The popup's store never writes localStorage, so the main process keeps this choice.
+  useEffect(() => {
+    let cancelled = false
+    void window.api?.quickChat?.launcher?.getCurrencyTarget?.().then(result => {
+      if (!cancelled && result?.success) setLauncherCurrency(result.code)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [setLauncherCurrency])
+
+  useEffect(() => {
+    const request = ++fileSearchRef.current
+    if (!fileQuery) {
+      setFiles([])
+      return
+    }
+    const timer = setTimeout(() => {
+      void window.api?.quickChat?.launcher?.searchFiles?.(fileQuery).then(result => {
+        // A slower earlier query must not overwrite the answer to the current text.
+        if (request === fileSearchRef.current) setFiles(result?.success ? result.files : [])
+      }).catch(() => { if (request === fileSearchRef.current) setFiles([]) })
+    }, FILE_SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [fileQuery])
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Enter on an unavailable row retries (attempt).
+  useEffect(() => {
+    if (!currencyQuery) {
+      setConversion(undefined)
+      return
+    }
+    const request = { amount: currencyQuery.amount, from: currencyQuery.from, to: currencyTarget }
+    // Reuse the last confirmed rate for the same pair so digits update without a round trip.
+    setConversion(previous => previous?.value && previous.value.from === request.from && previous.value.to === request.to
+      ? { status: 'ready', value: { ...previous.value, amount: request.amount, converted: request.amount * previous.value.rate } }
+      : { status: 'loading' })
+    let cancelled = false
+    const api = window.api?.quickChat?.launcher
+    if (!api?.convertCurrency) {
+      setConversion({ status: 'unavailable' })
+      return
+    }
+    void api.convertCurrency(request).then(result => {
+      if (cancelled) return
+      setConversion(result?.success && result.conversion ? { status: 'ready', value: result.conversion } : { status: 'unavailable' })
+    }).catch(() => { if (!cancelled) setConversion({ status: 'unavailable' }) })
+    return () => { cancelled = true }
+  }, [currencyQuery, currencyTarget, conversionAttempt])
+
   const sections = useMemo<Section[]>(() => {
     const toResult = (app: LauncherApp): Result => ({ id: app.id, label: app.name, kind: 'app' })
     const viezanCommands: Result[] = [
@@ -191,6 +276,21 @@ export function QuickLauncher() {
     const continueItem: Result | null = lastQuestion
       ? { id: 'continue', label: t.launcher_continue, kind: 'continue', detail: lastQuestion }
       : null
+    const inline: Section[] = []
+    if (calc) {
+      inline.push({ id: 'calc', title: t.launcher_calculator, items: [{ id: 'calc', kind: 'calc', label: `${calc.expression} = ${calc.formatted}` }] })
+    } else if (currencyQuery) {
+      const amount = formatCurrencyAmount(currencyQuery.amount, currencyQuery.from, locale)
+      const ready = conversion?.status === 'ready' ? conversion.value : undefined
+      inline.push({ id: 'currency', title: t.launcher_currency, items: [{
+        id: 'currency',
+        kind: 'currency',
+        label: ready ? `${amount} = ${formatConvertedAmount(ready.converted, ready.to, locale)} ${ready.to}` : `${amount} → ${currencyTarget}`,
+        detail: ready
+          ? tpl(t.launcher_currency_rate, { from: ready.from, to: ready.to, rate: formatCurrencyRate(ready.rate, locale), date: formatDate(ready.rateUpdatedAt, locale) })
+          : conversion?.status === 'unavailable' ? t.launcher_currency_unavailable : t.launcher_currency_loading,
+      }] })
+    }
     if (!search) {
       const byId = new Map(apps.map(app => [app.id, app]))
       const recentApps = recent.flatMap(id => { const app = byId.get(id); return app ? [toResult(app)] : [] })
@@ -224,9 +324,13 @@ export function QuickLauncher() {
       if (value.split(/[\s._-]+/).some(word => word.startsWith(needle))) return 4
       return 5
     }
-    const matchedApps = apps.filter(app => matches(app.name)
-      || (compactNeedle.length >= 2 && aliases(app.name).some(alias => alias.startsWith(compactNeedle))))
-      .sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name))
+    // A localized display name ("Ghi chú") and its bundle name ("Notes") both find the app.
+    const labels = (app: LauncherApp) => [app.name, ...(app.aliases ?? [])]
+    const matchesApp = (label: string) => matches(label)
+      || (compactNeedle.length >= 2 && aliases(label).some(alias => alias.startsWith(compactNeedle)))
+    const rankApp = (app: LauncherApp) => Math.min(...labels(app).map(rank))
+    const matchedApps = apps.filter(app => labels(app).some(matchesApp))
+      .sort((a, b) => rankApp(a) - rankApp(b) || a.name.localeCompare(b.name))
       .slice(0, MAX_APP_RESULTS).map(toResult)
     // Text commands always appear under "Use with…"; only navigation commands are searched by name.
     const matchedCommands = viezanCommands.filter(command =>
@@ -237,12 +341,17 @@ export function QuickLauncher() {
       { id: 'dictionary', label: t.launcher_dictionary, kind: 'dictionary', detail: search },
       { id: 'web', label: t.launcher_web, kind: 'web', detail: search },
     ]
+    const fileItems: Result[] = fileQuery
+      ? files.map(file => ({ id: file.id, label: file.name, kind: file.kind, detail: file.folder }))
+      : []
     return [
+      ...inline,
       ...(matchedApps.length ? [{ id: 'apps' as const, title: t.launcher_section_apps, items: matchedApps }] : []),
+      ...(fileItems.length ? [{ id: 'files' as const, title: t.launcher_section_files, items: fileItems }] : []),
       ...(matchedCommands.length ? [{ id: 'viezan' as const, title: t.launcher_section_viezan, items: matchedCommands }] : []),
       { id: 'use', title: tpl(t.launcher_section_use_with, { query: search }), items: useWith },
     ]
-  }, [apps, recent, search, session, sessionFresh, t])
+  }, [apps, calc, conversion, currencyQuery, currencyTarget, fileQuery, files, locale, recent, search, session, sessionFresh, t])
   const results = useMemo(() => sections.flatMap(section => section.items), [sections])
   const activeIndex = Math.min(selected, results.length - 1)
   const activeResult = results[activeIndex]
@@ -276,6 +385,22 @@ export function QuickLauncher() {
 
   const execute = useCallback(async (result: Result) => {
     if (busyRef.current) return
+    if (result.kind === 'calc' || result.kind === 'currency') {
+      // Raycast-style: Enter copies the answer and dismisses the launcher.
+      const ready = conversion?.status === 'ready' ? conversion.value : undefined
+      const text = result.kind === 'calc' ? calc?.formatted : ready ? formatConvertedAmount(ready.converted, ready.to, locale) : undefined
+      if (!text) {
+        if (result.kind === 'currency' && conversion?.status === 'unavailable') setConversionAttempt(value => value + 1)
+        return
+      }
+      try {
+        await navigator.clipboard.writeText(text)
+        void window.api?.quickChat?.hide()
+      } catch {
+        setError(true)
+      }
+      return
+    }
     if (result.kind === 'ai' || result.kind === 'continue') {
       // Follow-ups join a fresh conversation; "Continue" resumes it at any age.
       const resumed = result.kind === 'continue' || sessionFresh ? session : null
@@ -290,6 +415,10 @@ export function QuickLauncher() {
       let outcome: LauncherResult | undefined
       switch (result.kind) {
         case 'app': outcome = await window.api?.quickChat?.launcher?.openApp(result.id); break
+        case 'file':
+        case 'folder':
+          outcome = await window.api?.quickChat?.launcher?.openFile(result.id)
+          break
         case 'web': outcome = await window.api?.quickChat?.launcher?.searchWeb(search); break
         case 'chat': outcome = await window.api?.quickChat?.openInChat(); break
         case 'settings': outcome = await window.api?.quickChat?.openSettings(); break
@@ -306,8 +435,32 @@ export function QuickLauncher() {
       busyRef.current = false
       setBusy(false)
     }
-  }, [search, session, sessionFresh])
+  }, [calc, conversion, locale, search, session, sessionFresh])
   const askAI = useCallback(() => execute({ id: 'ai', label: t.launcher_ai, kind: 'ai' }), [execute, t.launcher_ai])
+  const isEntry = (result: Result | undefined) => result?.kind === 'file' || result?.kind === 'folder'
+  const reveal = useCallback(async (result: Result) => {
+    if (busyRef.current) return
+    busyRef.current = true
+    setBusy(true)
+    setError(false)
+    try {
+      const outcome = await window.api?.quickChat?.launcher?.revealFile(result.id)
+      setError(!outcome?.success)
+    } catch {
+      setError(true)
+    } finally {
+      busyRef.current = false
+      setBusy(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (mode !== 'search') return
+    // Bubble phase: rows compare against the previous position before this records the new one.
+    const mousemove = (event: globalThis.MouseEvent) => { pointerRef.current = { x: event.clientX, y: event.clientY } }
+    window.addEventListener('mousemove', mousemove)
+    return () => window.removeEventListener('mousemove', mousemove)
+  }, [mode])
 
   useEffect(() => {
     if (mode !== 'search') return
@@ -324,6 +477,12 @@ export function QuickLauncher() {
   }, [mode, query])
 
   const renderIcon = (result: Result) => {
+    if (isEntry(result)) {
+      const icon = files.find(file => file.id === result.id)?.iconDataUrl
+      return icon
+        ? <LauncherIconTile tone="app"><img className="launcher-app-icon" src={icon} alt="" draggable={false} /></LauncherIconTile>
+        : <LauncherIconTile>{commandIcon(result.kind as Entry)}</LauncherIconTile>
+    }
     if (result.kind !== 'app') return <LauncherIconTile>{commandIcon(result.kind)}</LauncherIconTile>
     const icon = icons[result.id]
     if (icon) {
@@ -341,7 +500,34 @@ export function QuickLauncher() {
     }
     return <LauncherIconTile tone={letterTone(result.label)}>{result.label.trim().charAt(0).toLocaleUpperCase()}</LauncherIconTile>
   }
-  const kindLabel = (result: Result) => result.kind === 'app' ? t.launcher_app : t.launcher_command
+  const kindLabel = (result: Result) => result.kind === 'app' ? t.launcher_app
+    : result.kind === 'file' ? t.launcher_file
+    : result.kind === 'folder' ? t.launcher_folder
+    : result.kind === 'calc' ? t.launcher_calculator
+      : result.kind === 'currency' ? t.launcher_currency : t.launcher_command
+  const isInline = (result: Result | undefined) => result?.kind === 'calc' || result?.kind === 'currency'
+  const currencyOptions = useMemo(() => LAUNCHER_CURRENCIES.map(currency => ({
+    value: currency.code, label: currency.code, hint: currencyDisplayName(currency.code, locale), searchText: currency.aliases.join(' '),
+  })), [locale])
+  const chooseCurrency = useCallback((code: string) => {
+    setLauncherCurrency(code)
+    void window.api?.quickChat?.launcher?.setCurrencyTarget?.(code).catch(() => {})
+    // Enter should now copy the conversion, so the currency row stays active.
+    setSelected(0)
+  }, [setLauncherCurrency])
+  // Chromium replays a mouse event at the resting pointer after a menu closes;
+  // only real movement may change the selection.
+  const pointerRef = useRef<{ x: number; y: number }>()
+  const selectFromPointer = useCallback((index: number, event: MouseEvent<HTMLButtonElement>) => {
+    const last = pointerRef.current
+    pointerRef.current = { x: event.clientX, y: event.clientY }
+    if (last && last.x === event.clientX && last.y === event.clientY) return
+    setSelected(index)
+  }, [])
+  const currencyPicker = currencyQuery && (
+    <OptionPicker value={currencyTarget} options={currencyOptions} onChange={chooseCurrency} disabled={Boolean(currencyQuery.to)}
+      returnFocusRef={inputRef} label={t.launcher_currency_target} searchPlaceholder={t.launcher_currency_search} noResultsLabel={t.launcher_currency_no_results} />
+  )
 
   let flatIndex = 0
   return (
@@ -375,6 +561,7 @@ export function QuickLauncher() {
                     // during this event; do not let the same key open full Chat.
                     event.stopPropagation()
                     if (event.metaKey || event.ctrlKey) void askAI()
+                    else if (event.shiftKey && activeResult && isEntry(activeResult)) void reveal(activeResult)
                     else if (activeResult) void execute(activeResult)
                   }
                 }} />
@@ -391,7 +578,8 @@ export function QuickLauncher() {
                         <LauncherResultRow key={`${section.id}:${result.id}`} id={`launcher-result-${index}`}
                           icon={renderIcon(result)} label={result.label} detail={result.detail}
                           kindLabel={kindLabel(result)} selected={index === activeIndex} disabled={busy}
-                          onSelect={() => setSelected(index)} onActivate={() => void execute(result)} />
+                          accessory={result.kind === 'currency' ? currencyPicker : undefined}
+                          onSelect={event => selectFromPointer(index, event)} onActivate={() => void execute(result)} />
                       )
                     })}
                   </div>
@@ -417,15 +605,23 @@ export function QuickLauncher() {
               </div>
               <div className="launcher-footer-actions">
                 <span className="launcher-footer-action">
-                  <span>{activeResult?.kind === 'ai' ? activeResult.label : t.launcher_open}</span>
+                  <span>{activeResult?.kind === 'ai' ? activeResult.label : isInline(activeResult) ? t.launcher_copy : t.launcher_open}</span>
                   <KeyCap>↵</KeyCap>
                 </span>
                 <span className="launcher-footer-divider" aria-hidden="true" />
-                <span className="launcher-footer-action">
-                  <span>{t.launcher_ai}</span>
-                  <KeyCap>{primaryModifierKey}</KeyCap>
-                  <KeyCap>↵</KeyCap>
-                </span>
+                {isEntry(activeResult) ? (
+                  <span className="launcher-footer-action">
+                    <span>{t.launcher_reveal}</span>
+                    <KeyCap>⇧</KeyCap>
+                    <KeyCap>↵</KeyCap>
+                  </span>
+                ) : (
+                  <span className="launcher-footer-action">
+                    <span>{t.launcher_ai}</span>
+                    <KeyCap>{primaryModifierKey}</KeyCap>
+                    <KeyCap>↵</KeyCap>
+                  </span>
+                )}
               </div>
             </footer>
           </section>

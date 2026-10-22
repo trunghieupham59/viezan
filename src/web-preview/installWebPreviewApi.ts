@@ -31,6 +31,10 @@ function detectPreviewLanguage(text: string): string {
   return 'en'
 }
 
+/** Illustrative USD-based rates so the launcher's currency row renders in Web Preview. */
+const previewCurrencyRates: Record<string, number> = { USD: 1, VND: 25_400, JPY: 150, EUR: 0.92, GBP: 0.78, KRW: 1_380, CNY: 7.2 }
+let previewCurrencyTarget: string | null = null
+
 /** Quick AI session survives reloads only in memory in Web Preview. */
 let previewQuickAiSession: import('../../shared/quickAi').QuickAiSession | null = null
 
@@ -123,11 +127,29 @@ function createWebPreviewApi(): WindowApi {
         clear: async () => { previewQuickAiSession = null; return { success: true } },
       },
       launcher: {
-        listApps: async () => ({ success: true, apps: [{ id: 'preview-calculator', name: 'Calculator (preview)' }, { id: 'preview-notes', name: 'Notes (preview)' }], recent: ['preview-notes'] }),
+        listApps: async () => ({ success: true, apps: [{ id: 'preview-calculator', name: 'Calculator (preview)' }, { id: 'preview-notes', name: 'Notes (preview)', aliases: ['Ghi chú'] }], recent: ['preview-notes'] }),
         getIcons: async () => ({ success: true, icons: [] }),
         onIcons: noopSubscription,
         openApp: async () => ({ success: false, errorCode: 'UNAVAILABLE' }),
         searchWeb: async () => ({ success: false, errorCode: 'UNAVAILABLE' }),
+        searchFiles: async (query: string) => ({
+          success: true,
+          files: [
+            { id: 'preview-file-1', name: 'Quarterly report.pdf', folder: '~/Documents', kind: 'file' as const },
+            { id: 'preview-file-2', name: 'Projects', folder: '~/Documents', kind: 'folder' as const },
+          ].filter(file => file.name.toLowerCase().includes(query.trim().toLowerCase()) && query.trim().length >= 2),
+        }),
+        openFile: async () => ({ success: false, errorCode: 'UNAVAILABLE' }),
+        revealFile: async () => ({ success: false, errorCode: 'UNAVAILABLE' }),
+        convertCurrency: async ({ amount, from, to }: { amount: number; from: string; to: string }) => {
+          const fromRate = previewCurrencyRates[from]
+          const toRate = previewCurrencyRates[to]
+          if (!fromRate || !toRate) return { success: false, errorCode: 'NOT_FOUND' }
+          const rate = toRate / fromRate
+          return { success: true, conversion: { amount, from, to, rate, converted: amount * rate, rateUpdatedAt: Date.now() } }
+        },
+        getCurrencyTarget: async () => ({ success: true, code: previewCurrencyTarget }),
+        setCurrencyTarget: async (code: string | null) => { previewCurrencyTarget = code; return { success: true } },
       },
       hide: ok, openSettings: ok, openInChat: ok, openFeature: ok, recordUsage: ok, onShow: noopSubscription, onOpenSettings: noopSubscription, onOpenInChat: noopSubscription, onOpenFeature: noopSubscription, onUsage: noopSubscription,
     },

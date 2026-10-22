@@ -1,4 +1,4 @@
-import { useCallback, useId, useRef, useState } from 'react'
+import { type RefObject, useCallback, useId, useRef, useState } from 'react'
 import '../../../styles/language-picker.css'
 import { Button } from '../atoms'
 import { ChevronDownIcon } from '../icons'
@@ -15,6 +15,8 @@ export interface OptionPickerProps {
   searchPlaceholder?: string
   noResultsLabel?: string
   disabled?: boolean
+  /** Receives focus after a keyboard close or a selection; defaults to the trigger. */
+  returnFocusRef?: RefObject<HTMLElement | null>
   className?: string
 }
 
@@ -28,6 +30,7 @@ export function OptionPicker({
   searchPlaceholder,
   noResultsLabel,
   disabled = false,
+  returnFocusRef,
   className = '',
 }: OptionPickerProps) {
   const generatedId = useId()
@@ -39,8 +42,8 @@ export function OptionPicker({
 
   const closePicker = useCallback((restoreFocus: boolean) => {
     setOpen(false)
-    if (restoreFocus) window.requestAnimationFrame(() => triggerRef.current?.focus())
-  }, [])
+    if (restoreFocus) window.requestAnimationFrame(() => (returnFocusRef?.current ?? triggerRef.current)?.focus())
+  }, [returnFocusRef])
 
   return (
     <div className={`option-picker${className ? ` ${className}` : ''}`}>

@@ -62,6 +62,7 @@ function fail(): never {
 
 /**
  * Parse one numeric token, resolving `.` / `,` as decimal or thousands separator.
+ * Throws a `CalcError` for an unreadable token; `parseLocaleNumber` is the safe wrapper.
  * When both appear the last one is the decimal; a lone separator followed by exactly
  * three digits is thousands in the locale that uses it for grouping (vi: `.`, others: `,`).
  */
@@ -97,6 +98,17 @@ function parseNumberToken(raw: string, locale: AppLocale): number {
   return value
 }
 
+/** `null` when `raw` is not one plain number in the locale's `.` / `,` conventions. */
+export function parseLocaleNumber(raw: string, locale: AppLocale): number | null {
+  if (!/^(?:\d[\d.,]*\d|\d|\.\d+)$/.test(raw)) return null
+  try {
+    return parseNumberToken(raw, locale)
+  } catch (error) {
+    if (error instanceof CalcError) return null
+    throw error
+  }
+}
+
 function tokenize(input: string, locale: AppLocale): Token[] {
   const tokens: Token[] = []
   let i = 0
@@ -121,7 +133,8 @@ function tokenize(input: string, locale: AppLocale): Token[] {
       const word = identMatch[0].toLowerCase()
       const prev = tokens[tokens.length - 1]
       const afterOperand = prev?.type === 'num' || prev?.type === 'rparen' || (prev?.type === 'op' && prev.value === '%')
-      if (word === 'x' && afterOperand) tokens.push({ type: 'op', value: '*' })
+      // `15% of 80` reads as a multiplication, like `25 x 4`.
+      if ((word === 'x' || word === 'of') && afterOperand) tokens.push({ type: 'op', value: '*' })
       else tokens.push({ type: 'ident', value: word })
       i += identMatch[0].length
       continue

@@ -112,6 +112,19 @@ describe('launcher application catalog', () => {
     expect(await scanLauncherApps(options)).toEqual([])
   })
 
+  it('keeps localized Spotlight names with their aliases and does not re-add the bundle name from fallback roots', async () => {
+    vi.mocked(readSystemLauncherApps).mockResolvedValue([
+      { name: 'Ghi chú', aliases: ['Notes'], target: { kind: 'path', path: '/System/Applications/Notes.app' } },
+    ])
+    vi.mocked(stat).mockResolvedValue({ isDirectory: () => true } as never)
+    vi.mocked(realpath).mockImplementation(async value => String(value))
+    vi.mocked(readdir).mockImplementation(async value => value === '/Applications' ? [entry('Notes.app', 'directory'), entry('Mail.app', 'directory')] as never : [])
+    expect(await scanLauncherApps({ ...options, platform: 'darwin' })).toEqual([
+      { id: expect.any(String), name: 'Ghi chú', aliases: ['Notes'], target: { kind: 'path', path: '/System/Applications/Notes.app' } },
+      { id: expect.any(String), name: 'Mail', target: { kind: 'path', path: '/Applications/Mail.app' } },
+    ])
+  })
+
   it('merges Spotlight with fallback roots and resolves app symlinks without scanning their contents', async () => {
     vi.mocked(readSystemLauncherApps).mockResolvedValue([
       { name: 'Editor', target: { kind: 'path', path: '/Volumes/Tools/Editor.app' } },
