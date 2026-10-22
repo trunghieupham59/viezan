@@ -1,8 +1,13 @@
+import { useCallback, useEffect, useState } from 'react'
 import { ToggleSwitch } from '../../components/ui/atoms'
 import { OptionPicker } from '../../components/ui/molecules'
 import { type AppLocale, LOCALE_NAMES } from '../../i18n'
 import { useAppStore, useT } from '../../store/useAppStore'
+import { useNotificationStore } from '../../store/useNotificationStore'
 import { detectSystemLocale } from '../../utils/locale'
+
+/** Toast owner key so repeated failures replace each other instead of stacking. */
+const LOGIN_ITEM_ERROR_KEY = 'settings-login-item'
 
 const localeOptions = (Object.entries(LOCALE_NAMES) as [AppLocale, string][]).map(
   ([value, label]) => ({ value, label }),
@@ -23,6 +28,34 @@ export function PreferencesSection() {
   const setLocaleAuto = useAppStore((state) => state.setLocaleAuto)
   const setLocaleFromSystem = useAppStore((state) => state.setLocaleFromSystem)
   const t = useT()
+  const notify = useNotificationStore((state) => state.notify)
+  const dismissNotification = useNotificationStore((state) => state.dismiss)
+  // The OS owns this preference; null until the main process has answered, and
+  // the row is hidden where Electron cannot register a login item.
+  const [launchAtLogin, setLaunchAtLogin] = useState<boolean | null>(null)
+  const [launchSaving, setLaunchSaving] = useState(false)
+  const reportLaunchError = useCallback(() => {
+    notify({ key: LOGIN_ITEM_ERROR_KEY, tone: 'error', message: t.settings_launch_at_login_error })
+  }, [notify, t.settings_launch_at_login_error])
+
+  useEffect(() => {
+    let active = true
+    void window.api?.getLoginItemSettings?.().then((settings) => {
+      if (active && settings?.supported) setLaunchAtLogin(settings.openAtLogin)
+    }).catch(() => { if (active) reportLaunchError() })
+    return () => { active = false; dismissNotification(LOGIN_ITEM_ERROR_KEY) }
+  }, [reportLaunchError, dismissNotification])
+
+  const toggleLaunchAtLogin = async (enabled: boolean) => {
+    setLaunchSaving(true)
+    dismissNotification(LOGIN_ITEM_ERROR_KEY)
+    try {
+      const result = await window.api?.setLoginItemSettings?.(enabled)
+      if (result?.success) setLaunchAtLogin(result.openAtLogin)
+      else reportLaunchError()
+    } catch { reportLaunchError() }
+    finally { setLaunchSaving(false) }
+  }
 
   const handleToggleLocaleAuto = () => {
     if (localeAuto) {
@@ -41,6 +74,22 @@ export function PreferencesSection() {
       </div>
 
       <div className="card divide-y divide-gray-100 dark:divide-gray-700">
+
+        {/* Launch at login (packaged Windows/macOS builds only) */}
+        {launchAtLogin !== null && (
+          <div className="flex items-center justify-between gap-4 px-4 py-3.5">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_launch_at_login}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_launch_at_login_desc}</p>
+            </div>
+            <ToggleSwitch
+              checked={launchAtLogin}
+              disabled={launchSaving}
+              onChange={(enabled) => void toggleLaunchAtLogin(enabled)}
+              aria-label={t.settings_launch_at_login}
+            />
+          </div>
+        )}
 
         {/* Follow System Language toggle */}
         <div className="flex items-center justify-between px-4 py-3.5">

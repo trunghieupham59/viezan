@@ -93,6 +93,22 @@ describe('update notification', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
+  it('stays closed for updates found by a manual check and reopens only for a background detection', () => {
+    render(<UpdateNotification />)
+    act(() => emit({ type: 'checking' }))
+    act(() => emit({ type: 'available', version: '3.0.0' }))
+    act(() => emit({ type: 'downloaded', version: '3.0.0' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(useUpdaterStore.getState().status.type).toBe('downloaded')
+    available()
+    expect(screen.getByRole('dialog')).toBeVisible()
+    // A manual re-check from Settings takes the release over.
+    act(() => emit({ type: 'checking' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    act(() => emit({ type: 'available', version: '3.0.0' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   it('restores the main-process snapshot without replacing a newer event', async () => {
     let resolve: (status: UpdateStatus) => void = () => undefined
     window.api.updater.getStatus = vi.fn(() => new Promise<UpdateStatus>((done) => { resolve = done }))

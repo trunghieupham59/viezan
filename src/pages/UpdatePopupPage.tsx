@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { UpdateNotificationAction, UpdateNotificationSnapshot, UpdatePopupApi } from '../../shared/updateNotification'
-import { AppLogoIcon, Button, XIcon } from '../components/ui/atoms'
+import { AppLogoIcon, Button, MinimizeIcon, XIcon } from '../components/ui/atoms'
 import { resolveThemeMode } from '../constants/themePresets'
 import { TRANSLATIONS } from '../i18n'
 import { tpl } from '../utils/tpl'
@@ -46,9 +46,13 @@ export function UpdatePopupPage() {
   const t = TRANSLATIONS[snapshot.locale]
   return (
     <main className="update-popup" aria-labelledby="update-title">
-      <div className="update-popup-header">
+      {/* The header is the window's drag handle (frameless window); its buttons opt out. */}
+      <div className="update-popup-header titlebar-drag">
         <div className="update-popup-brand"><AppLogoIcon size="md" /><strong>Viezan</strong></div>
-        <Button size="md" shape="icon" variant="neutral" appearance="ghost" aria-label={t.update_popup_close} onClick={() => void act('dismiss')}><XIcon className="h-4 w-4" /></Button>
+        <div className="update-popup-window-controls titlebar-no-drag">
+          <Button size="md" shape="icon" variant="neutral" appearance="ghost" aria-label={t.update_popup_minimize} onClick={() => void act('minimize')}><MinimizeIcon className="h-4 w-4" /></Button>
+          <Button size="md" shape="icon" variant="neutral" appearance="ghost" aria-label={t.update_popup_close} onClick={() => void act('dismiss')}><XIcon className="h-4 w-4" /></Button>
+        </div>
       </div>
       <div className="update-popup-content">
         <h1 id="update-title">{snapshot.ready ? t.update_popup_ready_title : t.update_popup_title}</h1>

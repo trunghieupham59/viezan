@@ -10,7 +10,11 @@ import { autoUpdater } from 'electron-updater'
 import type { UpdateStatus } from '../../shared/updater'
 import { isAllowedExternalUrl } from './externalUrl'
 import { isSenderWindow } from './senderGuard'
+import { MAC_UPDATE_DIR_NAME } from './updateCleanup'
 import { startUpdateSchedule } from './updateSchedule'
+import { isNewerVersion } from './updateVersion'
+
+export { isNewerVersion } from './updateVersion'
 
 // ─── GitHub repo for update checks (macOS fallback) ────────────────────────
 // On macOS we build with identity: null (unsigned). Squirrel.Mac — which
@@ -54,19 +58,6 @@ export function isMissingUpdateMetadataError(err: unknown): boolean {
 function matchesPatterns(err: unknown, patterns: readonly string[]): boolean {
   const msg = errMsg(err)
   return patterns.some((p) => msg.includes(p))
-}
-
-/**
- * Simple semver comparison.
- * Returns true if `remote` is strictly newer than `current`.
- */
-export function isNewerVersion(remote: string, current: string): boolean {
-  const parse = (v: string) => v.replace(/^v/, '').split('.').map(Number)
-  const [rMaj = 0, rMin = 0, rPat = 0] = parse(remote)
-  const [cMaj = 0, cMin = 0, cPat = 0] = parse(current)
-  if (rMaj !== cMaj) return rMaj > cMaj
-  if (rMin !== cMin) return rMin > cMin
-  return rPat > cPat
 }
 
 interface GithubRelease {
@@ -494,7 +485,11 @@ if ! mv "$STAGE_PATH" "$DEST_PATH"; then
   fail "Could not install the new Viezan app"
 fi
 
-# The new app is installed. A failed relaunch must not roll back or skip cleanup.
+# The new app is installed: the downloaded DMG has served its purpose, so do
+# not leave the installer behind on disk.
+rm -f "$DMG_PATH" || true
+
+# A failed relaunch must not roll back or skip cleanup.
 if ! open "$DEST_PATH"; then
   echo "[$(date)] Viezan was updated but could not be reopened automatically"
   osascript -e "display alert \\"Viezan updated\\" message \\"Please open Viezan manually.\\"" || true
@@ -684,8 +679,10 @@ export function registerUpdaterHandlers(
         return { success: false, error: 'No trusted macOS DMG asset found' }
       }
 
+      // App-owned folder (not ~/Downloads): the install helper deletes the DMG
+      // once it is installed and startup cleanup removes anything left behind.
       const filename = sanitizeDownloadName(release.assetName, release.version)
-      const downloadsDir = app.getPath('downloads')
+      const downloadsDir = path.join(app.getPath('userData'), MAC_UPDATE_DIR_NAME)
       await mkdir(downloadsDir, { recursive: true })
       const destination = path.join(downloadsDir, filename)
 

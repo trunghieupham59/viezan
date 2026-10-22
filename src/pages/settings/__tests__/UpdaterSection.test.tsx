@@ -17,7 +17,7 @@ afterEach(() => { cleanup(); delete window.api.updater.getNotificationPreference
 
 it('loads and saves the floating notification preference without disabling manual checks', async () => {
   await act(async () => { render(<><UpdaterSection /><NotificationViewport /></>) })
-  const toggle = screen.getByRole('switch', { name: 'Floating update notifications' })
+  const toggle = screen.getByRole('switch', { name: 'Update notifications' })
   expect(toggle).toHaveAttribute('aria-checked', 'true')
   await act(async () => fireEvent.click(toggle))
   expect(window.api.updater.setNotificationPreferences).toHaveBeenCalledWith({ enabled: false })

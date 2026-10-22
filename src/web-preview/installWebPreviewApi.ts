@@ -107,6 +107,8 @@ function createWebPreviewApi(): WindowApi {
     checkScreenPermission: async () => 'denied',
     openExternal: async (url: string) => { window.open(url, '_blank', 'noopener,noreferrer') },
     relaunchApp: async () => undefined,
+    getLoginItemSettings: async () => ({ supported: false, openAtLogin: false }),
+    setLoginItemSettings: async () => ({ success: false, openAtLogin: false, error: 'Desktop only in Web Preview' }),
     checkSttProviders: async () => ({ primary: 'whisper', available: ['whisper'] }),
     translateStream: async (params: { sourceText: string; targetLang: string }) => ({ success: true, translatedText: previewTranslation(params.sourceText, params.targetLang) }),
     subtitle: { show: async () => undefined, hide: async () => undefined, update: async () => undefined, setStyle: async () => undefined, setSourceText: async () => undefined, pushState: async () => undefined, onClosed: noopSubscription, onStart: noopSubscription, onStop: noopSubscription, onSetProvider: noopSubscription, onSetModel: noopSubscription, onSetAudioMode: noopSubscription, onSetTargetLang: noopSubscription, onStyleUpdate: noopSubscription, onClear: noopSubscription },

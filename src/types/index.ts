@@ -858,6 +858,9 @@ export interface WindowApi {
   checkScreenPermission: () => Promise<string>
   openExternal: (url: string) => Promise<void>
   relaunchApp: () => Promise<void>
+  /** Launch at login. `supported` is false in development runs and on Linux. */
+  getLoginItemSettings?: () => Promise<{ supported: boolean; openAtLogin: boolean }>
+  setLoginItemSettings?: (openAtLogin: boolean) => Promise<{ success: boolean; openAtLogin: boolean; error?: string }>
   /**
    * Aligns native window chrome (title bar overlay, window background) with the
    * in-app light/dark mode and, when given, the palette preset.

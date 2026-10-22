@@ -73,6 +73,15 @@ export function XIcon({ className = 'w-3.5 h-3.5' }: IconProps) {
   )
 }
 
+/** Minimize icon — window control on frameless auxiliary windows. */
+export function MinimizeIcon({ className = 'w-4 h-4' }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+      <path strokeLinecap="round" d="M5 12h14" />
+    </svg>
+  )
+}
+
 /** Plus / add icon — used on create / add buttons. */
 export function PlusIcon({ className = 'w-3 h-3' }: IconProps) {
   return (

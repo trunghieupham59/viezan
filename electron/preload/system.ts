@@ -16,6 +16,12 @@ export const systemSection = {
   relaunchApp: () =>
     ipcRenderer.invoke('app:relaunch'),
 
+  // Launch at login (Windows / macOS packaged builds only)
+  getLoginItemSettings: () =>
+    ipcRenderer.invoke('app:getLoginItemSettings') as Promise<{ supported: boolean; openAtLogin: boolean }>,
+  setLoginItemSettings: (openAtLogin: boolean) =>
+    ipcRenderer.invoke('app:setLoginItemSettings', openAtLogin) as Promise<{ success: boolean; openAtLogin: boolean; error?: string }>,
+
   // Sync native window chrome with the in-app theme preference
   setWindowTheme: (theme: 'light' | 'dark' | 'system', preset?: string) =>
     ipcRenderer.invoke('app:setWindowTheme', theme, preset) as Promise<void>,

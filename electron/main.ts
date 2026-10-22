@@ -19,8 +19,10 @@ import { registerSystemHandlers } from './ipc/system'
 import { registerTranscribeHandlers } from './ipc/transcribe'
 import { registerTranslateHandlers } from './ipc/translate'
 import { registerTtsHandlers } from './ipc/tts'
+import { runStartupUpdateCleanup } from './ipc/updateCleanup'
 import { registerUpdaterHandlers } from './ipc/updater'
 import { registerWebSearchHandlers } from './ipc/webSearch'
+import { isHiddenStartRequest } from './loginItem'
 import { mainWindowGeometry } from './mainWindowGeometry'
 import { isQuitRequest } from './quitRequest'
 import { resolveRuntimeProfile } from './runtimeProfile'
@@ -98,6 +100,13 @@ const navigationPolicy: NavigationPolicy = {
 
 let mainWindow: BrowserWindow | null = null
 let appTray: Tray | null = null
+/**
+ * A login-item launch (`--hidden`) keeps the first window in the tray. Only
+ * honoured where a tray exists to bring it back; consumed by the first window
+ * so a later open from the tray or a second launch shows normally.
+ */
+let startHidden = isHiddenStartRequest(process.argv)
+  && runtimeProfile.trayEnabled && supportsTrayResidency(process.platform)
 /** True once a real quit has begun, so closing the main window must not just hide it. */
 let isQuitting = false
 
@@ -195,12 +204,15 @@ function createWindow() {
     mainWindow.on('page-title-updated', (event) => event.preventDefault())
   }
 
+  const showOnReady = !startHidden
+  startHidden = false
+
   mainWindow.once('ready-to-show', () => {
-    showMainWindow()
+    if (showOnReady) showMainWindow()
   })
 
   mainWindow.webContents.once('did-finish-load', () => {
-    if (!mainWindow?.isVisible()) showMainWindow()
+    if (showOnReady && !mainWindow?.isVisible()) showMainWindow()
   })
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
@@ -549,6 +561,11 @@ app.whenReady().then(() => {
     install: () => updater.install(),
   })
   updater = registerUpdaterHandlers(ipcMain, () => mainWindow, notifyUpdate)
+  // The installer that produced this version is no longer needed on disk.
+  void runStartupUpdateCleanup({
+    isPackaged: app.isPackaged, version: app.getVersion(), platform: process.platform, env: process.env,
+    resourcesPath: process.resourcesPath, userDataPath: app.getPath('userData'),
+  }).catch(() => console.warn('[updater] Installer cleanup failed'))
 
   app.on('activate', () => {
     // Recreate the main window if it has been closed (X button on macOS).

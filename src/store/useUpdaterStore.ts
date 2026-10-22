@@ -16,6 +16,8 @@ function readSnoozes(): Record<string, number> {
 
 interface UpdaterState {
   status: UpdateStatus
+  /** Version the scheduled (background) check found; only that release may raise the in-app dialog. */
+  promptVersion: string | null
   snoozes: Record<string, number>
   receive: (status: UpdateStatus) => void
   snooze: (version: string) => void
@@ -24,17 +26,23 @@ interface UpdaterState {
 /** Shared by the global notification and Settings; only snoozes are persisted. */
 export const useUpdaterStore = create<UpdaterState>((set) => ({
   status: { type: 'idle' },
+  promptVersion: null,
   snoozes: readSnoozes(),
   receive: (status) => set((state) => {
     // Background checks never surface errors or replace an actionable update
     // with a transient checking indicator.
     if (status.background && (status.type === 'error' || status.type === 'error-codesign' || status.type === 'checking')) return state
+    // A manual check from Settings takes the update over: the dialog stays
+    // closed for that release until a background check finds it again.
+    const promptVersion = status.type === 'available' ? (status.background ? status.version ?? null : null)
+      : status.type === 'checking' || status.type === 'not-available' ? null : state.promptVersion
+    if (promptVersion !== state.promptVersion) state = { ...state, promptVersion }
     if ((status.type === 'error' || status.type === 'error-codesign') &&
       (state.status.type === 'available' || state.status.type === 'downloading' || state.status.type === 'downloaded')) {
-      return { status: { ...state.status, type: state.status.type === 'downloaded' ? 'downloaded' : 'available',
+      return { ...state, status: { ...state.status, type: state.status.type === 'downloaded' ? 'downloaded' : 'available',
         error: status.error ?? 'Code signature verification failed' } }
     }
-    return { status: status.type === 'downloading' || status.type === 'downloaded'
+    return { ...state, status: status.type === 'downloading' || status.type === 'downloaded'
       ? { ...status, version: status.version ?? state.status.version }
       : status }
   }),

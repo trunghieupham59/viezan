@@ -369,7 +369,8 @@ describe('updater handlers', () => {
 
   describe('macOS download integrity', () => {
     const BODY = 'dmg-bytes'
-    const downloadedFile = () => path.join(mocks.tmpDir, 'Viezan-9.9.9-arm64.dmg')
+    // Downloads go to an app-owned folder, never to ~/Downloads.
+    const downloadedFile = () => path.join(mocks.tmpDir, 'updates', 'Viezan-9.9.9-arm64.dmg')
 
     beforeEach(() => {
       restorePlatform = setPlatform('darwin')
