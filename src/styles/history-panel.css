@@ -1,0 +1,236 @@
+/* Saved-runs panel -------------------------------------------------------
+ * Shared by the AI Translate and AI Interpret history panels: a framed
+ * column (or the body of an overlay dialog) listing saved runs that reopen
+ * in place. Feature stylesheets only position the panel.
+ */
+
+.history-panel {
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--vzn-border);
+  border-radius: var(--vzn-radius-md);
+  background: var(--vzn-surface);
+  color: var(--vzn-text);
+  box-shadow: var(--vzn-shadow-xs);
+}
+
+/* Inside an overlay the dialog draws the frame. */
+.history-panel[data-variant='overlay'] {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.history-panel-toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-3);
+  border-bottom: 1px solid var(--vzn-divider);
+}
+
+.history-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--vzn-space-2);
+}
+
+.history-panel-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--vzn-space-1-5);
+  margin: 0;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-md);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.history-panel-title-icon {
+  width: var(--vzn-icon-sm);
+  height: var(--vzn-icon-sm);
+  color: var(--vzn-text-muted);
+}
+
+.history-panel-count {
+  margin-right: auto;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.history-panel-list {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+.history-panel-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-panel-row {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--vzn-space-1);
+  padding: var(--vzn-space-2) var(--vzn-space-2) var(--vzn-space-2) var(--vzn-space-3);
+  border-bottom: 1px solid var(--vzn-divider);
+  transition: background var(--vzn-duration-fast) var(--vzn-ease-standard);
+}
+
+.history-panel-row:last-child {
+  border-bottom: 0;
+}
+
+.history-panel-row:hover {
+  background: var(--vzn-surface-muted);
+}
+
+.history-panel-row[data-active='true'] {
+  background: var(--vzn-surface-selected);
+}
+
+/* The open entry carries a short accent bar on the leading edge. */
+.history-panel-row[data-active='true']::before {
+  content: '';
+  position: absolute;
+  inset-block: var(--vzn-space-2);
+  inset-inline-start: 0;
+  inline-size: var(--vzn-space-0-5);
+  border-start-end-radius: var(--vzn-radius-2xs);
+  border-end-end-radius: var(--vzn-radius-2xs);
+  background: var(--vzn-action);
+}
+
+/* Native exception: a multi-line, content-driven row; the foundation layer
+   paints its keyboard focus ring. */
+.history-panel-reopen {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--vzn-space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.history-panel-source {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-md);
+  font-weight: var(--vzn-weight-medium);
+  line-height: var(--vzn-line-normal);
+}
+
+.history-panel-result {
+  overflow: hidden;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+  line-height: var(--vzn-line-normal);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-panel-meta {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-1) var(--vzn-space-2);
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-micro);
+}
+
+.history-panel-model {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--vzn-space-1);
+  overflow: hidden;
+  color: var(--vzn-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-panel-chip {
+  padding: 0 var(--vzn-space-1-5);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-surface-muted);
+  color: var(--vzn-text-muted);
+  font-weight: var(--vzn-weight-medium);
+  white-space: nowrap;
+}
+
+.history-panel-pair {
+  white-space: nowrap;
+}
+
+.history-panel-time {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The delete control stays out of the way until the row is hovered or focused. */
+.history-panel-row > .ui-button.history-panel-delete {
+  flex: 0 0 auto;
+  opacity: 0;
+  transition: opacity var(--vzn-duration-fast) var(--vzn-ease-standard);
+}
+
+.history-panel-row:hover > .ui-button.history-panel-delete,
+.history-panel-row:focus-within > .ui-button.history-panel-delete {
+  opacity: 1;
+}
+
+.history-panel-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border-top: 1px solid var(--vzn-divider);
+  background: var(--vzn-surface-muted);
+}
+
+.history-panel-footer .ui-button > svg {
+  width: var(--vzn-icon-sm);
+  height: var(--vzn-icon-sm);
+}
+
+.history-panel-confirm-copy {
+  margin: 0;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-md);
+  line-height: var(--vzn-line-relaxed);
+}
+
+/* Entry count inside the command-bar button that opens a panel. */
+.history-trigger-count {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .history-panel-row,
+  .history-panel-row > .ui-button.history-panel-delete {
+    transition: none;
+  }
+}

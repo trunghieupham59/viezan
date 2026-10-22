@@ -35,8 +35,8 @@ import { createClientId } from '../utils/id'
 import { extractImageFromClipboard, resizeImageFile } from '../utils/imageUtils'
 import { eventMatchesShortcut, shouldSendChatMessage } from '../utils/keyboardShortcuts'
 import { formatModelName } from '../utils/modelDisplay'
+import { formatTimeAgo } from '../utils/relativeTime'
 import { estimateUsageCost } from '../utils/usageCost'
-import { formatTime } from './history/historyUtils'
 
 const CHAT_TEXTAREA_MAX_HEIGHT_PX = 160
 const CHAT_STREAM_BUFFER_INTERVAL_MS = 60
@@ -154,7 +154,7 @@ function SessionPanel({ sessions, activeChatSessionId, onSelect, onNew, onDelete
           sorted.map((session) => {
             const isActive = session.id === activeChatSessionId
             const msgCount = session.messages.filter((m) => !m.isLoading && !m.error).length
-            const timeStr = formatTime(session.updatedAt, t)
+            const timeStr = formatTimeAgo(session.updatedAt, t)
 
             return (
               <button

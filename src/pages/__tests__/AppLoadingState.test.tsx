@@ -6,7 +6,6 @@ describe('lazy feature route fallback', () => {
   it.each([
     ['live', 'Loading AI Interpret'],
     ['dictionary', 'Loading Dictionary'],
-    ['history', 'Loading History'],
   ] as const)('keeps the %s route visibly occupied while loading', (page, label) => {
     render(<PageFallback page={page} label={label} />)
     expect(screen.getByRole('status', { name: label })).toBeInTheDocument()

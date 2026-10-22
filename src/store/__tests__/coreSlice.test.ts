@@ -208,7 +208,7 @@ describe('setActivePage', () => {
   })
 
   it('navigates to all valid pages', () => {
-    const pages = ['translate', 'history', 'chat', 'live', 'dictionary'] as const
+    const pages = ['translate', 'chat', 'live', 'dictionary'] as const
     for (const page of pages) {
       act(() => useAppStore.getState().setActivePage(page))
       expect(useAppStore.getState().activePage).toBe(page)

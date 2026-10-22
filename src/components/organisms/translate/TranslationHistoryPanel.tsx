@@ -1,5 +1,4 @@
 import { useId, useState } from 'react'
-import { LANGUAGES } from '../../../constants/providers'
 import type { Translations } from '../../../i18n'
 import type { HistoryItem } from '../../../types'
 import { formatModelName } from '../../../utils/modelDisplay'
@@ -8,6 +7,7 @@ import { tpl } from '../../../utils/tpl'
 import { Button } from '../../ui/atoms'
 import { ClockIcon, TrashIcon } from '../../ui/icons'
 import { DialogShell, EmptyPanelState, FilterInput, ProviderIcon } from '../../ui/molecules'
+import '../../../styles/history-panel.css'
 
 export interface TranslationHistoryPanelProps {
   entries: HistoryItem[]
@@ -29,7 +29,7 @@ const FILTER_THRESHOLD = 4
 
 function languageLabel(code: string, t: Translations): string {
   if (code === 'auto') return t.lang_auto
-  return LANGUAGES.find((language) => language.code === code)?.name ?? code
+  return t.lang_names[code] ?? code
 }
 
 function entryMatches(entry: HistoryItem, query: string): boolean {
@@ -69,19 +69,19 @@ export function TranslationHistoryPanel({
 
   return (
     <section
-      className="translate-history-panel"
+      className="history-panel"
       data-variant={variant}
       aria-labelledby={variant === 'panel' ? headingId : undefined}
       aria-label={variant === 'overlay' ? t.translate_history_title : undefined}
     >
-      <header className="translate-history-toolbar">
+      <header className="history-panel-toolbar">
         {variant === 'panel' && (
-          <div className="translate-history-heading">
-            <h2 id={headingId} className="translate-history-title">
-              <ClockIcon className="translate-history-title-icon" />
+          <div className="history-panel-heading">
+            <h2 id={headingId} className="history-panel-title">
+              <ClockIcon className="history-panel-title-icon" />
               <span>{t.translate_history_title}</span>
             </h2>
-            <span className="translate-history-count">
+            <span className="history-panel-count">
               {tpl(t.history_translate_count, { n: entries.length })}
             </span>
           </div>
@@ -98,40 +98,40 @@ export function TranslationHistoryPanel({
         )}
       </header>
 
-      <div className="translate-history-list">
+      <div className="history-panel-list">
         {visibleEntries.length === 0 ? (
           <EmptyPanelState
             icon={<ClockIcon />}
             description={filter ? t.history_no_results : t.translate_history_empty}
           />
         ) : (
-          <ul className="translate-history-rows">
+          <ul className="history-panel-rows">
             {visibleEntries.map((entry) => {
               const isActive = entry.id === activeEntryId
               const modelCount = entry.results?.length ?? 0
               const languagePair = `${languageLabel(entry.sourceLang, t)} → ${languageLabel(entry.targetLang, t)}`
               return (
-                <li key={entry.id} className="translate-history-row" data-active={isActive || undefined}>
+                <li key={entry.id} className="history-panel-row" data-active={isActive || undefined}>
                   {/* Native exception: a multi-line, content-driven list row rather than a toolbar control. */}
                   <button
                     type="button"
-                    className="translate-history-reopen"
+                    className="history-panel-reopen"
                     aria-current={isActive || undefined}
                     aria-label={`${t.history_reuse}: ${entry.sourceText}`}
                     onClick={() => onReuse(entry)}
                   >
-                    <span className="translate-history-source">{entry.sourceText}</span>
-                    <span className="translate-history-result">{entry.translatedText}</span>
-                    <span className="translate-history-meta">
-                      <span className="translate-history-model">
+                    <span className="history-panel-source">{entry.sourceText}</span>
+                    <span className="history-panel-result">{entry.translatedText}</span>
+                    <span className="history-panel-meta">
+                      <span className="history-panel-model">
                         <ProviderIcon provider={entry.provider} size={12} />
                         <span>{formatModelName(entry.provider, entry.model)}</span>
                       </span>
                       {modelCount > 1 && (
-                        <span className="translate-history-chip">{t.history_models_count(modelCount)}</span>
+                        <span className="history-panel-chip">{t.history_models_count(modelCount)}</span>
                       )}
-                      <span className="translate-history-pair">{languagePair}</span>
-                      <span className="translate-history-time">{formatRelativeTime(entry.timestamp)}</span>
+                      <span className="history-panel-pair">{languagePair}</span>
+                      <span className="history-panel-time">{formatRelativeTime(entry.timestamp)}</span>
                     </span>
                   </button>
                   <Button
@@ -142,7 +142,7 @@ export function TranslationHistoryPanel({
                     aria-label={`${t.history_delete}: ${entry.sourceText}`}
                     title={t.history_delete}
                     onClick={() => onDelete(entry.id)}
-                    className="translate-history-delete"
+                    className="history-panel-delete"
                   >
                     <TrashIcon />
                   </Button>
@@ -154,7 +154,7 @@ export function TranslationHistoryPanel({
       </div>
 
       {entries.length > 0 && (
-        <footer className="translate-history-footer">
+        <footer className="history-panel-footer">
           <Button
             size="sm"
             shape="pill"
@@ -205,7 +205,7 @@ export function TranslationHistoryPanel({
             </>
           )}
         >
-          <p className="translate-history-confirm-copy">{t.translate_history_clear_confirm}</p>
+          <p className="history-panel-confirm-copy">{t.translate_history_clear_confirm}</p>
         </DialogShell>
       )}
     </section>

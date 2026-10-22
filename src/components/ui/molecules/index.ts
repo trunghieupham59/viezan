@@ -3,7 +3,6 @@
 export { PROVIDER_COLORS, ProviderIcon } from '../../ProviderIcon'
 export { ButtonGroup } from '../ButtonGroup'
 export { CredentialCard } from '../CredentialCard'
-export { HistoryEmptyState } from '../HistoryEmptyState'
 export { type AccentOption, AccentPicker, type AccentPickerProps } from './AccentPicker'
 export { AIModelField, type AIModelFieldProps } from './AIModelField'
 export { ChatSessionListItem, type ChatSessionListItemProps } from './ChatSessionListItem'

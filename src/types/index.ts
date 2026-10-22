@@ -106,7 +106,7 @@ export interface UsageFeatureTotal {
   totalTokens: number
 }
 
-export type AppPage = 'translate' | 'history' | 'chat' | 'live' | 'dictionary'
+export type AppPage = 'translate' | 'chat' | 'live' | 'dictionary'
 
 export interface ProviderConfig {
   id: Provider
