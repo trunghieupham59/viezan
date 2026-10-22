@@ -78,8 +78,13 @@ html[data-popup-frame="transparent"] .launcher-panel {
   font-weight: var(--vzn-weight-semibold);
 }
 
-.launcher-result-list .launcher-result {
+.launcher-result-list .launcher-result,
+.launcher-result-list .launcher-result-line {
   margin-bottom: var(--vzn-space-0-5);
+}
+
+.launcher-result-list .launcher-result-line .launcher-result {
+  margin-bottom: 0;
 }
 
 .launcher-notice {

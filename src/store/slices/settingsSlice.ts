@@ -61,6 +61,11 @@ export interface SettingsSlice {
   translateComparisonView: TranslateComparisonView
   /** Collapsed preference for the history panel beside the AI Translate workbench. */
   translateHistoryCollapsed: boolean
+  /**
+   * ISO 4217 code the Quick Launcher converts amounts into; `null` follows the UI
+   * language. Owned by the launcher popup, which stores it through the main process.
+   */
+  launcherCurrency: string | null
 
   // Provider / key status
   keyStatus: Record<Provider, boolean>
@@ -99,6 +104,7 @@ export interface SettingsSlice {
   toggleAiChatSidebar: () => void
   setTranslateComparisonView: (view: TranslateComparisonView) => void
   setTranslateHistoryCollapsed: (collapsed: boolean) => void
+  setLauncherCurrency: (code: string | null) => void
 
   /** Whether a Tavily API key is stored (used for Deep Research web search) */
   hasTavilyKey: boolean
@@ -142,6 +148,7 @@ export const createSettingsSlice = (set: SliceSet): SettingsSlice => ({
   aiChatSidebarCollapsed: false,
   translateComparisonView: 'columns' as TranslateComparisonView,
   translateHistoryCollapsed: false,
+  launcherCurrency: null,
   // Build initial provider maps from PROVIDERS registry — adding a new provider only requires
   // updating constants/providers.ts; no need to touch this slice.
   keyStatus: Object.fromEntries(PROVIDERS.map((p) => [p.id, false])) as Record<Provider, boolean>,
@@ -180,6 +187,7 @@ export const createSettingsSlice = (set: SliceSet): SettingsSlice => ({
     set((state: SettingsSlice) => ({ aiChatSidebarCollapsed: !state.aiChatSidebarCollapsed })),
   setTranslateComparisonView: (view) => set({ translateComparisonView: view }),
   setTranslateHistoryCollapsed: (collapsed) => set({ translateHistoryCollapsed: collapsed }),
+  setLauncherCurrency: (code) => set({ launcherCurrency: code }),
 
   setKeyStatus: (provider, hasKey) =>
     set((state: SettingsSlice) => ({ keyStatus: { ...state.keyStatus, [provider]: hasKey } })),

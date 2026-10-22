@@ -25,6 +25,21 @@ export interface LauncherFeatureRequest {
   text?: string
 }
 
+/** ISO 4217 codes; the main process only converts between currencies it has rates for. */
+export interface CurrencyConversionRequest {
+  amount: number
+  from: string
+  to: string
+}
+
+export interface CurrencyConversion extends CurrencyConversionRequest {
+  converted: number
+  /** How many `to` units one `from` unit buys. */
+  rate: number
+  /** When the rate provider last published these rates (ms since epoch). */
+  rateUpdatedAt: number
+}
+
 export interface LauncherApi {
   /** `recent` lists catalog IDs most recently opened from the launcher, newest first. */
   listApps: () => Promise<LauncherResult & { apps: LauncherApp[]; recent?: string[] }>
@@ -32,4 +47,9 @@ export interface LauncherApi {
   onIcons: (callback: (icons: LauncherIcon[]) => void) => () => void
   openApp: (id: string) => Promise<LauncherResult>
   searchWeb: (query: string) => Promise<LauncherResult>
+  /** `UNAVAILABLE` when no rates are cached and none can be fetched (offline). */
+  convertCurrency: (request: CurrencyConversionRequest) => Promise<LauncherResult & { conversion?: CurrencyConversion }>
+  /** The target currency the user picked in the launcher; `null` follows the UI language. */
+  getCurrencyTarget: () => Promise<LauncherResult & { code: string | null }>
+  setCurrencyTarget: (code: string | null) => Promise<LauncherResult>
 }

@@ -1070,6 +1070,16 @@ export interface Translations {
   launcher_ai_hint: string
   launcher_continue: string
   launcher_ai_followup: string
+  launcher_calculator: string
+  launcher_currency: string
+  launcher_copy: string
+  /** `{from}` / `{to}` are ISO codes, `{rate}` a formatted number, `{date}` a formatted day. */
+  launcher_currency_rate: string
+  launcher_currency_loading: string
+  launcher_currency_unavailable: string
+  launcher_currency_target: string
+  launcher_currency_search: string
+  launcher_currency_no_results: string
 
   // Settings — AI Chat section
   settings_chat_section: string

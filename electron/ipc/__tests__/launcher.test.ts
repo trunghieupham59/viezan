@@ -9,6 +9,7 @@ const env = vi.hoisted(() => ({
   openExternal: vi.fn(),
   openWindowsApp: vi.fn(),
   icons: vi.fn(),
+  rates: vi.fn(),
 }))
 vi.mock('electron', () => ({
   app: { getPath: () => '/appData' },
@@ -17,6 +18,10 @@ vi.mock('electron', () => ({
 vi.mock('../../services/launcherApps', () => ({ scanLauncherApps: env.scan }))
 vi.mock('../../services/launcherSystemApps', () => ({ openWindowsLauncherApp: env.openWindowsApp }))
 vi.mock('../../services/launcherIcons', () => ({ readLauncherIcons: env.icons }))
+vi.mock('../../services/currencyRates', async importOriginal => ({
+  ...await importOriginal<typeof import('../../services/currencyRates')>(),
+  CurrencyRateStore: class { get = env.rates },
+}))
 vi.mock('node:fs/promises', async importOriginal => ({
   ...await importOriginal<typeof import('node:fs/promises')>(),
   stat: vi.fn().mockRejectedValue(new Error('Missing test file')),
@@ -42,6 +47,7 @@ beforeEach(() => {
   env.openExternal.mockResolvedValue(undefined)
   env.openWindowsApp.mockResolvedValue(undefined)
   env.icons.mockResolvedValue([{ id, dataUrl }])
+  env.rates.mockResolvedValue({ base: 'USD', rates: { USD: 1, VND: 25_000, JPY: 150 }, updatedAt: 1_800_000_000_000, fetchedAt: 1_800_000_000_000 })
   registerLauncherHandlers({ handle: (name: string, handler: (...args: unknown[]) => Promise<unknown>) => handlers.set(name, handler) } as unknown as IpcMain,
     () => window as unknown as BrowserWindow)
 })
@@ -143,5 +149,35 @@ describe('launcher IPC boundary', () => {
       expect(await invoke('launcher:search-web', query)).toMatchObject({ errorCode: 'INVALID' })
     }
     expect(window.hide).not.toHaveBeenCalled()
+  })
+
+  it('converts validated amounts between known currencies through the main-process rate table', async () => {
+    expect(await invoke('launcher:convert-currency', { amount: 2, from: 'USD', to: 'VND' }))
+      .toEqual({ success: true, conversion: { amount: 2, from: 'USD', to: 'VND', rate: 25_000, converted: 50_000, rateUpdatedAt: 1_800_000_000_000 } })
+    expect(await invoke('launcher:convert-currency', { amount: 2, from: 'USD', to: 'XXX' })).toMatchObject({ errorCode: 'NOT_FOUND' })
+    for (const invalid of [null, '2 usd', { amount: '2', from: 'USD', to: 'VND' }, { amount: -1, from: 'USD', to: 'VND' },
+      { amount: 2, from: 'usd', to: 'VND' }, { amount: 2, from: 'USD', to: 'VN' }, { amount: Number.POSITIVE_INFINITY, from: 'USD', to: 'VND' }]) {
+      expect(await invoke('launcher:convert-currency', invalid)).toMatchObject({ errorCode: 'INVALID' })
+    }
+    expect(env.rates).toHaveBeenCalledTimes(2)
+    expect(await invoke('launcher:convert-currency', { amount: 2, from: 'USD', to: 'VND' }, { sender: contents, senderFrame: {} }))
+      .toMatchObject({ errorCode: 'UNAVAILABLE' })
+    env.rates.mockResolvedValueOnce(null)
+    expect(await invoke('launcher:convert-currency', { amount: 2, from: 'USD', to: 'VND' })).toMatchObject({ errorCode: 'UNAVAILABLE' })
+  })
+
+  it('remembers a validated target currency on disk and rejects other inputs', async () => {
+    expect(await invoke('launcher:get-currency-target')).toEqual({ success: true, code: null })
+    expect(await invoke('launcher:set-currency-target', 'JPY')).toEqual({ success: true })
+    const { writeFile } = await import('node:fs/promises')
+    expect(vi.mocked(writeFile)).toHaveBeenLastCalledWith(expect.stringContaining('launcher-currency-target-v1.json'), JSON.stringify({ code: 'JPY' }), 'utf-8')
+    expect(await invoke('launcher:get-currency-target')).toEqual({ success: true, code: 'JPY' })
+    expect(await invoke('launcher:set-currency-target', null)).toEqual({ success: true })
+    expect(await invoke('launcher:get-currency-target')).toEqual({ success: true, code: null })
+    for (const invalid of ['jpy', 'JPYX', 42, { code: 'JPY' }, undefined]) {
+      expect(await invoke('launcher:set-currency-target', invalid)).toMatchObject({ errorCode: 'INVALID' })
+    }
+    expect(await invoke('launcher:set-currency-target', 'EUR', { sender: contents, senderFrame: {} })).toMatchObject({ errorCode: 'UNAVAILABLE' })
+    expect(await invoke('launcher:get-currency-target', undefined, { sender: {} })).toMatchObject({ success: false, code: null })
   })
 })

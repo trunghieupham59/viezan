@@ -1,24 +1,39 @@
-import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { LauncherApp, LauncherIcon, LauncherResult } from '../../shared/launcher'
+import { type MouseEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { CurrencyConversion, LauncherApp, LauncherIcon, LauncherResult } from '../../shared/launcher'
 import type { QuickAiSession } from '../../shared/quickAi'
 import { AIChatPopup, type QuickChatLaunchRequest } from '../components/AIChatPopup'
 import { Button, KeyCap } from '../components/ui/atoms'
 import {
   BookIcon,
+  CalculatorIcon,
   ChatBubbleIcon,
+  CoinsIcon,
   GearIcon,
   MicrophoneIcon,
   SearchIcon,
   SparklesIcon,
   TranslateIcon,
 } from '../components/ui/icons'
-import { FilterInput, LauncherIconTile, type LauncherIconTone, LauncherResultRow } from '../components/ui/molecules'
+import { FilterInput, LauncherIconTile, type LauncherIconTone, LauncherResultRow, OptionPicker } from '../components/ui/molecules'
+import { LAUNCHER_CURRENCIES } from '../constants/currencies'
 import { useAppStore, useT } from '../store/useAppStore'
-import { tpl } from '../utils/tpl'
+import {
+  currencyDisplayName,
+  defaultCurrencyTarget,
+  formatConvertedAmount,
+  formatCurrencyAmount,
+  formatCurrencyRate,
+  parseCurrencyQuery,
+} from '../utils/currencyQuery'
+import { evaluateQuickCalc } from '../utils/quickCalc'
+import { formatDate, tpl } from '../utils/tpl'
 
 type Command = 'ai' | 'continue' | 'web' | 'chat' | 'settings' | 'translate' | 'dictionary' | 'live'
-type Result = { id: string; label: string; kind: 'app' | Command; detail?: string }
-type Section = { id: 'recent' | 'apps' | 'viezan' | 'use'; title: string; items: Result[] }
+/** Answers computed from the query itself; Enter copies them. */
+type Inline = 'calc' | 'currency'
+type Result = { id: string; label: string; kind: 'app' | Command | Inline; detail?: string }
+type Section = { id: 'recent' | 'apps' | 'viezan' | 'use' | Inline; title: string; items: Result[] }
+type ConversionState = { status: 'loading' | 'ready' | 'unavailable'; value?: CurrencyConversion }
 
 const MAX_APP_RESULTS = 8
 const MAX_RECENT_RESULTS = 5
@@ -34,8 +49,10 @@ function letterTone(name: string): LauncherIconTone {
   return LETTER_TONES[hash % LETTER_TONES.length]
 }
 
-function commandIcon(kind: Command): ReactNode {
+function commandIcon(kind: Command | Inline): ReactNode {
   switch (kind) {
+    case 'calc': return <CalculatorIcon />
+    case 'currency': return <CoinsIcon />
     case 'ai': case 'chat': return <SparklesIcon />
     case 'continue': return <ChatBubbleIcon />
     case 'translate': return <TranslateIcon />
@@ -68,6 +85,15 @@ export function QuickLauncher() {
   const search = query.trim()
   const sessionFresh = Boolean(session && Date.now() - session.updatedAt < QUICK_AI_FRESH_MS)
   const primaryModifierKey = window.api?.platform === 'darwin' ? '⌘' : 'Ctrl'
+  const locale = useAppStore(state => state.locale)
+  const launcherCurrency = useAppStore(state => state.launcherCurrency)
+  const setLauncherCurrency = useAppStore(state => state.setLauncherCurrency)
+  const calc = useMemo(() => evaluateQuickCalc(search, locale), [search, locale])
+  const currencyQuery = useMemo(() => (calc ? null : parseCurrencyQuery(search, locale)), [calc, search, locale])
+  // A target typed into the query wins over the remembered picker choice.
+  const currencyTarget = currencyQuery?.to ?? defaultCurrencyTarget(locale, launcherCurrency, currencyQuery?.from)
+  const [conversion, setConversion] = useState<ConversionState>()
+  const [conversionAttempt, setConversionAttempt] = useState(0)
 
   // The window is sized by the main process; report the natural content height
   // so the popup grows with the rows instead of leaving an empty canvas. Every
@@ -177,6 +203,39 @@ export function QuickLauncher() {
     return () => { cancelled = true }
   }, [revision])
 
+  // The popup's store never writes localStorage, so the main process keeps this choice.
+  useEffect(() => {
+    let cancelled = false
+    void window.api?.quickChat?.launcher?.getCurrencyTarget?.().then(result => {
+      if (!cancelled && result?.success) setLauncherCurrency(result.code)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [setLauncherCurrency])
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Enter on an unavailable row retries (attempt).
+  useEffect(() => {
+    if (!currencyQuery) {
+      setConversion(undefined)
+      return
+    }
+    const request = { amount: currencyQuery.amount, from: currencyQuery.from, to: currencyTarget }
+    // Reuse the last confirmed rate for the same pair so digits update without a round trip.
+    setConversion(previous => previous?.value && previous.value.from === request.from && previous.value.to === request.to
+      ? { status: 'ready', value: { ...previous.value, amount: request.amount, converted: request.amount * previous.value.rate } }
+      : { status: 'loading' })
+    let cancelled = false
+    const api = window.api?.quickChat?.launcher
+    if (!api?.convertCurrency) {
+      setConversion({ status: 'unavailable' })
+      return
+    }
+    void api.convertCurrency(request).then(result => {
+      if (cancelled) return
+      setConversion(result?.success && result.conversion ? { status: 'ready', value: result.conversion } : { status: 'unavailable' })
+    }).catch(() => { if (!cancelled) setConversion({ status: 'unavailable' }) })
+    return () => { cancelled = true }
+  }, [currencyQuery, currencyTarget, conversionAttempt])
+
   const sections = useMemo<Section[]>(() => {
     const toResult = (app: LauncherApp): Result => ({ id: app.id, label: app.name, kind: 'app' })
     const viezanCommands: Result[] = [
@@ -191,6 +250,21 @@ export function QuickLauncher() {
     const continueItem: Result | null = lastQuestion
       ? { id: 'continue', label: t.launcher_continue, kind: 'continue', detail: lastQuestion }
       : null
+    const inline: Section[] = []
+    if (calc) {
+      inline.push({ id: 'calc', title: t.launcher_calculator, items: [{ id: 'calc', kind: 'calc', label: `${calc.expression} = ${calc.formatted}` }] })
+    } else if (currencyQuery) {
+      const amount = formatCurrencyAmount(currencyQuery.amount, currencyQuery.from, locale)
+      const ready = conversion?.status === 'ready' ? conversion.value : undefined
+      inline.push({ id: 'currency', title: t.launcher_currency, items: [{
+        id: 'currency',
+        kind: 'currency',
+        label: ready ? `${amount} = ${formatConvertedAmount(ready.converted, ready.to, locale)} ${ready.to}` : `${amount} → ${currencyTarget}`,
+        detail: ready
+          ? tpl(t.launcher_currency_rate, { from: ready.from, to: ready.to, rate: formatCurrencyRate(ready.rate, locale), date: formatDate(ready.rateUpdatedAt, locale) })
+          : conversion?.status === 'unavailable' ? t.launcher_currency_unavailable : t.launcher_currency_loading,
+      }] })
+    }
     if (!search) {
       const byId = new Map(apps.map(app => [app.id, app]))
       const recentApps = recent.flatMap(id => { const app = byId.get(id); return app ? [toResult(app)] : [] })
@@ -242,11 +316,12 @@ export function QuickLauncher() {
       { id: 'web', label: t.launcher_web, kind: 'web', detail: search },
     ]
     return [
+      ...inline,
       ...(matchedApps.length ? [{ id: 'apps' as const, title: t.launcher_section_apps, items: matchedApps }] : []),
       ...(matchedCommands.length ? [{ id: 'viezan' as const, title: t.launcher_section_viezan, items: matchedCommands }] : []),
       { id: 'use', title: tpl(t.launcher_section_use_with, { query: search }), items: useWith },
     ]
-  }, [apps, recent, search, session, sessionFresh, t])
+  }, [apps, calc, conversion, currencyQuery, currencyTarget, locale, recent, search, session, sessionFresh, t])
   const results = useMemo(() => sections.flatMap(section => section.items), [sections])
   const activeIndex = Math.min(selected, results.length - 1)
   const activeResult = results[activeIndex]
@@ -280,6 +355,22 @@ export function QuickLauncher() {
 
   const execute = useCallback(async (result: Result) => {
     if (busyRef.current) return
+    if (result.kind === 'calc' || result.kind === 'currency') {
+      // Raycast-style: Enter copies the answer and dismisses the launcher.
+      const ready = conversion?.status === 'ready' ? conversion.value : undefined
+      const text = result.kind === 'calc' ? calc?.formatted : ready ? formatConvertedAmount(ready.converted, ready.to, locale) : undefined
+      if (!text) {
+        if (result.kind === 'currency' && conversion?.status === 'unavailable') setConversionAttempt(value => value + 1)
+        return
+      }
+      try {
+        await navigator.clipboard.writeText(text)
+        void window.api?.quickChat?.hide()
+      } catch {
+        setError(true)
+      }
+      return
+    }
     if (result.kind === 'ai' || result.kind === 'continue') {
       // Follow-ups join a fresh conversation; "Continue" resumes it at any age.
       const resumed = result.kind === 'continue' || sessionFresh ? session : null
@@ -310,8 +401,16 @@ export function QuickLauncher() {
       busyRef.current = false
       setBusy(false)
     }
-  }, [search, session, sessionFresh])
+  }, [calc, conversion, locale, search, session, sessionFresh])
   const askAI = useCallback(() => execute({ id: 'ai', label: t.launcher_ai, kind: 'ai' }), [execute, t.launcher_ai])
+
+  useEffect(() => {
+    if (mode !== 'search') return
+    // Bubble phase: rows compare against the previous position before this records the new one.
+    const mousemove = (event: globalThis.MouseEvent) => { pointerRef.current = { x: event.clientX, y: event.clientY } }
+    window.addEventListener('mousemove', mousemove)
+    return () => window.removeEventListener('mousemove', mousemove)
+  }, [mode])
 
   useEffect(() => {
     if (mode !== 'search') return
@@ -345,7 +444,32 @@ export function QuickLauncher() {
     }
     return <LauncherIconTile tone={letterTone(result.label)}>{result.label.trim().charAt(0).toLocaleUpperCase()}</LauncherIconTile>
   }
-  const kindLabel = (result: Result) => result.kind === 'app' ? t.launcher_app : t.launcher_command
+  const kindLabel = (result: Result) => result.kind === 'app' ? t.launcher_app
+    : result.kind === 'calc' ? t.launcher_calculator
+      : result.kind === 'currency' ? t.launcher_currency : t.launcher_command
+  const isInline = (result: Result | undefined) => result?.kind === 'calc' || result?.kind === 'currency'
+  const currencyOptions = useMemo(() => LAUNCHER_CURRENCIES.map(currency => ({
+    value: currency.code, label: currency.code, hint: currencyDisplayName(currency.code, locale), searchText: currency.aliases.join(' '),
+  })), [locale])
+  const chooseCurrency = useCallback((code: string) => {
+    setLauncherCurrency(code)
+    void window.api?.quickChat?.launcher?.setCurrencyTarget?.(code).catch(() => {})
+    // Enter should now copy the conversion, so the currency row stays active.
+    setSelected(0)
+  }, [setLauncherCurrency])
+  // Chromium replays a mouse event at the resting pointer after a menu closes;
+  // only real movement may change the selection.
+  const pointerRef = useRef<{ x: number; y: number }>()
+  const selectFromPointer = useCallback((index: number, event: MouseEvent<HTMLButtonElement>) => {
+    const last = pointerRef.current
+    pointerRef.current = { x: event.clientX, y: event.clientY }
+    if (last && last.x === event.clientX && last.y === event.clientY) return
+    setSelected(index)
+  }, [])
+  const currencyPicker = currencyQuery && (
+    <OptionPicker value={currencyTarget} options={currencyOptions} onChange={chooseCurrency} disabled={Boolean(currencyQuery.to)}
+      returnFocusRef={inputRef} label={t.launcher_currency_target} searchPlaceholder={t.launcher_currency_search} noResultsLabel={t.launcher_currency_no_results} />
+  )
 
   let flatIndex = 0
   return (
@@ -395,7 +519,8 @@ export function QuickLauncher() {
                         <LauncherResultRow key={`${section.id}:${result.id}`} id={`launcher-result-${index}`}
                           icon={renderIcon(result)} label={result.label} detail={result.detail}
                           kindLabel={kindLabel(result)} selected={index === activeIndex} disabled={busy}
-                          onSelect={() => setSelected(index)} onActivate={() => void execute(result)} />
+                          accessory={result.kind === 'currency' ? currencyPicker : undefined}
+                          onSelect={event => selectFromPointer(index, event)} onActivate={() => void execute(result)} />
                       )
                     })}
                   </div>
@@ -421,7 +546,7 @@ export function QuickLauncher() {
               </div>
               <div className="launcher-footer-actions">
                 <span className="launcher-footer-action">
-                  <span>{activeResult?.kind === 'ai' ? activeResult.label : t.launcher_open}</span>
+                  <span>{activeResult?.kind === 'ai' ? activeResult.label : isInline(activeResult) ? t.launcher_copy : t.launcher_open}</span>
                   <KeyCap>↵</KeyCap>
                 </span>
                 <span className="launcher-footer-divider" aria-hidden="true" />
