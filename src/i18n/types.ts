@@ -534,6 +534,9 @@ export interface Translations {
   settings_furigana_desc: string
   settings_image_provider_fallback: string
   settings_image_provider_fallback_desc: string
+  settings_launch_at_login: string
+  settings_launch_at_login_desc: string
+  settings_launch_at_login_error: string
   // Settings — Speech-to-Text section
   settings_stt_section: string
   settings_stt_section_desc: string
@@ -953,6 +956,7 @@ export interface Translations {
   update_popup_view: string
   update_popup_later: string
   update_popup_close: string
+  update_popup_minimize: string
   update_notification_description: string
   update_notification_later: string
   update_notification_release_notes: string

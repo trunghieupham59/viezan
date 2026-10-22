@@ -24,6 +24,10 @@ export function createUpdateNotification(
   let pendingOpenSettings = false
   let actionRunning = false
   let reminderSaveFailed = false
+  // The popup only speaks for releases the scheduled (background) check found.
+  // A manual check from Settings takes the update over and silences the popup;
+  // downloads started from the popup itself keep it engaged.
+  let engaged = false
   const preferences = () => ({ enabled: state.enabled, locale: state.locale, theme: state.theme, themePreset: state.themePreset, themeAccent: state.themeAccent })
   const snapshot = (): UpdateNotificationSnapshot => ({
     ...preferences(), version: status?.version ?? '', ready: status?.type === 'downloaded',
@@ -56,7 +60,7 @@ export function createUpdateNotification(
   }
   const refresh = () => {
     clearTimeout(timer)
-    if (stopped || !state.enabled || !status || !isNotificationStatus(status)) { hide(); return }
+    if (stopped || !engaged || !state.enabled || !status || !isNotificationStatus(status)) { hide(); return }
     const until = state.snoozes[status.version ?? ''] ?? 0
     if (until > Date.now()) {
       hide()
@@ -69,10 +73,13 @@ export function createUpdateNotification(
       // Native window geometry (DIP), separate from renderer design tokens.
       const width = Math.min(440, area.width)
       const height = Math.min(320, area.height)
+      // An ordinary top-level window: it sits in the taskbar, can be dragged by
+      // its header (renderer drag region), minimised, and drops behind whatever
+      // the user clicks next. Only maximise/fullscreen are disabled.
       const win = new BrowserWindow({
         width, height, x: area.x + Math.round((area.width - width) / 2), y: area.y + Math.round((area.height - height) / 2),
-        show: false, alwaysOnTop: true, skipTaskbar: true, frame: false, thickFrame: false,
-        resizable: false, minimizable: false, maximizable: false, fullscreenable: false,
+        show: false, alwaysOnTop: false, skipTaskbar: false, frame: false,
+        resizable: false, minimizable: true, maximizable: false, fullscreenable: false,
         title: 'Viezan',
         webPreferences: {
           preload: path.join(__dirname, 'update-notification-preload.js'),
@@ -92,14 +99,8 @@ export function createUpdateNotification(
       return
     }
     popup.webContents.send('update-popup:snapshot', snapshot())
-    if (!popup.webContents.isLoading() && !popup.isVisible()) {
-      popup.showInactive()
-      // Windows can demote the default floating level when another app is
-      // foreground. Apply the popup level AFTER showInactive; changing the
-      // stacking level does not activate the window or take keyboard focus.
-      popup.setAlwaysOnTop(true, 'pop-up-menu')
-      popup.center()
-    }
+    // showInactive never steals focus from the app the user is working in.
+    if (!popup.webContents.isLoading() && !popup.isVisible()) popup.showInactive()
   }
   const trustedMain = (event: Parameters<typeof isSenderWindow>[0]) => isSenderWindow(event, getMainWindow)
   const trustedPopup = (event: Parameters<typeof isSenderWindow>[0]) => isSenderWindow(event, () => popup)
@@ -127,7 +128,12 @@ export function createUpdateNotification(
   })
   ipc.handle('update-popup:snapshot', (event) => trustedPopup(event) ? snapshot() : null)
   ipc.handle('update-popup:act', (event, action: unknown) => {
-    if (!trustedPopup(event) || !['view', 'later', 'dismiss', 'download', 'install'].includes(String(action))) return false
+    if (!trustedPopup(event) || !['view', 'later', 'dismiss', 'minimize', 'download', 'install'].includes(String(action))) return false
+    if (action === 'minimize') {
+      if (!popup || popup.isDestroyed()) return false
+      popup.minimize()
+      return true
+    }
     if (action === 'download' || action === 'install') {
       if (!actions || actionRunning || status?.type !== (action === 'download' ? 'available' : 'downloaded')) return false
       actionRunning = true
@@ -163,7 +169,12 @@ export function createUpdateNotification(
     popup = null
   })
   return (next: UpdateStatus) => {
-    if (next.type === 'checking') return
+    if (next.type === 'checking') {
+      // A manual check from Settings hands the whole flow to Settings.
+      if (!next.background && engaged) { engaged = false; refresh() }
+      return
+    }
+    if (next.type === 'available' || next.type === 'not-available') engaged = next.type === 'available' && !!next.background
     if (next.type === 'error' || next.type === 'error-codesign') {
       if (!next.background && status && isNotificationStatus(status)) {
         status = { ...status, type: status.type === 'downloaded' ? 'downloaded' : 'available', error: 'action-failed' }

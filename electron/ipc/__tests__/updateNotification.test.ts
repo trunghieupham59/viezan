@@ -23,6 +23,7 @@ vi.mock('electron', () => ({
     hide = vi.fn(() => { this.visible = false })
     isVisible = () => this.visible
     center = vi.fn()
+    minimize = vi.fn()
     isDestroyed = () => this.destroyed
     destroy = () => { this.destroyed = true; this.emit('closed') }
   },
@@ -102,15 +103,59 @@ describe('independent update notifications', () => {
     const s = setup()
     s.available()
     expect(s.window().isVisible()).toBe(true)
-    expect(s.window().isAlwaysOnTop()).toBe(true)
+    expect(s.window().isAlwaysOnTop()).toBe(false)
     expect(s.show).not.toHaveBeenCalled()
-    expect((s.window() as unknown as { options: unknown }).options).toMatchObject({ alwaysOnTop: true, show: false, skipTaskbar: true, x: -1180, y: 380, webPreferences: { sandbox: true, nodeIntegration: false } })
+    // An ordinary window: taskbar entry, minimisable, never pinned above other apps.
+    expect((s.window() as unknown as { options: unknown }).options).toMatchObject({
+      alwaysOnTop: false, skipTaskbar: false, frame: false, minimizable: true, maximizable: false, resizable: false,
+      show: false, x: -1180, y: 380, webPreferences: { sandbox: true, nodeIntegration: false },
+    })
     s.receive({ type: 'checking', background: true })
     s.receive({ type: 'error', background: true })
     s.available()
     expect(mocks.windows).toHaveLength(1)
     expect(s.window().showInactive).toHaveBeenCalledTimes(1)
-    expect(s.window().setAlwaysOnTop).toHaveBeenCalledTimes(1)
+    expect(s.window().setAlwaysOnTop).not.toHaveBeenCalled()
+    expect(s.window().center).not.toHaveBeenCalled()
+  })
+
+  it('minimises from its own header control and refuses the action from other windows', () => {
+    const s = setup()
+    s.available()
+    expect(s.call('update-popup:act', 'minimize')).toBe(false)
+    expect(s.window().minimize).not.toHaveBeenCalled()
+    expect(s.call('update-popup:act', 'minimize', s.window().webContents)).toBe(true)
+    expect(s.window().minimize).toHaveBeenCalledTimes(1)
+    // Minimising is not a dismissal: no reminder is stored and the window stays alive.
+    expect(mocks.write).not.toHaveBeenCalled()
+    expect(s.window().isDestroyed()).toBe(false)
+  })
+
+  it('stays silent for checks started in Settings and hands an engaged popup over to Settings', () => {
+    const s = setup({ download: vi.fn().mockResolvedValue({ success: true }), install: vi.fn() })
+    // Manual check from Settings: the whole flow stays in Settings.
+    s.receive({ type: 'checking' })
+    s.receive({ type: 'available', version: '3.0.0' })
+    s.receive({ type: 'downloading', percent: 10 })
+    s.receive({ type: 'downloaded', version: '3.0.0' })
+    expect(mocks.windows).toHaveLength(0)
+    // The scheduled check finding a release is what raises the popup.
+    s.available()
+    expect(s.window().isVisible()).toBe(true)
+    // Downloads started from the popup keep it engaged.
+    void s.call('update-popup:act', 'download', s.window().webContents)
+    s.receive({ type: 'downloading', percent: 50 })
+    expect(s.window().isVisible()).toBe(true)
+    // A manual re-check from Settings hides it, and a manual result keeps it hidden.
+    s.receive({ type: 'checking' })
+    expect(s.window().isVisible()).toBe(false)
+    s.receive({ type: 'available', version: '3.0.0' })
+    s.receive({ type: 'downloaded', version: '3.0.0' })
+    expect(s.window().isVisible()).toBe(false)
+    // Only the next background detection brings it back.
+    s.receive({ type: 'available', version: '3.0.0', background: true })
+    expect(s.window().isVisible()).toBe(true)
+    expect(mocks.windows).toHaveLength(1)
   })
 
   it('persists snooze, suppresses duplicates, wakes in main after 24h and allows a different release', () => {
@@ -122,12 +167,11 @@ describe('independent update notifications', () => {
     expect(s.window().isVisible()).toBe(false)
     vi.advanceTimersByTime(NOTIFICATION_SNOOZE_MS)
     expect(s.window().isVisible()).toBe(true)
-    expect(s.window().isAlwaysOnTop()).toBe(true)
     s.call('update-popup:act', 'dismiss', s.window().webContents)
     const saved = mocks.write.mock.calls[mocks.write.mock.calls.length - 1]?.[1]
     mocks.read.mockReturnValue(saved)
     const resumed = setup()
-    resumed.receive({ type: 'available', version: '3.0.0' })
+    resumed.receive({ type: 'available', version: '3.0.0', background: true })
     expect(mocks.windows).toHaveLength(1)
     resumed.available('3.1.0')
     expect(mocks.windows).toHaveLength(2)
@@ -162,7 +206,7 @@ describe('independent update notifications', () => {
 
   it('does not show after disable during load, cancels reminders on quit, and reports persistence failure', () => {
     const s = setup()
-    s.receive({ type: 'available', version: '3.0.0' })
+    s.receive({ type: 'available', version: '3.0.0', background: true })
     s.call('updater:setNotificationPreferences', { enabled: false })
     s.window().emit('ready-to-show')
     expect(s.window().isVisible()).toBe(false)

@@ -80,6 +80,12 @@ describe('updater helpers', () => {
     expect(script).toContain('mv "$BACKUP_PATH" "$DEST_PATH"')
     expect(script.indexOf('ditto "$SOURCE_PATH" "$STAGE_PATH"')).toBeLessThan(script.indexOf('mv "$DEST_PATH" "$BACKUP_PATH"'))
     expect(script).toContain('open "$DEST_PATH"')
+    // The DMG is removed only once the new app is in place, before relaunch
+    expect(script).toContain('rm -f "$DMG_PATH"')
+    expect(script.indexOf('rm -f "$DMG_PATH"')).toBeGreaterThan(script.indexOf('mv "$STAGE_PATH" "$DEST_PATH"'))
+    expect(script.indexOf('rm -f "$DMG_PATH"')).toBeLessThan(script.indexOf('if ! open "$DEST_PATH"; then'))
+    const failBody = script.slice(script.indexOf('fail() {'), script.indexOf('trap cleanup EXIT'))
+    expect(failBody).not.toContain('rm -f "$DMG_PATH"')
   })
 
   it('derives the running .app bundle from the executable path', () => {

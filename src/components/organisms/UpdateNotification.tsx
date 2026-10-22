@@ -18,7 +18,7 @@ export function UpdateNotification({ blocked = false }: { blocked?: boolean }) {
   const themePreset = useAppStore((state) => state.themePreset)
   const themeAccent = useAppStore((state) => state.themeAccent)
   const nativeNotification = !!window.api?.updater?.getNotificationPreferences
-  const { status, snoozes, receive, snooze } = useUpdaterStore()
+  const { status, promptVersion, snoozes, receive, snooze } = useUpdaterStore()
   const [now, setNow] = useState(Date.now)
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState(false)
@@ -32,7 +32,7 @@ export function UpdateNotification({ blocked = false }: { blocked?: boolean }) {
   const version = status.version
   const until = version ? snoozes[version] ?? 0 : 0
   const actionable = status.type === 'available' || status.type === 'downloading' || status.type === 'downloaded'
-  const open = !nativeNotification && actionable && !!version && until <= now && !blocked && visible
+  const open = !nativeNotification && actionable && !!version && promptVersion === version && until <= now && !blocked && visible
   const dismiss = useCallback(() => {
     if (version) snooze(version)
   }, [version, snooze])

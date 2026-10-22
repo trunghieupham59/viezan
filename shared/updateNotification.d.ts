@@ -16,7 +16,7 @@ export interface UpdateNotificationSnapshot extends UpdateNotificationPreference
   error?: boolean
 }
 
-export type UpdateNotificationAction = 'view' | 'later' | 'dismiss' | 'download' | 'install'
+export type UpdateNotificationAction = 'view' | 'later' | 'dismiss' | 'minimize' | 'download' | 'install'
 
 export interface UpdatePopupApi {
   getSnapshot: () => Promise<UpdateNotificationSnapshot | null>
