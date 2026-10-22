@@ -8,7 +8,6 @@ export type VoiceErrorTranslationKey = `voice_error_${Lowercase<AudioTranscripti
 export interface Translations {
   // Navbar / Sidebar
   nav_translate: string
-  nav_history: string
   nav_settings: string
   nav_new_chat: string
   nav_chat: string
@@ -25,7 +24,6 @@ export interface Translations {
   command_palette_translate_description: string
   command_palette_live_description: string
   command_palette_dictionary_description: string
-  command_palette_history_description: string
   command_palette_settings_description: string
   /** `{expression}` is what the user typed, e.g. "25 + 25". */
   command_palette_calc_description: string
@@ -652,44 +650,22 @@ export interface Translations {
   image_translate_size_error: (maxMb: number) => string
 
   // History page
-  history_title: string
-  history_total_count: string
   history_search_placeholder: string
   history_search_clear: string
   history_no_results: string
-  history_no_results_desc: string
   time_just_now: string
   time_m_ago: string
   time_h_ago: string
   time_d_ago: string
-  history_empty: string
-  history_empty_desc: string
   history_translate_count: string
   history_models_count: (count: number) => string
   history_live_count: string
   history_delete: string
   history_reuse: string
-  history_chars_source: string
-  history_chars_result: string
-  history_tab_translate: string
-  history_tab_chat: string
-  history_chat_empty: string
-  history_chat_empty_desc: string
   history_chat_messages: string
-  history_chat_role_user: string
-  history_chat_role_ai: string
-  history_chat_open: string
   history_chat_delete: string
-  history_select_all: string
-  history_selected_count: string
-  history_delete_selected: string
 
   // Live session history
-  history_tab_live: string
-  history_live_empty: string
-  history_live_empty_desc: string
-  history_live_delete: string
-  history_live_view: string
   history_live_words: string
 
   // Live translate page
@@ -715,6 +691,11 @@ export interface Translations {
   live_status_stt: string
   live_panel_original: string
   live_panel_translation: string
+  live_history_title: string
+  live_history_open: string
+  live_history_empty: string
+  live_history_clear: string
+  live_history_clear_confirm: string
   live_words: string
   live_summarize: string
   live_summarize_again: string

@@ -49,6 +49,33 @@ describe('AI Interpret screen', () => {
     expect(screen.queryByRole('button', { name: t.translate_swap })).not.toBeInTheDocument()
   })
 
+  it('opens saved sessions from the command row and reopens one in place', () => {
+    useAppStore.setState({
+      liveSessions: [{
+        id: 'live-1',
+        createdAt: Date.now() - 60_000,
+        provider: 'gemini',
+        model: 'gemini-2.0-flash',
+        sourceLang: 'vi',
+        targetLang: 'en',
+        rawTranscript: 'Họp sáng thứ hai',
+        translation: 'Monday morning meeting',
+        wordCount: 3,
+      }],
+      viewingLiveSessionId: null,
+    })
+    render(<LiveTranslatePage />)
+    const trigger = screen.getByRole('button', { name: /^Saved sessions/ })
+    expect(trigger).toHaveAttribute('aria-haspopup', 'dialog')
+    expect(trigger).toHaveTextContent('1')
+
+    fireEvent.click(trigger)
+    const dialog = screen.getByRole('dialog', { name: 'Saved sessions' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Open session: Họp sáng thứ hai' }))
+    expect(useAppStore.getState().viewingLiveSessionId).toBe('live-1')
+    expect(screen.queryByRole('dialog', { name: 'Saved sessions' })).not.toBeInTheDocument()
+  })
+
   it('exposes the audio source outside the configuration popover', () => {
     render(<LiveTranslatePage />)
     const group = screen.getByRole('group', { name: t.live_audio_source_label })

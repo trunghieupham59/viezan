@@ -22,7 +22,6 @@ import {
   BookIcon,
   CalculatorIcon,
   ChatBubbleIcon,
-  ClockIcon,
   CopyIcon,
   GearIcon,
   GlobeIcon,
@@ -147,15 +146,6 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       icon: <BookIcon className="h-4 w-4" />,
       action: () => navigate('dictionary'),
       keywords: ['dictionary', 'lookup', 'word', 'definition', 'meaning'],
-    },
-    {
-      id: 'history',
-      kind: 'command',
-      label: t.nav_history,
-      description: t.command_palette_history_description,
-      icon: <ClockIcon className="h-4 w-4" />,
-      action: () => navigate('history'),
-      keywords: ['history', 'past', 'log', 'previous'],
     },
     {
       id: 'settings',

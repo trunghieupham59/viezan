@@ -4,11 +4,12 @@ import { BilingualSegmentRow } from '../components/live/BilingualSegmentRow'
 import { SegmentRow } from '../components/live/SegmentRow'
 import { TranslationRow } from '../components/live/TranslationRow'
 import { MarkdownText } from '../components/MarkdownText'
-import { AIModelPickerField, InterpretAIConfiguration, InterpretSubtitleConfiguration, LanguagePairBar, LiveSessionStatus } from '../components/organisms'
+import { AIModelPickerField, InterpretAIConfiguration, InterpretSubtitleConfiguration, LanguagePairBar, LiveSessionHistoryPanel, LiveSessionStatus } from '../components/organisms'
 import { Button } from '../components/ui/atoms'
 import { 
   CheckIcon,
   ChevronDownIcon,
+  ClockIcon,
   CopyIcon,
   DownloadIcon,
   GearIcon,
@@ -23,7 +24,7 @@ import {
   TranslateIcon,
   TrashIcon,
   XIcon,} from '../components/ui/icons'
-import { EmptyPanelState } from '../components/ui/molecules'
+import { DialogShell, EmptyPanelState } from '../components/ui/molecules'
 import { COPY_FEEDBACK_DURATION_MS, DEFAULT_SEGMENT_DURATION_MS, MIN_SEGMENT_DURATION_MS } from '../constants/ui'
 import { MACOS_SCREEN_RECORDING_PREFS } from '../constants/urls'
 import { useFollowLatest } from '../hooks/live/useFollowLatest'
@@ -32,6 +33,7 @@ import { DEFAULT_SUBTITLE_SETTINGS, useLiveTranslate } from '../hooks/useLiveTra
 import type { Translations } from '../i18n/types'
 import { useAppStore, useT } from '../store/useAppStore'
 import { useNotificationStore } from '../store/useNotificationStore'
+import { tpl } from '../utils/tpl'
 import '../styles/translate.css'
 
 function segmentStatus(state: LiveSegmentState | undefined, t: Translations): string | undefined {
@@ -121,7 +123,11 @@ export function getLiveInputCopy(audioMode: LiveAudioMode, t: LiveInputCopySourc
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function LiveTranslatePage() {
-  const { openSettings, liveSourceLang, liveTargetLang } = useAppStore()
+  const {
+    openSettings, liveSourceLang, liveTargetLang,
+    liveSessions, viewingLiveSessionId, setViewingLiveSession, deleteLiveSession, clearLiveSessions,
+  } = useAppStore()
+  const [showHistory, setShowHistory] = useState(false)
   const t = useT()
 
   const {
@@ -549,6 +555,23 @@ export function LiveTranslatePage() {
               lockedReason={isActive ? t.language_pairs_locked_short : t.language_pairs_locked}
             />
             <div className="feature-command-bar-end">
+              <Button
+                size="md"
+                shape="rect"
+                variant="neutral"
+                appearance={showHistory ? 'soft' : 'outline'}
+                type="button"
+                aria-haspopup="dialog"
+                aria-expanded={showHistory}
+                title={t.live_history_title}
+                onClick={() => setShowHistory(true)}
+                className="flex-shrink-0"
+              >
+                <ClockIcon className="w-3.5 h-3.5" />
+                <span>{t.live_history_title}</span>
+                {liveSessions.length > 0 && <span className="history-trigger-count">{liveSessions.length}</span>}
+              </Button>
+
               <InterpretAIConfiguration
                 open={showAIConfig}
                 active={isActive}
@@ -1027,8 +1050,29 @@ export function LiveTranslatePage() {
         </div>
       )}
 
-
-
+      {showHistory && (
+        <DialogShell
+          size="md"
+          label={t.live_history_title}
+          title={t.live_history_title}
+          subtitle={tpl(t.history_live_count, { n: liveSessions.length })}
+          closeLabel={t.translate_history_close}
+          onClose={() => setShowHistory(false)}
+          backdropTestId="live-history-overlay-backdrop"
+        >
+          <LiveSessionHistoryPanel
+            sessions={liveSessions}
+            activeSessionId={viewingLiveSessionId}
+            onOpen={(id) => {
+              setViewingLiveSession(id)
+              setShowHistory(false)
+            }}
+            onDelete={deleteLiveSession}
+            onClearHistory={clearLiveSessions}
+            t={t}
+          />
+        </DialogShell>
+      )}
     </div>
   )
 }

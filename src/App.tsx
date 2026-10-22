@@ -13,7 +13,6 @@ import { detectSystemLocale } from './utils/locale'
 const TranslatePage = lazy(() => import('./pages/TranslatePage').then(m => ({ default: m.TranslatePage })))
 const LiveTranslatePage = lazy(() => import('./pages/LiveTranslatePage').then(m => ({ default: m.LiveTranslatePage })))
 const ChatPage = lazy(() => import('./pages/ChatPage').then(m => ({ default: m.ChatPage })))
-const HistoryPage = lazy(() => import('./pages/HistoryPage').then(m => ({ default: m.HistoryPage })))
 const DictionaryPage = lazy(() => import('./pages/DictionaryPage').then(m => ({ default: m.DictionaryPage })))
 
 const FONT_SIZE_MAP = { small: '13px', medium: '15px', large: '17px' } as const
@@ -28,7 +27,6 @@ function closeResponsiveNavigation() {
 export function PageFallback({ page, label }: { page: AppPage; label: string }) {
   if (page === 'live') return <FeatureLoadingState label={label} layout="split" />
   if (page === 'dictionary') return <FeatureLoadingState label={label} layout="split" />
-  if (page === 'history') return <FeatureLoadingState label={label} layout="list" />
   return <div className="app-page" aria-hidden="true" />
 }
 
@@ -220,11 +218,9 @@ function App() {
     ? t.nav_live_translate
     : activePage === 'dictionary'
       ? t.dictionary_title
-      : activePage === 'history'
-        ? t.history_title
-        : activePage === 'chat'
-          ? t.nav_chat
-          : t.nav_translate
+      : activePage === 'chat'
+        ? t.nav_chat
+        : t.nav_translate
 
   const renderShell = (contextSidebar?: ReactNode, featureHeader?: ReactNode) => (
     <AppShell
@@ -264,10 +260,8 @@ function App() {
           <LiveTranslatePage />
         ) : activePage === 'chat' ? (
           <ChatPage />
-        ) : activePage === 'dictionary' ? (
-          <DictionaryPage />
         ) : (
-          <HistoryPage />
+          <DictionaryPage />
         )}
       </Suspense>
     </AppShell>

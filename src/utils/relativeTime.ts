@@ -1,3 +1,20 @@
+import { tpl } from './tpl'
+
+type TimeAgoLabels = { time_just_now: string; time_m_ago: string; time_h_ago: string; time_d_ago: string }
+
+/** Localized "x minutes ago" style label; falls back to the date after a week. */
+export function formatTimeAgo(ts: number, t: TimeAgoLabels, now = Date.now()): string {
+  const diffMs = now - ts
+  const diffMin = Math.floor(diffMs / 60000)
+  const diffHour = Math.floor(diffMs / 3600000)
+  const diffDay = Math.floor(diffMs / 86400000)
+  if (diffMin < 1) return t.time_just_now
+  if (diffMin < 60) return tpl(t.time_m_ago, { n: diffMin })
+  if (diffHour < 24) return tpl(t.time_h_ago, { n: diffHour })
+  if (diffDay < 7) return tpl(t.time_d_ago, { n: diffDay })
+  return new Date(ts).toLocaleDateString()
+}
+
 /**
  * Format a timestamp as a compact relative time ("5m", "2h", "3d"). Stays
  * locale-neutral by using single-character suffixes, so dense history rows

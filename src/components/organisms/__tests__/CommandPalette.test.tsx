@@ -20,7 +20,7 @@ describe('CommandPalette', () => {
   beforeEach(() => {
     act(() => {
       useAppStore.setState({
-        activePage: 'history',
+        activePage: 'dictionary',
         locale: 'en',
         settingsOpen: false,
         selectedProvider: 'local',
@@ -41,7 +41,8 @@ describe('CommandPalette', () => {
     const search = within(dialog).getByRole('combobox', { name: 'Search commands, calculate, or ask AI…' })
     await waitFor(() => expect(search).toHaveFocus())
 
-    expect(within(dialog).getAllByRole('option')).toHaveLength(6)
+    // Translate, Chat, Interpret, Dictionary and Settings: History is no longer a screen.
+    expect(within(dialog).getAllByRole('option')).toHaveLength(5)
     expect(search).toHaveAttribute('aria-activedescendant')
 
     fireEvent.change(search, { target: { value: 'dictionary' } })
@@ -65,7 +66,7 @@ describe('CommandPalette', () => {
 
     fireEvent.keyDown(window, { key: 'Enter', isComposing: true })
     expect(onClose).not.toHaveBeenCalled()
-    expect(useAppStore.getState().activePage).toBe('history')
+    expect(useAppStore.getState().activePage).toBe('dictionary')
 
     fireEvent.keyDown(window, { key: 'ArrowDown' })
     expect(screen.getByRole('option', { name: /AI Translate/ })).toHaveAttribute(
@@ -146,7 +147,7 @@ describe('CommandPalette', () => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith('50')
       expect(onClose).toHaveBeenCalledOnce()
       expect(chatStream()).not.toHaveBeenCalled()
-      expect(useAppStore.getState().activePage).toBe('history')
+      expect(useAppStore.getState().activePage).toBe('dictionary')
     })
 
     it('uses the app locale for calculator numbers', () => {
@@ -229,7 +230,7 @@ describe('CommandPalette', () => {
 
       fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true })
       expect(useAppStore.getState().chatSessions).toHaveLength(0)
-      expect(useAppStore.getState().activePage).toBe('history')
+      expect(useAppStore.getState().activePage).toBe('dictionary')
     })
 
     it('shows a localized error when the provider fails', async () => {

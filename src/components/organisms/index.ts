@@ -16,11 +16,6 @@ export { DictionaryEmptyState, type DictionaryEmptyStateProps } from './dictiona
 export { DictionaryHistoryPanel, type DictionaryHistoryPanelProps } from './dictionary/DictionaryHistoryPanel'
 export { DictionaryResultPanel, type DictionaryResultPanelProps } from './dictionary/DictionaryResultPanel'
 export { DictionarySearchPanel, type DictionarySearchPanelProps } from './dictionary/DictionarySearchPanel'
-export {
-  HistoryNavigation,
-  type HistoryNavigationItem,
-  type HistoryNavigationProps,
-} from './HistoryNavigation'
 export { LanguagePairBar, type LanguagePairBarDensity, type LanguagePairBarProps, type LanguagePairBarScope } from './LanguagePairBar'
 export {
   InterpretAIConfiguration,
@@ -32,6 +27,7 @@ export {
   type SubtitleColorOption,
   type SubtitleFontSizeOption,
 } from './live/InterpretSubtitleConfiguration'
+export { LiveSessionHistoryPanel, type LiveSessionHistoryPanelProps } from './live/LiveSessionHistoryPanel'
 export { LiveSessionStatus, type LiveSessionStatusProps } from './live/LiveSessionStatus'
 export { NotificationViewport } from './NotificationViewport'
 export { PrimaryNavigationSidebar, PrimaryNavigationSidebar as Sidebar } from './PrimaryNavigationSidebar'

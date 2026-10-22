@@ -163,7 +163,7 @@ export function TranslationControlsHeader({
               <ClockIcon />
               <span>{t.translate_history_title}</span>
               {historyCount > 0 && (
-                <span className="translate-history-trigger-count">{historyCount}</span>
+                <span className="history-trigger-count">{historyCount}</span>
               )}
             </Button>
           )}

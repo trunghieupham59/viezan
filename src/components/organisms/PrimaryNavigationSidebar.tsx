@@ -7,7 +7,6 @@ import { Button } from '../ui/atoms'
 import {
   BookIcon,
   ChatBubbleIcon,
-  ClockIcon,
   GearIcon,
   MicrophoneIcon,
   SearchIcon,
@@ -237,12 +236,6 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
           active={activePage === 'dictionary'}
           onClick={() => navigate('dictionary')}
           icon={<BookIcon className="h-[18px] w-[18px]" />}
-        />
-        <PrimaryNavItem
-          label={t.nav_history}
-          active={activePage === 'history'}
-          onClick={() => navigate('history')}
-          icon={<ClockIcon className="h-[18px] w-[18px]" />}
         />
       </div>
 
