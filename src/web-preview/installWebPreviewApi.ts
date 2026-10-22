@@ -132,6 +132,15 @@ function createWebPreviewApi(): WindowApi {
         onIcons: noopSubscription,
         openApp: async () => ({ success: false, errorCode: 'UNAVAILABLE' }),
         searchWeb: async () => ({ success: false, errorCode: 'UNAVAILABLE' }),
+        searchFiles: async (query: string) => ({
+          success: true,
+          files: [
+            { id: 'preview-file-1', name: 'Quarterly report.pdf', folder: '~/Documents', kind: 'file' as const },
+            { id: 'preview-file-2', name: 'Projects', folder: '~/Documents', kind: 'folder' as const },
+          ].filter(file => file.name.toLowerCase().includes(query.trim().toLowerCase()) && query.trim().length >= 2),
+        }),
+        openFile: async () => ({ success: false, errorCode: 'UNAVAILABLE' }),
+        revealFile: async () => ({ success: false, errorCode: 'UNAVAILABLE' }),
         convertCurrency: async ({ amount, from, to }: { amount: number; from: string; to: string }) => {
           const fromRate = previewCurrencyRates[from]
           const toRate = previewCurrencyRates[to]

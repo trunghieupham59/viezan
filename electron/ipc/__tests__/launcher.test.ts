@@ -10,10 +10,18 @@ const env = vi.hoisted(() => ({
   openWindowsApp: vi.fn(),
   icons: vi.fn(),
   rates: vi.fn(),
+  searchFiles: vi.fn(),
+  fileIcon: vi.fn(),
+  reveal: vi.fn(),
 }))
 vi.mock('electron', () => ({
-  app: { getPath: () => '/appData' },
-  shell: { openPath: env.openPath, openExternal: env.openExternal, readShortcutLink: vi.fn() },
+  app: { getPath: () => '/appData', getFileIcon: env.fileIcon },
+  nativeImage: {},
+  shell: { openPath: env.openPath, openExternal: env.openExternal, readShortcutLink: vi.fn(), showItemInFolder: env.reveal },
+}))
+vi.mock('../../services/launcherFiles', async importOriginal => ({
+  ...await importOriginal<typeof import('../../services/launcherFiles')>(),
+  searchLauncherFiles: env.searchFiles,
 }))
 vi.mock('../../services/launcherApps', () => ({ scanLauncherApps: env.scan }))
 vi.mock('../../services/launcherSystemApps', () => ({ openWindowsLauncherApp: env.openWindowsApp }))
@@ -47,6 +55,8 @@ beforeEach(() => {
   env.openExternal.mockResolvedValue(undefined)
   env.openWindowsApp.mockResolvedValue(undefined)
   env.icons.mockResolvedValue([{ id, dataUrl }])
+  env.searchFiles.mockResolvedValue([{ path: '/Users/me/Documents/report.pdf', name: 'report.pdf', kind: 'file' }, { path: '/Users/me/Documents/Work', name: 'Work', kind: 'folder' }])
+  env.fileIcon.mockResolvedValue({ isEmpty: () => false, toDataURL: () => dataUrl })
   env.rates.mockResolvedValue({ base: 'USD', rates: { USD: 1, VND: 25_000, JPY: 150 }, updatedAt: 1_800_000_000_000, fetchedAt: 1_800_000_000_000 })
   registerLauncherHandlers({ handle: (name: string, handler: (...args: unknown[]) => Promise<unknown>) => handlers.set(name, handler) } as unknown as IpcMain,
     () => window as unknown as BrowserWindow)
@@ -179,5 +189,40 @@ describe('launcher IPC boundary', () => {
     }
     expect(await invoke('launcher:set-currency-target', 'EUR', { sender: contents, senderFrame: {} })).toMatchObject({ errorCode: 'UNAVAILABLE' })
     expect(await invoke('launcher:get-currency-target', undefined, { sender: {} })).toMatchObject({ success: false, code: null })
+  })
+
+  it.skipIf(!['win32', 'darwin'].includes(process.platform))('lists files behind opaque IDs with type icons and opens or reveals only listed entries', async () => {
+    const result = await invoke('launcher:search-files', 'report') as { success: boolean; files: Array<{ id: string; name: string; folder: string; kind: string; iconDataUrl?: string }> }
+    expect(env.searchFiles).toHaveBeenCalledWith('report', expect.objectContaining({ platform: process.platform }))
+    expect(result.success).toBe(true)
+    expect(result.files.map(({ name, kind, iconDataUrl }) => ({ name, kind, iconDataUrl }))).toEqual([
+      { name: 'report.pdf', kind: 'file', iconDataUrl: dataUrl }, { name: 'Work', kind: 'folder', iconDataUrl: dataUrl },
+    ])
+    expect(result.files[0].id).toMatch(/^[a-f0-9]{64}$/)
+    expect(result.files[0].id).not.toContain('report')
+    expect(env.fileIcon).toHaveBeenCalledTimes(2)
+    await invoke('launcher:search-files', 'report')
+    expect(env.fileIcon).toHaveBeenCalledTimes(2)
+    expect(await invoke('launcher:open-file', result.files[0].id)).toEqual({ success: true })
+    expect(env.openPath).toHaveBeenCalledWith('/Users/me/Documents/report.pdf')
+    expect(window.hide).toHaveBeenCalled()
+    expect(await invoke('launcher:reveal-file', result.files[1].id)).toEqual({ success: true })
+    expect(env.reveal).toHaveBeenCalledWith('/Users/me/Documents/Work')
+    for (const bad of ['/Users/me/Documents/report.pdf', 'c'.repeat(64), 42]) {
+      expect(await invoke('launcher:open-file', bad)).toMatchObject({ success: false })
+    }
+    expect(env.openPath).toHaveBeenCalledTimes(1)
+    env.openPath.mockResolvedValueOnce('No application')
+    expect(await invoke('launcher:open-file', result.files[0].id)).toMatchObject({ errorCode: 'OPEN_FAILED' })
+  })
+
+  it('validates file queries and senders, and reports an index failure as unavailable', async () => {
+    expect(await invoke('launcher:search-files', 'x'.repeat(201))).toMatchObject({ errorCode: 'INVALID', files: [] })
+    expect(await invoke('launcher:search-files', 42)).toMatchObject({ errorCode: 'INVALID', files: [] })
+    expect(await invoke('launcher:search-files', 'report', { sender: {}, senderFrame: mainFrame })).toMatchObject({ errorCode: 'UNAVAILABLE', files: [] })
+    expect(env.searchFiles).not.toHaveBeenCalled()
+    env.searchFiles.mockRejectedValueOnce(new Error('index down'))
+    expect(await invoke('launcher:search-files', 'report')).toMatchObject({ success: false, files: [] })
+    expect(await invoke('launcher:reveal-file', 'a'.repeat(64), { sender: contents, senderFrame: {} })).toMatchObject({ errorCode: 'UNAVAILABLE' })
   })
 })

@@ -497,4 +497,56 @@ describe('QuickLauncher', () => {
     }
     expect(window.api.quickChat.launcher.convertCurrency).not.toHaveBeenCalled()
   })
+
+  it('lists indexed files under Applications after a typing pause, opens with Enter and reveals with Shift+Enter', async () => {
+    const files = [
+      { id: 'f'.repeat(64), name: 'Quarterly report.pdf', folder: '~/Documents', kind: 'file' as const, iconDataUrl: 'data:image/png;base64,pdf' },
+      { id: 'd'.repeat(64), name: 'Reports', folder: '~/Documents/Work', kind: 'folder' as const },
+    ]
+    vi.mocked(window.api.quickChat.launcher.searchFiles).mockResolvedValue({ success: true, files })
+    vi.mocked(window.api.quickChat.launcher.listApps).mockResolvedValue({ success: true, apps: [{ id: 'editor', name: 'Report Editor' }] })
+    render(<QuickLauncher />)
+    await act(async () => {})
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'r' } })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'report' } })
+    const file = await screen.findByRole('option', { name: 'Quarterly report.pdf File' })
+    expect(window.api.quickChat.launcher.searchFiles).toHaveBeenCalledExactlyOnceWith('report')
+    expect(screen.getAllByRole('group').map(group => group.getAttribute('aria-label'))).toEqual(['Applications', 'Files', 'Use "report" with…'])
+    expect(file).toHaveTextContent('~/Documents')
+    expect(file.querySelector('img')).toHaveAttribute('src', 'data:image/png;base64,pdf')
+    expect(screen.getByRole('option', { name: 'Reports Folder' })).toHaveTextContent('~/Documents/Work')
+    expect(screen.getByRole('option', { selected: true })).toHaveAttribute('aria-label', 'Report Editor Application')
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'ArrowDown' })
+    expect(screen.getByRole('contentinfo')).toHaveTextContent('Show in folder')
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter', shiftKey: true })
+    await waitFor(() => expect(window.api.quickChat.launcher.revealFile).toHaveBeenCalledWith('f'.repeat(64)))
+    expect(window.api.quickChat.launcher.openFile).not.toHaveBeenCalled()
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'ArrowDown' })
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
+    await waitFor(() => expect(window.api.quickChat.launcher.openFile).toHaveBeenCalledWith('d'.repeat(64)))
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '' } })
+    expect(screen.queryByRole('group', { name: 'Files' })).not.toBeInTheDocument()
+  })
+
+  it('ignores a late answer to an earlier file query and skips the index for calculations', async () => {
+    let resolveFirst: (value: { success: boolean; files: typeof first }) => void = () => {}
+    const first = [{ id: 'a'.repeat(64), name: 'old-notes.txt', folder: '~', kind: 'file' as const }]
+    vi.mocked(window.api.quickChat.launcher.searchFiles)
+      .mockReturnValueOnce(new Promise(resolve => { resolveFirst = resolve }))
+      .mockResolvedValueOnce({ success: true, files: [{ id: 'b'.repeat(64), name: 'new-notes.txt', folder: '~', kind: 'file' as const }] })
+    render(<QuickLauncher />)
+    await act(async () => {})
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'old' } })
+    await waitFor(() => expect(window.api.quickChat.launcher.searchFiles).toHaveBeenCalledWith('old'))
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'new' } })
+    await screen.findByRole('option', { name: 'new-notes.txt File' })
+    await act(async () => resolveFirst({ success: true, files: first }))
+    expect(screen.queryByRole('option', { name: 'old-notes.txt File' })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'new-notes.txt File' })).toBeInTheDocument()
+    vi.mocked(window.api.quickChat.launcher.searchFiles).mockClear()
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '2 + 2' } })
+    await screen.findByRole('option', { name: '2 + 2 = 4 Calculator' })
+    await new Promise(resolve => setTimeout(resolve, 200))
+    expect(window.api.quickChat.launcher.searchFiles).not.toHaveBeenCalled()
+  })
 })

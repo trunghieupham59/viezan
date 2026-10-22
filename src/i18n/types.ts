@@ -1080,6 +1080,10 @@ export interface Translations {
   launcher_currency_target: string
   launcher_currency_search: string
   launcher_currency_no_results: string
+  launcher_section_files: string
+  launcher_file: string
+  launcher_folder: string
+  launcher_reveal: string
 
   // Settings — AI Chat section
   settings_chat_section: string

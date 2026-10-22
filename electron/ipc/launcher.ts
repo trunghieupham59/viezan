@@ -5,6 +5,7 @@ import { app, type BrowserWindow, type IpcMain, shell } from 'electron'
 import type { LauncherResult } from '../../shared/launcher'
 import { CurrencyRateStore, convertWithSnapshot, parseCurrencyConversionRequest } from '../services/currencyRates'
 import { type IndexedLauncherApp, scanLauncherApps } from '../services/launcherApps'
+import { LauncherFileIndex, MAX_FILE_QUERY_CHARS, searchLauncherFiles } from '../services/launcherFiles'
 import { LauncherIconCache } from '../services/launcherIconCache'
 import { openWindowsLauncherApp } from '../services/launcherSystemApps'
 import { isSenderWindow } from './senderGuard'
@@ -12,6 +13,8 @@ import { isSenderWindow } from './senderGuard'
 const CATALOG_TTL_MS = 60_000
 const MAX_RECENT_APPS = 8
 const CURRENCY_CODE = /^[A-Z]{3}$/
+const OPAQUE_ID = /^[a-f0-9]{64}$/
+const MAX_FILE_ICON_CACHE = 64
 
 async function readRecentIds(file: string): Promise<string[]> {
   try {
@@ -53,6 +56,22 @@ export function registerLauncherHandlers(ipc: IpcMain, getWindow: () => BrowserW
   // The popup never writes the shared renderer store, so its one preference lives here.
   const currencyTargetFile = path.join(app.getPath('userData'), 'launcher-currency-target-v1.json')
   let currencyTarget: Promise<string | null> | undefined
+  const files = new LauncherFileIndex()
+  // Generic type icons repeat across results; folders share one.
+  const fileIcons = new Map<string, string | null>()
+  const fileIcon = async (filePath: string, kind: 'file' | 'folder'): Promise<string | undefined> => {
+    const key = kind === 'folder' ? 'folder' : path.extname(filePath).toLowerCase() || 'file'
+    if (!fileIcons.has(key)) {
+      try {
+        const icon = await app.getFileIcon(filePath, { size: 'normal' })
+        fileIcons.set(key, icon.isEmpty() ? null : icon.toDataURL())
+      } catch {
+        fileIcons.set(key, null)
+      }
+      if (fileIcons.size > MAX_FILE_ICON_CACHE) fileIcons.delete(fileIcons.keys().next().value as string)
+    }
+    return fileIcons.get(key) ?? undefined
+  }
   const rates = new CurrencyRateStore({ file: path.join(app.getPath('userData'), 'launcher-currency-rates-v1.json') })
   const icons = new LauncherIconCache({
     file: path.join(app.getPath('userData'), 'launcher-icons-v1.json'),
@@ -146,6 +165,44 @@ export function registerLauncherHandlers(ipc: IpcMain, getWindow: () => BrowserW
       return failure('OPEN_FAILED')
     }
   })
+
+  ipc.handle('launcher:search-files', async (event, query: unknown) => {
+    if (!trusted(event) || !['darwin', 'win32'].includes(process.platform)) return { ...failure('UNAVAILABLE'), files: [] }
+    if (typeof query !== 'string' || query.length > MAX_FILE_QUERY_CHARS) return { ...failure('INVALID'), files: [] }
+    try {
+      const home = homedir()
+      const hits = await searchLauncherFiles(query, { platform: process.platform, home })
+      const listed = files.remember(hits, home)
+      const icons = await Promise.all(hits.map(hit => fileIcon(hit.path, hit.kind)))
+      return { success: true, files: listed.map((file, index) => ({ ...file, ...(icons[index] ? { iconDataUrl: icons[index] } : {}) })) }
+    } catch {
+      return { ...failure('UNAVAILABLE'), files: [] }
+    }
+  })
+
+  const fileAction = async (event: Electron.IpcMainInvokeEvent, id: unknown, act: (filePath: string) => Promise<void>) => {
+    if (!trusted(event)) return failure('UNAVAILABLE')
+    if (typeof id !== 'string' || !OPAQUE_ID.test(id)) return failure('INVALID')
+    // Only a path this process listed for this renderer can be opened.
+    const target = files.get(id)
+    if (!target) return failure('NOT_FOUND')
+    try {
+      await act(target.path)
+      getWindow()?.hide()
+      return { success: true }
+    } catch {
+      return failure('OPEN_FAILED')
+    }
+  }
+
+  ipc.handle('launcher:open-file', (event, id: unknown) => fileAction(event, id, async filePath => {
+    const error = await shell.openPath(filePath)
+    if (error) throw new Error(error)
+  }))
+
+  ipc.handle('launcher:reveal-file', (event, id: unknown) => fileAction(event, id, async filePath => {
+    shell.showItemInFolder(filePath)
+  }))
 
   ipc.handle('launcher:convert-currency', async (event, request: unknown) => {
     if (!trusted(event)) return failure('UNAVAILABLE')

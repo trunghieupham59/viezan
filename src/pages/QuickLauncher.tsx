@@ -1,5 +1,5 @@
 import { type MouseEvent, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { CurrencyConversion, LauncherApp, LauncherIcon, LauncherResult } from '../../shared/launcher'
+import type { CurrencyConversion, LauncherApp, LauncherFile, LauncherIcon, LauncherResult } from '../../shared/launcher'
 import type { QuickAiSession } from '../../shared/quickAi'
 import { AIChatPopup, type QuickChatLaunchRequest } from '../components/AIChatPopup'
 import { Button, KeyCap } from '../components/ui/atoms'
@@ -8,6 +8,8 @@ import {
   CalculatorIcon,
   ChatBubbleIcon,
   CoinsIcon,
+  FileIcon,
+  FolderIcon,
   GearIcon,
   MicrophoneIcon,
   SearchIcon,
@@ -31,12 +33,16 @@ import { formatDate, tpl } from '../utils/tpl'
 type Command = 'ai' | 'continue' | 'web' | 'chat' | 'settings' | 'translate' | 'dictionary' | 'live'
 /** Answers computed from the query itself; Enter copies them. */
 type Inline = 'calc' | 'currency'
-type Result = { id: string; label: string; kind: 'app' | Command | Inline; detail?: string }
-type Section = { id: 'recent' | 'apps' | 'viezan' | 'use' | Inline; title: string; items: Result[] }
+type Entry = 'file' | 'folder'
+type Result = { id: string; label: string; kind: 'app' | Command | Inline | Entry; detail?: string }
+type Section = { id: 'recent' | 'apps' | 'files' | 'viezan' | 'use' | Inline; title: string; items: Result[] }
 type ConversionState = { status: 'loading' | 'ready' | 'unavailable'; value?: CurrencyConversion }
 
 const MAX_APP_RESULTS = 8
 const MAX_RECENT_RESULTS = 5
+/** Index queries wait for a typing pause; the OS index is fast but not free. */
+const FILE_SEARCH_DEBOUNCE_MS = 150
+const MIN_FILE_QUERY_CHARS = 2
 /** A Quick AI conversation this recent is offered first and receives follow-ups. */
 const QUICK_AI_FRESH_MS = 30 * 60 * 1000
 const LETTER_TONES: LauncherIconTone[] = ['blue', 'violet', 'green', 'orange']
@@ -49,8 +55,10 @@ function letterTone(name: string): LauncherIconTone {
   return LETTER_TONES[hash % LETTER_TONES.length]
 }
 
-function commandIcon(kind: Command | Inline): ReactNode {
+function commandIcon(kind: Command | Inline | Entry): ReactNode {
   switch (kind) {
+    case 'file': return <FileIcon />
+    case 'folder': return <FolderIcon />
     case 'calc': return <CalculatorIcon />
     case 'currency': return <CoinsIcon />
     case 'ai': case 'chat': return <SparklesIcon />
@@ -94,6 +102,9 @@ export function QuickLauncher() {
   const currencyTarget = currencyQuery?.to ?? defaultCurrencyTarget(locale, launcherCurrency, currencyQuery?.from)
   const [conversion, setConversion] = useState<ConversionState>()
   const [conversionAttempt, setConversionAttempt] = useState(0)
+  const [files, setFiles] = useState<LauncherFile[]>([])
+  const fileSearchRef = useRef(0)
+  const fileQuery = calc || currencyQuery || search.length < MIN_FILE_QUERY_CHARS ? '' : search
 
   // The window is sized by the main process; report the natural content height
   // so the popup grows with the rows instead of leaving an empty canvas. Every
@@ -212,6 +223,21 @@ export function QuickLauncher() {
     return () => { cancelled = true }
   }, [setLauncherCurrency])
 
+  useEffect(() => {
+    const request = ++fileSearchRef.current
+    if (!fileQuery) {
+      setFiles([])
+      return
+    }
+    const timer = setTimeout(() => {
+      void window.api?.quickChat?.launcher?.searchFiles?.(fileQuery).then(result => {
+        // A slower earlier query must not overwrite the answer to the current text.
+        if (request === fileSearchRef.current) setFiles(result?.success ? result.files : [])
+      }).catch(() => { if (request === fileSearchRef.current) setFiles([]) })
+    }, FILE_SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [fileQuery])
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: Enter on an unavailable row retries (attempt).
   useEffect(() => {
     if (!currencyQuery) {
@@ -315,13 +341,17 @@ export function QuickLauncher() {
       { id: 'dictionary', label: t.launcher_dictionary, kind: 'dictionary', detail: search },
       { id: 'web', label: t.launcher_web, kind: 'web', detail: search },
     ]
+    const fileItems: Result[] = fileQuery
+      ? files.map(file => ({ id: file.id, label: file.name, kind: file.kind, detail: file.folder }))
+      : []
     return [
       ...inline,
       ...(matchedApps.length ? [{ id: 'apps' as const, title: t.launcher_section_apps, items: matchedApps }] : []),
+      ...(fileItems.length ? [{ id: 'files' as const, title: t.launcher_section_files, items: fileItems }] : []),
       ...(matchedCommands.length ? [{ id: 'viezan' as const, title: t.launcher_section_viezan, items: matchedCommands }] : []),
       { id: 'use', title: tpl(t.launcher_section_use_with, { query: search }), items: useWith },
     ]
-  }, [apps, calc, conversion, currencyQuery, currencyTarget, locale, recent, search, session, sessionFresh, t])
+  }, [apps, calc, conversion, currencyQuery, currencyTarget, fileQuery, files, locale, recent, search, session, sessionFresh, t])
   const results = useMemo(() => sections.flatMap(section => section.items), [sections])
   const activeIndex = Math.min(selected, results.length - 1)
   const activeResult = results[activeIndex]
@@ -385,6 +415,10 @@ export function QuickLauncher() {
       let outcome: LauncherResult | undefined
       switch (result.kind) {
         case 'app': outcome = await window.api?.quickChat?.launcher?.openApp(result.id); break
+        case 'file':
+        case 'folder':
+          outcome = await window.api?.quickChat?.launcher?.openFile(result.id)
+          break
         case 'web': outcome = await window.api?.quickChat?.launcher?.searchWeb(search); break
         case 'chat': outcome = await window.api?.quickChat?.openInChat(); break
         case 'settings': outcome = await window.api?.quickChat?.openSettings(); break
@@ -403,6 +437,22 @@ export function QuickLauncher() {
     }
   }, [calc, conversion, locale, search, session, sessionFresh])
   const askAI = useCallback(() => execute({ id: 'ai', label: t.launcher_ai, kind: 'ai' }), [execute, t.launcher_ai])
+  const isEntry = (result: Result | undefined) => result?.kind === 'file' || result?.kind === 'folder'
+  const reveal = useCallback(async (result: Result) => {
+    if (busyRef.current) return
+    busyRef.current = true
+    setBusy(true)
+    setError(false)
+    try {
+      const outcome = await window.api?.quickChat?.launcher?.revealFile(result.id)
+      setError(!outcome?.success)
+    } catch {
+      setError(true)
+    } finally {
+      busyRef.current = false
+      setBusy(false)
+    }
+  }, [])
 
   useEffect(() => {
     if (mode !== 'search') return
@@ -427,6 +477,12 @@ export function QuickLauncher() {
   }, [mode, query])
 
   const renderIcon = (result: Result) => {
+    if (isEntry(result)) {
+      const icon = files.find(file => file.id === result.id)?.iconDataUrl
+      return icon
+        ? <LauncherIconTile tone="app"><img className="launcher-app-icon" src={icon} alt="" draggable={false} /></LauncherIconTile>
+        : <LauncherIconTile>{commandIcon(result.kind as Entry)}</LauncherIconTile>
+    }
     if (result.kind !== 'app') return <LauncherIconTile>{commandIcon(result.kind)}</LauncherIconTile>
     const icon = icons[result.id]
     if (icon) {
@@ -445,6 +501,8 @@ export function QuickLauncher() {
     return <LauncherIconTile tone={letterTone(result.label)}>{result.label.trim().charAt(0).toLocaleUpperCase()}</LauncherIconTile>
   }
   const kindLabel = (result: Result) => result.kind === 'app' ? t.launcher_app
+    : result.kind === 'file' ? t.launcher_file
+    : result.kind === 'folder' ? t.launcher_folder
     : result.kind === 'calc' ? t.launcher_calculator
       : result.kind === 'currency' ? t.launcher_currency : t.launcher_command
   const isInline = (result: Result | undefined) => result?.kind === 'calc' || result?.kind === 'currency'
@@ -503,6 +561,7 @@ export function QuickLauncher() {
                     // during this event; do not let the same key open full Chat.
                     event.stopPropagation()
                     if (event.metaKey || event.ctrlKey) void askAI()
+                    else if (event.shiftKey && activeResult && isEntry(activeResult)) void reveal(activeResult)
                     else if (activeResult) void execute(activeResult)
                   }
                 }} />
@@ -550,11 +609,19 @@ export function QuickLauncher() {
                   <KeyCap>↵</KeyCap>
                 </span>
                 <span className="launcher-footer-divider" aria-hidden="true" />
-                <span className="launcher-footer-action">
-                  <span>{t.launcher_ai}</span>
-                  <KeyCap>{primaryModifierKey}</KeyCap>
-                  <KeyCap>↵</KeyCap>
-                </span>
+                {isEntry(activeResult) ? (
+                  <span className="launcher-footer-action">
+                    <span>{t.launcher_reveal}</span>
+                    <KeyCap>⇧</KeyCap>
+                    <KeyCap>↵</KeyCap>
+                  </span>
+                ) : (
+                  <span className="launcher-footer-action">
+                    <span>{t.launcher_ai}</span>
+                    <KeyCap>{primaryModifierKey}</KeyCap>
+                    <KeyCap>↵</KeyCap>
+                  </span>
+                )}
               </div>
             </footer>
           </section>
