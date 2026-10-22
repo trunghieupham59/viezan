@@ -167,8 +167,10 @@ export function registerLauncherHandlers(ipc: IpcMain, getWindow: () => BrowserW
   })
 
   ipc.handle('launcher:search-files', async (event, query: unknown) => {
-    if (!trusted(event) || !['darwin', 'win32'].includes(process.platform)) return { ...failure('UNAVAILABLE'), files: [] }
+    if (!trusted(event)) return { ...failure('UNAVAILABLE'), files: [] }
+    // Shape errors are reported the same on every platform; the index is a separate concern.
     if (typeof query !== 'string' || query.length > MAX_FILE_QUERY_CHARS) return { ...failure('INVALID'), files: [] }
+    if (!['darwin', 'win32'].includes(process.platform)) return { ...failure('UNAVAILABLE'), files: [] }
     try {
       const home = homedir()
       const hits = await searchLauncherFiles(query, { platform: process.platform, home })
