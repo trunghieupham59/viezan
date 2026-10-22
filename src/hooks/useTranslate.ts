@@ -20,10 +20,12 @@ import { COPY_FEEDBACK_DURATION_MS, IMAGE_AUTO_TRANSLATE_DELAY_MS } from '../con
 import { translationService } from '../services/translationService'
 import { useAppStore, useT } from '../store/useAppStore'
 import type {
+  HistoryItem,
   ImageTextRegion,
   PhoneticMode,
   TranslationComparisonResult,
   TranslationModelSelection,
+  TranslationStyle,
 } from '../types'
 import { renderTranslatedRegions } from '../utils/canvas'
 import { localizeChatError, localizeChatException } from '../utils/chatErrors'
@@ -130,6 +132,57 @@ function createComparisonResult(
   }
 }
 
+interface ComparisonHistoryInput {
+  id: string
+  timestamp: number
+  sourceText: string
+  sourceLang: string
+  targetLang: string
+  translationStyle: TranslationStyle
+  /** Successful results of the run, in model order. */
+  results: TranslationComparisonResult[]
+  /** The result the user picked, if any; `null` keeps the first result as representative. */
+  picked: Pick<TranslationComparisonResult, 'key' | 'provider' | 'model' | 'translatedText'> | null
+}
+
+/**
+ * One comparison run is one history entry that keeps every successful model
+ * result, so it can be reopened with all of its models. The top-level fields
+ * carry the representative translation: the picked one, else the first result.
+ */
+function buildComparisonHistoryItem(input: ComparisonHistoryInput): HistoryItem | null {
+  const { results, picked } = input
+  const representative = picked ?? results[0]
+  if (!representative) return null
+  const estimate = (selection: TranslationModelSelection, outputText: string) => estimateUsageCost({
+    feature: 'translate',
+    provider: selection.provider,
+    model: selection.model,
+    inputText: input.sourceText,
+    outputText,
+  })
+  return {
+    id: input.id,
+    timestamp: input.timestamp,
+    provider: representative.provider,
+    model: representative.model,
+    sourceLang: input.sourceLang,
+    targetLang: input.targetLang,
+    translationStyle: input.translationStyle,
+    sourceText: input.sourceText,
+    translatedText: representative.translatedText,
+    cost: estimate(representative, representative.translatedText),
+    results: results.map((result) => ({
+      provider: result.provider,
+      model: result.model,
+      translatedText: result.translatedText,
+      durationMs: result.durationMs,
+      cost: estimate(result, result.translatedText),
+    })),
+    ...(picked ? { selectedKey: picked.key } : {}),
+  }
+}
+
 function isSameResultContext(
   previous: TranslationResultContext,
   current: TranslationResultContext,
@@ -231,6 +284,7 @@ export function useTranslate() {
     setIsTranslating, setTranslateError, setActivePage, setPhoneticMode, setTranslationStyle, setTranslationReasoningEffort, setAutoTranslate, addHistory, upsertHistory,
     recordUsageCost, setTranslationModels,
     setLanguagePair,
+    pendingTranslateRestoreId, setPendingTranslateRestore,
   } = useAppStore()
   const t = useT()
 
@@ -324,8 +378,13 @@ export function useTranslate() {
   const [comparisonResults, setComparisonResults] = useState<TranslationComparisonResult[]>([])
   /** The translation the user picked as the outcome of the current comparison run. */
   const [selectedComparisonKey, setSelectedComparisonKey] = useState<string | null>(null)
+  const selectedComparisonKeyRef = useRef(selectedComparisonKey)
+  selectedComparisonKeyRef.current = selectedComparisonKey
   /** History entry owned by the current comparison run; re-picking replaces it instead of adding. */
   const comparisonHistoryIdRef = useRef<string | null>(null)
+  /** Latest comparison results, readable from async completions and pick handlers without stale closures. */
+  const comparisonResultsRef = useRef(comparisonResults)
+  comparisonResultsRef.current = comparisonResults
   const [isRewriting, setIsRewriting] = useState<'source' | 'translated' | null>(null)
   /** Shown when image translation silently switched to a different model/provider */
   const [imageSwitchNotice, setImageSwitchNotice] = useState<{ model: string; provider: string } | null>(null)
@@ -965,8 +1024,30 @@ export function useTranslate() {
         setTranslatedText('')
         setPhoneticText('')
         markResultCurrent()
-        // Costs were recorded per model above. History waits for the user's pick
-        // so one comparison stays one entry, attributed to the chosen model.
+        // Costs were recorded per model above. The run is one history entry that
+        // keeps every finished model; a later pick re-attributes the same entry.
+        const previousByKey = new Map(comparisonResultsRef.current.map((result) => [result.key, result]))
+        const finishedResults = activeTranslationModels
+          .map((selection) => {
+            const key = translationModelKey(selection)
+            return outcomes.get(key) ?? previousByKey.get(key)
+          })
+          .filter((result): result is TranslationComparisonResult => result?.status === 'success')
+        const timestamp = Date.now()
+        const historyId = comparisonHistoryIdRef.current ?? createHistoryId(timestamp)
+        comparisonHistoryIdRef.current = historyId
+        const pickedKey = selectedComparisonKeyRef.current
+        const historyItem = buildComparisonHistoryItem({
+          id: historyId,
+          timestamp,
+          sourceText,
+          sourceLang,
+          targetLang,
+          translationStyle,
+          results: finishedResults,
+          picked: pickedKey ? finishedResults.find((result) => result.key === pickedKey) ?? null : null,
+        })
+        if (historyItem) upsertHistory(historyItem)
         const detectionResult = successfulResults[0]
         detectLanguageInBackground(
           sourceText,
@@ -1040,7 +1121,7 @@ export function useTranslate() {
        hasKey, translationStyle, translationReasoningEffort, imageProviderFallback,
        setIsTranslating, setTranslateError, setTranslatedText, setPhoneticText, t,
        detectLanguageInBackground, recordTranslationOutcome, generatePhoneticText,
-       cancelActiveTranslation, invalidateRewrite, markResultCurrent])
+       cancelActiveTranslation, invalidateRewrite, markResultCurrent, upsertHistory])
 
   const handleTranslate = useCallback(() => runTranslate('manual'), [runTranslate])
 
@@ -1060,24 +1141,19 @@ export function useTranslate() {
     const timestamp = Date.now()
     const id = comparisonHistoryIdRef.current ?? createHistoryId(timestamp)
     comparisonHistoryIdRef.current = id
-    upsertHistory({
+    const historyItem = buildComparisonHistoryItem({
       id,
       timestamp,
-      provider: result.provider,
-      model: result.model,
+      sourceText,
       sourceLang,
       targetLang,
       translationStyle,
-      sourceText,
-      translatedText: result.translatedText,
-      cost: estimateUsageCost({
-        feature: 'translate',
-        provider: result.provider,
-        model: result.model,
-        inputText: sourceText,
-        outputText: result.translatedText,
-      }),
+      results: comparisonResultsRef.current.filter((candidate) => (
+        candidate.status === 'success' && Boolean(candidate.translatedText)
+      )),
+      picked: result,
     })
+    if (historyItem) upsertHistory(historyItem)
   }, [sourceLang, sourceText, targetLang, translationStyle, upsertHistory])
 
   const handleCopyComparison = useCallback(async (result: TranslationComparisonResult) => {
@@ -1370,6 +1446,43 @@ export function useTranslate() {
     cancelActiveTranslation()
     setIsTranslating(false)
   }, [cancelActiveTranslation, setIsTranslating])
+
+  // ── Reopen a history entry ─────────────────────────────────────────────────
+  // "Use this" in history writes the entry's text, languages, style and models
+  // to the store, sets pendingTranslateRestoreId and navigates here. Everything
+  // the store holds is already in place when this mounts; what remains is the
+  // comparison state that lives in this hook: every saved model result, the
+  // pick, and the entry id so a new pick updates that same entry.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs once per restore request and reads the rest at that moment
+  useEffect(() => {
+    if (!pendingTranslateRestoreId) return
+    const item = useAppStore.getState().history.find((entry) => entry.id === pendingTranslateRestoreId)
+    setPendingTranslateRestore(null)
+    if (!item) return
+    invalidateActiveTranslation()
+    const savedResults = item.results ?? []
+    if (savedResults.length > 1) {
+      const restoredResults = savedResults.map((saved) => ({
+        ...createComparisonResult(saved, 'success'),
+        translatedText: saved.translatedText,
+        durationMs: saved.durationMs ?? null,
+      }))
+      setComparisonResults(restoredResults)
+      // An assembled pick has no column of its own; its text stays in the entry.
+      const pickedKey = item.selectedKey ?? null
+      setSelectedComparisonKey(
+        restoredResults.some((result) => result.key === pickedKey) ? pickedKey : null,
+      )
+      comparisonHistoryIdRef.current = item.id
+      setTranslatedText('')
+      setPhoneticText('')
+    } else {
+      setComparisonResults([])
+      setSelectedComparisonKey(null)
+      comparisonHistoryIdRef.current = null
+    }
+    setResultContext(currentResultContext)
+  }, [pendingTranslateRestoreId])
 
   const visibleComparisonResults = useMemo(() => {
     const resultsByKey = new Map(comparisonResults.map((result) => [result.key, result]))

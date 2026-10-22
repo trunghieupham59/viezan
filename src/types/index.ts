@@ -662,6 +662,21 @@ export interface LiveSession extends AIModelSelection {
 
 // ─── History ──────────────────────────────────────────────────────────────────
 
+/** One model's finished translation inside a multi-model comparison entry. */
+export interface HistoryTranslationResult extends AIModelSelection {
+  translatedText: string
+  durationMs?: number | null
+  /** Estimated provider API cost for this model's run. */
+  cost?: UsageCost
+}
+
+/**
+ * One translation run. A single-model run stores its result in the top-level
+ * fields. A multi-model comparison also keeps every successful result in
+ * `results`, so the run can be reopened with all of its models; the top-level
+ * fields then hold the representative translation — the one the user picked,
+ * or the first successful model until they pick.
+ */
 export interface HistoryItem {
   id: string
   timestamp: number
@@ -672,8 +687,15 @@ export interface HistoryItem {
   translationStyle?: TranslationStyle
   sourceText: string
   translatedText: string
-  /** Estimated provider API cost for this translation run. */
+  /** Estimated provider API cost for the representative translation. */
   cost?: UsageCost
+  /** Every successful result of a comparison run, in model order. Absent for single-model runs. */
+  results?: HistoryTranslationResult[]
+  /**
+   * Key of the result the user picked: `provider:model`, or `assembled` for a
+   * translation assembled sentence by sentence. Absent until they pick.
+   */
+  selectedKey?: string
 }
 
 // ─── Subtitle appearance settings ────────────────────────────────────────────

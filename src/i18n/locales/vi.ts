@@ -583,6 +583,7 @@ const vi: Translations = {
   history_no_results_desc: 'Thử từ khóa khác hoặc đổi tab lịch sử.',
   history_empty: 'Chưa có lịch sử',
   history_translate_count: '{n} mục',
+  history_models_count: (count) => `${count} mô hình`,
   history_live_count: '{n} phiên',
   history_empty_desc: 'Lịch sử dịch thuật sẽ xuất hiện ở đây.',
   history_delete: 'Xóa',

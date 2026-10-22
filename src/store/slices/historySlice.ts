@@ -19,12 +19,19 @@ export interface HistorySlice {
   liveSessions: LiveSession[]
   /** ID of the live session currently being viewed (null = not viewing any) */
   viewingLiveSessionId: string | null
+  /**
+   * History entry the AI Translate screen should reopen on its next mount.
+   * Set by "Use this" in history before navigating; the translate hook
+   * restores the entry's comparison results and clears it.
+   */
+  pendingTranslateRestoreId: string | null
 
   // History actions
   addHistory: (item: HistoryItem) => void
   upsertHistory: (item: HistoryItem) => void
   deleteHistoryItem: (id: string) => void
   clearHistory: () => void
+  setPendingTranslateRestore: (id: string | null) => void
 
   // Live session actions
   addLiveSession: (session: LiveSession) => void
@@ -38,6 +45,7 @@ export const createHistorySlice = (set: SliceSet): HistorySlice => ({
   history: [],
   liveSessions: [],
   viewingLiveSessionId: null,
+  pendingTranslateRestoreId: null,
 
   addHistory: (item) =>
     set((state: HistorySlice) => ({
@@ -55,6 +63,8 @@ export const createHistorySlice = (set: SliceSet): HistorySlice => ({
     })),
 
   clearHistory: () => set({ history: [] }),
+
+  setPendingTranslateRestore: (id) => set({ pendingTranslateRestoreId: id }),
 
   addLiveSession: (session) =>
     set((state: HistorySlice) => ({
