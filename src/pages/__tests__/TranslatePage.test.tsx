@@ -5,6 +5,7 @@ import { TRANSLATE_INPUT_WARNING_CHARS } from '../../constants/providers'
 import { IMAGE_AUTO_TRANSLATE_DELAY_MS } from '../../constants/ui'
 import { TRANSLATIONS } from '../../i18n'
 import { useAppStore } from '../../store/useAppStore'
+import type { HistoryItem } from '../../types'
 import { extractImageFromClipboard, resizeImageFile } from '../../utils/imageUtils'
 import { TranslatePage } from '../TranslatePage'
 
@@ -44,6 +45,22 @@ function getSourceInput() {
 }
 
 // Reset store before each test
+const COMPARISON_ENTRY: HistoryItem = {
+        id: 'hist-compare-1',
+        timestamp: 1,
+        provider: 'openai',
+        model: 'gpt-4o',
+        sourceLang: 'en',
+        targetLang: 'vi',
+        sourceText: 'Translate this',
+        translatedText: 'Bản dịch OpenAI',
+        selectedKey: 'openai:gpt-4o',
+        results: [
+          { provider: 'gemini', model: 'gemini-2.0-flash', translatedText: 'Bản dịch Gemini', durationMs: 120 },
+          { provider: 'openai', model: 'gpt-4o', translatedText: 'Bản dịch OpenAI', durationMs: 90 },
+        ],
+      }
+
 beforeEach(() => {
   vi.clearAllMocks()
   vi.useRealTimers()
@@ -302,6 +319,47 @@ describe('TranslatePage', () => {
     expect(within(openAiCard).queryByText('Existing Gemini result')).not.toBeInTheDocument()
   })
 
+  it('reopens a comparison entry from history with every model and the pick', async () => {
+    act(() => {
+      useAppStore.setState({
+        sourceText: 'Translate this',
+        sourceLang: 'en',
+        targetLang: 'vi',
+        translatedText: '',
+        translationModels: [
+          { provider: 'gemini', model: 'gemini-2.0-flash' },
+          { provider: 'openai', model: 'gpt-4o' },
+        ],
+        keyStatus: { gemini: true, claude: false, openai: true, local: false },
+        history: [COMPARISON_ENTRY],
+        pendingTranslateRestoreId: 'hist-compare-1',
+      })
+    })
+
+    render(<TranslatePage />)
+    const geminiCard = await screen.findByRole('article', { name: /Gemini 2.0 Flash/ })
+    const openAiCard = screen.getByRole('article', { name: /GPT 4o/ })
+    await waitFor(() => expect(geminiCard).toHaveTextContent('Bản dịch Gemini'))
+    expect(openAiCard).toHaveTextContent('Bản dịch OpenAI')
+    expect(within(openAiCard).getByRole('button', { name: /Picked: GPT 4o/ })).toHaveAttribute('aria-pressed', 'true')
+    // Nothing is re-run and the request is consumed.
+    expect(window.api.translate).not.toHaveBeenCalled()
+    expect(useAppStore.getState().pendingTranslateRestoreId).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Expand source text' })).toBeInTheDocument()
+
+    // A new pick updates the reopened entry instead of adding another one.
+    fireEvent.click(within(geminiCard).getByRole('button', { name: /Pick this one: Gemini 2.0 Flash/ }))
+    const history = useAppStore.getState().history
+    expect(history).toHaveLength(1)
+    expect(history[0]).toMatchObject({
+      id: 'hist-compare-1',
+      provider: 'gemini',
+      translatedText: 'Bản dịch Gemini',
+      selectedKey: 'gemini:gemini-2.0-flash',
+    })
+    expect(history[0].results).toHaveLength(2)
+  })
+
   it('assembles a translation sentence by sentence and keeps one history entry for the dominant model', async () => {
     vi.mocked(window.api.translate).mockImplementation(async ({ provider }) => ({
       success: true,
@@ -410,18 +468,31 @@ describe('TranslatePage', () => {
     expect(within(geminiCard).getByRole('button', { name: /Copy: Gemini 2.0 Flash.*Google Gemini/i }))
       .toBeInTheDocument()
 
-    // One comparison is one history entry, written when the reader picks a result
-    // and replaced (not duplicated) when they change their mind.
+    // One comparison is one history entry that keeps every finished model. It is
+    // written when the run completes, attributed to the first model until the
+    // reader picks one, and replaced (not duplicated) when they change their mind.
     const historyFor = () => useAppStore.getState().history
       .filter((item) => item.sourceText === 'Translate this')
-    expect(historyFor()).toHaveLength(0)
+    expect(historyFor()).toHaveLength(1)
+    expect(historyFor()[0]).toMatchObject({ provider: 'gemini', translatedText: 'Bản dịch Gemini' })
+    expect(historyFor()[0].selectedKey).toBeUndefined()
+    expect(historyFor()[0].results).toEqual([
+      expect.objectContaining({ provider: 'gemini', model: 'gemini-2.0-flash', translatedText: 'Bản dịch Gemini' }),
+      expect.objectContaining({ provider: 'openai', model: 'gpt-4o', translatedText: 'Bản dịch OpenAI' }),
+    ])
+    const entryId = historyFor()[0].id
     fireEvent.click(within(openAiCard).getByRole('button', { name: /Pick this one: GPT 4o/ }))
     expect(historyFor()).toHaveLength(1)
-    expect(historyFor()[0]).toMatchObject({ provider: 'openai', translatedText: 'Bản dịch OpenAI' })
+    expect(historyFor()[0]).toMatchObject({
+      id: entryId, provider: 'openai', translatedText: 'Bản dịch OpenAI', selectedKey: 'openai:gpt-4o',
+    })
+    expect(historyFor()[0].results).toHaveLength(2)
     expect(within(openAiCard).getByRole('button', { name: /Picked: GPT 4o/ })).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(within(geminiCard).getByRole('button', { name: /Pick this one: Gemini 2.0 Flash/ }))
     expect(historyFor()).toHaveLength(1)
-    expect(historyFor()[0]).toMatchObject({ provider: 'gemini', translatedText: 'Bản dịch Gemini' })
+    expect(historyFor()[0]).toMatchObject({
+      id: entryId, provider: 'gemini', translatedText: 'Bản dịch Gemini', selectedKey: 'gemini:gemini-2.0-flash',
+    })
 
     // With results on screen the source folds into a strip; one disclosure
     // control reopens it, and the same control (now the heading) folds it again.

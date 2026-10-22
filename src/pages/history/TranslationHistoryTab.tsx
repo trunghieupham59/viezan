@@ -7,6 +7,7 @@ import { ClockIcon, ReuseIcon } from '../../components/ui/icons'
 import { UsageCostBadge } from '../../components/ui/molecules/UsageCostBadge'
 import { useAppStore, useT } from '../../store/useAppStore'
 import type { HistoryItem } from '../../types'
+import { formatModelName, getProviderDisplayName } from '../../utils/modelDisplay'
 import { tpl } from '../../utils/tpl'
 import { HistorySelectableRow } from './HistorySelectableRow'
 import { formatTime, historyMatches, langLabel, normalizeHistoryQuery, ProviderBadge } from './historyUtils'
@@ -27,6 +28,7 @@ export function TranslationHistoryTab({ query }: TranslationHistoryTabProps) {
     setTargetLang,
     setTranslationModels,
     setTranslationStyle,
+    setPendingTranslateRestore,
     costCurrency,
   } = useAppStore()
   const t = useT()
@@ -41,18 +43,26 @@ export function TranslationHistoryTab({ query }: TranslationHistoryTabProps) {
     langLabel(item.targetLang),
     item.provider,
     item.model,
+    ...(item.results ?? []).flatMap((result) => [result.translatedText, result.provider, result.model]),
   ]))
   const filteredIds = filteredHistory.map((item) => item.id)
   const { selectedIds, selectedCount, toggleSelect, handleSelectAll, handleDeleteSelected } =
     useHistoryBulkSelection(filteredIds, deleteHistoryItem)
 
+  // A comparison entry reopens with every model it kept; the translate hook
+  // then restores the per-model results and the pick from the entry id.
   const handleReuse = (item: HistoryItem) => {
+    const savedResults = item.results ?? []
+    const isComparison = savedResults.length > 1
     setSourceText(item.sourceText)
-    setTranslatedText(item.translatedText)
+    setTranslatedText(isComparison ? '' : item.translatedText)
     setSourceLang(item.sourceLang)
     setTargetLang(item.targetLang)
-    setTranslationModels([{ provider: item.provider, model: item.model }])
+    setTranslationModels(isComparison
+      ? savedResults.map(({ provider, model }) => ({ provider, model }))
+      : [{ provider: item.provider, model: item.model }])
     if (item.translationStyle) setTranslationStyle(item.translationStyle)
+    setPendingTranslateRestore(item.id)
     setActivePage('translate')
   }
 
@@ -112,6 +122,11 @@ export function TranslationHistoryTab({ query }: TranslationHistoryTabProps) {
                   meta={(
                     <>
                       <ProviderBadge provider={item.provider} />
+                      {(item.results?.length ?? 0) > 1 && (
+                        <span className="ui-badge-xs rounded-md font-medium text-gray-500 whitespace-nowrap dark:bg-gray-800 dark:text-gray-400">
+                          {t.history_models_count(item.results?.length ?? 0)}
+                        </span>
+                      )}
                       <span className="ui-micro">
                         {langLabel(item.sourceLang)} → {langLabel(item.targetLang)}
                       </span>
@@ -132,14 +147,37 @@ export function TranslationHistoryTab({ query }: TranslationHistoryTabProps) {
                             {item.sourceText}
                           </p>
                         </div>
-                        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 rounded-lg">
-                          <p className="ui-kicker mb-1">
-                            {langLabel(item.targetLang)} · {item.translatedText.length.toLocaleString()} {t.history_chars_result}
-                          </p>
-                          <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
-                            {item.translatedText}
-                          </p>
-                        </div>
+                        {(item.results?.length ?? 0) > 1 ? (
+                          item.results?.map((result) => {
+                            const resultKey = `${result.provider}:${result.model}`
+                            const isPicked = item.selectedKey === resultKey
+                            return (
+                              <div
+                                key={resultKey}
+                                className="px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 rounded-lg"
+                                data-picked={isPicked || undefined}
+                              >
+                                <p className="ui-kicker mb-1">
+                                  {formatModelName(result.provider, result.model)} · {getProviderDisplayName(result.provider)}
+                                  {' · '}{result.translatedText.length.toLocaleString()} {t.history_chars_result}
+                                  {isPicked && <> · {t.translate_compare_picked}</>}
+                                </p>
+                                <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                                  {result.translatedText}
+                                </p>
+                              </div>
+                            )
+                          })
+                        ) : (
+                          <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 rounded-lg">
+                            <p className="ui-kicker mb-1">
+                              {langLabel(item.targetLang)} · {item.translatedText.length.toLocaleString()} {t.history_chars_result}
+                            </p>
+                            <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                              {item.translatedText}
+                            </p>
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 mt-2">
                         <Button

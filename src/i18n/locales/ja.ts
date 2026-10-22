@@ -579,6 +579,7 @@ const ja: Translations = {
   history_no_results_desc: '別のキーワードを試すか、履歴タブを切り替えてください。',
   history_empty: '履歴がありません',
   history_translate_count: '{n} 件',
+  history_models_count: (count) => `${count}モデル`,
   history_live_count: '{n} セッション',
   history_empty_desc: '翻訳履歴がここに表示されます。',
   history_delete: '削除',

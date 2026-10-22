@@ -653,6 +653,7 @@ export interface Translations {
   history_empty: string
   history_empty_desc: string
   history_translate_count: string
+  history_models_count: (count: number) => string
   history_live_count: string
   history_delete: string
   history_reuse: string

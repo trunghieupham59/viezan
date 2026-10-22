@@ -579,6 +579,7 @@ const en: Translations = {
   history_no_results_desc: 'Try another keyword or switch history tabs.',
   history_empty: 'No history yet',
   history_translate_count: '{n} entries',
+  history_models_count: (count) => `${count} models`,
   history_live_count: '{n} sessions',
   history_empty_desc: 'Your translation history will appear here.',
   history_delete: 'Delete',
