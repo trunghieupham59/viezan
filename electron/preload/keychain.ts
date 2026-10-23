@@ -1,18 +1,18 @@
 /**
- * Keychain preload API — exposes secure API key storage to the renderer.
- * Raw key values NEVER leave the main process.
+ * Keychain preload API — secure API key storage for the renderer. Raw key values
+ * NEVER leave the main process. Shape: `shared/keychainApi.d.ts`.
  */
-import { ipcRenderer } from 'electron'
+import type { KeychainApi } from '../../shared/keychainApi'
+import { KEYCHAIN_CHANNELS } from '../ipc/channels'
+import { invoke } from './contract'
 
-export const keychainSection = {
-  keychain: {
-    save: (provider: string, key: string) =>
-      ipcRenderer.invoke('keychain:save', provider, key),
-    get: (provider: string) =>
-      ipcRenderer.invoke('keychain:get', provider),
-    delete: (provider: string) =>
-      ipcRenderer.invoke('keychain:delete', provider),
-    hasKey: (provider: string) =>
-      ipcRenderer.invoke('keychain:hasKey', provider),
-  },
+const ch = KEYCHAIN_CHANNELS.invoke
+
+export const keychainApi: KeychainApi = {
+  save: invoke(ch.save),
+  get: invoke(ch.get),
+  delete: invoke(ch.delete),
+  hasKey: invoke(ch.hasKey),
 }
+
+export const keychainSection = { keychain: keychainApi }
