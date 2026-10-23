@@ -5,15 +5,6 @@ type ModelTokenRule =
   | { startsWith: string; maxOutputTokens: number }
   | { equals: string; maxOutputTokens: number }
 
-export const CHAT_IPC_CHANNELS = {
-  send: 'chat:send',
-  imageEdit: 'chat:image-edit',
-  imageGenerate: 'chat:image-generate',
-  stream: 'chat:stream',
-  streamEvent: 'chat:stream:event',
-  streamCancel: 'chat:stream:cancel',
-} as const
-
 export const CHAT_PROVIDER_IDS = {
   openai: 'openai',
   claude: 'claude',

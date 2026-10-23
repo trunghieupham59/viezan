@@ -28,7 +28,7 @@
  *     backoff). User cancellation is never retried.
  */
 import type { IpcMain, IpcMainInvokeEvent } from 'electron'
-import { CHAT_IPC_CHANNELS } from './chatConfig'
+import { CHAT_CHANNELS } from './channels'
 import {
   CHAT_IMAGE_EDIT_PROVIDERS,
   CHAT_IMAGE_GENERATE_PROVIDERS,
@@ -187,7 +187,7 @@ function isSenderDestroyed(event: IpcMainInvokeEvent): boolean {
 function sendChatStreamEvent(event: IpcMainInvokeEvent, payload: ChatStreamEvent): boolean {
   if (isSenderDestroyed(event)) return false
   try {
-    event.sender.send(CHAT_IPC_CHANNELS.streamEvent, payload)
+    event.sender.send(CHAT_CHANNELS.event.streamEvent, payload)
     return true
   } catch {
     return false
@@ -213,7 +213,7 @@ export function registerChatHandlers(ipcMain: IpcMain) {
 // ── chat:send ────────────────────────────────────────────────────────────────
 
 function registerChatSendHandler(ipcMain: IpcMain) {
-  ipcMain.handle(CHAT_IPC_CHANNELS.send, async (_event, rawParams: unknown) => {
+  ipcMain.handle(CHAT_CHANNELS.invoke.send, async (_event, rawParams: unknown) => {
     const parsed = parseChatParams(rawParams)
     if (!parsed.ok) return parsed.response
     const {
@@ -251,7 +251,7 @@ function registerChatSendHandler(ipcMain: IpcMain) {
 // ── chat:image-edit ──────────────────────────────────────────────────────────
 
 function registerChatImageEditHandler(ipcMain: IpcMain) {
-  ipcMain.handle(CHAT_IPC_CHANNELS.imageEdit, async (event, rawParams: unknown) => {
+  ipcMain.handle(CHAT_CHANNELS.invoke.imageEdit, async (event, rawParams: unknown) => {
     const parsed = parseChatImageEditParams(rawParams)
     if (!parsed.ok) return parsed.response
     const { provider, model, prompt, imageBase64, imageMimeType } = parsed.value
@@ -284,7 +284,7 @@ function registerChatImageEditHandler(ipcMain: IpcMain) {
 // ── chat:image-generate ───────────────────────────────────────────────────────
 
 function registerChatImageGenerateHandler(ipcMain: IpcMain) {
-  ipcMain.handle(CHAT_IPC_CHANNELS.imageGenerate, async (event, rawParams: unknown) => {
+  ipcMain.handle(CHAT_CHANNELS.invoke.imageGenerate, async (event, rawParams: unknown) => {
     const parsed = parseChatImageGenerateParams(rawParams)
     if (!parsed.ok) return parsed.response
     const { provider, model, prompt } = parsed.value
@@ -317,7 +317,7 @@ function registerChatImageGenerateHandler(ipcMain: IpcMain) {
 // ── chat:stream ──────────────────────────────────────────────────────────────
 
 function registerChatStreamHandler(ipcMain: IpcMain) {
-  ipcMain.handle(CHAT_IPC_CHANNELS.stream, async (event, rawParams: unknown) => {
+  ipcMain.handle(CHAT_CHANNELS.invoke.stream, async (event, rawParams: unknown) => {
     const parsed = parseChatParams(rawParams)
     if (!parsed.ok) return parsed.response
     const {
@@ -443,7 +443,7 @@ function registerChatStreamHandler(ipcMain: IpcMain) {
 // ── chat:stream:cancel ───────────────────────────────────────────────────────
 
 function registerChatStreamCancelHandler(ipcMain: IpcMain) {
-  ipcMain.handle(CHAT_IPC_CHANNELS.streamCancel, async (event, rawParams: unknown) => {
+  ipcMain.handle(CHAT_CHANNELS.invoke.streamCancel, async (event, rawParams: unknown) => {
     if (!isRecord(rawParams) || !isNonEmptyString(rawParams.requestId)) {
       return { success: false, error: 'INVALID_INPUT' }
     }
