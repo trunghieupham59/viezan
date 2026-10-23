@@ -4,7 +4,7 @@ import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeIma
 import type { ThemePreset } from '../shared/theme'
 import { configureApplicationMenu, isDevelopmentRuntime } from './applicationMenu'
 import { createCapabilityRegistry, registerCapabilityHandlers } from './ipc/capabilities'
-import { SUBTITLE_CHANNELS } from './ipc/channels'
+import { QUICK_CHAT_CHANNELS, SUBTITLE_CHANNELS } from './ipc/channels'
 import { registerChatHandlers } from './ipc/chat'
 import { initGlobalHotkey } from './ipc/globalHotkey'
 import { registerImageTranslateHandlers } from './ipc/imageTranslate'
@@ -412,7 +412,7 @@ function createQuickChatWindow(): BrowserWindow {
 
 function sendQuickChatShow(win: BrowserWindow): void {
   if (win.isDestroyed() || win.webContents.isDestroyed()) return
-  win.webContents.send('quick-chat:show')
+  win.webContents.send(QUICK_CHAT_CHANNELS.event.show)
 }
 
 function toggleQuickChatWindow(): void {

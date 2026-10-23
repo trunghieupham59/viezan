@@ -16,6 +16,7 @@ import type { HotkeyApi } from '../../shared/hotkeyApi'
 import type { KeychainApi } from '../../shared/keychainApi'
 import type { LegacyAssistantApi } from '../../shared/legacyAssistantApi'
 import type { LocalServerApi } from '../../shared/localServerApi'
+import type { QuickChatApi } from '../../shared/quickChatApi'
 import type { SubtitleApi } from '../../shared/subtitleApi'
 import type { SystemApi } from '../../shared/systemApi'
 import type { UpdaterApi } from '../../shared/updaterApi'
@@ -141,6 +142,37 @@ if (typeof window !== 'undefined') {
     onStyleUpdate: vi.fn().mockReturnValue(() => {}),
     onClear: vi.fn().mockReturnValue(() => {}),
   }
+  const quickChatApiMock: QuickChatApi = {
+    setLayout: vi.fn().mockResolvedValue({ success: true }),
+    session: {
+      get: vi.fn().mockResolvedValue({ success: true, session: null }),
+      save: vi.fn().mockResolvedValue({ success: true }),
+      clear: vi.fn().mockResolvedValue({ success: true }),
+    },
+    launcher: {
+      listApps: vi.fn().mockResolvedValue({ success: true, apps: [] }),
+      getIcons: vi.fn().mockResolvedValue({ success: true, icons: [] }),
+      onIcons: vi.fn().mockReturnValue(() => {}),
+      openApp: vi.fn().mockResolvedValue({ success: true }),
+      searchWeb: vi.fn().mockResolvedValue({ success: true }),
+      searchFiles: vi.fn().mockResolvedValue({ success: true, files: [] }),
+      openFile: vi.fn().mockResolvedValue({ success: true }),
+      revealFile: vi.fn().mockResolvedValue({ success: true }),
+      convertCurrency: vi.fn().mockResolvedValue({ success: false, errorCode: 'UNAVAILABLE' }),
+      getCurrencyTarget: vi.fn().mockResolvedValue({ success: true, code: null }),
+      setCurrencyTarget: vi.fn().mockResolvedValue({ success: true }),
+    },
+    hide: vi.fn().mockResolvedValue({ success: true }),
+    openSettings: vi.fn().mockResolvedValue({ success: true }),
+    openInChat: vi.fn().mockResolvedValue({ success: true }),
+    openFeature: vi.fn().mockResolvedValue({ success: true }),
+    recordUsage: vi.fn().mockResolvedValue({ success: true }),
+    onUsage: vi.fn().mockReturnValue(() => {}),
+    onShow: vi.fn().mockReturnValue(() => {}),
+    onOpenFeature: vi.fn().mockReturnValue(() => {}),
+    onOpenSettings: vi.fn().mockReturnValue(() => {}),
+    onOpenInChat: vi.fn().mockReturnValue(() => {}),
+  }
   const capabilitiesApiMock: CapabilitiesApi = {
     get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
     request: vi.fn().mockResolvedValue({ success: true, status: { id: 'input.accessibility', supported: true, permission: 'granted' } }),
@@ -213,37 +245,7 @@ if (typeof window !== 'undefined') {
       subtitle: subtitleApiMock,
       capabilities: capabilitiesApiMock,
       hotkey: hotkeyApiMock,
-      quickChat: {
-        setLayout: vi.fn().mockResolvedValue({ success: true }),
-        session: {
-          get: vi.fn().mockResolvedValue({ success: true, session: null }),
-          save: vi.fn().mockResolvedValue({ success: true }),
-          clear: vi.fn().mockResolvedValue({ success: true }),
-        },
-        launcher: {
-          listApps: vi.fn().mockResolvedValue({ success: true, apps: [] }),
-          getIcons: vi.fn().mockResolvedValue({ success: true, icons: [] }),
-          onIcons: vi.fn().mockReturnValue(() => {}),
-          openApp: vi.fn().mockResolvedValue({ success: true }),
-          searchWeb: vi.fn().mockResolvedValue({ success: true }),
-          searchFiles: vi.fn().mockResolvedValue({ success: true, files: [] }),
-          openFile: vi.fn().mockResolvedValue({ success: true }),
-          revealFile: vi.fn().mockResolvedValue({ success: true }),
-          convertCurrency: vi.fn().mockResolvedValue({ success: false, errorCode: 'UNAVAILABLE' }),
-          getCurrencyTarget: vi.fn().mockResolvedValue({ success: true, code: null }),
-          setCurrencyTarget: vi.fn().mockResolvedValue({ success: true }),
-        },
-        hide: vi.fn().mockResolvedValue({ success: true }),
-        openSettings: vi.fn().mockResolvedValue({ success: true }),
-        openInChat: vi.fn().mockResolvedValue({ success: true }),
-        openFeature: vi.fn().mockResolvedValue({ success: true }),
-        recordUsage: vi.fn().mockResolvedValue({ success: true }),
-        onUsage: vi.fn().mockReturnValue(() => {}),
-        onShow: vi.fn().mockReturnValue(() => {}),
-        onOpenFeature: vi.fn().mockReturnValue(() => {}),
-        onOpenSettings: vi.fn().mockReturnValue(() => {}),
-        onOpenInChat: vi.fn().mockReturnValue(() => {}),
-      },
+      quickChat: quickChatApiMock,
       legacyAssistant: legacyAssistantApiMock,
       updater: updaterApiMock,
       localServer: localServerApiMock,

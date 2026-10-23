@@ -114,6 +114,46 @@ export const SUBTITLE_CHANNELS = {
   },
 } as const
 
+export const QUICK_CHAT_CHANNELS = {
+  invoke: {
+    recordUsage: 'quick-chat:record-usage',
+    sessionGet: 'quick-chat:session:get',
+    sessionSave: 'quick-chat:session:save',
+    sessionClear: 'quick-chat:session:clear',
+    setLayout: 'quick-chat:set-layout',
+    hide: 'quick-chat:hide',
+    openSettings: 'quick-chat:open-settings',
+    openInChat: 'quick-chat:open-in-chat',
+    openFeature: 'quick-chat:open-feature',
+  },
+  /** Events pushed to the main window (usage, open-*) or to the popup (show). `openSettings` and `openFeature` are both an invoke from the popup and a push to the main window. */
+  event: {
+    usage: 'quick-chat:usage',
+    show: 'quick-chat:show',
+    openSettings: 'quick-chat:open-settings',
+    openFeature: 'quick-chat:open-feature',
+    openInMainChat: 'quick-chat:open-in-main-chat',
+  },
+} as const
+
+export const LAUNCHER_CHANNELS = {
+  invoke: {
+    listApps: 'launcher:list-apps',
+    getIcons: 'launcher:get-icons',
+    openApp: 'launcher:open-app',
+    searchWeb: 'launcher:search-web',
+    searchFiles: 'launcher:search-files',
+    openFile: 'launcher:open-file',
+    revealFile: 'launcher:reveal-file',
+    convertCurrency: 'launcher:convert-currency',
+    getCurrencyTarget: 'launcher:get-currency-target',
+    setCurrencyTarget: 'launcher:set-currency-target',
+  },
+  event: {
+    icons: 'launcher:icons',
+  },
+} as const
+
 export const CAPABILITY_CHANNELS = {
   invoke: {
     get: 'capabilities:get',
