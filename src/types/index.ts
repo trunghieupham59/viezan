@@ -8,6 +8,7 @@ import type {
 import type { SystemApi } from '../../shared/systemApi'
 import type { UpdateNotificationPreferences } from '../../shared/updateNotification'
 import type { UpdateStatus } from '../../shared/updater'
+import type { WebSearchApi } from '../../shared/webSearchApi'
 
 export type {
   AudioTranscriptionErrorCode,
@@ -180,6 +181,7 @@ export interface TranslateResult {
 }
 
 export type { KeychainApi, KeychainResult } from '../../shared/keychainApi'
+export type { WebSearchApi, WebSearchHit, WebSearchParams, WebSearchResult } from '../../shared/webSearchApi'
 
 export interface VerifyResult {
   success: boolean
@@ -723,7 +725,7 @@ export interface SubtitleSettings {
 // ─── Window API (exposed via contextBridge) ───────────────────────────────────
 
 /** `SystemApi` members (platform, version, openExternal, ...) sit directly on `window.api`; shape: shared/systemApi.d.ts. */
-export interface WindowApi extends SystemApi {
+export interface WindowApi extends SystemApi, WebSearchApi {
   liveInterpretation: import('../../shared/liveInterpretation').LiveInterpretationApi
   /** Secure API key storage; shape: shared/keychainApi.d.ts. */
   keychain: import('../../shared/keychainApi').KeychainApi
@@ -786,29 +788,6 @@ export interface WindowApi extends SystemApi {
    * Returns a cleanup function — call it to unsubscribe.
    */
   onImageModelSwitched: (cb: (data: { model: string; provider: string }) => void) => () => void
-  /** Web search via Tavily → Brave → Jina fallback chain */
-  webSearch: (params: {
-    query: string
-    maxResults?: number
-  }) => Promise<{
-    success: boolean
-    results?: Array<{ title: string; url: string; content: string; score: number }>
-    answer?: string
-    error?: string
-    errorCode?: string
-    /** Which provider actually served the request */
-    provider?: 'tavily' | 'brave' | 'jina'
-    /** Present when a configured provider failed and a lower-priority one answered. */
-    fallback?: { from: 'tavily' | 'brave'; reason: 'auth' | 'quota' | 'error' }
-  }>
-  /**
-   * Verify a web search API key by making a real minimal request.
-   * Must be called BEFORE saving to keychain so the user gets immediate feedback.
-   */
-  webSearchVerify: (params: {
-    provider: 'tavily' | 'brave'
-    apiKey: string
-  }) => Promise<{ valid: boolean; error?: string }>
   chat: (params: {
     provider: string
     model: string

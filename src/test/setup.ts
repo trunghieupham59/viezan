@@ -15,6 +15,7 @@ import type { CapabilitiesApi } from '../../shared/capabilitiesApi'
 import type { HotkeyApi } from '../../shared/hotkeyApi'
 import type { KeychainApi } from '../../shared/keychainApi'
 import type { SystemApi } from '../../shared/systemApi'
+import type { WebSearchApi } from '../../shared/webSearchApi'
 import { useNotificationStore } from '../store/useNotificationStore'
 
 // Toasts live in a module-level store; drop them between tests so one test's
@@ -92,6 +93,10 @@ if (typeof window !== 'undefined') {
     delete: vi.fn().mockResolvedValue({ success: true }),
     hasKey: vi.fn().mockResolvedValue({ exists: false }),
   }
+  const webSearchApiMock: WebSearchApi = {
+    webSearch: vi.fn().mockResolvedValue({ success: false, results: [] }),
+    webSearchVerify: vi.fn().mockResolvedValue({ valid: false }),
+  }
   const capabilitiesApiMock: CapabilitiesApi = {
     get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
     request: vi.fn().mockResolvedValue({ success: true, status: { id: 'input.accessibility', supported: true, permission: 'granted' } }),
@@ -159,6 +164,7 @@ if (typeof window !== 'undefined') {
       installOllama: vi.fn().mockResolvedValue({ success: false }),
       verifyKey: vi.fn().mockResolvedValue({ success: false }),
       ...systemApiMock,
+      ...webSearchApiMock,
       keychain: keychainApiMock,
       subtitle: {
         show: vi.fn().mockResolvedValue(undefined),

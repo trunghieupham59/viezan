@@ -44,6 +44,15 @@ export const KEYCHAIN_CHANNELS = {
   },
 } as const
 
+export const WEBSEARCH_CHANNELS = {
+  invoke: {
+    search: 'websearch:search',
+    verify: 'websearch:verify',
+    /** Provider configuration status; served by main, not exposed on window.api today. */
+    status: 'websearch:status',
+  },
+} as const
+
 export const CAPABILITY_CHANNELS = {
   invoke: {
     get: 'capabilities:get',
