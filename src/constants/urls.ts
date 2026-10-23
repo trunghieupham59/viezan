@@ -14,6 +14,10 @@ export const GITHUB_RELEASES_URL =
 export const MACOS_SCREEN_RECORDING_PREFS =
   'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
 
+/** macOS System Settings deep-link to Accessibility privacy settings (Quick Translate keystrokes). */
+export const MACOS_ACCESSIBILITY_PREFS =
+  'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
+
 /** Jina AI homepage — used in ApiKeysSection for the web search docs link. */
 export const JINA_DOCS_URL = 'https://jina.ai'
 

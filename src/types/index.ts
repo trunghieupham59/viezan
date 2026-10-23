@@ -960,15 +960,23 @@ export interface WindowApi {
       provider?: string
       model?: string
       sourceLang?: string
+      /** Primary language of the auto-swap pair. */
       targetLang?: string
+      /** Secondary language of the pair; '' turns the pair off. */
+      secondaryLang?: string
       /** UI language for the floating hotkey indicator strings. */
       uiLanguage?: 'vi' | 'en' | 'ja'
     }) => Promise<{ success: boolean; settings?: Record<string, unknown>; error?: string; errorCode?: 'INVALID' | 'IN_USE' | 'CONFLICT' | string }>
     get: () => Promise<{ success: boolean; settings?: Record<string, unknown> }>
     disable: () => Promise<{ success: boolean }>
-    onTranslating: (cb: (data: { text: string }) => void) => () => void
-    onTranslated: (cb: (data: { original: string; translated: string }) => void) => () => void
-    onError: (cb: (data: { error: string }) => void) => () => void
+    onTranslating: (cb: (data: { text: string; targetLang: string | null }) => void) => () => void
+    onTranslated: (cb: (data: { original: string; translated: string; targetLang: string | null }) => void) => () => void
+    onError: (cb: (data: { error: string; errorCode?: string }) => void) => () => void
+    /** macOS Accessibility permission for the copy/paste keystrokes. */
+    accessibility: {
+      get: () => Promise<{ success: boolean; required: boolean; granted: boolean }>
+      request: () => Promise<{ success: boolean; required: boolean; granted: boolean }>
+    }
     /** AI Chat quick-ask hotkey — opens a popup in the renderer */
     chat: {
       update: (settings: { hotkey?: string; enabled?: boolean }) =>

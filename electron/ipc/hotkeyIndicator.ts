@@ -1,6 +1,11 @@
 import { BrowserWindow, nativeTheme, screen } from 'electron'
 
-export type HotkeyIndicatorState = 'busy' | 'copying' | 'translating' | 'done' | 'warning' | 'error'
+export type HotkeyIndicatorState =
+  | 'busy' | 'copying' | 'translating' | 'done' | 'warning' | 'error'
+  /** macOS Accessibility access is missing, so no keystroke can be sent. */
+  | 'permission'
+  /** The OS copy keystroke helper failed (not the same as an empty selection). */
+  | 'copy-failed'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 // The indicator is a standalone data: URL window, so it cannot load
@@ -62,6 +67,8 @@ const INDICATOR_COPY: Record<HotkeyIndicatorLanguage, IndicatorCopy> = {
       done: 'Đã thay thế văn bản.',
       warning: 'Không có văn bản được chọn.',
       error: 'Không thể dịch văn bản.',
+      permission: 'Cần cấp quyền Trợ năng cho Viezan trong Cài đặt hệ thống.',
+      'copy-failed': 'Không gửi được lệnh sao chép tới ứng dụng đang mở.',
     },
   },
   en: {
@@ -73,6 +80,8 @@ const INDICATOR_COPY: Record<HotkeyIndicatorLanguage, IndicatorCopy> = {
       done: 'Text replaced.',
       warning: 'No text is selected.',
       error: 'Could not translate the text.',
+      permission: 'Grant Viezan Accessibility access in System Settings.',
+      'copy-failed': 'Could not send the copy command to the active app.',
     },
   },
   ja: {
@@ -84,6 +93,8 @@ const INDICATOR_COPY: Record<HotkeyIndicatorLanguage, IndicatorCopy> = {
       done: 'テキストを置き換えました。',
       warning: 'テキストが選択されていません。',
       error: 'テキストを翻訳できませんでした。',
+      permission: 'システム設定でViezanにアクセシビリティの権限を付与してください。',
+      'copy-failed': 'アクティブなアプリにコピーコマンドを送信できませんでした。',
     },
   },
 }
@@ -96,8 +107,34 @@ const INDICATOR_MARKS: Record<HotkeyIndicatorState, string> = {
   done: '✓',
   warning: '!',
   error: '!',
+  permission: '!',
+  'copy-failed': '!',
 }
 const IN_PROGRESS_STATES: ReadonlySet<HotkeyIndicatorState> = new Set(['copying', 'translating'])
+
+/** "Translating into {lang}..." per UI language; `{lang}` is the target language's display name. */
+const TRANSLATING_INTO_COPY: Record<HotkeyIndicatorLanguage, string> = {
+  vi: 'Đang dịch sang {lang}...',
+  en: 'Translating into {lang}...',
+  ja: '{lang}に翻訳しています...',
+}
+
+/** Display name of a language code in the indicator language (falls back to the code). */
+function languageDisplayName(code: string): string {
+  try {
+    return new Intl.DisplayNames([indicatorLanguage], { type: 'language' }).of(code) ?? code
+  } catch {
+    return code
+  }
+}
+
+/**
+ * The in-progress message that names the direction the language pair picked, e.g.
+ * "Đang dịch sang Tiếng Anh...". Pass it as the `message` of the `translating` state.
+ */
+export function translatingIntoMessage(targetLang: string): string {
+  return TRANSLATING_INTO_COPY[indicatorLanguage].replace('{lang}', languageDisplayName(targetLang))
+}
 
 export function isHotkeyIndicatorLanguage(value: unknown): value is HotkeyIndicatorLanguage {
   return value === 'vi' || value === 'en' || value === 'ja'
@@ -225,15 +262,19 @@ ${cssVariables(INDICATOR_COLORS.light)}
 
     body[data-state="done"] .mark::after,
     body[data-state="warning"] .mark::after,
+    body[data-state="permission"] .mark::after,
+    body[data-state="copy-failed"] .mark::after,
     body[data-state="error"] .mark::after {
       animation: none;
       opacity: 0.32;
     }
 
-    body[data-state="warning"] .mark {
+    body[data-state="warning"] .mark,
+    body[data-state="permission"] .mark {
       background: var(--vzn-warning);
     }
 
+    body[data-state="copy-failed"] .mark,
     body[data-state="error"] .mark {
       background: var(--vzn-danger);
     }

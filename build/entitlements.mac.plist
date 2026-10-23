@@ -24,6 +24,10 @@
     <key>com.apple.security.network.server</key>
     <true/>
 
+    <!-- Apple Events to System Events (Quick Translate copy/paste keystrokes) -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+
     <!-- Microphone access (for voice input feature) -->
     <key>com.apple.security.device.audio-input</key>
     <true/>

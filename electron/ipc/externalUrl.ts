@@ -3,9 +3,13 @@ import { isIP } from 'node:net'
 const GITHUB_RELEASES_PATH = '/trunghieupham59/viezan/releases'
 const MACOS_SCREEN_RECORDING_PREFS =
   'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
+/** Privacy & Security > Accessibility: required for the Quick Translate keystrokes. */
+export const MACOS_ACCESSIBILITY_PREFS =
+  'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
 
 const ALLOWED_SYSTEM_PREFERENCE_URLS = new Set([
   MACOS_SCREEN_RECORDING_PREFS,
+  MACOS_ACCESSIBILITY_PREFS,
 ])
 
 const BLOCKED_HOST_SUFFIXES = [

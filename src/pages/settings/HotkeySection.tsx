@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/atoms'
 import { ToggleSwitch } from '../../components/ui/atoms'
 import { HotkeyRecordButton } from '../../components/ui/HotkeyRecordButton'
 import { XIcon } from '../../components/ui/icons'
+import { SelectField } from '../../components/ui/molecules'
+import { TARGET_LANGUAGES } from '../../constants/providers'
 import { STATUS_RESET_DELAY_MS, STATUS_RESET_LONG_MS } from '../../constants/ui'
 import { useAppStore, useT } from '../../store/useAppStore'
 import { useNotificationStore } from '../../store/useNotificationStore'
@@ -13,6 +15,8 @@ const HOTKEY_ERROR_KEY = 'settings-hotkey-register'
 const HOTKEY_RUN_KEY = 'settings-hotkey-run'
 const CHAT_HOTKEY_ERROR_KEY = 'settings-chat-hotkey-register'
 const getDefaultChatHotkey = () => window.api?.platform === 'darwin' ? 'Command+Space' : 'Alt+Space'
+const isTargetLanguage = (value: unknown): value is string =>
+  typeof value === 'string' && TARGET_LANGUAGES.some((language) => language.code === value)
 
 const KEY_MAP: Record<string, string> = {
   ' ': 'Space', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right',
@@ -31,13 +35,21 @@ export function HotkeySection() {
   const [hotkeyEnabled, setHotkeyEnabled] = useState(false)
   const [hotkeyValue, setHotkeyValue] = useState('')
   const [isRecording, setIsRecording] = useState(false)
+  /** Quick Translate's own language pair, persisted by the main process. */
+  const [hotkeyTargetLang, setHotkeyTargetLang] = useState('')
+  /** '' = pair off (always translate into the primary language); null = not loaded yet. */
+  const [hotkeySecondaryLang, setHotkeySecondaryLang] = useState<string | null>(null)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
+  const [accessibility, setAccessibility] = useState<{ required: boolean; granted: boolean } | null>(null)
   const notify = useNotificationStore((state) => state.notify)
   const dismissNotification = useNotificationStore((state) => state.dismiss)
   const hotkeyInputRef = useRef<HTMLButtonElement>(null)
 
   const hotkeyProvider = selectedProvider
   const hotkeyModel = selectedModels[selectedProvider]
-  const hotkeyTargetLang = targetLang
+  // The persisted value wins; a fresh install starts from the Translate page's target.
+  const effectiveTargetLang = isTargetLanguage(hotkeyTargetLang) ? hotkeyTargetLang : targetLang
+  const effectiveSecondaryLang = hotkeySecondaryLang !== null && hotkeySecondaryLang !== effectiveTargetLang ? hotkeySecondaryLang : ''
 
   // Load saved hotkey settings on mount
   useEffect(() => {
@@ -47,10 +59,43 @@ export function HotkeySection() {
         const s = res.settings
         setHotkeyEnabled(s.enabled === true)
         setHotkeyValue(typeof s.hotkey === 'string' && s.hotkey ? s.hotkey : DEFAULT_HOTKEY)
+        if (isTargetLanguage(s.targetLang)) setHotkeyTargetLang(s.targetLang)
+        setHotkeySecondaryLang(isTargetLanguage(s.secondaryLang) ? s.secondaryLang : '')
       } else {
         setHotkeyValue(DEFAULT_HOTKEY)
       }
+      setSettingsLoaded(true)
     })
+  }, [])
+
+  // macOS Accessibility permission: checked on mount and whenever the window regains
+  // focus, since the user grants it in System Settings and comes back.
+  const refreshAccessibility = useCallback(async () => {
+    const api = window.api?.hotkey?.accessibility
+    if (!api) return
+    try {
+      const res = await api.get()
+      if (res?.success) setAccessibility({ required: res.required, granted: res.granted })
+    } catch {
+      /* keep the last known status */
+    }
+  }, [])
+
+  useEffect(() => {
+    refreshAccessibility()
+    window.addEventListener('focus', refreshAccessibility)
+    return () => window.removeEventListener('focus', refreshAccessibility)
+  }, [refreshAccessibility])
+
+  const requestAccessibility = useCallback(async () => {
+    const api = window.api?.hotkey?.accessibility
+    if (!api) return
+    try {
+      const res = await api.request()
+      if (res?.success) setAccessibility({ required: res.required, granted: res.granted })
+    } catch {
+      /* the focus listener re-checks when the user returns */
+    }
   }, [])
 
   // Listen for hotkey feedback events from main process
@@ -59,11 +104,19 @@ export function HotkeySection() {
     const unsub1 = window.api.hotkey.onTranslating(() => {
       notify({ key: HOTKEY_RUN_KEY, tone: 'info', message: t.settings_hotkey_status_translating, durationMs: null, dismissible: false })
     })
-    const unsub2 = window.api.hotkey.onTranslated(() => {
-      notify({ key: HOTKEY_RUN_KEY, tone: 'success', message: t.settings_hotkey_status_done, durationMs: STATUS_RESET_DELAY_MS })
+    const unsub2 = window.api.hotkey.onTranslated((data: { targetLang?: string | null }) => {
+      // Name the direction the language pair picked so an unexpected result is explainable.
+      const langName = data?.targetLang ? (t.lang_names[data.targetLang] ?? data.targetLang) : null
+      const message = langName ? t.settings_hotkey_status_done_into.replace('{lang}', langName) : t.settings_hotkey_status_done
+      notify({ key: HOTKEY_RUN_KEY, tone: 'success', message, durationMs: STATUS_RESET_DELAY_MS })
     })
-    const unsub3 = window.api.hotkey.onError((data: { error: string }) => {
-      notify({ key: HOTKEY_RUN_KEY, tone: 'error', message: data?.error ?? t.settings_hotkey_status_error, durationMs: STATUS_RESET_LONG_MS })
+    const unsub3 = window.api.hotkey.onError((data: { error: string; errorCode?: string }) => {
+      // Known failure codes get a localized explanation; anything else shows the backend message.
+      const message = data?.errorCode === 'ACCESSIBILITY_DENIED' ? t.settings_hotkey_error_accessibility
+        : data?.errorCode === 'COPY_FAILED' ? t.settings_hotkey_error_copy_failed
+        : data?.error ?? t.settings_hotkey_status_error
+      if (data?.errorCode === 'ACCESSIBILITY_DENIED') setAccessibility({ required: true, granted: false })
+      notify({ key: HOTKEY_RUN_KEY, tone: 'error', message, durationMs: STATUS_RESET_LONG_MS })
     })
     return () => { unsub1(); unsub2(); unsub3() }
   }, [t, notify])
@@ -75,7 +128,8 @@ export function HotkeySection() {
       enabled: hotkeyEnabled,
       provider: hotkeyProvider,
       model: hotkeyModel,
-      targetLang: hotkeyTargetLang,
+      targetLang: effectiveTargetLang,
+      secondaryLang: effectiveSecondaryLang,
       uiLanguage: locale,
       ...overrides,
     }
@@ -94,7 +148,7 @@ export function HotkeySection() {
     } else {
       dismissNotification(HOTKEY_ERROR_KEY)
     }
-  }, [hotkeyValue, hotkeyEnabled, hotkeyProvider, hotkeyModel, hotkeyTargetLang, locale, notify, dismissNotification])
+  }, [hotkeyValue, hotkeyEnabled, hotkeyProvider, hotkeyModel, effectiveTargetLang, effectiveSecondaryLang, locale, notify, dismissNotification])
 
   // Convert a KeyboardEvent to an Electron accelerator string
   const keyEventToAccelerator = (e: React.KeyboardEvent): string => {
@@ -110,12 +164,36 @@ export function HotkeySection() {
     return parts.join('+')
   }
 
-  // Auto-sync hotkey settings to backend whenever store values change
+  // Provider, model and UI language follow the app; push them once the persisted
+  // settings are loaded and again whenever they change. The target language is
+  // Quick Translate's own and is saved from its selector below.
   // biome-ignore lint/correctness/useExhaustiveDependencies: saveHotkeySettings is stable via useCallback; hotkeyEnabled/hotkeyValue accessed inside
   useEffect(() => {
-    if (!window.api?.hotkey || !hotkeyValue) return
+    if (!window.api?.hotkey || !settingsLoaded || !hotkeyValue) return
     saveHotkeySettings()
-  }, [hotkeyProvider, hotkeyModel, hotkeyTargetLang, locale])
+  }, [settingsLoaded, hotkeyProvider, hotkeyModel, locale])
+
+  const languageOptions = TARGET_LANGUAGES.map((language) => {
+    const label = t.lang_names[language.code] ?? language.name
+    return { value: language.code, label, description: language.nativeName !== label ? language.nativeName : undefined }
+  })
+  const secondaryLanguageOptions = [
+    { value: '', label: t.settings_hotkey_secondary_off },
+    ...languageOptions.filter((option) => option.value !== effectiveTargetLang),
+  ]
+
+  const selectPrimaryLang = (lang: string) => {
+    // Picking the current secondary as primary swaps the pair instead of collapsing it.
+    const secondary = lang === effectiveSecondaryLang ? effectiveTargetLang : effectiveSecondaryLang
+    setHotkeyTargetLang(lang)
+    setHotkeySecondaryLang(secondary)
+    saveHotkeySettings({ targetLang: lang, secondaryLang: secondary })
+  }
+
+  const selectSecondaryLang = (lang: string) => {
+    setHotkeySecondaryLang(lang)
+    saveHotkeySettings({ secondaryLang: lang })
+  }
 
   const handleHotkeyKeyDown = (e: React.KeyboardEvent) => {
     e.preventDefault()
@@ -258,6 +336,52 @@ export function HotkeySection() {
             </div>
           </div>
         </div>
+
+        {/* Language pair — Quick Translate's own, independent of the Translate page */}
+        <div className="px-4 py-3.5 space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SelectField
+              label={t.settings_hotkey_primary_lang}
+              value={effectiveTargetLang}
+              options={languageOptions}
+              onChange={selectPrimaryLang}
+            />
+            <SelectField
+              label={t.settings_hotkey_secondary_lang}
+              value={effectiveSecondaryLang}
+              options={secondaryLanguageOptions}
+              onChange={selectSecondaryLang}
+            />
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {effectiveSecondaryLang ? t.settings_hotkey_pair_desc : t.settings_hotkey_pair_off_desc}
+          </p>
+        </div>
+
+        {/* macOS Accessibility permission */}
+        {accessibility?.required && (
+          <div className="flex items-center justify-between gap-4 px-4 py-3.5" role="status">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_hotkey_accessibility_title}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {accessibility.granted ? t.settings_hotkey_accessibility_granted : t.settings_hotkey_accessibility_missing}
+              </p>
+            </div>
+            {!accessibility.granted && (
+              <Button
+                size="md"
+                shape="rect"
+                variant="primary"
+                appearance="outline"
+                type="button"
+                className="flex-shrink-0"
+                onClick={requestAccessibility}
+              >
+                {t.settings_hotkey_accessibility_open}
+              </Button>
+            )}
+          </div>
+        )}
 
       </div>
 

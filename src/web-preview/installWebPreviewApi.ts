@@ -118,7 +118,7 @@ function createWebPreviewApi(): WindowApi {
     subtitle: { show: async () => undefined, hide: async () => undefined, update: async () => undefined, setStyle: async () => undefined, setSourceText: async () => undefined, pushState: async () => undefined, onClosed: noopSubscription, onStart: noopSubscription, onStop: noopSubscription, onSetProvider: noopSubscription, onSetModel: noopSubscription, onSetAudioMode: noopSubscription, onSetTargetLang: noopSubscription, onStyleUpdate: noopSubscription, onClear: noopSubscription },
     platform: 'web',
     version: 'web-preview',
-    hotkey: { update: async (settings: Record<string, unknown>) => ({ success: true, settings }), get: async () => ({ success: true, settings: {} }), disable: ok, onTranslating: noopSubscription, onTranslated: noopSubscription, onError: noopSubscription, chat: { update: async (settings: Record<string, unknown>) => ({ success: true, settings }), get: async () => ({ success: true, settings: {} }), onOpen: noopSubscription } },
+    hotkey: { update: async (settings: Record<string, unknown>) => ({ success: true, settings }), get: async () => ({ success: true, settings: {} }), disable: ok, onTranslating: noopSubscription, onTranslated: noopSubscription, onError: noopSubscription, accessibility: { get: async () => ({ success: true, required: false, granted: true }), request: async () => ({ success: true, required: false, granted: true }) }, chat: { update: async (settings: Record<string, unknown>) => ({ success: true, settings }), get: async () => ({ success: true, settings: {} }), onOpen: noopSubscription } },
     quickChat: {
       setLayout: ok,
       session: {

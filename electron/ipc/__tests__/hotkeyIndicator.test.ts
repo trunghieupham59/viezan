@@ -139,6 +139,29 @@ describe('hotkey indicator', () => {
     expect(html).toContain('prefers-color-scheme: dark')
   })
 
+  it('has dedicated copy for the permission and copy-failure states', async () => {
+    mod.setHotkeyIndicatorLanguage('en')
+    mod.showHotkeyIndicator('permission')
+    const [win] = fake.windows
+    expect(win.scripts[win.scripts.length - 1]).toContain('Accessibility access')
+
+    mod.showHotkeyIndicator('copy-failed')
+    expect(win.scripts[win.scripts.length - 1]).toContain('copy command')
+    const html = decodeURIComponent(win.urls[0].split(',')[1])
+    expect(html).toContain('data-state="permission"')
+    expect(html).toContain('data-state="copy-failed"')
+  })
+
+  it('names the pair direction in the translating message', () => {
+    mod.setHotkeyIndicatorLanguage('vi')
+    expect(mod.translatingIntoMessage('en')).toBe('Đang dịch sang Tiếng Anh...')
+    mod.setHotkeyIndicatorLanguage('en')
+    expect(mod.translatingIntoMessage('vi')).toBe('Translating into Vietnamese...')
+    expect(mod.translatingIntoMessage('zh-TW')).toContain('Chinese')
+    mod.setHotkeyIndicatorLanguage('ja')
+    expect(mod.translatingIntoMessage('en')).toBe('英語に翻訳しています...')
+  })
+
   it('validates indicator languages', () => {
     expect(mod.isHotkeyIndicatorLanguage('ja')).toBe(true)
     expect(mod.isHotkeyIndicatorLanguage('fr')).toBe(false)
