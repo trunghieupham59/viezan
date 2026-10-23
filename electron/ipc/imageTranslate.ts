@@ -1,4 +1,5 @@
 import type { IpcMain } from 'electron'
+import { IMAGE_TRANSLATE_CHANNELS } from './channels'
 import {
   blockedSafetyError,
   classifyProviderError,
@@ -766,7 +767,7 @@ const IMAGE_TRANSLATE_CANCELLED_MESSAGE = 'image-translate-cancelled'
 const activeImageTranslateControllers = new Map<string, AbortController>()
 
 export function registerImageTranslateHandlers(ipcMain: IpcMain) {
-  ipcMain.handle('image:translate:cancel', async (_event, rawParams: unknown) => {
+  ipcMain.handle(IMAGE_TRANSLATE_CHANNELS.invoke.cancel, async (_event, rawParams: unknown) => {
     if (!isRecord(rawParams) || !isNonEmptyString(rawParams.requestId)) {
       return { success: false, error: 'INVALID_INPUT' }
     }
@@ -777,7 +778,7 @@ export function registerImageTranslateHandlers(ipcMain: IpcMain) {
     return { success: true }
   })
 
-  ipcMain.handle('image:translate', async (event, rawParams: unknown) => {
+  ipcMain.handle(IMAGE_TRANSLATE_CHANNELS.invoke.translate, async (event, rawParams: unknown) => {
     const parsed = parseImageTranslateParams(rawParams)
     if (!parsed.ok) return parsed.response
     const params = parsed.value
@@ -866,7 +867,7 @@ export function registerImageTranslateHandlers(ipcMain: IpcMain) {
         // Guard against destroyed sender (window closed mid-fallback).
         if (m !== model || p !== provider) {
           if (!event.sender.isDestroyed()) {
-            event.sender.send('image:model-switched', { model: m, provider: p })
+            event.sender.send(IMAGE_TRANSLATE_CHANNELS.event.modelSwitched, { model: m, provider: p })
           }
           console.info(`Image translate: switching to ${p}/${m} (requested: ${provider}/${model})`)
         }

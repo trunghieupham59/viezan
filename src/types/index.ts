@@ -1,4 +1,5 @@
 import type { AudioApi } from '../../shared/audioApi'
+import type { ChatApi } from '../../shared/chatApi'
 import type { SystemApi } from '../../shared/systemApi'
 import type { WebSearchApi } from '../../shared/webSearchApi'
 
@@ -171,6 +172,23 @@ export interface TranslateResult {
 }
 
 export type { AudioApi, SpeakTextParams, TtsMode, TtsResult, TtsVoice } from '../../shared/audioApi'
+export type {
+  ChatApi,
+  ChatContentPart,
+  ChatErrorCode,
+  ChatImageEditParams,
+  ChatImageEditResult,
+  ChatImageGenerateParams,
+  ChatParams,
+  ChatRequestMessage,
+  ChatResult,
+  ChatStreamEvent,
+  ChatStreamParams,
+  ImageModelSwitchedEvent,
+  ImageTextRegion,
+  ImageTranslateParams,
+  ImageTranslateResult,
+} from '../../shared/chatApi'
 export type { KeychainApi, KeychainResult } from '../../shared/keychainApi'
 export type { LegacyAssistantApi } from '../../shared/legacyAssistantApi'
 export type { LocalServerApi, LocalServerTokenResult, LocalServerTokenSummary } from '../../shared/localServerApi'
@@ -268,41 +286,6 @@ export interface LocalAiInstallResult {
   message?: string
   output?: string
   manual?: boolean
-}
-
-export interface ImageTextRegion {
-  x: number        // 0.0–1.0 fraction of image width
-  y: number        // 0.0–1.0 fraction of image height
-  width: number    // 0.0–1.0 fraction of image width
-  height: number   // 0.0–1.0 fraction of image height
-  originalText: string
-  translatedText: string
-  fontSize: number  // 0.0–1.0 fraction of image height
-  bgColor: string
-  textColor: string
-}
-
-export interface ImageTranslateResult {
-  success: boolean
-  regions?: ImageTextRegion[]
-  /** base64 of the fully edited image (returned when Gemini image-edit is used) */
-  editedImageBase64?: string
-  /** MIME type of `editedImageBase64` as returned by the model (may differ from the source image). */
-  editedImageMimeType?: string
-  /** Providers with a stored key that were not tried because provider fallback was off (NO_VISION). */
-  fallbackProviders?: string[]
-  error?: string
-  errorCode?: 'NO_API_KEY' | 'INVALID_KEY' | 'RATE_LIMIT' | 'NO_VISION' | string
-  /**
-   * Set when a different model was automatically used due to vision-capability fallback.
-   * Only present when the effective model differs from what the user selected.
-   */
-  usedModel?: string
-  /**
-   * Set when a different provider was automatically used due to vision-capability fallback.
-   * Only present when the effective provider differs from what the user selected.
-   */
-  usedProvider?: string
 }
 
 export interface FetchModelsResult {
@@ -514,35 +497,6 @@ export interface ChatSession extends AIModelSelection {
 }
 
 
-export interface ChatResult {
-  success: boolean
-  reply?: string
-  /** Model that actually answered when the provider fell back from the requested one. */
-  usedModel?: string
-  error?: string
-  errorCode?: 'NO_API_KEY' | 'INVALID_KEY' | 'RATE_LIMIT' | 'NETWORK' | 'TIMEOUT' | 'EMPTY_RESPONSE' | 'BLOCKED_RECITATION' | 'BLOCKED_SAFETY' | 'MODEL_REFUSAL' | string
-}
-
-export interface ChatImageEditResult {
-  success: boolean
-  imageBase64?: string
-  imageMimeType?: string
-  usedProvider?: string
-  usedModel?: string
-  error?: string
-  errorCode?: 'NO_API_KEY' | 'INVALID_KEY' | 'RATE_LIMIT' | 'NETWORK' | 'TIMEOUT' | 'EMPTY_RESPONSE' | 'BLOCKED_RECITATION' | 'BLOCKED_SAFETY' | 'MODEL_REFUSAL' | 'NO_IMAGE_EDIT' | string
-}
-
-export interface ChatStreamEvent {
-  requestId: string
-  type: 'start' | 'token' | 'end' | 'error'
-  token?: string
-  reply?: string
-  usedModel?: string
-  error?: string
-  errorCode?: 'NO_API_KEY' | 'INVALID_KEY' | 'RATE_LIMIT' | 'NETWORK' | 'TIMEOUT' | 'EMPTY_RESPONSE' | 'BLOCKED_RECITATION' | 'BLOCKED_SAFETY' | 'MODEL_REFUSAL' | string
-}
-
 export type { QuickChatApi, QuickChatLayout, QuickChatSeedPayload } from '../../shared/quickChatApi'
 
 // ─── Dictionary types ────────────────────────────────────────────────────────
@@ -701,7 +655,7 @@ export interface SubtitleSettings {
 // ─── Window API (exposed via contextBridge) ───────────────────────────────────
 
 /** `SystemApi` members (platform, version, openExternal, ...) sit directly on `window.api`; shape: shared/systemApi.d.ts. */
-export interface WindowApi extends SystemApi, WebSearchApi, AudioApi {
+export interface WindowApi extends SystemApi, WebSearchApi, AudioApi, ChatApi {
   /** Secure API key storage; shape: shared/keychainApi.d.ts. */
   keychain: import('../../shared/keychainApi').KeychainApi
   fetchModels: (provider: string) => Promise<FetchModelsResult>
@@ -736,99 +690,6 @@ export interface WindowApi extends SystemApi, WebSearchApi, AudioApi {
     model: string
     text: string
   }) => Promise<{ success: boolean; lang?: string; error?: string }>
-  translateImage: (params: {
-    provider: string
-    model: string
-    requestId?: string
-    imageBase64: string
-    imageMimeType: string
-    sourceLang: string
-    targetLang: string
-    /** Opt-in: allow uploading the image to another provider that has a stored key. */
-    allowProviderFallback?: boolean
-  }) => Promise<ImageTranslateResult>
-  /**
-   * Subscribe to model/provider switch events pushed during image translation fallback.
-   * Fired immediately when the system decides to try a different model (before translation completes).
-   * Returns a cleanup function — call it to unsubscribe.
-   */
-  onImageModelSwitched: (cb: (data: { model: string; provider: string }) => void) => () => void
-  chat: (params: {
-    provider: string
-    model: string
-    messages: Array<{
-      role: 'user' | 'assistant'
-      content: Array<{
-        type: 'text' | 'image'
-        text?: string
-        imageBase64?: string
-        imageMimeType?: string
-      }>
-    }>
-    systemPrompt?: string
-    /** Bypass the 3k char limit — only set true for AI Summarize on long transcripts */
-    bypassLengthCheck?: boolean
-    /** Optional larger output budget for long-form synthesis calls */
-    maxOutputTokens?: number | 'model-max'
-    /**
-     * When true, the main process injects the "REASONING DISCIPLINE" directive
-     * into the system prompt so the provider walks through math step-by-step
-     * and self-checks the answer against every stated constraint. Used by the
-     * Chat composer's "Careful Reasoning" toggle.
-     */
-    carefulReasoning?: boolean
-  }) => Promise<ChatResult>
-  editChatImage?: (params: {
-    requestId?: string
-    provider: string
-    model: string
-    prompt: string
-    imageBase64: string
-    imageMimeType: string
-  }) => Promise<ChatImageEditResult>
-  generateChatImage?: (params: {
-    requestId?: string
-    provider: string
-    model: string
-    prompt: string
-  }) => Promise<ChatImageEditResult>
-  chatStream: (params: {
-    requestId: string
-    provider: string
-    model: string
-    messages: Array<{
-      role: 'user' | 'assistant'
-      content: Array<{
-        type: 'text' | 'image'
-        text?: string
-        imageBase64?: string
-        imageMimeType?: string
-      }>
-    }>
-    systemPrompt?: string
-    /** Bypass the 3k char limit — only set true for AI Summarize on long transcripts */
-    bypassLengthCheck?: boolean
-    /** Optional larger output budget for long-form synthesis calls */
-    maxOutputTokens?: number | 'model-max'
-    /**
-     * When true, the main process injects the "REASONING DISCIPLINE" directive
-     * into the system prompt so the provider walks through math step-by-step
-     * and self-checks the answer against every stated constraint. Used by the
-     * Chat composer's "Careful Reasoning" toggle.
-     */
-    carefulReasoning?: boolean
-  }) => Promise<ChatResult>
-  /**
-   * Cancel an in-flight chat stream by `requestId`. The renderer calls this
-
-   * when the user clicks the Stop button in chat input. The main-process
-   * handler aborts the underlying provider request, so token streaming halts
-   * almost immediately. Resolves with `{ success: true }` when the cancel
-   * signal was delivered, or `{ success: false, error }` when the requestId
-   * was not found (e.g. stream already finished).
-   */
-  chatStreamCancel?: (params: { requestId: string }) => Promise<{ success: boolean; error?: string }>
-  onChatStreamEvent: (requestId: string, cb: (event: ChatStreamEvent) => void) => () => void
   /**
    * Streaming translation — each AI token is pushed directly to the subtitle
    * window in real-time. Returns the full translated text when complete.

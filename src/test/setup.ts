@@ -13,6 +13,7 @@ import '@testing-library/jest-dom/vitest'
 import { afterEach, vi } from 'vitest'
 import type { AudioApi } from '../../shared/audioApi'
 import type { CapabilitiesApi } from '../../shared/capabilitiesApi'
+import type { ChatApi } from '../../shared/chatApi'
 import type { HotkeyApi } from '../../shared/hotkeyApi'
 import type { KeychainApi } from '../../shared/keychainApi'
 import type { LegacyAssistantApi } from '../../shared/legacyAssistantApi'
@@ -193,6 +194,16 @@ if (typeof window !== 'undefined') {
     speakText: vi.fn().mockResolvedValue({ success: false }),
     checkSttProviders: vi.fn().mockResolvedValue({ best: null, available: [] }),
   }
+  const chatApiMock: ChatApi = {
+    translateImage: vi.fn().mockResolvedValue({ success: false }),
+    onImageModelSwitched: vi.fn().mockReturnValue(() => {}),
+    chat: vi.fn().mockResolvedValue({ success: false }),
+    editChatImage: vi.fn().mockResolvedValue({ success: false }),
+    generateChatImage: vi.fn().mockResolvedValue({ success: false }),
+    chatStream: vi.fn().mockResolvedValue({ success: false }),
+    chatStreamCancel: vi.fn().mockResolvedValue({ success: false }),
+    onChatStreamEvent: vi.fn().mockReturnValue(() => {}),
+  }
   const capabilitiesApiMock: CapabilitiesApi = {
     get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
     request: vi.fn().mockResolvedValue({ success: true, status: { id: 'input.accessibility', supported: true, permission: 'granted' } }),
@@ -225,12 +236,8 @@ if (typeof window !== 'undefined') {
       translate: vi.fn().mockResolvedValue({ success: false }),
       cancelTranslate: vi.fn().mockResolvedValue({ success: false, error: 'NOT_FOUND' }),
       rewriteText: vi.fn().mockResolvedValue({ success: false }),
-      translateImage: vi.fn().mockResolvedValue({ success: false }),
+      ...chatApiMock,
       translateStream: vi.fn().mockResolvedValue({ success: false }),
-      chat: vi.fn().mockResolvedValue({ success: false }),
-      editChatImage: vi.fn().mockResolvedValue({ success: false }),
-      chatStream: vi.fn().mockResolvedValue({ success: false }),
-      onChatStreamEvent: vi.fn().mockReturnValue(() => {}),
       fetchModels: vi.fn().mockResolvedValue({ success: false, models: [] }),
       discoverLocalAi: vi.fn().mockResolvedValue({ success: false, available: false, models: [], suggestedModels: [], hardware: { platform: 'darwin', arch: 'arm64', cpuCount: 8, totalMemoryGb: 16, tier: 'powerful' } }),
       ensureLocalAiRuntime: vi.fn().mockResolvedValue({ success: false, available: false, models: [], suggestedModels: [], hardware: { platform: 'darwin', arch: 'arm64', cpuCount: 8, totalMemoryGb: 16, tier: 'powerful' } }),

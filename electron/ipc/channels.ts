@@ -172,6 +172,30 @@ export const LIVE_CHANNELS = {
   },
 } as const
 
+export const CHAT_CHANNELS = {
+  invoke: {
+    send: 'chat:send',
+    imageEdit: 'chat:image-edit',
+    imageGenerate: 'chat:image-generate',
+    stream: 'chat:stream',
+    streamCancel: 'chat:stream:cancel',
+  },
+  event: {
+    /** One channel carries every stream; events are tagged with their requestId. */
+    streamEvent: 'chat:stream:event',
+  },
+} as const
+
+export const IMAGE_TRANSLATE_CHANNELS = {
+  invoke: {
+    translate: 'image:translate',
+    cancel: 'image:translate:cancel',
+  },
+  event: {
+    modelSwitched: 'image:model-switched',
+  },
+} as const
+
 export const CAPABILITY_CHANNELS = {
   invoke: {
     get: 'capabilities:get',
