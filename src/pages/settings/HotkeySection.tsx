@@ -4,12 +4,13 @@ import { type SystemShortcutOwner, systemShortcutOwnerLabel } from '../../compon
 import { ToggleSwitch } from '../../components/ui/atoms'
 import { HotkeyRecordButton } from '../../components/ui/HotkeyRecordButton'
 import { XIcon } from '../../components/ui/icons'
-import { SelectField } from '../../components/ui/molecules'
+import { CapabilityNotice, type CapabilityNoticeAction, SelectField } from '../../components/ui/molecules'
 import { TARGET_LANGUAGES } from '../../constants/providers'
 import { STATUS_RESET_DELAY_MS, STATUS_RESET_LONG_MS } from '../../constants/ui'
 import { MACOS_KEYBOARD_SHORTCUTS_PREFS } from '../../constants/urls'
 import { useAppStore, useT } from '../../store/useAppStore'
 import { useNotificationStore } from '../../store/useNotificationStore'
+import type { CapabilityStatus } from '../../types'
 import { tpl } from '../../utils/tpl'
 
 /** Mirrors DEFAULT_TRANSLATE_HOTKEY in electron/ipc/globalHotkey.ts (Option+T on macOS). */
@@ -49,7 +50,8 @@ export function HotkeySection() {
   /** '' = pair off (always translate into the primary language); null = not loaded yet. */
   const [hotkeySecondaryLang, setHotkeySecondaryLang] = useState<string | null>(null)
   const [settingsLoaded, setSettingsLoaded] = useState(false)
-  const [accessibility, setAccessibility] = useState<{ required: boolean; granted: boolean } | null>(null)
+  /** `input.accessibility` capability (macOS keystroke permission); null until the first answer. */
+  const [accessibility, setAccessibility] = useState<CapabilityStatus | null>(null)
   const notify = useNotificationStore((state) => state.notify)
   const dismissNotification = useNotificationStore((state) => state.dismiss)
   const hotkeyInputRef = useRef<HTMLButtonElement>(null)
@@ -80,11 +82,12 @@ export function HotkeySection() {
   // macOS Accessibility permission: checked on mount and whenever the window regains
   // focus, since the user grants it in System Settings and comes back.
   const refreshAccessibility = useCallback(async () => {
-    const api = window.api?.hotkey?.accessibility
+    const api = window.api?.capabilities
     if (!api) return
     try {
-      const res = await api.get()
-      if (res?.success) setAccessibility({ required: res.required, granted: res.granted })
+      const res = await api.get(['input.accessibility'])
+      const status = res?.success ? res.statuses?.find((s) => s.id === 'input.accessibility') : undefined
+      if (status) setAccessibility(status)
     } catch {
       /* keep the last known status */
     }
@@ -97,11 +100,11 @@ export function HotkeySection() {
   }, [refreshAccessibility])
 
   const requestAccessibility = useCallback(async () => {
-    const api = window.api?.hotkey?.accessibility
+    const api = window.api?.capabilities
     if (!api) return
     try {
-      const res = await api.request()
-      if (res?.success) setAccessibility({ required: res.required, granted: res.granted })
+      const res = await api.request('input.accessibility')
+      if (res?.success && res.status) setAccessibility(res.status)
     } catch {
       /* the focus listener re-checks when the user returns */
     }
@@ -124,7 +127,7 @@ export function HotkeySection() {
       const message = data?.errorCode === 'ACCESSIBILITY_DENIED' ? t.settings_hotkey_error_accessibility
         : data?.errorCode === 'COPY_FAILED' ? t.settings_hotkey_error_copy_failed
         : data?.error ?? t.settings_hotkey_status_error
-      if (data?.errorCode === 'ACCESSIBILITY_DENIED') setAccessibility({ required: true, granted: false })
+      if (data?.errorCode === 'ACCESSIBILITY_DENIED') setAccessibility({ id: 'input.accessibility', supported: true, permission: 'denied' })
       notify({ key: HOTKEY_RUN_KEY, tone: 'error', message, durationMs: STATUS_RESET_LONG_MS })
     })
     return () => { unsub1(); unsub2(); unsub3() }
@@ -232,11 +235,12 @@ export function HotkeySection() {
   const isMac = window.api?.platform === 'darwin'
 
   const refreshSpotlightState = useCallback(async () => {
-    const api = window.api?.hotkey?.chat?.spotlight
+    const api = window.api?.capabilities
     if (!api || !isMac) return
     try {
-      const res = await api.get()
-      if (res?.success) setSpotlightDisabledByViezan(res.disabledByViezan === true)
+      const res = await api.get(['launcher.spotlight'])
+      const status = res?.success ? res.statuses?.find((s) => s.id === 'launcher.spotlight') : undefined
+      if (status) setSpotlightDisabledByViezan(status.detail?.disabledByViezan === true)
     } catch { /* keep the last known state */ }
   }, [isMac])
 
@@ -444,28 +448,15 @@ export function HotkeySection() {
         </div>
 
         {/* macOS Accessibility permission */}
-        {accessibility?.required && (
-          <div className="flex items-center justify-between gap-4 px-4 py-3.5" role="status">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_hotkey_accessibility_title}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                {accessibility.granted ? t.settings_hotkey_accessibility_granted : t.settings_hotkey_accessibility_missing}
-              </p>
-            </div>
-            {!accessibility.granted && (
-              <Button
-                size="md"
-                shape="rect"
-                variant="primary"
-                appearance="outline"
-                type="button"
-                className="flex-shrink-0"
-                onClick={requestAccessibility}
-              >
-                {t.settings_hotkey_accessibility_open}
-              </Button>
-            )}
-          </div>
+        {accessibility && accessibility.permission !== 'not-required' && (
+          <CapabilityNotice
+            title={t.settings_hotkey_accessibility_title}
+            description={accessibility.permission === 'granted' ? t.settings_hotkey_accessibility_granted : t.settings_hotkey_accessibility_missing}
+            tone={accessibility.permission === 'granted' ? 'ok' : 'warning'}
+            actions={accessibility.permission === 'granted' ? [] : [
+              { label: t.settings_hotkey_accessibility_open, onClick: () => { void requestAccessibility() }, primary: true },
+            ]}
+          />
         )}
 
       </div>
@@ -535,79 +526,48 @@ export function HotkeySection() {
 
         {/* macOS: Spotlight (or another system shortcut) owns the chosen keys */}
         {chatSystemConflict && (
-          <div className="px-4 py-3.5 space-y-3" role="status">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                {tpl(t.settings_chat_hotkey_system_conflict_title, {
-                  owner: systemShortcutOwnerLabel(chatSystemConflict.owner, t),
-                  hotkey: chatSystemConflict.accelerator,
-                })}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_chat_hotkey_system_conflict_desc}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {chatSystemConflict.owner === 'spotlight' && (
-                <Button
-                  size="md"
-                  shape="rect"
-                  variant="primary"
-                  appearance="solid"
-                  type="button"
-                  disabled={spotlightBusy}
-                  onClick={() => { void changeSpotlightShortcut('disable') }}
-                >
-                  {t.settings_chat_hotkey_spotlight_disable}
-                </Button>
-              )}
-              <Button
-                size="md"
-                shape="rect"
-                variant="primary"
-                appearance="outline"
-                type="button"
-                onClick={() => { void window.api?.openExternal?.(MACOS_KEYBOARD_SHORTCUTS_PREFS) }}
-              >
-                {t.settings_chat_hotkey_system_conflict_open}
-              </Button>
-              {chatHotkeyValue !== ALTERNATIVE_CHAT_HOTKEY && (
-                <Button
-                  size="md"
-                  shape="rect"
-                  variant="neutral"
-                  appearance="outline"
-                  type="button"
-                  onClick={() => {
-                    setChatHotkeyValue(ALTERNATIVE_CHAT_HOTKEY)
-                    saveChatHotkeySettings({ hotkey: ALTERNATIVE_CHAT_HOTKEY })
-                  }}
-                >
-                  {tpl(t.settings_chat_hotkey_system_conflict_use, { hotkey: ALTERNATIVE_CHAT_HOTKEY.replace('Alt', 'Option') })}
-                </Button>
-              )}
-            </div>
-          </div>
+          <CapabilityNotice
+            tone="warning"
+            title={tpl(t.settings_chat_hotkey_system_conflict_title, {
+              owner: systemShortcutOwnerLabel(chatSystemConflict.owner, t),
+              hotkey: chatSystemConflict.accelerator,
+            })}
+            description={t.settings_chat_hotkey_system_conflict_desc}
+            actions={[
+              ...(chatSystemConflict.owner === 'spotlight' ? [{
+                label: t.settings_chat_hotkey_spotlight_disable,
+                onClick: () => { void changeSpotlightShortcut('disable') },
+                primary: true,
+                disabled: spotlightBusy,
+              } satisfies CapabilityNoticeAction] : []),
+              {
+                label: t.settings_chat_hotkey_system_conflict_open,
+                onClick: () => { void window.api?.openExternal?.(MACOS_KEYBOARD_SHORTCUTS_PREFS) },
+                variant: 'primary',
+              },
+              ...(chatHotkeyValue !== ALTERNATIVE_CHAT_HOTKEY ? [{
+                label: tpl(t.settings_chat_hotkey_system_conflict_use, { hotkey: ALTERNATIVE_CHAT_HOTKEY.replace('Alt', 'Option') }),
+                onClick: () => {
+                  setChatHotkeyValue(ALTERNATIVE_CHAT_HOTKEY)
+                  saveChatHotkeySettings({ hotkey: ALTERNATIVE_CHAT_HOTKEY })
+                },
+              } satisfies CapabilityNoticeAction] : []),
+            ]}
+          />
         )}
 
         {/* macOS: Viezan turned Spotlight's shortcut off — offer the way back */}
         {spotlightDisabledByViezan && (
-          <div className="flex items-center justify-between gap-4 px-4 py-3.5">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_chat_hotkey_spotlight_disabled_title}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_chat_hotkey_spotlight_disabled_desc}</p>
-            </div>
-            <Button
-              size="md"
-              shape="rect"
-              variant="neutral"
-              appearance="outline"
-              type="button"
-              className="flex-shrink-0"
-              disabled={spotlightBusy}
-              onClick={() => { void changeSpotlightShortcut('restore') }}
-            >
-              {t.settings_chat_hotkey_spotlight_restore}
-            </Button>
-          </div>
+          <CapabilityNotice
+            tone="info"
+            title={t.settings_chat_hotkey_spotlight_disabled_title}
+            description={t.settings_chat_hotkey_spotlight_disabled_desc}
+            actions={[{
+              label: t.settings_chat_hotkey_spotlight_restore,
+              onClick: () => { void changeSpotlightShortcut('restore') },
+              disabled: spotlightBusy,
+            }]}
+          />
         )}
 
       </div>

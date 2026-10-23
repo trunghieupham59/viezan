@@ -3,6 +3,7 @@ import type { Session, Tray } from 'electron'
 import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeImage, nativeTheme, screen, session, shell } from 'electron'
 import type { ThemePreset } from '../shared/theme'
 import { configureApplicationMenu, isDevelopmentRuntime } from './applicationMenu'
+import { createCapabilityRegistry, registerCapabilityHandlers } from './ipc/capabilities'
 import { registerChatHandlers } from './ipc/chat'
 import { initGlobalHotkey } from './ipc/globalHotkey'
 import { registerImageTranslateHandlers } from './ipc/imageTranslate'
@@ -16,6 +17,7 @@ import { createWindowOpenHandler, isAllowedAppNavigation, isAllowedPermission, t
 import { QUICK_CHAT_COMPACT_HEIGHT, registerQuickChatHandlers, setQuickChatWindowBounds } from './ipc/quickChat'
 import { registerSubtitleHandlers } from './ipc/subtitle'
 import { registerSystemHandlers } from './ipc/system'
+import { createSystemCapabilityProviders } from './ipc/systemCapabilities'
 import { registerTranscribeHandlers } from './ipc/transcribe'
 import { registerTranslateHandlers } from './ipc/translate'
 import { registerTtsHandlers } from './ipc/tts'
@@ -543,6 +545,9 @@ app.whenReady().then(() => {
 
   // Global hotkey — translate selected text in any OS application
   initGlobalHotkey(ipcMain, () => mainWindow, toggleQuickChatWindow)
+
+  // Capabilities — what this machine can do and whether the user allowed it
+  registerCapabilityHandlers(ipcMain, createCapabilityRegistry(createSystemCapabilityProviders()))
 
   // Local HTTP server — used by the Viezan Chrome Extension
   startLocalServer(ipcMain)

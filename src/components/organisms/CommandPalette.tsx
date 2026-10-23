@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { MAX_CHAT_INPUT_CHARS } from '../../constants/providers'
 import { type PaletteAnswerMode, usePaletteAiAnswer } from '../../hooks/usePaletteAiAnswer'
+import { APP_MODULES } from '../../modules/catalog'
 import { hasWebSearchApi } from '../../services/searchResultFormatting'
 import { useAppStore, useT } from '../../store/useAppStore'
 import type { AppPage } from '../../types'
@@ -21,11 +22,9 @@ import { Button, Input } from '../ui/atoms'
 import {
   BookIcon,
   CalculatorIcon,
-  ChatBubbleIcon,
   CopyIcon,
   GearIcon,
   GlobeIcon,
-  MicrophoneIcon,
   SearchIcon,
   SparklesIcon,
   SpinnerIcon,
@@ -111,42 +110,18 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   }, [onClose, setActivePage])
 
   const commands = useMemo<PaletteItem[]>(() => [
-    {
-      id: 'chat',
-      kind: 'command',
-      label: t.nav_chat,
-      description: t.command_palette_chat_description,
-      icon: <ChatBubbleIcon className="h-4 w-4" />,
-      action: () => navigate('chat'),
-      keywords: ['chat', 'ai', 'message', 'conversation'],
-    },
-    {
-      id: 'translate',
-      kind: 'command',
-      label: t.nav_translate,
-      description: t.command_palette_translate_description,
-      icon: <TranslateIcon className="h-4 w-4" />,
-      action: () => navigate('translate', clearTranslation),
-      keywords: ['translate', 'translation', 'language', 'text', 'image', 'voice'],
-    },
-    {
-      id: 'live',
-      kind: 'command',
-      label: t.nav_live_translate,
-      description: t.command_palette_live_description,
-      icon: <MicrophoneIcon className="h-4 w-4" />,
-      action: () => navigate('live'),
-      keywords: ['live', 'speech', 'microphone', 'real-time', 'subtitle'],
-    },
-    {
-      id: 'dictionary',
-      kind: 'command',
-      label: t.nav_dictionary,
-      description: t.command_palette_dictionary_description,
-      icon: <BookIcon className="h-4 w-4" />,
-      action: () => navigate('dictionary'),
-      keywords: ['dictionary', 'lookup', 'word', 'definition', 'meaning'],
-    },
+    ...APP_MODULES.map((module): PaletteItem => {
+      const Icon = module.icon
+      return {
+        id: module.id,
+        kind: 'command',
+        label: t[module.labelKey],
+        description: t[module.descriptionKey],
+        icon: <Icon className="h-4 w-4" />,
+        action: () => navigate(module.id, module.navigateEffect === 'clearTranslation' ? clearTranslation : undefined),
+        keywords: [...module.keywords],
+      }
+    }),
     {
       id: 'settings',
       kind: 'command',

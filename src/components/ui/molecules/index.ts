@@ -5,6 +5,12 @@ export { ButtonGroup } from '../ButtonGroup'
 export { CredentialCard } from '../CredentialCard'
 export { type AccentOption, AccentPicker, type AccentPickerProps } from './AccentPicker'
 export { AIModelField, type AIModelFieldProps } from './AIModelField'
+export {
+  CapabilityNotice,
+  type CapabilityNoticeAction,
+  type CapabilityNoticeProps,
+  type CapabilityNoticeTone,
+} from './CapabilityNotice'
 export { ChatSessionListItem, type ChatSessionListItemProps } from './ChatSessionListItem'
 export { type ChatTaskStarterState, ChatTaskStarters } from './ChatTaskStarters'
 export { ConfigSection, type ConfigSectionProps } from './ConfigSection'

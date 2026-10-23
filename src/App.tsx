@@ -1,4 +1,4 @@
-import { lazy, type ReactNode, Suspense, useEffect, useState } from 'react'
+import { type ReactNode, Suspense, useEffect, useState } from 'react'
 import type { LauncherFeatureRequest } from '../shared/launcher'
 import { AIChatSidebar, CommandPalette, LauncherShortcutNotice, LauncherSpotlightPrompt, NotificationViewport, PrimaryNavigationSidebar, UpdateNotification } from './components/organisms'
 import { SettingsModal } from './components/SettingsModal'
@@ -6,14 +6,12 @@ import { AppShell } from './components/templates'
 import { FeatureLoadingState } from './components/ui/molecules'
 import { PROVIDERS } from './constants/providers'
 import { resolveThemeMode, THEME_PRESET_TRAITS } from './constants/themePresets'
+import { getModule } from './modules/catalog'
+import { MODULE_PAGES } from './modules/pages'
 import { flushPersistedStore, useAppStore, useT } from './store/useAppStore'
 import type { AppPage, Provider, QuickChatSeedPayload, UsageCost } from './types'
 import { detectSystemLocale } from './utils/locale'
 
-const TranslatePage = lazy(() => import('./pages/TranslatePage').then(m => ({ default: m.TranslatePage })))
-const LiveTranslatePage = lazy(() => import('./pages/LiveTranslatePage').then(m => ({ default: m.LiveTranslatePage })))
-const ChatPage = lazy(() => import('./pages/ChatPage').then(m => ({ default: m.ChatPage })))
-const DictionaryPage = lazy(() => import('./pages/DictionaryPage').then(m => ({ default: m.DictionaryPage })))
 
 const FONT_SIZE_MAP = { small: '13px', medium: '15px', large: '17px' } as const
 const CLOSE_PRIMARY_NAVIGATION_EVENT = 'viezan:close-primary-navigation'
@@ -25,8 +23,7 @@ function closeResponsiveNavigation() {
 }
 
 export function PageFallback({ page, label }: { page: AppPage; label: string }) {
-  if (page === 'live') return <FeatureLoadingState label={label} layout="split" />
-  if (page === 'dictionary') return <FeatureLoadingState label={label} layout="split" />
+  if (getModule(page).loadingLayout === 'split') return <FeatureLoadingState label={label} layout="split" />
   return <div className="app-page" aria-hidden="true" />
 }
 
@@ -214,13 +211,9 @@ function App() {
   const isMac = window.api?.platform === 'darwin'
   const isWin = window.api?.platform === 'win32'
   const hasAppTitlebar = isMac || isWin
-  const fallbackFeatureLabel = activePage === 'live'
-    ? t.nav_live_translate
-    : activePage === 'dictionary'
-      ? t.dictionary_title
-      : activePage === 'chat'
-        ? t.nav_chat
-        : t.nav_translate
+  const activeModule = getModule(activePage)
+  const fallbackFeatureLabel = t[activeModule.loadingLabelKey ?? activeModule.labelKey]
+  const ActivePage = MODULE_PAGES[activePage]
 
   const renderShell = (contextSidebar?: ReactNode, featureHeader?: ReactNode) => (
     <AppShell
@@ -256,15 +249,7 @@ function App() {
           />
         )}
       >
-        {activePage === 'translate' ? (
-          <TranslatePage />
-        ) : activePage === 'live' ? (
-          <LiveTranslatePage />
-        ) : activePage === 'chat' ? (
-          <ChatPage />
-        ) : (
-          <DictionaryPage />
-        )}
+        <ActivePage />
       </Suspense>
     </AppShell>
   )

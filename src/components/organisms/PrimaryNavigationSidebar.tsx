@@ -1,18 +1,11 @@
 import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { APP_MODULES, type CatalogModule } from '../../modules/catalog'
 import { useAppStore, useT } from '../../store/useAppStore'
 import type { AppPage } from '../../types'
 import { AppLogoIcon } from '../AppLogo'
 import { Button } from '../ui/atoms'
-import {
-  BookIcon,
-  ChatBubbleIcon,
-  GearIcon,
-  MicrophoneIcon,
-  SearchIcon,
-  SidebarPanelIcon,
-  TranslateIcon,
-} from '../ui/icons'
+import { GearIcon, SearchIcon, SidebarPanelIcon } from '../ui/icons'
 
 interface PrimaryNavItemProps {
   icon: ReactNode
@@ -110,6 +103,9 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
     setActivePage(page)
     closeResponsiveOverlay()
   }
+
+  const navigateToModule = (module: CatalogModule) =>
+    navigate(module.id, module.navigateEffect === 'clearTranslation' ? clearTranslation : undefined)
 
   const openCommandPalette = () => {
     closeResponsiveOverlay()
@@ -213,30 +209,18 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
       <div className="app-sidebar-divider" />
 
       <div className="sidebar-nav-group">
-        <PrimaryNavItem
-          label={t.nav_chat}
-          active={activePage === 'chat'}
-          onClick={() => navigate('chat')}
-          icon={<ChatBubbleIcon className="h-[18px] w-[18px]" />}
-        />
-        <PrimaryNavItem
-          label={t.nav_translate}
-          active={activePage === 'translate'}
-          onClick={() => navigate('translate', clearTranslation)}
-          icon={<TranslateIcon className="h-[18px] w-[18px]" />}
-        />
-        <PrimaryNavItem
-          label={t.nav_live_translate}
-          active={activePage === 'live'}
-          onClick={() => navigate('live')}
-          icon={<MicrophoneIcon className="h-[18px] w-[18px]" />}
-        />
-        <PrimaryNavItem
-          label={t.nav_dictionary}
-          active={activePage === 'dictionary'}
-          onClick={() => navigate('dictionary')}
-          icon={<BookIcon className="h-[18px] w-[18px]" />}
-        />
+        {APP_MODULES.map((module) => {
+          const Icon = module.icon
+          return (
+            <PrimaryNavItem
+              key={module.id}
+              label={t[module.labelKey]}
+              active={activePage === module.id}
+              onClick={() => navigateToModule(module)}
+              icon={<Icon className="h-[18px] w-[18px]" />}
+            />
+          )
+        })}
       </div>
 
       <div className="sidebar-bottom-group">

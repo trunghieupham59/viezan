@@ -49,14 +49,6 @@ export const hotkeySection = {
       return () => ipcRenderer.removeListener('hotkey:error', handler)
     },
 
-    /** macOS Accessibility permission, required to send the copy/paste keystrokes. */
-    accessibility: {
-      /** `required` is false where no permission exists; `granted` is then always true. */
-      get: () => ipcRenderer.invoke('hotkey:accessibility:get'),
-      /** Show the macOS prompt and, while still denied, open the Accessibility settings pane. */
-      request: () => ipcRenderer.invoke('hotkey:accessibility:request'),
-    },
-
     /** AI Chat hotkey — toggles the quick-ask popup. */
     chat: {
       /** Update (and re-register) AI Chat hotkey settings. */

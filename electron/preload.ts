@@ -10,6 +10,7 @@
  */
 import { contextBridge } from 'electron'
 import { audioSection } from './preload/audio'
+import { capabilitiesSection } from './preload/capabilities'
 import { chatSection } from './preload/chat'
 import { hotkeySection } from './preload/hotkey'
 import { keychainSection } from './preload/keychain'
@@ -29,6 +30,7 @@ contextBridge.exposeInMainWorld('api', {
   ...chatSection,
   ...subtitleSection,
   ...systemSection,
+  ...capabilitiesSection,
   ...updaterSection,
   ...hotkeySection,
   ...quickChatSection,
