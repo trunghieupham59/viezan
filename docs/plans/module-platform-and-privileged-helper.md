@@ -118,6 +118,17 @@ app quit
 (client tới Privileged Helper), `storage` (JSON userData có validate như
 `hotkey-settings.json` hiện nay).
 
+Đã làm (giai đoạn 0): `electron/modules/host.ts` là host thuần (không import
+Electron) với `init`, `setEnabled`, `shutdown`, hàng đợi tuần tự để bật tắt nhanh
+không chồng lấn; `enabledStore.ts` lưu `modules.json` trong userData, id lạ bị bỏ,
+thiếu nghĩa là bật; `appModules.ts` khai báo sáu module (chat, translate, live,
+dictionary, launcher, browser-bridge) với `registerHandlers` và `start`/`stop`;
+`ipc.ts` cung cấp `modules:get`, `modules:setEnabled` và đẩy `modules:changed`.
+Phím tắt Dịch nhanh và Launcher được module tắt/bật qua
+`setHotkeyModuleActive` trong `globalHotkey.ts`; máy chủ cục bộ tách
+`registerLocalServerHandlers` khỏi `startLocalServer` để dừng/chạy theo module.
+Chưa có UI bật tắt; renderer mới có `window.api.modules`.
+
 ### 3.4 Capability và permission
 
 Hai khái niệm tách bạch:

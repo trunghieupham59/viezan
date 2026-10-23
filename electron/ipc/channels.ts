@@ -234,6 +234,16 @@ export const LOCAL_AI_CHANNELS = {
   },
 } as const
 
+export const MODULES_CHANNELS = {
+  invoke: {
+    get: 'modules:get',
+    setEnabled: 'modules:setEnabled',
+  },
+  event: {
+    changed: 'modules:changed',
+  },
+} as const
+
 export const CAPABILITY_CHANNELS = {
   invoke: {
     get: 'capabilities:get',

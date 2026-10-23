@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from 'react'
-import type { ModuleDefinition, ModuleId } from '../../shared/modules'
+import type { ModuleDefinition, PageModuleId } from '../../shared/modules'
 import { BookIcon, ChatBubbleIcon, MicrophoneIcon, TranslateIcon } from '../components/ui/icons'
 
 /**
@@ -50,15 +50,15 @@ export const APP_MODULES: readonly CatalogModule[] = [
   },
 ]
 
-const MODULES_BY_ID: ReadonlyMap<ModuleId, CatalogModule> = new Map(APP_MODULES.map((module) => [module.id, module]))
+const MODULES_BY_ID: ReadonlyMap<PageModuleId, CatalogModule> = new Map(APP_MODULES.map((module) => [module.id, module]))
 
-/** The catalog entry for a module id. Every `ModuleId` is listed, so this never returns undefined for one. */
-export function getModule(id: ModuleId): CatalogModule {
+/** The catalog entry for a module id. Every `PageModuleId` is listed, so this never returns undefined for one. */
+export function getModule(id: PageModuleId): CatalogModule {
   const module = MODULES_BY_ID.get(id)
   if (!module) throw new Error(`Unknown module: ${id}`)
   return module
 }
 
-export function isModuleId(value: unknown): value is ModuleId {
-  return typeof value === 'string' && MODULES_BY_ID.has(value as ModuleId)
+export function isPageModuleId(value: unknown): value is PageModuleId {
+  return typeof value === 'string' && MODULES_BY_ID.has(value as PageModuleId)
 }

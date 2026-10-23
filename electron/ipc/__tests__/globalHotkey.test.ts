@@ -539,6 +539,41 @@ describe('hotkey settings IPC', () => {
     })
   })
 
+  describe('module suspend / resume', () => {
+    it('unregisters the translate shortcut while its module is off and keeps settings editable', async () => {
+      await init({ translate: { enabled: true, hotkey: 'Alt+T' } })
+      expect([...env.registered.keys()]).toEqual(['Alt+T'])
+
+      mod.setHotkeyModuleActive('translate', false)
+      expect(env.registered.has('Alt+T')).toBe(false)
+
+      // A settings change while suspended is saved but registers nothing.
+      expect((await invoke('hotkey:update', { hotkey: 'Alt+Y', enabled: true })).success).toBe(true)
+      expect(env.registered.size).toBe(0)
+      expect(JSON.parse(fs.readFileSync(path.join(env.userData, 'hotkey-settings.json'), 'utf-8'))).toMatchObject({ hotkey: 'Alt+Y', enabled: true })
+
+      mod.setHotkeyModuleActive('translate', true)
+      expect([...env.registered.keys()]).toEqual(['Alt+Y'])
+      // Resuming twice does not register twice.
+      mod.setHotkeyModuleActive('translate', true)
+      expect(env.events.filter((e) => e === 'register:Alt+Y')).toHaveLength(1)
+    })
+
+    it('does the same for the launcher shortcut and respects a disabled setting on resume', async () => {
+      await init({ translate: { enabled: false, hotkey: '' }, chat: { enabled: true, hotkey: 'Alt+Space' } })
+      expect([...env.registered.keys()]).toEqual(['Alt+Space'])
+
+      mod.setHotkeyModuleActive('chat', false)
+      expect(env.registered.size).toBe(0)
+      await invoke('hotkey:chat:update', { enabled: false })
+      mod.setHotkeyModuleActive('chat', true)
+      expect(env.registered.size).toBe(0) // the user turned it off while the module was suspended
+
+      await invoke('hotkey:chat:update', { enabled: true })
+      expect([...env.registered.keys()]).toEqual(['Alt+Space'])
+    })
+  })
+
   describe('language pair settings', () => {
     it('gives settings saved before the pair existed the default secondary language', async () => {
       await init({ translate: { enabled: true, hotkey: 'Alt+Shift+T', targetLang: 'vi' } })

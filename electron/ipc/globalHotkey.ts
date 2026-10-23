@@ -193,6 +193,13 @@ let currentChatSettings: AIChatHotkeySettings = { ...DEFAULT_CHAT_SETTINGS }
 /** Accelerators actually registered with Electron (may differ from persisted settings). */
 let registeredTranslateAccelerator = ''
 let registeredChatAccelerator = ''
+/**
+ * Set while the owning module (translate / launcher) is disabled: the settings are kept
+ * and saved, but no shortcut is registered until the module is enabled again.
+ */
+const suspended = { translate: false, chat: false }
+/** Captured at init so a later resume can register with the same callbacks. */
+let hotkeyDeps: { getMainWindow: () => BrowserWindow | null; toggleQuickChatWindow: () => void } | null = null
 
 function getSettingsPath(): string {
   return path.join(app.getPath('userData'), SETTINGS_FILE)
@@ -749,6 +756,40 @@ function swapAccelerator(
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
+export type HotkeyModuleKind = 'translate' | 'chat'
+
+/**
+ * Module lifecycle hook: `false` unregisters the shortcut and keeps it unregistered
+ * (settings untouched and still editable); `true` registers the saved shortcut again.
+ * Called by the translate and launcher modules' start/stop.
+ */
+export function setHotkeyModuleActive(kind: HotkeyModuleKind, active: boolean): void {
+  suspended[kind] = !active
+  if (!active) {
+    if (kind === 'translate') {
+      safeUnregister(registeredTranslateAccelerator)
+      registeredTranslateAccelerator = ''
+    } else {
+      safeUnregister(registeredChatAccelerator)
+      registeredChatAccelerator = ''
+    }
+    return
+  }
+  if (!hotkeyDeps) return
+  if (kind === 'translate') {
+    if (registeredTranslateAccelerator || !currentSettings.enabled || !currentSettings.hotkey) return
+    if (registerTranslateAccelerator(currentSettings.hotkey, hotkeyDeps.getMainWindow) !== 'ok') {
+      console.warn('[GlobalHotkey] Could not re-register the translate hotkey (already in use?)')
+    }
+  } else {
+    if (registeredChatAccelerator || !currentChatSettings.enabled || !currentChatSettings.hotkey) return
+    if (currentSettings.enabled && sameAccelerator(currentSettings.hotkey, currentChatSettings.hotkey)) return
+    if (registerChatAccelerator(currentChatSettings.hotkey, hotkeyDeps.toggleQuickChatWindow) !== 'ok') {
+      console.warn('[GlobalHotkey] Could not re-register the launcher hotkey (already in use?)')
+    }
+  }
+}
+
 /** Facts the `launcher.spotlight` capability reports: the saved Launcher shortcut and the hand-over state. */
 export function getLauncherSpotlightSnapshot(): { hotkey: string; enabled: boolean; disabledByViezan: boolean } {
   return {
@@ -765,6 +806,9 @@ export function initGlobalHotkey(
 ): void {
   registeredTranslateAccelerator = ''
   registeredChatAccelerator = ''
+  suspended.translate = false
+  suspended.chat = false
+  hotkeyDeps = { getMainWindow, toggleQuickChatWindow }
 
   // Load persisted settings and register translate hotkey if enabled
   currentSettings = loadSettings()
@@ -805,7 +849,8 @@ export function initGlobalHotkey(
         return failure('CONFLICT', 'Hotkey is already used by the AI Chat shortcut.', currentSettings)
       }
 
-      const outcome = swapAccelerator(
+      // While the translate module is off the choice is saved but nothing is registered.
+      const outcome = suspended.translate ? 'ok' : swapAccelerator(
         registeredTranslateAccelerator,
         wanted,
         accelerator => registerTranslateAccelerator(accelerator, getMainWindow),
@@ -857,7 +902,8 @@ export function initGlobalHotkey(
       return failure('CONFLICT', 'Hotkey is already used by the translate shortcut.', currentChatSettings)
     }
 
-    const outcome = swapAccelerator(
+    // While the launcher module is off the choice is saved but nothing is registered.
+    const outcome = suspended.chat ? 'ok' : swapAccelerator(
       registeredChatAccelerator,
       wanted,
       accelerator => registerChatAccelerator(accelerator, toggleQuickChatWindow),

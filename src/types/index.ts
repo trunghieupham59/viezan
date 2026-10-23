@@ -117,7 +117,8 @@ export type {
 } from '../../shared/hotkeyApi'
 
 /** Workspace pages are feature modules; see `shared/modules.d.ts` and `src/modules/catalog.ts`. */
-export type AppPage = import('../../shared/modules').ModuleId
+export type AppPage = import('../../shared/modules').PageModuleId
+export type { ModuleEnabledState, ModuleId, ModulesApi, PageModuleId } from '../../shared/modules'
 
 export interface ProviderConfig {
   id: Provider
@@ -579,6 +580,9 @@ export interface WindowApi extends SystemApi, WebSearchApi, AudioApi, ChatApi, T
   /** Floating subtitle overlay — runs in a separate always-on-top OS window */
   /** Floating subtitle overlay for live interpretation; shape: shared/subtitleApi.d.ts. */
   subtitle: import('../../shared/subtitleApi').SubtitleApi
+  /** Feature modules: which are enabled (no UI yet). Shape: shared/modules.d.ts. */
+  modules: import('../../shared/modules').ModulesApi
+
   /** Capabilities — what this machine can do and whether the user allowed it. Shape: shared/capabilitiesApi.d.ts. */
   capabilities: import('../../shared/capabilitiesApi').CapabilitiesApi
 

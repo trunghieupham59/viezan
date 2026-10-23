@@ -118,6 +118,11 @@ function createWebPreviewApi(): WindowApi {
     subtitle: { show: async () => undefined, hide: async () => undefined, update: async () => undefined, setStyle: async () => undefined, setSourceText: async () => undefined, pushState: async () => undefined, onClosed: noopSubscription, onStart: noopSubscription, onStop: noopSubscription, onSetProvider: noopSubscription, onSetModel: noopSubscription, onSetAudioMode: noopSubscription, onSetTargetLang: noopSubscription, onStyleUpdate: noopSubscription, onClear: noopSubscription },
     platform: 'web',
     version: 'web-preview',
+    modules: {
+      get: async () => ({ success: true, enabled: { chat: true, translate: true, live: true, dictionary: true, launcher: true, 'browser-bridge': true } }),
+      setEnabled: async () => ({ success: false, error: 'Desktop only in Web Preview' }),
+      onChanged: noopSubscription,
+    },
     capabilities: {
       get: async (ids?: string[]) => ({ success: true, statuses: (ids ?? ['input.accessibility', 'launcher.spotlight']).map((id) => ({ id, supported: false, permission: 'not-required' as const })) }),
       request: async (id: string) => ({ success: true, status: { id, supported: false, permission: 'not-required' as const } }),
