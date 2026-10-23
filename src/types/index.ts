@@ -1,6 +1,13 @@
 import type { AudioApi } from '../../shared/audioApi'
 import type { ChatApi } from '../../shared/chatApi'
 import type { SystemApi } from '../../shared/systemApi'
+import type {
+  LocalAiEngine,
+  PhoneticMode,
+  TranslateApi,
+  TranslationReasoningEffort,
+  TranslationStyle,
+} from '../../shared/translateApi'
 import type { WebSearchApi } from '../../shared/webSearchApi'
 
 export type {
@@ -40,13 +47,10 @@ export interface TranslationComparisonResult extends AIModelSelection {
   errorCode: string | null
   durationMs: number | null
 }
-export type LocalAiEngine = 'ollama' | 'lmstudio' | 'llamacpp'
-export type LocalAiHardwareTier = 'low' | 'balanced' | 'powerful' | 'max'
 
 /** How the multi-model comparison lays out finished translations on wide layouts. */
 export type TranslateComparisonView = 'columns' | 'sentences'
 
-export type TranslationStyle = 'general' | 'formal' | 'casual' | 'business' | 'technical' | 'natural'
 
 /**
  * Phonetic annotation mode:
@@ -54,7 +58,6 @@ export type TranslationStyle = 'general' | 'formal' | 'casual' | 'business' | 't
  *  - 'standard' — add {word|reading} ruby annotations (furigana/pinyin/romanization above original script)
  *  - 'phonetic' — replace original script with pure phonetics (hiragana-only, pinyin-only, romanization-only, IPA)
  */
-export type PhoneticMode = 'off' | 'standard' | 'phonetic'
 
 export type SpeakPanel = 'source' | 'translated' | `comparison:${string}`
 
@@ -145,8 +148,6 @@ export interface Language {
   nativeName: string
 }
 
-/** Provider-default reasoning, or a portable explicit effort level. */
-export type TranslationReasoningEffort = 'auto' | 'low' | 'medium' | 'high'
 
 export interface TranslateParams {
   provider: Provider
@@ -162,13 +163,6 @@ export interface TranslateParams {
   reasoningEffort?: TranslationReasoningEffort
   /** When true, skip translation — only add phonetic annotations to the already-translated sourceText */
   phoneticOnly?: boolean
-}
-
-export interface TranslateResult {
-  success: boolean
-  translatedText?: string
-  error?: string
-  errorCode?: 'NO_API_KEY' | 'INVALID_KEY' | 'RATE_LIMIT' | 'NETWORK' | string
 }
 
 export type { AudioApi, SpeakTextParams, TtsMode, TtsResult, TtsVoice } from '../../shared/audioApi'
@@ -191,111 +185,35 @@ export type {
 } from '../../shared/chatApi'
 export type { KeychainApi, KeychainResult } from '../../shared/keychainApi'
 export type { LegacyAssistantApi } from '../../shared/legacyAssistantApi'
+export type { LocalAiExecutionMode, LocalAiPerformanceComparison, LocalAiPerformanceMeasurement, LocalAiPerformanceProfile, LocalAiPerformanceState } from '../../shared/localAiPerformance'
 export type { LocalServerApi, LocalServerTokenResult, LocalServerTokenSummary } from '../../shared/localServerApi'
 export type { SubtitleApi, SubtitleSessionState, SubtitleStyle } from '../../shared/subtitleApi'
+export type {
+  DetectLanguageRequest,
+  FetchedModel,
+  FetchModelsResult,
+  LocalAiBenchmarkResult,
+  LocalAiDiscoveryResult,
+  LocalAiDownloadResult,
+  LocalAiEngine,
+  LocalAiHardwareProfile,
+  LocalAiHardwareTier,
+  LocalAiInstallResult,
+  LocalAiModelActionResult,
+  LocalAiModelDownloadProgress,
+  PhoneticMode,
+  RewriteTextRequest,
+  TranslateApi,
+  TranslateErrorCode,
+  TranslateRequest,
+  TranslateResult,
+  TranslateStreamRequest,
+  TranslationReasoningEffort,
+  TranslationStyle,
+  VerifyResult,
+} from '../../shared/translateApi'
 export type { UpdaterApi, UpdaterDownloadResult } from '../../shared/updaterApi'
 export type { WebSearchApi, WebSearchHit, WebSearchParams, WebSearchResult } from '../../shared/webSearchApi'
-
-export interface VerifyResult {
-  success: boolean
-  error?: string
-  errorCode?: 'INVALID_KEY' | 'BILLING' | 'PERMISSION' | 'RATE_LIMIT' | 'NETWORK' | string
-  valid?: boolean
-}
-
-export interface FetchedModel {
-  id: string
-  name: string
-  description: string
-  downloadModel?: string
-  recommendedTier?: LocalAiHardwareTier
-  installed?: boolean
-  supportsVision?: boolean
-  estimatedSizeGb?: number
-}
-
-export interface LocalAiHardwareProfile {
-  platform: string
-  arch: string
-  cpuCount: number
-  totalMemoryGb: number
-  tier: LocalAiHardwareTier
-  gpuName?: string
-  /** Model-usable accelerator memory in GB; 0 = CPU-only, undefined = unknown. */
-  vramGb?: number
-  gpuMemoryKind?: 'dedicated' | 'unified'
-}
-
-export interface LocalAiDiscoveryResult {
-  success: boolean
-  available: boolean
-  engine?: LocalAiEngine
-  endpoint?: string
-  models: FetchedModel[]
-  suggestedModels: FetchedModel[]
-  recommendedModel?: string
-  hardware: LocalAiHardwareProfile
-  error?: string
-}
-
-export type { LocalAiExecutionMode, LocalAiPerformanceComparison, LocalAiPerformanceMeasurement, LocalAiPerformanceProfile, LocalAiPerformanceState } from '../../shared/localAiPerformance'
-
-export interface LocalAiBenchmarkResult {
-  hardware: LocalAiHardwareProfile
-  suggestedModels: FetchedModel[]
-  recommendedModel?: string
-  metrics?: {
-    cpuScore: number
-    memoryScore: number
-    combinedScore: number
-    durationMs: number
-    runtimeModel?: string
-    runtimeLatencyMs?: number
-    runtimeLoadMs?: number
-    runtimeTokensPerSecond?: number
-    /** Share of the loaded model resident in GPU memory (100 = fully on GPU). */
-    runtimeGpuPercent?: number
-    runtimeVramGb?: number
-  }
-}
-
-export interface LocalAiDownloadResult {
-  success: boolean
-  model: string
-  error?: string
-}
-
-export interface LocalAiModelActionResult {
-  success: boolean
-  model: string
-  error?: string
-}
-
-export interface LocalAiModelDownloadProgress {
-  model: string
-  status: 'running' | 'success' | 'error'
-  percent: number
-  message: string
-  completedBytes?: number
-  totalBytes?: number
-}
-
-export interface LocalAiInstallResult {
-  success: boolean
-  error?: string
-  message?: string
-  output?: string
-  manual?: boolean
-}
-
-export interface FetchModelsResult {
-  success: boolean
-  models: FetchedModel[]
-  /** Best model for translation auto-selected by scoring algorithm */
-  recommendedModel?: string
-  error?: string
-  errorCode?: 'NO_API_KEY' | string
-}
 
 // ─── Chat types ───────────────────────────────────────────────────────────────
 
@@ -655,55 +573,9 @@ export interface SubtitleSettings {
 // ─── Window API (exposed via contextBridge) ───────────────────────────────────
 
 /** `SystemApi` members (platform, version, openExternal, ...) sit directly on `window.api`; shape: shared/systemApi.d.ts. */
-export interface WindowApi extends SystemApi, WebSearchApi, AudioApi, ChatApi {
+export interface WindowApi extends SystemApi, WebSearchApi, AudioApi, ChatApi, TranslateApi {
   /** Secure API key storage; shape: shared/keychainApi.d.ts. */
   keychain: import('../../shared/keychainApi').KeychainApi
-  fetchModels: (provider: string) => Promise<FetchModelsResult>
-  discoverLocalAi: (force?: boolean) => Promise<LocalAiDiscoveryResult>
-  ensureLocalAiRuntime: () => Promise<LocalAiDiscoveryResult>
-  benchmarkLocalAi: () => Promise<LocalAiBenchmarkResult>
-  getLocalAiPerformance: (model: string) => Promise<import('../../shared/localAiPerformance').LocalAiPerformanceState>
-  compareLocalAiPerformance: (request: import('../../shared/localAiPerformance').LocalAiPerformanceRequest) => Promise<import('../../shared/localAiPerformance').LocalAiPerformanceState>
-  selectLocalAiPerformance: (model: string, mode: import('../../shared/localAiPerformance').LocalAiExecutionMode | 'auto') => Promise<import('../../shared/localAiPerformance').LocalAiPerformanceState>
-  cancelLocalAiPerformance: () => Promise<void>
-  downloadLocalAiModel: (modelId: string) => Promise<LocalAiDownloadResult>
-  uninstallLocalAiModel: (modelId: string) => Promise<LocalAiModelActionResult>
-  onLocalAiModelDownloadProgress: (cb: (progress: LocalAiModelDownloadProgress) => void) => () => void
-  /** Model pulls still running in the main process (they outlive the Settings view). */
-  getLocalAiActiveDownloads?: () => Promise<LocalAiModelDownloadProgress[]>
-  /** Opens the local runtime's download page in the browser (nothing is installed by the app). */
-  installOllama: () => Promise<LocalAiInstallResult>
-  cancelModelDownload?: (modelId: string) => Promise<{ success: boolean; cancelled?: boolean }>
-  verifyKey: (provider: string, apiKey: string) => Promise<VerifyResult>
-  translate: (params: TranslateParams) => Promise<TranslateResult>
-  cancelTranslate?: (params: { requestId: string }) => Promise<{ success: boolean; error?: string }>
-  rewriteText: (params: {
-    provider: string
-    model: string
-    text: string
-    lang: string
-    translationStyle?: TranslationStyle
-  }) => Promise<TranslateResult>
-  /** Detect the BCP-47 language code of source text (e.g. "vi", "en", "ja"). */
-  detectLanguage: (params: {
-    provider: string
-    model: string
-    text: string
-  }) => Promise<{ success: boolean; lang?: string; error?: string }>
-  /**
-   * Streaming translation — each AI token is pushed directly to the subtitle
-   * window in real-time. Returns the full translated text when complete.
-   */
-  translateStream: (params: {
-    provider: string
-    model: string
-    sourceText: string
-    sourceLang: string
-    targetLang: string
-    translationStyle?: string
-    /** Segment ID — used by subtitle window to correlate streaming tokens */
-    segId?: string
-  }) => Promise<TranslateResult>
   /** Floating subtitle overlay — runs in a separate always-on-top OS window */
   /** Floating subtitle overlay for live interpretation; shape: shared/subtitleApi.d.ts. */
   subtitle: import('../../shared/subtitleApi').SubtitleApi

@@ -21,6 +21,7 @@ import type { LocalServerApi } from '../../shared/localServerApi'
 import type { QuickChatApi } from '../../shared/quickChatApi'
 import type { SubtitleApi } from '../../shared/subtitleApi'
 import type { SystemApi } from '../../shared/systemApi'
+import type { TranslateApi } from '../../shared/translateApi'
 import type { UpdaterApi } from '../../shared/updaterApi'
 import type { WebSearchApi } from '../../shared/webSearchApi'
 import { useNotificationStore } from '../store/useNotificationStore'
@@ -204,6 +205,32 @@ if (typeof window !== 'undefined') {
     chatStreamCancel: vi.fn().mockResolvedValue({ success: false }),
     onChatStreamEvent: vi.fn().mockReturnValue(() => {}),
   }
+  const translateApiMock: TranslateApi = {
+    fetchModels: vi.fn().mockResolvedValue({ success: false, models: [] }),
+    discoverLocalAi: vi.fn().mockResolvedValue({ success: false, available: false, models: [], suggestedModels: [], hardware: { platform: 'darwin', arch: 'arm64', cpuCount: 8, totalMemoryGb: 16, tier: 'powerful' } }),
+    ensureLocalAiRuntime: vi.fn().mockResolvedValue({ success: false, available: false, models: [], suggestedModels: [], hardware: { platform: 'darwin', arch: 'arm64', cpuCount: 8, totalMemoryGb: 16, tier: 'powerful' } }),
+    benchmarkLocalAi: vi.fn().mockResolvedValue({
+      hardware: { platform: 'darwin', arch: 'arm64', cpuCount: 8, totalMemoryGb: 16, tier: 'powerful' },
+      suggestedModels: [],
+      metrics: { cpuScore: 100, memoryScore: 100, combinedScore: 100, durationMs: 300 },
+    }),
+    downloadLocalAiModel: vi.fn().mockResolvedValue({ success: false, model: '' }),
+    uninstallLocalAiModel: vi.fn().mockResolvedValue({ success: false, model: '' }),
+    onLocalAiModelDownloadProgress: vi.fn().mockReturnValue(() => {}),
+    installOllama: vi.fn().mockResolvedValue({ success: false }),
+    verifyKey: vi.fn().mockResolvedValue({ success: false }),
+    translate: vi.fn().mockResolvedValue({ success: false }),
+    cancelTranslate: vi.fn().mockResolvedValue({ success: false, error: 'NOT_FOUND' }),
+    rewriteText: vi.fn().mockResolvedValue({ success: false }),
+    translateStream: vi.fn().mockResolvedValue({ success: false }),
+    getLocalAiPerformance: vi.fn().mockResolvedValue({}),
+    compareLocalAiPerformance: vi.fn().mockResolvedValue({}),
+    selectLocalAiPerformance: vi.fn().mockResolvedValue({}),
+    cancelLocalAiPerformance: vi.fn().mockResolvedValue(undefined),
+    getLocalAiActiveDownloads: vi.fn().mockResolvedValue([]),
+    cancelModelDownload: vi.fn().mockResolvedValue({ success: false }),
+    detectLanguage: vi.fn().mockResolvedValue({ success: false }),
+  }
   const capabilitiesApiMock: CapabilitiesApi = {
     get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
     request: vi.fn().mockResolvedValue({ success: true, status: { id: 'input.accessibility', supported: true, permission: 'granted' } }),
@@ -233,24 +260,8 @@ if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'api', {
     value: {
       ...audioApiMock,
-      translate: vi.fn().mockResolvedValue({ success: false }),
-      cancelTranslate: vi.fn().mockResolvedValue({ success: false, error: 'NOT_FOUND' }),
-      rewriteText: vi.fn().mockResolvedValue({ success: false }),
       ...chatApiMock,
-      translateStream: vi.fn().mockResolvedValue({ success: false }),
-      fetchModels: vi.fn().mockResolvedValue({ success: false, models: [] }),
-      discoverLocalAi: vi.fn().mockResolvedValue({ success: false, available: false, models: [], suggestedModels: [], hardware: { platform: 'darwin', arch: 'arm64', cpuCount: 8, totalMemoryGb: 16, tier: 'powerful' } }),
-      ensureLocalAiRuntime: vi.fn().mockResolvedValue({ success: false, available: false, models: [], suggestedModels: [], hardware: { platform: 'darwin', arch: 'arm64', cpuCount: 8, totalMemoryGb: 16, tier: 'powerful' } }),
-      benchmarkLocalAi: vi.fn().mockResolvedValue({
-        hardware: { platform: 'darwin', arch: 'arm64', cpuCount: 8, totalMemoryGb: 16, tier: 'powerful' },
-        suggestedModels: [],
-        metrics: { cpuScore: 100, memoryScore: 100, combinedScore: 100, durationMs: 300 },
-      }),
-      downloadLocalAiModel: vi.fn().mockResolvedValue({ success: false, model: '' }),
-      uninstallLocalAiModel: vi.fn().mockResolvedValue({ success: false, model: '' }),
-      onLocalAiModelDownloadProgress: vi.fn().mockReturnValue(() => {}),
-      installOllama: vi.fn().mockResolvedValue({ success: false }),
-      verifyKey: vi.fn().mockResolvedValue({ success: false }),
+      ...translateApiMock,
       ...systemApiMock,
       ...webSearchApiMock,
       keychain: keychainApiMock,

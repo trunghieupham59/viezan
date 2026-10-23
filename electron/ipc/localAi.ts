@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { app, type BrowserWindow, type IpcMain, shell, type WebContents } from 'electron'
+import { LOCAL_AI_CHANNELS } from './channels'
 import { cancelLocalAiPerformance, compareLocalAiPerformance, configureLocalAiPerformancePort, configureLocalAiPerformanceStorage, getLocalAiPerformanceProfile, getLocalAiPerformanceState, isLocalAiPerformanceBusy, isLocalAiPerformanceModel, localAiProfileOptions, selectLocalAiPerformance } from './localAiPerformance'
 import { allocateOllamaPort, findPatchedOllama, PATCHED_OLLAMA_VERSION } from './ollamaPatchedRuntime'
 import { getOllamaServeLaunch } from './ollamaProcess'
@@ -1160,7 +1161,7 @@ function emitModelDownloadProgress(sender: WebContents | undefined, progress: Lo
   if (progress.status === 'running') activeModelDownloadProgress.set(progress.model, progress)
   else activeModelDownloadProgress.delete(progress.model)
   if (!sender || sender.isDestroyed()) return
-  sender.send('local-ai:modelDownloadProgress', progress)
+  sender.send(LOCAL_AI_CHANNELS.event.modelDownloadProgress, progress)
 }
 
 function emitPullProgress(sender: WebContents | undefined, model: string, payload: OllamaPullProgress, fallbackPercent: number) {
@@ -1495,38 +1496,38 @@ export async function openOllamaDownloadPage(): Promise<LocalAiInstallResult> {
 export function registerLocalAiHandlers(ipcMain: IpcMain, getMainWindow?: () => BrowserWindow | null) {
   configureLocalAiPerformanceStorage(() => path.join(app.getPath('userData'), 'local-ai-performance.json'))
   const trusted = (event: Parameters<typeof isSenderWindow>[0]) => Boolean(getMainWindow && isSenderWindow(event, getMainWindow))
-  ipcMain.handle('local-ai:performance:get', (event, model: unknown) => {
+  ipcMain.handle(LOCAL_AI_CHANNELS.invoke.performanceGet, (event, model: unknown) => {
     if (!trusted(event) || !isLocalAiPerformanceModel(model)) throw new Error('Invalid performance settings request')
     return getLocalAiPerformanceState(model)
   })
-  ipcMain.handle('local-ai:performance:compare', async (event, request: unknown) => {
+  ipcMain.handle(LOCAL_AI_CHANNELS.invoke.performanceCompare, async (event, request: unknown) => {
     const r = request as { model?: unknown; consentToReload?: unknown } | null
     if (!trusted(event) || !r || !isLocalAiPerformanceModel(r.model) || r.consentToReload !== true) throw new Error('Model reload consent is required')
     const runtime = await ensureOllamaRuntime(true)
     if (!runtime.available) throw new Error(runtime.error)
     return compareLocalAiPerformance(r.model, true)
   })
-  ipcMain.handle('local-ai:performance:select', (event, model: unknown, mode: unknown) => {
+  ipcMain.handle(LOCAL_AI_CHANNELS.invoke.performanceSelect, (event, model: unknown, mode: unknown) => {
     if (!trusted(event) || !isLocalAiPerformanceModel(model) || !['auto', 'gpu', 'hybrid'].includes(String(mode))) throw new Error('Invalid performance selection')
     return selectLocalAiPerformance(model, mode as 'auto' | 'gpu' | 'hybrid')
   })
-  ipcMain.handle('local-ai:performance:cancel', event => {
+  ipcMain.handle(LOCAL_AI_CHANNELS.invoke.performanceCancel, event => {
     if (!trusted(event)) throw new Error('Untrusted sender')
     cancelLocalAiPerformance()
   })
-  ipcMain.handle('local-ai:discover', async (_event, force?: boolean) => discoverLocalAiRuntimes(Boolean(force)))
+  ipcMain.handle(LOCAL_AI_CHANNELS.invoke.discover, async (_event, force?: boolean) => discoverLocalAiRuntimes(Boolean(force)))
   // Explicit user action: bypass the automatic-start cool-down.
-  ipcMain.handle('local-ai:ensureRuntime', async () => ensureLocalAiRuntime(true))
-  ipcMain.handle('local-ai:benchmark', async () => benchmarkLocalAiSystem())
-  ipcMain.handle('local-ai:downloadModel', async (event, modelId: string) => downloadLocalAiModel(modelId, event.sender))
-  ipcMain.handle('local-ai:getActiveDownloads', async () => getLocalAiActiveDownloads())
-  ipcMain.handle('local-ai:cancelModelDownload', async (_event, modelId: unknown) => {
+  ipcMain.handle(LOCAL_AI_CHANNELS.invoke.ensureRuntime, async () => ensureLocalAiRuntime(true))
+  ipcMain.handle(LOCAL_AI_CHANNELS.invoke.benchmark, async () => benchmarkLocalAiSystem())
+  ipcMain.handle(LOCAL_AI_CHANNELS.invoke.downloadModel, async (event, modelId: string) => downloadLocalAiModel(modelId, event.sender))
+  ipcMain.handle(LOCAL_AI_CHANNELS.invoke.getActiveDownloads, async () => getLocalAiActiveDownloads())
+  ipcMain.handle(LOCAL_AI_CHANNELS.invoke.cancelModelDownload, async (_event, modelId: unknown) => {
     if (typeof modelId !== 'string' || !SAFE_MODEL_NAME.test(modelId.trim())) {
       return { success: false, cancelled: false, error: 'Invalid model name.' }
     }
     return cancelLocalAiModelDownload(modelId)
   })
-  ipcMain.handle('local-ai:uninstallModel', async (_event, modelId: string) => uninstallLocalAiModel(modelId))
+  ipcMain.handle(LOCAL_AI_CHANNELS.invoke.uninstallModel, async (_event, modelId: string) => uninstallLocalAiModel(modelId))
   // Channel name kept for preload compatibility; it only opens the download page.
-  ipcMain.handle('local-ai:installOllama', async () => openOllamaDownloadPage())
+  ipcMain.handle(LOCAL_AI_CHANNELS.invoke.installOllama, async () => openOllamaDownloadPage())
 }

@@ -1,4 +1,5 @@
 import type { IpcMain } from 'electron'
+import { TRANSLATE_CHANNELS } from './channels'
 import { classifyProviderError, getErrorStatus, getStatusFromMessage, noApiKeyResponse } from './errorUtils'
 import { DETECT_LANG_MAX_CHARS, getTranslateTimeoutMs, TRANSLATE_AUX_TIMEOUT_MS } from './ipcConstants'
 import { invalidIpcInput, isNonEmptyString, isRecord } from './ipcValidation'
@@ -57,7 +58,7 @@ function isUserAbort(error: unknown): boolean {
 const activeTranslateControllers = new Map<string, AbortController>()
 
 export function registerTranslateHandlers(ipcMain: IpcMain) {
-  ipcMain.handle('translate:cancel', async (_event, rawParams: unknown) => {
+  ipcMain.handle(TRANSLATE_CHANNELS.invoke.cancel, async (_event, rawParams: unknown) => {
     if (!isRecord(rawParams) || !isNonEmptyString(rawParams.requestId)) {
       return { success: false, error: 'INVALID_INPUT' }
     }
@@ -68,7 +69,7 @@ export function registerTranslateHandlers(ipcMain: IpcMain) {
     return { success: true }
   })
 
-  ipcMain.handle('translate:verify', async (_event, rawProvider: unknown, rawApiKey: unknown) => {
+  ipcMain.handle(TRANSLATE_CHANNELS.invoke.verify, async (_event, rawProvider: unknown, rawApiKey: unknown) => {
     if (typeof rawProvider !== 'string' || !rawProvider.trim()) return invalidIpcInput('Provider is required')
     const provider = rawProvider.trim()
     const local = isLocalProvider(provider)
@@ -128,7 +129,7 @@ export function registerTranslateHandlers(ipcMain: IpcMain) {
     }
   })
 
-  ipcMain.handle('translate', async (_event, rawParams: unknown) => {
+  ipcMain.handle(TRANSLATE_CHANNELS.invoke.translate, async (_event, rawParams: unknown) => {
     const parsed = parseTranslateParams(rawParams)
     if (!parsed.ok) return parsed.response
     const params = parsed.value
@@ -198,7 +199,7 @@ export function registerTranslateHandlers(ipcMain: IpcMain) {
     }
   })
 
-  ipcMain.handle('translate:rewrite', async (_event, rawParams: unknown) => {
+  ipcMain.handle(TRANSLATE_CHANNELS.invoke.rewrite, async (_event, rawParams: unknown) => {
     const parsed = parseRewriteParams(rawParams)
     if (!parsed.ok) return parsed.response
     const { provider, model, text, lang, translationStyle } = parsed.value
@@ -244,7 +245,7 @@ export function registerTranslateHandlers(ipcMain: IpcMain) {
     }
   })
 
-  ipcMain.handle('translate:detect-lang', async (_event, rawParams: unknown) => {
+  ipcMain.handle(TRANSLATE_CHANNELS.invoke.detectLang, async (_event, rawParams: unknown) => {
     const parsed = parseDetectLanguageParams(rawParams)
     if (!parsed.ok) return parsed.response
     const { provider, model, text } = parsed.value
