@@ -23,6 +23,7 @@ import { execFile } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { app } from 'electron'
+import { LEGACY_ASSISTANT_CHANNELS } from './channels'
 import { invalidIpcInput, isRecord, isSafeLanguageCode } from './ipcValidation'
 
 // These are imported lazily to avoid circular deps — call the getters below.
@@ -325,7 +326,7 @@ export function initLegacyAssistant (ipcMain: Electron.IpcMain): void {
   currentSettings = loadSettings()
   if (currentSettings.enabled) startLoop()
 
-  ipcMain.handle('legacyAssistant:update', (_event, patch: unknown) => {
+  ipcMain.handle(LEGACY_ASSISTANT_CHANNELS.invoke.update, (_event, patch: unknown) => {
     const invalid = validateLegacyAssistantPatch(patch)
     if (invalid) return invalidIpcInput(invalid)
     currentSettings = sanitizeLegacyAssistantSettings(patch, currentSettings)
@@ -334,12 +335,12 @@ export function initLegacyAssistant (ipcMain: Electron.IpcMain): void {
     return { success: true, settings: currentSettings }
   })
 
-  ipcMain.handle('legacyAssistant:get', () => ({
+  ipcMain.handle(LEGACY_ASSISTANT_CHANNELS.invoke.get, () => ({
     success: true,
     settings: currentSettings,
   }))
 
-  ipcMain.handle('legacyAssistant:getBookmarklet', () => {
+  ipcMain.handle(LEGACY_ASSISTANT_CHANNELS.invoke.getBookmarklet, () => {
     const token = _getToken()
     const port  = _getPort()
     if (!token) return { success: false, error: 'Server not started yet' }
@@ -349,7 +350,7 @@ export function initLegacyAssistant (ipcMain: Electron.IpcMain): void {
     }
   })
 
-  ipcMain.handle('legacyAssistant:injectNow', async () => {
+  ipcMain.handle(LEGACY_ASSISTANT_CHANNELS.invoke.injectNow, async () => {
     await tryInject()
     return { success: true }
   })

@@ -14,6 +14,7 @@ import { afterEach, vi } from 'vitest'
 import type { CapabilitiesApi } from '../../shared/capabilitiesApi'
 import type { HotkeyApi } from '../../shared/hotkeyApi'
 import type { KeychainApi } from '../../shared/keychainApi'
+import type { LegacyAssistantApi } from '../../shared/legacyAssistantApi'
 import type { LocalServerApi } from '../../shared/localServerApi'
 import type { SystemApi } from '../../shared/systemApi'
 import type { WebSearchApi } from '../../shared/webSearchApi'
@@ -104,6 +105,12 @@ if (typeof window !== 'undefined') {
     deleteToken: vi.fn().mockResolvedValue({ success: true }),
     regenerateToken: vi.fn().mockResolvedValue({ success: true }),
     syncConfig: vi.fn().mockResolvedValue({ success: true }),
+  }
+  const legacyAssistantApiMock: LegacyAssistantApi = {
+    get: vi.fn().mockResolvedValue({ success: true, settings: {} }),
+    update: vi.fn().mockResolvedValue({ success: true }),
+    getBookmarklet: vi.fn().mockResolvedValue({ success: true, bookmarklet: '' }),
+    injectNow: vi.fn().mockResolvedValue({ success: true }),
   }
   const capabilitiesApiMock: CapabilitiesApi = {
     get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
@@ -214,12 +221,7 @@ if (typeof window !== 'undefined') {
         onOpenSettings: vi.fn().mockReturnValue(() => {}),
         onOpenInChat: vi.fn().mockReturnValue(() => {}),
       },
-      legacyAssistant: {
-        get: vi.fn().mockResolvedValue({ success: true, settings: {} }),
-        update: vi.fn().mockResolvedValue({ success: true }),
-        getBookmarklet: vi.fn().mockResolvedValue({ success: true, bookmarklet: '' }),
-        injectNow: vi.fn().mockResolvedValue({ success: true }),
-      },
+      legacyAssistant: legacyAssistantApiMock,
       updater: {
         check: vi.fn().mockResolvedValue({ success: true }),
         download: vi.fn().mockResolvedValue({ success: true }),
