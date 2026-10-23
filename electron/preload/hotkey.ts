@@ -16,7 +16,10 @@ export const hotkeySection = {
       provider?: string
       model?: string
       sourceLang?: string
+      /** Primary language of the auto-swap pair. */
       targetLang?: string
+      /** Secondary language of the pair; '' turns the pair off. */
+      secondaryLang?: string
       uiLanguage?: 'vi' | 'en' | 'ja'
     }) => ipcRenderer.invoke('hotkey:update', settings),
 
@@ -30,20 +33,28 @@ export const hotkeySection = {
      * Listen for hotkey events pushed from the main process.
      * Returns a cleanup function — call it to unsubscribe.
      */
-    onTranslating: (cb: (data: { text: string }) => void) => {
-      const handler = (_: unknown, data: { text: string }) => cb(data)
+    onTranslating: (cb: (data: { text: string; targetLang: string | null }) => void) => {
+      const handler = (_: unknown, data: { text: string; targetLang: string | null }) => cb(data)
       ipcRenderer.on('hotkey:translating', handler)
       return () => ipcRenderer.removeListener('hotkey:translating', handler)
     },
-    onTranslated: (cb: (data: { original: string; translated: string }) => void) => {
-      const handler = (_: unknown, data: { original: string; translated: string }) => cb(data)
+    onTranslated: (cb: (data: { original: string; translated: string; targetLang: string | null }) => void) => {
+      const handler = (_: unknown, data: { original: string; translated: string; targetLang: string | null }) => cb(data)
       ipcRenderer.on('hotkey:translated', handler)
       return () => ipcRenderer.removeListener('hotkey:translated', handler)
     },
-    onError: (cb: (data: { error: string }) => void) => {
-      const handler = (_: unknown, data: { error: string }) => cb(data)
+    onError: (cb: (data: { error: string; errorCode?: string }) => void) => {
+      const handler = (_: unknown, data: { error: string; errorCode?: string }) => cb(data)
       ipcRenderer.on('hotkey:error', handler)
       return () => ipcRenderer.removeListener('hotkey:error', handler)
+    },
+
+    /** macOS Accessibility permission, required to send the copy/paste keystrokes. */
+    accessibility: {
+      /** `required` is false where no permission exists; `granted` is then always true. */
+      get: () => ipcRenderer.invoke('hotkey:accessibility:get'),
+      /** Show the macOS prompt and, while still denied, open the Accessibility settings pane. */
+      request: () => ipcRenderer.invoke('hotkey:accessibility:request'),
     },
 
     /** AI Chat hotkey — toggles the quick-ask popup. */

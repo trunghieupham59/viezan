@@ -9,8 +9,11 @@ const fake = vi.hoisted(() => ({
     showCalls: number
     scripts: string[]
     urls: string[]
+    bounds: Array<{ x: number; y: number; width: number; height: number }>
     emitClosed: () => void
   }>,
+  cursor: { x: 0, y: 0 },
+  workArea: { x: 0, y: 0, width: 1920, height: 1080 },
 }))
 
 vi.mock('electron', () => {
@@ -34,6 +37,7 @@ vi.mock('electron', () => {
         showCalls: 0,
         scripts: [],
         urls: [],
+        bounds: [],
         emitClosed: () => {
           this.record.destroyed = true
           for (const handler of this.closedHandlers) handler()
@@ -44,7 +48,7 @@ vi.mock('electron', () => {
 
     setAlwaysOnTop() {}
     setIgnoreMouseEvents() {}
-    setBounds() {}
+    setBounds(bounds: { x: number; y: number; width: number; height: number }) { this.record.bounds.push(bounds) }
     loadURL(url: string) { this.record.urls.push(url) }
     on(event: string, handler: () => void) { if (event === 'closed') this.closedHandlers.push(handler) }
     isDestroyed() { return this.record.destroyed }
@@ -56,8 +60,8 @@ vi.mock('electron', () => {
     BrowserWindow: FakeBrowserWindow,
     nativeTheme: { shouldUseDarkColors: false },
     screen: {
-      getCursorScreenPoint: () => ({ x: 0, y: 0 }),
-      getDisplayNearestPoint: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }),
+      getCursorScreenPoint: () => ({ ...fake.cursor }),
+      getDisplayNearestPoint: () => ({ workArea: { ...fake.workArea } }),
     },
   }
 })
@@ -70,6 +74,7 @@ describe('hotkey indicator', () => {
   beforeEach(async () => {
     vi.useFakeTimers()
     fake.windows.length = 0
+    fake.cursor = { x: 0, y: 0 }
     vi.resetModules()
     mod = await import('../hotkeyIndicator.js')
   })
@@ -137,6 +142,61 @@ describe('hotkey indicator', () => {
     expect(html).toContain('Quick translate')
     expect(html).toContain('--vzn-accent')
     expect(html).toContain('prefers-color-scheme: dark')
+  })
+
+  it('has dedicated copy for the permission and copy-failure states', async () => {
+    mod.setHotkeyIndicatorLanguage('en')
+    mod.showHotkeyIndicator('permission')
+    const [win] = fake.windows
+    expect(win.scripts[win.scripts.length - 1]).toContain('Accessibility access')
+
+    mod.showHotkeyIndicator('copy-failed')
+    expect(win.scripts[win.scripts.length - 1]).toContain('copy command')
+    const html = decodeURIComponent(win.urls[0].split(',')[1])
+    expect(html).toContain('data-state="permission"')
+    expect(html).toContain('data-state="copy-failed"')
+  })
+
+  it('names the pair direction in the translating message', () => {
+    mod.setHotkeyIndicatorLanguage('vi')
+    expect(mod.translatingIntoMessage('en')).toBe('Đang dịch sang Tiếng Anh...')
+    mod.setHotkeyIndicatorLanguage('en')
+    expect(mod.translatingIntoMessage('vi')).toBe('Translating into Vietnamese...')
+    expect(mod.translatingIntoMessage('zh-TW')).toContain('Chinese')
+    mod.setHotkeyIndicatorLanguage('ja')
+    expect(mod.translatingIntoMessage('en')).toBe('英語に翻訳しています...')
+  })
+
+  describe('placement', () => {
+    it('sits below and to the right of the cursor', () => {
+      expect(mod.computeIndicatorBounds({ x: 500, y: 400 }, { x: 0, y: 0, width: 1920, height: 1080 }))
+        .toEqual({ x: 516, y: 424, width: 304, height: 60 })
+    })
+
+    it('flips above the cursor near the bottom edge and clamps to the work area', () => {
+      const area = { x: 0, y: 0, width: 1920, height: 1080 }
+      expect(mod.computeIndicatorBounds({ x: 500, y: 1060 }, area)).toEqual({ x: 516, y: 976, width: 304, height: 60 })
+      // Right edge: never past the margin.
+      expect(mod.computeIndicatorBounds({ x: 1900, y: 400 }, area).x).toBe(1920 - 304 - 12)
+      // Top-left corner of a secondary display with an offset origin.
+      expect(mod.computeIndicatorBounds({ x: -1920, y: -200 }, { x: -1920, y: -200, width: 1920, height: 1080 }))
+        .toEqual({ x: -1904, y: -176, width: 304, height: 60 })
+    })
+
+    it('anchors once per run and re-anchors for the next run', () => {
+      fake.cursor = { x: 100, y: 100 }
+      mod.showHotkeyIndicator('copying')
+      fake.cursor = { x: 900, y: 700 }
+      mod.showHotkeyIndicator('translating')
+      mod.showHotkeyIndicator('done')
+      const [win] = fake.windows
+      expect(win.bounds).toEqual([{ x: 116, y: 124, width: 304, height: 60 }])
+
+      // Terminal state shown → the next press is a new run at the new cursor position.
+      mod.showHotkeyIndicator('copying')
+      expect(win.bounds).toHaveLength(2)
+      expect(win.bounds[1]).toMatchObject({ x: 916, y: 724 })
+    })
   })
 
   it('validates indicator languages', () => {

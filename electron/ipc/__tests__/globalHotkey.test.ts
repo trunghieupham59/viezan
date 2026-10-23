@@ -33,6 +33,10 @@ const env = vi.hoisted(() => ({
   indicatorLanguage: vi.fn(),
   clipboardWrites: [] as unknown[],
   send: vi.fn(),
+  /** Result of the fake macOS Accessibility check; `prompted` records prompt requests. */
+  accessibilityGranted: true,
+  accessibilityPrompts: 0,
+  openExternal: vi.fn(),
 }))
 
 vi.mock('node:child_process', () => ({
@@ -68,6 +72,15 @@ vi.mock('electron', () => ({
       env.clip = { text: '', html: '', rtf: '', image: null, formats: [] }
     },
   },
+  systemPreferences: {
+    isTrustedAccessibilityClient: (prompt: boolean) => {
+      if (prompt) env.accessibilityPrompts += 1
+      return env.accessibilityGranted
+    },
+  },
+  shell: {
+    openExternal: (...args: unknown[]) => env.openExternal(...args),
+  },
   globalShortcut: {
     register: (accelerator: string, cb: () => void) => {
       env.events.push(`register:${accelerator}`)
@@ -85,6 +98,7 @@ vi.mock('electron', () => ({
 }))
 
 vi.mock('../hotkeyIndicator', () => ({
+  translatingIntoMessage: (lang: string) => `into ${lang}`,
   showHotkeyIndicator: (...args: unknown[]) => env.indicator(...args),
   hideHotkeyIndicator: (...args: unknown[]) => env.hideIndicator(...args),
   setHotkeyIndicatorLanguage: (...args: unknown[]) => env.indicatorLanguage(...args),
@@ -96,6 +110,13 @@ vi.mock('../lightweightTranslate', () => ({
 }))
 
 type GlobalHotkeyModule = typeof import('../globalHotkey')
+
+/** Pin `process.platform` for a test; returns a restore function. */
+function withPlatform(platform: NodeJS.Platform): () => void {
+  const original = process.platform
+  Object.defineProperty(process, 'platform', { value: platform, configurable: true })
+  return () => Object.defineProperty(process, 'platform', { value: original, configurable: true })
+}
 
 function setClipboard(state: Partial<FakeClipboardState>) {
   env.clip = { text: '', html: '', rtf: '', image: null, formats: [], ...state }
@@ -373,12 +394,42 @@ describe('hotkey settings IPC', () => {
     expect((await invoke('hotkey:get')).settings).toMatchObject({ enabled: false, hotkey: '' })
     expect(env.events).toEqual([])
   })
+
+  describe('language pair settings', () => {
+    it('gives settings saved before the pair existed the default secondary language', async () => {
+      await init({ translate: { enabled: true, hotkey: 'Alt+Shift+T', targetLang: 'vi' } })
+      expect((await invoke('hotkey:get')).settings).toMatchObject({ targetLang: 'vi', secondaryLang: 'en' })
+
+      await init({ translate: { enabled: true, hotkey: 'Alt+Shift+T', targetLang: 'ja' } })
+      expect((await invoke('hotkey:get')).settings).toMatchObject({ targetLang: 'ja', secondaryLang: 'vi' })
+    })
+
+    it('keeps an explicitly disabled pair and a persisted secondary language', async () => {
+      await init({ translate: { hotkey: 'Alt+Shift+T', targetLang: 'vi', secondaryLang: '' } })
+      expect((await invoke('hotkey:get')).settings).toMatchObject({ secondaryLang: '' })
+
+      await init({ translate: { hotkey: 'Alt+Shift+T', targetLang: 'vi', secondaryLang: 'ja' } })
+      expect((await invoke('hotkey:get')).settings).toMatchObject({ secondaryLang: 'ja' })
+    })
+
+    it('rejects a malformed secondary language and turns the pair off when both languages collide', async () => {
+      await init()
+      expect(await invoke('hotkey:update', { secondaryLang: 'auto' })).toMatchObject({ success: false, errorCode: 'INVALID' })
+      expect(await invoke('hotkey:update', { secondaryLang: 'rm -rf' })).toMatchObject({ success: false, errorCode: 'INVALID' })
+
+      expect((await invoke('hotkey:update', { targetLang: 'vi', secondaryLang: 'en' })).settings).toMatchObject({ targetLang: 'vi', secondaryLang: 'en' })
+      expect((await invoke('hotkey:update', { targetLang: 'en' })).settings).toMatchObject({ targetLang: 'en', secondaryLang: '' })
+      const persisted = JSON.parse(fs.readFileSync(path.join(env.userData, 'hotkey-settings.json'), 'utf-8'))
+      expect(persisted).toMatchObject({ targetLang: 'en', secondaryLang: '' })
+    })
+  })
 })
 
 // ── Translate flow ────────────────────────────────────────────────────────────
 
 describe('translate hotkey flow', () => {
   let press: () => void
+  let flowHandlers: Record<string, (...args: unknown[]) => unknown> = {}
 
   /** Make the fake OS keystroke helpers behave: copy puts `selection` on the clipboard. */
   function installExec(opts: { selection?: string; failCopy?: boolean; hangPaste?: boolean; copyDelayMs?: number } = {}) {
@@ -415,6 +466,7 @@ describe('translate hotkey flow', () => {
     const ipcMain = { handle: (channel: string, fn: (...args: unknown[]) => unknown) => { handlers[channel] = fn } }
     const window = { webContents: { send: env.send } }
     mod.initGlobalHotkey(ipcMain as never, () => window as never, vi.fn())
+    flowHandlers = handlers
     await handlers['hotkey:update']({}, { enabled: true, hotkey: 'Alt+Shift+T', provider: 'gemini', targetLang: 'vi' })
     const callback = env.registered.get('Alt+Shift+T')
     if (!callback) throw new Error('translate hotkey was not registered')
@@ -429,6 +481,8 @@ describe('translate hotkey flow', () => {
     env.registerResult.clear()
     env.events.length = 0
     env.clipboardWrites.length = 0
+    env.accessibilityGranted = true
+    env.accessibilityPrompts = 0
     setClipboard({})
     env.translate.mockResolvedValue({ success: true, translatedText: 'xin chao' })
     installExec({ selection: 'hello' })
@@ -608,13 +662,27 @@ describe('translate hotkey flow', () => {
     expect(env.clip.text).toBe('user copied this')
   })
 
+  it('reports a failed copy helper as its own error, not as an empty selection', async () => {
+    installExec({ failCopy: true })
+    setClipboard({ text: 'orig', formats: ['text/plain'] })
+
+    press()
+    await vi.advanceTimersByTimeAsync(1_000)
+
+    expect(env.indicator).toHaveBeenCalledWith('copy-failed', undefined, expect.any(Number))
+    expect(env.indicator).not.toHaveBeenCalledWith('warning', expect.anything(), expect.anything())
+    expect(env.send).toHaveBeenCalledWith('hotkey:error', expect.objectContaining({ errorCode: 'COPY_FAILED' }))
+    expect(env.translate).not.toHaveBeenCalled()
+    expect(env.clip.text).toBe('orig') // original clipboard restored
+  })
+
   it('resets the busy flag when the copy helper hangs or fails', async () => {
     installExec({ failCopy: true })
     setClipboard({ text: 'orig', formats: ['text/plain'] })
 
     press()
     await vi.advanceTimersByTimeAsync(1_000)
-    expect(env.indicator).toHaveBeenCalledWith('warning', undefined, 1_500)
+    expect(env.send).toHaveBeenCalledWith('hotkey:error', expect.objectContaining({ errorCode: 'COPY_FAILED' }))
     expect(env.clip.text).toBe('orig')
 
     installExec({ selection: 'hello' })
@@ -646,5 +714,125 @@ describe('translate hotkey flow', () => {
 
     expect(env.clip).toMatchObject({ text: 'orig', html: '<i>orig</i>' })
     expect(env.indicator).toHaveBeenCalledWith('error', 'boom', 2_200)
+  })
+
+  describe('language pair direction', () => {
+    async function configurePair(targetLang: string, secondaryLang: string) {
+      await flowHandlers['hotkey:update']({}, { targetLang, secondaryLang })
+      env.send.mockClear()
+      env.indicator.mockClear()
+      env.translate.mockClear()
+    }
+
+    it('translates primary-language text into the secondary language and names the direction', async () => {
+      await configurePair('vi', 'en')
+      installExec({ selection: 'Xin chào các bạn' })
+
+      press()
+      await vi.advanceTimersByTimeAsync(600)
+
+      expect(env.translate).toHaveBeenCalledWith(expect.objectContaining({ text: 'Xin chào các bạn', targetLang: 'en' }))
+      expect(env.translate.mock.calls[0][0]).not.toHaveProperty('autoSwapLang')
+      expect(env.indicator).toHaveBeenCalledWith('translating', 'into en')
+      expect(env.send).toHaveBeenCalledWith('hotkey:translating', { text: 'Xin chào các bạn', targetLang: 'en' })
+      expect(env.send).toHaveBeenCalledWith('hotkey:translated', expect.objectContaining({ targetLang: 'en' }))
+    })
+
+    it('translates any other text into the primary language', async () => {
+      await configurePair('vi', 'en')
+      installExec({ selection: 'Hello everyone' })
+      press()
+      await vi.advanceTimersByTimeAsync(600)
+      expect(env.translate).toHaveBeenCalledWith(expect.objectContaining({ targetLang: 'vi' }))
+
+      await configurePair('vi', 'en')
+      installExec({ selection: '今日はいい天気ですね' })
+      press()
+      await vi.advanceTimersByTimeAsync(600)
+      expect(env.translate).toHaveBeenCalledWith(expect.objectContaining({ targetLang: 'vi' }))
+    })
+
+    it('lets the model decide when the script is ambiguous', async () => {
+      await configurePair('en', 'fr')
+      installExec({ selection: 'Bonjour tout le monde' })
+
+      press()
+      await vi.advanceTimersByTimeAsync(600)
+
+      expect(env.translate).toHaveBeenCalledWith(expect.objectContaining({ targetLang: 'en', autoSwapLang: 'fr' }))
+      expect(env.indicator).toHaveBeenCalledWith('translating', undefined)
+      expect(env.send).toHaveBeenCalledWith('hotkey:translating', { text: 'Bonjour tout le monde', targetLang: null })
+    })
+
+    it('always uses the primary language when the pair is off', async () => {
+      await configurePair('vi', '')
+      installExec({ selection: 'Xin chào các bạn' })
+
+      press()
+      await vi.advanceTimersByTimeAsync(600)
+
+      expect(env.translate).toHaveBeenCalledWith(expect.objectContaining({ targetLang: 'vi' }))
+      expect(env.translate.mock.calls[0][0]).not.toHaveProperty('autoSwapLang')
+      expect(env.indicator).toHaveBeenCalledWith('translating', undefined)
+    })
+  })
+
+  describe('macOS Accessibility permission', () => {
+    let restorePlatform: () => void
+
+    beforeEach(() => { restorePlatform = withPlatform('darwin') })
+    afterEach(() => { restorePlatform() })
+
+    it('stops before touching the clipboard and asks for the permission when it is missing', async () => {
+      env.accessibilityGranted = false
+      setClipboard({ text: 'orig', formats: ['text/plain'] })
+
+      press()
+      await vi.advanceTimersByTimeAsync(1_000)
+
+      expect(env.accessibilityPrompts).toBe(1)
+      expect(env.exec).not.toHaveBeenCalled()
+      expect(env.translate).not.toHaveBeenCalled()
+      expect(env.clip.text).toBe('orig')
+      expect(env.clipboardWrites).toEqual([])
+      expect(env.indicator).toHaveBeenCalledWith('permission', undefined, expect.any(Number))
+      expect(env.indicator).not.toHaveBeenCalledWith('copying')
+      expect(env.send).toHaveBeenCalledWith('hotkey:error', expect.objectContaining({ errorCode: 'ACCESSIBILITY_DENIED' }))
+    })
+
+    it('runs normally once the permission is granted', async () => {
+      env.accessibilityGranted = true
+      press()
+      await vi.advanceTimersByTimeAsync(600)
+
+      expect(env.translate).toHaveBeenCalledWith(expect.objectContaining({ text: 'hello' }))
+      expect(env.send).toHaveBeenCalledWith('hotkey:translated', expect.anything())
+    })
+
+    it('reports the permission status and opens System Settings while it is denied', async () => {
+      env.accessibilityGranted = false
+      expect(await flowHandlers['hotkey:accessibility:get']({})).toEqual({ success: true, required: true, granted: false })
+
+      expect(await flowHandlers['hotkey:accessibility:request']({})).toEqual({ success: true, required: true, granted: false })
+      expect(env.accessibilityPrompts).toBe(1)
+      expect(env.openExternal).toHaveBeenCalledWith('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility')
+
+      env.accessibilityGranted = true
+      env.openExternal.mockClear()
+      expect(await flowHandlers['hotkey:accessibility:request']({})).toEqual({ success: true, required: true, granted: true })
+      expect(env.openExternal).not.toHaveBeenCalled()
+    })
+
+    it('needs no permission on other platforms', async () => {
+      restorePlatform()
+      restorePlatform = withPlatform('win32')
+      env.accessibilityGranted = false
+
+      expect(await flowHandlers['hotkey:accessibility:get']({})).toEqual({ success: true, required: false, granted: true })
+      press()
+      await vi.advanceTimersByTimeAsync(600)
+      expect(env.accessibilityPrompts).toBe(0)
+      expect(env.send).toHaveBeenCalledWith('hotkey:translated', expect.anything())
+    })
   })
 })

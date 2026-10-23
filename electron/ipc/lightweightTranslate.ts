@@ -24,6 +24,11 @@ const MAX_MODEL_ID_CHARS = 200
 export interface LightweightTranslateParams {
   text: string
   targetLang: string
+  /**
+   * Language pair fallback: when the text is already written in `targetLang`, translate
+   * into this language instead. Used when the script heuristic could not tell the two apart.
+   */
+  autoSwapLang?: string
   provider?: string
   model?: string
   translationStyle?: TranslationStyle
@@ -62,6 +67,10 @@ export async function lightweightTranslate(params: LightweightTranslateParams): 
     }
   }
   if (!isSafeTargetLanguageCode(targetLang)) return invalid('Invalid target language')
+  const autoSwapLang = input.autoSwapLang
+  if (autoSwapLang !== undefined && (!isSafeTargetLanguageCode(autoSwapLang) || autoSwapLang === targetLang)) {
+    return invalid('Invalid auto-swap language')
+  }
   if (typeof provider !== 'string' || !isValidProvider(provider)) return invalid(`Unknown provider: ${String(provider).slice(0, 40)}`)
   if (typeof translationStyle !== 'string' || !hasOwnKey(STYLE_TONE, translationStyle)) return invalid('Invalid translation style')
   if (input.model !== undefined && (typeof input.model !== 'string' || input.model.length > MAX_MODEL_ID_CHARS)) {
@@ -79,8 +88,12 @@ export async function lightweightTranslate(params: LightweightTranslateParams): 
   const apiKey = isLocalProvider(provider) ? LOCAL_AI_PLACEHOLDER_KEY : await getStoredApiKey(provider)
   if (!apiKey) return { success: false, error: `No API key configured for ${provider}`, errorCode: 'NO_API_KEY' }
 
-  const tone = getStyleTone(translationStyle, targetLang)
-  const prompt = `Translate into ${targetLang}. Tone: ${tone}. Output only the translation.\n\n${text}`
+  // With a swap language the real target is unknown, so no target-specific tone hints apply.
+  const tone = getStyleTone(translationStyle, autoSwapLang ? undefined : targetLang)
+  const direction = autoSwapLang
+    ? `Translate into ${targetLang}. If the text is already written in ${targetLang}, translate it into ${autoSwapLang} instead.`
+    : `Translate into ${targetLang}.`
+  const prompt = `${direction} Tone: ${tone}. Output only the translation.\n\n${text}`
 
   try {
     const translatedText = await runWithTimeout(

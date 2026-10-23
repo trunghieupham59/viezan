@@ -1,6 +1,11 @@
 import { BrowserWindow, nativeTheme, screen } from 'electron'
 
-export type HotkeyIndicatorState = 'busy' | 'copying' | 'translating' | 'done' | 'warning' | 'error'
+export type HotkeyIndicatorState =
+  | 'busy' | 'copying' | 'translating' | 'done' | 'warning' | 'error'
+  /** macOS Accessibility access is missing, so no keystroke can be sent. */
+  | 'permission'
+  /** The OS copy keystroke helper failed (not the same as an empty selection). */
+  | 'copy-failed'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 // The indicator is a standalone data: URL window, so it cannot load
@@ -10,7 +15,11 @@ export type HotkeyIndicatorState = 'busy' | 'copying' | 'translating' | 'done' |
 
 const INDICATOR_WIDTH = 304
 const INDICATOR_HEIGHT = 60
-const INDICATOR_TOP_MARGIN = 28
+/** Where the pill sits relative to the mouse cursor: below and to the right, clear of the selection. */
+const INDICATOR_CURSOR_OFFSET_X = 16
+const INDICATOR_CURSOR_OFFSET_Y = 24
+/** Minimum distance kept from the edges of the display work area. */
+const INDICATOR_SCREEN_MARGIN = 12
 const DEFAULT_HIDE_DELAY_MS = 1_500
 const TRANSPARENT_BACKGROUND = '#00000000'
 
@@ -62,6 +71,8 @@ const INDICATOR_COPY: Record<HotkeyIndicatorLanguage, IndicatorCopy> = {
       done: 'Đã thay thế văn bản.',
       warning: 'Không có văn bản được chọn.',
       error: 'Không thể dịch văn bản.',
+      permission: 'Cần cấp quyền Trợ năng cho Viezan trong Cài đặt hệ thống.',
+      'copy-failed': 'Không gửi được lệnh sao chép tới ứng dụng đang mở.',
     },
   },
   en: {
@@ -73,6 +84,8 @@ const INDICATOR_COPY: Record<HotkeyIndicatorLanguage, IndicatorCopy> = {
       done: 'Text replaced.',
       warning: 'No text is selected.',
       error: 'Could not translate the text.',
+      permission: 'Grant Viezan Accessibility access in System Settings.',
+      'copy-failed': 'Could not send the copy command to the active app.',
     },
   },
   ja: {
@@ -84,6 +97,8 @@ const INDICATOR_COPY: Record<HotkeyIndicatorLanguage, IndicatorCopy> = {
       done: 'テキストを置き換えました。',
       warning: 'テキストが選択されていません。',
       error: 'テキストを翻訳できませんでした。',
+      permission: 'システム設定でViezanにアクセシビリティの権限を付与してください。',
+      'copy-failed': 'アクティブなアプリにコピーコマンドを送信できませんでした。',
     },
   },
 }
@@ -96,8 +111,34 @@ const INDICATOR_MARKS: Record<HotkeyIndicatorState, string> = {
   done: '✓',
   warning: '!',
   error: '!',
+  permission: '!',
+  'copy-failed': '!',
 }
 const IN_PROGRESS_STATES: ReadonlySet<HotkeyIndicatorState> = new Set(['copying', 'translating'])
+
+/** "Translating into {lang}..." per UI language; `{lang}` is the target language's display name. */
+const TRANSLATING_INTO_COPY: Record<HotkeyIndicatorLanguage, string> = {
+  vi: 'Đang dịch sang {lang}...',
+  en: 'Translating into {lang}...',
+  ja: '{lang}に翻訳しています...',
+}
+
+/** Display name of a language code in the indicator language (falls back to the code). */
+function languageDisplayName(code: string): string {
+  try {
+    return new Intl.DisplayNames([indicatorLanguage], { type: 'language' }).of(code) ?? code
+  } catch {
+    return code
+  }
+}
+
+/**
+ * The in-progress message that names the direction the language pair picked, e.g.
+ * "Đang dịch sang Tiếng Anh...". Pass it as the `message` of the `translating` state.
+ */
+export function translatingIntoMessage(targetLang: string): string {
+  return TRANSLATING_INTO_COPY[indicatorLanguage].replace('{lang}', languageDisplayName(targetLang))
+}
 
 export function isHotkeyIndicatorLanguage(value: unknown): value is HotkeyIndicatorLanguage {
   return value === 'vi' || value === 'en' || value === 'ja'
@@ -225,15 +266,19 @@ ${cssVariables(INDICATOR_COLORS.light)}
 
     body[data-state="done"] .mark::after,
     body[data-state="warning"] .mark::after,
+    body[data-state="permission"] .mark::after,
+    body[data-state="copy-failed"] .mark::after,
     body[data-state="error"] .mark::after {
       animation: none;
       opacity: 0.32;
     }
 
-    body[data-state="warning"] .mark {
+    body[data-state="warning"] .mark,
+    body[data-state="permission"] .mark {
       background: var(--vzn-warning);
     }
 
+    body[data-state="copy-failed"] .mark,
     body[data-state="error"] .mark {
       background: var(--vzn-danger);
     }
@@ -354,16 +399,38 @@ function closeIndicatorWindow(win: BrowserWindow): void {
   if (indicatorWindow === win) currentState = null
 }
 
+export interface IndicatorPoint { x: number; y: number }
+export interface IndicatorArea { x: number; y: number; width: number; height: number }
+
+/**
+ * Bounds that put the pill next to the cursor (the text was most likely selected right
+ * there) while keeping it fully inside the display's work area. It prefers sitting below
+ * and to the right of the cursor, flips above when there is no room below, and is clamped
+ * horizontally.
+ */
+export function computeIndicatorBounds(cursor: IndicatorPoint, workArea: IndicatorArea): IndicatorArea {
+  const minX = workArea.x + INDICATOR_SCREEN_MARGIN
+  const maxX = workArea.x + workArea.width - INDICATOR_WIDTH - INDICATOR_SCREEN_MARGIN
+  const minY = workArea.y + INDICATOR_SCREEN_MARGIN
+  const maxY = workArea.y + workArea.height - INDICATOR_HEIGHT - INDICATOR_SCREEN_MARGIN
+
+  const below = cursor.y + INDICATOR_CURSOR_OFFSET_Y
+  const above = cursor.y - INDICATOR_CURSOR_OFFSET_Y - INDICATOR_HEIGHT
+  const y = below <= maxY ? below : above
+
+  const clamp = (value: number, min: number, max: number) => Math.round(Math.min(Math.max(value, min), Math.max(min, max)))
+  return {
+    width: INDICATOR_WIDTH,
+    height: INDICATOR_HEIGHT,
+    x: clamp(cursor.x + INDICATOR_CURSOR_OFFSET_X, minX, maxX),
+    y: clamp(y, minY, maxY),
+  }
+}
+
 function positionIndicatorWindow(win: BrowserWindow): void {
   const cursor = screen.getCursorScreenPoint()
   const { workArea } = screen.getDisplayNearestPoint(cursor)
-
-  win.setBounds({
-    width: INDICATOR_WIDTH,
-    height: INDICATOR_HEIGHT,
-    x: Math.round(workArea.x + workArea.width / 2 - INDICATOR_WIDTH / 2),
-    y: Math.round(workArea.y + INDICATOR_TOP_MARGIN),
-  })
+  win.setBounds(computeIndicatorBounds(cursor, workArea))
 }
 
 function getIndicatorCopy(state: HotkeyIndicatorState, message?: string): { title: string; message: string; mark: string } {
@@ -390,7 +457,10 @@ export function showHotkeyIndicator(
     hideTimer = null
   }
 
-  positionIndicatorWindow(win)
+  // Anchor once per run: the pill stays where the text was selected while the states
+  // progress, instead of chasing the mouse. A new run (no live in-progress state) re-anchors.
+  const continuing = currentState !== null && IN_PROGRESS_STATES.has(currentState) && win === indicatorWindow
+  if (!continuing) positionIndicatorWindow(win)
   currentState = state
 
   const prefersDark = nativeTheme.shouldUseDarkColors ? 'dark' : 'light'

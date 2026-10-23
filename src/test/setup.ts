@@ -134,6 +134,10 @@ if (typeof window !== 'undefined') {
         onTranslating: vi.fn().mockReturnValue(() => {}),
         onTranslated: vi.fn().mockReturnValue(() => {}),
         onError: vi.fn().mockReturnValue(() => {}),
+        accessibility: {
+          get: vi.fn().mockResolvedValue({ success: true, required: false, granted: true }),
+          request: vi.fn().mockResolvedValue({ success: true, required: false, granted: true }),
+        },
         chat: {
           update: vi.fn().mockResolvedValue({ success: true }),
           get: vi.fn().mockResolvedValue({ success: true, settings: {} }),

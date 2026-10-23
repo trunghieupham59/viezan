@@ -99,6 +99,24 @@ describe('lightweightTranslate — execution', () => {
     expect(geminiGenerate.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal)
   })
 
+  it('rejects an auto-swap language that is malformed or equal to the target', async () => {
+    expect(await call({ text: 'hello', targetLang: 'vi', autoSwapLang: 'auto' })).toMatchObject({ success: false, errorCode: 'INVALID_INPUT' })
+    expect(await call({ text: 'hello', targetLang: 'vi', autoSwapLang: 'vi' })).toMatchObject({ success: false, errorCode: 'INVALID_INPUT' })
+    expect(await call({ text: 'hello', targetLang: 'vi', autoSwapLang: 42 })).toMatchObject({ success: false, errorCode: 'INVALID_INPUT' })
+  })
+
+  it('asks the model to swap direction when the text is already in the target language', async () => {
+    geminiGenerate.mockResolvedValue({ response: { text: () => 'Hello' } })
+    await call({ text: 'Bonjour', targetLang: 'en', autoSwapLang: 'fr' })
+    const prompt: string = geminiGenerate.mock.calls[0][0]
+    expect(prompt).toContain('Translate into en.')
+    expect(prompt).toContain('If the text is already written in en, translate it into fr instead.')
+
+    geminiGenerate.mockClear()
+    await call({ text: 'Bonjour', targetLang: 'en' })
+    expect(geminiGenerate.mock.calls[0][0]).not.toContain('instead')
+  })
+
   it('returns NO_API_KEY when no key is stored', async () => {
     vi.mocked(getStoredApiKey).mockReturnValue(null)
     const result = await call({ text: 'hello', targetLang: 'es', provider: 'openai' })

@@ -116,6 +116,9 @@
       "notarize": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSAppleEventsUsageDescription": "Viezan sends keyboard shortcuts to the active app so Quick Translate can copy the selected text and replace it with the translation."
+      },
       "target": [
         {
           "target": "dmg",

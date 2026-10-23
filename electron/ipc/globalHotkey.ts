@@ -2,6 +2,8 @@
  * Global Hotkey — translate selected text in ANY app by pressing a custom shortcut.
  *
  * Flow when hotkey fires:
+ *   0. On macOS, require Accessibility access: without it System Events cannot send
+ *      the copy/paste keystrokes, and the run stops with a permission error
  *   1. Snapshot the clipboard (text, HTML, RTF, image) and clear it - unless it holds
  *      formats we cannot restore (files, Excel...), in which case it is left untouched
  *   2. Simulate Cmd+C / Ctrl+C to copy selected text from the foreground app
@@ -18,14 +20,17 @@
 import { exec } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { app, type BrowserWindow, clipboard, globalShortcut, type NativeImage } from 'electron'
+import { app, type BrowserWindow, clipboard, globalShortcut, type NativeImage, shell, systemPreferences } from 'electron'
+import { MACOS_ACCESSIBILITY_PREFS } from './externalUrl'
 import {
   type HotkeyIndicatorLanguage,
   hideHotkeyIndicator,
   isHotkeyIndicatorLanguage,
   setHotkeyIndicatorLanguage,
   showHotkeyIndicator,
+  translatingIntoMessage,
 } from './hotkeyIndicator'
+import { defaultSecondaryLang, isLanguagePairActive, resolvePairDirection } from './hotkeyLanguagePair'
 import { EXT_DEFAULT_GEMINI_MODEL } from './ipcConstants'
 import { isNonEmptyString, isRecord, isSafeLanguageCode, isSafeTargetLanguageCode } from './ipcValidation'
 import { lightweightTranslate } from './lightweightTranslate'
@@ -54,7 +59,13 @@ export interface HotkeySettings {
   provider: string     // 'gemini' | 'claude' | 'openai'
   model: string
   sourceLang: string   // 'auto' or BCP-47 code
+  /** Primary language: everything not written in it is translated into it. */
   targetLang: string   // BCP-47 code
+  /**
+   * Secondary language of the auto-swap pair: text already in `targetLang` is translated
+   * into this one. '' turns the pair off (always translate into `targetLang`).
+   */
+  secondaryLang: string
   /** UI language for the hotkey indicator copy (pushed by the renderer). */
   uiLanguage?: HotkeyIndicatorLanguage
 }
@@ -65,6 +76,17 @@ export interface AIChatHotkeySettings {
 }
 
 type HotkeyFailureCode = 'INVALID' | 'IN_USE' | 'CONFLICT'
+
+/** Why a hotkey run stopped before the text was replaced (sent to the renderer as `errorCode`). */
+export type HotkeyRunErrorCode = 'ACCESSIBILITY_DENIED' | 'COPY_FAILED' | 'PASTE_FAILED' | 'TRANSLATE_FAILED'
+
+/** A run failure with a stable code so the renderer can show a localized explanation. */
+class HotkeyRunError extends Error {
+  constructor(readonly code: HotkeyRunErrorCode, message: string) {
+    super(message)
+    this.name = 'HotkeyRunError'
+  }
+}
 
 export interface HotkeyUpdateFailure {
   success: false
@@ -136,6 +158,7 @@ const DEFAULT_SETTINGS: HotkeySettings = {
   model: EXT_DEFAULT_GEMINI_MODEL,
   sourceLang: 'auto',
   targetLang: 'en',
+  secondaryLang: defaultSecondaryLang('en'),
 }
 
 const DEFAULT_CHAT_SETTINGS: AIChatHotkeySettings = {
@@ -204,6 +227,12 @@ function parseTranslateSettingsPatch(raw: unknown): PatchResult<HotkeySettings> 
     if (!isSafeTargetLanguageCode(raw.targetLang)) return { ok: false, error: 'Invalid target language.' }
     patch.targetLang = raw.targetLang
   }
+  if (raw.secondaryLang !== undefined) {
+    if (raw.secondaryLang !== '' && !isSafeTargetLanguageCode(raw.secondaryLang)) {
+      return { ok: false, error: 'Invalid secondary language.' }
+    }
+    patch.secondaryLang = raw.secondaryLang as string
+  }
   if (raw.uiLanguage !== undefined) {
     if (!isHotkeyIndicatorLanguage(raw.uiLanguage)) return { ok: false, error: 'Invalid UI language.' }
     patch.uiLanguage = raw.uiLanguage
@@ -242,7 +271,7 @@ function parsePersistedFields<T>(
   return merged
 }
 
-const TRANSLATE_SETTING_KEYS = ['enabled', 'hotkey', 'provider', 'model', 'sourceLang', 'targetLang', 'uiLanguage'] as const
+const TRANSLATE_SETTING_KEYS = ['enabled', 'hotkey', 'provider', 'model', 'sourceLang', 'targetLang', 'secondaryLang', 'uiLanguage'] as const
 const CHAT_SETTING_KEYS = ['enabled', 'hotkey'] as const
 
 /** Persisted values are re-validated field by field: invalid fields fall back to defaults. */
@@ -252,10 +281,21 @@ function loadSettings(): HotkeySettings {
     const settings = { ...DEFAULT_SETTINGS, ...patch }
     // A hotkey that was dropped as invalid cannot stay "enabled".
     if (!settings.hotkey) settings.enabled = false
-    return settings
+    return normalizeLanguagePair(settings, patch.secondaryLang !== undefined)
   } catch {
     return { ...DEFAULT_SETTINGS }
   }
+}
+
+/**
+ * Settings saved before the language pair existed get the default pair for their
+ * primary language; a pair whose two languages collapsed onto each other is turned off.
+ */
+function normalizeLanguagePair(settings: HotkeySettings, hasPersistedSecondary: boolean): HotkeySettings {
+  const secondaryLang = !hasPersistedSecondary
+    ? defaultSecondaryLang(settings.targetLang)
+    : settings.secondaryLang === settings.targetLang ? '' : settings.secondaryLang
+  return { ...settings, secondaryLang }
 }
 
 function loadChatSettings(): AIChatHotkeySettings {
@@ -283,6 +323,39 @@ function saveChatSettings(settings: AIChatHotkeySettings): void {
   } catch (e) {
     console.error('[GlobalHotkey] Failed to save chat hotkey settings:', e)
   }
+}
+
+// ── macOS Accessibility permission ───────────────────────────────────────────
+
+/** Only macOS gates synthetic keystrokes behind the Accessibility (TCC) permission. */
+function requiresAccessibilityPermission(): boolean {
+  return process.platform === 'darwin'
+}
+
+/**
+ * True when this process may send keystrokes through System Events. With `prompt`
+ * macOS shows its one-time "control this computer" dialog and lists the app under
+ * Privacy & Security > Accessibility so the user can tick it.
+ */
+function hasAccessibilityPermission(prompt: boolean): boolean {
+  if (!requiresAccessibilityPermission()) return true
+  try {
+    return systemPreferences.isTrustedAccessibilityClient(prompt)
+  } catch (e) {
+    console.warn('[GlobalHotkey] Accessibility check failed:', e)
+    return false
+  }
+}
+
+export interface AccessibilityStatus {
+  /** False on platforms where no permission is needed; `granted` is then always true. */
+  required: boolean
+  granted: boolean
+}
+
+function getAccessibilityStatus(): AccessibilityStatus {
+  const required = requiresAccessibilityPermission()
+  return { required, granted: !required || hasAccessibilityPermission(false) }
 }
 
 // ── OS-level clipboard actions ────────────────────────────────────────────────
@@ -482,6 +555,27 @@ function createTranslateHotkeyHandler(getMainWindow: () => BrowserWindow | null)
   return () => { void runTranslateHotkey(getMainWindow) }
 }
 
+interface TranslateDirection {
+  /** Where the text goes, or null when the model must decide between the pair. */
+  targetLang: string | null
+  /** Set when the model decides: translate into `targetLang` unless already in it, then into this. */
+  autoSwapLang?: string
+  pairActive: boolean
+}
+
+/**
+ * Pick the target for this run. Without a pair it is always the primary language. With
+ * a pair, text in the primary language goes to the secondary and all other text to the
+ * primary; when the script cannot tell the two apart the prompt makes the call.
+ */
+export function resolveTranslateDirection(text: string, settings: Pick<HotkeySettings, 'targetLang' | 'secondaryLang'>): TranslateDirection {
+  const { targetLang: primary, secondaryLang } = settings
+  if (!isLanguagePairActive(primary, secondaryLang)) return { targetLang: primary, pairActive: false }
+  const { targetLang } = resolvePairDirection(text, primary, secondaryLang)
+  if (targetLang) return { targetLang, pairActive: true }
+  return { targetLang: null, autoSwapLang: secondaryLang, pairActive: true }
+}
+
 async function runTranslateHotkey(getMainWindow: () => BrowserWindow | null): Promise<void> {
   if (isTranslating) {
     // The indicator keeps showing the live copying/translating state in this case.
@@ -498,6 +592,10 @@ async function runTranslateHotkey(getMainWindow: () => BrowserWindow | null): Pr
     // A restore from the previous run may still be pending (the flag is released right
     // after the paste): settle it first so the snapshot below is the user's real clipboard.
     flushPendingClipboardRestore()
+    // Checked before the clipboard is touched: a denied run must leave it exactly as it was.
+    if (!hasAccessibilityPermission(true)) {
+      throw new HotkeyRunError('ACCESSIBILITY_DENIED', 'Viezan needs Accessibility access to read the selected text.')
+    }
     showHotkeyIndicator('copying')
 
     snapshot = snapshotClipboard()
@@ -508,35 +606,44 @@ async function runTranslateHotkey(getMainWindow: () => BrowserWindow | null): Pr
     const cleared = isFullyRestorable(snapshot)
     if (cleared) clipboard.clear()
 
-    const copied = await simulateCopy()
-    const selectedText = copied ? await waitForCopiedText(snapshot, cleared) : ''
+    // A failed keystroke helper is not "nothing selected": report it as its own error.
+    if (!(await simulateCopy())) {
+      throw new HotkeyRunError('COPY_FAILED', 'Could not send the copy command to the active app.')
+    }
+    const selectedText = await waitForCopiedText(snapshot, cleared)
 
-    if (!selectedText || selectedText.trim() === '') {
+    if (selectedText.trim() === '') {
       showHotkeyIndicator('warning', undefined, 1_500)
       return
     }
 
+    const direction = resolveTranslateDirection(selectedText, currentSettings)
+
     // Notify renderer: translation starting
-    getMainWindow()?.webContents.send('hotkey:translating', { text: selectedText })
-    showHotkeyIndicator('translating')
+    getMainWindow()?.webContents.send('hotkey:translating', { text: selectedText, targetLang: direction.targetLang })
+    showHotkeyIndicator('translating', direction.pairActive && direction.targetLang ? translatingIntoMessage(direction.targetLang) : undefined)
 
     const result = await lightweightTranslate({
       text: selectedText,
-      targetLang: currentSettings.targetLang,
+      targetLang: direction.targetLang ?? currentSettings.targetLang,
+      ...(direction.autoSwapLang ? { autoSwapLang: direction.autoSwapLang } : {}),
       provider: currentSettings.provider,
       model: currentSettings.model,
     })
-    if (!result.success || !result.translatedText) throw new Error(result.error ?? 'Translation failed')
+    if (!result.success || !result.translatedText) {
+      throw new HotkeyRunError('TRANSLATE_FAILED', result.error ?? 'Translation failed')
+    }
     const translated = result.translatedText
 
     // Paste translated text
     clipboard.writeText(translated)
-    if (!(await simulatePaste())) throw new Error('Could not paste the translated text')
+    if (!(await simulatePaste())) throw new HotkeyRunError('PASTE_FAILED', 'Could not paste the translated text')
 
     // Notify renderer: done
     getMainWindow()?.webContents.send('hotkey:translated', {
       original: selectedText,
       translated,
+      targetLang: direction.targetLang,
     })
     showHotkeyIndicator('done')
     hideHotkeyIndicator()
@@ -549,9 +656,16 @@ async function runTranslateHotkey(getMainWindow: () => BrowserWindow | null): Pr
     void scheduleClipboardRestore(snapshot, translated)
   } catch (err) {
     console.error('[GlobalHotkey] Translation error:', err)
-    showHotkeyIndicator('error', err instanceof Error ? err.message : undefined, 2_200)
+    const code = err instanceof HotkeyRunError ? err.code : undefined
+    const message = err instanceof Error ? err.message : String(err)
+    // Permission and copy failures have dedicated localized indicator copy; other
+    // errors show their own message.
+    if (code === 'ACCESSIBILITY_DENIED') showHotkeyIndicator('permission', undefined, 3_000)
+    else if (code === 'COPY_FAILED') showHotkeyIndicator('copy-failed', undefined, 2_600)
+    else showHotkeyIndicator('error', message, 2_200)
     getMainWindow()?.webContents.send('hotkey:error', {
-      error: err instanceof Error ? err.message : String(err),
+      error: message,
+      ...(code ? { errorCode: code } : {}),
     })
   } finally {
     if (restoreInFinally && snapshot) {
@@ -674,7 +788,7 @@ export function initGlobalHotkey(
       if (outcome === 'invalid') return failure('INVALID', 'Invalid hotkey combination.', currentSettings)
       if (outcome === 'in_use') return failure('IN_USE', IN_USE_MESSAGE, currentSettings)
 
-      currentSettings = next
+      currentSettings = normalizeLanguagePair(next, true)
       if (next.uiLanguage) setHotkeyIndicatorLanguage(next.uiLanguage)
       saveSettings(currentSettings)
       return { success: true, settings: currentSettings }
@@ -682,6 +796,26 @@ export function initGlobalHotkey(
       console.error('[GlobalHotkey] hotkey:update failed:', e)
       return { success: false, error: 'Could not update the hotkey.' }
     }
+  })
+
+  /** Whether synthetic keystrokes are allowed (macOS Accessibility permission). */
+  ipcMain.handle('hotkey:accessibility:get', () => ({ success: true, ...getAccessibilityStatus() }))
+
+  /**
+   * Ask for Accessibility access: triggers the macOS prompt (which also lists the app
+   * under Privacy & Security > Accessibility) and, while still denied, opens that pane.
+   */
+  ipcMain.handle('hotkey:accessibility:request', async () => {
+    if (!requiresAccessibilityPermission()) return { success: true, required: false, granted: true }
+    const granted = hasAccessibilityPermission(true)
+    if (!granted) {
+      try {
+        await shell.openExternal(MACOS_ACCESSIBILITY_PREFS)
+      } catch (e) {
+        console.error('[GlobalHotkey] Could not open Accessibility settings:', e)
+      }
+    }
+    return { success: true, required: true, granted }
   })
 
   /** Return current translate hotkey settings */

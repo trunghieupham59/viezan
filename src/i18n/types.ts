@@ -900,6 +900,18 @@ export interface Translations {
   settings_hotkey_status_done: string
   settings_hotkey_status_error: string
   settings_hotkey_conflict: string
+  settings_hotkey_primary_lang: string
+  settings_hotkey_secondary_lang: string
+  settings_hotkey_secondary_off: string
+  settings_hotkey_pair_desc: string
+  settings_hotkey_pair_off_desc: string
+  settings_hotkey_status_done_into: string
+  settings_hotkey_accessibility_title: string
+  settings_hotkey_accessibility_missing: string
+  settings_hotkey_accessibility_granted: string
+  settings_hotkey_accessibility_open: string
+  settings_hotkey_error_accessibility: string
+  settings_hotkey_error_copy_failed: string
 
   // Settings — Legacy Assistant (no-extension injection)
   settings_la_section: string
