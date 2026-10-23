@@ -40,6 +40,8 @@ export function HotkeySection() {
   const selectedModels = useAppStore((state) => state.selectedModels)
   const targetLang = useAppStore((state) => state.targetLang)
   const locale = useAppStore((state) => state.locale)
+  const enabledModules = useAppStore((state) => state.enabledModules)
+  const setModuleEnabled = useAppStore((state) => state.setModuleEnabled)
   const t = useT()
 
   const [hotkeyEnabled, setHotkeyEnabled] = useState(false)
@@ -447,6 +449,16 @@ export function HotkeySection() {
           </p>
         </div>
 
+        {/* The Translate module is off: main keeps the shortcut unregistered */}
+        {enabledModules.translate === false && (
+          <CapabilityNotice
+            tone="info"
+            title={tpl(t.settings_modules_off_title, { module: t.nav_translate })}
+            description={t.settings_modules_off_desc}
+            actions={[{ label: t.settings_modules_turn_on, onClick: () => { void setModuleEnabled('translate', true) }, primary: true }]}
+          />
+        )}
+
         {/* macOS Accessibility permission */}
         {accessibility && accessibility.permission !== 'not-required' && (
           <CapabilityNotice
@@ -523,6 +535,16 @@ export function HotkeySection() {
             </div>
           </div>
         </div>
+
+        {/* The Launcher module is off: main keeps the shortcut unregistered */}
+        {enabledModules.launcher === false && (
+          <CapabilityNotice
+            tone="info"
+            title={tpl(t.settings_modules_off_title, { module: t.settings_modules_launcher_label })}
+            description={t.settings_modules_off_desc}
+            actions={[{ label: t.settings_modules_turn_on, onClick: () => { void setModuleEnabled('launcher', true) }, primary: true }]}
+          />
+        )}
 
         {/* macOS: Spotlight (or another system shortcut) owns the chosen keys */}
         {chatSystemConflict && (

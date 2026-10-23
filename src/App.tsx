@@ -7,7 +7,9 @@ import { FeatureLoadingState } from './components/ui/molecules'
 import { PROVIDERS } from './constants/providers'
 import { resolveThemeMode, THEME_PRESET_TRAITS } from './constants/themePresets'
 import { getModule } from './modules/catalog'
+import { resolveActivePage } from './modules/enabled'
 import { MODULE_PAGES } from './modules/pages'
+import { useModulesSync } from './modules/useModulesSync'
 import { flushPersistedStore, useAppStore, useT } from './store/useAppStore'
 import type { AppPage, Provider, QuickChatSeedPayload, UsageCost } from './types'
 import { detectSystemLocale } from './utils/locale'
@@ -34,10 +36,17 @@ function App() {
     selectedProvider, selectedModels, ttsMode, ttsVoice,
     createChatSession, setActiveChatSession, addChatMessage, setChatSessionDraft,
     setActivePage, settingsOpen, openSettings, closeSettings,
-    setSourceText, setPendingDictionaryTerm, recordUsageCost,
+    setSourceText, setPendingDictionaryTerm, recordUsageCost, enabledModules,
   } = useAppStore()
 
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false)
+
+  // Mirror which modules are on; a page whose module was turned off gives way to the first enabled one.
+  useModulesSync()
+  useEffect(() => {
+    const next = resolveActivePage(activePage, enabledModules)
+    if (next !== activePage) setActivePage(next)
+  }, [activePage, enabledModules, setActivePage])
   const [navigationToggleHost, setNavigationToggleHost] = useState<HTMLDivElement | null>(null)
 
   // Apply dark class based on user preference or OS preference; a dark-only

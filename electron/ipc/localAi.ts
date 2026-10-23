@@ -955,6 +955,9 @@ function openMacOllamaApp() {
 
 async function startInstalledOllamaApp() {
   if (process.platform !== 'darwin') return null
+  // The bundled server we launched is still alive (warming up): opening Ollama.app would
+  // start a second server on the same port and fight it.
+  if (isManagedOllamaAlive()) return null
 
   const opened = await openMacOllamaApp()
   if (!opened) return null

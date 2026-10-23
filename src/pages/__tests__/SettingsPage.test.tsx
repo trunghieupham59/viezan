@@ -5,6 +5,7 @@ import { useAppStore } from '../../store/useAppStore'
 import { SettingsPage } from '../SettingsPage'
 
 vi.mock('../settings/PreferencesSection', () => ({ PreferencesSection: () => <h2>Preferences content</h2> }))
+vi.mock('../settings/ModulesSection', () => ({ ModulesSection: () => <h2>Modules content</h2> }))
 vi.mock('../settings/ApiKeysSection', () => ({ ApiKeysSection: () => <h2>Providers content</h2> }))
 vi.mock('../settings/SttSection', () => ({ SttSection: () => <h2>STT content</h2> }))
 vi.mock('../settings/TtsSection', () => ({ TtsSection: () => <h2>TTS content</h2> }))
@@ -41,8 +42,8 @@ describe('SettingsPage section navigation', () => {
     const viewport = container.querySelector<HTMLElement>('.settings-scroll-viewport')
     if (!viewport) throw new Error('viewport missing')
 
-    // Lay the ten sections out top to bottom; jsdom reports offsetTop 0 otherwise.
-    const sectionTops = [0, 400, 800, 1600, 2000, 2400, 2800, 3200, 3600, 4000]
+    // Lay the eleven sections out top to bottom; jsdom reports offsetTop 0 otherwise.
+    const sectionTops = [0, 400, 800, 1200, 1600, 2000, 2400, 2800, 3200, 3600, 4000]
     const regions = Array.from(viewport.querySelectorAll<HTMLElement>('[data-settings-section]'))
     expect(regions).toHaveLength(sectionTops.length)
     regions.forEach((region, index) => {
@@ -54,8 +55,8 @@ describe('SettingsPage section navigation', () => {
 
     const navButton = (name: string) => screen.getAllByRole('button', { name })[0]
 
-    // Providers' top (800) sits 100px below the reading line (750 + 100 = 850 > 800): already active.
-    viewport.scrollTop = 750
+    // Providers' top (1200) sits 50px below the reading line (1150 + 100 = 1250 > 1200): already active.
+    viewport.scrollTop = 1150
     fireEvent.scroll(viewport)
     await waitFor(() => expect(navButton(TRANSLATIONS.en.settings_api_keys)).toHaveAttribute('aria-current', 'true'))
 

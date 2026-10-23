@@ -580,7 +580,7 @@ export interface WindowApi extends SystemApi, WebSearchApi, AudioApi, ChatApi, T
   /** Floating subtitle overlay — runs in a separate always-on-top OS window */
   /** Floating subtitle overlay for live interpretation; shape: shared/subtitleApi.d.ts. */
   subtitle: import('../../shared/subtitleApi').SubtitleApi
-  /** Feature modules: which are enabled (no UI yet). Shape: shared/modules.d.ts. */
+  /** Feature modules: which are enabled (Settings › Modules). Shape: shared/modules.d.ts. */
   modules: import('../../shared/modules').ModulesApi
 
   /** Capabilities — what this machine can do and whether the user allowed it. Shape: shared/capabilitiesApi.d.ts. */

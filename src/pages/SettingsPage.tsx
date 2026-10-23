@@ -7,6 +7,7 @@ import {
   InfoCircleIcon,
   KeyboardIcon,
   KeyIcon,
+  LayersIcon,
   MicrophoneIcon,
   MonitorIcon,
   PaletteIcon,
@@ -20,6 +21,7 @@ import { AppearanceSection } from './settings/AppearanceSection'
 import { BrowserIntegrationSection } from './settings/BrowserIntegrationSection'
 import { ChatPresetsSection } from './settings/ChatPresetsSection'
 import { HotkeySection } from './settings/HotkeySection'
+import { ModulesSection } from './settings/ModulesSection'
 import { PreferencesSection } from './settings/PreferencesSection'
 import { SttSection } from './settings/SttSection'
 import { TtsSection } from './settings/TtsSection'
@@ -27,6 +29,7 @@ import { UpdaterSection } from './settings/UpdaterSection'
 
 type SettingsSectionId =
   | 'preferences'
+  | 'modules'
   | 'appearance'
   | 'api'
   | 'stt'
@@ -52,6 +55,7 @@ const SCROLL_LOCK_MS = 600
 
 const MemoPreferencesSection = memo(PreferencesSection)
 const MemoAppearanceSection = memo(AppearanceSection)
+const MemoModulesSection = memo(ModulesSection)
 const MemoApiKeysSection = memo(ApiKeysSection)
 const MemoSttSection = memo(SttSection)
 const MemoTtsSection = memo(TtsSection)
@@ -67,6 +71,7 @@ export function SettingsPage() {
   const sectionRefs = useRef<Record<SettingsSectionId, HTMLElement | null>>({
     api: null,
     preferences: null,
+    modules: null,
     appearance: null,
     stt: null,
     tts: null,
@@ -93,6 +98,13 @@ export function SettingsPage() {
       description: t.settings_prefs_desc,
       Icon: GearIcon,
       Component: MemoPreferencesSection,
+    },
+    {
+      id: 'modules',
+      label: t.settings_modules_section,
+      description: t.settings_modules_section_desc,
+      Icon: LayersIcon,
+      Component: MemoModulesSection,
     },
     {
       id: 'appearance',

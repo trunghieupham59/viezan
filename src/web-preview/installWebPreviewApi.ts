@@ -36,6 +36,7 @@ const previewCurrencyRates: Record<string, number> = { USD: 1, VND: 25_400, JPY:
 let previewCurrencyTarget: string | null = null
 
 /** Quick AI session survives reloads only in memory in Web Preview. */
+const previewEnabledModules: import('../../shared/modules').ModuleEnabledState = { chat: true, translate: true, live: true, dictionary: true, launcher: true, 'browser-bridge': true }
 let previewQuickAiSession: import('../../shared/quickAi').QuickAiSession | null = null
 
 function createWebPreviewApi(): WindowApi {
@@ -119,8 +120,13 @@ function createWebPreviewApi(): WindowApi {
     platform: 'web',
     version: 'web-preview',
     modules: {
-      get: async () => ({ success: true, enabled: { chat: true, translate: true, live: true, dictionary: true, launcher: true, 'browser-bridge': true } }),
-      setEnabled: async () => ({ success: false, error: 'Desktop only in Web Preview' }),
+      // In-memory only: the preview has no main process to persist or start/stop modules.
+      get: async () => ({ success: true, enabled: { ...previewEnabledModules } }),
+      setEnabled: async (id: string, enabled: boolean) => {
+        if (!(id in previewEnabledModules)) return { success: false, error: 'Unknown module.' }
+        previewEnabledModules[id as keyof typeof previewEnabledModules] = enabled
+        return { success: true, enabled: { ...previewEnabledModules } }
+      },
       onChanged: noopSubscription,
     },
     capabilities: {

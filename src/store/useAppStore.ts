@@ -8,6 +8,7 @@
  *   - historySlice   — translation history + live sessions
  *   - chatSlice      — chat sessions + system prompt presets
  *   - dictionarySlice — dictionary lookup history + favorites
+ *   - modulesSlice   — which feature modules are on (mirrored from main, not persisted)
  */
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
@@ -20,11 +21,12 @@ import { type CoreSlice, createCoreSlice } from './slices/coreSlice'
 import { createDictionarySlice, type DictionarySlice } from './slices/dictionarySlice'
 import { createHistorySlice, type HistorySlice } from './slices/historySlice'
 import { createLanguagePairSlice, type LanguagePairSlice, migrateLanguagePairs } from './slices/languagePairSlice'
+import { createModulesSlice, type ModulesSlice } from './slices/modulesSlice'
 import { createSettingsSlice, type SettingsSlice } from './slices/settingsSlice'
 import { createUsageSlice, type UsageSlice } from './slices/usageSlice'
 
 /** Full app state = core + all feature slices */
-type AppState = CoreSlice & SettingsSlice & HistorySlice & ChatSlice & DictionarySlice & UsageSlice & LanguagePairSlice
+type AppState = CoreSlice & SettingsSlice & HistorySlice & ChatSlice & DictionarySlice & UsageSlice & LanguagePairSlice & ModulesSlice
 
 /** Zustand persist storage key — change this value to force-reset all persisted state */
 const STORE_PERSIST_KEY = 'translate-app-settings'
@@ -269,6 +271,7 @@ export const useAppStore = create<AppState>()(
       ...createChatSlice(set),
       ...createDictionarySlice(set),
       ...createUsageSlice(set),
+      ...createModulesSlice(set),
     }),
     {
       name: STORE_PERSIST_KEY,
