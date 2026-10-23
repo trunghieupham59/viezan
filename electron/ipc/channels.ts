@@ -63,6 +63,15 @@ export const LOCAL_SERVER_CHANNELS = {
   },
 } as const
 
+export const LEGACY_ASSISTANT_CHANNELS = {
+  invoke: {
+    get: 'legacyAssistant:get',
+    update: 'legacyAssistant:update',
+    getBookmarklet: 'legacyAssistant:getBookmarklet',
+    injectNow: 'legacyAssistant:injectNow',
+  },
+} as const
+
 export const CAPABILITY_CHANNELS = {
   invoke: {
     get: 'capabilities:get',

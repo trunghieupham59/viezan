@@ -1,22 +1,18 @@
 /**
  * Legacy Assistant preload API — no-extension browser injection via bookmarklet.
+ * Shape: `shared/legacyAssistantApi.d.ts`.
  */
-import { ipcRenderer } from 'electron'
+import type { LegacyAssistantApi } from '../../shared/legacyAssistantApi'
+import { LEGACY_ASSISTANT_CHANNELS } from '../ipc/channels'
+import { invoke } from './contract'
 
-export const legacyAssistantSection = {
-  legacyAssistant: {
-    /** Get current settings */
-    get: () => ipcRenderer.invoke('legacyAssistant:get'),
-    /** Update settings (enable auto-inject, change targetLang, etc.) */
-    update: (settings: { enabled?: boolean; targetLang?: string }) =>
-      ipcRenderer.invoke('legacyAssistant:update', settings),
-    /**
-     * Get the bookmarklet `javascript:` URL — embed the full assistant script
-     * so the user can drag it to their bookmarks bar and click to inject on
-     * any page without installing a browser extension.
-     */
-    getBookmarklet: () => ipcRenderer.invoke('legacyAssistant:getBookmarklet'),
-    /** Immediately trigger one injection attempt into the frontmost browser */
-    injectNow: () => ipcRenderer.invoke('legacyAssistant:injectNow'),
-  },
+const ch = LEGACY_ASSISTANT_CHANNELS.invoke
+
+export const legacyAssistantApi: LegacyAssistantApi = {
+  get: invoke(ch.get),
+  update: invoke(ch.update),
+  getBookmarklet: invoke(ch.getBookmarklet),
+  injectNow: invoke(ch.injectNow),
 }
+
+export const legacyAssistantSection = { legacyAssistant: legacyAssistantApi }

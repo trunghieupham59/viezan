@@ -181,6 +181,7 @@ export interface TranslateResult {
 }
 
 export type { KeychainApi, KeychainResult } from '../../shared/keychainApi'
+export type { LegacyAssistantApi } from '../../shared/legacyAssistantApi'
 export type { LocalServerApi, LocalServerTokenResult, LocalServerTokenSummary } from '../../shared/localServerApi'
 export type { WebSearchApi, WebSearchHit, WebSearchParams, WebSearchResult } from '../../shared/webSearchApi'
 
@@ -953,13 +954,8 @@ export interface WindowApi extends SystemApi, WebSearchApi {
     onOpenInChat: (cb: (payload: QuickChatSeedPayload | null) => void) => () => void
   }
 
-  /** Legacy Assistant — floating icon injected into browsers without an extension */
-  legacyAssistant: {
-    get: () => Promise<{ success: boolean; settings?: Record<string, unknown> }>
-    update: (settings: { enabled?: boolean; targetLang?: string }) => Promise<{ success: boolean }>
-    getBookmarklet: () => Promise<{ success: boolean; bookmarklet?: string; error?: string }>
-    injectNow: () => Promise<{ success: boolean }>
-  }
+  /** Legacy Assistant — floating icon injected into browsers without an extension; shape: shared/legacyAssistantApi.d.ts. */
+  legacyAssistant: import('../../shared/legacyAssistantApi').LegacyAssistantApi
 
   /** Auto-updater — check and install updates from GitHub Releases */
   updater: {
