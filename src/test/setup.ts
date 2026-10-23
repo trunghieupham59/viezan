@@ -11,6 +11,8 @@
  */
 import '@testing-library/jest-dom/vitest'
 import { afterEach, vi } from 'vitest'
+import type { CapabilitiesApi } from '../../shared/capabilitiesApi'
+import type { HotkeyApi } from '../../shared/hotkeyApi'
 import { useNotificationStore } from '../store/useNotificationStore'
 
 // Toasts live in a module-level store; drop them between tests so one test's
@@ -67,6 +69,34 @@ if (typeof window !== 'undefined') {
     writable: true,
     configurable: true,
   })
+
+  /**
+   * Typed against the shared contracts so a method added to `shared/*Api.d.ts` without a
+   * mock fails `tsc` here instead of surfacing as `undefined is not a function` in a test.
+   */
+  const capabilitiesApiMock: CapabilitiesApi = {
+    get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
+    request: vi.fn().mockResolvedValue({ success: true, status: { id: 'input.accessibility', supported: true, permission: 'granted' } }),
+  }
+  const hotkeyApiMock: HotkeyApi = {
+    update: vi.fn().mockResolvedValue({ success: true }),
+    get: vi.fn().mockResolvedValue({ success: true, settings: {} }),
+    disable: vi.fn().mockResolvedValue({ success: true }),
+    onTranslating: vi.fn().mockReturnValue(() => {}),
+    onTranslated: vi.fn().mockReturnValue(() => {}),
+    onError: vi.fn().mockReturnValue(() => {}),
+    chat: {
+      update: vi.fn().mockResolvedValue({ success: true }),
+      get: vi.fn().mockResolvedValue({ success: true, settings: {} }),
+      systemConflict: vi.fn().mockResolvedValue({ success: true, hotkey: '', enabled: false, conflict: null }),
+      spotlight: {
+        get: vi.fn().mockResolvedValue({ success: true, shouldPrompt: false, disabledByViezan: false }),
+        resolve: vi.fn().mockResolvedValue({ success: true, applied: true }),
+        restore: vi.fn().mockResolvedValue({ success: true, applied: true }),
+      },
+      onOpen: vi.fn().mockReturnValue(() => {}),
+    },
+  }
 
   // Mock window.api — the Electron context bridge is not available in jsdom.
   // Tests that need specific return values should override individual mocks per test.
@@ -127,29 +157,8 @@ if (typeof window !== 'undefined') {
         setStyle: vi.fn().mockResolvedValue(undefined),
         onClosed: vi.fn().mockReturnValue(() => {}),
       },
-      capabilities: {
-        get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
-        request: vi.fn().mockResolvedValue({ success: true, status: { id: 'input.accessibility', supported: true, permission: 'granted' } }),
-      },
-      hotkey: {
-        update: vi.fn().mockResolvedValue({ success: true }),
-        get: vi.fn().mockResolvedValue({ success: true, settings: {} }),
-        disable: vi.fn().mockResolvedValue({ success: true }),
-        onTranslating: vi.fn().mockReturnValue(() => {}),
-        onTranslated: vi.fn().mockReturnValue(() => {}),
-        onError: vi.fn().mockReturnValue(() => {}),
-        chat: {
-          update: vi.fn().mockResolvedValue({ success: true }),
-          get: vi.fn().mockResolvedValue({ success: true, settings: {} }),
-          systemConflict: vi.fn().mockResolvedValue({ success: true, hotkey: '', enabled: false, conflict: null }),
-          spotlight: {
-            get: vi.fn().mockResolvedValue({ success: true, shouldPrompt: false, disabledByViezan: false }),
-            resolve: vi.fn().mockResolvedValue({ success: true, applied: true }),
-            restore: vi.fn().mockResolvedValue({ success: true, applied: true }),
-          },
-          onOpen: vi.fn().mockReturnValue(() => {}),
-        },
-      },
+      capabilities: capabilitiesApiMock,
+      hotkey: hotkeyApiMock,
       quickChat: {
         setLayout: vi.fn().mockResolvedValue({ success: true }),
         session: {

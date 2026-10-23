@@ -11,19 +11,10 @@
  * settings pane); it never grants anything by itself.
  */
 import type { IpcMain } from 'electron'
+import type { CapabilityId, CapabilityPermission, CapabilityStatus } from '../../shared/capabilitiesApi'
+import { CAPABILITY_CHANNELS } from './channels'
 
-export type CapabilityId = 'input.accessibility' | 'launcher.spotlight'
-
-export type CapabilityPermission = 'granted' | 'denied' | 'not-required'
-
-export interface CapabilityStatus {
-  id: CapabilityId
-  /** Whether this platform/machine can do it at all. */
-  supported: boolean
-  permission: CapabilityPermission
-  /** Provider-specific facts the UI may show (e.g. which system shortcut conflicts). */
-  detail?: Record<string, unknown>
-}
+export type { CapabilityId, CapabilityPermission, CapabilityStatus }
 
 export interface CapabilityProvider {
   id: CapabilityId
@@ -81,14 +72,14 @@ export function createCapabilityRegistry(providers: readonly CapabilityProvider[
  * malformed ids are rejected before any provider runs.
  */
 export function registerCapabilityHandlers(ipcMain: IpcMain, registry: CapabilityRegistry): void {
-  ipcMain.handle('capabilities:get', async (_event, rawIds?: unknown) => {
+  ipcMain.handle(CAPABILITY_CHANNELS.invoke.get, async (_event, rawIds?: unknown) => {
     if (rawIds !== undefined && !(Array.isArray(rawIds) && rawIds.every(isCapabilityId))) {
       return { success: false, error: 'Invalid capability ids.' }
     }
     return { success: true, statuses: await registry.get(rawIds as CapabilityId[] | undefined) }
   })
 
-  ipcMain.handle('capabilities:request', async (_event, rawId: unknown) => {
+  ipcMain.handle(CAPABILITY_CHANNELS.invoke.request, async (_event, rawId: unknown) => {
     if (!isCapabilityId(rawId)) return { success: false, error: 'Invalid capability id.' }
     return { success: true, status: await registry.request(rawId) }
   })

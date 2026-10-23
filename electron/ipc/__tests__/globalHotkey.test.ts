@@ -236,6 +236,16 @@ describe('hotkey settings IPC', () => {
     fs.rmSync(env.userData, { recursive: true, force: true })
   })
 
+  it('registers a handler for every channel the preload contract invokes', async () => {
+    const registered: string[] = []
+    vi.resetModules()
+    const mod = await import('../globalHotkey.js')
+    const { HOTKEY_CHANNELS } = await import('../channels.js')
+    const ipcMain = { handle: (channel: string) => { registered.push(channel) } }
+    mod.initGlobalHotkey(ipcMain as never, () => null, vi.fn())
+    for (const channel of Object.values(HOTKEY_CHANNELS.invoke)) expect(registered).toContain(channel)
+  })
+
   it('rejects mistyped settings fields without touching registered shortcuts', async () => {
     await init()
     env.events.length = 0

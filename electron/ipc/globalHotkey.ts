@@ -22,6 +22,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { app, type BrowserWindow, clipboard, globalShortcut, type NativeImage } from 'electron'
 import { hasAccessibilityPermission } from './accessibilityPermission'
+import { HOTKEY_CHANNELS } from './channels'
 import {
   type HotkeyIndicatorLanguage,
   hideHotkeyIndicator,
@@ -634,7 +635,7 @@ async function runTranslateHotkey(getMainWindow: () => BrowserWindow | null): Pr
     const direction = resolveTranslateDirection(selectedText, currentSettings)
 
     // Notify renderer: translation starting
-    getMainWindow()?.webContents.send('hotkey:translating', { text: selectedText, targetLang: direction.targetLang })
+    getMainWindow()?.webContents.send(HOTKEY_CHANNELS.event.translating, { text: selectedText, targetLang: direction.targetLang })
     showHotkeyIndicator('translating', direction.pairActive && direction.targetLang ? translatingIntoMessage(direction.targetLang) : undefined)
 
     const result = await lightweightTranslate({
@@ -654,7 +655,7 @@ async function runTranslateHotkey(getMainWindow: () => BrowserWindow | null): Pr
     if (!(await simulatePaste())) throw new HotkeyRunError('PASTE_FAILED', 'Could not paste the translated text')
 
     // Notify renderer: done
-    getMainWindow()?.webContents.send('hotkey:translated', {
+    getMainWindow()?.webContents.send(HOTKEY_CHANNELS.event.translated, {
       original: selectedText,
       translated,
       targetLang: direction.targetLang,
@@ -677,7 +678,7 @@ async function runTranslateHotkey(getMainWindow: () => BrowserWindow | null): Pr
     if (code === 'ACCESSIBILITY_DENIED') showHotkeyIndicator('permission', undefined, 3_000)
     else if (code === 'COPY_FAILED') showHotkeyIndicator('copy-failed', undefined, 2_600)
     else showHotkeyIndicator('error', message, 2_200)
-    getMainWindow()?.webContents.send('hotkey:error', {
+    getMainWindow()?.webContents.send(HOTKEY_CHANNELS.event.error, {
       error: message,
       ...(code ? { errorCode: code } : {}),
     })
@@ -791,7 +792,7 @@ export function initGlobalHotkey(
   app.once?.('will-quit', flushPendingClipboardRestore)
 
   /** Update (and optionally re-register) translate hotkey settings */
-  ipcMain.handle('hotkey:update', (_event, rawSettings: unknown) => {
+  ipcMain.handle(HOTKEY_CHANNELS.invoke.update, (_event, rawSettings: unknown) => {
     try {
       const parsed = parseTranslateSettingsPatch(rawSettings)
       if (!parsed.ok) return failure('INVALID', parsed.error, currentSettings)
@@ -824,13 +825,13 @@ export function initGlobalHotkey(
   })
 
   /** Return current translate hotkey settings */
-  ipcMain.handle('hotkey:get', () => ({
+  ipcMain.handle(HOTKEY_CHANNELS.invoke.get, () => ({
     success: true,
     settings: currentSettings,
   }))
 
   /** Unregister translate hotkey and disable */
-  ipcMain.handle('hotkey:disable', () => {
+  ipcMain.handle(HOTKEY_CHANNELS.invoke.disable, () => {
     try {
       safeUnregister(registeredTranslateAccelerator)
       registeredTranslateAccelerator = ''
@@ -871,7 +872,7 @@ export function initGlobalHotkey(
   }
 
   /** Update (and optionally re-register) AI Chat hotkey settings */
-  ipcMain.handle('hotkey:chat:update', (_event, rawSettings: unknown) => {
+  ipcMain.handle(HOTKEY_CHANNELS.invoke.chatUpdate, (_event, rawSettings: unknown) => {
     try {
       return applyChatSettings(rawSettings)
     } catch (e) {
@@ -886,7 +887,7 @@ export function initGlobalHotkey(
    * Whether to ask the user, once, to hand Command+Space from Spotlight to the Launcher:
    * macOS, never asked, Launcher shortcut still off, and Spotlight actually on Command+Space.
    */
-  ipcMain.handle('hotkey:chat:spotlight:get', async () => {
+  ipcMain.handle(HOTKEY_CHANNELS.invoke.spotlightGet, async () => {
     if (process.platform !== 'darwin') return { success: true, shouldPrompt: false, disabledByViezan: false }
     try {
       let shouldPrompt = false
@@ -906,7 +907,7 @@ export function initGlobalHotkey(
    * `keep`: leave Spotlight alone and enable the Launcher on Option+Space.
    * Either answer marks the prompt as shown. Also used by the Settings "turn Spotlight off" button.
    */
-  ipcMain.handle('hotkey:chat:spotlight:resolve', async (_event, choice: unknown) => {
+  ipcMain.handle(HOTKEY_CHANNELS.invoke.spotlightResolve, async (_event, choice: unknown) => {
     if (choice !== 'replace' && choice !== 'keep') return { success: false, error: 'Invalid choice.' }
     if (process.platform !== 'darwin') return { success: false, error: 'Only available on macOS.' }
     try {
@@ -935,7 +936,7 @@ export function initGlobalHotkey(
   })
 
   /** Turn Spotlight's shortcut back on (Settings). The Launcher keeps its shortcut; Settings shows the conflict. */
-  ipcMain.handle('hotkey:chat:spotlight:restore', async () => {
+  ipcMain.handle(HOTKEY_CHANNELS.invoke.spotlightRestore, async () => {
     if (process.platform !== 'darwin') return { success: false, error: 'Only available on macOS.' }
     try {
       const toggled = await setSpotlightShortcutEnabled(true)
@@ -953,7 +954,7 @@ export function initGlobalHotkey(
    * which case `globalShortcut.register` succeeds but the Launcher never opens. Checks
    * the saved shortcut, or `accelerator` when the renderer is previewing a new one.
    */
-  ipcMain.handle('hotkey:chat:systemConflict', async (_event, accelerator?: unknown) => {
+  ipcMain.handle(HOTKEY_CHANNELS.invoke.chatSystemConflict, async (_event, accelerator?: unknown) => {
     const candidate = accelerator === undefined ? currentChatSettings.hotkey : accelerator
     if (typeof candidate !== 'string' || (candidate !== '' && !isValidAccelerator(candidate))) {
       return { success: false, error: 'Invalid hotkey combination.' }
@@ -968,7 +969,7 @@ export function initGlobalHotkey(
   })
 
   /** Return current AI Chat hotkey settings */
-  ipcMain.handle('hotkey:chat:get', () => ({
+  ipcMain.handle(HOTKEY_CHANNELS.invoke.chatGet, () => ({
     success: true,
     settings: currentChatSettings,
   }))

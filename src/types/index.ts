@@ -106,16 +106,20 @@ export interface UsageFeatureTotal {
   totalTokens: number
 }
 
-export type CapabilityId = 'input.accessibility' | 'launcher.spotlight'
-export type CapabilityPermission = 'granted' | 'denied' | 'not-required'
-export interface CapabilityStatus {
-  id: CapabilityId
-  /** Whether this platform/machine can do it at all. */
-  supported: boolean
-  permission: CapabilityPermission
-  /** Provider-specific facts the UI may show (e.g. which system shortcut conflicts). */
-  detail?: Record<string, unknown>
-}
+export type {
+  CapabilitiesApi,
+  CapabilityId,
+  CapabilityPermission,
+  CapabilityStatus,
+} from '../../shared/capabilitiesApi'
+export type {
+  HotkeyApi,
+  HotkeyErrorEvent,
+  HotkeySettingsPatch,
+  HotkeyTranslatedEvent,
+  HotkeyTranslatingEvent,
+  SystemShortcutOwner,
+} from '../../shared/hotkeyApi'
 
 /** Workspace pages are feature modules; see `shared/modules.d.ts` and `src/modules/catalog.ts`. */
 export type AppPage = import('../../shared/modules').ModuleId
@@ -964,65 +968,11 @@ export interface WindowApi {
   platform: string
   version: string
 
-  /**
-   * Capabilities — what this machine can do and whether the user allowed it
-   * (Accessibility for keystrokes, the Spotlight shortcut hand-over, ...).
-   */
-  capabilities: {
-    get: (ids?: CapabilityId[]) => Promise<{ success: boolean; statuses?: CapabilityStatus[]; error?: string }>
-    request: (id: CapabilityId) => Promise<{ success: boolean; status?: CapabilityStatus; error?: string }>
-  }
+  /** Capabilities — what this machine can do and whether the user allowed it. Shape: shared/capabilitiesApi.d.ts. */
+  capabilities: import('../../shared/capabilitiesApi').CapabilitiesApi
 
-  /** Global hotkey — translate selected text in any OS application */
-  hotkey: {
-    update: (settings: {
-      hotkey?: string
-      enabled?: boolean
-      provider?: string
-      model?: string
-      sourceLang?: string
-      /** Primary language of the auto-swap pair. */
-      targetLang?: string
-      /** Secondary language of the pair; '' turns the pair off. */
-      secondaryLang?: string
-      /** UI language for the floating hotkey indicator strings. */
-      uiLanguage?: 'vi' | 'en' | 'ja'
-    }) => Promise<{ success: boolean; settings?: Record<string, unknown>; error?: string; errorCode?: 'INVALID' | 'IN_USE' | 'CONFLICT' | string }>
-    get: () => Promise<{ success: boolean; settings?: Record<string, unknown> }>
-    disable: () => Promise<{ success: boolean }>
-    onTranslating: (cb: (data: { text: string; targetLang: string | null }) => void) => () => void
-    onTranslated: (cb: (data: { original: string; translated: string; targetLang: string | null }) => void) => () => void
-    onError: (cb: (data: { error: string; errorCode?: string }) => void) => () => void
-    /** AI Chat quick-ask hotkey — opens a popup in the renderer */
-    chat: {
-      update: (settings: { hotkey?: string; enabled?: boolean }) =>
-        Promise<{ success: boolean; settings?: Record<string, unknown>; error?: string; errorCode?: 'INVALID' | 'IN_USE' | 'CONFLICT' | string }>
-      get: () => Promise<{ success: boolean; settings?: Record<string, unknown> }>
-      /** macOS only: a system shortcut (Spotlight, Finder search) that owns the Launcher hotkey. */
-      systemConflict: (accelerator?: string) => Promise<{
-        success: boolean
-        hotkey?: string
-        enabled?: boolean
-        conflict?: { owner: 'spotlight' | 'finder-search' | 'system'; accelerator: string } | null
-        error?: string
-      }>
-      /** macOS first-run hand-over of Command+Space from Spotlight to the Launcher. */
-      spotlight: {
-        get: () => Promise<{ success: boolean; shouldPrompt?: boolean; disabledByViezan?: boolean; error?: string }>
-        resolve: (choice: 'replace' | 'keep') => Promise<{
-          success: boolean
-          /** False when macOS only applies the change after the next login. */
-          applied?: boolean
-          settings?: Record<string, unknown>
-          error?: string
-          errorCode?: string
-        }>
-        restore: () => Promise<{ success: boolean; applied?: boolean; error?: string; errorCode?: string }>
-      }
-      /** Listen for the chat-open event. Returns a cleanup function. */
-      onOpen: (cb: () => void) => () => void
-    }
-  }
+  /** Global hotkeys — Quick Translate and the Launcher shortcut. Shape: shared/hotkeyApi.d.ts. */
+  hotkey: import('../../shared/hotkeyApi').HotkeyApi
 
   /** Standalone Raycast-style AI Chat quick window */
   quickChat: {

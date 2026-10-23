@@ -140,16 +140,26 @@ quyền, dùng chung cho mọi module. Thẻ quyền Trợ năng và thẻ Spotl
 
 ### 3.5 Hợp đồng preload một nguồn
 
-Mỗi module khai báo `preload/contract.ts` gồm tên kênh, kiểu tham số và kiểu
-kết quả. Từ đó:
+`tsconfig.electron.json` đặt `rootDir: electron`, nên `shared/` chỉ chứa được file
+kiểu (`.d.ts`), không chứa mã chạy. Vì vậy hợp đồng là **một nguồn ở mức kiểu**:
 
-- preload sinh section bằng một hàm `exposeContract(contract)` thay vì viết tay
-  từng `ipcRenderer.invoke`;
-- `src/types/index.ts` suy kiểu `window.api.<module>` từ contract;
-- `src/test/setup.ts` và `installWebPreviewApi.ts` sinh mock mặc định từ cùng
-  contract, module chỉ ghi đè những hàm cần dữ liệu giả có nghĩa.
+- `shared/<module>Api.d.ts` khai báo interface của `window.api.<module>` và các kiểu
+  dữ liệu đi kèm. Đây là nguồn duy nhất cho hình dạng API.
+- `electron/ipc/channels.ts` khai báo tên kênh IPC dưới dạng hằng; main handler và
+  preload cùng đọc, nên hai bên không thể lệch tên kênh.
+- `electron/preload/contract.ts` có `invoke(channel)`, `subscribe(channel)` và
+  `subscribeSignal(channel)`. Một section preload là một object literal được chú
+  kiểu bằng interface trong `shared/`, mỗi phương thức là một dòng gọi helper;
+  TypeScript suy kiểu tham số và kết quả từ interface nên thiếu hay sai phương thức
+  là lỗi biên dịch.
+- `src/types/index.ts` chỉ còn `hotkey: HotkeyApi` thay vì khai báo lại.
+- Mock trong `src/test/setup.ts` và `installWebPreviewApi.ts` được chú kiểu bằng
+  cùng interface, nên thêm phương thức mà quên mock cũng là lỗi biên dịch.
+- Test `globalHotkey` kiểm tra main đã đăng ký handler cho mọi kênh `invoke` trong
+  `channels.ts`.
 
-Việc này giảm ba bản sao hiện nay về một. Có thể làm độc lập với phần helper.
+Module hotkey và capabilities là hai module đầu tiên theo mẫu này (đã làm). Các
+section preload còn lại chuyển dần, mỗi lần một module.
 
 ---
 
