@@ -16,6 +16,7 @@ import type { HotkeyApi } from '../../shared/hotkeyApi'
 import type { KeychainApi } from '../../shared/keychainApi'
 import type { LegacyAssistantApi } from '../../shared/legacyAssistantApi'
 import type { LocalServerApi } from '../../shared/localServerApi'
+import type { SubtitleApi } from '../../shared/subtitleApi'
 import type { SystemApi } from '../../shared/systemApi'
 import type { UpdaterApi } from '../../shared/updaterApi'
 import type { WebSearchApi } from '../../shared/webSearchApi'
@@ -123,6 +124,23 @@ if (typeof window !== 'undefined') {
     openDownload: vi.fn().mockResolvedValue({ success: true }),
     onStatus: vi.fn().mockReturnValue(() => {}),
   }
+  const subtitleApiMock: SubtitleApi = {
+    show: vi.fn().mockResolvedValue(undefined),
+    hide: vi.fn().mockResolvedValue(undefined),
+    update: vi.fn().mockResolvedValue(undefined),
+    setStyle: vi.fn().mockResolvedValue(undefined),
+    setSourceText: vi.fn().mockResolvedValue(undefined),
+    pushState: vi.fn().mockResolvedValue(undefined),
+    onClosed: vi.fn().mockReturnValue(() => {}),
+    onStart: vi.fn().mockReturnValue(() => {}),
+    onStop: vi.fn().mockReturnValue(() => {}),
+    onSetProvider: vi.fn().mockReturnValue(() => {}),
+    onSetModel: vi.fn().mockReturnValue(() => {}),
+    onSetAudioMode: vi.fn().mockReturnValue(() => {}),
+    onSetTargetLang: vi.fn().mockReturnValue(() => {}),
+    onStyleUpdate: vi.fn().mockReturnValue(() => {}),
+    onClear: vi.fn().mockReturnValue(() => {}),
+  }
   const capabilitiesApiMock: CapabilitiesApi = {
     get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
     request: vi.fn().mockResolvedValue({ success: true, status: { id: 'input.accessibility', supported: true, permission: 'granted' } }),
@@ -192,13 +210,7 @@ if (typeof window !== 'undefined') {
       ...systemApiMock,
       ...webSearchApiMock,
       keychain: keychainApiMock,
-      subtitle: {
-        show: vi.fn().mockResolvedValue(undefined),
-        hide: vi.fn().mockResolvedValue(undefined),
-        update: vi.fn().mockResolvedValue(undefined),
-        setStyle: vi.fn().mockResolvedValue(undefined),
-        onClosed: vi.fn().mockReturnValue(() => {}),
-      },
+      subtitle: subtitleApiMock,
       capabilities: capabilitiesApiMock,
       hotkey: hotkeyApiMock,
       quickChat: {
