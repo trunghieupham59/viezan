@@ -179,12 +179,7 @@ export interface TranslateResult {
   errorCode?: 'NO_API_KEY' | 'INVALID_KEY' | 'RATE_LIMIT' | 'NETWORK' | string
 }
 
-export interface KeychainResult {
-  success?: boolean
-  exists?: boolean
-  masked?: string | null
-  error?: string
-}
+export type { KeychainApi, KeychainResult } from '../../shared/keychainApi'
 
 export interface VerifyResult {
   success: boolean
@@ -730,12 +725,8 @@ export interface SubtitleSettings {
 /** `SystemApi` members (platform, version, openExternal, ...) sit directly on `window.api`; shape: shared/systemApi.d.ts. */
 export interface WindowApi extends SystemApi {
   liveInterpretation: import('../../shared/liveInterpretation').LiveInterpretationApi
-  keychain: {
-    save: (provider: string, key: string) => Promise<KeychainResult>
-    get: (provider: string) => Promise<KeychainResult>
-    delete: (provider: string) => Promise<KeychainResult>
-    hasKey: (provider: string) => Promise<{ exists: boolean }>
-  }
+  /** Secure API key storage; shape: shared/keychainApi.d.ts. */
+  keychain: import('../../shared/keychainApi').KeychainApi
   fetchModels: (provider: string) => Promise<FetchModelsResult>
   discoverLocalAi: (force?: boolean) => Promise<LocalAiDiscoveryResult>
   ensureLocalAiRuntime: () => Promise<LocalAiDiscoveryResult>

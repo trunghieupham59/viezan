@@ -1,4 +1,5 @@
 import type { BrowserWindow, IpcMain } from 'electron'
+import { KEYCHAIN_CHANNELS } from './channels'
 import { isSenderWindow } from './senderGuard'
 import { deleteStoredApiKey, getStoredApiKey, hasStoredApiKey, setStoredApiKey } from './storage'
 
@@ -29,7 +30,7 @@ export function registerKeychainHandlers(ipcMain: IpcMain, getMainWindow?: () =>
     !getMainWindow || isSenderWindow(event, getMainWindow)
 
   // Save API key to OS Keychain
-  ipcMain.handle('keychain:save', async (event, provider: string, apiKey: string) => {
+  ipcMain.handle(KEYCHAIN_CHANNELS.invoke.save, async (event, provider: string, apiKey: string) => {
     if (!isTrusted(event)) return UNTRUSTED_SENDER
     try {
       setStoredApiKey(provider, apiKey)
@@ -41,7 +42,7 @@ export function registerKeychainHandlers(ipcMain: IpcMain, getMainWindow?: () =>
   })
 
   // Get API key status (masked) - does NOT return raw key
-  ipcMain.handle('keychain:get', async (event, provider: string) => {
+  ipcMain.handle(KEYCHAIN_CHANNELS.invoke.get, async (event, provider: string) => {
     if (!isTrusted(event)) return { exists: false, masked: null, error: UNTRUSTED_SENDER.error }
     try {
       const key = getStoredApiKey(provider)
@@ -55,7 +56,7 @@ export function registerKeychainHandlers(ipcMain: IpcMain, getMainWindow?: () =>
   })
 
   // Delete API key from OS Keychain
-  ipcMain.handle('keychain:delete', async (event, provider: string) => {
+  ipcMain.handle(KEYCHAIN_CHANNELS.invoke.delete, async (event, provider: string) => {
     if (!isTrusted(event)) return UNTRUSTED_SENDER
     try {
       const deleted = deleteStoredApiKey(provider)
@@ -67,7 +68,7 @@ export function registerKeychainHandlers(ipcMain: IpcMain, getMainWindow?: () =>
   })
 
   // Check if key exists (boolean only) — does NOT decrypt, avoids macOS Keychain prompt on startup
-  ipcMain.handle('keychain:hasKey', async (_event, provider: string) => {
+  ipcMain.handle(KEYCHAIN_CHANNELS.invoke.hasKey, async (_event, provider: string) => {
     try {
       const exists = hasStoredApiKey(provider)
       return { exists }

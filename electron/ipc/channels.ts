@@ -35,6 +35,15 @@ export const SYSTEM_CHANNELS = {
   },
 } as const
 
+export const KEYCHAIN_CHANNELS = {
+  invoke: {
+    save: 'keychain:save',
+    get: 'keychain:get',
+    delete: 'keychain:delete',
+    hasKey: 'keychain:hasKey',
+  },
+} as const
+
 export const CAPABILITY_CHANNELS = {
   invoke: {
     get: 'capabilities:get',

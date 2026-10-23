@@ -13,6 +13,7 @@ import '@testing-library/jest-dom/vitest'
 import { afterEach, vi } from 'vitest'
 import type { CapabilitiesApi } from '../../shared/capabilitiesApi'
 import type { HotkeyApi } from '../../shared/hotkeyApi'
+import type { KeychainApi } from '../../shared/keychainApi'
 import type { SystemApi } from '../../shared/systemApi'
 import { useNotificationStore } from '../store/useNotificationStore'
 
@@ -85,6 +86,12 @@ if (typeof window !== 'undefined') {
     platform: 'darwin',
     version: '1.0.0',
   }
+  const keychainApiMock: KeychainApi = {
+    save: vi.fn().mockResolvedValue({ success: true }),
+    get: vi.fn().mockResolvedValue({ exists: false, masked: null }),
+    delete: vi.fn().mockResolvedValue({ success: true }),
+    hasKey: vi.fn().mockResolvedValue({ exists: false }),
+  }
   const capabilitiesApiMock: CapabilitiesApi = {
     get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
     request: vi.fn().mockResolvedValue({ success: true, status: { id: 'input.accessibility', supported: true, permission: 'granted' } }),
@@ -152,12 +159,7 @@ if (typeof window !== 'undefined') {
       installOllama: vi.fn().mockResolvedValue({ success: false }),
       verifyKey: vi.fn().mockResolvedValue({ success: false }),
       ...systemApiMock,
-      keychain: {
-        save: vi.fn().mockResolvedValue({ success: true }),
-        get: vi.fn().mockResolvedValue({ exists: false, masked: null }),
-        delete: vi.fn().mockResolvedValue({ success: true }),
-        hasKey: vi.fn().mockResolvedValue({ exists: false }),
-      },
+      keychain: keychainApiMock,
       subtitle: {
         show: vi.fn().mockResolvedValue(undefined),
         hide: vi.fn().mockResolvedValue(undefined),
