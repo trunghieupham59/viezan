@@ -1,123 +1,41 @@
 /**
  * Translation & model preload API — text translation, rewrite, language detection,
- * live-stream, model fetching, and API key verification.
+ * live-stream, model fetching, API key verification and the local AI runtime.
+ * Shape: `shared/translateApi.d.ts`.
  */
-import { ipcRenderer } from 'electron'
-import type { LocalAiExecutionMode, LocalAiPerformanceRequest } from '../../shared/localAiPerformance'
+import type { TranslateApi } from '../../shared/translateApi'
+import { IMAGE_TRANSLATE_CHANNELS, LOCAL_AI_CHANNELS, MODELS_CHANNELS, TRANSLATE_CHANNELS } from '../ipc/channels'
+import { invoke, subscribe } from './contract'
 
-export const translateSection = {
-  // Fetch available models from provider API
-  fetchModels: (provider: string) =>
-    ipcRenderer.invoke('models:fetch', provider),
+const cancelTextTranslate = invoke<[{ requestId: string }], { success: boolean; error?: string } | undefined>(TRANSLATE_CHANNELS.invoke.cancel)
+const cancelImageTranslate = invoke<[{ requestId: string }], { success: boolean; error?: string }>(IMAGE_TRANSLATE_CHANNELS.invoke.cancel)
 
-  // Discover a running local AI runtime (Ollama, LM Studio, llama.cpp)
-  discoverLocalAi: (force?: boolean) =>
-    ipcRenderer.invoke('local-ai:discover', force),
-
-  // Ensure a local AI runtime is available, starting a managed runtime when possible
-  ensureLocalAiRuntime: () =>
-    ipcRenderer.invoke('local-ai:ensureRuntime'),
-
-  // Benchmark this machine and return local model recommendations
-  benchmarkLocalAi: () =>
-    ipcRenderer.invoke('local-ai:benchmark'),
-
-  getLocalAiPerformance: (model: string) => ipcRenderer.invoke('local-ai:performance:get', model),
-  compareLocalAiPerformance: (request: LocalAiPerformanceRequest) => ipcRenderer.invoke('local-ai:performance:compare', request),
-  selectLocalAiPerformance: (model: string, mode: LocalAiExecutionMode | 'auto') => ipcRenderer.invoke('local-ai:performance:select', model, mode),
-  cancelLocalAiPerformance: () => ipcRenderer.invoke('local-ai:performance:cancel'),
-
-  // Download a supported local model through the local runtime when available
-  downloadLocalAiModel: (modelId: string) =>
-    ipcRenderer.invoke('local-ai:downloadModel', modelId),
-
-  // Remove an installed local model through the local runtime when available
-  uninstallLocalAiModel: (modelId: string) =>
-    ipcRenderer.invoke('local-ai:uninstallModel', modelId),
-
-  onLocalAiModelDownloadProgress: (cb: (progress: {
-    model: string
-    status: 'running' | 'success' | 'error'
-    percent: number
-    message: string
-    completedBytes?: number
-    totalBytes?: number
-  }) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, progress: {
-      model: string
-      status: 'running' | 'success' | 'error'
-      percent: number
-      message: string
-      completedBytes?: number
-      totalBytes?: number
-    }) => cb(progress)
-    ipcRenderer.on('local-ai:modelDownloadProgress', listener)
-    return () => ipcRenderer.removeListener('local-ai:modelDownloadProgress', listener)
-  },
-
-  // Pulls still running in main, so a remounted Settings view can resume showing them
-  getLocalAiActiveDownloads: () =>
-    ipcRenderer.invoke('local-ai:getActiveDownloads'),
-
-  // Install the managed local runtime through a fixed main-process installer command
-  installOllama: () =>
-    ipcRenderer.invoke('local-ai:installOllama'),
-
-  cancelModelDownload: (modelId: string) =>
-    ipcRenderer.invoke('local-ai:cancelModelDownload', modelId),
-
-  // Verify API key (test call to provider)
-  verifyKey: (provider: string, apiKey: string) =>
-    ipcRenderer.invoke('translate:verify', provider, apiKey),
-
-  // Full text translation with optional chunking for long documents
-  translate: (params: {
-    provider: string
-    model: string
-    requestId?: string
-    sourceText: string
-    sourceLang: string
-    targetLang: string
-    showFurigana?: boolean
-    phoneticMode?: 'off' | 'standard' | 'phonetic'
-    translationStyle?: string
-    reasoningEffort?: 'auto' | 'low' | 'medium' | 'high'
-    phoneticOnly?: boolean
-  }) => ipcRenderer.invoke('translate', params),
-
-  // Cancel an in-flight text or image translation request by renderer requestId.
-  cancelTranslate: async (params: { requestId: string }) => {
-    const [textResult, imageResult] = await Promise.all([
-      ipcRenderer.invoke('translate:cancel', params),
-      ipcRenderer.invoke('image:translate:cancel', params),
-    ])
+export const translateApi: TranslateApi = {
+  fetchModels: invoke(MODELS_CHANNELS.invoke.fetch),
+  discoverLocalAi: invoke(LOCAL_AI_CHANNELS.invoke.discover),
+  ensureLocalAiRuntime: invoke(LOCAL_AI_CHANNELS.invoke.ensureRuntime),
+  benchmarkLocalAi: invoke(LOCAL_AI_CHANNELS.invoke.benchmark),
+  getLocalAiPerformance: invoke(LOCAL_AI_CHANNELS.invoke.performanceGet),
+  compareLocalAiPerformance: invoke(LOCAL_AI_CHANNELS.invoke.performanceCompare),
+  selectLocalAiPerformance: invoke(LOCAL_AI_CHANNELS.invoke.performanceSelect),
+  cancelLocalAiPerformance: invoke(LOCAL_AI_CHANNELS.invoke.performanceCancel),
+  downloadLocalAiModel: invoke(LOCAL_AI_CHANNELS.invoke.downloadModel),
+  uninstallLocalAiModel: invoke(LOCAL_AI_CHANNELS.invoke.uninstallModel),
+  onLocalAiModelDownloadProgress: subscribe(LOCAL_AI_CHANNELS.event.modelDownloadProgress),
+  getLocalAiActiveDownloads: invoke(LOCAL_AI_CHANNELS.invoke.getActiveDownloads),
+  installOllama: invoke(LOCAL_AI_CHANNELS.invoke.installOllama),
+  cancelModelDownload: invoke(LOCAL_AI_CHANNELS.invoke.cancelModelDownload),
+  verifyKey: invoke(TRANSLATE_CHANNELS.invoke.verify),
+  translate: invoke(TRANSLATE_CHANNELS.invoke.translate),
+  // A requestId may belong to a text or an image translation; ask both and report the one that found it.
+  cancelTranslate: async (params) => {
+    const [textResult, imageResult] = await Promise.all([cancelTextTranslate(params), cancelImageTranslate(params)])
     return textResult?.success ? textResult : imageResult
   },
-
-  // Rewrite text to be more natural in its own language (preserves meaning/tone)
-  rewriteText: (params: {
-    provider: string
-    model: string
-    text: string
-    lang: string
-    translationStyle?: string
-  }) => ipcRenderer.invoke('translate:rewrite', params),
-
-  // Detect the language of source text — returns the BCP-47 code (e.g. "vi", "en", "ja")
-  detectLanguage: (params: {
-    provider: string
-    model: string
-    text: string
-  }) => ipcRenderer.invoke('translate:detect-lang', params),
-
-  // Streaming translate — sends each AI token directly to subtitle window,
-  // returns the full translated text when done.
-  translateStream: (params: {
-    provider: string
-    model: string
-    sourceText: string
-    sourceLang: string
-    targetLang: string
-    translationStyle?: string
-  }) => ipcRenderer.invoke('translate:live-stream', params),
+  rewriteText: invoke(TRANSLATE_CHANNELS.invoke.rewrite),
+  detectLanguage: invoke(TRANSLATE_CHANNELS.invoke.detectLang),
+  translateStream: invoke(TRANSLATE_CHANNELS.invoke.liveStream),
 }
+
+/** These members sit directly on `window.api`. */
+export const translateSection = translateApi

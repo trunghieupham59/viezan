@@ -1,5 +1,5 @@
 import type { BrowserWindow, IpcMain, IpcMainEvent } from 'electron'
-import { SUBTITLE_CHANNELS } from './channels'
+import { SUBTITLE_CHANNELS, TRANSLATE_CHANNELS } from './channels'
 import { MAX_TRANSLATE_SOURCE_CHARS } from './ipcConstants'
 import { invalidIpcInput, isSafeLanguageCode, parseProviderModel } from './ipcValidation'
 import { isLocalProvider, LOCAL_AI_PLACEHOLDER_KEY } from './localAi'
@@ -149,7 +149,7 @@ export function registerSubtitleHandlers(
    *
    * Returns the complete translated text to the renderer (same shape as `translate`).
    */
-  ipc.handle('translate:live-stream', async (event, rawParams: unknown) => {
+  ipc.handle(TRANSLATE_CHANNELS.invoke.liveStream, async (event, rawParams: unknown) => {
     if (!isFromMainWindow(event)) return { success: false, error: 'Untrusted sender' }
     const parsed = parseProviderModel(rawParams, {
       payloadName: 'Live stream',

@@ -158,8 +158,11 @@ kiểu (`.d.ts`), không chứa mã chạy. Vì vậy hợp đồng là **một 
 - Test `globalHotkey` kiểm tra main đã đăng ký handler cho mọi kênh `invoke` trong
   `channels.ts`.
 
-Module hotkey và capabilities là hai module đầu tiên theo mẫu này (đã làm). Các
-section preload còn lại chuyển dần, mỗi lần một module.
+Toàn bộ section preload đã chuyển sang mẫu này (hotkey, capabilities, system,
+keychain, webSearch, localServer, legacyAssistant, updater, subtitle, quickChat và
+launcher, audio, chat và image translate, translate và local AI), mỗi section một
+PR. `src/types/index.ts` không còn khai báo tay hình dạng API nào: `WindowApi` kế
+thừa các interface top-level và trỏ từng section lồng về `shared/`.
 
 ---
 

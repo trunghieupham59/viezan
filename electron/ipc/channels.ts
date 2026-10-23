@@ -196,6 +196,44 @@ export const IMAGE_TRANSLATE_CHANNELS = {
   },
 } as const
 
+export const TRANSLATE_CHANNELS = {
+  invoke: {
+    translate: 'translate',
+    cancel: 'translate:cancel',
+    verify: 'translate:verify',
+    rewrite: 'translate:rewrite',
+    detectLang: 'translate:detect-lang',
+    /** Streams tokens to the subtitle window; registered in electron/ipc/subtitle.ts. */
+    liveStream: 'translate:live-stream',
+  },
+} as const
+
+export const MODELS_CHANNELS = {
+  invoke: {
+    fetch: 'models:fetch',
+  },
+} as const
+
+export const LOCAL_AI_CHANNELS = {
+  invoke: {
+    discover: 'local-ai:discover',
+    ensureRuntime: 'local-ai:ensureRuntime',
+    benchmark: 'local-ai:benchmark',
+    performanceGet: 'local-ai:performance:get',
+    performanceCompare: 'local-ai:performance:compare',
+    performanceSelect: 'local-ai:performance:select',
+    performanceCancel: 'local-ai:performance:cancel',
+    downloadModel: 'local-ai:downloadModel',
+    uninstallModel: 'local-ai:uninstallModel',
+    getActiveDownloads: 'local-ai:getActiveDownloads',
+    installOllama: 'local-ai:installOllama',
+    cancelModelDownload: 'local-ai:cancelModelDownload',
+  },
+  event: {
+    modelDownloadProgress: 'local-ai:modelDownloadProgress',
+  },
+} as const
+
 export const CAPABILITY_CHANNELS = {
   invoke: {
     get: 'capabilities:get',

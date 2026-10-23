@@ -1,4 +1,5 @@
 import type { IpcMain } from 'electron'
+import { MODELS_CHANNELS } from './channels'
 import { ANTHROPIC_API_BASE, ANTHROPIC_API_VERSION, GEMINI_API_BASE, GEMINI_MODELS_PAGE_SIZE, MODELS_FETCH_TIMEOUT_MS } from './ipcConstants'
 import { discoverLocalAiRuntimes, getLocalAiStaticModels, isLocalProvider, type LocalAiModel } from './localAi'
 import { getStoredApiKey } from './storage'
@@ -266,7 +267,7 @@ export {
 }
 
 export function registerModelsHandlers(ipcMain: IpcMain) {
-  ipcMain.handle('models:fetch', async (_event, provider: string) => {
+  ipcMain.handle(MODELS_CHANNELS.invoke.fetch, async (_event, provider: string) => {
     if (isLocalProvider(provider)) {
       const discovery = await discoverLocalAiRuntimes(true)
       if (!discovery.available) {
