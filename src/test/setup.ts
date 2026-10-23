@@ -13,6 +13,7 @@ import '@testing-library/jest-dom/vitest'
 import { afterEach, vi } from 'vitest'
 import type { CapabilitiesApi } from '../../shared/capabilitiesApi'
 import type { HotkeyApi } from '../../shared/hotkeyApi'
+import type { SystemApi } from '../../shared/systemApi'
 import { useNotificationStore } from '../store/useNotificationStore'
 
 // Toasts live in a module-level store; drop them between tests so one test's
@@ -74,6 +75,16 @@ if (typeof window !== 'undefined') {
    * Typed against the shared contracts so a method added to `shared/*Api.d.ts` without a
    * mock fails `tsc` here instead of surfacing as `undefined is not a function` in a test.
    */
+  const systemApiMock: SystemApi = {
+    checkScreenPermission: vi.fn().mockResolvedValue('denied'),
+    openExternal: vi.fn().mockResolvedValue(undefined),
+    relaunchApp: vi.fn().mockResolvedValue(undefined),
+    getLoginItemSettings: vi.fn().mockResolvedValue({ supported: false, openAtLogin: false }),
+    setLoginItemSettings: vi.fn().mockResolvedValue({ success: false, openAtLogin: false }),
+    setWindowTheme: vi.fn().mockResolvedValue(undefined),
+    platform: 'darwin',
+    version: '1.0.0',
+  }
   const capabilitiesApiMock: CapabilitiesApi = {
     get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
     request: vi.fn().mockResolvedValue({ success: true, status: { id: 'input.accessibility', supported: true, permission: 'granted' } }),
@@ -140,10 +151,7 @@ if (typeof window !== 'undefined') {
       onLocalAiModelDownloadProgress: vi.fn().mockReturnValue(() => {}),
       installOllama: vi.fn().mockResolvedValue({ success: false }),
       verifyKey: vi.fn().mockResolvedValue({ success: false }),
-      checkScreenPermission: vi.fn().mockResolvedValue('denied'),
-      openExternal: vi.fn().mockResolvedValue(undefined),
-      relaunchApp: vi.fn().mockResolvedValue(undefined),
-      setWindowTheme: vi.fn().mockResolvedValue(undefined),
+      ...systemApiMock,
       keychain: {
         save: vi.fn().mockResolvedValue({ success: true }),
         get: vi.fn().mockResolvedValue({ exists: false, masked: null }),
@@ -211,8 +219,6 @@ if (typeof window !== 'undefined') {
         regenerateToken: vi.fn().mockResolvedValue({ success: true }),
         syncConfig: vi.fn().mockResolvedValue({ success: true }),
       },
-      platform: 'darwin',
-      version: '1.0.0',
     },
     writable: true,
     configurable: true,

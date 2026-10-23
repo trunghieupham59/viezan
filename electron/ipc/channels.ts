@@ -24,6 +24,17 @@ export const HOTKEY_CHANNELS = {
   },
 } as const
 
+export const SYSTEM_CHANNELS = {
+  invoke: {
+    checkScreenPermission: 'app:checkScreenPermission',
+    openExternal: 'app:openExternal',
+    relaunch: 'app:relaunch',
+    getLoginItemSettings: 'app:getLoginItemSettings',
+    setLoginItemSettings: 'app:setLoginItemSettings',
+    setWindowTheme: 'app:setWindowTheme',
+  },
+} as const
+
 export const CAPABILITY_CHANNELS = {
   invoke: {
     get: 'capabilities:get',

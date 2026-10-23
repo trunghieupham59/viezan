@@ -5,7 +5,7 @@ import type {
   TranscribeAudioParams,
   TranscribeResult,
 } from '../../shared/audioTranscription'
-import type { ThemePreset } from '../../shared/theme'
+import type { SystemApi } from '../../shared/systemApi'
 import type { UpdateNotificationPreferences } from '../../shared/updateNotification'
 import type { UpdateStatus } from '../../shared/updater'
 
@@ -727,7 +727,8 @@ export interface SubtitleSettings {
 
 // ─── Window API (exposed via contextBridge) ───────────────────────────────────
 
-export interface WindowApi {
+/** `SystemApi` members (platform, version, openExternal, ...) sit directly on `window.api`; shape: shared/systemApi.d.ts. */
+export interface WindowApi extends SystemApi {
   liveInterpretation: import('../../shared/liveInterpretation').LiveInterpretationApi
   keychain: {
     save: (provider: string, key: string) => Promise<KeychainResult>
@@ -893,17 +894,6 @@ export interface WindowApi {
    */
   chatStreamCancel?: (params: { requestId: string }) => Promise<{ success: boolean; error?: string }>
   onChatStreamEvent: (requestId: string, cb: (event: ChatStreamEvent) => void) => () => void
-  checkScreenPermission: () => Promise<string>
-  openExternal: (url: string) => Promise<void>
-  relaunchApp: () => Promise<void>
-  /** Launch at login. `supported` is false in development runs and on Linux. */
-  getLoginItemSettings?: () => Promise<{ supported: boolean; openAtLogin: boolean }>
-  setLoginItemSettings?: (openAtLogin: boolean) => Promise<{ success: boolean; openAtLogin: boolean; error?: string }>
-  /**
-   * Aligns native window chrome (title bar overlay, window background) with the
-   * in-app light/dark mode and, when given, the palette preset.
-   */
-  setWindowTheme?: (theme: 'light' | 'dark' | 'system', preset?: ThemePreset) => Promise<void>
   /**
    * Pre-flight STT availability check — call before starting a Live Translate session.
    * Checks which STT keys are configured (instant, no API call, no decryption) and
@@ -965,9 +955,6 @@ export interface WindowApi {
     /** Listen for "new session / clear" action from subtitle window. Returns cleanup fn. */
     onClear: (callback: () => void) => () => void
   }
-  platform: string
-  version: string
-
   /** Capabilities — what this machine can do and whether the user allowed it. Shape: shared/capabilitiesApi.d.ts. */
   capabilities: import('../../shared/capabilitiesApi').CapabilitiesApi
 

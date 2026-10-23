@@ -3,6 +3,7 @@ import { app, nativeTheme, shell, systemPreferences } from 'electron'
 import type { ThemePreset } from '../../shared/theme'
 import { loginItemArgs, supportsLoginItem } from '../loginItem'
 import { isThemePreset } from '../windowPalette'
+import { SYSTEM_CHANNELS } from './channels'
 import { isAllowedExternalUrl } from './externalUrl'
 import { isSenderWindow } from './senderGuard'
 
@@ -12,7 +13,7 @@ export function registerSystemHandlers(
   applyWindowPalette?: (preset: ThemePreset) => void,
 ) {
   // ── Check Screen Recording permission (macOS) ───────────────────────────
-  ipc.handle('app:checkScreenPermission', () => {
+  ipc.handle(SYSTEM_CHANNELS.invoke.checkScreenPermission, () => {
     if (process.platform === 'darwin') {
       return systemPreferences.getMediaAccessStatus('screen') // 'granted' | 'denied' | 'restricted' | 'unknown' | 'not-determined'
     }
@@ -20,7 +21,7 @@ export function registerSystemHandlers(
   })
 
   // ── Open external URL (used by renderer to open System Settings deep links) ──
-  ipc.handle('app:openExternal', async (_event, url: string) => {
+  ipc.handle(SYSTEM_CHANNELS.invoke.openExternal, async (_event, url: string) => {
     if (!isAllowedExternalUrl(url)) return
     try {
       await shell.openExternal(url)
@@ -33,7 +34,7 @@ export function registerSystemHandlers(
   // `themeSource` drives nativeTheme.shouldUseDarkColors, which in turn
   // refreshes the window background and Windows title bar overlay. The
   // palette preset picks which colour table that refresh reads from.
-  ipc.handle('app:setWindowTheme', (event, theme: unknown, preset?: unknown) => {
+  ipc.handle(SYSTEM_CHANNELS.invoke.setWindowTheme, (event, theme: unknown, preset?: unknown) => {
     if (getMainWindow && !isSenderWindow(event, getMainWindow)) return
     if (theme !== 'light' && theme !== 'dark' && theme !== 'system') return
     if (preset !== undefined && isThemePreset(preset)) applyWindowPalette?.(preset)
@@ -52,11 +53,11 @@ export function registerSystemHandlers(
       return { supported: false, openAtLogin: false }
     }
   }
-  ipc.handle('app:getLoginItemSettings', (event) => {
+  ipc.handle(SYSTEM_CHANNELS.invoke.getLoginItemSettings, (event) => {
     if (getMainWindow && !isSenderWindow(event, getMainWindow)) return { supported: false, openAtLogin: false }
     return readLoginItem()
   })
-  ipc.handle('app:setLoginItemSettings', (event, openAtLogin: unknown) => {
+  ipc.handle(SYSTEM_CHANNELS.invoke.setLoginItemSettings, (event, openAtLogin: unknown) => {
     if (getMainWindow && !isSenderWindow(event, getMainWindow)) {
       return { success: false, openAtLogin: false, error: 'Untrusted sender' }
     }
@@ -74,7 +75,7 @@ export function registerSystemHandlers(
 
   // Relaunch through the normal quit path so `will-quit` cleanup (global
   // hotkeys, local server, managed Ollama) runs. `app.exit()` would skip it.
-  ipc.handle('app:relaunch', (event) => {
+  ipc.handle(SYSTEM_CHANNELS.invoke.relaunch, (event) => {
     if (getMainWindow && !isSenderWindow(event, getMainWindow)) {
       return { success: false, error: 'Untrusted sender' }
     }
