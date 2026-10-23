@@ -14,6 +14,7 @@ import { afterEach, vi } from 'vitest'
 import type { CapabilitiesApi } from '../../shared/capabilitiesApi'
 import type { HotkeyApi } from '../../shared/hotkeyApi'
 import type { KeychainApi } from '../../shared/keychainApi'
+import type { LocalServerApi } from '../../shared/localServerApi'
 import type { SystemApi } from '../../shared/systemApi'
 import type { WebSearchApi } from '../../shared/webSearchApi'
 import { useNotificationStore } from '../store/useNotificationStore'
@@ -96,6 +97,13 @@ if (typeof window !== 'undefined') {
   const webSearchApiMock: WebSearchApi = {
     webSearch: vi.fn().mockResolvedValue({ success: false, results: [] }),
     webSearchVerify: vi.fn().mockResolvedValue({ valid: false }),
+  }
+  const localServerApiMock: LocalServerApi = {
+    createToken: vi.fn().mockResolvedValue({ success: true }),
+    listTokens: vi.fn().mockResolvedValue({ success: true, port: 39875, tokens: [] }),
+    deleteToken: vi.fn().mockResolvedValue({ success: true }),
+    regenerateToken: vi.fn().mockResolvedValue({ success: true }),
+    syncConfig: vi.fn().mockResolvedValue({ success: true }),
   }
   const capabilitiesApiMock: CapabilitiesApi = {
     get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
@@ -220,13 +228,7 @@ if (typeof window !== 'undefined') {
         getVersion: vi.fn().mockResolvedValue({ version: '1.0.0' }),
         onStatus: vi.fn().mockReturnValue(() => {}),
       },
-      localServer: {
-        createToken: vi.fn().mockResolvedValue({ success: true }),
-        listTokens: vi.fn().mockResolvedValue({ success: true, port: 39875, tokens: [] }),
-        deleteToken: vi.fn().mockResolvedValue({ success: true }),
-        regenerateToken: vi.fn().mockResolvedValue({ success: true }),
-        syncConfig: vi.fn().mockResolvedValue({ success: true }),
-      },
+      localServer: localServerApiMock,
     },
     writable: true,
     configurable: true,

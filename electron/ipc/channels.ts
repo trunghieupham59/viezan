@@ -53,6 +53,16 @@ export const WEBSEARCH_CHANNELS = {
   },
 } as const
 
+export const LOCAL_SERVER_CHANNELS = {
+  invoke: {
+    createToken: 'localServer:createToken',
+    listTokens: 'localServer:listTokens',
+    deleteToken: 'localServer:deleteToken',
+    regenerateToken: 'localServer:regenerateToken',
+    syncConfig: 'localServer:syncConfig',
+  },
+} as const
+
 export const CAPABILITY_CHANNELS = {
   invoke: {
     get: 'capabilities:get',

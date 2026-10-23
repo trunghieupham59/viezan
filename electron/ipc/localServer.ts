@@ -25,6 +25,7 @@ import * as http from 'node:http'
 import * as path from 'node:path'
 import { app } from 'electron'
 import { resolveRuntimeProfile } from '../runtimeProfile'
+import { LOCAL_SERVER_CHANNELS } from './channels'
 import { EXT_DEFAULT_GEMINI_MODEL } from './ipcConstants'
 import { invalidIpcInput, isNonEmptyString, isRecord } from './ipcValidation'
 import { type LightweightTranslateParams, lightweightTranslate } from './lightweightTranslate'
@@ -631,7 +632,7 @@ export function startLocalServer (ipcMain: Electron.IpcMain): void {
    * Called by the renderer whenever selectedProvider or selectedModels changes.
    * Keeps cachedConfig in sync so /api/config reflects the app's current state.
    */
-  ipcMain.handle('localServer:syncConfig', (_event, rawParams: unknown) => {
+  ipcMain.handle(LOCAL_SERVER_CHANNELS.invoke.syncConfig, (_event, rawParams: unknown) => {
     if (!isRecord(rawParams)) {
       return invalidIpcInput('Local server config payload must be an object')
     }
@@ -658,7 +659,7 @@ export function startLocalServer (ipcMain: Electron.IpcMain): void {
   })
 
   /** Create a new named API key — returns API key value ONCE */
-  ipcMain.handle('localServer:createToken', (_event, rawParams: unknown) => {
+  ipcMain.handle(LOCAL_SERVER_CHANNELS.invoke.createToken, (_event, rawParams: unknown) => {
     if (!isRecord(rawParams)) {
       return invalidIpcInput('Create API key payload must be an object')
     }
@@ -679,7 +680,7 @@ export function startLocalServer (ipcMain: Electron.IpcMain): void {
   })
 
   /** List all active API keys — API key values are NEVER included */
-  ipcMain.handle('localServer:listTokens', () => {
+  ipcMain.handle(LOCAL_SERVER_CHANNELS.invoke.listTokens, () => {
     purgeExpired()
     return {
       success: true,
@@ -691,7 +692,7 @@ export function startLocalServer (ipcMain: Electron.IpcMain): void {
   })
 
   /** Delete an API key immediately — it stops working at once */
-  ipcMain.handle('localServer:deleteToken', (_event, rawParams: unknown) => {
+  ipcMain.handle(LOCAL_SERVER_CHANNELS.invoke.deleteToken, (_event, rawParams: unknown) => {
     if (!isRecord(rawParams) || !isTokenId(rawParams.id)) {
       return invalidIpcInput('Invalid API key id')
     }
@@ -702,7 +703,7 @@ export function startLocalServer (ipcMain: Electron.IpcMain): void {
   })
 
   /** Regenerate the API key value for an existing entry — returns new value ONCE, resets TTL */
-  ipcMain.handle('localServer:regenerateToken', (_event, rawParams: unknown) => {
+  ipcMain.handle(LOCAL_SERVER_CHANNELS.invoke.regenerateToken, (_event, rawParams: unknown) => {
     if (!isRecord(rawParams) || !isTokenId(rawParams.id)) {
       return invalidIpcInput('Invalid API key id')
     }

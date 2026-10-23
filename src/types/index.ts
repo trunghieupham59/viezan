@@ -181,6 +181,7 @@ export interface TranslateResult {
 }
 
 export type { KeychainApi, KeychainResult } from '../../shared/keychainApi'
+export type { LocalServerApi, LocalServerTokenResult, LocalServerTokenSummary } from '../../shared/localServerApi'
 export type { WebSearchApi, WebSearchHit, WebSearchParams, WebSearchResult } from '../../shared/webSearchApi'
 
 export interface VerifyResult {
@@ -983,29 +984,8 @@ export interface WindowApi extends SystemApi, WebSearchApi {
     onStatus: (cb: (status: UpdateStatus) => void) => () => void
   }
 
-  /** Local HTTP server — Chrome Extension bridge (multi-API-key) */
-  localServer: {
-    createToken: (p: { name: string; ttlDays: number }) => Promise<{
-      success: boolean; token?: string; id?: string; name?: string
-      createdAt?: number; expiresAt?: number; error?: string
-    }>
-    listTokens: () => Promise<{
-      success: boolean; port: number
-      tokens: Array<{ id: string; name: string; createdAt: number; expiresAt: number }>
-    }>
-    deleteToken: (p: { id: string }) => Promise<{ success: boolean; error?: string }>
-    regenerateToken: (p: { id: string; ttlDays?: number }) => Promise<{
-      success: boolean; token?: string; id?: string; name?: string
-      createdAt?: number; expiresAt?: number; error?: string
-    }>
-    /** Sync the currently selected provider/model and TTS prefs so local extension APIs reflect the app's state. */
-    syncConfig: (p: {
-      provider: string
-      model: string
-      ttsMode?: TtsMode
-      ttsVoice?: TtsVoice
-    }) => Promise<{ success: boolean }>
-  }
+  /** Local HTTP server — Chrome Extension bridge (multi-API-key); shape: shared/localServerApi.d.ts. */
+  localServer: import('../../shared/localServerApi').LocalServerApi
 }
 
 declare global {
