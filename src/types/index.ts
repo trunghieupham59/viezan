@@ -106,7 +106,19 @@ export interface UsageFeatureTotal {
   totalTokens: number
 }
 
-export type AppPage = 'translate' | 'chat' | 'live' | 'dictionary'
+export type CapabilityId = 'input.accessibility' | 'launcher.spotlight'
+export type CapabilityPermission = 'granted' | 'denied' | 'not-required'
+export interface CapabilityStatus {
+  id: CapabilityId
+  /** Whether this platform/machine can do it at all. */
+  supported: boolean
+  permission: CapabilityPermission
+  /** Provider-specific facts the UI may show (e.g. which system shortcut conflicts). */
+  detail?: Record<string, unknown>
+}
+
+/** Workspace pages are feature modules; see `shared/modules.d.ts` and `src/modules/catalog.ts`. */
+export type AppPage = import('../../shared/modules').ModuleId
 
 export interface ProviderConfig {
   id: Provider
@@ -952,6 +964,15 @@ export interface WindowApi {
   platform: string
   version: string
 
+  /**
+   * Capabilities — what this machine can do and whether the user allowed it
+   * (Accessibility for keystrokes, the Spotlight shortcut hand-over, ...).
+   */
+  capabilities: {
+    get: (ids?: CapabilityId[]) => Promise<{ success: boolean; statuses?: CapabilityStatus[]; error?: string }>
+    request: (id: CapabilityId) => Promise<{ success: boolean; status?: CapabilityStatus; error?: string }>
+  }
+
   /** Global hotkey — translate selected text in any OS application */
   hotkey: {
     update: (settings: {
@@ -972,11 +993,6 @@ export interface WindowApi {
     onTranslating: (cb: (data: { text: string; targetLang: string | null }) => void) => () => void
     onTranslated: (cb: (data: { original: string; translated: string; targetLang: string | null }) => void) => () => void
     onError: (cb: (data: { error: string; errorCode?: string }) => void) => () => void
-    /** macOS Accessibility permission for the copy/paste keystrokes. */
-    accessibility: {
-      get: () => Promise<{ success: boolean; required: boolean; granted: boolean }>
-      request: () => Promise<{ success: boolean; required: boolean; granted: boolean }>
-    }
     /** AI Chat quick-ask hotkey — opens a popup in the renderer */
     chat: {
       update: (settings: { hotkey?: string; enabled?: boolean }) =>

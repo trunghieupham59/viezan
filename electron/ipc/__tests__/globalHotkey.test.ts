@@ -943,26 +943,11 @@ describe('translate hotkey flow', () => {
       expect(env.send).toHaveBeenCalledWith('hotkey:translated', expect.anything())
     })
 
-    it('reports the permission status and opens System Settings while it is denied', async () => {
-      env.accessibilityGranted = false
-      expect(await flowHandlers['hotkey:accessibility:get']({})).toEqual({ success: true, required: true, granted: false })
-
-      expect(await flowHandlers['hotkey:accessibility:request']({})).toEqual({ success: true, required: true, granted: false })
-      expect(env.accessibilityPrompts).toBe(1)
-      expect(env.openExternal).toHaveBeenCalledWith('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility')
-
-      env.accessibilityGranted = true
-      env.openExternal.mockClear()
-      expect(await flowHandlers['hotkey:accessibility:request']({})).toEqual({ success: true, required: true, granted: true })
-      expect(env.openExternal).not.toHaveBeenCalled()
-    })
-
     it('needs no permission on other platforms', async () => {
       restorePlatform()
       restorePlatform = withPlatform('win32')
       env.accessibilityGranted = false
 
-      expect(await flowHandlers['hotkey:accessibility:get']({})).toEqual({ success: true, required: false, granted: true })
       press()
       await vi.advanceTimersByTimeAsync(600)
       expect(env.accessibilityPrompts).toBe(0)

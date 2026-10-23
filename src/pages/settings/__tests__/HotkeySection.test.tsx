@@ -9,8 +9,11 @@ beforeEach(() => {
   useAppStore.setState({ locale: 'en', targetLang: 'vi' })
   vi.mocked(window.api.hotkey.get).mockResolvedValue({ success: true, settings: {} })
   vi.mocked(window.api.hotkey.update).mockResolvedValue({ success: true })
-  vi.mocked(window.api.hotkey.accessibility.get).mockResolvedValue({ success: true, required: false, granted: true })
-  vi.mocked(window.api.hotkey.accessibility.request).mockResolvedValue({ success: true, required: false, granted: true })
+  vi.mocked(window.api.capabilities.get).mockResolvedValue({ success: true, statuses: [
+    { id: 'input.accessibility', supported: true, permission: 'not-required' },
+    { id: 'launcher.spotlight', supported: false, permission: 'not-required', detail: { disabledByViezan: false, conflict: null } },
+  ] })
+  vi.mocked(window.api.capabilities.request).mockResolvedValue({ success: true, status: { id: 'input.accessibility', supported: true, permission: 'not-required' } })
   vi.mocked(window.api.hotkey.chat.get).mockResolvedValue({ success: true, settings: {} })
   vi.mocked(window.api.hotkey.chat.update).mockResolvedValue({ success: true })
 })
@@ -95,13 +98,13 @@ describe('macOS Accessibility permission', () => {
   })
 
   it('explains the missing permission and opens System Settings on request', async () => {
-    vi.mocked(window.api.hotkey.accessibility.get).mockResolvedValue({ success: true, required: true, granted: false })
-    vi.mocked(window.api.hotkey.accessibility.request).mockResolvedValue({ success: true, required: true, granted: true })
+    vi.mocked(window.api.capabilities.get).mockResolvedValue({ success: true, statuses: [{ id: 'input.accessibility', supported: true, permission: 'denied' }] })
+    vi.mocked(window.api.capabilities.request).mockResolvedValue({ success: true, status: { id: 'input.accessibility', supported: true, permission: 'granted' } })
     render(<><HotkeySection /><NotificationViewport /></>)
 
     expect(await screen.findByText(/needs Accessibility access/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Open System Settings' }))
-    await waitFor(() => expect(window.api.hotkey.accessibility.request).toHaveBeenCalled())
+    await waitFor(() => expect(window.api.capabilities.request).toHaveBeenCalledWith('input.accessibility'))
     expect(await screen.findByText('Accessibility access is granted.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open System Settings' })).not.toBeInTheDocument()
   })
@@ -191,7 +194,9 @@ describe('launcher shortcut system conflict (macOS)', () => {
   })
 
   it('shows the restore row when Viezan had turned Spotlight off earlier', async () => {
-    vi.mocked(window.api.hotkey.chat.spotlight.get).mockResolvedValue({ success: true, shouldPrompt: false, disabledByViezan: true })
+    vi.mocked(window.api.capabilities.get).mockResolvedValue({ success: true, statuses: [
+      { id: 'launcher.spotlight', supported: true, permission: 'granted', detail: { disabledByViezan: true, conflict: null } },
+    ] })
     render(<><HotkeySection /><NotificationViewport /></>)
     expect(await screen.findByRole('button', { name: 'Restore Spotlight shortcut' })).toBeInTheDocument()
   })

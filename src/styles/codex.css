@@ -1714,3 +1714,46 @@ html:not(.dark) .quick-chat-answer-card {
     transition: none;
   }
 }
+
+/* ── Capability notice: one row for a system capability or permission ───────── */
+.capability-notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-3);
+  padding: var(--vzn-space-3) var(--vzn-space-4);
+}
+
+.capability-notice--inline {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vzn-space-4);
+}
+
+.capability-notice__copy {
+  min-width: 0;
+}
+
+.capability-notice__title {
+  margin: 0;
+  color: var(--vzn-text);
+  font-size: var(--vzn-font-size-lg);
+  font-weight: var(--vzn-weight-medium);
+}
+
+.capability-notice__description {
+  margin: var(--vzn-space-1) 0 0;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.capability-notice__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-2);
+}
+
+.capability-notice--inline .capability-notice__actions {
+  flex-shrink: 0;
+}

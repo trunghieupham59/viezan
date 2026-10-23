@@ -20,8 +20,8 @@
 import { exec } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { app, type BrowserWindow, clipboard, globalShortcut, type NativeImage, shell, systemPreferences } from 'electron'
-import { MACOS_ACCESSIBILITY_PREFS } from './externalUrl'
+import { app, type BrowserWindow, clipboard, globalShortcut, type NativeImage } from 'electron'
+import { hasAccessibilityPermission } from './accessibilityPermission'
 import {
   type HotkeyIndicatorLanguage,
   hideHotkeyIndicator,
@@ -370,39 +370,6 @@ function saveChatSettings(settings: AIChatHotkeySettings): void {
   } catch (e) {
     console.error('[GlobalHotkey] Failed to save chat hotkey settings:', e)
   }
-}
-
-// ── macOS Accessibility permission ───────────────────────────────────────────
-
-/** Only macOS gates synthetic keystrokes behind the Accessibility (TCC) permission. */
-function requiresAccessibilityPermission(): boolean {
-  return process.platform === 'darwin'
-}
-
-/**
- * True when this process may send keystrokes through System Events. With `prompt`
- * macOS shows its one-time "control this computer" dialog and lists the app under
- * Privacy & Security > Accessibility so the user can tick it.
- */
-function hasAccessibilityPermission(prompt: boolean): boolean {
-  if (!requiresAccessibilityPermission()) return true
-  try {
-    return systemPreferences.isTrustedAccessibilityClient(prompt)
-  } catch (e) {
-    console.warn('[GlobalHotkey] Accessibility check failed:', e)
-    return false
-  }
-}
-
-export interface AccessibilityStatus {
-  /** False on platforms where no permission is needed; `granted` is then always true. */
-  required: boolean
-  granted: boolean
-}
-
-function getAccessibilityStatus(): AccessibilityStatus {
-  const required = requiresAccessibilityPermission()
-  return { required, granted: !required || hasAccessibilityPermission(false) }
 }
 
 // ── OS-level clipboard actions ────────────────────────────────────────────────
@@ -781,6 +748,15 @@ function swapAccelerator(
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
+/** Facts the `launcher.spotlight` capability reports: the saved Launcher shortcut and the hand-over state. */
+export function getLauncherSpotlightSnapshot(): { hotkey: string; enabled: boolean; disabledByViezan: boolean } {
+  return {
+    hotkey: currentChatSettings.hotkey,
+    enabled: currentChatSettings.enabled,
+    disabledByViezan: spotlightState.disabledByViezan,
+  }
+}
+
 export function initGlobalHotkey(
   ipcMain: Electron.IpcMain,
   getMainWindow: () => BrowserWindow | null,
@@ -845,26 +821,6 @@ export function initGlobalHotkey(
       console.error('[GlobalHotkey] hotkey:update failed:', e)
       return { success: false, error: 'Could not update the hotkey.' }
     }
-  })
-
-  /** Whether synthetic keystrokes are allowed (macOS Accessibility permission). */
-  ipcMain.handle('hotkey:accessibility:get', () => ({ success: true, ...getAccessibilityStatus() }))
-
-  /**
-   * Ask for Accessibility access: triggers the macOS prompt (which also lists the app
-   * under Privacy & Security > Accessibility) and, while still denied, opens that pane.
-   */
-  ipcMain.handle('hotkey:accessibility:request', async () => {
-    if (!requiresAccessibilityPermission()) return { success: true, required: false, granted: true }
-    const granted = hasAccessibilityPermission(true)
-    if (!granted) {
-      try {
-        await shell.openExternal(MACOS_ACCESSIBILITY_PREFS)
-      } catch (e) {
-        console.error('[GlobalHotkey] Could not open Accessibility settings:', e)
-      }
-    }
-    return { success: true, required: true, granted }
   })
 
   /** Return current translate hotkey settings */

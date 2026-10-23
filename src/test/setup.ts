@@ -127,6 +127,10 @@ if (typeof window !== 'undefined') {
         setStyle: vi.fn().mockResolvedValue(undefined),
         onClosed: vi.fn().mockReturnValue(() => {}),
       },
+      capabilities: {
+        get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
+        request: vi.fn().mockResolvedValue({ success: true, status: { id: 'input.accessibility', supported: true, permission: 'granted' } }),
+      },
       hotkey: {
         update: vi.fn().mockResolvedValue({ success: true }),
         get: vi.fn().mockResolvedValue({ success: true, settings: {} }),
@@ -134,10 +138,6 @@ if (typeof window !== 'undefined') {
         onTranslating: vi.fn().mockReturnValue(() => {}),
         onTranslated: vi.fn().mockReturnValue(() => {}),
         onError: vi.fn().mockReturnValue(() => {}),
-        accessibility: {
-          get: vi.fn().mockResolvedValue({ success: true, required: false, granted: true }),
-          request: vi.fn().mockResolvedValue({ success: true, required: false, granted: true }),
-        },
         chat: {
           update: vi.fn().mockResolvedValue({ success: true }),
           get: vi.fn().mockResolvedValue({ success: true, settings: {} }),
