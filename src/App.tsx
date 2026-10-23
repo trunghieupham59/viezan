@@ -1,6 +1,6 @@
 import { lazy, type ReactNode, Suspense, useEffect, useState } from 'react'
 import type { LauncherFeatureRequest } from '../shared/launcher'
-import { AIChatSidebar, CommandPalette, NotificationViewport, PrimaryNavigationSidebar, UpdateNotification } from './components/organisms'
+import { AIChatSidebar, CommandPalette, LauncherShortcutNotice, LauncherSpotlightPrompt, NotificationViewport, PrimaryNavigationSidebar, UpdateNotification } from './components/organisms'
 import { SettingsModal } from './components/SettingsModal'
 import { AppShell } from './components/templates'
 import { FeatureLoadingState } from './components/ui/molecules'
@@ -238,6 +238,8 @@ function App() {
         <>
           <SettingsModal />
           <UpdateNotification blocked={settingsOpen || cmdPaletteOpen} />
+          <LauncherShortcutNotice />
+          <LauncherSpotlightPrompt blocked={settingsOpen || cmdPaletteOpen} />
           <CommandPalette
             open={cmdPaletteOpen && !settingsOpen}
             onClose={() => setCmdPaletteOpen(false)}

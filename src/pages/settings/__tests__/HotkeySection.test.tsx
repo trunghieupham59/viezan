@@ -119,6 +119,83 @@ describe('macOS Accessibility permission', () => {
   })
 })
 
+describe('launcher shortcut system conflict (macOS)', () => {
+  beforeEach(() => {
+    window.api.platform = 'darwin'
+    vi.mocked(window.api.hotkey.chat.get).mockResolvedValue({ success: true, settings: { hotkey: 'Command+Space', enabled: true } })
+  })
+
+  it('shows nothing when the system does not own the shortcut', async () => {
+    render(<><HotkeySection /><NotificationViewport /></>)
+    await screen.findByRole('button', { name: 'Command+Space' })
+    await waitFor(() => expect(window.api.hotkey.chat.systemConflict).toHaveBeenCalledWith('Command+Space'))
+    expect(screen.queryByText(/Spotlight is using/)).not.toBeInTheDocument()
+  })
+
+  it('explains a Spotlight conflict with a link to System Settings and an alternative shortcut', async () => {
+    vi.mocked(window.api.hotkey.chat.systemConflict).mockResolvedValue({
+      success: true, hotkey: 'Command+Space', enabled: true, conflict: { owner: 'spotlight', accelerator: 'Command+Space' },
+    })
+    render(<><HotkeySection /><NotificationViewport /></>)
+
+    expect(await screen.findByText('Spotlight is using Command+Space')).toBeInTheDocument()
+    expect(screen.getByText(/Keyboard Shortcuts > Spotlight/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open System Settings' }))
+    expect(window.api.openExternal).toHaveBeenCalledWith('x-apple.systempreferences:com.apple.Keyboard-Settings.extension?Shortcuts')
+
+    vi.mocked(window.api.hotkey.chat.systemConflict).mockResolvedValue({ success: true, hotkey: 'Alt+Space', enabled: true, conflict: null })
+    fireEvent.click(screen.getByRole('button', { name: 'Use Option+Space instead' }))
+    await waitFor(() => expect(window.api.hotkey.chat.update).toHaveBeenCalledWith({ enabled: true, hotkey: 'Alt+Space' }))
+    expect(await screen.findByRole('button', { name: 'Alt+Space' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText(/Spotlight is using/)).not.toBeInTheDocument())
+  })
+
+  it('turns the Spotlight shortcut off from the conflict card and offers to restore it', async () => {
+    vi.mocked(window.api.hotkey.chat.systemConflict).mockResolvedValue({
+      success: true, hotkey: 'Command+Space', enabled: false, conflict: { owner: 'spotlight', accelerator: 'Command+Space' },
+    })
+    vi.mocked(window.api.hotkey.chat.spotlight.resolve).mockResolvedValue({ success: true, applied: true, settings: { enabled: true, hotkey: 'Command+Space' } })
+    render(<><HotkeySection /><NotificationViewport /></>)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Turn Spotlight shortcut off' }))
+    await waitFor(() => expect(window.api.hotkey.chat.spotlight.resolve).toHaveBeenCalledWith('replace'))
+    expect(await screen.findByText(/Viezan Launcher now opens with Command\+Space/)).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText(/Spotlight is using/)).not.toBeInTheDocument())
+    expect(screen.getAllByRole('switch')[1]).toHaveAttribute('aria-checked', 'true')
+
+    vi.mocked(window.api.hotkey.chat.spotlight.restore).mockResolvedValue({ success: true, applied: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Restore Spotlight shortcut' }))
+    await waitFor(() => expect(window.api.hotkey.chat.spotlight.restore).toHaveBeenCalled())
+    expect(await screen.findByText('Spotlight shortcut turned back on.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Restore Spotlight shortcut' })).not.toBeInTheDocument())
+  })
+
+  it('shows the restore row when Viezan had turned Spotlight off earlier', async () => {
+    vi.mocked(window.api.hotkey.chat.spotlight.get).mockResolvedValue({ success: true, shouldPrompt: false, disabledByViezan: true })
+    render(<><HotkeySection /><NotificationViewport /></>)
+    expect(await screen.findByRole('button', { name: 'Restore Spotlight shortcut' })).toBeInTheDocument()
+  })
+
+  it('re-checks when the window regains focus', async () => {
+    render(<><HotkeySection /><NotificationViewport /></>)
+    await waitFor(() => expect(window.api.hotkey.chat.systemConflict).toHaveBeenCalledTimes(1))
+    vi.mocked(window.api.hotkey.chat.systemConflict).mockResolvedValue({
+      success: true, hotkey: 'Command+Space', enabled: true, conflict: { owner: 'finder-search', accelerator: 'Command+Space' },
+    })
+    act(() => { window.dispatchEvent(new Event('focus')) })
+    expect(await screen.findByText('Finder search is using Command+Space')).toBeInTheDocument()
+  })
+
+  it('does not check on other platforms', async () => {
+    window.api.platform = 'win32'
+    vi.mocked(window.api.hotkey.chat.get).mockResolvedValue({ success: true, settings: { hotkey: 'Alt+Space', enabled: true } })
+    render(<><HotkeySection /><NotificationViewport /></>)
+    await screen.findByRole('button', { name: 'Alt+Space' })
+    expect(window.api.hotkey.chat.systemConflict).not.toHaveBeenCalled()
+  })
+})
+
 describe('launcher shortcut settings', () => {
   it.each([['darwin', 'Command+Space'], ['win32', 'Alt+Space']])('suggests %s default without registering until enabled', async (platform, shortcut) => {
     window.api.platform = platform

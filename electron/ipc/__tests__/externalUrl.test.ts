@@ -61,6 +61,7 @@ describe('isAllowedExternalUrl', () => {
   it('allows only the macOS screen recording settings deep link', () => {
     expect(isAllowedExternalUrl('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture')).toBe(true)
     expect(isAllowedExternalUrl('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility')).toBe(true)
+    expect(isAllowedExternalUrl('x-apple.systempreferences:com.apple.Keyboard-Settings.extension?Shortcuts')).toBe(true)
     expect(isAllowedExternalUrl('x-apple.systempreferences:com.apple.preference.security?Privacy_Camera')).toBe(false)
   })
 })
