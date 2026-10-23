@@ -151,9 +151,15 @@ function sameAccelerator(a: string, b: string): boolean {
 const SETTINGS_FILE = 'hotkey-settings.json'
 const CHAT_SETTINGS_FILE = 'ai-chat-hotkey-settings.json'
 
+/**
+ * Quick Translate ships enabled on Option+T / Alt+T: two keys under one hand, "T" for
+ * translate, and free of system shortcuts on every platform (it only types "†" on macOS).
+ */
+export const DEFAULT_TRANSLATE_HOTKEY = 'Alt+T'
+
 const DEFAULT_SETTINGS: HotkeySettings = {
-  hotkey: '',
-  enabled: false,
+  hotkey: DEFAULT_TRANSLATE_HOTKEY,
+  enabled: true,
   provider: 'gemini',
   model: EXT_DEFAULT_GEMINI_MODEL,
   sourceLang: 'auto',
@@ -279,7 +285,7 @@ function loadSettings(): HotkeySettings {
   try {
     const patch = parsePersistedFields<HotkeySettings>(readJsonFile(getSettingsPath()), TRANSLATE_SETTING_KEYS, parseTranslateSettingsPatch)
     const settings = { ...DEFAULT_SETTINGS, ...patch }
-    // A hotkey that was dropped as invalid cannot stay "enabled".
+    // An explicitly cleared shortcut ('' persisted) stays off; an invalid one falls back to the default.
     if (!settings.hotkey) settings.enabled = false
     return normalizeLanguagePair(settings, patch.secondaryLang !== undefined)
   } catch {

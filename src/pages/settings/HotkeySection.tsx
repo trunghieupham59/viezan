@@ -9,12 +9,16 @@ import { STATUS_RESET_DELAY_MS, STATUS_RESET_LONG_MS } from '../../constants/ui'
 import { useAppStore, useT } from '../../store/useAppStore'
 import { useNotificationStore } from '../../store/useNotificationStore'
 
-const DEFAULT_HOTKEY = 'Alt+Shift+T'
+/** Mirrors DEFAULT_TRANSLATE_HOTKEY in electron/ipc/globalHotkey.ts (Option+T on macOS). */
+const DEFAULT_HOTKEY = 'Alt+T'
 /** Toast owner keys: progress → done/error replace each other for one shortcut run. */
 const HOTKEY_ERROR_KEY = 'settings-hotkey-register'
 const HOTKEY_RUN_KEY = 'settings-hotkey-run'
 const CHAT_HOTKEY_ERROR_KEY = 'settings-chat-hotkey-register'
 const getDefaultChatHotkey = () => window.api?.platform === 'darwin' ? 'Command+Space' : 'Alt+Space'
+/** Display form of a stored accelerator: the Alt key is labelled Option on Mac keyboards. */
+const displayAccelerator = (accelerator: string) =>
+  window.api?.platform === 'darwin' ? accelerator.replace(/(^|\+)(Alt|Option)(?=\+|$)/g, '$1Option') : accelerator
 const isTargetLanguage = (value: unknown): value is string =>
   typeof value === 'string' && TARGET_LANGUAGES.some((language) => language.code === value)
 
@@ -326,7 +330,7 @@ export function HotkeySection() {
               <HotkeyRecordButton
                 inputRef={hotkeyInputRef}
                 isRecording={isRecording}
-                value={hotkeyValue}
+                value={displayAccelerator(hotkeyValue)}
                 onKeyDown={handleHotkeyKeyDown}
                 onClick={() => setIsRecording(true)}
                 onBlur={() => setIsRecording(false)}
@@ -437,7 +441,7 @@ export function HotkeySection() {
               <HotkeyRecordButton
                 inputRef={chatHotkeyInputRef}
                 isRecording={isChatRecording}
-                value={chatHotkeyValue}
+                value={displayAccelerator(chatHotkeyValue)}
                 onKeyDown={handleChatHotkeyKeyDown}
                 onClick={() => setIsChatRecording(true)}
                 onBlur={() => setIsChatRecording(false)}

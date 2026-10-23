@@ -119,6 +119,25 @@ describe('macOS Accessibility permission', () => {
   })
 })
 
+describe('quick translate default shortcut', () => {
+  it.each([['darwin', 'Option+T'], ['win32', 'Alt+T']])('offers Alt+T on %s (shown as %s) when nothing is saved and saves the stored form', async (platform, label) => {
+    window.api.platform = platform
+    vi.mocked(window.api.hotkey.get).mockResolvedValue({ success: true, settings: {} })
+    render(<><HotkeySection /><NotificationViewport /></>)
+    expect(await screen.findByRole('button', { name: label })).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('switch')[0])
+    await waitFor(() => expect(window.api.hotkey.update).toHaveBeenLastCalledWith(expect.objectContaining({ enabled: true, hotkey: 'Alt+T' })))
+  })
+
+  it('shows the shortcut main ships enabled', async () => {
+    window.api.platform = 'darwin'
+    vi.mocked(window.api.hotkey.get).mockResolvedValue({ success: true, settings: { hotkey: 'Alt+T', enabled: true, targetLang: 'en', secondaryLang: 'vi' } })
+    render(<><HotkeySection /><NotificationViewport /></>)
+    expect(await screen.findByRole('button', { name: 'Option+T' })).toBeInTheDocument()
+    expect(screen.getAllByRole('switch')[0]).toHaveAttribute('aria-checked', 'true')
+  })
+})
+
 describe('launcher shortcut settings', () => {
   it.each([['darwin', 'Command+Space'], ['win32', 'Alt+Space']])('suggests %s default without registering until enabled', async (platform, shortcut) => {
     window.api.platform = platform
@@ -137,12 +156,13 @@ describe('launcher shortcut settings', () => {
       settings: { hotkey: 'Alt+Shift+C', enabled: true },
     })
     render(<><HotkeySection /><NotificationViewport /></>)
-    const recorder = await screen.findByRole('button', { name: 'Alt+Shift+C' })
+    // Stored as Alt+Shift+C; shown with the Mac key name.
+    const recorder = await screen.findByRole('button', { name: 'Option+Shift+C' })
     fireEvent.click(recorder)
     fireEvent.keyDown(recorder, { key: ' ', metaKey: true })
     expect(await screen.findByText(/check the Spotlight shortcut/)).toBeInTheDocument()
     expect(screen.queryByText('raw backend error')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Alt+Shift+C' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Option+Shift+C' })).toBeInTheDocument()
     expect(screen.getAllByRole('switch')[1]).toHaveAttribute('aria-checked', 'true')
   })
 })

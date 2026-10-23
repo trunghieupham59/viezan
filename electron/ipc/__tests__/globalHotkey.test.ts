@@ -224,6 +224,7 @@ describe('hotkey settings IPC', () => {
 
   it('rejects mistyped settings fields without touching registered shortcuts', async () => {
     await init()
+    env.events.length = 0
     for (const payload of [
       { enabled: 'yes' },
       { hotkey: 'NotAnAccelerator' },
@@ -336,7 +337,7 @@ describe('hotkey settings IPC', () => {
     const result = await invoke('hotkey:chat:update', { enabled: true, hotkey: 'Alt+Shift+Z' })
 
     expect(result).toMatchObject({ success: false, errorCode: 'IN_USE' })
-    expect([...env.registered.keys()]).toEqual(['Alt+Shift+C'])
+    expect([...env.registered.keys()].sort()).toEqual(['Alt+Shift+C', 'Alt+T']) // Alt+T is the Quick Translate default
     expect((await invoke('hotkey:chat:get')).settings).toMatchObject({ enabled: true, hotkey: 'Alt+Shift+C' })
   })
 
@@ -372,12 +373,24 @@ describe('hotkey settings IPC', () => {
     expect((await invoke('hotkey:chat:get')).settings).toMatchObject({ enabled: false, hotkey: 'Alt+Shift+C' })
   })
 
-  it('offers the platform launcher default without changing the translate shortcut or enabling either shortcut', async () => {
+  it('ships Quick Translate enabled on Alt+T and only offers the launcher default', async () => {
     await init()
+    expect((await invoke('hotkey:get')).settings).toMatchObject({ hotkey: 'Alt+T', enabled: true })
+    expect([...env.registered.keys()]).toEqual(['Alt+T'])
     expect((await invoke('hotkey:chat:get')).settings).toEqual({
       hotkey: process.platform === 'darwin' ? 'Command+Space' : 'Alt+Space', enabled: false,
     })
+  })
+
+  it('keeps an explicitly cleared Quick Translate shortcut off', async () => {
+    await init({ translate: { hotkey: '', enabled: false } })
     expect((await invoke('hotkey:get')).settings).toMatchObject({ hotkey: '', enabled: false })
+    expect(env.registered.size).toBe(0)
+  })
+
+  it('does not enable a shortcut the user turned off, even with the default key saved', async () => {
+    await init({ translate: { hotkey: 'Alt+T', enabled: false } })
+    expect((await invoke('hotkey:get')).settings).toMatchObject({ hotkey: 'Alt+T', enabled: false })
     expect(env.registered.size).toBe(0)
   })
 
@@ -391,8 +404,9 @@ describe('hotkey settings IPC', () => {
   it('ignores invalid persisted settings instead of trusting them', async () => {
     await init({ translate: { enabled: true, hotkey: 'rm -rf /', provider: 'x' } })
 
-    expect((await invoke('hotkey:get')).settings).toMatchObject({ enabled: false, hotkey: '' })
-    expect(env.events).toEqual([])
+    // The corrupt shortcut and provider fall back to their defaults; nothing from the file is registered.
+    expect((await invoke('hotkey:get')).settings).toMatchObject({ enabled: true, hotkey: 'Alt+T', provider: 'gemini' })
+    expect(env.events).toEqual(['register:Alt+T'])
   })
 
   describe('language pair settings', () => {
