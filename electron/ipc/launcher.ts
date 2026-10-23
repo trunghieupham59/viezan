@@ -8,6 +8,7 @@ import { type IndexedLauncherApp, scanLauncherApps } from '../services/launcherA
 import { LauncherFileIndex, MAX_FILE_QUERY_CHARS, searchLauncherFiles } from '../services/launcherFiles'
 import { LauncherIconCache } from '../services/launcherIconCache'
 import { openWindowsLauncherApp } from '../services/launcherSystemApps'
+import { LAUNCHER_CHANNELS } from './channels'
 import { isSenderWindow } from './senderGuard'
 
 const CATALOG_TTL_MS = 60_000
@@ -79,7 +80,7 @@ export function registerLauncherHandlers(ipc: IpcMain, getWindow: () => BrowserW
     onIcons: updates => {
       const window = getWindow()
       if (window && !window.isDestroyed() && !window.webContents.isDestroyed()) {
-        window.webContents.send('launcher:icons', updates)
+        window.webContents.send(LAUNCHER_CHANNELS.event.icons, updates)
       }
     },
   })
@@ -104,7 +105,7 @@ export function registerLauncherHandlers(ipc: IpcMain, getWindow: () => BrowserW
   }
   const failure = (errorCode: LauncherResult['errorCode']): LauncherResult => ({ success: false, errorCode })
 
-  ipc.handle('launcher:list-apps', async event => {
+  ipc.handle(LAUNCHER_CHANNELS.invoke.listApps, async event => {
     if (!trusted(event) || !['darwin', 'win32'].includes(process.platform)) {
       return { ...failure('UNAVAILABLE'), apps: [] }
     }
@@ -121,7 +122,7 @@ export function registerLauncherHandlers(ipc: IpcMain, getWindow: () => BrowserW
     }
   })
 
-  ipc.handle('launcher:get-icons', async (event, ids: unknown) => {
+  ipc.handle(LAUNCHER_CHANNELS.invoke.getIcons, async (event, ids: unknown) => {
     if (!trusted(event)) return { ...failure('UNAVAILABLE'), icons: [] }
     if (!Array.isArray(ids) || ids.length > 16 || ids.some(id => typeof id !== 'string' || !/^[a-f0-9]{64}$/.test(id))) {
       return { ...failure('INVALID'), icons: [] }
@@ -131,7 +132,7 @@ export function registerLauncherHandlers(ipc: IpcMain, getWindow: () => BrowserW
     return { success: true, icons: await icons.get([...new Set(ids as string[])]) }
   })
 
-  ipc.handle('launcher:open-app', async (event, id: unknown) => {
+  ipc.handle(LAUNCHER_CHANNELS.invoke.openApp, async (event, id: unknown) => {
     if (!trusted(event)) return failure('UNAVAILABLE')
     if (typeof id !== 'string' || !/^[a-f0-9]{64}$/.test(id)) return failure('INVALID')
     // Only entries already offered by this process may be launched.
@@ -152,7 +153,7 @@ export function registerLauncherHandlers(ipc: IpcMain, getWindow: () => BrowserW
     }
   })
 
-  ipc.handle('launcher:search-web', async (event, query: unknown) => {
+  ipc.handle(LAUNCHER_CHANNELS.invoke.searchWeb, async (event, query: unknown) => {
     if (!trusted(event)) return failure('UNAVAILABLE')
     if (typeof query !== 'string' || !query.trim() || query.length > 500) return failure('INVALID')
     try {
@@ -166,7 +167,7 @@ export function registerLauncherHandlers(ipc: IpcMain, getWindow: () => BrowserW
     }
   })
 
-  ipc.handle('launcher:search-files', async (event, query: unknown) => {
+  ipc.handle(LAUNCHER_CHANNELS.invoke.searchFiles, async (event, query: unknown) => {
     if (!trusted(event)) return { ...failure('UNAVAILABLE'), files: [] }
     // Shape errors are reported the same on every platform; the index is a separate concern.
     if (typeof query !== 'string' || query.length > MAX_FILE_QUERY_CHARS) return { ...failure('INVALID'), files: [] }
@@ -197,16 +198,16 @@ export function registerLauncherHandlers(ipc: IpcMain, getWindow: () => BrowserW
     }
   }
 
-  ipc.handle('launcher:open-file', (event, id: unknown) => fileAction(event, id, async filePath => {
+  ipc.handle(LAUNCHER_CHANNELS.invoke.openFile, (event, id: unknown) => fileAction(event, id, async filePath => {
     const error = await shell.openPath(filePath)
     if (error) throw new Error(error)
   }))
 
-  ipc.handle('launcher:reveal-file', (event, id: unknown) => fileAction(event, id, async filePath => {
+  ipc.handle(LAUNCHER_CHANNELS.invoke.revealFile, (event, id: unknown) => fileAction(event, id, async filePath => {
     shell.showItemInFolder(filePath)
   }))
 
-  ipc.handle('launcher:convert-currency', async (event, request: unknown) => {
+  ipc.handle(LAUNCHER_CHANNELS.invoke.convertCurrency, async (event, request: unknown) => {
     if (!trusted(event)) return failure('UNAVAILABLE')
     const parsed = parseCurrencyConversionRequest(request)
     if (!parsed) return failure('INVALID')
@@ -216,13 +217,13 @@ export function registerLauncherHandlers(ipc: IpcMain, getWindow: () => BrowserW
     return conversion ? { success: true, conversion } : failure('NOT_FOUND')
   })
 
-  ipc.handle('launcher:get-currency-target', async event => {
+  ipc.handle(LAUNCHER_CHANNELS.invoke.getCurrencyTarget, async event => {
     if (!trusted(event)) return { ...failure('UNAVAILABLE'), code: null }
     currencyTarget ??= readCurrencyTarget(currencyTargetFile)
     return { success: true, code: await currencyTarget }
   })
 
-  ipc.handle('launcher:set-currency-target', async (event, code: unknown) => {
+  ipc.handle(LAUNCHER_CHANNELS.invoke.setCurrencyTarget, async (event, code: unknown) => {
     if (!trusted(event)) return failure('UNAVAILABLE')
     if (code !== null && (typeof code !== 'string' || !CURRENCY_CODE.test(code))) return failure('INVALID')
     currencyTarget = Promise.resolve(code)

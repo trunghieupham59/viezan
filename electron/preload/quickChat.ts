@@ -1,73 +1,49 @@
 /**
- * Quick chat preload API — bridges the Raycast-style quick chat window and
- * the main renderer without exposing Node primitives.
+ * Quick chat preload API — bridges the Raycast-style quick chat window and the main
+ * renderer without exposing Node primitives. Shape: `shared/quickChatApi.d.ts`
+ * (plus `LauncherApi` from `shared/launcher.d.ts`).
  */
-import { ipcRenderer } from 'electron'
-import type { CurrencyConversionRequest, LauncherApi, LauncherFeatureRequest, LauncherIcon } from '../../shared/launcher'
-import type { QuickAiSession, QuickAiTurn } from '../../shared/quickAi'
+import type { LauncherApi } from '../../shared/launcher'
+import type { QuickChatApi } from '../../shared/quickChatApi'
+import { LAUNCHER_CHANNELS, QUICK_CHAT_CHANNELS } from '../ipc/channels'
+import { invoke, subscribe, subscribeSignal } from './contract'
 
-export interface QuickChatSeedPayload {
-  question: string
-  response?: string
-  history?: QuickAiTurn[]
-  provider: string
-  model: string
+export type { QuickChatSeedPayload } from '../../shared/quickChatApi'
+
+const launcherApi: LauncherApi = {
+  listApps: invoke(LAUNCHER_CHANNELS.invoke.listApps),
+  getIcons: invoke(LAUNCHER_CHANNELS.invoke.getIcons),
+  onIcons: subscribe(LAUNCHER_CHANNELS.event.icons),
+  openApp: invoke(LAUNCHER_CHANNELS.invoke.openApp),
+  searchWeb: invoke(LAUNCHER_CHANNELS.invoke.searchWeb),
+  searchFiles: invoke(LAUNCHER_CHANNELS.invoke.searchFiles),
+  openFile: invoke(LAUNCHER_CHANNELS.invoke.openFile),
+  revealFile: invoke(LAUNCHER_CHANNELS.invoke.revealFile),
+  convertCurrency: invoke(LAUNCHER_CHANNELS.invoke.convertCurrency),
+  getCurrencyTarget: invoke(LAUNCHER_CHANNELS.invoke.getCurrencyTarget),
+  setCurrencyTarget: invoke(LAUNCHER_CHANNELS.invoke.setCurrencyTarget),
 }
 
-export const quickChatSection = {
-  quickChat: {
-    launcher: {
-      listApps: () => ipcRenderer.invoke('launcher:list-apps'),
-      getIcons: (ids: string[]) => ipcRenderer.invoke('launcher:get-icons', ids),
-      onIcons: (callback: (icons: LauncherIcon[]) => void) => {
-        const handler = (_: unknown, icons: LauncherIcon[]) => callback(icons)
-        ipcRenderer.on('launcher:icons', handler)
-        return () => ipcRenderer.removeListener('launcher:icons', handler)
-      },
-      openApp: (id: string) => ipcRenderer.invoke('launcher:open-app', id),
-      searchWeb: (query: string) => ipcRenderer.invoke('launcher:search-web', query),
-      searchFiles: (query: string) => ipcRenderer.invoke('launcher:search-files', query),
-      openFile: (id: string) => ipcRenderer.invoke('launcher:open-file', id),
-      revealFile: (id: string) => ipcRenderer.invoke('launcher:reveal-file', id),
-      convertCurrency: (request: CurrencyConversionRequest) => ipcRenderer.invoke('launcher:convert-currency', request),
-      getCurrencyTarget: () => ipcRenderer.invoke('launcher:get-currency-target'),
-      setCurrencyTarget: (code: string | null) => ipcRenderer.invoke('launcher:set-currency-target', code),
-    } satisfies LauncherApi,
-    session: {
-      get: () => ipcRenderer.invoke('quick-chat:session:get'),
-      save: (session: QuickAiSession) => ipcRenderer.invoke('quick-chat:session:save', session),
-      clear: () => ipcRenderer.invoke('quick-chat:session:clear'),
-    },
-    setLayout: (layout: 'compact' | 'expanded', contentHeight?: number) => ipcRenderer.invoke('quick-chat:set-layout', layout, contentHeight),
-    hide: () => ipcRenderer.invoke('quick-chat:hide'),
-    openSettings: () => ipcRenderer.invoke('quick-chat:open-settings'),
-    openInChat: (payload?: QuickChatSeedPayload) => ipcRenderer.invoke('quick-chat:open-in-chat', payload),
-    openFeature: (payload: LauncherFeatureRequest) => ipcRenderer.invoke('quick-chat:open-feature', payload),
-    recordUsage: (cost: unknown) => ipcRenderer.invoke('quick-chat:record-usage', cost),
-    onUsage: (cb: (cost: unknown) => void) => {
-      const handler = (_: unknown, cost: unknown) => cb(cost)
-      ipcRenderer.on('quick-chat:usage', handler)
-      return () => ipcRenderer.removeListener('quick-chat:usage', handler)
-    },
-    onShow: (cb: () => void) => {
-      const handler = () => cb()
-      ipcRenderer.on('quick-chat:show', handler)
-      return () => ipcRenderer.removeListener('quick-chat:show', handler)
-    },
-    onOpenSettings: (cb: () => void) => {
-      const handler = () => cb()
-      ipcRenderer.on('quick-chat:open-settings', handler)
-      return () => ipcRenderer.removeListener('quick-chat:open-settings', handler)
-    },
-    onOpenFeature: (cb: (payload: LauncherFeatureRequest) => void) => {
-      const handler = (_: unknown, payload: LauncherFeatureRequest) => cb(payload)
-      ipcRenderer.on('quick-chat:open-feature', handler)
-      return () => ipcRenderer.removeListener('quick-chat:open-feature', handler)
-    },
-    onOpenInChat: (cb: (payload: QuickChatSeedPayload | null) => void) => {
-      const handler = (_: unknown, payload: QuickChatSeedPayload | null) => cb(payload)
-      ipcRenderer.on('quick-chat:open-in-main-chat', handler)
-      return () => ipcRenderer.removeListener('quick-chat:open-in-main-chat', handler)
-    },
+const { invoke: ch, event } = QUICK_CHAT_CHANNELS
+
+export const quickChatApi: QuickChatApi = {
+  launcher: launcherApi,
+  session: {
+    get: invoke(ch.sessionGet),
+    save: invoke(ch.sessionSave),
+    clear: invoke(ch.sessionClear),
   },
+  setLayout: invoke(ch.setLayout),
+  hide: invoke(ch.hide),
+  openSettings: invoke(ch.openSettings),
+  openInChat: invoke(ch.openInChat),
+  openFeature: invoke(ch.openFeature),
+  recordUsage: invoke(ch.recordUsage),
+  onUsage: subscribe(event.usage),
+  onShow: subscribeSignal(event.show),
+  onOpenSettings: subscribeSignal(event.openSettings),
+  onOpenFeature: subscribe(event.openFeature),
+  onOpenInChat: subscribe(event.openInMainChat),
 }
+
+export const quickChatSection = { quickChat: quickChatApi }

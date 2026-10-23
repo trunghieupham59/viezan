@@ -2,7 +2,9 @@ import path from 'node:path'
 import { app, type BrowserWindow, type IpcMain, type IpcMainInvokeEvent, type Rectangle } from 'electron'
 import type { LauncherFeatureRequest } from '../../shared/launcher'
 import type { QuickAiSession, QuickAiTurn } from '../../shared/quickAi'
+import type { QuickChatSeedPayload } from '../../shared/quickChatApi'
 import { parseQuickAiSession, parseQuickAiTurns, QuickAiSessionStore } from '../services/quickAiSession'
+import { QUICK_CHAT_CHANNELS } from './channels'
 import { MAX_CHAT_REQUEST_CHARS } from './ipcConstants'
 import { registerLauncherHandlers } from './launcher'
 
@@ -22,14 +24,7 @@ export function setQuickChatWindowBounds(win: BrowserWindow, bounds: Rectangle):
   if (process.platform === 'darwin' && typeof win.invalidateShadow === 'function') win.invalidateShadow()
 }
 
-export interface QuickChatSeedPayload {
-  question: string
-  response?: string
-  /** Earlier complete turns of the Quick AI conversation, oldest first. */
-  history?: QuickAiTurn[]
-  provider: string
-  model: string
-}
+export type { QuickChatSeedPayload }
 
 const MAX_QUICK_CHAT_RESPONSE_CHARS = 80_000
 const QUICK_CHAT_PROVIDERS = new Set(['local', 'gemini', 'claude', 'openai'])
@@ -140,22 +135,22 @@ export function registerQuickChatHandlers(
   }
 
   // Quick AI answers are billed in the main window, which owns the usage store.
-  ipcMain.handle('quick-chat:record-usage', (event, rawPayload: unknown) => {
+  ipcMain.handle(QUICK_CHAT_CHANNELS.invoke.recordUsage, (event, rawPayload: unknown) => {
     if (!isPopupSender(event)) return { success: false, error: 'Unauthorized sender.' }
     const payload = parseQuickChatUsagePayload(rawPayload)
     if (!payload) return { success: false, error: 'Invalid usage payload.' }
     const mainWindow = getMainWindow()
     if (!mainWindow || mainWindow.isDestroyed()) return { success: false, error: 'Main window is not available.' }
-    mainWindow.webContents.send('quick-chat:usage', payload)
+    mainWindow.webContents.send(QUICK_CHAT_CHANNELS.event.usage, payload)
     return { success: true }
   })
 
-  ipcMain.handle('quick-chat:session:get', async (event): Promise<{ success: boolean; session: QuickAiSession | null }> => {
+  ipcMain.handle(QUICK_CHAT_CHANNELS.invoke.sessionGet, async (event): Promise<{ success: boolean; session: QuickAiSession | null }> => {
     if (!isPopupSender(event)) return { success: false, session: null }
     return { success: true, session: await sessions().get() }
   })
 
-  ipcMain.handle('quick-chat:session:save', async (event, rawSession: unknown) => {
+  ipcMain.handle(QUICK_CHAT_CHANNELS.invoke.sessionSave, async (event, rawSession: unknown) => {
     if (!isPopupSender(event)) return { success: false, error: 'Unauthorized sender.' }
     const session = parseQuickAiSession(rawSession)
     if (!session) return { success: false, error: 'Invalid Quick AI session.' }
@@ -167,7 +162,7 @@ export function registerQuickChatHandlers(
     }
   })
 
-  ipcMain.handle('quick-chat:session:clear', async (event) => {
+  ipcMain.handle(QUICK_CHAT_CHANNELS.invoke.sessionClear, async (event) => {
     if (!isPopupSender(event)) return { success: false, error: 'Unauthorized sender.' }
     try {
       await sessions().clear()
@@ -178,7 +173,7 @@ export function registerQuickChatHandlers(
   })
 
   // Only the popup main frame may request a content height; width and position remain native-owned.
-  ipcMain.handle('quick-chat:set-layout', (event, layout: unknown, contentHeight: unknown) => {
+  ipcMain.handle(QUICK_CHAT_CHANNELS.invoke.setLayout, (event, layout: unknown, contentHeight: unknown) => {
     const win = getQuickChatWindow()
     if (!win || win.isDestroyed() || event.sender !== win.webContents
       || event.senderFrame !== win.webContents.mainFrame
@@ -194,12 +189,12 @@ export function registerQuickChatHandlers(
     return { success: true }
   })
 
-  ipcMain.handle('quick-chat:hide', () => {
+  ipcMain.handle(QUICK_CHAT_CHANNELS.invoke.hide, () => {
     getQuickChatWindow()?.hide()
     return { success: true }
   })
 
-  ipcMain.handle('quick-chat:open-settings', () => {
+  ipcMain.handle(QUICK_CHAT_CHANNELS.invoke.openSettings, () => {
     getQuickChatWindow()?.hide()
     const mainWindow = getMainWindow()
     if (!mainWindow) return { success: false, error: 'Main window is not available.' }
@@ -207,11 +202,11 @@ export function registerQuickChatHandlers(
     if (mainWindow.isMinimized()) mainWindow.restore()
     mainWindow.show()
     mainWindow.focus()
-    mainWindow.webContents.send('quick-chat:open-settings')
+    mainWindow.webContents.send(QUICK_CHAT_CHANNELS.event.openSettings)
     return { success: true }
   })
 
-  ipcMain.handle('quick-chat:open-in-chat', (_event, rawPayload: unknown) => {
+  ipcMain.handle(QUICK_CHAT_CHANNELS.invoke.openInChat, (_event, rawPayload: unknown) => {
     const payload = rawPayload === undefined ? null : parseQuickChatSeedPayload(rawPayload)
     if (rawPayload !== undefined && !payload) {
       return { success: false, error: 'Invalid quick chat payload.' }
@@ -224,12 +219,12 @@ export function registerQuickChatHandlers(
     if (mainWindow.isMinimized()) mainWindow.restore()
     mainWindow.show()
     mainWindow.focus()
-    mainWindow.webContents.send('quick-chat:open-in-main-chat', payload)
+    mainWindow.webContents.send(QUICK_CHAT_CHANNELS.event.openInMainChat, payload)
     return { success: true }
   })
 
   // Only the launcher window may deep-link a main-window feature with a short seed text.
-  ipcMain.handle('quick-chat:open-feature', (event, rawPayload: unknown) => {
+  ipcMain.handle(QUICK_CHAT_CHANNELS.invoke.openFeature, (event, rawPayload: unknown) => {
     const win = getQuickChatWindow()
     if (!win || win.isDestroyed() || event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame) {
       return { success: false, error: 'Unauthorized sender.' }
@@ -244,7 +239,7 @@ export function registerQuickChatHandlers(
     if (mainWindow.isMinimized()) mainWindow.restore()
     mainWindow.show()
     mainWindow.focus()
-    mainWindow.webContents.send('quick-chat:open-feature', payload)
+    mainWindow.webContents.send(QUICK_CHAT_CHANNELS.event.openFeature, payload)
     return { success: true }
   })
 }

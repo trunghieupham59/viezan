@@ -562,14 +562,7 @@ export interface ChatStreamEvent {
   errorCode?: 'NO_API_KEY' | 'INVALID_KEY' | 'RATE_LIMIT' | 'NETWORK' | 'TIMEOUT' | 'EMPTY_RESPONSE' | 'BLOCKED_RECITATION' | 'BLOCKED_SAFETY' | 'MODEL_REFUSAL' | string
 }
 
-export interface QuickChatSeedPayload {
-  question: string
-  response?: string
-  /** Earlier complete Quick AI turns, oldest first, carried into the main chat. */
-  history?: import('../../shared/quickAi').QuickAiTurn[]
-  provider: string
-  model: string
-}
+export type { QuickChatApi, QuickChatLayout, QuickChatSeedPayload } from '../../shared/quickChatApi'
 
 // ─── Dictionary types ────────────────────────────────────────────────────────
 
@@ -897,26 +890,8 @@ export interface WindowApi extends SystemApi, WebSearchApi {
   /** Global hotkeys — Quick Translate and the Launcher shortcut. Shape: shared/hotkeyApi.d.ts. */
   hotkey: import('../../shared/hotkeyApi').HotkeyApi
 
-  /** Standalone Raycast-style AI Chat quick window */
-  quickChat: {
-    setLayout: (layout: 'compact' | 'expanded', contentHeight?: number) => Promise<{ success: boolean }>
-    session: {
-      get: () => Promise<{ success: boolean; session: import('../../shared/quickAi').QuickAiSession | null }>
-      save: (session: import('../../shared/quickAi').QuickAiSession) => Promise<{ success: boolean; error?: string }>
-      clear: () => Promise<{ success: boolean; error?: string }>
-    }
-    launcher: import('../../shared/launcher').LauncherApi
-    hide: () => Promise<{ success: boolean; error?: string }>
-    openSettings: () => Promise<{ success: boolean; error?: string }>
-    openInChat: (payload?: QuickChatSeedPayload) => Promise<{ success: boolean; error?: string }>
-    openFeature: (payload: import('../../shared/launcher').LauncherFeatureRequest) => Promise<{ success: boolean; error?: string }>
-    recordUsage: (cost: UsageCost) => Promise<{ success: boolean; error?: string }>
-    onUsage: (cb: (cost: UsageCost) => void) => () => void
-    onShow: (cb: () => void) => () => void
-    onOpenFeature: (cb: (payload: import('../../shared/launcher').LauncherFeatureRequest) => void) => () => void
-    onOpenSettings: (cb: () => void) => () => void
-    onOpenInChat: (cb: (payload: QuickChatSeedPayload | null) => void) => () => void
-  }
+  /** Standalone Raycast-style Launcher / quick chat window; shape: shared/quickChatApi.d.ts. */
+  quickChat: import('../../shared/quickChatApi').QuickChatApi<UsageCost>
 
   /** Legacy Assistant — floating icon injected into browsers without an extension; shape: shared/legacyAssistantApi.d.ts. */
   legacyAssistant: import('../../shared/legacyAssistantApi').LegacyAssistantApi

@@ -42,9 +42,13 @@ describe('IPC channel tables', () => {
     expect(channelTables.map(([name]) => name)).toEqual(expect.arrayContaining(['HOTKEY_CHANNELS', 'CAPABILITY_CHANNELS', 'SYSTEM_CHANNELS']))
   })
 
-  it('uses each channel name once across all tables', () => {
-    const names = channelTables.flatMap(([, table]) => [...Object.values(table.invoke), ...Object.values(table.event ?? {})])
-    expect(new Set(names).size).toBe(names.length)
+  it('uses each invoke channel once and each event channel once across all tables', () => {
+    // The same name may serve as an invoke (popup → main) and as a push (main → window);
+    // what must not happen is two tables claiming the same channel for the same direction.
+    const invokes = channelTables.flatMap(([, table]) => Object.values(table.invoke))
+    const events = channelTables.flatMap(([, table]) => Object.values(table.event ?? {}))
+    expect(new Set(invokes).size).toBe(invokes.length)
+    expect(new Set(events).size).toBe(events.length)
   })
 
   it.each(channelTables)('%s: every invoke channel has a main handler registered through the constant', (name, table) => {
