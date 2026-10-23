@@ -181,6 +181,7 @@ export interface TranslateResult {
 export type { KeychainApi, KeychainResult } from '../../shared/keychainApi'
 export type { LegacyAssistantApi } from '../../shared/legacyAssistantApi'
 export type { LocalServerApi, LocalServerTokenResult, LocalServerTokenSummary } from '../../shared/localServerApi'
+export type { SubtitleApi, SubtitleSessionState, SubtitleStyle } from '../../shared/subtitleApi'
 export type { UpdaterApi, UpdaterDownloadResult } from '../../shared/updaterApi'
 export type { WebSearchApi, WebSearchHit, WebSearchParams, WebSearchResult } from '../../shared/webSearchApi'
 
@@ -888,44 +889,8 @@ export interface WindowApi extends SystemApi, WebSearchApi {
     segId?: string
   }) => Promise<TranslateResult>
   /** Floating subtitle overlay — runs in a separate always-on-top OS window */
-  subtitle: {
-    show: () => Promise<void>
-    hide: () => Promise<void>
-    update: (text: string, isTranslating: boolean) => Promise<void>
-    setStyle: (style: SubtitleSettings) => Promise<void>
-    /** Push the latest raw (source) text to show above the translation */
-    setSourceText: (text: string, segId?: string) => Promise<void>
-    /** Push current session state to subtitle window */
-    pushState: (state: {
-      selectedProvider: string
-      selectedModel: string
-      isActive: boolean
-      isTranscribing: boolean
-      isTranslating: boolean
-      availableModels: { id: string; name: string }[]
-      audioMode: string
-      targetLang: string
-      locale?: string
-    }) => Promise<void>
-    /** Returns a cleanup function that removes the listener */
-    onClosed: (callback: () => void) => () => void
-    /** Listen for Start action from subtitle window. Returns cleanup fn. */
-    onStart: (callback: () => void) => () => void
-    /** Listen for Stop action from subtitle window. Returns cleanup fn. */
-    onStop: (callback: () => void) => () => void
-    /** Listen for provider change from subtitle window. Returns cleanup fn. */
-    onSetProvider: (callback: (provider: string) => void) => () => void
-    /** Listen for model change from subtitle window. Returns cleanup fn. */
-    onSetModel: (callback: (model: string) => void) => () => void
-    /** Listen for audio mode change from subtitle window. Returns cleanup fn. */
-    onSetAudioMode: (callback: (mode: string) => void) => () => void
-    /** Listen for target language change from subtitle window. Returns cleanup fn. */
-    onSetTargetLang: (callback: (lang: string) => void) => () => void
-    /** Listen for style changes from subtitle window. Returns cleanup fn. */
-    onStyleUpdate: (callback: (style: SubtitleSettings) => void) => () => void
-    /** Listen for "new session / clear" action from subtitle window. Returns cleanup fn. */
-    onClear: (callback: () => void) => () => void
-  }
+  /** Floating subtitle overlay for live interpretation; shape: shared/subtitleApi.d.ts. */
+  subtitle: import('../../shared/subtitleApi').SubtitleApi
   /** Capabilities — what this machine can do and whether the user allowed it. Shape: shared/capabilitiesApi.d.ts. */
   capabilities: import('../../shared/capabilitiesApi').CapabilitiesApi
 

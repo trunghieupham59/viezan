@@ -91,6 +91,29 @@ export const UPDATER_CHANNELS = {
   },
 } as const
 
+export const SUBTITLE_CHANNELS = {
+  invoke: {
+    show: 'subtitle:show',
+    hide: 'subtitle:hide',
+    update: 'subtitle:update',
+    setStyle: 'subtitle:setStyle',
+    setSourceText: 'subtitle:setSourceText',
+    setState: 'subtitle:setState',
+  },
+  /** `closed` and the `action*` events flow from the subtitle window to the main renderer. */
+  event: {
+    closed: 'subtitle:closed',
+    actionStart: 'subtitle:action:start',
+    actionStop: 'subtitle:action:stop',
+    actionSetProvider: 'subtitle:action:setProvider',
+    actionSetModel: 'subtitle:action:setModel',
+    actionSetAudioMode: 'subtitle:action:setAudioMode',
+    actionSetTargetLang: 'subtitle:action:setTargetLang',
+    actionUpdateStyle: 'subtitle:action:updateStyle',
+    actionClear: 'subtitle:action:clear',
+  },
+} as const
+
 export const CAPABILITY_CHANNELS = {
   invoke: {
     get: 'capabilities:get',

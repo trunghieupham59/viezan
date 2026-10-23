@@ -1,4 +1,5 @@
 import type { BrowserWindow, IpcMain, IpcMainEvent } from 'electron'
+import { SUBTITLE_CHANNELS } from './channels'
 import { MAX_TRANSLATE_SOURCE_CHARS } from './ipcConstants'
 import { invalidIpcInput, isSafeLanguageCode, parseProviderModel } from './ipcValidation'
 import { isLocalProvider, LOCAL_AI_PLACEHOLDER_KEY } from './localAi'
@@ -45,7 +46,7 @@ export function registerSubtitleHandlers(
     })
   }
 
-  ipc.handle('subtitle:show', (event) => {
+  ipc.handle(SUBTITLE_CHANNELS.invoke.show, (event) => {
     if (!isFromMainWindow(event)) return
     const win = getSubtitleWindow()
     if (!win || win.isDestroyed()) {
@@ -55,7 +56,7 @@ export function registerSubtitleHandlers(
     }
   })
 
-  ipc.handle('subtitle:hide', (event) => {
+  ipc.handle(SUBTITLE_CHANNELS.invoke.hide, (event) => {
     if (!isFromMainWindow(event)) return
     const win = getSubtitleWindow()
     if (win && !win.isDestroyed()) {
@@ -63,7 +64,7 @@ export function registerSubtitleHandlers(
     }
   })
 
-  ipc.handle('subtitle:update', (event, { text, isTranslating }: { text: string; isTranslating: boolean }) => {
+  ipc.handle(SUBTITLE_CHANNELS.invoke.update, (event, { text, isTranslating }: { text: string; isTranslating: boolean }) => {
     if (!isFromMainWindow(event)) return
     const win = getSubtitleWindow()
     if (win && !win.isDestroyed()) {
@@ -71,7 +72,7 @@ export function registerSubtitleHandlers(
     }
   })
 
-  ipc.handle('subtitle:setStyle', (event, style: { textColor: string; fontSize: number; bgOpacity: number }) => {
+  ipc.handle(SUBTITLE_CHANNELS.invoke.setStyle, (event, style: { textColor: string; fontSize: number; bgOpacity: number }) => {
     if (!isFromMainWindow(event)) return
     const win = getSubtitleWindow()
     if (win && !win.isDestroyed()) {
@@ -80,7 +81,7 @@ export function registerSubtitleHandlers(
   })
 
   // ── Source text (raw STT text shown above translation) ─────────────────────
-  ipc.handle('subtitle:setSourceText', (event, { text, segId }: { text: string; segId?: string }) => {
+  ipc.handle(SUBTITLE_CHANNELS.invoke.setSourceText, (event, { text, segId }: { text: string; segId?: string }) => {
     if (!isFromMainWindow(event)) return
     const win = getSubtitleWindow()
     if (win && !win.isDestroyed()) {
@@ -89,7 +90,7 @@ export function registerSubtitleHandlers(
   })
 
   // ── State sync from main renderer → subtitle ─────────────────────────────
-  ipc.handle('subtitle:setState', (event, state: {
+  ipc.handle(SUBTITLE_CHANNELS.invoke.setState, (event, state: {
     selectedProvider: string
     selectedModel: string
     isActive: boolean
@@ -112,14 +113,14 @@ export function registerSubtitleHandlers(
   // The main process forwards them to the main window so the React app can react.
 
   for (const channel of [
-    'subtitle:action:start',
-    'subtitle:action:stop',
-    'subtitle:action:setProvider',
-    'subtitle:action:setModel',
-    'subtitle:action:setAudioMode',
-    'subtitle:action:setTargetLang',
-    'subtitle:action:updateStyle',
-    'subtitle:action:clear',
+    SUBTITLE_CHANNELS.event.actionStart,
+    SUBTITLE_CHANNELS.event.actionStop,
+    SUBTITLE_CHANNELS.event.actionSetProvider,
+    SUBTITLE_CHANNELS.event.actionSetModel,
+    SUBTITLE_CHANNELS.event.actionSetAudioMode,
+    SUBTITLE_CHANNELS.event.actionSetTargetLang,
+    SUBTITLE_CHANNELS.event.actionUpdateStyle,
+    SUBTITLE_CHANNELS.event.actionClear,
   ]) {
     forwardFromSubtitle(channel)
   }

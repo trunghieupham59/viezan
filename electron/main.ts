@@ -4,6 +4,7 @@ import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeIma
 import type { ThemePreset } from '../shared/theme'
 import { configureApplicationMenu, isDevelopmentRuntime } from './applicationMenu'
 import { createCapabilityRegistry, registerCapabilityHandlers } from './ipc/capabilities'
+import { SUBTITLE_CHANNELS } from './ipc/channels'
 import { registerChatHandlers } from './ipc/chat'
 import { initGlobalHotkey } from './ipc/globalHotkey'
 import { registerImageTranslateHandlers } from './ipc/imageTranslate'
@@ -494,7 +495,7 @@ function createSubtitleWindow() {
     // This is the single place `subtitle:closed` is emitted (every close path
     // ends in this event).
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('subtitle:closed')
+      mainWindow.webContents.send(SUBTITLE_CHANNELS.event.closed)
     }
   })
 }
