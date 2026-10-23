@@ -1,17 +1,14 @@
 /**
- * Web Search preload — exposes web search providers via contextBridge.
+ * Web Search preload — search providers via contextBridge. Shape: `shared/webSearchApi.d.ts`.
  */
-import { ipcRenderer } from 'electron'
+import type { WebSearchApi } from '../../shared/webSearchApi'
+import { WEBSEARCH_CHANNELS } from '../ipc/channels'
+import { invoke } from './contract'
 
-export const webSearchSection = {
-  /** Search the web (Tavily → Brave → Jina fallback chain). */
-  webSearch: (params: { query: string; maxResults?: number }) =>
-    ipcRenderer.invoke('websearch:search', params),
-
-  /**
-   * Verify an API key by making a real minimal request BEFORE saving it.
-   * Returns { valid: true } on success, or { valid: false, error } on failure.
-   */
-  webSearchVerify: (params: { provider: 'tavily' | 'brave'; apiKey: string }) =>
-    ipcRenderer.invoke('websearch:verify', params),
+export const webSearchApi: WebSearchApi = {
+  webSearch: invoke(WEBSEARCH_CHANNELS.invoke.search),
+  webSearchVerify: invoke(WEBSEARCH_CHANNELS.invoke.verify),
 }
+
+/** These members sit directly on `window.api`. */
+export const webSearchSection = webSearchApi

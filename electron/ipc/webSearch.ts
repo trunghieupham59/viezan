@@ -20,6 +20,7 @@
  *   Jina   → no registration needed (use https://jina.ai for higher limits)
  */
 import type { IpcMain } from 'electron'
+import { WEBSEARCH_CHANNELS } from './channels'
 import { invalidIpcInput, isRecord } from './ipcValidation'
 import { getStoredApiKey } from './storage'
 
@@ -308,7 +309,7 @@ async function searchJina(
 
 export function registerWebSearchHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(
-    'websearch:search',
+    WEBSEARCH_CHANNELS.invoke.search,
     async (_event, rawParams: unknown): Promise<WebSearchResponse> => {
       const parsed = parseWebSearchParams(rawParams)
       if (!parsed.ok) return parsed.response
@@ -361,7 +362,7 @@ export function registerWebSearchHandlers(ipcMain: IpcMain): void {
   )
 
   /** Check which web search providers are currently configured */
-  ipcMain.handle('websearch:status', async (): Promise<{
+  ipcMain.handle(WEBSEARCH_CHANNELS.invoke.status, async (): Promise<{
     tavily: boolean
     brave: boolean
     jina: boolean
@@ -383,7 +384,7 @@ export function registerWebSearchHandlers(ipcMain: IpcMain): void {
    * `settings_msg_invalid` string; other failures carry English detail text.
    */
   ipcMain.handle(
-    'websearch:verify',
+    WEBSEARCH_CHANNELS.invoke.verify,
     async (_event, rawParams: unknown): Promise<{
       valid: boolean
       error?: string
