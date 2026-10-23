@@ -72,6 +72,25 @@ export const LEGACY_ASSISTANT_CHANNELS = {
   },
 } as const
 
+export const UPDATER_CHANNELS = {
+  invoke: {
+    consumeOpenSettings: 'updater:consumeOpenSettings',
+    notificationPreferences: 'updater:notificationPreferences',
+    setNotificationPreferences: 'updater:setNotificationPreferences',
+    getStatus: 'updater:getStatus',
+    check: 'updater:check',
+    download: 'updater:download',
+    install: 'updater:install',
+    openInstaller: 'updater:openInstaller',
+    getVersion: 'updater:getVersion',
+    openDownload: 'updater:openDownload',
+  },
+  event: {
+    openSettings: 'updater:openSettings',
+    status: 'updater:status',
+  },
+} as const
+
 export const CAPABILITY_CHANNELS = {
   invoke: {
     get: 'capabilities:get',

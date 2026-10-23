@@ -3,6 +3,7 @@ import path from 'node:path'
 import { app, BrowserWindow, type IpcMain, screen } from 'electron'
 import type { UpdateNotificationSnapshot } from '../shared/updateNotification'
 import type { UpdateStatus } from '../shared/updater'
+import { UPDATER_CHANNELS } from './ipc/channels'
 import { isSenderWindow } from './ipc/senderGuard'
 import { isNotificationStatus, NOTIFICATION_SNOOZE_MS, readNotificationState } from './ipc/updateNotificationState'
 import { isThemeAccent, isThemePreset } from './windowPalette'
@@ -104,14 +105,14 @@ export function createUpdateNotification(
   }
   const trustedMain = (event: Parameters<typeof isSenderWindow>[0]) => isSenderWindow(event, getMainWindow)
   const trustedPopup = (event: Parameters<typeof isSenderWindow>[0]) => isSenderWindow(event, () => popup)
-  ipc.handle('updater:notificationPreferences', (event) => trustedMain(event) ? preferences() : null)
-  ipc.handle('updater:consumeOpenSettings', (event) => {
+  ipc.handle(UPDATER_CHANNELS.invoke.notificationPreferences, (event) => trustedMain(event) ? preferences() : null)
+  ipc.handle(UPDATER_CHANNELS.invoke.consumeOpenSettings, (event) => {
     if (!trustedMain(event)) return false
     const pending = pendingOpenSettings
     pendingOpenSettings = false
     return pending
   })
-  ipc.handle('updater:setNotificationPreferences', (event, patch: unknown) => {
+  ipc.handle(UPDATER_CHANNELS.invoke.setNotificationPreferences, (event, patch: unknown) => {
     if (!trustedMain(event) || !patch || typeof patch !== 'object') return null
     const input = patch as Record<string, unknown>
     const previous = state
@@ -156,7 +157,7 @@ export function createUpdateNotification(
       pendingOpenSettings = true
       showMainWindow()
       const win = getMainWindow()
-      const open = () => { if (win && !win.isDestroyed()) win.webContents.send('updater:openSettings') }
+      const open = () => { if (win && !win.isDestroyed()) win.webContents.send(UPDATER_CHANNELS.event.openSettings) }
       if (win?.webContents.isLoading()) win.webContents.once('did-finish-load', open)
       else open()
     }
