@@ -250,3 +250,15 @@ export const CAPABILITY_CHANNELS = {
     request: 'capabilities:request',
   },
 } as const
+
+export const THERMAL_CHANNELS = {
+  invoke: {
+    getSupport: 'thermal:getSupport',
+    read: 'thermal:read',
+    setMonitoring: 'thermal:setMonitoring',
+  },
+  event: {
+    snapshot: 'thermal:snapshot',
+    error: 'thermal:error',
+  },
+} as const

@@ -317,6 +317,18 @@ giả trong test chỉ cần một file khai báo.
 Hoàn thành khi: số liệu khớp với công cụ tham chiếu (Macs Fan Control, `sensors`)
 trong sai số 1 độ và 50 RPM; CPU của app tăng dưới 1% khi giám sát.
 
+Đã làm (giai đoạn 1, PR đầu): binary `viezan-smc` (`native/smc/main.swift`, build
+universal bằng `scripts/build-native.mjs`, đóng gói vào `Contents/Resources/native`
+và được ký cùng app qua `mac.binaries`) liệt kê khóa SMC một lần rồi phát JSON mỗi
+chu kỳ ở chế độ `--watch`; `electron/thermal/` gồm reader macOS (giữ child sống khi
+đang đọc, tự dừng khi rảnh), reader Linux (hwmon, fallback thermal_zone), bộ đo tải
+CPU từ `os.cpus()`, service poll 2 giây tạm dừng khi cửa sổ ẩn, IPC `thermal:*`,
+capability `thermal.sensors`; module `thermal` mặc định tắt nơi không đọc được
+(Windows, thiếu binary) nhờ `defaultEnabled` của host. Trang Nhiệt độ nhóm cảm biến
+CPU/GPU/khác, quạt với biên min–max, tải CPU, lịch sử 3 phút dạng sparkline. Chưa
+làm: tùy chọn tray; đối chiếu số liệu với Macs Fan Control trên máy Intel; Windows
+giữ trạng thái "chưa hỗ trợ".
+
 ### Giai đoạn 2: helper đặc quyền và điều khiển quạt trên macOS
 
 - Bật ký Developer ID và notarize trong CI; entitlement cho helper.

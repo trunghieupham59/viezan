@@ -8,7 +8,7 @@
  */
 
 /** Modules that own a page in the workspace; also the `AppPage` values the store persists. */
-export type PageModuleId = 'chat' | 'translate' | 'live' | 'dictionary'
+export type PageModuleId = 'chat' | 'translate' | 'live' | 'dictionary' | 'thermal'
 
 /**
  * Every module the main process knows, including ones without a page: the Launcher
@@ -28,7 +28,7 @@ export interface ModulesApi {
 }
 
 /** How the workspace looks while a module's page chunk is still loading. */
-export type ModuleLoadingLayout = 'blank' | 'split'
+export type ModuleLoadingLayout = 'blank' | 'split' | 'list'
 
 /** A side effect some modules run when the user navigates to them. */
 export type ModuleNavigateEffect = 'clearTranslation'
@@ -40,13 +40,14 @@ export type ModuleNavigateEffect = 'clearTranslation'
 export interface ModuleDefinition {
   id: PageModuleId
   /** i18n key of the navigation label. */
-  labelKey: 'nav_chat' | 'nav_translate' | 'nav_live_translate' | 'nav_dictionary'
+  labelKey: 'nav_chat' | 'nav_translate' | 'nav_live_translate' | 'nav_dictionary' | 'nav_thermal'
   /** i18n key of the one-line description shown in the Command Palette. */
   descriptionKey:
     | 'command_palette_chat_description'
     | 'command_palette_translate_description'
     | 'command_palette_live_description'
     | 'command_palette_dictionary_description'
+    | 'command_palette_thermal_description'
   /** i18n key used by the loading placeholder; defaults to `labelKey`. */
   loadingLabelKey?: 'dictionary_title'
   /** Search words for the Command Palette, in addition to the label. */

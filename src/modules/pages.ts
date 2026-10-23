@@ -11,4 +11,5 @@ export const MODULE_PAGES: Readonly<Record<PageModuleId, ComponentType>> = {
   translate: lazy(() => import('../pages/TranslatePage').then((m) => ({ default: m.TranslatePage }))),
   live: lazy(() => import('../pages/LiveTranslatePage').then((m) => ({ default: m.LiveTranslatePage }))),
   dictionary: lazy(() => import('../pages/DictionaryPage').then((m) => ({ default: m.DictionaryPage }))),
+  thermal: lazy(() => import('../pages/ThermalPage').then((m) => ({ default: m.ThermalPage }))),
 }

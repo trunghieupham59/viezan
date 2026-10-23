@@ -1,6 +1,6 @@
 import type { ComponentType, SVGProps } from 'react'
 import type { ModuleDefinition, PageModuleId } from '../../shared/modules'
-import { BookIcon, ChatBubbleIcon, MicrophoneIcon, TranslateIcon } from '../components/ui/icons'
+import { BookIcon, ChatBubbleIcon, MicrophoneIcon, ThermometerIcon, TranslateIcon } from '../components/ui/icons'
 
 /**
  * The renderer's module catalog: metadata plus the icon component. Navigation
@@ -47,6 +47,14 @@ export const APP_MODULES: readonly CatalogModule[] = [
     icon: BookIcon,
     keywords: ['dictionary', 'lookup', 'word', 'definition', 'meaning'],
     loadingLayout: 'split',
+  },
+  {
+    id: 'thermal',
+    labelKey: 'nav_thermal',
+    descriptionKey: 'command_palette_thermal_description',
+    icon: ThermometerIcon,
+    keywords: ['thermal', 'temperature', 'heat', 'fan', 'rpm', 'cpu', 'gpu', 'sensor'],
+    loadingLayout: 'list',
   },
 ]
 

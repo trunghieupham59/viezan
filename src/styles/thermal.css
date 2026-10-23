@@ -1,0 +1,216 @@
+/* Thermal feature: headline figures, sensor groups and reading tiles. Every value
+   comes from tokens.css; the tile tone (ok / warm / hot) only recolours the bar,
+   the value and the sparkline, so a hot sensor still reads as text first. */
+
+.thermal-page {
+  display: flex;
+  min-block-size: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--vzn-space-4);
+  overflow: auto;
+  color: var(--vzn-text);
+}
+
+.thermal-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--vzn-space-3) var(--vzn-space-6);
+}
+
+.thermal-title {
+  font-family: var(--vzn-font-display);
+  margin: 0;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-title);
+  font-weight: var(--vzn-weight-bold);
+  line-height: var(--vzn-line-tight);
+}
+
+.thermal-subtitle {
+  margin: var(--vzn-space-0-5) 0 0;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-sm);
+}
+
+/* Headline figures ----------------------------------------------------------- */
+
+.thermal-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vzn-space-2);
+  margin: 0;
+}
+
+.thermal-summary__item {
+  display: flex;
+  min-inline-size: var(--vzn-thermal-summary-min-inline);
+  flex-direction: column;
+  gap: var(--vzn-space-0-5);
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-md);
+  background: var(--vzn-surface);
+}
+
+.thermal-summary__value {
+  margin: 0;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-title-lg);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: var(--vzn-line-tight);
+  font-variant-numeric: tabular-nums;
+}
+
+.thermal-summary__caption {
+  margin: 0;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  line-height: var(--vzn-line-tight);
+}
+
+/* Groups and tiles ----------------------------------------------------------- */
+
+.thermal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-4);
+}
+
+.thermal-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
+}
+
+.thermal-group__title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--vzn-space-2);
+  margin: 0;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-lg);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: var(--vzn-line-tight);
+}
+
+.thermal-group__count {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-medium);
+}
+
+.thermal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--vzn-thermal-tile-min-inline), 1fr));
+  gap: var(--vzn-space-2);
+}
+
+.thermal-grid--fans {
+  grid-template-columns: repeat(auto-fill, minmax(var(--vzn-thermal-fan-tile-min-inline), 1fr));
+}
+
+.thermal-empty {
+  margin: 0;
+  padding: var(--vzn-space-3) var(--vzn-space-4);
+  border: var(--vzn-border-width) dashed var(--vzn-border);
+  border-radius: var(--vzn-radius-md);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.thermal-tile {
+  --thermal-tone: var(--vzn-success);
+  --thermal-tone-soft: var(--vzn-success-soft);
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-1-5);
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-md);
+  background: var(--vzn-surface);
+}
+
+.thermal-tile[data-tone="warm"] {
+  --thermal-tone: var(--vzn-warning);
+  --thermal-tone-soft: var(--vzn-warning-soft);
+}
+
+.thermal-tile[data-tone="hot"] {
+  --thermal-tone: var(--vzn-danger);
+  --thermal-tone-soft: var(--vzn-danger-soft);
+}
+
+.thermal-tile__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--vzn-space-2);
+}
+
+.thermal-tile__labels {
+  min-inline-size: 0;
+}
+
+.thermal-tile__label {
+  margin: 0;
+  overflow: hidden;
+  color: var(--vzn-text);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-medium);
+  line-height: var(--vzn-line-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thermal-tile__code {
+  margin: var(--vzn-space-0-5) 0 0;
+  color: var(--vzn-text-muted);
+  font-family: var(--vzn-font-mono);
+  font-size: var(--vzn-font-size-micro);
+  line-height: var(--vzn-line-tight);
+}
+
+.thermal-tile__value {
+  margin: 0;
+  flex: 0 0 auto;
+  color: var(--thermal-tone);
+  font-size: var(--vzn-font-size-md);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: var(--vzn-line-tight);
+  font-variant-numeric: tabular-nums;
+}
+
+.thermal-tile__bar {
+  block-size: var(--vzn-space-1);
+  overflow: hidden;
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-surface-muted);
+}
+
+.thermal-tile__bar-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--thermal-tone);
+  transition: inline-size var(--vzn-duration-normal) var(--vzn-ease-standard);
+}
+
+.thermal-tile__spark {
+  block-size: var(--vzn-space-6);
+  inline-size: 100%;
+  color: var(--thermal-tone);
+}
+
+.sparkline polyline {
+  stroke-width: var(--vzn-border-width);
+}
+
+.thermal-tile__detail {
+  margin: 0;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  line-height: var(--vzn-line-tight);
+}

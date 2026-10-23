@@ -36,7 +36,45 @@ const previewCurrencyRates: Record<string, number> = { USD: 1, VND: 25_400, JPY:
 let previewCurrencyTarget: string | null = null
 
 /** Quick AI session survives reloads only in memory in Web Preview. */
-const previewEnabledModules: import('../../shared/modules').ModuleEnabledState = { chat: true, translate: true, live: true, dictionary: true, launcher: true, 'browser-bridge': true }
+const previewEnabledModules: import('../../shared/modules').ModuleEnabledState = { chat: true, translate: true, live: true, dictionary: true, thermal: true, launcher: true, 'browser-bridge': true }
+
+/** Fake sensors for the Thermal page: a slow random walk around plausible laptop values. */
+function createPreviewThermal() {
+  type Snapshot = import('../../shared/thermalApi').ThermalSnapshot
+  const listeners = new Set<(snapshot: Snapshot) => void>()
+  const base: Array<[string, import('../../shared/thermalApi').ThermalSensorGroup, import('../../shared/thermalApi').ThermalSensorLabel, number]> = [
+    ['Tp01', 'cpu', 'cpu-performance-core', 52], ['Tp05', 'cpu', 'cpu-performance-core', 49], ['Te01', 'cpu', 'cpu-efficiency-core', 44],
+    ['Tg05', 'gpu', 'gpu', 47], ['Tg0D', 'gpu', 'gpu', 46],
+    ['TB1T', 'other', 'battery', 30], ['TW0P', 'other', 'wifi', 38], ['TaLP', 'other', 'airflow-left', 36], ['TH0x', 'other', 'storage', 29],
+  ]
+  const drift = base.map(() => 0)
+  let fanRpm = 1800
+  let timer: ReturnType<typeof setInterval> | null = null
+  const snapshot = (): Snapshot => {
+    const sensors = base.map(([code, group, label, value], i) => {
+      drift[i] = Math.max(-6, Math.min(12, drift[i] + (Math.random() - 0.5) * 1.5))
+      return { id: `preview:${code}`, code, group, label, celsius: Math.round((value + drift[i]) * 10) / 10 }
+    })
+    fanRpm = Math.max(1500, Math.min(5500, fanRpm + (Math.random() - 0.5) * 120))
+    return {
+      timestamp: Date.now(), source: 'smc', sensors,
+      fans: [{ id: 'preview:fan0', index: 0, rpm: Math.round(fanRpm), minRpm: 1500, maxRpm: 5500, targetRpm: Math.round(fanRpm) }],
+      cpuLoadPercent: Math.round(10 + Math.random() * 30),
+    }
+  }
+  return {
+    getSupport: async () => ({ success: true, support: { supported: true, source: 'smc' as const } }),
+    read: async () => ({ success: true, snapshot: snapshot() }),
+    setMonitoring: async (active: boolean) => {
+      if (timer) { clearInterval(timer); timer = null }
+      if (active) timer = setInterval(() => { const s = snapshot(); for (const cb of listeners) cb(s) }, 2000)
+      return { success: true }
+    },
+    onSnapshot: (cb: (snapshot: Snapshot) => void) => { listeners.add(cb); return () => { listeners.delete(cb) } },
+    onError: noopSubscription,
+  }
+}
+const previewThermal = createPreviewThermal()
 let previewQuickAiSession: import('../../shared/quickAi').QuickAiSession | null = null
 
 function createWebPreviewApi(): WindowApi {
@@ -129,6 +167,7 @@ function createWebPreviewApi(): WindowApi {
       },
       onChanged: noopSubscription,
     },
+    thermal: previewThermal,
     capabilities: {
       get: async (ids?: string[]) => ({ success: true, statuses: (ids ?? ['input.accessibility', 'launcher.spotlight']).map((id) => ({ id, supported: false, permission: 'not-required' as const })) }),
       request: async (id: string) => ({ success: true, status: { id, supported: false, permission: 'not-required' as const } }),
