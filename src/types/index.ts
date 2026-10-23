@@ -1,10 +1,4 @@
-import type {
-  CancelAudioTranscriptionParams,
-  CancelAudioTranscriptionResult,
-  SttProviderCheckResult,
-  TranscribeAudioParams,
-  TranscribeResult,
-} from '../../shared/audioTranscription'
+import type { AudioApi } from '../../shared/audioApi'
 import type { SystemApi } from '../../shared/systemApi'
 import type { WebSearchApi } from '../../shared/webSearchApi'
 
@@ -61,7 +55,6 @@ export type TranslationStyle = 'general' | 'formal' | 'casual' | 'business' | 't
  */
 export type PhoneticMode = 'off' | 'standard' | 'phonetic'
 
-export type TtsVoice = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer'
 export type SpeakPanel = 'source' | 'translated' | `comparison:${string}`
 
 /**
@@ -70,7 +63,6 @@ export type SpeakPanel = 'source' | 'translated' | `comparison:${string}`
  *  - 'auto'    — Edge TTS first, then paid providers only if free TTS fails
  *  - 'premium' — paid providers first for quality, then free fallback
  */
-export type TtsMode = 'free' | 'auto' | 'premium'
 
 export type UsageCurrency = 'USD' | 'VND' | 'JPY' | 'EUR' | 'GBP'
 export type UsageFeature = 'chat' | 'translate' | 'live' | 'dictionary'
@@ -178,6 +170,7 @@ export interface TranslateResult {
   errorCode?: 'NO_API_KEY' | 'INVALID_KEY' | 'RATE_LIMIT' | 'NETWORK' | string
 }
 
+export type { AudioApi, SpeakTextParams, TtsMode, TtsResult, TtsVoice } from '../../shared/audioApi'
 export type { KeychainApi, KeychainResult } from '../../shared/keychainApi'
 export type { LegacyAssistantApi } from '../../shared/legacyAssistantApi'
 export type { LocalServerApi, LocalServerTokenResult, LocalServerTokenSummary } from '../../shared/localServerApi'
@@ -275,18 +268,6 @@ export interface LocalAiInstallResult {
   message?: string
   output?: string
   manual?: boolean
-}
-
-export interface TtsResult {
-  success: boolean
-  /** base64-encoded audio (avoids IPC ArrayBuffer serialization issues) */
-  audioBase64?: string
-  /** MIME type of the audio: 'audio/mpeg' (OpenAI / Edge / ElevenLabs) or 'audio/wav' (Gemini) */
-  mimeType?: string
-  /** Which provider produced the audio: 'openai' | 'gemini' | 'edge' | 'elevenlabs' */
-  provider?: string
-  error?: string
-  errorCode?: 'NO_API_KEY' | 'INVALID_KEY' | 'RATE_LIMIT' | string
 }
 
 export interface ImageTextRegion {
@@ -720,8 +701,7 @@ export interface SubtitleSettings {
 // ─── Window API (exposed via contextBridge) ───────────────────────────────────
 
 /** `SystemApi` members (platform, version, openExternal, ...) sit directly on `window.api`; shape: shared/systemApi.d.ts. */
-export interface WindowApi extends SystemApi, WebSearchApi {
-  liveInterpretation: import('../../shared/liveInterpretation').LiveInterpretationApi
+export interface WindowApi extends SystemApi, WebSearchApi, AudioApi {
   /** Secure API key storage; shape: shared/keychainApi.d.ts. */
   keychain: import('../../shared/keychainApi').KeychainApi
   fetchModels: (provider: string) => Promise<FetchModelsResult>
@@ -756,16 +736,6 @@ export interface WindowApi extends SystemApi, WebSearchApi {
     model: string
     text: string
   }) => Promise<{ success: boolean; lang?: string; error?: string }>
-  transcribeAudio: (params: TranscribeAudioParams) => Promise<TranscribeResult>
-  cancelAudioTranscription: (
-    params: CancelAudioTranscriptionParams,
-  ) => Promise<CancelAudioTranscriptionResult>
-  speakText: (params: {
-    text: string
-    voice?: TtsVoice
-    mode?: TtsMode
-    lang?: string
-  }) => Promise<TtsResult>
   translateImage: (params: {
     provider: string
     model: string
@@ -859,14 +829,6 @@ export interface WindowApi extends SystemApi, WebSearchApi {
    */
   chatStreamCancel?: (params: { requestId: string }) => Promise<{ success: boolean; error?: string }>
   onChatStreamEvent: (requestId: string, cb: (event: ChatStreamEvent) => void) => () => void
-  /**
-   * Pre-flight STT availability check — call before starting a Live Translate session.
-   * Checks which STT keys are configured (instant, no API call, no decryption) and
-   * pre-warms the session cache so the very first audio chunk goes to the right backend.
-   *
-   * Returns the best available provider and the full ordered list of available backends.
-   */
-  checkSttProviders: () => Promise<SttProviderCheckResult>
   /**
    * Streaming translation — each AI token is pushed directly to the subtitle
    * window in real-time. Returns the full translated text when complete.

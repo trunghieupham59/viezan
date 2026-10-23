@@ -11,6 +11,7 @@ import type {
   TranscribeResult,
   TranscribeSuccess,
 } from '../../shared/audioTranscription'
+import { AUDIO_CHANNELS } from './channels'
 import {
   GEMINI_API_BASE, GEMINI_STT_MODEL,
   GROQ_API_BASE, GROQ_STT_MODEL,
@@ -1352,7 +1353,7 @@ async function checkSttProviders(): Promise<SttProviderCheckResult> {
 // ─── IPC handlers ─────────────────────────────────────────────────────────────
 
 export function registerTranscribeHandlers(ipcMain: IpcMain) {
-  ipcMain.handle('audio:transcribe', async (_event, rawParams: unknown): Promise<TranscribeResult> => {
+  ipcMain.handle(AUDIO_CHANNELS.invoke.transcribe, async (_event, rawParams: unknown): Promise<TranscribeResult> => {
     const parsed = parseTranscribeParams(rawParams)
     if (!parsed.ok) return parsed.response
     const params = parsed.value
@@ -1375,7 +1376,7 @@ export function registerTranscribeHandlers(ipcMain: IpcMain) {
   })
 
   ipcMain.handle(
-    'audio:cancelTranscription',
+    AUDIO_CHANNELS.invoke.cancelTranscription,
     async (_event, rawParams: unknown): Promise<CancelAudioTranscriptionResult> => {
       const params = parseCancelParams(rawParams)
       if (!params) {
@@ -1387,7 +1388,7 @@ export function registerTranscribeHandlers(ipcMain: IpcMain) {
     },
   )
 
-  ipcMain.handle('audio:checkSttProviders', async (): Promise<SttProviderCheckResult> => {
+  ipcMain.handle(AUDIO_CHANNELS.invoke.checkSttProviders, async (): Promise<SttProviderCheckResult> => {
     return checkSttProviders()
   })
 }

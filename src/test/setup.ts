@@ -11,6 +11,7 @@
  */
 import '@testing-library/jest-dom/vitest'
 import { afterEach, vi } from 'vitest'
+import type { AudioApi } from '../../shared/audioApi'
 import type { CapabilitiesApi } from '../../shared/capabilitiesApi'
 import type { HotkeyApi } from '../../shared/hotkeyApi'
 import type { KeychainApi } from '../../shared/keychainApi'
@@ -173,6 +174,25 @@ if (typeof window !== 'undefined') {
     onOpenSettings: vi.fn().mockReturnValue(() => {}),
     onOpenInChat: vi.fn().mockReturnValue(() => {}),
   }
+  const audioApiMock: AudioApi = {
+    liveInterpretation: {
+      begin: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn().mockResolvedValue(undefined),
+      translate: vi.fn().mockResolvedValue({ success: false, errorCode: 'UNKNOWN' }),
+      assemble: vi.fn().mockResolvedValue({ success: true, updates: [], hasOpen: false }),
+    },
+    transcribeAudio: vi.fn().mockResolvedValue({
+      success: false,
+      errorCode: 'UNKNOWN',
+      retryable: false,
+    }),
+    cancelAudioTranscription: vi.fn().mockResolvedValue({
+      success: true,
+      cancelled: false,
+    }),
+    speakText: vi.fn().mockResolvedValue({ success: false }),
+    checkSttProviders: vi.fn().mockResolvedValue({ best: null, available: [] }),
+  }
   const capabilitiesApiMock: CapabilitiesApi = {
     get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
     request: vi.fn().mockResolvedValue({ success: true, status: { id: 'input.accessibility', supported: true, permission: 'granted' } }),
@@ -201,25 +221,10 @@ if (typeof window !== 'undefined') {
   // Tests that need specific return values should override individual mocks per test.
   Object.defineProperty(window, 'api', {
     value: {
-      liveInterpretation: {
-        begin: vi.fn().mockResolvedValue(undefined),
-        cancel: vi.fn().mockResolvedValue(undefined),
-        translate: vi.fn().mockResolvedValue({ success: false, errorCode: 'UNKNOWN' }),
-        assemble: vi.fn().mockResolvedValue({ success: true, updates: [], hasOpen: false }),
-      },
+      ...audioApiMock,
       translate: vi.fn().mockResolvedValue({ success: false }),
       cancelTranslate: vi.fn().mockResolvedValue({ success: false, error: 'NOT_FOUND' }),
       rewriteText: vi.fn().mockResolvedValue({ success: false }),
-      transcribeAudio: vi.fn().mockResolvedValue({
-        success: false,
-        errorCode: 'UNKNOWN',
-        retryable: false,
-      }),
-      cancelAudioTranscription: vi.fn().mockResolvedValue({
-        success: true,
-        cancelled: false,
-      }),
-      speakText: vi.fn().mockResolvedValue({ success: false }),
       translateImage: vi.fn().mockResolvedValue({ success: false }),
       translateStream: vi.fn().mockResolvedValue({ success: false }),
       chat: vi.fn().mockResolvedValue({ success: false }),

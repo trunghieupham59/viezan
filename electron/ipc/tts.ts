@@ -13,6 +13,7 @@
 import * as crypto from 'node:crypto'
 import type { IpcMain } from 'electron'
 import WebSocket from 'ws'
+import { AUDIO_CHANNELS } from './channels'
 import {
   EDGE_TTS_CHROMIUM_FULL,
   EDGE_TTS_CHROMIUM_MAJOR,
@@ -652,7 +653,7 @@ export async function synthesizeTts(params: TtsParams): Promise<TtsResult> {
  * Soft failures (network, temporary) fall through to the next provider.
  */
 export function registerTtsHandlers(ipcMain: IpcMain) {
-  ipcMain.handle('audio:tts', async (_event, rawParams: unknown): Promise<TtsResult> => {
+  ipcMain.handle(AUDIO_CHANNELS.invoke.tts, async (_event, rawParams: unknown): Promise<TtsResult> => {
     const parsed = parseTtsParams(rawParams)
     if (!parsed.ok) return parsed.response
     return synthesizeTts(parsed.value)

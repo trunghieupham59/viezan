@@ -1,6 +1,7 @@
 import type { BrowserWindow, IpcMain } from 'electron'
 import type { LiveAssemblyRequest, LiveTranslationRequest } from '../../shared/liveInterpretation'
 import { LiveInterpretationService } from '../services/LiveInterpretationService'
+import { LIVE_CHANNELS } from './channels'
 import { isRecord } from './ipcValidation'
 import { LIVE_CONTEXT_CHARS, LIVE_SOURCE_CHARS } from './liveTranslationPolicy'
 import { isLocalProvider, LOCAL_AI_PLACEHOLDER_KEY } from './localAi'
@@ -18,7 +19,7 @@ export function registerLiveInterpretationHandlers(ipc: IpcMain, getMainWindow: 
     if (!key) throw Object.assign(new Error('No provider credential'), { errorCode: 'NO_API_KEY' })
     return TRANSLATE_PROVIDERS[request.provider](key, request.model, request.sourceText, request.sourceLang, request.targetLang, false, 'general', false, 'off', 'low', options)
   })
-  ipc.handle('live:begin', (event, sessionId: unknown) => {
+  ipc.handle(LIVE_CHANNELS.invoke.begin, (event, sessionId: unknown) => {
     if (!isSenderWindow(event, getMainWindow) || !validId(sessionId)) return
     service.begin(sessionId)
     // Listener is idempotent per WebContents, and releases queued requests on a crash/close.
@@ -27,10 +28,10 @@ export function registerLiveInterpretationHandlers(ipc: IpcMain, getMainWindow: 
       event.sender.once('destroyed', () => service.cancel())
     }
   })
-  ipc.handle('live:cancel', (event, sessionId: unknown) => {
+  ipc.handle(LIVE_CHANNELS.invoke.cancel, (event, sessionId: unknown) => {
     if (isSenderWindow(event, getMainWindow) && validId(sessionId)) service.cancel(sessionId)
   })
-  ipc.handle('live:assemble', (event, raw: unknown) => {
+  ipc.handle(LIVE_CHANNELS.invoke.assemble, (event, raw: unknown) => {
     if (!isSenderWindow(event, getMainWindow)) return { success: false, errorCode: 'PERMISSION_DENIED' }
     if (!isRecord(raw) || !validId(raw.sessionId)
       || !['append', 'silence', 'stop'].includes(String(raw.action))
@@ -48,7 +49,7 @@ export function registerLiveInterpretationHandlers(ipc: IpcMain, getMainWindow: 
     }
     return service.assemble(raw as unknown as LiveAssemblyRequest)
   })
-  ipc.handle('live:translate', async (event, raw: unknown) => {
+  ipc.handle(LIVE_CHANNELS.invoke.translate, async (event, raw: unknown) => {
     if (!isSenderWindow(event, getMainWindow)) return { success: false, errorCode: 'PERMISSION_DENIED' }
     if (!isRecord(raw) || !validId(raw.sessionId) || !validId(raw.segmentId)
       || typeof raw.context !== 'string' || raw.context.length > LIVE_CONTEXT_CHARS
