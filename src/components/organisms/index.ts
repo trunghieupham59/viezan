@@ -17,6 +17,8 @@ export { DictionaryHistoryPanel, type DictionaryHistoryPanelProps } from './dict
 export { DictionaryResultPanel, type DictionaryResultPanelProps } from './dictionary/DictionaryResultPanel'
 export { DictionarySearchPanel, type DictionarySearchPanelProps } from './dictionary/DictionarySearchPanel'
 export { LanguagePairBar, type LanguagePairBarDensity, type LanguagePairBarProps, type LanguagePairBarScope } from './LanguagePairBar'
+export { LauncherShortcutNotice, type SystemShortcutOwner, systemShortcutOwnerLabel } from './LauncherShortcutNotice'
+export { LauncherSpotlightPrompt } from './LauncherSpotlightPrompt'
 export {
   InterpretAIConfiguration,
   type InterpretAIConfigurationProps,

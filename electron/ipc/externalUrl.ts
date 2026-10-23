@@ -6,10 +6,14 @@ const MACOS_SCREEN_RECORDING_PREFS =
 /** Privacy & Security > Accessibility: required for the Quick Translate keystrokes. */
 export const MACOS_ACCESSIBILITY_PREFS =
   'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
+/** Keyboard > Keyboard Shortcuts: where the Spotlight shortcut is turned off. */
+export const MACOS_KEYBOARD_SHORTCUTS_PREFS =
+  'x-apple.systempreferences:com.apple.Keyboard-Settings.extension?Shortcuts'
 
 const ALLOWED_SYSTEM_PREFERENCE_URLS = new Set([
   MACOS_SCREEN_RECORDING_PREFS,
   MACOS_ACCESSIBILITY_PREFS,
+  MACOS_KEYBOARD_SHORTCUTS_PREFS,
 ])
 
 const BLOCKED_HOST_SUFFIXES = [

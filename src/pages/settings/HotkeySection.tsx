@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/atoms'
+import { type SystemShortcutOwner, systemShortcutOwnerLabel } from '../../components/organisms'
 import { ToggleSwitch } from '../../components/ui/atoms'
 import { HotkeyRecordButton } from '../../components/ui/HotkeyRecordButton'
 import { XIcon } from '../../components/ui/icons'
 import { SelectField } from '../../components/ui/molecules'
 import { TARGET_LANGUAGES } from '../../constants/providers'
 import { STATUS_RESET_DELAY_MS, STATUS_RESET_LONG_MS } from '../../constants/ui'
+import { MACOS_KEYBOARD_SHORTCUTS_PREFS } from '../../constants/urls'
 import { useAppStore, useT } from '../../store/useAppStore'
 import { useNotificationStore } from '../../store/useNotificationStore'
+import { tpl } from '../../utils/tpl'
 
 /** Mirrors DEFAULT_TRANSLATE_HOTKEY in electron/ipc/globalHotkey.ts (Option+T on macOS). */
 const DEFAULT_HOTKEY = 'Alt+T'
@@ -19,6 +22,8 @@ const getDefaultChatHotkey = () => window.api?.platform === 'darwin' ? 'Command+
 /** Display form of a stored accelerator: the Alt key is labelled Option on Mac keyboards. */
 const displayAccelerator = (accelerator: string) =>
   window.api?.platform === 'darwin' ? accelerator.replace(/(^|\+)(Alt|Option)(?=\+|$)/g, '$1Option') : accelerator
+/** Offered when macOS owns the chosen Launcher shortcut (Spotlight holds Command+Space). */
+const ALTERNATIVE_CHAT_HOTKEY = 'Alt+Space'
 const isTargetLanguage = (value: unknown): value is string =>
   typeof value === 'string' && TARGET_LANGUAGES.some((language) => language.code === value)
 
@@ -218,7 +223,83 @@ export function HotkeySection() {
   const [chatHotkeyEnabled, setChatHotkeyEnabled] = useState(false)
   const [chatHotkeyValue, setChatHotkeyValue] = useState('')
   const [isChatRecording, setIsChatRecording] = useState(false)
+  /** macOS system shortcut (Spotlight, Finder search) that owns the current Launcher shortcut. */
+  const [chatSystemConflict, setChatSystemConflict] = useState<{ owner: SystemShortcutOwner; accelerator: string } | null>(null)
+  /** Whether Viezan turned Spotlight's shortcut off (offers a way back). */
+  const [spotlightDisabledByViezan, setSpotlightDisabledByViezan] = useState(false)
+  const [spotlightBusy, setSpotlightBusy] = useState(false)
   const chatHotkeyInputRef = useRef<HTMLButtonElement>(null)
+  const isMac = window.api?.platform === 'darwin'
+
+  const refreshSpotlightState = useCallback(async () => {
+    const api = window.api?.hotkey?.chat?.spotlight
+    if (!api || !isMac) return
+    try {
+      const res = await api.get()
+      if (res?.success) setSpotlightDisabledByViezan(res.disabledByViezan === true)
+    } catch { /* keep the last known state */ }
+  }, [isMac])
+
+  useEffect(() => {
+    refreshSpotlightState()
+    window.addEventListener('focus', refreshSpotlightState)
+    return () => window.removeEventListener('focus', refreshSpotlightState)
+  }, [refreshSpotlightState])
+
+  /** Hand Command+Space to the Launcher (turns Spotlight's shortcut off) or give it back. */
+  const changeSpotlightShortcut = async (action: 'disable' | 'restore') => {
+    const api = window.api?.hotkey?.chat?.spotlight
+    if (!api || spotlightBusy) return
+    setSpotlightBusy(true)
+    try {
+      const res = action === 'disable' ? await api.resolve('replace') : await api.restore()
+      if (!res?.success) {
+        notify({ key: CHAT_HOTKEY_ERROR_KEY, tone: 'error', message: action === 'disable' ? t.launcher_spotlight_replace_failed : t.settings_chat_hotkey_spotlight_restore_failed })
+        return
+      }
+      if (action === 'disable') {
+        setChatHotkeyEnabled(true)
+        setChatHotkeyValue(getDefaultChatHotkey())
+        setChatSystemConflict(null)
+        setSpotlightDisabledByViezan(true)
+      } else {
+        setSpotlightDisabledByViezan(false)
+      }
+      notify({
+        key: CHAT_HOTKEY_ERROR_KEY,
+        tone: res.applied === false ? 'warning' : 'success',
+        message: res.applied === false ? t.launcher_spotlight_relogin
+          : action === 'disable' ? t.launcher_spotlight_replaced : t.settings_chat_hotkey_spotlight_restored,
+        durationMs: res.applied === false ? null : undefined,
+      })
+      // Spotlight back on means the conflict is back when the Launcher still uses Command+Space.
+      if (action === 'restore') window.dispatchEvent(new Event('focus'))
+    } catch {
+      notify({ key: CHAT_HOTKEY_ERROR_KEY, tone: 'error', message: t.launcher_spotlight_replace_failed })
+    } finally {
+      setSpotlightBusy(false)
+    }
+  }
+
+  // Re-check whenever the shortcut changes and when the window regains focus (the user
+  // turns Spotlight's shortcut off in System Settings and comes back).
+  useEffect(() => {
+    const api = window.api?.hotkey?.chat
+    if (!api?.systemConflict || window.api?.platform !== 'darwin' || !chatHotkeyValue) {
+      setChatSystemConflict(null)
+      return
+    }
+    let active = true
+    const check = () => {
+      api.systemConflict(chatHotkeyValue).then((res) => {
+        if (!active) return
+        if (res?.success) setChatSystemConflict(res.conflict ?? null)
+      }).catch(() => undefined)
+    }
+    check()
+    window.addEventListener('focus', check)
+    return () => { active = false; window.removeEventListener('focus', check) }
+  }, [chatHotkeyValue])
 
   // Load saved AI Chat hotkey settings
   useEffect(() => {
@@ -451,6 +532,83 @@ export function HotkeySection() {
             </div>
           </div>
         </div>
+
+        {/* macOS: Spotlight (or another system shortcut) owns the chosen keys */}
+        {chatSystemConflict && (
+          <div className="px-4 py-3.5 space-y-3" role="status">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                {tpl(t.settings_chat_hotkey_system_conflict_title, {
+                  owner: systemShortcutOwnerLabel(chatSystemConflict.owner, t),
+                  hotkey: chatSystemConflict.accelerator,
+                })}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_chat_hotkey_system_conflict_desc}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {chatSystemConflict.owner === 'spotlight' && (
+                <Button
+                  size="md"
+                  shape="rect"
+                  variant="primary"
+                  appearance="solid"
+                  type="button"
+                  disabled={spotlightBusy}
+                  onClick={() => { void changeSpotlightShortcut('disable') }}
+                >
+                  {t.settings_chat_hotkey_spotlight_disable}
+                </Button>
+              )}
+              <Button
+                size="md"
+                shape="rect"
+                variant="primary"
+                appearance="outline"
+                type="button"
+                onClick={() => { void window.api?.openExternal?.(MACOS_KEYBOARD_SHORTCUTS_PREFS) }}
+              >
+                {t.settings_chat_hotkey_system_conflict_open}
+              </Button>
+              {chatHotkeyValue !== ALTERNATIVE_CHAT_HOTKEY && (
+                <Button
+                  size="md"
+                  shape="rect"
+                  variant="neutral"
+                  appearance="outline"
+                  type="button"
+                  onClick={() => {
+                    setChatHotkeyValue(ALTERNATIVE_CHAT_HOTKEY)
+                    saveChatHotkeySettings({ hotkey: ALTERNATIVE_CHAT_HOTKEY })
+                  }}
+                >
+                  {tpl(t.settings_chat_hotkey_system_conflict_use, { hotkey: ALTERNATIVE_CHAT_HOTKEY.replace('Alt', 'Option') })}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* macOS: Viezan turned Spotlight's shortcut off — offer the way back */}
+        {spotlightDisabledByViezan && (
+          <div className="flex items-center justify-between gap-4 px-4 py-3.5">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_chat_hotkey_spotlight_disabled_title}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_chat_hotkey_spotlight_disabled_desc}</p>
+            </div>
+            <Button
+              size="md"
+              shape="rect"
+              variant="neutral"
+              appearance="outline"
+              type="button"
+              className="flex-shrink-0"
+              disabled={spotlightBusy}
+              onClick={() => { void changeSpotlightShortcut('restore') }}
+            >
+              {t.settings_chat_hotkey_spotlight_restore}
+            </Button>
+          </div>
+        )}
 
       </div>
     </section>

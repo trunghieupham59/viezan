@@ -67,6 +67,22 @@ export const hotkeySection = {
       get: () => ipcRenderer.invoke('hotkey:chat:get'),
 
       /**
+       * macOS only: whether the system (Spotlight, Finder search) owns the Launcher shortcut.
+       * Without `accelerator` the saved shortcut is checked.
+       */
+      systemConflict: (accelerator?: string) => ipcRenderer.invoke('hotkey:chat:systemConflict', accelerator),
+
+      /** macOS first-run hand-over of Command+Space from Spotlight to the Launcher. */
+      spotlight: {
+        /** Whether to show the one-time prompt, and whether Viezan turned Spotlight's shortcut off. */
+        get: () => ipcRenderer.invoke('hotkey:chat:spotlight:get'),
+        /** `replace` turns Spotlight's shortcut off and enables Command+Space; `keep` enables Option+Space. */
+        resolve: (choice: 'replace' | 'keep') => ipcRenderer.invoke('hotkey:chat:spotlight:resolve', choice),
+        /** Turn Spotlight's shortcut back on. */
+        restore: () => ipcRenderer.invoke('hotkey:chat:spotlight:restore'),
+      },
+
+      /**
        * Listen for the chat-open event pushed from the main process.
        * Returns a cleanup function — call it to unsubscribe.
        */

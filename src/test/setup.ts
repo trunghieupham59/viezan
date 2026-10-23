@@ -141,6 +141,12 @@ if (typeof window !== 'undefined') {
         chat: {
           update: vi.fn().mockResolvedValue({ success: true }),
           get: vi.fn().mockResolvedValue({ success: true, settings: {} }),
+          systemConflict: vi.fn().mockResolvedValue({ success: true, hotkey: '', enabled: false, conflict: null }),
+          spotlight: {
+            get: vi.fn().mockResolvedValue({ success: true, shouldPrompt: false, disabledByViezan: false }),
+            resolve: vi.fn().mockResolvedValue({ success: true, applied: true }),
+            restore: vi.fn().mockResolvedValue({ success: true, applied: true }),
+          },
           onOpen: vi.fn().mockReturnValue(() => {}),
         },
       },

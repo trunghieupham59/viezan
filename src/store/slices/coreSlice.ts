@@ -38,7 +38,7 @@ export interface CoreSlice {
 
   // Settings modal
   settingsOpen: boolean
-  settingsInitialSection: 'updates' | null
+  settingsInitialSection: 'updates' | 'hotkeys' | null
 
   // Language usage tracking (for smart top-3 pills in language bar)
   langUsage: Record<string, { count: number; lastUsed: number }>

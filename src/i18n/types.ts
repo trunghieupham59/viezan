@@ -912,6 +912,28 @@ export interface Translations {
   settings_hotkey_accessibility_open: string
   settings_hotkey_error_accessibility: string
   settings_hotkey_error_copy_failed: string
+  settings_chat_hotkey_owner_finder_search: string
+  settings_chat_hotkey_system_conflict_title: string
+  settings_chat_hotkey_system_conflict_desc: string
+  settings_chat_hotkey_system_conflict_open: string
+  settings_chat_hotkey_system_conflict_use: string
+  launcher_hotkey_system_conflict_toast: string
+  launcher_hotkey_system_conflict_action: string
+  launcher_spotlight_prompt_title: string
+  launcher_spotlight_prompt_desc: string
+  launcher_spotlight_prompt_note: string
+  launcher_spotlight_prompt_replace: string
+  launcher_spotlight_prompt_keep: string
+  launcher_spotlight_replaced: string
+  launcher_spotlight_relogin: string
+  launcher_spotlight_replace_failed: string
+  launcher_spotlight_kept: string
+  settings_chat_hotkey_spotlight_disable: string
+  settings_chat_hotkey_spotlight_disabled_title: string
+  settings_chat_hotkey_spotlight_disabled_desc: string
+  settings_chat_hotkey_spotlight_restore: string
+  settings_chat_hotkey_spotlight_restored: string
+  settings_chat_hotkey_spotlight_restore_failed: string
 
   // Settings — Legacy Assistant (no-extension injection)
   settings_la_section: string

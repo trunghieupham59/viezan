@@ -37,6 +37,11 @@ const env = vi.hoisted(() => ({
   accessibilityGranted: true,
   accessibilityPrompts: 0,
   openExternal: vi.fn(),
+  /** Fake macOS system-shortcut lookup for the Launcher hotkey. */
+  systemConflict: vi.fn((_accelerator: string): unknown => null),
+  spotlightState: { enabled: true, holdsCommandSpace: true } as { enabled: boolean; holdsCommandSpace: boolean } | null,
+  spotlightToggles: [] as boolean[],
+  spotlightToggleResult: { ok: true, applied: true },
 }))
 
 vi.mock('node:child_process', () => ({
@@ -103,6 +108,15 @@ vi.mock('../hotkeyIndicator', () => ({
   hideHotkeyIndicator: (...args: unknown[]) => env.hideIndicator(...args),
   setHotkeyIndicatorLanguage: (...args: unknown[]) => env.indicatorLanguage(...args),
   isHotkeyIndicatorLanguage: (value: unknown) => value === 'vi' || value === 'en' || value === 'ja',
+}))
+
+vi.mock('../launcherSystemShortcut', () => ({
+  detectSystemShortcutConflict: (accelerator: string) => Promise.resolve(env.systemConflict(accelerator)),
+  readSpotlightShortcutState: () => Promise.resolve(env.spotlightState),
+  setSpotlightShortcutEnabled: (enabled: boolean) => {
+    env.spotlightToggles.push(enabled)
+    return Promise.resolve(env.spotlightToggleResult)
+  },
 }))
 
 vi.mock('../lightweightTranslate', () => ({
@@ -407,6 +421,112 @@ describe('hotkey settings IPC', () => {
     // The corrupt shortcut and provider fall back to their defaults; nothing from the file is registered.
     expect((await invoke('hotkey:get')).settings).toMatchObject({ enabled: true, hotkey: 'Alt+T', provider: 'gemini' })
     expect(env.events).toEqual(['register:Alt+T'])
+  })
+
+  describe('launcher system shortcut conflict', () => {
+    it('checks the saved shortcut by default and a previewed one on request', async () => {
+      await init({ chat: { enabled: true, hotkey: 'Command+Space' } })
+      env.systemConflict.mockImplementation((accelerator: string) =>
+        accelerator === 'Command+Space' ? { owner: 'spotlight', accelerator } : null)
+
+      expect(await invoke('hotkey:chat:systemConflict')).toEqual({
+        success: true, hotkey: 'Command+Space', enabled: true, conflict: { owner: 'spotlight', accelerator: 'Command+Space' },
+      })
+      expect(await invoke('hotkey:chat:systemConflict', 'Alt+Space')).toEqual({ success: true, hotkey: 'Alt+Space', enabled: true, conflict: null })
+    })
+
+    it('rejects a malformed accelerator instead of shelling out with it', async () => {
+      await init()
+      env.systemConflict.mockClear()
+      expect(await invoke('hotkey:chat:systemConflict', 'rm -rf /')).toMatchObject({ success: false })
+      expect(await invoke('hotkey:chat:systemConflict', 42)).toMatchObject({ success: false })
+      expect(env.systemConflict).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('first-run Spotlight hand-over', () => {
+    let restorePlatform: () => void
+    beforeEach(() => {
+      restorePlatform = withPlatform('darwin')
+      env.spotlightState = { enabled: true, holdsCommandSpace: true }
+      env.spotlightToggles.length = 0
+      env.spotlightToggleResult = { ok: true, applied: true }
+    })
+    afterEach(() => { restorePlatform() })
+
+    it('asks once, only while the Launcher shortcut is off and Spotlight really holds Command+Space', async () => {
+      await init()
+      expect(await invoke('hotkey:chat:spotlight:get')).toEqual({ success: true, shouldPrompt: true, disabledByViezan: false })
+
+      env.spotlightState = { enabled: false, holdsCommandSpace: true }
+      expect(await invoke('hotkey:chat:spotlight:get')).toMatchObject({ shouldPrompt: false })
+      env.spotlightState = { enabled: true, holdsCommandSpace: false }
+      expect(await invoke('hotkey:chat:spotlight:get')).toMatchObject({ shouldPrompt: false })
+
+      env.spotlightState = { enabled: true, holdsCommandSpace: true }
+      await invoke('hotkey:chat:update', { enabled: true, hotkey: 'Alt+Shift+L' })
+      expect(await invoke('hotkey:chat:spotlight:get')).toMatchObject({ shouldPrompt: false })
+    })
+
+    it('"replace" turns Spotlight off, enables Command+Space and remembers both', async () => {
+      await init()
+      const result = await invoke('hotkey:chat:spotlight:resolve', 'replace')
+
+      expect(result).toMatchObject({ success: true, applied: true, settings: { enabled: true, hotkey: 'Command+Space' } })
+      expect(env.spotlightToggles).toEqual([false])
+      expect(env.registered.has('Command+Space')).toBe(true)
+      expect(await invoke('hotkey:chat:spotlight:get')).toEqual({ success: true, shouldPrompt: false, disabledByViezan: true })
+      expect(JSON.parse(fs.readFileSync(path.join(env.userData, 'launcher-spotlight.json'), 'utf-8'))).toEqual({ promptShown: true, disabledByViezan: true })
+      expect(JSON.parse(fs.readFileSync(path.join(env.userData, 'ai-chat-hotkey-settings.json'), 'utf-8'))).toMatchObject({ enabled: true, hotkey: 'Command+Space' })
+    })
+
+    it('"replace" reports when macOS only applies the change after a new login', async () => {
+      await init()
+      env.spotlightToggleResult = { ok: true, applied: false }
+      expect(await invoke('hotkey:chat:spotlight:resolve', 'replace')).toMatchObject({ success: true, applied: false })
+    })
+
+    it('"replace" leaves everything untouched when Spotlight cannot be turned off', async () => {
+      await init()
+      env.spotlightToggleResult = { ok: false, applied: false }
+      expect(await invoke('hotkey:chat:spotlight:resolve', 'replace')).toMatchObject({ success: false, errorCode: 'SYSTEM' })
+      expect(env.registered.has('Command+Space')).toBe(false)
+      expect(await invoke('hotkey:chat:spotlight:get')).toMatchObject({ shouldPrompt: true, disabledByViezan: false })
+    })
+
+    it('"replace" turns Spotlight back on when the Launcher shortcut cannot be registered', async () => {
+      await init()
+      env.registerResult.set('Command+Space', false)
+      expect(await invoke('hotkey:chat:spotlight:resolve', 'replace')).toMatchObject({ success: false, errorCode: 'IN_USE' })
+      expect(env.spotlightToggles).toEqual([false, true])
+      expect(await invoke('hotkey:chat:spotlight:get')).toMatchObject({ disabledByViezan: false })
+    })
+
+    it('"keep" enables Option+Space and does not touch Spotlight', async () => {
+      await init()
+      expect(await invoke('hotkey:chat:spotlight:resolve', 'keep')).toMatchObject({ success: true, settings: { enabled: true, hotkey: 'Alt+Space' } })
+      expect(env.spotlightToggles).toEqual([])
+      expect(await invoke('hotkey:chat:spotlight:get')).toEqual({ success: true, shouldPrompt: false, disabledByViezan: false })
+    })
+
+    it('restores Spotlight and rejects unknown choices', async () => {
+      await init()
+      await invoke('hotkey:chat:spotlight:resolve', 'replace')
+      env.spotlightToggles.length = 0
+      expect(await invoke('hotkey:chat:spotlight:restore')).toEqual({ success: true, applied: true })
+      expect(env.spotlightToggles).toEqual([true])
+      expect(await invoke('hotkey:chat:spotlight:get')).toMatchObject({ disabledByViezan: false })
+      expect(await invoke('hotkey:chat:spotlight:resolve', 'rm -rf')).toMatchObject({ success: false })
+    })
+
+    it('never prompts or writes on other platforms', async () => {
+      restorePlatform()
+      restorePlatform = withPlatform('win32')
+      await init()
+      expect(await invoke('hotkey:chat:spotlight:get')).toEqual({ success: true, shouldPrompt: false, disabledByViezan: false })
+      expect(await invoke('hotkey:chat:spotlight:resolve', 'replace')).toMatchObject({ success: false })
+      expect(env.spotlightToggles).toEqual([])
+    })
   })
 
   describe('language pair settings', () => {

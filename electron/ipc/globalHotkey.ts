@@ -33,6 +33,7 @@ import {
 import { defaultSecondaryLang, isLanguagePairActive, resolvePairDirection } from './hotkeyLanguagePair'
 import { EXT_DEFAULT_GEMINI_MODEL } from './ipcConstants'
 import { isNonEmptyString, isRecord, isSafeLanguageCode, isSafeTargetLanguageCode } from './ipcValidation'
+import { detectSystemShortcutConflict, readSpotlightShortcutState, setSpotlightShortcutEnabled } from './launcherSystemShortcut'
 import { lightweightTranslate } from './lightweightTranslate'
 import { isValidProvider } from './providers/types'
 
@@ -150,6 +151,20 @@ function sameAccelerator(a: string, b: string): boolean {
 
 const SETTINGS_FILE = 'hotkey-settings.json'
 const CHAT_SETTINGS_FILE = 'ai-chat-hotkey-settings.json'
+const SPOTLIGHT_STATE_FILE = 'launcher-spotlight.json'
+
+/** First-run Spotlight hand-over on macOS: asked once, and whether Viezan turned Spotlight's shortcut off. */
+export interface SpotlightOnboardingState {
+  promptShown: boolean
+  disabledByViezan: boolean
+}
+
+const DEFAULT_SPOTLIGHT_STATE: SpotlightOnboardingState = { promptShown: false, disabledByViezan: false }
+let spotlightState: SpotlightOnboardingState = { ...DEFAULT_SPOTLIGHT_STATE }
+
+/** Launcher shortcut offered when the user keeps Spotlight on Command+Space. */
+export const LAUNCHER_FALLBACK_HOTKEY = 'Alt+Space'
+export const LAUNCHER_SPOTLIGHT_HOTKEY = 'Command+Space'
 
 /**
  * Quick Translate ships enabled on Option+T / Alt+T: two keys under one hand, "T" for
@@ -184,6 +199,32 @@ function getSettingsPath(): string {
 
 function getChatSettingsPath(): string {
   return path.join(app.getPath('userData'), CHAT_SETTINGS_FILE)
+}
+
+function getSpotlightStatePath(): string {
+  return path.join(app.getPath('userData'), SPOTLIGHT_STATE_FILE)
+}
+
+function loadSpotlightState(): SpotlightOnboardingState {
+  try {
+    const raw = readJsonFile(getSpotlightStatePath())
+    if (!isRecord(raw)) return { ...DEFAULT_SPOTLIGHT_STATE }
+    return {
+      promptShown: raw.promptShown === true,
+      disabledByViezan: raw.disabledByViezan === true,
+    }
+  } catch {
+    return { ...DEFAULT_SPOTLIGHT_STATE }
+  }
+}
+
+function saveSpotlightState(state: SpotlightOnboardingState): void {
+  spotlightState = state
+  try {
+    fs.writeFileSync(getSpotlightStatePath(), JSON.stringify(state, null, 2), 'utf-8')
+  } catch (e) {
+    console.error('[GlobalHotkey] Failed to save Spotlight state:', e)
+  }
 }
 
 type PatchResult<T> = { ok: true; patch: Partial<T> } | { ok: false; error: string }
@@ -758,6 +799,8 @@ export function initGlobalHotkey(
     }
   }
 
+  spotlightState = loadSpotlightState()
+
   // Load and register AI Chat hotkey if enabled
   currentChatSettings = loadChatSettings()
   if (currentChatSettings.enabled && currentChatSettings.hotkey
@@ -844,35 +887,127 @@ export function initGlobalHotkey(
     }
   })
 
+  /** Validate, register and persist a Launcher shortcut patch (shared by the IPC and the Spotlight hand-over). */
+  const applyChatSettings = (rawSettings: unknown): HotkeyUpdateFailure | { success: true; settings: AIChatHotkeySettings } => {
+    const parsed = parseChatSettingsPatch(rawSettings)
+    if (!parsed.ok) return failure('INVALID', parsed.error, currentChatSettings)
+
+    const next: AIChatHotkeySettings = { ...currentChatSettings, ...parsed.patch }
+    const wanted = next.enabled && next.hotkey ? next.hotkey : ''
+
+    if (next.enabled && !next.hotkey) return failure('INVALID', 'A hotkey is required to enable this shortcut.', currentChatSettings)
+    if (wanted && currentSettings.enabled && sameAccelerator(wanted, currentSettings.hotkey)) {
+      return failure('CONFLICT', 'Hotkey is already used by the translate shortcut.', currentChatSettings)
+    }
+
+    const outcome = swapAccelerator(
+      registeredChatAccelerator,
+      wanted,
+      accelerator => registerChatAccelerator(accelerator, toggleQuickChatWindow),
+      () => { registeredChatAccelerator = '' },
+    )
+    if (outcome === 'invalid') return failure('INVALID', 'Invalid hotkey combination.', currentChatSettings)
+    if (outcome === 'in_use') return failure('IN_USE', IN_USE_MESSAGE, currentChatSettings)
+
+    currentChatSettings = next
+    saveChatSettings(currentChatSettings)
+    return { success: true, settings: currentChatSettings }
+  }
+
   /** Update (and optionally re-register) AI Chat hotkey settings */
   ipcMain.handle('hotkey:chat:update', (_event, rawSettings: unknown) => {
     try {
-      const parsed = parseChatSettingsPatch(rawSettings)
-      if (!parsed.ok) return failure('INVALID', parsed.error, currentChatSettings)
-
-      const next: AIChatHotkeySettings = { ...currentChatSettings, ...parsed.patch }
-      const wanted = next.enabled && next.hotkey ? next.hotkey : ''
-
-      if (next.enabled && !next.hotkey) return failure('INVALID', 'A hotkey is required to enable this shortcut.', currentChatSettings)
-      if (wanted && currentSettings.enabled && sameAccelerator(wanted, currentSettings.hotkey)) {
-        return failure('CONFLICT', 'Hotkey is already used by the translate shortcut.', currentChatSettings)
-      }
-
-      const outcome = swapAccelerator(
-        registeredChatAccelerator,
-        wanted,
-        accelerator => registerChatAccelerator(accelerator, toggleQuickChatWindow),
-        () => { registeredChatAccelerator = '' },
-      )
-      if (outcome === 'invalid') return failure('INVALID', 'Invalid hotkey combination.', currentChatSettings)
-      if (outcome === 'in_use') return failure('IN_USE', IN_USE_MESSAGE, currentChatSettings)
-
-      currentChatSettings = next
-      saveChatSettings(currentChatSettings)
-      return { success: true, settings: currentChatSettings }
+      return applyChatSettings(rawSettings)
     } catch (e) {
       console.error('[GlobalHotkey] hotkey:chat:update failed:', e)
       return { success: false, error: 'Could not update the hotkey.' }
+    }
+  })
+
+  // ── First-run Spotlight hand-over (macOS) ───────────────────────────────────
+
+  /**
+   * Whether to ask the user, once, to hand Command+Space from Spotlight to the Launcher:
+   * macOS, never asked, Launcher shortcut still off, and Spotlight actually on Command+Space.
+   */
+  ipcMain.handle('hotkey:chat:spotlight:get', async () => {
+    if (process.platform !== 'darwin') return { success: true, shouldPrompt: false, disabledByViezan: false }
+    try {
+      let shouldPrompt = false
+      if (!spotlightState.promptShown && !currentChatSettings.enabled) {
+        const state = await readSpotlightShortcutState()
+        shouldPrompt = Boolean(state?.enabled && state.holdsCommandSpace)
+      }
+      return { success: true, shouldPrompt, disabledByViezan: spotlightState.disabledByViezan }
+    } catch (e) {
+      console.error('[GlobalHotkey] hotkey:chat:spotlight:get failed:', e)
+      return { success: false, error: 'Could not read the Spotlight shortcut.' }
+    }
+  })
+
+  /**
+   * `replace`: turn Spotlight's shortcut off and give Command+Space to the Launcher.
+   * `keep`: leave Spotlight alone and enable the Launcher on Option+Space.
+   * Either answer marks the prompt as shown. Also used by the Settings "turn Spotlight off" button.
+   */
+  ipcMain.handle('hotkey:chat:spotlight:resolve', async (_event, choice: unknown) => {
+    if (choice !== 'replace' && choice !== 'keep') return { success: false, error: 'Invalid choice.' }
+    if (process.platform !== 'darwin') return { success: false, error: 'Only available on macOS.' }
+    try {
+      if (choice === 'keep') {
+        saveSpotlightState({ ...spotlightState, promptShown: true })
+        const result = applyChatSettings({ enabled: true, hotkey: LAUNCHER_FALLBACK_HOTKEY })
+        return result.success ? { ...result, applied: true } : result
+      }
+
+      const toggled = await setSpotlightShortcutEnabled(false)
+      if (!toggled.ok) return { success: false, errorCode: 'SYSTEM', error: 'Could not turn the Spotlight shortcut off.' }
+      saveSpotlightState({ promptShown: true, disabledByViezan: true })
+
+      const result = applyChatSettings({ enabled: true, hotkey: LAUNCHER_SPOTLIGHT_HOTKEY })
+      if (!result.success) {
+        // Do not leave the user with neither Spotlight nor the Launcher on Command+Space.
+        await setSpotlightShortcutEnabled(true)
+        saveSpotlightState({ ...spotlightState, disabledByViezan: false })
+        return result
+      }
+      return { ...result, applied: toggled.applied }
+    } catch (e) {
+      console.error('[GlobalHotkey] hotkey:chat:spotlight:resolve failed:', e)
+      return { success: false, error: 'Could not change the Spotlight shortcut.' }
+    }
+  })
+
+  /** Turn Spotlight's shortcut back on (Settings). The Launcher keeps its shortcut; Settings shows the conflict. */
+  ipcMain.handle('hotkey:chat:spotlight:restore', async () => {
+    if (process.platform !== 'darwin') return { success: false, error: 'Only available on macOS.' }
+    try {
+      const toggled = await setSpotlightShortcutEnabled(true)
+      if (!toggled.ok) return { success: false, errorCode: 'SYSTEM', error: 'Could not turn the Spotlight shortcut on.' }
+      saveSpotlightState({ ...spotlightState, disabledByViezan: false })
+      return { success: true, applied: toggled.applied }
+    } catch (e) {
+      console.error('[GlobalHotkey] hotkey:chat:spotlight:restore failed:', e)
+      return { success: false, error: 'Could not change the Spotlight shortcut.' }
+    }
+  })
+
+  /**
+   * Whether macOS itself (Spotlight, Finder search) handles the Launcher shortcut, in
+   * which case `globalShortcut.register` succeeds but the Launcher never opens. Checks
+   * the saved shortcut, or `accelerator` when the renderer is previewing a new one.
+   */
+  ipcMain.handle('hotkey:chat:systemConflict', async (_event, accelerator?: unknown) => {
+    const candidate = accelerator === undefined ? currentChatSettings.hotkey : accelerator
+    if (typeof candidate !== 'string' || (candidate !== '' && !isValidAccelerator(candidate))) {
+      return { success: false, error: 'Invalid hotkey combination.' }
+    }
+    try {
+      const conflict = await detectSystemShortcutConflict(candidate)
+      return { success: true, hotkey: candidate, enabled: currentChatSettings.enabled, conflict }
+    } catch (e) {
+      console.error('[GlobalHotkey] hotkey:chat:systemConflict failed:', e)
+      return { success: false, error: 'Could not check system shortcuts.' }
     }
   })
 
