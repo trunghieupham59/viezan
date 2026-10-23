@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { TRANSLATIONS } from '../../i18n'
-import { APP_MODULES, getModule, isModuleId } from '../catalog'
+import { APP_MODULES, getModule, isPageModuleId } from '../catalog'
 import { MODULE_PAGES } from '../pages'
 
 describe('module catalog', () => {
@@ -30,8 +30,8 @@ describe('module catalog', () => {
   it('resolves ids and rejects unknown ones', () => {
     expect(getModule('translate').navigateEffect).toBe('clearTranslation')
     expect(getModule('dictionary').loadingLayout).toBe('split')
-    expect(isModuleId('live')).toBe(true)
-    expect(isModuleId('thermal')).toBe(false)
+    expect(isPageModuleId('live')).toBe(true)
+    expect(isPageModuleId('thermal')).toBe(false)
     expect(() => getModule('thermal' as never)).toThrow(/Unknown module/)
   })
 })

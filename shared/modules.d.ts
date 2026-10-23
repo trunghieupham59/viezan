@@ -7,8 +7,25 @@
  * navigation reads that catalog instead of hard-coding the four pages.
  */
 
-/** Stable identifiers; also the `AppPage` values the store persists. */
-export type ModuleId = 'chat' | 'translate' | 'live' | 'dictionary'
+/** Modules that own a page in the workspace; also the `AppPage` values the store persists. */
+export type PageModuleId = 'chat' | 'translate' | 'live' | 'dictionary'
+
+/**
+ * Every module the main process knows, including ones without a page: the Launcher
+ * popup (`launcher`) and the Chrome-extension bridge (`browser-bridge`).
+ */
+export type ModuleId = PageModuleId | 'launcher' | 'browser-bridge'
+
+/** Which modules are enabled. Missing entries mean enabled. */
+export type ModuleEnabledState = Record<ModuleId, boolean>
+
+/** `window.api.modules`: read and change which modules are on. No UI yet; see the plan. */
+export interface ModulesApi {
+  get: () => Promise<{ success: boolean; enabled?: ModuleEnabledState; error?: string }>
+  setEnabled: (id: ModuleId, enabled: boolean) => Promise<{ success: boolean; enabled?: ModuleEnabledState; error?: string }>
+  /** Fired after main applied a change (from any window). Returns the unsubscribe function. */
+  onChanged: (cb: (enabled: ModuleEnabledState) => void) => () => void
+}
 
 /** How the workspace looks while a module's page chunk is still loading. */
 export type ModuleLoadingLayout = 'blank' | 'split'
@@ -21,7 +38,7 @@ export type ModuleNavigateEffect = 'clearTranslation'
  * the catalog stays free of React and of the translation runtime.
  */
 export interface ModuleDefinition {
-  id: ModuleId
+  id: PageModuleId
   /** i18n key of the navigation label. */
   labelKey: 'nav_chat' | 'nav_translate' | 'nav_live_translate' | 'nav_dictionary'
   /** i18n key of the one-line description shown in the Command Palette. */

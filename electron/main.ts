@@ -5,28 +5,23 @@ import type { ThemePreset } from '../shared/theme'
 import { configureApplicationMenu, isDevelopmentRuntime } from './applicationMenu'
 import { createCapabilityRegistry, registerCapabilityHandlers } from './ipc/capabilities'
 import { QUICK_CHAT_CHANNELS, SUBTITLE_CHANNELS } from './ipc/channels'
-import { registerChatHandlers } from './ipc/chat'
 import { initGlobalHotkey } from './ipc/globalHotkey'
-import { registerImageTranslateHandlers } from './ipc/imageTranslate'
 import { registerKeychainHandlers } from './ipc/keychain'
-import { initLegacyAssistant, setLocalServerAccessors } from './ipc/legacyAssistant'
-import { registerLiveInterpretationHandlers } from './ipc/liveInterpretation'
 import { registerLocalAiHandlers, stopManagedLocalAiRuntime } from './ipc/localAi'
-import { getServerToken, LOCAL_SERVER_PORT, startLocalServer, stopLocalServer } from './ipc/localServer'
+import { stopLocalServer } from './ipc/localServer'
 import { registerModelsHandlers } from './ipc/models'
 import { createWindowOpenHandler, isAllowedAppNavigation, isAllowedPermission, type NavigationPolicy } from './ipc/navigationGuard'
-import { QUICK_CHAT_COMPACT_HEIGHT, registerQuickChatHandlers, setQuickChatWindowBounds } from './ipc/quickChat'
-import { registerSubtitleHandlers } from './ipc/subtitle'
+import { QUICK_CHAT_COMPACT_HEIGHT, setQuickChatWindowBounds } from './ipc/quickChat'
 import { registerSystemHandlers } from './ipc/system'
 import { createSystemCapabilityProviders } from './ipc/systemCapabilities'
-import { registerTranscribeHandlers } from './ipc/transcribe'
-import { registerTranslateHandlers } from './ipc/translate'
-import { registerTtsHandlers } from './ipc/tts'
 import { runStartupUpdateCleanup } from './ipc/updateCleanup'
 import { registerUpdaterHandlers } from './ipc/updater'
-import { registerWebSearchHandlers } from './ipc/webSearch'
 import { isHiddenStartRequest } from './loginItem'
 import { mainWindowGeometry } from './mainWindowGeometry'
+import { APP_MODULE_IDS, createAppModules } from './modules/appModules'
+import { createFileModuleStore, MODULES_FILE } from './modules/enabledStore'
+import { createModuleHost, type ModuleHost } from './modules/host'
+import { broadcastModulesChanged, registerModuleHandlers } from './modules/ipc'
 import { isQuitRequest } from './quitRequest'
 import { resolveRuntimeProfile } from './runtimeProfile'
 import { createAppTray, handleMainWindowClose, supportsTrayResidency } from './trayManager'
@@ -441,6 +436,7 @@ function toggleQuickChatWindow(): void {
 
 // ── Floating Subtitle Window ──────────────────────────────────────────────────
 let subtitleWindow: BrowserWindow | null = null
+let moduleHost: ModuleHost | null = null
 
 /** HC-NEW-08: px gap between subtitle window bottom edge and the screen's taskbar/dock */
 const SUBTITLE_BOTTOM_MARGIN = 40
@@ -531,34 +527,35 @@ app.whenReady().then(() => {
   setupTray()
   createWindow()
 
-  // Register IPC handlers
+  // Core services (not modules)
   registerKeychainHandlers(ipcMain, () => mainWindow)
-  registerTranslateHandlers(ipcMain)
   registerModelsHandlers(ipcMain)
-  registerTranscribeHandlers(ipcMain)
-  registerLiveInterpretationHandlers(ipcMain, () => mainWindow, () => subtitleWindow)
-  registerTtsHandlers(ipcMain)
-  registerImageTranslateHandlers(ipcMain)
-  registerChatHandlers(ipcMain)
-  registerWebSearchHandlers(ipcMain)
   registerLocalAiHandlers(ipcMain, () => mainWindow)
-  registerQuickChatHandlers(ipcMain, () => mainWindow, () => quickChatWindow)
 
-  // Global hotkey — translate selected text in any OS application
+  // Global hotkey settings store — registers both shortcuts; the translate and launcher
+  // modules suspend/resume them through setHotkeyModuleActive when toggled.
   initGlobalHotkey(ipcMain, () => mainWindow, toggleQuickChatWindow)
 
   // Capabilities — what this machine can do and whether the user allowed it
   registerCapabilityHandlers(ipcMain, createCapabilityRegistry(createSystemCapabilityProviders()))
 
-  // Local HTTP server — used by the Viezan Chrome Extension
-  startLocalServer(ipcMain)
-
-  // Legacy Assistant — floating icon injected directly into browsers via osascript
-  setLocalServerAccessors(() => getServerToken(), () => LOCAL_SERVER_PORT)
-  initLegacyAssistant(ipcMain)
-
-  // Subtitle window IPC handlers
-  registerSubtitleHandlers(ipcMain, () => subtitleWindow, () => mainWindow, createSubtitleWindow)
+  // Feature modules: chat, translate, live, dictionary, launcher, browser-bridge.
+  // Every module registers its IPC; only enabled ones start (shortcuts, local server).
+  moduleHost = createModuleHost({
+    modules: createAppModules({
+      ipcMain,
+      getMainWindow: () => mainWindow,
+      getSubtitleWindow: () => subtitleWindow,
+      createSubtitleWindow,
+      closeSubtitleWindow: () => { subtitleWindow?.close() },
+      getQuickChatWindow: () => quickChatWindow,
+      hideQuickChatWindow: () => { quickChatWindow?.hide() },
+    }),
+    store: createFileModuleStore(path.join(app.getPath('userData'), MODULES_FILE), APP_MODULE_IDS),
+    onChange: (state) => broadcastModulesChanged(() => mainWindow, state),
+  })
+  registerModuleHandlers(ipcMain, moduleHost)
+  void moduleHost.init().catch((e) => console.error('[Modules] init failed:', e))
 
   // System handlers — screen permission & openExternal
   registerSystemHandlers(ipcMain, () => mainWindow, applyWindowPalette)
@@ -602,6 +599,8 @@ app.on('before-quit', () => {
 app.on('will-quit', () => {
   // Unregister all global shortcuts before quitting
   globalShortcut.unregisterAll()
+  // Stops every started module (local server included), newest first.
+  void moduleHost?.shutdown()
   stopLocalServer()
   stopManagedLocalAiRuntime()
   appTray?.destroy()

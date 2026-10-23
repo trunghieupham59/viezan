@@ -621,10 +621,21 @@ export function isLocalServerListening (): boolean {
   return serverListening
 }
 
-export function startLocalServer (ipcMain: Electron.IpcMain): void {
+/** Load the API keys and start listening. Idempotent while already listening. */
+export function startLocalServer (ipcMain?: Electron.IpcMain): void {
+  if (ipcMain) registerLocalServerHandlers(ipcMain)
+  if (server) return
   activeTokens = loadTokens()
-
   listenWithRetry()
+}
+
+let handlersRegistered = false
+
+/** IPC handlers for API-key management and config sync. Registered once; independent of listening. */
+export function registerLocalServerHandlers (ipcMain: Electron.IpcMain): void {
+  if (handlersRegistered) return
+  handlersRegistered = true
+  activeTokens = loadTokens()
 
   // ── IPC handlers ─────────────────────────────────────────────────────────
 

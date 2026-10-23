@@ -18,6 +18,7 @@ import type { HotkeyApi } from '../../shared/hotkeyApi'
 import type { KeychainApi } from '../../shared/keychainApi'
 import type { LegacyAssistantApi } from '../../shared/legacyAssistantApi'
 import type { LocalServerApi } from '../../shared/localServerApi'
+import type { ModulesApi } from '../../shared/modules'
 import type { QuickChatApi } from '../../shared/quickChatApi'
 import type { SubtitleApi } from '../../shared/subtitleApi'
 import type { SystemApi } from '../../shared/systemApi'
@@ -231,6 +232,11 @@ if (typeof window !== 'undefined') {
     cancelModelDownload: vi.fn().mockResolvedValue({ success: false }),
     detectLanguage: vi.fn().mockResolvedValue({ success: false }),
   }
+  const modulesApiMock: ModulesApi = {
+    get: vi.fn().mockResolvedValue({ success: true, enabled: { chat: true, translate: true, live: true, dictionary: true, launcher: true, 'browser-bridge': true } }),
+    setEnabled: vi.fn().mockResolvedValue({ success: true }),
+    onChanged: vi.fn().mockReturnValue(() => {}),
+  }
   const capabilitiesApiMock: CapabilitiesApi = {
     get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
     request: vi.fn().mockResolvedValue({ success: true, status: { id: 'input.accessibility', supported: true, permission: 'granted' } }),
@@ -267,6 +273,7 @@ if (typeof window !== 'undefined') {
       keychain: keychainApiMock,
       subtitle: subtitleApiMock,
       capabilities: capabilitiesApiMock,
+      modules: modulesApiMock,
       hotkey: hotkeyApiMock,
       quickChat: quickChatApiMock,
       legacyAssistant: legacyAssistantApiMock,
