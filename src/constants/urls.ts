@@ -18,6 +18,10 @@ export const MACOS_SCREEN_RECORDING_PREFS =
 export const MACOS_ACCESSIBILITY_PREFS =
   'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
 
+/** macOS System Settings deep-link to Keyboard > Keyboard Shortcuts (where Spotlight's shortcut is turned off). */
+export const MACOS_KEYBOARD_SHORTCUTS_PREFS =
+  'x-apple.systempreferences:com.apple.Keyboard-Settings.extension?Shortcuts'
+
 /** Jina AI homepage — used in ApiKeysSection for the web search docs link. */
 export const JINA_DOCS_URL = 'https://jina.ai'
 

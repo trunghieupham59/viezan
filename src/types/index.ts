@@ -982,6 +982,27 @@ export interface WindowApi {
       update: (settings: { hotkey?: string; enabled?: boolean }) =>
         Promise<{ success: boolean; settings?: Record<string, unknown>; error?: string; errorCode?: 'INVALID' | 'IN_USE' | 'CONFLICT' | string }>
       get: () => Promise<{ success: boolean; settings?: Record<string, unknown> }>
+      /** macOS only: a system shortcut (Spotlight, Finder search) that owns the Launcher hotkey. */
+      systemConflict: (accelerator?: string) => Promise<{
+        success: boolean
+        hotkey?: string
+        enabled?: boolean
+        conflict?: { owner: 'spotlight' | 'finder-search' | 'system'; accelerator: string } | null
+        error?: string
+      }>
+      /** macOS first-run hand-over of Command+Space from Spotlight to the Launcher. */
+      spotlight: {
+        get: () => Promise<{ success: boolean; shouldPrompt?: boolean; disabledByViezan?: boolean; error?: string }>
+        resolve: (choice: 'replace' | 'keep') => Promise<{
+          success: boolean
+          /** False when macOS only applies the change after the next login. */
+          applied?: boolean
+          settings?: Record<string, unknown>
+          error?: string
+          errorCode?: string
+        }>
+        restore: () => Promise<{ success: boolean; applied?: boolean; error?: string; errorCode?: string }>
+      }
       /** Listen for the chat-open event. Returns a cleanup function. */
       onOpen: (cb: () => void) => () => void
     }
