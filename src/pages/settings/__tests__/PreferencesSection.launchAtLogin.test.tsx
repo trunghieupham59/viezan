@@ -9,8 +9,9 @@ beforeEach(() => {
 })
 afterEach(() => {
   cleanup()
-  delete window.api.getLoginItemSettings
-  delete window.api.setLoginItemSettings
+  // Back to the setup defaults: the API is always present, the platform just reports "unsupported".
+  window.api.getLoginItemSettings = vi.fn().mockResolvedValue({ supported: false, openAtLogin: false })
+  window.api.setLoginItemSettings = vi.fn().mockResolvedValue({ success: false, openAtLogin: false })
 })
 
 describe('launch at login preference', () => {
