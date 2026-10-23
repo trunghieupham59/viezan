@@ -8,6 +8,7 @@ import type { BrowserWindow, IpcMain } from 'electron'
 import { app, net, shell } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import type { UpdateStatus } from '../../shared/updater'
+import { UPDATER_CHANNELS } from './channels'
 import { isAllowedExternalUrl } from './externalUrl'
 import { isSenderWindow } from './senderGuard'
 import { MAC_UPDATE_DIR_NAME } from './updateCleanup'
@@ -593,7 +594,7 @@ export function registerUpdaterHandlers(
     const win = getMainWindow()
     try { notify?.(next) } catch { console.warn('[updater] Could not show update notification') }
     if (win && !win.isDestroyed()) {
-      win.webContents.send('updater:status', next)
+      win.webContents.send(UPDATER_CHANNELS.event.status, next)
     }
   }
 
@@ -808,8 +809,8 @@ export function registerUpdaterHandlers(
     })
     return checkInFlight
   }
-  ipc.handle('updater:check', (event) => isTrusted(event) ? check() : UNTRUSTED)
-  ipc.handle('updater:getStatus', (event) => isTrusted(event) ? lastStatus : null)
+  ipc.handle(UPDATER_CHANNELS.invoke.check, (event) => isTrusted(event) ? check() : UNTRUSTED)
+  ipc.handle(UPDATER_CHANNELS.invoke.getStatus, (event) => isTrusted(event) ? lastStatus : null)
   if (!isDev) {
     const stopSchedule = startUpdateSchedule(() => check(true))
     app.once('before-quit', stopSchedule)
@@ -843,7 +844,7 @@ export function registerUpdaterHandlers(
     }
     return downloadInFlight
   }
-  ipc.handle('updater:download', (event) => isTrusted(event) ? download() : UNTRUSTED)
+  ipc.handle(UPDATER_CHANNELS.invoke.download, (event) => isTrusted(event) ? download() : UNTRUSTED)
 
   const performInstall = async (requestedPath?: unknown) => {
     if (isDev)          return { success: false, error: 'Not available in development mode' }
@@ -881,9 +882,9 @@ export function registerUpdaterHandlers(
     }
     return installInFlight
   }
-  ipc.handle('updater:install', (event, requestedPath?: unknown) => isTrusted(event) ? install(requestedPath) : UNTRUSTED)
+  ipc.handle(UPDATER_CHANNELS.invoke.install, (event, requestedPath?: unknown) => isTrusted(event) ? install(requestedPath) : UNTRUSTED)
 
-  ipc.handle('updater:openInstaller', async (event) => {
+  ipc.handle(UPDATER_CHANNELS.invoke.openInstaller, async (event) => {
     if (!isTrusted(event)) return UNTRUSTED
     const installer = await resolveDownloadedInstaller()
     if (!installer.ok) return { success: false, error: installer.error }
@@ -895,7 +896,7 @@ export function registerUpdaterHandlers(
     return { success: true }
   })
 
-  ipc.handle('updater:getVersion', () => {
+  ipc.handle(UPDATER_CHANNELS.invoke.getVersion, () => {
     return { version: app.getVersion() }
   })
 
@@ -904,7 +905,7 @@ export function registerUpdaterHandlers(
    * Used on macOS where we can't silently install without code signing.
    * Optionally accepts a specific URL; falls back to the GitHub releases page.
    */
-  ipc.handle('updater:openDownload', async (event, url?: string) => {
+  ipc.handle(UPDATER_CHANNELS.invoke.openDownload, async (event, url?: string) => {
     if (!isTrusted(event)) return UNTRUSTED
     const target = url ?? `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`
     if (!isAllowedExternalUrl(target)) {

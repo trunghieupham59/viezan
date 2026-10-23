@@ -17,6 +17,7 @@ import type { KeychainApi } from '../../shared/keychainApi'
 import type { LegacyAssistantApi } from '../../shared/legacyAssistantApi'
 import type { LocalServerApi } from '../../shared/localServerApi'
 import type { SystemApi } from '../../shared/systemApi'
+import type { UpdaterApi } from '../../shared/updaterApi'
 import type { WebSearchApi } from '../../shared/webSearchApi'
 import { useNotificationStore } from '../store/useNotificationStore'
 
@@ -111,6 +112,16 @@ if (typeof window !== 'undefined') {
     update: vi.fn().mockResolvedValue({ success: true }),
     getBookmarklet: vi.fn().mockResolvedValue({ success: true, bookmarklet: '' }),
     injectNow: vi.fn().mockResolvedValue({ success: true }),
+  }
+  // Native-notification members are left out on purpose: their absence selects the in-app dialog.
+  const updaterApiMock: UpdaterApi = {
+    check: vi.fn().mockResolvedValue({ success: true }),
+    download: vi.fn().mockResolvedValue({ success: true }),
+    install: vi.fn().mockResolvedValue({ success: true }),
+    openInstaller: vi.fn().mockResolvedValue({ success: true }),
+    getVersion: vi.fn().mockResolvedValue({ version: '1.0.0' }),
+    openDownload: vi.fn().mockResolvedValue({ success: true }),
+    onStatus: vi.fn().mockReturnValue(() => {}),
   }
   const capabilitiesApiMock: CapabilitiesApi = {
     get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
@@ -222,14 +233,7 @@ if (typeof window !== 'undefined') {
         onOpenInChat: vi.fn().mockReturnValue(() => {}),
       },
       legacyAssistant: legacyAssistantApiMock,
-      updater: {
-        check: vi.fn().mockResolvedValue({ success: true }),
-        download: vi.fn().mockResolvedValue({ success: true }),
-        install: vi.fn().mockResolvedValue({ success: true }),
-        openInstaller: vi.fn().mockResolvedValue({ success: true }),
-        getVersion: vi.fn().mockResolvedValue({ version: '1.0.0' }),
-        onStatus: vi.fn().mockReturnValue(() => {}),
-      },
+      updater: updaterApiMock,
       localServer: localServerApiMock,
     },
     writable: true,

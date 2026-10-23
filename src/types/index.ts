@@ -6,8 +6,6 @@ import type {
   TranscribeResult,
 } from '../../shared/audioTranscription'
 import type { SystemApi } from '../../shared/systemApi'
-import type { UpdateNotificationPreferences } from '../../shared/updateNotification'
-import type { UpdateStatus } from '../../shared/updater'
 import type { WebSearchApi } from '../../shared/webSearchApi'
 
 export type {
@@ -183,6 +181,7 @@ export interface TranslateResult {
 export type { KeychainApi, KeychainResult } from '../../shared/keychainApi'
 export type { LegacyAssistantApi } from '../../shared/legacyAssistantApi'
 export type { LocalServerApi, LocalServerTokenResult, LocalServerTokenSummary } from '../../shared/localServerApi'
+export type { UpdaterApi, UpdaterDownloadResult } from '../../shared/updaterApi'
 export type { WebSearchApi, WebSearchHit, WebSearchParams, WebSearchResult } from '../../shared/webSearchApi'
 
 export interface VerifyResult {
@@ -957,28 +956,8 @@ export interface WindowApi extends SystemApi, WebSearchApi {
   /** Legacy Assistant — floating icon injected into browsers without an extension; shape: shared/legacyAssistantApi.d.ts. */
   legacyAssistant: import('../../shared/legacyAssistantApi').LegacyAssistantApi
 
-  /** Auto-updater — check and install updates from GitHub Releases */
-  updater: {
-    consumeOpenSettings?: () => Promise<boolean>
-    getNotificationPreferences?: () => Promise<UpdateNotificationPreferences | null>
-    setNotificationPreferences?: (patch: Partial<UpdateNotificationPreferences>) => Promise<UpdateNotificationPreferences | null>
-    onOpenSettings?: (callback: () => void) => () => void
-    getStatus?: () => Promise<UpdateStatus | null>
-    check: () => Promise<{ success: boolean; error?: string }>
-    /** In-app download. macOS downloads the unsigned DMG without opening Finder. */
-    download: () => Promise<{ success: boolean; error?: string; errorCode?: string; filePath?: string; verified?: boolean }>
-    /** Quit and install, or delegate to the platform updater. */
-    install: () => Promise<{ success: boolean; error?: string }>
-    /** Manual fallback for macOS: open the downloaded DMG in Finder. */
-    openInstaller: () => Promise<{ success: boolean; error?: string }>
-    getVersion: () => Promise<{ version: string }>
-    /**
-     * Open the download URL in the system browser.
-     * Fallback only — falls back to GitHub Releases page.
-     */
-    openDownload: (url?: string) => Promise<{ success: boolean }>
-    onStatus: (cb: (status: UpdateStatus) => void) => () => void
-  }
+  /** Auto-updater — check and install updates from GitHub Releases; shape: shared/updaterApi.d.ts. */
+  updater: import('../../shared/updaterApi').UpdaterApi
 
   /** Local HTTP server — Chrome Extension bridge (multi-API-key); shape: shared/localServerApi.d.ts. */
   localServer: import('../../shared/localServerApi').LocalServerApi
