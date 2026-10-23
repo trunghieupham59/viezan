@@ -154,6 +154,24 @@ export const LAUNCHER_CHANNELS = {
   },
 } as const
 
+export const AUDIO_CHANNELS = {
+  invoke: {
+    transcribe: 'audio:transcribe',
+    cancelTranscription: 'audio:cancelTranscription',
+    checkSttProviders: 'audio:checkSttProviders',
+    tts: 'audio:tts',
+  },
+} as const
+
+export const LIVE_CHANNELS = {
+  invoke: {
+    begin: 'live:begin',
+    translate: 'live:translate',
+    assemble: 'live:assemble',
+    cancel: 'live:cancel',
+  },
+} as const
+
 export const CAPABILITY_CHANNELS = {
   invoke: {
     get: 'capabilities:get',
