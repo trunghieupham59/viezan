@@ -4,9 +4,9 @@ import { APP_MODULES, getModule, isPageModuleId } from '../catalog'
 import { MODULE_PAGES } from '../pages'
 
 describe('module catalog', () => {
-  it('lists each module once with the four shipped pages in navigation order', () => {
+  it('lists each module once with the shipped pages in navigation order', () => {
     const ids = APP_MODULES.map((module) => module.id)
-    expect(ids).toEqual(['chat', 'translate', 'live', 'dictionary'])
+    expect(ids).toEqual(['chat', 'translate', 'live', 'dictionary', 'thermal'])
     expect(new Set(ids).size).toBe(ids.length)
   })
 
@@ -30,8 +30,10 @@ describe('module catalog', () => {
   it('resolves ids and rejects unknown ones', () => {
     expect(getModule('translate').navigateEffect).toBe('clearTranslation')
     expect(getModule('dictionary').loadingLayout).toBe('split')
+    expect(getModule('thermal').loadingLayout).toBe('list')
     expect(isPageModuleId('live')).toBe(true)
-    expect(isPageModuleId('thermal')).toBe(false)
-    expect(() => getModule('thermal' as never)).toThrow(/Unknown module/)
+    expect(isPageModuleId('thermal')).toBe(true)
+    expect(isPageModuleId('fan-control')).toBe(false)
+    expect(() => getModule('fan-control' as never)).toThrow(/Unknown module/)
   })
 })

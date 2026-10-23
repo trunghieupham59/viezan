@@ -22,6 +22,7 @@ import type { ModulesApi } from '../../shared/modules'
 import type { QuickChatApi } from '../../shared/quickChatApi'
 import type { SubtitleApi } from '../../shared/subtitleApi'
 import type { SystemApi } from '../../shared/systemApi'
+import type { ThermalApi } from '../../shared/thermalApi'
 import type { TranslateApi } from '../../shared/translateApi'
 import type { UpdaterApi } from '../../shared/updaterApi'
 import type { WebSearchApi } from '../../shared/webSearchApi'
@@ -233,9 +234,16 @@ if (typeof window !== 'undefined') {
     detectLanguage: vi.fn().mockResolvedValue({ success: false }),
   }
   const modulesApiMock: ModulesApi = {
-    get: vi.fn().mockResolvedValue({ success: true, enabled: { chat: true, translate: true, live: true, dictionary: true, launcher: true, 'browser-bridge': true } }),
+    get: vi.fn().mockResolvedValue({ success: true, enabled: { chat: true, translate: true, live: true, dictionary: true, thermal: true, launcher: true, 'browser-bridge': true } }),
     setEnabled: vi.fn().mockResolvedValue({ success: true }),
     onChanged: vi.fn().mockReturnValue(() => {}),
+  }
+  const thermalApiMock: ThermalApi = {
+    getSupport: vi.fn().mockResolvedValue({ success: true, support: { supported: true, source: 'smc' } }),
+    read: vi.fn().mockResolvedValue({ success: true, snapshot: { timestamp: 0, source: 'smc', sensors: [], fans: [] } }),
+    setMonitoring: vi.fn().mockResolvedValue({ success: true }),
+    onSnapshot: vi.fn().mockReturnValue(() => {}),
+    onError: vi.fn().mockReturnValue(() => {}),
   }
   const capabilitiesApiMock: CapabilitiesApi = {
     get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
@@ -274,6 +282,7 @@ if (typeof window !== 'undefined') {
       subtitle: subtitleApiMock,
       capabilities: capabilitiesApiMock,
       modules: modulesApiMock,
+      thermal: thermalApiMock,
       hotkey: hotkeyApiMock,
       quickChat: quickChatApiMock,
       legacyAssistant: legacyAssistantApiMock,

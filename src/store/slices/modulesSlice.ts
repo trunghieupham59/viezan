@@ -14,6 +14,7 @@ export const ALL_MODULES_ENABLED: ModuleEnabledState = {
   translate: true,
   live: true,
   dictionary: true,
+  thermal: true,
   launcher: true,
   'browser-bridge': true,
 }

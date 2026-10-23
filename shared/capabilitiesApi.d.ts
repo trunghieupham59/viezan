@@ -3,7 +3,7 @@
  * and the status objects main reports. See `electron/ipc/capabilities.ts`.
  */
 
-export type CapabilityId = 'input.accessibility' | 'launcher.spotlight'
+export type CapabilityId = 'input.accessibility' | 'launcher.spotlight' | 'thermal.sensors'
 
 export type CapabilityPermission = 'granted' | 'denied' | 'not-required'
 

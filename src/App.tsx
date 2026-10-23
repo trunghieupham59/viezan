@@ -25,8 +25,9 @@ function closeResponsiveNavigation() {
 }
 
 export function PageFallback({ page, label }: { page: AppPage; label: string }) {
-  if (getModule(page).loadingLayout === 'split') return <FeatureLoadingState label={label} layout="split" />
-  return <div className="app-page" aria-hidden="true" />
+  const layout = getModule(page).loadingLayout
+  if (layout === 'blank') return <div className="app-page" aria-hidden="true" />
+  return <FeatureLoadingState label={label} layout={layout} />
 }
 
 function App() {

@@ -20,6 +20,7 @@ import { modulesSection } from './preload/modules'
 import { quickChatSection } from './preload/quickChat'
 import { subtitleSection } from './preload/subtitle'
 import { systemSection } from './preload/system'
+import { thermalSection } from './preload/thermal'
 import { translateSection } from './preload/translate'
 import { updaterSection } from './preload/updater'
 import { webSearchSection } from './preload/webSearch'
@@ -33,6 +34,7 @@ contextBridge.exposeInMainWorld('api', {
   ...systemSection,
   ...capabilitiesSection,
   ...modulesSection,
+  ...thermalSection,
   ...updaterSection,
   ...hotkeySection,
   ...quickChatSection,

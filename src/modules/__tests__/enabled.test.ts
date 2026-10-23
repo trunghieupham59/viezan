@@ -5,7 +5,7 @@ import { enabledPageModules, isLastEnabledPageModule, resolveActivePage } from '
 describe('enabled module helpers', () => {
   it('keeps navigation order and drops modules that are off', () => {
     const ids = enabledPageModules({ ...ALL_MODULES_ENABLED, translate: false }).map((module) => module.id)
-    expect(ids).toEqual(['chat', 'live', 'dictionary'])
+    expect(ids).toEqual(['chat', 'live', 'dictionary', 'thermal'])
   })
 
   it('ignores non-page modules when deciding the active page', () => {
@@ -19,12 +19,12 @@ describe('enabled module helpers', () => {
   })
 
   it('keeps the page when a stale file turned every page module off', () => {
-    const none = { ...ALL_MODULES_ENABLED, chat: false, translate: false, live: false, dictionary: false }
+    const none = { ...ALL_MODULES_ENABLED, chat: false, translate: false, live: false, dictionary: false, thermal: false }
     expect(resolveActivePage('live', none)).toBe('live')
   })
 
   it('knows when a page module is the last one on', () => {
-    const onlyChat = { ...ALL_MODULES_ENABLED, translate: false, live: false, dictionary: false }
+    const onlyChat = { ...ALL_MODULES_ENABLED, translate: false, live: false, dictionary: false, thermal: false }
     expect(isLastEnabledPageModule('chat', onlyChat)).toBe(true)
     expect(isLastEnabledPageModule('translate', onlyChat)).toBe(false)
     expect(isLastEnabledPageModule('chat', ALL_MODULES_ENABLED)).toBe(false)

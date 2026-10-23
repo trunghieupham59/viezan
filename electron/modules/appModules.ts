@@ -1,5 +1,6 @@
 /**
- * The main-process modules Viezan ships, in start order. Handlers are registered for
+ * The main-process modules Viezan ships, in start order (chat, translate, live,
+ * dictionary, thermal, launcher, browser-bridge). Handlers are registered for
  * every module; start/stop runs only for enabled ones (see host.ts).
  *
  * Core services (keychain, models, local AI, system, updater, capabilities, the hotkey
@@ -18,6 +19,8 @@ import { registerTranscribeHandlers } from '../ipc/transcribe'
 import { registerTranslateHandlers } from '../ipc/translate'
 import { registerTtsHandlers } from '../ipc/tts'
 import { registerWebSearchHandlers } from '../ipc/webSearch'
+import { registerThermalHandlers } from '../thermal/ipc'
+import type { ThermalService } from '../thermal/service'
 import type { MainModule } from './host'
 
 export interface AppModuleDeps {
@@ -28,6 +31,7 @@ export interface AppModuleDeps {
   closeSubtitleWindow: () => void
   getQuickChatWindow: () => BrowserWindow | null
   hideQuickChatWindow: () => void
+  thermal: ThermalService
 }
 
 export function createAppModules(deps: AppModuleDeps): MainModule[] {
@@ -65,6 +69,13 @@ export function createAppModules(deps: AppModuleDeps): MainModule[] {
       id: 'dictionary',
     },
     {
+      // Sensors and fans. Off by default where nothing can be read (Windows, missing reader).
+      id: 'thermal',
+      registerHandlers: () => registerThermalHandlers(ipcMain, deps.thermal),
+      stop: () => deps.thermal.stop(),
+      defaultEnabled: deps.thermal.getSupport().supported,
+    },
+    {
       id: 'launcher',
       registerHandlers: () => registerQuickChatHandlers(ipcMain, deps.getMainWindow, deps.getQuickChatWindow),
       start: () => setHotkeyModuleActive('chat', true),
@@ -86,4 +97,4 @@ export function createAppModules(deps: AppModuleDeps): MainModule[] {
   ]
 }
 
-export const APP_MODULE_IDS = ['chat', 'translate', 'live', 'dictionary', 'launcher', 'browser-bridge'] as const
+export const APP_MODULE_IDS = ['chat', 'translate', 'live', 'dictionary', 'thermal', 'launcher', 'browser-bridge'] as const

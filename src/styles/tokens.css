@@ -304,6 +304,10 @@
   --vzn-prompt-card-min-height: 116px;
   --vzn-workspace-pad: var(--vzn-space-4);
   --vzn-panel-gap: var(--vzn-space-3);
+  /* Thermal: minimum tile widths for the sensor and fan grids and the headline figures. */
+  --vzn-thermal-tile-min-inline: 10.5rem;
+  --vzn-thermal-fan-tile-min-inline: 14rem;
+  --vzn-thermal-summary-min-inline: 7.5rem;
   --vzn-empty-state-copy-max: calc(var(--vzn-space-12) * 4);
   --vzn-dictionary-result-min-inline: calc(var(--vzn-space-12) * 10);
   --vzn-dictionary-history-width: calc(var(--vzn-space-12) * 6);

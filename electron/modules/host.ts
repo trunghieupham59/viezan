@@ -17,6 +17,8 @@ export interface MainModule {
   start?: () => void | Promise<void>
   /** Undo `start`; must leave nothing of the module running. */
   stop?: () => void | Promise<void>
+  /** Starting state when nothing is persisted yet. Defaults to true; a module may say false where it cannot work (e.g. unsupported platform). */
+  defaultEnabled?: boolean
 }
 
 export type ModuleEnabledState = Record<ModuleId, boolean>
@@ -49,7 +51,6 @@ export interface ModuleHost {
 
 export function createModuleHost({ modules, store, onChange, log = console }: ModuleHostOptions): ModuleHost {
   const byId = new Map(modules.map((module) => [module.id, module]))
-  const ids = modules.map((module) => module.id)
   const started = new Set<ModuleId>()
   let state: ModuleEnabledState = loadState()
   // Serialise lifecycle work so a quick toggle back and forth cannot interleave start/stop.
@@ -62,8 +63,11 @@ export function createModuleHost({ modules, store, onChange, log = console }: Mo
     } catch (e) {
       log.warn('[Modules] Could not read the enabled-modules file; every module stays on.', e)
     }
-    // Unknown ids are dropped; anything not persisted defaults to enabled.
-    return Object.fromEntries(ids.map((id) => [id, persisted[id] !== false])) as ModuleEnabledState
+    // Unknown ids are dropped; anything not persisted takes the module's default (enabled unless it says otherwise).
+    return Object.fromEntries(modules.map((module) => {
+      const saved = persisted[module.id]
+      return [module.id, typeof saved === 'boolean' ? saved : module.defaultEnabled !== false]
+    })) as ModuleEnabledState
   }
 
   function persist(): void {

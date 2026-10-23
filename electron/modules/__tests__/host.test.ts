@@ -42,6 +42,19 @@ describe('module host', () => {
     expect(host.isEnabled('launcher')).toBe(false)
   })
 
+  it('starts a module that declares itself off by default only once the user turned it on', async () => {
+    const events: string[] = []
+    const thermal: MainModule = { ...fakeModule('thermal', events), defaultEnabled: false }
+    const host = createModuleHost({ modules: [fakeModule('chat', events), thermal], store: memoryStore(), log })
+    await host.init()
+    expect(host.getState()).toEqual({ chat: true, thermal: false })
+    expect(events).toEqual(['register:chat', 'register:thermal', 'start:chat'])
+
+    // A persisted choice wins over the default.
+    const persisted = createModuleHost({ modules: [thermal], store: memoryStore({ thermal: true }), log })
+    expect(persisted.getState()).toEqual({ thermal: true })
+  })
+
   it('stops and starts on toggle, persists the choice and notifies once per change', async () => {
     const events: string[] = []
     const store = memoryStore()

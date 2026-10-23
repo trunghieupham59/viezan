@@ -47,7 +47,7 @@ describe('CommandPalette', () => {
     act(() => useAppStore.setState({ enabledModules: { ...useAppStore.getState().enabledModules, live: false } }))
     render(<CommandPalette open onClose={vi.fn()} />)
     const dialog = screen.getByRole('dialog', { name: 'Command palette' })
-    expect(within(dialog).getAllByRole('option')).toHaveLength(4)
+    expect(within(dialog).getAllByRole('option')).toHaveLength(5)
     expect(within(dialog).queryByRole('option', { name: /Interpret/ })).not.toBeInTheDocument()
     act(() => useAppStore.setState({ enabledModules: { ...useAppStore.getState().enabledModules, live: true } }))
   })
@@ -59,8 +59,8 @@ describe('CommandPalette', () => {
     const search = within(dialog).getByRole('combobox', { name: 'Search commands, calculate, or ask AI…' })
     await waitFor(() => expect(search).toHaveFocus())
 
-    // Translate, Chat, Interpret, Dictionary and Settings: History is no longer a screen.
-    expect(within(dialog).getAllByRole('option')).toHaveLength(5)
+    // Translate, Chat, Interpret, Dictionary, Thermal and Settings: History is no longer a screen.
+    expect(within(dialog).getAllByRole('option')).toHaveLength(6)
     expect(search).toHaveAttribute('aria-activedescendant')
 
     fireEvent.change(search, { target: { value: 'dictionary' } })

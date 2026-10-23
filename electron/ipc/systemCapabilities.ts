@@ -2,6 +2,8 @@
  * The capability providers Viezan ships today. Each one wraps an existing permission
  * flow so Settings can render it with the shared notice.
  */
+
+import type { ThermalSupport } from '../../shared/thermalApi'
 import { getAccessibilityStatus, requestAccessibilityPermission, requiresAccessibilityPermission } from './accessibilityPermission'
 import type { CapabilityProvider, CapabilityStatus } from './capabilities'
 import { getLauncherSpotlightSnapshot } from './globalHotkey'
@@ -52,6 +54,24 @@ export const spotlightCapability: CapabilityProvider = {
   },
 }
 
-export function createSystemCapabilityProviders(): CapabilityProvider[] {
-  return [accessibilityCapability, spotlightCapability]
+/**
+ * `thermal.sensors`: can this machine's temperatures and fan speeds be read? No
+ * permission is involved; `detail` carries the source or the reason it cannot.
+ */
+export function createThermalCapability(getSupport: () => ThermalSupport): CapabilityProvider {
+  return {
+    id: 'thermal.sensors',
+    get: () => {
+      const support = getSupport()
+      return { id: 'thermal.sensors', supported: support.supported, permission: 'not-required', detail: { ...support } }
+    },
+  }
+}
+
+export interface SystemCapabilityDeps {
+  thermalSupport: () => ThermalSupport
+}
+
+export function createSystemCapabilityProviders(deps: SystemCapabilityDeps): CapabilityProvider[] {
+  return [accessibilityCapability, spotlightCapability, createThermalCapability(deps.thermalSupport)]
 }

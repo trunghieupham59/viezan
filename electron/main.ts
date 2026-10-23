@@ -24,6 +24,7 @@ import { createModuleHost, type ModuleHost } from './modules/host'
 import { broadcastModulesChanged, registerModuleHandlers } from './modules/ipc'
 import { isQuitRequest } from './quitRequest'
 import { resolveRuntimeProfile } from './runtimeProfile'
+import { createAppThermalService } from './thermal'
 import { createAppTray, handleMainWindowClose, supportsTrayResidency } from './trayManager'
 import { createUpdateNotification } from './updateNotification'
 import { DEFAULT_WINDOW_PALETTE, WINDOW_PALETTES } from './windowPalette'
@@ -437,6 +438,8 @@ function toggleQuickChatWindow(): void {
 // ── Floating Subtitle Window ──────────────────────────────────────────────────
 let subtitleWindow: BrowserWindow | null = null
 let moduleHost: ModuleHost | null = null
+let thermalService: ReturnType<typeof createAppThermalService> | null = null
+const thermalSupport = () => thermalService?.getSupport() ?? { supported: false, reason: 'unsupported-platform' as const }
 
 /** HC-NEW-08: px gap between subtitle window bottom edge and the screen's taskbar/dock */
 const SUBTITLE_BOTTOM_MARGIN = 40
@@ -537,10 +540,17 @@ app.whenReady().then(() => {
   initGlobalHotkey(ipcMain, () => mainWindow, toggleQuickChatWindow)
 
   // Capabilities — what this machine can do and whether the user allowed it
-  registerCapabilityHandlers(ipcMain, createCapabilityRegistry(createSystemCapabilityProviders()))
+  registerCapabilityHandlers(ipcMain, createCapabilityRegistry(createSystemCapabilityProviders({ thermalSupport: () => thermalSupport() })))
 
-  // Feature modules: chat, translate, live, dictionary, launcher, browser-bridge.
+  // Feature modules: chat, translate, live, dictionary, thermal, launcher, browser-bridge.
   // Every module registers its IPC; only enabled ones start (shortcuts, local server).
+  thermalService = createAppThermalService({
+    platform: process.platform,
+    isPackaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+    appPath: app.getAppPath(),
+    getMainWindow: () => mainWindow,
+  })
   moduleHost = createModuleHost({
     modules: createAppModules({
       ipcMain,
@@ -550,6 +560,7 @@ app.whenReady().then(() => {
       closeSubtitleWindow: () => { subtitleWindow?.close() },
       getQuickChatWindow: () => quickChatWindow,
       hideQuickChatWindow: () => { quickChatWindow?.hide() },
+      thermal: thermalService,
     }),
     store: createFileModuleStore(path.join(app.getPath('userData'), MODULES_FILE), APP_MODULE_IDS),
     onChange: (state) => broadcastModulesChanged(() => mainWindow, state),

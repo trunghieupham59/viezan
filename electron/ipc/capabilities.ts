@@ -23,7 +23,7 @@ export interface CapabilityProvider {
   request?: () => Promise<CapabilityStatus>
 }
 
-export const CAPABILITY_IDS: readonly CapabilityId[] = ['input.accessibility', 'launcher.spotlight']
+export const CAPABILITY_IDS: readonly CapabilityId[] = ['input.accessibility', 'launcher.spotlight', 'thermal.sensors']
 
 export function isCapabilityId(value: unknown): value is CapabilityId {
   return typeof value === 'string' && (CAPABILITY_IDS as readonly string[]).includes(value)

@@ -12,6 +12,7 @@ export interface Translations {
   nav_new_chat: string
   nav_chat: string
   nav_dictionary: string
+  nav_thermal: string
   nav_command_palette: string
   nav_primary_sidebar: string
   route_loading: (feature: string) => string
@@ -24,6 +25,7 @@ export interface Translations {
   command_palette_translate_description: string
   command_palette_live_description: string
   command_palette_dictionary_description: string
+  command_palette_thermal_description: string
   command_palette_settings_description: string
   /** `{expression}` is what the user typed, e.g. "25 + 25". */
   command_palette_calc_description: string
@@ -897,6 +899,56 @@ export interface Translations {
   settings_modules_off_title: string
   settings_modules_off_desc: string
   settings_modules_turn_on: string
+
+  // Thermal — temperatures, fans and CPU load
+  thermal_title: string
+  thermal_subtitle: string
+  thermal_group_cpu: string
+  thermal_group_gpu: string
+  thermal_group_other: string
+  thermal_fans_title: string
+  /** `{n}` is the one-based fan number. */
+  thermal_fan_name: string
+  /** `{min}` and `{max}` are RPM values. */
+  thermal_fan_range: string
+  /** `{rpm}` is the target speed. */
+  thermal_fan_target: string
+  thermal_cpu_load: string
+  thermal_hottest: string
+  /** `{count}` is the number of temperature sensors. */
+  thermal_sensor_count: string
+  /** `{minutes}` is the length of the kept history. */
+  thermal_history_hint: string
+  thermal_no_fans: string
+  thermal_no_sensors: string
+  thermal_waiting: string
+  thermal_unsupported_title: string
+  thermal_unsupported_desc: string
+  thermal_reader_missing_title: string
+  thermal_reader_missing_desc: string
+  thermal_error_title: string
+  thermal_retry: string
+  thermal_label_cpu_core: string
+  thermal_label_cpu_performance_core: string
+  thermal_label_cpu_efficiency_core: string
+  thermal_label_cpu_die: string
+  thermal_label_cpu_proximity: string
+  thermal_label_cpu_package: string
+  thermal_label_gpu: string
+  thermal_label_gpu_die: string
+  thermal_label_gpu_proximity: string
+  thermal_label_memory: string
+  thermal_label_battery: string
+  thermal_label_wifi: string
+  thermal_label_airflow_left: string
+  thermal_label_airflow_right: string
+  thermal_label_palm_rest: string
+  thermal_label_storage: string
+  thermal_label_ambient: string
+  thermal_label_display: string
+  thermal_label_power: string
+  thermal_label_thunderbolt: string
+  thermal_label_skin: string
   // Settings — Global Hotkey
   settings_hotkey_section: string
   settings_hotkey_section_desc: string
