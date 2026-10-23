@@ -1,12 +1,15 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NotificationViewport } from '../../../components/organisms/NotificationViewport'
+import { TRANSLATIONS } from '../../../i18n'
+import { ALL_MODULES_ENABLED } from '../../../store/slices/modulesSlice'
 import { useAppStore } from '../../../store/useAppStore'
+import { tpl } from '../../../utils/tpl'
 import { HotkeySection } from '../HotkeySection'
 
 beforeEach(() => {
   vi.clearAllMocks()
-  useAppStore.setState({ locale: 'en', targetLang: 'vi' })
+  useAppStore.setState({ locale: 'en', targetLang: 'vi', enabledModules: ALL_MODULES_ENABLED })
   vi.mocked(window.api.hotkey.get).mockResolvedValue({ success: true, settings: {} })
   vi.mocked(window.api.hotkey.update).mockResolvedValue({ success: true })
   vi.mocked(window.api.capabilities.get).mockResolvedValue({ success: true, statuses: [
@@ -246,5 +249,25 @@ describe('launcher shortcut settings', () => {
     expect(screen.queryByText('raw backend error')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Option+Shift+C' })).toBeInTheDocument()
     expect(screen.getAllByRole('switch')[1]).toHaveAttribute('aria-checked', 'true')
+  })
+})
+
+describe('module state notices', () => {
+  it('says the Translate module is off and turns it back on from the notice', async () => {
+    useAppStore.setState({ enabledModules: { ...ALL_MODULES_ENABLED, translate: false } })
+    vi.mocked(window.api.modules.setEnabled).mockResolvedValue({ success: true, enabled: ALL_MODULES_ENABLED })
+    render(<><HotkeySection /><NotificationViewport /></>)
+
+    const title = tpl(TRANSLATIONS.en.settings_modules_off_title, { module: TRANSLATIONS.en.nav_translate })
+    expect(await screen.findByText(title)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: TRANSLATIONS.en.settings_modules_turn_on }))
+    await waitFor(() => expect(window.api.modules.setEnabled).toHaveBeenCalledWith('translate', true))
+    await waitFor(() => expect(screen.queryByText(title)).not.toBeInTheDocument())
+  })
+
+  it('shows nothing about modules while everything is on', async () => {
+    render(<><HotkeySection /><NotificationViewport /></>)
+    await screen.findByRole('button', { name: /Primary language/ })
+    expect(screen.queryByText(/module is off/)).not.toBeInTheDocument()
   })
 })

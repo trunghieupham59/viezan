@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { APP_MODULES, type CatalogModule } from '../../modules/catalog'
+import type { CatalogModule } from '../../modules/catalog'
+import { enabledPageModules } from '../../modules/enabled'
 import { useAppStore, useT } from '../../store/useAppStore'
 import type { AppPage } from '../../types'
 import { AppLogoIcon } from '../AppLogo'
@@ -63,6 +64,7 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
     openSettings,
     sidebarCollapsed,
     toggleSidebar,
+    enabledModules,
   } = useAppStore()
   const t = useT()
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
@@ -209,7 +211,7 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
       <div className="app-sidebar-divider" />
 
       <div className="sidebar-nav-group">
-        {APP_MODULES.map((module) => {
+        {enabledPageModules(enabledModules).map((module) => {
           const Icon = module.icon
           return (
             <PrimaryNavItem

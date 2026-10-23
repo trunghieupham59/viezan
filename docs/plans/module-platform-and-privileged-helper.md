@@ -127,7 +127,11 @@ dictionary, launcher, browser-bridge) với `registerHandlers` và `start`/`stop
 Phím tắt Dịch nhanh và Launcher được module tắt/bật qua
 `setHotkeyModuleActive` trong `globalHotkey.ts`; máy chủ cục bộ tách
 `registerLocalServerHandlers` khỏi `startLocalServer` để dừng/chạy theo module.
-Chưa có UI bật tắt; renderer mới có `window.api.modules`.
+Renderer giữ bản sao trạng thái trong `modulesSlice` (không persist; `useModulesSync`
+nạp qua `modules:get` và theo `modules:changed`); mục Cài đặt › Module có công tắc
+cho sáu module, khóa module trang cuối cùng; sidebar và Command Palette chỉ liệt kê
+module trang đang bật, trang đang mở thuộc module vừa tắt tự chuyển sang module bật
+đầu tiên (`resolveActivePage`); mục Phím tắt báo khi module Dịch hoặc Launcher tắt.
 
 ### 3.4 Capability và permission
 
@@ -292,7 +296,7 @@ Mỗi giai đoạn là một hoặc vài PR riêng, có thể merge độc lập
 
 - Thêm registry module; chuyển bốn trang hiện có và Launcher thành module.
 - `AppPage` dẫn xuất từ registry; sidebar, App, Settings, Command Palette đọc
-  registry. Chưa có UI bật tắt module (tất cả bật).
+  registry. UI bật tắt module nằm ở Cài đặt › Module (đã làm).
 - Hợp đồng preload một nguồn cho một module mẫu (hotkey) để chứng minh cách
   sinh kiểu và mock; các module khác chuyển dần.
 - API `capabilities` ở main và preload; chuyển luồng Trợ năng và Spotlight sang

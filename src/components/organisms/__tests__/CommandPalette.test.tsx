@@ -43,6 +43,15 @@ describe('CommandPalette', () => {
     })
   })
 
+  it('leaves out the page of a module that is off', () => {
+    act(() => useAppStore.setState({ enabledModules: { ...useAppStore.getState().enabledModules, live: false } }))
+    render(<CommandPalette open onClose={vi.fn()} />)
+    const dialog = screen.getByRole('dialog', { name: 'Command palette' })
+    expect(within(dialog).getAllByRole('option')).toHaveLength(4)
+    expect(within(dialog).queryByRole('option', { name: /Interpret/ })).not.toBeInTheDocument()
+    act(() => useAppStore.setState({ enabledModules: { ...useAppStore.getState().enabledModules, live: true } }))
+  })
+
   it('renders as an accessible modal, filters commands, and shows an empty state', async () => {
     render(<CommandPalette open onClose={vi.fn()} />)
 

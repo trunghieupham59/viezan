@@ -882,6 +882,21 @@ export interface Translations {
   // Settings — Shortcuts (navigation entry covering every hotkey group)
   settings_hotkeys_nav: string
   settings_hotkeys_nav_desc: string
+  // Settings — Modules (turn feature modules on or off)
+  settings_modules_section: string
+  settings_modules_section_desc: string
+  settings_modules_pages_group: string
+  settings_modules_system_group: string
+  settings_modules_launcher_label: string
+  settings_modules_launcher_desc: string
+  settings_modules_browser_bridge_label: string
+  settings_modules_browser_bridge_desc: string
+  settings_modules_last_page_hint: string
+  settings_modules_error: string
+  /** `{module}` is the module's navigation label. */
+  settings_modules_off_title: string
+  settings_modules_off_desc: string
+  settings_modules_turn_on: string
   // Settings — Global Hotkey
   settings_hotkey_section: string
   settings_hotkey_section_desc: string

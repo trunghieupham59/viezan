@@ -194,6 +194,17 @@ describe('GPU-aware recommendation', () => {
 
 describe('runtime benchmark', () => {
   const MODELS = { data: [{ id: 'gemma3:12b' }] }
+  const originalArch = process.arch
+
+  // Apple Silicon reports unified GPU memory from RAM, which would make the "no GPU
+  // detected" cases below depend on the host; pin a CPU-only architecture instead.
+  beforeEach(() => {
+    Object.defineProperty(process, 'arch', { value: 'x64', configurable: true })
+  })
+
+  afterEach(() => {
+    Object.defineProperty(process, 'arch', { value: originalArch, configurable: true })
+  })
 
   it('measures real generation speed and GPU residency from Ollama, excluding model load', async () => {
     stubFetch({

@@ -19,7 +19,7 @@ export type ModuleId = PageModuleId | 'launcher' | 'browser-bridge'
 /** Which modules are enabled. Missing entries mean enabled. */
 export type ModuleEnabledState = Record<ModuleId, boolean>
 
-/** `window.api.modules`: read and change which modules are on. No UI yet; see the plan. */
+/** `window.api.modules`: read and change which modules are on (Settings › Modules). */
 export interface ModulesApi {
   get: () => Promise<{ success: boolean; enabled?: ModuleEnabledState; error?: string }>
   setEnabled: (id: ModuleId, enabled: boolean) => Promise<{ success: boolean; enabled?: ModuleEnabledState; error?: string }>

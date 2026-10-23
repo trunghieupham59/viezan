@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { MAX_CHAT_INPUT_CHARS } from '../../constants/providers'
 import { type PaletteAnswerMode, usePaletteAiAnswer } from '../../hooks/usePaletteAiAnswer'
-import { APP_MODULES } from '../../modules/catalog'
+import { enabledPageModules } from '../../modules/enabled'
 import { hasWebSearchApi } from '../../services/searchResultFormatting'
 import { useAppStore, useT } from '../../store/useAppStore'
 import type { AppPage } from '../../types'
@@ -81,6 +81,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     createChatSession,
     setActiveChatSession,
     addChatMessage,
+    enabledModules,
   } = useAppStore()
   const t = useT()
   const ai = usePaletteAiAnswer()
@@ -110,7 +111,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   }, [onClose, setActivePage])
 
   const commands = useMemo<PaletteItem[]>(() => [
-    ...APP_MODULES.map((module): PaletteItem => {
+    ...enabledPageModules(enabledModules).map((module): PaletteItem => {
       const Icon = module.icon
       return {
         id: module.id,
@@ -134,7 +135,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       },
       keywords: ['settings', 'preferences', 'api', 'key', 'config', 'hotkey', 'shortcut'],
     },
-  ], [clearTranslation, navigate, onClose, openSettings, t])
+  ], [clearTranslation, enabledModules, navigate, onClose, openSettings, t])
 
   const parsed = useMemo(() => parsePaletteQuery(query), [query])
   const isDefaultMode = parsed.mode === 'default'
