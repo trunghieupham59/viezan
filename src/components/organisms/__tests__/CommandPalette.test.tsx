@@ -21,14 +21,12 @@ describe('CommandPalette', () => {
   // top-level cases remove it and the "prefixes and web verification" block adds it back.
   const baseWin = window as unknown as { api: Record<string, unknown> }
   const baselineWebSearch = baseWin.api.webSearch
-  beforeEach(() => {
-    baseWin.api.webSearch = undefined
-  })
   afterEach(() => {
     baseWin.api.webSearch = baselineWebSearch
   })
 
   beforeEach(() => {
+    baseWin.api.webSearch = undefined
     act(() => {
       useAppStore.setState({
         activePage: 'dictionary',
