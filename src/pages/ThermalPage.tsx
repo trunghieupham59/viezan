@@ -13,6 +13,7 @@ import { useAppStore, useT } from '../store/useAppStore'
 import { useNotificationStore } from '../store/useNotificationStore'
 import { buildSensorRows, hottestSensor, THERMAL_GROUPS, type ThermalSensorRow } from '../utils/thermalSensorRows'
 import { tpl } from '../utils/tpl'
+import { buildTrayPreview } from '../utils/trayPreview'
 import '../styles/thermal.css'
 
 /** Toast owner keys so repeated failures replace each other. */
@@ -274,6 +275,7 @@ export function ThermalPage() {
                   <ThermalTrayOptions
                     placement={trayPlacement}
                     settings={settings.tray}
+                    preview={snapshot ? buildTrayPreview(snapshot, settings.tray, trayPlacement) : null}
                     busy={settingsBusy}
                     onChange={(patch) => void onTrayChange(patch)}
                     labels={{
@@ -283,6 +285,12 @@ export function ThermalPage() {
                       metric: t.thermal_tray_metric,
                       metricOptions: { hottest: t.thermal_hottest, cpu: t.thermal_group_cpu, gpu: t.thermal_group_gpu },
                       showFan: t.thermal_tray_show_fan,
+                      layout: t.thermal_tray_layout,
+                      layoutOptions: { inline: t.thermal_tray_layout_inline, stacked: t.thermal_tray_layout_stacked },
+                      fanFormat: t.thermal_tray_fan_format,
+                      fanFormatOptions: { rpm: t.thermal_tray_fan_format_rpm, short: t.thermal_tray_fan_format_short },
+                      showUnit: t.thermal_tray_show_unit,
+                      preview: t.thermal_tray_preview,
                     }}
                   />
                 </ThermalOptionsConfiguration>

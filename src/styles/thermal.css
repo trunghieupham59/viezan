@@ -731,6 +731,54 @@
   gap: var(--vzn-space-3);
 }
 
+/* Layout pills, labelled by their legend like the fan mode switch. */
+.thermal-options__layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.thermal-options__layout > legend {
+  float: inline-start;
+  margin-inline-end: var(--vzn-space-2);
+}
+
+.thermal-options__row--preview {
+  justify-content: flex-start;
+  gap: var(--vzn-space-3);
+}
+
+/* A menu-bar-shaped chip: the status item's own height, the reading in a system-like small type. */
+.thermal-tray-preview {
+  display: inline-flex;
+  min-inline-size: var(--vzn-control-height-sm);
+  block-size: var(--vzn-control-height-xs);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--vzn-space-2);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-sm);
+  background: var(--vzn-surface-muted);
+  color: var(--vzn-text-strong);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--vzn-line-tight);
+}
+
+.thermal-tray-preview__text {
+  font-size: var(--vzn-font-size-sm);
+}
+
+.thermal-tray-preview__line {
+  font-size: var(--vzn-font-size-micro);
+  font-weight: var(--vzn-weight-semibold);
+}
+
 /* First-run disclaimer ---------------------------------------------------------- */
 
 .thermal-fan-disclaimer__body {

@@ -244,8 +244,8 @@ if (typeof window !== 'undefined') {
     setMonitoring: vi.fn().mockResolvedValue({ success: true }),
     onSnapshot: vi.fn().mockReturnValue(() => {}),
     onError: vi.fn().mockReturnValue(() => {}),
-    getSettings: vi.fn().mockResolvedValue({ success: true, settings: { tray: { enabled: false, metric: 'hottest', showFan: false }, fanControl: { acknowledged: false } } }),
-    updateSettings: vi.fn().mockResolvedValue({ success: true, settings: { tray: { enabled: false, metric: 'hottest', showFan: false }, fanControl: { acknowledged: false } } }),
+    getSettings: vi.fn().mockResolvedValue({ success: true, settings: { tray: { enabled: false, metric: 'hottest', showFan: false, layout: 'inline', showUnit: true, fanFormat: 'rpm' }, fanControl: { acknowledged: false } } }),
+    updateSettings: vi.fn().mockResolvedValue({ success: true, settings: { tray: { enabled: false, metric: 'hottest', showFan: false, layout: 'inline', showUnit: true, fanFormat: 'rpm' }, fanControl: { acknowledged: false } } }),
     onSettingsChanged: vi.fn().mockReturnValue(() => {}),
     fanControl: {
       getState: vi.fn().mockResolvedValue({ success: true, state: { helper: 'unsupported', fans: [] } }),

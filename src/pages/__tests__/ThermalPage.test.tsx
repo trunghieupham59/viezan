@@ -96,7 +96,7 @@ describe('ThermalPage', () => {
 
   it('offers the menu bar reading where main reports a placement and round-trips changes through main', async () => {
     vi.mocked(window.api.thermal.getSupport).mockResolvedValue({ success: true, support: { supported: true, source: 'smc', trayPlacement: 'menu-bar' } })
-    vi.mocked(window.api.thermal.updateSettings).mockResolvedValue({ success: true, settings: { tray: { enabled: true, metric: 'hottest', showFan: false }, fanControl: { acknowledged: false }, fanProfiles: { activeId: null, user: [] }, fanAffinity: null } })
+    vi.mocked(window.api.thermal.updateSettings).mockResolvedValue({ success: true, settings: { tray: { enabled: true, metric: 'hottest', showFan: false, layout: 'inline', showUnit: true, fanFormat: 'rpm' }, fanControl: { acknowledged: false }, fanProfiles: { activeId: null, user: [] }, fanAffinity: null } })
     render(<ThermalPage />)
     await waitFor(() => expect(pushSnapshot).not.toBeNull())
     act(() => { pushSnapshot?.(snapshot) })

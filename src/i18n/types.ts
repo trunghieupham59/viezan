@@ -936,6 +936,16 @@ export interface Translations {
   thermal_tray_enable_desc_tray: string
   thermal_tray_metric: string
   thermal_tray_show_fan: string
+  /** Layout of the menu bar item: one line of text, or the temperature stacked over the fan speed. */
+  thermal_tray_layout: string
+  thermal_tray_layout_inline: string
+  thermal_tray_layout_stacked: string
+  /** Fan speed as the raw RPM or shortened; the options carry an example. */
+  thermal_tray_fan_format: string
+  thermal_tray_fan_format_rpm: string
+  thermal_tray_fan_format_short: string
+  thermal_tray_show_unit: string
+  thermal_tray_preview: string
   thermal_tray_error: string
   // Thermal — fan control (privileged helper, macOS)
   thermal_fan_control_title: string
