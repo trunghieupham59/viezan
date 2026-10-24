@@ -3,15 +3,10 @@
   flex: 0 0 auto;
 }
 
-.ai-configuration-anchor > .ui-button {
-  anchor-name: --vzn-ai-configuration-trigger;
-}
-
 .ai-configuration-popover {
+  /* The panel sets `position-anchor` to its own trigger (see AIConfigurationPopover). */
   position: fixed;
-  position-anchor: --vzn-ai-configuration-trigger;
   top: anchor(bottom);
-  left: anchor(right);
   z-index: var(--vzn-layer-context-overlay);
   display: flex;
   width: min(var(--vzn-ai-configuration-inline), calc(100vw - var(--vzn-space-8)));
@@ -24,12 +19,14 @@
   background: var(--vzn-surface-raised);
   box-shadow: var(--vzn-shadow-md);
   margin-top: var(--vzn-space-2);
-  transform: translateX(-100%);
+  /* No transform: a transformed panel would trap its fixed select menus. */
+  right: anchor(right);
+  left: auto;
 }
 
 .ai-configuration-popover--start {
+  right: auto;
   left: anchor(left);
-  transform: none;
 }
 
 .ai-configuration-popover--above {
@@ -44,11 +41,11 @@
 @media (max-width: 720px), (max-height: 600px) {
   .ai-configuration-popover {
     top: calc(var(--vzn-titlebar-height) + var(--vzn-space-3));
+    right: 0;
     bottom: auto;
-    left: 50%;
+    left: 0;
     max-height: calc(100dvh - var(--vzn-titlebar-height) - var(--vzn-space-6));
-    margin: 0;
-    transform: translateX(-50%);
+    margin: 0 auto;
   }
 }
 
@@ -430,9 +427,10 @@
 }
 
 .ai-select-field__menu {
-  position: absolute;
-  right: 0;
-  left: 0;
+  /* Anchored to its own trigger (SelectField sets the names). */
+  position: fixed;
+  left: anchor(left);
+  width: anchor-size(width);
   z-index: var(--vzn-layer-context-overlay);
   display: flex;
   max-height: var(--vzn-select-menu-max-block);
@@ -447,11 +445,11 @@
 }
 
 .ai-select-field__menu--below {
-  top: calc(100% + var(--vzn-space-1));
+  top: calc(anchor(bottom) + var(--vzn-space-1));
 }
 
 .ai-select-field__menu--above {
-  bottom: calc(100% + var(--vzn-space-1));
+  bottom: calc(anchor(top) + var(--vzn-space-1));
 }
 
 .ai-select-field__option.ui-button {

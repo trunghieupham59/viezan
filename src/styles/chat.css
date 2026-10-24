@@ -87,10 +87,8 @@ html:not(.dark) .chat-composer {
 }
 
 .chat-send-button {
-  width: 34px;
-  height: 34px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--vzn-radius-control);
   background: var(--vzn-send-bg);
   color: var(--vzn-send-fg);
   box-shadow: none;
@@ -344,7 +342,7 @@ html:not(.dark) .chat-research-final {
   width: min(100%, var(--vzn-chat-local-composer-max));
   margin-top: 0;
   padding-top: 0;
-  background: var(--vzn-bg);
+  background: transparent;
 }
 
 .chat-page-composer {
@@ -1189,8 +1187,10 @@ html.dark .chat-suggest-chip:hover {
 /* Task popover: one row per task, then its option and the instruction preview. */
 .chat-task-list {
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
   gap: var(--vzn-space-0-5);
+  padding: var(--vzn-space-2);
 }
 .chat-task-row.ui-button {
   inline-size: 100%;
@@ -1205,8 +1205,11 @@ html.dark .chat-suggest-chip:hover {
   inline-size: var(--vzn-icon-sm);
   block-size: var(--vzn-icon-sm);
 }
+/* The task's option (e.g. target language) sits under the list, inset like the sections. */
 .chat-task-option {
-  margin-block-start: var(--vzn-space-2);
+  flex: 0 0 auto;
+  padding: var(--vzn-space-3);
+  border-top: var(--vzn-border-width) solid var(--vzn-divider);
 }
 .chat-task-instruction {
   margin: 0;
@@ -1301,4 +1304,9 @@ html.dark .chat-suggest-chip:hover {
 .chat-research-recovery__actions {
   display: flex;
   gap: var(--vzn-space-2);
+}
+
+.chat-task-option + .ai-config-section,
+.chat-task-list + .ai-config-section {
+  border-top: var(--vzn-border-width) solid var(--vzn-divider);
 }

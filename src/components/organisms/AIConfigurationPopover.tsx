@@ -36,6 +36,18 @@ export function AIConfigurationPopover({
   const titleId = useId()
   const scopeId = useId()
   const panelRef = useRef<HTMLElement>(null)
+  // Each popover anchors to its own trigger. A shared anchor name would make every
+  // popover follow whichever trigger comes last in the document.
+  const anchorName = `--vzn-ai-configuration-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
+
+  useLayoutEffect(() => {
+    const trigger = triggerRef.current
+    if (!open || !trigger) return
+    trigger.style.setProperty('anchor-name', anchorName)
+    return () => {
+      trigger.style.removeProperty('anchor-name')
+    }
+  }, [anchorName, open, triggerRef])
 
   const closeAndRestoreFocus = useCallback(() => {
     onClose()
@@ -90,7 +102,10 @@ export function AIConfigurationPopover({
   if (!open) return null
 
   const side = placement === 'auto' ? measured?.side ?? 'below' : placement
-  const roomStyle = placement === 'auto' && measured ? ({ '--ai-configuration-room': `${Math.max(0, measured.room)}px` } as CSSProperties) : undefined
+  const panelStyle = {
+    positionAnchor: anchorName,
+    ...(placement === 'auto' && measured ? { '--ai-configuration-room': `${Math.max(0, measured.room)}px` } : {}),
+  } as CSSProperties
 
   return createPortal(
     <section
@@ -100,7 +115,7 @@ export function AIConfigurationPopover({
       aria-labelledby={titleId}
       aria-describedby={scopeId}
       className={`ai-configuration-popover ai-configuration-popover--${side}${align === 'start' ? ' ai-configuration-popover--start' : ''}`}
-      style={roomStyle}
+      style={panelStyle}
     >
       <header className="ai-configuration-popover__header">
         <div className="ai-configuration-popover__heading">

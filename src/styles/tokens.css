@@ -177,21 +177,6 @@
 }
 
 :root {
-  --vzn-success: var(--vzn-green-600);
-  --vzn-success-soft: var(--vzn-green-50);
-  --vzn-success-border: color-mix(in srgb, var(--vzn-green-500) 42%, transparent);
-  --vzn-warning: var(--vzn-amber-600);
-  --vzn-warning-soft: var(--vzn-amber-50);
-  --vzn-warning-border: color-mix(in srgb, var(--vzn-amber-500) 45%, transparent);
-  --vzn-danger: var(--vzn-red-600);
-  --vzn-danger-hover: var(--vzn-red-700);
-  --vzn-danger-soft: var(--vzn-red-50);
-  --vzn-danger-soft-hover: #fee2e2;
-  --vzn-danger-border: var(--vzn-red-200);
-
-  --vzn-disabled-bg: var(--vzn-neutral-100);
-  --vzn-disabled-border: var(--vzn-neutral-200);
-  --vzn-disabled-fg: var(--vzn-neutral-400);
   --vzn-opacity-disabled: 0.48;
 
   /* Typography ---------------------------------------------------------- */
@@ -255,7 +240,6 @@
   /* Elevation and motion ------------------------------------------------ */
   /* Scrims and media surfaces: modal dim layer, full-screen media viewer
    * backdrop, the matte behind transparent images, and text on filled danger. */
-  --vzn-scrim: rgba(20, 19, 17, 0.42);
   --vzn-scrim-media: rgba(12, 12, 11, 0.84);
   --vzn-media-matte: #ffffff;
   --vzn-danger-fg: var(--vzn-action-fg);
@@ -380,6 +364,30 @@
   --vzn-accent-active: var(--vzn-action-active);
   --vzn-accent-soft: var(--vzn-action-soft);
   --vzn-accent-border: var(--vzn-action-border);
+}
+
+/* Status, disabled and overlay values (light). The dark set is declared under
+ * `html.dark, [data-mode="dark"]`; `[data-mode="light"]` pins an element (the
+ * Settings preview, spec boards) to light inside a dark window. */
+:root,
+[data-mode="light"] {
+  --vzn-success: var(--vzn-green-600);
+  --vzn-success-soft: var(--vzn-green-50);
+  --vzn-success-border: color-mix(in srgb, var(--vzn-green-500) 42%, transparent);
+  --vzn-warning: var(--vzn-amber-600);
+  --vzn-warning-soft: var(--vzn-amber-50);
+  --vzn-warning-border: color-mix(in srgb, var(--vzn-amber-500) 45%, transparent);
+  --vzn-danger: var(--vzn-red-600);
+  --vzn-danger-hover: var(--vzn-red-700);
+  --vzn-danger-soft: var(--vzn-red-50);
+  --vzn-danger-soft-hover: #fee2e2;
+  --vzn-danger-border: var(--vzn-red-200);
+
+  --vzn-disabled-bg: var(--vzn-neutral-100);
+  --vzn-disabled-border: var(--vzn-neutral-200);
+  --vzn-disabled-fg: var(--vzn-neutral-400);
+
+  --vzn-scrim: rgba(20, 19, 17, 0.42);
   --vzn-skeleton: color-mix(in srgb, var(--vzn-neutral-900) 6%, transparent);
 }
 
@@ -494,7 +502,11 @@ html.dark[data-theme="graphite"],
   --vzn-app-backdrop: none;
 }
 
-html.dark {
+/* Status, disabled and overlay values follow the mode. `[data-mode]` lets an
+ * element pin its own mode (the Settings preview, spec boards) regardless of
+ * `html.dark`, so both selectors carry the same set. */
+html.dark,
+[data-mode="dark"] {
   --vzn-success: #4ade80;
   --vzn-success-soft: rgba(74, 222, 128, 0.1);
   --vzn-success-border: rgba(74, 222, 128, 0.28);
