@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Viezan — Từ điển: đặc tả chi tiết</title>
+  <!-- Real design values first, then the board layout. Never add literal colours here. -->
+  <link rel="stylesheet" href="../../../src/styles/tokens.css">
+  <link rel="stylesheet" href="board.css">
+  <style>
+    /* Dictionary-only mock pieces. Every value is a var(--vzn-*) token. */
+    .m-header { flex-wrap: wrap; row-gap: var(--vzn-space-2); padding-block: var(--vzn-space-2); }
+    .m-header > * { flex-shrink: 0; }
+    .m-header h3, .m-tag { white-space: nowrap; }
+    .s-actions { display: flex; align-items: center; gap: var(--vzn-space-2); margin-inline-start: auto; }
+    .s-pair { display: inline-flex; align-items: center; gap: var(--vzn-space-1); }
+    .s-work { display: grid; min-block-size: 0; flex: 1 1 auto; grid-template-columns: var(--vzn-dictionary-lookup-width) minmax(0, 1fr); gap: var(--vzn-space-4); padding: var(--vzn-space-4); overflow: hidden; }
+    .s-work[data-stack] { grid-template-columns: minmax(0, 1fr); align-content: start; }
+    .s-card { display: flex; min-block-size: 0; flex-direction: column; overflow: hidden; border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-md); background: var(--vzn-surface); }
+    .s-lookup { gap: var(--vzn-space-3); padding: var(--vzn-space-3); }
+    .s-field { display: flex; flex-direction: column; gap: var(--vzn-space-1); }
+    .s-label { color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); font-weight: var(--vzn-weight-medium); }
+    .s-optional { color: var(--vzn-text-soft); font-weight: var(--vzn-weight-regular); }
+    .s-count { color: var(--vzn-text-soft); font-size: var(--vzn-font-size-micro); font-variant-numeric: tabular-nums; }
+    .s-count[data-invalid] { color: var(--vzn-danger); }
+    .s-end { align-self: flex-end; }
+    .s-textarea { display: block; min-block-size: calc(var(--vzn-control-height-md) * 2); padding: var(--vzn-space-2) var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-border-strong); border-radius: var(--vzn-radius-control); background: var(--vzn-surface); color: var(--vzn-text-soft); }
+    .s-textarea[data-filled] { color: var(--vzn-text); }
+    .s-full { inline-size: 100%; box-sizing: border-box; }
+    .s-filled { color: var(--vzn-text); }
+    .s-grow { flex: 1 1 auto; }
+    .s-history { display: flex; min-block-size: 0; flex: 1 1 auto; flex-direction: column; border-top: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-tabs { display: flex; gap: var(--vzn-space-1); padding-block: var(--vzn-space-3) var(--vzn-space-2); }
+    .s-tab { display: inline-flex; flex: 1 1 0; block-size: var(--vzn-control-height-sm); align-items: center; justify-content: center; gap: var(--vzn-space-1-5); border-radius: var(--vzn-radius-sm); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-md); }
+    .s-tab[aria-selected="true"] { background: var(--vzn-surface-selected); color: var(--vzn-text-strong); font-weight: var(--vzn-weight-semibold); }
+    .s-list { display: flex; min-block-size: 0; flex: 1 1 auto; flex-direction: column; overflow: hidden; }
+    .s-hrow { position: relative; display: flex; align-items: flex-start; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-hrow[data-selected] { background: var(--vzn-surface-selected); }
+    .s-hrow[data-selected]::before { position: absolute; inset-block: var(--vzn-space-2); inset-inline-start: 0; inline-size: var(--vzn-space-0-5); border-radius: var(--vzn-radius-2xs); background: var(--vzn-action); content: ""; }
+    .s-hcopy { display: flex; min-inline-size: 0; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-1); }
+    .s-hline { display: flex; align-items: baseline; gap: var(--vzn-space-2); }
+    .s-hword { color: var(--vzn-text-strong); font-size: var(--vzn-font-size-lg); font-weight: var(--vzn-weight-semibold); }
+    .s-hpron { color: var(--vzn-text-soft); font-family: var(--vzn-font-mono); font-size: var(--vzn-font-size-caption); }
+    .s-htime { margin-inline-start: auto; color: var(--vzn-text-soft); font-size: var(--vzn-font-size-micro); }
+    .s-hmeaning { color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); line-height: var(--vzn-line-relaxed); }
+    .s-cost { align-self: flex-start; }
+    .s-panel-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); border-top: var(--vzn-border-width) solid var(--vzn-divider); background: var(--vzn-surface-muted); }
+    .s-pill { border-radius: var(--vzn-radius-pill); }
+    .s-empty { display: flex; flex: 1 1 auto; flex-direction: column; align-items: center; justify-content: center; gap: var(--vzn-space-3); padding: var(--vzn-space-6); color: var(--vzn-text-muted); text-align: center; }
+    .s-empty-icon { display: inline-flex; inline-size: var(--vzn-control-height-lg); block-size: var(--vzn-control-height-lg); align-items: center; justify-content: center; border-radius: var(--vzn-radius-md); background: var(--vzn-surface-muted); color: var(--vzn-text-soft); }
+    .s-empty-title { color: var(--vzn-text-strong); font-size: var(--vzn-font-size-title); font-weight: var(--vzn-weight-semibold); }
+    .s-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--vzn-space-1-5); }
+    .s-chips[data-start] { justify-content: flex-start; }
+    .s-mono { font-family: var(--vzn-font-mono); }
+    .s-result-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--vzn-space-3); padding: var(--vzn-space-4) var(--vzn-space-5) var(--vzn-space-3); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-headline { display: flex; min-inline-size: 0; flex-wrap: wrap; align-items: baseline; gap: var(--vzn-space-1) var(--vzn-space-3); }
+    .s-headword { color: var(--vzn-text-strong); font-family: var(--vzn-font-display); font-size: var(--vzn-dictionary-headword-size); font-weight: var(--vzn-weight-semibold); line-height: var(--vzn-line-tight); }
+    .s-pron { color: var(--vzn-text-muted); font-family: var(--vzn-font-mono); font-size: var(--vzn-font-size-lg); }
+    .s-pos { padding: var(--vzn-space-0-5) var(--vzn-space-1-5); border-radius: var(--vzn-radius-2xs); background: var(--vzn-surface-muted); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-micro); font-weight: var(--vzn-weight-bold); letter-spacing: var(--vzn-tracking-caps); text-transform: uppercase; }
+    .s-dots { color: var(--vzn-text-soft); letter-spacing: var(--vzn-tracking-caps); }
+    .s-tools { display: flex; gap: var(--vzn-space-1); }
+    .s-result-body { display: flex; max-inline-size: var(--vzn-dictionary-reading-max); min-block-size: 0; flex-direction: column; gap: var(--vzn-space-5); overflow: hidden; padding: var(--vzn-space-4) var(--vzn-space-5); }
+    .s-sec { display: flex; flex-direction: column; gap: var(--vzn-space-2); }
+    .s-sec-label { margin: 0; color: var(--vzn-text-soft); font-size: var(--vzn-font-size-caption); font-weight: var(--vzn-weight-semibold); letter-spacing: var(--vzn-tracking-caps); text-transform: uppercase; }
+    .s-quote { padding-inline-start: var(--vzn-space-3); border-inline-start: var(--vzn-space-0-5) solid var(--vzn-border-strong); color: var(--vzn-text); font-family: var(--vzn-font-reading); font-size: var(--vzn-font-size-lg); line-height: var(--vzn-line-reading); }
+    .s-para { color: var(--vzn-text); font-family: var(--vzn-font-reading); line-height: var(--vzn-line-reading); }
+    .s-li { display: flex; gap: var(--vzn-space-2); }
+    .s-idx { color: var(--vzn-text-soft); font-variant-numeric: tabular-nums; }
+    .s-ex { display: flex; flex-direction: column; gap: var(--vzn-space-0-5); }
+    .s-ex-tx { color: var(--vzn-text-muted); }
+    .s-chip-pron { color: var(--vzn-text-soft); font-family: var(--vzn-font-mono); font-size: var(--vzn-font-size-caption); }
+    .s-sk { display: block; block-size: var(--vzn-space-3); border-radius: var(--vzn-radius-xs); background: var(--vzn-skeleton); }
+    .s-sk[data-w="label"] { inline-size: var(--vzn-space-12); }
+    .s-sk[data-w="chip"] { inline-size: calc(var(--vzn-space-12) * 2); block-size: var(--vzn-control-height-sm); border-radius: var(--vzn-radius-pill); }
+    .s-at { position: absolute; inset-block-start: var(--y, 0); inset-inline-start: var(--x, 0); }
+    .s-pop { inline-size: var(--vzn-popover-wide); }
+    .s-pop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--vzn-space-3); padding: var(--vzn-space-3); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-pop-title { color: var(--vzn-text-strong); font-size: var(--vzn-font-size-lg); font-weight: var(--vzn-weight-semibold); }
+    .s-pop-sec { display: flex; flex-direction: column; gap: var(--vzn-space-2); padding: var(--vzn-space-3); }
+    .s-option { display: flex; align-items: center; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); border-radius: var(--vzn-radius-sm); }
+    .s-option[aria-selected="true"] { background: var(--vzn-action-soft); color: var(--vzn-action-text); }
+    .s-dialog { position: absolute; z-index: var(--vzn-layer-modal); display: flex; flex-direction: column; border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-md); background: var(--vzn-surface-raised); box-shadow: var(--vzn-shadow-lg); }
+    .s-dialog[data-size="lg"] { inline-size: var(--vzn-dialog-lg-max-inline); }
+    .s-dialog[data-size="sm"] { inline-size: var(--vzn-dialog-sm-max-inline); }
+    .s-dialog-head { display: flex; align-items: flex-start; gap: var(--vzn-space-3); padding: var(--vzn-space-4) var(--vzn-space-5); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-dialog-body { display: flex; flex-direction: column; gap: var(--vzn-space-4); padding: var(--vzn-space-4) var(--vzn-space-5); }
+    .s-dialog-foot { display: flex; justify-content: flex-end; gap: var(--vzn-space-2); padding: var(--vzn-space-3) var(--vzn-space-5); border-top: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-selected-text { background: var(--vzn-action-soft); color: var(--vzn-action-text); }
+    .s-float { position: absolute; z-index: var(--vzn-layer-picker); inline-size: var(--vzn-control-height-lg); block-size: var(--vzn-control-height-lg); padding: 0; box-shadow: var(--vzn-shadow-md); }
+    .s-toasts { position: absolute; inset-block-end: var(--vzn-space-4); inset-inline-end: var(--vzn-space-4); z-index: var(--vzn-layer-notification); display: flex; inline-size: var(--vzn-popover-wide); flex-direction: column; gap: var(--vzn-space-2); }
+    .s-toasts .m-toast { position: static; align-items: flex-start; }
+    .s-toast-copy { display: flex; min-inline-size: 0; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-1); font-size: var(--vzn-font-size-sm); }
+    .s-toast-actions { display: flex; flex-wrap: wrap; gap: var(--vzn-space-1); margin-top: var(--vzn-space-1); }
+    .s-spin { display: inline-block; color: var(--vzn-text-soft); }
+    .s-tooltip { position: absolute; z-index: var(--vzn-layer-context-overlay); max-inline-size: var(--vzn-dictionary-lookup-width); padding: var(--vzn-space-1-5) var(--vzn-space-2); border-radius: var(--vzn-radius-sm); background: var(--vzn-text-strong); color: var(--vzn-surface); font-size: var(--vzn-font-size-sm); }
+  </style>
+</head>
+<body class="board">
+  <header class="board-header">
+    <h1>Từ điển</h1>
+    <p>Tra một từ hoặc cụm từ bằng AI theo cặp ngôn ngữ, kèm ngữ cảnh tuỳ chọn; xem mục từ như một trang từ điển, đánh dấu, sao chép hoặc mang sang AI Dịch. Vẽ theo mã trong <code>src/pages/DictionaryPage.tsx</code>. Đặc tả đầy đủ: <a href="../screens/dictionary.md">screens/dictionary.md</a>.</p>
+    <nav class="board-nav" aria-label="Kịch bản">
+      <a href="#empty">Trống</a>
+      <a href="#result">Có kết quả</a>
+      <a href="#loading">Đang tra · bổ sung chi tiết</a>
+      <a href="#detail">Chi tiết bản dịch · tra phần chọn</a>
+      <a href="#errors">Lỗi · thiếu model</a>
+      <a href="#config">Cấu hình AI · xoá lịch sử</a>
+      <a href="#dark">Chế độ tối</a>
+      <a href="#narrow">Cửa sổ hẹp</a>
+    </nav>
+  </header>
+
+  <!-- 1. Empty ------------------------------------------------------------- -->
+  <section class="scenario" id="empty">
+    <div class="scenario-copy">
+      <h2>Trống</h2>
+      <p>Chưa tra lần nào. Focus nằm sẵn ở ô từ. Lịch sử trống, chưa có chân danh sách.</p>
+      <ol>
+        <li><span class="ref">1</span>Cặp ngôn ngữ dùng chung với AI Dịch; nút đảo ⇄ ở giữa (ẩn khi nguồn là Tự động, tắt khi nguồn = đích).</li>
+        <li><span class="ref">2</span>Cấu hình AI: <code>md · neutral · ghost</code> icon bánh răng, mở popover chọn model.</li>
+        <li><span class="ref">3</span>Ô "Từ hoặc cụm từ": <code>FilterInput md</code>, Enter để tra.</li>
+        <li><span class="ref">4</span>Ô "Ngữ cảnh (không bắt buộc)": tối đa 3 dòng rồi tự cuộn.</li>
+        <li><span class="ref">5</span>Tra cứu: hành động chính duy nhất, <code>md · primary · solid</code>, rộng hết cột.</li>
+        <li><span class="ref">6</span>Gần đây / Yêu thích: <code>TabBar</code> có số đếm, ← → để chuyển.</li>
+        <li><span class="ref">7</span>Trạng thái trống + 3 chip mẫu <code>xs · neutral · outline</code>; bấm chip chỉ điền từ, không tự tra.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng · trống</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="m-nav">Trang chủ</div>
+              <div class="m-nav-group">AI</div>
+              <div class="m-nav">AI Chat</div>
+              <div class="m-nav-group">Ngôn ngữ</div>
+              <div class="m-nav">Dịch</div>
+              <div class="m-nav">Phiên dịch</div>
+              <div class="m-nav" aria-current="page">Từ điển</div>
+              <div class="m-nav">Dịch mọi nơi</div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header">
+                <h3>Từ điển</h3>
+                <span class="s-pair"><span class="m-btn" data-size="md">Tiếng Anh ▾</span><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đảo chiều">⇄</span><span class="m-btn" data-size="md">Tiếng Việt ▾</span></span>
+                <span class="s-actions"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Cấu hình AI">⚙</span></span>
+              </div>
+              <div class="s-work">
+                <aside class="s-card s-lookup" aria-label="Tra cứu">
+                  <div class="s-field"><span class="s-label">Từ hoặc cụm từ</span><span class="m-input" data-focus>🔍 Nhập từ hoặc cụm từ…</span></div>
+                  <div class="s-field"><span class="s-label">Ngữ cảnh <span class="s-optional">(không bắt buộc)</span></span><span class="s-textarea">Câu ví dụ, lĩnh vực hoặc sắc thái…</span></div>
+                  <span class="m-btn s-full" data-size="md" data-tone="primary">📖 Tra cứu</span>
+                  <div class="s-history">
+                    <div class="s-tabs" role="tablist"><span class="s-tab" role="tab" aria-selected="true">Gần đây <span class="m-tag">0</span></span><span class="s-tab" role="tab" aria-selected="false">Yêu thích <span class="m-tag">0</span></span></div>
+                    <div class="s-empty"><span class="s-empty-icon">📖</span><span>Chưa có lịch sử tra</span></div>
+                  </div>
+                </aside>
+                <section class="s-card" aria-label="Từ điển">
+                  <div class="s-empty">
+                    <span class="s-empty-icon">📖</span>
+                    <span class="s-empty-title">Chưa chọn mục nào</span>
+                    <span>Tra một từ để xem nghĩa, bản dịch, ví dụ và ghi chú.</span>
+                    <span class="s-chips"><span class="m-btn s-pill" data-size="xs">📖 <span class="s-mono">sắc thái</span></span><span class="m-btn s-pill" data-size="xs">文 <span class="s-mono">工夫</span></span><span class="m-btn s-pill" data-size="xs">💡 <span class="s-mono">kintsugi</span></span></span>
+                  </div>
+                </section>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 342px; --y: 48px">1</span>
+          <span class="callout" style="--x: 1128px; --y: 48px">2</span>
+          <span class="callout" style="--x: 272px; --y: 140px">3</span>
+          <span class="callout" style="--x: 272px; --y: 210px">4</span>
+          <span class="callout" style="--x: 272px; --y: 334px">5</span>
+          <span class="callout" style="--x: 272px; --y: 392px">6</span>
+          <span class="callout" style="--x: 860px; --y: 380px">7</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Result ------------------------------------------------------------ -->
+  <section class="scenario" id="result">
+    <div class="scenario-copy">
+      <h2>Có kết quả</h2>
+      <p>Đã tra "bank" kèm ngữ cảnh. Mục mới đứng đầu "Gần đây" và đang được xem. Cột đọc giới hạn <code>--vzn-dictionary-reading-max</code>.</p>
+      <ol>
+        <li><span class="ref">1</span>Bộ đếm <code>n/120</code> và nút xoá ✕ trong ô từ; ngữ cảnh có bộ đếm <code>n/500</code>, đỏ khi vượt.</li>
+        <li><span class="ref">2</span>Hàng đang xem: nền chọn + vạch xanh bên trái, <code>aria-current</code>. Mỗi hàng: từ chính, phiên âm, thời gian, chi phí, nghĩa 2 dòng.</li>
+        <li><span class="ref">3</span>Sao trên hàng <code>xs</code>: hiện khi rê chuột/focus, luôn hiện khi đã đánh dấu.</li>
+        <li><span class="ref">4</span>Chân danh sách: Xóa lịch sử (mở xác nhận) · Xóa (mục đang xem, không xác nhận), cả hai <code>sm · danger</code> viên.</li>
+        <li><span class="ref">5</span>Từ chính (font hiển thị, <code>--vzn-dictionary-headword-size</code>) · phiên âm mono · nhãn từ loại viết hoa.</li>
+        <li><span class="ref">6</span>Đánh dấu (<code>aria-pressed</code>) · Sao chép (✓ 1,2 s) · Dùng trong AI Dịch — đều <code>sm · neutral · ghost</code> icon.</li>
+        <li><span class="ref">7</span>Có ngữ cảnh thì nhãn là "Nghĩa trong ngữ cảnh này".</li>
+        <li><span class="ref">8</span>Chip bản dịch <code>sm · neutral · outline</code> viên, có phiên âm; bấm mở "Chi tiết bản dịch".</li>
+        <li><span class="ref">9</span>Tối đa 3 đoạn "Sắc thái · …", rồi Ví dụ (đánh số, câu gốc + câu dịch) và Ghi chú. Bôi đen chữ ở đây để tra phần chọn.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng · có kết quả</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="m-nav">Trang chủ</div>
+              <div class="m-nav-group">Ngôn ngữ</div>
+              <div class="m-nav">Dịch</div>
+              <div class="m-nav">Phiên dịch</div>
+              <div class="m-nav" aria-current="page">Từ điển</div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header">
+                <h3>Từ điển</h3>
+                <span class="s-pair"><span class="m-btn" data-size="md">Tiếng Anh ▾</span><span class="m-btn" data-size="md" data-icon data-tone="ghost">⇄</span><span class="m-btn" data-size="md">Tiếng Việt ▾</span></span>
+                <span class="s-actions"><span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span></span>
+              </div>
+              <div class="s-work">
+                <aside class="s-card s-lookup">
+                  <div class="s-field"><span class="s-label">Từ hoặc cụm từ</span><span class="m-input"><span class="s-filled">🔍 bank</span><span class="m-spacer"></span><span class="s-count">4/120</span>✕</span></div>
+                  <div class="s-field"><span class="s-label">Ngữ cảnh <span class="s-optional">(không bắt buộc)</span></span><span class="s-textarea" data-filled>We sat on the river bank.</span><span class="s-count s-end">25/500</span></div>
+                  <span class="m-btn s-full" data-size="md" data-tone="primary">📖 Tra cứu</span>
+                  <div class="s-history">
+                    <div class="s-tabs"><span class="s-tab" aria-selected="true">Gần đây <span class="m-tag">12</span></span><span class="s-tab">Yêu thích <span class="m-tag">3</span></span></div>
+                    <div class="s-list">
+                      <div class="s-hrow" data-selected><div class="s-hcopy"><span class="s-hline"><span class="s-hword">bank</span><span class="s-hpron">/bæŋk/</span><span class="s-htime">vừa xong</span></span><span class="m-tag s-cost">≈ 12 ₫</span><span class="s-hmeaning">Dải đất dọc theo mép sông…</span></div><span class="m-btn" data-size="xs" data-icon data-tone="ghost">☆</span></div>
+                      <div class="s-hrow"><div class="s-hcopy"><span class="s-hline"><span class="s-hword">serendipity</span><span class="s-hpron">/ˌser.ənˈdɪp/</span><span class="s-htime">2 giờ</span></span><span class="s-hmeaning">Sự tình cờ may mắn…</span></div><span class="m-btn" data-size="xs" data-icon data-tone="soft">★</span></div>
+                      <div class="s-hrow"><div class="s-hcopy"><span class="s-hline"><span class="s-hword">ubiquitous</span><span class="s-hpron">/juːˈbɪk/</span><span class="s-htime">hôm qua</span></span><span class="s-hmeaning">Có mặt ở khắp nơi…</span></div></div>
+                    </div>
+                    <div class="s-panel-foot"><span class="m-btn s-pill" data-tone="danger">🗑 Xóa lịch sử</span><span class="m-btn s-pill" data-tone="danger">🗑 Xóa</span></div>
+                  </div>
+                </aside>
+                <section class="s-card">
+                  <div class="s-result-head">
+                    <div class="s-headline"><span class="s-headword">bank</span><span class="s-pron">/bæŋk/</span><span class="s-pos">noun</span><span class="s-pos">verb</span></div>
+                    <div class="s-tools"><span class="m-btn" data-icon data-tone="ghost" aria-label="Đánh dấu">☆</span><span class="m-btn" data-icon data-tone="ghost" aria-label="Sao chép">⧉</span><span class="m-btn" data-icon data-tone="ghost" aria-label="Dùng trong AI Dịch">↻</span></div>
+                  </div>
+                  <div class="s-result-body">
+                    <div class="s-sec"><p class="s-sec-label">Nghĩa trong ngữ cảnh này</p><span class="s-quote">[Dải đất dốc dọc theo mép sông, hồ.]</span></div>
+                    <div class="s-sec"><p class="s-sec-label">Bản dịch</p><span class="s-chips" data-start><span class="m-btn s-pill">bờ sông <span class="s-chip-pron">/bə̤ː˨˩ ʂəwŋ/</span></span><span class="m-btn s-pill">bờ</span><span class="m-btn s-pill">ngân hàng</span></span></div>
+                    <div class="s-sec"><p class="s-sec-label">Sắc thái · bờ sông</p><span class="s-para">[Cách dùng và sắc thái của bản dịch này.]</span></div>
+                    <div class="s-sec"><p class="s-sec-label">Ví dụ</p>
+                      <span class="s-li"><span class="s-idx">1</span><span class="s-ex"><span>[Câu ví dụ tiếng Anh]</span><span class="s-ex-tx">[Câu dịch tiếng Việt]</span></span></span>
+                      <span class="s-li"><span class="s-idx">2</span><span class="s-ex"><span>[Câu ví dụ tiếng Anh]</span><span class="s-ex-tx">[Câu dịch tiếng Việt]</span></span></span>
+                    </div>
+                    <div class="s-sec"><p class="s-sec-label">Ghi chú</p><span class="s-li"><span class="m-dot"></span><span>[Ghi chú về cách dùng]</span></span></div>
+                  </div>
+                </section>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 560px; --y: 160px">1</span>
+          <span class="callout" style="--x: 272px; --y: 462px">2</span>
+          <span class="callout" style="--x: 570px; --y: 456px">3</span>
+          <span class="callout" style="--x: 272px; --y: 690px">4</span>
+          <span class="callout" style="--x: 612px; --y: 140px">5</span>
+          <span class="callout" style="--x: 1044px; --y: 140px">6</span>
+          <span class="callout" style="--x: 632px; --y: 206px">7</span>
+          <span class="callout" style="--x: 632px; --y: 272px">8</span>
+          <span class="callout" style="--x: 632px; --y: 350px">9</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Loading / enriching ---------------------------------------------- -->
+  <section class="scenario" id="loading">
+    <div class="scenario-copy">
+      <h2>Đang tra · bổ sung chi tiết</h2>
+      <p>Tra có hai pha: bản xem trước (<code>lookupPreview</code>) rồi chi tiết (<code>lookupDetails</code>). Tra lại cùng từ + cặp + ngữ cảnh + model đã có chi tiết thì lấy từ bộ nhớ đệm, không có hai trạng thái này.</p>
+      <ol>
+        <li><span class="ref">1</span>Pha 1: nút Tra cứu <code>disabled</code>, icon xoay, "Đang tra…" (<code>aria-label</code> đổi theo).</li>
+        <li><span class="ref">2</span>Pha 1: cột kết quả giữ nguyên mục cũ hoặc trạng thái trống — chưa có skeleton (xem mục 10 của đặc tả).</li>
+        <li><span class="ref">3</span>Pha 2: bản xem trước hiện ngay, đứng đầu Gần đây; chấm suy nghĩ cạnh từ chính "Đang bổ sung chi tiết…" (<code>role="img"</code>).</li>
+        <li><span class="ref">4</span>Chip, sắc thái, ví dụ đầy đủ thay vào khi chi tiết về; nếu pha 2 lỗi, bản xem trước vẫn giữ.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">960 × 560 · sáng · pha 1 đang tra</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 960px; --h: 560px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed><div class="m-nav">⌂</div><div class="m-nav">文</div><div class="m-nav" aria-current="page">📖</div></nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Từ điển</h3><span class="s-pair"><span class="m-btn" data-size="md">Tiếng Anh ▾</span><span class="m-btn" data-size="md" data-icon data-tone="ghost">⇄</span><span class="m-btn" data-size="md">Tiếng Việt ▾</span></span><span class="s-actions"><span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span></span></div>
+              <div class="s-work">
+                <aside class="s-card s-lookup">
+                  <div class="s-field"><span class="s-label">Từ hoặc cụm từ</span><span class="m-input"><span class="s-filled">🔍 ephemeral</span><span class="m-spacer"></span><span class="s-count">9/120</span>✕</span></div>
+                  <div class="s-field"><span class="s-label">Ngữ cảnh <span class="s-optional">(không bắt buộc)</span></span><span class="s-textarea">Câu ví dụ, lĩnh vực hoặc sắc thái…</span></div>
+                  <span class="m-btn s-full" data-size="md" disabled><span class="s-spin">↻</span> Đang tra…</span>
+                </aside>
+                <section class="s-card"><div class="s-empty"><span class="s-empty-icon">📖</span><span class="s-empty-title">Chưa chọn mục nào</span><span>Tra một từ để xem nghĩa, bản dịch, ví dụ và ghi chú.</span></div></section>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 96px; --y: 334px">1</span>
+          <span class="callout" style="--x: 700px; --y: 260px">2</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">960 × 560 · sáng · pha 2 bổ sung chi tiết</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 960px; --h: 560px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed><div class="m-nav">⌂</div><div class="m-nav">文</div><div class="m-nav" aria-current="page">📖</div></nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Từ điển</h3><span class="s-pair"><span class="m-btn" data-size="md">Tiếng Anh ▾</span><span class="m-btn" data-size="md" data-icon data-tone="ghost">⇄</span><span class="m-btn" data-size="md">Tiếng Việt ▾</span></span><span class="s-actions"><span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span></span></div>
+              <div class="s-work">
+                <aside class="s-card s-lookup">
+                  <div class="s-field"><span class="s-label">Từ hoặc cụm từ</span><span class="m-input"><span class="s-filled">🔍 ephemeral</span><span class="m-spacer"></span><span class="s-count">9/120</span>✕</span></div>
+                  <div class="s-field"><span class="s-label">Ngữ cảnh <span class="s-optional">(không bắt buộc)</span></span><span class="s-textarea">Câu ví dụ, lĩnh vực hoặc sắc thái…</span></div>
+                  <span class="m-btn s-full" data-size="md" data-tone="primary">📖 Tra cứu</span>
+                </aside>
+                <section class="s-card">
+                  <div class="s-result-head"><div class="s-headline"><span class="s-headword">ephemeral</span><span class="s-pron">/ɪˈfem.ər.əl/</span><span class="s-pos">adjective</span><span class="s-dots" role="img" aria-label="Đang bổ sung chi tiết…">• • •</span></div><div class="s-tools"><span class="m-btn" data-icon data-tone="ghost">☆</span><span class="m-btn" data-icon data-tone="ghost">⧉</span><span class="m-btn" data-icon data-tone="ghost">↻</span></div></div>
+                  <div class="s-result-body">
+                    <div class="s-sec"><p class="s-sec-label">Nghĩa</p><span class="s-quote">[Tồn tại trong thời gian rất ngắn.]</span></div>
+                    <div class="s-sec"><p class="s-sec-label">Bản dịch</p><span class="s-chips" data-start><span class="m-btn s-pill">phù du</span><span class="m-btn s-pill">chóng tàn</span></span></div>
+                  </div>
+                </section>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 700px; --y: 124px">3</span>
+          <span class="callout" style="--x: 456px; --y: 290px">4</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Translation detail + selection lookup ------------------------------ -->
+  <section class="scenario" id="detail">
+    <div class="scenario-copy">
+      <h2>Chi tiết bản dịch · tra phần chọn</h2>
+      <p>Hai cách đào sâu mà không rời mục đang xem. Cả hai là <code>DialogShell size="lg"</code>: giữ focus, Esc đóng, trả focus về chỗ mở.</p>
+      <ol>
+        <li><span class="ref">1</span>Chip đang mở: <code>primary · soft</code>, <code>aria-pressed="true"</code>; bấm lại chip thì đóng.</li>
+        <li><span class="ref">2</span>Tiêu đề hộp thoại là bản dịch + phiên âm + từ loại; phụ đề "Chi tiết bản dịch".</li>
+        <li><span class="ref">3</span>Các phần: Nghĩa · Cách dùng · Sắc thái · Ví dụ · Cụm thường dùng · Ghi chú (phần trống thì bỏ).</li>
+        <li><span class="ref">4</span>Bôi đen chữ trong thân mục từ (tối đa 80 ký tự được giữ) → nút nổi <code>lg · neutral · outline</code> icon kính lúp ngay trên vùng chọn.</li>
+        <li><span class="ref">5</span>Hộp thoại tra phụ: skeleton dòng nghĩa + 3 chip (<code>aria-busy</code>, <code>aria-live="polite"</code>), phụ đề "Đang tra phần đã chọn…"; kết quả mờ dần vào. Đóng thì huỷ yêu cầu.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng · chi tiết bản dịch</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar"><div class="m-nav">Trang chủ</div><div class="m-nav-group">Ngôn ngữ</div><div class="m-nav" aria-current="page">Từ điển</div></nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Từ điển</h3></div>
+              <div class="s-work">
+                <aside class="s-card s-lookup"></aside>
+                <section class="s-card">
+                  <div class="s-result-head"><div class="s-headline"><span class="s-headword">bank</span><span class="s-pron">/bæŋk/</span></div></div>
+                  <div class="s-result-body"><div class="s-sec"><p class="s-sec-label">Bản dịch</p><span class="s-chips" data-start><span class="m-btn s-pill" data-tone="soft">bờ sông</span><span class="m-btn s-pill">bờ</span><span class="m-btn s-pill">ngân hàng</span></span></div></div>
+                </section>
+              </div>
+            </main>
+          </div>
+          <div class="m-scrim"></div>
+          <div class="s-dialog s-at" data-size="lg" style="--x: 330px; --y: 290px">
+            <div class="s-dialog-head"><div class="s-field"><span class="s-headline"><span class="s-headword">bờ sông</span><span class="s-pron">/bə̤ː˨˩ ʂəwŋ/</span><span class="s-pos">noun</span></span><span class="m-muted">Chi tiết bản dịch</span></div><span class="m-spacer"></span><span class="m-btn" data-icon data-tone="ghost" aria-label="Đóng chi tiết bản dịch">✕</span></div>
+            <div class="s-dialog-body">
+              <div class="s-sec"><p class="s-sec-label">Nghĩa</p><span class="s-quote">[Phần đất dọc theo mép sông.]</span></div>
+              <div class="s-sec"><p class="s-sec-label">Cách dùng</p><span class="s-para">[Dùng khi nói về địa hình tự nhiên…]</span></div>
+              <div class="s-sec"><p class="s-sec-label">Ví dụ</p><span class="s-li"><span class="s-idx">1</span><span>[Câu ví dụ]</span></span></div>
+              <div class="s-sec"><p class="s-sec-label">Cụm thường dùng</p><span class="s-chips" data-start><span class="m-tag">bờ sông Hồng</span><span class="m-tag">dọc bờ sông</span></span></div>
+            </div>
+          </div>
+          <span class="callout" style="--x: 633px; --y: 222px">1</span>
+          <span class="callout" style="--x: 320px; --y: 280px">2</span>
+          <span class="callout" style="--x: 320px; --y: 390px">3</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">1200 × 760 · sáng · tra phần đã chọn</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar"><div class="m-nav">Trang chủ</div><div class="m-nav-group">Ngôn ngữ</div><div class="m-nav" aria-current="page">Từ điển</div></nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Từ điển</h3></div>
+              <div class="s-work">
+                <aside class="s-card s-lookup"></aside>
+                <section class="s-card">
+                  <div class="s-result-head"><div class="s-headline"><span class="s-headword">bank</span><span class="s-pron">/bæŋk/</span></div></div>
+                  <div class="s-result-body">
+                    <div class="s-sec"><p class="s-sec-label">Ví dụ</p><span class="s-li"><span class="s-idx">1</span><span>They built an <span class="s-selected-text">embankment</span> along the river.</span></span></div>
+                  </div>
+                </section>
+              </div>
+            </main>
+          </div>
+          <span class="m-btn s-float s-at" data-tone="ghost" style="--x: 760px; --y: 150px" aria-label="Tra phần đã chọn: embankment">🔍</span>
+          <div class="s-dialog s-at" data-size="lg" style="--x: 330px; --y: 300px">
+            <div class="s-dialog-head"><div class="s-field"><span class="s-headword">embankment</span><span class="m-muted">• • • Đang tra phần đã chọn…</span></div><span class="m-spacer"></span><span class="m-btn" data-icon data-tone="ghost">✕</span></div>
+            <div class="s-dialog-body" aria-busy="true">
+              <div class="s-sec"><span class="s-sk" data-w="label"></span><span class="s-sk"></span><span class="s-sk"></span></div>
+              <div class="s-sec"><span class="s-sk" data-w="label"></span><span class="s-chips" data-start><span class="s-sk" data-w="chip"></span><span class="s-sk" data-w="chip"></span><span class="s-sk" data-w="chip"></span></span></div>
+            </div>
+          </div>
+          <span class="callout" style="--x: 800px; --y: 140px">4</span>
+          <span class="callout" style="--x: 320px; --y: 290px">5</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Errors ------------------------------------------------------------ -->
+  <section class="scenario" id="errors">
+    <div class="scenario-copy">
+      <h2>Lỗi · thiếu model</h2>
+      <p>Lỗi hiện trong ngăn toast của app (góc dưới phải), một khoá chủ nên lỗi mới thay lỗi cũ. Rời trang thì toast bị gỡ.</p>
+      <ol>
+        <li><span class="ref">1</span>Từ dài hơn 120 ký tự: ô đỏ (<code>invalid</code>), bộ đếm đỏ. Bấm Tra cứu → toast "Từ khóa quá dài." (không có nút); gõ lại thì toast tự tắt.</li>
+        <li><span class="ref">2</span>Lỗi nhà cung cấp: toast lỗi kèm "Provider · model" và Thử lại · Chọn model khác · Mở Cài đặt. Từ đã gõ được giữ.</li>
+        <li><span class="ref">3</span>Chưa chọn model: Tra cứu <code>disabled</code> (xám), tooltip "Chọn model trong Cấu hình AI để tra cứu."</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng · lỗi</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar"><div class="m-nav">Trang chủ</div><div class="m-nav-group">Ngôn ngữ</div><div class="m-nav" aria-current="page">Từ điển</div></nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Từ điển</h3><span class="s-pair"><span class="m-btn" data-size="md">Tiếng Anh ▾</span><span class="m-btn" data-size="md" data-icon data-tone="ghost">⇄</span><span class="m-btn" data-size="md">Tiếng Việt ▾</span></span><span class="s-actions"><span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span></span></div>
+              <div class="s-work">
+                <aside class="s-card s-lookup">
+                  <div class="s-field"><span class="s-label">Từ hoặc cụm từ</span><span class="m-input"><span class="s-filled">🔍 [một đoạn rất dài…]</span><span class="m-spacer"></span><span class="s-count" data-invalid>134/120</span>✕</span></div>
+                  <div class="s-field"><span class="s-label">Ngữ cảnh <span class="s-optional">(không bắt buộc)</span></span><span class="s-textarea">Câu ví dụ, lĩnh vực hoặc sắc thái…</span></div>
+                  <span class="m-btn s-full" data-size="md" data-tone="primary">📖 Tra cứu</span>
+                </aside>
+                <section class="s-card"><div class="s-empty"><span class="s-empty-icon">📖</span><span class="s-empty-title">Chưa chọn mục nào</span></div></section>
+              </div>
+            </main>
+          </div>
+          <div class="s-toasts">
+            <div class="m-toast" role="alert"><span class="m-dot" data-tone="danger"></span><div class="s-toast-copy"><span>Từ khóa quá dài.</span></div><span class="m-btn" data-size="xs" data-icon data-tone="ghost">✕</span></div>
+            <div class="m-toast" role="alert"><span class="m-dot" data-tone="danger"></span><div class="s-toast-copy"><span>Tra từ thất bại.</span><span class="m-muted">OpenAI · gpt-4.1-mini</span><span class="s-toast-actions"><span class="m-btn" data-size="xs">Thử lại</span><span class="m-btn" data-size="xs">Chọn model khác</span><span class="m-btn" data-size="xs">Mở Cài đặt</span></span></div><span class="m-btn" data-size="xs" data-icon data-tone="ghost">✕</span></div>
+          </div>
+          <span class="callout" style="--x: 560px; --y: 160px">1</span>
+          <span class="callout" style="--x: 752px; --y: 640px">2</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">640 × 420 · sáng · chưa chọn model</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 640px; --h: 420px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <main class="m-main">
+              <div class="s-work" data-stack>
+                <aside class="s-card s-lookup">
+                  <div class="s-field"><span class="s-label">Từ hoặc cụm từ</span><span class="m-input"><span class="s-filled">🔍 bank</span><span class="m-spacer"></span><span class="s-count">4/120</span>✕</span></div>
+                  <div class="s-field"><span class="s-label">Ngữ cảnh <span class="s-optional">(không bắt buộc)</span></span><span class="s-textarea">Câu ví dụ, lĩnh vực hoặc sắc thái…</span></div>
+                  <span class="m-btn s-full" data-size="md" disabled>📖 Tra cứu</span>
+                </aside>
+              </div>
+            </main>
+          </div>
+          <span class="s-tooltip s-at" style="--x: 180px; --y: 300px">Chọn model trong Cấu hình AI để tra cứu.</span>
+          <span class="callout" style="--x: 20px; --y: 262px">3</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. AI configuration + clear history --------------------------------- -->
+  <section class="scenario" id="config">
+    <div class="scenario-copy">
+      <h2>Cấu hình AI · xoá lịch sử</h2>
+      <p>Popover neo dưới bánh răng, căn mép phải; cửa sổ ≤ 720 px rộng hoặc ≤ 600 px cao thì thành hộp thoại giữa cửa sổ.</p>
+      <ol>
+        <li><span class="ref">1</span>Bánh răng khi mở: <code>primary · soft</code>, <code>aria-expanded="true"</code>.</li>
+        <li><span class="ref">2</span>"Áp dụng cho lượt tra cứu tiếp theo." — một mục "Mô hình" với danh sách model nội tuyến có ô tìm.</li>
+        <li><span class="ref">3</span>Chọn một model → popover tự đóng, focus về bánh răng.</li>
+        <li><span class="ref">4</span>Xác nhận xoá lịch sử: chỉ xoá mục không yêu thích. Hủy <code>md · neutral · outline</code> · Xóa lịch sử <code>md · danger · solid</code>. Nút ở chân danh sách bị tắt khi mọi mục đều là yêu thích.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng · popover</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar"><div class="m-nav">Trang chủ</div><div class="m-nav-group">Ngôn ngữ</div><div class="m-nav" aria-current="page">Từ điển</div></nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Từ điển</h3><span class="s-pair"><span class="m-btn" data-size="md">Tiếng Anh ▾</span><span class="m-btn" data-size="md" data-icon data-tone="ghost">⇄</span><span class="m-btn" data-size="md">Tiếng Việt ▾</span></span><span class="s-actions"><span class="m-btn" data-size="md" data-icon data-tone="soft">⚙</span></span></div>
+              <div class="s-work"><aside class="s-card s-lookup"></aside><section class="s-card"></section></div>
+            </main>
+          </div>
+          <div class="m-popover s-pop s-at" style="--x: 755px; --y: 121px">
+            <div class="s-pop-head"><div class="s-field"><span class="s-pop-title">Cấu hình AI</span><span class="m-muted">Áp dụng cho lượt tra cứu tiếp theo.</span></div><span class="m-btn" data-icon data-tone="ghost" aria-label="Đóng cài đặt">✕</span></div>
+            <div class="s-pop-sec">
+              <span class="m-muted">Mô hình</span>
+              <span class="m-input">🔍 Tìm model…</span>
+              <span class="s-option" aria-selected="true"><span class="m-strong">gemini-2.5-flash</span><span class="m-spacer"></span>✓</span>
+              <span class="s-option"><span>gpt-4.1-mini</span></span>
+              <span class="s-option"><span>claude-haiku-4-5</span></span>
+              <span class="s-option"><span>qwen3:4b</span><span class="m-tag">Local</span></span>
+            </div>
+          </div>
+          <span class="callout" style="--x: 1128px; --y: 48px">1</span>
+          <span class="callout" style="--x: 745px; --y: 128px">2</span>
+          <span class="callout" style="--x: 745px; --y: 268px">3</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">900 × 560 · sáng · xác nhận xoá</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 900px; --h: 560px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body"><main class="m-main"><div class="m-header"><h3>Từ điển</h3></div><div class="s-work"><aside class="s-card s-lookup"></aside><section class="s-card"></section></div></main></div>
+          <div class="m-scrim"></div>
+          <div class="s-dialog s-at" data-size="sm" style="--x: 240px; --y: 170px">
+            <div class="s-dialog-head"><span class="m-strong">Xóa lịch sử</span><span class="m-spacer"></span><span class="m-btn" data-icon data-tone="ghost" aria-label="Hủy">✕</span></div>
+            <div class="s-dialog-body"><span>Xóa tất cả mục lịch sử không yêu thích? Không thể hoàn tác.</span></div>
+            <div class="s-dialog-foot"><span class="m-btn" data-size="md">Hủy</span><span class="m-btn" data-size="md" data-tone="danger">🗑 Xóa lịch sử</span></div>
+          </div>
+          <span class="callout" style="--x: 230px; --y: 160px">4</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Dark -------------------------------------------------------------- -->
+  <section class="scenario" id="dark">
+    <div class="scenario-copy">
+      <h2>Chế độ tối</h2>
+      <p>Cùng bố cục, chỉ đổi token bề mặt. Mục đang xem là mục yêu thích.</p>
+      <ol>
+        <li><span class="ref">1</span>Sao đã đánh dấu: <code>primary · soft</code> ở header và trên hàng; tab Yêu thích tăng số đếm.</li>
+        <li><span class="ref">2</span>Hàng chọn dùng <code>--vzn-surface-selected</code> + vạch <code>--vzn-action</code>, đủ tương phản trên nền than chì.</li>
+        <li><span class="ref">3</span>Chữ đọc (nghĩa, sắc thái) dùng <code>--vzn-font-reading</code> / <code>--vzn-line-reading</code> để persona Paper đổi được sang serif.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · tối · yêu thích</p>
+        <div class="frame" data-theme="graphite" data-mode="dark" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="m-nav">Trang chủ</div>
+              <div class="m-nav-group">Ngôn ngữ</div>
+              <div class="m-nav">Dịch</div>
+              <div class="m-nav">Phiên dịch</div>
+              <div class="m-nav" aria-current="page">Từ điển</div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Từ điển</h3><span class="s-pair"><span class="m-btn" data-size="md">Tiếng Nhật ▾</span><span class="m-btn" data-size="md" data-icon data-tone="ghost">⇄</span><span class="m-btn" data-size="md">Tiếng Việt ▾</span></span><span class="s-actions"><span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span></span></div>
+              <div class="s-work">
+                <aside class="s-card s-lookup">
+                  <div class="s-field"><span class="s-label">Từ hoặc cụm từ</span><span class="m-input"><span class="s-filled">🔍 工夫</span><span class="m-spacer"></span><span class="s-count">2/120</span>✕</span></div>
+                  <div class="s-field"><span class="s-label">Ngữ cảnh <span class="s-optional">(không bắt buộc)</span></span><span class="s-textarea">Câu ví dụ, lĩnh vực hoặc sắc thái…</span></div>
+                  <span class="m-btn s-full" data-size="md" data-tone="primary">📖 Tra cứu</span>
+                  <div class="s-history">
+                    <div class="s-tabs"><span class="s-tab">Gần đây <span class="m-tag">12</span></span><span class="s-tab" aria-selected="true">Yêu thích <span class="m-tag">4</span></span></div>
+                    <div class="s-list">
+                      <div class="s-hrow" data-selected><div class="s-hcopy"><span class="s-hline"><span class="s-hword">工夫</span><span class="s-hpron">kufū</span><span class="s-htime">vừa xong</span></span><span class="s-hmeaning">Sự công phu, tìm cách làm khéo…</span></div><span class="m-btn" data-size="xs" data-icon data-tone="soft">★</span></div>
+                      <div class="s-hrow"><div class="s-hcopy"><span class="s-hline"><span class="s-hword">serendipity</span><span class="s-htime">2 giờ</span></span><span class="s-hmeaning">Sự tình cờ may mắn…</span></div><span class="m-btn" data-size="xs" data-icon data-tone="soft">★</span></div>
+                    </div>
+                    <div class="s-panel-foot"><span class="m-btn s-pill" data-tone="danger">🗑 Xóa lịch sử</span><span class="m-btn s-pill" data-tone="danger">🗑 Xóa</span></div>
+                  </div>
+                </aside>
+                <section class="s-card">
+                  <div class="s-result-head"><div class="s-headline"><span class="s-headword">工夫</span><span class="s-pron">kufū</span><span class="s-pos">noun</span></div><div class="s-tools"><span class="m-btn" data-icon data-tone="soft" aria-label="Bỏ đánh dấu">★</span><span class="m-btn" data-icon data-tone="ghost">⧉</span><span class="m-btn" data-icon data-tone="ghost">↻</span></div></div>
+                  <div class="s-result-body">
+                    <div class="s-sec"><p class="s-sec-label">Nghĩa</p><span class="s-quote">[Sự dụng công tìm cách làm cho khéo, cho hiệu quả.]</span></div>
+                    <div class="s-sec"><p class="s-sec-label">Bản dịch</p><span class="s-chips" data-start><span class="m-btn s-pill">công phu</span><span class="m-btn s-pill">sáng kiến</span><span class="m-btn s-pill">mẹo</span></span></div>
+                    <div class="s-sec"><p class="s-sec-label">Sắc thái · công phu</p><span class="s-para">[Nhấn vào sự tỉ mỉ và nỗ lực…]</span></div>
+                  </div>
+                </section>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 1044px; --y: 140px">1</span>
+          <span class="callout" style="--x: 272px; --y: 444px">2</span>
+          <span class="callout" style="--x: 632px; --y: 206px">3</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. Narrow ------------------------------------------------------------ -->
+  <section class="scenario" id="narrow">
+    <div class="scenario-copy">
+      <h2>Cửa sổ hẹp</h2>
+      <p>Cửa sổ 780 px: điều hướng là rail 60 px, khung làm việc 720 px (&lt; 760).</p>
+      <ol>
+        <li><span class="ref">1</span>Một cột: cột tra cứu (ô tìm + lịch sử) trên, kết quả dưới. Cả vùng nội dung cuộn; mỗi vùng giữ chiều cao tự nhiên.</li>
+        <li><span class="ref">2</span>Lịch sử giữ cao tối thiểu <code>--vzn-dictionary-pane-min-block</code>.</li>
+        <li><span class="ref">3</span>Kết quả bên dưới; sau khi tra người dùng phải cuộn xuống để thấy (đề xuất: tự cuộn/đưa focus tới tiêu đề mục từ).</li>
+        <li><span class="ref">4</span>Header giữ một dòng; dưới 560 px lề trong giảm còn <code>--vzn-space-4</code>.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">780 × 760 · sáng · hẹp</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 780px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed><div class="m-nav">⌂</div><div class="m-nav">💬</div><div class="m-nav">文</div><div class="m-nav">🎙</div><div class="m-nav" aria-current="page">📖</div></nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Từ điển</h3><span class="s-pair"><span class="m-btn" data-size="md">Tiếng Anh ▾</span><span class="m-btn" data-size="md" data-icon data-tone="ghost">⇄</span><span class="m-btn" data-size="md">Tiếng Việt ▾</span></span><span class="s-actions"><span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span></span></div>
+              <div class="s-work" data-stack>
+                <aside class="s-card s-lookup">
+                  <div class="s-field"><span class="s-label">Từ hoặc cụm từ</span><span class="m-input"><span class="s-filled">🔍 bank</span><span class="m-spacer"></span><span class="s-count">4/120</span>✕</span></div>
+                  <div class="s-field"><span class="s-label">Ngữ cảnh <span class="s-optional">(không bắt buộc)</span></span><span class="s-textarea">Câu ví dụ, lĩnh vực hoặc sắc thái…</span></div>
+                  <span class="m-btn s-full" data-size="md" data-tone="primary">📖 Tra cứu</span>
+                  <div class="s-history">
+                    <div class="s-tabs"><span class="s-tab" aria-selected="true">Gần đây <span class="m-tag">12</span></span><span class="s-tab">Yêu thích <span class="m-tag">3</span></span></div>
+                    <div class="s-hrow" data-selected><div class="s-hcopy"><span class="s-hline"><span class="s-hword">bank</span><span class="s-hpron">/bæŋk/</span><span class="s-htime">vừa xong</span></span><span class="s-hmeaning">Dải đất dọc theo mép sông…</span></div></div>
+                    <div class="s-hrow"><div class="s-hcopy"><span class="s-hline"><span class="s-hword">serendipity</span><span class="s-htime">2 giờ</span></span><span class="s-hmeaning">Sự tình cờ may mắn…</span></div></div>
+                    <div class="s-panel-foot"><span class="m-btn s-pill" data-tone="danger">🗑 Xóa lịch sử</span><span class="m-btn s-pill" data-tone="danger">🗑 Xóa</span></div>
+                  </div>
+                </aside>
+                <section class="s-card">
+                  <div class="s-result-head"><div class="s-headline"><span class="s-headword">bank</span><span class="s-pron">/bæŋk/</span><span class="s-pos">noun</span></div><div class="s-tools"><span class="m-btn" data-icon data-tone="ghost">☆</span><span class="m-btn" data-icon data-tone="ghost">⧉</span><span class="m-btn" data-icon data-tone="ghost">↻</span></div></div>
+                </section>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 96px; --y: 130px">1</span>
+          <span class="callout" style="--x: 96px; --y: 384px">2</span>
+          <span class="callout" style="--x: 84px; --y: 636px">3</span>
+          <span class="callout" style="--x: 708px; --y: 48px">4</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Action summary ------------------------------------------------------- -->
+  <section class="scenario" id="actions">
+    <div class="scenario-copy">
+      <h2>Tóm tắt hành động</h2>
+      <p>Bảng đầy đủ ở mục 4 của <a href="../screens/dictionary.md">screens/dictionary.md</a>.</p>
+    </div>
+    <div class="scenario-frames">
+      <table class="actions">
+        <thead><tr><th>Điều khiển</th><th>Button</th><th>Kết quả</th><th>Khi bị tắt</th></tr></thead>
+        <tbody>
+          <tr><td>Tra cứu</td><td><code>md · primary · solid</code>, rộng 100 %</td><td>Kiểm tra → bộ nhớ đệm → xem trước → chi tiết</td><td>Đang tra; chưa chọn model</td></tr>
+          <tr><td>Cấu hình AI</td><td><code>md · neutral · ghost</code> → <code>primary · soft</code></td><td>Popover chọn model, tự đóng khi chọn</td><td>—</td></tr>
+          <tr><td>Chip gợi ý</td><td><code>xs · neutral · outline</code> viên</td><td>Điền từ vào ô</td><td>—</td></tr>
+          <tr><td>Đánh dấu · Sao chép · Dùng trong AI Dịch</td><td><code>sm · neutral · ghost</code> icon (đang bật: <code>primary · soft</code>)</td><td>Yêu thích / chép mục từ / chuyển sang AI Dịch</td><td>—</td></tr>
+          <tr><td>Chip bản dịch</td><td><code>sm · neutral · outline</code> viên + <code>aria-pressed</code></td><td>Hộp thoại chi tiết bản dịch</td><td>—</td></tr>
+          <tr><td>Tra phần đã chọn</td><td><code>lg · neutral · outline</code> icon nổi</td><td>Hộp thoại tra phụ</td><td>Chỉ khi có vùng chọn trong thân mục từ</td></tr>
+          <tr><td>Sao trên hàng</td><td><code>xs · neutral · ghost</code> icon</td><td>Bật/tắt yêu thích</td><td>—</td></tr>
+          <tr><td>Xóa lịch sử · Xóa</td><td><code>sm · danger</code> (soft) viên</td><td>Xác nhận rồi xoá mục không yêu thích · xoá mục đang xem</td><td>Xóa lịch sử tắt khi mọi mục là yêu thích</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</body>
+</html>

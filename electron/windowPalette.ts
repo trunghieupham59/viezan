@@ -19,8 +19,8 @@ export interface WindowPalette {
 export const WINDOW_PALETTES: Record<ThemePreset, WindowPalette> = {
   graphite: {
     material: false,
-    background: { light: '#EEEEEF', dark: '#161618' },
-    titleBar: { light: { color: '#EEEEEF', symbolColor: '#48484A' }, dark: { color: '#242426', symbolColor: '#E5E5EA' } },
+    background: { light: '#EEEEEF', dark: '#111113' },
+    titleBar: { light: { color: '#EEEEEF', symbolColor: '#48484A' }, dark: { color: '#18181B', symbolColor: '#ECECF0' } },
   },
   glass: {
     material: true,

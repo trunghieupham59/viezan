@@ -2,6 +2,13 @@ import type { ChatSendShortcut } from '../types'
 
 export const DEFAULT_CHAT_NEW_SESSION_SHORTCUT = 'CommandOrControl+N'
 export const DEFAULT_CHAT_SEND_SHORTCUT: ChatSendShortcut = 'enter'
+/** What Settings shows for Quick Translate before the user records a shortcut. */
+export const DEFAULT_QUICK_TRANSLATE_SHORTCUT = 'Alt+T'
+
+/** What Settings shows for the Launcher before the user records a shortcut. */
+export function defaultLauncherShortcut(platform?: string): string {
+  return platform === 'darwin' ? 'Command+Space' : 'Alt+Space'
+}
 
 type KeyboardLikeEvent = Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey'>
 
@@ -117,4 +124,53 @@ export function shouldSendChatMessage(e: KeyboardLikeEvent, shortcut: ChatSendSh
   }
 
   return e.key === 'Enter' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey
+}
+
+/**
+ * One comparable form of an accelerator on this platform: `CommandOrControl`
+ * resolved to Command or Ctrl, modifiers in a fixed order, the key normalized.
+ * Two shortcuts collide exactly when their canonical forms are equal.
+ */
+export function canonicalShortcut(shortcut: string, platform?: string): string {
+  if (!shortcut) return ''
+  const isMac = isMacPlatform(platform)
+  const parts = shortcut.split('+').map(normalizeShortcutPart).filter(Boolean)
+    .map((part) => part === 'CommandOrControl' ? (isMac ? 'Command' : 'Ctrl') : part)
+  const order = ['Command', 'Ctrl', 'Alt', 'Shift']
+  const modifiers = order.filter((modifier) => parts.includes(modifier))
+  const keys = parts.filter((part) => !order.includes(part))
+  return [...modifiers, ...keys].join('+')
+}
+
+/** The accelerator a chat send preference stands for. */
+export function chatSendAccelerator(shortcut: ChatSendShortcut): string {
+  return shortcut === 'modEnter' ? 'CommandOrControl+Enter' : 'Enter'
+}
+
+/**
+ * Ids of the entries whose shortcut is also used by another active entry.
+ * Inactive entries and empty shortcuts never conflict.
+ */
+export function findShortcutConflicts(
+  entries: readonly { id: string; shortcut: string; active: boolean }[],
+  platform?: string,
+): Set<string> {
+  const byKey = new Map<string, string[]>()
+  for (const entry of entries) {
+    if (!entry.active) continue
+    const key = canonicalShortcut(entry.shortcut, platform)
+    if (!key) continue
+    byKey.set(key, [...(byKey.get(key) ?? []), entry.id])
+  }
+  return new Set([...byKey.values()].filter((ids) => ids.length > 1).flat())
+}
+
+const MAC_KEY_SYMBOLS: Record<string, string> = { Cmd: '⌘', Ctrl: '⌃', Alt: '⌥', Shift: '⇧', Enter: '↩' }
+
+/** An accelerator as separate key-cap labels: `['⌘', 'K']` on macOS, `['Ctrl', 'K']` elsewhere. */
+export function shortcutKeyCaps(shortcut: string, platform?: string): string[] {
+  const label = formatShortcutLabel(shortcut, platform)
+  if (!label) return []
+  const isMac = isMacPlatform(platform)
+  return label.split('+').map((part) => (isMac ? MAC_KEY_SYMBOLS[part] ?? part : part))
 }

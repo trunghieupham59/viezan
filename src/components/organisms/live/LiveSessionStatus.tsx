@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { LIVE_INPUT_LEVEL_POLL_MS } from '../../../constants/ui'
 import { formatElapsed } from '../../../utils/live-translate'
+import { Meter } from '../../ui/atoms'
 import { SpinnerIcon } from '../../ui/icons'
+import { StatusChip } from '../../ui/molecules'
 
 export interface LiveSessionStatusProps {
   /** Epoch ms when the running session started. */
@@ -16,7 +18,8 @@ export interface LiveSessionStatusProps {
 }
 
 /**
- * Running-session status: pipeline state, input level and elapsed time.
+ * Running-session status for the page header: a recording chip with the
+ * pipeline state and elapsed time, then the input level.
  *
  * It polls on its own so the frequent level updates re-render only this
  * component, never the whole interpreter page.
@@ -42,17 +45,16 @@ export function LiveSessionStatus({
 
   return (
     <span className="live-session-status">
-      {busy
-        ? <SpinnerIcon className="live-session-status-icon animate-spin" />
-        : <span className="live-session-status-dot" aria-hidden="true" />}
-      <span className="live-session-status-label">{label}</span>
+      <StatusChip tone="danger" icon={busy ? <SpinnerIcon className="animate-spin" /> : undefined}>
+        <span className="live-session-status-label">{label}</span>
+        <span className="live-session-elapsed">
+          <span className="sr-only">{elapsedLabel}: </span>
+          <time>{formatElapsed(now - startedAt)}</time>
+        </span>
+      </StatusChip>
       {level !== null && (
-        <meter className="live-input-meter" aria-label={inputLevelLabel} min={0} max={1} value={level} />
+        <Meter className="live-input-meter" label={inputLevelLabel} min={0} max={1} value={level} emphasis="action" />
       )}
-      <span className="live-session-elapsed">
-        <span className="sr-only">{elapsedLabel}: </span>
-        <time>{formatElapsed(now - startedAt)}</time>
-      </span>
     </span>
   )
 }

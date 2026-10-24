@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useId, useRef, useState } from 'react'
+import { useCallback, useId, useRef, useState } from 'react'
 import { PROVIDERS } from '../../../constants/providers'
 import { useT } from '../../../store/useAppStore'
 import type {
@@ -9,17 +9,13 @@ import type {
 } from '../../../types'
 import { formatModelName } from '../../../utils/modelDisplay'
 import { TranslateToolbar } from '../../translate/TranslateToolbar'
-import { AutoTranslateToggle } from '../../ui/AutoTranslateToggle'
 import { Button } from '../../ui/atoms'
 import { GearIcon } from '../../ui/icons'
-import { AIModelField, ConfigSection, HistoryTrigger, type SelectFieldOption } from '../../ui/molecules'
+import { AIModelField, ConfigSection, type SelectFieldOption } from '../../ui/molecules'
 import { AIConfigurationPopover } from '../AIConfigurationPopover'
 import { TranslationModelDialog } from './TranslationModelDialog'
 
-interface TranslationControlsHeaderProps {
-  titleId: string
-  /** Language pair control shown at the start of the command row. */
-  languageControls?: ReactNode
+export interface TranslationOptionsProps {
   translationStyle: TranslationStyle
   onStyleChange: (style: TranslationStyle) => void
   reasoningEffort: TranslationReasoningEffort
@@ -35,16 +31,14 @@ interface TranslationControlsHeaderProps {
   modelsOpen: boolean
   onModelsOpenChange: (open: boolean) => void
   onOpenSettings: () => void
-  /** Whether the saved-translations panel is showing; `undefined` hides the toggle. */
-  historyOpen?: boolean
-  historyCount?: number
-  onHistoryToggle?: () => void
 }
 
-/** Translation utility bar with a focused model dialog and compact output settings. */
-export function TranslationControlsHeader({
-  titleId,
-  languageControls,
+/**
+ * The Translate page's options: one header button opening the AI configuration
+ * popover (models, style, reading, reasoning, auto-translate) and the focused
+ * dialog for choosing up to three models.
+ */
+export function TranslationOptions({
   translationStyle,
   onStyleChange,
   reasoningEffort,
@@ -60,10 +54,7 @@ export function TranslationControlsHeader({
   modelsOpen,
   onModelsOpenChange,
   onOpenSettings,
-  historyOpen,
-  historyCount = 0,
-  onHistoryToggle,
-}: TranslationControlsHeaderProps) {
+}: TranslationOptionsProps) {
   const t = useT()
   const optionsId = useId()
   const modelsId = useId()
@@ -130,47 +121,19 @@ export function TranslationControlsHeader({
   }
 
   return (
-    <div className="translate-header-stack">
-      <header className="translate-page-header">
-        <h1 id={titleId} className="sr-only">{t.nav_translate}</h1>
-        {languageControls}
-
-        <fieldset className="translate-header-controls">
-          <legend className="sr-only">{t.translate_controls_label}</legend>
-          {/* Comparison runs manually: the toggle stays in place but reads as
-              unavailable instead of being replaced by a look-alike chip. */}
-          <AutoTranslateToggle
-            autoTranslate={autoTranslate}
-            onChange={onAutoTranslateChange}
-            titleOn={t.translate_mode_auto_title}
-            titleOff={isComparisonMode ? t.translate_models_manual_notice : t.translate_mode_manual_title}
-            label={t.translate_mode_auto}
-            disabled={isComparisonMode}
-          />
-
-          {onHistoryToggle && (
-            <HistoryTrigger
-              label={t.history_trigger_label}
-              count={historyCount}
-              expanded={historyOpen ?? false}
-              hideLabel={t.translate_history_toggle_hide}
-              showLabel={t.translate_history_toggle_show}
-              onToggle={onHistoryToggle}
-            />
-          )}
-
+    <>
           <div className="ai-configuration-anchor">
             <Button
               ref={optionsTriggerRef}
-              size="md"
-              shape="rect"
-              variant="neutral"
-              appearance={optionsOpen ? 'soft' : 'outline'}
+              size="sm"
+              shape="icon"
+              variant={optionsOpen ? 'primary' : 'neutral'}
+              appearance={optionsOpen ? 'soft' : 'ghost'}
               aria-expanded={optionsOpen}
               aria-controls={optionsId}
               aria-haspopup="dialog"
               aria-label={`${t.ai_configuration_title}, ${t.translate_models_trigger(translationModels.length)}`}
-              title={t.ai_configuration_title}
+              title={activeOptionsSummary ? `${t.ai_configuration_title} · ${activeOptionsSummary}` : t.ai_configuration_title}
               onClick={() => {
                 setOptionsOpen((open) => !open)
                 onModelsOpenChange(false)
@@ -178,17 +141,6 @@ export function TranslationControlsHeader({
               className="translate-options-trigger"
             >
               <GearIcon />
-              <span>{t.ai_configuration_title}</span>
-              <span className="translate-options-trigger-separator" aria-hidden="true">·</span>
-              <span className="translate-options-trigger-model-count">
-                {t.translate_models_trigger(translationModels.length)}
-              </span>
-              {activeOptionsSummary && (
-                <>
-                  <span className="translate-options-trigger-separator" aria-hidden="true">·</span>
-                  <span className="translate-options-trigger-summary">{activeOptionsSummary}</span>
-                </>
-              )}
             </Button>
 
             <AIConfigurationPopover
@@ -219,7 +171,8 @@ export function TranslationControlsHeader({
               <ConfigSection title={t.ai_configuration_translation_section}>
                 <TranslateToolbar
                   hideModelSelector
-                  hideAutoToggle
+                  autoToggleDisabled={isComparisonMode}
+                  titleAutoDisabled={t.translate_models_manual_notice}
                   translationStyle={translationStyle}
                   onStyleChange={onStyleChange}
                   reasoningEffort={reasoningEffort}
@@ -266,8 +219,6 @@ export function TranslationControlsHeader({
               )}
             </AIConfigurationPopover>
           </div>
-        </fieldset>
-      </header>
 
       {modelsOpen && (
         <TranslationModelDialog
@@ -278,6 +229,6 @@ export function TranslationControlsHeader({
           onOpenSettings={onOpenSettings}
         />
       )}
-    </div>
+    </>
   )
 }

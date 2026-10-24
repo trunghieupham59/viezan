@@ -2,11 +2,10 @@ import { memo, useCallback, useState } from 'react'
 
 import { useAppStore, useT } from '../../store/useAppStore'
 import type { ChatMessage, ChatMessageContent } from '../../types'
-import { AppLogoIcon } from '../AppLogo'
 import { MarkdownText } from '../MarkdownText'
 import { Button } from '../ui/atoms'
-import { CopyIcon, DownloadIcon, LightbulbIcon, RefreshIcon, SparklesIcon, SpinnerIcon, ThumbsDownIcon, ThumbsUpIcon, UserIcon } from '../ui/icons'
-import { ImageLightbox, stripTrailingEllipsis, ThinkingDots, ThinkingPill } from '../ui/molecules'
+import { CopyIcon, DownloadIcon, LightbulbIcon, PencilIcon, RefreshIcon, SparklesIcon, SpinnerIcon, ThumbsDownIcon, ThumbsUpIcon } from '../ui/icons'
+import { ImageLightbox, RecoverableError, stripTrailingEllipsis, ThinkingDots, ThinkingPill } from '../ui/molecules'
 import { UsageCostBadge } from '../ui/molecules/UsageCostBadge'
 
 /**
@@ -58,6 +57,8 @@ interface MessageBubbleProps {
   onCopyImage?: (content: ChatMessageContent) => void
   onDownloadImage?: (content: ChatMessageContent) => void
   onRegenerate?: () => void
+  /** Continue editing this generated image with the next prompt (switches Chat to the image task). */
+  onEditImage?: () => void
   isLastAssistant?: boolean
   isSending?: boolean
   copyLabel?: string
@@ -71,6 +72,7 @@ function MessageBubbleImpl({
   onCopyImage,
   onDownloadImage,
   onRegenerate,
+  onEditImage,
   isLastAssistant,
   isSending,
   copyLabel,
@@ -80,6 +82,7 @@ function MessageBubbleImpl({
 
   const t = useT()
   const costCurrency = useAppStore((state) => state.costCurrency)
+  const openSettingsAt = useAppStore((state) => state.openSettingsAt)
   const isUser = message.role === 'user'
   const textContent = message.content.find((c) => c.type === 'text')?.text ?? ''
   const imageContents = message.content.filter((c) => c.type === 'image')
@@ -149,11 +152,6 @@ function MessageBubbleImpl({
   if (message.isResearchFinal) {
     return (
       <div className="chat-message-row group flex gap-3 items-start">
-        {/* Avatar */}
-        <div className="chat-message-avatar chat-message-avatar-assistant flex-shrink-0 rounded-full flex items-center justify-center overflow-hidden shadow-sm">
-          <AppLogoIcon size="sm" />
-        </div>
-
         <div className="chat-message-content flex-1 min-w-0 flex flex-col gap-1.5">
           {message.isLoading ? (
             <div className="rounded-2xl border border-gray-200/80 bg-white px-4 py-3 shadow-sm shadow-gray-900/[0.05]
@@ -221,19 +219,7 @@ function MessageBubbleImpl({
       className={`chat-message-row group flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start`}
       data-message-role={isUser ? 'user' : 'assistant'}
     >
-      {/* Avatar */}
-      <div className={`chat-message-avatar flex-shrink-0 rounded-full flex items-center justify-center overflow-hidden shadow-sm
-                       ${isUser
-                         ? 'chat-message-avatar-user'
-                         : 'chat-message-avatar-assistant'}`}>
-        {isUser ? (
-          <UserIcon className="w-4 h-4" />
-        ) : (
-          <AppLogoIcon size="sm" />
-        )}
-      </div>
-
-      <div className={`chat-message-content flex flex-col gap-1.5 min-w-0 max-w-[78%] ${isUser ? 'items-end' : 'items-start w-full'}`}>
+      <div className={`chat-message-content flex flex-col gap-1.5 min-w-0 max-w-[80%] ${isUser ? 'items-end' : 'items-start w-full'}`}>
         {/* Image attachments */}
         {imageContents.map((img, i) => {
           const imageSrc = getImageSource(img)
@@ -298,9 +284,11 @@ function MessageBubbleImpl({
             )}
           </div>
         ) : message.error ? (
-          <div className="ui-error-box select-text cursor-text shadow-sm">
-            {message.error}
-          </div>
+          <RecoverableError
+            message={message.error}
+            retryAction={onRegenerate && isLastAssistant && !isSending ? { label: t.chat_error_retry, onClick: onRegenerate } : undefined}
+            settingsAction={isLastAssistant ? { label: t.chat_error_change_model, onClick: () => openSettingsAt('api') } : undefined}
+          />
         ) : null}
 
         {message.error && textContent && (
@@ -360,6 +348,21 @@ function MessageBubbleImpl({
               className={MESSAGE_DOWNLOAD_BUTTON_CLASS}
             >
               <DownloadIcon className="w-3.5 h-3.5" />
+            </Button>
+          )}
+
+          {/* Keep working on the latest generated image */}
+          {downloadableImage && onEditImage && !message.isLoading && (
+            <Button
+              size="xs"
+              shape="rect"
+              variant="neutral"
+              appearance="ghost"
+              onClick={onEditImage}
+              className="chat-edit-image-button"
+            >
+              <PencilIcon className="w-3.5 h-3.5" />
+              <span>{t.chat_edit_this_image}</span>
             </Button>
           )}
 
@@ -445,6 +448,7 @@ function MessageBubbleImpl({
  * exchange for skipping ~99% of token-time re-renders.
  */
 function areMessageBubblePropsEqual(prev: MessageBubbleProps, next: MessageBubbleProps): boolean {
+  if (Boolean(prev.onEditImage) !== Boolean(next.onEditImage)) return false
   if (prev.message === next.message
     && prev.isLastAssistant === next.isLastAssistant
     && prev.isSending === next.isSending

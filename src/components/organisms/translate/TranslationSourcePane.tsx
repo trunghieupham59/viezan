@@ -3,13 +3,16 @@ import { ACCEPTED_IMAGE_MIME_TYPES } from '../../../constants/image'
 import { TRANSLATE_INPUT_WARNING_CHARS } from '../../../constants/providers'
 import { useAppStore, useT } from '../../../store/useAppStore'
 import type { AudioTranscriptionErrorCode } from '../../../types'
+import { formatShortcutLabel } from '../../../utils/keyboardShortcuts'
 import { formatNumberForLocale } from '../../../utils/locale'
+import { tpl } from '../../../utils/tpl'
 import { ImageAttachmentPreview } from '../../translate/ImageAttachmentPreview'
 import type { ImageAttachment } from '../../translate/ImageTranslator'
 import { SourcePanelActions } from '../../translate/SourcePanelActions'
 import { Button } from '../../ui/atoms'
 import { DragOverlay } from '../../ui/DragOverlay'
-import { ChevronRightIcon, InfoCircleIcon } from '../../ui/icons'
+import { ChevronRightIcon, ImageIcon, InfoCircleIcon } from '../../ui/icons'
+import { EmptyPanelState } from '../../ui/molecules'
 import type { SpeakPanel } from '../../ui/SpeakButton'
 import { TranslateButton } from '../../ui/TranslateButton'
 import type { VoiceRecordingState } from '../../VoiceRecorder'
@@ -33,6 +36,10 @@ interface TranslationSourcePaneProps {
   isVoiceInterim: boolean
   isRewriting: 'source' | 'translated' | null
   imageAttachment: ImageAttachment | null
+  /** Chosen in the page header: what the pane asks for when it is empty. */
+  inputMode?: 'text' | 'image' | 'voice'
+  /** The active output options, e.g. "Style: Formal", shown at the footer end. */
+  optionsSummary?: string
   speakingPanel: SpeakPanel | null
   speakLoading: boolean
   fileInputRef: RefObject<HTMLInputElement>
@@ -72,6 +79,8 @@ export function TranslationSourcePane({
   isVoiceInterim,
   isRewriting,
   imageAttachment,
+  inputMode = 'text',
+  optionsSummary,
   speakingPanel,
   speakLoading,
   fileInputRef,
@@ -194,7 +203,20 @@ export function TranslationSourcePane({
             <p className="translate-image-name" title={imageAttachment.fileName}>
               {imageAttachment.fileName}
             </p>
+            <Button size="sm" shape="rect" variant="neutral" appearance="outline" onClick={() => fileInputRef.current?.click()}>
+              {t.translate_image_change}
+            </Button>
           </div>
+        ) : inputMode === 'image' ? (
+          <EmptyPanelState
+            icon={<ImageIcon className="h-5 w-5" />}
+            title={t.translate_image_drop_title}
+            description={tpl(t.translate_image_drop_hint, { shortcut: formatShortcutLabel('CommandOrControl+V', window.api?.platform) })}
+          >
+            <Button size="md" shape="rect" variant="primary" appearance="soft" onClick={() => fileInputRef.current?.click()}>
+              {t.translate_image_choose}
+            </Button>
+          </EmptyPanelState>
         ) : (
           <>
             <label className="sr-only" htmlFor={inputId}>{t.translate_source_content_label}</label>
@@ -203,7 +225,7 @@ export function TranslationSourcePane({
               value={sourceText}
               onChange={(event) => onSourceChange(event.target.value)}
               onKeyDown={handleInputKeyDown}
-              placeholder={t.translate_placeholder}
+              placeholder={inputMode === 'voice' ? t.translate_voice_hint : t.translate_placeholder}
               spellCheck={false}
               aria-busy={isVoiceActive}
               aria-describedby={isVoiceActive ? helperId : `${helperId} ${counterId}`}
@@ -228,6 +250,7 @@ export function TranslationSourcePane({
           sourceLang={sourceLang}
           voiceContextKey={voiceContextKey}
           hasImage={Boolean(imageAttachment)}
+          inputMode={inputMode}
           speakingPanel={speakingPanel}
           speakLoading={speakLoading}
           onVoiceTranscript={onVoiceTranscript}
@@ -280,6 +303,7 @@ export function TranslationSourcePane({
             </span>
           )}
 
+          {optionsSummary && <span className="translate-options-summary">{optionsSummary}</span>}
           {!autoTranslate && (
             <>
               <span className="translate-shortcut-hint">{t.translate_manual_shortcut}</span>

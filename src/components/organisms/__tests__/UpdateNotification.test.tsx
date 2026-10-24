@@ -34,7 +34,7 @@ describe('update notification', () => {
     await act(async () => { render(<UpdateNotification />) })
     available()
     expect(screen.queryByRole('dialog')).toBeNull()
-    expect(useAppStore.getState().settingsOpen).toBe(true)
+    expect(useAppStore.getState().activePage).toBe('settings')
     expect(useAppStore.getState().settingsInitialSection).toBe('updates')
     expect(window.api.updater.setNotificationPreferences).toHaveBeenCalledWith(expect.objectContaining({ locale: 'en' }))
   })

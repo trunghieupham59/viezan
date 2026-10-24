@@ -26,7 +26,9 @@ describe('DictionaryEntrySections', () => {
     expect(screen.getByRole('heading', { name: 'Meaning' })).toBeInTheDocument()
     expect(screen.getByText('Improve the way something is done.')).toHaveClass('entry-meaning')
     expect(screen.getByText('Use for practical improvements.')).toBeInTheDocument()
-    expect(screen.getAllByText('工夫する -> cải tiến')).toHaveLength(2)
+    // "source -> translation" reads as the sentence with its translation underneath.
+    expect(screen.getAllByText('工夫する')).toHaveLength(2)
+    expect(screen.getAllByText('cải tiến')[0]).toHaveClass('entry-example-translation')
     expect(screen.getByText('cải tiến quy trình')).toHaveClass('entry-phrase')
     expect(screen.getByText('Moderately formal.')).toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
@@ -67,5 +69,14 @@ describe('DictionaryEntrySections', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
     expect(screen.getByText('cải tiến').closest('.entry-chip--static')).toBeInTheDocument()
     expect(screen.getByText('/kai tien/')).toHaveClass('entry-chip-pronunciation')
+  })
+})
+
+describe('splitExample', () => {
+  it('splits a sentence from its translation and leaves plain text whole', async () => {
+    const { splitExample } = await import('../DictionaryEntrySections')
+    expect(splitExample('工夫する -> cải tiến')).toEqual({ source: '工夫する', translation: 'cải tiến' })
+    expect(splitExample('A → B')).toEqual({ source: 'A', translation: 'B' })
+    expect(splitExample('no arrow here')).toEqual({ source: 'no arrow here' })
   })
 })

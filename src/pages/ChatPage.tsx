@@ -3,16 +3,14 @@ import { createPortal } from 'react-dom'
 import { useShallow } from 'zustand/react/shallow'
 import { MessageBubble } from '../components/chat/MessageBubble'
 import { ResearchStepsPanel } from '../components/chat/ResearchStepsPanel'
-import { ChatAIConfiguration, ChatTaskConfiguration } from '../components/organisms'
+import { ChatTaskConfiguration } from '../components/organisms'
 import { AppLogoIcon, Button } from '../components/ui/atoms'
 import { DragOverlay } from '../components/ui/DragOverlay'
 import { ImagePreviewThumbnail } from '../components/ui/ImagePreviewThumbnail'
 import {
-  ArrowRightIcon,
   GlobeIcon,
   PaperclipIcon,
   PlusIcon,
-  RefreshIcon,
   SendIcon,
   StopSquareIcon,
 } from '../components/ui/icons'
@@ -36,12 +34,11 @@ import type {
   ChatMessageContent,
   ChatRequestConfiguration,
   DeepResearchResumeState,
-  Provider,
 } from '../types'
 import { canUseChatWebSearch, getChatTaskExecution, resolveChatTaskState } from '../types/chatTask'
 import { shouldUseCarefulReasoning } from '../utils/carefulReasoning'
 import { localizeChatError, localizeChatException } from '../utils/chatErrors'
-import { supportsChatImageMode } from '../utils/chatImageMode'
+import { imageInputSupport, supportsChatImageMode } from '../utils/chatImageMode'
 import { chatImageStoreKey, getChatImage, putChatImage } from '../utils/chatImageStore'
 import { getChatTaskInstruction, selectChatTask } from '../utils/chatTaskConfiguration'
 import { isEmptyChatTask } from '../utils/chatTaskDraft'
@@ -251,7 +248,7 @@ export function ChatPage() {
     selectedProvider, selectedModels, keyStatus,
     chatSendShortcut, chatNewSessionShortcut,
     chatSessions, activeChatSessionId, chatSystemPrompt,
-    createChatSession, setActiveChatSession, setChatSessionModel, addChatMessage, updateChatMessage,
+    createChatSession, setActiveChatSession, addChatMessage, updateChatMessage,
     addChatSessionCost, openSettings,
     recordUsageCost, setDeepResearchResumeState,
     setChatSessionDraft,
@@ -462,19 +459,6 @@ export function ChatPage() {
   useEffect(() => {
     if (activeChatSessionId) setActiveChatSession(activeChatSessionId)
   }, [activeChatSessionId, setActiveChatSession])
-
-  const handleChatModelChange = useCallback((provider: Provider, model: string) => {
-    if (!activeChatSessionId) return
-    const state = useAppStore.getState()
-    // `fetchModels` may finish after the user switches conversations. Bind
-    // this callback to the session/provider from the render that launched it
-    // so an old response can never rewrite the newly-active conversation.
-    if (
-      state.activeChatSessionId !== activeChatSessionId
-      || state.selectedProvider !== provider
-    ) return
-    setChatSessionModel(activeChatSessionId, provider, model)
-  }, [activeChatSessionId, setChatSessionModel])
 
   const recordChatCost = useCallback((sessionId: string, messageId: string, inputText: string, reply: string, configuration?: ChatRequestConfiguration) => {
     const cost = estimateUsageCost({
@@ -1452,6 +1436,7 @@ export function ChatPage() {
       }
     }
   }, [activeChatSessionId, messages, updateChatMessage])
+  const attachedImageReadable = imageInputSupport(selectedProvider, selectedModels[selectedProvider] ?? '')
   const canResumeDeepResearch = Boolean(
     getChatTaskExecution(taskState).deepResearchMode
     && !isSending
@@ -1479,7 +1464,12 @@ export function ChatPage() {
     if (index === 4 && !imageModeSupported) return
     const next = selectChatTask(t, locale, taskState, index, option)
     setChatTaskState(activeChatSessionId, next)
-    if (!option) requestAnimationFrame(() => textareaRef.current?.focus({ preventScroll: true }))
+    requestAnimationFrame(() => textareaRef.current?.focus({ preventScroll: true }))
+  }
+  // The image task edits the newest generated image when nothing else is attached.
+  const handleEditLatestImage = () => {
+    if (!imageMode) handleTaskSelect(4)
+    else requestAnimationFrame(() => textareaRef.current?.focus({ preventScroll: true }))
   }
   const handleTaskOpenChange = useCallback((open: boolean) => {
     const store = useAppStore.getState()
@@ -1496,11 +1486,6 @@ export function ChatPage() {
   const needsTaskContent = !attachedImage && isEmptyChatTask(inputText)
   const inputArea = (
     <div className="chat-composer-content flex flex-col">
-      {hasKey && <div className="px-3 pt-2">
-        <ChatTaskConfiguration t={t} state={taskState} disabled={isVoiceBusy} imageSupported={imageModeSupported}
-          contextKey={`${activeChatSessionId ?? 'pending'}:${messages.filter((message) => message.role === 'user').length}`}
-          onSelect={handleTaskSelect} onOpenChange={handleTaskOpenChange} />
-      </div>}
       {/* Image preview */}
       {attachedImage && (
         <ImagePreviewThumbnail
@@ -1509,6 +1494,11 @@ export function ChatPage() {
           removeTitle={t.chat_remove_image}
           onRemove={() => setAttachedImage(null)}
         />
+      )}
+      {attachedImage && !imageMode && attachedImageReadable !== 'yes' && (
+        <p className="chat-task-hint chat-attachment-hint" role="status">
+          {attachedImageReadable === 'no' ? t.chat_attachment_model_cannot_read : t.chat_attachment_model_may_not_read}
+        </p>
       )}
 
       {/* Textarea row */}
@@ -1536,8 +1526,8 @@ export function ChatPage() {
       {/* Bottom controls bar: [+ | Ảnh | Tự động ▼]  ···  [model | voice | send] */}
       <div className="chat-composer-toolbar flex items-center justify-between px-2 pb-1.5">
 
-        {/* Left: attach + mode toggles */}
-        <div className="flex items-center gap-0.5">
+        {/* Left: attach, web sources and the task */}
+        <div className="chat-composer-tools flex min-w-0 items-center gap-1">
 
           {/* + button — attach file */}
           <Button
@@ -1557,29 +1547,26 @@ export function ChatPage() {
             <PlusIcon />
           </Button>
 
-          {canUseChatWebSearch(taskState) && <Button size="md" shape="pill"
+          {canUseChatWebSearch(taskState) && <Button size="md" shape="icon"
             variant={webSearchMode ? 'primary' : 'neutral'} appearance={webSearchMode ? 'soft' : 'ghost'}
             aria-label={t.chat_web_source} aria-pressed={webSearchMode} title={t.chat_web_source_hint}
             disabled={isVoiceBusy} onClick={() => setChatTaskState(activeChatSessionId, {
               selected: null, options: {}, applied: null, open: false, ...taskState, unified: true, webSearch: !webSearchMode,
             })}>
-            <GlobeIcon className="h-4 w-4" /><span>{t.chat_web_source}</span>
+            <GlobeIcon className="h-4 w-4" />
           </Button>}
+
+          {hasKey && (
+            <ChatTaskConfiguration t={t} state={taskState} disabled={isVoiceBusy} imageSupported={imageModeSupported}
+              contextKey={`${activeChatSessionId ?? 'pending'}:${messages.filter((message) => message.role === 'user').length}`}
+              onSelect={handleTaskSelect} onOpenChange={handleTaskOpenChange} />
+          )}
         </div>
 
         {/* Right: char count · model · voice · send */}
         <div className="chat-composer-actions flex min-w-0 items-center gap-1">
           {inputText.length > 600 && (
             <span className="ui-micro tabular-nums">{inputText.length}</span>
-          )}
-          {!isVoiceBusy && (
-            <>
-              <ChatAIConfiguration
-                conversationId={activeChatSessionId}
-                onSelectionChange={handleChatModelChange}
-              />
-              <span className="w-px h-3.5 flex-shrink-0" style={{ background: 'var(--vzn-border-strong)' }} />
-            </>
           )}
           <VoiceRecorder
             sourceLang="auto"
@@ -1611,27 +1598,6 @@ export function ChatPage() {
               className="chat-stop-button"
             >
               <StopSquareIcon className="w-5 h-5" />
-            </Button>
-          ) : canResumeDeepResearch ? (
-            <Button
-              size="md"
-              shape="pill"
-              variant="primary"
-              appearance="solid"
-              onClick={handleResumeDeepResearch}
-              title={t.chat_deep_research_resume}
-              aria-label={t.chat_deep_research_resume}
-              className="chat-resume-button"
-            >
-              <span className="chat-primary-action-label">{t.chat_deep_research_resume_short}</span>
-              <ArrowRightIcon className="h-3.5 w-3.5" />
-            </Button>
-          ) : canRetryDeepResearch ? (
-            <Button size="md" shape="pill" variant="primary" appearance="solid"
-              onClick={handleRegenerate} title={t.chat_deep_research_retry} aria-label={t.chat_deep_research_retry}
-              className="chat-resume-button">
-              <span className="chat-primary-action-label">{t.chat_deep_research_retry_short}</span>
-              <RefreshIcon className="h-3.5 w-3.5" />
             </Button>
           ) : (
             <Button
@@ -1768,10 +1734,14 @@ export function ChatPage() {
                           group.push(messages[i])
                           i++
                         }
+                        // Only the run that ended the conversation can be resumed or retried.
+                        const endsConversation = i === messages.length
                         rendered.push(
                           <ResearchStepsPanel
                             key={`rsp-${group[0].id}`}
                             steps={group}
+                            onResume={endsConversation && canResumeDeepResearch ? handleResumeDeepResearch : undefined}
+                            onRetry={endsConversation && canRetryDeepResearch ? handleRegenerate : undefined}
                           />
                         )
                         continue
@@ -1785,6 +1755,7 @@ export function ChatPage() {
                           onCopyImage={handleCopyImage}
                           onDownloadImage={handleDownloadImage}
                           onRegenerate={i === lastAssistantIdx ? handleRegenerate : undefined}
+                          onEditImage={i === lastAssistantIdx && imageModeSupported ? handleEditLatestImage : undefined}
                           isLastAssistant={i === lastAssistantIdx}
                           isSending={isSending}
                           copyLabel={t.translate_copy}

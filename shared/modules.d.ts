@@ -11,6 +11,16 @@
 export type PageModuleId = 'chat' | 'translate' | 'live' | 'dictionary' | 'thermal'
 
 /**
+ * Pages that always exist and are not modules: Home, the two pages that gather what
+ * Viezan does outside its window (Translate everywhere, Launcher & shortcuts), and
+ * Settings. They cannot be turned off and never appear in `modules.json`.
+ */
+export type SystemPageId = 'home' | 'everywhere' | 'utilities' | 'settings'
+
+/** Every page the workspace can show. */
+export type AppPageId = PageModuleId | SystemPageId
+
+/**
  * Every module the main process knows, including ones without a page: the Launcher
  * popup (`launcher`) and the Chrome-extension bridge (`browser-bridge`).
  */
@@ -27,6 +37,12 @@ export interface ModulesApi {
   onChanged: (cb: (enabled: ModuleEnabledState) => void) => () => void
 }
 
+/**
+ * The navigation space a page belongs to: the primary sidebar groups pages by what
+ * the user is doing rather than listing features flat.
+ */
+export type ModuleSpace = 'ai' | 'language' | 'system' | 'tools'
+
 /** How the workspace looks while a module's page chunk is still loading. */
 export type ModuleLoadingLayout = 'blank' | 'split' | 'list'
 
@@ -39,6 +55,8 @@ export type ModuleNavigateEffect = 'clearTranslation'
  */
 export interface ModuleDefinition {
   id: PageModuleId
+  /** Navigation group in the primary sidebar. */
+  space: ModuleSpace
   /** i18n key of the navigation label. */
   labelKey: 'nav_chat' | 'nav_translate' | 'nav_live_translate' | 'nav_dictionary' | 'nav_thermal'
   /** i18n key of the one-line description shown in the Command Palette. */

@@ -14,6 +14,7 @@ import { useNotificationStore } from '../../store/useNotificationStore'
 import { tpl } from '../../utils/tpl'
 import { CredentialCard } from '../ui/CredentialCard'
 import { BraveSearchIcon, TavilyIcon } from '../ui/icons'
+import { SettingsRow } from '../ui/molecules'
 
 // ─── Provider config ──────────────────────────────────────────────────────────
 
@@ -164,6 +165,8 @@ function KeyCard({ provider, onStatusChange }: KeyCardProps) {
       docsLabel={t.settings_get_key}
       labels={{
         saved: t.settings_key_saved,
+        edit: t.settings_key_edit,
+        add: t.settings_key_add,
         empty: t.settings_no_key,
         invalid: t.settings_key_invalid,
         remove: t.settings_remove,
@@ -195,6 +198,7 @@ function KeyCard({ provider, onStatusChange }: KeyCardProps) {
 
 export function DeepResearchApiSection() {
   const { setHasTavilyKey, setHasBraveKey } = useAppStore()
+  const t = useT()
 
   const statusHandlers: Record<'tavily' | 'brave', (exists: boolean) => void> = {
     tavily: setHasTavilyKey,
@@ -202,8 +206,8 @@ export function DeepResearchApiSection() {
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Provider cards */}
+    <div className="web-search-providers">
+      {/* Tried top to bottom; Jina needs no key and is always the last resort. */}
       {WEB_SEARCH_PROVIDERS.map((provider) => (
         <KeyCard
           key={provider.id}
@@ -211,7 +215,7 @@ export function DeepResearchApiSection() {
           onStatusChange={statusHandlers[provider.id]}
         />
       ))}
-
+      <SettingsRow label={t.settings_web_search_jina} description={t.settings_web_search_jina_desc} />
     </div>
   )
 }

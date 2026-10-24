@@ -77,11 +77,11 @@
 :root [data-theme="graphite"][data-mode="light"] {
   /* Surfaces */
   --vzn-app-bg: #eeeeef;
-  --vzn-bg: var(--vzn-neutral-50);
+  --vzn-bg: #f4f4f6;
   --vzn-canvas: var(--vzn-neutral-0);
   --vzn-titlebar-bg: #eeeeef;
-  --vzn-sidebar-bg: #eeeeef;
-  --vzn-chat-sidebar-bg: #f5f5f6;
+  --vzn-sidebar-bg: #ececef;
+  --vzn-chat-sidebar-bg: var(--vzn-neutral-0);
   --vzn-surface: var(--vzn-neutral-0);
   --vzn-surface-raised: var(--vzn-neutral-25);
   --vzn-surface-muted: #f6f6f7;
@@ -135,8 +135,8 @@
   --vzn-chrome-fg-soft: var(--vzn-text-soft);
   --vzn-chrome-divider: var(--vzn-divider);
   --vzn-chrome-item-hover: var(--vzn-surface-subtle);
-  --vzn-chrome-item-active: var(--vzn-action-soft);
-  --vzn-chrome-item-active-fg: var(--vzn-text-strong);
+  --vzn-chrome-item-active: var(--vzn-surface);
+  --vzn-chrome-item-active-fg: var(--vzn-action-text);
   --vzn-chrome-accent: var(--vzn-action-text);
 
   /* Illustrative tones */
@@ -177,21 +177,6 @@
 }
 
 :root {
-  --vzn-success: var(--vzn-green-600);
-  --vzn-success-soft: var(--vzn-green-50);
-  --vzn-success-border: color-mix(in srgb, var(--vzn-green-500) 42%, transparent);
-  --vzn-warning: var(--vzn-amber-600);
-  --vzn-warning-soft: var(--vzn-amber-50);
-  --vzn-warning-border: color-mix(in srgb, var(--vzn-amber-500) 45%, transparent);
-  --vzn-danger: var(--vzn-red-600);
-  --vzn-danger-hover: var(--vzn-red-700);
-  --vzn-danger-soft: var(--vzn-red-50);
-  --vzn-danger-soft-hover: #fee2e2;
-  --vzn-danger-border: var(--vzn-red-200);
-
-  --vzn-disabled-bg: var(--vzn-neutral-100);
-  --vzn-disabled-border: var(--vzn-neutral-200);
-  --vzn-disabled-fg: var(--vzn-neutral-400);
   --vzn-opacity-disabled: 0.48;
 
   /* Typography ---------------------------------------------------------- */
@@ -209,6 +194,8 @@
   --vzn-line-height-reading: 1.6;
   --vzn-font-size-display: 32px;
   --vzn-line-tight: 1.2;
+  /** Letter spacing for small uppercase labels (section kickers, group headings). */
+  --vzn-tracking-caps: 0.06em;
   --vzn-line-normal: 1.45;
   --vzn-line-relaxed: 1.6;
   --vzn-weight-regular: 400;
@@ -253,7 +240,6 @@
   /* Elevation and motion ------------------------------------------------ */
   /* Scrims and media surfaces: modal dim layer, full-screen media viewer
    * backdrop, the matte behind transparent images, and text on filled danger. */
-  --vzn-scrim: rgba(20, 19, 17, 0.42);
   --vzn-scrim-media: rgba(12, 12, 11, 0.84);
   --vzn-media-matte: #ffffff;
   --vzn-danger-fg: var(--vzn-action-fg);
@@ -278,12 +264,34 @@
   --vzn-sidebar-expanded-width: 236px;
   --vzn-titlebar-height: 40px;
   --vzn-titlebar-mac-controls-width: 80px;
-  --vzn-chat-sidebar-width: 260px;
+  --vzn-chat-sidebar-width: 264px;
+  /* Header model chip: the raw model id truncates past this. */
+  --vzn-model-chip-model-max: 180px;
+  /* Shared page header: the large control height plus its vertical padding (56px). */
+  --vzn-page-header-min-height: calc(var(--vzn-control-height-lg) + var(--vzn-space-2) * 2);
   --vzn-chat-header-height: calc(var(--vzn-control-height-sm) + var(--vzn-space-2) * 2);
   --vzn-content-max: 980px;
-  --vzn-chat-stage-max: 1040px;
-  --vzn-chat-reading-max: 820px;
-  --vzn-chat-composer-max: 1040px;
+  /* Overview pages (Home): side column, resume basis, fan row columns and a quick-start card. */
+  --vzn-overview-side: 320px;
+  --vzn-overview-resume-basis: 460px;
+  --vzn-overview-fan-label: 72px;
+  --vzn-overview-fan-value: 76px;
+  --vzn-quick-card-min: 200px;
+  /* System pages: the narrowest card before two columns stack. */
+  --vzn-system-card-min: 420px;
+  /* Settings rows: the label column's preferred width before controls wrap below; a step tile's narrowest width. */
+  --vzn-settings-row-copy-basis: 220px;
+  --vzn-step-min: 180px;
+  --vzn-about-feature-min: 150px;
+  --vzn-settings-select-min: 180px;
+  /* Settings › Appearance: the live preview column. */
+  --vzn-appearance-preview-width: 300px;
+  /* Interpret: the "This session" column beside the transcript. */
+  --vzn-live-session-panel-width: 280px;
+  /* One 760px column for messages, suggestions and the composer. */
+  --vzn-chat-stage-max: 760px;
+  --vzn-chat-reading-max: 760px;
+  --vzn-chat-composer-max: 760px;
   --vzn-translate-workspace-max: 1440px;
   --vzn-translate-history-width: calc(var(--vzn-space-12) * 6);
   --vzn-translate-source-min-block: 18rem;
@@ -311,8 +319,9 @@
   --vzn-thermal-fan-column-max: 30rem;
   --vzn-thermal-raw-list-max-block: 20rem;
   --vzn-empty-state-copy-max: calc(var(--vzn-space-12) * 4);
-  --vzn-dictionary-result-min-inline: calc(var(--vzn-space-12) * 10);
-  --vzn-dictionary-history-width: calc(var(--vzn-space-12) * 6);
+  /* Lookup column (term, context, Recent / Favorites) beside the result page. */
+  --vzn-dictionary-lookup-width: calc(var(--vzn-space-12) * 7);
+  --vzn-dictionary-reading-max: calc(var(--vzn-space-12) * 16);
   --vzn-dictionary-context-max-block: calc(var(--vzn-control-height-md) * 3);
   --vzn-dictionary-pane-min-block: calc(var(--vzn-space-12) * 6);
   --vzn-popover-wide: 420px;
@@ -336,8 +345,6 @@
     var(--vzn-control-height-md) + var(--vzn-space-2)
   );
   --vzn-history-search-width: calc(var(--vzn-space-12) * 5);
-  --vzn-settings-modal-max-inline: 1040px;
-  --vzn-settings-modal-max-block: 860px;
   --vzn-modal-viewport-block: 90vh;
   --vzn-update-dialog-max-inline: 560px;
   --vzn-dialog-sm-max-inline: 420px;
@@ -357,6 +364,30 @@
   --vzn-accent-active: var(--vzn-action-active);
   --vzn-accent-soft: var(--vzn-action-soft);
   --vzn-accent-border: var(--vzn-action-border);
+}
+
+/* Status, disabled and overlay values (light). The dark set is declared under
+ * `html.dark, [data-mode="dark"]`; `[data-mode="light"]` pins an element (the
+ * Settings preview, spec boards) to light inside a dark window. */
+:root,
+[data-mode="light"] {
+  --vzn-success: var(--vzn-green-600);
+  --vzn-success-soft: var(--vzn-green-50);
+  --vzn-success-border: color-mix(in srgb, var(--vzn-green-500) 42%, transparent);
+  --vzn-warning: var(--vzn-amber-600);
+  --vzn-warning-soft: var(--vzn-amber-50);
+  --vzn-warning-border: color-mix(in srgb, var(--vzn-amber-500) 45%, transparent);
+  --vzn-danger: var(--vzn-red-600);
+  --vzn-danger-hover: var(--vzn-red-700);
+  --vzn-danger-soft: var(--vzn-red-50);
+  --vzn-danger-soft-hover: #fee2e2;
+  --vzn-danger-border: var(--vzn-red-200);
+
+  --vzn-disabled-bg: var(--vzn-neutral-100);
+  --vzn-disabled-border: var(--vzn-neutral-200);
+  --vzn-disabled-fg: var(--vzn-neutral-400);
+
+  --vzn-scrim: rgba(20, 19, 17, 0.42);
   --vzn-skeleton: color-mix(in srgb, var(--vzn-neutral-900) 6%, transparent);
 }
 
@@ -370,27 +401,27 @@ html.dark [data-theme="graphite"],
 html.dark[data-theme="graphite"],
 :root [data-theme="graphite"][data-mode="dark"] {
   /* Surfaces */
-  --vzn-app-bg: #161618;
-  --vzn-bg: #1c1c1e;
-  --vzn-canvas: #1c1c1e;
-  --vzn-titlebar-bg: #242426;
-  --vzn-sidebar-bg: #242426;
-  --vzn-chat-sidebar-bg: #202022;
-  --vzn-surface: #2c2c2e;
-  --vzn-surface-raised: #323234;
-  --vzn-surface-muted: #28282a;
-  --vzn-surface-subtle: #303033;
-  --vzn-surface-hover: #3a3a3c;
-  --vzn-surface-selected: rgba(10, 132, 255, 0.16);
-  --vzn-text: #e5e5ea;
+  --vzn-app-bg: #111113;
+  --vzn-bg: #111113;
+  --vzn-canvas: #111113;
+  --vzn-titlebar-bg: #18181b;
+  --vzn-sidebar-bg: #18181b;
+  --vzn-chat-sidebar-bg: #18181b;
+  --vzn-surface: #1c1c1f;
+  --vzn-surface-raised: #232327;
+  --vzn-surface-muted: #222226;
+  --vzn-surface-subtle: #222226;
+  --vzn-surface-hover: #2a2a2e;
+  --vzn-surface-selected: rgba(77, 155, 255, 0.16);
+  --vzn-text: #ececf0;
   --vzn-text-strong: #f5f5f7;
-  --vzn-text-muted: #aeaeb2;
-  --vzn-text-soft: #8e8e93;
-  --vzn-text-disabled: #636366;
-  --vzn-text-inverse: #161618;
-  --vzn-border: rgba(235, 235, 245, 0.12);
-  --vzn-border-strong: rgba(235, 235, 245, 0.2);
-  --vzn-divider: rgba(235, 235, 245, 0.1);
+  --vzn-text-muted: #a8a8b0;
+  --vzn-text-soft: #9a9aa2;
+  --vzn-text-disabled: #6b6b73;
+  --vzn-text-inverse: #111113;
+  --vzn-border: #2c2c31;
+  --vzn-border-strong: #3a3a40;
+  --vzn-divider: #26262a;
   --vzn-titlebar-material: rgba(30, 30, 32, 0.76);
   --vzn-primary-nav-material: rgba(34, 34, 37, 0.76);
   --vzn-context-nav-material: rgba(28, 28, 30, 0.88);
@@ -402,15 +433,15 @@ html.dark[data-theme="graphite"],
   --vzn-assistant-avatar-bg: rgba(44, 44, 46, 0.78);
 
   /* Accent */
-  --vzn-action: var(--vzn-blue-500);
-  --vzn-action-hover: var(--vzn-blue-400);
-  --vzn-action-active: var(--vzn-blue-600);
-  --vzn-action-soft: rgba(10, 132, 255, 0.16);
-  --vzn-action-soft-hover: rgba(10, 132, 255, 0.23);
-  --vzn-action-border: rgba(10, 132, 255, 0.4);
-  --vzn-action-text: #409cff;
+  --vzn-action: #2f7bea;
+  --vzn-action-hover: #4d8ff0;
+  --vzn-action-active: #2569cf;
+  --vzn-action-soft: rgba(77, 155, 255, 0.16);
+  --vzn-action-soft-hover: rgba(77, 155, 255, 0.23);
+  --vzn-action-border: rgba(77, 155, 255, 0.4);
+  --vzn-action-text: #8cc2ff;
   --vzn-action-fg: #ffffff;
-  --vzn-focus-ring: rgba(10, 132, 255, 0.62);
+  --vzn-focus-ring: rgba(77, 155, 255, 0.62);
   --vzn-action-fill: var(--vzn-action);
   --vzn-action-fill-hover: var(--vzn-action-hover);
   --vzn-accent-glow: transparent;
@@ -423,6 +454,7 @@ html.dark[data-theme="graphite"],
   --vzn-user-bubble-border: var(--vzn-divider);
 
   /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface-subtle);
   --vzn-chrome-fg: var(--vzn-text);
   --vzn-chrome-fg-strong: var(--vzn-text-strong);
   --vzn-chrome-fg-muted: var(--vzn-text-muted);
@@ -430,7 +462,7 @@ html.dark[data-theme="graphite"],
   --vzn-chrome-divider: var(--vzn-divider);
   --vzn-chrome-item-hover: var(--vzn-surface-subtle);
   --vzn-chrome-item-active: var(--vzn-action-soft);
-  --vzn-chrome-item-active-fg: var(--vzn-text-strong);
+  --vzn-chrome-item-active-fg: var(--vzn-action-text);
   --vzn-chrome-accent: var(--vzn-action-text);
 
   /* Illustrative tones */
@@ -470,7 +502,11 @@ html.dark[data-theme="graphite"],
   --vzn-app-backdrop: none;
 }
 
-html.dark {
+/* Status, disabled and overlay values follow the mode. `[data-mode]` lets an
+ * element pin its own mode (the Settings preview, spec boards) regardless of
+ * `html.dark`, so both selectors carry the same set. */
+html.dark,
+[data-mode="dark"] {
   --vzn-success: #4ade80;
   --vzn-success-soft: rgba(74, 222, 128, 0.1);
   --vzn-success-border: rgba(74, 222, 128, 0.28);
@@ -1666,7 +1702,7 @@ body {
   font-size: var(--vzn-font-size-caption);
   font-weight: var(--vzn-weight-semibold);
   line-height: var(--vzn-line-tight);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--vzn-tracking-caps);
   text-transform: uppercase;
 }
 

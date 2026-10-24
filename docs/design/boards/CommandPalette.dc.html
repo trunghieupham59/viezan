@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — bảng lệnh</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0A58C2}
+.g{margin:10px 14px 4px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6B6B73}
+.it{display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;margin:0 6px;border-radius:9px;color:#1C1C1F;text-decoration:none;font-size:14px}
+.it:hover{background:#F0F0F3}
+.ico{width:26px;height:26px;border-radius:7px;background:#F0F0F3;color:#3A3A40;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.kbd{font-family:"JetBrains Mono",monospace;font-size:11px;color:#55555C;border:1px solid #DADADF;border-radius:5px;padding:1px 6px;background:#FAFAFB;white-space:nowrap}
+.d{font-size:12px;color:#6B6B73}
+.btn{height:28px;padding:0 10px;border-radius:7px;border:1px solid #D6D6DC;background:#FFFFFF;color:#1C1C1F;font:500 12px Inter,sans-serif;display:inline-flex;align-items:center;gap:6px}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; background: #F4F4F6; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F">
+  <div aria-hidden="true" style="position: absolute; inset: 0; display: flex">
+    <div style="width: 240px; background: #ECECEF; border-right: 1px solid #E0E0E5"></div>
+    <div style="flex: 1; display: flex; flex-direction: column">
+      <div style="height: 56px; background: #FFFFFF; border-bottom: 1px solid #E2E2E7"></div>
+      <div style="flex: 1; padding: 16px; display: flex; gap: 16px"><div style="flex: 1; background: #FFFFFF; border: 1px solid #E2E2E7; border-radius: 14px"></div><div style="flex: 1; background: #FFFFFF; border: 1px solid #E2E2E7; border-radius: 14px"></div></div>
+    </div>
+  </div>
+  <div aria-hidden="true" style="position: absolute; inset: 0; background: rgba(28,28,31,0.32)"></div>
+
+  <div role="dialog" aria-label="Bảng lệnh" style="position: absolute; left: 50%; top: 96px; transform: translateX(-50%); width: 640px; background: #FFFFFF; border-radius: 16px; box-shadow: 0 24px 64px rgba(0,0,0,0.25); overflow: hidden">
+    <div style="display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 16px; border-bottom: 1px solid #EFEFF2">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#55555C" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+      <label for="cq" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Tìm hoặc chạy lệnh</label>
+      <input id="cq" value="local model nào dịch tốt" style="flex: 1; border: 0; outline: none; font: 400 17px Inter, sans-serif; color: #1C1C1F">
+      <span class="kbd">esc</span>
+    </div>
+
+    <div style="padding: 6px 0 8px; display: flex; flex-direction: column">
+      <p class="g">Hỏi AI</p>
+      <div style="margin: 0 12px 6px; border: 1px solid #E2E2E7; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px">
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #55555C"><span style="width: 7px; height: 7px; border-radius: 99px; background: #1E7F45"></span>Local · <span style="font-family: 'JetBrains Mono', monospace">qwen3:4b</span><span style="flex: 1"></span><span>Đang trả lời…</span></div>
+        <p style="margin: 0; font-size: 14px; line-height: 1.6">[Câu trả lời ngắn hiện ngay trong bảng lệnh, tối đa vài đoạn]</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px">
+          <button type="button" class="btn">Mở trong Chat <span class="kbd">⌘↩</span></button>
+          <button type="button" class="btn">Kiểm chứng bằng web</button>
+          <button type="button" class="btn">Sao chép</button>
+        </div>
+      </div>
+
+      <p class="g">Dùng với</p>
+      <a href="#" class="it"><span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9M8.5 4v2M6 6c0 4 3 7 6 8"></path><path d="m13 20 4-9 4 9"></path></svg></span><span style="flex: 1">Dịch “local model nào dịch tốt”</span><span class="d">Dịch</span></a>
+      <a href="#" class="it"><span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path></svg></span><span style="flex: 1">Tra “local model nào dịch tốt”</span><span class="d">Từ điển</span></a>
+
+      <p class="g">Đi tới</p>
+      <a href="#" class="it" style="background: #E8F0FC"><span class="ico" style="background: #FFFFFF; color: #0A58C2"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5h14v10H9l-4 4z"></path></svg></span><span style="flex: 1; font-weight: 500">AI Chat</span><span class="d">Trò chuyện với AI local và đám mây</span><span class="kbd">↩</span></a>
+      <a href="#" class="it"><span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2"></path></svg></span><span style="flex: 1">Cài đặt › Mô hình AI</span><span class="d">Khoá, AI local</span></a>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 16px; height: 38px; padding: 0 16px; border-top: 1px solid #EFEFF2; background: #FAFAFB; font-size: 12px; color: #55555C">
+      <span style="display: inline-flex; gap: 6px; align-items: center"><span class="kbd">↑↓</span>chọn</span>
+      <span style="display: inline-flex; gap: 6px; align-items: center"><span class="kbd">↩</span>chạy</span>
+      <span style="display: inline-flex; gap: 6px; align-items: center"><span class="kbd">⇥</span>hỏi AI</span>
+    </div>
+  </div>
+
+  <div role="dialog" aria-label="Bảng lệnh, máy tính" style="position: absolute; left: 50%; top: 640px; transform: translateX(-50%); width: 640px; background: #FFFFFF; border-radius: 16px; box-shadow: 0 24px 64px rgba(0,0,0,0.25); overflow: hidden">
+    <div style="display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 16px; border-bottom: 1px solid #EFEFF2">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#55555C" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+      <label for="cq2" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Tìm hoặc chạy lệnh</label>
+      <input id="cq2" value="(1450 * 12) / 7" style="flex: 1; border: 0; outline: none; font: 400 17px 'JetBrains Mono', monospace; color: #1C1C1F">
+    </div>
+    <div style="margin: 10px 12px 12px; padding: 14px 16px; border-radius: 12px; background: #F4F7FD; border: 1px solid #D5E2F7; display: flex; align-items: center; gap: 12px">
+      <span style="font-size: 13px; color: #55555C">=</span>
+      <span style="font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums">2.485,71</span>
+      <span style="flex: 1"></span>
+      <span class="kbd">↩ sao chép</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

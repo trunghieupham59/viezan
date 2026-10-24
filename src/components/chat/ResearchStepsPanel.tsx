@@ -1,17 +1,20 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { useT } from '../../store/useAppStore'
 import type { ChatMessage, ResearchStepPhase } from '../../types'
 import { tpl } from '../../utils/tpl'
 import { MarkdownText } from '../MarkdownText'
+import { Button } from '../ui/atoms'
 import {
   CheckCircleIcon,
+  ChevronRightIcon,
   InfoCircleIcon,
   LightbulbIcon,
   SparklesIcon,
   SpinnerIcon,
 } from '../ui/icons'
+import { type ProgressStepStatus, ProgressSteps } from '../ui/molecules'
 
 /**
  * ResearchStepsPanel — Cursor / ChatGPT-style "tool-call" panel for the
@@ -48,7 +51,21 @@ import {
 
 interface ResearchStepsPanelProps {
   steps: ChatMessage[]
+  /** The run stopped part-way and can continue from the last finished step. */
+  onResume?: () => void
+  /** The run ended on a failed step and can be re-run. */
+  onRetry?: () => void
 }
+
+/** The pipeline in order, with the label of each phase. */
+const PIPELINE: readonly { phase: ResearchStepPhase; labelKey: 'chat_deep_research_step_analyze' | 'chat_deep_research_step_round1' | 'chat_deep_research_step_gap' | 'chat_deep_research_step_deep' | 'chat_deep_research_step_cross' | 'chat_deep_research_step_synth' }[] = [
+  { phase: 'analyze', labelKey: 'chat_deep_research_step_analyze' },
+  { phase: 'survey', labelKey: 'chat_deep_research_step_round1' },
+  { phase: 'gap', labelKey: 'chat_deep_research_step_gap' },
+  { phase: 'deep', labelKey: 'chat_deep_research_step_deep' },
+  { phase: 'cross', labelKey: 'chat_deep_research_step_cross' },
+  { phase: 'synth', labelKey: 'chat_deep_research_step_synth' },
+]
 
 
 /**
@@ -453,19 +470,47 @@ function PhasePill({ group, rowTitle, showDetailsLabel }: PhasePillProps) {
 
 // ── Main panel ────────────────────────────────────────────────────────────────
 
-export function ResearchStepsPanel({ steps }: ResearchStepsPanelProps) {
+export function ResearchStepsPanel({ steps, onResume, onRetry }: ResearchStepsPanelProps) {
   const t = useT()
   const [isOpen, setIsOpen] = useState(true)
-
+  const detailsId = useId()
 
   const groups = useMemo(() => buildPhaseGroups(steps), [steps])
 
   const isAnyLoading = steps.some((s) => s.isLoading)
   const totalCount = steps.length
+  const waitingOnUser = Boolean(onResume || onRetry)
 
-  // Header label: live status while running, summary once done.
-  const headerLabel = isAnyLoading
-    ? t.chat_thinking_label
+  // One row per pipeline phase: finished, running, failed or still to come.
+  // Older traces without phases fall back to the detail list alone.
+  const progress = useMemo(() => {
+    if (groups.some((group) => group.phase === 'unknown')) return null
+    const all = PIPELINE.map(({ phase, labelKey }) => {
+      const group = groups.find((item) => item.phase === phase)
+      const status: ProgressStepStatus = !group ? 'pending'
+        : getGroupStatus(group) === 'loading' ? 'active'
+          : getGroupStatus(group) === 'error' ? 'error' : 'done'
+      const countable = (phase === 'survey' || phase === 'deep') && group && group.steps.length > 1
+      return { id: phase, label: t[labelKey], status, detail: countable ? tpl(t.chat_research_aspects_suffix, { count: group.steps.length }) : undefined }
+    })
+    // A phase the run skipped (no gaps to dig into) is not "still to come".
+    const reached = all.reduce((last, step, index) => (step.status === 'pending' ? last : index), -1)
+    return all.filter((step, index) => step.status !== 'pending' || index > reached)
+  }, [groups, t])
+  // The step the run is on, or the one it will continue with.
+  const currentIndex = progress
+    ? (() => {
+      const live = progress.findIndex((step) => step.status === 'active' || step.status === 'error')
+      if (live >= 0) return live
+      const next = progress.findIndex((step) => step.status === 'pending')
+      return next >= 0 ? next : progress.length - 1
+    })()
+    : 0
+  const currentStep = currentIndex + 1
+
+  // Header label: live step while running, summary once done.
+  const headerLabel = isAnyLoading || waitingOnUser
+    ? progress ? `${t.chat_research_title} · ${tpl(t.chat_research_step_of, { current: currentStep, total: progress.length })}` : t.chat_thinking_label
     : `${t.chat_research_done_label} · ${totalCount} ${t.chat_research_steps_unit}`
 
   // Auto-collapse when finished so the user's eye flows past the trace
@@ -474,42 +519,65 @@ export function ResearchStepsPanel({ steps }: ResearchStepsPanelProps) {
     if (!isAnyLoading) setIsOpen(false)
   }, [isAnyLoading])
 
+  const showProgress = Boolean(progress) && (isAnyLoading || waitingOnUser)
+
   return (
-    <div className="flex gap-2 items-start pl-11">
-      <div className="chat-research-panel flex-1">
+    <div className="flex gap-2 items-start">
+      <section className="chat-research-panel flex-1" aria-label={t.chat_research_title} data-waiting={waitingOnUser || undefined}>
         {/* Header — always clickable so the user can re-open the trace */}
-        <button
-          type="button"
+        <Button
+          size="sm"
+          shape="rect"
+          variant="neutral"
+          appearance="ghost"
+          className="chat-research-toggle"
+          aria-expanded={isOpen || isAnyLoading}
+          aria-controls={detailsId}
           onClick={() => setIsOpen((v) => !v)}
-          className="btn-menu-item justify-between"
         >
-          <span className="flex items-center gap-2 text-left text-xs font-medium">
-            {isAnyLoading ? (
-              <SparklesIcon className="h-3.5 w-3.5 text-gray-500/80 dark:text-gray-300/80 animate-pulse" />
-            ) : (
-              <LightbulbIcon className="h-3.5 w-3.5 text-gray-500/80 dark:text-gray-300/80" />
-            )}
+          <span className="chat-research-toggle__label">
+            {isAnyLoading ? <SparklesIcon className="chat-research-toggle__icon animate-pulse" /> : <LightbulbIcon className="chat-research-toggle__icon" />}
             <span>{headerLabel}</span>
           </span>
+          {isAnyLoading
+            ? <SpinnerIcon className="chat-research-toggle__icon animate-spin" />
+            : <ChevronRightIcon className="chat-research-toggle__chevron" data-open={isOpen || undefined} />}
+        </Button>
 
-          {isAnyLoading ? (
-            <SpinnerIcon className="w-3 h-3 animate-spin text-gray-400 flex-shrink-0" />
-          ) : (
-            <span
-              className={`text-gray-400 text-base leading-none flex-shrink-0 transition-transform duration-200
-                          ${isOpen ? 'rotate-90' : ''}`}
-              aria-hidden
-            >
-              ›
-            </span>
-          )}
-        </button>
+        {showProgress && progress && (
+          <ProgressSteps
+            label={t.chat_research_progress_label}
+            steps={progress}
+            statusLabels={{ done: t.chat_research_status_done, active: t.chat_research_status_active, pending: t.chat_research_status_pending, error: t.chat_research_status_error }}
+            className="chat-research-steps"
+          />
+        )}
 
-        {/* Phase pill list — collapsible. Stays expanded while still loading
+        {waitingOnUser && (
+          <div className="chat-research-recovery">
+            <p className="chat-research-recovery__reason" role="status">
+              {onResume ? tpl(t.chat_research_stopped, { n: currentStep }) : tpl(t.chat_research_failed, { n: currentStep })}
+            </p>
+            <div className="chat-research-recovery__actions">
+              {onRetry && (
+                <Button size="sm" shape="rect" variant="neutral" appearance="outline" onClick={onRetry}>
+                  {tpl(t.chat_research_retry_step, { n: currentStep })}
+                </Button>
+              )}
+              {onResume && (
+                <Button size="sm" shape="rect" variant="primary" appearance="solid" onClick={onResume}>
+                  {t.chat_deep_research_resume_short}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Phase detail list — collapsible. Stays expanded while still loading
          *  so the user always sees live progress; collapses automatically on
          *  completion (see useEffect above). */}
         {(isOpen || isAnyLoading) && (
-          <ul className="chat-research-pill-list">
+          <ul id={detailsId} className="chat-research-pill-list">
             {groups.map((group) => (
               <PhasePill
                 key={group.steps[0].id}
@@ -520,8 +588,7 @@ export function ResearchStepsPanel({ steps }: ResearchStepsPanelProps) {
             ))}
           </ul>
         )}
-
-      </div>
+      </section>
     </div>
   )
 }

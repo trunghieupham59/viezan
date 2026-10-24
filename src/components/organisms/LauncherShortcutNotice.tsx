@@ -45,7 +45,7 @@ export function LauncherShortcutNotice() {
           label: t.launcher_hotkey_system_conflict_action,
           onClick: () => {
             dismiss(LAUNCHER_CONFLICT_KEY)
-            useAppStore.setState({ settingsOpen: true, settingsInitialSection: 'hotkeys' })
+            useAppStore.getState().setActivePage('utilities')
           },
         }],
       })

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '../../components/ui/atoms'
+import { SettingsRow } from '../../components/ui/molecules'
 import { useAppStore, useT } from '../../store/useAppStore'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import {
@@ -18,7 +19,7 @@ function formatBytes(bytes: number): string {
 }
 
 /**
- * Explicit cleanup of the images AI Chat keeps on this device. Nothing is ever
+ * One row of Settings › Chat. Explicit cleanup of the images AI Chat keeps on this device. Nothing is ever
  * removed automatically; the user decides here, with the current size in view.
  */
 export function ChatImageStorageCard() {
@@ -63,35 +64,37 @@ export function ChatImageStorageCard() {
   const isEmpty = stats !== null && stats.count === 0
 
   return (
-    <div className="card divide-y divide-gray-100 dark:divide-gray-700">
-      <div className="px-4 py-3.5">
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_chat_images_title}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0" aria-live="polite">{usage}</p>
-        </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_chat_images_desc}</p>
-      </div>
-
-      <div className="flex items-center justify-between gap-4 px-4 py-3.5">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_chat_images_prune}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_chat_images_prune_desc}</p>
-        </div>
-        <Button size="sm" appearance="outline" disabled={busy || isEmpty} onClick={handlePrune}>
-          {t.settings_chat_images_prune}
-        </Button>
-      </div>
-
-      <div className="flex items-center justify-between gap-4 px-4 py-3.5">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_chat_images_clear}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_chat_images_clear_desc}</p>
-        </div>
-        <Button size="sm" variant="danger" appearance="outline" disabled={busy || isEmpty} onClick={handleClear}>
-          {t.settings_chat_images_clear}
-        </Button>
-      </div>
-
-    </div>
+    <SettingsRow
+      label={t.settings_chat_images_title}
+      description={(
+        <>
+          <span aria-live="polite">{usage}</span>
+          <span className="settings-row-hint">{t.settings_chat_images_desc}</span>
+        </>
+      )}
+    >
+      <Button
+        size="sm"
+        shape="rect"
+        variant="neutral"
+        appearance="outline"
+        disabled={busy || isEmpty}
+        onClick={handlePrune}
+        title={t.settings_chat_images_prune_desc}
+      >
+        {t.settings_chat_images_prune}
+      </Button>
+      <Button
+        size="sm"
+        shape="rect"
+        variant="danger"
+        appearance="ghost"
+        disabled={busy || isEmpty}
+        onClick={handleClear}
+        title={t.settings_chat_images_clear_desc}
+      >
+        {t.settings_chat_images_clear}
+      </Button>
+    </SettingsRow>
   )
 }

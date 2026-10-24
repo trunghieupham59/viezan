@@ -17,6 +17,8 @@ interface SourcePanelActionsProps {
   sourceLang: string
   voiceContextKey: string
   hasImage: boolean
+  /** The page's input mode: the microphone shows for voice, the image button for image. */
+  inputMode?: 'text' | 'image' | 'voice'
   // TTS state
   speakingPanel: SpeakPanel | null
   speakLoading: boolean
@@ -52,6 +54,7 @@ export function SourcePanelActions({
   isVoiceActive, isVoiceInterim: _isVoiceInterim,
   isRewriting, sourceText, sourceLang, voiceContextKey,
   hasImage,
+  inputMode = 'text',
   speakingPanel, speakLoading,
   onVoiceTranscript, onVoiceRecordingChange, onVoiceStateChange, onVoiceCancel,
   onVoiceError, onImageButtonClick,
@@ -68,7 +71,7 @@ export function SourcePanelActions({
 
   return (
     <div className="flex items-center gap-1.5">
-      {!hasImage && (
+      {!hasImage && (inputMode === 'voice' || isVoiceActive) && (
         <VoiceRecorder
           sourceLang={sourceLang}
           contextKey={voiceContextKey}
@@ -89,7 +92,7 @@ export function SourcePanelActions({
           showPulse={false}
         />
       )}
-      {!isVoiceActive && (
+      {!isVoiceActive && inputMode === 'image' && !hasImage && (
         <ImageTranslateButton
           onClick={onImageButtonClick}
           title={labelAddImage}

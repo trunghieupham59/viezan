@@ -25,6 +25,9 @@ interface TranslateToolbarProps {
   hideModelSelector?: boolean
   /** When true, the owning surface renders the always-visible Auto/Manual control. */
   hideAutoToggle?: boolean
+  /** Comparison runs on demand: the toggle stays visible but unavailable, with `titleAutoDisabled` saying why. */
+  autoToggleDisabled?: boolean
+  titleAutoDisabled?: string
   /** Keeps the model drill-down inside this toolbar surface. */
   inlineModelSelector?: boolean
   modelPickerCloseRequest?: number
@@ -61,6 +64,8 @@ export function TranslateToolbar({
   labelPhoneticUnsupported,
   hideModelSelector = false,
   hideAutoToggle = false,
+  autoToggleDisabled = false,
+  titleAutoDisabled,
   inlineModelSelector = false,
   modelPickerCloseRequest = 0,
   onModelPickerViewChange,
@@ -170,8 +175,9 @@ export function TranslateToolbar({
             autoTranslate={autoTranslate}
             onChange={onAutoTranslateChange}
             titleOn={titleAutoMode}
-            titleOff={titleManualMode}
+            titleOff={autoToggleDisabled && titleAutoDisabled ? titleAutoDisabled : titleManualMode}
             label={labelAutoMode}
+            disabled={autoToggleDisabled}
           />
         </div>
       )}

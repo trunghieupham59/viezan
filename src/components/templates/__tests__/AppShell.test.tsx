@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { AppShell } from '../AppShell'
 
 describe('AppShell', () => {
-  it('keeps the feature header above both contextual navigation and page content', () => {
+  it('runs contextual navigation the full height beside a header-over-page column', () => {
     render(
       <AppShell
         primaryNavigation={null}
@@ -14,10 +14,13 @@ describe('AppShell', () => {
       </AppShell>,
     )
     const header = screen.getByText('Chat controls')
-    const body = screen.getByRole('main').parentElement
-    expect(body).toContainElement(screen.getByRole('complementary', { name: 'History' }))
-    expect(body).not.toContainElement(header)
-    expect(header.nextElementSibling).toBe(body)
+    const history = screen.getByRole('complementary', { name: 'History' })
+    const column = screen.getByRole('main').parentElement
+    // The header covers only the column it controls, directly above the page.
+    expect(column).toContainElement(header)
+    expect(header.nextElementSibling).toBe(screen.getByRole('main'))
+    expect(column).not.toContainElement(history)
+    expect(history.nextElementSibling).toBe(column)
   })
   it('composes the navigation, page, and overlay slots', () => {
     render(

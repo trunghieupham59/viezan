@@ -43,7 +43,7 @@ beforeEach(() => {
 describe('AI Interpret screen', () => {
   it('keeps Start on the command row and shows a direction arrow instead of a dead swap', () => {
     render(<LiveTranslatePage />)
-    const row = document.querySelector('.feature-command-bar') as HTMLElement
+    const row = document.querySelector('.page-header') as HTMLElement
     expect(within(row).getByRole('button', { name: t.live_start })).toBeEnabled()
     expect(within(row).getByRole('button', { name: t.ai_configuration_title })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: t.translate_swap })).not.toBeInTheDocument()
@@ -69,8 +69,8 @@ describe('AI Interpret screen', () => {
     expect(trigger).toHaveAttribute('aria-haspopup', 'dialog')
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
     expect(trigger).toHaveAttribute('data-control-size', 'md')
-    expect(trigger).toHaveTextContent('History')
-    expect(trigger).toHaveTextContent('1')
+    // Icon-only in the header, as designed; the name carries the meaning.
+    expect(trigger).toHaveAttribute('data-control-shape', 'icon')
 
     fireEvent.click(trigger)
     const dialog = screen.getByRole('dialog', { name: 'Saved sessions' })
@@ -94,16 +94,17 @@ describe('AI Interpret screen', () => {
     expect(screen.getByRole('button', { name: t.live_stop })).toBeEnabled()
   })
 
-  it('toggles floating subtitles from the translation panel', () => {
+  it('toggles floating subtitles from the page header', () => {
     render(<LiveTranslatePage />)
-    fireEvent.click(screen.getByRole('button', { name: t.live_subtitles, pressed: false }))
+    const header = screen.getByRole('banner')
+    fireEvent.click(within(header).getByRole('button', { name: t.live_subtitles_floating, pressed: false }))
     expect(live.state.setShowSubtitles).toHaveBeenCalledWith(true)
   })
 
   it('explains why Start is unavailable when no translation key is configured', () => {
     live.state = liveState({ hasAnyKey: false })
     render(<><LiveTranslatePage /><NotificationViewport /></>)
-    const row = document.querySelector('.feature-command-bar') as HTMLElement
+    const row = document.querySelector('.page-header') as HTMLElement
     const start = within(row).getByRole('button', { name: t.live_start })
     expect(start).toBeDisabled()
     expect(start).toHaveAttribute('title', t.live_no_translate_key)
@@ -126,7 +127,7 @@ describe('AI Interpret screen', () => {
   it('blocks Start with the speech-recognition message when no STT provider has a key', () => {
     live.state = liveState({ hasSttKey: false })
     render(<LiveTranslatePage />)
-    const row = document.querySelector('.feature-command-bar') as HTMLElement
+    const row = document.querySelector('.page-header') as HTMLElement
     const start = within(row).getByRole('button', { name: t.live_start })
     expect(start).toBeDisabled()
     expect(start).toHaveAttribute('title', t.live_no_stt_key)
@@ -135,7 +136,7 @@ describe('AI Interpret screen', () => {
   it('keeps Start enabled and shows no key notice when an STT provider is usable', () => {
     live.state = liveState({ hasSttKey: true, activeSttProvider: 'gemini' })
     render(<><LiveTranslatePage /><NotificationViewport /></>)
-    const row = document.querySelector('.feature-command-bar') as HTMLElement
+    const row = document.querySelector('.page-header') as HTMLElement
     expect(within(row).getByRole('button', { name: t.live_start })).toBeEnabled()
     expect(screen.queryByText(t.live_no_stt_key)).not.toBeInTheDocument()
   })
@@ -181,7 +182,9 @@ describe('AI Interpret screen', () => {
 
     live.state = liveState({ rawTranscript: 'Hello', translation: 'Xin chào' })
     render(<LiveTranslatePage />)
-    expect(screen.getByRole('button', { name: /TXT/ })).toBeEnabled()
+    // The transcript footer and "This session" both export; CSS shows one per width.
+    for (const button of screen.getAllByRole('button', { name: /TXT/ })) expect(button).toBeEnabled()
+    expect(screen.getByRole('complementary', { name: t.live_session_panel_title })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: t.live_copy_original })).toBeEnabled()
     expect(screen.getByRole('button', { name: t.live_copy_translation })).toBeEnabled()
   })
@@ -198,8 +201,8 @@ describe('AI Interpret screen', () => {
   it('pairs each original with its translation and remembers the layout', () => {
     live.state = liveState({ rawTranscript: 'Bonjour', translation: 'Hello', segments: [segment] })
     const { unmount } = render(<LiveTranslatePage />)
-    expect(screen.getByRole('button', { name: t.live_view_split, pressed: true })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: t.live_view_paired }))
+    // Paired is the default: one Transcript panel, each sentence beside its translation.
+    expect(screen.getByRole('button', { name: t.live_view_paired, pressed: true })).toBeInTheDocument()
 
     const row = document.querySelector('.live-bilingual-row') as HTMLElement
     expect(row).toHaveTextContent('Bonjour')
@@ -208,10 +211,12 @@ describe('AI Interpret screen', () => {
     // One footer still offers both copies, each with a distinct name.
     expect(screen.getByRole('button', { name: t.live_copy_original })).toBeEnabled()
     expect(screen.getByRole('button', { name: t.live_copy_translation })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: t.live_view_split }))
+    expect(document.querySelector('.app-panel-grid')).toBeInTheDocument()
     unmount()
 
     render(<LiveTranslatePage />)
-    expect(screen.getByRole('button', { name: t.live_view_paired, pressed: true })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: t.live_view_split, pressed: true })).toBeInTheDocument()
   })
 
   it('stops following new text when the reader scrolls up, and jumps back on request', () => {

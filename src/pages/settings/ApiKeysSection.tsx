@@ -3,8 +3,9 @@ import { Button } from '@/components/ui/atoms'
 import { ApiKeyInput } from '../../components/ApiKeyInput'
 import { DeepResearchApiSection } from '../../components/chat/DeepResearchApiSection'
 import { CostOverviewCard } from '../../components/cost/CostOverviewCard'
-import { ProviderIcon } from '../../components/ProviderIcon'
-import { DownloadIcon, RefreshIcon, SpinnerIcon, TrashIcon } from '../../components/ui/icons'
+import { Meter } from '../../components/ui/atoms'
+import { DownloadIcon, RefreshIcon, SpinnerIcon } from '../../components/ui/icons'
+import { CapabilityNotice, SettingsCard, SettingsRow, StatusLabel } from '../../components/ui/molecules'
 import { PROVIDERS } from '../../constants/providers'
 import { JINA_DOCS_URL } from '../../constants/urls'
 import { useAppStore, useT } from '../../store/useAppStore'
@@ -15,6 +16,7 @@ import type {
   LocalAiModelDownloadProgress,
   Provider,
 } from '../../types'
+import { formatUsageAmount } from '../../utils/usageCost'
 import { LocalAiPerformanceSection } from './LocalAiPerformanceSection'
 
 /** Main-process message for a model whose pull is already in flight (see downloadLocalAiModel). */
@@ -51,6 +53,8 @@ function LocalAiProviderCard({
   onInstallOllama: () => void
 }) {
   const t = useT()
+  // The benchmark and CPU/GPU comparison are detail; the row stays one line until asked.
+  const [showDetails, setShowDetails] = useState(false)
   const available = status?.available ?? false
   const models = status?.models ?? []
   const suggestions = status?.suggestedModels?.length ? status.suggestedModels : benchmark?.suggestedModels ?? []
@@ -68,288 +72,194 @@ function LocalAiProviderCard({
     return `${completedGb}/${totalGb} GB`
   }
 
+  const hardwareSummary = hardware
+    ? [
+        `${t.settings_local_ai_tier}: ${hardware.tier}`,
+        hardware.vramGb === undefined
+          ? null
+          : hardware.vramGb > 0
+            ? `GPU ${hardware.gpuName ? `${hardware.gpuName} · ` : ''}${hardware.vramGb} GB`
+            : t.settings_local_ai_gpu_none,
+        `RAM ${hardware.totalMemoryGb} GB`,
+        `CPU ${hardware.cpuCount} cores`,
+      ].filter(Boolean).join(' · ')
+    : null
+
   return (
-    <div className="card p-4 space-y-3 border border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-100 dark:bg-gray-700 flex-shrink-0">
-            <ProviderIcon provider="local" size={22} />
-          </div>
-          <div className="min-w-0">
-            <h3 className="settings-card-title">{t.settings_local_ai_title}</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-              {available
-                ? `${status?.engine ?? 'local'} · ${status?.endpoint ?? ''}`
-                : t.settings_local_ai_unavailable}
-            </p>
-          </div>
-        </div>
-        <span className={[
-          'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
-          available
-            ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
-            : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
-        ].join(' ')}>
-          <span className={[
-            'w-1.5 h-1.5 rounded-full flex-shrink-0',
-            available ? 'bg-gray-500' : 'bg-gray-400',
-          ].join(' ')} />
+    <SettingsCard
+      title={t.settings_local_ai_title}
+      headingLevel={3}
+      description={available
+        ? `${t.settings_local_ai_desc} ${status?.engine ?? 'local'} · ${status?.endpoint ?? ''}`
+        : t.settings_local_ai_unavailable}
+      aside={(
+        <StatusLabel tone={available ? 'ok' : 'neutral'}>
           {available ? t.settings_local_ai_running : t.settings_local_ai_not_running}
-        </span>
-      </div>
-
-      <div className="flex items-center justify-between gap-3 settings-inset rounded-lg px-3 py-2 text-xs">
-        <div className="min-w-0">
-          <p className="font-medium text-gray-700 dark:text-gray-200">
-            {recommended ? recommended.name : t.settings_local_ai_model_waiting}
-          </p>
-          <p className="text-gray-500 dark:text-gray-400">
-            {available
-              ? `${models.length} ${t.settings_local_ai_models_found} · ${hardware?.tier ?? 'balanced'}`
-              : t.settings_local_ai_start_runtime}
-          </p>
-        </div>
-        <div className="flex flex-shrink-0 items-center gap-2">
+        </StatusLabel>
+      )}
+    >
+      {showRuntimeInstallPanel && (
+        <SettingsRow
+          label={t.settings_local_ai_install_runtime_title}
+          description={t.settings_local_ai_install_runtime_desc}
+        >
           <Button
-            size="md"
+            size="sm"
             shape="rect"
-            variant="neutral"
-            appearance="outline"
+            variant="primary"
+            appearance="solid"
             type="button"
-            onClick={onBenchmark}
-            disabled={benchmarking}
+            onClick={onInstallOllama}
+            disabled={openingRuntimePage}
           >
-            {benchmarking ? <SpinnerIcon className="w-3.5 h-3.5 animate-spin" /> : null}
-            {benchmarking ? t.settings_local_ai_benchmarking : t.settings_local_ai_benchmark}
+            {t.settings_local_ai_install_ollama}
           </Button>
-          <Button
-            size="md"
-            shape="rect"
-            variant="neutral"
-            appearance="outline"
-            type="button"
-            onClick={onRefresh}
-            disabled={loading}
-          >
-            {loading ? <SpinnerIcon className="w-3.5 h-3.5 animate-spin" /> : <RefreshIcon className="w-3.5 h-3.5" />}
-            {t.model_refresh}
-          </Button>
-        </div>
-      </div>
-
-      {hardware && (
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="settings-inset rounded-lg px-3 py-2">
-            <p className="text-gray-400">{t.settings_local_ai_tier}</p>
-            <p className="font-medium text-gray-700 dark:text-gray-200">{hardware.tier}</p>
-          </div>
-          <div className="settings-inset rounded-lg px-3 py-2">
-            <p className="text-gray-400">GPU</p>
-            <p className="font-medium text-gray-700 dark:text-gray-200" data-testid="local-ai-gpu">
-              {hardware.vramGb === undefined
-                ? '-'
-                : hardware.vramGb > 0
-                  ? `${hardware.gpuName ? `${hardware.gpuName} · ` : ''}${hardware.vramGb} GB`
-                  : t.settings_local_ai_gpu_none}
-            </p>
-          </div>
-          <div className="settings-inset rounded-lg px-3 py-2">
-            <p className="text-gray-400">RAM</p>
-            <p className="font-medium text-gray-700 dark:text-gray-200">{hardware.totalMemoryGb} GB</p>
-          </div>
-          <div className="settings-inset rounded-lg px-3 py-2">
-            <p className="text-gray-400">CPU</p>
-            <p className="font-medium text-gray-700 dark:text-gray-200">{hardware.cpuCount} cores</p>
-          </div>
-        </div>
+        </SettingsRow>
       )}
 
-      {metrics && (
-        <div className="space-y-2 text-xs">
-          {/* One compact row: the benchmark result must not push the model list down. */}
-          <div className="flex gap-2">
-            <div className="settings-inset min-w-0 flex-1 rounded-lg px-3 py-2">
-              <p className="truncate text-gray-400" title={metrics.runtimeModel}>
-                {metrics.runtimeTokensPerSecond
-                  ? `${t.settings_local_ai_runtime_speed}${metrics.runtimeModel ? ` · ${metrics.runtimeModel}` : ''}`
-                  : t.settings_local_ai_benchmark_duration}
-              </p>
-              <p className="font-medium text-gray-700 dark:text-gray-200">
-                {metrics.runtimeTokensPerSecond
-                  ? `${metrics.runtimeTokensPerSecond} tok/s`
-                  : `${Math.round(metrics.durationMs / 100) / 10}s`}
-              </p>
-            </div>
-            {metrics.runtimeGpuPercent !== undefined && (
-              <div className="settings-inset min-w-0 flex-1 rounded-lg px-3 py-2">
-                <p className="truncate text-gray-400">{t.settings_local_ai_gpu_offload}</p>
-                <p className="font-medium text-gray-700 dark:text-gray-200" data-testid="local-ai-gpu-percent">
-                  {metrics.runtimeGpuPercent}%
-                </p>
-              </div>
-            )}
-            {metrics.runtimeLatencyMs && (
-              <div className="settings-inset min-w-0 flex-1 rounded-lg px-3 py-2">
-                <p className="truncate text-gray-400">{t.settings_local_ai_runtime_latency}</p>
-                <p className="font-medium text-gray-700 dark:text-gray-200">{metrics.runtimeLatencyMs}ms</p>
-              </div>
-            )}
-          </div>
-          {metrics.runtimeGpuPercent !== undefined && metrics.runtimeGpuPercent < 100 && (
-            <p
-              role="status"
-              className="rounded-lg border px-3 py-2"
-              style={{
-                color: 'var(--vzn-warning)',
-                background: 'var(--vzn-warning-soft)',
-                borderColor: 'var(--vzn-warning-border)',
-              }}
-            >
-              {t.settings_local_ai_gpu_spill_warning}
-            </p>
-          )}
-        </div>
-      )}
-
-      {status?.engine === 'ollama' && <LocalAiPerformanceSection models={models} />}
-
-      {suggestions.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-3">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-              {t.settings_local_ai_suggested_models}
-            </h4>
-            {canDownloadModels ? (
-              <span className="ui-meta text-gray-400">{t.settings_local_ai_download_hint}</span>
-            ) : (
-              <Button
-                size="md"
-                shape="rect"
-                variant="primary"
-                appearance="solid"
-                type="button"
-                onClick={onInstallOllama}
-                disabled={openingRuntimePage}
-                className="flex-shrink-0"
-              >
-                {t.settings_local_ai_install_ollama}
-              </Button>
-            )}
-          </div>
-
-          {showRuntimeInstallPanel && (
-            <div className="settings-inset rounded-xl px-3 py-3 text-xs">
-              <p className="font-semibold text-gray-800 dark:text-gray-100">
-                {t.settings_local_ai_install_runtime_title}
-              </p>
-              <p className="mt-1 text-gray-500 dark:text-gray-400">
-                {t.settings_local_ai_install_runtime_desc}
-              </p>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            {suggestions.slice(0, 5).map((model) => {
-              const activeDownloadProgress = downloads[model.id] ?? null
-              const isDownloading = activeDownloadProgress !== null
-              const isUninstalling = uninstallingModel === model.id
-              const activeDownloadPercent = Math.max(1, Math.min(100, activeDownloadProgress?.percent ?? 1))
-              const activeDownloadBytes = activeDownloadProgress ? formatModelDownloadBytes(activeDownloadProgress) : null
-              const buttonLabel = model.installed
-                ? t.settings_local_ai_uninstall
-                : canDownloadModels
-                  ? t.settings_local_ai_download
-                  : t.settings_local_ai_waiting_runtime
-              return (
-                <div
-                  key={model.id}
-                  className="settings-inset-row rounded-lg px-3 py-2 text-xs"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-medium text-gray-800 dark:text-gray-100">{model.name}</p>
-                        {model.id === recommended?.id && (
-                          <span className="ui-badge text-xs font-medium text-gray-600 dark:bg-gray-950/50 dark:text-gray-300">
-                            {t.settings_local_ai_recommended}
-                          </span>
-                        )}
-                        {model.installed && (
-                          <span className="ui-badge text-xs font-medium text-gray-600 dark:bg-gray-950/50 dark:text-gray-300">
-                            {t.settings_local_ai_installed}
-                          </span>
-                        )}
-                        {model.estimatedSizeGb && (
-                          <span className="ui-badge text-xs font-medium text-gray-500 dark:text-gray-400">
-                            {t.settings_local_ai_model_size} ~{model.estimatedSizeGb} GB
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-gray-500 dark:text-gray-400">{model.description}</p>
-                    </div>
-                    {canDownloadModels ? (
-                      <Button
-                        size="md"
-                        shape="rect"
-                        variant={model.installed ? 'danger' : 'primary'}
-                        appearance={model.installed ? 'soft' : 'solid'}
-                        type="button"
-                        onClick={() => model.installed ? onUninstallModel(model.id) : onDownloadModel(model.id)}
-                        disabled={anyDownloading || Boolean(uninstallingModel)}
-                        className="flex-shrink-0"
-                      >
-                        {(isDownloading || isUninstalling) && <SpinnerIcon className="w-3.5 h-3.5 animate-spin" />}
-                        {!model.installed && !isDownloading && <DownloadIcon className="w-3.5 h-3.5" />}
-                        {model.installed && !isUninstalling && <TrashIcon className="w-3.5 h-3.5" />}
-                        {isDownloading
-                          ? `${activeDownloadPercent}%`
-                          : isUninstalling
-                            ? t.settings_local_ai_uninstalling
-                            : buttonLabel}
-                      </Button>
-                    ) : (
-                      <span className="hidden flex-shrink-0 settings-inset rounded-lg px-3 py-1.5 font-medium text-gray-400 sm:block">
-                        {buttonLabel}
-                      </span>
-                    )}
-                  </div>
-                  {activeDownloadProgress && (
-                    <div className="mt-3 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-950/20">
-                      <div className="ui-meta flex items-center justify-between gap-3">
-                        <span className="min-w-0 truncate font-medium text-gray-700 dark:text-gray-300">
-                          {t.settings_local_ai_downloading_model}: {activeDownloadProgress.message}
-                        </span>
-                        <span className="flex-shrink-0 font-semibold text-gray-700 dark:text-gray-300">
-                          {activeDownloadBytes ? `${activeDownloadBytes} · ` : ''}{activeDownloadPercent}%
-                        </span>
-                      </div>
-                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white ring-1 ring-gray-100 dark:bg-gray-950 dark:ring-gray-900">
-                        <div
-                          className="h-full rounded-full bg-gray-600 transition-[width] duration-300"
-                          style={{ width: `${activeDownloadPercent}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
+      {suggestions.slice(0, 5).map((model) => {
+        const activeDownloadProgress = downloads[model.id] ?? null
+        const isDownloading = activeDownloadProgress !== null
+        const isUninstalling = uninstallingModel === model.id
+        const activeDownloadPercent = Math.max(1, Math.min(100, activeDownloadProgress?.percent ?? 1))
+        const activeDownloadBytes = activeDownloadProgress ? formatModelDownloadBytes(activeDownloadProgress) : null
+        const buttonLabel = model.installed
+          ? t.settings_local_ai_uninstall
+          : canDownloadModels
+            ? t.settings_local_ai_download
+            : t.settings_local_ai_waiting_runtime
+        const meta = [
+          model.installed ? t.settings_local_ai_installed : null,
+          model.id === recommended?.id ? t.settings_local_ai_recommended : null,
+          model.estimatedSizeGb ? `~${model.estimatedSizeGb} GB` : null,
+        ].filter(Boolean).join(' · ')
+        return (
+          <SettingsRow
+            key={model.id}
+            label={<code className="local-ai-model-id">{model.id}</code>}
+            description={[meta, model.name].filter(Boolean).join(' · ')}
+            below={activeDownloadProgress ? (
+              <div className="local-ai-download">
+                <div className="local-ai-download__meta">
+                  <span>{t.settings_local_ai_downloading_model}: {activeDownloadProgress.message}</span>
+                  <span>{activeDownloadBytes ? `${activeDownloadBytes} · ` : ''}{activeDownloadPercent}%</span>
                 </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+                <Meter value={activeDownloadPercent} min={0} max={100} label={t.settings_local_ai_downloading_model} valueText={`${activeDownloadPercent}%`} />
+              </div>
+            ) : undefined}
+          >
+            {canDownloadModels ? (
+              <Button
+                size="sm"
+                shape="rect"
+                variant={model.installed ? 'danger' : 'neutral'}
+                appearance={model.installed ? 'ghost' : 'outline'}
+                type="button"
+                onClick={() => model.installed ? onUninstallModel(model.id) : onDownloadModel(model.id)}
+                disabled={anyDownloading || Boolean(uninstallingModel)}
+              >
+                {(isDownloading || isUninstalling) && <SpinnerIcon className="animate-spin" />}
+                {!model.installed && !isDownloading && <DownloadIcon />}
+                {isDownloading
+                  ? `${activeDownloadPercent}%`
+                  : isUninstalling
+                    ? t.settings_local_ai_uninstalling
+                    : buttonLabel}
+              </Button>
+            ) : (
+              <span className="local-ai-model-state">{buttonLabel}</span>
+            )}
+          </SettingsRow>
+        )
+      })}
 
-      {!available && (
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          {t.settings_local_ai_start_runtime}
-        </p>
-      )}
-    </div>
+      <SettingsRow
+        label={t.settings_local_ai_performance}
+        description={hardwareSummary ?? (available
+          ? `${models.length} ${t.settings_local_ai_models_found}`
+          : t.settings_local_ai_start_runtime)}
+        below={showDetails && (metrics || status?.engine === 'ollama') ? (
+          <div className="local-ai-performance">
+            {metrics && (
+              <dl className="local-ai-metrics">
+                <div>
+                  <dt title={metrics.runtimeModel}>
+                    {metrics.runtimeTokensPerSecond
+                      ? `${t.settings_local_ai_runtime_speed}${metrics.runtimeModel ? ` · ${metrics.runtimeModel}` : ''}`
+                      : t.settings_local_ai_benchmark_duration}
+                  </dt>
+                  <dd>
+                    {metrics.runtimeTokensPerSecond
+                      ? `${metrics.runtimeTokensPerSecond} tok/s`
+                      : `${Math.round(metrics.durationMs / 100) / 10}s`}
+                  </dd>
+                </div>
+                {metrics.runtimeGpuPercent !== undefined && (
+                  <div>
+                    <dt>{t.settings_local_ai_gpu_offload}</dt>
+                    <dd data-testid="local-ai-gpu-percent">{metrics.runtimeGpuPercent}%</dd>
+                  </div>
+                )}
+                {metrics.runtimeLatencyMs && (
+                  <div>
+                    <dt>{t.settings_local_ai_runtime_latency}</dt>
+                    <dd>{metrics.runtimeLatencyMs}ms</dd>
+                  </div>
+                )}
+              </dl>
+            )}
+            {metrics?.runtimeGpuPercent !== undefined && metrics.runtimeGpuPercent < 100 && (
+              <CapabilityNotice tone="warning" title={t.settings_local_ai_gpu_spill_warning} />
+            )}
+            {status?.engine === 'ollama' && <LocalAiPerformanceSection models={models} />}
+          </div>
+        ) : undefined}
+      >
+        {(metrics || status?.engine === 'ollama') && (
+          <Button
+            size="sm"
+            shape="rect"
+            variant="neutral"
+            appearance={showDetails ? 'soft' : 'ghost'}
+            type="button"
+            aria-expanded={showDetails}
+            onClick={() => setShowDetails((value) => !value)}
+          >
+            {t.settings_local_ai_details}
+          </Button>
+        )}
+        <Button
+          size="sm"
+          shape="icon"
+          variant="neutral"
+          appearance="ghost"
+          type="button"
+          onClick={onRefresh}
+          disabled={loading}
+          aria-label={t.model_refresh}
+          title={t.model_refresh}
+        >
+          {loading ? <SpinnerIcon className="animate-spin" /> : <RefreshIcon />}
+        </Button>
+        <Button
+          size="sm"
+          shape="rect"
+          variant="neutral"
+          appearance="outline"
+          type="button"
+          onClick={onBenchmark}
+          disabled={benchmarking}
+        >
+          {benchmarking ? <SpinnerIcon className="animate-spin" /> : null}
+          {benchmarking ? t.settings_local_ai_benchmarking : t.settings_local_ai_benchmark}
+        </Button>
+      </SettingsRow>
+    </SettingsCard>
   )
 }
 
 export function ApiKeysSection() {
   const setKeyStatus = useAppStore((state) => state.setKeyStatus)
-  const keyStatus = useAppStore((state) => state.keyStatus)
   const setDynamicModels = useAppStore((state) => state.setDynamicModels)
   const setModelsLoading = useAppStore((state) => state.setModelsLoading)
   const setModelsError = useAppStore((state) => state.setModelsError)
@@ -613,73 +523,61 @@ export function ApiKeysSection() {
     resetProviderUsageCost(providerId as Provider)
   }
 
-  const configuredCount = PROVIDERS.filter((p) =>
-    p.requiresApiKey === false ? localStatus?.available : keyStatus[p.id] || keyData[p.id]?.exists
-  ).length
+  const totalUsd = Object.values(apiKeyUsageTotals).reduce((sum, total) => sum + (total?.amountUsd ?? 0), 0)
 
   return (
-    <div className="space-y-8">
-      {/* Cost tracking dashboard — surfaces aggregate spend, tokens, and feature breakdown.
-          Replaces the bare currency dropdown that used to live in the API Keys header. */}
-      <section className="space-y-3">
-        <CostOverviewCard
-          totals={apiKeyUsageTotals}
-          currency={costCurrency}
-          onCurrencyChange={setCostCurrency}
-          onResetAll={resetAllUsageCost}
-        />
-      </section>
+    <div className="settings-section-stack">
+      <header>
+        <h2 className="settings-section-title">{t.settings_api_keys}</h2>
+        <p className="settings-section-desc">{t.settings_api_keys_desc}</p>
+      </header>
 
-      {/* AI Provider API Keys */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="settings-section-title">{t.settings_api_keys}</h2>
-            <p className="settings-section-desc mt-1">{t.settings_api_keys_desc}</p>
-          </div>
-          <span className="text-xs text-gray-400">
-            {configuredCount}/{PROVIDERS.length} {t.settings_configured}
+      <LocalAiProviderCard
+        status={localStatus}
+        benchmark={localBenchmark}
+        loading={localLoading}
+        benchmarking={localBenchmarking}
+        downloads={downloads}
+        uninstallingModel={uninstallingModel}
+        openingRuntimePage={openingRuntimePage}
+        onRefresh={refreshLocalAi}
+        onBenchmark={runLocalBenchmark}
+        onDownloadModel={handleDownloadLocalModel}
+        onUninstallModel={handleUninstallLocalModel}
+        onInstallOllama={handleInstallOllama}
+      />
+
+      <SettingsCard
+        title={t.settings_cloud_providers}
+        headingLevel={3}
+        description={t.settings_cloud_providers_desc}
+        aside={(
+          <span className="settings-card-meta">
+            {t.settings_cost_total}: {formatUsageAmount(totalUsd, costCurrency)}
           </span>
-        </div>
-        {PROVIDERS.map((provider) => (
-          provider.requiresApiKey === false ? (
-            <LocalAiProviderCard
-              key={provider.id}
-              status={localStatus}
-              benchmark={localBenchmark}
-              loading={localLoading}
-              benchmarking={localBenchmarking}
-              downloads={downloads}
-              uninstallingModel={uninstallingModel}
-              openingRuntimePage={openingRuntimePage}
-              onRefresh={refreshLocalAi}
-              onBenchmark={runLocalBenchmark}
-              onDownloadModel={handleDownloadLocalModel}
-              onUninstallModel={handleUninstallLocalModel}
-              onInstallOllama={handleInstallOllama}
-            />
-          ) : (
-            <ApiKeyInput
-              key={provider.id}
-              provider={provider}
-              hasKey={keyData[provider.id]?.exists ?? false}
-              maskedKey={keyData[provider.id]?.masked ?? null}
-              usageTotal={apiKeyUsageTotals[provider.id]}
-              usageCurrency={costCurrency}
-              usageLabel={t.settings_cost_total}
-              onSave={(key) => handleSaveKey(provider.id, key)}
-              onDelete={() => handleDeleteKey(provider.id)}
-              onResetUsage={() => resetProviderUsageCost(provider.id as Provider)}
-            />
-          )
+        )}
+      >
+        {cloudProviders.map((provider) => (
+          <ApiKeyInput
+            key={provider.id}
+            provider={provider}
+            hasKey={keyData[provider.id]?.exists ?? false}
+            maskedKey={keyData[provider.id]?.masked ?? null}
+            usageTotal={apiKeyUsageTotals[provider.id]}
+            usageCurrency={costCurrency}
+            usageLabel={t.settings_cost_total}
+            onSave={(key) => handleSaveKey(provider.id, key)}
+            onDelete={() => handleDeleteKey(provider.id)}
+            onResetUsage={() => resetProviderUsageCost(provider.id as Provider)}
+          />
         ))}
-      </section>
+      </SettingsCard>
 
-      {/* Deep Research Web Search API Keys */}
-      <section className="space-y-3 border-t border-gray-200 pt-6 dark:border-gray-700">
-        <div>
-          <h2 className="settings-section-title">{t.settings_web_search_section}</h2>
-          <p className="settings-section-desc mt-1">
+      <SettingsCard
+        title={t.settings_web_search_section}
+        headingLevel={3}
+        description={(
+          <>
             {t.settings_web_search_desc_prefix}{' '}
             {/* Native exception: text link in copy, not a boxed control (see .settings-inline-link). */}
             <button
@@ -690,12 +588,19 @@ export function ApiKeysSection() {
               Jina AI
             </button>
             {' '}{t.settings_web_search_desc_suffix}
-          </p>
-        </div>
-
-        {/* Shared provider table */}
+          </>
+        )}
+      >
         <DeepResearchApiSection />
-      </section>
+      </SettingsCard>
+
+      {/* Spend, tokens and the per-feature breakdown behind the total above. */}
+      <CostOverviewCard
+        totals={apiKeyUsageTotals}
+        currency={costCurrency}
+        onCurrencyChange={setCostCurrency}
+        onResetAll={resetAllUsageCost}
+      />
     </div>
   )
 }

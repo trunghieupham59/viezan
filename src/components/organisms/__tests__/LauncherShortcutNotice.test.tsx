@@ -7,7 +7,7 @@ import { NotificationViewport } from '../NotificationViewport'
 
 beforeEach(() => {
   vi.clearAllMocks()
-  useAppStore.setState({ locale: 'en', settingsOpen: false, settingsInitialSection: null })
+  useAppStore.setState({ locale: 'en', activePage: 'chat', settingsInitialSection: null })
   useNotificationStore.getState().clear()
   window.api.platform = 'darwin'
 })
@@ -23,7 +23,7 @@ describe('LauncherShortcutNotice', () => {
     expect(window.api.hotkey.chat.systemConflict).toHaveBeenCalledWith()
 
     fireEvent.click(screen.getByRole('button', { name: 'See how to fix' }))
-    expect(useAppStore.getState()).toMatchObject({ settingsOpen: true, settingsInitialSection: 'hotkeys' })
+    expect(useAppStore.getState().activePage).toBe('utilities')
     await waitFor(() => expect(screen.queryByText(/Spotlight is using/)).not.toBeInTheDocument())
   })
 

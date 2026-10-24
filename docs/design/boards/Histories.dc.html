@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — lịch sử và tóm tắt</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0A58C2}
+.cap{margin:0;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#55555C}
+.dlg{background:#FFFFFF;border:1px solid #E2E2E7;border-radius:16px;box-shadow:0 16px 40px rgba(28,28,31,0.14);display:flex;flex-direction:column;overflow:hidden;height:820px}
+.dh{display:flex;align-items:center;gap:10px;padding:14px 14px 12px 18px;border-bottom:1px solid #EFEFF2}
+.x{width:28px;height:28px;border-radius:7px;border:0;background:transparent;color:#55555C;display:inline-flex;align-items:center;justify-content:center}
+.search{display:flex;align-items:center;gap:8px;height:34px;margin:12px 14px 6px;padding:0 10px;border-radius:9px;background:#F4F4F6;color:#6B6B73}
+.it{display:flex;flex-direction:column;gap:4px;padding:10px 18px;text-decoration:none;color:#1C1C1F}
+.it + .it{border-top:1px solid #EFEFF2}
+.it:hover{background:#FAFAFB}
+.meta{font-size:12px;color:#6B6B73}
+.grp{margin:12px 18px 4px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6B6B73}
+.h3{margin:0;font-size:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#55555C}
+.btn{height:30px;padding:0 12px;border-radius:8px;border:1px solid #D6D6DC;background:#FFFFFF;color:#1C1C1F;font:500 13px Inter,sans-serif;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.li{display:flex;gap:10px;font-size:14px;line-height:1.55}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1000px; box-sizing: border-box; padding: 56px 48px; background: #F4F4F6; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F; display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 32px">
+
+  <div style="display: flex; flex-direction: column; gap: 10px; min-width: 0">
+    <p class="cap">Lịch sử Dịch</p>
+    <section class="dlg" role="dialog" aria-labelledby="h1">
+      <div class="dh"><h2 id="h1" style="margin: 0; flex: 1; font-size: 15px; font-weight: 600">Lịch sử dịch</h2><button type="button" class="x" aria-label="Đóng"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+      <label class="search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Tìm trong lịch sử</span><input type="search" placeholder="Tìm trong nguồn hoặc bản dịch" style="flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font: 400 13px Inter, sans-serif"></label>
+      <div style="flex: 1; overflow: auto">
+        <p class="grp">Hôm nay</p>
+        <a href="#" class="it"><span style="font-size: 14px">[Đoạn nguồn, một dòng]</span><span style="font-size: 13px; color: #3A3A40">[Bản dịch, một dòng]</span><span class="meta">EN → JA · Claude · [giờ]</span></a>
+        <a href="#" class="it"><span style="font-size: 14px">[Đoạn nguồn]</span><span style="font-size: 13px; color: #3A3A40">[Bản dịch]</span><span class="meta">VI → EN · Local · ảnh · [giờ]</span></a>
+        <p class="grp">Hôm qua</p>
+        <a href="#" class="it"><span style="font-size: 14px">[Đoạn nguồn]</span><span style="font-size: 13px; color: #3A3A40">[Bản dịch]</span><span class="meta">EN → VI · so sánh 2 model · [giờ]</span></a>
+      </div>
+      <div style="display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid #EFEFF2"><span class="meta" style="flex: 1; align-self: center">Bấm một mục để mở lại nguồn và bản dịch</span><button type="button" class="btn" style="border-color: #F0C4C7; color: #B01F29">Xoá lịch sử</button></div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px; min-width: 0">
+    <p class="cap">Các phiên phiên dịch</p>
+    <section class="dlg" role="dialog" aria-labelledby="h2">
+      <div class="dh"><h2 id="h2" style="margin: 0; flex: 1; font-size: 15px; font-weight: 600">Các phiên trước</h2><button type="button" class="x" aria-label="Đóng"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+      <label class="search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Tìm phiên</span><input type="search" placeholder="Tìm phiên" style="flex: 1; min-width: 0; border: 0; background: transparent; outline: none; font: 400 13px Inter, sans-serif"></label>
+      <div style="flex: 1; overflow: auto">
+        <a href="#" class="it" style="background: #E8F0FC"><span style="font-size: 14px; font-weight: 600; color: #0A58C2">[Tên phiên]</span><span class="meta">JA → VI · 42 phút · 2 người nói · có tóm tắt</span></a>
+        <a href="#" class="it"><span style="font-size: 14px">[Tên phiên]</span><span class="meta">EN → VI · 18 phút · 1 người nói</span></a>
+        <a href="#" class="it"><span style="font-size: 14px">[Tên phiên]</span><span class="meta">EN → VI · 1 giờ 5 phút · 4 người nói · có tóm tắt</span></a>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px; min-width: 0">
+    <p class="cap">Sau phiên · tóm tắt và phân tích</p>
+    <section class="dlg" aria-labelledby="h3">
+      <div class="dh" style="flex-wrap: wrap">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><h2 id="h3" style="margin: 0; font-size: 15px; font-weight: 600">[Tên phiên]</h2><span class="meta">JA → VI · 42 phút · [ngày]</span></div>
+        <button type="button" class="btn">TXT</button><button type="button" class="btn">SRT</button><button type="button" class="btn">Sao chép</button>
+      </div>
+      <div style="flex: 1; overflow: auto; padding: 18px; display: flex; flex-direction: column; gap: 20px">
+        <section style="display: flex; flex-direction: column; gap: 8px"><h3 class="h3">Tóm tắt</h3><p style="margin: 0; font-size: 15px; line-height: 1.65">[Tóm tắt nội dung cuộc họp trong vài câu]</p></section>
+        <section style="display: flex; flex-direction: column; gap: 8px"><h3 class="h3">Quyết định</h3>
+          <div class="li"><span aria-hidden="true" style="color: #1E7F45; font-weight: 700">✓</span>[Quyết định 1]</div>
+          <div class="li"><span aria-hidden="true" style="color: #1E7F45; font-weight: 700">✓</span>[Quyết định 2]</div>
+        </section>
+        <section style="display: flex; flex-direction: column; gap: 8px"><h3 class="h3">Việc cần làm</h3>
+          <label class="li"><input type="checkbox">[Việc] <span class="meta" style="margin-left: auto">Người 2</span></label>
+          <label class="li"><input type="checkbox">[Việc] <span class="meta" style="margin-left: auto">Người 1</span></label>
+        </section>
+        <section style="display: flex; flex-direction: column; gap: 10px"><h3 class="h3">Người nói</h3>
+          <div style="display: flex; align-items: center; gap: 10px; font-size: 13px"><span style="width: 72px">Người 1</span><span style="flex: 1; height: 8px; border-radius: 99px; background: #E6E6EB; overflow: hidden"><span style="display: block; width: 62%; height: 100%; background: #0A63D6"></span></span><span style="width: 40px; text-align: right; font-variant-numeric: tabular-nums">62%</span></div>
+          <div style="display: flex; align-items: center; gap: 10px; font-size: 13px"><span style="width: 72px">Người 2</span><span style="flex: 1; height: 8px; border-radius: 99px; background: #E6E6EB; overflow: hidden"><span style="display: block; width: 38%; height: 100%; background: #A35A00"></span></span><span style="width: 40px; text-align: right; font-variant-numeric: tabular-nums">38%</span></div>
+          <p style="margin: 0; font-size: 13px; line-height: 1.55; color: #3A3A40">[Nhận xét ngắn về vai trò từng người trong cuộc họp]</p>
+        </section>
+        <a href="Interpret.dc.html" style="font-size: 13px">Xem toàn bộ bản ghi</a>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

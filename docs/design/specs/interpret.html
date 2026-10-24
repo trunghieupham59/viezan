@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Viezan — Phiên dịch: đặc tả chi tiết</title>
+  <!-- Real design values first, then the board layout. Never add literal colours here. -->
+  <link rel="stylesheet" href="../../../src/styles/tokens.css">
+  <link rel="stylesheet" href="board.css">
+  <style>
+    /* Interpret-only mock pieces. Every value is a var(--vzn-*) token. */
+    /* Like .page-header: the header wraps instead of squeezing its controls. */
+    .m-header { flex-wrap: wrap; row-gap: var(--vzn-space-2); padding-block: var(--vzn-space-2); }
+    .m-header > * { flex-shrink: 0; }
+    .m-header h3, .m-segmented span, .m-tag, .s-rec { white-space: nowrap; }
+    .s-header-wrap { flex-wrap: wrap; }
+    .s-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--vzn-space-2); margin-inline-start: auto; }
+    .s-pair { display: inline-flex; align-items: center; gap: var(--vzn-space-1); color: var(--vzn-text-soft); }
+    .s-body { display: flex; min-block-size: 0; flex: 1 1 auto; gap: var(--vzn-space-2); padding: var(--vzn-space-4); overflow: hidden; }
+    .s-body[data-stack] { flex-direction: column; }
+    .s-panel { position: relative; display: flex; min-inline-size: 0; min-block-size: 0; flex: 1 1 0; flex-direction: column; border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-md); background: var(--vzn-surface); }
+    .s-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-toolbar[data-stack] { flex-direction: column; align-items: flex-start; }
+    .s-title { padding-inline-end: var(--vzn-space-2); border-inline-end: var(--vzn-border-width) solid var(--vzn-divider); color: var(--vzn-text-strong); font-size: var(--vzn-font-size-md); font-weight: var(--vzn-weight-semibold); }
+    .s-title[data-alone] { border: 0; }
+    .s-scroll { display: flex; min-block-size: 0; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-1-5); overflow: hidden; padding: var(--vzn-space-4); }
+    .s-row { display: flex; align-items: flex-start; gap: var(--vzn-space-2); padding-block: var(--vzn-space-2); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-row:last-child { border-bottom: 0; }
+    .s-row[data-pending] { opacity: var(--vzn-opacity-disabled); border-bottom: 0; }
+    .s-text { display: flex; min-inline-size: 0; flex-direction: column; gap: var(--vzn-space-1); }
+    .s-orig { color: var(--vzn-text-soft); font-size: var(--vzn-font-size-md); line-height: var(--vzn-line-height-reading); }
+    .s-tx { color: var(--vzn-text-strong); font-family: var(--vzn-font-reading); font-size: var(--vzn-font-size-subtitle); font-weight: var(--vzn-weight-medium); line-height: var(--vzn-line-height-reading); }
+    .s-note { color: var(--vzn-text-muted); font-size: var(--vzn-font-size-md); font-style: italic; }
+    .s-caret { display: inline-block; inline-size: var(--vzn-space-0-5); block-size: var(--vzn-space-4); background: var(--vzn-text-soft); vertical-align: middle; }
+    .s-empty { display: flex; flex: 1 1 auto; flex-direction: column; align-items: center; justify-content: center; gap: var(--vzn-space-3); color: var(--vzn-text-muted); text-align: center; }
+    .s-empty-icon { display: inline-flex; inline-size: var(--vzn-control-height-lg); block-size: var(--vzn-control-height-lg); align-items: center; justify-content: center; border-radius: var(--vzn-radius-md); background: var(--vzn-surface-muted); color: var(--vzn-text-soft); }
+    .s-empty p { max-inline-size: calc(var(--vzn-space-12) * 8); margin: 0; }
+    .s-jump { position: absolute; inset-block-end: calc(var(--vzn-control-height-md) + var(--vzn-space-6)); inset-inline: 0; inline-size: max-content; margin-inline: auto; border-radius: var(--vzn-radius-pill); background: var(--vzn-surface-raised); box-shadow: var(--vzn-shadow-sm); }
+    .s-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); border-top: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-group { display: inline-flex; align-items: center; gap: var(--vzn-space-1); }
+    .s-rec { display: inline-flex; block-size: var(--vzn-control-height-xs); align-items: center; gap: var(--vzn-space-1-5); padding-inline: var(--vzn-space-2); border-radius: var(--vzn-radius-pill); background: var(--vzn-danger-soft); color: var(--vzn-danger); font-size: var(--vzn-font-size-sm); font-weight: var(--vzn-weight-semibold); }
+    .s-meter { position: relative; display: inline-block; inline-size: var(--vzn-space-12); block-size: var(--vzn-space-1-5); overflow: hidden; border-radius: var(--vzn-radius-pill); background: var(--vzn-surface-muted); }
+    .s-meter::after { position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: var(--vzn-space-8); border-radius: var(--vzn-radius-pill); background: var(--vzn-action); content: ""; }
+    .s-session { display: flex; inline-size: var(--vzn-live-session-panel-width); flex: 0 0 auto; flex-direction: column; gap: var(--vzn-space-3); overflow: hidden; }
+    .s-caps { margin: 0; color: var(--vzn-text-soft); font-size: var(--vzn-font-size-sm); font-weight: var(--vzn-weight-semibold); letter-spacing: var(--vzn-tracking-caps); text-transform: uppercase; }
+    .s-card-body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--vzn-space-2); padding: var(--vzn-space-3) var(--vzn-space-4); }
+    .s-line { display: flex; inline-size: 100%; justify-content: space-between; gap: var(--vzn-space-2); }
+    .s-at { position: absolute; inset-block-start: var(--y, 0); inset-inline-start: var(--x, 0); }
+    .s-pop { inline-size: var(--vzn-popover-wide); }
+    .s-pop-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--vzn-space-3); padding: var(--vzn-space-3); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-pop-title { margin: 0; color: var(--vzn-text-strong); font-size: var(--vzn-font-size-lg); font-weight: var(--vzn-weight-semibold); }
+    .s-sec { display: flex; flex-direction: column; gap: var(--vzn-space-2); padding: var(--vzn-space-3); }
+    .s-sec + .s-sec { border-top: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-sec-head { margin: 0; color: var(--vzn-text-muted); font-size: var(--vzn-font-size-caption); font-weight: var(--vzn-weight-semibold); }
+    .s-appearance { display: flex; flex-direction: column; gap: var(--vzn-space-3); padding: var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-control); background: var(--vzn-surface-muted); }
+    .s-swatch { display: block; inline-size: var(--vzn-icon-md); block-size: var(--vzn-icon-md); border: var(--vzn-border-width) solid var(--vzn-border-strong); border-radius: var(--vzn-radius-pill); background: var(--vzn-neutral-0); }
+    .s-swatch[data-tone="warning"] { background: var(--vzn-warning); }
+    .s-swatch[data-tone="info"] { background: var(--vzn-tone-blue); }
+    .s-swatch[data-tone="ok"] { background: var(--vzn-tone-green); }
+    .s-swatch[data-tone="orange"] { background: var(--vzn-tone-orange); }
+    .s-swatch[data-tone="violet"] { background: var(--vzn-tone-violet); }
+    .s-range { position: relative; display: block; block-size: var(--vzn-space-1); border-radius: var(--vzn-radius-pill); background: var(--vzn-border-strong); }
+    .s-range::after { position: absolute; inset-block-start: calc(var(--vzn-space-1-5) * -1); inset-inline-end: var(--vzn-space-12); inline-size: var(--vzn-space-4); block-size: var(--vzn-space-4); border-radius: var(--vzn-radius-pill); background: var(--vzn-action); content: ""; }
+    .s-dialog { display: flex; flex-direction: column; border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-md); background: var(--vzn-surface-raised); box-shadow: var(--vzn-shadow-lg); z-index: var(--vzn-layer-modal); }
+    .s-dialog[data-size="lg"] { inline-size: var(--vzn-dialog-lg-max-inline); }
+    .s-dialog[data-size="md"] { inline-size: var(--vzn-dialog-md-max-inline); }
+    .s-dialog[data-size="sm"] { inline-size: var(--vzn-dialog-sm-max-inline); }
+    .s-dialog-head { display: flex; align-items: center; gap: var(--vzn-space-3); padding: var(--vzn-space-4) var(--vzn-space-5); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-dialog-body { display: flex; flex-direction: column; gap: var(--vzn-space-3); padding: var(--vzn-space-4) var(--vzn-space-5); }
+    .s-dialog-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--vzn-space-2); padding: var(--vzn-space-3) var(--vzn-space-5); border-top: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-hist { display: flex; align-items: flex-start; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-hist[data-active] { background: var(--vzn-surface-selected); }
+    .s-hist-meta { display: flex; flex-wrap: wrap; gap: var(--vzn-space-2); color: var(--vzn-text-soft); font-size: var(--vzn-font-size-caption); }
+    .s-toasts { position: absolute; inset-block-end: var(--vzn-space-4); inset-inline-end: var(--vzn-space-4); z-index: var(--vzn-layer-notification); display: flex; inline-size: var(--vzn-popover-wide); flex-direction: column; gap: var(--vzn-space-2); }
+    .s-toasts .m-toast { position: static; align-items: flex-start; }
+    .s-toast-copy { display: flex; min-inline-size: 0; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-1); font-size: var(--vzn-font-size-sm); }
+    .s-toast-actions { display: flex; gap: var(--vzn-space-1); margin-top: var(--vzn-space-1); }
+    .s-subtitle-shell { display: flex; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-2); padding: var(--vzn-space-3); background: var(--vzn-scrim-media); color: var(--vzn-neutral-0); }
+    .s-subtitle-line { color: var(--vzn-warning); font-size: var(--vzn-font-size-title); font-weight: var(--vzn-weight-semibold); text-align: center; }
+    .s-notice-row { border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-grow { flex: 1 1 auto; }
+    .s-input-sm { block-size: var(--vzn-control-height-sm); }
+    .s-flush { padding: 0; }
+    .s-top { align-items: flex-start; }
+    .s-subtitle-src { color: var(--vzn-text-soft); font-size: var(--vzn-font-size-sm); text-align: center; }
+  </style>
+</head>
+<body class="board">
+  <header class="board-header">
+    <h1>Phiên dịch</h1>
+    <p>Nghe micro, âm thanh hệ thống hoặc cả hai, nhận dạng giọng nói và dịch từng câu theo thời gian thực; bật phụ đề nổi đè lên ứng dụng khác; sau phiên thì xuất TXT/SRT và tạo tóm tắt bằng AI. Vẽ theo mã trong <code>src/pages/LiveTranslatePage.tsx</code>. Đặc tả đầy đủ: <a href="../screens/interpret.md">screens/interpret.md</a>.</p>
+    <nav class="board-nav" aria-label="Kịch bản">
+      <a href="#empty">Trống</a>
+      <a href="#running">Đang chạy · Song song</a>
+      <a href="#stopped">Đã dừng · Phiên này</a>
+      <a href="#split">Tách riêng · chế độ tối</a>
+      <a href="#config">Cấu hình AI · phụ đề nổi</a>
+      <a href="#summary">Tóm tắt sau phiên</a>
+      <a href="#history">Phiên đã lưu</a>
+      <a href="#errors">Quyền và lỗi</a>
+      <a href="#narrow">Cửa sổ hẹp</a>
+    </nav>
+  </header>
+
+  <!-- 1. Empty ------------------------------------------------------------- -->
+  <section class="scenario" id="empty">
+    <div class="scenario-copy">
+      <h2>Trống</h2>
+      <p>Lần đầu mở trang, hoặc sau khi bấm Xóa. Kiểu hiển thị mặc định là Song song, nguồn mặc định là Âm thanh hệ thống. Chưa có chân bảng và chưa có "Phiên này".</p>
+      <ol>
+        <li><span class="ref">1</span>Cặp ngôn ngữ: nút nguồn và đích <code>md</code>, giữa là mũi tên tĩnh (trang này không đảo chiều).</li>
+        <li><span class="ref">2</span>Nguồn âm thanh: Micro · Âm thanh hệ thống · Cả hai, nút <code>sm · neutral · ghost</code> có <code>aria-pressed</code>. Chọn hệ thống/cả hai thì kiểm tra quyền Screen Recording ngay.</li>
+        <li><span class="ref">3</span>Lịch sử phiên: <code>md · neutral · ghost</code> icon đồng hồ, mở hộp thoại "Phiên đã lưu".</li>
+        <li><span class="ref">4</span>Cấu hình AI: <code>md · neutral · ghost</code> icon bánh răng, mở popover (mô hình + phụ đề).</li>
+        <li><span class="ref">5</span>Phụ đề nổi: <code>md · neutral · outline</code>, bật thì <code>primary · soft</code> + <code>aria-pressed</code>.</li>
+        <li><span class="ref">6</span>Bắt đầu: hành động chính duy nhất, <code>md · primary · solid</code>. Bị tắt kèm tooltip khi thiếu khoá STT/khoá dịch.</li>
+        <li><span class="ref">7</span>Kiểu hiển thị Song song / Tách riêng, ghi nhớ trong <code>localStorage</code>.</li>
+        <li><span class="ref">8</span>Trạng thái trống: icon và câu mô tả đổi theo nguồn âm; có nút Bắt đầu thứ hai trong thân.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng · trống</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="m-nav">Trang chủ</div>
+              <div class="m-nav-group">AI</div>
+              <div class="m-nav">AI Chat</div>
+              <div class="m-nav-group">Ngôn ngữ</div>
+              <div class="m-nav">Dịch</div>
+              <div class="m-nav" aria-current="page">Phiên dịch</div>
+              <div class="m-nav">Từ điển</div>
+              <div class="m-nav">Dịch mọi nơi</div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header">
+                <h3>Phiên dịch</h3>
+                <span class="s-pair"><span class="m-btn" data-size="md">Tiếng Nhật ▾</span>→<span class="m-btn" data-size="md">Tiếng Việt ▾</span></span>
+                <span class="m-segmented"><span>Micro</span><span aria-pressed="true">Âm thanh hệ thống</span><span>Cả hai</span></span>
+                <span class="s-actions">
+                <span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Hiện lịch sử phiên">⏱</span>
+                <span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Cấu hình AI">⚙</span>
+                <span class="m-btn" data-size="md">▭ Phụ đề nổi</span>
+                <span class="m-btn" data-size="md" data-tone="primary">🎙 Bắt đầu</span></span>
+              </div>
+              <div class="s-body">
+                <div class="s-panel">
+                  <div class="s-toolbar"><span class="s-title" data-alone>Bản ghi</span><span class="m-spacer"></span><span class="m-segmented"><span aria-pressed="true">Song song</span><span>Tách riêng</span></span></div>
+                  <div class="s-scroll">
+                    <div class="s-empty">
+                      <span class="s-empty-icon">▭</span>
+                      <p>Nhấn Bắt đầu, rồi phát âm thanh trên thiết bị. Viezan sẽ nhận dạng và dịch âm thanh hệ thống.</p>
+                      <span class="m-btn" data-tone="primary">Bắt đầu</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 368px; --y: 46px">1</span>
+          <span class="callout" style="--x: 602px; --y: 46px">2</span>
+          <span class="callout" style="--x: 872px; --y: 46px">3</span>
+          <span class="callout" style="--x: 918px; --y: 46px">4</span>
+          <span class="callout" style="--x: 992px; --y: 46px">5</span>
+          <span class="callout" style="--x: 1104px; --y: 46px">6</span>
+          <span class="callout" style="--x: 990px; --y: 124px">7</span>
+          <span class="callout" style="--x: 700px; --y: 360px">8</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Running, paired ---------------------------------------------------- -->
+  <section class="scenario" id="running">
+    <div class="scenario-copy">
+      <h2>Đang chạy · Song song</h2>
+      <p>Phiên đang nghe micro. Mỗi câu gốc nằm ngay trên bản dịch của nó. Người đọc vừa cuộn lên nên bản ghi ngừng bám cuối. Vùng nội dung 964 px (&lt; 1100) nên "Phiên này" ẩn, xuất file ở chân bảng.</p>
+      <ol>
+        <li><span class="ref">1</span>Cặp ngôn ngữ bị khoá: ổ khoá thay mũi tên, tooltip "Dừng phiên để đổi ngôn ngữ".</li>
+        <li><span class="ref">2</span>Nguồn âm thanh <code>disabled</code> trong lúc phiên chạy.</li>
+        <li><span class="ref">3</span><code>LiveSessionStatus</code>: chip đỏ nhãn pipeline + thời gian <code>mm:ss</code> (spinner khi đang nhận dạng/dịch), rồi thanh mức âm cập nhật mỗi 100 ms.</li>
+        <li><span class="ref">4</span>Dừng: <code>md · danger · outline</code>; dừng thu, xử lý hết âm cuối, lưu phiên.</li>
+        <li><span class="ref">5</span>Huy hiệu nhà cung cấp STT (chỉ khi chạy).</li>
+        <li><span class="ref">6</span>Nhãn người nói: bấm để đổi tên tại chỗ (Enter lưu, Esc huỷ).</li>
+        <li><span class="ref">7</span>Dòng trạng thái câu <code>role="status"</code>: "Đang chờ đủ ý", "Tạm dịch. Có thể thay đổi", hoặc "Đang dịch…" cho câu cuối.</li>
+        <li><span class="ref">8</span>Câu đang thu: mờ, nghiêng, có con trỏ nhấp nháy.</li>
+        <li><span class="ref">9</span>Xem mới nhất: <code>sm · neutral · outline</code> dạng viên, chỉ hiện khi cuộn lên &gt; 48 px.</li>
+        <li><span class="ref">10</span>Chân bảng <code>xs</code>: Sao chép nguyên bản · Xóa (<code>danger · soft</code>) · TXT · SRT … số từ · Sao chép bản dịch.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng · đang nghe</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="m-nav">Trang chủ</div>
+              <div class="m-nav-group">Ngôn ngữ</div>
+              <div class="m-nav">Dịch</div>
+              <div class="m-nav" aria-current="page">Phiên dịch</div>
+              <div class="m-nav">Từ điển</div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header s-header-wrap">
+                <h3>Phiên dịch</h3>
+                <span class="s-pair"><span class="m-btn" data-size="md" disabled>Tiếng Nhật</span><span class="m-btn" data-size="md" data-icon disabled>🔒</span><span class="m-btn" data-size="md" disabled>Tiếng Việt</span></span>
+                <span class="m-segmented"><span aria-pressed="true">Micro</span><span>Âm thanh hệ thống</span><span>Cả hai</span></span>
+                <span class="s-actions">
+                <span class="s-rec"><span class="m-dot" data-tone="danger"></span>Đang nghe microphone <span class="m-mono">12:04</span></span>
+                <span class="s-meter" role="img" aria-label="Mức âm thanh đầu vào"></span>
+                <span class="m-btn" data-size="md" data-icon data-tone="ghost">⏱</span>
+                <span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span>
+                <span class="m-btn" data-size="md">▭ Phụ đề nổi</span>
+                <span class="m-btn" data-size="md" data-tone="danger">■ Dừng</span></span>
+              </div>
+              <div class="s-body">
+                <div class="s-panel">
+                  <div class="s-toolbar"><span class="s-title">Bản ghi</span><span class="m-tag">Groq (free)</span><span class="m-spacer"></span><span class="m-segmented"><span aria-pressed="true">Song song</span><span>Tách riêng</span></span></div>
+                  <div class="s-scroll">
+                    <div class="s-row"><span class="m-tag">Speaker 1</span><div class="s-text"><span class="s-orig">[Câu gốc tiếng Nhật đã chốt]</span><span class="s-tx">[Bản dịch tiếng Việt của câu đó]</span></div></div>
+                    <div class="s-row"><span class="m-tag">Speaker 2</span><div class="s-text"><span class="s-orig">[Câu gốc tiếng Nhật]</span><span class="s-tx">[Bản dịch tiếng Việt]</span></div></div>
+                    <div class="s-row"><span class="m-tag">Speaker 2</span><div class="s-text"><span class="s-orig">[Câu gốc chưa đủ ý]</span><span class="s-note" role="status">Đang chờ đủ ý</span><span class="s-note">Đang dịch…</span></div></div>
+                    <div class="s-row" data-pending><span class="m-tag">Speaker 2</span><span class="s-note">[câu đang thu…] <span class="s-caret"></span></span></div>
+                  </div>
+                  <span class="m-btn s-jump">⌄ Xem mới nhất</span>
+                  <div class="s-footer">
+                    <span class="s-group"><span class="m-btn" data-size="xs" data-icon data-tone="ghost">⧉</span><span class="m-btn" data-size="xs" data-tone="danger">🗑 Xóa</span><span class="m-btn" data-size="xs" data-tone="ghost">⤓ TXT</span><span class="m-btn" data-size="xs" data-tone="ghost">⤓ SRT</span></span>
+                    <span class="s-group"><span class="m-muted">1.234 từ</span><span class="m-btn" data-size="xs" data-icon data-tone="ghost">⧉</span></span>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 368px; --y: 38px">1</span>
+          <span class="callout" style="--x: 610px; --y: 40px">2</span>
+          <span class="callout" style="--x: 612px; --y: 88px">3</span>
+          <span class="callout" style="--x: 1150px; --y: 84px">4</span>
+          <span class="callout" style="--x: 338px; --y: 160px">5</span>
+          <span class="callout" style="--x: 277px; --y: 212px">6</span>
+          <span class="callout" style="--x: 336px; --y: 398px">7</span>
+          <span class="callout" style="--x: 277px; --y: 452px">8</span>
+          <span class="callout" style="--x: 656px; --y: 638px">9</span>
+          <span class="callout" style="--x: 273px; --y: 694px">10</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Stopped with "This session" -------------------------------------- -->
+  <section class="scenario" id="stopped">
+    <div class="scenario-copy">
+      <h2>Đã dừng · Phiên này</h2>
+      <p>Vùng nội dung ≥ 1100 px và đã có bản ghi: cột "Phiên này" 280 px (<code>--vzn-live-session-panel-width</code>) hiện bên phải. TXT/SRT ở chân bảng ẩn vì đã có trong "Phiên này".</p>
+      <ol>
+        <li><span class="ref">1</span>Không còn chip trạng thái; ngôn ngữ mở khoá; nút trở lại "Bắt đầu".</li>
+        <li><span class="ref">2</span>Tổng hợp nội dung ở chân bảng: <code>xs · primary · solid</code>, chỉ hiện sau khi dừng (hoặc khi mở phiên cũ).</li>
+        <li><span class="ref">3</span>Thẻ Tóm tắt: chưa có thì ghi chú + <code>sm · primary · soft</code> "Tổng hợp nội dung"; đã có thì đoạn trích 220 ký tự + <code>sm · primary · outline</code> "Mở tóm tắt".</li>
+        <li><span class="ref">4</span>Người nói: tên (đã đổi) và số câu của từng người.</li>
+        <li><span class="ref">5</span>Xuất: TXT · SRT <code>sm · neutral · outline</code>, tên file <code>meeting-&lt;ngày giờ&gt;.txt/.srt</code>.</li>
+        <li><span class="ref">6</span>Các phiên trước (n): <code>sm · neutral · ghost</code>, mở hộp thoại lịch sử.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1440 × 820 · sáng · đã dừng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1440px; --h: 820px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="m-nav">Trang chủ</div>
+              <div class="m-nav-group">Ngôn ngữ</div>
+              <div class="m-nav">Dịch</div>
+              <div class="m-nav" aria-current="page">Phiên dịch</div>
+              <div class="m-nav">Từ điển</div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header">
+                <h3>Phiên dịch</h3>
+                <span class="s-pair"><span class="m-btn" data-size="md">Tiếng Nhật ▾</span>→<span class="m-btn" data-size="md">Tiếng Việt ▾</span></span>
+                <span class="m-segmented"><span aria-pressed="true">Micro</span><span>Âm thanh hệ thống</span><span>Cả hai</span></span>
+                <span class="s-actions">
+                <span class="m-btn" data-size="md" data-icon data-tone="ghost">⏱</span>
+                <span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span>
+                <span class="m-btn" data-size="md">▭ Phụ đề nổi</span>
+                <span class="m-btn" data-size="md" data-tone="primary">🎙 Bắt đầu</span></span>
+              </div>
+              <div class="s-body">
+                <div class="s-panel">
+                  <div class="s-toolbar"><span class="s-title" data-alone>Bản ghi</span><span class="m-spacer"></span><span class="m-segmented"><span aria-pressed="true">Song song</span><span>Tách riêng</span></span></div>
+                  <div class="s-scroll">
+                    <div class="s-row"><span class="m-tag">Chị Lan</span><div class="s-text"><span class="s-orig">[Câu gốc]</span><span class="s-tx">[Bản dịch]</span></div></div>
+                    <div class="s-row"><span class="m-tag">Speaker 2</span><div class="s-text"><span class="s-orig">[Câu gốc]</span><span class="s-tx">[Bản dịch]</span></div></div>
+                    <div class="s-row"><span class="m-tag">Chị Lan</span><div class="s-text"><span class="s-orig">[Câu gốc]</span><span class="s-tx">[Bản dịch]</span></div></div>
+                    <div class="s-row"><span class="m-tag">Speaker 2</span><div class="s-text"><span class="s-orig">[Câu gốc]</span><span class="s-tx">[Bản dịch]</span></div></div>
+                  </div>
+                  <div class="s-footer">
+                    <span class="s-group"><span class="m-btn" data-size="xs" data-icon data-tone="ghost">⧉</span><span class="m-btn" data-size="xs" data-tone="danger">🗑 Xóa</span></span>
+                    <span class="s-group"><span class="m-muted">2.410 từ</span><span class="m-btn" data-size="xs" data-icon data-tone="ghost">⧉</span><span class="m-btn" data-size="xs" data-tone="primary">💡 Tổng hợp nội dung</span></span>
+                  </div>
+                </div>
+                <aside class="s-session" aria-label="Phiên này">
+                  <p class="s-caps">Phiên này</p>
+                  <div class="m-card"><div class="m-card-head">Tóm tắt</div><div class="s-card-body"><span class="m-muted">Chưa có tóm tắt. Tóm tắt khi đã có bản ghi.</span><span class="m-btn" data-tone="soft">💡 Tổng hợp nội dung</span></div></div>
+                  <div class="m-card"><div class="m-card-head">Người nói</div><div class="s-card-body"><span class="s-line"><span class="m-strong">Chị Lan</span><span class="m-muted">18 câu</span></span><span class="s-line"><span class="m-strong">Speaker 2</span><span class="m-muted">11 câu</span></span></div></div>
+                  <div class="m-card"><div class="m-card-head">Xuất</div><div class="s-card-body"><span class="s-group"><span class="m-btn">⤓ TXT</span><span class="m-btn">⤓ SRT</span></span></div></div>
+                  <span class="m-btn" data-tone="ghost">Các phiên trước (8)</span>
+                </aside>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 1350px; --y: 46px">1</span>
+          <span class="callout" style="--x: 1110px; --y: 754px">2</span>
+          <span class="callout" style="--x: 1135px; --y: 150px">3</span>
+          <span class="callout" style="--x: 1135px; --y: 292px">4</span>
+          <span class="callout" style="--x: 1135px; --y: 420px">5</span>
+          <span class="callout" style="--x: 1135px; --y: 536px">6</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Split view, dark --------------------------------------------------- -->
+  <section class="scenario" id="split">
+    <div class="scenario-copy">
+      <h2>Tách riêng · chế độ tối · xem phiên cũ</h2>
+      <p>Hai bảng "Nguyên bản" và "Bản dịch", mỗi bảng tự cuộn và có nút Xem mới nhất riêng. Đang xem một phiên đã lưu có cặp ngôn ngữ khác cặp hiện tại.</p>
+      <ol>
+        <li><span class="ref">1</span>Dòng thông báo dưới header: "Phiên đã ghi: Tiếng Anh → Tiếng Việt" (<code>.live-language-notice</code>).</li>
+        <li><span class="ref">2</span>Bảng Nguyên bản: nhãn người nói đổi tên được; chân bảng có Sao chép, Xóa, TXT, SRT, số từ.</li>
+        <li><span class="ref">3</span>Bảng Bản dịch: nhãn người nói chỉ đọc; nút đổi kiểu hiển thị nằm ở thanh công cụ bảng này.</li>
+        <li><span class="ref">4</span>Chân bảng Bản dịch: Sao chép bản dịch + Tổng hợp nội dung.</li>
+        <li><span class="ref">5</span>Hai cột chỉ khi cửa sổ ≥ 1024 px và vùng nội dung ≥ 900 px; nhỏ hơn thì chồng dọc.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · tối · tách riêng</p>
+        <div class="frame" data-theme="graphite" data-mode="dark" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="m-nav">Trang chủ</div>
+              <div class="m-nav-group">Ngôn ngữ</div>
+              <div class="m-nav">Dịch</div>
+              <div class="m-nav" aria-current="page">Phiên dịch</div>
+              <div class="m-nav">Từ điển</div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header">
+                <h3>Phiên dịch</h3>
+                <span class="s-pair"><span class="m-btn" data-size="md">Tiếng Nhật ▾</span>→<span class="m-btn" data-size="md">Tiếng Việt ▾</span></span>
+                <span class="m-segmented"><span>Micro</span><span aria-pressed="true">Âm thanh hệ thống</span><span>Cả hai</span></span>
+                <span class="s-actions">
+                <span class="m-btn" data-size="md" data-icon data-tone="ghost">⏱</span>
+                <span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span>
+                <span class="m-btn" data-size="md" data-tone="soft">▭ Phụ đề nổi</span>
+                <span class="m-btn" data-size="md" data-tone="primary">🎙 Bắt đầu</span></span>
+              </div>
+              <div class="m-row m-muted s-notice-row">Phiên đã ghi: Tiếng Anh → Tiếng Việt</div>
+              <div class="s-body">
+                <div class="s-panel">
+                  <div class="s-toolbar"><span class="s-title" data-alone>Nguyên bản</span></div>
+                  <div class="s-scroll">
+                    <div class="s-row"><span class="m-tag">Speaker 1</span><span class="s-orig">[Câu gốc 1]</span></div>
+                    <div class="s-row"><span class="m-tag">Speaker 2</span><span class="s-orig">[Câu gốc 2]</span></div>
+                    <div class="s-row"><span class="m-tag">Speaker 1</span><span class="s-orig">[Câu gốc 3]</span></div>
+                  </div>
+                  <div class="s-footer">
+                    <span class="s-group"><span class="m-btn" data-size="xs" data-icon data-tone="ghost">⧉</span><span class="m-btn" data-size="xs" data-tone="danger">🗑 Xóa</span><span class="m-btn" data-size="xs" data-tone="ghost">⤓ TXT</span><span class="m-btn" data-size="xs" data-tone="ghost">⤓ SRT</span></span>
+                    <span class="m-muted">846 từ</span>
+                  </div>
+                </div>
+                <div class="s-panel">
+                  <div class="s-toolbar"><span class="s-title" data-alone>Bản dịch</span><span class="m-spacer"></span><span class="m-segmented"><span>Song song</span><span aria-pressed="true">Tách riêng</span></span></div>
+                  <div class="s-scroll">
+                    <div class="s-row"><span class="m-tag">Speaker 1</span><span class="s-tx">[Bản dịch 1]</span></div>
+                    <div class="s-row"><span class="m-tag">Speaker 2</span><span class="s-tx">[Bản dịch 2]</span></div>
+                    <div class="s-row"><span class="m-tag">Speaker 1</span><span class="s-tx">[Bản dịch 3]</span></div>
+                  </div>
+                  <div class="s-footer">
+                    <span class="m-btn" data-size="xs" data-icon data-tone="ghost">⧉</span>
+                    <span class="m-btn" data-size="xs" data-tone="primary">💡 Tổng hợp nội dung</span>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 244px; --y: 104px">1</span>
+          <span class="callout" style="--x: 277px; --y: 216px">2</span>
+          <span class="callout" style="--x: 988px; --y: 170px">3</span>
+          <span class="callout" style="--x: 1020px; --y: 694px">4</span>
+          <span class="callout" style="--x: 722px; --y: 420px">5</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. AI configuration + floating subtitles ------------------------------ -->
+  <section class="scenario" id="config">
+    <div class="scenario-copy">
+      <h2>Cấu hình AI · phụ đề nổi</h2>
+      <p>Popover neo dưới nút bánh răng (rộng <code>--vzn-ai-configuration-inline</code>), đóng bằng ✕, Esc hoặc bấm ra ngoài. Phụ đề nổi là một cửa sổ Electron riêng, luôn nổi, không viền.</p>
+      <ol>
+        <li><span class="ref">1</span>Nút bánh răng khi mở: <code>primary · soft</code>, <code>aria-expanded="true"</code>.</li>
+        <li><span class="ref">2</span>Câu phạm vi: "Áp dụng khi phiên thông dịch tiếp theo bắt đầu." (đang chạy: "Phiên đang chạy giữ nguyên mô hình đã dùng khi bắt đầu.").</li>
+        <li><span class="ref">3</span>Dịch và phân tích: <code>AIModelPickerField</code>, bấm thì danh sách model mở ngay trong popover.</li>
+        <li><span class="ref">4</span>Đầu ra › công tắc Phụ đề, đồng bộ với nút "Phụ đề nổi" ở header.</li>
+        <li><span class="ref">5</span>Màu chữ: 6 ô <code>sm</code> icon, chọn thì <code>primary · soft</code> + <code>aria-pressed</code>.</li>
+        <li><span class="ref">6</span>Kích cỡ chữ S · M · L · XL · 2X (14–34 px), giá trị hiện cạnh nhãn.</li>
+        <li><span class="ref">7</span>Độ mờ nền: thanh trượt gốc 0–100, bước 5; "Trong suốt … Đục".</li>
+        <li><span class="ref">8</span>Đặt lại mặc định: <code>sm · neutral · ghost</code> (trắng · 18 px · 84 %).</li>
+        <li><span class="ref">9</span>Cửa sổ phụ đề 660 × 300 ở giữa đáy màn hình: có Bắt đầu/Dừng, Phiên mới, model, nguồn, ngôn ngữ đích, đóng. Phác hoạ; giao diện thật nằm ở <code>public/subtitle.html</code>.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng · popover mở</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="m-nav">Trang chủ</div>
+              <div class="m-nav-group">Ngôn ngữ</div>
+              <div class="m-nav">Dịch</div>
+              <div class="m-nav" aria-current="page">Phiên dịch</div>
+              <div class="m-nav">Từ điển</div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header">
+                <h3>Phiên dịch</h3>
+                <span class="s-pair"><span class="m-btn" data-size="md">Tiếng Nhật ▾</span>→<span class="m-btn" data-size="md">Tiếng Việt ▾</span></span>
+                <span class="m-segmented"><span>Micro</span><span aria-pressed="true">Âm thanh hệ thống</span><span>Cả hai</span></span>
+                <span class="s-actions">
+                <span class="m-btn" data-size="md" data-icon data-tone="ghost">⏱</span>
+                <span class="m-btn" data-size="md" data-icon data-tone="soft">⚙</span>
+                <span class="m-btn" data-size="md" data-tone="soft">▭ Phụ đề nổi</span>
+                <span class="m-btn" data-size="md" data-tone="primary">🎙 Bắt đầu</span></span>
+              </div>
+              <div class="s-body">
+                <div class="s-panel">
+                  <div class="s-toolbar"><span class="s-title" data-alone>Bản ghi</span><span class="m-spacer"></span><span class="m-segmented"><span aria-pressed="true">Song song</span><span>Tách riêng</span></span></div>
+                  <div class="s-scroll">
+                    <div class="s-row"><span class="m-tag">Speaker 1</span><div class="s-text"><span class="s-orig">[Câu gốc]</span><span class="s-tx">[Bản dịch]</span></div></div>
+                    <div class="s-row"><span class="m-tag">Speaker 1</span><div class="s-text"><span class="s-orig">[Câu gốc]</span><span class="s-tx">[Bản dịch]</span></div></div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+          <div class="m-popover s-pop s-at" style="--x: 545px; --y: 121px">
+            <div class="s-pop-head"><div><p class="s-pop-title">Cấu hình AI</p><span class="m-muted">Áp dụng khi phiên thông dịch tiếp theo bắt đầu.</span></div><span class="m-btn" data-icon data-tone="ghost" aria-label="Đóng cài đặt">✕</span></div>
+            <div class="s-sec"><p class="s-sec-head">Dịch và phân tích</p><span class="m-input"><span class="m-strong">gemini-2.5-flash</span><span class="m-muted">Google Gemini</span><span class="m-spacer"></span>▾</span></div>
+            <div class="s-sec">
+              <p class="s-sec-head">Đầu ra</p>
+              <div class="m-row s-flush"><span>▭</span><div class="s-text"><span class="m-strong">Phụ đề</span><span class="m-muted">Ẩn phụ đề nổi</span></div><span class="m-spacer"></span><span class="m-toggle" data-on></span></div>
+              <div class="s-appearance">
+                <div class="s-text"><span class="m-muted">Màu chữ</span><span class="s-group"><span class="m-btn" data-icon data-tone="ghost"><span class="s-swatch"></span></span><span class="m-btn" data-icon data-tone="soft"><span class="s-swatch" data-tone="warning"></span></span><span class="m-btn" data-icon data-tone="ghost"><span class="s-swatch" data-tone="info"></span></span><span class="m-btn" data-icon data-tone="ghost"><span class="s-swatch" data-tone="ok"></span></span><span class="m-btn" data-icon data-tone="ghost"><span class="s-swatch" data-tone="orange"></span></span><span class="m-btn" data-icon data-tone="ghost"><span class="s-swatch" data-tone="violet"></span></span></span></div>
+                <div class="s-text"><span class="s-line"><span class="m-muted">Kích cỡ chữ</span><span class="m-muted m-mono">18px</span></span><span class="s-group"><span class="m-btn" data-tone="ghost">S</span><span class="m-btn" data-tone="soft">M</span><span class="m-btn" data-tone="ghost">L</span><span class="m-btn" data-tone="ghost">XL</span><span class="m-btn" data-tone="ghost">2X</span></span></div>
+                <div class="s-text"><span class="s-line"><span class="m-muted">Độ mờ nền</span><span class="m-muted m-mono">84%</span></span><span class="s-range"></span><span class="s-line m-muted"><span>Trong suốt</span><span>Đục</span></span></div>
+                <span class="s-line"><span></span><span class="m-btn" data-tone="ghost">Đặt lại mặc định</span></span>
+              </div>
+            </div>
+          </div>
+          <span class="callout" style="--x: 918px; --y: 46px">1</span>
+          <span class="callout" style="--x: 533px; --y: 141px">2</span>
+          <span class="callout" style="--x: 533px; --y: 205px">3</span>
+          <span class="callout" style="--x: 533px; --y: 291px">4</span>
+          <span class="callout" style="--x: 533px; --y: 361px">5</span>
+          <span class="callout" style="--x: 533px; --y: 429px">6</span>
+          <span class="callout" style="--x: 533px; --y: 495px">7</span>
+          <span class="callout" style="--x: 790px; --y: 557px">8</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">660 × 300 · cửa sổ phụ đề nổi (phác hoạ)</p>
+        <div class="frame" data-theme="graphite" data-mode="dark" style="--w: 660px; --h: 300px">
+          <div class="s-subtitle-shell">
+            <div class="m-row s-flush">
+              <span class="m-btn" data-size="xs" data-tone="danger">■ Dừng</span>
+              <span class="m-btn" data-size="xs" data-tone="ghost">Phiên mới</span>
+              <span class="m-spacer"></span>
+              <span class="m-btn" data-size="xs">Gemini ▾</span>
+              <span class="m-btn" data-size="xs">Âm thanh hệ thống ▾</span>
+              <span class="m-btn" data-size="xs">→ Tiếng Việt ▾</span>
+              <span class="m-btn" data-size="xs" data-icon data-tone="ghost" aria-label="Đóng">✕</span>
+            </div>
+            <div class="s-empty">
+              <span class="s-subtitle-src">[câu gốc gần nhất]</span>
+              <span class="s-subtitle-line">[Bản dịch hiện trên màn hình, màu và cỡ theo tuỳ chỉnh]</span>
+            </div>
+          </div>
+          <span class="callout" style="--x: 12px; --y: 12px">9</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Summary dialog ---------------------------------------------------- -->
+  <section class="scenario" id="summary">
+    <div class="scenario-copy">
+      <h2>Tóm tắt sau phiên</h2>
+      <p>Mở từ "Tổng hợp nội dung" (chân bảng hoặc "Phiên này"). Mở lần đầu thì tự tóm tắt. <code>DialogShell size="lg"</code>: giữ focus, Esc đóng, trả focus về nút mở.</p>
+      <ol>
+        <li><span class="ref">1</span>Tab Tóm tắt · Việc cần làm · Quyết định: <code>md</code>, đang chọn <code>primary · soft</code>, còn lại <code>neutral · ghost</code>.</li>
+        <li><span class="ref">2</span>Nội dung Markdown; khi đang chạy là spinner + "Đang tổng hợp…" / "Đang trích xuất…".</li>
+        <li><span class="ref">3</span>Sao chép nội dung tab: <code>sm · neutral · outline</code>, sau khi chép "Đã sao chép!" <code>primary · soft</code>.</li>
+        <li><span class="ref">4</span>Hành động của tab: <code>sm · primary · solid</code> — Tạo lại / Trích xuất việc cần làm / Trích xuất quyết định (hoặc "Trích xuất lại").</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng · hộp thoại</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar"><div class="m-nav">Trang chủ</div><div class="m-nav-group">Ngôn ngữ</div><div class="m-nav" aria-current="page">Phiên dịch</div></nav>
+            <main class="m-main"><div class="m-header"><h3>Phiên dịch</h3></div><div class="s-body"><div class="s-panel"></div></div></main>
+          </div>
+          <div class="m-scrim"></div>
+          <div class="s-dialog s-at" data-size="lg" style="--x: 240px; --y: 110px">
+            <div class="s-dialog-head"><span class="m-strong">Tóm tắt buổi dịch</span><span class="m-spacer"></span><span class="m-btn" data-icon data-tone="ghost" aria-label="Đóng cài đặt">✕</span></div>
+            <div class="s-dialog-body">
+              <span class="s-group"><span class="m-btn" data-size="md" data-tone="soft">Tóm tắt</span><span class="m-btn" data-size="md" data-tone="ghost">Việc cần làm</span><span class="m-btn" data-size="md" data-tone="ghost">Quyết định</span></span>
+              <span class="m-strong">[Tiêu đề tóm tắt]</span>
+              <span>[Đoạn tóm tắt nội dung buổi họp trong vài câu, hiển thị bằng Markdown.]</span>
+              <span>• [Ý chính 1]</span>
+              <span>• [Ý chính 2]</span>
+              <span>• [Ý chính 3]</span>
+            </div>
+            <div class="s-dialog-foot"><span class="m-btn">⧉ Sao chép</span><span class="m-btn" data-tone="primary">💡 Tạo lại</span></div>
+          </div>
+          <span class="callout" style="--x: 232px; --y: 186px">1</span>
+          <span class="callout" style="--x: 252px; --y: 236px">2</span>
+          <span class="callout" style="--x: 252px; --y: 406px">3</span>
+          <span class="callout" style="--x: 930px; --y: 406px">4</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. History dialog ---------------------------------------------------- -->
+  <section class="scenario" id="history">
+    <div class="scenario-copy">
+      <h2>Phiên đã lưu</h2>
+      <p>Mở từ nút đồng hồ hoặc "Các phiên trước (n)". Bấm một hàng thì nạp lại phiên đó tại chỗ và đóng hộp thoại.</p>
+      <ol>
+        <li><span class="ref">1</span>Tiêu đề "Phiên đã lưu" + phụ đề "{n} phiên".</li>
+        <li><span class="ref">2</span>Ô "Tìm trong lịch sử..." chỉ hiện khi &gt; 4 phiên; tìm cả trong tóm tắt, việc, quyết định, model.</li>
+        <li><span class="ref">3</span>Hàng đang xem có nền chọn và <code>aria-current</code>; mỗi hàng: bản ghi, bản dịch, model, cặp, số từ, thời gian tương đối.</li>
+        <li><span class="ref">4</span>Xoá từng phiên: <code>xs · danger · ghost</code> icon, không xác nhận.</li>
+        <li><span class="ref">5</span>Xoá phiên đã lưu: <code>sm · danger · outline</code> viên → hộp thoại xác nhận nhỏ với Hủy (<code>md · neutral · outline</code>) và Xoá (<code>md · danger · solid</code>).</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng · lịch sử + xác nhận</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar"><div class="m-nav">Trang chủ</div><div class="m-nav-group">Ngôn ngữ</div><div class="m-nav" aria-current="page">Phiên dịch</div></nav>
+            <main class="m-main"><div class="m-header"><h3>Phiên dịch</h3></div><div class="s-body"><div class="s-panel"></div></div></main>
+          </div>
+          <div class="m-scrim"></div>
+          <div class="s-dialog s-at" data-size="md" style="--x: 320px; --y: 90px">
+            <div class="s-dialog-head"><div class="s-text"><span class="m-strong">Phiên đã lưu</span><span class="m-muted">8 phiên</span></div><span class="m-spacer"></span><span class="m-btn" data-icon data-tone="ghost" aria-label="Đóng lịch sử">✕</span></div>
+            <div class="m-row"><span class="m-input s-grow s-input-sm">🔍 Tìm trong lịch sử...</span></div>
+            <div class="s-hist" data-active><div class="s-text s-grow"><span class="m-strong">[Bản ghi phiên đang xem…]</span><span class="m-muted">[Bản dịch…]</span><span class="s-hist-meta"><span>Gemini 2.5 Flash</span><span>Tiếng Nhật → Tiếng Việt</span><span class="m-tag">2.410 từ</span><span>5 phút trước</span></span></div><span class="m-btn" data-size="xs" data-icon data-tone="ghost">🗑</span></div>
+            <div class="s-hist"><div class="s-text s-grow"><span class="m-strong">[Bản ghi phiên…]</span><span class="m-muted">[Bản dịch…]</span><span class="s-hist-meta"><span>Groq</span><span>Tiếng Anh → Tiếng Việt</span><span class="m-tag">846 từ</span><span>hôm qua</span></span></div><span class="m-btn" data-size="xs" data-icon data-tone="ghost">🗑</span></div>
+            <div class="s-dialog-foot"><span class="m-btn" data-tone="danger">🗑 Xoá phiên đã lưu</span></div>
+          </div>
+          <div class="s-dialog s-at" data-size="sm" style="--x: 640px; --y: 430px">
+            <div class="s-dialog-head"><span class="m-strong">Xoá phiên đã lưu</span><span class="m-spacer"></span><span class="m-btn" data-icon data-tone="ghost" aria-label="Hủy">✕</span></div>
+            <div class="s-dialog-body"><span class="m-muted">Thao tác này xoá toàn bộ phiên đã lưu, kể cả tóm tắt và ghi chú, và không thể hoàn tác.</span></div>
+            <div class="s-dialog-foot"><span></span><span class="s-group"><span class="m-btn" data-size="md">Hủy</span><span class="m-btn" data-size="md" data-tone="danger">🗑 Xoá phiên đã lưu</span></span></div>
+          </div>
+          <span class="callout" style="--x: 312px; --y: 82px">1</span>
+          <span class="callout" style="--x: 312px; --y: 160px">2</span>
+          <span class="callout" style="--x: 312px; --y: 214px">3</span>
+          <span class="callout" style="--x: 860px; --y: 214px">4</span>
+          <span class="callout" style="--x: 332px; --y: 380px">5</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. Permission and errors -------------------------------------------- -->
+  <section class="scenario" id="errors">
+    <div class="scenario-copy">
+      <h2>Quyền và lỗi</h2>
+      <p>Trái: macOS, nguồn "Âm thanh hệ thống", chưa cấp quyền, vừa bấm Bắt đầu. Phải: không có khoá nhận dạng giọng nói, cùng lúc một lỗi chặn và một lỗi thoáng qua trong ngăn toast của app (góc dưới phải).</p>
+      <ol>
+        <li><span class="ref">1</span>Hộp thoại "Cần cấp quyền Screen Recording" + gợi ý bật "Share audio". Đóng (<code>sm · neutral · outline</code>) · Mở System Settings (<code>sm · primary · solid</code>). Quay lại cửa sổ thì quyền được kiểm tra lại.</li>
+        <li><span class="ref">2</span>Bắt đầu <code>disabled</code> (xám) với <code>title</code> nêu lý do.</li>
+        <li><span class="ref">3</span>Toast cảnh báo thiếu khoá + "Mở Cài đặt"; đóng được, hiện lại nếu khoá bị gỡ lần nữa.</li>
+        <li><span class="ref">4</span>Toast lỗi chặn <code>role="alert"</code>: "Lỗi phiên dịch trực tiếp" + lý do (micro bị từ chối, thiếu "Share audio", xử lý không kịp, mọi STT thất bại).</li>
+        <li><span class="ref">5</span>Toast lỗi thoáng qua: cảnh báo, không đóng được, tự tắt sau 4 s; phiên vẫn chạy.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">900 × 600 · sáng · cần quyền</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 900px; --h: 600px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed><div class="m-nav">⌂</div><div class="m-nav" aria-current="page">🎙</div><div class="m-nav">📖</div></nav>
+            <main class="m-main"><div class="m-header"><h3>Phiên dịch</h3><span class="s-actions"><span class="m-btn" data-size="md" data-tone="primary">🎙 Bắt đầu</span></span></div><div class="s-body"><div class="s-panel"></div></div></main>
+          </div>
+          <div class="m-scrim"></div>
+          <div class="s-dialog s-at" data-size="sm" style="--x: 240px; --y: 190px">
+            <div class="s-dialog-body">
+              <div class="m-row s-flush s-top"><span class="s-empty-icon">ⓘ</span><div class="s-text"><span class="m-strong">Cần cấp quyền Screen Recording</span><span class="m-muted">Cần quyền <b>Screen Recording</b> và bật <b>"Share audio"</b> trong dialog chia sẻ màn hình.</span></div></div>
+            </div>
+            <div class="s-dialog-foot"><span></span><span class="s-group"><span class="m-btn">Đóng</span><span class="m-btn" data-tone="primary">⚙ Mở System Settings</span></span></div>
+          </div>
+          <span class="callout" style="--x: 230px; --y: 180px">1</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">1200 × 760 · sáng · thiếu khoá và lỗi</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar"><div class="m-nav">Trang chủ</div><div class="m-nav-group">Ngôn ngữ</div><div class="m-nav" aria-current="page">Phiên dịch</div></nav>
+            <main class="m-main">
+              <div class="m-header">
+                <h3>Phiên dịch</h3>
+                <span class="s-pair"><span class="m-btn" data-size="md">Tiếng Nhật ▾</span>→<span class="m-btn" data-size="md">Tiếng Việt ▾</span></span>
+                <span class="s-actions">
+                <span class="m-btn" data-size="md" data-icon data-tone="ghost">⏱</span>
+                <span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span>
+                <span class="m-btn" data-size="md">▭ Phụ đề nổi</span>
+                <span class="m-btn" data-size="md" disabled title="Thêm API key nhận dạng giọng nói (OpenAI, Gemini hoặc Groq) trong Cài đặt.">🎙 Bắt đầu</span></span>
+              </div>
+              <div class="s-body"><div class="s-panel"><div class="s-toolbar"><span class="s-title" data-alone>Bản ghi</span></div><div class="s-scroll"><div class="s-empty"><span class="s-empty-icon">🎙</span><p>Nhấn Bắt đầu, rồi nói vào microphone. Viezan sẽ nhận dạng và dịch từng câu.</p></div></div></div></div>
+            </main>
+          </div>
+          <div class="s-toasts">
+            <div class="m-toast" role="status"><span class="m-dot" data-tone="warning"></span><div class="s-toast-copy"><span>Thêm API key nhận dạng giọng nói (OpenAI, Gemini hoặc Groq) trong Cài đặt.</span><span class="s-toast-actions"><span class="m-btn" data-size="xs">Mở Cài đặt</span></span></div><span class="m-btn" data-size="xs" data-icon data-tone="ghost">✕</span></div>
+            <div class="m-toast" role="alert"><span class="m-dot" data-tone="danger"></span><div class="s-toast-copy"><span class="m-strong">Lỗi phiên dịch trực tiếp</span><span>Không có quyền truy cập microphone.</span></div><span class="m-btn" data-size="xs" data-icon data-tone="ghost">✕</span></div>
+            <div class="m-toast" role="status"><span class="m-dot" data-tone="warning"></span><div class="s-toast-copy"><span>Nhận dạng thất bại. Đang thử lại</span></div></div>
+          </div>
+          <span class="callout" style="--x: 1150px; --y: 46px">2</span>
+          <span class="callout" style="--x: 752px; --y: 536px">3</span>
+          <span class="callout" style="--x: 752px; --y: 636px">4</span>
+          <span class="callout" style="--x: 752px; --y: 700px">5</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. Narrow ------------------------------------------------------------ -->
+  <section class="scenario" id="narrow">
+    <div class="scenario-copy">
+      <h2>Cửa sổ hẹp</h2>
+      <p>Cửa sổ 820 px: điều hướng chính là rail 60 px, vùng nội dung 760 px (&lt; 900).</p>
+      <ol>
+        <li><span class="ref">1</span>Header xuống dòng: tiêu đề, cặp ngôn ngữ và nguồn âm ở dòng trên; trạng thái và hành động ở dòng dưới, căn phải.</li>
+        <li><span class="ref">2</span>Thanh công cụ bảng Song song xếp dọc: tiêu đề trên, nút đổi kiểu dưới.</li>
+        <li><span class="ref">3</span>"Phiên này" ẩn; TXT/SRT và Tổng hợp nội dung ở chân bảng. Tách riêng thì hai bảng chồng dọc, mỗi bảng cao 16rem và tự cuộn; thân trang cuộn.</li>
+        <li><span class="ref">4</span>Popover Cấu hình AI thành hộp thoại giữa cửa sổ khi cửa sổ ≤ 720 px rộng hoặc ≤ 600 px cao.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">820 × 760 · sáng · hẹp</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 820px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed><div class="m-nav">⌂</div><div class="m-nav">💬</div><div class="m-nav">文</div><div class="m-nav" aria-current="page">🎙</div><div class="m-nav">📖</div></nav>
+            <main class="m-main">
+              <div class="m-header s-header-wrap">
+                <h3>Phiên dịch</h3>
+                <span class="s-pair"><span class="m-btn" data-size="md" disabled>Tiếng Anh</span><span class="m-btn" data-size="md" data-icon disabled>🔒</span><span class="m-btn" data-size="md" disabled>Tiếng Việt</span></span>
+                <span class="m-segmented"><span>Micro</span><span aria-pressed="true">Âm thanh hệ thống</span><span>Cả hai</span></span>
+                <span class="s-actions">
+                <span class="s-rec"><span class="m-dot" data-tone="danger"></span>Đang dịch… <span class="m-mono">03:41</span></span>
+                <span class="s-meter"></span>
+                <span class="m-btn" data-size="md" data-icon data-tone="ghost">⏱</span>
+                <span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span>
+                <span class="m-btn" data-size="md" data-tone="soft">▭ Phụ đề nổi</span>
+                <span class="m-btn" data-size="md" data-tone="danger">■ Dừng</span></span>
+              </div>
+              <div class="s-body">
+                <div class="s-panel">
+                  <div class="s-toolbar" data-stack><span class="s-group"><span class="s-title">Bản ghi</span><span class="m-tag">Gemini</span></span><span class="m-segmented"><span aria-pressed="true">Song song</span><span>Tách riêng</span></span></div>
+                  <div class="s-scroll">
+                    <div class="s-row"><span class="m-tag">Speaker 1</span><div class="s-text"><span class="s-orig">[Câu gốc]</span><span class="s-tx">[Bản dịch]</span></div></div>
+                    <div class="s-row"><span class="m-tag">Speaker 1</span><div class="s-text"><span class="s-orig">[Câu gốc]</span><span class="s-note">Đang dịch…</span></div></div>
+                  </div>
+                  <div class="s-footer">
+                    <span class="s-group"><span class="m-btn" data-size="xs" data-icon data-tone="ghost">⧉</span><span class="m-btn" data-size="xs" data-tone="danger">🗑 Xóa</span><span class="m-btn" data-size="xs" data-tone="ghost">⤓ TXT</span><span class="m-btn" data-size="xs" data-tone="ghost">⤓ SRT</span></span>
+                    <span class="s-group"><span class="m-muted">312 từ</span><span class="m-btn" data-size="xs" data-icon data-tone="ghost">⧉</span></span>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 92px; --y: 46px">1</span>
+          <span class="callout" style="--x: 97px; --y: 186px">2</span>
+          <span class="callout" style="--x: 97px; --y: 696px">3</span>
+          <span class="callout" style="--x: 552px; --y: 84px">4</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Action summary ------------------------------------------------------- -->
+  <section class="scenario" id="actions">
+    <div class="scenario-copy">
+      <h2>Tóm tắt hành động</h2>
+      <p>Bảng đầy đủ ở mục 4 của <a href="../screens/interpret.md">screens/interpret.md</a>.</p>
+    </div>
+    <div class="scenario-frames">
+      <table class="actions">
+        <thead><tr><th>Điều khiển</th><th>Button</th><th>Kết quả</th><th>Khi bị tắt</th></tr></thead>
+        <tbody>
+          <tr><td>Bắt đầu / Dừng</td><td><code>md · primary · solid</code> / <code>md · danger · outline</code></td><td>Mở thu âm (hoặc hộp thoại quyền) / dừng, xử lý hết, lưu phiên</td><td>Thiếu khoá STT, thiếu khoá dịch, ngôn ngữ còn khoá</td></tr>
+          <tr><td>Nguồn âm thanh</td><td><code>sm · neutral · ghost</code> + <code>aria-pressed</code></td><td>Micro · Âm thanh hệ thống · Cả hai</td><td>Khi phiên chạy</td></tr>
+          <tr><td>Lịch sử phiên</td><td><code>md · neutral · ghost</code> icon</td><td>Hộp thoại "Phiên đã lưu"</td><td>—</td></tr>
+          <tr><td>Cấu hình AI</td><td><code>md · neutral · ghost</code> → <code>primary · soft</code></td><td>Popover mô hình + phụ đề</td><td>—</td></tr>
+          <tr><td>Phụ đề nổi</td><td><code>md · neutral · outline</code> → <code>primary · soft</code></td><td>Mở/đóng cửa sổ phụ đề</td><td>—</td></tr>
+          <tr><td>Song song / Tách riêng</td><td><code>sm · neutral · ghost</code> + <code>aria-pressed</code></td><td>Đổi bố cục, ghi nhớ</td><td>—</td></tr>
+          <tr><td>Xem mới nhất</td><td><code>sm · neutral · outline</code> viên</td><td>Cuộn xuống cuối, bám lại</td><td>Ẩn khi đang ở cuối</td></tr>
+          <tr><td>Sao chép · Xóa · TXT · SRT</td><td><code>xs</code> ghost / <code>danger · soft</code></td><td>Chép, xoá màn hình, tải file</td><td>Khi chưa có bản ghi / chưa có đoạn</td></tr>
+          <tr><td>Tổng hợp nội dung</td><td><code>xs · primary · solid</code>; trong "Phiên này" <code>sm · primary · soft/outline</code></td><td>Hộp thoại Tóm tắt, tự chạy</td><td>Ẩn trước khi có bản ghi đã dừng; tắt khi đang tóm tắt</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</body>
+</html>

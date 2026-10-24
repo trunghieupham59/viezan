@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useId, useRef, useState } from 'react'
 import { Button } from '../atoms'
 import { CheckIcon, ChevronDownIcon, SpinnerIcon } from '../icons'
 
@@ -40,6 +40,9 @@ export function SelectField({
   const fieldId = id ?? generatedId
   const labelId = `${fieldId}-label`
   const menuId = `${fieldId}-menu`
+  // The menu floats over the page anchored to this trigger, so a scrolling
+  // parent (a popover body, a settings list) never clips it.
+  const anchorName = `--vzn-select-${generatedId.replace(/[^a-zA-Z0-9_-]/g, '')}`
   const triggerRef = useRef<HTMLButtonElement>(null)
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
   const [open, setOpen] = useState(false)
@@ -108,6 +111,7 @@ export function SelectField({
         aria-controls={open ? menuId : undefined}
         data-ai-config-autofocus={autoFocusTarget ? '' : undefined}
         className="ai-select-field__trigger"
+        style={{ anchorName } as CSSProperties}
         onClick={() => open ? close(false) : openMenu()}
         onKeyDown={(event) => {
           if (event.key === 'Escape' && open) {
@@ -140,6 +144,7 @@ export function SelectField({
           role="listbox"
           aria-labelledby={labelId}
           className={`ai-select-field__menu ai-select-field__menu--${placement}`}
+          style={{ positionAnchor: anchorName } as CSSProperties}
         >
           {options.map((option, index) => (
             <Button

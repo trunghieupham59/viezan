@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — chào mừng, bước 2 và 3</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.cap{margin:0;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#55555C}
+.win{background:#FFFFFF;border:1px solid #E2E2E7;border-radius:16px;box-shadow:0 12px 32px rgba(28,28,31,0.1);display:flex;flex-direction:column;height:620px;box-sizing:border-box;padding:32px 36px;gap:18px}
+.row{display:flex;align-items:center;gap:12px;padding:12px 0}
+.row + .row{border-top:1px solid #EFEFF2}
+.sub{font-size:13px;color:#55555C;line-height:1.5}
+.key{display:inline-flex;align-items:center;height:32px;padding:0 10px;border-radius:8px;border:1px solid #D6D6DC;background:#FAFAFB;font:500 13px "JetBrains Mono",monospace}
+.btn{height:36px;padding:0 14px;border-radius:9px;border:1px solid #D6D6DC;background:#FFFFFF;color:#1C1C1F;font:500 14px Inter,sans-serif;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-primary{border:0;background:#0A63D6;color:#FFFFFF}
+.sw{width:36px;height:22px;border-radius:999px;border:0;padding:2px;display:inline-flex;flex:0 0 auto}
+.sw span{width:18px;height:18px;border-radius:999px;background:#FFFFFF;box-shadow:0 1px 2px rgba(0,0,0,0.2)}
+.on{background:#0A63D6;justify-content:flex-end}
+.off{background:#C9C9D1;justify-content:flex-start}
+.mod{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;border:1px solid #E2E2E7}
+</style>
+</helmet>
+<div style="width: 1440px; height: 800px; box-sizing: border-box; padding: 56px 48px; background: #F4F4F6; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px">
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Bước 2 / 3</p>
+    <section class="win" aria-labelledby="w2">
+      <div style="display: flex; flex-direction: column; gap: 6px"><h2 id="w2" style="margin: 0; font-size: 22px; font-weight: 600">Phím tắt và quyền</h2><p class="sub" style="margin: 0">Dùng Viezan mà không cần mở cửa sổ. Đổi được sau trong Launcher &amp; phím tắt.</p></div>
+      <div>
+        <div class="row"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px; font-weight: 500">Launcher</span><span class="sub">Mở ứng dụng, tệp, hỏi AI từ bất cứ đâu</span></div><button type="button" class="key" aria-label="Đổi phím Launcher, hiện tại Command Space">⌘ Space</button></div>
+        <div class="row"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px; font-weight: 500">Dịch nhanh vùng chọn</span><span class="sub">Bôi đen chữ ở ứng dụng bất kỳ</span></div><button type="button" class="key" aria-label="Đổi phím Dịch nhanh, hiện tại Option T">⌥ T</button></div>
+        <div class="row"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px; font-weight: 500">Quyền Trợ năng</span><span class="sub">Cần cho Dịch nhanh: đọc chữ đang chọn và dán bản dịch</span></div><button type="button" class="btn">Cấp quyền</button></div>
+        <div class="row"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px; font-weight: 500">Quyền Ghi màn hình <span style="font-size: 12px; font-weight: 400; color: #55555C">· không bắt buộc</span></span><span class="sub">Chỉ để Phiên dịch nghe âm thanh hệ thống</span></div><button type="button" class="btn" style="border: 0; color: #0A58C2">Để sau</button></div>
+        <div class="row"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px; font-weight: 500">Mở khi đăng nhập</span><span class="sub">Để phím tắt luôn sẵn sàng</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Mở khi đăng nhập"><span></span></button></div>
+      </div>
+      <span style="flex: 1"></span>
+      <div style="display: flex; gap: 10px"><button type="button" class="btn" style="border: 0; color: #55555C">Quay lại</button><span style="flex: 1"></span><button type="button" class="btn btn-primary">Tiếp tục</button></div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Bước 3 / 3</p>
+    <section class="win" aria-labelledby="w3">
+      <div style="display: flex; flex-direction: column; gap: 6px"><h2 id="w3" style="margin: 0; font-size: 22px; font-weight: 600">Bạn sẽ dùng những gì?</h2><p class="sub" style="margin: 0">Module tắt thì không hiện và không chạy nền. Bật lại bất cứ lúc nào trong Cài đặt › Module.</p></div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+        <div class="mod"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px; font-weight: 500">AI Chat</span><span class="sub">Hỏi, nghiên cứu, viết</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="AI Chat"><span></span></button></div>
+        <div class="mod"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px; font-weight: 500">Dịch</span><span class="sub">Văn bản, ảnh, giọng nói</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Dịch"><span></span></button></div>
+        <div class="mod"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px; font-weight: 500">Phiên dịch</span><span class="sub">Phụ đề trực tiếp</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Phiên dịch"><span></span></button></div>
+        <div class="mod"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px; font-weight: 500">Từ điển</span><span class="sub">Tra từ có ngữ cảnh</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Từ điển"><span></span></button></div>
+        <div class="mod"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px; font-weight: 500">Nhiệt độ &amp; quạt</span><span class="sub">Cảm biến, điều khiển quạt</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Nhiệt độ và quạt"><span></span></button></div>
+        <div class="mod"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px; font-weight: 500">Launcher</span><span class="sub">⌘ Space</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Launcher"><span></span></button></div>
+        <div class="mod"><div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px; font-weight: 500">Tiện ích trình duyệt</span><span class="sub">Dịch trong Chrome</span></div><button type="button" class="sw off" role="switch" aria-checked="false" aria-label="Tiện ích trình duyệt"><span></span></button></div>
+      </div>
+      <span style="flex: 1"></span>
+      <div style="display: flex; gap: 10px"><button type="button" class="btn" style="border: 0; color: #55555C">Quay lại</button><span style="flex: 1"></span><button type="button" class="btn btn-primary">Bắt đầu dùng Viezan</button></div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

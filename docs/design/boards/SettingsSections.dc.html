@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — các mục Cài đặt</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F4F6}
+a{color:#0A58C2}a:hover{color:#08469A}
+.cap{margin:0;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#55555C}
+.card{background:#FFFFFF;border:1px solid #E2E2E7;border-radius:14px;display:flex;flex-direction:column;min-width:0}
+.ch{padding:16px;border-bottom:1px solid #EFEFF2;display:flex;flex-direction:column;gap:4px}
+.row{display:flex;align-items:center;gap:12px;padding:12px 16px}
+.row + .row{border-top:1px solid #EFEFF2}
+.lbl{font-size:14px}
+.sub{font-size:12px;color:#55555C;line-height:1.45}
+.btn{height:32px;padding:0 12px;border-radius:8px;border:1px solid #D6D6DC;background:#FFFFFF;color:#1C1C1F;font:500 13px Inter,sans-serif;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-primary{border:0;background:#0A63D6;color:#FFFFFF}
+.seg{display:inline-flex;padding:2px;border-radius:9px;background:#EDEDF0;gap:2px}
+.seg button{height:28px;padding:0 10px;border-radius:7px;border:0;background:transparent;color:#3A3A40;font:500 13px Inter,sans-serif}
+.seg button[aria-pressed="true"]{background:#FFFFFF;color:#1C1C1F;box-shadow:0 1px 2px rgba(28,28,31,0.1)}
+.sw{width:36px;height:22px;border-radius:999px;border:0;padding:2px;display:inline-flex;flex:0 0 auto}
+.sw span{width:18px;height:18px;border-radius:999px;background:#FFFFFF;box-shadow:0 1px 2px rgba(0,0,0,0.2)}
+.on{background:#0A63D6;justify-content:flex-end}
+.off{background:#C9C9D1;justify-content:flex-start}
+.col{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1240px; box-sizing: border-box; padding: 56px 48px; background: #F4F4F6; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px 28px; align-content: start">
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Chung</p>
+    <section class="card" aria-label="Chung">
+      <div class="ch"><h2 style="margin: 0; font-size: 18px; font-weight: 600">Chung</h2><span class="sub">Ngôn ngữ, khởi động, hành vi dịch mặc định</span></div>
+      <div class="row"><span class="lbl" style="flex: 1">Ngôn ngữ ứng dụng</span><button type="button" class="btn" aria-haspopup="listbox">Theo hệ thống</button></div>
+      <div class="row"><div class="col"><span class="lbl">Mở khi đăng nhập</span><span class="sub">Cần cho Launcher và phím tắt toàn cục</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Mở khi đăng nhập"><span></span></button></div>
+      <div class="row"><div class="col"><span class="lbl">Dịch tự động</span><span class="sub">Dịch sau khi ngừng gõ</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Dịch tự động"><span></span></button></div>
+      <div class="row"><span class="lbl" style="flex: 1">Độ trễ</span><div class="seg" role="group" aria-label="Độ trễ dịch tự động"><button type="button" aria-pressed="false">Ngắn</button><button type="button" aria-pressed="true">Vừa</button><button type="button" aria-pressed="false">Dài</button></div></div>
+      <div class="row"><div class="col"><span class="lbl">Furigana cho tiếng Nhật</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Furigana"><span></span></button></div>
+      <div class="row"><div class="col"><span class="lbl">Dự phòng dịch ảnh</span><span class="sub">Khi model đang chọn không đọc được ảnh</span></div><button type="button" class="btn" aria-haspopup="listbox">Gemini</button></div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Giọng nói</p>
+    <section class="card" aria-label="Giọng nói">
+      <div class="ch"><h2 style="margin: 0; font-size: 18px; font-weight: 600">Giọng nói</h2><span class="sub">Nhận dạng giọng nói và đọc to</span></div>
+      <div class="row"><div class="col"><span class="lbl">Nhận dạng giọng nói</span><span class="sub">Dùng cho Chat, Dịch và Phiên dịch</span></div><button type="button" class="btn" aria-haspopup="listbox">Tự động</button></div>
+      <div class="row"><span class="sub" style="flex: 1">Thử lần lượt: Whisper local, Groq, Google</span></div>
+      <div class="row"><div class="col"><span class="lbl">Đọc to</span></div><div class="seg" role="group" aria-label="Chất lượng đọc to"><button type="button" aria-pressed="false">Miễn phí</button><button type="button" aria-pressed="true">Tự động</button><button type="button" aria-pressed="false">Cao cấp</button></div></div>
+      <div class="row"><span class="lbl" style="flex: 1">Giọng đọc</span><button type="button" class="btn" aria-haspopup="listbox">[tên giọng]</button><button type="button" class="btn" aria-label="Nghe thử giọng đọc">Nghe thử</button></div>
+      <div class="row"><div class="col"><span class="lbl">ElevenLabs</span><span class="sub">Cho chế độ Cao cấp</span></div><button type="button" class="btn">Thêm khoá</button></div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Chat</p>
+    <section class="card" aria-label="Chat">
+      <div class="ch"><h2 style="margin: 0; font-size: 18px; font-weight: 600">Chat</h2><span class="sub">Lời nhắc hệ thống, phím tắt, ảnh đã lưu</span></div>
+      <div class="row" style="align-items: flex-start">
+        <div class="col" style="gap: 8px">
+          <span class="lbl">Preset lời nhắc hệ thống</span>
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 13px"><span style="flex: 1">[Preset mặc định]</span><span style="font-size: 11px; font-weight: 600; color: #0A58C2; background: #E8F0FC; padding: 2px 6px; border-radius: 6px">mặc định</span><button type="button" class="btn" style="height: 28px">Sửa</button></div>
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 13px"><span style="flex: 1">[Preset khác]</span><button type="button" class="btn" style="height: 28px">Sửa</button></div>
+          <button type="button" class="btn" style="align-self: flex-start">Thêm preset</button>
+        </div>
+      </div>
+      <div class="row"><span class="lbl" style="flex: 1">Phím gửi</span><div class="seg" role="group" aria-label="Phím gửi"><button type="button" aria-pressed="true">↩</button><button type="button" aria-pressed="false">⌘↩</button></div></div>
+      <div class="row"><div class="col"><span class="lbl">Ảnh trong chat</span><span class="sub">[dung lượng] trên máy</span></div><button type="button" class="btn">Dọn ảnh cũ</button><button type="button" class="btn" style="border-color: #F0C4C7; color: #B01F29">Xoá hết</button></div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px; grid-column: span 2">
+    <p class="cap">Module</p>
+    <section class="card" aria-label="Module">
+      <div class="ch"><h2 style="margin: 0; font-size: 18px; font-weight: 600">Module</h2><span class="sub">Tắt một module sẽ ẩn trang, lệnh và phím tắt của nó, và dừng mọi việc chạy nền của nó.</span></div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr))">
+        <div class="row" style="border-top: 0"><div class="col"><span class="lbl">AI Chat</span><span class="sub">Trò chuyện, nghiên cứu, viết</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Module AI Chat"><span></span></button></div>
+        <div class="row" style="border-top: 0"><div class="col"><span class="lbl">Dịch</span><span class="sub">Văn bản, ảnh, giọng nói</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Module Dịch"><span></span></button></div>
+        <div class="row" style="border-top: 1px solid #EFEFF2"><div class="col"><span class="lbl">Phiên dịch</span><span class="sub">Phụ đề trực tiếp</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Module Phiên dịch"><span></span></button></div>
+        <div class="row" style="border-top: 1px solid #EFEFF2"><div class="col"><span class="lbl">Từ điển</span><span class="sub">Tra từ theo ngữ cảnh</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Module Từ điển"><span></span></button></div>
+        <div class="row" style="border-top: 1px solid #EFEFF2"><div class="col"><span class="lbl">Nhiệt độ &amp; quạt</span><span class="sub">Cảm biến, quạt, thanh menu</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Module Nhiệt độ và quạt"><span></span></button></div>
+        <div class="row" style="border-top: 1px solid #EFEFF2"><div class="col"><span class="lbl">Launcher</span><span class="sub">Phím tắt toàn hệ thống</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Module Launcher"><span></span></button></div>
+        <div class="row" style="border-top: 1px solid #EFEFF2"><div class="col"><span class="lbl">Tiện ích trình duyệt</span><span class="sub">Máy chủ cục bộ cho Chrome</span></div><button type="button" class="sw off" role="switch" aria-checked="false" aria-label="Module Tiện ích trình duyệt"><span></span></button></div>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Cập nhật</p>
+    <section class="card" aria-label="Cập nhật">
+      <div class="ch"><h2 style="margin: 0; font-size: 18px; font-weight: 600">Cập nhật</h2><span class="sub">Bản hiện tại <span style="font-family: 'JetBrains Mono', monospace">[phiên bản]</span></span></div>
+      <div class="row"><div class="col"><span class="lbl">Tự kiểm tra</span><span class="sub">Hỏi trước khi tải về</span></div><button type="button" class="sw on" role="switch" aria-checked="true" aria-label="Tự kiểm tra cập nhật"><span></span></button></div>
+      <div class="row"><div class="col"><span class="lbl">Lần kiểm tra gần nhất</span><span class="sub">[thời gian] · Không có bản mới</span></div><button type="button" class="btn btn-primary">Kiểm tra ngay</button></div>
+      <div class="row"><a href="#" style="font-size: 13px">Ghi chú phát hành</a></div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

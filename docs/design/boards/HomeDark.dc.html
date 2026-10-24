@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — Trang chủ, chế độ tối</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#111113}
+a{color:#8CC2FF}a:hover{color:#B5D8FF}
+.card{background:#1C1C1F;border:1px solid #2C2C31;border-radius:14px}
+.kbd{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;color:#C9C9D1;border:1px solid #3A3A40;border-radius:5px;padding:1px 6px;background:#232327;white-space:nowrap}
+.btn-primary{height:32px;padding:0 14px;border-radius:8px;border:0;background:#2F7BEA;color:#FFFFFF;font:500 13px Inter,sans-serif;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.quick{display:flex;flex-direction:column;gap:10px;padding:16px;text-decoration:none;color:#ECECF0}
+.quick:hover{border-color:#3C4F70}
+.row{display:flex;align-items:center;gap:12px;padding:10px 16px;text-decoration:none;color:#ECECF0}
+.row + .row{border-top:1px solid #26262A}
+.row:hover{background:#222226}
+.tag{font-size:11px;font-weight:600;color:#C9C9D1;background:#2A2A2E;border-radius:6px;padding:2px 6px}
+.ico{width:32px;height:32px;border-radius:9px;background:rgba(77,155,255,0.16);color:#8CC2FF;display:inline-flex;align-items:center;justify-content:center}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; height: 100vh; min-height: 760px; background: #111113; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #ECECF0">
+  <dc-import name="Sidebar" active="home" mode="dark" hint-size="240px,100%"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; height: 100%">
+    <header style="height: 56px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 24px; border-bottom: 1px solid #26262A; background: #18181B">
+      <h1 style="margin: 0; font-size: 18px; font-weight: 600">Trang chủ</h1>
+      <a href="Chat.dc.html" class="btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Chat mới</a>
+    </header>
+
+    <div style="flex: 1; min-height: 0; overflow: auto; padding: 24px; display: flex; flex-direction: column; gap: 24px">
+      <section aria-labelledby="hd-quick" style="display: flex; flex-direction: column; gap: 12px">
+        <h2 id="hd-quick" style="margin: 0; font-size: 15px; font-weight: 600">Bắt đầu nhanh</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: 12px">
+          <a href="Chat.dc.html" class="card quick"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5h14v10H9l-4 4z"></path></svg></span><span style="font-size: 14px; font-weight: 600">Hỏi AI</span><span style="font-size: 13px; color: #A8A8B0; line-height: 1.45">Chat với model local hoặc đám mây, kèm web và ảnh.</span></a>
+          <a href="Translate.dc.html" class="card quick"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9M8.5 4v2M6 6c0 4 3 7 6 8"></path><path d="M11 6c-1 3-3 6-6 8"></path><path d="m13 20 4-9 4 9M14.5 17h5"></path></svg></span><span style="font-size: 14px; font-weight: 600">Dịch</span><span style="font-size: 13px; color: #A8A8B0; line-height: 1.45">Văn bản, ảnh hoặc giọng nói; so sánh nhiều model.</span></a>
+          <a href="Interpret.dc.html" class="card quick"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg></span><span style="font-size: 14px; font-weight: 600">Phiên dịch trực tiếp</span><span style="font-size: 13px; color: #A8A8B0; line-height: 1.45">Micro hoặc âm thanh hệ thống, phụ đề nổi.</span></a>
+          <a href="Dictionary.dc.html" class="card quick"><span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path><path d="M5 17a3 3 0 0 1 3-3h11"></path></svg></span><span style="font-size: 14px; font-weight: 600">Tra từ</span><span style="font-size: 13px; color: #A8A8B0; line-height: 1.45">Nghĩa theo ngữ cảnh, ví dụ, cách dùng.</span></a>
+        </div>
+      </section>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+        <section aria-labelledby="hd-resume" class="card" style="flex: 999 1 460px; min-width: 0; overflow: hidden">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid #26262A">
+            <h2 id="hd-resume" style="margin: 0; font-size: 15px; font-weight: 600">Tiếp tục</h2>
+            <span style="font-size: 12px; color: #9A9AA2">Chat, bản dịch, phiên dịch, tra từ gần đây</span>
+          </div>
+          <a href="Chat.dc.html" class="row"><span class="tag">Chat</span><span style="flex: 1; font-size: 14px">[Tên cuộc trò chuyện gần nhất]</span><span style="font-size: 12px; color: #9A9AA2">[thời gian]</span></a>
+          <a href="Chat.dc.html" class="row"><span class="tag">Nghiên cứu</span><span style="flex: 1; font-size: 14px">[Phiên nghiên cứu chuyên sâu đang dừng]</span><span style="font-size: 12px; color: #F0A84A; font-weight: 500">Tiếp tục</span></a>
+          <a href="Translate.dc.html" class="row"><span class="tag">Dịch</span><span style="flex: 1; font-size: 14px">[Đoạn văn vừa dịch] <span style="color: #9A9AA2">· EN → JA</span></span><span style="font-size: 12px; color: #9A9AA2">[thời gian]</span></a>
+          <a href="Interpret.dc.html" class="row"><span class="tag">Phiên dịch</span><span style="flex: 1; font-size: 14px">[Phiên gần nhất] <span style="color: #9A9AA2">· có tóm tắt</span></span><span style="font-size: 12px; color: #9A9AA2">[thời gian]</span></a>
+        </section>
+
+        <div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+          <section aria-labelledby="hd-sys" class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; justify-content: space-between; align-items: center"><h2 id="hd-sys" style="margin: 0; font-size: 15px; font-weight: 600">Hệ thống</h2><a href="Thermal.dc.html" style="font-size: 13px">Mở</a></div>
+            <div style="display: flex; align-items: baseline; gap: 8px"><span style="font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; color: #F0A84A">74°</span><span style="font-size: 13px; color: #A8A8B0">CPU nóng nhất · tải 62% · đang ấm</span></div>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <div style="display: flex; align-items: center; gap: 10px; font-size: 13px"><span style="width: 72px; color: #A8A8B0">Quạt trái</span><span style="flex: 1; height: 6px; border-radius: 99px; background: #2C2C31; overflow: hidden"><span style="display: block; width: 52%; height: 100%; background: #4D9BFF"></span></span><span style="width: 76px; text-align: right; font-variant-numeric: tabular-nums">3.550 RPM</span></div>
+              <div style="display: flex; align-items: center; gap: 10px; font-size: 13px"><span style="width: 72px; color: #A8A8B0">Quạt phải</span><span style="flex: 1; height: 6px; border-radius: 99px; background: #2C2C31; overflow: hidden"><span style="display: block; width: 48%; height: 100%; background: #4D9BFF"></span></span><span style="width: 76px; text-align: right; font-variant-numeric: tabular-nums">3.700 RPM</span></div>
+            </div>
+          </section>
+          <section aria-labelledby="hd-keys" class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 10px">
+            <div style="display: flex; justify-content: space-between; align-items: center"><h2 id="hd-keys" style="margin: 0; font-size: 15px; font-weight: 600">Phím tắt</h2><a href="Utilities.dc.html" style="font-size: 13px">Sửa</a></div>
+            <div style="display: flex; justify-content: space-between; font-size: 13px"><span>Launcher</span><span class="kbd">⌘ Space</span></div>
+            <div style="display: flex; justify-content: space-between; font-size: 13px"><span>Dịch nhanh vùng chọn</span><span class="kbd">⌥ T</span></div>
+            <div style="display: flex; justify-content: space-between; font-size: 13px"><span>Bảng lệnh</span><span class="kbd">⌘ K</span></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

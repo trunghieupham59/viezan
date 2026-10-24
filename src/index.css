@@ -729,7 +729,7 @@
   .ui-token-badge {
     display: inline-flex; align-items: center;
     padding: 2px 6px; border-radius: 4px;
-    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: var(--vzn-tracking-caps);
     background: var(--vzn-surface-muted); color: var(--vzn-text-muted);
   }
   .ui-index-dot {
@@ -765,9 +765,10 @@
   .notification-toast-actions { display: inline-flex; flex: 0 0 auto; align-items: center; gap: var(--vzn-space-1); }
   .notification-viewport { position: absolute; z-index: var(--vzn-layer-context-overlay); top: var(--vzn-space-4); right: var(--vzn-space-4); display: flex; flex-direction: column; gap: var(--vzn-space-2); width: min(var(--vzn-notification-max-inline), calc(100% - var(--vzn-space-8))); pointer-events: none; }
   .notification-viewport > * { pointer-events: auto; }
-  /* App-wide stack: fixed to the window, above modals, clear of the title bar. */
-  .notification-viewport--app { position: fixed; z-index: var(--vzn-layer-notification); }
-  .app-shell[data-titlebar="app"] .notification-viewport--app { top: calc(var(--vzn-titlebar-height) + var(--vzn-space-3)); }
+  /* App-wide stack: fixed to the bottom-right of the window, above modals. */
+  .notification-viewport--app { position: fixed; z-index: var(--vzn-layer-notification); top: auto; bottom: var(--vzn-space-4); }
+  /* Never over the chat composer: the viewport measures the overlap and lifts the stack above it. */
+  .notification-viewport--app[data-lifted] { bottom: calc(var(--ui-toast-lift, 0px) + var(--vzn-space-3)); }
 
   /* ══════════════════════════════════════════════════════════════════════
      CHAT UI

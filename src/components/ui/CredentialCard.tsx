@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react'
+import { type ReactNode, useEffect, useId, useState } from 'react'
 import { Button } from './atoms'
 import { CheckCircleIcon, CheckIcon, SpinnerIcon, TrashIcon } from './icons'
+import { StatusLabel } from './molecules/StatusLabel'
 
 
 interface CredentialLabels {
@@ -180,10 +181,15 @@ export function CredentialSecretInputRow({
 }
 
 interface CredentialCardProps {
-  icon: ReactNode
+  /** Kept for callers; the row reads by name alone, as in the design. */
+  icon?: ReactNode
   title: string
   docsLabel: string
-  labels: CredentialLabels
+  labels: CredentialLabels & {
+    /** "Edit" for a saved key, "Add key" otherwise. */
+    edit?: string
+    add?: string
+  }
   inputValue: string
   maskedValue: string | null
   placeholder: string
@@ -200,8 +206,12 @@ interface CredentialCardProps {
   onStatusReset?: () => void
 }
 
+/**
+ * One credential as a settings row: the provider's name, its key state and
+ * one action. The key editor opens under the row on demand, and stays open
+ * while a key is being typed, verified or has failed.
+ */
 export function CredentialCard({
-  icon,
   title,
   docsLabel,
   labels,
@@ -220,48 +230,68 @@ export function CredentialCard({
   onDelete,
   onStatusReset,
 }: CredentialCardProps) {
+  const [editing, setEditing] = useState(false)
+  const editorId = useId()
   const showMasked = hasSecret && inputValue === ''
+  const open = editing || inputValue !== '' || isBusy || isError
+
+  // A verified key closes the editor; the row's status says it is saved.
+  useEffect(() => {
+    if (isSuccess) setEditing(false)
+  }, [isSuccess])
+
+  const tone = isError ? 'danger' : hasSecret || isSuccess ? 'ok' : 'neutral'
+  const status = isError ? labels.invalid : hasSecret || isSuccess ? labels.saved : labels.empty
 
   return (
-    <div className="card p-4 space-y-3 border border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-100 dark:bg-gray-700 flex-shrink-0">
-            {icon}
-          </div>
-          <div>
-            <h3 className="settings-card-title">{title}</h3>
+    <div className="ui-settings-row credential-row" data-open={open || undefined}>
+      <div className="ui-settings-row__main">
+        <div className="ui-settings-row__copy">
+          <span className="ui-settings-row__label">{title}</span>
+          <span className="ui-settings-row__description credential-row__meta">
             {/* Native exception: text link in copy, not a boxed control (see .settings-inline-link). */}
             <button type="button" className="settings-inline-link" onClick={onOpenDocs}>
               {docsLabel}
             </button>
-            {meta && <div className="mt-1">{meta}</div>}
-          </div>
+            {meta}
+          </span>
         </div>
-        <CredentialStatusBadge
-          hasSecret={hasSecret}
-          isSuccess={isSuccess}
-          isError={isError}
-          labels={labels}
-        />
+        <div className="ui-settings-row__controls">
+          <StatusLabel tone={tone}>{status}</StatusLabel>
+          <Button
+            size="sm"
+            shape="rect"
+            variant="neutral"
+            appearance={open ? 'soft' : 'outline'}
+            aria-expanded={open}
+            aria-controls={editorId}
+            onClick={() => setEditing((value) => !value)}
+          >
+            {hasSecret ? (labels.edit ?? labels.submit) : (labels.add ?? labels.submit)}
+          </Button>
+        </div>
       </div>
 
-      <CredentialSecretInputRow
-        inputValue={inputValue}
-        maskedValue={maskedValue}
-        showMasked={showMasked}
-        placeholder={placeholder}
-        hasSecret={hasSecret}
-        isBusy={isBusy}
-        isSuccess={isSuccess}
-        isError={isError}
-        isDeleting={isDeleting}
-        labels={labels}
-        onInputChange={onInputChange}
-        onSubmit={onSubmit}
-        onDelete={onDelete}
-        onStatusReset={onStatusReset}
-      />
+      {open && (
+        <div id={editorId} className="ui-settings-row__below">
+          <CredentialSecretInputRow
+            inputValue={inputValue}
+            maskedValue={maskedValue}
+            showMasked={showMasked}
+            placeholder={placeholder}
+            hasSecret={hasSecret}
+            isBusy={isBusy}
+            isSuccess={isSuccess}
+            isError={isError}
+            isDeleting={isDeleting}
+            labels={labels}
+            onInputChange={onInputChange}
+            onSubmit={onSubmit}
+            onDelete={onDelete}
+            onStatusReset={onStatusReset}
+          />
+        </div>
+      )}
     </div>
   )
 }

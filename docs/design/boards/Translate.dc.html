@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — Dịch</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F4F6}
+a{color:#0A58C2}a:hover{color:#08469A}
+.ib{width:32px;height:32px;border-radius:8px;border:0;background:transparent;color:#55555C;display:inline-flex;align-items:center;justify-content:center}
+.ib:hover{background:#F0F0F3;color:#1C1C1F}
+.btn{height:32px;padding:0 12px;border-radius:8px;border:1px solid #D6D6DC;background:#FFFFFF;color:#1C1C1F;font:500 13px Inter,sans-serif;display:inline-flex;align-items:center;gap:6px}
+.seg{display:inline-flex;padding:2px;border-radius:9px;background:#EDEDF0;gap:2px}
+.seg button{height:28px;padding:0 12px;border-radius:7px;border:0;background:transparent;color:#3A3A40;font:500 13px Inter,sans-serif}
+.seg button[aria-pressed="true"]{background:#FFFFFF;color:#1C1C1F;box-shadow:0 1px 2px rgba(28,28,31,0.1)}
+.panel{background:#FFFFFF;border:1px solid #E2E2E7;border-radius:14px;display:flex;flex-direction:column;min-width:0}
+.ptb{height:48px;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:0 12px 0 16px;border-bottom:1px solid #EFEFF2}
+.cand{border:1px solid #E2E2E7;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; height: 100vh; min-height: 760px; background: #F4F4F6; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F">
+  <dc-import name="Sidebar" active="translate" hint-size="240px,100%"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; height: 100%; display: flex; flex-direction: column">
+    <header style="min-height: 56px; flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 16px 8px 24px; border-bottom: 1px solid #E2E2E7; background: #FFFFFF; box-sizing: border-box">
+      <h1 style="margin: 0; font-size: 18px; font-weight: 600">Dịch</h1>
+      <div style="display: flex; align-items: center; gap: 4px; margin-left: 8px">
+        <button type="button" class="btn" aria-haspopup="listbox">Tự nhận diện</button>
+        <button type="button" class="ib" aria-label="Đảo chiều ngôn ngữ"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h14l-3-3M20 16H6l3 3"></path></svg></button>
+        <button type="button" class="btn" aria-haspopup="listbox">Tiếng Nhật</button>
+      </div>
+      <div class="seg" role="group" aria-label="Kiểu nhập">
+        <button type="button" aria-pressed="true">Văn bản</button>
+        <button type="button" aria-pressed="false">Ảnh</button>
+        <button type="button" aria-pressed="false">Giọng nói</button>
+      </div>
+      <span style="flex: 1"></span>
+      <button type="button" class="ib" aria-label="Lịch sử dịch"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 8v4l3 2"></path></svg></button>
+      <button type="button" class="ib" aria-label="Tuỳ chọn dịch: phong cách, suy luận, phiên âm, model" aria-haspopup="dialog"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"></path></svg></button>
+    </header>
+
+    <div style="flex: 1; min-height: 0; padding: 16px; display: flex; flex-wrap: wrap; gap: 16px; align-content: stretch">
+      <section class="panel" aria-label="Văn bản nguồn" style="flex: 1 1 420px; height: 100%; min-height: 360px">
+        <div class="ptb">
+          <h2 style="margin: 0; font-size: 14px; font-weight: 600">Nguồn</h2>
+          <span style="font-size: 12px; color: #55555C">Tiếng Anh (tự nhận diện)</span>
+          <span style="flex: 1"></span>
+          <button type="button" class="ib" aria-label="Dán"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2"></rect><path d="M9 4h6v3H9z"></path></svg></button>
+          <button type="button" class="ib" aria-label="Xoá nội dung"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+        </div>
+        <label for="src" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Văn bản cần dịch</label>
+        <textarea id="src" style="flex: 1; border: 0; resize: none; padding: 16px; font: 400 16px/1.65 Inter, sans-serif; color: #1C1C1F; outline: none; background: transparent">[Văn bản nguồn người dùng nhập hoặc dán. Dịch tự chạy sau khi ngừng gõ, hoặc bấm Dịch ở chế độ thủ công.]</textarea>
+        <div style="height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 12px 0 16px; border-top: 1px solid #EFEFF2">
+          <span style="font-size: 12px; color: #6B6B73; font-variant-numeric: tabular-nums">[số] ký tự</span>
+          <span style="flex: 1"></span>
+          <span style="font-size: 12px; color: #55555C">Phong cách: Trang trọng</span>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="Kết quả dịch" style="flex: 1 1 420px; height: 100%; min-height: 360px">
+        <div class="ptb">
+          <h2 style="margin: 0; font-size: 14px; font-weight: 600">Kết quả</h2>
+          <button type="button" class="btn" aria-pressed="true" style="height: 28px; background: #E8F0FC; border-color: #C9D8F2; color: #0A58C2">So sánh 2 model</button>
+          <div class="seg" role="group" aria-label="Cách so sánh">
+            <button type="button" aria-pressed="true">Theo model</button>
+            <button type="button" aria-pressed="false">Theo câu</button>
+          </div>
+          <span style="flex: 1"></span>
+          <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #3A3A40"><input type="checkbox" checked>Đánh dấu khác biệt</label>
+        </div>
+        <div style="flex: 1; overflow: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px">
+          <article class="cand" style="border-color: #9EBCEB; background: #FAFCFF">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span style="font-size: 13px; font-weight: 600">Claude</span>
+              <span style="font-size: 12px; color: #55555C; font-family: 'JetBrains Mono', monospace">[model]</span>
+              <span style="flex: 1"></span>
+              <span style="font-size: 12px; font-weight: 600; color: #0A58C2">Đã chọn</span>
+            </div>
+            <p style="margin: 0; font-size: 16px; line-height: 1.7">[Bản dịch tiếng Nhật, có furigana khi bật phiên âm.]</p>
+          </article>
+          <article class="cand">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span style="font-size: 13px; font-weight: 600">Local</span>
+              <span style="font-size: 12px; color: #55555C; font-family: 'JetBrains Mono', monospace">qwen3:4b</span>
+              <span style="flex: 1"></span>
+              <button type="button" class="btn" style="height: 28px">Chọn bản này</button>
+            </div>
+            <p style="margin: 0; font-size: 16px; line-height: 1.7">[Bản dịch thứ hai, <mark style="background: #FBF1E2; color: inherit; border-radius: 3px; padding: 0 2px">chỗ khác biệt</mark> được đánh dấu.]</p>
+          </article>
+        </div>
+        <div style="height: 44px; display: flex; align-items: center; gap: 2px; padding: 0 8px 0 12px; border-top: 1px solid #EFEFF2">
+          <button type="button" class="ib" aria-label="Sao chép"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"></path></svg></button>
+          <button type="button" class="ib" aria-label="Đọc to"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z"></path><path d="M17 9a4 4 0 0 1 0 6"></path></svg></button>
+          <button type="button" class="btn" style="height: 28px; border: 0">Viết lại</button>
+          <button type="button" class="btn" style="height: 28px; border: 0">Dùng làm nguồn</button>
+          <span style="flex: 1"></span>
+          <span style="font-size: 12px; color: #6B6B73">Phiên âm: furigana</span>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

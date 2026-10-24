@@ -64,10 +64,12 @@ export function AppShell({
       <div className="app-body">
         {primaryNavigation}
         {featureHeader ? (
+          // Contextual navigation runs the full height beside the feature; the
+          // header covers only the feature column it controls.
           <div className="app-feature-workspace">
-            {featureHeader}
+            {contextSidebar}
             <div className="app-feature-body">
-              {contextSidebar}
+              {featureHeader}
               <main className="app-main">{children}</main>
             </div>
           </div>

@@ -1,5 +1,5 @@
-import type { ModuleEnabledState, PageModuleId } from '../../shared/modules'
-import { APP_MODULES, type CatalogModule } from './catalog'
+import type { AppPageId, ModuleEnabledState, PageModuleId } from '../../shared/modules'
+import { APP_MODULES, type CatalogModule, isAppPage, isSystemPage } from './catalog'
 
 /** Catalog entries whose module is on, in navigation order. */
 export function enabledPageModules(enabled: ModuleEnabledState): CatalogModule[] {
@@ -7,13 +7,14 @@ export function enabledPageModules(enabled: ModuleEnabledState): CatalogModule[]
 }
 
 /**
- * The page to show when `page` belongs to a module that is off: the first enabled
- * page module, or `page` itself when every page module is off (the toggles never
- * allow that, but a stale `modules.json` could).
+ * The page to actually show for `page`: itself when it is a system page or an
+ * enabled module, otherwise Home (a module that was turned off, or an id from an
+ * older or newer build that this one does not know).
  */
-export function resolveActivePage(page: PageModuleId, enabled: ModuleEnabledState): PageModuleId {
-  if (enabled[page] !== false) return page
-  return enabledPageModules(enabled)[0]?.id ?? page
+export function resolveActivePage(page: AppPageId | string, enabled: ModuleEnabledState): AppPageId {
+  if (!isAppPage(page)) return 'home'
+  if (isSystemPage(page)) return page
+  return enabled[page] !== false ? page : 'home'
 }
 
 /** True when `id` is the only page module still on, so turning it off would leave no workspace. */

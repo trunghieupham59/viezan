@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — các chế độ Dịch</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.cap{margin:0;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#55555C}
+.panel{background:#FFFFFF;border:1px solid #E2E2E7;border-radius:14px;display:flex;flex-direction:column;overflow:hidden}
+.ptb{height:44px;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:0 12px 0 16px;border-bottom:1px solid #EFEFF2;font-size:14px;font-weight:600}
+.btn{height:32px;padding:0 12px;border-radius:8px;border:1px solid #D6D6DC;background:#FFFFFF;color:#1C1C1F;font:500 13px Inter,sans-serif;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-primary{border:0;background:#0A63D6;color:#FFFFFF}
+.kbd{font-family:"JetBrains Mono",monospace;font-size:11px;color:#55555C;border:1px solid #DADADF;border-radius:5px;padding:1px 6px;background:#FAFAFB}
+.cell{padding:10px 12px;font-size:14px;line-height:1.55;border-top:1px solid #EFEFF2;border-left:1px solid #EFEFF2;text-align:left;background:#FFFFFF;font-family:inherit;color:inherit;border-right:0;border-bottom:0}
+.cell[aria-pressed="true"]{background:#E8F0FC;box-shadow:inset 0 0 0 2px #0A63D6}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1000px; box-sizing: border-box; padding: 56px 48px; background: #F4F4F6; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 32px; align-content: start">
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Ảnh · chưa có ảnh và đã nhận chữ</p>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+      <section class="panel" aria-label="Nguồn ảnh, trống" style="height: 360px">
+        <div class="ptb">Nguồn · Ảnh</div>
+        <div style="flex: 1; margin: 14px; border: 1.5px dashed #C9C9D1; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; text-align: center">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#55555C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="9" cy="10" r="2"></circle><path d="m21 16-5-5-8 8"></path></svg>
+          <span style="font-size: 14px; font-weight: 500">Kéo ảnh vào đây</span>
+          <span style="font-size: 12px; color: #55555C">hoặc dán <span class="kbd">⌘V</span></span>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px; justify-content: center"><button type="button" class="btn">Chọn ảnh</button><button type="button" class="btn">Chụp vùng màn hình</button></div>
+        </div>
+      </section>
+      <section class="panel" aria-label="Nguồn ảnh, đã nhận chữ" style="height: 360px">
+        <div class="ptb">Nguồn · Ảnh<span style="flex: 1"></span><button type="button" class="btn" style="height: 28px">Đổi ảnh</button></div>
+        <div style="flex: 1; margin: 14px; border-radius: 10px; background: #E6E6EB; position: relative; overflow: hidden">
+          <span style="position: absolute; left: 12%; top: 18%; width: 62%; height: 12%; border: 2px solid #0A63D6; border-radius: 4px; background: rgba(10,99,214,0.08)"></span>
+          <span style="position: absolute; left: 12%; top: 40%; width: 74%; height: 12%; border: 2px solid #0A63D6; border-radius: 4px; background: rgba(10,99,214,0.08)"></span>
+          <span style="position: absolute; left: 12%; top: 62%; width: 48%; height: 12%; border: 2px solid #0A63D6; border-radius: 4px; background: rgba(10,99,214,0.08)"></span>
+        </div>
+        <p style="margin: 0 14px 14px; font-size: 12px; color: #55555C">3 đoạn chữ nhận được · bấm vào khung để dịch riêng đoạn đó</p>
+      </section>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Giọng nói · đang nghe</p>
+    <section class="panel" aria-label="Nhập bằng giọng nói" style="height: 360px">
+      <div class="ptb">Nguồn · Giọng nói<span style="flex: 1"></span><span style="font-size: 12px; font-weight: 400; color: #55555C">Tiếng Anh · Whisper local</span></div>
+      <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 20px">
+        <div style="position: relative; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center">
+          <span aria-hidden="true" style="position: absolute; inset: 0; border-radius: 99px; background: rgba(196,35,46,0.10)"></span>
+          <span aria-hidden="true" style="position: absolute; inset: 14px; border-radius: 99px; background: rgba(196,35,46,0.16)"></span>
+          <button type="button" aria-label="Dừng ghi âm" style="position: relative; width: 56px; height: 56px; border-radius: 99px; border: 0; background: #C4232E; color: #FFFFFF; display: inline-flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"></rect></svg></button>
+        </div>
+        <span role="status" style="font-size: 13px; color: #B01F29; font-weight: 600; font-variant-numeric: tabular-nums">Đang nghe · 0:07</span>
+        <p style="margin: 0; max-width: 460px; text-align: center; font-size: 16px; line-height: 1.6">[Lời nói được chép lại theo thời gian thực<span style="color: #8E8E96"> …</span>]</p>
+        <div style="display: flex; gap: 8px"><button type="button" class="btn">Huỷ</button><button type="button" class="btn btn-primary">Dừng và dịch</button></div>
+      </div>
+    </section>
+  </div>
+
+  <div style="grid-column: span 2; display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">So sánh theo câu</p>
+    <section class="panel" aria-label="So sánh theo câu">
+      <div class="ptb">Kết quả<span style="flex: 1"></span><span style="font-size: 12px; font-weight: 400; color: #55555C">Bấm từng ô để chọn bản dịch tốt nhất cho câu đó</span><button type="button" class="btn btn-primary" style="height: 30px">Dùng bản ghép</button></div>
+      <div style="display: grid; grid-template-columns: 220px repeat(3, minmax(0, 1fr))">
+        <div class="cell" style="border-top: 0; border-left: 0; font-size: 12px; font-weight: 600; color: #55555C">Câu gốc</div>
+        <div class="cell" style="border-top: 0; font-size: 12px; font-weight: 600; color: #55555C">Claude</div>
+        <div class="cell" style="border-top: 0; font-size: 12px; font-weight: 600; color: #55555C">Local · qwen3:4b</div>
+        <div class="cell" style="border-top: 0; font-size: 12px; font-weight: 600; color: #55555C">Gemini</div>
+
+        <div class="cell" style="border-left: 0; color: #3A3A40">[Câu gốc 1]</div>
+        <button type="button" class="cell" aria-pressed="true">[Bản dịch câu 1]</button>
+        <button type="button" class="cell" aria-pressed="false">[Bản dịch câu 1]</button>
+        <button type="button" class="cell" aria-pressed="false">[Bản dịch câu 1]</button>
+
+        <div class="cell" style="border-left: 0; color: #3A3A40">[Câu gốc 2]</div>
+        <button type="button" class="cell" aria-pressed="false">[Bản dịch câu 2]</button>
+        <button type="button" class="cell" aria-pressed="true">[Bản dịch câu 2, <mark style="background: #FBF1E2; color: inherit">khác biệt</mark>]</button>
+        <button type="button" class="cell" aria-pressed="false">[Bản dịch câu 2]</button>
+
+        <div class="cell" style="border-left: 0; color: #3A3A40">[Câu gốc 3]</div>
+        <button type="button" class="cell" aria-pressed="false">[Bản dịch câu 3]</button>
+        <button type="button" class="cell" aria-pressed="false">[Bản dịch câu 3]</button>
+        <button type="button" class="cell" aria-pressed="true">[Bản dịch câu 3]</button>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

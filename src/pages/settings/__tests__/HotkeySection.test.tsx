@@ -29,14 +29,14 @@ describe('quick translate language pair', () => {
     vi.mocked(window.api.hotkey.get).mockResolvedValue({
       success: true, settings: { hotkey: 'Alt+Shift+T', enabled: true, targetLang: 'ja', secondaryLang: 'en' },
     })
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="quickTranslate" /><NotificationViewport /></>)
     expect(await primary()).toHaveTextContent('Japanese')
     expect(await secondary()).toHaveTextContent('English')
     expect(screen.getByText(/Text in the primary language is translated into the secondary one/)).toBeInTheDocument()
   })
 
   it('falls back to the Translate page target with the pair off when nothing is persisted', async () => {
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="quickTranslate" /><NotificationViewport /></>)
     expect(await primary()).toHaveTextContent('Vietnamese')
     expect(await secondary()).toHaveTextContent('Off')
     expect(screen.getByText(/Everything is translated into the primary language/)).toBeInTheDocument()
@@ -46,7 +46,7 @@ describe('quick translate language pair', () => {
     vi.mocked(window.api.hotkey.get).mockResolvedValue({
       success: true, settings: { hotkey: 'Alt+Shift+T', enabled: true, targetLang: 'vi', secondaryLang: 'en' },
     })
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="quickTranslate" /><NotificationViewport /></>)
     fireEvent.click(await secondary())
     // The primary language is not offered as a secondary one.
     expect(screen.queryByRole('option', { name: 'Vietnamese' })).not.toBeInTheDocument()
@@ -61,7 +61,7 @@ describe('quick translate language pair', () => {
     vi.mocked(window.api.hotkey.get).mockResolvedValue({
       success: true, settings: { hotkey: 'Alt+Shift+T', enabled: true, targetLang: 'vi', secondaryLang: 'en' },
     })
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="quickTranslate" /><NotificationViewport /></>)
     fireEvent.click(await primary())
     fireEvent.click(screen.getByRole('option', { name: 'English' }))
 
@@ -74,7 +74,7 @@ describe('quick translate language pair', () => {
     vi.mocked(window.api.hotkey.get).mockResolvedValue({
       success: true, settings: { hotkey: 'Alt+Shift+T', enabled: true, targetLang: 'vi', secondaryLang: 'en' },
     })
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="quickTranslate" /><NotificationViewport /></>)
     fireEvent.click(await secondary())
     fireEvent.click(screen.getByRole('option', { name: /^Off/ }))
 
@@ -85,7 +85,7 @@ describe('quick translate language pair', () => {
   it('names the direction in the done toast', async () => {
     let onTranslated: ((data: { original: string; translated: string; targetLang: string | null }) => void) | undefined
     vi.mocked(window.api.hotkey.onTranslated).mockImplementation((cb) => { onTranslated = cb; return () => {} })
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="quickTranslate" /><NotificationViewport /></>)
     await primary()
 
     act(() => { onTranslated?.({ original: 'a', translated: 'b', targetLang: 'en' }) })
@@ -95,7 +95,7 @@ describe('quick translate language pair', () => {
 
 describe('macOS Accessibility permission', () => {
   it('shows nothing where no permission is needed', async () => {
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="quickTranslate" /><NotificationViewport /></>)
     await screen.findByRole('button', { name: /Primary language/ })
     expect(screen.queryByText(/Accessibility permission/)).not.toBeInTheDocument()
   })
@@ -103,7 +103,7 @@ describe('macOS Accessibility permission', () => {
   it('explains the missing permission and opens System Settings on request', async () => {
     vi.mocked(window.api.capabilities.get).mockResolvedValue({ success: true, statuses: [{ id: 'input.accessibility', supported: true, permission: 'denied' }] })
     vi.mocked(window.api.capabilities.request).mockResolvedValue({ success: true, status: { id: 'input.accessibility', supported: true, permission: 'granted' } })
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="quickTranslate" /><NotificationViewport /></>)
 
     expect(await screen.findByText(/needs Accessibility access/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Open System Settings' }))
@@ -115,7 +115,7 @@ describe('macOS Accessibility permission', () => {
   it('maps a permission error from a hotkey run to a localized toast', async () => {
     let onError: ((data: { error: string; errorCode?: string }) => void) | undefined
     vi.mocked(window.api.hotkey.onError).mockImplementation((cb) => { onError = cb; return () => {} })
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="quickTranslate" /><NotificationViewport /></>)
     await screen.findByRole('button', { name: /Primary language/ })
 
     act(() => { onError?.({ error: 'raw main-process message', errorCode: 'ACCESSIBILITY_DENIED' }) })
@@ -129,7 +129,7 @@ describe('quick translate default shortcut', () => {
   it.each([['darwin', 'Option+T'], ['win32', 'Alt+T']])('offers Alt+T on %s (shown as %s) when nothing is saved and saves the stored form', async (platform, label) => {
     window.api.platform = platform
     vi.mocked(window.api.hotkey.get).mockResolvedValue({ success: true, settings: {} })
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="quickTranslate" /><NotificationViewport /></>)
     expect(await screen.findByRole('button', { name: label })).toBeInTheDocument()
     fireEvent.click(screen.getAllByRole('switch')[0])
     await waitFor(() => expect(window.api.hotkey.update).toHaveBeenLastCalledWith(expect.objectContaining({ enabled: true, hotkey: 'Alt+T' })))
@@ -138,7 +138,7 @@ describe('quick translate default shortcut', () => {
   it('shows the shortcut main ships enabled', async () => {
     window.api.platform = 'darwin'
     vi.mocked(window.api.hotkey.get).mockResolvedValue({ success: true, settings: { hotkey: 'Alt+T', enabled: true, targetLang: 'en', secondaryLang: 'vi' } })
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="quickTranslate" /><NotificationViewport /></>)
     expect(await screen.findByRole('button', { name: 'Option+T' })).toBeInTheDocument()
     expect(screen.getAllByRole('switch')[0]).toHaveAttribute('aria-checked', 'true')
   })
@@ -151,7 +151,7 @@ describe('launcher shortcut system conflict (macOS)', () => {
   })
 
   it('shows nothing when the system does not own the shortcut', async () => {
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="launcher" /><NotificationViewport /></>)
     await screen.findByRole('button', { name: 'Command+Space' })
     await waitFor(() => expect(window.api.hotkey.chat.systemConflict).toHaveBeenCalledWith('Command+Space'))
     expect(screen.queryByText(/Spotlight is using/)).not.toBeInTheDocument()
@@ -161,7 +161,7 @@ describe('launcher shortcut system conflict (macOS)', () => {
     vi.mocked(window.api.hotkey.chat.systemConflict).mockResolvedValue({
       success: true, hotkey: 'Command+Space', enabled: true, conflict: { owner: 'spotlight', accelerator: 'Command+Space' },
     })
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="launcher" /><NotificationViewport /></>)
 
     expect(await screen.findByText('Spotlight is using Command+Space')).toBeInTheDocument()
     expect(screen.getByText(/Keyboard Shortcuts > Spotlight/)).toBeInTheDocument()
@@ -181,13 +181,13 @@ describe('launcher shortcut system conflict (macOS)', () => {
       success: true, hotkey: 'Command+Space', enabled: false, conflict: { owner: 'spotlight', accelerator: 'Command+Space' },
     })
     vi.mocked(window.api.hotkey.chat.spotlight.resolve).mockResolvedValue({ success: true, applied: true, settings: { enabled: true, hotkey: 'Command+Space' } })
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="launcher" /><NotificationViewport /></>)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Turn Spotlight shortcut off' }))
     await waitFor(() => expect(window.api.hotkey.chat.spotlight.resolve).toHaveBeenCalledWith('replace'))
     expect(await screen.findByText(/Viezan Launcher now opens with Command\+Space/)).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByText(/Spotlight is using/)).not.toBeInTheDocument())
-    expect(screen.getAllByRole('switch')[1]).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getAllByRole('switch')[0]).toHaveAttribute('aria-checked', 'true')
 
     vi.mocked(window.api.hotkey.chat.spotlight.restore).mockResolvedValue({ success: true, applied: true })
     fireEvent.click(screen.getByRole('button', { name: 'Restore Spotlight shortcut' }))
@@ -200,12 +200,12 @@ describe('launcher shortcut system conflict (macOS)', () => {
     vi.mocked(window.api.capabilities.get).mockResolvedValue({ success: true, statuses: [
       { id: 'launcher.spotlight', supported: true, permission: 'granted', detail: { disabledByViezan: true, conflict: null } },
     ] })
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="launcher" /><NotificationViewport /></>)
     expect(await screen.findByRole('button', { name: 'Restore Spotlight shortcut' })).toBeInTheDocument()
   })
 
   it('re-checks when the window regains focus', async () => {
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="launcher" /><NotificationViewport /></>)
     await waitFor(() => expect(window.api.hotkey.chat.systemConflict).toHaveBeenCalledTimes(1))
     vi.mocked(window.api.hotkey.chat.systemConflict).mockResolvedValue({
       success: true, hotkey: 'Command+Space', enabled: true, conflict: { owner: 'finder-search', accelerator: 'Command+Space' },
@@ -217,7 +217,7 @@ describe('launcher shortcut system conflict (macOS)', () => {
   it('does not check on other platforms', async () => {
     window.api.platform = 'win32'
     vi.mocked(window.api.hotkey.chat.get).mockResolvedValue({ success: true, settings: { hotkey: 'Alt+Space', enabled: true } })
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="launcher" /><NotificationViewport /></>)
     await screen.findByRole('button', { name: 'Alt+Space' })
     expect(window.api.hotkey.chat.systemConflict).not.toHaveBeenCalled()
   })
@@ -226,10 +226,10 @@ describe('launcher shortcut system conflict (macOS)', () => {
 describe('launcher shortcut settings', () => {
   it.each([['darwin', 'Command+Space'], ['win32', 'Alt+Space']])('suggests %s default without registering until enabled', async (platform, shortcut) => {
     window.api.platform = platform
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="launcher" /><NotificationViewport /></>)
     expect(await screen.findByRole('button', { name: shortcut })).toBeInTheDocument()
     expect(window.api.hotkey.chat.update).not.toHaveBeenCalled()
-    fireEvent.click(screen.getAllByRole('switch')[1])
+    fireEvent.click(screen.getAllByRole('switch')[0])
     await waitFor(() => expect(window.api.hotkey.chat.update).toHaveBeenCalledWith({ enabled: true, hotkey: shortcut }))
   })
 
@@ -240,7 +240,7 @@ describe('launcher shortcut settings', () => {
       success: false, errorCode: 'IN_USE', error: 'raw backend error',
       settings: { hotkey: 'Alt+Shift+C', enabled: true },
     })
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="launcher" /><NotificationViewport /></>)
     // Stored as Alt+Shift+C; shown with the Mac key name.
     const recorder = await screen.findByRole('button', { name: 'Option+Shift+C' })
     fireEvent.click(recorder)
@@ -248,7 +248,7 @@ describe('launcher shortcut settings', () => {
     expect(await screen.findByText(/check the Spotlight shortcut/)).toBeInTheDocument()
     expect(screen.queryByText('raw backend error')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Option+Shift+C' })).toBeInTheDocument()
-    expect(screen.getAllByRole('switch')[1]).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getAllByRole('switch')[0]).toHaveAttribute('aria-checked', 'true')
   })
 })
 
@@ -256,7 +256,7 @@ describe('module state notices', () => {
   it('says the Translate module is off and turns it back on from the notice', async () => {
     useAppStore.setState({ enabledModules: { ...ALL_MODULES_ENABLED, translate: false } })
     vi.mocked(window.api.modules.setEnabled).mockResolvedValue({ success: true, enabled: ALL_MODULES_ENABLED })
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="quickTranslate" /><NotificationViewport /></>)
 
     const title = tpl(TRANSLATIONS.en.settings_modules_off_title, { module: TRANSLATIONS.en.nav_translate })
     expect(await screen.findByText(title)).toBeInTheDocument()
@@ -266,7 +266,7 @@ describe('module state notices', () => {
   })
 
   it('shows nothing about modules while everything is on', async () => {
-    render(<><HotkeySection /><NotificationViewport /></>)
+    render(<><HotkeySection part="quickTranslate" /><HotkeySection part="launcher" /><NotificationViewport /></>)
     await screen.findByRole('button', { name: /Primary language/ })
     expect(screen.queryByText(/module is off/)).not.toBeInTheDocument()
   })

@@ -129,6 +129,12 @@ html:not(.dark) .app-sidebar {
   --vzn-button-hover-fg: var(--vzn-chrome-item-active-fg);
 }
 
+/* The current page reads as a raised tile in the navigation. */
+.app-sidebar .ui-button.ui-button-variant-primary[aria-current="page"] {
+  box-shadow: var(--vzn-shadow-xs);
+  font-weight: var(--vzn-weight-semibold);
+}
+
 .app-sidebar[data-collapsed="false"] {
   width: var(--vzn-sidebar-expanded-width);
   align-items: stretch;
@@ -207,8 +213,81 @@ html.dark .sidebar-brand-surface {
   gap: 2px;
 }
 
+/* Navigation spaces (AI, Language, System, Tools): a heading per group when expanded, a divider when collapsed. */
+.sidebar-search-trigger {
+  margin-block-end: var(--vzn-space-1);
+}
+
+.sidebar-space-label {
+  margin: 0;
+  padding: var(--vzn-space-3) var(--vzn-space-3) var(--vzn-space-1);
+  text-transform: uppercase;
+  letter-spacing: var(--vzn-tracking-caps);
+}
+
+.app-sidebar[data-collapsed="true"] .sidebar-space + .sidebar-space {
+  margin-block-start: var(--vzn-space-1);
+  padding-block-start: var(--vzn-space-1);
+  border-block-start: var(--vzn-border-width) solid var(--vzn-divider);
+}
+
+/* Background strip: what runs while the window is away, each row opening its controls. */
+.sidebar-background {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-0-5);
+  padding-block: var(--vzn-space-1);
+}
+
+.sidebar-background-row.ui-button {
+  inline-size: 100%;
+  justify-content: flex-start;
+  gap: var(--vzn-space-2);
+  padding-inline: var(--vzn-space-3);
+  color: var(--vzn-chrome-fg-muted);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-regular);
+}
+
+.sidebar-background-label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-background-detail {
+  flex: 0 0 auto;
+  color: var(--vzn-chrome-fg-soft);
+  font-size: var(--vzn-font-size-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.sidebar-background-summary {
+  display: flex;
+  justify-content: center;
+  padding-block: var(--vzn-space-1);
+}
+
 .sidebar-bottom-group {
+  flex: 0 0 auto;
   margin-top: auto;
+}
+
+.sidebar-nav-scroll {
+  display: flex;
+  min-block-size: 0;
+  inline-size: 100%;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: inherit;
+  gap: 2px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .sidebar-nav-icon {
@@ -468,27 +547,29 @@ html.dark .sidebar-brand-surface {
 
 /* AI Chat contextual sidebar ------------------------------------------- */
 
-.ai-chat-workspace-header {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
+.page-header.ai-chat-workspace-header {
+  flex-wrap: nowrap;
   gap: var(--vzn-space-2);
-  height: var(--vzn-chat-header-height);
-  padding-inline: var(--vzn-space-3);
-  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
-  background: var(--vzn-bg);
+  padding-block: 0;
+  padding-inline: var(--vzn-space-4);
 }
 
-.ai-chat-workspace-title {
-  font-family: var(--vzn-font-display);
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--vzn-text-strong);
-  font-size: var(--vzn-font-size-lg);
-  font-weight: var(--vzn-weight-semibold);
+/* The conversation title takes the room; the model chip and New chat sit at the end. */
+.ai-chat-workspace-header .page-header__heading {
+  flex: 1 1 auto;
+}
+
+.ai-chat-workspace-header .page-header__title {
+  font-size: var(--vzn-font-size-subtitle);
+}
+
+/* The conversation column is white, like the composer it holds. */
+.app-feature-body > .app-main {
+  background: var(--vzn-surface);
+}
+
+.ai-chat-workspace-header .page-header__actions {
+  flex-wrap: nowrap;
 }
 
 .ai-chat-header-new {
@@ -504,18 +585,18 @@ html.dark .sidebar-brand-surface {
 }
 
 .app-feature-workspace {
+  position: relative;
   display: flex;
   flex: 1 1 auto;
-  flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
 
 .app-feature-body {
-  position: relative;
   display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -545,7 +626,8 @@ html.dark .sidebar-brand-surface {
 .ai-chat-sidebar[data-responsive-overlay="true"] {
   position: absolute;
   z-index: var(--vzn-layer-context-overlay);
-  top: 0;
+  /* Below the feature header, so the toggle that opened it stays reachable. */
+  top: var(--vzn-page-header-min-height);
   bottom: 0;
   left: 0;
   width: var(--vzn-chat-sidebar-width);
@@ -560,20 +642,11 @@ html.dark .sidebar-brand-surface {
 
 .ai-chat-sidebar-header {
   display: flex;
-  min-height: var(--vzn-chat-header-height);
+  min-height: var(--vzn-page-header-min-height);
+  flex: 0 0 auto;
   align-items: center;
   padding-inline: var(--vzn-space-3);
-}
-
-.ai-chat-sidebar-title {
-  font-family: var(--vzn-font-display);
-  min-width: 0;
-  overflow: hidden;
-  color: var(--vzn-text-strong);
-  font-size: var(--vzn-font-size-lg);
-  font-weight: var(--vzn-weight-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
 }
 
 .ai-chat-sidebar-content {
@@ -581,40 +654,46 @@ html.dark .sidebar-brand-surface {
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  gap: var(--vzn-space-2);
-  padding: var(--vzn-space-1) var(--vzn-space-3) var(--vzn-space-3);
+  gap: var(--vzn-space-1);
+  overflow-y: auto;
+  padding: var(--vzn-space-2);
+  scrollbar-color: var(--vzn-border-strong) transparent;
+  scrollbar-width: thin;
 }
 
 .ai-chat-search {
   position: relative;
   display: block;
+  flex: 1 1 auto;
 }
 
 .ai-chat-search-icon {
   position: absolute;
   top: 50%;
-  left: 10px;
-  width: 14px;
-  height: 14px;
+  left: var(--vzn-space-2);
+  width: var(--vzn-icon-sm);
+  height: var(--vzn-icon-sm);
   color: var(--vzn-text-soft);
   pointer-events: none;
   transform: translateY(-50%);
 }
 
+/* A filled field on the white column, as in the design. */
 .ai-chat-search .ai-chat-search-input {
   padding-right: var(--vzn-space-2);
-  padding-left: 32px;
-  border: 1px solid var(--vzn-border);
-  background: var(--vzn-surface);
+  padding-left: var(--vzn-space-8);
+  border: var(--vzn-border-width) solid transparent;
+  border-radius: var(--vzn-radius-sm);
+  background: var(--vzn-bg);
 }
 
 .ai-chat-search .ai-chat-search-input::placeholder {
-  color: var(--vzn-text-muted);
+  color: var(--vzn-text-soft);
 }
 
 .ai-chat-search .ai-chat-search-input:hover {
-  border-color: var(--vzn-border-strong);
-  background: var(--vzn-surface-hover);
+  border-color: var(--vzn-border);
+  background: var(--vzn-bg);
   box-shadow: none;
 }
 
@@ -626,36 +705,33 @@ html.dark .sidebar-brand-surface {
 
 .ai-chat-session-section {
   display: flex;
-  min-height: 0;
-  flex: 1 1 auto;
   flex-direction: column;
 }
 
 .ai-chat-session-heading {
-  padding: 8px 8px 6px;
-  color: var(--vzn-text-muted);
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0.055em;
+  margin: var(--vzn-space-2) var(--vzn-space-2) var(--vzn-space-1-5);
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-semibold);
+  letter-spacing: var(--vzn-tracking-caps);
   text-transform: uppercase;
 }
 
 .ai-chat-session-list {
-  min-height: 0;
-  overflow-y: auto;
-  padding: 0;
+  display: flex;
   margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: var(--vzn-space-0-5);
   list-style: none;
-  scrollbar-color: var(--vzn-border-strong) transparent;
-  scrollbar-width: thin;
 }
 
 .ai-chat-session-empty {
   margin: 0;
-  padding: 22px 12px;
+  padding: var(--vzn-space-6) var(--vzn-space-3);
   color: var(--vzn-text-soft);
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: var(--vzn-font-size-sm);
+  line-height: var(--vzn-line-normal);
   text-align: center;
 }
 
@@ -664,38 +740,28 @@ html.dark .sidebar-brand-surface {
   display: flex;
   min-width: 0;
   align-items: center;
-  border-radius: var(--vzn-radius-control);
-  background: var(--vzn-surface);
-  box-shadow: inset 0 0 0 1px var(--vzn-divider);
-}
-
-.chat-session-item + .chat-session-item {
-  margin-top: 2px;
+  border-radius: var(--vzn-radius-sm);
 }
 
 .chat-session-item:hover,
 .chat-session-item:focus-within {
-  background: var(--vzn-surface-hover);
-  box-shadow: inset 0 0 0 1px var(--vzn-border-strong);
+  background: var(--vzn-surface-subtle);
 }
 
 .chat-session-item--active,
 .chat-session-item--active:hover,
 .chat-session-item--active:focus-within {
   background: var(--vzn-action-soft);
-  box-shadow: inset 0 0 0 1px var(--vzn-action-border), inset 2px 0 0 var(--vzn-action);
+  box-shadow: inset 0 0 0 1px var(--vzn-action-border);
 }
 
 .chat-session-select {
   display: flex;
   min-width: 0;
-  min-height: 52px;
-  align-items: flex-start;
-  gap: var(--vzn-space-2);
   flex: 1 1 auto;
-  padding: var(--vzn-space-2) 34px var(--vzn-space-2) var(--vzn-space-2);
+  padding: var(--vzn-space-2) var(--vzn-space-8) var(--vzn-space-2) var(--vzn-space-2);
   border: 0;
-  border-radius: var(--vzn-radius-control);
+  border-radius: var(--vzn-radius-sm);
   background: transparent;
   color: var(--vzn-text);
   text-align: left;
@@ -703,19 +769,7 @@ html.dark .sidebar-brand-surface {
 }
 
 .chat-session-select:focus-visible {
-  box-shadow: inset 0 0 0 1px var(--vzn-border-strong);
-}
-
-.chat-session-provider {
-  display: inline-flex;
-  width: 24px;
-  height: 24px;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 24px;
-  border-radius: var(--vzn-radius-xs);
-  background: var(--vzn-surface-muted);
-  color: var(--vzn-text-muted);
+  box-shadow: inset 0 0 0 var(--vzn-border-width) var(--vzn-border-strong);
 }
 
 .chat-session-copy {
@@ -729,16 +783,16 @@ html.dark .sidebar-brand-surface {
 .chat-session-title {
   min-width: 0;
   overflow: hidden;
-  color: var(--vzn-text);
-  font-size: var(--vzn-font-size-sm);
-  font-weight: var(--vzn-weight-medium);
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-md);
+  font-weight: var(--vzn-weight-regular);
   line-height: var(--vzn-line-normal);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .chat-session-item--active .chat-session-title {
-  color: var(--vzn-text-strong);
+  color: var(--vzn-action-text);
   font-weight: var(--vzn-weight-semibold);
 }
 
@@ -746,10 +800,20 @@ html.dark .sidebar-brand-surface {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 4px;
+  gap: var(--vzn-space-1);
+  overflow: hidden;
   color: var(--vzn-text-soft);
-  font-size: var(--vzn-font-size-micro);
+  font-size: var(--vzn-font-size-sm);
   line-height: var(--vzn-line-normal);
+  white-space: nowrap;
+}
+
+.chat-session-item--active .chat-session-meta {
+  color: var(--vzn-text-muted);
+}
+
+.chat-session-meta[data-pending] {
+  color: var(--vzn-warning);
 }
 
 .chat-session-research-dot {
@@ -1369,8 +1433,36 @@ html.dark .toolbar-pill-button {
 }
 
 .segmented-control {
-  border-color: var(--vzn-border);
-  background: var(--vzn-surface-muted);
+  /* Rendered as a <fieldset>: drop the browser's fieldset margin and min-content width. */
+  margin: 0;
+  padding: var(--vzn-space-0-5);
+  min-inline-size: 0;
+  gap: var(--vzn-space-0-5);
+  border: 0;
+  border-radius: var(--vzn-radius-sm);
+  background: var(--vzn-surface-subtle);
+}
+
+/* Segments are quiet text on the track; the chosen one is a raised white tile.
+   The pressed state stays in aria-pressed; this only paints it. */
+.segmented-control > .ui-button {
+  --vzn-button-height: calc(var(--vzn-control-height-sm) - var(--vzn-space-1));
+  --vzn-button-min-height: calc(var(--vzn-control-height-sm) - var(--vzn-space-1));
+  --vzn-button-bg: transparent;
+  --vzn-button-border: transparent;
+  --vzn-button-fg: var(--vzn-text-muted);
+  --vzn-button-hover-bg: transparent;
+  --vzn-button-hover-border: transparent;
+  --vzn-button-hover-fg: var(--vzn-text-strong);
+  border-radius: calc(var(--vzn-radius-sm) - var(--vzn-space-0-5));
+  font-weight: var(--vzn-weight-medium);
+}
+
+.segmented-control > .ui-button[aria-pressed="true"] {
+  --vzn-button-bg: var(--vzn-surface);
+  --vzn-button-fg: var(--vzn-text-strong);
+  --vzn-button-hover-bg: var(--vzn-surface);
+  box-shadow: var(--vzn-shadow-xs);
 }
 
 .field-input,
@@ -1407,9 +1499,14 @@ html.dark .toolbar-pill-button {
 }
 
 .keyboard-key {
+  padding-inline: var(--vzn-space-1-5);
   border-color: var(--vzn-border-strong);
-  background: var(--vzn-surface-muted);
-  box-shadow: 0 1px 0 var(--vzn-border);
+  border-radius: var(--vzn-radius-xs);
+  background: var(--vzn-surface-raised);
+  color: var(--vzn-text-muted);
+  font-family: var(--vzn-font-mono);
+  font-weight: var(--vzn-weight-regular);
+  white-space: nowrap;
 }
 
 .text-indigo-400 {
@@ -1500,8 +1597,13 @@ html.dark .toolbar-pill-button {
 }
 
 .settings-shell aside {
-  border-right: 1px solid var(--vzn-divider) !important;
-  background: var(--vzn-sidebar-bg) !important;
+  /* The section list sits on the canvas as plain text links, as in the design. */
+  border-right: 0 !important;
+  background: transparent !important;
+}
+
+.settings-shell aside .btn-nav-item > svg {
+  display: none;
 }
 
 .settings-scroll-viewport {
@@ -1523,7 +1625,7 @@ html.dark .toolbar-pill-button {
 .settings-section-title {
   font-family: var(--vzn-font-display);
   color: var(--vzn-text-strong);
-  font-size: var(--vzn-font-size-title);
+  font-size: var(--vzn-font-size-title-lg);
   font-weight: var(--vzn-weight-semibold);
   line-height: var(--vzn-line-tight);
 }
@@ -1807,6 +1909,264 @@ html:not(.dark) .quick-chat-answer-card {
   background: var(--vzn-surface-muted);
 }
 
+/* PageHeader template — the one header every page uses. */
+.page-header {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-2) var(--vzn-space-3);
+  min-block-size: var(--vzn-page-header-min-height);
+  box-sizing: border-box;
+  padding: var(--vzn-space-2) var(--vzn-space-6);
+  border-bottom: var(--vzn-border-width) solid var(--vzn-border);
+  background: var(--vzn-surface);
+}
+
+/* Page frame: a page whose panel opens with the shared header runs edge to
+   edge — the header spans the main column and the body sits on the canvas —
+   instead of floating as an inset card. Panels inside the body keep their
+   own card chrome. */
+.app-workspace:has(> .glass-panel > .page-header) {
+  padding: 0;
+}
+
+html .app-workspace > .glass-panel:has(> .page-header) {
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+@container app-main (max-width: 559px) {
+  .page-header {
+    padding-inline: var(--vzn-space-4);
+  }
+}
+
+.page-header__heading {
+  display: flex;
+  min-inline-size: 0;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--vzn-space-3);
+}
+
+.page-header__title {
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--vzn-text-strong);
+  font-family: var(--vzn-font-display);
+  font-size: var(--vzn-font-size-title-lg);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: var(--vzn-line-tight);
+}
+
+.page-header__description {
+  margin: 0;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.page-header__actions {
+  display: flex;
+  min-inline-size: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-2);
+  margin-inline-start: auto;
+}
+
+/* StatusDot atom — a small dot in a semantic feedback colour. */
+.ui-status-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  inline-size: var(--vzn-space-2);
+  block-size: var(--vzn-space-2);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-text-muted);
+}
+
+.ui-status-dot[data-tone="ok"] { background: var(--vzn-success); }
+.ui-status-dot[data-tone="warning"] { background: var(--vzn-warning); }
+.ui-status-dot[data-tone="danger"] { background: var(--vzn-danger); }
+.ui-status-dot[data-tone="info"] { background: var(--vzn-action); }
+
+/* StatusChip molecule — a dot (or icon) plus short text for a background state. */
+.ui-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vzn-space-1-5);
+  min-inline-size: 0;
+  padding: var(--vzn-space-1) var(--vzn-space-2);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-pill);
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+  white-space: nowrap;
+}
+
+.ui-status-chip__icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.ui-status-chip__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Meter atom — a native <meter> restyled as a flat track, plus an optional marker tick. */
+.ui-meter {
+  position: relative;
+  display: block;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  block-size: var(--vzn-space-1-5);
+}
+
+.ui-meter__gauge {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  border: 0;
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-border);
+  appearance: none;
+}
+
+.ui-meter__gauge::-webkit-meter-bar {
+  border: 0;
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-border);
+}
+
+.ui-meter__gauge::-webkit-meter-optimum-value,
+.ui-meter__gauge::-webkit-meter-suboptimum-value,
+.ui-meter__gauge::-webkit-meter-even-less-good-value {
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-text-muted);
+  transition: inline-size var(--vzn-duration-normal) var(--vzn-ease-standard);
+}
+
+.ui-meter[data-emphasis="action"] .ui-meter__gauge::-webkit-meter-optimum-value,
+.ui-meter[data-emphasis="action"] .ui-meter__gauge::-webkit-meter-suboptimum-value,
+.ui-meter[data-emphasis="action"] .ui-meter__gauge::-webkit-meter-even-less-good-value {
+  background: var(--vzn-action-fill);
+}
+
+.ui-meter__marker {
+  position: absolute;
+  inset-block: calc(-1 * var(--vzn-space-1));
+  inset-inline-start: var(--ui-meter-marker, 0%);
+  inline-size: var(--vzn-space-0-5);
+  margin-inline-start: calc(-1 * var(--vzn-space-0-5) / 2);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-text-strong);
+  transition: inset-inline-start var(--vzn-duration-normal) var(--vzn-ease-standard);
+}
+
+/* ProgressBar atom — thin determinate or indeterminate track. */
+.ui-progress {
+  display: block;
+  inline-size: 100%;
+  block-size: var(--vzn-space-1);
+  overflow: hidden;
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-surface-muted);
+}
+
+.ui-progress__fill {
+  display: block;
+  inline-size: var(--ui-progress, 0%);
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--vzn-action-fill);
+  transition: inline-size var(--vzn-duration-normal) var(--vzn-ease-standard);
+}
+
+.ui-progress[data-indeterminate] .ui-progress__fill {
+  inline-size: 100%;
+  animation: skeletonPulse var(--vzn-duration-pulse) var(--vzn-ease-standard) infinite alternate;
+}
+
+/* ProgressSteps molecule — the steps of a long task with their status. */
+.ui-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-steps__item {
+  display: flex;
+  align-items: center;
+  gap: var(--vzn-space-3);
+  color: var(--vzn-text);
+  font-size: var(--vzn-font-size-md);
+  line-height: var(--vzn-line-tight);
+}
+
+.ui-steps__marker {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--vzn-icon-md);
+  block-size: var(--vzn-icon-md);
+  box-sizing: border-box;
+  border: calc(var(--vzn-border-width) * 2) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-pill);
+  color: var(--vzn-text-muted);
+}
+
+.ui-steps__glyph {
+  inline-size: var(--vzn-icon-xs);
+  block-size: var(--vzn-icon-xs);
+}
+
+.ui-steps__item[data-status="done"] .ui-steps__marker {
+  border-color: var(--vzn-success);
+  background: var(--vzn-success);
+  color: var(--vzn-action-fg);
+}
+
+.ui-steps__item[data-status="active"] .ui-steps__marker {
+  border-color: transparent;
+  color: var(--vzn-action);
+}
+
+.ui-steps__item[data-status="active"] .ui-steps__label {
+  font-weight: var(--vzn-weight-medium);
+}
+
+.ui-steps__item[data-status="error"] .ui-steps__marker {
+  border-color: var(--vzn-danger);
+  background: var(--vzn-danger);
+  color: var(--vzn-danger-fg);
+}
+
+.ui-steps__item[data-status="pending"] {
+  color: var(--vzn-text-muted);
+}
+
+.ui-steps__label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.ui-steps__detail {
+  flex: 0 0 auto;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-variant-numeric: tabular-nums;
+}
+
 /* SliderField molecule — a number box and a slider for the same value. */
 .slider-field {
   display: flex;
@@ -1884,4 +2244,368 @@ html:not(.dark) .quick-chat-answer-card {
 .number-field__unit {
   color: var(--vzn-text-muted);
   font-size: var(--vzn-font-size-caption);
+}
+
+/* Settings sections (redesign): a heading, then cards. */
+.settings-section-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-4);
+}
+
+.appearance-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--vzn-appearance-preview-width);
+  align-items: start;
+  gap: var(--vzn-space-4);
+}
+
+.appearance-cards {
+  display: flex;
+  min-inline-size: 0;
+  flex-direction: column;
+  gap: var(--vzn-space-4);
+}
+
+.appearance-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-3);
+  padding: var(--vzn-space-4);
+}
+
+.appearance-note {
+  margin: 0;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.appearance-note__name {
+  color: var(--vzn-text-strong);
+  font-weight: var(--vzn-weight-medium);
+}
+
+.appearance-preview {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
+}
+
+.appearance-preview__label {
+  margin: 0;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-semibold);
+  letter-spacing: var(--vzn-tracking-caps);
+  text-transform: uppercase;
+}
+
+@container settings-content (max-width: 760px) {
+  .appearance-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .appearance-preview {
+    position: static;
+    order: -1;
+  }
+}
+
+/* Settings · AI models ---------------------------------------------------- */
+
+.settings-card-meta {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.credential-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-1) var(--vzn-space-3);
+}
+
+.local-ai-model-id {
+  font-family: var(--vzn-font-mono);
+  font-size: var(--vzn-font-size-md);
+}
+
+.local-ai-model-state {
+  color: var(--vzn-text-subtle);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.local-ai-download,
+.local-ai-performance {
+  display: flex;
+  min-inline-size: 0;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
+}
+
+.local-ai-download__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--vzn-space-3);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.local-ai-download__meta > :first-child {
+  overflow: hidden;
+  min-inline-size: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.local-ai-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  gap: var(--vzn-space-2);
+}
+
+.local-ai-metrics > div {
+  min-inline-size: 0;
+  flex: 1 1 0;
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border-radius: var(--vzn-radius-sm);
+  background: var(--vzn-surface-muted);
+}
+
+.local-ai-metrics dt {
+  overflow: hidden;
+  color: var(--vzn-text-subtle);
+  font-size: var(--vzn-font-size-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.local-ai-metrics dd {
+  margin: 0;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-md);
+  font-weight: var(--vzn-weight-medium);
+}
+
+.settings-module-row + .settings-module-row {
+  border-top: var(--vzn-border-width) solid var(--vzn-divider);
+}
+
+.settings-row-hint {
+  display: block;
+  margin-top: var(--vzn-space-0-5);
+  color: var(--vzn-text-subtle);
+}
+
+/* Settings · Updates and About ------------------------------------------- */
+
+.settings-version,
+.about-hero__version code {
+  font-family: var(--vzn-font-mono);
+}
+
+.settings-update-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vzn-space-1-5);
+}
+
+.settings-update-status svg {
+  inline-size: var(--vzn-icon-sm);
+  block-size: var(--vzn-icon-sm);
+  flex: 0 0 auto;
+}
+
+.settings-info-value {
+  color: var(--vzn-text);
+  font-size: var(--vzn-font-size-md);
+  text-align: end;
+}
+
+code.settings-info-value {
+  font-family: var(--vzn-font-mono);
+}
+
+.about-hero {
+  gap: var(--vzn-space-4);
+  padding: var(--vzn-space-5);
+}
+
+.about-hero__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--vzn-space-3);
+}
+
+.about-hero__copy {
+  display: flex;
+  min-inline-size: 0;
+  flex-direction: column;
+  gap: var(--vzn-space-0-5);
+}
+
+.about-hero__name {
+  margin: 0;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-title-lg);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.about-hero__version,
+.about-hero__tagline {
+  margin: 0;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+  line-height: var(--vzn-line-normal);
+}
+
+.about-hero__tagline {
+  font-size: var(--vzn-font-size-md);
+}
+
+.about-features {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(var(--vzn-about-feature-min), 100%), 1fr));
+  gap: var(--vzn-space-2);
+  list-style: none;
+}
+
+.about-features__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-1);
+  padding: var(--vzn-space-3);
+  border-radius: var(--vzn-radius-sm);
+  background: var(--vzn-surface-muted);
+}
+
+.about-features__title {
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-md);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.about-features__description {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+  line-height: var(--vzn-line-normal);
+}
+
+.about-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vzn-space-2);
+}
+
+.settings-select-field {
+  min-inline-size: var(--vzn-settings-select-min);
+}
+
+/* Settings · Chat ---------------------------------------------------------- */
+
+.settings-preset-name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-1-5);
+}
+
+.settings-tag {
+  padding: 0 var(--vzn-space-1-5);
+  border-radius: var(--vzn-radius-xs);
+  background: var(--vzn-surface-muted);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-medium);
+}
+
+.settings-preset-content {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.settings-preset-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
+}
+
+/* The settings row already names the select; keep its own label for screen readers only. */
+.settings-select-field .ai-select-field__label {
+  position: absolute;
+  overflow: hidden;
+  inline-size: 1px;
+  block-size: 1px;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Primary navigation, as on the Sidebar board ------------------------------
+ * 32px rows, 14px regular labels (semibold when current), 16px icons and a
+ * bordered search field with its shortcut in a key chip. */
+
+.primary-navigation-panel .sidebar-nav-btn {
+  color: var(--vzn-chrome-fg);
+}
+
+.primary-navigation-panel .sidebar-nav-icon {
+  inline-size: var(--vzn-icon-md);
+  flex: 0 0 var(--vzn-icon-md);
+}
+
+.primary-navigation-panel .sidebar-nav-icon svg {
+  inline-size: var(--vzn-icon-md);
+  block-size: var(--vzn-icon-md);
+}
+
+.primary-navigation-panel .sidebar-nav-label {
+  color: inherit;
+  font-size: var(--vzn-font-size-lg);
+  font-weight: var(--vzn-weight-regular);
+}
+
+.primary-navigation-panel .sidebar-nav-btn.active .sidebar-nav-label {
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.primary-navigation-panel .sidebar-search-trigger {
+  --vzn-button-bg: var(--vzn-sidebar-search-bg, var(--vzn-surface));
+  --vzn-button-hover-bg: var(--vzn-sidebar-search-bg, var(--vzn-surface));
+  --vzn-button-border: var(--vzn-border-strong);
+  --vzn-button-hover-border: var(--vzn-border-strong);
+  --vzn-button-fg: var(--vzn-chrome-fg-muted);
+  --vzn-button-hover-fg: var(--vzn-chrome-fg-strong);
+  margin-block-end: var(--vzn-space-2);
+  border-radius: var(--vzn-radius-sm);
+  color: var(--vzn-chrome-fg-muted);
+}
+
+.primary-navigation-panel[data-expanded="true"] .sidebar-search-trigger {
+  gap: var(--vzn-space-2);
+}
+
+.primary-navigation-panel .sidebar-search-trigger .sidebar-nav-label {
+  font-size: var(--vzn-font-size-md);
+}
+
+.primary-navigation-panel .sidebar-shortcut {
+  padding: 0 var(--vzn-space-1-5);
+  border: var(--vzn-border-width) solid var(--vzn-border-strong);
+  border-radius: var(--vzn-radius-xs);
+  background: var(--vzn-surface-raised);
+  color: var(--vzn-chrome-fg-muted);
+  font-family: var(--vzn-font-mono);
+  font-size: var(--vzn-font-size-caption);
+  line-height: var(--vzn-line-normal);
+  flex: 0 0 auto;
+  white-space: nowrap;
 }

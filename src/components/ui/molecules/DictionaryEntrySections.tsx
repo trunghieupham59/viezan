@@ -47,6 +47,13 @@ function withStableKeys(items: string[], prefix: string): Array<{ key: string; i
   })
 }
 
+/** Split "source -> translation" (or "→") into its two lines; plain text stays whole. */
+export function splitExample(item: string): { source: string; translation?: string } {
+  const match = item.match(/^(.*?)\s*(?:->|→)\s*(.+)$/)
+  const source = match?.[1]?.trim()
+  return source && match ? { source, translation: match[2].trim() } : { source: item }
+}
+
 /**
  * The body of a dictionary entry: a quoted meaning, translation chips, free
  * paragraphs, numbered examples, phrase tokens and bulleted notes. Every
@@ -130,7 +137,17 @@ export function DictionaryEntrySections({
             {withStableKeys(examples, 'example').map(({ key, item }, index) => (
               <li key={key} className="entry-list-item">
                 <span aria-hidden="true" className="entry-list-index">{index + 1}</span>
-                <span className="entry-list-text">{item}</span>
+                <span className="entry-list-text">
+                  {(() => {
+                    const { source, translation } = splitExample(item)
+                    return translation ? (
+                      <>
+                        <span className="entry-example-source">{source}</span>
+                        <span className="entry-example-translation">{translation}</span>
+                      </>
+                    ) : source
+                  })()}
+                </span>
               </li>
             ))}
           </ol>

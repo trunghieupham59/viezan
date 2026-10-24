@@ -1,0 +1,1181 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Viezan — AI Chat: đặc tả chi tiết</title>
+  <!-- Real design values first, then the board layout. Never add literal colours here. -->
+  <link rel="stylesheet" href="../../../src/styles/tokens.css">
+  <link rel="stylesheet" href="board.css">
+
+  <style>
+    /* Chat-specific mock classes. Every value is a design token. */
+    .i { inline-size: var(--vzn-icon-md); block-size: var(--vzn-icon-md); flex: 0 0 auto; }
+    .i-sm { inline-size: var(--vzn-icon-sm); block-size: var(--vzn-icon-sm); flex: 0 0 auto; }
+    .c-main { background: var(--vzn-surface); position: relative; }
+    .c-nav-head { display: flex; align-items: center; gap: var(--vzn-space-2); padding: var(--vzn-space-1) var(--vzn-space-2) var(--vzn-space-3); color: var(--vzn-chrome-fg-strong); font-weight: var(--vzn-weight-semibold); }
+    .c-nav-search { display: flex; align-items: center; gap: var(--vzn-space-2); block-size: var(--vzn-control-height-sm); padding-inline: var(--vzn-space-2); margin-bottom: var(--vzn-space-2); border-radius: var(--vzn-radius-sm); background: var(--vzn-sidebar-search-bg); color: var(--vzn-chrome-fg-soft); font-size: var(--vzn-font-size-sm); }
+    .c-rail-item { display: grid; place-items: center; inline-size: var(--vzn-control-height-sm); block-size: var(--vzn-control-height-sm); border-radius: var(--vzn-radius-sm); color: var(--vzn-chrome-fg-muted); }
+    .c-rail-item[aria-current] { background: var(--vzn-chrome-item-active); color: var(--vzn-chrome-item-active-fg); }
+    .c-history { display: flex; inline-size: var(--vzn-chat-sidebar-width); flex: 0 0 auto; flex-direction: column; border-right: var(--vzn-border-width) solid var(--vzn-border-strong); background: var(--vzn-chat-sidebar-bg); }
+    .c-history[data-overlay] { position: absolute; z-index: var(--vzn-layer-context-overlay); inset-block-start: calc(var(--vzn-titlebar-height) + var(--vzn-page-header-min-height)); inset-block-end: 0; inset-inline-start: var(--vzn-sidebar-width); background: var(--vzn-overlay-material); box-shadow: var(--vzn-shadow-lg); }
+    .c-history-head { display: flex; min-block-size: var(--vzn-page-header-min-height); align-items: center; padding-inline: var(--vzn-space-3); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .c-search { display: flex; flex: 1 1 auto; align-items: center; gap: var(--vzn-space-2); block-size: var(--vzn-control-height-sm); padding-inline: var(--vzn-space-2); border: var(--vzn-border-width) solid transparent; border-radius: var(--vzn-radius-sm); background: var(--vzn-bg); color: var(--vzn-text-soft); font-size: var(--vzn-font-size-md); }
+    .c-search[data-focus] { border-color: var(--vzn-border-strong); background: var(--vzn-surface); color: var(--vzn-text-strong); }
+    .c-history-list { display: flex; flex-direction: column; gap: var(--vzn-space-0-5); padding: var(--vzn-space-2); overflow: hidden; }
+    .c-group { margin: var(--vzn-space-2) var(--vzn-space-2) var(--vzn-space-1-5); color: var(--vzn-text-soft); font-size: var(--vzn-font-size-caption); font-weight: var(--vzn-weight-semibold); letter-spacing: var(--vzn-tracking-caps); text-transform: uppercase; }
+    .c-item { position: relative; display: flex; flex-direction: column; gap: var(--vzn-space-0-5); padding: var(--vzn-space-2) var(--vzn-space-8) var(--vzn-space-2) var(--vzn-space-2); border-radius: var(--vzn-radius-sm); }
+    .c-item[aria-current] { background: var(--vzn-action-soft); box-shadow: inset 0 0 0 var(--vzn-border-width) var(--vzn-action-border); }
+    .c-item[data-hover] { background: var(--vzn-surface-subtle); }
+    .c-item-title { overflow: hidden; color: var(--vzn-text-strong); font-size: var(--vzn-font-size-md); text-overflow: ellipsis; white-space: nowrap; }
+    .c-item[aria-current] .c-item-title { color: var(--vzn-action-text); font-weight: var(--vzn-weight-semibold); }
+    .c-item-meta { overflow: hidden; color: var(--vzn-text-soft); font-size: var(--vzn-font-size-sm); white-space: nowrap; text-overflow: ellipsis; }
+    .c-item-meta[data-pending] { color: var(--vzn-warning); }
+    .c-item-del { position: absolute; inset-block-start: var(--vzn-space-2); inset-inline-end: var(--vzn-space-1-5); display: grid; place-items: center; inline-size: var(--vzn-control-height-xs); block-size: var(--vzn-control-height-xs); border-radius: var(--vzn-radius-sm); background: var(--vzn-danger-soft); color: var(--vzn-danger); box-shadow: inset 0 0 0 var(--vzn-border-width) var(--vzn-danger-border); }
+    .c-empty-list { padding: var(--vzn-space-6) var(--vzn-space-3); color: var(--vzn-text-soft); font-size: var(--vzn-font-size-sm); text-align: center; }
+    .c-header { display: flex; min-block-size: var(--vzn-page-header-min-height); flex: 0 0 auto; align-items: center; gap: var(--vzn-space-2); padding-inline: var(--vzn-space-4); border-bottom: var(--vzn-border-width) solid var(--vzn-border); background: var(--vzn-surface); }
+    .c-header h3 { flex: 1 1 auto; min-inline-size: 0; margin: 0; overflow: hidden; color: var(--vzn-text-strong); font-size: var(--vzn-font-size-subtitle); font-weight: var(--vzn-weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
+    .c-chip { flex: 0 1 auto; min-inline-size: 0; }
+    .c-chip .m-mono { overflow: hidden; max-inline-size: var(--vzn-model-chip-model-max); font-size: var(--vzn-font-size-sm); text-overflow: ellipsis; }
+    .c-scroll { display: flex; flex: 1 1 auto; min-block-size: 0; flex-direction: column; overflow: hidden; }
+    .c-stage { display: flex; inline-size: min(100%, var(--vzn-chat-stage-max)); box-sizing: border-box; margin-inline: auto; flex-direction: column; gap: var(--vzn-space-6); padding: var(--vzn-space-6) var(--vzn-space-6) var(--vzn-space-4); }
+    .c-user { align-self: flex-end; max-inline-size: 72%; padding: var(--vzn-space-2-5, var(--vzn-space-3)) var(--vzn-space-4); border: var(--vzn-border-width) solid var(--vzn-user-bubble-border); border-radius: var(--vzn-radius-lg) var(--vzn-radius-lg) var(--vzn-radius-xs) var(--vzn-radius-lg); background: var(--vzn-user-bubble-bg); color: var(--vzn-user-bubble-fg); font-family: var(--vzn-font-reading); line-height: var(--vzn-line-reading); }
+    .c-user-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: var(--vzn-space-1-5); }
+    .c-answer { display: flex; flex-direction: column; gap: var(--vzn-space-3); max-inline-size: var(--vzn-chat-reading-max); color: var(--vzn-text); font-family: var(--vzn-font-reading); font-size: var(--vzn-font-size-lg); line-height: var(--vzn-line-reading); }
+    .c-answer p { margin: 0; }
+    .c-answer[data-streaming] p:last-child::after { content: ""; display: inline-block; inline-size: var(--vzn-space-2); block-size: var(--vzn-font-size-lg); margin-inline-start: var(--vzn-space-0-5); vertical-align: text-bottom; background: var(--vzn-text-soft); }
+    .c-actions { display: flex; align-items: center; gap: var(--vzn-space-1); padding-inline: var(--vzn-space-1); color: var(--vzn-text-soft); font-size: var(--vzn-font-size-micro); }
+    .c-actions[data-end] { justify-content: flex-end; }
+    .c-act { display: grid; place-items: center; inline-size: var(--vzn-control-height-xs); block-size: var(--vzn-control-height-xs); border-radius: var(--vzn-radius-control); color: var(--vzn-text-soft); }
+    .c-act[data-tone="primary"] { background: var(--vzn-action-soft); color: var(--vzn-action-text); }
+    .c-act-text { display: inline-flex; align-items: center; gap: var(--vzn-space-1); block-size: var(--vzn-control-height-xs); padding-inline: var(--vzn-space-2); border-radius: var(--vzn-radius-control); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .c-pill { display: inline-flex; align-items: center; gap: var(--vzn-space-1-5); align-self: flex-start; block-size: var(--vzn-control-height-xs); padding-inline: var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-pill); background: var(--vzn-surface-muted); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .c-dots { letter-spacing: var(--vzn-tracking-caps); }
+    .c-footer { flex: 0 0 auto; padding: var(--vzn-space-2) var(--vzn-space-6) var(--vzn-space-5); }
+    .c-composer { display: flex; inline-size: min(100%, var(--vzn-chat-composer-max)); box-sizing: border-box; min-block-size: var(--vzn-composer-min-height); margin-inline: auto; flex-direction: column; border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-lg); background: var(--vzn-surface); box-shadow: var(--vzn-shadow-sm); }
+    .c-composer[data-focus] { border-color: var(--vzn-action-border); box-shadow: 0 0 0 var(--vzn-space-0-5) var(--vzn-focus-ring), var(--vzn-shadow-md); }
+    .c-composer[data-drop] { border-color: var(--vzn-border-strong); background: var(--vzn-surface-muted); }
+    .c-input { flex: 1 1 auto; padding: var(--vzn-space-3) var(--vzn-space-4) var(--vzn-space-2); color: var(--vzn-text-soft); font-size: var(--vzn-font-size-lg); }
+    .c-input[data-filled] { color: var(--vzn-text-strong); }
+    .c-input[data-disabled] { color: var(--vzn-text-disabled); }
+    .c-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--vzn-space-1); padding: 0 var(--vzn-space-2) var(--vzn-space-1-5); }
+    .c-tools { display: flex; min-inline-size: 0; align-items: center; gap: var(--vzn-space-1); }
+    .c-hint { margin: 0; padding: 0 var(--vzn-space-4); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .c-thumb { position: relative; inline-size: var(--vzn-space-12); block-size: var(--vzn-space-12); margin: var(--vzn-space-3) var(--vzn-space-3) 0; border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-sm); background: linear-gradient(135deg, var(--vzn-blue-100), var(--vzn-surface-muted)); }
+    .c-thumb-x { position: absolute; inset-block-start: calc(var(--vzn-space-2) * -1); inset-inline-end: calc(var(--vzn-space-2) * -1); display: grid; place-items: center; inline-size: var(--vzn-icon-lg); block-size: var(--vzn-icon-lg); border-radius: var(--vzn-radius-pill); background: var(--vzn-neutral-800); color: var(--vzn-neutral-0); }
+    .c-empty { display: flex; flex: 1 1 auto; flex-direction: column; align-items: center; justify-content: center; gap: var(--vzn-space-6); padding: 0 var(--vzn-space-6) var(--vzn-space-5); }
+    .c-hero { display: flex; flex-direction: column; align-items: center; gap: var(--vzn-space-3); }
+    .c-logo { display: grid; place-items: center; inline-size: var(--vzn-brand-mark-lg); block-size: var(--vzn-brand-mark-lg); border-radius: var(--vzn-radius-md); background: var(--vzn-surface-muted); color: var(--vzn-text-disabled); font-weight: var(--vzn-weight-bold); font-size: var(--vzn-font-size-title-lg); }
+    .c-hero h4 { margin: 0; color: var(--vzn-text-strong); font-family: var(--vzn-font-reading); font-size: var(--vzn-font-size-heading-lg); font-weight: var(--vzn-weight-regular); line-height: var(--vzn-line-tight); }
+    .c-float { inset-block-start: var(--y); inset-inline-start: var(--x); inline-size: var(--pw, var(--vzn-ai-configuration-inline)); }
+    .c-pop-head { display: flex; align-items: flex-start; gap: var(--vzn-space-2); padding: var(--vzn-space-3) var(--vzn-space-3) var(--vzn-space-2) var(--vzn-space-4); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .c-pop-head h5 { margin: 0; color: var(--vzn-text-strong); font-size: var(--vzn-font-size-subtitle); font-weight: var(--vzn-weight-semibold); }
+    .c-pop-head p { margin: var(--vzn-space-0-5) 0 0; color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .c-pop-body { display: flex; flex-direction: column; overflow: hidden; }
+    .c-pop-foot { display: flex; justify-content: flex-end; gap: var(--vzn-space-2); padding: var(--vzn-space-3); border-top: var(--vzn-border-width) solid var(--vzn-divider); }
+    .c-sec-label { display: flex; align-items: center; gap: var(--vzn-space-1-5); padding: var(--vzn-space-2) var(--vzn-space-4) var(--vzn-space-1); color: var(--vzn-text-soft); font-size: var(--vzn-font-size-caption); font-weight: var(--vzn-weight-semibold); letter-spacing: var(--vzn-tracking-caps); text-transform: uppercase; }
+    .c-opt { display: flex; align-items: center; gap: var(--vzn-space-2); min-block-size: var(--vzn-control-height-md); margin-inline: var(--vzn-space-2); padding-inline: var(--vzn-space-2); border-radius: var(--vzn-radius-control); color: var(--vzn-text); }
+    .c-opt[aria-selected="true"] { background: var(--vzn-action-soft); color: var(--vzn-action-text); font-weight: var(--vzn-weight-medium); }
+    .c-opt[aria-disabled] { color: var(--vzn-disabled-fg); }
+    .c-opt .m-spacer { flex: 1 1 auto; }
+    .c-field { display: flex; flex-direction: column; gap: var(--vzn-space-1-5); padding: var(--vzn-space-3); border-top: var(--vzn-border-width) solid var(--vzn-divider); }
+    .c-field-label { color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); font-weight: var(--vzn-weight-medium); }
+    .c-select { display: flex; align-items: center; justify-content: space-between; block-size: var(--vzn-control-height-md); padding-inline: var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-border-strong); border-radius: var(--vzn-radius-control); background: var(--vzn-surface); }
+    .c-select[data-open] { border-color: var(--vzn-action-border); background: var(--vzn-action-soft); }
+    .c-menu { box-sizing: border-box; position: absolute; z-index: var(--vzn-layer-picker); inset-block-start: var(--y); inset-inline-start: var(--x); inline-size: var(--pw); display: flex; flex-direction: column; gap: var(--vzn-space-0-5); padding: var(--vzn-space-1); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-md); background: var(--vzn-surface-raised); box-shadow: var(--vzn-shadow-md); }
+    .c-menu .c-opt { margin-inline: 0; }
+    .c-instr { margin: 0 var(--vzn-space-3) var(--vzn-space-3); padding: var(--vzn-space-2) var(--vzn-space-3); border-radius: var(--vzn-radius-sm); background: var(--vzn-surface-muted); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); line-height: var(--vzn-line-normal); }
+    .c-panel { display: flex; flex-direction: column; gap: var(--vzn-space-2); padding: var(--vzn-space-1); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-md); }
+    .c-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--vzn-space-2); block-size: var(--vzn-control-height-sm); padding-inline: var(--vzn-space-2); color: var(--vzn-text); font-size: var(--vzn-font-size-sm); font-weight: var(--vzn-weight-medium); }
+    .c-panel-head span { display: inline-flex; align-items: center; gap: var(--vzn-space-2); }
+    .c-steps { display: flex; flex-direction: column; gap: var(--vzn-space-1-5); margin: 0; padding: 0 var(--vzn-space-3); list-style: none; font-size: var(--vzn-font-size-sm); }
+    .c-steps li { display: flex; align-items: center; gap: var(--vzn-space-2); color: var(--vzn-text-soft); }
+    .c-steps li[data-status="done"] { color: var(--vzn-text); }
+    .c-steps li[data-status="active"] { color: var(--vzn-action-text); font-weight: var(--vzn-weight-semibold); }
+    .c-steps li[data-status="error"] { color: var(--vzn-danger); }
+    .c-mark { display: grid; place-items: center; inline-size: var(--vzn-icon-lg); block-size: var(--vzn-icon-lg); border: var(--vzn-border-width) solid var(--vzn-border-strong); border-radius: var(--vzn-radius-pill); }
+    .c-steps li[data-status="done"] .c-mark { border-color: var(--vzn-success-border); background: var(--vzn-success-soft); color: var(--vzn-success); }
+    .c-steps li[data-status="active"] .c-mark { border-color: var(--vzn-action-border); background: var(--vzn-action-soft); }
+    .c-steps .c-detail { margin-inline-start: auto; color: var(--vzn-text-soft); font-weight: var(--vzn-weight-regular); }
+    .c-pills { display: flex; flex-direction: column; gap: var(--vzn-space-0-5); margin: 0; padding: var(--vzn-space-1) var(--vzn-space-2) var(--vzn-space-2); border-top: var(--vzn-border-width) solid var(--vzn-divider); list-style: none; font-size: var(--vzn-font-size-sm); }
+    .c-pills li { display: flex; align-items: center; gap: var(--vzn-space-2); min-block-size: var(--vzn-control-height-xs); color: var(--vzn-text-muted); }
+    .c-pills li .m-spacer { flex: 1 1 auto; }
+    .c-recovery { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vzn-space-2) var(--vzn-space-3); padding: var(--vzn-space-2) var(--vzn-space-3); border-top: var(--vzn-border-width) solid var(--vzn-divider); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .c-final { border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-md); }
+    .c-final-head { display: flex; align-items: center; gap: var(--vzn-space-1-5); padding: var(--vzn-space-2) var(--vzn-space-4); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-caption); font-weight: var(--vzn-weight-bold); letter-spacing: var(--vzn-tracking-caps); text-transform: uppercase; }
+    .c-img { display: grid; place-items: center; inline-size: calc(var(--vzn-space-12) * 6); block-size: calc(var(--vzn-space-12) * 5); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-md); background: linear-gradient(160deg, var(--vzn-blue-200), var(--vzn-surface-muted) 55%, var(--vzn-amber-50)); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .c-error { display: flex; gap: var(--vzn-space-2); padding: var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-danger-border); border-radius: var(--vzn-radius-md); background: var(--vzn-danger-soft); color: var(--vzn-text); font-size: var(--vzn-font-size-md); }
+    .c-error .i { color: var(--vzn-danger); }
+    .c-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vzn-space-2); }
+    .c-drop { position: absolute; inset: 0; z-index: var(--vzn-layer-context-overlay); display: grid; place-items: center; border: var(--vzn-border-width) dashed var(--vzn-action-border); border-radius: var(--vzn-radius-md); background: var(--vzn-action-soft); color: var(--vzn-action-text); font-weight: var(--vzn-weight-semibold); }
+    .c-toast-pos { inset-block-start: var(--y); inset-inline-end: var(--vzn-space-4); max-inline-size: var(--vzn-notification-max-inline); }
+    .c-skel { display: flex; flex-direction: column; gap: var(--vzn-space-1-5); padding: var(--vzn-space-1) var(--vzn-space-4); }
+  </style>
+</head>
+<body class="board">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-chevr" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M7 11v9H4v-9zM7 11l4-7a2 2 0 0 1 3 2l-1 4h6a2 2 0 0 1 2 2l-2 7a2 2 0 0 1-2 1H7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><g transform="rotate(180 12 12)"><path d="M7 11v9H4v-9zM7 11l4-7a2 2 0 0 1 3 2l-1 4h6a2 2 0 0 1 2 2l-2 7a2 2 0 0 1-2 1H7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></g></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v6M12 7.5v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-spin" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 1-9 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M8 14a6 6 0 1 1 8 0c-1 1-1 2-1 3H9c0-1 0-2-1-3z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-translate" viewBox="0 0 24 24"><path d="M4 6h9M8.5 4v2M6 6c1 4 4 7 7 8M11 6c-1 4-4 7-7 8M13 20l4-9 4 9M14.5 17h5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="m4 18 5-5 4 4 3-3 4 4" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="m20 11-8 8a5 5 0 0 1-7-7l8-8a3.5 3.5 0 0 1 5 5l-8 8a2 2 0 0 1-3-3l7-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4 2 20h20zM12 10v4M12 17v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11 12 4l8 7v9h-5v-6H9v6H4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+</svg>
+  <header class="board-header">
+    <h1>AI Chat</h1>
+    <p>Hỏi đáp nhiều lượt với model local hoặc đám mây, kèm ảnh, nguồn web, tác vụ có sẵn và nghiên cứu chuyên sâu dừng/tiếp tục được. Mỗi kịch bản vẽ bằng token thật của app (Graphite); số tròn cam khớp với danh sách bên trái. Đặc tả đầy đủ: <a href="../screens/chat.md">screens/chat.md</a>.</p>
+    <nav class="board-nav" aria-label="Kịch bản"><a href="#empty">Trống</a><a href="#active">Đang trò chuyện</a><a href="#streaming">Đang trả lời</a><a href="#model">Đổi model</a><a href="#task">Tác vụ</a><a href="#research">Nghiên cứu</a><a href="#paused">Đang dừng (tối)</a><a href="#image">Tạo ảnh</a><a href="#attachment">Đính kèm</a><a href="#error">Lỗi / thiếu khoá</a><a href="#history">Lịch sử</a><a href="#narrow">Cửa sổ hẹp</a></nav>
+  </header>
+
+  <section class="scenario" id="empty">
+    <div class="scenario-copy">
+      <h2>Trống: cuộc trò chuyện mới</h2>
+      <p>Người dùng vừa bấm Chat mới hoặc chưa có phiên nào. Logo, câu hỏi lớn và ô soạn tạo thành một cụm căn giữa; ô soạn là đúng bề mặt <code>chat-composer</code> sẽ xuống đáy khi có tin. Phiên chỉ được tạo khi gửi tin đầu tiên.</p>
+      <ol><li><span class="ref">1</span>Ô tìm lịch sử (<code>Input sm</code>): lọc theo tiêu đề, model, provider.</li><li><span class="ref">2</span>Nhóm Hôm nay / Tuần này / Trước đó; dòng hai là tác vụ, "đang dừng" (màu cảnh báo) hoặc thời gian.</li><li><span class="ref">3</span>Ẩn/hiện lịch sử: <code>sm · neutral · ghost</code>, <code>aria-expanded</code>.</li><li><span class="ref">4</span>Chip model <code>sm · neutral · outline</code>: chấm xanh = sẵn sàng; mở popover Cấu hình AI.</li><li><span class="ref">5</span>Chat mới <code>sm · neutral · ghost</code>, phím ⌘N (đổi được ở Cài đặt › Chat).</li><li><span class="ref">6</span>Câu hỏi lớn <code>chat_empty_desc</code>, chữ đọc <code>--vzn-font-size-heading-lg</code>. Không có thẻ gợi ý (xem Chênh lệch).</li><li><span class="ref">7</span>Thanh trái ô soạn: + đính kèm, Nguồn web (bật/tắt, <code>aria-pressed</code>), Tác vụ; tất cả <code>md</code>.</li><li><span class="ref">8</span>Gửi <code>md · primary · solid</code>, tắt (xám) khi chưa có chữ hoặc ảnh.</li></ol>
+      
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="c-nav-head"><span class="c-logo" style="--vzn-brand-mark-lg: var(--vzn-control-height-sm)">V</span>Viezan</div>
+              <div class="c-nav-search"><svg class="i-sm" aria-hidden="true"><use href="#i-search"/></svg>Tìm hoặc chạy lệnh<span class="m-spacer"></span><span class="m-kbd">⌘K</span></div>
+              <div class="m-nav"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>Trang chủ</div>
+              <div class="m-nav-group">AI</div>
+              <div class="m-nav" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>AI Chat</div>
+              <div class="m-nav-group">Ngôn ngữ</div>
+              <div class="m-nav"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg>Dịch</div>
+              <div class="m-nav"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg>Phiên dịch</div>
+              <div class="m-nav"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg>Từ điển</div>
+              <span class="m-spacer"></span>
+              <div class="m-nav"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg>Cài đặt</div>
+            </nav><aside class="c-history">
+              <div class="c-history-head"><span class="c-search"><svg class="i-sm" aria-hidden="true"><use href="#i-search"/></svg>Tìm cuộc trò chuyện…</span></div>
+              <div class="c-history-list"><div class="c-group">Hôm nay</div><div class="c-item"><span class="c-item-title">So sánh model local cho dịch</span><span class="c-item-meta">Nghiên cứu · Tổng quan nhanh</span></div><div class="c-item"><span class="c-item-title">Thư xin nghỉ phép tuần sau</span><span class="c-item-meta">Viết lách · Email</span></div><div class="c-item"><span class="c-item-title">Thị trường pin thể rắn 2026</span><span class="c-item-meta" data-pending>Chuyên sâu · đang dừng</span></div><div class="c-group">Tuần này</div><div class="c-item"><span class="c-item-title">Dịch hợp đồng thuê nhà</span><span class="c-item-meta">Dịch · Tiếng Nhật</span></div><div class="c-item"><span class="c-item-title">Giải thích container query</span><span class="c-item-meta">Giải thích · Từng bước</span></div><div class="c-group">Trước đó</div><div class="c-item"><span class="c-item-title">Lên ý tưởng logo</span><span class="c-item-meta">12/10/2026</span></div></div>
+            </aside><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>AI Chat</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Local ·<span class="m-mono">qwen3:4b</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-empty">
+                <div class="c-hero"><span class="c-logo">V</span><h4>Chúng ta nên bắt đầu từ đâu?</h4></div>
+                <div class="c-composer">
+                  
+                  <div class="c-input">Hỏi bất kỳ điều gì…</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Nguồn web" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>Tác vụ: Chat<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi"><svg class="i" aria-hidden="true"><use href="#i-send"/></svg></span></div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+          
+          <span class="callout" style="--x: 494px; --y: 43px">1</span><span class="callout" style="--x: 490px; --y: 105px">2</span><span class="callout" style="--x: 557px; --y: 43px">3</span><span class="callout" style="--x: 1131px; --y: 43px">4</span><span class="callout" style="--x: 1173px; --y: 43px">5</span><span class="callout" style="--x: 860px; --y: 353px">6</span><span class="callout" style="--x: 769px; --y: 482px">7</span><span class="callout" style="--x: 1156px; --y: 482px">8</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="scenario" id="active">
+    <div class="scenario-copy">
+      <h2>Đang trò chuyện</h2>
+      <p>Cột tin tối đa 760 px giữa vùng chính; ô soạn xuống đáy và vẫn là cùng một bề mặt, không có khung bọc thêm. Không có nút xoá trong vùng hội thoại.</p>
+      <ol><li><span class="ref">1</span>Hàng đang mở: nền <code>--vzn-action-soft</code>, viền trong <code>--vzn-action-border</code>, <code>aria-current</code>.</li><li><span class="ref">2</span>Tiêu đề = dòng đầu tin nhắn đầu tiên, cắt bằng dấu ba chấm.</li><li><span class="ref">3</span>Bong bóng người dùng: <code>--vzn-user-bubble-*</code>, góc dưới phải nhỏ; hành động hiện khi hover.</li><li><span class="ref">4</span>Câu trả lời không khung, chữ <code>--vzn-font-reading</code> / <code>--vzn-line-reading</code>.</li><li><span class="ref">5</span>Thanh hành động ghim trên tin trả lời cuối: giờ, chi phí, Sao chép, Phản hồi tốt / chưa tốt (chưa nối chức năng), Tạo lại <code>xs · primary · soft</code>.</li><li><span class="ref">6</span>Ô soạn đang focus: viền nhấn + vòng focus; Enter gửi, Shift+Enter xuống dòng (hoặc ⌘Enter nếu đã chọn).</li></ol>
+      <table class="actions"><thead><tr><th>Điều khiển</th><th>Kiểu</th><th>Kết quả</th><th>Khi tắt</th></tr></thead><tbody><tr><td>Sao chép</td><td>xs · neutral · ghost</td><td>Chép chữ, toast "Đã sao chép!"</td><td>Ẩn khi đang tải</td></tr><tr><td>Tạo lại phản hồi</td><td>xs · primary · soft</td><td>Gửi lại với provider/model/tác vụ lưu trên tin người dùng</td><td>Tắt khi đang gửi</td></tr><tr><td>Gửi</td><td>md · primary · solid</td><td>Gửi tin; đổi thành Dừng</td><td>Tắt khi trống, thiếu khoá, tác vụ ảnh không hỗ trợ</td></tr></tbody></table>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="c-nav-head"><span class="c-logo" style="--vzn-brand-mark-lg: var(--vzn-control-height-sm)">V</span>Viezan</div>
+              <div class="c-nav-search"><svg class="i-sm" aria-hidden="true"><use href="#i-search"/></svg>Tìm hoặc chạy lệnh<span class="m-spacer"></span><span class="m-kbd">⌘K</span></div>
+              <div class="m-nav"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>Trang chủ</div>
+              <div class="m-nav-group">AI</div>
+              <div class="m-nav" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>AI Chat</div>
+              <div class="m-nav-group">Ngôn ngữ</div>
+              <div class="m-nav"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg>Dịch</div>
+              <div class="m-nav"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg>Phiên dịch</div>
+              <div class="m-nav"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg>Từ điển</div>
+              <span class="m-spacer"></span>
+              <div class="m-nav"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg>Cài đặt</div>
+            </nav><aside class="c-history">
+              <div class="c-history-head"><span class="c-search"><svg class="i-sm" aria-hidden="true"><use href="#i-search"/></svg>Tìm cuộc trò chuyện…</span></div>
+              <div class="c-history-list"><div class="c-group">Hôm nay</div><div class="c-item" aria-current="true"><span class="c-item-title">So sánh model local cho dịch</span><span class="c-item-meta">Nghiên cứu · Tổng quan nhanh</span></div><div class="c-item"><span class="c-item-title">Thư xin nghỉ phép tuần sau</span><span class="c-item-meta">Viết lách · Email</span></div><div class="c-item"><span class="c-item-title">Thị trường pin thể rắn 2026</span><span class="c-item-meta" data-pending>Chuyên sâu · đang dừng</span></div><div class="c-group">Tuần này</div><div class="c-item"><span class="c-item-title">Dịch hợp đồng thuê nhà</span><span class="c-item-meta">Dịch · Tiếng Nhật</span></div><div class="c-item"><span class="c-item-title">Giải thích container query</span><span class="c-item-meta">Giải thích · Từng bước</span></div><div class="c-group">Trước đó</div><div class="c-item"><span class="c-item-title">Lên ý tưởng logo</span><span class="c-item-meta">12/10/2026</span></div></div>
+            </aside><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>So sánh model local cho dịch</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Local ·<span class="m-mono">qwen3:4b</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-scroll"><div class="c-stage">
+                <div class="c-user-wrap"><div class="c-user">Model local nào hợp nhất để dịch Anh – Nhật trên máy 16 GB RAM?</div><div class="c-actions" data-end><span>10:23</span><span class="c-act"><svg class="i-sm" aria-hidden="true"><use href="#i-copy"/></svg></span></div></div>
+                <div class="c-answer"><p><strong>Qwen3 4B</strong> là lựa chọn cân bằng nhất cho máy 16 GB: chạy mượt, giữ được kính ngữ tiếng Nhật khá tốt.</p><p>Nếu cần chất lượng cao hơn và chấp nhận chậm, thử Gemma 3 12B ở mức lượng tử Q4.</p>
+                <div class="c-actions"><span>10:24</span><span class="m-tag">≈ 210 đ</span><span class="c-act" aria-label="Sao chép"><svg class="i-sm" aria-hidden="true"><use href="#i-copy"/></svg></span><span class="c-act" aria-label="Phản hồi tốt"><svg class="i-sm" aria-hidden="true"><use href="#i-up"/></svg></span><span class="c-act" aria-label="Phản hồi chưa tốt"><svg class="i-sm" aria-hidden="true"><use href="#i-down"/></svg></span><span class="c-act" data-tone="primary" aria-label="Tạo lại phản hồi"><svg class="i-sm" aria-hidden="true"><use href="#i-refresh"/></svg></span></div></div>
+              </div></div>
+              <div class="c-footer"><div class="c-composer" data-focus>
+                  
+                  <div class="c-input" data-filled>So với Gemma 3 4B thì sao?</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Nguồn web" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>Tác vụ: Chat<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="primary" aria-label="Gửi"><svg class="i" aria-hidden="true"><use href="#i-send"/></svg></span></div>
+                  </div>
+                </div></div>
+            </main>
+          </div>
+          
+          <span class="callout" style="--x: 498px; --y: 129px">1</span><span class="callout" style="--x: 774px; --y: 49px">2</span><span class="callout" style="--x: 957px; --y: 113px">3</span><span class="callout" style="--x: 860px; --y: 218px">4</span><span class="callout" style="--x: 860px; --y: 309px">5</span><span class="callout" style="--x: 860px; --y: 615px">6</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="scenario" id="streaming">
+    <div class="scenario-copy">
+      <h2>Đang trả lời và Dừng</h2>
+      <p>Một bong bóng duy nhất đổi hình qua các pha: "Đang suy nghĩ" → (nếu AI quyết định tìm web) "Smart Thinking" → chữ chạy dần. Trong lúc này ô nhập bị tắt và nút Gửi thành Dừng.</p>
+      <ol><li><span class="ref">1</span>Pill "Đang suy nghĩ" có chấm chuyển động; chưa có giờ hay hành động.</li><li><span class="ref">2</span>Pill "Smart Thinking" có shimmer khi AI đang tìm web (Nguồn web bật thì luôn tìm).</li><li><span class="ref">3</span>Chữ về theo lô 60 ms, cột cuộn bám đáy.</li><li><span class="ref">4</span>Dừng <code>md · danger · soft</code>: giữ phần chữ đã về, không báo lỗi.</li><li><span class="ref">5</span>Ô nhập <code>disabled</code> khi đang gửi (đề xuất: chỉ khoá Gửi, xem Chênh lệch).</li></ol>
+      
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">700 × 460 · đang nghĩ</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 700px; --h: 460px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>So sánh model local cho dịch</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Local ·<span class="m-mono">qwen3:4b</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-scroll"><div class="c-stage">
+                <div class="c-user-wrap"><div class="c-user">So với Gemma 3 4B thì sao?</div></div>
+                <span class="c-pill"><span class="c-dots">• • •</span>Đang suy nghĩ</span>
+              </div></div>
+              <div class="c-footer"><div class="c-composer">
+                  
+                  <div class="c-input" data-disabled>Hỏi bất kỳ điều gì…</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Nguồn web" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>Tác vụ: Chat<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="danger" aria-label="Dừng"><svg class="i" aria-hidden="true"><use href="#i-stop"/></svg></span></div>
+                  </div>
+                </div></div>
+            </main>
+          </div>
+          
+          <span class="callout" style="--x: 230px; --y: 184px">1</span><span class="callout" style="--x: 656px; --y: 386px">4</span><span class="callout" style="--x: 390px; --y: 316px">5</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">700 × 460 · Smart Thinking</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 700px; --h: 460px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>Giá điện mặt trời áp mái 2026</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Local ·<span class="m-mono">qwen3:4b</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-scroll"><div class="c-stage">
+                <div class="c-user-wrap"><div class="c-user">Giá lắp điện mặt trời áp mái hiện nay?</div></div>
+                <span class="c-pill"><svg class="i-sm" aria-hidden="true"><use href="#i-spark"/></svg>Smart Thinking</span>
+              </div></div>
+              <div class="c-footer"><div class="c-composer">
+                  
+                  <div class="c-input" data-disabled>Hỏi bất kỳ điều gì…</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="soft" aria-label="Nguồn web" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>Tác vụ: Chat<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="danger" aria-label="Dừng"><svg class="i" aria-hidden="true"><use href="#i-stop"/></svg></span></div>
+                  </div>
+                </div></div>
+            </main>
+          </div>
+          
+          <span class="callout" style="--x: 222px; --y: 184px">2</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">700 × 460 · đang chạy chữ</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 700px; --h: 460px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>So sánh model local cho dịch</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Local ·<span class="m-mono">qwen3:4b</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-scroll"><div class="c-stage">
+                <div class="c-user-wrap"><div class="c-user">So với Gemma 3 4B thì sao?</div></div>
+                <div class="c-answer" data-streaming><p>Gemma 3 4B nhẹ hơn một chút và đọc được ảnh, nhưng ở câu dài tiếng Nhật</p></div>
+              </div></div>
+              <div class="c-footer"><div class="c-composer">
+                  
+                  <div class="c-input" data-disabled>Hỏi bất kỳ điều gì…</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Nguồn web" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>Tác vụ: Chat<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="danger" aria-label="Dừng"><svg class="i" aria-hidden="true"><use href="#i-stop"/></svg></span></div>
+                  </div>
+                </div></div>
+            </main>
+          </div>
+          
+          <span class="callout" style="--x: 390px; --y: 184px">3</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="scenario" id="model">
+    <div class="scenario-copy">
+      <h2>Đổi model giữa cuộc trò chuyện</h2>
+      <p>Bấm chip model ở header. Popover neo dưới chip (rộng <code>--vzn-ai-configuration-inline</code>), focus vào ô tìm. Chọn một model thì popover đóng, focus về chip; lựa chọn chỉ ghi vào cuộc trò chuyện đã mở popover, kể cả khi danh sách về muộn.</p>
+      <ol><li><span class="ref">1</span>Chip đang mở: <code>sm · primary · soft</code>, <code>aria-expanded=true</code>.</li><li><span class="ref">2</span>Mô tả phạm vi: "Áp dụng cho cuộc hội thoại này." (cuộc mới: "…cuộc hội thoại mới.").</li><li><span class="ref">3</span>Ô tìm model <code>Input md</code>.</li><li><span class="ref">4</span>"Gần đây": model đã dùng, kèm provider; mục đang chọn có ✓.</li><li><span class="ref">5</span>Tải lại từng provider <code>xs · neutral · ghost</code>; đang tải: spinner + "Đang tải model…" (<code>role=status</code>).</li><li><span class="ref">6</span>Thiếu khoá: nhãn "Chưa có key"; lỗi: "Tải thất bại" (<code>role=alert</code>).</li><li><span class="ref">7</span>Đóng <code>sm · neutral · ghost</code>; Esc hoặc click ngoài cũng đóng.</li></ol>
+      
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1000 × 720 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1000px; --h: 720px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><aside class="c-history">
+              <div class="c-history-head"><span class="c-search"><svg class="i-sm" aria-hidden="true"><use href="#i-search"/></svg>Tìm cuộc trò chuyện…</span></div>
+              <div class="c-history-list"><div class="c-group">Hôm nay</div><div class="c-item" aria-current="true"><span class="c-item-title">So sánh model local cho dịch</span><span class="c-item-meta">Nghiên cứu · Tổng quan nhanh</span></div><div class="c-item"><span class="c-item-title">Thư xin nghỉ phép tuần sau</span><span class="c-item-meta">Viết lách · Email</span></div><div class="c-item"><span class="c-item-title">Thị trường pin thể rắn 2026</span><span class="c-item-meta" data-pending>Chuyên sâu · đang dừng</span></div><div class="c-group">Tuần này</div><div class="c-item"><span class="c-item-title">Dịch hợp đồng thuê nhà</span><span class="c-item-meta">Dịch · Tiếng Nhật</span></div><div class="c-item"><span class="c-item-title">Giải thích container query</span><span class="c-item-meta">Giải thích · Từng bước</span></div><div class="c-group">Trước đó</div><div class="c-item"><span class="c-item-title">Lên ý tưởng logo</span><span class="c-item-meta">12/10/2026</span></div></div>
+            </aside><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>So sánh model local cho dịch</h3>
+                <span class="m-btn c-chip" data-tone="soft"><span class="m-dot" data-tone="ok"></span>Local ·<span class="m-mono">qwen3:4b</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-scroll"><div class="c-stage">
+                <div class="c-user-wrap"><div class="c-user">Model local nào hợp nhất để dịch Anh – Nhật?</div></div>
+                <div class="c-answer"><p>Qwen3 4B là lựa chọn cân bằng nhất…</p><div class="c-actions"><span>10:24</span><span class="m-tag">≈ 210 đ</span><span class="c-act" aria-label="Sao chép"><svg class="i-sm" aria-hidden="true"><use href="#i-copy"/></svg></span><span class="c-act" aria-label="Phản hồi tốt"><svg class="i-sm" aria-hidden="true"><use href="#i-up"/></svg></span><span class="c-act" aria-label="Phản hồi chưa tốt"><svg class="i-sm" aria-hidden="true"><use href="#i-down"/></svg></span><span class="c-act" data-tone="primary" aria-label="Tạo lại phản hồi"><svg class="i-sm" aria-hidden="true"><use href="#i-refresh"/></svg></span></div></div>
+              </div></div>
+              <div class="c-footer"><div class="c-composer">
+                  
+                  <div class="c-input">Hỏi bất kỳ điều gì…</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Nguồn web" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>Tác vụ: Chat<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi"><svg class="i" aria-hidden="true"><use href="#i-send"/></svg></span></div>
+                  </div>
+                </div></div>
+            </main>
+          </div>
+          <div class="m-popover c-float" style="--x: 521px; --y: 100px">
+            <div class="c-pop-head"><div><h5>Cấu hình AI</h5><p>Áp dụng cho cuộc hội thoại này.</p></div><span class="m-spacer"></span><span class="m-btn" data-tone="ghost" data-icon aria-label="Đóng cài đặt"><svg class="i-sm" aria-hidden="true"><use href="#i-x"/></svg></span></div>
+            <div class="c-pop-body">
+              <div class="c-sec-label">Mô hình</div>
+              <div style="padding: 0 var(--vzn-space-3) var(--vzn-space-2)"><span class="m-input" data-focus><svg class="i-sm" aria-hidden="true"><use href="#i-search"/></svg>Tìm model…</span></div>
+              <div class="c-sec-label">Gần đây</div>
+              <div class="c-opt" aria-selected="true"><span class="m-mono">qwen3:4b</span><span class="m-spacer"></span><span class="m-muted">Local</span><svg class="i-sm" aria-hidden="true"><use href="#i-check"/></svg></div>
+              <div class="c-opt"><span>Claude Sonnet</span><span class="m-spacer"></span><span class="m-muted">Claude</span></div>
+              <div class="c-sec-label">Local<span class="m-spacer" style="flex:1"></span><span class="c-act"><svg class="i-sm" aria-hidden="true"><use href="#i-refresh"/></svg></span></div>
+              <div class="c-opt"><span class="m-mono">gemma3:4b</span></div>
+              <div class="c-sec-label">Gemini<span class="m-spacer" style="flex:1"></span><span class="c-act"><svg class="i-sm" aria-hidden="true"><use href="#i-spin"/></svg></span></div>
+              <p class="m-muted" style="margin: 0 var(--vzn-space-4) var(--vzn-space-2)">Đang tải model…</p>
+              <div class="c-sec-label">OpenAI<span class="m-spacer" style="flex:1"></span><span class="m-tag">Chưa có key</span></div>
+              <div class="c-sec-label">Claude<span class="m-spacer" style="flex:1"></span><span class="c-act"><svg class="i-sm" aria-hidden="true"><use href="#i-refresh"/></svg></span></div>
+              <p class="m-muted" style="margin: 0 var(--vzn-space-4) var(--vzn-space-3); color: var(--vzn-danger)">Tải thất bại</p>
+            </div>
+          </div>
+          <span class="callout" style="--x: 931px; --y: 43px">1</span><span class="callout" style="--x: 880px; --y: 128px">2</span><span class="callout" style="--x: 733px; --y: 182px">3</span><span class="callout" style="--x: 733px; --y: 256px">4</span><span class="callout" style="--x: 733px; --y: 444px">5</span><span class="callout" style="--x: 879px; --y: 477px">6</span><span class="callout" style="--x: 879px; --y: 104px">7</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="scenario" id="task">
+    <div class="scenario-copy">
+      <h2>Popover Tác vụ, menu Ngôn ngữ đích đang mở</h2>
+      <p>Nút "Tác vụ: …" trong ô soạn mở popover về phía có nhiều chỗ hơn. Mọi lựa chọn chỉ là bản nháp cho tới khi bấm Áp dụng; Bỏ, Esc hoặc click ngoài giữ nguyên tác vụ cũ. Menu chọn neo vào trigger của nó nên không bị thân popover cắt.</p>
+      <ol><li><span class="ref">1</span>Trigger <code>md · neutral · soft</code> khi mở, <code>aria-haspopup=dialog</code>.</li><li><span class="ref">2</span>Danh sách <code>role=listbox</code>: hàng <code>md · neutral · ghost</code>, hàng đang chọn <code>md · primary · soft</code> + ✓; ↑/↓ di chuyển.</li><li><span class="ref">3</span>"Tạo ảnh" tắt khi provider không phải Gemini/OpenAI; lý do ở <code>title</code> và <code>aria-description</code>.</li><li><span class="ref">4</span><code>SelectField</code> "Ngôn ngữ đích": trigger <code>md · outline</code> (mở: <code>soft</code>); mặc định ngôn ngữ giao diện.</li><li><span class="ref">5</span>Menu nổi <code>--vzn-layer-picker</code>: ↑/↓, Home/End, Esc đóng và trả focus về trigger.</li><li><span class="ref">6</span>"Hướng dẫn gửi kèm": đúng câu sẽ ghép trước tin nhắn; đổi ngay theo lựa chọn.</li><li><span class="ref">7</span>Bỏ <code>md · neutral · ghost</code> · Áp dụng <code>md · primary · solid</code>.</li></ol>
+      <table class="actions"><thead><tr><th>Tác vụ</th><th>Ô tuỳ chọn</th><th>Nguồn web</th></tr></thead><tbody><tr><td>Chat</td><td>—</td><td>Hiện</td></tr><tr><td>Dịch</td><td>Ngôn ngữ đích</td><td>Ẩn</td></tr><tr><td>Nghiên cứu</td><td>Mức nghiên cứu: Tổng quan nhanh / Chuyên sâu</td><td>Hiện với Tổng quan, ẩn với Chuyên sâu</td></tr><tr><td>Giải thích</td><td>Cách giải thích: Dễ hiểu, có ví dụ / Từng bước / Chi tiết kỹ thuật</td><td>Hiện</td></tr><tr><td>Viết lách</td><td>Loại nội dung: Email / Bài viết hoặc bài luận / Viết lại và trau chuốt</td><td>Hiện</td></tr><tr><td>Tạo ảnh</td><td>—</td><td>Ẩn</td></tr></tbody></table>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">900 × 860 · sáng · popover Tác vụ</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 900px; --h: 860px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>AI Chat</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Local ·<span class="m-mono">qwen3:4b</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-empty" style="justify-content: flex-start; padding-top: var(--vzn-space-6)">
+                <div class="c-hero"><h4>Chúng ta nên bắt đầu từ đâu?</h4></div>
+                <div class="c-composer">
+                  
+                  <div class="c-input">Hỏi bất kỳ điều gì…</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Nguồn web" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>Tác vụ: Chat<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi"><svg class="i" aria-hidden="true"><use href="#i-send"/></svg></span></div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+          <div class="m-popover c-float" style="--x: 203px; --y: 298px">
+            <div class="c-pop-head"><div><h5>Tác vụ</h5><p>Lưu theo cuộc trò chuyện, dùng cho tin nhắn tiếp theo.</p></div><span class="m-spacer"></span><span class="m-btn" data-tone="ghost" data-icon aria-label="Đóng cài đặt"><svg class="i-sm" aria-hidden="true"><use href="#i-x"/></svg></span></div>
+            <div class="c-pop-body">
+              <div style="padding: var(--vzn-space-2) 0">
+                <div class="c-opt"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>Chat</div>
+                <div class="c-opt" aria-selected="true"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg>Dịch<span class="m-spacer"></span><svg class="i-sm" aria-hidden="true"><use href="#i-check"/></svg></div>
+                <div class="c-opt"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg>Nghiên cứu</div>
+                <div class="c-opt"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg>Giải thích</div>
+                <div class="c-opt"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg>Viết lách</div>
+                <div class="c-opt" aria-disabled="true" title="Cần nhà cung cấp Gemini hoặc OpenAI"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg>Tạo ảnh<span class="m-spacer"></span><span class="m-muted">Cần Gemini hoặc OpenAI</span></div>
+              </div>
+              <div class="c-field"><span class="c-field-label">Ngôn ngữ đích</span><span class="c-select">Tiếng Nhật<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+              <div class="c-sec-label" style="border-top: var(--vzn-border-width) solid var(--vzn-divider)">Hướng dẫn gửi kèm</div>
+              <p class="c-instr">Dịch nội dung sau sang Tiếng Nhật. Giữ nguyên ý nghĩa, giọng điệu và định dạng; trả về bản dịch:</p>
+            </div>
+            <div class="c-pop-foot"><span class="m-btn" data-size="md" data-tone="ghost">Bỏ</span><span class="m-btn" data-size="md" data-tone="primary">Áp dụng</span></div>
+          </div>
+          <span class="callout" style="--x: 336px; --y: 242px">1</span><span class="callout" style="--x: 605px; --y: 396px">2</span><span class="callout" style="--x: 605px; --y: 540px">3</span><span class="callout" style="--x: 600px; --y: 621px">4</span><span class="callout" style="--x: 600px; --y: 699px">6</span><span class="callout" style="--x: 610px; --y: 775px">7</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">900 × 920 · sáng · menu Ngôn ngữ đích mở</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 900px; --h: 920px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>AI Chat</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Local ·<span class="m-mono">qwen3:4b</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-empty" style="justify-content: flex-start; padding-top: var(--vzn-space-6)">
+                <div class="c-hero"><h4>Chúng ta nên bắt đầu từ đâu?</h4></div>
+                <div class="c-composer">
+                  
+                  <div class="c-input">Hỏi bất kỳ điều gì…</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Nguồn web" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>Tác vụ: Chat<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi"><svg class="i" aria-hidden="true"><use href="#i-send"/></svg></span></div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+          <div class="m-popover c-float" style="--x: 203px; --y: 298px">
+            <div class="c-pop-head"><div><h5>Tác vụ</h5><p>Lưu theo cuộc trò chuyện, dùng cho tin nhắn tiếp theo.</p></div><span class="m-spacer"></span><span class="m-btn" data-tone="ghost" data-icon aria-label="Đóng cài đặt"><svg class="i-sm" aria-hidden="true"><use href="#i-x"/></svg></span></div>
+            <div class="c-pop-body">
+              <div style="padding: var(--vzn-space-2) 0">
+                <div class="c-opt"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>Chat</div>
+                <div class="c-opt" aria-selected="true"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg>Dịch<span class="m-spacer"></span><svg class="i-sm" aria-hidden="true"><use href="#i-check"/></svg></div>
+                <div class="c-opt"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg>Nghiên cứu</div>
+                <div class="c-opt"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg>Giải thích</div>
+                <div class="c-opt"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg>Viết lách</div>
+                <div class="c-opt" aria-disabled="true" title="Cần nhà cung cấp Gemini hoặc OpenAI"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg>Tạo ảnh<span class="m-spacer"></span><span class="m-muted">Cần Gemini hoặc OpenAI</span></div>
+              </div>
+              <div class="c-field"><span class="c-field-label">Ngôn ngữ đích</span><span class="c-select" data-open>Tiếng Nhật<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+              <div class="c-sec-label" style="border-top: var(--vzn-border-width) solid var(--vzn-divider)">Hướng dẫn gửi kèm</div>
+              <p class="c-instr">Dịch nội dung sau sang Tiếng Nhật. Giữ nguyên ý nghĩa, giọng điệu và định dạng; trả về bản dịch:</p>
+            </div>
+            <div class="c-pop-foot"><span class="m-btn" data-size="md" data-tone="ghost">Bỏ</span><span class="m-btn" data-size="md" data-tone="primary">Áp dụng</span></div>
+          </div>          <div class="c-menu" style="--x: 217px; --y: 673px; --pw: calc(var(--vzn-ai-configuration-inline) - var(--vzn-space-6))">
+            <div class="c-opt">Tiếng Anh</div>
+            <div class="c-opt">Tiếng Hàn</div>
+            <div class="c-opt" aria-selected="true">Tiếng Nhật<span class="m-spacer"></span><svg class="i-sm" aria-hidden="true"><use href="#i-check"/></svg></div>
+            <div class="c-opt">Tiếng Trung (Giản thể)</div>
+            <div class="c-opt">Tiếng Việt</div>
+          </div>
+          <span class="callout" style="--x: 600px; --y: 663px">5</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="scenario" id="research">
+    <div class="scenario-copy">
+      <h2>Nghiên cứu chuyên sâu đang chạy</h2>
+      <p>Tác vụ Nghiên cứu · Chuyên sâu chạy pipeline 6 pha. Bảng nằm ngay dưới tin người dùng, mở trong lúc chạy và tự gập thành "Đã suy nghĩ · N bước" khi xong.</p>
+      <ol><li><span class="ref">1</span>Đầu bảng <code>sm · neutral · ghost</code>, <code>aria-expanded</code>: "Nghiên cứu chuyên sâu · bước 3 / 6" + spinner.</li><li><span class="ref">2</span><code>ProgressSteps</code>: đã xong (✓ xanh lá), đang chạy (spinner, chữ nhấn, <code>aria-current=step</code>), chưa chạy (vòng rỗng).</li><li><span class="ref">3</span>Khảo sát / Đào sâu ghi số khía cạnh.</li><li><span class="ref">4</span>Nút ⓘ mỗi pha: hover xem tạm, click ghim popover chi tiết.</li><li><span class="ref">5</span>Sidebar: hàng đang mở ghi tác vụ. Lưu ý: bản dựng hiện tại đã ghi "Chuyên sâu · đang dừng" ngay khi đang chạy vì snapshot được lưu sau mỗi pha (xem Chênh lệch).</li><li><span class="ref">6</span>Nguồn web ẩn (nghiên cứu luôn tự tìm); Dừng là cách duy nhất để ngắt.</li></ol>
+      
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1000 × 760 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1000px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><aside class="c-history">
+              <div class="c-history-head"><span class="c-search"><svg class="i-sm" aria-hidden="true"><use href="#i-search"/></svg>Tìm cuộc trò chuyện…</span></div>
+              <div class="c-history-list"><div class="c-group">Hôm nay</div><div class="c-item"><span class="c-item-title">So sánh model local cho dịch</span><span class="c-item-meta">Nghiên cứu · Tổng quan nhanh</span></div><div class="c-item"><span class="c-item-title">Thư xin nghỉ phép tuần sau</span><span class="c-item-meta">Viết lách · Email</span></div><div class="c-item" aria-current="true"><span class="c-item-title">Thị trường pin thể rắn 2026</span><span class="c-item-meta">Nghiên cứu · Chuyên sâu</span></div><div class="c-group">Tuần này</div><div class="c-item"><span class="c-item-title">Dịch hợp đồng thuê nhà</span><span class="c-item-meta">Dịch · Tiếng Nhật</span></div><div class="c-item"><span class="c-item-title">Giải thích container query</span><span class="c-item-meta">Giải thích · Từng bước</span></div></div>
+            </aside><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>Thị trường pin thể rắn 2026</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Claude ·<span class="m-mono">claude-sonnet-4-5</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-scroll"><div class="c-stage">
+                <div class="c-user-wrap"><div class="c-user">Tình hình thương mại hoá pin thể rắn năm 2026?</div></div>
+                <section class="c-panel">
+                  <div class="c-panel-head"><span><svg class="i-sm" aria-hidden="true"><use href="#i-spark"/></svg>Nghiên cứu chuyên sâu · bước 3 / 6</span><svg class="i-sm" aria-hidden="true"><use href="#i-spin"/></svg></div>
+                  <ol class="c-steps">
+                    <li data-status="done"><span class="c-mark"><svg class="i-sm" aria-hidden="true"><use href="#i-check"/></svg></span>Phân tích</li>
+                    <li data-status="done"><span class="c-mark"><svg class="i-sm" aria-hidden="true"><use href="#i-check"/></svg></span>Khảo sát<span class="c-detail">4 khía cạnh</span></li>
+                    <li data-status="active"><span class="c-mark"><svg class="i-sm" aria-hidden="true"><use href="#i-spin"/></svg></span>Rà khoảng trống</li>
+                    <li><span class="c-mark"></span>Đào sâu</li>
+                    <li><span class="c-mark"></span>Đối chiếu</li>
+                    <li><span class="c-mark"></span>Tổng hợp</li>
+                  </ol>
+                  <ul class="c-pills">
+                    <li><svg class="i-sm" aria-hidden="true"><use href="#i-spark"/></svg>Phân tích<span class="m-spacer"></span><span class="c-act"><svg class="i-sm" aria-hidden="true"><use href="#i-info"/></svg></span><svg class="i-sm" aria-hidden="true"><use href="#i-check"/></svg></li>
+                    <li><svg class="i-sm" aria-hidden="true"><use href="#i-bulb"/></svg>Khảo sát · 4 khía cạnh<span class="m-spacer"></span><span class="c-act"><svg class="i-sm" aria-hidden="true"><use href="#i-info"/></svg></span><svg class="i-sm" aria-hidden="true"><use href="#i-check"/></svg></li>
+                    <li><svg class="i-sm" aria-hidden="true"><use href="#i-info"/></svg>Rà khoảng trống<span class="m-spacer"></span><span class="c-act"><svg class="i-sm" aria-hidden="true"><use href="#i-info"/></svg></span><svg class="i-sm" aria-hidden="true"><use href="#i-spin"/></svg></li>
+                  </ul>
+                </section>
+              </div></div>
+              <div class="c-footer"><div class="c-composer">
+                  
+                  <div class="c-input" data-disabled>Hỏi bất kỳ điều gì…</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg>Tác vụ: Nghiên cứu · Chuyên sâu<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="danger" aria-label="Dừng"><svg class="i" aria-hidden="true"><use href="#i-stop"/></svg></span></div>
+                  </div>
+                </div></div>
+            </main>
+          </div>
+          
+          <span class="callout" style="--x: 672px; --y: 189px">1</span><span class="callout" style="--x: 672px; --y: 285px">2</span><span class="callout" style="--x: 948px; --y: 259px">3</span><span class="callout" style="--x: 930px; --y: 404px">4</span><span class="callout" style="--x: 322px; --y: 241px">5</span><span class="callout" style="--x: 956px; --y: 686px">6</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="scenario" id="paused">
+    <div class="scenario-copy">
+      <h2>Nghiên cứu đang dừng và tiếp tục (chế độ tối)</h2>
+      <p>Sau khi bấm Dừng, snapshot pha đã xong được lưu (kể cả khi đóng app). Bảng chuyển sang chờ người dùng với lý do và nút Tiếp tục. Nút chỉ hiện khi bảng ở cuối cuộc trò chuyện, tác vụ vẫn là Nghiên cứu · Chuyên sâu, ô soạn trống và không có ảnh.</p>
+      <ol><li><span class="ref">1</span>Sidebar ghi "Chuyên sâu · đang dừng" bằng <code>--vzn-warning</code>; nhãn trợ năng của hàng thêm "Tiếp tục nghiên cứu".</li><li><span class="ref">2</span>Pha đang dở không còn spinner; các pha đã xong giữ ✓.</li><li><span class="ref">3</span>Dòng lý do <code>role=status</code>: "Đã dừng ở bước 3. Các bước đã xong được giữ lại."</li><li><span class="ref">4</span>Tiếp tục <code>sm · primary · solid</code>: chạy từ pha kế tiếp với provider/model lúc bắt đầu.</li><li><span class="ref">5</span>Khi bước cuối lỗi (không có snapshot): "Thử lại bước {n}" <code>sm · neutral · outline</code>. Hiện tại nút này chạy lại toàn bộ (xem Chênh lệch).</li><li><span class="ref">6</span>Ô soạn trống: điều kiện để nút Tiếp tục hiện.</li></ol>
+      
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1000 × 640 · tối</p>
+        <div class="frame" data-theme="graphite" data-mode="dark" style="--w: 1000px; --h: 640px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><aside class="c-history">
+              <div class="c-history-head"><span class="c-search"><svg class="i-sm" aria-hidden="true"><use href="#i-search"/></svg>Tìm cuộc trò chuyện…</span></div>
+              <div class="c-history-list"><div class="c-group">Hôm nay</div><div class="c-item"><span class="c-item-title">So sánh model local cho dịch</span><span class="c-item-meta">Nghiên cứu · Tổng quan nhanh</span></div><div class="c-item"><span class="c-item-title">Thư xin nghỉ phép tuần sau</span><span class="c-item-meta">Viết lách · Email</span></div><div class="c-item" aria-current="true"><span class="c-item-title">Thị trường pin thể rắn 2026</span><span class="c-item-meta" data-pending>Chuyên sâu · đang dừng</span></div><div class="c-group">Tuần này</div><div class="c-item"><span class="c-item-title">Dịch hợp đồng thuê nhà</span><span class="c-item-meta">Dịch · Tiếng Nhật</span></div><div class="c-item"><span class="c-item-title">Giải thích container query</span><span class="c-item-meta">Giải thích · Từng bước</span></div><div class="c-group">Trước đó</div><div class="c-item"><span class="c-item-title">Lên ý tưởng logo</span><span class="c-item-meta">12/10/2026</span></div></div>
+            </aside><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>Thị trường pin thể rắn 2026</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Claude ·<span class="m-mono">claude-sonnet-4-5</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-scroll"><div class="c-stage">
+                <div class="c-user-wrap"><div class="c-user">Tình hình thương mại hoá pin thể rắn năm 2026?</div></div>
+                <section class="c-panel">
+                  <div class="c-panel-head"><span><svg class="i-sm" aria-hidden="true"><use href="#i-bulb"/></svg>Nghiên cứu chuyên sâu · bước 3 / 6</span><svg class="i-sm" aria-hidden="true"><use href="#i-chevr"/></svg></div>
+                  <ol class="c-steps">
+                    <li data-status="done"><span class="c-mark"><svg class="i-sm" aria-hidden="true"><use href="#i-check"/></svg></span>Phân tích</li>
+                    <li data-status="done"><span class="c-mark"><svg class="i-sm" aria-hidden="true"><use href="#i-check"/></svg></span>Khảo sát<span class="c-detail">4 khía cạnh</span></li>
+                    <li data-status="active"><span class="c-mark"></span>Rà khoảng trống<span class="c-detail">đã dừng</span></li>
+                    <li><span class="c-mark"></span>Đào sâu</li>
+                    <li><span class="c-mark"></span>Đối chiếu</li>
+                    <li><span class="c-mark"></span>Tổng hợp</li>
+                  </ol>
+                  <div class="c-recovery"><span>Đã dừng ở bước 3. Các bước đã xong được giữ lại.</span><span class="m-btn" data-tone="primary">Tiếp tục</span></div>
+                </section>
+              </div></div>
+              <div class="c-footer"><div class="c-composer">
+                  
+                  <div class="c-input">Hỏi bất kỳ điều gì…</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg>Tác vụ: Nghiên cứu · Chuyên sâu<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi"><svg class="i" aria-hidden="true"><use href="#i-send"/></svg></span></div>
+                  </div>
+                </div></div>
+            </main>
+          </div>
+          
+          <span class="callout" style="--x: 290px; --y: 270px">1</span><span class="callout" style="--x: 672px; --y: 285px">2</span><span class="callout" style="--x: 654px; --y: 416px">3</span><span class="callout" style="--x: 948px; --y: 408px">4</span><span class="callout" style="--x: 672px; --y: 496px">6</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">700 × 520 · tối · bước lỗi</p>
+        <div class="frame" data-theme="graphite" data-mode="dark" style="--w: 700px; --h: 520px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>Thị trường pin thể rắn 2026</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Claude ·<span class="m-mono">claude-sonnet-4-5</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-scroll"><div class="c-stage">
+                <section class="c-panel">
+                  <div class="c-panel-head"><span><svg class="i-sm" aria-hidden="true"><use href="#i-bulb"/></svg>Nghiên cứu chuyên sâu · bước 4 / 6</span><svg class="i-sm" aria-hidden="true"><use href="#i-chevr"/></svg></div>
+                  <ol class="c-steps">
+                    <li data-status="done"><span class="c-mark"><svg class="i-sm" aria-hidden="true"><use href="#i-check"/></svg></span>Rà khoảng trống</li>
+                    <li data-status="error"><span class="c-mark"><svg class="i-sm" aria-hidden="true"><use href="#i-alert"/></svg></span>Đào sâu</li>
+                    <li><span class="c-mark"></span>Đối chiếu</li>
+                  </ol>
+                  <div class="c-recovery"><span>Bước 4 gặp lỗi. Các bước đã xong được giữ lại.</span><span class="m-btn">Thử lại bước 4</span></div>
+                </section>
+              </div></div>
+              <div class="c-footer"><div class="c-composer">
+                  
+                  <div class="c-input">Hỏi bất kỳ điều gì…</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg>Tác vụ: Nghiên cứu · Chuyên sâu<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi"><svg class="i" aria-hidden="true"><use href="#i-send"/></svg></span></div>
+                  </div>
+                </div></div>
+            </main>
+          </div>
+          
+          <span class="callout" style="--x: 648px; --y: 253px">5</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="scenario" id="image">
+    <div class="scenario-copy">
+      <h2>Tạo ảnh: kết quả trong cuộc trò chuyện</h2>
+      <p>Tác vụ Tạo ảnh chỉ bật với Gemini hoặc OpenAI. AI viết lại yêu cầu thành prompt chi tiết, tạo ảnh, rồi hiện ảnh kèm prompt đã dùng. Bấm ảnh để mở lightbox (Sao chép, Tải xuống, Đóng).</p>
+      <ol><li><span class="ref">1</span>Ảnh là nút "Mở ảnh"; ảnh được lưu vào kho ảnh của phiên để còn khi mở lại.</li><li><span class="ref">2</span>Chú thích "Ảnh đã tạo" + prompt trong ngoặc kép khi prompt được viết lại.</li><li><span class="ref">3</span>Tải ảnh xuống <code>xs · neutral · ghost</code>.</li><li><span class="ref">4</span>"Sửa ảnh này" <code>xs · neutral · ghost</code> có chữ: giữ tác vụ Tạo ảnh, lời nhắc tiếp theo chỉnh ảnh mới nhất.</li><li><span class="ref">5</span>Placeholder đổi theo tác vụ; Gửi tắt khi chưa có chữ.</li></ol>
+      
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1000 × 720 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1000px; --h: 720px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><aside class="c-history">
+              <div class="c-history-head"><span class="c-search"><svg class="i-sm" aria-hidden="true"><use href="#i-search"/></svg>Tìm cuộc trò chuyện…</span></div>
+              <div class="c-history-list"><div class="c-group">Hôm nay</div><div class="c-item" aria-current="true"><span class="c-item-title">Minh hoạ trạm sạc xe điện</span><span class="c-item-meta">Tạo ảnh</span></div><div class="c-item"><span class="c-item-title">So sánh model local cho dịch</span><span class="c-item-meta">Nghiên cứu · Tổng quan nhanh</span></div></div>
+            </aside><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>Minh hoạ trạm sạc xe điện</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Gemini ·<span class="m-mono">gemini-2.5-flash-image</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-scroll"><div class="c-stage">
+                <div class="c-user-wrap"><div class="c-user">Vẽ trạm sạc xe điện ven biển lúc hoàng hôn, phong cách phẳng</div></div>
+                <div class="c-answer">
+                  <div class="c-img">[ảnh đã tạo]</div>
+                  <p class="m-muted">Ảnh đã tạo<br>“Flat illustration of a seaside EV charging station at sunset, warm palette…”</p>
+                  <div class="c-actions"><span>10:24</span><span class="m-tag">≈ 210 đ</span><span class="c-act" aria-label="Sao chép"><svg class="i-sm" aria-hidden="true"><use href="#i-copy"/></svg></span><span class="c-act" aria-label="Tải ảnh xuống"><svg class="i-sm" aria-hidden="true"><use href="#i-download"/></svg></span><span class="c-act-text"><svg class="i-sm" aria-hidden="true"><use href="#i-pencil"/></svg>Sửa ảnh này</span><span class="c-act" aria-label="Phản hồi tốt"><svg class="i-sm" aria-hidden="true"><use href="#i-up"/></svg></span><span class="c-act" aria-label="Phản hồi chưa tốt"><svg class="i-sm" aria-hidden="true"><use href="#i-down"/></svg></span><span class="c-act" data-tone="primary" aria-label="Tạo lại phản hồi"><svg class="i-sm" aria-hidden="true"><use href="#i-refresh"/></svg></span></div>
+                </div>
+              </div></div>
+              <div class="c-footer"><div class="c-composer">
+                  
+                  <div class="c-input">Tạo ảnh từ văn bản, hoặc sửa ảnh đính kèm bằng AI</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg>Tác vụ: Tạo ảnh<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi"><svg class="i" aria-hidden="true"><use href="#i-send"/></svg></span></div>
+                  </div>
+                </div></div>
+            </main>
+          </div>
+          
+          <span class="callout" style="--x: 645px; --y: 184px">1</span><span class="callout" style="--x: 672px; --y: 438px">2</span><span class="callout" style="--x: 506px; --y: 488px">3</span><span class="callout" style="--x: 613px; --y: 488px">4</span><span class="callout" style="--x: 672px; --y: 576px">5</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="scenario" id="attachment">
+    <div class="scenario-copy">
+      <h2>Đính kèm ảnh</h2>
+      <p>Ba cách thêm ảnh: menu "+", dán vào ô nhập, hoặc kéo thả vào bất cứ đâu trên trang. Ảnh > 25 MB hoặc tệp không phải ảnh bị từ chối bằng toast. Chỉ nhận ảnh dù nhãn menu ghi "ảnh và tệp".</p>
+      <ol><li><span class="ref">1</span>Thumbnail 48 px trên ô nhập, nút X "Xóa ảnh".</li><li><span class="ref">2</span>Gợi ý <code>role=status</code> khi model không đọc (hoặc có thể không đọc) được ảnh. Hiện tại vẫn gửi được.</li><li><span class="ref">3</span>"+" <code>md</code> khi mở: <code>primary · soft</code>, <code>aria-expanded</code>; menu một mục "Thêm ảnh và tệp" mở hộp chọn <code>image/*</code>.</li><li><span class="ref">4</span>Khi kéo tệp qua trang: lớp <code>DragOverlay</code> + ô soạn đổi nền (<code>chat-composer-drop</code>).</li><li><span class="ref">5</span>Gửi được khi chỉ có ảnh (trừ tác vụ Tạo ảnh).</li></ol>
+      
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">700 × 520 · có ảnh</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 700px; --h: 520px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>Đọc hoá đơn tiền điện</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Local ·<span class="m-mono">qwen3:4b</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-scroll"><div class="c-stage">
+                <div class="c-user-wrap"><div class="c-user">Tóm tắt giúp tôi các khoản trong hoá đơn này</div></div>
+              </div></div>
+              <div class="c-footer"><div class="c-composer">
+                  <div class="c-thumb"><span class="c-thumb-x"><svg class="i-sm" aria-hidden="true"><use href="#i-x"/></svg></span></div><p class="c-hint">Model local này có thể không đọc được ảnh. Các model như Gemma 3 hay Qwen-VL thì đọc được.</p>
+                  <div class="c-input" data-filled>Khoản nào tăng nhiều nhất so với tháng trước?</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Nguồn web" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>Tác vụ: Chat<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="primary" aria-label="Gửi"><svg class="i" aria-hidden="true"><use href="#i-send"/></svg></span></div>
+                  </div>
+                </div></div>
+            </main>
+          </div>
+          
+          <span class="callout" style="--x: 153px; --y: 321px">1</span><span class="callout" style="--x: 390px; --y: 371px">2</span><span class="callout" style="--x: 656px; --y: 446px">5</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">700 × 520 · menu +</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 700px; --h: 520px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>AI Chat</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Local ·<span class="m-mono">qwen3:4b</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-empty">
+                <div class="c-hero"><h4>Chúng ta nên bắt đầu từ đâu?</h4></div>
+                <div class="c-composer">
+                  
+                  <div class="c-input">Hỏi bất kỳ điều gì…</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="soft" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Nguồn web" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>Tác vụ: Chat<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi"><svg class="i" aria-hidden="true"><use href="#i-send"/></svg></span></div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+          <div class="m-popover c-float" style="--x: 111px; --y: 290px; --pw: calc(var(--vzn-space-12) * 5)">
+            <div class="c-opt" style="margin: var(--vzn-space-1)"><svg class="i" aria-hidden="true"><use href="#i-clip"/></svg>Thêm ảnh và tệp</div>
+          </div>
+          <span class="callout" style="--x: 341px; --y: 280px">3</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">700 × 520 · đang kéo thả</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 700px; --h: 520px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>AI Chat</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Local ·<span class="m-mono">qwen3:4b</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-empty">
+                <div class="c-hero"><h4>Chúng ta nên bắt đầu từ đâu?</h4></div>
+                <div class="c-composer" data-drop>
+                  
+                  <div class="c-input">Hỏi bất kỳ điều gì…</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Nguồn web" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>Tác vụ: Chat<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi"><svg class="i" aria-hidden="true"><use href="#i-send"/></svg></span></div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+          <div class="c-drop" style="inset: calc(var(--vzn-titlebar-height) + var(--vzn-page-header-min-height)) 0 0 var(--vzn-sidebar-width)">Đính kèm ảnh</div>
+          <span class="callout" style="--x: 381px; --y: 87px">4</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="scenario" id="error">
+    <div class="scenario-copy">
+      <h2>Thiếu khoá và lỗi nhà cung cấp</h2>
+      <p>Thiếu khoá: trạng thái trống thêm một dòng giải thích và nút dẫn tới Cài đặt; chip model chấm vàng; nút Tác vụ ẩn; Gửi tắt. Lỗi trả lời: hiện ngay chỗ câu trả lời, nêu nguyên nhân bằng lời thường và cách sửa.</p>
+      <ol><li><span class="ref">1</span>Chip model chấm <code>--vzn-warning</code> khi provider chưa có khoá.</li><li><span class="ref">2</span>"Mở Cài đặt" <code>sm · primary · solid</code>.</li><li><span class="ref">3</span>Nút Tác vụ ẩn khi thiếu khoá; Gửi tắt.</li><li><span class="ref">4</span><code>RecoverableError</code> <code>role=alert</code>: mất mạng, quá thời gian, khoá sai, vượt giới hạn, bị chặn an toàn/bản quyền, model từ chối, phản hồi rỗng. Nút X <code>sm · danger · ghost</code>.</li><li><span class="ref">5</span>Thử lại <code>sm · neutral · outline</code> (dùng lại cấu hình của tin) · Đổi model hoặc khoá <code>sm · neutral · ghost</code> mở Cài đặt › Khoá API.</li><li><span class="ref">6</span>Toast cảnh báo tìm web (10 giây, khoá chủ riêng) với "Mở Cài đặt".</li></ol>
+      
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">700 × 560 · thiếu khoá</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 700px; --h: 560px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>AI Chat</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="warning"></span>Claude ·<span class="m-mono">claude-sonnet-4-5</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-empty">
+                <div class="c-hero"><span class="c-logo">V</span><h4>Chúng ta nên bắt đầu từ đâu?</h4>
+                  <p class="m-muted">Chưa có API key. Vào Cài đặt để thêm.</p><span class="m-btn" data-tone="primary">Mở Cài đặt</span></div>
+                <div class="c-composer">
+                  
+                  <div class="c-input">Hỏi bất kỳ điều gì…</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Nguồn web" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi"><svg class="i" aria-hidden="true"><use href="#i-send"/></svg></span></div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+          
+          <span class="callout" style="--x: 631px; --y: 43px">1</span><span class="callout" style="--x: 424px; --y: 302px">2</span><span class="callout" style="--x: 179px; --y: 431px">3</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">700 × 560 · lỗi giới hạn yêu cầu</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 700px; --h: 560px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>Dịch hợp đồng thuê nhà</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Claude ·<span class="m-mono">claude-sonnet-4-5</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-scroll"><div class="c-stage">
+                <div class="c-user-wrap"><div class="c-user">Dịch điều khoản 4 sang tiếng Nhật</div></div>
+                <div class="c-answer" style="font-family: var(--vzn-font-sans); font-size: var(--vzn-font-size-md)">
+                  <div class="c-error"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg><span style="flex:1">Đã vượt giới hạn yêu cầu. Vui lòng chờ rồi thử lại.</span><span class="c-act" style="color: var(--vzn-danger)"><svg class="i-sm" aria-hidden="true"><use href="#i-x"/></svg></span></div>
+                  <div class="c-row"><span class="m-btn">Thử lại</span><span class="m-btn" data-tone="ghost">Đổi model hoặc khoá</span></div>
+                  <div class="c-actions"><span>10:41</span></div>
+                </div>
+              </div></div>
+              <div class="c-footer"><div class="c-composer">
+                  
+                  <div class="c-input">Hỏi bất kỳ điều gì…</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg>Tác vụ: Dịch · Tiếng Nhật<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi"><svg class="i" aria-hidden="true"><use href="#i-send"/></svg></span></div>
+                  </div>
+                </div></div>
+            </main>
+          </div>
+          <div class="m-toast c-toast-pos" style="--y: 104px"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg><div><div class="m-strong">Tìm kiếm web đã chuyển sang bản miễn phí</div><div class="m-muted">Khoá Tavily bị từ chối…</div></div><span class="m-btn" data-size="xs">Mở Cài đặt</span></div>
+          <span class="callout" style="--x: 390px; --y: 184px">4</span><span class="callout" style="--x: 390px; --y: 250px">5</span><span class="callout" style="--x: 479px; --y: 95px">6</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="scenario" id="history">
+    <div class="scenario-copy">
+      <h2>Lịch sử: tìm, xoá, trống</h2>
+      <p>Sidebar lịch sử là organism riêng (<code>AIChatSidebar</code>), khác thanh điều hướng chính. Danh sách xếp mới nhất trước, chia ba nhóm theo ngày cập nhật.</p>
+      <ol><li><span class="ref">1</span>Ô tìm khi focus: viền <code>--vzn-border-strong</code>, nền <code>--vzn-surface</code>; lọc tức thì, nhóm rỗng bị ẩn.</li><li><span class="ref">2</span>Nút xoá <code>xs · danger · ghost</code> chỉ hiện khi hover/focus hàng; <code>aria-label</code> "Xóa: &lt;tên, provider, model, thời gian, số tin&gt;". Xoá ngay, không xác nhận (đề xuất: toast Hoàn tác).</li><li><span class="ref">3</span>Không có kết quả: "Không tìm thấy cuộc trò chuyện".</li><li><span class="ref">4</span>Chưa có phiên nào: "Chưa có cuộc trò chuyện".</li></ol>
+      
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">264 · tìm "dịch" + hover</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 266px; --h: 420px">
+          <div class="m-body"><aside class="c-history">
+              <div class="c-history-head"><span class="c-search" data-focus><svg class="i-sm" aria-hidden="true"><use href="#i-search"/></svg>dịch</span></div>
+              <div class="c-history-list"><div class="c-group">Hôm nay</div><div class="c-item"><span class="c-item-title">So sánh model local cho dịch</span><span class="c-item-meta">Nghiên cứu · Tổng quan nhanh</span></div><div class="c-group">Tuần này</div><div class="c-item" data-hover><span class="c-item-title">Dịch hợp đồng thuê nhà</span><span class="c-item-meta">Dịch · Tiếng Nhật</span><span class="c-item-del"><svg class="i-sm" aria-hidden="true"><use href="#i-trash"/></svg></span></div></div>
+            </aside></div>
+          <span class="callout" style="--x: 241px; --y: 2px">1</span><span class="callout" style="--x: 239px; --y: 184px">2</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">264 · không có kết quả</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 266px; --h: 420px">
+          <div class="m-body"><aside class="c-history">
+              <div class="c-history-head"><span class="c-search" data-focus><svg class="i-sm" aria-hidden="true"><use href="#i-search"/></svg>pin mặt trời</span></div>
+              <div class="c-history-list"><p class="c-empty-list">Không tìm thấy cuộc trò chuyện</p></div>
+            </aside></div>
+          <span class="callout" style="--x: 244px; --y: 68px">3</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">264 · lịch sử trống</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 266px; --h: 420px">
+          <div class="m-body"><aside class="c-history">
+              <div class="c-history-head"><span class="c-search"><svg class="i-sm" aria-hidden="true"><use href="#i-search"/></svg>Tìm cuộc trò chuyện…</span></div>
+              <div class="c-history-list"><p class="c-empty-list">Chưa có cuộc trò chuyện</p></div>
+            </aside></div>
+          <span class="callout" style="--x: 244px; --y: 68px">4</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="scenario" id="narrow">
+    <div class="scenario-copy">
+      <h2>Cửa sổ hẹp (820 px)</h2>
+      <p>Dưới 900 px cửa sổ: điều hướng chính là rail 60 px, lịch sử chat ẩn mặc định (không ghi đè lựa chọn đã lưu). Nút lịch sử mở lớp phủ tạm dưới header; hai lớp phủ loại trừ nhau. Vùng chính &lt; 760 px nên cột tin, cột đọc và ô soạn chiếm 100% với lề 12 px.</p>
+      <ol><li><span class="ref">1</span>Rail 60 px; mục AI Chat đang chọn.</li><li><span class="ref">2</span>Nút lịch sử ở header: mở lớp phủ, <code>aria-expanded=true</code>; mở nó thì đóng lớp phủ điều hướng chính.</li><li><span class="ref">3</span>Lớp phủ <code>--vzn-overlay-material</code> + <code>--vzn-shadow-lg</code>, đỉnh ngay dưới header; focus vào ô tìm.</li><li><span class="ref">4</span>Esc đóng và trả focus về nút lịch sử; click ngoài (trừ header) hoặc chọn một hàng cũng đóng.</li><li><span class="ref">5</span>Ô soạn và bong bóng chiếm bề rộng (bong bóng người dùng tối đa 88%). Dưới 480 px vùng chính, thanh công cụ ô soạn xếp hai hàng.</li></ol>
+      
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">820 × 640 · lịch sử đóng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 820px; --h: 640px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>So sánh model local cho dịch</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Local ·<span class="m-mono">qwen3:4b</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-scroll"><div class="c-stage" style="padding-inline: var(--vzn-space-3)">
+                <div class="c-user-wrap"><div class="c-user" style="max-inline-size: 88%">Model local nào hợp nhất để dịch Anh – Nhật trên máy 16 GB RAM?</div></div>
+                <div class="c-answer"><p>Qwen3 4B là lựa chọn cân bằng nhất cho máy 16 GB…</p><div class="c-actions"><span>10:24</span><span class="m-tag">≈ 210 đ</span><span class="c-act" aria-label="Sao chép"><svg class="i-sm" aria-hidden="true"><use href="#i-copy"/></svg></span><span class="c-act" aria-label="Phản hồi tốt"><svg class="i-sm" aria-hidden="true"><use href="#i-up"/></svg></span><span class="c-act" aria-label="Phản hồi chưa tốt"><svg class="i-sm" aria-hidden="true"><use href="#i-down"/></svg></span><span class="c-act" data-tone="primary" aria-label="Tạo lại phản hồi"><svg class="i-sm" aria-hidden="true"><use href="#i-refresh"/></svg></span></div></div>
+              </div></div>
+              <div class="c-footer" style="padding-inline: var(--vzn-space-3)"><div class="c-composer">
+                  
+                  <div class="c-input">Hỏi bất kỳ điều gì…</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Nguồn web" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>Tác vụ: Chat<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi"><svg class="i" aria-hidden="true"><use href="#i-send"/></svg></span></div>
+                  </div>
+                </div></div>
+            </main>
+          </div>
+          
+          <span class="callout" style="--x: 43px; --y: 142px">1</span><span class="callout" style="--x: 450px; --y: 495px">5</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">820 × 640 · lớp phủ lịch sử mở</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 820px; --h: 640px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></div>
+              <div class="c-rail-item" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-translate"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></div>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-bulb"/></svg></div>
+              <span class="m-spacer"></span>
+              <div class="c-rail-item"><svg class="i" aria-hidden="true"><use href="#i-gear"/></svg></div>
+            </nav><main class="m-main c-main">
+              <div class="c-header">
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Ẩn lịch sử trò chuyện"><svg class="i" aria-hidden="true"><use href="#i-panel"/></svg></span>
+                <h3>So sánh model local cho dịch</h3>
+                <span class="m-btn c-chip"><span class="m-dot" data-tone="ok"></span>Local ·<span class="m-mono">qwen3:4b</span><svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span>
+                <span class="m-btn" data-tone="ghost" data-icon aria-label="Chat Mới (⌘N)"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="c-scroll"><div class="c-stage" style="padding-inline: var(--vzn-space-3)">
+                <div class="c-user-wrap"><div class="c-user" style="max-inline-size: 88%">Model local nào hợp nhất để dịch Anh – Nhật trên máy 16 GB RAM?</div></div>
+                <div class="c-answer"><p>Qwen3 4B là lựa chọn cân bằng nhất cho máy 16 GB…</p></div>
+              </div></div>
+              <div class="c-footer" style="padding-inline: var(--vzn-space-3)"><div class="c-composer">
+                  
+                  <div class="c-input">Hỏi bất kỳ điều gì…</div>
+                  <div class="c-toolbar">
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đính kèm ảnh"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg></span><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Nguồn web" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-globe"/></svg></span><span class="m-btn" data-size="md"><svg class="i" aria-hidden="true"><use href="#i-chat"/></svg>Tác vụ: Chat<svg class="i-sm" aria-hidden="true"><use href="#i-chev"/></svg></span></div>
+                    <div class="c-tools"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Thu âm giọng nói"><svg class="i" aria-hidden="true"><use href="#i-mic"/></svg></span><span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi"><svg class="i" aria-hidden="true"><use href="#i-send"/></svg></span></div>
+                  </div>
+                </div></div>
+            </main>
+          </div>
+          <aside class="c-history" data-overlay>
+              <div class="c-history-head"><span class="c-search" data-focus><svg class="i-sm" aria-hidden="true"><use href="#i-search"/></svg>Tìm cuộc trò chuyện…</span></div>
+              <div class="c-history-list"><div class="c-group">Hôm nay</div><div class="c-item" aria-current="true"><span class="c-item-title">So sánh model local cho dịch</span><span class="c-item-meta">Nghiên cứu · Tổng quan nhanh</span></div><div class="c-item"><span class="c-item-title">Thư xin nghỉ phép tuần sau</span><span class="c-item-meta">Viết lách · Email</span></div><div class="c-item"><span class="c-item-title">Thị trường pin thể rắn 2026</span><span class="c-item-meta" data-pending>Chuyên sâu · đang dừng</span></div><div class="c-group">Tuần này</div><div class="c-item"><span class="c-item-title">Dịch hợp đồng thuê nhà</span><span class="c-item-meta">Dịch · Tiếng Nhật</span></div><div class="c-item"><span class="c-item-title">Giải thích container query</span><span class="c-item-meta">Giải thích · Từng bước</span></div><div class="c-group">Trước đó</div><div class="c-item"><span class="c-item-title">Lên ý tưởng logo</span><span class="c-item-meta">12/10/2026</span></div></div>
+            </aside>
+          <span class="callout" style="--x: 116px; --y: 43px">2</span><span class="callout" style="--x: 301px; --y: 98px">3</span><span class="callout" style="--x: 314px; --y: 400px">4</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>

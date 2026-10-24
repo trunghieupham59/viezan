@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ChatAIConfiguration } from '../../components/organisms/chat/ChatAIConfiguration'
 import { NotificationViewport } from '../../components/organisms/NotificationViewport'
 import { TRANSLATIONS } from '../../i18n'
 import { DEEP_RESEARCH_CANCELLED_ERROR, deepResearchService } from '../../services/deepResearchService'
@@ -24,6 +25,34 @@ vi.mock('../../utils/imageUtils', async (importOriginal) => {
     }),
   }
 })
+
+// ── Task popover: choose, then Apply (nothing changes until Apply) ─────────────
+const TASK_T = TRANSLATIONS.en
+const taskTrigger = () => screen.getByRole('button', { name: new RegExp(`^${TASK_T.chat_task_configuration}:`) })
+const taskDialog = () => screen.queryByRole('dialog', { name: TASK_T.chat_task_configuration })
+function openTaskPopover(): HTMLElement {
+  if (!taskDialog()) fireEvent.click(taskTrigger())
+  return taskDialog() as HTMLElement
+}
+function pickTaskOption(dialog: HTMLElement, label: string, value: string) {
+  fireEvent.click(within(dialog).getByRole('button', { name: new RegExp(`^${label}`) }))
+  fireEvent.click(within(within(dialog).getByRole('listbox', { name: label })).getByRole('option', { name: value }))
+}
+/** Opens the popover if needed, picks a task (and optionally one of its options) and applies. */
+function applyTask(name: string, option?: { label: string; value: string }) {
+  const dialog = openTaskPopover()
+  fireEvent.click(within(dialog).getByRole('option', { name }))
+  if (option) pickTaskOption(dialog, option.label, option.value)
+  fireEvent.click(within(dialog).getByRole('button', { name: TASK_T.chat_task_apply }))
+}
+/** Changes the current task's option and applies. */
+function applyTaskOption(label: string, value: string) {
+  const dialog = openTaskPopover()
+  pickTaskOption(dialog, label, value)
+  fireEvent.click(within(dialog).getByRole('button', { name: TASK_T.chat_task_apply }))
+}
+/** The trigger names the applied task and option, e.g. "Task: Research · Overview". */
+const appliedTask = (title: string, option?: string) => screen.getByRole('button', { name: `${TASK_T.chat_task_configuration}: ${title}${option ? ` · ${option}` : ''}` })
 
 function mockStreamingChat() {
   let listener: ((event: ChatStreamEvent) => void) | null = null
@@ -221,9 +250,8 @@ describe('ChatPage', () => {
       const taskButton = composerQueries.getByRole('button', { name: `${TRANSLATIONS.en.chat_task_configuration}: ${TRANSLATIONS.en.chat_task_none}` })
       expect(taskButton).toHaveAttribute('aria-haspopup', 'dialog')
       expect(taskButton).toHaveAttribute('aria-expanded', 'false')
-      fireEvent.click(taskButton)
-      fireEvent.click(screen.getByRole('option', { name: TRANSLATIONS.en.chat_mode_chip_image }))
-      expect(composerQueries.getByRole('button', { name: `${TRANSLATIONS.en.chat_task_configuration}: ${TRANSLATIONS.en.chat_mode_chip_image}` })).toHaveAttribute('data-control-variant', 'primary')
+      applyTask(TRANSLATIONS.en.chat_mode_chip_image)
+      expect(composerQueries.getByRole('button', { name: `${TRANSLATIONS.en.chat_task_configuration}: ${TRANSLATIONS.en.chat_mode_chip_image}` })).toHaveTextContent(`${TRANSLATIONS.en.chat_task_configuration}: ${TRANSLATIONS.en.chat_mode_chip_image}`)
       expect(screen.queryByRole('menu', { name: TRANSLATIONS.en.chat_response_mode })).not.toBeInTheDocument()
       expect(composerQueries.getByRole('button', { name: TRANSLATIONS.en.chat_voice_record }))
         .toBeInTheDocument()
@@ -247,10 +275,7 @@ describe('ChatPage', () => {
   describe('unified task controls', () => {
     const t = TRANSLATIONS.en
     const trigger = () => screen.getByRole('button', { name: /^Task:/ })
-    const pick = (name: string) => {
-      fireEvent.click(trigger())
-      fireEvent.click(screen.getByRole('option', { name }))
-    }
+    const pick = (name: string) => applyTask(name)
     beforeEach(() => act(() => useAppStore.setState({ keyStatus: { gemini: true, claude: true, openai: true, local: true } })))
 
     it('has six tasks, no response-mode menu, and keyboard navigation returns focus', async () => {
@@ -275,6 +300,7 @@ describe('ChatPage', () => {
       if (provider === 'gemini' || provider === 'openai') {
         expect(item).toBeEnabled()
         fireEvent.click(item)
+        fireEvent.click(screen.getByRole('button', { name: t.chat_task_apply }))
         expect(screen.getByPlaceholderText(t.chat_image_mode_hint)).toBeInTheDocument()
         expect(screen.queryByRole('button', { name: t.chat_web_source })).not.toBeInTheDocument()
       } else {
@@ -299,10 +325,9 @@ describe('ChatPage', () => {
       render(<ChatPage />)
       fireEvent.click(screen.getByRole('button', { name: t.chat_web_source }))
       pick(t.chat_suggest_research)
-      expect(screen.getByRole('button', { name: `${t.chat_task_depth}: ${t.chat_task_overview}` })).toBeInTheDocument()
+      expect(appliedTask(t.chat_suggest_research, t.chat_task_overview)).toBeInTheDocument()
       expect(screen.getByRole('button', { name: t.chat_web_source })).toHaveAttribute('aria-pressed', 'true')
-      fireEvent.click(screen.getByRole('button', { name: `${t.chat_task_depth}: ${t.chat_task_overview}` }))
-      fireEvent.click(screen.getByRole('option', { name: t.chat_task_deep }))
+      applyTaskOption(t.chat_task_depth, t.chat_task_deep)
       expect(screen.queryByRole('button', { name: t.chat_web_source })).not.toBeInTheDocument()
       expect(useAppStore.getState().chatPendingDeepResearchMode).toBe(true)
       pick(t.chat_suggest_translate)
@@ -324,8 +349,7 @@ describe('ChatPage', () => {
       expect(screen.getByRole('textbox')).toHaveValue('B draft')
       expect(screen.getByRole('button', { name: t.chat_web_source })).toHaveAttribute('aria-pressed', 'true')
       act(() => useAppStore.getState().setActiveChatSession(a.id))
-      expect(trigger()).toHaveTextContent(t.chat_suggest_research)
-      expect(screen.getByRole('button', { name: `${t.chat_task_depth}: ${t.chat_task_overview}` })).toBeInTheDocument()
+      expect(appliedTask(t.chat_suggest_research, t.chat_task_overview)).toBeInTheDocument()
     })
 
     it('retries web requests with their original sources, provider, model and draft boundary', async () => {
@@ -359,8 +383,7 @@ describe('ChatPage', () => {
       try {
         render(<ChatPage />)
         pick(t.chat_suggest_research)
-        fireEvent.click(screen.getByRole('button', { name: `${t.chat_task_depth}: ${t.chat_task_overview}` }))
-        fireEvent.click(screen.getByRole('option', { name: t.chat_task_deep }))
+        applyTaskOption(t.chat_task_depth, t.chat_task_deep)
         fireEvent.click(screen.getByRole('button', { name: t.chat_send }))
         await waitFor(() => expect(screen.getByText('Research result')).toBeInTheDocument())
         const sessionId = useAppStore.getState().activeChatSessionId as string
@@ -393,18 +416,17 @@ describe('ChatPage', () => {
       try {
         render(<ChatPage />)
         pick(t.chat_suggest_research)
-        fireEvent.click(screen.getByRole('button', { name: `${t.chat_task_depth}: ${t.chat_task_overview}` }))
-        fireEvent.click(screen.getByRole('option', { name: t.chat_task_deep }))
+        applyTaskOption(t.chat_task_depth, t.chat_task_deep)
         fireEvent.click(screen.getByRole('button', { name: t.chat_send }))
         await waitFor(() => expect(run).toHaveBeenCalledTimes(1))
         if (outcome === 'cancelled') fireEvent.click(screen.getByRole('button', { name: t.chat_stop }))
-        await waitFor(() => expect(screen.getByRole('button', { name: t.chat_deep_research_retry })).toBeEnabled())
+        await waitFor(() => expect(screen.getByRole('button', { name: /Retry step \d/ })).toBeEnabled())
         const id = useAppStore.getState().activeChatSessionId as string
         act(() => { useAppStore.getState().setChatSessionModel(id, 'claude', 'changed-model'); useAppStore.getState().setActiveChatSession(id) })
         fireEvent.change(screen.getByRole('textbox'), { target: { value: 'New draft' } })
-        expect(screen.queryByRole('button', { name: t.chat_deep_research_retry })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: /Retry step \d/ })).not.toBeInTheDocument()
         fireEvent.change(screen.getByRole('textbox'), { target: { value: '' } })
-        fireEvent.click(screen.getByRole('button', { name: t.chat_deep_research_retry }))
+        fireEvent.click(screen.getByRole('button', { name: /Retry step \d/ }))
         await waitFor(() => expect(screen.getByText('Recovered research')).toBeInTheDocument())
         expect(run.mock.calls[1][0]).toMatchObject({ provider: 'gemini', model: 'gemini-2.0-flash', question: run.mock.calls[0][0].question })
         expect(useAppStore.getState().chatSessions[0].messages.filter(m => m.role === 'user')).toHaveLength(1)
@@ -435,24 +457,21 @@ describe('ChatPage', () => {
     })
   })
 
-  describe('immediate task configuration', () => {
+  describe('task configuration with Apply', () => {
     const t = TRANSLATIONS.en
-    const trigger = () => screen.getByRole('button', { name: new RegExp(`^${t.chat_task_configuration}:`) })
-    const choose = (task: 'translate' | 'research' | 'explain' | 'write') => {
-      fireEvent.click(trigger())
-      fireEvent.click(screen.getByRole('option', { name: t[`chat_suggest_${task}`] }))
-    }
+    const trigger = taskTrigger
+    const choose = (task: 'translate' | 'research' | 'explain' | 'write') => applyTask(t[`chat_suggest_${task}`])
     const sentText = () => vi.mocked(window.api.chatStream).mock.calls.slice(-1)[0]?.[0].messages.slice(-1)[0]?.content.map(item => item.text ?? '').join('') ?? ''
     beforeEach(() => act(() => useAppStore.setState({
       keyStatus: { gemini: true, claude: false, openai: false, local: false },
       chatPendingDraft: 'My original text',
     })))
 
-    it.each(['translate', 'explain', 'write'] as const)('uses %s immediately and closes before the response starts', async (task) => {
+    it.each(['translate', 'explain', 'write'] as const)('uses %s once applied and closes before the response starts', async (task) => {
       const stream = mockStreamingChat()
       render(<ChatPage />)
       choose(task)
-      expect(screen.queryByRole('button', { name: t.chat_task_apply })).not.toBeInTheDocument()
+      expect(taskDialog()).not.toBeInTheDocument()
       expect(screen.getByRole('textbox')).toHaveValue('My original text')
       expect(screen.getByRole('textbox')).toHaveAttribute('placeholder', t[`chat_task_${task}_placeholder`])
       expect(document.querySelector('.chat-starter-actions')).toBeNull()
@@ -478,17 +497,14 @@ describe('ChatPage', () => {
     it('sends the selected target language and snapshots it while subsequent choices change', async () => {
       const stream = mockStreamingChat()
       render(<ChatPage />)
-      choose('translate')
-      fireEvent.click(screen.getByRole('button', { name: `${t.chat_task_language}: ${t.lang_names.en}` }))
-      fireEvent.click(screen.getByRole('option', { name: t.lang_names.zh }))
+      applyTask(t.chat_suggest_translate, { label: t.chat_task_language, value: t.lang_names.zh })
       fireEvent.click(screen.getByRole('button', { name: t.chat_send }))
       await waitFor(() => expect(window.api.chatStream).toHaveBeenCalled())
       const expected = `${t.chat_task_translate_template.replace('{option}', t.lang_names.zh)}\n\n`
       expect(sentText()).toBe(`${expected}My original text`)
       const sessionId = useAppStore.getState().activeChatSessionId
-      fireEvent.click(trigger())
-      fireEvent.click(screen.getByRole('option', { name: t.chat_suggest_write }))
-      expect(screen.getByRole('button', { name: `${t.chat_task_format}: ${t.chat_task_email}` })).toBeInTheDocument()
+      applyTask(t.chat_suggest_write)
+      expect(appliedTask(t.chat_suggest_write, t.chat_task_email)).toBeInTheDocument()
       expect(useAppStore.getState().chatSessions[0].messages[0].taskInstruction).toBe(expected)
       fireEvent.click(trigger())
       stream.resolve({ success: true, reply: 'Chinese reply' })
@@ -504,17 +520,21 @@ describe('ChatPage', () => {
       next.resolve({ success: true, reply: 'Written reply' })
     })
 
-    it('offers searchable target languages directly beside the task control', () => {
+    it('keeps a choice as a draft until Apply, and shows the instruction it will send', () => {
       render(<ChatPage />)
-      choose('translate')
-      expect(screen.queryByRole('dialog', { name: t.chat_task_configuration })).not.toBeInTheDocument()
-      fireEvent.click(screen.getByRole('button', { name: `${t.chat_task_language}: ${t.lang_names.en}` }))
-      const dialog = screen.getByRole('dialog', { name: t.chat_task_language })
-      fireEvent.change(within(dialog).getByRole('searchbox'), { target: { value: 'Chinese' } })
-      expect(within(dialog).getAllByRole('option')).toHaveLength(2)
-      fireEvent.click(within(dialog).getByRole('option', { name: t.lang_names.zh }))
-      expect(screen.queryByRole('dialog', { name: t.chat_task_language })).not.toBeInTheDocument()
+      const dialog = openTaskPopover()
+      fireEvent.click(within(dialog).getByRole('option', { name: t.chat_suggest_translate }))
+      pickTaskOption(dialog, t.chat_task_language, t.lang_names.zh)
+      // Nothing is saved yet; the dialog previews the instruction that will travel with the message.
+      expect(useAppStore.getState().chatPendingTaskState?.selected ?? null).toBeNull()
+      expect(within(dialog).getByText(t.chat_task_translate_template.replace('{option}', t.lang_names.zh))).toBeInTheDocument()
+      fireEvent.click(within(dialog).getByRole('button', { name: t.chat_task_discard }))
+      expect(taskDialog()).not.toBeInTheDocument()
+      expect(appliedTask(t.chat_task_none)).toBeInTheDocument()
+
+      applyTask(t.chat_suggest_translate, { label: t.chat_task_language, value: t.lang_names.zh })
       expect(useAppStore.getState().chatPendingTaskState?.options[0]).toBe('zh')
+      expect(appliedTask(t.chat_suggest_translate, t.lang_names.zh)).toBeInTheDocument()
       expect(screen.getByRole('textbox')).toHaveValue('My original text')
     })
 
@@ -533,8 +553,7 @@ describe('ChatPage', () => {
       await waitFor(() => expect(screen.getByRole('button', { name: t.chat_send })).toBeInTheDocument())
       expect(trigger()).toHaveAttribute('aria-expanded', 'false')
       if (outcome === 'failure') expect(screen.getByText('Send failed')).toBeInTheDocument()
-      fireEvent.click(trigger())
-      fireEvent.click(screen.getByRole('option', { name: t.chat_suggest_write }))
+      applyTask(t.chat_suggest_write)
       const retry = mockStreamingChat()
       fireEvent.click(screen.getByTitle(/regenerate response/i))
       expect(trigger()).toHaveAttribute('aria-expanded', 'false')
@@ -561,11 +580,11 @@ describe('ChatPage', () => {
       expect(useAppStore.getState().chatSessions.find(session => session.id === b)?.taskState?.selected).toBe(2)
       expect(screen.getByRole('dialog', { name: t.chat_task_configuration })).toBeInTheDocument()
       act(() => useAppStore.getState().setActiveChatSession(a))
-      expect(screen.getByRole('button', { name: `${t.chat_task_format}: ${t.chat_task_email}` })).toBeInTheDocument()
+      expect(appliedTask(t.chat_suggest_write, t.chat_task_email)).toBeInTheDocument()
       expect(trigger()).toHaveAttribute('aria-expanded', 'false')
       view.unmount()
       render(<ChatPage />)
-      expect(screen.getByRole('button', { name: `${t.chat_task_format}: ${t.chat_task_email}` })).toBeInTheDocument()
+      expect(appliedTask(t.chat_suggest_write, t.chat_task_email)).toBeInTheDocument()
     })
 
     it.each(['research', 'overview'] as const)('routes research depth %s with the selected instruction', async (depth) => {
@@ -575,8 +594,7 @@ describe('ChatPage', () => {
         render(<ChatPage />)
         choose('research')
         if (depth === 'research') {
-          fireEvent.click(screen.getByRole('button', { name: `${t.chat_task_depth}: ${t.chat_task_overview}` }))
-          fireEvent.click(screen.getByRole('option', { name: t.chat_task_deep }))
+          applyTaskOption(t.chat_task_depth, t.chat_task_deep)
         }
         fireEvent.click(screen.getByRole('button', { name: t.chat_send }))
         const called = depth === 'research' ? deep : standard
@@ -596,34 +614,35 @@ describe('ChatPage', () => {
       expect(screen.getByRole('dialog', { name: t.chat_task_configuration })).toBeInTheDocument()
       const authored = `${t.chat_task_explain_template.replace('{option}', t.chat_task_simple)}\n\nMy own text`
       fireEvent.change(screen.getByRole('textbox'), { target: { value: authored } })
-      fireEvent.click(within(screen.getByRole('dialog', { name: t.chat_task_configuration })).getByRole('option', { name: t.chat_task_none }))
+      applyTask(t.chat_task_none)
       expect(screen.getByRole('textbox')).toHaveValue(authored)
       expect(useAppStore.getState().chatPendingTaskState?.selected).toBeNull()
       expect(window.api.chatStream).not.toHaveBeenCalled()
     })
 
-    it('dismisses with Escape and outside click without undoing choices', async () => {
+    it('discards an unapplied draft on Escape and outside click, keeping the applied task', async () => {
       render(<ChatPage />)
       choose('write')
-      fireEvent.click(trigger())
+      fireEvent.click(within(openTaskPopover()).getByRole('option', { name: t.chat_suggest_explain }))
       fireEvent.keyDown(document, { key: 'Escape' })
       expect(screen.queryByRole('dialog', { name: t.chat_task_configuration })).not.toBeInTheDocument()
       await waitFor(() => expect(trigger()).toHaveFocus())
-      fireEvent.click(trigger())
+      fireEvent.click(within(openTaskPopover()).getByRole('option', { name: t.chat_suggest_explain }))
       fireEvent.pointerDown(screen.getByRole('textbox'))
       expect(trigger()).toHaveAttribute('aria-expanded', 'false')
-      expect(screen.getByRole('button', { name: `${t.chat_task_format}: ${t.chat_task_email}` })).toBeInTheDocument()
+      expect(appliedTask(t.chat_suggest_write, t.chat_task_email)).toBeInTheDocument()
+      // Reopening starts from the applied task again.
+      expect(within(openTaskPopover()).getByRole('option', { name: t.chat_suggest_write })).toHaveAttribute('aria-selected', 'true')
     })
 
     it('restores current choices after unmount and locale change without changing the draft', () => {
       const view = render(<ChatPage />)
-      choose('explain')
-      fireEvent.click(screen.getByRole('button', { name: `${t.chat_task_level}: ${t.chat_task_simple}` }))
-      fireEvent.click(screen.getByRole('option', { name: t.chat_task_steps }))
+      applyTask(t.chat_suggest_explain, { label: t.chat_task_level, value: t.chat_task_steps })
       view.unmount()
       act(() => useAppStore.setState({ locale: 'vi' }))
       render(<ChatPage />)
-      expect(screen.getByRole('button', { name: `${TRANSLATIONS.vi.chat_task_level}: ${TRANSLATIONS.vi.chat_task_steps}` })).toBeInTheDocument()
+      const vi_ = TRANSLATIONS.vi
+      expect(screen.getByRole('button', { name: `${vi_.chat_task_configuration}: ${vi_.chat_suggest_explain} · ${vi_.chat_task_steps}` })).toBeInTheDocument()
       expect(screen.getByRole('textbox')).toHaveValue('My original text')
       expect(screen.queryByText(TRANSLATIONS.vi.chat_task_unapplied)).not.toBeInTheDocument()
     })
@@ -692,7 +711,12 @@ describe('ChatPage', () => {
       })
     })
 
-    render(<ChatPage />)
+    // The model chip lives in the page header, bound to the active conversation.
+    function HeaderModelChip() {
+      const conversationId = useAppStore((state) => state.activeChatSessionId)
+      return <ChatAIConfiguration conversationId={conversationId} />
+    }
+    render(<><HeaderModelChip /><ChatPage /></>)
     fireEvent.click(screen.getByRole('button', { name: /Model: local-auto/i }))
     await waitFor(() => expect(window.api.fetchModels).toHaveBeenCalledWith('local'))
     act(() => useAppStore.getState().setActiveChatSession(sessionB.id))
@@ -856,10 +880,7 @@ describe('ChatPage', () => {
     try {
       render(<ChatPage />)
 
-      fireEvent.click(screen.getByRole('button', { name: /^Task:/ }))
-      fireEvent.click(screen.getByRole('option', { name: TRANSLATIONS.en.chat_suggest_research }))
-      fireEvent.click(screen.getByRole('button', { name: `${TRANSLATIONS.en.chat_task_depth}: ${TRANSLATIONS.en.chat_task_overview}` }))
-      fireEvent.click(screen.getByRole('option', { name: TRANSLATIONS.en.chat_task_deep }))
+      applyTask(TRANSLATIONS.en.chat_suggest_research, { label: TRANSLATIONS.en.chat_task_depth, value: TRANSLATIONS.en.chat_task_deep })
 
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
       fireEvent.change(fileInput, {
@@ -894,7 +915,7 @@ describe('ChatPage', () => {
     }
   })
 
-  it('renders Deep Research resume as the composer primary action', async () => {
+  it('offers Deep Research resume in the research panel, at the step it stopped', async () => {
     const resumeState = {
       question: 'Resume checkpoint question',
       aspects: ['Aspect A', 'Aspect B'],
@@ -929,11 +950,15 @@ describe('ChatPage', () => {
     })
 
     try {
+      const t = TRANSLATIONS.en
       render(<ChatPage />)
 
-      const resumeButton = screen.getByTitle(/resume research/i)
-      expect(resumeButton).toHaveClass('chat-resume-button')
-      expect(resumeButton).toHaveTextContent('Resume')
+      const panel = screen.getByRole('region', { name: t.chat_research_title })
+      expect(within(panel).getByRole('status')).toHaveTextContent('Stopped at step 2')
+      expect(within(panel).getByRole('list', { name: t.chat_research_progress_label })).toBeInTheDocument()
+      // The composer keeps Send; resuming lives with the run it continues.
+      expect(screen.queryByTitle(/resume research/i)).not.toBeInTheDocument()
+      const resumeButton = within(panel).getByRole('button', { name: 'Resume' })
 
       fireEvent.click(resumeButton)
 

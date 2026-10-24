@@ -4,8 +4,9 @@ import {
   DictionaryHistoryPanel,
   DictionaryResultPanel,
   DictionarySearchPanel,
+  LanguagePairBar,
 } from '../components/organisms'
-import { DictionaryWorkbenchTemplate } from '../components/templates'
+import { DictionaryWorkbenchTemplate, PageHeader } from '../components/templates'
 import { useDictionaryLookup } from '../hooks/useDictionaryLookup'
 import { useAppStore, useT } from '../store/useAppStore'
 import { useNotificationStore } from '../store/useNotificationStore'
@@ -78,20 +79,23 @@ export function DictionaryPage() {
   return (
     <DictionaryWorkbenchTemplate
       header={(
-        <div className="page-section-header">
-          <div className="dictionary-page-heading">
-            <h1 className="dictionary-page-title">{t.dictionary_title}</h1>
-            <p className="dictionary-page-subtitle">{t.dictionary_subtitle}</p>
-          </div>
-          <DictionaryAIConfiguration
-            open={showAIConfig}
-            title={t.ai_configuration_title}
-            scopeDescription={t.ai_configuration_dictionary_scope}
-            closeLabel={t.settings_close}
-            modelsLabel={t.ai_configuration_models_section}
-            onOpenChange={setShowAIConfig}
-          />
-        </div>
+        <PageHeader
+          title={t.dictionary_title}
+          className="dictionary-page-header"
+          leading={(
+            <LanguagePairBar scope="dictionary" onPairChange={(pair) => setLanguagePair('translate', pair)} />
+          )}
+          actions={(
+            <DictionaryAIConfiguration
+              open={showAIConfig}
+              title={t.ai_configuration_title}
+              scopeDescription={t.ai_configuration_dictionary_scope}
+              closeLabel={t.settings_close}
+              modelsLabel={t.ai_configuration_models_section}
+              onOpenChange={setShowAIConfig}
+            />
+          )}
+        />
       )}
       search={(
         <DictionarySearchPanel
@@ -99,7 +103,6 @@ export function DictionaryPage() {
           onTermChange={lookup.setTerm}
           context={lookup.context}
           onContextChange={lookup.setContext}
-          onLanguagePairChange={(pair) => setLanguagePair('translate', pair)}
           isLoading={lookup.isLoading}
           canSubmit={lookup.canSubmit}
           cannotSubmitReason={t.dictionary_lookup_needs_model}
@@ -125,6 +128,7 @@ export function DictionaryPage() {
         />
       )}
       resultLabel={t.dictionary_title}
+      lookupLabel={t.dictionary_lookup_region}
       history={(
         <DictionaryHistoryPanel
           entries={dictionaryEntries}

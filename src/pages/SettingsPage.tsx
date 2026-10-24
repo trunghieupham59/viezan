@@ -1,42 +1,34 @@
 import { type ElementType, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { SettingsNavigation } from '../components/organisms'
-import { SettingsTemplate } from '../components/templates'
+import { PageHeader, SettingsTemplate } from '../components/templates'
 import {
   ChatBubbleIcon,
   GearIcon,
   InfoCircleIcon,
-  KeyboardIcon,
   KeyIcon,
   LayersIcon,
   MicrophoneIcon,
-  MonitorIcon,
   PaletteIcon,
   RefreshIcon,
-  SpeakerIcon,
 } from '../components/ui/icons'
+import { FilterInput } from '../components/ui/molecules'
 import { useAppStore, useT } from '../store/useAppStore'
 import { AboutSection } from './settings/AboutSection'
 import { ApiKeysSection } from './settings/ApiKeysSection'
 import { AppearanceSection } from './settings/AppearanceSection'
-import { BrowserIntegrationSection } from './settings/BrowserIntegrationSection'
 import { ChatPresetsSection } from './settings/ChatPresetsSection'
-import { HotkeySection } from './settings/HotkeySection'
 import { ModulesSection } from './settings/ModulesSection'
 import { PreferencesSection } from './settings/PreferencesSection'
-import { SttSection } from './settings/SttSection'
-import { TtsSection } from './settings/TtsSection'
 import { UpdaterSection } from './settings/UpdaterSection'
+import { VoiceSection } from './settings/VoiceSection'
 
 type SettingsSectionId =
   | 'preferences'
-  | 'modules'
   | 'appearance'
   | 'api'
-  | 'stt'
-  | 'tts'
+  | 'voice'
   | 'chat'
-  | 'hotkeys'
-  | 'browser'
+  | 'modules'
   | 'updates'
   | 'about'
 
@@ -57,11 +49,8 @@ const MemoPreferencesSection = memo(PreferencesSection)
 const MemoAppearanceSection = memo(AppearanceSection)
 const MemoModulesSection = memo(ModulesSection)
 const MemoApiKeysSection = memo(ApiKeysSection)
-const MemoSttSection = memo(SttSection)
-const MemoTtsSection = memo(TtsSection)
+const MemoVoiceSection = memo(VoiceSection)
 const MemoChatPresetsSection = memo(ChatPresetsSection)
-const MemoHotkeySection = memo(HotkeySection)
-const MemoBrowserIntegrationSection = memo(BrowserIntegrationSection)
 const MemoUpdaterSection = memo(UpdaterSection)
 const MemoAboutSection = memo(AboutSection)
 
@@ -73,10 +62,7 @@ export function SettingsPage() {
     preferences: null,
     modules: null,
     appearance: null,
-    stt: null,
-    tts: null,
-    hotkeys: null,
-    browser: null,
+    voice: null,
     chat: null,
     updates: null,
     about: null,
@@ -100,13 +86,6 @@ export function SettingsPage() {
       Component: MemoPreferencesSection,
     },
     {
-      id: 'modules',
-      label: t.settings_modules_section,
-      description: t.settings_modules_section_desc,
-      Icon: LayersIcon,
-      Component: MemoModulesSection,
-    },
-    {
       id: 'appearance',
       label: t.settings_appearance,
       description: t.settings_appearance_desc,
@@ -121,18 +100,11 @@ export function SettingsPage() {
       Component: MemoApiKeysSection,
     },
     {
-      id: 'stt',
-      label: t.settings_stt_section,
-      description: t.settings_stt_section_desc,
+      id: 'voice',
+      label: t.settings_voice_section,
+      description: t.settings_voice_section_desc,
       Icon: MicrophoneIcon,
-      Component: MemoSttSection,
-    },
-    {
-      id: 'tts',
-      label: t.settings_tts_section,
-      description: t.settings_tts_section_desc,
-      Icon: SpeakerIcon,
-      Component: MemoTtsSection,
+      Component: MemoVoiceSection,
     },
     {
       id: 'chat',
@@ -142,18 +114,11 @@ export function SettingsPage() {
       Component: MemoChatPresetsSection,
     },
     {
-      id: 'hotkeys',
-      label: t.settings_hotkeys_nav,
-      description: t.settings_hotkeys_nav_desc,
-      Icon: KeyboardIcon,
-      Component: MemoHotkeySection,
-    },
-    {
-      id: 'browser',
-      label: t.settings_extension_section,
-      description: t.settings_extension_section_desc,
-      Icon: MonitorIcon,
-      Component: MemoBrowserIntegrationSection,
+      id: 'modules',
+      label: t.settings_modules_section,
+      description: t.settings_modules_section_desc,
+      Icon: LayersIcon,
+      Component: MemoModulesSection,
     },
     {
       id: 'updates',
@@ -171,6 +136,14 @@ export function SettingsPage() {
     },
   ]), [t])
 
+  // Search filters both the section list and the content; an empty query shows everything.
+  const [query, setQuery] = useState('')
+  const visibleSections = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase()
+    if (!needle) return sections
+    return sections.filter((section) => `${section.label} ${section.description}`.toLocaleLowerCase().includes(needle))
+  }, [query, sections])
+
   /**
    * Scroll-spy. The active entry is the last section whose top has crossed a
    * reading line a fixed fraction down the viewport, so the highlight follows
@@ -186,14 +159,14 @@ export function SettingsPage() {
     const syncActiveSection = () => {
       frame = 0
       if (scrollLockUntilRef.current > performance.now()) return
-      const contentOrigin = sectionRefs.current.preferences?.offsetTop ?? 0
+      const contentOrigin = (visibleSections[0] && sectionRefs.current[visibleSections[0].id]?.offsetTop) ?? 0
       const readingLine = root.scrollTop + root.clientHeight * ACTIVE_SECTION_LINE_RATIO
       const atBottom = root.scrollTop + root.clientHeight >= root.scrollHeight - 1
-      let current = sections[0]?.id
+      let current = visibleSections[0]?.id
       if (atBottom && root.scrollHeight > root.clientHeight) {
-        current = sections[sections.length - 1]?.id
+        current = visibleSections[visibleSections.length - 1]?.id
       } else {
-        for (const section of sections) {
+        for (const section of visibleSections) {
           const node = sectionRefs.current[section.id]
           if (node && node.offsetTop - contentOrigin <= readingLine) current = section.id
         }
@@ -210,14 +183,15 @@ export function SettingsPage() {
       root.removeEventListener('scroll', handleScroll)
       if (frame) cancelAnimationFrame(frame)
     }
-  }, [sections, updateActiveSection])
+  }, [visibleSections, updateActiveSection])
 
   const scrollToSection = useCallback((id: SettingsSectionId) => {
     updateActiveSection(id)
     const root = scrollRef.current
     const section = sectionRefs.current[id]
     if (!root || !section) return
-    const contentOrigin = sectionRefs.current.preferences?.offsetTop ?? 0
+    const first = scrollRef.current?.querySelector<HTMLElement>('[data-settings-section]')
+    const contentOrigin = first?.offsetTop ?? 0
     const top = Math.max(0, section.offsetTop - contentOrigin)
     // Keep the chosen entry highlighted while the programmatic scroll settles,
     // otherwise a short target near the end would be re-assigned mid-scroll.
@@ -237,38 +211,63 @@ export function SettingsPage() {
   }, [initialSection, scrollToSection])
 
   return (
-    <SettingsTemplate
-      scrollRef={scrollRef}
-      sidebarNavigation={(
-        <SettingsNavigation
-          items={sections}
-          activeId={activeSection}
-          label={t.settings_title}
-          mode="sidebar"
-          onSelect={scrollToSection}
-        />
-      )}
-      compactNavigation={(
-        <SettingsNavigation
-          items={sections}
-          activeId={activeSection}
-          label={t.settings_title}
-          mode="tabs"
-          onSelect={scrollToSection}
-        />
-      )}
-    >
-      {sections.map(({ id, label, Component }) => (
-        <section
-          key={id}
-          ref={(node) => { sectionRefs.current[id] = node }}
-          data-settings-section={id}
-          aria-label={label}
-          tabIndex={-1}
-        >
-          <Component />
-        </section>
-      ))}
-    </SettingsTemplate>
+    <div className="app-page relative">
+      <div className="app-workspace">
+        <div className="glass-panel flex-1 min-h-0 flex flex-col overflow-hidden">
+          <PageHeader
+            title={t.settings_title}
+            actions={(
+              <FilterInput
+                size="sm"
+                value={query}
+                onValueChange={setQuery}
+                placeholder={t.settings_search_placeholder}
+                aria-label={t.settings_search_placeholder}
+                clearLabel={t.settings_search_clear}
+                wrapperClassName="settings-search"
+              />
+            )}
+          />
+          <div className="flex flex-1 min-h-0 flex-col">
+            <SettingsTemplate
+              scrollRef={scrollRef}
+              sidebarNavigation={(
+                <SettingsNavigation
+                  items={visibleSections}
+                  activeId={activeSection}
+                  label={t.settings_title}
+                  mode="sidebar"
+                  onSelect={scrollToSection}
+                />
+              )}
+              compactNavigation={(
+                <SettingsNavigation
+                  items={visibleSections}
+                  activeId={activeSection}
+                  label={t.settings_title}
+                  mode="tabs"
+                  onSelect={scrollToSection}
+                />
+              )}
+            >
+              {visibleSections.length === 0 && (
+                <p className="settings-search-empty" role="status">{t.settings_search_empty}</p>
+              )}
+              {visibleSections.map(({ id, label, Component }) => (
+                <section
+                  key={id}
+                  ref={(node) => { sectionRefs.current[id] = node }}
+                  data-settings-section={id}
+                  aria-label={label}
+                  tabIndex={-1}
+                >
+                  <Component />
+                </section>
+              ))}
+            </SettingsTemplate>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

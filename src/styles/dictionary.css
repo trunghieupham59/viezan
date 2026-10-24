@@ -12,64 +12,68 @@
   overflow: hidden;
   container-name: dictionary-workbench;
   container-type: inline-size;
+  color: var(--vzn-text);
+}
+
+/* Like every page: the header runs edge to edge, the cards sit on the canvas. */
+.app-workspace:has(> .dictionary-workbench) {
+  padding: 0;
+}
+
+.dictionary-workbench-content {
+  display: grid;
+  min-block-size: 0;
+  flex: 1 1 auto;
+  grid-template-columns: var(--vzn-dictionary-lookup-width) minmax(0, 1fr);
+  gap: var(--vzn-space-4);
+  padding: var(--vzn-space-4);
+  overflow: hidden;
+}
+
+/* The lookup column is one card: search on top, Recent / Favorites filling the rest. */
+.dictionary-lookup-region {
+  display: flex;
+  min-block-size: 0;
+  flex-direction: column;
+  gap: var(--vzn-space-3);
+  padding: var(--vzn-space-3);
+  overflow: hidden;
   border: var(--vzn-border-width) solid var(--vzn-border);
   border-radius: var(--vzn-radius-md);
   background: var(--vzn-surface);
-  color: var(--vzn-text);
-  box-shadow: var(--vzn-shadow-sm);
 }
 
-.dictionary-page-heading {
-  min-inline-size: 0;
-  flex: 1 1 auto;
+.dictionary-lookup-region .dictionary-panel {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
-.dictionary-page-title {
-  font-family: var(--vzn-font-display);
-  margin: 0;
-  color: var(--vzn-text-strong);
-  font-size: var(--vzn-font-size-title);
-  font-weight: var(--vzn-weight-bold);
-  line-height: var(--vzn-line-tight);
+.dictionary-lookup-region .dictionary-history-toolbar {
+  padding-inline: 0;
+  border-block-start: var(--vzn-border-width) solid var(--vzn-divider);
 }
 
-.dictionary-page-subtitle {
-  margin: var(--vzn-space-0-5) 0 0;
-  color: var(--vzn-text-soft);
+.dictionary-term-label {
+  color: var(--vzn-text-muted);
   font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-medium);
 }
 
 .dictionary-search-region {
   flex: 0 0 auto;
-  padding: var(--vzn-space-3) var(--vzn-space-4);
-  border-block-end: var(--vzn-border-width) solid var(--vzn-divider);
 }
 
-.dictionary-workbench-content {
+.dictionary-history-region {
   display: flex;
-  min-block-size: 0;
+  min-block-size: var(--vzn-dictionary-pane-min-block);
   flex: 1 1 auto;
-  flex-wrap: wrap;
-  gap: var(--vzn-panel-gap);
-  padding: var(--vzn-space-3);
-  overflow: auto;
-}
-
-/* Side by side (result min 480px + history 288px + gap and padding): a single
-   flex line takes the workbench height, so each pane scrolls its own body
-   instead of the whole content area. Stacked panes keep the outer scroll. */
-@container dictionary-workbench (min-width: 820px) {
-  .dictionary-workbench-content {
-    flex-wrap: nowrap;
-    overflow: hidden;
-  }
+  flex-direction: column;
 }
 
 .dictionary-result-region {
   display: flex;
-  min-inline-size: min(100%, var(--vzn-dictionary-result-min-inline));
   min-block-size: var(--vzn-dictionary-pane-min-block);
-  flex: 999 1 var(--vzn-dictionary-result-min-inline);
   flex-direction: column;
   overflow: hidden;
   border: var(--vzn-border-width) solid var(--vzn-border);
@@ -77,12 +81,22 @@
   background: var(--vzn-surface);
 }
 
-.dictionary-history-region {
-  display: flex;
-  min-inline-size: min(100%, var(--vzn-dictionary-history-width));
-  min-block-size: var(--vzn-dictionary-pane-min-block);
-  flex: 1 1 var(--vzn-dictionary-history-width);
-  flex-direction: column;
+/* Narrow workbench: lookup above the result, and the content area scrolls. */
+@container dictionary-workbench (max-width: 759px) {
+  .dictionary-workbench-content {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: auto;
+    overflow: auto;
+  }
+
+  /* Stacked, each region keeps its natural height and the content area scrolls. */
+  .dictionary-lookup-region {
+    min-block-size: auto;
+  }
+
+  .dictionary-history-region {
+    flex: 0 0 auto;
+  }
 }
 
 /* Shared panel chrome for the history column. */
@@ -123,28 +137,14 @@
   flex: 0 0 auto;
   flex-direction: column;
   gap: var(--vzn-space-2);
-  container-name: dictionary-search;
-  container-type: inline-size;
-}
-
-.dictionary-command-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--vzn-space-2);
-}
-
-.dictionary-command-bar > .language-pair-bar {
-  flex: 0 1 auto;
 }
 
 .dictionary-term-field {
-  min-inline-size: var(--vzn-dictionary-hint-chip-max);
-  flex: 1 1 var(--vzn-dictionary-hint-chip-max);
+  inline-size: 100%;
 }
 
-.dictionary-submit {
-  flex: 0 0 auto;
+.dictionary-submit.ui-button {
+  inline-size: 100%;
 }
 
 .dictionary-submit > svg {
@@ -156,38 +156,6 @@
   animation: spin var(--vzn-duration-spin) linear infinite;
 }
 
-/* Narrow search region: the submit button is icon-only (its aria-label keeps the name). */
-@container dictionary-search (max-width: 639px) {
-  .dictionary-submit-label {
-    display: none;
-  }
-}
-
-.dictionary-context-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--vzn-space-2);
-  padding-inline: var(--vzn-space-1);
-}
-
-.dictionary-context-row .ui-button > svg {
-  inline-size: var(--vzn-icon-xs);
-  block-size: var(--vzn-icon-xs);
-}
-
-.dictionary-context-count {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--vzn-space-0-5) var(--vzn-space-1-5);
-  border-radius: var(--vzn-radius-pill);
-  background: var(--vzn-surface-subtle);
-  color: var(--vzn-text-muted);
-  font-size: var(--vzn-font-size-micro);
-  font-weight: var(--vzn-weight-bold);
-  line-height: var(--vzn-line-tight);
-}
-
 .dictionary-context {
   position: relative;
   display: flex;
@@ -195,10 +163,21 @@
   gap: var(--vzn-space-1);
 }
 
+.dictionary-context-label {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-medium);
+}
+
+.dictionary-context-optional {
+  color: var(--vzn-text-soft);
+  font-weight: var(--vzn-weight-regular);
+}
+
 .dictionary-context-field {
   max-block-size: var(--vzn-dictionary-context-max-block);
   overflow-y: auto;
-  font-size: var(--vzn-font-size-lg);
+  font-size: var(--vzn-font-size-md);
 }
 
 .dictionary-context-meta {
@@ -268,7 +247,7 @@
   color: var(--vzn-text-muted);
   font-size: var(--vzn-font-size-micro);
   font-weight: var(--vzn-weight-bold);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--vzn-tracking-caps);
   text-transform: uppercase;
 }
 
@@ -295,6 +274,11 @@
   flex: 1 1 auto;
   overflow: auto;
   padding: var(--vzn-space-4) var(--vzn-space-5);
+}
+
+/* The entry reads like a page: a comfortable line length on wide screens. */
+.dictionary-result-body > .entry-sections {
+  max-inline-size: var(--vzn-dictionary-reading-max);
 }
 
 .dictionary-selection-action {

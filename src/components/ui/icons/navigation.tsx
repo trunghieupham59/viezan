@@ -42,6 +42,16 @@ export function ChevronLeftIcon({ className = 'w-3 h-3' }: IconProps) {
   )
 }
 
+/** Home icon — the Home page in primary navigation. */
+export function HomeIcon({ className = 'w-3.5 h-3.5' }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 11 12 4l8 7" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 10v10h12V10" />
+    </svg>
+  )
+}
+
 /** Settings gear icon — used on settings/configuration buttons. */
 export function GearIcon({ className = 'w-3.5 h-3.5' }: IconProps) {
   return (

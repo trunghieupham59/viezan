@@ -4,6 +4,7 @@ export { PROVIDER_COLORS, ProviderIcon } from '../../ProviderIcon'
 export { ButtonGroup } from '../ButtonGroup'
 export { CredentialCard } from '../CredentialCard'
 export { type AccentOption, AccentPicker, type AccentPickerProps } from './AccentPicker'
+export { ActivityRow, type ActivityRowProps } from './ActivityRow'
 export { AIModelField, type AIModelFieldProps } from './AIModelField'
 export {
   CapabilityNotice,
@@ -40,6 +41,7 @@ export {
   LauncherResultRow,
   type LauncherResultRowProps,
 } from './LauncherResultRow'
+export { ModelChip, type ModelChipProps } from './ModelChip'
 export { ModelRunStatus, type ModelRunStatusProps } from './ModelRunStatus'
 export { ModelSelectionRow, type ModelSelectionRowProps } from './ModelSelectionRow'
 export {
@@ -51,19 +53,28 @@ export {
 export { NumberField, type NumberFieldProps } from './NumberField'
 export { OptionPicker, type OptionPickerProps } from './OptionPicker'
 export { OptionPickerPanel, type OptionPickerPanelProps, type PickerChip, type PickerOption } from './OptionPickerPanel'
+export { type ProgressStep, type ProgressStepStatus, ProgressSteps, type ProgressStepsProps } from './ProgressSteps'
 export { PromptCard, type PromptCardProps, type PromptCardTone } from './PromptCard'
+export { QuickStartCard, type QuickStartCardProps } from './QuickStartCard'
 export {
   RecoverableError,
   type RecoverableErrorAction,
   type RecoverableErrorProps,
 } from './RecoverableError'
+export { SectionCard, type SectionCardProps } from './SectionCard'
 export { SelectedModelChip, type SelectedModelChipProps } from './SelectedModelChip'
 export {
   SelectField,
   type SelectFieldOption,
   type SelectFieldProps,
 } from './SelectField'
+export { SettingsCard, type SettingsCardProps } from './SettingsCard'
+export { SettingsRow, type SettingsRowIds, type SettingsRowProps } from './SettingsRow'
+export { ShortcutList, type ShortcutListItem, type ShortcutListProps } from './ShortcutList'
 export { SliderField, type SliderFieldProps, snapToRange } from './SliderField'
+export { StatusChip, type StatusChipProps } from './StatusChip'
+export { StatusLabel, type StatusLabelProps } from './StatusLabel'
+export { type StepItem, StepList, type StepListProps } from './StepList'
 export { TabBar, type TabBarProps, type TabBarTab } from './TabBar'
 export { type ThemePresetOption, ThemePresetPicker, type ThemePresetPickerProps } from './ThemePresetPicker'
 export { ThemePreview, type ThemePreviewLabels, type ThemePreviewProps } from './ThemePreview'

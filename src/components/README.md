@@ -144,6 +144,23 @@ roles that every component references instead.
 - Add a semantic alias when component code needs a new name; add a primitive
   only when no existing scale can express the need.
 
+## Status and progress
+
+Use these instead of feature-local dots, chips, bars and step lists.
+
+| Component | Layer | Use |
+| --- | --- | --- |
+| `StatusDot` | atom | A dot in a feedback tone (`ok`, `warning`, `danger`, `info`, `neutral`). Decorative next to text; pass `label` when it stands alone. |
+| `StatusChip` | molecule | A background state in a header or toolbar: dot (or icon) plus short text, e.g. "Helper connected". |
+| `Meter` | atom | A reading between bounds (fan speed, usage): native `<meter>`, optional marker for a target, `emphasis="action"` while the app is in control. |
+| `ProgressBar` | atom | Progress of one running task; leave out `value` for work of unknown length. |
+| `ProgressSteps` | molecule | The steps of a long task (deep research, local AI install, sensor detection) with done, active, pending or error. |
+| `ButtonGroup` | molecule | The segmented control: pick one of a few options. Pass `label` when no visible text names the group, and the toolbar's `size`. |
+
+Colour is never the only signal: every tone is paired with text, an accessible
+name or a status word, and tests assert `data-tone`/`data-status`/ARIA, not
+colours.
+
 ## Control hierarchy
 
 - Message action rows use `xs`; contextual toolbars use `sm`; forms, search,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { eventMatchesShortcut, formatShortcutLabel, keyEventToAccelerator, shouldSendChatMessage } from '../keyboardShortcuts'
+import { canonicalShortcut, chatSendAccelerator, eventMatchesShortcut, findShortcutConflicts, formatShortcutLabel, keyEventToAccelerator, shortcutKeyCaps, shouldSendChatMessage } from '../keyboardShortcuts'
 
 const event = (overrides: Partial<KeyboardEvent>): KeyboardEvent => ({
   key: '',
@@ -34,5 +34,37 @@ describe('keyboardShortcuts', () => {
     expect(shouldSendChatMessage(event({ key: 'Enter', shiftKey: true }), 'enter', 'darwin')).toBe(false)
     expect(shouldSendChatMessage(event({ key: 'Enter' }), 'modEnter', 'darwin')).toBe(false)
     expect(shouldSendChatMessage(event({ key: 'Enter', metaKey: true }), 'modEnter', 'darwin')).toBe(true)
+  })
+})
+
+describe('shortcut conflicts', () => {
+  it('resolves CommandOrControl per platform before comparing', () => {
+    expect(canonicalShortcut('CommandOrControl+Shift+K', 'darwin')).toBe('Command+Shift+K')
+    expect(canonicalShortcut('Shift+CmdOrCtrl+k', 'win32')).toBe('Ctrl+Shift+K')
+    expect(canonicalShortcut('', 'darwin')).toBe('')
+  })
+
+  it('flags every active entry that shares keys, and ignores inactive or empty ones', () => {
+    const conflicts = findShortcutConflicts([
+      { id: 'a', shortcut: 'Command+K', active: true },
+      { id: 'b', shortcut: 'CommandOrControl+K', active: true },
+      { id: 'c', shortcut: 'Command+K', active: false },
+      { id: 'd', shortcut: '', active: true },
+      { id: 'e', shortcut: 'Alt+T', active: true },
+    ], 'darwin')
+    expect([...conflicts].sort()).toEqual(['a', 'b'])
+    // The same pair is distinct on Windows, where CommandOrControl means Ctrl.
+    expect(findShortcutConflicts([
+      { id: 'a', shortcut: 'Command+K', active: true },
+      { id: 'b', shortcut: 'CommandOrControl+K', active: true },
+    ], 'win32').size).toBe(0)
+  })
+
+  it('splits a shortcut into key caps with macOS symbols', () => {
+    expect(shortcutKeyCaps('Alt+Shift+T', 'darwin')).toEqual(['⌥', '⇧', 'T'])
+    expect(shortcutKeyCaps('CommandOrControl+Enter', 'win32')).toEqual(['Ctrl', 'Enter'])
+    expect(shortcutKeyCaps('', 'darwin')).toEqual([])
+    expect(chatSendAccelerator('modEnter')).toBe('CommandOrControl+Enter')
+    expect(chatSendAccelerator('enter')).toBe('Enter')
   })
 })

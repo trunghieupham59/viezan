@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — bề mặt ngoài cửa sổ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.res{display:flex;align-items:center;gap:12px;height:44px;padding:0 12px;border-radius:10px;color:#1C1C1F;text-decoration:none}
+.res:hover{background:#F0F0F3}
+.ico{width:28px;height:28px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.g{margin:10px 12px 4px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6B6B73}
+.kbd{font-family:"JetBrains Mono",monospace;font-size:11px;color:#55555C;border:1px solid #DADADF;border-radius:5px;padding:1px 6px;background:#FAFAFB}
+.use{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:8px;border:1px solid #D6D6DC;background:#FFFFFF;font:500 13px Inter,sans-serif;color:#1C1C1F}
+</style>
+</helmet>
+<div style="position: relative; width: 1440px; height: 900px; overflow: hidden; background: #3B3F47; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F">
+
+  <div aria-label="Thanh menu (minh hoạ)" style="position: absolute; left: 0; right: 0; top: 0; height: 28px; background: rgba(20,20,24,0.55); display: flex; align-items: center; justify-content: flex-end; gap: 18px; padding: 0 16px">
+    <span style="display: inline-flex; flex-direction: column; align-items: center; line-height: 1; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; color: #FFFFFF; gap: 1px"><span>58°</span><span>2.3k</span></span>
+    <span style="width: 120px; height: 10px; border-radius: 3px; background: rgba(255,255,255,0.18)"></span>
+  </div>
+  <p style="position: absolute; top: 40px; right: 16px; margin: 0; padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,0.92); font-size: 12px; color: #2C2C31">Thanh menu: nhiệt độ trên tốc độ quạt, rộng một biểu tượng</p>
+
+  <div role="dialog" aria-label="Launcher" style="position: absolute; left: 50%; top: 120px; transform: translateX(-50%); width: 680px; background: #FFFFFF; border-radius: 20px; box-shadow: 0 24px 64px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.06); overflow: hidden">
+    <div style="display: flex; align-items: center; gap: 12px; height: 60px; padding: 0 20px; border-bottom: 1px solid #EFEFF2">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#55555C" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+      <label for="q" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Tìm hoặc hỏi</label>
+      <input id="q" value="100 usd" style="flex: 1; border: 0; outline: none; font: 400 20px Inter, sans-serif; color: #1C1C1F">
+      <span class="kbd">esc</span>
+    </div>
+    <div style="padding: 6px 8px 8px; display: flex; flex-direction: column">
+      <div style="margin: 8px 4px; padding: 14px 16px; border-radius: 12px; background: #F4F7FD; border: 1px solid #D5E2F7; display: flex; align-items: center; gap: 16px">
+        <span style="font-size: 15px; color: #55555C">100 USD =</span>
+        <span style="font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums">[số tiền] ₫</span>
+        <span style="flex: 1"></span>
+        <button type="button" class="use">VND</button>
+        <span class="kbd">↩ sao chép</span>
+      </div>
+      <p class="g">Ứng dụng</p>
+      <a href="#" class="res"><span class="ico" style="background: #EDEDF0"></span><span style="flex: 1; font-size: 14px">[Ứng dụng khớp]</span></a>
+      <p class="g">Tệp</p>
+      <a href="#" class="res"><span class="ico" style="background: #EDEDF0"></span><span style="flex: 1; font-size: 14px">[tệp khớp] <span style="color: #6B6B73; font-size: 12px">· [thư mục]</span></span><span class="kbd">⌘↩ hiện trong Finder</span></a>
+      <p class="g">Dùng “100 usd” với</p>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 12px 8px">
+        <button type="button" class="use">Hỏi AI</button>
+        <button type="button" class="use">Dịch</button>
+        <button type="button" class="use">Tra từ</button>
+        <button type="button" class="use">Tìm web</button>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 16px; height: 40px; padding: 0 20px; border-top: 1px solid #EFEFF2; background: #FAFAFB; font-size: 12px; color: #55555C">
+      <span style="display: inline-flex; gap: 6px; align-items: center"><span class="kbd">↑↓</span>chọn</span>
+      <span style="display: inline-flex; gap: 6px; align-items: center"><span class="kbd">↩</span>mở</span>
+      <span style="display: inline-flex; gap: 6px; align-items: center"><span class="kbd">⇥</span>hỏi tiếp AI</span>
+      <span style="flex: 1"></span>
+      <span>Viezan</span>
+    </div>
+  </div>
+
+  <div role="status" style="position: absolute; right: 32px; top: 640px; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; background: #FFFFFF; box-shadow: 0 10px 30px rgba(0,0,0,0.3)">
+    <span style="width: 14px; height: 14px; border-radius: 99px; border: 2px solid #C9D8F2; border-top-color: #0A63D6"></span>
+    <span style="font-size: 13px; font-weight: 500">Đang dịch vùng chọn</span>
+    <span style="font-size: 12px; color: #55555C">EN → VI</span>
+  </div>
+  <p style="position: absolute; right: 32px; top: 600px; margin: 0; padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,0.92); font-size: 12px; color: #2C2C31">Chỉ báo Dịch nhanh ⌥T</p>
+
+  <p style="position: absolute; left: 32px; top: 560px; margin: 0; padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,0.92); font-size: 12px; color: #2C2C31">Tiện ích Chrome: bôi đen trên trang, bong bóng dịch hiện ngay dưới</p>
+  <div aria-label="Trình duyệt có tiện ích Viezan (minh hoạ)" style="position: absolute; left: 32px; top: 600px; width: 420px; height: 268px; border-radius: 12px; background: #FFFFFF; box-shadow: 0 10px 30px rgba(0,0,0,0.3); overflow: hidden; display: flex; flex-direction: column">
+    <div style="height: 32px; flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 0 10px; background: #EDEDF0">
+      <span style="flex: 1; height: 18px; border-radius: 6px; background: #FFFFFF; font-size: 11px; color: #6B6B73; display: flex; align-items: center; padding: 0 8px">[trang web]</span>
+      <span aria-hidden="true" style="width: 18px; height: 18px; border-radius: 5px; background: #1C1C1F; color: #FFFFFF; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center">V</span>
+    </div>
+    <div style="position: relative; flex: 1; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px">
+      <span style="height: 8px; width: 92%; border-radius: 4px; background: #E6E6EB"></span>
+      <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #3A3A40">[Câu trên trang có <span style="background: #CFE0FA; border-radius: 2px">cụm từ đang bôi đen</span> giữa đoạn.]</p>
+      <span style="height: 8px; width: 78%; border-radius: 4px; background: #E6E6EB"></span>
+      <div role="dialog" aria-label="Bản dịch Viezan" style="position: absolute; left: 70px; top: 82px; width: 300px; border-radius: 12px; background: #FFFFFF; box-shadow: 0 8px 24px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06); padding: 12px; display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #55555C"><span style="font-weight: 600; color: #1C1C1F">Viezan</span>EN → VI<span style="flex: 1"></span><span style="font-family: 'JetBrains Mono', monospace">qwen3:4b</span></div>
+        <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #1C1C1F">[Bản dịch của cụm từ]</p>
+        <div style="display: flex; gap: 6px">
+          <button type="button" class="use" style="height: 26px; font-size: 12px">Sao chép</button>
+          <button type="button" class="use" style="height: 26px; font-size: 12px">Đọc to</button>
+          <button type="button" class="use" style="height: 26px; font-size: 12px">Mở trong Viezan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div aria-label="Phụ đề nổi" style="position: absolute; left: 520px; bottom: 48px; width: 760px; padding: 14px 20px; border-radius: 14px; background: rgba(20,20,24,0.78); display: flex; flex-direction: column; align-items: center; gap: 6px">
+    <span style="font-size: 14px; color: #D8D8DE">[Câu gốc đang nói]</span>
+    <span style="font-size: 22px; font-weight: 600; color: #FFE27A; text-align: center">[Bản dịch hiện trên mọi cửa sổ]</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

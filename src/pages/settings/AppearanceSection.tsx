@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ButtonGroup } from '../../components/ui/ButtonGroup'
 import { FontSizePicker } from '../../components/ui/FontSizePicker'
-import { AccentPicker, ThemePresetPicker, ThemePreview } from '../../components/ui/molecules'
+import { AccentPicker, SettingsCard, ThemePresetPicker, ThemePreview } from '../../components/ui/molecules'
 import { THEME_ACCENTS, THEME_PRESET_TRAITS, THEME_PRESETS, type ThemeAccent, type ThemePreset } from '../../constants/themePresets'
 import { useAppStore, useT } from '../../store/useAppStore'
 
@@ -56,29 +56,76 @@ export function AppearanceSection() {
   }))
   const modeOptions: { value: ThemeMode; label: string }[] = [
     { value: 'light', label: t.settings_theme_light },
-    { value: 'system', label: t.settings_theme_system },
     { value: 'dark', label: t.settings_theme_dark },
+    { value: 'system', label: t.settings_theme_system },
   ]
 
   return (
-    <section className="space-y-3">
+    <section className="settings-section-stack">
       <div>
         <h2 className="settings-section-title">{t.settings_appearance}</h2>
         <p className="settings-section-desc mt-1">{t.settings_appearance_desc}</p>
       </div>
 
-      <div className="card divide-y divide-gray-100 dark:divide-gray-700">
-        {/* Live preview with the light/dark mode control attached to it */}
-        <div className="flex flex-col gap-3 px-4 py-3.5">
-          <div className="settings-choice-row flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_theme_mode}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                {modeLocked ? t.settings_theme_dark_only_hint : t.settings_theme_desc}
+      <div className="appearance-layout">
+        <div className="appearance-cards">
+          <SettingsCard
+            title={t.settings_theme_mode}
+            description={modeLocked ? t.settings_theme_dark_only_hint : t.settings_theme_desc}
+            aside={<ButtonGroup size="sm" label={t.settings_theme_mode} value={theme} onChange={setTheme} options={modeOptions} disabled={modeLocked} />}
+          />
+
+          {/* Hovering or focusing a tile previews it beside the cards */}
+          <SettingsCard title={t.settings_theme_palette} description={t.settings_theme_palette_desc}>
+            <div className="appearance-card-body">
+              <ThemePresetPicker
+                label={t.settings_theme_palette}
+                value={themePreset}
+                options={presetOptions}
+                onChange={setThemePreset}
+                onPreview={setPreviewPreset}
+              />
+              <p className="appearance-note" aria-live="polite">
+                <span className="appearance-note__name">{shownName}</span>
+                {' · '}
+                {shownDescription}
               </p>
             </div>
-            <ButtonGroup value={theme} onChange={setTheme} options={modeOptions} disabled={modeLocked} />
-          </div>
+          </SettingsCard>
+
+          {/* Accent hue layered on the style */}
+          <SettingsCard title={t.settings_theme_accent} description={t.settings_theme_accent_desc}>
+            <div className="appearance-card-body">
+              <AccentPicker
+                label={t.settings_theme_accent}
+                value={themeAccent}
+                options={accentOptions}
+                onChange={setThemeAccent}
+                dark={windowDark}
+                onPreview={setPreviewAccent}
+              />
+            </div>
+          </SettingsCard>
+
+          <SettingsCard
+            title={t.settings_font_size}
+            description={t.settings_font_size_desc}
+            aside={(
+              <FontSizePicker
+                value={fontSize}
+                onChange={setFontSize}
+                labels={{
+                  small: t.settings_font_size_small,
+                  medium: t.settings_font_size_medium,
+                  large: t.settings_font_size_large,
+                }}
+              />
+            )}
+          />
+        </div>
+
+        <aside className="appearance-preview" aria-label={t.settings_theme_preview_heading}>
+          <p className="appearance-preview__label">{t.settings_theme_preview_heading}</p>
           <ThemePreview
             preset={shown}
             dark={previewDark}
@@ -91,60 +138,7 @@ export function AppearanceSection() {
               placeholder: t.settings_theme_preview_placeholder,
             }}
           />
-        </div>
-
-        {/* Style strip; hovering or focusing a tile previews it above */}
-        <div className="flex flex-col gap-3 px-4 py-3.5">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_theme_palette}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_theme_palette_desc}</p>
-          </div>
-          <ThemePresetPicker
-            label={t.settings_theme_palette}
-            value={themePreset}
-            options={presetOptions}
-            onChange={setThemePreset}
-            onPreview={setPreviewPreset}
-          />
-          <p className="text-xs text-gray-500 dark:text-gray-400" aria-live="polite">
-            <span className="font-medium text-gray-800 dark:text-gray-200">{shownName}</span>
-            {' · '}
-            {shownDescription}
-          </p>
-        </div>
-
-        {/* Accent hue layered on the style */}
-        <div className="settings-choice-row flex items-center justify-between gap-4 px-4 py-3.5">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_theme_accent}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_theme_accent_desc}</p>
-          </div>
-          <AccentPicker
-            label={t.settings_theme_accent}
-            value={themeAccent}
-            options={accentOptions}
-            onChange={setThemeAccent}
-            dark={windowDark}
-            onPreview={setPreviewAccent}
-          />
-        </div>
-
-        {/* Font Size */}
-        <div className="settings-choice-row flex items-center justify-between px-4 py-3.5 gap-4">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_font_size}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_font_size_desc}</p>
-          </div>
-          <FontSizePicker
-            value={fontSize}
-            onChange={setFontSize}
-            labels={{
-              small: t.settings_font_size_small,
-              medium: t.settings_font_size_medium,
-              large: t.settings_font_size_large,
-            }}
-          />
-        </div>
+        </aside>
       </div>
     </section>
   )

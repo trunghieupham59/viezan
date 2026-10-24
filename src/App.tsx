@@ -1,14 +1,13 @@
 import { type ReactNode, Suspense, useEffect, useState } from 'react'
 import type { LauncherFeatureRequest } from '../shared/launcher'
 import { AIChatSidebar, CommandPalette, LauncherShortcutNotice, LauncherSpotlightPrompt, NotificationViewport, PrimaryNavigationSidebar, UpdateNotification } from './components/organisms'
-import { SettingsModal } from './components/SettingsModal'
-import { AppShell } from './components/templates'
+import { AppShell, PageHeader } from './components/templates'
 import { FeatureLoadingState } from './components/ui/molecules'
 import { PROVIDERS } from './constants/providers'
 import { resolveThemeMode, THEME_PRESET_TRAITS } from './constants/themePresets'
-import { getModule } from './modules/catalog'
+import { getPage } from './modules/catalog'
 import { resolveActivePage } from './modules/enabled'
-import { MODULE_PAGES } from './modules/pages'
+import { APP_PAGES } from './modules/pages'
 import { useModulesSync } from './modules/useModulesSync'
 import { flushPersistedStore, useAppStore, useT } from './store/useAppStore'
 import type { AppPage, Provider, QuickChatSeedPayload, UsageCost } from './types'
@@ -25,7 +24,7 @@ function closeResponsiveNavigation() {
 }
 
 export function PageFallback({ page, label }: { page: AppPage; label: string }) {
-  const layout = getModule(page).loadingLayout
+  const layout = getPage(page).loadingLayout
   if (layout === 'blank') return <div className="app-page" aria-hidden="true" />
   return <FeatureLoadingState label={label} layout={layout} />
 }
@@ -36,13 +35,13 @@ function App() {
     activePage, localeAuto, setKeyStatus, setLocaleFromSystem, fontSize, theme, themePreset, themeAccent,
     selectedProvider, selectedModels, ttsMode, ttsVoice,
     createChatSession, setActiveChatSession, addChatMessage, setChatSessionDraft,
-    setActivePage, settingsOpen, openSettings, closeSettings,
+    setActivePage, openSettings,
     setSourceText, setPendingDictionaryTerm, recordUsageCost, enabledModules,
   } = useAppStore()
 
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false)
 
-  // Mirror which modules are on; a page whose module was turned off gives way to the first enabled one.
+  // Mirror which modules are on; a page whose module was turned off gives way to Home.
   useModulesSync()
   useEffect(() => {
     const next = resolveActivePage(activePage, enabledModules)
@@ -132,30 +131,23 @@ function App() {
       if (e.isComposing || e.repeat) return
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
-        closeSettings()
         closeResponsiveNavigation()
         setCmdPaletteOpen(o => !o)
       }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [closeSettings])
+  }, [])
 
   // Custom event from Sidebar search button
   useEffect(() => {
     const handle = () => {
-      closeSettings()
       closeResponsiveNavigation()
       setCmdPaletteOpen(true)
     }
     window.addEventListener('viezan:open-command-palette', handle)
     return () => window.removeEventListener('viezan:open-command-palette', handle)
-  }, [closeSettings])
-
-  // Blocking overlays stay mutually exclusive.
-  useEffect(() => {
-    if (settingsOpen) setCmdPaletteOpen(false)
-  }, [settingsOpen])
+  }, [])
 
   // Quick chat forwarding
   useEffect(() => {
@@ -221,9 +213,11 @@ function App() {
   const isMac = window.api?.platform === 'darwin'
   const isWin = window.api?.platform === 'win32'
   const hasAppTitlebar = isMac || isWin
-  const activeModule = getModule(activePage)
-  const fallbackFeatureLabel = t[activeModule.loadingLabelKey ?? activeModule.labelKey]
-  const ActivePage = MODULE_PAGES[activePage]
+  const shownPage = resolveActivePage(activePage, enabledModules)
+  const activeEntry = getPage(shownPage)
+  const fallbackLabel = t[activeEntry.loadingLabelKey ?? activeEntry.labelKey]
+  const fallbackFeatureLabel = typeof fallbackLabel === 'string' ? fallbackLabel : ''
+  const ActivePage = APP_PAGES[shownPage]
 
   const renderShell = (contextSidebar?: ReactNode, featureHeader?: ReactNode) => (
     <AppShell
@@ -239,12 +233,11 @@ function App() {
       featureHeader={featureHeader}
       overlays={
         <>
-          <SettingsModal />
-          <UpdateNotification blocked={settingsOpen || cmdPaletteOpen} />
+          <UpdateNotification blocked={cmdPaletteOpen} />
           <LauncherShortcutNotice />
-          <LauncherSpotlightPrompt blocked={settingsOpen || cmdPaletteOpen} />
+          <LauncherSpotlightPrompt blocked={cmdPaletteOpen} />
           <CommandPalette
-            open={cmdPaletteOpen && !settingsOpen}
+            open={cmdPaletteOpen}
             onClose={() => setCmdPaletteOpen(false)}
           />
           <NotificationViewport />
@@ -254,7 +247,7 @@ function App() {
       <Suspense
         fallback={(
           <PageFallback
-            page={activePage}
+            page={shownPage}
             label={t.route_loading(fallbackFeatureLabel)}
           />
         )}
@@ -264,8 +257,14 @@ function App() {
     </AppShell>
   )
 
-  return activePage === 'chat'
-    ? <AIChatSidebar>{({ sidebar, header }) => renderShell(sidebar, header)}</AIChatSidebar>
+  return shownPage === 'chat'
+    ? (
+      <AIChatSidebar>
+        {({ sidebar, header }) => renderShell(sidebar, (
+          <PageHeader ref={header.ref} className="ai-chat-workspace-header" title={header.title} start={header.start} actions={header.actions} />
+        ))}
+      </AIChatSidebar>
+    )
     : renderShell()
 }
 

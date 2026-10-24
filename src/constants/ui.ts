@@ -35,6 +35,12 @@ export const STATUS_RESET_LONG_MS = 5_000
 /** How long (ms) before a toast / inline message auto-dismisses. */
 export const TOAST_DISMISS_DELAY_MS = 4_000
 
+/** A transient toast that offers an action (Undo, Turn back on) stays longer so it can be used. */
+export const TOAST_ACTION_DISMISS_DELAY_MS = 8_000
+
+/** Toasts shown at once; newer ones wait their turn instead of stacking up the window. */
+export const TOAST_MAX_VISIBLE = 3
+
 // ─── Live Translate ────────────────────────────────────────────────────────────
 
 /** Minimum audio blob size (bytes) to consider worth processing.
@@ -56,3 +62,10 @@ export const LIVE_INPUT_LEVEL_POLL_MS = 100
 
 /** Distance (px) from the bottom within which a live transcript keeps following new text. */
 export const LIVE_FOLLOW_LATEST_THRESHOLD_PX = 48
+
+/**
+ * Fired on `window` after a global shortcut (Quick Translate, Launcher) is saved,
+ * so every view that lists shortcuts or background status re-reads them at once
+ * instead of waiting for the next window focus.
+ */
+export const SHORTCUTS_CHANGED_EVENT = 'viezan:shortcuts-changed'

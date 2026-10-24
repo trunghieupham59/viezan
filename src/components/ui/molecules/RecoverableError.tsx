@@ -13,8 +13,9 @@ export interface RecoverableErrorProps {
   retryAction?: RecoverableErrorAction
   alternativeAction?: RecoverableErrorAction
   settingsAction?: RecoverableErrorAction
-  dismissLabel: string
-  onDismiss: () => void
+  /** Omit both to keep the error in place, e.g. inside a conversation it belongs to. */
+  dismissLabel?: string
+  onDismiss?: () => void
 }
 
 /** Safe error summary with explicit paths to retry or change configuration. */
@@ -35,21 +36,23 @@ export function RecoverableError({
           <p className="break-words">{message}</p>
           {context && <p className="ui-error-context">{context}</p>}
         </div>
-        <Button
-          size="sm"
-          shape="icon"
-          variant="danger"
-          appearance="ghost"
-          onClick={onDismiss}
-          title={dismissLabel}
-          className="mt-0.5 flex-shrink-0"
-          aria-label={dismissLabel}
-        >
-          <XIcon className="w-3.5 h-3.5" />
-        </Button>
+        {onDismiss && dismissLabel && (
+          <Button
+            size="sm"
+            shape="icon"
+            variant="danger"
+            appearance="ghost"
+            onClick={onDismiss}
+            title={dismissLabel}
+            className="mt-0.5 flex-shrink-0"
+            aria-label={dismissLabel}
+          >
+            <XIcon className="w-3.5 h-3.5" />
+          </Button>
+        )}
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap">
+      {(retryAction || alternativeAction || settingsAction) && <div className="flex items-center gap-2 flex-wrap">
         {retryAction && (
           <Button
             size="sm"
@@ -86,7 +89,7 @@ export function RecoverableError({
             {settingsAction.label}
           </Button>
         )}
-      </div>
+      </div>}
     </div>
   )
 }

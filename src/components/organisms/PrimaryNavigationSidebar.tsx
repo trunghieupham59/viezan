@@ -1,12 +1,14 @@
 import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { CatalogModule } from '../../modules/catalog'
-import { enabledPageModules } from '../../modules/enabled'
+import { useBackgroundStatus } from '../../hooks/useBackgroundStatus'
+import { type CatalogPage, navigationPages } from '../../modules/catalog'
 import { useAppStore, useT } from '../../store/useAppStore'
 import type { AppPage } from '../../types'
+import { fanProfileName } from '../../utils/fanProfileText'
+import { tpl } from '../../utils/tpl'
 import { AppLogoIcon } from '../AppLogo'
-import { Button } from '../ui/atoms'
-import { GearIcon, SearchIcon, SidebarPanelIcon } from '../ui/icons'
+import { Button, StatusDot } from '../ui/atoms'
+import { SearchIcon, SidebarPanelIcon } from '../ui/icons'
 
 interface PrimaryNavItemProps {
   icon: ReactNode
@@ -32,7 +34,7 @@ function PrimaryNavItem({ icon, label, active, badge, badgeLabel, onClick }: Pri
 
   return (
     <Button
-      size="lg"
+      size="sm"
       shape="rect"
       variant={active ? 'primary' : 'neutral'}
       appearance={active ? 'soft' : 'ghost'}
@@ -61,7 +63,6 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
     setActivePage,
     clearTranslation,
     keyStatus,
-    openSettings,
     sidebarCollapsed,
     toggleSidebar,
     enabledModules,
@@ -75,6 +76,7 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
   const toggleRef = useRef<HTMLButtonElement>(null)
   const contentId = useId()
   const hasAnyKey = Object.values(keyStatus).some(Boolean)
+  const background = useBackgroundStatus(enabledModules)
   const commandShortcut = window.api?.platform === 'darwin' ? '⌘K' : 'Ctrl K'
   const responsiveCompact = viewportWidth < PRIMARY_NAVIGATION_NARROW_BREAKPOINT
   const effectiveCollapsed = responsiveCompact ? !responsiveOverlayOpen : sidebarCollapsed
@@ -106,18 +108,52 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
     closeResponsiveOverlay()
   }
 
-  const navigateToModule = (module: CatalogModule) =>
-    navigate(module.id, module.navigateEffect === 'clearTranslation' ? clearTranslation : undefined)
+  const navigateToPage = (page: CatalogPage) =>
+    navigate(page.id, page.navigateEffect === 'clearTranslation' ? clearTranslation : undefined)
 
   const openCommandPalette = () => {
     closeResponsiveOverlay()
     window.dispatchEvent(new CustomEvent('viezan:open-command-palette'))
   }
 
-  const handleOpenSettings = () => {
-    closeResponsiveOverlay()
-    openSettings()
+
+  const pages = navigationPages(enabledModules)
+  const renderPageItem = (page: CatalogPage, status?: { badge: boolean; badgeLabel: string }) => {
+    const Icon = page.icon
+    const label = t[page.labelKey]
+    return (
+      <PrimaryNavItem
+        key={page.id}
+        label={typeof label === 'string' ? label : page.id}
+        active={activePage === page.id}
+        badge={status?.badge}
+        badgeLabel={status?.badgeLabel}
+        onClick={() => navigateToPage(page)}
+        icon={<Icon />}
+      />
+    )
   }
+
+  // What runs while the window is away; each row goes to the place that controls it.
+  const backgroundRows: { id: string; label: string; detail?: string; onSelect: () => void }[] = [
+    ...(background.fans ? [{
+      id: 'fans',
+      label: background.fans.profile ? tpl(t.nav_background_fans_profile, { profile: fanProfileName(t, background.fans.profile) }) : t.nav_background_fans_custom,
+      onSelect: () => navigate('thermal'),
+    }] : []),
+    ...(background.globalShortcuts > 0 ? [{
+      id: 'shortcuts',
+      label: t.nav_background_hotkeys,
+      detail: String(background.globalShortcuts),
+      onSelect: () => navigate('utilities'),
+    }] : []),
+    ...(background.browserBridge ? [{
+      id: 'browser',
+      label: t.nav_background_browser,
+      detail: t.nav_background_ready,
+      onSelect: () => navigate('everywhere'),
+    }] : []),
+  ]
 
   useEffect(() => {
     const handleResize = () => setViewportWidth(window.innerWidth)
@@ -208,50 +244,62 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
         {!effectiveCollapsed && <span className="sidebar-brand-title">Viezan</span>}
       </div>
 
+      <Button
+        size="sm"
+        shape="rect"
+        variant="neutral"
+        appearance="outline"
+        title={`${t.nav_search_or_run} (${commandShortcut})`}
+        aria-label={t.nav_search_or_run}
+        aria-keyshortcuts={window.api?.platform === 'darwin' ? 'Meta+K' : 'Control+K'}
+        className="sidebar-nav-btn sidebar-search-trigger"
+        onClick={openCommandPalette}
+      >
+        <span className="sidebar-nav-icon">
+          <SearchIcon />
+        </span>
+        <span className="sidebar-nav-label">{t.nav_search_or_run}</span>
+        <kbd className="sidebar-shortcut">{commandShortcut}</kbd>
+      </Button>
+
       <div className="app-sidebar-divider" />
 
-      <div className="sidebar-nav-group">
-        {enabledPageModules(enabledModules).map((module) => {
-          const Icon = module.icon
-          return (
-            <PrimaryNavItem
-              key={module.id}
-              label={t[module.labelKey]}
-              active={activePage === module.id}
-              onClick={() => navigateToModule(module)}
-              icon={<Icon className="h-[18px] w-[18px]" />}
-            />
-          )
-        })}
+      {/* Only the page list scrolls: a short window must never push Settings out of reach. */}
+      <div className="sidebar-nav-scroll">
+        <div className="sidebar-nav-group">
+          {renderPageItem(pages.home)}
+        </div>
+
+        {pages.groups.map((group) => (
+          <section key={group.space} className="sidebar-nav-group sidebar-space" aria-label={t[group.labelKey]} data-space={group.space}>
+            <p className="sidebar-section-label sidebar-space-label" aria-hidden="true">{t[group.labelKey]}</p>
+            {group.modules.map((page) => renderPageItem(page))}
+          </section>
+        ))}
       </div>
 
       <div className="sidebar-bottom-group">
-        <Button
-          size="lg"
-          shape="rect"
-          variant="neutral"
-          appearance="ghost"
-          title={`${t.nav_command_palette} (${commandShortcut})`}
-          aria-label={t.nav_command_palette}
-          className="sidebar-nav-btn"
-          onClick={openCommandPalette}
-        >
-          <span className="sidebar-nav-icon">
-            <SearchIcon className="h-[18px] w-[18px]" />
-          </span>
-          <span className="sidebar-nav-label">{t.nav_command_palette}</span>
-          <span className="sidebar-shortcut">{commandShortcut}</span>
-        </Button>
+        {backgroundRows.length > 0 && (
+          <section className="sidebar-background" aria-label={t.nav_background_title}>
+            {effectiveCollapsed ? (
+              <span className="sidebar-background-summary">
+                <StatusDot tone="ok" label={tpl(t.nav_background_summary, { count: backgroundRows.length })} title={backgroundRows.map((row) => row.label).join('\n')} />
+              </span>
+            ) : (
+              backgroundRows.map((row) => (
+                <Button key={row.id} size="xs" shape="rect" variant="neutral" appearance="ghost" className="sidebar-background-row" onClick={row.onSelect}>
+                  <StatusDot tone="ok" />
+                  <span className="sidebar-background-label">{row.label}</span>
+                  {row.detail && <span className="sidebar-background-detail">{row.detail}</span>}
+                </Button>
+              ))
+            )}
+          </section>
+        )}
 
         <div className="app-sidebar-divider" />
 
-        <PrimaryNavItem
-          label={t.nav_settings}
-          badge={!hasAnyKey}
-          badgeLabel={t.model_no_key}
-          onClick={handleOpenSettings}
-          icon={<GearIcon className="h-[18px] w-[18px]" />}
-        />
+        {renderPageItem(pages.settings, { badge: !hasAnyKey, badgeLabel: t.model_no_key })}
       </div>
     </div>
   )

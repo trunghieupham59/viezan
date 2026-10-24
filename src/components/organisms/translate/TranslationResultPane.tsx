@@ -5,11 +5,13 @@ import { MarkdownText } from '../../MarkdownText'
 import { FuriganaText } from '../../translate/FuriganaText'
 import { ResultPanelActions } from '../../translate/ResultPanelActions'
 import { Button } from '../../ui/atoms'
-import { ArrowLeftIcon, InfoCircleIcon, SpinnerIcon } from '../../ui/icons'
+import { ArrowLeftIcon, InfoCircleIcon, LayersIcon, SpinnerIcon } from '../../ui/icons'
 import type { SpeakPanel } from '../../ui/SpeakButton'
 
 interface TranslationResultPaneProps {
   headingId: string
+  /** Opens the model dialog to compare this translation with up to two more models. */
+  onCompare?: () => void
   translatedText: string
   phoneticText: string
   phoneticMode: PhoneticMode
@@ -36,6 +38,7 @@ interface TranslationResultPaneProps {
 
 export function TranslationResultPane({
   headingId,
+  onCompare,
   translatedText,
   phoneticText,
   phoneticMode,
@@ -102,6 +105,12 @@ export function TranslationResultPane({
       </span>
       <header className="translate-pane-header">
         <h2 id={headingId} className="translate-pane-heading">{t.translate_result_content_label}</h2>
+        {onCompare && (
+          <Button size="sm" shape="rect" variant="neutral" appearance="ghost" onClick={onCompare} className="translate-compare-entry">
+            <LayersIcon className="h-4 w-4" />
+            <span>{t.translate_compare_models}</span>
+          </Button>
+        )}
       </header>
       <div className="translate-pane-body translate-result-body">
         {(isResultStale || (isTranslating && hasResult)) && (

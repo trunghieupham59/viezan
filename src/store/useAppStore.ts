@@ -279,6 +279,8 @@ export const useAppStore = create<AppState>()(
       storage: createJSONStorage(() => createDebouncedStorage(500)),
       migrate: (persistedState) => migratePersistedStore(persistedState as AppState),
       partialize: (state) => ({
+        // Reopen the page used last; Settings reopens as Home rather than greeting the user with a form.
+        activePage: state.activePage === 'settings' ? 'home' : state.activePage,
         liveSourceLang: state.liveSourceLang,
         liveTargetLang: state.liveTargetLang,
         pinnedLanguagePairs: state.pinnedLanguagePairs,

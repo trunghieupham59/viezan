@@ -410,9 +410,12 @@ try {
 
       await page.locator('.sidebar-bottom-group > .sidebar-nav-btn:last-child').click()
 
-      const backdrop = page.locator('.modal-backdrop')
-      await backdrop.waitFor()
+      // Settings is a page in the workspace, not a modal over it.
       await page.locator('.settings-shell').waitFor()
+      assert(
+        await page.locator('.modal-backdrop').count() === 0,
+        `Settings opened as a modal at ${width}px`,
+      )
 
       const settingsNavigationItems = page.locator('.settings-shell > aside .btn-nav-item')
       const desktopSettingsNavigationVisible = await settingsNavigationItems.first().isVisible()
@@ -465,23 +468,17 @@ try {
         `Primary navigation overlay stayed open behind Settings at ${width}px`,
       )
 
-      const modalCoversSidebar = await page.evaluate(() => {
+      const settingsSitsBesideSidebar = await page.evaluate(() => {
         const navigation = document.querySelector('[data-sidebar-scope="primary"]')
-        const modal = document.querySelector('.modal-backdrop')
-        if (!(navigation instanceof HTMLElement) || !(modal instanceof HTMLElement)) return false
-
-        const bounds = navigation.getBoundingClientRect()
-        const topmostElement = document.elementFromPoint(
-          bounds.left + bounds.width / 2,
-          bounds.top + bounds.height / 2,
-        )
-        return topmostElement !== null && modal.contains(topmostElement)
+        const settings = document.querySelector('.settings-shell')
+        if (!(navigation instanceof HTMLElement) || !(settings instanceof HTMLElement)) return false
+        return settings.getBoundingClientRect().left >= navigation.getBoundingClientRect().right - 1
       })
+      assert(settingsSitsBesideSidebar, `Settings page overlaps primary navigation at ${width}px`)
 
-      assert(modalCoversSidebar, `Settings modal is below primary navigation at ${width}px`)
-
-      await page.keyboard.press('Escape')
-      await backdrop.waitFor({ state: 'detached' })
+      // Back to AI Translate for the checks that follow.
+      await page.getByRole('button', { name: /^AI Translate$/ }).first().evaluate(element => element.click())
+      await page.locator('.settings-shell').waitFor({ state: 'detached' })
     }
 
     for (const width of [1440, 800]) {

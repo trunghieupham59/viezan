@@ -146,6 +146,8 @@ export function ApiKeyInput({
       docsLabel={t.settings_get_key}
       labels={{
         saved: t.settings_key_saved,
+        edit: t.settings_key_edit,
+        add: t.settings_key_add,
         empty: t.settings_no_key,
         invalid: t.settings_key_invalid,
         remove: t.settings_remove,

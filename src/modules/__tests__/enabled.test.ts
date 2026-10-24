@@ -13,14 +13,16 @@ describe('enabled module helpers', () => {
     expect(resolveActivePage('dictionary', enabled)).toBe('dictionary')
   })
 
-  it('falls back to the first enabled page when the active one is off', () => {
-    expect(resolveActivePage('chat', { ...ALL_MODULES_ENABLED, chat: false })).toBe('translate')
-    expect(resolveActivePage('live', { ...ALL_MODULES_ENABLED, chat: false, translate: false, live: false })).toBe('dictionary')
+  it('falls back to Home when the active page belongs to a module that is off', () => {
+    expect(resolveActivePage('chat', { ...ALL_MODULES_ENABLED, chat: false })).toBe('home')
+    const none = { ...ALL_MODULES_ENABLED, chat: false, translate: false, live: false, dictionary: false, thermal: false }
+    expect(resolveActivePage('live', none)).toBe('home')
   })
 
-  it('keeps the page when a stale file turned every page module off', () => {
-    const none = { ...ALL_MODULES_ENABLED, chat: false, translate: false, live: false, dictionary: false, thermal: false }
-    expect(resolveActivePage('live', none)).toBe('live')
+  it('always shows system pages and sends unknown ids to Home', () => {
+    const none = { ...ALL_MODULES_ENABLED, chat: false, translate: false, live: false, dictionary: false, thermal: false, launcher: false, 'browser-bridge': false }
+    for (const page of ['home', 'everywhere', 'utilities', 'settings'] as const) expect(resolveActivePage(page, none)).toBe(page)
+    expect(resolveActivePage('reliability', ALL_MODULES_ENABLED)).toBe('home')
   })
 
   it('knows when a page module is the last one on', () => {

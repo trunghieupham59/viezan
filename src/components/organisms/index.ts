@@ -2,7 +2,7 @@
  * Public API for app-level and feature-level UI sections.
  * Feature organisms remain in their existing folders while migration is in progress.
  */
-export { AIChatSidebar } from './AIChatSidebar'
+export { type AIChatHeaderParts, AIChatSidebar } from './AIChatSidebar'
 export { AIConfigurationPopover, type AIConfigurationPopoverProps } from './AIConfigurationPopover'
 export { AIModelPickerField } from './AIModelPickerField'
 export { CommandPalette } from './CommandPalette'
@@ -16,6 +16,7 @@ export { DictionaryEmptyState, type DictionaryEmptyStateProps } from './dictiona
 export { DictionaryHistoryPanel, type DictionaryHistoryPanelProps } from './dictionary/DictionaryHistoryPanel'
 export { DictionaryResultPanel, type DictionaryResultPanelProps } from './dictionary/DictionaryResultPanel'
 export { DictionarySearchPanel, type DictionarySearchPanelProps } from './dictionary/DictionarySearchPanel'
+export { HomeSystemCard, type HomeSystemCardProps } from './home/HomeSystemCard'
 export { LanguagePairBar, type LanguagePairBarDensity, type LanguagePairBarProps, type LanguagePairBarScope } from './LanguagePairBar'
 export { LauncherShortcutNotice, type SystemShortcutOwner, systemShortcutOwnerLabel } from './LauncherShortcutNotice'
 export { LauncherSpotlightPrompt } from './LauncherSpotlightPrompt'
@@ -30,6 +31,7 @@ export {
   type SubtitleFontSizeOption,
 } from './live/InterpretSubtitleConfiguration'
 export { LiveSessionHistoryPanel, type LiveSessionHistoryPanelProps } from './live/LiveSessionHistoryPanel'
+export { LiveSessionPanel, type LiveSessionPanelLabels, type LiveSessionPanelProps, type LiveSessionSpeaker } from './live/LiveSessionPanel'
 export { LiveSessionStatus, type LiveSessionStatusProps } from './live/LiveSessionStatus'
 export { NotificationViewport } from './NotificationViewport'
 export { PrimaryNavigationSidebar, PrimaryNavigationSidebar as Sidebar } from './PrimaryNavigationSidebar'
@@ -38,6 +40,7 @@ export {
   type SettingsNavigationItem,
   type SettingsNavigationProps,
 } from './SettingsNavigation'
+export { ShortcutOverview, type ShortcutOverviewProps } from './ShortcutOverview'
 export { ThermalFanDisclaimer, type ThermalFanDisclaimerProps } from './thermal/ThermalFanDisclaimer'
 export {
   DEFAULT_SENSOR_RULE,
@@ -53,9 +56,9 @@ export { ThermalOptionsConfiguration, type ThermalOptionsConfigurationProps } fr
 export { ThermalSensorTable, type ThermalSensorTableLabels, type ThermalSensorTableProps } from './thermal/ThermalSensorTable'
 export { ThermalTrayOptions, type ThermalTrayOptionsLabels, type ThermalTrayOptionsProps } from './thermal/ThermalTrayOptions'
 export { TranslationComparisonPane } from './translate/TranslationComparisonPane'
-export { TranslationControlsHeader } from './translate/TranslationControlsHeader'
 export { TranslationHistoryPanel, type TranslationHistoryPanelProps } from './translate/TranslationHistoryPanel'
 export { TranslationModelPicker } from './translate/TranslationModelPicker'
+export { TranslationOptions, type TranslationOptionsProps } from './translate/TranslationOptions'
 export { TranslationResultPane } from './translate/TranslationResultPane'
 export { TranslationSourcePane } from './translate/TranslationSourcePane'
 export { UpdateNotification } from './UpdateNotification'

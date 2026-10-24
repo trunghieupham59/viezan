@@ -1,25 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/atoms'
 import { type SystemShortcutOwner, systemShortcutOwnerLabel } from '../../components/organisms'
-import { ToggleSwitch } from '../../components/ui/atoms'
+import { KeyCap, ToggleSwitch } from '../../components/ui/atoms'
 import { HotkeyRecordButton } from '../../components/ui/HotkeyRecordButton'
 import { XIcon } from '../../components/ui/icons'
-import { CapabilityNotice, type CapabilityNoticeAction, SelectField } from '../../components/ui/molecules'
-import { TARGET_LANGUAGES } from '../../constants/providers'
-import { STATUS_RESET_DELAY_MS, STATUS_RESET_LONG_MS } from '../../constants/ui'
+import { CapabilityNotice, type CapabilityNoticeAction, SelectField, SettingsCard, SettingsRow, StatusLabel, StepList } from '../../components/ui/molecules'
+import { PROVIDERS, TARGET_LANGUAGES } from '../../constants/providers'
+import { SHORTCUTS_CHANGED_EVENT, STATUS_RESET_DELAY_MS, STATUS_RESET_LONG_MS } from '../../constants/ui'
 import { MACOS_KEYBOARD_SHORTCUTS_PREFS } from '../../constants/urls'
 import { useAppStore, useT } from '../../store/useAppStore'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import type { CapabilityStatus } from '../../types'
+import { DEFAULT_QUICK_TRANSLATE_SHORTCUT, defaultLauncherShortcut, shortcutKeyCaps } from '../../utils/keyboardShortcuts'
 import { tpl } from '../../utils/tpl'
 
 /** Mirrors DEFAULT_TRANSLATE_HOTKEY in electron/ipc/globalHotkey.ts (Option+T on macOS). */
-const DEFAULT_HOTKEY = 'Alt+T'
 /** Toast owner keys: progress → done/error replace each other for one shortcut run. */
 const HOTKEY_ERROR_KEY = 'settings-hotkey-register'
 const HOTKEY_RUN_KEY = 'settings-hotkey-run'
 const CHAT_HOTKEY_ERROR_KEY = 'settings-chat-hotkey-register'
-const getDefaultChatHotkey = () => window.api?.platform === 'darwin' ? 'Command+Space' : 'Alt+Space'
+const getDefaultChatHotkey = () => defaultLauncherShortcut(window.api?.platform)
 /** Display form of a stored accelerator: the Alt key is labelled Option on Mac keyboards. */
 const displayAccelerator = (accelerator: string) =>
   window.api?.platform === 'darwin' ? accelerator.replace(/(^|\+)(Alt|Option)(?=\+|$)/g, '$1Option') : accelerator
@@ -35,7 +35,15 @@ const KEY_MAP: Record<string, string> = {
   F7: 'F7', F8: 'F8', F9: 'F9', F10: 'F10', F11: 'F11', F12: 'F12',
 }
 
-export function HotkeySection() {
+export interface HotkeySectionProps {
+  /**
+   * Which shortcut block to show: Quick Translate (on Translate everywhere) or the
+   * Launcher (on Launcher & shortcuts). Both share the recording and conflict logic.
+   */
+  part: 'quickTranslate' | 'launcher'
+}
+
+export function HotkeySection({ part }: HotkeySectionProps) {
   const selectedProvider = useAppStore((state) => state.selectedProvider)
   const selectedModels = useAppStore((state) => state.selectedModels)
   const targetLang = useAppStore((state) => state.targetLang)
@@ -71,11 +79,11 @@ export function HotkeySection() {
       if (res?.success && res.settings) {
         const s = res.settings
         setHotkeyEnabled(s.enabled === true)
-        setHotkeyValue(typeof s.hotkey === 'string' && s.hotkey ? s.hotkey : DEFAULT_HOTKEY)
+        setHotkeyValue(typeof s.hotkey === 'string' && s.hotkey ? s.hotkey : DEFAULT_QUICK_TRANSLATE_SHORTCUT)
         if (isTargetLanguage(s.targetLang)) setHotkeyTargetLang(s.targetLang)
         setHotkeySecondaryLang(isTargetLanguage(s.secondaryLang) ? s.secondaryLang : '')
       } else {
-        setHotkeyValue(DEFAULT_HOTKEY)
+        setHotkeyValue(DEFAULT_QUICK_TRANSLATE_SHORTCUT)
       }
       setSettingsLoaded(true)
     })
@@ -162,6 +170,7 @@ export function HotkeySection() {
     } else {
       dismissNotification(HOTKEY_ERROR_KEY)
     }
+    window.dispatchEvent(new Event(SHORTCUTS_CHANGED_EVENT))
   }, [hotkeyValue, hotkeyEnabled, hotkeyProvider, hotkeyModel, effectiveTargetLang, effectiveSecondaryLang, locale, notify, dismissNotification])
 
   // Convert a KeyboardEvent to an Electron accelerator string
@@ -346,6 +355,7 @@ export function HotkeySection() {
     } else {
       dismissNotification(CHAT_HOTKEY_ERROR_KEY)
     }
+    window.dispatchEvent(new Event(SHORTCUTS_CHANGED_EVENT))
   }, [chatHotkeyValue, chatHotkeyEnabled, t, notify, dismissNotification])
 
   const handleChatHotkeyKeyDown = (e: React.KeyboardEvent) => {
@@ -364,177 +374,173 @@ export function HotkeySection() {
   }
 
   return (
-    <section className="space-y-3">
-      {/* ── Quick Translate Hotkey ── */}
-      <div>
-        <h2 className="settings-section-title">{t.settings_hotkey_section}</h2>
-        <p className="settings-section-desc mt-1">{t.settings_hotkey_section_desc}</p>
-      </div>
-
-      <div className="card divide-y divide-gray-100 dark:divide-gray-700">
-
-        {/* Enable toggle */}
-        <div className="flex items-center justify-between gap-4 px-4 py-3.5">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_hotkey_enabled}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_hotkey_enabled_desc}</p>
-          </div>
-          <ToggleSwitch
-            checked={hotkeyEnabled}
-            onChange={(next) => {
-              setHotkeyEnabled(next)
-              saveHotkeySettings({ enabled: next })
-            }}
+    <>
+      {part === 'quickTranslate' && (
+        <SettingsCard
+          headingLevel={2}
+          title={t.shortcut_quick_translate}
+          description={t.settings_hotkey_section_desc}
+          aside={(
+            <ToggleSwitch
+              checked={hotkeyEnabled}
+              aria-label={t.settings_hotkey_enabled}
+              onChange={(next) => {
+                setHotkeyEnabled(next)
+                saveHotkeySettings({ enabled: next })
+              }}
+            />
+          )}
+        >
+          <StepList
+            label={t.everywhere_steps_label}
+            steps={[
+              { key: 'select', title: t.everywhere_step_select, detail: t.everywhere_step_select_desc },
+              {
+                key: 'press',
+                title: <>{t.everywhere_step_press} {hotkeyValue && <KeyCap>{shortcutKeyCaps(hotkeyValue, window.api?.platform).join(' ')}</KeyCap>}</>,
+                detail: t.everywhere_step_press_desc,
+              },
+              {
+                key: 'replace',
+                title: t.everywhere_step_replace,
+                detail: tpl(t.everywhere_step_replace_desc, { undo: shortcutKeyCaps('CommandOrControl+Z', window.api?.platform).join('') }),
+              },
+            ]}
           />
-        </div>
 
-        {/* Shortcut recorder */}
-        <div className="px-4 py-3.5 space-y-2">
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_hotkey_label}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_hotkey_desc}</p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {hotkeyValue && !isRecording && (
-                <Button
-                  size="md"
-                  shape="icon"
-                  variant="danger"
-                  appearance="soft"
-                  aria-label={t.settings_hotkey_clear}
-                  type="button"
-                  onClick={() => {
-                    setHotkeyValue('')
-                    setHotkeyEnabled(false)
-                    saveHotkeySettings({ hotkey: '', enabled: false })
-                  }}
-                  title={t.settings_hotkey_clear}
-                >
-                  <XIcon />
-                </Button>
-              )}
-              <HotkeyRecordButton
-                inputRef={hotkeyInputRef}
-                isRecording={isRecording}
-                value={displayAccelerator(hotkeyValue)}
-                onKeyDown={handleHotkeyKeyDown}
-                onClick={() => setIsRecording(true)}
-                onBlur={() => setIsRecording(false)}
-                recordingText={t.settings_hotkey_recording}
-                noneText={t.settings_hotkey_none}
-              />
-            </div>
-          </div>
-        </div>
+          {/* The Translate module is off: main keeps the shortcut unregistered */}
+          {enabledModules.translate === false && (
+            <CapabilityNotice
+              tone="info"
+              title={tpl(t.settings_modules_off_title, { module: t.nav_translate })}
+              description={t.settings_modules_off_desc}
+              actions={[{ label: t.settings_modules_turn_on, onClick: () => { void setModuleEnabled('translate', true) }, primary: true }]}
+            />
+          )}
 
-        {/* Language pair — Quick Translate's own, independent of the Translate page */}
-        <div className="px-4 py-3.5 space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <SettingsRow label={t.settings_hotkey_label} description={t.settings_hotkey_desc}>
+            {hotkeyValue && !isRecording && (
+              <Button
+                size="sm"
+                shape="icon"
+                variant="danger"
+                appearance="ghost"
+                aria-label={t.settings_hotkey_clear}
+                type="button"
+                onClick={() => {
+                  setHotkeyValue('')
+                  setHotkeyEnabled(false)
+                  saveHotkeySettings({ hotkey: '', enabled: false })
+                }}
+                title={t.settings_hotkey_clear}
+              >
+                <XIcon />
+              </Button>
+            )}
+            <HotkeyRecordButton
+              inputRef={hotkeyInputRef}
+              isRecording={isRecording}
+              value={displayAccelerator(hotkeyValue)}
+              onKeyDown={handleHotkeyKeyDown}
+              onClick={() => setIsRecording(true)}
+              onBlur={() => setIsRecording(false)}
+              recordingText={t.settings_hotkey_recording}
+              noneText={t.settings_hotkey_none}
+            />
+          </SettingsRow>
+
+          {/* Language pair — Quick Translate's own, independent of the Translate page */}
+          <SettingsRow
+            label={t.everywhere_language_pair}
+            description={effectiveSecondaryLang ? t.settings_hotkey_pair_desc : t.settings_hotkey_pair_off_desc}
+            align="top"
+          >
             <SelectField
               label={t.settings_hotkey_primary_lang}
               value={effectiveTargetLang}
               options={languageOptions}
               onChange={selectPrimaryLang}
+              className="everywhere-language-field"
             />
             <SelectField
               label={t.settings_hotkey_secondary_lang}
               value={effectiveSecondaryLang}
               options={secondaryLanguageOptions}
               onChange={selectSecondaryLang}
+              className="everywhere-language-field"
             />
-          </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            {effectiveSecondaryLang ? t.settings_hotkey_pair_desc : t.settings_hotkey_pair_off_desc}
-          </p>
-        </div>
+          </SettingsRow>
 
-        {/* The Translate module is off: main keeps the shortcut unregistered */}
-        {enabledModules.translate === false && (
-          <CapabilityNotice
-            tone="info"
-            title={tpl(t.settings_modules_off_title, { module: t.nav_translate })}
-            description={t.settings_modules_off_desc}
-            actions={[{ label: t.settings_modules_turn_on, onClick: () => { void setModuleEnabled('translate', true) }, primary: true }]}
-          />
-        )}
+          <SettingsRow label={t.everywhere_model} description={t.everywhere_model_desc}>
+            <span className="everywhere-model">
+              {PROVIDERS.find((provider) => provider.id === hotkeyProvider)?.name ?? hotkeyProvider} · <code>{hotkeyModel}</code>
+            </span>
+          </SettingsRow>
 
-        {/* macOS Accessibility permission */}
-        {accessibility && accessibility.permission !== 'not-required' && (
-          <CapabilityNotice
-            title={t.settings_hotkey_accessibility_title}
-            description={accessibility.permission === 'granted' ? t.settings_hotkey_accessibility_granted : t.settings_hotkey_accessibility_missing}
-            tone={accessibility.permission === 'granted' ? 'ok' : 'warning'}
-            actions={accessibility.permission === 'granted' ? [] : [
-              { label: t.settings_hotkey_accessibility_open, onClick: () => { void requestAccessibility() }, primary: true },
-            ]}
-          />
-        )}
-
-      </div>
-
-      {/* ── AI Chat Hotkey ── */}
-      <div className="mt-6">
-        <h2 className="settings-section-title">{t.settings_chat_hotkey_section}</h2>
-        <p className="settings-section-desc mt-1">{t.settings_chat_hotkey_section_desc}</p>
-      </div>
-
-      <div className="card divide-y divide-gray-100 dark:divide-gray-700">
-
-        {/* Enable toggle */}
-        <div className="flex items-center justify-between gap-4 px-4 py-3.5">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_chat_hotkey_enabled}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_chat_hotkey_enabled_desc}</p>
-          </div>
-          <ToggleSwitch
-            checked={chatHotkeyEnabled}
-            onChange={(next) => {
-              setChatHotkeyEnabled(next)
-              saveChatHotkeySettings({ enabled: next })
-            }}
-          />
-        </div>
-
-        {/* Shortcut recorder */}
-        <div className="px-4 py-3.5 space-y-2">
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_chat_hotkey_label}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_chat_hotkey_desc}</p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {chatHotkeyValue && !isChatRecording && (
-                <Button
-                  size="md"
-                  shape="icon"
-                  variant="danger"
-                  appearance="soft"
-                  aria-label={t.settings_chat_hotkey_clear}
-                  type="button"
-                  onClick={() => {
-                    setChatHotkeyValue('')
-                    setChatHotkeyEnabled(false)
-                    saveChatHotkeySettings({ hotkey: '', enabled: false })
-                  }}
-                  title={t.settings_chat_hotkey_clear}
-                >
-                  <XIcon />
+          {/* macOS Accessibility permission */}
+          {accessibility && accessibility.permission !== 'not-required' && (
+            <SettingsRow
+              label={t.settings_hotkey_accessibility_title}
+              description={accessibility.permission === 'granted' ? t.settings_hotkey_accessibility_granted : t.settings_hotkey_accessibility_missing}
+            >
+              <StatusLabel tone={accessibility.permission === 'granted' ? 'ok' : 'warning'}>
+                {accessibility.permission === 'granted' ? t.everywhere_permission_granted : t.everywhere_permission_missing}
+              </StatusLabel>
+              {accessibility.permission !== 'granted' && (
+                <Button size="sm" shape="rect" variant="primary" appearance="solid" onClick={() => { void requestAccessibility() }}>
+                  {t.settings_hotkey_accessibility_open}
                 </Button>
               )}
-              <HotkeyRecordButton
-                inputRef={chatHotkeyInputRef}
-                isRecording={isChatRecording}
-                value={displayAccelerator(chatHotkeyValue)}
-                onKeyDown={handleChatHotkeyKeyDown}
-                onClick={() => setIsChatRecording(true)}
-                onBlur={() => setIsChatRecording(false)}
-                recordingText={t.settings_chat_hotkey_recording}
-                noneText={t.settings_chat_hotkey_none}
-              />
-            </div>
-          </div>
-        </div>
+            </SettingsRow>
+          )}
+        </SettingsCard>
+      )}
+      {part === 'launcher' && (
+        <SettingsCard
+          headingLevel={2}
+          title={t.shortcut_launcher}
+          description={t.settings_chat_hotkey_section_desc}
+          aside={(
+            <ToggleSwitch
+              checked={chatHotkeyEnabled}
+              aria-label={t.settings_chat_hotkey_enabled}
+              onChange={(next) => {
+                setChatHotkeyEnabled(next)
+                saveChatHotkeySettings({ enabled: next })
+              }}
+            />
+          )}
+        >
+          <SettingsRow label={t.settings_chat_hotkey_label} description={t.settings_chat_hotkey_desc}>
+            {chatHotkeyValue && !isChatRecording && (
+              <Button
+                size="sm"
+                shape="icon"
+                variant="danger"
+                appearance="ghost"
+                aria-label={t.settings_chat_hotkey_clear}
+                type="button"
+                onClick={() => {
+                  setChatHotkeyValue('')
+                  setChatHotkeyEnabled(false)
+                  saveChatHotkeySettings({ hotkey: '', enabled: false })
+                }}
+                title={t.settings_chat_hotkey_clear}
+              >
+                <XIcon />
+              </Button>
+            )}
+            <HotkeyRecordButton
+              inputRef={chatHotkeyInputRef}
+              isRecording={isChatRecording}
+              value={displayAccelerator(chatHotkeyValue)}
+              onKeyDown={handleChatHotkeyKeyDown}
+              onClick={() => setIsChatRecording(true)}
+              onBlur={() => setIsChatRecording(false)}
+              recordingText={t.settings_chat_hotkey_recording}
+              noneText={t.settings_chat_hotkey_none}
+            />
+          </SettingsRow>
 
         {/* The Launcher module is off: main keeps the shortcut unregistered */}
         {enabledModules.launcher === false && (
@@ -592,7 +598,8 @@ export function HotkeySection() {
           />
         )}
 
-      </div>
-    </section>
+        </SettingsCard>
+      )}
+    </>
   )
 }

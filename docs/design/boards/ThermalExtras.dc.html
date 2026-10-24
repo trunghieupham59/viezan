@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — luồng phụ của Quạt</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.cap{margin:0;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#55555C}
+.panel{background:#FFFFFF;border:1px solid #E2E2E7;border-radius:14px;display:flex;flex-direction:column;overflow:hidden}
+.dlg{background:#FFFFFF;border:1px solid #E2E2E7;border-radius:16px;box-shadow:0 16px 40px rgba(28,28,31,0.14);display:flex;flex-direction:column;overflow:hidden}
+.dh{padding:16px 18px 6px}
+.db{padding:6px 18px 16px;display:flex;flex-direction:column;gap:10px}
+.df{display:flex;gap:8px;justify-content:flex-end;padding:12px 18px;border-top:1px solid #EFEFF2}
+.btn{height:32px;padding:0 12px;border-radius:8px;border:1px solid #D6D6DC;background:#FFFFFF;color:#1C1C1F;font:500 13px Inter,sans-serif;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-primary{border:0;background:#0A63D6;color:#FFFFFF}
+.seg{display:inline-flex;padding:2px;border-radius:9px;background:#EDEDF0;gap:2px}
+.seg button{height:28px;padding:0 12px;border-radius:7px;border:0;background:transparent;color:#3A3A40;font:500 13px Inter,sans-serif}
+.seg button[aria-pressed="true"]{background:#FFFFFF;color:#1C1C1F;box-shadow:0 1px 2px rgba(28,28,31,0.1)}
+.txt{margin:0;font-size:14px;line-height:1.6;color:#2C2C31}
+.li{display:flex;gap:10px;font-size:14px;line-height:1.55;color:#2C2C31}
+.raw{display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px;border:0;background:transparent;font:inherit;color:inherit;text-align:left}
+.raw + .raw{border-top:1px solid #EFEFF2}
+.raw[aria-pressed="true"]{background:#E8F0FC;color:#0A58C2}
+.code{font-family:"JetBrains Mono",monospace;font-size:11px;color:#6B6B73}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1000px; box-sizing: border-box; padding: 56px 48px; background: #F4F4F6; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 32px; align-content: start">
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Chế độ Cố định và tiến trình nhận diện</p>
+    <section class="panel" aria-label="Quạt">
+      <div style="height: 44px; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid #EFEFF2; font-size: 14px; font-weight: 600">Quạt</div>
+      <div role="status" style="padding: 10px 16px; border-bottom: 1px solid #EFEFF2; display: flex; flex-direction: column; gap: 8px; background: #FAFCFF">
+        <div style="display: flex; align-items: center; gap: 10px; font-size: 13px"><span style="flex: 1">Nhận diện cảm biến · Quạt phải (2/2) · chạy tối đa · 24 s</span><button type="button" class="btn" style="height: 28px; border-color: #F0C4C7; color: #B01F29">Dừng nhận diện</button></div>
+        <div role="progressbar" aria-label="Tiến độ nhận diện" aria-valuemin="0" aria-valuemax="100" aria-valuenow="68" style="height: 4px; border-radius: 99px; background: #E6E6EB; overflow: hidden"><span style="display: block; width: 68%; height: 100%; background: #0A63D6"></span></div>
+      </div>
+      <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: center; gap: 12px">
+          <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; color: #55555C">Quạt trái</span><span style="font-size: 22px; font-weight: 600; color: #0A58C2; font-variant-numeric: tabular-nums">3.000 RPM</span></div>
+          <span style="flex: 1"></span>
+          <div class="seg" role="group" aria-label="Chế độ quạt trái"><button type="button" aria-pressed="false">Tự động</button><button type="button" aria-pressed="true">Cố định</button><button type="button" aria-pressed="false">Theo cảm biến</button></div>
+        </div>
+        <div style="background: #F7F7F9; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; align-items: center; gap: 10px"><label for="rpm" style="flex: 1; font-size: 13px; color: #3A3A40">Tốc độ mục tiêu</label><input id="rpm" value="3000" style="width: 72px; height: 30px; box-sizing: border-box; border: 1px solid #D6D6DC; border-radius: 8px; text-align: right; padding: 0 8px; font: 500 14px Inter, sans-serif; font-variant-numeric: tabular-nums"><span style="font-size: 13px; color: #55555C">RPM</span></div>
+          <label style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)" for="rpms">Thanh trượt tốc độ mục tiêu</label>
+          <input id="rpms" type="range" min="1499" max="5348" step="50" value="3000" style="width: 100%">
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #6B6B73; font-variant-numeric: tabular-nums"><span>1.499</span><span>5.348</span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Trước khi bật điều khiển quạt (lần đầu)</p>
+    <section class="dlg" role="dialog" aria-labelledby="d1">
+      <div class="dh"><h2 id="d1" style="margin: 0; font-size: 17px; font-weight: 600">Trước khi điều khiển quạt</h2></div>
+      <div class="db">
+        <p class="txt">Viezan sẽ chạy một helper nhỏ với quyền quản trị cho phiên này. macOS sẽ hỏi mật khẩu.</p>
+        <div class="li"><span aria-hidden="true" style="color: #1E7F45; font-weight: 700">✓</span>Chỉ đặt tốc độ trong giới hạn máy cho phép</div>
+        <div class="li"><span aria-hidden="true" style="color: #1E7F45; font-weight: 700">✓</span>Tự trả quạt về tự động khi thoát app, mất kết nối, ngủ hoặc dậy</div>
+        <div class="li"><span aria-hidden="true" style="color: #1E7F45; font-weight: 700">✓</span>Tự trả về tự động khi một cảm biến vượt 105°C</div>
+        <div style="border-radius: 10px; background: #FBF1E2; padding: 10px 12px; font-size: 13px; line-height: 1.5; color: #5C3500">Cho quạt chạy chậm hơn hệ thống có thể làm máy nóng hơn và giảm tuổi thọ linh kiện.</div>
+      </div>
+      <div class="df"><button type="button" class="btn">Huỷ</button><button type="button" class="btn btn-primary">Tôi hiểu, tiếp tục</button></div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Xác nhận nhận diện cảm biến</p>
+    <section class="dlg" role="dialog" aria-labelledby="d2">
+      <div class="dh"><h2 id="d2" style="margin: 0; font-size: 17px; font-weight: 600">Nhận diện cảm biến của từng quạt</h2></div>
+      <div class="db">
+        <p class="txt">Viezan cho từng quạt chạy tối đa khoảng một phút rồi so nhiệt độ, để mỗi quạt theo đúng cảm biến cạnh nó.</p>
+        <div class="li"><span aria-hidden="true" style="color: #55555C">·</span>Mất khoảng 3 phút 30 giây với hai quạt, hơi ồn</div>
+        <div class="li"><span aria-hidden="true" style="color: #55555C">·</span>Chỉ tăng tốc quạt, không bao giờ giảm</div>
+        <div class="li"><span aria-hidden="true" style="color: #55555C">·</span>Kết quả rõ hơn khi máy đang ấm; tránh tải nặng trong lúc chạy</div>
+      </div>
+      <div class="df"><button type="button" class="btn">Huỷ</button><button type="button" class="btn btn-primary">Bắt đầu nhận diện</button></div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Chọn cảm biến cụ thể (nâng cao)</p>
+    <section class="dlg" role="dialog" aria-labelledby="d3">
+      <div class="dh"><h2 id="d3" style="margin: 0; font-size: 17px; font-weight: 600">Cảm biến cụ thể</h2><p style="margin: 4px 0 0; font-size: 13px; color: #55555C">Quạt sẽ chỉ theo đúng một cảm biến này.</p></div>
+      <div class="db">
+        <label style="display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border-radius: 9px; border: 1px solid #D6D6DC"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B6B73" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Lọc theo tên hoặc mã</span><input value="tg0" style="flex: 1; border: 0; outline: none; font: 400 14px Inter, sans-serif"></label>
+        <div style="border: 1px solid #E2E2E7; border-radius: 10px; overflow: hidden">
+          <button type="button" class="raw" aria-pressed="true"><span style="flex: 1; font-size: 14px">GPU</span><span class="code">Tg05</span><span style="font-size: 13px; font-variant-numeric: tabular-nums">48,4°C</span></button>
+          <button type="button" class="raw" aria-pressed="false"><span style="flex: 1; font-size: 14px">GPU</span><span class="code">Tg0D</span><span style="font-size: 13px; font-variant-numeric: tabular-nums">46,1°C</span></button>
+          <button type="button" class="raw" aria-pressed="false"><span style="flex: 1; font-size: 14px">GPU</span><span class="code">Tg0L</span><span style="font-size: 13px; font-variant-numeric: tabular-nums">44,9°C</span></button>
+        </div>
+      </div>
+      <div class="df"><button type="button" class="btn">Đóng</button></div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

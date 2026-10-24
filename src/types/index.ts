@@ -117,7 +117,7 @@ export type {
 } from '../../shared/hotkeyApi'
 
 /** Workspace pages are feature modules; see `shared/modules.d.ts` and `src/modules/catalog.ts`. */
-export type AppPage = import('../../shared/modules').PageModuleId
+export type AppPage = import('../../shared/modules').AppPageId
 export type { ModuleEnabledState, ModuleId, ModulesApi, PageModuleId } from '../../shared/modules'
 
 export interface ProviderConfig {

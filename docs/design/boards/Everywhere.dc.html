@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — Dịch mọi nơi</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F4F6}
+a{color:#0A58C2}a:hover{color:#08469A}
+.btn{height:32px;padding:0 12px;border-radius:8px;border:1px solid #D6D6DC;background:#FFFFFF;color:#1C1C1F;font:500 13px Inter,sans-serif;display:inline-flex;align-items:center;gap:6px;text-decoration:none;white-space:nowrap}
+.card{background:#FFFFFF;border:1px solid #E2E2E7;border-radius:14px;display:flex;flex-direction:column;min-width:0}
+.ch{display:flex;align-items:flex-start;gap:12px;padding:16px;border-bottom:1px solid #EFEFF2}
+.row{display:flex;align-items:center;gap:12px;padding:12px 16px}
+.row + .row{border-top:1px solid #EFEFF2}
+.lbl{font-size:14px}
+.sub{font-size:12px;color:#55555C;line-height:1.45}
+.key{display:inline-flex;align-items:center;gap:4px;height:32px;padding:0 10px;border-radius:8px;border:1px solid #D6D6DC;background:#FAFAFB;font:500 13px "JetBrains Mono",monospace;color:#1C1C1F}
+.sw{width:36px;height:22px;border-radius:999px;border:0;padding:2px;display:inline-flex;flex:0 0 auto}
+.sw span{width:18px;height:18px;border-radius:999px;background:#FFFFFF;box-shadow:0 1px 2px rgba(0,0,0,0.2)}
+.step{display:flex;flex-direction:column;gap:6px;padding:12px;border-radius:10px;background:#F7F7F9}
+.n{width:22px;height:22px;border-radius:99px;background:#FFFFFF;border:1px solid #D6D6DC;font-size:12px;font-weight:600;display:inline-flex;align-items:center;justify-content:center}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; height: 100vh; min-height: 760px; background: #F4F4F6; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F">
+  <dc-import name="Sidebar" active="everywhere" hint-size="240px,100%"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; height: 100%; display: flex; flex-direction: column">
+    <header style="height: 56px; flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 0 16px 0 24px; border-bottom: 1px solid #E2E2E7; background: #FFFFFF">
+      <h1 style="margin: 0; font-size: 18px; font-weight: 600">Dịch mọi nơi</h1>
+      <span style="font-size: 13px; color: #55555C">Dịch trong ứng dụng khác và trong trình duyệt, không cần mở Viezan</span>
+      <span style="flex: 1"></span>
+      <button type="button" class="btn" aria-haspopup="listbox">Tiếng Việt ⇄ Tiếng Anh</button>
+    </header>
+
+    <div style="flex: 1; min-height: 0; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px">
+      <section class="card" aria-labelledby="h-qt">
+        <div class="ch">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 4px">
+            <h2 id="h-qt" style="margin: 0; font-size: 15px; font-weight: 600">Dịch nhanh vùng chọn</h2>
+            <p class="sub" style="margin: 0">Hoạt động trong mọi ứng dụng có ô chữ: email, chat, tài liệu, trình soạn mã.</p>
+          </div>
+          <button type="button" class="sw" role="switch" aria-checked="true" aria-label="Bật Dịch nhanh vùng chọn" style="background: #0A63D6; justify-content: flex-end"><span></span></button>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 10px; padding: 16px; border-bottom: 1px solid #EFEFF2">
+          <div class="step"><span class="n">1</span><span style="font-size: 14px; font-weight: 600">Bôi đen chữ</span><span class="sub">Ở ứng dụng bất kỳ.</span></div>
+          <div class="step"><span class="n">2</span><span style="font-size: 14px; font-weight: 600">Nhấn <span class="key" style="height: 22px; font-size: 12px">⌥ T</span></span><span class="sub">Chỉ báo nhỏ hiện cạnh con trỏ trong lúc dịch.</span></div>
+          <div class="step"><span class="n">3</span><span style="font-size: 14px; font-weight: 600">Bản dịch thay vào chỗ cũ</span><span class="sub">⌘Z để lấy lại chữ gốc.</span></div>
+        </div>
+        <div class="row">
+          <span class="lbl" style="flex: 1">Phím tắt</span>
+          <button type="button" class="key" aria-label="Đổi phím tắt Dịch nhanh, hiện tại Option T">⌥ T</button>
+        </div>
+        <div class="row">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span class="lbl">Tự đảo chiều</span><span class="sub">Chữ đã là tiếng Việt thì dịch sang tiếng Anh, và ngược lại</span></div>
+          <button type="button" class="sw" role="switch" aria-checked="true" aria-label="Tự đảo chiều ngôn ngữ" style="background: #0A63D6; justify-content: flex-end"><span></span></button>
+        </div>
+        <div class="row">
+          <span class="lbl" style="flex: 1">Model</span>
+          <button type="button" class="btn">Local · <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px">qwen3:4b</span></button>
+        </div>
+        <div class="row">
+          <span class="lbl" style="flex: 1">Hiện chỉ báo tiến trình</span>
+          <button type="button" class="sw" role="switch" aria-checked="true" aria-label="Hiện chỉ báo tiến trình" style="background: #0A63D6; justify-content: flex-end"><span></span></button>
+        </div>
+        <div class="row">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span class="lbl">Quyền Trợ năng</span><span class="sub">Cần để đọc chữ đang chọn và dán bản dịch</span></div>
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: #1E7F45"><span style="width: 7px; height: 7px; border-radius: 99px; background: #1E7F45"></span>Đã cấp</span>
+        </div>
+      </section>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+        <section class="card" aria-labelledby="h-ext" style="flex: 999 1 460px">
+          <div class="ch">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px">
+              <h2 id="h-ext" style="margin: 0; font-size: 15px; font-weight: 600">Tiện ích Chrome</h2>
+              <p class="sub" style="margin: 0">Dịch và đọc to trên trang web bằng khoá và model đã cài trong Viezan. Khoá không rời máy.</p>
+            </div>
+            <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #1E7F45; font-weight: 500; white-space: nowrap"><span style="width: 7px; height: 7px; border-radius: 99px; background: #1E7F45"></span>Đã kết nối</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 10px; padding: 16px; border-bottom: 1px solid #EFEFF2">
+            <div class="step"><span class="n">1</span><span style="font-size: 14px; font-weight: 600">Tải tiện ích</span><a href="#" class="btn" style="align-self: flex-start">Tải gói tiện ích</a></div>
+            <div class="step"><span class="n">2</span><span style="font-size: 14px; font-weight: 600">Nạp vào Chrome</span><span class="sub">chrome://extensions → Chế độ nhà phát triển → Tải tiện ích đã giải nén</span></div>
+            <div class="step"><span class="n">3</span><span style="font-size: 14px; font-weight: 600">Dán token</span><button type="button" class="btn" style="align-self: flex-start">Tạo token</button></div>
+          </div>
+          <div class="row" style="align-items: flex-start">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 8px">
+              <span class="lbl">Token đang dùng</span>
+              <div style="display: flex; align-items: center; gap: 10px; font-size: 13px"><span style="font-family: 'JetBrains Mono', monospace">[tên token]</span><span class="sub">hết hạn sau [số] ngày</span><button type="button" class="btn" style="margin-left: auto; height: 28px; border-color: #F0C4C7; color: #B01F29">Thu hồi</button></div>
+            </div>
+          </div>
+          <div class="row">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span class="lbl">Máy chủ cục bộ</span><span class="sub">Chỉ nhận kết nối từ máy này, có token</span></div>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #55555C">127.0.0.1:39875</span>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="h-float" style="flex: 1 1 300px">
+          <div class="ch">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px">
+              <h2 id="h-float" style="margin: 0; font-size: 15px; font-weight: 600">Nút dịch nổi</h2>
+              <p class="sub" style="margin: 0">Cho trình duyệt không cài được tiện ích.</p>
+            </div>
+            <button type="button" class="sw" role="switch" aria-checked="false" aria-label="Bật nút dịch nổi" style="background: #C9C9D1; justify-content: flex-start"><span></span></button>
+          </div>
+          <div class="row">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span class="lbl">Tự chèn vào trang</span><span class="sub">macOS, Safari và Chrome</span></div>
+          </div>
+          <div class="row">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span class="lbl">Bookmarklet</span><span class="sub">Kéo vào thanh dấu trang, dùng được ở mọi hệ điều hành</span></div>
+            <a href="#" class="btn">Lấy bookmarklet</a>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

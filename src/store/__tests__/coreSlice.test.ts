@@ -215,11 +215,19 @@ describe('setActivePage', () => {
     }
   })
 
-  it('opens and closes settings modal', () => {
+  it('opens Settings as a page, optionally at a section', () => {
+    act(() => useAppStore.getState().setActivePage('chat'))
     act(() => useAppStore.getState().openSettings())
-    expect(useAppStore.getState().settingsOpen).toBe(true)
-    act(() => useAppStore.getState().closeSettings())
-    expect(useAppStore.getState().settingsOpen).toBe(false)
+    expect(useAppStore.getState()).toMatchObject({ activePage: 'settings', settingsInitialSection: null })
+    act(() => useAppStore.getState().openSettingsAt('updates'))
+    expect(useAppStore.getState()).toMatchObject({ activePage: 'settings', settingsInitialSection: 'updates' })
+  })
+
+  it('navigates to the system pages', () => {
+    for (const page of ['home', 'everywhere', 'utilities', 'settings'] as const) {
+      act(() => useAppStore.getState().setActivePage(page))
+      expect(useAppStore.getState().activePage).toBe(page)
+    }
   })
 })
 
@@ -281,5 +289,16 @@ describe('clearTranslation', () => {
     expect(state.sourceText).toBe('')
     expect(state.translatedText).toBe('')
     expect(state.phoneticText).toBe('')
+  })
+})
+
+describe('active page persistence', () => {
+  it('saves the open page so it reopens, but never reopens on Settings', () => {
+    const partialize = useAppStore.persist.getOptions().partialize
+    if (!partialize) throw new Error('Persistence serializer missing')
+    act(() => useAppStore.getState().setActivePage('dictionary'))
+    expect(partialize(useAppStore.getState())).toMatchObject({ activePage: 'dictionary' })
+    act(() => useAppStore.getState().openSettings())
+    expect(partialize(useAppStore.getState())).toMatchObject({ activePage: 'home' })
   })
 })

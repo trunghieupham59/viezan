@@ -87,10 +87,8 @@ html:not(.dark) .chat-composer {
 }
 
 .chat-send-button {
-  width: 34px;
-  height: 34px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--vzn-radius-control);
   background: var(--vzn-send-bg);
   color: var(--vzn-send-fg);
   box-shadow: none;
@@ -110,11 +108,6 @@ html:not(.dark) .chat-composer {
 }
 
 .chat-stop-button,
-.chat-resume-button {
-  border-radius: 999px;
-  box-shadow: none;
-}
-
 .chat-bubble-user {
   border: 1px solid var(--vzn-user-bubble-border);
   border-radius: var(--vzn-radius-lg) var(--vzn-radius-lg) var(--vzn-radius-xs) var(--vzn-radius-lg);
@@ -123,23 +116,6 @@ html:not(.dark) .chat-composer {
   box-shadow: none;
 }
 
-.chat-message-avatar {
-  width: var(--vzn-chat-avatar-size);
-  height: var(--vzn-chat-avatar-size);
-  border: 1px solid var(--vzn-divider);
-  box-shadow: var(--vzn-shadow-xs);
-}
-
-.chat-message-avatar-user {
-  border-color: transparent;
-  background: var(--vzn-user-avatar-bg);
-  color: var(--vzn-user-avatar-fg);
-}
-
-.chat-message-avatar-assistant {
-  background: var(--vzn-assistant-avatar-bg);
-  color: var(--vzn-text-muted);
-}
 
 .chat-bubble-assistant {
   color: var(--vzn-text);
@@ -366,7 +342,7 @@ html:not(.dark) .chat-research-final {
   width: min(100%, var(--vzn-chat-local-composer-max));
   margin-top: 0;
   padding-top: 0;
-  background: var(--vzn-bg);
+  background: transparent;
 }
 
 .chat-page-composer {
@@ -394,8 +370,8 @@ html:not(.dark) .chat-research-final {
 
 .chat-active-composer-footer {
   flex: 0 0 auto;
-  padding: 8px var(--vzn-chat-local-gutter) 14px;
-  background: var(--vzn-bg);
+  padding: var(--vzn-space-2) var(--vzn-chat-local-gutter) var(--vzn-space-5);
+  background: transparent;
 }
 
 .chat-active-composer-inner {
@@ -1135,9 +1111,6 @@ html.dark .chat-suggest-chip:hover {
 
 @container app-main (min-width: 760px) and (max-width: 999px) {
   .chat-page {
-    --vzn-chat-local-stage-max: 920px;
-    --vzn-chat-local-reading-max: 720px;
-    --vzn-chat-local-composer-max: 900px;
     --vzn-chat-local-gutter: var(--vzn-space-5);
   }
 
@@ -1148,9 +1121,6 @@ html.dark .chat-suggest-chip:hover {
 
 @container app-main (min-width: 1000px) and (max-width: 1199px) {
   .chat-page {
-    --vzn-chat-local-stage-max: 1000px;
-    --vzn-chat-local-reading-max: 780px;
-    --vzn-chat-local-composer-max: 960px;
     --vzn-chat-local-gutter: var(--vzn-space-6);
   }
 
@@ -1161,9 +1131,6 @@ html.dark .chat-suggest-chip:hover {
 
 @container app-main (min-width: 1200px) and (max-width: 1759px) {
   .chat-page {
-    --vzn-chat-local-stage-max: 1080px;
-    --vzn-chat-local-reading-max: 820px;
-    --vzn-chat-local-composer-max: 1040px;
     --vzn-chat-local-gutter: var(--vzn-space-8);
   }
 
@@ -1174,9 +1141,6 @@ html.dark .chat-suggest-chip:hover {
 
 @container app-main (min-width: 1760px) {
   .chat-page {
-    --vzn-chat-local-stage-max: 1240px;
-    --vzn-chat-local-reading-max: 840px;
-    --vzn-chat-local-composer-max: 1120px;
     --vzn-chat-local-gutter: var(--vzn-space-10);
   }
 
@@ -1220,13 +1184,42 @@ html.dark .chat-suggest-chip:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.chat-task-inline-option {
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 100%;
+/* Task popover: one row per task, then its option and the instruction preview. */
+.chat-task-list {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: var(--vzn-space-0-5);
+  padding: var(--vzn-space-2);
 }
-.chat-task-inline-option > .ui-button {
-  max-width: var(--vzn-translate-model-chip-min-inline);
+.chat-task-row.ui-button {
+  inline-size: 100%;
+  justify-content: flex-start;
+  gap: var(--vzn-space-2);
+}
+.chat-task-row__label {
+  flex: 1 1 auto;
+  text-align: start;
+}
+.chat-task-row__check {
+  inline-size: var(--vzn-icon-sm);
+  block-size: var(--vzn-icon-sm);
+}
+/* The task's option (e.g. target language) sits under the list, inset like the sections. */
+.chat-task-option {
+  flex: 0 0 auto;
+  padding: var(--vzn-space-3);
+  border-top: var(--vzn-border-width) solid var(--vzn-divider);
+}
+.chat-task-instruction {
+  margin: 0;
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border-radius: var(--vzn-radius-sm);
+  background: var(--vzn-surface-muted);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+  line-height: var(--vzn-line-normal);
+  white-space: pre-wrap;
 }
 .chat-task-hint {
   margin: 0;
@@ -1244,4 +1237,76 @@ html.dark .chat-suggest-chip:hover {
     gap: var(--vzn-space-2);
   }
   .chat-composer-actions { justify-content: flex-end; }
+}
+
+/* Deep research: header toggle, step progress and stop recovery ---------- */
+
+.chat-research-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-1);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-md);
+}
+
+.chat-research-toggle.ui-button {
+  inline-size: 100%;
+  justify-content: space-between;
+  gap: var(--vzn-space-2);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-medium);
+}
+
+.chat-research-toggle__label {
+  display: inline-flex;
+  min-inline-size: 0;
+  align-items: center;
+  gap: var(--vzn-space-2);
+}
+
+.chat-research-toggle__icon,
+.chat-research-toggle__chevron {
+  inline-size: var(--vzn-icon-sm);
+  block-size: var(--vzn-icon-sm);
+  flex: 0 0 auto;
+  color: var(--vzn-text-muted);
+}
+
+.chat-research-toggle__chevron {
+  transition: transform var(--vzn-duration-fast) var(--vzn-ease-standard);
+}
+
+.chat-research-toggle__chevron[data-open] {
+  transform: rotate(90deg);
+}
+
+.chat-research-steps {
+  padding-inline: var(--vzn-space-3);
+}
+
+.chat-research-recovery {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vzn-space-2) var(--vzn-space-3);
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border-top: var(--vzn-border-width) solid var(--vzn-divider);
+}
+
+.chat-research-recovery__reason {
+  margin: 0;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.chat-research-recovery__actions {
+  display: flex;
+  gap: var(--vzn-space-2);
+}
+
+.chat-task-option + .ai-config-section,
+.chat-task-list + .ai-config-section {
+  border-top: var(--vzn-border-width) solid var(--vzn-divider);
 }

@@ -109,10 +109,11 @@ for (const selector of ['.chat-composer', '.chat-empty-state', '.chat-page', '.m
   }
 }
 
+// Conversation rows are flat on the white history column (redesign): a subtle
+// fill on hover, the accent tint with its border for the open conversation.
 const chatSidebarStyleContracts = [
   'border-right: var(--vzn-border-width) solid var(--vzn-border-strong)',
-  'background: var(--vzn-surface);\n  box-shadow: inset 0 0 0 1px var(--vzn-divider)',
-  'background: var(--vzn-surface-hover);\n  box-shadow: inset 0 0 0 1px var(--vzn-border-strong)',
+  '.chat-session-item:focus-within {\n  background: var(--vzn-surface-subtle);\n}',
   'background: var(--vzn-action-soft);\n  box-shadow: inset 0 0 0 1px var(--vzn-action-border)',
 ]
 
