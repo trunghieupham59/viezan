@@ -23,4 +23,5 @@ export {
   type SkeletonBlockProps,
   type SkeletonBlockShape,
 } from './SkeletonBlock'
+export { Slider, type SliderProps } from './Slider'
 export { Textarea, type TextareaProps } from './Textarea'

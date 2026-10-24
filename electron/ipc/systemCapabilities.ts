@@ -3,7 +3,7 @@
  * flow so Settings can render it with the shared notice.
  */
 
-import type { ThermalSupport } from '../../shared/thermalApi'
+import type { FanControlState, ThermalSupport } from '../../shared/thermalApi'
 import { getAccessibilityStatus, requestAccessibilityPermission, requiresAccessibilityPermission } from './accessibilityPermission'
 import type { CapabilityProvider, CapabilityStatus } from './capabilities'
 import { getLauncherSpotlightSnapshot } from './globalHotkey'
@@ -68,10 +68,30 @@ export function createThermalCapability(getSupport: () => ThermalSupport): Capab
   }
 }
 
+/**
+ * `thermal.fan.write`: may the app drive the fans? Supported where the privileged helper
+ * ships (macOS with the binary present); `granted` only while the helper is connected.
+ * `request` runs the session flow: administrator prompt, start, connect.
+ */
+export function createFanWriteCapability(fanControl: { getState: () => FanControlState; enable: () => Promise<FanControlState> }): CapabilityProvider {
+  const toStatus = (state: FanControlState): CapabilityStatus => ({
+    id: 'thermal.fan.write',
+    supported: state.helper !== 'unsupported' && state.helper !== 'missing',
+    permission: state.helper === 'ready' ? 'granted' : 'denied',
+    detail: { helper: state.helper, ...(state.error ? { error: state.error } : {}), ...(state.helperVersion ? { helperVersion: state.helperVersion } : {}) },
+  })
+  return {
+    id: 'thermal.fan.write',
+    get: () => toStatus(fanControl.getState()),
+    request: async () => toStatus(await fanControl.enable()),
+  }
+}
+
 export interface SystemCapabilityDeps {
   thermalSupport: () => ThermalSupport
+  fanControl: { getState: () => FanControlState; enable: () => Promise<FanControlState> }
 }
 
 export function createSystemCapabilityProviders(deps: SystemCapabilityDeps): CapabilityProvider[] {
-  return [accessibilityCapability, spotlightCapability, createThermalCapability(deps.thermalSupport)]
+  return [accessibilityCapability, spotlightCapability, createThermalCapability(deps.thermalSupport), createFanWriteCapability(deps.fanControl)]
 }

@@ -937,6 +937,133 @@ export interface Translations {
   thermal_tray_metric: string
   thermal_tray_show_fan: string
   thermal_tray_error: string
+  // Thermal — fan control (privileged helper, macOS)
+  thermal_fan_control_title: string
+  thermal_fan_control_desc: string
+  thermal_fan_helper_unsupported: string
+  thermal_fan_helper_missing: string
+  thermal_fan_helper_idle_title: string
+  thermal_fan_helper_idle_desc: string
+  thermal_fan_helper_starting: string
+  /** `{version}` is the helper's version string. */
+  thermal_fan_helper_ready: string
+  thermal_fan_helper_error_title: string
+  thermal_fan_enable: string
+  thermal_fan_disable: string
+  thermal_fan_retry: string
+  thermal_fan_restore_all: string
+  thermal_fan_mode_auto: string
+  thermal_fan_mode_fixed: string
+  thermal_fan_mode_sensor: string
+  thermal_fan_target_label: string
+  thermal_fan_sensor_source: string
+  /** Labels before the two threshold boxes, read as one sentence: "Speed up from [50] °C, full speed at [90] °C". */
+  thermal_fan_sensor_low: string
+  thermal_fan_sensor_high: string
+  /** `{celsius}` is the source sensor's current reading, `{rpm}` the target it produces. */
+  thermal_fan_sensor_now: string
+  thermal_fan_sensor_missing: string
+  // Fan rule sources (the picker): groups, meanings, and the advanced raw-sensor dialog
+  thermal_fan_source_group_cpu: string
+  thermal_fan_source_group_gpu: string
+  thermal_fan_source_group_all: string
+  thermal_fan_source_groups: string
+  thermal_fan_source_kinds: string
+  thermal_fan_source_advanced: string
+  thermal_fan_source_dialog_title: string
+  thermal_fan_source_dialog_desc: string
+  thermal_fan_source_filter: string
+  thermal_fan_source_filter_clear: string
+  thermal_fan_source_no_match: string
+  /** `{code}` is the raw sensor key the rule follows. */
+  thermal_fan_source_raw: string
+  thermal_fan_source_close: string
+  /** Mode text shown while the helper is not driving the fans. */
+  thermal_fan_mode_system: string
+  /** The gear popover on the Thermal page. */
+  thermal_options_title: string
+  thermal_options_desc: string
+  /** Popover subtitle where fan control exists, so sensor detection is in it too. */
+  thermal_options_desc_fans: string
+  /** Short helper status for the toolbar chip. */
+  thermal_fan_helper_missing_short: string
+  // Fan names from the machine
+  thermal_fan_label_left: string
+  thermal_fan_label_right: string
+  thermal_fan_label_main: string
+  thermal_fan_label_cpu: string
+  thermal_fan_label_gpu: string
+  thermal_fan_label_exhaust: string
+  thermal_fan_label_intake: string
+  thermal_fan_label_chassis: string
+  // Fan ↔ sensor calibration
+  thermal_fan_calibrate: string
+  thermal_fan_calibrate_desc: string
+  thermal_fan_calibrate_cancel: string
+  thermal_fan_calibrate_clear: string
+  /** `{fan}` is the fan's name, `{current}` / `{total}` its position in the run, `{seconds}` the phase countdown. */
+  thermal_fan_calibrate_progress: string
+  thermal_fan_calibrate_phase_baseline: string
+  thermal_fan_calibrate_phase_spin: string
+  thermal_fan_calibrate_phase_settle: string
+  thermal_fan_calibrate_done: string
+  thermal_fan_calibrate_cancelled: string
+  thermal_fan_calibrate_error: string
+  /** `{date}` is when the calibration finished. */
+  thermal_fan_calibrated_at: string
+  /** One fan in the calibration summary: `{fan}` its name, `{count}` the sensors it owns. */
+  thermal_fan_calibrate_fan_count: string
+  /** Source option: the sensors the calibration found this fan cools; `{fan}` is the fan's name. */
+  thermal_fan_source_affinity: string
+  /** `{sensors}` lists the top sensor names. */
+  thermal_fan_source_affinity_desc: string
+  thermal_fan_calibrate_confirm_title: string
+  thermal_fan_calibrate_confirm_body: string
+  thermal_fan_calibrate_confirm_accept: string
+  thermal_sensors_title: string
+  /** `{count}` sensors folded into a row and `{avg}` their average reading. */
+  thermal_sensor_row_caption: string
+  thermal_sensor_unlabeled: string
+  thermal_sensor_expand: string
+  thermal_sensor_collapse: string
+  /** Tooltip of a group heading in the sensor table; `{group}` is the group's title. */
+  thermal_group_expand: string
+  thermal_group_collapse: string
+  // Thermal — fan profiles
+  thermal_fan_profiles_title: string
+  thermal_fan_profiles_desc: string
+  thermal_fan_profiles_need_helper: string
+  thermal_fan_profile_custom: string
+  thermal_fan_profile_save: string
+  thermal_fan_profile_name_placeholder: string
+  thermal_fan_profile_save_confirm: string
+  thermal_fan_profile_save_cancel: string
+  /** `{name}` is the profile's name. */
+  thermal_fan_profile_delete: string
+  thermal_fan_profile_error: string
+  thermal_fan_profile_builtin_system: string
+  thermal_fan_profile_builtin_system_desc: string
+  thermal_fan_profile_builtin_quiet: string
+  thermal_fan_profile_builtin_quiet_desc: string
+  thermal_fan_profile_builtin_cool: string
+  thermal_fan_profile_builtin_cool_desc: string
+  thermal_fan_profile_builtin_gaming: string
+  thermal_fan_profile_builtin_gaming_desc: string
+  thermal_fan_profile_builtin_local_ai: string
+  thermal_fan_profile_builtin_local_ai_desc: string
+  /** `{reason}` is one of the `thermal_fan_reason_*` strings. */
+  thermal_fan_restored_reason: string
+  thermal_fan_reason_watchdog: string
+  thermal_fan_reason_ceiling: string
+  thermal_fan_reason_sleep: string
+  thermal_fan_reason_wake: string
+  thermal_fan_reason_disconnect: string
+  thermal_fan_reason_client: string
+  thermal_fan_disclaimer_title: string
+  thermal_fan_disclaimer_body: string
+  thermal_fan_disclaimer_accept: string
+  thermal_fan_disclaimer_cancel: string
+  thermal_fan_error: string
   thermal_label_cpu_core: string
   thermal_label_cpu_performance_core: string
   thermal_label_cpu_efficiency_core: string

@@ -5,8 +5,9 @@
  * rejects the whole patch, like the hotkey settings store.
  */
 import * as fs from 'node:fs'
-import type { ThermalSettings, ThermalSettingsPatch, ThermalTrayMetric, ThermalTraySettings } from '../../shared/thermalApi'
+import type { FanAffinityResult, ThermalFanControlSettings, ThermalFanProfilesSettings, ThermalSettings, ThermalSettingsPatch, ThermalTrayMetric, ThermalTraySettings } from '../../shared/thermalApi'
 import { isRecord } from '../ipc/ipcValidation'
+import { isUserFanProfile, isUserFanProfileId, MAX_USER_FAN_PROFILES } from './fanProfilesSchema'
 
 export const THERMAL_SETTINGS_FILE = 'thermal.json'
 
@@ -14,6 +15,27 @@ export const THERMAL_TRAY_METRICS: readonly ThermalTrayMetric[] = ['hottest', 'c
 
 export const DEFAULT_THERMAL_SETTINGS: ThermalSettings = {
   tray: { enabled: false, metric: 'hottest', showFan: false },
+  fanControl: { acknowledged: false },
+  fanProfiles: { activeId: null, user: [] },
+  fanAffinity: null,
+}
+
+function isFanAffinityResult(value: unknown): value is FanAffinityResult {
+  if (!isRecord(value) || typeof value.calibratedAt !== 'number' || !Array.isArray(value.fans) || value.fans.length > 16) return false
+  if (value.model !== undefined && typeof value.model !== 'string') return false
+  return value.fans.every((fan: unknown) => isRecord(fan) && typeof fan.fanId === 'string' && fan.fanId.length <= 64 && Array.isArray(fan.sensors) && fan.sensors.length <= 256
+    && fan.sensors.every((sensor: unknown) => isRecord(sensor) && typeof sensor.sensorId === 'string' && sensor.sensorId.length <= 64
+      && typeof sensor.cooling === 'number' && Number.isFinite(sensor.cooling) && typeof sensor.share === 'number' && Number.isFinite(sensor.share)
+      && (sensor.contrast === undefined || (typeof sensor.contrast === 'number' && Number.isFinite(sensor.contrast)))))
+}
+
+function cloneSettings(settings: ThermalSettings): ThermalSettings {
+  return {
+    tray: { ...settings.tray },
+    fanControl: { ...settings.fanControl },
+    fanProfiles: { activeId: settings.fanProfiles.activeId, user: settings.fanProfiles.user.map((profile) => ({ ...profile, fans: { ...profile.fans } })) },
+    fanAffinity: settings.fanAffinity ? { ...settings.fanAffinity, fans: settings.fanAffinity.fans.map((fan) => ({ ...fan, sensors: fan.sensors.map((sensor) => ({ ...sensor })) })) } : null,
+  }
 }
 
 function isTrayMetric(value: unknown): value is ThermalTrayMetric {
@@ -43,24 +65,61 @@ export function parseThermalSettingsPatch(raw: unknown): ParsedPatch {
     }
     patch.tray = tray
   }
+  if (raw.fanControl !== undefined) {
+    if (!isRecord(raw.fanControl)) return { ok: false, error: 'Invalid "fanControl" value.' }
+    const fanControl: Partial<ThermalFanControlSettings> = {}
+    if (raw.fanControl.acknowledged !== undefined) {
+      if (typeof raw.fanControl.acknowledged !== 'boolean') return { ok: false, error: 'Invalid "fanControl.acknowledged" value.' }
+      fanControl.acknowledged = raw.fanControl.acknowledged
+    }
+    patch.fanControl = fanControl
+  }
+  if (raw.fanProfiles !== undefined) {
+    if (!isRecord(raw.fanProfiles)) return { ok: false, error: 'Invalid "fanProfiles" value.' }
+    const fanProfiles: Partial<ThermalFanProfilesSettings> = {}
+    if (raw.fanProfiles.activeId !== undefined) {
+      const id = raw.fanProfiles.activeId
+      if (id !== null && !(typeof id === 'string' && (id.startsWith('builtin:') || isUserFanProfileId(id)) && id.length <= 80)) {
+        return { ok: false, error: 'Invalid "fanProfiles.activeId" value.' }
+      }
+      fanProfiles.activeId = id
+    }
+    if (raw.fanProfiles.user !== undefined) {
+      const user = raw.fanProfiles.user
+      if (!Array.isArray(user) || user.length > MAX_USER_FAN_PROFILES || !user.every(isUserFanProfile)) {
+        return { ok: false, error: 'Invalid "fanProfiles.user" value.' }
+      }
+      fanProfiles.user = user.map((profile) => ({ ...profile, fans: { ...profile.fans } }))
+    }
+    patch.fanProfiles = fanProfiles
+  }
+  if (raw.fanAffinity !== undefined) {
+    if (raw.fanAffinity !== null && !isFanAffinityResult(raw.fanAffinity)) return { ok: false, error: 'Invalid "fanAffinity" value.' }
+    patch.fanAffinity = raw.fanAffinity
+  }
   return { ok: true, patch }
 }
 
 export function applyThermalSettingsPatch(current: ThermalSettings, patch: ThermalSettingsPatch): ThermalSettings {
-  return { tray: { ...current.tray, ...(patch.tray ?? {}) } }
+  return {
+    tray: { ...current.tray, ...(patch.tray ?? {}) },
+    fanControl: { ...current.fanControl, ...(patch.fanControl ?? {}) },
+    fanProfiles: { ...current.fanProfiles, ...(patch.fanProfiles ?? {}) },
+    fanAffinity: patch.fanAffinity !== undefined ? patch.fanAffinity : current.fanAffinity,
+  }
 }
 
 /** Read the file leniently: anything malformed falls back to the defaults field by field. */
 export function loadThermalSettings(filePath: string, log: Pick<Console, 'warn'> = console): ThermalSettings {
-  if (!fs.existsSync(filePath)) return { tray: { ...DEFAULT_THERMAL_SETTINGS.tray } }
+  if (!fs.existsSync(filePath)) return cloneSettings(DEFAULT_THERMAL_SETTINGS)
   try {
     const raw: unknown = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
     const parsed = parseThermalSettingsPatch(raw)
-    if (!parsed.ok) return { tray: { ...DEFAULT_THERMAL_SETTINGS.tray } }
+    if (!parsed.ok) return cloneSettings(DEFAULT_THERMAL_SETTINGS)
     return applyThermalSettingsPatch(DEFAULT_THERMAL_SETTINGS, parsed.patch)
   } catch (e) {
     log.warn('[Thermal] Could not read the settings file; using defaults.', e)
-    return { tray: { ...DEFAULT_THERMAL_SETTINGS.tray } }
+    return cloneSettings(DEFAULT_THERMAL_SETTINGS)
   }
 }
 
@@ -84,7 +143,7 @@ export function createThermalSettingsStore(options: {
   let current = load()
   const listeners = new Set<(settings: ThermalSettings) => void>()
   return {
-    get: () => ({ tray: { ...current.tray } }),
+    get: () => cloneSettings(current),
     update: (patch) => {
       const next = applyThermalSettingsPatch(current, patch)
       const changed = JSON.stringify(next) !== JSON.stringify(current)
@@ -95,9 +154,9 @@ export function createThermalSettingsStore(options: {
         } catch (e) {
           log.error('[Thermal] Could not save the settings file:', e)
         }
-        for (const listener of listeners) listener({ tray: { ...next.tray } })
+        for (const listener of listeners) listener(cloneSettings(next))
       }
-      return { tray: { ...next.tray } }
+      return cloneSettings(next)
     },
     subscribe: (listener) => {
       listeners.add(listener)

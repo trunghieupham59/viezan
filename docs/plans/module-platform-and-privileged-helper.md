@@ -353,6 +353,74 @@ Macs Fan Control trên máy Intel; Windows giữ trạng thái "chưa hỗ trợ
 Hoàn thành khi: toàn bộ kịch bản an toàn trên pass trên ít nhất một máy Intel và
 một máy Apple Silicon.
 
+Đang làm (giai đoạn 2, nhánh `feat/fan-control-helper`): `native/common/SMC.swift`
+dùng chung (thêm ghi khóa, mã hóa `flt`/`fpe2`/`ui8`/`ui16`); `viezan-fan-helper`
+(`native/fanhelper/main.swift`): socket Unix `/var/run/viezan-fan-helper-<uid>[-dev].sock`
+chỉ nhận đúng uid, giao thức JSON theo dòng với `hello`/`status`/`fans.list`/
+`fans.setMode`/`fans.setTarget`/`fans.restoreAll`, kẹp biên, watchdog 15 s, trần 105 °C,
+về auto khi ngắt kết nối/ngủ/dậy/tín hiệu, tự thoát sau 60 s không có client, log
+`/var/log/viezan-fan-helper.log`; `electron/helper/{protocol,client,launch}.ts`
+(HelperClient với handshake, hàng đợi lệnh, timeout, heartbeat; khởi chạy theo phiên qua
+hộp thoại quản trị); hợp đồng `FanControlService` (`fanControlTypes.ts`) do
+`fanControl.ts` (cầu nối helper, người dùng tự viết) hiện thực; lớp chính sách
+`fanPolicy.ts` thêm chế độ **theo cảm biến** hai mốc (`fanCurve.ts`: tối thiểu tại
+`minCelsius`, tối đa tại `maxCelsius`, nội suy tuyến tính, bước 50 RPM, dead band 100
+RPM, hai đầu biên luôn chính xác), đọc nền khi cửa sổ ẩn, xóa luật khi helper mất; IPC
+`thermal:fan:*`, capability `thermal.fan.write`; UI: hộp thoại miễn trừ lần đầu, trạng
+thái helper, thẻ quạt Tự động / Cố định / Theo cảm biến (chọn cảm biến, hai mốc nhiệt,
+hiển thị số đo → mục tiêu), nút "Về tự động". Profile theo tình huống
+(`fanProfiles.ts`, lớp trên `fanPolicy`): dựng sẵn Theo hệ thống / Yên tĩnh / Mát /
+Gaming / AI local định nghĩa tượng trưng (luật trên *nhóm* cảm biến CPU/GPU, resolve
+sang cảm biến thật khi áp dụng, ưu tiên nhãn package/die), profile tự tạo chụp trạng
+thái hiện tại theo id quạt, lưu `thermal.json` (`fanProfiles.activeId`, `user`), chỉnh
+tay một quạt → "Tùy chỉnh", tự áp lại profile đang chọn khi helper bật lại, IPC
+`thermal:fan:profiles:*`, UI chips + lưu/xóa. Cầu nối helper `fanControl.ts` có test
+đặc tả `__tests__/fanControl.test.ts` (10 ca, fake helper/launcher). QA trên MacBook
+Apple Silicon (2026-10-24, bản dev): hộp thoại quản trị → helper sẵn sàng sau ~5 s; cố
+định 3000 RPM → SMC báo mục tiêu 3000 sau 8 s; mục tiêu ngoài biên bị helper từ chối;
+profile Mát đặt luật CPU cho cả hai quạt và mục tiêu đổi theo nhiệt độ với dead band;
+"Về tự động" trả mục tiêu về hệ thống; SIGKILL app khi đang override → helper
+`restoreAll (disconnect)` trong <1 s, quạt về auto, helper tự thoát sau 60 s và xóa
+socket; mở lại app trong 60 s dùng lại helper không cần mật khẩu. Bố cục trang Nhiệt độ
+làm lại theo kiểu tiện ích quạt (2026-10-24): hai cột từ 56rem (quạt trái, cảm biến
+phải), mỗi quạt một hàng "min — hiện tại — max" với nút chế độ và tham số ngay dưới
+hàng, profile chọn bằng dropdown + "Lưu thành profile", cảm biến gộp theo ý nghĩa
+(`src/utils/thermalSensorRows.ts`: một hàng mỗi nhãn, hiện giá trị nóng nhất, mở rộng
+để xem từng khóa; khóa không nhận diện gom một hàng cuối nhóm). Nguồn của luật quạt
+mở rộng thành `group:cpu|gpu|other|all`, `label:<nhãn>` hoặc id thô (`fanCurve.ts`
+`resolveFanSource`: lấy cảm biến nóng nhất khớp); picker chỉ hiện nguồn gộp (theo nhóm,
+theo loại kèm số đo hiện tại), khóa thô nằm sau mục "Chọn cảm biến cụ thể…" mở hộp thoại
+có ô lọc; profile dựng sẵn dùng thẳng `group:*`; mốc nhiệt và RPM nhập trực tiếp qua
+molecule `SliderField`. Khung trang đồng bộ với các trang khác: `glass-panel` +
+`feature-command-bar` (tiêu đề, chip trạng thái helper, nút chính Bật/Tắt, bánh răng
+`ThermalOptionsConfiguration` chứa tuỳ chọn thanh menu qua `AIConfigurationPopover`),
+thân là `app-panel-grid` hai panel với `live-panel-toolbar` (Quạt: profile + "Về tự
+động"; Nhiệt độ: số liệu dạng chip), mode quạt là pill soft/ghost như Mic/Hệ thống.
+Tên quạt: `viezan-smc` xuất `model` (hw.model) và `F%dID` khi có (Intel); `fanNames.ts`
+gán nhãn trái/phải/main/cpu/gpu… từ mô tả hoặc bảng model (Apple Silicon không có
+`F%dID`, MacBookPro18,2 → trái/phải). Hiệu chuẩn quạt ↔ cảm biến (`fanCalibration.ts`):
+với mọi quạt auto đo nền 12 s, cho một quạt chạy tối đa 40 s (lấy 12 s cuối), tính độ
+giảm từng cảm biến, chờ 30 s (đọc lại baseline sau) rồi quạt tiếp; trước quạt đầu
+tiên chờ 45 s với mọi quạt tự động để luật/profile vừa chạy không lọt vào baseline.
+Độ làm mát = trung bình hai baseline (trước và sau) trừ đọc lúc quay (A-B-A, khử trôi
+nhiệt); kết quả `fanAffinity` (cooling + share + contrast = quạt này làm mát hơn quạt
+khác bao nhiêu °C) lưu `thermal.json`; quạt "sở hữu" cảm biến khi làm mát ≥ 0,5 °C và
+(contrast ≥ 0,4 °C hoặc share ≥ 0,6), tối đa 12; nguồn `affinity:fanN` = nóng nhất
+trong các cảm biến sở hữu (không sở hữu cái nào thì lấy các cảm biến làm mát mạnh
+nhất), chưa hiệu chuẩn thì rơi về nóng nhất toàn máy; UI có nút
+"Nhận diện cảm biến" với hộp xác nhận, dòng tiến trình, "Quên kết quả", và nguồn
+"Cảm biến gần Quạt trái" đứng đầu picker (mặc định khi bật Theo cảm biến). Lượt hiệu
+chuẩn thật đầu tiên (24/10, MacBookPro18,2, thuật toán cũ) cho quạt trái 0 cảm biến và
+quạt phải 169 cảm biến ~3 °C đồng đều: baseline quạt trái lấy ngay sau `restoreAll`
+khi máy còn đang nóng lên (luật cảm biến vừa chạy 2000–2950 RPM), và không có đối
+chiếu giữa hai quạt; thuật toán A-B-A + contrast ở trên sửa việc đó. Lượt chạy lại
+14:38 cùng ngày (máy rảnh, quạt tự động) cho kết quả hợp lý: quạt trái sở hữu 74 cảm
+biến (Tp02/Tp06, Td0*, Tm0*, Tg*, cảm biến gió TaLP/TaLW), quạt phải 14 (Tp0E/Tp0I,
+TRD*, cảm biến gió TaRW/TaRF); biên độ nhỏ (≤ 1,4 °C) vì máy nguội, nên chạy khi máy
+đang ấm sẽ cho tương phản rõ hơn. Chưa làm: kịch bản
+ngủ/dậy (không tự động hóa được), đối chiếu máy Intel, tự chuyển profile theo module
+Local AI.
+
 ### Giai đoạn 3: Linux ghi quạt, Windows đánh giá lại
 
 - Helper Linux (pkexec hoặc systemd), cùng hợp đồng, cùng client.
@@ -383,6 +451,22 @@ Quyết định cần bạn chốt trước khi bắt đầu giai đoạn 2:
    dùng helper chạy theo phiên (pkexec kiểu) với hộp thoại mật khẩu mỗi lần bật.
 3. Windows: giữ ở mức giám sát hay bỏ hẳn khỏi module `thermal` cho tới khi có
    nhu cầu.
+
+**Đã chốt (2026-10-24):**
+
+1. **Chưa đăng ký Developer ID.** Bản phát hành macOS vẫn chưa ký/notarize như
+   hiện nay; helper dùng chữ ký ad-hoc. Khi có chứng chỉ chỉ cần bật `mac.notarize`
+   và thêm secrets, khung `scripts/notarize.mjs` đã sẵn.
+2. **Helper theo phiên.** Khi người dùng bật điều khiển quạt, app xin quyền quản
+   trị (hộp thoại mật khẩu hệ thống qua `osascript … with administrator
+   privileges`) để chạy `viezan-fan-helper` với quyền root cho tới khi tắt điều
+   khiển, đóng app hoặc hết thời gian chờ không có client. Helper mở Unix socket,
+   kiểm tra uid của client, có watchdog, tự trả quạt về auto khi mất kết nối, khi
+   máy ngủ/dậy và khi nhiệt độ vượt trần. Không cài dịch vụ, không có gì để gỡ,
+   khởi động lại máy luôn ở trạng thái an toàn. Hợp đồng mục 4.3 và `HelperClient`
+   giữ nguyên, nên daemon `SMAppService` sau này chỉ là cách khởi chạy khác.
+3. **Windows giữ "chưa hỗ trợ"** (module tắt mặc định); khảo sát thư viện giám
+   sát là việc riêng, ưu tiên thấp. Điều khiển quạt trên Windows ngoài phạm vi.
 
 ---
 

@@ -48,6 +48,7 @@ export {
   type NotificationToastProps,
   type NotificationToastTone,
 } from './NotificationToast'
+export { NumberField, type NumberFieldProps } from './NumberField'
 export { OptionPicker, type OptionPickerProps } from './OptionPicker'
 export { OptionPickerPanel, type OptionPickerPanelProps, type PickerChip, type PickerOption } from './OptionPickerPanel'
 export { PromptCard, type PromptCardProps, type PromptCardTone } from './PromptCard'
@@ -62,11 +63,10 @@ export {
   type SelectFieldOption,
   type SelectFieldProps,
 } from './SelectField'
-export { Sparkline, type SparklineProps } from './Sparkline'
+export { SliderField, type SliderFieldProps, snapToRange } from './SliderField'
 export { TabBar, type TabBarProps, type TabBarTab } from './TabBar'
 export { type ThemePresetOption, ThemePresetPicker, type ThemePresetPickerProps } from './ThemePresetPicker'
 export { ThemePreview, type ThemePreviewLabels, type ThemePreviewProps } from './ThemePreview'
-export { ThermalReadingTile, type ThermalReadingTileProps, type ThermalReadingTone } from './ThermalReadingTile'
 export {
   stripTrailingEllipsis,
   ThinkingDots,

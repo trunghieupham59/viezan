@@ -48,40 +48,217 @@ function createPreviewThermal() {
     ['TB1T', 'other', 'battery', 30], ['TW0P', 'other', 'wifi', 38], ['TaLP', 'other', 'airflow-left', 36], ['TH0x', 'other', 'storage', 29],
   ]
   const drift = base.map(() => 0)
-  let fanRpm = 1800
+  // Two fans like a 14"/16" MacBook Pro (left/right), each with its own slow drift.
+  const fanRpm = [1800, 1650]
+  const FAN_RANGES = [{ minRpm: 1500, maxRpm: 5500 }, { minRpm: 1500, maxRpm: 5800 }]
   let timer: ReturnType<typeof setInterval> | null = null
   const snapshot = (): Snapshot => {
     const sensors = base.map(([code, group, label, value], i) => {
       drift[i] = Math.max(-6, Math.min(12, drift[i] + (Math.random() - 0.5) * 1.5))
       return { id: `preview:${code}`, code, group, label, celsius: Math.round((value + drift[i]) * 10) / 10 }
     })
-    fanRpm = Math.max(1500, Math.min(5500, fanRpm + (Math.random() - 0.5) * 120))
+    for (let i = 0; i < fanRpm.length; i++) fanRpm[i] = Math.max(FAN_RANGES[i].minRpm, Math.min(FAN_RANGES[i].maxRpm, fanRpm[i] + (Math.random() - 0.5) * 120))
     return {
       timestamp: Date.now(), source: 'smc', sensors,
-      fans: [{ id: 'preview:fan0', index: 0, rpm: Math.round(fanRpm), minRpm: 1500, maxRpm: 5500, targetRpm: Math.round(fanRpm) }],
+      model: 'MacBookPro18,2',
+      fans: fanRpm.map((rpm, index) => ({ id: `preview:fan${index}`, index, label: (['left', 'right'] as const)[index], rpm: Math.round(rpm), ...FAN_RANGES[index], targetRpm: Math.round(rpm) })),
       cpuLoadPercent: Math.round(10 + Math.random() * 30),
     }
   }
   type Settings = import('../../shared/thermalApi').ThermalSettings
-  let settings: Settings = { tray: { enabled: false, metric: 'hottest', showFan: false } }
+  type FanState = import('../../shared/thermalApi').FanControlState
+  let settings: Settings = { tray: { enabled: false, metric: 'hottest', showFan: false }, fanControl: { acknowledged: false }, fanProfiles: { activeId: null, user: [] }, fanAffinity: null }
   const settingsListeners = new Set<(settings: Settings) => void>()
+  // Fan control: a pretend helper that connects after a short delay and holds one fan.
+  let fanState: FanState = { helper: 'idle', fans: [] }
+  const fanListeners = new Set<(state: FanState) => void>()
+  const setFanState = (next: FanState) => { fanState = next; for (const cb of fanListeners) cb(next) }
+  type PreviewFan = import('../../shared/thermalApi').FanControlFan
+  const previewFan = (index: number, mode: 'auto' | 'fixed', targetRpm?: number): PreviewFan => ({
+    id: `preview:fan${index}`, index, mode, ...(mode === 'fixed' && targetRpm !== undefined ? { targetRpm } : {}), ...FAN_RANGES[index], currentRpm: Math.round(fanRpm[index]),
+  })
+  const allAuto = () => fanRpm.map((_, index) => previewFan(index, 'auto'))
+  type SensorRule = import('../../shared/thermalApi').FanSensorRule
+  const sensorRules = new Map<number, SensorRule>()
+  /** Re-evaluate sensor-driven fans against a snapshot, like main's fan policy does. */
+  // The hottest sensor a rule source stands for: group:*, label:*, or a raw id (mirrors electron/thermal/fanCurve.ts).
+  const resolveSource = (sensors: Snapshot['sensors'], sourceId: string) => {
+    const matches = sourceId.startsWith('group:')
+      ? (sourceId === 'group:all' ? sensors : sensors.filter((sensor) => sensor.group === sourceId.slice('group:'.length)))
+      : sourceId.startsWith('label:') ? sensors.filter((sensor) => sensor.label === sourceId.slice('label:'.length)) : sensors.filter((sensor) => sensor.id === sourceId)
+    return matches.reduce<Snapshot['sensors'][number] | undefined>((best, sensor) => (!best || sensor.celsius > best.celsius ? sensor : best), undefined)
+  }
+  const driveFans = (sensors: Snapshot['sensors']) => {
+    if (fanState.helper !== 'ready' || sensorRules.size === 0) return
+    const fans = fanState.fans.map((fan, index) => {
+      const rule = sensorRules.get(index)
+      const reading = rule ? resolveSource(sensors, rule.sensorId) : undefined
+      if (!rule) return fan
+      const range = FAN_RANGES[index]
+      const fraction = reading ? Math.max(0, Math.min(1, (reading.celsius - rule.minCelsius) / (rule.maxCelsius - rule.minCelsius))) : 0
+      const targetRpm = Math.round((range.minRpm + fraction * (range.maxRpm - range.minRpm)) / 50) * 50
+      return { ...previewFan(index, 'fixed', targetRpm), mode: 'sensor' as const, sensor: rule, ...(reading ? { sensorCelsius: reading.celsius } : {}) }
+    })
+    setFanState({ ...fanState, fans })
+  }
+  const fanOk = () => ({ success: true, state: fanState })
+  // Profiles: the same built-ins main ships, resolved against the preview sensors.
+  type Profile = import('../../shared/thermalApi').FanProfile
+  type ProfilesState = import('../../shared/thermalApi').FanProfilesState
+  const builtinProfiles: Profile[] = [
+    { id: 'builtin:system', name: 'System', builtin: true, fans: { '*': { mode: 'auto' } } },
+    { id: 'builtin:quiet', name: 'Quiet', builtin: true, fans: { '*': { mode: 'sensor-group', group: 'cpu', minCelsius: 70, maxCelsius: 100 } } },
+    { id: 'builtin:cool', name: 'Cool', builtin: true, fans: { '*': { mode: 'sensor-group', group: 'cpu', minCelsius: 45, maxCelsius: 75 } } },
+    { id: 'builtin:gaming', name: 'Gaming', builtin: true, fans: { '*': { mode: 'sensor-group', group: 'gpu', minCelsius: 50, maxCelsius: 80 } } },
+    { id: 'builtin:local-ai', name: 'Local AI', builtin: true, fans: { '*': { mode: 'sensor-group', group: 'cpu', minCelsius: 45, maxCelsius: 70 } } },
+  ]
+  let profiles: ProfilesState = { activeId: null, applied: false, profiles: builtinProfiles }
+  const profileListeners = new Set<(state: ProfilesState) => void>()
+  const setProfiles = (next: ProfilesState) => { profiles = next; for (const cb of profileListeners) cb(next) }
+  const profilesOk = () => ({ success: true, state: profiles })
+  const markCustom = () => { if (profiles.activeId !== null || profiles.applied) setProfiles({ ...profiles, activeId: null, applied: false }) }
+  // Calibration: a fast pretend run (a few seconds per fan) that ends with each fan "cooling" its side.
+  type CalibrationState = import('../../shared/thermalApi').FanCalibrationState
+  let calibration: CalibrationState = { status: 'idle' }
+  const calibrationListeners = new Set<(state: CalibrationState) => void>()
+  const setCalibration = (next: CalibrationState) => { calibration = next; for (const cb of calibrationListeners) cb(next) }
+  let calibrationTimer: ReturnType<typeof setInterval> | null = null
+  const calibrationOk = () => ({ success: true, state: calibration })
   return {
     getSupport: async () => ({ success: true, support: { supported: true, source: 'smc' as const, trayPlacement: 'menu-bar' as const } }),
     read: async () => ({ success: true, snapshot: snapshot() }),
     setMonitoring: async (active: boolean) => {
       if (timer) { clearInterval(timer); timer = null }
-      if (active) timer = setInterval(() => { const s = snapshot(); for (const cb of listeners) cb(s) }, 2000)
+      if (active) timer = setInterval(() => { const s = snapshot(); driveFans(s.sensors); for (const cb of listeners) cb(s) }, 2000)
       return { success: true }
     },
     onSnapshot: (cb: (snapshot: Snapshot) => void) => { listeners.add(cb); return () => { listeners.delete(cb) } },
     onError: noopSubscription,
     getSettings: async () => ({ success: true, settings }),
     updateSettings: async (patch: import('../../shared/thermalApi').ThermalSettingsPatch) => {
-      settings = { tray: { ...settings.tray, ...(patch.tray ?? {}) } }
+      settings = { tray: { ...settings.tray, ...(patch.tray ?? {}) }, fanControl: { ...settings.fanControl, ...(patch.fanControl ?? {}) }, fanProfiles: { ...settings.fanProfiles, ...(patch.fanProfiles ?? {}) }, fanAffinity: patch.fanAffinity !== undefined ? patch.fanAffinity : settings.fanAffinity }
       for (const cb of settingsListeners) cb(settings)
       return { success: true, settings }
     },
     onSettingsChanged: (cb: (settings: Settings) => void) => { settingsListeners.add(cb); return () => { settingsListeners.delete(cb) } },
+    fanControl: {
+      getState: async () => fanOk(),
+      enable: async () => {
+        if (fanState.helper === 'ready') return fanOk()
+        setFanState({ helper: 'starting', fans: [] })
+        await new Promise((resolve) => setTimeout(resolve, 600))
+        setFanState({ helper: 'ready', helperVersion: 'preview', fans: allAuto() })
+        return fanOk()
+      },
+      setFan: async (fanId: string, command: import('../../shared/thermalApi').FanCommand) => {
+        if (fanState.helper !== 'ready') return { success: false, error: 'Helper is not connected.' }
+        const index = fanState.fans.findIndex((fan) => fan.id === fanId)
+        if (index === -1) return { success: false, error: `No fan ${fanId}.` }
+        const range = FAN_RANGES[index]
+        if (command.mode === 'fixed' && (command.rpm < range.minRpm || command.rpm > range.maxRpm)) return { success: false, error: `Target is outside ${range.minRpm}–${range.maxRpm} RPM.` }
+        if (command.mode === 'sensor') {
+          const { mode: _mode, ...rule } = command
+          sensorRules.set(index, rule)
+          const fans = fanState.fans.map((fan, i) => (i === index ? { ...previewFan(i, 'auto'), mode: 'sensor' as const, sensor: rule } : fan))
+          setFanState({ ...fanState, lastRestoreReason: undefined, fans })
+          driveFans(snapshot().sensors)
+          return fanOk()
+        }
+        sensorRules.delete(index)
+        const fans = fanState.fans.map((fan, i) => (i === index ? (command.mode === 'fixed' ? previewFan(i, 'fixed', command.rpm) : previewFan(i, 'auto')) : fan))
+        setFanState({ ...fanState, lastRestoreReason: undefined, fans })
+        markCustom()
+        return fanOk()
+      },
+      restoreAll: async () => {
+        if (fanState.helper !== 'ready') return { success: false, error: 'Helper is not connected.' }
+        sensorRules.clear()
+        setFanState({ ...fanState, lastRestoreReason: 'client', fans: allAuto() })
+        markCustom()
+        return fanOk()
+      },
+      disable: async () => { sensorRules.clear(); setFanState({ helper: 'idle', fans: [] }); if (profiles.applied) setProfiles({ ...profiles, applied: false }); return fanOk() },
+      calibration: {
+        get: async () => calibrationOk(),
+        start: async () => {
+          if (fanState.helper !== 'ready') return { success: false, error: 'Fan control is not connected.' }
+          if (calibration.status === 'running') return { success: false, error: 'Calibration is already running.' }
+          const fans = fanState.fans.map((fan) => fan.id)
+          const phases: Array<import('../../shared/thermalApi').FanCalibrationPhase> = ['baseline', 'spin', 'settle']
+          let tick = 0
+          const perPhase = 3
+          const total = fans.length * phases.length * perPhase
+          const step = () => {
+            if (tick >= total) {
+              if (calibrationTimer) { clearInterval(calibrationTimer); calibrationTimer = null }
+              const result = {
+                calibratedAt: Date.now(), model: 'MacBookPro18,2',
+                fans: fans.map((fanId, index) => ({ fanId, sensors: index === 0
+                  ? [{ sensorId: 'preview:Tp01', cooling: 6.2, share: 0.8, contrast: 4.7 }, { sensorId: 'preview:Tp05', cooling: 4.1, share: 0.7, contrast: 2.3 }, { sensorId: 'preview:Tg05', cooling: 1.2, share: 0.3, contrast: -1.6 }]
+                  : [{ sensorId: 'preview:Te01', cooling: 3.9, share: 0.9, contrast: 3.5 }, { sensorId: 'preview:Tg0D', cooling: 2.8, share: 0.7, contrast: 1.6 }, { sensorId: 'preview:TH0x', cooling: 1.0, share: 1, contrast: 1.0 }] })),
+              }
+              settings = { ...settings, fanAffinity: result }
+              setCalibration({ status: 'done', result })
+              return
+            }
+            const fanIndex = Math.floor(tick / (phases.length * perPhase))
+            const phase = phases[Math.floor((tick % (phases.length * perPhase)) / perPhase)]
+            setCalibration({ status: 'running', fanIndex, fanCount: fans.length, fanId: fans[fanIndex], phase, secondsLeft: perPhase - (tick % perPhase), progress: tick / total, result: calibration.result })
+            tick += 1
+          }
+          step()
+          calibrationTimer = setInterval(step, 1000)
+          return calibrationOk()
+        },
+        cancel: async () => {
+          if (calibrationTimer) { clearInterval(calibrationTimer); calibrationTimer = null }
+          if (calibration.status === 'running') setCalibration({ status: 'cancelled', result: calibration.result })
+          return calibrationOk()
+        },
+        clear: async () => { settings = { ...settings, fanAffinity: null }; setCalibration({ status: 'idle' }); return calibrationOk() },
+        onState: (cb: (state: CalibrationState) => void) => { calibrationListeners.add(cb); return () => { calibrationListeners.delete(cb) } },
+      },
+      profiles: {
+        get: async () => profilesOk(),
+        apply: async (id: string) => {
+          const profile = profiles.profiles.find((candidate) => candidate.id === id)
+          if (!profile) return { success: false, error: `No profile ${id}.` }
+          if (fanState.helper !== 'ready') return { success: false, error: 'Fan control is not connected.' }
+          const sensors = snapshot().sensors
+          fanState.fans.forEach((fan, index) => {
+            const entry = profile.fans[fan.id] ?? profile.fans['*']
+            if (!entry) return
+            if (entry.mode === 'sensor-group') {
+              sensorRules.set(index, { sensorId: `group:${entry.group}`, minCelsius: entry.minCelsius, maxCelsius: entry.maxCelsius })
+            } else {
+              sensorRules.delete(index)
+            }
+          })
+          setFanState({ ...fanState, lastRestoreReason: undefined, fans: fanState.fans.map((fan, index) => {
+            const entry = profile.fans[fan.id] ?? profile.fans['*']
+            if (!entry || entry.mode === 'auto') return previewFan(index, 'auto')
+            if (entry.mode === 'fixed') return previewFan(index, 'fixed', entry.rpm)
+            const rule = sensorRules.get(index)
+            return rule ? { ...previewFan(index, 'auto'), mode: 'sensor' as const, sensor: rule } : previewFan(index, 'auto')
+          }) })
+          driveFans(sensors)
+          setProfiles({ ...profiles, activeId: id, applied: true })
+          return profilesOk()
+        },
+        saveCurrent: async (name: string) => {
+          const id = `user:preview-${Date.now()}`
+          const fans = Object.fromEntries(fanState.fans.map((fan) => [fan.id, fan.mode === 'sensor' && fan.sensor ? { mode: 'sensor' as const, ...fan.sensor } : fan.mode === 'fixed' && fan.targetRpm !== undefined ? { mode: 'fixed' as const, rpm: fan.targetRpm } : { mode: 'auto' as const }]))
+          setProfiles({ activeId: id, applied: true, profiles: [...profiles.profiles, { id, name: name.trim(), builtin: false, fans }] })
+          return profilesOk()
+        },
+        remove: async (id: string) => {
+          setProfiles({ ...profiles, activeId: profiles.activeId === id ? null : profiles.activeId, applied: profiles.activeId === id ? false : profiles.applied, profiles: profiles.profiles.filter((profile) => profile.id !== id) })
+          return profilesOk()
+        },
+        onState: (cb: (state: ProfilesState) => void) => { profileListeners.add(cb); return () => { profileListeners.delete(cb) } },
+      },
+      onState: (cb: (state: FanState) => void) => { fanListeners.add(cb); return () => { fanListeners.delete(cb) } },
+    },
   }
 }
 const previewThermal = createPreviewThermal()

@@ -36,7 +36,13 @@ describe('parseSmcOutput', () => {
       { id: 'smc:Tp01', code: 'Tp01', group: 'cpu', label: 'cpu-performance-core', celsius: 51.5 },
       { id: 'smc:TB1T', code: 'TB1T', group: 'other', label: 'battery', celsius: 30 },
     ])
-    expect(snapshot.fans).toEqual([{ id: 'smc:fan0', index: 0, rpm: 2374, minRpm: 1499, maxRpm: 5348, targetRpm: 2371 }])
+    // A lone fan is "main"; a two-fan MacBook Pro gets left/right from the model; an Intel description wins.
+    expect(snapshot.fans).toEqual([{ id: 'smc:fan0', index: 0, label: 'main', rpm: 2374, minRpm: 1499, maxRpm: 5348, targetRpm: 2371 }])
+    const pro = parseSmcOutput({ ok: true, model: 'MacBookPro18,2', sensors: [], fans: [{ index: 0, rpm: 1500 }, { index: 1, rpm: 1600 }] })
+    expect(pro.model).toBe('MacBookPro18,2')
+    expect(pro.fans.map((fan) => fan.label)).toEqual(['left', 'right'])
+    const intel = parseSmcOutput({ ok: true, sensors: [], fans: [{ index: 0, rpm: 1500, name: 'Right side' }, { index: 1, rpm: 1600, name: 'Left side' }] })
+    expect(intel.fans.map((fan) => [fan.label, fan.name])).toEqual([['right', 'Right side'], ['left', 'Left side']])
   })
 
   it('throws the binary\'s own error and rejects garbage', () => {
