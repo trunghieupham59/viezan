@@ -226,26 +226,6 @@
 }
 
 /* Command row that hosts the bar: bar at the start, feature actions at the end. */
-.feature-command-bar {
-  display: flex;
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--vzn-space-2) var(--vzn-space-3);
-  padding: var(--vzn-space-2) var(--vzn-space-3);
-  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
-  background: var(--vzn-surface);
-}
-
-.feature-command-bar-end {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--vzn-space-2);
-  margin-inline-start: auto;
-}
-
 /* Narrow feature width: the field bar fills its own row, actions drop below it, right-aligned. */
 @container app-main (max-width: 639px) {
   .language-pair-bar--field {
@@ -261,7 +241,7 @@
     padding-inline: var(--vzn-space-2);
   }
 
-  .feature-command-bar-end {
+  .page-header__actions {
     flex: 1 1 100%;
     justify-content: flex-end;
   }

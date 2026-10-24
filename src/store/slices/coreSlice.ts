@@ -13,6 +13,9 @@ import { TRANSLATIONS, type Translations } from '../../i18n'
 import type { AIModelSelection, AppPage, Provider } from '../../types'
 import type { SliceGet, SliceSet } from './sliceTypes'
 
+/** Settings sections other surfaces can open directly. */
+export type SettingsSectionTarget = 'updates' | 'hotkeys' | 'api' | 'browser'
+
 export interface CoreSlice {
   // Translation state
   sourceText: string
@@ -38,7 +41,8 @@ export interface CoreSlice {
 
   // Settings modal
   settingsOpen: boolean
-  settingsInitialSection: 'updates' | 'hotkeys' | null
+  /** Section Settings scrolls to when it opens; cleared once applied. */
+  settingsInitialSection: SettingsSectionTarget | null
 
   // Language usage tracking (for smart top-3 pills in language bar)
   langUsage: Record<string, { count: number; lastUsed: number }>
@@ -60,6 +64,8 @@ export interface CoreSlice {
   setTranslationModels: (models: AIModelSelection[]) => void
   setActivePage: (page: AppPage) => void
   openSettings: () => void
+  /** Opens Settings scrolled to one section (background status rows, notices). */
+  openSettingsAt: (section: SettingsSectionTarget) => void
   closeSettings: () => void
   clearTranslation: () => void
 
@@ -167,6 +173,7 @@ export const createCoreSlice = (set: SliceSet, get: SliceGet): CoreSlice => ({
 
   setActivePage: (page) => set({ activePage: page }),
   openSettings: () => set({ settingsOpen: true, settingsInitialSection: null }),
+  openSettingsAt: (section) => set({ settingsOpen: true, settingsInitialSection: section }),
   closeSettings: () => set({ settingsOpen: false }),
   clearTranslation: () =>
     set({ sourceText: '', translatedText: '', phoneticText: '', translateError: null, translateErrorCode: null }),

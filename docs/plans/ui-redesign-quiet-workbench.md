@@ -71,6 +71,26 @@ Khi bắt tay làm, kiểm kê cho thấy phần lớn nền tảng đã có tro
 - Kiểm tra: test thanh bên (nhóm, ẩn module bị tắt, lớp phủ hẹp), test toast, QA ở 1440/900/680 px và ở hai chế độ sáng/tối.
 - Cỡ: M. Rủi ro vừa: mọi trang đều qua đây, cần chạy toàn bộ test và `test:web`.
 
+Kết quả thực hiện giai đoạn 1:
+
+- **Thanh bên**:
+  - Nhóm theo `space` trong catalog; nhóm không còn trang nào bật thì ẩn.
+  - Ô "Tìm hoặc chạy lệnh ⌘K" ở đầu.
+  - Dải "đang chạy nền" có ba dòng: quạt và profile, phím tắt toàn cục, tiện ích Chrome. Mỗi dòng mở đúng chỗ chỉnh, nhờ `openSettingsAt` mới trong store. Khi thanh bên thu gọn, dải này còn một chấm có nhãn.
+- **Dòng AI local hoãn lại**:
+  - `discoverLocalAi` có thể khởi động Ollama do app quản lý (bản Windows có runtime riêng), nên không được gọi chỉ để vẽ một dòng trạng thái.
+  - Cần một IPC chỉ đọc bộ đệm, không bao giờ khởi động runtime. Việc này làm ở giai đoạn 5, cùng phần AI local.
+- **`PageHeader`**:
+  - Áp dụng cho Nhiệt độ và Phiên dịch, hai trang duy nhất đang dùng thanh lệnh chung.
+  - Chat, Dịch và Từ điển chuyển sang khi được làm lại ở giai đoạn 3.
+  - Thêm token `--vzn-page-header-min-height` (56 px) và `--vzn-tracking-caps`. Token sau thay bốn chỗ đang viết literal `0.06em`.
+- **Toast**:
+  - Đặt ở góc dưới phải, hiện tối đa 3 toast mới nhất.
+  - Toast có nút hành động tự tắt sau 8 giây.
+  - Đếm giờ dừng khi rê chuột hoặc focus.
+  - Khi đặt ở đáy sẽ đè ô soạn Chat thì chồng toast được nâng lên, dựa trên đo vị trí ô soạn thật: lúc chat trống ô soạn nằm giữa, có tin nhắn thì nằm ở đáy.
+- **Tên profile quạt**: chuyển sang `src/utils/fanProfileText.ts` để trang Nhiệt độ và thanh bên dùng chung.
+
 ### Giai đoạn 2 — Kiến trúc thông tin: trang mới và Cài đặt dạng trang
 
 Nên chia thành 3–4 PR theo thứ tự dưới.

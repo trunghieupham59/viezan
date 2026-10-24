@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { TOAST_DISMISS_DELAY_MS } from '../../constants/ui'
+import { TOAST_ACTION_DISMISS_DELAY_MS, TOAST_DISMISS_DELAY_MS } from '../../constants/ui'
 import { useNotificationStore } from '../useNotificationStore'
 
 describe('useNotificationStore', () => {
@@ -56,5 +56,29 @@ describe('useNotificationStore', () => {
     dismiss('voice')
     expect(useNotificationStore.getState().notifications).toEqual([])
     expect(onDismiss).not.toHaveBeenCalled()
+  })
+  it('keeps a transient toast with an action on screen longer', () => {
+    const { notify } = useNotificationStore.getState()
+    notify({ tone: 'success', message: 'Deleted', actions: [{ label: 'Undo', onClick: () => {} }] })
+    vi.advanceTimersByTime(TOAST_DISMISS_DELAY_MS)
+    expect(useNotificationStore.getState().notifications.map((n) => n.message)).toEqual(['Deleted'])
+    vi.advanceTimersByTime(TOAST_ACTION_DISMISS_DELAY_MS - TOAST_DISMISS_DELAY_MS)
+    expect(useNotificationStore.getState().notifications).toEqual([])
+  })
+
+  it('pauses every countdown while the stack is hovered and resumes with the time left', () => {
+    const { notify, pauseTimers, resumeTimers } = useNotificationStore.getState()
+    notify({ tone: 'info', message: 'Copied' })
+    vi.advanceTimersByTime(TOAST_DISMISS_DELAY_MS - 1000)
+    pauseTimers()
+    notify({ tone: 'success', message: 'Saved while paused' })
+    vi.advanceTimersByTime(TOAST_DISMISS_DELAY_MS * 5)
+    expect(useNotificationStore.getState().notifications.map((n) => n.message)).toEqual(['Copied', 'Saved while paused'])
+
+    resumeTimers()
+    vi.advanceTimersByTime(1000)
+    expect(useNotificationStore.getState().notifications.map((n) => n.message)).toEqual(['Saved while paused'])
+    vi.advanceTimersByTime(TOAST_DISMISS_DELAY_MS - 1000)
+    expect(useNotificationStore.getState().notifications).toEqual([])
   })
 })

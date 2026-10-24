@@ -3,26 +3,6 @@
    temperatures as a compact foldable table on the other. Every value comes from
    tokens.css; the tone (ok / warm / hot) only recolours a reading's value. */
 
-.thermal-heading {
-  min-inline-size: 0;
-  flex: 1 1 auto;
-}
-
-.thermal-title {
-  font-family: var(--vzn-font-display);
-  margin: 0;
-  color: var(--vzn-text-strong);
-  font-size: var(--vzn-font-size-title);
-  font-weight: var(--vzn-weight-bold);
-  line-height: var(--vzn-line-tight);
-}
-
-.thermal-subtitle {
-  margin: var(--vzn-space-0-5) 0 0;
-  color: var(--vzn-text-soft);
-  font-size: var(--vzn-font-size-sm);
-}
-
 /* A one-line notice under the command bar (the helper restored the fans on its own). */
 .thermal-notice {
   margin: 0;

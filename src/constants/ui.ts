@@ -35,6 +35,12 @@ export const STATUS_RESET_LONG_MS = 5_000
 /** How long (ms) before a toast / inline message auto-dismisses. */
 export const TOAST_DISMISS_DELAY_MS = 4_000
 
+/** A transient toast that offers an action (Undo, Turn back on) stays longer so it can be used. */
+export const TOAST_ACTION_DISMISS_DELAY_MS = 8_000
+
+/** Toasts shown at once; newer ones wait their turn instead of stacking up the window. */
+export const TOAST_MAX_VISIBLE = 3
+
 // ─── Live Translate ────────────────────────────────────────────────────────────
 
 /** Minimum audio blob size (bytes) to consider worth processing.

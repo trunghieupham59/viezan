@@ -209,6 +209,8 @@
   --vzn-line-height-reading: 1.6;
   --vzn-font-size-display: 32px;
   --vzn-line-tight: 1.2;
+  /** Letter spacing for small uppercase labels (section kickers, group headings). */
+  --vzn-tracking-caps: 0.06em;
   --vzn-line-normal: 1.45;
   --vzn-line-relaxed: 1.6;
   --vzn-weight-regular: 400;
@@ -279,6 +281,8 @@
   --vzn-titlebar-height: 40px;
   --vzn-titlebar-mac-controls-width: 80px;
   --vzn-chat-sidebar-width: 260px;
+  /* Shared page header: the large control height plus its vertical padding (56px). */
+  --vzn-page-header-min-height: calc(var(--vzn-control-height-lg) + var(--vzn-space-2) * 2);
   --vzn-chat-header-height: calc(var(--vzn-control-height-sm) + var(--vzn-space-2) * 2);
   --vzn-content-max: 980px;
   --vzn-chat-stage-max: 1040px;
@@ -1666,7 +1670,7 @@ body {
   font-size: var(--vzn-font-size-caption);
   font-weight: var(--vzn-weight-semibold);
   line-height: var(--vzn-line-tight);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--vzn-tracking-caps);
   text-transform: uppercase;
 }
 

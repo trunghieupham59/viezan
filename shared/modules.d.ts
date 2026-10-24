@@ -27,6 +27,12 @@ export interface ModulesApi {
   onChanged: (cb: (enabled: ModuleEnabledState) => void) => () => void
 }
 
+/**
+ * The navigation space a page belongs to: the primary sidebar groups pages by what
+ * the user is doing rather than listing features flat.
+ */
+export type ModuleSpace = 'ai' | 'language' | 'system' | 'tools'
+
 /** How the workspace looks while a module's page chunk is still loading. */
 export type ModuleLoadingLayout = 'blank' | 'split' | 'list'
 
@@ -39,6 +45,8 @@ export type ModuleNavigateEffect = 'clearTranslation'
  */
 export interface ModuleDefinition {
   id: PageModuleId
+  /** Navigation group in the primary sidebar. */
+  space: ModuleSpace
   /** i18n key of the navigation label. */
   labelKey: 'nav_chat' | 'nav_translate' | 'nav_live_translate' | 'nav_dictionary' | 'nav_thermal'
   /** i18n key of the one-line description shown in the Command Palette. */

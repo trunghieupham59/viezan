@@ -268,7 +268,7 @@
   color: var(--vzn-text-muted);
   font-size: var(--vzn-font-size-micro);
   font-weight: var(--vzn-weight-bold);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--vzn-tracking-caps);
   text-transform: uppercase;
 }
 

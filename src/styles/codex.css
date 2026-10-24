@@ -207,6 +207,64 @@ html.dark .sidebar-brand-surface {
   gap: 2px;
 }
 
+/* Navigation spaces (AI, Language, System, Tools): a heading per group when expanded, a divider when collapsed. */
+.sidebar-search-trigger {
+  margin-block-end: var(--vzn-space-1);
+}
+
+.sidebar-space-label {
+  margin: 0;
+  padding: var(--vzn-space-3) var(--vzn-space-3) var(--vzn-space-1);
+  text-transform: uppercase;
+  letter-spacing: var(--vzn-tracking-caps);
+}
+
+.app-sidebar[data-collapsed="true"] .sidebar-space + .sidebar-space {
+  margin-block-start: var(--vzn-space-1);
+  padding-block-start: var(--vzn-space-1);
+  border-block-start: var(--vzn-border-width) solid var(--vzn-divider);
+}
+
+/* Background strip: what runs while the window is away, each row opening its controls. */
+.sidebar-background {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-0-5);
+  padding-block: var(--vzn-space-1);
+}
+
+.sidebar-background-row.ui-button {
+  inline-size: 100%;
+  justify-content: flex-start;
+  gap: var(--vzn-space-2);
+  padding-inline: var(--vzn-space-3);
+  color: var(--vzn-chrome-fg-muted);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-regular);
+}
+
+.sidebar-background-label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-background-detail {
+  flex: 0 0 auto;
+  color: var(--vzn-chrome-fg-soft);
+  font-size: var(--vzn-font-size-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.sidebar-background-summary {
+  display: flex;
+  justify-content: center;
+  padding-block: var(--vzn-space-1);
+}
+
 .sidebar-bottom-group {
   margin-top: auto;
 }
@@ -1808,6 +1866,49 @@ html:not(.dark) .quick-chat-answer-card {
 
 .ui-slider:disabled::-webkit-slider-runnable-track {
   background: var(--vzn-surface-muted);
+}
+
+/* PageHeader template — the one header every page uses. */
+.page-header {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-2) var(--vzn-space-3);
+  min-block-size: var(--vzn-page-header-min-height);
+  box-sizing: border-box;
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
+  background: var(--vzn-surface);
+}
+
+.page-header__heading {
+  min-inline-size: 0;
+  flex: 1 1 auto;
+}
+
+.page-header__title {
+  margin: 0;
+  color: var(--vzn-text-strong);
+  font-family: var(--vzn-font-display);
+  font-size: var(--vzn-font-size-title);
+  font-weight: var(--vzn-weight-bold);
+  line-height: var(--vzn-line-tight);
+}
+
+.page-header__description {
+  margin: var(--vzn-space-0-5) 0 0;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.page-header__actions {
+  display: flex;
+  min-inline-size: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-2);
+  margin-inline-start: auto;
 }
 
 /* StatusDot atom — a small dot in a semantic feedback colour. */

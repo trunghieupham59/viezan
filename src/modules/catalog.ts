@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from 'react'
-import type { ModuleDefinition, PageModuleId } from '../../shared/modules'
+import type { ModuleDefinition, ModuleSpace, PageModuleId } from '../../shared/modules'
 import { BookIcon, ChatBubbleIcon, MicrophoneIcon, ThermometerIcon, TranslateIcon } from '../components/ui/icons'
 
 /**
@@ -16,6 +16,7 @@ export interface CatalogModule extends ModuleDefinition {
 export const APP_MODULES: readonly CatalogModule[] = [
   {
     id: 'chat',
+    space: 'ai',
     labelKey: 'nav_chat',
     descriptionKey: 'command_palette_chat_description',
     icon: ChatBubbleIcon,
@@ -24,6 +25,7 @@ export const APP_MODULES: readonly CatalogModule[] = [
   },
   {
     id: 'translate',
+    space: 'language',
     labelKey: 'nav_translate',
     descriptionKey: 'command_palette_translate_description',
     icon: TranslateIcon,
@@ -33,6 +35,7 @@ export const APP_MODULES: readonly CatalogModule[] = [
   },
   {
     id: 'live',
+    space: 'language',
     labelKey: 'nav_live_translate',
     descriptionKey: 'command_palette_live_description',
     icon: MicrophoneIcon,
@@ -41,6 +44,7 @@ export const APP_MODULES: readonly CatalogModule[] = [
   },
   {
     id: 'dictionary',
+    space: 'language',
     labelKey: 'nav_dictionary',
     descriptionKey: 'command_palette_dictionary_description',
     loadingLabelKey: 'dictionary_title',
@@ -50,6 +54,7 @@ export const APP_MODULES: readonly CatalogModule[] = [
   },
   {
     id: 'thermal',
+    space: 'system',
     labelKey: 'nav_thermal',
     descriptionKey: 'command_palette_thermal_description',
     icon: ThermometerIcon,
@@ -57,6 +62,21 @@ export const APP_MODULES: readonly CatalogModule[] = [
     loadingLayout: 'list',
   },
 ]
+
+/** Sidebar group order and each group's i18n heading key. A group with no enabled page is not shown. */
+export const NAVIGATION_SPACES: readonly { id: ModuleSpace; labelKey: 'nav_space_ai' | 'nav_space_language' | 'nav_space_system' | 'nav_space_tools' }[] = [
+  { id: 'ai', labelKey: 'nav_space_ai' },
+  { id: 'language', labelKey: 'nav_space_language' },
+  { id: 'system', labelKey: 'nav_space_system' },
+  { id: 'tools', labelKey: 'nav_space_tools' },
+]
+
+/** Modules grouped by navigation space, in catalog order within each group; empty groups are dropped. */
+export function groupModulesBySpace<T extends Pick<ModuleDefinition, 'space'>>(modules: readonly T[]): { space: ModuleSpace; labelKey: (typeof NAVIGATION_SPACES)[number]['labelKey']; modules: T[] }[] {
+  return NAVIGATION_SPACES
+    .map((group) => ({ space: group.id, labelKey: group.labelKey, modules: modules.filter((module) => module.space === group.id) }))
+    .filter((group) => group.modules.length > 0)
+}
 
 const MODULES_BY_ID: ReadonlyMap<PageModuleId, CatalogModule> = new Map(APP_MODULES.map((module) => [module.id, module]))
 

@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { FanCommand, FanProfile, ThermalFan, ThermalFanLabel, ThermalSensor, ThermalSensorGroup, ThermalTraySettings } from '../../shared/thermalApi'
 import { ThermalFanDisclaimer, ThermalFanPanel, type ThermalFanSources, ThermalOptionsConfiguration, ThermalSensorTable, ThermalTrayOptions } from '../components/organisms'
+import { PageHeader } from '../components/templates'
 import { Button, SpinnerIcon, StopIcon } from '../components/ui/atoms'
 import { CapabilityNotice, ConfigSection, FeatureLoadingState, StatusChip } from '../components/ui/molecules'
 import { useFanCalibration } from '../hooks/useFanCalibration'
@@ -11,6 +12,7 @@ import { useThermalSettings } from '../hooks/useThermalSettings'
 import type { Translations } from '../i18n'
 import { useAppStore, useT } from '../store/useAppStore'
 import { useNotificationStore } from '../store/useNotificationStore'
+import { fanProfileDescription, fanProfileName } from '../utils/fanProfileText'
 import { buildSensorRows, hottestSensor, THERMAL_GROUPS, type ThermalSensorRow } from '../utils/thermalSensorRows'
 import { tpl } from '../utils/tpl'
 import { buildTrayPreview } from '../utils/trayPreview'
@@ -24,15 +26,6 @@ const PROFILE_ERROR_KEY = 'thermal-fan-profile'
 const FAN_CEILING_CELSIUS = 105
 /** The long tail of chassis sensors starts folded; CPU and GPU stay open. */
 const COLLAPSED_SENSOR_GROUPS: readonly ThermalSensorGroup[] = ['other']
-/** Built-in profile ids → their localized name / description keys. */
-const BUILTIN_PROFILE_KEYS: Record<string, { name: keyof Translations; desc: keyof Translations }> = {
-  'builtin:system': { name: 'thermal_fan_profile_builtin_system', desc: 'thermal_fan_profile_builtin_system_desc' },
-  'builtin:quiet': { name: 'thermal_fan_profile_builtin_quiet', desc: 'thermal_fan_profile_builtin_quiet_desc' },
-  'builtin:cool': { name: 'thermal_fan_profile_builtin_cool', desc: 'thermal_fan_profile_builtin_cool_desc' },
-  'builtin:gaming': { name: 'thermal_fan_profile_builtin_gaming', desc: 'thermal_fan_profile_builtin_gaming_desc' },
-  'builtin:local-ai': { name: 'thermal_fan_profile_builtin_local_ai', desc: 'thermal_fan_profile_builtin_local_ai_desc' },
-}
-
 function labelKeyFor(sensor: Pick<ThermalSensor, 'label'>): keyof Translations | null {
   if (!sensor.label) return null
   return `thermal_label_${sensor.label.replace(/-/g, '_')}` as keyof Translations
@@ -119,16 +112,8 @@ export function ThermalPage() {
     dismiss(FAN_ERROR_KEY)
     void fanControl.setFan(fanId, command).then(reportFan)
   }, [dismiss, fanControl, reportFan])
-  const profileName = useCallback((profile: FanProfile) => {
-    const keys = BUILTIN_PROFILE_KEYS[profile.id]
-    const localized = keys ? t[keys.name] : undefined
-    return typeof localized === 'string' ? localized : profile.name
-  }, [t])
-  const profileDescription = useCallback((profile: FanProfile) => {
-    const keys = BUILTIN_PROFILE_KEYS[profile.id]
-    const localized = keys ? t[keys.desc] : undefined
-    return typeof localized === 'string' ? localized : undefined
-  }, [t])
+  const profileName = useCallback((profile: FanProfile) => fanProfileName(t, profile), [t])
+  const profileDescription = useCallback((profile: FanProfile) => fanProfileDescription(t, profile), [t])
   // What a fan may follow: the hottest of a group, the hottest of a meaning (the table's rows), or one raw sensor.
   const controlSources = useMemo((): ThermalFanSources => {
     if (!snapshot) return { affinity: {}, groups: [], kinds: [], raw: [] }
@@ -237,66 +222,66 @@ export function ThermalPage() {
     <div className="app-page relative">
       <div className="app-workspace">
         <div className="glass-panel flex-1 min-h-0 flex flex-col overflow-hidden">
-          <div className="feature-command-bar">
-            <div className="thermal-heading">
-              <h1 className="thermal-title">{t.thermal_title}</h1>
-              <p className="thermal-subtitle">{t.thermal_subtitle}</p>
-            </div>
-            <div className="feature-command-bar-end">
-              {helperControls}
-              {trayPlacement && settings && (
-                <ThermalOptionsConfiguration
-                  open={optionsOpen}
-                  title={t.thermal_options_title}
-                  scopeDescription={control ? t.thermal_options_desc_fans : t.thermal_options_desc}
-                  closeLabel={t.settings_close}
-                  onOpenChange={setOptionsOpen}
-                >
-                  {control && (
-                    <ConfigSection title={t.thermal_fan_calibrate}>
-                      <div className="thermal-calibrate">
-                        <p className="thermal-calibrate__desc">{t.thermal_fan_calibrate_desc}</p>
-                        {calibrationStatusLine && (
-                          <p className="thermal-calibrate__status" data-status={fanCalibration.state?.status} role="status">{calibrationStatusLine}</p>
-                        )}
-                        <div className="thermal-calibrate__actions">
-                          {fanCalibration.state?.status === 'running' ? (
-                            <Button size="sm" shape="rect" variant="danger" appearance="outline" disabled={busy} onClick={() => void fanCalibration.cancel().then(reportCalibration)}>{t.thermal_fan_calibrate_cancel}</Button>
-                          ) : (
-                            <Button size="sm" shape="rect" variant="primary" appearance="solid" disabled={busy || control.helper !== 'ready'} title={control.helper !== 'ready' ? t.thermal_fan_profiles_need_helper : undefined} onClick={() => { setOptionsOpen(false); setCalibrateConfirmOpen(true) }}>{t.thermal_fan_calibrate}</Button>
+          <PageHeader
+            title={t.thermal_title}
+            description={t.thermal_subtitle}
+            actions={(
+              <>
+                {helperControls}
+                {trayPlacement && settings && (
+                  <ThermalOptionsConfiguration
+                    open={optionsOpen}
+                    title={t.thermal_options_title}
+                    scopeDescription={control ? t.thermal_options_desc_fans : t.thermal_options_desc}
+                    closeLabel={t.settings_close}
+                    onOpenChange={setOptionsOpen}
+                  >
+                    {control && (
+                      <ConfigSection title={t.thermal_fan_calibrate}>
+                        <div className="thermal-calibrate">
+                          <p className="thermal-calibrate__desc">{t.thermal_fan_calibrate_desc}</p>
+                          {calibrationStatusLine && (
+                            <p className="thermal-calibrate__status" data-status={fanCalibration.state?.status} role="status">{calibrationStatusLine}</p>
                           )}
-                          {fanCalibration.state?.status !== 'running' && fanCalibration.state?.result && (
-                            <Button size="sm" shape="rect" variant="neutral" appearance="ghost" disabled={busy} onClick={() => void fanCalibration.clear().then(reportCalibration)}>{t.thermal_fan_calibrate_clear}</Button>
-                          )}
+                          <div className="thermal-calibrate__actions">
+                            {fanCalibration.state?.status === 'running' ? (
+                              <Button size="sm" shape="rect" variant="danger" appearance="outline" disabled={busy} onClick={() => void fanCalibration.cancel().then(reportCalibration)}>{t.thermal_fan_calibrate_cancel}</Button>
+                            ) : (
+                              <Button size="sm" shape="rect" variant="primary" appearance="solid" disabled={busy || control.helper !== 'ready'} title={control.helper !== 'ready' ? t.thermal_fan_profiles_need_helper : undefined} onClick={() => { setOptionsOpen(false); setCalibrateConfirmOpen(true) }}>{t.thermal_fan_calibrate}</Button>
+                            )}
+                            {fanCalibration.state?.status !== 'running' && fanCalibration.state?.result && (
+                              <Button size="sm" shape="rect" variant="neutral" appearance="ghost" disabled={busy} onClick={() => void fanCalibration.clear().then(reportCalibration)}>{t.thermal_fan_calibrate_clear}</Button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </ConfigSection>
-                  )}
-                  <ThermalTrayOptions
-                    placement={trayPlacement}
-                    settings={settings.tray}
-                    preview={snapshot ? buildTrayPreview(snapshot, settings.tray, trayPlacement) : null}
-                    busy={settingsBusy}
-                    onChange={(patch) => void onTrayChange(patch)}
-                    labels={{
-                      title: trayPlacement === 'menu-bar' ? t.thermal_tray_section_menu_bar : t.thermal_tray_section_tray,
-                      enable: t.thermal_tray_enable,
-                      enableDescription: trayPlacement === 'menu-bar' ? t.thermal_tray_enable_desc_menu_bar : t.thermal_tray_enable_desc_tray,
-                      metric: t.thermal_tray_metric,
-                      metricOptions: { hottest: t.thermal_hottest, cpu: t.thermal_group_cpu, gpu: t.thermal_group_gpu },
-                      showFan: t.thermal_tray_show_fan,
-                      layout: t.thermal_tray_layout,
-                      layoutOptions: { inline: t.thermal_tray_layout_inline, stacked: t.thermal_tray_layout_stacked },
-                      fanFormat: t.thermal_tray_fan_format,
-                      fanFormatOptions: { rpm: t.thermal_tray_fan_format_rpm, short: t.thermal_tray_fan_format_short },
-                      showUnit: t.thermal_tray_show_unit,
-                      preview: t.thermal_tray_preview,
-                    }}
-                  />
-                </ThermalOptionsConfiguration>
-              )}
-            </div>
-          </div>
+                      </ConfigSection>
+                    )}
+                    <ThermalTrayOptions
+                      placement={trayPlacement}
+                      settings={settings.tray}
+                      preview={snapshot ? buildTrayPreview(snapshot, settings.tray, trayPlacement) : null}
+                      busy={settingsBusy}
+                      onChange={(patch) => void onTrayChange(patch)}
+                      labels={{
+                        title: trayPlacement === 'menu-bar' ? t.thermal_tray_section_menu_bar : t.thermal_tray_section_tray,
+                        enable: t.thermal_tray_enable,
+                        enableDescription: trayPlacement === 'menu-bar' ? t.thermal_tray_enable_desc_menu_bar : t.thermal_tray_enable_desc_tray,
+                        metric: t.thermal_tray_metric,
+                        metricOptions: { hottest: t.thermal_hottest, cpu: t.thermal_group_cpu, gpu: t.thermal_group_gpu },
+                        showFan: t.thermal_tray_show_fan,
+                        layout: t.thermal_tray_layout,
+                        layoutOptions: { inline: t.thermal_tray_layout_inline, stacked: t.thermal_tray_layout_stacked },
+                        fanFormat: t.thermal_tray_fan_format,
+                        fanFormatOptions: { rpm: t.thermal_tray_fan_format_rpm, short: t.thermal_tray_fan_format_short },
+                        showUnit: t.thermal_tray_show_unit,
+                        preview: t.thermal_tray_preview,
+                      }}
+                    />
+                  </ThermalOptionsConfiguration>
+                )}
+              </>
+            )}
+          />
 
           {restoreReason && <p className="thermal-notice">{tpl(t.thermal_fan_restored_reason, { reason: restoreReason })}</p>}
 

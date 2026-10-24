@@ -5,6 +5,7 @@ import { SegmentRow } from '../components/live/SegmentRow'
 import { TranslationRow } from '../components/live/TranslationRow'
 import { MarkdownText } from '../components/MarkdownText'
 import { AIModelPickerField, InterpretAIConfiguration, InterpretSubtitleConfiguration, LanguagePairBar, LiveSessionHistoryPanel, LiveSessionStatus } from '../components/organisms'
+import { PageHeader } from '../components/templates'
 import { Button } from '../components/ui/atoms'
 import { 
   CheckIcon,
@@ -547,68 +548,73 @@ export function LiveTranslatePage() {
       <div className="app-workspace">
         <div className="glass-panel flex-1 min-h-0 flex flex-col overflow-hidden">
 
-          <div className="feature-command-bar">
-            <h1 className="sr-only">{t.nav_live_translate}</h1>
-            <LanguagePairBar
-              scope="live"
-              lockedReason={isActive ? t.language_pairs_locked_short : t.language_pairs_locked}
-            />
-            <div className="feature-command-bar-end">
-              <HistoryTrigger
-                label={t.history_trigger_label}
-                count={liveSessions.length}
-                expanded={showHistory}
-                hideLabel={t.live_history_toggle_hide}
-                showLabel={t.live_history_toggle_show}
-                hasPopup="dialog"
-                onToggle={() => setShowHistory(true)}
+          <PageHeader
+            title={t.nav_live_translate}
+            titleHidden
+            leading={(
+              <LanguagePairBar
+                scope="live"
+                lockedReason={isActive ? t.language_pairs_locked_short : t.language_pairs_locked}
               />
+            )}
+            actions={(
+              <>
+                <HistoryTrigger
+                  label={t.history_trigger_label}
+                  count={liveSessions.length}
+                  expanded={showHistory}
+                  hideLabel={t.live_history_toggle_hide}
+                  showLabel={t.live_history_toggle_show}
+                  hasPopup="dialog"
+                  onToggle={() => setShowHistory(true)}
+                />
 
-              <InterpretAIConfiguration
-                open={showAIConfig}
-                active={isActive}
-                title={t.ai_configuration_title}
-                scopeDescription={isActive
-                  ? t.ai_configuration_interpret_active_scope
-                  : t.ai_configuration_interpret_scope}
-                closeLabel={t.settings_close}
-                translationLabel={t.ai_configuration_translation_section}
-                outputLabel={t.ai_configuration_output_section}
-                onOpenChange={setShowAIConfig}
-                modelControl={<AIModelPickerField />}
-                subtitleControl={(
-                  <InterpretSubtitleConfiguration
-                    enabled={showSubtitles}
-                    onEnabledChange={setShowSubtitles}
-                    settings={subtitleSettings}
-                    onSettingsChange={setSubtitleSettings}
-                    onReset={() => setSubtitleSettings({ ...DEFAULT_SUBTITLE_SETTINGS })}
-                    colors={subtitleColors}
-                    fontSizes={SUBTITLE_FONT_SIZES}
-                  />
-                )}
-              />
+                <InterpretAIConfiguration
+                  open={showAIConfig}
+                  active={isActive}
+                  title={t.ai_configuration_title}
+                  scopeDescription={isActive
+                    ? t.ai_configuration_interpret_active_scope
+                    : t.ai_configuration_interpret_scope}
+                  closeLabel={t.settings_close}
+                  translationLabel={t.ai_configuration_translation_section}
+                  outputLabel={t.ai_configuration_output_section}
+                  onOpenChange={setShowAIConfig}
+                  modelControl={<AIModelPickerField />}
+                  subtitleControl={(
+                    <InterpretSubtitleConfiguration
+                      enabled={showSubtitles}
+                      onEnabledChange={setShowSubtitles}
+                      settings={subtitleSettings}
+                      onSettingsChange={setSubtitleSettings}
+                      onReset={() => setSubtitleSettings({ ...DEFAULT_SUBTITLE_SETTINGS })}
+                      colors={subtitleColors}
+                      fontSizes={SUBTITLE_FONT_SIZES}
+                    />
+                  )}
+                />
 
-              {/* ▶ Bắt Đầu / ■ Dừng — the row's single solid action */}
-              <Button
-                size="md"
-                shape="rect"
-                variant={isActive ? 'danger' : 'primary'}
-                appearance="solid"
-                type="button"
-                onClick={isActive ? handleStop : startSession}
-                disabled={Boolean(startBlockedReason)}
-                title={startBlockedReason}
-                className="flex-shrink-0"
-              >
-                {isActive ? (
-                  <><StopIcon className="w-3.5 h-3.5" />{t.live_stop}</>
-                ) : (
-                  <><MicrophoneIcon className="w-3.5 h-3.5" />{t.live_start}</>
-                )}
-              </Button>
-            </div>
-          </div>
+                {/* ▶ Bắt Đầu / ■ Dừng — the row's single solid action */}
+                <Button
+                  size="md"
+                  shape="rect"
+                  variant={isActive ? 'danger' : 'primary'}
+                  appearance="solid"
+                  type="button"
+                  onClick={isActive ? handleStop : startSession}
+                  disabled={Boolean(startBlockedReason)}
+                  title={startBlockedReason}
+                  className="flex-shrink-0"
+                >
+                  {isActive ? (
+                    <><StopIcon className="w-3.5 h-3.5" />{t.live_stop}</>
+                  ) : (
+                    <><MicrophoneIcon className="w-3.5 h-3.5" />{t.live_start}</>
+                  )}
+                </Button>
+              </>
+            )}
+          />
           {(rawTranscript || translation) && (liveSourceLang !== sessionLanguages.sourceLang || liveTargetLang !== sessionLanguages.targetLang) && (
             <p className="live-language-notice">{t.language_pairs_previous_session}: {t.lang_names[sessionLanguages.sourceLang] ?? sessionLanguages.sourceLang} → {t.lang_names[sessionLanguages.targetLang] ?? sessionLanguages.targetLang}</p>
           )}

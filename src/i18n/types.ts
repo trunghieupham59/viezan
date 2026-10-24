@@ -15,6 +15,25 @@ export interface Translations {
   nav_thermal: string
   nav_command_palette: string
   nav_primary_sidebar: string
+  /** Primary sidebar group headings. */
+  nav_space_ai: string
+  nav_space_language: string
+  nav_space_system: string
+  nav_space_tools: string
+  /** The command palette trigger at the top of the primary sidebar. */
+  nav_search_or_run: string
+  /** Accessible name of the toast stack. */
+  notifications_region: string
+  /** Background activity strip at the bottom of the primary sidebar. */
+  nav_background_title: string
+  /** `{profile}` is the active fan profile's name. */
+  nav_background_fans_profile: string
+  nav_background_fans_custom: string
+  nav_background_hotkeys: string
+  nav_background_browser: string
+  nav_background_ready: string
+  /** Collapsed-rail summary dot; `{count}` is the number of running items. */
+  nav_background_summary: string
   route_loading: (feature: string) => string
   command_palette_search_placeholder: string
   command_palette_no_results: string
