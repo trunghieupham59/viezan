@@ -40,8 +40,11 @@ Sau đó mở <http://127.0.0.1:5191/docs/design/> để xem trang chỉ mục.
 | Dịch mọi nơi | [everywhere.md](screens/everywhere.md) | [everywhere.html](specs/everywhere.html) | Everywhere, Providers |
 | Launcher & phím tắt | [utilities.md](screens/utilities.md) | [utilities.html](specs/utilities.html) | Utilities |
 | Cửa sổ Launcher | [launcher.md](screens/launcher.md) | [launcher.html](specs/launcher.html) | Launcher, LauncherStates |
+| Quick Chat (Hỏi AI trong cửa sổ nổi) | [quick-chat.md](screens/quick-chat.md) | [quick-chat.html](specs/quick-chat.html) | Launcher, LauncherStates |
 | Nhiệt độ & quạt | [thermal.md](screens/thermal.md) | [thermal.html](specs/thermal.html) | Thermal, ThermalExtras |
 | Cài đặt (8 mục) | [settings.md](screens/settings.md) | [settings.html](specs/settings.html) | Settings, SettingsSections, SettingsAppearance, SettingsAbout, Providers |
+| Bố cục EN/JA | [locales.md](locales.md) | [locales.html](specs/locales.html) | — (vẽ lại các màn hình chính bằng chữ thật VI/EN/JA) |
+| Biến thể persona (Graphite, Glass, Paper, Corporate, Midnight × sáng/tối; màu nhấn) | [personas.md](personas.md) | [personas.html](specs/personas.html) | SettingsAppearance |
 
 Các bản vẽ dùng chung cho mọi màn hình: `States` (trống, lỗi, đang tải), `Popovers` (popover cấu hình), `Narrow` (cửa sổ 820 px), `HomeDark` (chế độ tối).
 

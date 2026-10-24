@@ -62,12 +62,15 @@
       ['everywhere', 'Dịch mọi nơi', 'Dịch nhanh vùng chọn, tiện ích Chrome'],
       ['utilities', 'Launcher & phím tắt', 'Launcher, bảng phím tắt toàn cục'],
       ['launcher', 'Cửa sổ Launcher', 'Tìm ứng dụng, web, hỏi AI, tính nhanh'],
+      ['quick-chat', 'Quick Chat', 'Hỏi AI trong cửa sổ nổi, trả lời nhanh, chuyển sang AI Chat'],
       ['thermal', 'Nhiệt độ & quạt', 'Cảm biến, quạt, thanh menu'],
       ['settings', 'Cài đặt', 'Chung, Giao diện, Mô hình AI, Giọng nói, Chat, Module, Cập nhật, Giới thiệu'],
+      ['locales', 'Bố cục EN/JA', 'Màn hình chính với chữ thật VI/EN/JA: cắt chữ, xuống dòng, chữ Nhật', 'locales.md'],
+      ['personas', 'Biến thể persona', 'Màn hình chính ở 5 phong cách × sáng/tối, 7 màu nhấn', 'personas.md'],
     ]
-    document.getElementById('screens').innerHTML = screens.map(([id, name, desc]) => `
+    document.getElementById('screens').innerHTML = screens.map(([id, name, desc, spec = `screens/${id}.md`]) => `
       <div class="card"><strong>${name}</strong><p>${desc}</p>
-        <div class="links"><a href="specs/${id}.html">Board trạng thái</a><a href="screens/${id}.md">Đặc tả</a></div>
+        <div class="links"><a href="specs/${id}.html">Board trạng thái</a><a href="${spec}">Đặc tả</a></div>
       </div>`).join('')
     fetch('boards/canvas.json').then((r) => r.json()).then((canvas) => {
       document.getElementById('boards').innerHTML = Object.entries(canvas.boards)

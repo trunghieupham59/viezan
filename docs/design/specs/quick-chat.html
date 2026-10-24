@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Viezan — Quick Chat: đặc tả chi tiết</title>
+  <!-- Real design values first, then the board layout. Never add literal colours here. -->
+  <link rel="stylesheet" href="../../../src/styles/tokens.css">
+  <link rel="stylesheet" href="board.css">
+  <style>
+    /* Screen-specific mock classes: every value is a token. */
+    .qc-win { border-radius: var(--vzn-radius-lg); background: var(--vzn-surface); }
+    .qc-head { display: flex; flex: 0 0 auto; align-items: center; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); background: var(--vzn-surface); }
+    .qc-field { display: flex; min-inline-size: 0; flex: 1 1 auto; align-items: center; gap: var(--vzn-space-2); min-block-size: var(--vzn-control-height-md); padding-inline: var(--vzn-space-0-5) var(--vzn-space-1); color: var(--vzn-text-strong); font-size: var(--vzn-font-size-title); font-weight: var(--vzn-weight-medium); }
+    .qc-field[data-placeholder] { color: var(--vzn-text-muted); }
+    .qc-field[data-disabled] { color: var(--vzn-disabled-fg); }
+    .qc-text { min-inline-size: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .qc-caret { display: inline-block; inline-size: var(--vzn-border-width); block-size: var(--vzn-font-size-title-lg); margin-inline-start: var(--vzn-space-0-5); background: var(--vzn-action); vertical-align: middle; }
+    .m-btn.qc-xs-icon { inline-size: var(--vzn-control-height-xs); padding: 0; }
+    .qc-body { display: flex; min-block-size: 0; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-3); overflow: hidden; padding: var(--vzn-space-4); background: var(--vzn-surface-muted); }
+    .qc-card { display: flex; flex: 0 0 auto; flex-direction: column; overflow: hidden; border: var(--vzn-border-width) solid var(--vzn-border-strong); border-radius: var(--vzn-radius-md); background: var(--vzn-surface); }
+    .qc-card[data-active] { flex: 1 1 auto; }
+    .qc-card[data-muted] { opacity: var(--vzn-opacity-disabled); }
+    .qc-q { display: flex; align-items: flex-start; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-5); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .qc-badge { padding: 0 var(--vzn-space-1-5); border-radius: var(--vzn-radius-2xs); background: var(--vzn-surface-muted); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-micro); font-weight: var(--vzn-weight-bold); letter-spacing: var(--vzn-tracking-caps); }
+    .qc-a { display: flex; min-block-size: 0; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-2); overflow: hidden; padding: var(--vzn-space-4) var(--vzn-space-5); color: var(--vzn-text); font-family: var(--vzn-font-reading); font-size: var(--vzn-font-size-subtitle); line-height: var(--vzn-line-reading); }
+    .qc-a p, .qc-a ul { margin: 0; }
+    .qc-a ul { padding-inline-start: var(--vzn-space-5); }
+    .qc-a code { padding: 0 var(--vzn-space-1); border-radius: var(--vzn-radius-2xs); background: var(--vzn-surface-muted); font-family: var(--vzn-font-mono); font-size: var(--vzn-font-size-sm); }
+    .qc-a strong { color: var(--vzn-text-strong); }
+    .qc-actions { display: flex; flex: 0 0 auto; justify-content: flex-end; gap: var(--vzn-space-1); padding: var(--vzn-space-1-5) var(--vzn-space-3); border-top: var(--vzn-border-width) solid var(--vzn-divider); }
+    .qc-pill { display: inline-flex; align-self: flex-start; align-items: center; gap: var(--vzn-space-1-5); padding: var(--vzn-space-0-5) var(--vzn-space-2); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-pill); color: var(--vzn-text-muted); font-family: var(--vzn-font-sans); font-size: var(--vzn-font-size-sm); }
+    .qc-pill[data-smart] { border-color: var(--vzn-action-border); background: var(--vzn-action-soft); color: var(--vzn-action-text); }
+    .qc-skel { display: flex; flex-direction: column; gap: var(--vzn-space-2-5, var(--vzn-space-2)); padding-top: var(--vzn-space-1); }
+    .qc-skel .m-skeleton { block-size: var(--vzn-space-2); border-radius: var(--vzn-radius-pill); }
+    .qc-skel .m-skeleton:nth-child(1) { inline-size: var(--vzn-system-card-min); }
+    .qc-skel .m-skeleton:nth-child(2) { inline-size: var(--vzn-chat-reading-max); }
+    .qc-skel .m-skeleton:nth-child(3) { inline-size: var(--vzn-sidebar-expanded-width); }
+    .qc-error { padding: var(--vzn-space-2-5, var(--vzn-space-2)) var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-danger-border); border-radius: var(--vzn-radius-sm); background: var(--vzn-danger-soft); color: var(--vzn-danger); font-family: var(--vzn-font-sans); font-size: var(--vzn-font-size-md); }
+    .qc-foot { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: var(--vzn-space-3); padding: var(--vzn-space-2) var(--vzn-space-3); border-top: var(--vzn-border-width) solid var(--vzn-divider); background: var(--vzn-surface); font-size: var(--vzn-font-size-sm); }
+    .qc-group { display: flex; align-items: center; gap: var(--vzn-space-1); }
+    .qc-div { inline-size: var(--vzn-border-width); block-size: var(--vzn-space-4); margin-inline: var(--vzn-space-0-5); background: var(--vzn-divider); }
+    .qc-chip-model { color: var(--vzn-text); font-weight: var(--vzn-weight-medium); }
+    .qc-smart { display: inline-flex; align-items: center; gap: var(--vzn-space-1); padding: var(--vzn-space-0-5) var(--vzn-space-1-5); border-radius: var(--vzn-radius-xs); background: var(--vzn-surface-muted); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); font-weight: var(--vzn-weight-semibold); }
+    .qc-meta { color: var(--vzn-text-soft); }
+    .qc-empty { display: flex; flex: 1 1 auto; flex-direction: column; align-items: center; justify-content: center; gap: var(--vzn-space-3); text-align: center; }
+    .qc-logo { display: inline-flex; inline-size: var(--vzn-brand-mark-lg); block-size: var(--vzn-brand-mark-lg); align-items: center; justify-content: center; border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-pill); background: var(--vzn-surface); color: var(--vzn-text-strong); font-weight: var(--vzn-weight-bold); }
+    .qc-kicker { color: var(--vzn-text-soft); font-size: var(--vzn-font-size-caption); font-weight: var(--vzn-weight-semibold); letter-spacing: var(--vzn-tracking-caps); text-transform: uppercase; }
+    .qc-title { margin: 0; color: var(--vzn-text-strong); font-size: var(--vzn-font-size-heading); font-weight: var(--vzn-weight-bold); }
+    .qc-desc { max-inline-size: var(--vzn-system-card-min); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-md); line-height: var(--vzn-line-relaxed); }
+    .qc-keys { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--vzn-space-2) var(--vzn-space-4); margin-top: var(--vzn-space-2); color: var(--vzn-text-soft); font-size: var(--vzn-font-size-sm); }
+    .qc-keys > span { display: inline-flex; align-items: center; gap: var(--vzn-space-1); }
+    .qc-count { color: var(--vzn-text); font-weight: var(--vzn-weight-medium); }
+    /* Launcher search mode, for the entry scenario */
+    .qc-search { display: flex; block-size: var(--vzn-control-height-xl); flex: 0 0 auto; align-items: center; gap: var(--vzn-space-2); padding-inline: var(--vzn-space-4); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); color: var(--vzn-text-strong); font-size: var(--vzn-font-size-title-lg); }
+    .qc-search .qc-text { flex: 1 1 auto; }
+    .qc-hint { display: inline-flex; align-items: center; gap: var(--vzn-space-1); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .qc-results { display: flex; flex: 1 1 auto; flex-direction: column; padding: var(--vzn-space-1) var(--vzn-space-2) var(--vzn-space-2); }
+    .qc-sec { padding: var(--vzn-space-2) var(--vzn-space-2) var(--vzn-space-1); color: var(--vzn-text-soft); font-size: var(--vzn-font-size-caption); font-weight: var(--vzn-weight-semibold); }
+    .qc-row { display: flex; block-size: var(--vzn-control-height-lg); align-items: center; gap: var(--vzn-space-3); padding-inline: var(--vzn-space-2); border-radius: var(--vzn-radius-control); }
+    .qc-row[aria-selected="true"] { background: var(--vzn-surface-selected); }
+    .qc-tile { display: inline-flex; inline-size: var(--vzn-icon-xl); block-size: var(--vzn-icon-xl); align-items: center; justify-content: center; border-radius: var(--vzn-radius-xs); background: var(--vzn-surface-muted); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-caption); }
+    .qc-detail { overflow: hidden; color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); text-overflow: ellipsis; white-space: nowrap; }
+    .qc-kind { margin-inline-start: auto; color: var(--vzn-text-soft); font-size: var(--vzn-font-size-sm); }
+    .qc-lfoot { display: flex; flex: 0 0 auto; align-items: center; gap: var(--vzn-space-3); padding: var(--vzn-space-1-5) var(--vzn-space-3); border-top: var(--vzn-border-width) solid var(--vzn-divider); background: var(--vzn-surface-muted); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    /* Main window AI Chat, for the handoff scenario */
+    .qc-history { display: flex; inline-size: var(--vzn-chat-sidebar-width); flex: 0 0 auto; flex-direction: column; gap: var(--vzn-space-0-5); padding: var(--vzn-space-3) var(--vzn-space-2); border-right: var(--vzn-border-width) solid var(--vzn-divider); background: var(--vzn-surface); font-size: var(--vzn-font-size-md); }
+    .qc-history .m-nav { font-size: var(--vzn-font-size-md); }
+    .qc-history .m-nav[aria-current] { background: var(--vzn-surface-selected); color: var(--vzn-text-strong); }
+    .qc-stage { display: flex; min-block-size: 0; flex: 1 1 auto; flex-direction: column; align-items: center; gap: var(--vzn-space-4); padding: var(--vzn-space-6); overflow: hidden; }
+    .qc-msg-user { align-self: flex-end; max-inline-size: var(--vzn-system-card-min); padding: var(--vzn-space-2) var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-user-bubble-border); border-radius: var(--vzn-radius-md); background: var(--vzn-user-bubble-bg); color: var(--vzn-user-bubble-fg); }
+    .qc-msg-ai { align-self: stretch; color: var(--vzn-text); font-family: var(--vzn-font-reading); line-height: var(--vzn-line-reading); }
+    .qc-column { display: flex; align-self: stretch; max-inline-size: var(--vzn-chat-reading-max); flex-direction: column; gap: var(--vzn-space-4); }
+    .qc-composer { display: flex; align-self: stretch; max-inline-size: var(--vzn-chat-composer-max); margin-top: auto; align-items: center; gap: var(--vzn-space-2); padding: var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-border-strong); border-radius: var(--vzn-radius-lg); background: var(--vzn-surface); color: var(--vzn-text-muted); }
+  </style>
+</head>
+<body class="board">
+  <header class="board-header">
+    <h1>Quick Chat</h1>
+    <p>Chế độ "Hỏi AI" trong cửa sổ Launcher nổi: 760 × 540 px, không viền, luôn trên cùng, giữa màn hình và cách đỉnh 22 %. Hỏi một câu, đọc câu trả lời ngắn, sao chép, hoặc ⌘↵ để mang cả cuộc hỏi–đáp sang AI Chat. Esc hoặc bấm ra ngoài thì ẩn. Đặc tả đầy đủ: <a href="../screens/quick-chat.md">screens/quick-chat.md</a>. Chế độ tìm: <a href="launcher.html">specs/launcher.html</a>.</p>
+    <nav class="board-nav" aria-label="Kịch bản">
+      <a href="#empty">Trống</a>
+      <a href="#typing">Đang gõ · quá dài</a>
+      <a href="#streaming">Đang nghĩ · đang chảy</a>
+      <a href="#answered">Đã trả lời · nhiều lượt</a>
+      <a href="#no-key">Thiếu khoá</a>
+      <a href="#error">Lỗi nhà cung cấp</a>
+      <a href="#dark">Chế độ tối</a>
+      <a href="#handoff">Từ Launcher sang AI Chat</a>
+    </nav>
+  </header>
+
+  <!-- 1. Empty ----------------------------------------------------------- -->
+  <section class="scenario" id="empty">
+    <div class="scenario-copy">
+      <h2>Trống</h2>
+      <p>Vào chế độ AI bằng Tab khi ô tìm trống, hoặc sau "Cuộc trò chuyện mới". Cửa sổ luôn cao 540 khi ở chế độ này.</p>
+      <ol>
+        <li><span class="ref">1</span>"Tìm kiếm" (md · neutral · ghost) về chế độ tìm của Launcher, giữ phiên.</li>
+        <li><span class="ref">2</span>Nút logo (md · neutral · ghost, vuông) <strong>disabled</strong> khi chưa có lượt nào; sẽ thành "+" (cuộc mới, ⌘N).</li>
+        <li><span class="ref">3</span>Ô hỏi một dòng, chữ 16 px, không viền; placeholder "Hỏi bất cứ điều gì…" (hoặc "… (Cmd+Enter để gửi)" khi người dùng chọn kiểu gửi đó).</li>
+        <li><span class="ref">4</span>Gửi (md · primary · solid, icon) disabled vì ô trống.</li>
+        <li><span class="ref">5</span>Bảng phím: ↵ Gửi · ⇧↵ Xuống dòng · ⌘↵ Mở trong Chat · Esc Đóng. Bảng này ghi cứng, không đổi theo kiểu gửi (lỗi, xem đặc tả §10.2).</li>
+        <li><span class="ref">6</span>Chip model (xs · neutral · ghost) mở Cài đặt; chưa có "· n lượt".</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Trống · 760 × 540 · sáng</p>
+        <div class="frame qc-win" data-theme="graphite" data-mode="light" style="--w: 760px; --h: 540px">
+          <div class="qc-head">
+            <span class="m-btn" data-size="md" data-tone="ghost">Tìm kiếm</span>
+            <span class="m-btn" data-size="md" data-icon disabled aria-label="Quick AI">V</span>
+            <span class="qc-field" data-placeholder><span class="qc-text">Hỏi bất cứ điều gì…</span></span>
+            <span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi">➤</span>
+          </div>
+          <div class="qc-body">
+            <div class="qc-empty">
+              <span class="qc-logo">V</span>
+              <span class="qc-kicker">AI nhanh</span>
+              <h4 class="qc-title">Hỏi AI</h4>
+              <span class="qc-desc">Nhập câu hỏi ngắn gọn hoặc dán ngữ cảnh cần AI hỗ trợ.</span>
+              <span class="qc-keys"><span><span class="m-kbd">↵</span> Gửi</span><span><span class="m-kbd">⇧</span><span class="m-kbd">↵</span> Xuống dòng</span><span><span class="m-kbd">⌘</span><span class="m-kbd">↵</span> Mở trong Chat</span><span><span class="m-kbd">Esc</span> Đóng</span></span>
+            </div>
+          </div>
+          <div class="qc-foot">
+            <span class="m-btn" data-size="xs" data-tone="ghost"><span class="m-dot"></span>◆ <span class="qc-chip-model">/ GPT 5.4 Mini</span> <span class="qc-smart">✦ Smart Thinking</span></span>
+            <span class="qc-group"><span class="m-btn" data-size="xs" data-tone="ghost" disabled>⧉ Sao chép</span><span class="qc-div"></span><span class="m-btn" data-size="xs" data-tone="ghost">Mở trong Chat → <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></span>
+          </div>
+          <span class="callout" style="--x: 4px; --y: 2px">1</span>
+          <span class="callout" style="--x: 118px; --y: 2px">2</span>
+          <span class="callout" style="--x: 150px; --y: 2px">3</span>
+          <span class="callout" style="--x: 736px; --y: 2px">4</span>
+          <span class="callout" style="--x: 150px; --y: 352px">5</span>
+          <span class="callout" style="--x: 4px; --y: 488px">6</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Typing / too long ------------------------------------------------ -->
+  <section class="scenario" id="typing">
+    <div class="scenario-copy">
+      <h2>Đang gõ · quá dài</h2>
+      <p>Ô hỏi tự cao đến 120 px rồi cuộn trong ô. Enter gửi, ⇧Enter xuống dòng (hoặc ngược lại nếu chọn kiểu gửi ⌘↵).</p>
+      <ol>
+        <li><span class="ref">1</span>Nút ✕ (xs · neutral · ghost, nhãn "Xóa") chỉ hiện khi có chữ và không đang gửi; xoá chữ và focus lại.</li>
+        <li><span class="ref">2</span>Gửi bật khi có chữ, ≤ 3 000 ký tự, có khoá và không đang gửi.</li>
+        <li><span class="ref">3</span>Vượt 3 000 ký tự: thân thay hẳn bằng bộ đếm "{n} / 3.000" + "Nội dung quá dài. Rút gọn để gửi."; Gửi disabled. Nếu đang có hội thoại, nó bị che cho tới khi rút gọn (đặc tả §10.6).</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Đang gõ · 760 × 540 · sáng</p>
+        <div class="frame qc-win" data-theme="graphite" data-mode="light" style="--w: 760px; --h: 540px">
+          <div class="qc-head">
+            <span class="m-btn" data-size="md" data-tone="ghost">Tìm kiếm</span>
+            <span class="m-btn" data-size="md" data-icon disabled aria-label="Quick AI">V</span>
+            <span class="qc-field"><span class="qc-text">khác nhau giữa TCP và UDP<i class="qc-caret"></i></span><span class="m-btn qc-xs-icon" data-size="xs" data-tone="ghost" aria-label="Xóa">✕</span></span>
+            <span class="m-btn" data-size="md" data-icon data-tone="primary" aria-label="Gửi">➤</span>
+          </div>
+          <div class="qc-body">
+            <div class="qc-empty">
+              <span class="qc-logo">V</span>
+              <span class="qc-kicker">AI nhanh</span>
+              <h4 class="qc-title">Hỏi AI</h4>
+              <span class="qc-desc">Nhập câu hỏi ngắn gọn hoặc dán ngữ cảnh cần AI hỗ trợ.</span>
+              <span class="qc-keys"><span><span class="m-kbd">↵</span> Gửi</span><span><span class="m-kbd">⇧</span><span class="m-kbd">↵</span> Xuống dòng</span><span><span class="m-kbd">⌘</span><span class="m-kbd">↵</span> Mở trong Chat</span><span><span class="m-kbd">Esc</span> Đóng</span></span>
+            </div>
+          </div>
+          <div class="qc-foot">
+            <span class="m-btn" data-size="xs" data-tone="ghost"><span class="m-dot"></span>◆ <span class="qc-chip-model">/ GPT 5.4 Mini</span> <span class="qc-smart">✦ Smart Thinking</span></span>
+            <span class="qc-group"><span class="m-btn" data-size="xs" data-tone="ghost" disabled>⧉ Sao chép</span><span class="qc-div"></span><span class="m-btn" data-size="xs" data-tone="ghost">Mở trong Chat → <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></span>
+          </div>
+          <span class="callout" style="--x: 680px; --y: 2px">1</span>
+          <span class="callout" style="--x: 736px; --y: 2px">2</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Quá dài · 760 × 540 · sáng</p>
+        <div class="frame qc-win" data-theme="graphite" data-mode="light" style="--w: 760px; --h: 540px">
+          <div class="qc-head">
+            <span class="m-btn" data-size="md" data-tone="ghost">Tìm kiếm</span>
+            <span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Cuộc trò chuyện mới">＋</span>
+            <span class="qc-field"><span class="qc-text">[đoạn log dài được dán vào, 3 412 ký tự…]</span><span class="m-btn qc-xs-icon" data-size="xs" data-tone="ghost" aria-label="Xóa">✕</span></span>
+            <span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi">➤</span>
+          </div>
+          <div class="qc-body">
+            <div class="qc-empty">
+              <span class="qc-count">3.412 / 3.000</span>
+              <span class="m-muted">Nội dung quá dài. Rút gọn để gửi.</span>
+            </div>
+          </div>
+          <div class="qc-foot">
+            <span class="m-btn" data-size="xs" data-tone="ghost"><span class="m-dot"></span>◆ <span class="qc-chip-model">/ GPT 5.4 Mini</span> <span class="qc-smart">✦ Smart Thinking</span> <span class="qc-meta">· 1 lượt</span></span>
+            <span class="qc-group"><span class="m-btn" data-size="xs" data-tone="ghost">⧉ Sao chép</span><span class="qc-div"></span><span class="m-btn" data-size="xs" data-tone="ghost">Mở trong Chat → <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></span>
+          </div>
+          <span class="callout" style="--x: 300px; --y: 240px">3</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Thinking / streaming -------------------------------------------- -->
+  <section class="scenario" id="streaming">
+    <div class="scenario-copy">
+      <h2>Đang nghĩ · đang chảy</h2>
+      <p>Gửi xong, thẻ câu hỏi chiếm toàn khung. Ô hỏi bị khoá đến khi luồng kết thúc.</p>
+      <ol>
+        <li><span class="ref">1</span>Ô hỏi disabled, placeholder "Hỏi tiếp..."; Gửi thành spinner (vẫn disabled). Dừng không nằm ở đây (đề xuất đổi Gửi thành Dừng như AI Chat).</li>
+        <li><span class="ref">2</span>Chưa có chữ: pill "Đang suy nghĩ" (role="status", aria-live) hoặc "Smart Thinking" có hiệu ứng quét khi đang tìm web; 3 dòng skeleton.</li>
+        <li><span class="ref">3</span>"Dừng" (xs · danger · ghost) chỉ có khi đang gửi; giữ phần đã nhận.</li>
+        <li><span class="ref">4</span>Đang chảy: Markdown hiện dần, không tự cuộn theo; vùng này không có aria-live.</li>
+        <li><span class="ref">5</span>Sao chép ở footer bật ngay khi có chữ; Sao chép / Tạo lại trong thẻ chỉ hiện sau khi xong.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Đang nghĩ · Smart Thinking · 760 × 540 · sáng</p>
+        <div class="frame qc-win" data-theme="graphite" data-mode="light" style="--w: 760px; --h: 540px">
+          <div class="qc-head">
+            <span class="m-btn" data-size="md" data-tone="ghost">Tìm kiếm</span>
+            <span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Cuộc trò chuyện mới">＋</span>
+            <span class="qc-field" data-disabled><span class="qc-text">Hỏi tiếp...</span></span>
+            <span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi">◌</span>
+          </div>
+          <div class="qc-body">
+            <div class="qc-card" data-active>
+              <div class="qc-q"><span class="qc-badge">Q</span>giá vàng hôm nay thế nào</div>
+              <div class="qc-a">
+                <span class="qc-pill" data-smart>✦ Smart Thinking ···</span>
+                <div class="qc-skel"><span class="m-skeleton"></span><span class="m-skeleton"></span><span class="m-skeleton"></span></div>
+              </div>
+            </div>
+          </div>
+          <div class="qc-foot">
+            <span class="m-btn" data-size="xs" data-tone="ghost"><span class="m-dot"></span>◆ <span class="qc-chip-model">/ GPT 5.4 Mini</span> <span class="qc-smart">✦ Smart Thinking</span> <span class="qc-meta">· 1 lượt</span></span>
+            <span class="qc-group"><span class="m-btn" data-size="xs" data-tone="danger">■ Dừng</span><span class="m-btn" data-size="xs" data-tone="ghost" disabled>⧉ Sao chép</span><span class="qc-div"></span><span class="m-btn" data-size="xs" data-tone="ghost">Mở trong Chat → <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></span>
+          </div>
+          <span class="callout" style="--x: 150px; --y: 2px">1</span>
+          <span class="callout" style="--x: 736px; --y: 2px">1</span>
+          <span class="callout" style="--x: 24px; --y: 104px">2</span>
+          <span class="callout" style="--x: 440px; --y: 488px">3</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Đang chảy · 760 × 540 · sáng</p>
+        <div class="frame qc-win" data-theme="graphite" data-mode="light" style="--w: 760px; --h: 540px">
+          <div class="qc-head">
+            <span class="m-btn" data-size="md" data-tone="ghost">Tìm kiếm</span>
+            <span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Cuộc trò chuyện mới">＋</span>
+            <span class="qc-field" data-disabled><span class="qc-text">Hỏi tiếp...</span></span>
+            <span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi">◌</span>
+          </div>
+          <div class="qc-body">
+            <div class="qc-card" data-active>
+              <div class="qc-q"><span class="qc-badge">Q</span>khác nhau giữa TCP và UDP</div>
+              <div class="qc-a">
+                <p><strong>TCP</strong> có kết nối, đảm bảo thứ tự và gửi lại gói bị mất, nên chậm hơn nhưng tin cậy. <strong>UDP</strong> không kết nối, không xác nhận, nhanh và nhẹ.</p>
+                <ul><li>TCP: web (<code>HTTP</code>), email, tải tệp.</li><li>UDP: gọi thoại, game, phát<i class="qc-caret"></i></li></ul>
+              </div>
+            </div>
+          </div>
+          <div class="qc-foot">
+            <span class="m-btn" data-size="xs" data-tone="ghost"><span class="m-dot"></span>◆ <span class="qc-chip-model">/ GPT 5.4 Mini</span> <span class="qc-smart">✦ Smart Thinking</span> <span class="qc-meta">· 1 lượt</span></span>
+            <span class="qc-group"><span class="m-btn" data-size="xs" data-tone="danger">■ Dừng</span><span class="m-btn" data-size="xs" data-tone="ghost">⧉ Sao chép</span><span class="qc-div"></span><span class="m-btn" data-size="xs" data-tone="ghost">Mở trong Chat → <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></span>
+          </div>
+          <span class="callout" style="--x: 24px; --y: 104px">4</span>
+          <span class="callout" style="--x: 520px; --y: 488px">5</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Answered, multiple turns ---------------------------------------- -->
+  <section class="scenario" id="answered">
+    <div class="scenario-copy">
+      <h2>Đã trả lời · nhiều lượt</h2>
+      <p>Hỏi tiếp gập lượt trước thành thẻ mờ phía trên; thẻ mới được cuộn mượt lên đầu và cao bằng vùng nhìn, nên lượt cũ chỉ thấy khi cuộn lên. Khung bên phải vẽ trạng thái đã cuộn lên một chút.</p>
+      <ol>
+        <li><span class="ref">1</span>Logo thành "+" (cuộc trò chuyện mới, ⌘N): huỷ luồng, xoá lịch sử và phiên đã lưu. aria-label hiện là tiếng Anh cứng.</li>
+        <li><span class="ref">2</span>Lượt cũ (QAEntry) mờ (mã: opacity-70); vẫn Sao chép / Tạo lại được. Tạo lại ở đây xoá mọi lượt sau, không hỏi.</li>
+        <li><span class="ref">3</span>Hành động thẻ (xs · neutral · ghost): Sao chép, Tạo lại phản hồi.</li>
+        <li><span class="ref">4</span>Sao chép ở footer: dấu ✓ + "Đã sao chép!" trong 1,2 s (không được đọc cho trình đọc màn hình).</li>
+        <li><span class="ref">5</span>Chip: chấm + icon nhà cung cấp + "/ model" + Smart Thinking + "· 2 lượt".</li>
+        <li><span class="ref">6</span>"Mở trong Chat ⌘↵" mang cả hai lượt sang AI Chat (xem kịch bản cuối).</li>
+      </ol>
+      <table class="actions">
+        <thead><tr><th>Phím</th><th>Kết quả</th></tr></thead>
+        <tbody>
+          <tr><td>↵ / ⇧↵</td><td>Gửi / xuống dòng (đảo khi kiểu gửi là ⌘↵)</td></tr>
+          <tr><td>⌘N · Ctrl+N</td><td>Cuộc trò chuyện mới (khi có lượt, chữ hoặc lỗi)</td></tr>
+          <tr><td>⌘↵ · Ctrl+↵</td><td>Mở trong Chat</td></tr>
+          <tr><td>Esc</td><td>Ẩn cả cửa sổ; luồng vẫn chạy nền</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Lượt 2 · cuộn lên · 760 × 540 · sáng</p>
+        <div class="frame qc-win" data-theme="graphite" data-mode="light" style="--w: 760px; --h: 540px">
+          <div class="qc-head">
+            <span class="m-btn" data-size="md" data-tone="ghost">Tìm kiếm</span>
+            <span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Cuộc trò chuyện mới">＋</span>
+            <span class="qc-field" data-placeholder><span class="qc-text">Hỏi tiếp...</span></span>
+            <span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi">➤</span>
+          </div>
+          <div class="qc-body">
+            <div class="qc-card" data-muted>
+              <div class="qc-q"><span class="qc-badge">Q</span>khác nhau giữa TCP và UDP</div>
+              <div class="qc-a"><p>TCP có kết nối, đảm bảo thứ tự và gửi lại gói bị mất; UDP không kết nối, nhanh và nhẹ.</p></div>
+              <div class="qc-actions"><span class="m-btn" data-size="xs" data-tone="ghost">⧉ Sao chép</span><span class="m-btn" data-size="xs" data-tone="ghost">↻ Tạo lại phản hồi</span></div>
+            </div>
+            <div class="qc-card" data-active>
+              <div class="qc-q"><span class="qc-badge">Q</span>khi nào nên dùng UDP?</div>
+              <div class="qc-a"><p>Dùng UDP khi <strong>độ trễ quan trọng hơn độ đầy đủ</strong>: gọi thoại, video trực tiếp, game nhiều người chơi, DNS. Mất vài gói chấp nhận được, chờ gửi lại thì không.</p></div>
+              <div class="qc-actions"><span class="m-btn" data-size="xs" data-tone="ghost">⧉ Sao chép</span><span class="m-btn" data-size="xs" data-tone="ghost">↻ Tạo lại phản hồi</span></div>
+            </div>
+          </div>
+          <div class="qc-foot">
+            <span class="m-btn" data-size="xs" data-tone="ghost"><span class="m-dot"></span>◆ <span class="qc-chip-model">/ GPT 5.4 Mini</span> <span class="qc-smart">✦ Smart Thinking</span> <span class="qc-meta">· 2 lượt</span></span>
+            <span class="qc-group"><span class="m-btn" data-size="xs" data-tone="ghost">✓ Đã sao chép!</span><span class="qc-div"></span><span class="m-btn" data-size="xs" data-tone="ghost">Mở trong Chat → <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></span>
+          </div>
+          <span class="callout" style="--x: 118px; --y: 2px">1</span>
+          <span class="callout" style="--x: 6px; --y: 62px">2</span>
+          <span class="callout" style="--x: 728px; --y: 440px">3</span>
+          <span class="callout" style="--x: 470px; --y: 488px">4</span>
+          <span class="callout" style="--x: 4px; --y: 488px">5</span>
+          <span class="callout" style="--x: 740px; --y: 488px">6</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. No key ---------------------------------------------------------- -->
+  <section class="scenario" id="no-key">
+    <div class="scenario-copy">
+      <h2>Thiếu khoá</h2>
+      <p>Nhà cung cấp đang chọn ở cửa sổ chính (khác Local) chưa có khoá trong keychain. Câu hỏi từ Launcher nằm trong ô nhưng không được gửi.</p>
+      <ol>
+        <li><span class="ref">1</span>Thân thay hẳn: logo, "Chưa có API key. Vào Cài đặt để thêm.", "Mở Cài đặt" (sm · neutral · outline). Mở Cài đặt ở mục mặc định, chưa nhảy thẳng tới Mô hình AI.</li>
+        <li><span class="ref">2</span>Gửi disabled dù ô có chữ.</li>
+        <li><span class="ref">3</span>Chấm chip model nhạt hơn (gray-400 so với gray-500): chỉ màu báo trạng thái. Đề xuất: chấm cảnh báo kèm chữ (vẽ ở đây theo đề xuất). Model chưa chọn thì nhãn là "default" (chưa dịch).</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Thiếu khoá · 760 × 540 · sáng</p>
+        <div class="frame qc-win" data-theme="graphite" data-mode="light" style="--w: 760px; --h: 540px">
+          <div class="qc-head">
+            <span class="m-btn" data-size="md" data-tone="ghost">Tìm kiếm</span>
+            <span class="m-btn" data-size="md" data-icon disabled aria-label="Quick AI">V</span>
+            <span class="qc-field"><span class="qc-text">giải thích REST ngắn gọn</span><span class="m-btn qc-xs-icon" data-size="xs" data-tone="ghost" aria-label="Xóa">✕</span></span>
+            <span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi">➤</span>
+          </div>
+          <div class="qc-body">
+            <div class="qc-empty">
+              <span class="qc-logo">V</span>
+              <span class="qc-desc">Chưa có API key. Vào Cài đặt để thêm.</span>
+              <span class="m-btn">Mở Cài đặt</span>
+            </div>
+          </div>
+          <div class="qc-foot">
+            <span class="m-btn" data-size="xs" data-tone="ghost"><span class="m-dot" data-tone="warning"></span>◇ <span class="qc-chip-model">/ default</span> <span class="qc-smart">✦ Smart Thinking</span></span>
+            <span class="qc-group"><span class="m-btn" data-size="xs" data-tone="ghost" disabled>⧉ Sao chép</span><span class="qc-div"></span><span class="m-btn" data-size="xs" data-tone="ghost">Mở trong Chat → <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></span>
+          </div>
+          <span class="callout" style="--x: 300px; --y: 200px">1</span>
+          <span class="callout" style="--x: 736px; --y: 2px">2</span>
+          <span class="callout" style="--x: 4px; --y: 488px">3</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Provider error -------------------------------------------------- -->
+  <section class="scenario" id="error">
+    <div class="scenario-copy">
+      <h2>Lỗi nhà cung cấp</h2>
+      <p>Lỗi từ nhà cung cấp (khoá sai, hết hạn mức, mạng) hiện ngay trong thẻ đang hoạt động. Lượt lỗi không được lưu vào phiên.</p>
+      <ol>
+        <li><span class="ref">1</span>Ô lỗi (ui-error-box: --vzn-danger-soft, viền --vzn-danger-border) với thông điệp đã bản địa hoá; mặc định "Không thể nhận phản hồi". Hiện chưa có role="alert".</li>
+        <li><span class="ref">2</span>Sao chép disabled (không có chữ trả lời); "Tạo lại phản hồi" thử lại cùng câu.</li>
+        <li><span class="ref">3</span>Ô hỏi mở lại để sửa câu; ⌘N xoá lỗi và bắt đầu lại.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Lỗi · 760 × 540 · sáng</p>
+        <div class="frame qc-win" data-theme="graphite" data-mode="light" style="--w: 760px; --h: 540px">
+          <div class="qc-head">
+            <span class="m-btn" data-size="md" data-tone="ghost">Tìm kiếm</span>
+            <span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Cuộc trò chuyện mới">＋</span>
+            <span class="qc-field" data-placeholder><span class="qc-text">Hỏi tiếp...</span></span>
+            <span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi">➤</span>
+          </div>
+          <div class="qc-body">
+            <div class="qc-card" data-active>
+              <div class="qc-q"><span class="qc-badge">Q</span>tóm tắt bài báo này giúp tôi</div>
+              <div class="qc-a"><div class="qc-error">Đã vượt hạn mức yêu cầu của nhà cung cấp. Hãy đợi một lát rồi thử lại.</div></div>
+              <div class="qc-actions"><span class="m-btn" data-size="xs" data-tone="ghost" disabled>⧉ Sao chép</span><span class="m-btn" data-size="xs" data-tone="ghost">↻ Tạo lại phản hồi</span></div>
+            </div>
+          </div>
+          <div class="qc-foot">
+            <span class="m-btn" data-size="xs" data-tone="ghost"><span class="m-dot"></span>◆ <span class="qc-chip-model">/ GPT 5.4 Mini</span> <span class="qc-smart">✦ Smart Thinking</span> <span class="qc-meta">· 1 lượt</span></span>
+            <span class="qc-group"><span class="m-btn" data-size="xs" data-tone="ghost" disabled>⧉ Sao chép</span><span class="qc-div"></span><span class="m-btn" data-size="xs" data-tone="ghost">Mở trong Chat → <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></span>
+          </div>
+          <span class="callout" style="--x: 24px; --y: 104px">1</span>
+          <span class="callout" style="--x: 728px; --y: 440px">2</span>
+          <span class="callout" style="--x: 150px; --y: 2px">3</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Dark ------------------------------------------------------------ -->
+  <section class="scenario" id="dark">
+    <div class="scenario-copy">
+      <h2>Chế độ tối</h2>
+      <p>Cùng cấu trúc; mọi bề mặt đọc token nên tự đổi. Popup tự áp chế độ, persona và màu nhấn của cửa sổ chính mỗi lần hiện.</p>
+      <ol>
+        <li><span class="ref">1</span>Chữ câu trả lời phải là --vzn-text. Mã hiện gắn text-gray-800 (--vzn-neutral-800, không đổi theo chế độ) cho thẻ đang hoạt động, nên có nguy cơ gần như vô hình ở chế độ tối (đặc tả §10.3).</li>
+        <li><span class="ref">2</span>Icon "+" và nhãn model dùng text-gray-700, huy hiệu Smart Thinking bg-gray-100: cùng vấn đề, cần chuyển sang token.</li>
+        <li><span class="ref">3</span>Pill Smart Thinking dùng màu nhấn mềm; skeleton dùng --vzn-skeleton.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Đã trả lời · 760 × 540 · tối</p>
+        <div class="frame qc-win" data-theme="graphite" data-mode="dark" style="--w: 760px; --h: 540px">
+          <div class="qc-head">
+            <span class="m-btn" data-size="md" data-tone="ghost">Tìm kiếm</span>
+            <span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Cuộc trò chuyện mới">＋</span>
+            <span class="qc-field" data-placeholder><span class="qc-text">Hỏi tiếp...</span></span>
+            <span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi">➤</span>
+          </div>
+          <div class="qc-body">
+            <div class="qc-card" data-active>
+              <div class="qc-q"><span class="qc-badge">Q</span>khác nhau giữa TCP và UDP</div>
+              <div class="qc-a">
+                <p><strong>TCP</strong> có kết nối, đảm bảo thứ tự và gửi lại gói bị mất, nên chậm hơn nhưng tin cậy. <strong>UDP</strong> không kết nối, không xác nhận, nhanh và nhẹ.</p>
+                <ul><li>TCP: web (<code>HTTP</code>), email, tải tệp.</li><li>UDP: gọi thoại, game, phát trực tiếp, DNS.</li></ul>
+              </div>
+              <div class="qc-actions"><span class="m-btn" data-size="xs" data-tone="ghost">⧉ Sao chép</span><span class="m-btn" data-size="xs" data-tone="ghost">↻ Tạo lại phản hồi</span></div>
+            </div>
+          </div>
+          <div class="qc-foot">
+            <span class="m-btn" data-size="xs" data-tone="ghost"><span class="m-dot"></span>◆ <span class="qc-chip-model">/ GPT 5.4 Mini</span> <span class="qc-smart">✦ Smart Thinking</span> <span class="qc-meta">· 1 lượt</span></span>
+            <span class="qc-group"><span class="m-btn" data-size="xs" data-tone="ghost">⧉ Sao chép</span><span class="qc-div"></span><span class="m-btn" data-size="xs" data-tone="ghost">Mở trong Chat → <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></span>
+          </div>
+          <span class="callout" style="--x: 24px; --y: 104px">1</span>
+          <span class="callout" style="--x: 118px; --y: 2px">2</span>
+          <span class="callout" style="--x: 4px; --y: 488px">2</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Đang nghĩ · 760 × 540 · tối</p>
+        <div class="frame qc-win" data-theme="graphite" data-mode="dark" style="--w: 760px; --h: 540px">
+          <div class="qc-head">
+            <span class="m-btn" data-size="md" data-tone="ghost">Tìm kiếm</span>
+            <span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Cuộc trò chuyện mới">＋</span>
+            <span class="qc-field" data-disabled><span class="qc-text">Hỏi tiếp...</span></span>
+            <span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi">◌</span>
+          </div>
+          <div class="qc-body">
+            <div class="qc-card" data-active>
+              <div class="qc-q"><span class="qc-badge">Q</span>giá vàng hôm nay thế nào</div>
+              <div class="qc-a">
+                <span class="qc-pill" data-smart>✦ Smart Thinking ···</span>
+                <div class="qc-skel"><span class="m-skeleton"></span><span class="m-skeleton"></span><span class="m-skeleton"></span></div>
+              </div>
+            </div>
+          </div>
+          <div class="qc-foot">
+            <span class="m-btn" data-size="xs" data-tone="ghost"><span class="m-dot"></span>◆ <span class="qc-chip-model">/ GPT 5.4 Mini</span> <span class="qc-smart">✦ Smart Thinking</span> <span class="qc-meta">· 1 lượt</span></span>
+            <span class="qc-group"><span class="m-btn" data-size="xs" data-tone="danger">■ Dừng</span><span class="m-btn" data-size="xs" data-tone="ghost" disabled>⧉ Sao chép</span><span class="qc-div"></span><span class="m-btn" data-size="xs" data-tone="ghost">Mở trong Chat → <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></span>
+          </div>
+          <span class="callout" style="--x: 24px; --y: 104px">3</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. Entry from the launcher, handoff to AI Chat --------------------- -->
+  <section class="scenario" id="handoff">
+    <div class="scenario-copy">
+      <h2>Từ Launcher sang AI Chat</h2>
+      <p>Quick Chat không có phím riêng: phím Launcher mở chế độ tìm, Tab / ⌘↵ / hàng "Hỏi AI" chuyển sang Quick Chat và gửi chữ đã gõ. ⌘↵ trong Quick Chat chuyển cuộc trò chuyện sang cửa sổ chính.</p>
+      <ol>
+        <li><span class="ref">1</span>Launcher: hàng "Hỏi AI" (hoặc "Hỏi tiếp AI" khi phiên Quick AI cập nhật &lt; 30 phút) trong nhóm "Dùng "…" với…"; ↵ chuyển sang Quick Chat và gửi ngay.</li>
+        <li><span class="ref">2</span>Gợi ý "Hỏi AI Tab" trong ô tìm: Tab làm cùng việc; ô trống thì Tab vào Quick Chat trống. Khi ô trống, "Tiếp tục Quick AI" mở lại phiên đã lưu (nhóm Viezan nếu còn mới, Gần đây nếu cũ hơn), không gửi gì.</li>
+        <li><span class="ref">3</span>⌘↵ / "Mở trong Chat": cửa sổ nổi ẩn; cửa sổ chính tạo <strong>phiên chat mới</strong> với đúng provider/model của popup.</li>
+        <li><span class="ref">4</span>Các lượt trước + cặp hỏi–đáp cuối được chèn thành tin nhắn; nếu có nháp chưa gửi, nháp vào ô soạn tin thay vì được gửi.</li>
+        <li><span class="ref">5</span>Popup xoá sạch và xoá phiên đã lưu; lần sau mở, Launcher về chế độ tìm như khung này và không còn "Tiếp tục Quick AI" cho cuộc này. Nếu main từ chối payload, popup không báo gì (đặc tả §10.4).</li>
+      </ol>
+      <table class="actions">
+        <thead><tr><th>Popup gửi</th><th>AI Chat nhận</th></tr></thead>
+        <tbody>
+          <tr><td>history (≤ 10 cặp)</td><td>Tin nhắn user/assistant theo thứ tự</td></tr>
+          <tr><td>question + response</td><td>Cặp cuối, đã trả lời</td></tr>
+          <tr><td>question (nháp), không response</td><td>Nháp trong ô soạn tin</td></tr>
+          <tr><td>provider, model</td><td>Cấu hình của phiên mới</td></tr>
+          <tr><td>(không có gì)</td><td>Chỉ mở trang AI Chat</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Launcher · chế độ tìm · 760 × 300 · sáng</p>
+        <div class="frame qc-win" data-theme="graphite" data-mode="light" style="--w: 760px; --h: 300px">
+          <div class="qc-search"><span class="qc-hint">⌕</span><span class="qc-text">khác nhau giữa TCP và UDP<i class="qc-caret"></i></span><span class="qc-hint">Hỏi AI <span class="m-kbd">Tab</span></span></div>
+          <div class="qc-results">
+            <div class="qc-sec">Dùng "khác nhau giữa TCP và UDP" với…</div>
+            <div class="qc-row" aria-selected="true"><span class="qc-tile">✦</span><span>Hỏi AI</span><span class="qc-detail">khác nhau giữa TCP và UDP</span><span class="qc-kind">Lệnh</span></div>
+            <div class="qc-row"><span class="qc-tile">文</span><span>Dịch</span><span class="qc-detail">khác nhau giữa TCP và UDP</span><span class="qc-kind">Lệnh</span></div>
+            <div class="qc-row"><span class="qc-tile">⌕</span><span>Tìm trên Google</span><span class="qc-detail">khác nhau giữa TCP và UDP</span><span class="qc-kind">Lệnh</span></div>
+          </div>
+          <div class="qc-lfoot"><span class="qc-text">✦ Hỏi AI</span><span>Hỏi AI <span class="m-kbd">↵</span></span><span class="qc-div"></span><span>Hỏi AI <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></div>
+          <span class="callout" style="--x: 4px; --y: 84px">1</span>
+          <span class="callout" style="--x: 700px; --y: 6px">2</span>
+          <span class="callout" style="--x: 4px; --y: 264px">5</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">AI Chat sau bàn giao · 1100 × 640 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1100px; --h: 640px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="m-nav">⌂</div>
+              <div class="m-nav" aria-current="page">✦</div>
+              <div class="m-nav">文</div>
+            </nav>
+            <aside class="qc-history">
+              <div class="m-nav" aria-current="page">khác nhau giữa TCP và UDP</div>
+              <div class="m-nav">Kế hoạch tuần</div>
+              <div class="m-nav">Viết email xin nghỉ</div>
+            </aside>
+            <main class="m-main">
+              <div class="m-header"><h3>AI Chat</h3><span class="m-spacer"></span><span class="m-btn" data-tone="ghost">◆ OpenAI · GPT 5.4 Mini</span></div>
+              <div class="qc-stage">
+                <div class="qc-column">
+                  <div class="qc-msg-user">khác nhau giữa TCP và UDP</div>
+                  <div class="qc-msg-ai">TCP có kết nối, đảm bảo thứ tự và gửi lại gói bị mất; UDP không kết nối, nhanh và nhẹ.</div>
+                  <div class="qc-msg-user">khi nào nên dùng UDP?</div>
+                  <div class="qc-msg-ai">Dùng UDP khi độ trễ quan trọng hơn độ đầy đủ: gọi thoại, video trực tiếp, game, DNS.</div>
+                </div>
+                <div class="qc-composer"><span class="qc-text">Hỏi tiếp trong AI Chat…</span><span class="m-btn" data-size="md" data-icon data-tone="primary" aria-label="Gửi">➤</span></div>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 960px; --y: 52px">3</span>
+          <span class="callout" style="--x: 372px; --y: 112px">4</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>
