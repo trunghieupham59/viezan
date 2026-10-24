@@ -25,8 +25,9 @@ try {
         }, platform)
         const button = page.locator('.ai-chat-header-new')
         const shortcut = platform === 'darwin' ? 'Cmd+N' : 'Ctrl+N'
-        await page.waitForFunction(label => document.querySelector('.ai-chat-header-new kbd')?.textContent === label, shortcut)
-        assert((await button.getAttribute('title')).includes(shortcut))
+        // Icon-only button: the shortcut lives in the tooltip and aria-keyshortcuts.
+        await page.waitForFunction(label => document.querySelector('.ai-chat-header-new')?.getAttribute('title')?.includes(label), shortcut)
+        assert.equal(await button.getAttribute('aria-keyshortcuts'), 'CommandOrControl+N')
         const bounds = await button.boundingBox()
         assert(bounds.x >= 0 && bounds.x + bounds.width <= width)
         assert.equal(await button.evaluate(el => el.scrollWidth > el.clientWidth), false)

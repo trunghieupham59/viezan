@@ -90,12 +90,12 @@ export function ChatTaskConfiguration({ t, state, disabled, contextKey, imageSup
 
   return (
     <div className="chat-task-configuration ai-configuration-anchor">
-      <Button ref={triggerRef} size="md" shape="pill" variant={task ? 'primary' : 'neutral'}
-        appearance={task ? 'soft' : 'ghost'} disabled={disabled}
+      <Button ref={triggerRef} size="md" shape="rect" variant="neutral"
+        appearance={open ? 'soft' : 'outline'} disabled={disabled}
         aria-label={`${t.chat_task_configuration}: ${label}`} title={label}
         aria-expanded={open} aria-haspopup="dialog" aria-controls={open ? panelId : undefined}
         onClick={() => onOpenChange(!state?.open)}>
-        <Icon className="h-4 w-4" /><span className="chat-task-trigger-label">{task?.title ?? t.chat_task_none}</span>
+        <Icon className="h-4 w-4" /><span className="chat-task-trigger-label">{t.chat_task_configuration}: {label}</span>
         <ChevronDownIcon className="h-3 w-3" />
       </Button>
       <AIConfigurationPopover

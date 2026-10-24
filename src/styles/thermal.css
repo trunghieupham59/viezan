@@ -18,7 +18,7 @@
   min-block-size: 0;
   flex-direction: column;
   gap: var(--vzn-space-2);
-  padding: var(--vzn-space-3);
+  padding: var(--vzn-space-4);
   overflow: auto;
 }
 

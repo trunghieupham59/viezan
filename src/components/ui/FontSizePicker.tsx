@@ -20,7 +20,7 @@ export function FontSizePicker({ value, onChange, labels }: FontSizePickerProps)
 
   return (
     <div className="flex-shrink-0">
-      <ButtonGroup value={value} onChange={onChange} options={options} />
+      <ButtonGroup size="sm" value={value} onChange={onChange} options={options} />
     </div>
   )
 }

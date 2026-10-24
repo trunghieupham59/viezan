@@ -1,22 +1,47 @@
-/* Translate everywhere, Launcher & shortcuts: one readable column of sections that scrolls under the header. */
+/* Translate everywhere, Launcher & shortcuts: cards on the canvas under the page header. */
 
 .system-page-body {
   flex: 1 1 0%;
   min-block-size: 0;
   overflow: auto;
-  padding: var(--vzn-space-6) var(--vzn-space-4);
+  padding: var(--vzn-space-4);
 }
 
 .system-page-stack {
-  display: flex;
-  max-inline-size: var(--vzn-content-max);
-  margin-inline: auto;
-  flex-direction: column;
-  gap: var(--vzn-space-8);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: var(--vzn-space-4);
+}
+
+/* Launcher & shortcuts: the Launcher and the full shortcut list side by side. */
+.system-page-stack[data-layout="columns"] {
+  grid-template-columns: repeat(auto-fit, minmax(min(var(--vzn-system-card-min), 100%), 1fr));
+}
+
+/* All shortcuts: the list sits in the card's padding. */
+.utilities-shortcuts {
+  padding-inline: var(--vzn-space-4);
+}
+
+.everywhere-model,
+.everywhere-server {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-md);
+}
+
+.everywhere-model code,
+.everywhere-server {
+  font-family: var(--vzn-font-mono);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.everywhere-language-field {
+  min-inline-size: var(--vzn-settings-select-min);
 }
 
 @container app-main (max-width: 559px) {
   .system-page-body {
-    padding: var(--vzn-space-4) var(--vzn-space-3);
+    padding: var(--vzn-space-3);
   }
 }

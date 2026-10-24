@@ -219,7 +219,6 @@ export function ThermalPage() {
         <div className="glass-panel flex-1 min-h-0 flex flex-col overflow-hidden">
           <PageHeader
             title={t.thermal_title}
-            description={t.thermal_subtitle}
             actions={(
               <>
                 {helperControls}

@@ -251,7 +251,7 @@ describe('ChatPage', () => {
       expect(taskButton).toHaveAttribute('aria-haspopup', 'dialog')
       expect(taskButton).toHaveAttribute('aria-expanded', 'false')
       applyTask(TRANSLATIONS.en.chat_mode_chip_image)
-      expect(composerQueries.getByRole('button', { name: `${TRANSLATIONS.en.chat_task_configuration}: ${TRANSLATIONS.en.chat_mode_chip_image}` })).toHaveAttribute('data-control-variant', 'primary')
+      expect(composerQueries.getByRole('button', { name: `${TRANSLATIONS.en.chat_task_configuration}: ${TRANSLATIONS.en.chat_mode_chip_image}` })).toHaveTextContent(`${TRANSLATIONS.en.chat_task_configuration}: ${TRANSLATIONS.en.chat_mode_chip_image}`)
       expect(screen.queryByRole('menu', { name: TRANSLATIONS.en.chat_response_mode })).not.toBeInTheDocument()
       expect(composerQueries.getByRole('button', { name: TRANSLATIONS.en.chat_voice_record }))
         .toBeInTheDocument()

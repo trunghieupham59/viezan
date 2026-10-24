@@ -118,23 +118,6 @@ html:not(.dark) .chat-composer {
   box-shadow: none;
 }
 
-.chat-message-avatar {
-  width: var(--vzn-chat-avatar-size);
-  height: var(--vzn-chat-avatar-size);
-  border: 1px solid var(--vzn-divider);
-  box-shadow: var(--vzn-shadow-xs);
-}
-
-.chat-message-avatar-user {
-  border-color: transparent;
-  background: var(--vzn-user-avatar-bg);
-  color: var(--vzn-user-avatar-fg);
-}
-
-.chat-message-avatar-assistant {
-  background: var(--vzn-assistant-avatar-bg);
-  color: var(--vzn-text-muted);
-}
 
 .chat-bubble-assistant {
   color: var(--vzn-text);
@@ -389,8 +372,8 @@ html:not(.dark) .chat-research-final {
 
 .chat-active-composer-footer {
   flex: 0 0 auto;
-  padding: 8px var(--vzn-chat-local-gutter) 14px;
-  background: var(--vzn-bg);
+  padding: var(--vzn-space-2) var(--vzn-chat-local-gutter) var(--vzn-space-5);
+  background: transparent;
 }
 
 .chat-active-composer-inner {
@@ -1130,9 +1113,6 @@ html.dark .chat-suggest-chip:hover {
 
 @container app-main (min-width: 760px) and (max-width: 999px) {
   .chat-page {
-    --vzn-chat-local-stage-max: 920px;
-    --vzn-chat-local-reading-max: 720px;
-    --vzn-chat-local-composer-max: 900px;
     --vzn-chat-local-gutter: var(--vzn-space-5);
   }
 
@@ -1143,9 +1123,6 @@ html.dark .chat-suggest-chip:hover {
 
 @container app-main (min-width: 1000px) and (max-width: 1199px) {
   .chat-page {
-    --vzn-chat-local-stage-max: 1000px;
-    --vzn-chat-local-reading-max: 780px;
-    --vzn-chat-local-composer-max: 960px;
     --vzn-chat-local-gutter: var(--vzn-space-6);
   }
 
@@ -1156,9 +1133,6 @@ html.dark .chat-suggest-chip:hover {
 
 @container app-main (min-width: 1200px) and (max-width: 1759px) {
   .chat-page {
-    --vzn-chat-local-stage-max: 1080px;
-    --vzn-chat-local-reading-max: 820px;
-    --vzn-chat-local-composer-max: 1040px;
     --vzn-chat-local-gutter: var(--vzn-space-8);
   }
 
@@ -1169,9 +1143,6 @@ html.dark .chat-suggest-chip:hover {
 
 @container app-main (min-width: 1760px) {
   .chat-page {
-    --vzn-chat-local-stage-max: 1240px;
-    --vzn-chat-local-reading-max: 840px;
-    --vzn-chat-local-composer-max: 1120px;
     --vzn-chat-local-gutter: var(--vzn-space-10);
   }
 

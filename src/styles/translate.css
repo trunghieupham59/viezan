@@ -198,17 +198,14 @@
   }
 }
 
+/* Source and result are two cards side by side on the canvas. */
 .translate-workbench {
   display: grid;
   min-height: 0;
   flex: 1 1 auto;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
-  overflow: hidden;
-  border: 1px solid var(--vzn-border);
-  border-radius: var(--vzn-radius-md);
-  background: var(--vzn-surface);
-  box-shadow: var(--vzn-shadow-xs);
+  gap: var(--vzn-space-4);
 }
 
 .translate-pane {
@@ -216,6 +213,9 @@
   min-width: 0;
   min-height: 0;
   flex-direction: column;
+  overflow: hidden;
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-md);
   background: var(--vzn-surface);
 }
 
@@ -228,7 +228,6 @@
 .translate-result-pane {
   grid-column: 2;
   grid-row: 1;
-  border-left: 1px solid var(--vzn-divider);
 }
 
 /*
@@ -313,11 +312,11 @@
 /* Pane header: the pane title is the first item of its toolbar, not a dropdown label. */
 .translate-pane-header {
   display: flex;
-  min-height: calc(var(--vzn-control-height-sm) + var(--vzn-space-2));
+  min-height: var(--vzn-control-height-xl);
   flex: 0 0 auto;
   align-items: center;
   gap: var(--vzn-space-2);
-  padding: 0 var(--vzn-space-4);
+  padding: 0 var(--vzn-space-3) 0 var(--vzn-space-4);
   border-bottom: 1px solid var(--vzn-divider);
   background: var(--vzn-surface);
 }
@@ -326,7 +325,7 @@
   flex: 0 0 auto;
   margin: 0;
   color: var(--vzn-text-strong);
-  font-size: var(--vzn-font-size-md);
+  font-size: var(--vzn-font-size-lg);
   font-weight: var(--vzn-weight-semibold);
   line-height: var(--vzn-line-tight);
   white-space: nowrap;
@@ -392,12 +391,13 @@
 
 .translate-pane-footer {
   display: flex;
-  min-height: calc(var(--vzn-control-height-md) + var(--vzn-space-4));
+  min-height: calc(var(--vzn-control-height-lg) + var(--vzn-space-1));
   flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
   gap: var(--vzn-space-3);
-  padding: var(--vzn-space-2) var(--vzn-space-3);
+  padding: var(--vzn-space-1) var(--vzn-space-3) var(--vzn-space-1) var(--vzn-space-4);
+  border-top: var(--vzn-border-width) solid var(--vzn-divider);
   background: var(--vzn-surface);
 }
 
@@ -2087,4 +2087,10 @@
   .translate-compare-entry span {
     display: none;
   }
+}
+
+.translate-options-summary {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+  white-space: nowrap;
 }

@@ -15,6 +15,8 @@ const LABEL_KEYS: Record<ShortcutId, keyof Translations> = {
 export interface ShortcutOverviewProps {
   /** Limit the list to these shortcuts, in this order; all of them when absent. */
   only?: readonly ShortcutId[]
+  /** One line per shortcut, as on Home. */
+  compact?: boolean
 }
 
 function text(t: Translations, key: keyof Translations): string {
@@ -27,7 +29,7 @@ function text(t: Translations, key: keyof Translations): string {
  * shortcuts that share keys flagged. Read-only: each shortcut is changed where
  * its feature is configured.
  */
-export function ShortcutOverview({ only }: ShortcutOverviewProps) {
+export function ShortcutOverview({ only, compact = false }: ShortcutOverviewProps) {
   const t = useT()
   const enabledModules = useAppStore((state) => state.enabledModules)
   const chatSendShortcut = useAppStore((state) => state.chatSendShortcut)
@@ -57,6 +59,7 @@ export function ShortcutOverview({ only }: ShortcutOverviewProps) {
       conflictLabel={t.shortcut_conflict}
       unsetLabel={t.shortcut_unset}
       offLabel={t.shortcut_off}
+      compact={compact}
     />
   )
 }

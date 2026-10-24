@@ -24,12 +24,14 @@ export interface ShortcutListProps {
   /** Shown for an inactive shortcut. */
   offLabel: string
   label: string
+  /** One line per shortcut (name and keys), as on Home. */
+  compact?: boolean
 }
 
 /** Every shortcut in one read-only list, so collisions are visible at a glance. */
-export function ShortcutList({ items, conflictLabel, unsetLabel, offLabel, label }: ShortcutListProps) {
+export function ShortcutList({ items, conflictLabel, unsetLabel, offLabel, label, compact = false }: ShortcutListProps) {
   return (
-    <ul className="ui-shortcut-list" aria-label={label}>
+    <ul className="ui-shortcut-list" data-compact={compact || undefined} aria-label={label}>
       {items.map((item) => (
         <li
           key={item.id}
@@ -39,12 +41,12 @@ export function ShortcutList({ items, conflictLabel, unsetLabel, offLabel, label
         >
           <span className="ui-shortcut-list__copy">
             <span className="ui-shortcut-list__label">{item.label}</span>
-            <span className="ui-shortcut-list__scope">{item.inactive ? `${item.scope} · ${offLabel}` : item.scope}</span>
+            {!compact && <span className="ui-shortcut-list__scope">{item.inactive ? `${item.scope} · ${offLabel}` : item.scope}</span>}
           </span>
           {item.conflict && <StatusChip tone="warning">{conflictLabel}</StatusChip>}
           <span className="ui-shortcut-list__keys">
             {item.keys.length > 0
-              ? item.keys.map((key) => <KeyCap key={key}>{key}</KeyCap>)
+              ? <KeyCap>{item.keys.join(' ')}</KeyCap>
               : <span className="ui-shortcut-list__unset">{unsetLabel}</span>}
           </span>
         </li>

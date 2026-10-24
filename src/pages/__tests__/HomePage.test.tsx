@@ -87,7 +87,7 @@ describe('HomePage', () => {
   it('lists the main shortcuts with their keys', async () => {
     render(<HomePage />)
     const shortcuts = screen.getByRole('region', { name: t.home_shortcuts_title })
-    expect(await within(shortcuts).findByText('Space')).toBeInTheDocument()
+    expect(await within(shortcuts).findByText(/Space/)).toBeInTheDocument()
     expect(within(shortcuts).getByText(t.shortcut_command_palette)).toBeInTheDocument()
     fireEvent.click(within(shortcuts).getByRole('button', { name: t.home_edit }))
     expect(useAppStore.getState().activePage).toBe('utilities')

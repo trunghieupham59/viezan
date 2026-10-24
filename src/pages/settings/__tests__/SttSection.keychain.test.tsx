@@ -24,6 +24,7 @@ describe('SttSection Groq keychain results', () => {
     keychain.save.mockResolvedValue({ success: false, error: 'keychain locked' })
     render(<><SttSection /><NotificationViewport /></>)
 
+    fireEvent.click(screen.getByRole('button', { name: 'Add key' }))
     const input = screen.getByPlaceholderText('Paste your Groq API key…')
     fireEvent.change(input, { target: { value: 'gsk_test' } })
     fireEvent.keyDown(input, { key: 'Enter' })
@@ -41,6 +42,7 @@ describe('SttSection Groq keychain results', () => {
     keychain.save.mockResolvedValue({ success: true })
     render(<><SttSection /><NotificationViewport /></>)
 
+    fireEvent.click(screen.getByRole('button', { name: 'Add key' }))
     const input = screen.getByPlaceholderText('Paste your Groq API key…')
     fireEvent.change(input, { target: { value: 'gsk_test' } })
     fireEvent.keyDown(input, { key: 'Enter' })
@@ -53,7 +55,8 @@ describe('SttSection Groq keychain results', () => {
     keychain.delete.mockResolvedValue({ success: false, error: 'denied' })
     render(<><SttSection /><NotificationViewport /></>)
 
-    const removeButton = await screen.findByTitle('Remove')
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }))
+    const removeButton = screen.getByTitle('Remove')
     fireEvent.click(removeButton)
 
     expect(await screen.findByText('Could not update the OS Keychain. Please try again.')).toBeInTheDocument()

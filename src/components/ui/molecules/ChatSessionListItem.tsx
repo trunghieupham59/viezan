@@ -1,5 +1,4 @@
 import type { Provider } from '../../../types'
-import { ProviderIcon } from '../../ProviderIcon'
 import { Button } from '../atoms/Button'
 import { TrashIcon } from '../icons'
 
@@ -15,6 +14,8 @@ export interface ChatSessionListItemProps {
   deleteLabel: string
   pendingResearchLabel: string
   hasPendingResearch?: boolean
+  /** The visible second line, e.g. the conversation's task ("Research · 3 sources"); defaults to time and count. */
+  meta?: string
   onSelect: (id: string) => void
   onDelete: (id: string) => void
 }
@@ -35,6 +36,7 @@ export function ChatSessionListItem({
   deleteLabel,
   pendingResearchLabel,
   hasPendingResearch = false,
+  meta,
   onSelect,
   onDelete,
 }: ChatSessionListItemProps) {
@@ -58,16 +60,16 @@ export function ChatSessionListItem({
         aria-current={active ? 'true' : undefined}
         onClick={() => onSelect(id)}
       >
-        <span className="chat-session-provider" aria-hidden="true">
-          <ProviderIcon provider={provider} size={13} />
-        </span>
         <span className="chat-session-copy">
           <span className="chat-session-title">{title}</span>
-          <span className="chat-session-meta">
-            <span>{timeLabel}</span>
-            {messageCount > 0 && <span aria-hidden="true">·</span>}
-            {messageCount > 0 && <span>{messageCount}</span>}
-            {hasPendingResearch && <span className="chat-session-research-dot" aria-hidden="true" />}
+          <span className="chat-session-meta" data-pending={hasPendingResearch || undefined}>
+            {meta ? <span>{meta}</span> : (
+              <>
+                <span>{timeLabel}</span>
+                {messageCount > 0 && <span aria-hidden="true">·</span>}
+                {messageCount > 0 && <span>{messageCount}</span>}
+              </>
+            )}
           </span>
         </span>
       </button>

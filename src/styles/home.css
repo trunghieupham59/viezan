@@ -1,55 +1,69 @@
-/* Home: quick start and recent work beside a column of status cards. */
+/* Home: quick start across the top, then recent work beside a column of status cards. */
 
 .home-body {
+  display: flex;
   flex: 1 1 0%;
   min-block-size: 0;
-  overflow: auto;
-  padding: var(--vzn-space-4);
-}
-
-.home-grid {
-  display: grid;
-  max-inline-size: var(--vzn-overview-max);
-  margin-inline: auto;
-  grid-template-columns: minmax(0, 1fr) var(--vzn-overview-side);
-  align-items: start;
-  gap: var(--vzn-space-4);
-}
-
-.home-main,
-.home-side {
-  display: flex;
-  min-inline-size: 0;
   flex-direction: column;
-  gap: var(--vzn-space-4);
+  gap: var(--vzn-space-6);
+  overflow: auto;
+  padding: var(--vzn-space-6);
+}
+
+.home-quick-start {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-3);
 }
 
 .home-section-title {
-  margin: 0 0 var(--vzn-space-2);
-  color: var(--vzn-text-soft);
-  font-size: var(--vzn-font-size-sm);
+  margin: 0;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-subtitle);
   font-weight: var(--vzn-weight-semibold);
-  letter-spacing: var(--vzn-tracking-caps);
-  text-transform: uppercase;
 }
 
 .home-quick-start__cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(var(--vzn-quick-card-min), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(var(--vzn-quick-card-min), 100%), 1fr));
   gap: var(--vzn-space-3);
+}
+
+.home-columns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--vzn-space-4);
+}
+
+.home-resume {
+  min-inline-size: 0;
+  flex: 999 1 var(--vzn-overview-resume-basis);
+}
+
+.home-side {
+  display: flex;
+  min-inline-size: 0;
+  flex: 1 1 var(--vzn-overview-side);
+  flex-direction: column;
+  gap: var(--vzn-space-4);
 }
 
 .home-activity {
   display: flex;
-  margin: 0 calc(var(--vzn-space-3) * -1);
+  margin: 0;
   padding: 0;
   flex-direction: column;
   list-style: none;
 }
 
+.home-resume__empty {
+  padding: var(--vzn-space-4);
+}
+
 .home-card-note {
   margin: 0;
-  color: var(--vzn-text-soft);
+  color: var(--vzn-text-muted);
   font-size: var(--vzn-font-size-sm);
   line-height: var(--vzn-line-normal);
 }
@@ -59,14 +73,13 @@
 .home-system-reading {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: var(--vzn-space-2) var(--vzn-space-3);
+  align-items: baseline;
+  gap: var(--vzn-space-2);
 }
 
 .home-system-temp {
   color: var(--vzn-text-strong);
-  font-family: var(--vzn-font-display);
-  font-size: var(--vzn-font-size-display);
+  font-size: var(--vzn-font-size-heading-lg);
   font-variant-numeric: tabular-nums;
   font-weight: var(--vzn-weight-semibold);
   line-height: var(--vzn-line-tight);
@@ -81,74 +94,94 @@
 }
 
 .home-system-caption {
-  display: flex;
-  flex-direction: column;
-  color: var(--vzn-text-soft);
-  font-size: var(--vzn-font-size-sm);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-md);
 }
 
 .home-system-fans {
-  display: grid;
+  display: flex;
   margin: 0;
-  grid-template-columns: repeat(auto-fit, minmax(var(--vzn-space-12), 1fr));
-  gap: var(--vzn-space-3);
+  padding: 0;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
+  list-style: none;
 }
 
-.home-system-fan dt {
-  color: var(--vzn-text-soft);
-  font-size: var(--vzn-font-size-sm);
-}
-
-.home-system-fan dd {
-  margin: 0;
-  color: var(--vzn-text-strong);
-  font-size: var(--vzn-font-size-md);
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--vzn-weight-medium);
-}
-
-/* AI card */
-
-.home-ai {
+.home-system-fan {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--vzn-space-3);
-}
-
-.home-ai__model {
-  display: flex;
-  min-inline-size: 0;
-  flex-direction: column;
-}
-
-.home-ai__provider {
-  color: var(--vzn-text-soft);
-  font-size: var(--vzn-font-size-sm);
-}
-
-.home-ai__id {
-  overflow: hidden;
-  color: var(--vzn-text-strong);
-  font-family: var(--vzn-font-mono);
+  gap: var(--vzn-space-2);
   font-size: var(--vzn-font-size-md);
+}
+
+.home-system-fan__name {
+  flex: 0 0 var(--vzn-overview-fan-label);
+  overflow: hidden;
+  color: var(--vzn-text-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* One column below the desktop split, as everywhere else in the app. */
+.home-system-fan__meter.ui-meter {
+  flex: 1 1 auto;
+}
+
+.home-system-fan__rpm {
+  flex: 0 0 var(--vzn-overview-fan-value);
+  color: var(--vzn-text-strong);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+/* AI card */
+
+.home-ai__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vzn-space-1-5);
+  color: var(--vzn-success);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-medium);
+}
+
+.home-ai__status[data-tone="warning"] {
+  color: var(--vzn-warning);
+}
+
+.home-ai__dot {
+  inline-size: var(--vzn-space-1-5);
+  block-size: var(--vzn-space-1-5);
+  border-radius: var(--vzn-radius-pill);
+  background: currentColor;
+}
+
+.home-ai__line {
+  margin: 0;
+  color: var(--vzn-text);
+  font-size: var(--vzn-font-size-md);
+}
+
+.home-ai__id {
+  font-family: var(--vzn-font-mono);
+}
+
+.home-ai__manage.ui-button {
+  align-self: flex-start;
+}
+
+.home-ai-card {
+  gap: var(--vzn-space-2);
+}
+
+/* Four cards, or two by two — never three and an orphan. */
 @container app-main (max-width: 899px) {
-  .home-grid {
-    grid-template-columns: minmax(0, 1fr);
+  .home-quick-start__cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @container app-main (max-width: 559px) {
   .home-body {
-    padding: var(--vzn-space-3);
-  }
-
-  .home-quick-start__cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: var(--vzn-space-4);
   }
 }

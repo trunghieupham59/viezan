@@ -41,9 +41,10 @@ describe('ApiKeysSection Anthropic model discovery', () => {
   it('loads models immediately after saving and replaces a retired selection', async () => {
     render(<ApiKeysSection />)
 
-    const input = await screen.findByPlaceholderText('Paste your Anthropic Claude API key…')
-    const card = input.closest('.card')
+    const card = (await screen.findByText('Anthropic Claude')).closest('.credential-row')
     expect(card).not.toBeNull()
+    fireEvent.click(within(card as HTMLElement).getByRole('button', { name: 'Add key' }))
+    const input = within(card as HTMLElement).getByPlaceholderText('Paste your Anthropic Claude API key…')
     fireEvent.change(input, { target: { value: 'sk-ant-valid' } })
     fireEvent.click(within(card as HTMLElement).getByRole('button', { name: 'Verify' }))
 

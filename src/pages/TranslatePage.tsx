@@ -8,8 +8,10 @@ import {
   TranslationSourcePane,
 } from '../components/organisms'
 import { PageHeader, TranslateWorkbenchTemplate } from '../components/templates'
+import { Button } from '../components/ui/atoms'
 import { ButtonGroup } from '../components/ui/ButtonGroup'
-import { DialogShell, HistoryTrigger } from '../components/ui/molecules'
+import { ClockIcon } from '../components/ui/icons'
+import { DialogShell } from '../components/ui/molecules'
 import { TRANSLATE_HISTORY_INLINE_MIN_WIDTH } from '../constants/ui'
 import { useElementInlineSize } from '../hooks/useElementInlineSize'
 import { IMAGE_TRANSLATED_SENTINEL, useTranslate } from '../hooks/useTranslate'
@@ -259,6 +261,16 @@ export function TranslatePage() {
     handleSourceChange(value)
   }, [handleSourceChange])
 
+  const styleLabels: Record<typeof translationStyle, string> = {
+    general: t.translate_style_general,
+    formal: t.translate_style_formal,
+    casual: t.translate_style_casual,
+    business: t.translate_style_business,
+    technical: t.translate_style_technical,
+    natural: t.translate_style_natural,
+  }
+  const styleLabel = styleLabels[translationStyle]
+
   // What the source pane offers. An attached image always means image input,
   // however it arrived (paste, drop, the add-image button).
   const effectiveInputMode: TranslateInputMode = imageAttachment ? 'image' : inputMode
@@ -296,14 +308,18 @@ export function TranslatePage() {
       )}
       actions={(
         <>
-          <HistoryTrigger
-            label={t.history_trigger_label}
-            count={history.length}
-            expanded={historyOpen}
-            hideLabel={t.translate_history_toggle_hide}
-            showLabel={t.translate_history_toggle_show}
-            onToggle={handleHistoryToggle}
-          />
+          <Button
+            size="sm"
+            shape="icon"
+            variant={historyOpen ? 'primary' : 'neutral'}
+            appearance={historyOpen ? 'soft' : 'ghost'}
+            aria-label={historyOpen ? t.translate_history_toggle_hide : t.translate_history_toggle_show}
+            title={historyOpen ? t.translate_history_toggle_hide : t.translate_history_toggle_show}
+            aria-expanded={historyOpen}
+            onClick={handleHistoryToggle}
+          >
+            <ClockIcon className="h-4 w-4" />
+          </Button>
           <TranslationOptions
             translationStyle={translationStyle}
             onStyleChange={setTranslationStyle}
@@ -362,6 +378,7 @@ export function TranslatePage() {
       isRewriting={isRewriting}
       imageAttachment={imageAttachment}
       inputMode={effectiveInputMode}
+      optionsSummary={`${t.translate_style_label}: ${styleLabel}`}
       speakingPanel={speakingPanel}
       speakLoading={speakLoading}
       fileInputRef={fileInputRef}

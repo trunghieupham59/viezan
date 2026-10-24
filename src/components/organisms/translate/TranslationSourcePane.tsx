@@ -38,6 +38,8 @@ interface TranslationSourcePaneProps {
   imageAttachment: ImageAttachment | null
   /** Chosen in the page header: what the pane asks for when it is empty. */
   inputMode?: 'text' | 'image' | 'voice'
+  /** The active output options, e.g. "Style: Formal", shown at the footer end. */
+  optionsSummary?: string
   speakingPanel: SpeakPanel | null
   speakLoading: boolean
   fileInputRef: RefObject<HTMLInputElement>
@@ -78,6 +80,7 @@ export function TranslationSourcePane({
   isRewriting,
   imageAttachment,
   inputMode = 'text',
+  optionsSummary,
   speakingPanel,
   speakLoading,
   fileInputRef,
@@ -247,6 +250,7 @@ export function TranslationSourcePane({
           sourceLang={sourceLang}
           voiceContextKey={voiceContextKey}
           hasImage={Boolean(imageAttachment)}
+          inputMode={inputMode}
           speakingPanel={speakingPanel}
           speakLoading={speakLoading}
           onVoiceTranscript={onVoiceTranscript}
@@ -299,6 +303,7 @@ export function TranslationSourcePane({
             </span>
           )}
 
+          {optionsSummary && <span className="translate-options-summary">{optionsSummary}</span>}
           {!autoTranslate && (
             <>
               <span className="translate-shortcut-hint">{t.translate_manual_shortcut}</span>

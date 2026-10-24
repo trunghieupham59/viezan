@@ -50,6 +50,8 @@ describe('ApiKeyInput verification outcomes', () => {
   ])('saves an authenticated key when verification returns %s', async (errorCode, message) => {
     vi.mocked(window.api.verifyKey).mockResolvedValue({ success: false, errorCode, valid: true })
     const onSave = renderClaudeInput()
+    // The key editor opens on demand from the compact row.
+    fireEvent.click(screen.getByRole('button', { name: 'Add key' }))
 
     fireEvent.change(screen.getByPlaceholderText('Paste your Anthropic Claude API key…'), {
       target: { value: 'sk-ant-valid' },
@@ -63,6 +65,8 @@ describe('ApiKeyInput verification outcomes', () => {
   it('does not save a key when authentication fails', async () => {
     vi.mocked(window.api.verifyKey).mockResolvedValue({ success: false, errorCode: 'INVALID_KEY' })
     const onSave = renderClaudeInput()
+    // The key editor opens on demand from the compact row.
+    fireEvent.click(screen.getByRole('button', { name: 'Add key' }))
 
     fireEvent.change(screen.getByPlaceholderText('Paste your Anthropic Claude API key…'), {
       target: { value: 'sk-ant-invalid' },
@@ -77,6 +81,8 @@ describe('ApiKeyInput verification outcomes', () => {
     vi.useFakeTimers()
     vi.mocked(window.api.verifyKey).mockResolvedValue({ success: true })
     const onSave = renderClaudeInput()
+    // The key editor opens on demand from the compact row.
+    fireEvent.click(screen.getByRole('button', { name: 'Add key' }))
 
     fireEvent.change(screen.getByPlaceholderText('Paste your Anthropic Claude API key…'), {
       target: { value: 'sk-ant-valid' },

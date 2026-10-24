@@ -81,7 +81,6 @@ export function DictionaryPage() {
       header={(
         <PageHeader
           title={t.dictionary_title}
-          description={t.dictionary_subtitle}
           className="dictionary-page-header"
           leading={(
             <LanguagePairBar scope="dictionary" onPairChange={(pair) => setLanguagePair('translate', pair)} />

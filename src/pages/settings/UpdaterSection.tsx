@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, ToggleSwitch } from '@/components/ui/atoms'
+import { Button, Meter, ToggleSwitch } from '@/components/ui/atoms'
+import { SettingsRow } from '@/components/ui/molecules'
 import { CheckUpdateButton } from '../../components/ui/CheckUpdateButton'
 import { CheckCircleIcon, CheckIcon, DownloadIcon, SpinnerIcon } from '../../components/ui/icons'
+import { GITHUB_RELEASES_URL } from '../../constants/urls'
 import { useT } from '../../store/useAppStore'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import { useUpdaterStore } from '../../store/useUpdaterStore'
@@ -86,129 +88,117 @@ export function UpdaterSection() {
   const installerMode = updaterStatus.type === 'downloaded' && updaterStatus.installMode === 'open-installer'
   const showManualInstaller = updaterStatus.type === 'downloaded' && updaterStatus.installMode === 'restart'
 
+  const showStatus = updaterStatus.type === 'available'
+    || updaterStatus.type === 'not-available'
+    || updaterStatus.type === 'downloading'
+    || updaterStatus.type === 'downloaded'
+
   return (
-    <section className="space-y-3">
-      <div>
+    <div className="settings-section-stack">
+      <header>
         <h2 className="settings-section-title">{t.settings_update_section}</h2>
-        <p className="settings-section-desc mt-1">{t.settings_update_section_desc}</p>
-      </div>
+        <p className="settings-section-desc">{t.settings_update_section_desc}</p>
+      </header>
 
-      <div className="card divide-y divide-gray-100 dark:divide-gray-700">
-        {notifications !== null && (
-          <div className="flex items-center justify-between gap-4 px-4 py-3">
-            <div>
-              <p className="text-sm font-medium">{t.update_popup_enabled}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{t.update_popup_enabled_description}</p>
-            </div>
-            <ToggleSwitch checked={notifications} disabled={saving} onChange={(enabled) => void toggleNotifications(enabled)} aria-label={t.update_popup_enabled} />
-          </div>
-        )}
-
-        {/* Current version + Check button */}
-        <div className="flex items-center justify-between gap-4 px-4 py-3.5">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_update_current_version}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 font-mono">
-              v{appVersion || window.api?.version || '-'}
-            </p>
-          </div>
+      <div className="ui-settings-card">
+        <SettingsRow
+          label={t.settings_update_current_version}
+          description={<code className="settings-version">v{appVersion || window.api?.version || '-'}</code>}
+        >
+          <Button
+            size="sm"
+            shape="rect"
+            variant="neutral"
+            appearance="ghost"
+            type="button"
+            onClick={() => window.api?.openExternal(GITHUB_RELEASES_URL)}
+          >
+            {t.settings_update_release_notes}
+          </Button>
           <CheckUpdateButton
             status={updaterStatus.type}
             checkLabel={t.settings_update_check}
             checkingLabel={t.settings_update_checking}
             onClick={handleCheckUpdate}
           />
-        </div>
+        </SettingsRow>
 
-        {/* Status row — actionable states only; errors go to the toast stack */}
-        {updaterStatus.type !== 'idle' && updaterStatus.type !== 'checking' && updaterStatus.type !== 'error' && updaterStatus.type !== 'error-codesign' && (
-          <div className="px-4 py-3 space-y-2">
-
-            {/* Update available */}
-            {updaterStatus.type === 'available' && (
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                  <DownloadIcon className="w-4 h-4 flex-shrink-0" />
-                  <span>{tpl(t.settings_update_available, { version: updaterStatus.version ?? '' })}</span>
-                </div>
-                <Button
-                  size="sm"
-                  shape="rect"
-                  variant="primary"
-                  appearance="solid"
-                  type="button"
-                  onClick={handleDownloadUpdate}
-                  className="flex-shrink-0"
-                >
-                  {updaterStatus.downloadUrl ? t.settings_update_download_installer : t.settings_update_download}
-                </Button>
-              </div>
-            )}
-
-            {/* Up to date */}
-            {updaterStatus.type === 'not-available' && (
-              <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                <CheckIcon className="w-4 h-4 flex-shrink-0" />
-                <span>{tpl(t.settings_update_not_available, { version: updaterStatus.version ?? appVersion ?? '' })}</span>
-              </div>
-            )}
-
-            {/* Downloading */}
-            {updaterStatus.type === 'downloading' && (
-              <div className="space-y-1.5">
-                <div className="flex items-center text-xs text-gray-600 dark:text-gray-400">
-                  <span className="flex items-center gap-2">
-                    <SpinnerIcon className="w-3.5 h-3.5 animate-spin" />
-                    {tpl(t.settings_update_downloading, { percent: updaterStatus.percent ?? 0 })}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className="bg-gray-500 h-full rounded-full transition-all duration-300"
-                    style={{ width: `${updaterStatus.percent ?? 0}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Downloaded — ready to install */}
-            {updaterStatus.type === 'downloaded' && (
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                  <CheckCircleIcon className="w-4 h-4 flex-shrink-0" />
-                  <span>{tpl(t.settings_update_downloaded, { version: updaterStatus.version ?? '' })}</span>
-                </div>
-                <div className="flex flex-shrink-0 items-center gap-2">
-                  {showManualInstaller && (
-                    <Button
-                      size="sm"
-                      shape="rect"
-                      variant="neutral"
-                      appearance="outline"
-                      type="button"
-                      onClick={handleOpenInstaller}
-                    >
-                      {t.settings_update_open_installer}
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    shape="rect"
-                    variant="primary"
-                    appearance="solid"
-                    type="button"
-                    onClick={handleInstallUpdate}
-                  >
-                    {installerMode ? t.settings_update_open_installer : t.settings_update_install}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-          </div>
+        {notifications !== null && (
+          <SettingsRow label={t.update_popup_enabled} description={t.update_popup_enabled_description}>
+            <ToggleSwitch
+              checked={notifications}
+              disabled={saving}
+              onChange={(enabled) => void toggleNotifications(enabled)}
+              aria-label={t.update_popup_enabled}
+            />
+          </SettingsRow>
         )}
 
+        {/* Status row — actionable states only; errors go to the toast stack */}
+        {showStatus && (
+          <SettingsRow
+            label={t.settings_update_status}
+            description={(
+              <span className="settings-update-status" role="status">
+                {updaterStatus.type === 'available' && <DownloadIcon />}
+                {updaterStatus.type === 'not-available' && <CheckIcon />}
+                {updaterStatus.type === 'downloading' && <SpinnerIcon className="animate-spin" />}
+                {updaterStatus.type === 'downloaded' && <CheckCircleIcon />}
+                {updaterStatus.type === 'available' && tpl(t.settings_update_available, { version: updaterStatus.version ?? '' })}
+                {updaterStatus.type === 'not-available' && tpl(t.settings_update_not_available, { version: updaterStatus.version ?? appVersion ?? '' })}
+                {updaterStatus.type === 'downloading' && tpl(t.settings_update_downloading, { percent: updaterStatus.percent ?? 0 })}
+                {updaterStatus.type === 'downloaded' && tpl(t.settings_update_downloaded, { version: updaterStatus.version ?? '' })}
+              </span>
+            )}
+            below={updaterStatus.type === 'downloading' ? (
+              <Meter
+                value={updaterStatus.percent ?? 0}
+                min={0}
+                max={100}
+                label={t.settings_update_status}
+                valueText={`${updaterStatus.percent ?? 0}%`}
+              />
+            ) : undefined}
+          >
+            {updaterStatus.type === 'available' && (
+              <Button
+                size="sm"
+                shape="rect"
+                variant="primary"
+                appearance="solid"
+                type="button"
+                onClick={handleDownloadUpdate}
+              >
+                {updaterStatus.downloadUrl ? t.settings_update_download_installer : t.settings_update_download}
+              </Button>
+            )}
+            {showManualInstaller && (
+              <Button
+                size="sm"
+                shape="rect"
+                variant="neutral"
+                appearance="outline"
+                type="button"
+                onClick={handleOpenInstaller}
+              >
+                {t.settings_update_open_installer}
+              </Button>
+            )}
+            {updaterStatus.type === 'downloaded' && (
+              <Button
+                size="sm"
+                shape="rect"
+                variant="primary"
+                appearance="solid"
+                type="button"
+                onClick={handleInstallUpdate}
+              >
+                {installerMode ? t.settings_update_open_installer : t.settings_update_install}
+              </Button>
+            )}
+          </SettingsRow>
+        )}
       </div>
-    </section>
+    </div>
   )
 }

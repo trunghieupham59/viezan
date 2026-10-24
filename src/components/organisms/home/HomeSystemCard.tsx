@@ -5,6 +5,7 @@ import { useAppStore, useT } from '../../../store/useAppStore'
 import { fanDisplayName, fanProfileName } from '../../../utils/fanProfileText'
 import { hottestSensor, thermalTone } from '../../../utils/thermalSensorRows'
 import { tpl } from '../../../utils/tpl'
+import { Meter } from '../../ui/atoms'
 import { SectionCard, StatusChip } from '../../ui/molecules'
 
 const TONE_TO_STATUS = { ok: 'ok', warm: 'warning', hot: 'danger' } as const
@@ -36,25 +37,28 @@ export function HomeSystemCard({ onOpen }: HomeSystemCardProps) {
     body = <p className="home-card-note" aria-live="polite">{t.home_system_loading}</p>
   } else {
     const tone = thermalTone(hottest.celsius)
+    const caption = [t.thermal_hottest, snapshot.cpuLoadPercent !== undefined ? tpl(t.home_system_load, { n: integer.format(snapshot.cpuLoadPercent) }) : null].filter(Boolean).join(' · ')
     body = (
       <>
         <div className="home-system-reading">
           <span className="home-system-temp" data-tone={tone}>{integer.format(hottest.celsius)}°</span>
-          <span className="home-system-caption">
-            <span>{t.thermal_hottest}</span>
-            {snapshot.cpuLoadPercent !== undefined && <span>{tpl(t.home_system_load, { n: integer.format(snapshot.cpuLoadPercent) })}</span>}
-          </span>
+          <span className="home-system-caption">{caption}</span>
           {tone !== 'ok' && <StatusChip tone={TONE_TO_STATUS[tone]}>{tone === 'hot' ? t.home_system_hot : t.home_system_warm}</StatusChip>}
         </div>
         {snapshot.fans.length > 0 && (
-          <dl className="home-system-fans">
-            {snapshot.fans.map((fan) => (
-              <div key={fan.id} className="home-system-fan">
-                <dt>{fanDisplayName(t, fan)}</dt>
-                <dd>{`${integer.format(fan.rpm)} RPM`}</dd>
-              </div>
-            ))}
-          </dl>
+          <ul className="home-system-fans">
+            {snapshot.fans.map((fan) => {
+              const name = fanDisplayName(t, fan)
+              const rpm = `${integer.format(fan.rpm)} RPM`
+              return (
+                <li key={fan.id} className="home-system-fan">
+                  <span className="home-system-fan__name">{name}</span>
+                  <Meter value={fan.rpm} min={fan.minRpm ?? 0} max={fan.maxRpm ?? Math.max(fan.rpm, 1)} label={name} valueText={rpm} emphasis="action" className="home-system-fan__meter" />
+                  <span className="home-system-fan__rpm">{rpm}</span>
+                </li>
+              )
+            })}
+          </ul>
         )}
         {fanStatus && (
           <p className="home-card-note">

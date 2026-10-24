@@ -39,6 +39,7 @@ export function DictionarySearchPanel({
 }: DictionarySearchPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const contextLabelId = useId()
+  const termLabelId = useId()
 
   // Initial focus — explicit + scoped (passes biome a11y/noAutofocus).
   useEffect(() => {
@@ -58,13 +59,14 @@ export function DictionarySearchPanel({
 
   return (
     <form onSubmit={handleSubmit} className="dictionary-search">
+      <span id={termLabelId} className="dictionary-term-label">{t.dictionary_term_label}</span>
       <FilterInput
         ref={inputRef}
         size="md"
         value={term}
         onValueChange={onTermChange}
         placeholder={t.dictionary_term_placeholder}
-        aria-label={t.dictionary_term_label}
+        aria-labelledby={termLabelId}
         clearLabel={t.history_search_clear}
         invalid={termOver}
         wrapperClassName="dictionary-term-field"

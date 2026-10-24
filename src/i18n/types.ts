@@ -58,6 +58,30 @@ export interface Translations {
   home_shortcuts_title: string
   everywhere_subtitle: string
   utilities_subtitle: string
+  everywhere_steps_label: string
+  everywhere_step_select: string
+  everywhere_step_select_desc: string
+  everywhere_step_press: string
+  everywhere_step_press_desc: string
+  everywhere_step_replace: string
+  everywhere_step_replace_desc: string
+  everywhere_language_pair: string
+  everywhere_model: string
+  everywhere_model_desc: string
+  everywhere_permission_granted: string
+  everywhere_permission_missing: string
+  everywhere_ext_title: string
+  everywhere_ext_desc: string
+  everywhere_ext_has_token: string
+  everywhere_ext_no_token: string
+  everywhere_ext_steps_label: string
+  everywhere_ext_step_download: string
+  everywhere_ext_step_load: string
+  everywhere_ext_step_load_desc: string
+  everywhere_ext_step_token: string
+  everywhere_ext_tokens: string
+  everywhere_ext_server: string
+  everywhere_ext_server_desc: string
   shortcuts_all_title: string
   shortcuts_all_description: string
   shortcut_launcher: string
@@ -492,6 +516,13 @@ export interface Translations {
   settings_cost_no_activity: string
   settings_cost_first_request_hint: string
   settings_local_ai_title: string
+  settings_local_ai_details: string
+  settings_local_ai_desc: string
+  settings_local_ai_performance: string
+  settings_cloud_providers: string
+  settings_cloud_providers_desc: string
+  settings_web_search_jina: string
+  settings_web_search_jina_desc: string
   settings_local_ai_running: string
   settings_local_ai_not_running: string
   settings_local_ai_unavailable: string
@@ -554,6 +585,8 @@ export interface Translations {
   settings_local_ai_uninstalled: string
   settings_local_ai_uninstall_failed: string
   settings_get_key: string
+  settings_key_edit: string
+  settings_key_add: string
   settings_key_saved: string
   settings_key_invalid: string
   settings_no_key: string
@@ -588,6 +621,11 @@ export interface Translations {
   settings_app_language: string
   settings_app_language_desc: string
   settings_locale_auto: string
+  settings_prefs_card_desc: string
+  settings_delay_short: string
+  settings_delay_medium: string
+  settings_delay_long: string
+  settings_theme_preview_heading: string
   settings_locale_auto_desc: string
   settings_font_size: string
   settings_font_size_desc: string
@@ -676,6 +714,9 @@ export interface Translations {
 
   settings_tts_section: string
   settings_tts_section_desc: string
+  settings_voice_section: string
+  settings_voice_section_desc: string
+  settings_tts_elevenlabs_for_premium: string
   /** Short description of TTS provider priority order */
   settings_tts_priority_desc: string
   /** Label for the "Priority" sub-header in TTS section */
@@ -712,6 +753,22 @@ export interface Translations {
   settings_about_platform: string
   settings_about_supports: string
   settings_about_footer: string
+  settings_about_tagline: string
+  settings_about_version_label: string
+  settings_about_up_to_date: string
+  settings_about_feature_private: string
+  settings_about_feature_private_desc: string
+  settings_about_feature_everywhere: string
+  settings_about_feature_everywhere_desc: string
+  settings_about_feature_modules: string
+  settings_about_feature_modules_desc: string
+  settings_about_check_updates: string
+  settings_about_system_info: string
+  settings_about_local_ai: string
+  settings_about_data: string
+  settings_about_data_local: string
+  settings_update_release_notes: string
+  settings_update_status: string
 
   // Image translation — model switch notice
   /** Toast title when the system auto-switched to a different model for image translation */
@@ -892,6 +949,10 @@ export interface Translations {
   chat_sidebar_expand: string
   chat_sidebar_switch_sessions: string
   chat_sidebar_conversations: string
+  chat_sidebar_today: string
+  chat_sidebar_this_week: string
+  chat_sidebar_earlier: string
+  chat_sidebar_paused: string
   chat_task_language: string
   chat_task_configuration: string
   chat_web_source: string

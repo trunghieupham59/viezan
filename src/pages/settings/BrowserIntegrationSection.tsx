@@ -4,6 +4,7 @@ import {
   GitHubIcon, KeyIcon,
   PlusIcon, RefreshIcon, SpinnerIcon, TrashIcon, XIcon,
 } from '../../components/ui/icons'
+import { SettingsCard, SettingsRow, StatusLabel, StepList } from '../../components/ui/molecules'
 import { SettingsFormActions } from '../../components/ui/SettingsFormActions'
 import { TokenTtlPicker } from '../../components/ui/TokenTtlPicker'
 import { GITHUB_RELEASES_URL } from '../../constants/urls'
@@ -45,6 +46,7 @@ export function BrowserIntegrationSection() {
   const [extTokens, setExtTokens] = useState<ExtTokenInfo[]>([])
   const [extTokensLoading, setExtTokensLoading] = useState(false)
   const [extTokensError, setExtTokensError] = useState('')
+  const [serverPort, setServerPort] = useState<number | null>(null)
   const [revealedToken, setRevealedToken] = useState<{ token: string; name: string; expiresAt: number } | null>(null)
   const [revealedCopied, setRevealedCopied] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -89,6 +91,7 @@ export function BrowserIntegrationSection() {
       const res = await window.api.localServer.listTokens()
       if (res?.success) {
         setExtTokens(res.tokens ?? [])
+        if (typeof res.port === 'number') setServerPort(res.port)
       } else {
         setExtTokensError(t.settings_token_error_load)
       }
@@ -178,244 +181,227 @@ export function BrowserIntegrationSection() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <section className="space-y-3">
-      <div>
-        <h2 className="settings-section-title">{t.settings_extension_section}</h2>
-        <p className="settings-section-desc mt-1">{t.settings_legacy_section_desc}</p>
-      </div>
+    <SettingsCard
+      headingLevel={2}
+      title={t.everywhere_ext_title}
+      description={t.everywhere_ext_desc}
+      aside={(
+        <StatusLabel tone={extTokens.length > 0 ? 'ok' : 'neutral'}>
+          {extTokens.length > 0 ? t.everywhere_ext_has_token : t.everywhere_ext_no_token}
+        </StatusLabel>
+      )}
+    >
+      <StepList
+        label={t.everywhere_ext_steps_label}
+        steps={[
+          {
+            key: 'download',
+            title: t.everywhere_ext_step_download,
+            detail: (
+              <Button size="sm" shape="rect" variant="neutral" appearance="outline" type="button"
+                onClick={() => window.api?.openExternal(GITHUB_RELEASES_URL)}>
+                <GitHubIcon />
+                {t.settings_extension_download_btn}
+              </Button>
+            ),
+          },
+          { key: 'load', title: t.everywhere_ext_step_load, detail: t.everywhere_ext_step_load_desc },
+          {
+            key: 'token',
+            title: t.everywhere_ext_step_token,
+            detail: (
+              <Button size="sm" shape="rect" variant="neutral" appearance="outline" type="button"
+                aria-expanded={showCreateForm} onClick={() => setShowCreateForm(v => !v)}>
+                <PlusIcon />
+                {t.settings_token_create}
+              </Button>
+            ),
+          },
+        ]}
+      />
 
-      {/* ── Chrome Extension token card ── */}
-      <div className="card divide-y divide-gray-100 dark:divide-gray-700">
-
-        <div className="px-4 pt-3 pb-1">
-          <p className="ui-kicker">{t.settings_chrome_extension_label}</p>
-        </div>
-
-        {/* Download & Install */}
-        <div className="px-4 py-4 space-y-3">
-          <div>
-            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_extension_download_title}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t.settings_extension_download_desc}</p>
-          </div>
-          <div className="space-y-1.5">
-            {([
-              t.settings_extension_install_step1,
-              t.settings_extension_install_step2,
-              t.settings_extension_install_step3,
-              t.settings_extension_install_step4,
-            ] as const).map((step, i) => (
-              <div key={step} className="flex items-start gap-2.5">
-                <span className="ui-index-dot mt-0.5">
-                  {i + 1}
-                </span>
-                <p className="text-xs text-gray-600 dark:text-gray-400">{step}</p>
-              </div>
-            ))}
-          </div>
-          {/* H-1 + H-2: use GitHubIcon component + GITHUB_RELEASES_URL constant */}
-          <Button
-            size="md"
-            shape="rect"
-            variant="primary"
-            appearance="solid"
-            type="button"
-            onClick={() => window.api?.openExternal(GITHUB_RELEASES_URL)}
-          >
-            <GitHubIcon />
-            {t.settings_extension_download_btn}
-          </Button>
-        </div>
-
-        <div className="px-4 py-3.5 space-y-3">
-          {/* Header: Manage tokens + Create button */}
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{t.settings_token_manage}</p>
-            <Button
-              size="md"
-              shape="rect"
-              variant="neutral"
-              appearance="outline"
-              type="button"
-              onClick={() => setShowCreateForm(v => !v)}
-            >
-              <PlusIcon />
-              {t.settings_token_create}
-            </Button>
-          </div>
-
-          {/* Create form */}
-          {showCreateForm && (
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 space-y-3 border border-gray-200 dark:border-gray-700">
-              <div className="space-y-1">
-                <label htmlFor="new-token-name" className="text-xs font-medium text-gray-700 dark:text-gray-300">{t.settings_token_name_label}</label>
-                <input
-                  id="new-token-name"
-                  type="text"
-                  value={newTokenName}
-                  onChange={(e) => setNewTokenName(e.target.value)}
-                  placeholder={defaultTokenName()}
-                  className="w-full text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600
-                             rounded-lg px-3 py-2 outline-none focus:border-gray-400 dark:focus:border-gray-600
-                             text-gray-800 dark:text-gray-200 placeholder-gray-400"
-                />
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{t.settings_token_ttl_label}</p>
-                <TokenTtlPicker
-                  value={newTokenTtl}
-                  onChange={setNewTokenTtl}
-                  options={[
-                    { days: 7,   label: t.settings_token_ttl_7 },
-                    { days: 30,  label: t.settings_token_ttl_30 },
-                    { days: 90,  label: t.settings_token_ttl_90 },
-                    { days: 365, label: t.settings_token_ttl_365 },
-                  ]}
-                />
-              </div>
-              <SettingsFormActions
-                onCancel={() => {
-                  setShowCreateForm(false)
-                  setNewTokenName('')
-                  setNewTokenTtl(DEFAULT_TOKEN_TTL_DAYS)
-                }}
-                onSubmit={handleCreateToken}
-                cancelLabel={t.settings_token_cancel}
-                submitLabel={t.settings_token_generate}
-                submitting={creating}
-                topPadding
-              />
-            </div>
-          )}
-
-          {/* One-time token reveal */}
-          {revealedToken && (
-            <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950/30 p-3 space-y-2">
-              <div className="flex items-start gap-2">
-                <KeyIcon className="w-4 h-4 text-gray-500 flex-shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">
-                    {tpl(t.settings_token_reveal_title, { name: revealedToken.name })}
-                  </p>
-                  <p className="ui-meta mt-0.5 text-gray-600 dark:text-gray-400">
-                    {t.settings_token_reveal_body}
-                  </p>
+      <SettingsRow
+        label={t.everywhere_ext_tokens}
+        align="top"
+        below={(
+          <>
+            {/* Create form */}
+            {showCreateForm && (
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 space-y-3 border border-gray-200 dark:border-gray-700">
+                <div className="space-y-1">
+                  <label htmlFor="new-token-name" className="text-xs font-medium text-gray-700 dark:text-gray-300">{t.settings_token_name_label}</label>
+                  <input
+                    id="new-token-name"
+                    type="text"
+                    value={newTokenName}
+                    onChange={(e) => setNewTokenName(e.target.value)}
+                    placeholder={defaultTokenName()}
+                    className="w-full text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600
+                               rounded-lg px-3 py-2 outline-none focus:border-gray-400 dark:focus:border-gray-600
+                               text-gray-800 dark:text-gray-200 placeholder-gray-400"
+                  />
                 </div>
-                <Button
-                  size="md"
-                  shape="icon"
-                  variant="neutral"
-                  appearance="ghost"
-                  aria-label={t.settings_token_close}
-                  type="button"
-                  onClick={() => setRevealedToken(null)}
-                  className="flex-shrink-0"
-                  title={t.settings_token_close}
-                >
-                  <XIcon />
-                </Button>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{t.settings_token_ttl_label}</p>
+                  <TokenTtlPicker
+                    value={newTokenTtl}
+                    onChange={setNewTokenTtl}
+                    options={[
+                      { days: 7,   label: t.settings_token_ttl_7 },
+                      { days: 30,  label: t.settings_token_ttl_30 },
+                      { days: 90,  label: t.settings_token_ttl_90 },
+                      { days: 365, label: t.settings_token_ttl_365 },
+                    ]}
+                  />
+                </div>
+                <SettingsFormActions
+                  onCancel={() => {
+                    setShowCreateForm(false)
+                    setNewTokenName('')
+                    setNewTokenTtl(DEFAULT_TOKEN_TTL_DAYS)
+                  }}
+                  onSubmit={handleCreateToken}
+                  cancelLabel={t.settings_token_cancel}
+                  submitLabel={t.settings_token_generate}
+                  submitting={creating}
+                  topPadding
+                />
               </div>
-              <div className="flex items-center gap-2 bg-white dark:bg-gray-900 rounded-lg px-3 py-2 border border-gray-200 dark:border-gray-800">
-                <code className="text-xs text-gray-800 dark:text-gray-200 font-mono break-all flex-1 select-all">
-                  {revealedToken.token}
-                </code>
-                <Button
-                  size="md"
-                  shape="rect"
-                  variant={revealedCopied ? 'primary' : 'neutral'}
-                  appearance={revealedCopied ? 'soft' : 'outline'}
-                  type="button"
-                  onClick={handleCopyRevealed}
-                  className={`flex-shrink-0`}
-                >
-                  {revealedCopied ? t.settings_token_copied : t.settings_token_copy}
-                </Button>
+            )}
+  
+            {/* One-time token reveal */}
+            {revealedToken && (
+              <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950/30 p-3 space-y-2">
+                <div className="flex items-start gap-2">
+                  <KeyIcon className="w-4 h-4 text-gray-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">
+                      {tpl(t.settings_token_reveal_title, { name: revealedToken.name })}
+                    </p>
+                    <p className="ui-meta mt-0.5 text-gray-600 dark:text-gray-400">
+                      {t.settings_token_reveal_body}
+                    </p>
+                  </div>
+                  <Button
+                    size="md"
+                    shape="icon"
+                    variant="neutral"
+                    appearance="ghost"
+                    aria-label={t.settings_token_close}
+                    type="button"
+                    onClick={() => setRevealedToken(null)}
+                    className="flex-shrink-0"
+                    title={t.settings_token_close}
+                  >
+                    <XIcon />
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2 bg-white dark:bg-gray-900 rounded-lg px-3 py-2 border border-gray-200 dark:border-gray-800">
+                  <code className="text-xs text-gray-800 dark:text-gray-200 font-mono break-all flex-1 select-all">
+                    {revealedToken.token}
+                  </code>
+                  <Button
+                    size="md"
+                    shape="rect"
+                    variant={revealedCopied ? 'primary' : 'neutral'}
+                    appearance={revealedCopied ? 'soft' : 'outline'}
+                    type="button"
+                    onClick={handleCopyRevealed}
+                    className={`flex-shrink-0`}
+                  >
+                    {revealedCopied ? t.settings_token_copied : t.settings_token_copy}
+                  </Button>
+                </div>
+                <p className="ui-meta">
+                  {t.settings_token_expires_label} {formatDate(revealedToken.expiresAt, locale)}
+                </p>
               </div>
-              <p className="ui-meta">
-                {t.settings_token_expires_label} {formatDate(revealedToken.expiresAt, locale)}
+            )}
+  
+              {/* Loading */}
+            {extTokensLoading && (
+              <div className="flex items-center gap-2 text-xs text-gray-400 py-2">
+                <SpinnerIcon className="w-3.5 h-3.5 animate-spin" />
+                {t.settings_token_loading}
+              </div>
+            )}
+  
+            {/* Empty state */}
+            {!extTokensLoading && extTokens.length === 0 && !extTokensError && (
+              <p className="text-xs text-gray-400 dark:text-gray-600 text-center py-3 italic">
+                {t.settings_token_empty}
               </p>
-            </div>
-          )}
-
-          {/* Loading */}
-          {extTokensLoading && (
-            <div className="flex items-center gap-2 text-xs text-gray-400 py-2">
-              <SpinnerIcon className="w-3.5 h-3.5 animate-spin" />
-              {t.settings_token_loading}
-            </div>
-          )}
-
-          {/* Empty state */}
-          {!extTokensLoading && extTokens.length === 0 && !extTokensError && (
-            <p className="text-xs text-gray-400 dark:text-gray-600 text-center py-3 italic">
-              {t.settings_token_empty}
-            </p>
-          )}
-
-          {/* Token list */}
-          {extTokens.length > 0 && (
-            <div className="space-y-2">
-              {extTokens.map((tk) => {
-                const now = Date.now()
-                const msLeft = tk.expiresAt - now
-                // H-5: use named constant instead of magic expression
-                const daysLeft = Math.ceil(msLeft / ONE_DAY_MS)
-                const expired = msLeft <= 0
-                const expireDate = formatDate(tk.expiresAt, locale)
-                const isRegen = regeneratingId === tk.id
-                const isDel = deletingId === tk.id
-                return (
-                  <div key={tk.id} className="flex items-center gap-3 bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 rounded-xl px-3 py-2.5">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">{tk.name}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        {expired ? (
-                          <span className="ui-micro ui-error-text font-medium">{t.settings_token_expired}</span>
-                        ) : daysLeft <= TOKEN_EXPIRY_WARNING_DAYS ? (
-                          // H-4: TOKEN_EXPIRY_WARNING_DAYS instead of magic 7
-                          <span className="ui-micro font-medium text-gray-500">{tpl(t.settings_token_days_warning, { days: daysLeft, date: expireDate })}</span>
-                        ) : (
-                          <span className="ui-micro dark:text-gray-500">{tpl(t.settings_token_days_info, { date: expireDate, days: daysLeft })}</span>
-                        )}
+            )}
+  
+              {/* Token list */}
+            {extTokens.length > 0 && (
+              <div className="space-y-2">
+                {extTokens.map((tk) => {
+                  const now = Date.now()
+                  const msLeft = tk.expiresAt - now
+                  // H-5: use named constant instead of magic expression
+                  const daysLeft = Math.ceil(msLeft / ONE_DAY_MS)
+                  const expired = msLeft <= 0
+                  const expireDate = formatDate(tk.expiresAt, locale)
+                  const isRegen = regeneratingId === tk.id
+                  const isDel = deletingId === tk.id
+                  return (
+                    <div key={tk.id} className="flex items-center gap-3 bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 rounded-xl px-3 py-2.5">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-gray-800 dark:text-gray-200 truncate">{tk.name}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {expired ? (
+                            <span className="ui-micro ui-error-text font-medium">{t.settings_token_expired}</span>
+                          ) : daysLeft <= TOKEN_EXPIRY_WARNING_DAYS ? (
+                            // H-4: TOKEN_EXPIRY_WARNING_DAYS instead of magic 7
+                            <span className="ui-micro font-medium text-gray-500">{tpl(t.settings_token_days_warning, { days: daysLeft, date: expireDate })}</span>
+                          ) : (
+                            <span className="ui-micro dark:text-gray-500">{tpl(t.settings_token_days_info, { date: expireDate, days: daysLeft })}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {/* Regenerate */}
+                        <Button
+                          size="md"
+                          shape="rect"
+                          variant="neutral"
+                          appearance="outline"
+                          type="button"
+                          onClick={() => handleRegenerateToken(tk.id)}
+                          disabled={isRegen || isDel}
+                          title={t.settings_token_regenerate_title}
+                        >
+                          {isRegen ? <SpinnerIcon className="w-3 h-3 animate-spin" /> : <RefreshIcon />}
+                          {t.settings_token_regenerate}
+                        </Button>
+                        {/* Delete */}
+                        <Button
+                          size="md"
+                          shape="icon"
+                          variant="danger"
+                          appearance="soft"
+                          aria-label={t.settings_token_delete_title}
+                          type="button"
+                          onClick={() => handleDeleteToken(tk.id)}
+                          disabled={isDel || isRegen}
+                          title={t.settings_token_delete_title}
+                        >
+                          {isDel ? <SpinnerIcon className="w-3.5 h-3.5 animate-spin" /> : <TrashIcon />}
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {/* Regenerate */}
-                      <Button
-                        size="md"
-                        shape="rect"
-                        variant="neutral"
-                        appearance="outline"
-                        type="button"
-                        onClick={() => handleRegenerateToken(tk.id)}
-                        disabled={isRegen || isDel}
-                        title={t.settings_token_regenerate_title}
-                      >
-                        {isRegen ? <SpinnerIcon className="w-3 h-3 animate-spin" /> : <RefreshIcon />}
-                        {t.settings_token_regenerate}
-                      </Button>
-                      {/* Delete */}
-                      <Button
-                        size="md"
-                        shape="icon"
-                        variant="danger"
-                        appearance="soft"
-                        aria-label={t.settings_token_delete_title}
-                        type="button"
-                        onClick={() => handleDeleteToken(tk.id)}
-                        disabled={isDel || isRegen}
-                        title={t.settings_token_delete_title}
-                      >
-                        {isDel ? <SpinnerIcon className="w-3.5 h-3.5 animate-spin" /> : <TrashIcon />}
-                      </Button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+                  )
+                })}
+              </div>
+            )}
+            </>
+        )}
+      />
 
-      </div>
-    </section>
+      <SettingsRow label={t.everywhere_ext_server} description={t.everywhere_ext_server_desc}>
+        <code className="everywhere-server">{serverPort ? `127.0.0.1:${serverPort}` : '—'}</code>
+      </SettingsRow>
+    </SettingsCard>
   )
 }

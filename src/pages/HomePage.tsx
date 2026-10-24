@@ -3,7 +3,7 @@ import { HomeSystemCard, ShortcutOverview } from '../components/organisms'
 import { PageHeader } from '../components/templates'
 import { Button } from '../components/ui/atoms'
 import { BookIcon, ChatBubbleIcon, MicrophoneIcon, PlusIcon, TelescopeIcon, TranslateIcon } from '../components/ui/icons'
-import { ActivityRow, PromptCard, type PromptCardTone, SectionCard, StatusChip } from '../components/ui/molecules'
+import { ActivityRow, QuickStartCard, SectionCard } from '../components/ui/molecules'
 import { PROVIDERS } from '../constants/providers'
 import type { Translations } from '../i18n'
 import { getModule } from '../modules/catalog'
@@ -13,12 +13,7 @@ import { type HomeActivity, recentActivity } from '../utils/homeActivity'
 import { formatTimeAgo } from '../utils/relativeTime'
 import '../styles/home.css'
 
-const QUICK_START: readonly { id: PageModuleId; tone: PromptCardTone }[] = [
-  { id: 'chat', tone: 'blue' },
-  { id: 'translate', tone: 'violet' },
-  { id: 'live', tone: 'green' },
-  { id: 'dictionary', tone: 'orange' },
-]
+const QUICK_START: readonly { id: PageModuleId }[] = [{ id: 'chat' }, { id: 'translate' }, { id: 'live' }, { id: 'dictionary' }]
 
 const PREVIEW_CHARS = 80
 
@@ -124,74 +119,80 @@ export function HomePage() {
         <div className="glass-panel flex-1 min-h-0 flex flex-col overflow-hidden">
           <PageHeader
             title={t.nav_home}
-            description={t.home_subtitle}
             actions={chatOn && (
-              <Button size="sm" shape="pill" variant="primary" appearance="solid" onClick={() => startFeature('chat')}>
+              <Button size="sm" shape="rect" variant="primary" appearance="solid" onClick={() => startFeature('chat')}>
                 <PlusIcon className="h-4 w-4" aria-hidden="true" />
                 {t.home_new_chat}
               </Button>
             )}
           />
           <div className="home-body">
-            <div className="home-grid">
-              <div className="home-main">
-                {quickStart.length > 0 && (
-                  <section className="home-quick-start" aria-labelledby="home-quick-start-title">
-                    <h2 id="home-quick-start-title" className="home-section-title">{t.home_quick_start}</h2>
-                    <div className="home-quick-start__cards">
-                      {quickStart.map(({ id, tone }) => {
-                        const module = getModule(id)
-                        const Icon = module.icon
-                        return (
-                          <PromptCard
-                            key={id}
-                            tone={tone}
-                            icon={<Icon />}
-                            title={text(t, module.labelKey)}
-                            description={text(t, module.descriptionKey)}
-                            onClick={() => startFeature(id)}
+            {quickStart.length > 0 && (
+              <section className="home-quick-start" aria-labelledby="home-quick-start-title">
+                <h2 id="home-quick-start-title" className="home-section-title">{t.home_quick_start}</h2>
+                <div className="home-quick-start__cards">
+                  {quickStart.map(({ id }) => {
+                    const module = getModule(id)
+                    const Icon = module.icon
+                    return (
+                      <QuickStartCard
+                        key={id}
+                        icon={<Icon />}
+                        title={text(t, module.labelKey)}
+                        description={text(t, module.descriptionKey)}
+                        onClick={() => startFeature(id)}
+                      />
+                    )
+                  })}
+                </div>
+              </section>
+            )}
+            <div className="home-columns">
+              <SectionCard title={t.home_resume_title} description={t.home_resume_description} variant="list" className="home-resume">
+                {activity.length === 0 ? (
+                  <p className="home-card-note home-resume__empty">{t.home_resume_empty}</p>
+                ) : (
+                  <ul className="home-activity">
+                    {activity.map((item) => {
+                      const content = row(item)
+                      return (
+                        <li key={`${item.kind}:${item.at}`}>
+                          <ActivityRow
+                            kind={content.kind}
+                            title={content.title}
+                            meta={content.meta}
+                            timeLabel={formatTimeAgo(item.at, t)}
+                            actionLabel={item.kind === 'research' ? t.home_resume_action : undefined}
+                            onOpen={() => open(item)}
                           />
-                        )
-                      })}
-                    </div>
-                  </section>
+                        </li>
+                      )
+                    })}
+                  </ul>
                 )}
-                <SectionCard title={t.home_resume_title} description={t.home_resume_description}>
-                  {activity.length === 0 ? (
-                    <p className="home-card-note">{t.home_resume_empty}</p>
-                  ) : (
-                    <ul className="home-activity">
-                      {activity.map((item) => {
-                        const content = row(item)
-                        return (
-                          <li key={`${item.kind}:${item.at}`}>
-                            <ActivityRow
-                              {...content}
-                              timeLabel={formatTimeAgo(item.at, t)}
-                              actionLabel={item.kind === 'research' ? t.home_resume_action : undefined}
-                              onOpen={() => open(item)}
-                            />
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  )}
-                </SectionCard>
-              </div>
+              </SectionCard>
               <div className="home-side">
                 {enabledModules.thermal !== false && <HomeSystemCard onOpen={() => setActivePage('thermal')} />}
-                <SectionCard title={t.home_ai_title} actionLabel={t.home_ai_manage} onAction={() => openSettingsAt('api')}>
-                  <div className="home-ai">
-                    <span className="home-ai__model">
-                      <span className="home-ai__provider">{provider?.name ?? selectedProvider}</span>
-                      <span className="home-ai__id">{modelName}</span>
+                <SectionCard
+                  title={t.home_ai_title}
+                  status={(
+                    <span className="home-ai__status" data-tone={hasKey ? 'ok' : 'warning'}>
+                      <span className="home-ai__dot" aria-hidden="true" />
+                      {hasKey ? t.home_ai_ready : t.home_ai_missing_key}
                     </span>
-                    <StatusChip tone={hasKey ? 'ok' : 'warning'}>{hasKey ? t.home_ai_ready : t.home_ai_missing_key}</StatusChip>
-                  </div>
-                  {isLocal && <p className="home-card-note">{t.home_ai_local}</p>}
+                  )}
+                  className="home-ai-card"
+                >
+                  <p className="home-ai__line">
+                    {provider?.name ?? selectedProvider} · <span className="home-ai__id">{modelName}</span>
+                    {isLocal ? ` · ${t.home_ai_local}` : ''}
+                  </p>
+                  <Button size="xs" variant="primary" appearance="ghost" className="ui-section-card__action home-ai__manage" onClick={() => openSettingsAt('api')}>
+                    {t.home_ai_manage}
+                  </Button>
                 </SectionCard>
                 <SectionCard title={t.home_shortcuts_title} actionLabel={t.home_edit} onAction={() => setActivePage('utilities')}>
-                  <ShortcutOverview only={['launcher', 'quickTranslate', 'commandPalette']} />
+                  <ShortcutOverview only={['launcher', 'quickTranslate', 'commandPalette']} compact />
                 </SectionCard>
               </div>
             </div>

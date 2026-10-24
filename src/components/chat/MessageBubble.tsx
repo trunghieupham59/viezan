@@ -2,10 +2,9 @@ import { memo, useCallback, useState } from 'react'
 
 import { useAppStore, useT } from '../../store/useAppStore'
 import type { ChatMessage, ChatMessageContent } from '../../types'
-import { AppLogoIcon } from '../AppLogo'
 import { MarkdownText } from '../MarkdownText'
 import { Button } from '../ui/atoms'
-import { CopyIcon, DownloadIcon, LightbulbIcon, PencilIcon, RefreshIcon, SparklesIcon, SpinnerIcon, ThumbsDownIcon, ThumbsUpIcon, UserIcon } from '../ui/icons'
+import { CopyIcon, DownloadIcon, LightbulbIcon, PencilIcon, RefreshIcon, SparklesIcon, SpinnerIcon, ThumbsDownIcon, ThumbsUpIcon } from '../ui/icons'
 import { ImageLightbox, RecoverableError, stripTrailingEllipsis, ThinkingDots, ThinkingPill } from '../ui/molecules'
 import { UsageCostBadge } from '../ui/molecules/UsageCostBadge'
 
@@ -153,11 +152,6 @@ function MessageBubbleImpl({
   if (message.isResearchFinal) {
     return (
       <div className="chat-message-row group flex gap-3 items-start">
-        {/* Avatar */}
-        <div className="chat-message-avatar chat-message-avatar-assistant flex-shrink-0 rounded-full flex items-center justify-center overflow-hidden shadow-sm">
-          <AppLogoIcon size="sm" />
-        </div>
-
         <div className="chat-message-content flex-1 min-w-0 flex flex-col gap-1.5">
           {message.isLoading ? (
             <div className="rounded-2xl border border-gray-200/80 bg-white px-4 py-3 shadow-sm shadow-gray-900/[0.05]
@@ -225,19 +219,7 @@ function MessageBubbleImpl({
       className={`chat-message-row group flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start`}
       data-message-role={isUser ? 'user' : 'assistant'}
     >
-      {/* Avatar */}
-      <div className={`chat-message-avatar flex-shrink-0 rounded-full flex items-center justify-center overflow-hidden shadow-sm
-                       ${isUser
-                         ? 'chat-message-avatar-user'
-                         : 'chat-message-avatar-assistant'}`}>
-        {isUser ? (
-          <UserIcon className="w-4 h-4" />
-        ) : (
-          <AppLogoIcon size="sm" />
-        )}
-      </div>
-
-      <div className={`chat-message-content flex flex-col gap-1.5 min-w-0 max-w-[78%] ${isUser ? 'items-end' : 'items-start w-full'}`}>
+      <div className={`chat-message-content flex flex-col gap-1.5 min-w-0 max-w-[80%] ${isUser ? 'items-end' : 'items-start w-full'}`}>
         {/* Image attachments */}
         {imageContents.map((img, i) => {
           const imageSrc = getImageSource(img)

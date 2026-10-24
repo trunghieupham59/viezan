@@ -181,7 +181,7 @@
 
 .live-panels-body {
   display: flex; flex: 1 1 0%; min-height: 0; flex-direction: column; overflow: hidden;
-  padding: var(--vzn-space-3); gap: var(--vzn-space-2);
+  padding: var(--vzn-space-4); gap: var(--vzn-space-2);
 }
 
 @container app-main (max-width: 899px) {

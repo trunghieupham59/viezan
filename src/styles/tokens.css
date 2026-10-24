@@ -77,11 +77,11 @@
 :root [data-theme="graphite"][data-mode="light"] {
   /* Surfaces */
   --vzn-app-bg: #eeeeef;
-  --vzn-bg: var(--vzn-neutral-50);
+  --vzn-bg: #f4f4f6;
   --vzn-canvas: var(--vzn-neutral-0);
   --vzn-titlebar-bg: #eeeeef;
-  --vzn-sidebar-bg: #eeeeef;
-  --vzn-chat-sidebar-bg: #f5f5f6;
+  --vzn-sidebar-bg: #ececef;
+  --vzn-chat-sidebar-bg: var(--vzn-neutral-0);
   --vzn-surface: var(--vzn-neutral-0);
   --vzn-surface-raised: var(--vzn-neutral-25);
   --vzn-surface-muted: #f6f6f7;
@@ -135,8 +135,8 @@
   --vzn-chrome-fg-soft: var(--vzn-text-soft);
   --vzn-chrome-divider: var(--vzn-divider);
   --vzn-chrome-item-hover: var(--vzn-surface-subtle);
-  --vzn-chrome-item-active: var(--vzn-action-soft);
-  --vzn-chrome-item-active-fg: var(--vzn-text-strong);
+  --vzn-chrome-item-active: var(--vzn-surface);
+  --vzn-chrome-item-active-fg: var(--vzn-action-text);
   --vzn-chrome-accent: var(--vzn-action-text);
 
   /* Illustrative tones */
@@ -280,20 +280,34 @@
   --vzn-sidebar-expanded-width: 236px;
   --vzn-titlebar-height: 40px;
   --vzn-titlebar-mac-controls-width: 80px;
-  --vzn-chat-sidebar-width: 260px;
+  --vzn-chat-sidebar-width: 264px;
+  /* Header model chip: the raw model id truncates past this. */
+  --vzn-model-chip-model-max: 180px;
   /* Shared page header: the large control height plus its vertical padding (56px). */
   --vzn-page-header-min-height: calc(var(--vzn-control-height-lg) + var(--vzn-space-2) * 2);
   --vzn-chat-header-height: calc(var(--vzn-control-height-sm) + var(--vzn-space-2) * 2);
   --vzn-content-max: 980px;
-  /* Overview pages (Home): the whole two-column grid, its side column and a quick-start card. */
-  --vzn-overview-max: 1180px;
+  /* Overview pages (Home): side column, resume basis, fan row columns and a quick-start card. */
   --vzn-overview-side: 320px;
-  --vzn-quick-card-min: 148px;
+  --vzn-overview-resume-basis: 460px;
+  --vzn-overview-fan-label: 72px;
+  --vzn-overview-fan-value: 76px;
+  --vzn-quick-card-min: 200px;
+  /* System pages: the narrowest card before two columns stack. */
+  --vzn-system-card-min: 420px;
+  /* Settings rows: the label column's preferred width before controls wrap below; a step tile's narrowest width. */
+  --vzn-settings-row-copy-basis: 220px;
+  --vzn-step-min: 180px;
+  --vzn-about-feature-min: 150px;
+  --vzn-settings-select-min: 180px;
+  /* Settings › Appearance: the live preview column. */
+  --vzn-appearance-preview-width: 300px;
   /* Interpret: the "This session" column beside the transcript. */
   --vzn-live-session-panel-width: 280px;
-  --vzn-chat-stage-max: 1040px;
-  --vzn-chat-reading-max: 820px;
-  --vzn-chat-composer-max: 1040px;
+  /* One 760px column for messages, suggestions and the composer. */
+  --vzn-chat-stage-max: 760px;
+  --vzn-chat-reading-max: 760px;
+  --vzn-chat-composer-max: 760px;
   --vzn-translate-workspace-max: 1440px;
   --vzn-translate-history-width: calc(var(--vzn-space-12) * 6);
   --vzn-translate-source-min-block: 18rem;

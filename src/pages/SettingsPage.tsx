@@ -10,7 +10,6 @@ import {
   MicrophoneIcon,
   PaletteIcon,
   RefreshIcon,
-  SpeakerIcon,
 } from '../components/ui/icons'
 import { FilterInput } from '../components/ui/molecules'
 import { useAppStore, useT } from '../store/useAppStore'
@@ -20,18 +19,16 @@ import { AppearanceSection } from './settings/AppearanceSection'
 import { ChatPresetsSection } from './settings/ChatPresetsSection'
 import { ModulesSection } from './settings/ModulesSection'
 import { PreferencesSection } from './settings/PreferencesSection'
-import { SttSection } from './settings/SttSection'
-import { TtsSection } from './settings/TtsSection'
 import { UpdaterSection } from './settings/UpdaterSection'
+import { VoiceSection } from './settings/VoiceSection'
 
 type SettingsSectionId =
   | 'preferences'
-  | 'modules'
   | 'appearance'
   | 'api'
-  | 'stt'
-  | 'tts'
+  | 'voice'
   | 'chat'
+  | 'modules'
   | 'updates'
   | 'about'
 
@@ -52,8 +49,7 @@ const MemoPreferencesSection = memo(PreferencesSection)
 const MemoAppearanceSection = memo(AppearanceSection)
 const MemoModulesSection = memo(ModulesSection)
 const MemoApiKeysSection = memo(ApiKeysSection)
-const MemoSttSection = memo(SttSection)
-const MemoTtsSection = memo(TtsSection)
+const MemoVoiceSection = memo(VoiceSection)
 const MemoChatPresetsSection = memo(ChatPresetsSection)
 const MemoUpdaterSection = memo(UpdaterSection)
 const MemoAboutSection = memo(AboutSection)
@@ -66,8 +62,7 @@ export function SettingsPage() {
     preferences: null,
     modules: null,
     appearance: null,
-    stt: null,
-    tts: null,
+    voice: null,
     chat: null,
     updates: null,
     about: null,
@@ -91,13 +86,6 @@ export function SettingsPage() {
       Component: MemoPreferencesSection,
     },
     {
-      id: 'modules',
-      label: t.settings_modules_section,
-      description: t.settings_modules_section_desc,
-      Icon: LayersIcon,
-      Component: MemoModulesSection,
-    },
-    {
       id: 'appearance',
       label: t.settings_appearance,
       description: t.settings_appearance_desc,
@@ -112,18 +100,11 @@ export function SettingsPage() {
       Component: MemoApiKeysSection,
     },
     {
-      id: 'stt',
-      label: t.settings_stt_section,
-      description: t.settings_stt_section_desc,
+      id: 'voice',
+      label: t.settings_voice_section,
+      description: t.settings_voice_section_desc,
       Icon: MicrophoneIcon,
-      Component: MemoSttSection,
-    },
-    {
-      id: 'tts',
-      label: t.settings_tts_section,
-      description: t.settings_tts_section_desc,
-      Icon: SpeakerIcon,
-      Component: MemoTtsSection,
+      Component: MemoVoiceSection,
     },
     {
       id: 'chat',
@@ -131,6 +112,13 @@ export function SettingsPage() {
       description: t.settings_chat_section_desc,
       Icon: ChatBubbleIcon,
       Component: MemoChatPresetsSection,
+    },
+    {
+      id: 'modules',
+      label: t.settings_modules_section,
+      description: t.settings_modules_section_desc,
+      Icon: LayersIcon,
+      Component: MemoModulesSection,
     },
     {
       id: 'updates',
@@ -228,7 +216,6 @@ export function SettingsPage() {
         <div className="glass-panel flex-1 min-h-0 flex flex-col overflow-hidden">
           <PageHeader
             title={t.settings_title}
-            description={t.settings_subtitle}
             actions={(
               <FilterInput
                 size="sm"

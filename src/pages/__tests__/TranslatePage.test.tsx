@@ -37,11 +37,11 @@ function openTranslationModelDialog() {
 }
 
 function getSourcePane() {
-  return screen.getByRole('region', { name: /Source content|Nội dung gốc|原文/i })
+  return screen.getByRole('region', { name: /^(Source content|Nguồn|原文)$/i })
 }
 
 function getSourceInput() {
-  return screen.getByRole('textbox', { name: /Source content|Nội dung gốc|原文/i })
+  return screen.getByRole('textbox', { name: /^(Source content|Nguồn|原文)$/i })
 }
 
 // Reset store before each test
@@ -192,8 +192,7 @@ describe('TranslatePage', () => {
     ])
     // The stored preference survives; comparison only suspends it.
     expect(useAppStore.getState().autoTranslate).toBe(true)
-    expect(screen.getByRole('button', { name: 'AI configuration, 2 models' }))
-      .toHaveTextContent('2 models')
+    expect(screen.getByRole('button', { name: 'AI configuration, 2 models' })).toBeInTheDocument()
     // Auto-translate lives in the options popover.
     openTranslationSettings()
     const suspendedToggle = screen.getByRole('button', { name: 'Auto translate' })
@@ -331,9 +330,9 @@ describe('TranslatePage', () => {
     expect(screen.getByRole('region', { name: 'History' })).toBeInTheDocument()
     const toggle = screen.getByRole('button', { name: 'Hide translation history' })
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
-    expect(toggle).toHaveAttribute('data-control-size', 'md')
+    // Icon-only in the header; the pressed look carries the state with aria-expanded.
+    expect(toggle).toHaveAttribute('data-control-shape', 'icon')
     expect(toggle).toHaveAttribute('data-control-appearance', 'soft')
-    expect(toggle).toHaveTextContent('1')
 
     fireEvent.click(toggle)
     expect(useAppStore.getState().translateHistoryCollapsed).toBe(true)
@@ -480,8 +479,7 @@ describe('TranslatePage', () => {
     })
 
     render(<TranslatePage />)
-    expect(screen.getByRole('button', { name: 'AI configuration, 2 models' }))
-      .toHaveTextContent('2 models')
+    expect(screen.getByRole('button', { name: 'AI configuration, 2 models' })).toBeInTheDocument()
     expect(screen.queryByText('2 independent requests')).not.toBeInTheDocument()
     expect(screen.getAllByRole('article').every((card) => (
       within(card).getByText('Choose Translate to run this model.')
@@ -658,6 +656,8 @@ describe('TranslatePage', () => {
 
     try {
       render(<><TranslatePage /><NotificationViewport /></>)
+      // The microphone belongs to the Voice input mode.
+      fireEvent.click(screen.getByRole('button', { name: 'Voice' }))
       fireEvent.click(screen.getByRole('button', { name: TRANSLATIONS.en.voice_record }))
 
       const alert = await screen.findByRole('alert')
@@ -1246,18 +1246,19 @@ describe('TranslatePage', () => {
     expect(screen.getByText(/appear here after you choose Translate|xuất hiện ở đây sau khi bạn chọn Dịch/i)).toBeInTheDocument()
   })
 
-  it('shows labelled voice and image entry points only while the source is empty', () => {
+  it('offers the microphone in Voice mode and the image picker in Image mode, labelled while empty', () => {
     render(<TranslatePage />)
+    expect(screen.queryByRole('button', { name: TRANSLATIONS.en.voice_record })).toBeNull()
+    expect(screen.queryByRole('button', { name: TRANSLATIONS.en.translate_add_image })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Voice' }))
     const voiceButton = screen.getByRole('button', { name: TRANSLATIONS.en.voice_record })
-    const imageButton = screen.getByRole('button', { name: TRANSLATIONS.en.translate_add_image })
-
     expect(voiceButton).toHaveTextContent(TRANSLATIONS.en.voice_record)
-    expect(imageButton).toHaveTextContent(TRANSLATIONS.en.translate_add_image)
-
     fireEvent.change(getSourceInput(), { target: { value: 'Hello' } })
-
     expect(voiceButton).not.toHaveTextContent(TRANSLATIONS.en.voice_record)
-    expect(imageButton).not.toHaveTextContent(TRANSLATIONS.en.translate_add_image)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Image' }))
+    expect(screen.getByRole('button', { name: TRANSLATIONS.en.translate_add_image })).toBeInTheDocument()
   })
 
   it('renders a text input area for source text', () => {

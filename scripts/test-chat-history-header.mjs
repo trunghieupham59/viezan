@@ -42,8 +42,14 @@ try {
         if (expanded) {
           const header = await page.locator('.ai-chat-workspace-header').boundingBox()
           const panel = await sidebar.boundingBox()
-          assert(panel.y >= header.y + header.height - 1, 'History overlaps header')
-          assert(Math.abs(panel.x - header.x) < 1, 'History must align with feature header')
+          if (width >= 900) {
+            // The history column runs the full height beside the header-over-conversation column.
+            assert(Math.abs(panel.y - header.y) < 1, 'History must start level with the feature header')
+            assert(panel.x + panel.width <= header.x + 1, 'History must sit beside the feature header')
+          } else {
+            // Compact: a temporary overlay below the header, so its toggle stays reachable.
+            assert(panel.y >= header.y + header.height - 1, 'History overlay covers the header')
+          }
         }
         if (output) await page.screenshot({ path: path.join(output, `${width}-${expanded ? 'open' : 'closed'}.png`), animations: 'disabled' })
       }

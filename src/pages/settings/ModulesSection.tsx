@@ -1,5 +1,6 @@
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import { ToggleSwitch } from '../../components/ui/atoms'
+import { SettingsRow } from '../../components/ui/molecules'
 import { APP_MODULES } from '../../modules/catalog'
 import { isLastEnabledPageModule } from '../../modules/enabled'
 import { useAppStore, useT } from '../../store/useAppStore'
@@ -21,22 +22,22 @@ interface ModuleToggleRowProps {
 }
 
 function ModuleToggleRow({ id, label, description, checked, disabled, hint, onChange }: ModuleToggleRowProps) {
-  const labelId = useId()
-  const descriptionId = useId()
   return (
-    <div className="flex items-center justify-between gap-4 px-4 py-3.5" data-module-id={id}>
-      <div className="min-w-0">
-        <p id={labelId} className="text-sm font-medium text-gray-800 dark:text-gray-200">{label}</p>
-        <p id={descriptionId} className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{description}</p>
-        {hint && <p className="ui-meta mt-1">{hint}</p>}
-      </div>
-      <ToggleSwitch
-        checked={checked}
-        disabled={disabled}
-        onChange={onChange}
-        aria-labelledby={labelId}
-        aria-describedby={descriptionId}
-      />
+    <div className="settings-module-row" data-module-id={id}>
+      <SettingsRow
+        label={label}
+        description={hint ? <>{description}<span className="settings-row-hint">{hint}</span></> : description}
+      >
+        {({ labelId, descriptionId }) => (
+          <ToggleSwitch
+            checked={checked}
+            disabled={disabled}
+            onChange={onChange}
+            aria-labelledby={labelId}
+            aria-describedby={descriptionId}
+          />
+        )}
+      </SettingsRow>
     </div>
   )
 }
@@ -68,16 +69,14 @@ export function ModulesSection() {
   ]
 
   return (
-    <section className="space-y-3">
-      <div>
+    <div className="settings-section-stack">
+      <header>
         <h2 className="settings-section-title">{t.settings_modules_section}</h2>
-        <p className="settings-section-desc mt-1">{t.settings_modules_section_desc}</p>
-      </div>
+        <p className="settings-section-desc">{t.settings_modules_section_desc}</p>
+      </header>
 
-      <div className="card divide-y divide-gray-100 dark:divide-gray-700">
-        <div className="px-4 pt-3 pb-1">
-          <p className="ui-kicker">{t.settings_modules_pages_group}</p>
-        </div>
+      {/* One list as in the design: workspace pages first, then the system services. */}
+      <div className="ui-settings-card settings-module-list">
         {APP_MODULES.map((module) => {
           const checked = enabledModules[module.id] !== false
           const last = checked && isLastEnabledPageModule(module.id, enabledModules)
@@ -94,12 +93,6 @@ export function ModulesSection() {
             />
           )
         })}
-      </div>
-
-      <div className="card divide-y divide-gray-100 dark:divide-gray-700">
-        <div className="px-4 pt-3 pb-1">
-          <p className="ui-kicker">{t.settings_modules_system_group}</p>
-        </div>
         {systemModules.map((module) => (
           <ModuleToggleRow
             key={module.id}
@@ -112,6 +105,6 @@ export function ModulesSection() {
           />
         ))}
       </div>
-    </section>
+    </div>
   )
 }

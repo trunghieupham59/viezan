@@ -522,7 +522,7 @@ export function ResearchStepsPanel({ steps, onResume, onRetry }: ResearchStepsPa
   const showProgress = Boolean(progress) && (isAnyLoading || waitingOnUser)
 
   return (
-    <div className="flex gap-2 items-start pl-11">
+    <div className="flex gap-2 items-start">
       <section className="chat-research-panel flex-1" aria-label={t.chat_research_title} data-waiting={waitingOnUser || undefined}>
         {/* Header — always clickable so the user can re-open the trace */}
         <Button

@@ -57,9 +57,10 @@ describe('AIChatSidebar', () => {
       act(() => useAppStore.setState({ chatNewSessionShortcut: shortcut }))
       render(<ChatShell />)
       const button = screen.getByRole('button', { name: 'New Chat' })
+      // Icon-only in the header: the shortcut is in the tooltip and announced through aria-keyshortcuts.
       expect(button).toHaveAttribute('title', label ? `New Chat (${label})` : 'New Chat')
-      if (label) expect(button.querySelector('kbd')).toHaveTextContent(label)
-      else expect(button.querySelector('kbd')).toBeNull()
+      if (shortcut) expect(button).toHaveAttribute('aria-keyshortcuts', shortcut)
+      else expect(button).not.toHaveAttribute('aria-keyshortcuts')
     } finally {
       window.api = originalApi
       act(() => useAppStore.setState({ chatNewSessionShortcut: originalShortcut }))
@@ -101,7 +102,8 @@ describe('AIChatSidebar', () => {
     expect(newest.compareDocumentPosition(older) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(older).toHaveAttribute('aria-current', 'true')
     expect(older.closest('li')).toHaveClass('chat-session-item', 'chat-session-item--active')
-    expect(screen.getByText('Recent')).toHaveClass('ai-chat-session-heading')
+    // Conversations are grouped by when they were last used.
+    expect(screen.getByRole('heading', { name: 'Earlier' })).toHaveClass('ai-chat-session-heading')
   })
 
   it('restores the selected conversation provider and model', () => {
@@ -119,8 +121,7 @@ describe('AIChatSidebar', () => {
     render(<ChatShell />)
 
     const newChatButton = screen.getByRole('button', { name: 'New Chat' })
-    expect(newChatButton).toHaveAttribute('data-control-variant', 'primary')
-    expect(newChatButton).toHaveAttribute('data-control-shape', 'rect')
+    expect(newChatButton).toHaveAttribute('data-control-shape', 'icon')
     expect(newChatButton).toHaveAttribute('data-control-appearance', 'ghost')
     fireEvent.click(newChatButton)
     expect(useAppStore.getState().activeChatSessionId).toBeNull()
@@ -159,10 +160,9 @@ describe('AIChatSidebar', () => {
     const newChat = screen.getByRole('button', { name: 'New Chat' })
     expect(toggle.closest('header')).toContainElement(newChat)
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    expect(toggle).toHaveAttribute('data-control-size', 'md')
-    expect(newChat).toHaveAttribute('data-control-size', 'md')
-    expect(toggle).toHaveTextContent('History')
-    expect(toggle).toHaveTextContent('2')
+    expect(toggle).toHaveAttribute('data-control-size', 'sm')
+    expect(newChat).toHaveAttribute('data-control-size', 'sm')
+    expect(toggle).toHaveAttribute('data-control-shape', 'icon')
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
     expect(document.querySelector('.ai-chat-sidebar')).toHaveAttribute('hidden')
     fireEvent.click(toggle)

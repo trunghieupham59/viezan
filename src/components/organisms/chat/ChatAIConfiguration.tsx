@@ -4,7 +4,7 @@ import { useAppStore, useT } from '../../../store/useAppStore'
 import type { Provider } from '../../../types'
 import { formatModelName } from '../../../utils/modelDisplay'
 import { ModelSelector } from '../../ModelSelector'
-import { AIModelField, ConfigSection } from '../../ui/molecules'
+import { ConfigSection, ModelChip } from '../../ui/molecules'
 import { AIConfigurationPopover } from '../AIConfigurationPopover'
 
 export interface ChatAIConfigurationProps {
@@ -41,6 +41,7 @@ export function ChatAIConfiguration({
   const [open, setOpen] = useState(false)
   const modelLabel = formatModelName(selectedProvider, selectedModel)
   const providerLabel = PROVIDERS.find((provider) => provider.id === selectedProvider)?.name
+  const hasKey = useAppStore((state) => state.selectedProvider === 'local' || Boolean(state.keyStatus[state.selectedProvider]))
 
   const close = useCallback(() => {
     setOpen(false)
@@ -49,13 +50,12 @@ export function ChatAIConfiguration({
 
   return (
     <div className="ai-configuration-anchor">
-      <AIModelField
+      <ModelChip
         ref={triggerRef}
-        compact
         expanded={open}
-        provider={selectedProvider}
-        providerLabel={providerLabel}
-        modelLabel={modelLabel}
+        tone={hasKey ? 'ok' : 'warning'}
+        providerLabel={providerLabel ?? selectedProvider}
+        modelLabel={selectedModel || modelLabel}
         ariaLabel={`${t.model_picker_model}: ${modelLabel}`}
         onClick={() => setOpen((value) => !value)}
       />

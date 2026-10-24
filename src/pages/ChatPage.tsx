@@ -1486,11 +1486,6 @@ export function ChatPage() {
   const needsTaskContent = !attachedImage && isEmptyChatTask(inputText)
   const inputArea = (
     <div className="chat-composer-content flex flex-col">
-      {hasKey && <div className="px-3 pt-2">
-        <ChatTaskConfiguration t={t} state={taskState} disabled={isVoiceBusy} imageSupported={imageModeSupported}
-          contextKey={`${activeChatSessionId ?? 'pending'}:${messages.filter((message) => message.role === 'user').length}`}
-          onSelect={handleTaskSelect} onOpenChange={handleTaskOpenChange} />
-      </div>}
       {/* Image preview */}
       {attachedImage && (
         <ImagePreviewThumbnail
@@ -1531,8 +1526,8 @@ export function ChatPage() {
       {/* Bottom controls bar: [+ | Ảnh | Tự động ▼]  ···  [model | voice | send] */}
       <div className="chat-composer-toolbar flex items-center justify-between px-2 pb-1.5">
 
-        {/* Left: attach + mode toggles */}
-        <div className="flex items-center gap-0.5">
+        {/* Left: attach, web sources and the task */}
+        <div className="chat-composer-tools flex min-w-0 items-center gap-1">
 
           {/* + button — attach file */}
           <Button
@@ -1552,14 +1547,20 @@ export function ChatPage() {
             <PlusIcon />
           </Button>
 
-          {canUseChatWebSearch(taskState) && <Button size="md" shape="pill"
+          {canUseChatWebSearch(taskState) && <Button size="md" shape="icon"
             variant={webSearchMode ? 'primary' : 'neutral'} appearance={webSearchMode ? 'soft' : 'ghost'}
             aria-label={t.chat_web_source} aria-pressed={webSearchMode} title={t.chat_web_source_hint}
             disabled={isVoiceBusy} onClick={() => setChatTaskState(activeChatSessionId, {
               selected: null, options: {}, applied: null, open: false, ...taskState, unified: true, webSearch: !webSearchMode,
             })}>
-            <GlobeIcon className="h-4 w-4" /><span>{t.chat_web_source}</span>
+            <GlobeIcon className="h-4 w-4" />
           </Button>}
+
+          {hasKey && (
+            <ChatTaskConfiguration t={t} state={taskState} disabled={isVoiceBusy} imageSupported={imageModeSupported}
+              contextKey={`${activeChatSessionId ?? 'pending'}:${messages.filter((message) => message.role === 'user').length}`}
+              onSelect={handleTaskSelect} onOpenChange={handleTaskOpenChange} />
+          )}
         </div>
 
         {/* Right: char count · model · voice · send */}

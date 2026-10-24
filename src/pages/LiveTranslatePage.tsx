@@ -7,9 +7,10 @@ import { MarkdownText } from '../components/MarkdownText'
 import { AIModelPickerField, InterpretAIConfiguration, InterpretSubtitleConfiguration, LanguagePairBar, LiveSessionHistoryPanel, LiveSessionPanel, LiveSessionStatus } from '../components/organisms'
 import { PageHeader } from '../components/templates'
 import { Button } from '../components/ui/atoms'
-import { 
+import {
   CheckIcon,
   ChevronDownIcon,
+  ClockIcon, 
   CopyIcon,
   DownloadIcon,
   GearIcon,
@@ -23,7 +24,7 @@ import {
   SubtitlesIcon,
   TranslateIcon,
   TrashIcon,} from '../components/ui/icons'
-import { DialogShell, EmptyPanelState, HistoryTrigger } from '../components/ui/molecules'
+import { DialogShell, EmptyPanelState } from '../components/ui/molecules'
 import { COPY_FEEDBACK_DURATION_MS, DEFAULT_SEGMENT_DURATION_MS, MIN_SEGMENT_DURATION_MS } from '../constants/ui'
 import { MACOS_SCREEN_RECORDING_PREFS } from '../constants/urls'
 import { useFollowLatest } from '../hooks/live/useFollowLatest'
@@ -77,9 +78,10 @@ const MISSING_KEY_NOTICE_KEY = 'live-missing-key'
 /** Per-viewer layout preference; storage may be unavailable, so fall back to split. */
 function readStoredViewMode(): LiveViewMode {
   try {
-    return localStorage.getItem(LIVE_VIEW_MODE_STORAGE_KEY) === 'paired' ? 'paired' : 'split'
+    // One "Transcript" panel with each sentence beside its translation is the default.
+    return localStorage.getItem(LIVE_VIEW_MODE_STORAGE_KEY) === 'split' ? 'split' : 'paired'
   } catch {
-    return 'split'
+    return 'paired'
   }
 }
 
@@ -329,21 +331,20 @@ export function LiveTranslatePage() {
     : liveInputCopy.listeningLabel
 
   const audioSourceGroup = (
-    <fieldset className="live-audio-source-group" aria-label={t.live_audio_source_label}>
-      {audioModes.map(({ mode, label, title, icon }) => (
+    <fieldset className="segmented-control live-audio-source-group" aria-label={t.live_audio_source_label}>
+      {audioModes.map(({ mode, label, title }) => (
         <Button
           key={mode}
-          size="md"
+          size="sm"
           shape="rect"
-          variant={audioMode === mode ? 'primary' : 'neutral'}
-          appearance={audioMode === mode ? 'soft' : 'ghost'}
+          variant="neutral"
+          appearance="ghost"
           aria-pressed={audioMode === mode}
           disabled={isActive}
           onClick={() => setAudioMode(mode)}
           title={title}
         >
-          {icon}
-          <span>{label}</span>
+          {label}
         </Button>
       ))}
     </fieldset>
@@ -371,14 +372,14 @@ export function LiveTranslatePage() {
   ) : null
 
   const viewToggle = (
-    <fieldset className="live-audio-source-group" aria-label={t.live_view_mode_label}>
-      {([['split', t.live_view_split], ['paired', t.live_view_paired]] as const).map(([mode, label]) => (
+    <fieldset className="segmented-control live-view-toggle" aria-label={t.live_view_mode_label}>
+      {([['paired', t.live_view_paired], ['split', t.live_view_split]] as const).map(([mode, label]) => (
         <Button
           key={mode}
           size="sm"
-          shape="pill"
-          variant={viewMode === mode ? 'primary' : 'neutral'}
-          appearance={viewMode === mode ? 'soft' : 'ghost'}
+          shape="rect"
+          variant="neutral"
+          appearance="ghost"
           aria-pressed={viewMode === mode}
           onClick={() => changeViewMode(mode)}
         >
@@ -594,7 +595,6 @@ export function LiveTranslatePage() {
 
           <PageHeader
             title={t.nav_live_translate}
-            titleHidden
             leading={(
               <div className="live-header-leading">
                 <LanguagePairBar
@@ -608,15 +608,19 @@ export function LiveTranslatePage() {
             actions={(
               <>
                 {sessionStatus}
-                <HistoryTrigger
-                  label={t.history_trigger_label}
-                  count={liveSessions.length}
-                  expanded={showHistory}
-                  hideLabel={t.live_history_toggle_hide}
-                  showLabel={t.live_history_toggle_show}
-                  hasPopup="dialog"
-                  onToggle={() => setShowHistory(true)}
-                />
+                <Button
+                  size="md"
+                  shape="icon"
+                  variant="neutral"
+                  appearance="ghost"
+                  aria-label={t.live_history_toggle_show}
+                  title={t.live_history_toggle_show}
+                  aria-haspopup="dialog"
+                  aria-expanded={showHistory}
+                  onClick={() => setShowHistory(true)}
+                >
+                  <ClockIcon className="h-4 w-4" />
+                </Button>
 
                 <InterpretAIConfiguration
                   open={showAIConfig}

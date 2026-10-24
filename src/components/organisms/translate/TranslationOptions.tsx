@@ -125,10 +125,10 @@ export function TranslationOptions({
           <div className="ai-configuration-anchor">
             <Button
               ref={optionsTriggerRef}
-              size="md"
-              shape="rect"
-              variant="neutral"
-              appearance={optionsOpen ? 'soft' : 'outline'}
+              size="sm"
+              shape="icon"
+              variant={optionsOpen ? 'primary' : 'neutral'}
+              appearance={optionsOpen ? 'soft' : 'ghost'}
               aria-expanded={optionsOpen}
               aria-controls={optionsId}
               aria-haspopup="dialog"
@@ -141,9 +141,6 @@ export function TranslationOptions({
               className="translate-options-trigger"
             >
               <GearIcon />
-              <span className="translate-options-trigger-model-count">
-                {t.translate_models_trigger(translationModels.length)}
-              </span>
             </Button>
 
             <AIConfigurationPopover

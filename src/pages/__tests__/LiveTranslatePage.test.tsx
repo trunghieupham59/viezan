@@ -69,8 +69,8 @@ describe('AI Interpret screen', () => {
     expect(trigger).toHaveAttribute('aria-haspopup', 'dialog')
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
     expect(trigger).toHaveAttribute('data-control-size', 'md')
-    expect(trigger).toHaveTextContent('History')
-    expect(trigger).toHaveTextContent('1')
+    // Icon-only in the header, as designed; the name carries the meaning.
+    expect(trigger).toHaveAttribute('data-control-shape', 'icon')
 
     fireEvent.click(trigger)
     const dialog = screen.getByRole('dialog', { name: 'Saved sessions' })
@@ -201,8 +201,8 @@ describe('AI Interpret screen', () => {
   it('pairs each original with its translation and remembers the layout', () => {
     live.state = liveState({ rawTranscript: 'Bonjour', translation: 'Hello', segments: [segment] })
     const { unmount } = render(<LiveTranslatePage />)
-    expect(screen.getByRole('button', { name: t.live_view_split, pressed: true })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: t.live_view_paired }))
+    // Paired is the default: one Transcript panel, each sentence beside its translation.
+    expect(screen.getByRole('button', { name: t.live_view_paired, pressed: true })).toBeInTheDocument()
 
     const row = document.querySelector('.live-bilingual-row') as HTMLElement
     expect(row).toHaveTextContent('Bonjour')
@@ -211,10 +211,12 @@ describe('AI Interpret screen', () => {
     // One footer still offers both copies, each with a distinct name.
     expect(screen.getByRole('button', { name: t.live_copy_original })).toBeEnabled()
     expect(screen.getByRole('button', { name: t.live_copy_translation })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: t.live_view_split }))
+    expect(document.querySelector('.app-panel-grid')).toBeInTheDocument()
     unmount()
 
     render(<LiveTranslatePage />)
-    expect(screen.getByRole('button', { name: t.live_view_paired, pressed: true })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: t.live_view_split, pressed: true })).toBeInTheDocument()
   })
 
   it('stops following new text when the reader scrolls up, and jumps back on request', () => {

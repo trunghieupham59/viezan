@@ -255,3 +255,37 @@
     transition: none;
   }
 }
+
+/* In a page header the pair is a compact 32px control. */
+.page-header .language-pair-bar {
+  height: var(--vzn-control-height-sm);
+  border-color: var(--vzn-border-strong);
+  border-radius: var(--vzn-radius-sm);
+  --language-pair-inner-radius: calc(var(--vzn-radius-sm) - var(--vzn-border-width));
+}
+
+.page-header .language-pair-bar .language-pair-half-icon:not(.language-pair-half-spinner),
+.page-header .language-pair-bar .language-pair-chevron {
+  display: none;
+}
+
+/* Translate: source and target are two buttons with the swap between them. */
+.translate-page-header .language-pair-bar {
+  gap: var(--vzn-space-1);
+  border: 0;
+  background: transparent;
+}
+
+.translate-page-header .language-pair-bar > .ui-button.language-pair-half {
+  --vzn-button-bg: var(--vzn-surface);
+  --vzn-button-border: var(--vzn-border-strong);
+  --vzn-button-hover-bg: var(--vzn-surface-raised);
+  --vzn-button-hover-border: var(--vzn-border-strong);
+  border-color: var(--vzn-border-strong) !important;
+  border-radius: var(--vzn-radius-sm);
+}
+
+.translate-page-header .language-pair-bar .language-pair-mid {
+  border: 0;
+  background: transparent;
+}
