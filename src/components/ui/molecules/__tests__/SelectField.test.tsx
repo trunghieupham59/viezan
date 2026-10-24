@@ -70,6 +70,27 @@ describe('SelectField', () => {
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 
+  it('consumes Escape on the trigger while the menu is open', () => {
+    const onParentKeyDown = vi.fn()
+    render(
+      // biome-ignore lint/a11y/noStaticElementInteractions: observes bubbling only
+      <div onKeyDown={onParentKeyDown}>
+        <SelectField label="Reading" value="general" options={options} onChange={vi.fn()} />
+      </div>,
+    )
+
+    const trigger = screen.getByRole('button', { name: 'Reading General' })
+    fireEvent.click(trigger)
+    fireEvent.keyDown(trigger, { key: 'Escape' })
+
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(trigger).toHaveFocus()
+    expect(onParentKeyDown).not.toHaveBeenCalled()
+
+    fireEvent.keyDown(trigger, { key: 'Escape' })
+    expect(onParentKeyDown).toHaveBeenCalledTimes(1)
+  })
+
   it('exposes disabled state and its explanation', () => {
     render(
       <SelectField
