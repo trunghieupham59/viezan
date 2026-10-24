@@ -1,6 +1,6 @@
-import { Button } from './atoms'
+import { Button, type ButtonSize } from './atoms'
 /**
- * ButtonGroup — generic "pick one from a set" button row.
+ * ButtonGroup — the segmented control: a generic "pick one from a set" button row.
  *
  * Renders a row of buttons where the selected value is highlighted
  * with the neutral app accent. Used by FontSizePicker and TokenTtlPicker (and any future
@@ -27,6 +27,10 @@ interface ButtonGroupProps<T extends string | number> {
   value: T
   onChange: (value: T) => void
   options: ButtonGroupOption<T>[]
+  /** Accessible name of the group, e.g. "Font size". Recommended whenever no visible label names it. */
+  label?: string
+  /** Toolbar size; siblings in one toolbar share it. Defaults to `md` (forms). */
+  size?: Extract<ButtonSize, 'xs' | 'sm' | 'md'>
   /** Extra Tailwind classes for the container `<div>`. */
   containerClassName?: string
   /** Disables every option, e.g. while a style pins the value. */
@@ -39,12 +43,14 @@ export function ButtonGroup<T extends string | number>({
   options,
   containerClassName = '',
   disabled = false,
+  label,
+  size = 'md',
 }: ButtonGroupProps<T>) {
   return (
-    <div className={`segmented-control ${containerClassName}`}>
+    <fieldset className={`segmented-control ${containerClassName}`} aria-label={label}>
       {options.map((opt) => (
         <Button
-          size="md"
+          size={size}
           shape="rect"
           variant={value === opt.value ? 'primary' : 'neutral'}
           appearance={value === opt.value ? 'soft' : 'ghost'}
@@ -57,6 +63,6 @@ export function ButtonGroup<T extends string | number>({
           {opt.label}
         </Button>
       ))}
-    </div>
+    </fieldset>
   )
 }

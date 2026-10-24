@@ -23,32 +23,6 @@
   font-size: var(--vzn-font-size-sm);
 }
 
-/* Helper status chip in the command bar: a dot in the state's colour plus a short text. */
-.thermal-helper-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--vzn-space-1-5);
-  padding: var(--vzn-space-1) var(--vzn-space-2);
-  border: var(--vzn-border-width) solid var(--vzn-border);
-  border-radius: var(--vzn-radius-pill);
-  color: var(--vzn-text-soft);
-  font-size: var(--vzn-font-size-caption);
-  white-space: nowrap;
-}
-
-.thermal-helper-chip::before {
-  content: "";
-  inline-size: var(--vzn-space-2);
-  block-size: var(--vzn-space-2);
-  border-radius: var(--vzn-radius-pill);
-  background: var(--vzn-text-muted);
-}
-
-.thermal-helper-chip[data-tone="ok"]::before { background: var(--vzn-success); }
-.thermal-helper-chip[data-tone="warning"]::before { background: var(--vzn-warning); }
-.thermal-helper-chip[data-tone="danger"]::before { background: var(--vzn-danger); }
-.thermal-helper-chip[data-tone="info"]::before { display: none; }
-
 /* A one-line notice under the command bar (the helper restored the fans on its own). */
 .thermal-notice {
   margin: 0;
@@ -135,20 +109,7 @@
 }
 
 .thermal-calibration__bar {
-  display: block;
   flex: 1 1 100%;
-  block-size: var(--vzn-space-1);
-  overflow: hidden;
-  border-radius: var(--vzn-radius-pill);
-  background: var(--vzn-surface-muted);
-}
-
-.thermal-calibration__fill {
-  display: block;
-  block-size: 100%;
-  border-radius: inherit;
-  background: var(--vzn-action-fill);
-  transition: inline-size var(--vzn-duration-normal) var(--vzn-ease-standard);
 }
 
 .thermal-calibration__text {
@@ -259,57 +220,9 @@
   white-space: nowrap;
 }
 
-.thermal-fan__meter {
-  position: relative;
-  display: block;
-  flex: 1 1 auto;
-  block-size: var(--vzn-space-1-5);
-}
-
-/* A native <meter> restyled as a flat track (Chromium's pseudo-elements; the fill colour follows the fan's mode). */
-.thermal-fan__meter-gauge {
-  display: block;
-  inline-size: 100%;
-  block-size: 100%;
-  border: 0;
-  border-radius: var(--vzn-radius-pill);
-  background: var(--vzn-border);
-  appearance: none;
-}
-
-.thermal-fan__meter-gauge::-webkit-meter-bar {
-  border: 0;
-  border-radius: var(--vzn-radius-pill);
-  background: var(--vzn-border);
-}
-
-.thermal-fan__meter-gauge::-webkit-meter-optimum-value,
-.thermal-fan__meter-gauge::-webkit-meter-suboptimum-value,
-.thermal-fan__meter-gauge::-webkit-meter-even-less-good-value {
-  border-radius: var(--vzn-radius-pill);
-  background: var(--vzn-text-muted);
-  transition: inline-size var(--vzn-duration-normal) var(--vzn-ease-standard);
-}
-
-/* While the app holds the fan, the live speed and its fill take the action colour. */
 .thermal-fan[data-mode="fixed"] .thermal-fan__current,
 .thermal-fan[data-mode="sensor"] .thermal-fan__current {
   color: var(--vzn-action);
-}
-
-.thermal-fan[data-mode="fixed"] .thermal-fan__meter-gauge::-webkit-meter-optimum-value,
-.thermal-fan[data-mode="sensor"] .thermal-fan__meter-gauge::-webkit-meter-optimum-value {
-  background: var(--vzn-action-fill);
-}
-
-.thermal-fan__meter-target {
-  position: absolute;
-  inset-block: calc(-1 * var(--vzn-space-1));
-  inline-size: var(--vzn-space-0-5);
-  margin-inline-start: calc(-1 * var(--vzn-space-0-5) / 2);
-  border-radius: var(--vzn-radius-pill);
-  background: var(--vzn-text-strong);
-  transition: inset-inline-start var(--vzn-duration-normal) var(--vzn-ease-standard);
 }
 
 .thermal-fan__system {

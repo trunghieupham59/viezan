@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import type { FanCommand, FanProfile, ThermalFan, ThermalFanLabel, ThermalSensor, ThermalSensorGroup, ThermalTraySettings } from '../../shared/thermalApi'
 import { ThermalFanDisclaimer, ThermalFanPanel, type ThermalFanSources, ThermalOptionsConfiguration, ThermalSensorTable, ThermalTrayOptions } from '../components/organisms'
 import { Button, SpinnerIcon, StopIcon } from '../components/ui/atoms'
-import { CapabilityNotice, ConfigSection, FeatureLoadingState } from '../components/ui/molecules'
+import { CapabilityNotice, ConfigSection, FeatureLoadingState, StatusChip } from '../components/ui/molecules'
 import { useFanCalibration } from '../hooks/useFanCalibration'
 import { useFanControl } from '../hooks/useFanControl'
 import { useFanProfiles } from '../hooks/useFanProfiles'
@@ -199,25 +199,25 @@ export function ThermalPage() {
   const helperControls = control ? (() => {
     switch (control.helper) {
       case 'missing':
-        return <span className="thermal-helper-chip" data-tone="warning" title={t.thermal_fan_helper_missing}>{t.thermal_fan_helper_missing_short}</span>
+        return <StatusChip tone="warning" title={t.thermal_fan_helper_missing}>{t.thermal_fan_helper_missing_short}</StatusChip>
       case 'starting':
         return (
           <>
-            <span className="thermal-helper-chip" data-tone="info"><SpinnerIcon />{t.thermal_fan_helper_starting}</span>
+            <StatusChip tone="info" icon={<SpinnerIcon />}>{t.thermal_fan_helper_starting}</StatusChip>
             <Button size="md" shape="rect" variant="primary" appearance="solid" disabled>{t.thermal_fan_enable}</Button>
           </>
         )
       case 'error':
         return (
           <>
-            <span className="thermal-helper-chip" data-tone="danger" title={control.error}>{t.thermal_fan_helper_error_title}</span>
+            <StatusChip tone="danger" title={control.error}>{t.thermal_fan_helper_error_title}</StatusChip>
             <Button size="md" shape="rect" variant="primary" appearance="solid" disabled={busy} onClick={onFanEnable}>{t.thermal_fan_retry}</Button>
           </>
         )
       case 'ready':
         return (
           <>
-            <span className="thermal-helper-chip" data-tone="ok">{tpl(t.thermal_fan_helper_ready, { version: control.helperVersion ?? '?' })}</span>
+            <StatusChip tone="ok">{tpl(t.thermal_fan_helper_ready, { version: control.helperVersion ?? '?' })}</StatusChip>
             <Button size="md" shape="rect" variant="danger" appearance="outline" disabled={busy} onClick={() => void fanControl.disable().then(reportFan)}>
               <StopIcon className="w-3.5 h-3.5" />{t.thermal_fan_disable}
             </Button>
@@ -226,7 +226,7 @@ export function ThermalPage() {
       default:
         return (
           <>
-            <span className="thermal-helper-chip" data-tone="neutral">{t.thermal_fan_helper_idle_title}</span>
+            <StatusChip tone="neutral">{t.thermal_fan_helper_idle_title}</StatusChip>
             <Button size="md" shape="rect" variant="primary" appearance="solid" disabled={busy} onClick={onFanEnable}>{t.thermal_fan_enable}</Button>
           </>
         )
@@ -377,6 +377,7 @@ export function ThermalPage() {
                     profileName,
                     profileDescription,
                     calibrateCancel: t.thermal_fan_calibrate_cancel,
+                    calibrateTitle: t.thermal_fan_calibrate,
                     calibrateProgress: (state) => tpl(t.thermal_fan_calibrate_progress, {
                       fan: state.fanId ? fanNameById(state.fanId) : '',
                       current: (state.fanIndex ?? 0) + 1,

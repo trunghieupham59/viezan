@@ -1,6 +1,6 @@
 import { type FormEvent, useId, useMemo, useState } from 'react'
 import type { FanCalibrationState, FanCommand, FanControlFan, FanControlState, FanProfile, FanProfilesState, FanSensorRule, ThermalFan } from '../../../../shared/thermalApi'
-import { Button, Input, XIcon } from '../../ui/atoms'
+import { Button, Input, Meter, ProgressBar, XIcon } from '../../ui/atoms'
 import { DialogShell, FilterInput, NumberField, SelectField, type SelectFieldOption, SliderField } from '../../ui/molecules'
 
 /** A temperature source a fan may follow: a group (`group:cpu`), a meaning (`label:…`) or one raw sensor. */
@@ -72,6 +72,8 @@ export interface ThermalFanPanelLabels {
   profileName: (profile: FanProfile) => string
   profileDescription: (profile: FanProfile) => string | undefined
   calibrateCancel: string
+  /** Accessible name of the calibration progress bar. */
+  calibrateTitle: string
   /** Progress line while calibrating. */
   calibrateProgress: (state: FanCalibrationState) => string
 }
@@ -184,13 +186,6 @@ interface FanRowProps {
   onSetFan: (fanId: string, command: FanCommand) => void
 }
 
-/** Where a speed sits between a fan's bounds, 0–100. */
-function meterPercent(range: { minRpm: number; maxRpm: number }, rpm: number): number {
-  const span = range.maxRpm - range.minRpm
-  if (span <= 0) return 0
-  return Math.max(0, Math.min(100, ((rpm - range.minRpm) / span) * 100))
-}
-
 /**
  * One fan: name and live speed, a meter from its minimum to its maximum with the
  * current speed filled and the app's target marked, and (while the helper runs)
@@ -240,19 +235,15 @@ function FanRow({ fan, controlled, ready, name, sources, labels, formatRpm, form
       </div>
       <div className="thermal-fan__meter-row">
         <span className="thermal-fan__bound">{formatRpm(range.minRpm)}</span>
-        <span className="thermal-fan__meter">
-          <meter
-            className="thermal-fan__meter-gauge"
-            aria-label={name}
-            min={range.minRpm}
-            max={range.maxRpm}
-            value={Math.max(range.minRpm, Math.min(range.maxRpm, fan.rpm))}
-            aria-valuetext={formatRpm(fan.rpm)}
-          />
-          {target !== undefined && (
-            <span className="thermal-fan__meter-target" style={{ insetInlineStart: `${meterPercent(range, target)}%` }} title={labels.targetTitle(target)} />
-          )}
-        </span>
+        <Meter
+          label={name}
+          value={fan.rpm}
+          min={range.minRpm}
+          max={range.maxRpm}
+          valueText={formatRpm(fan.rpm)}
+          emphasis={ready && mode !== 'auto' ? 'action' : 'neutral'}
+          marker={target !== undefined ? { value: target, title: labels.targetTitle(target) } : undefined}
+        />
         <span className="thermal-fan__bound">{formatRpm(range.maxRpm)}</span>
       </div>
 
@@ -420,7 +411,7 @@ export function ThermalFanPanel({ fans, control, profiles, calibration, sources,
       </div>
       {ready && calibrating && calibration && (
         <div className="thermal-calibration" role="status">
-          <span className="thermal-calibration__bar" aria-hidden="true"><span className="thermal-calibration__fill" style={{ inlineSize: `${Math.round((calibration.progress ?? 0) * 100)}%` }} /></span>
+          <ProgressBar className="thermal-calibration__bar" label={labels.calibrateTitle} value={calibration.progress ?? 0} max={1} valueText={labels.calibrateProgress(calibration)} />
           <span className="thermal-calibration__text">{labels.calibrateProgress(calibration)}</span>
           <Button size="xs" shape="rect" variant="danger" appearance="ghost" disabled={busy} onClick={onCancelCalibration}>{labels.calibrateCancel}</Button>
         </div>

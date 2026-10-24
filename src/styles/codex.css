@@ -1369,6 +1369,9 @@ html.dark .toolbar-pill-button {
 }
 
 .segmented-control {
+  /* Rendered as a <fieldset>: drop the browser's fieldset margin and min-content width. */
+  margin: 0;
+  min-inline-size: 0;
   border-color: var(--vzn-border);
   background: var(--vzn-surface-muted);
 }
@@ -1805,6 +1808,193 @@ html:not(.dark) .quick-chat-answer-card {
 
 .ui-slider:disabled::-webkit-slider-runnable-track {
   background: var(--vzn-surface-muted);
+}
+
+/* StatusDot atom — a small dot in a semantic feedback colour. */
+.ui-status-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  inline-size: var(--vzn-space-2);
+  block-size: var(--vzn-space-2);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-text-muted);
+}
+
+.ui-status-dot[data-tone="ok"] { background: var(--vzn-success); }
+.ui-status-dot[data-tone="warning"] { background: var(--vzn-warning); }
+.ui-status-dot[data-tone="danger"] { background: var(--vzn-danger); }
+.ui-status-dot[data-tone="info"] { background: var(--vzn-action); }
+
+/* StatusChip molecule — a dot (or icon) plus short text for a background state. */
+.ui-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vzn-space-1-5);
+  min-inline-size: 0;
+  padding: var(--vzn-space-1) var(--vzn-space-2);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-pill);
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+  white-space: nowrap;
+}
+
+.ui-status-chip__icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.ui-status-chip__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Meter atom — a native <meter> restyled as a flat track, plus an optional marker tick. */
+.ui-meter {
+  position: relative;
+  display: block;
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  block-size: var(--vzn-space-1-5);
+}
+
+.ui-meter__gauge {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  border: 0;
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-border);
+  appearance: none;
+}
+
+.ui-meter__gauge::-webkit-meter-bar {
+  border: 0;
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-border);
+}
+
+.ui-meter__gauge::-webkit-meter-optimum-value,
+.ui-meter__gauge::-webkit-meter-suboptimum-value,
+.ui-meter__gauge::-webkit-meter-even-less-good-value {
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-text-muted);
+  transition: inline-size var(--vzn-duration-normal) var(--vzn-ease-standard);
+}
+
+.ui-meter[data-emphasis="action"] .ui-meter__gauge::-webkit-meter-optimum-value,
+.ui-meter[data-emphasis="action"] .ui-meter__gauge::-webkit-meter-suboptimum-value,
+.ui-meter[data-emphasis="action"] .ui-meter__gauge::-webkit-meter-even-less-good-value {
+  background: var(--vzn-action-fill);
+}
+
+.ui-meter__marker {
+  position: absolute;
+  inset-block: calc(-1 * var(--vzn-space-1));
+  inset-inline-start: var(--ui-meter-marker, 0%);
+  inline-size: var(--vzn-space-0-5);
+  margin-inline-start: calc(-1 * var(--vzn-space-0-5) / 2);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-text-strong);
+  transition: inset-inline-start var(--vzn-duration-normal) var(--vzn-ease-standard);
+}
+
+/* ProgressBar atom — thin determinate or indeterminate track. */
+.ui-progress {
+  display: block;
+  inline-size: 100%;
+  block-size: var(--vzn-space-1);
+  overflow: hidden;
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-surface-muted);
+}
+
+.ui-progress__fill {
+  display: block;
+  inline-size: var(--ui-progress, 0%);
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--vzn-action-fill);
+  transition: inline-size var(--vzn-duration-normal) var(--vzn-ease-standard);
+}
+
+.ui-progress[data-indeterminate] .ui-progress__fill {
+  inline-size: 100%;
+  animation: skeletonPulse var(--vzn-duration-pulse) var(--vzn-ease-standard) infinite alternate;
+}
+
+/* ProgressSteps molecule — the steps of a long task with their status. */
+.ui-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-steps__item {
+  display: flex;
+  align-items: center;
+  gap: var(--vzn-space-3);
+  color: var(--vzn-text);
+  font-size: var(--vzn-font-size-md);
+  line-height: var(--vzn-line-tight);
+}
+
+.ui-steps__marker {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--vzn-icon-md);
+  block-size: var(--vzn-icon-md);
+  box-sizing: border-box;
+  border: calc(var(--vzn-border-width) * 2) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-pill);
+  color: var(--vzn-text-muted);
+}
+
+.ui-steps__glyph {
+  inline-size: var(--vzn-icon-xs);
+  block-size: var(--vzn-icon-xs);
+}
+
+.ui-steps__item[data-status="done"] .ui-steps__marker {
+  border-color: var(--vzn-success);
+  background: var(--vzn-success);
+  color: var(--vzn-action-fg);
+}
+
+.ui-steps__item[data-status="active"] .ui-steps__marker {
+  border-color: transparent;
+  color: var(--vzn-action);
+}
+
+.ui-steps__item[data-status="active"] .ui-steps__label {
+  font-weight: var(--vzn-weight-medium);
+}
+
+.ui-steps__item[data-status="error"] .ui-steps__marker {
+  border-color: var(--vzn-danger);
+  background: var(--vzn-danger);
+  color: var(--vzn-danger-fg);
+}
+
+.ui-steps__item[data-status="pending"] {
+  color: var(--vzn-text-muted);
+}
+
+.ui-steps__label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.ui-steps__detail {
+  flex: 0 0 auto;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-variant-numeric: tabular-nums;
 }
 
 /* SliderField molecule — a number box and a slider for the same value. */

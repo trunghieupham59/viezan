@@ -252,8 +252,9 @@ describe('ThermalPage', () => {
     const first = render(<ThermalPage />)
     await waitFor(() => expect(pushSnapshot).not.toBeNull())
     act(() => { pushSnapshot?.(snapshot) })
-    const chip = await screen.findByText(t.thermal_fan_helper_missing_short)
+    const chip = (await screen.findByText(t.thermal_fan_helper_missing_short)).closest('.ui-status-chip')
     expect(chip).toHaveAttribute('title', t.thermal_fan_helper_missing)
+    expect(chip).toHaveAttribute('data-tone', 'warning')
     expect(screen.queryByRole('button', { name: t.thermal_fan_enable })).toBeNull()
     first.unmount()
 

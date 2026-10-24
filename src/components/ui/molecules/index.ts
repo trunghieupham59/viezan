@@ -51,6 +51,7 @@ export {
 export { NumberField, type NumberFieldProps } from './NumberField'
 export { OptionPicker, type OptionPickerProps } from './OptionPicker'
 export { OptionPickerPanel, type OptionPickerPanelProps, type PickerChip, type PickerOption } from './OptionPickerPanel'
+export { type ProgressStep, type ProgressStepStatus, ProgressSteps, type ProgressStepsProps } from './ProgressSteps'
 export { PromptCard, type PromptCardProps, type PromptCardTone } from './PromptCard'
 export {
   RecoverableError,
@@ -64,6 +65,7 @@ export {
   type SelectFieldProps,
 } from './SelectField'
 export { SliderField, type SliderFieldProps, snapToRange } from './SliderField'
+export { StatusChip, type StatusChipProps } from './StatusChip'
 export { TabBar, type TabBarProps, type TabBarTab } from './TabBar'
 export { type ThemePresetOption, ThemePresetPicker, type ThemePresetPickerProps } from './ThemePresetPicker'
 export { ThemePreview, type ThemePreviewLabels, type ThemePreviewProps } from './ThemePreview'
