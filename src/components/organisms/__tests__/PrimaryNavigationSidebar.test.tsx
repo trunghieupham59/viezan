@@ -9,7 +9,7 @@ const t = TRANSLATIONS.en
 
 beforeEach(() => {
   vi.clearAllMocks()
-  act(() => useAppStore.setState({ locale: 'en', activePage: 'chat', sidebarCollapsed: false, enabledModules: { ...ALL_MODULES_ENABLED }, settingsOpen: false, settingsInitialSection: null }))
+  act(() => useAppStore.setState({ locale: 'en', activePage: 'chat', sidebarCollapsed: false, enabledModules: { ...ALL_MODULES_ENABLED }, settingsInitialSection: null }))
   vi.mocked(window.api.hotkey.get).mockResolvedValue({ success: true, settings: {} })
   vi.mocked(window.api.hotkey.chat.get).mockResolvedValue({ success: true, settings: {} })
   vi.mocked(window.api.localServer.listTokens).mockResolvedValue({ success: true, port: 39875, tokens: [] })
@@ -21,7 +21,7 @@ describe('PrimaryNavigationSidebar', () => {
     const ai = screen.getByRole('region', { name: t.nav_space_ai })
     const language = screen.getByRole('region', { name: t.nav_space_language })
     expect(within(ai).getByRole('button', { name: t.nav_chat })).toHaveAttribute('aria-current', 'page')
-    expect(within(language).getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([t.nav_translate, t.nav_live_translate, t.nav_dictionary])
+    expect(within(language).getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([t.nav_translate, t.nav_live_translate, t.nav_dictionary, t.nav_everywhere])
     expect(screen.getByRole('region', { name: t.nav_space_system })).toBeInTheDocument()
     view.unmount()
 
@@ -42,6 +42,24 @@ describe('PrimaryNavigationSidebar', () => {
     window.removeEventListener('viezan:open-command-palette', listener)
   })
 
+  it('puts Home right after the search and Settings at the end, both as pages', () => {
+    act(() => useAppStore.setState({ activePage: 'settings' }))
+    render(<PrimaryNavigationSidebar toggleHost={null} />)
+    const navButtons = within(screen.getByRole('navigation', { name: t.nav_primary_sidebar })).getAllByRole('button')
+    expect(navButtons[1]).toHaveAccessibleName(t.nav_home)
+    const settings = screen.getByRole('button', { name: new RegExp(t.nav_settings) })
+    expect(settings).toHaveAttribute('aria-current', 'page')
+    fireEvent.click(navButtons[1])
+    expect(useAppStore.getState().activePage).toBe('home')
+  })
+
+  it('lists Launcher & shortcuts under Tools and keeps it when the Launcher module is off', () => {
+    act(() => useAppStore.setState({ enabledModules: { ...ALL_MODULES_ENABLED, launcher: false, thermal: false } }))
+    render(<PrimaryNavigationSidebar toggleHost={null} />)
+    const tools = screen.getByRole('region', { name: t.nav_space_tools })
+    expect(within(tools).getByRole('button', { name: t.nav_utilities })).toBeInTheDocument()
+  })
+
   it('shows what runs in the background and opens the place that controls it', async () => {
     vi.mocked(window.api.hotkey.get).mockResolvedValue({ success: true, settings: { enabled: true } })
     vi.mocked(window.api.hotkey.chat.get).mockResolvedValue({ success: true, settings: { enabled: true } })
@@ -53,7 +71,9 @@ describe('PrimaryNavigationSidebar', () => {
     const shortcuts = within(strip).getByRole('button', { name: /Global shortcuts/ })
     expect(shortcuts).toHaveTextContent('2')
     fireEvent.click(shortcuts)
-    expect(useAppStore.getState()).toMatchObject({ settingsOpen: true, settingsInitialSection: 'hotkeys' })
+    expect(useAppStore.getState().activePage).toBe('utilities')
+    fireEvent.click(within(strip).getByRole('button', { name: /Chrome extension/ }))
+    expect(useAppStore.getState().activePage).toBe('everywhere')
   })
 
   it('hides the background strip when nothing runs and counts only enabled modules', async () => {

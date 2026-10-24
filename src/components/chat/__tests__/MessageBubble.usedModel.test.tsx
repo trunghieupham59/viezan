@@ -48,3 +48,27 @@ describe('MessageBubble used-model note', () => {
     expect(screen.getByTestId('chat-used-model')).toBeInTheDocument()
   })
 })
+
+describe('MessageBubble errors and generated images', () => {
+  beforeEach(() => {
+    act(() => useAppStore.setState({ locale: 'en', activePage: 'chat' }))
+  })
+
+  it('keeps a provider error in the conversation with ways to recover', () => {
+    const onRegenerate = vi.fn()
+    render(<MessageBubble message={assistantMessage({ content: [], error: 'Rate limited' })} onCopy={vi.fn()} onRegenerate={onRegenerate} isLastAssistant />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Rate limited')
+    screen.getByRole('button', { name: 'Try again' }).click()
+    expect(onRegenerate).toHaveBeenCalledOnce()
+    act(() => screen.getByRole('button', { name: 'Change model or key' }).click())
+    expect(useAppStore.getState()).toMatchObject({ activePage: 'settings', settingsInitialSection: 'api' })
+  })
+
+  it('offers to keep editing the latest generated image', () => {
+    const onEditImage = vi.fn()
+    const image = { type: 'image' as const, imageBase64: 'AAAA', imageMimeType: 'image/png', imagePreviewUrl: 'data:image/png;base64,AAAA' }
+    render(<MessageBubble message={assistantMessage({ content: [image] })} onCopy={vi.fn()} onDownloadImage={vi.fn()} onEditImage={onEditImage} isLastAssistant />)
+    screen.getByRole('button', { name: 'Edit this image' }).click()
+    expect(onEditImage).toHaveBeenCalledOnce()
+  })
+})

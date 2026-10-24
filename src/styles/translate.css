@@ -19,35 +19,6 @@
   padding: var(--vzn-space-4);
 }
 
-.translate-header-stack {
-  position: relative;
-  display: flex;
-  flex: 0 0 auto;
-  flex-direction: column;
-}
-
-.translate-page-header {
-  display: flex;
-  min-height: var(--vzn-control-height-xl);
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--vzn-space-2) var(--vzn-space-4);
-}
-
-.translate-header-controls {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--vzn-space-2);
-  /* Stays at the row end, also when the language bar wraps it onto its own row. */
-  margin: 0 0 0 auto;
-  padding: 0;
-  border: 0;
-  min-inline-size: 0;
-}
-
 .translate-mode-toggle {
   min-width: 9.5rem;
   justify-content: flex-start;
@@ -57,18 +28,9 @@
   white-space: nowrap;
 }
 
-.translate-options-trigger-summary {
-  color: var(--vzn-text-muted);
-  font-weight: var(--vzn-weight-regular);
-}
-
 .translate-options-trigger-model-count {
   color: var(--vzn-text-strong);
   font-weight: var(--vzn-weight-medium);
-}
-
-.translate-options-trigger-separator {
-  color: var(--vzn-text-soft);
 }
 
 .translate-options-panel {
@@ -1885,6 +1847,12 @@
     overflow: visible;
   }
 
+  /* History opens as an overlay here, so the stage holds only the workbench:
+     stack it so the workbench keeps the full width and sizes to its content. */
+  .translate-stage {
+    flex-direction: column;
+  }
+
   .translate-workbench {
     flex: 0 0 auto;
     grid-template-columns: minmax(0, 1fr);
@@ -1947,11 +1915,6 @@
 }
 
 @container app-main (max-width: 759px) {
-  .translate-options-trigger-summary,
-  .translate-options-trigger-separator {
-    display: none;
-  }
-
   .translate-options-panel {
     right: auto;
     left: 0;
@@ -2052,10 +2015,6 @@
     padding: var(--vzn-space-2);
   }
 
-  .translate-header-controls {
-    gap: var(--vzn-space-1);
-  }
-
   .translate-mode-toggle {
     min-width: var(--vzn-control-height-md);
   }
@@ -2107,5 +2066,25 @@
 
   .translate-comparison-tab-status-loading > svg {
     animation: none;
+  }
+}
+
+/* Page header: title, language pair and input mode, then history and options. */
+.translate-header-leading {
+  display: flex;
+  min-inline-size: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-2) var(--vzn-space-3);
+}
+
+.translate-compare-entry.ui-button {
+  margin-inline-start: auto;
+  gap: var(--vzn-space-1-5);
+}
+
+@container app-main (max-width: 759px) {
+  .translate-compare-entry span {
+    display: none;
   }
 }

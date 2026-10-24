@@ -186,8 +186,3 @@
   color: var(--vzn-action-fg);
 }
 
-.settings-modal-surface {
-  inline-size: calc(100% - var(--vzn-space-8));
-  max-inline-size: var(--vzn-settings-modal-max-inline);
-  block-size: min(var(--vzn-modal-viewport-block), var(--vzn-settings-modal-max-block));
-}

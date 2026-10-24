@@ -512,6 +512,16 @@
   flex: 1 1 auto;
 }
 
+.entry-example-source,
+.entry-example-translation {
+  display: block;
+}
+
+.entry-example-translation {
+  margin-block-start: var(--vzn-space-0-5);
+  color: var(--vzn-text-muted);
+}
+
 .entry-phrase {
   display: inline-flex;
   padding: var(--vzn-space-1) var(--vzn-space-2);
@@ -869,4 +879,171 @@
 
 .accent-swatch.ui-button[data-selected="true"] {
   box-shadow: 0 0 0 var(--vzn-space-0-5) var(--vzn-picker-ring);
+}
+
+/* Section card ----------------------------------------------------------- */
+
+.ui-section-card {
+  display: flex;
+  min-inline-size: 0;
+  flex-direction: column;
+  gap: var(--vzn-space-3);
+  padding: var(--vzn-space-4);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-lg);
+  background: var(--vzn-surface);
+  box-shadow: var(--vzn-shadow-xs);
+}
+
+.ui-section-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--vzn-space-3);
+}
+
+.ui-section-card__heading {
+  min-inline-size: 0;
+}
+
+.ui-section-card__title {
+  margin: 0;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-md);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: var(--vzn-line-tight);
+}
+
+.ui-section-card__description {
+  margin: var(--vzn-space-0-5) 0 0;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-sm);
+  line-height: var(--vzn-line-normal);
+}
+
+.ui-section-card__header .ui-button {
+  margin-block: calc(var(--vzn-space-1) * -1);
+}
+
+/* Activity row ----------------------------------------------------------- */
+
+.ui-activity-row.ui-button {
+  --vzn-button-height: auto;
+  --vzn-button-min-height: var(--vzn-control-height-lg);
+  display: grid;
+  inline-size: 100%;
+  min-inline-size: 0;
+  grid-template-columns: auto minmax(var(--vzn-space-12), max-content) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--vzn-space-3);
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border-radius: var(--vzn-radius-md);
+  text-align: start;
+}
+
+.ui-activity-row__icon {
+  display: inline-flex;
+  color: var(--vzn-text-muted);
+}
+
+.ui-activity-row__icon svg {
+  inline-size: var(--vzn-icon-md);
+  block-size: var(--vzn-icon-md);
+}
+
+.ui-activity-row__kind {
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-medium);
+}
+
+.ui-activity-row__body {
+  display: flex;
+  min-inline-size: 0;
+  align-items: baseline;
+  gap: var(--vzn-space-1-5);
+}
+
+.ui-activity-row__title {
+  overflow: hidden;
+  min-inline-size: 0;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-md);
+  font-weight: var(--vzn-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-activity-row__meta,
+.ui-activity-row__time {
+  flex: 0 0 auto;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-sm);
+  white-space: nowrap;
+}
+
+.ui-activity-row__action {
+  padding: var(--vzn-space-0-5) var(--vzn-space-2);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-action-soft);
+  color: var(--vzn-action-text);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.ui-activity-row[data-pending="true"] .ui-activity-row__icon {
+  color: var(--vzn-action);
+}
+
+/* Shortcut list ---------------------------------------------------------- */
+
+.ui-shortcut-list {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  list-style: none;
+}
+
+.ui-shortcut-list__row {
+  display: flex;
+  min-block-size: var(--vzn-control-height-lg);
+  align-items: center;
+  gap: var(--vzn-space-3);
+  padding-block: var(--vzn-space-2);
+  border-top: var(--vzn-border-width) solid var(--vzn-divider);
+}
+
+.ui-shortcut-list__row:first-child {
+  border-top: 0;
+}
+
+.ui-shortcut-list__copy {
+  display: flex;
+  min-inline-size: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--vzn-space-0-5);
+}
+
+.ui-shortcut-list__label {
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-md);
+  font-weight: var(--vzn-weight-medium);
+}
+
+.ui-shortcut-list__scope,
+.ui-shortcut-list__unset {
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.ui-shortcut-list__keys {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: var(--vzn-space-1);
+}
+
+.ui-shortcut-list__row[data-inactive] .ui-shortcut-list__keys {
+  opacity: var(--vzn-opacity-disabled);
 }

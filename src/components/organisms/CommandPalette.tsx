@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { MAX_CHAT_INPUT_CHARS } from '../../constants/providers'
 import { type PaletteAnswerMode, usePaletteAiAnswer } from '../../hooks/usePaletteAiAnswer'
-import { enabledPageModules } from '../../modules/enabled'
+import { type CatalogPage, navigationPages } from '../../modules/catalog'
 import { hasWebSearchApi } from '../../services/searchResultFormatting'
 import { useAppStore, useT } from '../../store/useAppStore'
 import type { AppPage } from '../../types'
@@ -23,7 +23,6 @@ import {
   BookIcon,
   CalculatorIcon,
   CopyIcon,
-  GearIcon,
   GlobeIcon,
   SearchIcon,
   SparklesIcon,
@@ -110,32 +109,26 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     onClose()
   }, [onClose, setActivePage])
 
-  const commands = useMemo<PaletteItem[]>(() => [
-    ...enabledPageModules(enabledModules).map((module): PaletteItem => {
-      const Icon = module.icon
+  // Every page the primary navigation lists, in the same order: Home, each space, Settings.
+  const commands = useMemo<PaletteItem[]>(() => {
+    const pages = navigationPages(enabledModules)
+    const text = (key: CatalogPage['labelKey'], fallback: string) => {
+      const value = t[key]
+      return typeof value === 'string' ? value : fallback
+    }
+    return [pages.home, ...pages.groups.flatMap((group) => group.modules), pages.settings].map((page): PaletteItem => {
+      const Icon = page.icon
       return {
-        id: module.id,
+        id: page.id,
         kind: 'command',
-        label: t[module.labelKey],
-        description: t[module.descriptionKey],
+        label: text(page.labelKey, page.id),
+        description: text(page.descriptionKey, ''),
         icon: <Icon className="h-4 w-4" />,
-        action: () => navigate(module.id, module.navigateEffect === 'clearTranslation' ? clearTranslation : undefined),
-        keywords: [...module.keywords],
+        action: () => navigate(page.id, page.navigateEffect === 'clearTranslation' ? clearTranslation : undefined),
+        keywords: [...page.keywords],
       }
-    }),
-    {
-      id: 'settings',
-      kind: 'command',
-      label: t.nav_settings,
-      description: t.command_palette_settings_description,
-      icon: <GearIcon className="h-4 w-4" />,
-      action: () => {
-        onClose()
-        openSettings()
-      },
-      keywords: ['settings', 'preferences', 'api', 'key', 'config', 'hotkey', 'shortcut'],
-    },
-  ], [clearTranslation, enabledModules, navigate, onClose, openSettings, t])
+    })
+  }, [clearTranslation, enabledModules, navigate, t])
 
   const parsed = useMemo(() => parsePaletteQuery(query), [query])
   const isDefaultMode = parsed.mode === 'default'

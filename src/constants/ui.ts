@@ -62,3 +62,10 @@ export const LIVE_INPUT_LEVEL_POLL_MS = 100
 
 /** Distance (px) from the bottom within which a live transcript keeps following new text. */
 export const LIVE_FOLLOW_LATEST_THRESHOLD_PX = 48
+
+/**
+ * Fired on `window` after a global shortcut (Quick Translate, Launcher) is saved,
+ * so every view that lists shortcuts or background status re-reads them at once
+ * instead of waiting for the next window focus.
+ */
+export const SHORTCUTS_CHANGED_EVENT = 'viezan:shortcuts-changed'

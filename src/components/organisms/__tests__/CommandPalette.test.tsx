@@ -31,7 +31,6 @@ describe('CommandPalette', () => {
       useAppStore.setState({
         activePage: 'dictionary',
         locale: 'en',
-        settingsOpen: false,
         selectedProvider: 'local',
         selectedModels: { ...useAppStore.getState().selectedModels, local: 'local-auto' },
         chatSessions: [],
@@ -47,7 +46,7 @@ describe('CommandPalette', () => {
     act(() => useAppStore.setState({ enabledModules: { ...useAppStore.getState().enabledModules, live: false } }))
     render(<CommandPalette open onClose={vi.fn()} />)
     const dialog = screen.getByRole('dialog', { name: 'Command palette' })
-    expect(within(dialog).getAllByRole('option')).toHaveLength(5)
+    expect(within(dialog).getAllByRole('option').map((option) => option.getAttribute('data-command-id'))).not.toContain('live')
     expect(within(dialog).queryByRole('option', { name: /Interpret/ })).not.toBeInTheDocument()
     act(() => useAppStore.setState({ enabledModules: { ...useAppStore.getState().enabledModules, live: true } }))
   })
@@ -59,8 +58,10 @@ describe('CommandPalette', () => {
     const search = within(dialog).getByRole('combobox', { name: 'Search commands, calculate, or ask AI…' })
     await waitFor(() => expect(search).toHaveFocus())
 
-    // Translate, Chat, Interpret, Dictionary, Thermal and Settings: History is no longer a screen.
-    expect(within(dialog).getAllByRole('option')).toHaveLength(6)
+    // The same pages as the primary navigation, in its order: Home, each space, then Settings.
+    expect(within(dialog).getAllByRole('option').map((option) => option.getAttribute('data-command-id'))).toEqual(
+      ['home', 'chat', 'translate', 'live', 'dictionary', 'everywhere', 'thermal', 'utilities', 'settings'],
+    )
     expect(search).toHaveAttribute('aria-activedescendant')
 
     fireEvent.change(search, { target: { value: 'dictionary' } })
@@ -86,6 +87,7 @@ describe('CommandPalette', () => {
     expect(onClose).not.toHaveBeenCalled()
     expect(useAppStore.getState().activePage).toBe('dictionary')
 
+    fireEvent.keyDown(window, { key: 'ArrowDown' })
     fireEvent.keyDown(window, { key: 'ArrowDown' })
     expect(screen.getByRole('option', { name: /AI Translate/ })).toHaveAttribute(
       'aria-selected',

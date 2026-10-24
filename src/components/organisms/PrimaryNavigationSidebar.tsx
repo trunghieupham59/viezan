@@ -1,16 +1,14 @@
 import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useBackgroundStatus } from '../../hooks/useBackgroundStatus'
-import { type CatalogModule, groupModulesBySpace } from '../../modules/catalog'
-import { enabledPageModules } from '../../modules/enabled'
-import type { SettingsSectionTarget } from '../../store/slices/coreSlice'
+import { type CatalogPage, navigationPages } from '../../modules/catalog'
 import { useAppStore, useT } from '../../store/useAppStore'
 import type { AppPage } from '../../types'
 import { fanProfileName } from '../../utils/fanProfileText'
 import { tpl } from '../../utils/tpl'
 import { AppLogoIcon } from '../AppLogo'
 import { Button, StatusDot } from '../ui/atoms'
-import { GearIcon, SearchIcon, SidebarPanelIcon } from '../ui/icons'
+import { SearchIcon, SidebarPanelIcon } from '../ui/icons'
 
 interface PrimaryNavItemProps {
   icon: ReactNode
@@ -65,8 +63,6 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
     setActivePage,
     clearTranslation,
     keyStatus,
-    openSettings,
-    openSettingsAt,
     sidebarCollapsed,
     toggleSidebar,
     enabledModules,
@@ -112,22 +108,30 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
     closeResponsiveOverlay()
   }
 
-  const navigateToModule = (module: CatalogModule) =>
-    navigate(module.id, module.navigateEffect === 'clearTranslation' ? clearTranslation : undefined)
+  const navigateToPage = (page: CatalogPage) =>
+    navigate(page.id, page.navigateEffect === 'clearTranslation' ? clearTranslation : undefined)
 
   const openCommandPalette = () => {
     closeResponsiveOverlay()
     window.dispatchEvent(new CustomEvent('viezan:open-command-palette'))
   }
 
-  const handleOpenSettings = () => {
-    closeResponsiveOverlay()
-    openSettings()
-  }
 
-  const handleOpenSettingsAt = (section: SettingsSectionTarget) => {
-    closeResponsiveOverlay()
-    openSettingsAt(section)
+  const pages = navigationPages(enabledModules)
+  const renderPageItem = (page: CatalogPage, status?: { badge: boolean; badgeLabel: string }) => {
+    const Icon = page.icon
+    const label = t[page.labelKey]
+    return (
+      <PrimaryNavItem
+        key={page.id}
+        label={typeof label === 'string' ? label : page.id}
+        active={activePage === page.id}
+        badge={status?.badge}
+        badgeLabel={status?.badgeLabel}
+        onClick={() => navigateToPage(page)}
+        icon={<Icon className="h-[18px] w-[18px]" />}
+      />
+    )
   }
 
   // What runs while the window is away; each row goes to the place that controls it.
@@ -141,13 +145,13 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
       id: 'shortcuts',
       label: t.nav_background_hotkeys,
       detail: String(background.globalShortcuts),
-      onSelect: () => handleOpenSettingsAt('hotkeys'),
+      onSelect: () => navigate('utilities'),
     }] : []),
     ...(background.browserBridge ? [{
       id: 'browser',
       label: t.nav_background_browser,
       detail: t.nav_background_ready,
-      onSelect: () => handleOpenSettingsAt('browser'),
+      onSelect: () => navigate('everywhere'),
     }] : []),
   ]
 
@@ -260,21 +264,14 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
 
       <div className="app-sidebar-divider" />
 
-      {groupModulesBySpace(enabledPageModules(enabledModules)).map((group) => (
+      <div className="sidebar-nav-group">
+        {renderPageItem(pages.home)}
+      </div>
+
+      {pages.groups.map((group) => (
         <section key={group.space} className="sidebar-nav-group sidebar-space" aria-label={t[group.labelKey]} data-space={group.space}>
           <p className="sidebar-section-label sidebar-space-label" aria-hidden="true">{t[group.labelKey]}</p>
-          {group.modules.map((module) => {
-            const Icon = module.icon
-            return (
-              <PrimaryNavItem
-                key={module.id}
-                label={t[module.labelKey]}
-                active={activePage === module.id}
-                onClick={() => navigateToModule(module)}
-                icon={<Icon className="h-[18px] w-[18px]" />}
-              />
-            )
-          })}
+          {group.modules.map((page) => renderPageItem(page))}
         </section>
       ))}
 
@@ -299,13 +296,7 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
 
         <div className="app-sidebar-divider" />
 
-        <PrimaryNavItem
-          label={t.nav_settings}
-          badge={!hasAnyKey}
-          badgeLabel={t.model_no_key}
-          onClick={handleOpenSettings}
-          icon={<GearIcon className="h-[18px] w-[18px]" />}
-        />
+        {renderPageItem(pages.settings, { badge: !hasAnyKey, badgeLabel: t.model_no_key })}
       </div>
     </div>
   )

@@ -15,6 +15,62 @@ export interface Translations {
   nav_thermal: string
   nav_command_palette: string
   nav_primary_sidebar: string
+  /** System pages (always present, not modules). */
+  nav_home: string
+  settings_search_placeholder: string
+  settings_search_clear: string
+  settings_search_empty: string
+  nav_everywhere: string
+  nav_utilities: string
+  command_palette_home_description: string
+  command_palette_everywhere_description: string
+  command_palette_utilities_description: string
+  /** Home, Translate everywhere, Launcher & shortcuts pages. */
+  home_subtitle: string
+  home_new_chat: string
+  home_quick_start: string
+  home_resume_title: string
+  home_resume_description: string
+  home_resume_empty: string
+  home_resume_action: string
+  home_kind_chat: string
+  home_kind_research: string
+  home_kind_translate: string
+  home_kind_live: string
+  home_kind_dictionary: string
+  home_live_with_summary: string
+  home_live_untitled: string
+  home_open: string
+  home_edit: string
+  home_system_title: string
+  home_system_warm: string
+  home_system_hot: string
+  home_system_load: string
+  home_system_loading: string
+  home_system_unavailable: string
+  home_system_profile: string
+  home_system_profile_custom: string
+  home_ai_title: string
+  home_ai_ready: string
+  home_ai_missing_key: string
+  home_ai_local: string
+  home_ai_manage: string
+  home_shortcuts_title: string
+  everywhere_subtitle: string
+  utilities_subtitle: string
+  shortcuts_all_title: string
+  shortcuts_all_description: string
+  shortcut_launcher: string
+  shortcut_quick_translate: string
+  shortcut_command_palette: string
+  shortcut_new_chat: string
+  shortcut_send_message: string
+  shortcut_scope_global: string
+  shortcut_scope_window: string
+  shortcut_scope_composer: string
+  shortcut_conflict: string
+  shortcut_unset: string
+  shortcut_off: string
   /** Primary sidebar group headings. */
   nav_space_ai: string
   nav_space_language: string
@@ -187,6 +243,16 @@ export interface Translations {
   translate_swap_disabled_auto: string
   translate_swap_disabled_image: string
   translate_input_help: string
+  translate_input_mode_label: string
+  translate_input_mode_text: string
+  translate_input_mode_image: string
+  translate_input_mode_voice: string
+  translate_compare_models: string
+  translate_image_drop_title: string
+  translate_image_drop_hint: string
+  translate_image_choose: string
+  translate_image_change: string
+  translate_voice_hint: string
   translate_manual_shortcut: string
   translate_empty_auto_hint: string
   translate_empty_manual_hint: string
@@ -321,6 +387,8 @@ export interface Translations {
   dictionary_term_placeholder: string
   dictionary_context_label: string
   dictionary_context_placeholder: string
+  dictionary_context_optional: string
+  dictionary_lookup_region: string
   dictionary_source_lang: string
   dictionary_target_lang: string
   dictionary_lookup: string
@@ -337,6 +405,8 @@ export interface Translations {
   dictionary_translation_detail: string
   dictionary_translation_usage: string
   dictionary_translation_nuance: string
+  dictionary_meaning_in_context: string
+  dictionary_translation_nuance_of: string
   dictionary_translation_example: string
   dictionary_translation_collocations: string
   dictionary_translation_close: string
@@ -713,6 +783,16 @@ export interface Translations {
   live_status_stt: string
   live_panel_original: string
   live_panel_translation: string
+  live_panel_transcript: string
+  live_subtitles_floating: string
+  live_session_panel_title: string
+  live_session_summary_empty: string
+  live_session_open_summary: string
+  live_session_speakers: string
+  live_session_speakers_empty: string
+  live_session_speaker_lines: string
+  live_session_export: string
+  live_session_previous: string
   live_history_title: string
   live_history_toggle_show: string
   live_history_toggle_hide: string
@@ -818,6 +898,10 @@ export interface Translations {
   chat_web_source_hint: string
   chat_task_deep: string
   chat_task_none: string
+  chat_task_scope: string
+  chat_task_instruction: string
+  chat_task_apply: string
+  chat_task_discard: string
   chat_task_next_message: string
   chat_task_translate_placeholder: string
   chat_task_research_placeholder: string
@@ -842,7 +926,6 @@ export interface Translations {
   chat_task_needs_content: string
   chat_task_close: string
   chat_task_show: string
-  chat_task_apply: string
   chat_task_instructions: string
   chat_task_hint: string
   chat_task_translate_template: string
@@ -1047,7 +1130,6 @@ export interface Translations {
   /** `{sensors}` lists the top sensor names. */
   thermal_fan_source_affinity_desc: string
   thermal_fan_calibrate_confirm_title: string
-  thermal_fan_calibrate_confirm_body: string
   thermal_fan_calibrate_confirm_accept: string
   thermal_sensors_title: string
   /** `{count}` sensors folded into a row and `{avg}` their average reading. */
@@ -1089,7 +1171,15 @@ export interface Translations {
   thermal_fan_reason_disconnect: string
   thermal_fan_reason_client: string
   thermal_fan_disclaimer_title: string
-  thermal_fan_disclaimer_body: string
+  thermal_fan_disclaimer_intro: string
+  thermal_fan_disclaimer_point_range: string
+  thermal_fan_disclaimer_point_restore: string
+  thermal_fan_disclaimer_point_ceiling: string
+  thermal_fan_disclaimer_warning: string
+  thermal_fan_calibrate_confirm_intro: string
+  thermal_fan_calibrate_confirm_point_time: string
+  thermal_fan_calibrate_confirm_point_speed: string
+  thermal_fan_calibrate_confirm_point_setup: string
   thermal_fan_disclaimer_accept: string
   thermal_fan_disclaimer_cancel: string
   thermal_fan_error: string
@@ -1552,6 +1642,21 @@ export interface Translations {
   chat_research_aspects_suffix: string
   /** Accessible label for the research phase details popover trigger. */
   chat_research_show_details: string
+  chat_research_title: string
+  chat_research_step_of: string
+  chat_research_progress_label: string
+  chat_research_status_done: string
+  chat_research_status_active: string
+  chat_research_status_pending: string
+  chat_research_status_error: string
+  chat_research_stopped: string
+  chat_research_failed: string
+  chat_research_retry_step: string
+  chat_attachment_model_cannot_read: string
+  chat_attachment_model_may_not_read: string
+  chat_error_retry: string
+  chat_error_change_model: string
+  chat_edit_this_image: string
   /** Label on the "Resume Deep Research" button in ResearchStepsPanel
    *  shown when a stopped pipeline has a persisted resume snapshot. */
   chat_deep_research_resume: string

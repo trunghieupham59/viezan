@@ -6,20 +6,20 @@ import { HotkeyRecordButton } from '../../components/ui/HotkeyRecordButton'
 import { XIcon } from '../../components/ui/icons'
 import { CapabilityNotice, type CapabilityNoticeAction, SelectField } from '../../components/ui/molecules'
 import { TARGET_LANGUAGES } from '../../constants/providers'
-import { STATUS_RESET_DELAY_MS, STATUS_RESET_LONG_MS } from '../../constants/ui'
+import { SHORTCUTS_CHANGED_EVENT, STATUS_RESET_DELAY_MS, STATUS_RESET_LONG_MS } from '../../constants/ui'
 import { MACOS_KEYBOARD_SHORTCUTS_PREFS } from '../../constants/urls'
 import { useAppStore, useT } from '../../store/useAppStore'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import type { CapabilityStatus } from '../../types'
+import { DEFAULT_QUICK_TRANSLATE_SHORTCUT, defaultLauncherShortcut } from '../../utils/keyboardShortcuts'
 import { tpl } from '../../utils/tpl'
 
 /** Mirrors DEFAULT_TRANSLATE_HOTKEY in electron/ipc/globalHotkey.ts (Option+T on macOS). */
-const DEFAULT_HOTKEY = 'Alt+T'
 /** Toast owner keys: progress → done/error replace each other for one shortcut run. */
 const HOTKEY_ERROR_KEY = 'settings-hotkey-register'
 const HOTKEY_RUN_KEY = 'settings-hotkey-run'
 const CHAT_HOTKEY_ERROR_KEY = 'settings-chat-hotkey-register'
-const getDefaultChatHotkey = () => window.api?.platform === 'darwin' ? 'Command+Space' : 'Alt+Space'
+const getDefaultChatHotkey = () => defaultLauncherShortcut(window.api?.platform)
 /** Display form of a stored accelerator: the Alt key is labelled Option on Mac keyboards. */
 const displayAccelerator = (accelerator: string) =>
   window.api?.platform === 'darwin' ? accelerator.replace(/(^|\+)(Alt|Option)(?=\+|$)/g, '$1Option') : accelerator
@@ -35,7 +35,15 @@ const KEY_MAP: Record<string, string> = {
   F7: 'F7', F8: 'F8', F9: 'F9', F10: 'F10', F11: 'F11', F12: 'F12',
 }
 
-export function HotkeySection() {
+export interface HotkeySectionProps {
+  /**
+   * Which shortcut block to show: Quick Translate (on Translate everywhere) or the
+   * Launcher (on Launcher & shortcuts). Both share the recording and conflict logic.
+   */
+  part: 'quickTranslate' | 'launcher'
+}
+
+export function HotkeySection({ part }: HotkeySectionProps) {
   const selectedProvider = useAppStore((state) => state.selectedProvider)
   const selectedModels = useAppStore((state) => state.selectedModels)
   const targetLang = useAppStore((state) => state.targetLang)
@@ -71,11 +79,11 @@ export function HotkeySection() {
       if (res?.success && res.settings) {
         const s = res.settings
         setHotkeyEnabled(s.enabled === true)
-        setHotkeyValue(typeof s.hotkey === 'string' && s.hotkey ? s.hotkey : DEFAULT_HOTKEY)
+        setHotkeyValue(typeof s.hotkey === 'string' && s.hotkey ? s.hotkey : DEFAULT_QUICK_TRANSLATE_SHORTCUT)
         if (isTargetLanguage(s.targetLang)) setHotkeyTargetLang(s.targetLang)
         setHotkeySecondaryLang(isTargetLanguage(s.secondaryLang) ? s.secondaryLang : '')
       } else {
-        setHotkeyValue(DEFAULT_HOTKEY)
+        setHotkeyValue(DEFAULT_QUICK_TRANSLATE_SHORTCUT)
       }
       setSettingsLoaded(true)
     })
@@ -162,6 +170,7 @@ export function HotkeySection() {
     } else {
       dismissNotification(HOTKEY_ERROR_KEY)
     }
+    window.dispatchEvent(new Event(SHORTCUTS_CHANGED_EVENT))
   }, [hotkeyValue, hotkeyEnabled, hotkeyProvider, hotkeyModel, effectiveTargetLang, effectiveSecondaryLang, locale, notify, dismissNotification])
 
   // Convert a KeyboardEvent to an Electron accelerator string
@@ -346,6 +355,7 @@ export function HotkeySection() {
     } else {
       dismissNotification(CHAT_HOTKEY_ERROR_KEY)
     }
+    window.dispatchEvent(new Event(SHORTCUTS_CHANGED_EVENT))
   }, [chatHotkeyValue, chatHotkeyEnabled, t, notify, dismissNotification])
 
   const handleChatHotkeyKeyDown = (e: React.KeyboardEvent) => {
@@ -365,6 +375,8 @@ export function HotkeySection() {
 
   return (
     <section className="space-y-3">
+      {part === 'quickTranslate' && (
+        <>
       {/* ── Quick Translate Hotkey ── */}
       <div>
         <h2 className="settings-section-title">{t.settings_hotkey_section}</h2>
@@ -472,9 +484,12 @@ export function HotkeySection() {
         )}
 
       </div>
-
+        </>
+      )}
+      {part === 'launcher' && (
+        <>
       {/* ── AI Chat Hotkey ── */}
-      <div className="mt-6">
+      <div>
         <h2 className="settings-section-title">{t.settings_chat_hotkey_section}</h2>
         <p className="settings-section-desc mt-1">{t.settings_chat_hotkey_section_desc}</p>
       </div>
@@ -593,6 +608,8 @@ export function HotkeySection() {
         )}
 
       </div>
+        </>
+      )}
     </section>
   )
 }

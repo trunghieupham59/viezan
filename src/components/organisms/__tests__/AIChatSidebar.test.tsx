@@ -4,6 +4,24 @@ import { useAppStore } from '../../../store/useAppStore'
 import type { ChatSession } from '../../../types'
 import { AIChatSidebar } from '../AIChatSidebar'
 
+/** The page shell's composition (App puts the parts in PageHeader): header parts, then the history sidebar. */
+function ChatShell() {
+  return (
+    <AIChatSidebar>
+      {({ sidebar, header }) => (
+        <>
+          <header ref={header.ref} className="ai-chat-workspace-header">
+            {header.start}
+            <h1>{header.title}</h1>
+            {header.actions}
+          </header>
+          {sidebar}
+        </>
+      )}
+    </AIChatSidebar>
+  )
+}
+
 const sessions: ChatSession[] = [
   {
     id: 'older-chat',
@@ -37,7 +55,7 @@ describe('AIChatSidebar', () => {
     window.api = { ...originalApi, platform }
     try {
       act(() => useAppStore.setState({ chatNewSessionShortcut: shortcut }))
-      render(<AIChatSidebar />)
+      render(<ChatShell />)
       const button = screen.getByRole('button', { name: 'New Chat' })
       expect(button).toHaveAttribute('title', label ? `New Chat (${label})` : 'New Chat')
       if (label) expect(button.querySelector('kbd')).toHaveTextContent(label)
@@ -72,7 +90,7 @@ describe('AIChatSidebar', () => {
   })
 
   it('is a separate contextual landmark and sorts newest conversations first', () => {
-    render(<AIChatSidebar />)
+    render(<ChatShell />)
 
     const sidebar = document.querySelector('.ai-chat-sidebar')
     const newest = screen.getByRole('button', { name: /^Newest conversation,/ })
@@ -87,7 +105,7 @@ describe('AIChatSidebar', () => {
   })
 
   it('restores the selected conversation provider and model', () => {
-    render(<AIChatSidebar />)
+    render(<ChatShell />)
 
     fireEvent.click(screen.getByRole('button', { name: /^Newest conversation,/ }))
 
@@ -98,7 +116,7 @@ describe('AIChatSidebar', () => {
   })
 
   it('starts a blank chat without deleting history and deletes independently', () => {
-    render(<AIChatSidebar />)
+    render(<ChatShell />)
 
     const newChatButton = screen.getByRole('button', { name: 'New Chat' })
     expect(newChatButton).toHaveAttribute('data-control-variant', 'primary')
@@ -114,7 +132,7 @@ describe('AIChatSidebar', () => {
   })
 
   it('filters conversations and persists its collapse independently of primary navigation', () => {
-    const { unmount } = render(<AIChatSidebar />)
+    const { unmount } = render(<ChatShell />)
     const sidebar = document.querySelector('.ai-chat-sidebar')
 
     fireEvent.change(screen.getByRole('searchbox', { name: 'Search conversations…' }), {
@@ -130,13 +148,13 @@ describe('AIChatSidebar', () => {
     expect(screen.getByRole('button', { name: 'Show conversation history' })).toBeInTheDocument()
 
     unmount()
-    render(<AIChatSidebar />)
+    render(<ChatShell />)
     expect(document.querySelector('.ai-chat-sidebar')).toHaveAttribute('hidden')
   })
 
   it('keeps history and New Chat in the header while the entire sidebar is hidden', () => {
     act(() => useAppStore.setState({ aiChatSidebarCollapsed: true, sidebarCollapsed: false }))
-    render(<AIChatSidebar />)
+    render(<ChatShell />)
     const toggle = screen.getByRole('button', { name: 'Show conversation history' })
     const newChat = screen.getByRole('button', { name: 'New Chat' })
     expect(toggle.closest('header')).toContainElement(newChat)
@@ -163,7 +181,7 @@ describe('AIChatSidebar', () => {
   it('opens compact history without changing either stored preference and restores focus on Escape', async () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 800 })
     act(() => useAppStore.setState({ aiChatSidebarCollapsed: true, sidebarCollapsed: true }))
-    render(<AIChatSidebar />)
+    render(<ChatShell />)
     const toggle = screen.getByRole('button', { name: 'Show conversation history' })
     fireEvent.click(toggle)
     expect(screen.getByRole('searchbox')).toHaveFocus()
@@ -192,7 +210,7 @@ describe('AIChatSidebar', () => {
 
   it('auto-compacts into a temporary overlay without overwriting the user preference', async () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 800 })
-    render(<AIChatSidebar />)
+    render(<ChatShell />)
 
     const sidebar = document.querySelector('.ai-chat-sidebar')
     expect(sidebar).toHaveAttribute('data-responsive-compact', 'true')
@@ -215,7 +233,7 @@ describe('AIChatSidebar', () => {
 
   it('respects its stored expansion at medium widths', () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1200 })
-    render(<AIChatSidebar />)
+    render(<ChatShell />)
 
     const sidebar = document.querySelector('.ai-chat-sidebar')
     expect(sidebar).toHaveAttribute('data-responsive-compact', 'false')

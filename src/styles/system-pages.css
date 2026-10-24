@@ -1,0 +1,22 @@
+/* Translate everywhere, Launcher & shortcuts: one readable column of sections that scrolls under the header. */
+
+.system-page-body {
+  flex: 1 1 0%;
+  min-block-size: 0;
+  overflow: auto;
+  padding: var(--vzn-space-6) var(--vzn-space-4);
+}
+
+.system-page-stack {
+  display: flex;
+  max-inline-size: var(--vzn-content-max);
+  margin-inline: auto;
+  flex-direction: column;
+  gap: var(--vzn-space-8);
+}
+
+@container app-main (max-width: 559px) {
+  .system-page-body {
+    padding: var(--vzn-space-4) var(--vzn-space-3);
+  }
+}

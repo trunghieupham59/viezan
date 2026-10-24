@@ -9,14 +9,32 @@ import { AIConfigurationPopover } from '../AIConfigurationPopover'
 
 export interface ChatAIConfigurationProps {
   conversationId: string | null
-  onSelectionChange: (provider: Provider, model: string) => void
+  /** Defaults to binding the choice to `conversationId` (see below). */
+  onSelectionChange?: (provider: Provider, model: string) => void
+  /** Where the popover opens: below the page header, above the composer. */
+  placement?: 'above' | 'below'
 }
 
+/**
+ * The AI Chat model chip and its popover. The choice belongs to the
+ * conversation that was active when the popover opened: model lists load
+ * asynchronously, so a late answer must never rewrite a conversation the user
+ * has switched to in the meantime.
+ */
 export function ChatAIConfiguration({
   conversationId,
   onSelectionChange,
+  placement = 'below',
 }: ChatAIConfigurationProps) {
   const t = useT()
+  const setChatSessionModel = useAppStore((state) => state.setChatSessionModel)
+  const bindToConversation = useCallback((provider: Provider, model: string) => {
+    if (!conversationId) return
+    const state = useAppStore.getState()
+    if (state.activeChatSessionId !== conversationId || state.selectedProvider !== provider) return
+    setChatSessionModel(conversationId, provider, model)
+  }, [conversationId, setChatSessionModel])
+  const applySelection = onSelectionChange ?? bindToConversation
   const selectedProvider = useAppStore((state) => state.selectedProvider)
   const selectedModel = useAppStore((state) => state.selectedModels[state.selectedProvider])
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -49,7 +67,7 @@ export function ChatAIConfiguration({
           : t.ai_configuration_new_chat_scope}
         closeLabel={t.settings_close}
         triggerRef={triggerRef}
-        placement="above"
+        placement={placement}
         onClose={close}
       >
         <ConfigSection title={t.ai_configuration_models_section}>
@@ -60,7 +78,7 @@ export function ChatAIConfiguration({
               directModelList
               selectionContextKey={conversationId}
               onSelectionChange={(provider, model) => {
-                onSelectionChange(provider, model)
+                applySelection(provider, model)
                 close()
               }}
             />

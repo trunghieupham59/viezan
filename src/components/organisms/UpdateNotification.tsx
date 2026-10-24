@@ -46,7 +46,7 @@ export function UpdateNotification({ blocked = false }: { blocked?: boolean }) {
     const open = async () => {
       try {
         if (await api?.consumeOpenSettings?.()) {
-          useAppStore.setState({ settingsOpen: true, settingsInitialSection: 'updates' })
+          useAppStore.getState().openSettingsAt('updates')
         }
       } catch { /* A later notification can retry when main is available. */ }
     }

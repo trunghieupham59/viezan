@@ -94,9 +94,10 @@ describe('AI Interpret screen', () => {
     expect(screen.getByRole('button', { name: t.live_stop })).toBeEnabled()
   })
 
-  it('toggles floating subtitles from the translation panel', () => {
+  it('toggles floating subtitles from the page header', () => {
     render(<LiveTranslatePage />)
-    fireEvent.click(screen.getByRole('button', { name: t.live_subtitles, pressed: false }))
+    const header = screen.getByRole('banner')
+    fireEvent.click(within(header).getByRole('button', { name: t.live_subtitles_floating, pressed: false }))
     expect(live.state.setShowSubtitles).toHaveBeenCalledWith(true)
   })
 
@@ -181,7 +182,9 @@ describe('AI Interpret screen', () => {
 
     live.state = liveState({ rawTranscript: 'Hello', translation: 'Xin chào' })
     render(<LiveTranslatePage />)
-    expect(screen.getByRole('button', { name: /TXT/ })).toBeEnabled()
+    // The transcript footer and "This session" both export; CSS shows one per width.
+    for (const button of screen.getAllByRole('button', { name: /TXT/ })) expect(button).toBeEnabled()
+    expect(screen.getByRole('complementary', { name: t.live_session_panel_title })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: t.live_copy_original })).toBeEnabled()
     expect(screen.getByRole('button', { name: t.live_copy_translation })).toBeEnabled()
   })

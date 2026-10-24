@@ -4,6 +4,7 @@ export { PROVIDER_COLORS, ProviderIcon } from '../../ProviderIcon'
 export { ButtonGroup } from '../ButtonGroup'
 export { CredentialCard } from '../CredentialCard'
 export { type AccentOption, AccentPicker, type AccentPickerProps } from './AccentPicker'
+export { ActivityRow, type ActivityRowProps } from './ActivityRow'
 export { AIModelField, type AIModelFieldProps } from './AIModelField'
 export {
   CapabilityNotice,
@@ -58,12 +59,14 @@ export {
   type RecoverableErrorAction,
   type RecoverableErrorProps,
 } from './RecoverableError'
+export { SectionCard, type SectionCardProps } from './SectionCard'
 export { SelectedModelChip, type SelectedModelChipProps } from './SelectedModelChip'
 export {
   SelectField,
   type SelectFieldOption,
   type SelectFieldProps,
 } from './SelectField'
+export { ShortcutList, type ShortcutListItem, type ShortcutListProps } from './ShortcutList'
 export { SliderField, type SliderFieldProps, snapToRange } from './SliderField'
 export { StatusChip, type StatusChipProps } from './StatusChip'
 export { TabBar, type TabBarProps, type TabBarTab } from './TabBar'

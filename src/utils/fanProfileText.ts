@@ -1,5 +1,6 @@
-import type { FanProfile } from '../../shared/thermalApi'
+import type { FanProfile, ThermalFan } from '../../shared/thermalApi'
 import type { Translations } from '../i18n'
+import { tpl } from './tpl'
 
 /** Built-in profile ids → their localized name / description keys. */
 const BUILTIN_PROFILE_KEYS: Record<string, { name: keyof Translations; desc: keyof Translations }> = {
@@ -23,4 +24,10 @@ export function fanProfileName(t: Translations, profile: Pick<FanProfile, 'id' |
 /** A built-in profile's localized description; user profiles have none. */
 export function fanProfileDescription(t: Translations, profile: Pick<FanProfile, 'id'>): string | undefined {
   return localized(t, BUILTIN_PROFILE_KEYS[profile.id]?.desc)
+}
+
+/** A fan's display name: what the machine says it is (left / right / CPU), else its driver name, else its number. */
+export function fanDisplayName(t: Translations, fan: Pick<ThermalFan, 'index' | 'name' | 'label'>): string {
+  const localizedLabel = fan.label ? localized(t, `thermal_fan_label_${fan.label}` as keyof Translations) : undefined
+  return localizedLabel ?? fan.name ?? tpl(t.thermal_fan_name, { n: fan.index + 1 })
 }

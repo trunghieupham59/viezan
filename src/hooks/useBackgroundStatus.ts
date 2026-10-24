@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ModuleEnabledState } from '../../shared/modules'
 import type { FanProfile } from '../../shared/thermalApi'
+import { SHORTCUTS_CHANGED_EVENT } from '../constants/ui'
 import { useFanControl } from './useFanControl'
 import { useFanProfiles } from './useFanProfiles'
 
@@ -26,7 +27,7 @@ function shortcutOn(settings: Record<string, unknown> | undefined): boolean {
 /**
  * Collects the background status from the APIs the feature pages already use.
  * Read-only calls with no side effects, re-read when the window regains focus
- * rather than polled.
+ * or a shortcut is saved, rather than polled.
  *
  * Local AI is deliberately absent: `discoverLocalAi` may start the app-managed
  * Ollama runtime, so it must not run just to paint a status row. It joins once
@@ -61,7 +62,11 @@ export function useBackgroundStatus(enabledModules: ModuleEnabledState): Backgro
   useEffect(() => {
     void refresh()
     window.addEventListener('focus', refresh)
-    return () => window.removeEventListener('focus', refresh)
+    window.addEventListener(SHORTCUTS_CHANGED_EVENT, refresh)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener(SHORTCUTS_CHANGED_EVENT, refresh)
+    }
   }, [refresh])
 
   const thermalOn = enabledModules.thermal !== false

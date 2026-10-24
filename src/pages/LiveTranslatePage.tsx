@@ -4,7 +4,7 @@ import { BilingualSegmentRow } from '../components/live/BilingualSegmentRow'
 import { SegmentRow } from '../components/live/SegmentRow'
 import { TranslationRow } from '../components/live/TranslationRow'
 import { MarkdownText } from '../components/MarkdownText'
-import { AIModelPickerField, InterpretAIConfiguration, InterpretSubtitleConfiguration, LanguagePairBar, LiveSessionHistoryPanel, LiveSessionStatus } from '../components/organisms'
+import { AIModelPickerField, InterpretAIConfiguration, InterpretSubtitleConfiguration, LanguagePairBar, LiveSessionHistoryPanel, LiveSessionPanel, LiveSessionStatus } from '../components/organisms'
 import { PageHeader } from '../components/templates'
 import { Button } from '../components/ui/atoms'
 import { 
@@ -22,8 +22,7 @@ import {
   StopIcon,
   SubtitlesIcon,
   TranslateIcon,
-  TrashIcon,
-  XIcon,} from '../components/ui/icons'
+  TrashIcon,} from '../components/ui/icons'
 import { DialogShell, EmptyPanelState, HistoryTrigger } from '../components/ui/molecules'
 import { COPY_FEEDBACK_DURATION_MS, DEFAULT_SEGMENT_DURATION_MS, MIN_SEGMENT_DURATION_MS } from '../constants/ui'
 import { MACOS_SCREEN_RECORDING_PREFS } from '../constants/urls'
@@ -231,15 +230,15 @@ export function LiveTranslatePage() {
   // have focus; in practice the user's focus stays on the trigger button, so
   // Escape would do nothing without this document listener.
   useEffect(() => {
-    if (!showSummaryPopup && !showScreenPermModal) return
+    // The summary dialog (DialogShell) handles its own Escape.
+    if (!showScreenPermModal) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      if (showSummaryPopup) setShowSummaryPopup(false)
-      if (showScreenPermModal) setShowScreenPermModal(false)
+      setShowScreenPermModal(false)
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [showSummaryPopup, showScreenPermModal])
+  }, [showScreenPermModal])
 
   const handleCopy = async (text: string, setFlag: (v: boolean) => void) => {
     if (!text) return
@@ -334,8 +333,8 @@ export function LiveTranslatePage() {
       {audioModes.map(({ mode, label, title, icon }) => (
         <Button
           key={mode}
-          size="sm"
-          shape="pill"
+          size="md"
+          shape="rect"
           variant={audioMode === mode ? 'primary' : 'neutral'}
           appearance={audioMode === mode ? 'soft' : 'ghost'}
           aria-pressed={audioMode === mode}
@@ -391,16 +390,16 @@ export function LiveTranslatePage() {
 
   const subtitleToggle = (
     <Button
-      size="sm"
-      shape="pill"
+      size="md"
+      shape="rect"
       variant={showSubtitles ? 'primary' : 'neutral'}
-      appearance={showSubtitles ? 'soft' : 'ghost'}
+      appearance={showSubtitles ? 'soft' : 'outline'}
       aria-pressed={showSubtitles}
       onClick={() => setShowSubtitles(!showSubtitles)}
       title={showSubtitles ? t.live_subtitles_hide_title : t.live_subtitles_show_title}
     >
       <SubtitlesIcon />
-      <span>{t.live_subtitles}</span>
+      <span>{t.live_subtitles_floating}</span>
     </Button>
   )
 
@@ -440,6 +439,49 @@ export function LiveTranslatePage() {
       )}
     </>
   )
+
+  // "This session": shown once there is something to summarise, export or name.
+  const sessionSpeakers = (() => {
+    const lines = new Map<string, number>()
+    for (const segment of segments) {
+      if (segment.speaker) lines.set(segment.speaker, (lines.get(segment.speaker) ?? 0) + 1)
+    }
+    return [...lines].map(([id, count]) => ({ id, name: speakerNameMap[id] || id, lines: count }))
+  })()
+  const SUMMARY_EXCERPT_CHARS = 220
+  const summaryExcerpt = summary
+    ? (summary.replace(/^[\s#>*-]+/gm, '').replace(/[*_`]/g, '').replace(/\s+/g, ' ').trim().slice(0, SUMMARY_EXCERPT_CHARS) + (summary.length > SUMMARY_EXCERPT_CHARS ? '…' : ''))
+    : null
+  const sessionPanel = (hasTranscript || segments.length > 0 || summary) ? (
+    <LiveSessionPanel
+      labels={{
+        title: t.live_session_panel_title,
+        summary: t.live_post_tab_summary,
+        summaryEmpty: t.live_session_summary_empty,
+        summarize: t.live_summarize,
+        openSummary: t.live_session_open_summary,
+        summarizing: t.live_summarizing,
+        speakers: t.live_session_speakers,
+        speakersEmpty: t.live_session_speakers_empty,
+        speakerLines: (count) => tpl(t.live_session_speaker_lines, { n: count }),
+        export: t.live_session_export,
+        exportTxt: t.live_export_txt,
+        exportSrt: t.live_export_srt,
+        previousSessions: (count) => tpl(t.live_session_previous, { n: count }),
+      }}
+      summaryExcerpt={summaryExcerpt}
+      isSummarizing={isSummarizing}
+      canSummarize={showSummaryBtn || Boolean(summary)}
+      speakers={sessionSpeakers}
+      canExportTxt={Boolean(rawTranscript)}
+      canExportSrt={segments.length > 0}
+      previousCount={liveSessions.length}
+      onOpenSummary={handleOpenSummaryPopup}
+      onExportTxt={handleExportTxt}
+      onExportSrt={handleExportSrt}
+      onOpenPrevious={() => setShowHistory(true)}
+    />
+  ) : null
 
   const startEmptyState = (
     <EmptyPanelState
@@ -483,6 +525,7 @@ export function LiveTranslatePage() {
         disabled={!rawTranscript}
         onClick={handleExportTxt}
         title={t.live_export_txt}
+        className="live-footer-export"
       >
         <DownloadIcon />
         TXT
@@ -495,6 +538,7 @@ export function LiveTranslatePage() {
         disabled={!segments.length}
         onClick={handleExportSrt}
         title={t.live_export_srt}
+        className="live-footer-export"
       >
         <DownloadIcon />
         SRT
@@ -552,13 +596,18 @@ export function LiveTranslatePage() {
             title={t.nav_live_translate}
             titleHidden
             leading={(
-              <LanguagePairBar
-                scope="live"
-                lockedReason={isActive ? t.language_pairs_locked_short : t.language_pairs_locked}
-              />
+              <div className="live-header-leading">
+                <LanguagePairBar
+                  scope="live"
+                  lockedReason={isActive ? t.language_pairs_locked_short : t.language_pairs_locked}
+                />
+                {/* Locked while a session runs. */}
+                {audioSourceGroup}
+              </div>
             )}
             actions={(
               <>
+                {sessionStatus}
                 <HistoryTrigger
                   label={t.history_trigger_label}
                   count={liveSessions.length}
@@ -594,12 +643,14 @@ export function LiveTranslatePage() {
                   )}
                 />
 
-                {/* ▶ Bắt Đầu / ■ Dừng — the row's single solid action */}
+                {subtitleToggle}
+
+                {/* ▶ Bắt Đầu / ■ Dừng — the row's single strong action */}
                 <Button
                   size="md"
                   shape="rect"
                   variant={isActive ? 'danger' : 'primary'}
-                  appearance="solid"
+                  appearance={isActive ? 'outline' : 'solid'}
                   type="button"
                   onClick={isActive ? handleStop : startSession}
                   disabled={Boolean(startBlockedReason)}
@@ -621,19 +672,16 @@ export function LiveTranslatePage() {
           {/* ── End controls ── */}
 
           {/* ── Body: panels (notices live in the app toast stack) ── */}
-          <div className="live-panels-body" data-view-mode={viewMode}>
+          <div className="live-panels-body" data-view-mode={viewMode} data-session-panel={sessionPanel ? 'true' : undefined}>
           {/* ── Panels: side-by-side (Nguyên Bản | Bản Dịch) or paired by sentence ── */}
           {viewMode === 'paired' ? (
             <div className="glass-panel live-paired-panel">
               <div className="live-panel-toolbar">
                 <div className="live-toolbar-start">
-                  <span className="live-control-label">{t.live_audio_source_label}</span>
-                  {audioSourceGroup}{sessionStatus}
+                  <h2 className="live-panel-title">{t.live_panel_transcript}</h2>
+                  {sttBadge}
                 </div>
-                <div className="live-toolbar-end">
-                  <span className="live-control-label">{t.live_view_mode_label}</span>
-                  {viewToggle}<span className="live-subtitle-control">{subtitleToggle}</span>{sttBadge}
-                </div>
+                <div className="live-toolbar-end">{viewToggle}</div>
               </div>
               <div className="live-scroll-region">
                 <div ref={pairedFollow.scrollRef} onScroll={pairedFollow.onScroll} className="live-scroll-viewport">
@@ -681,13 +729,10 @@ export function LiveTranslatePage() {
 
             {/* Left: Nguyên Bản */}
             <div className="glass-panel h-full flex flex-col">
-              {/* Audio source stays visible; it is locked while a session runs. */}
               <div className="live-panel-toolbar">
                 <div className="live-toolbar-start">
                   <h2 className="live-panel-title">{t.live_panel_original}</h2>
-                  {audioSourceGroup}
                 </div>
-                {sessionStatus}
               </div>
               <div className="live-scroll-region">
                 <div ref={rawFollow.scrollRef} onScroll={rawFollow.onScroll} className="live-scroll-viewport">
@@ -724,13 +769,13 @@ export function LiveTranslatePage() {
 
             {/* Right: Bản Dịch */}
             <div className="glass-panel h-full flex flex-col">
-              {/* STT provider badge (only when active), layout + floating subtitle toggles */}
+              {/* STT provider badge (only when active) and the layout toggle */}
               <div className="live-panel-toolbar">
                 <div className="live-toolbar-start">
                   <h2 className="live-panel-title">{t.live_panel_translation}</h2>
                   {sttBadge}
                 </div>
-                <div className="live-toolbar-end">{viewToggle}{subtitleToggle}</div>
+                <div className="live-toolbar-end">{viewToggle}</div>
               </div>
               <div className="live-scroll-region">
                 <div ref={txFollow.scrollRef} onScroll={txFollow.onScroll} className="live-scroll-viewport">
@@ -778,6 +823,7 @@ export function LiveTranslatePage() {
           </div>
           )}
           {/* ── End two panels ── */}
+          {sessionPanel}
 
           </div>
           {/* ── End body ── */}
@@ -786,105 +832,16 @@ export function LiveTranslatePage() {
       </div>
       {/* ── End main area ── */}
 
-      {/* ── Summary popup ── */}
+      {/* ── Summary, action items and decisions after a session ── */}
       {showSummaryPopup && (
-        // biome-ignore lint/a11y/noStaticElementInteractions: backdrop div — keyboard Escape handled by onKeyDown
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-          onClick={() => setShowSummaryPopup(false)}
-          onKeyDown={(e) => e.key === 'Escape' && setShowSummaryPopup(false)}
-        >
-          <div
-            className="modal-surface relative w-full max-w-2xl flex flex-col overflow-hidden"
-            role="dialog"
-            aria-modal="true"
-            style={{ maxHeight: '80vh' }}
-            onClick={e => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-          >
-            {/* Popup header */}
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <LightbulbIcon className="w-4 h-4 text-gray-500" />
-                <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{t.live_summary_title}</h2>
-              </div>
-              <Button
-                size="sm"
-                shape="icon"
-                variant="neutral"
-                appearance="ghost"
-                type="button"
-                onClick={() => setShowSummaryPopup(false)}
-              >
-                <XIcon className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex items-center gap-1 px-5 pt-3 pb-1 flex-shrink-0">
-              {(['summary', 'actions', 'decisions'] as PostTab[]).map(tab => (
-                <Button
-                  size="md"
-                  shape="rect"
-                  variant={postTab === tab ? 'primary' : 'neutral'}
-                  appearance={postTab === tab ? 'soft' : 'ghost'}
-                  key={tab}
-                  type="button"
-                  onClick={() => setPostTab(tab)}
-                  className="whitespace-nowrap"
-                >
-                  {tab === 'summary' ? t.live_post_tab_summary : tab === 'actions' ? t.live_post_tab_actions : t.live_post_tab_decisions}
-                </Button>
-              ))}
-            </div>
-
-            {/* Tab content */}
-            <div className="flex-1 overflow-y-auto px-5 py-3 min-h-0">
-              {/* ── Tóm tắt ── */}
-              {postTab === 'summary' && (
-                isSummarizing ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-10 text-gray-400 dark:text-gray-600">
-                    <SpinnerIcon className="w-6 h-6 animate-spin" />
-                    <span className="text-sm">{t.live_summarizing}</span>
-                  </div>
-                ) : summary ? (
-                  <MarkdownText text={summary} className="text-gray-800 dark:text-gray-200" />
-                ) : (
-                  <p className="text-sm text-gray-400 dark:text-gray-600 italic py-4 text-center">{t.live_empty_desc}</p>
-                )
-              )}
-
-              {/* ── Việc cần làm ── */}
-              {postTab === 'actions' && (
-                isExtractingActionItems ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-10 text-gray-400 dark:text-gray-600">
-                    <SpinnerIcon className="w-6 h-6 animate-spin" />
-                    <span className="text-sm">{t.live_extracting_action_items}</span>
-                  </div>
-                ) : actionItems ? (
-                  <MarkdownText text={actionItems} className="text-gray-800 dark:text-gray-200" />
-                ) : (
-                  <p className="text-sm text-gray-400 dark:text-gray-600 italic py-4 text-center">{t.live_empty_desc}</p>
-                )
-              )}
-
-              {/* ── Quyết định ── */}
-              {postTab === 'decisions' && (
-                isExtractingDecisions ? (
-                  <div className="flex flex-col items-center justify-center gap-3 py-10 text-gray-400 dark:text-gray-600">
-                    <SpinnerIcon className="w-6 h-6 animate-spin" />
-                    <span className="text-sm">{t.live_extracting_decisions}</span>
-                  </div>
-                ) : decisions ? (
-                  <MarkdownText text={decisions} className="text-gray-800 dark:text-gray-200" />
-                ) : (
-                  <p className="text-sm text-gray-400 dark:text-gray-600 italic py-4 text-center">{t.live_empty_desc}</p>
-                )
-              )}
-            </div>
-
-            {/* Popup footer — action buttons */}
-            <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 gap-2">
+        <DialogShell
+          size="lg"
+          label={t.live_summary_title}
+          title={t.live_summary_title}
+          closeLabel={t.settings_close}
+          onClose={() => setShowSummaryPopup(false)}
+          footer={(
+            <div className="live-summary-footer">
               {/* Copy active tab content */}
               {postTab === 'summary' && summary && !isSummarizing && (
                 <Button
@@ -975,8 +932,72 @@ export function LiveTranslatePage() {
                 )}
               </div>
             </div>
-          </div>
-        </div>
+          )}
+        >
+            {/* Tabs */}
+            <div className="flex items-center gap-1 px-5 pt-3 pb-1 flex-shrink-0">
+              {(['summary', 'actions', 'decisions'] as PostTab[]).map(tab => (
+                <Button
+                  size="md"
+                  shape="rect"
+                  variant={postTab === tab ? 'primary' : 'neutral'}
+                  appearance={postTab === tab ? 'soft' : 'ghost'}
+                  key={tab}
+                  type="button"
+                  onClick={() => setPostTab(tab)}
+                  className="whitespace-nowrap"
+                >
+                  {tab === 'summary' ? t.live_post_tab_summary : tab === 'actions' ? t.live_post_tab_actions : t.live_post_tab_decisions}
+                </Button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            <div className="flex-1 overflow-y-auto px-5 py-3 min-h-0">
+              {/* ── Tóm tắt ── */}
+              {postTab === 'summary' && (
+                isSummarizing ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-10 text-gray-400 dark:text-gray-600">
+                    <SpinnerIcon className="w-6 h-6 animate-spin" />
+                    <span className="text-sm">{t.live_summarizing}</span>
+                  </div>
+                ) : summary ? (
+                  <MarkdownText text={summary} className="text-gray-800 dark:text-gray-200" />
+                ) : (
+                  <p className="text-sm text-gray-400 dark:text-gray-600 italic py-4 text-center">{t.live_empty_desc}</p>
+                )
+              )}
+
+              {/* ── Việc cần làm ── */}
+              {postTab === 'actions' && (
+                isExtractingActionItems ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-10 text-gray-400 dark:text-gray-600">
+                    <SpinnerIcon className="w-6 h-6 animate-spin" />
+                    <span className="text-sm">{t.live_extracting_action_items}</span>
+                  </div>
+                ) : actionItems ? (
+                  <MarkdownText text={actionItems} className="text-gray-800 dark:text-gray-200" />
+                ) : (
+                  <p className="text-sm text-gray-400 dark:text-gray-600 italic py-4 text-center">{t.live_empty_desc}</p>
+                )
+              )}
+
+              {/* ── Quyết định ── */}
+              {postTab === 'decisions' && (
+                isExtractingDecisions ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-10 text-gray-400 dark:text-gray-600">
+                    <SpinnerIcon className="w-6 h-6 animate-spin" />
+                    <span className="text-sm">{t.live_extracting_decisions}</span>
+                  </div>
+                ) : decisions ? (
+                  <MarkdownText text={decisions} className="text-gray-800 dark:text-gray-200" />
+                ) : (
+                  <p className="text-sm text-gray-400 dark:text-gray-600 italic py-4 text-center">{t.live_empty_desc}</p>
+                )
+              )}
+            </div>
+
+        </DialogShell>
       )}
 
       {/* Screen Recording permission modal */}

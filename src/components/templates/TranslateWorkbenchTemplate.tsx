@@ -17,7 +17,8 @@ export interface TranslateWorkbenchTemplateProps {
  *
  * The page owns data and behavior; this template only establishes the shared
  * workbench geometry so source and result remain one coherent task surface.
- * Language selection lives in the header's command row, not in the workbench.
+ * The page header (title, language pair, input mode, history, options) sits
+ * full width above the workbench; language selection never lives inside it.
  */
 export function TranslateWorkbenchTemplate({
   titleId,
@@ -30,8 +31,8 @@ export function TranslateWorkbenchTemplate({
 }: TranslateWorkbenchTemplateProps) {
   return (
     <div ref={containerRef} className="app-page translate-page">
+      {header}
       <div className="translate-workspace">
-        {header}
         <div className="translate-stage" data-history={history ? 'open' : 'closed'}>
           <section
             className={`translate-workbench translate-workbench-${layout}`}

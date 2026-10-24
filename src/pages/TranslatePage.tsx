@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   LanguagePairBar,
   TranslationComparisonPane,
-  TranslationControlsHeader,
   TranslationHistoryPanel,
+  TranslationOptions,
   TranslationResultPane,
   TranslationSourcePane,
 } from '../components/organisms'
-import { TranslateWorkbenchTemplate } from '../components/templates'
-import { DialogShell } from '../components/ui/molecules'
+import { PageHeader, TranslateWorkbenchTemplate } from '../components/templates'
+import { ButtonGroup } from '../components/ui/ButtonGroup'
+import { DialogShell, HistoryTrigger } from '../components/ui/molecules'
 import { TRANSLATE_HISTORY_INLINE_MIN_WIDTH } from '../constants/ui'
 import { useElementInlineSize } from '../hooks/useElementInlineSize'
 import { IMAGE_TRANSLATED_SENTINEL, useTranslate } from '../hooks/useTranslate'
@@ -22,6 +23,8 @@ import { canResolveVoiceErrorInSettings, getVoiceNotificationTone } from '../uti
 import '../styles/translate.css'
 
 const TRANSLATE_PAGE_TITLE_ID = 'translate-page-title'
+
+type TranslateInputMode = 'text' | 'image' | 'voice'
 const TRANSLATE_SOURCE_HEADING_ID = 'translate-source-heading'
 const TRANSLATE_RESULT_HEADING_ID = 'translate-result-heading'
 /** Toast owner keys: a newer notice of the same kind replaces the previous one. */
@@ -42,6 +45,7 @@ export function TranslatePage() {
   } = useAppStore()
   const [voiceErrorCode, setVoiceErrorCode] = useState<AudioTranscriptionErrorCode | null>(null)
   const [modelsOpen, setModelsOpen] = useState(false)
+  const [inputMode, setInputMode] = useState<TranslateInputMode>('text')
   const {
     sourceText,
     translatedText,
@@ -255,40 +259,75 @@ export function TranslatePage() {
     handleSourceChange(value)
   }, [handleSourceChange])
 
+  // What the source pane offers. An attached image always means image input,
+  // however it arrived (paste, drop, the add-image button).
+  const effectiveInputMode: TranslateInputMode = imageAttachment ? 'image' : inputMode
+  const handleInputModeChange = useCallback((mode: TranslateInputMode) => {
+    setInputMode(mode)
+    if (mode !== 'image' && imageAttachment) handleRemoveImage()
+  }, [handleRemoveImage, imageAttachment])
+
   const header = (
-    <TranslationControlsHeader
+    <PageHeader
+      title={t.nav_translate}
       titleId={TRANSLATE_PAGE_TITLE_ID}
-      languageControls={(
-        <LanguagePairBar
-          scope="translate"
-          detectedSourceLang={isResultStale ? null : detectedSourceLang}
-          isDetectingLang={isDetectingLang}
-          onPairChange={handleLanguagePairChange}
-        />
+      className="translate-page-header"
+      leading={(
+        <div className="translate-header-leading">
+          <LanguagePairBar
+            scope="translate"
+            detectedSourceLang={isResultStale ? null : detectedSourceLang}
+            isDetectingLang={isDetectingLang}
+            onPairChange={handleLanguagePairChange}
+          />
+          <ButtonGroup<TranslateInputMode>
+            size="sm"
+            label={t.translate_input_mode_label}
+            value={effectiveInputMode}
+            onChange={handleInputModeChange}
+            containerClassName="translate-input-mode"
+            options={[
+              { value: 'text', label: t.translate_input_mode_text },
+              { value: 'image', label: t.translate_input_mode_image },
+              { value: 'voice', label: t.translate_input_mode_voice },
+            ]}
+          />
+        </div>
       )}
-      translationStyle={translationStyle}
-      onStyleChange={setTranslationStyle}
-      reasoningEffort={translationReasoningEffort}
-      onReasoningEffortChange={setTranslationReasoningEffort}
-      autoTranslate={autoTranslate}
-      onAutoTranslateChange={setAutoTranslate}
-      phoneticMode={phoneticMode}
-      onPhoneticModeChange={setPhoneticMode}
-      isPhoneticLoading={
-        phoneticMode !== 'off'
-        && !isComparisonMode
-        && !phoneticText
-        && (isTranslating || Boolean(translatedText && translatedText !== IMAGE_TRANSLATED_SENTINEL))
-      }
-      isComparisonMode={isComparisonMode}
-      translationModels={translationModels}
-      onTranslationModelsChange={setTranslationModels}
-      modelsOpen={modelsOpen}
-      onModelsOpenChange={setModelsOpen}
-      onOpenSettings={openSettings}
-      historyOpen={historyOpen}
-      historyCount={history.length}
-      onHistoryToggle={handleHistoryToggle}
+      actions={(
+        <>
+          <HistoryTrigger
+            label={t.history_trigger_label}
+            count={history.length}
+            expanded={historyOpen}
+            hideLabel={t.translate_history_toggle_hide}
+            showLabel={t.translate_history_toggle_show}
+            onToggle={handleHistoryToggle}
+          />
+          <TranslationOptions
+            translationStyle={translationStyle}
+            onStyleChange={setTranslationStyle}
+            reasoningEffort={translationReasoningEffort}
+            onReasoningEffortChange={setTranslationReasoningEffort}
+            autoTranslate={autoTranslate}
+            onAutoTranslateChange={setAutoTranslate}
+            phoneticMode={phoneticMode}
+            onPhoneticModeChange={setPhoneticMode}
+            isPhoneticLoading={
+              phoneticMode !== 'off'
+              && !isComparisonMode
+              && !phoneticText
+              && (isTranslating || Boolean(translatedText && translatedText !== IMAGE_TRANSLATED_SENTINEL))
+            }
+            isComparisonMode={isComparisonMode}
+            translationModels={translationModels}
+            onTranslationModelsChange={setTranslationModels}
+            modelsOpen={modelsOpen}
+            onModelsOpenChange={setModelsOpen}
+            onOpenSettings={openSettings}
+          />
+        </>
+      )}
     />
   )
   const historyPanel = (variant: 'panel' | 'overlay') => (
@@ -322,6 +361,7 @@ export function TranslatePage() {
       isVoiceInterim={isVoiceInterim}
       isRewriting={isRewriting}
       imageAttachment={imageAttachment}
+      inputMode={effectiveInputMode}
       speakingPanel={speakingPanel}
       speakLoading={speakLoading}
       fileInputRef={fileInputRef}
@@ -367,6 +407,7 @@ export function TranslatePage() {
   ) : (
     <TranslationResultPane
       headingId={TRANSLATE_RESULT_HEADING_ID}
+      onCompare={imageAttachment ? undefined : () => setModelsOpen(true)}
       translatedText={translatedText}
       phoneticText={phoneticText}
       phoneticMode={phoneticMode}

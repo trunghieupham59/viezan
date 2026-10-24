@@ -526,27 +526,21 @@ html.dark .sidebar-brand-surface {
 
 /* AI Chat contextual sidebar ------------------------------------------- */
 
-.ai-chat-workspace-header {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: var(--vzn-space-2);
-  height: var(--vzn-chat-header-height);
-  padding-inline: var(--vzn-space-3);
-  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
+.page-header.ai-chat-workspace-header {
+  /* Denser than other pages so it lines up with the history sidebar's own header. */
+  flex-wrap: nowrap;
+  min-block-size: var(--vzn-chat-header-height);
+  padding-block: 0;
   background: var(--vzn-bg);
 }
 
-.ai-chat-workspace-title {
-  font-family: var(--vzn-font-display);
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--vzn-text-strong);
+.ai-chat-workspace-header .page-header__title {
   font-size: var(--vzn-font-size-lg);
   font-weight: var(--vzn-weight-semibold);
+}
+
+.ai-chat-workspace-header .page-header__actions {
+  flex-wrap: nowrap;
 }
 
 .ai-chat-header-new {
@@ -1884,11 +1878,14 @@ html:not(.dark) .quick-chat-answer-card {
 
 .page-header__heading {
   min-inline-size: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
 }
 
 .page-header__title {
+  overflow: hidden;
   margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--vzn-text-strong);
   font-family: var(--vzn-font-display);
   font-size: var(--vzn-font-size-title);

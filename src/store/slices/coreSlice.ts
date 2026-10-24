@@ -14,7 +14,7 @@ import type { AIModelSelection, AppPage, Provider } from '../../types'
 import type { SliceGet, SliceSet } from './sliceTypes'
 
 /** Settings sections other surfaces can open directly. */
-export type SettingsSectionTarget = 'updates' | 'hotkeys' | 'api' | 'browser'
+export type SettingsSectionTarget = 'updates' | 'api' | 'appearance' | 'modules'
 
 export interface CoreSlice {
   // Translation state
@@ -36,11 +36,9 @@ export interface CoreSlice {
   recentModels: Array<{ provider: Provider; modelId: string }>
   recordModelUsage: (provider: Provider, modelId: string) => void
 
-  // Active page
+  // Active page (Settings is a page too)
   activePage: AppPage
 
-  // Settings modal
-  settingsOpen: boolean
   /** Section Settings scrolls to when it opens; cleared once applied. */
   settingsInitialSection: SettingsSectionTarget | null
 
@@ -63,10 +61,10 @@ export interface CoreSlice {
   setSelectedModel: (provider: Provider, model: string) => void
   setTranslationModels: (models: AIModelSelection[]) => void
   setActivePage: (page: AppPage) => void
+  /** Goes to the Settings page. */
   openSettings: () => void
   /** Opens Settings scrolled to one section (background status rows, notices). */
   openSettingsAt: (section: SettingsSectionTarget) => void
-  closeSettings: () => void
   clearTranslation: () => void
 
   // Computed — reads locale from SettingsSlice via store.get()
@@ -90,8 +88,7 @@ export const createCoreSlice = (set: SliceSet, get: SliceGet): CoreSlice => ({
     model: DEFAULT_SETTINGS.defaultModels[DEFAULT_SETTINGS.defaultProvider],
   }],
   recentModels: [],
-  activePage: 'chat',
-  settingsOpen: false,
+  activePage: 'home',
   settingsInitialSection: null,
   langUsage: {},
 
@@ -172,9 +169,8 @@ export const createCoreSlice = (set: SliceSet, get: SliceGet): CoreSlice => ({
     }),
 
   setActivePage: (page) => set({ activePage: page }),
-  openSettings: () => set({ settingsOpen: true, settingsInitialSection: null }),
-  openSettingsAt: (section) => set({ settingsOpen: true, settingsInitialSection: section }),
-  closeSettings: () => set({ settingsOpen: false }),
+  openSettings: () => set({ activePage: 'settings', settingsInitialSection: null }),
+  openSettingsAt: (section) => set({ activePage: 'settings', settingsInitialSection: section }),
   clearTranslation: () =>
     set({ sourceText: '', translatedText: '', phoneticText: '', translateError: null, translateErrorCode: null }),
 })

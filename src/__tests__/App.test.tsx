@@ -11,7 +11,6 @@ describe('App quick chat bridge', () => {
       useAppStore.setState({
         activePage: 'translate',
         locale: 'en',
-        settingsOpen: false,
         sidebarCollapsed: false,
         aiChatSidebarCollapsed: false,
         chatSessions: [],
@@ -201,22 +200,28 @@ describe('App quick chat bridge', () => {
     })
   })
 
-  it('keeps Settings and the command palette mutually exclusive', async () => {
-    act(() => useAppStore.setState({ settingsOpen: true }))
+  it('opens Settings as a page from the Launcher, and the palette over it', async () => {
+    let onOpenSettings: (() => void) | null = null
+    vi.mocked(window.api.quickChat.onOpenSettings).mockImplementation((cb) => {
+      onOpenSettings = cb
+      return vi.fn()
+    })
     render(<App />)
+    await waitFor(() => expect(onOpenSettings).not.toBeNull())
 
-    expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeInTheDocument()
+    act(() => onOpenSettings?.())
+    expect(await screen.findByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Settings' })).not.toBeInTheDocument()
 
     fireEvent.keyDown(window, { key: 'k', metaKey: true })
     expect(await screen.findByRole('dialog', { name: 'Command palette' })).toBeInTheDocument()
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Settings' })).not.toBeInTheDocument()
-    })
+    expect(useAppStore.getState().activePage).toBe('settings')
+  })
 
-    act(() => useAppStore.getState().openSettings())
-    expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeInTheDocument()
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument()
-    })
+  it('falls back to Home when the saved page belongs to a disabled module', async () => {
+    act(() => useAppStore.setState({ activePage: 'thermal', enabledModules: { ...useAppStore.getState().enabledModules, thermal: false } }))
+    render(<App />)
+    expect(await screen.findByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument()
+    await waitFor(() => expect(useAppStore.getState().activePage).toBe('home'))
   })
 })

@@ -115,7 +115,7 @@ beforeEach(() => {
       },
       modelsLoading: { gemini: false, claude: false, openai: false, local: false },
       modelsError: { gemini: null, claude: null, openai: null, local: null },
-      settingsOpen: false,
+      activePage: 'translate',
     })
   })
 })
@@ -193,7 +193,9 @@ describe('TranslatePage', () => {
     // The stored preference survives; comparison only suspends it.
     expect(useAppStore.getState().autoTranslate).toBe(true)
     expect(screen.getByRole('button', { name: 'AI configuration, 2 models' }))
-      .toHaveTextContent('AI configuration·2 models')
+      .toHaveTextContent('2 models')
+    // Auto-translate lives in the options popover.
+    openTranslationSettings()
     const suspendedToggle = screen.getByRole('button', { name: 'Auto translate' })
     expect(suspendedToggle).toBeDisabled()
     expect(suspendedToggle).toHaveAttribute('aria-pressed', 'false')
@@ -1010,12 +1012,35 @@ describe('TranslatePage', () => {
     })
 
     render(<TranslatePage />)
+    openTranslationSettings()
     expect(screen.getByRole('button', { name: label, pressed: true })).toBeInTheDocument()
+  })
+
+  it('names the page and switches the source between text, image and voice input', () => {
+    render(<TranslatePage />)
+    expect(screen.getByRole('heading', { level: 1, name: 'AI Translate' })).toBeVisible()
+    const modes = screen.getByRole('group', { name: 'Input' })
+    expect(within(modes).getByRole('button', { name: 'Text' })).toHaveAttribute('aria-pressed', 'true')
+
+    fireEvent.click(within(modes).getByRole('button', { name: 'Image' }))
+    expect(screen.getByText('Drop an image here')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Source content' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Choose image' })).toBeInTheDocument()
+
+    fireEvent.click(within(modes).getByRole('button', { name: 'Voice' }))
+    expect(screen.getByRole('textbox', { name: 'Source content' })).toHaveAttribute('placeholder', expect.stringMatching(/microphone/))
+  })
+
+  it('opens the model dialog from the result panel to compare models', () => {
+    render(<TranslatePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Compare models' }))
+    expect(screen.getByRole('dialog', { name: 'Translation models' })).toBeInTheDocument()
   })
 
   it('keeps a stable Auto translate label while switching state', () => {
     render(<TranslatePage />)
     expect(useAppStore.getState().autoTranslate).toBe(false)
+    openTranslationSettings()
 
     const toggle = screen.getByRole('button', { name: 'Auto translate', pressed: false })
     act(() => { fireEvent.click(toggle) })
@@ -1284,13 +1309,13 @@ describe('TranslatePage', () => {
         sourceText: 'Keep this draft',
         translateError: 'Invalid API key.',
         translateErrorCode: 'INVALID_KEY',
-        settingsOpen: false,
+        activePage: 'translate',
       })
     })
 
     render(<><TranslatePage /><NotificationViewport /></>)
     fireEvent.click(screen.getByRole('button', { name: 'Open Settings' }))
-    expect(useAppStore.getState().settingsOpen).toBe(true)
+    expect(useAppStore.getState().activePage).toBe('settings')
     expect(getSourceInput()).toHaveValue('Keep this draft')
   })
 

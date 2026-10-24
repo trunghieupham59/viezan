@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NotificationViewport } from '../../components/organisms/NotificationViewport'
 import { dictionaryService } from '../../services/dictionaryService'
@@ -152,7 +152,7 @@ describe('DictionaryPage', () => {
     const dialog = screen.getByRole('dialog', { name: /Translation detail|Chi tiết bản dịch|訳語の詳細/i })
     expect(dialog).toBeInTheDocument()
     expect(screen.getByText('Dùng khi nói về việc cải thiện cách làm hoặc giải pháp thực tế.')).toBeInTheDocument()
-    expect(screen.getByText('Nhấn mạnh cải thiện thực tế trong công việc.')).toBeInTheDocument()
+    expect(within(dialog).getByText('Nhấn mạnh cải thiện thực tế trong công việc.')).toBeInTheDocument()
     expect(screen.getByText('cải tiến quy trình')).toBeInTheDocument()
 
     fireEvent.click(dialog)
@@ -206,7 +206,9 @@ describe('DictionaryPage', () => {
 
     await waitFor(() => expect(screen.getAllByText('Cải tiến cách làm.').length).toBeGreaterThan(0))
 
-    const meaning = screen.getAllByText('Cải tiến cách làm.')[0]
+    // The lookup column (with Recent) comes first; select inside the result page.
+    const resultRegion = screen.getByRole('region', { name: /^(Dictionary|Từ điển|辞書)$/ })
+    const meaning = within(resultRegion).getAllByText('Cải tiến cách làm.')[0]
     const textNode = meaning.firstChild as Text
     const range = document.createRange()
     range.setStart(textNode, 0)

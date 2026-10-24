@@ -3,6 +3,7 @@ import type { DictionarySelectionLookupState } from '../../../hooks/useDictionar
 import type { Translations } from '../../../i18n'
 import type { DictionaryEntry, DictionaryResult, DictionaryTranslation } from '../../../types'
 import { formatDictionaryPronunciation } from '../../../utils/dictionary'
+import { tpl } from '../../../utils/tpl'
 import { Button, SkeletonBlock } from '../../ui/atoms'
 import { CheckIcon, CopyIcon, ReuseIcon, SearchIcon, StarIcon } from '../../ui/icons'
 import {
@@ -94,6 +95,9 @@ function EntryHeadline({ result, isEnriching, enrichingLabel }: {
  * tokens, a toolbar, then the shared entry sections. Highlighting text inside
  * the body offers a secondary lookup; translation chips open a detail pop-up.
  */
+/** At most this many translations get an inline nuance paragraph. */
+const NUANCE_PARAGRAPHS_MAX = 3
+
 export function DictionaryResultPanel({
   entry,
   copied,
@@ -218,6 +222,16 @@ export function DictionaryResultPanel({
       ].filter((paragraph) => paragraph.text)
     : []
 
+  // How each translation differs, read inline; the chip pop-up keeps the full detail.
+  const nuanceParagraphs = result.translations
+    .filter((translation) => translation.nuance || translation.usage)
+    .slice(0, NUANCE_PARAGRAPHS_MAX)
+    .map((translation, index) => ({
+      key: `nuance-${index}-${translation.text}`,
+      label: tpl(t.dictionary_translation_nuance_of, { text: translation.text }),
+      text: translation.nuance || translation.usage || '',
+    }))
+
   return (
     <>
       <header className="dictionary-result-header">
@@ -264,7 +278,7 @@ export function DictionaryResultPanel({
 
       <div ref={resultBodyRef} className="dictionary-result-body">
         <DictionaryEntrySections
-          meaningLabel={t.dictionary_meaning}
+          meaningLabel={entry.context?.trim() ? t.dictionary_meaning_in_context : t.dictionary_meaning}
           meaning={result.meaning}
           translationsLabel={t.dictionary_translations}
           translations={chips}
@@ -273,6 +287,7 @@ export function DictionaryResultPanel({
             setSelectedTranslation(selectedTranslationKey === key ? null : { entryId: entry.id, key })}
           translationChipLabel={(chip) =>
             `${t.dictionary_translation_detail}: ${chip.text} ${chip.pronunciation ?? ''}`.trimEnd()}
+          paragraphs={nuanceParagraphs}
           examplesLabel={t.dictionary_examples}
           examples={result.examples}
           notesLabel={t.dictionary_notes}

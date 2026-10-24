@@ -1,4 +1,4 @@
-import { type ReactNode, type RefObject, useCallback, useEffect, useId, useRef } from 'react'
+import { type CSSProperties, type ReactNode, type RefObject, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from '../ui/atoms'
 import { XIcon } from '../ui/icons'
@@ -10,7 +10,12 @@ export interface AIConfigurationPopoverProps {
   scopeDescription: string
   closeLabel: string
   triggerRef: RefObject<HTMLElement | null>
-  placement?: 'above' | 'below'
+  /** `auto` opens toward the side of the trigger with more room and caps the height to it. */
+  placement?: 'above' | 'below' | 'auto'
+  /** Which trigger edge the panel lines up with: `end` (default) for header controls, `start` for a trigger at a surface's left edge. */
+  align?: 'start' | 'end'
+  /** Actions pinned under the scrolling body, e.g. Discard / Apply. */
+  footer?: ReactNode
   onClose: () => void
   children: ReactNode
 }
@@ -23,6 +28,8 @@ export function AIConfigurationPopover({
   closeLabel,
   triggerRef,
   placement = 'below',
+  align = 'end',
+  footer,
   onClose,
   children,
 }: AIConfigurationPopoverProps) {
@@ -63,7 +70,27 @@ export function AIConfigurationPopover({
     }
   }, [closeAndRestoreFocus, onClose, open, triggerRef])
 
+  // Auto placement: measured from the trigger when the panel opens and on resize.
+  const [measured, setMeasured] = useState<{ side: 'above' | 'below'; room: number } | null>(null)
+  useLayoutEffect(() => {
+    if (!open || placement !== 'auto') return
+    const measure = () => {
+      const rect = triggerRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const above = rect.top
+      const below = window.innerHeight - rect.bottom
+      const gap = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--vzn-space-4')) || 0
+      setMeasured(above > below ? { side: 'above', room: above - gap } : { side: 'below', room: below - gap })
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [open, placement, triggerRef])
+
   if (!open) return null
+
+  const side = placement === 'auto' ? measured?.side ?? 'below' : placement
+  const roomStyle = placement === 'auto' && measured ? ({ '--ai-configuration-room': `${Math.max(0, measured.room)}px` } as CSSProperties) : undefined
 
   return createPortal(
     <section
@@ -72,7 +99,8 @@ export function AIConfigurationPopover({
       role="dialog"
       aria-labelledby={titleId}
       aria-describedby={scopeId}
-      className={`ai-configuration-popover ai-configuration-popover--${placement}`}
+      className={`ai-configuration-popover ai-configuration-popover--${side}${align === 'start' ? ' ai-configuration-popover--start' : ''}`}
+      style={roomStyle}
     >
       <header className="ai-configuration-popover__header">
         <div className="ai-configuration-popover__heading">
@@ -91,6 +119,7 @@ export function AIConfigurationPopover({
         </Button>
       </header>
       <div className="ai-configuration-popover__body">{children}</div>
+      {footer && <footer className="ai-configuration-popover__footer">{footer}</footer>}
     </section>,
     document.body,
   )

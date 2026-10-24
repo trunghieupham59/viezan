@@ -285,6 +285,12 @@
   --vzn-page-header-min-height: calc(var(--vzn-control-height-lg) + var(--vzn-space-2) * 2);
   --vzn-chat-header-height: calc(var(--vzn-control-height-sm) + var(--vzn-space-2) * 2);
   --vzn-content-max: 980px;
+  /* Overview pages (Home): the whole two-column grid, its side column and a quick-start card. */
+  --vzn-overview-max: 1180px;
+  --vzn-overview-side: 320px;
+  --vzn-quick-card-min: 148px;
+  /* Interpret: the "This session" column beside the transcript. */
+  --vzn-live-session-panel-width: 280px;
   --vzn-chat-stage-max: 1040px;
   --vzn-chat-reading-max: 820px;
   --vzn-chat-composer-max: 1040px;
@@ -315,8 +321,9 @@
   --vzn-thermal-fan-column-max: 30rem;
   --vzn-thermal-raw-list-max-block: 20rem;
   --vzn-empty-state-copy-max: calc(var(--vzn-space-12) * 4);
-  --vzn-dictionary-result-min-inline: calc(var(--vzn-space-12) * 10);
-  --vzn-dictionary-history-width: calc(var(--vzn-space-12) * 6);
+  /* Lookup column (term, context, Recent / Favorites) beside the result page. */
+  --vzn-dictionary-lookup-width: calc(var(--vzn-space-12) * 7);
+  --vzn-dictionary-reading-max: calc(var(--vzn-space-12) * 16);
   --vzn-dictionary-context-max-block: calc(var(--vzn-control-height-md) * 3);
   --vzn-dictionary-pane-min-block: calc(var(--vzn-space-12) * 6);
   --vzn-popover-wide: 420px;
@@ -340,8 +347,6 @@
     var(--vzn-control-height-md) + var(--vzn-space-2)
   );
   --vzn-history-search-width: calc(var(--vzn-space-12) * 5);
-  --vzn-settings-modal-max-inline: 1040px;
-  --vzn-settings-modal-max-block: 860px;
   --vzn-modal-viewport-block: 90vh;
   --vzn-update-dialog-max-inline: 560px;
   --vzn-dialog-sm-max-inline: 420px;

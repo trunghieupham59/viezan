@@ -15,7 +15,8 @@
   z-index: var(--vzn-layer-context-overlay);
   display: flex;
   width: min(var(--vzn-ai-configuration-inline), calc(100vw - var(--vzn-space-8)));
-  max-height: var(--vzn-ai-configuration-max-block);
+  /* `--ai-configuration-room` is the measured space beside the trigger (auto placement). */
+  max-height: min(var(--vzn-ai-configuration-max-block), var(--ai-configuration-room, 100dvh));
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--vzn-border);
@@ -24,6 +25,11 @@
   box-shadow: var(--vzn-shadow-md);
   margin-top: var(--vzn-space-2);
   transform: translateX(-100%);
+}
+
+.ai-configuration-popover--start {
+  left: anchor(left);
+  transform: none;
 }
 
 .ai-configuration-popover--above {
@@ -347,30 +353,13 @@
   font-style: italic;
 }
 
-/* Running-session status: state label, input-level meter and elapsed time. */
+/* Running-session status in the page header: recording chip, then the input level. */
 .live-session-status {
   display: inline-flex;
   min-inline-size: 0;
   align-items: center;
   gap: var(--vzn-space-2);
-  color: var(--vzn-text-muted);
-  font-size: var(--vzn-font-size-caption);
-  font-weight: 500;
   user-select: none;
-}
-
-.live-session-status-icon {
-  inline-size: var(--vzn-icon-xs);
-  block-size: var(--vzn-icon-xs);
-  flex-shrink: 0;
-}
-
-.live-session-status-dot {
-  inline-size: var(--vzn-space-1-5);
-  block-size: var(--vzn-space-1-5);
-  flex-shrink: 0;
-  border-radius: var(--vzn-radius-pill);
-  background: var(--vzn-success);
 }
 
 .live-session-status-label {
@@ -379,38 +368,14 @@
   white-space: nowrap;
 }
 
-.live-input-meter {
-  inline-size: var(--vzn-space-10);
-  block-size: var(--vzn-space-1);
-  flex-shrink: 0;
-  overflow: hidden;
-  border: 0;
-  border-radius: var(--vzn-radius-pill);
-  background: var(--vzn-surface-muted);
-  appearance: none;
-}
-
-.live-input-meter::-webkit-meter-bar {
-  block-size: 100%;
-  border: 0;
-  border-radius: inherit;
-  background: var(--vzn-surface-muted);
-}
-
-.live-input-meter::-webkit-meter-optimum-value {
-  border-radius: inherit;
-  background: var(--vzn-action);
-  transition: inline-size var(--vzn-duration-fast) var(--vzn-ease-standard);
-}
-
-.live-input-meter::-moz-meter-bar {
-  border-radius: inherit;
-  background: var(--vzn-action);
-}
-
 .live-session-elapsed {
-  color: var(--vzn-text-soft);
+  margin-inline-start: var(--vzn-space-1-5);
   font-variant-numeric: tabular-nums;
+}
+
+.live-input-meter.ui-meter {
+  flex: 0 0 auto;
+  inline-size: var(--vzn-space-12);
 }
 
 .live-ai-config-options {
@@ -639,4 +604,132 @@
 .live-subtitle-control {
   border-inline-start: var(--vzn-border-width) solid var(--vzn-divider);
   padding-inline-start: var(--vzn-space-2);
+}
+
+/* Interpret page header: language pair and audio source share the leading slot. */
+.live-header-leading {
+  display: flex;
+  min-inline-size: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-2) var(--vzn-space-3);
+}
+
+@container app-main (max-width: 899px) {
+  .live-header-leading .live-audio-source-group .ui-button span {
+    display: none;
+  }
+}
+
+/* "This session" beside the transcript, from wide workspaces up. */
+.live-panels-body[data-session-panel="true"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--vzn-live-session-panel-width);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.live-session-panel {
+  display: flex;
+  min-block-size: 0;
+  flex-direction: column;
+  gap: var(--vzn-space-3);
+  overflow-y: auto;
+}
+
+.live-session-panel__title {
+  margin: 0;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-semibold);
+  letter-spacing: var(--vzn-tracking-caps);
+  text-transform: uppercase;
+}
+
+.live-session-panel__note,
+.live-session-panel__excerpt {
+  display: flex;
+  align-items: center;
+  gap: var(--vzn-space-1-5);
+  margin: 0;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-sm);
+  line-height: var(--vzn-line-normal);
+}
+
+.live-session-panel__excerpt {
+  display: block;
+  color: var(--vzn-text);
+}
+
+.live-session-panel__spinner {
+  inline-size: var(--vzn-icon-sm);
+  block-size: var(--vzn-icon-sm);
+}
+
+.live-session-panel__speakers {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  flex-direction: column;
+  gap: var(--vzn-space-1-5);
+  list-style: none;
+}
+
+.live-session-panel__speakers li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--vzn-space-2);
+}
+
+.live-session-panel__speaker {
+  overflow: hidden;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-md);
+  font-weight: var(--vzn-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-session-panel__actions {
+  display: flex;
+  gap: var(--vzn-space-2);
+}
+
+.live-session-panel__previous.ui-button {
+  align-self: flex-start;
+}
+
+.live-summary-footer {
+  display: flex;
+  inline-size: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vzn-space-2);
+}
+
+/* Below a wide workspace the transcript keeps the width; exports and the summary stay in the panel footers. */
+@container app-main (max-width: 1099px) {
+  .live-panels-body[data-session-panel="true"] {
+    display: flex;
+  }
+
+  .live-session-panel {
+    display: none;
+  }
+}
+
+/* Wide workspaces export from "This session"; the panel footers keep copy and clear. */
+@container app-main (min-width: 1100px) {
+  .live-panels-body[data-session-panel="true"] .live-footer-export {
+    display: none;
+  }
+}
+
+.ai-configuration-popover__footer {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-3) var(--vzn-space-4);
+  border-top: var(--vzn-border-width) solid var(--vzn-divider);
 }

@@ -11,6 +11,16 @@
 export type PageModuleId = 'chat' | 'translate' | 'live' | 'dictionary' | 'thermal'
 
 /**
+ * Pages that always exist and are not modules: Home, the two pages that gather what
+ * Viezan does outside its window (Translate everywhere, Launcher & shortcuts), and
+ * Settings. They cannot be turned off and never appear in `modules.json`.
+ */
+export type SystemPageId = 'home' | 'everywhere' | 'utilities' | 'settings'
+
+/** Every page the workspace can show. */
+export type AppPageId = PageModuleId | SystemPageId
+
+/**
  * Every module the main process knows, including ones without a page: the Launcher
  * popup (`launcher`) and the Chrome-extension bridge (`browser-bridge`).
  */

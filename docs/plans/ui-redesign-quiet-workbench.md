@@ -117,6 +117,32 @@ Nên chia thành 3–4 PR theo thứ tự dưới.
 - Kiểm tra: test điều hướng và di trú `activePage`, test Launcher/quick chat mở đúng trang, test Cài đặt theo mục, `test:web`.
 - Cỡ: L. Rủi ro vừa: đổi chỗ của cài đặt người dùng quen; cần ghi chú phát hành.
 
+Kết quả thực hiện giai đoạn 2:
+
+- **Kiểu trang**:
+  - Thêm `SystemPageId` (`home`, `everywhere`, `utilities`, `settings`) và `AppPageId` trong `shared/modules.d.ts`; `APP_PAGES` thay `MODULE_PAGES`.
+  - Catalog có `SYSTEM_PAGES`, `getPage` và `navigationPages`. Thanh bên và bảng ⌘K cùng đọc một danh mục: Trang chủ, các nhóm (Dịch mọi nơi trong Ngôn ngữ, Launcher & phím tắt trong Tiện ích), rồi Cài đặt.
+  - Trang hệ thống luôn có, kể cả khi module Launcher hay tiện ích Chrome tắt.
+- **Di trú `activePage`**:
+  - Trang mặc định là Trang chủ. `activePage` nay được lưu, trừ Cài đặt: mở lại app từ Cài đặt sẽ về Trang chủ.
+  - Trang của module đã tắt, hoặc id lạ từ bản khác, đều về Trang chủ.
+- **Trang chủ**:
+  - Bắt đầu nhanh cho các module đang bật.
+  - Tiếp tục: mục mới nhất của Chat, Dịch, Phiên dịch, Từ điển; phiên nghiên cứu đang dừng đứng đầu với nút Tiếp tục. Mỗi dòng mở lại đúng nội dung.
+  - Thẻ Hệ thống (chỉ khi module Nhiệt độ bật), thẻ Mô hình AI chỉ đọc store, thẻ Phím tắt.
+  - Molecule mới: `SectionCard`, `ActivityRow`, `ShortcutList`.
+- **Dịch mọi nơi và Launcher & phím tắt**:
+  - `HotkeySection` nhận `part` để tách phần Dịch nhanh và phần Launcher mà không nhân đôi logic ghi phím.
+  - "Tất cả phím tắt" đọc từ hook `useShortcutInventory` và đánh dấu phím trùng. Phím đang tắt không bao giờ bị tính là trùng.
+  - Sự kiện `viezan:shortcuts-changed` báo khi lưu phím, để danh sách và dải chạy nền cập nhật ngay.
+- **Cài đặt dạng trang**:
+  - Bỏ `SettingsModal`. `openSettings` và `openSettingsAt` giữ tên nhưng điều hướng tới trang, nên mọi chỗ gọi cũ (huy hiệu thiếu khoá, Launcher, popup cập nhật) vẫn chạy.
+  - Có ô tìm theo tên và mô tả mục. Mục Phím tắt và Trình duyệt đã chuyển sang hai trang mới.
+- **Hoãn lại**:
+  - Whitelist IPC mở trang của Launcher vẫn chỉ có Dịch, Từ điển, Phiên dịch. Mở rộng khi hợp nhất danh mục lệnh ⌘K và Launcher, vì Launcher chưa có lệnh nào mở trang mới.
+  - Mục lục mới của Cài đặt (Chung, Giọng nói…), thẻ preset có ảnh thu nhỏ và trang Giới thiệu mới làm cùng giai đoạn 3.
+- **`test:web`**: cập nhật cho Cài đặt dạng trang. Script vẫn dừng ở lỗi Escape đã có từ trước trên develop, trước khi tới phần Cài đặt; phần Cài đặt được kiểm tra bằng tay trên web-preview.
+
 ### Giai đoạn 3 — Từng màn hình (song song được)
 
 Mỗi gạch đầu dòng là một PR độc lập, cùng dùng nền tảng của giai đoạn 0–1.
@@ -146,6 +172,32 @@ Mỗi gạch đầu dòng là một PR độc lập, cùng dùng nền tảng c�
   - QA ở bề rộng hẹp và dark mode;
   - giữ các bất biến Chat trong AGENTS.md.
 - Cỡ: mỗi màn hình M; tổng L.
+
+Kết quả thực hiện giai đoạn 3 (cùng nhánh `feat/ui-foundation`, một lượt cho cả năm màn hình):
+
+- **Nền chung**: `PageHeader` có thêm khe `start` (nút ẩn/hiện panel riêng của trang), `titleId` và `ref`; tiêu đề dài tự cắt. Khối tiêu đề không còn giãn chiếm chỗ, nên phần ở khe leading đứng ngay sau tiêu đề.
+- **AI Chat**:
+  - Đầu trang dùng `PageHeader` (App ghép từ các phần do `AIChatSidebar` cung cấp, vì organism không được import template): nút Lịch sử, tiêu đề, chip model, Chat mới.
+  - Chip model chuyển từ ô soạn lên đầu trang, vẫn gắn với cuộc trò chuyện đang mở khi chọn; ô soạn giữ một bề mặt.
+  - Panel nghiên cứu sâu dùng `ProgressSteps` theo sáu pha, có "bước X / Y", lý do dừng, Thử lại bước và Tiếp tục ngay trong panel; nút trùng ở ô soạn đã bỏ.
+  - Ảnh đính kèm có lời nhắc khi model có thể không đọc được ảnh (suy đoán theo tên model; model local lạ chỉ nói "có thể").
+  - Lỗi nhà cung cấp hiện trong tin nhắn bằng `RecoverableError` với Thử lại và Đổi model hoặc khoá; ảnh vừa tạo có "Sửa ảnh này".
+- **Dịch**:
+  - Đầu trang: tiêu đề hiện rõ, cặp ngôn ngữ, chuyển kiểu nhập Văn bản / Ảnh / Giọng nói, Lịch sử, nút tuỳ chọn (bánh răng + số model).
+  - "Dịch tự động" chuyển vào popover tuỳ chọn, vẫn khoá khi so sánh nhiều model.
+  - Kiểu Ảnh có vùng thả ảnh và nút Chọn ảnh, ảnh đã gắn có Đổi ảnh; kiểu Giọng nói đổi lời nhắc trong ô nhập.
+  - Panel Kết quả có "So sánh model" mở hộp thoại chọn tối đa 3 model.
+  - Sửa lỗi có sẵn: dưới 900 px khung làm việc bị co theo nội dung.
+- **Phiên dịch**:
+  - Đầu trang: cặp ngôn ngữ, nguồn âm thanh, chip trạng thái (`StatusChip` + `Meter`), Lịch sử, Phụ đề nổi, Bắt đầu / Dừng (viền đỏ khi đang chạy).
+  - Panel "Phiên này" (từ 1100 px): tóm tắt, người nói, xuất TXT/SRT, các phiên trước. Hộp tóm tắt chuyển sang `DialogShell`.
+- **Từ điển**: cặp ngôn ngữ lên đầu trang; cột tra cứu bên trái (từ, ngữ cảnh luôn hiện, Tra cứu, Gần đây / Yêu thích); kết quả giới hạn bề rộng đọc, nhãn "Nghĩa trong ngữ cảnh này" khi có ngữ cảnh, ví dụ tách câu gốc và bản dịch, sắc thái hiện ngay trong trang.
+- **Popover Tác vụ của Chat** (chốt lại theo bản vẽ): chọn tác vụ và lựa chọn của nó thành bản nháp, xem trước "Hướng dẫn gửi kèm", rồi Áp dụng; Bỏ, Escape hoặc bấm ra ngoài giữ nguyên tác vụ đang dùng. Popover mở về phía còn nhiều chỗ (`placement="auto"` của `AIConfigurationPopover`) và giới hạn chiều cao theo chỗ trống.
+- **Nhiệt độ & quạt**: hộp cảnh báo và xác nhận nhận diện cảm biến có lời dẫn, các điểm cam kết (dấu tích) hoặc lưu ý (chấm) và hộp cảnh báo rủi ro. Profile và "Về tự động" đã nằm trên thanh panel Quạt từ PR #149.
+- **Chưa làm, có lý do**:
+  - So sánh theo câu nằm trên nhánh `feat/translate-comparison-sentences`, chưa merge.
+  - Chụp vùng màn hình cho kiểu Ảnh cần IPC mới; ngày nhóm trong lịch sử Dịch; "các nghĩa khác" trong Từ điển cần đổi kiểu dữ liệu và prompt; hộp thoại lưu profile quạt chưa có bản vẽ.
+- **Kiểm tra**: Biome, hai `tsc`, toàn bộ Vitest, `check:atomic`, `check:design`, `build` đều qua. QA trên web-preview ở 1400 và 820 px, chế độ tối; panel "Phiên này" chỉ kiểm bằng test vì web-preview không tạo được bản ghi.
 
 ### Giai đoạn 4 — Bề mặt ngoài cửa sổ
 

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import type { FanCommand, FanProfile, ThermalFan, ThermalFanLabel, ThermalSensor, ThermalSensorGroup, ThermalTraySettings } from '../../shared/thermalApi'
+import type { FanCommand, FanProfile, ThermalFan, ThermalSensor, ThermalSensorGroup, ThermalTraySettings } from '../../shared/thermalApi'
 import { ThermalFanDisclaimer, ThermalFanPanel, type ThermalFanSources, ThermalOptionsConfiguration, ThermalSensorTable, ThermalTrayOptions } from '../components/organisms'
 import { PageHeader } from '../components/templates'
 import { Button, SpinnerIcon, StopIcon } from '../components/ui/atoms'
@@ -12,7 +12,7 @@ import { useThermalSettings } from '../hooks/useThermalSettings'
 import type { Translations } from '../i18n'
 import { useAppStore, useT } from '../store/useAppStore'
 import { useNotificationStore } from '../store/useNotificationStore'
-import { fanProfileDescription, fanProfileName } from '../utils/fanProfileText'
+import { fanDisplayName, fanProfileDescription, fanProfileName } from '../utils/fanProfileText'
 import { buildSensorRows, hottestSensor, THERMAL_GROUPS, type ThermalSensorRow } from '../utils/thermalSensorRows'
 import { tpl } from '../utils/tpl'
 import { buildTrayPreview } from '../utils/trayPreview'
@@ -61,13 +61,8 @@ export function ThermalPage() {
     if (localized) return sensor.name && sensor.name !== sensor.code ? `${localized} · ${sensor.name}` : localized
     return sensor.name ?? sensor.code
   }, [localizedLabel])
-  const fanLabelText = useCallback((label: ThermalFanLabel | undefined) => {
-    const key = label ? (`thermal_fan_label_${label}` as keyof Translations) : null
-    const localized = key ? t[key] : undefined
-    return typeof localized === 'string' ? localized : undefined
-  }, [t])
   // A fan is named by what the machine says it is (left / right / CPU), else by its number.
-  const fanName = useCallback((fan: Pick<ThermalFan, 'index' | 'name' | 'label'>) => fanLabelText(fan.label) ?? fan.name ?? tpl(t.thermal_fan_name, { n: fan.index + 1 }), [t, fanLabelText])
+  const fanName = useCallback((fan: Pick<ThermalFan, 'index' | 'name' | 'label'>) => fanDisplayName(t, fan), [t])
   const fanNameById = useCallback((fanId: string) => {
     const fan = snapshot?.fans.find((candidate) => candidate.id === fanId)
     return fan ? fanName(fan) : fanId
@@ -415,7 +410,9 @@ export function ThermalPage() {
       {calibrateConfirmOpen && (
         <ThermalFanDisclaimer
           title={t.thermal_fan_calibrate_confirm_title}
-          body={`${t.thermal_fan_calibrate_desc} ${t.thermal_fan_calibrate_confirm_body}`}
+          intro={t.thermal_fan_calibrate_confirm_intro}
+          points={[t.thermal_fan_calibrate_confirm_point_time, t.thermal_fan_calibrate_confirm_point_speed, t.thermal_fan_calibrate_confirm_point_setup]}
+          pointTone="neutral"
           acceptLabel={t.thermal_fan_calibrate_confirm_accept}
           cancelLabel={t.thermal_fan_disclaimer_cancel}
           closeLabel={t.thermal_fan_disclaimer_cancel}
@@ -427,7 +424,9 @@ export function ThermalPage() {
       {disclaimerOpen && (
         <ThermalFanDisclaimer
           title={t.thermal_fan_disclaimer_title}
-          body={tpl(t.thermal_fan_disclaimer_body, { ceiling: FAN_CEILING_CELSIUS })}
+          intro={t.thermal_fan_disclaimer_intro}
+          points={[t.thermal_fan_disclaimer_point_range, t.thermal_fan_disclaimer_point_restore, tpl(t.thermal_fan_disclaimer_point_ceiling, { ceiling: FAN_CEILING_CELSIUS })]}
+          warning={t.thermal_fan_disclaimer_warning}
           acceptLabel={t.thermal_fan_disclaimer_accept}
           cancelLabel={t.thermal_fan_disclaimer_cancel}
           closeLabel={t.thermal_fan_disclaimer_cancel}

@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { type ReactNode, type RefObject, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useAppStore, useT } from '../../store/useAppStore'
 import type { ChatSession } from '../../types'
@@ -8,6 +8,7 @@ import { Button, Input } from '../ui/atoms'
 import { PencilIcon, SearchIcon } from '../ui/icons'
 import { HistoryTrigger } from '../ui/molecules'
 import { ChatSessionListItem } from '../ui/molecules/ChatSessionListItem'
+import { ChatAIConfiguration } from './chat/ChatAIConfiguration'
 
 interface RelativeTimeText {
   time_just_now: string
@@ -82,8 +83,20 @@ function SessionList({ sessions, emptyLabel, activeSessionId, t, onSelect, onDel
 }
 
 /** Conversation history and its controls share state while occupying separate layout slots. */
+/**
+ * The pieces of the AI Chat page header. The page shell places them in the
+ * shared `PageHeader` template; `ref` lets the compact history overlay treat
+ * clicks on the header as inside.
+ */
+export interface AIChatHeaderParts {
+  ref: RefObject<HTMLElement>
+  title: string
+  start: ReactNode
+  actions: ReactNode
+}
+
 export function AIChatSidebar({ children }: {
-  children?: (slots: { sidebar: ReactNode; header: ReactNode }) => ReactNode
+  children: (slots: { sidebar: ReactNode; header: AIChatHeaderParts }) => ReactNode
 }) {
   const {
     chatSessions, activeChatSessionId, chatNewSessionShortcut,
@@ -172,8 +185,10 @@ export function AIChatSidebar({ children }: {
     }
   }, [responsiveOverlay])
 
-  const header = (
-    <header className="ai-chat-workspace-header" ref={headerRef}>
+  const header: AIChatHeaderParts = {
+    ref: headerRef,
+    title: activeTitle,
+    start: (
       <HistoryTrigger ref={sidebarToggleRef}
         label={t.history_trigger_label}
         count={chatSessions.length}
@@ -183,17 +198,21 @@ export function AIChatSidebar({ children }: {
         controlsId={contentId}
         className="ai-chat-history-toggle"
         onToggle={handleToggle} />
-      <span className="ai-chat-workspace-title" title={activeTitle}>{activeTitle}</span>
-      <Button size="md" shape="rect" variant="primary" appearance="ghost"
-        className="ai-chat-header-new" aria-label={t.chat_new_session}
-        title={shortcut ? `${t.chat_new_session} (${shortcut})` : t.chat_new_session}
-        onClick={handleNewChat}>
-        <PencilIcon className="h-4 w-4" />
-        <span>{t.chat_new_session}</span>
-        {shortcut && <kbd className="ai-chat-header-shortcut">{shortcut}</kbd>}
-      </Button>
-    </header>
-  )
+    ),
+    actions: (
+      <>
+        <ChatAIConfiguration conversationId={activeChatSessionId} placement="below" />
+        <Button size="md" shape="rect" variant="primary" appearance="ghost"
+          className="ai-chat-header-new" aria-label={t.chat_new_session}
+          title={shortcut ? `${t.chat_new_session} (${shortcut})` : t.chat_new_session}
+          onClick={handleNewChat}>
+          <PencilIcon className="h-4 w-4" />
+          <span className="ai-chat-header-new-label">{t.chat_new_session}</span>
+          {shortcut && <kbd className="ai-chat-header-shortcut">{shortcut}</kbd>}
+        </Button>
+      </>
+    ),
+  }
   const sidebar = (
     <aside ref={sidebarRef} id={contentId} className="ai-chat-sidebar"
       hidden={effectiveCollapsed} aria-label={t.chat_sidebar_label}
@@ -221,5 +240,5 @@ export function AIChatSidebar({ children }: {
       </div>
     </aside>
   )
-  return children ? children({ sidebar, header }) : <>{header}{sidebar}</>
+  return children({ sidebar, header })
 }
