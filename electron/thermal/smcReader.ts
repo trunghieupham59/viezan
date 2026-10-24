@@ -12,14 +12,15 @@ import { existsSync } from 'node:fs'
 import * as path from 'node:path'
 import * as readline from 'node:readline'
 import type { ThermalFan, ThermalSensor, ThermalSnapshot, ThermalSupport } from '../../shared/thermalApi'
+import { fanLabelFor } from './fanNames'
 import type { ThermalReader } from './reader'
 import { classifySmcKey } from './smcKeys'
 
 export const SMC_BINARY_NAME = 'viezan-smc'
 
 export interface SmcRawSensor { key: string; type?: string; celsius: number }
-export interface SmcRawFan { index: number; rpm: number; min?: number; max?: number; target?: number }
-export interface SmcRawOutput { ok: boolean; error?: string; timestamp?: number; sensors?: SmcRawSensor[]; fans?: SmcRawFan[] }
+export interface SmcRawFan { index: number; rpm: number; min?: number; max?: number; target?: number; name?: string }
+export interface SmcRawOutput { ok: boolean; error?: string; timestamp?: number; model?: string; sensors?: SmcRawSensor[]; fans?: SmcRawFan[] }
 
 /** Where the binary lives: beside the app's resources when packaged, under native/bin in a checkout. */
 export function resolveSmcBinaryPath(options: { isPackaged: boolean; resourcesPath: string; appPath: string }): string {
@@ -51,12 +52,17 @@ export function parseSmcOutput(raw: unknown, now = Date.now()): ThermalSnapshot 
     })
   }
 
+  const model = typeof output.model === 'string' && output.model.length > 0 && output.model.length <= 40 ? output.model : undefined
+  const rawFans = (Array.isArray(output.fans) ? output.fans : []).filter((fan) => isFiniteNumber(fan?.index) && isFiniteNumber(fan.rpm))
   const fans: ThermalFan[] = []
-  for (const fan of Array.isArray(output.fans) ? output.fans : []) {
-    if (!isFiniteNumber(fan?.index) || !isFiniteNumber(fan.rpm)) continue
+  for (const fan of rawFans) {
+    const name = typeof fan.name === 'string' && fan.name.length > 0 && fan.name.length <= 32 ? fan.name : undefined
+    const label = fanLabelFor({ model, index: fan.index, count: rawFans.length, name })
     fans.push({
       id: `smc:fan${fan.index}`,
       index: fan.index,
+      ...(name ? { name } : {}),
+      ...(label ? { label } : {}),
       rpm: Math.round(fan.rpm),
       ...(isFiniteNumber(fan.min) ? { minRpm: Math.round(fan.min) } : {}),
       ...(isFiniteNumber(fan.max) ? { maxRpm: Math.round(fan.max) } : {}),
@@ -64,7 +70,7 @@ export function parseSmcOutput(raw: unknown, now = Date.now()): ThermalSnapshot 
     })
   }
 
-  return { timestamp: isFiniteNumber(output.timestamp) ? output.timestamp : now, source: 'smc', sensors, fans }
+  return { timestamp: isFiniteNumber(output.timestamp) ? output.timestamp : now, source: 'smc', sensors, fans, ...(model ? { model } : {}) }
 }
 
 export interface SmcReaderOptions {

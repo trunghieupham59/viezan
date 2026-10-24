@@ -9,188 +9,10 @@
 //   {"ok":false,"error":"..."}
 //
 // Labels and grouping of sensor keys live in the app (electron/thermal/smcKeys.ts);
-// this binary only reports keys, types and values.
+// this binary only reports keys, types and values. SMC access is shared with the fan
+// helper through native/common/SMC.swift.
 import Foundation
 import IOKit
-
-// MARK: - SMC user-client structures (80 bytes, matching AppleSMC's expectations)
-
-typealias SMCBytes = (
-  UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
-  UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
-  UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
-  UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8
-)
-
-struct SMCVersion {
-  var major: UInt8 = 0
-  var minor: UInt8 = 0
-  var build: UInt8 = 0
-  var reserved: UInt8 = 0
-  var release: UInt16 = 0
-}
-
-struct SMCPLimitData {
-  var version: UInt16 = 0
-  var length: UInt16 = 0
-  var cpuPLimit: UInt32 = 0
-  var gpuPLimit: UInt32 = 0
-  var memPLimit: UInt32 = 0
-}
-
-struct SMCKeyInfoData {
-  var dataSize: UInt32 = 0
-  var dataType: UInt32 = 0
-  var dataAttributes: UInt8 = 0
-}
-
-struct SMCParamStruct {
-  var key: UInt32 = 0
-  var vers = SMCVersion()
-  var pLimitData = SMCPLimitData()
-  var keyInfo = SMCKeyInfoData()
-  var padding: UInt16 = 0
-  var result: UInt8 = 0
-  var status: UInt8 = 0
-  var data8: UInt8 = 0
-  var data32: UInt32 = 0
-  var bytes: SMCBytes = (
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-  )
-}
-
-enum SMCCommand: UInt8 {
-  case readKey = 5
-  case keyFromIndex = 8
-  case keyInfo = 9
-}
-
-let kSMCHandleYPCEvent: UInt32 = 2
-let kSMCSuccess: UInt8 = 0
-
-struct SMCError: Error, CustomStringConvertible {
-  let description: String
-}
-
-// MARK: - Four-character codes
-
-func fourCC(_ text: String) -> UInt32 {
-  var value: UInt32 = 0
-  for scalar in text.utf8.prefix(4) {
-    value = (value << 8) | UInt32(scalar)
-  }
-  return value
-}
-
-func fourCCString(_ value: UInt32) -> String {
-  let bytes = [UInt8(value >> 24 & 0xFF), UInt8(value >> 16 & 0xFF), UInt8(value >> 8 & 0xFF), UInt8(value & 0xFF)]
-  return String(bytes: bytes, encoding: .ascii) ?? ""
-}
-
-// MARK: - Connection
-
-final class SMC {
-  private var connection: io_connect_t = 0
-
-  init() throws {
-    precondition(MemoryLayout<SMCParamStruct>.stride == 80, "SMCParamStruct must be 80 bytes")
-    let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSMC"))
-    guard service != 0 else { throw SMCError(description: "AppleSMC service not found") }
-    defer { IOObjectRelease(service) }
-    let result = IOServiceOpen(service, mach_task_self_, 0, &connection)
-    guard result == kIOReturnSuccess else { throw SMCError(description: "IOServiceOpen failed: \(result)") }
-  }
-
-  deinit {
-    if connection != 0 { IOServiceClose(connection) }
-  }
-
-  private func call(_ input: inout SMCParamStruct) throws -> SMCParamStruct {
-    var output = SMCParamStruct()
-    var outputSize = MemoryLayout<SMCParamStruct>.stride
-    let result = IOConnectCallStructMethod(connection, kSMCHandleYPCEvent, &input, MemoryLayout<SMCParamStruct>.stride, &output, &outputSize)
-    guard result == kIOReturnSuccess else { throw SMCError(description: "IOConnectCallStructMethod failed: \(result)") }
-    guard output.result == kSMCSuccess else { throw SMCError(description: "SMC result \(output.result) for key \(fourCCString(input.key))") }
-    return output
-  }
-
-  func keyCount() throws -> UInt32 {
-    let info = try keyInfo(fourCC("#KEY"))
-    let bytes = try readKey(fourCC("#KEY"), info: info)
-    return UInt32(bytes[0]) << 24 | UInt32(bytes[1]) << 16 | UInt32(bytes[2]) << 8 | UInt32(bytes[3])
-  }
-
-  func key(at index: UInt32) throws -> UInt32 {
-    var input = SMCParamStruct()
-    input.data8 = SMCCommand.keyFromIndex.rawValue
-    input.data32 = index
-    return try call(&input).key
-  }
-
-  func keyInfo(_ key: UInt32) throws -> SMCKeyInfoData {
-    var input = SMCParamStruct()
-    input.key = key
-    input.data8 = SMCCommand.keyInfo.rawValue
-    return try call(&input).keyInfo
-  }
-
-  func readKey(_ key: UInt32, info: SMCKeyInfoData) throws -> [UInt8] {
-    var input = SMCParamStruct()
-    input.key = key
-    input.keyInfo = info
-    input.data8 = SMCCommand.readKey.rawValue
-    var output = try call(&input)
-    let size = Int(min(info.dataSize, 32))
-    return withUnsafeBytes(of: &output.bytes) { Array($0.prefix(size)) }
-  }
-}
-
-// MARK: - Value decoding
-
-/// Decodes the SMC data types that carry temperatures and fan speeds. Returns nil for other types.
-func decodeNumber(type: String, bytes: [UInt8]) -> Double? {
-  func be16() -> UInt16 { bytes.count >= 2 ? UInt16(bytes[0]) << 8 | UInt16(bytes[1]) : 0 }
-  func be32() -> UInt32 { bytes.count >= 4 ? UInt32(bytes[0]) << 24 | UInt32(bytes[1]) << 16 | UInt32(bytes[2]) << 8 | UInt32(bytes[3]) : 0 }
-  switch type {
-  case "flt ":
-    guard bytes.count >= 4 else { return nil }
-    let bits = UInt32(bytes[3]) << 24 | UInt32(bytes[2]) << 16 | UInt32(bytes[1]) << 8 | UInt32(bytes[0]) // little-endian
-    let value = Double(Float(bitPattern: bits))
-    return value.isFinite ? value : nil
-  case "sp78":
-    return Double(Int16(bitPattern: be16())) / 256
-  case "sp87":
-    return Double(Int16(bitPattern: be16())) / 128
-  case "fpe2":
-    return Double(be16()) / 4
-  case "fp88":
-    return Double(be16()) / 256
-  case "ui8 ":
-    return bytes.isEmpty ? nil : Double(bytes[0])
-  case "ui16":
-    return Double(be16())
-  case "ui32":
-    return Double(be32())
-  case "ioft":
-    guard bytes.count >= 8 else { return nil }
-    var raw: UInt64 = 0
-    for byte in bytes.prefix(8) { raw = raw << 8 | UInt64(byte) }
-    return Double(raw) / 65536
-  default:
-    return nil
-  }
-}
-
-let temperatureTypes: Set<String> = ["flt ", "sp78", "sp87", "fp88", "ui8 ", "ui16"]
-let fanTypes: Set<String> = ["flt ", "fpe2", "ui16", "ui8 "]
-
-struct SensorKey {
-  let key: UInt32
-  let name: String
-  let type: String
-  let info: SMCKeyInfoData
-}
 
 struct FanKeys {
   let index: Int
@@ -198,6 +20,28 @@ struct FanKeys {
   let min: SensorKey?
   let max: SensorKey?
   let target: SensorKey?
+  /// Description from `F%dID` (Intel Macs: `{fds` struct whose tail is a C string such as "Left side"). Absent on Apple Silicon.
+  let name: String?
+}
+
+/// `hw.model` (e.g. `MacBookPro18,2`), so the app can name fans on machines without `F%dID`.
+func hardwareModel() -> String? {
+  var size = 0
+  guard sysctlbyname("hw.model", nil, &size, nil, 0) == 0, size > 0 else { return nil }
+  var buffer = [CChar](repeating: 0, count: size)
+  guard sysctlbyname("hw.model", &buffer, &size, nil, 0) == 0 else { return nil }
+  return String(cString: buffer)
+}
+
+/// Read a fan description key: `{fds` keeps the text after a 4-byte header, `ch8*` is plain text.
+func readFanName(_ smc: SMC, _ index: Int) -> String? {
+  let key = fourCC("F\(index)ID")
+  guard let info = try? smc.keyInfo(key), let bytes = try? smc.readKey(key, info: info) else { return nil }
+  let type = fourCCString(info.dataType)
+  let text = type == "{fds" ? Array(bytes.dropFirst(4)) : bytes
+  let printable = text.prefix { $0 != 0 }.filter { $0 >= 32 && $0 < 127 }
+  let name = String(bytes: printable, encoding: .ascii)?.trimmingCharacters(in: .whitespaces) ?? ""
+  return name.isEmpty ? nil : name
 }
 
 final class Reader {
@@ -211,11 +55,7 @@ final class Reader {
   }
 
   private func lookup(_ name: String, allowedTypes: Set<String>) -> SensorKey? {
-    let key = fourCC(name)
-    guard let info = try? smc.keyInfo(key) else { return nil }
-    let type = fourCCString(info.dataType)
-    guard allowedTypes.contains(type) else { return nil }
-    return SensorKey(key: key, name: name, type: type, info: info)
+    lookupKey(smc, name, allowedTypes: allowedTypes)
   }
 
   /// Enumerate every key once; keep the temperature-shaped ones ("T..." with a numeric type
@@ -246,7 +86,8 @@ final class Reader {
           actual: actual,
           min: lookup("F\(index)Mn", allowedTypes: fanTypes),
           max: lookup("F\(index)Mx", allowedTypes: fanTypes),
-          target: lookup("F\(index)Tg", allowedTypes: fanTypes)
+          target: lookup("F\(index)Tg", allowedTypes: fanTypes),
+          name: readFanName(smc, index)
         ))
       }
     }
@@ -254,9 +95,7 @@ final class Reader {
   }
 
   func read(_ sensor: SensorKey?) -> Double? {
-    guard let sensor else { return nil }
-    guard let bytes = try? smc.readKey(sensor.key, info: sensor.info) else { return nil }
-    return decodeNumber(type: sensor.type, bytes: bytes)
+    readNumber(smc, sensor)
   }
 
   func snapshot() -> [String: Any] {
@@ -269,17 +108,20 @@ final class Reader {
     for fan in fans {
       guard let rpm = read(fan.actual) else { continue }
       var row: [String: Any] = ["index": fan.index, "rpm": rpm.rounded()]
+      if let name = fan.name { row["name"] = name }
       if let value = read(fan.min) { row["min"] = value.rounded() }
       if let value = read(fan.max) { row["max"] = value.rounded() }
       if let value = read(fan.target) { row["target"] = value.rounded() }
       fanRows.append(row)
     }
-    return [
+    var document: [String: Any] = [
       "ok": true,
       "timestamp": Int64(Date().timeIntervalSince1970 * 1000),
       "sensors": sensors,
       "fans": fanRows,
     ]
+    if let model = hardwareModel() { document["model"] = model }
+    return document
   }
 }
 

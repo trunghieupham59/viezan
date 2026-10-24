@@ -1757,3 +1757,131 @@ html:not(.dark) .quick-chat-answer-card {
 .capability-notice--inline .capability-notice__actions {
   flex-shrink: 0;
 }
+
+/* Slider atom — a native range input in the app's control language. */
+.ui-slider {
+  appearance: none;
+  inline-size: 100%;
+  block-size: var(--vzn-control-height-sm);
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.ui-slider:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ui-slider:focus-visible {
+  outline: none;
+}
+
+.ui-slider::-webkit-slider-runnable-track {
+  block-size: var(--vzn-space-1);
+  border-radius: var(--vzn-radius-pill);
+  background: linear-gradient(
+    to right,
+    var(--vzn-action-fill) 0 var(--ui-slider-progress, 0%),
+    var(--vzn-surface-muted) var(--ui-slider-progress, 0%) 100%
+  );
+}
+
+.ui-slider::-webkit-slider-thumb {
+  appearance: none;
+  inline-size: var(--vzn-space-4);
+  block-size: var(--vzn-space-4);
+  margin-block-start: calc((var(--vzn-space-1) - var(--vzn-space-4)) / 2);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-surface);
+  box-shadow: var(--vzn-shadow-sm);
+  transition: box-shadow var(--vzn-duration-fast) var(--vzn-ease-standard);
+}
+
+.ui-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 var(--vzn-space-0-5) var(--vzn-focus-ring);
+}
+
+.ui-slider:disabled::-webkit-slider-runnable-track {
+  background: var(--vzn-surface-muted);
+}
+
+/* SliderField molecule — a number box and a slider for the same value. */
+.slider-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-1);
+}
+
+.slider-field__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vzn-space-2);
+}
+
+.slider-field__label {
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.slider-field__entry {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vzn-space-1);
+}
+
+.slider-field__number {
+  inline-size: calc(var(--vzn-space-12) * 1.75);
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  appearance: textfield;
+}
+
+.slider-field__number::-webkit-outer-spin-button,
+.slider-field__number::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.slider-field__unit {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+}
+
+/* NumberField molecule — a labelled number box for a bounded value. */
+.number-field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vzn-space-2);
+}
+
+.number-field__label {
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.number-field__entry {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vzn-space-1);
+}
+
+.number-field__input {
+  inline-size: calc(var(--vzn-space-12) * 1.5);
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  appearance: textfield;
+}
+
+.number-field__input::-webkit-outer-spin-button,
+.number-field__input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.number-field__unit {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+}

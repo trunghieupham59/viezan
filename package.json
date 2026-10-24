@@ -111,8 +111,8 @@
       "dist-electron/**/*"
     ],
     "mac": {
-      "extraResources": [{ "from": "native/bin/darwin", "to": "native", "filter": ["viezan-smc"] }],
-      "binaries": ["Contents/Resources/native/viezan-smc"],
+      "extraResources": [{ "from": "native/bin/darwin", "to": "native", "filter": ["viezan-smc", "viezan-fan-helper"] }],
+      "binaries": ["Contents/Resources/native/viezan-smc", "Contents/Resources/native/viezan-fan-helper"],
       "icon": "build/icon.icns",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,

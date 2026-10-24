@@ -78,7 +78,8 @@ describe('capability IPC', () => {
 
   it('knows its own ids', () => {
     expect(isCapabilityId('input.accessibility')).toBe(true)
-    expect(isCapabilityId('thermal.fan.write')).toBe(false)
+    expect(isCapabilityId('thermal.fan.write')).toBe(true)
+    expect(isCapabilityId('network.write')).toBe(false)
     expect(isCapabilityId(null)).toBe(false)
   })
 })

@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import type { ThermalTrayMetric, ThermalTrayPlacement, ThermalTraySettings } from '../../../../shared/thermalApi'
 import { ToggleSwitch } from '../../ui/atoms'
-import { SelectField, type SelectFieldOption } from '../../ui/molecules'
+import { ConfigSection, SelectField, type SelectFieldOption } from '../../ui/molecules'
 
 export interface ThermalTrayOptionsLabels {
   /** Section title: "Menu bar" or "System tray", chosen by the caller from the placement. */
@@ -26,19 +26,20 @@ const METRICS: readonly ThermalTrayMetric[] = ['hottest', 'cpu', 'gpu']
 
 /**
  * Live reading outside the window: the master switch plus, while it is on, which
- * reading to show and whether to append the fan speed. Props-driven; the page owns
- * the settings round-trip with main.
+ * reading to show and whether to append the fan speed. One `ConfigSection` of the
+ * options popover, so it lines up with the sections beside it. Props-driven; the
+ * page owns the settings round-trip with main.
  */
 export function ThermalTrayOptions({ placement, settings, labels, busy = false, onChange }: ThermalTrayOptionsProps) {
+  const sectionId = useId()
   const enableId = useId()
   const enableDescId = useId()
   const fanId = useId()
   const metricOptions: SelectFieldOption[] = METRICS.map((metric) => ({ value: metric, label: labels.metricOptions[metric] }))
 
   return (
-    <section className="thermal-options" aria-labelledby={`${enableId}-title`} data-placement={placement}>
-      <h2 id={`${enableId}-title`} className="thermal-group__title">{labels.title}</h2>
-      <div className="thermal-options__card">
+    <ConfigSection id={sectionId} title={labels.title}>
+      <div className="thermal-options__card" data-placement={placement}>
         <div className="thermal-options__row">
           <div className="thermal-options__text">
             <p id={enableId} className="thermal-options__label">{labels.enable}</p>
@@ -74,6 +75,6 @@ export function ThermalTrayOptions({ placement, settings, labels, busy = false, 
           </div>
         )}
       </div>
-    </section>
+    </ConfigSection>
   )
 }

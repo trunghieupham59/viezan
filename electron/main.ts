@@ -1,3 +1,4 @@
+import * as os from 'node:os'
 import path from 'node:path'
 import type { Session, Tray } from 'electron'
 import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeImage, nativeTheme, screen, session, shell } from 'electron'
@@ -440,6 +441,11 @@ let subtitleWindow: BrowserWindow | null = null
 let moduleHost: ModuleHost | null = null
 let thermalRuntime: ThermalRuntime | null = null
 const thermalSupport = () => thermalRuntime?.getSupport() ?? { supported: false, reason: 'unsupported-platform' as const }
+const NO_FAN_CONTROL = { helper: 'unsupported' as const, fans: [] }
+const fanControlAccess = {
+  getState: () => thermalRuntime?.fanControl.getState() ?? NO_FAN_CONTROL,
+  enable: () => thermalRuntime?.fanControl.enable() ?? Promise.resolve(NO_FAN_CONTROL),
+}
 
 /** HC-NEW-08: px gap between subtitle window bottom edge and the screen's taskbar/dock */
 const SUBTITLE_BOTTOM_MARGIN = 40
@@ -540,7 +546,7 @@ app.whenReady().then(() => {
   initGlobalHotkey(ipcMain, () => mainWindow, toggleQuickChatWindow)
 
   // Capabilities — what this machine can do and whether the user allowed it
-  registerCapabilityHandlers(ipcMain, createCapabilityRegistry(createSystemCapabilityProviders({ thermalSupport: () => thermalSupport() })))
+  registerCapabilityHandlers(ipcMain, createCapabilityRegistry(createSystemCapabilityProviders({ thermalSupport: () => thermalSupport(), fanControl: fanControlAccess })))
 
   // Feature modules: chat, translate, live, dictionary, thermal, launcher, browser-bridge.
   // Every module registers its IPC; only enabled ones start (shortcuts, local server).
@@ -561,6 +567,8 @@ app.whenReady().then(() => {
       onOpen: openMainWindow,
       onHide,
     }),
+    uid: os.userInfo().uid,
+    helperSocketSuffix: runtimeProfile.isDev ? '-dev' : '',
   })
   moduleHost = createModuleHost({
     modules: createAppModules({

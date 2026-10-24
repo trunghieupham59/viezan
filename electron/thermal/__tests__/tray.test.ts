@@ -45,21 +45,23 @@ describe('thermal settings store', () => {
     expect(parseThermalSettingsPatch({ tray: { metric: 'disk' } })).toEqual({ ok: false, error: 'Invalid "tray.metric" value.' })
     expect(parseThermalSettingsPatch({ tray: { enabled: 'yes' } })).toEqual({ ok: false, error: 'Invalid "tray.enabled" value.' })
     expect(parseThermalSettingsPatch(null)).toEqual({ ok: false, error: 'Invalid thermal settings payload.' })
-    expect(applyThermalSettingsPatch(DEFAULT_THERMAL_SETTINGS, { tray: { showFan: true } })).toEqual({ tray: { enabled: false, metric: 'hottest', showFan: true } })
+    expect(applyThermalSettingsPatch(DEFAULT_THERMAL_SETTINGS, { tray: { showFan: true } })).toEqual({ tray: { enabled: false, metric: 'hottest', showFan: true }, fanControl: { acknowledged: false }, fanProfiles: { activeId: null, user: [] }, fanAffinity: null })
+    expect(parseThermalSettingsPatch({ fanControl: { acknowledged: true } })).toEqual({ ok: true, patch: { fanControl: { acknowledged: true } } })
+    expect(parseThermalSettingsPatch({ fanControl: { acknowledged: 'yes' } })).toEqual({ ok: false, error: 'Invalid "fanControl.acknowledged" value.' })
   })
 
   it('persists and notifies only when something changed', () => {
     const save = vi.fn()
     const listener = vi.fn()
-    const store = createThermalSettingsStore({ load: () => ({ tray: { ...DEFAULT_THERMAL_SETTINGS.tray } }), save })
+    const store = createThermalSettingsStore({ load: () => ({ ...DEFAULT_THERMAL_SETTINGS, tray: { ...DEFAULT_THERMAL_SETTINGS.tray } }), save })
     store.subscribe(listener)
 
     store.update({ tray: { enabled: false } })
     expect(save).not.toHaveBeenCalled()
     expect(listener).not.toHaveBeenCalled()
 
-    expect(store.update({ tray: { enabled: true, metric: 'cpu' } })).toEqual({ tray: { enabled: true, metric: 'cpu', showFan: false } })
-    expect(save).toHaveBeenCalledWith({ tray: { enabled: true, metric: 'cpu', showFan: false } })
+    expect(store.update({ tray: { enabled: true, metric: 'cpu' } })).toEqual({ tray: { enabled: true, metric: 'cpu', showFan: false }, fanControl: { acknowledged: false }, fanProfiles: { activeId: null, user: [] }, fanAffinity: null })
+    expect(save).toHaveBeenCalledWith({ tray: { enabled: true, metric: 'cpu', showFan: false }, fanControl: { acknowledged: false }, fanProfiles: { activeId: null, user: [] }, fanAffinity: null })
     expect(listener).toHaveBeenCalledTimes(1)
     expect(store.get().tray.metric).toBe('cpu')
   })

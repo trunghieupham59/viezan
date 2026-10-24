@@ -1,23 +1,11 @@
-/* Thermal feature: headline figures, sensor groups and reading tiles. Every value
-   comes from tokens.css; the tile tone (ok / warm / hot) only recolours the bar,
-   the value and the sparkline, so a hot sensor still reads as text first. */
+/* Thermal feature: the same frame as the other features (command bar on a glass
+   panel, two panels in app-panel-grid), fans with their controls on one side and
+   temperatures as a compact foldable table on the other. Every value comes from
+   tokens.css; the tone (ok / warm / hot) only recolours a reading's value. */
 
-.thermal-page {
-  display: flex;
-  min-block-size: 0;
+.thermal-heading {
+  min-inline-size: 0;
   flex: 1 1 auto;
-  flex-direction: column;
-  gap: var(--vzn-space-4);
-  overflow: auto;
-  color: var(--vzn-text);
-}
-
-.thermal-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--vzn-space-3) var(--vzn-space-6);
 }
 
 .thermal-title {
@@ -35,49 +23,658 @@
   font-size: var(--vzn-font-size-sm);
 }
 
-/* Headline figures ----------------------------------------------------------- */
-
-.thermal-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--vzn-space-2);
-  margin: 0;
+/* Helper status chip in the command bar: a dot in the state's colour plus a short text. */
+.thermal-helper-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vzn-space-1-5);
+  padding: var(--vzn-space-1) var(--vzn-space-2);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-pill);
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+  white-space: nowrap;
 }
 
-.thermal-summary__item {
+.thermal-helper-chip::before {
+  content: "";
+  inline-size: var(--vzn-space-2);
+  block-size: var(--vzn-space-2);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-text-muted);
+}
+
+.thermal-helper-chip[data-tone="ok"]::before { background: var(--vzn-success); }
+.thermal-helper-chip[data-tone="warning"]::before { background: var(--vzn-warning); }
+.thermal-helper-chip[data-tone="danger"]::before { background: var(--vzn-danger); }
+.thermal-helper-chip[data-tone="info"]::before { display: none; }
+
+/* A one-line notice under the command bar (the helper restored the fans on its own). */
+.thermal-notice {
+  margin: 0;
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.thermal-panels-body {
   display: flex;
-  min-inline-size: var(--vzn-thermal-summary-min-inline);
+  flex: 1 1 0%;
+  min-block-size: 0;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-3);
+  overflow: auto;
+}
+
+/* Panels size to their content and the body scrolls, unlike the fixed-height live panels. */
+.thermal-panels {
+  flex: 0 0 auto;
+  grid-template-rows: auto;
+  align-items: start;
+}
+
+.thermal-panel {
+  display: flex;
+  min-inline-size: 0;
+  flex-direction: column;
+}
+
+.thermal-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-3);
+  padding: var(--vzn-space-3);
+}
+
+.thermal-stats {
+  gap: var(--vzn-space-3);
+}
+
+.thermal-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--vzn-space-1);
+  white-space: nowrap;
+}
+
+.thermal-stat__label {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.thermal-stat__value {
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.thermal-empty {
+  margin: 0;
+  padding: var(--vzn-space-3) var(--vzn-space-4);
+  border: var(--vzn-border-width) dashed var(--vzn-border);
+  border-radius: var(--vzn-radius-md);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+}
+
+/* Fan panel ------------------------------------------------------------------- */
+
+/* Calibration progress under the panel toolbar, only while a run is going. */
+.thermal-calibration {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.thermal-calibration__bar {
+  display: block;
+  flex: 1 1 100%;
+  block-size: var(--vzn-space-1);
+  overflow: hidden;
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-surface-muted);
+}
+
+.thermal-calibration__fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--vzn-action-fill);
+  transition: inline-size var(--vzn-duration-normal) var(--vzn-ease-standard);
+}
+
+.thermal-calibration__text {
+  flex: 1 1 auto;
+}
+
+.thermal-profiles__select {
+  flex: 0 1 var(--vzn-thermal-tile-min-inline);
+  min-inline-size: 0;
+}
+
+.thermal-panel .live-panel-toolbar {
+  flex-wrap: nowrap;
+}
+
+.thermal-panel .live-toolbar-start {
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+}
+
+.thermal-panel .live-toolbar-end {
+  flex: 0 0 auto;
+}
+
+.thermal-profiles__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-2);
+}
+
+/* The profile picker sits in a panel toolbar: its label stays for assistive tech only. */
+.live-toolbar-start > .thermal-profiles__select .ai-select-field__label {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.thermal-profiles__form .ui-input {
+  flex: 1 1 var(--vzn-thermal-tile-min-inline);
+}
+
+.thermal-fans {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.thermal-fan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-3) 0;
+  border-block-start: var(--vzn-border-width) solid var(--vzn-border);
+}
+
+.thermal-fan:last-child {
+  padding-block-end: 0;
+}
+
+.thermal-fan__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vzn-space-2) var(--vzn-space-4);
+}
+
+.thermal-fan__identity {
+  display: flex;
+  min-inline-size: 0;
   flex-direction: column;
   gap: var(--vzn-space-0-5);
+}
+
+.thermal-fan__name {
+  color: var(--vzn-text);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-medium);
+  line-height: var(--vzn-line-tight);
+}
+
+.thermal-fan__current {
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-title);
+  font-weight: var(--vzn-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--vzn-line-tight);
+}
+
+/* Speed meter: the fan's bounds at the ends, the live speed filled, the app's target marked. */
+.thermal-fan__meter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--vzn-space-2);
+}
+
+.thermal-fan__bound {
+  flex: 0 0 auto;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-micro);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.thermal-fan__meter {
+  position: relative;
+  display: block;
+  flex: 1 1 auto;
+  block-size: var(--vzn-space-1-5);
+}
+
+/* A native <meter> restyled as a flat track (Chromium's pseudo-elements; the fill colour follows the fan's mode). */
+.thermal-fan__meter-gauge {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  border: 0;
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-border);
+  appearance: none;
+}
+
+.thermal-fan__meter-gauge::-webkit-meter-bar {
+  border: 0;
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-border);
+}
+
+.thermal-fan__meter-gauge::-webkit-meter-optimum-value,
+.thermal-fan__meter-gauge::-webkit-meter-suboptimum-value,
+.thermal-fan__meter-gauge::-webkit-meter-even-less-good-value {
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-text-muted);
+  transition: inline-size var(--vzn-duration-normal) var(--vzn-ease-standard);
+}
+
+/* While the app holds the fan, the live speed and its fill take the action colour. */
+.thermal-fan[data-mode="fixed"] .thermal-fan__current,
+.thermal-fan[data-mode="sensor"] .thermal-fan__current {
+  color: var(--vzn-action);
+}
+
+.thermal-fan[data-mode="fixed"] .thermal-fan__meter-gauge::-webkit-meter-optimum-value,
+.thermal-fan[data-mode="sensor"] .thermal-fan__meter-gauge::-webkit-meter-optimum-value {
+  background: var(--vzn-action-fill);
+}
+
+.thermal-fan__meter-target {
+  position: absolute;
+  inset-block: calc(-1 * var(--vzn-space-1));
+  inline-size: var(--vzn-space-0-5);
+  margin-inline-start: calc(-1 * var(--vzn-space-0-5) / 2);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-text-strong);
+  transition: inset-inline-start var(--vzn-duration-normal) var(--vzn-ease-standard);
+}
+
+.thermal-fan__system {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.thermal-fan__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vzn-space-1);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.thermal-fan__params {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
   padding: var(--vzn-space-2) var(--vzn-space-3);
+  border-radius: var(--vzn-radius-sm);
+  background: var(--vzn-surface-muted);
+}
+
+.thermal-fan__sensor {
+  inline-size: 100%;
+}
+
+/* "Speed up from [50] °C, full speed at [90] °C": one sentence, one line. */
+.thermal-fan__thresholds {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vzn-space-2) var(--vzn-space-3);
+}
+
+.thermal-fan__thresholds .number-field__label {
+  white-space: nowrap;
+}
+
+.thermal-fan__now {
+  margin: 0;
+  min-block-size: var(--vzn-space-4);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Advanced raw-sensor picker ---------------------------------------------------- */
+
+.thermal-raw {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-2);
+}
+
+.thermal-raw__list {
+  display: flex;
+  max-block-size: var(--vzn-thermal-raw-list-max-block);
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-md);
+}
+
+.thermal-raw__item {
+  display: flex;
+  inline-size: 100%;
+  align-items: center;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-1-5) var(--vzn-space-3);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.thermal-raw__item:hover {
+  background: var(--vzn-surface-muted);
+}
+
+.thermal-raw__item:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 var(--vzn-space-0-5) var(--vzn-focus-ring);
+}
+
+.thermal-raw__item[aria-pressed="true"] {
+  background: var(--vzn-action-soft);
+  color: var(--vzn-action);
+}
+
+.thermal-raw__label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  font-size: var(--vzn-font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thermal-raw__code {
+  color: var(--vzn-text-muted);
+  font-family: var(--vzn-font-mono);
+  font-size: var(--vzn-font-size-micro);
+}
+
+.thermal-raw__value {
+  flex: 0 0 auto;
+  font-size: var(--vzn-font-size-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sensor table ----------------------------------------------------------------- */
+
+.thermal-table__heading {
+  margin: 0;
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: var(--vzn-line-tight);
+}
+
+.thermal-table__toggle {
+  display: flex;
+  inline-size: 100%;
+  align-items: center;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-1) var(--vzn-space-1) var(--vzn-space-1) 0;
+  border: 0;
+  border-radius: var(--vzn-radius-sm);
+  background: transparent;
+  color: var(--vzn-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.thermal-table__toggle:hover .thermal-table__name {
+  color: var(--vzn-text-strong);
+}
+
+.thermal-table__toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--vzn-space-0-5) var(--vzn-focus-ring);
+}
+
+.thermal-table__chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  inline-size: var(--vzn-icon-sm);
+  block-size: var(--vzn-icon-sm);
+  color: var(--vzn-text-muted);
+  transition: transform var(--vzn-duration-fast) var(--vzn-ease-standard);
+}
+
+.thermal-table__chevron svg {
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.thermal-table__toggle[aria-expanded="true"] .thermal-table__chevron {
+  transform: rotate(180deg);
+}
+
+.thermal-table__max {
+  margin-inline-start: auto;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.thermal-table__max[data-tone="warm"] { color: var(--vzn-warning); }
+.thermal-table__max[data-tone="hot"] { color: var(--vzn-danger); }
+
+.thermal-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-4);
+}
+
+.thermal-table__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vzn-space-1);
+}
+
+.thermal-table__count {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-medium);
+}
+
+.thermal-table__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
   border: var(--vzn-border-width) solid var(--vzn-border);
   border-radius: var(--vzn-radius-md);
   background: var(--vzn-surface);
 }
 
-.thermal-summary__value {
-  margin: 0;
-  color: var(--vzn-text-strong);
-  font-size: var(--vzn-font-size-title-lg);
-  font-weight: var(--vzn-weight-semibold);
+.thermal-row + .thermal-row {
+  border-block-start: var(--vzn-border-width) solid var(--vzn-border);
+}
+
+.thermal-row__main {
+  display: flex;
+  inline-size: 100%;
+  align-items: center;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  text-align: start;
+}
+
+.thermal-row__main--button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background-color var(--vzn-duration-fast) var(--vzn-ease-standard);
+}
+
+.thermal-row__main--button:hover {
+  background: var(--vzn-surface-muted);
+}
+
+.thermal-row__main--button:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 var(--vzn-space-0-5) var(--vzn-focus-ring);
+}
+
+.thermal-row__chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  inline-size: var(--vzn-icon-sm);
+  block-size: var(--vzn-icon-sm);
+  color: var(--vzn-text-muted);
+  transition: transform var(--vzn-duration-fast) var(--vzn-ease-standard);
+}
+
+.thermal-row__chevron svg {
+  inline-size: 100%;
+  block-size: 100%;
+}
+
+.thermal-row__main--button[aria-expanded="true"] .thermal-row__chevron {
+  transform: rotate(180deg);
+}
+
+.thermal-row__text {
+  display: flex;
+  min-inline-size: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--vzn-space-0-5);
+}
+
+.thermal-row__title {
+  overflow: hidden;
+  color: var(--vzn-text);
+  font-size: var(--vzn-font-size-sm);
+  font-weight: var(--vzn-weight-medium);
   line-height: var(--vzn-line-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thermal-row__caption {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-micro);
+  line-height: var(--vzn-line-tight);
+}
+
+.thermal-row__caption--code {
+  font-family: var(--vzn-font-mono);
+}
+
+.thermal-row[data-unlabeled] .thermal-row__title {
+  color: var(--vzn-text-muted);
+}
+
+.thermal-row__value,
+.thermal-row__member-value {
+  flex: 0 0 auto;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-md);
+  font-weight: var(--vzn-weight-semibold);
   font-variant-numeric: tabular-nums;
 }
 
-.thermal-summary__caption {
-  margin: 0;
-  color: var(--vzn-text-muted);
-  font-size: var(--vzn-font-size-caption);
-  line-height: var(--vzn-line-tight);
+.thermal-row[data-tone="warm"] > .thermal-row__main .thermal-row__value,
+.thermal-row__member[data-tone="warm"] .thermal-row__member-value {
+  color: var(--vzn-warning);
 }
 
-/* Menu bar / tray options ----------------------------------------------------- */
+.thermal-row[data-tone="hot"] > .thermal-row__main .thermal-row__value,
+.thermal-row__member[data-tone="hot"] .thermal-row__member-value {
+  color: var(--vzn-danger);
+}
 
-.thermal-options {
+.thermal-row__members {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--vzn-thermal-summary-min-inline), 1fr));
+  gap: var(--vzn-space-1) var(--vzn-space-3);
+  margin: 0;
+  padding: var(--vzn-space-1) var(--vzn-space-3) var(--vzn-space-2) calc(var(--vzn-space-3) + var(--vzn-icon-sm) + var(--vzn-space-2));
+  list-style: none;
+  background: var(--vzn-surface-muted);
+}
+
+.thermal-row__member {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--vzn-space-2);
+}
+
+.thermal-row__member-code {
+  color: var(--vzn-text-soft);
+  font-family: var(--vzn-font-mono);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.thermal-row__member-value {
+  font-size: var(--vzn-font-size-caption);
+}
+
+/* Calibration section in the options popover ----------------------------------- */
+
+.thermal-calibrate {
   display: flex;
   flex-direction: column;
   gap: var(--vzn-space-2);
 }
+
+.thermal-calibrate__desc {
+  margin: 0;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.thermal-calibrate__status {
+  margin: 0;
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.thermal-calibrate__status[data-status="done"] { color: var(--vzn-success); }
+.thermal-calibrate__status[data-status="error"] { color: var(--vzn-danger); }
+
+.thermal-calibrate__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vzn-space-2);
+}
+
+/* Menu bar / tray options ------------------------------------------------------ */
 
 .thermal-options__card {
   display: flex;
@@ -134,146 +731,17 @@
   gap: var(--vzn-space-3);
 }
 
-/* Groups and tiles ----------------------------------------------------------- */
+/* First-run disclaimer ---------------------------------------------------------- */
 
-.thermal-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--vzn-space-4);
-}
-
-.thermal-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--vzn-space-2);
-}
-
-.thermal-group__title {
-  display: flex;
-  align-items: baseline;
-  gap: var(--vzn-space-2);
+.thermal-fan-disclaimer__body {
   margin: 0;
-  color: var(--vzn-text-strong);
-  font-size: var(--vzn-font-size-lg);
-  font-weight: var(--vzn-weight-semibold);
-  line-height: var(--vzn-line-tight);
-}
-
-.thermal-group__count {
-  color: var(--vzn-text-muted);
-  font-size: var(--vzn-font-size-caption);
-  font-weight: var(--vzn-weight-medium);
-}
-
-.thermal-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(var(--vzn-thermal-tile-min-inline), 1fr));
-  gap: var(--vzn-space-2);
-}
-
-.thermal-grid--fans {
-  grid-template-columns: repeat(auto-fill, minmax(var(--vzn-thermal-fan-tile-min-inline), 1fr));
-}
-
-.thermal-empty {
-  margin: 0;
-  padding: var(--vzn-space-3) var(--vzn-space-4);
-  border: var(--vzn-border-width) dashed var(--vzn-border);
-  border-radius: var(--vzn-radius-md);
-  color: var(--vzn-text-muted);
-  font-size: var(--vzn-font-size-sm);
-}
-
-.thermal-tile {
-  --thermal-tone: var(--vzn-success);
-  --thermal-tone-soft: var(--vzn-success-soft);
-  display: flex;
-  flex-direction: column;
-  gap: var(--vzn-space-1-5);
-  padding: var(--vzn-space-2) var(--vzn-space-3);
-  border: var(--vzn-border-width) solid var(--vzn-border);
-  border-radius: var(--vzn-radius-md);
-  background: var(--vzn-surface);
-}
-
-.thermal-tile[data-tone="warm"] {
-  --thermal-tone: var(--vzn-warning);
-  --thermal-tone-soft: var(--vzn-warning-soft);
-}
-
-.thermal-tile[data-tone="hot"] {
-  --thermal-tone: var(--vzn-danger);
-  --thermal-tone-soft: var(--vzn-danger-soft);
-}
-
-.thermal-tile__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--vzn-space-2);
-}
-
-.thermal-tile__labels {
-  min-inline-size: 0;
-}
-
-.thermal-tile__label {
-  margin: 0;
-  overflow: hidden;
   color: var(--vzn-text);
   font-size: var(--vzn-font-size-sm);
-  font-weight: var(--vzn-weight-medium);
-  line-height: var(--vzn-line-tight);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: var(--vzn-line-reading);
 }
 
-.thermal-tile__code {
-  margin: var(--vzn-space-0-5) 0 0;
-  color: var(--vzn-text-muted);
-  font-family: var(--vzn-font-mono);
-  font-size: var(--vzn-font-size-micro);
-  line-height: var(--vzn-line-tight);
-}
-
-.thermal-tile__value {
-  margin: 0;
-  flex: 0 0 auto;
-  color: var(--thermal-tone);
-  font-size: var(--vzn-font-size-md);
-  font-weight: var(--vzn-weight-semibold);
-  line-height: var(--vzn-line-tight);
-  font-variant-numeric: tabular-nums;
-}
-
-.thermal-tile__bar {
-  block-size: var(--vzn-space-1);
-  overflow: hidden;
-  border-radius: var(--vzn-radius-pill);
-  background: var(--vzn-surface-muted);
-}
-
-.thermal-tile__bar-fill {
-  display: block;
-  block-size: 100%;
-  border-radius: inherit;
-  background: var(--thermal-tone);
-  transition: inline-size var(--vzn-duration-normal) var(--vzn-ease-standard);
-}
-
-.thermal-tile__spark {
-  block-size: var(--vzn-space-6);
-  inline-size: 100%;
-  color: var(--thermal-tone);
-}
-
-.sparkline polyline {
-  stroke-width: var(--vzn-border-width);
-}
-
-.thermal-tile__detail {
-  margin: 0;
-  color: var(--vzn-text-muted);
-  font-size: var(--vzn-font-size-caption);
-  line-height: var(--vzn-line-tight);
+.thermal-fan-disclaimer__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--vzn-space-2);
 }

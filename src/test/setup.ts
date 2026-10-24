@@ -244,9 +244,31 @@ if (typeof window !== 'undefined') {
     setMonitoring: vi.fn().mockResolvedValue({ success: true }),
     onSnapshot: vi.fn().mockReturnValue(() => {}),
     onError: vi.fn().mockReturnValue(() => {}),
-    getSettings: vi.fn().mockResolvedValue({ success: true, settings: { tray: { enabled: false, metric: 'hottest', showFan: false } } }),
-    updateSettings: vi.fn().mockResolvedValue({ success: true, settings: { tray: { enabled: false, metric: 'hottest', showFan: false } } }),
+    getSettings: vi.fn().mockResolvedValue({ success: true, settings: { tray: { enabled: false, metric: 'hottest', showFan: false }, fanControl: { acknowledged: false } } }),
+    updateSettings: vi.fn().mockResolvedValue({ success: true, settings: { tray: { enabled: false, metric: 'hottest', showFan: false }, fanControl: { acknowledged: false } } }),
     onSettingsChanged: vi.fn().mockReturnValue(() => {}),
+    fanControl: {
+      getState: vi.fn().mockResolvedValue({ success: true, state: { helper: 'unsupported', fans: [] } }),
+      enable: vi.fn().mockResolvedValue({ success: true, state: { helper: 'unsupported', fans: [] } }),
+      setFan: vi.fn().mockResolvedValue({ success: true, state: { helper: 'unsupported', fans: [] } }),
+      restoreAll: vi.fn().mockResolvedValue({ success: true, state: { helper: 'unsupported', fans: [] } }),
+      disable: vi.fn().mockResolvedValue({ success: true, state: { helper: 'unsupported', fans: [] } }),
+      onState: vi.fn().mockReturnValue(() => {}),
+      profiles: {
+        get: vi.fn().mockResolvedValue({ success: true, state: { activeId: null, applied: false, profiles: [] } }),
+        apply: vi.fn().mockResolvedValue({ success: true, state: { activeId: null, applied: false, profiles: [] } }),
+        saveCurrent: vi.fn().mockResolvedValue({ success: true, state: { activeId: null, applied: false, profiles: [] } }),
+        remove: vi.fn().mockResolvedValue({ success: true, state: { activeId: null, applied: false, profiles: [] } }),
+        onState: vi.fn().mockReturnValue(() => {}),
+      },
+      calibration: {
+        get: vi.fn().mockResolvedValue({ success: true, state: { status: 'idle' } }),
+        start: vi.fn().mockResolvedValue({ success: true, state: { status: 'running' } }),
+        cancel: vi.fn().mockResolvedValue({ success: true, state: { status: 'cancelled' } }),
+        clear: vi.fn().mockResolvedValue({ success: true, state: { status: 'idle' } }),
+        onState: vi.fn().mockReturnValue(() => {}),
+      },
+    },
   }
   const capabilitiesApiMock: CapabilitiesApi = {
     get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
