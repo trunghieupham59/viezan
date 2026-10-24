@@ -19,8 +19,8 @@ import { registerTranscribeHandlers } from '../ipc/transcribe'
 import { registerTranslateHandlers } from '../ipc/translate'
 import { registerTtsHandlers } from '../ipc/tts'
 import { registerWebSearchHandlers } from '../ipc/webSearch'
+import type { ThermalRuntime } from '../thermal'
 import { registerThermalHandlers } from '../thermal/ipc'
-import type { ThermalService } from '../thermal/service'
 import type { MainModule } from './host'
 
 export interface AppModuleDeps {
@@ -31,7 +31,7 @@ export interface AppModuleDeps {
   closeSubtitleWindow: () => void
   getQuickChatWindow: () => BrowserWindow | null
   hideQuickChatWindow: () => void
-  thermal: ThermalService
+  thermal: ThermalRuntime
 }
 
 export function createAppModules(deps: AppModuleDeps): MainModule[] {
@@ -70,8 +70,10 @@ export function createAppModules(deps: AppModuleDeps): MainModule[] {
     },
     {
       // Sensors and fans. Off by default where nothing can be read (Windows, missing reader).
+      // `start` restores the menu bar / tray reading; `stop` hides it and releases the reader.
       id: 'thermal',
       registerHandlers: () => registerThermalHandlers(ipcMain, deps.thermal),
+      start: () => deps.thermal.start(),
       stop: () => deps.thermal.stop(),
       defaultEnabled: deps.thermal.getSupport().supported,
     },

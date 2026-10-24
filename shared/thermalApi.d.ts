@@ -71,12 +71,42 @@ export interface ThermalSnapshot {
 
 export type ThermalUnsupportedReason = 'unsupported-platform' | 'reader-missing' | 'no-sensors'
 
+/**
+ * Where a live reading can be shown outside the window: the macOS menu bar (a status
+ * item of its own), the Windows/Linux system tray (the app's resident tray icon, as a
+ * tooltip), or nowhere (no tray on this run).
+ */
+export type ThermalTrayPlacement = 'menu-bar' | 'tray' | 'none'
+
 export interface ThermalSupport {
   supported: boolean
   source?: ThermalSource
   reason?: ThermalUnsupportedReason
   /** Human-oriented hint for logs and the notice (e.g. the missing reader path). */
   detail?: string
+  /** Absent when sensors cannot be read at all. */
+  trayPlacement?: ThermalTrayPlacement
+}
+
+/** Which reading the menu bar / tray shows. `cpu` and `gpu` fall back to the hottest sensor when the group is empty. */
+export type ThermalTrayMetric = 'hottest' | 'cpu' | 'gpu'
+
+export interface ThermalTraySettings {
+  /** Show a live reading in the menu bar / tray. Keeps sensors polled (slower) while the window is hidden. */
+  enabled: boolean
+  metric: ThermalTrayMetric
+  /** Append the fastest fan's RPM after the temperature. */
+  showFan: boolean
+}
+
+/** Per-module settings owned by the main process (`thermal.json` under userData). */
+export interface ThermalSettings {
+  tray: ThermalTraySettings
+}
+
+/** A partial update; omitted fields keep their value. */
+export interface ThermalSettingsPatch {
+  tray?: Partial<ThermalTraySettings>
 }
 
 export interface ThermalApi {
@@ -87,4 +117,9 @@ export interface ThermalApi {
   setMonitoring: (active: boolean) => Promise<{ success: boolean; error?: string }>
   onSnapshot: (cb: (snapshot: ThermalSnapshot) => void) => () => void
   onError: (cb: (error: { message: string }) => void) => () => void
+  getSettings: () => Promise<{ success: boolean; settings?: ThermalSettings; error?: string }>
+  /** Validated in main; resolves with the full settings after the change was applied and saved. */
+  updateSettings: (patch: ThermalSettingsPatch) => Promise<{ success: boolean; settings?: ThermalSettings; error?: string }>
+  /** Fired after main applied a settings change from any source (Settings UI, tray menu). */
+  onSettingsChanged: (cb: (settings: ThermalSettings) => void) => () => void
 }

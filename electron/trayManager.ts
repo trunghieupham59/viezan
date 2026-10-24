@@ -11,12 +11,12 @@ import { Menu, nativeImage, Tray } from 'electron'
 
 type TrayLocale = 'en' | 'vi' | 'ja'
 
-type TrayLabels = { open: string; quit: string; tooltip: string }
+type TrayLabels = { open: string; quit: string; tooltip: string; hideThermal: string }
 
 const TRAY_LABELS: Record<TrayLocale, TrayLabels> = {
-  en: { open: 'Open Viezan', quit: 'Quit Viezan', tooltip: 'Viezan' },
-  vi: { open: 'Mở Viezan', quit: 'Thoát Viezan', tooltip: 'Viezan' },
-  ja: { open: 'Viezan を開く', quit: 'Viezan を終了', tooltip: 'Viezan' },
+  en: { open: 'Open Viezan', quit: 'Quit Viezan', tooltip: 'Viezan', hideThermal: 'Hide temperature from the menu bar' },
+  vi: { open: 'Mở Viezan', quit: 'Thoát Viezan', tooltip: 'Viezan', hideThermal: 'Ẩn nhiệt độ khỏi thanh menu' },
+  ja: { open: 'Viezan を開く', quit: 'Viezan を終了', tooltip: 'Viezan', hideThermal: 'メニューバーから温度を隠す' },
 }
 
 const TRAY_ICON_SIZE = 16
@@ -99,5 +99,32 @@ export function createAppTray(options: AppTrayOptions): Tray | null {
   // click events behave the same.
   tray.on('click', options.onOpen)
   tray.on('double-click', options.onOpen)
+  return tray
+}
+
+export interface StatusItemTrayOptions {
+  osLocale: string | undefined
+  tooltip: string
+  onOpen: () => void
+  /** Turns the menu bar reading off from its own menu. */
+  onHide: () => void
+}
+
+/**
+ * macOS menu bar status item for the Thermal module: no icon, the live reading is
+ * its title (set by the thermal tray controller). Separate from `createAppTray`,
+ * which is the Windows/Linux residency icon.
+ */
+export function createStatusItemTray(options: StatusItemTrayOptions): Tray {
+  const labels = getTrayLabels(options.osLocale)
+  const tray = new Tray(nativeImage.createEmpty())
+  tray.setToolTip(options.tooltip)
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: labels.open, click: options.onOpen },
+      { type: 'separator' },
+      { label: labels.hideThermal, click: options.onHide },
+    ]),
+  )
   return tray
 }

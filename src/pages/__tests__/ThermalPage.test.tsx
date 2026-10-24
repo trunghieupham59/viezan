@@ -56,6 +56,30 @@ describe('ThermalPage', () => {
     await waitFor(() => expect(window.api.thermal.setMonitoring).toHaveBeenLastCalledWith(false))
   })
 
+  it('offers the menu bar reading where main reports a placement and round-trips changes through main', async () => {
+    vi.mocked(window.api.thermal.getSupport).mockResolvedValue({ success: true, support: { supported: true, source: 'smc', trayPlacement: 'menu-bar' } })
+    vi.mocked(window.api.thermal.updateSettings).mockResolvedValue({ success: true, settings: { tray: { enabled: true, metric: 'hottest', showFan: false } } })
+    render(<ThermalPage />)
+
+    const section = await screen.findByRole('region', { name: t.thermal_tray_section_menu_bar })
+    const enable = screen.getByRole('switch', { name: t.thermal_tray_enable })
+    expect(enable).not.toBeChecked()
+    expect(screen.queryByRole('switch', { name: t.thermal_tray_show_fan })).toBeNull()
+
+    fireEvent.click(enable)
+    await waitFor(() => expect(window.api.thermal.updateSettings).toHaveBeenCalledWith({ tray: { enabled: true } }))
+    await waitFor(() => expect(screen.getByRole('switch', { name: t.thermal_tray_enable })).toBeChecked())
+    expect(section).toHaveTextContent(t.thermal_tray_metric)
+    expect(screen.getByRole('switch', { name: t.thermal_tray_show_fan })).not.toBeChecked()
+  })
+
+  it('hides the menu bar option when this run has nowhere to show it', async () => {
+    vi.mocked(window.api.thermal.getSupport).mockResolvedValue({ success: true, support: { supported: true, source: 'hwmon', trayPlacement: 'none' } })
+    render(<ThermalPage />)
+    await waitFor(() => expect(window.api.thermal.setMonitoring).toHaveBeenCalledWith(true))
+    expect(screen.queryByRole('switch', { name: t.thermal_tray_enable })).toBeNull()
+  })
+
   it('explains an unsupported platform and never starts monitoring', async () => {
     vi.mocked(window.api.thermal.getSupport).mockResolvedValue({ success: true, support: { supported: false, reason: 'unsupported-platform' } })
     render(<ThermalPage />)

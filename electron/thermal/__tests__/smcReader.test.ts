@@ -2,8 +2,8 @@
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createSmcReader, parseSmcOutput, resolveSmcBinaryPath } from '../smcReader'
 import { classifySmcKey } from '../smcKeys'
+import { createSmcReader, parseSmcOutput, resolveSmcBinaryPath } from '../smcReader'
 
 describe('SMC key classification', () => {
   it('knows the common Intel and Apple Silicon keys', () => {

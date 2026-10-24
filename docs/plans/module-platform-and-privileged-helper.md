@@ -325,9 +325,21 @@ chu kỳ ở chế độ `--watch`; `electron/thermal/` gồm reader macOS (gi�
 CPU từ `os.cpus()`, service poll 2 giây tạm dừng khi cửa sổ ẩn, IPC `thermal:*`,
 capability `thermal.sensors`; module `thermal` mặc định tắt nơi không đọc được
 (Windows, thiếu binary) nhờ `defaultEnabled` của host. Trang Nhiệt độ nhóm cảm biến
-CPU/GPU/khác, quạt với biên min–max, tải CPU, lịch sử 3 phút dạng sparkline. Chưa
-làm: tùy chọn tray; đối chiếu số liệu với Macs Fan Control trên máy Intel; Windows
-giữ trạng thái "chưa hỗ trợ".
+CPU/GPU/khác, quạt với biên min–max, tải CPU, lịch sử 3 phút dạng sparkline.
+
+Đã làm (giai đoạn 1, PR thứ hai — tùy chọn tray): cài đặt module `thermal.json`
+(`electron/thermal/settingsStore.ts`, IPC `thermal:getSettings` /
+`thermal:updateSettings` / sự kiện `thermal:settingsChanged`, validate từng trường);
+trên macOS một status item riêng không icon hiện số đo làm tiêu đề (`61°` hoặc
+`61° 2374` kèm quạt nhanh nhất, font `monospacedDigit`, menu "Mở Viezan" / "Ẩn nhiệt
+độ khỏi thanh menu"), trên Windows/Linux số đo đi vào tooltip của tray thường trú;
+`ThermalSupport.trayPlacement` cho renderer biết có chỗ hiện hay không. Service có
+"người tiêu thụ nền": khi chỉ còn tray lắng nghe thì đọc mỗi 5 giây kể cả lúc cửa sổ
+ẩn, trang mở thì 2 giây, không ai nghe thì thả reader. Trang Nhiệt độ có khối "Thanh
+menu" (bật/tắt, chọn số đo nóng nhất/CPU/GPU, kèm tốc độ quạt). Sửa kèm: ở bản
+checkout `app.getAppPath()` trả về `dist-electron` nên binary SMC bị báo thiếu; main
+giờ resolve từ thư mục cha của main đã biên dịch. Chưa làm: đối chiếu số liệu với
+Macs Fan Control trên máy Intel; Windows giữ trạng thái "chưa hỗ trợ".
 
 ### Giai đoạn 2: helper đặc quyền và điều khiển quạt trên macOS
 
