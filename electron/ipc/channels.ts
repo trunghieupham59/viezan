@@ -256,9 +256,12 @@ export const THERMAL_CHANNELS = {
     getSupport: 'thermal:getSupport',
     read: 'thermal:read',
     setMonitoring: 'thermal:setMonitoring',
+    getSettings: 'thermal:getSettings',
+    updateSettings: 'thermal:updateSettings',
   },
   event: {
     snapshot: 'thermal:snapshot',
     error: 'thermal:error',
+    settingsChanged: 'thermal:settingsChanged',
   },
 } as const

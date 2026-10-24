@@ -11,6 +11,9 @@ export const thermalApi: ThermalApi = {
   setMonitoring: invoke(THERMAL_CHANNELS.invoke.setMonitoring),
   onSnapshot: subscribe(THERMAL_CHANNELS.event.snapshot),
   onError: subscribe(THERMAL_CHANNELS.event.error),
+  getSettings: invoke(THERMAL_CHANNELS.invoke.getSettings),
+  updateSettings: invoke(THERMAL_CHANNELS.invoke.updateSettings),
+  onSettingsChanged: subscribe(THERMAL_CHANNELS.event.settingsChanged),
 }
 
 export const thermalSection = { thermal: thermalApi }

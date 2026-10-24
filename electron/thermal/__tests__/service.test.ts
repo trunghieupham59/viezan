@@ -82,6 +82,50 @@ describe('thermal service', () => {
     service.stop()
   })
 
+  it('keeps reading for the background consumer while the window is hidden, at the slower cadence', async () => {
+    const reader = fakeReader()
+    let paused = true
+    const onSnapshot = vi.fn()
+    const listener = vi.fn()
+    const service = createThermalService({ reader, intervalMs: 1000, backgroundIntervalMs: 5000, isPaused: () => paused, onSnapshot, log })
+    service.subscribe(listener)
+
+    // Only the tray listens: a reading right away, then one every five seconds even though the window is hidden.
+    service.setBackgroundMonitoring(true)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(onSnapshot).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(4999)
+    expect(listener).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(listener).toHaveBeenCalledTimes(2)
+    expect(service.isMonitoring()).toBe(true)
+
+    // The page opens on a visible window: an immediate reading, then the fast cadence.
+    paused = false
+    service.setMonitoring(true)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(listener).toHaveBeenCalledTimes(3)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(listener).toHaveBeenCalledTimes(5)
+
+    // Page closes: back to the slow cadence, reader kept alive for the tray.
+    service.setMonitoring(false)
+    expect(reader.dispose).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1000)
+    const afterClose = listener.mock.calls.length
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(listener.mock.calls.length).toBe(afterClose + 1)
+
+    // Tray off too: everything stops and the reader is released.
+    service.setBackgroundMonitoring(false)
+    expect(reader.dispose).toHaveBeenCalledTimes(1)
+    expect(service.isMonitoring()).toBe(false)
+    const total = listener.mock.calls.length
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(listener).toHaveBeenCalledTimes(total)
+  })
+
   it('refuses to read when the platform is unsupported and caches the probe', async () => {
     const probe = vi.fn(() => ({ supported: false, reason: 'unsupported-platform' as const }))
     const service = createThermalService({ reader: { probe, read: vi.fn() }, log })

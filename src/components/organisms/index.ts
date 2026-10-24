@@ -41,6 +41,7 @@ export {
 export { ThermalFanList, type ThermalFanListProps } from './thermal/ThermalFanList'
 export { THERMAL_HOT_CELSIUS, THERMAL_WARM_CELSIUS, ThermalSensorGroup, type ThermalSensorGroupProps, thermalTone } from './thermal/ThermalSensorGroup'
 export { ThermalSummary, type ThermalSummaryItem, type ThermalSummaryProps } from './thermal/ThermalSummary'
+export { ThermalTrayOptions, type ThermalTrayOptionsLabels, type ThermalTrayOptionsProps } from './thermal/ThermalTrayOptions'
 export { TranslationComparisonPane } from './translate/TranslationComparisonPane'
 export { TranslationControlsHeader } from './translate/TranslationControlsHeader'
 export { TranslationHistoryPanel, type TranslationHistoryPanelProps } from './translate/TranslationHistoryPanel'

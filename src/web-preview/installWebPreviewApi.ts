@@ -62,8 +62,11 @@ function createPreviewThermal() {
       cpuLoadPercent: Math.round(10 + Math.random() * 30),
     }
   }
+  type Settings = import('../../shared/thermalApi').ThermalSettings
+  let settings: Settings = { tray: { enabled: false, metric: 'hottest', showFan: false } }
+  const settingsListeners = new Set<(settings: Settings) => void>()
   return {
-    getSupport: async () => ({ success: true, support: { supported: true, source: 'smc' as const } }),
+    getSupport: async () => ({ success: true, support: { supported: true, source: 'smc' as const, trayPlacement: 'menu-bar' as const } }),
     read: async () => ({ success: true, snapshot: snapshot() }),
     setMonitoring: async (active: boolean) => {
       if (timer) { clearInterval(timer); timer = null }
@@ -72,6 +75,13 @@ function createPreviewThermal() {
     },
     onSnapshot: (cb: (snapshot: Snapshot) => void) => { listeners.add(cb); return () => { listeners.delete(cb) } },
     onError: noopSubscription,
+    getSettings: async () => ({ success: true, settings }),
+    updateSettings: async (patch: import('../../shared/thermalApi').ThermalSettingsPatch) => {
+      settings = { tray: { ...settings.tray, ...(patch.tray ?? {}) } }
+      for (const cb of settingsListeners) cb(settings)
+      return { success: true, settings }
+    },
+    onSettingsChanged: (cb: (settings: Settings) => void) => { settingsListeners.add(cb); return () => { settingsListeners.delete(cb) } },
   }
 }
 const previewThermal = createPreviewThermal()

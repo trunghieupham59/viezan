@@ -928,6 +928,15 @@ export interface Translations {
   thermal_reader_missing_desc: string
   thermal_error_title: string
   thermal_retry: string
+  /** Section title for the live reading outside the window, by placement. */
+  thermal_tray_section_menu_bar: string
+  thermal_tray_section_tray: string
+  thermal_tray_enable: string
+  thermal_tray_enable_desc_menu_bar: string
+  thermal_tray_enable_desc_tray: string
+  thermal_tray_metric: string
+  thermal_tray_show_fan: string
+  thermal_tray_error: string
   thermal_label_cpu_core: string
   thermal_label_cpu_performance_core: string
   thermal_label_cpu_efficiency_core: string

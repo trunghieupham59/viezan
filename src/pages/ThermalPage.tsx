@@ -1,14 +1,18 @@
 import { useCallback, useMemo } from 'react'
-import type { ThermalFan, ThermalSensorGroup as ThermalGroupId, ThermalSensor } from '../../shared/thermalApi'
-import { ThermalFanList, ThermalSensorGroup, ThermalSummary, type ThermalSummaryItem } from '../components/organisms'
+import type { ThermalFan, ThermalSensorGroup as ThermalGroupId, ThermalSensor, ThermalTraySettings } from '../../shared/thermalApi'
+import { ThermalFanList, ThermalSensorGroup, ThermalSummary, type ThermalSummaryItem, ThermalTrayOptions } from '../components/organisms'
 import { CapabilityNotice, FeatureLoadingState } from '../components/ui/molecules'
 import { THERMAL_HISTORY_SAMPLES, THERMAL_SAMPLE_INTERVAL_MS, useThermalMonitor } from '../hooks/useThermalMonitor'
+import { useThermalSettings } from '../hooks/useThermalSettings'
 import type { Translations } from '../i18n'
 import { useAppStore, useT } from '../store/useAppStore'
+import { useNotificationStore } from '../store/useNotificationStore'
 import { tpl } from '../utils/tpl'
 import '../styles/thermal.css'
 
 const GROUPS: readonly ThermalGroupId[] = ['cpu', 'gpu', 'other']
+/** Toast owner key so repeated save failures replace each other. */
+const TRAY_ERROR_KEY = 'thermal-tray'
 
 function labelKeyFor(sensor: ThermalSensor): keyof Translations | null {
   if (!sensor.label) return null
@@ -20,6 +24,9 @@ export function ThermalPage() {
   const t = useT()
   const locale = useAppStore((state) => state.locale)
   const { support, snapshot, history, error, retry } = useThermalMonitor()
+  const { settings, busy: settingsBusy, update: updateSettings } = useThermalSettings()
+  const notify = useNotificationStore((state) => state.notify)
+  const dismiss = useNotificationStore((state) => state.dismiss)
 
   const numberFormat = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 1, minimumFractionDigits: 1 }), [locale])
   const integerFormat = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }), [locale])
@@ -53,6 +60,13 @@ export function ThermalPage() {
     return items
   }, [snapshot, t, formatCelsius, labelFor, historyLabel])
 
+  const trayPlacement = support?.supported && support.trayPlacement && support.trayPlacement !== 'none' ? support.trayPlacement : null
+  const onTrayChange = useCallback(async (patch: Partial<ThermalTraySettings>) => {
+    dismiss(TRAY_ERROR_KEY)
+    const res = await updateSettings({ tray: patch })
+    if (!res.success) notify({ key: TRAY_ERROR_KEY, tone: 'error', message: t.thermal_tray_error })
+  }, [dismiss, notify, updateSettings, t])
+
   if (!support) return <FeatureLoadingState label={t.thermal_title} layout="list" />
 
   return (
@@ -84,6 +98,23 @@ export function ThermalPage() {
 
       {support.supported && !snapshot && !error && (
         <p className="thermal-empty" role="status">{t.thermal_waiting}</p>
+      )}
+
+      {trayPlacement && settings && (
+        <ThermalTrayOptions
+          placement={trayPlacement}
+          settings={settings.tray}
+          busy={settingsBusy}
+          onChange={(patch) => void onTrayChange(patch)}
+          labels={{
+            title: trayPlacement === 'menu-bar' ? t.thermal_tray_section_menu_bar : t.thermal_tray_section_tray,
+            enable: t.thermal_tray_enable,
+            enableDescription: trayPlacement === 'menu-bar' ? t.thermal_tray_enable_desc_menu_bar : t.thermal_tray_enable_desc_tray,
+            metric: t.thermal_tray_metric,
+            metricOptions: { hottest: t.thermal_hottest, cpu: t.thermal_group_cpu, gpu: t.thermal_group_gpu },
+            showFan: t.thermal_tray_show_fan,
+          }}
+        />
       )}
 
       {support.supported && snapshot && (

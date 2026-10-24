@@ -24,8 +24,8 @@ import { createModuleHost, type ModuleHost } from './modules/host'
 import { broadcastModulesChanged, registerModuleHandlers } from './modules/ipc'
 import { isQuitRequest } from './quitRequest'
 import { resolveRuntimeProfile } from './runtimeProfile'
-import { createAppThermalService } from './thermal'
-import { createAppTray, handleMainWindowClose, supportsTrayResidency } from './trayManager'
+import { createThermalRuntime, type ThermalRuntime } from './thermal'
+import { createAppTray, createStatusItemTray, handleMainWindowClose, supportsTrayResidency } from './trayManager'
 import { createUpdateNotification } from './updateNotification'
 import { DEFAULT_WINDOW_PALETTE, WINDOW_PALETTES } from './windowPalette'
 
@@ -438,8 +438,8 @@ function toggleQuickChatWindow(): void {
 // ── Floating Subtitle Window ──────────────────────────────────────────────────
 let subtitleWindow: BrowserWindow | null = null
 let moduleHost: ModuleHost | null = null
-let thermalService: ReturnType<typeof createAppThermalService> | null = null
-const thermalSupport = () => thermalService?.getSupport() ?? { supported: false, reason: 'unsupported-platform' as const }
+let thermalRuntime: ThermalRuntime | null = null
+const thermalSupport = () => thermalRuntime?.getSupport() ?? { supported: false, reason: 'unsupported-platform' as const }
 
 /** HC-NEW-08: px gap between subtitle window bottom edge and the screen's taskbar/dock */
 const SUBTITLE_BOTTOM_MARGIN = 40
@@ -544,12 +544,23 @@ app.whenReady().then(() => {
 
   // Feature modules: chat, translate, live, dictionary, thermal, launcher, browser-bridge.
   // Every module registers its IPC; only enabled ones start (shortcuts, local server).
-  thermalService = createAppThermalService({
+  thermalRuntime = createThermalRuntime({
     platform: process.platform,
     isPackaged: app.isPackaged,
     resourcesPath: process.resourcesPath,
-    appPath: app.getAppPath(),
+    // In a checkout `electron dist-electron/main.js` reports dist-electron as the app
+    // path, so resolve the native binary from the compiled main's parent (the repo root).
+    appPath: app.isPackaged ? app.getAppPath() : path.resolve(__dirname, '..'),
+    userDataPath: app.getPath('userData'),
+    appTitle: runtimeProfile.windowTitle,
     getMainWindow: () => mainWindow,
+    getAppTray: () => appTray,
+    createStatusItem: ({ onHide }) => createStatusItemTray({
+      osLocale: app.getLocale(),
+      tooltip: runtimeProfile.windowTitle,
+      onOpen: openMainWindow,
+      onHide,
+    }),
   })
   moduleHost = createModuleHost({
     modules: createAppModules({
@@ -560,7 +571,7 @@ app.whenReady().then(() => {
       closeSubtitleWindow: () => { subtitleWindow?.close() },
       getQuickChatWindow: () => quickChatWindow,
       hideQuickChatWindow: () => { quickChatWindow?.hide() },
-      thermal: thermalService,
+      thermal: thermalRuntime,
     }),
     store: createFileModuleStore(path.join(app.getPath('userData'), MODULES_FILE), APP_MODULE_IDS),
     onChange: (state) => broadcastModulesChanged(() => mainWindow, state),

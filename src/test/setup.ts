@@ -244,6 +244,9 @@ if (typeof window !== 'undefined') {
     setMonitoring: vi.fn().mockResolvedValue({ success: true }),
     onSnapshot: vi.fn().mockReturnValue(() => {}),
     onError: vi.fn().mockReturnValue(() => {}),
+    getSettings: vi.fn().mockResolvedValue({ success: true, settings: { tray: { enabled: false, metric: 'hottest', showFan: false } } }),
+    updateSettings: vi.fn().mockResolvedValue({ success: true, settings: { tray: { enabled: false, metric: 'hottest', showFan: false } } }),
+    onSettingsChanged: vi.fn().mockReturnValue(() => {}),
   }
   const capabilitiesApiMock: CapabilitiesApi = {
     get: vi.fn().mockResolvedValue({ success: true, statuses: [] }),
