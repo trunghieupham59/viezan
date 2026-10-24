@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Viezan — Nhiệt độ & quạt: đặc tả chi tiết</title>
+  <!-- Real design values first, then the board layout. Never add literal colours here. -->
+  <link rel="stylesheet" href="../../../src/styles/tokens.css">
+  <link rel="stylesheet" href="board.css">
+  <style>
+    /* Thermal mock classes. Every value is a token; per-element data
+       (meter fill, marker, overlay position) travels through inline custom
+       properties like the frame's --w/--h and the callout's --x/--y. */
+    .t-body { display: flex; min-block-size: 0; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-2); overflow: hidden; padding: var(--vzn-space-4); }
+    .t-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vzn-panel-gap); align-items: start; }
+    .t-grid[data-stack] { grid-template-columns: 1fr; }
+    .t-panel { display: flex; min-inline-size: 0; flex-direction: column; border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-md); background: var(--vzn-surface); }
+    .t-ptb { display: flex; align-items: center; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .t-ptb h4 { margin: 0; color: var(--vzn-text-strong); font-size: var(--vzn-font-size-lg); font-weight: var(--vzn-weight-semibold); }
+    .t-pbody { display: flex; flex-direction: column; gap: var(--vzn-space-3); padding: var(--vzn-space-3); }
+    .t-select { display: inline-flex; block-size: var(--vzn-control-height-sm); align-items: center; gap: var(--vzn-space-2); padding-inline: var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-border-strong); border-radius: var(--vzn-radius-control); background: var(--vzn-surface); color: var(--vzn-text); font-size: var(--vzn-font-size-md); white-space: nowrap; }
+    .t-select::after { color: var(--vzn-text-muted); content: "▾"; }
+    .t-select[data-wide] { display: flex; justify-content: space-between; }
+    .t-select[data-open] { border-color: var(--vzn-action); box-shadow: 0 0 0 var(--vzn-space-0-5) var(--vzn-focus-ring); }
+    .t-fan { display: flex; flex-direction: column; gap: var(--vzn-space-2); padding-block: var(--vzn-space-3); border-block-start: var(--vzn-border-width) solid var(--vzn-border); }
+    .t-fan:first-child { border-block-start: 0; padding-block-start: 0; }
+    .t-fan-main { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--vzn-space-2) var(--vzn-space-4); }
+    .t-fan-name { display: block; color: var(--vzn-text); font-size: var(--vzn-font-size-sm); font-weight: var(--vzn-weight-medium); }
+    .t-rpm { display: block; color: var(--vzn-text-strong); font-size: var(--vzn-font-size-title); font-weight: var(--vzn-weight-semibold); font-variant-numeric: tabular-nums; }
+    .t-rpm[data-held] { color: var(--vzn-action); }
+    .t-modes { display: flex; flex-wrap: wrap; gap: var(--vzn-space-1); }
+    .t-pill { border-radius: var(--vzn-radius-pill); }
+    .t-system { color: var(--vzn-text-muted); font-size: var(--vzn-font-size-caption); }
+    .t-meter-row { display: flex; align-items: center; gap: var(--vzn-space-2); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-micro); font-variant-numeric: tabular-nums; }
+    .t-meter { position: relative; flex: 1 1 auto; block-size: var(--vzn-space-1-5); border-radius: var(--vzn-radius-pill); background: var(--vzn-border); }
+    .t-meter > i { position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: var(--fill, 0%); border-radius: var(--vzn-radius-pill); background: var(--vzn-text-soft); }
+    .t-meter[data-held] > i { background: var(--vzn-action); }
+    .t-meter > b { position: absolute; inset-block: calc(-1 * var(--vzn-space-1)); inset-inline-start: var(--at, 0%); inline-size: var(--vzn-space-0-5); border-radius: var(--vzn-radius-pill); background: var(--vzn-text-strong); }
+    .t-params { display: flex; flex-direction: column; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); border-radius: var(--vzn-radius-sm); background: var(--vzn-surface-muted); }
+    .t-field { display: flex; flex-direction: column; gap: var(--vzn-space-1); color: var(--vzn-text-soft); font-size: var(--vzn-font-size-sm); font-weight: var(--vzn-weight-medium); }
+    .t-inline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vzn-space-2); color: var(--vzn-text); font-size: var(--vzn-font-size-sm); }
+    .t-num { display: inline-flex; inline-size: var(--vzn-space-12); block-size: var(--vzn-control-height-sm); align-items: center; justify-content: flex-end; padding-inline: var(--vzn-space-2); border: var(--vzn-border-width) solid var(--vzn-border-strong); border-radius: var(--vzn-radius-control); background: var(--vzn-surface); color: var(--vzn-text-strong); font-variant-numeric: tabular-nums; }
+    .t-slider { position: relative; block-size: var(--vzn-space-1); border-radius: var(--vzn-radius-pill); background: var(--vzn-border); }
+    .t-slider > i { position: absolute; inset-block: 0; inset-inline-start: 0; inline-size: var(--fill, 0%); border-radius: var(--vzn-radius-pill); background: var(--vzn-action); }
+    .t-slider > b { position: absolute; inset-block-start: calc(-1 * var(--vzn-space-1-5)); inset-inline-start: var(--fill, 0%); inline-size: var(--vzn-space-4); block-size: var(--vzn-space-4); margin-inline-start: calc(-1 * var(--vzn-space-2)); border-radius: var(--vzn-radius-pill); background: var(--vzn-neutral-0); box-shadow: var(--vzn-shadow-sm); }
+    .t-now { margin: 0; color: var(--vzn-text-muted); font-size: var(--vzn-font-size-caption); font-variant-numeric: tabular-nums; }
+    .t-stats { display: flex; gap: var(--vzn-space-3); margin-inline-start: auto; color: var(--vzn-text-muted); font-size: var(--vzn-font-size-caption); white-space: nowrap; }
+    .t-stats strong { color: var(--vzn-text-strong); font-size: var(--vzn-font-size-sm); font-variant-numeric: tabular-nums; }
+    .t-group { display: flex; flex-direction: column; gap: var(--vzn-space-1); }
+    .t-ghead { display: flex; align-items: center; gap: var(--vzn-space-2); color: var(--vzn-text); font-size: var(--vzn-font-size-sm); font-weight: var(--vzn-weight-semibold); }
+    .t-ghead small { color: var(--vzn-text-muted); font-size: var(--vzn-font-size-caption); font-weight: var(--vzn-weight-medium); }
+    .t-ghead .t-chev { color: var(--vzn-text-muted); }
+    .t-ghead em { margin-inline-start: auto; color: var(--vzn-text-soft); font-style: normal; font-weight: var(--vzn-weight-medium); font-variant-numeric: tabular-nums; }
+    .t-rows { overflow: hidden; border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-md); background: var(--vzn-surface); }
+    .t-row { display: flex; align-items: center; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); }
+    .t-row + .t-row, .t-row + .t-members, .t-members + .t-row { border-block-start: var(--vzn-border-width) solid var(--vzn-border); }
+    .t-row .t-chev { inline-size: var(--vzn-icon-sm); color: var(--vzn-text-muted); }
+    .t-row-text { display: flex; min-inline-size: 0; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-0-5); }
+    .t-row-title { color: var(--vzn-text); font-size: var(--vzn-font-size-sm); font-weight: var(--vzn-weight-medium); }
+    .t-row-cap { color: var(--vzn-text-muted); font-size: var(--vzn-font-size-micro); }
+    .t-row-cap[data-code] { font-family: var(--vzn-font-mono); }
+    .t-val { color: var(--vzn-text-strong); font-weight: var(--vzn-weight-semibold); font-variant-numeric: tabular-nums; }
+    .t-val[data-tone="warm"] { color: var(--vzn-warning); }
+    .t-val[data-tone="hot"] { color: var(--vzn-danger); }
+    .t-members { display: grid; grid-template-columns: 1fr 1fr; gap: var(--vzn-space-1) var(--vzn-space-3); padding: var(--vzn-space-1) var(--vzn-space-3) var(--vzn-space-2) var(--vzn-space-8); background: var(--vzn-surface-muted); font-size: var(--vzn-font-size-caption); }
+    .t-members span { display: flex; justify-content: space-between; color: var(--vzn-text-soft); font-family: var(--vzn-font-mono); }
+    .t-chip { display: inline-flex; block-size: var(--vzn-control-height-xs); align-items: center; gap: var(--vzn-space-1-5); padding-inline: var(--vzn-space-2); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-pill); background: var(--vzn-surface); color: var(--vzn-text-soft); font-size: var(--vzn-font-size-sm); white-space: nowrap; }
+    .t-chip[data-tone="ok"] { border-color: var(--vzn-success-border); background: var(--vzn-success-soft); }
+    .t-chip[data-tone="warning"] { border-color: var(--vzn-warning-border); background: var(--vzn-warning-soft); }
+    .t-chip[data-tone="danger"] { border-color: var(--vzn-danger-border); background: var(--vzn-danger-soft); }
+    .t-chip[data-tone="info"] { border-color: var(--vzn-action-border); background: var(--vzn-action-soft); color: var(--vzn-action-text); }
+    .t-notice-line { margin: 0; padding: var(--vzn-space-2) var(--vzn-space-6); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-caption); }
+    .t-empty { margin: 0; padding: var(--vzn-space-3) var(--vzn-space-4); border: var(--vzn-border-width) dashed var(--vzn-border); border-radius: var(--vzn-radius-md); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .t-capnotice { display: flex; flex-direction: column; gap: var(--vzn-space-1); padding: var(--vzn-space-3) var(--vzn-space-4); }
+    .t-capnotice strong { color: var(--vzn-text-strong); font-size: var(--vzn-font-size-md); }
+    .t-at { position: absolute; inset-block-start: var(--y, 0); inset-inline-start: var(--x, 0); }
+    .t-pop { inline-size: var(--vzn-ai-configuration-inline); }
+    .t-pop-head { display: flex; align-items: flex-start; gap: var(--vzn-space-2); padding: var(--vzn-space-3) var(--vzn-space-4); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .t-pop-head p { margin: var(--vzn-space-0-5) 0 0; color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .t-pop-sec { display: flex; flex-direction: column; gap: var(--vzn-space-2); padding: var(--vzn-space-3) var(--vzn-space-4); }
+    .t-pop-sec + .t-pop-sec { border-block-start: var(--vzn-border-width) solid var(--vzn-divider); }
+    .t-sec-title { margin: 0; color: var(--vzn-text-soft); font-size: var(--vzn-font-size-caption); font-weight: var(--vzn-weight-semibold); letter-spacing: var(--vzn-tracking-caps); text-transform: uppercase; }
+    .t-opt { display: flex; flex-direction: column; border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-md); background: var(--vzn-surface); }
+    .t-opt-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vzn-space-3) var(--vzn-space-6); padding: var(--vzn-space-3) var(--vzn-space-4); }
+    .t-opt-row .m-toggle { flex: 0 0 auto; }
+    .t-opt-row[data-split] { flex-wrap: nowrap; justify-content: space-between; }
+    .t-opt-row + .t-opt-row { border-block-start: var(--vzn-border-width) solid var(--vzn-border); }
+    .t-lbl { margin: 0; color: var(--vzn-text); font-size: var(--vzn-font-size-sm); font-weight: var(--vzn-weight-medium); }
+    .t-desc { margin: var(--vzn-space-0-5) 0 0; color: var(--vzn-text-muted); font-size: var(--vzn-font-size-caption); }
+    .t-preview { display: inline-flex; min-inline-size: var(--vzn-control-height-sm); block-size: var(--vzn-control-height-xs); flex-direction: column; align-items: center; justify-content: center; padding-inline: var(--vzn-space-2); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-sm); background: var(--vzn-surface-muted); color: var(--vzn-text-strong); font-size: var(--vzn-font-size-micro); font-weight: var(--vzn-weight-semibold); font-variant-numeric: tabular-nums; line-height: var(--vzn-line-tight); }
+    .t-dialog { inline-size: var(--vzn-dialog-sm-max-inline); z-index: var(--vzn-layer-modal); border-radius: var(--vzn-radius-lg, var(--vzn-radius-md)); box-shadow: var(--vzn-shadow-lg); }
+    .t-dlg-head { display: flex; align-items: flex-start; gap: var(--vzn-space-2); padding: var(--vzn-space-4) var(--vzn-space-4) var(--vzn-space-2); }
+    .t-dlg-head h4 { flex: 1 1 auto; margin: 0; color: var(--vzn-text-strong); font-size: var(--vzn-font-size-subtitle); font-weight: var(--vzn-weight-semibold); }
+    .t-dlg-head p { margin: var(--vzn-space-1) 0 0; color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .t-dlg-body { display: flex; flex-direction: column; gap: var(--vzn-space-3); padding: 0 var(--vzn-space-4) var(--vzn-space-4); color: var(--vzn-text); font-size: var(--vzn-font-size-sm); }
+    .t-dlg-body p { margin: 0; }
+    .t-points { display: flex; flex-direction: column; gap: var(--vzn-space-2); margin: 0; padding: 0; list-style: none; }
+    .t-points li { display: flex; gap: var(--vzn-space-2); }
+    .t-points li::before { flex: 0 0 auto; color: var(--vzn-success); font-weight: var(--vzn-weight-bold); content: "✓"; }
+    .t-points[data-tone="neutral"] li::before { color: var(--vzn-text-muted); content: "•"; }
+    .t-warn { display: flex; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-warning-border); border-radius: var(--vzn-radius-sm); background: var(--vzn-warning-soft); }
+    .t-warn::before { color: var(--vzn-warning); content: "⚠"; }
+    .t-dlg-foot { display: flex; justify-content: flex-end; gap: var(--vzn-space-2); padding: var(--vzn-space-3) var(--vzn-space-4); border-block-start: var(--vzn-border-width) solid var(--vzn-divider); }
+    .t-raw { overflow: hidden; border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-md); }
+    .t-raw div { display: flex; align-items: center; gap: var(--vzn-space-2); padding: var(--vzn-space-1-5) var(--vzn-space-3); }
+    .t-raw div + div { border-block-start: var(--vzn-border-width) solid var(--vzn-divider); }
+    .t-raw div[aria-pressed] { background: var(--vzn-action-soft); color: var(--vzn-action); }
+    .t-raw span:first-child { flex: 1 1 auto; }
+    .t-raw code { color: var(--vzn-text-muted); font-family: var(--vzn-font-mono); font-size: var(--vzn-font-size-micro); }
+    .t-progress { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-caption); }
+    .t-progress .t-meter { flex: 1 1 100%; }
+    .t-progress span { flex: 1 1 auto; }
+    .t-menubar { display: flex; block-size: var(--vzn-control-height-xs); align-items: center; justify-content: flex-end; gap: var(--vzn-space-4); padding-inline: var(--vzn-space-4); background: var(--vzn-titlebar-bg); color: var(--vzn-text-strong); font-size: var(--vzn-font-size-sm); }
+    .t-menubar .t-preview { border-color: transparent; background: var(--vzn-surface-selected); }
+    .t-menu { display: flex; flex-direction: column; inline-size: max-content; padding: var(--vzn-space-1); }
+    .t-menu span { padding: var(--vzn-space-1) var(--vzn-space-3); border-radius: var(--vzn-radius-xs); color: var(--vzn-text); font-size: var(--vzn-font-size-md); }
+    .t-menu span[data-hover] { background: var(--vzn-action-fill); color: var(--vzn-action-fg); }
+    .t-menu hr { inline-size: 100%; margin: var(--vzn-space-1) 0; border: 0; border-block-start: var(--vzn-border-width) solid var(--vzn-divider); }
+    .t-tooltip { padding: var(--vzn-space-1-5) var(--vzn-space-2); font-family: var(--vzn-font-mono); font-size: var(--vzn-font-size-caption); white-space: pre; }
+    .t-skel { display: flex; flex-direction: column; gap: var(--vzn-space-3); padding: var(--vzn-space-4); }
+    .t-rail-icon { display: flex; inline-size: var(--vzn-control-height-sm); block-size: var(--vzn-control-height-sm); align-items: center; justify-content: center; border-radius: var(--vzn-radius-sm); color: var(--vzn-chrome-fg-soft); }
+    .t-rail-icon[aria-current] { background: var(--vzn-chrome-item-active); color: var(--vzn-chrome-item-active-fg); }
+    .t-skel-title { inline-size: var(--vzn-thermal-tile-min-inline); }
+    .t-input-sm { block-size: var(--vzn-control-height-sm); }
+    .t-plain { flex: 1 1 auto; padding: var(--vzn-space-4); background: var(--vzn-bg); }
+  </style>
+</head>
+<body class="board">
+  <header class="board-header">
+    <h1>Nhiệt độ & quạt</h1>
+    <p>Trang hệ thống cho người muốn biết máy đang nóng tới đâu, quạt quay thế nào và (trên macOS có helper) giành quyền điều khiển quạt một cách an toàn; kèm số đo nhỏ trên thanh menu. Mọi khung vẽ ở Graphite + Tự động. Đặc tả đầy đủ: <a href="../screens/thermal.md">screens/thermal.md</a>.</p>
+    <nav class="board-nav" aria-label="Kịch bản">
+      <a href="#default">Mặc định (helper sẵn sàng)</a>
+      <a href="#enable">Bật điều khiển quạt</a>
+      <a href="#fixed">Cố định · lưu profile · cảm biến thô</a>
+      <a href="#calibration">Nhận diện cảm biến</a>
+      <a href="#options">Tuỳ chọn & thanh menu</a>
+      <a href="#states">Đang tải, không hỗ trợ, lỗi</a>
+      <a href="#dark">Chế độ tối</a>
+      <a href="#narrow">Cửa sổ hẹp</a>
+    </nav>
+  </header>
+
+  <!-- 1. Default ------------------------------------------------------------ -->
+  <section class="scenario" id="default">
+    <div class="scenario-copy">
+      <h2>Mặc định: helper sẵn sàng, profile Mát</h2>
+      <p>Trạng thái đầy đủ nhất: helper đã kết nối, profile "Mát" đang áp dụng, quạt trái theo cảm biến, quạt phải tự động. Bảng nhiệt độ gộp hàng trăm khoá SMC thành vài hàng theo ý nghĩa.</p>
+      <ol>
+        <li><span class="ref">1</span>Chip helper: xanh lá "Helper đã kết nối (v{version})". Chỉ để đọc.</li>
+        <li><span class="ref">2</span>"Tắt" <code>md · danger · outline</code>: trả quạt về tự động và bỏ helper.</li>
+        <li><span class="ref">3</span>Bánh răng <code>md · neutral · ghost</code> (mở: <code>primary · soft</code>), <code>aria-haspopup="dialog"</code>: popover tuỳ chọn.</li>
+        <li><span class="ref">4</span>Ô Profile (<code>SelectField</code>, nhãn ẩn). Chỉnh tay một quạt → về "Tùy chỉnh".</li>
+        <li><span class="ref">5</span>"Lưu profile" <code>sm · neutral · outline</code>; "Về tự động" <code>sm · neutral · outline</code>, tắt khi không quạt nào bị giữ.</li>
+        <li><span class="ref">6</span>Chế độ: ba nút pill <code>sm</code>, đang chọn <code>primary · soft</code> + <code>aria-pressed</code>. RPM to đổi màu nhấn khi app giữ quạt.</li>
+        <li><span class="ref">7</span>Thanh đo min → max: phần tô là tốc độ thật, vạch đứng là mục tiêu của app (tooltip "Mục tiêu {rpm} RPM").</li>
+        <li><span class="ref">8</span>Ô tham số "Theo cảm biến": nguồn, hai ngưỡng (20–110 °C, dưới &lt; trên), dòng "Hiện {°C} → {RPM}".</li>
+        <li><span class="ref">9</span>Chỉ số toolbar: Tải CPU, nóng nhất (tooltip tên cảm biến), số cảm biến.</li>
+        <li><span class="ref">10</span>Hàng gộp mở ra lưới mã thô; giá trị ≥ 70 °C màu cảnh báo, ≥ 90 °C màu nguy hiểm.</li>
+        <li><span class="ref">11</span>"Cảm biến khác" mặc định thu gọn, giữ số nóng nhất trên tiêu đề.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="m-nav">Trang chủ</div>
+              <div class="m-nav-group">AI</div><div class="m-nav">AI Chat</div>
+              <div class="m-nav-group">Ngôn ngữ</div><div class="m-nav">Dịch</div><div class="m-nav">Phiên dịch</div><div class="m-nav">Từ điển</div><div class="m-nav">Dịch mọi nơi</div>
+              <div class="m-nav-group">Hệ thống</div><div class="m-nav" aria-current="page">Nhiệt độ & quạt</div>
+              <div class="m-nav-group">Tiện ích</div><div class="m-nav">Launcher & phím tắt</div>
+              <span class="m-spacer"></span>
+              <div class="m-nav m-muted"><span class="m-dot" data-tone="ok"></span>Quạt · Mát</div>
+              <div class="m-nav">Cài đặt</div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Nhiệt độ & quạt</h3><span class="m-spacer"></span><span class="t-chip" data-tone="ok"><span class="m-dot" data-tone="ok"></span>Helper đã kết nối (v1.2.0)</span><span class="m-btn" data-size="md" data-tone="danger">■ Tắt</span><span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span></div>
+              <div class="t-body">
+                <div class="t-grid">
+                  <section class="t-panel">
+                    <div class="t-ptb"><h4>Quạt</h4><span class="t-select">Mát</span><span class="m-btn">Lưu profile</span><span class="m-spacer"></span><span class="m-btn">Về tự động</span></div>
+                    <div class="t-pbody">
+                      <div class="t-fan">
+                        <div class="t-fan-main"><div><span class="t-fan-name">Quạt trái</span><span class="t-rpm" data-held>2.250 RPM</span></div>
+                          <div class="t-modes"><span class="m-btn t-pill" data-tone="ghost">Tự động</span><span class="m-btn t-pill" data-tone="ghost">Cố định</span><span class="m-btn t-pill" data-tone="soft">Theo cảm biến</span></div></div>
+                        <div class="t-meter-row"><span>1.499 RPM</span><span class="t-meter" data-held style="--fill: 20%; --at: 21%"><i></i><b></b></span><span>5.348 RPM</span></div>
+                        <div class="t-params">
+                          <label class="t-field">Cảm biến<span class="t-select" data-wide>CPU (cảm biến nóng nhất) · 58,7°C</span></label>
+                          <div class="t-inline">Tăng tốc từ <span class="t-num">45</span> °C &nbsp; tối đa tại <span class="t-num">75</span> °C</div>
+                          <p class="t-now">Hiện 58,7°C → 2.300 RPM</p>
+                        </div>
+                      </div>
+                      <div class="t-fan">
+                        <div class="t-fan-main"><div><span class="t-fan-name">Quạt phải</span><span class="t-rpm">0 RPM</span></div>
+                          <div class="t-modes"><span class="m-btn t-pill" data-tone="soft">Tự động</span><span class="m-btn t-pill" data-tone="ghost">Cố định</span><span class="m-btn t-pill" data-tone="ghost">Theo cảm biến</span></div></div>
+                        <div class="t-meter-row"><span>1.499 RPM</span><span class="t-meter" style="--fill: 0%"><i></i></span><span>5.776 RPM</span></div>
+                      </div>
+                    </div>
+                  </section>
+                  <section class="t-panel">
+                    <div class="t-ptb"><h4>Nhiệt độ</h4><span class="t-stats"><span>Tải CPU <strong>17%</strong></span><span>Cảm biến nóng nhất <strong>74,2°C</strong></span><strong>218 cảm biến</strong></span></div>
+                    <div class="t-pbody">
+                      <div class="t-group">
+                        <div class="t-ghead"><span class="t-chev">▴</span>CPU <small>57</small></div>
+                        <div class="t-rows">
+                          <div class="t-row"><span class="t-chev">▴</span><span class="t-row-text"><span class="t-row-title">Nhân hiệu năng</span><span class="t-row-cap">30 cảm biến · TB 61,6°C</span></span><span class="t-val" data-tone="warm">74,2°C</span></div>
+                          <div class="t-members"><span>Tp01 <b class="t-val" data-tone="warm">74,2°C</b></span><span>Tp05 <b class="t-val">68,9°C</b></span><span>Tp09 <b class="t-val">66,0°C</b></span><span>Tp0D <b class="t-val">63,4°C</b></span></div>
+                          <div class="t-row"><span class="t-chev">▾</span><span class="t-row-text"><span class="t-row-title">Nhân tiết kiệm</span><span class="t-row-cap">3 cảm biến · TB 50,2°C</span></span><span class="t-val">58,7°C</span></div>
+                          <div class="t-row"><span class="t-chev"></span><span class="t-row-text"><span class="t-row-title">Gói CPU</span><span class="t-row-cap" data-code>TCMz</span></span><span class="t-val">57,1°C</span></div>
+                        </div>
+                      </div>
+                      <div class="t-group">
+                        <div class="t-ghead"><span class="t-chev">▴</span>GPU <small>8</small></div>
+                        <div class="t-rows"><div class="t-row"><span class="t-chev">▾</span><span class="t-row-text"><span class="t-row-title">GPU</span><span class="t-row-cap">8 cảm biến · TB 43,2°C</span></span><span class="t-val">48,4°C</span></div></div>
+                      </div>
+                      <div class="t-group"><div class="t-ghead"><span class="t-chev">▾</span>Cảm biến khác <small>153</small><em>52,6°C</em></div></div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 852px; --y: 50px">1</span>
+          <span class="callout" style="--x: 1084px; --y: 84px">2</span>
+          <span class="callout" style="--x: 1150px; --y: 84px">3</span>
+          <span class="callout" style="--x: 300px; --y: 108px">4</span>
+          <span class="callout" style="--x: 420px; --y: 108px">5</span>
+          <span class="callout" style="--x: 690px; --y: 160px">6</span>
+          <span class="callout" style="--x: 600px; --y: 214px">7</span>
+          <span class="callout" style="--x: 690px; --y: 262px">8</span>
+          <span class="callout" style="--x: 1000px; --y: 164px">9</span>
+          <span class="callout" style="--x: 1170px; --y: 180px">10</span>
+          <span class="callout" style="--x: 1170px; --y: 478px">11</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Enable + disclaimer ---------------------------------------------- -->
+  <section class="scenario" id="enable">
+    <div class="scenario-copy">
+      <h2>Bật điều khiển quạt (lần đầu)</h2>
+      <p>Helper <code>idle</code>: hàng quạt chỉ đọc "Tự động (hệ thống)". Lần bấm đầu mở dialog miễn trừ; đồng ý một lần là đủ (<code>fanControl.acknowledged</code>).</p>
+      <ol>
+        <li><span class="ref">1</span>Chip trung tính "Điều khiển quạt đang tắt" + "Bật điều khiển quạt" <code>md · primary · solid</code> — hành động chính duy nhất của header.</li>
+        <li><span class="ref">2</span>Hàng quạt không có nút chế độ; thanh đo trung tính, không có vạch mục tiêu; toolbar quạt chưa có profile.</li>
+        <li><span class="ref">3</span>Dialog <code>DialogShell sm</code>: focus vào nút ✕, Tab bị giữ, Esc = Hủy. Ba điểm ✓ màu thành công; trần 105 °C khớp helper.</li>
+        <li><span class="ref">4</span>Hộp cảnh báo vàng: rủi ro thuộc về người dùng.</li>
+        <li><span class="ref">5</span>"Hủy" <code>md · neutral · outline</code> · "Tôi hiểu, tiếp tục" <code>md · primary · solid</code> → ghi nhận, khởi chạy helper, macOS hỏi mật khẩu.</li>
+        <li><span class="ref">6</span>Sau khi đồng ý: chip spinner "Đang khởi chạy helper…" và nút bật bị tắt (xám) cho tới khi <code>ready</code> hoặc <code>error</code>.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 640 · sáng · dialog miễn trừ</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 640px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar"><div class="m-nav">Trang chủ</div><div class="m-nav-group">Hệ thống</div><div class="m-nav" aria-current="page">Nhiệt độ & quạt</div><span class="m-spacer"></span><div class="m-nav">Cài đặt</div></nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Nhiệt độ & quạt</h3><span class="m-spacer"></span><span class="t-chip">Điều khiển quạt đang tắt</span><span class="m-btn" data-size="md" data-tone="primary">Bật điều khiển quạt</span><span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span></div>
+              <div class="t-body">
+                <div class="t-grid">
+                  <section class="t-panel">
+                    <div class="t-ptb"><h4>Quạt</h4></div>
+                    <div class="t-pbody">
+                      <div class="t-fan"><div class="t-fan-main"><div><span class="t-fan-name">Quạt trái</span><span class="t-rpm">1.820 RPM</span></div><span class="t-system">Tự động (hệ thống)</span></div><div class="t-meter-row"><span>1.499 RPM</span><span class="t-meter" style="--fill: 8%"><i></i></span><span>5.348 RPM</span></div></div>
+                      <div class="t-fan"><div class="t-fan-main"><div><span class="t-fan-name">Quạt phải</span><span class="t-rpm">0 RPM</span></div><span class="t-system">Tự động (hệ thống)</span></div><div class="t-meter-row"><span>1.499 RPM</span><span class="t-meter" style="--fill: 0%"><i></i></span><span>5.776 RPM</span></div></div>
+                    </div>
+                  </section>
+                  <section class="t-panel"><div class="t-ptb"><h4>Nhiệt độ</h4><span class="t-stats"><span>Tải CPU <strong>9%</strong></span><span>Cảm biến nóng nhất <strong>52,0°C</strong></span></span></div><div class="t-pbody"><span class="m-skeleton"></span><span class="m-skeleton"></span><span class="m-skeleton"></span></div></section>
+                </div>
+              </div>
+            </main>
+          </div>
+          <div class="m-scrim"></div>
+          <div class="m-popover t-dialog t-at" style="--x: 440px; --y: 120px">
+            <div class="t-dlg-head"><h4>Trước khi điều khiển quạt</h4><span class="m-btn" data-icon data-tone="ghost" data-size="xs">✕</span></div>
+            <div class="t-dlg-body">
+              <p>Viezan sẽ chạy một helper nhỏ với quyền quản trị cho phiên này. Hệ thống sẽ hỏi mật khẩu.</p>
+              <ul class="t-points"><li>Chỉ đặt tốc độ trong giới hạn máy cho phép</li><li>Tự trả quạt về tự động khi thoát app, mất kết nối, máy ngủ hoặc dậy</li><li>Tự trả về tự động khi một cảm biến vượt 105°C</li></ul>
+              <p class="t-warn">Cho quạt chạy chậm hơn hệ thống có thể làm máy nóng hơn và giảm tuổi thọ linh kiện. Bạn tự chịu trách nhiệm khi dùng.</p>
+            </div>
+            <div class="t-dlg-foot"><span class="m-btn" data-size="md">Hủy</span><span class="m-btn" data-size="md" data-tone="primary">Tôi hiểu, tiếp tục</span></div>
+          </div>
+          <span class="callout" style="--x: 784px; --y: 50px">1</span>
+          <span class="callout" style="--x: 400px; --y: 190px">2</span>
+          <span class="callout" style="--x: 850px; --y: 128px">3</span>
+          <span class="callout" style="--x: 850px; --y: 330px">4</span>
+          <span class="callout" style="--x: 850px; --y: 430px">5</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Header ngay sau khi đồng ý · 964 × 120</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 964px; --h: 120px">
+          <div class="m-header"><h3>Nhiệt độ & quạt</h3><span class="m-spacer"></span><span class="t-chip" data-tone="info">◌ Đang khởi chạy helper…</span><span class="m-btn" data-size="md" disabled>Bật điều khiển quạt</span><span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span></div>
+          <div class="t-plain"><span class="m-muted">macOS đang hiện hộp mật khẩu quản trị.</span></div>
+          <span class="callout" style="--x: 560px; --y: 6px">6</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Fixed + save + raw ------------------------------------------------- -->
+  <section class="scenario" id="fixed">
+    <div class="scenario-copy">
+      <h2>Cố định, lưu profile, cảm biến thô</h2>
+      <p>Chỉnh tay một quạt làm profile thành "Tùy chỉnh". Muốn giữ cấu hình: lưu thành profile. Cần theo một cảm biến cụ thể: dialog nâng cao.</p>
+      <ol>
+        <li><span class="ref">1</span>Ô Profile hiện "Tùy chỉnh" (mục không chọn được) sau khi chỉnh tay.</li>
+        <li><span class="ref">2</span>Form lưu nội tuyến: ô "Tên profile" <code>sm</code> (tối đa 40 ký tự, tự focus) · "Lưu" <code>sm · primary · solid</code> (tắt khi tên rỗng) · "Hủy" <code>sm · neutral · ghost</code>. Enter = Lưu.</li>
+        <li><span class="ref">3</span>"Cố định" đang chọn: tốc độ hiện tại làm tròn 50 RPM thành mục tiêu.</li>
+        <li><span class="ref">4</span><code>SliderField</code>: ô số (Enter / rời ô ghi, Esc khôi phục) + thanh trượt bước 50 (ghi khi thả / nhả phím). Ngoài khoảng → kẹp về biên.</li>
+        <li><span class="ref">5</span>Vạch mục tiêu đi trước; phần tô (tốc độ thật) bắt kịp sau vài lần đọc.</li>
+        <li><span class="ref">6</span>Dialog "Cảm biến cụ thể": ô lọc tự focus; hàng đang dùng có <code>aria-pressed</code> và nền nhấn nhạt; bấm một hàng = theo nó và đóng.</li>
+        <li><span class="ref">7</span>Profile của người dùng đang áp dụng có nút ✕ <code>sm · danger · ghost</code> "Xóa profile {name}" — xoá ngay, không hỏi (xem Chênh lệch).</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Bảng quạt · 620 × 300 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 620px; --h: 300px">
+          <div class="t-plain">
+            <section class="t-panel">
+              <div class="t-ptb"><h4>Quạt</h4><span class="t-select">Tùy chỉnh</span><span class="m-input t-input-sm" data-focus>Tối làm việc</span><span class="m-btn" data-tone="primary">Lưu</span><span class="m-btn" data-tone="ghost">Hủy</span><span class="m-spacer"></span><span class="m-btn">Về tự động</span></div>
+              <div class="t-pbody">
+                <div class="t-fan">
+                  <div class="t-fan-main"><div><span class="t-fan-name">Quạt trái</span><span class="t-rpm" data-held>2.940 RPM</span></div>
+                    <div class="t-modes"><span class="m-btn t-pill" data-tone="ghost">Tự động</span><span class="m-btn t-pill" data-tone="soft">Cố định</span><span class="m-btn t-pill" data-tone="ghost">Theo cảm biến</span></div></div>
+                  <div class="t-meter-row"><span>1.499 RPM</span><span class="t-meter" data-held style="--fill: 37%; --at: 39%"><i></i><b></b></span><span>5.348 RPM</span></div>
+                  <div class="t-params">
+                    <div class="t-inline"><span class="t-lbl">Tốc độ mục tiêu</span><span class="m-spacer"></span><span class="t-num">3000</span> RPM</div>
+                    <div class="t-slider" style="--fill: 39%"><i></i><b></b></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+          <span class="callout" style="--x: 104px; --y: 4px">1</span>
+          <span class="callout" style="--x: 240px; --y: 4px">2</span>
+          <span class="callout" style="--x: 500px; --y: 70px">3</span>
+          <span class="callout" style="--x: 580px; --y: 162px">4</span>
+          <span class="callout" style="--x: 240px; --y: 110px">5</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Dialog cảm biến cụ thể · 520 × 300</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 520px; --h: 300px">
+          <div class="m-scrim"></div>
+          <div class="m-popover t-dialog t-at" style="--x: 50px; --y: 30px">
+            <div class="t-dlg-head"><div><h4>Cảm biến cụ thể</h4><p>Toàn bộ cảm biến thô máy này báo cáo. Quạt sẽ chỉ theo đúng một cảm biến này.</p></div><span class="m-btn" data-icon data-tone="ghost" data-size="xs">✕</span></div>
+            <div class="t-dlg-body">
+              <span class="m-input" data-focus>⌕ <span class="m-strong">tg0</span><span class="m-spacer"></span>✕</span>
+              <div class="t-raw">
+                <div aria-pressed="true"><span>GPU</span><code>Tg05</code><span>48,4°C</span></div>
+                <div><span>GPU</span><code>Tg0D</code><span>46,1°C</span></div>
+                <div><span>GPU</span><code>Tg0L</code><span>44,9°C</span></div>
+              </div>
+            </div>
+          </div>
+          <span class="callout" style="--x: 6px; --y: 150px">6</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Profile người dùng đang áp dụng · 620 × 90</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 620px; --h: 90px">
+          <div class="t-plain"><section class="t-panel"><div class="t-ptb"><h4>Quạt</h4><span class="t-select">Tối làm việc</span><span class="m-btn" data-icon data-tone="ghost" style="color: var(--vzn-danger)">✕</span><span class="m-btn">Lưu profile</span><span class="m-spacer"></span><span class="m-btn">Về tự động</span></div></section></div>
+          <span class="callout" style="--x: 230px; --y: 2px">7</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Calibration --------------------------------------------------------- -->
+  <section class="scenario" id="calibration">
+    <div class="scenario-copy">
+      <h2>Nhận diện cảm biến</h2>
+      <p>Mở từ popover tuỳ chọn (cần helper <code>ready</code>). Cho từng quạt chạy tối đa rồi so nhiệt độ, để mỗi quạt có nguồn "Cảm biến gần {quạt}".</p>
+      <ol>
+        <li><span class="ref">1</span>Dialog xác nhận: ba chấm trung tính (không phải ✓), không có hộp cảnh báo. "Bắt đầu nhận diện" <code>md · primary · solid</code>.</li>
+        <li><span class="ref">2</span>Khi chạy: dải tiến trình dưới toolbar quạt (<code>role="status"</code>) — "{quạt} ({i}/{n}) · {pha} · {s} s". Pha: đo lúc nghỉ → chạy tối đa → chờ ổn định.</li>
+        <li><span class="ref">3</span>"Dừng nhận diện" <code>xs · danger · ghost</code>: hủy, quạt về tự động.</li>
+        <li><span class="ref">4</span>Mọi nút chế độ, ô Profile và "Về tự động" bị tắt (xám) trong lúc chạy.</li>
+        <li><span class="ref">5</span>Sau khi xong: nguồn mới đứng đầu danh sách cảm biến của quạt đó, mô tả "{°C} · làm mát {cảm biến}".</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Dialog xác nhận · 520 × 360</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 520px; --h: 360px">
+          <div class="m-scrim"></div>
+          <div class="m-popover t-dialog t-at" style="--x: 50px; --y: 24px">
+            <div class="t-dlg-head"><h4>Nhận diện cảm biến của từng quạt</h4><span class="m-btn" data-icon data-tone="ghost" data-size="xs">✕</span></div>
+            <div class="t-dlg-body">
+              <p>Viezan cho từng quạt chạy tối đa khoảng một phút rồi so nhiệt độ, để mỗi quạt theo đúng cảm biến cạnh nó.</p>
+              <ul class="t-points" data-tone="neutral"><li>Mất vài phút và hơi ồn</li><li>Chỉ tăng tốc quạt, không bao giờ giảm</li><li>Đặt máy trên mặt phẳng và tránh chạy nặng trong lúc đó</li></ul>
+            </div>
+            <div class="t-dlg-foot"><span class="m-btn" data-size="md">Hủy</span><span class="m-btn" data-size="md" data-tone="primary">Bắt đầu nhận diện</span></div>
+          </div>
+          <span class="callout" style="--x: 440px; --y: 280px">1</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Bảng quạt khi đang nhận diện · 620 × 260</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 620px; --h: 260px">
+          <div class="t-plain">
+            <section class="t-panel">
+              <div class="t-ptb"><h4>Quạt</h4><span class="m-btn" disabled>Mát ▾</span><span class="m-btn" disabled>Lưu profile</span><span class="m-spacer"></span><span class="m-btn" disabled>Về tự động</span></div>
+              <div class="t-progress"><span class="t-meter" data-held style="--fill: 68%"><i></i></span><span>Quạt phải (2/2) · chạy tối đa · 24 s</span><span class="m-btn" data-size="xs" data-tone="ghost" style="color: var(--vzn-danger)">Dừng nhận diện</span></div>
+              <div class="t-pbody">
+                <div class="t-fan"><div class="t-fan-main"><div><span class="t-fan-name">Quạt phải</span><span class="t-rpm" data-held>5.700 RPM</span></div><div class="t-modes"><span class="m-btn t-pill" disabled>Tự động</span><span class="m-btn t-pill" disabled>Cố định</span><span class="m-btn t-pill" disabled>Theo cảm biến</span></div></div><div class="t-meter-row"><span>1.499 RPM</span><span class="t-meter" data-held style="--fill: 98%"><i></i></span><span>5.776 RPM</span></div></div>
+              </div>
+            </section>
+          </div>
+          <span class="callout" style="--x: 300px; --y: 70px">2</span>
+          <span class="callout" style="--x: 590px; --y: 70px">3</span>
+          <span class="callout" style="--x: 590px; --y: 130px">4</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Nguồn sau nhận diện · 560 × 260</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 560px; --h: 260px">
+          <div class="t-plain">
+            <label class="t-field">Cảm biến<span class="t-select" data-wide data-open>Cảm biến gần Quạt trái</span></label>
+            <div class="m-popover t-menu t-at" style="--x: 16px; --y: 76px">
+              <span data-hover>Cảm biến gần Quạt trái <small>· 58,2°C · làm mát Nhân hiệu năng, Die CPU</small></span>
+              <span>CPU (cảm biến nóng nhất) <small class="m-muted">· 58,7°C</small></span>
+              <span>GPU (cảm biến nóng nhất) <small class="m-muted">· 48,4°C</small></span>
+              <span>Cảm biến nóng nhất toàn máy <small class="m-muted">· 58,7°C</small></span>
+              <span>Nhân hiệu năng · 30 <small class="m-muted">· 58,2°C</small></span>
+              <span>Chọn cảm biến cụ thể…</span>
+            </div>
+          </div>
+          <span class="callout" style="--x: 530px; --y: 40px">5</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Options + menu bar ------------------------------------------------- -->
+  <section class="scenario" id="options">
+    <div class="scenario-copy">
+      <h2>Tuỳ chọn & số đo trên thanh menu</h2>
+      <p>Bánh răng mở <code>AIConfigurationPopover</code> neo dưới nút. Mọi thay đổi đi một vòng qua main và lưu; điều khiển tắt trong lúc lưu. Popover thành hộp thoại giữa cửa sổ khi cửa sổ ≤ 720 px rộng hoặc ≤ 600 px cao.</p>
+      <ol>
+        <li><span class="ref">1</span>Mục "Nhận diện cảm biến" (chỉ khi có điều khiển quạt): mô tả, dòng trạng thái (<code>role="status"</code>, xanh lá khi xong), "Nhận diện cảm biến" <code>sm · primary · solid</code> (tắt khi helper chưa <code>ready</code>), "Quên kết quả" <code>sm · neutral · ghost</code>.</li>
+        <li><span class="ref">2</span>"Hiện số đo trực tiếp": <code>ToggleSwitch</code> có nhãn + mô tả theo vị trí (Thanh menu / Khay hệ thống).</li>
+        <li><span class="ref">3</span>"Số đo" (Cảm biến nóng nhất · CPU · GPU) và "Kèm tốc độ quạt".</li>
+        <li><span class="ref">4</span>"Bố cục": hai nút pill <code>sm</code>, <code>aria-pressed</code>; chỉ có trên macOS khi đã kèm tốc độ quạt. "Tốc độ quạt": Đầy đủ (2374) / Rút gọn (2.4k). "Dấu độ (°)".</li>
+        <li><span class="ref">5</span>"Xem trước": đúng chữ mục thanh menu sẽ hiện; "…" trước lần đọc đầu.</li>
+        <li><span class="ref">6</span>Mục thanh menu macOS: chữ số đơn cách hoặc ảnh template hai dòng; cập nhật mỗi 5 s khi cửa sổ ẩn.</li>
+        <li><span class="ref">7</span>Click phải: "Mở Viezan" · "Ẩn nhiệt độ khỏi thanh menu" (tắt công tắc 2, đồng bộ về popover).</li>
+        <li><span class="ref">8</span>Tooltip (macOS và khay Linux): tiêu đề app, số đo kèm mã cảm biến, từng quạt, tải CPU.</li>
+      </ol>
+      <table class="actions">
+        <thead><tr><th>Cấu hình</th><th>Thanh menu</th></tr></thead>
+        <tbody>
+          <tr><td>Nóng nhất, không quạt</td><td><code>58°</code></td></tr>
+          <tr><td>+ quạt, Một dòng, Đầy đủ</td><td><code>58° 2374</code></td></tr>
+          <tr><td>+ Rút gọn, tắt dấu độ</td><td><code>58 2.4k</code></td></tr>
+          <tr><td>Xếp chồng (macOS)</td><td><code>58°</code> trên <code>2.4k</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng · popover mở</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar"><div class="m-nav">Trang chủ</div><div class="m-nav-group">Hệ thống</div><div class="m-nav" aria-current="page">Nhiệt độ & quạt</div><span class="m-spacer"></span><div class="m-nav">Cài đặt</div></nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Nhiệt độ & quạt</h3><span class="m-spacer"></span><span class="t-chip" data-tone="ok"><span class="m-dot" data-tone="ok"></span>Helper đã kết nối (v1.2.0)</span><span class="m-btn" data-size="md" data-tone="danger">■ Tắt</span><span class="m-btn" data-size="md" data-icon data-tone="soft">⚙</span></div>
+              <div class="t-body"><div class="t-grid"><section class="t-panel"><div class="t-ptb"><h4>Quạt</h4></div><div class="t-pbody"><span class="m-skeleton"></span><span class="m-skeleton"></span></div></section><section class="t-panel"><div class="t-ptb"><h4>Nhiệt độ</h4></div><div class="t-pbody"><span class="m-skeleton"></span><span class="m-skeleton"></span></div></section></div></div>
+            </main>
+          </div>
+          <div class="m-popover t-pop t-at" style="--x: 760px; --y: 100px">
+            <div class="t-pop-head"><div class="m-spacer"><span class="m-strong">Tùy chọn nhiệt độ</span><p>Nhận diện cảm biến cho quạt và số đo bên ngoài cửa sổ này.</p></div><span class="m-btn" data-icon data-tone="ghost" data-size="xs">✕</span></div>
+            <div class="t-pop-sec">
+              <p class="t-sec-title">Nhận diện cảm biến</p>
+              <p class="t-desc">Cho từng quạt chạy tối đa một lúc và ghi lại cảm biến nào mát đi, để mỗi quạt theo đúng các cảm biến cạnh nó.</p>
+              <p class="t-desc" style="color: var(--vzn-success)">Nhận diện lúc 24 thg 10, 2026 21:40 · Quạt trái: 74 cảm biến · Quạt phải: 14 cảm biến</p>
+              <div class="t-inline"><span class="m-btn" data-tone="primary">Nhận diện cảm biến</span><span class="m-btn" data-tone="ghost">Quên kết quả</span></div>
+            </div>
+            <div class="t-pop-sec">
+              <p class="t-sec-title">Thanh menu</p>
+              <div class="t-opt">
+                <div class="t-opt-row" data-split><div><p class="t-lbl">Hiện số đo trực tiếp</p><p class="t-desc">Nhiệt độ nằm trên thanh menu và tiếp tục cập nhật mỗi năm giây khi cửa sổ này đang ẩn.</p></div><span class="m-toggle" data-on></span></div>
+                <div class="t-opt-row"><label class="t-field">Số đo<span class="t-select" data-wide>Cảm biến nóng nhất</span></label><span class="t-inline"><span class="t-lbl">Kèm tốc độ quạt</span><span class="m-toggle" data-on></span></span></div>
+                <div class="t-opt-row"><span class="t-inline"><span class="t-lbl">Bố cục</span><span class="m-btn t-pill" data-tone="ghost">Một dòng</span><span class="m-btn t-pill" data-tone="soft">Xếp chồng</span></span><label class="t-field">Tốc độ quạt<span class="t-select" data-wide>Rút gọn (2.4k)</span></label><span class="t-inline"><span class="t-lbl">Dấu độ (°)</span><span class="m-toggle" data-on></span></span></div>
+                <div class="t-opt-row"><span class="t-lbl">Xem trước</span><output class="t-preview"><span>58°</span><span>2.4k</span></output></div>
+              </div>
+            </div>
+          </div>
+          <span class="callout" style="--x: 736px; --y: 180px">1</span>
+          <span class="callout" style="--x: 736px; --y: 392px">2</span>
+          <span class="callout" style="--x: 736px; --y: 470px">3</span>
+          <span class="callout" style="--x: 736px; --y: 552px">4</span>
+          <span class="callout" style="--x: 736px; --y: 640px">5</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">macOS · thanh menu · 520 × 300</p>
+        <div class="frame" data-theme="graphite" data-mode="dark" style="--w: 520px; --h: 300px">
+          <div class="t-menubar"><span>Wi-Fi</span><output class="t-preview"><span>58°</span><span>2.4k</span></output><span>21:40</span></div>
+          <div class="m-popover t-menu t-at" style="--x: 230px; --y: 36px"><span>Mở Viezan</span><hr><span data-hover>Ẩn nhiệt độ khỏi thanh menu</span></div>
+          <div class="m-popover t-tooltip t-at" style="--x: 40px; --y: 150px">Viezan
+Max 58.2°C (Tp01)
+Left: 2250 RPM
+Right: 0 RPM
+CPU 17%</div>
+          <span class="callout" style="--x: 300px; --y: 0px">6</span>
+          <span class="callout" style="--x: 470px; --y: 70px">7</span>
+          <span class="callout" style="--x: 220px; --y: 150px">8</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. States ------------------------------------------------------------- -->
+  <section class="scenario" id="states">
+    <div class="scenario-copy">
+      <h2>Đang tải, không hỗ trợ, lỗi, helper</h2>
+      <p>Mỗi khung là vùng thân (hoặc header) của trang ở một trạng thái. Không có trạng thái "thiếu khoá / model": trang không dùng AI.</p>
+      <ol>
+        <li><span class="ref">1</span>Đang tải: <code>FeatureLoadingState</code> layout <code>list</code> trong lúc hỏi main có hỗ trợ không.</li>
+        <li><span class="ref">2</span>Đang đọc lần đầu: ô nét đứt "Đang đọc cảm biến…" (<code>role="status"</code>).</li>
+        <li><span class="ref">3</span>Không hỗ trợ (Windows) hoặc thiếu trình đọc (<code>viezan-smc</code>): <code>CapabilityNotice</code> vàng, không nút, không theo dõi. <code>no-sensors</code> hiện chung thông báo "không hỗ trợ".</li>
+        <li><span class="ref">4</span>Lỗi đọc: <code>CapabilityNotice</code> đỏ + "Thử lại" (primary); mô tả là thông điệp nguyên văn từ main, hiện chưa dịch (xem Chênh lệch). Số cũ (nếu có) vẫn hiện bên dưới.</li>
+        <li><span class="ref">5</span>Helper thiếu: chip vàng "Thiếu helper", đường dẫn chỉ trong tooltip, không có nút.</li>
+        <li><span class="ref">6</span>Helper lỗi (huỷ mật khẩu): chip đỏ (tooltip = lỗi) + "Thử lại" <code>md · primary · solid</code>; kèm toast lỗi.</li>
+        <li><span class="ref">7</span>Helper tự khôi phục: dòng chữ dưới header "Helper đã trả quạt về tự động (máy đi ngủ)." — không có nút (xem Chênh lệch).</li>
+        <li><span class="ref">8</span>Snapshot không có quạt: ô nét đứt "Máy này không báo cáo quạt nào."; bảng nhiệt độ vẫn dùng được.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Đang tải · 600 × 260</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 600px; --h: 260px">
+          <div class="m-header"><span class="m-skeleton t-skel-title"></span></div>
+          <div class="t-plain"><div class="t-panel"><div class="t-skel"><span class="m-skeleton"></span><span class="m-skeleton"></span><span class="m-skeleton"></span><span class="m-skeleton"></span></div></div></div>
+          <span class="callout" style="--x: 560px; --y: 70px">1</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Đang đọc lần đầu · 600 × 260</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 600px; --h: 260px">
+          <div class="m-header"><h3>Nhiệt độ & quạt</h3><span class="m-spacer"></span><span class="t-chip">Điều khiển quạt đang tắt</span><span class="m-btn" data-size="md" data-tone="primary">Bật điều khiển quạt</span></div>
+          <div class="t-plain"><p class="t-empty">Đang đọc cảm biến…</p></div>
+          <span class="callout" style="--x: 560px; --y: 80px">2</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Không hỗ trợ · 600 × 260</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 600px; --h: 260px">
+          <div class="m-header"><h3>Nhiệt độ & quạt</h3></div>
+          <div class="t-plain"><div class="m-notice t-capnotice"><strong>Chưa khả dụng trên hệ thống này</strong><span>Viezan đọc cảm biến trên macOS qua trình đọc SMC đi kèm và trên Linux qua hwmon. Windows chưa được hỗ trợ.</span></div></div>
+          <span class="callout" style="--x: 560px; --y: 80px">3</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Lỗi đọc · 600 × 260</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 600px; --h: 260px">
+          <div class="m-header"><h3>Nhiệt độ & quạt</h3></div>
+          <div class="t-plain"><div class="m-notice t-capnotice" data-tone="danger"><strong>Không đọc được cảm biến</strong><span>The SMC reader exited unexpectedly.</span><span><span class="m-btn" data-tone="primary">Thử lại</span></span></div></div>
+          <span class="callout" style="--x: 560px; --y: 80px">4</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Header: helper thiếu / lỗi · 600 × 150</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 600px; --h: 150px">
+          <div class="m-header"><h3>Nhiệt độ & quạt</h3><span class="m-spacer"></span><span class="t-chip" data-tone="warning"><span class="m-dot" data-tone="warning"></span>Thiếu helper</span><span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span></div>
+          <div class="m-header"><h3>Nhiệt độ & quạt</h3><span class="m-spacer"></span><span class="t-chip" data-tone="danger"><span class="m-dot" data-tone="danger"></span>Không khởi chạy được helper</span><span class="m-btn" data-size="md" data-tone="primary">Thử lại</span></div>
+          <span class="callout" style="--x: 330px; --y: 2px">5</span>
+          <span class="callout" style="--x: 200px; --y: 60px">6</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Tự khôi phục · không có quạt · 600 × 260</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 600px; --h: 260px">
+          <div class="m-header"><h3>Nhiệt độ & quạt</h3><span class="m-spacer"></span><span class="t-chip" data-tone="ok"><span class="m-dot" data-tone="ok"></span>Helper đã kết nối (v1.2.0)</span></div>
+          <p class="t-notice-line">Helper đã trả quạt về tự động (máy đi ngủ).</p>
+          <div class="t-plain"><section class="t-panel"><div class="t-ptb"><h4>Quạt</h4></div><div class="t-pbody"><p class="t-empty">Máy này không báo cáo quạt nào.</p></div></section></div>
+          <span class="callout" style="--x: 330px; --y: 62px">7</span>
+          <span class="callout" style="--x: 560px; --y: 150px">8</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Dark --------------------------------------------------------------- -->
+  <section class="scenario" id="dark">
+    <div class="scenario-copy">
+      <h2>Chế độ tối</h2>
+      <p>Cùng bố cục, chỉ đổi token: canvas gần đen, thẻ than chì, ô tham số một bậc sáng hơn thẻ. Màu cảnh báo / nguy hiểm vẫn chỉ tô chữ giá trị.</p>
+      <ol>
+        <li><span class="ref">1</span>Chip helper và nút "Tắt" dùng nền nhạt của họ màu trạng thái — không tô đặc trên nền tối.</li>
+        <li><span class="ref">2</span>RPM đang bị giữ dùng <code>--vzn-action</code>; vạch mục tiêu dùng <code>--vzn-text-strong</code> để nổi trên thanh tô.</li>
+        <li><span class="ref">3</span>Giá trị nóng (≥ 90 °C) màu <code>--vzn-danger</code>; con số luôn hiện nên màu không phải tín hiệu duy nhất.</li>
+      </ol>
+      <p>Lưu ý khi đọc khung này: các token trạng thái tối (<code>--vzn-success-*</code>, <code>--vzn-warning-*</code>, <code>--vzn-danger-*</code>, <code>--vzn-disabled-*</code>, <code>--vzn-scrim</code>, <code>--vzn-skeleton</code>) trong <code>tokens.css</code> chỉ khai báo dưới <code>html.dark</code>, không dưới <code>[data-mode="dark"]</code>, nên chip và nút "Tắt" trong khung tối đang hiện nền nhạt của chế độ sáng. Trong app thật (<code>html.dark</code>) chúng là nền trong suốt pha màu.</p>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 640 · tối</p>
+        <div class="frame" data-theme="graphite" data-mode="dark" style="--w: 1200px; --h: 640px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar"><div class="m-nav">Trang chủ</div><div class="m-nav-group">Hệ thống</div><div class="m-nav" aria-current="page">Nhiệt độ & quạt</div><span class="m-spacer"></span><div class="m-nav m-muted"><span class="m-dot" data-tone="ok"></span>Quạt · Gaming</div><div class="m-nav">Cài đặt</div></nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Nhiệt độ & quạt</h3><span class="m-spacer"></span><span class="t-chip" data-tone="ok"><span class="m-dot" data-tone="ok"></span>Helper đã kết nối (v1.2.0)</span><span class="m-btn" data-size="md" data-tone="danger">■ Tắt</span><span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span></div>
+              <div class="t-body">
+                <div class="t-grid">
+                  <section class="t-panel">
+                    <div class="t-ptb"><h4>Quạt</h4><span class="t-select">Gaming</span><span class="m-btn">Lưu profile</span><span class="m-spacer"></span><span class="m-btn">Về tự động</span></div>
+                    <div class="t-pbody">
+                      <div class="t-fan"><div class="t-fan-main"><div><span class="t-fan-name">Quạt trái</span><span class="t-rpm" data-held>4.100 RPM</span></div><div class="t-modes"><span class="m-btn t-pill" data-tone="ghost">Tự động</span><span class="m-btn t-pill" data-tone="ghost">Cố định</span><span class="m-btn t-pill" data-tone="soft">Theo cảm biến</span></div></div>
+                        <div class="t-meter-row"><span>1.499 RPM</span><span class="t-meter" data-held style="--fill: 66%; --at: 70%"><i></i><b></b></span><span>5.348 RPM</span></div>
+                        <div class="t-params"><label class="t-field">Cảm biến<span class="t-select" data-wide>GPU (cảm biến nóng nhất) · 91,3°C</span></label><div class="t-inline">Tăng tốc từ <span class="t-num">50</span> °C &nbsp; tối đa tại <span class="t-num">80</span> °C</div><p class="t-now">Hiện 91,3°C → 5.348 RPM</p></div>
+                      </div>
+                    </div>
+                  </section>
+                  <section class="t-panel">
+                    <div class="t-ptb"><h4>Nhiệt độ</h4><span class="t-stats"><span>Tải CPU <strong>86%</strong></span><span>Cảm biến nóng nhất <strong>91,3°C</strong></span></span></div>
+                    <div class="t-pbody">
+                      <div class="t-group"><div class="t-ghead"><span class="t-chev">▴</span>CPU <small>57</small></div><div class="t-rows"><div class="t-row"><span class="t-chev">▾</span><span class="t-row-text"><span class="t-row-title">Nhân hiệu năng</span><span class="t-row-cap">30 cảm biến · TB 76,0°C</span></span><span class="t-val" data-tone="warm">84,5°C</span></div></div></div>
+                      <div class="t-group"><div class="t-ghead"><span class="t-chev">▴</span>GPU <small>8</small></div><div class="t-rows"><div class="t-row"><span class="t-chev">▾</span><span class="t-row-text"><span class="t-row-title">GPU</span><span class="t-row-cap">8 cảm biến · TB 85,1°C</span></span><span class="t-val" data-tone="hot">91,3°C</span></div></div></div>
+                      <div class="t-group"><div class="t-ghead"><span class="t-chev">▾</span>Cảm biến khác <small>153</small><em>66,0°C</em></div></div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 852px; --y: 50px">1</span>
+          <span class="callout" style="--x: 300px; --y: 160px">2</span>
+          <span class="callout" style="--x: 1170px; --y: 268px">3</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. Narrow ------------------------------------------------------------- -->
+  <section class="scenario" id="narrow">
+    <div class="scenario-copy">
+      <h2>Cửa sổ hẹp (820 px)</h2>
+      <p>Dưới 900 px điều hướng chính là rail 60 px. Lưới hai bảng hiện đổi cột theo cửa sổ (&lt; 1024 px → một cột): Quạt trên, Nhiệt độ dưới, thân cuộn chung.</p>
+      <ol>
+        <li><span class="ref">1</span>Rail 60 px; mục đang chọn tô nền chrome; không ghi đè lựa chọn thu gọn đã lưu.</li>
+        <li><span class="ref">2</span>Hành động header tự xuống dòng dưới tiêu đề khi thiếu chỗ (<code>.page-header</code> wrap).</li>
+        <li><span class="ref">3</span>Toolbar quạt không xuống dòng (<code>nowrap</code>): ô Profile co lại; form "Lưu profile" mở ở đây có nguy cơ tràn — đề xuất đưa form xuống hàng riêng.</li>
+        <li><span class="ref">4</span>Hàng tên + nút chế độ có <code>flex-wrap</code>: khi vùng hẹp hơn nữa (&lt; khoảng 560 px), nút chế độ xuống dòng dưới tên quạt.</li>
+        <li><span class="ref">5</span>Bảng Nhiệt độ nằm dưới; cuộn thân để tới.</li>
+        <li><span class="ref">6</span>Popover tuỳ chọn ở cửa sổ ≤ 720 px thành hộp thoại giữa cửa sổ (không vẽ).</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">820 × 900 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 820px; --h: 900px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed><span class="t-rail-icon">⌂</span><span class="t-rail-icon">✦</span><span class="t-rail-icon">文</span><span class="t-rail-icon" aria-current="page">°C</span><span class="t-rail-icon">⌘</span><span class="m-spacer"></span><span class="t-rail-icon">⚙</span></nav>
+            <main class="m-main">
+              <div class="m-header" style="flex-wrap: wrap"><h3>Nhiệt độ & quạt</h3><span class="m-spacer"></span><span class="t-chip" data-tone="ok"><span class="m-dot" data-tone="ok"></span>Helper đã kết nối (v1.2.0)</span><span class="m-btn" data-size="md" data-tone="danger">■ Tắt</span><span class="m-btn" data-size="md" data-icon data-tone="ghost">⚙</span></div>
+              <div class="t-body">
+                <div class="t-grid" data-stack>
+                  <section class="t-panel">
+                    <div class="t-ptb"><h4>Quạt</h4><span class="t-select">Mát</span><span class="m-btn">Lưu profile</span><span class="m-spacer"></span><span class="m-btn">Về tự động</span></div>
+                    <div class="t-pbody">
+                      <div class="t-fan"><div class="t-fan-main"><div><span class="t-fan-name">Quạt trái</span><span class="t-rpm" data-held>2.250 RPM</span></div><div class="t-modes"><span class="m-btn t-pill" data-tone="ghost">Tự động</span><span class="m-btn t-pill" data-tone="ghost">Cố định</span><span class="m-btn t-pill" data-tone="soft">Theo cảm biến</span></div></div>
+                        <div class="t-meter-row"><span>1.499 RPM</span><span class="t-meter" data-held style="--fill: 20%; --at: 21%"><i></i><b></b></span><span>5.348 RPM</span></div>
+                        <div class="t-params"><label class="t-field">Cảm biến<span class="t-select" data-wide>CPU (cảm biến nóng nhất) · 58,7°C</span></label><div class="t-inline">Tăng tốc từ <span class="t-num">45</span> °C &nbsp; tối đa tại <span class="t-num">75</span> °C</div><p class="t-now">Hiện 58,7°C → 2.300 RPM</p></div>
+                      </div>
+                      <div class="t-fan"><div class="t-fan-main"><div><span class="t-fan-name">Quạt phải</span><span class="t-rpm">0 RPM</span></div><div class="t-modes"><span class="m-btn t-pill" data-tone="soft">Tự động</span><span class="m-btn t-pill" data-tone="ghost">Cố định</span><span class="m-btn t-pill" data-tone="ghost">Theo cảm biến</span></div></div><div class="t-meter-row"><span>1.499 RPM</span><span class="t-meter" style="--fill: 0%"><i></i></span><span>5.776 RPM</span></div></div>
+                    </div>
+                  </section>
+                  <section class="t-panel">
+                    <div class="t-ptb"><h4>Nhiệt độ</h4><span class="t-stats"><span>Tải CPU <strong>17%</strong></span><span>Cảm biến nóng nhất <strong>58,7°C</strong></span></span></div>
+                    <div class="t-pbody">
+                      <div class="t-group"><div class="t-ghead"><span class="t-chev">▴</span>CPU <small>57</small></div><div class="t-rows"><div class="t-row"><span class="t-chev">▾</span><span class="t-row-text"><span class="t-row-title">Nhân hiệu năng</span><span class="t-row-cap">30 cảm biến · TB 46,6°C</span></span><span class="t-val">58,2°C</span></div><div class="t-row"><span class="t-chev">▾</span><span class="t-row-text"><span class="t-row-title">Nhân tiết kiệm</span><span class="t-row-cap">3 cảm biến · TB 50,2°C</span></span><span class="t-val">58,7°C</span></div></div></div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 20px; --y: 176px">1</span>
+          <span class="callout" style="--x: 478px; --y: 50px">2</span>
+          <span class="callout" style="--x: 290px; --y: 108px">3</span>
+          <span class="callout" style="--x: 780px; --y: 160px">4</span>
+          <span class="callout" style="--x: 780px; --y: 470px">5</span>
+          <span class="callout" style="--x: 784px; --y: 84px">6</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — luồng phụ của Chat</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.cap{margin:0;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#55555C}
+.panel{background:#FFFFFF;border:1px solid #E2E2E7;border-radius:14px;display:flex;flex-direction:column;overflow:hidden;height:380px}
+.btn{height:32px;padding:0 12px;border-radius:8px;border:1px solid #D6D6DC;background:#FFFFFF;color:#1C1C1F;font:500 13px Inter,sans-serif;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-primary{border:0;background:#0A63D6;color:#FFFFFF}
+.st{display:flex;align-items:flex-start;gap:10px;font-size:14px;line-height:1.5}
+.si{width:20px;height:20px;border-radius:99px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px}
+.meta{font-size:12px;color:#6B6B73}
+.lab{font-size:12px;font-weight:600;color:#3A3A40}
+.inp{height:34px;padding:0 10px;border-radius:8px;border:1px solid #D6D6DC;font:400 14px Inter,sans-serif}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1000px; box-sizing: border-box; padding: 56px 48px; background: #F4F4F6; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 32px; align-content: start">
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Nghiên cứu chuyên sâu · đang chạy và đang dừng</p>
+    <section class="panel" aria-label="Tiến trình nghiên cứu">
+      <div style="padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; flex: 1">
+        <div style="display: flex; align-items: center; gap: 10px">
+          <span style="font-size: 14px; font-weight: 600; flex: 1">Nghiên cứu chuyên sâu · bước 3 / 5</span>
+          <button type="button" class="btn" style="height: 28px; border-color: #F0C4C7; color: #B01F29">Dừng</button>
+        </div>
+        <div role="progressbar" aria-label="Tiến độ nghiên cứu" aria-valuemin="0" aria-valuemax="5" aria-valuenow="2" style="height: 6px; border-radius: 99px; background: #E6E6EB; overflow: hidden"><span style="display: block; width: 50%; height: 100%; background: #0A63D6"></span></div>
+        <div class="st"><span class="si" style="background: #1E7F45; color: #FFFFFF"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></span><span style="flex: 1">Lập kế hoạch câu hỏi con</span><span class="meta">4 câu</span></div>
+        <div class="st"><span class="si" style="background: #1E7F45; color: #FFFFFF"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></span><span style="flex: 1">Tìm nguồn trên web</span><span class="meta">12 nguồn</span></div>
+        <div class="st"><span class="si" style="border: 2px solid #C9D8F2; border-top-color: #0A63D6; box-sizing: border-box"></span><span style="flex: 1; font-weight: 500">Đọc và trích dẫn</span><span class="meta">7 / 12</span></div>
+        <div class="st" style="color: #6B6B73"><span class="si" style="border: 2px solid #D6D6DC; box-sizing: border-box"></span><span style="flex: 1">Đối chiếu mâu thuẫn</span></div>
+        <div class="st" style="color: #6B6B73"><span class="si" style="border: 2px solid #D6D6DC; box-sizing: border-box"></span><span style="flex: 1">Viết báo cáo</span></div>
+      </div>
+      <div role="status" style="border-top: 1px solid #EFEFF2; background: #FBF1E2; padding: 12px 18px; display: flex; align-items: center; gap: 10px">
+        <span style="flex: 1; font-size: 13px; color: #5C3500">Ví dụ khi bị dừng: “Dừng ở bước 3 vì mất mạng. Các bước đã xong được giữ lại.”</span>
+        <button type="button" class="btn" style="height: 28px">Thử lại bước 3</button>
+        <button type="button" class="btn btn-primary" style="height: 28px">Tiếp tục</button>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Tạo ảnh · kết quả trong cuộc trò chuyện</p>
+    <section class="panel" aria-label="Ảnh đã tạo">
+      <div style="flex: 1; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px">
+        <div style="align-self: flex-end; max-width: 80%; background: #F0F0F3; border-radius: 16px 16px 4px 16px; padding: 10px 14px; font-size: 14px">[Mô tả ảnh cần tạo]</div>
+        <div style="display: flex; gap: 12px">
+          <div role="img" aria-label="Ảnh đã tạo (minh hoạ)" style="width: 220px; height: 220px; border-radius: 12px; background: #E6E6EB; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #55555C">[ảnh 1024 × 1024]</div>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 8px">
+            <span class="meta">Gemini · [model ảnh]</span>
+            <button type="button" class="btn" style="align-self: flex-start">Tải ảnh</button>
+            <button type="button" class="btn" style="align-self: flex-start">Sửa ảnh này</button>
+            <button type="button" class="btn" style="align-self: flex-start">Tạo lại</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Đính kèm trước khi gửi</p>
+    <section class="panel" aria-label="Ô soạn có tệp đính kèm" style="height: auto; padding: 18px; background: transparent; border: 0">
+      <form style="border: 1px solid #D6D6DC; border-radius: 18px; background: #FFFFFF; box-shadow: 0 1px 3px rgba(28,28,31,0.06); padding: 12px; display: flex; flex-direction: column; gap: 10px">
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <div style="position: relative; width: 64px; height: 64px; border-radius: 10px; background: #E6E6EB">
+            <button type="button" aria-label="Bỏ ảnh" style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 99px; border: 0; background: #1C1C1F; color: #FFFFFF; display: inline-flex; align-items: center; justify-content: center"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; height: 64px; box-sizing: border-box; padding: 0 12px; border-radius: 10px; border: 1px solid #E2E2E7; background: #FAFAFB">
+            <span style="width: 32px; height: 40px; border-radius: 4px; background: #E6E6EB"></span>
+            <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; font-weight: 500">[tên tệp].pdf</span><span class="meta">[dung lượng]</span></span>
+            <button type="button" aria-label="Bỏ tệp" style="width: 24px; height: 24px; border-radius: 6px; border: 0; background: transparent; color: #55555C"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+          </div>
+          <div role="status" style="display: flex; align-items: center; gap: 8px; height: 64px; box-sizing: border-box; padding: 0 12px; border-radius: 10px; border: 1px solid #F0C4C7; background: #FFF7F7; font-size: 12px; color: #8F1820">Model local này không đọc được ảnh</div>
+        </div>
+        <label for="cx" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Tin nhắn</label>
+        <textarea id="cx" rows="2" placeholder="Hỏi về ảnh hoặc tệp…" style="border: 0; resize: none; font: 400 15px/1.5 Inter, sans-serif; outline: none; padding: 2px 4px"></textarea>
+      </form>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Sửa preset lời nhắc hệ thống</p>
+    <section class="panel" role="dialog" aria-labelledby="pe" style="box-shadow: 0 16px 40px rgba(28,28,31,0.14)">
+      <div style="display: flex; align-items: center; padding: 14px 18px; border-bottom: 1px solid #EFEFF2"><h2 id="pe" style="margin: 0; font-size: 15px; font-weight: 600; flex: 1">Sửa preset</h2></div>
+      <div style="flex: 1; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px">
+        <label for="pn" class="lab">Tên</label>
+        <input id="pn" class="inp" value="[Tên preset]">
+        <label for="pp" class="lab">Lời nhắc hệ thống</label>
+        <textarea id="pp" rows="5" style="padding: 10px; border-radius: 8px; border: 1px solid #D6D6DC; font: 400 14px/1.55 Inter, sans-serif; resize: none">[Nội dung lời nhắc]</textarea>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px"><input type="checkbox" checked>Dùng làm mặc định cho cuộc trò chuyện mới</label>
+      </div>
+      <div style="display: flex; gap: 8px; padding: 12px 18px; border-top: 1px solid #EFEFF2">
+        <button type="button" class="btn" style="border-color: #F0C4C7; color: #B01F29">Xoá preset</button>
+        <span style="flex: 1"></span>
+        <button type="button" class="btn">Huỷ</button>
+        <button type="button" class="btn btn-primary">Lưu</button>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

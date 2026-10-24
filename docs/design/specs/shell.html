@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Viezan — Khung ứng dụng: đặc tả chi tiết</title>
+  <!-- Real design values first, then the board layout. Never add literal colours here. -->
+  <link rel="stylesheet" href="../../../src/styles/tokens.css">
+  <link rel="stylesheet" href="board.css">
+  <style>
+    /* Shell-specific mock pieces. Every value is a --vzn-* token; frame sizes and
+       positions come from inline custom properties (--w, --h, --x, --y, --pw, --lift). */
+    .s-ico { display: inline-block; flex: 0 0 auto; inline-size: var(--vzn-icon-md); block-size: var(--vzn-icon-md); border: var(--vzn-border-width) solid currentColor; border-radius: var(--vzn-radius-xs); }
+    .s-push { margin-inline-start: auto; }
+
+    .s-titlebar { gap: 0; padding-inline: 0; }
+    .s-lights { display: flex; inline-size: var(--vzn-titlebar-mac-controls-width); padding-inline-start: var(--vzn-space-4); box-sizing: border-box; }
+    .s-tb-host { display: flex; inline-size: var(--vzn-sidebar-width); justify-content: center; }
+
+    .s-brand { display: flex; min-block-size: var(--vzn-control-height-lg); align-items: center; gap: var(--vzn-space-2); padding-inline: var(--vzn-space-1-5); color: var(--vzn-chrome-fg-strong); font-size: var(--vzn-font-size-subtitle); font-weight: var(--vzn-weight-semibold); }
+    .s-logo { display: inline-flex; inline-size: var(--vzn-icon-lg); block-size: var(--vzn-icon-lg); flex: 0 0 auto; align-items: center; justify-content: center; border-radius: var(--vzn-radius-xs); background: var(--vzn-action-fill); color: var(--vzn-action-fg); font-size: var(--vzn-font-size-caption); font-weight: var(--vzn-weight-bold); }
+    .s-search { display: flex; block-size: var(--vzn-control-height-sm); align-items: center; gap: var(--vzn-space-2); margin-block-end: var(--vzn-space-1); padding-inline: var(--vzn-space-2); border: var(--vzn-border-width) solid var(--vzn-border-strong); border-radius: var(--vzn-radius-sm); background: var(--vzn-sidebar-search-bg); color: var(--vzn-chrome-fg-muted); }
+    .s-div { flex: 0 0 auto; align-self: stretch; block-size: var(--vzn-border-width); margin-block: var(--vzn-space-1); background: var(--vzn-chrome-divider); }
+    .s-scroll { position: relative; display: flex; min-block-size: 0; flex: 1 1 auto; flex-direction: column; align-self: stretch; gap: var(--vzn-space-0-5); overflow: hidden; }
+    .s-scroll[data-overflow]::after { position: absolute; inset-block-start: var(--vzn-space-2); inset-inline-end: 0; inline-size: var(--vzn-space-1); block-size: var(--vzn-space-12); border-radius: var(--vzn-radius-pill); background: var(--vzn-border-strong); content: ""; }
+    .s-bottom { display: flex; flex: 0 0 auto; flex-direction: column; align-self: stretch; gap: var(--vzn-space-0-5); margin-block-start: auto; }
+    .s-bgrow { display: flex; block-size: var(--vzn-control-height-xs); align-items: center; gap: var(--vzn-space-2); padding-inline: var(--vzn-space-3); border-radius: var(--vzn-radius-sm); color: var(--vzn-chrome-fg-muted); font-size: var(--vzn-font-size-sm); }
+    .s-detail { margin-inline-start: auto; color: var(--vzn-chrome-fg-soft); font-size: var(--vzn-font-size-caption); }
+    .s-badge { display: inline-flex; align-items: center; gap: var(--vzn-space-1); margin-inline-start: auto; color: var(--vzn-warning); font-size: var(--vzn-font-size-caption); font-weight: var(--vzn-weight-medium); }
+    .s-badge::before { inline-size: var(--vzn-space-1-5); block-size: var(--vzn-space-1-5); border-radius: var(--vzn-radius-pill); background: var(--vzn-warning); content: ""; }
+
+    /* Rail (60 px): icon-only, groups separated by dividers. */
+    .m-sidebar[data-collapsed] .m-nav,
+    .m-sidebar[data-collapsed] .s-search { inline-size: var(--vzn-control-height-lg); justify-content: center; padding: 0; }
+    .m-sidebar[data-collapsed] .s-scroll,
+    .m-sidebar[data-collapsed] .s-bottom { align-items: center; }
+    .m-sidebar[data-collapsed] .s-brand { justify-content: center; padding: 0; }
+    .s-rail-badge { position: relative; }
+    .s-rail-badge::after { position: absolute; inset-block-start: var(--vzn-space-1-5); inset-inline-end: var(--vzn-space-1-5); inline-size: var(--vzn-space-1-5); block-size: var(--vzn-space-1-5); border-radius: var(--vzn-radius-pill); background: var(--vzn-warning); content: ""; }
+    .s-empty-rail { inline-size: var(--vzn-sidebar-width); flex: 0 0 auto; border-right: var(--vzn-border-width) solid var(--vzn-chrome-divider); background: var(--vzn-sidebar-bg); }
+
+    /* Compact overlay: the labelled panel portalled above the content. */
+    .s-overlay { position: absolute; inset-block-start: var(--vzn-titlebar-height); inset-block-end: 0; inset-inline-start: 0; z-index: var(--vzn-layer-navigation-overlay); display: flex; inline-size: var(--pw); box-sizing: border-box; flex-direction: column; gap: var(--vzn-space-0-5); padding: var(--vzn-space-2); border-right: var(--vzn-border-width) solid var(--vzn-chrome-divider); background: var(--vzn-sidebar-bg); box-shadow: var(--vzn-shadow-lg); color: var(--vzn-chrome-fg); }
+
+    /* Page header pieces. */
+    .s-desc { color: var(--vzn-text-soft); font-size: var(--vzn-font-size-sm); }
+    .s-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--vzn-space-4); }
+    .s-tile { display: flex; min-block-size: var(--vzn-quick-card-min); flex-direction: column; gap: var(--vzn-space-2); padding: var(--vzn-space-4); }
+    .s-lines { display: flex; flex-direction: column; gap: var(--vzn-space-2); padding: var(--vzn-space-4); }
+
+    /* Command palette. */
+    .s-scrim { inset-block-start: var(--vzn-titlebar-height); }
+    .s-pal { position: absolute; inset-block-start: var(--y); inset-inline-start: var(--x); z-index: var(--vzn-layer-modal); display: flex; inline-size: var(--pw); flex-direction: column; overflow: hidden; border: var(--vzn-border-width) solid var(--vzn-material-border); border-radius: var(--vzn-radius-lg); background: var(--vzn-surface-raised); box-shadow: var(--vzn-shadow-overlay); }
+    .s-pal-input { display: flex; min-block-size: var(--vzn-page-header-min-height); align-items: center; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); color: var(--vzn-text-soft); font-size: var(--vzn-font-size-subtitle); }
+    .s-pal-input .s-typed { color: var(--vzn-text-strong); }
+    .s-caret { display: inline-block; inline-size: var(--vzn-border-width); block-size: var(--vzn-icon-md); background: var(--vzn-action); }
+    .s-pal-list { display: flex; flex-direction: column; gap: var(--vzn-space-0-5); padding: var(--vzn-space-2); }
+    .s-row { display: flex; block-size: var(--vzn-control-height-lg); align-items: center; gap: var(--vzn-space-2); padding-inline: var(--vzn-space-3); border-radius: var(--vzn-radius-sm); color: var(--vzn-text); }
+    .s-row b { color: var(--vzn-text-strong); font-weight: var(--vzn-weight-medium); white-space: nowrap; }
+    .s-row small { overflow: hidden; color: var(--vzn-text-soft); font-size: var(--vzn-font-size-sm); text-overflow: ellipsis; white-space: nowrap; }
+    .s-row .m-kbd { visibility: hidden; margin-inline-start: auto; }
+    .s-row[data-hl] { background: var(--vzn-action-soft); color: var(--vzn-action-text); }
+    .s-row[data-hl] .m-kbd { visibility: visible; }
+    .s-row[data-calc] b { font-family: var(--vzn-font-mono); font-variant-numeric: tabular-nums; }
+    .s-hint { padding: var(--vzn-space-2) var(--vzn-space-4) 0; color: var(--vzn-text-soft); font-size: var(--vzn-font-size-sm); }
+    .s-pal-foot { display: flex; min-block-size: var(--vzn-control-height-md); align-items: center; justify-content: flex-end; gap: var(--vzn-space-3); padding: var(--vzn-space-1-5) var(--vzn-space-3); border-top: var(--vzn-border-width) solid var(--vzn-divider); background: var(--vzn-surface-muted); color: var(--vzn-text-soft); font-size: var(--vzn-font-size-caption); }
+    .s-answer { display: flex; flex-direction: column; gap: var(--vzn-space-3); padding: var(--vzn-space-4); }
+    .s-question { color: var(--vzn-text-strong); font-weight: var(--vzn-weight-semibold); }
+    .s-reading { color: var(--vzn-text); font-family: var(--vzn-font-reading); line-height: var(--vzn-line-reading); }
+    .s-answer-foot { display: flex; align-items: center; gap: var(--vzn-space-2); padding-block-start: var(--vzn-space-3); border-top: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-answer-foot .m-muted { flex: 1 1 auto; }
+    .s-spin { display: inline-block; inline-size: var(--vzn-icon-sm); block-size: var(--vzn-icon-sm); border: var(--vzn-space-0-5) solid var(--vzn-border-strong); border-block-start-color: var(--vzn-action); border-radius: var(--vzn-radius-pill); }
+
+    /* Toasts. */
+    .s-stack { position: absolute; inset-block-end: var(--vzn-space-4); inset-inline-end: var(--vzn-space-4); z-index: var(--vzn-layer-notification); display: flex; inline-size: var(--vzn-notification-max-inline); flex-direction: column; gap: var(--vzn-space-2); }
+    .s-stack[data-lifted] { inset-block-end: var(--lift); }
+    .s-stack .m-toast { position: static; align-items: flex-start; padding: var(--vzn-space-3); border-radius: var(--vzn-radius-lg); box-shadow: var(--vzn-shadow-overlay); }
+    .m-toast[data-tone="info"] { border-color: var(--vzn-action-border); }
+    .m-toast[data-tone="success"] { border-color: var(--vzn-success-border); }
+    .m-toast[data-tone="warning"] { border-color: var(--vzn-warning-border); }
+    .m-toast[data-tone="error"] { border-color: var(--vzn-danger-border); }
+    .s-tico { flex: 0 0 auto; inline-size: var(--vzn-icon-md); block-size: var(--vzn-icon-md); margin-block-start: var(--vzn-space-0-5); border-radius: var(--vzn-radius-pill); background: var(--vzn-action-text); }
+    .m-toast[data-tone="success"] .s-tico { background: var(--vzn-success); }
+    .m-toast[data-tone="warning"] .s-tico { border-radius: var(--vzn-radius-2xs); background: var(--vzn-warning); }
+    .m-toast[data-tone="error"] .s-tico { border-radius: var(--vzn-radius-2xs); background: var(--vzn-danger); }
+    .s-tcopy { display: flex; min-inline-size: 0; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-1); }
+    .s-tcopy b { color: var(--vzn-text-strong); font-size: var(--vzn-font-size-md); font-weight: var(--vzn-weight-semibold); }
+    .s-tcopy span { color: var(--vzn-text-soft); font-size: var(--vzn-font-size-sm); }
+    .s-tcopy small { color: var(--vzn-text-muted); font-size: var(--vzn-font-size-caption); }
+    .s-tactions { display: flex; gap: var(--vzn-space-1); margin-block-start: var(--vzn-space-1); }
+    .s-pill { border-radius: var(--vzn-radius-pill); }
+    .s-pill-primary { border-color: var(--vzn-action-border); color: var(--vzn-action-text); }
+    .s-composer { display: flex; min-block-size: var(--vzn-composer-min-height); flex-direction: column; justify-content: space-between; gap: var(--vzn-space-2); padding: var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-lg); background: var(--vzn-surface); color: var(--vzn-text-soft); }
+    .s-composer-bar { display: flex; align-items: center; gap: var(--vzn-space-2); }
+    .s-bubble { align-self: flex-end; max-inline-size: var(--vzn-theme-preview-bubble-max-inline); padding: var(--vzn-space-2) var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-user-bubble-border); border-radius: var(--vzn-radius-md); background: var(--vzn-user-bubble-bg); color: var(--vzn-user-bubble-fg); }
+    .s-chat-sidebar { display: flex; box-sizing: border-box; inline-size: var(--vzn-chat-sidebar-width); flex: 0 0 auto; flex-direction: column; gap: var(--vzn-space-1); padding: var(--vzn-space-3); border-right: var(--vzn-border-width) solid var(--vzn-border); background: var(--vzn-chat-sidebar-bg); }
+
+    /* Update popup window (its own frameless BrowserWindow). */
+    .s-up { display: flex; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-4); padding: var(--vzn-space-6); background: var(--vzn-surface); }
+    .s-up-head { display: flex; align-items: center; gap: var(--vzn-space-2); }
+    .s-up-brand { display: flex; align-items: center; gap: var(--vzn-space-3); color: var(--vzn-text-strong); font-size: var(--vzn-font-size-title); font-weight: var(--vzn-weight-semibold); }
+    .s-up h4 { margin: 0; color: var(--vzn-text-strong); font-size: var(--vzn-font-size-heading); font-weight: var(--vzn-weight-semibold); line-height: var(--vzn-line-tight); }
+    .s-up p { margin: 0; color: var(--vzn-text-muted); font-size: var(--vzn-font-size-lg); }
+    .s-up .s-version { color: var(--vzn-text-soft); font-size: var(--vzn-font-size-md); }
+    .s-up .s-alert { color: var(--vzn-danger); font-size: var(--vzn-font-size-md); }
+    .s-up-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--vzn-space-2); margin-block-start: auto; padding-block-start: var(--vzn-space-4); border-top: var(--vzn-border-width) solid var(--vzn-divider); }
+    .s-update-dialog { position: absolute; inset-block-start: var(--y); inset-inline-start: var(--x); z-index: var(--vzn-layer-modal); display: flex; inline-size: var(--pw); box-sizing: border-box; flex-direction: column; gap: var(--vzn-space-4); padding: var(--vzn-space-6); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-lg); background: var(--vzn-surface); box-shadow: var(--vzn-shadow-overlay); }
+    .s-update-dialog h4 { margin: 0; color: var(--vzn-text-strong); font-size: var(--vzn-font-size-title); }
+    .s-update-dialog p { margin: 0; color: var(--vzn-text-muted); font-size: var(--vzn-font-size-lg); }
+    .s-end { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--vzn-space-2); }
+
+    /* Native menus (tray, menu bar). */
+    .s-menubar { display: flex; block-size: var(--vzn-control-height-xs); flex: 0 0 auto; align-items: center; justify-content: flex-end; gap: var(--vzn-space-4); padding-inline: var(--vzn-space-4); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); background: var(--vzn-surface-muted); font-size: var(--vzn-font-size-sm); }
+    .s-taskbar { display: flex; block-size: var(--vzn-control-height-lg); flex: 0 0 auto; align-items: center; justify-content: flex-end; gap: var(--vzn-space-3); margin-block-start: auto; padding-inline: var(--vzn-space-4); border-top: var(--vzn-border-width) solid var(--vzn-divider); background: var(--vzn-surface-muted); }
+    .s-reading-item { padding: 0 var(--vzn-space-1-5); border-radius: var(--vzn-radius-xs); background: var(--vzn-surface-selected); font-family: var(--vzn-font-mono); font-variant-numeric: tabular-nums; }
+    .s-menu { position: absolute; inset-block-start: var(--y); inset-inline-start: var(--x); z-index: var(--vzn-layer-context-overlay); display: flex; min-inline-size: var(--pw); flex-direction: column; padding: var(--vzn-space-1); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-sm); background: var(--vzn-surface-raised); box-shadow: var(--vzn-shadow-md); font-size: var(--vzn-font-size-md); }
+    .s-menu div { padding: var(--vzn-space-1) var(--vzn-space-3); border-radius: var(--vzn-radius-xs); }
+    .s-menu div[data-hl] { background: var(--vzn-action-fill); color: var(--vzn-action-fg); }
+    .s-menu hr { margin: var(--vzn-space-1) 0; border: 0; border-top: var(--vzn-border-width) solid var(--vzn-divider); }
+
+    /* Welcome (proposal). */
+    .s-welcome { display: grid; flex: 1 1 auto; grid-template-columns: var(--vzn-overview-side) minmax(0, 1fr); gap: var(--vzn-space-6); padding: var(--vzn-space-8); }
+    .s-welcome > .m-card { align-self: start; }
+    .s-steps { display: flex; flex-direction: column; gap: var(--vzn-space-2); }
+    .s-step { display: flex; align-items: center; gap: var(--vzn-space-3); padding: var(--vzn-space-3); border-radius: var(--vzn-radius-sm); background: var(--vzn-surface-muted); }
+    .s-step[aria-current] { background: var(--vzn-action-soft); color: var(--vzn-action-text); }
+    .s-num { display: inline-flex; inline-size: var(--vzn-icon-lg); block-size: var(--vzn-icon-lg); flex: 0 0 auto; align-items: center; justify-content: center; border-radius: var(--vzn-radius-pill); background: var(--vzn-surface); color: var(--vzn-text-strong); font-size: var(--vzn-font-size-caption); font-weight: var(--vzn-weight-bold); }
+    .s-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--vzn-space-3); padding: var(--vzn-space-4); }
+    .s-option { display: flex; flex-direction: column; gap: var(--vzn-space-1-5); padding: var(--vzn-space-4); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-md); }
+    .s-option[aria-pressed] { border-color: var(--vzn-action); background: var(--vzn-action-soft); }
+    .s-ok { display: flex; align-items: center; gap: var(--vzn-space-2); margin: 0 var(--vzn-space-4); padding: var(--vzn-space-2) var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-success-border); border-radius: var(--vzn-radius-sm); background: var(--vzn-success-soft); font-size: var(--vzn-font-size-sm); }
+    .s-card-foot { display: flex; justify-content: flex-end; gap: var(--vzn-space-2); padding: var(--vzn-space-3) var(--vzn-space-4); border-top: var(--vzn-border-width) solid var(--vzn-divider); }
+
+    .s-table-wrap { inline-size: var(--w); }
+  </style>
+</head>
+<body class="board">
+  <header class="board-header">
+    <h1>Khung ứng dụng và bề mặt toàn cục</h1>
+    <p>Thanh tiêu đề, thanh điều hướng chính, header trang, bảng lệnh ⌘K, toast, thông báo cập nhật và các bề mặt ngoài cửa sổ: phần luôn có mặt quanh mọi trang của Viezan. Vẽ theo mã hiện tại; phần chưa có trong mã ghi rõ "đề xuất". Đặc tả đầy đủ: <a href="../screens/shell.md">screens/shell.md</a>.</p>
+    <nav class="board-nav" aria-label="Kịch bản">
+      <a href="#default">Mặc định</a>
+      <a href="#rail">Thanh bên thu gọn</a>
+      <a href="#short">Cửa sổ thấp</a>
+      <a href="#narrow">Cửa sổ hẹp</a>
+      <a href="#palette">Bảng lệnh</a>
+      <a href="#palette-answer">Bảng lệnh: hỏi AI</a>
+      <a href="#toasts">Toast</a>
+      <a href="#update">Cập nhật</a>
+      <a href="#tray">Khay và thanh menu</a>
+      <a href="#welcome">Chào mừng (đề xuất)</a>
+      <a href="#dark">Chế độ tối</a>
+    </nav>
+  </header>
+
+  <!-- 1. Default: expanded navigation ------------------------------------- -->
+  <section class="scenario" id="default">
+    <div class="scenario-copy">
+      <h2>Mặc định: thanh bên mở rộng</h2>
+      <p>Cửa sổ ≥ 900 px, <code>sidebarCollapsed = false</code>. Thanh bên 236 px, trang Trang chủ đang mở.</p>
+      <ol>
+        <li><span class="ref">1</span>Nút ▣ trong thanh tiêu đề, ngay sau đèn giao thông (ô 60 px). <code>sm · neutral · ghost</code>, <code>aria-expanded</code>. Bấm: lưu trạng thái thu gọn, cột co về 60 px trong 180 ms.</li>
+        <li><span class="ref">2</span>"Tìm hoặc chạy lệnh" + chip <code>⌘K</code> (Windows/Linux: <code>Ctrl K</code>). <code>sm · neutral · outline</code>. Mở bảng lệnh.</li>
+        <li><span class="ref">3</span>Mục đang mở: <code>primary · soft</code>, nổi bằng <code>--vzn-shadow-xs</code>, chữ semibold, <code>aria-current="page"</code>. Mục khác <code>neutral · ghost</code>.</li>
+        <li><span class="ref">4</span>Nhãn nhóm AI · Ngôn ngữ · Hệ thống · Tiện ích, viết hoa, <code>--vzn-font-size-caption</code>. Nhóm không còn mục nào (module tắt) biến mất.</li>
+        <li><span class="ref">5</span>Dải "Đang chạy nền" ghim đáy: chỉ hiện nguồn đang chạy thật (quạt, phím tắt toàn cục, tiện ích Chrome). Mỗi hàng <code>xs · neutral · ghost</code> dẫn tới trang điều khiển nó.</li>
+        <li><span class="ref">6</span>Cài đặt luôn ghim đáy; huy hiệu vàng "Chưa có key" khi chưa có khoá API nào.</li>
+        <li><span class="ref">7</span>Header trang (<code>PageHeader</code>) ≥ 56 px: tiêu đề 18 + mô tả cùng dòng, hành động ở cuối. Một nút <code>solid</code> duy nhất.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng · Graphite</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar s-titlebar">
+            <span class="s-lights"><span class="m-lights"><i></i><i></i><i></i></span></span>
+            <span class="s-tb-host"><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></span>
+          </div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="s-brand"><span class="s-logo">V</span>Viezan</div>
+              <div class="s-search"><i class="s-ico"></i>Tìm hoặc chạy lệnh<span class="m-kbd s-push">⌘K</span></div>
+              <div class="s-div"></div>
+              <div class="s-scroll">
+                <div class="m-nav" aria-current="page"><i class="s-ico"></i>Trang chủ</div>
+                <div class="m-nav-group">AI</div>
+                <div class="m-nav"><i class="s-ico"></i>AI Chat</div>
+                <div class="m-nav-group">Ngôn ngữ</div>
+                <div class="m-nav"><i class="s-ico"></i>Dịch</div>
+                <div class="m-nav"><i class="s-ico"></i>Phiên dịch</div>
+                <div class="m-nav"><i class="s-ico"></i>Từ điển</div>
+                <div class="m-nav"><i class="s-ico"></i>Dịch mọi nơi</div>
+                <div class="m-nav-group">Hệ thống</div>
+                <div class="m-nav"><i class="s-ico"></i>Nhiệt độ &amp; quạt</div>
+                <div class="m-nav-group">Tiện ích</div>
+                <div class="m-nav"><i class="s-ico"></i>Launcher &amp; phím tắt</div>
+              </div>
+              <div class="s-bottom">
+                <div class="s-bgrow"><span class="m-dot" data-tone="ok"></span>Quạt · Cân bằng</div>
+                <div class="s-bgrow"><span class="m-dot" data-tone="ok"></span>Phím tắt toàn cục<span class="s-detail">2</span></div>
+                <div class="s-div"></div>
+                <div class="m-nav"><i class="s-ico"></i>Cài đặt<span class="s-badge">Chưa có key</span></div>
+              </div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Trang chủ</h3><span class="s-desc">Lối tắt, việc đang dở và trạng thái máy</span><span class="m-spacer"></span><span class="m-btn">Tuỳ chỉnh</span></div>
+              <div class="m-content">
+                <div class="s-grid">
+                  <div class="m-card s-tile"><span class="m-strong">AI Chat</span><span class="m-muted">[Lối tắt]</span></div>
+                  <div class="m-card s-tile"><span class="m-strong">Dịch</span><span class="m-muted">[Lối tắt]</span></div>
+                  <div class="m-card s-tile"><span class="m-strong">Từ điển</span><span class="m-muted">[Lối tắt]</span></div>
+                </div>
+                <div class="m-card"><div class="m-card-head">[Thẻ của trang]</div><div class="s-lines"><span class="m-skeleton"></span><span class="m-skeleton"></span></div></div>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 130px; --y: 10px">1</span>
+          <span class="callout" style="--x: 214px; --y: 96px">2</span>
+          <span class="callout" style="--x: 214px; --y: 143px">3</span>
+          <span class="callout" style="--x: 52px; --y: 178px">4</span>
+          <span class="callout" style="--x: 214px; --y: 656px">5</span>
+          <span class="callout" style="--x: 244px; --y: 726px">6</span>
+          <span class="callout" style="--x: 1166px; --y: 58px">7</span>
+        </div>
+        <div class="s-table-wrap" style="--w: 1200px">
+          <table class="actions">
+            <thead><tr><th>Điều khiển</th><th>Button</th><th>Kích hoạt</th><th>Kết quả</th><th>Khi bị tắt</th></tr></thead>
+            <tbody>
+              <tr><td>▣ Thu gọn / mở rộng</td><td>sm · neutral · ghost</td><td>Bấm</td><td>≥ 900 px: đảo và lưu <code>sidebarCollapsed</code>. &lt; 900 px: mở/đóng lớp phủ tạm</td><td>Không bao giờ</td></tr>
+              <tr><td>Tìm hoặc chạy lệnh</td><td>sm · neutral · outline</td><td>Bấm, <code>⌘K</code> / <code>Ctrl K</code></td><td>Đóng lớp phủ điều hướng, mở bảng lệnh</td><td>Không bao giờ</td></tr>
+              <tr><td>Mục trang</td><td>sm · primary · soft (đang mở) / neutral · ghost</td><td>Bấm</td><td>Chuyển trang; Dịch xoá bản dịch cũ; đóng lớp phủ</td><td>Module tắt: mục không được vẽ</td></tr>
+              <tr><td>Hàng chạy nền</td><td>xs · neutral · ghost</td><td>Bấm</td><td>Quạt → Nhiệt độ; Phím tắt → Launcher &amp; phím tắt; Chrome → Dịch mọi nơi</td><td>Nguồn không chạy: hàng không có</td></tr>
+              <tr><td>Cài đặt</td><td>sm · như mục trang</td><td>Bấm</td><td>Mở trang Cài đặt</td><td>Luôn có</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Rail ------------------------------------------------------------- -->
+  <section class="scenario" id="rail">
+    <div class="scenario-copy">
+      <h2>Thanh bên thu gọn (rail 60 px)</h2>
+      <p>Cửa sổ ≥ 900 px, người dùng đã thu gọn. Lựa chọn được lưu và giữ khi chuyển trang. Trang AI Chat: sidebar lịch sử là organism riêng, trạng thái riêng.</p>
+      <ol>
+        <li><span class="ref">1</span>Nút ▣ đổi icon và nhãn thành "Mở rộng thanh bên", <code>aria-expanded="false"</code>.</li>
+        <li><span class="ref">2</span>Chỉ còn icon trong ô 40 px; tên trang qua <code>title</code> và <code>aria-label</code>. Chip ⌘K ẩn.</li>
+        <li><span class="ref">3</span>Nhãn nhóm thay bằng đường kẻ mảnh giữa các nhóm.</li>
+        <li><span class="ref">4</span>Dải chạy nền thu thành một chấm xanh; tooltip liệt kê các hàng, <code>aria-label</code> "Đang chạy nền: 2 mục". Chấm không bấm được (xem Chênh lệch #5).</li>
+        <li><span class="ref">5</span>Huy hiệu "Chưa có key" chỉ còn chấm vàng; nhãn ARIA "Cài đặt: Chưa có key".</li>
+        <li><span class="ref">6</span>Sidebar lịch sử chat (264 px) đứng cạnh, header trang chỉ phủ cột tính năng.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng · AI Chat</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar s-titlebar">
+            <span class="s-lights"><span class="m-lights"><i></i><i></i><i></i></span></span>
+            <span class="s-tb-host"><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></span>
+          </div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="s-brand"><span class="s-logo">V</span></div>
+              <div class="s-search"><i class="s-ico"></i></div>
+              <div class="s-div"></div>
+              <div class="s-scroll">
+                <div class="m-nav"><i class="s-ico"></i></div>
+                <div class="s-div"></div>
+                <div class="m-nav" aria-current="page"><i class="s-ico"></i></div>
+                <div class="s-div"></div>
+                <div class="m-nav"><i class="s-ico"></i></div>
+                <div class="m-nav"><i class="s-ico"></i></div>
+                <div class="m-nav"><i class="s-ico"></i></div>
+                <div class="m-nav"><i class="s-ico"></i></div>
+                <div class="s-div"></div>
+                <div class="m-nav"><i class="s-ico"></i></div>
+                <div class="s-div"></div>
+                <div class="m-nav"><i class="s-ico"></i></div>
+              </div>
+              <div class="s-bottom">
+                <div class="m-nav"><span class="m-dot" data-tone="ok"></span></div>
+                <div class="s-div"></div>
+                <div class="m-nav s-rail-badge"><i class="s-ico"></i></div>
+              </div>
+            </nav>
+            <aside class="s-chat-sidebar">
+              <span class="m-muted">Hôm nay</span>
+              <div class="m-nav" aria-current="page">[Cuộc trò chuyện]</div>
+              <div class="m-nav">[Cuộc trò chuyện]</div>
+            </aside>
+            <main class="m-main">
+              <div class="m-header"><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span><h3>[Tên cuộc trò chuyện]</h3><span class="m-spacer"></span><span class="m-btn" data-tone="ghost">Local · <span class="m-mono">qwen3:4b</span></span></div>
+              <div class="m-content">
+                <div class="s-bubble">[Tin nhắn người dùng]</div>
+                <div class="s-lines"><span class="m-skeleton"></span><span class="m-skeleton"></span><span class="m-skeleton"></span></div>
+                <span class="m-spacer"></span>
+                <div class="s-composer"><span>[Ô soạn tin]</span><div class="s-composer-bar"><span class="m-btn" data-size="md" data-icon><i class="s-ico"></i></span><span class="m-spacer"></span><span class="m-btn" data-size="md" data-tone="primary" data-icon><i class="s-ico"></i></span></div></div>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 130px; --y: 10px">1</span>
+          <span class="callout" style="--x: 52px; --y: 196px">2</span>
+          <span class="callout" style="--x: 50px; --y: 236px">3</span>
+          <span class="callout" style="--x: 46px; --y: 662px">4</span>
+          <span class="callout" style="--x: 46px; --y: 712px">5</span>
+          <span class="callout" style="--x: 300px; --y: 52px">6</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Short window ------------------------------------------------------ -->
+  <section class="scenario" id="short">
+    <div class="scenario-copy">
+      <h2>Cửa sổ thấp: chỉ danh sách trang cuộn</h2>
+      <p>Chiều cao không đủ cho mọi mục. Dải chạy nền và Cài đặt không bao giờ bị đẩy khỏi tầm với (<code>.sidebar-nav-scroll</code> là vùng cuộn duy nhất, <code>overscroll-behavior: contain</code>).</p>
+      <ol>
+        <li><span class="ref">1</span>Logo và nút tìm cố định trên đầu.</li>
+        <li><span class="ref">2</span>Danh sách trang cuộn được, thanh cuộn mảnh; mục cuối bị cắt báo hiệu còn nội dung.</li>
+        <li><span class="ref">3</span>Nhóm đáy ghim: dải chạy nền và Cài đặt luôn hiện.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1000 × 480 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1000px; --h: 480px">
+          <div class="m-titlebar s-titlebar">
+            <span class="s-lights"><span class="m-lights"><i></i><i></i><i></i></span></span>
+            <span class="s-tb-host"><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></span>
+          </div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="s-brand"><span class="s-logo">V</span>Viezan</div>
+              <div class="s-search"><i class="s-ico"></i>Tìm hoặc chạy lệnh<span class="m-kbd s-push">⌘K</span></div>
+              <div class="s-div"></div>
+              <div class="s-scroll" data-overflow>
+                <div class="m-nav-group">Ngôn ngữ</div>
+                <div class="m-nav" aria-current="page"><i class="s-ico"></i>Dịch</div>
+                <div class="m-nav"><i class="s-ico"></i>Phiên dịch</div>
+                <div class="m-nav"><i class="s-ico"></i>Từ điển</div>
+                <div class="m-nav"><i class="s-ico"></i>Dịch mọi nơi</div>
+                <div class="m-nav-group">Hệ thống</div>
+                <div class="m-nav"><i class="s-ico"></i>Nhiệt độ &amp; quạt</div>
+              </div>
+              <div class="s-bottom">
+                <div class="s-bgrow"><span class="m-dot" data-tone="ok"></span>Tiện ích Chrome<span class="s-detail">sẵn sàng</span></div>
+                <div class="s-div"></div>
+                <div class="m-nav"><i class="s-ico"></i>Cài đặt</div>
+              </div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Dịch</h3><span class="m-spacer"></span><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+              <div class="m-content"><div class="m-card"><div class="s-lines"><span class="m-skeleton"></span><span class="m-skeleton"></span><span class="m-skeleton"></span></div></div></div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 214px; --y: 96px">1</span>
+          <span class="callout" style="--x: 214px; --y: 200px">2</span>
+          <span class="callout" style="--x: 214px; --y: 404px">3</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Narrow window ----------------------------------------------------- -->
+  <section class="scenario" id="narrow">
+    <div class="scenario-copy">
+      <h2>Cửa sổ hẹp (&lt; 900 px): rail và lớp phủ tạm</h2>
+      <p>Dưới 900 px thanh bên luôn là rail 60 px, bất kể lựa chọn đã lưu; lựa chọn đó không bị ghi đè. Bề rộng mở rộng giảm còn 208 px.</p>
+      <ol>
+        <li><span class="ref">1</span>Bấm ▣: bảng có nhãn được portal ra <code>body</code>, neo đúng vị trí và chiều cao của rail, bóng <code>--vzn-shadow-lg</code>, lớp <code>--vzn-layer-navigation-overlay</code>. Sidebar lịch sử chat (nếu mở) tự đóng: hai lớp phủ loại trừ nhau.</li>
+        <li><span class="ref">2</span>Ô rail phía dưới để trống trong lúc lớp phủ mở.</li>
+        <li><span class="ref">3</span>Nền bắt bấm trong suốt phủ phần còn lại: bấm ra ngoài là đóng. <code>Esc</code> đóng và trả focus về ▣. Chọn trang cũng đóng. <code>⌘K</code> đóng rồi mở bảng lệnh.</li>
+        <li><span class="ref">4</span>Kéo cửa sổ rộng lại ≥ 900 px: lớp phủ đóng, thanh bên về đúng trạng thái đã lưu.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">820 × 620 · sáng · rail</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 820px; --h: 620px">
+          <div class="m-titlebar s-titlebar">
+            <span class="s-lights"><span class="m-lights"><i></i><i></i><i></i></span></span>
+            <span class="s-tb-host"><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></span>
+          </div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="s-brand"><span class="s-logo">V</span></div>
+              <div class="s-search"><i class="s-ico"></i></div>
+              <div class="s-div"></div>
+              <div class="s-scroll">
+                <div class="m-nav"><i class="s-ico"></i></div>
+                <div class="s-div"></div>
+                <div class="m-nav"><i class="s-ico"></i></div>
+                <div class="s-div"></div>
+                <div class="m-nav" aria-current="page"><i class="s-ico"></i></div>
+                <div class="m-nav"><i class="s-ico"></i></div>
+                <div class="m-nav"><i class="s-ico"></i></div>
+                <div class="m-nav"><i class="s-ico"></i></div>
+              </div>
+              <div class="s-bottom"><div class="s-div"></div><div class="m-nav"><i class="s-ico"></i></div></div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Dịch</h3><span class="m-spacer"></span><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+              <div class="m-content">
+                <div class="m-card"><div class="m-card-head">Nguồn</div><div class="s-lines"><span class="m-skeleton"></span><span class="m-skeleton"></span></div></div>
+                <div class="m-card"><div class="m-card-head">Kết quả</div><div class="s-lines"><span class="m-skeleton"></span></div></div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">820 × 620 · sáng · lớp phủ mở</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 820px; --h: 620px">
+          <div class="m-titlebar s-titlebar">
+            <span class="s-lights"><span class="m-lights"><i></i><i></i><i></i></span></span>
+            <span class="s-tb-host"><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></span>
+          </div>
+          <div class="m-body">
+            <div class="s-empty-rail"></div>
+            <main class="m-main">
+              <div class="m-header"><h3>Dịch</h3><span class="m-spacer"></span><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+              <div class="m-content">
+                <div class="m-card"><div class="m-card-head">Nguồn</div><div class="s-lines"><span class="m-skeleton"></span><span class="m-skeleton"></span></div></div>
+                <div class="m-card"><div class="m-card-head">Kết quả</div><div class="s-lines"><span class="m-skeleton"></span></div></div>
+              </div>
+            </main>
+          </div>
+          <div class="s-overlay" style="--pw: 208px">
+            <div class="s-brand"><span class="s-logo">V</span>Viezan</div>
+            <div class="s-search"><i class="s-ico"></i>Tìm hoặc chạy lệnh<span class="m-kbd s-push">⌘K</span></div>
+            <div class="s-div"></div>
+            <div class="s-scroll">
+              <div class="m-nav"><i class="s-ico"></i>Trang chủ</div>
+              <div class="m-nav-group">AI</div>
+              <div class="m-nav"><i class="s-ico"></i>AI Chat</div>
+              <div class="m-nav-group">Ngôn ngữ</div>
+              <div class="m-nav" aria-current="page"><i class="s-ico"></i>Dịch</div>
+              <div class="m-nav"><i class="s-ico"></i>Phiên dịch</div>
+              <div class="m-nav"><i class="s-ico"></i>Từ điển</div>
+            </div>
+            <div class="s-bottom"><div class="s-div"></div><div class="m-nav"><i class="s-ico"></i>Cài đặt</div></div>
+          </div>
+          <span class="callout" style="--x: 190px; --y: 52px">1</span>
+          <span class="callout" style="--x: 20px; --y: 590px">2</span>
+          <span class="callout" style="--x: 500px; --y: 300px">3</span>
+          <span class="callout" style="--x: 130px; --y: 10px">4</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Command palette: list ------------------------------------------- -->
+  <section class="scenario" id="palette">
+    <div class="scenario-copy">
+      <h2>Bảng lệnh ⌘K: danh sách, kết quả, không khớp</h2>
+      <p>Hộp thoại <code>aria-modal</code>, rộng tối đa 560 px, neo trên. Scrim <code>--vzn-scrim</code> bắt đầu dưới thanh tiêu đề. Focus vào ô tìm khi mở.</p>
+      <ol>
+        <li><span class="ref">1</span>Ô tìm <code>role="combobox"</code>, placeholder "Tìm lệnh, tính toán hoặc hỏi AI…". Nút X <code>lg · neutral · ghost</code> "Đóng".</li>
+        <li><span class="ref">2</span>Rỗng: mọi trang theo đúng thứ tự thanh bên, mỗi hàng có mô tả. Hàng tô <code>primary · soft</code> và hiện chip ↵.</li>
+        <li><span class="ref">3</span>Chân trang chỉ dẫn phím: ↑↓ Di chuyển · ↵ Mở · esc Đóng.</li>
+        <li><span class="ref">4</span>Phép tính hợp lệ: hàng "= kết quả" đứng đầu (chữ số đều cột, định dạng theo ngôn ngữ app). ↵ chép và đóng.</li>
+        <li><span class="ref">5</span>Lệnh khớp (bỏ dấu: "tu dien" khớp "Từ điển"), rồi "Hỏi AI" và "Hỏi AI và tra cứu web" (chỉ khi có API tìm web).</li>
+        <li><span class="ref">6</span>Không lệnh nào khớp: dòng "Không tìm thấy lệnh phù hợp" (<code>role="status"</code>), hàng Hỏi AI vẫn còn làm lối thoát.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">900 × 640 · sáng · rỗng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 900px; --h: 640px">
+          <div class="m-titlebar s-titlebar">
+            <span class="s-lights"><span class="m-lights"><i></i><i></i><i></i></span></span>
+            <span class="s-tb-host"><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></span>
+          </div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed><div class="s-brand"><span class="s-logo">V</span></div><div class="s-search"><i class="s-ico"></i></div></nav>
+            <main class="m-main"><div class="m-header"><h3>Trang chủ</h3></div><div class="m-content"></div></main>
+          </div>
+          <div class="m-scrim s-scrim"></div>
+          <div class="s-pal" style="--pw: 560px; --x: 170px; --y: 104px">
+            <div class="s-pal-input"><i class="s-ico"></i><span class="s-caret"></span>Tìm lệnh, tính toán hoặc hỏi AI…<span class="m-spacer"></span><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+            <div class="s-pal-list">
+              <div class="s-row" data-hl><i class="s-ico"></i><b>Trang chủ</b><small>Lối tắt, việc đang dở và trạng thái máy</small><span class="m-kbd">↵</span></div>
+              <div class="s-row"><i class="s-ico"></i><b>AI Chat</b><small>Trò chuyện với AI local và đám mây</small><span class="m-kbd">↵</span></div>
+              <div class="s-row"><i class="s-ico"></i><b>Dịch</b><small>Dịch văn bản, hình ảnh và giọng nói</small><span class="m-kbd">↵</span></div>
+              <div class="s-row"><i class="s-ico"></i><b>Phiên dịch</b><small>Phiên dịch giọng nói theo thời gian thực</small><span class="m-kbd">↵</span></div>
+              <div class="s-row"><i class="s-ico"></i><b>Từ điển</b><small>Tra cứu từ và định nghĩa</small><span class="m-kbd">↵</span></div>
+              <div class="s-row"><i class="s-ico"></i><b>Dịch mọi nơi</b><small>Dịch nhanh vùng chọn và tiện ích Chrome</small><span class="m-kbd">↵</span></div>
+              <div class="s-row"><i class="s-ico"></i><b>Nhiệt độ &amp; quạt</b><small>Theo dõi nhiệt độ, tốc độ quạt và tải CPU</small><span class="m-kbd">↵</span></div>
+            </div>
+            <div class="s-pal-foot"><span><span class="m-kbd">↑↓</span> Di chuyển</span><span><span class="m-kbd">↵</span> Mở</span><span><span class="m-kbd">esc</span> Đóng</span></div>
+          </div>
+          <span class="callout" style="--x: 736px; --y: 112px">1</span>
+          <span class="callout" style="--x: 736px; --y: 197px">2</span>
+          <span class="callout" style="--x: 736px; --y: 500px">3</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">900 × 640 · sáng · phép tính</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 900px; --h: 640px">
+          <div class="m-titlebar s-titlebar">
+            <span class="s-lights"><span class="m-lights"><i></i><i></i><i></i></span></span>
+            <span class="s-tb-host"><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></span>
+          </div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed><div class="s-brand"><span class="s-logo">V</span></div><div class="s-search"><i class="s-ico"></i></div></nav>
+            <main class="m-main"><div class="m-header"><h3>Trang chủ</h3></div><div class="m-content"></div></main>
+          </div>
+          <div class="m-scrim s-scrim"></div>
+          <div class="s-pal" style="--pw: 560px; --x: 170px; --y: 104px">
+            <div class="s-pal-input"><i class="s-ico"></i><span class="s-typed m-mono">1250*1.9885</span><span class="s-caret"></span><span class="m-spacer"></span><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+            <div class="s-pal-list">
+              <div class="s-row" data-hl data-calc><i class="s-ico"></i><b>= 2.485,625</b><small>1250*1.9885 · Sao chép kết quả</small><span class="m-kbd">↵</span></div>
+              <div class="s-row"><i class="s-ico"></i><b>Hỏi AI</b><small>Trả lời nhanh cho “1250*1.9885”</small><span class="m-kbd">↵</span></div>
+              <div class="s-row"><i class="s-ico"></i><b>Hỏi AI và tra cứu web</b><small>Kiểm chứng “1250*1.9885” với nguồn trên web</small><span class="m-kbd">↵</span></div>
+            </div>
+            <div class="s-pal-foot"><span><span class="m-kbd">↑↓</span> Di chuyển</span><span><span class="m-kbd">↵</span> Mở</span><span><span class="m-kbd">esc</span> Đóng</span></div>
+          </div>
+          <span class="callout" style="--x: 736px; --y: 197px">4</span>
+          <span class="callout" style="--x: 736px; --y: 239px">5</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">900 × 640 · sáng · không có lệnh khớp</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 900px; --h: 640px">
+          <div class="m-titlebar s-titlebar">
+            <span class="s-lights"><span class="m-lights"><i></i><i></i><i></i></span></span>
+            <span class="s-tb-host"><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></span>
+          </div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed><div class="s-brand"><span class="s-logo">V</span></div><div class="s-search"><i class="s-ico"></i></div></nav>
+            <main class="m-main"><div class="m-header"><h3>Trang chủ</h3></div><div class="m-content"></div></main>
+          </div>
+          <div class="m-scrim s-scrim"></div>
+          <div class="s-pal" style="--pw: 560px; --x: 170px; --y: 104px">
+            <div class="s-pal-input"><i class="s-ico"></i><span class="s-typed">local model nào dịch tốt</span><span class="s-caret"></span><span class="m-spacer"></span><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+            <div class="s-hint">Không tìm thấy lệnh phù hợp</div>
+            <div class="s-pal-list">
+              <div class="s-row" data-hl><i class="s-ico"></i><b>Hỏi AI</b><small>Trả lời nhanh cho “local model nào dịch tốt”</small><span class="m-kbd">↵</span></div>
+              <div class="s-row"><i class="s-ico"></i><b>Hỏi AI và tra cứu web</b><small>Kiểm chứng “local model nào dịch tốt” với nguồn trên web</small><span class="m-kbd">↵</span></div>
+            </div>
+            <div class="s-pal-foot"><span><span class="m-kbd">↑↓</span> Di chuyển</span><span><span class="m-kbd">↵</span> Mở</span><span><span class="m-kbd">esc</span> Đóng</span></div>
+          </div>
+          <span class="callout" style="--x: 736px; --y: 182px">6</span>
+        </div>
+      </div>
+      <div class="s-table-wrap" style="--w: 900px">
+        <table class="actions">
+          <thead><tr><th>Truy vấn</th><th>Hàng hiển thị</th><th>Enter</th></tr></thead>
+          <tbody>
+            <tr><td>(rỗng)</td><td>Mọi trang, thứ tự thanh bên</td><td>Mở trang</td></tr>
+            <tr><td>chữ thường</td><td>[= phép tính] · lệnh khớp · Hỏi AI · [Hỏi AI và tra cứu web]</td><td>Chạy hàng đang tô</td></tr>
+            <tr><td><code>? câu hỏi</code></td><td>Hỏi AI [· tra cứu web]</td><td>Hỏi AI</td></tr>
+            <tr><td><code>?? câu hỏi</code></td><td>Hỏi AI và tra cứu web · Hỏi AI (không có API web: chỉ Hỏi AI)</td><td>Hỏi kèm tìm web</td></tr>
+            <tr><td><code>t văn bản</code></td><td>Dịch — Dịch “văn bản”</td><td>Mở Dịch với văn bản</td></tr>
+            <tr><td><code>d từ</code></td><td>Từ điển — Tra cứu “từ”</td><td>Mở Từ điển và tra</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Command palette: answer ----------------------------------------- -->
+  <section class="scenario" id="palette-answer">
+    <div class="scenario-copy">
+      <h2>Bảng lệnh: hỏi AI ngay tại chỗ</h2>
+      <p>Chọn "Hỏi AI" thay danh sách bằng vùng trả lời. Gõ tiếp vào ô tìm hoặc nhấn <code>Esc</code> là huỷ và quay lại danh sách; <code>Esc</code> lần nữa đóng bảng lệnh.</p>
+      <ol>
+        <li><span class="ref">1</span>Câu hỏi in đậm trên cùng.</li>
+        <li><span class="ref">2</span>Đang chờ: spinner + "Đang suy nghĩ…" (có tìm web: "Đang tìm web…"); vùng có <code>aria-live="polite"</code> và <code>aria-busy</code>.</li>
+        <li><span class="ref">3</span>Câu trả lời Markdown chảy dần, chữ đọc <code>--vzn-font-reading</code>.</li>
+        <li><span class="ref">4</span>Chân: "AI có thể trả lời sai…", "Sao chép" (→ "Đã sao chép!" 1,2 giây) và "Mở trong Chat ⌘↵" — cả hai <code>sm · neutral · ghost</code>; "Mở trong Chat" tắt cho tới khi trả lời xong.</li>
+        <li><span class="ref">5</span>Chân trang đổi thành "esc Quay lại".</li>
+        <li><span class="ref">6</span>Thiếu khoá (provider không phải local): hộp lỗi <code>role="alert"</code> "Chưa có API key. Vào Cài đặt để thêm." + "Mở Cài đặt" <code>sm · neutral · outline</code>. Câu hỏi quá dài: "Nội dung quá dài. Rút gọn để gửi."</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">900 × 640 · sáng · đang trả lời</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 900px; --h: 640px">
+          <div class="m-titlebar s-titlebar">
+            <span class="s-lights"><span class="m-lights"><i></i><i></i><i></i></span></span>
+            <span class="s-tb-host"><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></span>
+          </div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed><div class="s-brand"><span class="s-logo">V</span></div><div class="s-search"><i class="s-ico"></i></div></nav>
+            <main class="m-main"><div class="m-header"><h3>Trang chủ</h3></div><div class="m-content"></div></main>
+          </div>
+          <div class="m-scrim s-scrim"></div>
+          <div class="s-pal" style="--pw: 560px; --x: 170px; --y: 104px">
+            <div class="s-pal-input"><i class="s-ico"></i><span class="s-typed">? local model nào dịch tốt</span><span class="m-spacer"></span><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+            <div class="s-answer">
+              <span class="s-question">local model nào dịch tốt</span>
+              <span class="m-muted"><span class="s-spin"></span> Đang suy nghĩ…</span>
+              <div class="s-reading">[Câu trả lời ngắn chảy dần ngay trong bảng lệnh, Markdown, tối đa vài đoạn.]</div>
+              <div class="s-answer-foot"><span class="m-muted">AI có thể trả lời sai. Hãy kiểm chứng thông tin quan trọng.</span><span class="m-btn" data-tone="ghost"><i class="s-ico"></i>Sao chép</span><span class="m-btn" data-tone="ghost" disabled>Mở trong Chat <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></div>
+            </div>
+            <div class="s-pal-foot"><span><span class="m-kbd">esc</span> Quay lại</span></div>
+          </div>
+          <span class="callout" style="--x: 736px; --y: 195px">1</span>
+          <span class="callout" style="--x: 736px; --y: 226px">2</span>
+          <span class="callout" style="--x: 736px; --y: 258px">3</span>
+          <span class="callout" style="--x: 736px; --y: 305px">4</span>
+          <span class="callout" style="--x: 736px; --y: 368px">5</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">900 × 640 · sáng · thiếu khoá</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 900px; --h: 640px">
+          <div class="m-titlebar s-titlebar">
+            <span class="s-lights"><span class="m-lights"><i></i><i></i><i></i></span></span>
+            <span class="s-tb-host"><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></span>
+          </div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed><div class="s-brand"><span class="s-logo">V</span></div><div class="s-search"><i class="s-ico"></i></div></nav>
+            <main class="m-main"><div class="m-header"><h3>Trang chủ</h3></div><div class="m-content"></div></main>
+          </div>
+          <div class="m-scrim s-scrim"></div>
+          <div class="s-pal" style="--pw: 560px; --x: 170px; --y: 104px">
+            <div class="s-pal-input"><i class="s-ico"></i><span class="s-typed">? tóm tắt bài này</span><span class="m-spacer"></span><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+            <div class="s-answer">
+              <span class="s-question">tóm tắt bài này</span>
+              <div class="m-notice" data-tone="danger"><span>Chưa có API key. Vào Cài đặt để thêm.</span><span class="m-spacer"></span><span class="m-btn">Mở Cài đặt</span></div>
+            </div>
+            <div class="s-pal-foot"><span><span class="m-kbd">esc</span> Quay lại</span></div>
+          </div>
+          <span class="callout" style="--x: 736px; --y: 240px">6</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Toasts ----------------------------------------------------------- -->
+  <section class="scenario" id="toasts">
+    <div class="scenario-copy">
+      <h2>Toast: tông, chồng và né ô soạn Chat</h2>
+      <p>Một chồng duy nhất ở góc dưới phải, cách mép 16 px, rộng tối đa 400 px, mới nhất ở dưới cùng, lớp <code>--vzn-layer-notification</code> (trên cả hộp thoại).</p>
+      <ol>
+        <li><span class="ref">1</span><code>success</code> / <code>info</code>: tự tắt sau 4 giây (8 giây nếu có hành động), <code>role="status"</code>.</li>
+        <li><span class="ref">2</span><code>warning</code>: ở lại cho tới khi đóng; tiêu đề, thông điệp, dòng chi tiết. Hành động đầu <code>sm · primary · outline</code> dạng viên thuốc, các hành động sau <code>neutral · ghost</code>.</li>
+        <li><span class="ref">3</span><code>error</code>: ở lại, <code>role="alert"</code> + <code>aria-live="assertive"</code>.</li>
+        <li><span class="ref">4</span>Nút đóng <code>sm · neutral · ghost</code> vuông, nhãn "Đóng". Không có khi toast <code>dismissible: false</code>.</li>
+        <li><span class="ref">5</span>Tối đa 3 toast; toast cũ hơn còn mở quay lại khi một toast mới hơn rời đi. Cùng <code>key</code> thì thay thế, không chồng. Rê chuột hoặc focus vào chồng: mọi đếm ngược dừng.</li>
+        <li><span class="ref">6</span>Ô soạn Chat cùng cột: chồng toast được nâng lên trên mép trên của ô soạn (<code>data-lifted</code>), không bao giờ che nó.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1000 × 640 · sáng · ba tông</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1000px; --h: 640px">
+          <div class="m-titlebar s-titlebar">
+            <span class="s-lights"><span class="m-lights"><i></i><i></i><i></i></span></span>
+            <span class="s-tb-host"><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></span>
+          </div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed><div class="s-brand"><span class="s-logo">V</span></div><div class="s-search"><i class="s-ico"></i></div></nav>
+            <main class="m-main"><div class="m-header"><h3>Nhiệt độ &amp; quạt</h3></div><div class="m-content"><div class="m-card"><div class="s-lines"><span class="m-skeleton"></span><span class="m-skeleton"></span></div></div></div></main>
+          </div>
+          <div class="s-stack">
+            <div class="m-toast" data-tone="success"><span class="s-tico"></span><span class="s-tcopy"><span>Đã sao chép bản dịch</span></span><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+            <div class="m-toast" data-tone="warning"><span class="s-tico"></span><span class="s-tcopy"><b>Quạt đã về tự động</b><span>Helper khôi phục sau khi máy ngủ dậy.</span><small>[Chi tiết phụ]</small><span class="s-tactions"><span class="m-btn s-pill s-pill-primary">Bật lại</span></span></span><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+            <div class="m-toast" data-tone="error"><span class="s-tico"></span><span class="s-tcopy"><b>Không lưu được tuỳ chọn</b><span>Thay đổi chưa được áp dụng.</span><span class="s-tactions"><span class="m-btn s-pill s-pill-primary">Thử lại</span><span class="m-btn s-pill" data-tone="ghost">Mở Cài đặt</span></span></span><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+          </div>
+          <span class="callout" style="--x: 560px; --y: 344px">1</span>
+          <span class="callout" style="--x: 560px; --y: 410px">2</span>
+          <span class="callout" style="--x: 560px; --y: 530px">3</span>
+          <span class="callout" style="--x: 960px; --y: 296px">4</span>
+          <span class="callout" style="--x: 980px; --y: 600px">5</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">1000 × 640 · tối · né ô soạn Chat</p>
+        <div class="frame" data-theme="graphite" data-mode="dark" style="--w: 1000px; --h: 640px">
+          <div class="m-titlebar s-titlebar">
+            <span class="s-lights"><span class="m-lights"><i></i><i></i><i></i></span></span>
+            <span class="s-tb-host"><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></span>
+          </div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed><div class="s-brand"><span class="s-logo">V</span></div><div class="s-search"><i class="s-ico"></i></div><div class="s-div"></div><div class="m-nav" aria-current="page"><i class="s-ico"></i></div></nav>
+            <main class="m-main">
+              <div class="m-header"><h3>[Tên cuộc trò chuyện]</h3><span class="m-spacer"></span><span class="m-btn" data-tone="ghost">Local · <span class="m-mono">qwen3:4b</span></span></div>
+              <div class="m-content">
+                <div class="s-bubble">[Tin nhắn người dùng]</div>
+                <div class="s-lines"><span class="m-skeleton"></span><span class="m-skeleton"></span></div>
+                <span class="m-spacer"></span>
+                <div class="s-composer"><span>[Ô soạn tin]</span><div class="s-composer-bar"><span class="m-btn" data-size="md" data-icon><i class="s-ico"></i></span><span class="m-spacer"></span><span class="m-btn" data-size="md" data-tone="primary" data-icon><i class="s-ico"></i></span></div></div>
+              </div>
+            </main>
+          </div>
+          <div class="s-stack" data-lifted style="--lift: 180px">
+            <div class="m-toast" data-tone="success"><span class="s-tico"></span><span class="s-tcopy"><span>Đã sao chép</span></span><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+          </div>
+          <span class="callout" style="--x: 560px; --y: 420px">6</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. Update ----------------------------------------------------------- -->
+  <section class="scenario" id="update">
+    <div class="scenario-copy">
+      <h2>Thông báo cập nhật: cửa sổ popup riêng</h2>
+      <p>Main tạo một <code>BrowserWindow</code> 440 × 320 không viền, giữa màn hình có con trỏ, hiện bằng <code>showInactive</code> (không lấy focus), có trên thanh tác vụ, thu nhỏ được, không phóng to. Chỉ cho bản mà lần kiểm tra <strong>nền</strong> tìm thấy; kiểm tra thủ công trong Cài đặt sẽ ẩn popup. Theo chủ đề và ngôn ngữ của app.</p>
+      <ol>
+        <li><span class="ref">1</span>Header là vùng kéo cửa sổ: logo + "Viezan"; "Thu nhỏ" và "Đóng" <code>md · neutral · ghost</code> vuông.</li>
+        <li><span class="ref">2</span>Tiêu đề "Có bản cập nhật mới", "Phiên bản {version}", mô tả.</li>
+        <li><span class="ref">3</span>"Nhắc sau 24 giờ" <code>md · neutral · outline</code>. Nút X và đóng cửa sổ cũng hoãn 24 giờ.</li>
+        <li><span class="ref">4</span>"Tải cập nhật" <code>md · primary · solid</code>, hành động chính duy nhất.</li>
+        <li><span class="ref">5</span>Đang tải: "Đang tải… {percent}%" (<code>role="status"</code>), nút chính <code>disabled</code> (xám).</li>
+        <li><span class="ref">6</span>Đã tải: "Sẵn sàng cài đặt" + "Cài đặt &amp; khởi động lại". Lỗi: dòng đỏ <code>role="alert"</code> "Thao tác thất bại…".</li>
+        <li><span class="ref">7</span>Dự phòng trong app (<code>UpdateNotification</code>): chỉ hiện khi preload không có API popup. "Xem thay đổi" ghost (mở trang phát hành GitHub), "Để sau" outline (focus đầu), "Tải bản cập nhật" <code>neutral · solid</code> (xem Chênh lệch #20).</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">440 × 320 · sáng · có bản mới</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 440px; --h: 320px">
+          <div class="s-up">
+            <div class="s-up-head"><span class="s-up-brand"><span class="s-logo">V</span>Viezan</span><span class="m-spacer"></span><span class="m-btn" data-size="md" data-tone="ghost" data-icon><i class="s-ico"></i></span><span class="m-btn" data-size="md" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+            <div><h4>Có bản cập nhật mới</h4><p class="s-version">Phiên bản [x.y.z]</p></div>
+            <p>Tải bản mới ngay. Bạn chọn thời điểm cài đặt và khởi động lại.</p>
+            <div class="s-up-actions"><span class="m-btn" data-size="md">Nhắc sau 24 giờ</span><span class="m-btn" data-size="md" data-tone="primary">Tải cập nhật</span></div>
+          </div>
+          <span class="callout" style="--x: 330px; --y: 4px">1</span>
+          <span class="callout" style="--x: 230px; --y: 76px">2</span>
+          <span class="callout" style="--x: 156px; --y: 250px">3</span>
+          <span class="callout" style="--x: 418px; --y: 250px">4</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">440 × 320 · sáng · đang tải</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 440px; --h: 320px">
+          <div class="s-up">
+            <div class="s-up-head"><span class="s-up-brand"><span class="s-logo">V</span>Viezan</span><span class="m-spacer"></span><span class="m-btn" data-size="md" data-tone="ghost" data-icon><i class="s-ico"></i></span><span class="m-btn" data-size="md" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+            <div><h4>Có bản cập nhật mới</h4><p class="s-version">Phiên bản [x.y.z]</p></div>
+            <p class="s-version">Đang tải… 46%</p>
+            <div class="s-up-actions"><span class="m-btn" data-size="md">Nhắc sau 24 giờ</span><span class="m-btn" data-size="md" disabled>Tải cập nhật</span></div>
+          </div>
+          <span class="callout" style="--x: 150px; --y: 152px">5</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">440 × 320 · tối · sẵn sàng, có lỗi</p>
+        <div class="frame" data-theme="graphite" data-mode="dark" style="--w: 440px; --h: 320px">
+          <div class="s-up">
+            <div class="s-up-head"><span class="s-up-brand"><span class="s-logo">V</span>Viezan</span><span class="m-spacer"></span><span class="m-btn" data-size="md" data-tone="ghost" data-icon><i class="s-ico"></i></span><span class="m-btn" data-size="md" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+            <div><h4>Sẵn sàng cài đặt</h4><p class="s-version">Phiên bản [x.y.z]</p></div>
+            <p class="s-alert">Thao tác thất bại. Hãy thử lại hoặc kiểm tra mục Cập nhật trong Cài đặt.</p>
+            <div class="s-up-actions"><span class="m-btn" data-size="md">Nhắc sau 24 giờ</span><span class="m-btn" data-size="md" data-tone="primary">Cài đặt &amp; khởi động lại</span></div>
+          </div>
+          <span class="callout" style="--x: 210px; --y: 76px">6</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">900 × 560 · sáng · dự phòng trong app</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 900px; --h: 560px">
+          <div class="m-titlebar s-titlebar">
+            <span class="s-lights"><span class="m-lights"><i></i><i></i><i></i></span></span>
+            <span class="s-tb-host"><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></span>
+          </div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed><div class="s-brand"><span class="s-logo">V</span></div><div class="s-search"><i class="s-ico"></i></div></nav>
+            <main class="m-main"><div class="m-header"><h3>Trang chủ</h3></div><div class="m-content"></div></main>
+          </div>
+          <div class="m-scrim s-scrim"></div>
+          <div class="s-update-dialog" style="--pw: 560px; --x: 170px; --y: 150px">
+            <h4>Có bản cập nhật: v[x.y.z]</h4>
+            <p>Tải khi bạn sẵn sàng. Chỉ cài đặt và khởi động lại khi bạn chọn. Để sau sẽ tạm ngừng nhắc phiên bản này trong 24 giờ.</p>
+            <div class="s-end"><span class="m-btn" data-size="md" data-tone="ghost">Xem thay đổi</span><span class="m-btn" data-size="md">Để sau</span><span class="m-btn" data-size="md" data-tone="primary">Tải bản cập nhật</span></div>
+          </div>
+          <span class="callout" style="--x: 716px; --y: 140px">7</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. Tray and menu bar ------------------------------------------------- -->
+  <section class="scenario" id="tray">
+    <div class="scenario-copy">
+      <h2>Khay hệ thống và thanh menu</h2>
+      <p>Menu gốc của hệ điều hành; nhãn theo ngôn ngữ hệ điều hành (<code>app.getLocale()</code>), không theo ngôn ngữ app.</p>
+      <ol>
+        <li><span class="ref">1</span>Windows/Linux: biểu tượng khay. Đóng cửa sổ bằng X / Alt+F4 chỉ ẩn vào khay (phím tắt toàn cục, Quick Chat, máy chủ local vẫn chạy). Bấm / bấm đúp mở lại cửa sổ.</li>
+        <li><span class="ref">2</span>Menu khay: "Mở Viezan", đường kẻ, "Thoát Viezan" (thoát thật). Số đo nhiệt độ (nếu bật) nằm trong tooltip.</li>
+        <li><span class="ref">3</span>macOS: chỉ có mục thanh menu khi người dùng bật số đo trong module Nhiệt độ; mục không có icon, tiêu đề là số đo (một dòng hoặc xếp hai dòng nhiệt độ / quạt).</li>
+        <li><span class="ref">4</span>Menu số đo: "Mở Viezan", đường kẻ, "Ẩn nhiệt độ khỏi thanh menu". macOS không có biểu tượng khay thường trú; đóng cửa sổ thì app ở Dock.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Windows · khay hệ thống</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 360px; --h: 220px">
+          <div class="m-content"></div>
+          <div class="s-taskbar"><span class="m-muted">[biểu tượng khác]</span><span class="s-logo">V</span><span class="m-muted m-mono">[giờ]</span></div>
+          <div class="s-menu" style="--pw: 160px; --x: 150px; --y: 70px">
+            <div data-hl>Mở Viezan</div>
+            <hr>
+            <div>Thoát Viezan</div>
+          </div>
+          <span class="callout" style="--x: 300px; --y: 160px">1</span>
+          <span class="callout" style="--x: 316px; --y: 74px">2</span>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">macOS · mục thanh menu (số đo)</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 420px; --h: 220px">
+          <div class="s-menubar"><span class="m-muted">[mục khác]</span><span class="s-reading-item">58° 2.3k</span><span class="m-muted m-mono">[giờ]</span></div>
+          <div class="s-menu" style="--pw: 240px; --x: 150px; --y: 34px">
+            <div data-hl>Mở Viezan</div>
+            <hr>
+            <div>Ẩn nhiệt độ khỏi thanh menu</div>
+          </div>
+          <span class="callout" style="--x: 300px; --y: 32px">3</span>
+          <span class="callout" style="--x: 396px; --y: 100px">4</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10. Welcome (proposal) ---------------------------------------------- -->
+  <section class="scenario" id="welcome">
+    <div class="scenario-copy">
+      <h2>Chào mừng lần đầu — đề xuất</h2>
+      <p><strong>App chưa có luồng này</strong> (không có component, cờ đã-xem hay khoá i18n). Khung dưới đây chuyển <code>boards/Welcome.dc.html</code> và <code>WelcomeSteps.dc.html</code> sang thành phần sẵn có để làm tiếp.</p>
+      <ol>
+        <li><span class="ref">1</span>Ba bước đánh số kiểu <code>StepList</code>; bước đang làm tô <code>--vzn-action-soft</code>. Câu cuối: "Đổi lại mọi lựa chọn bất cứ lúc nào trong Cài đặt."</li>
+        <li><span class="ref">2</span>Bước 1 "Chọn cách chạy AI": hai thẻ lựa chọn (<code>aria-pressed</code>): AI local (khuyên dùng) và Khoá đám mây (dùng lại <code>CredentialCard</code>).</li>
+        <li><span class="ref">3</span>Đánh giá máy (xanh lá): "Máy này chạy tốt AI local" — chỉ hiện khi app đọc được cấu hình máy.</li>
+        <li><span class="ref">4</span>"Bỏ qua, thiết lập sau" <code>md · neutral · outline</code>; "Cài AI local và tiếp tục" <code>md · primary · solid</code>.</li>
+        <li><span class="ref">5</span>Bước 2 (phím tắt Launcher, Dịch nhanh, quyền Trợ năng/Ghi màn hình qua <code>CapabilityNotice</code>, "Mở khi đăng nhập") và bước 3 (công tắc module như Cài đặt › Module) — xem <a href="../screens/shell.md">shell.md §10 #24</a>.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1000 × 640 · sáng · đề xuất · bước 1 / 3</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1000px; --h: 640px">
+          <div class="m-titlebar s-titlebar"><span class="s-lights"><span class="m-lights"><i></i><i></i><i></i></span></span></div>
+          <div class="s-welcome">
+            <div class="s-steps">
+              <div class="s-brand"><span class="s-logo">V</span>Viezan</div>
+              <span class="m-muted">AI, dịch, phiên dịch, tra từ và theo dõi máy trong một ứng dụng. Ba bước để bắt đầu.</span>
+              <div class="s-step" aria-current="step"><span class="s-num">1</span><span><span class="m-strong">Chọn cách chạy AI</span><br><span class="m-muted">Local, đám mây hoặc cả hai</span></span></div>
+              <div class="s-step"><span class="s-num">2</span><span><span class="m-strong">Phím tắt và quyền</span><br><span class="m-muted">Launcher, Dịch nhanh, Trợ năng</span></span></div>
+              <div class="s-step"><span class="s-num">3</span><span><span class="m-strong">Chọn module</span><br><span class="m-muted">Bật những gì bạn sẽ dùng</span></span></div>
+              <span class="m-muted">Đổi lại mọi lựa chọn bất cứ lúc nào trong Cài đặt.</span>
+            </div>
+            <div class="m-card">
+              <div class="m-card-head">Bước 1 / 3 · Chọn cách chạy AI</div>
+              <div class="m-row m-muted">Viezan cần ít nhất một model. Bạn có thể dùng cả hai và chọn theo từng tính năng.</div>
+              <div class="s-options">
+                <div class="s-option" aria-pressed="true"><span class="m-strong">AI local <span class="m-tag">khuyên dùng</span></span><span class="m-muted">Chạy ngay trên máy, không gửi dữ liệu đi</span><span class="m-muted">Tải Ollama và <span class="m-mono">qwen3:4b</span>, khoảng [dung lượng]</span></div>
+                <div class="s-option"><span class="m-strong">Khoá đám mây</span><span class="m-muted">Claude, OpenAI hoặc Gemini</span><span class="m-muted">Khoá lưu trong Keychain</span></div>
+              </div>
+              <div class="s-ok"><span class="m-dot" data-tone="ok"></span>Máy này chạy tốt AI local · [chip, RAM]</div>
+              <div class="s-card-foot"><span class="m-btn" data-size="md">Bỏ qua, thiết lập sau</span><span class="m-btn" data-size="md" data-tone="primary">Cài AI local và tiếp tục</span></div>
+            </div>
+          </div>
+          <span class="callout" style="--x: 344px; --y: 156px">1</span>
+          <span class="callout" style="--x: 640px; --y: 180px">2</span>
+          <span class="callout" style="--x: 640px; --y: 312px">3</span>
+          <span class="callout" style="--x: 960px; --y: 336px">4</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11. Dark ------------------------------------------------------------ -->
+  <section class="scenario" id="dark">
+    <div class="scenario-copy">
+      <h2>Chế độ tối</h2>
+      <p>Cùng bố cục, chỉ token đổi: thanh tiêu đề và thanh bên than chì (<code>--vzn-chrome-*</code>), canvas gần đen, thẻ một bậc sáng hơn. Bảng lệnh dùng vật liệu nổi và bóng <code>--vzn-shadow-overlay</code>. Persona khác (Glass, Paper, Corporate, Midnight) đổi bề mặt, bo góc, bóng; không đổi hành động.</p>
+      <ol>
+        <li><span class="ref">1</span>Mục đang chọn vẫn là ô nổi <code>--vzn-chrome-item-active</code>.</li>
+        <li><span class="ref">2</span>Chấm chạy nền xanh lá và huy hiệu vàng giữ màu trạng thái, kèm chữ.</li>
+        <li><span class="ref">3</span>Bảng lệnh với truy vấn "t" + văn bản: chỉ còn hàng Dịch.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · tối · Graphite</p>
+        <div class="frame" data-theme="graphite" data-mode="dark" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar s-titlebar">
+            <span class="s-lights"><span class="m-lights"><i></i><i></i><i></i></span></span>
+            <span class="s-tb-host"><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></span>
+          </div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="s-brand"><span class="s-logo">V</span>Viezan</div>
+              <div class="s-search"><i class="s-ico"></i>Tìm hoặc chạy lệnh<span class="m-kbd s-push">⌘K</span></div>
+              <div class="s-div"></div>
+              <div class="s-scroll">
+                <div class="m-nav"><i class="s-ico"></i>Trang chủ</div>
+                <div class="m-nav-group">AI</div>
+                <div class="m-nav"><i class="s-ico"></i>AI Chat</div>
+                <div class="m-nav-group">Ngôn ngữ</div>
+                <div class="m-nav" aria-current="page"><i class="s-ico"></i>Dịch</div>
+                <div class="m-nav"><i class="s-ico"></i>Phiên dịch</div>
+                <div class="m-nav"><i class="s-ico"></i>Từ điển</div>
+                <div class="m-nav"><i class="s-ico"></i>Dịch mọi nơi</div>
+                <div class="m-nav-group">Hệ thống</div>
+                <div class="m-nav"><i class="s-ico"></i>Nhiệt độ &amp; quạt</div>
+                <div class="m-nav-group">Tiện ích</div>
+                <div class="m-nav"><i class="s-ico"></i>Launcher &amp; phím tắt</div>
+              </div>
+              <div class="s-bottom">
+                <div class="s-bgrow"><span class="m-dot" data-tone="ok"></span>Phím tắt toàn cục<span class="s-detail">2</span></div>
+                <div class="s-div"></div>
+                <div class="m-nav"><i class="s-ico"></i>Cài đặt<span class="s-badge">Chưa có key</span></div>
+              </div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Dịch</h3><span class="m-spacer"></span><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+              <div class="m-content"><div class="m-card"><div class="m-card-head">Nguồn</div><div class="s-lines"><span class="m-skeleton"></span><span class="m-skeleton"></span></div></div></div>
+            </main>
+          </div>
+          <div class="m-scrim s-scrim"></div>
+          <div class="s-pal" style="--pw: 560px; --x: 438px; --y: 132px">
+            <div class="s-pal-input"><i class="s-ico"></i><span class="s-typed">t good morning everyone</span><span class="s-caret"></span><span class="m-spacer"></span><span class="m-btn" data-tone="ghost" data-icon><i class="s-ico"></i></span></div>
+            <div class="s-pal-list">
+              <div class="s-row" data-hl><i class="s-ico"></i><b>Dịch</b><small>Dịch “good morning everyone”</small><span class="m-kbd">↵</span></div>
+            </div>
+            <div class="s-pal-foot"><span><span class="m-kbd">↑↓</span> Di chuyển</span><span><span class="m-kbd">↵</span> Mở</span><span><span class="m-kbd">esc</span> Đóng</span></div>
+          </div>
+          <span class="callout" style="--x: 214px; --y: 280px">1</span>
+          <span class="callout" style="--x: 214px; --y: 690px">2</span>
+          <span class="callout" style="--x: 1004px; --y: 200px">3</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>

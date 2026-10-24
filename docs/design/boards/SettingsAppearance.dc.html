@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — Cài đặt, Giao diện</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;family=Source+Serif+4:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F4F6}
+a{color:#0A58C2}a:hover{color:#08469A}
+.card{background:#FFFFFF;border:1px solid #E2E2E7;border-radius:14px;display:flex;flex-direction:column;min-width:0}
+.sub{font-size:12px;color:#55555C;line-height:1.45}
+.sn{display:block;padding:7px 10px;border-radius:8px;font-size:14px;color:#2C2C31;text-decoration:none}
+.sn:hover{background:#EDEDF0}
+.seg{display:inline-flex;padding:2px;border-radius:9px;background:#EDEDF0;gap:2px}
+.seg button{height:30px;padding:0 14px;border-radius:7px;border:0;background:transparent;color:#3A3A40;font:500 13px Inter,sans-serif}
+.seg button[aria-pressed="true"]{background:#FFFFFF;color:#1C1C1F;box-shadow:0 1px 2px rgba(28,28,31,0.1)}
+.h3{margin:0;font-size:15px;font-weight:600}
+.preset{display:flex;flex-direction:column;gap:8px;padding:8px;border-radius:12px;border:1px solid #E2E2E7;background:#FFFFFF;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.preset[aria-checked="true"]{border:2px solid #0A63D6;padding:7px}
+.thumb{height:84px;border-radius:8px;display:flex;overflow:hidden}
+.sw{width:28px;height:28px;border-radius:99px;border:2px solid transparent;display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+.sw[aria-checked="true"]{box-shadow:0 0 0 2px #FFFFFF,0 0 0 4px #1C1C1F}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; height: 100vh; min-height: 760px; background: #F4F4F6; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F">
+  <dc-import name="Sidebar" active="settings" hint-size="240px,100%"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; height: 100%; display: flex; flex-direction: column">
+    <header style="height: 56px; flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 0 24px; border-bottom: 1px solid #E2E2E7; background: #FFFFFF">
+      <h1 style="margin: 0; font-size: 18px; font-weight: 600">Cài đặt</h1>
+      <span style="flex: 1"></span>
+      <label style="display: flex; align-items: center; gap: 8px; width: 280px; height: 32px; padding: 0 10px; border-radius: 8px; background: #F4F4F6; color: #6B6B73">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Tìm trong cài đặt</span>
+        <input type="search" placeholder="Tìm trong cài đặt" style="flex: 1; min-width: 0; border: 0; background: transparent; font: 400 13px Inter, sans-serif; outline: none">
+      </label>
+    </header>
+
+    <div style="flex: 1; min-height: 0; display: flex; flex-wrap: wrap">
+      <nav aria-label="Mục cài đặt" style="flex: 0 0 200px; box-sizing: border-box; padding: 16px 12px; display: flex; flex-direction: column; gap: 2px">
+        <a href="SettingsSections.dc.html" class="sn">Chung</a>
+        <a href="SettingsAppearance.dc.html" class="sn" aria-current="page" style="background: #FFFFFF; color: #0A58C2; font-weight: 600; box-shadow: 0 1px 2px rgba(28,28,31,0.08)">Giao diện</a>
+        <a href="Settings.dc.html" class="sn">Mô hình AI</a>
+        <a href="SettingsSections.dc.html" class="sn">Giọng nói</a>
+        <a href="SettingsSections.dc.html" class="sn">Chat</a>
+        <a href="SettingsSections.dc.html" class="sn">Module</a>
+        <a href="SettingsSections.dc.html" class="sn">Cập nhật</a>
+        <a href="SettingsAbout.dc.html" class="sn">Giới thiệu</a>
+      </nav>
+
+      <div style="flex: 999 1 480px; min-width: 0; height: 100%; overflow: auto; box-sizing: border-box; padding: 16px 24px 32px 8px">
+        <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+          <div style="flex: 999 1 520px; min-width: 0; max-width: 760px; display: flex; flex-direction: column; gap: 20px">
+            <div style="display: flex; flex-direction: column; gap: 4px">
+              <h2 style="margin: 0; font-size: 20px; font-weight: 600">Giao diện</h2>
+              <p class="sub" style="margin: 0; font-size: 13px">Ba lựa chọn độc lập: sáng hay tối, phong cách, màu nhấn. Áp dụng ngay, xem trước ở bên phải.</p>
+            </div>
+
+            <section class="card" aria-labelledby="ap-mode" style="padding: 16px; gap: 12px">
+              <h3 id="ap-mode" class="h3">Chế độ</h3>
+              <div class="seg" role="group" aria-label="Chế độ sáng tối" style="align-self: flex-start">
+                <button type="button" aria-pressed="true">Sáng</button>
+                <button type="button" aria-pressed="false">Tối</button>
+                <button type="button" aria-pressed="false">Theo hệ thống</button>
+              </div>
+            </section>
+
+            <section class="card" aria-labelledby="ap-preset" style="padding: 16px; gap: 12px">
+              <div style="display: flex; flex-direction: column; gap: 2px">
+                <h3 id="ap-preset" class="h3">Phong cách</h3>
+                <span class="sub">Mỗi phong cách đổi bề mặt, độ bo, chiều sâu và chữ đọc, không chỉ đổi màu.</span>
+              </div>
+              <div role="radiogroup" aria-label="Phong cách" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(130px, 100%), 1fr)); gap: 10px">
+                <button type="button" role="radio" aria-checked="true" class="preset">
+                  <span class="thumb" style="background: #F4F4F6; border: 1px solid #E2E2E7"><span style="width: 26%; background: #ECECEF"></span><span style="flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 5px"><span style="height: 8px; width: 60%; border-radius: 4px; background: #1C1C1F"></span><span style="flex: 1; border-radius: 6px; background: #FFFFFF; border: 1px solid #E2E2E7"></span><span style="height: 10px; width: 40%; border-radius: 4px; background: #0A63D6"></span></span></span>
+                  <span style="font-size: 13px; font-weight: 600">Graphite</span><span class="sub">Mặc định, trung tính</span>
+                </button>
+                <button type="button" role="radio" aria-checked="false" class="preset">
+                  <span class="thumb" style="background: #DDE6F2; border: 1px solid #CBD6E6"><span style="width: 26%; background: rgba(255,255,255,0.45)"></span><span style="flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 5px"><span style="height: 8px; width: 60%; border-radius: 4px; background: #1C2B44"></span><span style="flex: 1; border-radius: 10px; background: rgba(255,255,255,0.7)"></span><span style="height: 10px; width: 40%; border-radius: 6px; background: #2F6FE4"></span></span></span>
+                  <span style="font-size: 13px; font-weight: 600">Glass</span><span class="sub">Vật liệu trong mờ của hệ điều hành</span>
+                </button>
+                <button type="button" role="radio" aria-checked="false" class="preset">
+                  <span class="thumb" style="background: #F6F1E7; border: 1px solid #E5DCCB"><span style="width: 26%; background: #EEE6D6"></span><span style="flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 5px"><span style="height: 8px; width: 60%; border-radius: 2px; background: #3A3227"></span><span style="flex: 1; border-radius: 4px; background: #FFFCF6; border: 1px solid #E5DCCB"></span><span style="height: 10px; width: 40%; border-radius: 2px; background: #9A5B2E"></span></span></span>
+                  <span style="font-size: 13px; font-weight: 600">Paper</span><span class="sub">Ấm, chữ đọc có chân</span>
+                </button>
+                <button type="button" role="radio" aria-checked="false" class="preset">
+                  <span class="thumb" style="background: #EEF1F6; border: 1px solid #D5DBE5"><span style="width: 26%; background: #1F2A44"></span><span style="flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 5px"><span style="height: 8px; width: 60%; border-radius: 2px; background: #1F2A44"></span><span style="flex: 1; border-radius: 4px; background: #FFFFFF; border: 1px solid #D5DBE5"></span><span style="height: 10px; width: 40%; border-radius: 2px; background: #1D4ED8"></span></span></span>
+                  <span style="font-size: 13px; font-weight: 600">Corporate</span><span class="sub">Thanh điều hướng đậm, góc vuông</span>
+                </button>
+                <button type="button" role="radio" aria-checked="false" class="preset">
+                  <span class="thumb" style="background: #000000; border: 1px solid #222226"><span style="width: 26%; background: #0B0B0D"></span><span style="flex: 1; padding: 8px; display: flex; flex-direction: column; gap: 5px"><span style="height: 8px; width: 60%; border-radius: 4px; background: #ECECF0"></span><span style="flex: 1; border-radius: 6px; background: #121214; border: 1px solid #222226"></span><span style="height: 10px; width: 40%; border-radius: 4px; background: #4D9BFF"></span></span></span>
+                  <span style="font-size: 13px; font-weight: 600">Midnight</span><span class="sub">Chỉ tối, nền đen OLED</span>
+                </button>
+              </div>
+            </section>
+
+            <section class="card" aria-labelledby="ap-accent" style="padding: 16px; gap: 12px">
+              <div style="display: flex; flex-direction: column; gap: 2px">
+                <h3 id="ap-accent" class="h3">Màu nhấn</h3>
+                <span class="sub">Dùng cho mục đang chọn và nút chính. Màu trạng thái (xanh lá, cam, đỏ) không đổi.</span>
+              </div>
+              <div role="radiogroup" aria-label="Màu nhấn" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center">
+                <button type="button" role="radio" aria-checked="true" aria-label="Theo phong cách" class="sw" style="background: conic-gradient(#0A63D6 0 50%, #ECECEF 50% 100%)"></button>
+                <button type="button" role="radio" aria-checked="false" aria-label="Tím" class="sw" style="background: #6E4BD8"></button>
+                <button type="button" role="radio" aria-checked="false" aria-label="Hồng" class="sw" style="background: #C42D78"></button>
+                <button type="button" role="radio" aria-checked="false" aria-label="Xanh ngọc" class="sw" style="background: #0F7C7A"></button>
+                <button type="button" role="radio" aria-checked="false" aria-label="Xanh lá" class="sw" style="background: #2F7D32"></button>
+                <button type="button" role="radio" aria-checked="false" aria-label="Hổ phách" class="sw" style="background: #A35A00"></button>
+                <button type="button" role="radio" aria-checked="false" aria-label="Đỏ" class="sw" style="background: #C4232E"></button>
+                <span class="sub" style="margin-left: 4px">Theo phong cách</span>
+              </div>
+            </section>
+
+            <section class="card" aria-labelledby="ap-size" style="padding: 16px; gap: 12px">
+              <h3 id="ap-size" class="h3">Cỡ chữ</h3>
+              <div class="seg" role="group" aria-label="Cỡ chữ" style="align-self: flex-start">
+                <button type="button" aria-pressed="false">Nhỏ</button>
+                <button type="button" aria-pressed="true">Vừa</button>
+                <button type="button" aria-pressed="false">Lớn</button>
+              </div>
+            </section>
+          </div>
+
+          <aside aria-label="Xem trước" style="flex: 1 1 280px; min-width: 0; position: sticky; top: 0; display: flex; flex-direction: column; gap: 10px">
+            <p style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #55555C">Xem trước</p>
+            <div style="border-radius: 14px; border: 1px solid #E2E2E7; background: #F4F4F6; overflow: hidden; display: flex; height: 300px">
+              <div style="width: 64px; background: #ECECEF; border-right: 1px solid #E0E0E5; padding: 10px 8px; display: flex; flex-direction: column; gap: 6px; box-sizing: border-box">
+                <span style="height: 22px; border-radius: 6px; background: #FFFFFF; box-shadow: 0 1px 2px rgba(28,28,31,0.08)"></span>
+                <span style="height: 22px; border-radius: 6px"></span>
+                <span style="height: 22px; border-radius: 6px"></span>
+              </div>
+              <div style="flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+                <div style="align-self: flex-end; background: #E6E6EB; border-radius: 12px 12px 4px 12px; padding: 8px 12px; font-size: 13px">Câu hỏi mẫu</div>
+                <p style="margin: 0; font-size: 14px; line-height: 1.6">Câu trả lời mẫu với cỡ chữ và kiểu chữ đọc đang chọn.</p>
+                <span style="flex: 1"></span>
+                <div style="display: flex; gap: 8px">
+                  <span style="height: 30px; padding: 0 12px; border-radius: 8px; background: #0A63D6; color: #FFFFFF; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center">Nút chính</span>
+                  <span style="height: 30px; padding: 0 12px; border-radius: 8px; background: #E8F0FC; color: #0A58C2; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center">Đang chọn</span>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

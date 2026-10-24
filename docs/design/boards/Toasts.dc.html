@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — toast thông báo</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.cap{margin:0;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase}
+.t{width:360px;box-sizing:border-box;display:flex;align-items:flex-start;gap:10px;padding:12px 10px 12px 14px;border-radius:12px}
+.tl{background:#FFFFFF;border:1px solid #E2E2E7;box-shadow:0 8px 24px rgba(28,28,31,0.12)}
+.td{background:#232327;border:1px solid #34343A;box-shadow:0 8px 24px rgba(0,0,0,0.5)}
+.i{width:20px;height:20px;border-radius:99px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px}
+.b{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ti{font-size:14px;font-weight:500;line-height:1.4}
+.de{font-size:13px;line-height:1.45}
+.act{height:28px;padding:0 10px;border-radius:7px;border:0;background:transparent;font:600 13px Inter,sans-serif;white-space:nowrap;flex:0 0 auto}
+.x{width:24px;height:24px;border-radius:6px;border:0;background:transparent;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; padding: 56px 48px; background: #F4F4F6; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F; display: flex; gap: 40px; align-items: flex-start">
+
+  <section aria-label="Toast chế độ sáng" style="display: flex; flex-direction: column; gap: 14px">
+    <p class="cap" style="color: #55555C">Sáng</p>
+    <div role="status" class="t tl">
+      <span class="i" style="background: #1E7F45; color: #FFFFFF"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></span>
+      <div class="b"><span class="ti">Đã lưu profile “[tên profile]”</span></div>
+      <button type="button" class="x" aria-label="Đóng thông báo" style="color: #6B6B73"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    </div>
+    <div role="status" class="t tl">
+      <span class="i" style="background: #0A63D6; color: #FFFFFF"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 11v6M12 7h.01"></path></svg></span>
+      <div class="b"><span class="ti">Đã sao chép bản dịch</span></div>
+      <button type="button" class="x" aria-label="Đóng thông báo" style="color: #6B6B73"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    </div>
+    <div role="status" class="t tl">
+      <span class="i" style="background: #A35A00; color: #FFFFFF"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 7v6M12 17h.01"></path></svg></span>
+      <div class="b"><span class="ti">Quạt đã về tự động</span><span class="de" style="color: #55555C">Helper khôi phục sau khi máy ngủ dậy.</span></div>
+      <button type="button" class="act" style="color: #0A58C2">Bật lại</button>
+    </div>
+    <div role="alert" class="t tl">
+      <span class="i" style="background: #C4232E; color: #FFFFFF"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M8 8l8 8M16 8l-8 8"></path></svg></span>
+      <div class="b"><span class="ti">Không lưu được tuỳ chọn thanh menu</span><span class="de" style="color: #55555C">Thay đổi chưa được áp dụng.</span></div>
+      <button type="button" class="act" style="color: #0A58C2">Thử lại</button>
+      <button type="button" class="x" aria-label="Đóng thông báo" style="color: #6B6B73"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    </div>
+    <div role="status" class="t tl" style="align-items: center">
+      <div class="b"><span class="ti">Đã xoá cuộc trò chuyện</span></div>
+      <button type="button" class="act" style="color: #0A58C2">Hoàn tác</button>
+      <span role="img" aria-label="Còn 5 giây" style="width: 18px; height: 18px; border-radius: 99px; border: 2px solid #E2E2E7; border-top-color: #0A63D6; border-right-color: #0A63D6; box-sizing: border-box; flex: 0 0 auto"></span>
+    </div>
+  </section>
+
+  <section aria-label="Toast chế độ tối" style="display: flex; flex-direction: column; gap: 14px; padding: 24px; margin: -24px 0; border-radius: 18px; background: #111113">
+    <p class="cap" style="color: #A8A8B0">Tối</p>
+    <div role="status" class="t td">
+      <span class="i" style="background: #3DBE6E; color: #0F2A18"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></span>
+      <div class="b"><span class="ti" style="color: #ECECF0">Đã lưu profile “[tên profile]”</span></div>
+      <button type="button" class="x" aria-label="Đóng thông báo" style="color: #9A9AA2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    </div>
+    <div role="status" class="t td">
+      <span class="i" style="background: #4D9BFF; color: #0B1C33"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 11v6M12 7h.01"></path></svg></span>
+      <div class="b"><span class="ti" style="color: #ECECF0">Đã sao chép bản dịch</span></div>
+      <button type="button" class="x" aria-label="Đóng thông báo" style="color: #9A9AA2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    </div>
+    <div role="status" class="t td">
+      <span class="i" style="background: #F0A84A; color: #3A2200"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M12 7v6M12 17h.01"></path></svg></span>
+      <div class="b"><span class="ti" style="color: #ECECF0">Quạt đã về tự động</span><span class="de" style="color: #A8A8B0">Helper khôi phục sau khi máy ngủ dậy.</span></div>
+      <button type="button" class="act" style="color: #8CC2FF">Bật lại</button>
+    </div>
+    <div role="alert" class="t td">
+      <span class="i" style="background: #FF6B72; color: #3A0A0D"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M8 8l8 8M16 8l-8 8"></path></svg></span>
+      <div class="b"><span class="ti" style="color: #ECECF0">Không lưu được tuỳ chọn thanh menu</span><span class="de" style="color: #A8A8B0">Thay đổi chưa được áp dụng.</span></div>
+      <button type="button" class="act" style="color: #8CC2FF">Thử lại</button>
+      <button type="button" class="x" aria-label="Đóng thông báo" style="color: #9A9AA2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+    </div>
+    <div role="status" class="t td" style="align-items: center">
+      <div class="b"><span class="ti" style="color: #ECECF0">Đã xoá cuộc trò chuyện</span></div>
+      <button type="button" class="act" style="color: #8CC2FF">Hoàn tác</button>
+      <span role="img" aria-label="Còn 5 giây" style="width: 18px; height: 18px; border-radius: 99px; border: 2px solid #34343A; border-top-color: #4D9BFF; border-right-color: #4D9BFF; box-sizing: border-box; flex: 0 0 auto"></span>
+    </div>
+  </section>
+
+  <section aria-label="Vị trí trên cửa sổ" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+    <p class="cap" style="color: #55555C">Vị trí trên cửa sổ</p>
+    <div style="position: relative; height: 520px; border-radius: 14px; background: #FFFFFF; border: 1px solid #D6D6DC; overflow: hidden; display: flex">
+      <div style="width: 64px; background: #ECECEF; border-right: 1px solid #E0E0E5"></div>
+      <div style="flex: 1; display: flex; flex-direction: column">
+        <div style="height: 40px; border-bottom: 1px solid #E2E2E7; display: flex; align-items: center; padding: 0 14px; font-size: 13px; font-weight: 600">Trang đang mở</div>
+        <div style="flex: 1; background: #F4F4F6; padding: 14px; display: flex; gap: 10px">
+          <div style="flex: 1.3; border: 1px solid #E2E2E7; border-radius: 10px; background: #FFFFFF"></div>
+          <div style="flex: 1; border: 1px solid #E2E2E7; border-radius: 10px; background: #FFFFFF"></div>
+        </div>
+      </div>
+      <div style="position: absolute; right: 16px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end">
+        <div style="width: 260px; height: 40px; border-radius: 10px; background: #FFFFFF; border: 1px solid #E2E2E7; box-shadow: 0 6px 18px rgba(28,28,31,0.12); opacity: 0.6"></div>
+        <div style="width: 260px; height: 40px; border-radius: 10px; background: #FFFFFF; border: 1px solid #E2E2E7; box-shadow: 0 6px 18px rgba(28,28,31,0.12); opacity: 0.8"></div>
+        <div style="width: 260px; height: 52px; box-sizing: border-box; border-radius: 10px; background: #FFFFFF; border: 1px solid #E2E2E7; box-shadow: 0 6px 18px rgba(28,28,31,0.12); display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 13px"><span style="width: 16px; height: 16px; border-radius: 99px; background: #1E7F45"></span>Mới nhất ở dưới cùng</div>
+      </div>
+      <div style="position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); width: 220px; height: 64px; border: 1px dashed #C9C9D1; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #55555C; text-align: center">Ô soạn Chat: toast không bao giờ che</div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+      <div style="background: #FFFFFF; border: 1px solid #E2E2E7; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; font-weight: 600">Góc dưới phải</span><span style="font-size: 12px; color: #55555C; line-height: 1.45">Cách mép 16 px, tối đa 3 toast</span></div>
+      <div style="background: #FFFFFF; border: 1px solid #E2E2E7; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; font-weight: 600">Tự tắt</span><span style="font-size: 12px; color: #55555C; line-height: 1.45">4 giây; 8 giây nếu có hành động; lỗi chờ người đóng</span></div>
+      <div style="background: #FFFFFF; border: 1px solid #E2E2E7; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; font-weight: 600">Dừng khi rê chuột</span><span style="font-size: 12px; color: #55555C; line-height: 1.45">Hover hoặc focus giữ toast lại</span></div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

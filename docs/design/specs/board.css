@@ -1,0 +1,517 @@
+/*
+ * Spec boards: detailed, state-by-state drawings of each Viezan screen.
+ *
+ * Every board links ../../../src/styles/tokens.css first, so the drawings use
+ * the app's real design values. A frame pins its own persona and mode with
+ * `data-theme="graphite" data-mode="light|dark"`, exactly like the Settings
+ * preview card. This file only lays out the board itself (frames, captions,
+ * numbered callouts, the action table); the drawn UI inside a frame uses the
+ * `.m-*` mock classes below and `var(--vzn-*)` tokens, never literal values.
+ */
+
+/* Board page ---------------------------------------------------------------- */
+
+html {
+  color-scheme: light;
+}
+
+body.board {
+  /* The board is a canvas: frames keep their drawn size and the page scrolls. */
+  inline-size: max-content;
+  min-inline-size: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: var(--vzn-space-10) var(--vzn-space-8) var(--vzn-space-12);
+  background: var(--vzn-neutral-100);
+  color: var(--vzn-text);
+  font-family: var(--vzn-font-sans);
+  font-size: var(--vzn-font-size-md);
+  line-height: var(--vzn-line-normal);
+}
+
+.board-header {
+  margin: 0 0 var(--vzn-space-8);
+}
+
+.board-header h1 {
+  margin: 0 0 var(--vzn-space-2);
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-heading-lg);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.board-header p {
+  max-inline-size: 72ch;
+  margin: 0;
+  color: var(--vzn-text-muted);
+}
+
+.board-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vzn-space-2);
+  margin-top: var(--vzn-space-4);
+}
+
+.board-nav a {
+  padding: var(--vzn-space-1) var(--vzn-space-2);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-surface);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+  text-decoration: none;
+}
+
+/* One scenario: a caption column beside one or more frames. */
+.scenario {
+  display: grid;
+  margin: 0 0 var(--vzn-space-12);
+  grid-template-columns: 320px max-content;
+  gap: var(--vzn-space-6);
+  align-items: start;
+}
+
+.scenario-copy h2 {
+  margin: 0 0 var(--vzn-space-2);
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-title-lg);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.scenario-copy p,
+.scenario-copy li {
+  color: var(--vzn-text-muted);
+}
+
+.scenario-copy ol {
+  margin: var(--vzn-space-3) 0 0;
+  padding-inline-start: var(--vzn-space-5);
+}
+
+.scenario-copy li + li {
+  margin-top: var(--vzn-space-1-5);
+}
+
+.scenario-frames {
+  display: flex;
+  max-inline-size: 2600px;
+  flex-wrap: wrap;
+  gap: var(--vzn-space-6);
+  align-items: flex-start;
+}
+
+/* A drawn window. Width and height come from the frame's inline custom
+ * properties (--w, --h), e.g. style="--w: 1200px; --h: 760px". */
+.frame {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  inline-size: var(--w, 1200px);
+  block-size: var(--h, 760px);
+  flex-direction: column;
+  border: var(--vzn-border-width) solid var(--vzn-border-strong);
+  border-radius: var(--vzn-radius-md);
+  background: var(--vzn-bg);
+  box-shadow: var(--vzn-shadow-lg);
+  color: var(--vzn-text);
+  font-family: var(--vzn-font-sans);
+  font-size: var(--vzn-font-size-md);
+}
+
+.frame-label {
+  margin: 0 0 var(--vzn-space-2);
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-semibold);
+  letter-spacing: var(--vzn-tracking-caps);
+  text-transform: uppercase;
+}
+
+/* Numbered callout placed over a frame: style="--x: 120px; --y: 40px". */
+.callout {
+  position: absolute;
+  inset-block-start: var(--y, 0);
+  inset-inline-start: var(--x, 0);
+  z-index: var(--vzn-layer-notification);
+  display: inline-flex;
+  inline-size: var(--vzn-icon-lg);
+  block-size: var(--vzn-icon-lg);
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-tone-orange);
+  box-shadow: var(--vzn-shadow-sm);
+  color: var(--vzn-neutral-0);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-bold);
+}
+
+/* Inline reference to a callout inside the caption text. */
+.ref {
+  display: inline-flex;
+  inline-size: var(--vzn-icon-md);
+  block-size: var(--vzn-icon-md);
+  align-items: center;
+  justify-content: center;
+  margin-inline-end: var(--vzn-space-1);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-tone-orange);
+  color: var(--vzn-neutral-0);
+  font-size: var(--vzn-font-size-micro);
+  font-weight: var(--vzn-weight-bold);
+  vertical-align: text-bottom;
+}
+
+/* Action table under a scenario. */
+.actions {
+  inline-size: 100%;
+  margin-top: var(--vzn-space-4);
+  border-collapse: collapse;
+  font-size: var(--vzn-font-size-sm);
+}
+
+.actions th,
+.actions td {
+  padding: var(--vzn-space-1-5) var(--vzn-space-2);
+  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
+  text-align: start;
+  vertical-align: top;
+}
+
+.actions th {
+  color: var(--vzn-text-soft);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+/* Mock UI primitives ------------------------------------------------------- *
+ * Lightweight drawings of the real components. They read the same tokens as
+ * the app, so a frame inside data-mode="dark" renders the dark persona. */
+
+.m-titlebar {
+  display: flex;
+  block-size: var(--vzn-titlebar-height);
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--vzn-space-2);
+  padding-inline: var(--vzn-space-3);
+  border-bottom: var(--vzn-border-width) solid var(--vzn-chrome-divider);
+  background: var(--vzn-titlebar-bg);
+}
+
+.m-lights {
+  display: flex;
+  gap: var(--vzn-space-1-5);
+}
+
+.m-lights i {
+  inline-size: var(--vzn-space-3);
+  block-size: var(--vzn-space-3);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-neutral-400);
+}
+
+.m-body {
+  display: flex;
+  min-block-size: 0;
+  flex: 1 1 auto;
+}
+
+.m-sidebar {
+  display: flex;
+  inline-size: var(--vzn-sidebar-expanded-width);
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: var(--vzn-space-0-5);
+  padding: var(--vzn-space-2-5, var(--vzn-space-2));
+  border-right: var(--vzn-border-width) solid var(--vzn-chrome-divider);
+  background: var(--vzn-sidebar-bg);
+  color: var(--vzn-chrome-fg);
+}
+
+.m-sidebar[data-collapsed] {
+  inline-size: var(--vzn-sidebar-width);
+  align-items: center;
+}
+
+.m-nav {
+  display: flex;
+  block-size: var(--vzn-control-height-sm);
+  align-items: center;
+  gap: var(--vzn-space-2);
+  padding-inline: var(--vzn-space-2);
+  border-radius: var(--vzn-radius-sm);
+  font-size: var(--vzn-font-size-lg);
+}
+
+.m-nav[aria-current] {
+  background: var(--vzn-chrome-item-active);
+  color: var(--vzn-chrome-item-active-fg);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.m-nav-group {
+  padding: var(--vzn-space-3) var(--vzn-space-2) var(--vzn-space-1);
+  color: var(--vzn-chrome-fg-soft);
+  font-size: var(--vzn-font-size-caption);
+  letter-spacing: var(--vzn-tracking-caps);
+  text-transform: uppercase;
+}
+
+.m-main {
+  display: flex;
+  min-inline-size: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  background: var(--vzn-bg);
+}
+
+.m-header {
+  display: flex;
+  min-block-size: var(--vzn-page-header-min-height);
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--vzn-space-3);
+  padding-inline: var(--vzn-space-6);
+  border-bottom: var(--vzn-border-width) solid var(--vzn-border);
+  background: var(--vzn-surface);
+}
+
+.m-header h3 {
+  margin: 0;
+  color: var(--vzn-text-strong);
+  font-size: var(--vzn-font-size-title-lg);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.m-header .m-spacer,
+.m-spacer {
+  flex: 1 1 auto;
+}
+
+.m-content {
+  display: flex;
+  min-block-size: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--vzn-space-4);
+  overflow: hidden;
+  padding: var(--vzn-space-6);
+}
+
+.m-card {
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-md);
+  background: var(--vzn-surface);
+}
+
+.m-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-3) var(--vzn-space-4);
+  border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
+  color: var(--vzn-text-strong);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.m-row {
+  display: flex;
+  align-items: center;
+  gap: var(--vzn-space-3);
+  padding: var(--vzn-space-3) var(--vzn-space-4);
+}
+
+.m-row + .m-row {
+  border-top: var(--vzn-border-width) solid var(--vzn-divider);
+}
+
+.m-muted {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.m-strong {
+  color: var(--vzn-text-strong);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.m-mono {
+  font-family: var(--vzn-font-mono);
+}
+
+.m-btn {
+  display: inline-flex;
+  block-size: var(--vzn-control-height-sm);
+  align-items: center;
+  justify-content: center;
+  gap: var(--vzn-space-1-5);
+  padding-inline: var(--vzn-space-3);
+  border: var(--vzn-border-width) solid var(--vzn-border-strong);
+  border-radius: var(--vzn-radius-control);
+  background: var(--vzn-surface);
+  color: var(--vzn-text);
+  font-size: var(--vzn-font-size-md);
+  font-weight: var(--vzn-weight-medium);
+  white-space: nowrap;
+}
+
+.m-btn[data-size="md"] { block-size: var(--vzn-control-height-md); }
+.m-btn[data-size="xs"] { block-size: var(--vzn-control-height-xs); padding-inline: var(--vzn-space-2); font-size: var(--vzn-font-size-sm); }
+.m-btn[data-icon] { inline-size: var(--vzn-control-height-sm); padding: 0; }
+.m-btn[data-size="md"][data-icon] { inline-size: var(--vzn-control-height-md); }
+.m-btn[data-tone="primary"] { border-color: transparent; background: var(--vzn-action-fill); color: var(--vzn-action-fg); }
+.m-btn[data-tone="soft"] { border-color: var(--vzn-action-border); background: var(--vzn-action-soft); color: var(--vzn-action-text); }
+.m-btn[data-tone="ghost"] { border-color: transparent; background: transparent; color: var(--vzn-text-muted); }
+.m-btn[data-tone="danger"] { border-color: var(--vzn-danger-border); background: var(--vzn-danger-soft); color: var(--vzn-danger); }
+.m-btn[disabled] { border-color: var(--vzn-disabled-border); background: var(--vzn-disabled-bg); color: var(--vzn-disabled-fg); }
+
+.m-input {
+  display: flex;
+  block-size: var(--vzn-control-height-md);
+  align-items: center;
+  gap: var(--vzn-space-2);
+  padding-inline: var(--vzn-space-3);
+  border: var(--vzn-border-width) solid var(--vzn-border-strong);
+  border-radius: var(--vzn-radius-control);
+  background: var(--vzn-surface);
+  color: var(--vzn-text-soft);
+}
+
+.m-input[data-focus] {
+  border-color: var(--vzn-action);
+  box-shadow: 0 0 0 var(--vzn-space-0-5) var(--vzn-focus-ring);
+}
+
+.m-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--vzn-space-1-5);
+  border-radius: var(--vzn-radius-xs);
+  background: var(--vzn-surface-muted);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.m-kbd {
+  padding: 0 var(--vzn-space-1-5);
+  border: var(--vzn-border-width) solid var(--vzn-border-strong);
+  border-radius: var(--vzn-radius-xs);
+  background: var(--vzn-surface-raised);
+  color: var(--vzn-text-muted);
+  font-family: var(--vzn-font-mono);
+  font-size: var(--vzn-font-size-caption);
+}
+
+.m-dot {
+  display: inline-block;
+  inline-size: var(--vzn-space-2);
+  block-size: var(--vzn-space-2);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-text-soft);
+}
+
+.m-dot[data-tone="ok"] { background: var(--vzn-success); }
+.m-dot[data-tone="warning"] { background: var(--vzn-warning); }
+.m-dot[data-tone="danger"] { background: var(--vzn-danger); }
+
+.m-toggle {
+  position: relative;
+  display: inline-block;
+  inline-size: var(--vzn-space-8);
+  block-size: var(--vzn-space-5);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-border-strong);
+}
+
+.m-toggle::after {
+  position: absolute;
+  inset-block-start: var(--vzn-space-0-5);
+  inset-inline-start: var(--vzn-space-0-5);
+  inline-size: var(--vzn-space-4);
+  block-size: var(--vzn-space-4);
+  border-radius: var(--vzn-radius-pill);
+  background: var(--vzn-neutral-0);
+  box-shadow: var(--vzn-shadow-sm);
+  content: "";
+}
+
+.m-toggle[data-on] { background: var(--vzn-action); }
+.m-toggle[data-on]::after { inset-inline-start: auto; inset-inline-end: var(--vzn-space-0-5); }
+
+.m-segmented {
+  display: inline-flex;
+  padding: var(--vzn-space-0-5);
+  border-radius: var(--vzn-radius-control);
+  background: var(--vzn-surface-subtle);
+}
+
+.m-segmented span {
+  padding: var(--vzn-space-1) var(--vzn-space-3);
+  border-radius: var(--vzn-radius-sm);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.m-segmented span[aria-pressed] {
+  background: var(--vzn-surface);
+  box-shadow: var(--vzn-shadow-xs);
+  color: var(--vzn-text-strong);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+/* Floating surfaces drawn inside a frame (popover, menu, dialog, toast). */
+.m-popover {
+  position: absolute;
+  z-index: var(--vzn-layer-context-overlay);
+  display: flex;
+  flex-direction: column;
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-md);
+  background: var(--vzn-surface-raised);
+  box-shadow: var(--vzn-shadow-md);
+}
+
+.m-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: var(--vzn-layer-modal);
+  background: var(--vzn-scrim);
+}
+
+.m-toast {
+  position: absolute;
+  z-index: var(--vzn-layer-notification);
+  display: flex;
+  align-items: center;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-md);
+  background: var(--vzn-surface-raised);
+  box-shadow: var(--vzn-shadow-md);
+}
+
+.m-skeleton {
+  display: block;
+  block-size: var(--vzn-space-3);
+  border-radius: var(--vzn-radius-xs);
+  background: var(--vzn-skeleton, var(--vzn-surface-muted));
+}
+
+.m-notice {
+  display: flex;
+  gap: var(--vzn-space-2);
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  border: var(--vzn-border-width) solid var(--vzn-warning-border);
+  border-radius: var(--vzn-radius-sm);
+  background: var(--vzn-warning-soft);
+  color: var(--vzn-text);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.m-notice[data-tone="danger"] {
+  border-color: var(--vzn-danger-border);
+  background: var(--vzn-danger-soft);
+}

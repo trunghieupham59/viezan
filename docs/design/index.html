@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thiết kế Viezan</title>
+  <link rel="stylesheet" href="../../src/styles/tokens.css">
+  <style>
+    body {
+      max-inline-size: 1100px;
+      margin: 0 auto;
+      padding: var(--vzn-space-10) var(--vzn-space-6);
+      background: var(--vzn-bg);
+      color: var(--vzn-text);
+      font-family: var(--vzn-font-sans);
+      font-size: var(--vzn-font-size-lg);
+      line-height: var(--vzn-line-normal);
+    }
+    h1 { margin: 0 0 var(--vzn-space-2); color: var(--vzn-text-strong); font-size: var(--vzn-font-size-heading-lg); }
+    h2 { margin: var(--vzn-space-8) 0 var(--vzn-space-3); color: var(--vzn-text-strong); font-size: var(--vzn-font-size-title-lg); }
+    p { margin: 0; color: var(--vzn-text-muted); }
+    a { color: var(--vzn-action-text); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: var(--vzn-space-3); }
+    .card {
+      display: flex; flex-direction: column; gap: var(--vzn-space-1);
+      padding: var(--vzn-space-4);
+      border: var(--vzn-border-width) solid var(--vzn-border);
+      border-radius: var(--vzn-radius-md);
+      background: var(--vzn-surface);
+    }
+    .card strong { color: var(--vzn-text-strong); font-size: var(--vzn-font-size-subtitle); }
+    .links { display: flex; flex-wrap: wrap; gap: var(--vzn-space-3); font-size: var(--vzn-font-size-md); }
+    .boards { display: flex; flex-wrap: wrap; gap: var(--vzn-space-2); }
+    .boards a {
+      padding: var(--vzn-space-1) var(--vzn-space-2);
+      border: var(--vzn-border-width) solid var(--vzn-border);
+      border-radius: var(--vzn-radius-pill);
+      background: var(--vzn-surface);
+      font-size: var(--vzn-font-size-sm);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Thiết kế Viezan</h1>
+  <p>Nền tảng chung ở <a href="foundations.md">foundations.md</a>; cách đọc và cập nhật ở <a href="README.md">README.md</a>.</p>
+
+  <h2>Đặc tả từng màn hình</h2>
+  <div class="grid" id="screens"></div>
+
+  <h2>Bản vẽ gốc</h2>
+  <div class="boards" id="boards"></div>
+
+  <script>
+    const screens = [
+      ['shell', 'Khung ứng dụng', 'Điều hướng, bảng lệnh ⌘K, toast, cập nhật, chào mừng'],
+      ['home', 'Trang chủ', 'Bắt đầu nhanh, tiếp tục, hệ thống, mô hình AI, phím tắt'],
+      ['chat', 'AI Chat', 'Lịch sử, ô soạn tin, tác vụ, nghiên cứu sâu, popover model'],
+      ['translate', 'Dịch', 'Văn bản, ảnh, giọng nói, so sánh model, lịch sử'],
+      ['interpret', 'Phiên dịch', 'Phiên trực tiếp, phụ đề nổi, tóm tắt sau phiên'],
+      ['dictionary', 'Từ điển', 'Tra từ theo ngữ cảnh, gần đây, yêu thích'],
+      ['everywhere', 'Dịch mọi nơi', 'Dịch nhanh vùng chọn, tiện ích Chrome'],
+      ['utilities', 'Launcher & phím tắt', 'Launcher, bảng phím tắt toàn cục'],
+      ['launcher', 'Cửa sổ Launcher', 'Tìm ứng dụng, web, hỏi AI, tính nhanh'],
+      ['thermal', 'Nhiệt độ & quạt', 'Cảm biến, quạt, thanh menu'],
+      ['settings', 'Cài đặt', 'Chung, Giao diện, Mô hình AI, Giọng nói, Chat, Module, Cập nhật, Giới thiệu'],
+    ]
+    document.getElementById('screens').innerHTML = screens.map(([id, name, desc]) => `
+      <div class="card"><strong>${name}</strong><p>${desc}</p>
+        <div class="links"><a href="specs/${id}.html">Board trạng thái</a><a href="screens/${id}.md">Đặc tả</a></div>
+      </div>`).join('')
+    fetch('boards/canvas.json').then((r) => r.json()).then((canvas) => {
+      document.getElementById('boards').innerHTML = Object.entries(canvas.boards)
+        .map(([file, board]) => `<a href="boards/${file}">${board.title}</a>`).join('')
+    }).catch(() => {})
+  </script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — Cài đặt</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F4F6}
+a{color:#0A58C2}a:hover{color:#08469A}
+.btn{height:32px;padding:0 12px;border-radius:8px;border:1px solid #D6D6DC;background:#FFFFFF;color:#1C1C1F;font:500 13px Inter,sans-serif;display:inline-flex;align-items:center;gap:6px;text-decoration:none;white-space:nowrap}
+.card{background:#FFFFFF;border:1px solid #E2E2E7;border-radius:14px;display:flex;flex-direction:column;min-width:0}
+.row{display:flex;align-items:center;gap:12px;padding:12px 16px}
+.row + .row{border-top:1px solid #EFEFF2}
+.sub{font-size:12px;color:#55555C;line-height:1.45}
+.sn{display:block;padding:7px 10px;border-radius:8px;font-size:14px;color:#2C2C31;text-decoration:none}
+.sn:hover{background:#EDEDF0}
+.dot{width:7px;height:7px;border-radius:99px;flex:0 0 auto}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; height: 100vh; min-height: 760px; background: #F4F4F6; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F">
+  <dc-import name="Sidebar" active="settings" hint-size="240px,100%"></dc-import>
+  <main style="flex: 999 1 560px; min-width: 0; height: 100%; display: flex; flex-direction: column">
+    <header style="height: 56px; flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 0 24px; border-bottom: 1px solid #E2E2E7; background: #FFFFFF">
+      <h1 style="margin: 0; font-size: 18px; font-weight: 600">Cài đặt</h1>
+      <span style="flex: 1"></span>
+      <label style="display: flex; align-items: center; gap: 8px; width: 280px; height: 32px; padding: 0 10px; border-radius: 8px; background: #F4F4F6; color: #6B6B73">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Tìm trong cài đặt</span>
+        <input type="search" placeholder="Tìm trong cài đặt" style="flex: 1; min-width: 0; border: 0; background: transparent; font: 400 13px Inter, sans-serif; outline: none">
+      </label>
+    </header>
+
+    <div style="flex: 1; min-height: 0; display: flex; flex-wrap: wrap">
+      <nav aria-label="Mục cài đặt" style="flex: 0 0 200px; box-sizing: border-box; padding: 16px 12px; display: flex; flex-direction: column; gap: 2px">
+        <a href="SettingsSections.dc.html" class="sn">Chung</a>
+        <a href="SettingsAppearance.dc.html" class="sn">Giao diện</a>
+        <a href="Settings.dc.html" class="sn" aria-current="page" style="background: #FFFFFF; color: #0A58C2; font-weight: 600; box-shadow: 0 1px 2px rgba(28,28,31,0.08)">Mô hình AI</a>
+        <a href="SettingsSections.dc.html" class="sn">Giọng nói</a>
+        <a href="SettingsSections.dc.html" class="sn">Chat</a>
+        <a href="SettingsSections.dc.html" class="sn">Module</a>
+        <a href="SettingsSections.dc.html" class="sn">Cập nhật</a>
+        <a href="SettingsAbout.dc.html" class="sn">Giới thiệu</a>
+      </nav>
+
+      <div style="flex: 999 1 480px; min-width: 0; height: 100%; overflow: auto; box-sizing: border-box; padding: 16px 24px 32px 8px">
+        <div style="max-width: 760px; display: flex; flex-direction: column; gap: 20px">
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <h2 style="margin: 0; font-size: 20px; font-weight: 600">Mô hình AI</h2>
+            <p class="sub" style="margin: 0; font-size: 13px">Model chạy trên máy và khoá của nhà cung cấp đám mây. Từng tính năng chọn model riêng ngay tại trang của nó.</p>
+          </div>
+
+          <section class="card" aria-labelledby="h-local">
+            <div class="row" style="padding: 16px">
+              <div style="flex: 1; display: flex; flex-direction: column; gap: 4px">
+                <h3 id="h-local" style="margin: 0; font-size: 15px; font-weight: 600">AI local</h3>
+                <span class="sub">Ollama do Viezan quản lý. Riêng tư, không cần mạng.</span>
+              </div>
+              <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: #1E7F45"><span class="dot" style="background: #1E7F45"></span>Đang chạy</span>
+              <button type="button" class="btn" style="border-color: #F0C4C7; color: #B01F29">Dừng</button>
+            </div>
+            <div class="row">
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; flex: 1">qwen3:4b</span>
+              <span class="sub">Đã tải · mặc định</span>
+            </div>
+            <div class="row">
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; flex: 1">gemma3:4b</span>
+              <button type="button" class="btn">Tải về</button>
+            </div>
+            <div class="row">
+              <div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px">Hiệu năng</span><span class="sub">Chế độ GPU · đo lại khi đổi máy hoặc model</span></div>
+              <button type="button" class="btn">Đo hiệu năng</button>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="h-cloud">
+            <div class="row" style="padding: 16px">
+              <div style="flex: 1; display: flex; flex-direction: column; gap: 4px">
+                <h3 id="h-cloud" style="margin: 0; font-size: 15px; font-weight: 600">Nhà cung cấp đám mây</h3>
+                <span class="sub">Khoá được lưu trong Keychain của hệ điều hành.</span>
+              </div>
+              <span class="sub">Chi phí tháng này: [số tiền]</span>
+            </div>
+            <div class="row"><span style="font-size: 14px; flex: 1">Claude</span><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #1E7F45"><span class="dot" style="background: #1E7F45"></span>Đã có khoá</span><button type="button" class="btn">Sửa</button></div>
+            <div class="row"><span style="font-size: 14px; flex: 1">OpenAI</span><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #55555C"><span class="dot" style="background: #C9C9D1"></span>Chưa có khoá</span><button type="button" class="btn">Thêm khoá</button></div>
+            <div class="row"><span style="font-size: 14px; flex: 1">Gemini</span><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #1E7F45"><span class="dot" style="background: #1E7F45"></span>Đã có khoá</span><button type="button" class="btn">Sửa</button></div>
+          </section>
+
+          <section class="card" aria-labelledby="h-web">
+            <div class="row" style="padding: 16px">
+              <div style="flex: 1; display: flex; flex-direction: column; gap: 4px">
+                <h3 id="h-web" style="margin: 0; font-size: 15px; font-weight: 600">Tìm kiếm web</h3>
+                <span class="sub">Dùng cho Chat, Launcher và kiểm chứng. Thử lần lượt từ trên xuống.</span>
+              </div>
+            </div>
+            <div class="row"><span style="font-size: 14px; flex: 1">Tavily</span><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #1E7F45"><span class="dot" style="background: #1E7F45"></span>Đã có khoá</span><button type="button" class="btn">Sửa</button></div>
+            <div class="row"><span style="font-size: 14px; flex: 1">Brave</span><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #55555C"><span class="dot" style="background: #C9C9D1"></span>Chưa có khoá</span><button type="button" class="btn">Thêm khoá</button></div>
+            <div class="row"><span style="font-size: 14px; flex: 1">Jina</span><span class="sub">Không cần khoá · dự phòng</span></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

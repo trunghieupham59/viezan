@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Viezan — Launcher: đặc tả chi tiết</title>
+  <!-- Real design values first, then the board layout. Never add literal colours here. -->
+  <link rel="stylesheet" href="../../../src/styles/tokens.css">
+  <link rel="stylesheet" href="board.css">
+  <style>
+    /* Screen-specific mock classes: every value is a token. */
+    .x-pin { position: relative; }
+    .l-desk { position: relative; display: flex; flex: 1 1 auto; flex-direction: column; align-items: center; padding: var(--vzn-space-6) var(--vzn-space-5); background: var(--vzn-surface-subtle); }
+    .l-panel { position: relative; display: flex; inline-size: 100%; flex-direction: column; overflow: visible; border: var(--vzn-border-width) solid var(--vzn-border-strong); border-radius: var(--vzn-radius-lg); background: var(--vzn-surface); box-shadow: var(--vzn-shadow-overlay); }
+    .l-search { position: relative; display: flex; block-size: var(--vzn-control-height-xl); align-items: center; gap: var(--vzn-space-2); padding-inline: var(--vzn-space-4); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); color: var(--vzn-text-strong); font-size: var(--vzn-font-size-title-lg); }
+    .l-glass { color: var(--vzn-text-soft); }
+    .l-placeholder { flex: 1 1 auto; color: var(--vzn-text-soft); }
+    .l-query { flex: 1 1 auto; }
+    .l-caret { display: inline-block; inline-size: var(--vzn-border-width); block-size: var(--vzn-font-size-title-lg); margin-inline-start: var(--vzn-space-0-5); background: var(--vzn-action); vertical-align: middle; }
+    .l-hint { display: inline-flex; align-items: center; gap: var(--vzn-space-1); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .l-results { display: flex; flex-direction: column; padding: var(--vzn-space-1) var(--vzn-space-2) var(--vzn-space-2); }
+    .l-sec { padding: var(--vzn-space-2) var(--vzn-space-2) var(--vzn-space-1); color: var(--vzn-text-soft); font-size: var(--vzn-font-size-caption); font-weight: var(--vzn-weight-semibold); }
+    .l-row { position: relative; display: flex; block-size: var(--vzn-control-height-lg); align-items: center; gap: var(--vzn-space-3); margin-bottom: var(--vzn-space-0-5); padding-inline: var(--vzn-space-2); border-radius: var(--vzn-radius-control); color: var(--vzn-text); }
+    .l-row[aria-selected="true"] { background: var(--vzn-surface-selected); }
+    .l-row[aria-disabled="true"] { color: var(--vzn-disabled-fg); }
+    .l-tile { display: inline-flex; inline-size: var(--vzn-icon-xl); block-size: var(--vzn-icon-xl); flex: 0 0 auto; align-items: center; justify-content: center; border-radius: var(--vzn-radius-xs); background: var(--vzn-surface-muted); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-caption); font-weight: var(--vzn-weight-semibold); }
+    .l-tile[data-tone="blue"] { background: var(--vzn-tone-blue); color: var(--vzn-neutral-0); }
+    .l-tile[data-tone="violet"] { background: var(--vzn-tone-violet); color: var(--vzn-neutral-0); }
+    .l-tile[data-tone="green"] { background: var(--vzn-tone-green); color: var(--vzn-neutral-0); }
+    .l-tile[data-tone="orange"] { background: var(--vzn-tone-orange); color: var(--vzn-neutral-0); }
+    .l-name { white-space: nowrap; }
+    .l-detail { overflow: hidden; color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); text-overflow: ellipsis; white-space: nowrap; }
+    .l-kind { margin-inline-start: auto; color: var(--vzn-text-soft); font-size: var(--vzn-font-size-sm); white-space: nowrap; }
+    .l-picker { display: inline-flex; block-size: var(--vzn-control-height-sm); align-items: center; gap: var(--vzn-space-1); margin-inline-start: auto; padding-inline: var(--vzn-space-2); border: var(--vzn-border-width) solid var(--vzn-border-strong); border-radius: var(--vzn-radius-control); background: var(--vzn-surface); font-family: var(--vzn-font-mono); font-size: var(--vzn-font-size-sm); }
+    .l-picker[disabled] { border-color: var(--vzn-disabled-border); background: var(--vzn-disabled-bg); color: var(--vzn-disabled-fg); }
+    .l-menu { inset-block-start: var(--y); inset-inline-end: var(--vzn-space-4); inline-size: var(--vzn-settings-select-min); padding: var(--vzn-space-1); gap: var(--vzn-space-0-5); }
+    .l-menu .l-row { block-size: var(--vzn-control-height-sm); margin: 0; }
+    .l-notice { position: relative; display: flex; align-items: center; gap: var(--vzn-space-3); padding: var(--vzn-space-2) var(--vzn-space-4); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .l-notice[role="alert"] { color: var(--vzn-danger); }
+    .l-footer { position: relative; display: flex; align-items: center; gap: var(--vzn-space-3); padding: var(--vzn-space-1-5) var(--vzn-space-3); border-top: var(--vzn-border-width) solid var(--vzn-divider); border-end-start-radius: var(--vzn-radius-lg); border-end-end-radius: var(--vzn-radius-lg); background: var(--vzn-surface-muted); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .l-footer-ctx { display: flex; flex: 1 1 auto; align-items: center; gap: var(--vzn-space-2); min-inline-size: 0; color: var(--vzn-text); }
+    .l-footer-ctx .l-tile { inline-size: var(--vzn-icon-lg); block-size: var(--vzn-icon-lg); border-radius: var(--vzn-radius-2xs); }
+    .l-act { display: inline-flex; align-items: center; gap: var(--vzn-space-1); }
+    .l-div { inline-size: var(--vzn-border-width); block-size: var(--vzn-space-4); background: var(--vzn-divider); }
+    /* Quick AI mode */
+    .q-header { position: relative; display: flex; align-items: center; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .q-input { display: flex; flex: 1 1 auto; block-size: var(--vzn-control-height-md); align-items: center; padding-inline: var(--vzn-space-3); border-radius: var(--vzn-radius-control); background: var(--vzn-surface-muted); color: var(--vzn-text-soft); }
+    .l-panel[data-tall] { flex: 1 1 auto; }
+    .q-body { position: relative; display: flex; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-3); padding: var(--vzn-space-4); }
+    .q-card { position: relative; display: flex; flex-direction: column; border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-md); background: var(--vzn-surface); }
+    .q-card[data-muted] { opacity: var(--vzn-opacity-disabled); }
+    .q-question { display: flex; align-items: flex-start; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-5); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .q-answer { display: flex; flex-direction: column; gap: var(--vzn-space-2); padding: var(--vzn-space-4) var(--vzn-space-5); font-family: var(--vzn-font-reading); line-height: var(--vzn-line-reading); }
+    .q-pill { display: inline-flex; align-self: flex-start; align-items: center; gap: var(--vzn-space-1-5); padding: var(--vzn-space-0-5) var(--vzn-space-2); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-pill); color: var(--vzn-text-muted); font-family: var(--vzn-font-sans); font-size: var(--vzn-font-size-sm); }
+    .q-actions { display: flex; justify-content: flex-end; gap: var(--vzn-space-1); padding: 0 var(--vzn-space-3) var(--vzn-space-2); }
+    .q-footer { position: relative; display: flex; align-items: center; justify-content: space-between; gap: var(--vzn-space-3); padding: var(--vzn-space-2) var(--vzn-space-3); border-top: var(--vzn-border-width) solid var(--vzn-divider); font-size: var(--vzn-font-size-sm); }
+    .q-group { display: flex; align-items: center; gap: var(--vzn-space-1); }
+    .q-empty { display: flex; flex: 1 1 auto; flex-direction: column; align-items: center; justify-content: center; gap: var(--vzn-space-3); text-align: center; }
+    .q-logo { display: inline-flex; inline-size: var(--vzn-control-height-xl); block-size: var(--vzn-control-height-xl); align-items: center; justify-content: center; border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-pill); background: var(--vzn-surface-muted); color: var(--vzn-text-strong); font-weight: var(--vzn-weight-bold); }
+    .q-kicker { color: var(--vzn-text-soft); font-size: var(--vzn-font-size-caption); letter-spacing: var(--vzn-tracking-caps); text-transform: uppercase; }
+    .q-keys { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--vzn-space-2) var(--vzn-space-4); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .q-error { padding: var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-danger-border); border-radius: var(--vzn-radius-sm); background: var(--vzn-danger-soft); color: var(--vzn-text); font-family: var(--vzn-font-sans); }
+  </style>
+</head>
+<body class="board">
+  <header class="board-header">
+    <h1>Launcher</h1>
+    <p>Cửa sổ nổi 760 px, mở bằng phím toàn cục, đặt giữa màn hình và cách đỉnh 22 %. Cao theo nội dung trong khoảng 62–540 px; ẩn khi mất focus. Một ô tìm, danh sách nhóm kết quả, footer nói ↵ sẽ làm gì. Đặc tả đầy đủ: <a href="../screens/launcher.md">screens/launcher.md</a>. Đặt phím: <a href="utilities.html">specs/utilities.html</a>.</p>
+    <nav class="board-nav" aria-label="Kịch bản">
+      <a href="#empty">Mới mở</a>
+      <a href="#typing">Đang gõ · điều hướng</a>
+      <a href="#inline">Máy tính · đổi tiền</a>
+      <a href="#errors">Lỗi · đang tải</a>
+      <a href="#ai">Hỏi AI: đang chảy · xong</a>
+      <a href="#ai-states">Hỏi AI: trống · thiếu khoá · lỗi</a>
+      <a href="#dark">Chế độ tối</a>
+    </nav>
+  </header>
+
+  <!-- 1. Empty ----------------------------------------------------------- -->
+  <section class="scenario" id="empty">
+    <div class="scenario-copy">
+      <h2>Mới mở (ô trống)</h2>
+      <p>Focus ở ô tìm. Hàng đầu tiên luôn được chọn sẵn để ↵ chạy ngay.</p>
+      <ol>
+        <li><span class="ref">1</span>FilterInput lg, không viền, cao 48 px; vùng này kéo được cửa sổ. Gợi ý cuối: "Hỏi AI" + Tab.</li>
+        <li><span class="ref">2</span>Gần đây: tối đa 5 ứng dụng mở gần nhất (icon thật; chưa có icon thì chữ cái đầu tô màu cố định theo tên).</li>
+        <li><span class="ref">3</span>Viezan: "Tiếp tục Quick AI" (khi có phiên &lt; 30 phút, đứng đầu nhóm), Dịch, Tra từ điển, Phiên dịch AI, Mở trong Chat, Mở Cài đặt.</li>
+        <li><span class="ref">4</span>Footer: mục đang chọn bên trái; "Mở ↵ | Hỏi AI ⌘ ↵" bên phải.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Cửa sổ 760 · 800 × 560 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 800px; --h: 560px">
+          <div class="l-desk">
+            <div class="l-panel">
+              <div class="l-search"><span class="callout" style="--x: -12px; --y: -12px">1</span><span class="l-glass">⌕</span><span class="l-placeholder"><i class="l-caret"></i>Tìm ứng dụng, dịch, tra từ hoặc hỏi AI…</span><span class="l-hint">Hỏi AI <span class="m-kbd">Tab</span></span></div>
+              <div class="l-results">
+                <div class="l-sec x-pin">Gần đây<span class="callout" style="--x: -24px; --y: 4px">2</span></div>
+                <div class="l-row" aria-selected="true"><span class="l-tile" data-tone="blue">S</span><span class="l-name">Safari</span><span class="l-kind">Ứng dụng</span></div>
+                <div class="l-row"><span class="l-tile" data-tone="violet">V</span><span class="l-name">Visual Studio Code</span><span class="l-kind">Ứng dụng</span></div>
+                <div class="l-row"><span class="l-tile" data-tone="green">G</span><span class="l-name">Ghi chú</span><span class="l-kind">Ứng dụng</span></div>
+                <div class="l-sec x-pin">Viezan<span class="callout" style="--x: -24px; --y: 4px">3</span></div>
+                <div class="l-row"><span class="l-tile">💬</span><span class="l-name">Tiếp tục Quick AI</span><span class="l-detail">giải thích REST ngắn gọn</span><span class="l-kind">Lệnh</span></div>
+                <div class="l-row"><span class="l-tile">文</span><span class="l-name">Dịch</span><span class="l-kind">Lệnh</span></div>
+                <div class="l-row"><span class="l-tile">📖</span><span class="l-name">Tra từ điển</span><span class="l-kind">Lệnh</span></div>
+                <div class="l-row"><span class="l-tile">🎙</span><span class="l-name">Phiên dịch AI</span><span class="l-kind">Lệnh</span></div>
+              </div>
+              <div class="l-footer"><span class="callout" style="--x: -12px; --y: -12px">4</span><span class="l-footer-ctx"><span class="l-tile" data-tone="blue">S</span>Safari</span><span class="l-act">Mở <span class="m-kbd">↵</span></span><span class="l-div"></span><span class="l-act">Hỏi AI <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Typing ---------------------------------------------------------- -->
+  <section class="scenario" id="typing">
+    <div class="scenario-copy">
+      <h2>Đang gõ · điều hướng bàn phím</h2>
+      <p>Gõ "rep". Thứ tự nhóm: (Máy tính/Tiền tệ) → Ứng dụng (≤ 8) → Tệp (≥ 2 ký tự, chờ 150 ms, macOS/Windows) → Viezan (lệnh khớp tên) → Dùng "…" với… (luôn có).</p>
+      <ol>
+        <li><span class="ref">1</span>Ứng dụng: khớp đúng → viết tắt ("vsc") → bắt đầu bằng → từ bắt đầu bằng → chứa; bỏ dấu tiếng Việt; tên bản địa và tên gói đều tìm được.</li>
+        <li><span class="ref">2</span>Hàng đang chọn (↓ hai lần): nền trung tính, không dùng màu nhấn. ↑↓ vòng đầu–cuối; hàng tự cuộn vào vùng nhìn.</li>
+        <li><span class="ref">3</span>"Dùng "rep" với…": Hỏi AI, Dịch, Tra từ điển, Tìm trên Google — chi tiết là chữ đã gõ.</li>
+        <li><span class="ref">4</span>Footer theo hàng đang chọn: với tệp/thư mục là "Mở ↵ | Mở thư mục chứa ⇧ ↵".</li>
+      </ol>
+      <table class="actions">
+        <thead><tr><th>Phím</th><th>Kết quả</th></tr></thead>
+        <tbody>
+          <tr><td>↑ / ↓</td><td>Chọn hàng trước/sau (vòng)</td></tr>
+          <tr><td>↵</td><td>Chạy hàng đang chọn</td></tr>
+          <tr><td>⌘↵ / Ctrl↵</td><td>Hỏi AI với chữ đang gõ</td></tr>
+          <tr><td>⇧↵</td><td>Tệp/thư mục: mở thư mục chứa</td></tr>
+          <tr><td>Tab</td><td>Hỏi AI với chữ đang gõ</td></tr>
+          <tr><td>Esc</td><td>Có chữ: xoá chữ · ô trống: ẩn cửa sổ</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Cửa sổ 760 · 800 × 620 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 800px; --h: 620px">
+          <div class="l-desk">
+            <div class="l-panel">
+              <div class="l-search"><span class="l-glass">⌕</span><span class="l-query">rep<i class="l-caret"></i></span><span class="l-hint">Hỏi AI <span class="m-kbd">Tab</span></span><span class="m-btn" data-size="xs" data-tone="ghost" aria-label="Xóa">✕</span></div>
+              <div class="l-results">
+                <div class="l-sec x-pin">Ứng dụng<span class="callout" style="--x: -24px; --y: 4px">1</span></div>
+                <div class="l-row"><span class="l-tile" data-tone="orange">R</span><span class="l-name">Reminders</span><span class="l-detail"></span><span class="l-kind">Ứng dụng</span></div>
+                <div class="l-sec">Tệp</div>
+                <div class="l-row"><span class="l-tile">📄</span><span class="l-name">report-q3.pdf</span><span class="l-detail">~/Documents/Work</span><span class="l-kind">Tệp</span></div>
+                <div class="l-row" aria-selected="true"><span class="callout" style="--x: -24px; --y: 8px">2</span><span class="l-tile">📁</span><span class="l-name">reports</span><span class="l-detail">~/Desktop</span><span class="l-kind">Thư mục</span></div>
+                <div class="l-sec x-pin">Dùng "rep" với…<span class="callout" style="--x: -24px; --y: 4px">3</span></div>
+                <div class="l-row"><span class="l-tile">✦</span><span class="l-name">Hỏi AI</span><span class="l-detail">rep</span><span class="l-kind">Lệnh</span></div>
+                <div class="l-row"><span class="l-tile">文</span><span class="l-name">Dịch</span><span class="l-detail">rep</span><span class="l-kind">Lệnh</span></div>
+                <div class="l-row"><span class="l-tile">📖</span><span class="l-name">Tra từ điển</span><span class="l-detail">rep</span><span class="l-kind">Lệnh</span></div>
+                <div class="l-row"><span class="l-tile">⌕</span><span class="l-name">Tìm trên Google</span><span class="l-detail">rep</span><span class="l-kind">Lệnh</span></div>
+              </div>
+              <div class="l-footer"><span class="callout" style="--x: -12px; --y: -12px">4</span><span class="l-footer-ctx"><span class="l-tile">📁</span>reports</span><span class="l-act">Mở <span class="m-kbd">↵</span></span><span class="l-div"></span><span class="l-act">Mở thư mục chứa <span class="m-kbd">⇧</span><span class="m-kbd">↵</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Inline answers -------------------------------------------------- -->
+  <section class="scenario" id="inline">
+    <div class="scenario-copy">
+      <h2>Máy tính · đổi tiền</h2>
+      <p>Câu rõ ràng là phép tính hoặc số tiền được trả lời ngay ở hàng đầu; ↵ chép kết quả và ẩn cửa sổ. Chỉ một trong hai xuất hiện.</p>
+      <ol>
+        <li><span class="ref">1</span>Máy tính: "12*7 = 84", định dạng số theo ngôn ngữ app. Hỗ trợ + − × ÷ ^ %, ngoặc, pi, e, sqrt, round, log…; bỏ qua ngày tháng, số điện thoại.</li>
+        <li><span class="ref">2</span>Footer đổi thành "Sao chép ↵".</li>
+        <li><span class="ref">3</span>Đổi tiền: "100 usd", "500k vnd", "2tr", "100 usd sang jpy". Đang tải: "Đang tải tỷ giá…"; sẵn sàng: số đã đổi + "1 USD = … VND · Tỷ giá ngày …".</li>
+        <li><span class="ref">4</span>Bộ chọn tiền đích (OptionPicker, aria-haspopup="dialog") thay chữ loại; gõ để lọc; lựa chọn được main ghi nhớ. Disabled khi câu đã nêu tiền đích.</li>
+        <li><span class="ref">5</span>Không có tỷ giá (ngoại tuyến): chi tiết giải thích; ↵ thử lại thay vì chép.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Máy tính · 800 × 340 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 800px; --h: 340px">
+          <div class="l-desk">
+            <div class="l-panel">
+              <div class="l-search"><span class="l-glass">⌕</span><span class="l-query">12*7<i class="l-caret"></i></span><span class="l-hint">Hỏi AI <span class="m-kbd">Tab</span></span></div>
+              <div class="l-results">
+                <div class="l-sec">Máy tính</div>
+                <div class="l-row" aria-selected="true"><span class="callout" style="--x: -24px; --y: 8px">1</span><span class="l-tile">▦</span><span class="l-name">12*7 = 84</span><span class="l-kind">Máy tính</span></div>
+                <div class="l-sec">Dùng "12*7" với…</div>
+                <div class="l-row"><span class="l-tile">✦</span><span class="l-name">Hỏi AI</span><span class="l-detail">12*7</span><span class="l-kind">Lệnh</span></div>
+              </div>
+              <div class="l-footer"><span class="l-footer-ctx"><span class="l-tile">▦</span>12*7 = 84</span><span class="l-act x-pin">Sao chép <span class="m-kbd">↵</span><span class="callout" style="--x: -28px; --y: -2px">2</span></span><span class="l-div"></span><span class="l-act">Hỏi AI <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Đổi tiền · bộ chọn mở · 800 × 400 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 800px; --h: 400px">
+          <div class="l-desk">
+            <div class="l-panel">
+              <div class="l-search"><span class="l-glass">⌕</span><span class="l-query">100 usd<i class="l-caret"></i></span><span class="l-hint">Hỏi AI <span class="m-kbd">Tab</span></span></div>
+              <div class="l-results">
+                <div class="l-sec">Tiền tệ</div>
+                <div class="l-row" aria-selected="true"><span class="callout" style="--x: -24px; --y: 8px">3</span><span class="l-tile">◎</span><span class="l-name">[100 USD] = [số tiền] VND</span><span class="l-detail">1 USD = [tỷ giá] VND · Tỷ giá ngày [ngày]</span><span class="l-picker x-pin" aria-haspopup="dialog" aria-expanded="true">VND ▾<span class="callout" style="--x: -24px; --y: 4px">4</span></span></div>
+                <div class="l-sec">Dùng "100 usd" với…</div>
+                <div class="l-row"><span class="l-tile">✦</span><span class="l-name">Hỏi AI</span><span class="l-detail">100 usd</span><span class="l-kind">Lệnh</span></div>
+                <div class="l-row"><span class="l-tile">文</span><span class="l-name">Dịch</span><span class="l-detail">100 usd</span><span class="l-kind">Lệnh</span></div>
+              </div>
+              <div class="m-popover l-menu" style="--y: 124px">
+                <span class="m-input" data-focus>yen</span>
+                <div class="l-row" aria-selected="true"><span class="m-mono">JPY</span><span class="l-detail">Yên Nhật</span></div>
+              </div>
+              <div class="l-footer"><span class="l-footer-ctx"><span class="l-tile">◎</span>[100 USD] = [số tiền] VND</span><span class="l-act">Sao chép <span class="m-kbd">↵</span></span><span class="l-div"></span><span class="l-act">Hỏi AI <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Đổi tiền · ngoại tuyến · 800 × 260 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 800px; --h: 260px">
+          <div class="l-desk">
+            <div class="l-panel">
+              <div class="l-search"><span class="l-glass">⌕</span><span class="l-query">100 usd to jpy<i class="l-caret"></i></span></div>
+              <div class="l-results">
+                <div class="l-sec">Tiền tệ</div>
+                <div class="l-row" aria-selected="true"><span class="callout" style="--x: -24px; --y: 8px">5</span><span class="l-tile">◎</span><span class="l-name">[100 USD] → JPY</span><span class="l-detail">Không có tỷ giá khi ngoại tuyến. Hãy kết nối mạng rồi thử lại.</span><span class="l-picker" disabled>JPY ▾</span></div>
+              </div>
+              <div class="l-footer"><span class="l-footer-ctx"><span class="l-tile">◎</span>[100 USD] → JPY</span><span class="l-act">Sao chép <span class="m-kbd">↵</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Errors ---------------------------------------------------------- -->
+  <section class="scenario" id="errors">
+    <div class="scenario-copy">
+      <h2>Lỗi · đang tải</h2>
+      <p>Lỗi không chặn: lệnh Viezan, Hỏi AI và tìm web luôn dùng được.</p>
+      <ol>
+        <li><span class="ref">1</span>Lần mở đầu, danh mục chưa về: notice "Đang tải ứng dụng…" (role="status") dưới danh sách.</li>
+        <li><span class="ref">2</span>Danh mục lỗi: "Chưa tải được ứng dụng. Bạn vẫn có thể hỏi AI và tìm web." + "Thử lại" (sm · neutral · ghost).</li>
+        <li><span class="ref">3</span>Mở mục thất bại: notice đỏ role="alert" "Không mở được mục này. Hãy thử lại."; mất khi gõ tiếp.</li>
+        <li><span class="ref">4</span>Trong lúc chờ main mở mục: danh sách aria-busy, mọi hàng disabled (xám).</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Đang tải · 800 × 300 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 800px; --h: 300px">
+          <div class="l-desk">
+            <div class="l-panel">
+              <div class="l-search"><span class="l-glass">⌕</span><span class="l-placeholder"><i class="l-caret"></i>Tìm ứng dụng, dịch, tra từ hoặc hỏi AI…</span><span class="l-hint">Hỏi AI <span class="m-kbd">Tab</span></span></div>
+              <div class="l-results">
+                <div class="l-sec">Viezan</div>
+                <div class="l-row" aria-selected="true"><span class="l-tile">文</span><span class="l-name">Dịch</span><span class="l-kind">Lệnh</span></div>
+              </div>
+              <p class="l-notice" role="status"><span class="callout" style="--x: -12px; --y: -6px">1</span>Đang tải ứng dụng…</p>
+              <div class="l-footer"><span class="l-footer-ctx"><span class="l-tile">文</span>Dịch</span><span class="l-act">Mở <span class="m-kbd">↵</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Danh mục lỗi · 800 × 340 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 800px; --h: 340px">
+          <div class="l-desk">
+            <div class="l-panel">
+              <div class="l-search"><span class="l-glass">⌕</span><span class="l-query">safa<i class="l-caret"></i></span></div>
+              <div class="l-results">
+                <div class="l-sec">Dùng "safa" với…</div>
+                <div class="l-row" aria-selected="true"><span class="l-tile">✦</span><span class="l-name">Hỏi AI</span><span class="l-detail">safa</span><span class="l-kind">Lệnh</span></div>
+                <div class="l-row"><span class="l-tile">⌕</span><span class="l-name">Tìm trên Google</span><span class="l-detail">safa</span><span class="l-kind">Lệnh</span></div>
+              </div>
+              <div class="l-notice" role="status"><span class="callout" style="--x: -12px; --y: -6px">2</span><span>Chưa tải được ứng dụng. Bạn vẫn có thể hỏi AI và tìm web.</span><span class="m-btn" data-tone="ghost">Thử lại</span></div>
+              <div class="l-footer"><span class="l-footer-ctx"><span class="l-tile">✦</span>Hỏi AI</span><span class="l-act">Hỏi AI <span class="m-kbd">↵</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Mở thất bại · đang mở · 800 × 320 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 800px; --h: 320px">
+          <div class="l-desk">
+            <div class="l-panel">
+              <div class="l-search"><span class="l-glass">⌕</span><span class="l-query">notes<i class="l-caret"></i></span></div>
+              <div class="l-results x-pin" aria-busy="true"><span class="callout" style="--x: -12px; --y: 4px">4</span>
+                <div class="l-sec">Ứng dụng</div>
+                <div class="l-row" aria-selected="true" aria-disabled="true"><span class="l-tile" data-tone="green">G</span><span class="l-name">Ghi chú</span><span class="l-kind">Ứng dụng</span></div>
+              </div>
+              <p class="l-notice" role="alert"><span class="callout" style="--x: -12px; --y: -6px">3</span>Không mở được mục này. Hãy thử lại.</p>
+              <div class="l-footer"><span class="l-footer-ctx"><span class="l-tile" data-tone="green">G</span>Ghi chú</span><span class="l-act">Mở <span class="m-kbd">↵</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. AI streaming / done -------------------------------------------- -->
+  <section class="scenario" id="ai">
+    <div class="scenario-copy">
+      <h2>Hỏi AI: đang chảy · xong</h2>
+      <p>Tab, ⌘↵ hoặc hàng "Hỏi AI" chuyển cửa sổ sang chế độ AI (cao 540) và gửi chữ đã gõ. Câu trả lời dùng chữ đọc của persona.</p>
+      <ol>
+        <li><span class="ref">1</span>"Tìm kiếm" (md · neutral · ghost) về chế độ tìm, giữ phiên. Logo thành "+" khi đã có lượt: cuộc trò chuyện mới (⌘N).</li>
+        <li><span class="ref">2</span>Ô hỏi tiếp + Gửi (md · primary · solid, spinner khi gửi; disabled khi trống / quá dài / thiếu khoá).</li>
+        <li><span class="ref">3</span>Đang nghĩ (chưa có chữ): nhãn "Đang suy nghĩ…" (hoặc "Smart Thinking" khi đang tìm web) + dòng skeleton. Khi chữ về, nhãn biến mất và Markdown chảy dần; ô hỏi bị khoá đến khi xong.</li>
+        <li><span class="ref">4</span>Footer: chip model mở Cài đặt; "Dừng" (xs · danger · ghost) chỉ khi đang gửi; Sao chép; "Mở trong Chat ⌘↵".</li>
+        <li><span class="ref">5</span>Xong: Sao chép / Tạo lại trong thẻ; lượt cũ lùi lên, mờ; footer "· 2 lượt".</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Đang nghĩ · 800 × 580 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 800px; --h: 580px">
+          <div class="l-desk">
+            <div class="l-panel" data-tall>
+              <div class="q-header">
+                <span class="x-pin"><span class="m-btn" data-size="md" data-tone="ghost">Tìm kiếm</span><span class="callout" style="--x: -12px; --y: -12px">1</span></span>
+                <span class="m-btn" data-size="md" data-icon data-tone="ghost" disabled aria-label="Quick AI">V</span>
+                <span class="q-input">Hỏi tiếp...</span>
+                <span class="x-pin"><span class="m-btn" data-size="md" data-icon data-tone="primary" aria-label="Gửi">◌</span><span class="callout" style="--x: -12px; --y: -12px">2</span></span>
+              </div>
+              <div class="q-body">
+                <div class="q-card">
+                  <div class="q-question"><span class="m-tag">Q</span>giải thích REST ngắn gọn</div>
+                  <div class="q-answer x-pin"><span class="callout" style="--x: 4px; --y: 4px">3</span>
+                    <span class="q-pill">✦ Đang suy nghĩ…</span>
+                    <span class="m-skeleton"></span><span class="m-skeleton"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="q-footer"><span class="callout" style="--x: -12px; --y: -12px">4</span>
+                <span class="m-btn" data-size="xs" data-tone="ghost"><span class="m-dot"></span>Claude / Sonnet 4.5 <span class="m-tag">Smart Thinking</span> · 1 lượt</span>
+                <span class="q-group"><span class="m-btn" data-size="xs" data-tone="danger">■ Dừng</span><span class="m-btn" data-size="xs" data-tone="ghost" disabled>Sao chép</span><span class="l-div"></span><span class="m-btn" data-size="xs" data-tone="ghost">Mở trong Chat → <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Đang chảy · 800 × 580 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 800px; --h: 580px">
+          <div class="l-desk">
+            <div class="l-panel" data-tall>
+              <div class="q-header">
+                <span class="x-pin"><span class="m-btn" data-size="md" data-tone="ghost">Tìm kiếm</span></span>
+                <span class="m-btn" data-size="md" data-icon data-tone="ghost" disabled aria-label="Quick AI">V</span>
+                <span class="q-input">Hỏi tiếp...</span>
+                <span class="x-pin"><span class="m-btn" data-size="md" data-icon data-tone="primary" aria-label="Gửi">◌</span></span>
+              </div>
+              <div class="q-body">
+                <div class="q-card">
+                  <div class="q-question"><span class="m-tag">Q</span>giải thích REST ngắn gọn</div>
+                  <div class="q-answer x-pin"><span class="callout" style="--x: 4px; --y: 4px">3</span>
+                    <span>REST là một kiểu kiến trúc cho API web, dùng các phương thức HTTP như GET, POST, PUT, DELETE trên các tài nguyên có địa chỉ URL riêng. Mỗi yêu cầu<i class="l-caret"></i></span>
+                  </div>
+                </div>
+              </div>
+              <div class="q-footer">
+                <span class="m-btn" data-size="xs" data-tone="ghost"><span class="m-dot"></span>Claude / Sonnet 4.5 <span class="m-tag">Smart Thinking</span> · 1 lượt</span>
+                <span class="q-group"><span class="m-btn" data-size="xs" data-tone="danger">■ Dừng</span><span class="m-btn" data-size="xs" data-tone="ghost">Sao chép</span><span class="l-div"></span><span class="m-btn" data-size="xs" data-tone="ghost">Mở trong Chat → <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Xong · lượt 2 · 800 × 580 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 800px; --h: 580px">
+          <div class="l-desk">
+            <div class="l-panel" data-tall>
+              <div class="q-header">
+                <span class="m-btn" data-size="md" data-tone="ghost">Tìm kiếm</span>
+                <span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Cuộc trò chuyện mới">＋</span>
+                <span class="q-input">Hỏi tiếp...</span>
+                <span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi">➤</span>
+              </div>
+              <div class="q-body">
+                <div class="q-card" data-muted>
+                  <div class="q-question"><span class="m-tag">Q</span>giải thích REST ngắn gọn</div>
+                </div>
+                <div class="q-card x-pin"><span class="callout" style="--x: -12px; --y: -12px">5</span>
+                  <div class="q-question"><span class="m-tag">Q</span>ví dụ?</div>
+                  <div class="q-answer"><span>GET /users/42 trả về người dùng có id 42; POST /users tạo người dùng mới…</span></div>
+                  <div class="q-actions"><span class="m-btn" data-size="xs" data-tone="ghost">Sao chép</span><span class="m-btn" data-size="xs" data-tone="ghost">Tạo lại phản hồi</span></div>
+                </div>
+              </div>
+              <div class="q-footer">
+                <span class="m-btn" data-size="xs" data-tone="ghost"><span class="m-dot"></span>Claude / Sonnet 4.5 <span class="m-tag">Smart Thinking</span> · 2 lượt</span>
+                <span class="q-group"><span class="m-btn" data-size="xs" data-tone="ghost">Sao chép</span><span class="l-div"></span><span class="m-btn" data-size="xs" data-tone="ghost">Mở trong Chat → <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. AI states ------------------------------------------------------- -->
+  <section class="scenario" id="ai-states">
+    <div class="scenario-copy">
+      <h2>Hỏi AI: trống · thiếu khoá · lỗi</h2>
+      <ol>
+        <li><span class="ref">1</span>Trống (Tab với ô trống, hoặc "Tiếp tục" khi chưa có lượt): logo, "AI NHANH", "Hỏi AI", mô tả và bảng phím ↵ Gửi · ⇧↵ Xuống dòng · ⌘↵ Mở trong Chat · Esc Đóng.</li>
+        <li><span class="ref">2</span>Thiếu khoá: "Chưa có API key. Vào Cài đặt để thêm." + "Mở Cài đặt" (sm · neutral · outline); Gửi disabled.</li>
+        <li><span class="ref">3</span>Lỗi nhà cung cấp: ô lỗi trong thẻ với thông điệp bản địa hoá; "Tạo lại phản hồi" để thử lại.</li>
+        <li><span class="ref">4</span>Esc ở chế độ AI ẩn cả cửa sổ (không quay về tìm) — xem Chênh lệch.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Trống · 800 × 460 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 800px; --h: 460px">
+          <div class="l-desk">
+            <div class="l-panel" data-tall>
+              <div class="q-header"><span class="m-btn" data-size="md" data-tone="ghost">Tìm kiếm</span><span class="m-btn" data-size="md" data-icon data-tone="ghost" disabled>V</span><span class="q-input">Hỏi bất cứ điều gì…</span><span class="m-btn" data-size="md" data-icon disabled>➤</span></div>
+              <div class="q-body">
+                <div class="q-empty x-pin"><span class="callout" style="--x: 4px; --y: 4px">1</span>
+                  <span class="q-logo">V</span>
+                  <span class="q-kicker">AI nhanh</span>
+                  <span class="m-strong">Hỏi AI</span>
+                  <span class="m-muted">Nhập câu hỏi ngắn gọn hoặc dán ngữ cảnh cần AI hỗ trợ.</span>
+                  <span class="q-keys"><span><span class="m-kbd">↵</span> Gửi</span><span><span class="m-kbd">⇧</span><span class="m-kbd">↵</span> Xuống dòng</span><span><span class="m-kbd">⌘</span><span class="m-kbd">↵</span> Mở trong Chat</span><span class="x-pin"><span class="m-kbd">Esc</span> Đóng<span class="callout" style="--x: -24px; --y: -18px">4</span></span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Thiếu khoá · 800 × 400 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 800px; --h: 400px">
+          <div class="l-desk">
+            <div class="l-panel" data-tall>
+              <div class="q-header"><span class="m-btn" data-size="md" data-tone="ghost">Tìm kiếm</span><span class="m-btn" data-size="md" data-icon data-tone="ghost" disabled>V</span><span class="q-input">Hỏi bất cứ điều gì…</span><span class="m-btn" data-size="md" data-icon disabled aria-label="Gửi">➤</span></div>
+              <div class="q-body">
+                <div class="q-empty x-pin"><span class="callout" style="--x: 4px; --y: 4px">2</span>
+                  <span class="q-logo">V</span>
+                  <span class="m-muted">Chưa có API key. Vào Cài đặt để thêm.</span>
+                  <span class="m-btn">Mở Cài đặt</span>
+                </div>
+              </div>
+              <div class="q-footer"><span class="m-btn" data-size="xs" data-tone="ghost"><span class="m-dot"></span>OpenAI / default</span><span class="q-group"><span class="m-btn" data-size="xs" data-tone="ghost" disabled>Sao chép</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Lỗi · 800 × 400 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 800px; --h: 400px">
+          <div class="l-desk">
+            <div class="l-panel" data-tall>
+              <div class="q-header"><span class="m-btn" data-size="md" data-tone="ghost">Tìm kiếm</span><span class="m-btn" data-size="md" data-icon data-tone="ghost">＋</span><span class="q-input">Hỏi tiếp...</span><span class="m-btn" data-size="md" data-icon disabled>➤</span></div>
+              <div class="q-body">
+                <div class="q-card x-pin"><span class="callout" style="--x: -12px; --y: -12px">3</span>
+                  <div class="q-question"><span class="m-tag">Q</span>tóm tắt bài này</div>
+                  <div class="q-answer"><div class="q-error">[Thông điệp lỗi nhà cung cấp đã bản địa hoá]</div></div>
+                  <div class="q-actions"><span class="m-btn" data-size="xs" data-tone="ghost" disabled>Sao chép</span><span class="m-btn" data-size="xs" data-tone="ghost">Tạo lại phản hồi</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Dark ------------------------------------------------------------ -->
+  <section class="scenario" id="dark">
+    <div class="scenario-copy">
+      <h2>Chế độ tối</h2>
+      <p>Cùng cấu trúc. Trên macOS khung dùng --vzn-overlay-material (gần đặc) để vibrancy chỉ làm mềm mép; Windows dùng nền đặc và bo nhỏ.</p>
+      <ol>
+        <li><span class="ref">1</span>Hàng đang chọn dùng nền trung tính (--vzn-surface-selected), không dùng màu nhấn.</li>
+        <li><span class="ref">2</span>Footer --vzn-surface-muted tách khỏi danh sách bằng đường kẻ.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Cửa sổ 760 · 800 × 420 · tối</p>
+        <div class="frame" data-theme="graphite" data-mode="dark" style="--w: 800px; --h: 420px">
+          <div class="l-desk">
+            <div class="l-panel">
+              <div class="l-search"><span class="l-glass">⌕</span><span class="l-query">vsc<i class="l-caret"></i></span><span class="l-hint">Hỏi AI <span class="m-kbd">Tab</span></span></div>
+              <div class="l-results">
+                <div class="l-sec">Ứng dụng</div>
+                <div class="l-row" aria-selected="true"><span class="callout" style="--x: -24px; --y: 8px">1</span><span class="l-tile" data-tone="violet">V</span><span class="l-name">Visual Studio Code</span><span class="l-kind">Ứng dụng</span></div>
+                <div class="l-sec">Dùng "vsc" với…</div>
+                <div class="l-row"><span class="l-tile">✦</span><span class="l-name">Hỏi AI</span><span class="l-detail">vsc</span><span class="l-kind">Lệnh</span></div>
+                <div class="l-row"><span class="l-tile">⌕</span><span class="l-name">Tìm trên Google</span><span class="l-detail">vsc</span><span class="l-kind">Lệnh</span></div>
+              </div>
+              <div class="l-footer"><span class="callout" style="--x: -12px; --y: -12px">2</span><span class="l-footer-ctx"><span class="l-tile" data-tone="violet">V</span>Visual Studio Code</span><span class="l-act">Mở <span class="m-kbd">↵</span></span><span class="l-div"></span><span class="l-act">Hỏi AI <span class="m-kbd">⌘</span><span class="m-kbd">↵</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>

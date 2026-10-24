@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — popup cập nhật</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0A58C2}a:hover{color:#08469A}
+.pop{width:440px;height:320px;box-sizing:border-box;border-radius:20px;background:#FFFFFF;box-shadow:0 24px 64px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.06);padding:22px;display:flex;flex-direction:column;gap:14px}
+.cap{margin:0;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#E5E5EA}
+.btn{height:32px;padding:0 14px;border-radius:8px;border:1px solid #D6D6DC;background:#FFFFFF;color:#1C1C1F;font:500 13px Inter,sans-serif;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-primary{border:0;background:#0A63D6;color:#FFFFFF}
+.logo{width:36px;height:36px;border-radius:10px;background:#1C1C1F;color:#FFFFFF;display:inline-flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;flex:0 0 auto}
+.close{width:28px;height:28px;border-radius:7px;border:0;background:transparent;color:#55555C;display:inline-flex;align-items:center;justify-content:center}
+</style>
+</helmet>
+<div style="width: 1440px; height: 560px; box-sizing: border-box; padding: 56px 28px; background: #3B3F47; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F; display: flex; gap: 32px; align-items: flex-start">
+
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <p class="cap">Có bản mới</p>
+    <section class="pop" role="dialog" aria-labelledby="u1">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span class="logo" aria-hidden="true">V</span>
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+          <h2 id="u1" style="margin: 0; font-size: 16px; font-weight: 600">Viezan [phiên bản mới]</h2>
+          <span style="font-size: 12px; color: #55555C">Bạn đang dùng [phiên bản hiện tại]</span>
+        </div>
+        <button type="button" class="close" aria-label="Đóng"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+      </div>
+      <ul style="margin: 0; padding-left: 18px; flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.5; color: #3A3A40">
+        <li>[Điểm mới 1 từ ghi chú phát hành]</li>
+        <li>[Điểm mới 2]</li>
+        <li>[Điểm mới 3]</li>
+      </ul>
+      <a href="#" style="font-size: 13px">Xem toàn bộ ghi chú</a>
+      <div style="display: flex; gap: 8px; justify-content: flex-end">
+        <button type="button" class="btn" aria-haspopup="menu">Nhắc sau</button>
+        <button type="button" class="btn btn-primary">Tải về</button>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <p class="cap">Đang tải</p>
+    <section class="pop" role="dialog" aria-labelledby="u2">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span class="logo" aria-hidden="true">V</span>
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+          <h2 id="u2" style="margin: 0; font-size: 16px; font-weight: 600">Đang tải bản cập nhật</h2>
+          <span style="font-size: 12px; color: #55555C">Bạn vẫn dùng Viezan bình thường trong lúc này</span>
+        </div>
+      </div>
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 8px">
+        <div role="progressbar" aria-label="Tiến độ tải" aria-valuemin="0" aria-valuemax="100" aria-valuenow="46" style="height: 8px; border-radius: 99px; background: #E6E6EB; overflow: hidden"><span style="display: block; width: 46%; height: 100%; background: #0A63D6"></span></div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #55555C; font-variant-numeric: tabular-nums"><span>[đã tải] / [tổng dung lượng]</span><span>46%</span></div>
+      </div>
+      <div style="display: flex; gap: 8px; justify-content: flex-end">
+        <button type="button" class="btn">Ẩn</button>
+        <button type="button" class="btn" style="border-color: #F0C4C7; color: #B01F29">Huỷ tải</button>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <p class="cap">Sẵn sàng cài</p>
+    <section class="pop" role="dialog" aria-labelledby="u3">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span class="logo" aria-hidden="true">V</span>
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 2px">
+          <h2 id="u3" style="margin: 0; font-size: 16px; font-weight: 600">Sẵn sàng cập nhật</h2>
+          <span style="font-size: 12px; color: #55555C">Viezan sẽ khởi động lại trong vài giây</span>
+        </div>
+        <button type="button" class="close" aria-label="Đóng"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+      </div>
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 10px">
+        <div style="border-radius: 12px; background: #FBF1E2; padding: 12px; display: flex; gap: 10px">
+          <span style="width: 8px; height: 8px; margin-top: 6px; border-radius: 99px; background: #A35A00; flex: 0 0 auto"></span>
+          <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #5C3500">Đang có phiên phiên dịch chạy. Cập nhật sẽ dừng phiên đó; bản ghi đã lưu không mất.</p>
+        </div>
+        <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #3A3A40">Quạt trở về tự động trong lúc khởi động lại và bật lại profile sau đó.</p>
+      </div>
+      <div style="display: flex; gap: 8px; justify-content: flex-end">
+        <button type="button" class="btn">Khi thoát app</button>
+        <button type="button" class="btn btn-primary">Khởi động lại</button>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":560}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

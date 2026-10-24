@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Viezan — Dịch mọi nơi: đặc tả chi tiết</title>
+  <!-- Real design values first, then the board layout. Never add literal colours here. -->
+  <link rel="stylesheet" href="../../../src/styles/tokens.css">
+  <link rel="stylesheet" href="board.css">
+  <style>
+    /* Screen-specific mock classes: every value is a token. */
+    .x-pin { position: relative; }
+    .x-body { padding: var(--vzn-space-4); gap: var(--vzn-space-4); }
+    .x-head { display: flex; align-items: flex-start; gap: var(--vzn-space-3); padding: var(--vzn-space-4); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .x-head-copy { display: flex; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-1); min-inline-size: 0; }
+    .x-title { color: var(--vzn-text-strong); font-size: var(--vzn-font-size-subtitle); font-weight: var(--vzn-weight-semibold); }
+    .x-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(var(--vzn-step-min), 100%), 1fr)); gap: var(--vzn-space-2); padding: var(--vzn-space-4); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .x-step { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: var(--vzn-space-1-5); padding: var(--vzn-space-3); border-radius: var(--vzn-radius-sm); background: var(--vzn-surface-muted); }
+    .x-num { display: inline-flex; inline-size: var(--vzn-icon-xl); block-size: var(--vzn-icon-xl); align-items: center; justify-content: center; border: var(--vzn-border-width) solid var(--vzn-border-strong); border-radius: var(--vzn-radius-pill); background: var(--vzn-surface); color: var(--vzn-text-strong); font-size: var(--vzn-font-size-sm); font-weight: var(--vzn-weight-semibold); }
+    .x-step-title { display: inline-flex; align-items: center; gap: var(--vzn-space-1); color: var(--vzn-text-strong); font-size: var(--vzn-font-size-lg); font-weight: var(--vzn-weight-semibold); }
+    .x-row { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--vzn-space-2) var(--vzn-space-3); padding: var(--vzn-space-3) var(--vzn-space-4); }
+    .x-row + .x-row, .x-notice-wrap + .x-row, .x-row + .x-notice-wrap { border-top: var(--vzn-border-width) solid var(--vzn-divider); }
+    .x-row[data-align="top"] { align-items: flex-start; }
+    .x-copy { display: flex; flex: 1 1 var(--vzn-settings-row-copy-basis); flex-direction: column; gap: var(--vzn-space-0-5); min-inline-size: 0; }
+    .x-label { color: var(--vzn-text-strong); font-size: var(--vzn-font-size-lg); }
+    .x-ctrl { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--vzn-space-2); margin-inline-start: auto; }
+    .x-below { display: flex; flex: 1 0 100%; flex-direction: column; gap: var(--vzn-space-2); }
+    .x-status { display: inline-flex; align-items: center; gap: var(--vzn-space-1-5); color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); font-weight: var(--vzn-weight-medium); white-space: nowrap; }
+    .x-status[data-tone="ok"] { color: var(--vzn-success); }
+    .x-status[data-tone="warning"] { color: var(--vzn-warning); }
+    .x-select { display: inline-flex; min-inline-size: var(--vzn-settings-select-min); block-size: var(--vzn-control-height-md); align-items: center; justify-content: space-between; gap: var(--vzn-space-2); padding-inline: var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-border-strong); border-radius: var(--vzn-radius-control); background: var(--vzn-surface); color: var(--vzn-text); }
+    .x-select-wrap { display: flex; flex-direction: column; gap: var(--vzn-space-1); }
+    .x-mono { color: var(--vzn-text-muted); font-family: var(--vzn-font-mono); font-size: var(--vzn-font-size-sm); }
+    .x-key { display: inline-flex; align-items: center; padding: 0 var(--vzn-space-1-5); border: var(--vzn-border-width) solid var(--vzn-border-strong); border-radius: var(--vzn-radius-xs); background: var(--vzn-surface); color: var(--vzn-text-muted); font-family: var(--vzn-font-mono); font-size: var(--vzn-font-size-sm); }
+    .x-mono-btn { font-family: var(--vzn-font-mono); min-inline-size: var(--vzn-settings-select-min); }
+    .x-box { position: relative; display: flex; flex-direction: column; gap: var(--vzn-space-3); padding: var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-sm); background: var(--vzn-surface-muted); }
+    .x-field { display: flex; flex-direction: column; gap: var(--vzn-space-1); font-size: var(--vzn-font-size-sm); font-weight: var(--vzn-weight-medium); }
+    .x-actions { display: flex; justify-content: flex-end; gap: var(--vzn-space-2); }
+    .x-token { position: relative; display: flex; align-items: center; gap: var(--vzn-space-3); padding: var(--vzn-space-2) var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-sm); background: var(--vzn-surface); }
+    .x-token-copy { display: flex; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-0-5); min-inline-size: 0; }
+    .x-danger-text { color: var(--vzn-danger); }
+    .x-warn-text { color: var(--vzn-warning); }
+    .x-secret { display: flex; align-items: center; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-sm); background: var(--vzn-surface); }
+    .x-secret code { flex: 1 1 auto; color: var(--vzn-text); font-family: var(--vzn-font-mono); font-size: var(--vzn-font-size-sm); word-break: break-all; }
+    .x-empty { padding: var(--vzn-space-3) 0; color: var(--vzn-text-soft); font-size: var(--vzn-font-size-sm); font-style: italic; text-align: center; }
+    .x-notice-wrap { padding: var(--vzn-space-3) var(--vzn-space-4); }
+    .x-notice-info { border-color: var(--vzn-action-border); background: var(--vzn-action-soft); }
+    .x-notice-copy { display: flex; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-0-5); }
+    .x-ico { display: inline-block; inline-size: var(--vzn-icon-md); block-size: var(--vzn-icon-md); border: var(--vzn-border-width) solid var(--vzn-chrome-fg-soft); border-radius: var(--vzn-radius-2xs); }
+    .x-desk { position: relative; display: flex; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-3); padding: var(--vzn-space-6); background: var(--vzn-surface-subtle); }
+    .x-doc { display: flex; flex-direction: column; gap: var(--vzn-space-2); padding: var(--vzn-space-4); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-sm); background: var(--vzn-surface); }
+    .x-sel { padding: 0 var(--vzn-space-0-5); background: var(--vzn-action-soft); color: var(--vzn-action-text); }
+    .x-pill { position: absolute; display: flex; align-items: center; gap: var(--vzn-space-2); padding: var(--vzn-space-2) var(--vzn-space-3); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-md); background: var(--vzn-surface-raised); box-shadow: var(--vzn-shadow-lg); }
+    .x-pill-copy { display: flex; flex-direction: column; }
+    .x-toasts { position: absolute; inset-block-end: var(--vzn-space-4); inset-inline-end: var(--vzn-space-4); z-index: var(--vzn-layer-notification); display: flex; flex-direction: column; align-items: flex-end; gap: var(--vzn-space-2); }
+    .x-toasts .m-toast { position: relative; }
+    .x-pill { inset-block-start: var(--y); inset-inline-start: var(--x); }
+    .x-flush { padding: var(--vzn-space-0); }
+    .x-stack-end { flex-direction: column; align-items: flex-end; }
+  </style>
+</head>
+<body class="board">
+  <header class="board-header">
+    <h1>Dịch mọi nơi</h1>
+    <p>Trang gom hai cách dịch ngoài cửa sổ Viezan: Dịch nhanh vùng chọn bằng phím tắt toàn cục và tiện ích Chrome qua máy chủ cục bộ có token. Mọi khung vẽ ở Graphite. Đặc tả đầy đủ: <a href="../screens/everywhere.md">screens/everywhere.md</a>.</p>
+    <nav class="board-nav" aria-label="Kịch bản">
+      <a href="#default">Mặc định</a>
+      <a href="#recording">Ghi phím · thiếu quyền</a>
+      <a href="#run">Đang chạy phím</a>
+      <a href="#module-off">Module tắt</a>
+      <a href="#token-create">Tạo token</a>
+      <a href="#token-states">Token: trống, tải, lỗi</a>
+      <a href="#narrow">Cửa sổ hẹp</a>
+      <a href="#dark">Chế độ tối</a>
+    </nav>
+  </header>
+
+  <!-- 1. Default --------------------------------------------------------- -->
+  <section class="scenario" id="default">
+    <div class="scenario-copy">
+      <h2>Mặc định</h2>
+      <p>Dịch nhanh đã bật, quyền Trợ năng đã cấp, tiện ích Chrome có hai token. Hai thẻ xếp một cột trên canvas.</p>
+      <ol>
+        <li><span class="ref">1</span>Công tắc trong header thẻ bật/tắt phím toàn cục. Main từ chối thì công tắc quay về giá trị main giữ và có toast lỗi.</li>
+        <li><span class="ref">2</span>Ba bước "Cách hoạt động"; bước 2 hiện phím đang lưu bằng chip monospace.</li>
+        <li><span class="ref">3</span>Hàng Phím tắt: ✕ (sm · danger · ghost) xoá phím và tắt công tắc; ô ghi phím (md · neutral · outline) bắt đầu ghi.</li>
+        <li><span class="ref">4</span>Cặp ngôn ngữ riêng của Dịch nhanh. Chọn ngôn ngữ phụ làm ngôn ngữ chính sẽ đảo cặp.</li>
+        <li><span class="ref">5</span>Model chỉ đọc: nhà cung cấp và model đang chọn của app.</li>
+        <li><span class="ref">6</span>Quyền Trợ năng (chỉ macOS): "● Đã cấp" xanh lá; hàng ẩn hẳn trên Windows/Linux.</li>
+        <li><span class="ref">7</span>Trạng thái tiện ích: đếm token ("Đã có token" / "Chưa có token"), không phải trạng thái kết nối.</li>
+        <li><span class="ref">8</span>Bước cài: "Tải về từ GitHub" mở trang Releases; "Tạo API Key Mới" mở form (aria-expanded).</li>
+        <li><span class="ref">9</span>Mỗi token: tên, hạn; "Tạo lại" (md · neutral · outline) và xoá (md · danger · soft, không hỏi lại).</li>
+        <li><span class="ref">10</span>Địa chỉ máy chủ cục bộ, chỉ nhận kết nối từ máy này.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 1110 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 1110px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="m-nav m-strong">Viezan</div>
+              <div class="m-nav">Trang chủ</div>
+              <div class="m-nav-group">AI</div>
+              <div class="m-nav">AI Chat</div>
+              <div class="m-nav-group">Ngôn ngữ</div>
+              <div class="m-nav">Dịch</div>
+              <div class="m-nav">Phiên dịch</div>
+              <div class="m-nav">Từ điển</div>
+              <div class="m-nav" aria-current="page">Dịch mọi nơi</div>
+              <div class="m-nav-group">Hệ thống</div>
+              <div class="m-nav">Nhiệt độ &amp; quạt</div>
+              <div class="m-nav-group">Tiện ích</div>
+              <div class="m-nav">Launcher &amp; phím tắt</div>
+              <span class="m-spacer"></span>
+              <div class="m-nav-group">Đang chạy nền</div>
+              <div class="m-nav">Tiện ích Chrome <span class="m-spacer"></span><span class="m-muted">Sẵn sàng</span></div>
+              <div class="m-nav">Cài đặt</div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Dịch mọi nơi</h3><span class="m-muted">Dịch trong ứng dụng khác và trong trình duyệt, không cần mở Viezan</span></div>
+              <div class="m-content x-body">
+                <div class="m-card">
+                  <div class="x-head">
+                    <div class="x-head-copy"><span class="x-title">Dịch nhanh vùng chọn</span><span class="m-muted">Nhấn phím tắt trong bất kỳ ứng dụng nào để dịch ngay văn bản đang chọn và thay thế tại chỗ.</span></div>
+                    <span class="x-pin"><span class="m-toggle" data-on></span><span class="callout" style="--x: -28px; --y: -2px">1</span></span>
+                  </div>
+                  <div class="x-steps x-pin">
+                    <span class="callout" style="--x: 4px; --y: 4px">2</span>
+                    <div class="x-step"><span class="x-num">1</span><span class="x-step-title">Bôi đen chữ</span><span class="m-muted">Ở ứng dụng bất kỳ.</span></div>
+                    <div class="x-step"><span class="x-num">2</span><span class="x-step-title">Nhấn <span class="m-kbd">⌥ T</span></span><span class="m-muted">Chỉ báo nhỏ hiện cạnh con trỏ trong lúc dịch.</span></div>
+                    <div class="x-step"><span class="x-num">3</span><span class="x-step-title">Bản dịch thay vào chỗ cũ</span><span class="m-muted">⌘Z để lấy lại chữ gốc.</span></div>
+                  </div>
+                  <div class="x-row">
+                    <div class="x-copy"><span class="x-label">Phím tắt</span><span class="m-muted">Nhấp vào ô rồi bấm tổ hợp phím bạn muốn</span></div>
+                    <div class="x-ctrl x-pin"><span class="callout" style="--x: -28px; --y: 6px">3</span><span class="m-btn" data-tone="ghost" data-icon aria-label="Xóa">✕</span><span class="m-btn x-mono-btn" data-size="md">Option+T</span></div>
+                  </div>
+                  <div class="x-row" data-align="top">
+                    <div class="x-copy"><span class="x-label">Cặp ngôn ngữ</span><span class="m-muted">Văn bản đang ở ngôn ngữ chính sẽ được dịch sang ngôn ngữ phụ; mọi văn bản khác dịch sang ngôn ngữ chính. Cặp này riêng cho Dịch nhanh, không ảnh hưởng tới trang Dịch.</span></div>
+                    <div class="x-ctrl x-pin"><span class="callout" style="--x: -28px; --y: -6px">4</span>
+                      <span class="x-select-wrap"><span class="m-muted">Ngôn ngữ chính</span><span class="x-select">Tiếng Việt <span>▾</span></span></span>
+                      <span class="x-select-wrap"><span class="m-muted">Ngôn ngữ phụ</span><span class="x-select">Tiếng Anh <span>▾</span></span></span>
+                    </div>
+                  </div>
+                  <div class="x-row">
+                    <div class="x-copy"><span class="x-label">Model</span><span class="m-muted">Model đang chọn cho trang Dịch</span></div>
+                    <div class="x-ctrl x-pin"><span class="callout" style="--x: -28px; --y: -2px">5</span><span class="m-muted">Claude · <span class="x-mono">claude-sonnet-4-5</span></span></div>
+                  </div>
+                  <div class="x-row">
+                    <div class="x-copy"><span class="x-label">Quyền Trợ năng (macOS)</span><span class="m-muted">Đã cấp quyền Trợ năng.</span></div>
+                    <div class="x-ctrl x-pin"><span class="callout" style="--x: -28px; --y: -2px">6</span><span class="x-status" data-tone="ok"><span class="m-dot" data-tone="ok"></span>Đã cấp</span></div>
+                  </div>
+                </div>
+
+                <div class="m-card">
+                  <div class="x-head">
+                    <div class="x-head-copy"><span class="x-title">Tiện ích Chrome</span><span class="m-muted">Dịch và đọc to trên trang web bằng khoá và model đã cài trong Viezan. Khoá không rời máy.</span></div>
+                    <span class="x-pin"><span class="x-status" data-tone="ok"><span class="m-dot" data-tone="ok"></span>Đã có token</span><span class="callout" style="--x: -28px; --y: -2px">7</span></span>
+                  </div>
+                  <div class="x-steps x-pin">
+                    <span class="callout" style="--x: 4px; --y: 4px">8</span>
+                    <div class="x-step"><span class="x-num">1</span><span class="x-step-title">Tải tiện ích</span><span class="m-btn">GitHub · Tải về từ GitHub</span></div>
+                    <div class="x-step"><span class="x-num">2</span><span class="x-step-title">Nạp vào Chrome</span><span class="m-muted">chrome://extensions → Chế độ nhà phát triển → Tải tiện ích đã giải nén</span></div>
+                    <div class="x-step"><span class="x-num">3</span><span class="x-step-title">Dán token</span><span class="m-btn">＋ Tạo API Key Mới</span></div>
+                  </div>
+                  <div class="x-row" data-align="top">
+                    <div class="x-copy"><span class="x-label">Token đang dùng</span></div>
+                    <div class="x-below">
+                      <div class="x-token"><span class="callout" style="--x: -12px; --y: -10px">9</span>
+                        <div class="x-token-copy"><span class="m-strong">Chrome Extension - 20/10/2026</span><span class="m-muted">Hết hạn 19/11/2026 · còn 25 ngày</span></div>
+                        <span class="m-btn" data-size="md">↻ Tạo lại</span><span class="m-btn" data-size="md" data-icon data-tone="danger" aria-label="Xóa API key">🗑</span>
+                      </div>
+                      <div class="x-token">
+                        <div class="x-token-copy"><span class="m-strong">Laptop công ty</span><span class="m-muted x-warn-text">Còn 4 ngày (29/10/2026)</span></div>
+                        <span class="m-btn" data-size="md">↻ Tạo lại</span><span class="m-btn" data-size="md" data-icon data-tone="danger" aria-label="Xóa API key">🗑</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="x-row">
+                    <div class="x-copy"><span class="x-label">Máy chủ cục bộ</span><span class="m-muted">Chỉ nhận kết nối từ máy này, có token</span></div>
+                    <div class="x-ctrl x-pin"><span class="callout" style="--x: -28px; --y: -2px">10</span><span class="x-mono">127.0.0.1:[cổng]</span></div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Recording + permission missing ---------------------------------- -->
+  <section class="scenario" id="recording">
+    <div class="scenario-copy">
+      <h2>Ghi phím · thiếu quyền Trợ năng</h2>
+      <p>Thẻ Dịch nhanh khi người dùng vừa bấm ô ghi phím, trên máy macOS chưa cấp quyền Trợ năng.</p>
+      <ol>
+        <li><span class="ref">1</span>Đang ghi: ô chuyển md · primary · soft, chữ "Bấm phím… (Esc để hủy)"; nút ✕ ẩn. Tổ hợp đầu tiên có phím thường được chốt và lưu ngay. Esc hoặc rời focus huỷ.</li>
+        <li><span class="ref">2</span>Thiếu quyền: "● Chưa cấp" vàng + mô tả lý do + nút "Mở Cài đặt hệ thống" (sm · primary · solid, hành động chính duy nhất của thẻ).</li>
+        <li><span class="ref">3</span>Khi người dùng quay lại cửa sổ (sự kiện focus), quyền được đọc lại; hàng đổi sang "● Đã cấp" và nút biến mất.</li>
+      </ol>
+      <table class="actions">
+        <thead><tr><th>Phím</th><th>Kết quả khi đang ghi</th></tr></thead>
+        <tbody>
+          <tr><td>⌃⌥T</td><td>Lưu <code>Ctrl+Alt+T</code>, hiển thị "Ctrl+Option+T"</td></tr>
+          <tr><td>Chỉ ⌘ / ⌥ / ⇧ / ⌃</td><td>Bỏ qua, chờ phím thường</td></tr>
+          <tr><td>Esc</td><td>Huỷ, giữ phím cũ</td></tr>
+          <tr><td>Main từ chối</td><td>Toast lỗi, ô quay về phím main giữ</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Thẻ Dịch nhanh · 940 × 520 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 940px; --h: 520px">
+          <div class="m-content x-body">
+            <div class="m-card">
+              <div class="x-head">
+                <div class="x-head-copy"><span class="x-title">Dịch nhanh vùng chọn</span><span class="m-muted">Nhấn phím tắt trong bất kỳ ứng dụng nào để dịch ngay văn bản đang chọn và thay thế tại chỗ.</span></div>
+                <span class="m-toggle" data-on></span>
+              </div>
+              <div class="x-row">
+                <div class="x-copy"><span class="x-label">Phím tắt</span><span class="m-muted">Nhấp vào ô rồi bấm tổ hợp phím bạn muốn</span></div>
+                <div class="x-ctrl x-pin"><span class="callout" style="--x: -28px; --y: 6px">1</span><span class="m-btn x-mono-btn" data-size="md" data-tone="soft">Bấm phím… (Esc để hủy)</span></div>
+              </div>
+              <div class="x-row" data-align="top">
+                <div class="x-copy"><span class="x-label">Cặp ngôn ngữ</span><span class="m-muted">Mọi văn bản đều được dịch sang ngôn ngữ chính. Cài đặt này riêng cho Dịch nhanh, không ảnh hưởng tới trang Dịch.</span></div>
+                <div class="x-ctrl">
+                  <span class="x-select-wrap"><span class="m-muted">Ngôn ngữ chính</span><span class="x-select">Tiếng Việt <span>▾</span></span></span>
+                  <span class="x-select-wrap"><span class="m-muted">Ngôn ngữ phụ</span><span class="x-select">Tắt — luôn dịch sang ngôn ngữ chính <span>▾</span></span></span>
+                </div>
+              </div>
+              <div class="x-row">
+                <div class="x-copy"><span class="x-label">Model</span><span class="m-muted">Model đang chọn cho trang Dịch</span></div>
+                <div class="x-ctrl"><span class="m-muted">Local · <span class="x-mono">qwen3:4b</span></span></div>
+              </div>
+              <div class="x-row">
+                <div class="x-copy"><span class="x-label">Quyền Trợ năng (macOS)</span><span class="m-muted">Viezan cần quyền Trợ năng để sao chép văn bản đang chọn trong ứng dụng khác và thay thế tại chỗ.</span></div>
+                <div class="x-ctrl x-pin"><span class="callout" style="--x: -28px; --y: 6px">2</span><span class="x-status" data-tone="warning"><span class="m-dot" data-tone="warning"></span>Chưa cấp</span><span class="m-btn" data-tone="primary">Mở Cài đặt hệ thống</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Sau khi cấp quyền · 940 × 120 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 940px; --h: 120px">
+          <div class="m-content x-body">
+            <div class="m-card">
+              <div class="x-row">
+                <div class="x-copy"><span class="x-label">Quyền Trợ năng (macOS)</span><span class="m-muted">Đã cấp quyền Trợ năng.</span></div>
+                <div class="x-ctrl x-pin"><span class="callout" style="--x: -28px; --y: -2px">3</span><span class="x-status" data-tone="ok"><span class="m-dot" data-tone="ok"></span>Đã cấp</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Running the shortcut -------------------------------------------- -->
+  <section class="scenario" id="run">
+    <div class="scenario-copy">
+      <h2>Đang chạy phím Dịch nhanh</h2>
+      <p>Ngoài cửa sổ Viezan: chỉ báo nổi 304 × 60 px đặt dưới-phải con trỏ (lật lên khi thiếu chỗ), neo một chỗ cho cả lượt. Trong cửa sổ Viezan (nếu đang mở): toast một khoá thay nhau.</p>
+      <ol>
+        <li><span class="ref">1</span>Chữ đang chọn trong ứng dụng khác.</li>
+        <li><span class="ref">2</span>Chỉ báo: "Đang lấy văn bản đang chọn..." → "Đang dịch sang {lang}..." → "Đã thay thế văn bản." (tự ẩn ~1,5 s). Cảnh báo: "Không có văn bản được chọn.". Lỗi quyền: "Cần cấp quyền Trợ năng…".</li>
+        <li><span class="ref">3</span>Toast trong app: info "Đang dịch…" (không tự tắt) → success "Đã dịch sang Tiếng Anh" hoặc error có giải thích (quyền, sao chép thất bại).</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Ứng dụng khác · 760 × 300 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 760px; --h: 300px">
+          <div class="x-desk">
+            <div class="x-doc x-pin"><span class="callout" style="--x: -10px; --y: -10px">1</span>
+              <span class="m-muted">Thư · Soạn tin</span>
+              <span>Chào anh, <span class="x-sel">cảm ơn anh đã gửi tài liệu sớm</span>, em sẽ đọc trong hôm nay.</span>
+            </div>
+            <div class="x-pill" style="--x: 300px; --y: 132px"><span class="callout" style="--x: -12px; --y: -12px">2</span>
+              <span class="m-dot" data-tone="ok"></span>
+              <span class="x-pill-copy"><span class="m-strong">Dịch nhanh</span><span class="m-muted">Đang dịch sang Tiếng Anh...</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Toast trong app · 420 × 300 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 420px; --h: 300px">
+          <div class="m-content x-body">
+            <div class="m-card"><div class="x-row"><span class="m-muted">(nội dung trang)</span></div></div>
+          </div>
+          <div class="x-toasts">
+            <div class="m-toast"><span class="m-dot" data-tone="ok"></span>Đã dịch sang Tiếng Anh</div>
+            <div class="m-toast"><span class="m-dot" data-tone="danger"></span>Dịch nhanh cần quyền Trợ năng. Mở Cài đặt hệ thống…<span class="callout" style="--x: -12px; --y: -12px">3</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Module off ------------------------------------------------------ -->
+  <section class="scenario" id="module-off">
+    <div class="scenario-copy">
+      <h2>Module Dịch đang tắt</h2>
+      <p>Phím vẫn được lưu nhưng main không đăng ký. Các điều khiển vẫn dùng được để chuẩn bị trước.</p>
+      <ol>
+        <li><span class="ref">1</span>CapabilityNotice info đặt ngay dưới ba bước: "Module Dịch đang tắt" + giải thích.</li>
+        <li><span class="ref">2</span>"Bật" (md · primary · solid) gọi setModuleEnabled('translate', true); thông báo biến mất.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">940 × 380 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 940px; --h: 380px">
+          <div class="m-content x-body">
+            <div class="m-card">
+              <div class="x-head">
+                <div class="x-head-copy"><span class="x-title">Dịch nhanh vùng chọn</span><span class="m-muted">Nhấn phím tắt trong bất kỳ ứng dụng nào…</span></div>
+                <span class="m-toggle" data-on></span>
+              </div>
+              <div class="x-steps">
+                <div class="x-step"><span class="x-num">1</span><span class="x-step-title">Bôi đen chữ</span></div>
+                <div class="x-step"><span class="x-num">2</span><span class="x-step-title">Nhấn <span class="m-kbd">⌥ T</span></span></div>
+                <div class="x-step"><span class="x-num">3</span><span class="x-step-title">Bản dịch thay vào chỗ cũ</span></div>
+              </div>
+              <div class="x-notice-wrap">
+                <div class="m-notice x-notice-info x-pin"><span class="callout" style="--x: -12px; --y: -12px">1</span>
+                  <span class="x-notice-copy"><span class="m-strong">Module Dịch đang tắt</span><span class="m-muted">Phím tắt này vẫn được lưu nhưng không hoạt động cho đến khi bật lại module.</span></span>
+                  <span class="x-pin"><span class="m-btn" data-size="md" data-tone="primary">Bật</span><span class="callout" style="--x: -28px; --y: 6px">2</span></span>
+                </div>
+              </div>
+              <div class="x-row">
+                <div class="x-copy"><span class="x-label">Phím tắt</span></div>
+                <div class="x-ctrl"><span class="m-btn" data-tone="ghost" data-icon aria-label="Xóa">✕</span><span class="m-btn x-mono-btn" data-size="md">Option+T</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Token create + reveal ------------------------------------------- -->
+  <section class="scenario" id="token-create">
+    <div class="scenario-copy">
+      <h2>Tạo token và hiện một lần</h2>
+      <p>Bấm "Tạo API Key Mới" ở bước 3 mở form trong hàng "Token đang dùng". Sau khi tạo, token chỉ hiện một lần.</p>
+      <ol>
+        <li><span class="ref">1</span>Tên (để trống dùng "Chrome Extension - &lt;ngày&gt;") và thời hạn 7 / 30 / 90 ngày / 1 năm (mặc định 30).</li>
+        <li><span class="ref">2</span>"Huỷ" (md · neutral · outline) đặt lại form; "Tạo API Key" (md · primary · solid) có spinner và disabled khi đang tạo.</li>
+        <li><span class="ref">3</span>Khung một lần: tiêu đề, cảnh báo không xem lại được, mã token chọn được toàn bộ.</li>
+        <li><span class="ref">4</span>"Sao chép" → "Đã sao chép" (primary · soft) trong 2 giây.</li>
+        <li><span class="ref">5</span>✕ (md · neutral · ghost, aria-label "Đóng") ẩn token vĩnh viễn.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Form tạo · 720 × 300 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 720px; --h: 300px">
+          <div class="m-content x-body">
+            <div class="m-card">
+              <div class="x-row" data-align="top">
+                <div class="x-copy"><span class="x-label">Token đang dùng</span></div>
+                <div class="x-below">
+                  <div class="x-box"><span class="callout" style="--x: -12px; --y: -12px">1</span>
+                    <label class="x-field">Tên API key<span class="m-input">Chrome Extension - 25/10/2026</span></label>
+                    <div class="x-field">Thời hạn<span class="m-segmented"><span>7 ngày</span><span aria-pressed="true">30 ngày</span><span>90 ngày</span><span>1 năm</span></span></div>
+                    <div class="x-actions x-pin"><span class="callout" style="--x: -28px; --y: 6px">2</span><span class="m-btn" data-size="md">Huỷ</span><span class="m-btn" data-size="md" data-tone="primary">Tạo API Key</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Hiện một lần · 720 × 260 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 720px; --h: 260px">
+          <div class="m-content x-body">
+            <div class="m-card">
+              <div class="x-row" data-align="top">
+                <div class="x-copy"><span class="x-label">Token đang dùng</span></div>
+                <div class="x-below">
+                  <div class="x-box"><span class="callout" style="--x: -12px; --y: -12px">3</span>
+                    <div class="m-row x-flush">
+                      <span class="x-token-copy"><span class="m-strong">API Key "Chrome Extension - 25/10/2026": sao chép ngay!</span><span class="m-muted">API key này chỉ hiện một lần duy nhất. Sau khi đóng sẽ không xem lại được.</span></span>
+                      <span class="x-pin"><span class="m-btn" data-size="md" data-icon data-tone="ghost" aria-label="Đóng">✕</span><span class="callout" style="--x: -24px; --y: 6px">5</span></span>
+                    </div>
+                    <div class="x-secret"><code>[token]</code><span class="x-pin"><span class="m-btn" data-size="md" data-tone="soft">Đã sao chép</span><span class="callout" style="--x: -24px; --y: 6px">4</span></span></div>
+                    <span class="m-muted">Hết hạn: 24/11/2026</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Token states ---------------------------------------------------- -->
+  <section class="scenario" id="token-states">
+    <div class="scenario-copy">
+      <h2>Token: trống, đang tải, hết hạn, lỗi</h2>
+      <p>Các trạng thái của hàng "Token đang dùng" và header thẻ Chrome.</p>
+      <ol>
+        <li><span class="ref">1</span>Trống: header "● Chưa có token" xám; câu nghiêng giữa hàng mời tạo token.</li>
+        <li><span class="ref">2</span>Đang tải: spinner nhỏ + "Đang tải...".</li>
+        <li><span class="ref">3</span>Hết hạn: "Đã hết hạn" chữ đỏ; ≤ 7 ngày: "Còn {days} ngày ({date})". Nút xoá đang chạy: spinner, cả hai nút disabled (xám).</li>
+        <li><span class="ref">4</span>Lỗi tải danh sách: toast lỗi có "Thử lại"; hàng trống, header vẫn "Chưa có token" (xem Chênh lệch §10.5).</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Trống · 560 × 220 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 560px; --h: 220px">
+          <div class="m-content x-body">
+            <div class="m-card">
+              <div class="x-head"><div class="x-head-copy"><span class="x-title">Tiện ích Chrome</span></div><span class="x-pin"><span class="x-status"><span class="m-dot"></span>Chưa có token</span><span class="callout" style="--x: -28px; --y: -2px">1</span></span></div>
+              <div class="x-row" data-align="top"><div class="x-copy"><span class="x-label">Token đang dùng</span></div><div class="x-below"><p class="x-empty">Chưa có API key nào. Nhấn "+ Tạo API Key Mới" để bắt đầu.</p></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Đang tải · 560 × 220 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 560px; --h: 220px">
+          <div class="m-content x-body">
+            <div class="m-card">
+              <div class="x-head"><div class="x-head-copy"><span class="x-title">Tiện ích Chrome</span></div><span class="x-status"><span class="m-dot"></span>Chưa có token</span></div>
+              <div class="x-row" data-align="top"><div class="x-copy"><span class="x-label">Token đang dùng</span></div><div class="x-below x-pin"><span class="callout" style="--x: -12px; --y: -4px">2</span><span class="m-muted">◌ Đang tải...</span><span class="m-skeleton"></span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Hết hạn · đang xoá · 560 × 240 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 560px; --h: 240px">
+          <div class="m-content x-body">
+            <div class="m-card">
+              <div class="x-row" data-align="top"><div class="x-copy"><span class="x-label">Token đang dùng</span></div>
+                <div class="x-below">
+                  <div class="x-token"><span class="callout" style="--x: -12px; --y: -10px">3</span><div class="x-token-copy"><span class="m-strong">Máy nhà</span><span class="m-muted x-danger-text">Đã hết hạn</span></div><span class="m-btn" data-size="md">↻ Tạo lại</span><span class="m-btn" data-size="md" data-icon data-tone="danger" aria-label="Xóa API key">🗑</span></div>
+                  <div class="x-token"><div class="x-token-copy"><span class="m-strong">Laptop công ty</span><span class="m-muted">Còn 4 ngày (29/10/2026)</span></div><span class="m-btn" data-size="md" disabled>↻ Tạo lại</span><span class="m-btn" data-size="md" data-icon disabled aria-label="Xóa API key">◌</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Lỗi tải · 560 × 240 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 560px; --h: 240px">
+          <div class="m-content x-body">
+            <div class="m-card">
+              <div class="x-head"><div class="x-head-copy"><span class="x-title">Tiện ích Chrome</span></div><span class="x-status"><span class="m-dot"></span>Chưa có token</span></div>
+              <div class="x-row"><div class="x-copy"><span class="x-label">Token đang dùng</span></div></div>
+            </div>
+          </div>
+          <div class="x-toasts"><div class="m-toast"><span class="m-dot" data-tone="danger"></span>Không thể tải danh sách API key.<span class="m-btn" data-size="xs" data-tone="ghost">Thử lại</span><span class="callout" style="--x: -12px; --y: -12px">4</span></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Narrow ---------------------------------------------------------- -->
+  <section class="scenario" id="narrow">
+    <div class="scenario-copy">
+      <h2>Cửa sổ hẹp (720 px)</h2>
+      <p>Cửa sổ &lt; 900 px: thanh điều hướng thành rail 60 px. Vùng nội dung ≈ 660 px.</p>
+      <ol>
+        <li><span class="ref">1</span>Rail 60 px; mở rộng là lớp phủ tạm, không đổi lựa chọn đã lưu.</li>
+        <li><span class="ref">2</span>Ba bước: lưới auto-fit (min 180 px) → 3 cột còn vừa ở 660 px; dưới ~ 600 px thành 2 + 1 rồi 1 cột.</li>
+        <li><span class="ref">3</span>Điều khiển hàng xuống dưới phần chữ khi không đủ chỗ, vẫn dồn phải; hai ô ngôn ngữ xếp chồng.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">720 × 780 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 720px; --h: 780px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar x-pin" data-collapsed><span class="callout" style="--x: 34px; --y: 4px">1</span>
+              <div class="m-nav"><i class="x-ico"></i></div><div class="m-nav"><i class="x-ico"></i></div><div class="m-nav"><i class="x-ico"></i></div><div class="m-nav"><i class="x-ico"></i></div><div class="m-nav" aria-current="page"><i class="x-ico"></i></div><div class="m-nav"><i class="x-ico"></i></div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Dịch mọi nơi</h3></div>
+              <div class="m-content x-body">
+                <div class="m-card">
+                  <div class="x-head"><div class="x-head-copy"><span class="x-title">Dịch nhanh vùng chọn</span><span class="m-muted">Nhấn phím tắt trong bất kỳ ứng dụng nào để dịch ngay văn bản đang chọn và thay thế tại chỗ.</span></div><span class="m-toggle" data-on></span></div>
+                  <div class="x-steps x-pin"><span class="callout" style="--x: 4px; --y: 4px">2</span>
+                    <div class="x-step"><span class="x-num">1</span><span class="x-step-title">Bôi đen chữ</span><span class="m-muted">Ở ứng dụng bất kỳ.</span></div>
+                    <div class="x-step"><span class="x-num">2</span><span class="x-step-title">Nhấn <span class="m-kbd">⌥ T</span></span><span class="m-muted">Chỉ báo nhỏ hiện cạnh con trỏ.</span></div>
+                    <div class="x-step"><span class="x-num">3</span><span class="x-step-title">Thay vào chỗ cũ</span><span class="m-muted">⌘Z để lấy lại.</span></div>
+                  </div>
+                  <div class="x-row"><div class="x-copy"><span class="x-label">Phím tắt</span><span class="m-muted">Nhấp vào ô rồi bấm tổ hợp phím bạn muốn</span></div><div class="x-ctrl"><span class="m-btn" data-tone="ghost" data-icon>✕</span><span class="m-btn x-mono-btn" data-size="md">Option+T</span></div></div>
+                  <div class="x-row" data-align="top"><div class="x-copy"><span class="x-label">Cặp ngôn ngữ</span><span class="m-muted">Văn bản ở ngôn ngữ chính dịch sang ngôn ngữ phụ; còn lại sang ngôn ngữ chính.</span></div>
+                    <div class="x-ctrl x-pin x-stack-end"><span class="callout" style="--x: -28px; --y: 20px">3</span>
+                      <span class="x-select-wrap"><span class="m-muted">Ngôn ngữ chính</span><span class="x-select">Tiếng Việt <span>▾</span></span></span>
+                      <span class="x-select-wrap"><span class="m-muted">Ngôn ngữ phụ</span><span class="x-select">Tiếng Anh <span>▾</span></span></span>
+                    </div>
+                  </div>
+                  <div class="x-row"><div class="x-copy"><span class="x-label">Quyền Trợ năng (macOS)</span><span class="m-muted">Viezan cần quyền Trợ năng để sao chép văn bản đang chọn…</span></div><div class="x-ctrl"><span class="x-status" data-tone="warning"><span class="m-dot" data-tone="warning"></span>Chưa cấp</span><span class="m-btn" data-tone="primary">Mở Cài đặt hệ thống</span></div></div>
+                </div>
+                <div class="m-card">
+                  <div class="x-head"><div class="x-head-copy"><span class="x-title">Tiện ích Chrome</span></div><span class="x-status" data-tone="ok"><span class="m-dot" data-tone="ok"></span>Đã có token</span></div>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. Dark ------------------------------------------------------------ -->
+  <section class="scenario" id="dark">
+    <div class="scenario-copy">
+      <h2>Chế độ tối</h2>
+      <p>Cùng bố cục; thẻ than chì một bậc trên canvas, ô bước một bậc trên thẻ. Màu trạng thái giữ nghĩa, luôn kèm chữ.</p>
+      <ol>
+        <li><span class="ref">1</span>Công tắc bật dùng màu nhấn; ô bước dùng --vzn-surface-muted.</li>
+        <li><span class="ref">2</span>Token sắp hết hạn: chữ cảnh báo + ngày, không chỉ dựa vào màu.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 640 · tối</p>
+        <div class="frame" data-theme="graphite" data-mode="dark" style="--w: 1200px; --h: 640px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="m-nav m-strong">Viezan</div>
+              <div class="m-nav">Trang chủ</div>
+              <div class="m-nav-group">Ngôn ngữ</div>
+              <div class="m-nav">Dịch</div>
+              <div class="m-nav" aria-current="page">Dịch mọi nơi</div>
+              <div class="m-nav-group">Tiện ích</div>
+              <div class="m-nav">Launcher &amp; phím tắt</div>
+              <span class="m-spacer"></span>
+              <div class="m-nav">Cài đặt</div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Dịch mọi nơi</h3><span class="m-muted">Dịch trong ứng dụng khác và trong trình duyệt, không cần mở Viezan</span></div>
+              <div class="m-content x-body">
+                <div class="m-card">
+                  <div class="x-head"><div class="x-head-copy"><span class="x-title">Dịch nhanh vùng chọn</span><span class="m-muted">Nhấn phím tắt trong bất kỳ ứng dụng nào để dịch ngay văn bản đang chọn và thay thế tại chỗ.</span></div><span class="x-pin"><span class="m-toggle" data-on></span><span class="callout" style="--x: -28px; --y: -2px">1</span></span></div>
+                  <div class="x-steps">
+                    <div class="x-step"><span class="x-num">1</span><span class="x-step-title">Bôi đen chữ</span><span class="m-muted">Ở ứng dụng bất kỳ.</span></div>
+                    <div class="x-step"><span class="x-num">2</span><span class="x-step-title">Nhấn <span class="m-kbd">⌥ T</span></span><span class="m-muted">Chỉ báo nhỏ hiện cạnh con trỏ trong lúc dịch.</span></div>
+                    <div class="x-step"><span class="x-num">3</span><span class="x-step-title">Bản dịch thay vào chỗ cũ</span><span class="m-muted">⌘Z để lấy lại chữ gốc.</span></div>
+                  </div>
+                  <div class="x-row"><div class="x-copy"><span class="x-label">Phím tắt</span></div><div class="x-ctrl"><span class="m-btn" data-tone="ghost" data-icon>✕</span><span class="m-btn x-mono-btn" data-size="md">Option+T</span></div></div>
+                </div>
+                <div class="m-card">
+                  <div class="x-head"><div class="x-head-copy"><span class="x-title">Tiện ích Chrome</span><span class="m-muted">Dịch và đọc to trên trang web bằng khoá và model đã cài trong Viezan. Khoá không rời máy.</span></div><span class="x-status" data-tone="ok"><span class="m-dot" data-tone="ok"></span>Đã có token</span></div>
+                  <div class="x-row" data-align="top"><div class="x-copy"><span class="x-label">Token đang dùng</span></div>
+                    <div class="x-below"><div class="x-token"><span class="callout" style="--x: -12px; --y: -10px">2</span><div class="x-token-copy"><span class="m-strong">Laptop công ty</span><span class="m-muted">Còn 4 ngày (29/10/2026)</span></div><span class="m-btn" data-size="md">↻ Tạo lại</span><span class="m-btn" data-size="md" data-icon data-tone="danger">🗑</span></div></div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — popover cấu hình</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.cap{margin:0;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#55555C}
+.pop{background:#FFFFFF;border:1px solid #E2E2E7;border-radius:16px;box-shadow:0 16px 40px rgba(28,28,31,0.14);display:flex;flex-direction:column;overflow:hidden}
+.ph{display:flex;align-items:flex-start;gap:10px;padding:14px 14px 12px 16px;border-bottom:1px solid #EFEFF2}
+.pt{margin:0;font-size:15px;font-weight:600}
+.pd{margin:2px 0 0;font-size:12px;color:#55555C;line-height:1.45}
+.x{width:28px;height:28px;border-radius:7px;border:0;background:transparent;color:#55555C;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.sec{padding:12px 16px;display:flex;flex-direction:column;gap:10px}
+.sec + .sec{border-top:1px solid #EFEFF2}
+.sh{margin:0;font-size:12px;font-weight:600;color:#55555C}
+.seg{display:inline-flex;padding:2px;border-radius:9px;background:#EDEDF0;gap:2px;align-self:flex-start}
+.seg button{height:28px;padding:0 10px;border-radius:7px;border:0;background:transparent;color:#3A3A40;font:500 13px Inter,sans-serif}
+.seg button[aria-pressed="true"]{background:#FFFFFF;color:#1C1C1F;box-shadow:0 1px 2px rgba(28,28,31,0.1)}
+.opt{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;font-size:14px;color:#1C1C1F}
+.opt[aria-checked="true"]{background:#E8F0FC;color:#0A58C2;font-weight:600}
+.mono{font-family:"JetBrains Mono",monospace;font-size:12px}
+.btn{height:32px;padding:0 12px;border-radius:8px;border:1px solid #D6D6DC;background:#FFFFFF;color:#1C1C1F;font:500 13px Inter,sans-serif;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-primary{border:0;background:#0A63D6;color:#FFFFFF}
+.chip{height:30px;padding:0 12px;border-radius:999px;border:1px solid #D6D6DC;background:#FFFFFF;font:500 13px Inter,sans-serif;color:#1C1C1F}
+.chip[aria-pressed="true"]{background:#E8F0FC;border-color:#C9D8F2;color:#0A58C2}
+.sw{width:36px;height:22px;border-radius:999px;border:0;padding:2px;display:inline-flex;flex:0 0 auto}
+.sw span{width:18px;height:18px;border-radius:999px;background:#FFFFFF;box-shadow:0 1px 2px rgba(0,0,0,0.2)}
+.row{display:flex;align-items:center;gap:10px;font-size:14px}
+.dot{width:26px;height:26px;border-radius:99px;border:2px solid transparent;padding:0}
+.dot[aria-checked="true"]{box-shadow:0 0 0 2px #FFFFFF,0 0 0 4px #1C1C1F}
+select{height:32px;padding:0 10px;border-radius:8px;border:1px solid #D6D6DC;background:#FFFFFF;font:400 13px Inter,sans-serif;color:#1C1C1F}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1300px; box-sizing: border-box; padding: 56px 48px; background: #F4F4F6; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px 32px; align-content: start">
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Chọn model · Chat, Từ điển, Dịch nhanh</p>
+    <section class="pop" role="dialog" aria-labelledby="p1">
+      <div class="ph"><div style="flex: 1"><h2 id="p1" class="pt">Model</h2><p class="pd">Áp dụng cho cuộc trò chuyện này.</p></div><button type="button" class="x" aria-label="Đóng"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+      <div class="sec">
+        <div class="seg" role="group" aria-label="Nhà cung cấp"><button type="button" aria-pressed="true">Local</button><button type="button" aria-pressed="false">Claude</button><button type="button" aria-pressed="false">OpenAI</button><button type="button" aria-pressed="false">Gemini</button></div>
+        <div role="radiogroup" aria-label="Model" style="display: flex; flex-direction: column; gap: 2px">
+          <div class="opt" role="radio" aria-checked="false" tabindex="0"><span style="flex: 1">Tự chọn</span><span style="font-size: 12px; color: #55555C">theo máy</span></div>
+          <div class="opt" role="radio" aria-checked="true" tabindex="-1"><span class="mono" style="flex: 1">qwen3:4b</span><span style="font-size: 12px">Đã tải</span></div>
+          <div class="opt" role="radio" aria-checked="false" tabindex="-1"><span class="mono" style="flex: 1">gemma3:4b</span><button type="button" class="btn" style="height: 26px">Tải về</button></div>
+        </div>
+      </div>
+      <div class="sec">
+        <label for="mid" class="sh">Model ID khác (nâng cao)</label>
+        <input id="mid" placeholder="ví dụ: [model-id]" style="height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid #D6D6DC; font: 400 13px 'JetBrains Mono', monospace">
+      </div>
+      <div class="sec">
+        <label for="preset" class="sh">Lời nhắc hệ thống</label>
+        <select id="preset"><option>[Preset mặc định]</option></select>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Tác vụ Chat</p>
+    <section class="pop" role="dialog" aria-labelledby="p2">
+      <div class="ph"><div style="flex: 1"><h2 id="p2" class="pt">Tác vụ</h2><p class="pd">Lưu theo cuộc trò chuyện, dùng cho tin nhắn tiếp theo.</p></div><button type="button" class="x" aria-label="Đóng"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+      <div class="sec">
+        <div role="group" aria-label="Tác vụ" style="display: flex; flex-wrap: wrap; gap: 6px">
+          <button type="button" class="chip" aria-pressed="false">Chat</button>
+          <button type="button" class="chip" aria-pressed="false">Dịch</button>
+          <button type="button" class="chip" aria-pressed="true">Nghiên cứu</button>
+          <button type="button" class="chip" aria-pressed="false">Giải thích</button>
+          <button type="button" class="chip" aria-pressed="false">Viết</button>
+          <button type="button" class="chip" aria-pressed="false">Tạo ảnh</button>
+        </div>
+      </div>
+      <div class="sec">
+        <p class="sh">Mức nghiên cứu</p>
+        <div role="radiogroup" aria-label="Mức nghiên cứu" style="display: flex; flex-direction: column; gap: 2px">
+          <div class="opt" role="radio" aria-checked="true" tabindex="0"><span style="flex: 1">Tổng quan nhanh</span><span style="font-size: 12px">vài nguồn</span></div>
+          <div class="opt" role="radio" aria-checked="false" tabindex="-1"><span style="flex: 1">Chuyên sâu</span><span style="font-size: 12px; color: #55555C">nhiều bước, tiếp tục được</span></div>
+        </div>
+      </div>
+      <div class="sec">
+        <p class="sh">Hướng dẫn gửi kèm</p>
+        <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #3A3A40; background: #F7F7F9; border-radius: 8px; padding: 10px">Nghiên cứu chủ đề sau. Tóm tắt phát hiện chính, phân biệt bằng chứng với điều chưa chắc chắn và dẫn nguồn nếu có.</p>
+        <div style="display: flex; gap: 8px; justify-content: flex-end"><button type="button" class="btn">Bỏ</button><button type="button" class="btn btn-primary">Áp dụng</button></div>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Tuỳ chọn Dịch</p>
+    <section class="pop" role="dialog" aria-labelledby="p3">
+      <div class="ph"><div style="flex: 1"><h2 id="p3" class="pt">Tuỳ chọn dịch</h2><p class="pd">Áp dụng cho trang Dịch.</p></div><button type="button" class="x" aria-label="Đóng"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+      <div class="sec"><label for="style" class="sh">Phong cách</label><select id="style"><option>Trang trọng</option><option>Chung</option><option>Tự nhiên</option><option>Thân mật</option><option>Kinh doanh</option><option>Kỹ thuật</option></select></div>
+      <div class="sec"><p class="sh">Mức suy luận</p><div class="seg" role="group" aria-label="Mức suy luận"><button type="button" aria-pressed="true">Tự động</button><button type="button" aria-pressed="false">Thấp</button><button type="button" aria-pressed="false">Vừa</button><button type="button" aria-pressed="false">Cao</button></div></div>
+      <div class="sec"><p class="sh">Phiên âm</p><div class="seg" role="group" aria-label="Phiên âm"><button type="button" aria-pressed="false">Tắt</button><button type="button" aria-pressed="true">Chuẩn</button><button type="button" aria-pressed="false">Chép âm</button></div></div>
+      <div class="sec">
+        <div class="row"><span style="flex: 1">Dịch tự động khi gõ</span><button type="button" class="sw" role="switch" aria-checked="true" aria-label="Dịch tự động" style="background: #0A63D6; justify-content: flex-end"><span></span></button></div>
+        <div class="row"><span style="flex: 1">So sánh model</span><button type="button" class="btn" aria-haspopup="dialog">2 model · Sửa</button></div>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Chọn model để so sánh</p>
+    <section class="pop" role="dialog" aria-labelledby="p4">
+      <div class="ph"><div style="flex: 1"><h2 id="p4" class="pt">So sánh tối đa 3 model</h2><p class="pd">Đã chọn 2 / 3. Mỗi model dịch song song.</p></div><button type="button" class="x" aria-label="Đóng"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+      <div class="sec" style="gap: 4px">
+        <label class="opt" style="background: #E8F0FC"><input type="checkbox" checked><span style="flex: 1">Claude</span><span class="mono" style="color: #55555C">[model]</span></label>
+        <label class="opt" style="background: #E8F0FC"><input type="checkbox" checked><span style="flex: 1">Local</span><span class="mono" style="color: #55555C">qwen3:4b</span></label>
+        <label class="opt"><input type="checkbox"><span style="flex: 1">Gemini</span><span class="mono" style="color: #55555C">[model]</span></label>
+        <label class="opt" style="color: #8E8E96"><input type="checkbox" disabled><span style="flex: 1">OpenAI</span><span style="font-size: 12px">chưa có khoá</span></label>
+      </div>
+      <div class="sec"><div style="display: flex; gap: 8px; justify-content: flex-end"><button type="button" class="btn">Huỷ</button><button type="button" class="btn btn-primary">Áp dụng</button></div></div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Phiên dịch · model và phụ đề</p>
+    <section class="pop" role="dialog" aria-labelledby="p5">
+      <div class="ph"><div style="flex: 1"><h2 id="p5" class="pt">Tuỳ chọn phiên dịch</h2><p class="pd">Đổi được cả khi phiên đang chạy.</p></div><button type="button" class="x" aria-label="Đóng"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+      <div class="sec"><label for="imodel" class="sh">Model dịch</label><select id="imodel"><option>Local · qwen3:4b</option></select></div>
+      <div class="sec">
+        <p class="sh">Phụ đề nổi</p>
+        <div class="row"><span style="width: 80px; font-size: 13px; color: #3A3A40">Cỡ chữ</span><div class="seg" role="group" aria-label="Cỡ chữ phụ đề"><button type="button" aria-pressed="false">Nhỏ</button><button type="button" aria-pressed="true">Vừa</button><button type="button" aria-pressed="false">Lớn</button></div></div>
+        <div class="row"><span style="width: 80px; font-size: 13px; color: #3A3A40">Màu chữ</span>
+          <div role="radiogroup" aria-label="Màu chữ phụ đề" style="display: flex; gap: 8px">
+            <button type="button" class="dot" role="radio" aria-checked="false" aria-label="Trắng" style="background: #FFFFFF; border-color: #D6D6DC"></button>
+            <button type="button" class="dot" role="radio" aria-checked="true" aria-label="Vàng" style="background: #FFE27A"></button>
+            <button type="button" class="dot" role="radio" aria-checked="false" aria-label="Xanh lơ" style="background: #7FE3F0"></button>
+            <button type="button" class="dot" role="radio" aria-checked="false" aria-label="Xanh lá" style="background: #8BE38F"></button>
+            <button type="button" class="dot" role="radio" aria-checked="false" aria-label="Hồng" style="background: #F7A6CF"></button>
+            <button type="button" class="dot" role="radio" aria-checked="false" aria-label="Cam" style="background: #FFB574"></button>
+          </div>
+        </div>
+        <div class="row"><label for="op" style="width: 80px; font-size: 13px; color: #3A3A40">Độ mờ nền</label><input id="op" type="range" min="0" max="100" value="78" style="flex: 1"><span style="width: 36px; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums">78%</span></div>
+        <div style="border-radius: 10px; background: #2A2A2E; padding: 10px; text-align: center"><span style="font-size: 15px; font-weight: 600; color: #FFE27A">[Xem trước phụ đề]</span></div>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Nhiệt độ · nhận diện và thanh menu</p>
+    <section class="pop" role="dialog" aria-labelledby="p6">
+      <div class="ph"><div style="flex: 1"><h2 id="p6" class="pt">Tuỳ chọn nhiệt độ</h2><p class="pd">Nhận diện cảm biến cho quạt và số đo bên ngoài cửa sổ này.</p></div><button type="button" class="x" aria-label="Đóng"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button></div>
+      <div class="sec">
+        <p class="sh">Nhận diện cảm biến</p>
+        <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #3A3A40">Nhận diện lúc [thời gian] · Quạt trái: 74 cảm biến · Quạt phải: 14 cảm biến</p>
+        <div style="display: flex; gap: 8px"><button type="button" class="btn">Nhận diện lại</button><button type="button" class="btn" style="border: 0">Quên kết quả</button></div>
+      </div>
+      <div class="sec">
+        <p class="sh">Thanh menu</p>
+        <div class="row"><span style="flex: 1">Hiện số đo trực tiếp</span><button type="button" class="sw" role="switch" aria-checked="true" aria-label="Hiện số đo trực tiếp" style="background: #0A63D6; justify-content: flex-end"><span></span></button></div>
+        <div class="row"><label for="metric" style="flex: 1">Số đo</label><select id="metric"><option>Cảm biến nóng nhất</option><option>CPU</option><option>GPU</option></select></div>
+        <div class="row"><span style="flex: 1">Kèm tốc độ quạt</span><button type="button" class="sw" role="switch" aria-checked="true" aria-label="Kèm tốc độ quạt" style="background: #0A63D6; justify-content: flex-end"><span></span></button></div>
+        <div class="row"><span style="flex: 1">Bố cục</span><div class="seg" role="group" aria-label="Bố cục"><button type="button" aria-pressed="false">Một dòng</button><button type="button" aria-pressed="true">Xếp chồng</button></div></div>
+        <div class="row"><span style="flex: 1">Tốc độ quạt</span><div class="seg" role="group" aria-label="Định dạng tốc độ quạt"><button type="button" aria-pressed="false">2374</button><button type="button" aria-pressed="true">2.4k</button></div></div>
+        <div class="row"><span style="flex: 1">Xem trước</span><span style="display: inline-flex; flex-direction: column; align-items: center; justify-content: center; height: 28px; padding: 0 8px; border-radius: 6px; background: #F0F0F3; border: 1px solid #E2E2E7; font-size: 10px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums"><span>58°</span><span>2.4k</span></span></div>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1300}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

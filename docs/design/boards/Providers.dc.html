@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — AI local, khoá, token</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.cap{margin:0;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#55555C}
+.card{background:#FFFFFF;border:1px solid #E2E2E7;border-radius:14px;display:flex;flex-direction:column;overflow:hidden}
+.dlg{background:#FFFFFF;border:1px solid #E2E2E7;border-radius:16px;box-shadow:0 16px 40px rgba(28,28,31,0.14);display:flex;flex-direction:column;overflow:hidden}
+.dh{padding:16px 18px 6px}
+.db{padding:8px 18px 16px;display:flex;flex-direction:column;gap:10px}
+.df{display:flex;gap:8px;justify-content:flex-end;padding:12px 18px;border-top:1px solid #EFEFF2}
+.btn{height:32px;padding:0 12px;border-radius:8px;border:1px solid #D6D6DC;background:#FFFFFF;color:#1C1C1F;font:500 13px Inter,sans-serif;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-primary{border:0;background:#0A63D6;color:#FFFFFF}
+.st{display:flex;align-items:center;gap:10px;font-size:14px}
+.si{width:20px;height:20px;border-radius:99px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;box-sizing:border-box}
+.meta{font-size:12px;color:#6B6B73}
+.lab{font-size:12px;font-weight:600;color:#3A3A40}
+.inp{height:34px;padding:0 10px;border-radius:8px;border:1px solid #D6D6DC;font:400 14px Inter,sans-serif}
+.seg{display:inline-flex;padding:2px;border-radius:9px;background:#EDEDF0;gap:2px;align-self:flex-start}
+.seg button{height:28px;padding:0 12px;border-radius:7px;border:0;background:transparent;color:#3A3A40;font:500 13px Inter,sans-serif}
+.seg button[aria-pressed="true"]{background:#FFFFFF;color:#1C1C1F;box-shadow:0 1px 2px rgba(28,28,31,0.1)}
+.mono{font-family:"JetBrains Mono",monospace}
+th,td{padding:10px 12px;text-align:left;font-size:13px;border-top:1px solid #EFEFF2}
+th{font-weight:600;color:#55555C;font-size:12px}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1000px; box-sizing: border-box; padding: 56px 48px; background: #F4F4F6; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 32px; align-content: start">
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Cài AI local · đang tải</p>
+    <section class="card" aria-label="Cài AI local" style="padding: 18px; gap: 14px">
+      <div style="display: flex; align-items: center; gap: 10px"><h2 style="margin: 0; flex: 1; font-size: 15px; font-weight: 600">Đang cài AI local</h2><button type="button" class="btn" style="height: 28px">Chạy nền</button></div>
+      <div class="st"><span class="si" style="background: #1E7F45; color: #FFFFFF"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></span><span style="flex: 1">Tải Ollama</span><span class="meta">xong</span></div>
+      <div class="st"><span class="si" style="background: #1E7F45; color: #FFFFFF"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg></span><span style="flex: 1">Khởi động dịch vụ</span><span class="meta">xong</span></div>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div class="st"><span class="si" style="border: 2px solid #C9D8F2; border-top-color: #0A63D6"></span><span style="flex: 1; font-weight: 500">Tải model <span class="mono" style="font-size: 13px">qwen3:4b</span></span><span class="meta" style="font-variant-numeric: tabular-nums">54% · [đã tải] / [tổng]</span></div>
+        <div role="progressbar" aria-label="Tiến độ tải model" aria-valuemin="0" aria-valuemax="100" aria-valuenow="54" style="height: 6px; border-radius: 99px; background: #E6E6EB; overflow: hidden; margin-left: 30px"><span style="display: block; width: 54%; height: 100%; background: #0A63D6"></span></div>
+      </div>
+      <div class="st" style="color: #6B6B73"><span class="si" style="border: 2px solid #D6D6DC"></span><span style="flex: 1">Đo hiệu năng lần đầu</span></div>
+      <p class="meta" style="margin: 0">Bạn có thể dùng Viezan với khoá đám mây trong lúc chờ.</p>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Hiệu năng AI local · so sánh chế độ</p>
+    <section class="card" aria-label="Hiệu năng AI local">
+      <div style="padding: 16px 18px 10px; display: flex; align-items: center; gap: 10px"><h2 style="margin: 0; flex: 1; font-size: 15px; font-weight: 600">Hiệu năng trên máy này</h2><button type="button" class="btn" style="height: 28px">Đo lại</button></div>
+      <table style="border-collapse: collapse; width: 100%">
+        <thead><tr><th scope="col">Chế độ</th><th scope="col">Tốc độ sinh</th><th scope="col">Chữ đầu tiên</th><th scope="col">Bộ nhớ</th></tr></thead>
+        <tbody>
+          <tr style="background: #F7FAFF"><td><span style="font-weight: 600">GPU</span> <span style="font-size: 11px; font-weight: 600; color: #0A58C2; background: #E8F0FC; padding: 2px 6px; border-radius: 6px">đang dùng</span></td><td style="font-variant-numeric: tabular-nums">[số] token/s</td><td style="font-variant-numeric: tabular-nums">[số] ms</td><td style="font-variant-numeric: tabular-nums">[số] GB</td></tr>
+          <tr><td style="font-weight: 600">Kết hợp CPU + GPU</td><td style="font-variant-numeric: tabular-nums">[số] token/s</td><td style="font-variant-numeric: tabular-nums">[số] ms</td><td style="font-variant-numeric: tabular-nums">[số] GB</td></tr>
+        </tbody>
+      </table>
+      <div style="padding: 12px 18px; border-top: 1px solid #EFEFF2; display: flex; align-items: center; gap: 10px"><span style="flex: 1; font-size: 13px; color: #3A3A40">Viezan chọn chế độ nhanh hơn trên máy này.</span><div class="seg" role="group" aria-label="Chế độ chạy"><button type="button" aria-pressed="true">Tự động</button><button type="button" aria-pressed="false">GPU</button><button type="button" aria-pressed="false">Kết hợp</button></div></div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Khoá API · thêm hoặc sửa</p>
+    <section class="dlg" role="dialog" aria-labelledby="k1">
+      <div class="dh"><h2 id="k1" style="margin: 0; font-size: 17px; font-weight: 600">Khoá Claude</h2><p class="meta" style="margin: 4px 0 0; font-size: 13px">Lưu trong Keychain của hệ điều hành, không rời máy này.</p></div>
+      <div class="db">
+        <label for="key" class="lab">Khoá API</label>
+        <div style="display: flex; gap: 8px"><input id="key" type="password" value="••••••••••••••••••••" class="inp" style="flex: 1; font-family: 'JetBrains Mono', monospace"><button type="button" class="btn" aria-label="Hiện khoá">Hiện</button></div>
+        <div role="status" style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1E7F45"><span style="width: 8px; height: 8px; border-radius: 99px; background: #1E7F45"></span>Khoá hợp lệ · đã thử với [model]</div>
+        <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 10px 12px; border-radius: 10px; background: #F7F7F9"><span>Chi phí tháng này</span><span style="font-weight: 600; font-variant-numeric: tabular-nums">[số tiền]</span></div>
+        <a href="#" style="font-size: 13px; color: #0A58C2">Lấy khoá ở đâu?</a>
+      </div>
+      <div class="df"><button type="button" class="btn" style="border-color: #F0C4C7; color: #B01F29">Xoá khoá</button><span style="flex: 1"></span><button type="button" class="btn">Huỷ</button><button type="button" class="btn btn-primary">Lưu</button></div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Token cho tiện ích Chrome · tạo và hiện một lần</p>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+      <section class="dlg" role="dialog" aria-labelledby="t1">
+        <div class="dh"><h2 id="t1" style="margin: 0; font-size: 16px; font-weight: 600">Tạo token</h2></div>
+        <div class="db">
+          <label for="tn" class="lab">Tên</label>
+          <input id="tn" class="inp" value="Chrome trên máy này">
+          <span class="lab">Hết hạn sau</span>
+          <div class="seg" role="group" aria-label="Thời hạn token"><button type="button" aria-pressed="false">7</button><button type="button" aria-pressed="true">30</button><button type="button" aria-pressed="false">90</button><button type="button" aria-pressed="false">365</button></div>
+          <span class="meta">ngày</span>
+        </div>
+        <div class="df"><button type="button" class="btn">Huỷ</button><button type="button" class="btn btn-primary">Tạo</button></div>
+      </section>
+      <section class="dlg" role="dialog" aria-labelledby="t2">
+        <div class="dh"><h2 id="t2" style="margin: 0; font-size: 16px; font-weight: 600">Đã tạo token</h2></div>
+        <div class="db">
+          <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #3A3A40">Dán token này vào tiện ích Chrome. Viezan chỉ hiện nó một lần.</p>
+          <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: #F7F7F9; border: 1px solid #E2E2E7"><span class="mono" style="flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">sk-vie-[token]</span><button type="button" class="btn" style="height: 28px">Sao chép</button></div>
+          <div style="border-radius: 10px; background: #FBF1E2; padding: 10px 12px; font-size: 12px; line-height: 1.5; color: #5C3500">Ai có token này dùng được khoá AI của bạn qua máy này. Thu hồi nếu lộ.</div>
+        </div>
+        <div class="df"><button type="button" class="btn btn-primary">Xong</button></div>
+      </section>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

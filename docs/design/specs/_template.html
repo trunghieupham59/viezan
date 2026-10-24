@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Viezan — [Tên màn hình]: đặc tả chi tiết</title>
+  <!-- Real design values first, then the board layout. Never add literal colours here. -->
+  <link rel="stylesheet" href="../../../src/styles/tokens.css">
+  <link rel="stylesheet" href="board.css">
+</head>
+<body class="board">
+  <header class="board-header">
+    <h1>[Tên màn hình]</h1>
+    <p>[Một câu: màn hình này dùng để làm gì, ai dùng, khi nào.] Đặc tả đầy đủ: <a href="../screens/[file].md">screens/[file].md</a>.</p>
+    <nav class="board-nav" aria-label="Kịch bản">
+      <a href="#default">Mặc định</a>
+      <a href="#empty">Trống</a>
+      <a href="#loading">Đang tải</a>
+      <a href="#error">Lỗi</a>
+      <a href="#narrow">Cửa sổ hẹp</a>
+      <a href="#dark">Chế độ tối</a>
+    </nav>
+  </header>
+
+  <!-- One <section class="scenario"> per state or interaction. -->
+  <section class="scenario" id="default">
+    <div class="scenario-copy">
+      <h2>Mặc định</h2>
+      <p>[Người dùng thấy gì khi vừa mở màn hình.]</p>
+      <ol>
+        <li><span class="ref">1</span>[Vùng/nút 1: làm gì, kết quả.]</li>
+        <li><span class="ref">2</span>[Vùng/nút 2.]</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 760 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 760px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="m-nav" aria-current="page">Trang chủ</div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header"><h3>[Tiêu đề]</h3><span class="m-spacer"></span><span class="m-btn" data-tone="primary">[Hành động chính]</span></div>
+              <div class="m-content">
+                <div class="m-card"><div class="m-card-head">[Thẻ]</div><div class="m-row">[Hàng]</div></div>
+              </div>
+            </main>
+          </div>
+          <span class="callout" style="--x: 1080px; --y: 52px">1</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>

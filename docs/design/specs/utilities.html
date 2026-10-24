@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Viezan — Launcher &amp; phím tắt: đặc tả chi tiết</title>
+  <!-- Real design values first, then the board layout. Never add literal colours here. -->
+  <link rel="stylesheet" href="../../../src/styles/tokens.css">
+  <link rel="stylesheet" href="board.css">
+  <style>
+    /* Screen-specific mock classes: every value is a token. */
+    .x-pin { position: relative; }
+    .x-body { padding: var(--vzn-space-4); gap: var(--vzn-space-4); }
+    .x-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(var(--vzn-system-card-min), 100%), 1fr)); align-items: start; gap: var(--vzn-space-4); }
+    .x-head { display: flex; align-items: flex-start; gap: var(--vzn-space-3); padding: var(--vzn-space-4); border-bottom: var(--vzn-border-width) solid var(--vzn-divider); }
+    .x-head-copy { display: flex; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-1); min-inline-size: 0; }
+    .x-title { color: var(--vzn-text-strong); font-size: var(--vzn-font-size-subtitle); font-weight: var(--vzn-weight-semibold); }
+    .x-row { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--vzn-space-2) var(--vzn-space-3); padding: var(--vzn-space-3) var(--vzn-space-4); }
+    .x-copy { display: flex; flex: 1 1 var(--vzn-settings-row-copy-basis); flex-direction: column; gap: var(--vzn-space-0-5); min-inline-size: 0; }
+    .x-label { color: var(--vzn-text-strong); font-size: var(--vzn-font-size-lg); }
+    .x-ctrl { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--vzn-space-2); margin-inline-start: auto; }
+    .x-mono-btn { font-family: var(--vzn-font-mono); min-inline-size: var(--vzn-settings-select-min); }
+    .x-notice-wrap { padding: 0 var(--vzn-space-4) var(--vzn-space-3); }
+    .x-notice { position: relative; flex-wrap: wrap; align-items: flex-start; }
+    .x-notice-info { border-color: var(--vzn-action-border); background: var(--vzn-action-soft); }
+    .x-notice-copy { display: flex; flex: 1 1 100%; flex-direction: column; gap: var(--vzn-space-0-5); }
+    .x-notice-actions { display: flex; flex-wrap: wrap; gap: var(--vzn-space-2); }
+    .x-list { display: flex; flex-direction: column; padding: 0 var(--vzn-space-4); }
+    .x-sc { position: relative; display: flex; min-block-size: var(--vzn-control-height-lg); align-items: center; gap: var(--vzn-space-3); padding-block: var(--vzn-space-2); border-top: var(--vzn-border-width) solid var(--vzn-divider); }
+    .x-sc:first-child { border-top: 0; }
+    .x-sc-copy { display: flex; flex: 1 1 auto; flex-direction: column; gap: var(--vzn-space-0-5); min-inline-size: 0; }
+    .x-sc-label { color: var(--vzn-text-strong); font-weight: var(--vzn-weight-medium); }
+    .x-sc[data-inactive] .m-kbd { opacity: var(--vzn-opacity-disabled); }
+    .x-chip { display: inline-flex; align-items: center; gap: var(--vzn-space-1); padding: 0 var(--vzn-space-1-5); border: var(--vzn-border-width) solid var(--vzn-warning-border); border-radius: var(--vzn-radius-pill); background: var(--vzn-warning-soft); color: var(--vzn-warning); font-size: var(--vzn-font-size-caption); font-weight: var(--vzn-weight-semibold); }
+    .x-ico { display: inline-block; inline-size: var(--vzn-icon-md); block-size: var(--vzn-icon-md); border: var(--vzn-border-width) solid var(--vzn-chrome-fg-soft); border-radius: var(--vzn-radius-2xs); }
+    .x-dialog { position: absolute; inset-block-start: var(--y); inset-inline-start: var(--x); z-index: var(--vzn-layer-modal); display: flex; inline-size: calc(var(--vzn-system-card-min) + var(--vzn-space-12) * 2); flex-direction: column; gap: var(--vzn-space-3); padding: var(--vzn-space-5); border: var(--vzn-border-width) solid var(--vzn-border); border-radius: var(--vzn-radius-lg); background: var(--vzn-surface-raised); box-shadow: var(--vzn-shadow-overlay); }
+    .x-dialog h4 { margin: 0; color: var(--vzn-text-strong); font-size: var(--vzn-font-size-subtitle); font-weight: var(--vzn-weight-semibold); }
+    .x-dialog p { margin: 0; color: var(--vzn-text-muted); font-size: var(--vzn-font-size-sm); }
+    .x-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--vzn-space-2); }
+    .x-toasts { position: absolute; inset-block-end: var(--vzn-space-4); inset-inline-end: var(--vzn-space-4); z-index: var(--vzn-layer-notification); display: flex; flex-direction: column; align-items: flex-end; gap: var(--vzn-space-2); }
+    .x-toasts .m-toast { position: relative; flex-wrap: wrap; max-inline-size: var(--vzn-system-card-min); }
+  </style>
+</head>
+<body class="board">
+  <header class="board-header">
+    <h1>Launcher &amp; phím tắt</h1>
+    <p>Nơi đặt phím mở Launcher và xem mọi phím tắt Viezan trong một danh sách, có cảnh báo trùng. Trên macOS, trang giải quyết xung đột với Spotlight. Đặc tả đầy đủ: <a href="../screens/utilities.md">screens/utilities.md</a>. Cửa sổ Launcher: <a href="launcher.html">specs/launcher.html</a>.</p>
+    <nav class="board-nav" aria-label="Kịch bản">
+      <a href="#default">Mặc định</a>
+      <a href="#recording">Ghi phím</a>
+      <a href="#system-conflict">Spotlight giữ phím</a>
+      <a href="#spotlight-prompt">Lần đầu: thay Spotlight</a>
+      <a href="#replaced">Đã thay Spotlight</a>
+      <a href="#app-conflict">Trùng trong app · module tắt</a>
+      <a href="#narrow">Cửa sổ hẹp</a>
+      <a href="#dark">Chế độ tối</a>
+    </nav>
+  </header>
+
+  <!-- 1. Default --------------------------------------------------------- -->
+  <section class="scenario" id="default">
+    <div class="scenario-copy">
+      <h2>Mặc định</h2>
+      <p>Hai thẻ cạnh nhau (mỗi thẻ ≥ 420 px), căn trên. Launcher bật trên ⌥Space, không có xung đột.</p>
+      <ol>
+        <li><span class="ref">1</span>Công tắc Launcher (role="switch"); lỗi đăng ký → toast "Phím tắt đang được sử dụng…" và trở về giá trị main giữ.</li>
+        <li><span class="ref">2</span>✕ xoá phím (sm · danger · ghost) và tắt công tắc; ô ghi phím (md · neutral · outline).</li>
+        <li><span class="ref">3</span>Danh sách chỉ đọc: tên, phạm vi (Toàn hệ thống / Trong cửa sổ / Trong ô soạn chat) và phím. Đọc lại khi cửa sổ lấy focus hoặc khi một phím được lưu.</li>
+        <li><span class="ref">4</span>Hàng chưa đặt phím: chữ "Chưa đặt"; phím mờ.</li>
+        <li><span class="ref">5</span>Phím tắt Dịch nhanh hiện ở đây nhưng đổi ở trang Dịch mọi nơi (không có link — xem Chênh lệch).</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 560 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1200px; --h: 560px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="m-nav m-strong">Viezan</div>
+              <div class="m-nav">Trang chủ</div>
+              <div class="m-nav-group">AI</div>
+              <div class="m-nav">AI Chat</div>
+              <div class="m-nav-group">Ngôn ngữ</div>
+              <div class="m-nav">Dịch</div>
+              <div class="m-nav">Dịch mọi nơi</div>
+              <div class="m-nav-group">Tiện ích</div>
+              <div class="m-nav" aria-current="page">Launcher &amp; phím tắt</div>
+              <span class="m-spacer"></span>
+              <div class="m-nav">Phím tắt toàn cục <span class="m-spacer"></span><span class="m-muted">2</span></div>
+              <div class="m-nav">Cài đặt</div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Launcher &amp; phím tắt</h3><span class="m-muted">Mở mọi thứ bằng bàn phím, từ bất cứ đâu</span></div>
+              <div class="m-content x-body">
+                <div class="x-cols">
+                  <div class="m-card">
+                    <div class="x-head">
+                      <div class="x-head-copy"><span class="x-title">Launcher</span><span class="m-muted">Nhấn phím tắt ở bất kỳ đâu để tìm ứng dụng, mở nhanh, tìm web hoặc hỏi AI.</span></div>
+                      <span class="x-pin"><span class="m-toggle" data-on></span><span class="callout" style="--x: -28px; --y: -2px">1</span></span>
+                    </div>
+                    <div class="x-row">
+                      <div class="x-copy"><span class="x-label">Phím tắt</span><span class="m-muted">Nhấp vào ô rồi bấm tổ hợp phím bạn muốn</span></div>
+                      <div class="x-ctrl x-pin"><span class="callout" style="--x: -28px; --y: 6px">2</span><span class="m-btn" data-tone="ghost" data-icon aria-label="Xóa">✕</span><span class="m-btn x-mono-btn" data-size="md">Option+Space</span></div>
+                    </div>
+                  </div>
+                  <div class="m-card">
+                    <div class="x-head"><div class="x-head-copy"><span class="x-title">Tất cả phím tắt</span><span class="m-muted">Một danh sách để thấy mọi phím và tránh trùng.</span></div></div>
+                    <div class="x-list x-pin"><span class="callout" style="--x: -10px; --y: 4px">3</span>
+                      <div class="x-sc"><span class="x-sc-copy"><span class="x-sc-label">Launcher</span><span class="m-muted">Toàn hệ thống</span></span><span class="m-kbd">⌥ Space</span></div>
+                      <div class="x-sc"><span class="callout" style="--x: -24px; --y: 10px">5</span><span class="x-sc-copy"><span class="x-sc-label">Dịch nhanh vùng chọn</span><span class="m-muted">Toàn hệ thống</span></span><span class="m-kbd">⌥ T</span></div>
+                      <div class="x-sc"><span class="x-sc-copy"><span class="x-sc-label">Bảng lệnh</span><span class="m-muted">Trong cửa sổ</span></span><span class="m-kbd">⌘ K</span></div>
+                      <div class="x-sc" data-inactive><span class="callout" style="--x: -24px; --y: 10px">4</span><span class="x-sc-copy"><span class="x-sc-label">Chat mới</span><span class="m-muted">Trong cửa sổ · đang tắt</span></span><span class="m-muted">Chưa đặt</span></div>
+                      <div class="x-sc"><span class="x-sc-copy"><span class="x-sc-label">Gửi tin nhắn</span><span class="m-muted">Trong ô soạn chat</span></span><span class="m-kbd">↵</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Recording ------------------------------------------------------- -->
+  <section class="scenario" id="recording">
+    <div class="scenario-copy">
+      <h2>Ghi phím</h2>
+      <p>Click ô ghi phím: ô chuyển xanh nhạt, ✕ ẩn. Tổ hợp đầu tiên có phím thường được lưu ngay.</p>
+      <ol>
+        <li><span class="ref">1</span>"Bấm phím… (Esc để hủy)" — md · primary · soft. Esc hoặc rời focus huỷ.</li>
+        <li><span class="ref">2</span>Main từ chối (ứng dụng khác giữ phím): toast lỗi, ô quay về phím cũ.</li>
+      </ol>
+      <table class="actions">
+        <thead><tr><th>Mã lỗi từ main</th><th>Toast</th></tr></thead>
+        <tbody>
+          <tr><td>IN_USE, CONFLICT</td><td>Phím tắt đang được sử dụng. Chọn tổ hợp khác hoặc đổi phím ở ứng dụng kia…</td></tr>
+          <tr><td>INVALID, khác</td><td>Không đăng ký được phím tắt. Hãy chọn tổ hợp khác.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Thẻ Launcher · 560 × 300 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 560px; --h: 300px">
+          <div class="m-content x-body">
+            <div class="m-card">
+              <div class="x-head"><div class="x-head-copy"><span class="x-title">Launcher</span><span class="m-muted">Nhấn phím tắt ở bất kỳ đâu để tìm ứng dụng, mở nhanh, tìm web hoặc hỏi AI.</span></div><span class="m-toggle" data-on></span></div>
+              <div class="x-row"><div class="x-copy"><span class="x-label">Phím tắt</span><span class="m-muted">Nhấp vào ô rồi bấm tổ hợp phím bạn muốn</span></div><div class="x-ctrl x-pin"><span class="callout" style="--x: -28px; --y: 6px">1</span><span class="m-btn x-mono-btn" data-size="md" data-tone="soft">Bấm phím… (Esc để hủy)</span></div></div>
+            </div>
+          </div>
+          <div class="x-toasts"><div class="m-toast"><span class="m-dot" data-tone="danger"></span>Phím tắt đang được sử dụng. Chọn tổ hợp khác…<span class="callout" style="--x: -12px; --y: -12px">2</span></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. System conflict ------------------------------------------------- -->
+  <section class="scenario" id="system-conflict">
+    <div class="scenario-copy">
+      <h2>Spotlight đang giữ ⌘Space (macOS)</h2>
+      <p>Launcher bật trên ⌘Space nhưng macOS xử lý phím trước. Thẻ hiện thông báo vàng; lúc khởi động có thêm toast một lần.</p>
+      <ol>
+        <li><span class="ref">1</span>CapabilityNotice warning "{owner} đang giữ {hotkey}" + giải thích đường dẫn trong Cài đặt hệ thống.</li>
+        <li><span class="ref">2</span>"Tắt phím tắt Spotlight" (md · primary · solid, chỉ khi chủ là Spotlight) → toast success, hoặc warning không tự tắt nếu cần đăng xuất.</li>
+        <li><span class="ref">3</span>"Mở Cài đặt hệ thống" (md · primary · outline) → Bàn phím › Phím tắt. Quay lại cửa sổ thì kiểm tra lại.</li>
+        <li><span class="ref">4</span>"Dùng Option+Space thay thế" (md · neutral · outline); ẩn nếu phím đã là ⌥Space.</li>
+        <li><span class="ref">5</span>Toast khởi động (LauncherShortcutNotice): không tự tắt, nút "Xem cách khắc phục" đưa về trang này.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Thẻ Launcher · 640 × 460 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 640px; --h: 460px">
+          <div class="m-content x-body">
+            <div class="m-card">
+              <div class="x-head"><div class="x-head-copy"><span class="x-title">Launcher</span><span class="m-muted">Nhấn phím tắt ở bất kỳ đâu để tìm ứng dụng, mở nhanh, tìm web hoặc hỏi AI.</span></div><span class="m-toggle" data-on></span></div>
+              <div class="x-row"><div class="x-copy"><span class="x-label">Phím tắt</span><span class="m-muted">Nhấp vào ô rồi bấm tổ hợp phím bạn muốn</span></div><div class="x-ctrl"><span class="m-btn" data-tone="ghost" data-icon aria-label="Xóa">✕</span><span class="m-btn x-mono-btn" data-size="md">Command+Space</span></div></div>
+              <div class="x-notice-wrap">
+                <div class="m-notice x-notice"><span class="callout" style="--x: -12px; --y: -12px">1</span>
+                  <span class="x-notice-copy"><span class="m-strong">Spotlight đang giữ Command+Space</span><span class="m-muted">macOS xử lý phím tắt này trước, nên Launcher sẽ không mở được bằng nó. Hãy tắt phím tắt hệ thống trong Cài đặt hệ thống &gt; Bàn phím &gt; Phím tắt bàn phím &gt; Spotlight, hoặc dùng tổ hợp khác.</span></span>
+                  <span class="x-notice-actions">
+                    <span class="x-pin"><span class="m-btn" data-size="md" data-tone="primary">Tắt phím tắt Spotlight</span><span class="callout" style="--x: -12px; --y: -12px">2</span></span>
+                    <span class="x-pin"><span class="m-btn" data-size="md" data-tone="soft">Mở Cài đặt hệ thống</span><span class="callout" style="--x: -12px; --y: -12px">3</span></span>
+                    <span class="x-pin"><span class="m-btn" data-size="md">Dùng Option+Space thay thế</span><span class="callout" style="--x: -12px; --y: -12px">4</span></span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Toast khởi động · 560 × 300 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 560px; --h: 300px">
+          <div class="m-content x-body"><div class="m-card"><div class="x-row"><span class="m-muted">(trang bất kỳ)</span></div></div></div>
+          <div class="x-toasts"><div class="m-toast"><span class="callout" style="--x: -12px; --y: -12px">5</span><span class="m-dot" data-tone="warning"></span><span>Spotlight đang giữ phím tắt Launcher Command+Space, nên Viezan không mở được bằng phím này.</span><span class="m-btn" data-size="xs" data-tone="ghost">Xem cách khắc phục</span></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Spotlight prompt ------------------------------------------------ -->
+  <section class="scenario" id="spotlight-prompt">
+    <div class="scenario-copy">
+      <h2>Lần đầu: thay Spotlight (macOS)</h2>
+      <p>LauncherSpotlightPrompt mở một lần ở cấp App (không mở khi bảng lệnh đang mở). Hộp thoại modal, bẫy Tab, focus vào nút chính.</p>
+      <ol>
+        <li><span class="ref">1</span>Tiêu đề, mô tả và ghi chú cách quay lại.</li>
+        <li><span class="ref">2</span>"Giữ Spotlight, dùng Option+Space" (md · neutral · outline) — cũng là hành vi của Esc.</li>
+        <li><span class="ref">3</span>"Dùng Command+Space cho Viezan" (md · primary · solid). Lỗi: hộp thoại ở lại, toast lỗi. Cả hai nút disabled khi đang xử lý.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1000 × 560 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1000px; --h: 560px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar"><div class="m-nav m-strong">Viezan</div><div class="m-nav" aria-current="page">Trang chủ</div></nav>
+            <main class="m-main"><div class="m-header"><h3>Trang chủ</h3></div><div class="m-content x-body"><div class="m-card"><div class="x-row"><span class="m-muted">(nội dung)</span></div></div></div></main>
+          </div>
+          <div class="m-scrim"></div>
+          <div class="x-dialog" role="dialog" style="--x: 242px; --y: 120px">
+            <span class="callout" style="--x: -12px; --y: -12px">1</span>
+            <h4>Dùng Command+Space cho Viezan Launcher?</h4>
+            <p>macOS đang mở Spotlight bằng Command+Space. Nếu đồng ý, Viezan sẽ tắt phím tắt Spotlight trong cài đặt bàn phím macOS của bạn và mở Viezan Launcher bằng Command+Space thay thế.</p>
+            <p>Bạn có thể bật lại phím tắt Spotlight bất cứ lúc nào trong Cài đặt &gt; Phím tắt. Nếu giữ Spotlight, Launcher sẽ dùng Option+Space.</p>
+            <div class="x-dialog-actions">
+              <span class="x-pin"><span class="m-btn" data-size="md">Giữ Spotlight, dùng Option+Space</span><span class="callout" style="--x: -12px; --y: -12px">2</span></span>
+              <span class="x-pin"><span class="m-btn" data-size="md" data-tone="primary">Dùng Command+Space cho Viezan</span><span class="callout" style="--x: -12px; --y: -12px">3</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Replaced -------------------------------------------------------- -->
+  <section class="scenario" id="replaced">
+    <div class="scenario-copy">
+      <h2>Đã thay Spotlight</h2>
+      <p>Viezan đã tắt ⌘Space của Spotlight (detail.disabledByViezan). Thẻ giữ một đường quay lại.</p>
+      <ol>
+        <li><span class="ref">1</span>CapabilityNotice info "Phím tắt Spotlight của macOS" + giải thích hậu quả.</li>
+        <li><span class="ref">2</span>"Khôi phục phím tắt Spotlight" (md · neutral · outline) → toast "Đã bật lại phím tắt Spotlight."; nếu Launcher vẫn dùng ⌘Space thì thông báo xung đột vàng quay lại.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Thẻ Launcher · 640 × 340 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 640px; --h: 340px">
+          <div class="m-content x-body">
+            <div class="m-card">
+              <div class="x-head"><div class="x-head-copy"><span class="x-title">Launcher</span><span class="m-muted">Nhấn phím tắt ở bất kỳ đâu để tìm ứng dụng, mở nhanh, tìm web hoặc hỏi AI.</span></div><span class="m-toggle" data-on></span></div>
+              <div class="x-row"><div class="x-copy"><span class="x-label">Phím tắt</span></div><div class="x-ctrl"><span class="m-btn" data-tone="ghost" data-icon aria-label="Xóa">✕</span><span class="m-btn x-mono-btn" data-size="md">Command+Space</span></div></div>
+              <div class="x-notice-wrap">
+                <div class="m-notice x-notice x-notice-info"><span class="callout" style="--x: -12px; --y: -12px">1</span>
+                  <span class="x-notice-copy"><span class="m-strong">Phím tắt Spotlight của macOS</span><span class="m-muted">Viezan đã tắt Command+Space của Spotlight. Khôi phục sẽ trả phím tắt này cho Spotlight; khi đó Launcher cần tổ hợp khác.</span></span>
+                  <span class="x-pin"><span class="m-btn" data-size="md">Khôi phục phím tắt Spotlight</span><span class="callout" style="--x: -12px; --y: -12px">2</span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. App conflict + module off -------------------------------------- -->
+  <section class="scenario" id="app-conflict">
+    <div class="scenario-copy">
+      <h2>Trùng trong app · module Launcher tắt</h2>
+      <p>Trái: Launcher và Dịch nhanh cùng ⌥T, cả hai đang bật. Phải: module Launcher tắt.</p>
+      <ol>
+        <li><span class="ref">1</span>Chip vàng "Trùng phím" trên cả hai hàng — có chữ, không chỉ màu. Phím trong ô soạn chat không bao giờ tính trùng.</li>
+        <li><span class="ref">2</span>Module Launcher tắt: notice info "Module Launcher đang tắt" + "Bật" (md · primary · solid). Phím vẫn được lưu.</li>
+        <li><span class="ref">3</span>Hàng Launcher biến mất khỏi "Tất cả phím tắt" khi module tắt.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">Tất cả phím tắt · 560 × 300 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 560px; --h: 300px">
+          <div class="m-content x-body">
+            <div class="m-card">
+              <div class="x-head"><div class="x-head-copy"><span class="x-title">Tất cả phím tắt</span></div></div>
+              <div class="x-list">
+                <div class="x-sc"><span class="x-sc-copy"><span class="x-sc-label">Launcher</span><span class="m-muted">Toàn hệ thống</span></span><span class="x-pin"><span class="x-chip">⚠ Trùng phím</span><span class="callout" style="--x: -24px; --y: -2px">1</span></span><span class="m-kbd">⌥ T</span></div>
+                <div class="x-sc"><span class="x-sc-copy"><span class="x-sc-label">Dịch nhanh vùng chọn</span><span class="m-muted">Toàn hệ thống</span></span><span class="x-chip">⚠ Trùng phím</span><span class="m-kbd">⌥ T</span></div>
+                <div class="x-sc"><span class="x-sc-copy"><span class="x-sc-label">Bảng lệnh</span><span class="m-muted">Trong cửa sổ</span></span><span class="m-kbd">⌘ K</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="frame-label">Module tắt · 1000 × 340 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 1000px; --h: 340px">
+          <div class="m-content x-body">
+            <div class="x-cols">
+              <div class="m-card">
+                <div class="x-head"><div class="x-head-copy"><span class="x-title">Launcher</span></div><span class="m-toggle" data-on></span></div>
+                <div class="x-row"><div class="x-copy"><span class="x-label">Phím tắt</span></div><div class="x-ctrl"><span class="m-btn" data-tone="ghost" data-icon aria-label="Xóa">✕</span><span class="m-btn x-mono-btn" data-size="md">Option+Space</span></div></div>
+                <div class="x-notice-wrap">
+                  <div class="m-notice x-notice x-notice-info"><span class="callout" style="--x: -12px; --y: -12px">2</span>
+                    <span class="x-notice-copy"><span class="m-strong">Module Launcher đang tắt</span><span class="m-muted">Phím tắt này vẫn được lưu nhưng không hoạt động cho đến khi bật lại module.</span></span>
+                    <span class="m-btn" data-size="md" data-tone="primary">Bật</span>
+                  </div>
+                </div>
+              </div>
+              <div class="m-card">
+                <div class="x-head"><div class="x-head-copy"><span class="x-title">Tất cả phím tắt</span></div></div>
+                <div class="x-list x-pin"><span class="callout" style="--x: -10px; --y: 4px">3</span>
+                  <div class="x-sc"><span class="x-sc-copy"><span class="x-sc-label">Dịch nhanh vùng chọn</span><span class="m-muted">Toàn hệ thống</span></span><span class="m-kbd">⌥ T</span></div>
+                  <div class="x-sc"><span class="x-sc-copy"><span class="x-sc-label">Bảng lệnh</span><span class="m-muted">Trong cửa sổ</span></span><span class="m-kbd">⌘ K</span></div>
+                  <div class="x-sc"><span class="x-sc-copy"><span class="x-sc-label">Gửi tin nhắn</span><span class="m-muted">Trong ô soạn chat</span></span><span class="m-kbd">↵</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Narrow ---------------------------------------------------------- -->
+  <section class="scenario" id="narrow">
+    <div class="scenario-copy">
+      <h2>Cửa sổ hẹp (720 px)</h2>
+      <p>Vùng nội dung ≈ 660 px &lt; 2 × 420 + 16: hai thẻ xếp chồng. Thanh điều hướng là rail 60 px.</p>
+      <ol>
+        <li><span class="ref">1</span>Thẻ Launcher lên trên, nút của notice xuống dòng.</li>
+        <li><span class="ref">2</span>"Tất cả phím tắt" xuống dưới, giữ nguyên hàng: tên + phạm vi trái, phím phải.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">720 × 720 · sáng</p>
+        <div class="frame" data-theme="graphite" data-mode="light" style="--w: 720px; --h: 720px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar" data-collapsed>
+              <div class="m-nav"><i class="x-ico"></i></div><div class="m-nav"><i class="x-ico"></i></div><div class="m-nav"><i class="x-ico"></i></div><div class="m-nav"><i class="x-ico"></i></div><div class="m-nav" aria-current="page"><i class="x-ico"></i></div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Launcher &amp; phím tắt</h3></div>
+              <div class="m-content x-body">
+                <div class="x-cols">
+                  <div class="m-card x-pin"><span class="callout" style="--x: -10px; --y: -10px">1</span>
+                    <div class="x-head"><div class="x-head-copy"><span class="x-title">Launcher</span><span class="m-muted">Nhấn phím tắt ở bất kỳ đâu để tìm ứng dụng, mở nhanh, tìm web hoặc hỏi AI.</span></div><span class="m-toggle" data-on></span></div>
+                    <div class="x-row"><div class="x-copy"><span class="x-label">Phím tắt</span><span class="m-muted">Nhấp vào ô rồi bấm tổ hợp phím bạn muốn</span></div><div class="x-ctrl"><span class="m-btn" data-tone="ghost" data-icon aria-label="Xóa">✕</span><span class="m-btn x-mono-btn" data-size="md">Command+Space</span></div></div>
+                    <div class="x-notice-wrap">
+                      <div class="m-notice x-notice">
+                        <span class="x-notice-copy"><span class="m-strong">Spotlight đang giữ Command+Space</span><span class="m-muted">macOS xử lý phím tắt này trước, nên Launcher sẽ không mở được bằng nó.</span></span>
+                        <span class="x-notice-actions"><span class="m-btn" data-size="md" data-tone="primary">Tắt phím tắt Spotlight</span><span class="m-btn" data-size="md" data-tone="soft">Mở Cài đặt hệ thống</span><span class="m-btn" data-size="md">Dùng Option+Space thay thế</span></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="m-card x-pin"><span class="callout" style="--x: -10px; --y: -10px">2</span>
+                    <div class="x-head"><div class="x-head-copy"><span class="x-title">Tất cả phím tắt</span></div></div>
+                    <div class="x-list">
+                      <div class="x-sc"><span class="x-sc-copy"><span class="x-sc-label">Launcher</span><span class="m-muted">Toàn hệ thống</span></span><span class="m-kbd">⌘ Space</span></div>
+                      <div class="x-sc"><span class="x-sc-copy"><span class="x-sc-label">Dịch nhanh vùng chọn</span><span class="m-muted">Toàn hệ thống</span></span><span class="m-kbd">⌥ T</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. Dark ------------------------------------------------------------ -->
+  <section class="scenario" id="dark">
+    <div class="scenario-copy">
+      <h2>Chế độ tối</h2>
+      <p>Cùng bố cục mặc định. Chip "Trùng phím" và chấm trạng thái giữ nghĩa nhờ token cảnh báo của chế độ tối.</p>
+      <ol>
+        <li><span class="ref">1</span>Ô ghi phím: viền --vzn-border-strong trên thẻ than chì.</li>
+        <li><span class="ref">2</span>Hàng trùng: chip cảnh báo kèm chữ.</li>
+      </ol>
+    </div>
+    <div class="scenario-frames">
+      <div>
+        <p class="frame-label">1200 × 480 · tối</p>
+        <div class="frame" data-theme="graphite" data-mode="dark" style="--w: 1200px; --h: 480px">
+          <div class="m-titlebar"><span class="m-lights"><i></i><i></i><i></i></span></div>
+          <div class="m-body">
+            <nav class="m-sidebar">
+              <div class="m-nav m-strong">Viezan</div>
+              <div class="m-nav">Trang chủ</div>
+              <div class="m-nav-group">Tiện ích</div>
+              <div class="m-nav" aria-current="page">Launcher &amp; phím tắt</div>
+              <span class="m-spacer"></span>
+              <div class="m-nav">Cài đặt</div>
+            </nav>
+            <main class="m-main">
+              <div class="m-header"><h3>Launcher &amp; phím tắt</h3><span class="m-muted">Mở mọi thứ bằng bàn phím, từ bất cứ đâu</span></div>
+              <div class="m-content x-body">
+                <div class="x-cols">
+                  <div class="m-card">
+                    <div class="x-head"><div class="x-head-copy"><span class="x-title">Launcher</span><span class="m-muted">Nhấn phím tắt ở bất kỳ đâu để tìm ứng dụng, mở nhanh, tìm web hoặc hỏi AI.</span></div><span class="m-toggle" data-on></span></div>
+                    <div class="x-row"><div class="x-copy"><span class="x-label">Phím tắt</span><span class="m-muted">Nhấp vào ô rồi bấm tổ hợp phím bạn muốn</span></div><div class="x-ctrl x-pin"><span class="callout" style="--x: -28px; --y: 6px">1</span><span class="m-btn" data-tone="ghost" data-icon aria-label="Xóa">✕</span><span class="m-btn x-mono-btn" data-size="md">Option+T</span></div></div>
+                  </div>
+                  <div class="m-card">
+                    <div class="x-head"><div class="x-head-copy"><span class="x-title">Tất cả phím tắt</span><span class="m-muted">Một danh sách để thấy mọi phím và tránh trùng.</span></div></div>
+                    <div class="x-list">
+                      <div class="x-sc"><span class="x-sc-copy"><span class="x-sc-label">Launcher</span><span class="m-muted">Toàn hệ thống</span></span><span class="x-pin"><span class="x-chip">⚠ Trùng phím</span><span class="callout" style="--x: -24px; --y: -2px">2</span></span><span class="m-kbd">⌥ T</span></div>
+                      <div class="x-sc"><span class="x-sc-copy"><span class="x-sc-label">Dịch nhanh vùng chọn</span><span class="m-muted">Toàn hệ thống</span></span><span class="x-chip">⚠ Trùng phím</span><span class="m-kbd">⌥ T</span></div>
+                      <div class="x-sc"><span class="x-sc-copy"><span class="x-sc-label">Bảng lệnh</span><span class="m-muted">Trong cửa sổ</span></span><span class="m-kbd">⌘ K</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>

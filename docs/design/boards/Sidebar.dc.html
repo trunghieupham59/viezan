@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Thanh điều hướng Viezan</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.nv{display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border-radius:8px;color:#2C2C31;text-decoration:none;font-size:14px}
+.nv:hover{background:#E2E2E7;color:#1C1C1F}
+.nv.dk{color:#D8D8DE}
+.nv.dk:hover{background:#26262A;color:#FFFFFF}
+.nv svg{flex:0 0 auto}
+.grp{margin:14px 0 4px;padding:0 10px;font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#6B6B73}
+.grp.dk{color:#9A9AA2}
+.st{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;font-size:12px;color:#3A3A40;text-decoration:none}
+.st.dk{color:#C9C9D1}
+</style>
+</helmet>
+<nav aria-label="Điều hướng chính" style="width: 240px; height: 100%; min-height: 760px; box-sizing: border-box; padding: 14px 12px 12px; background: {{t.bg}}; border-right: 1px solid {{t.border}}; display: flex; flex-direction: column; gap: 2px; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: {{t.text}}">
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 4px 10px 6px">
+    <div style="display: flex; align-items: center; gap: 8px">
+      <span style="width: 24px; height: 24px; border-radius: 7px; background: {{t.logoBg}}; color: {{t.logoFg}}; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700">V</span>
+      <span style="font-size: 15px; font-weight: 600">Viezan</span>
+    </div>
+    <button type="button" aria-label="Thu gọn thanh bên" style="width: 28px; height: 28px; border-radius: 7px; border: 0; background: transparent; color: {{t.muted}}; display: inline-flex; align-items: center; justify-content: center">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><path d="M9 4v16"></path></svg>
+    </button>
+  </div>
+
+  <button type="button" style="display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border-radius: 9px; border: 1px solid {{t.searchBorder}}; background: {{t.searchBg}}; color: {{t.muted}}; font: 400 13px Inter, sans-serif; margin-bottom: 6px">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+    <span style="flex: 1; text-align: left">Tìm hoặc chạy lệnh</span>
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{t.muted}}; border: 1px solid {{t.searchBorder}}; border-radius: 5px; padding: 1px 5px">⌘K</span>
+  </button>
+
+  <a href="Home.dc.html" class="nv {{t.cls}}" style="{{s.home}}" aria-current="{{c.home}}">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11 12 4l8 7"></path><path d="M6 10v10h12V10"></path></svg>Trang chủ</a>
+
+  <p class="grp {{t.cls}}">AI</p>
+  <a href="Chat.dc.html" class="nv {{t.cls}}" style="{{s.chat}}" aria-current="{{c.chat}}">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5h14v10H9l-4 4z"></path></svg>AI Chat</a>
+
+  <p class="grp {{t.cls}}">Ngôn ngữ</p>
+  <a href="Translate.dc.html" class="nv {{t.cls}}" style="{{s.translate}}" aria-current="{{c.translate}}">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9M8.5 4v2M6 6c0 4 3 7 6 8"></path><path d="M11 6c-1 3-3 6-6 8"></path><path d="m13 20 4-9 4 9M14.5 17h5"></path></svg>Dịch</a>
+  <a href="Interpret.dc.html" class="nv {{t.cls}}" style="{{s.interpret}}" aria-current="{{c.interpret}}">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path></svg>Phiên dịch</a>
+  <a href="Dictionary.dc.html" class="nv {{t.cls}}" style="{{s.dictionary}}" aria-current="{{c.dictionary}}">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"></path><path d="M5 17a3 3 0 0 1 3-3h11"></path></svg>Từ điển</a>
+  <a href="Everywhere.dc.html" class="nv {{t.cls}}" style="{{s.everywhere}}" aria-current="{{c.everywhere}}">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg>Dịch mọi nơi</a>
+
+  <p class="grp {{t.cls}}">Hệ thống</p>
+  <a href="Thermal.dc.html" class="nv {{t.cls}}" style="{{s.thermal}}" aria-current="{{c.thermal}}">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14V5a2 2 0 0 1 4 0v9a4 4 0 1 1-4 0z"></path><path d="M12 11v6"></path></svg>Nhiệt độ &amp; quạt</a>
+
+  <p class="grp {{t.cls}}">Tiện ích</p>
+  <a href="Utilities.dc.html" class="nv {{t.cls}}" style="{{s.utilities}}" aria-current="{{c.utilities}}">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"></rect><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"></path></svg>Launcher &amp; phím tắt</a>
+
+  <div style="flex: 1"></div>
+
+  <section aria-label="Đang chạy nền" style="display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-top: 1px solid {{t.border}}">
+    <a href="Settings.dc.html" class="st {{t.cls}}"><span style="width: 7px; height: 7px; border-radius: 999px; background: {{t.ok}}"></span><span style="flex: 1">AI local</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{t.muted}}">qwen3:4b</span></a>
+    <a href="Thermal.dc.html" class="st {{t.cls}}"><span style="width: 7px; height: 7px; border-radius: 999px; background: {{t.ok}}"></span><span style="flex: 1">Quạt · Mát</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{t.muted}}">58°</span></a>
+    <a href="Utilities.dc.html" class="st {{t.cls}}"><span style="width: 7px; height: 7px; border-radius: 999px; background: {{t.ok}}"></span><span style="flex: 1">Phím tắt toàn cục</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: {{t.muted}}">2</span></a>
+    <a href="Everywhere.dc.html" class="st {{t.cls}}"><span style="width: 7px; height: 7px; border-radius: 999px; background: {{t.ok}}"></span><span style="flex: 1">Tiện ích Chrome</span><span style="font-size: 11px; color: {{t.muted}}">đã kết nối</span></a>
+  </section>
+
+  <a href="Settings.dc.html" class="nv {{t.cls}}" style="{{s.settings}}" aria-current="{{c.settings}}">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"></path></svg>Cài đặt</a>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"enum","options":["home","chat","translate","interpret","dictionary","everywhere","thermal","utilities","settings"],"default":"home"},"mode":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":240,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const active = this.props.active ?? 'home';
+    const dark = (this.props.mode ?? 'light') === 'dark';
+    const t = dark
+      ? { cls: 'dk', bg: '#18181B', border: '#2A2A2E', text: '#ECECF0', muted: '#9A9AA2', searchBg: '#222226', searchBorder: '#34343A', logoBg: '#ECECF0', logoFg: '#18181B', ok: '#3DBE6E' }
+      : { cls: '', bg: '#ECECEF', border: '#DCDCE1', text: '#1C1C1F', muted: '#55555C', searchBg: '#FFFFFF', searchBorder: '#DADADF', logoBg: '#1C1C1F', logoFg: '#FFFFFF', ok: '#1E7F45' };
+    const activeStyle = dark
+      ? 'background: rgba(77,155,255,0.16); color: #8CC2FF; font-weight: 600'
+      : 'background: #FFFFFF; color: #0A58C2; font-weight: 600; box-shadow: 0 1px 2px rgba(28,28,31,0.08)';
+    const keys = ['home', 'chat', 'translate', 'interpret', 'dictionary', 'everywhere', 'thermal', 'utilities', 'settings'];
+    const s = {};
+    const c = {};
+    for (const key of keys) {
+      s[key] = key === active ? activeStyle : '';
+      c[key] = key === active ? 'page' : 'false';
+    }
+    return { s, c, t };
+  }
+}
+</script>
+</body>
+</html>

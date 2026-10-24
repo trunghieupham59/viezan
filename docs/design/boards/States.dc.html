@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Viezan — trạng thái trống, lỗi, đang tải</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F4F6}
+a{color:#0A58C2}a:hover{color:#08469A}
+.cap{margin:0;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#55555C}
+.panel{background:#FFFFFF;border:1px solid #E2E2E7;border-radius:14px;display:flex;flex-direction:column;overflow:hidden;height:420px}
+.ptb{height:44px;flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid #EFEFF2;font-size:14px;font-weight:600}
+.btn{height:32px;padding:0 12px;border-radius:8px;border:1px solid #D6D6DC;background:#FFFFFF;color:#1C1C1F;font:500 13px Inter,sans-serif;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn-primary{border:0;background:#0A63D6;color:#FFFFFF}
+.sk{display:block;height:10px;border-radius:5px;background:#ECECF0}
+.ttl{margin:0;font-size:16px;font-weight:600}
+.txt{margin:0;font-size:13px;line-height:1.55;color:#3A3A40}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1100px; box-sizing: border-box; padding: 56px 48px; background: #F4F4F6; font-family: Inter, -apple-system, 'Segoe UI', sans-serif; color: #1C1C1F; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 48px 32px; align-content: start">
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Chat · chưa có AI nào</p>
+    <section class="panel" aria-label="Chat chưa cấu hình">
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px; padding: 28px">
+        <h3 class="ttl">Chọn cách chạy AI</h3>
+        <p class="txt">Viezan cần ít nhất một model để chat, dịch và tra từ.</p>
+        <div style="border: 1px solid #C9D8F2; background: #F7FAFF; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px">
+          <span style="font-size: 14px; font-weight: 600">AI local <span style="font-size: 11px; font-weight: 600; color: #0A58C2; background: #E8F0FC; padding: 2px 6px; border-radius: 6px">khuyên dùng</span></span>
+          <span class="txt" style="color: #55555C">Chạy trên máy, riêng tư, không cần mạng. Tải Ollama và một model khoảng [dung lượng].</span>
+          <button type="button" class="btn btn-primary" style="align-self: flex-start">Cài AI local</button>
+        </div>
+        <div style="border: 1px solid #E2E2E7; border-radius: 12px; padding: 14px; display: flex; align-items: center; gap: 12px">
+          <span style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px; font-weight: 600">Khoá đám mây</span><span class="txt" style="color: #55555C">Claude, OpenAI hoặc Gemini</span></span>
+          <button type="button" class="btn">Thêm khoá</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Dịch · đang tải</p>
+    <section class="panel" aria-label="Kết quả đang tạo" aria-busy="true">
+      <div class="ptb">Kết quả<span style="flex: 1"></span><span style="font-size: 12px; font-weight: 400; color: #55555C">Đang dịch…</span><button type="button" class="btn" style="height: 28px; border-color: #F0C4C7; color: #B01F29">Dừng</button></div>
+      <div style="padding: 16px; display: flex; flex-direction: column; gap: 14px">
+        <p style="margin: 0; font-size: 16px; line-height: 1.7">[Phần bản dịch đã về hiện ngay khi tới<span style="display: inline-block; width: 2px; height: 18px; margin-left: 2px; vertical-align: -3px; background: #0A63D6"></span></p>
+        <span class="sk" style="width: 92%"></span>
+        <span class="sk" style="width: 80%"></span>
+        <span class="sk" style="width: 64%"></span>
+        <p class="txt" style="color: #55555C; margin-top: 8px">Lần đầu dùng AI local có thể mất vài giây để nạp model.</p>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Chat · lỗi nhà cung cấp</p>
+    <section class="panel" aria-label="Tin nhắn lỗi">
+      <div style="flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+        <div style="align-self: flex-end; max-width: 80%; background: #F0F0F3; border-radius: 16px 16px 4px 16px; padding: 10px 14px; font-size: 14px; line-height: 1.55">[Câu hỏi của người dùng]</div>
+        <div role="alert" style="border: 1px solid #F0C4C7; background: #FFF7F7; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+          <span style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: #8F1820"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16h.01"></path></svg>Claude không nhận khoá API</span>
+          <p class="txt">Khoá có thể đã hết hạn hoặc bị thu hồi. Tin nhắn của bạn vẫn còn, gửi lại được sau khi sửa.</p>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px">
+            <button type="button" class="btn btn-primary">Sửa khoá</button>
+            <button type="button" class="btn">Thử lại</button>
+            <button type="button" class="btn">Gửi bằng AI local</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Phiên dịch · cần quyền</p>
+    <section class="panel" aria-label="Thiếu quyền ghi màn hình">
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 28px">
+        <span style="width: 40px; height: 40px; border-radius: 12px; background: #FBF1E2; color: #8A4D00; display: inline-flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span>
+        <h3 class="ttl">Cần quyền Ghi màn hình</h3>
+        <p class="txt">macOS chỉ cho nghe âm thanh hệ thống khi Viezan có quyền này. Viezan không ghi hình.</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <button type="button" class="btn btn-primary">Mở Cài đặt hệ thống</button>
+          <button type="button" class="btn">Dùng micro thay thế</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Quạt · helper bị huỷ và tự khôi phục</p>
+    <section class="panel" aria-label="Lỗi điều khiển quạt">
+      <div class="ptb">Quạt</div>
+      <div style="padding: 16px; display: flex; flex-direction: column; gap: 14px">
+        <div role="status" style="border-radius: 12px; background: #F7F7F9; padding: 14px; display: flex; flex-direction: column; gap: 8px">
+          <span style="font-size: 14px; font-weight: 600">Chưa bật được điều khiển quạt</span>
+          <p class="txt">Hộp thoại mật khẩu đã bị huỷ. Quạt vẫn do hệ thống điều khiển như bình thường.</p>
+          <button type="button" class="btn" style="align-self: flex-start">Thử lại</button>
+        </div>
+        <div role="status" style="border-radius: 12px; background: #FBF1E2; padding: 14px; display: flex; gap: 10px; align-items: flex-start">
+          <span style="width: 8px; height: 8px; margin-top: 6px; border-radius: 99px; background: #A35A00; flex: 0 0 auto"></span>
+          <p class="txt" style="color: #5C3500">Helper đã trả quạt về tự động vì máy vừa ngủ dậy. Bật lại profile Mát?</p>
+          <button type="button" class="btn" style="height: 28px">Bật lại</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <p class="cap">Từ điển · lần đầu</p>
+    <section class="panel" aria-label="Từ điển trống">
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 14px; padding: 28px">
+        <h3 class="ttl">Chưa tra từ nào</h3>
+        <p class="txt">Gõ từ ở ô bên trái. Dán thêm câu chứa từ đó để có nghĩa đúng ngữ cảnh.</p>
+        <div style="width: 100%; box-sizing: border-box; border: 1px dashed #C9C9D1; border-radius: 12px; padding: 14px; display: flex; align-items: center; gap: 12px">
+          <span style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 13px; color: #55555C">Trong bộ nhớ tạm</span><span style="font-size: 15px; font-weight: 600">[từ vừa sao chép]</span></span>
+          <button type="button" class="btn">Tra từ này</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
