@@ -272,7 +272,22 @@ html.dark .sidebar-brand-surface {
 }
 
 .sidebar-bottom-group {
+  flex: 0 0 auto;
   margin-top: auto;
+}
+
+.sidebar-nav-scroll {
+  display: flex;
+  min-block-size: 0;
+  inline-size: 100%;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: inherit;
+  gap: 2px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .sidebar-nav-icon {
@@ -2531,5 +2546,66 @@ code.settings-info-value {
   inline-size: 1px;
   block-size: 1px;
   clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Primary navigation, as on the Sidebar board ------------------------------
+ * 32px rows, 14px regular labels (semibold when current), 16px icons and a
+ * bordered search field with its shortcut in a key chip. */
+
+.primary-navigation-panel .sidebar-nav-btn {
+  color: var(--vzn-chrome-fg);
+}
+
+.primary-navigation-panel .sidebar-nav-icon {
+  inline-size: var(--vzn-icon-md);
+  flex: 0 0 var(--vzn-icon-md);
+}
+
+.primary-navigation-panel .sidebar-nav-icon svg {
+  inline-size: var(--vzn-icon-md);
+  block-size: var(--vzn-icon-md);
+}
+
+.primary-navigation-panel .sidebar-nav-label {
+  color: inherit;
+  font-size: var(--vzn-font-size-lg);
+  font-weight: var(--vzn-weight-regular);
+}
+
+.primary-navigation-panel .sidebar-nav-btn.active .sidebar-nav-label {
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.primary-navigation-panel .sidebar-search-trigger {
+  --vzn-button-bg: var(--vzn-sidebar-search-bg, var(--vzn-surface));
+  --vzn-button-hover-bg: var(--vzn-sidebar-search-bg, var(--vzn-surface));
+  --vzn-button-border: var(--vzn-border-strong);
+  --vzn-button-hover-border: var(--vzn-border-strong);
+  --vzn-button-fg: var(--vzn-chrome-fg-muted);
+  --vzn-button-hover-fg: var(--vzn-chrome-fg-strong);
+  margin-block-end: var(--vzn-space-2);
+  border-radius: var(--vzn-radius-sm);
+  color: var(--vzn-chrome-fg-muted);
+}
+
+.primary-navigation-panel[data-expanded="true"] .sidebar-search-trigger {
+  gap: var(--vzn-space-2);
+}
+
+.primary-navigation-panel .sidebar-search-trigger .sidebar-nav-label {
+  font-size: var(--vzn-font-size-md);
+}
+
+.primary-navigation-panel .sidebar-shortcut {
+  padding: 0 var(--vzn-space-1-5);
+  border: var(--vzn-border-width) solid var(--vzn-border-strong);
+  border-radius: var(--vzn-radius-xs);
+  background: var(--vzn-surface-raised);
+  color: var(--vzn-chrome-fg-muted);
+  font-family: var(--vzn-font-mono);
+  font-size: var(--vzn-font-size-caption);
+  line-height: var(--vzn-line-normal);
+  flex: 0 0 auto;
   white-space: nowrap;
 }

@@ -34,7 +34,7 @@ function PrimaryNavItem({ icon, label, active, badge, badgeLabel, onClick }: Pri
 
   return (
     <Button
-      size="lg"
+      size="sm"
       shape="rect"
       variant={active ? 'primary' : 'neutral'}
       appearance={active ? 'soft' : 'ghost'}
@@ -129,7 +129,7 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
         badge={status?.badge}
         badgeLabel={status?.badgeLabel}
         onClick={() => navigateToPage(page)}
-        icon={<Icon className="h-[18px] w-[18px]" />}
+        icon={<Icon />}
       />
     )
   }
@@ -245,10 +245,10 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
       </div>
 
       <Button
-        size="lg"
+        size="sm"
         shape="rect"
         variant="neutral"
-        appearance="ghost"
+        appearance="outline"
         title={`${t.nav_search_or_run} (${commandShortcut})`}
         aria-label={t.nav_search_or_run}
         aria-keyshortcuts={window.api?.platform === 'darwin' ? 'Meta+K' : 'Control+K'}
@@ -256,24 +256,27 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
         onClick={openCommandPalette}
       >
         <span className="sidebar-nav-icon">
-          <SearchIcon className="h-[18px] w-[18px]" />
+          <SearchIcon />
         </span>
         <span className="sidebar-nav-label">{t.nav_search_or_run}</span>
-        <span className="sidebar-shortcut">{commandShortcut}</span>
+        <kbd className="sidebar-shortcut">{commandShortcut}</kbd>
       </Button>
 
       <div className="app-sidebar-divider" />
 
-      <div className="sidebar-nav-group">
-        {renderPageItem(pages.home)}
-      </div>
+      {/* Only the page list scrolls: a short window must never push Settings out of reach. */}
+      <div className="sidebar-nav-scroll">
+        <div className="sidebar-nav-group">
+          {renderPageItem(pages.home)}
+        </div>
 
-      {pages.groups.map((group) => (
-        <section key={group.space} className="sidebar-nav-group sidebar-space" aria-label={t[group.labelKey]} data-space={group.space}>
-          <p className="sidebar-section-label sidebar-space-label" aria-hidden="true">{t[group.labelKey]}</p>
-          {group.modules.map((page) => renderPageItem(page))}
-        </section>
-      ))}
+        {pages.groups.map((group) => (
+          <section key={group.space} className="sidebar-nav-group sidebar-space" aria-label={t[group.labelKey]} data-space={group.space}>
+            <p className="sidebar-section-label sidebar-space-label" aria-hidden="true">{t[group.labelKey]}</p>
+            {group.modules.map((page) => renderPageItem(page))}
+          </section>
+        ))}
+      </div>
 
       <div className="sidebar-bottom-group">
         {backgroundRows.length > 0 && (
