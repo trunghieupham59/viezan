@@ -228,7 +228,7 @@ try {
     await modelDialog.getByRole('button', { name: /Qwen3 4B.*Select model/i }).click()
     await modelDialog.getByRole('button', { name: 'Apply 2 models' }).click()
     await page.getByRole('button', { name: /AI configuration, 2 models/i }).waitFor()
-    await page.getByText('2 independent requests', { exact: true }).waitFor()
+    await page.locator('.translate-comparison-list[data-result-count="2"]').waitFor()
 
     for (const width of [1440, 800]) {
       await page.setViewportSize({ width, height: 900 })
@@ -623,9 +623,11 @@ try {
     // Regression: a long translation must never push the per-result actions out of reach.
     await page.setViewportSize({ width: 1440, height: 900 })
     const longText = Array.from({ length: 60 }, (_, index) => `Sentence ${index + 1} of a deliberately long source.`).join(' ')
+    // Comparison results fold the source into a disclosure row; reopen it to edit.
+    await page.getByRole('button', { name: 'Expand source text' }).click()
     await page.locator('textarea').first().fill(longText)
-    await page.getByRole('button', { name: /Translate with 2 models/i }).click()
-    await page.locator('.translate-comparison-card-actions').first().waitFor({ timeout: 5_000 })
+    await page.getByRole('button', { name: 'Translate · 2 models' }).click()
+    await page.locator('.translate-comparison-card-footer').first().waitFor({ timeout: 5_000 })
 
     for (const width of [1440, 800]) {
       await page.setViewportSize({ width, height: 900 })
@@ -636,7 +638,8 @@ try {
           .find(element => element instanceof HTMLElement && element.offsetParent !== null)
         const body = document.querySelector('.translate-comparison-body')
         const cardBody = card?.querySelector('.translate-comparison-card-body')
-        const actions = card?.querySelector('.translate-comparison-card-actions')
+        // Result actions live in a card footer pinned below the scrolling body.
+        const actions = card?.querySelector('.translate-comparison-card-footer')
         if (!(card instanceof HTMLElement)
           || !(body instanceof HTMLElement)
           || !(cardBody instanceof HTMLElement)
@@ -645,12 +648,10 @@ try {
         return {
           actionsInViewport: actionBounds.top >= 0 && actionBounds.bottom <= window.innerHeight,
           cardBodyScrolls: cardBody.scrollHeight > cardBody.clientHeight,
-          hasFooter: card.querySelector('footer') !== null,
         }
       })
 
       assert(longResult !== null, `Long-text comparison result is incomplete at ${width}px`)
-      assert(!longResult.hasFooter, `Result actions moved back to a footer at ${width}px`)
       assert(longResult.cardBodyScrolls, `Long result does not scroll inside its card at ${width}px`)
       assert(
         longResult.actionsInViewport,
