@@ -113,9 +113,10 @@ describe('helper client', () => {
     const connecting = client.connect()
     socket.emit('connect')
     await connecting
-    const slow = client.request('fans.list')
+    // Attach the expectation before the clock moves: the rejection must never be unhandled, even for a tick.
+    const slow = expect(client.request('fans.list')).rejects.toThrow(/within 500 ms/)
     await vi.advanceTimersByTimeAsync(500)
-    await expect(slow).rejects.toThrow(/within 500 ms/)
+    await slow
     expect(client.isConnected()).toBe(true)
   })
 
