@@ -100,12 +100,25 @@ export interface ThermalSupport {
 /** Which reading the menu bar / tray shows. `cpu` and `gpu` fall back to the hottest sensor when the group is empty. */
 export type ThermalTrayMetric = 'hottest' | 'cpu' | 'gpu'
 
+/**
+ * How the menu bar item is laid out. `inline` is text (`58° 2374`); `stacked` draws the
+ * temperature over the fan speed in one icon-sized image, about half the width.
+ * Stacked needs the fan speed and a menu bar; elsewhere it falls back to inline.
+ */
+export type ThermalTrayLayout = 'inline' | 'stacked'
+/** Fan speed as the raw RPM (`2374`) or shortened (`2.4k`). */
+export type ThermalTrayFanFormat = 'rpm' | 'short'
+
 export interface ThermalTraySettings {
   /** Show a live reading in the menu bar / tray. Keeps sensors polled (slower) while the window is hidden. */
   enabled: boolean
   metric: ThermalTrayMetric
   /** Append the fastest fan's RPM after the temperature. */
   showFan: boolean
+  layout: ThermalTrayLayout
+  /** Keep the degree sign after the temperature (`58°` vs `58`). */
+  showUnit: boolean
+  fanFormat: ThermalTrayFanFormat
 }
 
 export interface ThermalFanControlSettings {

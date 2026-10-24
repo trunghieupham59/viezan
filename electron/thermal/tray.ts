@@ -8,13 +8,17 @@
  *
  * Electron objects are injected so the rules run under plain Vitest.
  */
+import type { NativeImage } from 'electron'
 import type { ThermalSnapshot, ThermalTrayPlacement, ThermalTraySettings } from '../../shared/thermalApi'
-import { formatTrayTitle, formatTrayTooltip } from './trayTitle'
+import { renderStackedBitmap, type StackedBitmap } from './trayGlyphs'
+import { formatTrayParts, formatTrayTitle, formatTrayTooltip } from './trayTitle'
 
 /** The slice of Electron's `Tray` the controller touches. */
 export interface StatusItem {
   setTitle: (title: string, options?: { fontType?: 'monospaced' | 'monospacedDigit' }) => void
   setToolTip: (tooltip: string) => void
+  /** The controller only passes through what `createImage` made. */
+  setImage: (image: NativeImage) => void
   destroy: () => void
 }
 
@@ -23,6 +27,8 @@ export interface ThermalTrayDeps {
   appTitle: string
   /** macOS: build the status item with its context menu. Called only while the option is on. */
   createStatusItem: () => StatusItem
+  /** Wrap a stacked bitmap in a template `NativeImage`; null means the empty image (text-only item). */
+  createImage: (bitmap: StackedBitmap | null) => NativeImage
   /** Windows/Linux: the residency tray, when this run has one. */
   getAppTray: () => Pick<StatusItem, 'setToolTip'> | null
   log?: Pick<Console, 'error'>
@@ -49,6 +55,8 @@ export function createThermalTrayController(deps: ThermalTrayDeps): ThermalTrayC
   let settings: ThermalTraySettings | null = null
   let statusItem: StatusItem | null = null
   let lastSnapshot: ThermalSnapshot | null = null
+  /** Whether the status item currently shows an image (stacked) rather than a title. */
+  let imageShown = false
 
   const placement = () => resolveTrayPlacement(deps.platform, deps.getAppTray() !== null)
 
@@ -56,7 +64,19 @@ export function createThermalTrayController(deps: ThermalTrayDeps): ThermalTrayC
     if (!settings?.enabled || !lastSnapshot) return
     const tooltip = formatTrayTooltip(deps.appTitle, lastSnapshot, settings)
     if (statusItem) {
-      statusItem.setTitle(formatTrayTitle(lastSnapshot, settings), { fontType: 'monospacedDigit' })
+      const parts = formatTrayParts(lastSnapshot, settings)
+      // Stacked only makes sense with two lines; with the fan off it is the inline text.
+      if (settings.layout === 'stacked' && settings.showFan && (parts.temperature || parts.fan)) {
+        statusItem.setImage(deps.createImage(renderStackedBitmap([parts.temperature ?? '', parts.fan ?? ''])))
+        statusItem.setTitle('', { fontType: 'monospacedDigit' })
+        imageShown = true
+      } else {
+        if (imageShown) {
+          statusItem.setImage(deps.createImage(null))
+          imageShown = false
+        }
+        statusItem.setTitle(formatTrayTitle(lastSnapshot, settings), { fontType: 'monospacedDigit' })
+      }
       statusItem.setToolTip(tooltip)
       return
     }
@@ -71,6 +91,7 @@ export function createThermalTrayController(deps: ThermalTrayDeps): ThermalTrayC
         log.error('[Thermal] Could not remove the menu bar item:', e)
       }
       statusItem = null
+      imageShown = false
     } else if (settings?.enabled) {
       // Give the residency tray its plain tooltip back.
       deps.getAppTray()?.setToolTip(deps.appTitle)

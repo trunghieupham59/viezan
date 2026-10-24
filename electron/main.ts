@@ -567,6 +567,12 @@ app.whenReady().then(() => {
       onOpen: openMainWindow,
       onHide,
     }),
+    createTrayImage: (bitmap) => {
+      if (!bitmap) return nativeImage.createEmpty()
+      const image = nativeImage.createFromBitmap(bitmap.buffer, { width: bitmap.width, height: bitmap.height, scaleFactor: bitmap.scaleFactor })
+      image.setTemplateImage(true) // macOS tints it for light and dark menu bars
+      return image
+    },
     uid: os.userInfo().uid,
     helperSocketSuffix: runtimeProfile.isDev ? '-dev' : '',
   })

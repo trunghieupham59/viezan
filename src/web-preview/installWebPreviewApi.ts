@@ -67,7 +67,7 @@ function createPreviewThermal() {
   }
   type Settings = import('../../shared/thermalApi').ThermalSettings
   type FanState = import('../../shared/thermalApi').FanControlState
-  let settings: Settings = { tray: { enabled: false, metric: 'hottest', showFan: false }, fanControl: { acknowledged: false }, fanProfiles: { activeId: null, user: [] }, fanAffinity: null }
+  let settings: Settings = { tray: { enabled: false, metric: 'hottest', showFan: false, layout: 'inline', showUnit: true, fanFormat: 'rpm' }, fanControl: { acknowledged: false }, fanProfiles: { activeId: null, user: [] }, fanAffinity: null }
   const settingsListeners = new Set<(settings: Settings) => void>()
   // Fan control: a pretend helper that connects after a short delay and holds one fan.
   let fanState: FanState = { helper: 'idle', fans: [] }

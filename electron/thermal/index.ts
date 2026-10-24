@@ -8,7 +8,7 @@
  * module is on, and stopping releases the reader so nothing runs in the background.
  */
 import * as path from 'node:path'
-import type { BrowserWindow, Tray } from 'electron'
+import type { BrowserWindow, NativeImage, Tray } from 'electron'
 import type { FanControlState, ThermalSettings, ThermalSupport } from '../../shared/thermalApi'
 import { createHelperClient } from '../helper/client'
 import { launchWithAdministratorPrivileges } from '../helper/launch'
@@ -25,6 +25,7 @@ import { createThermalService, type ThermalService } from './service'
 import { createThermalSettingsStore, loadThermalSettings, saveThermalSettings, THERMAL_SETTINGS_FILE, type ThermalSettingsStore } from './settingsStore'
 import { createSmcReader, resolveSmcBinaryPath, SMC_BINARY_NAME } from './smcReader'
 import { createThermalTrayController, type StatusItem, type ThermalTrayController } from './tray'
+import type { StackedBitmap } from './trayGlyphs'
 
 export interface ThermalRuntimeDeps {
   platform: NodeJS.Platform
@@ -39,6 +40,8 @@ export interface ThermalRuntimeDeps {
   getAppTray: () => Tray | null
   /** macOS: build the status item with its context menu (open window, hide reading). */
   createStatusItem: (actions: { onHide: () => void }) => StatusItem
+  /** Wrap the stacked reading's bitmap in a template `NativeImage` (null → the empty image). */
+  createTrayImage: (bitmap: StackedBitmap | null) => NativeImage
   /** The current user's uid; the privileged helper accepts only this peer. */
   uid: number
   /** Suffix for the helper socket so a dev run and the release never share a helper (`-dev` or empty). */
@@ -101,6 +104,7 @@ export function createThermalRuntime(deps: ThermalRuntimeDeps): ThermalRuntime {
     platform: deps.platform,
     appTitle: deps.appTitle,
     createStatusItem: () => deps.createStatusItem({ onHide: () => { settings.update({ tray: { enabled: false } }) } }),
+    createImage: deps.createTrayImage,
     getAppTray: deps.getAppTray,
   })
 

@@ -5,16 +5,18 @@
  * rejects the whole patch, like the hotkey settings store.
  */
 import * as fs from 'node:fs'
-import type { FanAffinityResult, ThermalFanControlSettings, ThermalFanProfilesSettings, ThermalSettings, ThermalSettingsPatch, ThermalTrayMetric, ThermalTraySettings } from '../../shared/thermalApi'
+import type { FanAffinityResult, ThermalFanControlSettings, ThermalFanProfilesSettings, ThermalSettings, ThermalSettingsPatch, ThermalTrayFanFormat, ThermalTrayLayout, ThermalTrayMetric, ThermalTraySettings } from '../../shared/thermalApi'
 import { isRecord } from '../ipc/ipcValidation'
 import { isUserFanProfile, isUserFanProfileId, MAX_USER_FAN_PROFILES } from './fanProfilesSchema'
 
 export const THERMAL_SETTINGS_FILE = 'thermal.json'
 
 export const THERMAL_TRAY_METRICS: readonly ThermalTrayMetric[] = ['hottest', 'cpu', 'gpu']
+export const THERMAL_TRAY_LAYOUTS: readonly ThermalTrayLayout[] = ['inline', 'stacked']
+export const THERMAL_TRAY_FAN_FORMATS: readonly ThermalTrayFanFormat[] = ['rpm', 'short']
 
 export const DEFAULT_THERMAL_SETTINGS: ThermalSettings = {
-  tray: { enabled: false, metric: 'hottest', showFan: false },
+  tray: { enabled: false, metric: 'hottest', showFan: false, layout: 'inline', showUnit: true, fanFormat: 'rpm' },
   fanControl: { acknowledged: false },
   fanProfiles: { activeId: null, user: [] },
   fanAffinity: null,
@@ -42,6 +44,14 @@ function isTrayMetric(value: unknown): value is ThermalTrayMetric {
   return typeof value === 'string' && (THERMAL_TRAY_METRICS as readonly string[]).includes(value)
 }
 
+function isTrayLayout(value: unknown): value is ThermalTrayLayout {
+  return typeof value === 'string' && (THERMAL_TRAY_LAYOUTS as readonly string[]).includes(value)
+}
+
+function isTrayFanFormat(value: unknown): value is ThermalTrayFanFormat {
+  return typeof value === 'string' && (THERMAL_TRAY_FAN_FORMATS as readonly string[]).includes(value)
+}
+
 type ParsedPatch = { ok: true; patch: ThermalSettingsPatch } | { ok: false; error: string }
 
 /** Whitelist and type-check a patch from the renderer. `undefined` fields mean "leave unchanged". */
@@ -62,6 +72,18 @@ export function parseThermalSettingsPatch(raw: unknown): ParsedPatch {
     if (raw.tray.showFan !== undefined) {
       if (typeof raw.tray.showFan !== 'boolean') return { ok: false, error: 'Invalid "tray.showFan" value.' }
       tray.showFan = raw.tray.showFan
+    }
+    if (raw.tray.layout !== undefined) {
+      if (!isTrayLayout(raw.tray.layout)) return { ok: false, error: 'Invalid "tray.layout" value.' }
+      tray.layout = raw.tray.layout
+    }
+    if (raw.tray.showUnit !== undefined) {
+      if (typeof raw.tray.showUnit !== 'boolean') return { ok: false, error: 'Invalid "tray.showUnit" value.' }
+      tray.showUnit = raw.tray.showUnit
+    }
+    if (raw.tray.fanFormat !== undefined) {
+      if (!isTrayFanFormat(raw.tray.fanFormat)) return { ok: false, error: 'Invalid "tray.fanFormat" value.' }
+      tray.fanFormat = raw.tray.fanFormat
     }
     patch.tray = tray
   }
