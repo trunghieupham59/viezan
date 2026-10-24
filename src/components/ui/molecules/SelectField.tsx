@@ -110,7 +110,13 @@ export function SelectField({
         className="ai-select-field__trigger"
         onClick={() => open ? close(false) : openMenu()}
         onKeyDown={(event) => {
-          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          if (event.key === 'Escape' && open) {
+            // The menu can be open before its option takes focus; the open
+            // listbox still owns Escape so an enclosing popover stays open.
+            event.preventDefault()
+            event.stopPropagation()
+            close(true)
+          } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
             event.preventDefault()
             openMenu(event.key === 'ArrowDown' ? selectedIndex : options.length - 1)
           } else if (event.key === 'Home') {
