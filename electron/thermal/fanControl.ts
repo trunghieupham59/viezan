@@ -26,6 +26,8 @@ export function createFanControlService(deps: FanControlDeps): FanControlService
   let generation = 0
   let enabling: Promise<FanControlState> | null = null
   let disabling: Promise<FanControlState> | null = null
+  let enableSeq = 0
+  let disableSeq = 0
 
   function update(next: FanControlState) {
     if (next.helper !== 'ready' && timer) { clearInterval(timer); timer = null }
@@ -154,8 +156,9 @@ export function createFanControlService(deps: FanControlDeps): FanControlService
     if (unavailable || state.helper === 'ready') return state
     if (enabling) return enabling
     const attempt = runEnable()
+    const token = ++enableSeq
     enabling = attempt
-    try { return await attempt } finally { if (enabling === attempt) enabling = null }
+    try { return await attempt } finally { if (enableSeq === token) enabling = null }
   }
 
   function readyClient(): HelperClient {
@@ -181,8 +184,9 @@ export function createFanControlService(deps: FanControlDeps): FanControlService
   async function disable(): Promise<FanControlState> {
     if (disabling) return disabling
     const attempt = runDisable()
+    const token = ++disableSeq
     disabling = attempt
-    try { return await attempt } finally { if (disabling === attempt) disabling = null }
+    try { return await attempt } finally { if (disableSeq === token) disabling = null }
   }
 
   return {
