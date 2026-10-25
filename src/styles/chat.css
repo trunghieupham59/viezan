@@ -768,7 +768,7 @@ html.dark .chat-suggest-chip:hover {
   border-radius: var(--vzn-radius-sm);
   background: var(--vzn-surface);
   color: var(--vzn-text-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--vzn-font-mono);
   font-size: var(--vzn-font-size-caption);
   line-height: 1.45;
   user-select: text;

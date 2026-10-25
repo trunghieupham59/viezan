@@ -192,6 +192,11 @@ html.dark .sidebar-brand-surface {
   white-space: nowrap;
 }
 
+/* Navigation rows read at the nav size (foundations §4), one step above body text. */
+.sidebar-nav-label {
+  font-size: var(--vzn-font-size-lg);
+}
+
 .sidebar-brand-name {
   color: var(--vzn-chrome-fg-strong);
   font-size: var(--vzn-font-size-subtitle);

@@ -41,6 +41,7 @@ export default {
         // Tailwind utilities read the same token as body CSS so a palette
         // preset can swap the interface font in one place.
         sans: ['var(--vzn-font-sans)'],
+        mono: ['var(--vzn-font-mono)'],
       },
       fontSize: {
         xs: ['var(--vzn-font-size-sm)', { lineHeight: '1.4' }],
