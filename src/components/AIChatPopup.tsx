@@ -46,8 +46,6 @@ import {
 } from './ui/icons'
 import { ThinkingPill } from './ui/molecules'
 
-const QUICK_TEXTAREA_MAX_HEIGHT_PX = 120
-
 /** Context sent to the model: the newest complete pairs within both caps. */
 const MAX_CONTEXT_PAIRS = 6
 const MAX_CONTEXT_CHARS = 6_000
@@ -223,10 +221,13 @@ export function AIChatPopup({
     : chatSendShortcut === 'modEnter'
       ? tpl(t.ai_chat_popup_placeholder_mod_enter, { mod: primaryModifierShortcut })
       : t.ai_chat_popup_placeholder
+  const newConversationLabel = hasContext
+    ? tpl(t.ai_chat_popup_new_conversation, { shortcut: `${primaryModifierShortcut}+N` })
+    : t.ai_chat_popup_short_label
 
   // Pretty short label for the active model (e.g. "GPT 5.4 Mini").
-  // Falls back to `default` when no model has been picked yet.
-  const modelLabel = model ? formatModelName(selectedProvider, model) : 'default'
+  // Falls back to the localized "default" label when no model has been picked yet.
+  const modelLabel = model ? formatModelName(selectedProvider, model) : t.ai_chat_popup_model_default
 
   const focusInput = useCallback(() => {
     window.setTimeout(() => textareaRef.current?.focus(), 30)
@@ -375,7 +376,8 @@ export function AIChatPopup({
     const el = textareaRef.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, QUICK_TEXTAREA_MAX_HEIGHT_PX)}px`
+    // `.quick-chat-input-field` caps the growth with a max-height token.
+    el.style.height = `${el.scrollHeight}px`
   })
 
   // Measure scroll-container height so the active Q&A card can fill the viewport.
@@ -774,15 +776,15 @@ export function AIChatPopup({
             shape="icon"
             variant="neutral"
             appearance="ghost"
-            aria-label={hasContext ? `New conversation (${primaryModifierShortcut}+N)` : 'Quick AI'}
+            aria-label={newConversationLabel}
             type="button"
             onClick={hasContext ? handleNewConversation : undefined}
             disabled={!hasContext}
-            title={hasContext ? `New conversation (${primaryModifierShortcut}+N)` : 'Quick AI'}
+            title={newConversationLabel}
             className={`titlebar-no-drag flex-shrink-0 ${hasContext ? "" : "cursor-default"}`}
           >
             {hasContext ? (
-              <PlusIcon className="h-4 w-4 text-gray-700" />
+              <PlusIcon className="h-4 w-4" />
             ) : (
               <AppLogoIcon size={24} />
             )}
@@ -798,7 +800,6 @@ export function AIChatPopup({
               rows={1}
               disabled={isSending}
               className="quick-chat-input-field"
-              style={{ maxHeight: QUICK_TEXTAREA_MAX_HEIGHT_PX, overflowY: 'auto' }}
               aria-label={t.ai_chat_popup_title}
             />
             {input && !isSending && (
@@ -848,7 +849,7 @@ export function AIChatPopup({
               <div className="chat-logo-ring flex h-12 w-12 items-center justify-center">
                 <AppLogoIcon size={28} />
               </div>
-              <p className="max-w-sm text-sm leading-6" style={{ color: 'var(--vzn-text-muted)' }}>{t.chat_error_no_key}</p>
+              <p className="quick-chat-muted max-w-sm text-sm leading-6">{t.chat_error_no_key}</p>
               <Button
                 size="sm"
                 shape="rect"
@@ -863,10 +864,10 @@ export function AIChatPopup({
             </EmptyContainer>
           ) : inputTooLong ? (
             <EmptyContainer>
-              <p className="text-sm font-medium text-gray-700">
+              <p className="quick-chat-text text-sm font-medium">
                 {trimmedLength.toLocaleString()} / {MAX_CHAT_INPUT_CHARS.toLocaleString()}
               </p>
-              <p className="text-xs text-gray-500">{t.ai_chat_popup_input_too_long}</p>
+              <p className="quick-chat-muted text-xs">{t.ai_chat_popup_input_too_long}</p>
             </EmptyContainer>
           ) : !activeQuestion && !isSending ? (
             <EmptyContainer>
@@ -875,11 +876,11 @@ export function AIChatPopup({
               </div>
               <div className="text-center">
                 <p className="ui-kicker">{t.ai_chat_popup_short_label}</p>
-                <h2 className="mt-1 text-xl font-bold" style={{ color: 'var(--vzn-text-strong)' }}>
+                <h2 className="quick-chat-strong mt-1 text-xl font-bold">
                   {t.ai_chat_popup_title}
                 </h2>
               </div>
-              <p className="ui-caption max-w-[28rem] text-center leading-6">
+              <p className="ui-caption quick-chat-empty-desc text-center leading-6">
                 {t.ai_chat_popup_empty_desc}
               </p>
 
@@ -905,7 +906,7 @@ export function AIChatPopup({
               </div>
             </EmptyContainer>
           ) : (
-            <div className="mx-auto flex w-full max-w-[64rem] flex-col gap-3">
+            <div className="quick-chat-stack mx-auto flex w-full flex-col gap-3">
               {/* Past Q&A — only revealed by scrolling up. */}
               {Array.from({ length: history.length / 2 }).map((_, pairIdx) => {
                 const userTurn = history[pairIdx * 2]
@@ -924,6 +925,7 @@ export function AIChatPopup({
                     copyLabel={t.chat_copy}
                     copiedLabel={t.chat_copied}
                     regenerateLabel={t.chat_regenerate}
+                    questionBadge={t.ai_chat_popup_question_badge}
                   />
                 )
               })}
@@ -952,6 +954,7 @@ export function AIChatPopup({
                     copyLabel={t.chat_copy}
                     copiedLabel={t.chat_copied}
                     regenerateLabel={t.chat_regenerate}
+                    questionBadge={t.ai_chat_popup_question_badge}
                     onCopy={() => handleCopy(response, 'active')}
                     onRegenerate={isSending ? undefined : () => handleRegenerate()}
                   />
@@ -971,22 +974,21 @@ export function AIChatPopup({
             type="button"
             onClick={handleOpenSettings}
             className="titlebar-no-drag group min-w-0"
-            title={hasKey ? 'Change model in Settings' : t.chat_error_open_settings}
+            title={hasKey ? t.ai_chat_popup_change_model : t.chat_error_open_settings}
           >
             <span
-              className={`inline-block h-2 w-2 flex-shrink-0 rounded-full ${
-                hasKey
-                  ? 'bg-gray-500 shadow-[0_0_0_3px_rgba(75,85,99,0.14)]'
-                  : 'bg-gray-400'
+              className={`quick-chat-status-dot inline-block h-2 w-2 flex-shrink-0 rounded-full ${
+                hasKey ? 'quick-chat-status-dot--ready' : ''
               }`}
               aria-hidden
             />
+            <span className="sr-only">{hasKey ? t.ai_chat_popup_model_ready : t.model_no_key}</span>
             <ProviderIcon provider={selectedProvider} size={14} />
-            <span className="truncate text-xs font-medium tracking-tight text-gray-700">
+            <span className="quick-chat-text truncate text-xs font-medium tracking-tight">
               / {modelLabel}
             </span>
             <span
-              className="hidden items-center gap-1 rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-semibold text-gray-600 sm:inline-flex"
+              className="quick-chat-smart-badge hidden items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold sm:inline-flex"
               title={t.chat_smart_thinking_hint}
             >
               <SparklesIcon className="h-3 w-3" />
@@ -1023,7 +1025,7 @@ export function AIChatPopup({
               disabled={!response.trim()}
             >
               {copiedKey === 'footer' ? (
-                <CheckIcon className="h-3.5 w-3.5 text-gray-700" />
+                <CheckIcon className="h-3.5 w-3.5" />
               ) : (
                 <CopyIcon className="h-3.5 w-3.5" />
               )}
@@ -1057,7 +1059,7 @@ export function AIChatPopup({
 /** Vertically-centered empty/info container used in multiple states. */
 function EmptyContainer({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-full min-h-[240px] flex-col items-center justify-center gap-3 text-center">
+    <div className="quick-chat-empty flex h-full flex-col items-center justify-center gap-3 text-center">
       {children}
     </div>
   )
@@ -1094,7 +1096,7 @@ function CardActions({
         title={copyLabel}
       >
         {isCopied ? (
-          <CheckIcon className="h-3 w-3 text-gray-700" />
+          <CheckIcon className="h-3 w-3" />
         ) : (
           <CopyIcon className="h-3 w-3" />
         )}
@@ -1128,6 +1130,7 @@ function QAEntry({
   copyLabel,
   copiedLabel,
   regenerateLabel,
+  questionBadge,
 }: {
   question: string
   answer: string
@@ -1138,11 +1141,12 @@ function QAEntry({
   copyLabel: string
   copiedLabel: string
   regenerateLabel: string
+  questionBadge: string
 }) {
   return (
     <div className={`quick-chat-answer-card titlebar-no-drag overflow-hidden ${muted ? 'opacity-70' : ''}`}>
       <div className="quick-chat-question-row ui-caption flex items-start gap-2 border-b px-5 py-2.5 leading-5">
-        <span className="ui-token-badge mt-0.5 h-4">Q</span>
+        <span className="ui-token-badge mt-0.5 h-4">{questionBadge}</span>
         <p className="min-w-0 flex-1 select-text break-words">{question}</p>
       </div>
       <div className="px-5 py-4">
@@ -1175,6 +1179,7 @@ function ActiveQACard({
   copyLabel,
   copiedLabel,
   regenerateLabel,
+  questionBadge,
   onCopy,
   onRegenerate,
 }: {
@@ -1190,6 +1195,7 @@ function ActiveQACard({
   copyLabel: string
   copiedLabel: string
   regenerateLabel: string
+  questionBadge: string
   onCopy: () => void
   onRegenerate?: () => void
 }) {
@@ -1200,13 +1206,11 @@ function ActiveQACard({
   return (
     <div className="quick-chat-answer-card titlebar-no-drag flex h-full flex-col overflow-hidden">
       <div className="quick-chat-question-row ui-caption flex items-start gap-2 border-b px-5 py-2.5 leading-5">
-        <span className="ui-token-badge mt-0.5 h-4">
-          Q
-        </span>
+        <span className="ui-token-badge mt-0.5 h-4">{questionBadge}</span>
         <p className="min-w-0 flex-1 select-text break-words">{question}</p>
       </div>
 
-      <div className="min-h-0 flex-1 px-5 py-4">
+      <div className="min-h-0 flex-1 px-5 py-4" aria-live="polite" aria-busy={isSending}>
         {error ? (
           <div className="ui-error-box">
             <p className="leading-6">{error}</p>
@@ -1224,13 +1228,13 @@ function ActiveQACard({
               <ThinkingPill label={thinkingLabel} />
             )}
             <div className="space-y-2.5 pt-1">
-              <div className="h-2 w-3/4 animate-pulse rounded-full bg-gray-200/80" />
-              <div className="h-2 w-11/12 animate-pulse rounded-full bg-gray-200/80" />
-              <div className="h-2 w-2/5 animate-pulse rounded-full bg-gray-200/80" />
+              <div className="quick-chat-skeleton h-2 w-3/4 animate-pulse rounded-full" />
+              <div className="quick-chat-skeleton h-2 w-11/12 animate-pulse rounded-full" />
+              <div className="quick-chat-skeleton h-2 w-2/5 animate-pulse rounded-full" />
             </div>
           </div>
         ) : response ? (
-          <MarkdownText text={response} className="ui-reader-text leading-7 text-gray-800" />
+          <MarkdownText text={response} className="ui-reader-text quick-chat-text leading-7" />
         ) : null}
       </div>
 

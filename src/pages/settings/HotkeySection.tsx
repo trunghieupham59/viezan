@@ -11,6 +11,7 @@ import { MACOS_KEYBOARD_SHORTCUTS_PREFS } from '../../constants/urls'
 import { useAppStore, useT } from '../../store/useAppStore'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import type { CapabilityStatus } from '../../types'
+import { recordHotkey } from '../../utils/hotkeyRecording'
 import { DEFAULT_QUICK_TRANSLATE_SHORTCUT, defaultLauncherShortcut, shortcutKeyCaps } from '../../utils/keyboardShortcuts'
 import { tpl } from '../../utils/tpl'
 
@@ -28,12 +29,6 @@ const ALTERNATIVE_CHAT_HOTKEY = 'Alt+Space'
 const isTargetLanguage = (value: unknown): value is string =>
   typeof value === 'string' && TARGET_LANGUAGES.some((language) => language.code === value)
 
-const KEY_MAP: Record<string, string> = {
-  ' ': 'Space', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right',
-  Escape: 'Escape', Enter: 'Return', Backspace: 'Backspace', Delete: 'Delete',
-  Tab: 'Tab', F1: 'F1', F2: 'F2', F3: 'F3', F4: 'F4', F5: 'F5', F6: 'F6',
-  F7: 'F7', F8: 'F8', F9: 'F9', F10: 'F10', F11: 'F11', F12: 'F12',
-}
 
 export interface HotkeySectionProps {
   /**
@@ -55,6 +50,8 @@ export function HotkeySection({ part }: HotkeySectionProps) {
   const [hotkeyEnabled, setHotkeyEnabled] = useState(false)
   const [hotkeyValue, setHotkeyValue] = useState('')
   const [isRecording, setIsRecording] = useState(false)
+  /** The last key pressed while recording had no Command/Control/Option. */
+  const [needsModifier, setNeedsModifier] = useState(false)
   /** Quick Translate's own language pair, persisted by the main process. */
   const [hotkeyTargetLang, setHotkeyTargetLang] = useState('')
   /** '' = pair off (always translate into the primary language); null = not loaded yet. */
@@ -136,6 +133,8 @@ export function HotkeySection({ part }: HotkeySectionProps) {
       // Known failure codes get a localized explanation; anything else shows the backend message.
       const message = data?.errorCode === 'ACCESSIBILITY_DENIED' ? t.settings_hotkey_error_accessibility
         : data?.errorCode === 'COPY_FAILED' ? t.settings_hotkey_error_copy_failed
+        : data?.errorCode === 'PASTE_FAILED' ? t.settings_hotkey_error_paste_failed
+        : data?.errorCode === 'TRANSLATE_FAILED' ? t.settings_hotkey_error_translate_failed
         : data?.error ?? t.settings_hotkey_status_error
       if (data?.errorCode === 'ACCESSIBILITY_DENIED') setAccessibility({ id: 'input.accessibility', supported: true, permission: 'denied' })
       notify({ key: HOTKEY_RUN_KEY, tone: 'error', message, durationMs: STATUS_RESET_LONG_MS })
@@ -157,7 +156,12 @@ export function HotkeySection({ part }: HotkeySectionProps) {
     }
     const res = await window.api.hotkey.update(settings)
     if (!res?.success && res?.error) {
-      notify({ key: HOTKEY_ERROR_KEY, tone: 'error', message: res.error })
+      // Main's message is English and technical; say it in the user's language by code.
+      const message = res.errorCode === 'IN_USE' ? t.settings_chat_hotkey_status_conflict
+        : res.errorCode === 'CONFLICT' ? t.settings_hotkey_register_conflict_launcher
+        : res.errorCode === 'INVALID' ? t.settings_hotkey_register_invalid
+        : t.launcher_hotkey_failed
+      notify({ key: HOTKEY_ERROR_KEY, tone: 'error', message })
       // The backend keeps the previously registered shortcut when an update is
       // rejected, so mirror what it actually has instead of forcing the toggle off.
       const kept = res.settings
@@ -171,21 +175,7 @@ export function HotkeySection({ part }: HotkeySectionProps) {
       dismissNotification(HOTKEY_ERROR_KEY)
     }
     window.dispatchEvent(new Event(SHORTCUTS_CHANGED_EVENT))
-  }, [hotkeyValue, hotkeyEnabled, hotkeyProvider, hotkeyModel, effectiveTargetLang, effectiveSecondaryLang, locale, notify, dismissNotification])
-
-  // Convert a KeyboardEvent to an Electron accelerator string
-  const keyEventToAccelerator = (e: React.KeyboardEvent): string => {
-    const parts: string[] = []
-    if (e.metaKey)  parts.push('Command')
-    if (e.ctrlKey)  parts.push('Ctrl')
-    if (e.altKey)   parts.push('Alt')
-    if (e.shiftKey) parts.push('Shift')
-    const key = e.key
-    if (!['Meta', 'Control', 'Alt', 'Shift'].includes(key)) {
-      parts.push(KEY_MAP[key] ?? key.toUpperCase())
-    }
-    return parts.join('+')
-  }
+  }, [hotkeyValue, hotkeyEnabled, hotkeyProvider, hotkeyModel, effectiveTargetLang, effectiveSecondaryLang, locale, t, notify, dismissNotification])
 
   // Provider, model and UI language follow the app; push them once the persisted
   // settings are loaded and again whenever they change. The target language is
@@ -219,17 +209,20 @@ export function HotkeySection({ part }: HotkeySectionProps) {
   }
 
   const handleHotkeyKeyDown = (e: React.KeyboardEvent) => {
+    const recorded = recordHotkey(e)
+    // Plain Tab keeps moving focus; the blur ends recording.
+    if (e.key === 'Tab' && recorded.kind === 'ignore') return
     e.preventDefault()
-    if (e.key === 'Escape') {
+    if (recorded.kind === 'cancel') {
       setIsRecording(false)
-      return
-    }
-    if (['Meta', 'Control', 'Alt', 'Shift'].includes(e.key)) return
-    const acc = keyEventToAccelerator(e)
-    if (acc) {
-      setHotkeyValue(acc)
+      setNeedsModifier(false)
+    } else if (recorded.kind === 'needs-modifier') {
+      setNeedsModifier(true)
+    } else if (recorded.kind === 'accelerator') {
+      setNeedsModifier(false)
+      setHotkeyValue(recorded.accelerator)
       setIsRecording(false)
-      saveHotkeySettings({ hotkey: acc })
+      saveHotkeySettings({ hotkey: recorded.accelerator })
     }
   }
 
@@ -237,6 +230,7 @@ export function HotkeySection({ part }: HotkeySectionProps) {
   const [chatHotkeyEnabled, setChatHotkeyEnabled] = useState(false)
   const [chatHotkeyValue, setChatHotkeyValue] = useState('')
   const [isChatRecording, setIsChatRecording] = useState(false)
+  const [chatNeedsModifier, setChatNeedsModifier] = useState(false)
   /** macOS system shortcut (Spotlight, Finder search) that owns the current Launcher shortcut. */
   const [chatSystemConflict, setChatSystemConflict] = useState<{ owner: SystemShortcutOwner; accelerator: string } | null>(null)
   /** Whether Viezan turned Spotlight's shortcut off (offers a way back). */
@@ -359,17 +353,20 @@ export function HotkeySection({ part }: HotkeySectionProps) {
   }, [chatHotkeyValue, chatHotkeyEnabled, t, notify, dismissNotification])
 
   const handleChatHotkeyKeyDown = (e: React.KeyboardEvent) => {
+    const recorded = recordHotkey(e)
+    // Plain Tab keeps moving focus; the blur ends recording.
+    if (e.key === 'Tab' && recorded.kind === 'ignore') return
     e.preventDefault()
-    if (e.key === 'Escape') {
+    if (recorded.kind === 'cancel') {
       setIsChatRecording(false)
-      return
-    }
-    if (['Meta', 'Control', 'Alt', 'Shift'].includes(e.key)) return
-    const acc = keyEventToAccelerator(e)
-    if (acc) {
-      setChatHotkeyValue(acc)
+      setChatNeedsModifier(false)
+    } else if (recorded.kind === 'needs-modifier') {
+      setChatNeedsModifier(true)
+    } else if (recorded.kind === 'accelerator') {
+      setChatNeedsModifier(false)
+      setChatHotkeyValue(recorded.accelerator)
       setIsChatRecording(false)
-      saveChatHotkeySettings({ hotkey: acc })
+      saveChatHotkeySettings({ hotkey: recorded.accelerator })
     }
   }
 
@@ -391,6 +388,16 @@ export function HotkeySection({ part }: HotkeySectionProps) {
             />
           )}
         >
+          {/* The Translate module is off: main keeps the shortcut unregistered */}
+          {enabledModules.translate === false && (
+            <CapabilityNotice
+              tone="info"
+              title={tpl(t.settings_modules_off_title, { module: t.nav_translate })}
+              description={t.settings_modules_off_desc}
+              actions={[{ label: t.settings_modules_turn_on, onClick: () => { void setModuleEnabled('translate', true) }, primary: true }]}
+            />
+          )}
+
           <StepList
             label={t.everywhere_steps_label}
             steps={[
@@ -408,20 +415,13 @@ export function HotkeySection({ part }: HotkeySectionProps) {
             ]}
           />
 
-          {/* The Translate module is off: main keeps the shortcut unregistered */}
-          {enabledModules.translate === false && (
-            <CapabilityNotice
-              tone="info"
-              title={tpl(t.settings_modules_off_title, { module: t.nav_translate })}
-              description={t.settings_modules_off_desc}
-              actions={[{ label: t.settings_modules_turn_on, onClick: () => { void setModuleEnabled('translate', true) }, primary: true }]}
-            />
-          )}
-
-          <SettingsRow label={t.settings_hotkey_label} description={t.settings_hotkey_desc}>
+          <SettingsRow
+            label={t.settings_hotkey_label}
+            description={needsModifier ? <span role="alert">{t.settings_hotkey_needs_modifier}</span> : t.settings_hotkey_desc}
+          >
             {hotkeyValue && !isRecording && (
               <Button
-                size="sm"
+                size="md"
                 shape="icon"
                 variant="danger"
                 appearance="ghost"
@@ -443,7 +443,7 @@ export function HotkeySection({ part }: HotkeySectionProps) {
               value={displayAccelerator(hotkeyValue)}
               onKeyDown={handleHotkeyKeyDown}
               onClick={() => setIsRecording(true)}
-              onBlur={() => setIsRecording(false)}
+              onBlur={() => { setIsRecording(false); setNeedsModifier(false) }}
               recordingText={t.settings_hotkey_recording}
               noneText={t.settings_hotkey_none}
             />
@@ -511,10 +511,23 @@ export function HotkeySection({ part }: HotkeySectionProps) {
             />
           )}
         >
-          <SettingsRow label={t.settings_chat_hotkey_label} description={t.settings_chat_hotkey_desc}>
+          {/* The Launcher module is off: main keeps the shortcut unregistered */}
+          {enabledModules.launcher === false && (
+            <CapabilityNotice
+              tone="info"
+              title={tpl(t.settings_modules_off_title, { module: t.settings_modules_launcher_label })}
+              description={t.settings_modules_off_desc}
+              actions={[{ label: t.settings_modules_turn_on, onClick: () => { void setModuleEnabled('launcher', true) }, primary: true }]}
+            />
+          )}
+
+          <SettingsRow
+            label={t.settings_chat_hotkey_label}
+            description={chatNeedsModifier ? <span role="alert">{t.settings_hotkey_needs_modifier}</span> : t.settings_chat_hotkey_desc}
+          >
             {chatHotkeyValue && !isChatRecording && (
               <Button
-                size="sm"
+                size="md"
                 shape="icon"
                 variant="danger"
                 appearance="ghost"
@@ -536,21 +549,11 @@ export function HotkeySection({ part }: HotkeySectionProps) {
               value={displayAccelerator(chatHotkeyValue)}
               onKeyDown={handleChatHotkeyKeyDown}
               onClick={() => setIsChatRecording(true)}
-              onBlur={() => setIsChatRecording(false)}
+              onBlur={() => { setIsChatRecording(false); setChatNeedsModifier(false) }}
               recordingText={t.settings_chat_hotkey_recording}
               noneText={t.settings_chat_hotkey_none}
             />
           </SettingsRow>
-
-        {/* The Launcher module is off: main keeps the shortcut unregistered */}
-        {enabledModules.launcher === false && (
-          <CapabilityNotice
-            tone="info"
-            title={tpl(t.settings_modules_off_title, { module: t.settings_modules_launcher_label })}
-            description={t.settings_modules_off_desc}
-            actions={[{ label: t.settings_modules_turn_on, onClick: () => { void setModuleEnabled('launcher', true) }, primary: true }]}
-          />
-        )}
 
         {/* macOS: Spotlight (or another system shortcut) owns the chosen keys */}
         {chatSystemConflict && (

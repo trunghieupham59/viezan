@@ -1,6 +1,8 @@
 import { IMAGE_TRANSLATED_SENTINEL } from '../../../hooks/useTranslate'
-import { useT } from '../../../store/useAppStore'
+import { useAppStore, useT } from '../../../store/useAppStore'
 import type { PhoneticMode } from '../../../types'
+import { formatNumberForLocale } from '../../../utils/locale'
+import { tpl } from '../../../utils/tpl'
 import { MarkdownText } from '../../MarkdownText'
 import { FuriganaText } from '../../translate/FuriganaText'
 import { ResultPanelActions } from '../../translate/ResultPanelActions'
@@ -62,6 +64,7 @@ export function TranslationResultPane({
   onCopy,
 }: TranslationResultPaneProps) {
   const t = useT()
+  const appLocale = useAppStore((state) => state.locale)
   const displayText = translatedText === IMAGE_TRANSLATED_SENTINEL ? '' : translatedText
   const hasResult = Boolean(displayText || editedImageUrl)
   const canUseResultActions = hasResult && !isTranslating && !isResultStale && !translateError
@@ -129,7 +132,8 @@ export function TranslationResultPane({
         )}
 
         {hasResult ? (
-          <div className={isResultStale || isTranslating ? 'translate-result-pending' : undefined}>
+          // `lang` lets the browser pick target-language glyphs (JA/ZH) whatever the app locale is.
+          <div lang={targetLang} className={isResultStale || isTranslating ? 'translate-result-pending' : undefined}>
             {resultContent}
           </div>
         ) : isTranslating ? (
@@ -152,7 +156,8 @@ export function TranslationResultPane({
       <footer className={`translate-pane-footer translate-result-footer${canUseResultActions ? ' translate-result-footer-active' : ''}`}>
         {canUseResultActions && (
           <>
-          {!hasImageAttachment && <Button size="xs" shape="icon" variant="neutral" appearance="ghost"
+          {/* Same `md` size as the copy/rewrite/speak siblings in this footer. */}
+          {!hasImageAttachment && <Button size="md" shape="icon" variant="neutral" appearance="ghost"
             aria-label={t.translate_use_as_source} title={t.translate_use_as_source} onClick={onUseAsSource}><ArrowLeftIcon /></Button>}
           <ResultPanelActions
             translatedText={displayText}
@@ -169,7 +174,7 @@ export function TranslationResultPane({
             onDownloadTranslated={onDownloadTranslated}
             onRewrite={onRewrite}
             onCopy={onCopy}
-            labelChars={t.translate_chars}
+            charCountLabel={tpl(t.translate_char_count, { count: formatNumberForLocale(displayText.length, appLocale) })}
             labelSpeak={t.translate_speak}
             labelSpeakStop={t.translate_speak_stop}
             labelDownload={t.image_translate_download}

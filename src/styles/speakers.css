@@ -1,0 +1,24 @@
+/* Live transcript speaker badges. Each speaker takes one illustrative tone;
+   the badge always prints the speaker name, so colour is never the only cue.
+   Every value comes from tokens.css. */
+
+.speaker-tone {
+  background: color-mix(in srgb, var(--speaker-tone) 16%, transparent);
+  color: color-mix(in srgb, var(--speaker-tone) 72%, var(--vzn-text-strong));
+}
+
+.speaker-tone--blue {
+  --speaker-tone: var(--vzn-tone-blue);
+}
+
+.speaker-tone--violet {
+  --speaker-tone: var(--vzn-tone-violet);
+}
+
+.speaker-tone--green {
+  --speaker-tone: var(--vzn-tone-green);
+}
+
+.speaker-tone--orange {
+  --speaker-tone: var(--vzn-tone-orange);
+}

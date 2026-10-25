@@ -4,7 +4,7 @@ import { useAppStore, useT } from '../../store/useAppStore'
 import type { ChatMessage, ChatMessageContent } from '../../types'
 import { MarkdownText } from '../MarkdownText'
 import { Button } from '../ui/atoms'
-import { CopyIcon, DownloadIcon, LightbulbIcon, PencilIcon, RefreshIcon, SparklesIcon, SpinnerIcon, ThumbsDownIcon, ThumbsUpIcon } from '../ui/icons'
+import { CopyIcon, DownloadIcon, LightbulbIcon, PencilIcon, RefreshIcon, SparklesIcon, SpinnerIcon } from '../ui/icons'
 import { ImageLightbox, RecoverableError, stripTrailingEllipsis, ThinkingDots, ThinkingPill } from '../ui/molecules'
 import { UsageCostBadge } from '../ui/molecules/UsageCostBadge'
 
@@ -110,7 +110,7 @@ function MessageBubbleImpl({
           >
             <span className="flex items-center gap-2 font-medium text-left">
               {!message.isLoading && (
-                <LightbulbIcon className="h-3.5 w-3.5 text-gray-500 dark:text-gray-300" />
+                <LightbulbIcon className="h-3.5 w-3.5 chat-research-icon" />
               )}
               <span>
                 {message.isLoading ? <ThinkingLabel muted /> : message.researchStepLabel}
@@ -118,10 +118,10 @@ function MessageBubbleImpl({
             </span>
 
             {message.isLoading ? (
-              <SpinnerIcon className="w-3 h-3 animate-spin text-gray-400 flex-shrink-0" />
+              <SpinnerIcon className="w-3 h-3 animate-spin chat-research-icon-quiet flex-shrink-0" />
             ) : (
               <span
-                className={`text-gray-400 text-base leading-none flex-shrink-0 transition-transform duration-200
+                className={`chat-research-icon-quiet text-base leading-none flex-shrink-0 transition-transform duration-200
                             ${isStepCollapsed ? '' : 'rotate-90'}`}
               >
                 ›
@@ -131,8 +131,7 @@ function MessageBubbleImpl({
 
           {/* Content — hidden when collapsed or loading */}
           {!isStepCollapsed && !message.isLoading && textContent && (
-            <div className="px-3 py-2.5 border-t border-gray-200/60 dark:border-neutral-800
-                            text-gray-600 dark:text-gray-300 leading-relaxed bg-white/60 dark:bg-neutral-950/30">
+            <div className="chat-research-step-body px-3 py-2.5 leading-relaxed">
               <MarkdownText text={textContent} className="text-xs" />
             </div>
           )}
@@ -154,8 +153,7 @@ function MessageBubbleImpl({
       <div className="chat-message-row group flex gap-3 items-start">
         <div className="chat-message-content flex-1 min-w-0 flex flex-col gap-1.5">
           {message.isLoading ? (
-            <div className="rounded-2xl border border-gray-200/80 bg-white px-4 py-3 shadow-sm shadow-gray-900/[0.05]
-                            dark:border-neutral-800 dark:bg-neutral-900">
+            <div className="chat-research-final-loading rounded-2xl px-4 py-3">
               <div className="flex items-center gap-2">
                 <SmartThinkingLabel label={t.chat_deep_research_summarizing} />
               </div>
@@ -164,8 +162,8 @@ function MessageBubbleImpl({
             <div className="chat-research-final">
               {/* Badge header */}
               <div className="chat-research-final-header">
-                <SparklesIcon className="h-3.5 w-3.5 text-gray-500 dark:text-gray-300" />
-                <span className="ui-kicker font-bold tracking-[0.18em] text-gray-700 dark:text-gray-200">
+                <SparklesIcon className="h-3.5 w-3.5 chat-research-icon" />
+                <span className="ui-kicker chat-research-text font-bold">
                   {t.chat_deep_research_badge}
                 </span>
               </div>
@@ -219,7 +217,7 @@ function MessageBubbleImpl({
       className={`chat-message-row group flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'} items-start`}
       data-message-role={isUser ? 'user' : 'assistant'}
     >
-      <div className={`chat-message-content flex flex-col gap-1.5 min-w-0 max-w-[80%] ${isUser ? 'items-end' : 'items-start w-full'}`}>
+      <div className={`chat-message-content flex flex-col gap-1.5 min-w-0 ${isUser ? 'items-end' : 'items-start w-full'}`}>
         {/* Image attachments */}
         {imageContents.map((img, i) => {
           const imageSrc = getImageSource(img)
@@ -232,8 +230,7 @@ function MessageBubbleImpl({
                 key={i}
                 role="img"
                 aria-label={t.chat_image_unavailable}
-                className="max-w-full rounded-xl border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-500
-                           dark:border-neutral-700 dark:text-gray-400"
+                className="chat-image-missing max-w-full rounded-xl px-3 py-2 text-xs"
               >
                 {t.chat_image_unavailable}
               </div>
@@ -252,8 +249,7 @@ function MessageBubbleImpl({
               <img
                 src={imageSrc}
                 alt={img.imageFileName ?? 'attachment'}
-                className="max-w-full rounded-xl max-h-64 object-contain border border-gray-200 dark:border-neutral-800
-                           transition-shadow duration-150 hover:shadow-lg shadow-sm shadow-gray-900/[0.05]"
+                className="chat-image-thumb max-w-full rounded-xl max-h-64 object-contain"
               />
             </button>
           )
@@ -364,34 +360,6 @@ function MessageBubbleImpl({
               <PencilIcon className="w-3.5 h-3.5" />
               <span>{t.chat_edit_this_image}</span>
             </Button>
-          )}
-
-          {/* Thumbs up / down feedback — assistant messages only, not loading */}
-          {!isUser && !message.isLoading && textContent && (
-            <>
-              <Button
-                size="xs"
-                shape="icon"
-                variant="neutral"
-                appearance="ghost"
-                title={t.chat_feedback_good}
-                aria-label={t.chat_feedback_good}
-                className={MESSAGE_ACTION_BUTTON_CLASS}
-              >
-                <ThumbsUpIcon className="w-3.5 h-3.5" />
-              </Button>
-              <Button
-                size="xs"
-                shape="icon"
-                variant="neutral"
-                appearance="ghost"
-                title={t.chat_feedback_bad}
-                aria-label={t.chat_feedback_bad}
-                className={MESSAGE_ACTION_BUTTON_CLASS}
-              >
-                <ThumbsDownIcon className="w-3.5 h-3.5" />
-              </Button>
-            </>
           )}
 
           {/* Regenerate button — only on last assistant message */}

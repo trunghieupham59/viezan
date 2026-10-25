@@ -1158,6 +1158,9 @@ export function useLiveTranslate() {
     let pendingAudioCtx: AudioContext | null = null
     let pendingAnalyser: AnalyserNode | null = null
     let sessionLive = false
+    // True only while the screen/system-audio picker is pending, so a denial there
+    // is reported as the Screen Recording permission even in 'both' mode.
+    let requestingScreen = false
     try {
       const audioCtx = new AudioContext()
       pendingAudioCtx = audioCtx
@@ -1175,12 +1178,14 @@ export function useLiveTranslate() {
         // Note: Electron's setDisplayMediaRequestHandler overrides the source,
         // so we keep video constraints minimal (just `true`) to avoid
         // "Invalid capture constraints" errors from Chromium's constraint validator.
+        requestingScreen = true
         const displayStream = await (navigator.mediaDevices as MediaDevices).getDisplayMedia({
           video: true,
           // Loopback already contains clean playback. Microphone processing
           // suppresses its own source and can damage short syllables/tones.
           audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
         } as DisplayMediaStreamOptions)
+        requestingScreen = false
         // Keep the whole display stream so Stop/unmount/error can stop every track.
         acquiredStreams.push(displayStream)
 
@@ -1337,8 +1342,9 @@ export function useLiveTranslate() {
       // A superseded attempt must not surface errors over the newer session.
       if (sessionSeqRef.current !== sessionSeq) return
       const msg = err instanceof Error ? err.message : String(err)
-      if (msg.includes('Permission denied') || msg.includes('NotAllowedError')) {
-        setMicError(audioMode === 'system'
+      const name = err instanceof Error ? err.name : ''
+      if (msg.includes('Permission denied') || msg.includes('NotAllowedError') || name === 'NotAllowedError') {
+        setMicError(requestingScreen
           ? t.live_error_screen_permission_denied
           : t.live_error_mic_denied)
       } else if (!msg.includes('cancelled') && !msg.includes('AbortError')) {

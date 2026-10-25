@@ -40,7 +40,11 @@ export function ShortcutList({ items, conflictLabel, unsetLabel, offLabel, label
           data-inactive={item.inactive || undefined}
         >
           <span className="ui-shortcut-list__copy">
-            <span className="ui-shortcut-list__label">{item.label}</span>
+            <span className="ui-shortcut-list__label">
+              {item.label}
+              {/* Compact rows drop the scope line, so "off" is said in text here rather than only by fading. */}
+              {compact && item.inactive && <span className="ui-shortcut-list__scope">{` · ${offLabel}`}</span>}
+            </span>
             {!compact && <span className="ui-shortcut-list__scope">{item.inactive ? `${item.scope} · ${offLabel}` : item.scope}</span>}
           </span>
           {item.conflict && <StatusChip tone="warning">{conflictLabel}</StatusChip>}

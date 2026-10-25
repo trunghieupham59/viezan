@@ -18,7 +18,7 @@ import { IMAGE_TRANSLATED_SENTINEL, useTranslate } from '../hooks/useTranslate'
 import type { VoiceErrorTranslationKey } from '../i18n/types'
 import { useAppStore, useT } from '../store/useAppStore'
 import { useNotificationStore } from '../store/useNotificationStore'
-import type { AudioTranscriptionErrorCode, TranslationComparisonResult } from '../types'
+import type { AudioTranscriptionErrorCode, Provider, TranslationComparisonResult, TranslationStyle } from '../types'
 import { formatModelName, getProviderDisplayName } from '../utils/modelDisplay'
 import { tpl } from '../utils/tpl'
 import { canResolveVoiceErrorInSettings, getVoiceNotificationTone } from '../utils/voiceErrors'
@@ -33,6 +33,9 @@ const TRANSLATE_RESULT_HEADING_ID = 'translate-result-heading'
 const VOICE_ERROR_KEY = 'translate-voice-error'
 const TRANSLATE_ERROR_KEY = 'translate-error'
 const IMAGE_MODEL_SWITCHED_KEY = 'translate-image-model-switched'
+const HISTORY_DELETED_KEY = 'translate-history-deleted'
+/** The store's default style; the footer summary only appears for another one. */
+const DEFAULT_TRANSLATION_STYLE: TranslationStyle = 'general'
 
 export function TranslatePage() {
   const t = useT()
@@ -61,6 +64,7 @@ export function TranslatePage() {
     translationStyle,
     translationReasoningEffort,
     selectedProvider,
+    selectedModel,
     translationModels,
     setTranslationModels,
     setPhoneticMode,
@@ -228,16 +232,47 @@ export function TranslatePage() {
       dismissNotification(IMAGE_MODEL_SWITCHED_KEY)
       return
     }
-    const provider = imageSwitchNotice.provider !== selectedProvider ? ` (${imageSwitchNotice.provider})` : ''
+    const usedProvider = imageSwitchNotice.provider as Provider
+    const model = formatModelName(usedProvider, imageSwitchNotice.model)
     notify({
       key: IMAGE_MODEL_SWITCHED_KEY,
       tone: 'warning',
       title: t.image_model_switched_title,
-      message: `${tpl(t.image_model_switched_using, { model: imageSwitchNotice.model })}${provider}. ${t.image_model_switched_body}`,
+      message: tpl(t.image_model_switched_message, {
+        model: usedProvider !== selectedProvider ? `${model} (${getProviderDisplayName(usedProvider)})` : model,
+        previous: formatModelName(selectedProvider, selectedModel),
+      }),
       onDismiss: () => setImageSwitchNotice(null),
     })
     return () => dismissNotification(IMAGE_MODEL_SWITCHED_KEY)
-  }, [imageSwitchNotice, selectedProvider, notify, dismissNotification, setImageSwitchNotice, t])
+  }, [imageSwitchNotice, selectedProvider, selectedModel, notify, dismissNotification, setImageSwitchNotice, t])
+
+  // Deleting one entry is immediate; the toast offers the way back. The entry
+  // returns to its old position unless the list has been cleared meanwhile.
+  const handleHistoryDelete = useCallback((id: string) => {
+    const before = useAppStore.getState().history
+    const index = before.findIndex((entry) => entry.id === id)
+    if (index < 0) return
+    const removed = before[index]
+    deleteHistoryItem(id)
+    notify({
+      key: HISTORY_DELETED_KEY,
+      tone: 'success',
+      message: t.translate_history_deleted,
+      actions: [{
+        label: t.translate_history_deleted_undo,
+        onClick: () => {
+          dismissNotification(HISTORY_DELETED_KEY)
+          useAppStore.setState((state) => {
+            if (state.history.some((entry) => entry.id === removed.id)) return {}
+            const next = [...state.history]
+            next.splice(Math.min(index, next.length), 0, removed)
+            return { history: next }
+          })
+        },
+      }],
+    })
+  }, [deleteHistoryItem, dismissNotification, notify, t])
 
   const speakingComparisonKey = speakingPanel?.startsWith('comparison:')
     ? speakingPanel.slice('comparison:'.length)
@@ -288,6 +323,7 @@ export function TranslatePage() {
         <div className="translate-header-leading">
           <LanguagePairBar
             scope="translate"
+            size="sm"
             detectedSourceLang={isResultStale ? null : detectedSourceLang}
             isDetectingLang={isDetectingLang}
             onPairChange={handleLanguagePairChange}
@@ -351,7 +387,7 @@ export function TranslatePage() {
       entries={history}
       activeEntryId={activeHistoryId}
       onReuse={handleHistoryReuse}
-      onDelete={deleteHistoryItem}
+      onDelete={handleHistoryDelete}
       onClearHistory={clearHistory}
       variant={variant}
       t={t}
@@ -363,6 +399,7 @@ export function TranslatePage() {
       headingId={TRANSLATE_SOURCE_HEADING_ID}
       sourceText={sourceText}
       sourceLang={sourceLang}
+      detectedSourceLang={isResultStale ? null : detectedSourceLang}
       voiceContextKey={voiceContextKey}
       charCount={charCount}
       translationModelCount={imageAttachment ? 1 : translationModels.length}
@@ -378,7 +415,7 @@ export function TranslatePage() {
       isRewriting={isRewriting}
       imageAttachment={imageAttachment}
       inputMode={effectiveInputMode}
-      optionsSummary={`${t.translate_style_label}: ${styleLabel}`}
+      optionsSummary={translationStyle !== DEFAULT_TRANSLATION_STYLE ? `${t.translate_style_label}: ${styleLabel}` : undefined}
       speakingPanel={speakingPanel}
       speakLoading={speakLoading}
       fileInputRef={fileInputRef}

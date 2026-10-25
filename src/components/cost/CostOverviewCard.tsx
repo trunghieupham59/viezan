@@ -17,6 +17,7 @@ import { formatTokenCount, formatUsageAmount } from '../../utils/usageCost'
 import { Button } from '../ui/atoms'
 import { CurrencyPicker } from '../ui/CurrencyPicker'
 import { CalculatorIcon, ChartBarIcon, CoinsIcon, PulseIcon } from '../ui/icons'
+import '../../styles/cost.css'
 
 interface CostOverviewCardProps {
   totals: Partial<Record<Provider, UsageTotal>>
@@ -34,18 +35,11 @@ interface FeatureSummary {
 
 const FEATURE_ORDER: UsageFeature[] = ['chat', 'translate', 'live', 'dictionary']
 
-const FEATURE_BAR_COLORS: Record<UsageFeature, string> = {
-  chat: 'bg-gray-950 dark:bg-gray-100',
-  translate: 'bg-gray-700 dark:bg-gray-300',
-  live: 'bg-gray-500 dark:bg-gray-400',
-  dictionary: 'bg-gray-400 dark:bg-gray-500',
-}
-
-const FEATURE_DOT_COLORS: Record<UsageFeature, string> = {
-  chat: 'bg-gray-950 dark:bg-gray-100',
-  translate: 'bg-gray-700 dark:bg-gray-300',
-  live: 'bg-gray-500 dark:bg-gray-400',
-  dictionary: 'bg-gray-400 dark:bg-gray-500',
+const FEATURE_TONE_CLASS: Record<UsageFeature, string> = {
+  chat: 'cost-feature--chat',
+  translate: 'cost-feature--translate',
+  live: 'cost-feature--live',
+  dictionary: 'cost-feature--dictionary',
 }
 
 function aggregateTotals(totals: Partial<Record<Provider, UsageTotal>>) {
@@ -96,15 +90,15 @@ export function CostOverviewCard({ totals, currency, onCurrencyChange, onResetAl
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+    <div className="cost-card overflow-hidden rounded-2xl">
       {/* Header row */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-gray-50 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="cost-card__header flex flex-wrap items-center justify-between gap-3 px-4 py-3">
         <div className="flex min-w-0 basis-1/2 grow items-center gap-2.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-gray-600 ring-1 ring-gray-200 dark:bg-neutral-800 dark:text-gray-300 dark:ring-neutral-700">
+          <span className="cost-card__icon flex h-8 w-8 shrink-0 items-center justify-center rounded-xl">
             <CoinsIcon className="h-4 w-4" />
           </span>
           <div className="min-w-0 leading-tight">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="cost-card__title text-sm font-semibold">
               {t.settings_cost_section_title}
             </h3>
             <p className="ui-meta">
@@ -139,10 +133,10 @@ export function CostOverviewCard({ totals, currency, onCurrencyChange, onResetAl
             {/* Hero stat */}
             <div className="flex items-end justify-between gap-4">
               <div>
-                <p className="ui-kicker text-gray-500 dark:text-gray-400">
+                <p className="ui-kicker cost-card__kicker">
                   {t.settings_cost_overview_total}
                 </p>
-                <p className="mt-0.5 flex items-baseline gap-1.5 font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                <p className="cost-card__total mt-0.5 flex items-baseline gap-1.5 font-bold tabular-nums">
                   <span className="text-3xl">~{formatUsageAmount(summary.amountUsd, currency)}</span>
                 </p>
                 <p className="ui-meta mt-0.5">
@@ -199,12 +193,12 @@ function KpiTile({
   value: string
 }) {
   return (
-    <div className="rounded-xl border border-gray-100 bg-white px-3 py-2 dark:border-gray-700/70 dark:bg-gray-800/60">
+    <div className="cost-kpi rounded-xl px-3 py-2">
       <div className="ui-kicker flex items-center gap-1.5">
-        <span className="text-gray-400 dark:text-gray-500">{icon}</span>
+        <span className="cost-kpi__icon">{icon}</span>
         <span>{label}</span>
       </div>
-      <p className="mt-0.5 text-base font-bold tabular-nums text-gray-800 dark:text-gray-100">
+      <p className="cost-kpi__value mt-0.5 text-base font-bold tabular-nums">
         {value}
       </p>
     </div>
@@ -240,19 +234,20 @@ function FeatureBreakdown({
           return (
             <li key={entry.feature} className="space-y-1">
               <div className="flex items-center justify-between gap-2 text-xs">
-                <div className="flex items-center gap-1.5 text-gray-700 dark:text-gray-200">
-                  <span className={`h-2 w-2 rounded-full ${FEATURE_DOT_COLORS[entry.feature]}`} />
+                <div className="cost-feature__label flex items-center gap-1.5">
+                  <span className={`h-2 w-2 rounded-full ${FEATURE_TONE_CLASS[entry.feature]}`}
+                    aria-hidden="true" />
                   <span className="font-medium">{labels[entry.feature]}</span>
                 </div>
-                <div className="flex items-center gap-2 tabular-nums text-gray-500 dark:text-gray-400">
+                <div className="cost-feature__value flex items-center gap-2 tabular-nums">
                   <span>~{formatUsageAmount(entry.amountUsd, currency)}</span>
                   <span className="ui-micro">·</span>
                   <span className="ui-micro">{entry.requestCount}</span>
                 </div>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+              <div className="cost-feature__track h-1.5 overflow-hidden rounded-full">
                 <div
-                  className={`h-full rounded-full transition-[width] duration-500 ${FEATURE_BAR_COLORS[entry.feature]}`}
+                  className={`cost-feature__bar h-full rounded-full ${FEATURE_TONE_CLASS[entry.feature]}`}
                   style={{ width: `${percent}%` }}
                 />
               </div>
@@ -266,13 +261,13 @@ function FeatureBreakdown({
 
 function EmptyState({ heading, body }: { heading: string; body: string }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-dashed border-gray-200 bg-white/40 px-4 py-4 dark:border-gray-700 dark:bg-gray-900/40">
-      <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500">
+    <div className="cost-empty flex items-start gap-3 rounded-xl px-4 py-4">
+      <span className="cost-empty__icon mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full">
         <CoinsIcon className="h-4 w-4" />
       </span>
       <div className="space-y-0.5">
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{heading}</p>
-        <p className="text-xs text-gray-500 dark:text-gray-400">{body}</p>
+        <p className="cost-empty__heading text-sm font-medium">{heading}</p>
+        <p className="cost-empty__body text-xs">{body}</p>
       </div>
     </div>
   )

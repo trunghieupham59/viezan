@@ -296,7 +296,14 @@
   animation: fadeIn var(--vzn-duration-normal) var(--vzn-ease-standard) both;
 }
 
-/* Selection lookup skeleton mirrors the meaning quote and the chip row. */
+/* Inline validation under the term / context field. */
+.dictionary-field-error {
+  margin: 0;
+  color: var(--vzn-danger);
+  font-size: var(--vzn-font-size-sm);
+}
+
+/* Lookup and selection-lookup skeletons mirror the meaning quote and the chip row. */
 .dictionary-skeleton {
   display: flex;
   flex-direction: column;

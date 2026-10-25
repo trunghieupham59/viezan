@@ -21,8 +21,7 @@ Trang là một cột cuộn duy nhất chứa tám mục theo thứ tự cố �
 | Tin nhắn lỗi trong AI Chat | Nút "Đổi model hoặc khoá" (`chat_error_change_model`) trên tin trả lời cuối | `openSettingsAt('api')` (`src/components/chat/MessageBubble.tsx`) |
 | Popup cập nhật / toast cập nhật | Nút mở Cài đặt | `openSettingsAt('updates')` (`src/components/organisms/UpdateNotification.tsx`, sự kiện `updater:openSettings`) |
 | Toast lỗi ở Từ điển, Phiên dịch | Hành động "Mở Cài đặt" (`translate_error_open_settings`) | `openSettings()` — mở ở đầu trang, không cuộn tới mục khoá |
-| Popover cấu hình AI của Chat | Link tới Cài đặt | `openSettings()` rồi đóng popover (`src/pages/ChatPageV2.tsx`) |
-| Giới thiệu › "Kiểm tra cập nhật" | Nội bộ trang | Đặt `settingsInitialSection: 'updates'` để cuộn tới mục Cập nhật rồi gọi `updater.check()` |
+| Giới thiệu › "Kiểm tra cập nhật" | Nội bộ trang | Đặt `settingsInitialSection: 'updates'` để cuộn tới mục Cập nhật, đặt trạng thái `checking` rồi gọi `updater.check()` |
 
 **Liên kết sâu.** `SettingsSectionTarget = 'updates' | 'api' | 'appearance' | 'modules'`. Khi `settingsInitialSection` có giá trị, `SettingsPage` gọi `scrollToSection(id)` (cuộn, đánh dấu mục, focus `<section tabIndex={-1}>`) rồi đặt lại `null`. Nếu ô tìm kiếm đang lọc mất mục đích, liên kết không cuộn được (mục không tồn tại trong DOM).
 
@@ -55,9 +54,9 @@ Sơ đồ ở cửa sổ 1200 px, thanh điều hướng chính mở rộng (236
 | --- | --- | --- | --- |
 | Header trang | `PageHeader` (`src/components/templates/PageHeader.tsx`) | `--vzn-page-header-min-height` (56), nền `--vzn-surface`, tiêu đề `--vzn-font-size-title-lg` | Không |
 | Ô tìm kiếm | `FilterInput size="sm"` (`wrapperClassName="settings-search"`) | Cao `--vzn-control-height-sm` (32); có nút xoá `xs` khi có chữ | Không |
-| Khung trang | `SettingsTemplate` (`.settings-shell`) | Lưới `240px minmax(0,1fr)` (`src/index.css`), nền `--vzn-bg` (`src/styles/codex.css`) | — |
-| Danh sách mục | `SettingsNavigation mode="sidebar"` (`src/components/organisms/SettingsNavigation.tsx`) | Mỗi mục là `Button size="md" shape="rect"`; icon bị ẩn trong cột này (`.settings-shell aside .btn-nav-item > svg { display: none }`); nền trong suốt, không viền phải | Riêng (`overflow-auto`) |
-| Tab mục (cửa sổ < 768) | `SettingsNavigation mode="tabs"` | Hàng nút `md` có icon 14, cuộn ngang, đường kẻ dưới | Ngang |
+| Khung trang | `SettingsTemplate` (`.settings-shell`) | Lưới `var(--vzn-settings-nav-width) minmax(0,1fr)` (240, `src/index.css`) khi vùng nội dung ≥ 760, nền `--vzn-bg` (`src/styles/codex.css`) | — |
+| Danh sách mục | `SettingsNavigation mode="sidebar"` (`src/components/organisms/SettingsNavigation.tsx`) | Mỗi mục là `Button size="sm" shape="rect"`; icon bị ẩn trong cột này (`.settings-shell aside .btn-nav-item > svg { display: none }`); nền trong suốt, không viền phải | Riêng (`overflow-auto`) |
+| Tab mục (vùng nội dung < 760) | `SettingsNavigation mode="tabs"` | Hàng nút `sm` có icon 14, cuộn ngang, đường kẻ dưới | Ngang |
 | Vùng nội dung | `.settings-scroll-viewport` | Container `settings-content` (container query); `overscroll-behavior: contain` | Dọc |
 | Cột nội dung | `div.max-w-3xl.mx-auto` | Tối đa 768; lề `px-6 py-6` (24) ở ≥ 768, `px-4 py-5` dưới đó; các mục cách nhau 32 (`space-y-8`) | — |
 | Một mục | `<section data-settings-section aria-label tabIndex={-1}>` + `.settings-section-stack` | Tiêu đề `.settings-section-title` (`--vzn-font-size-title-lg`, semibold), mô tả `.settings-section-desc` (`--vzn-font-size-md`, muted); thẻ cách nhau `--vzn-space-4` | — |
@@ -116,7 +115,7 @@ Header: tiêu đề "AI local", mô tả `settings_local_ai_desc + engine · end
 | --- | --- | --- | --- | --- | --- | --- |
 | L1 | "Mở trang tải runtime" (hàng "Thiết lập runtime local") | `sm · primary · solid` | Bấm | `window.api.installOllama()` chỉ **mở trang tải**; người dùng tự cài rồi quay lại bấm L4 | Toast xanh `settings_local_ai_manual_install_opened` hoặc toast đỏ lỗi (khoá `settings-local-ai`) | Hàng chỉ hiện khi engine không phải `ollama`; nút tắt trong lúc đang mở trang |
 | L2 | Hàng model gợi ý (tối đa 5) — "Tải" | `sm · neutral · outline` + icon tải | Bấm | `downloadLocalAiModel(id)`; tiến độ đến qua `onLocalAiModelDownloadProgress` | Nút đổi thành spinner + "54%"; vùng `below` hiện "Đang tải model: [thông điệp]" và "x/y GB · 54%" cùng `Meter` (`aria-valuetext`); xong → toast "Đã tải: [model]" và danh mục được làm mới | Tắt khi **bất kỳ** model nào đang tải hoặc đang gỡ |
-| L3 | Hàng model đã cài — "Gỡ" | `sm · danger · ghost` | Bấm (không hỏi xác nhận) | `uninstallLocalAiModel(id)` | Spinner + "Đang gỡ..."; xong → toast "Đã gỡ: [model]"; lỗi → toast đỏ | Như L2 |
+| L3 | Hàng model đã cài — "Gỡ" | `sm · danger · ghost` | Bấm → `confirm()` "Gỡ model {model}? Muốn dùng lại sẽ phải tải lại." | `uninstallLocalAiModel(id)` | Spinner + "Đang gỡ..."; xong → toast "Đã gỡ: [model]"; lỗi → toast đỏ | Như L2 |
 | L2' | Hàng model khi chưa có Ollama | Chữ tĩnh `.local-ai-model-state` "Chờ runtime" | — | — | — | Không có nút |
 | L4 | Làm mới (hàng "Hiệu năng") | `sm · neutral · ghost` icon, `aria-label="Tải lại"` | Bấm | Gọi lại `refreshLocalAi()`; cập nhật `keyStatus.local`, danh sách model, và chỉ đổi model local đã chọn khi model cũ không còn | Icon thành spinner | Tắt khi đang làm mới |
 | L5 | "Đo hiệu năng" | `sm · neutral · outline` | Bấm | `benchmarkLocalAi()` → chỉ số tốc độ/độ trễ/GPU | Spinner + "Đang đo máy..." | Tắt khi đang đo |
@@ -179,10 +178,10 @@ Mô tả: "Mặc định dùng [Jina AI ↗] miễn phí. Thêm key Tavily hoặ
 | --- | --- | --- | --- | --- | --- | --- |
 | V1 | Nhận dạng giọng nói — trạng thái | `StatusLabel`: "Sẵn sàng" (`ok`) hoặc "Cần OpenAI key" / "Cần Gemini key" / "Cần Groq key" (`warning`) | — | Tính từ `keyStatus` và khoá Groq | Đổi ngay khi đổi engine hoặc thêm khoá | — |
 | V2 | Engine STT: Tự động · OpenAI Whisper · Gemini STT · Groq Whisper (Miễn phí) | `SelectField` (`.settings-select-field`, nhãn ẩn cho trình đọc) | Chọn | `setSttProvider` | Dòng gợi ý dưới mô tả đổi theo engine (vd "Tự chọn provider khả dụng: Whisper → Gemini STT → Groq.") | — |
-| V3 | Khoá Groq | `CredentialCard` (không xác minh, chỉ lưu Keychain) | "Thêm khoá" → dán → "Xác minh" | `keychain.save('groq')`, `bumpSttCredentialsRevision()` | Toast xanh "Đã lưu Groq key!" / đỏ (khoá `settings-groq-key`) | Xoá **không hỏi xác nhận** |
+| V3 | Khoá Groq | `CredentialCard` (không xác minh, chỉ lưu Keychain) | "Thêm khoá" → dán → "Lưu" | `keychain.save('groq')`, `bumpSttCredentialsRevision()` | Toast xanh "Đã lưu Groq key!" / đỏ (khoá `settings-groq-key`) | Xoá hỏi `confirm("Xoá khoá API của Groq?")` |
 | V4 | Đọc to: Tiết kiệm · Tự động · Chất lượng cao | `ButtonGroup sm` | Chọn | `setTtsMode` | Gợi ý dưới mô tả đổi theo chế độ | — |
 | V5 | Giọng đọc: Alloy · Echo · Fable · Onyx · Nova · Shimmer | `SelectField` | Chọn | `setTtsVoice` (chỉ dùng ở Chất lượng cao với OpenAI) | — | — |
-| V6 | Khoá ElevenLabs ("Cho chế độ Cao cấp") | `CredentialCard` (không xác minh) | Như V3 | `keychain.save('elevenlabs')` | Toast khoá `settings-elevenlabs-key` | Xoá hỏi `confirm("Xóa ElevenLabs API key?")` |
+| V6 | Khoá ElevenLabs ("Cho chế độ Cao cấp") | `CredentialCard` (không xác minh) | Như V3 | `keychain.save('elevenlabs')` | Toast khoá `settings-elevenlabs-key` | Xoá hỏi `confirm("Xoá khoá API của ElevenLabs?")`; Keychain lỗi → toast đỏ `settings_key_store_failed`, hàng giữ trạng thái cũ |
 
 ### 4.5 Chat (`ChatPresetsSection.tsx`, `ChatImageStorageCard.tsx`)
 
@@ -191,14 +190,14 @@ Một thẻ "Preset lời nhắc hệ thống" chứa: các preset, hàng thêm,
 | # | Điều khiển | Loại | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
 | H1 | Đặt làm mặc định | `sm · neutral · ghost` icon ✓ | Bấm | `setDefaultSystemPromptPreset` + áp nội dung vào lời nhắc chat hiện tại | Thẻ "Mặc định" chuyển sang preset này | Ẩn trên preset đang mặc định |
-| H2 | Dùng prompt này | `sm · neutral · ghost` icon clipboard | Bấm | `setChatSystemPrompt(content)` | Không có phản hồi hiển thị (xem §10) | — |
+| H2 | Dùng prompt này | `sm · neutral · ghost` icon clipboard | Bấm | `setChatSystemPrompt(content)` | Toast xanh "Đã dùng “{name}” làm lời nhắc hệ thống" (khoá `settings-chat-preset`) | — |
 | H3 | Chỉnh sửa | `sm · neutral · ghost` icon bút | Bấm | Mở form dưới hàng: `Input sm` tên + `Textarea` 3 dòng + "Hủy" `sm · neutral · outline` / "Lưu" `sm · primary · solid` | Form điền sẵn | "Lưu" tắt khi tên hoặc nội dung trống |
-| H4 | Xóa | `sm · danger · soft` icon thùng rác | Bấm (không hỏi) | `deleteSystemPromptPreset` | Hàng biến mất | — |
+| H4 | Xóa | `sm · danger · soft` icon thùng rác | Bấm → `confirm()` "Xoá preset “{name}”? Không thể hoàn tác." | `deleteSystemPromptPreset` | Hàng biến mất | — |
 | H5 | "Thêm preset" | `sm · neutral · outline` + icon +, `soft` khi form mở, `aria-expanded` | Bấm | Mở form thêm (đóng form sửa đang mở) | — | "Lưu" tắt khi thiếu tên/nội dung |
 | H6 | Phím gửi: Enter · Cmd+Enter (Ctrl trên Windows/Linux) | `ButtonGroup sm` | Chọn | `setChatSendShortcut` — áp dụng cho Chat và popup hỏi nhanh | — | — |
 | H7 | Chat mới — ô ghi phím | `HotkeyRecordButton` `md`, `neutral · outline` → `primary · soft` khi ghi, chữ mono | Bấm → nhấn tổ hợp | Ghi tổ hợp có Cmd/Ctrl/Alt/Shift hoặc F1–F24; Esc huỷ; mất focus huỷ | Nhãn "Bấm phím… (Esc để hủy)" khi ghi | — |
-| H8 | Xoá phím chat mới | `sm · danger · ghost` icon ×, `aria-label="Xóa"` | Bấm | Đặt phím rỗng | Ô hiện "Chưa cài" | Ẩn khi chưa có phím hoặc đang ghi |
-| H9 | "Mặc định" (khôi phục phím) | `sm · neutral · outline` | Bấm | Đặt `DEFAULT_CHAT_NEW_SESSION_SHORTCUT` | — | Chỉ hiện khi chưa có phím |
+| H8 | Xoá phím chat mới | `md · danger · ghost` icon ×, `aria-label="Xóa"` | Bấm | Đặt phím rỗng | Ô hiện "Chưa cài" | Ẩn khi chưa có phím hoặc đang ghi |
+| H9 | "Mặc định" (khôi phục phím) | `md · neutral · outline` | Bấm | Đặt `DEFAULT_CHAT_NEW_SESSION_SHORTCUT` | — | Chỉ hiện khi chưa có phím |
 | H10 | Ảnh trong chat — "Dọn ảnh cũ" | `sm · neutral · outline` | Bấm | Xoá ảnh không còn cuộc trò chuyện nào tham chiếu | Toast xanh "Đã xoá {count} ảnh"; dòng dung lượng (`aria-live`) cập nhật | Tắt khi đang chạy hoặc không có ảnh |
 | H11 | Ảnh trong chat — "Xoá hết" | `sm · danger · ghost` | Bấm → `confirm(settings_chat_images_clear_confirm)` | Xoá mọi ảnh đã lưu; văn bản giữ nguyên | Như H10 | Như H10 |
 
@@ -215,7 +214,7 @@ Một danh sách: năm module không gian làm việc theo `APP_MODULES` (AI Cha
 | # | Điều khiển | Loại | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
 | U1 | "Ghi chú phát hành" (hàng Phiên bản hiện tại `v[x.y.z]` mono) | `sm · neutral · ghost` | Bấm | Mở `GITHUB_RELEASES_URL` | — | — |
-| U2 | "Kiểm tra cập nhật" | `CheckUpdateButton`: `sm · neutral · outline` (thành `primary · solid` khi đã tải xong) | Bấm | Đặt trạng thái `checking`, gọi `updater.check()` | Spinner + "Đang kiểm tra cập nhật…" | Tắt khi `checking` hoặc `downloading` |
+| U2 | "Kiểm tra cập nhật" | `CheckUpdateButton`: luôn `sm · neutral · outline` | Bấm | Đặt trạng thái `checking`, gọi `updater.check()` | Spinner + "Đang kiểm tra cập nhật…", `aria-busy` | Tắt khi `checking` hoặc `downloading` |
 | U3 | Thông báo cập nhật | Công tắc | Bật/tắt | `updater.setNotificationPreferences({ enabled })` — chỉ ảnh hưởng cửa sổ thông báo tự phát hiện; kiểm tra thủ công vẫn chạy | Công tắc tắt khi lưu; lỗi → toast đỏ `update_notification_action_error` (khoá `settings-update-preference`) | Hàng ẩn đến khi đọc được giá trị |
 | U4 | Hàng Trạng thái — có bản mới | Chữ `role="status"` "Có bản cập nhật: v{version}" + nút "Tải bản cập nhật" / "Tải bản cài đặt" (khi có `downloadUrl`) `sm · primary · solid` | Bấm | `updater.download()` | — | — |
 | U5 | Đang tải | "Đang tải… {percent}%" + `Meter` dưới hàng | — | — | Cập nhật theo sự kiện `onStatus` | U2 tắt |
@@ -230,10 +229,10 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 | # | Điều khiển | Loại | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
 | B1 | Thẻ giới thiệu (`.about-hero`) | Logo 48, "Viezan", "Phiên bản v[x]" (+ "· Đã là bản mới nhất" khi trạng thái là `not-available`), câu giới thiệu, ba ô tính năng (Riêng tư trước · Ở mọi nơi · Bật tắt theo module) | — | — | — | — |
-| B2 | "Kiểm tra cập nhật" | `sm · neutral · outline` | Bấm | Cuộn tới mục Cập nhật (`settingsInitialSection: 'updates'`) và gọi `updater.check()` | Kết quả hiện ở mục Cập nhật | — |
+| B2 | "Kiểm tra cập nhật" | `sm · neutral · outline` | Bấm | Cuộn tới mục Cập nhật (`settingsInitialSection: 'updates'`), đặt trạng thái `checking` rồi gọi `updater.check()` | Kết quả hiện ở mục Cập nhật | — |
 | B3 | "Ghi chú phát hành" | `sm · neutral · ghost` | Bấm | Mở trang phát hành | — | — |
 | B4 | "Sao chép" (aside thẻ Thông tin hệ thống) | `sm · neutral · ghost` → `primary · soft` "✓ Đã sao chép!" trong 1,5 s | Bấm | Chép "Viezan vX" + các dòng Nền tảng · AI local · Nhà cung cấp hỗ trợ · Dữ liệu vào clipboard | Nhãn đổi; lỗi clipboard bị bỏ qua im lặng | — |
-| B5 | Thông tin hệ thống | Hàng chỉ đọc: Nền tảng (macOS / Windows / Linux / web), AI local ("Ollama · [model]" mono hoặc "-"), Nhà cung cấp hỗ trợ (tên mọi provider), Dữ liệu "Lưu trên máy này" | — | — | — | — |
+| B5 | Thông tin hệ thống | Hàng chỉ đọc: Nền tảng (macOS / Windows / Linux / web), AI local ("[runtime] · [model]" mono, runtime là Ollama / LM Studio / llama.cpp khi đã phát hiện, chưa rõ thì chỉ model; không có thì "-"), Nhà cung cấp hỗ trợ (tên mọi provider), Dữ liệu "Lưu trên máy này" | — | — | — | — |
 
 ## 5. Trạng thái
 
@@ -285,7 +284,7 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 
 1. Vào Giọng nói. Hàng "Nhận dạng giọng nói" hiện engine đang chọn và trạng thái: với "Tự động", "Sẵn sàng" nếu có bất kỳ khoá OpenAI, Gemini hoặc Groq.
 2. Muốn dùng miễn phí: chọn "Groq Whisper (Miễn phí)" → trạng thái vàng "Cần Groq key".
-3. Ở hàng "Groq" bấm "Thêm khoá" → dán → "Xác minh" (thực chất chỉ lưu Keychain) → toast "Đã lưu Groq key!", trạng thái chuyển "Sẵn sàng", `sttCredentialsRevision` tăng để các trang đang ghi âm dùng khoá mới.
+3. Ở hàng "Groq" bấm "Thêm khoá" → dán → "Lưu" (chỉ lưu Keychain, không xác minh) → toast "Đã lưu Groq key!", trạng thái chuyển "Sẵn sàng", `sttCredentialsRevision` tăng để các trang đang ghi âm dùng khoá mới.
 4. Đọc to: chọn "Tiết kiệm" (chỉ Edge TTS), "Tự động" hoặc "Chất lượng cao"; gợi ý dưới mô tả đổi theo lựa chọn.
 5. Với Chất lượng cao: chọn giọng (áp dụng cho OpenAI) hoặc thêm khoá ElevenLabs.
 
@@ -311,8 +310,9 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 | --- | --- | --- |
 | Cửa sổ ≥ 900 | Thanh điều hướng chính theo lựa chọn đã lưu (236 / 60) | `foundations.md` §8 |
 | Cửa sổ < 900 | Điều hướng chính thành rail 60 px | `foundations.md` §8 |
-| Cửa sổ ≥ 768 (`md` của Tailwind) | Lưới hai cột: danh sách mục 240 + nội dung; lề nội dung 24 | `SettingsTemplate.tsx` (`md:grid`, `hidden md:flex`) |
-| Cửa sổ < 768 | Danh sách mục ẩn; thanh tab ngang (có icon) dưới header, cuộn ngang, tab đang chọn tự cuộn vào tầm nhìn; lề nội dung 16 × 20 | `SettingsTemplate.tsx`, `SettingsNavigation.tsx` |
+| Vùng nội dung ≥ 760 | Lưới hai cột: danh sách mục `--vzn-settings-nav-width` (240) + nội dung | `@container app-main (min-width: 760px)` trong `codex.css` |
+| Vùng nội dung < 760 | Danh sách mục ẩn; thanh tab ngang (có icon) dưới header, cuộn ngang, tab đang chọn tự cuộn vào tầm nhìn | `SettingsTemplate.tsx`, `SettingsNavigation.tsx` |
+| Cửa sổ ≥ 768 / < 768 | Lề cột nội dung 24 / 16 × 20 (vẫn theo `md:` của Tailwind) | `SettingsTemplate.tsx` |
 | Vùng nội dung > 768 | Cột nội dung dừng ở 768 và căn giữa | `max-w-3xl mx-auto` |
 | Vùng nội dung ≤ 760 | Giao diện: một cột, xem trước lên trên và hết dính | `@container settings-content (max-width: 760px)` trong `codex.css` |
 | Hàng hẹp | Khi cột chữ không còn 220 px, điều khiển xuống dòng dưới nhãn, căn phải | `.ui-settings-row__main { flex-wrap: wrap }`, `--vzn-settings-row-copy-basis` |
@@ -370,6 +370,10 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 | `settings_key_saved` · `settings_no_key` · `settings_key_invalid` | Đã có khoá · Chưa có khoá · Không khả dụng |
 | `settings_key_edit` · `settings_key_add` | Sửa · Thêm khoá |
 | `settings_verify_save` · `settings_verifying` · `settings_verified` · `settings_try_again` | Xác minh · Đang xác minh… · Đã xác minh! · Thử lại |
+| `settings_key_save` (Groq, ElevenLabs) · `settings_remove_key_confirm` | Lưu · Xoá khoá API của {name}? |
+| `settings_local_ai_uninstall_confirm` | Gỡ model {model}? Muốn dùng lại sẽ phải tải lại. |
+| `settings_chat_preset_delete_confirm` · `settings_chat_preset_applied` | Xoá preset “{name}”? Không thể hoàn tác. · Đã dùng “{name}” làm lời nhắc hệ thống |
+| `settings_chat_images_failed` | Không dọn được ảnh. Vui lòng thử lại. |
 | `settings_key_placeholder_paste` / `settings_key_placeholder_new` | Dán API key {name} vào đây… / Nhập key mới để thay thế… |
 | `settings_msg_valid` | Key hợp lệ & đã lưu vào OS Keychain! |
 | `settings_msg_invalid` | API key không hợp lệ. Vui lòng kiểm tra lại. |
@@ -418,7 +422,7 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 | Giới thiệu: **"Mở thư mục"** dữ liệu | Chỉ có chữ "Lưu trên máy này" | Đề xuất |
 | Tính năng "Dịch nhanh ⌥T" ghi phím tắt | Chuỗi `settings_about_feature_everywhere_desc` không có phím | Giữ mã (phím có thể đổi) |
 | Preset: mỗi hàng chỉ một nút "Sửa" | Bốn nút icon: Đặt mặc định, Dùng, Sửa, Xoá (`PresetActions.tsx`) | Giữ mã; cân nhắc gom vào menu |
-| Danh sách mục rộng 200 | 240 (`src/index.css`, giá trị cứng ngoài `tokens.css`) | Nên thành token |
+| Danh sách mục rộng 200 | 240 (`--vzn-settings-nav-width`) | Chọn một: sửa bản vẽ hoặc đổi token |
 | Tìm kiếm ngụ ý tìm theo từng cài đặt | Chỉ lọc theo tên + mô tả của **mục**; gõ "Groq" ra rỗng (`SettingsPage.tsx`) | Đề xuất tìm theo nhãn hàng |
 
 ### App có, bản vẽ chưa vẽ
@@ -430,20 +434,8 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 
 ### Lệch so với nền tảng (`foundations.md`) và lỗi phát hiện khi đối chiếu
 
-1. **Không thay được khoá đã lưu.** Với khoá đã có, ô trong trình sửa hiện giá trị che và `readOnly`; `onClick` gọi `onInputChange('')` nên vẫn ở chế độ che, không có nút "Xác minh". Muốn thay phải xoá rồi thêm lại; placeholder "Nhập key mới để thay thế…" không bao giờ hiện (`src/components/ui/CredentialCard.tsx`, `CredentialSecretInputRow`).
-2. **Câu xác nhận xoá khoá lẫn tiếng Anh:** `` `${t.settings_remove} API key for ${provider.name}?` `` → "Xóa API key for Anthropic Claude?" (`ApiKeyInput.tsx`, `DeepResearchApiSection.tsx`).
-3. **Xoá khoá ElevenLabs bỏ qua kết quả:** `handleElDelete` không kiểm `success` và không bắt lỗi, nên hàng vẫn báo đã xoá dù Keychain thất bại (`TtsSection.tsx`); khoá Groq thì có kiểm nhưng **không hỏi xác nhận** (`SttSection.tsx`).
-4. **Khoá Groq/ElevenLabs không được xác minh** nhưng nút vẫn ghi "Xác minh".
-5. **Dọn/xoá ảnh chat không bắt lỗi:** nếu `pruneUnusedChatImages`/`clearAllChatImages` ném lỗi, `busy` không được trả về `false` và hai nút bị tắt mãi (`ChatImageStorageCard.tsx`).
-6. **Xoá preset không hỏi và không hoàn tác được**; "Dùng prompt này" không có phản hồi nào (`ChatPresetsSection.tsx`).
-7. **Gỡ model local không hỏi xác nhận** (tải lại có thể mất nhiều GB).
-8. **Thẻ "Theo dõi chi phí" dùng màu Tailwind cứng** (`bg-gray-*`, `dark:bg-neutral-*`, `rounded-2xl`) thay vì `SettingsCard` và token — vi phạm luật `tokens.css` là nguồn duy nhất và không đổi theo persona (`CostOverviewCard.tsx`, `ProviderCostStats.tsx`). Nút "Reset" `sm` nằm trong dòng mô tả của hàng.
-9. **Hai nút `solid` trong một hàng** khi đã tải bản cập nhật: `CheckUpdateButton` tự đổi sang `primary · solid` trong khi "Cài đặt & khởi động lại" cũng `solid` (`CheckUpdateButton.tsx`).
-10. **Kích thước trộn trong một hàng:** ô ghi phím `md` (36) cạnh nút xoá/khôi phục `sm` (32) ở hàng "Chat mới"; mục điều hướng Cài đặt là `md` trong khi nền tảng ghi điều hướng dùng `sm`; khối so sánh hiệu năng dùng `md` trong thẻ có các nút `sm`.
-11. **Tab thu hẹp theo cửa sổ, không theo vùng chứa:** danh sách mục thành tab ở cửa sổ < 768 (`md:` của Tailwind) chứ không phải "vùng nội dung < 760" như `foundations.md` §8; khi điều hướng chính mở rộng, vùng nội dung có thể hẹp hơn 760 mà vẫn có cột mục.
-12. **`FontSizePicker` không truyền `label`** cho `ButtonGroup`, nên `<fieldset>` cỡ chữ không có tên truy cập.
-13. **Không có skeleton** cho AI local và các hàng chờ main (Khởi động cùng hệ thống, Thông báo cập nhật bị ẩn rồi bật ra, làm nhảy bố cục).
-14. **"Kiểm tra cập nhật" ở Giới thiệu** gọi `updater.check()` trực tiếp mà không đặt trạng thái `checking` như ở mục Cập nhật, nên nút ở mục Cập nhật chỉ quay khi main gửi trạng thái.
-15. **AI local ở Giới thiệu luôn ghi "Ollama · …"** dù engine được phát hiện có thể khác (`AboutSection.tsx`).
-16. `DeepResearchApiSection` gọi `useAppStore()` không selector, nên render lại theo mọi thay đổi của store.
-17. Lớp `.settings-choice-row` trong `codex.css` không còn được dùng.
+1. **Không thay được khoá đã lưu** (đang sửa ở PR #153). Với khoá đã có, ô trong trình sửa hiện giá trị che và `readOnly`; `onClick` gọi `onInputChange('')` nên vẫn ở chế độ che, không có nút "Xác minh". Muốn thay phải xoá rồi thêm lại; placeholder "Nhập key mới để thay thế…" không bao giờ hiện (`src/components/ui/CredentialCard.tsx`, `CredentialSecretInputRow`).
+2. **Khoá Groq/ElevenLabs:** nút đã ghi "Lưu", nhưng trong lúc lưu vẫn hiện "Đang xác minh…" vì chưa có khoá "Đang lưu…".
+3. **Thẻ "Theo dõi chi phí" là khung riêng** (`.cost-card` trong `src/styles/cost.css`, đã dùng token) chứ không phải `SettingsCard` (`CostOverviewCard.tsx`, `ProviderCostStats.tsx`). Nút "Reset" `sm` nằm trong dòng mô tả của hàng.
+4. **Kích thước trộn trong một thẻ:** khối so sánh hiệu năng dùng `md` trong thẻ có các nút `sm`.
+5. **Không có skeleton** cho AI local và các hàng chờ main (Khởi động cùng hệ thống, Thông báo cập nhật bị ẩn rồi bật ra, làm nhảy bố cục).

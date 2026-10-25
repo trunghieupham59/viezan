@@ -18,6 +18,10 @@ export interface DictionaryResultPanelProps {
   entry: DictionaryEntry | null
   copied: boolean
   isEnriching?: boolean
+  /** A main lookup is in flight: show a skeleton shaped like the entry instead of the previous one. */
+  isLoading?: boolean
+  /** Bumped after a lookup finishes so keyboard focus moves to the new headword. */
+  focusRequest?: number
   onCopy: () => void
   onFavorite: () => void
   onReuse: () => void
@@ -90,6 +94,30 @@ function EntryHeadline({ result, isEnriching, enrichingLabel }: {
   )
 }
 
+/** Placeholder shaped like an entry: the meaning quote, then the chip row. */
+function DictionarySkeleton({ label }: { label?: string }) {
+  return (
+    <div aria-busy="true" className="dictionary-skeleton">
+      {label && <span className="sr-only" role="status">{label}</span>}
+      <div className="dictionary-skeleton-section">
+        <SkeletonBlock shape="line" className="dictionary-skeleton-label" />
+        <div className="dictionary-skeleton-quote">
+          <SkeletonBlock shape="line" className="dictionary-skeleton-wide" />
+          <SkeletonBlock shape="line" className="dictionary-skeleton-narrow" />
+        </div>
+      </div>
+      <div className="dictionary-skeleton-section">
+        <SkeletonBlock shape="line" className="dictionary-skeleton-label" />
+        <div className="dictionary-skeleton-chips">
+          <SkeletonBlock shape="control" />
+          <SkeletonBlock shape="control" />
+          <SkeletonBlock shape="control" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /**
  * Renders the AI dictionary entry — headword, pronunciation and part-of-speech
  * tokens, a toolbar, then the shared entry sections. Highlighting text inside
@@ -102,6 +130,8 @@ export function DictionaryResultPanel({
   entry,
   copied,
   isEnriching = false,
+  isLoading = false,
+  focusRequest = 0,
   onCopy,
   onFavorite,
   onReuse,
@@ -112,6 +142,7 @@ export function DictionaryResultPanel({
   t,
 }: DictionaryResultPanelProps) {
   const resultBodyRef = useRef<HTMLDivElement>(null)
+  const headwordRef = useRef<HTMLHeadingElement>(null)
   const selectionTimerRef = useRef<number | null>(null)
   const [selectedTranslation, setSelectedTranslation] = useState<{
     entryId: string
@@ -172,8 +203,33 @@ export function DictionaryResultPanel({
     }
   }, [])
 
+  // Focus only when a new request arrives.
+  useEffect(() => {
+    if (focusRequest > 0) headwordRef.current?.focus()
+  }, [focusRequest])
+
+  // The headword is announced politely when a new entry arrives (not while loading).
+  const announcement = !isLoading && entry ? entry.result.headword : ''
+  const announcer = <p className="sr-only" aria-live="polite" data-testid="dictionary-result-announcer">{announcement}</p>
+
+  if (isLoading) {
+    return (
+      <>
+        {announcer}
+        <div className="dictionary-result-body">
+          <DictionarySkeleton label={t.dictionary_lookup_loading} />
+        </div>
+      </>
+    )
+  }
+
   if (!entry) {
-    return <DictionaryEmptyState t={t} onHintSelect={onHintSelect} />
+    return (
+      <>
+        {announcer}
+        <DictionaryEmptyState t={t} onHintSelect={onHintSelect} />
+      </>
+    )
   }
 
   const result = entry.result
@@ -234,8 +290,9 @@ export function DictionaryResultPanel({
 
   return (
     <>
+      {announcer}
       <header className="dictionary-result-header">
-        <h2 className="dictionary-result-title">
+        <h2 ref={headwordRef} tabIndex={-1} className="dictionary-result-title">
           <EntryHeadline result={result} isEnriching={isEnriching} enrichingLabel={t.dictionary_enriching} />
         </h2>
         <div className="dictionary-result-actions">
@@ -364,25 +421,7 @@ export function DictionaryResultPanel({
           onClose={onCloseSelectionLookup}
           backdropTestId="dictionary-selection-backdrop"
         >
-          {selectionLookup.loading && (
-            <div aria-busy="true" aria-live="polite" className="dictionary-skeleton">
-              <div className="dictionary-skeleton-section">
-                <SkeletonBlock shape="line" className="dictionary-skeleton-label" />
-                <div className="dictionary-skeleton-quote">
-                  <SkeletonBlock shape="line" className="dictionary-skeleton-wide" />
-                  <SkeletonBlock shape="line" className="dictionary-skeleton-narrow" />
-                </div>
-              </div>
-              <div className="dictionary-skeleton-section">
-                <SkeletonBlock shape="line" className="dictionary-skeleton-label" />
-                <div className="dictionary-skeleton-chips">
-                  <SkeletonBlock shape="control" />
-                  <SkeletonBlock shape="control" />
-                  <SkeletonBlock shape="control" />
-                </div>
-              </div>
-            </div>
-          )}
+          {selectionLookup.loading && <DictionarySkeleton />}
 
           {selectionLookup.result && (
             <div className="dictionary-fade-in">

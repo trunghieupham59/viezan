@@ -375,11 +375,32 @@ describe('DictionaryPage', () => {
     })
   })
 
-  it('shows a localized validation error for empty terms', () => {
+  it('shows a localized validation error under the term field, not as a toast', () => {
     render(<><DictionaryPage /><NotificationViewport /></>)
     fireEvent.click(screen.getByRole('button', { name: /Look up|Tra cứu|検索/i }))
 
-    expect(screen.getByText(/Enter a term|Nhập từ|語句を入力/i)).toBeInTheDocument()
+    const input = screen.getByPlaceholderText(/Enter a word|Nhập từ|単語/i)
+    const message = screen.getByText(/Enter a term|Nhập từ cần tra|語句を入力/i)
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input.getAttribute('aria-describedby')).toBe(message.id)
+    expect(message).toHaveClass('dictionary-field-error')
+    expect(document.querySelector('.notification-toast, [data-notification-key]')).toBeNull()
+
+    // Typing clears the message and the invalid state.
+    fireEvent.change(input, { target: { value: 'a' } })
+    expect(screen.queryByText(/Enter a term|Nhập từ cần tra|語句を入力/i)).not.toBeInTheDocument()
+    expect(input).not.toHaveAttribute('aria-invalid')
+  })
+
+  it('explains a missing model with a warning row that opens Settings › AI models', () => {
+    act(() => useAppStore.setState({ selectedModels: { local: '', gemini: '', claude: '', openai: '' } }))
+    render(<DictionaryPage />)
+
+    const notice = screen.getByText(/Choose a model|Chọn model|モデル/i).closest('.capability-notice') as HTMLElement
+    expect(notice).toHaveAttribute('data-tone', 'warning')
+    fireEvent.click(within(notice).getByRole('button'))
+    expect(useAppStore.getState().activePage).toBe('settings')
+    expect(useAppStore.getState().settingsInitialSection).toBe('api')
   })
 
   it('drops the lookup error toast when the screen unmounts', async () => {

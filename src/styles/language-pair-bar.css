@@ -19,8 +19,6 @@
 }
 
 .language-pair-bar > .ui-button.language-pair-half {
-  height: 100% !important;
-  min-height: 0 !important;
   min-width: 0;
   max-width: var(--vzn-language-pair-half-max);
   flex: 0 1 auto;
@@ -30,6 +28,17 @@
   border-color: transparent !important;
   border-radius: 0;
   font-weight: var(--vzn-weight-medium);
+}
+
+/* md halves fill the framed bar (its border eats into the 36px control).
+   sm halves keep their own 32px height: the bar is sized to match. */
+.language-pair-bar--md > .ui-button.language-pair-half {
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+.language-pair-bar--sm {
+  height: var(--vzn-control-height-sm);
 }
 
 /* The halves round only the outer corners so hover / open fills stay inside the frame. */
@@ -119,12 +128,17 @@
   color: var(--vzn-text-muted);
 }
 
-.language-pair-bar .language-pair-mid > .ui-button.ui-button-icon.language-pair-mid-button {
+.language-pair-bar--md .language-pair-mid > .ui-button.ui-button-icon.language-pair-mid-button {
   width: 100% !important;
   height: 100% !important;
   min-height: 0 !important;
   border-color: transparent !important;
   border-radius: 0;
+}
+
+.language-pair-bar--sm .language-pair-mid {
+  width: var(--vzn-control-height-sm);
+  flex-basis: var(--vzn-control-height-sm);
 }
 
 .language-pair-mid--static {
@@ -256,7 +270,8 @@
   }
 }
 
-/* In a page header the pair is a compact 32px control. */
+/* In a page header the pair is a compact 32px control. Pages that pass
+   size="sm" (Translate) get it from the Button atom; md bars are squeezed. */
 .page-header .language-pair-bar {
   height: var(--vzn-control-height-sm);
   border-color: var(--vzn-border-strong);

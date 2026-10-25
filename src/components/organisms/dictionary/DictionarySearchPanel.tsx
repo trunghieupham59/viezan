@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react'
+import { type ReactNode, useEffect, useId, useRef } from 'react'
 import type { Translations } from '../../../i18n'
 import { Button, Textarea } from '../../ui/atoms'
 import { BookIcon, RefreshIcon } from '../../ui/icons'
@@ -15,6 +15,12 @@ export interface DictionarySearchPanelProps {
   cannotSubmitReason?: string
   maxTermChars: number
   maxContextChars: number
+  /** Validation message shown under the term field (sets aria-invalid). */
+  termError?: string
+  /** Validation message shown under the context field (sets aria-invalid). */
+  contextError?: string
+  /** A row above Look up explaining why it cannot run yet (e.g. no model), with its fix. */
+  notice?: ReactNode
   onSubmit: () => void
   t: Translations
 }
@@ -34,12 +40,17 @@ export function DictionarySearchPanel({
   cannotSubmitReason,
   maxTermChars,
   maxContextChars,
+  termError,
+  contextError,
+  notice,
   onSubmit,
   t,
 }: DictionarySearchPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const contextLabelId = useId()
   const termLabelId = useId()
+  const termErrorId = useId()
+  const contextErrorId = useId()
 
   // Initial focus — explicit + scoped (passes biome a11y/noAutofocus).
   useEffect(() => {
@@ -68,12 +79,14 @@ export function DictionarySearchPanel({
         placeholder={t.dictionary_term_placeholder}
         aria-labelledby={termLabelId}
         clearLabel={t.history_search_clear}
-        invalid={termOver}
+        invalid={termOver || Boolean(termError)}
+        aria-describedby={termError ? termErrorId : undefined}
         wrapperClassName="dictionary-term-field"
         trailing={termLength > 0 ? (
           <span data-invalid={termOver || undefined}>{termLength}/{maxTermChars}</span>
         ) : undefined}
       />
+      {termError && <p id={termErrorId} className="dictionary-field-error" role="alert">{termError}</p>}
 
       <div className="dictionary-context">
         <span id={contextLabelId} className="dictionary-context-label">
@@ -84,7 +97,8 @@ export function DictionarySearchPanel({
           onChange={(event) => onContextChange(event.target.value)}
           placeholder={t.dictionary_context_placeholder}
           aria-labelledby={contextLabelId}
-          aria-invalid={contextOver || undefined}
+          aria-invalid={contextOver || Boolean(contextError) || undefined}
+          aria-describedby={contextError ? contextErrorId : undefined}
           className="dictionary-context-field"
         />
         {contextLength > 0 && (
@@ -92,7 +106,10 @@ export function DictionarySearchPanel({
             {contextLength}/{maxContextChars}
           </span>
         )}
+        {contextError && <p id={contextErrorId} className="dictionary-field-error" role="alert">{contextError}</p>}
       </div>
+
+      {notice}
 
       <Button
         size="md"

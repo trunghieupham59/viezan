@@ -15,6 +15,11 @@ export interface LanguagePairBarProps {
   scope: LanguagePairBarScope
   /** `field` for command rows, `inline` inside a composite input, `compact` for narrow surfaces. */
   density?: LanguagePairBarDensity
+  /**
+   * Button size of the halves and the middle slot. `sm` sits beside other 32px
+   * header controls; `md` (default) is the framed field control.
+   */
+  size?: 'sm' | 'md'
   /** Halves share the row width equally instead of hugging their labels. */
   fill?: boolean
   /** Disables every control and shows a lock in the middle slot; defaults to the Live session lock. */
@@ -40,6 +45,7 @@ const RECENT_CHIP_LIMIT = 3
 export function LanguagePairBar({
   scope,
   density = 'field',
+  size = 'md',
   fill = false,
   locked: lockedProp,
   lockedReason,
@@ -128,7 +134,7 @@ export function LanguagePairBar({
     ? (isDetectingLang ? t.translate_detecting_language : sourceDetected ? t.translate_detected_language(name(sourceDetected)) : name('auto'))
     : name(pair.source)
 
-  const classes = ['language-pair-bar', `language-pair-bar--${density}`, fill && 'language-pair-bar--fill',
+  const classes = ['language-pair-bar', `language-pair-bar--${density}`, `language-pair-bar--${size}`, fill && 'language-pair-bar--fill',
     locked && 'language-pair-bar--locked', single && 'language-pair-bar--single', className].filter(Boolean).join(' ')
 
   const middle = single ? null : locked ? (
@@ -141,7 +147,7 @@ export function LanguagePairBar({
       aria-label={t.language_pairs_locked_short}
       aria-describedby={tooltipId}
     >
-      <Button size="md" shape="icon" variant="neutral" appearance="ghost" disabled aria-label={t.language_pairs_locked_short}
+      <Button size={size} shape="icon" variant="neutral" appearance="ghost" disabled aria-label={t.language_pairs_locked_short}
         aria-describedby={tooltipId} className="language-pair-mid-button"><LockIcon /></Button>
       <span id={tooltipId} role="tooltip" className="language-pair-tooltip">{reason}</span>
     </fieldset>
@@ -149,7 +155,7 @@ export function LanguagePairBar({
     <span className="language-pair-mid language-pair-mid--static" aria-hidden="true"><ArrowRightIcon /></span>
   ) : canSwap ? (
     <span className="language-pair-mid" title={t.translate_swap}>
-      <Button size="md" shape="icon" variant="neutral" appearance="ghost" onClick={swap} aria-label={t.translate_swap}
+      <Button size={size} shape="icon" variant="neutral" appearance="ghost" onClick={swap} aria-label={t.translate_swap}
         className="language-pair-mid-button language-pair-swap-button"><SwapIcon /></Button>
     </span>
   ) : (
@@ -161,7 +167,7 @@ export function LanguagePairBar({
       aria-label={t.translate_swap}
       aria-describedby={tooltipId}
     >
-      <Button size="md" shape="icon" variant="neutral" appearance="ghost" disabled aria-label={t.translate_swap}
+      <Button size={size} shape="icon" variant="neutral" appearance="ghost" disabled aria-label={t.translate_swap}
         aria-describedby={tooltipId} className="language-pair-mid-button language-pair-swap-button"><SwapIcon /></Button>
       <span id={tooltipId} role="tooltip" className="language-pair-tooltip">{swapDisabledReason}</span>
     </fieldset>
@@ -172,7 +178,7 @@ export function LanguagePairBar({
       {!single && (
         <Button
           ref={sourceRef}
-          size="md"
+          size={size}
           shape="rect"
           variant={openHalf === 'source' ? 'primary' : 'neutral'}
           appearance={openHalf === 'source' ? 'soft' : 'ghost'}
@@ -196,7 +202,7 @@ export function LanguagePairBar({
       {middle}
       <Button
         ref={targetRef}
-        size="md"
+        size={size}
         shape="rect"
         variant={openHalf === 'target' ? 'primary' : 'neutral'}
         appearance={openHalf === 'target' ? 'soft' : 'ghost'}

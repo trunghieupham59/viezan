@@ -34,7 +34,8 @@ export function useThermalSettings(): ThermalSettingsState {
 
   const update = useCallback(async (patch: ThermalSettingsPatch) => {
     const api = window.api?.thermal
-    if (!api?.updateSettings) return { success: false, error: 'Thermal settings are not available in this window.' }
+    // No error text: the caller shows its localized message (thermal_tray_error).
+    if (!api?.updateSettings) return { success: false }
     setBusy(true)
     try {
       const res = await api.updateSettings(patch)

@@ -28,7 +28,7 @@ Bề rộng mặc định 1200 px (vùng nội dung ≈ 964 px khi điều hư�
 ```
 ┌ PageHeader .translate-page-header (min 56 px, --vzn-surface) ────────────────────────────────┐
 │ Dịch  [Tự nhận diện ▾] [⇄] [Tiếng Việt ▾]  [Văn bản|Ảnh|Giọng nói]          [🕘] [⚙]        │
-├─ .translate-workspace (max --vzn-translate-workspace-max = 1440, padding --vzn-space-4) ─────┤
+├─ .translate-workspace (max --vzn-translate-workspace-max = 1440, padding --vzn-space-6) ─────┤
 │ .translate-stage (flex, gap --vzn-panel-gap)                                                 │
 │ ┌ .translate-workbench-single (grid 1fr 1fr, gap --vzn-space-4) ──────┐ ┌ history-panel ───┐ │
 │ │┌ TranslationSourcePane ────────┐┌ TranslationResultPane ──────────┐│ │ Lịch sử · 12 mục │ │
@@ -63,8 +63,8 @@ Chế độ so sánh (`layout="comparison"`, khi chọn ≥ 2 model): nguồn th
 
 | Vùng | Component | Kích thước / token | Cuộn |
 | --- | --- | --- | --- |
-| Header | `PageHeader` + `LanguagePairBar scope="translate"` + `ButtonGroup` + `TranslationOptions` | `--vzn-page-header-min-height`; nút `sm` 32 px; nửa cặp ngôn ngữ ép về 32 px bằng `.page-header .language-pair-bar` (`language-pair-bar.css`) | Không; xuống dòng (`flex-wrap`) khi hẹp |
-| Khung làm việc | `TranslateWorkbenchTemplate` (`.translate-workspace`, `.translate-stage`) | max `--vzn-translate-workspace-max`, padding `--vzn-space-4` (≤ 999 px: `--vzn-space-3`; ≤ 520 px: `--vzn-space-2`) | Không (≥ 900); cả trang cuộn (< 900) |
+| Header | `PageHeader` + `LanguagePairBar scope="translate"` + `ButtonGroup` + `TranslationOptions` | `--vzn-page-header-min-height`; nút `sm` 32 px; cặp ngôn ngữ dùng `LanguagePairBar size="sm"` (32 px), cùng cỡ với các nút header | Không; từ 640 px vùng chứa giữ một hàng (cụm cặp ngôn ngữ co trước, nhãn cắt bằng dấu ba chấm); hẹp hơn thì xuống dòng (`flex-wrap`) |
+| Khung làm việc | `TranslateWorkbenchTemplate` (`.translate-workspace`, `.translate-stage`) | max `--vzn-translate-workspace-max`, padding `--vzn-space-6` (24 px; < 560 px: `--vzn-space-3`, 12 px) | Không (≥ 900); cả trang cuộn (< 900) |
 | Ô Nguồn | `TranslationSourcePane` | Thẻ `--vzn-surface`, viền `--vzn-border`, bo `--vzn-radius-md`; header `--vzn-control-height-xl` (48); footer `--vzn-control-height-lg` + `--vzn-space-1` | Textarea tự cuộn |
 | Ô Kết quả | `TranslationResultPane` | Như ô Nguồn; chữ `--vzn-font-reading`, `--vzn-font-size-title` | Thân tự cuộn |
 | Kết quả so sánh | `TranslationComparisonPane`, `TranslationSentenceGrid` | Cột `minmax(0,1fr)`; thân thẻ tối thiểu 8rem; nguồn câu `--vzn-translate-compare-sentence-source-inline` (30%); bản ghép tối đa `--vzn-translate-compare-assembly-max-block` | Từng thẻ cuộn; bảng câu cuộn, bản ghép đứng yên ở đáy |
@@ -107,8 +107,8 @@ Ký hiệu loại: `size · variant · appearance`. "Chọn" = trạng thái đa
 | S11 | Viết lại ✎ (nguồn) | `RewriteButton` `md · neutral · ghost` icon | Bấm | Gửi nguồn cho model viết lại tự nhiên hơn, thay nội dung ô nguồn | Nhãn "Đang viết lại…" | Ẩn khi có ảnh, trống hoặc đang thu âm |
 | S12 | Đọc to 🔊 (nguồn) | `SpeakButton` `md`; đang đọc: `danger · ghost` "Dừng đọc" | Bấm | TTS theo ngôn ngữ nguồn (nguồn `auto` dùng `DEFAULT_TTS_FALLBACK_LANG`) | Icon đổi ■ / spinner khi tải | Như S11 |
 | S13 | Bộ đếm "N ký tự" | Chữ `--vzn-font-size-sm` | — | > 5000 ký tự (`TRANSLATE_INPUT_WARNING_CHARS`): thêm ⓘ "· Có thể dịch lâu hơn", title giải thích | — | Ẩn khi có ảnh hoặc đang thu |
-| S14 | Tóm tắt "Phong cách: …" | Chữ muted | — | Luôn hiện phong cách hiện tại | — | — |
-| S15 | Gợi ý "Enter để dịch · Shift+Enter xuống dòng" | Chữ muted | — | Chỉ khi tự động dịch tắt; ẩn khi vùng chứa ≤ 999 px | — | — |
+| S14 | Tóm tắt "Phong cách: …" | Chữ muted | — | Chỉ hiện khi phong cách khác mặc định ("Chung") | — | — |
+| S15 | Gợi ý "Enter để dịch" | Chữ muted, `aria-hidden` | — | Chỉ khi tự động dịch tắt; ẩn khi ô nguồn hẹp hơn 680 px. Nút Dịch luôn mang gợi ý này trong `title` | — | — |
 | S16 | Dịch | `TranslateButton` `md · primary · solid`, `aria-busy`; so sánh: "Dịch · N mô hình" | Bấm / Enter | Chạy dịch (1 model hoặc N model song song) | Spinner + "Đang dịch…" / "Đang tạo N bản dịch…" | Chỉ hiện khi tự động dịch tắt (luôn tắt khi so sánh). Native `disabled` khi chưa có chữ/ảnh |
 | S17 | Thu gọn / mở rộng nguồn (so sánh) | Tiêu đề "Nguồn" thành nút `md · neutral · ghost` có chevron, `aria-expanded` | Bấm | Nguồn gập thành một dòng (đoạn đầu, số ký tự, nút Dịch) / mở lại để sửa | Tự gập khi có kết quả thành công đầu tiên; lượt chạy mới gập lại | Chỉ có khi so sánh và đã có kết quả |
 
@@ -117,7 +117,7 @@ Ký hiệu loại: `size · variant · appearance`. "Chọn" = trạng thái đa
 | # | Điều khiển | Loại | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
 | R1 | "So sánh model" | `sm · neutral · ghost` rect + icon lớp (nhãn ẩn < 760 px) | Bấm | Mở hộp thoại Mô hình dịch để thêm tối đa 2 model | Hộp thoại mở, focus ô tìm | Ẩn khi đang có ảnh |
-| R2 | Dùng làm nội dung gốc ← | `xs · neutral · ghost` icon | Bấm | Bản dịch thành nguồn, cặp ngôn ngữ đảo (đích → nguồn), kết quả xoá | Hai ô đổi nội dung | Ẩn khi có ảnh; footer chỉ hiện khi có kết quả, không đang dịch, không cũ, không lỗi |
+| R2 | Dùng làm nội dung gốc ← | `md · neutral · ghost` icon | Bấm | Bản dịch thành nguồn, cặp ngôn ngữ đảo (đích → nguồn), kết quả xoá | Hai ô đổi nội dung | Ẩn khi có ảnh; footer chỉ hiện khi có kết quả, không đang dịch, không cũ, không lỗi |
 | R3 | Sao chép ⧉ | `CopyButton` `md`; sau khi chép: `primary · soft` ✓ "Đã sao chép!" trong `COPY_FEEDBACK_DURATION_MS` | Bấm | Chép bản dịch (có cách đọc thì chép bản có cách đọc) | Icon ✓, vùng `aria-live` đọc "Đã sao chép!" | Ẩn với ảnh đã sửa |
 | R4 | Viết lại ✎ | `RewriteButton` `md · neutral · ghost` | Bấm | Viết lại bản dịch; cách đọc chạy lại nếu đang bật | "Đang viết lại…" | Như R3 |
 | R5 | Đọc to 🔊 | `SpeakButton` `md` | Bấm | TTS theo ngôn ngữ đích | ■ / spinner | Như R3 |
@@ -163,7 +163,7 @@ Ký hiệu loại: `size · variant · appearance`. "Chọn" = trạng thái đa
 | --- | --- | --- | --- | --- | --- | --- |
 | L1 | Ô lọc "Tìm trong lịch sử..." | `FilterInput sm` có nút xoá | Gõ | Lọc theo nguồn, bản dịch, nhà cung cấp, model (kể cả các model trong mục so sánh) | "Không tìm thấy kết quả" | Chỉ hiện khi > 4 mục |
 | L2 | Hàng mục | `<button>` gốc (ngoại lệ có ghi chú: hàng nhiều dòng), `aria-current` cho mục đang mở | Bấm | Mở lại: nguồn, cặp ngôn ngữ, phong cách, model; mục so sánh khôi phục mọi bản và bản đã chọn. Đóng lớp phủ nếu đang ở chế độ hẹp | Hàng tô `data-active` | — |
-| L3 | Xoá 🗑 (mỗi hàng) | `xs · danger · ghost` icon | Bấm | Xoá mục ngay | Hàng biến mất; không xác nhận, không hoàn tác | — |
+| L3 | Xoá 🗑 (mỗi hàng) | `xs · danger · ghost` icon | Bấm | Xoá mục ngay | Hàng biến mất; toast "Đã xoá bản dịch" (khoá chủ `translate-history-deleted`) có nút Hoàn tác đưa mục về đúng vị trí cũ | — |
 | L4 | "Xoá lịch sử dịch" | `sm · danger · outline` pill, `aria-haspopup="dialog"` | Bấm | Mở hộp xác nhận "Thao tác này xoá toàn bộ bản dịch đã lưu và không thể hoàn tác." | — | Ẩn khi trống |
 | L5 | Xác nhận xoá / Hủy | `md · danger · solid` / `md · neutral · outline` | Bấm | Xoá toàn bộ / đóng | — | — |
 | L6 | Đóng lịch sử (lớp phủ) | Nút đóng của `DialogShell`, "Đóng lịch sử"; Esc; bấm nền | Bấm | Đóng lớp phủ | — | — |
@@ -184,7 +184,7 @@ Toast của trang tự đóng khi rời trang (`TranslatePage.tsx`).
 | --- | --- | --- | --- |
 | Trống (tự động) | Chưa có nguồn, dịch tự động bật | Nguồn: placeholder. Kết quả: "Bản dịch sẽ xuất hiện sau khi bạn ngừng nhập." Footer kết quả trống | Gõ, dán, đổi kiểu nhập, ngôn ngữ, lịch sử |
 | Trống (thủ công) | Dịch tự động tắt | Kết quả: "Bản dịch sẽ xuất hiện ở đây sau khi bạn chọn Dịch." Nút Dịch `disabled` | Như trên |
-| Trống kiểu Ảnh | Kiểu Ảnh, chưa có ảnh | `EmptyPanelState`: icon ảnh, "Kéo ảnh vào đây", "hoặc dán bằng ⌘V. JPEG, PNG hoặc WebP.", nút "Chọn ảnh" | Chọn/dán/thả ảnh |
+| Trống kiểu Ảnh | Kiểu Ảnh, chưa có ảnh | `EmptyPanelState`: icon ảnh, "Kéo ảnh vào đây", "hoặc dán bằng ⌘V. JPEG, PNG, WebP hoặc GIF.", nút "Chọn ảnh" | Chọn/dán/thả ảnh |
 | Trống kiểu Giọng nói | Kiểu Giọng nói | Placeholder "Bấm micro bên dưới rồi nói…", mic có nhãn "Thu âm giọng nói" | Thu âm hoặc gõ |
 | Đang dịch (chưa có kết quả) | Lượt đầu | Kết quả: spinner + "Đang dịch…" + 3 dòng skeleton; `aria-busy` | Sửa nguồn (huỷ lượt cũ), đổi ngôn ngữ (chạy lại) |
 | Đang dịch (đã có kết quả) | Lượt sau | Kết quả cũ mờ (`.translate-result-pending`) + băng spinner "Đang dịch…"; nút hành động ẩn | Như trên |
@@ -261,7 +261,7 @@ Chế độ thủ công: bước 3 thay bằng bấm "Dịch" hoặc `Enter`; b�
 1. Bấm 🕘: ≥ 900 px cột lịch sử 288 px mở bên phải (lựa chọn được lưu); < 900 px hộp thoại "Lịch sử · N mục".
 2. > 4 mục: gõ vào "Tìm trong lịch sử..." để lọc.
 3. Bấm một hàng: nguồn, cặp, phong cách, model được khôi phục; kết quả hiện ngay như mới dịch (không gọi lại model). Mục so sánh khôi phục mọi cột và bản đã chọn. Hàng được đánh dấu `aria-current`; lớp phủ (nếu có) đóng.
-4. Xoá một mục: 🗑 trên hàng (xoá ngay). Xoá hết: "Xoá lịch sử dịch" → hộp xác nhận đỏ.
+4. Xoá một mục: 🗑 trên hàng (xoá ngay, toast có Hoàn tác). Xoá hết: "Xoá lịch sử dịch" → hộp xác nhận đỏ.
 
 ## 7. Responsive
 
@@ -269,12 +269,12 @@ Tính theo container `app-main` (`translate.css`, `language-pair-bar.css`).
 
 | Bề rộng vùng nội dung | Thay đổi |
 | --- | --- |
-| ≥ 1000 px | Hai ô cạnh nhau, padding `--vzn-space-4`, có gợi ý phím tắt cạnh nút Dịch. Lịch sử là cột cạnh khung làm việc |
-| 900–999 px | Ẩn gợi ý "Enter để dịch…", padding `--vzn-space-3` |
+| ≥ 900 px | Hai ô cạnh nhau, padding `--vzn-space-6`. Gợi ý "Enter để dịch" cạnh nút Dịch ẩn khi ô nguồn hẹp hơn 680 px. Lịch sử là cột cạnh khung làm việc |
 | 760–899 px | Hai ô **xếp chồng** (nguồn trên, kết quả dưới, tối thiểu `--vzn-translate-source-min-block` / `--vzn-translate-result-min-block`), cả trang cuộn. Lịch sử thành hộp thoại tạm. So sánh: tab model thay cột, ẩn "Theo cột/Theo câu" và bảng câu, ẩn hàng lỗi (lỗi hiện trong tab); thẻ cột tối thiểu 16rem, thân tối đa 28rem tự cuộn |
 | 640–759 px | Hộp thoại model thành sheet đáy; "So sánh model" chỉ còn icon; popover cấu hình trải hết bề rộng |
-| 521–639 px | Cặp ngôn ngữ chiếm trọn một dòng (hai nửa chia đều), hành động header xuống dòng dưới, căn phải |
-| ≤ 520 px | Padding `--vzn-space-2`; footer ô xếp dọc; hàng nút nguồn xuống dòng; dòng gửi trải hết bề rộng |
+| 560–639 px | Cặp ngôn ngữ chiếm trọn một dòng (hai nửa chia đều), hành động header xuống dòng dưới, căn phải. Từ 640 px trở lên header giữ một hàng |
+| < 560 px | Padding `--vzn-space-3` |
+| ≤ 520 px | Footer ô xếp dọc; hàng nút nguồn xuống dòng; dòng gửi trải hết bề rộng |
 | Cột so sánh < 360 px | Ẩn tên nhà cung cấp (giữ icon), nút chọn rút thành "Chọn" |
 | Cửa sổ ≤ 720 × 600 | Popover cấu hình thành hộp thoại giữa cửa sổ (`foundations.md` §8) |
 
@@ -282,6 +282,7 @@ Tính theo container `app-main` (`translate.css`, `language-pair-bar.css`).
 
 - Thứ tự Tab: điều hướng → cặp ngôn ngữ (nửa nguồn → ⇄ hoặc nhóm ⇄ bị tắt → nửa đích) → Văn bản/Ảnh/Giọng nói → 🕘 → ⚙ → ô Nguồn (textarea) → nút footer nguồn → Dịch → "So sánh model" → nút footer kết quả → lịch sử (lọc → hàng → 🗑 → Xoá lịch sử).
 - `Enter` dịch, `Shift+Enter` xuống dòng, bỏ qua khi đang gõ IME (`isComposing`). Gợi ý đọc cho trình đọc màn hình qua `aria-describedby`: "Nhấn Enter để dịch hoặc Shift+Enter để xuống dòng…" và bộ đếm ký tự.
+- Vùng kết quả có `lang` theo ngôn ngữ đích; ô nguồn có `lang` theo ngôn ngữ nguồn, hoặc ngôn ngữ đã nhận diện khi đang Tự động (chưa nhận diện thì không đặt).
 - Panel ngôn ngữ: mở focus vào ô tìm; ↓ vào danh sách; ↑/↓/Home/End di chuyển; Enter chọn; Esc đóng và trả focus về nửa đã mở (`OptionPickerPanel`). `role="dialog"` + `role="listbox"`/`option` `aria-selected`.
 - Nút ⇄ bị tắt: nhóm `fieldset` có `tabIndex=0`, `aria-disabled`, `aria-describedby` trỏ tooltip lý do.
 - Hộp thoại model: `role="dialog"` `aria-modal`, focus vào ô tìm, bẫy Tab (`trapTabFocus`), Esc/bấm nền huỷ, đóng trả focus về nút đã mở. Hàng model đang focus được cuộn tránh tiêu đề dính.
@@ -311,12 +312,12 @@ Tính theo container `app-main` (`translate.css`, `language-pair-bar.css`).
 | `translate_source_content_label` / `translate_result_content_label` | Nguồn / Kết quả |
 | `translate_placeholder` | Nhập hoặc dán văn bản… |
 | `translate_voice_hint` | Bấm micro bên dưới rồi nói. Lời nói hiện ở đây rồi được dịch. |
-| `translate_image_drop_title` / `translate_image_drop_hint` | Kéo ảnh vào đây / hoặc dán bằng {shortcut}. JPEG, PNG hoặc WebP. |
+| `translate_image_drop_title` / `translate_image_drop_hint` | Kéo ảnh vào đây / hoặc dán bằng {shortcut}. JPEG, PNG, WebP hoặc GIF. |
 | `translate_image_choose` / `translate_image_change` | Chọn ảnh / Đổi ảnh |
 | `translate_add_image` | Thêm ảnh |
-| `translate_chars` | ký tự |
+| `translate_char_count` | {count} ký tự |
 | `translate_long_text_label` | Có thể dịch lâu hơn |
-| `translate_manual_shortcut` | Enter để dịch · Shift+Enter xuống dòng |
+| `translate_manual_shortcut` | Enter để dịch |
 | `translate_btn` / `translate_btn_loading` | Dịch / Đang dịch… |
 | `translate_empty_auto_hint` | Bản dịch sẽ xuất hiện sau khi bạn ngừng nhập. |
 | `translate_empty_manual_hint` | Bản dịch sẽ xuất hiện ở đây sau khi bạn chọn Dịch. |
@@ -347,11 +348,12 @@ Tính theo container `app-main` (`translate.css`, `language-pair-bar.css`).
 | `translate_history_title` / `translate_history_empty` | Lịch sử / Các bản dịch bạn chạy sẽ hiện ở đây. |
 | `history_search_placeholder` | Tìm trong lịch sử... |
 | `translate_history_clear` / `translate_history_clear_confirm` | Xoá lịch sử dịch / Thao tác này xoá toàn bộ bản dịch đã lưu và không thể hoàn tác. |
+| `translate_history_deleted` / `translate_history_deleted_undo` | Đã xoá bản dịch / Hoàn tác |
 | `translate_error_no_key` | Chưa có API key. Vào Cài đặt để thêm. |
 | `translate_error_retry` / `translate_error_choose_model` / `translate_error_open_settings` | Thử lại / Chọn model khác / Mở Cài đặt |
 | `image_translate_no_text` | Không tìm thấy văn bản trong ảnh |
 | `image_translate_type_error` | Vui lòng tải lên file ảnh (JPEG, PNG, WebP, GIF) |
-| `image_model_switched_title` | Đã chuyển model |
+| `image_model_switched_title` / `image_model_switched_message` | Đã chuyển model / Đang dùng {model} vì {previous} không đọc được ảnh. |
 | `settings_image_provider_fallback` | Dự phòng khi dịch ảnh |
 | `voice_recording` / `voice_transcribing` | Đang thu âm… / Đang chuyển văn bản… |
 | `voice_transcription_error_title` | Không thể hoàn tất nhập liệu bằng giọng nói |
@@ -366,16 +368,5 @@ Bản vẽ gốc đề xuất mà mã chưa có (tất cả là **đề xuất**
 4. **So sánh trong bố cục hai cột** (`Translate.dc.html` để nguồn bên trái, ứng viên xếp dọc bên phải, hành động chung ở footer). Mã chuyển nguồn thành dải trên cùng và mỗi model một cột có hành động riêng. Bản dựng hiện tại hợp lý hơn cho 3 model; giữ mã, cập nhật bản vẽ.
 5. **"Chụp vùng màn hình"** và **bấm vào vùng chữ để dịch riêng đoạn đó** (`TranslateModes.dc.html`). Chưa có.
 6. **Giọng nói chép theo thời gian thực, tên STT ("Whisper local") và nút "Dừng và dịch"** (`TranslateModes.dc.html`). Mã chép một lần sau khi dừng (`VoiceRecorder`), nút dừng là icon ■; dịch chạy theo chế độ tự động/thủ công.
-7. **Lịch sử nhóm theo ngày ("Hôm nay", "Hôm qua")**, nhãn "ảnh" cho mục dịch ảnh (`Histories.dc.html`). Mã liệt kê phẳng với thời gian tương đối, và **bản dịch ảnh không được lưu vào lịch sử** (`runTranslate` nhánh ảnh không gọi `recordTranslationOutcome`).
-8. **Hoàn tác khi xoá một mục lịch sử**: hiện xoá ngay, không xác nhận, không hoàn tác. Đề xuất toast "Đã xoá · Hoàn tác".
-9. **Giới hạn ảnh 25 MB**: `MAX_IMAGE_INPUT_BYTES` được Chat kiểm tra nhưng `processImageFile` của Dịch không kiểm tra trước khi giải mã (`useTranslate.ts`); key `image_translate_size_error` đã có. Đề xuất kiểm tra và báo lỗi như Chat.
-10. **Giới hạn ký tự cứng**: không có; chỉ cảnh báo mềm ở 5000 ký tự. Bản vẽ không yêu cầu thêm.
-
-Không khớp nhỏ trong mã (nên sửa, không phải tính năng mới):
-
-11. Footer kết quả trộn kích thước: "Dùng làm nội dung gốc" là `xs` trong khi Sao chép/Viết lại/Đọc to là `md` (`TranslationResultPane.tsx`, `ui/CopyButton.tsx`…), trái luật "nút cạnh nhau cùng kích thước" (`foundations.md` §6). Cặp ngôn ngữ dùng Button `md` nhưng CSS ép về 32 px trong header (`language-pair-bar.css`, có `!important`).
-12. Gợi ý ảnh ghi "JPEG, PNG hoặc WebP" nhưng `accept` và thông báo lỗi chấp nhận cả GIF.
-13. Key `translate_swap_disabled_image` không còn dùng; hoán đổi vẫn bật khi đang có ảnh.
-14. `src/components/translate/VoiceOverlay.tsx` không được import ở đâu và dùng lớp màu Tailwind cố định (`bg-white dark:bg-gray-900`); mã chết.
-15. Lề trong trang: Dịch dùng `--vzn-space-4` / `-3` (≤ 999) / `-2` (≤ 520), khác quy ước 24 px / 12 px (< 560) ở `foundations.md` §5, §8.
-16. `translate.css` còn giá trị `rem` cố định (ví dụ `max-width: 48rem`, `28rem`, `13rem`, `min-height: 8rem`, `16rem`) không qua token; nên chuyển thành token `--vzn-translate-*` khi chạm tới.
+7. **Lịch sử nhóm theo ngày ("Hôm nay", "Hôm qua")**, nhãn "ảnh" cho mục dịch ảnh (`Histories.dc.html`). Mã liệt kê phẳng với thời gian tương đối; bản dịch ảnh đã được lưu (cột nguồn là tên tệp) nhưng không có nhãn "ảnh".
+8. **Giới hạn ký tự cứng**: không có; chỉ cảnh báo mềm ở 5000 ký tự. Bản vẽ không yêu cầu thêm.

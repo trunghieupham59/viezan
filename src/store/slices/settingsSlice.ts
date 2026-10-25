@@ -8,7 +8,7 @@
 import { DEFAULT_SETTINGS, PROVIDERS } from '../../constants/providers'
 import { DEFAULT_THEME_ACCENT, DEFAULT_THEME_PRESET, type ThemeAccent, type ThemePreset } from '../../constants/themePresets'
 import type { AppLocale } from '../../i18n'
-import type { ChatSendShortcut, FetchedModel, PhoneticMode, Provider, SttProvider, TranslateComparisonView, TranslationReasoningEffort, TranslationStyle, TtsMode, TtsVoice } from '../../types'
+import type { ChatSendShortcut, FetchedModel, LocalAiEngine, PhoneticMode, Provider, SttProvider, TranslateComparisonView, TranslationReasoningEffort, TranslationStyle, TtsMode, TtsVoice } from '../../types'
 import { DEFAULT_CHAT_NEW_SESSION_SHORTCUT, DEFAULT_CHAT_SEND_SHORTCUT } from '../../utils/keyboardShortcuts'
 import type { SliceSet } from './sliceTypes'
 
@@ -69,6 +69,8 @@ export interface SettingsSlice {
 
   // Provider / key status
   keyStatus: Record<Provider, boolean>
+  /** Local runtime found by the last discovery (session only, not persisted); null when unknown. */
+  localAiEngine: LocalAiEngine | null
 
   // Dynamic models (fetched from API per provider)
   dynamicModels: Record<Provider, FetchedModel[]>
@@ -118,6 +120,7 @@ export interface SettingsSlice {
 
   // Actions — provider state
   setKeyStatus: (provider: Provider, hasKey: boolean) => void
+  setLocalAiEngine: (engine: LocalAiEngine | null) => void
   setDynamicModels: (provider: Provider, models: FetchedModel[]) => void
   setModelsLoading: (provider: Provider, loading: boolean) => void
   setModelsError: (provider: Provider, error: string | null) => void
@@ -152,6 +155,7 @@ export const createSettingsSlice = (set: SliceSet): SettingsSlice => ({
   // Build initial provider maps from PROVIDERS registry — adding a new provider only requires
   // updating constants/providers.ts; no need to touch this slice.
   keyStatus: Object.fromEntries(PROVIDERS.map((p) => [p.id, false])) as Record<Provider, boolean>,
+  localAiEngine: null,
   dynamicModels: Object.fromEntries(PROVIDERS.map((p): [string, FetchedModel[]] => [p.id, []])) as Record<Provider, FetchedModel[]>,
   modelsLoading: Object.fromEntries(PROVIDERS.map((p) => [p.id, false])) as Record<Provider, boolean>,
   modelsError: Object.fromEntries(PROVIDERS.map((p): [string, string | null] => [p.id, null])) as Record<Provider, string | null>,
@@ -191,6 +195,7 @@ export const createSettingsSlice = (set: SliceSet): SettingsSlice => ({
 
   setKeyStatus: (provider, hasKey) =>
     set((state: SettingsSlice) => ({ keyStatus: { ...state.keyStatus, [provider]: hasKey } })),
+  setLocalAiEngine: (engine) => set({ localAiEngine: engine }),
   setDynamicModels: (provider, models) =>
     set((state: SettingsSlice) => ({ dynamicModels: { ...state.dynamicModels, [provider]: models } })),
   setModelsLoading: (provider, loading) =>

@@ -241,7 +241,7 @@ export function ThermalPage() {
                             {fanCalibration.state?.status === 'running' ? (
                               <Button size="sm" shape="rect" variant="danger" appearance="outline" disabled={busy} onClick={() => void fanCalibration.cancel().then(reportCalibration)}>{t.thermal_fan_calibrate_cancel}</Button>
                             ) : (
-                              <Button size="sm" shape="rect" variant="primary" appearance="solid" disabled={busy || control.helper !== 'ready'} title={control.helper !== 'ready' ? t.thermal_fan_profiles_need_helper : undefined} onClick={() => { setOptionsOpen(false); setCalibrateConfirmOpen(true) }}>{t.thermal_fan_calibrate}</Button>
+                              <Button size="sm" shape="rect" variant="primary" appearance="solid" disabled={busy || control.helper !== 'ready'} title={control.helper !== 'ready' ? t.thermal_fan_profiles_need_helper : undefined} onClick={() => { setOptionsOpen(false); setCalibrateConfirmOpen(true) }}>{fanCalibration.state?.result ? t.thermal_fan_calibrate_again : t.thermal_fan_calibrate}</Button>
                             )}
                             {fanCalibration.state?.status !== 'running' && fanCalibration.state?.result && (
                               <Button size="sm" shape="rect" variant="neutral" appearance="ghost" disabled={busy} onClick={() => void fanCalibration.clear().then(reportCalibration)}>{t.thermal_fan_calibrate_clear}</Button>
@@ -283,9 +283,17 @@ export function ThermalPage() {
             {!support.supported && (
               <CapabilityNotice
                 tone="warning"
-                title={support.reason === 'reader-missing' ? t.thermal_reader_missing_title : t.thermal_unsupported_title}
-                description={support.reason === 'reader-missing' ? t.thermal_reader_missing_desc : t.thermal_unsupported_desc}
+                title={support.reason === 'reader-missing' ? t.thermal_reader_missing_title : support.reason === 'no-sensors' ? t.thermal_no_sensors_title : t.thermal_unsupported_title}
+                description={support.reason === 'reader-missing' ? t.thermal_reader_missing_desc : support.reason === 'no-sensors' ? t.thermal_no_sensors_desc : t.thermal_unsupported_desc}
               />
+            )}
+
+            {/* The helper's state is readable here, not only from the chip's tooltip. */}
+            {control?.helper === 'missing' && (
+              <CapabilityNotice tone="warning" title={t.thermal_fan_helper_missing_short} description={t.thermal_fan_helper_missing} />
+            )}
+            {control?.helper === 'error' && (
+              <CapabilityNotice tone="danger" title={t.thermal_fan_helper_error_title} description={control.error} />
             )}
 
             {support.supported && error && (

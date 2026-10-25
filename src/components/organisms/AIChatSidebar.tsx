@@ -1,6 +1,8 @@
 import { type ReactNode, type RefObject, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { DEFAULT_CHAT_SESSION_TITLE } from '../../store/slices/chatSlice'
 import { useAppStore, useT } from '../../store/useAppStore'
+import { useNotificationStore } from '../../store/useNotificationStore'
 import type { ChatSession } from '../../types'
 import { getChatTaskDefinitions } from '../../utils/chatTaskConfiguration'
 import { formatShortcutLabel } from '../../utils/keyboardShortcuts'
@@ -21,6 +23,18 @@ const AI_CHAT_SIDEBAR_AUTO_COMPACT_BREAKPOINT = 900
 const DAY_MS = 86_400_000
 const CLOSE_PRIMARY_NAVIGATION_EVENT = 'viezan:close-primary-navigation'
 const CLOSE_CONTEXT_SIDEBARS_EVENT = 'viezan:close-context-sidebars'
+/** Owner key of the "conversation deleted" toast: a newer delete replaces it. */
+export const CHAT_SESSION_DELETED_KEY = 'chat-session-deleted'
+
+/** A conversation's title, with the stored untitled default shown in the UI language. */
+function sessionTitle(session: ChatSession, t: ReturnType<typeof useT>): string {
+  return session.title === DEFAULT_CHAT_SESSION_TITLE ? t.chat_new_session : session.title
+}
+
+/** A research snapshot that has not reached synthesis yet. */
+function hasUnfinishedResearch(session: ChatSession): boolean {
+  return Boolean(session.deepResearchResumeState && session.deepResearchResumeState.lastCompletedPhase !== 'synth')
+}
 
 function formatSessionTime(timestamp: number, text: RelativeTimeText): string {
   const now = Date.now()
@@ -36,16 +50,17 @@ function formatSessionTime(timestamp: number, text: RelativeTimeText): string {
   return new Date(timestamp).toLocaleDateString()
 }
 
-function sessionMatchesQuery(session: ChatSession, query: string): boolean {
+function sessionMatchesQuery(session: ChatSession, query: string, t: ReturnType<typeof useT>): boolean {
   if (!query) return true
-  return [session.title, session.model, session.provider]
+  return [sessionTitle(session, t), session.model, session.provider]
     .some((value) => value.toLocaleLowerCase().includes(query))
 }
 
 /** The second line of a conversation row: its task, a paused research run, or when it was last used. */
-function sessionMeta(session: ChatSession, t: ReturnType<typeof useT>): string {
-  if (session.deepResearchResumeState && session.deepResearchResumeState.lastCompletedPhase !== 'synth') {
-    return `${t.chat_task_deep} · ${t.chat_sidebar_paused}`
+function sessionMeta(session: ChatSession, running: boolean, t: ReturnType<typeof useT>): string {
+  // A run saves a snapshot after every phase, so only a snapshot with no run in flight is paused.
+  if (hasUnfinishedResearch(session)) {
+    return running ? t.chat_task_deep : `${t.chat_task_deep} · ${t.chat_sidebar_paused}`
   }
   const selected = session.taskState?.selected
   if (selected != null) {
@@ -60,23 +75,26 @@ interface SessionListProps {
   sessions: ChatSession[]
   emptyLabel: string
   activeSessionId: string | null
+  runningSessionIds: string[]
   t: ReturnType<typeof useT>
   onSelect: (id: string) => void
   onDelete: (id: string) => void
 }
 
 /** Searchable conversation rows, including the empty state. */
-function SessionList({ sessions, emptyLabel, activeSessionId, t, onSelect, onDelete }: SessionListProps) {
+function SessionList({ sessions, emptyLabel, activeSessionId, runningSessionIds, t, onSelect, onDelete }: SessionListProps) {
   if (sessions.length === 0) {
     return <p className="ai-chat-session-empty">{emptyLabel}</p>
   }
   return (
     <ul className="ai-chat-session-list">
-      {sessions.map((session) => (
+      {sessions.map((session) => {
+        const running = runningSessionIds.includes(session.id)
+        return (
         <ChatSessionListItem
           key={session.id}
           id={session.id}
-          title={session.title}
+          title={sessionTitle(session, t)}
           provider={session.provider}
           model={session.model}
           timeLabel={formatSessionTime(session.updatedAt, t)}
@@ -85,15 +103,13 @@ function SessionList({ sessions, emptyLabel, activeSessionId, t, onSelect, onDel
           active={session.id === activeSessionId}
           deleteLabel={t.history_chat_delete}
           pendingResearchLabel={t.chat_deep_research_resume}
-          hasPendingResearch={Boolean(
-            session.deepResearchResumeState
-            && session.deepResearchResumeState.lastCompletedPhase !== 'synth'
-          )}
-          meta={sessionMeta(session, t)}
+          hasPendingResearch={hasUnfinishedResearch(session) && !running}
+          meta={sessionMeta(session, running, t)}
           onSelect={onSelect}
           onDelete={onDelete}
         />
-      ))}
+        )
+      })}
     </ul>
   )
 }
@@ -115,10 +131,12 @@ export function AIChatSidebar({ children }: {
   children: (slots: { sidebar: ReactNode; header: AIChatHeaderParts }) => ReactNode
 }) {
   const {
-    chatSessions, activeChatSessionId, chatNewSessionShortcut,
-    aiChatSidebarCollapsed, setActiveChatSession, deleteChatSession, toggleAiChatSidebar,
+    chatSessions, activeChatSessionId, chatNewSessionShortcut, chatRunningSessionIds,
+    aiChatSidebarCollapsed, setActiveChatSession, deleteChatSession, restoreChatSession, toggleAiChatSidebar,
   } = useAppStore(useShallow((state) => ({
     chatSessions: state.chatSessions,
+    chatRunningSessionIds: state.chatRunningSessionIds,
+    restoreChatSession: state.restoreChatSession,
     activeChatSessionId: state.activeChatSessionId,
     chatNewSessionShortcut: state.chatNewSessionShortcut,
     aiChatSidebarCollapsed: state.aiChatSidebarCollapsed,
@@ -127,6 +145,7 @@ export function AIChatSidebar({ children }: {
     toggleAiChatSidebar: state.toggleAiChatSidebar,
   })))
   const t = useT()
+  const notify = useNotificationStore((state) => state.notify)
   const [query, setQuery] = useState('')
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
   const [responsiveSidebarExpanded, setResponsiveSidebarExpanded] = useState(false)
@@ -141,10 +160,11 @@ export function AIChatSidebar({ children }: {
   const responsiveCompact = viewportWidth < AI_CHAT_SIDEBAR_AUTO_COMPACT_BREAKPOINT
   const effectiveCollapsed = responsiveCompact ? !responsiveSidebarExpanded : aiChatSidebarCollapsed
   const responsiveOverlay = responsiveCompact && responsiveSidebarExpanded
-  const activeTitle = chatSessions.find(session => session.id === activeChatSessionId)?.title || t.nav_chat
+  const activeSession = chatSessions.find(session => session.id === activeChatSessionId)
+  const activeTitle = (activeSession && sessionTitle(activeSession, t)) || t.nav_chat
   const sessions = useMemo(() => [...chatSessions]
     .sort((left, right) => right.updatedAt - left.updatedAt)
-    .filter(session => sessionMatchesQuery(session, normalizedQuery)), [chatSessions, normalizedQuery])
+    .filter(session => sessionMatchesQuery(session, normalizedQuery, t)), [chatSessions, normalizedQuery, t])
 
   // Newest first, grouped the way people remember them: today, this week, earlier.
   const groups = useMemo(() => {
@@ -172,6 +192,27 @@ export function AIChatSidebar({ children }: {
   const handleSelect = (id: string) => {
     setActiveChatSession(id)
     setResponsiveSidebarExpanded(false)
+  }
+  /** Delete right away and offer an undo that puts the conversation back where it was. */
+  const handleDelete = (id: string) => {
+    const index = chatSessions.findIndex((session) => session.id === id)
+    const session = chatSessions[index]
+    if (!session) return
+    const wasActive = activeChatSessionId === id
+    deleteChatSession(id)
+    notify({
+      key: CHAT_SESSION_DELETED_KEY,
+      tone: 'success',
+      message: t.chat_session_deleted,
+      actions: [{
+        label: t.chat_session_deleted_undo,
+        onClick: () => {
+          useNotificationStore.getState().dismiss(CHAT_SESSION_DELETED_KEY)
+          restoreChatSession(session, index)
+          if (wasActive) setActiveChatSession(id)
+        },
+      }],
+    })
   }
   const handleToggle = () => {
     if (!responsiveCompact) {
@@ -242,6 +283,7 @@ export function AIChatSidebar({ children }: {
           onClick={handleNewChat}>
           <PlusIcon className="h-4 w-4" />
         </Button>
+        {shortcut && <kbd className="ai-chat-header-shortcut">{shortcut}</kbd>}
       </>
     ),
   }
@@ -268,8 +310,8 @@ export function AIChatSidebar({ children }: {
             <h3 className="ai-chat-session-heading">{group.label}</h3>
             <SessionList sessions={group.sessions}
               emptyLabel={t.chat_session_panel_empty}
-              activeSessionId={activeChatSessionId} t={t}
-              onSelect={handleSelect} onDelete={deleteChatSession} />
+              activeSessionId={activeChatSessionId} runningSessionIds={chatRunningSessionIds} t={t}
+              onSelect={handleSelect} onDelete={handleDelete} />
           </section>
         ))}
       </div>

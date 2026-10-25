@@ -5,7 +5,7 @@ import { useAppStore, useT } from '../../../store/useAppStore'
 import { fanDisplayName, fanProfileName } from '../../../utils/fanProfileText'
 import { hottestSensor, thermalTone } from '../../../utils/thermalSensorRows'
 import { tpl } from '../../../utils/tpl'
-import { Meter } from '../../ui/atoms'
+import { Button, Meter } from '../../ui/atoms'
 import { SectionCard, StatusChip } from '../../ui/molecules'
 
 const TONE_TO_STATUS = { ok: 'ok', warm: 'warning', hot: 'danger' } as const
@@ -23,16 +23,29 @@ export function HomeSystemCard({ onOpen }: HomeSystemCardProps) {
   const t = useT()
   const locale = useAppStore((state) => state.locale)
   const enabledModules = useAppStore((state) => state.enabledModules)
-  const { support, snapshot } = useThermalMonitor()
+  const { support, snapshot, error, retry } = useThermalMonitor()
   const { fans: fanStatus } = useBackgroundStatus(enabledModules)
   const integer = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }), [locale])
 
   const hottest = snapshot ? hottestSensor(snapshot.sensors) : null
   const unsupported = support !== null && !support.supported
 
+  // Supported, answered, but nothing to show: say so instead of "reading…" forever.
+  const noSensors = (support !== null && !support.supported && support.reason === 'no-sensors')
+    || (support?.supported === true && snapshot !== null && snapshot.sensors.length === 0)
+
   let body: ReactNode
-  if (unsupported) {
+  if (noSensors) {
+    body = <p className="home-card-note">{t.thermal_no_sensors}</p>
+  } else if (unsupported) {
     body = <p className="home-card-note">{t.home_system_unavailable}</p>
+  } else if (error && !hottest) {
+    body = (
+      <div className="home-system-error" role="alert">
+        <p className="home-card-note">{t.thermal_error_title}: {error}</p>
+        <Button size="xs" shape="rect" variant="neutral" appearance="outline" onClick={retry}>{t.thermal_retry}</Button>
+      </div>
+    )
   } else if (!snapshot || !hottest) {
     body = <p className="home-card-note" aria-live="polite">{t.home_system_loading}</p>
   } else {

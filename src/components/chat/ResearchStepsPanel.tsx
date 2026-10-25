@@ -157,25 +157,25 @@ function PhaseIcon({ phase }: { phase: ResearchStepPhase | 'unknown' }) {
   // phases at a glance.
   switch (phase) {
     case 'analyze':
-      return <SparklesIcon className={`${PHASE_ICON_CLASS} text-gray-500 dark:text-gray-300`} />
+      return <SparklesIcon className={`${PHASE_ICON_CLASS} chat-research-icon`} />
     case 'survey':
-      return <LightbulbIcon className={`${PHASE_ICON_CLASS} text-gray-500 dark:text-gray-300`} />
+      return <LightbulbIcon className={`${PHASE_ICON_CLASS} chat-research-icon`} />
     case 'gap':
-      return <InfoCircleIcon className={`${PHASE_ICON_CLASS} text-gray-500 dark:text-gray-300`} />
+      return <InfoCircleIcon className={`${PHASE_ICON_CLASS} chat-research-icon`} />
     case 'deep':
-      return <LightbulbIcon className={`${PHASE_ICON_CLASS} text-gray-500 dark:text-gray-300`} />
+      return <LightbulbIcon className={`${PHASE_ICON_CLASS} chat-research-icon`} />
     case 'cross':
-      return <CheckCircleIcon className={`${PHASE_ICON_CLASS} text-gray-500 dark:text-gray-300`} />
+      return <CheckCircleIcon className={`${PHASE_ICON_CLASS} chat-research-icon`} />
     case 'synth':
-      return <SparklesIcon className={`${PHASE_ICON_CLASS} text-gray-500 dark:text-gray-300`} />
+      return <SparklesIcon className={`${PHASE_ICON_CLASS} chat-research-icon`} />
     default:
-      return <SparklesIcon className={`${PHASE_ICON_CLASS} text-gray-400 dark:text-gray-500`} />
+      return <SparklesIcon className={`${PHASE_ICON_CLASS} chat-research-icon-quiet`} />
   }
 }
 
 function StatusIndicator({ status }: { status: PhaseStatus }) {
   if (status === 'loading') {
-    return <SpinnerIcon className="w-3 h-3 animate-spin text-gray-400" />
+    return <SpinnerIcon className="w-3 h-3 animate-spin chat-research-icon-quiet" />
   }
   if (status === 'error') {
     return (
@@ -185,7 +185,7 @@ function StatusIndicator({ status }: { status: PhaseStatus }) {
       />
     )
   }
-  return <CheckCircleIcon className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+  return <CheckCircleIcon className="w-3.5 h-3.5 chat-research-icon" />
 }
 
 // ── Hover info popover ────────────────────────────────────────────────────────
@@ -286,7 +286,7 @@ function InfoPopover({ anchor, group, onClose, onMouseEnter, onMouseLeave }: Inf
 
       <div className="chat-research-info-popover-header">
         <PhaseIcon phase={group.phase} />
-        <span className="truncate text-xs font-semibold text-gray-800 dark:text-gray-100">
+        <span className="chat-research-text-strong truncate text-xs font-semibold">
           {group.title}
         </span>
       </div>
@@ -302,7 +302,7 @@ function InfoPopover({ anchor, group, onClose, onMouseEnter, onMouseLeave }: Inf
                   <span className="ui-micro font-medium tabular-nums">
                     {idx + 1}.
                   </span>
-                  <span className="line-clamp-2 text-xs font-semibold text-gray-700 dark:text-gray-200">
+                  <span className="chat-research-text line-clamp-2 text-xs font-semibold">
                     {aspect ?? group.title}
                   </span>
                 </div>
@@ -319,11 +319,11 @@ function InfoPopover({ anchor, group, onClose, onMouseEnter, onMouseLeave }: Inf
                   // surrounding chat message size, matching the "tooltip /
                   // diagnostic preview" intent of the research-step trace.
                   compact
-                  className="leading-relaxed text-gray-600 dark:text-gray-300"
+                  className="chat-research-text-muted leading-relaxed"
                 />
 
               ) : step.isLoading ? (
-                <div className="text-xs italic text-gray-400 dark:text-gray-500">
+                <div className="chat-research-icon-quiet text-xs italic">
                   …
                 </div>
               ) : null}

@@ -31,6 +31,19 @@ describe('NotificationViewport', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Old problem')
   })
 
+  it('renders a toast action as a button that runs its handler', () => {
+    const onUndo = vi.fn()
+    render(<NotificationViewport />)
+    act(() => {
+      useNotificationStore.getState().notify({
+        key: 'chat-session-deleted', tone: 'success', message: 'Conversation deleted',
+        actions: [{ label: 'Undo', onClick: onUndo }],
+      })
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(onUndo).toHaveBeenCalledTimes(1)
+  })
+
   it('pauses the countdown while the pointer is on the stack', () => {
     const { container } = render(<NotificationViewport />)
     act(() => { useNotificationStore.getState().notify({ tone: 'success', message: 'Saved' }) })

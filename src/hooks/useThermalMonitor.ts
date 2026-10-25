@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ThermalSnapshot, ThermalSupport } from '../../shared/thermalApi'
+import { useT } from '../store/useAppStore'
 
 /** Samples kept per sensor: at one every two seconds, 90 is three minutes. */
 export const THERMAL_HISTORY_SAMPLES = 90
@@ -44,6 +45,10 @@ export function useThermalMonitor(): ThermalMonitorState {
   const [history, setHistory] = useState<ThermalHistory>({})
   const [error, setError] = useState<string | null>(null)
   const supportedRef = useRef(false)
+  const t = useT()
+  // Read through a ref so a language change does not restart monitoring.
+  const fallbackErrorRef = useRef(t.thermal_error_desc)
+  fallbackErrorRef.current = t.thermal_error_desc
 
   const applySnapshot = useCallback((next: ThermalSnapshot) => {
     setSnapshot(next)
@@ -64,13 +69,13 @@ export function useThermalMonitor(): ThermalMonitorState {
       if (!supportedRef.current || monitoring === on) return
       monitoring = on
       void api.setMonitoring(on).then((res) => {
-        if (active && on && res && !res.success && res.error) setError(res.error)
+        if (active && on && res && !res.success) setError(res.error || fallbackErrorRef.current)
       })
     }
     const onVisibility = () => setMonitoring(document.visibilityState !== 'hidden')
 
     const unsubSnapshot = api.onSnapshot((next) => { if (active) applySnapshot(next) })
-    const unsubError = api.onError((e) => { if (active) setError(e?.message ?? 'Sensors could not be read.') })
+    const unsubError = api.onError((e) => { if (active) setError(e?.message || fallbackErrorRef.current) })
 
     api.getSupport().then((res) => {
       if (!active) return
@@ -98,8 +103,8 @@ export function useThermalMonitor(): ThermalMonitorState {
     setError(null)
     void api.read().then((res) => {
       if (res?.success && res.snapshot) applySnapshot(res.snapshot)
-      else if (res?.error) setError(res.error)
-    })
+      else setError(res?.error || fallbackErrorRef.current)
+    }).catch(() => setError(fallbackErrorRef.current))
   }, [applySnapshot])
 
   return { support, snapshot, history, error, retry }

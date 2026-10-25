@@ -55,9 +55,9 @@ Cửa sổ (`createQuickChatWindow`): rộng cố định **760 px** (`QUICK_CHA
 | Vỏ | `.quick-chat-shell` (`titlebar-drag`, kéo được cửa sổ) | `h-screen w-screen`, nền trong suốt, padding `--vzn-space-0` (`codex.css` ghi đè `10px` trong `index.css`) | — |
 | Khung | `.quick-chat-panel` `<section aria-label="Hỏi AI">` | Viền `--vzn-border-strong`, nền `--vzn-surface`, bo `--vzn-radius-lg`, không bóng (bóng do hệ điều hành vẽ) | — |
 | Header | `.quick-chat-header` | `px-3 py-2.5`, `gap-2`; nền `--vzn-surface`, kẻ `--vzn-divider`; các nút `md` (36) | — |
-| Ô hỏi | `<textarea class="quick-chat-input-field">` | Một dòng, tự cao đến **120 px** (`QUICK_TEXTAREA_MAX_HEIGHT_PX`) rồi cuộn; chữ 16 px đậm 500, màu `--vzn-text-strong`; placeholder `--vzn-text-muted` (`chat.css`); không viền, nền trong suốt | Trong ô |
-| Thân | `.quick-chat-body` | `px-4 py-4`, nền `--vzn-surface-muted`; cột nội dung tối đa `64rem` (rộng hơn cửa sổ, nên thực tế chiếm hết) | Có; lăn chuột ở header/footer cũng cuộn thân (`handleWheel`) |
-| Thẻ hỏi–đáp | `.quick-chat-answer-card` | Viền `--vzn-border-strong`, nền `--vzn-surface`, bo `12px` (literal trong `codex.css`); hàng câu hỏi `px-5 py-2.5` chữ `ui-caption` + huy hiệu "Q" (`ui-token-badge`); thân `px-5 py-4` chữ `ui-reader-text leading-7` | — |
+| Ô hỏi | `<textarea class="quick-chat-input-field">` | Một dòng, tự cao đến **120 px** (`--vzn-quick-chat-input-max-block`) rồi cuộn; chữ `--vzn-font-size-title` (16) đậm `--vzn-weight-medium`, màu `--vzn-text-strong`; placeholder `--vzn-text-muted` (`chat.css`); không viền, nền trong suốt | Trong ô |
+| Thân | `.quick-chat-body` | `px-4 py-4`, nền `--vzn-surface-muted`; cột nội dung tối đa `--vzn-content-max` (980, rộng hơn cửa sổ, nên thực tế chiếm hết) | Có; lăn chuột ở header/footer cũng cuộn thân (`handleWheel`) |
+| Thẻ hỏi–đáp | `.quick-chat-answer-card` | Viền `--vzn-border-strong`, nền `--vzn-surface`, bo `--vzn-radius-md`, viền `--vzn-border-width`; hàng câu hỏi `px-5 py-2.5` chữ `ui-caption` + huy hiệu `ai_chat_popup_question_badge` (VI "H", EN "Q"; `ui-token-badge`); thân `px-5 py-4` chữ `ui-reader-text leading-7` | — |
 | Hành động thẻ | `.quick-chat-card-actions` | `px-3 py-1.5`, kẻ trên, nút `xs` | — |
 | Footer | `.quick-chat-footer` | `px-3 py-2`, nền `--vzn-surface`, kẻ trên `--vzn-divider`; mọi nút `xs` (28) | — |
 
@@ -70,7 +70,7 @@ Cửa sổ (`createQuickChatWindow`): rộng cố định **760 px** (`QUICK_CHA
 | Q3 | Ô hỏi | `textarea`, `aria-label="Hỏi AI"` | Gõ; Enter gửi, ⇧Enter xuống dòng. Nếu Cài đặt › Chat chọn kiểu gửi ⌘↵ (`chatSendShortcut === 'modEnter'`): ⌘↵ gửi, Enter xuống dòng | Gửi câu hỏi (`sendQuestion`) | Ô trống lại, thẻ mới chiếm khung | `disabled` trong lúc đang gửi |
 | Q4 | Xoá chữ (✕ trong ô) | `xs · neutral · ghost`, icon, nhãn "Xóa" | Click | Ô trống, focus lại | — | Ẩn khi ô trống hoặc đang gửi |
 | Q5 | Gửi | `md · primary · solid`, icon, nhãn "Gửi" | Click | Như Enter | Icon đổi thành spinner trong lúc gửi | `disabled` khi ô trống, vượt 3 000 ký tự (`MAX_CHAT_INPUT_CHARS`), đang gửi, hoặc thiếu khoá |
-| Q6 | Chip model (footer) | `xs · neutral · ghost`: chấm trạng thái + `ProviderIcon` + "/ {model}" + huy hiệu "✦ Smart Thinking" + "· {n} lượt" | Click | `quickChat.openSettings()` — ẩn cửa sổ nổi, mở Cài đặt ở cửa sổ chính | — | Không bao giờ tắt; `title` "Change model in Settings" (chưa dịch) |
+| Q6 | Chip model (footer) | `xs · neutral · ghost`: chấm trạng thái + `ProviderIcon` + "/ {model}" + huy hiệu "✦ Smart Thinking" + "· {n} lượt" | Click | `quickChat.openSettings()` — ẩn cửa sổ nổi, mở Cài đặt ở cửa sổ chính | — | Không bao giờ tắt; `title` "Đổi mô hình trong Cài đặt"; chấm `--vzn-success` (có khoá) / `--vzn-warning` (thiếu khoá) kèm chữ ẩn "Mô hình sẵn sàng" / "Chưa có key" |
 | Q7 | Dừng | `xs · danger · ghost`, icon ■ + "Dừng" | Click | `cancelStream('stop')`: giữ phần đã nhận làm câu trả lời, lưu phiên, **không** đưa vào bộ nhớ đệm và không tính phí | Nút biến mất, Sao chép/Tạo lại hiện trong thẻ | Chỉ hiện khi đang gửi |
 | Q8 | Sao chép (footer) | `xs · neutral · ghost` | Click | Chép câu trả lời của thẻ đang hoạt động | Icon ✓ + "Đã sao chép!" trong 1,2 s | `disabled` khi chưa có chữ trả lời |
 | Q9 | Mở trong Chat | `xs · neutral · ghost` + `KeyCap` ⌘ ↵ | Click; ⌘↵ / Ctrl+↵ | `openInChat` mang theo câu hỏi, câu trả lời, các lượt trước, provider và model; nếu thành công thì popup xoá sạch và xoá phiên | Cửa sổ nổi ẩn, cửa sổ chính hiện trang AI Chat | Không bao giờ tắt; không có gì để mang thì chỉ mở trang AI Chat |
@@ -96,7 +96,7 @@ Thứ tự ưu tiên trong thân (`AIChatPopup.tsx`): thiếu khoá → nội du
 | Câu trả lời dài | Nội dung vượt chiều cao thẻ | Thẻ đang hoạt động cao lên theo nội dung; **cả thân** cuộn (không có cuộn riêng trong thẻ). Không tự cuộn theo token mới: đầu câu trả lời đứng yên, người dùng tự cuộn xuống | Cuộn, Sao chép |
 | Đã dừng | Bấm Dừng | Phần đã nhận ở lại như một câu trả lời bình thường, không có dấu hiệu "đã dừng" | Tạo lại, hỏi tiếp |
 | Lỗi nhà cung cấp | `onAnswerError` hoặc ngoại lệ | Ô `ui-error-box` (nền `--vzn-danger-soft`, viền `--vzn-danger-border`) với thông điệp đã bản địa hoá (`localizeChatError` / `localizeChatException`, mặc định "Không thể nhận phản hồi" / "Lỗi không mong đợi"); Sao chép `disabled`, Tạo lại bật. Lượt lỗi **không** được lưu vào phiên | Tạo lại, Cuộc trò chuyện mới, sửa câu và gửi lại |
-| Thiếu khoá | Nhà cung cấp đang chọn (khác `local`) chưa có khoá trong keychain | Thay toàn bộ thân: logo, "Chưa có API key. Vào Cài đặt để thêm.", nút "Mở Cài đặt" (`sm · neutral · outline`). Gửi `disabled`; chip footer chấm xám nhạt | Q11, Q6 |
+| Thiếu khoá | Nhà cung cấp đang chọn (khác `local`) chưa có khoá trong keychain | Thay toàn bộ thân: logo, "Chưa có API key. Vào Cài đặt để thêm.", nút "Mở Cài đặt" (`sm · neutral · outline`). Gửi `disabled`; chip footer chấm `--vzn-warning` + chữ ẩn "Chưa có key" | Q11, Q6 |
 | Chưa chọn model | `selectedModels[provider]` rỗng | Chip footer ghi "/ default" (chưa dịch); vẫn gửi được, nhà cung cấp dùng model mặc định | Q6 |
 | Nội dung quá dài | Chữ đã cắt khoảng trắng > 3 000 ký tự | Thay **toàn bộ thân** (che cả hội thoại) bằng "{n} / 3.000" + "Nội dung quá dài. Rút gọn để gửi." | Sửa chữ |
 | Mở lại sau khi ẩn | Esc / mất focus rồi mở lại | Launcher ở chế độ tìm; "Hỏi tiếp AI" / "Tiếp tục Quick AI" đưa về đúng cuộc trò chuyện | — |
@@ -148,8 +148,8 @@ Cửa sổ có kích thước cố định, người dùng không đổi cỡ đ
 
 - Focus: mỗi lần hiện và sau mỗi câu trả lời, focus về ô hỏi (`focusInput`, trễ 30 ms). Không có Tab trap; Tab đi theo thứ tự: Tìm kiếm → logo/+ → ô hỏi → ✕ → Gửi → thẻ (Sao chép, Tạo lại) → footer (chip model, Dừng, Sao chép, Mở trong Chat).
 - Phím: Enter / ⇧Enter (hoặc ⌘↵ / Enter theo `chatSendShortcut`), ⌘N / Ctrl+N cuộc mới, ⌘↵ / Ctrl+↵ mở trong Chat, Esc ẩn cửa sổ. Phím ⌘ trên macOS, Ctrl nơi khác (`isPrimaryModifierShortcut` loại trừ Alt/Shift).
-- Nhãn: `section` và `textarea` có `aria-label="Hỏi AI"`; Gửi "Gửi"; ✕ "Xóa"; logo/+ có `aria-label` tiếng Anh cứng ("Quick AI" / "New conversation (Cmd+N)").
-- Vùng sống: chỉ `ThinkingPill` có `role="status"` `aria-live="polite"`. Vùng câu trả lời **không** có `aria-live`; ô lỗi **không** có `role="alert"`; "Đã sao chép!" không được đọc.
+- Nhãn: `section` và `textarea` có `aria-label="Hỏi AI"`; Gửi "Gửi"; ✕ "Xóa"; logo/+ có `aria-label` "AI nhanh" / "Cuộc trò chuyện mới (⌘+N)".
+- Vùng sống: `ThinkingPill` có `role="status"` `aria-live="polite"`; vùng câu trả lời có `aria-live="polite"` + `aria-busy` khi đang gửi. Ô lỗi **không** có `role="alert"` (chỉ được đọc lịch sự trong vùng câu trả lời); "Đã sao chép!" không được đọc.
 - Kéo cửa sổ: toàn bộ vỏ là vùng kéo (`titlebar-drag`); mọi điều khiển và thẻ có `titlebar-no-drag`, chữ câu hỏi chọn được (`select-text`).
 - Không có vòng focus ngoài (`*:focus-visible { outline: none }` trong `codex.css`); nút dùng viền trong `--vzn-focus-ring`.
 
@@ -174,7 +174,9 @@ Cửa sổ có kích thước cố định, người dùng không đổi cỡ đ
 | `chat_thinking` / `chat_smart_thinking_badge` / `chat_smart_thinking_hint` | Đang suy nghĩ… / Smart Thinking / AI tự phân tích và tìm web khi cần |
 | `chat_error_no_key` / `chat_error_open_settings` | Chưa có API key. Vào Cài đặt để thêm. / Mở Cài đặt |
 | `chat_error_failed_response` / `chat_error_unexpected` | Không thể nhận phản hồi / Lỗi không mong đợi |
-| (chưa có khoá) | "New conversation ({mod}+N)", "Quick AI", "Change model in Settings", "default", "Q" — **đề xuất** thêm khoá, ví dụ `ai_chat_popup_new_conversation`, `ai_chat_popup_change_model`, `ai_chat_popup_default_model`, `ai_chat_popup_question_badge` |
+| `ai_chat_popup_new_conversation` / `ai_chat_popup_short_label` | Cuộc trò chuyện mới ({shortcut}) / AI nhanh |
+| `ai_chat_popup_change_model` / `ai_chat_popup_model_default` | Đổi mô hình trong Cài đặt / mặc định |
+| `ai_chat_popup_question_badge` / `ai_chat_popup_model_ready` / `model_no_key` | H / Mô hình sẵn sàng / Chưa có key |
 
 ## 10. Chênh lệch với bản dựng hiện tại
 
@@ -182,34 +184,29 @@ Lỗi (hành vi sai, nên sửa trong mã):
 
 1. **IME không được chặn.** Trình xử lý Esc trên `window` và `shouldSendChatMessage` không kiểm tra `isComposing` / `keyCode 229` (chế độ tìm của Launcher thì có). Người dùng tiếng Nhật nhấn Enter để chốt chữ sẽ **gửi luôn** câu đang soạn dở; nhấn Esc để huỷ chữ đang soạn sẽ **ẩn cả cửa sổ**.
 2. **Gợi ý phím sai khi chọn kiểu gửi ⌘↵.** Với `chatSendShortcut === 'modEnter'`, placeholder nói "(Cmd+Enter để gửi)" nhưng bảng phím ở trạng thái trống vẫn ghi cứng "↵ Gửi · ⇧↵ Xuống dòng · ⌘↵ Mở trong Chat". Thêm nữa, ô hỏi bắt ⌘↵ để gửi và `stopPropagation`, nên khi focus ở ô hỏi (gần như luôn vậy) ⌘↵ **không** mở trong Chat dù `KeyCap` ở footer nói có. Đề xuất: bảng phím đọc `chatSendShortcut`; ở chế độ này dùng phím khác (ví dụ ⌘⇧↵) cho "Mở trong Chat".
-3. **Chữ câu trả lời đang hoạt động có thể gần như vô hình ở chế độ tối.** `ActiveQACard` gắn `text-gray-800` cho `MarkdownText`; lớp tiện ích Tailwind thắng `.ui-reader-text { color: var(--vzn-text) }`, và `gray-800` ánh xạ tới `--vzn-neutral-800`, token chỉ khai báo một lần (`#2c2c2e`) không đổi theo chế độ. Tương tự icon "+" và nhãn model `text-gray-700`, huy hiệu Smart Thinking `bg-gray-100`, skeleton `bg-gray-200/80`. Suy từ mã, chưa kiểm tra bằng mắt trong app; board vẽ theo token đúng (`--vzn-text`).
-4. **"Mở trong Chat" thất bại thì im lặng.** Nếu main từ chối payload (ví dụ câu trả lời > 80 000 ký tự, `MAX_QUICK_CHAT_RESPONSE_CHARS`) hoặc cửa sổ chính không có, `openInChat` trả `success: false` và popup không báo gì.
-5. **Sao chép không bắt lỗi.** `handleCopy` không có `try/catch`; khi `clipboard.writeText` bị từ chối thì lời hứa bị từ chối không ai xử lý và không có phản hồi.
-6. **Nội dung quá dài che cả hội thoại.** Khi gõ câu hỏi tiếp > 3 000 ký tự, thân thay toàn bộ bằng bộ đếm; câu trả lời đang đọc biến mất cho tới khi rút gọn. Đề xuất: hiện bộ đếm dưới ô hỏi, giữ hội thoại.
-7. **Câu hỏi bị lỗi rơi mất khi bàn giao.** Nếu thẻ đang hoạt động bị lỗi và ô hỏi có nháp, `handleOpenInChat` chỉ mang `history` + nháp; câu hỏi bị lỗi không đi theo.
-8. **Chú thích đầu tệp lỗi thời.** `AIChatPopup.tsx` nói phiên tồn tại "within a 5-minute TTL" và "Mounted by quick-chat.html"; thực tế phiên lưu trên đĩa không hết hạn (Launcher coi < 30 phút là "mới"), và component luôn được `QuickLauncher` gắn kèm `onBack`. Nhánh độc lập (không `onBack`: tự đăng ký `onShow`, tự gắn lớp `quick-chat-window`) hiện là mã chết trong bản dựng.
+3. **"Mở trong Chat" thất bại thì im lặng.** Nếu main từ chối payload (ví dụ câu trả lời > 80 000 ký tự, `MAX_QUICK_CHAT_RESPONSE_CHARS`) hoặc cửa sổ chính không có, `openInChat` trả `success: false` và popup không báo gì.
+4. **Sao chép không bắt lỗi.** `handleCopy` không có `try/catch`; khi `clipboard.writeText` bị từ chối thì lời hứa bị từ chối không ai xử lý và không có phản hồi.
+5. **Nội dung quá dài che cả hội thoại.** Khi gõ câu hỏi tiếp > 3 000 ký tự, thân thay toàn bộ bằng bộ đếm; câu trả lời đang đọc biến mất cho tới khi rút gọn. Đề xuất: hiện bộ đếm dưới ô hỏi, giữ hội thoại.
+6. **Câu hỏi bị lỗi rơi mất khi bàn giao.** Nếu thẻ đang hoạt động bị lỗi và ô hỏi có nháp, `handleOpenInChat` chỉ mang `history` + nháp; câu hỏi bị lỗi không đi theo.
+7. **Chú thích đầu tệp lỗi thời.** `AIChatPopup.tsx` nói phiên tồn tại "within a 5-minute TTL" và "Mounted by quick-chat.html"; thực tế phiên lưu trên đĩa không hết hạn (Launcher coi < 30 phút là "mới"), và component luôn được `QuickLauncher` gắn kèm `onBack`. Nhánh độc lập (không `onBack`: tự đăng ký `onShow`, tự gắn lớp `quick-chat-window`) hiện là mã chết trong bản dựng.
 
 Trợ năng và nội dung:
 
-9. **Thiếu `aria-live`** cho vùng câu trả lời (chỉ pill "Đang suy nghĩ" có), thiếu `role="alert"` cho ô lỗi, "Đã sao chép!" không được thông báo. Bảng lệnh ⌘K đã làm đúng (`aria-live="polite"`, `aria-busy`, `role="alert"`) — nên dùng cùng mẫu.
-10. **Chuỗi chưa bản địa hoá**: `aria-label`/`title` "New conversation (Cmd+N)", "Quick AI", `title` "Change model in Settings", nhãn model "default", huy hiệu "Q". Vi phạm luật EN/VI/JA (xem §9).
-11. **Màu là tín hiệu duy nhất ở chip model**: chấm `bg-gray-500` (có khoá) và `bg-gray-400` (thiếu khoá) chỉ khác độ đậm, không có chữ. Đề xuất: chấm `--vzn-success` / `--vzn-warning` kèm chữ ẩn cho trình đọc màn hình, như `StatusLabel`.
-12. **Chip model `xs`** trong khi `foundations.md` §6 quy định chip model dùng `sm`; footer thống nhất `xs` nên chấp nhận được, nhưng cần ghi thành ngoại lệ hoặc sửa cả footer.
-13. **Trạng thái đã dừng không có dấu hiệu.** Câu trả lời bị dừng giữa chừng trông như câu trả lời hoàn chỉnh. Đề xuất: dòng chú thích nhỏ "Đã dừng" dưới câu trả lời.
-14. **Câu trả lời lấy từ bộ nhớ đệm không có dấu hiệu.** Gõ lại cùng câu trong 10 phút trả kết quả cũ tức thì mà không nói; người dùng chỉ biết bấm "Tạo lại phản hồi" nếu đã hiểu cơ chế. **Đề xuất** một nhãn nhỏ.
-15. **Tạo lại ở thẻ cũ xoá các lượt sau mà không hỏi** (giống ChatGPT, nhưng không có hoàn tác).
+8. **Thiếu `role="alert"`** cho ô lỗi (vùng câu trả lời đã có `aria-live="polite"` + `aria-busy`), và "Đã sao chép!" không được thông báo. Bảng lệnh ⌘K dùng `role="alert"` cho lỗi — nên dùng cùng mẫu.
+9. **Chip model `xs`** trong khi `foundations.md` §6 quy định chip model dùng `sm`; footer thống nhất `xs` nên chấp nhận được, nhưng cần ghi thành ngoại lệ hoặc sửa cả footer.
+10. **Trạng thái đã dừng không có dấu hiệu.** Câu trả lời bị dừng giữa chừng trông như câu trả lời hoàn chỉnh. Đề xuất: dòng chú thích nhỏ "Đã dừng" dưới câu trả lời.
+11. **Câu trả lời lấy từ bộ nhớ đệm không có dấu hiệu.** Gõ lại cùng câu trong 10 phút trả kết quả cũ tức thì mà không nói; người dùng chỉ biết bấm "Tạo lại phản hồi" nếu đã hiểu cơ chế. **Đề xuất** một nhãn nhỏ.
+12. **Tạo lại ở thẻ cũ xoá các lượt sau mà không hỏi** (giống ChatGPT, nhưng không có hoàn tác).
 
 Nợ thiết kế (giá trị thô cần chuyển sang `tokens.css`):
 
-16. `AIChatPopup.tsx`: `shadow-[0_0_0_3px_rgba(75,85,99,0.14)]`, `max-w-[64rem]`, `max-w-[28rem]`, `min-h-[240px]`, `QUICK_TEXTAREA_MAX_HEIGHT_PX = 120` qua `style`, `minHeight: viewportHeight − 32 / 200`, `opacity-70`, các lớp `text-gray-*`/`bg-gray-*`, và `style={{ color: 'var(--vzn-text-muted)' }}` / `--vzn-text-strong` inline (nên là lớp CSS).
-17. `src/styles/codex.css`: `.quick-chat-answer-card { border-radius: 12px }` (nên dùng `--vzn-radius-md`), `border: 1px` (nên `--vzn-border-width`). `src/index.css`: `.quick-chat-input-field` cỡ chữ `16px`, `line-height: 1.4`, padding `8px 10px 8px 2px`; `.quick-chat-shell { padding: 10px }` (đã bị `codex.css` ghi đè, nên xoá). Các tệp này nằm ngoài phạm vi `npm run check:design`.
-18. Ô lỗi `.ui-error-box` trong `index.css` cũng dùng `padding: 10px 12px`, `font-size: 13px` thô.
+13. `AIChatPopup.tsx`: còn `minHeight: viewportHeight − 32 / 200` tính lúc chạy qua `style`, và `opacity-70` (Tailwind) cho thẻ cũ. Màu, bóng và bề rộng đã chuyển sang lớp trong `codex.css` dùng token.
 
 Khác biệt với bản vẽ / đề xuất:
 
-19. **Esc ẩn cả cửa sổ** thay vì về chế độ tìm (đã nêu ở `launcher.md` §10.4). Đề xuất giữ nguyên: Esc lần một về tìm, lần hai ẩn.
-20. **Nút Gửi không thành nút Dừng.** Trong lúc gửi, Gửi là spinner `disabled` ở header, còn "Dừng" ở footer cách xa. AI Chat chính đổi chỗ Gửi thành Dừng (`src/pages/ChatPageV2.tsx`, `.chat-stop-button`); **đề xuất** làm giống để chuột không phải đi xa.
-21. **Không tự cuộn theo câu trả lời dài**: chỉ cuộn khi bắt đầu lượt mới. Có thể là chủ ý (đọc từ đầu); nếu giữ thì nên có nút "Xuống cuối" khi câu trả lời vượt khung (**đề xuất**).
-22. **Không có tệp đính kèm, ảnh, chọn model hay chọn nhà cung cấp trong popup**: popup luôn dùng provider/model đang chọn ở cửa sổ chính, chỉ đổi được qua Cài đặt. Chọn model ngay trong popup là **đề xuất**.
-23. **Không có lối vào từ khay hệ thống hay bảng lệnh ⌘K**; "Hỏi AI" trong ⌘K là một bề mặt trả lời khác, có bộ nút riêng. Hợp nhất hai bề mặt là **đề xuất**.
-24. "Mở Cài đặt" mở mục mặc định của Cài đặt, không nhảy tới Cài đặt › Mô hình AI như `foundations.md` §12 yêu cầu cho trạng thái thiếu khoá.
+14. **Esc ẩn cả cửa sổ** thay vì về chế độ tìm (đã nêu ở `launcher.md` §10.4). Đề xuất giữ nguyên: Esc lần một về tìm, lần hai ẩn.
+15. **Nút Gửi không thành nút Dừng.** Trong lúc gửi, Gửi là spinner `disabled` ở header, còn "Dừng" ở footer cách xa. AI Chat chính đổi chỗ Gửi thành Dừng (`src/pages/ChatPage.tsx`, `.chat-stop-button`); **đề xuất** làm giống để chuột không phải đi xa.
+16. **Không tự cuộn theo câu trả lời dài**: chỉ cuộn khi bắt đầu lượt mới. Có thể là chủ ý (đọc từ đầu); nếu giữ thì nên có nút "Xuống cuối" khi câu trả lời vượt khung (**đề xuất**).
+17. **Không có tệp đính kèm, ảnh, chọn model hay chọn nhà cung cấp trong popup**: popup luôn dùng provider/model đang chọn ở cửa sổ chính, chỉ đổi được qua Cài đặt. Chọn model ngay trong popup là **đề xuất**.
+18. **Không có lối vào từ khay hệ thống hay bảng lệnh ⌘K**; "Hỏi AI" trong ⌘K là một bề mặt trả lời khác, có bộ nút riêng. Hợp nhất hai bề mặt là **đề xuất**.
+19. "Mở Cài đặt" mở mục mặc định của Cài đặt, không nhảy tới Cài đặt › Mô hình AI như `foundations.md` §12 yêu cầu cho trạng thái thiếu khoá.

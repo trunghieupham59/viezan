@@ -101,13 +101,13 @@ Bố cục mặc định (vùng nội dung ≥ 760 px, có mục đang xem):
 | Trạng thái | Khi nào | Hiển thị | Hành động có sẵn |
 | --- | --- | --- | --- |
 | Trống | Chưa có mục nào, hoặc vừa xoá mục đang xem | Cột kết quả: `DictionaryEmptyState` — icon sách, "Chưa chọn mục nào", "Tra một từ để xem nghĩa, bản dịch, ví dụ và ghi chú.", ba chip gợi ý (sắc thái · 工夫 · kintsugi). Lịch sử: "Chưa có lịch sử tra" / "Chưa có mục yêu thích"; không có chân danh sách khi chưa có mục | Gõ từ, chip gợi ý, Tra cứu |
-| Đang tải | Đang chờ `lookupPreview` | Nút Tra cứu `disabled`, icon xoay, "Đang tra…". Cột kết quả **giữ nguyên** mục cũ hoặc trạng thái trống (không có skeleton — xem mục 10) | Gõ tiếp; chọn mục lịch sử |
+| Đang tải | Đang chờ `lookupPreview` | Nút Tra cứu `disabled`, icon xoay, "Đang tra…". Cột kết quả thay bằng skeleton đúng hình mục từ (`.dictionary-skeleton`, `aria-busy`, chữ ẩn "Đang tra…") | Gõ tiếp; chọn mục lịch sử |
 | Đang bổ sung chi tiết | Đã có bản xem trước, đang chờ `lookupDetails` | Mục từ hiện ngay ở đầu "Gần đây"; cạnh từ chính có chấm suy nghĩ `role="img"` "Đang bổ sung chi tiết…"; sau đó chip, sắc thái, ví dụ đầy đủ thay vào | Mọi hành động trên mục |
 | Có dữ liệu | Có mục đang xem | Header mục từ + các phần Nghĩa, Bản dịch, Sắc thái (tối đa 3), Ví dụ (đánh số, câu gốc + câu dịch), Ghi chú | #10–#23 |
 | Bộ nhớ đệm | Tra lại cùng từ + cặp + ngữ cảnh + model đã có chi tiết | Mục đưa lên đầu "Gần đây" ngay, không gọi AI, chuyển về tab Gần đây | — |
-| Lỗi kiểm tra | Bấm Tra cứu khi trống / > 120 ký tự / ngữ cảnh > 500 / nguồn = đích | Toast lỗi (`role="alert"`), không có nút: "Nhập từ cần tra." / "Từ khóa quá dài." / "Ngữ cảnh quá dài." / "Ngôn ngữ nguồn và đích phải khác nhau." Gõ lại thì toast tự tắt | Sửa nội dung |
+| Lỗi kiểm tra | Bấm Tra cứu khi trống / > 120 ký tự / ngữ cảnh > 500 / nguồn = đích | Trống / quá dài: thông điệp dưới ô tương ứng (`role="alert"`, ô có `aria-invalid` + `aria-describedby`): "Nhập từ cần tra." / "Từ khóa quá dài." / "Ngữ cảnh quá dài."; gõ lại thì thông điệp tắt. Nguồn = đích: toast lỗi "Ngôn ngữ nguồn và đích phải khác nhau." | Sửa nội dung |
 | Lỗi nhà cung cấp | Gọi AI thất bại, phản hồi không hợp lệ hoặc bị cắt | Toast lỗi có dòng phụ "Provider · model" và ba nút Thử lại / Chọn model khác / Mở Cài đặt. Từ đã gõ được giữ. Lỗi ở pha chi tiết sau khi đã có bản xem trước: bản xem trước giữ nguyên, chỉ báo lỗi khi không phải lỗi phản hồi không hợp lệ/bị cắt | #24–#26 |
-| Thiếu khoá / model | `selectedModels[selectedProvider]` rỗng | Nút Tra cứu `disabled`, tooltip "Chọn model trong Cấu hình AI để tra cứu." (không có hàng cảnh báo vàng — xem mục 10) | Cấu hình AI |
+| Thiếu khoá / model | `selectedModels[selectedProvider]` rỗng | Nút Tra cứu `disabled`, tooltip "Chọn model trong Cấu hình AI để tra cứu."; `CapabilityNotice` vàng "Chưa chọn model" phía trên nút, có nút "Mở Mô hình AI" (`openSettingsAt('api')`) | Cấu hình AI, Mở Mô hình AI |
 | Đã đánh dấu | `entry.favorite` | Sao `primary · soft` ở header và trên hàng; mục giữ lại khi Xóa lịch sử | Bỏ đánh dấu |
 | Module tắt | `enabledModules.dictionary === false` | Mục điều hướng, lệnh ⌘K và thẻ Trang chủ ẩn (foundations §12) | — |
 
@@ -167,10 +167,10 @@ Ngưỡng theo container `dictionary-workbench` (`src/styles/dictionary.css`), t
 - **Thứ tự Tab**: cặp ngôn ngữ (nguồn → đảo → đích) → Cấu hình AI → ô từ → nút xoá ô → ô ngữ cảnh → Tra cứu → tab Gần đây/Yêu thích (một điểm dừng, ← → Home End để chuyển) → ô tìm lịch sử → từng hàng (nút chọn → sao) → Xóa lịch sử → Xóa → header mục từ (sao, sao chép, dùng trong AI Dịch) → chip bản dịch.
 
   Lưu ý: trong DOM cột tra cứu đứng trước cột kết quả (`DictionaryWorkbenchTemplate`), nên Tab đi qua lịch sử trước khi tới kết quả.
-- **Enter** trong ô từ gửi form. Esc đóng popover và hộp thoại, trả focus về nút mở.
-- **Nhãn**: ô từ `aria-labelledby` = "Từ hoặc cụm từ"; ô ngữ cảnh `aria-labelledby` + `aria-invalid` khi vượt giới hạn; nút Tra cứu đổi `aria-label` khi đang tra; các nút icon (sao, sao chép, dùng trong AI Dịch, sao trên hàng) đều có `aria-label`; sao dùng `aria-pressed`; chip bản dịch có `aria-pressed` + `aria-label` "Chi tiết bản dịch: …".
+- **Enter** trong ô từ gửi form. Esc đóng popover và hộp thoại, trả focus về nút mở. Tra xong (không lỗi), focus chuyển tới tiêu đề mục từ (`h2 tabIndex=-1`).
+- **Nhãn**: ô từ `aria-labelledby` = "Từ hoặc cụm từ"; ô từ và ô ngữ cảnh có `aria-invalid` + `aria-describedby` trỏ tới thông điệp lỗi dưới ô; nút Tra cứu đổi `aria-label` khi đang tra; các nút icon (sao, sao chép, dùng trong AI Dịch, sao trên hàng) đều có `aria-label`; sao dùng `aria-pressed`; chip bản dịch có `aria-pressed` + `aria-label` "Chi tiết bản dịch: …".
 - **Vùng**: cột tra cứu là `aside aria-label="Tra cứu"`, kết quả là `section aria-label="Từ điển"`, lịch sử có `role="tablist"` (nhãn "Lịch sử tra cứu") và `role="tabpanel"`.
-- **Live**: skeleton tra phụ có `aria-busy` + `aria-live="polite"`; chỉ báo "Đang bổ sung chi tiết…" là `role="img"` có `aria-label`; toast lỗi `role="alert"`. Cột kết quả chính chưa có `aria-live` (mục 10).
+- **Live**: skeleton tra phụ có `aria-busy` + `aria-live="polite"`; chỉ báo "Đang bổ sung chi tiết…" là `role="img"` có `aria-label`; toast lỗi `role="alert"`. Cột kết quả chính có vùng ẩn `aria-live="polite"` đọc tiêu đề mục từ mới.
 - **Nút tra phần chọn** dùng `onMouseDown preventDefault` để không làm mất vùng chọn; có `aria-label` gồm chữ được chọn.
 - Không có phím tắt riêng ngoài Enter.
 
@@ -225,11 +225,8 @@ Bản vẽ (`boards/Dictionary.dc.html`, `States`, `Histories`, `Popovers`) so v
 4. **"Bản dịch và sắc thái" dạng lưới thẻ** trong bản vẽ; mã dùng chip + tối đa 3 đoạn "Sắc thái · …" + hộp thoại chi tiết. Ví dụ trong bản vẽ là ô nền xám; mã là danh sách đánh số với câu gốc/câu dịch.
 5. **Gần đây / Yêu thích** là segmented control trong bản vẽ; mã dùng `TabBar` có số đếm và ô tìm (khi > 4 mục), hàng có nghĩa 2 dòng, phiên âm, chi phí (`UsageCostBadge`), nút sao. Mã giàu hơn bản vẽ; giữ mã.
 6. **Trạng thái trống (States)**: bản vẽ có tiêu đề "Chưa tra từ nào", câu hướng dẫn về ô bên trái và gợi ý "Trong bộ nhớ tạm · [từ vừa sao chép] · Tra từ này" — **đề xuất** (app không đọc clipboard ở trang này). Mã: "Chưa chọn mục nào" + ba chip mẫu.
-7. **Không có skeleton cho lượt tra chính.** `isLoading` không được truyền vào `DictionaryResultPanel`; trong lúc chờ bản xem trước, cột kết quả vẫn hiện mục cũ. Foundations §12 yêu cầu skeleton đúng hình nội dung — **đề xuất** dùng lại khối `.dictionary-skeleton` của tra phụ.
-8. **Thiếu model chỉ báo bằng tooltip** trên nút `disabled`. Foundations §12 yêu cầu hàng cảnh báo vàng + nút tới Cài đặt › Mô hình AI — **đề xuất**.
-9. **Lỗi kiểm tra hiện thành toast lỗi** thay vì lỗi tại ô (`aria-invalid` + thông điệp dưới ô). Ô từ chỉ đỏ khi vượt 120 ký tự; "Nhập từ cần tra." không gắn vào ô — **đề xuất** hiển thị tại chỗ.
-10. **Cột kết quả chưa có `aria-live`** cho mục mới về (foundations §11).
-11. **Xóa mục đang xem không có xác nhận** và cùng mức nhấn với "Xóa lịch sử" (cả hai `danger · soft` pill). Đề xuất toast Hoàn tác, hoặc hạ "Xóa" xuống `ghost`.
-12. **Thứ tự đọc**: lịch sử đứng trước kết quả trong DOM, nên người dùng bàn phím phải Tab qua toàn bộ danh sách trước khi tới mục vừa tra — **đề xuất** thêm liên kết bỏ qua hoặc chuyển focus tới tiêu đề mục từ sau khi tra.
-13. **Cặp ngôn ngữ dùng chung với AI Dịch** (`scope="dictionary"` ghi vào phạm vi `translate`). Bản vẽ không nói rõ; đặc tả theo mã.
-14. **Nợ token nhỏ**: `.dictionary-skeleton-wide/-narrow` dùng phần trăm `90%`/`75%` cố định trong `src/styles/dictionary.css`; nút tra phần chọn đặt vị trí bằng `style` inline (có chú thích, là toạ độ tính toán, chấp nhận được).
+7. **Lỗi "nguồn = đích" vẫn là toast**; các lỗi trống/quá dài đã hiện tại ô.
+8. **Xóa mục đang xem không có xác nhận** và cùng mức nhấn với "Xóa lịch sử" (cả hai `danger · soft` pill). Đề xuất toast Hoàn tác, hoặc hạ "Xóa" xuống `ghost`.
+9. **Thứ tự đọc**: lịch sử đứng trước kết quả trong DOM. Sau khi tra, focus đã chuyển tới tiêu đề mục từ, nhưng chưa có liên kết bỏ qua danh sách lịch sử — **đề xuất**.
+10. **Cặp ngôn ngữ dùng chung với AI Dịch** (`scope="dictionary"` ghi vào phạm vi `translate`). Bản vẽ không nói rõ; đặc tả theo mã.
+11. **Nợ token nhỏ**: `.dictionary-skeleton-wide/-narrow` dùng phần trăm `90%`/`75%` cố định trong `src/styles/dictionary.css`; nút tra phần chọn đặt vị trí bằng `style` inline (có chú thích, là toạ độ tính toán, chấp nhận được).

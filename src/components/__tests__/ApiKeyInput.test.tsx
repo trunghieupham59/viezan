@@ -103,3 +103,54 @@ describe('ApiKeyInput verification outcomes', () => {
     expect(screen.queryByText(successMessage)).not.toBeInTheDocument()
   })
 })
+
+describe('ApiKeyInput delete confirmation', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.clearAllMocks()
+  })
+
+  function renderStoredKey(onDelete = vi.fn(async () => {})) {
+    render(
+      <ApiKeyInput
+        provider={claude}
+        onSave={vi.fn(async () => {})}
+        onDelete={onDelete}
+        hasKey
+        maskedKey="sk-ant-****"
+        usageCurrency="USD"
+        usageLabel="Cost"
+        onResetUsage={vi.fn()}
+      />,
+    )
+    return onDelete
+  }
+
+  it.each([
+    ['en', 'Edit', 'Remove', 'Remove the API key for Anthropic Claude?'],
+    ['vi', 'Sửa', 'Xóa', 'Xoá khoá API của Anthropic Claude?'],
+    ['ja', '編集', '削除', 'Anthropic Claude の APIキーを削除しますか？'],
+  ] as const)('asks in one language (%s) and keeps the key when cancelled', (locale, edit, remove, message) => {
+    useAppStore.setState({ locale })
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const onDelete = renderStoredKey()
+
+    fireEvent.click(screen.getByRole('button', { name: edit }))
+    fireEvent.click(screen.getByTitle(remove))
+
+    expect(confirm).toHaveBeenCalledWith(message)
+    expect(onDelete).not.toHaveBeenCalled()
+  })
+
+  it('deletes after the user confirms', async () => {
+    useAppStore.setState({ locale: 'en' })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const onDelete = renderStoredKey()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByTitle('Remove'))
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalledTimes(1))
+  })
+})
+

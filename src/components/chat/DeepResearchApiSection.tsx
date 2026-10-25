@@ -135,7 +135,7 @@ function KeyCard({ provider, onStatusChange }: KeyCardProps) {
   }
 
   const handleDelete = async () => {
-    if (!confirm(`${t.settings_remove} API key for ${provider.name}?`)) return
+    if (!window.confirm(tpl(t.settings_remove_key_confirm, { name: provider.name }))) return
     setIsDeleting(true)
     setVerifyStatus('idle')
     dismissNotification(notificationKey)
@@ -197,7 +197,8 @@ function KeyCard({ provider, onStatusChange }: KeyCardProps) {
 // ─── Main section ─────────────────────────────────────────────────────────────
 
 export function DeepResearchApiSection() {
-  const { setHasTavilyKey, setHasBraveKey } = useAppStore()
+  const setHasTavilyKey = useAppStore((state) => state.setHasTavilyKey)
+  const setHasBraveKey = useAppStore((state) => state.setHasBraveKey)
   const t = useT()
 
   const statusHandlers: Record<'tavily' | 'brave', (exists: boolean) => void> = {

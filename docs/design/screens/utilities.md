@@ -29,8 +29,8 @@ Trang này là nơi người dùng **đặt phím mở Launcher** (cửa sổ t�
 │ ┌ SettingsCard "Launcher" ───────── [công tắc] ┐ ┌ SettingsCard "Tất cả phím tắt" ┐
 │ │ Nhấn phím tắt ở bất kỳ đâu để tìm ứng dụng… │ │ Một danh sách để thấy mọi…     │
 │ ├──────────────────────────────────────────────┤ ├────────────────────────────────┤
-│ │ Phím tắt            [✕] [ Command+Space ]    │ │ Launcher       Toàn hệ thống ⌘ Space │
-│ │ (Notice: Module Launcher đang tắt)           │ │ Dịch nhanh…    Toàn hệ thống ⌥ T     │
+│ │ (Notice: Module Launcher đang tắt)           │ │ Launcher       Toàn hệ thống ⌘ Space │
+│ │ Phím tắt            [✕] [ Command+Space ]    │ │ Dịch nhanh…    Toàn hệ thống ⌥ T     │
 │ │ (Notice vàng: Spotlight đang giữ ⌘Space      │ │ Bảng lệnh      Trong cửa sổ  ⌘ K     │
 │ │   [Tắt phím tắt Spotlight][Mở Cài đặt…]      │ │ Chat mới       Trong cửa sổ  Chưa đặt│
 │ │   [Dùng Option+Space thay thế])              │ │ Gửi tin nhắn   Trong ô soạn  ↵       │
@@ -57,10 +57,10 @@ Trang này là nơi người dùng **đặt phím mở Launcher** (cửa sổ t�
 
 | # | Điều khiển | Loại (Button size · variant · appearance) | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
-| L1 | Công tắc Launcher (header) | `ToggleSwitch`, `aria-label` "Bật phím tắt" | Click / Space | `hotkey.chat.update({ enabled })` | Đổi ngay. Lỗi: toast (khoá `settings-chat-hotkey-register`) "Phím tắt đang được sử dụng…" (`IN_USE`/`CONFLICT`) hoặc "Không đăng ký được phím tắt. Hãy chọn tổ hợp khác."; công tắc + phím trở về giá trị main giữ | Không disabled; khi module Launcher tắt, phím được lưu nhưng không chạy |
-| L2 | Xoá phím (✕) | `sm · danger · ghost`, icon vuông, `aria-label` "Xóa" | Click | Lưu `{ hotkey: '', enabled: false }` | Ô ghi hiện "Chưa cài", công tắc tắt; danh sách cập nhật "Chưa đặt" | Ẩn khi trống hoặc đang ghi |
-| L3 | Ô ghi phím (`HotkeyRecordButton`) | `md · neutral · outline` → `md · primary · soft` khi ghi | Click rồi bấm tổ hợp | Lưu qua `hotkey.chat.update({ hotkey })`, phát `SHORTCUTS_CHANGED_EVENT` | "Bấm phím… (Esc để hủy)" → tổ hợp mới (Alt hiện "Option" trên macOS). Trên macOS kiểm tra lại xung đột hệ thống ngay sau khi đổi | Esc/blur huỷ |
-| L4 | Thông báo "Module Launcher đang tắt" | `CapabilityNotice` info + "Bật" `md · primary · solid` | Click | `setModuleEnabled('launcher', true)` | Thông báo biến mất; hàng Launcher xuất hiện lại trong danh sách | Chỉ khi `enabledModules.launcher === false` |
+| L1 | Công tắc Launcher (header) | `ToggleSwitch`, `aria-label` "Bật Launcher" | Click / Space | `hotkey.chat.update({ enabled })` | Đổi ngay. Lỗi: toast (khoá `settings-chat-hotkey-register`) "Phím tắt đang được sử dụng…" (`IN_USE`/`CONFLICT`) hoặc "Không đăng ký được phím tắt. Hãy chọn tổ hợp khác."; công tắc + phím trở về giá trị main giữ | Không disabled; khi module Launcher tắt, phím được lưu nhưng không chạy |
+| L2 | Xoá phím (✕) | `md · danger · ghost`, icon vuông, `aria-label` "Xóa" | Click | Lưu `{ hotkey: '', enabled: false }` | Ô ghi hiện "Chưa cài", công tắc tắt; danh sách cập nhật "Chưa đặt" | Ẩn khi trống hoặc đang ghi |
+| L3 | Ô ghi phím (`HotkeyRecordButton`) | `md · neutral · outline` → `md · primary · soft` khi ghi | Click rồi bấm tổ hợp | Tổ hợp cần ít nhất `Command`, `Ctrl` hoặc `Alt` (chỉ `Shift` không đủ; F1–F24 dùng một mình được), thiếu thì không lưu và dòng mô tả hiện "Giữ thêm Command, Control hoặc Option (Alt) cùng với phím."; hợp lệ thì lưu qua `hotkey.chat.update({ hotkey })`, phát `SHORTCUTS_CHANGED_EVENT` | "Bấm phím… (Esc để hủy)" → tổ hợp mới (Alt hiện "Option" trên macOS). Trên macOS kiểm tra lại xung đột hệ thống ngay sau khi đổi | Esc/blur huỷ |
+| L4 | Thông báo "Module Launcher đang tắt" (ngay dưới header thẻ, trước hàng Phím tắt) | `CapabilityNotice` info + "Bật" `md · primary · solid` | Click | `setModuleEnabled('launcher', true)` | Thông báo biến mất; hàng Launcher xuất hiện lại trong danh sách | Chỉ khi `enabledModules.launcher === false` |
 | L5 | Thông báo xung đột hệ thống (macOS) | `CapabilityNotice` warning, tiêu đề "{owner} đang giữ {hotkey}" | — | Hiện khi `hotkey.chat.systemConflict(phím)` báo chủ sở hữu (Spotlight, Tìm kiếm Finder, macOS) | Kiểm tra lại khi phím đổi và khi cửa sổ lấy lại focus | Ẩn trên Windows/Linux |
 | L5a | "Tắt phím tắt Spotlight" | `md · primary · solid` | Click | `spotlight.resolve('replace')` → bật Launcher trên phím mặc định (⌘Space) | Toast success "Đã tắt phím tắt Spotlight…" hoặc warning không tự tắt "…chỉ áp dụng sau khi bạn đăng xuất rồi đăng nhập lại."; lỗi: toast "Không thể tắt phím tắt Spotlight…" | Chỉ khi chủ là Spotlight; disabled khi đang xử lý |
 | L5b | "Mở Cài đặt hệ thống" | `md · primary · outline` | Click | Mở Bàn phím › Phím tắt bàn phím của macOS | Cửa sổ hệ thống mở; khi quay lại, kiểm tra xung đột lại | — |
@@ -72,7 +72,7 @@ Trang này là nơi người dùng **đặt phím mở Launcher** (cửa sổ t�
 | # | Hàng | Phạm vi | Phím | Khi nào bị mờ / ẩn |
 | --- | --- | --- | --- | --- |
 | S1 | Launcher | Toàn hệ thống | Phím Launcher hoặc mặc định (⌘Space trên macOS, Alt+Space nơi khác) | Ẩn hẳn khi module Launcher tắt; mờ + "· đang tắt" khi công tắc tắt |
-| S2 | Dịch nhanh vùng chọn | Toàn hệ thống | Phím Dịch nhanh hoặc mặc định `Alt+T` | Mờ khi công tắc Dịch nhanh tắt |
+| S2 | Dịch nhanh vùng chọn | Toàn hệ thống | Phím Dịch nhanh hoặc mặc định `Alt+T` | Mờ + "· đang tắt" khi công tắc Dịch nhanh tắt hoặc module Dịch tắt (khi đó không tính trùng) |
 | S3 | Bảng lệnh | Trong cửa sổ | ⌘K / Ctrl+K | Luôn hoạt động |
 | S4 | Chat mới | Trong cửa sổ | `chatNewSessionShortcut` hoặc "Chưa đặt" | Ẩn khi module Chat tắt; mờ khi chưa đặt |
 | S5 | Gửi tin nhắn | Trong ô soạn chat | Enter hoặc ⌘↵ theo `chatSendShortcut` | Ẩn khi module Chat tắt; không bao giờ tính trùng |
@@ -139,7 +139,7 @@ Cả hai nút disabled trong lúc gọi. Hộp thoại không mở khi bảng l�
 
 ## 8. Bàn phím và trợ năng
 
-- Thứ tự Tab: công tắc → ✕ → ô ghi phím → nút trong notice (theo thứ tự hiển thị). Thẻ "Tất cả phím tắt" không có điểm dừng Tab.
+- Thứ tự Tab: công tắc → nút trong notice module (nếu có) → ✕ → ô ghi phím → nút trong notice Spotlight (theo thứ tự hiển thị). Khi đang ghi phím, `Tab` không kèm phím bổ trợ vẫn chuyển focus (và huỷ ghi). Thẻ "Tất cả phím tắt" không có điểm dừng Tab.
 - `ShortcutList` là `<ul aria-label="Tất cả phím tắt">`; hàng mờ vẫn nói "· đang tắt" bằng chữ; hàng trùng có chữ "Trùng phím".
 - Hộp thoại Spotlight: `role="dialog"`, `aria-modal`, `aria-labelledby`/`aria-describedby`, focus vào nút chính khi mở, bẫy Tab (`trapTabFocus`), Esc = "Giữ Spotlight", trả focus về phần tử trước đó khi đóng.
 - `CapabilityNotice` có `role="status"`; kết quả hành động đi qua toast.
@@ -152,7 +152,7 @@ Cả hai nút disabled trong lúc gọi. Hộp thoại không mở khi bảng l�
 | `utilities_subtitle` | Mở mọi thứ bằng bàn phím, từ bất cứ đâu |
 | `shortcut_launcher` | Launcher |
 | `settings_chat_hotkey_section_desc` | Nhấn phím tắt ở bất kỳ đâu để tìm ứng dụng, mở nhanh, tìm web hoặc hỏi AI. |
-| `settings_chat_hotkey_enabled` | Bật phím tắt |
+| `settings_chat_hotkey_enabled` | Bật Launcher |
 | `settings_chat_hotkey_label` / `_desc` | Phím tắt / Nhấp vào ô rồi bấm tổ hợp phím bạn muốn |
 | `settings_chat_hotkey_recording` | Bấm phím… (Esc để hủy) |
 | `settings_chat_hotkey_none` | Chưa cài |
@@ -182,10 +182,5 @@ Cả hai nút disabled trong lúc gọi. Hộp thoại không mở khi bảng l�
 3. **"Bấm vào phím để đổi"** trong danh sách — mã là danh sách **chỉ đọc**, không có link tới nơi đổi. Đề xuất: mỗi hàng có link "Đổi" dẫn tới thẻ tương ứng (Dịch mọi nơi, Cài đặt › Chat).
 4. **Dòng "Đang thay cho Spotlight. Trả lại Spotlight" nằm trong hàng Phím tắt** (board) — mã dùng `CapabilityNotice` riêng L6. Giữ cách của mã.
 5. Board LauncherStates vẽ thông báo trùng "Không đăng ký được ⌥ Space — Launcher vẫn mở được từ thanh menu" với "Đổi phím" — mã chỉ có toast lỗi; câu "mở được từ thanh menu" chỉ đúng với khay Windows/Linux (board SmallSurfaces), chưa kiểm chứng cho macOS. Đề xuất giữ toast + focus vào ô ghi phím.
-6. Câu ghi chú của hộp thoại Spotlight (`launcher_spotlight_prompt_note`) nói "bật lại … trong Cài đặt > Phím tắt", nhưng nút khôi phục nằm ở trang **Launcher & phím tắt**. Cần sửa chữ.
-7. Nhãn ARIA của công tắc là "Bật phím tắt" cho cả Launcher và Dịch nhanh — không phân biệt khi đọc màn hình ở hai trang khác nhau; đề xuất "Bật Launcher".
-8. Thông báo "Module Launcher đang tắt" đặt **sau** hàng Phím tắt, trong khi thẻ Dịch nhanh đặt thông báo module **trước** hàng Phím tắt. Nên thống nhất (đề xuất: ngay dưới header).
-9. Nút ✕ `sm` cạnh ô ghi phím `md` — lệch kích thước như ở Dịch mọi nơi.
-10. Không có skeleton khi đọc cài đặt; ô ghi phím chớp "Chưa cài" rồi mới hiện phím thật.
-11. `useShortcutInventory` ẩn hàng Launcher khi module Launcher tắt, nhưng **không** ẩn hay làm mờ hàng Dịch nhanh khi module Dịch tắt; nếu công tắc Dịch nhanh vẫn bật, hàng đó vẫn tính là "đang bật" và có thể bị gắn "Trùng phím" dù phím không chạy (xem báo cáo lỗi).
-12. Hộp thoại Spotlight dùng lại lớp `update-notification` của popup cập nhật — hợp lệ về hình nhưng tên lớp gây hiểu nhầm.
+6. Không có skeleton khi đọc cài đặt; ô ghi phím chớp "Chưa cài" rồi mới hiện phím thật.
+7. Hộp thoại Spotlight dùng lại lớp `update-notification` của popup cập nhật — hợp lệ về hình nhưng tên lớp gây hiểu nhầm.

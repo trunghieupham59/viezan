@@ -5,7 +5,8 @@ const NO_FAN_CONTROL: FanControlState = { helper: 'unsupported', fans: [] }
 
 type FanResult = { success: boolean; state?: FanControlState; error?: string } | undefined
 
-const unavailable = async (): Promise<FanResult> => ({ success: false, error: 'Fan control is not available in this window.' })
+/** No error text: callers fall back to their localized message (thermal_fan_error). */
+const unavailable = async (): Promise<FanResult> => ({ success: false })
 
 export interface FanControlHookState {
   /** null until main answered. */

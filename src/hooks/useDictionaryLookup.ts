@@ -32,6 +32,12 @@ import { combineUsageCosts, estimateUsageCost } from '../utils/usageCost'
 
 export type DictionaryListTab = 'recent' | 'favorites'
 
+/** A problem with what the user typed, shown under the field it belongs to (not as a toast). */
+export interface DictionaryValidationError {
+  field: 'term' | 'context'
+  message: string
+}
+
 export interface DictionarySelectionLookupState {
   term: string
   loading: boolean
@@ -121,6 +127,7 @@ export function useDictionaryLookup() {
   const [isEnriching, setIsEnriching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [errorRecoverable, setErrorRecoverable] = useState(false)
+  const [validationError, setValidationError] = useState<DictionaryValidationError | null>(null)
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(
     dictionaryEntries[0]?.id ?? null,
   )
@@ -236,26 +243,30 @@ export function useDictionaryLookup() {
     setTerm(value)
     if (error) setError(null)
     setErrorRecoverable(false)
+    if (validationError?.field === 'term') setValidationError(null)
+  }
+
+  const updateContext = (value: string) => {
+    setContext(value)
+    if (validationError?.field === 'context') setValidationError(null)
   }
 
   const runLookup = async () => {
     const cleanTerm = term.trim()
     const cleanContext = context.trim()
     if (!cleanTerm) {
-      setErrorRecoverable(false)
-      setError(t.dictionary_error_required)
+      setValidationError({ field: 'term', message: t.dictionary_error_required })
       return
     }
     if (cleanTerm.length > MAX_DICTIONARY_TERM_CHARS) {
-      setErrorRecoverable(false)
-      setError(t.dictionary_error_too_long)
+      setValidationError({ field: 'term', message: t.dictionary_error_too_long })
       return
     }
     if (cleanContext.length > MAX_DICTIONARY_CONTEXT_CHARS) {
-      setErrorRecoverable(false)
-      setError(t.dictionary_error_context_too_long)
+      setValidationError({ field: 'context', message: t.dictionary_error_context_too_long })
       return
     }
+    setValidationError(null)
     if (sourceLang && targetLang && sourceLang !== 'auto' && sourceLang === targetLang) {
       setErrorRecoverable(false)
       setError(t.dictionary_error_same_lang)
@@ -537,7 +548,7 @@ export function useDictionaryLookup() {
     term,
     setTerm: updateTerm,
     context,
-    setContext,
+    setContext: updateContext,
     maxTermChars: MAX_DICTIONARY_TERM_CHARS,
     maxContextChars: MAX_DICTIONARY_CONTEXT_CHARS,
     // Lookup state
@@ -545,6 +556,7 @@ export function useDictionaryLookup() {
     isEnriching,
     error,
     errorRecoverable,
+    validationError,
     clearError,
     runLookup,
     model,

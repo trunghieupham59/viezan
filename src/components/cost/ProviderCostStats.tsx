@@ -18,6 +18,7 @@ import { tpl } from '../../utils/tpl'
 import { formatTokenCount, formatUsageAmount } from '../../utils/usageCost'
 import { ChartBarIcon, PulseIcon } from '../ui/icons'
 import { ClockIcon } from '../ui/icons/navigation'
+import '../../styles/cost.css'
 
 interface ProviderCostStatsProps {
   total?: UsageTotal
@@ -52,7 +53,7 @@ export function ProviderCostStats({
 }: ProviderCostStatsProps) {
   if (!total || total.requestCount === 0) {
     return emptyHint ? (
-      <span className="ui-meta italic text-gray-400 dark:text-gray-500">{emptyHint}</span>
+      <span className="ui-meta cost-empty-hint italic">{emptyHint}</span>
     ) : null
   }
 
@@ -61,7 +62,7 @@ export function ProviderCostStats({
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <span
-        className="ui-badge gap-1.5 text-xs ring-1 ring-gray-200 dark:ring-gray-700"
+        className="ui-badge cost-stat gap-1.5 text-xs"
         title={`${costLabel} ~${formatUsageAmount(total.amountUsd, currency)}`}
       >
         <span className="opacity-80">{costLabel}</span>
@@ -115,10 +116,10 @@ function Pill({
 }) {
   return (
     <span
-      className="ui-badge gap-1 text-xs font-medium text-gray-600"
+      className="ui-badge cost-pill gap-1 text-xs font-medium"
       title={title}
     >
-      <span className="text-gray-400 dark:text-gray-500">{icon}</span>
+      <span className="cost-pill__icon">{icon}</span>
       <span className="tabular-nums">{value}</span>
     </span>
   )

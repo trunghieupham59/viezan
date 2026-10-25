@@ -1,12 +1,16 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NotificationViewport } from '../../components/organisms/NotificationViewport'
+import { MAX_IMAGE_INPUT_BYTES } from '../../constants/image'
 import { TRANSLATE_INPUT_WARNING_CHARS } from '../../constants/providers'
 import { IMAGE_AUTO_TRANSLATE_DELAY_MS } from '../../constants/ui'
 import { TRANSLATIONS } from '../../i18n'
 import { useAppStore } from '../../store/useAppStore'
+import { useNotificationStore } from '../../store/useNotificationStore'
 import type { HistoryItem } from '../../types'
 import { extractImageFromClipboard, resizeImageFile } from '../../utils/imageUtils'
+import { formatModelName } from '../../utils/modelDisplay'
+import { tpl } from '../../utils/tpl'
 import { TranslatePage } from '../TranslatePage'
 
 vi.mock('../../utils/imageUtils', async () => {
@@ -1467,5 +1471,138 @@ describe('language pair workflow', () => {
     expect(window.api.translate).toHaveBeenLastCalledWith(expect.objectContaining({ sourceLang: 'vi', targetLang: 'ja' }))
     await act(async () => { resolveOld({ success: true, translatedText: 'Late old result' }) })
     expect(useAppStore.getState().translatedText).toBe('New pair result')
+  })
+})
+
+describe('TranslatePage design fixes', () => {
+  beforeEach(() => {
+    act(() => useNotificationStore.getState().clear())
+  })
+
+  async function pasteImage(file = new File(['image'], 'photo.png', { type: 'image/png' })) {
+    vi.mocked(extractImageFromClipboard).mockReturnValue(file)
+    act(() => {
+      fireEvent.paste(getSourcePane(), { clipboardData: { items: [] } })
+    })
+    await act(async () => {})
+    return file
+  }
+
+  it('gives every result footer action the same md size', async () => {
+    vi.mocked(window.api.translate).mockResolvedValueOnce({ success: true, translatedText: 'Xin chào' })
+    act(() => { useAppStore.setState({ sourceText: 'Hello' }) })
+    render(<TranslatePage />)
+    fireEvent.click(screen.getByRole('button', { name: /^Translate$/i }))
+    await waitFor(() => expect(useAppStore.getState().translatedText).toBe('Xin chào'))
+
+    const footer = document.querySelector('.translate-result-footer') as HTMLElement
+    const buttons = within(footer).getAllByRole('button')
+    expect(buttons.length).toBeGreaterThan(1)
+    expect(within(footer).getByRole('button', { name: TRANSLATIONS.en.translate_use_as_source })).toBeInTheDocument()
+    for (const button of buttons) expect(button).toHaveAttribute('data-control-size', 'md')
+  })
+
+  it('renders the language pair at the header sm size', () => {
+    render(<TranslatePage />)
+    const source = screen.getByRole('button', { name: /^Translate from:/ })
+    expect(source).toHaveAttribute('data-control-size', 'sm')
+    expect(screen.getByRole('button', { name: /^Translate to:/ })).toHaveAttribute('data-control-size', 'sm')
+    expect(source.closest('.language-pair-bar')).toHaveClass('language-pair-bar--sm')
+  })
+
+  it('rejects an oversized image before decoding it', async () => {
+    render(<TranslatePage />)
+    const file = new File(['image'], 'huge.png', { type: 'image/png' })
+    Object.defineProperty(file, 'size', { value: MAX_IMAGE_INPUT_BYTES + 1 })
+    await pasteImage(file)
+
+    expect(resizeImageFile).not.toHaveBeenCalled()
+    expect(useAppStore.getState().translateError).toBe(
+      TRANSLATIONS.en.image_translate_size_error(Math.round(MAX_IMAGE_INPUT_BYTES / (1024 * 1024))),
+    )
+  })
+
+  it('saves an image translation to history and names the substitute model in one sentence', async () => {
+    vi.mocked(window.api.translateImage).mockResolvedValueOnce({
+      success: true,
+      editedImageBase64: 'edited',
+      editedImageMimeType: 'image/png',
+      usedProvider: 'gemini',
+      usedModel: 'gemini-2.5-flash',
+    })
+    act(() => { useAppStore.setState({ history: [] }) })
+    render(<><TranslatePage /><NotificationViewport /></>)
+    await pasteImage()
+    fireEvent.click(screen.getByRole('button', { name: /^Translate$/i }))
+
+    await waitFor(() => expect(useAppStore.getState().history).toHaveLength(1))
+    expect(useAppStore.getState().history[0]).toMatchObject({
+      provider: 'gemini',
+      model: 'gemini-2.5-flash',
+      sourceText: 'mock.png',
+      translatedText: TRANSLATIONS.en.image_translate_result_label,
+    })
+
+    const expected = tpl(TRANSLATIONS.en.image_model_switched_message, {
+      model: formatModelName('gemini', 'gemini-2.5-flash'),
+      previous: formatModelName('gemini', 'gemini-2.0-flash'),
+    })
+    const notice = useNotificationStore.getState().notifications.find((n) => n.key === 'translate-image-model-switched')
+    expect(notice?.message).toBe(expected)
+    expect(notice?.message).not.toMatch(/\. doesn't|\)\./)
+  })
+
+  it('deletes a history entry with an undo toast that restores it in place', () => {
+    const second: HistoryItem = { ...COMPARISON_ENTRY, id: 'hist-2', sourceText: 'Second', results: undefined, selectedKey: undefined }
+    act(() => {
+      useAppStore.setState({ history: [COMPARISON_ENTRY, second], translateHistoryCollapsed: false })
+    })
+    render(<><TranslatePage /><NotificationViewport /></>)
+
+    fireEvent.click(screen.getByRole('button', { name: `${TRANSLATIONS.en.history_delete}: ${COMPARISON_ENTRY.sourceText}` }))
+    expect(useAppStore.getState().history.map((entry) => entry.id)).toEqual(['hist-2'])
+
+    const toast = useNotificationStore.getState().notifications.find((n) => n.key === 'translate-history-deleted')
+    expect(toast?.message).toBe(TRANSLATIONS.en.translate_history_deleted)
+    fireEvent.click(screen.getByRole('button', { name: TRANSLATIONS.en.translate_history_deleted_undo }))
+
+    expect(useAppStore.getState().history.map((entry) => entry.id)).toEqual(['hist-compare-1', 'hist-2'])
+    expect(useNotificationStore.getState().notifications.some((n) => n.key === 'translate-history-deleted')).toBe(false)
+  })
+
+  it('counts characters with one localized template and tags text with its language', async () => {
+    vi.mocked(window.api.translate).mockResolvedValueOnce({ success: true, translatedText: 'こんにちは' })
+    act(() => {
+      useAppStore.setState({ locale: 'ja', sourceText: 'Hello', sourceLang: 'en', targetLang: 'ja' })
+    })
+    render(<TranslatePage />)
+
+    expect(document.querySelector('.translate-source-submit .translate-char-count')).toHaveTextContent(/^5文字$/)
+    expect(getSourceInput()).toHaveAttribute('lang', 'en')
+
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${TRANSLATIONS.ja.translate_btn}$`) }))
+    await waitFor(() => expect(useAppStore.getState().translatedText).toBe('こんにちは'))
+    const resultPane = screen.getByRole('region', { name: TRANSLATIONS.ja.translate_result_content_label })
+    expect(within(resultPane).getByText('こんにちは').closest('[lang]')).toHaveAttribute('lang', 'ja')
+  })
+
+  it('leaves the source textarea untagged while the language is Auto and unknown', () => {
+    render(<TranslatePage />)
+    expect(getSourceInput()).not.toHaveAttribute('lang')
+  })
+
+  it('keeps the shortcut on the Translate button and shows the style only when it is not the default', () => {
+    const { unmount } = render(<TranslatePage />)
+    const button = screen.getByRole('button', { name: /^Translate$/i })
+    expect(button).toHaveAttribute('title', TRANSLATIONS.en.translate_manual_shortcut)
+    expect(TRANSLATIONS.en.translate_manual_shortcut).toBe('Enter to translate')
+    expect(document.querySelector('.translate-options-summary')).toBeNull()
+    unmount()
+
+    act(() => { useAppStore.setState({ translationStyle: 'formal' }) })
+    render(<TranslatePage />)
+    expect(document.querySelector('.translate-options-summary')).toHaveTextContent(
+      `${TRANSLATIONS.en.translate_style_label}: ${TRANSLATIONS.en.translate_style_formal}`,
+    )
   })
 })

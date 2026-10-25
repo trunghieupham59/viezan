@@ -116,7 +116,7 @@ export const SYSTEM_PAGES: readonly (CatalogPage & { id: SystemPageId })[] = [
     labelKey: 'nav_everywhere',
     descriptionKey: 'command_palette_everywhere_description',
     icon: GlobeIcon,
-    keywords: ['quick translate', 'selection', 'hotkey', 'chrome', 'extension', 'browser', 'bookmarklet'],
+    keywords: ['quick translate', 'selection', 'hotkey', 'chrome', 'extension', 'browser'],
     loadingLayout: 'list',
     system: true,
   },

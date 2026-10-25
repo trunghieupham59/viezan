@@ -82,4 +82,30 @@ describe('ChatImageStorageCard', () => {
     expect(screen.getByRole('button', { name: 'Remove unused images' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Delete all images' })).toBeDisabled()
   })
+
+  it('re-enables the actions and reports the failure when cleanup throws', async () => {
+    vi.mocked(imageStore.pruneUnusedChatImages).mockRejectedValue(new Error('idb closed'))
+    render(<><ChatImageStorageCard /><NotificationViewport /></>)
+    await screen.findByText('3 images · 3.0 MB')
+
+    const prune = screen.getByRole('button', { name: 'Remove unused images' })
+    fireEvent.click(prune)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t clean up images. Please try again.')
+    await waitFor(() => expect(prune).not.toBeDisabled())
+    expect(screen.getByRole('button', { name: 'Delete all images' })).not.toBeDisabled()
+  })
+
+  it('re-enables the actions when clearing everything throws', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(true)
+    vi.mocked(imageStore.clearAllChatImages).mockRejectedValue(new Error('quota'))
+    render(<><ChatImageStorageCard /><NotificationViewport /></>)
+    await screen.findByText('3 images · 3.0 MB')
+
+    const clear = screen.getByRole('button', { name: 'Delete all images' })
+    fireEvent.click(clear)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t clean up images.')
+    await waitFor(() => expect(clear).not.toBeDisabled())
+  })
 })

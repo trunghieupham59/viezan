@@ -70,7 +70,7 @@ Ra: chuyển trang bất kỳ. Khi rời trang (unmount) hoặc cửa sổ bị 
 | Header trang | `PageHeader` (`.page-header`) | `--vzn-page-header-min-height`; lề `--vzn-space-6` (≤ 559 px: `--vzn-space-4`); tiêu đề `--vzn-font-size-title-lg`; hành động `md` (36 px) | Không |
 | Thông báo khôi phục | `.thermal-notice` | Một dòng `--vzn-font-size-caption`, `--vzn-text-muted`, đường kẻ `--vzn-divider` | Không |
 | Thân | `.thermal-panels-body` | padding `--vzn-space-4`, gap `--vzn-space-2` | Dọc (cả thân cuộn, hai bảng cao theo nội dung) |
-| Lưới hai bảng | `.app-panel-grid.thermal-panels` | 2 cột khi **cửa sổ** ≥ 1024 px, 1 cột dưới đó (`src/index.css`); gap `--vzn-panel-gap`; `align-items: start` | — |
+| Lưới hai bảng | `.app-panel-grid.thermal-panels` | 2 cột khi vùng nội dung (`app-main`) ≥ 900 px, 1 cột dưới đó (`src/index.css`); gap `--vzn-panel-gap`; `align-items: start` | — |
 | Bảng quạt | `ThermalFanPanel` (`.glass-panel.thermal-panel`) | Toolbar `.live-panel-toolbar` (padding `--vzn-space-2`/`--vzn-space-3`, `nowrap`); thân padding `--vzn-space-3` | Theo thân |
 | Hàng quạt | `.thermal-fan` | Tên `--vzn-font-size-sm`; tốc độ `--vzn-font-size-title` semibold, số bảng (`tabular-nums`), màu `--vzn-action` khi app đang giữ quạt; `Meter` cao `--vzn-space-1-5` | — |
 | Ô tham số | `.thermal-fan__params` | Nền `--vzn-surface-muted`, bo `--vzn-radius-sm` | — |
@@ -92,10 +92,10 @@ Thứ tự nhóm cảm biến cố định: CPU → GPU → Cảm biến khác (
 
 | # | Điều khiển | Loại (Button size · variant · appearance) | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
-| H1 | Chip trạng thái helper | `StatusChip`: `neutral` "Điều khiển quạt đang tắt" · `info` + spinner "Đang khởi chạy helper…" · `ok` "Helper đã kết nối (v{version})" · `danger` "Không khởi chạy được helper" · `warning` "Thiếu helper" | Chỉ hiển thị | — | Chi tiết lỗi / đường dẫn thiếu chỉ nằm trong `title` (tooltip) | Không hiện khi không có điều khiển quạt (Linux, macOS đọc lỗi) |
+| H1 | Chip trạng thái helper | `StatusChip`: `neutral` "Điều khiển quạt đang tắt" · `info` + spinner "Đang khởi chạy helper…" · `ok` "Helper đã kết nối (v{version})" · `danger` "Không khởi chạy được helper" · `warning` "Thiếu helper" | Chỉ hiển thị | — | Chi tiết lỗi / đường dẫn thiếu nằm trong `title` (tooltip) và trong `CapabilityNotice` dưới header (helper `missing` hoặc `error`) | Không hiện khi không có điều khiển quạt (Linux, macOS đọc lỗi) |
 | H2 | "Bật điều khiển quạt" (`thermal_fan_enable`) | `md` · `primary` · `solid`, chữ nhật | Click / Enter / Space, khi helper `idle` | Lần đầu: mở dialog miễn trừ (mục 6.2). Đã đồng ý: khởi chạy helper, macOS hỏi mật khẩu quản trị | Chip chuyển "Đang khởi chạy helper…", nút tắt; thất bại → toast lỗi (khoá `thermal-fan`) | `disabled` khi bận; trong trạng thái `starting` nút hiện nhưng luôn tắt |
 | H3 | "Thử lại" (`thermal_fan_retry`) | `md` · `primary` · `solid` | Click, khi helper `error` | Như H2 (vẫn qua dialog nếu chưa đồng ý) | Như H2 | Bận |
-| H4 | "Tắt" (`thermal_fan_disable`) có icon dừng | `md` · `danger` · `outline` | Click, khi helper `ready` | Trả mọi quạt về tự động và bỏ helper (helper tự thoát sau đó) | Chip về "Điều khiển quạt đang tắt", hàng quạt về "Tự động (hệ thống)"; lỗi → toast | Bận |
+| H4 | "Tắt điều khiển quạt" (`thermal_fan_disable`) có icon dừng | `md` · `danger` · `outline` | Click, khi helper `ready` | Trả mọi quạt về tự động và bỏ helper (helper tự thoát sau đó) | Chip về "Điều khiển quạt đang tắt", hàng quạt về "Tự động (hệ thống)"; lỗi → toast | Bận |
 | H5 | Bánh răng "Tùy chọn nhiệt độ" | `md` · `neutral` · `ghost`, icon vuông; khi mở `primary` · `soft`. `aria-expanded`, `aria-haspopup="dialog"`, `aria-label` = `thermal_options_title` | Click; đóng bằng Esc, click ra ngoài, nút đóng | Mở `AIConfigurationPopover` neo dưới nút: mục "Nhận diện cảm biến" (chỉ khi có điều khiển quạt) và mục "Thanh menu" / "Khay hệ thống" | Focus vào điều khiển đầu tiên trong popover; đóng thì focus về nút | Không hiện khi không có `trayPlacement` (Windows, lần chạy không có khay, cảm biến không đọc được) hoặc settings chưa tải |
 
 Chỉ một nút `solid` trong header tại một thời điểm (H2 hoặc H3); H4 là `outline` vì là hành động dừng.
@@ -135,7 +135,7 @@ Mô tả popover: `thermal_options_desc_fans` khi có điều khiển quạt, n�
 
 | # | Điều khiển | Loại | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
-| O1 | "Nhận diện cảm biến" | `sm` · `primary` · `solid` | Click | Đóng popover, mở dialog xác nhận nhận diện (mục 6.5) | — | Bận hoặc helper chưa `ready` (tooltip "Bật điều khiển quạt để áp dụng profile.") |
+| O1 | "Nhận diện cảm biến" (đã có kết quả: "Nhận diện lại") | `sm` · `primary` · `solid` | Click | Đóng popover, mở dialog xác nhận nhận diện (mục 6.5) | — | Bận hoặc helper chưa `ready` (tooltip "Bật điều khiển quạt để áp dụng profile.") |
 | O2 | "Dừng nhận diện" | `sm` · `danger` · `outline` | Click, thay O1 khi đang chạy | Hủy nhận diện | Dòng trạng thái đổi | Bận |
 | O3 | "Quên kết quả" | `sm` · `neutral` · `ghost` | Click; chỉ khi có kết quả và không đang chạy | Xoá kết quả nhận diện; mục "Cảm biến gần {quạt}" biến mất | — | Bận |
 | O4 | Dòng trạng thái nhận diện (`role="status"`) | Chữ caption; `done` màu `--vzn-success`, `error` màu `--vzn-danger` | — | "Nhận diện lúc {date} · Quạt trái: 74 cảm biến · …" / tiến độ / "Đã dừng…" / "Nhận diện thất bại. {lỗi}" | — | — |
@@ -174,15 +174,15 @@ Mọi thay đổi T1–T6 đi một vòng qua main (`useThermalSettings.update`)
 | Có dữ liệu | Snapshot mỗi 2 giây | Hai bảng như mục 3 | Mọi hành động mục 4 |
 | Không hỗ trợ nền tảng | `reason: 'unsupported-platform'` (Windows, hoặc API không có trong cửa sổ) | `CapabilityNotice` vàng "Chưa khả dụng trên hệ thống này" + giải thích macOS/Linux | Không; không bắt đầu theo dõi |
 | Thiếu trình đọc | `reason: 'reader-missing'` (bản mã nguồn chưa build `viezan-smc`) | `CapabilityNotice` vàng "Thiếu trình đọc cảm biến" + hướng dẫn `npm run build:native` | Không |
-| Không có cảm biến | `reason: 'no-sensors'` | Hiện chung thông báo "Chưa khả dụng trên hệ thống này" (xem mục 10) | Không |
+| Không có cảm biến | `reason: 'no-sensors'` | `CapabilityNotice` "Không tìm thấy cảm biến nhiệt độ" + "Máy này không báo cáo cảm biến nhiệt độ nào mà Viezan đọc được…" | Không |
 | Bảng trống trong snapshot | Snapshot không có quạt / không có cảm biến | Ô nét đứt "Máy này không báo cáo quạt nào." / "Không tìm thấy cảm biến nhiệt độ nào." | Bảng còn lại vẫn dùng được |
 | Lỗi đọc | `onError` hoặc `setMonitoring` thất bại | `CapabilityNotice` đỏ "Không đọc được cảm biến" + thông điệp lỗi + nút "Thử lại" (primary) | Thử lại: đọc một lần; thành công thì xoá lỗi. Nếu đã có snapshot cũ, hai bảng vẫn hiện số cũ bên dưới |
 | Điều khiển quạt: không có | Linux / snapshot không đến từ SMC / helper `unsupported` | Không chip, không nút; hàng quạt chỉ đọc "Tự động (hệ thống)"; popover không có mục nhận diện | Chỉ đọc |
-| Helper: thiếu | `missing` | Chip vàng "Thiếu helper", tooltip đường dẫn / lệnh build | Không có nút bật |
+| Helper: thiếu | `missing` | Chip vàng "Thiếu helper", tooltip đường dẫn / lệnh build; `CapabilityNotice` vàng cùng nội dung dưới header | Không có nút bật |
 | Helper: tắt | `idle` | Chip trung tính "Điều khiển quạt đang tắt" + "Bật điều khiển quạt" | H2 |
 | Helper: đang khởi chạy | `starting` (đang chờ mật khẩu / kết nối) | Chip spinner "Đang khởi chạy helper…" + nút bật đã tắt | Chờ |
-| Helper: lỗi | `error` (huỷ mật khẩu, không kết nối) | Chip đỏ "Không khởi chạy được helper" (tooltip lỗi) + "Thử lại"; toast lỗi | H3 |
-| Helper: sẵn sàng | `ready` | Chip xanh lá + "Tắt"; toolbar quạt có profile và "Về tự động"; hàng quạt có công tắc chế độ | Mọi hành động F* |
+| Helper: lỗi | `error` (huỷ mật khẩu, không kết nối) | Chip đỏ "Không khởi chạy được helper" (tooltip lỗi) + "Thử lại"; `CapabilityNotice` đỏ ghi lỗi; toast lỗi | H3 |
+| Helper: sẵn sàng | `ready` | Chip xanh lá + "Tắt điều khiển quạt"; toolbar quạt có profile và "Về tự động"; hàng quạt có công tắc chế độ | Mọi hành động F* |
 | Helper tự khôi phục | `lastRestoreReason` ∈ watchdog, ceiling, sleep, can-sleep, wake, disconnect | Dòng `.thermal-notice` "Helper đã trả quạt về tự động ({lý do})." dưới header | Chọn lại profile / chế độ thủ công |
 | Đang nhận diện | `calibration.status === 'running'` | Thanh tiến trình dưới toolbar quạt; mọi điều khiển quạt và "Về tự động" tắt; popover đổi O1 thành O2 | Dừng nhận diện |
 | Nhận diện xong / dừng / lỗi | `done` / `cancelled` / `error` | Dòng trạng thái trong popover (xanh lá / thường / đỏ); thất bại cũng bắn toast | Nhận diện lại, Quên kết quả |
@@ -209,7 +209,7 @@ Ngưỡng màu nhiệt độ (`thermalTone`): dưới 70 °C chữ thường; 70
 2. Bấm nút → vì `acknowledged` còn `false`, dialog "Trước khi điều khiển quạt" mở: một câu giới thiệu (helper quyền quản trị, hệ thống sẽ hỏi mật khẩu), ba dấu ✓ xanh lá (chỉ đặt tốc độ trong giới hạn; tự về tự động khi thoát app / mất kết nối / ngủ / dậy; tự về tự động khi một cảm biến vượt 105 °C), một hộp cảnh báo vàng về rủi ro. Focus vào nút đóng của dialog; Tab bị giữ trong dialog.
 3. "Hủy" / Esc / ✕ → đóng, focus về nút bật, không có gì thay đổi.
 4. "Tôi hiểu, tiếp tục" → dialog đóng, ghi nhận đã đồng ý (lần sau không hỏi), helper khởi chạy: chip "Đang khởi chạy helper…" có spinner, nút bật bị tắt; macOS hiện hộp mật khẩu quản trị.
-5a. Nhập mật khẩu → chip "Helper đã kết nối (v…)", nút đổi thành "Tắt" (danger outline). Toolbar quạt hiện ô Profile và "Về tự động"; mỗi quạt có ba nút chế độ. Nếu đã có profile ghi nhớ, main áp dụng lại và ô hiện tên profile.
+5a. Nhập mật khẩu → chip "Helper đã kết nối (v…)", nút đổi thành "Tắt điều khiển quạt" (danger outline). Toolbar quạt hiện ô Profile và "Về tự động"; mỗi quạt có ba nút chế độ. Nếu đã có profile ghi nhớ, main áp dụng lại và ô hiện tên profile.
 5b. Huỷ mật khẩu / lỗi → chip đỏ "Không khởi chạy được helper", nút "Thử lại", toast lỗi.
 
 ### 6.3 Đổi profile quạt
@@ -240,7 +240,7 @@ Ngưỡng màu nhiệt độ (`thermalTone`): dưới 70 °C chữ thường; 70
 
 1. Còn ít nhất một quạt bị app giữ → "Về tự động" trong toolbar quạt bật được.
 2. Bấm → mọi quạt về "Tự động", vạch mục tiêu biến mất, số RPM về màu chữ thường; helper vẫn kết nối (chip xanh lá giữ nguyên). Ô Profile giữ giá trị main báo.
-3. Muốn trả cả helper: "Tắt" trên header → quạt về tự động và helper thoát; chip "Điều khiển quạt đang tắt", hàng nền "Quạt · …" biến mất.
+3. Muốn trả cả helper: "Tắt điều khiển quạt" trên header → quạt về tự động và helper thoát; chip "Điều khiển quạt đang tắt", hàng nền "Quạt · …" biến mất.
 4. Một quạt riêng: bấm "Tự động" ở hàng đó.
 
 ### 6.7 Cấu hình số đo trên thanh menu
@@ -255,13 +255,13 @@ Ngưỡng màu nhiệt độ (`thermalTone`): dưới 70 °C chữ thường; 70
 
 ## 7. Responsive
 
-Lưới hai bảng của trang này dùng `.app-panel-grid` với media query theo **cửa sổ** (`min-width: 1024px`, `src/index.css`), chưa theo vùng chứa (xem mục 10).
+Lưới hai bảng của trang này dùng `.app-panel-grid` với container query theo vùng nội dung (`@container app-main (min-width: 900px)`, `src/index.css`).
 
 | Bề rộng | Thay đổi |
 | --- | --- |
-| Cửa sổ ≥ 1024 px | Hai bảng cạnh nhau, mỗi bảng cao theo nội dung, thân cuộn chung |
-| Cửa sổ 900–1023 px | Một cột: bảng Quạt trên, bảng Nhiệt độ dưới; thanh điều hướng vẫn theo lựa chọn đã lưu |
-| Cửa sổ < 900 px | Điều hướng chính thành rail 60 px (quy tắc chung); một cột |
+| Vùng nội dung ≥ 900 px | Hai bảng cạnh nhau, mỗi bảng cao theo nội dung, thân cuộn chung |
+| Vùng nội dung < 900 px | Một cột: bảng Quạt trên, bảng Nhiệt độ dưới |
+| Cửa sổ < 900 px | Điều hướng chính thành rail 60 px (quy tắc chung) |
 | Vùng nội dung < 560 px | Lề header còn `--vzn-space-4`. Hàng chế độ quạt và hàng ngưỡng tự xuống dòng (`flex-wrap`); hành động header xuống dòng dưới tiêu đề (`.page-header` wrap) |
 | Cửa sổ ≤ 720 px rộng hoặc ≤ 600 px cao | Popover tuỳ chọn thành hộp thoại giữa cửa sổ dưới thanh tiêu đề (`ai-configuration.css`) |
 | Mọi bề rộng | Toolbar bảng quạt **không** xuống dòng (`.thermal-panel .live-panel-toolbar { flex-wrap: nowrap }`): ô Profile co lại (`flex: 0 1 --vzn-thermal-tile-min-inline`); khi form "Lưu profile" mở ở bề rộng hẹp có nguy cơ tràn (mục 10) |
@@ -274,7 +274,7 @@ Lưới hai bảng của trang này dùng `.app-panel-grid` với media query th
 - **Vùng trực tiếp:** "Đang đọc cảm biến…", tiến trình nhận diện (bảng quạt) và dòng trạng thái nhận diện (popover) đều `role="status"`; `FeatureLoadingState` `role="status"`. Bảng nhiệt độ **không** là vùng live (tránh đọc lại mỗi 2 giây).
 - **Lớp phủ:** popover focus vào điều khiển đầu tiên, Esc / click ngoài đóng và trả focus về bánh răng. `DialogShell` focus nút đóng, giữ Tab, Esc đóng, trả focus về nơi mở; dialog cảm biến thô tự focus ô lọc.
 - **Không chỉ dùng màu:** giá trị nhiệt độ luôn là số; chế độ quạt có `aria-pressed` và chữ; trạng thái helper có chữ trên chip.
-- **Còn thiếu:** lỗi helper và đường dẫn thiếu chỉ có trong `title` của chip (không đọc được bằng bàn phím / trình đọc màn hình) — xem mục 10.
+- **Trạng thái helper đọc được:** lỗi helper và đường dẫn thiếu hiện trong `CapabilityNotice` dưới header, không chỉ trong `title` của chip.
 
 ## 9. Nội dung chữ (vi)
 
@@ -292,6 +292,7 @@ Lưới hai bảng của trang này dùng `.app-panel-grid` với media query th
 | `thermal_cpu_load` / `thermal_hottest` / `thermal_sensor_count` | Tải CPU / Cảm biến nóng nhất / {count} cảm biến |
 | `thermal_waiting` | Đang đọc cảm biến… |
 | `thermal_no_fans` / `thermal_no_sensors` | Máy này không báo cáo quạt nào. / Không tìm thấy cảm biến nhiệt độ nào. |
+| `thermal_no_sensors_title` / `_desc` | Không tìm thấy cảm biến nhiệt độ / Máy này không báo cáo cảm biến nhiệt độ nào mà Viezan đọc được… |
 | `thermal_unsupported_title` / `_desc` | Chưa khả dụng trên hệ thống này / Viezan đọc cảm biến trên macOS qua trình đọc SMC đi kèm và trên Linux qua hwmon. Windows chưa được hỗ trợ. |
 | `thermal_reader_missing_title` / `_desc` | Thiếu trình đọc cảm biến / Không tìm thấy tệp viezan-smc bên cạnh ứng dụng… |
 | `thermal_error_title` / `thermal_retry` | Không đọc được cảm biến / Thử lại |
@@ -300,7 +301,7 @@ Lưới hai bảng của trang này dùng `.app-panel-grid` với media query th
 | `thermal_fan_helper_ready` | Helper đã kết nối (v{version}) |
 | `thermal_fan_helper_error_title` | Không khởi chạy được helper |
 | `thermal_fan_helper_missing_short` / `thermal_fan_helper_missing` | Thiếu helper / Không tìm thấy tệp viezan-fan-helper bên cạnh ứng dụng… |
-| `thermal_fan_enable` / `thermal_fan_disable` / `thermal_fan_retry` | Bật điều khiển quạt / Tắt / Thử lại |
+| `thermal_fan_enable` / `thermal_fan_disable` / `thermal_fan_retry` | Bật điều khiển quạt / Tắt điều khiển quạt / Thử lại |
 | `thermal_fan_restore_all` | Về tự động |
 | `thermal_fan_mode_auto` / `_fixed` / `_sensor` / `_system` | Tự động / Cố định / Theo cảm biến / Tự động (hệ thống) |
 | `thermal_fan_target_label` / `thermal_fan_target` | Tốc độ mục tiêu / Mục tiêu {rpm} RPM |
@@ -340,25 +341,20 @@ Lưu ý chính tả: chuỗi hiện có trộn "Tùy/Hủy/Xóa" và "tuỳ" (`t
 Bản vẽ gốc ↔ mã:
 
 1. **Công tắc chế độ:** board `Thermal` vẽ segmented control nền xám; mã dùng ba nút pill `sm` (`primary·soft` khi chọn, `neutral·ghost` khi không). Đặc tả theo mã (đúng hợp đồng Button).
-2. **Nhãn nút tắt:** board "Tắt điều khiển"; mã "Tắt" kèm icon dừng. **Đề xuất:** đổi `thermal_fan_disable` thành "Tắt điều khiển quạt" để nút tự giải thích khi đứng cạnh chip.
-3. **Tiêu đề bảng nhiệt độ:** board "Cảm biến"; mã "Nhiệt độ" (`thermal_sensors_title`). Giữ mã.
-4. **Câu "Hệ thống đang dừng quạt vì máy mát."** dưới quạt 0 RPM (board `Thermal`) — **đề xuất**, mã chưa có.
-5. **Thông báo khôi phục có hành động "Bật lại profile Mát?"** (board `States`) — mã chỉ có dòng chữ `.thermal-notice`, không nút. **Đề xuất:** thêm nút `xs · primary · outline` "Bật lại {profile}" khi có profile ghi nhớ.
-6. **Thẻ lỗi helper trong bảng quạt** với câu "Hộp thoại mật khẩu đã bị huỷ…" (board `States`) — mã chỉ có chip đỏ + tooltip + toast. **Đề xuất:** đưa `control.error` ra một `CapabilityNotice` (hoặc dòng dưới header) để đọc được bằng bàn phím và trình đọc màn hình.
-7. **Menu thanh menu:** board `SmallSurfaces` có dòng tóm tắt "CPU 58,2°C · Quạt …", "Mở Nhiệt độ & quạt", "Ẩn số đo"; mã có "Mở Viezan" (mở cửa sổ chính, không vào trang) và "Ẩn nhiệt độ khỏi thanh menu". **Đề xuất:** thêm dòng tóm tắt và mục mở thẳng trang.
-8. **Popover:** board `Popovers` vẽ "Tốc độ quạt" dạng segmented và nút "Nhận diện lại"; mã dùng `SelectField` và nhãn "Nhận diện cảm biến" cả khi đã có kết quả. **Đề xuất:** đổi nhãn thành "Nhận diện lại" khi `result` có.
-9. **Thông số dialog nhận diện:** board ghi "khoảng 3 phút 30 giây với hai quạt"; mã ghi chung "Mất vài phút và hơi ồn". Giữ mã (không bịa thời lượng).
+2. **Tiêu đề bảng nhiệt độ:** board "Cảm biến"; mã "Nhiệt độ" (`thermal_sensors_title`). Giữ mã.
+3. **Câu "Hệ thống đang dừng quạt vì máy mát."** dưới quạt 0 RPM (board `Thermal`) — **đề xuất**, mã chưa có.
+4. **Thông báo khôi phục có hành động "Bật lại profile Mát?"** (board `States`) — mã chỉ có dòng chữ `.thermal-notice`, không nút. **Đề xuất:** thêm nút `xs · primary · outline` "Bật lại {profile}" khi có profile ghi nhớ.
+5. **Menu thanh menu:** board `SmallSurfaces` có dòng tóm tắt "CPU 58,2°C · Quạt …", "Mở Nhiệt độ & quạt", "Ẩn số đo"; mã có "Mở Viezan" (mở cửa sổ chính, không vào trang) và "Ẩn nhiệt độ khỏi thanh menu". **Đề xuất:** thêm dòng tóm tắt và mục mở thẳng trang.
+6. **Popover:** board `Popovers` vẽ "Tốc độ quạt" dạng segmented; mã dùng `SelectField`.
+7. **Thông số dialog nhận diện:** board ghi "khoảng 3 phút 30 giây với hai quạt"; mã ghi chung "Mất vài phút và hơi ồn". Giữ mã (không bịa thời lượng).
 
 Thiếu sót trong mã (không có trong bản vẽ):
 
-10. **`no-sensors`** chưa có thông báo riêng, rơi về "Chưa khả dụng trên hệ thống này". **Đề xuất:** khoá `thermal_no_sensors_title/desc`.
-11. **Helper `missing`:** chỉ có chip + tooltip, không có hướng dẫn hiển thị; chuỗi dài `thermal_fan_helper_missing` chỉ nằm trong `title`.
-12. **Khoá i18n không dùng:** `thermal_subtitle` (header không có mô tả), `thermal_fan_control_title`, `thermal_fan_control_desc`, `thermal_fan_helper_idle_desc` ("Bật sẽ hỏi mật khẩu quản trị…"), `thermal_fan_helper_unsupported`, `thermal_fan_profiles_desc`, `thermal_history_hint`, `thermal_fan_range`, `thermal_fan_reason_client`. **Đề xuất:** dùng `thermal_subtitle` làm `description` của `PageHeader` và `thermal_fan_helper_idle_desc` làm tooltip/mô tả nút bật, hoặc xoá.
-13. **Lịch sử / sparkline:** `useThermalMonitor` giữ 90 mẫu mỗi cảm biến và quạt nhưng trang không vẽ. **Đề xuất** (nếu cần): sparkline trong hàng cảm biến.
-14. **Xoá profile không xác nhận và không hoàn tác.** **Đề xuất:** toast có "Hoàn tác" hoặc xác nhận nhỏ.
-15. **Nút đang chạy không có spinner:** khi bận, mọi nút chỉ bị `disabled` (trừ chip "Đang khởi chạy helper…"). Nền tảng yêu cầu nhãn "Đang …" — **đề xuất** cho áp dụng profile và Về tự động.
-16. **Responsive:** `.app-panel-grid` đổi cột theo media query cửa sổ 1024 px, trái với quy tắc "tính theo vùng chứa" của nền tảng: với điều hướng mở rộng 236 px ở cửa sổ 1024–1150 px, mỗi bảng chỉ còn khoảng 380 px. **Đề xuất:** container query trên `app-main` (ví dụ hai cột từ vùng nội dung ≥ 900 px).
-17. **Toolbar quạt `nowrap`:** khi helper `ready` và form "Lưu profile" mở (ô tên + Lưu + Hủy) cạnh ô Profile, nút ✕ và "Về tự động", toolbar có thể tràn ở vùng hẹp. Chưa kiểm chứng bằng QA hình ảnh; **đề xuất** cho form xuống một hàng riêng dưới toolbar.
-18. **Hai vùng `role="status"` cho cùng tiến trình nhận diện** (bảng quạt và popover) có thể đọc trùng khi popover mở.
-19. **Đồng ý miễn trừ:** trang ghi `acknowledged` mà không chờ kết quả; nếu lưu thất bại, dialog sẽ hỏi lại lần sau (an toàn, nhưng im lặng).
-20. **Chuỗi lỗi chưa qua i18n:** thông báo lỗi đọc cảm biến và lỗi lệnh quạt hiển thị nguyên văn từ main (`error`, `res.error`), và các hook có chuỗi dự phòng tiếng Anh cứng (`'Sensors could not be read.'` trong `useThermalMonitor.ts`, `'Fan control is not available in this window.'`, `'Fan profiles are not available in this window.'`, `'Thermal settings are not available in this window.'`). Người dùng tiếng Việt có thể thấy câu tiếng Anh trong `CapabilityNotice` và toast. **Đề xuất:** ánh xạ mã lỗi sang khoá i18n, chỉ giữ chi tiết kỹ thuật làm dòng phụ.
+8. **Khoá i18n không dùng:** `thermal_subtitle` (header không có mô tả), `thermal_fan_control_title`, `thermal_fan_control_desc`, `thermal_fan_helper_idle_desc` ("Bật sẽ hỏi mật khẩu quản trị…"), `thermal_fan_helper_unsupported`, `thermal_fan_profiles_desc`, `thermal_history_hint`, `thermal_fan_range`, `thermal_fan_reason_client`. **Đề xuất:** dùng `thermal_subtitle` làm `description` của `PageHeader` và `thermal_fan_helper_idle_desc` làm tooltip/mô tả nút bật, hoặc xoá.
+9. **Lịch sử / sparkline:** `useThermalMonitor` giữ 90 mẫu mỗi cảm biến và quạt nhưng trang không vẽ. **Đề xuất** (nếu cần): sparkline trong hàng cảm biến.
+10. **Xoá profile không xác nhận và không hoàn tác.** **Đề xuất:** toast có "Hoàn tác" hoặc xác nhận nhỏ.
+11. **Nút đang chạy không có spinner:** khi bận, mọi nút chỉ bị `disabled` (trừ chip "Đang khởi chạy helper…"). Nền tảng yêu cầu nhãn "Đang …" — **đề xuất** cho áp dụng profile và Về tự động.
+12. **Toolbar quạt `nowrap`:** khi helper `ready` và form "Lưu profile" mở (ô tên + Lưu + Hủy) cạnh ô Profile, nút ✕ và "Về tự động", toolbar có thể tràn ở vùng hẹp. Chưa kiểm chứng bằng QA hình ảnh; **đề xuất** cho form xuống một hàng riêng dưới toolbar.
+13. **Hai vùng `role="status"` cho cùng tiến trình nhận diện** (bảng quạt và popover) có thể đọc trùng khi popover mở.
+14. **Đồng ý miễn trừ:** trang ghi `acknowledged` mà không chờ kết quả; nếu lưu thất bại, dialog sẽ hỏi lại lần sau (an toàn, nhưng im lặng).
+15. **Chuỗi lỗi từ main chưa qua i18n:** các hook đã bỏ chuỗi dự phòng tiếng Anh, nhưng thông báo lỗi đọc cảm biến và lỗi lệnh quạt do main gửi về (`error`, `res.error`, `control.error`) vẫn hiển thị nguyên văn, nên người dùng tiếng Việt có thể thấy câu tiếng Anh trong `CapabilityNotice` và toast. **Đề xuất:** ánh xạ mã lỗi sang khoá i18n, chỉ giữ chi tiết kỹ thuật làm dòng phụ.

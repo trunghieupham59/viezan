@@ -4,12 +4,10 @@ import { MAX_TRANSLATE_IMAGE_DIMENSION } from '../../constants/image'
 import { useT } from '../../store/useAppStore'
 import { resizeImageFile } from '../../utils/imageUtils'
 import { AlertTriangleIcon, ImageIcon, SpinnerIcon, UploadIcon, XIcon } from '../ui/icons'
+import '../../styles/translate.css'
 
 // DUP-05: processImageFile replaced by shared resizeImageFile from imageUtils.ts
 // HC-09: MAX_TRANSLATE_IMAGE_DIMENSION imported from constants/image.ts
-
-// HC-11: Named constant for the ping animation duration (processing state spinner)
-const PROCESSING_PING_DURATION_S = '1.5s'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ImageAttachment {
@@ -91,7 +89,7 @@ export function ImageTranslator({ onImageReady, onClose }: ImageTranslatorProps)
       <button
         type="button"
         aria-label={t.translate_error_dismiss}
-        className="absolute inset-0 w-full h-full bg-black/60 backdrop-blur-sm cursor-default"
+        className="image-translator-backdrop absolute inset-0 w-full h-full cursor-default"
         onClick={onClose}
       />
 
@@ -99,13 +97,12 @@ export function ImageTranslator({ onImageReady, onClose }: ImageTranslatorProps)
       <div className="modal-surface relative z-10 w-full max-w-md overflow-hidden fade-in">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5
-                        border-b border-gray-100 dark:border-gray-800">
+        <div className="image-translator-header flex items-center justify-between px-5 py-3.5">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
-              <ImageIcon className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+            <div className="image-translator-icon w-8 h-8 rounded-lg flex items-center justify-center">
+              <ImageIcon className="w-4 h-4" />
             </div>
-            <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+            <h2 className="image-translator-title text-sm font-semibold">
               {t.image_translate_title}
             </h2>
           </div>
@@ -128,14 +125,14 @@ export function ImageTranslator({ onImageReady, onClose }: ImageTranslatorProps)
             /* Processing state */
             <div className="flex flex-col items-center gap-4 py-10">
               <div className="relative w-14 h-14">
-                <div className="absolute inset-0 rounded-full bg-gray-100 dark:bg-gray-900/30 animate-ping" style={{ animationDuration: PROCESSING_PING_DURATION_S }} />
-                <div className="relative w-14 h-14 rounded-full bg-gray-500 flex items-center justify-center shadow-md">
-                  <SpinnerIcon className="w-6 h-6 text-white animate-spin" />
+                <div className="image-translator-ping absolute inset-0 rounded-full animate-ping" />
+                <div className="image-translator-spinner relative w-14 h-14 rounded-full flex items-center justify-center shadow-md">
+                  <SpinnerIcon className="w-6 h-6 animate-spin" />
                 </div>
               </div>
               <div className="text-center">
-                <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t.image_translate_processing}</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{t.image_translate_compress_status}</p>
+                <p className="image-translator-text text-sm font-semibold">{t.image_translate_processing}</p>
+                <p className="image-translator-hint text-xs mt-1">{t.image_translate_compress_status}</p>
               </div>
             </div>
           ) : (
@@ -143,25 +140,19 @@ export function ImageTranslator({ onImageReady, onClose }: ImageTranslatorProps)
             <>
               <label
                 htmlFor="img-upload-input"
-                className={[
-                  'flex flex-col items-center justify-center rounded-lg border-2 border-dashed',
-                  'cursor-pointer transition-all duration-200 select-none py-12 px-6 text-center',
-                  isDragging
-                    ? 'border-gray-400 bg-gray-50 dark:bg-gray-950/30'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50',
-                ].join(' ')}
+                data-dragging={isDragging || undefined}
+                className="image-translator-dropzone flex flex-col items-center justify-center rounded-lg cursor-pointer select-none py-12 px-6 text-center"
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={handleDrop}
               >
-                <div className={`w-14 h-14 rounded-lg flex items-center justify-center mb-4 transition-colors
-                                ${isDragging ? 'bg-gray-100 dark:bg-gray-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
-                  <UploadIcon className={`w-7 h-7 transition-colors ${isDragging ? 'text-gray-500' : 'text-gray-400'}`} />
+                <div className="image-translator-drop-icon w-14 h-14 rounded-lg flex items-center justify-center mb-4">
+                  <UploadIcon className="w-7 h-7" />
                 </div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
+                <p className="image-translator-text text-sm font-medium mb-1">
                   {t.image_translate_upload_hint.split('\n')[0]}
                 </p>
-                <p className="text-xs text-gray-400 dark:text-gray-500">
+                <p className="image-translator-hint text-xs">
                   {t.image_translate_upload_hint.split('\n')[1]}
                 </p>
               </label>

@@ -88,7 +88,7 @@ export function SttSection() {
   }
 
   const handleDeleteGroq = async () => {
-    if (!window.api) return
+    if (!window.api || !window.confirm(tpl(t.settings_remove_key_confirm, { name: 'Groq' }))) return
     setGroqDeleting(true)
     try {
       const removed = await window.api.keychain.delete('groq')
@@ -178,7 +178,8 @@ export function SttSection() {
           verifying: t.settings_verifying,
           verified: t.settings_verified,
           tryAgain: t.settings_try_again,
-          submit: t.settings_verify_save,
+          // The Groq key is stored as-is, never verified.
+          submit: t.settings_key_save,
         }}
         inputValue={groqInput}
         maskedValue={groqMasked}

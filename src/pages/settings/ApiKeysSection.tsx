@@ -16,6 +16,7 @@ import type {
   LocalAiModelDownloadProgress,
   Provider,
 } from '../../types'
+import { tpl } from '../../utils/tpl'
 import { formatUsageAmount } from '../../utils/usageCost'
 import { LocalAiPerformanceSection } from './LocalAiPerformanceSection'
 
@@ -260,6 +261,7 @@ function LocalAiProviderCard({
 
 export function ApiKeysSection() {
   const setKeyStatus = useAppStore((state) => state.setKeyStatus)
+  const setLocalAiEngine = useAppStore((state) => state.setLocalAiEngine)
   const setDynamicModels = useAppStore((state) => state.setDynamicModels)
   const setModelsLoading = useAppStore((state) => state.setModelsLoading)
   const setModelsError = useAppStore((state) => state.setModelsError)
@@ -306,6 +308,7 @@ export function ApiKeysSection() {
         recommendedModel: result.suggestedModels[0]?.id,
       })
       setKeyStatus('local', result.available)
+      setLocalAiEngine(result.available ? result.engine ?? null : null)
       setDynamicModels('local', result.models)
       // Only override the user's saved local model when their previous choice
       // is no longer installed/available — otherwise opening Settings (which
@@ -378,6 +381,8 @@ export function ApiKeysSection() {
   }
 
   const handleUninstallLocalModel = async (modelId: string) => {
+    // Getting the model back means downloading it again (often several GB), so ask first.
+    if (!window.confirm(tpl(t.settings_local_ai_uninstall_confirm, { model: modelId }))) return
     setUninstallingModel(modelId)
     dismissNotification(LOCAL_AI_NOTICE_KEY)
     try {

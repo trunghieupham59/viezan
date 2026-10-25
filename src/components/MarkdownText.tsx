@@ -14,7 +14,7 @@ interface Props {
    * When true, use a smaller base font size + tighter spacing — suitable
    * for nested previews like the research-step popover where the markdown
    * is meta-content (not the user-facing answer). The default look is
-   * unchanged so existing call sites keep their `text-[15px]` baseline.
+   * unchanged so existing call sites keep their subtitle-size baseline.
    */
   compact?: boolean
 }
@@ -62,7 +62,7 @@ export function MarkdownText({ text, className, compact = false }: Props) {
         {listItems.map((item, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: stable index for list rendering
           <li key={i} className="flex items-start gap-1.5">
-            <span className="mt-[0.45em] w-1.5 h-1.5 rounded-full bg-current opacity-50 flex-shrink-0" />
+            <span className="markdown-bullet w-1.5 h-1.5 rounded-full bg-current opacity-50 flex-shrink-0" />
             <span>{renderInline(item)}</span>
           </li>
         ))}
@@ -77,8 +77,8 @@ export function MarkdownText({ text, className, compact = false }: Props) {
       <ol key={`ol-${key++}`} className="my-1.5 space-y-0.5 list-none pl-0">
         {orderedListItems.map((item, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: stable index for list rendering
-          <li key={i} className="flex items-start gap-1.5">
-            <span className="mt-[0.1em] text-xs font-semibold text-gray-400 dark:text-gray-500 flex-shrink-0 min-w-[1.2em] text-right">{i + 1}.</span>
+          <li key={i} className="flex items-baseline gap-1.5">
+            <span className="markdown-ol-index text-xs font-semibold flex-shrink-0 text-right">{i + 1}.</span>
             <span>{renderInline(item)}</span>
           </li>
         ))}
@@ -105,11 +105,11 @@ export function MarkdownText({ text, className, compact = false }: Props) {
       <div key={`tbl-${key++}`} className="my-2 overflow-x-auto">
         <table className="min-w-full text-sm border-collapse">
           <thead>
-            <tr className="border-b border-gray-200 dark:border-gray-700">
+            <tr className="markdown-table-head-row">
               {headerCells.map((cell, ci) => (
                 // biome-ignore lint/suspicious/noArrayIndexKey: stable index for table header
                 <th key={ci}
-                  className="px-3 py-1.5 text-left font-semibold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 first:rounded-tl last:rounded-tr"
+                  className="markdown-table-th px-3 py-1.5 text-left font-semibold first:rounded-tl last:rounded-tr"
                 >
                   {renderInline(cell)}
                 </th>
@@ -121,10 +121,10 @@ export function MarkdownText({ text, className, compact = false }: Props) {
               const cells = parseTableRow(row)
               return (
                 // biome-ignore lint/suspicious/noArrayIndexKey: stable index for table rows
-                <tr key={ri} className="border-b border-gray-100 dark:border-gray-800 even:bg-gray-50 even:dark:bg-gray-900/30">
+                <tr key={ri} className="markdown-table-row">
                   {cells.map((cell, ci) => (
                     // biome-ignore lint/suspicious/noArrayIndexKey: stable index for table cells — row index used as key
-                    <td key={`${ri}-${ci}`} className="px-3 py-1.5 text-gray-700 dark:text-gray-300 align-top">
+                    <td key={`${ri}-${ci}`} className="markdown-table-td px-3 py-1.5 align-top">
                       {renderInline(cell)}
                     </td>
                   ))}
@@ -153,7 +153,7 @@ export function MarkdownText({ text, className, compact = false }: Props) {
       }
     }
     elements.push(
-      <pre key={`pre-${key++}`} className="my-2 px-3 py-2.5 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-x-auto text-[0.82em] font-mono text-gray-800 dark:text-gray-200 leading-relaxed">
+      <pre key={`pre-${key++}`} className="markdown-pre my-2 px-3 py-2.5 rounded-lg overflow-x-auto font-mono leading-relaxed">
         <code>{codeLines.join('\n')}</code>
       </pre>
     )
@@ -200,7 +200,7 @@ export function MarkdownText({ text, className, compact = false }: Props) {
     if (/^-{3,}$/.test(trimmed) || /^\*{3,}$/.test(trimmed)) {
       flushList()
       flushOrderedList()
-      elements.push(<hr key={key++} className="my-2 border-gray-200 dark:border-gray-600" />)
+      elements.push(<hr key={key++} className="markdown-hr my-2" />)
       continue
     }
 
@@ -226,15 +226,15 @@ export function MarkdownText({ text, className, compact = false }: Props) {
 
     // ── Headings ──────────────────────────────────────────────────────────────
     if (trimmed.startsWith('### ')) {
-      elements.push(<h3 key={key++} className="text-sm font-bold mt-3 mb-1 text-gray-900 dark:text-gray-100">{renderInline(trimmed.slice(4))}</h3>)
+      elements.push(<h3 key={key++} className="markdown-heading text-sm font-bold mt-3 mb-1">{renderInline(trimmed.slice(4))}</h3>)
       continue
     }
     if (trimmed.startsWith('## ')) {
-      elements.push(<h2 key={key++} className="text-base font-bold mt-3 mb-1 text-gray-900 dark:text-gray-100">{renderInline(trimmed.slice(3))}</h2>)
+      elements.push(<h2 key={key++} className="markdown-heading text-base font-bold mt-3 mb-1">{renderInline(trimmed.slice(3))}</h2>)
       continue
     }
     if (trimmed.startsWith('# ')) {
-      elements.push(<h1 key={key++} className="text-lg font-bold mt-3 mb-1 text-gray-900 dark:text-gray-100">{renderInline(trimmed.slice(2))}</h1>)
+      elements.push(<h1 key={key++} className="markdown-heading text-lg font-bold mt-3 mb-1">{renderInline(trimmed.slice(2))}</h1>)
       continue
     }
 
@@ -262,8 +262,8 @@ export function MarkdownText({ text, className, compact = false }: Props) {
   // to ~12px which is intentional in the research-step popover where the
   // markdown is meta/diagnostic content rather than the primary answer.
   // Caller-supplied `className` is appended last so it can still override
-  // size when needed (e.g. the popover passes `text-[11.5px]`).
-  const baseClass = compact ? 'text-[12px] space-y-0.5' : 'text-[15px] space-y-0.5'
+  // size when needed (the base size sits in the components layer).
+  const baseClass = compact ? 'markdown-text markdown-text--compact space-y-0.5' : 'markdown-text space-y-0.5'
   return <div className={`${baseClass} ${className ?? ''}`}>{elements}</div>
 }
 

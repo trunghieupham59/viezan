@@ -74,17 +74,17 @@ Viết tắt kiểu Button: `size · variant · appearance`. "Ẩn" nghĩa là �
 | --- | --- | --- | --- | --- | --- | --- |
 | S1 | Ô "Tìm cuộc trò chuyện…" | `Input sm type=search` | Gõ | Lọc theo tiêu đề, mã model, provider (`sessionMatchesQuery`), không phân biệt hoa thường | Danh sách lọc ngay; không có kết quả: "Không tìm thấy cuộc trò chuyện" | Không bao giờ tắt |
 | S2 | Hàng cuộc trò chuyện | Nút gốc `.chat-session-select` (ngoại lệ có ghi chú trong mã: hàng hai dòng) | Click / Enter / Space | `setActiveChatSession(id)`: mở cuộc trò chuyện, khôi phục provider/model, bản nháp, tác vụ của nó; đóng lớp phủ hẹp | Hàng chuyển sang nền nhấn; header đổi tiêu đề và chip model | — |
-| S3 | Nút xoá trên hàng | `xs · danger · ghost`, icon thùng rác, `aria-label="Xóa: <tên đầy đủ>"` | Hover/focus hàng để hiện, rồi click | `deleteChatSession(id)`: xoá ngay; nếu là cuộc đang mở thì về trạng thái trống | Hàng biến mất. **Không** có hộp xác nhận, không hoàn tác | — |
-| S4 | Meta dòng hai | Chữ | — | Thứ tự ưu tiên (`sessionMeta`): "Chuyên sâu · đang dừng" nếu có nghiên cứu dang dở; "Tác vụ · Tuỳ chọn" nếu có tác vụ; còn lại thời gian tương đối ("vừa xong", "5 phút trước", ngày) | Màu `--vzn-warning` khi đang dừng | — |
+| S3 | Nút xoá trên hàng | `xs · danger · ghost`, icon thùng rác, `aria-label="Xóa: <tên đầy đủ>"` | Hover/focus hàng để hiện, rồi click | `deleteChatSession(id)`: xoá ngay; nếu là cuộc đang mở thì về trạng thái trống | Hàng biến mất; toast "Đã xoá cuộc trò chuyện" (khoá chủ `chat-session-deleted`) có nút Hoàn tác: `restoreChatSession` đưa cuộc trò chuyện về đúng vị trí cũ và mở lại nếu nó đang mở. Không có hộp xác nhận | — |
+| S4 | Meta dòng hai | Chữ | — | Thứ tự ưu tiên (`sessionMeta`): "Chuyên sâu · đang dừng" nếu có nghiên cứu dang dở và phiên không đang chạy (`chatRunningSessionIds`, không lưu); đang chạy thì chỉ "Chuyên sâu"; "Tác vụ · Tuỳ chọn" nếu có tác vụ; còn lại thời gian tương đối ("vừa xong", "5 phút trước", ngày) | Màu `--vzn-warning` khi đang dừng | — |
 
 ### 4.2 Header trang
 
 | # | Điều khiển | Loại | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
 | H1 | Ẩn/hiện lịch sử | `sm · neutral · ghost`, icon panel, `aria-expanded`, `aria-controls` → sidebar | Click | ≥ 900 px: `toggleAiChatSidebar()` (lưu bền). < 900 px: mở/đóng lớp phủ tạm, đồng thời phát sự kiện đóng điều hướng chính | Sidebar trượt vào/ra; nhãn đổi "Ẩn lịch sử trò chuyện" ↔ "Hiện lịch sử trò chuyện" | — |
-| H2 | Tiêu đề | `PageHeader` title | — | Tiêu đề cuộc trò chuyện (dòng đầu tin nhắn đầu tiên, tự đặt trong `chatSlice.addChatMessage`); trạng thái trống: "AI Chat" | — | — |
+| H2 | Tiêu đề | `PageHeader` title | — | Tiêu đề cuộc trò chuyện (dòng đầu tin nhắn đầu tiên, tự đặt trong `chatSlice.addChatMessage`); phiên chưa có tiêu đề (`DEFAULT_CHAT_SESSION_TITLE`) hiện "Chat Mới" theo ngôn ngữ giao diện; trạng thái trống: "AI Chat" | — | — |
 | H3 | Chip model | `ModelChip`: `sm · neutral · outline` (mở: `primary · soft`), `aria-haspopup="dialog"`, `aria-expanded` | Click | Mở/đóng popover "Cấu hình AI" bên dưới chip | Chấm trạng thái: xanh khi có khoá hoặc provider local, vàng khi thiếu khoá | Không tắt |
-| H4 | Chat mới | `sm · neutral · ghost`, icon "+", `title="Chat Mới (⌘N)"`, `aria-keyshortcuts` | Click hoặc phím `chatNewSessionShortcut` | `setActiveChatSession(null)`: về trạng thái trống, xoá ô tìm, đóng lớp phủ hẹp. Không xoá lịch sử | Header đổi về "AI Chat"; ô soạn hiện bản nháp chờ (`chatPendingDraft`) | — |
+| H4 | Chat mới | `sm · neutral · ghost`, icon "+", `title="Chat Mới (⌘N)"`, `aria-keyshortcuts`; khi có phím tắt, chip `kbd.ai-chat-header-shortcut` đứng cạnh nút | Click hoặc phím `chatNewSessionShortcut` | `setActiveChatSession(null)`: về trạng thái trống, xoá ô tìm, đóng lớp phủ hẹp. Không xoá lịch sử | Header đổi về "AI Chat"; ô soạn hiện bản nháp chờ (`chatPendingDraft`) | — |
 
 ### 4.3 Popover "Cấu hình AI" (từ H3)
 
@@ -101,7 +101,7 @@ Viết tắt kiểu Button: `size · variant · appearance`. "Ẩn" nghĩa là �
 
 | # | Điều khiển | Loại | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
-| C1 | Ô nhập | `textarea.chat-input-field` | Gõ, dán, kéo thả | Lưu bản nháp theo cuộc trò chuyện (`setChatSessionDraft` / `setChatPendingDraft`). Dán ảnh từ clipboard → đính kèm | Tự giãn tới 140 px; > 600 ký tự hiện bộ đếm | `disabled` khi đang gửi; `readOnly` + `aria-busy` khi đang thu âm/chép giọng nói |
+| C1 | Ô nhập | `textarea.chat-input-field` | Gõ, dán, kéo thả | Lưu bản nháp theo cuộc trò chuyện (`setChatSessionDraft` / `setChatPendingDraft`). Dán ảnh từ clipboard → đính kèm | Tự giãn tới 140 px; > 600 ký tự hiện bộ đếm | Vẫn gõ được khi đang gửi (Enter không gửi cho tới khi trả lời xong); `readOnly` + `aria-busy` khi đang thu âm/chép giọng nói |
 | C2 | Gửi bằng phím | — | `Enter` (mặc định) hoặc `⌘/Ctrl+Enter` theo Cài đặt › Chat › Phím gửi (`shouldSendChatMessage`) | Như C9 | Như C9 | Như C9 |
 | C3 | "+" (đính kèm) | `md · neutral · ghost` (mở: `primary · soft`), `aria-haspopup="menu"`, `aria-expanded` | Click | Mở menu một mục "Thêm ảnh và tệp" | — | Tắt khi đang thu âm |
 | C4 | Mục "Thêm ảnh và tệp" | Nút menu `.btn-menu-item` | Click | Mở hộp chọn tệp `accept="image/*"` | Ảnh hiện thành thumbnail trong ô soạn | — |
@@ -131,7 +131,6 @@ Viết tắt kiểu Button: `size · variant · appearance`. "Ẩn" nghĩa là �
 | --- | --- | --- | --- | --- | --- | --- |
 | A1 | Giờ gửi · chi phí · "Trả lời bởi … (model đã chọn không khả dụng)" | Chữ `ui-micro`, `UsageCostBadge` | — | Thông tin | Ghi chú model thay thế làm thanh hành động luôn hiện | — |
 | A2 | Sao chép | `xs · neutral · ghost`, `aria-label="Sao chép"` | Click | Chép chữ của tin | Toast "Đã sao chép!" | Ẩn khi tin đang tải hoặc không có chữ |
-| A3 | Phản hồi tốt / chưa tốt | `xs · neutral · ghost` ×2 | Click | **Không làm gì** (chưa có `onClick`, xem §10) | — | Ẩn khi đang tải |
 | A4 | Tạo lại phản hồi | `xs · primary · soft`, icon ↻ | Click | `handleRegenerate`: gửi lại tin người dùng cuối với **đúng** provider/model/tác vụ/system prompt đã lưu trên tin đó (`requestConfiguration`), ghi đè bong bóng trả lời cuối (nghiên cứu: chạy lại từ đầu) | Bong bóng về "Đang suy nghĩ" rồi chữ chạy | Chỉ trên tin trả lời cuối; tắt khi đang gửi; toast lỗi nếu provider của tin không còn khoá |
 | A5 | Tải ảnh xuống | `xs · neutral · ghost`, icon tải | Click | Lưu ảnh AI tạo (`generated-image-<time>.png`) | Hộp lưu tệp của hệ thống | Chỉ trên tin trả lời có ảnh |
 | A6 | Sửa ảnh này | `xs · neutral · ghost` có chữ | Click | Chuyển tác vụ sang Tạo ảnh và focus ô nhập; lời nhắc tiếp theo chỉnh ảnh mới nhất | Placeholder đổi "Tạo ảnh từ văn bản, hoặc sửa ảnh đính kèm bằng AI" | Chỉ trên tin cuối có ảnh và provider hỗ trợ ảnh |
@@ -142,8 +141,8 @@ Viết tắt kiểu Button: `size · variant · appearance`. "Ẩn" nghĩa là �
 | R1 | Đầu bảng nghiên cứu | `sm · neutral · ghost`, `aria-expanded`, `aria-controls` | Click | Mở/gập danh sách pha | Đang chạy: "Nghiên cứu chuyên sâu · bước 3 / 6" + spinner. Xong: "Đã suy nghĩ · N bước" + chevron; tự gập khi xong | — |
 | R2 | Tiến trình | `ProgressSteps` | — | 6 pha cố định: Phân tích → Khảo sát → Rà khoảng trống → Đào sâu → Đối chiếu → Tổng hợp; mỗi pha: đã xong / đang chạy / chưa chạy / lỗi; Khảo sát và Đào sâu ghi "N khía cạnh" | — | Chỉ hiện khi đang chạy hoặc đang chờ người dùng |
 | R3 | Nút ⓘ trên từng pha | Nút gốc `.chat-research-pill-info`, `aria-label="Xem chi tiết nghiên cứu"` | Hover (xem tạm) / click (ghim) | Popover chi tiết của pha (rộng 380, portal) | Esc hoặc click ngoài đóng | — |
-| R4 | "Tiếp tục" | `sm · primary · solid` | Click | `handleResumeDeepResearch`: chạy tiếp từ pha sau pha đã xong cuối cùng, dùng lại provider/model lúc bắt đầu | Dòng lý do "Đã dừng ở bước {n}. Các bước đã xong được giữ lại." biến mất; spinner chạy lại | Chỉ hiện khi: cuộc dừng giữa chừng, bảng ở cuối cuộc trò chuyện, tác vụ hiện tại vẫn là Nghiên cứu · Chuyên sâu, ô soạn trống và không kèm ảnh |
-| R5 | "Thử lại bước {n}" | `sm · neutral · outline` | Click | `handleRegenerate`: xoá các bước và **chạy lại toàn bộ** nghiên cứu (xem §10) | Như R4 | Chỉ hiện khi bước cuối lỗi và không có snapshot để tiếp tục; điều kiện ô soạn như R4 |
+| R4 | "Tiếp tục" | `sm · primary · solid` | Click | `handleResumeDeepResearch`: chạy tiếp từ pha sau pha đã xong cuối cùng, dùng lại provider/model lúc bắt đầu | Dòng lý do "Đã dừng ở bước {n}. Các bước đã xong được giữ lại." biến mất; spinner chạy lại; nếu tác vụ đã đổi thì quay về Nghiên cứu · Chuyên sâu | Chỉ hiện khi: cuộc dừng giữa chừng (còn snapshot, kể cả sau khi đổi tác vụ), bảng ở cuối cuộc trò chuyện, không đang gửi, ô soạn trống và không kèm ảnh |
+| R5 | "Chạy lại nghiên cứu từ đầu" | `sm · neutral · outline` | Click | `handleRegenerate`: xoá các bước và chạy lại toàn bộ nghiên cứu | Như R4 | Chỉ hiện khi bước cuối lỗi và không có snapshot để tiếp tục; điều kiện ô soạn như R4 |
 
 ## 5. Trạng thái
 
@@ -154,11 +153,11 @@ Viết tắt kiểu Button: `size · variant · appearance`. "Ẩn" nghĩa là �
 | Tìm không thấy | Ô tìm có chữ, 0 kết quả | "Không tìm thấy cuộc trò chuyện" | Xoá ô tìm (nút xoá gốc của `type=search`) |
 | Đang tải trang | Chunk ChatPage lười tải | `PageFallback` "Đang tải AI Chat…" | — |
 | Đang nghĩ | Tin trả lời `isLoading` chưa có chữ | `ThinkingPill` "Đang suy nghĩ" có chấm chuyển động; nếu AI quyết định tìm web: pill "Smart Thinking" có shimmer. Không hiện giờ/hành động | Dừng |
-| Đang chạy chữ | Có chữ, `isLoading` | Chữ hiện dần (gộp token mỗi 60 ms), cuộn bám đáy; ô nhập bị tắt; Gửi → Dừng | Dừng |
+| Đang chạy chữ | Có chữ, `isLoading` | Chữ hiện dần (gộp token mỗi 60 ms), cuộn bám đáy; ô nhập vẫn gõ được nhưng Enter không gửi; Gửi → Dừng (hoặc Esc) | Dừng |
 | Có dữ liệu | Có tin | Cột tin + ô soạn đáy; tin cuối có hành động ghim | Mọi hành động §4 |
 | Nghiên cứu đang chạy | Tác vụ Nghiên cứu · Chuyên sâu, đang gửi | Tin người dùng → `ResearchStepsPanel` mở, tiến trình 6 pha; khi xong: thẻ "DEEP RESEARCH" chứa báo cáo | Dừng; ⓘ từng pha |
 | Nghiên cứu đang dừng | Người dùng bấm Dừng (snapshot `deepResearchResumeState` còn, pha cuối ≠ tổng hợp) | Bảng có `data-waiting`, pha dở hiện "đang chạy"/"chưa chạy", dòng lý do + nút Tiếp tục; sidebar ghi "Chuyên sâu · đang dừng" màu cảnh báo | Tiếp tục (R4) |
-| Nghiên cứu lỗi | Bước cuối lỗi, không có snapshot | Pha lỗi có chấm đỏ; "Bước {n} gặp lỗi. Các bước đã xong được giữ lại." | Thử lại bước {n} (R5) |
+| Nghiên cứu lỗi | Bước cuối lỗi, không có snapshot | Pha lỗi có chấm đỏ; "Bước {n} gặp lỗi. Các bước đã xong được giữ lại." | Chạy lại nghiên cứu từ đầu (R5) |
 | Lỗi nhà cung cấp | Trả về lỗi (`localizeChatError`) | `RecoverableError` (`role=alert`, nền `ui-error-box`) với câu đã dịch: khoá không hợp lệ, vượt giới hạn ("Đã vượt giới hạn yêu cầu. Vui lòng chờ rồi thử lại."), mất mạng, quá thời gian, bị chặn an toàn/bản quyền, model từ chối, phản hồi rỗng | Thử lại, Đổi model hoặc khoá, Đóng |
 | Lỗi giữa chừng | Lỗi sau khi đã có chữ | Chữ đã về giữ nguyên + khung lỗi nhỏ bên dưới | Tạo lại |
 | Tìm web hỏng | Tavily/Brave từ chối khoá → dùng tìm miễn phí; hoặc mọi nguồn tìm đều hỏng | Toast cảnh báo "Tìm kiếm web đã chuyển sang bản miễn phí" / "Tìm kiếm web không hoạt động", 10 giây, nút "Mở Cài đặt" | Mở Cài đặt |
@@ -178,10 +177,10 @@ Viết tắt kiểu Button: `size · variant · appearance`. "Ẩn" nghĩa là �
 2. Nhấn Enter (hoặc ⌘Enter nếu đã chọn) hoặc bấm Gửi. Shift+Enter xuống dòng ở chế độ Enter.
 3. Nếu chưa có phiên, `ensureSession()` tạo phiên mới với provider/model đang chọn và hút bản nháp + tác vụ chờ. Popover tác vụ (nếu mở) đóng.
 4. Cấu hình yêu cầu được chụp một lần (`requestConfiguration`: provider, model, system prompt, tác vụ, web) và lưu trên tin người dùng để Tạo lại dùng đúng cấu hình cũ.
-5. Tin người dùng xuất hiện bên phải; ô nhập trống và bị tắt; Gửi → Dừng (đỏ nhạt). Tiêu đề phiên = dòng đầu tin.
+5. Tin người dùng xuất hiện bên phải; ô nhập trống và vẫn gõ được (Enter không gửi, Esc dừng); Gửi → Dừng (đỏ nhạt). Tiêu đề phiên = dòng đầu tin.
 6. Bong bóng trả lời hiện pill "Đang suy nghĩ". Với chữ không kèm ảnh, `smartThinkingService` tự quyết tìm web: nếu có, pill thành "Smart Thinking" rồi về "Đang suy nghĩ".
 7. Token chạy vào cùng bong bóng (đệm 60 ms), cột cuộn theo.
-8. Xong: thanh hành động ghim dưới tin (giờ, chi phí, Sao chép, Phản hồi tốt, Phản hồi chưa tốt, Tạo lại). Ô nhập bật lại.
+8. Xong: thanh hành động ghim dưới tin (giờ, chi phí, Sao chép, Tạo lại). Enter gửi được trở lại.
 9. Bấm Dừng bất kỳ lúc nào: phần chữ đã về được giữ, không có lỗi.
 
 ### 6.2 Đổi model giữa cuộc trò chuyện
@@ -210,7 +209,7 @@ Viết tắt kiểu Button: `size · variant · appearance`. "Ẩn" nghĩa là �
 5. Bảng chuyển sang chờ: "Đã dừng ở bước 3. Các bước đã xong được giữ lại." + nút "Tiếp tục" (xanh, đặc). Sidebar: "Chuyên sâu · đang dừng".
 6. Có thể đóng app; snapshot vẫn còn. Mở lại cuộc trò chuyện → bảng vẫn chờ.
 7. Bấm "Tiếp tục": chạy từ pha kế tiếp với đúng provider/model lúc bắt đầu. Pha Tổng hợp tạo thẻ "DEEP RESEARCH" với báo cáo; bảng tự gập thành "Đã suy nghĩ · N bước".
-8. Nếu người dùng gõ chữ vào ô soạn hoặc đổi tác vụ khỏi Nghiên cứu · Chuyên sâu, nút Tiếp tục ẩn (gửi tin mới sẽ xoá snapshot).
+8. Nếu người dùng gõ chữ vào ô soạn, nút Tiếp tục ẩn (gửi tin mới sẽ xoá snapshot). Đổi tác vụ khỏi Nghiên cứu · Chuyên sâu không ẩn nút; bấm Tiếp tục thì tác vụ quay về Chuyên sâu.
 
 ### 6.5 Đính kèm ảnh
 
@@ -224,7 +223,7 @@ Viết tắt kiểu Button: `size · variant · appearance`. "Ẩn" nghĩa là �
 
 1. Áp dụng tác vụ "Tạo ảnh" (chỉ bật khi provider là Gemini/OpenAI). Placeholder: "Tạo ảnh từ văn bản, hoặc sửa ảnh đính kèm bằng AI".
 2. Gõ mô tả, Gửi. AI viết lại thành prompt chi tiết (`planImageRequest`) và quyết định có sửa ảnh trước đó không.
-3. Bong bóng hiện ảnh + chú thích "Ảnh đã tạo" kèm prompt đã dùng trong ngoặc kép. Hành động: Sao chép, Tải ảnh xuống, Sửa ảnh này, Phản hồi tốt, Phản hồi chưa tốt, Tạo lại.
+3. Bong bóng hiện ảnh + chú thích "Ảnh đã tạo" kèm prompt đã dùng trong ngoặc kép. Hành động: Sao chép, Tải ảnh xuống, Sửa ảnh này, Tạo lại.
 4. "Sửa ảnh này" giữ tác vụ Tạo ảnh; lời nhắc tiếp theo chỉnh ảnh mới nhất.
 
 ### 6.7 Bắt đầu cuộc trò chuyện mới
@@ -237,7 +236,7 @@ Viết tắt kiểu Button: `size · variant · appearance`. "Ẩn" nghĩa là �
 
 1. Rê chuột hoặc Tab vào một hàng trong lịch sử; nút thùng rác hiện ở mép phải.
 2. Bấm → cuộc trò chuyện bị xoá ngay. Nếu đó là cuộc đang mở, trang về trạng thái trống.
-3. Không có xác nhận hay hoàn tác (đề xuất ở §10). Không có nút xoá trong vùng hội thoại (Chat Invariants trong `AGENTS.md`).
+3. Toast "Đã xoá cuộc trò chuyện" có nút Hoàn tác: bấm thì cuộc trò chuyện về đúng vị trí cũ, và được mở lại nếu trước đó đang mở. Không có hộp xác nhận. Không có nút xoá trong vùng hội thoại (Chat Invariants trong `AGENTS.md`).
 
 ## 7. Responsive
 
@@ -256,7 +255,7 @@ Hai cơ chế độc lập: sidebar lịch sử theo **bề rộng cửa sổ** 
 ## 8. Bàn phím và trợ năng
 
 - **Thứ tự Tab:** điều hướng chính → H1 → (sidebar mở: ô tìm → từng hàng → nút xoá của hàng) → chip model → Chat mới → vùng tin (nút hành động của từng tin, bảng nghiên cứu) → ô soạn: + → Nguồn web → Tác vụ → ô nhập → Micro → Gửi/Dừng. Lưu ý: trong DOM ô nhập đứng **trước** thanh công cụ, nên Tab thực tế là ô nhập → + → web → Tác vụ → Micro → Gửi.
-- **Phím tắt:** Enter hoặc ⌘/Ctrl+Enter gửi (Cài đặt › Chat › Phím gửi); ⌘/Ctrl+N chat mới (đổi được); Esc đóng popover/lớp phủ/menu chọn và trả focus về nút đã mở; ↑/↓ di chuyển trong danh sách tác vụ và menu chọn; Home/End trong menu chọn.
+- **Phím tắt:** Enter hoặc ⌘/Ctrl+Enter gửi (Cài đặt › Chat › Phím gửi); ⌘/Ctrl+N chat mới (đổi được); Esc trong ô soạn khi đang trả lời = Dừng (trừ lúc bộ gõ đang soạn chữ); Esc đóng popover/lớp phủ/menu chọn và trả focus về nút đã mở; ↑/↓ di chuyển trong danh sách tác vụ và menu chọn; Home/End trong menu chọn.
 - **ARIA:**
   - Sidebar: `aside` có `aria-label="Các cuộc trò chuyện AI Chat"`, mỗi nhóm là `section aria-label="Hôm nay"`; hàng đang mở `aria-current="true"`; nhãn hàng gộp tên, provider, model, thời gian, số tin, "Tiếp tục nghiên cứu" nếu dang dở.
   - H1 `aria-expanded` + `aria-controls`; chip model và nút Tác vụ `aria-haspopup="dialog"` + `aria-expanded`; "+" `aria-haspopup="menu"`; Nguồn web `aria-pressed`; Chat mới `aria-keyshortcuts`.
@@ -301,7 +300,6 @@ Nguồn: `src/i18n/locales/vi.ts`.
 | `chat_thinking_label` / `chat_smart_thinking_badge` | Đang suy nghĩ / Smart Thinking |
 | `translate_copy` / `chat_copied` | Sao chép / Đã sao chép! |
 | `chat_regenerate` | Tạo lại phản hồi |
-| `chat_feedback_good` / `chat_feedback_bad` | Phản hồi tốt / Phản hồi chưa tốt |
 | `chat_download_image` / `chat_edit_this_image` / `chat_open_image` | Tải ảnh xuống / Sửa ảnh này / Mở ảnh |
 | `chat_image_generate_done` / `chat_image_edit_done` | Ảnh đã tạo / Ảnh đã chỉnh |
 | `chat_used_model` | Trả lời bởi {model} (model đã chọn không khả dụng) |
@@ -309,7 +307,8 @@ Nguồn: `src/i18n/locales/vi.ts`.
 | `chat_research_done_label` / `chat_research_steps_unit` | Đã suy nghĩ / bước |
 | `chat_deep_research_step_analyze` … `_synth` | Phân tích · Khảo sát · Rà khoảng trống · Đào sâu · Đối chiếu · Tổng hợp |
 | `chat_research_stopped` / `chat_research_failed` | Đã dừng ở bước {n}. Các bước đã xong được giữ lại. / Bước {n} gặp lỗi. Các bước đã xong được giữ lại. |
-| `chat_deep_research_resume_short` / `chat_research_retry_step` | Tiếp tục / Thử lại bước {n} |
+| `chat_deep_research_resume_short` / `chat_research_retry_step` | Tiếp tục / Chạy lại nghiên cứu từ đầu |
+| `chat_session_deleted` / `chat_session_deleted_undo` | Đã xoá cuộc trò chuyện / Hoàn tác |
 | `chat_deep_research_badge` | Deep Research |
 | `chat_error_no_key` / `chat_error_open_settings` | Chưa có API key. Vào Cài đặt để thêm. / Mở Cài đặt |
 | `chat_error_invalid_key` | API key không hợp lệ. Vui lòng kiểm tra trong Cài đặt. |
@@ -329,30 +328,18 @@ Bản vẽ gốc có mà app chưa có (tất cả là **đề xuất** cho tớ
 3. **Tóm tắt đầu câu trả lời** "Nghiên cứu · tổng quan nhanh · 3 bước, 3 nguồn" dạng `<details>` cho chế độ Tổng quan: không có; Tổng quan nhanh chỉ là một hướng dẫn gửi kèm, không chạy pipeline.
 4. **Pha nghiên cứu**: bản vẽ `ChatExtras` có 5 pha (Lập kế hoạch, Tìm nguồn, Đọc và trích dẫn, Đối chiếu, Viết báo cáo) và nút **Dừng ngay trong bảng**; mã có 6 pha khác tên và chỉ dừng bằng nút Dừng của ô soạn. Lý do dừng ("vì mất mạng") không được ghi nhận, chỉ có câu chung.
 5. **Tệp không phải ảnh** (PDF có tên và dung lượng trong `ChatExtras`): input chỉ nhận `image/*`; nhãn menu "Thêm ảnh và tệp" vì vậy hứa nhiều hơn mã làm.
-6. **Lời nhắc hệ thống trong popover model** (`Popovers.dc.html`): `ChatAIConfiguration` chỉ có phần "Mô hình". System prompt và preset chỉ chỉnh ở Cài đặt › Chat (`src/pages/settings/ChatPresetsSection.tsx`); chat dùng `chatSystemPrompt` toàn cục. `SystemPromptDropdown.tsx` chỉ còn được `ChatPageV2.tsx` dùng.
+6. **Lời nhắc hệ thống trong popover model** (`Popovers.dc.html`): `ChatAIConfiguration` chỉ có phần "Mô hình". System prompt và preset chỉ chỉnh ở Cài đặt › Chat (`src/pages/settings/ChatPresetsSection.tsx`); chat dùng `chatSystemPrompt` toàn cục.
 7. **Popover model kiểu phân đoạn provider + "Đã tải/Tải về" model local + "Model ID khác (nâng cao)"**: popover thật dùng danh sách trực tiếp có tìm, "Gần đây" và nhóm theo provider; không tải model Ollama từ đây.
 8. **Trạng thái "chưa có AI nào"** (`States.dc.html`: chọn giữa "Cài AI local" và "Thêm khoá"): mã chỉ hiện một dòng chữ + "Mở Cài đặt".
 9. **Lỗi nhà cung cấp có tiêu đề riêng + "Gửi bằng AI local"** (`States.dc.html`): `RecoverableError` chỉ có câu lỗi, "Thử lại", "Đổi model hoặc khoá".
 10. **Ảnh tạo có chú thích "Gemini · [model ảnh]"**: chú thích thật là "Ảnh đã tạo" + prompt.
-11. **Phím tắt hiện thành chip** cạnh Chat mới: CSS `.ai-chat-header-shortcut` có sẵn trong `codex.css` nhưng phím tắt chỉ nằm trong `title`.
-12. **Gợi ý khởi đầu trên trạng thái trống**: CSS `.chat-suggestion-grid`, `.chat-starter-actions` và i18n `chat_suggest_*_prompt` còn, nhưng `ChatPage.tsx` không render thẻ gợi ý nào. Đề xuất: hoặc dựng lại hàng thẻ mở thẳng popover Tác vụ, hoặc xoá CSS/i18n thừa.
+11. **Gợi ý khởi đầu trên trạng thái trống**: CSS `.chat-suggestion-grid`, `.chat-starter-actions` và i18n `chat_suggest_*_prompt` còn, nhưng `ChatPage.tsx` không render thẻ gợi ý nào. Đề xuất: hoặc dựng lại hàng thẻ mở thẳng popover Tác vụ, hoặc xoá CSS/i18n thừa.
 
-App có mà bản vẽ chưa thể hiện: nút Phản hồi tốt / chưa tốt, huy hiệu chi phí, ghi chú "Trả lời bởi … (model đã chọn không khả dụng)", pill Smart Thinking, ⓘ chi tiết từng pha, lightbox ảnh, bộ đếm ký tự > 600, toast dự phòng tìm web, gợi ý model không đọc ảnh.
+App có mà bản vẽ chưa thể hiện: huy hiệu chi phí, ghi chú "Trả lời bởi … (model đã chọn không khả dụng)", pill Smart Thinking, ⓘ chi tiết từng pha, lightbox ảnh, bộ đếm ký tự > 600, toast dự phòng tìm web, gợi ý model không đọc ảnh.
 
 Lỗi và mâu thuẫn tìm thấy khi đối chiếu mã (chưa sửa):
 
-- **Nút Phản hồi tốt / chưa tốt không làm gì**: hai Button trong `MessageBubble.tsx` không có `onClick` và không có `aria-pressed`. Hoặc nối vào lưu phản hồi, hoặc bỏ.
-- **"Thử lại bước {n}" chạy lại từ đầu**: `onRetry` gọi `handleRegenerate` → `restartChatResearch` cắt mọi bước sau tin người dùng và xoá snapshot, nên mọi pha chạy lại; nhãn hứa chỉ thử lại bước n.
-- **Gửi bằng Enter không bỏ qua IME**: `shouldSendChatMessage` không kiểm tra `isComposing`/`keyCode 229`, trong khi `TranslationSourcePane`, `CommandPalette`, `QuickLauncher` có. Với bộ gõ tiếng Nhật (và bộ gõ tiếng Việt dùng khung soạn), Enter xác nhận chữ có thể gửi luôn tin.
-- **Nhãn trợ năng của cả trang sai**: `div role="application" aria-label={t.chat_attach_image}` trong `ChatPage.tsx` khiến trình đọc màn hình gọi cả trang là "Đính kèm ảnh", và `role="application"` tắt chế độ duyệt.
-- **Gửi ảnh cho model không đọc ảnh vẫn được phép**: câu `chat_attachment_model_cannot_read` nói "để gửi" nhưng điều kiện `disabled` của nút Gửi không xét `attachedImageReadable`.
-- **Xoá cuộc trò chuyện không xác nhận, không hoàn tác** (`deleteChatSession`). Đề xuất: toast "Đã xoá" có nút Hoàn tác (một khoá chủ), hợp với "ưu tiên thao tác đảo ngược được".
+- **Gửi bằng Enter không bỏ qua IME**: `shouldSendChatMessage` không kiểm tra `isComposing`/`keyCode 229`, trong khi `TranslationSourcePane`, `CommandPalette`, `QuickLauncher` có. Với bộ gõ tiếng Nhật (và bộ gõ tiếng Việt dùng khung soạn), Enter xác nhận chữ có thể gửi luôn tin (đang sửa ở PR #153).
 - **Giới hạn 20 phiên cắt im lặng** (`MAX_CHAT_SESSIONS` trong `chatSlice.ts`): người dùng mất cuộc cũ không được báo.
-- **Tiêu đề mặc định không dịch**: phiên mới có `title: 'New Chat'` cứng; tin chỉ có ảnh giữ tiêu đề tiếng Anh này trong header và lịch sử.
-- **Ô nhập bị tắt khi đang trả lời**: `textarea disabled={isSending}` nên không thể soạn tin tiếp theo trong lúc chờ (nhất là nghiên cứu kéo dài vài phút). Đề xuất: chỉ khoá nút Gửi.
-- **Esc không dừng câu trả lời**: chỉ có nút Dừng. Đề xuất: Esc khi focus trong ô soạn và đang gửi = Dừng.
-- **Sidebar báo "đang dừng" khi nghiên cứu vẫn đang chạy**: `deepResearchService` lưu snapshot sau mỗi pha (`onResumeStateChange`), và `sessionMeta` trong `AIChatSidebar.tsx` chỉ xét snapshot có tồn tại và pha cuối ≠ `synth`, không xét phiên có đang chạy hay không. Bản vẽ `specs/chat.html#research` vẽ hành vi đúng ("Nghiên cứu · Chuyên sâu").
 - **Pha bị dừng có thể hiện như đã xong**: khi huỷ, `onStepError` đặt `isLoading: false` và không có `error`, nên `getGroupStatus` trong `ResearchStepsPanel.tsx` coi pha đó là "done"; số bước trong "Đã dừng ở bước {n}" vì vậy có thể lệch một bước so với pha sẽ chạy lại khi Tiếp tục. Cần kiểm chứng trên app; bản vẽ vẽ pha dở ở trạng thái trung tính "đã dừng".
-- **Nút Tiếp tục phụ thuộc tác vụ hiện tại**: đổi tác vụ khỏi Chuyên sâu làm nút biến mất dù snapshot còn; sidebar vẫn báo "đang dừng".
-- **Nợ token trong vùng di trú**: menu "+" dùng nút gốc, `style` inline `width: 220, zIndex: 9999`, `w-[18px]`, `text-[--vzn-text-muted]` (`ChatPage.tsx`); `MessageBubble.tsx` và `ResearchStepsPanel.tsx` dùng màu Tailwind `text-gray-*`, `dark:bg-neutral-*` và popover chi tiết rộng 380 tính bằng số; `chat.css` còn số trần (`5px 9px`, `104px`, `44px`, `720px`, `.usage-cost-badge` 18/10/11 px). Nên chuyển về `var(--vzn-*)` và `--vzn-layer-context-overlay`.
-- **Mã chết**: `src/pages/ChatPageV2.tsx` (932 dòng) không được route nào dùng, nhưng là nơi duy nhất còn dùng `SystemPromptDropdown`.
+- **Nợ token trong vùng di trú**: menu "+" vẫn dùng nút gốc `.btn-menu-item` (bề rộng và lớp chồng đã về token `--vzn-chat-plus-menu-inline`, `--vzn-layer-picker`); popover chi tiết trong `ResearchStepsPanel.tsx` rộng 380 tính bằng số trong mã; `chat.css` còn số trần (`5px 9px`, `104px`, `44px`, `720px`, `.usage-cost-badge` 18/10/11 px). Nên chuyển về `var(--vzn-*)`.

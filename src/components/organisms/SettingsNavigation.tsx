@@ -61,7 +61,7 @@ export function SettingsNavigation<Id extends string>({
           return (
             <Button
               key={id}
-              size="md"
+              size="sm"
               shape="rect"
               variant={active ? 'primary' : 'neutral'}
               appearance={active ? 'soft' : 'ghost'}
