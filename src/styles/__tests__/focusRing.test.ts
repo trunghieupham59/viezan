@@ -68,6 +68,13 @@ describe('keyboard focus ring', () => {
     expect(list).not.toMatch(/\binput\s*,|\binput\)/)
   })
 
+  it('removes the browser outline from text fields too', () => {
+    // Without it the UA `outline: auto` returns in the system accent colour.
+    const reset = rules.find((rule) => rule.file.endsWith('tokens.css') && removesOutline(rule.body)
+      && rule.selectors.some((selector) => selector.startsWith(':where(') && /\btextarea\b/.test(selector) && selector.endsWith(':focus-visible')))
+    expect(reset).toBeDefined()
+  })
+
   it('shows text-field focus with a neutral border, never the accent ring', () => {
     const textFieldFocus = rules.filter((rule) => rule.selectors.some((selector) => /:focus/.test(selector)
       && /(input|textarea|composer|filter-input|search)/.test(selector) && !/button/.test(selector)))

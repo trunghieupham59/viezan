@@ -1767,6 +1767,13 @@ body {
   outline-offset: var(--vzn-focus-ring-offset);
 }
 
+/* Text fields draw no outline at all. Leaving them out of the rule above is
+ * not enough: the browser's own `outline: auto` (in the system accent colour)
+ * would come back. */
+:where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="button"], [type="submit"], [type="reset"]), textarea, [contenteditable]:not([contenteditable="false"])):focus-visible {
+  outline: none;
+}
+
 /* Text selection follows the preset accent instead of the browser default. */
 ::selection {
   background: color-mix(in srgb, var(--vzn-action) 28%, transparent);
