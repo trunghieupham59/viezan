@@ -430,6 +430,12 @@ Local AI.
 
 - Chọn một module không cần helper (clipboard hoặc OCR vùng chọn) để chứng minh
   khung module đủ tổng quát, trước khi thêm module cần helper thứ hai.
+- Đề xuất (2026-10-25): hai module chị em dùng chung lớp hành động tệp
+  `electron/fileActions/`: `cleanup` (Dung lượng & dọn dẹp,
+  [`storage-cleanup-module.md`](storage-cleanup-module.md)) và `apps` (Ứng
+  dụng: gỡ sạch, tệp sót, cập nhật, khởi động, [`apps-module.md`](apps-module.md)).
+  Các bước đầu không cần helper; các bước sau mở rộng helper bằng họ lệnh
+  `maintenance.*`, `pkg.*`, `launchd.*` và capability chung `helper.admin`.
 
 ---
 
