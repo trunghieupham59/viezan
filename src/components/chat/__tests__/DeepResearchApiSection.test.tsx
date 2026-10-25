@@ -24,7 +24,7 @@ describe('DeepResearchApiSection key removal', () => {
     render(<DeepResearchApiSection />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Sửa' }))
-    fireEvent.click(screen.getByTitle('Xóa'))
+    fireEvent.click(screen.getByTitle('Xoá'))
 
     expect(confirm).toHaveBeenCalledWith('Xoá khoá API của Tavily?')
     expect(window.api.keychain.delete).not.toHaveBeenCalled()

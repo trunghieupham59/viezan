@@ -190,7 +190,7 @@
         <li><span class="ref">1</span>Bộ đếm <code>n/120</code> và nút xoá ✕ trong ô từ; ngữ cảnh có bộ đếm <code>n/500</code>, đỏ khi vượt.</li>
         <li><span class="ref">2</span>Hàng đang xem: nền chọn + vạch xanh bên trái, <code>aria-current</code>. Mỗi hàng: từ chính, phiên âm, thời gian, chi phí, nghĩa 2 dòng.</li>
         <li><span class="ref">3</span>Sao trên hàng <code>xs</code>: hiện khi rê chuột/focus, luôn hiện khi đã đánh dấu.</li>
-        <li><span class="ref">4</span>Chân danh sách: Xóa lịch sử (mở xác nhận) · Xóa (mục đang xem, không xác nhận), cả hai <code>sm · danger</code> viên.</li>
+        <li><span class="ref">4</span>Chân danh sách: Xoá lịch sử (mở xác nhận) · Xoá (mục đang xem, không xác nhận), cả hai <code>sm · danger</code> viên.</li>
         <li><span class="ref">5</span>Từ chính (font hiển thị, <code>--vzn-dictionary-headword-size</code>) · phiên âm mono · nhãn từ loại viết hoa.</li>
         <li><span class="ref">6</span>Đánh dấu (<code>aria-pressed</code>) · Sao chép (✓ 1,2 s) · Dùng trong AI Dịch — đều <code>sm · neutral · ghost</code> icon.</li>
         <li><span class="ref">7</span>Có ngữ cảnh thì nhãn là "Nghĩa trong ngữ cảnh này".</li>
@@ -229,7 +229,7 @@
                       <div class="s-hrow"><div class="s-hcopy"><span class="s-hline"><span class="s-hword">serendipity</span><span class="s-hpron">/ˌser.ənˈdɪp/</span><span class="s-htime">2 giờ</span></span><span class="s-hmeaning">Sự tình cờ may mắn…</span></div><span class="m-btn" data-size="xs" data-icon data-tone="soft">★</span></div>
                       <div class="s-hrow"><div class="s-hcopy"><span class="s-hline"><span class="s-hword">ubiquitous</span><span class="s-hpron">/juːˈbɪk/</span><span class="s-htime">hôm qua</span></span><span class="s-hmeaning">Có mặt ở khắp nơi…</span></div></div>
                     </div>
-                    <div class="s-panel-foot"><span class="m-btn s-pill" data-tone="danger">🗑 Xóa lịch sử</span><span class="m-btn s-pill" data-tone="danger">🗑 Xóa</span></div>
+                    <div class="s-panel-foot"><span class="m-btn s-pill" data-tone="danger">🗑 Xoá lịch sử</span><span class="m-btn s-pill" data-tone="danger">🗑 Xoá</span></div>
                   </div>
                 </aside>
                 <section class="s-card">
@@ -417,7 +417,7 @@
       <h2>Lỗi · thiếu model</h2>
       <p>Lỗi hiện trong ngăn toast của app (góc dưới phải), một khoá chủ nên lỗi mới thay lỗi cũ. Rời trang thì toast bị gỡ.</p>
       <ol>
-        <li><span class="ref">1</span>Từ dài hơn 120 ký tự: ô đỏ (<code>invalid</code>), bộ đếm đỏ. Bấm Tra cứu → toast "Từ khóa quá dài." (không có nút); gõ lại thì toast tự tắt.</li>
+        <li><span class="ref">1</span>Từ dài hơn 120 ký tự: ô đỏ (<code>invalid</code>), bộ đếm đỏ. Bấm Tra cứu → toast "Từ khoá quá dài." (không có nút); gõ lại thì toast tự tắt.</li>
         <li><span class="ref">2</span>Lỗi nhà cung cấp: toast lỗi kèm "Provider · model" và Thử lại · Chọn model khác · Mở Cài đặt. Từ đã gõ được giữ.</li>
         <li><span class="ref">3</span>Chưa chọn model: Tra cứu <code>disabled</code> (xám), tooltip "Chọn model trong Cấu hình AI để tra cứu."</li>
       </ol>
@@ -442,7 +442,7 @@
             </main>
           </div>
           <div class="s-toasts">
-            <div class="m-toast" role="alert"><span class="m-dot" data-tone="danger"></span><div class="s-toast-copy"><span>Từ khóa quá dài.</span></div><span class="m-btn" data-size="xs" data-icon data-tone="ghost">✕</span></div>
+            <div class="m-toast" role="alert"><span class="m-dot" data-tone="danger"></span><div class="s-toast-copy"><span>Từ khoá quá dài.</span></div><span class="m-btn" data-size="xs" data-icon data-tone="ghost">✕</span></div>
             <div class="m-toast" role="alert"><span class="m-dot" data-tone="danger"></span><div class="s-toast-copy"><span>Tra từ thất bại.</span><span class="m-muted">OpenAI · gpt-4.1-mini</span><span class="s-toast-actions"><span class="m-btn" data-size="xs">Thử lại</span><span class="m-btn" data-size="xs">Chọn model khác</span><span class="m-btn" data-size="xs">Mở Cài đặt</span></span></div><span class="m-btn" data-size="xs" data-icon data-tone="ghost">✕</span></div>
           </div>
           <span class="callout" style="--x: 560px; --y: 160px">1</span>
@@ -480,7 +480,7 @@
         <li><span class="ref">1</span>Bánh răng khi mở: <code>primary · soft</code>, <code>aria-expanded="true"</code>.</li>
         <li><span class="ref">2</span>"Áp dụng cho lượt tra cứu tiếp theo." — một mục "Mô hình" với danh sách model nội tuyến có ô tìm.</li>
         <li><span class="ref">3</span>Chọn một model → popover tự đóng, focus về bánh răng.</li>
-        <li><span class="ref">4</span>Xác nhận xoá lịch sử: chỉ xoá mục không yêu thích. Hủy <code>md · neutral · outline</code> · Xóa lịch sử <code>md · danger · solid</code>. Nút ở chân danh sách bị tắt khi mọi mục đều là yêu thích.</li>
+        <li><span class="ref">4</span>Xác nhận xoá lịch sử: chỉ xoá mục không yêu thích. Huỷ <code>md · neutral · outline</code> · Xoá lịch sử <code>md · danger · solid</code>. Nút ở chân danh sách bị tắt khi mọi mục đều là yêu thích.</li>
       </ol>
     </div>
     <div class="scenario-frames">
@@ -518,9 +518,9 @@
           <div class="m-body"><main class="m-main"><div class="m-header"><h3>Từ điển</h3></div><div class="s-work"><aside class="s-card s-lookup"></aside><section class="s-card"></section></div></main></div>
           <div class="m-scrim"></div>
           <div class="s-dialog s-at" data-size="sm" style="--x: 240px; --y: 170px">
-            <div class="s-dialog-head"><span class="m-strong">Xóa lịch sử</span><span class="m-spacer"></span><span class="m-btn" data-icon data-tone="ghost" aria-label="Hủy">✕</span></div>
-            <div class="s-dialog-body"><span>Xóa tất cả mục lịch sử không yêu thích? Không thể hoàn tác.</span></div>
-            <div class="s-dialog-foot"><span class="m-btn" data-size="md">Hủy</span><span class="m-btn" data-size="md" data-tone="danger">🗑 Xóa lịch sử</span></div>
+            <div class="s-dialog-head"><span class="m-strong">Xoá lịch sử</span><span class="m-spacer"></span><span class="m-btn" data-icon data-tone="ghost" aria-label="Huỷ">✕</span></div>
+            <div class="s-dialog-body"><span>Xoá tất cả mục lịch sử không yêu thích? Không thể hoàn tác.</span></div>
+            <div class="s-dialog-foot"><span class="m-btn" data-size="md">Huỷ</span><span class="m-btn" data-size="md" data-tone="danger">🗑 Xoá lịch sử</span></div>
           </div>
           <span class="callout" style="--x: 230px; --y: 160px">4</span>
         </div>
@@ -565,7 +565,7 @@
                       <div class="s-hrow" data-selected><div class="s-hcopy"><span class="s-hline"><span class="s-hword">工夫</span><span class="s-hpron">kufū</span><span class="s-htime">vừa xong</span></span><span class="s-hmeaning">Sự công phu, tìm cách làm khéo…</span></div><span class="m-btn" data-size="xs" data-icon data-tone="soft">★</span></div>
                       <div class="s-hrow"><div class="s-hcopy"><span class="s-hline"><span class="s-hword">serendipity</span><span class="s-htime">2 giờ</span></span><span class="s-hmeaning">Sự tình cờ may mắn…</span></div><span class="m-btn" data-size="xs" data-icon data-tone="soft">★</span></div>
                     </div>
-                    <div class="s-panel-foot"><span class="m-btn s-pill" data-tone="danger">🗑 Xóa lịch sử</span><span class="m-btn s-pill" data-tone="danger">🗑 Xóa</span></div>
+                    <div class="s-panel-foot"><span class="m-btn s-pill" data-tone="danger">🗑 Xoá lịch sử</span><span class="m-btn s-pill" data-tone="danger">🗑 Xoá</span></div>
                   </div>
                 </aside>
                 <section class="s-card">
@@ -617,7 +617,7 @@
                     <div class="s-tabs"><span class="s-tab" aria-selected="true">Gần đây <span class="m-tag">12</span></span><span class="s-tab">Yêu thích <span class="m-tag">3</span></span></div>
                     <div class="s-hrow" data-selected><div class="s-hcopy"><span class="s-hline"><span class="s-hword">bank</span><span class="s-hpron">/bæŋk/</span><span class="s-htime">vừa xong</span></span><span class="s-hmeaning">Dải đất dọc theo mép sông…</span></div></div>
                     <div class="s-hrow"><div class="s-hcopy"><span class="s-hline"><span class="s-hword">serendipity</span><span class="s-htime">2 giờ</span></span><span class="s-hmeaning">Sự tình cờ may mắn…</span></div></div>
-                    <div class="s-panel-foot"><span class="m-btn s-pill" data-tone="danger">🗑 Xóa lịch sử</span><span class="m-btn s-pill" data-tone="danger">🗑 Xóa</span></div>
+                    <div class="s-panel-foot"><span class="m-btn s-pill" data-tone="danger">🗑 Xoá lịch sử</span><span class="m-btn s-pill" data-tone="danger">🗑 Xoá</span></div>
                   </div>
                 </aside>
                 <section class="s-card">
@@ -652,7 +652,7 @@
           <tr><td>Chip bản dịch</td><td><code>sm · neutral · outline</code> viên + <code>aria-pressed</code></td><td>Hộp thoại chi tiết bản dịch</td><td>—</td></tr>
           <tr><td>Tra phần đã chọn</td><td><code>lg · neutral · outline</code> icon nổi</td><td>Hộp thoại tra phụ</td><td>Chỉ khi có vùng chọn trong thân mục từ</td></tr>
           <tr><td>Sao trên hàng</td><td><code>xs · neutral · ghost</code> icon</td><td>Bật/tắt yêu thích</td><td>—</td></tr>
-          <tr><td>Xóa lịch sử · Xóa</td><td><code>sm · danger</code> (soft) viên</td><td>Xác nhận rồi xoá mục không yêu thích · xoá mục đang xem</td><td>Xóa lịch sử tắt khi mọi mục là yêu thích</td></tr>
+          <tr><td>Xoá lịch sử · Xoá</td><td><code>sm · danger</code> (soft) viên</td><td>Xác nhận rồi xoá mục không yêu thích · xoá mục đang xem</td><td>Xoá lịch sử tắt khi mọi mục là yêu thích</td></tr>
         </tbody>
       </table>
     </div>

@@ -1249,10 +1249,12 @@ li + li > .ui-activity-row.ui-button {
   gap: var(--vzn-space-0-5);
 }
 
+/* Normal leading, not tight: Vietnamese stacked marks (ữ, ộ, ể) need the room,
+   and the label then shares its rhythm with the description below. */
 .ui-settings-row__label {
   color: var(--vzn-text-strong);
   font-size: var(--vzn-font-size-lg);
-  line-height: var(--vzn-line-tight);
+  line-height: var(--vzn-line-normal);
 }
 
 .ui-settings-row__description {

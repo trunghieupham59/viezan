@@ -77,7 +77,7 @@ Cửa sổ: rộng cố định **760 px** (`QUICK_CHAT_WIDTH`), không viền h
 | # | Điều khiển | Loại (Button size · variant · appearance) | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
 | K1 | Ô tìm | `FilterInput` `role="combobox"` | Gõ | Lọc lại các nhóm; chọn về hàng 0; xoá lỗi | Danh sách và chiều cao cửa sổ đổi ngay (ResizeObserver → `setLayout('expanded', h)`) | — |
-| K2 | Xoá chữ (✕ trong ô) | Nút xoá của `FilterInput`, nhãn "Xóa" | Click | Ô trống | Quay về danh sách mặc định | Chỉ hiện khi có chữ |
+| K2 | Xoá chữ (✕ trong ô) | Nút xoá của `FilterInput`, nhãn "Xoá" | Click | Ô trống | Quay về danh sách mặc định | Chỉ hiện khi có chữ |
 | K3 | Hàng kết quả | `lg · neutral · ghost` → `soft` khi chọn | Click; Enter khi đang chọn; di chuột **có di chuyển thật** để chọn | Theo loại, xem bảng dưới | Trong lúc chờ main, `aria-busy` và mọi hàng disabled | Disabled khi `busy` |
 | K4 | ↑ / ↓ | Phím | Trong ô tìm | Chọn hàng trước/sau, **vòng** đầu–cuối; hàng chọn tự cuộn vào vùng nhìn | Hàng `soft`; footer đổi theo hàng | Bỏ qua khi đang gõ IME |
 | K5 | ↵ | Phím | Trong ô tìm | Chạy hàng đang chọn | | |
@@ -116,7 +116,7 @@ Máy tính (`evaluateQuickCalc`) chỉ trả lời khi câu rõ ràng là phép 
 | A1 | "Tìm kiếm" (quay lại) | `md · neutral · ghost` | Click | Về chế độ tìm, giữ phiên | Ô tìm nhận focus | — |
 | A2 | Logo / Cuộc trò chuyện mới | `md · neutral · ghost`, icon vuông | Click; ⌘N / Ctrl+N | Huỷ luồng đang chạy, xoá lịch sử và phiên | Thân về trạng thái trống | Disabled (hiện logo) khi chưa có lượt nào |
 | A3 | Ô hỏi (`textarea`) | Placeholder "Hỏi bất cứ điều gì…" / "Hỏi tiếp..." | Gõ; Enter gửi (hoặc ⌘↵ nếu người dùng chọn kiểu gửi đó), ⇧Enter xuống dòng | | | Disabled khi đang gửi |
-| A4 | Xoá chữ (✕) | `xs · neutral · ghost`, nhãn "Xóa" | Click | Ô trống, focus lại | | Ẩn khi trống hoặc đang gửi |
+| A4 | Xoá chữ (✕) | `xs · neutral · ghost`, nhãn "Xoá" | Click | Ô trống, focus lại | | Ẩn khi trống hoặc đang gửi |
 | A5 | Gửi | `md · primary · solid`, icon, nhãn "Gửi" | Click | Gửi câu hỏi | Icon thành spinner | Disabled khi trống, quá dài, đang gửi hoặc thiếu khoá |
 | A6 | Chip model (footer) | `xs · neutral · ghost`: chấm (`--vzn-success` có khoá / `--vzn-warning` thiếu khoá, kèm chữ ẩn) + icon nhà cung cấp + "/ model" + "Smart Thinking" + "· {n} lượt" | Click | Mở Cài đặt ở app chính | | — |
 | A7 | Dừng | `xs · danger · ghost` | Click | Dừng luồng (giữ phần đã nhận) | Nút biến mất | Chỉ khi đang gửi |

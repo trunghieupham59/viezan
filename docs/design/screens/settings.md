@@ -59,7 +59,7 @@ Sơ đồ ở cửa sổ 1200 px, thanh điều hướng chính mở rộng (236
 | Tab mục (vùng nội dung < 760) | `SettingsNavigation mode="tabs"` | Hàng nút `sm` có icon 14, cuộn ngang, đường kẻ dưới | Ngang |
 | Vùng nội dung | `.settings-scroll-viewport` | Container `settings-content` (container query); `overscroll-behavior: contain` | Dọc |
 | Cột nội dung | `div.max-w-3xl.mx-auto` | Tối đa 768; lề `px-6 py-6` (24) ở ≥ 768, `px-4 py-5` dưới đó; các mục cách nhau 32 (`space-y-8`) | — |
-| Một mục | `<section data-settings-section aria-label tabIndex={-1}>` + `.settings-section-stack` | Tiêu đề `.settings-section-title` (`--vzn-font-size-title-lg`, semibold), mô tả `.settings-section-desc` (`--vzn-font-size-md`, muted); thẻ cách nhau `--vzn-space-4` | — |
+| Một mục | `<section data-settings-section aria-label tabIndex={-1}>` + `.settings-section-stack` | Tiêu đề `.settings-section-title` (`--vzn-font-size-title` (16), semibold — thấp hơn tiêu đề trang một bậc), mô tả `.settings-section-desc` (`--vzn-font-size-md`, muted); thẻ cách nhau `--vzn-space-4` | — |
 | Thẻ | `SettingsCard` / `.ui-settings-card` (`src/components/ui/molecules/SettingsCard.tsx`, `src/styles/molecules.css`) | Viền `--vzn-border`, bo `--vzn-radius-md`, nền `--vzn-surface`; header lề 16, tiêu đề `--vzn-font-size-subtitle` | — |
 | Hàng | `SettingsRow` (`.ui-settings-row`) | Lề `--vzn-space-3` × `--vzn-space-4`; nhãn `--vzn-font-size-lg`; mô tả `--vzn-font-size-sm`; cột chữ ưu tiên `--vzn-settings-row-copy-basis` (220) rồi điều khiển xuống dòng; vùng `below` cho phần mở rộng | — |
 | Trạng thái | `StatusLabel` (`.ui-status-label`) | Chấm `StatusDot` + chữ; tone `ok` / `warning` / `danger` / `neutral` | — |
@@ -137,7 +137,7 @@ Header: "Nhà cung cấp đám mây", mô tả "Khoá được lưu trong Keycha
 | K3 | "Sửa" (đã có khoá) / "Thêm khoá" (chưa có) | `sm · neutral · outline`, thành `soft` khi trình sửa mở; `aria-expanded`, `aria-controls` | Bấm | Mở/đóng trình sửa nội tuyến dưới hàng | Trình sửa luôn mở khi đang có chữ, đang xác minh hoặc vừa lỗi | — |
 | K4 | Ô khoá | `input type="password"` `.field-input-mono`, `autoComplete="off"` | Gõ / dán; Enter = gửi | Lưu tạm trong state; gõ lại sẽ xoá trạng thái lỗi | Viền xanh khi thành công, đỏ khi lỗi | Với khoá đã lưu: ô hiện giá trị che (`masked`) và **chỉ đọc** (xem §10) |
 | K5 | "Xác minh" | `md · primary · solid` (thành `danger · solid` "Thử lại" sau lỗi) | Bấm hoặc Enter | `window.api.verifyKey(provider, key)` rồi lưu vào Keychain và tải danh mục model | Spinner + "Đang xác minh…" → "✓ Đã xác minh!" (5 s, `VERIFY_STATUS_RESET_DELAY_MS`) và trình sửa đóng | Tắt khi ô trống hoặc đang xác minh |
-| K6 | Xoá khoá | `xs · danger · soft` icon thùng rác trong ô che, `aria-label="Xóa"` | Bấm → `confirm()` của hệ thống | `keychain.delete`; xoá model động và đặt lại chi phí của nhà cung cấp | Spinner trong nút; lỗi → toast đỏ `settings_key_store_failed` | Tắt khi đang xoá |
+| K6 | Xoá khoá | `xs · danger · soft` icon thùng rác trong ô che, `aria-label="Xoá"` | Bấm → `confirm()` của hệ thống | `keychain.delete`; xoá model động và đặt lại chi phí của nhà cung cấp | Spinner trong nút; lỗi → toast đỏ `settings_key_store_failed` | Tắt khi đang xoá |
 | K7 | Thống kê chi phí (`ProviderCostStats`) | Huy hiệu "Tổng chi phí ~x", Lượt gọi, Tokens, Lần cuối (vừa xong / n phút / giờ / ngày trước) + nút "Reset" `sm · danger · soft` | Bấm "Reset" → `confirm("Reset thống kê chi phí cho {name}?")` | `resetProviderUsageCost` | Huy hiệu biến mất | Cả cụm ẩn khi chưa có lượt gọi |
 
 **Kết quả xác minh (K5)** — toast khoá chủ `settings-api-key-{provider}`:
@@ -191,12 +191,12 @@ Một thẻ "Preset lời nhắc hệ thống" chứa: các preset, hàng thêm,
 | --- | --- | --- | --- | --- | --- | --- |
 | H1 | Đặt làm mặc định | `sm · neutral · ghost` icon ✓ | Bấm | `setDefaultSystemPromptPreset` + áp nội dung vào lời nhắc chat hiện tại | Thẻ "Mặc định" chuyển sang preset này | Ẩn trên preset đang mặc định |
 | H2 | Dùng prompt này | `sm · neutral · ghost` icon clipboard | Bấm | `setChatSystemPrompt(content)` | Toast xanh "Đã dùng “{name}” làm lời nhắc hệ thống" (khoá `settings-chat-preset`) | — |
-| H3 | Chỉnh sửa | `sm · neutral · ghost` icon bút | Bấm | Mở form dưới hàng: `Input sm` tên + `Textarea` 3 dòng + "Hủy" `sm · neutral · outline` / "Lưu" `sm · primary · solid` | Form điền sẵn | "Lưu" tắt khi tên hoặc nội dung trống |
-| H4 | Xóa | `sm · danger · soft` icon thùng rác | Bấm → `confirm()` "Xoá preset “{name}”? Không thể hoàn tác." | `deleteSystemPromptPreset` | Hàng biến mất | — |
+| H3 | Chỉnh sửa | `sm · neutral · ghost` icon bút | Bấm | Mở form dưới hàng: `Input sm` tên + `Textarea` 3 dòng + "Huỷ" `sm · neutral · outline` / "Lưu" `sm · primary · solid` | Form điền sẵn | "Lưu" tắt khi tên hoặc nội dung trống |
+| H4 | Xoá | `sm · danger · soft` icon thùng rác | Bấm → `confirm()` "Xoá preset “{name}”? Không thể hoàn tác." | `deleteSystemPromptPreset` | Hàng biến mất | — |
 | H5 | "Thêm preset" | `sm · neutral · outline` + icon +, `soft` khi form mở, `aria-expanded` | Bấm | Mở form thêm (đóng form sửa đang mở) | — | "Lưu" tắt khi thiếu tên/nội dung |
 | H6 | Phím gửi: Enter · Cmd+Enter (Ctrl trên Windows/Linux) | `ButtonGroup sm` | Chọn | `setChatSendShortcut` — áp dụng cho Chat và popup hỏi nhanh | — | — |
-| H7 | Chat mới — ô ghi phím | `HotkeyRecordButton` `md`, `neutral · outline` → `primary · soft` khi ghi, chữ mono | Bấm → nhấn tổ hợp | Ghi tổ hợp có Cmd/Ctrl/Alt/Shift hoặc F1–F24; Esc huỷ; mất focus huỷ | Nhãn "Bấm phím… (Esc để hủy)" khi ghi | — |
-| H8 | Xoá phím chat mới | `md · danger · ghost` icon ×, `aria-label="Xóa"` | Bấm | Đặt phím rỗng | Ô hiện "Chưa cài" | Ẩn khi chưa có phím hoặc đang ghi |
+| H7 | Chat mới — ô ghi phím | `HotkeyRecordButton` `md`, `neutral · outline` → `primary · soft` khi ghi, chữ mono | Bấm → nhấn tổ hợp | Ghi tổ hợp có Cmd/Ctrl/Alt/Shift hoặc F1–F24; Esc huỷ; mất focus huỷ | Nhãn "Bấm phím… (Esc để huỷ)" khi ghi | — |
+| H8 | Xoá phím chat mới | `md · danger · ghost` icon ×, `aria-label="Xoá"` | Bấm | Đặt phím rỗng | Ô hiện "Chưa cài" | Ẩn khi chưa có phím hoặc đang ghi |
 | H9 | "Mặc định" (khôi phục phím) | `md · neutral · outline` | Bấm | Đặt `DEFAULT_CHAT_NEW_SESSION_SHORTCUT` | — | Chỉ hiện khi chưa có phím |
 | H10 | Ảnh trong chat — "Dọn ảnh cũ" | `sm · neutral · outline` | Bấm | Xoá ảnh không còn cuộc trò chuyện nào tham chiếu | Toast xanh "Đã xoá {count} ảnh"; dòng dung lượng (`aria-live`) cập nhật | Tắt khi đang chạy hoặc không có ảnh |
 | H11 | Ảnh trong chat — "Xoá hết" | `sm · danger · ghost` | Bấm → `confirm(settings_chat_images_clear_confirm)` | Xoá mọi ảnh đã lưu; văn bản giữ nguyên | Như H10 | Như H10 |
@@ -290,7 +290,7 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 
 ### 6.5 Thêm một preset lời nhắc
 
-1. Vào Chat. Bấm "Thêm preset" → nút `soft`, form mở dưới hàng: ô tên ("VD: Trợ lý lập trình"), ô nội dung ("Bạn là trợ lý hữu ích…"), "Hủy" / "Lưu".
+1. Vào Chat. Bấm "Thêm preset" → nút `soft`, form mở dưới hàng: ô tên ("VD: Trợ lý lập trình"), ô nội dung ("Bạn là trợ lý hữu ích…"), "Huỷ" / "Lưu".
 2. "Lưu" chỉ bật khi cả hai ô có chữ. Bấm "Lưu" → preset thêm vào danh sách, form đóng.
 3. Bấm ✓ "Đặt làm mặc định" → thẻ "Mặc định" chuyển sang preset mới và nội dung được áp vào lời nhắc chat hiện tại.
 4. Sửa: bấm bút → form điền sẵn dưới hàng → "Lưu". Xoá: bấm thùng rác (xoá ngay).
@@ -327,7 +327,7 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 - **Nhóm radio** (Phong cách, Màu nhấn): `role="radiogroup"` + `role="radio"`/`aria-checked`; phím mũi tên đi một bước (vòng lại), Home/End nhảy đầu/cuối (`radioStripNavigation.ts`); focus cũng kích hoạt xem trước. Ghi chú phong cách có `aria-live="polite"`.
 - **Nhóm nút** (`ButtonGroup`): `<fieldset aria-label>` + `aria-pressed` từng nút.
 - **Công tắc:** `role="switch"`, `aria-checked`, `disabled` gốc khi đang lưu hoặc bị khoá; công tắc module có `aria-labelledby`/`aria-describedby` trỏ về nhãn và mô tả hàng.
-- **Khoá API:** nút "Sửa/Thêm khoá" có `aria-expanded` và `aria-controls`; Enter trong ô khoá gửi xác minh; nút xoá chỉ có icon có `aria-label="Xóa"`. Xác nhận xoá là `confirm()` của hệ thống (focus do hệ điều hành quản lý).
+- **Khoá API:** nút "Sửa/Thêm khoá" có `aria-expanded` và `aria-controls`; Enter trong ô khoá gửi xác minh; nút xoá chỉ có icon có `aria-label="Xoá"`. Xác nhận xoá là `confirm()` của hệ thống (focus do hệ điều hành quản lý).
 - **Tiến độ:** `Meter` có `label` và `valueText` ("54%"); trạng thái cập nhật có `role="status"`; dòng dung lượng ảnh có `aria-live="polite"`.
 - **So sánh hiệu năng:** hộp xác nhận nội tuyến `role="alertdialog"`; dòng đang đo `role="status"`; nhóm chế độ có `aria-pressed`.
 - **Ghi phím:** khi đang ghi, Esc huỷ; rời focus cũng huỷ.
@@ -347,7 +347,7 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 | `settings_launch_at_login_error` | Không thể thay đổi cài đặt khởi động cùng hệ thống. Vui lòng thử lại. |
 | `settings_auto_translate` / `settings_translate_delay` | Tự động dịch / Độ trễ dịch |
 | `settings_delay_short` · `_medium` · `_long` | Ngắn · Vừa · Dài |
-| `settings_furigana` | Phiên Âm |
+| `settings_furigana` | Phiên âm |
 | `settings_image_provider_fallback` | Dự phòng khi dịch ảnh |
 | `settings_appearance` / `settings_appearance_desc` | Giao diện / Chế độ sáng/tối, phong cách hiển thị và cỡ chữ. |
 | `settings_theme_mode` · `settings_theme_light` · `_dark` · `_system` | Chế độ · Sáng · Tối · Hệ thống |
@@ -385,9 +385,9 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 | `settings_tts_section` · `settings_tts_mode_free` · `_auto` · `_premium` | Đọc to · Tiết kiệm · Tự động · Chất lượng cao |
 | `settings_tts_voice` | Giọng đọc |
 | `settings_chat_section` · `settings_chat_presets` | Chat · Preset lời nhắc hệ thống |
-| `settings_chat_preset_add` · `_save` · `_cancel` · `_is_default` | Thêm preset · Lưu · Hủy · Mặc định |
+| `settings_chat_preset_add` · `_save` · `_cancel` · `_is_default` | Thêm preset · Lưu · Huỷ · Mặc định |
 | `settings_chat_shortcut_send` · `settings_chat_shortcut_new_chat` | Phím gửi · Chat mới |
-| `settings_hotkey_recording` · `settings_hotkey_none` | Bấm phím… (Esc để hủy) · Chưa cài |
+| `settings_hotkey_recording` · `settings_hotkey_none` | Bấm phím… (Esc để huỷ) · Chưa cài |
 | `settings_chat_images_title` · `_prune` · `_clear` · `_usage` | Ảnh trong chat · Dọn ảnh cũ · Xoá hết · {count} ảnh · {size} trên máy |
 | `settings_modules_section` / `settings_modules_section_desc` | Module / Tắt một module sẽ ẩn trang, lệnh và phím tắt của nó, và dừng mọi việc chạy nền của nó. |
 | `settings_modules_last_page_hint` | Luôn giữ ít nhất một module không gian làm việc đang bật. |

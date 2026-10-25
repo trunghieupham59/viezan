@@ -68,7 +68,7 @@ Cửa sổ (`createQuickChatWindow`): rộng cố định **760 px** (`QUICK_CHA
 | Q1 | "Tìm kiếm" | `md · neutral · ghost`, `shape="rect"` | Click | `onBack` → Launcher về chế độ tìm; phiên giữ nguyên | Ô tìm Launcher hiện | Chỉ có khi được gắn trong Launcher (luôn đúng ở bản hiện tại) |
 | Q2 | Logo / Cuộc trò chuyện mới | `md · neutral · ghost`, icon vuông; chưa có lượt: logo app, có lượt: icon "+" | Click; ⌘N / Ctrl+N (chỉ khi có lượt, chữ, hoặc lỗi) | Huỷ luồng đang chạy (`cancelStream('discard')`), xoá lịch sử, xoá phiên trên đĩa (`session.clear`) | Thân về trạng thái trống, focus vào ô hỏi | `disabled` khi chưa có lượt nào (logo nằm trong nút xám) |
 | Q3 | Ô hỏi | `textarea`, `aria-label="Hỏi AI"` | Gõ; Enter gửi, ⇧Enter xuống dòng. Nếu Cài đặt › Chat chọn kiểu gửi ⌘↵ (`chatSendShortcut === 'modEnter'`): ⌘↵ gửi, Enter xuống dòng | Gửi câu hỏi (`sendQuestion`) | Ô trống lại, thẻ mới chiếm khung | `disabled` trong lúc đang gửi |
-| Q4 | Xoá chữ (✕ trong ô) | `xs · neutral · ghost`, icon, nhãn "Xóa" | Click | Ô trống, focus lại | — | Ẩn khi ô trống hoặc đang gửi |
+| Q4 | Xoá chữ (✕ trong ô) | `xs · neutral · ghost`, icon, nhãn "Xoá" | Click | Ô trống, focus lại | — | Ẩn khi ô trống hoặc đang gửi |
 | Q5 | Gửi | `md · primary · solid`, icon, nhãn "Gửi" | Click | Như Enter | Icon đổi thành spinner trong lúc gửi | `disabled` khi ô trống, vượt 3 000 ký tự (`MAX_CHAT_INPUT_CHARS`), đang gửi, hoặc thiếu khoá |
 | Q6 | Chip model (footer) | `xs · neutral · ghost`: chấm trạng thái + `ProviderIcon` + "/ {model}" + huy hiệu "✦ Smart Thinking" + "· {n} lượt" | Click | `quickChat.openSettings()` — ẩn cửa sổ nổi, mở Cài đặt ở cửa sổ chính | — | Không bao giờ tắt; `title` "Đổi mô hình trong Cài đặt"; chấm `--vzn-success` (có khoá) / `--vzn-warning` (thiếu khoá) kèm chữ ẩn "Mô hình sẵn sàng" / "Chưa có key" |
 | Q7 | Dừng | `xs · danger · ghost`, icon ■ + "Dừng" | Click | `cancelStream('stop')`: giữ phần đã nhận làm câu trả lời, lưu phiên, **không** đưa vào bộ nhớ đệm và không tính phí | Nút biến mất, Sao chép/Tạo lại hiện trong thẻ | Chỉ hiện khi đang gửi |
@@ -148,7 +148,7 @@ Cửa sổ có kích thước cố định, người dùng không đổi cỡ đ
 
 - Focus: mỗi lần hiện và sau mỗi câu trả lời, focus về ô hỏi (`focusInput`, trễ 30 ms). Không có Tab trap; Tab đi theo thứ tự: Tìm kiếm → logo/+ → ô hỏi → ✕ → Gửi → thẻ (Sao chép, Tạo lại) → footer (chip model, Dừng, Sao chép, Mở trong Chat).
 - Phím: Enter / ⇧Enter (hoặc ⌘↵ / Enter theo `chatSendShortcut`), ⌘N / Ctrl+N cuộc mới, ⌘↵ / Ctrl+↵ mở trong Chat, Esc ẩn cửa sổ. Phím ⌘ trên macOS, Ctrl nơi khác (`isPrimaryModifierShortcut` loại trừ Alt/Shift).
-- Nhãn: `section` và `textarea` có `aria-label="Hỏi AI"`; Gửi "Gửi"; ✕ "Xóa"; logo/+ có `aria-label` "AI nhanh" / "Cuộc trò chuyện mới (⌘+N)".
+- Nhãn: `section` và `textarea` có `aria-label="Hỏi AI"`; Gửi "Gửi"; ✕ "Xoá"; logo/+ có `aria-label` "AI nhanh" / "Cuộc trò chuyện mới (⌘+N)".
 - Vùng sống: `ThinkingPill` có `role="status"` `aria-live="polite"`; vùng câu trả lời có `aria-live="polite"` + `aria-busy` khi đang gửi. Ô lỗi **không** có `role="alert"` (chỉ được đọc lịch sự trong vùng câu trả lời); "Đã sao chép!" không được đọc.
 - Kéo cửa sổ: toàn bộ vỏ là vùng kéo (`titlebar-drag`); mọi điều khiển và thẻ có `titlebar-no-drag`, chữ câu hỏi chọn được (`select-text`).
 - Không có vòng focus ngoài (`*:focus-visible { outline: none }` trong `codex.css`); nút dùng viền trong `--vzn-focus-ring`.
@@ -169,7 +169,7 @@ Cửa sổ có kích thước cố định, người dùng không đổi cỡ đ
 | `ai_chat_popup_turns` | {count} lượt |
 | `launcher_back` | Tìm kiếm |
 | `launcher_ai` / `launcher_ai_followup` / `launcher_continue` | Hỏi AI / Hỏi tiếp AI / Tiếp tục Quick AI |
-| `chat_send` / `chat_stop` / `chat_clear` | Gửi / Dừng / Xóa |
+| `chat_send` / `chat_stop` / `chat_clear` | Gửi / Dừng / Xoá |
 | `chat_copy` / `chat_copied` / `chat_regenerate` | Sao chép / Đã sao chép! / Tạo lại phản hồi |
 | `chat_thinking` / `chat_smart_thinking_badge` / `chat_smart_thinking_hint` | Đang suy nghĩ… / Smart Thinking / AI tự phân tích và tìm web khi cần |
 | `chat_error_no_key` / `chat_error_open_settings` | Chưa có API key. Vào Cài đặt để thêm. / Mở Cài đặt |

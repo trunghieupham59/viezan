@@ -103,7 +103,7 @@ Ký hiệu loại: `size · variant · appearance`. "Chọn" = trạng thái đa
 | S7 | "Chọn ảnh" trong trạng thái trống của kiểu Ảnh | `md · primary · soft` | Bấm | Như S6 | — | — |
 | S8 | "Đổi ảnh" | `sm · neutral · outline` | Bấm | Chọn ảnh khác thay ảnh hiện tại | — | — |
 | S9 | Gỡ ảnh × trên thumbnail | Nút của `ImagePreviewThumbnail` (hiện khi hover) | Bấm | Gỡ ảnh, huỷ lượt dịch, xoá kết quả | Ô về trạng thái trống kiểu Ảnh | — |
-| S10 | Xoá 🗑 | `ClearButton` `md · danger · ghost` icon, "Xóa" | Bấm | Xoá nguồn, ảnh, kết quả, kết quả so sánh, lỗi, mục lịch sử đang đánh dấu | Ô trống; không hỏi xác nhận (đảo ngược bằng Lịch sử nếu đã dịch) | Ẩn khi ô trống hoặc đang thu âm |
+| S10 | Xoá 🗑 | `ClearButton` `md · danger · ghost` icon, "Xoá" | Bấm | Xoá nguồn, ảnh, kết quả, kết quả so sánh, lỗi, mục lịch sử đang đánh dấu | Ô trống; không hỏi xác nhận (đảo ngược bằng Lịch sử nếu đã dịch) | Ẩn khi ô trống hoặc đang thu âm |
 | S11 | Viết lại ✎ (nguồn) | `RewriteButton` `md · neutral · ghost` icon | Bấm | Gửi nguồn cho model viết lại tự nhiên hơn, thay nội dung ô nguồn | Nhãn "Đang viết lại…" | Ẩn khi có ảnh, trống hoặc đang thu âm |
 | S12 | Đọc to 🔊 (nguồn) | `SpeakButton` `md`; đang đọc: `danger · ghost` "Dừng đọc" | Bấm | TTS theo ngôn ngữ nguồn (nguồn `auto` dùng `DEFAULT_TTS_FALLBACK_LANG`) | Icon đổi ■ / spinner khi tải | Như S11 |
 | S13 | Bộ đếm "N ký tự" | Chữ `--vzn-font-size-sm` | — | > 5000 ký tự (`TRANSLATE_INPUT_WARNING_CHARS`): thêm ⓘ "· Có thể dịch lâu hơn", title giải thích | — | Ẩn khi có ảnh hoặc đang thu |
@@ -131,7 +131,7 @@ Ký hiệu loại: `size · variant · appearance`. "Chọn" = trạng thái đa
 | P1 | Ô "Mô hình" (`AIModelField`) | Hàng chọn có icon nhà cung cấp; nhiều model hiện "N mô hình" | Bấm | Đóng popover, mở hộp thoại Mô hình dịch | — | — |
 | P2 | Phong cách | `SelectField` 6 lựa chọn có mô tả: Thông thường, Trang trọng, Thân mật, Công sở, Kỹ thuật, Tự nhiên | Chọn | Lưu; tự động dịch thì dịch lại; đang dịch thì chạy lại | Tóm tắt "Phong cách: …" ở footer nguồn đổi | — |
 | P3 | Cách đọc | `SelectField`: Không hiển thị · Kèm cách đọc · Chỉ phiên âm | Chọn | Chạy lượt phụ tạo cách đọc cho bản dịch hiện tại | Ô chọn `busy` khi đang tạo | `disabled` khi so sánh, gợi ý "Không có phiên âm khi so sánh nhiều mô hình" |
-| P4 | Mức suy luận | `SelectField`: Tự động · Thấp · Trung bình · Cao | Chọn | Như P2 | — | `disabled` "Không thể tùy chỉnh" khi model không hỗ trợ |
+| P4 | Mức suy luận | `SelectField`: Tự động · Thấp · Trung bình · Cao | Chọn | Như P2 | — | `disabled` "Không thể tuỳ chỉnh" khi model không hỗ trợ |
 | P5 | Dịch tự động | `AutoTranslateToggle` `md`; bật `primary · soft`, tắt `neutral · outline`, `aria-pressed`, nhãn cố định "Dịch tự động" | Bấm | Bật/tắt dịch tự động (lưu) | Nút Dịch ở footer nguồn ẩn/hiện | Native `disabled` khi so sánh, title "Chế độ so sánh chạy thủ công…"; lựa chọn đã lưu giữ nguyên |
 | P6 | Đặt lại mặc định | `sm · neutral · ghost` ở footer | Bấm | Phong cách Thông thường, suy luận Tự động, cách đọc tắt | — | Chỉ hiện khi có tuỳ chọn khác mặc định |
 | M1 | Ô tìm model | `Input md type="search"` | Gõ | Lọc theo tên model, id, tên nhà cung cấp | "Không tìm thấy model" | — |
@@ -139,7 +139,7 @@ Ký hiệu loại: `size · variant · appearance`. "Chọn" = trạng thái đa
 | M3 | Chip đã chọn × (`SelectedModelChip`) | Chip có nút bỏ, nhãn "Kết quả 1/2/3" | Bấm × | Bỏ khỏi bản nháp | Đủ 3: thông báo "Đã chọn đủ 3 mô hình. Hãy bỏ một mô hình để chọn mô hình khác." | — |
 | M4 | Tải lại danh sách ↻ (mỗi nhà cung cấp) | `xs · neutral · ghost` icon | Bấm | Tải danh mục model trực tiếp | Spinner; lỗi "Tải thất bại" `role="alert"` | `disabled` khi đang tải |
 | M5 | "Mở Cài đặt" (nhà cung cấp chưa có khoá) | `xs · neutral · ghost` pill | Bấm | Đóng hộp thoại, mở Cài đặt | — | — |
-| M6 | Hủy / × | `md · neutral · outline`; × `sm · neutral · ghost` | Bấm, Esc, bấm nền | Bỏ bản nháp | Focus về nút đã mở | — |
+| M6 | Huỷ / × | `md · neutral · outline`; × `sm · neutral · ghost` | Bấm, Esc, bấm nền | Bỏ bản nháp | Focus về nút đã mở | — |
 | M7 | "Áp dụng N mô hình" | `md · primary · solid` | Bấm | Ghi lựa chọn; ≥ 2 model chuyển sang so sánh (thủ công); kết quả cũ của đúng model được giữ | Bố cục đổi sang so sánh | Native `disabled` khi chưa chọn gì hoặc không đổi gì |
 
 ### 4.5 So sánh
@@ -165,7 +165,7 @@ Ký hiệu loại: `size · variant · appearance`. "Chọn" = trạng thái đa
 | L2 | Hàng mục | `<button>` gốc (ngoại lệ có ghi chú: hàng nhiều dòng), `aria-current` cho mục đang mở | Bấm | Mở lại: nguồn, cặp ngôn ngữ, phong cách, model; mục so sánh khôi phục mọi bản và bản đã chọn. Đóng lớp phủ nếu đang ở chế độ hẹp | Hàng tô `data-active` | — |
 | L3 | Xoá 🗑 (mỗi hàng) | `xs · danger · ghost` icon | Bấm | Xoá mục ngay | Hàng biến mất; toast "Đã xoá bản dịch" (khoá chủ `translate-history-deleted`) có nút Hoàn tác đưa mục về đúng vị trí cũ | — |
 | L4 | "Xoá lịch sử dịch" | `sm · danger · outline` pill, `aria-haspopup="dialog"` | Bấm | Mở hộp xác nhận "Thao tác này xoá toàn bộ bản dịch đã lưu và không thể hoàn tác." | — | Ẩn khi trống |
-| L5 | Xác nhận xoá / Hủy | `md · danger · solid` / `md · neutral · outline` | Bấm | Xoá toàn bộ / đóng | — | — |
+| L5 | Xác nhận xoá / Huỷ | `md · danger · solid` / `md · neutral · outline` | Bấm | Xoá toàn bộ / đóng | — | — |
 | L6 | Đóng lịch sử (lớp phủ) | Nút đóng của `DialogShell`, "Đóng lịch sử"; Esc; bấm nền | Bấm | Đóng lớp phủ | — | — |
 
 ### 4.7 Toast
@@ -308,7 +308,7 @@ Tính theo container `app-main` (`translate.css`, `language-pair-bar.css`).
 | `translate_input_mode_text` / `_image` / `_voice` | Văn bản / Ảnh / Giọng nói |
 | `translate_history_toggle_show` / `_hide` | Hiện lịch sử dịch / Ẩn lịch sử dịch |
 | `ai_configuration_title` | Cấu hình AI |
-| `ai_configuration_translate_scope` | Áp dụng cho lượt dịch hiện tại. Lượt dịch mới kế thừa các tùy chọn này. |
+| `ai_configuration_translate_scope` | Áp dụng cho lượt dịch hiện tại. Lượt dịch mới kế thừa các tuỳ chọn này. |
 | `translate_source_content_label` / `translate_result_content_label` | Nguồn / Kết quả |
 | `translate_placeholder` | Nhập hoặc dán văn bản… |
 | `translate_voice_hint` | Bấm micro bên dưới rồi nói. Lời nói hiện ở đây rồi được dịch. |
@@ -327,7 +327,7 @@ Tính theo container `app-main` (`translate.css`, `language-pair-bar.css`).
 | `translate_speak` / `translate_speak_stop` | Đọc to / Dừng đọc |
 | `translate_rewrite` / `translate_rewriting` | Viết lại / Đang viết lại… |
 | `translate_use_as_source` | Dùng làm nội dung gốc |
-| `translate_clear` | Xóa |
+| `translate_clear` | Xoá |
 | `translate_compare_models` | So sánh model |
 | `translate_style_label` | Phong cách |
 | `translate_phonetic` | Cách đọc |

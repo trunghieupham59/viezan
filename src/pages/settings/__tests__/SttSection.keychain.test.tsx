@@ -74,7 +74,7 @@ describe('SttSection Groq keychain results', () => {
     render(<SttSection />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Sửa' }))
-    fireEvent.click(screen.getByTitle('Xóa'))
+    fireEvent.click(screen.getByTitle('Xoá'))
 
     expect(window.confirm).toHaveBeenCalledWith('Xoá khoá API của Groq?')
     expect(keychain.delete).not.toHaveBeenCalled()

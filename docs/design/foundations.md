@@ -42,7 +42,7 @@ Quy tắc: chỉ `.app-shell` và `.app-main` tô nền; các lớp bọc trung 
 | Vai trò | Token cỡ | Độ đậm |
 | --- | --- | --- |
 | Tiêu đề trang (header) | `--vzn-font-size-title-lg` (18) | semibold |
-| Tiêu đề mục trong trang | `--vzn-font-size-title-lg` | semibold |
+| Tiêu đề mục trong trang | `--vzn-font-size-title` (16) | semibold |
 | Tiêu đề thẻ | `--vzn-font-size-subtitle` (15) | semibold |
 | Nhãn hàng, mục điều hướng | `--vzn-font-size-lg` (14) | regular; mục đang chọn semibold |
 | Thân chữ, nút | `--vzn-font-size-md` (13) | regular / medium |

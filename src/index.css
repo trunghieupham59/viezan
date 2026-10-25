@@ -574,8 +574,10 @@
     color: var(--vzn-text-muted);
   }
   .btn-nav-item:hover, .btn-segment:hover { background: var(--vzn-surface-subtle); color: var(--vzn-text); }
-  /* Settings section navigation reads at the nav size (foundations §4). */
-  .ui-button.btn-nav-item { font-size: var(--vzn-font-size-lg); }
+  /* Settings section navigation reads at the nav size and weight (foundations §4):
+     regular, with only the current section semibold, like the primary navigation. */
+  .ui-button.btn-nav-item { font-size: var(--vzn-font-size-lg); font-weight: var(--vzn-weight-regular); }
+  .ui-button.btn-nav-item[aria-current="true"] { font-weight: var(--vzn-weight-semibold); }
   .btn-segment-active { background: var(--vzn-accent-soft) !important; border-color: var(--vzn-accent-border) !important; color: var(--vzn-accent) !important; }
   .segmented-control {
     display: inline-flex; align-items: center; gap: 2px;
