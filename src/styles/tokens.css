@@ -186,18 +186,24 @@
    * (not a Chinese one), so kanji keep Japanese forms in every persona. */
   --vzn-font-cjk: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo",
     "Noto Sans JP", "Noto Sans CJK JP";
-  --vzn-font-size-micro: 10px;
-  --vzn-font-size-caption: 11px;
-  --vzn-font-size-sm: 12px;
-  --vzn-font-size-md: 13px;
-  --vzn-font-size-lg: 14px;
-  --vzn-font-size-subtitle: 15px;
-  --vzn-font-size-title: 16px;
-  --vzn-font-size-title-lg: 18px;
-  --vzn-font-size-heading: 22px;
-  --vzn-font-size-heading-lg: 28px;
+  /* Settings › Appearance › Text size multiplies every font-size token by
+   * this factor (see [data-text-size] below). Control heights and spacing
+   * stay fixed, so layout keeps its rhythm. */
+  --vzn-text-scale: 1;
+  /* rem stays fixed whatever the text size; it sizes layout, not type. */
+  --vzn-root-font-size: 15px;
+  --vzn-font-size-micro: calc(10px * var(--vzn-text-scale));
+  --vzn-font-size-caption: calc(11px * var(--vzn-text-scale));
+  --vzn-font-size-sm: calc(12px * var(--vzn-text-scale));
+  --vzn-font-size-md: calc(13px * var(--vzn-text-scale));
+  --vzn-font-size-lg: calc(14px * var(--vzn-text-scale));
+  --vzn-font-size-subtitle: calc(15px * var(--vzn-text-scale));
+  --vzn-font-size-title: calc(16px * var(--vzn-text-scale));
+  --vzn-font-size-title-lg: calc(18px * var(--vzn-text-scale));
+  --vzn-font-size-heading: calc(22px * var(--vzn-text-scale));
+  --vzn-font-size-heading-lg: calc(28px * var(--vzn-text-scale));
   --vzn-line-height-reading: 1.6;
-  --vzn-font-size-display: 32px;
+  --vzn-font-size-display: calc(32px * var(--vzn-text-scale));
   --vzn-line-tight: 1.2;
   /** Letter spacing for small uppercase labels (section kickers, group headings). */
   --vzn-tracking-caps: 0.06em;
@@ -402,6 +408,19 @@
   --vzn-accent-active: var(--vzn-action-active);
   --vzn-accent-soft: var(--vzn-action-soft);
   --vzn-accent-border: var(--vzn-action-border);
+}
+
+/* Text size (Settings › Appearance). Set on <html> by the app. */
+:root[data-text-size="small"] {
+  --vzn-text-scale: 0.9;
+}
+
+:root[data-text-size="large"] {
+  --vzn-text-scale: 1.15;
+}
+
+html {
+  font-size: var(--vzn-root-font-size);
 }
 
 /* Japanese has no letter case: uppercase labels would only gain letter spacing. */
