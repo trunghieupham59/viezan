@@ -6,7 +6,7 @@ Board: [`specs/locales.html`](specs/locales.html). Board vẽ các màn hình ch
 
 - Mọi nhãn giao diện trong board được sinh từ `src/i18n/locales/{vi,en,ja}.ts`, theo đúng khoá mà component dùng (tên khoá có trong bảng dưới). Tiêu đề hội thoại và văn bản dịch là dữ liệu mẫu.
 - Mock dựng lại CSS của component thật bằng token: ellipsis, `flex-wrap`, các token bề rộng như `--vzn-language-pair-half-max`, `--vzn-model-chip-model-max`, `--vzn-step-min`, `--vzn-settings-select-min`, `--vzn-dialog-md-max-inline`. Bề rộng (px) ghi dưới đây đo trong Chromium (Electron dùng cùng engine) trên macOS, với font hệ thống.
-- **Chưa kiểm chứng trong app chạy thật.** Không có mục nào dưới đây được đo trong bản dựng Electron hay web preview (`localhost:5174`); con số lấy từ board. Mục nào cần xác nhận trong app được ghi *(cần xác nhận)*.
+- **Đo lại trong app (2026-10-25).** Các dòng ghi "đo trong app" được đo trên web preview (`localhost:5174`) bằng `scrollWidth`/`clientWidth` của phần tử thật, ở cửa sổ 1280 px (điều hướng mở rộng) và 820 px. Các dòng còn lại vẫn là số đo trong board.
 - Khung trong board có `lang="vi|en|ja"`. App thật cũng vậy: `index.html` khởi đầu `<html lang="en">`, rồi `App.tsx`, `QuickLauncher.tsx` và `UpdatePopupPage` đặt `document.documentElement.lang` theo `locale`.
 
 ## Font và chữ Nhật
@@ -22,14 +22,14 @@ Board: [`specs/locales.html`](specs/locales.html). Board vẽ các màn hình ch
 
 | Khoá | VI | EN | JA | Bề rộng đo (VI / EN / JA) |
 | --- | --- | --- | --- | --- |
-| `nav_utilities` | Launcher & phím tắt (19) | Launcher & shortcuts (20) | ランチャー (5) | 131 / 139 / chưa đo lại (trước: **181** trên khoảng 180 px); tiêu đề trang dùng `utilities_title` với tên đầy đủ |
+| `nav_utilities` | Launcher & phím tắt (19) | Launcher & shortcuts (20) | ランチャー (5) | đo trong app: 131 / 139 / 70, không bị cắt (trước: JA **181** trên khoảng 180 px); tiêu đề trang dùng `utilities_title` với tên đầy đủ |
 | `nav_everywhere` | Dịch mọi nơi (12) | Translate everywhere (20) | どこでも翻訳 (6) | 80 / 138 / 84 |
-| `nav_search_or_run` | Tìm hoặc chạy lệnh (18) | Search or run a command (23) | 検索またはコマンドを実行 (12) | 163 / 163 / 161, vừa |
+| `nav_search_or_run` → `nav_search_label` | Tìm kiếm (8) | Search (6) | 検索 (2) | đo trong app: chữ cũ bị cắt ở cả ba ngôn ngữ (EN 156 trên 106, JA 156 trên 117, VI bị cắt), board đo sai vì không có chip phím `Ctrl K`. Nay hiện nhãn ngắn (VI 55, JA 26 px); câu đầy đủ (VI "Tìm kiếm hoặc chạy lệnh") nằm trong `title` và `aria-label`, có chứa nhãn hiển thị |
 | `home_resume_description` | (42) | Recent chats, translations, interpreting and lookups (52) | (16) | 234 / 292 / 192 |
 | `home_kind_live` | Phiên dịch (10) | Interpreting (12) | 通訳 (2) | thẻ 69 / 77 / 34 |
 | `home_ai_missing_key` | Cần API key (11) | API key needed (14) | APIキーが必要 (8) | vừa |
-| `chat_task_simple` (trong nút Tác vụ) | Dễ hiểu, có ví dụ (17) | Simple, with examples (21) | 初心者向け・具体例付き (11) | chưa đo lại (trước: nút 277 / **349** / 285) |
-| `chat_task_simple` (dòng phụ lịch sử) | | | | 208 / **233 trên 208** / 208 |
+| `chat_task_simple` (trong nút Tác vụ) | Dễ hiểu, có ví dụ (17) | Simple, with examples (21) | 初心者向け・具体例付き (11) | đo trong app, nút "Tác vụ: Giải thích · …": 287 / **299** / 296 (trước EN 349) |
+| `chat_task_simple` (dòng phụ lịch sử) | | | | đo trong app: 158 / 176 / 166 trên 208, vừa (trước EN **233**) |
 | `translate_detected_language` + `lang_names.zh` | Đã nhận diện: Tiếng Trung (Giản thể) (36) | Detected: Chinese (Simplified) (30) | 判定結果: 中国語（簡体字） (14) | chữ **228 / 190 / 163** trên 125 / 144 / 148 (đo với câu đầy đủ; nút nay chỉ hiện tên ngôn ngữ, câu đầy đủ nằm trong `title`/`aria-label`) |
 | `translate_manual_shortcut` | Enter để dịch (13) | Enter to translate (18) | Enterで翻訳 (7) | chưa đo lại (trước khi rút: 204 / 223 / 162) |
 | `translate_long_text_label` | Có thể dịch lâu hơn (19) | May take longer (15) | 時間がかかる場合あり (10) | cả cụm bộ đếm 190 / 175 / 191 |
@@ -42,24 +42,24 @@ Board: [`specs/locales.html`](specs/locales.html). Board vẽ các màn hình ch
 | `everywhere_step_press` (`{key}`) | Nhấn ⌥ T | Press ⌥ T | ⌥ Tを押す | đúng trật tự; `KeyCap` đặt vào chỗ `{key}` |
 | `everywhere_ext_step_load_desc` | (70) | (52) | (55) | VI, EN, JA đều 2–3 dòng trong ô 288 px |
 | `settings_extension_download_btn` | Tải về từ GitHub (16) | Download from GitHub (20) | GitHubからダウンロード (14) | nút 145 / 187 / 193 |
-| `command_palette_everywhere_description` | (39) | Quick Translate and the Chrome extension (40) | (22) | chưa đo lại (trước: 235 / **319 trên 307** / 243) |
+| `command_palette_everywhere_description` | (39) | Quick Translate and the Chrome extension (40) | (22) | đo trong app: 235 / 239 / 236, không bị cắt (trước EN **319 trên 307**) |
 | `image_model_switched_message` | Đang dùng {model} vì {previous} không đọc được ảnh. | Using {model} because {previous} can't read images. | {previous} は画像を読み取れないため、{model} を使用しています。 | một câu có chỗ trống |
 
 ## Rủi ro và đề xuất
 
 Thứ tự theo mức ảnh hưởng. "Khung" là id khung trong board.
 
-Mười rủi ro đo được trong board đã xử lý trong mã (2026-10-25). Các con số "trước" ở bảng trên là số đo cũ; cần đo lại trên app.
+Mười rủi ro đo được trong board đã xử lý trong mã (2026-10-25) và đã đo lại trong app (xem bảng trên). Lúc đo lại phát hiện thêm ô tìm kiếm ở điều hướng bị cắt chữ; đã sửa bằng nhãn ngắn `nav_search_label`. Tiện thể, mọi chữ "API Key" của token tiện ích Chrome ở EN/JA đổi thành "token" / "トークン" như VI, để không lẫn với khoá API của nhà cung cấp AI.
 
 1. **Dịch mọi nơi, bước 2:** `everywhere_step_press` thành khoá có chỗ trống `{key}` (VI "Nhấn {key}", EN "Press {key}", JA "{key}を押す"); `HotkeySection` đặt `KeyCap` vào đúng chỗ.
 2. **Điều hướng chính:** nhãn điều hướng JA rút còn "ランチャー"; tiêu đề trang Launcher & phím tắt dùng khoá riêng `utilities_title` với tên đầy đủ ở cả ba ngôn ngữ.
 3. **Bảng lệnh:** EN `command_palette_everywhere_description` rút thành "Quick Translate and the Chrome extension".
 4. **AI Chat, lịch sử:** nút chọn phiên có `title` (tiêu đề + dòng phụ); EN `chat_task_simple` rút thành "Simple, with examples".
 5. **AI Chat, nút Tác vụ:** nhãn là khoá có chỗ trống `chat_task_trigger_label` (JA "タスク：{label}" với dấu "：" toàn độ rộng); `title` và `aria-label` mang toàn văn.
-6. **Trang chủ, bắt đầu nhanh:** mô tả thẻ dùng `text-wrap: balance` (`.ui-quick-card__description`).
+6. **Trang chủ, bắt đầu nhanh:** mô tả thẻ dùng `text-wrap: balance` (`.ui-quick-card__description`). Đo trong app ở 1280 px: EN và JA một dòng; VI ba thẻ hai dòng chia đều, một thẻ một dòng.
 7. **Cài đặt, Giọng nói:** chế độ ElevenLabs gọi thống nhất là "Chất lượng cao" / "High Quality" / "高品質" (`settings_tts_elevenlabs_for_premium`).
 8. **Khoảng trắng JA:** `ja.ts` viết liền chữ Latin với kana/kanji ở mọi chuỗi ("AIチャット", "Chrome拡張機能", "APIキー", "{name}のAPIキー"); "key" trong câu JA đổi thành "キー".
-9. **Dịch mọi nơi, cài tiện ích:** đường dẫn menu Chrome ngắt dòng giữa các bước "→", không ngắt giữa một bước (`.ui-step-list__path-step`). Chuỗi menu Chrome bản VI/JA vẫn chưa đối chiếu với Chrome thật.
+9. **Dịch mọi nơi, cài tiện ích:** đường dẫn menu Chrome ngắt dòng giữa các bước "→", không ngắt giữa một bước (`.ui-step-list__path-step`). Tên menu đã đối chiếu với bản dịch của Chromium (`generated_resources_{vi,ja}.xtb`, theo mã băm của "Developer mode" và "Load unpacked"): VI "Chế độ dành cho nhà phát triển", "Tải tiện ích đã giải nén"; JA "デベロッパー モード" (giữ dấu cách như Chrome), "パッケージ化されていない拡張機能を読み込む". Đo trong app ở 820 px: VI 3 dòng, EN 2, JA 4, đều ngắt tại "→".
 10. **Thời gian tương đối:** sau 7 ngày, ngày định dạng theo ngôn ngữ app (`formatDateForLocale`); VI `time_h_ago` thành "{n} giờ trước".
 
 ## Quy tắc viết chữ EN/JA cho Viezan

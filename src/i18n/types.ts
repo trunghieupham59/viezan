@@ -103,6 +103,7 @@ export interface Translations {
   nav_space_tools: string
   /** The command palette trigger at the top of the primary sidebar. */
   nav_search_or_run: string
+  nav_search_label: string
   /** Accessible name of the toast stack. */
   notifications_region: string
   /** Background activity strip at the bottom of the primary sidebar. */

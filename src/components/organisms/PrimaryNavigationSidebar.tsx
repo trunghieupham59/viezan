@@ -258,7 +258,8 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
         <span className="sidebar-nav-icon">
           <SearchIcon />
         </span>
-        <span className="sidebar-nav-label">{t.nav_search_or_run}</span>
+        {/* Short visible label; the title and accessible name keep the full phrase. */}
+        <span className="sidebar-nav-label">{t.nav_search_label}</span>
         <kbd className="sidebar-shortcut">{commandShortcut}</kbd>
       </Button>
 

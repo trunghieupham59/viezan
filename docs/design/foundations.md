@@ -111,7 +111,7 @@ Nội dung đọc dài (tin nhắn chat, bản dịch) dùng `--vzn-font-reading
 ┌ Title bar 40 px (đèn macOS · nút thu gọn sidebar) ─────────────────────────┐
 ├ Primary nav 236 px (60 px khi thu gọn) ┬ [Sidebar ngữ cảnh, vd. lịch sử chat]┬ Page ┤
 │ Logo Viezan                            │                                      │ Header 56 px │
-│ [Tìm hoặc chạy lệnh  ⌘K]               │                                      │ Nội dung     │
+│ [Tìm kiếm            ⌘K]               │                                      │ Nội dung     │
 │ Trang chủ                              │                                      │              │
 │ AI: AI Chat                            │                                      │              │
 │ NGÔN NGỮ: Dịch · Phiên dịch · Từ điển  │                                      │              │
