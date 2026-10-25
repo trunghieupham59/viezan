@@ -1760,9 +1760,18 @@ body {
 /* Shared keyboard focus signal. Zero-specificity so a control that draws its
  * own focus ring (see codex.css) can opt out with a plain class selector.
  * `tabindex="-1"` targets only receive focus programmatically. */
-:where(button, a, input, textarea, select, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+/* Text fields are left out: they show focus with the caret and a stronger
+ * neutral border of their own, never the accent ring. */
+:where(button, a, select, summary, [tabindex]:not([tabindex="-1"]), input:is([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="button"], [type="submit"], [type="reset"])):focus-visible {
   outline: var(--vzn-focus-ring-width) solid var(--vzn-focus-ring);
   outline-offset: var(--vzn-focus-ring-offset);
+}
+
+/* Text fields draw no outline at all. Leaving them out of the rule above is
+ * not enough: the browser's own `outline: auto` (in the system accent colour)
+ * would come back. */
+:where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="button"], [type="submit"], [type="reset"]), textarea, [contenteditable]:not([contenteditable="false"])):focus-visible {
+  outline: none;
 }
 
 /* Text selection follows the preset accent instead of the browser default. */

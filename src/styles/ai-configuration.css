@@ -210,6 +210,10 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--vzn-space-2);
+  /* Every panel header is as tall as one holding an sm control (the view
+     toggle), so side-by-side panels keep their dividers on one line. */
+  min-block-size: calc(var(--vzn-control-height-sm) + 2 * var(--vzn-space-2) + var(--vzn-border-width));
+  box-sizing: border-box;
   padding: var(--vzn-space-2) var(--vzn-space-3);
   border-bottom: var(--vzn-border-width) solid var(--vzn-divider);
 }
@@ -613,9 +617,39 @@
   gap: var(--vzn-space-2) var(--vzn-space-3);
 }
 
-@container app-main (max-width: 899px) {
+/* Source labels need the whole row; below that the buttons keep their icon,
+   aria-label and tooltip. */
+@container app-main (max-width: 1119px) {
   .live-header-leading .live-audio-source-group .ui-button span {
     display: none;
+  }
+}
+
+/* Title, pair, sources and actions share one row; the language pair shrinks
+   first, down to roughly one readable label per half. Narrower workspaces let
+   the actions wrap below instead. */
+@container app-main (min-width: 760px) {
+  .live-page-header {
+    flex-wrap: nowrap;
+  }
+
+  .live-header-leading {
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+  }
+
+  .live-header-leading > .language-pair-bar {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .live-header-leading > .live-audio-source-group {
+    flex: 0 0 auto;
+  }
+
+  .live-page-header .page-header__actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
   }
 }
 

@@ -59,6 +59,29 @@ describe('keyboard focus ring', () => {
     expect(globalResets).toEqual([])
   })
 
+  it('leaves text fields out of the shared ring', () => {
+    const shared = rules.find((rule) => rule.file.endsWith('tokens.css')
+      && rule.selectors.some((selector) => selector.startsWith(':where(') && selector.endsWith(':focus-visible')))
+    const list = shared?.selectors.join(',') ?? ''
+    expect(list).not.toMatch(/\btextarea\b/)
+    // Only non-text inputs (checkbox, radio, range, …) are listed.
+    expect(list).not.toMatch(/\binput\s*,|\binput\)/)
+  })
+
+  it('removes the browser outline from text fields too', () => {
+    // Without it the UA `outline: auto` returns in the system accent colour.
+    const reset = rules.find((rule) => rule.file.endsWith('tokens.css') && removesOutline(rule.body)
+      && rule.selectors.some((selector) => selector.startsWith(':where(') && /\btextarea\b/.test(selector) && selector.endsWith(':focus-visible')))
+    expect(reset).toBeDefined()
+  })
+
+  it('shows text-field focus with a neutral border, never the accent ring', () => {
+    const textFieldFocus = rules.filter((rule) => rule.selectors.some((selector) => /:focus/.test(selector)
+      && /(input|textarea|composer|filter-input|search)/.test(selector) && !/button/.test(selector)))
+    const accented = textFieldFocus.filter((rule) => /--vzn-focus-ring|--vzn-action-border/.test(rule.body))
+    expect(accented.map((rule) => rule.selectors.join(', '))).toEqual([])
+  })
+
   it('does not stack a second ring on buttons that use the shared outline', () => {
     const buttonRings = rules.filter((rule) => rule.selectors.includes('.ui-button:focus-visible') && /box-shadow/.test(rule.body))
     expect(buttonRings).toEqual([])

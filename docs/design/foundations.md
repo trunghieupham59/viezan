@@ -155,6 +155,7 @@ Theo thứ tự tăng dần: thanh công cụ cục bộ → lớp phủ ngữ c
 
 - Mọi chữ hiển thị qua i18n (EN/VI/JA). Bản vẽ và đặc tả viết tiếng Việt; khoá i18n ghi kèm khi cần.
 - Tab đi theo thứ tự đọc. Mở lớp phủ thì focus vào điều khiển đầu tiên (hoặc mục đang chọn); Esc đóng và trả focus về nút đã mở.
+- Dấu hiệu focus: nút, liên kết, ô chọn và điều khiển khác dùng viền chung `--vzn-focus-ring` khi focus bằng bàn phím (`:focus-visible`, `tokens.css`). Ô nhập chữ (`input` dạng chữ, `textarea`, ô soạn tin Chat, ô lọc) **không** dùng viền màu nhấn: focus hiện bằng con trỏ nhập liệu và viền chuyển sang `--vzn-border-strong`. Test `src/styles/__tests__/focusRing.test.ts` giữ quy tắc này.
 - Vùng kết quả bất đồng bộ (dịch, phiên dịch, kết quả kiểm tra) có `aria-live="polite"`; lỗi chặn dùng `role="alert"`.
 - Độ tương phản chữ thân đạt WCAG AA trên cả hai chế độ.
 

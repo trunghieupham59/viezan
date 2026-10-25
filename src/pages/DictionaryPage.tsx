@@ -93,7 +93,7 @@ export function DictionaryPage() {
           title={t.dictionary_title}
           className="dictionary-page-header"
           leading={(
-            <LanguagePairBar scope="dictionary" onPairChange={(pair) => setLanguagePair('translate', pair)} />
+            <LanguagePairBar scope="dictionary" size="sm" onPairChange={(pair) => setLanguagePair('translate', pair)} />
           )}
           actions={(
             <DictionaryAIConfiguration

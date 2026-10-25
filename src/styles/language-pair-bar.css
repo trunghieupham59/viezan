@@ -30,15 +30,23 @@
   font-weight: var(--vzn-weight-medium);
 }
 
-/* md halves fill the framed bar (its border eats into the 36px control).
-   sm halves keep their own 32px height: the bar is sized to match. */
-.language-pair-bar--md > .ui-button.language-pair-half {
-  height: 100% !important;
-  min-height: 0 !important;
+/* Halves fill the framed bar: its border eats into the control height. The
+   Button atom reads its height from these variables; a plain `height` here
+   would lose to the atom's layered `!important`. */
+.language-pair-bar > .ui-button.language-pair-half {
+  --vzn-button-height: 100%;
+  --vzn-button-min-height: 0;
 }
 
 .language-pair-bar--sm {
   height: var(--vzn-control-height-sm);
+}
+
+/* Keyboard focus is drawn just inside a half: an outer ring would overlap the
+   shared frame and its neighbour. */
+.language-pair-bar > .ui-button.language-pair-half:focus-visible,
+.language-pair-bar .language-pair-mid > .ui-button:focus-visible {
+  outline-offset: calc(-1 * var(--vzn-focus-ring-width));
 }
 
 /* The halves round only the outer corners so hover / open fills stay inside the frame. */
@@ -128,10 +136,9 @@
   color: var(--vzn-text-muted);
 }
 
-.language-pair-bar--md .language-pair-mid > .ui-button.ui-button-icon.language-pair-mid-button {
-  width: 100% !important;
-  height: 100% !important;
-  min-height: 0 !important;
+.language-pair-bar .language-pair-mid > .ui-button.ui-button-icon.language-pair-mid-button {
+  --vzn-button-height: 100%;
+  --vzn-button-min-height: 0;
   border-color: transparent !important;
   border-radius: 0;
 }
@@ -270,37 +277,45 @@
   }
 }
 
-/* In a page header the pair is a compact 32px control. Pages that pass
-   size="sm" (Translate) get it from the Button atom; md bars are squeezed. */
+/* In a page header (Translate, Interpret, Dictionary) the pair is two framed
+   32px buttons with the middle slot (swap, arrow or lock) standing between
+   them, not one connected bar. Pages pass size="sm". */
 .page-header .language-pair-bar {
   height: var(--vzn-control-height-sm);
-  border-color: var(--vzn-border-strong);
-  border-radius: var(--vzn-radius-sm);
-  --language-pair-inner-radius: calc(var(--vzn-radius-sm) - var(--vzn-border-width));
-}
-
-.page-header .language-pair-bar .language-pair-half-icon:not(.language-pair-half-spinner),
-.page-header .language-pair-bar .language-pair-chevron {
-  display: none;
-}
-
-/* Translate: source and target are two buttons with the swap between them. */
-.translate-page-header .language-pair-bar {
   gap: var(--vzn-space-1);
   border: 0;
   background: transparent;
 }
 
-.translate-page-header .language-pair-bar > .ui-button.language-pair-half {
+.page-header .language-pair-bar > .ui-button.language-pair-half {
+  border-radius: var(--vzn-radius-sm);
+}
+
+/* Only enabled halves take the framed look; disabled halves (a locked pair)
+   keep the Button atom's gray disabled fill, border and text. */
+.page-header .language-pair-bar > .ui-button.language-pair-half:not(:disabled) {
   --vzn-button-bg: var(--vzn-surface);
   --vzn-button-border: var(--vzn-border-strong);
   --vzn-button-hover-bg: var(--vzn-surface-raised);
   --vzn-button-hover-border: var(--vzn-border-strong);
   border-color: var(--vzn-border-strong) !important;
+}
+
+.page-header .language-pair-bar .language-pair-mid {
+  border: 0;
+  background: transparent;
+}
+
+.page-header .language-pair-bar .language-pair-mid > .ui-button.ui-button-icon.language-pair-mid-button {
   border-radius: var(--vzn-radius-sm);
 }
 
-.translate-page-header .language-pair-bar .language-pair-mid {
-  border: 0;
+/* Locked: the halves read disabled on their own; the bar adds no frame. */
+.page-header .language-pair-bar--locked {
   background: transparent;
+}
+
+.page-header .language-pair-bar .language-pair-half-icon:not(.language-pair-half-spinner),
+.page-header .language-pair-bar .language-pair-chevron {
+  display: none;
 }

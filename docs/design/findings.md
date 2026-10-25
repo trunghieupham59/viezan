@@ -59,3 +59,6 @@ Các điểm từng ghi "cần xác nhận", nay chốt để đồng bộ với
 - **Lỗi "hai ngôn ngữ giống nhau" ở Từ điển vẫn là toast.** Lỗi thuộc về cặp ngôn ngữ chứ không thuộc một ô nhập, nên không đặt dưới ô; lỗi rỗng/quá dài vẫn nằm dưới ô tương ứng.
 - **Nhãn câu hỏi trong Quick Chat:** EN/JA "Q", VI "Hỏi" (chữ "H" một mình không đủ nghĩa trong tiếng Việt).
 - **Khoảng trắng tiếng Nhật:** viết liền chữ Latin với kana/kanji (quy ước đã chiếm đa số trong `ja.ts`).
+- **Cặp ngôn ngữ trong header trang dùng một kiểu cho Dịch, Phiên dịch và Từ điển:** hai nút ngôn ngữ có khung riêng, ô giữa (⇄, → hoặc ổ khoá) đứng tách giữa hai nút. Bản vẽ gốc từng vẽ ba kiểu khác nhau (Dịch: ba nút rời; Phiên dịch, Từ điển và Dịch hẹp: một nút gộp "A → B"), mã từng dùng thanh liền khối cho hai trang sau. Kiểu chung nằm trong `.page-header .language-pair-bar` (`language-pair-bar.css`); thanh liền khối vẫn là kiểu mặc định của `LanguagePairBar` ngoài header.
+- **Ô nhập chữ không có viền màu nhấn khi focus.** Bấm vào ô nhập chỉ đổi viền sang `--vzn-border-strong`; con trỏ nhập liệu là dấu hiệu chính. Viền `--vzn-focus-ring` chỉ dành cho nút và điều khiển khác khi dùng bàn phím.
+- **Gợi ý phím tắt nằm trong nút.** Chip phím (⌘N, ⌘K) luôn ở bên trong điều khiển mà nó kích hoạt, không đứng rời cạnh nút như một nút thứ hai bấm không được.

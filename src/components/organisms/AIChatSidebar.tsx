@@ -6,7 +6,7 @@ import { useNotificationStore } from '../../store/useNotificationStore'
 import type { ChatSession } from '../../types'
 import { chatSessionTitle } from '../../utils/chatSessionTitle'
 import { getChatTaskDefinitions } from '../../utils/chatTaskConfiguration'
-import { formatShortcutLabel } from '../../utils/keyboardShortcuts'
+import { formatShortcutLabel, shortcutKeyCaps } from '../../utils/keyboardShortcuts'
 import { formatTimeAgo } from '../../utils/relativeTime'
 import { Button, Input } from '../ui/atoms'
 import { PlusIcon, SearchIcon, SidebarPanelIcon } from '../ui/icons'
@@ -137,6 +137,9 @@ export function AIChatSidebar({ children }: {
   const sidebarToggleRef = useRef<HTMLButtonElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const shortcut = formatShortcutLabel(chatNewSessionShortcut, window.api?.platform)
+  // Key caps as the sidebar shows ⌘K: "⌘N" on macOS, "Ctrl N" elsewhere.
+  const shortcutKeys = shortcutKeyCaps(chatNewSessionShortcut, window.api?.platform)
+    .join(window.api?.platform === 'darwin' ? '' : ' ')
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const responsiveCompact = viewportWidth < AI_CHAT_SIDEBAR_AUTO_COMPACT_BREAKPOINT
   const effectiveCollapsed = responsiveCompact ? !responsiveSidebarExpanded : aiChatSidebarCollapsed
@@ -257,14 +260,16 @@ export function AIChatSidebar({ children }: {
     actions: (
       <>
         <ChatAIConfiguration conversationId={activeChatSessionId} placement="below" />
-        <Button size="sm" shape="icon" variant="neutral" appearance="ghost"
+        {/* The shortcut sits inside the button, like the sidebar's Search ⌘K,
+            so the whole hint is one clickable control. */}
+        <Button size="sm" shape={shortcutKeys ? 'rect' : 'icon'} variant="neutral" appearance="ghost"
           className="ai-chat-header-new" aria-label={t.chat_new_session}
           title={shortcut ? `${t.chat_new_session} (${shortcut})` : t.chat_new_session}
           aria-keyshortcuts={chatNewSessionShortcut || undefined}
           onClick={handleNewChat}>
           <PlusIcon className="h-4 w-4" />
+          {shortcutKeys && <kbd className="ai-chat-header-shortcut">{shortcutKeys}</kbd>}
         </Button>
-        {shortcut && <kbd className="ai-chat-header-shortcut">{shortcut}</kbd>}
       </>
     ),
   }
