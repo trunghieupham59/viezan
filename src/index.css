@@ -11,7 +11,7 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
                  Helvetica, Arial, sans-serif, "Apple Color Emoji";
-    font-size: 14px;
+    font-size: var(--vzn-font-size-lg);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -386,7 +386,7 @@
     display: inline-flex; align-items: center; justify-content: center;
     gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal);
     transition: all 0.15s ease; cursor: pointer; user-select: none;
-    border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
+    border-radius: var(--vzn-radius-sm); outline: none; font-size: var(--vzn-font-size-md);
   }
   .btn-base:disabled { opacity: 0.40; cursor: not-allowed; }
 
@@ -394,7 +394,7 @@
   .btn-primary {
     display: inline-flex; align-items: center; justify-content: center;
     gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
-    border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
+    border-radius: var(--vzn-radius-sm); outline: none; font-size: var(--vzn-font-size-md);
     letter-spacing: -0.01em;
     transition: all 0.14s ease;
     height: 36px; padding: 0 16px;
@@ -418,7 +418,7 @@
   .btn-secondary {
     display: inline-flex; align-items: center; justify-content: center;
     gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
-    border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
+    border-radius: var(--vzn-radius-sm); outline: none; font-size: var(--vzn-font-size-md);
     transition: all 0.15s ease;
     height: 36px; padding: 0 14px;
     background: var(--vzn-surface-raised); border: 1px solid var(--vzn-border);
@@ -431,7 +431,7 @@
   .btn-soft {
     display: inline-flex; align-items: center; justify-content: center;
     gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
-    border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
+    border-radius: var(--vzn-radius-sm); outline: none; font-size: var(--vzn-font-size-md);
     transition: all 0.15s ease;
     height: 36px; padding: 0 14px;
     background: var(--vzn-accent-soft); border: 1px solid var(--vzn-accent-border);
@@ -444,7 +444,7 @@
   .btn-ghost {
     display: inline-flex; align-items: center; justify-content: center;
     gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
-    border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
+    border-radius: var(--vzn-radius-sm); outline: none; font-size: var(--vzn-font-size-md);
     transition: all 0.15s ease;
     height: 36px; padding: 0 14px;
     background: transparent; border: 1px solid transparent;
@@ -457,7 +457,7 @@
   .btn-danger {
     display: inline-flex; align-items: center; justify-content: center;
     gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
-    border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
+    border-radius: var(--vzn-radius-sm); outline: none; font-size: var(--vzn-font-size-md);
     transition: all 0.15s ease;
     height: 36px; padding: 0 14px;
     background: var(--vzn-danger-soft); border: 1px solid var(--vzn-danger-border);
@@ -470,7 +470,7 @@
   .btn-link {
     display: inline-flex; align-items: center; justify-content: center;
     gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
-    border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
+    border-radius: var(--vzn-radius-sm); outline: none; font-size: var(--vzn-font-size-md);
     transition: all 0.15s ease;
     padding: 2px 4px; background: transparent; border: none;
     color: var(--vzn-accent);
@@ -483,7 +483,7 @@
   .btn-icon {
     display: inline-flex; align-items: center; justify-content: center;
     gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
-    border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
+    border-radius: var(--vzn-radius-sm); outline: none; font-size: var(--vzn-font-size-md);
     transition: all 0.15s ease;
     width: 36px; height: 36px; padding: 0;
     background: var(--vzn-surface-raised); border: 1px solid var(--vzn-border);
@@ -501,8 +501,8 @@
   .btn-icon-xl  { width:40px!important; height:40px!important; }
   .btn-icon-2xl { width:48px!important; height:48px!important; }
 
-  .btn-sm { height:32px!important; padding:0 10px!important; font-size:12px!important; }
-  .btn-xs { height:26px!important; padding:0 8px!important;  font-size:11px!important; }
+  .btn-sm { height:32px!important; padding:0 10px!important; font-size:var(--vzn-font-size-sm)!important; }
+  .btn-xs { height:26px!important; padding:0 8px!important;  font-size:var(--vzn-font-size-caption)!important; }
 
   .btn-active, .toolbar-icon-button-active {
     background: var(--vzn-accent-soft) !important; border-color: var(--vzn-accent-border) !important; color: var(--vzn-accent) !important;
@@ -512,7 +512,7 @@
   .toolbar-icon-button {
     display: inline-flex; align-items: center; justify-content: center;
     gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
-    border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
+    border-radius: var(--vzn-radius-sm); outline: none; font-size: var(--vzn-font-size-md);
     transition: all 0.15s ease;
     width: 36px; height: 36px; padding: 0;
     background: var(--vzn-surface-raised); border: 1px solid var(--vzn-border);
@@ -524,7 +524,7 @@
   .toolbar-pill-button {
     display: inline-flex; align-items: center; justify-content: center;
     gap: 6px; font-weight: 500; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
-    border-radius: var(--vzn-radius-pill); outline: none; font-size: 13px;
+    border-radius: var(--vzn-radius-pill); outline: none; font-size: var(--vzn-font-size-md);
     transition: all 0.15s ease;
     height: 34px; padding: 0 14px;
     background: var(--vzn-surface-raised); border: 1px solid var(--vzn-border);
@@ -549,7 +549,7 @@
   .btn-language-tab {
     display: inline-flex; align-items: center; justify-content: center;
     gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
-    border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
+    border-radius: var(--vzn-radius-sm); outline: none; font-size: var(--vzn-font-size-md);
     transition: all 0.15s ease;
     height: 36px; padding: 0 12px;
     background: transparent; border: 1px solid transparent;
@@ -568,7 +568,7 @@
   .btn-nav-item, .btn-segment {
     display: inline-flex; align-items: center; justify-content: center;
     gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
-    border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
+    border-radius: var(--vzn-radius-sm); outline: none; font-size: var(--vzn-font-size-md);
     transition: all 0.15s ease;
     height: 36px; padding: 0 12px;
     background: transparent; border: 1px solid transparent;
@@ -586,7 +586,7 @@
   .btn-menu-item {
     display: inline-flex; align-items: center; justify-content: flex-start;
     gap: 10px; font-weight: 400; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
-    border-radius: var(--vzn-radius-sm); outline: none; font-size: 14px;
+    border-radius: var(--vzn-radius-sm); outline: none; font-size: var(--vzn-font-size-lg);
     transition: background 0.12s ease, color 0.12s ease;
     width: calc(100% - 8px); height: 38px; padding: 0 10px; margin: 0 4px;
     background: transparent; border: none; color: var(--vzn-text);
@@ -596,7 +596,7 @@
   .btn-select {
     display: inline-flex; align-items: center; justify-content: space-between;
     gap: 6px; font-weight: 600; line-height: var(--vzn-line-normal); cursor: pointer; user-select: none;
-    border-radius: var(--vzn-radius-sm); outline: none; font-size: 13px;
+    border-radius: var(--vzn-radius-sm); outline: none; font-size: var(--vzn-font-size-md);
     transition: all 0.15s ease;
     height: 36px; padding: 0 12px;
     background: var(--vzn-surface-raised); border: 1px solid var(--vzn-border);
@@ -611,7 +611,7 @@
     flex-direction: column; align-items: flex-start;
     text-align: left; background: transparent; border: none;
     padding: 0; cursor: pointer;
-    font-size: 13px; color: var(--vzn-text);
+    font-size: var(--vzn-font-size-md); color: var(--vzn-text);
   }
 
   /* Swatch */
@@ -636,7 +636,7 @@
     border: 1px solid var(--vzn-border);
     border-radius: var(--vzn-radius-sm);
     color: var(--vzn-text);
-    font-size: 13px;
+    font-size: var(--vzn-font-size-md);
     transition: border-color 0.15s, box-shadow 0.15s;
     outline: none;
     user-select: text;
@@ -654,21 +654,21 @@
     color: var(--vzn-text-disabled);
     cursor: not-allowed;
   }
-  .field-input-sm, .field-textarea-sm { padding: 6px 10px !important; font-size: 12px !important; }
+  .field-input-sm, .field-textarea-sm { padding: 6px 10px !important; font-size: var(--vzn-font-size-sm) !important; }
   .field-input-error { border-color: var(--vzn-danger) !important; }
   .field-input-muted { background: var(--vzn-surface-muted) !important; color: var(--vzn-text-disabled) !important; cursor: pointer !important; }
 
   /* ── Textarea field ────────────────────────────────────────────────── */
   .textarea-field {
     width: 100%; height: 100%; resize: none; background: transparent;
-    font-size: 15px; line-height: 1.6; color: var(--vzn-text);
+    font-size: var(--vzn-font-size-subtitle); line-height: 1.6; color: var(--vzn-text);
     outline: none; border: none; user-select: text;
   }
   .textarea-field::placeholder { color: var(--vzn-text-soft); }
 
   .chat-input-field {
     width: 100%; resize: none; background: transparent;
-    font-size: 14px; line-height: 1.5; color: var(--vzn-text);
+    font-size: var(--vzn-font-size-lg); line-height: 1.5; color: var(--vzn-text);
     padding: 8px 10px; outline: none; border: none; user-select: text;
   }
   .chat-input-field::placeholder { color: var(--vzn-text-soft); }
@@ -703,28 +703,28 @@
   /* ══════════════════════════════════════════════════════════════════════
      TYPOGRAPHY
      ══════════════════════════════════════════════════════════════════════ */
-  .ui-micro    { font-size: 10px; color: var(--vzn-text-soft); }
-  .ui-meta     { font-size: 11px; color: var(--vzn-text-soft); }
-  .ui-caption  { font-size: 12px; color: var(--vzn-text-muted); }
-  .ui-kicker   { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--vzn-text-soft); }
-  .section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--vzn-text-soft); }
-  .popover-title { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--vzn-text-soft); }
+  .ui-micro    { font-size: var(--vzn-font-size-micro); color: var(--vzn-text-soft); }
+  .ui-meta     { font-size: var(--vzn-font-size-caption); color: var(--vzn-text-soft); }
+  .ui-caption  { font-size: var(--vzn-font-size-sm); color: var(--vzn-text-muted); }
+  .ui-kicker   { font-size: var(--vzn-font-size-micro); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--vzn-text-soft); }
+  .section-label { font-size: var(--vzn-font-size-caption); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--vzn-text-soft); }
+  .popover-title { font-size: var(--vzn-font-size-micro); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--vzn-text-soft); }
 
-  .ui-reader-text  { font-size: 15px; line-height: 1.6; color: var(--vzn-text); }
-  .ui-reader-muted { font-size: 15px; line-height: 1.6; color: var(--vzn-text-disabled); }
+  .ui-reader-text  { font-size: var(--vzn-font-size-subtitle); line-height: 1.6; color: var(--vzn-text); }
+  .ui-reader-muted { font-size: var(--vzn-font-size-subtitle); line-height: 1.6; color: var(--vzn-text-disabled); }
 
   /* ── Badges ─────────────────────────────────────────────────────────── */
   .ui-badge {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 2px 8px; border-radius: var(--vzn-radius-pill);
-    font-size: 11px; font-weight: 600;
+    font-size: var(--vzn-font-size-caption); font-weight: 600;
     background: var(--vzn-surface-subtle); border: 1px solid var(--vzn-border);
     color: var(--vzn-text-muted);
   }
   .ui-badge-xs {
     display: inline-flex; align-items: center;
     padding: 1px 6px; border-radius: var(--vzn-radius-pill);
-    font-size: 10px; font-weight: 700;
+    font-size: var(--vzn-font-size-micro); font-weight: 700;
     background: var(--vzn-surface-subtle); color: var(--vzn-text-muted);
   }
   .ui-badge-danger { background: var(--vzn-danger-soft) !important; color: var(--vzn-danger) !important; border-color: var(--vzn-danger-border) !important; }
@@ -732,13 +732,13 @@
   .ui-token-badge {
     display: inline-flex; align-items: center;
     padding: 2px 6px; border-radius: var(--vzn-radius-2xs);
-    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: var(--vzn-tracking-caps);
+    font-size: var(--vzn-font-size-micro); font-weight: 700; text-transform: uppercase; letter-spacing: var(--vzn-tracking-caps);
     background: var(--vzn-surface-muted); color: var(--vzn-text-muted);
   }
   .ui-index-dot {
     display: flex; align-items: center; justify-content: center;
     width: 16px; height: 16px; border-radius: var(--vzn-radius-pill); flex-shrink: 0;
-    font-size: 10px; font-weight: 700;
+    font-size: var(--vzn-font-size-micro); font-weight: 700;
     background: var(--vzn-surface-subtle); color: var(--vzn-text-muted);
   }
   .ui-status-dot {
@@ -752,7 +752,7 @@
   .ui-error-text   { color: var(--vzn-danger); }
   .ui-error-icon   { color: var(--vzn-danger); }
   .ui-error-box    { padding: var(--vzn-space-2) var(--vzn-space-3); border-radius: var(--vzn-radius-sm); font-size: var(--vzn-font-size-md); border: var(--vzn-border-width) solid var(--vzn-danger-border); background: var(--vzn-danger-soft); color: var(--vzn-danger); }
-  .ui-error-banner { padding: 8px 12px; border-radius: var(--vzn-radius-sm); font-size: 12px; border: 1px solid var(--vzn-danger-border); background: var(--vzn-danger-soft); color: var(--vzn-danger); }
+  .ui-error-banner { padding: 8px 12px; border-radius: var(--vzn-radius-sm); font-size: var(--vzn-font-size-sm); border: 1px solid var(--vzn-danger-border); background: var(--vzn-danger-soft); color: var(--vzn-danger); }
   .ui-error-divider-top { border-top: 1px solid var(--vzn-danger-border); }
   .notification-toast { --notification-toast-accent: var(--vzn-text-soft); --notification-toast-border: var(--vzn-border); display: flex; width: 100%; max-width: var(--vzn-notification-max-inline); align-items: flex-start; gap: var(--vzn-space-2); padding: var(--vzn-space-3); border: var(--vzn-border-width) solid var(--notification-toast-border); border-radius: var(--vzn-radius-lg); background: var(--vzn-surface-raised); color: var(--vzn-text); box-shadow: var(--vzn-shadow-overlay); }
   .notification-toast--info { --notification-toast-accent: var(--vzn-action-text); --notification-toast-border: var(--vzn-action-border); }
@@ -827,7 +827,7 @@
     border-radius: var(--vzn-radius-sm);
     border: none; background: transparent;
     color: var(--vzn-text-soft);
-    font-size: 12px; font-weight: 500;
+    font-size: var(--vzn-font-size-sm); font-weight: 500;
     cursor: pointer; white-space: nowrap;
     transition: all 0.15s;
   }
@@ -873,10 +873,10 @@
     gap: 4px; padding: 0 10px; height: 32px; flex-shrink: 0;
     border: 1px solid var(--vzn-border); border-radius: var(--vzn-radius-sm);
     background: var(--vzn-surface-subtle); color: var(--vzn-text-muted);
-    font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+    font-size: var(--vzn-font-size-sm); font-weight: 600; cursor: pointer; transition: all 0.15s;
   }
   .chat-resume-button:hover { background: var(--vzn-surface-hover); color: var(--vzn-text-strong); }
-  .chat-primary-action-label { max-width: 6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+  .chat-primary-action-label { max-width: 6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--vzn-font-size-caption); }
 
   /* Suggest chips */
   .chat-suggest-chip {
@@ -903,7 +903,7 @@
     border-radius: var(--vzn-radius-sm);
     background: var(--vzn-accent-soft);
     color: var(--vzn-accent);
-    font-size: 16px;
+    font-size: var(--vzn-font-size-title);
   }
 
   /* Model badge */
@@ -913,7 +913,7 @@
     border: 1px solid var(--vzn-border);
     background: var(--vzn-surface-raised);
     color: var(--vzn-text-muted);
-    font-size: 12px; font-weight: 600; cursor: pointer;
+    font-size: var(--vzn-font-size-sm); font-weight: 600; cursor: pointer;
     transition: all 0.15s;
   }
   .chat-model-badge:hover,
@@ -954,7 +954,7 @@
     border: 1px solid var(--vzn-border);
     background: var(--vzn-surface-subtle);
     color: var(--vzn-text-muted);
-    font-size: 11px; font-weight: 600; user-select: none;
+    font-size: var(--vzn-font-size-caption); font-weight: 600; user-select: none;
   }
   .chat-pill-neutral, .chat-pill-muted, .chat-pill-subtle { /* same as base */ }
 
@@ -963,7 +963,7 @@
     border: 1px solid var(--vzn-border);
     border-radius: var(--vzn-radius-md);
     background: var(--vzn-surface-muted);
-    font-size: 12px; overflow: hidden; color: var(--vzn-text);
+    font-size: var(--vzn-font-size-sm); overflow: hidden; color: var(--vzn-text);
   }
   .chat-research-final {
     border: 1px solid var(--vzn-border);
@@ -984,7 +984,7 @@
     padding: 6px 12px; border-top: 1px solid var(--vzn-border);
   }
   .chat-research-pill-row:first-child, .chat-research-step-row:first-child { border-top: none; }
-  .chat-research-pill-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vzn-text); font-size: 12px; }
+  .chat-research-pill-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--vzn-text); font-size: var(--vzn-font-size-sm); }
   .chat-research-pill-icon  { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .chat-research-pill-info  { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: var(--vzn-radius-2xs); color: var(--vzn-text-soft); cursor: pointer; transition: all 0.15s; }
   .chat-research-pill-info:hover, .chat-research-pill-info-active { background: var(--vzn-surface-hover); color: var(--vzn-text-strong); }

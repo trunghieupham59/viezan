@@ -31,6 +31,17 @@ describe('App quick chat bridge', () => {
     vi.mocked(window.api.quickChat.onUsage).mockReturnValue(() => {})
   })
 
+  it('applies the text size as a scale and leaves the root font size alone', () => {
+    act(() => useAppStore.setState({ fontSize: 'large' }))
+    render(<App />)
+    expect(document.documentElement.dataset.textSize).toBe('large')
+    act(() => useAppStore.setState({ fontSize: 'small' }))
+    expect(document.documentElement.dataset.textSize).toBe('small')
+    // rem sizes layout; only the font-size tokens follow the setting.
+    expect(document.documentElement.style.fontSize).toBe('')
+    act(() => useAppStore.setState({ fontSize: 'medium' }))
+  })
+
   it('books Quick AI usage into the shared cost totals', async () => {
     let onUsage: ((cost: UsageCost) => void) | null = null
     vi.mocked(window.api.quickChat.onUsage).mockImplementation((cb) => {

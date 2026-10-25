@@ -185,7 +185,7 @@ html.dark .sidebar-brand-surface {
   min-width: 0;
   overflow: hidden;
   color: var(--vzn-chrome-fg);
-  font-size: 13px;
+  font-size: var(--vzn-font-size-md);
   font-weight: 500;
   line-height: var(--vzn-line-normal);
   text-overflow: ellipsis;
@@ -194,14 +194,14 @@ html.dark .sidebar-brand-surface {
 
 .sidebar-brand-name {
   color: var(--vzn-chrome-fg-strong);
-  font-size: 15px;
+  font-size: var(--vzn-font-size-subtitle);
   font-weight: 650;
 }
 
 .sidebar-brand-title {
   font-family: var(--vzn-font-display);
   color: var(--vzn-chrome-fg-strong);
-  font-size: 15px;
+  font-size: var(--vzn-font-size-subtitle);
   font-weight: 650;
 }
 
@@ -301,7 +301,7 @@ html.dark .sidebar-brand-surface {
 .sidebar-shortcut {
   margin-left: auto;
   color: var(--vzn-chrome-fg-soft);
-  font-size: 10px;
+  font-size: var(--vzn-font-size-micro);
 }
 
 .sidebar-nav-badge {
@@ -327,7 +327,7 @@ html.dark .sidebar-brand-surface {
 .sidebar-section-label {
   padding: 18px 10px 6px;
   color: var(--vzn-chrome-fg-soft);
-  font-size: 11px;
+  font-size: var(--vzn-font-size-caption);
   font-weight: 500;
 }
 

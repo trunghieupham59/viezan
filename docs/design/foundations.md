@@ -50,6 +50,8 @@ Quy tắc: chỉ `.app-shell` và `.app-main` tô nền; các lớp bọc trung 
 | Nhãn nhóm viết hoa | `--vzn-font-size-caption` (11) | medium, `--vzn-tracking-caps` |
 | Mã model, phím tắt, phiên bản | `--vzn-font-mono` | |
 
+Cỡ trong bảng là cỡ "Vừa". Cài đặt › Giao diện › Cỡ chữ nhân mọi token `--vzn-font-size-*` với `--vzn-text-scale` (Nhỏ 0,9 · Vừa 1 · Lớn 1,15; `html[data-text-size]`, đặt trong `App.tsx`). Chiều cao điều khiển, khoảng cách và `rem` (cố định `--vzn-root-font-size`, 15 px) không đổi, nên bố cục giữ nhịp. Vì vậy mọi cỡ chữ trong CSS phải dùng token; cỡ viết cứng bằng px sẽ không theo cài đặt.
+
 Nội dung đọc dài (tin nhắn chat, bản dịch) dùng `--vzn-font-reading` và `--vzn-line-reading` để persona Paper đổi sang chữ serif.
 
 ## 5. Khoảng cách, bo góc, bóng

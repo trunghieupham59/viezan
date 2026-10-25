@@ -14,7 +14,6 @@ import type { AppPage, Provider, QuickChatSeedPayload, UsageCost } from './types
 import { detectSystemLocale } from './utils/locale'
 
 
-const FONT_SIZE_MAP = { small: '13px', medium: '15px', large: '17px' } as const
 const CLOSE_PRIMARY_NAVIGATION_EVENT = 'viezan:close-primary-navigation'
 const CLOSE_CONTEXT_SIDEBARS_EVENT = 'viezan:close-context-sidebars'
 
@@ -105,9 +104,9 @@ function App() {
     if (localeAuto) setLocaleFromSystem(detectSystemLocale())
   }, [])
 
-  // Apply font size
+  // Text size scales every font-size token (tokens.css); layout stays fixed.
   useEffect(() => {
-    document.documentElement.style.fontSize = FONT_SIZE_MAP[fontSize ?? 'medium']
+    document.documentElement.dataset.textSize = fontSize ?? 'medium'
   }, [fontSize])
 
   // Sync provider/model to main process

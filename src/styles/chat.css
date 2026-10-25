@@ -143,8 +143,8 @@ html:not(.dark) .chat-composer:focus-within {
   font-variant-numeric: tabular-nums;
 }
 
-.usage-cost-badge--sm { font-size: 10px; }
-.usage-cost-badge--md { height: 20px; font-size: 11px; }
+.usage-cost-badge--sm { font-size: var(--vzn-font-size-micro); }
+.usage-cost-badge--md { height: 20px; font-size: var(--vzn-font-size-caption); }
 .usage-cost-badge-label { color: var(--vzn-text-soft); font-weight: 500; }
 .usage-cost-badge-amount { color: var(--vzn-text-soft); font-weight: var(--vzn-weight-medium); }
 .usage-cost-badge-tokens { color: var(--vzn-text-soft); font-weight: 500; }
@@ -484,7 +484,7 @@ html.dark .chat-suggest-chip:hover {
   border-radius: 0;
   background: transparent;
   color: var(--prompt-card-tone, var(--vzn-text-muted));
-  font-size: 18px;
+  font-size: var(--vzn-font-size-title-lg);
   line-height: 1;
 }
 
@@ -503,14 +503,14 @@ html.dark .chat-suggest-chip:hover {
 
 .prompt-card-title {
   color: var(--vzn-text-strong);
-  font-size: 14px;
+  font-size: var(--vzn-font-size-lg);
   font-weight: 600;
   line-height: 1.35;
 }
 
 .prompt-card-description {
   color: var(--vzn-text-muted);
-  font-size: 14px;
+  font-size: var(--vzn-font-size-lg);
   line-height: 1.45;
 }
 
@@ -581,7 +581,7 @@ html.dark .chat-suggest-chip:hover {
   border-radius: var(--vzn-radius-pill);
   background: var(--vzn-surface-muted);
   color: var(--vzn-text-muted);
-  font-size: 13px;
+  font-size: var(--vzn-font-size-md);
   font-weight: 500;
 }
 
@@ -602,7 +602,7 @@ html.dark .chat-suggest-chip:hover {
   overflow: hidden;
   flex: 1 1 auto;
   color: inherit;
-  font-size: 13px;
+  font-size: var(--vzn-font-size-md);
   font-weight: 500;
   line-height: var(--vzn-line-normal);
   text-overflow: ellipsis;
@@ -700,7 +700,7 @@ html.dark .chat-suggest-chip:hover {
 
 .model-picker-row-label {
   color: var(--vzn-text-strong);
-  font-size: 14px;
+  font-size: var(--vzn-font-size-lg);
   font-weight: 500;
 }
 
@@ -708,7 +708,7 @@ html.dark .chat-suggest-chip:hover {
   min-width: 0;
   overflow: hidden;
   color: var(--vzn-text-soft);
-  font-size: 14px;
+  font-size: var(--vzn-font-size-lg);
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -730,7 +730,7 @@ html.dark .chat-suggest-chip:hover {
   padding: 0 10px;
   border-radius: var(--vzn-radius-control);
   color: var(--vzn-text-muted);
-  font-size: 14px;
+  font-size: var(--vzn-font-size-lg);
   text-align: left;
 }
 
@@ -752,7 +752,7 @@ html.dark .chat-suggest-chip:hover {
 
 .model-picker-advanced-label {
   color: var(--vzn-text-soft);
-  font-size: 10px;
+  font-size: var(--vzn-font-size-micro);
   font-weight: 600;
   letter-spacing: 0.055em;
   text-transform: uppercase;
@@ -769,7 +769,7 @@ html.dark .chat-suggest-chip:hover {
   background: var(--vzn-surface);
   color: var(--vzn-text-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
+  font-size: var(--vzn-font-size-caption);
   line-height: 1.45;
   user-select: text;
   white-space: normal;
@@ -779,7 +779,7 @@ html.dark .chat-suggest-chip:hover {
   margin: 0;
   overflow-wrap: anywhere;
   color: var(--vzn-text-soft);
-  font-size: 11px;
+  font-size: var(--vzn-font-size-caption);
   line-height: 1.4;
 }
 
@@ -799,7 +799,7 @@ html.dark .chat-suggest-chip:hover {
   border-radius: var(--vzn-radius-sm);
   background: var(--vzn-surface);
   color: var(--vzn-text-muted);
-  font-size: 12px;
+  font-size: var(--vzn-font-size-sm);
 }
 
 .model-picker-refresh:disabled {
@@ -836,7 +836,7 @@ html.dark .chat-suggest-chip:hover {
   min-width: 0;
   overflow: hidden;
   color: var(--vzn-text-strong);
-  font-size: 14px;
+  font-size: var(--vzn-font-size-lg);
   font-weight: 600;
   text-align: center;
   text-overflow: ellipsis;
@@ -909,7 +909,7 @@ html.dark .chat-suggest-chip:hover {
   gap: 7px;
   padding: 0 9px;
   color: var(--vzn-text-soft);
-  font-size: 10px;
+  font-size: var(--vzn-font-size-micro);
   font-weight: 600;
   letter-spacing: 0.055em;
   text-transform: uppercase;
@@ -918,7 +918,7 @@ html.dark .chat-suggest-chip:hover {
 .model-picker-status {
   margin-left: auto;
   color: var(--vzn-text-disabled);
-  font-size: 10px;
+  font-size: var(--vzn-font-size-micro);
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
@@ -959,7 +959,7 @@ html.dark .chat-suggest-chip:hover {
   min-width: 0;
   overflow: hidden;
   color: inherit;
-  font-size: 13px;
+  font-size: var(--vzn-font-size-md);
   font-weight: 500;
   line-height: var(--vzn-line-normal);
   text-overflow: ellipsis;
@@ -971,7 +971,7 @@ html.dark .chat-suggest-chip:hover {
   min-width: 0;
   overflow: hidden;
   color: var(--vzn-text-soft);
-  font-size: 11px;
+  font-size: var(--vzn-font-size-caption);
   line-height: var(--vzn-line-normal);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -998,7 +998,7 @@ html.dark .chat-suggest-chip:hover {
 
 .model-picker-provider-name {
   color: inherit;
-  font-size: 13px;
+  font-size: var(--vzn-font-size-md);
   font-weight: 500;
 }
 
@@ -1006,7 +1006,7 @@ html.dark .chat-suggest-chip:hover {
 .model-picker-error {
   padding: 24px 14px;
   color: var(--vzn-text-soft);
-  font-size: 12px;
+  font-size: var(--vzn-font-size-sm);
   text-align: center;
 }
 
