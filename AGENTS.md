@@ -13,6 +13,10 @@ verifiable, and aligned with the repository rather than personal preferences.
   `viezanagent/agent/CAPABILITY_CONTRACT.md`.
 - Before UI work, read `src/components/README.md` and run the Atomic Design
   check after changing presentation layers.
+- Before UI/UX or copy work, read `.claude/rules/ui-ux.md` (settled design
+  decisions: typography, localization, layout, focus, shortcuts, behaviour)
+  and the screen's spec in `docs/design/screens/`. Any agent applies it, not
+  only Claude Code.
 - Prefer focused, reversible changes. Do not edit generated `dist/`,
   `dist-electron/`, `release/`, or dependency contents.
 
