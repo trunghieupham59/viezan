@@ -207,21 +207,30 @@ describe('DictionaryPage', () => {
     await waitFor(() => expect(screen.getAllByText('Cải tiến cách làm.').length).toBeGreaterThan(0))
 
     // The lookup column (with Recent) comes first; select inside the result page.
-    const resultRegion = screen.getByRole('region', { name: /^(Dictionary|Từ điển|辞書)$/ })
-    const meaning = within(resultRegion).getAllByText('Cải tiến cách làm.')[0]
-    const textNode = meaning.firstChild as Text
-    const range = document.createRange()
-    range.setStart(textNode, 0)
-    range.setEnd(textNode, 8)
-    Object.assign(range, {
-      getBoundingClientRect: () => ({ left: 120, top: 120, width: 44, height: 18 }),
-    })
-    const selection = window.getSelection()
-    selection?.removeAllRanges()
-    selection?.addRange(range)
-    fireEvent.mouseUp(meaning)
+    // Select against the latest render each attempt: on a slow runner the result
+    // can re-render after it first appears, detaching an earlier text node.
+    const selectMeaning = () => {
+      const resultRegion = screen.getByRole('region', { name: /^(Dictionary|Từ điển|辞書)$/ })
+      const meaning = within(resultRegion).getAllByText('Cải tiến cách làm.')[0]
+      const textNode = meaning.firstChild as Text
+      const range = document.createRange()
+      range.setStart(textNode, 0)
+      range.setEnd(textNode, 8)
+      Object.assign(range, {
+        getBoundingClientRect: () => ({ left: 120, top: 120, width: 44, height: 18 }),
+      })
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+      fireEvent.mouseUp(meaning)
+    }
+    const selectionButtonName = /Look up selection.*Cải tiến|Tra phần đã chọn.*Cải tiến|選択部分を検索.*Cải tiến/i
+    await waitFor(() => {
+      if (!screen.queryByRole('button', { name: selectionButtonName })) selectMeaning()
+      expect(screen.getByRole('button', { name: selectionButtonName })).toBeInTheDocument()
+    }, { timeout: 3000 })
 
-    const lookupButton = await screen.findByRole('button', { name: /Look up selection.*Cải tiến|Tra phần đã chọn.*Cải tiến|選択部分を検索.*Cải tiến/i })
+    const lookupButton = screen.getByRole('button', { name: selectionButtonName })
     fireEvent.click(lookupButton)
 
     await waitFor(() => expect(dictionaryService.lookup).toHaveBeenLastCalledWith(
