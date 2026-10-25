@@ -19,7 +19,8 @@ interface ResultPanelActionsProps {
   onDownloadTranslated: () => void
   onRewrite: (panel: 'source' | 'translated') => void
   onCopy: () => void
-  labelChars: string
+  /** Pre-formatted character count, e.g. "62 chars"; empty hides the count. */
+  charCountLabel: string
   labelSpeak: string
   labelSpeakStop: string
   labelDownload: string
@@ -39,7 +40,7 @@ export function ResultPanelActions({
   hasImageRegions, hasImageAttachment,
   copied, isRewriting, speakingPanel, speakLoading,
   onSpeak, onDownloadEdited, onDownloadTranslated, onRewrite, onCopy,
-  labelChars, labelSpeak, labelSpeakStop, labelDownload,
+  charCountLabel, labelSpeak, labelSpeakStop, labelDownload,
   labelRewrite, labelRewriting, labelCopy, labelCopied,
 }: ResultPanelActionsProps) {
   const hasContent = !!(translatedText || editedImageUrl)
@@ -87,9 +88,7 @@ export function ResultPanelActions({
 
       {/* RIGHT: char count */}
       <span className="translate-char-count tabular-nums">
-        {translatedText && !editedImageUrl
-          ? `${translatedText.length.toLocaleString()} ${labelChars}`
-          : ''}
+        {translatedText && !editedImageUrl ? charCountLabel : ''}
       </span>
     </>
   )

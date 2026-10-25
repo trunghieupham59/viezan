@@ -155,7 +155,8 @@ export interface Translations {
   translate_copied: string
   translate_auto_indicator: string
   translate_manual_indicator: string
-  translate_chars: string
+  /** Template: "{count} chars"; the number is pre-formatted for the locale. */
+  translate_char_count: string
   translate_long_text_label: string
   translate_long_text_notice: (limit: number) => string
   language_pairs_previous_session: string
@@ -265,7 +266,6 @@ export interface Translations {
   translate_detecting_language: string
   translate_detected_language: (language: string) => string
   translate_swap_disabled_auto: string
-  translate_swap_disabled_image: string
   translate_input_help: string
   translate_input_mode_label: string
   translate_input_mode_text: string
@@ -278,6 +278,9 @@ export interface Translations {
   translate_image_change: string
   translate_voice_hint: string
   translate_manual_shortcut: string
+  /** Toast after a single history entry is deleted; offers an undo action. */
+  translate_history_deleted: string
+  translate_history_deleted_undo: string
   translate_empty_auto_hint: string
   translate_empty_manual_hint: string
   translate_result_stale_auto: string
@@ -462,6 +465,8 @@ export interface Translations {
   /** Accessible label on the pulsing dot shown while detail enrichment is in progress */
   dictionary_enriching: string
   dictionary_lookup_needs_model: string
+  dictionary_no_model_title: string
+  dictionary_no_model_action: string
   dictionary_clear_history_cancel: string
   dictionary_history_label: string
 
@@ -601,6 +606,18 @@ export interface Translations {
   settings_show: string
   settings_hide: string
   settings_remove: string
+  /** Confirm before removing a stored credential; `{name}` is the provider. */
+  settings_remove_key_confirm: string
+  /** Submit label for keys that are only stored, never verified (Groq, ElevenLabs). */
+  settings_key_save: string
+  /** Confirm before uninstalling a local model; `{model}` is its id. */
+  settings_local_ai_uninstall_confirm: string
+  /** Confirm before deleting a system-prompt preset; `{name}` is the preset. */
+  settings_chat_preset_delete_confirm: string
+  /** Toast after "Use this prompt"; `{name}` is the preset. */
+  settings_chat_preset_applied: string
+  /** Toast when pruning or clearing stored chat images fails. */
+  settings_chat_images_failed: string
   settings_msg_valid: string
   settings_msg_rate_limited: string
   settings_msg_billing: string
@@ -773,10 +790,8 @@ export interface Translations {
   // Image translation — model switch notice
   /** Toast title when the system auto-switched to a different model for image translation */
   image_model_switched_title: string
-  /** Toast body suffix: "Using {model} — {this string}" */
-  image_model_switched_body: string
-  /** Template: "Using {model}" — shown before the body in the model-switch toast */
-  image_model_switched_using: string
+  /** Template with {model} (now used) and {previous} (the model that cannot read images). */
+  image_model_switched_message: string
 
   // Image translation
   image_translate_title: string
@@ -938,7 +953,6 @@ export interface Translations {
   chat_copied: string
   chat_voice_record: string
   chat_voice_stop: string
-  chat_empty_title: string
   chat_empty_desc: string
   chat_session_panel_empty: string
   chat_sidebar_label: string
@@ -953,6 +967,8 @@ export interface Translations {
   chat_sidebar_this_week: string
   chat_sidebar_earlier: string
   chat_sidebar_paused: string
+  chat_session_deleted: string
+  chat_session_deleted_undo: string
   chat_task_language: string
   chat_task_configuration: string
   chat_web_source: string
@@ -1011,13 +1027,8 @@ export interface Translations {
   chat_mode_chip_research: string
   chat_mode_standard: string
   chat_response_mode: string
-  chat_system_prompt: string
 
   chat_system_prompt_placeholder: string
-  /** HC-NEW-04: Label for the "None" option in SystemPromptDropdown */
-  chat_system_prompt_none: string
-  /** HC-NEW-04: Description for the "None" option in SystemPromptDropdown */
-  chat_system_prompt_none_desc: string
   chat_regenerate: string
   chat_used_model: (model: string) => string
   chat_web_search_fallback_title: string
@@ -1090,6 +1101,9 @@ export interface Translations {
   thermal_reader_missing_title: string
   thermal_reader_missing_desc: string
   thermal_error_title: string
+  thermal_error_desc: string
+  thermal_no_sensors_title: string
+  thermal_no_sensors_desc: string
   thermal_retry: string
   /** Section title for the live reading outside the window, by placement. */
   thermal_tray_section_menu_bar: string
@@ -1171,6 +1185,7 @@ export interface Translations {
   thermal_fan_label_chassis: string
   // Fan ↔ sensor calibration
   thermal_fan_calibrate: string
+  thermal_fan_calibrate_again: string
   thermal_fan_calibrate_desc: string
   thermal_fan_calibrate_cancel: string
   thermal_fan_calibrate_clear: string
@@ -1295,6 +1310,11 @@ export interface Translations {
   settings_hotkey_accessibility_open: string
   settings_hotkey_error_accessibility: string
   settings_hotkey_error_copy_failed: string
+  settings_hotkey_error_paste_failed: string
+  settings_hotkey_error_translate_failed: string
+  settings_hotkey_register_conflict_launcher: string
+  settings_hotkey_register_invalid: string
+  settings_hotkey_needs_modifier: string
   settings_chat_hotkey_owner_finder_search: string
   settings_chat_hotkey_system_conflict_title: string
   settings_chat_hotkey_system_conflict_desc: string
@@ -1453,6 +1473,11 @@ export interface Translations {
   ai_chat_popup_new_line: string
   ai_chat_popup_close: string
   ai_chat_popup_turns: string
+  ai_chat_popup_new_conversation: string
+  ai_chat_popup_change_model: string
+  ai_chat_popup_model_default: string
+  ai_chat_popup_question_badge: string
+  ai_chat_popup_model_ready: string
 
   // Settings — AI Chat Hotkey
   settings_chat_hotkey_section: string
@@ -1531,8 +1556,6 @@ export interface Translations {
   settings_chat_preset_save: string
   settings_chat_preset_cancel: string
 
-  // Translate page — Advanced AI Config popup
-  translate_ai_config_title: string
 
   // Settings — Web Search (Deep Research)
   settings_web_search_section: string
@@ -1541,15 +1564,11 @@ export interface Translations {
   settings_web_search_desc_suffix: string
 
   // Settings — TTS ElevenLabs delete confirm
-  settings_tts_el_delete_confirm: string
 
   // Settings modal close
   settings_close: string
 
   // Chat — Deep Research
-  chat_deep_research_hint: string
-  chat_deep_research_enable: string
-  chat_deep_research_disable: string
   chat_deep_research_api: string
 
   // Chat — Deep Research pipeline (steps + statuses surfaced inside the chat thread)
@@ -1645,7 +1664,6 @@ export interface Translations {
   chat_smart_thinking_unknown_error: string
 
   // Chat — error messages
-  chat_error_failed_regenerate: string
   chat_error_unexpected: string
   chat_error_failed_response: string
   chat_error_failed_image_edit: string

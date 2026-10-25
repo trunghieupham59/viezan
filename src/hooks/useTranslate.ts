@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ImageAttachment } from '../components/translate/ImageTranslator'
 import type { VoiceRecordingState } from '../components/VoiceRecorder'
-import { MAX_TRANSLATE_IMAGE_DIMENSION } from '../constants/image'
+import { MAX_IMAGE_INPUT_BYTES, MAX_TRANSLATE_IMAGE_DIMENSION } from '../constants/image'
 import { DETECT_LANG_MAX_CHARS } from '../constants/providers'
 import { COPY_FEEDBACK_DURATION_MS, IMAGE_AUTO_TRANSLATE_DELAY_MS } from '../constants/ui'
 import { translationService } from '../services/translationService'
@@ -23,6 +23,7 @@ import type {
   HistoryItem,
   ImageTextRegion,
   PhoneticMode,
+  Provider,
   TranslationComparisonResult,
   TranslationModelSelection,
   TranslationStyle,
@@ -559,6 +560,11 @@ export function useTranslate() {
       setTranslateError(t.image_translate_type_error)
       return
     }
+    // Same ceiling as Chat, checked before the file is decoded.
+    if (file.size > MAX_IMAGE_INPUT_BYTES) {
+      setTranslateError(t.image_translate_size_error(Math.round(MAX_IMAGE_INPUT_BYTES / (1024 * 1024))))
+      return
+    }
     invalidateActiveTranslation()
     const processGeneration = ++imageProcessGenerationRef.current
     try {
@@ -682,10 +688,12 @@ export function useTranslate() {
     trigger: TranslateTrigger,
     plainText: string,
     selection: TranslationModelSelection,
-    options: { recordCost?: boolean; recordHistory?: boolean } = {},
+    options: { recordCost?: boolean; recordHistory?: boolean; sourceText?: string } = {},
   ) => {
     const timestamp = Date.now()
     const { recordCost = true, recordHistory = true } = options
+    // Image runs have no source text: the history row shows the file name instead.
+    const recordedSource = options.sourceText ?? sourceText
     const contextKey = buildHistoryContextKey(
       selection.provider,
       selection.model,
@@ -709,20 +717,20 @@ export function useTranslate() {
       sourceLang,
       targetLang,
       translationStyle,
-      sourceText,
+      sourceText: recordedSource,
       translatedText: plainText,
       cost,
     }
 
     if (trigger === 'auto') {
       const existingDraft = autoHistoryDraftRef.current
-      const id = existingDraft && shouldReuseAutoHistoryDraft(existingDraft, sourceText, contextKey, timestamp)
+      const id = existingDraft && shouldReuseAutoHistoryDraft(existingDraft, recordedSource, contextKey, timestamp)
         ? existingDraft.id
         : createHistoryId(timestamp)
 
       upsertHistory({ ...baseItem, id })
       setActiveHistoryId(id)
-      autoHistoryDraftRef.current = { id, contextKey, sourceText, timestamp }
+      autoHistoryDraftRef.current = { id, contextKey, sourceText: recordedSource, timestamp }
       return
     }
 
@@ -844,6 +852,16 @@ export function useTranslate() {
 
     // ── IMAGE mode: translate the attached image ──────────────────────────
     if (imageAttachment) {
+      // Saved like a manual run (never an auto draft) under the model that
+      // actually answered; the row's source is the file name. No cost entry:
+      // the usage estimator prices text, not image input.
+      const recordImageOutcome = (
+        translated: string,
+        used: { usedProvider?: string; usedModel?: string },
+      ) => recordTranslationOutcome('manual', translated, {
+        provider: (used.usedProvider ?? selectedProvider) as Provider,
+        model: used.usedModel ?? selectedModel,
+      }, { recordCost: false, sourceText: imageAttachment.fileName })
       try {
         const result = await window.api.translateImage({
           provider: selectedProvider,
@@ -864,6 +882,7 @@ export function useTranslate() {
           setTranslatedText(IMAGE_TRANSLATED_SENTINEL) // non-empty so conditional buttons render
           setImageRegions(null)
           markResultCurrent()
+          recordImageOutcome(t.image_translate_result_label, result)
         } else if (result.success && result.regions && result.regions.length > 0) {
           // ── Fallback (Claude/OpenAI): compile translated text from regions ──
           const text = result.regions.map(r => r.translatedText).filter(Boolean).join('\n')
@@ -871,6 +890,7 @@ export function useTranslate() {
           setImageRegions(result.regions)
           setEditedImageUrl(null)
           markResultCurrent()
+          recordImageOutcome(text, result)
           // Generate phonetic pass for the compiled region text — image translations
           // also benefit from furigana/romanisation when target is JA/ZH/KO etc.
           const modeAtCompletion = phoneticModeRef.current
@@ -1527,6 +1547,7 @@ export function useTranslate() {
     translationReasoningEffort,
     keyStatus,
     selectedProvider,
+    selectedModel,
     translationModels: activeTranslationModels,
     // ── Store setters (used directly in JSX) ───────────────────────────────
     setTargetLang,

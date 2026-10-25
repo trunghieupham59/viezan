@@ -169,7 +169,7 @@ html.dark .sidebar-brand-surface {
   margin: 0;
   flex: 0 0 36px;
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--vzn-radius-control);
   background: transparent;
   box-shadow: none !important;
 }
@@ -398,7 +398,7 @@ html.dark .sidebar-brand-surface {
   margin-left: auto;
   flex: 0 0 30px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--vzn-radius-xs);
   background: transparent;
   color: var(--vzn-chrome-fg-soft);
   cursor: pointer;
@@ -816,7 +816,7 @@ html.dark .sidebar-brand-surface {
   width: 5px;
   height: 5px;
   margin-left: 2px;
-  border-radius: 999px;
+  border-radius: var(--vzn-radius-pill);
   background: var(--vzn-warning);
 }
 
@@ -913,7 +913,7 @@ html:not(.dark) .ai-config-panel {
 }
 
 .floating-panel {
-  border-radius: 12px;
+  border-radius: var(--vzn-radius-md);
 }
 
 .modal-surface {
@@ -1539,7 +1539,7 @@ html.dark .toolbar-pill-button {
   gap: 4px;
   padding: 4px;
   border: 1px solid var(--vzn-border-strong);
-  border-radius: 12px;
+  border-radius: var(--vzn-radius-md);
   background: color-mix(in srgb, var(--vzn-surface) 94%, transparent);
   box-shadow: var(--vzn-shadow-lg);
 }
@@ -1565,7 +1565,7 @@ html.dark .toolbar-pill-button {
   display: block;
   max-width: 92vw;
   max-height: calc(94vh - 52px);
-  border-radius: 12px;
+  border-radius: var(--vzn-radius-md);
   background: var(--vzn-media-matte);
   object-fit: contain;
   box-shadow: var(--vzn-shadow-overlay);
@@ -1602,17 +1602,30 @@ html.dark .toolbar-pill-button {
   display: none;
 }
 
+/* Section list vs. tabs follows the content area (app-main), not the window:
+   with the primary navigation expanded the content can be narrower than the
+   window suggests (foundations §8). */
+.settings-shell__sidebar {
+  display: none;
+}
+
+@container app-main (min-width: 760px) {
+  .settings-shell {
+    display: grid;
+  }
+
+  .settings-shell__sidebar {
+    display: flex;
+  }
+
+  .settings-shell__tabs {
+    display: none;
+  }
+}
+
 .settings-scroll-viewport {
   background: var(--vzn-bg);
   container: settings-content / inline-size;
-}
-
-@container settings-content (max-width: 520px) {
-  .settings-choice-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--vzn-space-2);
-  }
 }
 
 /* Settings typography: section title > group/card title > row label. The
@@ -1675,7 +1688,7 @@ html.dark .quick-chat-panel,
 html.dark .quick-chat-answer-card,
 html:not(.dark) .quick-chat-panel,
 html:not(.dark) .quick-chat-answer-card {
-  border: 1px solid var(--vzn-border-strong) !important;
+  border: var(--vzn-border-width) solid var(--vzn-border-strong) !important;
   background: var(--vzn-surface) !important;
   box-shadow: var(--vzn-shadow-md) !important;
   backdrop-filter: none !important;
@@ -1688,7 +1701,7 @@ html:not(.dark) .quick-chat-answer-card {
 }
 
 .quick-chat-answer-card {
-  border-radius: 12px !important;
+  border-radius: var(--vzn-radius-md) !important;
   box-shadow: none !important;
 }
 
@@ -1710,7 +1723,52 @@ html:not(.dark) .quick-chat-answer-card {
 }
 
 .quick-chat-input-field {
+  max-block-size: var(--vzn-quick-chat-input-max-block);
+  overflow-y: auto;
   color: var(--vzn-text-strong) !important;
+}
+
+.quick-chat-text {
+  color: var(--vzn-text);
+}
+
+.quick-chat-muted {
+  color: var(--vzn-text-muted);
+}
+
+.quick-chat-strong {
+  color: var(--vzn-text-strong);
+}
+
+.quick-chat-empty {
+  min-block-size: var(--vzn-quick-chat-empty-min-block);
+}
+
+.quick-chat-empty-desc {
+  max-inline-size: var(--vzn-dialog-sm-max-inline);
+}
+
+.quick-chat-stack {
+  max-inline-size: var(--vzn-content-max);
+}
+
+/* Provider readiness dot; the footer button title names the state. */
+.quick-chat-status-dot {
+  background: var(--vzn-warning);
+}
+
+.quick-chat-status-dot--ready {
+  background: var(--vzn-success);
+  box-shadow: 0 0 0 var(--vzn-space-0-5) var(--vzn-skeleton);
+}
+
+.quick-chat-smart-badge {
+  background: var(--vzn-surface-subtle);
+  color: var(--vzn-text-muted);
+}
+
+.quick-chat-skeleton {
+  background: var(--vzn-skeleton);
 }
 
 /* Controls that draw their own focus ring skip the shared outline from
@@ -1726,7 +1784,8 @@ html:not(.dark) .quick-chat-answer-card {
   outline-offset: calc(-1 * var(--vzn-focus-ring-width));
 }
 
-@media (max-width: 900px) {
+/* Matches PRIMARY_NAVIGATION_NARROW_BREAKPOINT (`< 900`) in PrimaryNavigationSidebar. */
+@media (max-width: 899px) {
   :root {
     --vzn-sidebar-expanded-width: 208px;
     --vzn-chat-sidebar-width: 220px;
@@ -2606,4 +2665,11 @@ code.settings-info-value {
   line-height: var(--vzn-line-normal);
   flex: 0 0 auto;
   white-space: nowrap;
+}
+
+/* Japanese: break lines at phrase boundaries instead of between any two
+ * characters, so a card description never leaves one kana on its own line. */
+:lang(ja) {
+  line-break: strict;
+  word-break: auto-phrase;
 }

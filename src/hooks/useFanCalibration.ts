@@ -12,7 +12,8 @@ export interface FanCalibrationHookState {
 
 type Result = { success: boolean; state?: FanCalibrationState; error?: string } | undefined
 
-const unavailable = async (): Promise<Result> => ({ success: false, error: 'Fan calibration is not available in this window.' })
+/** No error text: callers fall back to their localized message (thermal_fan_calibrate_error). */
+const unavailable = async (): Promise<Result> => ({ success: false })
 
 /** Mirror of main's fan ↔ sensor calibration: progress while it runs, the last result otherwise. */
 export function useFanCalibration(): FanCalibrationHookState {

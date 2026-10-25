@@ -24,6 +24,12 @@ import type { SliceSet } from './sliceTypes'
  */
 const MAX_CHAT_SESSIONS = 20
 
+/**
+ * Stored title of a conversation that has not been named yet. Kept in English
+ * in storage (existing sessions use it); the UI localizes it at render time.
+ */
+export const DEFAULT_CHAT_SESSION_TITLE = 'New Chat'
+
 export interface ChatSlice {
   // State
   chatSessions: ChatSession[]
@@ -41,10 +47,19 @@ export interface ChatSlice {
   chatPendingDeepResearchMode: boolean
   chatPendingWebSearchMode: boolean
   chatPendingImageMode: boolean
+  /**
+   * Sessions with a reply or research run in flight right now. Runtime only
+   * (never persisted), so a snapshot left by a crash still reads as paused.
+   */
+  chatRunningSessionIds: string[]
 
   // Actions
   createChatSession: (provider: Provider, model: string) => string
   deleteChatSession: (id: string) => void
+  /** Put a deleted session back at its former position (undo of `deleteChatSession`). */
+  restoreChatSession: (session: ChatSession, index: number) => void
+  /** Mark a session's request as in flight (`true`) or settled (`false`). */
+  setChatSessionRunning: (sessionId: string, running: boolean) => void
   setActiveChatSession: (id: string | null) => void
   /** Keep the provider/model owned by a conversation in sync with its composer. */
   setChatSessionModel: (sessionId: string, provider: Provider, model: string) => void
@@ -97,6 +112,7 @@ export const createChatSlice = (set: SliceSet): ChatSlice => ({
   chatPendingDeepResearchMode: false,
   chatPendingWebSearchMode: false,
   chatPendingImageMode: false,
+  chatRunningSessionIds: [],
 
   createChatSession: (provider, model) => {
     const id = createClientId('chat')
@@ -105,7 +121,7 @@ export const createChatSlice = (set: SliceSet): ChatSlice => ({
       // transition from "no session" to "new session".
       const session: ChatSession = {
         id,
-        title: 'New Chat',
+        title: DEFAULT_CHAT_SESSION_TITLE,
         messages: [],
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -136,6 +152,25 @@ export const createChatSlice = (set: SliceSet): ChatSlice => ({
       chatSessions: state.chatSessions.filter((s) => s.id !== id),
       activeChatSessionId: state.activeChatSessionId === id ? null : state.activeChatSessionId,
     })),
+
+  restoreChatSession: (session, index) =>
+    set((state: ChatSlice) => {
+      if (state.chatSessions.some((s) => s.id === session.id)) return {}
+      const sessions = [...state.chatSessions]
+      sessions.splice(Math.max(0, Math.min(index, sessions.length)), 0, session)
+      return { chatSessions: sessions.slice(0, MAX_CHAT_SESSIONS) }
+    }),
+
+  setChatSessionRunning: (sessionId, running) =>
+    set((state: ChatSlice) => {
+      const has = state.chatRunningSessionIds.includes(sessionId)
+      if (has === running) return {}
+      return {
+        chatRunningSessionIds: running
+          ? [...state.chatRunningSessionIds, sessionId]
+          : state.chatRunningSessionIds.filter((id) => id !== sessionId),
+      }
+    }),
 
   setActiveChatSession: (id) =>
     set((state: ChatSlice & {
@@ -176,7 +211,7 @@ export const createChatSlice = (set: SliceSet): ChatSlice => ({
 
         // Auto-generate title from the first user message when session still has default title
         let title = s.title
-        if (title === 'New Chat' && message.role === 'user' && s.messages.length === 0) {
+        if (title === DEFAULT_CHAT_SESSION_TITLE && message.role === 'user' && s.messages.length === 0) {
           const textContent = message.content.find((c) => c.type === 'text')?.text ?? ''
           if (textContent) {
             title = textContent
@@ -186,7 +221,7 @@ export const createChatSlice = (set: SliceSet): ChatSlice => ({
               .replace(/\n[\s\S]*/g, '')          // first line only
               .trim()
               .slice(0, 60)
-              || 'New Chat'
+              || DEFAULT_CHAT_SESSION_TITLE
           }
         }
 

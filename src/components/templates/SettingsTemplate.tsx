@@ -15,10 +15,11 @@ export function SettingsTemplate({
   children,
 }: SettingsTemplateProps) {
   return (
-    <div className="settings-shell flex flex-col md:grid">
-      <aside className="hidden md:flex min-h-0 flex-col">{sidebarNavigation}</aside>
-      <div className="flex min-h-0 flex-col">
-        <div className="md:hidden border-b">{compactNavigation}</div>
+    // Sidebar vs. tabs switches on the app-main container width (codex.css), not the window.
+    <div className="settings-shell">
+      <aside className="settings-shell__sidebar min-h-0 flex-col">{sidebarNavigation}</aside>
+      <div className="flex flex-1 min-h-0 flex-col">
+        <div className="settings-shell__tabs border-b">{compactNavigation}</div>
         <div ref={scrollRef} className="settings-scroll-viewport flex-1 min-h-0 overflow-auto">
           <div className="max-w-3xl mx-auto px-4 py-5 md:px-6 md:py-6 space-y-8">
             {children}

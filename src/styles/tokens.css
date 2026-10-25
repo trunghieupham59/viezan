@@ -129,6 +129,7 @@
   --vzn-user-bubble-border: var(--vzn-divider);
 
   /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface);
   --vzn-chrome-fg: var(--vzn-text);
   --vzn-chrome-fg-strong: var(--vzn-text-strong);
   --vzn-chrome-fg-muted: var(--vzn-text-muted);
@@ -167,7 +168,7 @@
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --vzn-font-reading: var(--vzn-font-sans);
   --vzn-line-reading: 1.6;
   --vzn-font-display: var(--vzn-font-sans);
@@ -181,6 +182,10 @@
 
   /* Typography ---------------------------------------------------------- */
   --vzn-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  /* Japanese glyphs fall through the Latin system fonts to a Japanese face
+   * (not a Chinese one), so kanji keep Japanese forms in every persona. */
+  --vzn-font-cjk: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo",
+    "Noto Sans JP", "Noto Sans CJK JP";
   --vzn-font-size-micro: 10px;
   --vzn-font-size-caption: 11px;
   --vzn-font-size-sm: 12px;
@@ -287,6 +292,8 @@
   --vzn-step-min: 180px;
   --vzn-about-feature-min: 150px;
   --vzn-settings-select-min: 180px;
+  /* Settings: the section list column beside the content. */
+  --vzn-settings-nav-width: 240px;
   /* Settings › Appearance: the live preview column. */
   --vzn-appearance-preview-width: 300px;
   /* Interpret: the "This session" column beside the transcript. */
@@ -302,6 +309,30 @@
   --vzn-translate-body-min-block: 10rem;
   --vzn-translate-compare-source-min-block: 8rem;
   --vzn-translate-compare-source-max-block: 24rem;
+  /* Translate page geometry (translate.css). */
+  --vzn-translate-mode-toggle-min-inline: 9.5rem;
+  --vzn-translate-options-panel-width: 27rem;
+  --vzn-translate-image-name-max: 24rem;
+  --vzn-translate-submit-min-inline: 6rem;
+  --vzn-translate-reading-max: 48rem;
+  --vzn-translate-hint-max: 28rem;
+  --vzn-translate-loading-lines-width: 22rem;
+  --vzn-translate-viewport-clearance: 10rem;
+  --vzn-translate-viewport-clearance-compact: 8rem;
+  --vzn-translate-model-picker-block: 34rem;
+  --vzn-translate-model-picker-compact-block: 38rem;
+  --vzn-translate-model-picker-stacked-min-block: 16rem;
+  --vzn-translate-model-selected-min-inline: 15rem;
+  --vzn-translate-model-available-min-inline: 18rem;
+  --vzn-translate-model-dialog-width: 54rem;
+  --vzn-translate-model-dialog-block: 44rem;
+  --vzn-translate-model-dialog-note-max: 30rem;
+  --vzn-translate-model-sheet-max-block: 46rem;
+  --vzn-translate-model-sheet-selected-max-block: 14rem;
+  --vzn-translate-compare-card-min-block: 16rem;
+  --vzn-translate-compare-card-body-min-block: 8rem;
+  --vzn-translate-compare-card-body-max-block: 28rem;
+  --vzn-translate-compare-tab-max-inline: 13rem;
   /* By-sentence comparison: source column share and the assembled-text preview cap. */
   --vzn-translate-compare-sentence-source-inline: 30%;
   --vzn-translate-compare-assembly-max-block: calc(var(--vzn-space-12) * 2.5);
@@ -312,6 +343,10 @@
   --vzn-chat-avatar-size: 2rem;
   --vzn-composer-min-height: 116px;
   --vzn-chat-textarea-max-height: 140px;
+  /* Quick AI popup: prompt field growth cap and empty/info state height. */
+  --vzn-quick-chat-input-max-block: calc(var(--vzn-space-12) * 2.5);
+  --vzn-quick-chat-empty-min-block: calc(var(--vzn-space-12) * 5);
+  --vzn-chat-plus-menu-inline: 220px;
   --vzn-prompt-card-min-height: 116px;
   --vzn-workspace-pad: var(--vzn-space-4);
   --vzn-panel-gap: var(--vzn-space-3);
@@ -496,7 +531,7 @@ html.dark[data-theme="graphite"],
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --vzn-font-reading: var(--vzn-font-sans);
   --vzn-line-reading: 1.6;
   --vzn-font-display: var(--vzn-font-sans);
@@ -598,6 +633,7 @@ html.dark,
   --vzn-user-bubble-border: transparent;
 
   /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface);
   --vzn-chrome-fg: #2a3152;
   --vzn-chrome-fg-strong: #0f1430;
   --vzn-chrome-fg-muted: #596283;
@@ -636,7 +672,7 @@ html.dark,
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --vzn-font-reading: var(--vzn-font-sans);
   --vzn-line-reading: 1.6;
   --vzn-font-display: var(--vzn-font-sans);
@@ -702,6 +738,7 @@ html.dark[data-theme="glass"],
   --vzn-user-bubble-border: transparent;
 
   /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface-subtle);
   --vzn-chrome-fg: #cfd5e6;
   --vzn-chrome-fg-strong: #ffffff;
   --vzn-chrome-fg-muted: #9aa3bd;
@@ -740,7 +777,7 @@ html.dark[data-theme="glass"],
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --vzn-font-reading: var(--vzn-font-sans);
   --vzn-line-reading: 1.6;
   --vzn-font-display: var(--vzn-font-sans);
@@ -806,6 +843,7 @@ html.dark[data-theme="glass"],
   --vzn-user-bubble-border: rgba(176, 88, 52, 0.22);
 
   /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface);
   --vzn-chrome-fg: #3d322a;
   --vzn-chrome-fg-strong: #171310;
   --vzn-chrome-fg-muted: #6a5f54;
@@ -844,7 +882,7 @@ html.dark[data-theme="glass"],
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --vzn-font-reading: "Iowan Old Style", "Palatino Linotype", Charter, Georgia,
     "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif", serif;
   --vzn-line-reading: 1.75;
@@ -912,6 +950,7 @@ html.dark[data-theme="paper"],
   --vzn-user-bubble-border: rgba(224, 130, 90, 0.26);
 
   /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface-subtle);
   --vzn-chrome-fg: #d9cfc0;
   --vzn-chrome-fg-strong: #f6f0e6;
   --vzn-chrome-fg-muted: #a89c8c;
@@ -950,7 +989,7 @@ html.dark[data-theme="paper"],
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --vzn-font-reading: "Iowan Old Style", "Palatino Linotype", Charter, Georgia,
     "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif", serif;
   --vzn-line-reading: 1.75;
@@ -1018,6 +1057,7 @@ html.dark[data-theme="paper"],
   --vzn-user-bubble-border: rgba(15, 23, 42, 0.14);
 
   /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface);
   --vzn-chrome-fg: #c7cfdd;
   --vzn-chrome-fg-strong: #ffffff;
   --vzn-chrome-fg-muted: #a3aec2;
@@ -1056,7 +1096,7 @@ html.dark[data-theme="paper"],
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --vzn-font-reading: var(--vzn-font-sans);
   --vzn-line-reading: 1.5;
   --vzn-font-display: var(--vzn-font-sans);
@@ -1122,6 +1162,7 @@ html.dark[data-theme="corporate"],
   --vzn-user-bubble-border: rgba(203, 213, 225, 0.12);
 
   /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface-subtle);
   --vzn-chrome-fg: #b5c0d3;
   --vzn-chrome-fg-strong: #ffffff;
   --vzn-chrome-fg-muted: #8d99b0;
@@ -1160,7 +1201,7 @@ html.dark[data-theme="corporate"],
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --vzn-font-reading: var(--vzn-font-sans);
   --vzn-line-reading: 1.5;
   --vzn-font-display: var(--vzn-font-sans);
@@ -1226,6 +1267,7 @@ html.dark[data-theme="corporate"],
   --vzn-user-bubble-border: rgba(34, 211, 238, 0.25);
 
   /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface-subtle);
   --vzn-chrome-fg: #c8ccd8;
   --vzn-chrome-fg-strong: #ffffff;
   --vzn-chrome-fg-muted: #8d92a6;
@@ -1264,7 +1306,7 @@ html.dark[data-theme="corporate"],
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --vzn-font-reading: var(--vzn-font-sans);
   --vzn-line-reading: 1.6;
   --vzn-font-display: var(--vzn-font-sans);
@@ -1330,6 +1372,7 @@ html.dark[data-theme="midnight"],
   --vzn-user-bubble-border: rgba(34, 211, 238, 0.25);
 
   /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface-subtle);
   --vzn-chrome-fg: #c8ccd8;
   --vzn-chrome-fg-strong: #ffffff;
   --vzn-chrome-fg-muted: #8d92a6;
@@ -1368,7 +1411,7 @@ html.dark[data-theme="midnight"],
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   --vzn-font-reading: var(--vzn-font-sans);
   --vzn-line-reading: 1.6;
   --vzn-font-display: var(--vzn-font-sans);

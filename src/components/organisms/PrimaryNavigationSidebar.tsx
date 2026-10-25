@@ -5,6 +5,7 @@ import { type CatalogPage, navigationPages } from '../../modules/catalog'
 import { useAppStore, useT } from '../../store/useAppStore'
 import type { AppPage } from '../../types'
 import { fanProfileName } from '../../utils/fanProfileText'
+import { selectedProviderMissingKey } from '../../utils/providerKey'
 import { tpl } from '../../utils/tpl'
 import { AppLogoIcon } from '../AppLogo'
 import { Button, StatusDot } from '../ui/atoms'
@@ -63,6 +64,7 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
     setActivePage,
     clearTranslation,
     keyStatus,
+    selectedProvider,
     sidebarCollapsed,
     toggleSidebar,
     enabledModules,
@@ -75,7 +77,7 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
   const panelRef = useRef<HTMLDivElement>(null)
   const toggleRef = useRef<HTMLButtonElement>(null)
   const contentId = useId()
-  const hasAnyKey = Object.values(keyStatus).some(Boolean)
+  const missingKey = selectedProviderMissingKey(selectedProvider, keyStatus)
   const background = useBackgroundStatus(enabledModules)
   const commandShortcut = window.api?.platform === 'darwin' ? '⌘K' : 'Ctrl K'
   const responsiveCompact = viewportWidth < PRIMARY_NAVIGATION_NARROW_BREAKPOINT
@@ -299,7 +301,7 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
 
         <div className="app-sidebar-divider" />
 
-        {renderPageItem(pages.settings, { badge: !hasAnyKey, badgeLabel: t.model_no_key })}
+        {renderPageItem(pages.settings, { badge: missingKey, badgeLabel: t.model_no_key })}
       </div>
     </div>
   )

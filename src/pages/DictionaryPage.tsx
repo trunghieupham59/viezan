@@ -7,6 +7,7 @@ import {
   LanguagePairBar,
 } from '../components/organisms'
 import { DictionaryWorkbenchTemplate, PageHeader } from '../components/templates'
+import { CapabilityNotice } from '../components/ui/molecules'
 import { useDictionaryLookup } from '../hooks/useDictionaryLookup'
 import { useAppStore, useT } from '../store/useAppStore'
 import { useNotificationStore } from '../store/useNotificationStore'
@@ -25,12 +26,21 @@ export function DictionaryPage() {
     setLanguagePair,
     selectedProvider,
     openSettings,
+    openSettingsAt,
     costCurrency,
   } = useAppStore()
   const lookup = useDictionaryLookup()
 
   /** Controls visibility of the AI configuration popover. */
   const [showAIConfig, setShowAIConfig] = useState(false)
+
+  // After a lookup settles without an error, move keyboard focus to the new headword.
+  const [headwordFocusRequest, setHeadwordFocusRequest] = useState(0)
+  const wasLoadingRef = useRef(false)
+  useEffect(() => {
+    if (wasLoadingRef.current && !lookup.isLoading && !lookup.error) setHeadwordFocusRequest((n) => n + 1)
+    wasLoadingRef.current = lookup.isLoading
+  }, [lookup.isLoading, lookup.error])
 
   const dictionaryErrorContext = lookup.model
     ? t.translate_error_context(
@@ -108,6 +118,16 @@ export function DictionaryPage() {
           cannotSubmitReason={t.dictionary_lookup_needs_model}
           maxTermChars={lookup.maxTermChars}
           maxContextChars={lookup.maxContextChars}
+          termError={lookup.validationError?.field === 'term' ? lookup.validationError.message : undefined}
+          contextError={lookup.validationError?.field === 'context' ? lookup.validationError.message : undefined}
+          notice={lookup.canSubmit ? undefined : (
+            <CapabilityNotice
+              tone="warning"
+              title={t.dictionary_no_model_title}
+              description={t.dictionary_lookup_needs_model}
+              actions={[{ label: t.dictionary_no_model_action, onClick: () => openSettingsAt('api') }]}
+            />
+          )}
           onSubmit={() => void lookup.runLookup()}
           t={t}
         />
@@ -117,6 +137,8 @@ export function DictionaryPage() {
           entry={lookup.selectedEntry}
           copied={lookup.copied}
           isEnriching={lookup.isEnriching}
+          isLoading={lookup.isLoading}
+          focusRequest={headwordFocusRequest}
           onCopy={() => void lookup.copyEntry()}
           onFavorite={() => { if (lookup.selectedEntry) toggleDictionaryFavorite(lookup.selectedEntry.id) }}
           onReuse={lookup.reuseInTranslate}

@@ -1,8 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useAppStore } from '../../../store/useAppStore'
+import { useNotificationStore } from '../../../store/useNotificationStore'
 import type { ChatSession } from '../../../types'
 import { AIChatSidebar } from '../AIChatSidebar'
+import { NotificationViewport } from '../NotificationViewport'
 
 /** The page shell's composition (App puts the parts in PageHeader): header parts, then the history sidebar. */
 function ChatShell() {
@@ -61,6 +63,10 @@ describe('AIChatSidebar', () => {
       expect(button).toHaveAttribute('title', label ? `New Chat (${label})` : 'New Chat')
       if (shortcut) expect(button).toHaveAttribute('aria-keyshortcuts', shortcut)
       else expect(button).not.toHaveAttribute('aria-keyshortcuts')
+      // A visible chip beside the button shows the shortcut too.
+      const chip = document.querySelector('.ai-chat-header-shortcut')
+      if (label) expect(chip).toHaveTextContent(label)
+      else expect(chip).toBeNull()
     } finally {
       window.api = originalApi
       act(() => useAppStore.setState({ chatNewSessionShortcut: originalShortcut }))
@@ -238,5 +244,50 @@ describe('AIChatSidebar', () => {
     const sidebar = document.querySelector('.ai-chat-sidebar')
     expect(sidebar).toHaveAttribute('data-responsive-compact', 'false')
     expect(sidebar).toHaveAttribute('data-collapsed', 'false')
+  })
+
+  it('shows the untitled default title in the interface language', () => {
+    act(() => useAppStore.setState({
+      locale: 'vi',
+      chatSessions: [{ ...sessions[0], title: 'New Chat' }],
+      activeChatSessionId: 'older-chat',
+    }))
+    render(<ChatShell />)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Chat Mới')
+    expect(screen.getByRole('button', { name: /^Chat Mới,/ })).toBeInTheDocument()
+  })
+
+  it('labels research as paused only when its snapshot exists and no run is in flight', () => {
+    const resumeState = {
+      question: 'Q', aspects: [], knowledgeBase: [], surveyCompletedAspects: [], imageContext: '',
+      imageSearchTerms: [], anyWebSearch: false, lastCompletedPhase: 'survey' as const, lastGapIteration: 0, hasImages: false,
+    }
+    act(() => useAppStore.setState({
+      chatSessions: [{ ...sessions[0], deepResearchResumeState: resumeState }],
+      chatRunningSessionIds: ['older-chat'],
+    }))
+    const { container } = render(<ChatShell />)
+    const meta = () => container.querySelector('.chat-session-meta')
+    expect(meta()).toHaveTextContent('In depth')
+    expect(meta()).not.toHaveTextContent('paused')
+
+    act(() => useAppStore.getState().setChatSessionRunning('older-chat', false))
+    expect(meta()).toHaveTextContent('In depth · paused')
+  })
+
+  it('deletes a conversation with an undo toast that restores it in place', () => {
+    act(() => useNotificationStore.getState().clear())
+    render(<><ChatShell /><NotificationViewport /></>)
+
+    fireEvent.click(screen.getByRole('button', { name: /^Delete: Older conversation,/ }))
+    expect(useAppStore.getState().chatSessions.map((session) => session.id)).toEqual(['newer-chat'])
+    expect(useAppStore.getState().activeChatSessionId).toBeNull()
+    expect(useNotificationStore.getState().notifications.map((item) => item.key)).toEqual(['chat-session-deleted'])
+    expect(screen.getByText('Conversation deleted')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(useAppStore.getState().chatSessions.map((session) => session.id)).toEqual(['older-chat', 'newer-chat'])
+    expect(useAppStore.getState().activeChatSessionId).toBe('older-chat')
+    expect(useNotificationStore.getState().notifications).toHaveLength(0)
   })
 })

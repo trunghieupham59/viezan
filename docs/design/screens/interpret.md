@@ -67,7 +67,7 @@ Bố cục mặc định (vùng nội dung ≥ 1100 px, kiểu hiển thị **So
 | Popover Cấu hình AI | `InterpretAIConfiguration` → `AIConfigurationPopover` | rộng `--vzn-ai-configuration-inline` (= `--vzn-popover-wide`, 420), cao tối đa `--vzn-ai-configuration-max-block`, `--vzn-shadow-md` | Thân popover cuộn |
 | Hộp thoại Tóm tắt | `DialogShell size="lg"` | xem `DialogShell` | Nội dung tab cuộn |
 | Hộp thoại Phiên đã lưu | `DialogShell size="md"` + `LiveSessionHistoryPanel` | `.history-panel[data-variant="overlay"]` | Danh sách cuộn |
-| Hộp thoại quyền Screen Recording | `div.modal-surface` (tự dựng) | `max-w-sm`, padding 24 | Không |
+| Hộp thoại quyền Screen Recording | `DialogShell size="sm"` + `.live-permission-*` (`ai-configuration.css`) | xem `DialogShell` | Không |
 | Cửa sổ Phụ đề nổi | Cửa sổ Electron riêng `public/subtitle.html` | 660 × 300 (tối thiểu 400 × 252), không viền, nền trong suốt, luôn nổi, cách đáy màn hình 40 | — |
 
 ## 4. Thành phần và hành động
@@ -76,7 +76,7 @@ Bố cục mặc định (vùng nội dung ≥ 1100 px, kiểu hiển thị **So
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Cặp ngôn ngữ (nguồn ▾ / đích ▾) | `LanguagePairBar scope="live"`, nút chọn `md` | Click / Enter | Mở bộ chọn ngôn ngữ có chip cặp gần đây và cặp đã ghim | Panel bộ chọn mở dưới nút | Khi phiên chạy hoặc đang xử lý âm thanh cuối (`liveLanguagesLocked`): giữa hai nút là ổ khoá, tooltip "Dừng phiên để đổi ngôn ngữ" |
 | 2 | Ô giữa cặp ngôn ngữ | Mũi tên tĩnh `aria-hidden`; khi khoá là `Button md · neutral · ghost` icon khoá, `disabled` | — | Không đảo chiều ở trang này (test "shows a direction arrow instead of a dead swap") | — | — |
-| 3 | Nguồn âm thanh: Micro / Âm thanh hệ thống / Cả hai | `fieldset.segmented-control`, mỗi nút `sm · neutral · ghost`, `aria-pressed` | Click | Đổi `audioMode` (mặc định "Âm thanh hệ thống"); với hệ thống/cả hai, kiểm tra quyền Screen Recording ngay và mỗi lần cửa sổ được focus | Nút chọn có `aria-pressed="true"` | `disabled` khi phiên đang chạy |
+| 3 | Nguồn âm thanh: Micro / Âm thanh hệ thống / Cả hai | `fieldset.segmented-control`, mỗi nút `sm · neutral · ghost` có icon + nhãn `span` và `aria-label`, `aria-pressed` | Click | Đổi `audioMode` (mặc định "Âm thanh hệ thống"); với hệ thống/cả hai, kiểm tra quyền Screen Recording ngay và mỗi lần cửa sổ được focus | Nút chọn có `aria-pressed="true"` | `disabled` khi phiên đang chạy |
 | 4 | Trạng thái phiên | `LiveSessionStatus`: `StatusChip tone="danger"` + `Meter` | Tự động khi phiên chạy | Hiện nhãn pipeline (Đang nghe … / Đang thu âm… / Đang chuyển văn bản… / Đang dịch…) và thời gian chạy `mm:ss` | Spinner thay chấm khi đang nhận dạng/dịch; thanh đo mức âm vào cập nhật mỗi 100 ms | Ẩn khi không có phiên |
 | 5 | Lịch sử phiên | `md · neutral · ghost`, icon đồng hồ, `aria-label="Hiện lịch sử phiên"`, `aria-haspopup="dialog"`, `aria-expanded` | Click | Mở hộp thoại "Phiên đã lưu" | Hộp thoại mở, focus vào nút đóng | Luôn bật |
 | 6 | Cấu hình AI | `md · neutral · ghost` (khi mở: `primary · soft`), icon bánh răng, `aria-expanded`, `aria-haspopup="dialog"` | Click (bấm lại để đóng) | Mở popover "Cấu hình AI" neo dưới nút | Nút chuyển sang soft xanh | Luôn bật; khi phiên chạy, phạm vi đổi thành "Phiên đang chạy giữ nguyên mô hình đã dùng khi bắt đầu." |
@@ -107,7 +107,7 @@ Bố cục mặc định (vùng nội dung ≥ 1100 px, kiểu hiển thị **So
 | 31 | Hộp thoại Tóm tắt › tab Tóm tắt / Việc cần làm / Quyết định | `md · neutral · ghost` (đang chọn: `primary · soft`) | Click | Đổi tab | Nội dung tab đổi | — |
 | 32 | Hộp thoại Tóm tắt › Sao chép | `sm · neutral · outline` (sau khi chép: `primary · soft`, "Đã sao chép!") | Click | Chép nội dung tab | Nhãn đổi 1,5 s | Chỉ hiện khi tab có nội dung và không đang chạy |
 | 33 | Hộp thoại Tóm tắt › Tổng hợp nội dung / Tạo lại; Trích xuất việc cần làm / Trích xuất lại; Trích xuất quyết định / Trích xuất lại | `sm · primary · solid` | Click | Gọi AI cho tab đang mở | Spinner + "Đang …" ở thân tab | Ẩn khi tab đang chạy |
-| 34 | Quyền Screen Recording › Đóng | `sm · neutral · outline` | Click / Esc / bấm nền | Đóng hộp thoại, không bắt đầu | — | — |
+| 34 | Quyền Screen Recording › Đóng | `sm · neutral · outline` (và nút đóng của `DialogShell`) | Click / Esc / bấm nền | Đóng hộp thoại, không bắt đầu | — | — |
 | 35 | Quyền Screen Recording › Mở System Settings | `sm · primary · solid`, icon bánh răng | Click | Mở `MACOS_SCREEN_RECORDING_PREFS` qua `window.api.openExternal`, đóng hộp thoại | Cài đặt macOS mở | — |
 | 36 | Phiên đã lưu › hàng phiên | Nút gốc `.history-panel-reopen` (ngoại lệ có ghi chú trong mã) | Click / Enter | `setViewingLiveSession(id)`, đóng hộp thoại, nạp lại bản ghi, bản dịch, tóm tắt, người nói tại chỗ | Hàng đang xem có `aria-current` | — |
 | 37 | Phiên đã lưu › Xóa (từng hàng) | `xs · danger · ghost` icon, `aria-label="Xóa: <tiêu đề>"` | Click | Xoá phiên khỏi lịch sử | Hàng biến mất | Không có xác nhận |
@@ -181,8 +181,8 @@ Ngưỡng tính theo container `app-main` (`@container app-main` trong `src/styl
 | Bề rộng vùng nội dung | Thay đổi |
 | --- | --- |
 | ≥ 1100 px | "Phiên này" hiện thành cột 280 px bên phải (khi đã có bản ghi hoặc tóm tắt); nút TXT/SRT ở chân bảng ẩn vì đã có trong "Phiên này" |
-| 900–1099 px | "Phiên này" ẩn; xuất TXT/SRT và Tổng hợp nội dung nằm ở chân bảng. Tách riêng: hai cột chỉ khi **cửa sổ** ≥ 1024 px (`.app-panel-grid` trong `src/index.css`), nếu không thì hai bảng chồng dọc mỗi bảng `1fr` |
-| 560–899 px | Thân `.live-panels-body` tự cuộn; Tách riêng thành một cột, mỗi bảng cao `--vzn-live-panel-min-block` (16rem) và tự cuộn; thanh công cụ bảng Song song xếp dọc (tiêu đề trên, nút đổi kiểu dưới); header xuống dòng: cặp ngôn ngữ + nguồn âm ở dòng 1, hành động ở dòng 2 |
+| 900–1099 px | "Phiên này" ẩn; xuất TXT/SRT và Tổng hợp nội dung nằm ở chân bảng. Tách riêng: hai cột cạnh nhau (`.app-panel-grid`, `@container app-main (min-width: 900px)` trong `src/index.css`) |
+| 560–899 px | Thân `.live-panels-body` tự cuộn; Tách riêng thành một cột, mỗi bảng cao `--vzn-live-panel-min-block` (16rem) và tự cuộn; thanh công cụ bảng Song song xếp dọc (tiêu đề trên, nút đổi kiểu dưới); header xuống dòng: cặp ngôn ngữ + nguồn âm ở dòng 1, hành động ở dòng 2; nút nguồn âm chỉ còn icon (nhãn ẩn, giữ `aria-label`) |
 | < 560 px | Header giảm lề trong còn `--vzn-space-4` (`.page-header` trong `src/styles/codex.css`); các vùng khác như 560–899 px |
 | Cửa sổ ≤ 720 px rộng hoặc ≤ 600 px cao | Popover Cấu hình AI thành hộp thoại giữa cửa sổ, ngay dưới thanh tiêu đề |
 | Cửa sổ < 900 px | Điều hướng chính thành rail 60 px (foundations §8) |
@@ -193,8 +193,8 @@ Ngưỡng tính theo container `app-main` (`@container app-main` trong `src/styl
 - **Nhóm nút**: nguồn âm thanh và kiểu hiển thị là `fieldset` có `aria-label` ("Nguồn âm thanh", "Kiểu hiển thị"), mỗi nút có `aria-pressed`. Nguồn âm có `title` mô tả đầy đủ (ví dụ "Âm thanh hệ thống + microphone (cần quyền Screen Recording trên macOS)").
 - **Nút icon**: Lịch sử, Cấu hình AI, Sao chép nguyên bản/bản dịch, Xóa phiên trong lịch sử đều có `aria-label`. Lịch sử và Cấu hình AI có `aria-haspopup="dialog"` + `aria-expanded`. Phụ đề nổi có `aria-pressed`.
 - **Trạng thái phiên**: thời gian chạy có tiền tố ẩn "Thời gian đã chạy:" (`sr-only`); `Meter` có nhãn "Mức âm thanh đầu vào".
-- **Vùng live**: dòng trạng thái câu (`Đang chờ đủ ý`…) dùng `role="status"`; toast lỗi dùng `role="alert"` + `aria-live="assertive"`, toast cảnh báo `role="status"` + `aria-live="polite"` (`NotificationToast`). Vùng bản ghi chưa có `aria-live` (xem mục 10).
-- **Lớp phủ**: popover Cấu hình AI (`role="dialog"`, `aria-labelledby`, `aria-describedby` = câu phạm vi) focus vào điều khiển đầu tiên khi mở, Esc hoặc bấm ra ngoài thì đóng và trả focus về nút bánh răng. `DialogShell` (Tóm tắt, Phiên đã lưu, xác nhận xoá) giữ focus bên trong, Esc đóng, trả focus về nút mở. Hộp thoại quyền Screen Recording đóng bằng Esc (bộ nghe trên `document`) nhưng không bẫy focus.
+- **Vùng live**: dòng trạng thái câu (`Đang chờ đủ ý`…) dùng `role="status"`; toast lỗi dùng `role="alert"` + `aria-live="assertive"`, toast cảnh báo `role="status"` + `aria-live="polite"` (`NotificationToast`). Một vùng ẩn `aria-live="polite"` chỉ đọc câu mới nhất đã chốt và đã dịch (không đọc từng ký tự đang gõ).
+- **Lớp phủ**: popover Cấu hình AI (`role="dialog"`, `aria-labelledby`, `aria-describedby` = câu phạm vi) focus vào điều khiển đầu tiên khi mở, Esc hoặc bấm ra ngoài thì đóng và trả focus về nút bánh răng. `DialogShell` (Tóm tắt, Phiên đã lưu, xác nhận xoá) giữ focus bên trong, Esc đóng, trả focus về nút mở. Hộp thoại quyền Screen Recording cũng là `DialogShell`, nên có cùng hành vi.
 - **Đổi tên người nói**: Enter lưu, Esc huỷ, rời ô lưu.
 - Không có phím tắt riêng cho trang.
 
@@ -262,15 +262,10 @@ Bản vẽ (`boards/Interpret.dc.html`, `Histories`, `Popovers`, `States`) so v�
 2. **Thứ tự hành động header.** Bản vẽ: chip trạng thái ngay sau tiêu đề, Phụ đề nổi → Dừng → bánh răng ở cuối. Mã: trạng thái, Lịch sử, Cấu hình AI, Phụ đề nổi, rồi Bắt đầu/Dừng ở cuối. Đặc tả này theo mã; nút chính ở cuối hàng là đúng hợp đồng "một hành động chính".
 3. **Thanh mức âm 5 vạch màu xanh lá** trong bản vẽ; mã dùng `Meter` một thanh `emphasis="action"`. Giữ mã.
 4. **"Phiên này"**: bản vẽ có mục "Phụ đề nổi" với ô xem trước phụ đề và link "Đổi tên" cạnh từng người nói — **đề xuất**. Mã: đổi tên bằng cách bấm nhãn trong bản ghi; xem trước phụ đề không có (cả trong popover, `boards/Popovers.dc.html` có "[Xem trước phụ đề]"). Bản vẽ đặt TXT/SRT ở header thẻ; mã đặt trong `SectionCard` "Xuất".
-5. **Màu người nói.** Bản vẽ tô màu theo người (xanh, cam). `src/components/live/speakerColors.ts` trả cùng một lớp xám Tailwind cho mọi người, và dùng màu Tailwind thay vì token — nợ thiết kế.
-6. **Lịch sử phiên (Histories)**: bản vẽ có tên phiên, thời lượng, số người nói, "có tóm tắt"; mã hiện bản ghi/bản dịch, model, cặp, số từ, thời gian tương đối. Tên phiên và thời lượng — **đề xuất**.
-7. **Sau phiên (Histories)**: bản vẽ có một trang kết quả gộp Tóm tắt + Quyết định + Việc cần làm (ô tích) + tỉ lệ người nói. Mã: hộp thoại ba tab, nội dung Markdown, không có ô tích, không có tỉ lệ người nói trong hộp thoại. `useLiveTranslate` có `speakerAnalysis`/"Phân tích người nói" (`live_analyze_speakers`) nhưng trang không hiển thị — **đề xuất** nối lại.
-8. **Thiếu quyền (States)**: bản vẽ là `CapabilityNotice` trong trang, câu "macOS chỉ cho nghe âm thanh hệ thống khi Viezan có quyền này. Viezan không ghi hình." và nút phụ "Dùng micro thay thế" — **đề xuất**. Mã: hộp thoại tự dựng chỉ hiện khi bấm Bắt đầu, có Đóng và Mở System Settings. Thiếu quyền micro chỉ báo bằng toast, không có trạng thái riêng.
-9. **Hộp thoại quyền Screen Recording không dùng `DialogShell`**: dựng tay với lớp Tailwind màu cứng (`bg-black/40`, `text-gray-800`…), không bẫy focus, không trả focus. Nên chuyển sang `DialogShell` + token.
-10. **Nợ token khác**: thân hộp thoại Tóm tắt dùng `text-gray-400 dark:text-gray-600`; huy hiệu STT và hàng tạm dùng `style={{…}}` inline; `.live-bilingual-translation` khai báo `font-weight: 500` thay vì `--vzn-weight-medium` (`src/styles/ai-configuration.css`); màu phụ đề là hex trong `LiveTranslatePage.tsx` (dữ liệu gửi sang cửa sổ phụ đề, chấp nhận được nhưng nên ghi chú). Cửa sổ `public/subtitle.html` có bộ style riêng ngoài `tokens.css`.
-11. **Nhãn nguồn âm thanh ở cửa sổ hẹp.** CSS ẩn `.live-header-leading .live-audio-source-group .ui-button span` khi < 900 px, nhưng nút chỉ chứa chữ (không có `span`, icon trong `audioModes` không được render), nên quy tắc không có tác dụng; nhóm nguồn giữ nhãn đầy đủ và làm header xuống dòng. Hoặc render icon + `span` nhãn, hoặc bỏ quy tắc.
-12. **Vùng `aria-live` cho bản ghi** chưa có (foundations §11 yêu cầu `aria-live="polite"` cho kết quả bất đồng bộ). Cần cân nhắc chỉ đọc câu đã chốt để không đọc từng ký tự typewriter.
-13. **Xóa bản ghi không có xác nhận và nằm trong canvas** (nút `danger · soft` ở chân bảng). Không vi phạm luật Chat (chỉ áp cho Chat) và không xoá phiên đã lưu, nhưng nên ghi rõ trong tooltip rằng lịch sử vẫn giữ.
-14. **Xoá từng phiên trong lịch sử không có xác nhận** (chỉ "Xoá phiên đã lưu" có). Giữ theo mã; đề xuất toast Hoàn tác.
-15. **Phím tắt** Bắt đầu/Dừng (ví dụ `⌘⏎`) — **đề xuất**.
-16. **Thông báo lỗi khi từ chối quyền ở chế độ "Cả hai"**: mã chọn `live_error_screen_permission_denied` chỉ khi `audioMode === 'system'`, nên "Cả hai" bị từ chối Screen Recording vẫn báo "Không có quyền truy cập microphone." (xem `useLiveTranslate.ts`, khối `catch` của `handleStart`).
+5. **Lịch sử phiên (Histories)**: bản vẽ có tên phiên, thời lượng, số người nói, "có tóm tắt"; mã hiện bản ghi/bản dịch, model, cặp, số từ, thời gian tương đối. Tên phiên và thời lượng — **đề xuất**.
+6. **Sau phiên (Histories)**: bản vẽ có một trang kết quả gộp Tóm tắt + Quyết định + Việc cần làm (ô tích) + tỉ lệ người nói. Mã: hộp thoại ba tab, nội dung Markdown, không có ô tích, không có tỉ lệ người nói trong hộp thoại. `useLiveTranslate` có `speakerAnalysis`/"Phân tích người nói" (`live_analyze_speakers`) nhưng trang không hiển thị — **đề xuất** nối lại.
+7. **Thiếu quyền (States)**: bản vẽ là `CapabilityNotice` trong trang, câu "macOS chỉ cho nghe âm thanh hệ thống khi Viezan có quyền này. Viezan không ghi hình." và nút phụ "Dùng micro thay thế" — **đề xuất**. Mã: hộp thoại (`DialogShell`) chỉ hiện khi bấm Bắt đầu, có Đóng và Mở System Settings. Thiếu quyền micro chỉ báo bằng toast, không có trạng thái riêng.
+8. **Nợ token khác**: thân hộp thoại Tóm tắt dùng `text-gray-400 dark:text-gray-600`; huy hiệu STT và hàng tạm dùng `style={{…}}` inline; `.live-bilingual-translation` khai báo `font-weight: 500` thay vì `--vzn-weight-medium` (`src/styles/ai-configuration.css`); màu phụ đề là hex trong `LiveTranslatePage.tsx` (dữ liệu gửi sang cửa sổ phụ đề, chấp nhận được nhưng nên ghi chú). Cửa sổ `public/subtitle.html` có bộ style riêng ngoài `tokens.css`.
+9. **Xóa bản ghi không có xác nhận và nằm trong canvas** (nút `danger · soft` ở chân bảng). Không vi phạm luật Chat (chỉ áp cho Chat) và không xoá phiên đã lưu, nhưng nên ghi rõ trong tooltip rằng lịch sử vẫn giữ.
+10. **Xoá từng phiên trong lịch sử không có xác nhận** (chỉ "Xoá phiên đã lưu" có). Giữ theo mã; đề xuất toast Hoàn tác.
+11. **Phím tắt** Bắt đầu/Dừng (ví dụ `⌘⏎`) — **đề xuất**.

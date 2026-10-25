@@ -21,55 +21,11 @@ export function ProviderIcon({ provider, size = 20, className = '' }: ProviderIc
   )
 }
 
-// Provider UI metadata. Surfaces remain neutral; iconColor is the flat brand mark.
-export const PROVIDER_COLORS: Record<Provider, {
-  bg: string
-  bgActive: string
-  text: string
-  textActive: string
-  border: string
-  borderActive: string
-  dot: string
-  iconColor: string
-}> = {
-  gemini: {
-    bg: 'bg-gray-50 dark:bg-neutral-800/70',
-    bgActive: 'bg-gray-100 dark:bg-neutral-700/80',
-    text: 'text-gray-700 dark:text-gray-300',
-    textActive: 'text-gray-900 dark:text-gray-100',
-    border: 'border-gray-200 dark:border-gray-700',
-    borderActive: 'border-gray-400 dark:border-gray-500',
-    dot: 'bg-gray-500',
-    iconColor: PROVIDER_BRAND_COLORS.gemini,
-  },
-  claude: {
-    bg: 'bg-gray-50 dark:bg-neutral-800/70',
-    bgActive: 'bg-gray-100 dark:bg-neutral-700/80',
-    text: 'text-gray-700 dark:text-gray-300',
-    textActive: 'text-gray-900 dark:text-gray-100',
-    border: 'border-gray-200 dark:border-gray-700',
-    borderActive: 'border-gray-400 dark:border-gray-500',
-    dot: 'bg-gray-500',
-    iconColor: PROVIDER_BRAND_COLORS.claude,
-  },
-  openai: {
-    bg: 'bg-gray-50 dark:bg-neutral-800/70',
-    bgActive: 'bg-gray-100 dark:bg-neutral-700/80',
-    text: 'text-gray-700 dark:text-gray-300',
-    textActive: 'text-gray-900 dark:text-gray-100',
-    border: 'border-gray-200 dark:border-gray-700',
-    borderActive: 'border-gray-400 dark:border-gray-500',
-    dot: 'bg-gray-500',
-    iconColor: PROVIDER_BRAND_COLORS.openai,
-  },
-  local: {
-    bg: 'bg-gray-50 dark:bg-gray-800/70',
-    bgActive: 'bg-gray-100 dark:bg-gray-700/80',
-    text: 'text-gray-700 dark:text-gray-300',
-    textActive: 'text-gray-900 dark:text-gray-100',
-    border: 'border-gray-200 dark:border-gray-700',
-    borderActive: 'border-gray-400 dark:border-gray-500',
-    dot: 'bg-gray-500',
-    iconColor: PROVIDER_BRAND_COLORS.local,
-  },
+// Provider UI metadata. Surfaces stay neutral through the design tokens, so the
+// only per-provider value is iconColor, the flat brand mark.
+export const PROVIDER_COLORS: Record<Provider, { iconColor: string }> = {
+  gemini: { iconColor: PROVIDER_BRAND_COLORS.gemini },
+  claude: { iconColor: PROVIDER_BRAND_COLORS.claude },
+  openai: { iconColor: PROVIDER_BRAND_COLORS.openai },
+  local: { iconColor: PROVIDER_BRAND_COLORS.local },
 }

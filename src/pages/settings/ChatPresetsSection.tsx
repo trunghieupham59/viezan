@@ -7,6 +7,7 @@ import { PlusIcon, XIcon } from '../../components/ui/icons'
 import { PresetActions } from '../../components/ui/PresetActions'
 import { SettingsFormActions } from '../../components/ui/SettingsFormActions'
 import { useAppStore, useT } from '../../store/useAppStore'
+import { useNotificationStore } from '../../store/useNotificationStore'
 import type { ChatSendShortcut, SystemPromptPreset } from '../../types'
 import { DEFAULT_CHAT_NEW_SESSION_SHORTCUT, formatShortcutLabel, keyEventToAccelerator } from '../../utils/keyboardShortcuts'
 import { tpl } from '../../utils/tpl'
@@ -23,6 +24,7 @@ export function ChatPresetsSection() {
   const chatNewSessionShortcut = useAppStore((state) => state.chatNewSessionShortcut)
   const setChatSendShortcut = useAppStore((state) => state.setChatSendShortcut)
   const setChatNewSessionShortcut = useAppStore((state) => state.setChatNewSessionShortcut)
+  const notify = useNotificationStore((state) => state.notify)
   const t = useT()
 
   const [isRecordingNewChatShortcut, setIsRecordingNewChatShortcut] = useState(false)
@@ -57,6 +59,18 @@ export function ChatPresetsSection() {
   }
 
   const cancelEdit = () => setEditingPresetId(null)
+
+  const applyPreset = (preset: SystemPromptPreset) => {
+    setChatSystemPrompt(preset.content)
+    notify({ key: 'settings-chat-preset', tone: 'success', message: tpl(t.settings_chat_preset_applied, { name: preset.name }) })
+  }
+
+  /** Deleting cannot be undone, so it asks first. */
+  const deletePreset = (preset: SystemPromptPreset) => {
+    if (!window.confirm(tpl(t.settings_chat_preset_delete_confirm, { name: preset.name }))) return
+    if (editingPresetId === preset.id) setEditingPresetId(null)
+    deleteSystemPromptPreset(preset.id)
+  }
 
   const handleNewChatShortcutKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
     e.preventDefault()
@@ -136,9 +150,9 @@ export function ChatPresetsSection() {
                 setDefaultSystemPromptPreset(preset.id)
                 setChatSystemPrompt(preset.content)
               }}
-              onApply={() => setChatSystemPrompt(preset.content)}
+              onApply={() => applyPreset(preset)}
               onEdit={() => startEdit(preset)}
-              onDelete={() => deleteSystemPromptPreset(preset.id)}
+              onDelete={() => deletePreset(preset)}
               setDefaultTitle={t.settings_chat_preset_set_default}
               applyTitle={t.settings_preset_use_prompt}
               editTitle={t.settings_chat_preset_edit}
@@ -188,7 +202,7 @@ export function ChatPresetsSection() {
         <SettingsRow label={t.settings_chat_shortcut_new_chat} description={t.settings_chat_shortcut_new_chat_desc}>
           {chatNewSessionShortcut && !isRecordingNewChatShortcut && (
             <Button
-              size="sm"
+              size="md"
               shape="icon"
               variant="danger"
               appearance="ghost"
@@ -202,7 +216,7 @@ export function ChatPresetsSection() {
           )}
           {!chatNewSessionShortcut && !isRecordingNewChatShortcut && (
             <Button
-              size="sm"
+              size="md"
               shape="rect"
               variant="neutral"
               appearance="outline"

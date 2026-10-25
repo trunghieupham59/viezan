@@ -55,7 +55,7 @@ Trang AI Chat chèn sidebar lịch sử (organism riêng, `AIChatSidebar`) giữ
 | --- | --- | --- | --- |
 | Thanh tiêu đề | `AppShell` (`.app-titlebar-drag`) | Cao `--vzn-titlebar-height` (40); nền `--vzn-titlebar-bg` (Glass/hệ thống trên macOS: `--vzn-titlebar-material`); macOS chừa `--vzn-titlebar-mac-controls-width` (80) cho đèn giao thông đặt ở (16, 14) | Không; toàn dải là vùng kéo, nút có `titlebar-no-drag` |
 | Ô nút thu gọn | `.app-header-navigation` (host portal) | Rộng `--vzn-sidebar-width` (60), căn giữa nút `sm` 32 | Không |
-| Điều hướng chính | `PrimaryNavigationSidebar` (`nav.primary-navigation-sidebar` › `.primary-navigation-panel`) | Mở rộng `--vzn-sidebar-expanded-width` (236; 208 khi cửa sổ ≤ 900 px), rail `--vzn-sidebar-width` (60); nền `--vzn-sidebar-bg`, viền phải `--vzn-chrome-divider`; chữ đọc `--vzn-chrome-*` | Chỉ `.sidebar-nav-scroll` cuộn (`overscroll-behavior: contain`) |
+| Điều hướng chính | `PrimaryNavigationSidebar` (`nav.primary-navigation-sidebar` › `.primary-navigation-panel`) | Mở rộng `--vzn-sidebar-expanded-width` (236; 208 khi cửa sổ < 900 px), rail `--vzn-sidebar-width` (60); nền `--vzn-sidebar-bg`, viền phải `--vzn-chrome-divider`; chữ đọc `--vzn-chrome-*` | Chỉ `.sidebar-nav-scroll` cuộn (`overscroll-behavior: contain`) |
 | Hàng thương hiệu | `.sidebar-brand-row` | Cao tối thiểu 40; logo `AppLogoIcon size="sm"`; chữ "Viezan" chỉ khi mở rộng | Không |
 | Nút tìm | `.sidebar-search-trigger` | Button `sm` 32, chip phím `.sidebar-shortcut` | Không |
 | Nhóm trang | `.sidebar-space` (một `section` mỗi nhóm) | Nhãn nhóm `--vzn-font-size-caption`, viết hoa, `--vzn-tracking-caps`; khi rail: nhãn ẩn, thay bằng đường kẻ `--vzn-divider` | Trong vùng cuộn |
@@ -84,7 +84,7 @@ Lớp chồng (thấp → cao): lớp phủ ngữ cảnh 60 → nền bắt bấ
 | 6 | Hàng "Phím tắt toàn cục" + số | như #5 | Bấm | Tới Launcher & phím tắt | Chuyển trang | Chỉ có khi ít nhất một trong hai phím (Dịch nhanh, Launcher) đang bật |
 | 7 | Hàng "Tiện ích Chrome" + "sẵn sàng" | như #5 | Bấm | Tới Dịch mọi nơi | Chuyển trang | Chỉ có khi module browser-bridge bật và có ít nhất một token tiện ích |
 | 8 | Tóm tắt chạy nền khi rail | `StatusDot` (không phải nút) | Rê chuột | Tooltip liệt kê các hàng | `aria-label` "Đang chạy nền: {count} mục" | Ẩn khi không có hàng nào |
-| 9 | Cài đặt | `sm` · như #4; huy hiệu chấm + "Chưa có key" khi chưa có khoá API nào | Bấm | Tới trang Cài đặt | Như #4; `aria-label` thành "Cài đặt: Chưa có key" khi có huy hiệu | Luôn hiện, luôn ghim đáy |
+| 9 | Cài đặt | `sm` · như #4; huy hiệu chấm + "Chưa có key" khi provider đang chọn cần khoá mà chưa có (`selectedProviderMissingKey`, AI local không bao giờ bị báo) | Bấm | Tới trang Cài đặt | Như #4; `aria-label` thành "Cài đặt: Chưa có key" khi có huy hiệu | Luôn hiện, luôn ghim đáy |
 | 10 | Nền bắt bấm của lớp phủ (`.primary-navigation-backdrop`) | Trong suốt, không phải nút | Bấm ra ngoài lớp phủ | Đóng lớp phủ | Lớp phủ biến mất | Chỉ có khi lớp phủ mở |
 
 ### 4.2 Bảng lệnh ⌘K
@@ -117,12 +117,12 @@ Lớp chồng (thấp → cao): lớp phủ ngữ cảnh 60 → nền bắt bấ
 | # | Điều khiển | Loại | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
 | 26 | Popup › "Thu nhỏ" | `md` · `neutral` · `ghost`, vuông | Bấm | Thu nhỏ cửa sổ popup xuống Dock/thanh tác vụ | Cửa sổ thu nhỏ | — |
-| 27 | Popup › "Đóng" (X), hoặc đóng cửa sổ bằng phím hệ thống | `md` · `neutral` · `ghost`, vuông | Bấm | Như "Nhắc sau 24 giờ": hoãn phiên bản này 24 giờ rồi ẩn | Popup ẩn | — |
+| 27 | Popup › "Đóng" (X), hoặc đóng cửa sổ bằng phím hệ thống | `md` · `neutral` · `ghost`, vuông, `aria-label` và tooltip "Đóng và nhắc sau 24 giờ" | Bấm | Như "Nhắc sau 24 giờ": hoãn phiên bản này 24 giờ rồi ẩn | Popup ẩn | — |
 | 28 | Popup › "Nhắc sau 24 giờ" | `md` · `neutral` · `outline` | Bấm | Ghi hoãn vào `update-notifications.json`, ẩn popup | Popup ẩn; nếu ghi thất bại, popup ở lại và hiện lỗi | — |
 | 29 | Popup › "Tải cập nhật" / "Cài đặt & khởi động lại" | `md` · `primary` · `solid` | Bấm | `available` → tải; `downloaded` → cài và khởi động lại | Dòng "Đang tải… {percent}%" (`role="status"`); xong thì tiêu đề thành "Sẵn sàng cài đặt" | `disabled` khi đang chạy hoặc đang tải |
 | 30 | Hộp thoại trong app › "Xem thay đổi" | `md` · `neutral` · `ghost` | Bấm | Mở trang phát hành `v{version}` trên GitHub bằng trình duyệt | — | `disabled` khi đang chạy thao tác |
 | 31 | Hộp thoại trong app › "Để sau" | `md` · `neutral` · `outline` (nhận focus đầu tiên) | Bấm; `Esc` | Hoãn phiên bản này 24 giờ (lưu `localStorage`) | Hộp thoại đóng, focus trả về chỗ cũ | — |
-| 32 | Hộp thoại trong app › "Tải bản cập nhật" / "Cài đặt & khởi động lại" | `md` · `neutral` · `solid` | Bấm | Như #29 | Dòng tiến độ; lỗi đi ra toast lỗi (khoá `update-notification-action`) | `disabled` khi đang chạy hoặc đang tải |
+| 32 | Hộp thoại trong app › "Tải bản cập nhật" / "Cài đặt & khởi động lại" | `md` · `primary` · `solid` | Bấm | Như #29 | Dòng tiến độ; lỗi đi ra toast lỗi (khoá `update-notification-action`) | `disabled` khi đang chạy hoặc đang tải |
 
 ### 4.5 Khay và thanh menu (menu gốc của hệ điều hành)
 
@@ -143,10 +143,10 @@ Nhãn khay theo **ngôn ngữ hệ điều hành** (`app.getLocale()`), không t
 | --- | --- | --- | --- |
 | Mở rộng | Cửa sổ ≥ 900 px và `sidebarCollapsed = false` | Cột 236 px, có nhãn, nhãn nhóm viết hoa, chip ⌘K, dải chạy nền đầy đủ | Mọi mục #1–#9 |
 | Rail | Cửa sổ ≥ 900 px và `sidebarCollapsed = true`, hoặc cửa sổ < 900 px (mặc định) | Cột 60 px chỉ icon (nút 40 px căn giữa); nhóm cách nhau bằng đường kẻ; dải chạy nền thu thành một chấm có tooltip; huy hiệu Cài đặt chỉ còn chấm | Như trên; tên trang qua `title`/`aria-label` |
-| Lớp phủ tạm | Cửa sổ < 900 px, bấm nút mở rộng | Bảng 236 px (208 px khi ≤ 900 px) được portal ra `body`, neo đúng vị trí rail, cao bằng rail, bóng `--vzn-shadow-lg`; nền bắt bấm trong suốt phía sau | Chọn trang (tự đóng), `Esc`, bấm ra ngoài, `⌘K`; kéo cửa sổ rộng ≥ 900 px cũng tự đóng |
+| Lớp phủ tạm | Cửa sổ < 900 px, bấm nút mở rộng | Bảng 236 px (208 px khi < 900 px) được portal ra `body`, neo đúng vị trí rail, cao bằng rail, bóng `--vzn-shadow-lg`; nền bắt bấm trong suốt phía sau | Chọn trang (tự đóng), `Esc`, bấm ra ngoài, `⌘K`; kéo cửa sổ rộng ≥ 900 px cũng tự đóng |
 | Cửa sổ thấp | Chiều cao không đủ cho mọi mục | Chỉ `.sidebar-nav-scroll` cuộn; dải chạy nền và Cài đặt luôn hiện ở đáy | Cuộn bằng con lăn / bàn di chuột |
 | Không có việc chạy nền | Cả ba nguồn đều tắt | Không có dải, chỉ còn đường kẻ và Cài đặt | — |
-| Thiếu khoá | Chưa provider nào có khoá trong Keychain (`keyStatus`) | Huy hiệu chấm + "Chưa có key" cạnh Cài đặt | Bấm Cài đặt |
+| Thiếu khoá | Provider đang chọn cần khoá mà Keychain chưa có (`keyStatus`) | Huy hiệu chấm + "Chưa có key" cạnh Cài đặt | Bấm Cài đặt |
 | Module tắt | Người dùng tắt module trong Cài đặt › Module | Mục của module biến mất; nhóm không còn mục nào cũng biến mất; nếu đang ở trang đó thì về Trang chủ | — |
 | Đang tải trang | Chunk trang đang nạp (`Suspense`) | `FeatureLoadingState` theo `loadingLayout` của trang (`list`/`split`), nhãn "Đang tải {trang}…"; AI Chat và Dịch dùng `blank` (trống) | Vẫn điều hướng được |
 
@@ -243,8 +243,7 @@ Các ngưỡng của khung tính theo **bề rộng cửa sổ** (`window.innerW
 | Bề rộng | Thay đổi |
 | --- | --- |
 | Cửa sổ ≥ 900 px | Thanh bên theo lựa chọn đã lưu (236 / 60). Bảng lệnh neo trên, cách đỉnh `clamp(64px, 12vh, 112px)`. |
-| Cửa sổ ≤ 900 px (CSS) | `--vzn-sidebar-expanded-width` thành 208 px, `--vzn-chat-sidebar-width` thành 220 px. |
-| Cửa sổ < 900 px (JS) | Thanh bên luôn là rail 60 px; mở rộng = lớp phủ tạm (portal); lịch sử chat và lớp phủ điều hướng loại trừ nhau. |
+| Cửa sổ < 900 px | CSS (`max-width: 899px`): `--vzn-sidebar-expanded-width` thành 208 px, `--vzn-chat-sidebar-width` thành 220 px. JS: thanh bên luôn là rail 60 px; mở rộng = lớp phủ tạm (portal); lịch sử chat và lớp phủ điều hướng loại trừ nhau. |
 | Cửa sổ ≤ 720 px | Ép mọi `.app-sidebar[data-collapsed]` về 60 px, ẩn nhãn (an toàn cho mọi trạng thái); `--vzn-chat-sidebar-width` 200 px. |
 | Cửa sổ ≤ 560 px | Bảng lệnh căn giữa theo chiều dọc, lề 16 px, ẩn dòng mô tả của từng hàng, chân trang căn giữa. |
 | `app-main` < 560 px | Header trang giảm lề ngang còn 16 px; hành động xuống dòng dưới tiêu đề (`flex-wrap`). |
@@ -259,7 +258,7 @@ Các ngưỡng của khung tính theo **bề rộng cửa sổ** (`window.innerW
 - **Bảng lệnh:** `role="dialog" aria-modal="true" aria-label="Bảng lệnh"`; ô tìm `role="combobox"` + `aria-controls` + `aria-activedescendant`; danh sách `role="listbox"`, hàng `role="option"` + `aria-selected`, `tabIndex=-1` (di chuyển bằng mũi tên, không bằng Tab). `Tab` / `Shift+Tab` bị giữ trong bảng (vòng giữa ô tìm và các nút). `↑ ↓ Home End Enter Esc` như §6. Focus vào ô tìm khi mở, trả về phần tử trước khi đóng. Vùng trả lời `aria-live="polite"` + `aria-busy`; lỗi `role="alert"`.
 - **Toast:** vùng `section aria-label="Thông báo"`; mỗi toast `role="status"` (lỗi: `role="alert"`, `aria-live="assertive"`). Focus vào chồng toast dừng đếm ngược.
 - **Hộp thoại cập nhật trong app:** `role="dialog" aria-modal` với `aria-labelledby`/`aria-describedby`; focus đầu vào "Để sau"; Tab bị giữ (`trapTabFocus`); `Esc` = "Để sau".
-- **Popup cập nhật:** `main aria-labelledby="update-title"`; tiến độ `role="status"`; lỗi `role="alert"`; nút cửa sổ có `aria-label` "Thu nhỏ", "Đóng". Header là vùng kéo cửa sổ.
+- **Popup cập nhật:** `main aria-labelledby="update-title"`; tiến độ `role="status"`; lỗi `role="alert"`; nút cửa sổ có `aria-label` "Thu nhỏ", "Đóng và nhắc sau 24 giờ". Header là vùng kéo cửa sổ.
 - **Chuyển động:** bảng lệnh tắt hiệu ứng `fadeSlideIn` khi `prefers-reduced-motion`; khi `prefers-reduced-transparency` / `prefers-contrast: more`, bảng lệnh, thanh tiêu đề và thanh bên bỏ vật liệu trong suốt và dùng bề mặt đặc.
 
 ## 9. Nội dung chữ (vi)
@@ -311,7 +310,7 @@ Các ngưỡng của khung tính theo **bề rộng cửa sổ** (`window.innerW
 | `update_popup_description` | Tải bản mới ngay. Bạn chọn thời điểm cài đặt và khởi động lại. |
 | `update_popup_ready_description` | Bản cập nhật đã sẵn sàng. Viezan sẽ khởi động lại khi bạn chọn cài đặt. |
 | `update_popup_later` · `update_popup_download` | Nhắc sau 24 giờ · Tải cập nhật |
-| `update_popup_minimize` · `update_popup_close` | Thu nhỏ · Đóng |
+| `update_popup_minimize` · `update_popup_close` | Thu nhỏ · Đóng và nhắc sau 24 giờ |
 | `settings_update_available` / `settings_update_downloaded` | Có bản cập nhật: v{version} / Sẵn sàng cài đặt: v{version} |
 | `settings_update_downloading` | Đang tải… {percent}% |
 | `settings_update_download` · `settings_update_install` | Tải bản cập nhật · Cài đặt & khởi động lại |
@@ -330,42 +329,38 @@ Các ngưỡng của khung tính theo **bề rộng cửa sổ** (`window.innerW
 4. **Chữ trạng thái tiện ích Chrome.** Bản vẽ "đã kết nối"; mã "sẵn sàng" và chỉ biết đã có token, không biết tiện ích có đang kết nối. Giữ "sẵn sàng" cho tới khi có tín hiệu kết nối thật.
 5. **Tóm tắt khi rail không bấm được.** Ở rail, dải chạy nền chỉ là một `StatusDot` có tooltip; không có cách tới các trang điều khiển ngoài việc mở rộng thanh bên. **Đề xuất:** biến chấm thành nút mở lớp phủ / mở rộng.
 6. **Lớp phủ hẹp.** `SmallSurfaces` vẽ nút "Đóng thanh bên" riêng trong lớp phủ; mã dùng lại nút ▣ trên thanh tiêu đề (vẫn hiện phía trên lớp phủ) cùng `Esc` và bấm ra ngoài. Đủ dùng; không cần thêm nút.
-7. **Huy hiệu "Chưa có key"** hiện khi chưa provider đám mây nào có khoá, kể cả khi người dùng chỉ dùng AI local (`hasAnyKey` chỉ đọc Keychain). Nên xét lại: chỉ báo khi provider đang chọn cần khoá. Ghi nhận, chưa sửa.
 
 **Bảng lệnh** (`boards/CommandPalette.dc.html`)
 
-8. Bản vẽ chia danh sách thành nhóm có tiêu đề "Dùng với" / "Đi tới"; mã là một danh sách phẳng. **Đề xuất.**
-9. Bản vẽ có lệnh đi sâu "Cài đặt › Mô hình AI"; mã chỉ có lệnh cấp trang. **Đề xuất** (Cài đặt đã có `openSettingsAt(section)`).
-10. Bản vẽ ghi "⇥ hỏi AI" ở chân trang; trong mã `Tab` chỉ di chuyển focus trong bảng. **Đề xuất** hoặc sửa bản vẽ.
-11. Vùng trả lời trong bản vẽ có chip model "Local · qwen3:4b" và nút "Kiểm chứng bằng web"; mã không hiện model đang dùng và "tra cứu web" chỉ là một hàng trước khi hỏi. **Đề xuất:** hiện `ModelChip` chỉ đọc trong vùng trả lời.
-12. Dòng "Không tìm thấy lệnh phù hợp" hiện **phía trên** các hàng "Hỏi AI" vẫn còn — đúng ý (AI là lối thoát), nhưng chữ dễ đọc như "không có gì". Cân nhắc đổi thành gợi ý "Không có lệnh khớp — hỏi AI?".
-13. Lệnh chưa hiện phím tắt cạnh tên (nguyên tắc 02 của `Main`). **Đề xuất.**
+7. Bản vẽ chia danh sách thành nhóm có tiêu đề "Dùng với" / "Đi tới"; mã là một danh sách phẳng. **Đề xuất.**
+8. Bản vẽ có lệnh đi sâu "Cài đặt › Mô hình AI"; mã chỉ có lệnh cấp trang. **Đề xuất** (Cài đặt đã có `openSettingsAt(section)`).
+9. Bản vẽ ghi "⇥ hỏi AI" ở chân trang; trong mã `Tab` chỉ di chuyển focus trong bảng. **Đề xuất** hoặc sửa bản vẽ.
+10. Vùng trả lời trong bản vẽ có chip model "Local · qwen3:4b" và nút "Kiểm chứng bằng web"; mã không hiện model đang dùng và "tra cứu web" chỉ là một hàng trước khi hỏi. **Đề xuất:** hiện `ModelChip` chỉ đọc trong vùng trả lời.
+11. Dòng "Không tìm thấy lệnh phù hợp" hiện **phía trên** các hàng "Hỏi AI" vẫn còn — đúng ý (AI là lối thoát), nhưng chữ dễ đọc như "không có gì". Cân nhắc đổi thành gợi ý "Không có lệnh khớp — hỏi AI?".
+12. Lệnh chưa hiện phím tắt cạnh tên (nguyên tắc 02 của `Main`). **Đề xuất.**
 
 **Toast** (`boards/Toasts.dc.html`)
 
-14. Bản vẽ có chỉ báo đếm ngược ("Còn 5 giây") và ví dụ "Đã xoá cuộc trò chuyện · Hoàn tác". Mã không có thanh đếm ngược, và không có luồng hoàn tác xoá cuộc trò chuyện. Cả hai: **đề xuất**.
-15. Bản vẽ ghi "toast không bao giờ che ô soạn Chat" — mã đã làm (đo và nâng chồng toast).
+13. Bản vẽ có chỉ báo đếm ngược ("Còn 5 giây"); mã không có thanh đếm ngược. **Đề xuất.** (Toast "Đã xoá cuộc trò chuyện · Hoàn tác" đã có.)
+14. Bản vẽ ghi "toast không bao giờ che ô soạn Chat" — mã đã làm (đo và nâng chồng toast).
 
 **Cập nhật** (`boards/UpdatePopup.dc.html`, `boards/SmallSurfaces.dc.html`)
 
-16. Popup trong mã không có: dòng "Bạn đang dùng [phiên bản hiện tại]", các điểm mới từ ghi chú phát hành + "Xem toàn bộ ghi chú", thanh tiến độ có dung lượng, "Ẩn" / "Huỷ tải" khi đang tải, cảnh báo phiên Phiên dịch đang chạy và quạt về tự động khi cài, lựa chọn "Khi thoát app". Tất cả: **đề xuất** (updater chưa có huỷ tải hay cài khi thoát).
-17. Menu "Nhắc sau" nhiều lựa chọn (1 giờ, ngày mai, tuần sau, bỏ qua phiên bản) — mã cố định 24 giờ (`NOTIFICATION_SNOOZE_MS`). **Đề xuất.**
-18. Main chấp nhận hành động `view` (mở Cài đặt › Cập nhật) và i18n có `update_popup_view` "Xem cập nhật", nhưng popup không có nút nào gọi nó. Hoặc thêm nút (ghost) "Xem cập nhật", hoặc dọn đường dẫn thừa.
-19. Nút X của popup có cùng hiệu lực với "Nhắc sau 24 giờ" mà không nói ra; người dùng có thể tưởng chỉ là đóng. Cân nhắc `aria-label`/tooltip "Đóng và nhắc sau 24 giờ".
-20. Hộp thoại trong app (`UpdateNotification`) chỉ mở khi preload **không** có `getNotificationPreferences`, tức là trong Electron hiện tại nó không bao giờ hiện (popup riêng thay thế); nó chỉ còn là đường dự phòng và nơi nhận sự kiện "mở Cài đặt". Nút chính của nó dùng `neutral` · `solid`, trong khi popup dùng `primary` · `solid` cho cùng hành động — nên thống nhất về `primary` (tải/cài là hành động tạo/áp dụng).
+15. Popup trong mã không có: dòng "Bạn đang dùng [phiên bản hiện tại]", các điểm mới từ ghi chú phát hành + "Xem toàn bộ ghi chú", thanh tiến độ có dung lượng, "Ẩn" / "Huỷ tải" khi đang tải, cảnh báo phiên Phiên dịch đang chạy và quạt về tự động khi cài, lựa chọn "Khi thoát app". Tất cả: **đề xuất** (updater chưa có huỷ tải hay cài khi thoát).
+16. Menu "Nhắc sau" nhiều lựa chọn (1 giờ, ngày mai, tuần sau, bỏ qua phiên bản) — mã cố định 24 giờ (`NOTIFICATION_SNOOZE_MS`). **Đề xuất.**
+17. Main chấp nhận hành động `view` (mở Cài đặt › Cập nhật) và i18n có `update_popup_view` "Xem cập nhật", nhưng popup không có nút nào gọi nó. Hoặc thêm nút (ghost) "Xem cập nhật", hoặc dọn đường dẫn thừa.
+18. Hộp thoại trong app (`UpdateNotification`) chỉ mở khi preload **không** có `getNotificationPreferences`, tức là trong Electron hiện tại nó không bao giờ hiện (popup riêng thay thế); nó chỉ còn là đường dự phòng và nơi nhận sự kiện "mở Cài đặt".
 
 **Khay và thanh menu** (`boards/SmallSurfaces.dc.html`)
 
-21. Menu khay Windows/Linux trong bản vẽ có "Launcher Alt+Space"; mã chỉ có "Mở Viezan" và "Thoát Viezan". **Đề xuất.**
-22. Menu số đo macOS trong bản vẽ có "Mở Nhiệt độ & quạt" và "Ẩn số đo"; mã có "Mở Viezan" (mở cửa sổ, không chuyển trang) và "Ẩn nhiệt độ khỏi thanh menu". Thiếu dòng tóm tắt số đo đầy đủ trong menu. **Đề xuất.**
-23. Nhãn khay theo ngôn ngữ hệ điều hành, không theo ngôn ngữ đã chọn trong app — lệch với nguyên tắc "cùng giọng văn với cửa sổ chính".
+19. Menu khay Windows/Linux trong bản vẽ có "Launcher Alt+Space"; mã chỉ có "Mở Viezan" và "Thoát Viezan". **Đề xuất.**
+20. Menu số đo macOS trong bản vẽ có "Mở Nhiệt độ & quạt" và "Ẩn số đo"; mã có "Mở Viezan" (mở cửa sổ, không chuyển trang) và "Ẩn nhiệt độ khỏi thanh menu". Thiếu dòng tóm tắt số đo đầy đủ trong menu. **Đề xuất.**
+21. Nhãn khay theo ngôn ngữ hệ điều hành, không theo ngôn ngữ đã chọn trong app — lệch với nguyên tắc "cùng giọng văn với cửa sổ chính".
 
 **Chào mừng lần đầu** (`boards/Welcome.dc.html`, `boards/WelcomeSteps.dc.html`)
 
-24. App **chưa có** luồng chào mừng: không có component, store hay khoá i18n nào (`welcome`, `onboarding`). Toàn bộ là **đề xuất**: 3 bước — (1) Chọn cách chạy AI: AI local (khuyên dùng, tải Ollama + `qwen3:4b`, kèm đánh giá máy "Máy này chạy tốt AI local") hoặc khoá đám mây (Keychain), nút "Bỏ qua, thiết lập sau" (`outline`) và "Cài AI local và tiếp tục" (`primary` · `solid`); (2) Phím tắt và quyền: phím Launcher `⌘ Space`, Dịch nhanh `⌥ T`, quyền Trợ năng ("Cấp quyền"), quyền Ghi màn hình (không bắt buộc, "Để sau"), công tắc "Mở khi đăng nhập", nút "Quay lại" / "Tiếp tục"; (3) Chọn module (lưới công tắc AI Chat, Dịch, Phiên dịch, Từ điển, Nhiệt độ & quạt, Launcher, Tiện ích trình duyệt), nút "Bắt đầu dùng Viezan". Mỗi bước dùng lại thành phần sẵn có (`CredentialCard`, `CapabilityNotice`, `KeyCap`, công tắc module của Cài đặt › Module) và phải ghi rõ "Đổi lại mọi lựa chọn bất cứ lúc nào trong Cài đặt". Cần thêm cờ đã-xem được lưu, i18n EN/VI/JA, và điểm vào lại từ Cài đặt › Giới thiệu.
+22. App **chưa có** luồng chào mừng: không có component, store hay khoá i18n nào (`welcome`, `onboarding`). Toàn bộ là **đề xuất**: 3 bước — (1) Chọn cách chạy AI: AI local (khuyên dùng, tải Ollama + `qwen3:4b`, kèm đánh giá máy "Máy này chạy tốt AI local") hoặc khoá đám mây (Keychain), nút "Bỏ qua, thiết lập sau" (`outline`) và "Cài AI local và tiếp tục" (`primary` · `solid`); (2) Phím tắt và quyền: phím Launcher `⌘ Space`, Dịch nhanh `⌥ T`, quyền Trợ năng ("Cấp quyền"), quyền Ghi màn hình (không bắt buộc, "Để sau"), công tắc "Mở khi đăng nhập", nút "Quay lại" / "Tiếp tục"; (3) Chọn module (lưới công tắc AI Chat, Dịch, Phiên dịch, Từ điển, Nhiệt độ & quạt, Launcher, Tiện ích trình duyệt), nút "Bắt đầu dùng Viezan". Mỗi bước dùng lại thành phần sẵn có (`CredentialCard`, `CapabilityNotice`, `KeyCap`, công tắc module của Cài đặt › Module) và phải ghi rõ "Đổi lại mọi lựa chọn bất cứ lúc nào trong Cài đặt". Cần thêm cờ đã-xem được lưu, i18n EN/VI/JA, và điểm vào lại từ Cài đặt › Giới thiệu.
 
 **Token và mã**
 
-25. Một số giá trị của khung vẫn là số tay trong `src/styles/codex.css`: đệm thanh bên `10px 8px`, `gap: 2px`, chuyển động `180ms ease` của `.app-sidebar` (lặp `--vzn-duration-normal`), cỡ chữ chip phím `.sidebar-shortcut` `10px` (không có token), hàng thương hiệu 40 px, bảng lệnh `560px` / `480px` / `56px` / `clamp(64px, 12vh, 112px)`. Khi chạm vào các quy tắc này, chuyển sang token.
-26. Ngưỡng hẹp lệch 1 px: CSS dùng `@media (max-width: 900px)` (bao gồm 900) để đổi bề rộng mở rộng thành 208 px, còn JS coi `< 900` là hẹp. Ở đúng 900 px thanh bên mở rộng là 208 px nhưng không ở chế độ hẹp.
-27. `codex.css` tắt viền focus toàn cục (`*:focus-visible { outline: none !important }`); khung dựa vào nền hover/tô để báo focus. Với người dùng bàn phím, nút ▣, mục điều hướng và nút toast cần dấu hiệu focus rõ hơn (vd. `--vzn-focus-ring`). Ghi nhận cho đợt trợ năng.
+23. Một số giá trị của khung vẫn là số tay trong `src/styles/codex.css`: đệm thanh bên `10px 8px`, `gap: 2px`, chuyển động `180ms ease` của `.app-sidebar` (lặp `--vzn-duration-normal`), cỡ chữ chip phím `.sidebar-shortcut` `10px` (không có token), hàng thương hiệu 40 px, bảng lệnh `560px` / `480px` / `56px` / `clamp(64px, 12vh, 112px)`. Khi chạm vào các quy tắc này, chuyển sang token.

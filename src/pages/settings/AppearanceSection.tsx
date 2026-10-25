@@ -112,6 +112,7 @@ export function AppearanceSection() {
             description={t.settings_font_size_desc}
             aside={(
               <FontSizePicker
+                label={t.settings_font_size}
                 value={fontSize}
                 onChange={setFontSize}
                 labels={{

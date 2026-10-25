@@ -1,0 +1,99 @@
+/* Cost tracking: CostOverviewCard and ProviderCostStats.
+   Every value comes from tokens.css. */
+
+.cost-card {
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  background: var(--vzn-surface);
+  box-shadow: var(--vzn-shadow-sm);
+}
+
+.cost-card__header {
+  border-block-end: var(--vzn-border-width) solid var(--vzn-divider);
+  background: var(--vzn-surface-subtle);
+}
+
+.cost-card__icon {
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  background: var(--vzn-surface);
+  color: var(--vzn-text-muted);
+}
+
+.cost-card__title,
+.cost-card__total {
+  color: var(--vzn-text-strong);
+}
+
+.cost-card__kicker {
+  color: var(--vzn-text-muted);
+}
+
+.cost-kpi {
+  border: var(--vzn-border-width) solid var(--vzn-divider);
+  background: var(--vzn-surface-raised);
+}
+
+.cost-kpi__icon,
+.cost-pill__icon,
+.cost-empty-hint {
+  color: var(--vzn-text-soft);
+}
+
+.cost-kpi__value {
+  color: var(--vzn-text-strong);
+}
+
+.cost-feature__label {
+  color: var(--vzn-text);
+}
+
+.cost-feature__value,
+.cost-pill {
+  color: var(--vzn-text-muted);
+}
+
+.cost-feature__track {
+  background: var(--vzn-surface-subtle);
+}
+
+.cost-feature__bar {
+  transition: width var(--vzn-duration-normal) var(--vzn-ease-standard);
+}
+
+/* Feature shares step down one neutral ladder; the label carries identity. */
+.cost-feature--chat {
+  background: var(--vzn-text-strong);
+}
+
+.cost-feature--translate {
+  background: var(--vzn-text-muted);
+}
+
+.cost-feature--live {
+  background: var(--vzn-text-soft);
+}
+
+.cost-feature--dictionary {
+  background: var(--vzn-text-disabled);
+}
+
+.cost-empty {
+  border: var(--vzn-border-width) dashed var(--vzn-border);
+  background: var(--vzn-surface-raised);
+}
+
+.cost-empty__icon {
+  background: var(--vzn-surface-subtle);
+  color: var(--vzn-text-soft);
+}
+
+.cost-empty__heading {
+  color: var(--vzn-text);
+}
+
+.cost-empty__body {
+  color: var(--vzn-text-muted);
+}
+
+.cost-stat {
+  box-shadow: inset 0 0 0 var(--vzn-border-width) var(--vzn-border);
+}

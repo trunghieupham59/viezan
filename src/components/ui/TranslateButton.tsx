@@ -14,6 +14,8 @@ interface TranslateButtonProps {
   labelTranslate: string
   /** Label shown while translating, e.g. t.translate_btn_loading */
   labelLoading: string
+  /** Tooltip, e.g. the keyboard shortcut once the inline hint is hidden. */
+  title?: string
 }
 
 export function TranslateButton({
@@ -22,6 +24,7 @@ export function TranslateButton({
   onClick,
   labelTranslate,
   labelLoading,
+  title,
 }: TranslateButtonProps) {
   return (
     <Button
@@ -32,6 +35,7 @@ export function TranslateButton({
       onClick={onClick}
       disabled={isTranslating || disabled}
       aria-busy={isTranslating}
+      title={title}
       className="translate-submit-button"
     >
       {isTranslating ? (

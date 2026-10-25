@@ -118,7 +118,7 @@ export function ApiKeyInput({
   }
 
   const handleDelete = async () => {
-    if (!confirm(`${t.settings_remove} API key for ${provider.name}?`)) return
+    if (!window.confirm(tpl(t.settings_remove_key_confirm, { name: provider.name }))) return
     setIsDeleting(true)
     setVerifyStatus('idle')
     dismissNotification(notificationKey)

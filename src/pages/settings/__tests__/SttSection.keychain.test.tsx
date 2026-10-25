@@ -14,7 +14,9 @@ describe('SttSection Groq keychain results', () => {
   }
 
   beforeEach(() => {
+    vi.restoreAllMocks()
     vi.clearAllMocks()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
     act(() => useAppStore.setState({ locale: 'en', localeAuto: false }))
     ;(window as unknown as { api: unknown }).api = { keychain }
   })
@@ -63,5 +65,28 @@ describe('SttSection Groq keychain results', () => {
     await waitFor(() => expect(keychain.delete).toHaveBeenCalledWith('groq'))
     // Key is still reported as present.
     expect(screen.getByTitle('Remove')).toBeInTheDocument()
+  })
+
+  it('confirms before deleting the Groq key with the localized templated message', async () => {
+    vi.mocked(window.confirm).mockReturnValue(false)
+    act(() => useAppStore.setState({ locale: 'vi' }))
+    keychain.get.mockResolvedValue({ exists: true, masked: 'gsk_****' })
+    render(<SttSection />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa' }))
+    fireEvent.click(screen.getByTitle('Xóa'))
+
+    expect(window.confirm).toHaveBeenCalledWith('Xoá khoá API của Groq?')
+    expect(keychain.delete).not.toHaveBeenCalled()
+  })
+
+  it('labels the submit action Save because the Groq key is stored, not verified', async () => {
+    keychain.get.mockResolvedValue({ exists: false, masked: null })
+    render(<SttSection />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add key' }))
+    fireEvent.change(screen.getByPlaceholderText('Paste your Groq API key…'), { target: { value: 'gsk_test' } })
+
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
   })
 })

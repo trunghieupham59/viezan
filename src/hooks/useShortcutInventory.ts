@@ -82,16 +82,18 @@ export function useShortcutInventory(options: {
 
   const launcherOn = enabledModules.launcher !== false
   const chatOn = enabledModules.chat !== false
+  // Main keeps Quick Translate unregistered while the Translate module is off.
+  const translateOn = enabledModules.translate !== false
 
   const entries = useMemo<ShortcutEntry[]>(() => [
     ...(launcherOn ? [{ id: 'launcher' as const, shortcut: launcher.shortcut, scope: 'global' as const, active: launcher.enabled }] : []),
-    { id: 'quickTranslate', shortcut: quickTranslate.shortcut, scope: 'global', active: quickTranslate.enabled },
+    { id: 'quickTranslate', shortcut: quickTranslate.shortcut, scope: 'global', active: translateOn && quickTranslate.enabled },
     { id: 'commandPalette', shortcut: COMMAND_PALETTE_SHORTCUT, scope: 'window', active: true },
     ...(chatOn ? [
       { id: 'newChat' as const, shortcut: chatNewSessionShortcut, scope: 'window' as const, active: Boolean(chatNewSessionShortcut) },
       { id: 'sendMessage' as const, shortcut: chatSendAccelerator(chatSendShortcut), scope: 'window' as const, active: true },
     ] : []),
-  ], [launcherOn, chatOn, launcher, quickTranslate, chatNewSessionShortcut, chatSendShortcut])
+  ], [launcherOn, chatOn, translateOn, launcher, quickTranslate, chatNewSessionShortcut, chatSendShortcut])
 
   // Sending is a key inside the composer only, so it never collides with the others.
   const conflicts = useMemo(

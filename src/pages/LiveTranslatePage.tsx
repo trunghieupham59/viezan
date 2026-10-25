@@ -14,7 +14,6 @@ import {
   CopyIcon,
   DownloadIcon,
   GearIcon,
-  InfoCircleIcon,
   LayersIcon,
   LightbulbIcon,
   MicrophoneIcon,
@@ -222,25 +221,11 @@ export function LiveTranslatePage() {
     }
   }
   const audioModes: { mode: LiveAudioMode; label: string; title: string; icon: React.ReactNode }[] = [
-    { mode: 'mic', label: t.live_audio_mode_mic, title: t.live_audio_mode_mic_title, icon: <MicrophoneIcon /> },
-    { mode: 'system', label: t.live_audio_mode_system, title: t.live_audio_mode_system_title, icon: <MonitorIcon /> },
-    { mode: 'both', label: t.live_audio_mode_both, title: t.live_audio_mode_both_title, icon: <LayersIcon /> },
+    { mode: 'mic', label: t.live_audio_mode_mic, title: t.live_audio_mode_mic_title, icon: <MicrophoneIcon className="w-3.5 h-3.5" /> },
+    { mode: 'system', label: t.live_audio_mode_system, title: t.live_audio_mode_system_title, icon: <MonitorIcon className="w-3.5 h-3.5" /> },
+    { mode: 'both', label: t.live_audio_mode_both, title: t.live_audio_mode_both_title, icon: <LayersIcon className="w-3.5 h-3.5" /> },
   ]
 
-  // ── Global Escape handler for open modals ──
-  // Backdrop-level onKeyDown only fires when the backdrop or its descendants
-  // have focus; in practice the user's focus stays on the trigger button, so
-  // Escape would do nothing without this document listener.
-  useEffect(() => {
-    // The summary dialog (DialogShell) handles its own Escape.
-    if (!showScreenPermModal) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      setShowScreenPermModal(false)
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [showScreenPermModal])
 
   const handleCopy = async (text: string, setFlag: (v: boolean) => void) => {
     if (!text) return
@@ -323,6 +308,9 @@ export function LiveTranslatePage() {
   const txFollow = useFollowLatest(viewMode)
   const pairedFollow = useFollowLatest(viewMode)
   const hasTranscript = Boolean(rawTranscript) || segments.length > 0
+  // Screen readers hear only finalized sentences (no typewriter, no pending/provisional text).
+  const lastFinalizedSegment = [...segments].reverse().find((seg) => segmentStatus(seg.state, t) === undefined && seg.translation.trim())
+  const liveAnnouncement = lastFinalizedSegment ? lastFinalizedSegment.translation : ''
 
   // ── Shared toolbar / footer pieces (used by both layouts) ──────────────────
   const statusLabel = isTranscribing ? t.voice_transcribing
@@ -332,7 +320,7 @@ export function LiveTranslatePage() {
 
   const audioSourceGroup = (
     <fieldset className="segmented-control live-audio-source-group" aria-label={t.live_audio_source_label}>
-      {audioModes.map(({ mode, label, title }) => (
+      {audioModes.map(({ mode, label, title, icon }) => (
         <Button
           key={mode}
           size="sm"
@@ -340,11 +328,14 @@ export function LiveTranslatePage() {
           variant="neutral"
           appearance="ghost"
           aria-pressed={audioMode === mode}
+          aria-label={label}
           disabled={isActive}
           onClick={() => setAudioMode(mode)}
           title={title}
         >
-          {label}
+          {icon}
+          {/* Hidden below 900px of content width; the icon and aria-label remain. */}
+          <span>{label}</span>
         </Button>
       ))}
     </fieldset>
@@ -677,6 +668,7 @@ export function LiveTranslatePage() {
 
           {/* ── Body: panels (notices live in the app toast stack) ── */}
           <div className="live-panels-body" data-view-mode={viewMode} data-session-panel={sessionPanel ? 'true' : undefined}>
+          <p className="sr-only" aria-live="polite" data-testid="live-transcript-announcer">{liveAnnouncement}</p>
           {/* ── Panels: side-by-side (Nguyên Bản | Bản Dịch) or paired by sentence ── */}
           {viewMode === 'paired' ? (
             <div className="glass-panel live-paired-panel">
@@ -1004,50 +996,17 @@ export function LiveTranslatePage() {
         </DialogShell>
       )}
 
-      {/* Screen Recording permission modal */}
+      {/* Screen Recording permission: the shared dialog owns Escape, the focus trap and restoring focus. */}
       {showScreenPermModal && (
-        // biome-ignore lint/a11y/noStaticElementInteractions: backdrop div — keyboard Escape handled by onKeyDown
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-          onClick={() => setShowScreenPermModal(false)}
-          onKeyDown={(e) => e.key === 'Escape' && setShowScreenPermModal(false)}
-        >
-          <div
-            className="modal-surface relative mx-4 w-full max-w-sm p-6 flex flex-col gap-4"
-            role="dialog"
-            aria-modal="true"
-            onClick={e => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-950/40 flex items-center justify-center">
-                <InfoCircleIcon className="w-5 h-5 text-gray-500" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-                  {t.live_screen_permission_title}
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
-                  {t.live_screen_recording_hint.split(/(<strong>.*?<\/strong>)/g).map((part, i) => {
-                    const m = part.match(/^<strong>(.*?)<\/strong>$/)
-                    // biome-ignore lint/suspicious/noArrayIndexKey: stable index for locale string segments
-                    return m ? <strong key={i} className="text-gray-700 dark:text-gray-200">{m[1]}</strong> : part
-                  })}
-                </p>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <Button
-                size="sm"
-                shape="rect"
-                variant="neutral"
-                appearance="outline"
-                type="button"
-                onClick={() => setShowScreenPermModal(false)}
-              >
+        <DialogShell
+          size="sm"
+          label={t.live_screen_permission_title}
+          title={t.live_screen_permission_title}
+          closeLabel={t.translate_error_dismiss}
+          onClose={() => setShowScreenPermModal(false)}
+          footer={(
+            <div className="live-permission-footer">
+              <Button size="sm" shape="rect" variant="neutral" appearance="outline" type="button" onClick={() => setShowScreenPermModal(false)}>
                 {t.translate_error_dismiss}
               </Button>
               <Button
@@ -1069,8 +1028,16 @@ export function LiveTranslatePage() {
                 {t.live_open_system_settings}
               </Button>
             </div>
-          </div>
-        </div>
+          )}
+        >
+          <p className="live-permission-hint">
+            {t.live_screen_recording_hint.split(/(<strong>.*?<\/strong>)/g).map((part, i) => {
+              const m = part.match(/^<strong>(.*?)<\/strong>$/)
+              // biome-ignore lint/suspicious/noArrayIndexKey: stable index for locale string segments
+              return m ? <strong key={i}>{m[1]}</strong> : part
+            })}
+          </p>
+        </DialogShell>
       )}
 
       {showHistory && (

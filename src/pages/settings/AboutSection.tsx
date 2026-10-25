@@ -7,9 +7,17 @@ import { PROVIDERS } from '../../constants/providers'
 import { GITHUB_RELEASES_URL } from '../../constants/urls'
 import { useAppStore, useT } from '../../store/useAppStore'
 import { useUpdaterStore } from '../../store/useUpdaterStore'
+import type { LocalAiEngine } from '../../types'
 
 /** How long the Copy button shows its confirmation. */
 const COPIED_MS = 1500
+
+/** Display names of the local runtimes discovery can report. */
+const LOCAL_ENGINE_NAMES: Record<LocalAiEngine, string> = {
+  ollama: 'Ollama',
+  lmstudio: 'LM Studio',
+  llamacpp: 'llama.cpp',
+}
 
 const PLATFORM_NAMES: Record<string, string> = {
   darwin: 'macOS',
@@ -24,6 +32,8 @@ export function AboutSection() {
   const updaterStatus = useUpdaterStore((state) => state.status)
   const localModel = useAppStore((state) => state.selectedModels.local)
   const localAvailable = useAppStore((state) => state.keyStatus.local)
+  const localEngine = useAppStore((state) => state.localAiEngine)
+  const receiveUpdaterStatus = useUpdaterStore((state) => state.receive)
 
   useEffect(() => {
     if (window.api?.updater) {
@@ -41,7 +51,10 @@ export function AboutSection() {
 
   const version = appVersion || window.api?.version || ''
   const platform = window.api?.platform ? PLATFORM_NAMES[window.api.platform] ?? window.api.platform : 'web'
-  const localAi = localAvailable ? `Ollama · ${localModel}` : '-'
+  // Name the runtime only when discovery reported it; never assume Ollama.
+  const localAi = localAvailable
+    ? [localEngine ? LOCAL_ENGINE_NAMES[localEngine] : null, localModel].filter(Boolean).join(' · ') || '-'
+    : '-'
   const providers = PROVIDERS.map((provider) => provider.name).join(', ')
   const systemInfo: { label: string; value: string; mono?: boolean }[] = [
     { label: t.settings_about_platform, value: platform },
@@ -63,7 +76,10 @@ export function AboutSection() {
   const checkForUpdates = () => {
     // The Updates section owns the check and its result; scroll there and start it.
     useAppStore.setState({ settingsInitialSection: 'updates' })
-    void window.api?.updater?.check()
+    if (!window.api?.updater) return
+    // Same contract as the Updates section: show the spinner before main replies.
+    receiveUpdaterStatus({ type: 'checking' })
+    void window.api.updater.check()
   }
 
   return (

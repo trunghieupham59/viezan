@@ -24,11 +24,11 @@ describe('ResearchStepsPanel', () => {
     expect(screen.getByRole('button', { expanded: true })).toHaveTextContent('Deep research · step 2 / 6')
   })
 
-  it('explains a failed step and retries it', () => {
+  it('explains a failed step and restarts the research', () => {
     const onRetry = vi.fn()
     render(<ResearchStepsPanel steps={[step('a', 'analyze'), step('s', 'survey', { error: 'offline' })]} onRetry={onRetry} />)
     expect(screen.getByRole('status')).toHaveTextContent('Step 2 failed')
-    fireEvent.click(screen.getByRole('button', { name: 'Retry step 2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Restart research' }))
     expect(onRetry).toHaveBeenCalledOnce()
     expect(screen.queryByRole('button', { name: 'Resume' })).toBeNull()
   })

@@ -182,3 +182,28 @@ describe('LanguagePairBar', () => {
     expect(targetHalf()).toBeInTheDocument()
   })
 })
+
+describe('LanguagePairBar detected source and size', () => {
+  it.each(['en', 'vi', 'ja'] as const)('shows only the detected language name beside the Auto tag in %s', (locale) => {
+    const lt = TRANSLATIONS[locale]
+    useAppStore.setState({ locale, sourceLang: 'auto', targetLang: 'vi' })
+    render(<LanguagePairBar scope="translate" detectedSourceLang="zh" />)
+    const source = screen.getByRole('button', { name: new RegExp(`^${lt.translate_from_label}:`) })
+    const label = source.querySelector('.language-pair-half-label')
+    expect(label).toHaveTextContent(new RegExp(`^${lt.lang_names.zh.replace(/[()（）]/g, '.')}$`))
+    expect(within(source).getByText(lt.translate_auto_indicator)).toBeInTheDocument()
+    const sentence = lt.translate_detected_language(lt.lang_names.zh)
+    expect(source).toHaveAttribute('title', sentence)
+    expect(source).toHaveAccessibleName(`${lt.translate_from_label}: ${sentence}`)
+  })
+
+  it('sizes halves and the swap with the size prop, md by default', () => {
+    const { rerender } = render(<LanguagePairBar scope="translate" />)
+    expect(sourceHalf()).toHaveAttribute('data-control-size', 'md')
+    rerender(<LanguagePairBar scope="translate" size="sm" />)
+    expect(sourceHalf()).toHaveAttribute('data-control-size', 'sm')
+    expect(targetHalf()).toHaveAttribute('data-control-size', 'sm')
+    expect(screen.getByRole('button', { name: t.translate_swap })).toHaveAttribute('data-control-size', 'sm')
+    expect(screen.getByRole('group', { name: t.language_pairs_label })).toHaveClass('language-pair-bar--sm')
+  })
+})

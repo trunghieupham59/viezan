@@ -37,23 +37,36 @@ export function ChatImageStorageCard() {
     void refresh()
   }, [refresh])
 
-  const handlePrune = async () => {
+  const reportFailed = () =>
+    notify({ key: 'settings-chat-images', tone: 'error', message: t.settings_chat_images_failed })
+
+  /** Runs one cleanup; `busy` always clears so a failure never leaves both buttons disabled. */
+  const runCleanup = async (cleanup: () => Promise<number>) => {
     setBusy(true)
-    const referenced = collectReferencedImageKeys(useAppStore.getState().chatSessions)
-    const removed = await pruneUnusedChatImages(referenced)
-    reportRemoved(removed)
-    await refresh()
-    setBusy(false)
+    try {
+      reportRemoved(await cleanup())
+    } catch {
+      reportFailed()
+    } finally {
+      try {
+        await refresh()
+      } catch {
+        // Keep the last known stats; the failure toast (if any) already explains.
+      }
+      setBusy(false)
+    }
   }
+
+  const handlePrune = () => runCleanup(() =>
+    pruneUnusedChatImages(collectReferencedImageKeys(useAppStore.getState().chatSessions)))
 
   const handleClear = async () => {
     if (!window.confirm(t.settings_chat_images_clear_confirm)) return
-    setBusy(true)
     const removed = stats?.count ?? 0
-    await clearAllChatImages()
-    reportRemoved(removed)
-    await refresh()
-    setBusy(false)
+    await runCleanup(async () => {
+      await clearAllChatImages()
+      return removed
+    })
   }
 
   const usage = stats === null

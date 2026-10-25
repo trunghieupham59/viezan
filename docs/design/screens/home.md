@@ -94,7 +94,7 @@ Mọi thẻ dùng `SectionCard` (`src/components/ui/molecules/SectionCard.tsx`):
 | 12 | Thanh đo quạt | `Meter` (thẻ `<meter>` gốc), không tương tác | — | Tốc độ quạt trong khoảng `minRpm`…`maxRpm` | Cập nhật theo snapshot mỗi 2 giây (`THERMAL_SAMPLE_INTERVAL_MS`) | — |
 | 13 | "Quản lý mô hình" (thẻ Mô hình AI) | `xs` · `primary` · `ghost`, kiểu link, căn đầu dòng dưới nội dung | Click, Enter/Space | `openSettingsAt('api')`: Cài đặt mở ở mục "Mô hình AI" | Chuyển trang | Luôn có |
 | 14 | "Sửa" (thẻ Phím tắt) | `xs` · `primary` · `ghost`, kiểu link | Click, Enter/Space | `setActivePage('utilities')` | Chuyển trang | Luôn có |
-| 15 | Hàng phím tắt | `ShortcutList` chỉ đọc, `KeyCap` | — | Hiện phím của Launcher, Dịch nhanh vùng chọn, Bảng lệnh | Đọc lại khi cửa sổ được focus hoặc khi một phím được lưu (`SHORTCUTS_CHANGED_EVENT`) | Hàng Launcher ẩn khi module Launcher tắt; phím đang tắt hiện mờ (`--vzn-opacity-disabled`); trùng phím hiện chip "Trùng phím" |
+| 15 | Hàng phím tắt | `ShortcutList` chỉ đọc, `KeyCap` | — | Hiện phím của Launcher, Dịch nhanh vùng chọn, Bảng lệnh | Đọc lại khi cửa sổ được focus hoặc khi một phím được lưu (`SHORTCUTS_CHANGED_EVENT`) | Hàng Launcher ẩn khi module Launcher tắt; phím đang tắt hiện mờ (`--vzn-opacity-disabled`) kèm chữ "· đang tắt"; trùng phím hiện chip "Trùng phím" |
 
 Trang chủ không có nút `danger`, không có hành động xoá. Thứ tự hàng "Tiếp tục": phiên Nghiên cứu đang dừng luôn đứng đầu, sau đó tối đa một mục mới nhất của mỗi tính năng, mới nhất trước (`recentActivity` trong `src/utils/homeActivity.ts`). Danh sách có tối đa 5 hàng.
 
@@ -117,14 +117,16 @@ Thời gian: "Vừa xong", "{n} phút trước", "{n}h trước", "{n} ngày tr�
 | Đang tải trang | Lần đầu tải chunk của Trang chủ (trang được `lazy` trong `src/modules/pages.ts`) | `FeatureLoadingState` bố cục `list`: skeleton tiêu đề, một dòng, một nút, rồi một panel skeleton; `role="status"` với nhãn "Đang tải Trang chủ…" | Không |
 | Có dữ liệu | Có ít nhất một hoạt động | Như sơ đồ mục 3 | #1–#15 |
 | Trống (Tiếp tục) | Chưa có chat có tin nhắn, bản dịch, phiên dịch, tra từ nào (hoặc các module đó tắt) | Header thẻ giữ nguyên; thân là câu "Chưa có gì. Việc bạn làm trong Viezan sẽ hiện ở đây để mở lại nhanh." màu `--vzn-text-muted`, lề `--vzn-space-4` | Thẻ Bắt đầu nhanh và nút Chat mới là lối mở đầu |
-| Đang đọc cảm biến | Module Nhiệt độ bật, chưa có snapshot hoặc snapshot chưa có cảm biến nào | Thẻ Hệ thống: "Đang đọc cảm biến…" (`aria-live="polite"`) | "Mở" |
+| Đang đọc cảm biến | Module Nhiệt độ bật, chưa có snapshot | Thẻ Hệ thống: "Đang đọc cảm biến…" (`aria-live="polite"`) | "Mở" |
+| Không có cảm biến | `support.reason === 'no-sensors'`, hoặc máy hỗ trợ và snapshot trả về không có cảm biến nào | "Không tìm thấy cảm biến nhiệt độ nào." | "Mở" |
+| Lỗi cảm biến | `error` của `useThermalMonitor` và chưa có số đo nào | `role="alert"`: "Không đọc được cảm biến: {lỗi}" + nút "Thử lại" (`xs` · `neutral` · `outline`, gọi `retry`) | "Thử lại", "Mở" |
 | Không đọc được cảm biến | `support.supported === false` (nền tảng không hỗ trợ, hoặc thiếu `window.api.thermal`) | "Không đọc được cảm biến trên máy này." | "Mở" |
 | Đang ấm / đang nóng | Cảm biến nóng nhất ≥ 70 °C / ≥ 90 °C (`thermalTone`, `src/utils/thermalSensorRows.ts`) | Số nhiệt đổi màu `--vzn-warning` / `--vzn-danger`, kèm `StatusChip` "Đang ấm" / "Đang nóng" (chữ mang nghĩa, không chỉ màu) | "Mở" |
 | Không có quạt | Snapshot có cảm biến nhưng `fans` rỗng | Ẩn danh sách quạt; chỉ còn số nhiệt và chú thích | "Mở" |
 | Profile quạt | Helper điều khiển quạt `ready` (`useBackgroundStatus`) | "Profile quạt: {tên}" hoặc "Quạt: tốc độ tuỳ chỉnh" khi không có profile; ẩn dòng này khi helper chưa sẵn sàng | — |
 | Thiếu khoá | Nhà cung cấp đang chọn là đám mây và `keyStatus[provider]` là `false` | Thẻ Mô hình AI: chấm + "Cần API key" màu `--vzn-warning` | "Quản lý mô hình" dẫn tới Cài đặt › Mô hình AI |
 | Sẵn sàng | Nhà cung cấp là `local`, hoặc đã có khoá | Chấm + "Sẵn sàng" màu `--vzn-success`; với `local` thêm " · Chạy trên máy này" | "Quản lý mô hình" |
-| Lỗi | Trang không có lỗi chặn riêng. Lỗi của monitor nhiệt (`error` của `useThermalMonitor`) không được hiển thị (xem mục 10) | — | — |
+| Lỗi | Trang không có lỗi chặn riêng; lỗi monitor nhiệt hiện trong thẻ Hệ thống (hàng "Lỗi cảm biến") | — | — |
 | Module tắt | Chat / Dịch / Phiên dịch / Từ điển / Nhiệt độ / Launcher tắt | Ẩn thẻ bắt đầu nhanh, hàng hoạt động, nút Chat mới, thẻ Hệ thống, hàng phím Launcher tương ứng. Thẻ Mô hình AI và Phím tắt luôn còn | Phần còn lại |
 
 Thẻ Hệ thống chỉ được mount khi module Nhiệt độ bật, nên cảm biến không bị đọc cho một module người dùng đã tắt. Khi cửa sổ bị ẩn, `useThermalMonitor` tạm dừng monitor.
@@ -165,11 +167,9 @@ Bố cục dùng container query trên `app-main` (`src/styles/home.css`). Khi c
 | Bề rộng vùng nội dung | Thay đổi |
 | --- | --- |
 | ≥ 900 px | Bắt đầu nhanh: lưới `auto-fit` (4 thẻ khi đủ 4 module; 3 module thì 3 cột). Hai cột: Tiếp tục (co giãn) + cột phụ 320 px |
-| 844–899 px | Bắt đầu nhanh thành lưới 2 × 2. Hai cột vẫn đứng cạnh nhau vì 460 + 16 + 320 = 796 px vẫn vừa sau lề 2 × 24 |
-| 560–843 px | Hai cột xuống thành một cột: Tiếp tục ở trên, rồi Hệ thống, Mô hình AI, Phím tắt (flex wrap). Thẻ bắt đầu nhanh vẫn 2 × 2 |
+| 560–899 px | Hai cột xếp thành một cột (`.home-columns` đổi `flex-direction: column` trong `@container app-main (max-width: 899px)`): Tiếp tục ở trên, rồi Hệ thống, Mô hình AI, Phím tắt. Bắt đầu nhanh thành lưới 2 × 2 |
 | < 560 px | Lề thân giảm còn `--vzn-space-4` (16 px); lề header còn `--vzn-space-4`; nút "Chat mới" có thể xuống dòng dưới tiêu đề (header `flex-wrap`) |
 
-Ngưỡng một cột thực tế là khoảng 844 px chứ không đúng 900 px (xem mục 10).
 
 ## 8. Bàn phím và trợ năng
 
@@ -179,7 +179,7 @@ Ngưỡng một cột thực tế là khoảng 844 px chứ không đúng 900 px
 - Thẻ bắt đầu nhanh và hàng hoạt động là một nút duy nhất; tên truy cập là chữ hiển thị theo thứ tự (ví dụ "Dịch Good morning · EN → JA 1h trước"). Icon trong thẻ có `aria-hidden`.
 - Thanh đo quạt là `<meter>` có `aria-label` (tên quạt) và `aria-valuetext` ("2.250 RPM").
 - "Đang đọc cảm biến…" có `aria-live="polite"`.
-- Trạng thái không dựa riêng vào màu: "Sẵn sàng" / "Cần API key", "Đang ấm" / "Đang nóng", "Trùng phím" đều có chữ. Ngoại lệ chưa đạt: phím tắt đang tắt chỉ hiện mờ trong bản `compact` (xem mục 10).
+- Trạng thái không dựa riêng vào màu: "Sẵn sàng" / "Cần API key", "Đang ấm" / "Đang nóng", "Trùng phím" đều có chữ. Phím tắt đang tắt hiện mờ kèm chữ "· đang tắt", kể cả trong bản `compact`.
 - Danh sách phím tắt có `aria-label` "Tất cả phím tắt".
 - Trang không mở lớp phủ nào nên không có quản lý focus riêng.
 
@@ -233,13 +233,11 @@ Bản vẽ so với mã:
 3. **Không có model.** Với `local`, thẻ luôn báo "Sẵn sàng" kể cả khi chưa cài runtime hay model; nếu chưa chọn model (`selectedModels[provider]` rỗng) thì dòng chỉ còn "Ollama · " (`modelName` rỗng). Trạng thái "chưa có model" kiểu `boards/States.dc.html` (Chọn cách chạy AI: Cài AI local / Thêm khoá) chưa có ở Trang chủ: **đề xuất**.
 4. **Nháy "Cần API key" lúc khởi động.** `keyStatus` khởi tạo toàn `false` (`settingsSlice.ts`) và chỉ được cập nhật bất đồng bộ trong `App.tsx` (`keychain.hasKey`), nên với nhà cung cấp đám mây thẻ có thể hiện "Cần API key" thoáng qua trước khi đúng. Cần một trạng thái "đang kiểm tra": **đề xuất**.
 5. **Chú thích thẻ Hệ thống.** Board: "CPU nóng nhất · tải 17%" và "Profile Mát · helper đã kết nối". Mã: "Cảm biến nóng nhất · Tải CPU 17%" và "Profile quạt: Mát"; không có chữ "helper đã kết nối". HomeDark ghi "· đang ấm" nối trong chú thích; mã dùng `StatusChip` riêng, đúng luật màu-không-là-tín-hiệu-duy-nhất hơn.
-6. **Lỗi cảm biến.** `useThermalMonitor` trả `error` và `retry`, nhưng `HomeSystemCard` không đọc chúng: khi monitor lỗi hoặc máy hỗ trợ nhưng không trả cảm biến nào, thẻ kẹt mãi ở "Đang đọc cảm biến…". Thông báo lỗi + nút "Thử lại" (`neutral` · `outline`, `xs`) theo foundations §12: **đề xuất**.
-7. **Thứ tự hàng Nghiên cứu.** Board đặt hàng Nghiên cứu thứ hai; mã luôn đặt nó đầu tiên vì nó chờ người dùng. Giữ theo mã.
-8. **Nghĩa của "Tiếp tục".** Hàng Nghiên cứu ghi "Tiếp tục" nhưng chỉ mở phiên; người dùng phải bấm tiếp tục lần nữa trong Chat. Hoặc đổi chữ thành "Mở để tiếp tục", hoặc truyền ý định tiếp tục sang Chat: **đề xuất**.
-9. **Icon hàng hoạt động.** `row()` tính icon cho từng loại nhưng `HomePage` không truyền `icon` vào `ActivityRow`; board cũng không vẽ icon. Mã thừa, không ảnh hưởng giao diện.
-10. **Board tối bỏ thẻ AI** và chỉ có 4 hàng Tiếp tục; đó là lược bớt của bản vẽ, không phải hành vi. Trong app, chế độ tối giữ đủ các thẻ.
-11. **Ngưỡng một cột.** Foundations §8 nói vùng nội dung < 900 px thì Trang chủ một cột; `home.css` chỉ đổi lưới bắt đầu nhanh ở 899 px, còn hai cột xuống dòng nhờ flex wrap ở khoảng 843 px. Muốn khớp đúng 900 px cần thêm quy tắc container cho `.home-columns`: **đề xuất**.
-12. **Ba thẻ và một thẻ lẻ.** Chú thích trong `home.css` ghi "never three and an orphan", nhưng khi chỉ ba module bật và vùng nội dung < 900 px, lưới 2 cột cho ra 2 + 1.
-13. **Phím tắt đang tắt.** Bản `compact` ẩn dòng phạm vi, nên chữ "đang tắt" không hiện; phím tắt đã tắt chỉ được làm mờ, trái với luật "màu không là tín hiệu duy nhất". Lúc mới mount, Launcher và Dịch nhanh hiện "Chưa đặt" cho tới khi main trả lời. Thêm chữ "tắt" trong bản compact: **đề xuất**.
-14. **Phím tắt về Trang chủ, mô tả header.** Không có phím tắt riêng để về Trang chủ, và khoá `home_subtitle` có nhưng `PageHeader` không nhận `description`. Board cũng không vẽ mô tả, nên giữ như mã; phím tắt riêng: **đề xuất**.
-15. **Tải nhiều mục mỗi tính năng.** Board và mã đều chỉ một mục mới nhất mỗi tính năng; không có "Xem tất cả". Danh sách đầy đủ thuộc lịch sử từng trang (xem `boards/Histories.dc.html`).
+6. **Thứ tự hàng Nghiên cứu.** Board đặt hàng Nghiên cứu thứ hai; mã luôn đặt nó đầu tiên vì nó chờ người dùng. Giữ theo mã.
+7. **Nghĩa của "Tiếp tục".** Hàng Nghiên cứu ghi "Tiếp tục" nhưng chỉ mở phiên; người dùng phải bấm tiếp tục lần nữa trong Chat. Hoặc đổi chữ thành "Mở để tiếp tục", hoặc truyền ý định tiếp tục sang Chat: **đề xuất**.
+8. **Icon hàng hoạt động.** `row()` tính icon cho từng loại nhưng `HomePage` không truyền `icon` vào `ActivityRow`; board cũng không vẽ icon. Mã thừa, không ảnh hưởng giao diện.
+9. **Board tối bỏ thẻ AI** và chỉ có 4 hàng Tiếp tục; đó là lược bớt của bản vẽ, không phải hành vi. Trong app, chế độ tối giữ đủ các thẻ.
+10. **Ba thẻ và một thẻ lẻ.** Chú thích trong `home.css` ghi "never three and an orphan", nhưng khi chỉ ba module bật và vùng nội dung < 900 px, lưới 2 cột cho ra 2 + 1.
+11. **Phím tắt lúc mới mount.** Launcher và Dịch nhanh hiện "Chưa đặt" cho tới khi main trả lời.
+12. **Phím tắt về Trang chủ, mô tả header.** Không có phím tắt riêng để về Trang chủ, và khoá `home_subtitle` có nhưng `PageHeader` không nhận `description`. Board cũng không vẽ mô tả, nên giữ như mã; phím tắt riêng: **đề xuất**.
+13. **Tải nhiều mục mỗi tính năng.** Board và mã đều chỉ một mục mới nhất mỗi tính năng; không có "Xem tất cả". Danh sách đầy đủ thuộc lịch sử từng trang (xem `boards/Histories.dc.html`).

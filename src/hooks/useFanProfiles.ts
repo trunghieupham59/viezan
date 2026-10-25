@@ -12,7 +12,8 @@ export interface FanProfilesHookState {
 
 type ProfilesResult = { success: boolean; state?: FanProfilesState; error?: string } | undefined
 
-const unavailable = async (): Promise<ProfilesResult> => ({ success: false, error: 'Fan profiles are not available in this window.' })
+/** No error text: callers fall back to their localized message (thermal_fan_profile_error). */
+const unavailable = async (): Promise<ProfilesResult> => ({ success: false })
 
 /** Mirror of main's fan profiles (built-in + saved, which one is active and applied). */
 export function useFanProfiles(): FanProfilesHookState {

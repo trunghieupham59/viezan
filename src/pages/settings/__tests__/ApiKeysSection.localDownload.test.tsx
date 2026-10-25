@@ -104,4 +104,38 @@ describe('ApiKeysSection local model downloads', () => {
     expect(screen.queryByText('This model is already being downloaded.')).toBeNull()
     expect(screen.getByText('1%', { selector: 'button' })).toBeTruthy()
   })
+
+  it('asks before uninstalling a local model and does nothing when cancelled', async () => {
+    window.api.getLocalAiActiveDownloads = vi.fn().mockResolvedValue([])
+    vi.mocked(window.api.ensureLocalAiRuntime).mockResolvedValue(runtime(['qwen3:14b']))
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false)
+    render(<><ApiKeysSection /><NotificationViewport /></>)
+    const uninstall = await screen.findByRole('button', { name: 'Uninstall' })
+
+    act(() => uninstall.click())
+
+    expect(confirm).toHaveBeenCalledWith('Uninstall qwen3:14b? You will need to download it again to use it.')
+    expect(window.api.uninstallLocalAiModel).not.toHaveBeenCalled()
+  })
+
+  it('uninstalls once the user confirms', async () => {
+    window.api.getLocalAiActiveDownloads = vi.fn().mockResolvedValue([])
+    vi.mocked(window.api.ensureLocalAiRuntime).mockResolvedValue(runtime(['qwen3:14b']))
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(true)
+    render(<><ApiKeysSection /><NotificationViewport /></>)
+    const uninstall = await screen.findByRole('button', { name: 'Uninstall' })
+
+    act(() => uninstall.click())
+
+    await waitFor(() => expect(window.api.uninstallLocalAiModel).toHaveBeenCalledWith('qwen3:14b'))
+  })
+
+  it('records the detected engine for the About section', async () => {
+    window.api.getLocalAiActiveDownloads = vi.fn().mockResolvedValue([])
+    useAppStore.setState({ localAiEngine: null })
+    render(<ApiKeysSection />)
+
+    await waitFor(() => expect(useAppStore.getState().localAiEngine).toBe('ollama'))
+  })
 })
+

@@ -6,6 +6,7 @@ import { ELEVENLABS_DOCS_URL } from '../../constants/urls'
 import { useAppStore, useT } from '../../store/useAppStore'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import type { TtsMode, TtsVoice } from '../../types'
+import { tpl } from '../../utils/tpl'
 
 const VOICES: TtsVoice[] = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer']
 
@@ -55,12 +56,18 @@ export function TtsSection() {
   }
 
   const handleElDelete = async () => {
-    if (!window.api || !confirm(t.settings_tts_el_delete_confirm)) return
+    if (!window.api || !window.confirm(tpl(t.settings_remove_key_confirm, { name: 'ElevenLabs' }))) return
     setElDeleting(true)
     try {
-      await window.api.keychain.delete('elevenlabs')
+      const removed = await window.api.keychain.delete('elevenlabs')
+      if (!removed.success) {
+        reportElevenLabs(t.settings_key_store_failed, false)
+        return
+      }
       setElKey({ exists: false, masked: null })
       setElInput('')
+    } catch {
+      reportElevenLabs(t.settings_key_store_failed, false)
     } finally {
       setElDeleting(false)
     }
@@ -121,7 +128,8 @@ export function TtsSection() {
           verifying: t.settings_verifying,
           verified: t.settings_verified,
           tryAgain: t.settings_try_again,
-          submit: t.settings_verify_save,
+          // The ElevenLabs key is stored as-is, never verified.
+          submit: t.settings_key_save,
         }}
         meta={<span>{t.settings_tts_elevenlabs_for_premium}</span>}
         inputValue={elInput}

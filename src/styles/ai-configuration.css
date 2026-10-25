@@ -705,6 +705,27 @@
   gap: var(--vzn-space-2);
 }
 
+/* Screen Recording permission dialog (DialogShell). */
+.live-permission-hint {
+  margin: 0;
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+  line-height: var(--vzn-line-normal);
+}
+
+.live-permission-hint strong {
+  color: var(--vzn-text-strong);
+  font-weight: var(--vzn-weight-semibold);
+}
+
+.live-permission-footer {
+  display: flex;
+  inline-size: 100%;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--vzn-space-2);
+}
+
 /* Below a wide workspace the transcript keeps the width; exports and the summary stay in the panel footers. */
 @container app-main (max-width: 1099px) {
   .live-panels-body[data-session-panel="true"] {

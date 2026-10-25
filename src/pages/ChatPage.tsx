@@ -250,7 +250,7 @@ export function ChatPage() {
     chatSessions, activeChatSessionId, chatSystemPrompt,
     createChatSession, setActiveChatSession, addChatMessage, updateChatMessage,
     addChatSessionCost, openSettings,
-    recordUsageCost, setDeepResearchResumeState,
+    recordUsageCost, setDeepResearchResumeState, setChatSessionRunning,
     setChatSessionDraft,
     setChatPendingDraft,
   } = useAppStore(
@@ -274,6 +274,7 @@ export function ChatPage() {
       openSettings: s.openSettings,
       recordUsageCost: s.recordUsageCost,
       setDeepResearchResumeState: s.setDeepResearchResumeState,
+      setChatSessionRunning: s.setChatSessionRunning,
       setChatSessionDraft: s.setChatSessionDraft,
       setChatPendingDraft: s.setChatPendingDraft,
     })),
@@ -603,6 +604,8 @@ export function ChatPage() {
     const drController = new AbortController()
     abortControllerRef.current = drController
     setIsSending(true)
+    // The sidebar reads this to tell a running run from a paused snapshot.
+    setChatSessionRunning(sessionId, true)
 
     try {
       await deepResearchService.run({
@@ -700,9 +703,11 @@ export function ChatPage() {
       if (abortControllerRef.current === drController) {
         abortControllerRef.current = null
       }
+      setChatSessionRunning(sessionId, false)
       setIsSending(false)
     }
   }, [
+    setChatSessionRunning,
     selectedProvider,
     selectedModels,
     addChatMessage,
@@ -725,6 +730,13 @@ export function ChatPage() {
     const session = useAppStore.getState().chatSessions.find((s) => s.id === activeChatSessionId)
     const resumeState = session?.deepResearchResumeState
     if (!resumeState) return
+    // The snapshot outlives a task change; resuming puts the conversation back on research.
+    if (!getChatTaskExecution(taskState).deepResearchMode) {
+      setChatTaskState(activeChatSessionId, {
+        selected: 1, options: { ...taskState?.options, 1: 'research' }, applied: taskState?.applied ?? null,
+        open: false, unified: true, webSearch: taskState?.webSearch,
+      })
+    }
     await runDeepResearchPipeline({
       sessionId: activeChatSessionId,
       question: resumeState.question,
@@ -732,7 +744,7 @@ export function ChatPage() {
       resumeState,
       configuration: resumeState.requestConfiguration,
     })
-  }, [isSending, activeChatSessionId, runDeepResearchPipeline])
+  }, [isSending, activeChatSessionId, runDeepResearchPipeline, taskState, setChatTaskState])
 
   const executeChatRequest = useCallback(async (retry?: {
     sessionId: string; message: ChatMessage; history: ChatMessage[]; assistantMsgId?: string;
@@ -1325,9 +1337,16 @@ export function ChatPage() {
   }, [activeChatSessionId, isSending, isVoiceBusy, executeChatRequest, chatSystemPrompt, reportAttachImageError, t])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-
+    // Esc stops a streaming reply while the user keeps typing the next message.
+    if (e.key === 'Escape' && isSending && !e.nativeEvent.isComposing) {
+      e.preventDefault()
+      handleStop()
+      return
+    }
     if (shouldSendChatMessage(e.nativeEvent, chatSendShortcut, platform)) {
       e.preventDefault()
+      // The composer stays editable while a reply streams; only sending waits.
+      if (isSending || attachedImageUnreadable) return
       handleSend()
     }
   }
@@ -1437,9 +1456,11 @@ export function ChatPage() {
     }
   }, [activeChatSessionId, messages, updateChatMessage])
   const attachedImageReadable = imageInputSupport(selectedProvider, selectedModels[selectedProvider] ?? '')
+  /** A photo the current model cannot read blocks Send; the hint under the preview says why. */
+  const attachedImageUnreadable = Boolean(attachedImage && !imageMode && attachedImageReadable === 'no')
+  // Shown whenever a snapshot exists, even after a task change: resuming switches back to research.
   const canResumeDeepResearch = Boolean(
-    getChatTaskExecution(taskState).deepResearchMode
-    && !isSending
+    !isSending
     && !inputText.trim()
     && !attachedImage
     && activeSession?.deepResearchResumeState
@@ -1511,7 +1532,6 @@ export function ChatPage() {
           onPaste={handlePaste}
           placeholder={composerPlaceholder}
           rows={1}
-          disabled={isSending}
           readOnly={isVoiceBusy}
           aria-busy={isVoiceBusy}
           className={`chat-input-field w-full ${isVoiceInterim ? 'italic' : ''}`}
@@ -1606,7 +1626,7 @@ export function ChatPage() {
               variant="primary"
               appearance="solid"
               onClick={handleSend}
-              disabled={((!inputText.trim() || isEmptyChatTask(inputText)) && !attachedImage) || !hasKey || (imageMode && (!imageModeSupported || !inputText.trim()))}
+              disabled={((!inputText.trim() || isEmptyChatTask(inputText)) && !attachedImage) || !hasKey || attachedImageUnreadable || (imageMode && (!imageModeSupported || !inputText.trim()))}
               title={t.chat_send}
               aria-label={t.chat_send}
               className="chat-send-button"
@@ -1630,15 +1650,15 @@ export function ChatPage() {
       {showPlusMenu && createPortal(
         <div
           ref={plusMenuRef}
-          className="floating-panel overflow-hidden"
-          style={{ position: 'fixed', bottom: plusMenuPos.bottom, left: plusMenuPos.left, width: 220, zIndex: 9999 }}
+          className="floating-panel chat-plus-menu overflow-hidden"
+          style={{ bottom: plusMenuPos.bottom, left: plusMenuPos.left }}
         >
           <button
             type="button"
             className="btn-menu-item justify-start gap-3"
             onClick={() => { fileInputRef.current?.click(); setShowPlusMenu(false) }}
           >
-            <PaperclipIcon className="w-[18px] h-[18px] flex-shrink-0 text-[--vzn-text-muted]" />
+            <PaperclipIcon className="chat-plus-menu__icon flex-shrink-0" />
             <span>{t.chat_menu_attach_files}</span>
           </button>
         </div>,
@@ -1650,9 +1670,8 @@ export function ChatPage() {
   )
 
   return (
-    <div
-      role="application"
-      aria-label={t.chat_attach_image}
+    <section
+      aria-label={t.nav_chat}
       className="app-page chat-page relative"
       onDragOver={(e) => {
         e.preventDefault()
@@ -1785,6 +1804,6 @@ export function ChatPage() {
         </div>
       </div>
 
-    </div>
+    </section>
   )
 }

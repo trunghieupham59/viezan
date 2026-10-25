@@ -95,6 +95,11 @@ export function QuickLauncher() {
   const primaryModifierKey = window.api?.platform === 'darwin' ? '⌘' : 'Ctrl'
   const locale = useAppStore(state => state.locale)
   const launcherCurrency = useAppStore(state => state.launcherCurrency)
+
+  // The launcher window has its own document; keep its language in step too.
+  useEffect(() => {
+    document.documentElement.lang = locale
+  }, [locale])
   const setLauncherCurrency = useAppStore(state => state.setLauncherCurrency)
   const calc = useMemo(() => evaluateQuickCalc(search, locale), [search, locale])
   const currencyQuery = useMemo(() => (calc ? null : parseCurrencyQuery(search, locale)), [calc, search, locale])
@@ -586,6 +591,10 @@ export function QuickLauncher() {
                 ))}
               </div>
             </div>
+            {/* Calculator and currency answers arrive as you type (rates asynchronously); announce them politely. */}
+            <p className="sr-only" aria-live="polite" data-testid="launcher-inline-announcer">
+              {sections.find(section => section.id === 'calc' || section.id === 'currency')?.items[0]?.label ?? ''}
+            </p>
             {loading && !apps.length && <p className="launcher-notice" role="status">{t.launcher_loading}</p>}
             {catalogError && (
               <div className="launcher-notice" role="status">

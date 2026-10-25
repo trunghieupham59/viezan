@@ -51,7 +51,7 @@ export function UpdatePopupPage() {
         <div className="update-popup-brand"><AppLogoIcon size="md" /><strong>Viezan</strong></div>
         <div className="update-popup-window-controls titlebar-no-drag">
           <Button size="md" shape="icon" variant="neutral" appearance="ghost" aria-label={t.update_popup_minimize} onClick={() => void act('minimize')}><MinimizeIcon className="h-4 w-4" /></Button>
-          <Button size="md" shape="icon" variant="neutral" appearance="ghost" aria-label={t.update_popup_close} onClick={() => void act('dismiss')}><XIcon className="h-4 w-4" /></Button>
+          <Button size="md" shape="icon" variant="neutral" appearance="ghost" aria-label={t.update_popup_close} title={t.update_popup_close} onClick={() => void act('dismiss')}><XIcon className="h-4 w-4" /></Button>
         </div>
       </div>
       <div className="update-popup-content">

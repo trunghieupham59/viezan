@@ -252,9 +252,12 @@ describe('ThermalPage', () => {
     const first = render(<ThermalPage />)
     await waitFor(() => expect(pushSnapshot).not.toBeNull())
     act(() => { pushSnapshot?.(snapshot) })
-    const chip = (await screen.findByText(t.thermal_fan_helper_missing_short)).closest('.ui-status-chip')
+    const chip = (await screen.findByText(t.thermal_fan_helper_missing_short, { selector: '.ui-status-chip__text' })).closest('.ui-status-chip')
     expect(chip).toHaveAttribute('title', t.thermal_fan_helper_missing)
     expect(chip).toHaveAttribute('data-tone', 'warning')
+    // The how-to is readable on the page, not only in the chip's tooltip.
+    const notice = screen.getByText(t.thermal_fan_helper_missing, { selector: '.capability-notice__description' }).closest('.capability-notice')
+    expect(notice).toHaveAttribute('data-tone', 'warning')
     expect(screen.queryByRole('button', { name: t.thermal_fan_enable })).toBeNull()
     first.unmount()
 

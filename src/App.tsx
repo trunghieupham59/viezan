@@ -32,7 +32,7 @@ export function PageFallback({ page, label }: { page: AppPage; label: string }) 
 function App() {
   const t = useT()
   const {
-    activePage, localeAuto, setKeyStatus, setLocaleFromSystem, fontSize, theme, themePreset, themeAccent,
+    activePage, locale, localeAuto, setKeyStatus, setLocaleFromSystem, fontSize, theme, themePreset, themeAccent,
     selectedProvider, selectedModels, ttsMode, ttsVoice,
     createChatSession, setActiveChatSession, addChatMessage, setChatSessionDraft,
     setActivePage, openSettings,
@@ -73,6 +73,12 @@ function App() {
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
   }, [theme, themePreset])
+
+  // The document language follows the app language, so screen readers pick the
+  // right voice and Japanese text gets Japanese glyph forms and line breaking.
+  useEffect(() => {
+    document.documentElement.lang = locale
+  }, [locale])
 
   // The style preset is a second axis next to light/dark: tokens.css keys
   // every `[data-theme]` block off this attribute.

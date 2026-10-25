@@ -127,7 +127,7 @@ export function UpdateNotification({ blocked = false }: { blocked?: boolean }) {
         <div className="update-notification-actions">
           <Button size="md" variant="neutral" appearance="ghost" disabled={busy} onClick={() => void run('openDownload')}>{t.update_notification_release_notes}</Button>
           <Button ref={laterRef} size="md" variant="neutral" appearance="outline" onClick={dismiss}>{t.update_notification_later}</Button>
-          <Button size="md" variant="neutral" appearance="solid" disabled={busy || status.type === 'downloading'} onClick={() => void run(status.type === 'downloaded' ? 'install' : 'download')}>
+          <Button size="md" variant="primary" appearance="solid" disabled={busy || status.type === 'downloading'} onClick={() => void run(status.type === 'downloaded' ? 'install' : 'download')}>
             {status.type === 'downloaded' ? t.settings_update_install : t.settings_update_download}
           </Button>
         </div>

@@ -7,12 +7,14 @@ import { ButtonGroup } from './ButtonGroup'
 export type FontSize = 'small' | 'medium' | 'large'
 
 interface FontSizePickerProps {
+  /** Accessible name of the group (the row label). */
+  label: string
   value: FontSize
   onChange: (size: FontSize) => void
   labels: { small: string; medium: string; large: string }
 }
 
-export function FontSizePicker({ value, onChange, labels }: FontSizePickerProps) {
+export function FontSizePicker({ label, value, onChange, labels }: FontSizePickerProps) {
   const options = (['small', 'medium', 'large'] as FontSize[]).map((size) => ({
     value: size,
     label: labels[size],
@@ -20,7 +22,7 @@ export function FontSizePicker({ value, onChange, labels }: FontSizePickerProps)
 
   return (
     <div className="flex-shrink-0">
-      <ButtonGroup size="sm" value={value} onChange={onChange} options={options} />
+      <ButtonGroup size="sm" label={label} value={value} onChange={onChange} options={options} />
     </div>
   )
 }

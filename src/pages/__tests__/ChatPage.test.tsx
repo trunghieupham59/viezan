@@ -420,13 +420,13 @@ describe('ChatPage', () => {
         fireEvent.click(screen.getByRole('button', { name: t.chat_send }))
         await waitFor(() => expect(run).toHaveBeenCalledTimes(1))
         if (outcome === 'cancelled') fireEvent.click(screen.getByRole('button', { name: t.chat_stop }))
-        await waitFor(() => expect(screen.getByRole('button', { name: /Retry step \d/ })).toBeEnabled())
+        await waitFor(() => expect(screen.getByRole('button', { name: t.chat_research_retry_step })).toBeEnabled())
         const id = useAppStore.getState().activeChatSessionId as string
         act(() => { useAppStore.getState().setChatSessionModel(id, 'claude', 'changed-model'); useAppStore.getState().setActiveChatSession(id) })
         fireEvent.change(screen.getByRole('textbox'), { target: { value: 'New draft' } })
-        expect(screen.queryByRole('button', { name: /Retry step \d/ })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: t.chat_research_retry_step })).not.toBeInTheDocument()
         fireEvent.change(screen.getByRole('textbox'), { target: { value: '' } })
-        fireEvent.click(screen.getByRole('button', { name: /Retry step \d/ }))
+        fireEvent.click(screen.getByRole('button', { name: t.chat_research_retry_step }))
         await waitFor(() => expect(screen.getByText('Recovered research')).toBeInTheDocument())
         expect(run.mock.calls[1][0]).toMatchObject({ provider: 'gemini', model: 'gemini-2.0-flash', question: run.mock.calls[0][0].question })
         expect(useAppStore.getState().chatSessions[0].messages.filter(m => m.role === 'user')).toHaveLength(1)
@@ -1210,6 +1210,158 @@ describe('ChatPage', () => {
     } finally {
       window.api.chatStream = originalChatStream
       window.api.onChatStreamEvent = originalOnChatStreamEvent
+    }
+  })
+
+  it('disables Send while the attached image cannot be read by the current model', async () => {
+    act(() => {
+      useAppStore.setState({
+        keyStatus: { gemini: false, claude: false, openai: true, local: false },
+        selectedProvider: 'openai',
+        selectedModels: { gemini: 'gemini-2.0-flash', claude: 'claude-3-5-haiku-20241022', openai: 'gpt-3.5-turbo', local: 'local-auto' },
+      })
+    })
+    const t = TRANSLATIONS.en
+    render(<ChatPage />)
+
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(fileInput, { target: { files: [new File(['fake'], 'research.png', { type: 'image/png' })] } })
+    await waitFor(() => expect(screen.getByAltText('research.png')).toBeInTheDocument())
+
+    const textarea = screen.getByPlaceholderText(t.chat_placeholder)
+    fireEvent.change(textarea, { target: { value: 'What is in this photo?' } })
+    // The hint says why, and Send stays disabled until the image is removed or the model changes.
+    expect(screen.getByText(t.chat_attachment_model_cannot_read)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: t.chat_send })).toBeDisabled()
+
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    expect(window.api.chatStream).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByTitle(t.chat_remove_image))
+    expect(screen.getByRole('button', { name: t.chat_send })).not.toBeDisabled()
+  })
+
+  it('keeps the composer editable while a reply streams without sending a second message', async () => {
+    act(() => {
+      useAppStore.setState({ keyStatus: { gemini: true, claude: false, openai: false, local: false } })
+    })
+    const stream = mockStreamingChat()
+    const t = TRANSLATIONS.en
+    render(<ChatPage />)
+
+    const textarea = screen.getByPlaceholderText(t.chat_placeholder)
+    fireEvent.change(textarea, { target: { value: 'First question' } })
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    await waitFor(() => expect(window.api.chatStream).toHaveBeenCalledTimes(1))
+
+    const composer = screen.getByRole('textbox')
+    expect(composer).not.toBeDisabled()
+    fireEvent.change(composer, { target: { value: 'Next question' } })
+    expect(composer).toHaveValue('Next question')
+    // Enter while the reply streams keeps the draft and sends nothing; Stop stays available.
+    fireEvent.keyDown(composer, { key: 'Enter' })
+    expect(window.api.chatStream).toHaveBeenCalledTimes(1)
+    expect(composer).toHaveValue('Next question')
+    expect(screen.getByRole('button', { name: t.chat_stop })).toBeInTheDocument()
+
+    stream.resolve({ success: true, reply: 'Done' })
+    await waitFor(() => expect(screen.getByRole('button', { name: t.chat_send })).toBeInTheDocument())
+  })
+
+  it('stops a streaming reply with Escape in the composer', async () => {
+    act(() => {
+      useAppStore.setState({ keyStatus: { gemini: true, claude: false, openai: false, local: false } })
+    })
+    mockStreamingChat()
+    vi.mocked(window.api.chatStreamCancel).mockClear()
+    render(<ChatPage />)
+
+    const textarea = screen.getByPlaceholderText(TRANSLATIONS.en.chat_placeholder)
+    fireEvent.keyDown(textarea, { key: 'Escape' })
+    expect(window.api.chatStreamCancel).not.toHaveBeenCalled()
+
+    fireEvent.change(textarea, { target: { value: 'Hello' } })
+    fireEvent.keyDown(textarea, { key: 'Enter' })
+    await waitFor(() => expect(window.api.chatStream).toHaveBeenCalled())
+
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' })
+    await waitFor(() => expect(window.api.chatStreamCancel).toHaveBeenCalled())
+  })
+
+  it('offers Resume for a research snapshot after the task changed and switches back to research', async () => {
+    const resumeState = {
+      question: 'Resume after task change',
+      aspects: ['Aspect A'],
+      knowledgeBase: [{ label: 'Aspect A', content: 'Completed A' }],
+      surveyCompletedAspects: ['Aspect A'],
+      imageContext: '',
+      imageSearchTerms: [],
+      anyWebSearch: false,
+      lastCompletedPhase: 'survey' as const,
+      lastGapIteration: 0,
+      hasImages: false,
+    }
+    let sessionId = ''
+    act(() => {
+      useAppStore.setState({ keyStatus: { gemini: true, claude: false, openai: false, local: false } })
+      sessionId = useAppStore.getState().createChatSession('gemini', 'gemini-2.0-flash')
+      useAppStore.getState().addChatMessage(sessionId, {
+        id: 'msg-research-step-2',
+        role: 'assistant',
+        content: [{ type: 'text', text: 'Completed A' }],
+        timestamp: Date.now(),
+        isResearchStep: true,
+        researchStepLabel: 'Survey',
+        researchStepPhase: 'survey',
+        researchStepAspect: 'Aspect A',
+      })
+      useAppStore.getState().setDeepResearchResumeState(sessionId, resumeState)
+      // The user moved to another task after stopping the run.
+      useAppStore.getState().setChatTaskState(sessionId, {
+        selected: 2, options: { 2: 'simple' }, applied: null, open: false, unified: true,
+      })
+    })
+    const runSpy = vi.spyOn(deepResearchService, 'run').mockImplementation(async ({ callbacks }) => {
+      callbacks.onResumeStateChange?.(null)
+    })
+
+    try {
+      const t = TRANSLATIONS.en
+      render(<ChatPage />)
+      const panel = screen.getByRole('region', { name: t.chat_research_title })
+      fireEvent.click(within(panel).getByRole('button', { name: 'Resume' }))
+
+      await waitFor(() => expect(runSpy).toHaveBeenCalled())
+      const session = useAppStore.getState().chatSessions.find((item) => item.id === sessionId)
+      expect(session?.taskState).toEqual(expect.objectContaining({ selected: 1, options: expect.objectContaining({ 1: 'research' }) }))
+      expect(session?.deepResearchMode).toBe(true)
+    } finally {
+      runSpy.mockRestore()
+    }
+  })
+
+  it('marks a session as running only while its research is in flight', async () => {
+    act(() => {
+      useAppStore.setState({ keyStatus: { gemini: true, claude: false, openai: false, local: false }, chatRunningSessionIds: [] })
+    })
+    let finish: () => void = () => {}
+    const runSpy = vi.spyOn(deepResearchService, 'run').mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+
+    try {
+      render(<ChatPage />)
+      applyTask(TRANSLATIONS.en.chat_suggest_research, { label: TRANSLATIONS.en.chat_task_depth, value: TRANSLATIONS.en.chat_task_deep })
+      const textarea = screen.getByPlaceholderText(TRANSLATIONS.en.chat_task_research_placeholder)
+      fireEvent.change(textarea, { target: { value: 'Research topic' } })
+      fireEvent.keyDown(textarea, { key: 'Enter' })
+
+      await waitFor(() => expect(runSpy).toHaveBeenCalled())
+      const sessionId = useAppStore.getState().chatSessions[0].id
+      expect(useAppStore.getState().chatRunningSessionIds).toEqual([sessionId])
+
+      await act(async () => { finish() })
+      await waitFor(() => expect(useAppStore.getState().chatRunningSessionIds).toEqual([]))
+    } finally {
+      runSpy.mockRestore()
     }
   })
 

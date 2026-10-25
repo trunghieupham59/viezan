@@ -118,7 +118,7 @@ Máy tính (`evaluateQuickCalc`) chỉ trả lời khi câu rõ ràng là phép 
 | A3 | Ô hỏi (`textarea`) | Placeholder "Hỏi bất cứ điều gì…" / "Hỏi tiếp..." | Gõ; Enter gửi (hoặc ⌘↵ nếu người dùng chọn kiểu gửi đó), ⇧Enter xuống dòng | | | Disabled khi đang gửi |
 | A4 | Xoá chữ (✕) | `xs · neutral · ghost`, nhãn "Xóa" | Click | Ô trống, focus lại | | Ẩn khi trống hoặc đang gửi |
 | A5 | Gửi | `md · primary · solid`, icon, nhãn "Gửi" | Click | Gửi câu hỏi | Icon thành spinner | Disabled khi trống, quá dài, đang gửi hoặc thiếu khoá |
-| A6 | Chip model (footer) | `xs · neutral · ghost`: chấm + icon nhà cung cấp + "/ model" + "Smart Thinking" + "· {n} lượt" | Click | Mở Cài đặt ở app chính | | — |
+| A6 | Chip model (footer) | `xs · neutral · ghost`: chấm (`--vzn-success` có khoá / `--vzn-warning` thiếu khoá, kèm chữ ẩn) + icon nhà cung cấp + "/ model" + "Smart Thinking" + "· {n} lượt" | Click | Mở Cài đặt ở app chính | | — |
 | A7 | Dừng | `xs · danger · ghost` | Click | Dừng luồng (giữ phần đã nhận) | Nút biến mất | Chỉ khi đang gửi |
 | A8 | Sao chép (footer) | `xs · neutral · ghost` | Click | Chép câu trả lời hiện tại | "Đã sao chép!" + dấu tích 1,2 s | Disabled khi chưa có chữ |
 | A9 | Mở trong Chat | `xs · neutral · ghost`, kèm `KeyCap` ⌘↵ | Click; ⌘↵ / Ctrl+↵ | Chuyển cả cuộc hỏi–đáp (và nháp chưa gửi) sang AI Chat của app chính; popup bắt đầu mới lần sau | | — |
@@ -198,7 +198,7 @@ Cửa sổ rộng cố định 760 px; không có ngưỡng bề rộng.
 - Bàn phím đầy đủ: ↑↓ (vòng), ↵, ⌘↵/Ctrl↵, ⇧↵, Tab, Esc. Bỏ qua khi đang soạn IME (`isComposing`, keyCode 229) và khi giữ phím lặp.
 - Di chuột chỉ đổi lựa chọn khi con trỏ thực sự di chuyển (chống sự kiện giả sau khi đóng menu).
 - Notice tải và lỗi danh mục `role="status"`; lỗi mở mục `role="alert"`.
-- Chế độ AI: Esc ẩn cửa sổ; ⌘N mới; ⌘↵ mở trong Chat. Vùng câu trả lời **không** có `aria-live` (xem §10).
+- Chế độ AI: Esc ẩn cửa sổ; ⌘N mới; ⌘↵ mở trong Chat. Vùng câu trả lời có `aria-live="polite"` + `aria-busy` khi đang gửi; kết quả tính/đổi tiền được đọc qua một vùng ẩn `aria-live="polite"`.
 
 ## 9. Nội dung chữ (vi)
 
@@ -240,10 +240,6 @@ Cửa sổ rộng cố định 760 px; không có ngưỡng bề rộng.
 4. **"Esc" ở chế độ AI ẩn cả cửa sổ**, trong khi board LauncherStates gợi ý quay về tìm kiếm. Đề xuất: Esc lần một về chế độ tìm (như nút "Tìm kiếm"), lần hai ẩn — nhất quán với chế độ tìm (Esc xoá chữ rồi mới ẩn).
 5. **Board Launcher "Mở Viezan"** trong nhóm Viezan — mã có "Mở trong Chat" và "Mở Cài đặt", không có lệnh mở cửa sổ chính chung chung. **Đề xuất**.
 6. **Tìm web cố định Google** (`launcher_web` = "Tìm trên Google", URL Google trong `electron/ipc/launcher.ts`); chọn công cụ tìm là **đề xuất**.
-7. **Chuỗi chưa bản địa hoá trong `AIChatPopup.tsx`**: `aria-label`/`title` "New conversation (⌘+N)", "Quick AI", "Change model in Settings", nhãn "default" khi chưa có model, huy hiệu "Q". Vi phạm luật EN/VI/JA.
-8. **Giá trị thô trong `AIChatPopup.tsx`**: lớp Tailwind màu (`bg-gray-200/80`, `text-gray-700`, `bg-gray-100`), bóng `shadow-[0_0_0_3px_rgba(75,85,99,0.14)]`, `max-w-[64rem]`, `min-h-[240px]`, `style={{ color: 'var(--vzn-text-muted)' }}` — nợ thiết kế so với `tokens.css`.
-9. **Không có `aria-live`** cho vùng câu trả lời AI và cho hàng tính/đổi tiền; người dùng trình đọc màn hình không biết khi câu trả lời xong hoặc tỷ giá về.
-10. **Chip model ở footer dùng chấm xám cho cả có khoá và thiếu khoá** (chỉ khác độ đậm) — màu không phân biệt trạng thái; đề xuất chấm `--vzn-success` / `--vzn-warning` kèm chữ.
-11. Kích thước nút trong header AI: "Tìm kiếm", logo và Gửi là `md`, nút xoá trong ô là `xs` (nằm trong ô nên chấp nhận được). Footer dùng `xs` thống nhất.
-12. Khi Hỏi AI từ ô **trống** bằng Tab, chế độ AI mở với câu hỏi rỗng (không gửi) — đúng, nhưng footer chế độ tìm không nói Tab làm gì khi ô trống.
-13. Tìm tệp chỉ có trên macOS và Windows; trên Linux nhóm Tệp không bao giờ xuất hiện và không có thông báo.
+7. Kích thước nút trong header AI: "Tìm kiếm", logo và Gửi là `md`, nút xoá trong ô là `xs` (nằm trong ô nên chấp nhận được). Footer dùng `xs` thống nhất.
+8. Khi Hỏi AI từ ô **trống** bằng Tab, chế độ AI mở với câu hỏi rỗng (không gửi) — đúng, nhưng footer chế độ tìm không nói Tab làm gì khi ô trống.
+9. Tìm tệp chỉ có trên macOS và Windows; trên Linux nhóm Tệp không bao giờ xuất hiện và không có thông báo.

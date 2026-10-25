@@ -21,6 +21,8 @@ interface TranslationSourcePaneProps {
   headingId: string
   sourceText: string
   sourceLang: string
+  /** Detected language while the source is Auto; tags the textarea with `lang`. */
+  detectedSourceLang?: string | null
   voiceContextKey: string
   charCount: number
   translationModelCount: number
@@ -65,6 +67,7 @@ export function TranslationSourcePane({
   headingId,
   sourceText,
   sourceLang,
+  detectedSourceLang = null,
   voiceContextKey,
   charCount,
   translationModelCount,
@@ -110,6 +113,9 @@ export function TranslationSourcePane({
   const isLongInput = charCount > TRANSLATE_INPUT_WARNING_CHARS
   const longInputNotice = t.translate_long_text_notice(TRANSLATE_INPUT_WARNING_CHARS)
   const isComparisonMode = translationModelCount > 1
+  const charCountLabel = tpl(t.translate_char_count, { count: formatNumberForLocale(charCount, appLocale) })
+  // Only a known language: "auto" is not a BCP 47 tag.
+  const inputLang = sourceLang !== 'auto' ? sourceLang : (detectedSourceLang ?? undefined)
 
   const handleInputKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
@@ -141,9 +147,7 @@ export function TranslationSourcePane({
           <ChevronRightIcon className="translate-source-disclosure-chevron" />
           <span className="translate-source-collapsed-text">{sourceText}</span>
         </Button>
-        <span className="translate-char-count">
-          {formatNumberForLocale(charCount, appLocale)} {t.translate_chars}
-        </span>
+        <span className="translate-char-count">{charCountLabel}</span>
         {!autoTranslate && (
           <TranslateButton
             isTranslating={isTranslating}
@@ -151,6 +155,7 @@ export function TranslationSourcePane({
             onClick={onTranslate}
             labelTranslate={t.translate_compare_submit(translationModelCount)}
             labelLoading={t.translate_compare_submitting(translationModelCount)}
+            title={t.translate_manual_shortcut}
           />
         )}
       </section>
@@ -222,6 +227,7 @@ export function TranslationSourcePane({
             <label className="sr-only" htmlFor={inputId}>{t.translate_source_content_label}</label>
             <textarea
               id={inputId}
+              lang={inputLang}
               value={sourceText}
               onChange={(event) => onSourceChange(event.target.value)}
               onKeyDown={handleInputKeyDown}
@@ -290,7 +296,7 @@ export function TranslationSourcePane({
               title={isLongInput ? longInputNotice : undefined}
             >
               {isLongInput && <InfoCircleIcon />}
-              <span>{formatNumberForLocale(charCount, appLocale)} {t.translate_chars}</span>
+              <span>{charCountLabel}</span>
               {isLongInput && (
                 <>
                   <span aria-hidden="true">·</span>
@@ -306,7 +312,8 @@ export function TranslationSourcePane({
           {optionsSummary && <span className="translate-options-summary">{optionsSummary}</span>}
           {!autoTranslate && (
             <>
-              <span className="translate-shortcut-hint">{t.translate_manual_shortcut}</span>
+              {/* Hidden below ~680px of pane width (translate.css); the button title keeps it. */}
+              <span className="translate-shortcut-hint" aria-hidden="true">{t.translate_manual_shortcut}</span>
               <TranslateButton
                 isTranslating={isTranslating}
                 disabled={!hasSource}
@@ -317,6 +324,7 @@ export function TranslationSourcePane({
                 labelLoading={isComparisonMode
                   ? t.translate_compare_submitting(translationModelCount)
                   : t.translate_btn_loading}
+                title={t.translate_manual_shortcut}
               />
             </>
           )}

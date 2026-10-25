@@ -557,7 +557,7 @@ html.dark .chat-suggest-chip:hover {
   padding: 0 11px;
   flex: 0 0 auto;
   border: 1px solid var(--vzn-border);
-  border-radius: 10px;
+  border-radius: var(--vzn-radius-control);
   background: var(--vzn-surface);
   color: var(--vzn-text-muted);
   box-shadow: none;
@@ -578,7 +578,7 @@ html.dark .chat-suggest-chip:hover {
   max-width: min(210px, 31vw);
   padding: 0 11px 0 13px;
   border-color: transparent;
-  border-radius: 999px;
+  border-radius: var(--vzn-radius-pill);
   background: var(--vzn-surface-muted);
   color: var(--vzn-text-muted);
   font-size: 13px;
@@ -647,7 +647,7 @@ html.dark .chat-suggest-chip:hover {
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--vzn-border-strong);
-  border-radius: 16px;
+  border-radius: var(--vzn-radius-lg);
   background: var(--vzn-surface);
   color: var(--vzn-text);
   box-shadow: var(--vzn-shadow-lg);
@@ -680,7 +680,7 @@ html.dark .chat-suggest-chip:hover {
   align-items: center;
   gap: 10px;
   padding: 0 10px;
-  border-radius: 10px;
+  border-radius: var(--vzn-radius-control);
   text-align: left;
 }
 
@@ -728,7 +728,7 @@ html.dark .chat-suggest-chip:hover {
   justify-content: space-between;
   gap: 10px;
   padding: 0 10px;
-  border-radius: 10px;
+  border-radius: var(--vzn-radius-control);
   color: var(--vzn-text-muted);
   font-size: 14px;
   text-align: left;
@@ -740,7 +740,7 @@ html.dark .chat-suggest-chip:hover {
   gap: 10px;
   margin: 4px 2px 2px;
   padding: 10px;
-  border-radius: 10px;
+  border-radius: var(--vzn-radius-control);
   background: var(--vzn-surface-muted);
 }
 
@@ -765,7 +765,7 @@ html.dark .chat-suggest-chip:hover {
   padding: 7px 9px;
   overflow-wrap: anywhere;
   border: 1px solid var(--vzn-border);
-  border-radius: 8px;
+  border-radius: var(--vzn-radius-sm);
   background: var(--vzn-surface);
   color: var(--vzn-text-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -796,7 +796,7 @@ html.dark .chat-suggest-chip:hover {
   align-self: flex-start;
   padding: 0 10px;
   border: 1px solid var(--vzn-border);
-  border-radius: 8px;
+  border-radius: var(--vzn-radius-sm);
   background: var(--vzn-surface);
   color: var(--vzn-text-muted);
   font-size: 12px;
@@ -829,7 +829,7 @@ html.dark .chat-suggest-chip:hover {
   height: 34px;
   align-items: center;
   justify-content: center;
-  border-radius: 9px;
+  border-radius: var(--vzn-radius-control);
 }
 
 .model-picker-title {
@@ -893,7 +893,7 @@ html.dark .chat-suggest-chip:hover {
 
 .model-picker-list::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--vzn-radius-pill);
   background: var(--vzn-border-strong);
   background-clip: padding-box;
 }
@@ -931,7 +931,7 @@ html.dark .chat-suggest-chip:hover {
   align-items: center;
   gap: 9px;
   padding: 7px 9px;
-  border-radius: 9px;
+  border-radius: var(--vzn-radius-control);
   text-align: left;
 }
 
@@ -984,7 +984,7 @@ html.dark .chat-suggest-chip:hover {
   align-items: center;
   justify-content: center;
   flex: 0 0 26px;
-  border-radius: 8px;
+  border-radius: var(--vzn-radius-sm);
   background: var(--vzn-surface-muted);
 }
 
@@ -1026,7 +1026,7 @@ html.dark .chat-suggest-chip:hover {
 @media (max-width: 560px) {
   .model-picker-panel {
     min-width: 0;
-    border-radius: 14px;
+    border-radius: var(--vzn-radius-md);
   }
 
   .model-picker-trigger--compact {
@@ -1317,4 +1317,120 @@ html.dark .chat-suggest-chip:hover {
 .chat-task-option + .ai-config-section,
 .chat-task-list + .ai-config-section {
   border-top: var(--vzn-border-width) solid var(--vzn-divider);
+}
+
+/* Research trace text and icons (MessageBubble, ResearchStepsPanel). */
+.chat-research-icon,
+.chat-research-text-muted {
+  color: var(--vzn-text-muted);
+}
+
+.chat-research-icon-quiet {
+  color: var(--vzn-text-soft);
+}
+
+.chat-research-text {
+  color: var(--vzn-text);
+}
+
+.chat-research-text-strong {
+  color: var(--vzn-text-strong);
+}
+
+.chat-research-step-body {
+  border-top: var(--vzn-border-width) solid var(--vzn-divider);
+  background: var(--vzn-surface);
+  color: var(--vzn-text-muted);
+}
+
+.chat-research-final-loading {
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  background: var(--vzn-surface);
+  box-shadow: var(--vzn-shadow-xs);
+}
+
+/* Message image attachments. */
+.chat-image-missing {
+  border: var(--vzn-border-width) dashed var(--vzn-border-strong);
+  color: var(--vzn-text-muted);
+}
+
+.chat-image-thumb {
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  box-shadow: var(--vzn-shadow-xs);
+  transition: box-shadow var(--vzn-duration-fast) var(--vzn-ease-standard);
+}
+
+.chat-image-thumb:hover {
+  box-shadow: var(--vzn-shadow-lg);
+}
+
+/* Composer "+" attachment menu (portal; JS sets bottom/left from the trigger). */
+.chat-plus-menu {
+  position: fixed;
+  z-index: var(--vzn-layer-picker);
+  inline-size: var(--vzn-chat-plus-menu-inline);
+}
+
+.chat-plus-menu__icon {
+  inline-size: var(--vzn-icon-md);
+  block-size: var(--vzn-icon-md);
+  color: var(--vzn-text-muted);
+}
+
+/* MarkdownText (chat, translate, command palette). The base size sits in the
+   components layer so a caller's class or utility can still override it. */
+@layer components {
+  .markdown-text {
+    font-size: var(--vzn-font-size-subtitle);
+  }
+
+  .markdown-text--compact {
+    font-size: var(--vzn-font-size-sm);
+  }
+}
+
+/* Centre the dot on the first line of a list item. */
+.markdown-bullet {
+  margin-block-start: calc((1lh - var(--vzn-space-1-5)) / 2);
+}
+
+.markdown-ol-index {
+  min-inline-size: var(--vzn-space-4);
+  color: var(--vzn-text-soft);
+}
+
+.markdown-heading {
+  color: var(--vzn-text-strong);
+}
+
+.markdown-hr {
+  border-color: var(--vzn-divider);
+}
+
+.markdown-pre {
+  background: var(--vzn-surface-subtle);
+  color: var(--vzn-text);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.markdown-table-head-row {
+  border-block-end: var(--vzn-border-width) solid var(--vzn-border);
+}
+
+.markdown-table-th {
+  background: var(--vzn-surface-subtle);
+  color: var(--vzn-text);
+}
+
+.markdown-table-row {
+  border-block-end: var(--vzn-border-width) solid var(--vzn-divider);
+}
+
+.markdown-table-row:nth-child(even) {
+  background: var(--vzn-surface-muted);
+}
+
+.markdown-table-td {
+  color: var(--vzn-text);
 }
