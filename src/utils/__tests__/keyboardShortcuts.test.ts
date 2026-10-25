@@ -35,6 +35,12 @@ describe('keyboardShortcuts', () => {
     expect(shouldSendChatMessage(event({ key: 'Enter' }), 'modEnter', 'darwin')).toBe(false)
     expect(shouldSendChatMessage(event({ key: 'Enter', metaKey: true }), 'modEnter', 'darwin')).toBe(true)
   })
+
+  it('leaves Enter to the input method while a Vietnamese or Japanese word is being composed', () => {
+    expect(shouldSendChatMessage(event({ key: 'Enter', isComposing: true }), 'enter', 'darwin')).toBe(false)
+    expect(shouldSendChatMessage(event({ key: 'Enter', keyCode: 229 }), 'enter', 'win32')).toBe(false)
+    expect(shouldSendChatMessage(event({ key: 'Enter', metaKey: true, isComposing: true }), 'modEnter', 'darwin')).toBe(false)
+  })
 })
 
 describe('shortcut conflicts', () => {

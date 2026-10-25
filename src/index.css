@@ -27,8 +27,9 @@
   }
 
   textarea, input, [contenteditable] { user-select: text; }
-  /* Product requirement: focus must not add a frame around app controls. */
-  *:focus { outline: none !important; }
+  /* Pointer and programmatic focus draw no frame; keyboard focus gets the
+     shared ring from tokens.css. */
+  *:focus:not(:focus-visible), [tabindex="-1"]:focus { outline: none; }
   .titlebar-drag    { -webkit-app-region: drag; }
   .titlebar-no-drag { -webkit-app-region: no-drag; }
 }
