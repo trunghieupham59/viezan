@@ -47,7 +47,7 @@ export function BrowserIntegrationSection() {
   const [extTokensLoading, setExtTokensLoading] = useState(false)
   const [extTokensError, setExtTokensError] = useState('')
   const [serverPort, setServerPort] = useState<number | null>(null)
-  const [revealedToken, setRevealedToken] = useState<{ token: string; name: string; expiresAt: number } | null>(null)
+  const [revealedToken, setRevealedToken] = useState<{ id?: string; token: string; name: string; expiresAt: number } | null>(null)
   const [revealedCopied, setRevealedCopied] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newTokenName, setNewTokenName] = useState('')
@@ -132,7 +132,7 @@ export function BrowserIntegrationSection() {
       })
     )
     if (res?.success && res.token) {
-      setRevealedToken({ token: res.token, name: res.name ?? '', expiresAt: res.expiresAt ?? 0 })
+      setRevealedToken({ id: res.id, token: res.token, name: res.name ?? '', expiresAt: res.expiresAt ?? 0 })
       setRevealedCopied(false)
       setShowCreateForm(false)
       setNewTokenName('')
@@ -151,7 +151,8 @@ export function BrowserIntegrationSection() {
     )
     if (res) {
       setExtTokens(prev => prev.filter(tk => tk.id !== id))
-      if (revealedToken) setRevealedToken(null)
+      // Only the deleted key's one-time reveal goes; another key's stays open to copy.
+      setRevealedToken(prev => (prev?.id === id ? null : prev))
     }
     setDeletingId(null)
   }
@@ -162,7 +163,7 @@ export function BrowserIntegrationSection() {
       window.api.localServer.regenerateToken({ id })
     )
     if (res?.success && res.token) {
-      setRevealedToken({ token: res.token, name: res.name ?? '', expiresAt: res.expiresAt ?? 0 })
+      setRevealedToken({ id, token: res.token, name: res.name ?? '', expiresAt: res.expiresAt ?? 0 })
       setRevealedCopied(false)
       await loadTokenList()
     } else if (res && !res.success) {

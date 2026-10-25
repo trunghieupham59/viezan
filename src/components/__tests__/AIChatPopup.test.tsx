@@ -131,6 +131,16 @@ describe('AIChatPopup quick window', () => {
     await waitFor(() => expect(document.activeElement).toBe(input))
   })
 
+  it('leaves Escape to the input method while a candidate is being composed', () => {
+    vi.mocked(window.api.quickChat.hide).mockClear()
+    render(<AIChatPopup />)
+
+    fireEvent.keyDown(window, { key: 'Escape', isComposing: true })
+    expect(window.api.quickChat.hide).not.toHaveBeenCalled()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(window.api.quickChat.hide).toHaveBeenCalledOnce()
+  })
+
   it('streams the answer inline when Enter sends the question', async () => {
     mockStreamingChat()
     render(<AIChatPopup />)

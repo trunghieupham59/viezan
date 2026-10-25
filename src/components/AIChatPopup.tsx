@@ -717,7 +717,8 @@ export function AIChatPopup({
   useEffect(() => {
     if (!active) return
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      // Esc that cancels an IME candidate belongs to the input method.
+      if (e.key === 'Escape' && !e.isComposing && e.keyCode !== 229) {
         hidePopup()
         return
       }

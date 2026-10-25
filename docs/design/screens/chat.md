@@ -339,7 +339,6 @@ App có mà bản vẽ chưa thể hiện: huy hiệu chi phí, ghi chú "Trả 
 
 Lỗi và mâu thuẫn tìm thấy khi đối chiếu mã (chưa sửa):
 
-- **Gửi bằng Enter không bỏ qua IME**: `shouldSendChatMessage` không kiểm tra `isComposing`/`keyCode 229`, trong khi `TranslationSourcePane`, `CommandPalette`, `QuickLauncher` có. Với bộ gõ tiếng Nhật (và bộ gõ tiếng Việt dùng khung soạn), Enter xác nhận chữ có thể gửi luôn tin (đang sửa ở PR #153).
 - **Giới hạn 20 phiên cắt im lặng** (`MAX_CHAT_SESSIONS` trong `chatSlice.ts`): người dùng mất cuộc cũ không được báo.
 - **Pha bị dừng có thể hiện như đã xong**: khi huỷ, `onStepError` đặt `isLoading: false` và không có `error`, nên `getGroupStatus` trong `ResearchStepsPanel.tsx` coi pha đó là "done"; số bước trong "Đã dừng ở bước {n}" vì vậy có thể lệch một bước so với pha sẽ chạy lại khi Tiếp tục. Cần kiểm chứng trên app; bản vẽ vẽ pha dở ở trạng thái trung tính "đã dừng".
 - **Nợ token trong vùng di trú**: menu "+" vẫn dùng nút gốc `.btn-menu-item` (bề rộng và lớp chồng đã về token `--vzn-chat-plus-menu-inline`, `--vzn-layer-picker`); popover chi tiết trong `ResearchStepsPanel.tsx` rộng 380 tính bằng số trong mã; `chat.css` còn số trần (`5px 9px`, `104px`, `44px`, `720px`, `.usage-cost-badge` 18/10/11 px). Nên chuyển về `var(--vzn-*)`.

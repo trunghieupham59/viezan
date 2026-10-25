@@ -364,4 +364,3 @@ Các ngưỡng của khung tính theo **bề rộng cửa sổ** (`window.innerW
 **Token và mã**
 
 23. Một số giá trị của khung vẫn là số tay trong `src/styles/codex.css`: đệm thanh bên `10px 8px`, `gap: 2px`, chuyển động `180ms ease` của `.app-sidebar` (lặp `--vzn-duration-normal`), cỡ chữ chip phím `.sidebar-shortcut` `10px` (không có token), hàng thương hiệu 40 px, bảng lệnh `560px` / `480px` / `56px` / `clamp(64px, 12vh, 112px)`. Khi chạm vào các quy tắc này, chuyển sang token.
-24. `codex.css` tắt viền focus toàn cục (`*:focus-visible { outline: none !important }`, đang sửa ở PR #153); khung dựa vào nền hover/tô để báo focus. Với người dùng bàn phím, nút ▣, mục điều hướng và nút toast cần dấu hiệu focus rõ hơn (vd. `--vzn-focus-ring`). Ghi nhận cho đợt trợ năng.

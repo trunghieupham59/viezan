@@ -434,8 +434,7 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 
 ### Lệch so với nền tảng (`foundations.md`) và lỗi phát hiện khi đối chiếu
 
-1. **Không thay được khoá đã lưu** (đang sửa ở PR #153). Với khoá đã có, ô trong trình sửa hiện giá trị che và `readOnly`; `onClick` gọi `onInputChange('')` nên vẫn ở chế độ che, không có nút "Xác minh". Muốn thay phải xoá rồi thêm lại; placeholder "Nhập key mới để thay thế…" không bao giờ hiện (`src/components/ui/CredentialCard.tsx`, `CredentialSecretInputRow`).
-2. **Khoá Groq/ElevenLabs:** nút đã ghi "Lưu", nhưng trong lúc lưu vẫn hiện "Đang xác minh…" vì chưa có khoá "Đang lưu…".
-3. **Thẻ "Theo dõi chi phí" là khung riêng** (`.cost-card` trong `src/styles/cost.css`, đã dùng token) chứ không phải `SettingsCard` (`CostOverviewCard.tsx`, `ProviderCostStats.tsx`). Nút "Reset" `sm` nằm trong dòng mô tả của hàng.
-4. **Kích thước trộn trong một thẻ:** khối so sánh hiệu năng dùng `md` trong thẻ có các nút `sm`.
-5. **Không có skeleton** cho AI local và các hàng chờ main (Khởi động cùng hệ thống, Thông báo cập nhật bị ẩn rồi bật ra, làm nhảy bố cục).
+1. **Khoá Groq/ElevenLabs:** nút đã ghi "Lưu", nhưng trong lúc lưu vẫn hiện "Đang xác minh…" vì chưa có khoá "Đang lưu…".
+2. **Thẻ "Theo dõi chi phí" là khung riêng** (`.cost-card` trong `src/styles/cost.css`, đã dùng token) chứ không phải `SettingsCard` (`CostOverviewCard.tsx`, `ProviderCostStats.tsx`). Nút "Reset" `sm` nằm trong dòng mô tả của hàng.
+3. **Kích thước trộn trong một thẻ:** khối so sánh hiệu năng dùng `md` trong thẻ có các nút `sm`.
+4. **Không có skeleton** cho AI local và các hàng chờ main (Khởi động cùng hệ thống, Thông báo cập nhật bị ẩn rồi bật ra, làm nhảy bố cục).

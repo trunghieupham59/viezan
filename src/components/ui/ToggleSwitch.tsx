@@ -37,7 +37,7 @@ export function ToggleSwitch({
       onClick={() => onChange(!checked)}
       className={[
         'toggle-switch-track relative inline-flex flex-shrink-0 items-center w-9 h-5 rounded-full',
-        'transition-colors duration-200 focus-visible:outline-none',
+        'transition-colors duration-200',
         'disabled:opacity-40 disabled:cursor-not-allowed',
         disabled ? 'cursor-not-allowed' : 'cursor-pointer',
         checked ? 'toggle-switch-track-on' : 'toggle-switch-track-off',

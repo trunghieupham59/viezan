@@ -847,6 +847,20 @@ describe('ChatPage', () => {
     })
   })
 
+  it('does not send when Enter confirms an IME composition', async () => {
+    act(() => {
+      useAppStore.setState({ keyStatus: { gemini: true, claude: false, openai: false, local: false } })
+    })
+    render(<ChatPage />)
+
+    const textarea = screen.getByPlaceholderText(TRANSLATIONS.en.chat_placeholder)
+    fireEvent.change(textarea, { target: { value: 'Xin chào' } })
+    fireEvent.keyDown(textarea, { key: 'Enter', isComposing: true })
+
+    expect(window.api.chatStream).not.toHaveBeenCalled()
+    expect(textarea).toHaveValue('Xin chào')
+  })
+
   it('uses Cmd+Enter to send when configured', async () => {
     act(() => {
       useAppStore.setState({

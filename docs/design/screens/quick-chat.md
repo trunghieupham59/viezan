@@ -182,13 +182,12 @@ Cửa sổ có kích thước cố định, người dùng không đổi cỡ đ
 
 Lỗi (hành vi sai, nên sửa trong mã):
 
-1. **IME không được chặn.** Trình xử lý Esc trên `window` và `shouldSendChatMessage` không kiểm tra `isComposing` / `keyCode 229` (chế độ tìm của Launcher thì có). Người dùng tiếng Nhật nhấn Enter để chốt chữ sẽ **gửi luôn** câu đang soạn dở; nhấn Esc để huỷ chữ đang soạn sẽ **ẩn cả cửa sổ**.
-2. **Gợi ý phím sai khi chọn kiểu gửi ⌘↵.** Với `chatSendShortcut === 'modEnter'`, placeholder nói "(Cmd+Enter để gửi)" nhưng bảng phím ở trạng thái trống vẫn ghi cứng "↵ Gửi · ⇧↵ Xuống dòng · ⌘↵ Mở trong Chat". Thêm nữa, ô hỏi bắt ⌘↵ để gửi và `stopPropagation`, nên khi focus ở ô hỏi (gần như luôn vậy) ⌘↵ **không** mở trong Chat dù `KeyCap` ở footer nói có. Đề xuất: bảng phím đọc `chatSendShortcut`; ở chế độ này dùng phím khác (ví dụ ⌘⇧↵) cho "Mở trong Chat".
-3. **"Mở trong Chat" thất bại thì im lặng.** Nếu main từ chối payload (ví dụ câu trả lời > 80 000 ký tự, `MAX_QUICK_CHAT_RESPONSE_CHARS`) hoặc cửa sổ chính không có, `openInChat` trả `success: false` và popup không báo gì.
-4. **Sao chép không bắt lỗi.** `handleCopy` không có `try/catch`; khi `clipboard.writeText` bị từ chối thì lời hứa bị từ chối không ai xử lý và không có phản hồi.
-5. **Nội dung quá dài che cả hội thoại.** Khi gõ câu hỏi tiếp > 3 000 ký tự, thân thay toàn bộ bằng bộ đếm; câu trả lời đang đọc biến mất cho tới khi rút gọn. Đề xuất: hiện bộ đếm dưới ô hỏi, giữ hội thoại.
-6. **Câu hỏi bị lỗi rơi mất khi bàn giao.** Nếu thẻ đang hoạt động bị lỗi và ô hỏi có nháp, `handleOpenInChat` chỉ mang `history` + nháp; câu hỏi bị lỗi không đi theo.
-7. **Chú thích đầu tệp lỗi thời.** `AIChatPopup.tsx` nói phiên tồn tại "within a 5-minute TTL" và "Mounted by quick-chat.html"; thực tế phiên lưu trên đĩa không hết hạn (Launcher coi < 30 phút là "mới"), và component luôn được `QuickLauncher` gắn kèm `onBack`. Nhánh độc lập (không `onBack`: tự đăng ký `onShow`, tự gắn lớp `quick-chat-window`) hiện là mã chết trong bản dựng.
+1. **Gợi ý phím sai khi chọn kiểu gửi ⌘↵.** Với `chatSendShortcut === 'modEnter'`, placeholder nói "(Cmd+Enter để gửi)" nhưng bảng phím ở trạng thái trống vẫn ghi cứng "↵ Gửi · ⇧↵ Xuống dòng · ⌘↵ Mở trong Chat". Thêm nữa, ô hỏi bắt ⌘↵ để gửi và `stopPropagation`, nên khi focus ở ô hỏi (gần như luôn vậy) ⌘↵ **không** mở trong Chat dù `KeyCap` ở footer nói có. Đề xuất: bảng phím đọc `chatSendShortcut`; ở chế độ này dùng phím khác (ví dụ ⌘⇧↵) cho "Mở trong Chat".
+2. **"Mở trong Chat" thất bại thì im lặng.** Nếu main từ chối payload (ví dụ câu trả lời > 80 000 ký tự, `MAX_QUICK_CHAT_RESPONSE_CHARS`) hoặc cửa sổ chính không có, `openInChat` trả `success: false` và popup không báo gì.
+3. **Sao chép không bắt lỗi.** `handleCopy` không có `try/catch`; khi `clipboard.writeText` bị từ chối thì lời hứa bị từ chối không ai xử lý và không có phản hồi.
+4. **Nội dung quá dài che cả hội thoại.** Khi gõ câu hỏi tiếp > 3 000 ký tự, thân thay toàn bộ bằng bộ đếm; câu trả lời đang đọc biến mất cho tới khi rút gọn. Đề xuất: hiện bộ đếm dưới ô hỏi, giữ hội thoại.
+5. **Câu hỏi bị lỗi rơi mất khi bàn giao.** Nếu thẻ đang hoạt động bị lỗi và ô hỏi có nháp, `handleOpenInChat` chỉ mang `history` + nháp; câu hỏi bị lỗi không đi theo.
+6. **Chú thích đầu tệp lỗi thời.** `AIChatPopup.tsx` nói phiên tồn tại "within a 5-minute TTL" và "Mounted by quick-chat.html"; thực tế phiên lưu trên đĩa không hết hạn (Launcher coi < 30 phút là "mới"), và component luôn được `QuickLauncher` gắn kèm `onBack`. Nhánh độc lập (không `onBack`: tự đăng ký `onShow`, tự gắn lớp `quick-chat-window`) hiện là mã chết trong bản dựng.
 
 Trợ năng và nội dung:
 

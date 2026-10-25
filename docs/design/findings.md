@@ -27,20 +27,20 @@
 - [x] Cỡ nút trong một hàng: "Dùng làm nội dung gốc" thành `md` (`TranslationResultPane.tsx`); nút ✕ cạnh bộ ghi phím thành `md` (`HotkeySection.tsx`, `ChatPresetsSection.tsx`).
 - [x] Mã chết: xoá `ChatPageV2.tsx`, `SystemPromptDropdown.tsx`, `VoiceOverlay.tsx`, `.settings-choice-row`.
 - [x] Chữ tiếng Anh cứng trong `AIChatPopup.tsx` ("New conversation", "Quick AI", …) đã thành khoá i18n; tiêu đề mặc định "New Chat" hiện "Chat Mới" theo ngôn ngữ ở sidebar và header Chat (`DEFAULT_CHAT_SESSION_TITLE`, `AIChatSidebar.tsx`).
+- [x] AI Chat và Quick Chat: Enter đang chốt chữ của bộ gõ (IME) không gửi tin (`shouldSendChatMessage` bỏ qua `isComposing`/`keyCode 229`, PR #153); Esc đang huỷ chữ IME không ẩn popup Quick Chat (`AIChatPopup.tsx`).
+- [x] Cài đặt: thay được khoá API đã lưu mà không phải xoá trước (`CredentialCard.tsx`, PR #153).
+- [x] Dịch mọi nơi: xoá một token khác không đóng hộp hiện token vừa tạo (`BrowserIntegrationSection.tsx`, PR #153).
+- [x] Trợ năng: bỏ `outline: none` toàn cục, focus bàn phím dùng viền chung từ `tokens.css` (`codex.css`, PR #153).
 
 ## Lỗi hành vi
 
 | Mức | Màn hình | Lỗi | Vị trí |
 | --- | --- | --- | --- |
-| Cao | AI Chat | Enter gửi tin không kiểm tra `isComposing`: gõ tiếng Việt/Nhật bằng bộ gõ, nhấn Enter để chốt chữ có thể gửi luôn tin nhắn (đang sửa ở PR #153) | `src/pages/ChatPage.tsx` (xử lý phím của ô soạn tin) |
-| Cao | Cài đặt | Khi đã lưu khoá API, ô khoá ở chế độ chỉ đọc; bấm vào chỉ gọi `onInputChange('')` nên không thay được khoá mới, phải xoá rồi thêm lại (đang sửa ở PR #153) | `src/components/ui/CredentialCard.tsx` (`CredentialSecretInputRow`) |
-| Cao | Dịch mọi nơi | Xoá một token bất kỳ đóng luôn hộp hiện token vừa tạo, token mới có thể mất trước khi kịp sao chép (đang sửa ở PR #153) | `src/pages/settings/BrowserIntegrationSection.tsx` (`handleDeleteToken`) |
 | Thấp | Khung | Bản cập nhật trong app (`UpdateNotification`) gần như không bao giờ mở trong Electron vì preload luôn có `getNotificationPreferences` | `src/components/organisms/UpdateNotification.tsx` |
 | Thấp | Dịch | Điều hướng tới Dịch luôn xoá bản nháp và kết quả hiện tại (`navigateEffect: 'clearTranslation'`), cần xác nhận đây là chủ ý | `src/modules/catalog.ts` |
 
 ## Trợ năng
 
-- `codex.css` xoá viền focus toàn cục (`*:focus-visible { outline: none !important }`): người dùng bàn phím không thấy mình đang ở đâu. Ưu tiên cao (đang sửa ở PR #153).
 
 ## Nợ quy ước (giá trị cứng thay vì token, cỡ nút lẫn lộn)
 

@@ -211,6 +211,9 @@
   /* 4px spacing grid ---------------------------------------------------- */
   --vzn-space-0: 0;
   --vzn-border-width: 1px;
+  /* Keyboard focus ring: shape is shared, colour (--vzn-focus-ring) is per preset. */
+  --vzn-focus-ring-width: var(--vzn-space-0-5);
+  --vzn-focus-ring-offset: var(--vzn-space-0-5);
   --vzn-space-0-5: 2px;
   --vzn-space-1: 4px;
   --vzn-space-1-5: 6px;
@@ -1749,11 +1752,12 @@ body {
   text-transform: uppercase;
 }
 
-/* Shared interaction baseline. The old reset removes outlines globally, so
- * restore a consistent keyboard-only focus signal at the foundation layer. */
-:where(button, a, input, textarea, select, [tabindex]):focus-visible {
-  outline: 2px solid var(--vzn-focus-ring) !important;
-  outline-offset: 2px !important;
+/* Shared keyboard focus signal. Zero-specificity so a control that draws its
+ * own focus ring (see codex.css) can opt out with a plain class selector.
+ * `tabindex="-1"` targets only receive focus programmatically. */
+:where(button, a, input, textarea, select, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: var(--vzn-focus-ring-width) solid var(--vzn-focus-ring);
+  outline-offset: var(--vzn-focus-ring-offset);
 }
 
 /* Text selection follows the preset accent instead of the browser default. */
