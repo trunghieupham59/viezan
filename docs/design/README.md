@@ -12,6 +12,8 @@ Bộ thiết kế đầy đủ của Viezan: nguyên tắc chung, bản vẽ g�
 | Board trạng thái | [`specs/`](specs) | Mỗi màn hình một trang HTML vẽ từng trạng thái và tương tác, có chú thích đánh số |
 | Việc cần làm | [`findings.md`](findings.md) | Lỗi hành vi, trợ năng và nợ quy ước phát hiện khi đối chiếu đặc tả với mã |
 
+Quy tắc rút ra cho agent AI (chữ, bản địa hoá, bố cục, focus, phím tắt, hành vi) nằm ở [`.claude/rules/ui-ux.md`](../../.claude/rules/ui-ux.md); khi chốt một quyết định mới, cập nhật cả file đó.
+
 Thứ tự ưu tiên khi các nguồn mâu thuẫn: `src/styles/tokens.css` (giá trị) → `AGENTS.md` (luật) → `foundations.md` → đặc tả màn hình → bản vẽ.
 
 ## Mở bản vẽ
