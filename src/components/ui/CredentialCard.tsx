@@ -91,6 +91,11 @@ export function CredentialSecretInputRow({
   onDelete,
   onStatusReset,
 }: CredentialSecretInputRowProps) {
+  // Focusing a saved key's masked value starts a replacement: the field empties
+  // and accepts typing, and shows the saved mask again if left empty.
+  const [replacing, setReplacing] = useState(false)
+  const masked = showMasked && !replacing
+
   const handleInputChange = (value: string) => {
     onInputChange(value)
     onStatusReset?.()
@@ -101,15 +106,16 @@ export function CredentialSecretInputRow({
       <div className="flex-1 relative">
         <input
           type="password"
-          value={showMasked ? (maskedValue ?? '********************************') : inputValue}
-          readOnly={showMasked}
-          onChange={showMasked ? undefined : (e) => handleInputChange(e.target.value)}
-          onClick={showMasked ? () => onInputChange('') : undefined}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !showMasked) onSubmit() }}
+          value={masked ? (maskedValue ?? '********************************') : inputValue}
+          readOnly={masked}
+          onChange={masked ? undefined : (e) => handleInputChange(e.target.value)}
+          onFocus={masked ? () => setReplacing(true) : undefined}
+          onBlur={() => { if (inputValue === '') setReplacing(false) }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !masked && !e.nativeEvent.isComposing) onSubmit() }}
           placeholder={placeholder}
           className={[
             'field-input field-input-mono',
-            showMasked
+            masked
               ? 'field-input-muted'
               : isSuccess
                 ? 'field-input-success'
@@ -145,7 +151,7 @@ export function CredentialSecretInputRow({
         )}
       </div>
 
-      {!showMasked && (
+      {!masked && (
         <Button
           size="md"
           shape="rect"

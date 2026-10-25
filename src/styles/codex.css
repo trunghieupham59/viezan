@@ -768,10 +768,6 @@ html.dark .sidebar-brand-surface {
   cursor: pointer;
 }
 
-.chat-session-select:focus-visible {
-  box-shadow: inset 0 0 0 var(--vzn-border-width) var(--vzn-border-strong);
-}
-
 .chat-session-copy {
   display: flex;
   min-width: 0;
@@ -1717,15 +1713,17 @@ html:not(.dark) .quick-chat-answer-card {
   color: var(--vzn-text-strong) !important;
 }
 
-/* Keep keyboard focus inside the control, without an extra outer frame. */
-.ui-button:focus-visible {
-  box-shadow: inset 0 0 0 var(--vzn-border-width) var(--vzn-focus-ring) !important;
+/* Controls that draw their own focus ring skip the shared outline from
+ * tokens.css, so keyboard focus never shows two rings. */
+.ui-input:focus-visible,
+.cmd-palette-input:focus-visible {
+  outline: none;
 }
 
-/* The desktop product intentionally does not draw an extra focus frame. */
-*:focus,
-*:focus-visible {
-  outline: none !important;
+/* Navigation rows sit flush with their scroll container, which would clip an
+ * outer ring; draw it just inside the row instead. */
+.sidebar-nav-scroll :focus-visible {
+  outline-offset: calc(-1 * var(--vzn-focus-ring-width));
 }
 
 @media (max-width: 900px) {

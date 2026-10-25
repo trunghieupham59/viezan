@@ -118,7 +118,12 @@ export function eventMatchesShortcut(e: KeyboardLikeEvent, shortcut: string, pla
   )
 }
 
-export function shouldSendChatMessage(e: KeyboardLikeEvent, shortcut: ChatSendShortcut, platform?: string): boolean {
+type ChatSendKeyEvent = KeyboardLikeEvent & Partial<Pick<KeyboardEvent, 'isComposing' | 'keyCode'>>
+
+export function shouldSendChatMessage(e: ChatSendKeyEvent, shortcut: ChatSendShortcut, platform?: string): boolean {
+  // Enter that confirms an IME candidate (Vietnamese, Japanese) belongs to the
+  // input method, not the composer. keyCode 229 covers the composition-end key.
+  if (e.isComposing || e.keyCode === 229) return false
   if (shortcut === 'modEnter') {
     return eventMatchesShortcut(e, 'CommandOrControl+Enter', platform)
   }
