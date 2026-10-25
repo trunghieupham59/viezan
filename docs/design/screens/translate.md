@@ -12,7 +12,7 @@ Trang Dịch là bàn làm việc song ngữ: người dùng gõ, dán, kéo ả
 
 | Từ | Cách vào | Ghi chú |
 | --- | --- | --- |
-| Thanh điều hướng | Mục "Dịch" (nhóm NGÔN NGỮ) | `navigateEffect: 'clearTranslation'` (`src/modules/catalog.ts`): vào từ điều hướng **xoá** nguồn, bản dịch và lỗi đang có (`clearTranslation`, `src/store/slices/coreSlice.ts`). |
+| Thanh điều hướng, bảng lệnh | Mục "Dịch" (nhóm NGÔN NGỮ) | Mở trang Dịch và **giữ** nguồn, bản dịch đang có. Chỉ thẻ "Dịch" ở Bắt đầu nhanh của Trang chủ mới xoá bản nháp (`navigateEffect: 'clearTranslation'`, `src/modules/catalog.ts`). |
 | Bảng lệnh ⌘K | Lệnh "Dịch" | Cũng xoá bản nháp như trên (`CommandPalette.tsx`). |
 | Bảng lệnh ⌘K | Gõ `t <văn bản>` | Hàng "Dịch" mở trang với `<văn bản>` làm nguồn (`paletteQuery.ts`, `openTranslate` trong `CommandPalette.tsx`). |
 | Trang chủ | Bấm một bản dịch gần đây | `reuseTranslationHistory` + `setActivePage('translate')` (`src/pages/HomePage.tsx`). Mở lại cả bộ so sánh nếu mục có nhiều model. |

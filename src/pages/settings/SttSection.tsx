@@ -175,10 +175,10 @@ export function SttSection() {
           empty: t.settings_no_key,
           invalid: t.settings_key_invalid,
           remove: t.settings_remove,
-          verifying: t.settings_verifying,
+          // The Groq key is stored as-is, never verified.
+          verifying: t.settings_key_saving,
           verified: t.settings_verified,
           tryAgain: t.settings_try_again,
-          // The Groq key is stored as-is, never verified.
           submit: t.settings_key_save,
         }}
         inputValue={groqInput}

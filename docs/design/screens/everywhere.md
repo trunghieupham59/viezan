@@ -91,7 +91,7 @@ Phản hồi trong lúc chạy phím (từ main, `hotkey.onTranslating/onTransla
 | --- | --- | --- | --- | --- | --- | --- |
 | C1 | Trạng thái header | `StatusLabel` | — | `ok` "Đã có token" khi danh sách token > 0, `neutral` "Chưa có token" | — | — |
 | C2 | "Tải về từ GitHub" (bước 1) | `sm · neutral · outline`, icon GitHub | Click | `openExternal(GITHUB_RELEASES_URL)` | Trình duyệt mặc định mở trang Releases | — |
-| C3 | Bước 2 "Nạp vào Chrome" | Chữ hướng dẫn | — | `chrome://extensions → Chế độ nhà phát triển → Tải tiện ích đã giải nén` | — | — |
+| C3 | Bước 2 "Nạp vào Chrome" | Chữ hướng dẫn | — | `chrome://extensions → Chế độ dành cho nhà phát triển → Tải tiện ích đã giải nén` (khớp tên trong Chrome bản Việt) | — | — |
 | C4 | "Tạo token mới" (bước 3) | `sm · neutral · outline`, icon +, `aria-expanded` | Click (bật/tắt) | Mở/đóng form tạo token trong hàng "Token đang dùng" | Form xuất hiện ngay dưới nhãn | — |
 | C5 | Ô "Tên token" | `<input>` thô, placeholder `Chrome Extension - <ngày>` | Gõ | Tên token; để trống dùng placeholder | — | — |
 | C6 | Thời hạn | `TokenTtlPicker` (`ButtonGroup`): 7 ngày · 30 ngày (mặc định) · 90 ngày · 1 năm | Click | Chọn TTL | Nút đang chọn nổi bật | — |

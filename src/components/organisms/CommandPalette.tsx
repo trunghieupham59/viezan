@@ -124,11 +124,11 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         label: text(page.labelKey, page.id),
         description: text(page.descriptionKey, ''),
         icon: <Icon className="h-4 w-4" />,
-        action: () => navigate(page.id, page.navigateEffect === 'clearTranslation' ? clearTranslation : undefined),
+        action: () => navigate(page.id),
         keywords: [...page.keywords],
       }
     })
-  }, [clearTranslation, enabledModules, navigate, t])
+  }, [enabledModules, navigate, t])
 
   const parsed = useMemo(() => parsePaletteQuery(query), [query])
   const isDefaultMode = parsed.mode === 'default'

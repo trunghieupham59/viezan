@@ -435,7 +435,7 @@ describe('DictionaryPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Choose another model|Chọn model khác|別のモデル/i }))
     expect(screen.getByRole('dialog', {
-      name: /AI configuration|Cấu hình AI|AI 設定/i,
+      name: /AI configuration|Cấu hình AI|AI設定/i,
     })).toBeInTheDocument()
   })
 })

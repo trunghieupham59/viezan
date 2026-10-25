@@ -225,8 +225,7 @@ Bản vẽ (`boards/Dictionary.dc.html`, `States`, `Histories`, `Popovers`) so v
 4. **"Bản dịch và sắc thái" dạng lưới thẻ** trong bản vẽ; mã dùng chip + tối đa 3 đoạn "Sắc thái · …" + hộp thoại chi tiết. Ví dụ trong bản vẽ là ô nền xám; mã là danh sách đánh số với câu gốc/câu dịch.
 5. **Gần đây / Yêu thích** là segmented control trong bản vẽ; mã dùng `TabBar` có số đếm và ô tìm (khi > 4 mục), hàng có nghĩa 2 dòng, phiên âm, chi phí (`UsageCostBadge`), nút sao. Mã giàu hơn bản vẽ; giữ mã.
 6. **Trạng thái trống (States)**: bản vẽ có tiêu đề "Chưa tra từ nào", câu hướng dẫn về ô bên trái và gợi ý "Trong bộ nhớ tạm · [từ vừa sao chép] · Tra từ này" — **đề xuất** (app không đọc clipboard ở trang này). Mã: "Chưa chọn mục nào" + ba chip mẫu.
-7. **Lỗi "nguồn = đích" vẫn là toast**; các lỗi trống/quá dài đã hiện tại ô.
-8. **Xóa mục đang xem không có xác nhận** và cùng mức nhấn với "Xóa lịch sử" (cả hai `danger · soft` pill). Đề xuất toast Hoàn tác, hoặc hạ "Xóa" xuống `ghost`.
-9. **Thứ tự đọc**: lịch sử đứng trước kết quả trong DOM. Sau khi tra, focus đã chuyển tới tiêu đề mục từ, nhưng chưa có liên kết bỏ qua danh sách lịch sử — **đề xuất**.
-10. **Cặp ngôn ngữ dùng chung với AI Dịch** (`scope="dictionary"` ghi vào phạm vi `translate`). Bản vẽ không nói rõ; đặc tả theo mã.
-11. **Nợ token nhỏ**: `.dictionary-skeleton-wide/-narrow` dùng phần trăm `90%`/`75%` cố định trong `src/styles/dictionary.css`; nút tra phần chọn đặt vị trí bằng `style` inline (có chú thích, là toạ độ tính toán, chấp nhận được).
+7. **Xóa mục đang xem không có xác nhận** và cùng mức nhấn với "Xóa lịch sử" (cả hai `danger · soft` pill). Đề xuất toast Hoàn tác, hoặc hạ "Xóa" xuống `ghost`.
+8. **Thứ tự đọc**: lịch sử đứng trước kết quả trong DOM. Sau khi tra, focus đã chuyển tới tiêu đề mục từ, nhưng chưa có liên kết bỏ qua danh sách lịch sử — **đề xuất**.
+9. **Cặp ngôn ngữ dùng chung với AI Dịch** (`scope="dictionary"` ghi vào phạm vi `translate`). Bản vẽ không nói rõ; đặc tả theo mã.
+10. **Nợ token nhỏ**: `.dictionary-skeleton-wide/-narrow` dùng phần trăm `90%`/`75%` cố định trong `src/styles/dictionary.css`; nút tra phần chọn đặt vị trí bằng `style` inline (có chú thích, là toạ độ tính toán, chấp nhận được).

@@ -181,7 +181,7 @@ Mô tả: "Mặc định dùng [Jina AI ↗] miễn phí. Thêm key Tavily hoặ
 | V3 | Khoá Groq | `CredentialCard` (không xác minh, chỉ lưu Keychain) | "Thêm khoá" → dán → "Lưu" | `keychain.save('groq')`, `bumpSttCredentialsRevision()` | Toast xanh "Đã lưu Groq key!" / đỏ (khoá `settings-groq-key`) | Xoá hỏi `confirm("Xoá khoá API của Groq?")` |
 | V4 | Đọc to: Tiết kiệm · Tự động · Chất lượng cao | `ButtonGroup sm` | Chọn | `setTtsMode` | Gợi ý dưới mô tả đổi theo chế độ | — |
 | V5 | Giọng đọc: Alloy · Echo · Fable · Onyx · Nova · Shimmer | `SelectField` | Chọn | `setTtsVoice` (chỉ dùng ở Chất lượng cao với OpenAI) | — | — |
-| V6 | Khoá ElevenLabs ("Cho chế độ Cao cấp") | `CredentialCard` (không xác minh) | Như V3 | `keychain.save('elevenlabs')` | Toast khoá `settings-elevenlabs-key` | Xoá hỏi `confirm("Xoá khoá API của ElevenLabs?")`; Keychain lỗi → toast đỏ `settings_key_store_failed`, hàng giữ trạng thái cũ |
+| V6 | Khoá ElevenLabs ("Cho chế độ Chất lượng cao") | `CredentialCard` (không xác minh) | Như V3 | `keychain.save('elevenlabs')` | Toast khoá `settings-elevenlabs-key` | Xoá hỏi `confirm("Xoá khoá API của ElevenLabs?")`; Keychain lỗi → toast đỏ `settings_key_store_failed`, hàng giữ trạng thái cũ |
 
 ### 4.5 Chat (`ChatPresetsSection.tsx`, `ChatImageStorageCard.tsx`)
 
@@ -434,7 +434,6 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 
 ### Lệch so với nền tảng (`foundations.md`) và lỗi phát hiện khi đối chiếu
 
-1. **Khoá Groq/ElevenLabs:** nút đã ghi "Lưu", nhưng trong lúc lưu vẫn hiện "Đang xác minh…" vì chưa có khoá "Đang lưu…".
-2. **Thẻ "Theo dõi chi phí" là khung riêng** (`.cost-card` trong `src/styles/cost.css`, đã dùng token) chứ không phải `SettingsCard` (`CostOverviewCard.tsx`, `ProviderCostStats.tsx`). Nút "Reset" `sm` nằm trong dòng mô tả của hàng.
-3. **Kích thước trộn trong một thẻ:** khối so sánh hiệu năng dùng `md` trong thẻ có các nút `sm`.
-4. **Không có skeleton** cho AI local và các hàng chờ main (Khởi động cùng hệ thống, Thông báo cập nhật bị ẩn rồi bật ra, làm nhảy bố cục).
+1. **Thẻ "Theo dõi chi phí" là khung riêng** (`.cost-card` trong `src/styles/cost.css`, đã dùng token) chứ không phải `SettingsCard` (`CostOverviewCard.tsx`, `ProviderCostStats.tsx`). Nút "Reset" `sm` nằm trong dòng mô tả của hàng.
+2. **Kích thước trộn trong một thẻ:** khối so sánh hiệu năng dùng `md` trong thẻ có các nút `sm`.
+3. **Không có skeleton** cho AI local và các hàng chờ main (Khởi động cùng hệ thống, Thông báo cập nhật bị ẩn rồi bật ra, làm nhảy bố cục).

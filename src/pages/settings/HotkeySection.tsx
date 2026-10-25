@@ -370,6 +370,16 @@ export function HotkeySection({ part }: HotkeySectionProps) {
     }
   }
 
+  // The key sits where each language puts it: "Press ⌥ T" / "⌥ Tを押す".
+  const [pressBefore, pressAfter = ''] = t.everywhere_step_press.split('{key}')
+  const pressStepTitle = (
+    <>
+      {pressBefore}
+      {hotkeyValue && <KeyCap>{shortcutKeyCaps(hotkeyValue, window.api?.platform).join(' ')}</KeyCap>}
+      {pressAfter}
+    </>
+  )
+
   return (
     <>
       {part === 'quickTranslate' && (
@@ -404,7 +414,7 @@ export function HotkeySection({ part }: HotkeySectionProps) {
               { key: 'select', title: t.everywhere_step_select, detail: t.everywhere_step_select_desc },
               {
                 key: 'press',
-                title: <>{t.everywhere_step_press} {hotkeyValue && <KeyCap>{shortcutKeyCaps(hotkeyValue, window.api?.platform).join(' ')}</KeyCap>}</>,
+                title: pressStepTitle,
                 detail: t.everywhere_step_press_desc,
               },
               {

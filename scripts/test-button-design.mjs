@@ -92,7 +92,7 @@ try {
         await section.getByRole('button', { name: 'Cancel', exact: true }).click()
       }
       if (id === 'browser') {
-        await section.getByRole('button', { name: 'New API Key', exact: true }).click()
+        await section.getByRole('button', { name: 'New token', exact: true }).click()
         await verify(page, `settings-token-form-${width}`)
         await section.getByRole('button', { name: 'Cancel', exact: true }).click()
       }

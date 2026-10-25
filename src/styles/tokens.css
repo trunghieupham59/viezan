@@ -404,6 +404,11 @@
   --vzn-accent-border: var(--vzn-action-border);
 }
 
+/* Japanese has no letter case: uppercase labels would only gain letter spacing. */
+:root:lang(ja) {
+  --vzn-tracking-caps: normal;
+}
+
 /* Status, disabled and overlay values (light). The dark set is declared under
  * `html.dark, [data-mode="dark"]`; `[data-mode="light"]` pins an element (the
  * Settings preview, spec boards) to light inside a dark window. */

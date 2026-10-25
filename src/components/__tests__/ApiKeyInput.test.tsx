@@ -129,7 +129,7 @@ describe('ApiKeyInput delete confirmation', () => {
   it.each([
     ['en', 'Edit', 'Remove', 'Remove the API key for Anthropic Claude?'],
     ['vi', 'Sửa', 'Xóa', 'Xoá khoá API của Anthropic Claude?'],
-    ['ja', '編集', '削除', 'Anthropic Claude の APIキーを削除しますか？'],
+    ['ja', '編集', '削除', 'Anthropic ClaudeのAPIキーを削除しますか？'],
   ] as const)('asks in one language (%s) and keeps the key when cancelled', (locale, edit, remove, message) => {
     useAppStore.setState({ locale })
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)

@@ -15,7 +15,7 @@ export function UtilitiesPage() {
     <div className="app-page relative">
       <div className="app-workspace">
         <div className="glass-panel flex-1 min-h-0 flex flex-col overflow-hidden">
-          <PageHeader title={t.nav_utilities} description={t.utilities_subtitle} />
+          <PageHeader title={t.utilities_title} description={t.utilities_subtitle} />
           <div className="system-page-body">
             <div className="system-page-stack" data-layout="columns">
               <HotkeySection part="launcher" />

@@ -57,6 +57,7 @@ export function ChatSessionListItem({
         type="button"
         className="chat-session-select"
         aria-label={selectionLabel}
+        title={meta ? `${title}\n${meta}` : title}
         aria-current={active ? 'true' : undefined}
         onClick={() => onSelect(id)}
       >

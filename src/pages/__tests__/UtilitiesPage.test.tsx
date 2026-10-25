@@ -28,7 +28,7 @@ describe('Translate everywhere and Launcher & shortcuts pages', () => {
     view.unmount()
 
     render(<UtilitiesPage />)
-    expect(screen.getByRole('heading', { level: 1, name: t.nav_utilities })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: t.utilities_title })).toBeInTheDocument()
     expect(screen.getByText('Hotkey launcher')).toBeInTheDocument()
     const list = screen.getByRole('list', { name: t.shortcuts_all_title })
     expect(within(list).getAllByRole('listitem').map((row) => row.querySelector('.ui-shortcut-list__label')?.textContent)).toEqual([

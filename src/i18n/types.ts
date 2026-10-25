@@ -58,6 +58,7 @@ export interface Translations {
   home_shortcuts_title: string
   everywhere_subtitle: string
   utilities_subtitle: string
+  utilities_title: string
   everywhere_steps_label: string
   everywhere_step_select: string
   everywhere_step_select_desc: string
@@ -102,6 +103,7 @@ export interface Translations {
   nav_space_tools: string
   /** The command palette trigger at the top of the primary sidebar. */
   nav_search_or_run: string
+  nav_search_label: string
   /** Accessible name of the toast stack. */
   notifications_region: string
   /** Background activity strip at the bottom of the primary sidebar. */
@@ -610,6 +612,7 @@ export interface Translations {
   settings_remove_key_confirm: string
   /** Submit label for keys that are only stored, never verified (Groq, ElevenLabs). */
   settings_key_save: string
+  settings_key_saving: string
   /** Confirm before uninstalling a local model; `{model}` is its id. */
   settings_local_ai_uninstall_confirm: string
   /** Confirm before deleting a system-prompt preset; `{name}` is the preset. */
@@ -971,6 +974,7 @@ export interface Translations {
   chat_session_deleted_undo: string
   chat_task_language: string
   chat_task_configuration: string
+  chat_task_trigger_label: string
   chat_web_source: string
   chat_web_source_hint: string
   chat_task_deep: string

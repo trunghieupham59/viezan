@@ -20,6 +20,11 @@ export function detectSystemLocale(): AppLocale {
 
 const NUMBER_FORMAT_TAGS: Record<AppLocale, string> = { en: 'en-US', vi: 'vi-VN', ja: 'ja-JP' }
 
+/** Format a calendar date using the app's UI language, not the OS regional settings. */
+export function formatDateForLocale(timestamp: number, locale: AppLocale): string {
+  return new Date(timestamp).toLocaleDateString(NUMBER_FORMAT_TAGS[locale] ?? NUMBER_FORMAT_TAGS.en)
+}
+
 /** Format a number for display using the app's UI language, not the OS regional settings. */
 export function formatNumberForLocale(value: number, locale: AppLocale): string {
   return value.toLocaleString(NUMBER_FORMAT_TAGS[locale] ?? NUMBER_FORMAT_TAGS.en)
