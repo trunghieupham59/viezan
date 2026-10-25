@@ -1,9 +1,11 @@
+import type { AppLocale } from '../i18n'
+import { formatDateForLocale } from './locale'
 import { tpl } from './tpl'
 
 type TimeAgoLabels = { time_just_now: string; time_m_ago: string; time_h_ago: string; time_d_ago: string }
 
 /** Localized "x minutes ago" style label; falls back to the date after a week. */
-export function formatTimeAgo(ts: number, t: TimeAgoLabels, now = Date.now()): string {
+export function formatTimeAgo(ts: number, t: TimeAgoLabels, locale: AppLocale, now = Date.now()): string {
   const diffMs = now - ts
   const diffMin = Math.floor(diffMs / 60000)
   const diffHour = Math.floor(diffMs / 3600000)
@@ -12,7 +14,7 @@ export function formatTimeAgo(ts: number, t: TimeAgoLabels, now = Date.now()): s
   if (diffMin < 60) return tpl(t.time_m_ago, { n: diffMin })
   if (diffHour < 24) return tpl(t.time_h_ago, { n: diffHour })
   if (diffDay < 7) return tpl(t.time_d_ago, { n: diffDay })
-  return new Date(ts).toLocaleDateString()
+  return formatDateForLocale(ts, locale)
 }
 
 /**

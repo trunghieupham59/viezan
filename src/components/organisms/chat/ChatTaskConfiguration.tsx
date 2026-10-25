@@ -3,6 +3,7 @@ import type { Translations } from '../../../i18n/types'
 import { useAppStore } from '../../../store/useAppStore'
 import type { ChatTaskStarterState } from '../../../types/chatTask'
 import { getChatTaskDefinitions, getChatTaskInstruction, selectChatTask } from '../../../utils/chatTaskConfiguration'
+import { tpl } from '../../../utils/tpl'
 import { Button } from '../../ui/atoms'
 import { ChatBubbleIcon, CheckIcon, ChevronDownIcon, ImageIcon, LightbulbIcon, PencilIcon, SearchIcon, TranslateIcon } from '../../ui/icons'
 import { ConfigSection, SelectField } from '../../ui/molecules'
@@ -88,14 +89,16 @@ export function ChatTaskConfiguration({ t, state, disabled, contextKey, imageSup
     optionRefs.current[next]?.focus()
   }
 
+  const triggerLabel = tpl(t.chat_task_trigger_label, { label })
+
   return (
     <div className="chat-task-configuration ai-configuration-anchor">
       <Button ref={triggerRef} size="md" shape="rect" variant="neutral"
         appearance={open ? 'soft' : 'outline'} disabled={disabled}
-        aria-label={`${t.chat_task_configuration}: ${label}`} title={label}
+        aria-label={triggerLabel} title={triggerLabel}
         aria-expanded={open} aria-haspopup="dialog" aria-controls={open ? panelId : undefined}
         onClick={() => onOpenChange(!state?.open)}>
-        <Icon className="h-4 w-4" /><span className="chat-task-trigger-label">{t.chat_task_configuration}: {label}</span>
+        <Icon className="h-4 w-4" /><span className="chat-task-trigger-label">{triggerLabel}</span>
         <ChevronDownIcon className="h-3 w-3" />
       </Button>
       <AIConfigurationPopover

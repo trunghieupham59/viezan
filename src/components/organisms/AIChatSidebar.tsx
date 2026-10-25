@@ -1,23 +1,17 @@
 import { type ReactNode, type RefObject, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { DEFAULT_CHAT_SESSION_TITLE } from '../../store/slices/chatSlice'
+import type { AppLocale } from '../../i18n'
 import { useAppStore, useT } from '../../store/useAppStore'
 import { useNotificationStore } from '../../store/useNotificationStore'
 import type { ChatSession } from '../../types'
+import { chatSessionTitle } from '../../utils/chatSessionTitle'
 import { getChatTaskDefinitions } from '../../utils/chatTaskConfiguration'
 import { formatShortcutLabel } from '../../utils/keyboardShortcuts'
-import { tpl } from '../../utils/tpl'
+import { formatTimeAgo } from '../../utils/relativeTime'
 import { Button, Input } from '../ui/atoms'
 import { PlusIcon, SearchIcon, SidebarPanelIcon } from '../ui/icons'
 import { ChatSessionListItem } from '../ui/molecules/ChatSessionListItem'
 import { ChatAIConfiguration } from './chat/ChatAIConfiguration'
-
-interface RelativeTimeText {
-  time_just_now: string
-  time_m_ago: string
-  time_h_ago: string
-  time_d_ago: string
-}
 
 const AI_CHAT_SIDEBAR_AUTO_COMPACT_BREAKPOINT = 900
 const DAY_MS = 86_400_000
@@ -26,28 +20,13 @@ const CLOSE_CONTEXT_SIDEBARS_EVENT = 'viezan:close-context-sidebars'
 /** Owner key of the "conversation deleted" toast: a newer delete replaces it. */
 export const CHAT_SESSION_DELETED_KEY = 'chat-session-deleted'
 
-/** A conversation's title, with the stored untitled default shown in the UI language. */
 function sessionTitle(session: ChatSession, t: ReturnType<typeof useT>): string {
-  return session.title === DEFAULT_CHAT_SESSION_TITLE ? t.chat_new_session : session.title
+  return chatSessionTitle(session.title, t.chat_new_session)
 }
 
 /** A research snapshot that has not reached synthesis yet. */
 function hasUnfinishedResearch(session: ChatSession): boolean {
   return Boolean(session.deepResearchResumeState && session.deepResearchResumeState.lastCompletedPhase !== 'synth')
-}
-
-function formatSessionTime(timestamp: number, text: RelativeTimeText): string {
-  const now = Date.now()
-  const elapsed = Math.max(0, now - timestamp)
-  const minutes = Math.floor(elapsed / 60_000)
-  const hours = Math.floor(elapsed / 3_600_000)
-  const days = Math.floor(elapsed / 86_400_000)
-
-  if (minutes < 1) return text.time_just_now
-  if (minutes < 60) return tpl(text.time_m_ago, { n: minutes })
-  if (hours < 24) return tpl(text.time_h_ago, { n: hours })
-  if (days < 7) return tpl(text.time_d_ago, { n: days })
-  return new Date(timestamp).toLocaleDateString()
 }
 
 function sessionMatchesQuery(session: ChatSession, query: string, t: ReturnType<typeof useT>): boolean {
@@ -57,7 +36,7 @@ function sessionMatchesQuery(session: ChatSession, query: string, t: ReturnType<
 }
 
 /** The second line of a conversation row: its task, a paused research run, or when it was last used. */
-function sessionMeta(session: ChatSession, running: boolean, t: ReturnType<typeof useT>): string {
+function sessionMeta(session: ChatSession, running: boolean, t: ReturnType<typeof useT>, locale: AppLocale): string {
   // A run saves a snapshot after every phase, so only a snapshot with no run in flight is paused.
   if (hasUnfinishedResearch(session)) {
     return running ? t.chat_task_deep : `${t.chat_task_deep} · ${t.chat_sidebar_paused}`
@@ -68,7 +47,7 @@ function sessionMeta(session: ChatSession, running: boolean, t: ReturnType<typeo
     const option = task?.options.find((item) => item.value === session.taskState?.options[selected])
     if (task) return option ? `${task.title} · ${option.label}` : task.title
   }
-  return formatSessionTime(session.updatedAt, t)
+  return formatTimeAgo(session.updatedAt, t, locale)
 }
 
 interface SessionListProps {
@@ -77,12 +56,13 @@ interface SessionListProps {
   activeSessionId: string | null
   runningSessionIds: string[]
   t: ReturnType<typeof useT>
+  locale: AppLocale
   onSelect: (id: string) => void
   onDelete: (id: string) => void
 }
 
 /** Searchable conversation rows, including the empty state. */
-function SessionList({ sessions, emptyLabel, activeSessionId, runningSessionIds, t, onSelect, onDelete }: SessionListProps) {
+function SessionList({ sessions, emptyLabel, activeSessionId, runningSessionIds, t, locale, onSelect, onDelete }: SessionListProps) {
   if (sessions.length === 0) {
     return <p className="ai-chat-session-empty">{emptyLabel}</p>
   }
@@ -97,14 +77,14 @@ function SessionList({ sessions, emptyLabel, activeSessionId, runningSessionIds,
           title={sessionTitle(session, t)}
           provider={session.provider}
           model={session.model}
-          timeLabel={formatSessionTime(session.updatedAt, t)}
+          timeLabel={formatTimeAgo(session.updatedAt, t, locale)}
           messageCount={session.messages.filter((message) => !message.isLoading && !message.error).length}
           messageUnitLabel={t.history_chat_messages}
           active={session.id === activeSessionId}
           deleteLabel={t.history_chat_delete}
           pendingResearchLabel={t.chat_deep_research_resume}
           hasPendingResearch={hasUnfinishedResearch(session) && !running}
-          meta={sessionMeta(session, running, t)}
+          meta={sessionMeta(session, running, t, locale)}
           onSelect={onSelect}
           onDelete={onDelete}
         />
@@ -145,6 +125,7 @@ export function AIChatSidebar({ children }: {
     toggleAiChatSidebar: state.toggleAiChatSidebar,
   })))
   const t = useT()
+  const locale = useAppStore((state) => state.locale)
   const notify = useNotificationStore((state) => state.notify)
   const [query, setQuery] = useState('')
   const [viewportWidth, setViewportWidth] = useState(() => window.innerWidth)
@@ -310,7 +291,7 @@ export function AIChatSidebar({ children }: {
             <h3 className="ai-chat-session-heading">{group.label}</h3>
             <SessionList sessions={group.sessions}
               emptyLabel={t.chat_session_panel_empty}
-              activeSessionId={activeChatSessionId} runningSessionIds={chatRunningSessionIds} t={t}
+              activeSessionId={activeChatSessionId} runningSessionIds={chatRunningSessionIds} t={t} locale={locale}
               onSelect={handleSelect} onDelete={handleDelete} />
           </section>
         ))}

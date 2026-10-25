@@ -991,6 +991,8 @@
   font-size: var(--vzn-font-size-md);
   font-weight: var(--vzn-weight-regular);
   line-height: var(--vzn-line-normal);
+  /* Two-line descriptions split evenly so the cards keep a matching rhythm. */
+  text-wrap: balance;
 }
 
 /* Activity row ----------------------------------------------------------- */
@@ -1329,6 +1331,11 @@ li + li > .ui-activity-row.ui-button {
   color: var(--vzn-text-muted);
   font-size: var(--vzn-font-size-sm);
   line-height: var(--vzn-line-normal);
+}
+
+/* A menu path ("A → B → C") wraps between its steps, never inside one. */
+.ui-step-list__path-step {
+  display: inline-block;
 }
 
 /* Status label ----------------------------------------------------------- */

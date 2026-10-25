@@ -96,8 +96,8 @@ describe('CommandPalette', () => {
 
     fireEvent.keyDown(window, { key: 'Enter' })
     expect(useAppStore.getState().activePage).toBe('translate')
-    expect(useAppStore.getState().sourceText).toBe('')
-    expect(useAppStore.getState().translatedText).toBe('')
+    // Plain navigation keeps the translation draft; Home's quick start clears it.
+    expect(useAppStore.getState().sourceText).toBe('Text to clear')
     expect(onClose).toHaveBeenCalledOnce()
   })
 

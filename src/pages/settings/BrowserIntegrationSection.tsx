@@ -28,6 +28,16 @@ const TOKEN_COPY_FEEDBACK_MS = 2_000
 
 /** Prefix used when auto-generating a default token name. */
 const DEFAULT_TOKEN_NAME_PREFIX = 'Chrome Extension'
+
+/** Splits "A → B → C" so each menu step wraps as a unit. */
+function menuPath(path: string) {
+  return path.split(' → ').map((step, index) => (
+    <span key={step}>
+      {index > 0 && ' → '}
+      <span className="ui-step-list__path-step">{step}</span>
+    </span>
+  ))
+}
 /** Toast owner keys so repeated failures replace each other instead of stacking. */
 const TOKEN_ACTION_ERROR_KEY = 'settings-ext-token-action'
 const TOKEN_LIST_ERROR_KEY = 'settings-ext-token-list'
@@ -206,7 +216,7 @@ export function BrowserIntegrationSection() {
               </Button>
             ),
           },
-          { key: 'load', title: t.everywhere_ext_step_load, detail: t.everywhere_ext_step_load_desc },
+          { key: 'load', title: t.everywhere_ext_step_load, detail: menuPath(t.everywhere_ext_step_load_desc) },
           {
             key: 'token',
             title: t.everywhere_ext_step_token,

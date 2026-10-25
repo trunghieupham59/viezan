@@ -82,7 +82,7 @@ Mọi thẻ dùng `SectionCard` (`src/components/ui/molecules/SectionCard.tsx`):
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | "Chat mới" (header, icon `PlusIcon`) | `sm` · `primary` · `solid`, `shape="rect"` | Click, Enter/Space khi focus | `setActiveChatSession(null)` rồi `setActivePage('chat')`: mở AI Chat với phiên trống | Chuyển trang ngay sang Chat, ô soạn trống | Không bao giờ `disabled`; **ẩn** khi module Chat tắt (`chatOn`) |
 | 2 | Thẻ "AI Chat" | `QuickStartCard`: `lg` · `neutral` · `outline`, `shape="rect"`, cao tự do | Click, Enter/Space | Như #1 (`startFeature('chat')`) | Hover: viền chuyển `--vzn-action-border`; chuyển trang | Ẩn khi module tắt |
-| 3 | Thẻ "Dịch" | như #2 | như #2 | `clearTranslation()` (vì `navigateEffect: 'clearTranslation'`) rồi mở trang Dịch với ô nguồn trống | như #2 | Ẩn khi module tắt |
+| 3 | Thẻ "Dịch" | như #2 | như #2 | `clearTranslation()` (vì `navigateEffect: 'clearTranslation'`; "bắt đầu nhanh" nghĩa là việc mới) rồi mở trang Dịch với ô nguồn trống. Điều hướng bằng sidebar/bảng lệnh thì giữ bản nháp | như #2 | Ẩn khi module tắt |
 | 4 | Thẻ "Phiên dịch" | như #2 | như #2 | Mở trang Phiên dịch (`live`) | như #2 | Ẩn khi module tắt |
 | 5 | Thẻ "Từ điển" | như #2 | như #2 | Mở trang Từ điển | như #2 | Ẩn khi module tắt; nếu cả bốn module tắt, cả mục "Bắt đầu nhanh" ẩn |
 | 6 | Hàng "Nghiên cứu" (Deep Research đang dừng) | `ActivityRow`: `lg` · `neutral` · `ghost`, cả hàng là một nút; `data-pending="true"` | Click, Enter/Space | `setActiveChatSession(id)` + mở Chat; việc chạy tiếp do nút tiếp tục trong khung nghiên cứu của Chat (`handleResumeDeepResearch`, `src/pages/ChatPage.tsx`) | Thay vì thời gian, cuối hàng hiện chữ "Tiếp tục" màu `--vzn-warning`; hover nền `--vzn-surface-raised` | Không có; chỉ hiện khi Chat bật và có phiên mang `deepResearchResumeState` |
@@ -108,7 +108,7 @@ Nội dung hàng (`row()` trong `HomePage.tsx`):
 | Phiên dịch | "Phiên dịch" | 80 ký tự đầu bản dịch, hoặc bản ghi gốc, hoặc "Phiên dịch" nếu trống | "có tóm tắt" nếu có tóm tắt, ngược lại cặp ngôn ngữ |
 | Từ điển | "Từ điển" | Từ đã tra | Cặp ngôn ngữ |
 
-Thời gian: "Vừa xong", "{n} phút trước", "{n}h trước", "{n} ngày trước", sau 7 ngày là ngày theo locale (`formatTimeAgo`, `src/utils/relativeTime.ts`). Tiêu đề dài bị cắt bằng dấu "…"; phần phụ và thời gian không bao giờ xuống dòng.
+Thời gian: "Vừa xong", "{n} phút trước", "{n} giờ trước", "{n} ngày trước", sau 7 ngày là ngày theo ngôn ngữ app (`formatDateForLocale`) (`formatTimeAgo`, `src/utils/relativeTime.ts`). Tiêu đề dài bị cắt bằng dấu "…"; phần phụ và thời gian không bao giờ xuống dòng.
 
 ## 5. Trạng thái
 
@@ -201,7 +201,7 @@ Bố cục dùng container query trên `app-main` (`src/styles/home.css`). Khi c
 | `home_kind_chat` / `home_kind_research` / `home_kind_translate` / `home_kind_live` / `home_kind_dictionary` | Chat / Nghiên cứu / Dịch / Phiên dịch / Từ điển |
 | `home_live_with_summary` | có tóm tắt |
 | `home_live_untitled` | Phiên dịch |
-| `time_just_now` / `time_m_ago` / `time_h_ago` / `time_d_ago` | Vừa xong / {n} phút trước / {n}h trước / {n} ngày trước |
+| `time_just_now` / `time_m_ago` / `time_h_ago` / `time_d_ago` | Vừa xong / {n} phút trước / {n} giờ trước / {n} ngày trước |
 | `home_open` | Mở |
 | `home_edit` | Sửa |
 | `home_system_title` | Hệ thống |

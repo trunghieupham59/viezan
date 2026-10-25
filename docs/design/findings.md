@@ -31,20 +31,31 @@
 - [x] Cài đặt: thay được khoá API đã lưu mà không phải xoá trước (`CredentialCard.tsx`, PR #153).
 - [x] Dịch mọi nơi: xoá một token khác không đóng hộp hiện token vừa tạo (`BrowserIntegrationSection.tsx`, PR #153).
 - [x] Trợ năng: bỏ `outline: none` toàn cục, focus bàn phím dùng viền chung từ `tokens.css` (`codex.css`, PR #153).
+- [x] Trang chủ: hội thoại chưa đặt tên hiện "Chat Mới" theo ngôn ngữ ở hàng Tiếp tục (`chatSessionTitle` trong `src/utils/chatSessionTitle.ts`, dùng chung với sidebar AI Chat).
+- [x] Cài đặt: khoá Groq/ElevenLabs hiện "Đang lưu…" trong lúc lưu (`settings_key_saving`).
+- [x] Chữ EN/VI/JA: mười rủi ro trong `locales.md` đã xử lý (trật tự "{key}を押す", nhãn điều hướng JA ngắn, khoảng trắng JA, tên chế độ Chất lượng cao, ngày theo ngôn ngữ app, …).
 
 ## Lỗi hành vi
 
-| Mức | Màn hình | Lỗi | Vị trí |
-| --- | --- | --- | --- |
-| Thấp | Khung | Bản cập nhật trong app (`UpdateNotification`) gần như không bao giờ mở trong Electron vì preload luôn có `getNotificationPreferences` | `src/components/organisms/UpdateNotification.tsx` |
-| Thấp | Dịch | Điều hướng tới Dịch luôn xoá bản nháp và kết quả hiện tại (`navigateEffect: 'clearTranslation'`), cần xác nhận đây là chủ ý | `src/modules/catalog.ts` |
+Không còn lỗi hành vi đã biết.
 
 ## Trợ năng
 
+Không còn mục trợ năng đã biết.
 
 ## Nợ quy ước (giá trị cứng thay vì token, cỡ nút lẫn lộn)
 
 - Màu Tailwind cứng: hộp thoại Tóm tắt của Phiên dịch (`LiveTranslatePage.tsx`), form token Chrome (`BrowserIntegrationSection.tsx`).
 - Giá trị cứng trong CSS: `codex.css` (sidebar `10px 8px`, `180ms`, bảng lệnh `560px`/`480px`), `chat.css` (`5px 9px`, `104px`, `44px`, `720px`, `.usage-cost-badge` 18/10/11 px).
 - Mã chết: biểu tượng hoạt động không truyền vào `ActivityRow` ở Trang chủ, 9 khoá i18n thermal không dùng.
-- Tiêu đề hội thoại mặc định "New Chat" vẫn hiện nguyên văn ở hàng Tiếp tục của Trang chủ (`HomePage.tsx` đọc thẳng `session.title`).
+
+## Quyết định thiết kế (2026-10-25)
+
+Các điểm từng ghi "cần xác nhận", nay chốt để đồng bộ với hệ thống:
+
+- **Điều hướng giữ bản nháp Dịch.** Sidebar và bảng lệnh không xoá văn bản nguồn/kết quả nữa, giống AI Chat giữ hội thoại; nút Xoá trong ô nguồn là cách bắt đầu lại. Chỉ "Bắt đầu nhanh" ở Trang chủ (ý nghĩa "mở việc mới", như AI Chat tạo hội thoại mới) còn xoá bản nháp (`navigateEffect` trong `catalog.ts`).
+- **Hộp cập nhật trong app chỉ dành cho bản web.** Trong Electron, cửa sổ popup cập nhật riêng (`UpdatePopupPage`) lo việc báo; `UpdateNotification` không mở khi preload có `getNotificationPreferences` là đúng thiết kế, không phải lỗi.
+- **Nút Hoàn tác trong toast dùng kiểu nút chung của toast** (`NotificationToast`), không dùng `xs neutral outline` riêng, để mọi toast có hành động trông giống nhau.
+- **Lỗi "hai ngôn ngữ giống nhau" ở Từ điển vẫn là toast.** Lỗi thuộc về cặp ngôn ngữ chứ không thuộc một ô nhập, nên không đặt dưới ô; lỗi rỗng/quá dài vẫn nằm dưới ô tương ứng.
+- **Nhãn câu hỏi trong Quick Chat:** EN/JA "Q", VI "Hỏi" (chữ "H" một mình không đủ nghĩa trong tiếng Việt).
+- **Khoảng trắng tiếng Nhật:** viết liền chữ Latin với kana/kanji (quy ước đã chiếm đa số trong `ja.ts`).

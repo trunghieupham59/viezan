@@ -125,10 +125,10 @@ export function TtsSection() {
           empty: t.settings_no_key,
           invalid: t.settings_key_invalid,
           remove: t.settings_remove,
-          verifying: t.settings_verifying,
+          // The ElevenLabs key is stored as-is, never verified.
+          verifying: t.settings_key_saving,
           verified: t.settings_verified,
           tryAgain: t.settings_try_again,
-          // The ElevenLabs key is stored as-is, never verified.
           submit: t.settings_key_save,
         }}
         meta={<span>{t.settings_tts_elevenlabs_for_premium}</span>}

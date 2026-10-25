@@ -62,7 +62,6 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
   const {
     activePage,
     setActivePage,
-    clearTranslation,
     keyStatus,
     selectedProvider,
     sidebarCollapsed,
@@ -104,14 +103,13 @@ export function PrimaryNavigationSidebar({ toggleHost }: { toggleHost: HTMLEleme
 
   const closeResponsiveOverlay = useCallback(() => setResponsiveOverlayOpen(false), [])
 
-  const navigate = (page: AppPage, extra?: () => void) => {
-    extra?.()
+  const navigate = (page: AppPage) => {
     setActivePage(page)
     closeResponsiveOverlay()
   }
 
   const navigateToPage = (page: CatalogPage) =>
-    navigate(page.id, page.navigateEffect === 'clearTranslation' ? clearTranslation : undefined)
+    navigate(page.id)
 
   const openCommandPalette = () => {
     closeResponsiveOverlay()

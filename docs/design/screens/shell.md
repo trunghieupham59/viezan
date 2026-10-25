@@ -13,7 +13,7 @@ Khung ứng dụng là phần luôn có mặt quanh mọi trang: thanh tiêu đ�
 | Từ | Cách vào | Ghi chú |
 | --- | --- | --- |
 | Khởi động app | Cửa sổ chính 1200 × 700 (tối thiểu 640 × 480, `electron/mainWindowGeometry.ts`) | Trang mở lại là `activePage` đã lưu; nếu module của trang đó đã tắt thì về Trang chủ (`resolveActivePage`, `src/App.tsx`). |
-| Thanh điều hướng | Bấm một mục trang | `setActivePage`; mục Dịch còn xoá bản dịch cũ (`navigateEffect: 'clearTranslation'`, `src/modules/catalog.ts`). |
+| Thanh điều hướng | Bấm một mục trang | `setActivePage`; trang đích giữ nguyên trạng thái (Dịch giữ bản nháp). |
 | Bảng lệnh | `⌘K` (macOS) / `Ctrl K` (Windows, Linux), hoặc nút "Tìm hoặc chạy lệnh" trên thanh bên | Phím tắt là bật/tắt (toggle); mở bảng lệnh sẽ đóng mọi lớp phủ điều hướng trước (`src/App.tsx:128-151`). |
 | Dải "Đang chạy nền" | Bấm một hàng | Quạt → Nhiệt độ & quạt; Phím tắt toàn cục → Launcher & phím tắt; Tiện ích Chrome → Dịch mọi nơi. |
 | Popup cập nhật | Cửa sổ riêng do main mở khi lần kiểm tra nền tìm thấy bản mới | Không lấy focus (`showInactive`). |
@@ -342,25 +342,23 @@ Các ngưỡng của khung tính theo **bề rộng cửa sổ** (`window.innerW
 **Toast** (`boards/Toasts.dc.html`)
 
 13. Bản vẽ có chỉ báo đếm ngược ("Còn 5 giây"); mã không có thanh đếm ngược. **Đề xuất.** (Toast "Đã xoá cuộc trò chuyện · Hoàn tác" đã có.)
-14. Bản vẽ ghi "toast không bao giờ che ô soạn Chat" — mã đã làm (đo và nâng chồng toast).
 
 **Cập nhật** (`boards/UpdatePopup.dc.html`, `boards/SmallSurfaces.dc.html`)
 
-15. Popup trong mã không có: dòng "Bạn đang dùng [phiên bản hiện tại]", các điểm mới từ ghi chú phát hành + "Xem toàn bộ ghi chú", thanh tiến độ có dung lượng, "Ẩn" / "Huỷ tải" khi đang tải, cảnh báo phiên Phiên dịch đang chạy và quạt về tự động khi cài, lựa chọn "Khi thoát app". Tất cả: **đề xuất** (updater chưa có huỷ tải hay cài khi thoát).
-16. Menu "Nhắc sau" nhiều lựa chọn (1 giờ, ngày mai, tuần sau, bỏ qua phiên bản) — mã cố định 24 giờ (`NOTIFICATION_SNOOZE_MS`). **Đề xuất.**
-17. Main chấp nhận hành động `view` (mở Cài đặt › Cập nhật) và i18n có `update_popup_view` "Xem cập nhật", nhưng popup không có nút nào gọi nó. Hoặc thêm nút (ghost) "Xem cập nhật", hoặc dọn đường dẫn thừa.
-18. Hộp thoại trong app (`UpdateNotification`) chỉ mở khi preload **không** có `getNotificationPreferences`, tức là trong Electron hiện tại nó không bao giờ hiện (popup riêng thay thế); nó chỉ còn là đường dự phòng và nơi nhận sự kiện "mở Cài đặt".
+14. Popup trong mã không có: dòng "Bạn đang dùng [phiên bản hiện tại]", các điểm mới từ ghi chú phát hành + "Xem toàn bộ ghi chú", thanh tiến độ có dung lượng, "Ẩn" / "Huỷ tải" khi đang tải, cảnh báo phiên Phiên dịch đang chạy và quạt về tự động khi cài, lựa chọn "Khi thoát app". Tất cả: **đề xuất** (updater chưa có huỷ tải hay cài khi thoát).
+15. Menu "Nhắc sau" nhiều lựa chọn (1 giờ, ngày mai, tuần sau, bỏ qua phiên bản) — mã cố định 24 giờ (`NOTIFICATION_SNOOZE_MS`). **Đề xuất.**
+16. Main chấp nhận hành động `view` (mở Cài đặt › Cập nhật) và i18n có `update_popup_view` "Xem cập nhật", nhưng popup không có nút nào gọi nó. Hoặc thêm nút (ghost) "Xem cập nhật", hoặc dọn đường dẫn thừa.
 
 **Khay và thanh menu** (`boards/SmallSurfaces.dc.html`)
 
-19. Menu khay Windows/Linux trong bản vẽ có "Launcher Alt+Space"; mã chỉ có "Mở Viezan" và "Thoát Viezan". **Đề xuất.**
-20. Menu số đo macOS trong bản vẽ có "Mở Nhiệt độ & quạt" và "Ẩn số đo"; mã có "Mở Viezan" (mở cửa sổ, không chuyển trang) và "Ẩn nhiệt độ khỏi thanh menu". Thiếu dòng tóm tắt số đo đầy đủ trong menu. **Đề xuất.**
-21. Nhãn khay theo ngôn ngữ hệ điều hành, không theo ngôn ngữ đã chọn trong app — lệch với nguyên tắc "cùng giọng văn với cửa sổ chính".
+17. Menu khay Windows/Linux trong bản vẽ có "Launcher Alt+Space"; mã chỉ có "Mở Viezan" và "Thoát Viezan". **Đề xuất.**
+18. Menu số đo macOS trong bản vẽ có "Mở Nhiệt độ & quạt" và "Ẩn số đo"; mã có "Mở Viezan" (mở cửa sổ, không chuyển trang) và "Ẩn nhiệt độ khỏi thanh menu". Thiếu dòng tóm tắt số đo đầy đủ trong menu. **Đề xuất.**
+19. Nhãn khay theo ngôn ngữ hệ điều hành, không theo ngôn ngữ đã chọn trong app — lệch với nguyên tắc "cùng giọng văn với cửa sổ chính".
 
 **Chào mừng lần đầu** (`boards/Welcome.dc.html`, `boards/WelcomeSteps.dc.html`)
 
-22. App **chưa có** luồng chào mừng: không có component, store hay khoá i18n nào (`welcome`, `onboarding`). Toàn bộ là **đề xuất**: 3 bước — (1) Chọn cách chạy AI: AI local (khuyên dùng, tải Ollama + `qwen3:4b`, kèm đánh giá máy "Máy này chạy tốt AI local") hoặc khoá đám mây (Keychain), nút "Bỏ qua, thiết lập sau" (`outline`) và "Cài AI local và tiếp tục" (`primary` · `solid`); (2) Phím tắt và quyền: phím Launcher `⌘ Space`, Dịch nhanh `⌥ T`, quyền Trợ năng ("Cấp quyền"), quyền Ghi màn hình (không bắt buộc, "Để sau"), công tắc "Mở khi đăng nhập", nút "Quay lại" / "Tiếp tục"; (3) Chọn module (lưới công tắc AI Chat, Dịch, Phiên dịch, Từ điển, Nhiệt độ & quạt, Launcher, Tiện ích trình duyệt), nút "Bắt đầu dùng Viezan". Mỗi bước dùng lại thành phần sẵn có (`CredentialCard`, `CapabilityNotice`, `KeyCap`, công tắc module của Cài đặt › Module) và phải ghi rõ "Đổi lại mọi lựa chọn bất cứ lúc nào trong Cài đặt". Cần thêm cờ đã-xem được lưu, i18n EN/VI/JA, và điểm vào lại từ Cài đặt › Giới thiệu.
+20. App **chưa có** luồng chào mừng: không có component, store hay khoá i18n nào (`welcome`, `onboarding`). Toàn bộ là **đề xuất**: 3 bước — (1) Chọn cách chạy AI: AI local (khuyên dùng, tải Ollama + `qwen3:4b`, kèm đánh giá máy "Máy này chạy tốt AI local") hoặc khoá đám mây (Keychain), nút "Bỏ qua, thiết lập sau" (`outline`) và "Cài AI local và tiếp tục" (`primary` · `solid`); (2) Phím tắt và quyền: phím Launcher `⌘ Space`, Dịch nhanh `⌥ T`, quyền Trợ năng ("Cấp quyền"), quyền Ghi màn hình (không bắt buộc, "Để sau"), công tắc "Mở khi đăng nhập", nút "Quay lại" / "Tiếp tục"; (3) Chọn module (lưới công tắc AI Chat, Dịch, Phiên dịch, Từ điển, Nhiệt độ & quạt, Launcher, Tiện ích trình duyệt), nút "Bắt đầu dùng Viezan". Mỗi bước dùng lại thành phần sẵn có (`CredentialCard`, `CapabilityNotice`, `KeyCap`, công tắc module của Cài đặt › Module) và phải ghi rõ "Đổi lại mọi lựa chọn bất cứ lúc nào trong Cài đặt". Cần thêm cờ đã-xem được lưu, i18n EN/VI/JA, và điểm vào lại từ Cài đặt › Giới thiệu.
 
 **Token và mã**
 
-23. Một số giá trị của khung vẫn là số tay trong `src/styles/codex.css`: đệm thanh bên `10px 8px`, `gap: 2px`, chuyển động `180ms ease` của `.app-sidebar` (lặp `--vzn-duration-normal`), cỡ chữ chip phím `.sidebar-shortcut` `10px` (không có token), hàng thương hiệu 40 px, bảng lệnh `560px` / `480px` / `56px` / `clamp(64px, 12vh, 112px)`. Khi chạm vào các quy tắc này, chuyển sang token.
+21. Một số giá trị của khung vẫn là số tay trong `src/styles/codex.css`: đệm thanh bên `10px 8px`, `gap: 2px`, chuyển động `180ms ease` của `.app-sidebar` (lặp `--vzn-duration-normal`), cỡ chữ chip phím `.sidebar-shortcut` `10px` (không có token), hàng thương hiệu 40 px, bảng lệnh `560px` / `480px` / `56px` / `clamp(64px, 12vh, 112px)`. Khi chạm vào các quy tắc này, chuyển sang token.

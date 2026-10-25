@@ -46,7 +46,10 @@ export type ModuleSpace = 'ai' | 'language' | 'system' | 'tools'
 /** How the workspace looks while a module's page chunk is still loading. */
 export type ModuleLoadingLayout = 'blank' | 'split' | 'list'
 
-/** A side effect some modules run when the user navigates to them. */
+/**
+ * A side effect a module runs when the user starts it fresh from Home's quick
+ * start. Plain navigation (sidebar, command palette) keeps the module's state.
+ */
 export type ModuleNavigateEffect = 'clearTranslation'
 
 /**

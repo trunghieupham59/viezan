@@ -23,7 +23,7 @@ vi.mock('../../utils/imageUtils', async () => {
 })
 
 function openTranslationSettings() {
-  const configButton = screen.getByRole('button', { name: /AI configuration|Cấu hình AI|AI 設定/i })
+  const configButton = screen.getByRole('button', { name: /AI configuration|Cấu hình AI|AI設定/i })
   act(() => {
     fireEvent.click(configButton)
   })
@@ -32,7 +32,7 @@ function openTranslationSettings() {
 function openTranslationModelDialog() {
   openTranslationSettings()
   const configDialog = screen.getByRole('dialog', {
-    name: /AI configuration|Cấu hình AI|AI 設定/i,
+    name: /AI configuration|Cấu hình AI|AI設定/i,
   })
   fireEvent.click(within(configDialog).getByRole('button', {
     name: /Choose translation models|Chọn mô hình dịch|翻訳モデル/i,

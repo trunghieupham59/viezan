@@ -9,6 +9,7 @@ import type { Translations } from '../i18n'
 import { getModule } from '../modules/catalog'
 import { useAppStore, useT } from '../store/useAppStore'
 import type { PageModuleId } from '../types'
+import { chatSessionTitle } from '../utils/chatSessionTitle'
 import { type HomeActivity, recentActivity } from '../utils/homeActivity'
 import { formatTimeAgo } from '../utils/relativeTime'
 import '../styles/home.css'
@@ -38,6 +39,7 @@ function pair(source: string, target: string): string {
  */
 export function HomePage() {
   const t = useT()
+  const locale = useAppStore((state) => state.locale)
   const enabledModules = useAppStore((state) => state.enabledModules)
   const chatSessions = useAppStore((state) => state.chatSessions)
   const history = useAppStore((state) => state.history)
@@ -89,9 +91,9 @@ export function HomePage() {
   const row = (item: HomeActivity): { icon: ReactNode; kind: string; title: string; meta?: string } => {
     switch (item.kind) {
       case 'research':
-        return { icon: <TelescopeIcon />, kind: t.home_kind_research, title: item.session.title }
+        return { icon: <TelescopeIcon />, kind: t.home_kind_research, title: chatSessionTitle(item.session.title, t.chat_new_session) }
       case 'chat':
-        return { icon: <ChatBubbleIcon />, kind: t.home_kind_chat, title: item.session.title }
+        return { icon: <ChatBubbleIcon />, kind: t.home_kind_chat, title: chatSessionTitle(item.session.title, t.chat_new_session) }
       case 'translate':
         return { icon: <TranslateIcon />, kind: t.home_kind_translate, title: preview(item.item.sourceText), meta: pair(item.item.sourceLang, item.item.targetLang) }
       case 'live':
@@ -161,7 +163,7 @@ export function HomePage() {
                             kind={content.kind}
                             title={content.title}
                             meta={content.meta}
-                            timeLabel={formatTimeAgo(item.at, t)}
+                            timeLabel={formatTimeAgo(item.at, t, locale)}
                             actionLabel={item.kind === 'research' ? t.home_resume_action : undefined}
                             onOpen={() => open(item)}
                           />

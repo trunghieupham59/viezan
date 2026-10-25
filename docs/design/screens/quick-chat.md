@@ -57,7 +57,7 @@ Cửa sổ (`createQuickChatWindow`): rộng cố định **760 px** (`QUICK_CHA
 | Header | `.quick-chat-header` | `px-3 py-2.5`, `gap-2`; nền `--vzn-surface`, kẻ `--vzn-divider`; các nút `md` (36) | — |
 | Ô hỏi | `<textarea class="quick-chat-input-field">` | Một dòng, tự cao đến **120 px** (`--vzn-quick-chat-input-max-block`) rồi cuộn; chữ `--vzn-font-size-title` (16) đậm `--vzn-weight-medium`, màu `--vzn-text-strong`; placeholder `--vzn-text-muted` (`chat.css`); không viền, nền trong suốt | Trong ô |
 | Thân | `.quick-chat-body` | `px-4 py-4`, nền `--vzn-surface-muted`; cột nội dung tối đa `--vzn-content-max` (980, rộng hơn cửa sổ, nên thực tế chiếm hết) | Có; lăn chuột ở header/footer cũng cuộn thân (`handleWheel`) |
-| Thẻ hỏi–đáp | `.quick-chat-answer-card` | Viền `--vzn-border-strong`, nền `--vzn-surface`, bo `--vzn-radius-md`, viền `--vzn-border-width`; hàng câu hỏi `px-5 py-2.5` chữ `ui-caption` + huy hiệu `ai_chat_popup_question_badge` (VI "H", EN "Q"; `ui-token-badge`); thân `px-5 py-4` chữ `ui-reader-text leading-7` | — |
+| Thẻ hỏi–đáp | `.quick-chat-answer-card` | Viền `--vzn-border-strong`, nền `--vzn-surface`, bo `--vzn-radius-md`, viền `--vzn-border-width`; hàng câu hỏi `px-5 py-2.5` chữ `ui-caption` + huy hiệu `ai_chat_popup_question_badge` (VI "Hỏi", EN/JA "Q"; `ui-token-badge`); thân `px-5 py-4` chữ `ui-reader-text leading-7` | — |
 | Hành động thẻ | `.quick-chat-card-actions` | `px-3 py-1.5`, kẻ trên, nút `xs` | — |
 | Footer | `.quick-chat-footer` | `px-3 py-2`, nền `--vzn-surface`, kẻ trên `--vzn-divider`; mọi nút `xs` (28) | — |
 
@@ -176,7 +176,7 @@ Cửa sổ có kích thước cố định, người dùng không đổi cỡ đ
 | `chat_error_failed_response` / `chat_error_unexpected` | Không thể nhận phản hồi / Lỗi không mong đợi |
 | `ai_chat_popup_new_conversation` / `ai_chat_popup_short_label` | Cuộc trò chuyện mới ({shortcut}) / AI nhanh |
 | `ai_chat_popup_change_model` / `ai_chat_popup_model_default` | Đổi mô hình trong Cài đặt / mặc định |
-| `ai_chat_popup_question_badge` / `ai_chat_popup_model_ready` / `model_no_key` | H / Mô hình sẵn sàng / Chưa có key |
+| `ai_chat_popup_question_badge` / `ai_chat_popup_model_ready` / `model_no_key` | Hỏi / Mô hình sẵn sàng / Chưa có key |
 
 ## 10. Chênh lệch với bản dựng hiện tại
 

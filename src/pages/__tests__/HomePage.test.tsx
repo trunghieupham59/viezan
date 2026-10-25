@@ -64,6 +64,14 @@ describe('HomePage', () => {
     expect(useAppStore.getState()).toMatchObject({ activePage: 'chat', activeChatSessionId: 'c1' })
   })
 
+  it('shows an untitled conversation in the UI language', () => {
+    act(() => useAppStore.setState({ locale: 'vi', chatSessions: [session('c1', { title: 'New Chat' })] }))
+    render(<HomePage />)
+    const recent = screen.getByRole('region', { name: TRANSLATIONS.vi.home_resume_title })
+    expect(within(recent).getByRole('button', { name: new RegExp(TRANSLATIONS.vi.chat_new_session) })).toBeInTheDocument()
+    expect(within(recent).queryByText('New Chat')).toBeNull()
+  })
+
   it('puts a paused research run first with a visible Resume', () => {
     const paused = session('r1', { deepResearchResumeState: {} as ChatSession['deepResearchResumeState'] })
     act(() => useAppStore.setState({ chatSessions: [paused], history: [translation] }))
