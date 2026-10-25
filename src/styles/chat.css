@@ -35,12 +35,12 @@ html:not(.dark) .chat-composer {
   -webkit-backdrop-filter: none !important;
 }
 
-/* Matches the mode-qualified base selectors above so the ring is not outranked. */
+/* Focus is the caret plus a stronger neutral border, like every text field;
+   the selectors match the mode-qualified base ones above. */
 .chat-composer:focus-within,
 html.dark .chat-composer:focus-within,
 html:not(.dark) .chat-composer:focus-within {
-  border-color: var(--vzn-action-border);
-  box-shadow: 0 0 0 var(--vzn-space-0-5) var(--vzn-focus-ring), var(--vzn-shadow-md) !important;
+  border-color: var(--vzn-border-strong);
 }
 
 /* The composer surface draws the ring for its text field; skip the shared outline. */

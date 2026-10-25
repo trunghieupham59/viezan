@@ -188,8 +188,7 @@
 }
 
 .filter-input:focus-within {
-  border-color: var(--vzn-action-border);
-  box-shadow: inset 0 0 0 var(--vzn-border-width) var(--vzn-focus-ring);
+  border-color: var(--vzn-border-strong);
 }
 
 .filter-input[data-invalid='true'] {

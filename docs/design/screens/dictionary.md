@@ -69,8 +69,8 @@ Bố cục mặc định (vùng nội dung ≥ 760 px, có mục đang xem):
 
 | # | Điều khiển | Loại (Button size · variant · appearance) | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Ngôn ngữ nguồn ▾ / đích ▾ | `LanguagePairBar scope="dictionary"`, nút `md` | Click / Enter | Chọn ngôn ngữ; ghi cặp vào phạm vi `translate` (dùng chung với AI Dịch, `onPairChange` → `setLanguagePair('translate', …)`) | Bộ chọn có chip cặp gần đây / đã ghim | — |
-| 2 | Đảo chiều ⇄ | Nút đảo của `LanguagePairBar` | Click | Hoán đổi nguồn và đích | Hai nhãn đổi chỗ | Ẩn khi nguồn là "Tự động"; `disabled` khi nguồn = đích ("Chọn ngôn ngữ nguồn và đích khác nhau để đảo chiều.") |
+| 1 | Ngôn ngữ nguồn ▾ / đích ▾ | `LanguagePairBar scope="dictionary" size="sm"`, kiểu chung của header trang: hai nút có khung riêng (`--vzn-border-strong`, bo `--vzn-radius-sm`), ô giữa đứng tách giữa hai nút | Click / Enter | Chọn ngôn ngữ; ghi cặp vào phạm vi `translate` (dùng chung với AI Dịch, `onPairChange` → `setLanguagePair('translate', …)`) | Bộ chọn có chip cặp gần đây / đã ghim | — |
+| 2 | Đảo chiều ⇄ | Nút đảo của `LanguagePairBar` | Click | Hoán đổi nguồn và đích | Hai nhãn đổi chỗ | Khi nguồn là "Tự động" thay bằng mũi tên → tĩnh; `disabled` khi nguồn = đích ("Chọn ngôn ngữ nguồn và đích khác nhau để đảo chiều.") |
 | 3 | Cấu hình AI | `md · neutral · ghost` icon bánh răng (mở: `primary · soft`), `aria-expanded`, `aria-haspopup="dialog"` | Click | Mở popover "Cấu hình AI" — "Áp dụng cho lượt tra cứu tiếp theo.", một mục "Mô hình" chứa danh sách model nội tuyến | Nút chuyển soft xanh | Luôn bật |
 | 4 | Popover › chọn model | `ModelSelector embedded inline directModelList` | Click một model | Đổi model cho lượt tra sau; popover **tự đóng** khi chọn | Popover đóng, focus về bánh răng | — |
 | 5 | Ô "Từ hoặc cụm từ" | `FilterInput size="md"` có icon tìm, bộ đếm `n/120` và nút xoá | Gõ; Enter gửi form | Cập nhật `term`; gõ thì xoá lỗi kiểm tra cũ | Bộ đếm hiện khi có chữ; > 120 ký tự: ô `invalid`, bộ đếm `data-invalid` đỏ | — |

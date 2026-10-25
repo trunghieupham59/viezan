@@ -148,7 +148,8 @@
   .ui-input-lg { height: var(--vzn-control-height-lg); padding-inline: var(--vzn-space-3); }
   .ui-input::placeholder { color: var(--vzn-text-disabled); }
   .ui-input:hover:not(:disabled) { border-color: var(--vzn-border-strong); }
-  .ui-input:focus-visible { border-color: var(--vzn-action-border); box-shadow: inset 0 0 0 var(--vzn-border-width) var(--vzn-focus-ring); }
+  /* Text fields: the caret plus a stronger neutral border, no accent ring. */
+  .ui-input:focus-visible { border-color: var(--vzn-border-strong); box-shadow: none; }
   .ui-input[aria-invalid="true"] { border-color: var(--vzn-danger-border); box-shadow: 0 0 0 3px var(--vzn-danger-soft); }
   .ui-input:disabled { border-color: var(--vzn-disabled-border); background: var(--vzn-disabled-bg); color: var(--vzn-disabled-fg); cursor: not-allowed; }
   /* Atomic Textarea — the Input contract on a growing, multi-line box. */

@@ -585,11 +585,13 @@ export function LiveTranslatePage() {
         <div className="glass-panel flex-1 min-h-0 flex flex-col overflow-hidden">
 
           <PageHeader
+            className="live-page-header"
             title={t.nav_live_translate}
             leading={(
               <div className="live-header-leading">
                 <LanguagePairBar
                   scope="live"
+                  size="sm"
                   lockedReason={isActive ? t.language_pairs_locked_short : t.language_pairs_locked}
                 />
                 {/* Locked while a session runs. */}

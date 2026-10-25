@@ -63,7 +63,7 @@ Chế độ so sánh (`layout="comparison"`, khi chọn ≥ 2 model): nguồn th
 
 | Vùng | Component | Kích thước / token | Cuộn |
 | --- | --- | --- | --- |
-| Header | `PageHeader` + `LanguagePairBar scope="translate"` + `ButtonGroup` + `TranslationOptions` | `--vzn-page-header-min-height`; nút `sm` 32 px; cặp ngôn ngữ dùng `LanguagePairBar size="sm"` (32 px), cùng cỡ với các nút header | Không; từ 640 px vùng chứa giữ một hàng (cụm cặp ngôn ngữ co trước, nhãn cắt bằng dấu ba chấm); hẹp hơn thì xuống dòng (`flex-wrap`) |
+| Header | `PageHeader` + `LanguagePairBar scope="translate"` + `ButtonGroup` + `TranslationOptions` | `--vzn-page-header-min-height`; nút `sm` 32 px; cặp ngôn ngữ dùng `LanguagePairBar size="sm"` (32 px), cùng cỡ với các nút header; kiểu chung của header trang: hai nút có khung riêng (`--vzn-border-strong`, bo `--vzn-radius-sm`), ô giữa đứng tách giữa hai nút (giống Phiên dịch và Từ điển) | Không; từ 640 px vùng chứa giữ một hàng (cụm cặp ngôn ngữ co trước, nhãn cắt bằng dấu ba chấm); hẹp hơn thì xuống dòng (`flex-wrap`) |
 | Khung làm việc | `TranslateWorkbenchTemplate` (`.translate-workspace`, `.translate-stage`) | max `--vzn-translate-workspace-max`, padding `--vzn-space-6` (24 px; < 560 px: `--vzn-space-3`, 12 px) | Không (≥ 900); cả trang cuộn (< 900) |
 | Ô Nguồn | `TranslationSourcePane` | Thẻ `--vzn-surface`, viền `--vzn-border`, bo `--vzn-radius-md`; header `--vzn-control-height-xl` (48); footer `--vzn-control-height-lg` + `--vzn-space-1` | Textarea tự cuộn |
 | Ô Kết quả | `TranslationResultPane` | Như ô Nguồn; chữ `--vzn-font-reading`, `--vzn-font-size-title` | Thân tự cuộn |

@@ -51,13 +51,13 @@ Bố cục mặc định (vùng nội dung ≥ 1100 px, kiểu hiển thị **So
 
 | Vùng | Component | Kích thước / token | Cuộn |
 | --- | --- | --- | --- |
-| Header trang | `PageHeader` (`src/components/templates`), class `.page-header` | `--vzn-page-header-min-height` (56), padding `--vzn-space-2` × `--vzn-space-6`, nền `--vzn-surface`; xuống dòng (`flex-wrap`) khi chật | Không |
+| Header trang | `PageHeader` (`src/components/templates`), class `.page-header` | `--vzn-page-header-min-height` (56), padding `--vzn-space-2` × `--vzn-space-6`, nền `--vzn-surface`; từ 760 px vùng nội dung giữ một hàng (`.live-page-header`, cặp ngôn ngữ co lại trước), hẹp hơn thì hành động xuống dòng 2 | Không |
 | Vùng đầu header | `.live-header-leading`: `LanguagePairBar scope="live"` + nhóm nguồn âm thanh `.live-audio-source-group` | gap `--vzn-space-2` × `--vzn-space-3` | Không |
 | Hành động header | `.page-header__actions`: `LiveSessionStatus`, nút lịch sử, `InterpretAIConfiguration`, nút Phụ đề nổi, Bắt đầu/Dừng | Tất cả `md` (36), gap `--vzn-space-2` | Không |
 | Thông báo cặp ngôn ngữ | `p.live-language-notice` | chữ `--vzn-font-size-caption`, màu `--vzn-text-muted`, đường kẻ dưới `--vzn-divider` | Không |
 | Thân | `.live-panels-body` (`data-view-mode`, `data-session-panel`) | padding `--vzn-space-4`, gap `--vzn-space-2`; có "Phiên này" thì grid `minmax(0,1fr) var(--vzn-live-session-panel-width)` (280) | Thân không cuộn (Song song); < 900 px thân cuộn |
 | Bảng Bản ghi (Song song) | `.glass-panel.live-paired-panel` | thẻ `--vzn-surface`, viền `--vzn-border`, bo `--vzn-radius-md` | Chỉ `.live-scroll-viewport` cuộn |
-| Thanh công cụ bảng | `.live-panel-toolbar` | padding `--vzn-space-2` × `--vzn-space-3`, tiêu đề `.live-panel-title` 13 px semibold, vạch ngăn `--vzn-divider` | Không |
+| Thanh công cụ bảng | `.live-panel-toolbar` | padding `--vzn-space-2` × `--vzn-space-3`, cao tối thiểu bằng hàng có nút `sm` (49 px) để "Nguyên bản" và "Bản dịch" có vạch ngăn thẳng hàng, tiêu đề `.live-panel-title` 13 px semibold, vạch ngăn `--vzn-divider` | Không |
 | Vùng cuộn bản ghi | `.live-scroll-region` > `.live-scroll-viewport` > `.live-scroll-content` | padding `--vzn-space-4`, khoảng giữa hàng `--vzn-space-1-5` | Có, tự bám cuối (`useFollowLatest`) |
 | Hàng song ngữ | `BilingualSegmentRow` (`.live-bilingual-row`) | gốc `--vzn-font-size-md` màu `--vzn-text-soft`; dịch `--vzn-font-size-subtitle` màu `--vzn-text-strong`; dòng `--vzn-line-height-reading` (1.6) | — |
 | Nút Xem mới nhất | `.live-jump-latest` | nổi giữa đáy, cách đáy `--vzn-space-3`, nền `--vzn-surface-raised`, `--vzn-shadow-sm`, lớp `--vzn-layer-local-toolbar` | — |
@@ -74,8 +74,8 @@ Bố cục mặc định (vùng nội dung ≥ 1100 px, kiểu hiển thị **So
 
 | # | Điều khiển | Loại (Button size · variant · appearance) | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Cặp ngôn ngữ (nguồn ▾ / đích ▾) | `LanguagePairBar scope="live"`, nút chọn `md` | Click / Enter | Mở bộ chọn ngôn ngữ có chip cặp gần đây và cặp đã ghim | Panel bộ chọn mở dưới nút | Khi phiên chạy hoặc đang xử lý âm thanh cuối (`liveLanguagesLocked`): giữa hai nút là ổ khoá, tooltip "Dừng phiên để đổi ngôn ngữ" |
-| 2 | Ô giữa cặp ngôn ngữ | Mũi tên tĩnh `aria-hidden`; khi khoá là `Button md · neutral · ghost` icon khoá, `disabled` | — | Không đảo chiều ở trang này (test "shows a direction arrow instead of a dead swap") | — | — |
+| 1 | Cặp ngôn ngữ (nguồn ▾ / đích ▾) | `LanguagePairBar scope="live" size="sm"`, kiểu chung của header trang: hai nút có khung riêng (`--vzn-border-strong`, bo `--vzn-radius-sm`), ô giữa đứng tách giữa hai nút; khi khoá hai nút `disabled` (nền, viền, chữ xám) | Click / Enter | Mở bộ chọn ngôn ngữ có chip cặp gần đây và cặp đã ghim | Panel bộ chọn mở dưới nút | Khi phiên chạy hoặc đang xử lý âm thanh cuối (`liveLanguagesLocked`): giữa hai nút là ổ khoá, tooltip "Dừng phiên để đổi ngôn ngữ" |
+| 2 | Ô giữa cặp ngôn ngữ | Mũi tên tĩnh `aria-hidden`; khi khoá là `Button sm · neutral · ghost` icon khoá, `disabled` | — | Không đảo chiều ở trang này (test "shows a direction arrow instead of a dead swap") | — | — |
 | 3 | Nguồn âm thanh: Micro / Âm thanh hệ thống / Cả hai | `fieldset.segmented-control`, mỗi nút `sm · neutral · ghost` có icon + nhãn `span` và `aria-label`, `aria-pressed` | Click | Đổi `audioMode` (mặc định "Âm thanh hệ thống"); với hệ thống/cả hai, kiểm tra quyền Screen Recording ngay và mỗi lần cửa sổ được focus | Nút chọn có `aria-pressed="true"` | `disabled` khi phiên đang chạy |
 | 4 | Trạng thái phiên | `LiveSessionStatus`: `StatusChip tone="danger"` + `Meter` | Tự động khi phiên chạy | Hiện nhãn pipeline (Đang nghe … / Đang thu âm… / Đang chuyển văn bản… / Đang dịch…) và thời gian chạy `mm:ss` | Spinner thay chấm khi đang nhận dạng/dịch; thanh đo mức âm vào cập nhật mỗi 100 ms | Ẩn khi không có phiên |
 | 5 | Lịch sử phiên | `md · neutral · ghost`, icon đồng hồ, `aria-label="Hiện lịch sử phiên"`, `aria-haspopup="dialog"`, `aria-expanded` | Click | Mở hộp thoại "Phiên đã lưu" | Hộp thoại mở, focus vào nút đóng | Luôn bật |
@@ -180,9 +180,10 @@ Ngưỡng tính theo container `app-main` (`@container app-main` trong `src/styl
 
 | Bề rộng vùng nội dung | Thay đổi |
 | --- | --- |
+| ≥ 1120 px | Nút nguồn âm hiện cả nhãn. |
 | ≥ 1100 px | "Phiên này" hiện thành cột 280 px bên phải (khi đã có bản ghi hoặc tóm tắt); nút TXT/SRT ở chân bảng ẩn vì đã có trong "Phiên này" |
-| 900–1099 px | "Phiên này" ẩn; xuất TXT/SRT và Tổng hợp nội dung nằm ở chân bảng. Tách riêng: hai cột cạnh nhau (`.app-panel-grid`, `@container app-main (min-width: 900px)` trong `src/index.css`) |
-| 560–899 px | Thân `.live-panels-body` tự cuộn; Tách riêng thành một cột, mỗi bảng cao `--vzn-live-panel-min-block` (16rem) và tự cuộn; thanh công cụ bảng Song song xếp dọc (tiêu đề trên, nút đổi kiểu dưới); header xuống dòng: cặp ngôn ngữ + nguồn âm ở dòng 1, hành động ở dòng 2; nút nguồn âm chỉ còn icon (nhãn ẩn, giữ `aria-label`) |
+| 900–1099 px | Nút nguồn âm chỉ còn icon (giữ `aria-label`) từ dưới 1120 px. Header vẫn một hàng. "Phiên này" ẩn; xuất TXT/SRT và Tổng hợp nội dung nằm ở chân bảng. Tách riêng: hai cột cạnh nhau (`.app-panel-grid`, `@container app-main (min-width: 900px)` trong `src/index.css`) |
+| 560–899 px | Thân `.live-panels-body` tự cuộn; Tách riêng thành một cột, mỗi bảng cao `--vzn-live-panel-min-block` (16rem) và tự cuộn; thanh công cụ bảng Song song xếp dọc (tiêu đề trên, nút đổi kiểu dưới); header giữ một hàng tới 760 px (thanh ngôn ngữ co, nhãn cắt có `title`), dưới 760 px thì cặp ngôn ngữ + nguồn âm ở dòng 1, hành động ở dòng 2; nút nguồn âm chỉ còn icon |
 | < 560 px | Header giảm lề trong còn `--vzn-space-4` (`.page-header` trong `src/styles/codex.css`); các vùng khác như 560–899 px |
 | Cửa sổ ≤ 720 px rộng hoặc ≤ 600 px cao | Popover Cấu hình AI thành hộp thoại giữa cửa sổ, ngay dưới thanh tiêu đề |
 | Cửa sổ < 900 px | Điều hướng chính thành rail 60 px (foundations §8) |

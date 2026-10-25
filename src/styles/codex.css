@@ -577,10 +577,16 @@ html.dark .sidebar-brand-surface {
   gap: var(--vzn-space-2);
 }
 
+/* Key caps inside the New chat button, drawn like the sidebar's Search ⌘K chip. */
 .ai-chat-header-shortcut {
-  font-family: inherit;
-  font-size: var(--vzn-font-size-xs);
+  padding: 0 var(--vzn-space-1-5);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-xs);
+  background: var(--vzn-surface-raised);
   color: var(--vzn-text-soft);
+  font-family: var(--vzn-font-mono);
+  font-size: var(--vzn-font-size-caption);
+  line-height: var(--vzn-line-normal);
   white-space: nowrap;
 }
 
@@ -1027,7 +1033,7 @@ html:not(.dark) .modal-backdrop {
 }
 
 .cmd-palette-input-row:focus-within {
-  border-bottom-color: var(--vzn-action-border);
+  border-bottom-color: var(--vzn-border-strong);
 }
 
 .cmd-palette-search-icon {

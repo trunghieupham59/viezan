@@ -47,11 +47,11 @@ const sessions: ChatSession[] = [
 
 describe('AIChatSidebar', () => {
   it.each([
-    ['win32', 'CommandOrControl+N', 'Ctrl+N'],
-    ['darwin', 'CommandOrControl+N', 'Cmd+N'],
-    ['linux', 'CommandOrControl+Shift+N', 'Ctrl+Shift+N'],
-    ['win32', '', ''],
-  ])('shows the configured header shortcut for %s (%s)', (platform, shortcut, label) => {
+    ['win32', 'CommandOrControl+N', 'Ctrl+N', 'Ctrl N'],
+    ['darwin', 'CommandOrControl+N', 'Cmd+N', '⌘N'],
+    ['linux', 'CommandOrControl+Shift+N', 'Ctrl+Shift+N', 'Ctrl Shift N'],
+    ['win32', '', '', ''],
+  ])('shows the configured header shortcut for %s (%s)', (platform, shortcut, label, keys) => {
     const originalApi = window.api
     const originalShortcut = useAppStore.getState().chatNewSessionShortcut
     window.api = { ...originalApi, platform }
@@ -59,14 +59,15 @@ describe('AIChatSidebar', () => {
       act(() => useAppStore.setState({ chatNewSessionShortcut: shortcut }))
       render(<ChatShell />)
       const button = screen.getByRole('button', { name: 'New Chat' })
-      // Icon-only in the header: the shortcut is in the tooltip and announced through aria-keyshortcuts.
+      // The shortcut is in the tooltip and announced through aria-keyshortcuts.
       expect(button).toHaveAttribute('title', label ? `New Chat (${label})` : 'New Chat')
       if (shortcut) expect(button).toHaveAttribute('aria-keyshortcuts', shortcut)
       else expect(button).not.toHaveAttribute('aria-keyshortcuts')
-      // A visible chip beside the button shows the shortcut too.
-      const chip = document.querySelector('.ai-chat-header-shortcut')
-      if (label) expect(chip).toHaveTextContent(label)
+      // The visible key caps sit inside the button, so the hint is clickable too.
+      const chip = button.querySelector('.ai-chat-header-shortcut')
+      if (keys) expect(chip).toHaveTextContent(keys)
       else expect(chip).toBeNull()
+      expect(document.querySelectorAll('.ai-chat-header-shortcut')).toHaveLength(keys ? 1 : 0)
     } finally {
       window.api = originalApi
       act(() => useAppStore.setState({ chatNewSessionShortcut: originalShortcut }))
@@ -127,7 +128,8 @@ describe('AIChatSidebar', () => {
     render(<ChatShell />)
 
     const newChatButton = screen.getByRole('button', { name: 'New Chat' })
-    expect(newChatButton).toHaveAttribute('data-control-shape', 'icon')
+    // With a shortcut configured the button also holds its key caps, so it is a rect.
+    expect(newChatButton).toHaveAttribute('data-control-shape', 'rect')
     expect(newChatButton).toHaveAttribute('data-control-appearance', 'ghost')
     fireEvent.click(newChatButton)
     expect(useAppStore.getState().activeChatSessionId).toBeNull()
