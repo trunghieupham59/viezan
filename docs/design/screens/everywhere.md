@@ -65,8 +65,8 @@ Bề rộng mặc định 1200 px cửa sổ (vùng nội dung ≈ 964 px khi th
 | --- | --- | --- | --- | --- | --- | --- |
 | Q1 | Công tắc bật Dịch nhanh (header thẻ) | `ToggleSwitch` (`role="switch"`, `aria-label` = "Bật Dịch nhanh") | Click, Space/Enter khi focus | `hotkey.update({ enabled })` — main đăng ký hoặc gỡ phím toàn cục | Công tắc đổi ngay (lạc quan). Nếu main từ chối: toast lỗi (khoá `settings-hotkey-register`, nội dung bản địa hoá theo mã lỗi: `IN_USE`, `CONFLICT`, `INVALID`, còn lại là câu chung) và công tắc quay về giá trị main thực sự giữ | Không có trạng thái disabled; khi module Dịch tắt, công tắc vẫn đổi được nhưng phím không chạy (main không đăng ký) |
 | Q2 | Ô bước 2 "Nhấn ⌥ T" | `KeyCap` trong `StepList` (chỉ đọc) | — | Hiển thị phím đang lưu (`shortcutKeyCaps`) | Cập nhật ngay khi ghi phím mới | Ẩn `KeyCap` khi chưa có phím |
-| Q3 | Nút xoá phím tắt (✕) | `md · danger · ghost`, icon vuông, `aria-label`/`title` = "Xóa" | Click | Lưu `{ hotkey: '', enabled: false }` — phím bị gỡ và công tắc tắt | Ô ghi phím hiện "Chưa cài", công tắc tắt | Ẩn khi chưa có phím hoặc đang ghi |
-| Q4 | Ô ghi phím (`HotkeyRecordButton`) | `md · neutral · outline` (nghỉ) → `md · primary · soft` (đang ghi), chữ monospace | Click để bắt đầu ghi; trong lúc ghi bấm tổ hợp phím | Phím đầu tiên không phải phím bổ trợ chốt tổ hợp, lưu ngay qua `hotkey.update` (`recordHotkey` trong `src/utils/hotkeyRecording.ts`): cần ít nhất `Command`, `Ctrl` hoặc `Alt` (chỉ `Shift` không đủ); F1–F24 được dùng một mình. Phím thiếu bổ trợ không được lưu, dòng mô tả của hàng đổi thành gợi ý "Giữ thêm Command, Control hoặc Option (Alt) cùng với phím." (`role="alert"`). `Tab` không kèm bổ trợ vẫn chuyển focus | Nhãn đổi "Bấm phím… (Esc để hủy)"; sau khi chốt hiện tổ hợp mới (Alt hiển thị "Option" trên macOS). Main từ chối (trùng/không hợp lệ) → toast lỗi và quay về phím cũ | Esc hoặc rời focus (blur) huỷ ghi, giữ phím cũ |
+| Q3 | Nút xoá phím tắt (✕) | `md · danger · ghost`, icon vuông, `aria-label`/`title` = "Xoá" | Click | Lưu `{ hotkey: '', enabled: false }` — phím bị gỡ và công tắc tắt | Ô ghi phím hiện "Chưa cài", công tắc tắt | Ẩn khi chưa có phím hoặc đang ghi |
+| Q4 | Ô ghi phím (`HotkeyRecordButton`) | `md · neutral · outline` (nghỉ) → `md · primary · soft` (đang ghi), chữ monospace | Click để bắt đầu ghi; trong lúc ghi bấm tổ hợp phím | Phím đầu tiên không phải phím bổ trợ chốt tổ hợp, lưu ngay qua `hotkey.update` (`recordHotkey` trong `src/utils/hotkeyRecording.ts`): cần ít nhất `Command`, `Ctrl` hoặc `Alt` (chỉ `Shift` không đủ); F1–F24 được dùng một mình. Phím thiếu bổ trợ không được lưu, dòng mô tả của hàng đổi thành gợi ý "Giữ thêm Command, Control hoặc Option (Alt) cùng với phím." (`role="alert"`). `Tab` không kèm bổ trợ vẫn chuyển focus | Nhãn đổi "Bấm phím… (Esc để huỷ)"; sau khi chốt hiện tổ hợp mới (Alt hiển thị "Option" trên macOS). Main từ chối (trùng/không hợp lệ) → toast lỗi và quay về phím cũ | Esc hoặc rời focus (blur) huỷ ghi, giữ phím cũ |
 | Q5 | Ngôn ngữ chính | `SelectField` (nhãn "Ngôn ngữ chính") | Click mở menu, chọn | Lưu `targetLang`. Chọn đúng ngôn ngữ phụ hiện tại thì **đảo cặp** thay vì gộp | Giá trị đổi ngay; mô tả hàng đổi theo cặp bật/tắt | — |
 | Q6 | Ngôn ngữ phụ | `SelectField`, mục đầu "Tắt — luôn dịch sang ngôn ngữ chính" | Click mở menu, chọn | Lưu `secondaryLang` ('' = tắt cặp). Danh sách loại trừ ngôn ngữ chính | Mô tả hàng: `settings_hotkey_pair_desc` (cặp bật) hoặc `settings_hotkey_pair_off_desc` | — |
 | Q7 | Hàng Model | Chữ chỉ đọc "Nhà cung cấp · `model-id`" | — | Dịch nhanh dùng nhà cung cấp/model đang chọn của app (`selectedProvider`, `selectedModels`), tự đẩy sang main mỗi khi đổi | — | Không có nút đổi (xem §10) |
@@ -101,7 +101,7 @@ Phản hồi trong lúc chạy phím (từ main, `hotkey.onTranslating/onTransla
 | C10 | "Sao chép" token | `md · neutral · outline` → `md · primary · soft` "Đã sao chép" trong 2 s | Click | `clipboard.writeText(token)` | Nhãn đổi "Đã sao chép" 2 giây | — |
 | C11 | Đóng khung token (✕) | `md · neutral · ghost`, icon vuông, `aria-label` "Đóng" | Click | Ẩn token vĩnh viễn (không xem lại được) | Khung biến mất | — |
 | C12 | "Tạo lại" (mỗi token) | `md · neutral · outline`, icon làm mới, `title` = "Tạo lại token mới (giá trị cũ hết hiệu lực)" | Click | `regenerateToken({ id })` — giá trị cũ mất hiệu lực ngay | Spinner thay icon; xong hiện khung token mới (C9) | Disabled khi token đó đang tạo lại hoặc đang xoá |
-| C13 | Xoá token (thùng rác) | `md · danger · soft`, icon vuông, `aria-label` "Xóa token: hết hiệu lực ngay" | Click | `deleteToken({ id })` — **không hỏi xác nhận** | Spinner; hàng biến mất; khung token đang hiện (nếu có) cũng bị đóng | Disabled khi token đó đang xoá/tạo lại |
+| C13 | Xoá token (thùng rác) | `md · danger · soft`, icon vuông, `aria-label` "Xoá token: hết hiệu lực ngay" | Click | `deleteToken({ id })` — **không hỏi xác nhận** | Spinner; hàng biến mất; khung token đang hiện (nếu có) cũng bị đóng | Disabled khi token đó đang xoá/tạo lại |
 | C14 | Máy chủ cục bộ | Chữ monospace `127.0.0.1:<port>` hoặc "—" | — | Cổng lấy từ `listTokens()` | — | — |
 | C15 | Toast lỗi tải danh sách | Toast error + nút "Thử lại" (khoá `settings-ext-token-list`) | Click "Thử lại" | Gọi lại `listTokens()` | Toast tự biến mất khi tải được hoặc rời trang | — |
 
@@ -114,7 +114,7 @@ Phản hồi trong lúc chạy phím (từ main, `hotkey.onTranslating/onTransla
 | Đang tải | Đọc danh sách token | Spinner nhỏ + "Đang tải..." trong hàng token | — |
 | Có dữ liệu | Có token | Mỗi token một hàng: tên (cắt dòng), hạn "Hết hạn {date} · còn {days} ngày"; ≤ 7 ngày: "Còn {days} ngày ({date})"; quá hạn: "Đã hết hạn" chữ đỏ | C12, C13 |
 | Vừa tạo token | Sau C8/C12 | Khung hiện token một lần ở đầu vùng dưới hàng | C10, C11 |
-| Đang ghi phím | Sau click Q4 | Nút ghi `primary · soft` "Bấm phím… (Esc để hủy)"; nút ✕ ẩn | Bấm tổ hợp, Esc |
+| Đang ghi phím | Sau click Q4 | Nút ghi `primary · soft` "Bấm phím… (Esc để huỷ)"; nút ✕ ẩn | Bấm tổ hợp, Esc |
 | Lỗi đăng ký phím | Main từ chối (trùng, không hợp lệ) | Toast lỗi; ô ghi phím + công tắc phản ánh giá trị main còn giữ | Ghi phím khác |
 | Lỗi tải token | IPC hỏng / không phải Electron | Toast lỗi có "Thử lại"; hàng token **trống** (không có câu trống), header vẫn "Chưa có token" | "Thử lại" trên toast |
 | Lỗi tạo/xoá/tạo lại | IPC trả lỗi | Toast lỗi (một khoá, thay nhau) | Thử lại thủ công |
@@ -133,7 +133,7 @@ Phản hồi trong lúc chạy phím (từ main, `hotkey.onTranslating/onTransla
 6. ⌘Z trong ứng dụng đó lấy lại chữ gốc (bước 3 của `StepList`).
 
 **B. Đổi phím tắt**
-1. Click ô ghi phím → nhãn "Bấm phím… (Esc để hủy)", nền xanh nhạt.
+1. Click ô ghi phím → nhãn "Bấm phím… (Esc để huỷ)", nền xanh nhạt.
 2. Nhấn ⌃⌥T → ô hiện `Ctrl+Option+T`, lưu ngay, `SHORTCUTS_CHANGED_EVENT` báo cho danh sách "Tất cả phím tắt".
 3. Nếu tổ hợp đã bị chiếm: toast lỗi, ô quay về phím cũ.
 4. Bấm ✕ → phím bị xoá, công tắc tắt, ô hiện "Chưa cài".
@@ -187,9 +187,9 @@ Hai thẻ luôn xếp chồng một cột (`.system-page-stack` không có `data
 | `everywhere_step_press` / `_desc` | Nhấn / Chỉ báo nhỏ hiện cạnh con trỏ trong lúc dịch. |
 | `everywhere_step_replace` / `_desc` | Bản dịch thay vào chỗ cũ / {undo} để lấy lại chữ gốc. |
 | `settings_hotkey_label` / `_desc` | Phím tắt / Nhấp vào ô rồi bấm tổ hợp phím bạn muốn |
-| `settings_hotkey_recording` | Bấm phím… (Esc để hủy) |
+| `settings_hotkey_recording` | Bấm phím… (Esc để huỷ) |
 | `settings_hotkey_none` | Chưa cài |
-| `settings_hotkey_clear` | Xóa |
+| `settings_hotkey_clear` | Xoá |
 | `everywhere_language_pair` | Cặp ngôn ngữ |
 | `settings_hotkey_primary_lang` / `_secondary_lang` | Ngôn ngữ chính / Ngôn ngữ phụ |
 | `settings_hotkey_secondary_off` | Tắt — luôn dịch sang ngôn ngữ chính |
@@ -215,7 +215,7 @@ Hai thẻ luôn xếp chồng một cột (`.system-page-stack` không có `data
 | `settings_token_reveal_title` / `_body` | Token "{name}": sao chép ngay! / Token này chỉ hiện một lần duy nhất. Sau khi đóng sẽ không xem lại được. |
 | `settings_token_copy` / `_copied` | Sao chép / Đã sao chép |
 | `settings_token_regenerate` | Tạo lại |
-| `settings_token_delete_title` | Xóa token: hết hiệu lực ngay |
+| `settings_token_delete_title` | Xoá token: hết hiệu lực ngay |
 | `settings_token_empty` | Chưa có token nào. Nhấn "+ Tạo token mới" để bắt đầu. |
 | `settings_token_expired` | Đã hết hạn |
 | `everywhere_ext_server` / `_desc` | Máy chủ cục bộ / Chỉ nhận kết nối từ máy này, có token |

@@ -1102,7 +1102,7 @@ describe('ChatPage', () => {
     fireEvent.keyDown(textarea, { key: 'Enter' })
 
     await waitFor(() => {
-      expect(screen.getByText('Yêu cầu mất quá lâu và đã bị hủy. Vui lòng thử lại.')).toBeInTheDocument()
+      expect(screen.getByText('Yêu cầu mất quá lâu và đã bị huỷ. Vui lòng thử lại.')).toBeInTheDocument()
     })
     expect(screen.queryByText(/This operation was aborted/i)).not.toBeInTheDocument()
   })

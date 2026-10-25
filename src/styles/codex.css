@@ -200,14 +200,14 @@ html.dark .sidebar-brand-surface {
 .sidebar-brand-name {
   color: var(--vzn-chrome-fg-strong);
   font-size: var(--vzn-font-size-subtitle);
-  font-weight: 650;
+  font-weight: var(--vzn-weight-semibold);
 }
 
 .sidebar-brand-title {
   font-family: var(--vzn-font-display);
   color: var(--vzn-chrome-fg-strong);
   font-size: var(--vzn-font-size-subtitle);
-  font-weight: 650;
+  font-weight: var(--vzn-weight-semibold);
 }
 
 .sidebar-nav-group,
@@ -1642,10 +1642,12 @@ html.dark .toolbar-pill-button {
 /* Settings typography: section title > group/card title > row label. The
    section heading must read as the parent of every card beneath it, so it
    carries the title size while card titles step down to the body scale. */
+/* One step below the page title (title-lg) so the page and its sections do
+   not read as peers (foundations §4). */
 .settings-section-title {
   font-family: var(--vzn-font-display);
   color: var(--vzn-text-strong);
-  font-size: var(--vzn-font-size-title-lg);
+  font-size: var(--vzn-font-size-title);
   font-weight: var(--vzn-weight-semibold);
   line-height: var(--vzn-line-tight);
 }

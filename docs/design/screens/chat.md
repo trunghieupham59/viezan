@@ -74,7 +74,7 @@ Viết tắt kiểu Button: `size · variant · appearance`. "Ẩn" nghĩa là �
 | --- | --- | --- | --- | --- | --- | --- |
 | S1 | Ô "Tìm cuộc trò chuyện…" | `Input sm type=search` | Gõ | Lọc theo tiêu đề, mã model, provider (`sessionMatchesQuery`), không phân biệt hoa thường | Danh sách lọc ngay; không có kết quả: "Không tìm thấy cuộc trò chuyện" | Không bao giờ tắt |
 | S2 | Hàng cuộc trò chuyện | Nút gốc `.chat-session-select` (ngoại lệ có ghi chú trong mã: hàng hai dòng) | Click / Enter / Space | `setActiveChatSession(id)`: mở cuộc trò chuyện, khôi phục provider/model, bản nháp, tác vụ của nó; đóng lớp phủ hẹp | Hàng chuyển sang nền nhấn; header đổi tiêu đề và chip model | — |
-| S3 | Nút xoá trên hàng | `xs · danger · ghost`, icon thùng rác, `aria-label="Xóa: <tên đầy đủ>"` | Hover/focus hàng để hiện, rồi click | `deleteChatSession(id)`: xoá ngay; nếu là cuộc đang mở thì về trạng thái trống | Hàng biến mất; toast "Đã xoá cuộc trò chuyện" (khoá chủ `chat-session-deleted`) có nút Hoàn tác: `restoreChatSession` đưa cuộc trò chuyện về đúng vị trí cũ và mở lại nếu nó đang mở. Không có hộp xác nhận | — |
+| S3 | Nút xoá trên hàng | `xs · danger · ghost`, icon thùng rác, `aria-label="Xoá: <tên đầy đủ>"` | Hover/focus hàng để hiện, rồi click | `deleteChatSession(id)`: xoá ngay; nếu là cuộc đang mở thì về trạng thái trống | Hàng biến mất; toast "Đã xoá cuộc trò chuyện" (khoá chủ `chat-session-deleted`) có nút Hoàn tác: `restoreChatSession` đưa cuộc trò chuyện về đúng vị trí cũ và mở lại nếu nó đang mở. Không có hộp xác nhận | — |
 | S4 | Meta dòng hai | Chữ | — | Thứ tự ưu tiên (`sessionMeta`): "Chuyên sâu · đang dừng" nếu có nghiên cứu dang dở và phiên không đang chạy (`chatRunningSessionIds`, không lưu); đang chạy thì chỉ "Chuyên sâu"; "Tác vụ · Tuỳ chọn" nếu có tác vụ; còn lại thời gian tương đối ("vừa xong", "5 phút trước", ngày) | Màu `--vzn-warning` khi đang dừng | — |
 
 ### 4.2 Header trang
@@ -105,10 +105,10 @@ Viết tắt kiểu Button: `size · variant · appearance`. "Ẩn" nghĩa là �
 | C2 | Gửi bằng phím | — | `Enter` (mặc định) hoặc `⌘/Ctrl+Enter` theo Cài đặt › Chat › Phím gửi (`shouldSendChatMessage`) | Như C9 | Như C9 | Như C9 |
 | C3 | "+" (đính kèm) | `md · neutral · ghost` (mở: `primary · soft`), `aria-haspopup="menu"`, `aria-expanded` | Click | Mở menu một mục "Thêm ảnh và tệp" | — | Tắt khi đang thu âm |
 | C4 | Mục "Thêm ảnh và tệp" | Nút menu `.btn-menu-item` | Click | Mở hộp chọn tệp `accept="image/*"` | Ảnh hiện thành thumbnail trong ô soạn | — |
-| C5 | Bỏ ảnh | Nút X trên `ImagePreviewThumbnail`, `title="Xóa ảnh"` | Click | Bỏ ảnh đính kèm | Thumbnail biến mất | — |
+| C5 | Bỏ ảnh | Nút X trên `ImagePreviewThumbnail`, `title="Xoá ảnh"` | Click | Bỏ ảnh đính kèm | Thumbnail biến mất | — |
 | C6 | Nguồn web | `md · neutral · ghost` ↔ `md · primary · soft`, icon địa cầu, `aria-pressed`, `title="Tìm nguồn trên mạng cho yêu cầu này."` | Click | Bật/tắt `webSearch` trong tác vụ của cuộc trò chuyện; tin tiếp theo luôn tìm web trước | Nút chuyển màu nhấn | **Ẩn** khi tác vụ là Dịch, Tạo ảnh, hoặc Nghiên cứu · Chuyên sâu (`canUseChatWebSearch`); tắt khi đang thu âm |
 | C7 | "Tác vụ: …" | `md · neutral · outline` (mở: `soft`), icon theo tác vụ, `aria-haspopup="dialog"`, nhãn "Tác vụ: Nghiên cứu · Tổng quan nhanh" | Click | Mở popover Tác vụ (bảng 4.5) | — | **Ẩn** khi thiếu khoá; tắt khi đang thu âm |
-| C8 | Micro | `VoiceRecorder buttonSize="md"`: rảnh `neutral · ghost`; đang thu `danger · soft` (icon dừng); đang chép `primary · soft` + spinner | Click | Thu âm → chép thành chữ chèn vào ô nhập (`useVoiceInput`) | Nhãn "Đang thu âm… 0:07" hoặc "Đang chuyển văn bản…" (`aria-live=polite`) + nút "Hủy thu âm" (`md · neutral · ghost`) | Tắt khi đang gửi |
+| C8 | Micro | `VoiceRecorder buttonSize="md"`: rảnh `neutral · ghost`; đang thu `danger · soft` (icon dừng); đang chép `primary · soft` + spinner | Click | Thu âm → chép thành chữ chèn vào ô nhập (`useVoiceInput`) | Nhãn "Đang thu âm… 0:07" hoặc "Đang chuyển văn bản…" (`aria-live=polite`) + nút "Huỷ thu âm" (`md · neutral · ghost`) | Tắt khi đang gửi |
 | C9 | Gửi | `md · primary · solid`, icon mũi tên, `aria-label="Gửi"` | Click | `executeChatRequest()` (xem luồng 6.1) | Ô nhập trống, tin người dùng xuất hiện, nút đổi thành Dừng | Tắt khi: không có chữ và không có ảnh; chữ chỉ là tiền tố tác vụ cũ; thiếu khoá; tác vụ Tạo ảnh mà provider không hỗ trợ hoặc chưa có chữ. Ẩn khi đang thu âm |
 | C10 | Dừng | `md · danger · soft`, icon vuông, `aria-label="Dừng"` | Click | `abortControllerRef.current.abort()` | Phần chữ đã về được giữ, không báo lỗi; nghiên cứu giữ các bước đã xong | Chỉ hiện khi đang gửi |
 | C11 | Gợi ý dưới ô nhập | `p.chat-task-hint role=status` | — | "Nhập nội dung hoặc chủ đề trước khi gửi yêu cầu này." khi ô chỉ chứa tiền tố tác vụ; "Model này không đọc được ảnh…" / "Model local này có thể không đọc được ảnh…" khi ảnh kèm và model không đọc ảnh (`imageInputSupport`) | — | — |
@@ -280,11 +280,11 @@ Nguồn: `src/i18n/locales/vi.ts`.
 | `chat_sidebar_paused` | đang dừng |
 | `chat_sidebar_collapse` / `chat_sidebar_expand` | Ẩn lịch sử trò chuyện / Hiện lịch sử trò chuyện |
 | `chat_session_panel_empty` / `chat_sidebar_no_results` | Chưa có cuộc trò chuyện / Không tìm thấy cuộc trò chuyện |
-| `history_chat_delete` | Xóa |
+| `history_chat_delete` | Xoá |
 | `ai_configuration_title` | Cấu hình AI |
 | `ai_configuration_chat_scope` / `ai_configuration_new_chat_scope` | Áp dụng cho cuộc hội thoại này. / Áp dụng cho cuộc hội thoại mới. |
 | `model_loading` / `model_load_error` / `model_refresh` / `model_no_key` | Đang tải model… / Tải thất bại / Tải lại / Chưa có key |
-| `chat_attach_image` / `chat_menu_attach_files` / `chat_remove_image` | Đính kèm ảnh / Thêm ảnh và tệp / Xóa ảnh |
+| `chat_attach_image` / `chat_menu_attach_files` / `chat_remove_image` | Đính kèm ảnh / Thêm ảnh và tệp / Xoá ảnh |
 | `chat_web_source` / `chat_web_source_hint` | Nguồn web / Tìm nguồn trên mạng cho yêu cầu này. |
 | `chat_task_configuration` / `chat_task_none` | Tác vụ / Chat |
 | `chat_task_scope` | Lưu theo cuộc trò chuyện, dùng cho tin nhắn tiếp theo. |
@@ -296,7 +296,7 @@ Nguồn: `src/i18n/locales/vi.ts`.
 | `chat_task_needs_content` | Nhập nội dung hoặc chủ đề trước khi gửi yêu cầu này. |
 | `chat_image_mode_unsupported_provider` | Cần nhà cung cấp Gemini hoặc OpenAI |
 | `chat_attachment_model_cannot_read` | Model này không đọc được ảnh. Chọn một model đọc được ảnh ở đầu trang để gửi. |
-| `chat_voice_record` / `chat_voice_stop` / `voice_recording` / `voice_transcribing` / `voice_cancel` | Thu âm giọng nói / Dừng thu âm / Đang thu âm… / Đang chuyển văn bản… / Hủy thu âm |
+| `chat_voice_record` / `chat_voice_stop` / `voice_recording` / `voice_transcribing` / `voice_cancel` | Thu âm giọng nói / Dừng thu âm / Đang thu âm… / Đang chuyển văn bản… / Huỷ thu âm |
 | `chat_thinking_label` / `chat_smart_thinking_badge` | Đang suy nghĩ / Smart Thinking |
 | `translate_copy` / `chat_copied` | Sao chép / Đã sao chép! |
 | `chat_regenerate` | Tạo lại phản hồi |
@@ -314,7 +314,7 @@ Nguồn: `src/i18n/locales/vi.ts`.
 | `chat_error_invalid_key` | API key không hợp lệ. Vui lòng kiểm tra trong Cài đặt. |
 | `chat_error_rate_limit` | Đã vượt giới hạn yêu cầu. Vui lòng chờ rồi thử lại. |
 | `chat_error_network` | Không thể kết nối mạng. Vui lòng kiểm tra Internet rồi thử lại. |
-| `chat_error_timeout` | Yêu cầu mất quá lâu và đã bị hủy. Vui lòng thử lại. |
+| `chat_error_timeout` | Yêu cầu mất quá lâu và đã bị huỷ. Vui lòng thử lại. |
 | `chat_error_retry` / `chat_error_change_model` | Thử lại / Đổi model hoặc khoá |
 | `chat_web_search_fallback_title` / `chat_web_search_unavailable_title` | Tìm kiếm web đã chuyển sang bản miễn phí / Tìm kiếm web không hoạt động |
 | `chat_image_unavailable` | Ảnh này không còn được lưu trên thiết bị |

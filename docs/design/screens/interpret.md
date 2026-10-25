@@ -42,7 +42,7 @@ Bố cục mặc định (vùng nội dung ≥ 1100 px, kiểu hiển thị **So
 │ │ [Speaker 2] câu đang nói… ▍ (mờ 50%)                 │ │ │ Speaker 1      12 câu   │ │ │
 │ │              ( ⌄ Xem mới nhất )                      │ │ └──────────────────────────┘ │ │
 │ ├ .surface-footer ────────────────────────────────────┤ │ ┌ Xuất ───────────────────┐ │ │
-│ │ [⧉][🗑 Xóa]                 1.234 từ [⧉][Tổng hợp…] │ │ │ [⤓ TXT] [⤓ SRT]          │ │ │
+│ │ [⧉][🗑 Xoá]                 1.234 từ [⧉][Tổng hợp…] │ │ │ [⤓ TXT] [⤓ SRT]          │ │ │
 │ └──────────────────────────────────────────────────────┘ │ └──────────────────────────┘ │ │
 │                                                         │ Các phiên trước (8)          │ │
 │                                                         └──────────────────────────────┘ │
@@ -88,7 +88,7 @@ Bố cục mặc định (vùng nội dung ≥ 1100 px, kiểu hiển thị **So
 | 12 | Nhãn người nói | `SpeakerBadge` (nút gốc trong thành phần live) | Click | Thành ô nhập tên; Enter hoặc rời ô lưu, Esc huỷ | Tên mới áp cho mọi hàng của người đó, cả trong "Phiên này" và SRT | Ở bảng "Bản dịch" (Tách riêng) nhãn chỉ đọc |
 | 13 | Xem mới nhất | `sm · neutral · outline`, `shape="pill"`, icon ⌄ | Click | Cuộn xuống cuối và bật lại chế độ bám cuối | Nút biến mất | Chỉ hiện khi người đọc cuộn lên cách đáy > 48 px (`LIVE_FOLLOW_LATEST_THRESHOLD_PX`) |
 | 14 | Sao chép nguyên bản | `xs · neutral · ghost` icon (sau khi chép: `primary`, icon ✓ trong 1,5 s), `aria-label="Sao chép nguyên bản"` | Click | Chép `rawTranscript` | Icon ✓ 1,5 s (`COPY_FEEDBACK_DURATION_MS`) | `disabled` khi chưa có bản ghi |
-| 15 | Xóa | `xs · danger · soft`, icon thùng rác | Click | `handleClear`: xoá bản ghi, bản dịch, tóm tắt, người nói trên màn hình (phiên đã lưu trong lịch sử vẫn còn) | Bảng trở về trạng thái trống | `disabled` khi chưa có bản ghi. Không có xác nhận |
+| 15 | Xoá | `xs · danger · soft`, icon thùng rác | Click | `handleClear`: xoá bản ghi, bản dịch, tóm tắt, người nói trên màn hình (phiên đã lưu trong lịch sử vẫn còn) | Bảng trở về trạng thái trống | `disabled` khi chưa có bản ghi. Không có xác nhận |
 | 16 | TXT (chân bảng) | `xs · neutral · ghost`, icon tải về, `title="Xuất .txt"` | Click | Tải `meeting-<ngày giờ>.txt` gồm gốc, dịch, tóm tắt, việc, quyết định | Trình duyệt tải file | `disabled` khi chưa có bản ghi; ẩn ở vùng nội dung ≥ 1100 px khi "Phiên này" hiện |
 | 17 | SRT (chân bảng) | `xs · neutral · ghost` | Click | Tải `meeting-<ngày giờ>.srt`, mỗi đoạn một khối có `[Tên người nói]` | Tải file | `disabled` khi chưa có đoạn; ẩn như #16 |
 | 18 | Số từ | Chữ `text-xs`, số dạng bảng | — | `1.234 từ` | — | Ẩn khi 0 |
@@ -110,10 +110,10 @@ Bố cục mặc định (vùng nội dung ≥ 1100 px, kiểu hiển thị **So
 | 34 | Quyền Screen Recording › Đóng | `sm · neutral · outline` (và nút đóng của `DialogShell`) | Click / Esc / bấm nền | Đóng hộp thoại, không bắt đầu | — | — |
 | 35 | Quyền Screen Recording › Mở System Settings | `sm · primary · solid`, icon bánh răng | Click | Mở `MACOS_SCREEN_RECORDING_PREFS` qua `window.api.openExternal`, đóng hộp thoại | Cài đặt macOS mở | — |
 | 36 | Phiên đã lưu › hàng phiên | Nút gốc `.history-panel-reopen` (ngoại lệ có ghi chú trong mã) | Click / Enter | `setViewingLiveSession(id)`, đóng hộp thoại, nạp lại bản ghi, bản dịch, tóm tắt, người nói tại chỗ | Hàng đang xem có `aria-current` | — |
-| 37 | Phiên đã lưu › Xóa (từng hàng) | `xs · danger · ghost` icon, `aria-label="Xóa: <tiêu đề>"` | Click | Xoá phiên khỏi lịch sử | Hàng biến mất | Không có xác nhận |
+| 37 | Phiên đã lưu › Xoá (từng hàng) | `xs · danger · ghost` icon, `aria-label="Xoá: <tiêu đề>"` | Click | Xoá phiên khỏi lịch sử | Hàng biến mất | Không có xác nhận |
 | 38 | Phiên đã lưu › Tìm trong lịch sử | `FilterInput size="sm"` | Gõ | Lọc theo bản ghi, bản dịch, tóm tắt, việc, quyết định, provider, model | Danh sách lọc; không có kết quả → "Không tìm thấy kết quả" | Chỉ hiện khi > 4 phiên |
 | 39 | Phiên đã lưu › Xoá phiên đã lưu | `sm · danger · outline`, `shape="pill"`, `aria-haspopup="dialog"` | Click | Mở hộp thoại xác nhận | — | Ẩn khi chưa có phiên |
-| 40 | Xác nhận xoá › Hủy / Xoá phiên đã lưu | `md · neutral · outline` / `md · danger · solid` | Click | Huỷ hoặc xoá toàn bộ | Danh sách trống | — |
+| 40 | Xác nhận xoá › Huỷ / Xoá phiên đã lưu | `md · neutral · outline` / `md · danger · solid` | Click | Huỷ hoặc xoá toàn bộ | Danh sách trống | — |
 | 41 | Toast thiếu khoá › Mở Cài đặt | Hành động trong toast | Click | `openSettings()` | Cài đặt mở | Toast đóng được; hiện lại nếu khoá bị gỡ lần nữa |
 
 ## 5. Trạng thái
@@ -125,8 +125,8 @@ Bố cục mặc định (vùng nội dung ≥ 1100 px, kiểu hiển thị **So
 | Đang thu một câu | `pendingText` có nội dung | Hàng cuối mờ 50 %: nhãn người nói + chữ nghiêng + con trỏ; chip đổi thành "Đang thu âm…" | Như trên |
 | Đang nhận dạng / đang dịch | `isTranscribing` / `isTranslating` | Chip có spinner, nhãn "Đang chuyển văn bản…" / "Đang dịch…"; Song song: dòng dịch của câu cuối hiện "Đang dịch…" nghiêng; Tách riêng: dòng spinner "Đang dịch…" cuối bảng Bản dịch | Như trên |
 | Câu tạm | Đoạn ở trạng thái `pending` / `provisional` / `incomplete` | Dòng nghiêng `role="status"`: "Đang chờ đủ ý" / "Tạm dịch. Có thể thay đổi" / "Đoạn có thể chưa đủ ý" | — |
-| Có dữ liệu (đang chạy) | Có đoạn | Hàng song ngữ cuộn và bám cuối; chân bảng có Sao chép, Xóa, TXT, SRT, số từ; "Phiên này" ở bên phải khi đủ rộng | Mọi hành động #10–#23 |
-| Đã dừng, có bản ghi | Sau Dừng | Như trên, không có chip trạng thái; nút "Tổng hợp nội dung" xuất hiện ở chân bảng | Tóm tắt, xuất, sao chép, Xóa, Bắt đầu phiên mới |
+| Có dữ liệu (đang chạy) | Có đoạn | Hàng song ngữ cuộn và bám cuối; chân bảng có Sao chép, Xoá, TXT, SRT, số từ; "Phiên này" ở bên phải khi đủ rộng | Mọi hành động #10–#23 |
+| Đã dừng, có bản ghi | Sau Dừng | Như trên, không có chip trạng thái; nút "Tổng hợp nội dung" xuất hiện ở chân bảng | Tóm tắt, xuất, sao chép, Xoá, Bắt đầu phiên mới |
 | Xem phiên đã lưu | Mở từ Lịch sử / Trang chủ | Bản ghi, bản dịch, tóm tắt được nạp; nếu cặp ngôn ngữ hiện tại khác phiên: dòng "Phiên đã ghi: Tiếng Nhật → Tiếng Việt" dưới header | Như "Đã dừng"; Bắt đầu sẽ xoá màn hình và mở phiên mới |
 | Đang tóm tắt / trích xuất | `isSummarizing` / `isExtracting…` | Trong hộp thoại: spinner lớn + "Đang tổng hợp…"/"Đang trích xuất…"; trong "Phiên này": dòng spinner `role="status"` | Đổi tab, đóng hộp thoại |
 | Lỗi chặn khi bắt đầu / trong phiên | `micError` | Toast lỗi (`role="alert"`) tiêu đề "Lỗi phiên dịch trực tiếp", nội dung là lý do: không có quyền micro, không có quyền Screen Recording, không có âm thanh hệ thống ("Share audio" chưa bật), xử lý không theo kịp, mọi STT provider thất bại | Đóng toast; sửa nguyên nhân rồi Bắt đầu lại |
@@ -192,7 +192,7 @@ Ngưỡng tính theo container `app-main` (`@container app-main` trong `src/styl
 
 - **Thứ tự Tab**: cặp ngôn ngữ (nguồn → đích) → Micro / Âm thanh hệ thống / Cả hai → Lịch sử → Cấu hình AI → Phụ đề nổi → Bắt đầu/Dừng → Song song / Tách riêng → nhãn người nói trong bản ghi → Xem mới nhất (khi hiện) → chân bảng → "Phiên này".
 - **Nhóm nút**: nguồn âm thanh và kiểu hiển thị là `fieldset` có `aria-label` ("Nguồn âm thanh", "Kiểu hiển thị"), mỗi nút có `aria-pressed`. Nguồn âm có `title` mô tả đầy đủ (ví dụ "Âm thanh hệ thống + microphone (cần quyền Screen Recording trên macOS)").
-- **Nút icon**: Lịch sử, Cấu hình AI, Sao chép nguyên bản/bản dịch, Xóa phiên trong lịch sử đều có `aria-label`. Lịch sử và Cấu hình AI có `aria-haspopup="dialog"` + `aria-expanded`. Phụ đề nổi có `aria-pressed`.
+- **Nút icon**: Lịch sử, Cấu hình AI, Sao chép nguyên bản/bản dịch, Xoá phiên trong lịch sử đều có `aria-label`. Lịch sử và Cấu hình AI có `aria-haspopup="dialog"` + `aria-expanded`. Phụ đề nổi có `aria-pressed`.
 - **Trạng thái phiên**: thời gian chạy có tiền tố ẩn "Thời gian đã chạy:" (`sr-only`); `Meter` có nhãn "Mức âm thanh đầu vào".
 - **Vùng live**: dòng trạng thái câu (`Đang chờ đủ ý`…) dùng `role="status"`; toast lỗi dùng `role="alert"` + `aria-live="assertive"`, toast cảnh báo `role="status"` + `aria-live="polite"` (`NotificationToast`). Một vùng ẩn `aria-live="polite"` chỉ đọc câu mới nhất đã chốt và đã dịch (không đọc từng ký tự đang gõ).
 - **Lớp phủ**: popover Cấu hình AI (`role="dialog"`, `aria-labelledby`, `aria-describedby` = câu phạm vi) focus vào điều khiển đầu tiên khi mở, Esc hoặc bấm ra ngoài thì đóng và trả focus về nút bánh răng. `DialogShell` (Tóm tắt, Phiên đã lưu, xác nhận xoá) giữ focus bên trong, Esc đóng, trả focus về nút mở. Hộp thoại quyền Screen Recording cũng là `DialogShell`, nên có cùng hành vi.
@@ -229,7 +229,7 @@ Nguồn: `src/i18n/locales/vi.ts`.
 | `live_empty_system_desc` | Nhấn Bắt đầu, rồi phát âm thanh trên thiết bị. Viezan sẽ nhận dạng và dịch âm thanh hệ thống. |
 | `live_sentence_pending` / `_provisional` / `_incomplete` | Đang chờ đủ ý / Tạm dịch. Có thể thay đổi / Đoạn có thể chưa đủ ý |
 | `live_copy_original` / `live_copy_translation` | Sao chép nguyên bản / Sao chép bản dịch |
-| `live_clear` / `live_words` | Xóa / từ |
+| `live_clear` / `live_words` | Xoá / từ |
 | `live_export_txt` / `live_export_srt` | Xuất .txt / Xuất .srt |
 | `live_summarize` / `live_summarize_again` / `live_summarizing` | Tổng hợp nội dung / Tạo lại / Đang tổng hợp… |
 | `live_summary_title` | Tóm tắt buổi dịch |
@@ -267,6 +267,6 @@ Bản vẽ (`boards/Interpret.dc.html`, `Histories`, `Popovers`, `States`) so v�
 6. **Sau phiên (Histories)**: bản vẽ có một trang kết quả gộp Tóm tắt + Quyết định + Việc cần làm (ô tích) + tỉ lệ người nói. Mã: hộp thoại ba tab, nội dung Markdown, không có ô tích, không có tỉ lệ người nói trong hộp thoại. `useLiveTranslate` có `speakerAnalysis`/"Phân tích người nói" (`live_analyze_speakers`) nhưng trang không hiển thị — **đề xuất** nối lại.
 7. **Thiếu quyền (States)**: bản vẽ là `CapabilityNotice` trong trang, câu "macOS chỉ cho nghe âm thanh hệ thống khi Viezan có quyền này. Viezan không ghi hình." và nút phụ "Dùng micro thay thế" — **đề xuất**. Mã: hộp thoại (`DialogShell`) chỉ hiện khi bấm Bắt đầu, có Đóng và Mở System Settings. Thiếu quyền micro chỉ báo bằng toast, không có trạng thái riêng.
 8. **Nợ token khác**: thân hộp thoại Tóm tắt dùng `text-gray-400 dark:text-gray-600`; huy hiệu STT và hàng tạm dùng `style={{…}}` inline; `.live-bilingual-translation` khai báo `font-weight: 500` thay vì `--vzn-weight-medium` (`src/styles/ai-configuration.css`); màu phụ đề là hex trong `LiveTranslatePage.tsx` (dữ liệu gửi sang cửa sổ phụ đề, chấp nhận được nhưng nên ghi chú). Cửa sổ `public/subtitle.html` có bộ style riêng ngoài `tokens.css`.
-9. **Xóa bản ghi không có xác nhận và nằm trong canvas** (nút `danger · soft` ở chân bảng). Không vi phạm luật Chat (chỉ áp cho Chat) và không xoá phiên đã lưu, nhưng nên ghi rõ trong tooltip rằng lịch sử vẫn giữ.
+9. **Xoá bản ghi không có xác nhận và nằm trong canvas** (nút `danger · soft` ở chân bảng). Không vi phạm luật Chat (chỉ áp cho Chat) và không xoá phiên đã lưu, nhưng nên ghi rõ trong tooltip rằng lịch sử vẫn giữ.
 10. **Xoá từng phiên trong lịch sử không có xác nhận** (chỉ "Xoá phiên đã lưu" có). Giữ theo mã; đề xuất toast Hoàn tác.
 11. **Phím tắt** Bắt đầu/Dừng (ví dụ `⌘⏎`) — **đề xuất**.

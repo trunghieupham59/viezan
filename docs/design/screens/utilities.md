@@ -58,8 +58,8 @@ Trang này là nơi người dùng **đặt phím mở Launcher** (cửa sổ t�
 | # | Điều khiển | Loại (Button size · variant · appearance) | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
 | L1 | Công tắc Launcher (header) | `ToggleSwitch`, `aria-label` "Bật Launcher" | Click / Space | `hotkey.chat.update({ enabled })` | Đổi ngay. Lỗi: toast (khoá `settings-chat-hotkey-register`) "Phím tắt đang được sử dụng…" (`IN_USE`/`CONFLICT`) hoặc "Không đăng ký được phím tắt. Hãy chọn tổ hợp khác."; công tắc + phím trở về giá trị main giữ | Không disabled; khi module Launcher tắt, phím được lưu nhưng không chạy |
-| L2 | Xoá phím (✕) | `md · danger · ghost`, icon vuông, `aria-label` "Xóa" | Click | Lưu `{ hotkey: '', enabled: false }` | Ô ghi hiện "Chưa cài", công tắc tắt; danh sách cập nhật "Chưa đặt" | Ẩn khi trống hoặc đang ghi |
-| L3 | Ô ghi phím (`HotkeyRecordButton`) | `md · neutral · outline` → `md · primary · soft` khi ghi | Click rồi bấm tổ hợp | Tổ hợp cần ít nhất `Command`, `Ctrl` hoặc `Alt` (chỉ `Shift` không đủ; F1–F24 dùng một mình được), thiếu thì không lưu và dòng mô tả hiện "Giữ thêm Command, Control hoặc Option (Alt) cùng với phím."; hợp lệ thì lưu qua `hotkey.chat.update({ hotkey })`, phát `SHORTCUTS_CHANGED_EVENT` | "Bấm phím… (Esc để hủy)" → tổ hợp mới (Alt hiện "Option" trên macOS). Trên macOS kiểm tra lại xung đột hệ thống ngay sau khi đổi | Esc/blur huỷ |
+| L2 | Xoá phím (✕) | `md · danger · ghost`, icon vuông, `aria-label` "Xoá" | Click | Lưu `{ hotkey: '', enabled: false }` | Ô ghi hiện "Chưa cài", công tắc tắt; danh sách cập nhật "Chưa đặt" | Ẩn khi trống hoặc đang ghi |
+| L3 | Ô ghi phím (`HotkeyRecordButton`) | `md · neutral · outline` → `md · primary · soft` khi ghi | Click rồi bấm tổ hợp | Tổ hợp cần ít nhất `Command`, `Ctrl` hoặc `Alt` (chỉ `Shift` không đủ; F1–F24 dùng một mình được), thiếu thì không lưu và dòng mô tả hiện "Giữ thêm Command, Control hoặc Option (Alt) cùng với phím."; hợp lệ thì lưu qua `hotkey.chat.update({ hotkey })`, phát `SHORTCUTS_CHANGED_EVENT` | "Bấm phím… (Esc để huỷ)" → tổ hợp mới (Alt hiện "Option" trên macOS). Trên macOS kiểm tra lại xung đột hệ thống ngay sau khi đổi | Esc/blur huỷ |
 | L4 | Thông báo "Module Launcher đang tắt" (ngay dưới header thẻ, trước hàng Phím tắt) | `CapabilityNotice` info + "Bật" `md · primary · solid` | Click | `setModuleEnabled('launcher', true)` | Thông báo biến mất; hàng Launcher xuất hiện lại trong danh sách | Chỉ khi `enabledModules.launcher === false` |
 | L5 | Thông báo xung đột hệ thống (macOS) | `CapabilityNotice` warning, tiêu đề "{owner} đang giữ {hotkey}" | — | Hiện khi `hotkey.chat.systemConflict(phím)` báo chủ sở hữu (Spotlight, Tìm kiếm Finder, macOS) | Kiểm tra lại khi phím đổi và khi cửa sổ lấy lại focus | Ẩn trên Windows/Linux |
 | L5a | "Tắt phím tắt Spotlight" | `md · primary · solid` | Click | `spotlight.resolve('replace')` → bật Launcher trên phím mặc định (⌘Space) | Toast success "Đã tắt phím tắt Spotlight…" hoặc warning không tự tắt "…chỉ áp dụng sau khi bạn đăng xuất rồi đăng nhập lại."; lỗi: toast "Không thể tắt phím tắt Spotlight…" | Chỉ khi chủ là Spotlight; disabled khi đang xử lý |
@@ -97,7 +97,7 @@ Cả hai nút disabled trong lúc gọi. Hộp thoại không mở khi bảng l�
 | Trống | Chưa ghi phím | Ô ghi hiện phím mặc định (⌘Space / Alt+Space); công tắc theo main | L1, L3 |
 | Đang tải | Đọc cài đặt từ main lần đầu | Ô ghi trống "Chưa cài" trong khoảnh khắc; danh sách chưa có phím toàn cục | — (không có skeleton, xem §10) |
 | Có dữ liệu | Bình thường | Như sơ đồ §3 | Tất cả |
-| Đang ghi phím | Sau click L3 | Ô ghi xanh nhạt "Bấm phím… (Esc để hủy)" | Bấm tổ hợp / Esc |
+| Đang ghi phím | Sau click L3 | Ô ghi xanh nhạt "Bấm phím… (Esc để huỷ)" | Bấm tổ hợp / Esc |
 | Trùng trong app | Hai phím Viezan đang bật trùng nhau | Chip "Trùng phím" trên cả hai hàng | Đổi phím ở nơi của nó |
 | Trùng hệ thống (macOS) | Spotlight/Finder/macOS giữ phím Launcher | `CapabilityNotice` vàng L5 + toast khởi động một lần | L5a, L5b, L5c |
 | Bị ứng dụng khác chiếm | Main không đăng ký được | Toast lỗi "Phím tắt đang được sử dụng…"; phím quay về giá trị cũ | Ghi phím khác |
@@ -154,7 +154,7 @@ Cả hai nút disabled trong lúc gọi. Hộp thoại không mở khi bảng l�
 | `settings_chat_hotkey_section_desc` | Nhấn phím tắt ở bất kỳ đâu để tìm ứng dụng, mở nhanh, tìm web hoặc hỏi AI. |
 | `settings_chat_hotkey_enabled` | Bật Launcher |
 | `settings_chat_hotkey_label` / `_desc` | Phím tắt / Nhấp vào ô rồi bấm tổ hợp phím bạn muốn |
-| `settings_chat_hotkey_recording` | Bấm phím… (Esc để hủy) |
+| `settings_chat_hotkey_recording` | Bấm phím… (Esc để huỷ) |
 | `settings_chat_hotkey_none` | Chưa cài |
 | `settings_chat_hotkey_status_conflict` | Phím tắt đang được sử dụng. Chọn tổ hợp khác hoặc đổi phím ở ứng dụng kia. … |
 | `launcher_hotkey_failed` | Không đăng ký được phím tắt. Hãy chọn tổ hợp khác. |

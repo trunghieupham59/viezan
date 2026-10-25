@@ -150,7 +150,7 @@
         <li><span class="ref">1</span>Chip helper: xanh lá "Helper đã kết nối (v{version})". Chỉ để đọc.</li>
         <li><span class="ref">2</span>"Tắt" <code>md · danger · outline</code>: trả quạt về tự động và bỏ helper.</li>
         <li><span class="ref">3</span>Bánh răng <code>md · neutral · ghost</code> (mở: <code>primary · soft</code>), <code>aria-haspopup="dialog"</code>: popover tuỳ chọn.</li>
-        <li><span class="ref">4</span>Ô Profile (<code>SelectField</code>, nhãn ẩn). Chỉnh tay một quạt → về "Tùy chỉnh".</li>
+        <li><span class="ref">4</span>Ô Profile (<code>SelectField</code>, nhãn ẩn). Chỉnh tay một quạt → về "Tuỳ chỉnh".</li>
         <li><span class="ref">5</span>"Lưu profile" <code>sm · neutral · outline</code>; "Về tự động" <code>sm · neutral · outline</code>, tắt khi không quạt nào bị giữ.</li>
         <li><span class="ref">6</span>Chế độ: ba nút pill <code>sm</code>, đang chọn <code>primary · soft</code> + <code>aria-pressed</code>. RPM to đổi màu nhấn khi app giữ quạt.</li>
         <li><span class="ref">7</span>Thanh đo min → max: phần tô là tốc độ thật, vạch đứng là mục tiêu của app (tooltip "Mục tiêu {rpm} RPM").</li>
@@ -247,9 +247,9 @@
       <ol>
         <li><span class="ref">1</span>Chip trung tính "Điều khiển quạt đang tắt" + "Bật điều khiển quạt" <code>md · primary · solid</code> — hành động chính duy nhất của header.</li>
         <li><span class="ref">2</span>Hàng quạt không có nút chế độ; thanh đo trung tính, không có vạch mục tiêu; toolbar quạt chưa có profile.</li>
-        <li><span class="ref">3</span>Dialog <code>DialogShell sm</code>: focus vào nút ✕, Tab bị giữ, Esc = Hủy. Ba điểm ✓ màu thành công; trần 105 °C khớp helper.</li>
+        <li><span class="ref">3</span>Dialog <code>DialogShell sm</code>: focus vào nút ✕, Tab bị giữ, Esc = Huỷ. Ba điểm ✓ màu thành công; trần 105 °C khớp helper.</li>
         <li><span class="ref">4</span>Hộp cảnh báo vàng: rủi ro thuộc về người dùng.</li>
-        <li><span class="ref">5</span>"Hủy" <code>md · neutral · outline</code> · "Tôi hiểu, tiếp tục" <code>md · primary · solid</code> → ghi nhận, khởi chạy helper, macOS hỏi mật khẩu.</li>
+        <li><span class="ref">5</span>"Huỷ" <code>md · neutral · outline</code> · "Tôi hiểu, tiếp tục" <code>md · primary · solid</code> → ghi nhận, khởi chạy helper, macOS hỏi mật khẩu.</li>
         <li><span class="ref">6</span>Sau khi đồng ý: chip spinner "Đang khởi chạy helper…" và nút bật bị tắt (xám) cho tới khi <code>ready</code> hoặc <code>error</code>.</li>
       </ol>
     </div>
@@ -284,7 +284,7 @@
               <ul class="t-points"><li>Chỉ đặt tốc độ trong giới hạn máy cho phép</li><li>Tự trả quạt về tự động khi thoát app, mất kết nối, máy ngủ hoặc dậy</li><li>Tự trả về tự động khi một cảm biến vượt 105°C</li></ul>
               <p class="t-warn">Cho quạt chạy chậm hơn hệ thống có thể làm máy nóng hơn và giảm tuổi thọ linh kiện. Bạn tự chịu trách nhiệm khi dùng.</p>
             </div>
-            <div class="t-dlg-foot"><span class="m-btn" data-size="md">Hủy</span><span class="m-btn" data-size="md" data-tone="primary">Tôi hiểu, tiếp tục</span></div>
+            <div class="t-dlg-foot"><span class="m-btn" data-size="md">Huỷ</span><span class="m-btn" data-size="md" data-tone="primary">Tôi hiểu, tiếp tục</span></div>
           </div>
           <span class="callout" style="--x: 784px; --y: 50px">1</span>
           <span class="callout" style="--x: 400px; --y: 190px">2</span>
@@ -308,15 +308,15 @@
   <section class="scenario" id="fixed">
     <div class="scenario-copy">
       <h2>Cố định, lưu profile, cảm biến thô</h2>
-      <p>Chỉnh tay một quạt làm profile thành "Tùy chỉnh". Muốn giữ cấu hình: lưu thành profile. Cần theo một cảm biến cụ thể: dialog nâng cao.</p>
+      <p>Chỉnh tay một quạt làm profile thành "Tuỳ chỉnh". Muốn giữ cấu hình: lưu thành profile. Cần theo một cảm biến cụ thể: dialog nâng cao.</p>
       <ol>
-        <li><span class="ref">1</span>Ô Profile hiện "Tùy chỉnh" (mục không chọn được) sau khi chỉnh tay.</li>
-        <li><span class="ref">2</span>Form lưu nội tuyến: ô "Tên profile" <code>sm</code> (tối đa 40 ký tự, tự focus) · "Lưu" <code>sm · primary · solid</code> (tắt khi tên rỗng) · "Hủy" <code>sm · neutral · ghost</code>. Enter = Lưu.</li>
+        <li><span class="ref">1</span>Ô Profile hiện "Tuỳ chỉnh" (mục không chọn được) sau khi chỉnh tay.</li>
+        <li><span class="ref">2</span>Form lưu nội tuyến: ô "Tên profile" <code>sm</code> (tối đa 40 ký tự, tự focus) · "Lưu" <code>sm · primary · solid</code> (tắt khi tên rỗng) · "Huỷ" <code>sm · neutral · ghost</code>. Enter = Lưu.</li>
         <li><span class="ref">3</span>"Cố định" đang chọn: tốc độ hiện tại làm tròn 50 RPM thành mục tiêu.</li>
         <li><span class="ref">4</span><code>SliderField</code>: ô số (Enter / rời ô ghi, Esc khôi phục) + thanh trượt bước 50 (ghi khi thả / nhả phím). Ngoài khoảng → kẹp về biên.</li>
         <li><span class="ref">5</span>Vạch mục tiêu đi trước; phần tô (tốc độ thật) bắt kịp sau vài lần đọc.</li>
         <li><span class="ref">6</span>Dialog "Cảm biến cụ thể": ô lọc tự focus; hàng đang dùng có <code>aria-pressed</code> và nền nhấn nhạt; bấm một hàng = theo nó và đóng.</li>
-        <li><span class="ref">7</span>Profile của người dùng đang áp dụng có nút ✕ <code>sm · danger · ghost</code> "Xóa profile {name}" — xoá ngay, không hỏi (xem Chênh lệch).</li>
+        <li><span class="ref">7</span>Profile của người dùng đang áp dụng có nút ✕ <code>sm · danger · ghost</code> "Xoá profile {name}" — xoá ngay, không hỏi (xem Chênh lệch).</li>
       </ol>
     </div>
     <div class="scenario-frames">
@@ -325,7 +325,7 @@
         <div class="frame" data-theme="graphite" data-mode="light" style="--w: 620px; --h: 300px">
           <div class="t-plain">
             <section class="t-panel">
-              <div class="t-ptb"><h4>Quạt</h4><span class="t-select">Tùy chỉnh</span><span class="m-input t-input-sm" data-focus>Tối làm việc</span><span class="m-btn" data-tone="primary">Lưu</span><span class="m-btn" data-tone="ghost">Hủy</span><span class="m-spacer"></span><span class="m-btn">Về tự động</span></div>
+              <div class="t-ptb"><h4>Quạt</h4><span class="t-select">Tuỳ chỉnh</span><span class="m-input t-input-sm" data-focus>Tối làm việc</span><span class="m-btn" data-tone="primary">Lưu</span><span class="m-btn" data-tone="ghost">Huỷ</span><span class="m-spacer"></span><span class="m-btn">Về tự động</span></div>
               <div class="t-pbody">
                 <div class="t-fan">
                   <div class="t-fan-main"><div><span class="t-fan-name">Quạt trái</span><span class="t-rpm" data-held>2.940 RPM</span></div>
@@ -382,7 +382,7 @@
       <ol>
         <li><span class="ref">1</span>Dialog xác nhận: ba chấm trung tính (không phải ✓), không có hộp cảnh báo. "Bắt đầu nhận diện" <code>md · primary · solid</code>.</li>
         <li><span class="ref">2</span>Khi chạy: dải tiến trình dưới toolbar quạt (<code>role="status"</code>) — "{quạt} ({i}/{n}) · {pha} · {s} s". Pha: đo lúc nghỉ → chạy tối đa → chờ ổn định.</li>
-        <li><span class="ref">3</span>"Dừng nhận diện" <code>xs · danger · ghost</code>: hủy, quạt về tự động.</li>
+        <li><span class="ref">3</span>"Dừng nhận diện" <code>xs · danger · ghost</code>: huỷ, quạt về tự động.</li>
         <li><span class="ref">4</span>Mọi nút chế độ, ô Profile và "Về tự động" bị tắt (xám) trong lúc chạy.</li>
         <li><span class="ref">5</span>Sau khi xong: nguồn mới đứng đầu danh sách cảm biến của quạt đó, mô tả "{°C} · làm mát {cảm biến}".</li>
       </ol>
@@ -398,7 +398,7 @@
               <p>Viezan cho từng quạt chạy tối đa khoảng một phút rồi so nhiệt độ, để mỗi quạt theo đúng cảm biến cạnh nó.</p>
               <ul class="t-points" data-tone="neutral"><li>Mất vài phút và hơi ồn</li><li>Chỉ tăng tốc quạt, không bao giờ giảm</li><li>Đặt máy trên mặt phẳng và tránh chạy nặng trong lúc đó</li></ul>
             </div>
-            <div class="t-dlg-foot"><span class="m-btn" data-size="md">Hủy</span><span class="m-btn" data-size="md" data-tone="primary">Bắt đầu nhận diện</span></div>
+            <div class="t-dlg-foot"><span class="m-btn" data-size="md">Huỷ</span><span class="m-btn" data-size="md" data-tone="primary">Bắt đầu nhận diện</span></div>
           </div>
           <span class="callout" style="--x: 440px; --y: 280px">1</span>
         </div>
@@ -478,7 +478,7 @@
             </main>
           </div>
           <div class="m-popover t-pop t-at" style="--x: 760px; --y: 100px">
-            <div class="t-pop-head"><div class="m-spacer"><span class="m-strong">Tùy chọn nhiệt độ</span><p>Nhận diện cảm biến cho quạt và số đo bên ngoài cửa sổ này.</p></div><span class="m-btn" data-icon data-tone="ghost" data-size="xs">✕</span></div>
+            <div class="t-pop-head"><div class="m-spacer"><span class="m-strong">Tuỳ chọn nhiệt độ</span><p>Nhận diện cảm biến cho quạt và số đo bên ngoài cửa sổ này.</p></div><span class="m-btn" data-icon data-tone="ghost" data-size="xs">✕</span></div>
             <div class="t-pop-sec">
               <p class="t-sec-title">Nhận diện cảm biến</p>
               <p class="t-desc">Cho từng quạt chạy tối đa một lúc và ghi lại cảm biến nào mát đi, để mỗi quạt theo đúng các cảm biến cạnh nó.</p>

@@ -44,7 +44,7 @@ Bố cục mặc định (vùng nội dung ≥ 760 px, có mục đang xem):
 │ │   Sự tình cờ may mắn…         ★  │ │   Đó hoàn toàn là tình cờ…                     │ │
 │ │  ubiquitous /…/        1 giờ     │ │ GHI CHÚ                                        │ │
 │ │ ──────────────────────────────── │ │ • …                                            │ │
-│ │ (🗑 Xóa lịch sử)     (🗑 Xóa)    │ │                                                │ │
+│ │ (🗑 Xoá lịch sử)     (🗑 Xoá)    │ │                                                │ │
 │ └──────────────────────────────────┘ └────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -74,7 +74,7 @@ Bố cục mặc định (vùng nội dung ≥ 760 px, có mục đang xem):
 | 3 | Cấu hình AI | `md · neutral · ghost` icon bánh răng (mở: `primary · soft`), `aria-expanded`, `aria-haspopup="dialog"` | Click | Mở popover "Cấu hình AI" — "Áp dụng cho lượt tra cứu tiếp theo.", một mục "Mô hình" chứa danh sách model nội tuyến | Nút chuyển soft xanh | Luôn bật |
 | 4 | Popover › chọn model | `ModelSelector embedded inline directModelList` | Click một model | Đổi model cho lượt tra sau; popover **tự đóng** khi chọn | Popover đóng, focus về bánh răng | — |
 | 5 | Ô "Từ hoặc cụm từ" | `FilterInput size="md"` có icon tìm, bộ đếm `n/120` và nút xoá | Gõ; Enter gửi form | Cập nhật `term`; gõ thì xoá lỗi kiểm tra cũ | Bộ đếm hiện khi có chữ; > 120 ký tự: ô `invalid`, bộ đếm `data-invalid` đỏ | — |
-| 6 | Xoá ô từ (✕) | Nút xoá của `FilterInput`, `aria-label="Xóa tìm kiếm"` | Click | Xoá chữ, focus về ô | — | Ẩn khi trống |
+| 6 | Xoá ô từ (✕) | Nút xoá của `FilterInput`, `aria-label="Xoá tìm kiếm"` | Click | Xoá chữ, focus về ô | — | Ẩn khi trống |
 | 7 | Ô "Ngữ cảnh (không bắt buộc)" | `Textarea` | Gõ | Cập nhật `context`; có ngữ cảnh thì nhãn nghĩa đổi thành "Nghĩa trong ngữ cảnh này" | Bộ đếm `n/500` khi có chữ, đỏ khi vượt | — |
 | 8 | Tra cứu | `md · primary · solid`, rộng 100 %, icon sách, `type="submit"` | Click / Enter trong ô từ | `runLookup`: kiểm tra (trống, quá dài, ngữ cảnh quá dài, nguồn = đích) → dùng bộ nhớ đệm nếu cùng từ + cặp + ngữ cảnh + model → nếu không, gọi `lookupPreview` rồi `lookupDetails` | Đang chạy: icon xoay + "Đang tra…" (`aria-label` đổi theo) | `disabled` khi đang tra hoặc chưa chọn model (`title` "Chọn model trong Cấu hình AI để tra cứu.") |
 | 9 | Chip gợi ý (trạng thái trống) | `xs · neutral · outline`, `shape="pill"`, icon + chữ mono | Click | Điền từ vào ô (không tự tra) | Ô từ có chữ, bộ đếm hiện | — |
@@ -89,9 +89,9 @@ Bố cục mặc định (vùng nội dung ≥ 760 px, có mục đang xem):
 | 18 | Tìm trong lịch sử | `FilterInput size="sm"` | Gõ | Lọc theo từ chính, nghĩa, từ đã gõ | Không có kết quả: "Không có mục phù hợp" | Chỉ hiện khi tab hiện tại > 4 mục |
 | 19 | Hàng lịch sử | Nút gốc `.dictionary-history-select` (ngoại lệ có ghi chú trong mã), `aria-current` khi đang xem | Click / Enter | Hiện mục đó ở cột kết quả (không gọi AI) | Hàng có nền chọn + vạch xanh | — |
 | 20 | Sao trên hàng | `xs · neutral · ghost` icon (đã đánh dấu: `primary · soft`), `aria-pressed` | Click | Bật/tắt yêu thích của hàng đó | Sao luôn hiện khi đã đánh dấu; còn lại chỉ hiện khi rê chuột hoặc focus bàn phím | — |
-| 21 | Xóa lịch sử | `sm · danger` (appearance mặc định `soft`), `shape="pill"`, `aria-haspopup="dialog"` | Click | Mở hộp thoại xác nhận "Xóa tất cả mục lịch sử không yêu thích? Không thể hoàn tác." | — | `disabled` khi mọi mục đều là yêu thích; ẩn khi chưa có mục |
-| 22 | Xác nhận › Hủy / Xóa lịch sử | `md · neutral · outline` / `md · danger · solid` | Click | Huỷ, hoặc xoá mọi mục không yêu thích | Danh sách chỉ còn mục yêu thích | — |
-| 23 | Xóa (mục đang xem) | `sm · danger` (`soft`), `shape="pill"` | Click | Xoá mục đang xem, không xác nhận | Cột kết quả về trạng thái trống (không tự nhảy sang mục khác) | Chỉ hiện khi có mục đang xem |
+| 21 | Xoá lịch sử | `sm · danger` (appearance mặc định `soft`), `shape="pill"`, `aria-haspopup="dialog"` | Click | Mở hộp thoại xác nhận "Xoá tất cả mục lịch sử không yêu thích? Không thể hoàn tác." | — | `disabled` khi mọi mục đều là yêu thích; ẩn khi chưa có mục |
+| 22 | Xác nhận › Huỷ / Xoá lịch sử | `md · neutral · outline` / `md · danger · solid` | Click | Huỷ, hoặc xoá mọi mục không yêu thích | Danh sách chỉ còn mục yêu thích | — |
+| 23 | Xoá (mục đang xem) | `sm · danger` (`soft`), `shape="pill"` | Click | Xoá mục đang xem, không xác nhận | Cột kết quả về trạng thái trống (không tự nhảy sang mục khác) | Chỉ hiện khi có mục đang xem |
 | 24 | Toast lỗi › Thử lại | Hành động trong toast | Click | Chạy lại `runLookup` với từ hiện tại | Nút Tra cứu vào trạng thái đang tra | `disabled` khi ô từ trống, chưa có model hoặc đang tra |
 | 25 | Toast lỗi › Chọn model khác | Hành động trong toast | Click | Mở popover Cấu hình AI | Popover mở | — |
 | 26 | Toast lỗi › Mở Cài đặt | Hành động trong toast | Click | `openSettings()` | Cài đặt mở | — |
@@ -105,10 +105,10 @@ Bố cục mặc định (vùng nội dung ≥ 760 px, có mục đang xem):
 | Đang bổ sung chi tiết | Đã có bản xem trước, đang chờ `lookupDetails` | Mục từ hiện ngay ở đầu "Gần đây"; cạnh từ chính có chấm suy nghĩ `role="img"` "Đang bổ sung chi tiết…"; sau đó chip, sắc thái, ví dụ đầy đủ thay vào | Mọi hành động trên mục |
 | Có dữ liệu | Có mục đang xem | Header mục từ + các phần Nghĩa, Bản dịch, Sắc thái (tối đa 3), Ví dụ (đánh số, câu gốc + câu dịch), Ghi chú | #10–#23 |
 | Bộ nhớ đệm | Tra lại cùng từ + cặp + ngữ cảnh + model đã có chi tiết | Mục đưa lên đầu "Gần đây" ngay, không gọi AI, chuyển về tab Gần đây | — |
-| Lỗi kiểm tra | Bấm Tra cứu khi trống / > 120 ký tự / ngữ cảnh > 500 / nguồn = đích | Trống / quá dài: thông điệp dưới ô tương ứng (`role="alert"`, ô có `aria-invalid` + `aria-describedby`): "Nhập từ cần tra." / "Từ khóa quá dài." / "Ngữ cảnh quá dài."; gõ lại thì thông điệp tắt. Nguồn = đích: toast lỗi "Ngôn ngữ nguồn và đích phải khác nhau." | Sửa nội dung |
+| Lỗi kiểm tra | Bấm Tra cứu khi trống / > 120 ký tự / ngữ cảnh > 500 / nguồn = đích | Trống / quá dài: thông điệp dưới ô tương ứng (`role="alert"`, ô có `aria-invalid` + `aria-describedby`): "Nhập từ cần tra." / "Từ khoá quá dài." / "Ngữ cảnh quá dài."; gõ lại thì thông điệp tắt. Nguồn = đích: toast lỗi "Ngôn ngữ nguồn và đích phải khác nhau." | Sửa nội dung |
 | Lỗi nhà cung cấp | Gọi AI thất bại, phản hồi không hợp lệ hoặc bị cắt | Toast lỗi có dòng phụ "Provider · model" và ba nút Thử lại / Chọn model khác / Mở Cài đặt. Từ đã gõ được giữ. Lỗi ở pha chi tiết sau khi đã có bản xem trước: bản xem trước giữ nguyên, chỉ báo lỗi khi không phải lỗi phản hồi không hợp lệ/bị cắt | #24–#26 |
 | Thiếu khoá / model | `selectedModels[selectedProvider]` rỗng | Nút Tra cứu `disabled`, tooltip "Chọn model trong Cấu hình AI để tra cứu."; `CapabilityNotice` vàng "Chưa chọn model" phía trên nút, có nút "Mở Mô hình AI" (`openSettingsAt('api')`) | Cấu hình AI, Mở Mô hình AI |
-| Đã đánh dấu | `entry.favorite` | Sao `primary · soft` ở header và trên hàng; mục giữ lại khi Xóa lịch sử | Bỏ đánh dấu |
+| Đã đánh dấu | `entry.favorite` | Sao `primary · soft` ở header và trên hàng; mục giữ lại khi Xoá lịch sử | Bỏ đánh dấu |
 | Module tắt | `enabledModules.dictionary === false` | Mục điều hướng, lệnh ⌘K và thẻ Trang chủ ẩn (foundations §12) | — |
 
 ## 6. Luồng tương tác chính
@@ -139,8 +139,8 @@ Bố cục mặc định (vùng nội dung ≥ 760 px, có mục đang xem):
 
 **E. Dọn lịch sử**
 
-1. Bấm "Xóa lịch sử" ở chân danh sách → hộp thoại xác nhận.
-2. Bấm "Xóa lịch sử" (đỏ đặc) → chỉ còn mục yêu thích. Nếu mọi mục đều yêu thích, nút ở chân bị `disabled`.
+1. Bấm "Xoá lịch sử" ở chân danh sách → hộp thoại xác nhận.
+2. Bấm "Xoá lịch sử" (đỏ đặc) → chỉ còn mục yêu thích. Nếu mọi mục đều yêu thích, nút ở chân bị `disabled`.
 
 **F. Lỗi nhà cung cấp**
 
@@ -164,7 +164,7 @@ Ngưỡng theo container `dictionary-workbench` (`src/styles/dictionary.css`), t
 ## 8. Bàn phím và trợ năng
 
 - **Focus đầu**: ô "Từ hoặc cụm từ" khi trang mở.
-- **Thứ tự Tab**: cặp ngôn ngữ (nguồn → đảo → đích) → Cấu hình AI → ô từ → nút xoá ô → ô ngữ cảnh → Tra cứu → tab Gần đây/Yêu thích (một điểm dừng, ← → Home End để chuyển) → ô tìm lịch sử → từng hàng (nút chọn → sao) → Xóa lịch sử → Xóa → header mục từ (sao, sao chép, dùng trong AI Dịch) → chip bản dịch.
+- **Thứ tự Tab**: cặp ngôn ngữ (nguồn → đảo → đích) → Cấu hình AI → ô từ → nút xoá ô → ô ngữ cảnh → Tra cứu → tab Gần đây/Yêu thích (một điểm dừng, ← → Home End để chuyển) → ô tìm lịch sử → từng hàng (nút chọn → sao) → Xoá lịch sử → Xoá → header mục từ (sao, sao chép, dùng trong AI Dịch) → chip bản dịch.
 
   Lưu ý: trong DOM cột tra cứu đứng trước cột kết quả (`DictionaryWorkbenchTemplate`), nên Tab đi qua lịch sử trước khi tới kết quả.
 - **Enter** trong ô từ gửi form. Esc đóng popover và hộp thoại, trả focus về nút mở. Tra xong (không lỗi), focus chuyển tới tiêu đề mục từ (`h2 tabIndex=-1`).
@@ -207,10 +207,10 @@ Nguồn: `src/i18n/locales/vi.ts`.
 | `dictionary_history_label` | Lịch sử tra cứu |
 | `dictionary_recent` / `dictionary_favorites` | Gần đây / Yêu thích |
 | `dictionary_no_recent` / `dictionary_no_favorites` / `dictionary_no_matches` | Chưa có lịch sử tra / Chưa có mục yêu thích / Không có mục phù hợp |
-| `history_search_placeholder` / `history_search_clear` | Tìm trong lịch sử... / Xóa tìm kiếm |
-| `dictionary_delete` / `dictionary_clear_history` | Xóa / Xóa lịch sử |
-| `dictionary_clear_history_confirm` / `dictionary_clear_history_cancel` | Xóa tất cả mục lịch sử không yêu thích? Không thể hoàn tác. / Hủy |
-| `dictionary_error_required` / `dictionary_error_too_long` / `dictionary_error_context_too_long` | Nhập từ cần tra. / Từ khóa quá dài. / Ngữ cảnh quá dài. |
+| `history_search_placeholder` / `history_search_clear` | Tìm trong lịch sử... / Xoá tìm kiếm |
+| `dictionary_delete` / `dictionary_clear_history` | Xoá / Xoá lịch sử |
+| `dictionary_clear_history_confirm` / `dictionary_clear_history_cancel` | Xoá tất cả mục lịch sử không yêu thích? Không thể hoàn tác. / Huỷ |
+| `dictionary_error_required` / `dictionary_error_too_long` / `dictionary_error_context_too_long` | Nhập từ cần tra. / Từ khoá quá dài. / Ngữ cảnh quá dài. |
 | `dictionary_error_same_lang` | Ngôn ngữ nguồn và đích phải khác nhau. |
 | `dictionary_error_failed` / `dictionary_error_invalid_response` / `dictionary_error_truncated` | Tra từ thất bại. / Provider trả về mục từ không hợp lệ. / Phản hồi bị cắt ngắn. Vui lòng thử lại hoặc rút gọn ngữ cảnh. |
 | `dictionary_error_retry` / `translate_error_choose_model` / `translate_error_open_settings` | Thử lại / Chọn model khác / Mở Cài đặt |
@@ -225,7 +225,7 @@ Bản vẽ (`boards/Dictionary.dc.html`, `States`, `Histories`, `Popovers`) so v
 4. **"Bản dịch và sắc thái" dạng lưới thẻ** trong bản vẽ; mã dùng chip + tối đa 3 đoạn "Sắc thái · …" + hộp thoại chi tiết. Ví dụ trong bản vẽ là ô nền xám; mã là danh sách đánh số với câu gốc/câu dịch.
 5. **Gần đây / Yêu thích** là segmented control trong bản vẽ; mã dùng `TabBar` có số đếm và ô tìm (khi > 4 mục), hàng có nghĩa 2 dòng, phiên âm, chi phí (`UsageCostBadge`), nút sao. Mã giàu hơn bản vẽ; giữ mã.
 6. **Trạng thái trống (States)**: bản vẽ có tiêu đề "Chưa tra từ nào", câu hướng dẫn về ô bên trái và gợi ý "Trong bộ nhớ tạm · [từ vừa sao chép] · Tra từ này" — **đề xuất** (app không đọc clipboard ở trang này). Mã: "Chưa chọn mục nào" + ba chip mẫu.
-7. **Xóa mục đang xem không có xác nhận** và cùng mức nhấn với "Xóa lịch sử" (cả hai `danger · soft` pill). Đề xuất toast Hoàn tác, hoặc hạ "Xóa" xuống `ghost`.
+7. **Xoá mục đang xem không có xác nhận** và cùng mức nhấn với "Xoá lịch sử" (cả hai `danger · soft` pill). Đề xuất toast Hoàn tác, hoặc hạ "Xoá" xuống `ghost`.
 8. **Thứ tự đọc**: lịch sử đứng trước kết quả trong DOM. Sau khi tra, focus đã chuyển tới tiêu đề mục từ, nhưng chưa có liên kết bỏ qua danh sách lịch sử — **đề xuất**.
 9. **Cặp ngôn ngữ dùng chung với AI Dịch** (`scope="dictionary"` ghi vào phạm vi `translate`). Bản vẽ không nói rõ; đặc tả theo mã.
 10. **Nợ token nhỏ**: `.dictionary-skeleton-wide/-narrow` dùng phần trăm `90%`/`75%` cố định trong `src/styles/dictionary.css`; nút tra phần chọn đặt vị trí bằng `style` inline (có chú thích, là toạ độ tính toán, chấp nhận được).

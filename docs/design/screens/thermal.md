@@ -96,7 +96,7 @@ Thứ tự nhóm cảm biến cố định: CPU → GPU → Cảm biến khác (
 | H2 | "Bật điều khiển quạt" (`thermal_fan_enable`) | `md` · `primary` · `solid`, chữ nhật | Click / Enter / Space, khi helper `idle` | Lần đầu: mở dialog miễn trừ (mục 6.2). Đã đồng ý: khởi chạy helper, macOS hỏi mật khẩu quản trị | Chip chuyển "Đang khởi chạy helper…", nút tắt; thất bại → toast lỗi (khoá `thermal-fan`) | `disabled` khi bận; trong trạng thái `starting` nút hiện nhưng luôn tắt |
 | H3 | "Thử lại" (`thermal_fan_retry`) | `md` · `primary` · `solid` | Click, khi helper `error` | Như H2 (vẫn qua dialog nếu chưa đồng ý) | Như H2 | Bận |
 | H4 | "Tắt điều khiển quạt" (`thermal_fan_disable`) có icon dừng | `md` · `danger` · `outline` | Click, khi helper `ready` | Trả mọi quạt về tự động và bỏ helper (helper tự thoát sau đó) | Chip về "Điều khiển quạt đang tắt", hàng quạt về "Tự động (hệ thống)"; lỗi → toast | Bận |
-| H5 | Bánh răng "Tùy chọn nhiệt độ" | `md` · `neutral` · `ghost`, icon vuông; khi mở `primary` · `soft`. `aria-expanded`, `aria-haspopup="dialog"`, `aria-label` = `thermal_options_title` | Click; đóng bằng Esc, click ra ngoài, nút đóng | Mở `AIConfigurationPopover` neo dưới nút: mục "Nhận diện cảm biến" (chỉ khi có điều khiển quạt) và mục "Thanh menu" / "Khay hệ thống" | Focus vào điều khiển đầu tiên trong popover; đóng thì focus về nút | Không hiện khi không có `trayPlacement` (Windows, lần chạy không có khay, cảm biến không đọc được) hoặc settings chưa tải |
+| H5 | Bánh răng "Tuỳ chọn nhiệt độ" | `md` · `neutral` · `ghost`, icon vuông; khi mở `primary` · `soft`. `aria-expanded`, `aria-haspopup="dialog"`, `aria-label` = `thermal_options_title` | Click; đóng bằng Esc, click ra ngoài, nút đóng | Mở `AIConfigurationPopover` neo dưới nút: mục "Nhận diện cảm biến" (chỉ khi có điều khiển quạt) và mục "Thanh menu" / "Khay hệ thống" | Focus vào điều khiển đầu tiên trong popover; đóng thì focus về nút | Không hiện khi không có `trayPlacement` (Windows, lần chạy không có khay, cảm biến không đọc được) hoặc settings chưa tải |
 
 Chỉ một nút `solid` trong header tại một thời điểm (H2 hoặc H3); H4 là `outline` vì là hành động dừng.
 
@@ -104,19 +104,19 @@ Chỉ một nút `solid` trong header tại một thời điểm (H2 hoặc H3);
 
 | # | Điều khiển | Loại | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
-| F1 | Chọn profile (`SelectField`, nhãn "Profile" chỉ cho trình đọc màn hình) | `SelectField` (menu nổi neo vào nút) | Click / Enter mở menu; mũi tên chọn; chỉ khi helper `ready` | Áp dụng profile cho mọi quạt và ghi nhớ; "Tùy chỉnh" là mục không chọn được, hiện khi profile chưa áp dụng hoặc vừa chỉnh tay | Ô hiện tên profile; hàng quạt đổi chế độ theo trạng thái main gửi về; lỗi → toast `thermal_fan_profile_error` (khoá `thermal-fan-profile`) | Bận |
-| F2 | Xoá profile "Xóa profile {name}" | `sm` · `danger` · `ghost`, icon ✕ vuông, có `aria-label` | Click; chỉ hiện khi profile đang áp dụng là của người dùng | Xoá ngay, **không hỏi lại** | Ô chọn về "Tùy chỉnh"; lỗi → toast | Bận |
-| F3 | "Lưu profile" | `sm` · `neutral` · `outline` | Click | Thay nút bằng form nội tuyến: ô "Tên profile" (`sm`, tối đa 40 ký tự, tự focus) + "Lưu" + "Hủy" | Ô nhập có focus | Bận |
+| F1 | Chọn profile (`SelectField`, nhãn "Profile" chỉ cho trình đọc màn hình) | `SelectField` (menu nổi neo vào nút) | Click / Enter mở menu; mũi tên chọn; chỉ khi helper `ready` | Áp dụng profile cho mọi quạt và ghi nhớ; "Tuỳ chỉnh" là mục không chọn được, hiện khi profile chưa áp dụng hoặc vừa chỉnh tay | Ô hiện tên profile; hàng quạt đổi chế độ theo trạng thái main gửi về; lỗi → toast `thermal_fan_profile_error` (khoá `thermal-fan-profile`) | Bận |
+| F2 | Xoá profile "Xoá profile {name}" | `sm` · `danger` · `ghost`, icon ✕ vuông, có `aria-label` | Click; chỉ hiện khi profile đang áp dụng là của người dùng | Xoá ngay, **không hỏi lại** | Ô chọn về "Tuỳ chỉnh"; lỗi → toast | Bận |
+| F3 | "Lưu profile" | `sm` · `neutral` · `outline` | Click | Thay nút bằng form nội tuyến: ô "Tên profile" (`sm`, tối đa 40 ký tự, tự focus) + "Lưu" + "Huỷ" | Ô nhập có focus | Bận |
 | F3a | "Lưu" | `sm` · `primary` · `solid`, `type="submit"` | Click / Enter trong ô | Lưu trạng thái quạt hiện tại thành profile mới (tên đã cắt khoảng trắng) | Form đóng, profile mới xuất hiện trong F1; lỗi → toast | Bận hoặc tên rỗng |
-| F3b | "Hủy" | `sm` · `neutral` · `ghost` | Click | Đóng form, xoá tên | Nút "Lưu profile" trở lại | Không bao giờ tắt |
+| F3b | "Huỷ" | `sm` · `neutral` · `ghost` | Click | Đóng form, xoá tên | Nút "Lưu profile" trở lại | Không bao giờ tắt |
 | F4 | "Về tự động" (`thermal_fan_restore_all`) | `sm` · `neutral` · `outline` | Click; chỉ khi helper `ready` | Mọi quạt về tự động, helper vẫn kết nối | Mọi hàng quạt về "Tự động", vạch mục tiêu biến mất; lỗi → toast | Bận, đang nhận diện, hoặc không quạt nào bị app giữ |
-| F5 | Chế độ quạt: "Tự động" · "Cố định" · "Theo cảm biến" (trong `fieldset`, `legend` = tên quạt) | Mỗi nút `sm` · pill; đang chọn `primary` · `soft` + `aria-pressed="true"`, còn lại `neutral` · `ghost` | Click | Tự động: trả quạt cho hệ thống. Cố định: giữ ở tốc độ hiện tại làm tròn bước 50 RPM. Theo cảm biến: quy tắc mặc định "CPU nóng nhất, 50→90 °C" (hoặc "Cảm biến gần {quạt}" nếu đã nhận diện) | Tốc độ to đổi sang màu nhấn, `Meter` đổi `emphasis="action"`, xuất hiện vạch mục tiêu và ô tham số; profile chuyển "Tùy chỉnh" | Bận hoặc đang nhận diện. Khi helper không `ready`: thay bằng chữ "Tự động (hệ thống)" |
+| F5 | Chế độ quạt: "Tự động" · "Cố định" · "Theo cảm biến" (trong `fieldset`, `legend` = tên quạt) | Mỗi nút `sm` · pill; đang chọn `primary` · `soft` + `aria-pressed="true"`, còn lại `neutral` · `ghost` | Click | Tự động: trả quạt cho hệ thống. Cố định: giữ ở tốc độ hiện tại làm tròn bước 50 RPM. Theo cảm biến: quy tắc mặc định "CPU nóng nhất, 50→90 °C" (hoặc "Cảm biến gần {quạt}" nếu đã nhận diện) | Tốc độ to đổi sang màu nhấn, `Meter` đổi `emphasis="action"`, xuất hiện vạch mục tiêu và ô tham số; profile chuyển "Tuỳ chỉnh" | Bận hoặc đang nhận diện. Khi helper không `ready`: thay bằng chữ "Tự động (hệ thống)" |
 | F6 | "Tốc độ mục tiêu" (`SliderField`: ô số + thanh trượt, đơn vị RPM) | Molecule `SliderField`, bước 50, min/max của quạt | Kéo rồi thả; hoặc gõ số rồi Enter / rời ô; Esc trả về giá trị cũ | Gửi lệnh cố định một lần khi thả / Enter; giá trị ngoài khoảng được sửa về biên | Vạch mục tiêu trên `Meter` di chuyển; tốc độ thật bắt kịp sau vài lần đọc | Bận |
 | F7 | "Cảm biến" (`SelectField`) | Molecule `SelectField` | Chọn | Theo nhóm (CPU / GPU / toàn máy, nóng nhất), theo loại (một mục mỗi loại có trên máy, kèm số lượng), "Cảm biến gần {quạt}" sau nhận diện, mục cảm biến thô đang dùng, và "Chọn cảm biến cụ thể…" | Mỗi mục kèm số đo hiện tại làm mô tả; chọn "Chọn cảm biến cụ thể…" mở F10 | Bận |
 | F8 | "Tăng tốc từ" / "tối đa tại" (`NumberField`, °C) | Molecule `NumberField` | Gõ rồi Enter / rời ô; Esc khôi phục | Cập nhật quy tắc; giới hạn 20–110 °C, ngưỡng dưới luôn nhỏ hơn ngưỡng trên (max/min của ô kia tự co) | Dòng "Hiện {°C} → {RPM}" cập nhật ở lần đọc sau | Bận |
 | F9 | Dòng trạng thái quy tắc | Chữ `--vzn-font-size-caption` | — | "Hiện 58,2°C → 2.300 RPM"; nếu cảm biến nguồn không có trong lần đọc: "Cảm biến này không có trong lần đọc hiện tại; quạt giữ mục tiêu gần nhất." | — | — |
 | F10 | Dialog "Cảm biến cụ thể" (`DialogShell sm`) | Ô lọc `FilterInput sm` (tự focus, nút xoá bộ lọc); danh sách nút gốc `.thermal-raw__item` với `aria-pressed` | Gõ để lọc theo tên hoặc mã; click một hàng | Quạt theo đúng cảm biến đó; dialog đóng | Hàng đang dùng tô `--vzn-action-soft`; không khớp → "Không có cảm biến nào khớp." | Không có trạng thái tắt; đóng bằng nút ✕ "Đóng" hoặc Esc |
-| F11 | Thanh tiến trình nhận diện (`.thermal-calibration`, `role="status"`) | `ProgressBar` + chữ "{quạt} ({i}/{n}) · {pha} · {s} s" + "Dừng nhận diện" `xs` · `danger` · `ghost` | Chỉ hiện khi đang nhận diện | Dừng: hủy, quạt về tự động | Chữ "Đã dừng nhận diện; quạt về tự động." trong popover | Bận |
+| F11 | Thanh tiến trình nhận diện (`.thermal-calibration`, `role="status"`) | `ProgressBar` + chữ "{quạt} ({i}/{n}) · {pha} · {s} s" + "Dừng nhận diện" `xs` · `danger` · `ghost` | Chỉ hiện khi đang nhận diện | Dừng: huỷ, quạt về tự động | Chữ "Đã dừng nhận diện; quạt về tự động." trong popover | Bận |
 
 Nút gốc `.thermal-raw__item`, `.thermal-row__main--button` và `.thermal-table__toggle` là ngoại lệ có chủ ý cho hàng danh sách bấm được toàn dòng (không phải nút thanh công cụ).
 
@@ -129,14 +129,14 @@ Nút gốc `.thermal-raw__item`, `.thermal-row__main--button` và `.thermal-tabl
 | S3 | Hàng gộp (nhiều cảm biến cùng ý nghĩa) | Nút toàn dòng, `aria-expanded`; tooltip "Hiện từng cảm biến" / "Ẩn các cảm biến" | Click / Enter / Space | Mở lưới cảm biến thô (tên driver hoặc mã SMC + giá trị, nóng nhất trước) | Chú thích "{n} cảm biến · TB {avg}" | — |
 | S4 | Hàng đơn | Không bấm được; chú thích là mã cảm biến (mono) | — | — | — | — |
 
-### 4.4 Popover "Tùy chọn nhiệt độ"
+### 4.4 Popover "Tuỳ chọn nhiệt độ"
 
 Mô tả popover: `thermal_options_desc_fans` khi có điều khiển quạt, nếu không `thermal_options_desc`.
 
 | # | Điều khiển | Loại | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
 | O1 | "Nhận diện cảm biến" (đã có kết quả: "Nhận diện lại") | `sm` · `primary` · `solid` | Click | Đóng popover, mở dialog xác nhận nhận diện (mục 6.5) | — | Bận hoặc helper chưa `ready` (tooltip "Bật điều khiển quạt để áp dụng profile.") |
-| O2 | "Dừng nhận diện" | `sm` · `danger` · `outline` | Click, thay O1 khi đang chạy | Hủy nhận diện | Dòng trạng thái đổi | Bận |
+| O2 | "Dừng nhận diện" | `sm` · `danger` · `outline` | Click, thay O1 khi đang chạy | Huỷ nhận diện | Dòng trạng thái đổi | Bận |
 | O3 | "Quên kết quả" | `sm` · `neutral` · `ghost` | Click; chỉ khi có kết quả và không đang chạy | Xoá kết quả nhận diện; mục "Cảm biến gần {quạt}" biến mất | — | Bận |
 | O4 | Dòng trạng thái nhận diện (`role="status"`) | Chữ caption; `done` màu `--vzn-success`, `error` màu `--vzn-danger` | — | "Nhận diện lúc {date} · Quạt trái: 74 cảm biến · …" / tiến độ / "Đã dừng…" / "Nhận diện thất bại. {lỗi}" | — | — |
 | T1 | "Hiện số đo trực tiếp" | `ToggleSwitch` (`aria-labelledby`, `aria-describedby` = mô tả theo vị trí) | Click / Space | Bật / tắt mục thanh menu (macOS) hoặc chú thích khay (Linux) | Mục thanh menu hiện "…" rồi số đo; các hàng chi tiết hiện ra | Khi đang lưu (`settingsBusy`) |
@@ -153,9 +153,9 @@ Mọi thay đổi T1–T6 đi một vòng qua main (`useThermalSettings.update`)
 
 | # | Điều khiển | Loại | Kết quả |
 | --- | --- | --- | --- |
-| D1 | "Hủy" | `md` · `neutral` · `outline` | Đóng, không làm gì |
+| D1 | "Huỷ" | `md` · `neutral` · `outline` | Đóng, không làm gì |
 | D2 | "Tôi hiểu, tiếp tục" / "Bắt đầu nhận diện" | `md` · `primary` · `solid` | Miễn trừ: ghi `fanControl.acknowledged = true` rồi khởi chạy helper. Nhận diện: bắt đầu chạy |
-| D3 | ✕ đóng (đầu dialog) | Nút đóng của `DialogShell`, nhãn "Hủy" | Như D1 |
+| D3 | ✕ đóng (đầu dialog) | Nút đóng của `DialogShell`, nhãn "Huỷ" | Như D1 |
 
 ### 4.6 Mục thanh menu / khay (ngoài cửa sổ)
 
@@ -207,17 +207,17 @@ Ngưỡng màu nhiệt độ (`thermalTone`): dưới 70 °C chữ thường; 70
 
 1. Helper `idle`: header có chip "Điều khiển quạt đang tắt" và nút solid "Bật điều khiển quạt". Hàng quạt chỉ đọc "Tự động (hệ thống)".
 2. Bấm nút → vì `acknowledged` còn `false`, dialog "Trước khi điều khiển quạt" mở: một câu giới thiệu (helper quyền quản trị, hệ thống sẽ hỏi mật khẩu), ba dấu ✓ xanh lá (chỉ đặt tốc độ trong giới hạn; tự về tự động khi thoát app / mất kết nối / ngủ / dậy; tự về tự động khi một cảm biến vượt 105 °C), một hộp cảnh báo vàng về rủi ro. Focus vào nút đóng của dialog; Tab bị giữ trong dialog.
-3. "Hủy" / Esc / ✕ → đóng, focus về nút bật, không có gì thay đổi.
+3. "Huỷ" / Esc / ✕ → đóng, focus về nút bật, không có gì thay đổi.
 4. "Tôi hiểu, tiếp tục" → dialog đóng, ghi nhận đã đồng ý (lần sau không hỏi), helper khởi chạy: chip "Đang khởi chạy helper…" có spinner, nút bật bị tắt; macOS hiện hộp mật khẩu quản trị.
 5a. Nhập mật khẩu → chip "Helper đã kết nối (v…)", nút đổi thành "Tắt điều khiển quạt" (danger outline). Toolbar quạt hiện ô Profile và "Về tự động"; mỗi quạt có ba nút chế độ. Nếu đã có profile ghi nhớ, main áp dụng lại và ô hiện tên profile.
 5b. Huỷ mật khẩu / lỗi → chip đỏ "Không khởi chạy được helper", nút "Thử lại", toast lỗi.
 
 ### 6.3 Đổi profile quạt
 
-1. Helper `ready`. Ô Profile đang hiện "Tùy chỉnh" (hoặc profile hiện tại).
-2. Mở ô → danh sách: "Tùy chỉnh" (mờ, không chọn được), các profile có sẵn kèm mô tả (Theo hệ thống, Yên tĩnh, Mát, Gaming, AI local), rồi profile người dùng.
+1. Helper `ready`. Ô Profile đang hiện "Tuỳ chỉnh" (hoặc profile hiện tại).
+2. Mở ô → danh sách: "Tuỳ chỉnh" (mờ, không chọn được), các profile có sẵn kèm mô tả (Theo hệ thống, Yên tĩnh, Mát, Gaming, AI local), rồi profile người dùng.
 3. Chọn "Mát" → mọi điều khiển tắt trong lúc gửi; khi main trả lời, ô hiện "Mát", mỗi quạt chuyển "Theo cảm biến" với quy tắc của profile (tăng từ 45 °C, tối đa 75 °C theo CPU), vạch mục tiêu xuất hiện, hàng nền ở đáy thanh điều hướng đổi thành "Quạt · Mát".
-4. Chỉnh tay một quạt bất kỳ → ô Profile về "Tùy chỉnh" (profile không còn `applied`).
+4. Chỉnh tay một quạt bất kỳ → ô Profile về "Tuỳ chỉnh" (profile không còn `applied`).
 5. Muốn giữ cấu hình tay: "Lưu profile" → nhập tên → Enter / "Lưu" → profile mới được chọn sẵn trong danh sách; khi đang chọn profile của người dùng, nút ✕ xoá xuất hiện cạnh ô.
 6. Lỗi → toast "Không áp dụng được profile." (hoặc thông điệp của main); trạng thái quạt giữ nguyên như main báo.
 
@@ -245,7 +245,7 @@ Ngưỡng màu nhiệt độ (`thermalTone`): dưới 70 °C chữ thường; 70
 
 ### 6.7 Cấu hình số đo trên thanh menu
 
-1. Bấm bánh răng → popover "Tùy chọn nhiệt độ" neo dưới nút; mục "Thanh menu" (macOS) / "Khay hệ thống" (Linux).
+1. Bấm bánh răng → popover "Tuỳ chọn nhiệt độ" neo dưới nút; mục "Thanh menu" (macOS) / "Khay hệ thống" (Linux).
 2. Bật "Hiện số đo trực tiếp" → mục thanh menu xuất hiện với "…", rồi `58°` ở lần đọc sau; các hàng chi tiết hiện trong popover; mọi điều khiển tắt trong lúc main lưu.
 3. "Số đo" = CPU; bật "Kèm tốc độ quạt" → xuất hiện "Bố cục" (macOS) và "Tốc độ quạt".
 4. Chọn "Xếp chồng" + "Rút gọn (2.4k)" → "Xem trước" thành chip hai dòng `58°` / `2.4k`, giống hệt mục thanh menu.
@@ -270,7 +270,7 @@ Lưới hai bảng của trang này dùng `.app-panel-grid` với container quer
 
 - **Thứ tự Tab:** header (nút bật/tắt/thử lại → bánh răng) → toolbar quạt (Profile → ✕ xoá → Lưu profile → Về tự động) → từng quạt (Tự động → Cố định → Theo cảm biến → tham số) → toolbar nhiệt độ (không có điểm dừng) → tiêu đề nhóm → hàng gộp.
 - **Phím tắt:** không có phím tắt riêng của trang. Ô số: Enter ghi, Esc khôi phục; thanh trượt: mũi tên đổi theo bước 50, mỗi lần nhả phím (hoặc nhả chuột) gửi một lệnh.
-- **ARIA:** nút chế độ và nút bố cục có `aria-pressed`; nhóm chế độ là `fieldset` với `legend` ẩn = tên quạt; tiêu đề nhóm và hàng gộp có `aria-expanded` + `aria-controls`; bánh răng có `aria-label`, `aria-expanded`, `aria-haspopup="dialog"`; nút ✕ xoá profile có `aria-label` "Xóa profile {name}"; `Meter` là `<meter>` với `aria-label` = tên quạt, `aria-valuetext` = "{n} RPM" (vạch mục tiêu `aria-hidden`, chỉ có tooltip "Mục tiêu {rpm} RPM"); công tắc thanh menu nối nhãn qua `aria-labelledby` / `aria-describedby`; bảng nhiệt độ là `section` có `aria-label`; mỗi nhóm là `section` có `aria-label`.
+- **ARIA:** nút chế độ và nút bố cục có `aria-pressed`; nhóm chế độ là `fieldset` với `legend` ẩn = tên quạt; tiêu đề nhóm và hàng gộp có `aria-expanded` + `aria-controls`; bánh răng có `aria-label`, `aria-expanded`, `aria-haspopup="dialog"`; nút ✕ xoá profile có `aria-label` "Xoá profile {name}"; `Meter` là `<meter>` với `aria-label` = tên quạt, `aria-valuetext` = "{n} RPM" (vạch mục tiêu `aria-hidden`, chỉ có tooltip "Mục tiêu {rpm} RPM"); công tắc thanh menu nối nhãn qua `aria-labelledby` / `aria-describedby`; bảng nhiệt độ là `section` có `aria-label`; mỗi nhóm là `section` có `aria-label`.
 - **Vùng trực tiếp:** "Đang đọc cảm biến…", tiến trình nhận diện (bảng quạt) và dòng trạng thái nhận diện (popover) đều `role="status"`; `FeatureLoadingState` `role="status"`. Bảng nhiệt độ **không** là vùng live (tránh đọc lại mỗi 2 giây).
 - **Lớp phủ:** popover focus vào điều khiển đầu tiên, Esc / click ngoài đóng và trả focus về bánh răng. `DialogShell` focus nút đóng, giữ Tab, Esc đóng, trả focus về nơi mở; dialog cảm biến thô tự focus ô lọc.
 - **Không chỉ dùng màu:** giá trị nhiệt độ luôn là số; chế độ quạt có `aria-pressed` và chữ; trạng thái helper có chữ trên chip.
@@ -310,22 +310,22 @@ Lưới hai bảng của trang này dùng `.app-panel-grid` với container quer
 | `thermal_fan_source_group_cpu` / `_gpu` / `_all` | CPU (cảm biến nóng nhất) / GPU (cảm biến nóng nhất) / Cảm biến nóng nhất toàn máy |
 | `thermal_fan_source_advanced` / `thermal_fan_source_raw` | Chọn cảm biến cụ thể… / {code} (cảm biến cụ thể) |
 | `thermal_fan_source_dialog_title` / `_desc` | Cảm biến cụ thể / Toàn bộ cảm biến thô máy này báo cáo. Quạt sẽ chỉ theo đúng một cảm biến này. |
-| `thermal_fan_source_filter` / `_filter_clear` / `_no_match` / `_close` | Lọc theo tên hoặc mã / Xóa bộ lọc / Không có cảm biến nào khớp. / Đóng |
+| `thermal_fan_source_filter` / `_filter_clear` / `_no_match` / `_close` | Lọc theo tên hoặc mã / Xoá bộ lọc / Không có cảm biến nào khớp. / Đóng |
 | `thermal_fan_source_affinity` / `_affinity_desc` | Cảm biến gần {fan} / làm mát {sensors} |
-| `thermal_fan_profiles_title` / `thermal_fan_profile_custom` | Profile / Tùy chỉnh |
-| `thermal_fan_profile_save` / `_name_placeholder` / `_save_confirm` / `_save_cancel` | Lưu profile / Tên profile / Lưu / Hủy |
-| `thermal_fan_profile_delete` / `thermal_fan_profile_error` | Xóa profile {name} / Không áp dụng được profile. |
+| `thermal_fan_profiles_title` / `thermal_fan_profile_custom` | Profile / Tuỳ chỉnh |
+| `thermal_fan_profile_save` / `_name_placeholder` / `_save_confirm` / `_save_cancel` | Lưu profile / Tên profile / Lưu / Huỷ |
+| `thermal_fan_profile_delete` / `thermal_fan_profile_error` | Xoá profile {name} / Không áp dụng được profile. |
 | `thermal_fan_profile_builtin_*` | Theo hệ thống · Yên tĩnh · Mát · Gaming · AI local (kèm mô tả `_desc`) |
 | `thermal_fan_restored_reason` + `thermal_fan_reason_*` | Helper đã trả quạt về tự động ({reason}). — không nhận được nhịp từ app / chạm trần nhiệt độ / máy đi ngủ / máy vừa dậy / mất kết nối |
 | `thermal_fan_disclaimer_title` / `_intro` | Trước khi điều khiển quạt / Viezan sẽ chạy một helper nhỏ với quyền quản trị cho phiên này. Hệ thống sẽ hỏi mật khẩu. |
 | `thermal_fan_disclaimer_point_range` / `_restore` / `_ceiling` | Chỉ đặt tốc độ trong giới hạn máy cho phép / Tự trả quạt về tự động khi thoát app, mất kết nối, máy ngủ hoặc dậy / Tự trả về tự động khi một cảm biến vượt {ceiling}°C |
 | `thermal_fan_disclaimer_warning` | Cho quạt chạy chậm hơn hệ thống có thể làm máy nóng hơn và giảm tuổi thọ linh kiện. Bạn tự chịu trách nhiệm khi dùng. |
-| `thermal_fan_disclaimer_accept` / `_cancel` | Tôi hiểu, tiếp tục / Hủy |
+| `thermal_fan_disclaimer_accept` / `_cancel` | Tôi hiểu, tiếp tục / Huỷ |
 | `thermal_fan_calibrate` / `_desc` | Nhận diện cảm biến / Cho từng quạt chạy tối đa một lúc và ghi lại cảm biến nào mát đi… |
 | `thermal_fan_calibrate_confirm_title` / `_intro` / `_accept` | Nhận diện cảm biến của từng quạt / Viezan cho từng quạt chạy tối đa khoảng một phút… / Bắt đầu nhận diện |
 | `thermal_fan_calibrate_progress` + `_phase_*` | {fan} ({current}/{total}) · {phase} · {seconds} s — đo lúc nghỉ / chạy tối đa / chờ ổn định |
 | `thermal_fan_calibrate_cancel` / `_clear` / `_cancelled` / `_error` / `thermal_fan_calibrated_at` | Dừng nhận diện / Quên kết quả / Đã dừng nhận diện; quạt về tự động. / Nhận diện thất bại. / Nhận diện lúc {date} |
-| `thermal_options_title` / `thermal_options_desc` / `thermal_options_desc_fans` | Tùy chọn nhiệt độ / Số đo bên ngoài cửa sổ này. / Nhận diện cảm biến cho quạt và số đo bên ngoài cửa sổ này. |
+| `thermal_options_title` / `thermal_options_desc` / `thermal_options_desc_fans` | Tuỳ chọn nhiệt độ / Số đo bên ngoài cửa sổ này. / Nhận diện cảm biến cho quạt và số đo bên ngoài cửa sổ này. |
 | `thermal_tray_section_menu_bar` / `_tray` | Thanh menu / Khay hệ thống |
 | `thermal_tray_enable` + `_desc_menu_bar` / `_desc_tray` | Hiện số đo trực tiếp — Nhiệt độ nằm trên thanh menu và tiếp tục cập nhật mỗi năm giây khi cửa sổ này đang ẩn. |
 | `thermal_tray_metric` / `thermal_tray_show_fan` / `thermal_tray_layout` (+ `_inline` / `_stacked`) | Số đo / Kèm tốc độ quạt / Bố cục — Một dòng / Xếp chồng |
@@ -334,7 +334,7 @@ Lưới hai bảng của trang này dùng `.app-panel-grid` với container quer
 | `nav_background_fans_profile` / `nav_background_fans_custom` | Quạt · {profile} / Quạt · tuỳ chỉnh |
 | Menu thanh menu (main, `electron/trayManager.ts`, không qua i18n renderer) | Mở Viezan · Ẩn nhiệt độ khỏi thanh menu |
 
-Lưu ý chính tả: chuỗi hiện có trộn "Tùy/Hủy/Xóa" và "tuỳ" (`thermal_tray_error`, `nav_background_fans_custom`). Đặc tả giữ nguyên chữ của mã; thống nhất là việc của i18n.
+Lưu ý chính tả: chuỗi hiện có trộn "Tuỳ/Huỷ/Xoá" và "tuỳ" (`thermal_tray_error`, `nav_background_fans_custom`). Đặc tả giữ nguyên chữ của mã; thống nhất là việc của i18n.
 
 ## 10. Chênh lệch với bản dựng hiện tại
 
@@ -354,7 +354,7 @@ Thiếu sót trong mã (không có trong bản vẽ):
 9. **Lịch sử / sparkline:** `useThermalMonitor` giữ 90 mẫu mỗi cảm biến và quạt nhưng trang không vẽ. **Đề xuất** (nếu cần): sparkline trong hàng cảm biến.
 10. **Xoá profile không xác nhận và không hoàn tác.** **Đề xuất:** toast có "Hoàn tác" hoặc xác nhận nhỏ.
 11. **Nút đang chạy không có spinner:** khi bận, mọi nút chỉ bị `disabled` (trừ chip "Đang khởi chạy helper…"). Nền tảng yêu cầu nhãn "Đang …" — **đề xuất** cho áp dụng profile và Về tự động.
-12. **Toolbar quạt `nowrap`:** khi helper `ready` và form "Lưu profile" mở (ô tên + Lưu + Hủy) cạnh ô Profile, nút ✕ và "Về tự động", toolbar có thể tràn ở vùng hẹp. Chưa kiểm chứng bằng QA hình ảnh; **đề xuất** cho form xuống một hàng riêng dưới toolbar.
+12. **Toolbar quạt `nowrap`:** khi helper `ready` và form "Lưu profile" mở (ô tên + Lưu + Huỷ) cạnh ô Profile, nút ✕ và "Về tự động", toolbar có thể tràn ở vùng hẹp. Chưa kiểm chứng bằng QA hình ảnh; **đề xuất** cho form xuống một hàng riêng dưới toolbar.
 13. **Hai vùng `role="status"` cho cùng tiến trình nhận diện** (bảng quạt và popover) có thể đọc trùng khi popover mở.
 14. **Đồng ý miễn trừ:** trang ghi `acknowledged` mà không chờ kết quả; nếu lưu thất bại, dialog sẽ hỏi lại lần sau (an toàn, nhưng im lặng).
 15. **Chuỗi lỗi từ main chưa qua i18n:** các hook đã bỏ chuỗi dự phòng tiếng Anh, nhưng thông báo lỗi đọc cảm biến và lỗi lệnh quạt do main gửi về (`error`, `res.error`, `control.error`) vẫn hiển thị nguyên văn, nên người dùng tiếng Việt có thể thấy câu tiếng Anh trong `CapabilityNotice` và toast. **Đề xuất:** ánh xạ mã lỗi sang khoá i18n, chỉ giữ chi tiết kỹ thuật làm dòng phụ.
