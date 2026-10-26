@@ -4,6 +4,8 @@
  * Manages all chat-related state in isolation so it can be reasoned about,
  * tested, and evolved independently of translation or settings state.
  */
+
+import { MAX_CHAT_SESSIONS } from '../../constants/history'
 import type {
   ChatMessage,
   ChatSession,
@@ -12,17 +14,9 @@ import type {
   SystemPromptPreset,
   UsageCost,
 } from '../../types'
-
 import { type ChatTaskStarterState, getChatTaskExecution } from '../../types/chatTask'
 import { createClientId } from '../../utils/id'
 import type { SliceSet } from './sliceTypes'
-
-/**
- * Maximum number of chat sessions to keep in memory and persisted storage.
- * Oldest sessions are removed when the limit is exceeded to prevent
- * unbounded memory growth in long-running usage.
- */
-const MAX_CHAT_SESSIONS = 20
 
 /**
  * Stored title of a conversation that has not been named yet. Kept in English

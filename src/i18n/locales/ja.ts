@@ -1,6 +1,16 @@
 import type { Translations } from '../types'
 
 const ja: Translations = {
+  session_restoring: "作業を復元しています…",
+  session_smart_reset: "完了した作業を新しく始める",
+  session_smart_reset_desc: "離れてから戻ったとき、翻訳は2時間、辞書は30分で新しい作業を開きます。下書き、履歴、会話は保持します。",
+  session_translate_fresh: "新しい翻訳を始められます。",
+  session_dictionary_fresh: "新しい語句を調べられます。",
+  session_restore_previous: "前の作業を開く",
+  session_save_failed: "データを保存できませんでした。開いている内容は保持されています。アプリを終了する前に保存を再試行してください。",
+  session_retry_save: "保存を再試行",
+  session_recovery_unavailable: "保存された作業を読み込めませんでした。既存のデータは保持されますが、このセッションの新しい作業は復元用に保存されません。アプリを開き直す前に必要な内容を別途保存してください。",
+  session_history_limits: "履歴が保存上限に達しました：会話20件、翻訳100件、通訳セッション50件、辞書の最近の項目100件、またはお気に入り500件です。上限を超えて追加すると古い項目が置き換わる場合があります。長期間必要な内容は別途保存してください。",
   nav_translate: 'AI翻訳',
   nav_settings: '設定',
   nav_new_chat: '新規チャット',

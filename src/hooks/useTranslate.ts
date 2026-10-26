@@ -12,12 +12,12 @@
  * TranslatePage composes the presentation layer and routes these handlers.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { ImageAttachment } from '../components/translate/ImageTranslator'
 import type { VoiceRecordingState } from '../components/VoiceRecorder'
 import { MAX_IMAGE_INPUT_BYTES, MAX_TRANSLATE_IMAGE_DIMENSION } from '../constants/image'
 import { DETECT_LANG_MAX_CHARS } from '../constants/providers'
 import { COPY_FEEDBACK_DURATION_MS, IMAGE_AUTO_TRANSLATE_DELAY_MS } from '../constants/ui'
 import { translationService } from '../services/translationService'
+import { workbenchRecovery } from '../services/workbenchRecovery'
 import { useAppStore, useT } from '../store/useAppStore'
 import type {
   HistoryItem,
@@ -28,6 +28,7 @@ import type {
   TranslationModelSelection,
   TranslationStyle,
 } from '../types'
+import type { ImageAttachment, TranslateSnapshot, TranslationResultContext } from '../types/workbench'
 import { renderTranslatedRegions } from '../utils/canvas'
 import { localizeChatError, localizeChatException } from '../utils/chatErrors'
 import { createClientId } from '../utils/id'
@@ -35,6 +36,7 @@ import { extractImageFromClipboard, resizeImageFile } from '../utils/imageUtils'
 import { estimateUsageCost } from '../utils/usageCost'
 import { useTTS } from './useTTS'
 import { useVoiceInput } from './useVoiceInput'
+import { useWorkbenchSession } from './useWorkbenchSession'
 
 /**
  * Sentinel value set on translatedText when a Gemini image-edit result is shown.
@@ -52,16 +54,6 @@ interface AutoHistoryDraft {
   contextKey: string
   sourceText: string
   timestamp: number
-}
-
-interface TranslationResultContext {
-  sourceText: string
-  imageAttachment: ImageAttachment | null
-  sourceLang: string
-  targetLang: string
-  modelsKey: string
-  translationStyle: string
-  reasoningEffort: string
 }
 
 function translationModelKey({ provider, model }: TranslationModelSelection) {
@@ -288,6 +280,11 @@ export function useTranslate() {
     pendingTranslateRestoreId, setPendingTranslateRestore,
   } = useAppStore()
   const t = useT()
+  const [restored] = useState(() => {
+    const saved = workbenchRecovery.get('translate')?.snapshot
+    return saved && saved.sourceText === sourceText && !pendingTranslateRestoreId ? saved : null
+  })
+  const suppressRecoveryAutoRef = useRef(Boolean(restored || pendingTranslateRestoreId))
 
   const activeTranslationModels = useMemo<TranslationModelSelection[]>(() => {
     if (translationModels?.length) return translationModels
@@ -376,15 +373,15 @@ export function useTranslate() {
 
   const [copied, setCopied] = useState(false)
   const [copiedComparisonKey, setCopiedComparisonKey] = useState<string | null>(null)
-  const [comparisonResults, setComparisonResults] = useState<TranslationComparisonResult[]>([])
+  const [comparisonResults, setComparisonResults] = useState<TranslationComparisonResult[]>(() => restored?.comparisonResults.map((result) => result.status === 'success' ? result : createComparisonResult(result)) ?? [])
   /** The translation the user picked as the outcome of the current comparison run. */
-  const [selectedComparisonKey, setSelectedComparisonKey] = useState<string | null>(null)
+  const [selectedComparisonKey, setSelectedComparisonKey] = useState<string | null>(restored?.selectedComparisonKey ?? null)
   const selectedComparisonKeyRef = useRef(selectedComparisonKey)
   selectedComparisonKeyRef.current = selectedComparisonKey
   /** History entry shown on the workbench, so the history panel can mark it. */
-  const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null)
+  const [activeHistoryId, setActiveHistoryId] = useState<string | null>(restored?.activeHistoryId ?? null)
   /** History entry owned by the current comparison run; re-picking replaces it instead of adding. */
-  const comparisonHistoryIdRef = useRef<string | null>(null)
+  const comparisonHistoryIdRef = useRef<string | null>(restored?.activeHistoryId ?? null)
   /** Latest comparison results, readable from async completions and pick handlers without stale closures. */
   const comparisonResultsRef = useRef(comparisonResults)
   comparisonResultsRef.current = comparisonResults
@@ -392,9 +389,10 @@ export function useTranslate() {
   /** Shown when image translation silently switched to a different model/provider */
   const [imageSwitchNotice, setImageSwitchNotice] = useState<{ model: string; provider: string } | null>(null)
   /** Language detected by AI from the last source text — drives the swap button */
-  const [detectedSourceLang, setDetectedSourceLang] = useState<string | null>(null)
+  const [detectedSourceLang, setDetectedSourceLang] = useState<string | null>(restored?.detectedSourceLang ?? null)
   /** True while background language detection is in progress */
   const [isDetectingLang, setIsDetectingLang] = useState(false)
+  const [isProcessingImage, setIsProcessingImage] = useState(false)
 
   // TTS — delegated to useTTS hook (Web Audio API + OS synthesis fallback, no console.log)
   const { speakingPanel, speakLoading, handleSpeak, stopSpeak } = useTTS({ ttsMode, ttsVoice })
@@ -411,13 +409,13 @@ export function useTranslate() {
   }, [])
 
   // Image attachment state
-  const [imageAttachment, setImageAttachment] = useState<ImageAttachment | null>(null)
+  const [imageAttachment, setImageAttachment] = useState<ImageAttachment | null>(restored?.imageAttachment ?? null)
   // Regions returned by AI when translating an image (fallback approach)
-  const [imageRegions, setImageRegions] = useState<ImageTextRegion[] | null>(null)
+  const [imageRegions, setImageRegions] = useState<ImageTextRegion[] | null>(restored?.imageRegions ?? null)
   // Edited image returned directly by Gemini image-edit model
-  const [editedImageUrl, setEditedImageUrl] = useState<string | null>(null)
+  const [editedImageUrl, setEditedImageUrl] = useState<string | null>(restored?.editedImageUrl ?? null)
   // Snapshot that produced the visible result. A mismatched draft is explicitly stale.
-  const [resultContext, setResultContext] = useState<TranslationResultContext | null>(() => (
+  const [resultContext, setResultContext] = useState<TranslationResultContext | null>(() => restored?.resultContext ?? (
     translatedText && translatedText !== IMAGE_TRANSLATED_SENTINEL
       ? {
           sourceText,
@@ -490,6 +488,7 @@ export function useTranslate() {
     translateGenerationRef.current++
     phoneticRequestRef.current++
     imageProcessGenerationRef.current++
+    setIsProcessingImage(false)
     invalidateRewrite()
     cancelActiveTranslation()
     setIsTranslating(false)
@@ -499,6 +498,7 @@ export function useTranslate() {
   }, [cancelActiveTranslation, invalidateRewrite, setIsTranslating, stopSpeak])
 
   const handleTranslationModelsChange = useCallback((nextModels: TranslationModelSelection[]) => {
+    suppressRecoveryAutoRef.current = false
     const previousSingleKey = activeTranslationModels[0]
       ? translationModelKey(activeTranslationModels[0])
       : null
@@ -556,6 +556,7 @@ export function useTranslate() {
 
   /** Process an image File: resize, convert to base64, attach to translate area */
   const processImageFile = useCallback(async (file: File) => {
+    suppressRecoveryAutoRef.current = false
     if (!file.type.startsWith('image/')) {
       setTranslateError(t.image_translate_type_error)
       return
@@ -567,6 +568,7 @@ export function useTranslate() {
     }
     invalidateActiveTranslation()
     const processGeneration = ++imageProcessGenerationRef.current
+    setIsProcessingImage(true)
     try {
       const result = await resizeImageFile(file, MAX_TRANSLATE_IMAGE_DIMENSION, { useQualityLoop: true })
       if (imageProcessGenerationRef.current !== processGeneration) return
@@ -590,6 +592,8 @@ export function useTranslate() {
     } catch (err) {
       if (imageProcessGenerationRef.current !== processGeneration) return
       setTranslateError(localizeTranslationException(t, err, t.image_translate_error_failed))
+    } finally {
+      if (imageProcessGenerationRef.current === processGeneration) setIsProcessingImage(false)
     }
   }, [invalidateActiveTranslation, setTranslateError, setTranslatedText, setPhoneticText, t])
 
@@ -628,6 +632,7 @@ export function useTranslate() {
   }, [processImageFile])
 
   const handleVoiceTextChange = useCallback((text: string) => {
+    suppressRecoveryAutoRef.current = false
     invalidateActiveTranslation()
     setSourceText(text)
   }, [invalidateActiveTranslation, setSourceText])
@@ -1266,7 +1271,7 @@ export function useTranslate() {
   // Use runTranslateRef to avoid the infinite loop caused by runTranslate changing when
   // isTranslating flips true→false after each translation.
   useEffect(() => {
-    if (!autoTranslate || !sourceText.trim() || isVoiceActive) return
+    if (suppressRecoveryAutoRef.current || !autoTranslate || !sourceText.trim() || isVoiceActive) return
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
       if (resultFreshRef.current) return
@@ -1277,7 +1282,7 @@ export function useTranslate() {
 
   // Auto-translate when an image is attached — image has no text to debounce on
   useEffect(() => {
-    if (!autoTranslate || !imageAttachment) return
+    if (suppressRecoveryAutoRef.current || !autoTranslate || !imageAttachment) return
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => { runTranslateRef.current('auto') }, IMAGE_AUTO_TRANSLATE_DELAY_MS)  // HC-03
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
@@ -1287,6 +1292,7 @@ export function useTranslate() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: translationStyle is the intentional trigger; runTranslate is accessed via a stable ref
   useEffect(() => {
     if (!styleInitRef.current) { styleInitRef.current = true; return }
+    if (suppressRecoveryAutoRef.current) return
     invalidateRewrite()
     if (!sourceTextRef.current.trim() && !imageAttachmentRef.current) return
     if (isTranslatingRef.current) {
@@ -1301,6 +1307,7 @@ export function useTranslate() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: reasoning effort is the intentional trigger; runTranslate is accessed via a stable ref
   useEffect(() => {
     if (!reasoningInitRef.current) { reasoningInitRef.current = true; return }
+    if (suppressRecoveryAutoRef.current) return
     invalidateRewrite()
     if (!sourceTextRef.current.trim() || imageAttachmentRef.current) return
     if (isTranslatingRef.current) {
@@ -1313,6 +1320,7 @@ export function useTranslate() {
 
   const restartForLanguageRef = useRef(false)
   const handleLanguagePairChange = useCallback((pair: { source: string; target: string }) => {
+    suppressRecoveryAutoRef.current = false
     if (pair.source === sourceLang && pair.target === targetLang) return
     restartForLanguageRef.current = isTranslatingRef.current
     invalidateActiveTranslation()
@@ -1326,6 +1334,7 @@ export function useTranslate() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: lang changes are the triggers; sourceText/imageAttachment/runTranslate accessed via stable refs
   useEffect(() => {
     if (!langInitRef.current) { langInitRef.current = true; return }
+    if (suppressRecoveryAutoRef.current) return
     setDetectedSourceLang(null)
     setIsDetectingLang(false)
     invalidateRewrite()
@@ -1343,6 +1352,7 @@ export function useTranslate() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: provider/model changes are the triggers; runTranslate via stable ref
   useEffect(() => {
     if (!modelInitRef.current) { modelInitRef.current = true; return }
+    if (suppressRecoveryAutoRef.current) return
     invalidateRewrite()
     if (!sourceTextRef.current.trim() && !imageAttachmentRef.current) return
     if (isTranslatingRef.current) {
@@ -1355,6 +1365,7 @@ export function useTranslate() {
 
   const handleUseAsSource = useCallback((text: string) => {
     if (!text || isResultStale || isTranslating || imageAttachment) return
+    suppressRecoveryAutoRef.current = false
     const resolvedSource = sourceLang === 'auto' ? detectedSourceLang : sourceLang
     invalidateActiveTranslation()
     setSourceText(text)
@@ -1401,6 +1412,7 @@ export function useTranslate() {
       if (rewriteGenerationRef.current !== rewriteGeneration) return
       if (result.success && result.translatedText) {
         if (panel === 'source') {
+          suppressRecoveryAutoRef.current = false
           invalidateActiveTranslation()
           setSourceText(result.translatedText)
           // Clear stale phonetic immediately — auto-translate will regenerate it after the
@@ -1426,6 +1438,7 @@ export function useTranslate() {
 
   /** Handles MarkdownEditor source text changes */
   const handleSourceChange = useCallback((val: string) => {
+    suppressRecoveryAutoRef.current = false
     if (val !== sourceText) invalidateActiveTranslation()
     setSourceText(val)
     if (!val.trim()) {
@@ -1439,7 +1452,8 @@ export function useTranslate() {
   }, [sourceText, invalidateActiveTranslation, setSourceText, setTranslatedText, setPhoneticText, isVoiceActive, resetVoicePrefix])
 
   /** Clears the source panel (ClearButton) — cancels any in-flight translation */
-  const handleClearSource = useCallback(() => {
+  const resetTranslationContent = useCallback(() => {
+    suppressRecoveryAutoRef.current = true
     invalidateActiveTranslation()
     setSourceText('')
     setImageAttachment(null)
@@ -1457,6 +1471,11 @@ export function useTranslate() {
     setIsDetectingLang(false)
     setImageSwitchNotice(null)
   }, [invalidateActiveTranslation, setSourceText, setTranslatedText, setPhoneticText, setTranslateError])
+
+  const handleClearSource = useCallback(() => {
+    workbenchRecovery.clear('translate')
+    resetTranslationContent()
+  }, [resetTranslationContent])
 
   /** Dismisses the current error banner — clears translateError in store */
   const handleDismissError = useCallback(() => {
@@ -1496,6 +1515,7 @@ export function useTranslate() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs once per restore request and reads the rest at that moment
   useEffect(() => {
     if (!pendingTranslateRestoreId) return
+    suppressRecoveryAutoRef.current = true
     const item = useAppStore.getState().history.find((entry) => entry.id === pendingTranslateRestoreId)
     setPendingTranslateRestore(null)
     if (!item) return
@@ -1525,6 +1545,40 @@ export function useTranslate() {
     setResultContext(currentResultContext)
   }, [pendingTranslateRestoreId])
 
+  const sessionSnapshot = useMemo<TranslateSnapshot>(() => ({
+    sourceText, translatedText, phoneticText, sourceLang, targetLang,
+    translationModels: activeTranslationModels, translationStyle, translationReasoningEffort,
+    imageAttachment, imageRegions, editedImageUrl, comparisonResults, selectedComparisonKey,
+    activeHistoryId, resultContext, detectedSourceLang,
+  }), [sourceText, translatedText, phoneticText, sourceLang, targetLang, activeTranslationModels,
+    translationStyle, translationReasoningEffort, imageAttachment, imageRegions, editedImageUrl,
+    comparisonResults, selectedComparisonKey, activeHistoryId, resultContext, detectedSourceLang])
+
+  const restoreSession = (snapshot: TranslateSnapshot) => {
+    suppressRecoveryAutoRef.current = true
+    invalidateActiveTranslation()
+    useAppStore.setState({ sourceText: snapshot.sourceText, translatedText: snapshot.translatedText,
+      phoneticText: snapshot.phoneticText, sourceLang: snapshot.sourceLang, targetLang: snapshot.targetLang,
+      translationModels: snapshot.translationModels, translationStyle: snapshot.translationStyle,
+      translationReasoningEffort: snapshot.translationReasoningEffort, translateError: null })
+    setImageAttachment(snapshot.imageAttachment)
+    setImageRegions(snapshot.imageRegions)
+    setEditedImageUrl(snapshot.editedImageUrl)
+    setComparisonResults(snapshot.comparisonResults)
+    setSelectedComparisonKey(snapshot.selectedComparisonKey)
+    setActiveHistoryId(snapshot.activeHistoryId)
+    comparisonHistoryIdRef.current = snapshot.activeHistoryId
+    setResultContext(snapshot.resultContext)
+    setDetectedSourceLang(snapshot.detectedSourceLang)
+  }
+  const session = useWorkbenchSession('translate', {
+    snapshot: sessionSnapshot,
+    complete: hasVisibleResult && !isResultStale && !translateError
+      && (!isComparisonMode || comparisonResults.every((result) => result.status === 'success')),
+    busy: isTranslating || isVoiceActive || Boolean(isRewriting) || isDetectingLang || isProcessingImage || Boolean(pendingTranslateRestoreId),
+    reset: resetTranslationContent, restore: restoreSession,
+  })
+
   const visibleComparisonResults = useMemo(() => {
     const resultsByKey = new Map(comparisonResults.map((result) => [result.key, result]))
     return activeTranslationModels.map((selection) => (
@@ -1533,6 +1587,8 @@ export function useTranslate() {
   }, [activeTranslationModels, comparisonResults])
 
   return {
+    canRestoreSession: Boolean(session.previous) && !sourceText && !imageAttachment && !hasVisibleResult,
+    restoreSession: session.restorePrevious,
     // ── Store state (needed by JSX) ─────────────────────────────────────────
     sourceText,
     translatedText,
@@ -1553,9 +1609,9 @@ export function useTranslate() {
     setTargetLang,
     setActivePage,
     setPhoneticMode: handlePhoneticModeChange,
-    setTranslationStyle,
-    setTranslationReasoningEffort,
-    setAutoTranslate,
+    setTranslationStyle: (value: TranslationStyle) => { suppressRecoveryAutoRef.current = false; setTranslationStyle(value) },
+    setTranslationReasoningEffort: (value: TranslateSnapshot['translationReasoningEffort']) => { suppressRecoveryAutoRef.current = false; setTranslationReasoningEffort(value) },
+    setAutoTranslate: (value: boolean) => { suppressRecoveryAutoRef.current = false; setAutoTranslate(value) },
     setTranslationModels: handleTranslationModelsChange,
     // ── Local state ────────────────────────────────────────────────────────
     copied,

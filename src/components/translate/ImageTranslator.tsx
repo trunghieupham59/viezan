@@ -10,14 +10,9 @@ import '../../styles/translate.css'
 // HC-09: MAX_TRANSLATE_IMAGE_DIMENSION imported from constants/image.ts
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export interface ImageAttachment {
-  base64: string
-  mimeType: string
-  width: number
-  height: number
-  previewDataUrl: string   // full data URL for display
-  fileName: string
-}
+import type { ImageAttachment } from '../../types/workbench'
+
+export type { ImageAttachment } from '../../types/workbench'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface ImageTranslatorProps {

@@ -88,6 +88,9 @@ if (typeof window !== 'undefined') {
    * mock fails `tsc` here instead of surfacing as `undefined is not a function` in a test.
    */
   const systemApiMock: SystemApi = {
+    onSessionActivity: vi.fn().mockReturnValue(() => {}),
+    onPrepareSessionSave: vi.fn().mockReturnValue(() => {}),
+    completeSessionSave: vi.fn().mockResolvedValue(undefined),
     checkScreenPermission: vi.fn().mockResolvedValue('denied'),
     openExternal: vi.fn().mockResolvedValue(undefined),
     relaunchApp: vi.fn().mockResolvedValue(undefined),

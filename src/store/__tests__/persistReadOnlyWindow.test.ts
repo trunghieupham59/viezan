@@ -80,3 +80,24 @@ describe('cross-window persistence', () => {
     expect(readState().history).toEqual([{ id: 'h1' }])
   })
 })
+
+describe('chat restore after restart', () => {
+  beforeEach(() => { localStorage.clear(); vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers(); localStorage.clear() })
+
+  it('restores the selected conversation and its draft, including an explicit New Chat choice', async () => {
+    const main = await openWindow()
+    const id = main.useAppStore.getState().createChatSession('openai', 'test-model')
+    main.useAppStore.getState().setChatSessionDraft(id, 'unfinished thought')
+    main.flushPersistedStore()
+    const reopened = await openWindow()
+    expect(reopened.useAppStore.getState().activeChatSessionId).toBe(id)
+    expect(reopened.useAppStore.getState().chatSessions[0].draftInput).toBe('unfinished thought')
+    reopened.useAppStore.getState().setActiveChatSession(null)
+    reopened.useAppStore.getState().setChatPendingDraft('new topic')
+    reopened.flushPersistedStore()
+    const fresh = await openWindow()
+    expect(fresh.useAppStore.getState().activeChatSessionId).toBeNull()
+    expect(fresh.useAppStore.getState().chatPendingDraft).toBe('new topic')
+  })
+})

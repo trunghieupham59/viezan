@@ -1,6 +1,7 @@
 import { act } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { compactPersistedValue, useAppStore, writeWithQuotaFallback } from '../useAppStore'
+import { useAppStore, writePersistedValue } from '../useAppStore'
+import { useStorageStatus } from '../useStorageStatus'
 
 // Reset relevant store slices before each test
 beforeEach(() => {
@@ -372,7 +373,7 @@ describe('clearTranslation', () => {
 })
 
 // ─── Persistence quota handling ────────────────────────────────────────────────
-describe('persistence quota fallback', () => {
+describe('persistence quota protection', () => {
   const blob = JSON.stringify({
     version: 1,
     state: {
@@ -387,47 +388,25 @@ describe('persistence quota fallback', () => {
 
   it('stores the full payload when the browser accepts it', () => {
     const setItem = vi.fn()
-    expect(writeWithQuotaFallback({ setItem }, 'k', blob)).toBe(true)
+    expect(writePersistedValue({ setItem }, 'k', blob)).toBe(true)
     expect(setItem).toHaveBeenCalledTimes(1)
     expect(setItem).toHaveBeenCalledWith('k', blob)
   })
 
-  it('drops live segments first and keeps settings and history', () => {
-    const level1 = JSON.parse(compactPersistedValue(blob, 1) as string).state
-    expect(level1.theme).toBe('dark')
-    expect(level1.history).toHaveLength(60)
-    expect(level1.liveSessions).toHaveLength(8)
-    expect(level1.liveSessions.every((s: { segments?: unknown }) => s.segments === undefined)).toBe(true)
-  })
-
-  it('keeps only recent items at level 2 and no bulky data at level 3', () => {
-    const level2 = JSON.parse(compactPersistedValue(blob, 2) as string).state
-    expect(level2.history).toHaveLength(30)
-    expect(level2.chatSessions).toHaveLength(5)
-    expect(level2.liveSessions).toHaveLength(5)
-    const level3 = JSON.parse(compactPersistedValue(blob, 3) as string).state
-    expect(level3.history).toEqual([])
-    expect(level3.selectedProvider).toBe('gemini')
-  })
-
-  it('retries with a smaller payload after a quota error instead of throwing', () => {
-    const limit = compactPersistedValue(blob, 2)?.length ?? 0
-    const setItem = vi.fn((_k: string, value: string) => {
-      if (value.length > limit) throw new DOMException('full', 'QuotaExceededError')
+  it('keeps the last saved content and reports failure instead of shrinking history', () => {
+    let saved = 'previous snapshot'
+    const setItem = vi.fn((_key: string, value: string) => {
+      if (value === blob) throw new DOMException('full', 'QuotaExceededError')
+      saved = value
     })
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    expect(writeWithQuotaFallback({ setItem }, 'k', blob)).toBe(true)
-    const last = JSON.parse(setItem.mock.calls[setItem.mock.calls.length - 1][1]).state
-    expect(last.theme).toBe('dark')
-    expect(last.history.length).toBeLessThanOrEqual(30)
+    expect(writePersistedValue({ setItem }, 'k', blob)).toBe(false)
+    expect(setItem).toHaveBeenCalledTimes(1)
+    expect(saved).toBe('previous snapshot')
+    expect(useStorageStatus.getState().settingsFailed).toBe(true)
+    expect(writePersistedValue({ setItem: vi.fn() }, 'k', blob)).toBe(true)
+    expect(useStorageStatus.getState().settingsFailed).toBe(false)
   })
 
-  it('gives up quietly (no throw) when even settings do not fit', () => {
-    const setItem = vi.fn(() => { throw new DOMException('full', 'QuotaExceededError') })
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    expect(writeWithQuotaFallback({ setItem }, 'k', blob)).toBe(false)
-    expect(writeWithQuotaFallback({ setItem }, 'k', 'not json')).toBe(false)
-  })
 })
 
 describe('chat image persistence', () => {

@@ -6,6 +6,16 @@ export type AppLocale = 'en' | 'vi' | 'ja'
 export type VoiceErrorTranslationKey = `voice_error_${Lowercase<AudioTranscriptionErrorCode>}`
 
 export interface Translations {
+  session_restoring: string
+  session_smart_reset: string
+  session_smart_reset_desc: string
+  session_translate_fresh: string
+  session_dictionary_fresh: string
+  session_restore_previous: string
+  session_save_failed: string
+  session_retry_save: string
+  session_recovery_unavailable: string
+  session_history_limits: string
   // Navbar / Sidebar
   nav_translate: string
   nav_settings: string

@@ -437,3 +437,9 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 1. **Thẻ "Theo dõi chi phí" là khung riêng** (`.cost-card` trong `src/styles/cost.css`, đã dùng token) chứ không phải `SettingsCard` (`CostOverviewCard.tsx`, `ProviderCostStats.tsx`). Nút "Reset" `sm` nằm trong dòng mô tả của hàng.
 2. **Kích thước trộn trong một thẻ:** khối so sánh hiệu năng dùng `md` trong thẻ có các nút `sm`.
 3. **Không có skeleton** cho AI local và các hàng chờ main (Khởi động cùng hệ thống, Thông báo cập nhật bị ẩn rồi bật ra, làm nhảy bố cục).
+
+## Phiên làm việc (V1)
+
+Trong Tuỳ chọn có công tắc “Làm mới lượt đã hoàn tất”, mặc định bật. Mô tả nêu rõ Dịch 2 giờ, Từ điển 30 phút; giữ bản nháp, lịch sử và cuộc trò chuyện. Tắt chỉ ngừng làm mới tự động, vẫn khôi phục nội dung. Chưa có bộ chọn thời gian riêng trong V1.
+
+Lỗi lưu là thông báo toàn ứng dụng có “Thử lưu lại”, tự tắt khi lưu thành công. Không đọc được kho phục hồi thì giữ dữ liệu cũ, không ghi đè và thông báo giới hạn phục hồi cho phiên hiện tại.

@@ -21,6 +21,10 @@ export interface LoginItemUpdateResult {
 }
 
 export interface SystemApi {
+  /** Main-window lifecycle only; subscribing never starts recording or AI work. */
+  onSessionActivity: (callback: (activity: 'away' | 'back') => void) => () => void
+  onPrepareSessionSave: (callback: () => void) => () => void
+  completeSessionSave: () => Promise<void>
   checkScreenPermission: () => Promise<ScreenPermissionStatus>
   /** Open a URL in the system browser or a System Settings deep link (allow-listed in main). */
   openExternal: (url: string) => Promise<void>

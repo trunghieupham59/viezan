@@ -1,6 +1,16 @@
 import type { Translations } from '../types'
 
 const en: Translations = {
+  session_restoring: "Restoring your workspace…",
+  session_smart_reset: "Start fresh after completed work",
+  session_smart_reset_desc: "When you return after a break, start a new translation after 2 hours or dictionary lookup after 30 minutes. Keep drafts, history and conversations.",
+  session_translate_fresh: "Ready for a new translation.",
+  session_dictionary_fresh: "Ready for a new lookup.",
+  session_restore_previous: "Open previous work",
+  session_save_failed: "Could not save your data. Open content is still here; try saving again before quitting.",
+  session_retry_save: "Retry saving",
+  session_recovery_unavailable: "Could not read your saved workspace. Existing data is unchanged; new work in this session is not saved for recovery. Keep a copy of anything you need before reopening the app.",
+  session_history_limits: "History has reached a storage limit: 20 conversations, 100 translations, 50 live sessions, 100 recent dictionary entries or 500 favorites. Adding beyond a limit may replace older items. Keep a separate copy of work you need long term.",
   nav_translate: 'AI Translate',
   nav_settings: 'Settings',
   nav_new_chat: 'New Chat',

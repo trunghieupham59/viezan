@@ -229,3 +229,10 @@ Bản vẽ (`boards/Dictionary.dc.html`, `States`, `Histories`, `Popovers`) so v
 8. **Thứ tự đọc**: lịch sử đứng trước kết quả trong DOM. Sau khi tra, focus đã chuyển tới tiêu đề mục từ, nhưng chưa có liên kết bỏ qua danh sách lịch sử — **đề xuất**.
 9. **Cặp ngôn ngữ dùng chung với AI Dịch** (`scope="dictionary"` ghi vào phạm vi `translate`). Bản vẽ không nói rõ; đặc tả theo mã.
 10. **Nợ token nhỏ**: `.dictionary-skeleton-wide/-narrow` dùng phần trăm `90%`/`75%` cố định trong `src/styles/dictionary.css`; nút tra phần chọn đặt vị trí bằng `style` inline (có chú thích, là toạ độ tính toán, chấp nhận được).
+
+## Khôi phục và làm mới lượt (V1)
+
+- Giữ từ, ngữ cảnh, mục đang xem và tab lịch sử khi chuyển trang/mở lại. Khôi phục không tự tra cứu.
+- Sau 30 phút rời tính năng, khi quay lại có thể mở lượt mới nếu lượt trước đầy đủ, khớp đầu vào/model, đã lưu và không còn xử lý. Nội dung chưa tra hoặc đã sửa được giữ.
+- Màn hình mới có “Đã sẵn sàng cho lượt tra cứu mới.” và “Mở lượt trước”; không xoá lịch sử hoặc yêu thích. Không mở lại mục đã bị xoá khỏi lịch sử.
+- Cache hiện có tiếp tục dùng quy tắc từ/ngữ cảnh/ngôn ngữ/model; V1 không thêm TTL cache.

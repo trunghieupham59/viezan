@@ -22,6 +22,8 @@ const localeOptions = (Object.entries(LOCALE_NAMES) as [AppLocale, string][]).ma
 )
 
 export function PreferencesSection() {
+  const smartSessionReset = useAppStore((state) => state.smartSessionReset)
+  const setSmartSessionReset = useAppStore((state) => state.setSmartSessionReset)
   const autoTranslate = useAppStore((state) => state.autoTranslate)
   const setAutoTranslate = useAppStore((state) => state.setAutoTranslate)
   const autoTranslateDelay = useAppStore((state) => state.autoTranslateDelay)
@@ -107,6 +109,10 @@ export function PreferencesSection() {
             />
           </SettingsRow>
         )}
+
+        <SettingsRow label={t.session_smart_reset} description={t.session_smart_reset_desc}>
+          <ToggleSwitch checked={smartSessionReset} onChange={setSmartSessionReset} aria-label={t.session_smart_reset} />
+        </SettingsRow>
 
         <SettingsRow label={t.settings_auto_translate} description={t.settings_translate_mode_desc}>
           <ToggleSwitch checked={autoTranslate} onChange={setAutoTranslate} aria-label={t.settings_auto_translate} />

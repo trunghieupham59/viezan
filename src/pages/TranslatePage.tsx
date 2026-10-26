@@ -11,7 +11,7 @@ import { PageHeader, TranslateWorkbenchTemplate } from '../components/templates'
 import { Button } from '../components/ui/atoms'
 import { ButtonGroup } from '../components/ui/ButtonGroup'
 import { ClockIcon } from '../components/ui/icons'
-import { DialogShell } from '../components/ui/molecules'
+import { CapabilityNotice, DialogShell } from '../components/ui/molecules'
 import { TRANSLATE_HISTORY_INLINE_MIN_WIDTH } from '../constants/ui'
 import { useElementInlineSize } from '../hooks/useElementInlineSize'
 import { IMAGE_TRANSLATED_SENTINEL, useTranslate } from '../hooks/useTranslate'
@@ -52,6 +52,7 @@ export function TranslatePage() {
   const [modelsOpen, setModelsOpen] = useState(false)
   const [inputMode, setInputMode] = useState<TranslateInputMode>('text')
   const {
+    canRestoreSession, restoreSession,
     sourceText,
     translatedText,
     phoneticText,
@@ -493,6 +494,8 @@ export function TranslatePage() {
         titleId={TRANSLATE_PAGE_TITLE_ID}
         layout={isComparisonMode ? 'comparison' : 'single'}
         header={header}
+        notice={canRestoreSession ? <CapabilityNotice title={t.session_translate_fresh}
+          actions={[{ label: t.session_restore_previous, onClick: restoreSession }]} /> : undefined}
         sourcePanel={sourcePanel}
         resultPanel={resultPanel}
         history={!historyIsOverlay && historyOpen ? historyPanel('panel') : undefined}

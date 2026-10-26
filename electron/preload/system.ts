@@ -4,11 +4,14 @@
  */
 import type { SystemApi } from '../../shared/systemApi'
 import { SYSTEM_CHANNELS } from '../ipc/channels'
-import { invoke } from './contract'
+import { invoke, subscribe, subscribeSignal } from './contract'
 
 const ch = SYSTEM_CHANNELS.invoke
 
 export const systemApi: SystemApi = {
+  onSessionActivity: subscribe(SYSTEM_CHANNELS.event.sessionActivity),
+  onPrepareSessionSave: subscribeSignal(SYSTEM_CHANNELS.event.prepareSessionSave),
+  completeSessionSave: invoke(ch.completeSessionSave),
   checkScreenPermission: invoke(ch.checkScreenPermission),
   openExternal: invoke(ch.openExternal),
   relaunchApp: invoke(ch.relaunch),

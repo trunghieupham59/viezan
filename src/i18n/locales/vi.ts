@@ -1,6 +1,16 @@
 import type { Translations } from '../types'
 
 const vi: Translations = {
+  session_restoring: "Đang khôi phục phiên làm việc…",
+  session_smart_reset: "Làm mới lượt đã hoàn tất",
+  session_smart_reset_desc: "Khi quay lại sau khoảng nghỉ, mở lượt mới cho Dịch sau 2 giờ và Từ điển sau 30 phút. Giữ bản nháp, lịch sử và cuộc trò chuyện.",
+  session_translate_fresh: "Đã sẵn sàng cho lượt dịch mới.",
+  session_dictionary_fresh: "Đã sẵn sàng cho lượt tra cứu mới.",
+  session_restore_previous: "Mở lượt trước",
+  session_save_failed: "Chưa lưu được dữ liệu. Nội dung đang mở vẫn được giữ; hãy thử lưu lại trước khi thoát ứng dụng.",
+  session_retry_save: "Thử lưu lại",
+  session_recovery_unavailable: "Không đọc được phiên đã lưu. Dữ liệu cũ được giữ nguyên; nội dung mới trong phiên này chưa được lưu phục hồi. Hãy giữ lại nội dung cần thiết trước khi mở lại ứng dụng.",
+  session_history_limits: "Lịch sử đã chạm giới hạn lưu: 20 cuộc trò chuyện, 100 bản dịch, 50 phiên dịch, 100 mục từ gần đây hoặc 500 mục yêu thích. Khi thêm quá giới hạn, mục cũ có thể bị thay thế. Hãy lưu riêng nội dung cần giữ lâu dài.",
   nav_translate: 'Dịch',
   nav_settings: 'Cài đặt',
   nav_new_chat: 'Chat Mới',

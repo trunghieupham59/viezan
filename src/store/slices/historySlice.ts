@@ -4,14 +4,9 @@
  * Manages persisted history of text translations and live-translate sessions
  * independently of chat state and user settings.
  */
+import { MAX_TRANSLATION_HISTORY as MAX_HISTORY, MAX_LIVE_SESSIONS } from '../../constants/history'
 import type { HistoryItem, LiveSession } from '../../types'
 import type { SliceGet, SliceSet } from './sliceTypes'
-
-/** Maximum number of translation history entries to keep. */
-const MAX_HISTORY = 100
-
-/** Maximum number of live-translate sessions to keep. */
-const MAX_LIVE_SESSIONS = 50
 
 export interface HistorySlice {
   // State

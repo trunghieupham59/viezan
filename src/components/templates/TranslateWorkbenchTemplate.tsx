@@ -4,6 +4,7 @@ export interface TranslateWorkbenchTemplateProps {
   titleId: string
   layout?: 'single' | 'comparison'
   header: ReactNode
+  notice?: ReactNode
   sourcePanel: ReactNode
   resultPanel: ReactNode
   /** Saved translations beside the workbench; omitted when the panel is hidden. */
@@ -24,6 +25,7 @@ export function TranslateWorkbenchTemplate({
   titleId,
   layout = 'single',
   header,
+  notice,
   sourcePanel,
   resultPanel,
   history,
@@ -32,6 +34,7 @@ export function TranslateWorkbenchTemplate({
   return (
     <div ref={containerRef} className="app-page translate-page">
       {header}
+      {notice && <div className="workbench-session-notice">{notice}</div>}
       <div className="translate-workspace">
         <div className="translate-stage" data-history={history ? 'open' : 'closed'}>
           <section
