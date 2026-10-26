@@ -70,6 +70,27 @@ describe('quick translate language pair', () => {
     expect(await secondary()).toHaveTextContent('Vietnamese')
   })
 
+  it('finds a language by typing in either language menu', async () => {
+    vi.mocked(window.api.hotkey.get).mockResolvedValue({
+      success: true, settings: { hotkey: 'Alt+Shift+T', enabled: true, targetLang: 'vi', secondaryLang: 'en' },
+    })
+    render(<><HotkeySection part="quickTranslate" /><NotificationViewport /></>)
+    fireEvent.click(await secondary())
+    const search = screen.getByRole('searchbox', { name: 'Search languages…' })
+    await waitFor(() => expect(search).toHaveFocus())
+    // Matches the native name too, and the primary language stays out of the secondary list.
+    fireEvent.change(search, { target: { value: 'deutsch' } })
+    expect(screen.getAllByRole('option').map((option) => option.getAttribute('aria-label'))).toEqual(['German'])
+    fireEvent.keyDown(search, { key: 'Enter' })
+
+    await waitFor(() => expect(window.api.hotkey.update).toHaveBeenLastCalledWith(expect.objectContaining({ targetLang: 'vi', secondaryLang: 'de' })))
+    expect(await secondary()).toHaveTextContent('German')
+
+    fireEvent.click(await primary())
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search languages…' }), { target: { value: 'vietnam' } })
+    expect(screen.queryByRole('option', { name: 'German' })).not.toBeInTheDocument()
+  })
+
   it('turns the pair off', async () => {
     vi.mocked(window.api.hotkey.get).mockResolvedValue({
       success: true, settings: { hotkey: 'Alt+Shift+T', enabled: true, targetLang: 'vi', secondaryLang: 'en' },

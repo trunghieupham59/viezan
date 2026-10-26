@@ -51,6 +51,7 @@ export {
   type NotificationToastTone,
 } from './NotificationToast'
 export { NumberField, type NumberFieldProps } from './NumberField'
+export { type FlyoutPlacement, OptionFlyout, type OptionFlyoutOption, type OptionFlyoutProps, placeFlyout } from './OptionFlyout'
 export { OptionPicker, type OptionPickerProps } from './OptionPicker'
 export { OptionPickerPanel, type OptionPickerPanelProps, type PickerChip, type PickerOption } from './OptionPickerPanel'
 export { type ProgressStep, type ProgressStepStatus, ProgressSteps, type ProgressStepsProps } from './ProgressSteps'

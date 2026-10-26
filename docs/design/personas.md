@@ -9,7 +9,7 @@ Giá trị nằm trong `src/styles/tokens.css`; danh sách persona và đặc t�
 | Persona | Dành cho | Đặc tính | Điểm khác chính |
 | --- | --- | --- | --- |
 | Graphite (mặc định) | Developer, công việc cần tập trung | — | Chrome xám trung tính, mục đang chọn là "thẻ trắng nổi" chữ xanh, nút xanh phẳng, bo 12, bóng rất nhẹ, chữ hệ thống |
-| Glass | Người thích giao diện macOS hiện đại | `nativeMaterial` | Bề mặt trong mờ + `--vzn-blur`, viền sáng trong (`inset` trong `--vzn-shadow-*`), nút và bong bóng người dùng tô gradient xanh đại dương, bo lớn nhất (18), có `--vzn-shadow-glow`, `--vzn-app-backdrop` là hai vệt màu loang |
+| Glass | Người thích giao diện macOS hiện đại | `nativeMaterial` | Bề mặt trong mờ + `--vzn-blur`; lớp nổi là kính trong mờ (76 % sáng / 80 % tối) với blur mạnh hơn (`--vzn-overlay-blur`: 40 px, tăng bão hoà) để chữ phía sau không đọc được; khi hệ điều hành bật giảm độ trong suốt hoặc tăng tương phản thì lớp nổi đục, không blur, viền sáng trong (`inset` trong `--vzn-shadow-*`), nút và bong bóng người dùng tô gradient xanh đại dương, bo lớn nhất (18), có `--vzn-shadow-glow`, `--vzn-app-backdrop` là hai vệt màu loang |
 | Paper | Dịch giả, người viết, học giả | — | Nền giấy ngà ấm, nút đất nung, bo nhỏ nhất (6), bóng nâu nhạt, `--vzn-font-display` và `--vzn-font-reading` là serif, giãn dòng đọc 1.75 |
 | Corporate | Đội nhóm doanh nghiệp | — | Chrome navy chữ sáng ở cả hai chế độ trên vùng làm việc trắng, viền rõ, bo vuông vức (8, điều khiển 6), giãn dòng đọc gọn 1.5 |
 | Midnight | Làm việc đêm, power user, màn OLED | `darkOnly` | Nền đen tuyền, nhấn cyan với chữ tối trên nút (`--vzn-action-fg`), ánh sáng nhẹ `--vzn-shadow-glow`; khối `data-mode="light"` giống hệt khối tối |
@@ -25,7 +25,7 @@ Mỗi khối `[data-theme="…"][data-mode="…"]` khai báo lại **cùng một
 | Chrome chính | `--vzn-chrome-fg*`, `--vzn-chrome-divider`, `--vzn-chrome-item-hover`, `--vzn-chrome-item-active`, `--vzn-chrome-item-active-fg`, `--vzn-chrome-accent` | Chỉ dành cho thanh tiêu đề và điều hướng chính |
 | Tông minh hoạ | `--vzn-tone-*` | Icon thẻ, không phải màu trạng thái |
 | Hình khối | `--vzn-radius-2xs` … `--vzn-radius-2xl` | `--vzn-radius-pill` không đổi |
-| Chiều sâu, vật liệu | `--vzn-shadow-*`, `--vzn-blur`, `--vzn-blur-sm`, `--vzn-app-backdrop` | `--vzn-blur` là `none` ở mọi persona trừ Glass |
+| Chiều sâu, vật liệu | `--vzn-shadow-*`, `--vzn-blur`, `--vzn-blur-sm`, `--vzn-overlay-material`, `--vzn-overlay-blur`, `--vzn-app-backdrop` | `--vzn-blur` và `--vzn-overlay-blur` là `none` ở mọi persona trừ Glass. `--vzn-overlay-*` là vật liệu của mọi lớp nổi (menu, picker, popover, tooltip, toast, hộp thoại), xem `foundations.md` |
 | Chữ | `--vzn-font-sans`, `--vzn-font-display`, `--vzn-font-reading`, `--vzn-line-reading` | Cỡ chữ (`--vzn-font-size-*`) không đổi |
 
 Không đổi theo persona: bố cục, kích thước điều khiển, khoảng cách, cỡ chữ, màu trạng thái (`--vzn-success/warning/danger*`, theo chế độ), lớp chồng, chuyển động.
