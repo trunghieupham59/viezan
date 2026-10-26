@@ -80,9 +80,9 @@
   gap: var(--vzn-space-2);
   padding: var(--vzn-space-2);
   overflow: hidden;
-  border: 1px solid var(--vzn-border);
+  border: var(--vzn-border-width) solid var(--vzn-border);
   border-radius: var(--vzn-radius-md);
-  background: var(--vzn-surface-raised);
+  /* Background and blur: the floating material (floating-material.css). */
   box-shadow: var(--vzn-shadow-md);
   animation: fadeSlideIn var(--vzn-duration-fast) var(--vzn-ease-standard);
 }

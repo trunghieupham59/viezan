@@ -99,13 +99,16 @@ Nội dung đọc dài (tin nhắn chat, bản dịch) dùng `--vzn-font-reading
 | `SectionCard` | Thẻ Trang chủ có link hành động ở header |
 | `QuickStartCard` | Thẻ bắt đầu nhanh có ô icon tô màu nhạt |
 | `ModelChip` | Chip "Nhà cung cấp · model" mở popover cấu hình AI |
-| `SelectField` | Ô chọn có menu nổi, neo vào chính nút của nó, không bị vùng cuộn cắt |
+| `SelectField` | Ô chọn có menu nổi, neo vào chính nút của nó, không bị vùng cuộn cắt; danh sách dài thêm ô tìm bỏ qua dấu (`searchPlaceholder`), ví dụ ngôn ngữ ở Dịch mọi nơi |
+| `OptionFlyout` | Menu phụ (`listbox`) mở bên cạnh một hàng, ra ngoài mép của bề mặt `[data-flyout-boundary]` chứa hàng (popover cấu hình), không đè lên danh sách của bề mặt đó; thiếu chỗ thì lật trái, rồi xuống dưới hàng; danh sách dài có ô tìm bỏ qua dấu (`searchPlaceholder`) |
 | `AIConfigurationPopover` | Popover cấu hình có header, thân cuộn, footer tuỳ chọn; mỗi popover neo vào nút mở của nó |
 | `CredentialCard` | Hàng khoá API: tên, link lấy khoá, trạng thái, nút "Sửa/Thêm khoá" mở ô nhập |
 | `CapabilityNotice` | Hàng giải thích quyền hệ thống còn thiếu và cách sửa |
 | `KeyCap` | Chip phím tắt (monospace) |
 | `Meter` | Thanh đo (quạt, tiến độ tải) |
 | Toast (`NotificationViewport`) | Kết quả hành động; một khoá chủ cho mỗi nguồn để toast thay nhau thay vì chồng lên |
+
+**Vật liệu lớp nổi.** Mọi lớp nổi lên trên nội dung (menu chọn, picker ngôn ngữ và model, popover cấu hình, menu phụ, menu "+", tooltip, toast, bảng lệnh, hộp thoại `modal-surface`) tô cùng một vật liệu trong `src/styles/floating-material.css`: `--vzn-overlay-material` + `--vzn-overlay-blur`. CSS của từng tính năng không tự đặt `background` hay `backdrop-filter` cho các lớp này; test `src/styles/__tests__/floatingMaterial.test.ts` bắt lỗi khi một lớp nổi mới chưa dùng vật liệu chung. Popover cấu hình AI vẽ vật liệu trên lớp `::before` để menu chọn `fixed` bên trong vẫn neo đúng; `DialogShell` giữ nền đục vì nằm trên scrim và chứa menu chọn.
 
 ## 7. Khung cửa sổ và điều hướng
 

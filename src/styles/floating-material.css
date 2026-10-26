@@ -1,0 +1,23 @@
+/* Floating material ------------------------------------------------------
+   Every layer that floats over content (menus, pickers, popovers, tooltips,
+   toasts, dialogs) paints this one material: the preset's overlay tint and
+   overlay blur. Glass stays translucent but blurs hard enough that text
+   behind a menu never reads; other presets are near-opaque with no blur.
+   Feature rules must not set their own background or backdrop-filter here
+   (src/styles/__tests__/floatingMaterial.test.ts). The AI configuration
+   popover paints it on a backing layer instead (ai-configuration.css), so
+   the fixed select menus inside it stay anchored. */
+.floating-panel,
+.modal-surface,
+.chat-research-info-popover,
+.ai-config-panel,
+.language-picker-panel,
+.model-picker-panel,
+.ai-select-field__menu,
+.option-flyout,
+.language-pair-tooltip,
+.notification-toast {
+  background: var(--vzn-overlay-material) !important;
+  backdrop-filter: var(--vzn-overlay-blur) !important;
+  -webkit-backdrop-filter: var(--vzn-overlay-blur) !important;
+}

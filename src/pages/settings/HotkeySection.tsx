@@ -195,6 +195,13 @@ export function HotkeySection({ part }: HotkeySectionProps) {
     ...languageOptions.filter((option) => option.value !== effectiveTargetLang),
   ]
 
+  // Both language lists are long: each menu opens on a search field.
+  const languageSearch = {
+    searchPlaceholder: t.language_picker_search_placeholder,
+    noResultsLabel: t.language_picker_no_results,
+    clearSearchLabel: t.history_search_clear,
+  }
+
   const selectPrimaryLang = (lang: string) => {
     // Picking the current secondary as primary swaps the pair instead of collapsing it.
     const secondary = lang === effectiveSecondaryLang ? effectiveTargetLang : effectiveSecondaryLang
@@ -471,6 +478,7 @@ export function HotkeySection({ part }: HotkeySectionProps) {
               options={languageOptions}
               onChange={selectPrimaryLang}
               className="everywhere-language-field"
+              {...languageSearch}
             />
             <SelectField
               label={t.settings_hotkey_secondary_lang}
@@ -478,6 +486,7 @@ export function HotkeySection({ part }: HotkeySectionProps) {
               options={secondaryLanguageOptions}
               onChange={selectSecondaryLang}
               className="everywhere-language-field"
+              {...languageSearch}
             />
           </SettingsRow>
 
