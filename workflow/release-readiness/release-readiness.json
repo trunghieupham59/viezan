@@ -123,11 +123,13 @@
     {
       "id": "docs-release-notes",
       "name": "Docs and release notes",
-      "required": false,
+      "required": true,
+      "suggested_commands": ["npm run check:docs", "npm run test:docs"],
       "checks": [
         "README/docs updated for user-visible feature",
         "viezanagent docs/prompts updated if agent workflow changed",
-        "Release notes mention feature, fixes, known limitations"
+        "CHANGELOG.md has the exact package version entry with features, fixes and limitations",
+        "README review fingerprint matches the exact source and docs being released; never refresh it without reviewing the diff"
       ]
     }
   ],

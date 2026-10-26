@@ -79,9 +79,11 @@
     {
       "id": "step-8-verify",
       "name": "Verify",
-      "action": "Đọc lại docs đã sửa, chạy lint markdown nếu có.",
+      "action": "Đọc lại docs đã sửa. Với README/product source: chạy docs:sync, rà prose theo source/tests và giới hạn nền tảng, rồi chỉ khi đã review mới ghi docs:review -- --summary. CI không tự ghi review. Khi bump version, thêm mục version vào CHANGELOG.md và đồng bộ package-lock.json.",
       "commands": [
-        "npx markdownlint-cli2 \"viezanagent/**/*.md\" \"README.md\" \"chrome-extension/README.md\" || true"
+        "npm run check:docs",
+        "npm run test:docs",
+        "npx markdownlint-cli2 \"viezanagent/**/*.md\" \"README.md\" \"CHANGELOG.md\" \"chrome-extension/README.md\""
       ]
     },
     {

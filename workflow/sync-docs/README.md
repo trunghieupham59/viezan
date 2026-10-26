@@ -28,6 +28,23 @@ Dùng workflow sync-docs và lưu report vào viezanagent/report/.
 8. Verify bằng markdownlint.
 9. Lưu báo cáo `doc-sync-report-YYYYMMDD-HHmm.md` nếu user yêu cầu.
 
+## README và version
+
+- Đối chiếu tính năng, hướng dẫn, nhãn UI và giới hạn hệ điều hành với source/tests.
+  Rà diff từ release trước; không chỉ thay số version hoặc chép commit titles.
+- `npm run docs:sync` chỉ cập nhật các khối generated (version, providers,
+  locales, dependency ranges); không viết lại mô tả và không xác nhận review.
+- Khi bump version, cập nhật cả `package-lock.json` và mục `## [X.Y.Z]` trong
+  `CHANGELOG.md`. Release workflow lấy nội dung mục đó để xuất bản.
+- Sau khi đã rà đầy đủ và được yêu cầu sửa docs, chạy
+  `npm run docs:review -- --summary "Nội dung và giới hạn đã đối chiếu"`, rồi
+  `npm run check:docs` và `npm run test:docs`.
+- Record `.github/readme-review.json` ghi fingerprint source, README và changelog.
+  Nếu chỉ sửa nội bộ và không cần đổi mô tả, ghi lý do trong summary.
+  Không chạy `docs:review` trong CI hoặc để bỏ qua một diff chưa đọc.
+- Fingerprint phát hiện review đã cũ; tính chính xác của mô tả vẫn cần agent/người
+  review đối chiếu source. CI không chứng nhận tính năng chạy đúng.
+
 ## Báo cáo mặc định
 
 `viezanagent/report/doc-sync-report-YYYYMMDD-HHmm.md`

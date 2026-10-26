@@ -17,6 +17,11 @@ Dùng workflow release-readiness để kiểm tra trước release.
 - Build/test/package sanity.
 - Docs/release notes.
 
+Docs/release notes là gate bắt buộc: chạy `npm run check:docs` và
+`npm run test:docs`, kiểm tra README theo source của bản phát hành và mục version
+trong `CHANGELOG.md`. Nếu review đã cũ, dùng `sync-docs` để rà rồi mới ghi lại
+`docs:review`; không refresh fingerprint tự động để vượt gate.
+
 ## Output
 
 ```markdown

@@ -236,10 +236,12 @@
     {
       "id": "release-notes-coverage",
       "name": "Release notes coverage",
-      "severity_if_failed": "low",
+      "severity_if_failed": "high",
       "checks": [
         "Feature lớn có ghi trong README và product-intro",
-        "Provider/locale mới có nêu trong release notes nếu có"
+        "Provider/locale mới có nêu trong release notes nếu có",
+        "npm run check:docs passes for generated facts, exact-version changelog and the recorded source/README review",
+        "Review summary explains source changes and limits; docs:review is never run just to bypass a stale fingerprint"
       ]
     }
   ],
