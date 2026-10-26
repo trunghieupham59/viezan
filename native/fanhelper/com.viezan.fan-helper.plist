@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The fan helper as an SMAppService daemon (path B, docs/plans/fan-helper-daemon.md).
+  Packaged into Viezan.app/Contents/Library/LaunchDaemons and registered by
+  viezan-helper-ctl; inert until then. Same label and socket as the launchd job that
+  path A installs, so the app removes that one before registering this.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.viezan.fan-helper</string>
+  <key>BundleProgram</key>
+  <string>Contents/Resources/native/viezan-fan-helper</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>viezan-fan-helper</string>
+    <string>--daemon</string>
+  </array>
+  <key>AssociatedBundleIdentifiers</key>
+  <array>
+    <string>com.Viezan.app</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ProcessType</key>
+  <string>Interactive</string>
+</dict>
+</plist>

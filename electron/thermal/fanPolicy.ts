@@ -12,7 +12,8 @@
  * a few seconds apart, so a fan ramps instead of hunting on a reading that wobbles;
  * a jump of several degrees, or a target several hundred RPM away, goes through at once.
  * Rules exist only while the helper is `ready`; any loss of the helper (which already
- * restored the fans) clears them. While a rule is active the thermal reader keeps
+ * restored the fans) clears them, and so does a restore for the temperature ceiling —
+ * otherwise a rule would take the fans back as soon as the machine cooled down. While a rule is active the thermal reader keeps
  * running in the background so a hidden window still drives the fan.
  */
 import type { FanCommand, FanControlFan, FanControlState, FanSensorRule, ThermalSnapshot } from '../../shared/thermalApi'
@@ -55,6 +56,8 @@ export function createFanPolicy({ control, subscribeSnapshots, setBackgroundRead
   let lastEmitted = ''
   let unsubscribe: (() => void) | null = null
   let applying: Promise<unknown> = Promise.resolve()
+  /** The helper's restore count already seen on this connection. */
+  let restoreSeq: number | undefined
 
   function merged(): FanControlState {
     const fans: FanControlFan[] = controlState.fans.map((fan) => {
@@ -161,12 +164,23 @@ export function createFanPolicy({ control, subscribeSnapshots, setBackgroundRead
     getState: () => merged(),
     rules: () => new Map([...rules].map(([id, entry]) => [id, { ...entry.rule }])),
     ingestControlState: (state) => {
+      const previousSeq = restoreSeq
+      restoreSeq = state.helper === 'ready' ? state.restoreSeq : undefined
       controlState = state
       if (state.helper !== 'ready') clearRules()
+      else if (state.lastRestoreReason === 'ceiling' && previousSeq !== undefined && state.restoreSeq !== undefined && state.restoreSeq > previousSeq) {
+        console.info('[Thermal] the helper restored the fans at the temperature ceiling; dropping every sensor rule')
+        clearRules()
+      }
       emit()
     },
     enable: async () => {
       controlState = await control.enable()
+      emit()
+      return merged()
+    },
+    resume: async () => {
+      controlState = await control.resume()
       emit()
       return merged()
     },
@@ -197,6 +211,18 @@ export function createFanPolicy({ control, subscribeSnapshots, setBackgroundRead
       await control.stop()
       controlState = control.getState()
       emit()
+    },
+    installHelper: async () => {
+      clearRules()
+      controlState = await control.installHelper()
+      emit()
+      return merged()
+    },
+    uninstallHelper: async () => {
+      clearRules()
+      controlState = await control.uninstallHelper()
+      emit()
+      return merged()
     },
   }
 }

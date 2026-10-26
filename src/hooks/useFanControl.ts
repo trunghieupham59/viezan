@@ -17,6 +17,10 @@ export interface FanControlHookState {
   disable: () => Promise<{ success: boolean; error?: string }>
   restoreAll: () => Promise<{ success: boolean; error?: string }>
   setFan: (fanId: string, command: FanCommand) => Promise<{ success: boolean; error?: string }>
+  installHelper: () => Promise<{ success: boolean; error?: string }>
+  uninstallHelper: () => Promise<{ success: boolean; error?: string }>
+  /** SMAppService builds: System Settings › Login Items, where the user approves the helper. */
+  openHelperApproval: () => Promise<{ success: boolean; error?: string }>
 }
 
 /**
@@ -69,5 +73,16 @@ export function useFanControl(): FanControlHookState {
     disable: useCallback(() => run(() => window.api?.thermal?.fanControl?.disable() ?? unavailable()), [run]),
     restoreAll: useCallback(() => run(() => window.api?.thermal?.fanControl?.restoreAll() ?? unavailable()), [run]),
     setFan: useCallback((fanId: string, command: FanCommand) => run(() => window.api?.thermal?.fanControl?.setFan(fanId, command) ?? unavailable()), [run]),
+    installHelper: useCallback(() => run(() => window.api?.thermal?.fanControl?.installHelper() ?? unavailable()), [run]),
+    uninstallHelper: useCallback(() => run(() => window.api?.thermal?.fanControl?.uninstallHelper() ?? unavailable()), [run]),
+    // Opens another app; nothing in this page's state changes, so no busy flag either.
+    openHelperApproval: useCallback(async () => {
+      try {
+        const res = await window.api?.thermal?.fanControl?.openHelperApproval()
+        return { success: res?.success === true, error: res?.error }
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : String(e) }
+      }
+    }, []),
   }
 }

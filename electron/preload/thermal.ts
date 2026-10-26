@@ -20,6 +20,9 @@ export const thermalApi: ThermalApi = {
     setFan: invoke(THERMAL_CHANNELS.invoke.fanSet),
     restoreAll: invoke(THERMAL_CHANNELS.invoke.fanRestoreAll),
     disable: invoke(THERMAL_CHANNELS.invoke.fanDisable),
+    installHelper: invoke(THERMAL_CHANNELS.invoke.fanInstallHelper),
+    uninstallHelper: invoke(THERMAL_CHANNELS.invoke.fanUninstallHelper),
+    openHelperApproval: invoke(THERMAL_CHANNELS.invoke.fanOpenHelperApproval),
     onState: subscribe(THERMAL_CHANNELS.event.fanState),
     profiles: {
       get: invoke(THERMAL_CHANNELS.invoke.fanProfilesGet),

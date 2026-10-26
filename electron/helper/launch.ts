@@ -54,17 +54,21 @@ function defaultRun(file: string, args: string[]): Promise<{ stdout: string; std
   })
 }
 
-export async function launchWithAdministratorPrivileges({ binaryPath, args, run = defaultRun, log = console }: LaunchOptions): Promise<LaunchResult> {
-  const command = buildDetachedCommand(binaryPath, args)
+/** Run `osascript` with the given arguments; maps a dismissed password dialog to `cancelled`. */
+export async function runPrivileged(osascriptArgs: string[], { run = defaultRun, log = console }: Pick<LaunchOptions, 'run' | 'log'> = {}): Promise<LaunchResult> {
   try {
-    await run('osascript', buildOsascriptArgs(command))
+    await run('osascript', osascriptArgs)
     return { ok: true }
   } catch (e) {
     const error = e as Error & { stderr?: string }
     const text = `${error.message ?? ''}\n${error.stderr ?? ''}`
     // osascript reports a dismissed dialog as "User canceled." with code -128.
     if (/-128|[Uu]ser cancel/.test(text)) return { ok: false, reason: 'cancelled', message: 'The administrator prompt was cancelled.' }
-    log.error('[Helper] launch failed:', text.trim())
+    log.error('[Helper] privileged command failed:', text.trim())
     return { ok: false, reason: 'failed', message: (error.stderr ?? error.message ?? 'The helper could not be started.').trim() }
   }
+}
+
+export function launchWithAdministratorPrivileges({ binaryPath, args, run, log }: LaunchOptions): Promise<LaunchResult> {
+  return runPrivileged(buildOsascriptArgs(buildDetachedCommand(binaryPath, args)), { run, log })
 }

@@ -112,7 +112,11 @@
     ],
     "mac": {
       "extraResources": [{ "from": "native/bin/darwin", "to": "native", "filter": ["viezan-smc", "viezan-fan-helper"] }],
-      "binaries": ["Contents/Resources/native/viezan-smc", "Contents/Resources/native/viezan-fan-helper"],
+      "extraFiles": [
+        { "from": "native/bin/darwin/viezan-helper-ctl", "to": "MacOS/viezan-helper-ctl" },
+        { "from": "native/fanhelper/com.viezan.fan-helper.plist", "to": "Library/LaunchDaemons/com.viezan.fan-helper.plist" }
+      ],
+      "binaries": ["Contents/Resources/native/viezan-smc", "Contents/Resources/native/viezan-fan-helper", "Contents/MacOS/viezan-helper-ctl"],
       "icon": "build/icon.icns",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,

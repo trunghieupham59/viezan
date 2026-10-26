@@ -30,6 +30,8 @@ function fakeFanControl(state: FanControlState = ready) {
     setFan: vi.fn(async () => state),
     restoreAll: vi.fn(async () => state),
     disable: vi.fn(async () => ({ helper: 'idle', fans: [] }) as FanControlState),
+    installHelper: vi.fn(async () => ({ ...state, install: 'installed' }) as FanControlState),
+    uninstallHelper: vi.fn(async () => ({ helper: 'idle', install: 'not-installed', fans: [] }) as FanControlState),
   }
 }
 
@@ -75,6 +77,10 @@ describe('fan control IPC', () => {
     expect(await invoke(THERMAL_CHANNELS.invoke.fanRestoreAll)).toEqual({ success: true, state: ready })
     expect(await invoke(THERMAL_CHANNELS.invoke.fanDisable)).toEqual({ success: true, state: { helper: 'idle', fans: [] } })
     expect(await invoke(THERMAL_CHANNELS.invoke.fanEnable)).toEqual({ success: true, state: ready })
+    expect(await invoke(THERMAL_CHANNELS.invoke.fanInstallHelper)).toEqual({ success: true, state: { ...ready, install: 'installed' } })
+    expect(await invoke(THERMAL_CHANNELS.invoke.fanUninstallHelper)).toEqual({ success: true, state: { helper: 'idle', install: 'not-installed', fans: [] } })
+    // Only SMAppService builds have an approval to open.
+    expect(await invoke(THERMAL_CHANNELS.invoke.fanOpenHelperApproval)).toEqual({ success: false, error: 'This build has no helper to approve.' })
 
     expect(await invoke(THERMAL_CHANNELS.invoke.fanProfilesApply, 'builtin:quiet')).toEqual({ success: true, state: profilesState })
     expect(await invoke(THERMAL_CHANNELS.invoke.fanProfilesApply, 'evil:x')).toEqual({ success: false, error: 'Invalid profile id.' })

@@ -9,9 +9,10 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import type { HelperClient } from '../../helper/client'
+import type { HelperDaemonInstaller, HelperDaemonStatus } from '../../helper/daemon'
 import type { LaunchResult } from '../../helper/launch'
 import type { HelperFan, HelperHello, HelperStatus } from '../../helper/protocol'
-import { HelperRequestError } from '../../helper/protocol'
+import { HelperProtocolError, HelperRequestError } from '../../helper/protocol'
 import * as fanControlModule from '../fanControl'
 import type { FanControlDeps, FanControlService } from '../fanControlTypes'
 
@@ -21,18 +22,22 @@ const present = existsSync(modulePath) && typeof (fanControlModule as { createFa
 const hello: HelperHello = { protocol: 1, helperVersion: '1.0.0', platform: 'darwin', pid: 42, watchdogSeconds: 15, ceilingCelsius: 105, capabilities: ['fans.write'] }
 
 /** A helper the client "talks to": two fans, fixed targets remembered, status reflecting overrides. */
-function fakeHelper() {
+function fakeHelper(options: { restoreSeq?: number } = {}) {
   const fans: HelperFan[] = [
     { id: 'fan0', index: 0, minRpm: 1499, maxRpm: 5348, currentRpm: 1900, targetRpm: 1900, mode: 'auto' },
     { id: 'fan1', index: 1, minRpm: 1499, maxRpm: 5776, currentRpm: 1700, targetRpm: 1700, mode: 'auto' },
   ]
   let lastRestoreReason: string | undefined
+  // Helper 1.1 counts restores; 1.0 (the default here) does not report a count.
+  let restoreSeq = options.restoreSeq
+  // What the running process reports as its own binary; `helper.exit` + a launchd restart picks up `nextBinary`.
+  const binary = { running: undefined as string | undefined, next: undefined as string | undefined }
   const requests: Array<{ op: string; args?: Record<string, unknown> }> = []
   const handle = async (op: string, args?: Record<string, unknown>): Promise<unknown> => {
     requests.push({ op, args })
     switch (op) {
       case 'hello': return hello
-      case 'status': return { uptime: 1, activeOverrides: fans.filter((f) => f.mode === 'manual').map((f) => ({ id: f.id, rpm: f.targetRpm ?? 0 })), lastRestoreReason } satisfies HelperStatus
+      case 'status': return { uptime: 1, activeOverrides: fans.filter((f) => f.mode === 'manual').map((f) => ({ id: f.id, rpm: f.targetRpm ?? 0 })), lastRestoreReason, ...(restoreSeq !== undefined ? { restoreSeq } : {}) } satisfies HelperStatus
       case 'fans.list': return fans.map((f) => ({ ...f }))
       case 'fans.setTarget': {
         const fan = fans.find((f) => f.id === args?.id)
@@ -51,27 +56,32 @@ function fakeHelper() {
       case 'fans.restoreAll':
         for (const fan of fans) fan.mode = 'auto'
         lastRestoreReason = 'client'
+        if (restoreSeq !== undefined) restoreSeq++
         return { restored: true }
+      case 'helper.exit':
+        binary.running = binary.next
+        return { exiting: true }
       default:
         throw new HelperRequestError({ code: 'bad-request', message: `Unknown op ${op}.` })
     }
   }
   return {
-    fans, requests,
-    simulateHelperRestore(reason: string) { for (const fan of fans) fan.mode = 'auto'; lastRestoreReason = reason },
+    fans, requests, binary,
+    simulateHelperRestore(reason: string) { for (const fan of fans) fan.mode = 'auto'; lastRestoreReason = reason; if (restoreSeq !== undefined) restoreSeq++ },
     handle,
   }
 }
 
 /** A client whose `connect` succeeds only while `running` is true (the helper process is up). */
-function fakeClient(helper: ReturnType<typeof fakeHelper>, running: { value: boolean }) {
+function fakeClient(helper: ReturnType<typeof fakeHelper>, running: { value: boolean }, otherProtocol = { value: false }) {
   let connected = false
   const disconnectListeners = new Set<(reason: string) => void>()
   const client: HelperClient & { dropConnection: (reason: string) => void } = {
     connect: async () => {
       if (!running.value) throw Object.assign(new Error('connect ENOENT'), { code: 'ENOENT' })
+      if (otherProtocol.value) throw new HelperProtocolError('Helper speaks protocol 2, this app needs 1.')
       connected = true
-      return hello
+      return helper.binary.running ? { ...hello, binarySha256: helper.binary.running } : hello
     },
     request: async (op, args) => {
       if (!connected) throw new Error('Helper is not connected.')
@@ -273,6 +283,216 @@ describe.skipIf(!present)('fan control bridge (electron/thermal/fanControl.ts)',
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+/** A release build: the helper is a launchd daemon that launchd keeps running once installed. */
+function setupDaemon(options: { status?: HelperDaemonStatus; install?: LaunchResult; otherProtocol?: boolean; restoreSeq?: number; kind?: HelperDaemonInstaller['kind']; afterInstall?: HelperDaemonStatus; bundledSha256?: string } = {}) {
+  const helper = fakeHelper({ restoreSeq: options.restoreSeq ?? 0 })
+  let status: HelperDaemonStatus = options.status ?? 'not-installed'
+  const running = { value: status !== 'not-installed' }
+  const otherProtocol = { value: options.otherProtocol === true }
+  const client = fakeClient(helper, running, otherProtocol)
+  const installResult: LaunchResult = options.install ?? { ok: true }
+  const installer: HelperDaemonInstaller & { install: ReturnType<typeof vi.fn>; uninstall: ReturnType<typeof vi.fn> } = {
+    kind: options.kind ?? 'launchd',
+    status: () => status,
+    install: vi.fn(async () => {
+      if (installResult.ok) {
+        status = options.afterInstall ?? 'installed'
+        running.value = status === 'installed'
+        otherProtocol.value = false
+      }
+      return installResult
+    }),
+    ...(options.bundledSha256 ? { bundledSha256: () => options.bundledSha256 as string } : {}),
+    uninstall: vi.fn(async () => { status = 'not-installed'; running.value = false; return { ok: true } as LaunchResult }),
+  }
+  const createClient = vi.fn(() => client)
+  const launch = vi.fn(async (): Promise<LaunchResult> => ({ ok: true }))
+  const deps: FanControlDeps = {
+    platform: 'darwin',
+    helperBinaryPath: '/Applications/Viezan.app/Contents/Resources/native/viezan-fan-helper',
+    binaryExists: () => true,
+    socketPath: '/var/run/viezan-fan-helper-501.sock',
+    uid: 501,
+    launch,
+    daemon: { installer, socketPath: '/var/run/viezan-fan-helper.sock' },
+    createClient,
+    connectRetryMs: 1,
+    connectTimeoutMs: 50,
+    resumeTimeoutMs: 20,
+    refreshMs: 100_000,
+    log: { warn: vi.fn(), error: vi.fn() },
+  }
+  return { helper, client, installer, createClient, launch, running, deps }
+}
+
+describe.skipIf(!present)('fan control bridge, helper as a daemon (release builds)', () => {
+  it('installs the daemon on the first enable, then only connects to its socket', async () => {
+    const create = await load()
+    const { deps, installer, createClient, launch } = setupDaemon()
+    const service = create(deps)
+    expect(service.getState()).toEqual({ helper: 'idle', install: 'not-installed', fans: [] })
+
+    const state = await service.enable()
+    expect(installer.install).toHaveBeenCalledTimes(1)
+    expect(launch).not.toHaveBeenCalled()
+    expect(createClient).toHaveBeenLastCalledWith('/var/run/viezan-fan-helper.sock')
+    expect(state).toMatchObject({ helper: 'ready', install: 'installed' })
+
+    // The next enable (another launch) needs no prompt at all.
+    await service.disable()
+    expect((await service.enable()).helper).toBe('ready')
+    expect(installer.install).toHaveBeenCalledTimes(1)
+  })
+
+  it('treats a dismissed install prompt as idle and a failed install as an error', async () => {
+    const create = await load()
+    const cancelled = create(setupDaemon({ install: { ok: false, reason: 'cancelled', message: 'The administrator prompt was cancelled.' } }).deps)
+    expect(await cancelled.enable()).toMatchObject({ helper: 'idle', install: 'not-installed' })
+    const failed = create(setupDaemon({ install: { ok: false, reason: 'failed', message: 'install: Operation not permitted' } }).deps)
+    expect(await failed.enable()).toMatchObject({ helper: 'error', error: 'install: Operation not permitted' })
+  })
+
+  it('resume connects to an installed daemon and never prompts when there is none', async () => {
+    const create = await load()
+    const missing = setupDaemon()
+    expect(await create(missing.deps).resume()).toMatchObject({ helper: 'idle', install: 'not-installed' })
+    expect(missing.installer.install).not.toHaveBeenCalled()
+
+    const installed = setupDaemon({ status: 'installed' })
+    expect(await create(installed.deps).resume()).toMatchObject({ helper: 'ready', install: 'installed' })
+
+    // Installed but not answering (launchd still starting it, or broken): quietly idle, no error.
+    const silent = setupDaemon({ status: 'installed' })
+    silent.running.value = false
+    const afterSilence = await create(silent.deps).resume()
+    expect(afterSilence.helper).toBe('idle')
+    expect(afterSilence.error).toBeUndefined()
+  })
+
+  it('keeps using an outdated daemon that still speaks the protocol, and replaces one that does not', async () => {
+    const create = await load()
+    const compatible = setupDaemon({ status: 'outdated' })
+    expect(await create(compatible.deps).enable()).toMatchObject({ helper: 'ready', install: 'outdated' })
+    expect(compatible.installer.install).not.toHaveBeenCalled()
+
+    const incompatible = setupDaemon({ status: 'outdated', otherProtocol: true })
+    expect(await create(incompatible.deps).enable()).toMatchObject({ helper: 'ready', install: 'installed' })
+    expect(incompatible.installer.install).toHaveBeenCalledTimes(1)
+
+    // Installed but not answering at all: one reinstall on a user's enable, and no second prompt if that fails too.
+    const broken = setupDaemon({ status: 'installed' })
+    broken.running.value = false
+    broken.installer.install.mockImplementation(async () => ({ ok: true }))
+    expect(await create(broken.deps).enable()).toMatchObject({ helper: 'error' })
+    expect(broken.installer.install).toHaveBeenCalledTimes(1)
+
+    // At launch an incompatible daemon is left for the user to update.
+    const atLaunch = setupDaemon({ status: 'outdated', otherProtocol: true })
+    expect(await create(atLaunch.deps).resume()).toMatchObject({ helper: 'idle', install: 'outdated' })
+    expect(atLaunch.installer.install).not.toHaveBeenCalled()
+  })
+
+  it('installHelper replaces the daemon and reconnects; uninstallHelper restores, disconnects and removes it', async () => {
+    const create = await load()
+    const { deps, installer, helper, client } = setupDaemon({ status: 'outdated' })
+    const service = create(deps)
+    await service.enable()
+    await service.setFan('smc:fan0', { mode: 'fixed', rpm: 2500 })
+
+    expect(await service.installHelper()).toMatchObject({ helper: 'ready', install: 'installed' })
+    expect(installer.install).toHaveBeenCalledTimes(1)
+    expect(helper.requests.some((r) => r.op === 'fans.restoreAll')).toBe(true)
+
+    const removed = await service.uninstallHelper()
+    expect(installer.uninstall).toHaveBeenCalledTimes(1)
+    expect(client.isConnected()).toBe(false)
+    expect(removed).toMatchObject({ helper: 'idle', install: 'not-installed', fans: [] })
+  })
+
+  it('only reports restores that happened during this connection', async () => {
+    vi.useFakeTimers()
+    try {
+      const create = await load()
+      // The daemon already restored seven times before this app connected (earlier quits, sleeps).
+      const { deps, helper } = setupDaemon({ status: 'installed', restoreSeq: 7 })
+      const service = create({ ...deps, refreshMs: 1000 })
+      helper.simulateHelperRestore('disconnect')
+      await service.enable()
+      expect(service.getState()).toMatchObject({ restoreSeq: 8 })
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(service.getState().lastRestoreReason).toBeUndefined()
+
+      helper.simulateHelperRestore('wake')
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(service.getState()).toMatchObject({ restoreSeq: 9, lastRestoreReason: 'wake' })
+      await service.stop()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('runs a user enable that arrives while a quiet resume is still trying', async () => {
+    const create = await load()
+    const { deps, installer } = setupDaemon({ status: 'outdated', otherProtocol: true })
+    const service = create(deps)
+    const resuming = service.resume()
+    const enabling = service.enable()
+    expect((await resuming).helper).not.toBe('ready')
+    // The resume never prompts; the click behind it does, and replaces the incompatible daemon.
+    expect(await enabling).toMatchObject({ helper: 'ready', install: 'installed' })
+    expect(installer.install).toHaveBeenCalledTimes(1)
+  })
+
+  it('reconnects when the uninstall prompt is dismissed', async () => {
+    const create = await load()
+    const { deps, installer } = setupDaemon({ status: 'installed' })
+    installer.uninstall.mockImplementation(async () => ({ ok: false, reason: 'cancelled', message: 'The administrator prompt was cancelled.' }))
+    const service = create(deps)
+    await service.enable()
+    expect(await service.uninstallHelper()).toMatchObject({ helper: 'ready', install: 'installed' })
+  })
+
+  it('SMAppService: registers without a prompt, waits for approval without an error, and migrates path A', async () => {
+    const create = await load()
+    const pending = setupDaemon({ kind: 'smappservice', afterInstall: 'requires-approval' })
+    const service = create(pending.deps)
+    expect(await service.enable()).toMatchObject({ helper: 'idle', install: 'requires-approval' })
+    expect(service.getState().error).toBeUndefined()
+    // Approval still pending: neither resume nor another enable connects or registers again.
+    expect(await service.resume()).toMatchObject({ helper: 'idle', install: 'requires-approval' })
+    expect(await service.enable()).toMatchObject({ helper: 'idle', install: 'requires-approval' })
+    expect(pending.installer.install).toHaveBeenCalledTimes(1)
+
+    // Path A's job left over ("outdated" for path B): the first enable migrates it.
+    const migrating = setupDaemon({ kind: 'smappservice', status: 'outdated' })
+    expect(await create(migrating.deps).enable()).toMatchObject({ helper: 'ready', install: 'installed' })
+    expect(migrating.installer.install).toHaveBeenCalledTimes(1)
+  })
+
+  it('SMAppService: restarts a daemon process older than the app bundle after an update', async () => {
+    const create = await load()
+    const { deps, helper } = setupDaemon({ kind: 'smappservice', status: 'installed', bundledSha256: 'new' })
+    helper.binary.running = 'old'
+    helper.binary.next = 'new'
+    expect(await create(deps).enable()).toMatchObject({ helper: 'ready' })
+    expect(helper.requests.filter((r) => r.op === 'helper.exit')).toHaveLength(1)
+    expect(helper.binary.running).toBe('new')
+  })
+
+  it('session builds have no helper to install and resume only reuses a running helper', async () => {
+    const create = await load()
+    const { deps, launch, running } = setup()
+    const service = create(deps)
+    expect(service.getState().install).toBeUndefined()
+    await expect(service.installHelper()).rejects.toThrow(/not installed as a background helper/)
+    expect((await service.resume()).helper).toBe('idle')
+    expect(launch).not.toHaveBeenCalled()
+    running.value = true
+    expect((await service.resume()).helper).toBe('ready')
+    expect(launch).not.toHaveBeenCalled()
   })
 })
 

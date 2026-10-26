@@ -67,10 +67,10 @@ function createPreviewThermal() {
   }
   type Settings = import('../../shared/thermalApi').ThermalSettings
   type FanState = import('../../shared/thermalApi').FanControlState
-  let settings: Settings = { tray: { enabled: false, metric: 'hottest', showFan: false, layout: 'inline', showUnit: true, fanFormat: 'rpm' }, fanControl: { acknowledged: false }, fanProfiles: { activeId: null, user: [] }, fanAffinity: null }
+  let settings: Settings = { tray: { enabled: false, metric: 'hottest', showFan: false, layout: 'inline', showUnit: true, fanFormat: 'rpm' }, fanControl: { acknowledged: false, autoEnable: false, custom: {} }, fanProfiles: { activeId: null, user: [] }, fanAffinity: null }
   const settingsListeners = new Set<(settings: Settings) => void>()
   // Fan control: a pretend helper that connects after a short delay and holds one fan.
-  let fanState: FanState = { helper: 'idle', fans: [] }
+  let fanState: FanState = { helper: 'idle', install: 'not-installed', fans: [] }
   const fanListeners = new Set<(state: FanState) => void>()
   const setFanState = (next: FanState) => { fanState = next; for (const cb of fanListeners) cb(next) }
   type PreviewFan = import('../../shared/thermalApi').FanControlFan
@@ -145,9 +145,23 @@ function createPreviewThermal() {
       getState: async () => fanOk(),
       enable: async () => {
         if (fanState.helper === 'ready') return fanOk()
-        setFanState({ helper: 'starting', fans: [] })
+        setFanState({ helper: 'starting', install: fanState.install, fans: [] })
         await new Promise((resolve) => setTimeout(resolve, 600))
-        setFanState({ helper: 'ready', helperVersion: 'preview', fans: allAuto() })
+        setFanState({ helper: 'ready', install: 'installed', helperVersion: 'preview', fans: allAuto() })
+        return fanOk()
+      },
+      installHelper: async () => {
+        sensorRules.clear()
+        setFanState({ helper: 'starting', install: fanState.install, fans: [] })
+        await new Promise((resolve) => setTimeout(resolve, 600))
+        setFanState({ helper: 'ready', install: 'installed', helperVersion: 'preview', fans: allAuto() })
+        return fanOk()
+      },
+      openHelperApproval: async () => ({ success: true }),
+      uninstallHelper: async () => {
+        sensorRules.clear()
+        setFanState({ helper: 'idle', install: 'not-installed', fans: [] })
+        if (profiles.applied) setProfiles({ ...profiles, applied: false })
         return fanOk()
       },
       setFan: async (fanId: string, command: import('../../shared/thermalApi').FanCommand) => {
@@ -177,7 +191,7 @@ function createPreviewThermal() {
         markCustom()
         return fanOk()
       },
-      disable: async () => { sensorRules.clear(); setFanState({ helper: 'idle', fans: [] }); if (profiles.applied) setProfiles({ ...profiles, applied: false }); return fanOk() },
+      disable: async () => { sensorRules.clear(); setFanState({ helper: 'idle', install: fanState.install, fans: [] }); if (profiles.applied) setProfiles({ ...profiles, applied: false }); return fanOk() },
       calibration: {
         get: async () => calibrationOk(),
         start: async () => {

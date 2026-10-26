@@ -7,11 +7,15 @@
  * `start`/`stop` are the module host's lifecycle: the tray item exists only while the
  * module is on, and stopping releases the reader so nothing runs in the background.
  */
+import * as os from 'node:os'
 import * as path from 'node:path'
 import type { BrowserWindow, NativeImage, Tray } from 'electron'
 import type { FanControlState, ThermalSettings, ThermalSupport } from '../../shared/thermalApi'
 import { createHelperClient } from '../helper/client'
+import { createHelperDaemonInstaller, FAN_HELPER_DAEMON_SOCKET, type HelperDaemonInstaller } from '../helper/daemon'
 import { launchWithAdministratorPrivileges } from '../helper/launch'
+import { createSmAppServiceInstaller, FAN_HELPER_CTL_NAME } from '../helper/smAppService'
+import { chooseHelperStrategy, readTeamIdentifier } from '../helper/strategy'
 import { createCpuLoadSampler } from './cpuLoad'
 import { createFanCalibration, type FanCalibrationService } from './fanCalibration'
 import { createFanControlService } from './fanControl'
@@ -66,8 +70,12 @@ export interface ThermalRuntime {
   fanCalibration: FanCalibrationService
   /** Reader support plus the tray placement for this run. */
   getSupport: () => ThermalSupport
-  /** Module host `start`: restore the tray reading from the saved settings. */
+  /** Module host `start`: restore the tray reading and, when it was on, fan control (no prompt). */
   start: () => void
+  /** Reconnect fan control when it was on and needs no prompt (the user came back to their session). */
+  resumeFanControl: () => void
+  /** SMAppService builds: open System Settings › Login Items; absent elsewhere. */
+  openHelperApproval?: () => Promise<void>
   /** Module host `stop`: fans back to auto, hide the tray reading, release the reader. */
   stop: () => Promise<void>
 }
@@ -127,15 +135,47 @@ export function createThermalRuntime(deps: ThermalRuntimeDeps): ThermalRuntime {
     broadcaster.settingsChanged(next)
   })
 
+  // Fan control the user left on comes back without a prompt: at launch, after the helper
+  // connection dropped unexpectedly (the daemon restarted), and when the user returns to the console.
+  const resumeFanControl = () => {
+    if (started && settings.get().fanControl.autoEnable) void fanControl.resume()
+  }
+  let lastFanHelper: FanControlState['helper'] | null = null
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  function watchForDrop(state: FanControlState) {
+    const dropped = lastFanHelper === 'ready' && state.helper === 'idle' && state.lastRestoreReason === 'disconnect'
+    lastFanHelper = state.helper
+    if (!dropped || reconnectTimer) return
+    // One attempt shortly after: a daemon launchd is restarting is back by then; anything else stays off.
+    reconnectTimer = setTimeout(() => { reconnectTimer = null; resumeFanControl() }, 2000)
+    reconnectTimer.unref?.()
+  }
+
   let fanPolicy: FanPolicyService | null = null
   let fanProfiles: FanProfileService | null = null
   let fanCalibration: FanCalibrationService | null = null
+  const helperBinaryPath = resolveFanHelperPath(deps)
+  // Release builds install the helper once as a daemon; a checkout keeps the per-session helper so a
+  // development binary is never installed system-wide. SMAppService (path B) waits behind its switch.
+  const appBundlePath = path.resolve(deps.resourcesPath, '..', '..')
+  const strategy = chooseHelperStrategy({
+    platform: deps.platform,
+    isPackaged: deps.isPackaged,
+    darwinMajor: Number.parseInt(os.release(), 10),
+    teamId: () => readTeamIdentifier(appBundlePath),
+  })
+  const legacyInstaller = strategy === 'session' ? null : createHelperDaemonInstaller({ bundledBinaryPath: helperBinaryPath })
+  const daemonInstaller: HelperDaemonInstaller | null = strategy === 'smappservice' && legacyInstaller
+    ? createSmAppServiceInstaller({ ctlPath: path.join(appBundlePath, 'Contents', 'MacOS', FAN_HELPER_CTL_NAME), bundledBinaryPath: helperBinaryPath, legacy: legacyInstaller })
+    : legacyInstaller
+  console.info(`[Thermal] fan helper strategy: ${strategy}`)
   const fanBridge = createFanControlService({
     platform: deps.platform,
-    helperBinaryPath: resolveFanHelperPath(deps),
+    helperBinaryPath,
     socketPath: `${FAN_HELPER_SOCKET_PREFIX}-${deps.uid}${deps.helperSocketSuffix}.sock`,
     uid: deps.uid,
     launch: launchWithAdministratorPrivileges,
+    daemon: daemonInstaller ? { installer: daemonInstaller, socketPath: FAN_HELPER_DAEMON_SOCKET } : undefined,
     createClient: (socketPath: string) => createHelperClient({ socketPath }),
     onState: (state: FanControlState) => fanPolicy?.ingestControlState(state),
   })
@@ -147,15 +187,20 @@ export function createThermalRuntime(deps: ThermalRuntimeDeps): ThermalRuntime {
     onState: (state) => {
       fanProfiles?.ingestControlState(state)
       broadcaster.fanState(state)
+      watchForDrop(state)
     },
   })
   fanProfiles = createFanProfileService({
     control: fanPolicy,
     settings,
     onState: broadcaster.fanProfilesState,
+    paused: () => fanCalibration?.getState().status === 'running',
   })
+  // Calibration drives the policy directly so its spins never become the user's custom setting;
+  // afterwards the remembered setting goes back on.
   fanCalibration = createFanCalibration({
-    control: fanProfiles,
+    control: fanPolicy,
+    onFinished: () => { void fanProfiles?.reapply() },
     subscribeSnapshots: service.subscribe,
     setBackgroundReads: (active) => { background.calibration = active; syncBackground() },
     saveResult: (result) => { settings.update({ fanAffinity: result }) },
@@ -178,9 +223,15 @@ export function createThermalRuntime(deps: ThermalRuntimeDeps): ThermalRuntime {
     start: () => {
       started = true
       applyTray(settings.get())
+      // Fan control was on when the app last quit (an update relaunch, a restart): connect again
+      // and put the setting back. Only a helper that needs no password is used here.
+      resumeFanControl()
     },
+    resumeFanControl,
+    ...(daemonInstaller?.openApproval ? { openHelperApproval: daemonInstaller.openApproval } : {}),
     stop: async () => {
       started = false
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
       // Fans first: the helper must see the restore before anything else winds down.
       await fanCalibration?.cancel()
       await fanControl.stop()

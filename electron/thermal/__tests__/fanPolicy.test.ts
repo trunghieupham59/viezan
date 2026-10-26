@@ -94,6 +94,9 @@ function fakeBridge(initial: FanControlState['helper'] = 'ready') {
     restoreAll: async () => { state = { ...state, fans: state.fans.map((fan) => ({ ...fan, mode: 'auto', targetRpm: undefined })) }; return state },
     disable: async () => { state = { helper: 'idle', fans: [] }; return state },
     stop: async () => { state = { helper: 'idle', fans: [] } },
+    resume: async () => { state = { ...state, helper: 'ready' }; return state },
+    installHelper: async () => { state = { ...state, helper: 'ready', install: 'installed' }; return state },
+    uninstallHelper: async () => { state = { helper: 'idle', install: 'not-installed', fans: [] }; return state },
   }
   return bridge
 }
@@ -192,6 +195,20 @@ describe('fan policy', () => {
     expect(policy.rules().size).toBe(0)
     expect(setBackgroundReads).toHaveBeenLastCalledWith(false)
     expect(policy.getState()).toMatchObject({ helper: 'idle', lastRestoreReason: 'disconnect' })
+  })
+
+  it('drops every rule when the helper restores at the temperature ceiling, but not for other restores', async () => {
+    const { bridge, policy, setBackgroundReads } = setup()
+    await policy.setFan('smc:fan0', { mode: 'sensor', ...rule })
+    const ready = bridge.state()
+    policy.ingestControlState({ ...ready, restoreSeq: 4 })
+    policy.ingestControlState({ ...ready, restoreSeq: 5, lastRestoreReason: 'wake' })
+    expect(policy.rules().size).toBe(1)
+    // Left in place, the rule would take the fan back as soon as the machine cooled below its maximum.
+    policy.ingestControlState({ ...ready, restoreSeq: 6, lastRestoreReason: 'ceiling' })
+    expect(policy.rules().size).toBe(0)
+    expect(policy.getState().fans[0].mode).toBe('auto')
+    expect(setBackgroundReads).toHaveBeenLastCalledWith(false)
   })
 
   it('refuses a rule while the helper is not ready or for an unknown fan', async () => {

@@ -1,36 +1,55 @@
 // viezan-fan-helper — the privileged half of Viezan's fan control on macOS.
 //
-// Writing fan targets to the SMC needs root, so this small binary is launched with
-// administrator rights for one session (the app asks through the system password
-// dialog) and serves exactly one client over a Unix socket. It understands a fixed
-// set of commands (docs/plans/module-platform-and-privileged-helper.md §4.3), clamps
-// every target to the hardware range, and returns every fan to automatic control on
-// its own whenever the client goes quiet, disconnects, the machine sleeps or wakes, a
-// temperature crosses the ceiling, or the process is told to stop.
+// Writing fan targets to the SMC needs root. The binary runs in one of two ways:
 //
+// * Daemon (`--daemon`, release builds): installed once as the launchd job
+//   `com.viezan.fan-helper` (docs/plans/fan-helper-daemon.md) and kept running by
+//   launchd, so the app connects without asking for a password again. Any client of
+//   the user at the console may connect; a console-user switch drops the client.
+// * Session (`--socket … --uid …`, development builds and the fallback): launched with
+//   administrator rights for one session through the system password dialog, serves
+//   only that uid, and exits a while after its client leaves.
+//
+// A helper signed with a Team ID (the Developer ID release, path B) also checks that its
+// client is signed by the same team; an ad-hoc build cannot tell code apart and skips it.
+//
+// Either way it serves exactly one client over a Unix socket, understands a fixed set
+// of commands (docs/plans/module-platform-and-privileged-helper.md §4.3), clamps every
+// target to the hardware range, and returns every fan to automatic control on its own
+// whenever it starts, the client goes quiet or disconnects, the machine sleeps or
+// wakes, a temperature crosses the ceiling, or the process is told to stop.
+//
+//   viezan-fan-helper --daemon [--watchdog 15] [--ceiling 105]
 //   viezan-fan-helper --socket /var/run/viezan-fan-helper-501.sock --uid 501
 //                     [--watchdog 15] [--idle-exit 60] [--ceiling 105]
 //
 // Protocol: one JSON object per line. Request `{"id":1,"op":"fans.setTarget","args":{...}}`,
 // reply `{"id":1,"ok":true,"result":...}` or `{"id":1,"ok":false,"error":{"code":"...","message":"..."}}`.
+import CryptoKit
 import Darwin
 import Foundation
 import IOKit
 import IOKit.pwr_mgt
+import Security
+import SystemConfiguration
 
-let helperVersion = "1.0.0"
+let helperVersion = "1.1.0"
 let protocolVersion = 1
 // IOKit power messages (`iokit_common_msg(n)` = 0xE0000000 | n); the macros do not import into Swift.
 let messageCanSystemSleep: UInt32 = 0xE000_0270
 let messageSystemWillSleep: UInt32 = 0xE000_0280
 let messageSystemHasPoweredOn: UInt32 = 0xE000_0300
 let socketPathPrefix = "/var/run/viezan-fan-helper"
+let daemonSocketPath = "/var/run/viezan-fan-helper.sock"
 let logPath = "/var/log/viezan-fan-helper.log"
+/// The log is rotated to `<path>.1` past this size; a daemon would otherwise grow it forever.
+let logMaxBytes: UInt64 = 1_000_000
 
 // MARK: - Logging
 
 final class Log {
-  private let handle: FileHandle?
+  private let path: String
+  private var handle: FileHandle?
   private let queue = DispatchQueue(label: "viezan.fanhelper.log")
   private let formatter: ISO8601DateFormatter = {
     let f = ISO8601DateFormatter()
@@ -39,28 +58,89 @@ final class Log {
   }()
 
   init(path: String) {
+    self.path = path
+    handle = Log.open(path)
+  }
+
+  private static func open(_ path: String) -> FileHandle? {
     if !FileManager.default.fileExists(atPath: path) {
       FileManager.default.createFile(atPath: path, contents: nil, attributes: [.posixPermissions: 0o644])
     }
-    handle = FileHandle(forWritingAtPath: path)
+    let handle = FileHandle(forWritingAtPath: path)
     handle?.seekToEndOfFile()
+    return handle
+  }
+
+  /// Keep one previous file: `<path>.1` is replaced each time the log passes `logMaxBytes`.
+  private func rotateIfNeeded() {
+    guard let current = handle, let size = try? current.offset(), size > logMaxBytes else { return }
+    try? current.close()
+    let previous = path + ".1"
+    try? FileManager.default.removeItem(atPath: previous)
+    try? FileManager.default.moveItem(atPath: path, toPath: previous)
+    handle = Log.open(path)
   }
 
   func write(_ message: String) {
     let line = "\(formatter.string(from: Date())) [\(getpid())] \(message)\n"
     queue.sync {
-      if let handle, let data = line.data(using: .utf8) {
-        handle.write(data)
-      } else {
-        FileHandle.standardError.write(line.data(using: .utf8)!)
-      }
+      rotateIfNeeded()
+      guard let data = line.data(using: .utf8) else { return }
+      // The throwing form: a full disk must cost a log line, not crash-loop the daemon.
+      if let handle, (try? handle.write(contentsOf: data)) != nil { return }
+      try? FileHandle.standardError.write(contentsOf: data)
     }
   }
+}
+
+// MARK: - Identity
+
+/// SHA-256 of this executable as it was when the process started. Under SMAppService the binary
+/// lives in the app bundle; after an app update the app compares this with the new file and asks
+/// the old process to exit (`helper.exit`) so launchd starts the new one.
+let executableSha256: String? = {
+  guard let url = Bundle.main.executableURL, let data = try? Data(contentsOf: url) else { return nil }
+  return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+}()
+
+/// The Team ID this helper is signed with; nil for an ad-hoc build.
+let ownTeamId: String? = {
+  var code: SecCode?
+  guard SecCodeCopySelf([], &code) == errSecSuccess, let code else { return nil }
+  var staticCode: SecStaticCode?
+  guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode else { return nil }
+  var info: CFDictionary?
+  guard SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &info) == errSecSuccess,
+        let row = info as? [String: Any] else { return nil }
+  return row[kSecCodeInfoTeamIdentifier as String] as? String
+}()
+
+/// What a client must satisfy when this helper is team-signed: code signed by the same team.
+let clientRequirement: SecRequirement? = {
+  guard let team = ownTeamId else { return nil }
+  var requirement: SecRequirement?
+  let text = "anchor apple generic and certificate leaf[subject.OU] = \"\(team)\"" as CFString
+  return SecRequirementCreateWithString(text, [], &requirement) == errSecSuccess ? requirement : nil
+}()
+
+/// True when the peer's code signature passes `clientRequirement` (always true for an ad-hoc helper).
+func peerIsTrustedCode(_ fd: Int32) -> Bool {
+  guard ownTeamId != nil else { return true }
+  guard let requirement = clientRequirement else { return false }
+  var token = audit_token_t()
+  var length = socklen_t(MemoryLayout<audit_token_t>.size)
+  guard getsockopt(fd, SOL_LOCAL, LOCAL_PEERTOKEN, &token, &length) == 0 else { return false }
+  let tokenData = withUnsafeBytes(of: &token) { Data($0) }
+  var code: SecCode?
+  guard SecCodeCopyGuestWithAttributes(nil, [kSecGuestAttributeAudit: tokenData] as CFDictionary, [], &code) == errSecSuccess,
+        let code else { return false }
+  return SecCodeCheckValidity(code, [], requirement) == errSecSuccess
 }
 
 // MARK: - Arguments
 
 struct Options {
+  var daemon = false
   var socketPath = ""
   var uid: uid_t = 0
   var watchdogSeconds = 15.0
@@ -77,6 +157,7 @@ func parseOptions(_ arguments: [String]) -> Options? {
   }
   while index < arguments.count {
     switch arguments[index] {
+    case "--daemon": options.daemon = true
     case "--socket": guard let v = value() else { return nil }; options.socketPath = v
     case "--uid": guard let v = value(), let n = UInt32(v) else { return nil }; options.uid = n
     case "--watchdog": guard let v = value(), let n = Double(v), n >= 3 else { return nil }; options.watchdogSeconds = n
@@ -86,7 +167,14 @@ func parseOptions(_ arguments: [String]) -> Options? {
     }
     index += 1
   }
-  guard options.socketPath.hasPrefix(socketPathPrefix), !options.socketPath.contains(".."), options.uid != 0 else { return nil }
+  if options.daemon {
+    // The daemon's socket and peers are fixed; a session's arguments make no sense here.
+    guard options.socketPath.isEmpty, options.uid == 0 else { return nil }
+    options.socketPath = daemonSocketPath
+    return options
+  }
+  guard options.socketPath.hasPrefix(socketPathPrefix), options.socketPath != daemonSocketPath,
+        !options.socketPath.contains(".."), options.uid != 0 else { return nil }
   return options
 }
 
@@ -124,6 +212,10 @@ final class FanController {
   private(set) var lastCommandAt = Date()
   private(set) var lastError: String?
   private(set) var lastRestoreReason: String?
+  /// Counts every restore, so a client can tell a new restore from an old one with the same reason.
+  private(set) var restoreSeq = 0
+  /// The connected client, set and cleared by the accept loop (on `queue`).
+  var client: (fd: Int32, uid: uid_t)?
   let startedAt = Date()
 
   init(log: Log, ceilingCelsius: Double) throws {
@@ -266,6 +358,7 @@ final class FanController {
     }
     overrides = [:]
     lastRestoreReason = reason
+    restoreSeq += 1
     return ok
   }
 
@@ -282,6 +375,7 @@ final class FanController {
     var row: [String: Any] = [
       "uptime": Date().timeIntervalSince(startedAt),
       "activeOverrides": overrides.keys.sorted().map { ["id": "fan\($0)", "rpm": overrides[$0]!] },
+      "restoreSeq": restoreSeq,
     ]
     if let lastError { row["lastError"] = lastError }
     if let lastRestoreReason { row["lastRestoreReason"] = lastRestoreReason }
@@ -290,6 +384,9 @@ final class FanController {
 }
 
 // MARK: - Request handling
+
+/// Set once the process is up (`shutdown` captures globals declared later in this file).
+var requestExit: () -> Void = {}
 
 func jsonLine(_ object: [String: Any]) -> Data {
   var data = (try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])) ?? Data("{}".utf8)
@@ -313,15 +410,19 @@ func handle(_ line: Data, controller: FanController, options: Options) -> Data {
     do {
       switch op {
       case "hello":
-        return reply(id, result: [
+        var hello: [String: Any] = [
           "protocol": protocolVersion,
           "helperVersion": helperVersion,
           "platform": "darwin",
+          "mode": options.daemon ? "daemon" : "session",
           "pid": Int(getpid()),
           "watchdogSeconds": options.watchdogSeconds,
           "ceilingCelsius": options.ceilingCelsius,
           "capabilities": ["fans.write"],
-        ])
+          "teamSigned": ownTeamId != nil,
+        ]
+        if let executableSha256 { hello["binarySha256"] = executableSha256 }
+        return reply(id, result: hello)
       case "status":
         return reply(id, result: controller.status())
       case "fans.list":
@@ -340,6 +441,11 @@ func handle(_ line: Data, controller: FanController, options: Options) -> Data {
       case "fans.restoreAll":
         let ok = controller.restoreAll(reason: "client")
         return reply(id, result: ["restored": ok])
+      case "helper.exit":
+        // Restore and leave once the reply is out; launchd starts the daemon again from the
+        // (possibly updated) binary.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { requestExit() }
+        return reply(id, result: ["exiting": true])
       default:
         return replyError(id, "bad-request", "Unknown op \(op).")
       }
@@ -353,7 +459,7 @@ func handle(_ line: Data, controller: FanController, options: Options) -> Data {
 
 // MARK: - Socket server
 
-func makeServerSocket(path: String, uid: uid_t) throws -> Int32 {
+func makeServerSocket(path: String, owner: uid_t, mode: mode_t) throws -> Int32 {
   let fd = socket(AF_UNIX, SOCK_STREAM, 0)
   guard fd >= 0 else { throw HelperError(code: "socket", message: "socket() failed: \(errno)") }
   unlink(path)
@@ -372,8 +478,9 @@ func makeServerSocket(path: String, uid: uid_t) throws -> Int32 {
     pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.bind(fd, $0, length) }
   }
   guard bound == 0 else { throw HelperError(code: "socket", message: "bind() failed: \(errno)") }
-  // Only the launching user may connect: the socket file is theirs and private.
-  guard chown(path, uid, gid_t(bitPattern: -1)) == 0, chmod(path, 0o600) == 0 else {
+  // Session: the socket file is the launching user's and private. Daemon: root's and open
+  // to all; `isAllowedPeer` decides who may stay connected.
+  guard chown(path, owner, gid_t(bitPattern: -1)) == 0, chmod(path, mode) == 0 else {
     throw HelperError(code: "socket", message: "chown/chmod failed: \(errno)")
   }
   guard listen(fd, 2) == 0 else { throw HelperError(code: "socket", message: "listen() failed: \(errno)") }
@@ -384,6 +491,18 @@ func peerUid(_ fd: Int32) -> uid_t? {
   var uid: uid_t = 0
   var gid: gid_t = 0
   return getpeereid(fd, &uid, &gid) == 0 ? uid : nil
+}
+
+/// The uid of the user at the console, or nil at the login window.
+func consoleUid() -> uid_t? {
+  var uid: uid_t = 0
+  guard let name = SCDynamicStoreCopyConsoleUser(nil, &uid, nil) as String?, name != "loginwindow", uid != 0 else { return nil }
+  return uid
+}
+
+func isAllowedPeer(_ uid: uid_t, options: Options) -> Bool {
+  if uid == 0 { return true }
+  return options.daemon ? uid == consoleUid() : uid == options.uid
 }
 
 func writeAll(_ fd: Int32, _ data: Data) -> Bool {
@@ -399,7 +518,11 @@ func writeAll(_ fd: Int32, _ data: Data) -> Bool {
   }
 }
 
-/// Serve one client until it disconnects. Lines longer than 64 KiB end the session.
+/// A client that sends nothing for this long is dropped. The app's heartbeat comes every 5 s, so
+/// only a stuck or hostile peer reaches it, and it must not hold the one client slot forever.
+let clientIdleSeconds = 30
+
+/// Serve one client until it disconnects or goes quiet. Lines longer than 64 KiB end the session.
 func serve(client: Int32, controller: FanController, options: Options, log: Log) {
   var buffer = Data()
   var chunk = [UInt8](repeating: 0, count: 4096)
@@ -423,7 +546,7 @@ func serve(client: Int32, controller: FanController, options: Options, log: Log)
 // MARK: - Main
 
 guard let options = parseOptions(CommandLine.arguments) else {
-  FileHandle.standardError.write("usage: viezan-fan-helper --socket \(socketPathPrefix)-<uid>.sock --uid <uid> [--watchdog s] [--idle-exit s] [--ceiling c]\n".data(using: .utf8)!)
+  FileHandle.standardError.write("usage: viezan-fan-helper --daemon [--watchdog s] [--ceiling c]\n       viezan-fan-helper --socket \(socketPathPrefix)-<uid>.sock --uid <uid> [--watchdog s] [--idle-exit s] [--ceiling c]\n".data(using: .utf8)!)
   exit(64)
 }
 guard geteuid() == 0 else {
@@ -441,15 +564,21 @@ do {
   log.write("startup failed: \(error)")
   exit(1)
 }
+// A previous run may have crashed with a fan overridden; start from automatic control.
+_ = controller.queue.sync { controller.restoreAll(reason: "start") }
 
 let serverFd: Int32
 do {
-  serverFd = try makeServerSocket(path: options.socketPath, uid: options.uid)
+  serverFd = options.daemon
+    ? try makeServerSocket(path: options.socketPath, owner: 0, mode: 0o666)
+    : try makeServerSocket(path: options.socketPath, owner: options.uid, mode: 0o600)
 } catch {
   log.write("socket failed: \(error)")
   exit(1)
 }
-log.write("listening on \(options.socketPath) for uid \(options.uid); watchdog \(Int(options.watchdogSeconds)) s, idle exit \(Int(options.idleExitSeconds)) s, ceiling \(Int(options.ceilingCelsius)) °C")
+log.write(options.daemon
+  ? "daemon \(helperVersion) listening on \(options.socketPath) for the console user; watchdog \(Int(options.watchdogSeconds)) s, ceiling \(Int(options.ceilingCelsius)) °C"
+  : "listening on \(options.socketPath) for uid \(options.uid); watchdog \(Int(options.watchdogSeconds)) s, idle exit \(Int(options.idleExitSeconds)) s, ceiling \(Int(options.ceilingCelsius)) °C")
 
 func shutdown(_ reason: String, code: Int32) -> Never {
   _ = controller.queue.sync { controller.restoreAll(reason: reason) }
@@ -457,6 +586,8 @@ func shutdown(_ reason: String, code: Int32) -> Never {
   log.write("exit (\(reason))")
   exit(code)
 }
+
+requestExit = { shutdown("client-exit", code: 0) }
 
 // Stop signals: restore, then leave.
 for sig in [SIGTERM, SIGINT, SIGHUP] {
@@ -468,10 +599,17 @@ for sig in [SIGTERM, SIGINT, SIGHUP] {
   _ = Unmanaged.passRetained(source)
 }
 
-// Watchdog and temperature ceiling: checked every second while any fan is overridden.
+// Every second: the daemon drops a client whose user left the console (fast user
+// switching, logout); then watchdog and temperature ceiling while any fan is overridden.
 let watchdog = DispatchSource.makeTimerSource(queue: controller.queue)
 watchdog.schedule(deadline: .now() + 1, repeating: 1)
 watchdog.setEventHandler {
+  if options.daemon, let client = controller.client, !isAllowedPeer(client.uid, options: options) {
+    log.write("uid \(client.uid) is no longer the console user; dropping the client")
+    controller.restoreAll(reason: "console-user")
+    Darwin.shutdown(client.fd, SHUT_RDWR)
+    controller.client = nil
+  }
   guard !controller.overrides.isEmpty else { return }
   if Date().timeIntervalSince(controller.lastCommandAt) > options.watchdogSeconds {
     controller.restoreAll(reason: "watchdog")
@@ -506,7 +644,8 @@ if let powerNotifyPort {
   log.write("warning: could not register for power notifications")
 }
 
-// One client at a time; a disconnect restores the fans and starts the idle-exit clock.
+// One client at a time; a disconnect restores the fans. A session helper then starts its
+// idle-exit clock; the daemon stays for the next client (launchd keeps it alive anyway).
 var idleExit: DispatchWorkItem?
 DispatchQueue.global(qos: .userInitiated).async {
   while true {
@@ -516,17 +655,27 @@ DispatchQueue.global(qos: .userInitiated).async {
       log.write("accept failed: \(errno)")
       shutdown("accept-failed", code: 1)
     }
-    guard let uid = peerUid(client), uid == options.uid || uid == 0 else {
+    guard let uid = peerUid(client), isAllowedPeer(uid, options: options), uid == 0 || peerIsTrustedCode(client) else {
       log.write("rejected client with uid \(peerUid(client).map(String.init) ?? "?")")
       close(client)
       continue
     }
+    var timeout = timeval(tv_sec: clientIdleSeconds, tv_usec: 0)
+    setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
     idleExit?.cancel()
     idleExit = nil
     log.write("client connected (uid \(uid))")
+    controller.queue.sync { controller.client = (client, uid) }
     serve(client: client, controller: controller, options: options, log: log)
+    _ = controller.queue.sync {
+      controller.client = nil
+      return controller.restoreAll(reason: "disconnect")
+    }
     close(client)
-    _ = controller.queue.sync { controller.restoreAll(reason: "disconnect") }
+    if options.daemon {
+      log.write("client disconnected")
+      continue
+    }
     log.write("client disconnected; exiting in \(Int(options.idleExitSeconds)) s unless a client returns")
     let work = DispatchWorkItem { shutdown("idle", code: 0) }
     idleExit = work

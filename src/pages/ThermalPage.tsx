@@ -169,9 +169,15 @@ export function ThermalPage() {
       default: return calibrationSummary
     }
   })()
-  const restoreReason = control?.lastRestoreReason && control.lastRestoreReason !== 'client'
-    ? ({ watchdog: t.thermal_fan_reason_watchdog, ceiling: t.thermal_fan_reason_ceiling, sleep: t.thermal_fan_reason_sleep, 'can-sleep': t.thermal_fan_reason_sleep, wake: t.thermal_fan_reason_wake, disconnect: t.thermal_fan_reason_disconnect } as Record<string, string>)[control.lastRestoreReason] ?? control.lastRestoreReason
+  // Main puts the remembered setting back after sleep, wake or a missed heartbeat; the line only
+  // stays while every fan is still automatic, i.e. while the restore is what the fans actually do.
+  const restoreReason = control?.lastRestoreReason && control.lastRestoreReason !== 'client' && control.fans.every((fan) => fan.mode === 'auto')
+    ? ({ watchdog: t.thermal_fan_reason_watchdog, ceiling: t.thermal_fan_reason_ceiling, sleep: t.thermal_fan_reason_sleep, 'can-sleep': t.thermal_fan_reason_sleep, wake: t.thermal_fan_reason_wake, disconnect: t.thermal_fan_reason_disconnect, start: t.thermal_fan_reason_start, 'console-user': t.thermal_fan_reason_console_user } as Record<string, string>)[control.lastRestoreReason] ?? control.lastRestoreReason
     : null
+  const installHelper = useCallback(() => {
+    dismiss(FAN_ERROR_KEY)
+    void fanControl.installHelper().then(reportFan)
+  }, [dismiss, fanControl, reportFan])
 
   if (!support) return <FeatureLoadingState label={t.thermal_title} layout="list" />
 
@@ -250,6 +256,21 @@ export function ThermalPage() {
                         </div>
                       </ConfigSection>
                     )}
+                    {control?.install && (
+                      <ConfigSection title={t.thermal_fan_helper_section}>
+                        <div className="thermal-calibrate">
+                          <p className="thermal-calibrate__desc">{({ 'not-installed': t.thermal_fan_helper_not_installed_desc, outdated: t.thermal_fan_helper_outdated_desc, 'requires-approval': t.thermal_fan_helper_approval_desc, installed: t.thermal_fan_helper_installed_desc })[control.install]}</p>
+                          {control.install !== 'not-installed' && (
+                            <div className="thermal-calibrate__actions">
+                              {control.install === 'outdated' && (
+                                <Button size="sm" shape="rect" variant="primary" appearance="solid" disabled={busy || fanCalibration.state?.status === 'running'} onClick={() => { setOptionsOpen(false); installHelper() }}>{t.thermal_fan_helper_update}</Button>
+                              )}
+                              <Button size="sm" shape="rect" variant="danger" appearance="outline" disabled={busy || fanCalibration.state?.status === 'running'} onClick={() => { setOptionsOpen(false); dismiss(FAN_ERROR_KEY); void fanControl.uninstallHelper().then(reportFan) }}>{t.thermal_fan_helper_uninstall}</Button>
+                            </div>
+                          )}
+                        </div>
+                      </ConfigSection>
+                    )}
                     <ThermalTrayOptions
                       placement={trayPlacement}
                       settings={settings.tray}
@@ -294,6 +315,22 @@ export function ThermalPage() {
             )}
             {control?.helper === 'error' && (
               <CapabilityNotice tone="danger" title={t.thermal_fan_helper_error_title} description={control.error} />
+            )}
+            {control?.install === 'requires-approval' && (
+              <CapabilityNotice
+                tone="warning"
+                title={t.thermal_fan_helper_approval_title}
+                description={t.thermal_fan_helper_approval_desc}
+                actions={[{ label: t.thermal_fan_helper_approval_open, onClick: () => { void fanControl.openHelperApproval().then(reportFan) }, primary: true }]}
+              />
+            )}
+            {control?.install === 'outdated' && control.helper !== 'starting' && (
+              <CapabilityNotice
+                tone="info"
+                title={t.thermal_fan_helper_outdated_title}
+                description={t.thermal_fan_helper_outdated_desc}
+                actions={[{ label: t.thermal_fan_helper_update, onClick: installHelper, primary: true, disabled: busy }]}
+              />
             )}
 
             {support.supported && error && (
@@ -431,7 +468,7 @@ export function ThermalPage() {
       {disclaimerOpen && (
         <ThermalFanDisclaimer
           title={t.thermal_fan_disclaimer_title}
-          intro={t.thermal_fan_disclaimer_intro}
+          intro={control?.install ? t.thermal_fan_disclaimer_intro_daemon : t.thermal_fan_disclaimer_intro}
           points={[t.thermal_fan_disclaimer_point_range, t.thermal_fan_disclaimer_point_restore, tpl(t.thermal_fan_disclaimer_point_ceiling, { ceiling: FAN_CEILING_CELSIUS })]}
           warning={t.thermal_fan_disclaimer_warning}
           acceptLabel={t.thermal_fan_disclaimer_accept}
