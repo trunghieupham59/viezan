@@ -38,7 +38,6 @@
   gap: var(--vzn-space-3);
   padding: var(--vzn-space-3);
   overflow: hidden;
-  border: var(--vzn-border-width) solid var(--vzn-border);
   border-radius: var(--vzn-radius-md);
   background: var(--vzn-surface);
 }
@@ -76,7 +75,6 @@
   min-block-size: var(--vzn-dictionary-pane-min-block);
   flex-direction: column;
   overflow: hidden;
-  border: var(--vzn-border-width) solid var(--vzn-border);
   border-radius: var(--vzn-radius-md);
   background: var(--vzn-surface);
 }
@@ -107,7 +105,6 @@
   flex: 1 1 auto;
   flex-direction: column;
   overflow: hidden;
-  border: var(--vzn-border-width) solid var(--vzn-border);
   border-radius: var(--vzn-radius-md);
   background: var(--vzn-surface);
   color: var(--vzn-text);

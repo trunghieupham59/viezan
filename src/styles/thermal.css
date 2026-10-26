@@ -572,7 +572,6 @@
 .thermal-options__card {
   display: flex;
   flex-direction: column;
-  border: var(--vzn-border-width) solid var(--vzn-border);
   border-radius: var(--vzn-radius-md);
   background: var(--vzn-surface);
 }

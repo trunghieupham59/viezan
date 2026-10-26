@@ -888,7 +888,6 @@
   flex-direction: column;
   gap: var(--vzn-space-3);
   padding: var(--vzn-space-4);
-  border: var(--vzn-border-width) solid var(--vzn-border);
   border-radius: var(--vzn-radius-md);
   background: var(--vzn-surface);
 }
@@ -1171,7 +1170,6 @@ li + li > .ui-activity-row.ui-button {
   min-inline-size: 0;
   flex-direction: column;
   overflow: hidden;
-  border: var(--vzn-border-width) solid var(--vzn-border);
   border-radius: var(--vzn-radius-md);
   background: var(--vzn-surface);
 }

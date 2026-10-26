@@ -870,7 +870,6 @@ html.dark .glass-panel,
 html:not(.dark) .glass-panel,
 html.dark .surface-panel,
 html:not(.dark) .surface-panel {
-  border: 1px solid var(--vzn-border);
   border-radius: var(--vzn-radius-md);
   background: var(--vzn-surface) !important;
   box-shadow: var(--vzn-shadow-sm) !important;
@@ -882,7 +881,6 @@ html:not(.dark) .surface-panel {
 .settings-card,
 html.dark .card,
 html.dark .settings-card {
-  border: 1px solid var(--vzn-border) !important;
   border-radius: var(--vzn-radius-md) !important;
   background: var(--vzn-surface) !important;
   box-shadow: none !important;

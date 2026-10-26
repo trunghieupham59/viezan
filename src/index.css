@@ -286,7 +286,6 @@
   /* ── Glass surface panels ───────────────────────────────────────────────
    * Core surface: glass morphism with blur in dark mode.               */
   .glass-panel {
-    border: 1px solid var(--vzn-border);
     border-radius: var(--vzn-radius-md);
     color: var(--vzn-text);
     overflow: hidden;
@@ -294,7 +293,6 @@
   /* Aliases for backward compatibility */
   .surface-panel  {
     display: flex; flex-direction: column;
-    border: 1px solid var(--vzn-border);
     border-radius: var(--vzn-radius-md);
     color: var(--vzn-text); overflow: hidden;
   }
@@ -314,7 +312,6 @@
     overflow: hidden;
   }
   .card {
-    border: 1px solid var(--vzn-border);
     border-radius: var(--vzn-radius-md);
     background: var(--vzn-surface-raised);
     color: var(--vzn-text);
@@ -1043,7 +1040,6 @@
     background: var(--vzn-bg);
   }
   .settings-card {
-    border: 1px solid var(--vzn-border) !important;
     border-radius: var(--vzn-radius-md) !important;
     background: var(--vzn-surface-raised) !important;
     color: var(--vzn-text);

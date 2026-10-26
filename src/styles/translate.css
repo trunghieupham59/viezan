@@ -44,7 +44,6 @@
   max-height: calc(100dvh - var(--vzn-space-8));
   padding: 0;
   overflow: hidden;
-  border: var(--vzn-border-width) solid var(--vzn-border);
   border-radius: var(--vzn-radius-md);
   background: var(--vzn-surface-raised);
   box-shadow: var(--vzn-shadow-md);
@@ -215,7 +214,6 @@
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
-  border: var(--vzn-border-width) solid var(--vzn-border);
   border-radius: var(--vzn-radius-md);
   background: var(--vzn-surface);
 }
@@ -929,7 +927,6 @@
 
 .translate-comparison-card {
   overflow: hidden;
-  border: var(--vzn-border-width) solid var(--vzn-border);
   border-radius: var(--vzn-radius-md);
   background: var(--vzn-surface-raised);
   box-shadow: var(--vzn-shadow-xs);
