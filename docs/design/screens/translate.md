@@ -370,3 +370,11 @@ Bản vẽ gốc đề xuất mà mã chưa có (tất cả là **đề xuất**
 6. **Giọng nói chép theo thời gian thực, tên STT ("Whisper local") và nút "Dừng và dịch"** (`TranslateModes.dc.html`). Mã chép một lần sau khi dừng (`VoiceRecorder`), nút dừng là icon ■; dịch chạy theo chế độ tự động/thủ công.
 7. **Lịch sử nhóm theo ngày ("Hôm nay", "Hôm qua")**, nhãn "ảnh" cho mục dịch ảnh (`Histories.dc.html`). Mã liệt kê phẳng với thời gian tương đối; bản dịch ảnh đã được lưu (cột nguồn là tên tệp) nhưng không có nhãn "ảnh".
 8. **Giới hạn ký tự cứng**: không có; chỉ cảnh báo mềm ở 5000 ký tự. Bản vẽ không yêu cầu thêm.
+
+## Khôi phục và làm mới lượt (V1)
+
+- Giữ văn bản, cấu hình lượt, ảnh nguồn/kết quả và kết quả từng model khi chuyển trang hoặc mở lại app qua snapshot IndexedDB riêng.
+- Khi quay lại sau 2 giờ rời tính năng, lượt hoàn tất được làm mới nếu lưu thành công. Không tính thời gian đang đọc; bản nháp, kết quả không còn khớp đầu vào, lỗi và lượt đang xử lý được giữ.
+- Màn hình mới có thông báo “Đã sẵn sàng cho lượt dịch mới.” và “Mở lượt trước”. Nút chỉ hiện khi chưa bắt đầu nhập nội dung mới.
+- Khôi phục không gọi Auto Translate. Một chỉnh sửa mới hoặc thay đổi cấu hình chủ động có thể tiếp tục Auto Translate theo lựa chọn đã lưu.
+- Nút xoá nguồn và Bắt đầu nhanh xoá snapshot của lượt hiện tại có chủ đích. Lỗi lưu giữ nội dung và hiển thị thông báo thử lại; không làm mới màn hình trong trường hợp này.

@@ -2677,3 +2677,8 @@ code.settings-info-value {
   line-break: strict;
   word-break: auto-phrase;
 }
+
+/* Shared recovery notice stays outside either workbench reading surface. */
+.workbench-session-notice {
+  padding: var(--vzn-space-3) var(--vzn-space-4);
+}

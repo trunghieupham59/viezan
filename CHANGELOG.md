@@ -6,6 +6,10 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+- Restore the active chat and text drafts, plus translation and dictionary work
+  across navigation and restart. Optionally start fresh after completed work has
+  been left for 2 hours (Translate) or 30 minutes (Dictionary), with a way to reopen
+  the prior result. Show storage failures and history capacity warnings.
 - Packaged macOS builds can install a background fan helper once, reconnect after
   app restarts, and reapply remembered settings after sleep/wake. Quitting still
   returns fans to system control; development builds retain session helpers.

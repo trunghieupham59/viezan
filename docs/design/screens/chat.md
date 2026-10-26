@@ -339,6 +339,12 @@ App có mà bản vẽ chưa thể hiện: huy hiệu chi phí, ghi chú "Trả 
 
 Lỗi và mâu thuẫn tìm thấy khi đối chiếu mã (chưa sửa):
 
-- **Giới hạn 20 phiên cắt im lặng** (`MAX_CHAT_SESSIONS` trong `chatSlice.ts`): người dùng mất cuộc cũ không được báo.
+- **Giới hạn 20 phiên** (`MAX_CHAT_SESSIONS` trong `constants/history.ts`): V1 báo khi chạm giới hạn; lưu lịch sử dài hạn vẫn là giai đoạn tiếp theo.
 - **Pha bị dừng có thể hiện như đã xong**: khi huỷ, `onStepError` đặt `isLoading: false` và không có `error`, nên `getGroupStatus` trong `ResearchStepsPanel.tsx` coi pha đó là "done"; số bước trong "Đã dừng ở bước {n}" vì vậy có thể lệch một bước so với pha sẽ chạy lại khi Tiếp tục. Cần kiểm chứng trên app; bản vẽ vẽ pha dở ở trạng thái trung tính "đã dừng".
 - **Nợ token trong vùng di trú**: menu "+" vẫn dùng nút gốc `.btn-menu-item` (bề rộng và lớp chồng đã về token `--vzn-chat-plus-menu-inline`, `--vzn-layer-picker`); popover chi tiết trong `ResearchStepsPanel.tsx` rộng 380 tính bằng số trong mã; `chat.css` còn số trần (`5px 9px`, `104px`, `44px`, `720px`, `.usage-cost-badge` 18/10/11 px). Nên chuyển về `var(--vzn-*)`.
+
+## Khôi phục phiên (V1)
+
+- Mở lại app giữ đúng thread đang chọn và bản nháp chữ của thread; chọn Chat mới được lưu thành lựa chọn riêng. ID không còn tồn tại thì về Chat mới.
+- Không có hạn dùng theo thời gian cho lựa chọn thread; không tự chạy tiếp research hay gửi bản nháp. Ảnh đính kèm chưa gửi giữ hành vi tạm thời hiện có.
+- Giới hạn 20 thread còn giữ trong V1, có cảnh báo khi chạm giới hạn. Lỗi ghi không được tự cắt lịch sử để làm nhỏ payload.

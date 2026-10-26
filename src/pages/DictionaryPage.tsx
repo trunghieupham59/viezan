@@ -88,6 +88,8 @@ export function DictionaryPage() {
 
   return (
     <DictionaryWorkbenchTemplate
+      notice={lookup.canRestoreSession ? <CapabilityNotice title={t.session_dictionary_fresh}
+        actions={[{ label: t.session_restore_previous, onClick: lookup.restoreSession }]} /> : undefined}
       header={(
         <PageHeader
           title={t.dictionary_title}

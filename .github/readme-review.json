@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "version": "2.4.2",
-  "sourceSha256": "daedc47e99ba1ed419cdd220bd60b135f7d74ae23816bb922c46baf7d13b9b2f",
-  "readmeSha256": "92029c463236192e4c0a4b28e52bd43839d6eb850dd0e2a40ce29bbfab972ad4",
-  "changelogSha256": "f1c1152f59f561b21435e5d6abc68fc361eb971e8b4e8d6a91b320242c73dd63",
-  "summary": "Reviewed latest develop 2.4.2 source, current feature pages, AI provider/setup labels, package dependency ranges, Glass UI updates and macOS helper lifecycle. Unfinished session recovery code and prose are excluded from this publishing snapshot."
+  "sourceSha256": "a96fa3b0ad2af466e6b6e5d31d14f7c0e04f760704742b5ace07ba5e83230369",
+  "readmeSha256": "fe2f0e362ebd4deb448f44dc1a2a4d6afebd89fb1d2727f39c6b5ac59f2c7c21",
+  "changelogSha256": "6c4030db65b9d7ae39857942de13f179c0c88d2bb3815ddb81638309dec5cd86",
+  "summary": "Reviewed the complete README on develop 2.4.2 and scoped V1 session changes: chat selection/text drafts, bounded translation/dictionary recovery, absence thresholds, no AI on restoration, history caps, storage errors and ephemeral unsent chat images. Existing setup, platform limits and background fan-helper descriptions are preserved."
 }

@@ -5,6 +5,7 @@ import { AppShell, PageHeader } from './components/templates'
 import { FeatureLoadingState } from './components/ui/molecules'
 import { PROVIDERS } from './constants/providers'
 import { resolveThemeMode, THEME_PRESET_TRAITS } from './constants/themePresets'
+import { useStorageNotifications, useWorkbenchRecovery } from './hooks/useWorkbenchRecovery'
 import { getPage } from './modules/catalog'
 import { resolveActivePage } from './modules/enabled'
 import { APP_PAGES } from './modules/pages'
@@ -30,6 +31,8 @@ export function PageFallback({ page, label }: { page: AppPage; label: string }) 
 
 function App() {
   const t = useT()
+  const recoveryReady = useWorkbenchRecovery()
+  useStorageNotifications()
   const {
     activePage, locale, localeAuto, setKeyStatus, setLocaleFromSystem, fontSize, theme, themePreset, themeAccent,
     selectedProvider, selectedModels, ttsMode, ttsVoice,
@@ -257,7 +260,7 @@ function App() {
           />
         )}
       >
-        <ActivePage />
+        {recoveryReady ? <ActivePage /> : <PageFallback page={shownPage} label={t.session_restoring} />}
       </Suspense>
     </AppShell>
   )

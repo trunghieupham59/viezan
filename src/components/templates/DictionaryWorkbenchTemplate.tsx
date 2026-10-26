@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 
 export interface DictionaryWorkbenchTemplateProps {
   header: ReactNode
+  notice?: ReactNode
   search: ReactNode
   result: ReactNode
   history: ReactNode
@@ -16,6 +17,7 @@ export interface DictionaryWorkbenchTemplateProps {
  */
 export function DictionaryWorkbenchTemplate({
   header,
+  notice,
   search,
   result,
   history,
@@ -27,6 +29,7 @@ export function DictionaryWorkbenchTemplate({
       <div className="app-workspace">
         <div className="dictionary-workbench">
           {header}
+          {notice && <div className="workbench-session-notice">{notice}</div>}
           <div className="dictionary-workbench-content">
             <aside className="dictionary-lookup-region" aria-label={lookupLabel}>
               <div className="dictionary-search-region">{search}</div>

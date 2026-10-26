@@ -25,7 +25,12 @@ export const HOTKEY_CHANNELS = {
 } as const
 
 export const SYSTEM_CHANNELS = {
+  event: {
+    sessionActivity: 'app:session-activity',
+    prepareSessionSave: 'app:prepare-session-save',
+  },
   invoke: {
+    completeSessionSave: 'app:complete-session-save',
     checkScreenPermission: 'app:checkScreenPermission',
     openExternal: 'app:openExternal',
     relaunch: 'app:relaunch',

@@ -127,7 +127,10 @@ can copy the pattern instead of inventing one.
 
 - Navigating to a page keeps its state (drafts, results). Only an explicit
   "start new" action clears it (`navigateEffect` is used by Home's quick
-  start only).
+  start only). Completed, durably saved Translate/Dictionary work may also start
+  fresh on return after 2 hours/30 minutes away when smart session reset is on.
+  Keep drafts and busy work; provide a persistent action to reopen the previous
+  work. Reading without leaving never expires a screen. Recovery never calls AI.
 - Reversible deletes (history entries, conversations) happen immediately and
   show a toast with Undo through the notification store's `actions`. Use a
   confirm dialog only for what cannot be undone (removing an API key,

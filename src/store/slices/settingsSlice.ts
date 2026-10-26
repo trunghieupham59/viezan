@@ -19,6 +19,8 @@ export interface SettingsSlice {
   localeAuto: boolean
 
   // UI preferences
+  smartSessionReset: boolean
+  setSmartSessionReset: (enabled: boolean) => void
   autoTranslate: boolean
   autoTranslateDelay: number
   /**
@@ -132,6 +134,8 @@ export interface SettingsSlice {
 export const createSettingsSlice = (set: SliceSet): SettingsSlice => ({
   locale: 'en' as AppLocale,
   localeAuto: true,
+  smartSessionReset: true,
+  setSmartSessionReset: (enabled) => set({ smartSessionReset: enabled }),
   autoTranslate: DEFAULT_SETTINGS.autoTranslate,
   autoTranslateDelay: DEFAULT_SETTINGS.autoTranslateDelay,
   phoneticMode: 'off' as PhoneticMode,

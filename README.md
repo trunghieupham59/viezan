@@ -85,6 +85,7 @@ The feature guide below describes the current checkout, including changes that m
 | [Thermal](src/pages/ThermalPage.tsx) | Monitor temperatures, fan readings and CPU load on macOS (SMC) and Linux (hwmon). Optional macOS fan control supports fixed speeds, sensor rules, profiles and calibration through a privileged helper. Packaged builds can install the background helper once and reconnect on later launches; development runs use a session helper. Windows thermal readings are not supported. |
 | [Settings](src/pages/SettingsPage.tsx) | Manage AI models and keys, voice, appearance, chat presets, feature modules, preferences and updates. |
 | History | Feature-specific translation, interpretation, conversation and dictionary history. History has storage limits; keep separate copies of work you need long term. |
+| Session recovery | Reopen the active chat and text drafts, or recover translation and dictionary work after navigation or restart. Completed work can start fresh after an absence, with an option to reopen the previous result. |
 | Security | API keys are encrypted with Electron safeStorage and are used only by the Electron main process. |
 
 ## Getting Started
@@ -121,6 +122,25 @@ For cloud providers, open **Settings -> AI models**, choose a provider, paste yo
 - **Dictionary**: look up a word or phrase and optionally supply its context.
 - **AI Chat**: multimodal chat with voice input, saved prompts and optional web search.
 - Open history within the relevant workspace to revisit saved results or conversations.
+
+### Returning to your work
+
+AI Chat keeps the selected conversation and text drafts. Translate and Dictionary
+save their current work locally; translation recovery includes image drafts and
+completed comparison results. Restoring work does not send another AI request.
+
+With **Settings -> Preferences -> Start fresh after completed work** enabled,
+returning after 2 hours away from Translate or 30 minutes away from Dictionary
+opens a fresh workspace for successfully saved, completed work. **Open previous
+work** restores that result. Unfinished drafts and active operations are kept;
+reading a screen without leaving does not trigger a reset.
+
+Recovery keeps the current workspace and one previous completed workspace. It is
+separate from history, which retains the existing limits: 20 chats, 100
+translations, 50 interpretation sessions, 100 recent dictionary entries and 500
+favorites. A warning appears at these limits. Unsent chat image attachments are
+not restored after a restart. If saving fails, keep the app open and use
+**Retry saving**; a forced shutdown can still lose changes not yet saved.
 
 ## Chrome Extension
 

@@ -1,17 +1,10 @@
 /**
  * dictionarySlice — persisted dictionary lookup history and favorites.
  */
+import { MAX_DICTIONARY_FAVORITES as MAX_FAVORITE_DICTIONARY_ENTRIES, MAX_DICTIONARY_HISTORY as MAX_NON_FAVORITE_DICTIONARY_HISTORY } from '../../constants/history'
 import type { DictionaryEntry } from '../../types'
 import { normalizeContextKey } from '../../utils/dictionary'
 import type { SliceSet } from './sliceTypes'
-
-const MAX_NON_FAVORITE_DICTIONARY_HISTORY = 100
-/**
- * Soft cap on favorites — keeps the persisted state from outgrowing
- * localStorage. Older favorites past this threshold are unstarred (kept as
- * regular history) so the user does not silently lose entries.
- */
-const MAX_FAVORITE_DICTIONARY_ENTRIES = 500
 
 function sameDictionaryEntry(a: DictionaryEntry, b: DictionaryEntry): boolean {
   return (

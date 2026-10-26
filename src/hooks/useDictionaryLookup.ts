@@ -10,13 +10,14 @@
  *
  * DictionaryPage composes the presentation layer and routes these handlers.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   dictionaryService,
   MAX_DICTIONARY_CONTEXT_CHARS,
   MAX_DICTIONARY_TERM_CHARS,
   normalizeDictionaryTerm,
 } from '../services/dictionaryService'
+import { workbenchRecovery } from '../services/workbenchRecovery'
 import { useAppStore, useT } from '../store/useAppStore'
 import { useNotificationStore } from '../store/useNotificationStore'
 import type {
@@ -25,10 +26,12 @@ import type {
   DictionaryLookupResult,
   DictionaryResult,
 } from '../types'
+import type { DictionarySnapshot } from '../types/workbench'
 import { localizeChatError } from '../utils/chatErrors'
 import { normalizeContextKey } from '../utils/dictionary'
 import { createClientId } from '../utils/id'
 import { combineUsageCosts, estimateUsageCost } from '../utils/usageCost'
+import { useWorkbenchSession } from './useWorkbenchSession'
 
 export type DictionaryListTab = 'recent' | 'favorites'
 
@@ -119,8 +122,9 @@ export function useDictionaryLookup() {
     recordUsageCost,
   } = useAppStore()
 
-  const [term, setTerm] = useState('')
-  const [context, setContext] = useState('')
+  const [restored] = useState(() => workbenchRecovery.get('dictionary')?.snapshot)
+  const [term, setTerm] = useState(restored?.term ?? '')
+  const [context, setContext] = useState(restored?.context ?? '')
   /** Term handed over by another feature (command palette), looked up once `term` reflects it. */
   const [handoffTerm, setHandoffTerm] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -129,9 +133,9 @@ export function useDictionaryLookup() {
   const [errorRecoverable, setErrorRecoverable] = useState(false)
   const [validationError, setValidationError] = useState<DictionaryValidationError | null>(null)
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(
-    dictionaryEntries[0]?.id ?? null,
+    restored ? (restored.sourceLang === sourceLang && restored.targetLang === targetLang ? restored.selectedEntryId : null) : dictionaryEntries[0]?.id ?? null,
   )
-  const [activeListTab, setActiveListTab] = useState<DictionaryListTab>('recent')
+  const [activeListTab, setActiveListTab] = useState<DictionaryListTab>(restored?.activeListTab ?? 'recent')
   const [copied, setCopied] = useState(false)
   const [selectionLookup, setSelectionLookup] = useState<DictionarySelectionLookupState | null>(null)
 
@@ -543,7 +547,39 @@ export function useDictionaryLookup() {
     addDictionaryEntry(saved)
   }
 
+  const sessionSnapshot = useMemo<DictionarySnapshot>(() => ({
+    term, context, sourceLang, targetLang, selectedEntryId, activeListTab,
+  }), [term, context, sourceLang, targetLang, selectedEntryId, activeListTab])
+  const session = useWorkbenchSession('dictionary', {
+    snapshot: sessionSnapshot,
+    complete: Boolean(selectedEntry && hasDictionaryDetails(selectedEntry) && !error && !validationError
+      && selectedEntry.provider === selectedProvider && selectedEntry.model === model
+      && ((!term.trim() && !context.trim()) || sameDictionaryLookup(selectedEntry,
+        normalizeDictionaryTerm(term.trim()), sourceLang, targetLang, context.trim()))),
+    busy: isLoading || isEnriching || Boolean(selectionLookup) || Boolean(handoffTerm || pendingDictionaryTerm),
+    reset: () => {
+      lookupRequestRef.current++
+      setTerm('')
+      setContext('')
+      setSelectedEntryId(null)
+      setError(null)
+      setValidationError(null)
+    },
+    restore: (snapshot) => {
+      // Explicitly opening the previous lookup also restores its language context.
+      langPairRef.current = `${snapshot.sourceLang}:${snapshot.targetLang}`
+      setLanguagePair('translate', { source: snapshot.sourceLang, target: snapshot.targetLang })
+      setTerm(snapshot.term)
+      setContext(snapshot.context)
+      setSelectedEntryId(snapshot.selectedEntryId)
+      setActiveListTab(snapshot.activeListTab)
+    },
+  })
+
   return {
+    canRestoreSession: Boolean(session.previous && dictionaryEntries.some((entry) => entry.id === session.previous?.selectedEntryId))
+      && !term && !context && !selectedEntry,
+    restoreSession: session.restorePrevious,
     // Input
     term,
     setTerm: updateTerm,

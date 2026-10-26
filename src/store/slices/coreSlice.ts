@@ -10,6 +10,7 @@
  */
 import { DEFAULT_SETTINGS, MAX_TRANSLATION_MODELS } from '../../constants/providers'
 import { TRANSLATIONS, type Translations } from '../../i18n'
+import { workbenchRecovery } from '../../services/workbenchRecovery'
 import type { AIModelSelection, AppPage, Provider } from '../../types'
 import type { SliceGet, SliceSet } from './sliceTypes'
 
@@ -171,6 +172,8 @@ export const createCoreSlice = (set: SliceSet, get: SliceGet): CoreSlice => ({
   setActivePage: (page) => set({ activePage: page }),
   openSettings: () => set({ activePage: 'settings', settingsInitialSection: null }),
   openSettingsAt: (section) => set({ activePage: 'settings', settingsInitialSection: section }),
-  clearTranslation: () =>
-    set({ sourceText: '', translatedText: '', phoneticText: '', translateError: null, translateErrorCode: null }),
+  clearTranslation: () => {
+    workbenchRecovery.clear('translate')
+    set({ sourceText: '', translatedText: '', phoneticText: '', translateError: null, translateErrorCode: null })
+  },
 })

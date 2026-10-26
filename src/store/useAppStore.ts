@@ -14,7 +14,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { DEFAULT_THEME_ACCENT, DEFAULT_THEME_PRESET, isThemeAccent, isThemePreset } from '../constants/themePresets'
 import { TRANSLATIONS, type Translations } from '../i18n'
-import type { ChatSession, LiveSession } from '../types'
+import type { ChatSession } from '../types'
 import { normalizeChatTaskState } from '../types/chatTask'
 import { type ChatSlice, createChatSlice } from './slices/chatSlice'
 import { type CoreSlice, createCoreSlice } from './slices/coreSlice'
@@ -24,6 +24,7 @@ import { createLanguagePairSlice, type LanguagePairSlice, migrateLanguagePairs }
 import { createModulesSlice, type ModulesSlice } from './slices/modulesSlice'
 import { createSettingsSlice, type SettingsSlice } from './slices/settingsSlice'
 import { createUsageSlice, type UsageSlice } from './slices/usageSlice'
+import { useStorageStatus } from './useStorageStatus'
 
 /** Full app state = core + all feature slices */
 type AppState = CoreSlice & SettingsSlice & HistorySlice & ChatSlice & DictionarySlice & UsageSlice & LanguagePairSlice & ModulesSlice
@@ -32,11 +33,12 @@ type AppState = CoreSlice & SettingsSlice & HistorySlice & ChatSlice & Dictionar
 const STORE_PERSIST_KEY = 'translate-app-settings'
 
 /**
- * Schema v4 separates live languages and adds pinned pairs. v3 separates owned
+ * Schema v5 restores the active chat and adds smart workbench sessions.
+ * v4 separates live languages and adds pinned pairs. v3 separates owned
  * task instructions from drafts. It retains v2 task
  * configuration and the v1 Web Speech STT normalization.
  */
-export const STORE_PERSIST_VERSION = 4
+export const STORE_PERSIST_VERSION = 5
 
 const PERSISTED_STT_PROVIDERS = new Set(['auto', 'whisper', 'google', 'groq'])
 
@@ -90,10 +92,10 @@ export function migratePersistedStore<T>(persistedState: T): T {
  * Quick Chat popup) see the latest provider/model selection without waiting for
  * the debounce timeout.
  */
-let flushDebouncedWrite: () => void = () => {}
+let flushDebouncedWrite: () => boolean = () => true
 
-export function flushPersistedStore(): void {
-  flushDebouncedWrite()
+export function flushPersistedStore(): boolean {
+  return flushDebouncedWrite()
 }
 
 /**
@@ -113,75 +115,16 @@ export function disablePersistedStoreWrites(): void {
   persistWritesEnabled = false
 }
 
-type PersistedBlob = { state?: Record<string, unknown>; version?: number }
-
-/**
- * Progressively shrink a serialized persist blob so it can still be stored after the
- * browser rejects the full payload. Settings (provider, model, theme, language …) are
- * always kept; bulky, re-creatable data goes first:
- *   1. per-segment live transcripts, 2. all but the most recent sessions/history,
- *   3. every bulky collection.
- * Returns null when the payload cannot be parsed or no further shrinking is possible.
- */
-export function compactPersistedValue(value: string, level: 1 | 2 | 3): string | null {
-  let blob: PersistedBlob
-  try {
-    blob = JSON.parse(value) as PersistedBlob
-  } catch {
-    return null
-  }
-  const state = blob?.state
-  if (!state || typeof state !== 'object') return null
-
-  const keepRecent = (key: string, count: number) => {
-    const list = state[key]
-    if (Array.isArray(list)) state[key] = list.slice(0, count)
-  }
-
-  if (level === 1) {
-    if (Array.isArray(state.liveSessions)) {
-      state.liveSessions = (state.liveSessions as LiveSession[]).map(({ segments: _segments, ...rest }) => rest)
-    }
-  } else if (level === 2) {
-    keepRecent('liveSessions', 5)
-    keepRecent('chatSessions', 5)
-    keepRecent('history', 30)
-    keepRecent('dictionaryEntries', 100)
-    if (Array.isArray(state.liveSessions)) {
-      state.liveSessions = (state.liveSessions as LiveSession[]).map(({ segments: _segments, ...rest }) => rest)
-    }
-  } else {
-    for (const key of ['liveSessions', 'chatSessions', 'history', 'dictionaryEntries']) {
-      if (Array.isArray(state[key])) state[key] = []
-    }
-  }
-  return JSON.stringify(blob)
-}
-
-/** Write to storage; on quota errors retry with progressively smaller payloads. */
-export function writeWithQuotaFallback(
-  storage: Pick<Storage, 'setItem'>,
-  key: string,
-  value: string,
-): boolean {
+/** A failed write leaves the last durable snapshot intact; never compact user content. */
+export function writePersistedValue(storage: Pick<Storage, 'setItem'>, key: string, value: string): boolean {
   try {
     storage.setItem(key, value)
+    useStorageStatus.setState({ settingsFailed: false })
     return true
-  } catch (error) {
-    console.warn('[store] Persisting full state failed; retrying with a compacted payload.', error)
+  } catch {
+    useStorageStatus.setState({ settingsFailed: true })
+    return false
   }
-  for (const level of [1, 2, 3] as const) {
-    const compacted = compactPersistedValue(value, level)
-    if (compacted === null) return false
-    try {
-      storage.setItem(key, compacted)
-      return true
-    } catch {
-      // try the next, smaller level
-    }
-  }
-  console.warn('[store] Could not persist state even after compaction; skipping this write.')
-  return false
 }
 
 function createDebouncedStorage(delay = 500) {
@@ -197,16 +140,16 @@ function createDebouncedStorage(delay = 500) {
     if (!persistWritesEnabled) {
       pendingKey = null
       pendingValue = null
-      return
+      return true
     }
     if (pendingKey !== null && pendingValue !== null) {
       const key = pendingKey
       const value = pendingValue
-      // Clear first so a failing write can never wedge every later flush.
+      if (!writePersistedValue(localStorage, key, value)) return false
       pendingKey = null
       pendingValue = null
-      writeWithQuotaFallback(localStorage, key, value)
     }
+    return true
   }
   flushDebouncedWrite = flush
 
@@ -278,6 +221,11 @@ export const useAppStore = create<AppState>()(
       version: STORE_PERSIST_VERSION,
       storage: createJSONStorage(() => createDebouncedStorage(500)),
       migrate: (persistedState) => migratePersistedStore(persistedState as AppState),
+      merge: (persisted, current) => {
+        const merged = { ...current, ...(persisted as Partial<AppState>) }
+        if (!merged.chatSessions.some((session) => session.id === merged.activeChatSessionId)) merged.activeChatSessionId = null
+        return merged
+      },
       partialize: (state) => ({
         // Reopen the page used last; Settings reopens as Home rather than greeting the user with a form.
         activePage: state.activePage === 'settings' ? 'home' : state.activePage,
@@ -292,6 +240,7 @@ export const useAppStore = create<AppState>()(
         selectedModels: state.selectedModels,
         translationModels: state.translationModels,
         autoTranslate: state.autoTranslate,
+        smartSessionReset: state.smartSessionReset,
         autoTranslateDelay: state.autoTranslateDelay,
         phoneticMode: state.phoneticMode,
         translationStyle: state.translationStyle,
@@ -321,6 +270,7 @@ export const useAppStore = create<AppState>()(
         // metadata we keep (fileName + mimeType) lets the UI still display
         // a "[image]" placeholder for past turns.
         chatSessions: state.chatSessions.map(stripChatSessionImageData),
+        activeChatSessionId: state.chatSessions.some((session) => session.id === state.activeChatSessionId) ? state.activeChatSessionId : null,
         chatSystemPrompt: state.chatSystemPrompt,
         systemPromptPresets: state.systemPromptPresets,
         chatPendingDraft: state.chatPendingDraft,

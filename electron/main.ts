@@ -25,6 +25,7 @@ import { createModuleHost, type ModuleHost } from './modules/host'
 import { broadcastModulesChanged, registerModuleHandlers } from './modules/ipc'
 import { isQuitRequest } from './quitRequest'
 import { resolveRuntimeProfile } from './runtimeProfile'
+import { registerSessionLifecycle } from './sessionLifecycle'
 import { createThermalRuntime, type ThermalRuntime } from './thermal'
 import { createAppTray, createStatusItemTray, handleMainWindowClose, supportsTrayResidency } from './trayManager'
 import { createUpdateNotification } from './updateNotification'
@@ -506,6 +507,7 @@ function createSubtitleWindow() {
 }
 
 app.whenReady().then(() => {
+  registerSessionLifecycle(() => mainWindow)
   // A second instance has already called app.quit(); do not register windows,
   // the local server or global hotkeys from it.
   if (!hasSingleInstanceLock) return
