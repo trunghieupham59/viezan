@@ -51,11 +51,11 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.135.0",
+    "@anthropic-ai/sdk": "^1.1.0",
     "@google/generative-ai": "^0.24.1",
     "@ricky0123/vad-web": "^0.0.31",
     "electron-updater": "^6.8.9",
-    "openai": "^7.34.0",
+    "openai": "^7.43.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "ws": "^8.21.3",
