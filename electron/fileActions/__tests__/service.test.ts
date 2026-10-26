@@ -224,4 +224,18 @@ describe('bounded, reversible file actions', () => {
     expect(deps.files.restore).not.toHaveBeenCalled()
   })
 
+  it.skipIf(process.platform === 'win32')('never follows a backup symlink even when the target has the expected contents', async () => {
+    const item = { ...candidate, kind: 'preferences' as const, domain: 'org.example.app' }
+    const actions = createFileActions(deps)
+    const result = await actions.execute('Example', 'reset', [item], new Set(['item']))
+    const backup = result.items[0].backup
+    if (!backup) throw new Error('Missing backup')
+    const outside = path.join(root, 'unrelated-backup')
+    await rename(backup, outside)
+    await symlink(outside, backup)
+    expect((await actions.sessions())[0].canUndo).toBe(false)
+    expect((await actions.undo(result.id)).items[0].issue).toBe('changed')
+    expect(deps.preferences.restore).not.toHaveBeenCalled()
+  })
+
 })

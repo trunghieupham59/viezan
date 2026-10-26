@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "version": "2.4.2",
-  "sourceSha256": "941767dafe878908f234b28c9d839cd19a61020da74cb79b830a12d416404ca0",
-  "readmeSha256": "2a005c9420850be66ccaead770a90db8f4e5cc99fea82a41e25b17eca7719386",
-  "changelogSha256": "511e862895d8aa61ddd4d1c8d24cf3b47438071c11df97ccf89dde46e5a37f29",
-  "summary": "Reviewed the full README and Applications safety scope against source and tests: explicit persistent-data selection, ambiguous/Containers/agents locked, incomplete inventories/scans block mutation, selection preflight and stop-on-error, backup checksums, verified defaults behavior including retained empty plist, interrupted Undo recovery, and draft-only limitations. Real native/file-service/preferences UUID fixture smoke tests passed; managed/TCC/external-volume/power-loss coverage is not established."
+  "sourceSha256": "16fe5c4d288f43cb10e5e4b21808d2d5cb377461a3510ae1f75f5b37aa069092",
+  "readmeSha256": "5018ef6367a8470cb3d56401e128621942a6e92891a2e7a2ce4a71763711d4b9",
+  "changelogSha256": "506627b3464451ee9a2ca91a890a4cd2b9b21fe0bc4b6599bcbde9ccb90eba0d",
+  "summary": "Rechecked the complete README against current source and Applications tests. Inventory now handles scalar extraction for valid non-JSON plists, flat/wrapped metadata and protected Apple underscore identifiers, without relaxing malformed-bundle or uncertain-ownership guards. Wrapped iOS apps stay protected. Backup hashing uses one no-follow file descriptor. Full native-runtime inventory/inspect/confirm/uninstall/post-scan/restart/Undo passed on strictly allowlisted synthetic paths; general-use, MDM/TCC/external-volume/power-loss limitations remain explicit."
 }

@@ -150,7 +150,10 @@ Open **Applications**, select one app, inspect its related files and choose
 state are selected automatically. Persistent data and preferences require explicit
 selection. Name/vendor/prefix matches, Containers, launch agents and shared data stay. A native confirmation lists the chosen paths before any changes. Apps are
 asked to quit normally, never force-quit. Incomplete scans or uncertain installed-app
-metadata block changes. The full selection is checked before the first operation;
+metadata block changes. Inventory reads standard, flat and wrapped bundle metadata,
+including valid plists that cannot be converted wholesale to JSON. Wrapped iOS apps
+remain protected, and a data folder ending in `.app` is not sufficient evidence
+of an installed app. The full selection is checked before the first operation;
 a failure stops subsequent removals and restores.
 
 Files go to Trash; preference domains are exported before removal. **Journal and

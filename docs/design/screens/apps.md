@@ -105,3 +105,6 @@ bằng chứng và trạng thái nhật ký. EN/JA cùng shape; số/ngày theo 
 - Undo dừng nếu bundle hoặc dữ liệu xung đột; không trộn dữ liệu cũ vào app mới.
 - Phiên chưa xác minh sau gián đoạn chặn lần gỡ mới. Không hiển thị số mục còn lại cũ sau Undo.
 - Bản draft chưa được duyệt cho dữ liệu thật; chưa kiểm chứng ma trận MDM/TCC/ổ ngoài hoặc ngắt nguồn.
+
+- Inventory đọc các layout Contents/Info.plist, Info.plist và Wrapper một app; plist có kiểu không chuyển được sang JSON được đọc theo từng trường cần thiết. App iOS bọc và app Apple vẫn bị bảo vệ. Thư mục dữ liệu chỉ trùng đuôi `.app` ngoài gốc cài app không được coi là app. Bundle hỏng trong gốc cài đặt vẫn chặn thay đổi.
+- Đã kiểm thử runtime thật từ inventory đến xác nhận, quét lại, gỡ, restart và Undo trên fixture riêng; callback xác nhận khoá đúng hai đường dẫn fixture. Không gỡ ứng dụng thật để thử.

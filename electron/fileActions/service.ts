@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { constants } from 'node:fs'
 import { lstat, open, readFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import type { AppAction, AppActionSession, AppDataItem, AppsIssue } from '../../shared/appsApi'
@@ -59,9 +60,12 @@ export function createFileActions(deps: FileActionDeps) {
     return sessions
   }
   async function backupDigest(file: string) {
-    const st = await lstat(file)
-    if (!st.isFile() || st.size > 100 * 1024 * 1024) throw new FileActionError('changed')
-    return createHash('sha256').update(await readFile(file)).digest('hex')
+    const handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW)
+    try {
+      const st = await handle.stat()
+      if (!st.isFile() || st.size > 100 * 1024 * 1024) throw new FileActionError('changed')
+      return createHash('sha256').update(await handle.readFile()).digest('hex')
+    } finally { await handle.close() }
   }
   async function preferenceState(file: string) {
     return snapshot(file).catch((error: NodeJS.ErrnoException) => {

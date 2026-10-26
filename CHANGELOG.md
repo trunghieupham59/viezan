@@ -6,6 +6,8 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+- Fix Applications inventory for plist date/data values, wrapped iOS metadata and protected Apple identifiers; ignore non-bundle Spotlight suffix matches. Read backup checksums through one no-follow file descriptor and add a full native-runtime uninstall/restart/Undo fixture test.
+
 - Harden Applications removal: lock ambiguous ownership and incomplete scans, require opt-in for persistent data, stop on errors, verify preference state/backups, and reconcile interrupted Undo. Containers and launch agents remain read-only in this draft.
 
 - Add macOS Applications: inspect related files, uninstall or reset one app, and
