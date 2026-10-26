@@ -165,6 +165,7 @@
   --vzn-prompt-card-shadow-hover: 0 6px 18px rgba(24, 23, 21, 0.06);
   --vzn-blur: none;
   --vzn-blur-sm: none;
+  --vzn-overlay-blur: none;
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -369,6 +370,8 @@
   --vzn-dictionary-context-max-block: calc(var(--vzn-control-height-md) * 3);
   --vzn-dictionary-pane-min-block: calc(var(--vzn-space-12) * 6);
   --vzn-popover-wide: 420px;
+  /* Secondary option list that opens beside a popover row (OptionFlyout). */
+  --vzn-flyout-inline: calc(var(--vzn-space-12) * 5);
   --vzn-picker-min-inline: 280px;
   /* Longest a LanguagePairBar half grows before its label truncates. */
   --vzn-language-pair-half-max: calc(var(--vzn-space-12) * 4.5);
@@ -552,6 +555,7 @@ html.dark[data-theme="graphite"],
   --vzn-prompt-card-shadow-hover: 0 8px 22px rgba(0, 0, 0, 0.18);
   --vzn-blur: none;
   --vzn-blur-sm: none;
+  --vzn-overlay-blur: none;
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -628,7 +632,7 @@ html.dark,
   --vzn-titlebar-material: rgba(255, 255, 255, 0.42);
   --vzn-primary-nav-material: rgba(255, 255, 255, 0.36);
   --vzn-context-nav-material: rgba(255, 255, 255, 0.5);
-  --vzn-overlay-material: rgba(255, 255, 255, 0.62);
+  --vzn-overlay-material: rgba(255, 255, 255, 0.76);
   --vzn-material-border: rgba(40, 50, 90, 0.12);
   --vzn-material-highlight: rgba(255, 255, 255, 0.9);
   --vzn-user-avatar-bg: #1f5fd6;
@@ -693,6 +697,8 @@ html.dark,
   --vzn-prompt-card-shadow-hover: 0 12px 32px rgba(10, 132, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.75);
   --vzn-blur: blur(24px) saturate(160%);
   --vzn-blur-sm: blur(12px) saturate(140%);
+  /* Floating layers (menus, pickers, popovers, tooltips, toasts): heavier than --vzn-blur so text behind them never reads. */
+  --vzn-overlay-blur: blur(40px) saturate(180%);
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -733,7 +739,7 @@ html.dark[data-theme="glass"],
   --vzn-titlebar-material: rgba(22, 25, 38, 0.5);
   --vzn-primary-nav-material: rgba(22, 25, 38, 0.46);
   --vzn-context-nav-material: rgba(18, 20, 30, 0.6);
-  --vzn-overlay-material: rgba(30, 34, 50, 0.7);
+  --vzn-overlay-material: rgba(30, 34, 50, 0.8);
   --vzn-material-border: rgba(255, 255, 255, 0.14);
   --vzn-material-highlight: rgba(255, 255, 255, 0.16);
   --vzn-user-avatar-bg: #3d6ef0;
@@ -798,6 +804,8 @@ html.dark[data-theme="glass"],
   --vzn-prompt-card-shadow-hover: 0 12px 32px rgba(64, 156, 255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   --vzn-blur: blur(24px) saturate(160%);
   --vzn-blur-sm: blur(12px) saturate(140%);
+  /* Floating layers (menus, pickers, popovers, tooltips, toasts): heavier than --vzn-blur so text behind them never reads. */
+  --vzn-overlay-blur: blur(40px) saturate(160%);
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -903,6 +911,7 @@ html.dark[data-theme="glass"],
   --vzn-prompt-card-shadow-hover: 0 2px 8px rgba(70, 50, 30, 0.1);
   --vzn-blur: none;
   --vzn-blur-sm: none;
+  --vzn-overlay-blur: none;
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -1010,6 +1019,7 @@ html.dark[data-theme="paper"],
   --vzn-prompt-card-shadow-hover: 0 2px 8px rgba(0, 0, 0, 0.3);
   --vzn-blur: none;
   --vzn-blur-sm: none;
+  --vzn-overlay-blur: none;
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -1117,6 +1127,7 @@ html.dark[data-theme="paper"],
   --vzn-prompt-card-shadow-hover: 0 4px 12px rgba(15, 23, 42, 0.1);
   --vzn-blur: none;
   --vzn-blur-sm: none;
+  --vzn-overlay-blur: none;
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -1222,6 +1233,7 @@ html.dark[data-theme="corporate"],
   --vzn-prompt-card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
   --vzn-blur: none;
   --vzn-blur-sm: none;
+  --vzn-overlay-blur: none;
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -1327,6 +1339,7 @@ html.dark[data-theme="corporate"],
   --vzn-prompt-card-shadow-hover: 0 0 24px rgba(34, 211, 238, 0.18);
   --vzn-blur: none;
   --vzn-blur-sm: none;
+  --vzn-overlay-blur: none;
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -1432,6 +1445,7 @@ html.dark[data-theme="midnight"],
   --vzn-prompt-card-shadow-hover: 0 0 24px rgba(34, 211, 238, 0.18);
   --vzn-blur: none;
   --vzn-blur-sm: none;
+  --vzn-overlay-blur: none;
 
   /* Type */
   --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -1442,6 +1456,23 @@ html.dark[data-theme="midnight"],
 
   /* Backdrop (painted behind an opaque shell; a transparent native shell ignores it) */
   --vzn-app-backdrop: none;
+}
+
+/* Reduced transparency or more contrast: Glass floating layers turn solid and
+ * stop blurring. The other presets already float near-opaque, unblurred layers. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  [data-theme="glass"],
+  :root [data-theme="glass"][data-mode="light"] {
+    --vzn-overlay-material: #f8f9fd;
+    --vzn-overlay-blur: none;
+  }
+
+  html.dark [data-theme="glass"],
+  html.dark[data-theme="glass"],
+  :root [data-theme="glass"][data-mode="dark"] {
+    --vzn-overlay-material: #1e2232;
+    --vzn-overlay-blur: none;
+  }
 }
 
 /* Accent overrides --------------------------------------------------------

@@ -179,7 +179,7 @@
   padding: var(--vzn-space-2) var(--vzn-space-3);
   border: var(--vzn-border-width) solid var(--vzn-border);
   border-radius: var(--vzn-radius-control);
-  background: var(--vzn-surface-raised);
+  /* Background and blur: the floating material (floating-material.css). */
   box-shadow: var(--vzn-shadow-md);
   color: var(--vzn-text);
   font-size: var(--vzn-font-size-caption);

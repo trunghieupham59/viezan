@@ -1,5 +1,6 @@
 import { isLauncherCurrency, LAUNCHER_CURRENCIES } from '../constants/currencies'
 import type { AppLocale } from '../i18n'
+import { foldSearchText } from './foldSearchText'
 import { parseLocaleNumber } from './quickCalc'
 
 /**
@@ -23,7 +24,7 @@ const TARGET_SEPARATORS = ['->', '→', '=', 'to', 'in', 'into', 'sang', 'thanh'
 
 const escapePattern = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 /** Same folding as the launcher search: no diacritics, `đ` → `d`, lower case. */
-export const foldCurrencyText = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/đ/gi, 'd').toLowerCase()
+export const foldCurrencyText = foldSearchText
 
 const aliasToCode = new Map<string, string>()
 for (const currency of LAUNCHER_CURRENCIES) {

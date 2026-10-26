@@ -1362,3 +1362,61 @@ li + li > .ui-activity-row.ui-button {
 .ui-status-label[data-tone="danger"] {
   color: var(--vzn-danger);
 }
+
+/* OptionFlyout: placed in script (placeFlyout); floating material from floating-material.css. */
+.option-flyout {
+  position: fixed;
+  z-index: var(--vzn-layer-context-overlay);
+  display: flex;
+  width: var(--option-flyout-inline, var(--vzn-flyout-inline));
+  max-height: min(var(--vzn-ai-configuration-max-block), var(--option-flyout-room, 100dvh));
+  flex-direction: column;
+  gap: var(--vzn-space-1);
+  overflow: hidden;
+  padding: var(--vzn-space-1);
+  border: var(--vzn-border-width) solid var(--vzn-border);
+  border-radius: var(--vzn-radius-md);
+  box-shadow: var(--vzn-shadow-md);
+}
+
+/* The search field stays put; only the options scroll. */
+.option-flyout__search {
+  flex: 0 0 auto;
+}
+
+.option-flyout__list {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--vzn-space-0-5);
+  overflow-y: auto;
+}
+
+.option-flyout__empty {
+  margin: 0;
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
+}
+
+.option-flyout__option.ui-button {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  justify-content: space-between;
+  gap: var(--vzn-space-2);
+}
+
+.option-flyout__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.option-flyout__check {
+  flex: 0 0 auto;
+  inline-size: var(--vzn-icon-sm);
+  block-size: var(--vzn-icon-sm);
+}

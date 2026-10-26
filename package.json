@@ -1,6 +1,6 @@
 {
   "name": "viezan",
-  "version": "2.4.1",
+  "version": "2.4.2",
   "description": "Viezan - Local AI Translation - macOS & Windows",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -51,15 +51,15 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.135.0",
+    "@anthropic-ai/sdk": "^1.1.0",
     "@google/generative-ai": "^0.24.1",
     "@ricky0123/vad-web": "^0.0.31",
     "electron-updater": "^6.8.9",
-    "openai": "^7.34.0",
+    "openai": "^7.43.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "ws": "^8.21.3",
-    "zustand": "^5.0.15"
+    "zustand": "^5.0.16"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
@@ -79,14 +79,14 @@
     "electron": "^41.10.7",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",
-    "jscpd": "^5.1.2",
+    "jscpd": "^5.4.2",
     "jsdom": "^30.1.3",
-    "markdownlint-cli2": "^0.23.2",
+    "markdownlint-cli2": "^0.24.0",
     "playwright": "^1.64.1",
-    "postcss": "^8.5.29",
+    "postcss": "^8.5.31",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite": "^8.3.4",
+    "vite": "^8.3.5",
     "vite-plugin-electron": "^1.1.2",
     "vite-plugin-electron-renderer": "^1.0.0",
     "vitest": "^5.0.3",

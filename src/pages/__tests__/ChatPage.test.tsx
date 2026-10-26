@@ -35,13 +35,14 @@ function openTaskPopover(): HTMLElement {
   return taskDialog() as HTMLElement
 }
 function pickTaskOption(dialog: HTMLElement, label: string, value: string) {
-  fireEvent.click(within(dialog).getByRole('button', { name: new RegExp(`^${label}`) }))
+  // Choosing a task with options opens its list beside the row; otherwise open it from the chosen row.
+  if (!within(dialog).queryByRole('listbox', { name: label })) fireEvent.click(within(dialog).getByRole('radio', { checked: true }))
   fireEvent.click(within(within(dialog).getByRole('listbox', { name: label })).getByRole('option', { name: value }))
 }
 /** Opens the popover if needed, picks a task (and optionally one of its options) and applies. */
 function applyTask(name: string, option?: { label: string; value: string }) {
   const dialog = openTaskPopover()
-  fireEvent.click(within(dialog).getByRole('option', { name }))
+  fireEvent.click(within(dialog).getByRole('radio', { name }))
   if (option) pickTaskOption(dialog, option.label, option.value)
   fireEvent.click(within(dialog).getByRole('button', { name: TASK_T.chat_task_apply }))
 }
@@ -282,12 +283,12 @@ describe('ChatPage', () => {
       render(<ChatPage />)
       fireEvent.click(trigger())
       const dialog = screen.getByRole('dialog', { name: t.chat_task_configuration })
-      expect(within(dialog).getAllByRole('option')).toHaveLength(6)
+      expect(within(dialog).getAllByRole('radio')).toHaveLength(6)
       expect(document.querySelector('.chat-starter-actions')).toBeNull()
       expect(screen.queryByRole('button', { name: new RegExp(t.chat_response_mode) })).not.toBeInTheDocument()
-      await waitFor(() => expect(within(dialog).getByRole('option', { name: t.chat_task_none })).toHaveFocus())
-      fireEvent.keyDown(within(dialog).getByRole('option', { name: t.chat_task_none }), { key: 'ArrowDown' })
-      await waitFor(() => expect(within(dialog).getByRole('option', { name: t.chat_suggest_translate })).toHaveFocus())
+      await waitFor(() => expect(within(dialog).getByRole('radio', { name: t.chat_task_none })).toHaveFocus())
+      fireEvent.keyDown(within(dialog).getByRole('radio', { name: t.chat_task_none }), { key: 'ArrowDown' })
+      await waitFor(() => expect(within(dialog).getByRole('radio', { name: t.chat_suggest_translate })).toHaveFocus())
       fireEvent.keyDown(document, { key: 'Escape' })
       await waitFor(() => expect(trigger()).toHaveFocus())
     })
@@ -296,7 +297,7 @@ describe('ChatPage', () => {
       act(() => useAppStore.setState({ selectedProvider: provider }))
       render(<ChatPage />)
       fireEvent.click(trigger())
-      const item = screen.getByRole('option', { name: t.chat_mode_chip_image })
+      const item = screen.getByRole('radio', { name: t.chat_mode_chip_image })
       if (provider === 'gemini' || provider === 'openai') {
         expect(item).toBeEnabled()
         fireEvent.click(item)
@@ -520,10 +521,48 @@ describe('ChatPage', () => {
       next.resolve({ success: true, reply: 'Written reply' })
     })
 
+    it('opens the chosen task option in a list beside its row and keeps the task checked', async () => {
+      render(<ChatPage />)
+      const dialog = openTaskPopover()
+      const translate = within(dialog).getByRole('radio', { name: t.chat_suggest_translate })
+      fireEvent.click(translate)
+      const languages = within(dialog).getByRole('listbox', { name: t.chat_task_language })
+      expect(translate).toHaveAttribute('aria-checked', 'true')
+      expect(translate).toHaveAttribute('aria-controls', languages.id)
+      // The language list is long, so it opens on a search field that narrows it.
+      const search = within(dialog).getByRole('searchbox', { name: t.language_picker_search_placeholder })
+      await waitFor(() => expect(search).toHaveFocus())
+      fireEvent.change(search, { target: { value: 'japan' } })
+      expect(within(languages).getAllByRole('option').map((option) => option.textContent)).toEqual([t.lang_names.ja])
+      fireEvent.keyDown(search, { key: 'Enter' })
+      // The list closes, focus returns to the row, and the row shows the choice.
+      expect(within(dialog).queryByRole('listbox')).not.toBeInTheDocument()
+      expect(translate).toHaveFocus()
+      expect(translate).toHaveAccessibleDescription(t.lang_names.ja)
+      expect(useAppStore.getState().chatPendingTaskState?.selected ?? null).toBeNull()
+
+      // ArrowRight reopens it; Escape closes only the list, not the popover.
+      fireEvent.keyDown(translate, { key: 'ArrowRight' })
+      const reopened = within(dialog).getByRole('listbox', { name: t.chat_task_language })
+      fireEvent.keyDown(within(reopened).getByRole('option', { selected: true }), { key: 'Escape' })
+      expect(within(dialog).queryByRole('listbox')).not.toBeInTheDocument()
+      expect(taskDialog()).toBeInTheDocument()
+      expect(translate).toHaveFocus()
+
+      // Short option lists have no search field.
+      fireEvent.click(within(dialog).getByRole('radio', { name: t.chat_suggest_research }))
+      expect(within(dialog).getByRole('listbox', { name: t.chat_task_depth })).toBeInTheDocument()
+      expect(within(dialog).queryByRole('searchbox')).not.toBeInTheDocument()
+
+      // Tasks without options open nothing.
+      fireEvent.click(within(dialog).getByRole('radio', { name: t.chat_task_none }))
+      expect(within(dialog).queryByRole('listbox')).not.toBeInTheDocument()
+    })
+
     it('keeps a choice as a draft until Apply, and shows the instruction it will send', () => {
       render(<ChatPage />)
       const dialog = openTaskPopover()
-      fireEvent.click(within(dialog).getByRole('option', { name: t.chat_suggest_translate }))
+      fireEvent.click(within(dialog).getByRole('radio', { name: t.chat_suggest_translate }))
       pickTaskOption(dialog, t.chat_task_language, t.lang_names.zh)
       // Nothing is saved yet; the dialog previews the instruction that will travel with the message.
       expect(useAppStore.getState().chatPendingTaskState?.selected ?? null).toBeNull()
@@ -623,16 +662,16 @@ describe('ChatPage', () => {
     it('discards an unapplied draft on Escape and outside click, keeping the applied task', async () => {
       render(<ChatPage />)
       choose('write')
-      fireEvent.click(within(openTaskPopover()).getByRole('option', { name: t.chat_suggest_explain }))
+      fireEvent.click(within(openTaskPopover()).getByRole('radio', { name: t.chat_suggest_explain }))
       fireEvent.keyDown(document, { key: 'Escape' })
       expect(screen.queryByRole('dialog', { name: t.chat_task_configuration })).not.toBeInTheDocument()
       await waitFor(() => expect(trigger()).toHaveFocus())
-      fireEvent.click(within(openTaskPopover()).getByRole('option', { name: t.chat_suggest_explain }))
+      fireEvent.click(within(openTaskPopover()).getByRole('radio', { name: t.chat_suggest_explain }))
       fireEvent.pointerDown(screen.getByRole('textbox'))
       expect(trigger()).toHaveAttribute('aria-expanded', 'false')
       expect(appliedTask(t.chat_suggest_write, t.chat_task_email)).toBeInTheDocument()
       // Reopening starts from the applied task again.
-      expect(within(openTaskPopover()).getByRole('option', { name: t.chat_suggest_write })).toHaveAttribute('aria-selected', 'true')
+      expect(within(openTaskPopover()).getByRole('radio', { name: t.chat_suggest_write })).toHaveAttribute('aria-checked', 'true')
     })
 
     it('restores current choices after unmount and locale change without changing the draft', () => {

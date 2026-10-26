@@ -1089,7 +1089,6 @@
   flex-direction: column;
   overflow: hidden;
   border: var(--vzn-border-width) solid var(--vzn-border);
-  background: var(--vzn-surface-raised);
   box-shadow: var(--vzn-shadow-overlay);
 }
 

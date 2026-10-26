@@ -87,10 +87,13 @@ export function AIConfigurationPopover({
   useLayoutEffect(() => {
     if (!open || placement !== 'auto') return
     const measure = () => {
-      const rect = triggerRef.current?.getBoundingClientRect()
+      const trigger = triggerRef.current
+      const rect = trigger?.getBoundingClientRect()
       if (!rect) return
-      const above = rect.top
-      const below = window.innerHeight - rect.bottom
+      // Room ends at the feature workspace, so the panel never covers the page header or title bar.
+      const bounds = trigger?.closest('.app-workspace')?.getBoundingClientRect()
+      const above = rect.top - (bounds?.top ?? 0)
+      const below = (bounds?.bottom ?? window.innerHeight) - rect.bottom
       const gap = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--vzn-space-4')) || 0
       setMeasured(above > below ? { side: 'above', room: above - gap } : { side: 'below', room: below - gap })
     }
@@ -114,6 +117,8 @@ export function AIConfigurationPopover({
       role="dialog"
       aria-labelledby={titleId}
       aria-describedby={scopeId}
+      // Secondary lists (OptionFlyout) open beside this panel rather than over it.
+      data-flyout-boundary=""
       className={`ai-configuration-popover ai-configuration-popover--${side}${align === 'start' ? ' ai-configuration-popover--start' : ''}`}
       style={panelStyle}
     >

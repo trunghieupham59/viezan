@@ -16,12 +16,24 @@
   overflow: hidden;
   border: 1px solid var(--vzn-border);
   border-radius: var(--vzn-radius-md);
-  background: var(--vzn-surface-raised);
+  background: transparent;
   box-shadow: var(--vzn-shadow-md);
   margin-top: var(--vzn-space-2);
-  /* No transform: a transformed panel would trap its fixed select menus. */
+  /* No transform or backdrop-filter on the panel: either would trap its fixed select menus. */
   right: anchor(right);
   left: auto;
+}
+
+/* The floating material (floating-material.css) sits on a backing layer here, so the
+   panel itself never gets a backdrop-filter that would trap its fixed menus. */
+.ai-configuration-popover::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--vzn-overlay-material);
+  backdrop-filter: var(--vzn-overlay-blur);
+  -webkit-backdrop-filter: var(--vzn-overlay-blur);
+  content: "";
 }
 
 .ai-configuration-popover--start {
@@ -444,8 +456,36 @@
   padding: var(--vzn-space-1);
   border: 1px solid var(--vzn-border);
   border-radius: var(--vzn-radius-control);
-  background: var(--vzn-surface-raised);
   box-shadow: var(--vzn-shadow-md);
+}
+
+/* Searchable menu: the search field stays put and only the options scroll.
+   Long lists carry a second name (e.g. the native language name), so the menu
+   may grow past a narrow trigger, and flips to its right edge near the window edge. */
+.ai-select-field__menu--searchable {
+  min-width: var(--vzn-picker-min-inline);
+  overflow: hidden;
+  position-try-fallbacks: flip-inline;
+}
+
+.ai-select-field__search {
+  flex: 0 0 auto;
+}
+
+.ai-select-field__list {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--vzn-space-1);
+  overflow-y: auto;
+}
+
+.ai-select-field__empty {
+  margin: 0;
+  padding: var(--vzn-space-2) var(--vzn-space-3);
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-sm);
 }
 
 .ai-select-field__menu--below {

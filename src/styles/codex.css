@@ -916,11 +916,8 @@ html.dark .chat-research-info-popover,
 html:not(.dark) .chat-research-info-popover,
 html.dark .ai-config-panel,
 html:not(.dark) .ai-config-panel {
-  border: 1px solid var(--vzn-border-strong) !important;
-  background: var(--vzn-overlay-material) !important;
+  border: var(--vzn-border-width) solid var(--vzn-border-strong) !important;
   box-shadow: var(--vzn-shadow-lg) !important;
-  backdrop-filter: var(--vzn-blur) !important;
-  -webkit-backdrop-filter: var(--vzn-blur) !important;
 }
 
 .floating-panel {
@@ -949,7 +946,6 @@ html:not(.dark) .ai-config-panel {
   flex-direction: column;
   gap: var(--vzn-space-4);
   color: var(--vzn-text);
-  background: var(--vzn-surface);
   box-shadow: var(--vzn-shadow-overlay);
 }
 
@@ -1022,7 +1018,6 @@ html:not(.dark) .modal-backdrop {
   flex-direction: column;
   overflow: hidden;
   border-color: var(--vzn-material-border) !important;
-  background: var(--vzn-overlay-material) !important;
   box-shadow: var(--vzn-shadow-overlay) !important;
   animation: fadeSlideIn var(--vzn-duration-normal) var(--vzn-ease-standard);
 }
@@ -1839,10 +1834,6 @@ html:not(.dark) .quick-chat-answer-card {
 }
 
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  .modal-surface.cmd-palette-panel {
-    background: var(--vzn-surface) !important;
-  }
-
   html:has(.app-shell[data-window-material="native"]),
   html:has(.app-shell[data-window-material="native"]) body,
   html:has(.app-shell[data-window-material="native"]) #root,

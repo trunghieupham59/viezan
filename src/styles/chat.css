@@ -646,9 +646,9 @@ html.dark .chat-suggest-chip:hover {
   min-width: 300px;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--vzn-border-strong);
+  border: var(--vzn-border-width) solid var(--vzn-border-strong);
   border-radius: var(--vzn-radius-lg);
-  background: var(--vzn-surface);
+  /* Background and blur: the floating material (floating-material.css). */
   color: var(--vzn-text);
   box-shadow: var(--vzn-shadow-lg);
 }
@@ -1213,11 +1213,20 @@ html.dark .chat-suggest-chip:hover {
   inline-size: var(--vzn-icon-sm);
   block-size: var(--vzn-icon-sm);
 }
-/* The task's option (e.g. target language) sits under the list, inset like the sections. */
-.chat-task-option {
+/* The chosen task's option sits on its row; the list itself opens beside the
+   popover (OptionFlyout). The chevron marks rows that have one. */
+.chat-task-row__value {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--vzn-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-task-row__more {
   flex: 0 0 auto;
-  padding: var(--vzn-space-3);
-  border-top: var(--vzn-border-width) solid var(--vzn-divider);
+  inline-size: var(--vzn-icon-xs);
+  block-size: var(--vzn-icon-xs);
+  color: var(--vzn-text-soft);
 }
 .chat-task-instruction {
   margin: 0;
