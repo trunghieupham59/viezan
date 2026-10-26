@@ -47,6 +47,8 @@ export interface FanCalibrationDeps {
   saveResult: (result: FanAffinityResult | null) => void
   loadResult: () => FanAffinityResult | null
   onState?: (state: FanCalibrationState) => void
+  /** After every run (done, cancelled or failed) once the fans are back to automatic. */
+  onFinished?: () => void
   timings?: Partial<FanCalibrationTimings>
   now?: () => number
   setTimeoutFn?: typeof setTimeout
@@ -126,7 +128,7 @@ export function affinitySensorIds(affinity: FanAffinity | undefined): string[] |
 }
 
 export function createFanCalibration(deps: FanCalibrationDeps): FanCalibrationService {
-  const { control, subscribeSnapshots, setBackgroundReads, saveResult, loadResult, onState, now = Date.now, setTimeoutFn = setTimeout, clearTimeoutFn = clearTimeout, log = console } = deps
+  const { control, subscribeSnapshots, setBackgroundReads, saveResult, loadResult, onState, onFinished, now = Date.now, setTimeoutFn = setTimeout, clearTimeoutFn = clearTimeout, log = console } = deps
   const timings = { ...DEFAULT_CALIBRATION_TIMINGS, ...deps.timings }
   let state: FanCalibrationState = { status: 'idle', result: loadResult() ?? undefined }
   let running = false
@@ -217,6 +219,7 @@ export function createFanCalibration(deps: FanCalibrationDeps): FanCalibrationSe
       setBackgroundReads(false)
       try { await control.restoreAll() } catch (e) { log.warn('[Thermal] restore after calibration failed:', e instanceof Error ? e.message : e) }
       running = false
+      onFinished?.()
     }
   }
 

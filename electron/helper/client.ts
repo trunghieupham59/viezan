@@ -9,7 +9,7 @@
  * fake server without root.
  */
 import * as net from 'node:net'
-import { HELPER_PROTOCOL_VERSION, type HelperHello, HelperRequestError, type HelperResponse, isHelperResponse } from './protocol'
+import { HELPER_PROTOCOL_VERSION, type HelperHello, HelperProtocolError, HelperRequestError, type HelperResponse, isHelperResponse } from './protocol'
 
 export interface HelperSocket {
   on: (event: 'data' | 'close' | 'error' | 'connect', cb: (...args: unknown[]) => void) => unknown
@@ -148,7 +148,7 @@ export function createHelperClient({
         send<HelperHello>('hello').then((answer) => {
           if (settled) return
           if (!answer || answer.protocol !== HELPER_PROTOCOL_VERSION) {
-            fail(new Error(`Helper speaks protocol ${answer?.protocol ?? '?'}, this app needs ${HELPER_PROTOCOL_VERSION}.`))
+            fail(new HelperProtocolError(`Helper speaks protocol ${answer?.protocol ?? '?'}, this app needs ${HELPER_PROTOCOL_VERSION}.`))
             return
           }
           settled = true

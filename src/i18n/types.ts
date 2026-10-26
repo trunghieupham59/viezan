@@ -1250,6 +1250,19 @@ export interface Translations {
   thermal_fan_reason_wake: string
   thermal_fan_reason_disconnect: string
   thermal_fan_reason_client: string
+  thermal_fan_disclaimer_intro_daemon: string
+  thermal_fan_helper_section: string
+  thermal_fan_helper_installed_desc: string
+  thermal_fan_helper_not_installed_desc: string
+  thermal_fan_helper_outdated_title: string
+  thermal_fan_helper_outdated_desc: string
+  thermal_fan_helper_update: string
+  thermal_fan_helper_uninstall: string
+  thermal_fan_helper_approval_title: string
+  thermal_fan_helper_approval_desc: string
+  thermal_fan_helper_approval_open: string
+  thermal_fan_reason_start: string
+  thermal_fan_reason_console_user: string
   thermal_fan_disclaimer_title: string
   thermal_fan_disclaimer_intro: string
   thermal_fan_disclaimer_point_range: string

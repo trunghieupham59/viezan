@@ -3,8 +3,9 @@
  * Build the native helpers Viezan ships beside the app, as universal binaries into
  * native/bin/darwin/:
  *   • `viezan-smc` — read-only SMC sensor reader (native/smc/main.swift)
- *   • `viezan-fan-helper` — privileged fan writer launched per session (native/fanhelper/main.swift)
- * Both share native/common/SMC.swift. Other platforms have nothing to build and exit quietly.
+ *   • `viezan-fan-helper` — privileged fan writer, per session or as a daemon (native/fanhelper/main.swift)
+ *   • `viezan-helper-ctl` — registers that daemon through SMAppService, macOS 13+ (native/helperctl/main.swift)
+ * The first two share native/common/SMC.swift. Other platforms have nothing to build and exit quietly.
  *
  * Usage: node scripts/build-native.mjs [--force]
  */
@@ -26,6 +27,8 @@ const common = join(root, 'native', 'common', 'SMC.swift')
 const targets = [
   { name: 'viezan-smc', sources: [common, join(root, 'native', 'smc', 'main.swift')] },
   { name: 'viezan-fan-helper', sources: [common, join(root, 'native', 'fanhelper', 'main.swift')] },
+  // SMAppService needs macOS 13; the app runs it only there (path B, docs/plans/fan-helper-daemon.md).
+  { name: 'viezan-helper-ctl', sources: [join(root, 'native', 'helperctl', 'main.swift')], minOS: '13.0' },
 ]
 
 const newestMtime = (files) => Math.max(...files.map((file) => statSync(file).mtimeMs))
@@ -46,12 +49,12 @@ try {
 }
 
 mkdirSync(outDir, { recursive: true })
-for (const { name, sources } of stale) {
+for (const { name, sources, minOS = '12.0' } of stale) {
   const output = join(outDir, name)
   const slices = []
   for (const arch of ['arm64', 'x86_64']) {
     const slice = join(outDir, `${name}-${arch}`)
-    execFileSync('swiftc', ['-O', '-target', `${arch}-apple-macos12.0`, '-o', slice, ...sources], { stdio: 'inherit' })
+    execFileSync('swiftc', ['-O', '-target', `${arch}-apple-macos${minOS}`, '-o', slice, ...sources], { stdio: 'inherit' })
     slices.push(slice)
   }
   execFileSync('lipo', ['-create', ...slices, '-output', output], { stdio: 'inherit' })

@@ -2,11 +2,13 @@
  * Thermal module settings — a small JSON file under userData owned by the main
  * process, so the menu bar / tray reading can be restored at launch before any
  * window exists. Validation is strict: unknown keys are ignored and a wrong type
- * rejects the whole patch, like the hotkey settings store.
+ * rejects the whole patch, like the hotkey settings store. `fanControl.autoEnable`
+ * and `fanControl.custom` are main-owned: only the file (trusted) may carry them.
  */
 import * as fs from 'node:fs'
-import type { FanAffinityResult, ThermalFanControlSettings, ThermalFanProfilesSettings, ThermalSettings, ThermalSettingsPatch, ThermalTrayFanFormat, ThermalTrayLayout, ThermalTrayMetric, ThermalTraySettings } from '../../shared/thermalApi'
+import type { FanAffinityResult, FanCommand, ThermalFanControlSettings, ThermalFanProfilesSettings, ThermalSettings, ThermalSettingsPatch, ThermalTrayFanFormat, ThermalTrayLayout, ThermalTrayMetric, ThermalTraySettings } from '../../shared/thermalApi'
 import { isRecord } from '../ipc/ipcValidation'
+import { isFanCommand } from './fanControlTypes'
 import { isUserFanProfile, isUserFanProfileId, MAX_USER_FAN_PROFILES } from './fanProfilesSchema'
 
 export const THERMAL_SETTINGS_FILE = 'thermal.json'
@@ -17,7 +19,7 @@ export const THERMAL_TRAY_FAN_FORMATS: readonly ThermalTrayFanFormat[] = ['rpm',
 
 export const DEFAULT_THERMAL_SETTINGS: ThermalSettings = {
   tray: { enabled: false, metric: 'hottest', showFan: false, layout: 'inline', showUnit: true, fanFormat: 'rpm' },
-  fanControl: { acknowledged: false },
+  fanControl: { acknowledged: false, autoEnable: false, custom: {} },
   fanProfiles: { activeId: null, user: [] },
   fanAffinity: null,
 }
@@ -31,10 +33,23 @@ function isFanAffinityResult(value: unknown): value is FanAffinityResult {
       && (sensor.contrast === undefined || (typeof sensor.contrast === 'number' && Number.isFinite(sensor.contrast)))))
 }
 
+/** Fan ids as the helper bridge names them (`smc:fan0`); at most 16 fans, like the helper. */
+const MAX_CUSTOM_FANS = 16
+
+function isCustomFanCommands(value: unknown): value is Record<string, FanCommand> {
+  if (!isRecord(value)) return false
+  const entries = Object.entries(value)
+  return entries.length <= MAX_CUSTOM_FANS && entries.every(([fanId, command]) => /^smc:fan\d{1,2}$/.test(fanId) && isFanCommand(command))
+}
+
+function cloneCustom(custom: Record<string, FanCommand>): Record<string, FanCommand> {
+  return Object.fromEntries(Object.entries(custom).map(([fanId, command]) => [fanId, { ...command }]))
+}
+
 function cloneSettings(settings: ThermalSettings): ThermalSettings {
   return {
     tray: { ...settings.tray },
-    fanControl: { ...settings.fanControl },
+    fanControl: { ...settings.fanControl, custom: cloneCustom(settings.fanControl.custom) },
     fanProfiles: { activeId: settings.fanProfiles.activeId, user: settings.fanProfiles.user.map((profile) => ({ ...profile, fans: { ...profile.fans } })) },
     fanAffinity: settings.fanAffinity ? { ...settings.fanAffinity, fans: settings.fanAffinity.fans.map((fan) => ({ ...fan, sensors: fan.sensors.map((sensor) => ({ ...sensor })) })) } : null,
   }
@@ -54,8 +69,11 @@ function isTrayFanFormat(value: unknown): value is ThermalTrayFanFormat {
 
 type ParsedPatch = { ok: true; patch: ThermalSettingsPatch } | { ok: false; error: string }
 
-/** Whitelist and type-check a patch from the renderer. `undefined` fields mean "leave unchanged". */
-export function parseThermalSettingsPatch(raw: unknown): ParsedPatch {
+/**
+ * Whitelist and type-check a patch. `undefined` fields mean "leave unchanged".
+ * `trusted` (the settings file) also accepts the main-owned fan control fields.
+ */
+export function parseThermalSettingsPatch(raw: unknown, { trusted = false }: { trusted?: boolean } = {}): ParsedPatch {
   if (!isRecord(raw)) return { ok: false, error: 'Invalid thermal settings payload.' }
   const patch: ThermalSettingsPatch = {}
   if (raw.tray !== undefined) {
@@ -93,6 +111,14 @@ export function parseThermalSettingsPatch(raw: unknown): ParsedPatch {
     if (raw.fanControl.acknowledged !== undefined) {
       if (typeof raw.fanControl.acknowledged !== 'boolean') return { ok: false, error: 'Invalid "fanControl.acknowledged" value.' }
       fanControl.acknowledged = raw.fanControl.acknowledged
+    }
+    if (trusted && raw.fanControl.autoEnable !== undefined) {
+      if (typeof raw.fanControl.autoEnable !== 'boolean') return { ok: false, error: 'Invalid "fanControl.autoEnable" value.' }
+      fanControl.autoEnable = raw.fanControl.autoEnable
+    }
+    if (trusted && raw.fanControl.custom !== undefined) {
+      if (!isCustomFanCommands(raw.fanControl.custom)) return { ok: false, error: 'Invalid "fanControl.custom" value.' }
+      fanControl.custom = cloneCustom(raw.fanControl.custom)
     }
     patch.fanControl = fanControl
   }
@@ -136,7 +162,7 @@ export function loadThermalSettings(filePath: string, log: Pick<Console, 'warn'>
   if (!fs.existsSync(filePath)) return cloneSettings(DEFAULT_THERMAL_SETTINGS)
   try {
     const raw: unknown = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
-    const parsed = parseThermalSettingsPatch(raw)
+    const parsed = parseThermalSettingsPatch(raw, { trusted: true })
     if (!parsed.ok) return cloneSettings(DEFAULT_THERMAL_SETTINGS)
     return applyThermalSettingsPatch(DEFAULT_THERMAL_SETTINGS, parsed.patch)
   } catch (e) {

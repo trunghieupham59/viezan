@@ -93,9 +93,9 @@ Thứ tự nhóm cảm biến cố định: CPU → GPU → Cảm biến khác (
 | # | Điều khiển | Loại (Button size · variant · appearance) | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
 | H1 | Chip trạng thái helper | `StatusChip`: `neutral` "Điều khiển quạt đang tắt" · `info` + spinner "Đang khởi chạy helper…" · `ok` "Helper đã kết nối (v{version})" · `danger` "Không khởi chạy được helper" · `warning` "Thiếu helper" | Chỉ hiển thị | — | Chi tiết lỗi / đường dẫn thiếu nằm trong `title` (tooltip) và trong `CapabilityNotice` dưới header (helper `missing` hoặc `error`) | Không hiện khi không có điều khiển quạt (Linux, macOS đọc lỗi) |
-| H2 | "Bật điều khiển quạt" (`thermal_fan_enable`) | `md` · `primary` · `solid`, chữ nhật | Click / Enter / Space, khi helper `idle` | Lần đầu: mở dialog miễn trừ (mục 6.2). Đã đồng ý: khởi chạy helper, macOS hỏi mật khẩu quản trị | Chip chuyển "Đang khởi chạy helper…", nút tắt; thất bại → toast lỗi (khoá `thermal-fan`) | `disabled` khi bận; trong trạng thái `starting` nút hiện nhưng luôn tắt |
+| H2 | "Bật điều khiển quạt" (`thermal_fan_enable`) | `md` · `primary` · `solid`, chữ nhật | Click / Enter / Space, khi helper `idle` | Lần đầu: mở dialog miễn trừ (mục 6.2). Đã đồng ý: bản phát hành cài helper chạy nền nếu chưa có (macOS hỏi mật khẩu một lần) rồi kết nối; bản mã nguồn khởi chạy helper cho phiên (hỏi mật khẩu mỗi lần). Nhớ "đang bật" để lần mở sau tự kết nối lại | Chip chuyển "Đang khởi chạy helper…", nút tắt; thất bại → toast lỗi (khoá `thermal-fan`) | `disabled` khi bận; trong trạng thái `starting` nút hiện nhưng luôn tắt |
 | H3 | "Thử lại" (`thermal_fan_retry`) | `md` · `primary` · `solid` | Click, khi helper `error` | Như H2 (vẫn qua dialog nếu chưa đồng ý) | Như H2 | Bận |
-| H4 | "Tắt điều khiển quạt" (`thermal_fan_disable`) có icon dừng | `md` · `danger` · `outline` | Click, khi helper `ready` | Trả mọi quạt về tự động và bỏ helper (helper tự thoát sau đó) | Chip về "Điều khiển quạt đang tắt", hàng quạt về "Tự động (hệ thống)"; lỗi → toast | Bận |
+| H4 | "Tắt điều khiển quạt" (`thermal_fan_disable`) có icon dừng | `md` · `danger` · `outline` | Click, khi helper `ready` | Trả mọi quạt về tự động và ngắt helper; lần mở app sau không tự bật lại (thoát app thì vẫn tự bật lại) | Chip về "Điều khiển quạt đang tắt", hàng quạt về "Tự động (hệ thống)"; lỗi → toast | Bận |
 | H5 | Bánh răng "Tuỳ chọn nhiệt độ" | `md` · `neutral` · `ghost`, icon vuông; khi mở `primary` · `soft`. `aria-expanded`, `aria-haspopup="dialog"`, `aria-label` = `thermal_options_title` | Click; đóng bằng Esc, click ra ngoài, nút đóng | Mở `AIConfigurationPopover` neo dưới nút: mục "Nhận diện cảm biến" (chỉ khi có điều khiển quạt) và mục "Thanh menu" / "Khay hệ thống" | Focus vào điều khiển đầu tiên trong popover; đóng thì focus về nút | Không hiện khi không có `trayPlacement` (Windows, lần chạy không có khay, cảm biến không đọc được) hoặc settings chưa tải |
 
 Chỉ một nút `solid` trong header tại một thời điểm (H2 hoặc H3); H4 là `outline` vì là hành động dừng.
@@ -139,6 +139,9 @@ Mô tả popover: `thermal_options_desc_fans` khi có điều khiển quạt, n�
 | O2 | "Dừng nhận diện" | `sm` · `danger` · `outline` | Click, thay O1 khi đang chạy | Huỷ nhận diện | Dòng trạng thái đổi | Bận |
 | O3 | "Quên kết quả" | `sm` · `neutral` · `ghost` | Click; chỉ khi có kết quả và không đang chạy | Xoá kết quả nhận diện; mục "Cảm biến gần {quạt}" biến mất | — | Bận |
 | O4 | Dòng trạng thái nhận diện (`role="status"`) | Chữ caption; `done` màu `--vzn-success`, `error` màu `--vzn-danger` | — | "Nhận diện lúc {date} · Quạt trái: 74 cảm biến · …" / tiến độ / "Đã dừng…" / "Nhận diện thất bại. {lỗi}" | — | — |
+| O5 | Mục "Helper chạy nền" (`thermal_fan_helper_section`) | Mô tả `--vzn-font-size-sm`: "Đã cài…" / "Chưa cài. Lần đầu bật điều khiển quạt sẽ cài helper…" / "Bản Viezan này đi kèm helper mới…" | — | Chỉ có ở bản phát hành macOS (`install` có giá trị) | — | — |
+| O6 | "Cập nhật helper" (`thermal_fan_helper_update`) | `sm` · `primary` · `solid` | Click; chỉ khi `install = outdated` | Đóng popover; trả quạt về tự động, cài lại helper đi kèm app (hỏi mật khẩu một lần), kết nối và áp lại cài đặt | Chip "Đang khởi chạy helper…" | Bận, đang nhận diện |
+| O7 | "Gỡ helper" (`thermal_fan_helper_uninstall`) | `sm` · `danger` · `outline` | Click; khi helper đã cài (kể cả bản cũ) | Đóng popover; trả quạt về tự động, dừng và xoá helper (hỏi mật khẩu); không tự bật lại lần sau | Chip "Điều khiển quạt đang tắt"; O5 đổi sang "Chưa cài…" | Bận, đang nhận diện |
 | T1 | "Hiện số đo trực tiếp" | `ToggleSwitch` (`aria-labelledby`, `aria-describedby` = mô tả theo vị trí) | Click / Space | Bật / tắt mục thanh menu (macOS) hoặc chú thích khay (Linux) | Mục thanh menu hiện "…" rồi số đo; các hàng chi tiết hiện ra | Khi đang lưu (`settingsBusy`) |
 | T2 | "Số đo" | `SelectField`: Cảm biến nóng nhất · CPU · GPU | Chọn | CPU/GPU lấy cảm biến nóng nhất của nhóm, rơi về nóng nhất toàn máy khi nhóm trống | Xem trước đổi ngay | Đang lưu |
 | T3 | "Kèm tốc độ quạt" | `ToggleSwitch` | Click | Thêm RPM của quạt nhanh nhất | Hiện T4 (chỉ thanh menu) và T5 | Đang lưu |
@@ -183,7 +186,10 @@ Mọi thay đổi T1–T6 đi một vòng qua main (`useThermalSettings.update`)
 | Helper: đang khởi chạy | `starting` (đang chờ mật khẩu / kết nối) | Chip spinner "Đang khởi chạy helper…" + nút bật đã tắt | Chờ |
 | Helper: lỗi | `error` (huỷ mật khẩu, không kết nối) | Chip đỏ "Không khởi chạy được helper" (tooltip lỗi) + "Thử lại"; `CapabilityNotice` đỏ ghi lỗi; toast lỗi | H3 |
 | Helper: sẵn sàng | `ready` | Chip xanh lá + "Tắt điều khiển quạt"; toolbar quạt có profile và "Về tự động"; hàng quạt có công tắc chế độ | Mọi hành động F* |
-| Helper tự khôi phục | `lastRestoreReason` ∈ watchdog, ceiling, sleep, can-sleep, wake, disconnect | Dòng `.thermal-notice` "Helper đã trả quạt về tự động ({lý do})." dưới header | Chọn lại profile / chế độ thủ công |
+| Helper tự khôi phục | `lastRestoreReason` ∈ watchdog, ceiling, sleep, can-sleep, wake, disconnect, start, console-user, chỉ những lần khôi phục xảy ra trong kết nối hiện tại | Sau sleep, can-sleep, wake, watchdog: main tự áp lại profile ghi nhớ hoặc cài đặt Tuỳ chỉnh đã lưu. Dòng `.thermal-notice` "Helper đã trả quạt về tự động ({lý do})." chỉ hiện khi mọi quạt còn ở tự động, nên tắt ngay khi cài đặt đã áp lại. Chạm trần nhiệt độ thì không tự áp lại | Chọn lại profile / chế độ thủ công |
+| Helper: có bản mới | `install = outdated` (bản cập nhật app mang helper khác) | `CapabilityNotice` `info` "Có bản helper mới" + nút "Cập nhật helper"; helper cũ vẫn dùng được khi cùng giao thức | O6 |
+| Helper: chờ phê duyệt | `install = requires-approval` (chỉ bản ký Developer ID dùng SMAppService; hiện chưa kích hoạt) | `CapabilityNotice` `warning` "Cần cho phép helper chạy nền" + nút "Mở Cài đặt hệ thống"; không phải lỗi, chip vẫn "Điều khiển quạt đang tắt" | Mở Cài đặt hệ thống, cho phép, rồi H2 |
+| Mở app khi điều khiển quạt đang bật | `fanControl.autoEnable` (main giữ, renderer không sửa được) | Chip "Đang khởi chạy helper…" thoáng qua rồi "Helper đã kết nối"; cài đặt quạt lần trước được áp lại. Không có hộp mật khẩu: nếu cần mật khẩu, trang ở "Điều khiển quạt đang tắt" | H2 |
 | Đang nhận diện | `calibration.status === 'running'` | Thanh tiến trình dưới toolbar quạt; mọi điều khiển quạt và "Về tự động" tắt; popover đổi O1 thành O2 | Dừng nhận diện |
 | Nhận diện xong / dừng / lỗi | `done` / `cancelled` / `error` | Dòng trạng thái trong popover (xanh lá / thường / đỏ); thất bại cũng bắn toast | Nhận diện lại, Quên kết quả |
 | Lệnh thất bại | Bất kỳ lệnh quạt / profile / tuỳ chọn | Toast lỗi; mỗi nguồn một khoá (`thermal-fan`, `thermal-fan-profile`, `thermal-tray`) nên toast mới thay toast cũ; khoá được `dismiss` trước mỗi lần thử | Thử lại thao tác |
@@ -206,11 +212,12 @@ Ngưỡng màu nhiệt độ (`thermalTone`): dưới 70 °C chữ thường; 70
 ### 6.2 Bật điều khiển quạt (lần đầu, qua dialog miễn trừ)
 
 1. Helper `idle`: header có chip "Điều khiển quạt đang tắt" và nút solid "Bật điều khiển quạt". Hàng quạt chỉ đọc "Tự động (hệ thống)".
-2. Bấm nút → vì `acknowledged` còn `false`, dialog "Trước khi điều khiển quạt" mở: một câu giới thiệu (helper quyền quản trị, hệ thống sẽ hỏi mật khẩu), ba dấu ✓ xanh lá (chỉ đặt tốc độ trong giới hạn; tự về tự động khi thoát app / mất kết nối / ngủ / dậy; tự về tự động khi một cảm biến vượt 105 °C), một hộp cảnh báo vàng về rủi ro. Focus vào nút đóng của dialog; Tab bị giữ trong dialog.
+2. Bấm nút → vì `acknowledged` còn `false`, dialog "Trước khi điều khiển quạt" mở: một câu giới thiệu (bản phát hành: cài một helper chạy nền với quyền quản trị, chỉ hỏi mật khẩu lần này và tự kết nối lại mỗi lần mở; bản mã nguồn: helper cho phiên, hệ thống sẽ hỏi mật khẩu), ba dấu ✓ xanh lá (chỉ đặt tốc độ trong giới hạn; tự về tự động khi thoát app / mất kết nối / ngủ / dậy; tự về tự động khi một cảm biến vượt 105 °C), một hộp cảnh báo vàng về rủi ro. Focus vào nút đóng của dialog; Tab bị giữ trong dialog.
 3. "Huỷ" / Esc / ✕ → đóng, focus về nút bật, không có gì thay đổi.
 4. "Tôi hiểu, tiếp tục" → dialog đóng, ghi nhận đã đồng ý (lần sau không hỏi), helper khởi chạy: chip "Đang khởi chạy helper…" có spinner, nút bật bị tắt; macOS hiện hộp mật khẩu quản trị.
 5a. Nhập mật khẩu → chip "Helper đã kết nối (v…)", nút đổi thành "Tắt điều khiển quạt" (danger outline). Toolbar quạt hiện ô Profile và "Về tự động"; mỗi quạt có ba nút chế độ. Nếu đã có profile ghi nhớ, main áp dụng lại và ô hiện tên profile.
-5b. Huỷ mật khẩu / lỗi → chip đỏ "Không khởi chạy được helper", nút "Thử lại", toast lỗi.
+5b. Huỷ hộp mật khẩu → về "Điều khiển quạt đang tắt", không báo lỗi. Cài hoặc khởi chạy thất bại → chip đỏ "Không khởi chạy được helper", nút "Thử lại", toast lỗi.
+6. Thoát app (kể cả khi app tự cập nhật rồi mở lại) → quạt về tự động. Lần mở sau app tự kết nối với helper chạy nền và áp lại profile ghi nhớ hoặc cài đặt Tuỳ chỉnh đã lưu, không hỏi mật khẩu. Chỉ "Tắt điều khiển quạt" hoặc "Gỡ helper" mới làm app thôi tự bật lại.
 
 ### 6.3 Đổi profile quạt
 
@@ -343,7 +350,7 @@ Bản vẽ gốc ↔ mã:
 1. **Công tắc chế độ:** board `Thermal` vẽ segmented control nền xám; mã dùng ba nút pill `sm` (`primary·soft` khi chọn, `neutral·ghost` khi không). Đặc tả theo mã (đúng hợp đồng Button).
 2. **Tiêu đề bảng nhiệt độ:** board "Cảm biến"; mã "Nhiệt độ" (`thermal_sensors_title`). Giữ mã.
 3. **Câu "Hệ thống đang dừng quạt vì máy mát."** dưới quạt 0 RPM (board `Thermal`) — **đề xuất**, mã chưa có.
-4. **Thông báo khôi phục có hành động "Bật lại profile Mát?"** (board `States`) — mã chỉ có dòng chữ `.thermal-notice`, không nút. **Đề xuất:** thêm nút `xs · primary · outline` "Bật lại {profile}" khi có profile ghi nhớ.
+4. **Thông báo khôi phục có hành động "Bật lại profile Mát?"** (board `States`): main nay tự áp lại profile hoặc cài đặt Tuỳ chỉnh sau sleep, wake và mất nhịp, nên nút chỉ còn ý nghĩa sau khi chạm trần nhiệt độ. **Đề xuất:** thêm nút `xs · primary · outline` "Bật lại {profile}" cho riêng trường hợp đó.
 5. **Menu thanh menu:** board `SmallSurfaces` có dòng tóm tắt "CPU 58,2°C · Quạt …", "Mở Nhiệt độ & quạt", "Ẩn số đo"; mã có "Mở Viezan" (mở cửa sổ chính, không vào trang) và "Ẩn nhiệt độ khỏi thanh menu". **Đề xuất:** thêm dòng tóm tắt và mục mở thẳng trang.
 6. **Popover:** board `Popovers` vẽ "Tốc độ quạt" dạng segmented; mã dùng `SelectField`.
 7. **Thông số dialog nhận diện:** board ghi "khoảng 3 phút 30 giây với hai quạt"; mã ghi chung "Mất vài phút và hơi ồn". Giữ mã (không bịa thời lượng).

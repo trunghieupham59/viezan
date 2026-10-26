@@ -25,6 +25,15 @@ describe('fan profile resolution', () => {
     expect(parseThermalSettingsPatch({ fanProfiles: { activeId: 'evil' } })).toEqual({ ok: false, error: 'Invalid "fanProfiles.activeId" value.' })
     expect(BUILTIN_FAN_PROFILES.map((p) => p.id)).toEqual(['builtin:system', 'builtin:quiet', 'builtin:cool', 'builtin:gaming', 'builtin:local-ai'])
   })
+
+  it('accepts the main-owned fan control fields from the settings file only', () => {
+    const custom = { 'smc:fan0': { mode: 'sensor', sensorId: 'group:cpu', minCelsius: 50, maxCelsius: 90 }, 'smc:fan1': { mode: 'fixed', rpm: 2000 } }
+    // The renderer cannot switch automatic resume on or plant a custom setting; the fields are dropped.
+    expect(parseThermalSettingsPatch({ fanControl: { acknowledged: true, autoEnable: true, custom } })).toEqual({ ok: true, patch: { fanControl: { acknowledged: true } } })
+    expect(parseThermalSettingsPatch({ fanControl: { autoEnable: true, custom } }, { trusted: true })).toEqual({ ok: true, patch: { fanControl: { autoEnable: true, custom } } })
+    expect(parseThermalSettingsPatch({ fanControl: { custom: { 'smc:fan0': { mode: 'curve' } } } }, { trusted: true })).toMatchObject({ ok: false })
+    expect(parseThermalSettingsPatch({ fanControl: { custom: { '../fan0': { mode: 'auto' } } } }, { trusted: true })).toMatchObject({ ok: false })
+  })
 })
 
 function fakeControl(helper: FanControlState['helper'] = 'ready') {
@@ -53,20 +62,31 @@ function fakeControl(helper: FanControlState['helper'] = 'ready') {
     restoreAll: async () => { state = { ...state, fans: state.fans.map((fan) => ({ ...fan, mode: 'auto', targetRpm: undefined, sensor: undefined })) }; return state },
     disable: async () => { state = { helper: 'idle', fans: [] }; return state },
     stop: async () => { state = { helper: 'idle', fans: [] } },
+    resume: async () => { state = { ...state, helper: 'ready' }; return state },
+    installHelper: async () => { state = { ...state, helper: 'ready', install: 'installed' }; return state },
+    uninstallHelper: async () => { state = { helper: 'idle', install: 'not-installed', fans: [] }; return state },
   }
   return control
 }
 
-function setup(helper: FanControlState['helper'] = 'ready', saved: Partial<ThermalSettings['fanProfiles']> = {}) {
+function setup(helper: FanControlState['helper'] = 'ready', saved: Partial<ThermalSettings['fanProfiles']> = {}, options: { fanControl?: Partial<ThermalSettings['fanControl']>; paused?: () => boolean } = {}) {
   const control = fakeControl(helper)
   const save = vi.fn()
   const settings = createThermalSettingsStore({
-    load: () => ({ ...DEFAULT_THERMAL_SETTINGS, fanProfiles: { activeId: null, user: [], ...saved } }),
+    load: () => ({ ...DEFAULT_THERMAL_SETTINGS, fanControl: { ...DEFAULT_THERMAL_SETTINGS.fanControl, ...options.fanControl }, fanProfiles: { activeId: null, user: [], ...saved } }),
     save,
   })
   const onState = vi.fn()
-  const service = createFanProfileService({ control, settings, onState, log: { warn: vi.fn(), error: vi.fn() } })
+  const service = createFanProfileService({ control, settings, onState, paused: options.paused, log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } })
   return { control, settings, save, onState, service }
+}
+
+/** Let a queued re-apply (fire-and-forget inside the service) finish. */
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+/** What the policy forwards after the helper's status poll: ready, with its restore count and reason. */
+function restoreState(control: FanControlService, restoreSeq: number, lastRestoreReason?: string): FanControlState {
+  return { ...control.getState(), restoreSeq, ...(lastRestoreReason ? { lastRestoreReason } : {}) }
 }
 
 describe('fan profile service', () => {
@@ -123,6 +143,106 @@ describe('fan profile service', () => {
 
     service.ingestControlState({ helper: 'idle', fans: [], lastRestoreReason: 'disconnect' })
     expect(service.getProfiles()).toMatchObject({ activeId: 'builtin:cool', applied: false })
+  })
+
+  it('remembers that fan control is on across quits and forgets it only when turned off', async () => {
+    const { service, settings } = setup('idle')
+    await service.enable()
+    expect(settings.get().fanControl.autoEnable).toBe(true)
+    // Quitting (an update relaunch) must not count as turning it off.
+    await service.stop()
+    expect(settings.get().fanControl.autoEnable).toBe(true)
+    await service.enable()
+    await service.disable()
+    expect(settings.get().fanControl.autoEnable).toBe(false)
+  })
+
+  it('keeps a hand-made setting as "custom" and puts it back when the app resumes after a relaunch', async () => {
+    const { service, settings } = setup()
+    await service.applyProfile('builtin:cool')
+    await service.setFan('smc:fan1', { mode: 'fixed', rpm: 2600 })
+    // The whole current state becomes the custom setting, not only the fan that was touched.
+    expect(settings.get().fanControl.custom).toEqual({
+      'smc:fan0': { mode: 'sensor', sensorId: 'group:cpu', minCelsius: 45, maxCelsius: 75 },
+      'smc:fan1': { mode: 'fixed', rpm: 2600 },
+    })
+
+    // The next launch: same settings file, helper not connected yet.
+    const relaunched = setup('idle', {}, { fanControl: settings.get().fanControl })
+    await relaunched.service.resume()
+    expect(relaunched.control.setFan).toHaveBeenCalledWith('smc:fan0', { mode: 'sensor', sensorId: 'group:cpu', minCelsius: 45, maxCelsius: 75 })
+    expect(relaunched.control.setFan).toHaveBeenCalledWith('smc:fan1', { mode: 'fixed', rpm: 2600 })
+    expect(relaunched.service.getProfiles()).toMatchObject({ activeId: null, applied: false })
+
+    // "Back to automatic" clears the custom setting, so nothing comes back next time.
+    await service.restoreAll()
+    expect(settings.get().fanControl.custom).toEqual({})
+  })
+
+  it('puts the setting back after a sleep, wake or missed-heartbeat restore, but not after the ceiling', async () => {
+    const { service, control } = setup('ready', { activeId: 'builtin:quiet' })
+    service.ingestControlState(restoreState(control, 3, 'disconnect')) // baseline at connect: old news
+    await flush()
+    expect(control.setFan).not.toHaveBeenCalled()
+
+    service.ingestControlState(restoreState(control, 4, 'wake'))
+    await flush()
+    expect(control.setFan).toHaveBeenCalledTimes(2)
+    expect(service.getProfiles()).toMatchObject({ activeId: 'builtin:quiet', applied: true })
+
+    // The same count again (the next poll) is not a new restore.
+    service.ingestControlState(restoreState(control, 4, 'wake'))
+    await flush()
+    expect(control.setFan).toHaveBeenCalledTimes(2)
+
+    control.setFan.mockClear()
+    service.ingestControlState(restoreState(control, 5, 'ceiling'))
+    await flush()
+    expect(control.setFan).not.toHaveBeenCalled()
+    expect(service.getProfiles()).toMatchObject({ activeId: 'builtin:quiet', applied: false })
+  })
+
+  it('does not re-apply while something else drives the fans on purpose (calibration)', async () => {
+    let calibrating = true
+    const { service, control } = setup('ready', { activeId: 'builtin:quiet' }, { paused: () => calibrating })
+    service.ingestControlState(restoreState(control, 1))
+    service.ingestControlState(restoreState(control, 2, 'watchdog'))
+    await flush()
+    expect(control.setFan).not.toHaveBeenCalled()
+    calibrating = false
+    service.ingestControlState(restoreState(control, 3, 'sleep'))
+    await flush()
+    expect(control.setFan).toHaveBeenCalledTimes(2)
+  })
+
+  it('treats its own restore as accounted for and holds the setting after a ceiling restore until the user chooses again', async () => {
+    const { service, control } = setup('ready', { activeId: 'builtin:quiet' })
+    await service.applyProfile('builtin:quiet')
+    service.ingestControlState(restoreState(control, 1))
+    // Calibration or "Back to automatic" restored through the app: no flip to "not applied", no re-apply.
+    service.ingestControlState(restoreState(control, 2, 'client'))
+    await flush()
+    expect(service.getProfiles()).toMatchObject({ applied: true })
+
+    service.ingestControlState(restoreState(control, 3, 'ceiling'))
+    control.setFan.mockClear()
+    service.ingestControlState(restoreState(control, 4, 'wake'))
+    await flush()
+    expect(control.setFan).not.toHaveBeenCalled()
+
+    await service.applyProfile('builtin:quiet')
+    control.setFan.mockClear()
+    service.ingestControlState(restoreState(control, 5, 'sleep'))
+    await flush()
+    expect(control.setFan).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps fan control as it was when the uninstall prompt is dismissed', async () => {
+    const { service, control, settings } = setup('idle')
+    await service.enable()
+    control.uninstallHelper = async () => control.getState() // still installed: nothing removed
+    await service.uninstallHelper()
+    expect(settings.get().fanControl.autoEnable).toBe(true)
   })
 
   it('reports a partial failure and keeps the choice unapplied', async () => {

@@ -124,6 +124,14 @@ export interface ThermalTraySettings {
 export interface ThermalFanControlSettings {
   /** The user read the first-run explanation and disclaimer of fan control. */
   acknowledged: boolean
+  /**
+   * Main-owned (the renderer cannot patch it): fan control was on when the app last
+   * quit, so it is resumed at launch without a prompt. Cleared only by turning fan
+   * control off, never by quitting.
+   */
+  autoEnable: boolean
+  /** Main-owned: the per-fan setting of "Custom" (no profile chosen), re-applied like a profile. */
+  custom: Record<string, FanCommand>
 }
 
 // ── Fan ↔ sensor calibration ──────────────────────────────────────────────────────
@@ -213,6 +221,16 @@ export interface ThermalSettingsPatch {
 export type FanControlHelperState = 'unsupported' | 'missing' | 'idle' | 'starting' | 'ready' | 'error'
 
 /**
+ * Release builds on macOS install the helper once as a background daemon:
+ * `not-installed` (the next enable installs it, one administrator prompt),
+ * `installed`, `outdated` (installed, but not the helper this app ships; it keeps
+ * working when its protocol matches, and updating asks for the password once),
+ * `requires-approval` (SMAppService builds: waiting for the user in System Settings).
+ * Absent where the helper runs per session (development builds).
+ */
+export type FanHelperInstallState = 'not-installed' | 'installed' | 'outdated' | 'requires-approval'
+
+/**
  * `auto`: the system drives the fan. `fixed`: one target RPM. `sensor`: the app sets
  * the target from one temperature sensor — minimum speed at `minCelsius` and below,
  * maximum speed at `maxCelsius` and above, linear in between (re-evaluated on every
@@ -253,8 +271,11 @@ export interface FanControlState {
   helperVersion?: string
   /** Why the last enable/command failed, when `helper` is `error`. */
   error?: string
-  /** The helper's own last safety restore (`watchdog`, `ceiling`, `sleep`, `wake`, `disconnect`), when any. */
+  /** The helper's own last safety restore (`watchdog`, `ceiling`, `sleep`, `wake`, `disconnect`, `start`, `console-user`), when any. */
   lastRestoreReason?: string
+  /** Counts the helper's restores, so a new one is told apart from an old one with the same reason. */
+  restoreSeq?: number
+  install?: FanHelperInstallState
   fans: FanControlFan[]
 }
 
@@ -308,8 +329,14 @@ export interface FanControlApi {
   setFan: (fanId: string, command: FanCommand) => Promise<{ success: boolean; state?: FanControlState; error?: string }>
   /** Every fan back to automatic control; the helper stays connected. */
   restoreAll: () => Promise<{ success: boolean; state?: FanControlState; error?: string }>
-  /** Restore every fan and drop the helper; it exits by itself shortly after. */
+  /** Restore every fan and drop the helper connection; it is not resumed at the next launch. */
   disable: () => Promise<{ success: boolean; state?: FanControlState; error?: string }>
+  /** SMAppService builds: open System Settings so the user can approve the helper. */
+  openHelperApproval: () => Promise<{ success: boolean; error?: string }>
+  /** Install or update the helper daemon (administrator prompt), then connect. */
+  installHelper: () => Promise<{ success: boolean; state?: FanControlState; error?: string }>
+  /** Restore every fan, stop the helper daemon and remove it (administrator prompt). */
+  uninstallHelper: () => Promise<{ success: boolean; state?: FanControlState; error?: string }>
   onState: (cb: (state: FanControlState) => void) => () => void
   profiles: FanProfilesApi
   calibration: FanCalibrationApi

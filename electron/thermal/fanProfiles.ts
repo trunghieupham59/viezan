@@ -6,8 +6,14 @@
  * Built-ins are symbolic (a rule on the CPU or GPU sensor *group*) so one definition
  * works on every Mac; the policy follows the hottest sensor of that group.
  * This layer wraps the policy service: a manual tweak after a profile turns it into
- * "custom", restore/disable drop `applied`, and when the helper comes up the remembered
- * profile is applied again. The choice and the user's profiles live in `thermal.json`.
+ * "custom", restore/disable drop `applied`. The choice, the user's profiles and the
+ * per-fan setting of "custom" live in `thermal.json`.
+ *
+ * It also owns *keeping* the user's setting: whenever the helper comes up (enable, the
+ * resume at launch, a reinstall) and whenever the helper itself handed the fans back
+ * for a reason that has passed (sleep, wake, a missed heartbeat), the remembered
+ * profile — or else the saved custom setting — is applied again. A restore for the
+ * temperature ceiling is left alone: the user decides when to take over again.
  */
 import { randomUUID } from 'node:crypto'
 import type { FanCommand, FanControlFan, FanControlState, FanProfile, FanProfileEntry, FanProfilesState } from '../../shared/thermalApi'
@@ -41,11 +47,16 @@ export function commandFromFan(fan: FanControlFan): FanCommand {
   return { mode: 'auto' }
 }
 
+/** Helper restores after which the saved setting goes back on by itself. */
+const REAPPLY_AFTER_RESTORE: ReadonlySet<string> = new Set(['sleep', 'can-sleep', 'wake', 'watchdog'])
+
 export interface FanProfileDeps {
   control: FanControlService
   settings: Pick<ThermalSettingsStore, 'get' | 'update'>
   onState?: (state: FanProfilesState) => void
-  log?: Pick<Console, 'warn' | 'error'>
+  /** True while something else drives the fans on purpose (calibration); no automatic re-apply then. */
+  paused?: () => boolean
+  log?: Pick<Console, 'info' | 'warn' | 'error'>
 }
 
 export interface FanProfileService extends FanControlService {
@@ -53,13 +64,20 @@ export interface FanProfileService extends FanControlService {
   applyProfile: (id: string) => Promise<FanProfilesState>
   saveCurrentProfile: (name: string) => Promise<FanProfilesState>
   removeProfile: (id: string) => Promise<FanProfilesState>
-  /** Route the policy's `onState` here so a lost helper clears `applied`. */
+  /** Route the policy's `onState` here so a lost helper clears `applied` and a helper restore is noticed. */
   ingestControlState: (state: FanControlState) => void
+  /** Apply the remembered profile, else the saved custom setting. Never rejects. */
+  reapply: () => Promise<void>
 }
 
-export function createFanProfileService({ control, settings, onState, log = console }: FanProfileDeps): FanProfileService {
+export function createFanProfileService({ control, settings, onState, paused = () => false, log = console }: FanProfileDeps): FanProfileService {
   let applied = false
   let lastEmitted = ''
+  /** The helper's restore count already handled; undefined until the connection reported one. */
+  let restoreBaseline: number | undefined
+  let reapplying: Promise<void> = Promise.resolve()
+  /** After a ceiling restore the setting stays off until the user picks one again (or the next launch). */
+  let heldByCeiling = false
 
   function profiles(): FanProfile[] {
     return [...BUILTIN_FAN_PROFILES, ...settings.get().fanProfiles.user]
@@ -89,6 +107,7 @@ export function createFanProfileService({ control, settings, onState, log = cons
     const current = control.getState()
     if (current.helper !== 'ready') throw new Error('Fan control is not connected.')
     console.info(`[Thermal] applying fan profile ${id}`)
+    heldByCeiling = false
     const failures: string[] = []
     for (const fan of current.fans) {
       const entry = entryForFan(profile, fan.id)
@@ -108,40 +127,130 @@ export function createFanProfileService({ control, settings, onState, log = cons
     return state()
   }
 
+  /** Remember what the fans do now as the custom setting (after a hand-made change). */
+  function saveCustom(fans: readonly FanControlFan[]) {
+    settings.update({ fanControl: { custom: Object.fromEntries(fans.map((fan) => [fan.id, commandFromFan(fan)])) } })
+  }
+
+  function setAutoEnable(autoEnable: boolean) {
+    if (settings.get().fanControl.autoEnable !== autoEnable) settings.update({ fanControl: { autoEnable } })
+  }
+
+  async function applyRemembered(): Promise<void> {
+    const current = control.getState()
+    if (current.helper !== 'ready') return
+    const activeId = settings.get().fanProfiles.activeId
+    if (activeId && profiles().some((profile) => profile.id === activeId)) {
+      await applyProfile(activeId)
+      return
+    }
+    const custom = settings.get().fanControl.custom
+    const entries = current.fans.flatMap((fan) => (custom[fan.id] ? [[fan.id, custom[fan.id]] as const] : []))
+    if (entries.length === 0) return
+    console.info(`[Thermal] applying the saved custom fan setting to ${entries.length} fan(s)`)
+    const failures: string[] = []
+    for (const [fanId, command] of entries) {
+      try {
+        await control.setFan(fanId, command)
+      } catch (e) {
+        failures.push(`${fanId}: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+    if (failures.length > 0) throw new Error(`The custom setting could not be fully applied (${failures.join('; ')}).`)
+  }
+
+  /** Serialised so a restore arriving mid-apply queues behind it instead of interleaving commands. */
+  function reapply(): Promise<void> {
+    reapplying = reapplying.then(applyRemembered).catch((e) => {
+      log.warn('[Thermal] could not re-apply the remembered fan setting:', e instanceof Error ? e.message : e)
+    })
+    return reapplying
+  }
+
+  /** Enable-like calls: when they brought the helper up, keep it on across launches and put the setting back. */
+  async function afterConnect(wasReady: boolean, remember: boolean): Promise<FanControlState> {
+    const next = control.getState()
+    if (next.helper === 'ready' && !wasReady) {
+      heldByCeiling = false
+      if (remember) setAutoEnable(true)
+      await reapply()
+    }
+    return control.getState()
+  }
+
   return {
     getState: () => control.getState(),
     getProfiles: state,
+    reapply,
     ingestControlState: (next) => {
-      if (next.helper !== 'ready' && applied) {
+      if (next.helper !== 'ready') {
+        restoreBaseline = undefined
+        if (applied) { applied = false; emit() }
+        return
+      }
+      if (next.restoreSeq === undefined) return
+      if (restoreBaseline === undefined || next.restoreSeq <= restoreBaseline) {
+        restoreBaseline = Math.max(restoreBaseline ?? next.restoreSeq, next.restoreSeq)
+        return
+      }
+      restoreBaseline = next.restoreSeq
+      const reason = next.lastRestoreReason ?? ''
+      // The app's own restore (Back to automatic, calibration) is already accounted for by whoever asked.
+      if (reason === 'client') return
+      if (reason === 'ceiling') heldByCeiling = true
+      if (REAPPLY_AFTER_RESTORE.has(reason) && !paused() && !heldByCeiling) {
+        log.info(`[Thermal] the helper restored the fans (${reason}); applying the remembered setting again`)
+        void reapply()
+      } else if (applied) {
         applied = false
         emit()
       }
     },
     enable: async () => {
-      const next = await control.enable()
-      const activeId = settings.get().fanProfiles.activeId
-      if (next.helper === 'ready' && activeId && !applied) {
-        try {
-          await applyProfile(activeId)
-        } catch (e) {
-          log.warn('[Thermal] could not re-apply the remembered fan profile:', e instanceof Error ? e.message : e)
-        }
-      }
-      return control.getState()
+      const wasReady = control.getState().helper === 'ready'
+      await control.enable()
+      return afterConnect(wasReady, true)
+    },
+    resume: async () => {
+      const wasReady = control.getState().helper === 'ready'
+      await control.resume()
+      return afterConnect(wasReady, false)
     },
     setFan: async (fanId, command) => {
       const next = await control.setFan(fanId, command)
-      // A hand-made change is no longer the chosen profile.
+      heldByCeiling = false
+      // A hand-made change is no longer the chosen profile; it becomes the custom setting.
+      saveCustom(next.fans)
       setActive(null, false)
       return next
     },
     restoreAll: async () => {
       const next = await control.restoreAll()
+      settings.update({ fanControl: { custom: {} } })
       setActive(null, false)
       return next
     },
     disable: async () => {
+      // Turning fan control off is a choice that survives the next launch; quitting is not.
+      setAutoEnable(false)
       const next = await control.disable()
+      if (applied) { applied = false; emit() }
+      return next
+    },
+    installHelper: async () => {
+      await control.installHelper()
+      return afterConnect(false, true)
+    },
+    uninstallHelper: async () => {
+      const wasAutoEnable = settings.get().fanControl.autoEnable
+      setAutoEnable(false)
+      const next = await control.uninstallHelper()
+      if (next.install !== 'not-installed') {
+        // The prompt was dismissed: nothing was removed, so fan control stays as the user had it.
+        setAutoEnable(wasAutoEnable)
+        if (next.helper === 'ready') await reapply()
+        return control.getState()
+      }
       if (applied) { applied = false; emit() }
       return next
     },

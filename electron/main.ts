@@ -1,7 +1,7 @@
 import * as os from 'node:os'
 import path from 'node:path'
 import type { Session, Tray } from 'electron'
-import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeImage, nativeTheme, screen, session, shell } from 'electron'
+import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeImage, nativeTheme, powerMonitor, screen, session, shell } from 'electron'
 import type { ThemePreset } from '../shared/theme'
 import { configureApplicationMenu, isDevelopmentRuntime } from './applicationMenu'
 import { createCapabilityRegistry, registerCapabilityHandlers } from './ipc/capabilities'
@@ -591,6 +591,8 @@ app.whenReady().then(() => {
     onChange: (state) => broadcastModulesChanged(() => mainWindow, state),
   })
   registerModuleHandlers(ipcMain, moduleHost)
+  // macOS fast user switching: the fan helper drops a user who leaves the console; reconnect on return.
+  powerMonitor.on('user-did-become-active', () => thermalRuntime?.resumeFanControl())
   void moduleHost.init().catch((e) => console.error('[Modules] init failed:', e))
 
   // System handlers — screen permission & openExternal

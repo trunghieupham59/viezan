@@ -79,6 +79,9 @@ function fakeControl() {
     restoreAll: async () => { calls.push('restoreAll'); return state },
     disable: async () => state,
     stop: async () => {},
+    resume: async () => state,
+    installHelper: async () => state,
+    uninstallHelper: async () => state,
   }
   return { control, calls, setHelper: (helper: FanControlState['helper']) => { state = { ...state, helper } } }
 }

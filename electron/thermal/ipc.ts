@@ -18,9 +18,11 @@ export interface ThermalIpcTarget {
   settings: Pick<ThermalSettingsStore, 'get' | 'update'>
   /** Reader support plus where the tray reading can go on this run. */
   getSupport: () => ThermalSupport
-  fanControl: Pick<FanControlService, 'getState' | 'enable' | 'setFan' | 'restoreAll' | 'disable'>
+  fanControl: Pick<FanControlService, 'getState' | 'enable' | 'setFan' | 'restoreAll' | 'disable' | 'installHelper' | 'uninstallHelper'>
   fanProfiles: Pick<FanProfileService, 'getProfiles' | 'applyProfile' | 'saveCurrentProfile' | 'removeProfile'>
   fanCalibration: Pick<FanCalibrationService, 'getState' | 'start' | 'cancel' | 'clear'>
+  /** SMAppService builds: open System Settings › Login Items for the helper's approval. */
+  openHelperApproval?: () => Promise<void>
 }
 
 type Result<T> = { success: true; state: T } | { success: false; error: string }
@@ -78,6 +80,17 @@ export function registerThermalHandlers(ipcMain: IpcMain, target: ThermalIpcTarg
   })
   ipcMain.handle(THERMAL_CHANNELS.invoke.fanRestoreAll, () => fanCall(() => target.fanControl.restoreAll()))
   ipcMain.handle(THERMAL_CHANNELS.invoke.fanDisable, () => fanCall(() => target.fanControl.disable()))
+  ipcMain.handle(THERMAL_CHANNELS.invoke.fanInstallHelper, () => fanCall(() => target.fanControl.installHelper(), 'The fan helper could not be installed.'))
+  ipcMain.handle(THERMAL_CHANNELS.invoke.fanUninstallHelper, () => fanCall(() => target.fanControl.uninstallHelper(), 'The fan helper could not be removed.'))
+  ipcMain.handle(THERMAL_CHANNELS.invoke.fanOpenHelperApproval, async () => {
+    if (!target.openHelperApproval) return { success: false, error: 'This build has no helper to approve.' }
+    try {
+      await target.openHelperApproval()
+      return { success: true }
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : 'System Settings could not be opened.' }
+    }
+  })
 
   // Profiles: ids are `builtin:…` or `user:…`; names are bounded; everything else is the service's business.
   ipcMain.handle(THERMAL_CHANNELS.invoke.fanProfilesGet, () => ({ success: true, state: target.fanProfiles.getProfiles() }))

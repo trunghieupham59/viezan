@@ -244,8 +244,8 @@ if (typeof window !== 'undefined') {
     setMonitoring: vi.fn().mockResolvedValue({ success: true }),
     onSnapshot: vi.fn().mockReturnValue(() => {}),
     onError: vi.fn().mockReturnValue(() => {}),
-    getSettings: vi.fn().mockResolvedValue({ success: true, settings: { tray: { enabled: false, metric: 'hottest', showFan: false, layout: 'inline', showUnit: true, fanFormat: 'rpm' }, fanControl: { acknowledged: false } } }),
-    updateSettings: vi.fn().mockResolvedValue({ success: true, settings: { tray: { enabled: false, metric: 'hottest', showFan: false, layout: 'inline', showUnit: true, fanFormat: 'rpm' }, fanControl: { acknowledged: false } } }),
+    getSettings: vi.fn().mockResolvedValue({ success: true, settings: { tray: { enabled: false, metric: 'hottest', showFan: false, layout: 'inline', showUnit: true, fanFormat: 'rpm' }, fanControl: { acknowledged: false, autoEnable: false, custom: {} } } }),
+    updateSettings: vi.fn().mockResolvedValue({ success: true, settings: { tray: { enabled: false, metric: 'hottest', showFan: false, layout: 'inline', showUnit: true, fanFormat: 'rpm' }, fanControl: { acknowledged: false, autoEnable: false, custom: {} } } }),
     onSettingsChanged: vi.fn().mockReturnValue(() => {}),
     fanControl: {
       getState: vi.fn().mockResolvedValue({ success: true, state: { helper: 'unsupported', fans: [] } }),
@@ -253,6 +253,9 @@ if (typeof window !== 'undefined') {
       setFan: vi.fn().mockResolvedValue({ success: true, state: { helper: 'unsupported', fans: [] } }),
       restoreAll: vi.fn().mockResolvedValue({ success: true, state: { helper: 'unsupported', fans: [] } }),
       disable: vi.fn().mockResolvedValue({ success: true, state: { helper: 'unsupported', fans: [] } }),
+      installHelper: vi.fn().mockResolvedValue({ success: true, state: { helper: 'unsupported', fans: [] } }),
+      uninstallHelper: vi.fn().mockResolvedValue({ success: true, state: { helper: 'unsupported', fans: [] } }),
+      openHelperApproval: vi.fn().mockResolvedValue({ success: true }),
       onState: vi.fn().mockReturnValue(() => {}),
       profiles: {
         get: vi.fn().mockResolvedValue({ success: true, state: { activeId: null, applied: false, profiles: [] } }),

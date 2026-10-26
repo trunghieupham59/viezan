@@ -96,7 +96,7 @@ describe('ThermalPage', () => {
 
   it('offers the menu bar reading where main reports a placement and round-trips changes through main', async () => {
     vi.mocked(window.api.thermal.getSupport).mockResolvedValue({ success: true, support: { supported: true, source: 'smc', trayPlacement: 'menu-bar' } })
-    vi.mocked(window.api.thermal.updateSettings).mockResolvedValue({ success: true, settings: { tray: { enabled: true, metric: 'hottest', showFan: false, layout: 'inline', showUnit: true, fanFormat: 'rpm' }, fanControl: { acknowledged: false }, fanProfiles: { activeId: null, user: [] }, fanAffinity: null } })
+    vi.mocked(window.api.thermal.updateSettings).mockResolvedValue({ success: true, settings: { tray: { enabled: true, metric: 'hottest', showFan: false, layout: 'inline', showUnit: true, fanFormat: 'rpm' }, fanControl: { acknowledged: false, autoEnable: false, custom: {} }, fanProfiles: { activeId: null, user: [] }, fanAffinity: null } })
     render(<ThermalPage />)
     await waitFor(() => expect(pushSnapshot).not.toBeNull())
     act(() => { pushSnapshot?.(snapshot) })
@@ -270,6 +270,44 @@ describe('ThermalPage', () => {
     const fans = screen.getByRole('region', { name: t.thermal_fans_title })
     expect(fans).toHaveTextContent(t.thermal_fan_mode_system)
     expect(screen.queryByRole('button', { name: t.thermal_fan_enable })).toBeNull()
+  })
+
+  it('offers to update an outdated background helper and hides a helper restore once the setting is back', async () => {
+    const fan = { id: 'smc:fan0', index: 0, minRpm: 1499, maxRpm: 5348, currentRpm: 2374 }
+    const outdated: FanControlState = { helper: 'ready', helperVersion: '1.0.0', install: 'outdated', lastRestoreReason: 'wake', fans: [{ ...fan, mode: 'auto' }] }
+    vi.mocked(window.api.thermal.fanControl.getState).mockResolvedValue({ success: true, state: outdated })
+    vi.mocked(window.api.thermal.fanControl.installHelper).mockResolvedValue({ success: true, state: { ...outdated, install: 'installed', helperVersion: '1.1.0' } })
+    let pushFanState: ((state: FanControlState) => void) | null = null
+    vi.mocked(window.api.thermal.fanControl.onState).mockImplementation((cb) => { pushFanState = cb; return () => {} })
+    render(<ThermalPage />)
+    await waitFor(() => expect(pushSnapshot).not.toBeNull())
+    act(() => { pushSnapshot?.(snapshot) })
+
+    const notice = (await screen.findByText(t.thermal_fan_helper_outdated_title)).closest('.capability-notice')
+    expect(notice).toHaveTextContent(t.thermal_fan_helper_outdated_desc)
+    // Every fan is still automatic after the wake: the restore line says why.
+    expect(screen.getByText(t.thermal_fan_restored_reason.replace('{reason}', t.thermal_fan_reason_wake))).toBeInTheDocument()
+
+    // Main put the remembered rule back: the line goes, since it no longer describes the fans.
+    act(() => { pushFanState?.({ ...outdated, fans: [{ ...fan, mode: 'sensor', sensor: { sensorId: 'group:cpu', minCelsius: 50, maxCelsius: 90 }, targetRpm: 2600 }] }) })
+    await waitFor(() => expect(screen.queryByText(t.thermal_fan_restored_reason.replace('{reason}', t.thermal_fan_reason_wake))).toBeNull())
+
+    fireEvent.click(within(notice as HTMLElement).getByRole('button', { name: t.thermal_fan_helper_update }))
+    await waitFor(() => expect(window.api.thermal.fanControl.installHelper).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(screen.queryByText(t.thermal_fan_helper_outdated_title)).toBeNull())
+  })
+
+  it('asks for the background helper\'s approval in System Settings on SMAppService builds', async () => {
+    vi.mocked(window.api.thermal.fanControl.getState).mockResolvedValue({ success: true, state: { helper: 'idle', install: 'requires-approval', fans: [] } })
+    render(<ThermalPage />)
+    await waitFor(() => expect(pushSnapshot).not.toBeNull())
+    act(() => { pushSnapshot?.(snapshot) })
+    const notice = (await screen.findByText(t.thermal_fan_helper_approval_title)).closest('.capability-notice')
+    expect(notice).toHaveAttribute('data-tone', 'warning')
+    fireEvent.click(within(notice as HTMLElement).getByRole('button', { name: t.thermal_fan_helper_approval_open }))
+    await waitFor(() => expect(window.api.thermal.fanControl.openHelperApproval).toHaveBeenCalledTimes(1))
+    // Waiting for approval is not a failure: no error notice.
+    expect(screen.queryByText(t.thermal_fan_helper_error_title)).toBeNull()
   })
 
   it('explains an unsupported platform and never starts monitoring', async () => {

@@ -26,10 +26,16 @@ export interface HelperHello {
   protocol: number
   helperVersion: string
   platform: string
+  /** `daemon` (launchd job, helper 1.1+) or `session`; absent from helper 1.0. */
+  mode?: 'daemon' | 'session'
   pid: number
   watchdogSeconds: number
   ceilingCelsius: number
   capabilities: string[]
+  /** SHA-256 of the running helper binary as it was at start (helper 1.1+). */
+  binarySha256?: string
+  /** True when the helper is signed with a Team ID and so checks its client's signature (helper 1.1+). */
+  teamSigned?: boolean
 }
 
 export interface HelperFan {
@@ -48,6 +54,16 @@ export interface HelperStatus {
   activeOverrides: { id: string; rpm: number }[]
   lastError?: string
   lastRestoreReason?: string
+  /** Increments on every restore (helper 1.1+). */
+  restoreSeq?: number
+}
+
+/** The helper answered `hello` with another protocol version; retrying will not help. */
+export class HelperProtocolError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'HelperProtocolError'
+  }
 }
 
 /** A request the helper answered with `ok: false`. */
