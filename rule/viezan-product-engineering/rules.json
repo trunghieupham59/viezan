@@ -216,7 +216,7 @@
         {
           "id": "R-VZN-DATA-01",
           "name": "Persist có chủ đích",
-          "description": "Chỉ persist settings/history/preset cần restore; không persist loading/error/sourceText/partial stream."
+          "description": "Persist settings/history/preset có chủ đích. Bản nháp Dịch/Từ điển và kết quả đang mở có snapshot phục hồi giới hạn trong IndexedDB riêng; ảnh không vào localStorage. Không khôi phục loading/error/recording như tác vụ đang chạy, không tự gọi AI khi phục hồi."
         },
         {
           "id": "R-VZN-TEST-01",

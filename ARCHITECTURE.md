@@ -128,6 +128,31 @@ dictionaryEntries, costCurrency, apiKeyUsageTotals
 
 When adding new state: if it needs to survive a reload, add it to `partialize`. For ephemeral UI state, use component-local `useState`.
 
+**Workbench recovery (V1)**: `workbenchRecovery.ts` owns two bounded IndexedDB
+records (Translate and Dictionary), each with the current content and at most one
+previous completed workbench. This includes image pixels and comparison results;
+large image data never enters the settings localStorage blob. `useWorkbenchRecovery`
+hydrates before mounting feature pages. `useWorkbenchSession` checkpoints changes,
+tracks leaving/returning, and only resets completed work after a successful flush.
+Translate waits 2 hours away; Dictionary waits 30 minutes. The shared
+`smartSessionReset` setting disables this reset without disabling draft recovery.
+Restoring content suppresses Auto Translate until a new user edit/configuration
+change. Drafts, busy work and mismatched results never expire.
+
+Settings schema v5 also persists `activeChatSessionId`; missing IDs resolve to
+the new-chat state. Chat text drafts and research checkpoints retain their existing
+storage. Chat image attachments that have not been sent retain their existing
+ephemeral behavior. History limits remain 20 chats, 100 translations, 50 live
+sessions, 100 non-favorite dictionary entries and 500 favorites; the UI warns at
+capacity. Quota failures now retain the last durable localStorage snapshot and
+show a retryable error instead of compacting or deleting collections.
+
+`app:session-activity` relays sleep/lock and resume/unlock to the main renderer.
+On a normal quit, `app:prepare-session-save` requests a flush; only the main
+window may acknowledge through `app:complete-session-save`. The main process
+waits at most 1500 ms. Crashes/OS termination recover the last committed checkpoint.
+Secondary windows never initialize/write the recovery repository.
+
 ---
 
 ## 3.1 AI Chat Rich Response Artifacts
