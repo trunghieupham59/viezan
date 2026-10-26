@@ -2,7 +2,7 @@
 /** Full main runtime, real inventory/residue/MDM/in-use guards and native Trash/Undo. Synthetic targets only. */
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, open, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
@@ -38,11 +38,21 @@ try {
   const apps = get(await runtime.api.inventory())
   const app = apps.find(a => a.path === bundle)
   assert(app && !app.blocked, `Synthetic app is not actionable: ${app?.blocked}`)
-  const plan = get(await runtime.api.inspect(app.id))
+  let plan = get(await runtime.api.inspect(app.id))
   assert.equal(plan.incomplete, false)
   assert.deepEqual(plan.items.filter(i => i.selected).map(i => i.path).sort(), [bundle, cache].sort())
+  // Exercise the real lsof guard, not a mocked running-state response.
+  const held = await open(path.join(cache, 'fixture.txt'), 'r')
+  try {
+    const blocked = get(await runtime.api.apply({ planId: plan.id, itemIds: plan.items.filter(i => i.selected).map(i => i.id), action: 'uninstall', quit: true, locale: 'en' }))
+    assert(blocked.items.some(i => i.path === cache && i.status === 'failed' && i.issue === 'in-use'))
+    assert(blocked.items.every(i => i.status !== 'trashed'))
+    assert.equal((await snapshot(bundle)).digest, before[0].digest)
+    assert.equal((await snapshot(cache)).digest, before[1].digest)
+  } finally { await held.close() }
+  plan = get(await runtime.api.inspect(app.id))
   const result = get(await runtime.api.apply({ planId: plan.id, itemIds: plan.items.filter(i => i.selected).map(i => i.id), action: 'uninstall', quit: true, locale: 'en' }))
-  assert.equal(confirmations, 1)
+  assert.equal(confirmations, 2)
   assert(result.items.every(i => i.status === 'trashed'), JSON.stringify(result.items))
   assert.equal(result.remaining, 0)
   runtime.stop()
@@ -53,7 +63,7 @@ try {
   assert.equal((await snapshot(cache)).digest, before[1].digest)
   assert.equal(await readFile(path.join(cache, 'fixture.txt'), 'utf8'), 'runtime smoke only')
   restarted.stop(); complete = true
-  console.log('PASS: full runtime inventory → inspect → confirmation → ownership/in-use recheck → native uninstall → post-scan → restart → Undo; only synthetic paths approved.')
+  console.log('PASS: real open-file refusal plus full runtime inventory → inspect → confirmation → ownership/in-use recheck → native uninstall → post-scan → restart → Undo; only synthetic paths approved.')
 } finally {
   if (complete) await rm(root, { recursive: true })
   else console.error(`Synthetic runtime fixture and journal retained for recovery: ${root}`)
