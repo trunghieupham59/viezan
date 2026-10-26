@@ -360,3 +360,24 @@ The entire pipeline lives in `src/hooks/useLiveTranslate.ts`. `LiveTranslatePage
 | Provider type guard | `electron/ipc/providers/types.ts` → `isValidProvider()` |
 | Retry network errors | `electron/ipc/retry.ts` → `withRetry()` |
 | Error code classification | `electron/ipc/errorUtils.ts` → `classifyProviderError()` |
+
+
+## Applications and reversible file actions
+
+`apps` is a macOS-first module in `electron/modules/appModules.ts`, with a lazy
+`AppsPage` in the renderer catalog. `shared/appsApi.d.ts` defines the bridge;
+`electron/preload/apps.ts` exposes only inventory/inspect/apply/sessions/undo/reveal.
+The corresponding `apps:*` handlers reject secondary windows and subframes.
+Mutations accept opaque IDs into a single-use, expiring main-owned plan, never
+renderer-provided paths. Main owns the native confirmation, ownership checks,
+metadata rescan, in-use checks and conservative managed-device gate.
+
+`electron/fileActions/` provides the shared path policy, bounded metadata walk,
+write-ahead journal, preferences backup and restoration. `native/files/main.swift`
+builds the unprivileged universal `viezan-fs`: native Trash returns the actual
+trashed location and writes a recovery receipt, restore refuses collisions, and
+quit requests normal termination without force. Journal and preference exports
+stay in `userData/fileActions`; unresolved interruption is reported as pending.
+Capabilities are `apps.inventory` and `files.trash.undo`. No new network requests
+or privileged-helper operations are introduced. Root removal, updates, orphan
+scans and cross-platform file actions remain separate future phases.
