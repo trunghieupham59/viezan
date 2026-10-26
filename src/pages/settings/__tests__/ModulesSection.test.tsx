@@ -18,7 +18,7 @@ describe('ModulesSection', () => {
     vi.mocked(window.api.modules.setEnabled).mockResolvedValue({ success: true, enabled: { ...ALL_MODULES_ENABLED, live: false } })
     render(<ModulesSection />)
 
-    expect(screen.getAllByRole('switch')).toHaveLength(7)
+    expect(screen.getAllByRole('switch')).toHaveLength(8)
     const live = screen.getByRole('switch', { name: t.nav_live_translate })
     expect(live).toBeChecked()
 
@@ -29,7 +29,7 @@ describe('ModulesSection', () => {
   })
 
   it('locks the last workspace module on and says why', () => {
-    act(() => useAppStore.setState({ enabledModules: { ...ALL_MODULES_ENABLED, chat: false, live: false, dictionary: false, thermal: false } }))
+    act(() => useAppStore.setState({ enabledModules: { ...ALL_MODULES_ENABLED, chat: false, live: false, dictionary: false, thermal: false, apps: false } }))
     render(<ModulesSection />)
 
     const translate = screen.getByRole('switch', { name: t.nav_translate })

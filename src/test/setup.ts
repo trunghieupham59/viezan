@@ -237,7 +237,7 @@ if (typeof window !== 'undefined') {
     detectLanguage: vi.fn().mockResolvedValue({ success: false }),
   }
   const modulesApiMock: ModulesApi = {
-    get: vi.fn().mockResolvedValue({ success: true, enabled: { chat: true, translate: true, live: true, dictionary: true, thermal: true, launcher: true, 'browser-bridge': true } }),
+    get: vi.fn().mockResolvedValue({ success: true, enabled: { chat: true, translate: true, live: true, dictionary: true, thermal: true, apps: true, launcher: true, 'browser-bridge': true } }),
     setEnabled: vi.fn().mockResolvedValue({ success: true }),
     onChanged: vi.fn().mockReturnValue(() => {}),
   }
@@ -312,6 +312,7 @@ if (typeof window !== 'undefined') {
       keychain: keychainApiMock,
       subtitle: subtitleApiMock,
       capabilities: capabilitiesApiMock,
+      apps: { inventory: vi.fn().mockResolvedValue({ success: true, data: [] }), inspect: vi.fn(), apply: vi.fn(), sessions: vi.fn().mockResolvedValue({ success: true, data: [] }), undo: vi.fn(), reveal: vi.fn() },
       modules: modulesApiMock,
       thermal: thermalApiMock,
       hotkey: hotkeyApiMock,

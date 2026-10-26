@@ -1,5 +1,6 @@
 import { PROVIDERS } from '../constants/providers'
 import type { ChatStreamEvent, WindowApi } from '../types'
+import { createPreviewApps } from './previewApps'
 
 const noopSubscription = () => () => {}
 const ok = async () => ({ success: true })
@@ -36,7 +37,7 @@ const previewCurrencyRates: Record<string, number> = { USD: 1, VND: 25_400, JPY:
 let previewCurrencyTarget: string | null = null
 
 /** Quick AI session survives reloads only in memory in Web Preview. */
-const previewEnabledModules: import('../../shared/modules').ModuleEnabledState = { chat: true, translate: true, live: true, dictionary: true, thermal: true, launcher: true, 'browser-bridge': true }
+const previewEnabledModules: import('../../shared/modules').ModuleEnabledState = { chat: true, translate: true, live: true, dictionary: true, thermal: true, apps: true, launcher: true, 'browser-bridge': true }
 
 /** Fake sensors for the Thermal page: a slow random walk around plausible laptop values. */
 function createPreviewThermal() {
@@ -368,6 +369,7 @@ function createWebPreviewApi(): WindowApi {
       },
       onChanged: noopSubscription,
     },
+    apps: createPreviewApps(),
     thermal: previewThermal,
     capabilities: {
       get: async (ids?: string[]) => ({ success: true, statuses: (ids ?? ['input.accessibility', 'launcher.spotlight']).map((id) => ({ id, supported: false, permission: 'not-required' as const })) }),

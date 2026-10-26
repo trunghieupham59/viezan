@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Viezan — Ứng dụng</title>
+  <link rel="stylesheet" href="../../../src/styles/tokens.css">
+  <link rel="stylesheet" href="board.css">
+</head>
+<body class="board">
+  <header class="board-header"><h1>Ứng dụng</h1><p>Bản đầu: gỡ hoặc đặt lại từng app trên macOS. <a href="../screens/apps.md">Đặc tả và giới hạn</a>. Giao diện tương tác dùng dữ liệu giả: mở web preview và chọn Ứng dụng.</p></header>
+  <section class="scenario"><div class="scenario-copy"><h2>Xem trước trước khi gỡ</h2><p>Chỉ khớp chính xác được tích sẵn. Mục dùng chung và cần quyền quản trị vẫn hiện nhưng bị khoá. Nút Xem xác nhận mở hộp native, Huỷ là mặc định.</p></div><div class="scenario-frames"><div class="m-card"><div class="m-card-head">Sample Notes · Gỡ ứng dụng / Đặt lại</div><div class="m-row">☑ /Applications/Sample Notes.app · Khớp mã ứng dụng</div><div class="m-row">☑ ~/Library/Caches/org.example.notes · Chuyển vào Thùng rác</div><div class="m-row">☐ Group Containers · Giữ dữ liệu dùng chung</div><div class="m-row">☐ /Library/LaunchDaemons · Cần quyền quản trị</div></div></div></section>
+  <section class="scenario"><div class="scenario-copy"><h2>Trống, đang xử lý, lỗi</h2><p>Chọn app để xem dữ liệu. Đang xử lý khoá các thao tác chồng nhau. Lỗi quét hoặc plan hết hạn có Quét lại; không báo đã sạch khi không đọc được đầy đủ.</p></div><div class="scenario-frames"><div class="m-card"><div class="m-row">Chọn một ứng dụng để xem dữ liệu liên quan trước khi gỡ.</div><div class="m-row">Đang xử lý…</div><div class="m-row">Kết quả đã hết hiệu lực. Hãy quét lại.</div></div></div></section>
+  <section class="scenario"><div class="scenario-copy"><h2>Nhật ký và Hoàn tác</h2><p>Mỗi phiên ghi cả mục được chuyển và mục giữ lại. Đường dẫn được tạo lại thì Hoàn tác không ghi đè. Kết quả chưa xác minh sau gián đoạn vẫn được giữ trong nhật ký.</p></div><div class="scenario-frames"><div class="m-card"><div class="m-card-head">Sample Notes · Gỡ ứng dụng</div><div class="m-row">Cache · Đã chuyển hoặc sao lưu và xoá</div><div class="m-row">Dữ liệu dùng chung · Đã giữ lại</div><div class="m-row">Còn 2 mục trong phạm vi đã quét.</div><div class="m-row">Hoàn tác · chỉ khi còn mục khôi phục được</div></div></div></section>
+</body>
+</html>

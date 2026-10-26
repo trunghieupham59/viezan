@@ -7,7 +7,7 @@ import { APP_PAGES } from '../pages'
 describe('module catalog', () => {
   it('lists each module once with the shipped pages in navigation order', () => {
     const ids = APP_MODULES.map((module) => module.id)
-    expect(ids).toEqual(['chat', 'translate', 'live', 'dictionary', 'thermal'])
+    expect(ids).toEqual(['chat', 'translate', 'live', 'dictionary', 'apps', 'thermal'])
     expect(new Set(ids).size).toBe(ids.length)
   })
 
@@ -59,10 +59,10 @@ describe('module catalog', () => {
     expect(nav.groups.map((group) => [group.space, group.modules.map((page) => page.id)])).toEqual([
       ['ai', ['chat']],
       ['language', ['translate', 'live', 'dictionary', 'everywhere']],
-      ['system', ['thermal']],
+      ['system', ['apps', 'thermal']],
       ['tools', ['utilities']],
     ])
-    const off = navigationPages({ ...ALL_MODULES_ENABLED, chat: false, thermal: false })
+    const off = navigationPages({ ...ALL_MODULES_ENABLED, chat: false, thermal: false, apps: false })
     expect(off.groups.map((group) => group.space)).toEqual(['language', 'tools'])
   })
 })

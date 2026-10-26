@@ -4,6 +4,7 @@ import type { Session, Tray } from 'electron'
 import { app, BrowserWindow, desktopCapturer, globalShortcut, ipcMain, nativeImage, nativeTheme, powerMonitor, screen, session, shell } from 'electron'
 import type { ThemePreset } from '../shared/theme'
 import { configureApplicationMenu, isDevelopmentRuntime } from './applicationMenu'
+import { appsCapabilities } from './apps'
 import { createCapabilityRegistry, registerCapabilityHandlers } from './ipc/capabilities'
 import { QUICK_CHAT_CHANNELS, SUBTITLE_CHANNELS } from './ipc/channels'
 import { initGlobalHotkey } from './ipc/globalHotkey'
@@ -548,7 +549,7 @@ app.whenReady().then(() => {
   initGlobalHotkey(ipcMain, () => mainWindow, toggleQuickChatWindow)
 
   // Capabilities — what this machine can do and whether the user allowed it
-  registerCapabilityHandlers(ipcMain, createCapabilityRegistry(createSystemCapabilityProviders({ thermalSupport: () => thermalSupport(), fanControl: fanControlAccess })))
+  registerCapabilityHandlers(ipcMain, createCapabilityRegistry([...createSystemCapabilityProviders({ thermalSupport: () => thermalSupport(), fanControl: fanControlAccess }), ...appsCapabilities()]))
 
   // Feature modules: chat, translate, live, dictionary, thermal, launcher, browser-bridge.
   // Every module registers its IPC; only enabled ones start (shortcuts, local server).

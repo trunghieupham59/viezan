@@ -5,6 +5,8 @@
 export { type AIChatHeaderParts, AIChatSidebar } from './AIChatSidebar'
 export { AIConfigurationPopover, type AIConfigurationPopoverProps } from './AIConfigurationPopover'
 export { AIModelPickerField } from './AIModelPickerField'
+export { AppActionHistory } from './apps/AppActionHistory'
+export { AppRemovalDetails } from './apps/AppRemovalDetails'
 export { CommandPalette } from './CommandPalette'
 export { ChatAIConfiguration, type ChatAIConfigurationProps } from './chat/ChatAIConfiguration'
 export { ChatTaskConfiguration } from './chat/ChatTaskConfiguration'

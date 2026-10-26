@@ -60,7 +60,7 @@ describe('CommandPalette', () => {
 
     // The same pages as the primary navigation, in its order: Home, each space, then Settings.
     expect(within(dialog).getAllByRole('option').map((option) => option.getAttribute('data-command-id'))).toEqual(
-      ['home', 'chat', 'translate', 'live', 'dictionary', 'everywhere', 'thermal', 'utilities', 'settings'],
+      ['home', 'chat', 'translate', 'live', 'dictionary', 'everywhere', 'apps', 'thermal', 'utilities', 'settings'],
     )
     expect(search).toHaveAttribute('aria-activedescendant')
 

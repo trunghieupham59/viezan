@@ -6,6 +6,41 @@ export type AppLocale = 'en' | 'vi' | 'ja'
 export type VoiceErrorTranslationKey = `voice_error_${Lowercase<AudioTranscriptionErrorCode>}`
 
 export interface Translations {
+  nav_apps: string
+  apps_description: string
+  apps: {
+    inventory: string
+    details: string
+    search: string
+    clearSearch: string
+    refresh: string
+    empty: string
+    selectApp: string
+    mode: string
+    uninstall: string
+    reset: string
+    keepBundle: string
+    trash: string
+    preferences: string
+    unknownSize: string
+    reveal: string
+    loading: string
+    scope: string
+    running: string
+    proceed: string
+    quitThenContinue: string
+    selected: string
+    history: string
+    historyEmpty: string
+    undo: string
+    remaining: string
+    verifyIncomplete: string
+    done: string
+    errors: Record<import('../../shared/appsApi').AppsIssue, string>
+    evidence: Record<'exact' | 'vendor' | 'name', string>
+    status: Record<'pending' | 'trashed' | 'restored' | 'skipped' | 'failed', string>
+  }
+
   session_restoring: string
   session_smart_reset: string
   session_smart_reset_desc: string

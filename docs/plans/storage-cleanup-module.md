@@ -1,6 +1,16 @@
 # Kế hoạch: module Dung lượng & dọn dẹp (`cleanup`)
 
-Trạng thái: bản thảo thiết kế, chưa có mã tính năng. Ngày: 2026-10-25.
+Trạng thái: thiết kế tổng thể; phần đầu đã có mã, xem ghi chú bên dưới. Ngày thiết kế: 2026-10-25.
+
+Cập nhật triển khai 2026-10-26: checkout có nền `electron/fileActions/` trên
+macOS và màn hình Ứng dụng cho gỡ/đặt lại từng app trong quyền người dùng.
+Phạm vi chính xác và phần còn thiếu nằm ở
+[`screens/apps.md`](../design/screens/apps.md). Các giai đoạn dưới đây là
+lộ trình đầy đủ, không phải danh sách tính năng đã giao. Chưa có trang Cleanup.
+Helper hiện dùng daemon ở bản phát hành và session ở dev; tham chiếu “chờ #149”,
+helper luôn chạy theo phiên và số bước D/E/F/G trong bản thảo cần được chốt lại
+khi làm phần quản trị. Bản đầu này không thêm lệnh vào helper đặc quyền.
+
 
 Mục tiêu: thêm vào Viezan một module quản lý dung lượng và dọn dẹp máy cùng
 hạng với CleanMyMac về độ phủ tính năng, nhưng vượt nó ở bốn điểm mà người

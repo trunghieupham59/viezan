@@ -82,6 +82,7 @@ The feature guide below describes the current checkout, including changes that m
 | [Translate everywhere](src/pages/EverywherePage.tsx) | Configure Quick Translate for text selected in other apps and the Chrome extension connection. The extension supports a context menu, selection button and `Alt+T`. |
 | [Quick Launcher](src/pages/QuickLauncher.tsx) | Search apps and files, calculate, convert currencies and open AI or translation actions. Native search support varies by platform; currency rates need a network connection. |
 | [Launcher & shortcuts](src/pages/UtilitiesPage.tsx) | Configure the launcher and global shortcuts. |
+| [Applications](src/pages/AppsPage.tsx) | macOS app inventory, previewed removal or reset, per-item results and Undo. User-level operations only; shared, protected and administrator-owned items are kept. |
 | [Thermal](src/pages/ThermalPage.tsx) | Monitor temperatures, fan readings and CPU load on macOS (SMC) and Linux (hwmon). Optional macOS fan control supports fixed speeds, sensor rules, profiles and calibration through a privileged helper. Packaged builds can install the background helper once and reconnect on later launches; development runs use a session helper. Windows thermal readings are not supported. |
 | [Settings](src/pages/SettingsPage.tsx) | Manage AI models and keys, voice, appearance, chat presets, feature modules, preferences and updates. |
 | History | Feature-specific translation, interpretation, conversation and dictionary history. History has storage limits; keep separate copies of work you need long term. |
@@ -141,6 +142,37 @@ translations, 50 interpretation sessions, 100 recent dictionary entries and 500
 favorites. A warning appears at these limits. Unsent chat image attachments are
 not restored after a restart. If saving fails, keep the app open and use
 **Retry saving**; a forced shutdown can still lose changes not yet saved.
+
+### Removing or resetting an app (macOS)
+
+Open **Applications**, select one app, inspect its related files and choose
+**Uninstall app** or **Reset**. Reset keeps the application bundle. Only the bundle and exact bundle-ID matches for caches, logs and saved window
+state are selected automatically. Persistent data and preferences require explicit
+selection. Name/vendor/prefix matches, Containers, launch agents and shared data stay. A native confirmation lists the chosen paths before any changes. Apps are
+asked to quit normally, never force-quit. Incomplete scans or uncertain installed-app
+metadata block changes. Inventory reads standard, flat and wrapped bundle metadata,
+including valid plists that cannot be converted wholesale to JSON. Wrapped iOS apps
+remain protected, and a data folder ending in `.app` is not sufficient evidence
+of an installed app. The full selection is checked before the first operation;
+a failure stops subsequent removals and restores.
+
+Files go to Trash; preference domains are exported before removal. **Journal and
+Undo** records individual outcomes, including skipped/failed items. Undo refuses
+to overwrite a recreated file or preference domain, or restore changed Trash
+content. Preference backups have checksums; an empty plist retained by macOS after
+clearing a domain is recorded and checked before Undo. An interrupted restoration
+is reconciled where its exact filesystem identity can be verified, otherwise it
+stays pending and blocks new removals. Emptying Trash makes those files unavailable for Undo. A post-operation
+scan reports what remains within the supported locations, not a guarantee that
+all traces anywhere on the disk are gone.
+
+This draft has not been approved for general use with real apps. It does not remove
+administrator helpers, package receipts, user launch agents, ByHost preferences,
+Containers or Group Containers. Managed Macs are conservatively blocked.
+Updates and orphan-data scanning are planned separately. No app inventory is sent
+to a server. Native actions require the unprivileged `viezan-fs` binary built by
+`npm run build:native` with the Xcode Command Line Tools; without it, the page is
+preview-only. There is no root helper or permanent-delete action in this module.
 
 ## Chrome Extension
 
@@ -264,7 +296,7 @@ Viezan/
 │   ├── preload/              # Renderer-facing preload modules
 │   └── ipc/                  # Providers, storage, local server, audio, updater
 ├── src/                      # React renderer
-│   ├── pages/                # Home, Chat, Translate, Interpret, Dictionary, Thermal, Settings
+│   ├── pages/                # Home, Chat, Translate, Interpret, Dictionary, Applications, Thermal, Settings
 │   ├── components/           # Shared UI and feature components
 │   ├── store/                # Zustand app state
 │   ├── services/             # Renderer service helpers

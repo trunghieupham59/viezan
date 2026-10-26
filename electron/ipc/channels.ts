@@ -289,3 +289,5 @@ export const THERMAL_CHANNELS = {
     fanCalibrationState: 'thermal:fan:calibration:state',
   },
 } as const
+
+export const APPS_CHANNELS = { invoke: { inventory: 'apps:inventory', inspect: 'apps:inspect', apply: 'apps:apply', sessions: 'apps:sessions', undo: 'apps:undo', reveal: 'apps:reveal' } } as const

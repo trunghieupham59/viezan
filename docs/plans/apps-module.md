@@ -1,6 +1,18 @@
 # Kế hoạch: module Ứng dụng (`apps`)
 
-Trạng thái: bản thảo thiết kế, chưa có mã tính năng. Ngày: 2026-10-25.
+Trạng thái: thiết kế tổng thể; phần đầu đã có mã, xem ghi chú bên dưới. Ngày thiết kế: 2026-10-25.
+
+Cập nhật triển khai 2026-10-26: checkout có nền `electron/fileActions/` trên
+macOS và màn hình Ứng dụng cho gỡ/đặt lại từng app trong quyền người dùng.
+Bản draft đang kiểm tra an toàn: quét chưa đủ hoặc metadata không xác minh được
+thì chặn thay đổi; Containers, launch agents và mục khớp mơ hồ chỉ xem.
+Chưa duyệt dùng đại trà với dữ liệu thật. Phạm vi chính xác và phần còn thiếu nằm ở
+[`screens/apps.md`](../design/screens/apps.md). Các giai đoạn dưới đây là
+lộ trình đầy đủ, không phải danh sách tính năng đã giao. Chưa có trang Cleanup.
+Helper hiện dùng daemon ở bản phát hành và session ở dev; tham chiếu “chờ #149”,
+helper luôn chạy theo phiên và số bước D/E/F/G trong bản thảo cần được chốt lại
+khi làm phần quản trị. Bản đầu này không thêm lệnh vào helper đặc quyền.
+
 
 Mục tiêu: một chỗ để nhìn toàn bộ ứng dụng trên máy và làm bốn việc mà macOS
 không làm giúp: **gỡ sạch** (app và mọi dữ liệu nó để lại), **dọn tệp sót** của

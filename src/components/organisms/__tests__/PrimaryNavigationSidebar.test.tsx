@@ -25,7 +25,7 @@ describe('PrimaryNavigationSidebar', () => {
     expect(screen.getByRole('region', { name: t.nav_space_system })).toBeInTheDocument()
     view.unmount()
 
-    act(() => useAppStore.setState({ enabledModules: { ...ALL_MODULES_ENABLED, thermal: false } }))
+    act(() => useAppStore.setState({ enabledModules: { ...ALL_MODULES_ENABLED, thermal: false, apps: false } }))
     render(<PrimaryNavigationSidebar toggleHost={null} />)
     expect(screen.queryByRole('region', { name: t.nav_space_system })).toBeNull()
   })
@@ -54,7 +54,7 @@ describe('PrimaryNavigationSidebar', () => {
   })
 
   it('lists Launcher & shortcuts under Tools and keeps it when the Launcher module is off', () => {
-    act(() => useAppStore.setState({ enabledModules: { ...ALL_MODULES_ENABLED, launcher: false, thermal: false } }))
+    act(() => useAppStore.setState({ enabledModules: { ...ALL_MODULES_ENABLED, launcher: false, thermal: false, apps: false } }))
     render(<PrimaryNavigationSidebar toggleHost={null} />)
     const tools = screen.getByRole('region', { name: t.nav_space_tools })
     expect(within(tools).getByRole('button', { name: t.nav_utilities })).toBeInTheDocument()
