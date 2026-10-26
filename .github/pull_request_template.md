@@ -54,6 +54,8 @@ npm run dev
 - [ ] Đã chạy `npx tsc -p tsconfig.json --noEmit` và `npx tsc -p tsconfig.electron.json --noEmit`
 - [ ] Đã thêm / cập nhật unit test cho các thay đổi (nếu áp dụng)
 - [ ] Đã cập nhật tài liệu (`README.md`, `docs/`, hoặc comment) (nếu áp dụng)
+- [ ] Đã rà README theo source, chạy `npm run docs:sync`, ghi nhận `npm run docs:review -- --summary "..."` sau khi rà, và chạy `npm run check:docs`; nếu không đổi mô tả, giải thích trong summary
+- [ ] Khi bump version: `package-lock.json` và mục phiên bản trong `CHANGELOG.md` đã đồng bộ
 - [ ] Không commit secrets / API keys / cấu hình cá nhân
 - [ ] Đã tự review diff lần cuối
 

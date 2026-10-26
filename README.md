@@ -21,11 +21,19 @@
   </a>
   <img src="https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-blue?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License">
-  <img src="https://img.shields.io/badge/Electron-v41-47848F?style=flat-square&logo=electron" alt="Electron">
-  <img src="https://img.shields.io/badge/React-v18-61DAFB?style=flat-square&logo=react" alt="React">
+  <img src="https://img.shields.io/badge/Electron-47848F?style=flat-square&logo=electron&logoColor=white" alt="Electron">
+  <img src="https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React">
 </p>
 
-Viezan is a desktop translation workspace for text, images, live audio, chat and browser-selected text. The app does not use a Viezan-hosted relay server: requests are handled on your machine, then sent only to the local runtime or cloud provider you choose.
+Viezan is a desktop workspace for AI chat, translation, live interpretation and dictionary lookup, with a quick launcher and system monitoring. It supports local AI and your own cloud provider keys. AI requests go directly from the desktop app to local runtimes or external providers; there is no Viezan-hosted relay. Cloud AI, speech and web search features require their respective external services.
+
+<!-- BEGIN GENERATED:overview -->
+This README describes the source in this checkout (package version **2.4.2**).
+The latest published installer may differ; see [Releases](https://github.com/trunghieupham59/Viezan/releases/latest).
+
+- AI providers: Local AI, OpenAI GPT, Anthropic Claude, Google Gemini.
+- Interface languages: English, Tiếng Việt, 日本語.
+<!-- END GENERATED:overview -->
 
 ## Screenshots
 
@@ -51,29 +59,32 @@ Viezan is a desktop translation workspace for text, images, live audio, chat and
 
 View all versions on the [GitHub Releases page](https://github.com/trunghieupham59/Viezan/releases).
 
-## What's New in v2.1.3
+## Release Notes
 
-| Area | Change |
-| --- | --- |
-| Hotkeys | Adds a native visual indicator so translation shortcut state changes are visible immediately. |
-| Reliability | Hardens CodeQL workflow handling and makes generated icon writes safer during automation. |
-| Chat | Tightens chat page state handling around provider-driven interactions. |
+See [CHANGELOG.md](CHANGELOG.md) for version-specific changes and limitations.
+The feature guide below describes the current checkout, including changes that may not yet be in a published installer.
 
 ## Features
 
 | Feature | Description |
 | --- | --- |
-| Text Translation | Translate with source detection, tone and phonetic controls, or compare up to three models across providers in one run. |
+| [Home](src/pages/HomePage.tsx) | Quick starts, recent activity and system status for enabled modules. |
+| [AI Translate](src/pages/TranslatePage.tsx) | Translate text with source detection, tone and phonetic controls, or compare up to three models across providers in one run. Image translation is available inside this workspace. |
+| [Dictionary](src/pages/DictionaryPage.tsx) | Look up words and phrases with optional context, definitions and examples; save favorites, revisit lookup history and reuse a term in translation. |
 | Local AI | Run translation, rewrite and chat through Ollama, LM Studio or llama.cpp without a cloud API key. |
 | Cloud Providers | Use Google Gemini, Anthropic Claude or OpenAI with your own API keys. |
-| Live Translation | Real-time microphone/system-audio transcription, translation and floating subtitles. |
+| [AI Interpret](src/pages/LiveTranslatePage.tsx) | Live microphone/system-audio transcription, translation and floating subtitles. Audio capture availability depends on the OS and permissions. |
 | Image Translation | Drag, drop or paste images; AI extracts and translates visible text. |
 | Voice Input | Records audio locally, then sends the completed clip through Electron Main to Whisper, Gemini STT or Groq. |
-| Text-to-Speech | OpenAI, Gemini, Edge TTS and ElevenLabs fallback chain. |
-| AI Chat | Chat with image attachments, voice input, saved system prompts, history, optional web search and native chart blocks in AI responses. |
+| Text-to-Speech | Edge TTS, OpenAI, Gemini and ElevenLabs, with fallback order based on the selected quality mode and available keys. |
+| [AI Chat](src/pages/ChatPage.tsx) | Chat with image attachments, voice input, saved system prompts, conversation history, optional web search and native chart blocks in AI responses. |
 | Web Search | Tavily and Brave key support with a Jina fallback path. |
-| Browser Integration | Chrome Extension, context menu, floating selected-text button and `Alt+T` shortcut. |
-| History | Separate searchable history for Translate, Chat and Live sessions. |
+| [Translate everywhere](src/pages/EverywherePage.tsx) | Configure Quick Translate for text selected in other apps and the Chrome extension connection. The extension supports a context menu, selection button and `Alt+T`. |
+| [Quick Launcher](src/pages/QuickLauncher.tsx) | Search apps and files, calculate, convert currencies and open AI or translation actions. Native search support varies by platform; currency rates need a network connection. |
+| [Launcher & shortcuts](src/pages/UtilitiesPage.tsx) | Configure the launcher and global shortcuts. |
+| [Thermal](src/pages/ThermalPage.tsx) | Monitor temperatures, fan readings and CPU load on macOS (SMC) and Linux (hwmon). Optional macOS fan control supports fixed speeds, sensor rules, profiles and calibration through a privileged helper. Packaged builds can install the background helper once and reconnect on later launches; development runs use a session helper. Windows thermal readings are not supported. |
+| [Settings](src/pages/SettingsPage.tsx) | Manage AI models and keys, voice, appearance, chat presets, feature modules, preferences and updates. |
+| History | Feature-specific translation, interpretation, conversation and dictionary history. History has storage limits; keep separate copies of work you need long term. |
 | Security | API keys are encrypted with Electron safeStorage and are used only by the Electron main process. |
 
 ## Getting Started
@@ -92,35 +103,35 @@ xattr -dr com.apple.quarantine /Applications/Viezan.app
 
 Local AI works without cloud keys when a compatible local runtime is available.
 
-For cloud providers, open **Settings -> API Keys**, choose a provider, paste your key, and save it. Keys are encrypted by Electron safeStorage on the current OS and are not stored in the browser extension.
+For cloud providers, open **Settings -> AI models**, choose a provider, paste your key, and save it. Keys are encrypted by Electron safeStorage on the current OS and are not stored in the browser extension.
 
 | Provider | Key required | Where to configure |
 | --- | --- | --- |
-| Local AI | No | **Settings -> Local AI** |
-| Google Gemini | Yes | **Settings -> API Keys** |
-| Anthropic Claude | Yes | **Settings -> API Keys** |
-| OpenAI | Yes | **Settings -> API Keys** |
-| Groq STT | Optional | **Settings -> Speech-to-Text** |
-| Tavily / Brave Search | Optional | **Settings -> Web Search** |
+| Local AI | No | **Settings -> AI models -> Local AI** |
+| Google Gemini | Yes | **Settings -> AI models** |
+| Anthropic Claude | Yes | **Settings -> AI models** |
+| OpenAI | Yes | **Settings -> AI models** |
+| Groq STT | Optional | **Settings -> Voice** |
+| Tavily / Brave Search | Optional | **Settings -> AI models**, web search provider controls |
 
 ### 3. Start Translating
 
-- **Translate**: fast single-model translation or a manual side-by-side comparison of up to three provider models.
-- **Live**: live subtitles from microphone, system audio or both.
-- **Image**: image OCR-style translation and translated image output where supported.
-- **Chat**: multimodal chat with voice input, saved prompts and optional web search.
-- **History**: search, reuse and delete previous Translate, Chat and Live sessions.
+- **AI Translate**: translate text, compare up to three models or use image translation.
+- **AI Interpret**: live subtitles from microphone, system audio or both where supported.
+- **Dictionary**: look up a word or phrase and optionally supply its context.
+- **AI Chat**: multimodal chat with voice input, saved prompts and optional web search.
+- Open history within the relevant workspace to revisit saved results or conversations.
 
 ## Chrome Extension
 
 The extension connects browser-selected text to the Viezan desktop app over `127.0.0.1:39875`.
 
 1. Install the extension package from the matching release, or load `chrome-extension/` unpacked for local development.
-2. Open **Viezan -> Settings -> Browser Extension**.
-3. Copy or create a connection API key.
-4. Open the extension **Options** page, paste the API key, set your preferred language/provider, then save.
+2. Open **Viezan -> Translate everywhere** and find the browser extension controls.
+3. Copy or create a connection token.
+4. Open the extension **Options** page, paste the token, set your preferred language/provider, then save.
 
-The desktop app must be running for browser translations to work. The connection API key is sent through the local auth header, and the extension never stores cloud provider API keys.
+The desktop app must be running for browser translations to work. The connection token is sent through the local auth header, and the extension never stores cloud provider API keys.
 
 See [chrome-extension/README.md](chrome-extension/README.md) for the detailed extension guide.
 
@@ -128,7 +139,7 @@ See [chrome-extension/README.md](chrome-extension/README.md) for the detailed ex
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22 (the version used in CI)
 - npm
 - macOS, Windows or Linux
 
@@ -159,10 +170,10 @@ system tray) because a development run is isolated from the official build:
 
 | | Installed app | `npm run dev` |
 | --- | --- | --- |
-| Data folder (settings, API keys, tokens) | `%APPDATA%\viezan` | `%APPDATA%\viezan-dev` |
+| Data folder on Windows (settings, API keys, tokens) | `%APPDATA%\viezan` | `%APPDATA%\viezan-dev` |
 | Local server port | `39875` | `39876` |
 | Window title / tray tooltip | `Viezan` | `Viezan (Dev)` |
-| Closing the window | asks: tray or quit | quits (tray: `VIEZAN_DEV_TRAY=1`) |
+| Closing the window | stays resident when a tray is available | quits (tray: `VIEZAN_DEV_TRAY=1`) |
 
 - Override the dev port with `VIEZAN_LOCAL_PORT` (1024-65535). Environment overrides
   are ignored by the packaged app.
@@ -176,8 +187,9 @@ system tray) because a development run is isolated from the official build:
 
 ```bash
 npm test
-npm run test:watch
+npm test -- --watch
 npm run test:coverage
+npm run test:docs
 ```
 
 Tests live in `src/**/__tests__/` and `electron/ipc/__tests__/`.
@@ -193,6 +205,35 @@ npm run build:linux
 
 Build artifacts are written to `release/`.
 
+### Keeping documentation current
+
+Update the feature guide, setup instructions and limitations in the same change
+as user-visible behavior. Before a version bump is released:
+
+1. Review source and tests changed since the previous release using the repository's
+   `sync-docs` workflow and [documentation rules](AGENTS.md#documentation-and-version-changes).
+2. Update this README and add a `## [X.Y.Z]` entry to [CHANGELOG.md](CHANGELOG.md).
+   Bump `package.json` and both root versions in `package-lock.json` together.
+3. Run `npm run docs:sync` to refresh generated facts, then read the full README.
+4. Record the completed review and run the checks:
+
+```bash
+npm run docs:review -- --summary "Reviewed features, setup and platform limitations against the changed source."
+npm run check:docs
+npm run test:docs
+```
+
+Commit the review record together with the reviewed source and docs. A later source,
+README or changelog edit invalidates that record. Tests and generated binaries do
+not invalidate it. If an internal-only fix needs no prose change, explain why in
+the review summary. The record detects stale reviews; it cannot prove the prose is
+correct. Never run `docs:review` in CI or use it to dismiss an unread diff.
+
+PR documentation checks, auto-tag and direct tag releases use the same checker.
+Release tags must match the already-reviewed package version; CI does not rewrite
+the version to make a mismatched tag pass. See the
+[release guide](.github/WORKFLOWS.md) for the full policy.
+
 ## Project Map
 
 ```text
@@ -203,7 +244,7 @@ Viezan/
 │   ├── preload/              # Renderer-facing preload modules
 │   └── ipc/                  # Providers, storage, local server, audio, updater
 ├── src/                      # React renderer
-│   ├── pages/                # Translate, Live, Chat, History, Settings
+│   ├── pages/                # Home, Chat, Translate, Interpret, Dictionary, Thermal, Settings
 │   ├── components/           # Shared UI and feature components
 │   ├── store/                # Zustand app state
 │   ├── services/             # Renderer service helpers
@@ -217,16 +258,18 @@ Viezan/
 
 ## Tech Stack
 
-| Technology | Role |
-| --- | --- |
-| Electron 41 | Desktop shell, native capabilities and secure storage |
-| React 18 | Renderer UI |
-| TypeScript 6 | Type safety across renderer and Electron code |
-| Vite 8 | Renderer build pipeline |
-| Tailwind CSS 4 | Styling |
-| Zustand 5 | Client state |
-| electron-builder 26 | Packaging and publishing |
-| Vitest 4 | Unit and integration tests |
+<!-- BEGIN GENERATED:stack -->
+| Technology | Declared version | Role |
+| --- | --- | --- |
+| Electron | `^41.10.7` | Desktop shell, native capabilities and secure storage |
+| React | `^18.3.1` | Renderer UI |
+| TypeScript | `^7.0.2` | Type safety across renderer and Electron code |
+| Vite | `^8.3.5` | Renderer build pipeline |
+| Tailwind CSS | `^4.3.3` | Styling |
+| Zustand | `^5.0.16` | Client state |
+| electron-builder | `^26.15.3` | Packaging and publishing |
+| Vitest | `^5.0.3` | Unit and integration tests |
+<!-- END GENERATED:stack -->
 
 ## Contributing
 

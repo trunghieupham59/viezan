@@ -48,6 +48,7 @@ Tag runtime không bắt đầu bằng `v`, không kích hoạt workflow phát h
 | File                                       | Mục đích                                                                    |
 | ------------------------------------------ | --------------------------------------------------------------------------- |
 | `workflows/ci.yml`                         | Lint (Biome + Atomic boundaries) + TypeCheck + Vitest + compile check + build matrix có điều kiện (artifact 5 ngày) + smoke test installer Windows |
+| `workflows/docs.yml`                       | README facts, page links, changelog, review freshness và regression tests; chạy cả khi chỉ đổi docs/version |
 | `workflows/codeql.yml`                     | Phân tích bảo mật JS/TS định kỳ + theo PR                                   |
 | `workflows/dependency-review.yml`          | Chặn dependency có CVE / license không tương thích trong PR                 |
 | `workflows/pr-checks.yml`                  | Bắt buộc tiêu đề PR theo Conventional Commits + auto-gán nhãn theo path file |
@@ -55,7 +56,7 @@ Tag runtime không bắt đầu bằng `v`, không kích hoạt workflow phát h
 | `workflows/release.yml`                    | Tag `v*` (hoặc dispatch từ auto-tag) → build & publish DMG/EXE/AppImage + extension ZIP |
 | `workflows/pages.yml`                      | Deploy `docs/` lên GitHub Pages                                             |
 | `actions/install-linux-deps`               | Composite action: cài system deps build Linux (dùng ở ci/release)   |
-| `actions/sync-version`                     | Composite action: đồng bộ `package.json` version theo tag (dùng ở release)  |
+| `actions/sync-version`                     | Composite action: kiểm tra tag khớp version và docs đã review; không sửa version trong CI |
 | `labeler.yml`                              | Định nghĩa rule cho `actions/labeler`                                       |
 | `dependabot.yml`                           | Cập nhật npm + GitHub Actions hàng tuần (theo group)                        |
 | `release.yml`                              | Cấu hình "auto-generated release notes" của GitHub                          |
@@ -111,15 +112,29 @@ Ví dụ:
 
 ## 🚀 Quy trình release
 
-1. Bump `version` trong `package.json` và merge vào `develop`.
-2. `auto-tag.yml` tự tạo tag `vX.Y.Z` (bỏ qua nếu tag đã tồn tại) rồi gọi
-   `release.yml` trên tag đó. Nếu bỏ lỡ, chạy tay **Actions → Auto Tag Release**.
-3. `release.yml` build và upload DMG / EXE / AppImage / `latest.yml` + extension
-   ZIP lên GitHub Release tương ứng.
+1. Rà README theo source/tests và diff từ release trước; sửa tính năng, hướng dẫn,
+   giới hạn nền tảng. Bump `package.json` cùng hai root version trong
+   `package-lock.json`, thêm mục `## [X.Y.Z]` trong `CHANGELOG.md`.
+2. Chạy `npm run docs:sync`, đọc lại README rồi ghi review bằng
+   `npm run docs:review -- --summary "Nội dung và giới hạn đã đối chiếu"`.
+   Chạy `npm run check:docs`, `npm run test:docs` và các gate release-readiness.
+   Commit record cùng source/docs đã rà trước khi merge vào `develop`.
+3. `auto-tag.yml` kiểm tra docs trước khi tạo tag `vX.Y.Z` (bỏ qua nếu tag đã
+   tồn tại), rồi gọi `release.yml` trên tag đó. Nếu chỉ sửa docs sau khi auto-tag
+   thất bại, chạy tay **Actions → Auto Tag Release** sau khi merge bản sửa.
+4. `release.yml` kiểm tra lại tag/version và docs trước khi tạo GitHub Release,
+   lấy notes từ mục version trong `CHANGELOG.md`, rồi build/upload DMG / EXE /
+   AppImage / `latest.yml` + extension ZIP. Mọi job upload phụ thuộc gate này.
 
 Có thể tag tay (`git tag vX.Y.Z && git push origin vX.Y.Z`); `release.yml` vẫn
 chạy theo tag push và `auto-tag.yml` sẽ thấy tag đã có nên bỏ qua. Không chạy
 `release.yml` bằng tay từ một branch — chỉ từ tag.
+
+`Documentation / README freshness` chạy độc lập trên PR/push, không bỏ qua
+docs-only hoặc package-only changes. Có thể đặt check này làm required trong
+branch protection; workflow không tự thay đổi cấu hình đó. Fingerprint phát hiện
+source/README/changelog thay đổi sau review, nhưng không chứng minh mô tả đúng.
+Không chạy `docs:review` trong CI hoặc tự refresh chỉ để vượt gate.
 
 ## 🏗️ Khi nào chạy build
 

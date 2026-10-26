@@ -47,6 +47,16 @@ jobs:
                     echo "EXISTS=false" >> "$GITHUB_OUTPUT"
                   fi
 
+            - name: Setup Node for documentation checks
+              if: steps.exists.outputs.EXISTS == 'false'
+              uses: actions/setup-node@v7
+              with:
+                  node-version: 22
+
+            - name: Check documentation before creating a tag
+              if: steps.exists.outputs.EXISTS == 'false'
+              run: npm run test:docs && npm run check:docs
+
             - name: Create and push tag
               if: steps.exists.outputs.EXISTS == 'false'
               shell: bash

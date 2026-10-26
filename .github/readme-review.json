@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "version": "2.4.2",
+  "sourceSha256": "daedc47e99ba1ed419cdd220bd60b135f7d74ae23816bb922c46baf7d13b9b2f",
+  "readmeSha256": "92029c463236192e4c0a4b28e52bd43839d6eb850dd0e2a40ce29bbfab972ad4",
+  "changelogSha256": "f1c1152f59f561b21435e5d6abc68fc361eb971e8b4e8d6a91b320242c73dd63",
+  "summary": "Reviewed latest develop 2.4.2 source, current feature pages, AI provider/setup labels, package dependency ranges, Glass UI updates and macOS helper lifecycle. Unfinished session recovery code and prose are excluded from this publishing snapshot."
+}

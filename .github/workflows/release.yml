@@ -21,128 +21,38 @@ jobs:
               with:
                   fetch-depth: 0
 
-            - name: Generate release notes
-              id: notes
+            - name: Setup Node
+              uses: actions/setup-node@v7
+              with:
+                  node-version: 22
+
+            # Gate every path (tag push and workflow_dispatch) before creating a
+            # public release. All packaging/upload jobs depend on this job.
+            - name: Verify reviewed version and documentation
+              uses: ./.github/actions/sync-version
+
+            - name: Test documentation guard
+              run: npm run test:docs
+
+            - name: Prepare curated release notes
               shell: bash
               run: |
-                  CURRENT_TAG="${GITHUB_REF#refs/tags/}"
-                  PREV_TAG=$(git tag --list 'v*' --sort=-version:refname | grep -v "^${CURRENT_TAG}$" | head -n 1 || true)
+                  node scripts/readme-docs.mjs notes > "$RUNNER_TEMP/viezan-release-notes.md"
+                  cat >> "$RUNNER_TEMP/viezan-release-notes.md" <<'NOTES'
 
-                  echo "Current tag: $CURRENT_TAG"
-                  echo "Previous tag: $PREV_TAG"
+                  ## Installation
 
-                  if [ -z "$PREV_TAG" ]; then
-                    RAW_COMMITS=$(git log --pretty=format:"%s|%h|%an" HEAD)
-                  else
-                    RAW_COMMITS=$(git log --pretty=format:"%s|%h|%an" "${PREV_TAG}..HEAD")
-                  fi
-
-                  FEATURES=""
-                  FIXES=""
-                  IMPROVEMENTS=""
-                  OTHER=""
-
-                  while IFS='|' read -r subject hash author; do
-                    [ -z "$subject" ] && continue
-                    ENTRY="- ${subject} (\`${hash}\`) — *${author}*"
-                    lower=$(echo "$subject" | tr '[:upper:]' '[:lower:]')
-                    if echo "$lower" | grep -qE "^(feat|add|new|feature)"; then
-                      FEATURES="${FEATURES}${ENTRY}"$'\n'
-                    elif echo "$lower" | grep -qE "^(fix|bug|hotfix|patch|revert)"; then
-                      FIXES="${FIXES}${ENTRY}"$'\n'
-                    elif echo "$lower" | grep -qE "^(improve|enhance|update|refactor|perf|chore|style|docs|test|ci|build)"; then
-                      IMPROVEMENTS="${IMPROVEMENTS}${ENTRY}"$'\n'
-                    else
-                      OTHER="${OTHER}${ENTRY}"$'\n'
-                    fi
-                  done <<< "$RAW_COMMITS"
-
-                  TOTAL=$(echo "$RAW_COMMITS" | grep -c '.' || true)
-                  COMPARE_URL="https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${CURRENT_TAG}"
-
-                  {
-                    echo "RELEASE_BODY<<ENDOFBODY"
-                    echo "## Viezan ${CURRENT_TAG} — Release Notes"
-                    echo ""
-                    echo "> **Viezan** is a local-first AI translation desktop app for macOS, Windows and Linux,"
-                    echo "> with Local AI support plus bring-your-own-key cloud providers such as Gemini, Claude and OpenAI."
-                    echo ""
-                    echo "---"
-                    echo ""
-
-                    if [ -n "$FEATURES" ]; then
-                      echo "### ✨ New Features"
-                      echo ""
-                      echo "$FEATURES"
-                    fi
-
-                    if [ -n "$FIXES" ]; then
-                      echo "### 🐛 Bug Fixes"
-                      echo ""
-                      echo "$FIXES"
-                    fi
-
-                    if [ -n "$IMPROVEMENTS" ]; then
-                      echo "### 🔧 Improvements & Maintenance"
-                      echo ""
-                      echo "$IMPROVEMENTS"
-                    fi
-
-                    if [ -n "$OTHER" ]; then
-                      echo "### 📝 Other Changes"
-                      echo ""
-                      echo "$OTHER"
-                    fi
-
-                    if [ "$TOTAL" -eq 0 ]; then
-                      echo "### 📋 Changes"
-                      echo ""
-                      echo "- Initial release or no conventional commits found."
-                      echo ""
-                    fi
-
-                    echo "---"
-                    echo ""
-                    echo "## 📦 Installation"
-                    echo ""
-                    echo "###  macOS"
-                    echo "1. Download the \`.dmg\` file matching your chip:"
-                    echo "   - **Apple Silicon:** \`Viezan-*-arm64.dmg\`"
-                    echo "   - **Intel Mac:** \`Viezan-*-x64.dmg\`"
-                    echo "2. Open the \`.dmg\` and drag **Viezan** to your **Applications** folder."
-                    echo "3. This macOS build is currently unsigned/not notarized. On first launch, macOS may show **\"Viezan\" cannot be opened**."
-                    echo "4. Recommended: open **System Settings → Privacy & Security**, then click **Open Anyway** for Viezan."
-                    echo "5. Terminal fallback for trusted downloads only: \`xattr -dr com.apple.quarantine /Applications/Viezan.app\`, then open Viezan again."
-                    echo ""
-                    echo "### ⊞ Windows"
-                    echo "1. Download \`Viezan-*-x64-Setup.exe\`."
-                    echo "2. Run the installer and follow the setup wizard."
-                    echo "3. You can choose a custom installation directory during setup."
-                    echo ""
-                    echo "### 🐧 Linux"
-                    echo "1. Download the \`.AppImage\` file."
-                    echo "2. Make it executable: \`chmod +x Viezan-*.AppImage\`"
-                    echo "3. Run it: \`./Viezan-*.AppImage\`"
-                    echo ""
-                    echo "---"
-                    echo ""
-                    if [ -n "$PREV_TAG" ]; then
-                      echo "**📜 Full Changelog:** [${PREV_TAG} → ${CURRENT_TAG}](${COMPARE_URL})"
-                    else
-                      echo "**📜 Full Changelog:** [View all commits](https://github.com/${{ github.repository }}/commits/${CURRENT_TAG})"
-                    fi
-                    echo "ENDOFBODY"
-                  } >> "$GITHUB_OUTPUT"
-
-                  echo "PREV_TAG=$PREV_TAG" >> "$GITHUB_OUTPUT"
-                  echo "CURRENT_TAG=$CURRENT_TAG" >> "$GITHUB_OUTPUT"
+                  Download the installer for your platform from the assets below.
+                  See the [README](https://github.com/trunghieupham59/Viezan/blob/${{ github.ref_name }}/README.md#getting-started)
+                  for setup instructions and platform limitations.
+                  NOTES
 
             - name: Create GitHub Release
               id: create_release
               uses: softprops/action-gh-release@v3
               with:
-                  name: "Viezan ${{ steps.notes.outputs.CURRENT_TAG }}"
-                  body: ${{ steps.notes.outputs.RELEASE_BODY }}
+                  name: "Viezan ${{ github.ref_name }}"
+                  body_path: ${{ runner.temp }}/viezan-release-notes.md
                   draft: false
                   prerelease: ${{ contains(github.ref, '-beta') || contains(github.ref, '-alpha') || contains(github.ref, '-rc') }}
               env:
@@ -165,7 +75,7 @@ jobs:
                   node-version: 22
                   cache: npm
 
-            - name: Sync package.json version with tag
+            - name: Verify reviewed version matches tag
               uses: ./.github/actions/sync-version
 
             - name: Install dependencies
@@ -202,7 +112,7 @@ jobs:
                   node-version: 22
                   cache: npm
 
-            - name: Sync package.json version with tag
+            - name: Verify reviewed version matches tag
               uses: ./.github/actions/sync-version
 
             - name: Install dependencies
@@ -251,7 +161,7 @@ jobs:
                   node-version: 22
                   cache: npm
 
-            - name: Sync package.json version with tag
+            - name: Verify reviewed version matches tag
               uses: ./.github/actions/sync-version
 
             - name: Install dependencies
@@ -418,7 +328,7 @@ jobs:
             - name: Install Linux build deps
               uses: ./.github/actions/install-linux-deps
 
-            - name: Sync package.json version with tag
+            - name: Verify reviewed version matches tag
               uses: ./.github/actions/sync-version
 
             - name: Install dependencies

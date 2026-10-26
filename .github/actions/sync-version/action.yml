@@ -1,17 +1,9 @@
-name: Sync package.json version with tag
-description: Set package.json version to the pushed tag (vX.Y.Z -> X.Y.Z) without creating a git tag.
+name: Verify reviewed version matches tag
+description: Reject a mismatched release tag without rewriting the reviewed source.
 
 runs:
     using: composite
     steps:
-        - name: Update version in package.json
+        - name: Verify version and documentation
           shell: bash
-          run: |
-              VERSION="${GITHUB_REF#refs/tags/v}"
-              CURRENT=$(node -p "require('./package.json').version")
-              if [ "$CURRENT" != "$VERSION" ]; then
-                echo "Updating package.json from $CURRENT to $VERSION"
-                npm version "$VERSION" --no-git-tag-version
-              else
-                echo "package.json already at version $VERSION, skipping."
-              fi
+          run: node scripts/readme-docs.mjs check --release-ref "$GITHUB_REF"

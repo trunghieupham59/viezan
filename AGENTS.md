@@ -159,6 +159,22 @@ pages -> templates -> organisms -> molecules -> atoms
 
 ## Verification
 
+### Documentation and version changes
+
+- Update README features, setup and limitations alongside user-visible changes.
+  Use `sync-docs` to compare source/tests with prose; do not infer shipped behavior
+  from commit titles alone.
+- Version bumps must include matching package-lock root versions and a curated
+  `## [X.Y.Z]` entry in `CHANGELOG.md`. Keep README focused on the current product.
+- Run `npm run docs:sync` for generated facts, review the complete README, then
+  record that review with `npm run docs:review -- --summary "..."`. For internal-only
+  changes, explain why existing prose remains accurate. Never refresh the record
+  merely to silence a failure or generate it in CI.
+- Run `npm run check:docs` and `npm run test:docs`. Include the review record with
+  the exact reviewed source/docs; later product-source edits invalidate it.
+
+### Code checks
+
 Run checks proportional to the change, starting focused and expanding when the
 surface is shared:
 
