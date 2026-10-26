@@ -26,4 +26,12 @@ describe('ownership evidence', () => {
     const duplicate = { ...app, id: 'two', path: '/Applications/Older/Editor.app' }
     expect(ownership('com.foo.editor', app, [app, duplicate])?.shared).toBe(true)
   })
+  it('does not treat a helper prefix as exact ownership', () => {
+    expect(ownership('com.foo.editor.helper', app, [app])?.evidence).toBe('vendor')
+  })
+  it('protects a parent domain when an installed child app may use it', () => {
+    const child = { ...app, path: '/Applications/Child.app', bundleId: 'com.foo.editor.child' }
+    expect(ownership('com.foo.editor', app, [app, child])?.shared).toBe(true)
+  })
+
 })

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "version": "2.4.2",
-  "sourceSha256": "e87e0a30ca8054a115a9c28cfb16c05563eb5987c0e86d6db991a360efbc43f2",
-  "readmeSha256": "7823af997eb7cdb218d481ed3ee880e1669c59e12d6bd454a33b647d63e6019b",
-  "changelogSha256": "fdedae1ea2cddd2b57abf34363cb27248bbaf614682627e1e6f5c1097f5956a6",
-  "summary": "Reviewed the complete README against Applications inventory, opaque-ID IPC, user-level Trash/reset, preference backups, native confirmation, interruption recovery, Undo guards and tests. Documented macOS-only single-app scope, conservative MDM gate, preview-only missing binary, shared/admin/ByHost exclusions and no whole-disk cleanup guarantee; existing features remain accurate."
+  "sourceSha256": "941767dafe878908f234b28c9d839cd19a61020da74cb79b830a12d416404ca0",
+  "readmeSha256": "2a005c9420850be66ccaead770a90db8f4e5cc99fea82a41e25b17eca7719386",
+  "changelogSha256": "511e862895d8aa61ddd4d1c8d24cf3b47438071c11df97ccf89dde46e5a37f29",
+  "summary": "Reviewed the full README and Applications safety scope against source and tests: explicit persistent-data selection, ambiguous/Containers/agents locked, incomplete inventories/scans block mutation, selection preflight and stop-on-error, backup checksums, verified defaults behavior including retained empty plist, interrupted Undo recovery, and draft-only limitations. Real native/file-service/preferences UUID fixture smoke tests passed; managed/TCC/external-volume/power-loss coverage is not established."
 }

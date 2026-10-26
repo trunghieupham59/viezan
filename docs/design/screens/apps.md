@@ -41,9 +41,9 @@ Spacing, radius, màu, chữ và border dùng tokens. Không đổi trạng thá
 | Quét lại | `sm neutral outline` | Đọc kho app, làm hết hiệu lực plan cũ, đọc nhật ký | Đang xử lý |
 | Hàng app | `sm neutral ghost`; chọn là `primary soft` | Quét dữ liệu theo app | Đang xử lý |
 | Gỡ / Đặt lại | `sm`, `aria-pressed` | Đặt lại giữ bundle; chọn lại các mục exact đủ điều kiện | Đang xử lý |
-| Checkbox | Native, label chứa đường dẫn | Chọn mục; vendor/name không tích sẵn | Bundle theo chế độ; shared, protected, needs-admin, unreadable |
+| Checkbox | Native, label chứa đường dẫn | Chọn mục; dữ liệu/cài đặt lâu dài không tích sẵn; vendor/name/prefix bị khoá | Bundle theo chế độ; Containers, launch agents, shared, protected, needs-admin, unreadable |
 | Hiện trong Finder | `sm neutral ghost` | Mở vị trí của mục đã quét | Đang xử lý |
-| Xem xác nhận / Thoát rồi tiếp tục | `md danger outline` | Hộp thoại native liệt kê các mục được chọn; Huỷ nhận focus mặc định | Không chọn, app bị chặn, thiếu native binary, đang xử lý |
+| Xem xác nhận / Thoát rồi tiếp tục | `md danger outline` | Hộp thoại native liệt kê các mục được chọn; Huỷ nhận focus mặc định | Không chọn, app bị chặn, thiếu native binary, quét chưa đủ, đang xử lý |
 | Hoàn tác | `sm neutral outline` | Khôi phục từng mục còn có thể trả về, không ghi đè | Không còn mục có thể khôi phục hoặc đang xử lý |
 
 ## 5. Trạng thái
@@ -60,19 +60,19 @@ Spacing, radius, màu, chữ và border dùng tokens. Không đổi trạng thá
 ## 6. Luồng tương tác chính
 
 1. Mở trang: đọc metadata app và nhật ký local, không yêu cầu mạng.
-2. Chọn app: quét các gốc hỗ trợ; chỉ exact được chọn sẵn, tối đa 5 phút cho plan.
+2. Chọn app: quét các gốc hỗ trợ; chỉ bundle và cache/log/saved state exact được chọn sẵn, tối đa 5 phút cho plan.
 3. Chọn Gỡ hoặc Đặt lại và các mục. Xem xác nhận native, mặc định Huỷ.
 4. Main kiểm tra kho app lại (dữ liệu dùng chung có thể đổi), yêu cầu thoát nếu cần.
 5. Ghi ý định trước thao tác; kiểm tra metadata cây, symlink, danh sách cấm và tệp đang mở.
-6. Tệp vào Thùng rác; preferences được export rồi defaults delete; agent người dùng
-   có label và executable phù hợp được bootout trước khi chuyển plist.
+6. Tệp vào Thùng rác; preferences được export rồi defaults delete; Containers và launch agents được giữ nguyên. Preferences có checksum backup và
+   đối chiếu giá trị sau khi xoá/khôi phục; plist rỗng macOS giữ lại được ghi nhận.
 7. Quét lại, ghi kết quả từng mục. Hoàn tác dùng đúng vị trí Thùng rác/backup, giữ
    nguyên mục bị đổi hoặc đường dẫn/domain đã được tạo lại.
 
 ## 7. Responsive
 
 Hai cột tự xếp dọc theo kích thước vùng nội dung. Đường dẫn dài xuống dòng;
-toolbar được wrap. QA ở cửa sổ 1200/820/560 px, sáng/tối, VI/EN/JA.
+toolbar được wrap. QA ở ba cỡ chữ và cửa sổ 1200/820/560 px, sáng/tối, VI/EN/JA.
 
 ## 8. Bàn phím và trợ năng
 
@@ -97,3 +97,11 @@ bằng chứng và trạng thái nhật ký. EN/JA cùng shape; số/ngày theo 
 - Hoàn tác cần mục còn trong Thùng rác và không thay đổi. Nếu tiến trình native
   chết giữa chuyển tệp và ghi biên nhận, nhật ký giữ trạng thái chưa xác minh;
   không suy diễn thành đã hoàn tất. Không xoá vĩnh viễn trong bản này.
+
+## Kiểm tra an toàn bổ sung
+
+- Metadata app chưa xác minh hoặc quét chưa đủ: khoá thao tác; không suy ra sở hữu độc quyền.
+- Kiểm tra toàn bộ lựa chọn trước mục đầu tiên và kiểm lại từng mục; lỗi thì dừng các mục sau.
+- Undo dừng nếu bundle hoặc dữ liệu xung đột; không trộn dữ liệu cũ vào app mới.
+- Phiên chưa xác minh sau gián đoạn chặn lần gỡ mới. Không hiển thị số mục còn lại cũ sau Undo.
+- Bản draft chưa được duyệt cho dữ liệu thật; chưa kiểm chứng ma trận MDM/TCC/ổ ngoài hoặc ngắt nguồn.

@@ -6,7 +6,7 @@ export function createPreviewApps(): AppsApi {
   const items: AppRemovalPlan['items'] = [
     { id: 'bundle', path: app.path, kind: 'bundle', evidence: 'exact', bytes: 125_000_000, selected: true },
     { id: 'cache', path: '~/Library/Caches/org.example.notes', kind: 'data', evidence: 'exact', bytes: 15_000_000, selected: true },
-    { id: 'preferences', path: '~/Library/Preferences/org.example.notes.plist', kind: 'preferences', evidence: 'exact', bytes: 4096, selected: true },
+    { id: 'preferences', path: '~/Library/Preferences/org.example.notes.plist', kind: 'preferences', evidence: 'exact', bytes: 4096, selected: false },
     { id: 'shared', path: '~/Library/Group Containers/EXAMPLE.Shared', kind: 'data', evidence: 'vendor', bytes: 30_000_000, selected: false, blocked: 'shared' },
     { id: 'admin', path: '/Library/LaunchDaemons/org.example.notes.plist', kind: 'data', evidence: 'exact', bytes: 4096, selected: false, blocked: 'needs-admin' },
   ]
@@ -25,6 +25,7 @@ export function createPreviewApps(): AppsApi {
       const session = history.find(s => s.id === id)
       if (!session) return { success: false, error: 'stale' }
       session.items = session.items.map(i => ({ ...i, status: i.status === 'trashed' ? 'restored' : i.status }))
+      session.remaining = null
       session.canUndo = false
       return { success: true, data: session }
     },

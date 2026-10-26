@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto'
-import { chmod, lstat } from 'node:fs/promises'
+import { lstat } from 'node:fs/promises'
 import path from 'node:path'
 import type { AppActionRequest, AppRemovalPlan, AppsApi, AppsReply } from '../../shared/appsApi'
 import { createNativeFiles, runFile } from '../fileActions/native'
 import { createFileActions, type FileCandidate, issueOf } from '../fileActions/service'
 import { createPathPolicy, FileActionError, within } from '../fileActions/verify'
 import { type AppRecord, inventory } from './inventory'
+import { createPreferences } from './preferences'
 import { residues } from './residues'
 
 export interface AppsRuntimeOptions {
@@ -51,15 +52,7 @@ export function createAppsRuntime(options: AppsRuntimeOptions) {
   const command = (file: string, args: string[]) => runFile(file, args, { timeout: 15_000, maxBuffer: 1024 * 1024 })
   const actions = createFileActions({
     directory: path.join(options.userData, 'fileActions'), files, policy, checkUse: assertNotInUse,
-    preferences: {
-      export: async (domain, destination) => { await command('/usr/bin/defaults', ['export', domain, destination]); await chmod(destination, 0o600) },
-      remove: async domain => { await command('/usr/bin/defaults', ['delete', domain]) },
-      restore: async (domain, source) => { await command('/usr/bin/defaults', ['import', domain, source]) },
-      exists: async domain => {
-        try { await command('/usr/bin/defaults', ['read', domain]); return true }
-        catch (e) { if ((e as { code?: number }).code === 1) return false; throw e }
-      },
-    },
+    preferences: createPreferences(options.home),
     agents: {
       stop: async label => {
         // Not loaded is safe; distinguish it from a bootout failure for a loaded service.
@@ -71,9 +64,17 @@ export function createAppsRuntime(options: AppsRuntimeOptions) {
       start: async file => { await command('/bin/launchctl', ['bootstrap', `gui/${options.uid}`, file]) },
     },
   })
+  async function assertUnmanaged() {
+    let stdout: string
+    try { ({ stdout } = await command('/usr/bin/profiles', ['status', '-type', 'enrollment'])) }
+    catch { throw new FileActionError('unreadable') }
+    if (/(?:MDM enrollment|Enrolled via DEP):\s*Yes/i.test(stdout)) throw new FileActionError('protected')
+    if (!/MDM enrollment:\s*No/i.test(stdout)) throw new FileActionError('unreadable')
+  }
   async function apply(request: AppActionRequest) {
     const current = plan
     if (!current || current.id !== request.planId || current.expires < Date.now()) throw new FileActionError('stale')
+    if (current.incomplete) throw new FileActionError('unreadable')
     if (current.app.blocked) throw new FileActionError(current.app.blocked)
     const selected = new Set(request.itemIds)
     if (!selected.size || selected.size !== request.itemIds.length || request.itemIds.some(id => !current.items.some(i => i.id === id && !i.blocked))) throw new FileActionError('stale')
@@ -82,16 +83,18 @@ export function createAppsRuntime(options: AppsRuntimeOptions) {
     if (!await options.confirm(current, request)) throw new FileActionError('cancelled')
     // Disabling the module while the native confirmation was open cancels the action.
     if (!enabled) throw new FileActionError('disabled')
+    if (current.expires < Date.now()) throw new FileActionError('stale')
+    await assertUnmanaged()
     // Installed siblings may have changed since preview; never use stale shared-data ownership.
     const latest = await inventory(options.home, options.ownBundle)
     const original = apps.find(a => a.id === current.app.id)
     const target = latest.find(a => a.path === current.app.path && a.bundleId === current.app.bundleId && a.teamId === original?.teamId)
     if (!target || target.blocked) throw new FileActionError('stale')
     const checked = await residues(target, latest, options.home)
+    if (checked.incomplete) throw new FileActionError('unreadable')
     for (const item of current.items) {
       const fresh = checked.items.find(i => i.path === item.path)
-      if (!fresh) item.blocked = 'changed'
-      else if (fresh.blocked) item.blocked = fresh.blocked
+      if (selected.has(item.id) && (!fresh || fresh.blocked)) throw new FileActionError(fresh?.blocked ?? 'changed')
     }
     activeBundle = current.app.path
     if (await files.running(activeBundle)) {
@@ -111,11 +114,8 @@ export function createAppsRuntime(options: AppsRuntimeOptions) {
     inventory: () => guard(async () => {
       plan = null
       apps = await inventory(options.home, options.ownBundle)
-      // A managed device needs its administrator's removal policy; V1 does not infer per-app MDM ownership.
-      try {
-        const { stdout } = await command('/usr/bin/profiles', ['status', '-type', 'enrollment'])
-        if (/(?:MDM enrollment|Enrolled via DEP):\s*Yes/i.test(stdout)) apps = apps.map(a => ({ ...a, blocked: 'protected' }))
-      } catch { apps = apps.map(a => ({ ...a, blocked: 'unreadable' })) }
+      try { await assertUnmanaged() }
+      catch (error) { apps = apps.map(a => ({ ...a, blocked: issueOf(error) })) }
       return apps.map(({ teamId: _team, executable: _exe, ...app }) => app)
     }),
     inspect: id => guard(async () => {

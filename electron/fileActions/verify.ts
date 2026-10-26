@@ -35,13 +35,17 @@ export function createPathPolicy(home: string, appData: string) {
   const dataRoots = ['Caches', 'Logs', 'Application Support', 'Preferences', 'Containers', 'Group Containers', 'Saved Application State', 'HTTPStorages', 'WebKit', 'LaunchAgents'].map(p => path.join(home, 'Library', p))
   const appRoots = ['/Applications', path.join(home, 'Applications')]
   const forbidden = [appData, ...['.ssh', '.gnupg', '.aws', '.config/gh', 'Library/Keychains', 'Library/Mobile Documents'].map(p => path.join(home, p))]
-  return async (target: string): Promise<void> => {
+  return async (target: string, allowMissing = false): Promise<void> => {
     const normalized = path.resolve(target)
     const allowed = dataRoots.some(root => within(root, normalized) && root !== normalized)
       || (appRoots.some(root => within(root, normalized) && root !== normalized) && normalized.endsWith('.app'))
     if (!allowed || forbidden.some(root => within(root, normalized) || within(normalized, root))
       || normalized.split(path.sep).some(part => part.endsWith('.photoslibrary'))
-      || await realpath(normalized) !== normalized) throw new FileActionError('protected')
+      ) throw new FileActionError('protected')
+    try { if (await realpath(normalized) !== normalized) throw new FileActionError('protected') }
+    catch (error) {
+      if (!allowMissing || (error as NodeJS.ErrnoException).code !== 'ENOENT' || await realpath(path.dirname(normalized)) !== path.dirname(normalized)) throw error
+    }
   }
 }
 

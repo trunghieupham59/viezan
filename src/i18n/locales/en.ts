@@ -20,7 +20,7 @@ const en: Translations = {
   "unknownSize": "Not measured",
   "reveal": "Show in Finder",
   "loading": "Working…",
-  "scope": "macOS · One app at a time, with user permissions. Shared data stays; administrator items are listed only. Personal documents are excluded.",
+  "scope": "macOS · One app at a time. Only the bundle, caches, logs and saved window state are preselected. App data and settings may contain important content; select them only if you intend to remove it. Containers, shared and unverified items are kept.",
   "running": "This app is running. The next step asks for confirmation and requests a normal quit; it never forces the app to quit.",
   "proceed": "Review confirmation",
   "quitThenContinue": "Quit and continue",

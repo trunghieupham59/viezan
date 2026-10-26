@@ -86,3 +86,5 @@ Capability đã áp dụng: workflow `ship-viezan-feature`, `audit-local-first-s
 ## Ứng dụng (2026-10-26)
 
 - Bản đầu gỡ/đặt lại từng app trong quyền người dùng; trạng thái sau gỡ nói rõ phạm vi quét, không dùng “đã sạch” cho toàn máy. Group Containers, ByHost và mục quản trị được giữ lại. Mọi thay đổi qua lớp fileActions có nhật ký trước khi chạy, Thùng rác/backup và kiểm tra trước khi Hoàn tác.
+
+- Applications (2026-10-26): mặc định chỉ chọn bundle/cache/log/saved state; dữ liệu lâu dài phải chọn rõ. Khớp tên/hãng/prefix, Containers, launch agents và quét chưa đủ không đủ bằng chứng để xoá. Lỗi dừng cả chuỗi; kết quả có mục giữ/lỗi không được trình bày như gỡ sạch.

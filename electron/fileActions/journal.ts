@@ -13,6 +13,10 @@ export interface JournalItem extends SessionItem {
   /** Export before deleting a preference domain; never accept a domain from renderer. */
   domain?: string
   backup?: string
+  backupDigest?: string
+  restoring?: boolean
+  /** macOS can retain an empty plist after defaults delete; Undo must recognize that exact state. */
+  preferenceAfter?: FileSnapshot | null
   launchLabel?: string
 }
 export interface JournalSession extends Omit<AppActionSession, 'items' | 'canUndo'> { items: JournalItem[] }

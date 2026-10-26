@@ -62,7 +62,7 @@ export function AppsPage() {
   const saveResult = (session: AppActionSession) => {
     setSessions(previous => [session, ...previous.filter(s => s.id !== session.id)])
     setPlan(null)
-    setMessage(tpl(t.done, { count: session.items.filter(i => i.status === 'trashed' || i.status === 'restored').length }))
+    setMessage(session.items.some(i => i.issue || i.status === 'pending' || i.status === 'failed') ? t.verifyIncomplete : tpl(t.done, { count: session.items.filter(i => i.status === 'trashed' || i.status === 'restored').length }))
   }
   const apply = () => {
     if (!api || !plan) return
@@ -104,7 +104,7 @@ export function AppsPage() {
                 onReveal={id => { if (api) void run(() => api.reveal(id), () => {}) }} />
               <div className="apps-toolbar">
                 <span>{tpl(t.selected, { count: selected.length })}</span>
-                <Button size="md" variant="danger" appearance="outline" disabled={busy || !plan.canUndo || Boolean(plan.app.blocked) || !selected.length} onClick={apply}>{plan.running ? t.quitThenContinue : t.proceed}</Button>
+                <Button size="md" variant="danger" appearance="outline" disabled={busy || !plan.canUndo || Boolean(plan.app.blocked) || plan.incomplete || !selected.length} onClick={apply}>{plan.running ? t.quitThenContinue : t.proceed}</Button>
               </div>
             </>}
           </section>

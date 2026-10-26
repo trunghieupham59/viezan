@@ -106,7 +106,10 @@ describe('bounded, reversible file actions', () => {
     expect(deps.files.trash).not.toHaveBeenCalled()
   })
   it('backs up preferences before delete and refuses to overwrite a recreated domain', async () => {
-    const item = { ...candidate, kind: 'preferences' as const, domain: 'org.example.app' }
+    const prefs = path.join(home, 'Library/Preferences/org.example.app.plist')
+    await mkdir(path.dirname(prefs), { recursive: true })
+    await writeFile(prefs, 'settings')
+    const item = { ...candidate, path: prefs, snapshot: await snapshot(prefs), kind: 'preferences' as const, domain: 'org.example.app' }
     const actions = createFileActions(deps)
     const result = await actions.execute('Example', 'reset', [item], new Set(['item']))
     expect(deps.preferences.export).toHaveBeenCalledBefore(vi.mocked(deps.preferences.remove))
@@ -159,6 +162,66 @@ describe('bounded, reversible file actions', () => {
     expect(restored).toMatchObject({ canUndo: false, items: [{ status: 'restored', issue: 'failed' }] })
     expect(await readFile(path.join(source, 'cache'), 'utf8')).toBe('original')
     expect((await createFileActions(deps).sessions())[0].items[0].status).toBe('restored')
+  })
+
+  it('does not touch earlier items when a later selected item changed before execution', async () => {
+    const other = path.join(home, 'Library/Caches/org.example.other')
+    await mkdir(other)
+    const second = { ...candidate, id: 'second', path: other, snapshot: await snapshot(other) }
+    await writeFile(path.join(other, 'new'), 'changed')
+    const result = await createFileActions(deps).execute('Example', 'reset', [candidate, second], new Set(['item', 'second']))
+    expect(result.items.map(i => i.status)).toEqual(['skipped', 'failed'])
+    expect(deps.files.trash).not.toHaveBeenCalled()
+    expect(await readFile(path.join(source, 'cache'), 'utf8')).toBe('original')
+  })
+  it('stops before removing the bundle when an earlier native operation fails', async () => {
+    const bundle = path.join(home, 'Applications/Synthetic.app')
+    await mkdir(bundle, { recursive: true })
+    const app = { ...candidate, id: 'bundle', kind: 'bundle' as const, path: bundle, snapshot: await snapshot(bundle) }
+    deps.files.trash = vi.fn(async () => { throw new Error('native failed') })
+    const result = await createFileActions(deps).execute('Example', 'uninstall', [candidate, app], new Set(['item', 'bundle']))
+    expect(result.items.map(i => i.status)).toEqual(['failed', 'skipped'])
+    expect(deps.files.trash).toHaveBeenCalledTimes(1)
+  })
+  it('recovers an interrupted Undo after the native move completed', async () => {
+    const actions = createFileActions(deps)
+    const result = await actions.execute('Example', 'reset', [candidate], new Set(['item']))
+    deps.files.restore = vi.fn(async (from, to) => { await rename(from, to); throw new Error('pipe closed') })
+    expect((await actions.undo(result.id)).items[0].status).toBe('pending')
+    expect((await createFileActions(deps).sessions())[0]).toMatchObject({ canUndo: false, items: [{ status: 'restored' }], remaining: null })
+    expect(await readFile(path.join(source, 'cache'), 'utf8')).toBe('original')
+  })
+  it('does not import a preference backup modified after removal', async () => {
+    const prefs = path.join(home, 'Library/Preferences/org.example.app.plist')
+    await mkdir(path.dirname(prefs), { recursive: true })
+    await writeFile(prefs, 'settings')
+    const item = { ...candidate, path: prefs, snapshot: await snapshot(prefs), kind: 'preferences' as const, domain: 'org.example.app' }
+    const actions = createFileActions(deps)
+    const result = await actions.execute('Example', 'reset', [item], new Set(['item']))
+    const backup = result.items[0].backup
+    if (!backup) throw new Error('Missing backup')
+    await writeFile(backup, 'corrupt settings')
+    expect((await actions.sessions())[0].canUndo).toBe(false)
+    expect((await actions.undo(result.id)).items[0].issue).toBe('changed')
+    expect(deps.preferences.restore).not.toHaveBeenCalled()
+  })
+  it('refuses a new removal while an earlier intent cannot be resolved', async () => {
+    await mkdir(deps.directory)
+    await writeFile(path.join(deps.directory, 'journal.json'), JSON.stringify([{ id: 'unknown', items: [{ path: source, status: 'pending' }] }]))
+    await expect(createFileActions(deps).execute('Example', 'reset', [candidate], new Set(['item']))).rejects.toMatchObject({ issue: 'unreadable' })
+    expect(deps.files.trash).not.toHaveBeenCalled()
+  })
+
+  it('does not restore old data into a replacement application after a bundle collision', async () => {
+    const bundle = path.join(home, 'Applications/Synthetic.app')
+    await mkdir(bundle, { recursive: true })
+    const app = { ...candidate, id: 'bundle', kind: 'bundle' as const, path: bundle, snapshot: await snapshot(bundle) }
+    const actions = createFileActions(deps)
+    const result = await actions.execute('Example', 'uninstall', [candidate, app], new Set(['item', 'bundle']))
+    await mkdir(bundle)
+    const undo = await actions.undo(result.id)
+    expect(undo.items.find(i => i.path === bundle)?.issue).toBe('collision')
+    expect(deps.files.restore).not.toHaveBeenCalled()
   })
 
 })

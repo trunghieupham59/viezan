@@ -19,11 +19,18 @@ export const bundleIdentifier = (value: unknown): value is string => typeof valu
 export async function inventory(home: string, ownBundle: string): Promise<AppRecord[]> {
   const discovered = await scanLauncherApps({ platform: 'darwin', home, readShortcut: () => ({ target: '' }) })
   const paths = new Set(discovered.flatMap(a => a.target.kind === 'path' ? [a.target.path] : []))
+  let incomplete = false
+  let visited = 0
   async function visit(root: string, depth = 0): Promise<void> {
-    for (const e of await readdir(root, { withFileTypes: true }).catch(() => [])) {
+    if (++visited > 20_000 || depth > 8) { incomplete = true; return }
+    for (const e of await readdir(root, { withFileTypes: true }).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== 'ENOENT') incomplete = true
+      return []
+    })) {
       const p = path.join(root, e.name)
       if (e.name.endsWith('.app')) paths.add(p)
-      else if (e.isDirectory() && depth < 1) await visit(p, depth + 1)
+      else if (e.isDirectory()) await visit(p, depth + 1)
+      else if (e.isSymbolicLink()) incomplete = true
     }
   }
   await visit('/Applications')
@@ -33,7 +40,7 @@ export async function inventory(home: string, ownBundle: string): Promise<AppRec
     try {
       const info = await readPlist(path.join(p, 'Contents/Info.plist'))
       const id = info.CFBundleIdentifier
-      if (!bundleIdentifier(id)) continue
+      if (!bundleIdentifier(id)) { incomplete = true; continue }
       const signature = await runFile('/usr/bin/codesign', ['-dv', '--verbose=2', p], { timeout: 5000 }).catch(() => ({ stderr: '' }))
       const teamId = /^TeamIdentifier=(.+)$/m.exec(signature.stderr)?.[1] ?? ''
       const allowed = within('/Applications', p) || within(path.join(home, 'Applications'), p)
@@ -41,7 +48,8 @@ export async function inventory(home: string, ownBundle: string): Promise<AppRec
       apps.push({ id: randomUUID(), name: String(info.CFBundleDisplayName ?? info.CFBundleName ?? path.basename(p, '.app')),
         bundleId: id, path: p, version: String(info.CFBundleShortVersionString ?? info.CFBundleVersion ?? ''),
         teamId: teamId === 'not set' ? '' : teamId, executable: String(info.CFBundleExecutable ?? ''), ...(blocked ? { blocked: 'protected' as const } : {}) })
-    } catch { /* Invalid/unreadable bundles are not removal candidates. */ }
+    } catch { incomplete = true /* Unknown siblings may own data that otherwise looks exclusive. */ }
   }
+  if (incomplete) return apps.map(app => ({ ...app, blocked: 'unreadable' as const }))
   return apps.sort((a, b) => a.name.localeCompare(b.name))
 }

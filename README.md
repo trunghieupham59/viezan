@@ -146,20 +146,26 @@ not restored after a restart. If saving fails, keep the app open and use
 ### Removing or resetting an app (macOS)
 
 Open **Applications**, select one app, inspect its related files and choose
-**Uninstall app** or **Reset**. Reset keeps the application bundle. Only exact
-bundle-ID matches are selected automatically; shared data and protected items
-stay. A native confirmation lists the chosen paths before any changes. Apps are
-asked to quit normally, never force-quit.
+**Uninstall app** or **Reset**. Reset keeps the application bundle. Only the bundle and exact bundle-ID matches for caches, logs and saved window
+state are selected automatically. Persistent data and preferences require explicit
+selection. Name/vendor/prefix matches, Containers, launch agents and shared data stay. A native confirmation lists the chosen paths before any changes. Apps are
+asked to quit normally, never force-quit. Incomplete scans or uncertain installed-app
+metadata block changes. The full selection is checked before the first operation;
+a failure stops subsequent removals and restores.
 
 Files go to Trash; preference domains are exported before removal. **Journal and
 Undo** records individual outcomes, including skipped/failed items. Undo refuses
 to overwrite a recreated file or preference domain, or restore changed Trash
-content. Emptying Trash makes those files unavailable for Undo. A post-operation
+content. Preference backups have checksums; an empty plist retained by macOS after
+clearing a domain is recorded and checked before Undo. An interrupted restoration
+is reconciled where its exact filesystem identity can be verified, otherwise it
+stays pending and blocks new removals. Emptying Trash makes those files unavailable for Undo. A post-operation
 scan reports what remains within the supported locations, not a guarantee that
 all traces anywhere on the disk are gone.
 
-This first version does not remove administrator helpers, package receipts,
-ByHost preferences or Group Containers. Managed Macs are conservatively blocked.
+This draft has not been approved for general use with real apps. It does not remove
+administrator helpers, package receipts, user launch agents, ByHost preferences,
+Containers or Group Containers. Managed Macs are conservatively blocked.
 Updates and orphan-data scanning are planned separately. No app inventory is sent
 to a server. Native actions require the unprivileged `viezan-fs` binary built by
 `npm run build:native` with the Xcode Command Line Tools; without it, the page is

@@ -6,6 +6,8 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+- Harden Applications removal: lock ambiguous ownership and incomplete scans, require opt-in for persistent data, stop on errors, verify preference state/backups, and reconcile interrupted Undo. Containers and launch agents remain read-only in this draft.
+
 - Add macOS Applications: inspect related files, uninstall or reset one app, and
   restore through a local journal. Protect shared/in-use data, retain items needing
   administrator access, and recheck the supported locations after each operation.

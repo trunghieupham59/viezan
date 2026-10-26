@@ -4,7 +4,9 @@ Trạng thái: thiết kế tổng thể; phần đầu đã có mã, xem ghi ch
 
 Cập nhật triển khai 2026-10-26: checkout có nền `electron/fileActions/` trên
 macOS và màn hình Ứng dụng cho gỡ/đặt lại từng app trong quyền người dùng.
-Phạm vi chính xác và phần còn thiếu nằm ở
+Bản draft đang kiểm tra an toàn: quét chưa đủ hoặc metadata không xác minh được
+thì chặn thay đổi; Containers, launch agents và mục khớp mơ hồ chỉ xem.
+Chưa duyệt dùng đại trà với dữ liệu thật. Phạm vi chính xác và phần còn thiếu nằm ở
 [`screens/apps.md`](../design/screens/apps.md). Các giai đoạn dưới đây là
 lộ trình đầy đủ, không phải danh sách tính năng đã giao. Chưa có trang Cleanup.
 Helper hiện dùng daemon ở bản phát hành và session ở dev; tham chiếu “chờ #149”,

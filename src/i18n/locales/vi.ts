@@ -20,7 +20,7 @@ const vi: Translations = {
   "unknownSize": "Chưa đo được",
   "reveal": "Hiện trong Finder",
   "loading": "Đang xử lý…",
-  "scope": "macOS · Xử lý từng ứng dụng trong quyền người dùng. Giữ dữ liệu dùng chung; mục cần quyền quản trị chỉ được liệt kê. Không dọn tài liệu cá nhân.",
+  "scope": "macOS · Xử lý từng ứng dụng. Chỉ bundle, cache, log và trạng thái cửa sổ được chọn sẵn. Dữ liệu và cài đặt có thể chứa nội dung quan trọng; chỉ chọn khi bạn muốn xoá. Giữ Containers, dữ liệu dùng chung và mục chưa xác minh.",
   "running": "Ứng dụng đang chạy. Bước tiếp theo sẽ hỏi xác nhận và yêu cầu ứng dụng thoát bình thường; không ép thoát.",
   "proceed": "Xem xác nhận",
   "quitThenContinue": "Thoát rồi tiếp tục",
