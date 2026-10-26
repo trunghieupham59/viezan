@@ -14,6 +14,7 @@ export const APP_PAGES: Readonly<Record<AppPageId, ComponentType>> = {
   live: lazy(() => import('../pages/LiveTranslatePage').then((m) => ({ default: m.LiveTranslatePage }))),
   dictionary: lazy(() => import('../pages/DictionaryPage').then((m) => ({ default: m.DictionaryPage }))),
   everywhere: lazy(() => import('../pages/EverywherePage').then((m) => ({ default: m.EverywherePage }))),
+  apps: lazy(() => import('../pages/AppsPage').then((m) => ({ default: m.AppsPage }))),
   thermal: lazy(() => import('../pages/ThermalPage').then((m) => ({ default: m.ThermalPage }))),
   utilities: lazy(() => import('../pages/UtilitiesPage').then((m) => ({ default: m.UtilitiesPage }))),
   settings: lazy(() => import('../pages/SettingsPage').then((m) => ({ default: m.SettingsPage }))),

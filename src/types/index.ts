@@ -585,6 +585,7 @@ export interface WindowApi extends SystemApi, WebSearchApi, AudioApi, ChatApi, T
 
   /** Thermal module: temperatures, fan speeds and CPU load. Shape: shared/thermalApi.d.ts. */
   thermal: import('../../shared/thermalApi').ThermalApi
+  apps: import('../../shared/appsApi').AppsApi
 
   /** Capabilities — what this machine can do and whether the user allowed it. Shape: shared/capabilitiesApi.d.ts. */
   capabilities: import('../../shared/capabilitiesApi').CapabilitiesApi

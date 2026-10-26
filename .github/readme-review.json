@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "version": "2.4.2",
-  "sourceSha256": "a96fa3b0ad2af466e6b6e5d31d14f7c0e04f760704742b5ace07ba5e83230369",
-  "readmeSha256": "fe2f0e362ebd4deb448f44dc1a2a4d6afebd89fb1d2727f39c6b5ac59f2c7c21",
-  "changelogSha256": "6c4030db65b9d7ae39857942de13f179c0c88d2bb3815ddb81638309dec5cd86",
-  "summary": "Reviewed the complete README on develop 2.4.2 and scoped V1 session changes: chat selection/text drafts, bounded translation/dictionary recovery, absence thresholds, no AI on restoration, history caps, storage errors and ephemeral unsent chat images. Existing setup, platform limits and background fan-helper descriptions are preserved."
+  "sourceSha256": "e87e0a30ca8054a115a9c28cfb16c05563eb5987c0e86d6db991a360efbc43f2",
+  "readmeSha256": "7823af997eb7cdb218d481ed3ee880e1669c59e12d6bd454a33b647d63e6019b",
+  "changelogSha256": "fdedae1ea2cddd2b57abf34363cb27248bbaf614682627e1e6f5c1097f5956a6",
+  "summary": "Reviewed the complete README against Applications inventory, opaque-ID IPC, user-level Trash/reset, preference backups, native confirmation, interruption recovery, Undo guards and tests. Documented macOS-only single-app scope, conservative MDM gate, preview-only missing binary, shared/admin/ByHost exclusions and no whole-disk cleanup guarantee; existing features remain accurate."
 }

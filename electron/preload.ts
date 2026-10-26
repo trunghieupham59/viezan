@@ -9,6 +9,7 @@
  * one `window.api` surface so the renderer API contract stays unchanged.
  */
 import { contextBridge } from 'electron'
+import { appsSection } from './preload/apps'
 import { audioSection } from './preload/audio'
 import { capabilitiesSection } from './preload/capabilities'
 import { chatSection } from './preload/chat'
@@ -26,6 +27,7 @@ import { updaterSection } from './preload/updater'
 import { webSearchSection } from './preload/webSearch'
 
 contextBridge.exposeInMainWorld('api', {
+  ...appsSection,
   ...keychainSection,
   ...translateSection,
   ...audioSection,

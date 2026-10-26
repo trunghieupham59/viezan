@@ -1,6 +1,6 @@
 import type { ComponentType, SVGProps } from 'react'
 import type { AppPageId, ModuleDefinition, ModuleEnabledState, ModuleLoadingLayout, ModuleSpace, PageModuleId, SystemPageId } from '../../shared/modules'
-import { BookIcon, ChatBubbleIcon, GearIcon, GlobeIcon, HomeIcon, KeyboardIcon, MicrophoneIcon, ThermometerIcon, TranslateIcon } from '../components/ui/icons'
+import { BookIcon, ChatBubbleIcon, GearIcon, GlobeIcon, HomeIcon, KeyboardIcon, LayersIcon, MicrophoneIcon, ThermometerIcon, TranslateIcon } from '../components/ui/icons'
 import type { Translations } from '../i18n'
 
 /**
@@ -52,6 +52,10 @@ export const APP_MODULES: readonly CatalogModule[] = [
     icon: BookIcon,
     keywords: ['dictionary', 'lookup', 'word', 'definition', 'meaning'],
     loadingLayout: 'split',
+  },
+  {
+    id: 'apps', space: 'system', labelKey: 'nav_apps', descriptionKey: 'apps_description',
+    icon: LayersIcon, keywords: ['apps', 'applications', 'uninstall', 'reset', 'gỡ'], loadingLayout: 'list',
   },
   {
     id: 'thermal',

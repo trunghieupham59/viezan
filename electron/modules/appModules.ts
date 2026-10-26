@@ -7,6 +7,8 @@
  * settings store) are not modules: they stay registered directly in main.ts.
  */
 import type { BrowserWindow, IpcMain } from 'electron'
+import { createDefaultAppsRuntime } from '../apps'
+import { registerAppsHandlers } from '../apps/ipc'
 import { registerChatHandlers } from '../ipc/chat'
 import { setHotkeyModuleActive } from '../ipc/globalHotkey'
 import { registerImageTranslateHandlers } from '../ipc/imageTranslate'
@@ -36,7 +38,9 @@ export interface AppModuleDeps {
 
 export function createAppModules(deps: AppModuleDeps): MainModule[] {
   const { ipcMain } = deps
+  const apps = createDefaultAppsRuntime(deps.getMainWindow)
   return [
+    { id: 'apps', defaultEnabled: process.platform === 'darwin', registerHandlers: () => registerAppsHandlers(ipcMain, apps.api, deps.getMainWindow), start: apps.start, stop: apps.stop },
     {
       id: 'chat',
       registerHandlers: () => {
@@ -99,4 +103,4 @@ export function createAppModules(deps: AppModuleDeps): MainModule[] {
   ]
 }
 
-export const APP_MODULE_IDS = ['chat', 'translate', 'live', 'dictionary', 'thermal', 'launcher', 'browser-bridge'] as const
+export const APP_MODULE_IDS = ['chat', 'translate', 'live', 'dictionary', 'thermal', 'apps', 'launcher', 'browser-bridge'] as const

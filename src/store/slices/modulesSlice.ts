@@ -15,6 +15,7 @@ export const ALL_MODULES_ENABLED: ModuleEnabledState = {
   live: true,
   dictionary: true,
   thermal: true,
+  apps: true,
   launcher: true,
   'browser-bridge': true,
 }

@@ -25,6 +25,7 @@ if (process.platform !== 'darwin') {
 const outDir = join(root, 'native', 'bin', 'darwin')
 const common = join(root, 'native', 'common', 'SMC.swift')
 const targets = [
+  { name: 'viezan-fs', sources: [join(root, 'native', 'files', 'main.swift')] },
   { name: 'viezan-smc', sources: [common, join(root, 'native', 'smc', 'main.swift')] },
   { name: 'viezan-fan-helper', sources: [common, join(root, 'native', 'fanhelper', 'main.swift')] },
   // SMAppService needs macOS 13; the app runs it only there (path B, docs/plans/fan-helper-daemon.md).

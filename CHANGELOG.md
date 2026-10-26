@@ -6,6 +6,10 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+- Add macOS Applications: inspect related files, uninstall or reset one app, and
+  restore through a local journal. Protect shared/in-use data, retain items needing
+  administrator access, and recheck the supported locations after each operation.
+
 - Restore the active chat and text drafts, plus translation and dictionary work
   across navigation and restart. Optionally start fresh after completed work has
   been left for 2 hours (Translate) or 30 minutes (Dictionary), with a way to reopen

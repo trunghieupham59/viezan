@@ -8,7 +8,7 @@
  */
 
 /** Modules that own a page in the workspace; also the `AppPage` values the store persists. */
-export type PageModuleId = 'chat' | 'translate' | 'live' | 'dictionary' | 'thermal'
+export type PageModuleId = 'chat' | 'translate' | 'live' | 'dictionary' | 'thermal' | 'apps'
 
 /**
  * Pages that always exist and are not modules: Home, the two pages that gather what
@@ -61,7 +61,7 @@ export interface ModuleDefinition {
   /** Navigation group in the primary sidebar. */
   space: ModuleSpace
   /** i18n key of the navigation label. */
-  labelKey: 'nav_chat' | 'nav_translate' | 'nav_live_translate' | 'nav_dictionary' | 'nav_thermal'
+  labelKey: 'nav_chat' | 'nav_translate' | 'nav_live_translate' | 'nav_dictionary' | 'nav_thermal' | 'nav_apps'
   /** i18n key of the one-line description shown in the Command Palette. */
   descriptionKey:
     | 'command_palette_chat_description'
@@ -69,6 +69,7 @@ export interface ModuleDefinition {
     | 'command_palette_live_description'
     | 'command_palette_dictionary_description'
     | 'command_palette_thermal_description'
+    | 'apps_description'
   /** i18n key used by the loading placeholder; defaults to `labelKey`. */
   loadingLabelKey?: 'dictionary_title'
   /** Search words for the Command Palette, in addition to the label. */
