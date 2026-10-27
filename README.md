@@ -8,9 +8,10 @@ application or package manifest.
 
 This checkout is a **source migration awaiting full runtime acceptance**.
 The macOS Desktop Review 18 bundle was rebuilt and opened on 2026-10-27
-from the latest UI source. Windows/Linux compilation, automated tests and full
-feature acceptance remain unverified. No additional build or test was run while
-preparing the migration PRs. Existing GitHub releases may still be the previous app.
+from the latest UI source. macOS automated tests and the Release build now pass
+in CI. Windows/Linux builds complete; cross-platform regression and CodeQL follow-up
+are tracked in PR #178. Full feature and visual acceptance remain separate from CI.
+Existing GitHub releases may still be the previous app.
 
 ## Features in the native source
 

@@ -27,6 +27,8 @@ include(CTest)
 if(BUILD_TESTING)
     find_package(Qt6 6.8 REQUIRED COMPONENTS Test)
     qt_add_executable(ViezanQtTests tests/WorkbenchBridgeTests.cpp WorkbenchBridge.cpp WorkbenchBridge.h WorkbenchDomain.cpp WorkbenchDomain.h LocalProvider.cpp LocalProvider.h CloudProtocol.cpp CloudProtocol.h CredentialStore.cpp CredentialStore.h NativeAudio.cpp NativeAudio.h Attachments.cpp Attachments.h LocalModelManager.cpp LocalModelManager.h NativeBackup.cpp NativeBackup.h ExtensionBridge.cpp ExtensionBridge.h DesktopIntegration.cpp DesktopIntegration.h WindowsSelection.cpp WindowsSelection.h ThermalMonitor.cpp ThermalMonitor.h Interpretation.cpp Interpretation.h LocalRuntime.cpp LocalRuntime.h ImageGeneration.cpp ImageGeneration.h Research.cpp Research.h ModelCatalog.cpp ModelCatalog.h LauncherTools.cpp LauncherTools.h SpeechSynthesis.cpp SpeechSynthesis.h AudioCapture.cpp AudioCapture.h EdgeSpeech.cpp EdgeSpeech.h CurrencyRates.cpp CurrencyRates.h NativeUpdates.cpp NativeUpdates.h LocalPerformance.cpp LocalPerformance.h)
+    # Keep QtTest attached to the console so Windows CI captures failures.
+    set_target_properties(ViezanQtTests PROPERTIES WIN32_EXECUTABLE FALSE MACOSX_BUNDLE FALSE)
     qt_add_resources(ViezanQtTests workbench_tests PREFIX "/" FILES ${NATIVE_RESOURCES})
     target_link_libraries(ViezanQtTests PRIVATE Qt6::Svg Qt6::Widgets Qt6::Quick Qt6::QuickControls2 Qt6::Qml Qt6::Network Qt6::Concurrent Qt6::Multimedia Qt6::TextToSpeech Qt6::WebSockets Qt6::Test)
     target_compile_definitions(ViezanQtTests PRIVATE VIEZAN_CONTRACT_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/../../contracts/native-workbench/recovery-fixture.json")

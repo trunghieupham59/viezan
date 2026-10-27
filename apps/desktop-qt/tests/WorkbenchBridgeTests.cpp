@@ -159,7 +159,10 @@ private slots:
         QTest::keyClick(root, Qt::Key_Enter);
         QTRY_VERIFY(root->property("settings").toBool());
         QVERIFY(!root->findChild<QObject *>("command-palette")->property("visible").toBool());
-        QCOMPARE(bridge.state(), running);
+        QCOMPARE(bridge.state().value("sessions"), running.value("sessions"));
+        QCOMPARE(bridge.state().value("tasks"), running.value("tasks"));
+        QCOMPARE(bridge.state().value("active"), running.value("active"));
+        QCOMPARE(bridge.state().value("shell").toMap().value("lastRoute").toString(), QString("settings"));
     }
     void navigationSelectionSurvivesRepeatedActivation_data() {
         QTest::addColumn<QString>("locale");
@@ -752,6 +755,9 @@ private slots:
         auto *settings = root->findChild<QQuickItem *>("settings-workspace");
         QVERIFY(settings);
         QCOMPARE(settings->property("wide").toBool(), !compact);
+        // Review 18 shows one category at a time; appearance controls belong here.
+        settings->setProperty("activeSection", "appearance");
+        QCoreApplication::processEvents();
         auto *content = qobject_cast<QQuickWindow *>(root)->contentItem();
         // Loader-created controls follow the visual tree; QObject ownership can
         // remain with the component context rather than the application root.

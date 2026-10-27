@@ -497,7 +497,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
             if (si >= 0) { sessions[si] = target; if (si == index) item = target; }
         }
     }
-    if (index >= 0 && QStringList{"draft", "submit", "rename", "pair", "dictionaryContext"}.contains(name) && p.value("_updated").toDouble() > 0 && std::isfinite(p.value("_updated").toDouble())) item["updated"] = p.value("_updated");
+    if (index >= 0 && (item != sessions[index].toMap() || tasks != original.value("tasks").toList()) && QStringList{"draft", "submit", "rename", "pair", "dictionaryContext"}.contains(name) && p.value("_updated").toDouble() > 0 && std::isfinite(p.value("_updated").toDouble())) item["updated"] = p.value("_updated");
     // New inserts before the old index; do not overwrite the newly created session.
     if (index >= 0 && name != "new") sessions[index] = item;
     if (name == "receive" && p.value("terminal") == "succeeded") {
