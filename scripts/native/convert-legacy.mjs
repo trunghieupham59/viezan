@@ -7,9 +7,18 @@ const [input, output, ...extra] = process.argv.slice(2)
 if (!input || !output || extra.length) throw new Error('Usage: convert-legacy.mjs INPUT.json OUTPUT.json')
 const hash = data => createHash('sha256').update(data).digest('hex')
 const uuid = value => { const h = hash(String(value)); return `${h.slice(0,8)}-${h.slice(8,12)}-5${h.slice(13,16)}-a${h.slice(17,20)}-${h.slice(20,32)}` }
-const stat = await fs.stat(input)
-if (!stat.isFile() || stat.size > 128000000) throw new Error('Invalid export size')
-const envelope = JSON.parse(await fs.readFile(input, 'utf8'))
+// Validate and read through one descriptor so a path replacement cannot bypass validation.
+const file = await fs.open(input, 'r')
+let envelope
+try {
+  const stat = await file.stat()
+  if (!stat.isFile() || stat.size > 128000000) throw new Error('Invalid export size')
+  const bytes = await file.readFile()
+  if (bytes.length > 128000000) throw new Error('Invalid export size')
+  envelope = JSON.parse(bytes.toString('utf8'))
+} finally {
+  await file.close()
+}
 if (envelope.format !== 'viezan-legacy-export' || envelope.version !== 1 || typeof envelope.payload !== 'string' || hash(envelope.payload) !== envelope.sha256) throw new Error('Invalid legacy export checksum')
 const { state, recovery = {}, images = {}, missingImages = [] } = JSON.parse(envelope.payload)
 if (!state || !Array.isArray(state.chatSessions)) throw new Error('Unsupported legacy state')

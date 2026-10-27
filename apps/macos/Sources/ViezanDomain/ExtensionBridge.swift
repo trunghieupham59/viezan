@@ -68,9 +68,13 @@ import Observation
     private func accept(_ connection: NWConnection) {
         guard listener != nil, clients.count < 8 else { connection.cancel(); return }
         let id = UUID(); clients[id] = connection
-        connection.stateUpdateHandler = { [weak self] state in
-            if case .failed = state { Task { @MainActor in self?.close(id) } }
-            if case .cancelled = state { Task { @MainActor in self?.close(id) } }
+        connection.stateUpdateHandler = { @Sendable [weak self] state in
+            Task { @MainActor [weak self] in
+                switch state {
+                case .failed, .cancelled: self?.close(id)
+                default: break
+                }
+            }
         }
         connection.start(queue: .main)
         timeouts[id] = Task { [weak self] in try? await Task.sleep(for: .seconds(30)); if !Task.isCancelled { self?.close(id) } }

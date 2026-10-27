@@ -1,6 +1,6 @@
 import Foundation
 import AVFoundation
-import ScreenCaptureKit
+@preconcurrency import ScreenCaptureKit
 import CoreMedia
 
 public struct NativeInputDevice: Identifiable, Sendable { public let id: String; public let name: String }
