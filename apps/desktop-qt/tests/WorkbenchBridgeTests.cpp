@@ -46,6 +46,8 @@ private slots:
         QFETCH(QString, feature);
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         bridge.command("navigate", {{"feature", feature}});
         bridge.command("draft", {{"value", "Base draft"}});
         const auto oldID = current(bridge).value("id");
@@ -75,6 +77,8 @@ private slots:
     void keypadHistoryRespectsCompositionAndOpensSelection() {
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         bridge.command("draft", {{"value", "Target history 日本語"}});
         const auto target = current(bridge).value("id").toString();
         bridge.command("new");
@@ -115,6 +119,8 @@ private slots:
         QFETCH(QString, feature);
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         bridge.command("navigate", {{"feature", feature}});
         bridge.command("draft", {{"value", "Keypad 日本語"}});
         QQmlApplicationEngine engine;
@@ -166,6 +172,8 @@ private slots:
         QFETCH(QString, locale); QFETCH(int, width);
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         bridge.command("locale", {{"value", locale}});
         const auto labels = bridge.resources().value("locales").toMap().value(locale).toMap();
         QQmlApplicationEngine engine;
@@ -208,6 +216,8 @@ private slots:
         QFETCH(QString, feature);
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         bridge.command("navigate", {{"feature", feature}});
         bridge.command("draft", {{"value", "日本語 · Tiếng Việt"}});
         bridge.command("submit");
@@ -238,6 +248,8 @@ private slots:
         QFETCH(QString, locale); QFETCH(QString, mode);
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         bridge.command("locale", {{"value", locale}});
         bridge.command("appearance", {{"mode", mode}, {"textSize", "large"}});
         for (int i = 0; i < 8; ++i) {
@@ -278,6 +290,8 @@ private slots:
     void foundationPanelDismissControlsRemainReachable() {
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         bridge.command("locale", {{"value", "ja"}});
         for (int i = 0; i < 12; ++i) {
             bridge.command("new");
@@ -344,6 +358,8 @@ private slots:
         QVERIFY(blocker.open(QIODevice::WriteOnly)); blocker.close();
         const auto path = blocker.fileName() + "/state.json";
         WorkbenchBridge bridge(nullptr, path, false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         bridge.command("locale", {{"value", locale}});
         bridge.command("draft", {{"value", "Keep this draft 日本語"}});
         QCOMPARE(bridge.storageError(), QString("storageError"));
@@ -380,6 +396,8 @@ private slots:
     void foundationMarkedTextAndCompactDismissal() {
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         QQmlApplicationEngine engine;
         engine.rootContext()->setContextProperty("workbench", &bridge);
         engine.load(QUrl("qrc:/qml/Main.qml"));
@@ -426,6 +444,8 @@ private slots:
         const auto path = dir.filePath("state.json");
         QFile file(path); QVERIFY(file.open(QIODevice::WriteOnly)); file.write("invalid-json"); file.close();
         WorkbenchBridge bridge(nullptr, path, false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         QQmlApplicationEngine engine;
         engine.rootContext()->setContextProperty("workbench", &bridge);
         engine.load(QUrl("qrc:/qml/Main.qml"));
@@ -452,6 +472,8 @@ private slots:
         QFETCH(QString, locale); QFETCH(int, width); QFETCH(QString, mode);
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         bridge.command("locale", {{"value", locale}});
         bridge.command("appearance", {{"mode", mode}});
         bridge.command("draft", {{"value", "Foundation draft 日本語"}});
@@ -510,6 +532,8 @@ private slots:
         QFETCH(bool, compact);
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         bridge.command("locale", {{"value", locale}});
         const auto chatID = current(bridge).value("id");
         bridge.command("draft", {{"value", "Question"}}); bridge.command("submit");
@@ -571,6 +595,8 @@ private slots:
         QString chatID;
         {
             WorkbenchBridge bridge(nullptr, file, false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
             chatID = current(bridge).value("id").toString();
             bridge.command("draft", {{"value", "Tiếng Việt・日本語"}});
             bridge.command("model", {{"value", "demo.slow"}});
@@ -590,6 +616,8 @@ private slots:
         const auto path = dir.filePath("state.json");
         QFile file(path); QVERIFY(file.open(QIODevice::WriteOnly)); file.write("invalid-json"); file.close();
         WorkbenchBridge bridge(nullptr, path, false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         QVERIFY(bridge.loadBlocked());
         bridge.command("draft", {{"value", "Do not replace"}}); bridge.save();
         QVERIFY(file.open(QIODevice::ReadOnly)); QCOMPARE(file.readAll(), QByteArray("invalid-json"));
@@ -599,6 +627,8 @@ private slots:
         const auto path = dir.filePath("state.json");
         QVERIFY(QFile::copy(VIEZAN_CONTRACT_FIXTURE, path));
         WorkbenchBridge bridge(nullptr, path, false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         QCOMPARE(latest(bridge).value("status").toString(), QString("interrupted"));
         QCOMPARE(current(bridge).value("draft").toString(), QString("Bản nháp chưa gửi"));
         const auto old = latest(bridge);
@@ -616,6 +646,8 @@ private slots:
     void translationInvalidation() {
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         bridge.command("navigate", {{"feature", "translate"}});
         bridge.command("draft", {{"value", "Original"}}); bridge.command("submit");
         const auto task = latest(bridge); chunk(bridge, task, "Partial");
@@ -629,6 +661,8 @@ private slots:
         const auto blocker = dir.filePath("blocker");
         QFile file(blocker); QVERIFY(file.open(QIODevice::WriteOnly)); file.close();
         WorkbenchBridge bridge(nullptr, blocker + "/state.json", false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         bridge.command("draft", {{"value", "Keep this draft"}});
         QCOMPARE(bridge.storageError(), QString("storageError"));
         QCOMPARE(current(bridge).value("draft").toString(), QString("Keep this draft"));
@@ -641,6 +675,8 @@ private slots:
     void failureAndRetryUseQueuedProviderEvents() {
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         bridge.command("model", {{"value", "ollama:test-model"}});
         bridge.command("draft", {{"value", "Question"}}); bridge.command("submit");
         const auto first = latest(bridge);
@@ -664,6 +700,8 @@ private slots:
         QTemporaryDir dir;
         const auto path = dir.filePath("state.json");
         WorkbenchBridge bridge(nullptr, path, false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         bridge.command("draft", {{"value", "Question"}}); bridge.command("submit");
         bridge.command("draft", {{"value", "Unsent draft"}});
         const auto before = bridge.state();
@@ -696,6 +734,8 @@ private slots:
         QFETCH(bool, compact);
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         bridge.command("locale", {{"value", locale}});
         bridge.command("appearance", {{"textSize", "large"}});
         bridge.command("draft", {{"value", "Preserve settings navigation draft"}});
@@ -752,6 +792,8 @@ private slots:
         QFETCH(bool, compact);
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        // Feature regression fixtures resume Chat; fresh production installs open Home.
+        bridge.command("route", {{"value", "chat"}});
         bridge.command("navigate", {{"feature", feature}});
         const auto previousID = current(bridge).value("id");
         bridge.command("draft", {{"value", "Original draft"}});
