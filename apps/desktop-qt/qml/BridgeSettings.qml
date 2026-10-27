@@ -20,7 +20,7 @@ ColumnLayout {
     Label { id: invalid; visible: false; text: panel.t("bridgeOriginsInvalid"); wrapMode: Text.Wrap; Layout.fillWidth: true }
     Button { text: panel.t(panel.server.listening ? "stop" : "startBridge"); onClicked: panel.server.listening ? panel.server.stop() : panel.server.start() }
     TextField { id: tokenName; text: "Chrome"; placeholderText: panel.t("tokenName"); Accessible.name: placeholderText; maximumLength: 80; Layout.fillWidth: true }
-    RowLayout { Label { text: panel.t("tokenDays") }; SpinBox { id: days; from: 1; to: 365; value: 30; editable: true; Accessible.name: panel.t("tokenDays") } }
+    RowLayout { Label { text: panel.t("tokenDays") } SpinBox { id: days; from: 1; to: 365; value: 30; editable: true; Accessible.name: panel.t("tokenDays") } }
     Button { text: panel.t("createToken"); enabled: !!tokenName.text.trim(); onClicked: panel.server.createToken(tokenName.text, days.value) }
     ColumnLayout {
         visible: !!panel.server.revealedToken

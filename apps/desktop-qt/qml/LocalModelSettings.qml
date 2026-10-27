@@ -61,5 +61,5 @@ ColumnLayout {
             Button { text: models.t("apply"); enabled: !modelData.error && !models.bridge.localPerformance.busy; onClicked: models.bridge.localPerformance.select(modelData.id) }
         }
     }
-    Dialog { id: compare; title: models.t("runtimeCompare"); modal: true; standardButtons: Dialog.Yes | Dialog.Cancel; Label { text: models.t("runtimeCompareHint"); wrapMode: Text.Wrap; width: models.bridge.resources.metrics.sidebar }; onAccepted: models.bridge.localPerformance.compare() }
+    Dialog { id: compare; title: models.t("runtimeCompare"); modal: true; standardButtons: Dialog.Yes | Dialog.Cancel; Label { text: models.t("runtimeCompareHint"); wrapMode: Text.Wrap; width: models.bridge.resources.metrics.sidebar } onAccepted: models.bridge.localPerformance.compare() }
 }
