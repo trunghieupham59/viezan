@@ -43,7 +43,7 @@ jobs:
                   # có repo + workflow CodeQL riêng.
                   submodules: false
 
-            - uses: actions/setup-python@v6
+            - uses: actions/setup-python@v7
               if: matrix.language == 'c-cpp'
               with:
                   python-version: '3.12'

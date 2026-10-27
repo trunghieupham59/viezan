@@ -15,7 +15,7 @@ jobs:
     runs-on: [self-hosted, native-release, '${{ inputs.platform }}']
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Build and package using provisioned native tools
@@ -27,7 +27,7 @@ jobs:
           VIEZAN_NOTARY_PROFILE: ${{ vars.VIEZAN_NOTARY_PROFILE }}
           VIEZAN_CERTIFICATE_THUMBPRINT: ${{ vars.VIEZAN_CERTIFICATE_THUMBPRINT }}
           VIEZAN_LINUXDEPLOY: ${{ vars.VIEZAN_LINUXDEPLOY }}
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: Viezan-${{ inputs.platform }}
           path: |
