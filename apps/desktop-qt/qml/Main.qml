@@ -393,7 +393,7 @@ ApplicationWindow {
                         delegate: MenuItem { required property string modelData; text: modelData === "auto" ? t("reasoning_auto") : modelData; checkable: true; checked: (workspace.speechProvider || "openai") === modelData; onTriggered: root.command("speechProvider", {value: modelData}) }
                     }
                     MenuSeparator {}
-                    MenuItem { text: t("speechAutoHint"); enabled: false; contentItem: Label { text: t("speechAutoHint"); wrapMode: Text.Wrap; implicitWidth: metrics.sidebar; color: palette.text } }
+                    MenuItem { text: t("speechAutoHint"); enabled: false; implicitWidth: metrics.sidebar; contentItem: Label { text: t("speechAutoHint"); wrapMode: Text.Wrap; color: palette.text } }
                 }
             }
             BusyIndicator { visible: running; running: workbench.audio.busy; implicitWidth: metrics.control; implicitHeight: metrics.control }
