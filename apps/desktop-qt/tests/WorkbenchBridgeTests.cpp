@@ -162,7 +162,8 @@ private slots:
         QCOMPARE(bridge.state().value("sessions"), running.value("sessions"));
         QCOMPARE(bridge.state().value("tasks"), running.value("tasks"));
         QCOMPARE(bridge.state().value("active"), running.value("active"));
-        QCOMPARE(bridge.state().value("shell").toMap().value("lastRoute").toString(), QString("settings"));
+        // Settings is transient: both native clients restore Home on the next launch.
+        QCOMPARE(bridge.state().value("shell").toMap().value("lastRoute").toString(), QString("home"));
     }
     void navigationSelectionSurvivesRepeatedActivation_data() {
         QTest::addColumn<QString>("locale");
