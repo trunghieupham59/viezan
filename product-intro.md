@@ -24,6 +24,7 @@ AI Provider
 - **Deep Research**: tìm kiếm web qua Tavily, Brave hoặc Jina fallback miễn phí.
 - **Browser Translation**: dịch text trên web bằng extension, floating button, popup, context menu và phím tắt `Alt+T` / `Option+T`.
 - **Lịch sử**: lưu riêng AI Dịch, AI Chat, AI Phiên Dịch và Từ điển; có tìm kiếm, dùng lại, favorite và thao tác xóa theo từng bề mặt.
+- **Ứng dụng (macOS)**: xem trước, gỡ hoặc đặt lại từng app trong quyền người dùng; Thùng rác, sao lưu preferences, nhật ký và Hoàn tác. Giữ dữ liệu dùng chung, đang dùng, mục quản trị và app được bảo vệ; kiểm lại trong phạm vi quét. Chưa có dọn rác toàn máy hoặc cập nhật app khác.
 Bảo Mật Và Riêng Tư
 - Không có Viezan-hosted relay server.
 - Local AI chạy trên máy qua Ollama, LM Studio hoặc llama.cpp.
