@@ -1,0 +1,2 @@
+There has been no change in the accessibility tree for Window: "Viezan Native — AI Chat".
+The focused UI element is 0 cửa sổ thông thường Viezan Native — AI Chat, Secondary Actions: Raise

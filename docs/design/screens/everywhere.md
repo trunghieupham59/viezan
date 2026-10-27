@@ -236,3 +236,13 @@ Bản vẽ gốc (`boards/Everywhere.dc.html`) so với mã:
 10. **Chỉ báo cạnh con trỏ khi dán lỗi**: board SmallSurfaces vẽ "Không dán được bản dịch — Bản dịch đã được chép vào bộ nhớ tạm" và nút "Cấp quyền" trong chỉ báo — **đề xuất**. (Toast lỗi đăng ký phím và `PASTE_FAILED` / `TRANSLATE_FAILED` đã bản địa hoá.)
 11. Vùng danh sách token và kết quả chạy phím không có `aria-live`; trạng thái "Đang tải..." không có `role="status"`.
 12. Không có đường dẫn từ "Tất cả phím tắt" (trang Launcher & phím tắt) về thẻ Dịch nhanh, dù board Utilities ghi "tuỳ chọn trong Dịch mọi nơi".
+
+
+## Native implementation follow-up — 2026-10-27
+
+Qt trên Windows có nút thay vùng chọn và hoàn tác cho control hỗ trợ cả UI
+Automation TextPattern và ValuePattern. Chỉ bật thay khi bản dịch hoàn tất. Trước
+khi ghi, kiểm tra control không phải mật khẩu/chỉ đọc, document khớp snapshot và
+hai đầu vùng chọn còn nguyên. Hoàn tác chỉ ghi lại snapshot nếu giá trị hiện tại
+vẫn bằng kết quả vừa thay; không dùng clipboard hoặc gửi phím vào cửa sổ hiện tại.
+Control không đáp ứng hợp đồng tiếp tục dùng sao chép thủ công. Mã chưa build/test.

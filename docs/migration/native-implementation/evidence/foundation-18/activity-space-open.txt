@@ -1,0 +1,3 @@
+The following is a diff from the previous accessibility tree for Window: "Dịch / Foundation 11 keyboard QA." with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 40-67
+The focused UI element is 7 button Hoạt động, Help: Hoạt động (⌘⇧A), ID: activity-toggle

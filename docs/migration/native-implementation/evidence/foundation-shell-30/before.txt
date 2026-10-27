@@ -1,0 +1,6 @@
+◇ Test switchingPanelsReturnsFocusToOriginalResponder() started.
+✘ Test switchingPanelsReturnsFocusToOriginalResponder() recorded an issue at FoundationRuntimeTests.swift:644:13: Expectation failed: window.firstResponder === search
+✘ Test switchingPanelsReturnsFocusToOriginalResponder() recorded an issue at FoundationRuntimeTests.swift:644:13: Expectation failed: window.firstResponder === search
+✘ Test switchingPanelsReturnsFocusToOriginalResponder() recorded an issue at FoundationRuntimeTests.swift:654:9: Expectation failed: shell.focusEpochs["navigation"] == 1
+✘ Test switchingPanelsReturnsFocusToOriginalResponder() failed after 0.293 seconds with 3 issues.
+✘ Test run with 1 test in 1 suite failed after 0.293 seconds with 3 issues.

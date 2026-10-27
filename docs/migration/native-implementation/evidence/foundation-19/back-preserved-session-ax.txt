@@ -1,0 +1,20 @@
+The following is a diff from the previous accessibility tree for Window: "Dịch / Bản dịch mới" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 44-49
+~0 standard window Dịch / Bản dịch mới, ID: workbench, Secondary Actions: Raise
+~		3 text Dịch / Bản dịch mới
++		40 button Lịch sử, Help: Lịch sử (⌘⇧H), ID: history-toggle
++		41 button Bản dịch mới, Help: Bản dịch mới (⌘N), ID: new-work
++		42 pop up button Đầu vào, Value: Tiếng Anh
+~		43 button Đảo chiều ngôn ngữ
++		44 pop up button Đầu ra, Value: Tiếng Việt
++		45 pop up button Description: Mô hình cho phiên này, Mô hình cho phiên này, Help: demo.standard, Value: Mô phỏng tiêu chuẩn
++		46 text Nguyên bản Bản dịch
++		47 scroll area Secondary Actions: Scroll Up, Scroll Down
++			48 text entry area (settable) Description: Nguyên bản, ID: translation-source
++			49 scroll bar (disabled, settable, float) 0
+~		50 scroll area
++			51 text Bản dịch sẽ xuất hiện ở đây
++		52 text Bản nháp được giữ trên thiết bị
++		53 button (disabled) Dịch
++		54 button (disabled) Sao chép
+The focused UI element is 40 button Lịch sử, Help: Lịch sử (⌘⇧H), ID: history-toggle

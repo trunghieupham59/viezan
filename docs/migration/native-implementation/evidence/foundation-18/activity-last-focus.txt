@@ -1,0 +1,4 @@
+The following is a diff from the previous accessibility tree for Window: "Dịch / Foundation 11 keyboard QA." with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+~				62 scroll bar (settable, float) 0.9857079053148727
+~					63 value indicator (settable, float) 0.9857079053148727
+The focused UI element is 61 button Mở lại, ID: activity-open-9063D45B-5DFC-4C63-AF36-E62FD5DA367D

@@ -8,7 +8,7 @@
 //    "fans":[{"index":0,"rpm":1203,"min":1200,"max":6000,"target":1203}]}
 //   {"ok":false,"error":"..."}
 //
-// Labels and grouping of sensor keys live in the app (electron/thermal/smcKeys.ts);
+// Labels and grouping of sensor keys live in the app (apps/macos/Sources/ViezanDomain/ThermalMonitor.swift);
 // this binary only reports keys, types and values. SMC access is shared with the fan
 // helper through native/common/SMC.swift.
 import Foundation

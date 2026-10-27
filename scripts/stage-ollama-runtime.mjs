@@ -7,12 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const source = path.resolve(process.argv[2] || '')
 if (!process.argv[2]) throw new Error('Usage: node scripts/stage-ollama-runtime.mjs <verified-runtime-directory>')
 // Deliberately pin the binaries that passed the Windows GPU A/B experiment.
-const pinned = {
-  'ollama.exe': '45ACC481C0865C79ABD0DB59373483C6EDD758508813C1A79C725148C22719F1',
-  'lib/ollama/llama-server.exe': '9A02EAA433EC0CCF81C4877421AF22B513E2ED25BE2D9D5B354A6C0BA8814EF9',
-  'lib/ollama/llama-server-impl.dll': '7FC914661DAD560FE52EBEAF09291FAADCB9FBA8B66B8D34A029EA1BD7C2BE6C',
-  'lib/ollama/cuda_v12/ggml-cuda.dll': 'ED1A847DDD1F9E3F9844F40764CDC7865B26033F079A8E65BEEA029C573F9C98',
-}
+const pinned = JSON.parse(fs.readFileSync(path.join(root, 'contracts/native-workbench/ollama-runtime.json'), 'utf8')).files
 const digest = file => createHash('sha256').update(fs.readFileSync(file)).digest('hex').toUpperCase()
 for (const [file, hash] of Object.entries(pinned)) {
   if (digest(path.join(source, file)) !== hash) throw new Error(`Unverified runtime: ${file}`)

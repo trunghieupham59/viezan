@@ -1,0 +1,31 @@
+.unified-history .toolbar {gap:var(--vzn-space-2);}
+.unified-history .toolbar>div:first-of-type {min-width:0;flex:1;overflow:hidden;}
+.unified-history #page-title {display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:var(--vzn-font-size-lg);}
+.unified-history #section {display:none;}
+.unified-history .toolbar-actions {flex-shrink:0;gap:var(--vzn-space-1);}
+.unified-history .toolbar-actions>[data-dialog="launcher"] {display:none;}
+.uh-trigger {height:var(--vzn-control-height-sm);flex-shrink:0;padding-inline:var(--vzn-space-2);background:var(--vzn-surface-muted);border:var(--vzn-border-width) solid var(--vzn-border);}
+.uh-trigger[aria-expanded=true] {background:var(--vzn-action-soft);color:var(--vzn-action-text);}
+.uh-new {height:var(--vzn-control-height-sm);}
+.unified-history .has-session-panel .uh-trigger span {display:none;}
+.unified-history #session-panel {background:var(--vzn-surface);}
+.unified-history .toolbar-actions .lw-header-actions:empty {display:none;}
+.unified-history.has-session-panel .lw-editors {min-width:0;}
+body.unified-history .has-session-panel .lw-editor footer>small {max-width:45%;}
+body.unified-history .has-session-panel .lw-config {gap:var(--vzn-space-1);}
+body.preview-narrow.unified-history .toolbar {flex-wrap:nowrap;height:var(--vzn-space-12);padding-block:0;}
+body.preview-narrow.unified-history .toolbar>div:first-of-type {flex-basis:auto;}
+.preview-compact .uh-trigger span,.preview-narrow .uh-trigger span {display:none;}
+@media(max-width:899px){.uh-trigger span{display:none}.unified-history .toolbar>div:first-of-type{min-width:0;flex:1}}
+
+.unified-history .breadcrumbs>span {display:none;}
+/* Review 16: stable trailing workspace actions, separate from global activity. */
+.unified-history .uh-history-actions {display:flex;align-items:center;gap:var(--vzn-space-1);padding-inline:var(--vzn-space-2);border-right:var(--vzn-border-width) solid var(--vzn-border);}
+.unified-history .uh-history-actions:empty {display:none;}
+.unified-history .uh-history-actions button {height:var(--vzn-control-height-sm);display:inline-flex;align-items:center;justify-content:center;gap:var(--vzn-space-2);padding-inline:var(--vzn-space-3);border:var(--vzn-border-width) solid transparent;box-shadow:none;white-space:nowrap;}
+.unified-history .uh-history-actions .uh-trigger {background:transparent;color:var(--vzn-text-muted);}
+.unified-history .uh-history-actions .uh-trigger:hover {background:var(--vzn-surface-muted);color:var(--vzn-text);}
+.unified-history .uh-history-actions .uh-new {background:var(--vzn-action-soft);color:var(--vzn-action-text);}
+.unified-history .uh-history-actions .uh-trigger span {display:inline;}
+.preview-narrow.unified-history .uh-history-actions button span {display:none;}
+.unified-history .toolbar-actions .lw-header-actions {order:-1;}

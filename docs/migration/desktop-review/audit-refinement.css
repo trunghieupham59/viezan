@@ -1,0 +1,15 @@
+/* Scoped audit fixes. Design artifact only. */
+.reviewbar{min-height:48px;padding:8px 20px;gap:8px}.reviewbar>span{font-size:11px}.reviewbar .review-options{gap:6px}
+.reviewbar label{font-size:11px}.scenario-strip{display:none}.show-review-controls .scenario-strip{display:flex}
+.desktop{padding:8px 20px 16px}.window{height:calc(100vh - 76px);min-height:520px}.show-review-controls .window{height:calc(100vh - 112px)}
+.sidebar .windowbar{margin-bottom:8px}.sidebar .brand{margin-bottom:12px;padding-top:4px;padding-bottom:4px}.sidebar .search{margin-bottom:12px}
+.sidebar nav button{height:34px;min-height:34px}.sidebar nav .group{padding-top:12px;padding-bottom:6px}.sidebar .privacy{padding-top:12px;font-size:11px}
+.toolbar{height:52px}.toolbar-actions{box-shadow:none}.intro{margin:4px 0 20px}.intro .eyebrow{display:none}h1{font-size:26px;line-height:1.25}.intro p{font-size:13px;margin-top:6px}
+#content{padding:20px 24px}.quick{height:86px;display:grid;grid-template-columns:26px 1fr;align-items:center;gap:12px;padding:16px}.quick small{font-size:12px}.four{grid-template-columns:repeat(2,minmax(0,1fr))}
+.card{padding:18px}.item{padding:12px 0}.page>.two{grid-template-columns:minmax(0,1.45fr) minmax(220px,1fr)}
+.page>.two>.stack .item{padding:7px 0}.page>.two>.stack .card{padding:16px}.page>.two>.stack .sectionhead{margin-bottom:8px}
+.chat-column{gap:12px}.chat-column>.sectionhead{margin-bottom:0}.messages{padding:0 8px}.message{margin:14px 0;line-height:1.65}.user-message{margin-top:12px;padding:12px 16px}.answer-title{margin:12px 0 4px}.message h2{font-size:17px}.composer{padding:12px 14px}.composer textarea{min-height:36px;height:40px}.composer-foot button{height:36px}
+dialog[data-type=activity]{position:fixed;top:108px;right:30px;left:auto;bottom:auto;margin:0;width:370px;max-height:calc(100vh - 132px);background:var(--vzn-surface);backdrop-filter:none;box-shadow:var(--vzn-shadow-overlay)}
+dialog[data-type=activity] .dialog-head{padding:16px 18px}dialog[data-type=activity] .dialog-content{padding:8px 18px 18px}dialog[data-type=activity] .item{flex-wrap:wrap;gap:8px;padding:14px 0}dialog[data-type=activity] .item-main{width:100%}dialog[data-type=activity] .permission{font-size:12px}
+@media(max-width:899px){.page>.two{grid-template-columns:1fr}.reviewbar{padding:8px}.desktop{padding:4px 8px 12px}.window{height:calc(100vh - 100px)}#content{padding:16px}dialog[data-type=activity]{top:100px;right:12px;max-width:calc(100vw - 24px)}}
+.preview-compact .page>.two{grid-template-columns:1fr}.preview-narrow .four{grid-template-columns:1fr}

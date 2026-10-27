@@ -20,3 +20,9 @@ resources/local-ai/ollama-patched/
 
 # Native helpers are built by scripts/build-native.mjs (npm run build:native).
 native/bin/
+
+# Native compiler and packaging output
+.native-build/
+.native-packages/
+apps/macos/.build/
+apps/desktop-qt/build/

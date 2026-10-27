@@ -1,0 +1,49 @@
+Window: "Lịch sử", App: Viezan Native Preview.
+0 standard window Lịch sử, ID: workbench, Secondary Actions: Raise
+	1 split group workbench, SidebarNavigationSplitView
+		2 container
+			3 scroll area
+				4 list Sidebar
+					5 row (selected) AI Chat
+					6 row (selectable) Dịch
+					7 row (selectable)
+					8 row (selectable) Cài đặt
+			9 text Bản native thử nghiệm
+		10 splitter (disabled, settable, float) 236
+		11 container
+			12 search text field (settable) Tìm tên hoặc nội dung
+				13 button Search
+			14 text Xem trước Phiên kiểm tra lịch sử thứ hai.
+			15 scroll area
+				16 list
+					17 row (selected) Description: Cuộc Hội Thoại, Value: Phiên kiểm tra lịch sử thứ hai.
+Bản nháp phiên thứ hai chưa gửi.
+demo.standard
+					18 row (selectable) Description: Cuộc Hội Thoại
+Đang mở, Value: Lập kế hoạch ra mắt Viezan trên desktop.
+Bản nháp đang làm — không đổi khi xem lịch sử.
+demo.failure
+			19 text demo.standard
+			20 scroll area
+				21 text Bạn Phiên kiểm tra lịch sử thứ hai. Viezan Đây là phản hồi mô phỏng của Viezan native. Bạn có thể chuyển sang Dịch, mở phiên khác hoặc dừng riêng tác vụ này mà vẫn giữ bản nháp. Nội dung bạn gửi: Phiên kiểm tra lịch sử thứ hai. Bản nháp chưa gửi Bản nháp phiên thứ hai chưa gửi.
+			22 button Mở lại
+	23 toolbar
+		24 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+		25 button Description: Quay lại công việc, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+		26 button Description: Hoạt động, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Remove from toolbar
+	27 close button
+	28 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	29 minimize button
+	30 text Lịch sử
+31 menu bar
+	32 Viezan Native Preview
+	33 File
+	34 Edit
+	35 View
+	36 Window
+	37 Help
+
+Selected:
+	17 row (selected)
+
+Note: Pay special attention to the content selected by the user. If the user asks a question or refers to the content they are looking at on-screen, they might be referring to the selected content (but they might be referring to something else that's visible, too).

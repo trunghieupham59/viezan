@@ -21,5 +21,5 @@ runs:
               Expand-Archive -LiteralPath $runtimeArchive -DestinationPath $runtimeSource
               node scripts/stage-ollama-runtime.mjs $runtimeSource
               if ($LASTEXITCODE -ne 0) { throw 'Ollama runtime staging failed' }
-              node --input-type=module -e "import verify from './scripts/verify-ollama-package.mjs'; await verify({electronPlatformName:'win32',packager:{projectDir:process.cwd()}})"
+              python scripts/native/runtime_manifest.py resources/local-ai/ollama-patched/windows/x64
               if ($LASTEXITCODE -ne 0) { throw 'Ollama staged runtime verification failed' }

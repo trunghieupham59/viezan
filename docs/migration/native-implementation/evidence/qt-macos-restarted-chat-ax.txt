@@ -1,0 +1,31 @@
+Window: "Viezan Native — AI Chat", App: Viezan Qt Preview.
+0 cửa sổ thông thường Viezan Native — AI Chat, Secondary Actions: Raise
+	1 nút Thu nhỏ thanh bên, ID: QGuiApplication.Main_QMLTYPE_44.ToolBar_QMLTYPE_34.ToolButton_QMLTYPE_43, Secondary Actions: Raise
+	2 text Value: Lập kế hoạch cho Viezan trên Windows và Linux., ID: QGuiApplication.Main_QMLTYPE_44.ToolBar_QMLTYPE_34.Label_QMLTYPE_42, Secondary Actions: Raise
+	3 nút Lịch sử, ID: QGuiApplication.Main_QMLTYPE_44.ToolBar_QMLTYPE_34.ToolButton_QMLTYPE_43, Secondary Actions: Raise
+	4 nút + Chat mới, ID: QGuiApplication.Main_QMLTYPE_44.ToolBar_QMLTYPE_34.ToolButton_QMLTYPE_43, Secondary Actions: Raise
+	5 nút Hoạt động · 0, ID: QGuiApplication.Main_QMLTYPE_44.ToolBar_QMLTYPE_34.ToolButton_QMLTYPE_43, Secondary Actions: Raise
+	6 text Value: viezan, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Pane_QMLTYPE_1.Label_QMLTYPE_42, Secondary Actions: Raise
+	7 hộp kiểm AI Chat, Value: 1, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Pane_QMLTYPE_1.Button_QMLTYPE_29_QML_46
+	8 hộp kiểm Dịch, Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Pane_QMLTYPE_1.Button_QMLTYPE_29_QML_46
+	9 hộp kiểm Cài đặt, Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Pane_QMLTYPE_1.Button_QMLTYPE_29_QML_46
+	10 text Value: Bản native thử nghiệm Provider mô phỏng · không gửi dữ liệu ra mạng Nguyên bản, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Pane_QMLTYPE_1.Label_QMLTYPE_42, Secondary Actions: Raise
+	11 trường văn bản (settable) Nguyên bản, Value: Lập kế hoạch cho Viezan trên Windows và Linux., Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.ScrollView_QMLTYPE_33.TextArea_QMLTYPE_2
+	12 text Value: Viezan, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.ScrollView_QMLTYPE_33.Label_QMLTYPE_42
+	13 trường văn bản (settable) Bản dịch, Secondary Actions: Raise, Value: Đây là phản hồi mô phỏng của Viezan native. Bạn có thể chuyển sang Dịch, mở phiên khác hoặc dừng riêng tác vụ này mà vẫn giữ bản nháp. Nội dung bạn gửi: Lập kế hoạch cho Viezan trên Windows và Linux., ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.ScrollView_QMLTYPE_33.TextArea_QMLTYPE_2
+	14 thanh cuộn (settable) Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.ScrollView_QMLTYPE_33.ScrollBar_QMLTYPE_27
+	15 thanh cuộn (settable) Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.ScrollView_QMLTYPE_33.ScrollBar_QMLTYPE_27
+	16 trường văn bản (settable) Bản nháp được giữ trên thiết bị, Description: Hỏi bất kỳ điều gì…, Value: Bản nháp được giữ khi đổi tính năng., Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_36.ScrollView_QMLTYPE_33.TextArea_QMLTYPE_2
+	17 thanh cuộn (settable) Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_36.ScrollView_QMLTYPE_33.ScrollBar_QMLTYPE_27
+	18 thanh cuộn (settable) Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_36.ScrollView_QMLTYPE_33.ScrollBar_QMLTYPE_27
+	19 nút menu Mô hình cho phiên này, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_36.ModelPicker, Secondary Actions: Raise
+		20 trường văn bản (disabled, settable) Value: Mô phỏng tiêu chuẩn, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_36.ModelPicker.QQuickTextField
+	21 nút Gửi, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_36.Button_QMLTYPE_29, Secondary Actions: Raise
+	22 nút đóng
+	23 nút toàn màn hình Help: nút này cũng có tác vụ thu phóng cửa sổ, Secondary Actions: thu phóng cửa sổ
+	24 nút thu nhỏ
+	25 text Viezan Native — AI Chat
+26 menu bar
+	27 Viezan Qt Preview
+
+The focused UI element is 0 cửa sổ thông thường Viezan Native — AI Chat, Secondary Actions: Raise

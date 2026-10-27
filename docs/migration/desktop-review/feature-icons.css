@@ -1,0 +1,4 @@
+/* SVG geometry is provided by Lucide; layout dimensions reuse source tokens. */
+#nav .feature-symbol {width:var(--vzn-icon-lg);height:var(--vzn-icon-lg);flex-shrink:0;}
+.cfg-nav .feature-symbol {width:var(--vzn-icon-md);height:var(--vzn-icon-md);flex-shrink:0;}
+.feature-symbol {vertical-align:middle;}

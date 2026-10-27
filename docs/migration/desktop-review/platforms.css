@@ -1,0 +1,30 @@
+/* Review-only platform art direction. Not production or native runtime CSS. */
+.reviewbar{height:auto;min-height:64px;gap:12px;flex-wrap:wrap;padding-top:10px;padding-bottom:10px}
+.reviewbar .review-options{flex-wrap:wrap;gap:8px}.reviewbar select{font-size:12px;height:30px}
+.reviewbar label{display:flex;align-items:center;gap:6px;font-size:12px}
+.window{height:calc(100vh - 140px);min-height:560px}.captionbar{display:none}.reviewbar .demo{font-size:11px}
+body[data-platform=windows]{--vzn-font-sans:'Segoe UI Variable','Segoe UI',system-ui,sans-serif;--review-wallpaper:linear-gradient(135deg,#d9e4ed,#b5cbdc);--glass-fill:var(--vzn-surface-muted);--review-glass-shadow:none;--review-shell-shadow:0 24px 70px #14263830;--review-hero-size:30px}
+body[data-platform=linux]{--vzn-font-sans:'Noto Sans',system-ui,sans-serif;--review-wallpaper:linear-gradient(135deg,#d6e2df,#b7cbc7);--glass-fill:var(--vzn-surface);--review-glass-shadow:none;--review-shell-shadow:0 24px 60px #17272330;--review-hero-size:29px}
+body:not([data-platform=macos]) .window{border-radius:8px;backdrop-filter:none;position:relative;padding-top:34px}
+body:not([data-platform=macos]) .captionbar{display:flex;position:absolute;top:0;left:0;right:0;height:34px;align-items:center;justify-content:space-between;padding-left:14px;background:var(--vzn-surface-muted);border-bottom:1px solid var(--vzn-border);font-size:12px}
+.caption-actions{height:100%;display:flex}.caption-actions button{height:34px;width:44px;border-radius:0;padding:0}.caption-actions svg{width:14px;height:14px}.caption-actions button:last-child:hover{background:var(--vzn-danger-soft);color:var(--vzn-danger)}
+body:not([data-platform=macos]) .traffic{display:none}body:not([data-platform=macos]) .windowbar{height:28px;margin-bottom:8px;justify-content:flex-end}
+body:not([data-platform=macos]) .sidebar{background:var(--vzn-surface-muted);box-shadow:none;border-right:1px solid var(--vzn-border)}
+body:not([data-platform=macos]) .toolbar-actions{box-shadow:none;border-radius:8px;background:none}
+body:not([data-platform=macos]) nav button.active{background:var(--vzn-action-soft);box-shadow:none;border-color:transparent;position:relative}
+body[data-platform=windows] nav button.active:before{content:'';position:absolute;left:0;width:3px;height:18px;border-radius:3px;background:var(--vzn-action)}
+body:not([data-platform=macos]) button{border-radius:6px}body:not([data-platform=macos]) .card{border-radius:10px}body:not([data-platform=macos]) .composer{border-radius:12px}
+body:not([data-platform=macos]) .glass-card,body:not([data-platform=macos]) dialog{background:var(--vzn-surface);backdrop-filter:none;border-color:var(--vzn-border);border-radius:12px}
+body[data-platform=linux][data-linux=gnome] .captionbar{height:42px;font-weight:600;justify-content:flex-end;gap:20px}
+body[data-platform=linux][data-linux=gnome] .window{padding-top:42px;border-radius:12px}
+body[data-platform=linux][data-linux=gnome] .caption-actions button:not(:last-child){display:none}
+body[data-platform=linux][data-linux=gnome] .caption-actions button:last-child{border-radius:50%;width:28px;height:28px;margin:6px}
+.dark body[data-platform=windows]{--review-wallpaper:linear-gradient(135deg,#182536,#2a3b4d)}
+.dark body[data-platform=linux]{--review-wallpaper:linear-gradient(135deg,#1c2d2b,#253b37)}
+.state-banner{border:1px solid var(--vzn-border);padding:16px;border-radius:12px;background:var(--vzn-surface);margin-bottom:18px;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}.state-banner p{margin:4px 0}.state-banner.error{border-color:var(--vzn-danger)}
+.state-empty{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:12px;border:1px dashed var(--vzn-border-strong);border-radius:16px;padding:32px}
+.review-guide{font-size:12px;line-height:1.7}.review-guide li{margin:8px 0}.review-score{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.review-score button{height:auto;min-height:38px;white-space:normal}.capability-notice{padding:14px 18px;background:var(--vzn-action-soft);border-radius:10px;margin-bottom:20px;color:var(--vzn-text)}
+.reviewbar .platform-select{font-weight:600}.preview-narrow .desktop{width:640px;max-width:100%;margin:auto;padding-left:0;padding-right:0}.preview-narrow .toolbar-actions button{font-size:0}.preview-narrow .toolbar-actions .count{font-size:11px}.preview-narrow .toolbar{padding:0 12px}.preview-narrow .composer-foot{gap:4px}.preview-narrow .composer-foot button{font-size:12px;padding:0 8px}.preview-narrow .reviewbar{font-size:11px}
+.scenario-strip{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 30px;font-size:12px;flex-wrap:wrap}.scenario-strip label{display:flex;align-items:center;gap:8px}.scenario-strip select{font-size:12px}.state-empty>svg{width:28px;height:28px}.caption-actions{font-family:var(--vzn-font-sans)}
+.desktop{padding-bottom:16px}.window{height:calc(100vh - 150px)}
+@media(max-height:800px){.window{min-height:520px}.sidebar .brand{margin-bottom:8px}.sidebar .windowbar{margin-bottom:8px}.sidebar nav button{height:36px}.sidebar .search{margin-bottom:8px}.sidebar nav .group{padding-top:12px}.privacy{padding-top:10px}}

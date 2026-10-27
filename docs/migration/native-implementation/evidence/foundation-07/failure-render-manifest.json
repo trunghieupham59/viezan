@@ -1,0 +1,170 @@
+[
+  {
+    "name": "swift-vi-640-load-error.png",
+    "pixels": [
+      1280,
+      960
+    ]
+  },
+  {
+    "name": "swift-vi-820-load-error.png",
+    "pixels": [
+      1640,
+      960
+    ]
+  },
+  {
+    "name": "swift-vi-1200-load-error.png",
+    "pixels": [
+      2400,
+      960
+    ]
+  },
+  {
+    "name": "swift-vi-1440-load-error.png",
+    "pixels": [
+      2880,
+      960
+    ]
+  },
+  {
+    "name": "swift-vi-640-save-error.png",
+    "pixels": [
+      1280,
+      960
+    ]
+  },
+  {
+    "name": "swift-vi-820-save-error.png",
+    "pixels": [
+      1640,
+      960
+    ]
+  },
+  {
+    "name": "swift-vi-1200-save-error.png",
+    "pixels": [
+      2400,
+      960
+    ]
+  },
+  {
+    "name": "swift-vi-1440-save-error.png",
+    "pixels": [
+      2880,
+      960
+    ]
+  },
+  {
+    "name": "swift-en-640-load-error.png",
+    "pixels": [
+      1280,
+      960
+    ]
+  },
+  {
+    "name": "swift-en-820-load-error.png",
+    "pixels": [
+      1640,
+      960
+    ]
+  },
+  {
+    "name": "swift-en-1200-load-error.png",
+    "pixels": [
+      2400,
+      960
+    ]
+  },
+  {
+    "name": "swift-en-1440-load-error.png",
+    "pixels": [
+      2880,
+      960
+    ]
+  },
+  {
+    "name": "swift-en-640-save-error.png",
+    "pixels": [
+      1280,
+      960
+    ]
+  },
+  {
+    "name": "swift-en-820-save-error.png",
+    "pixels": [
+      1640,
+      960
+    ]
+  },
+  {
+    "name": "swift-en-1200-save-error.png",
+    "pixels": [
+      2400,
+      960
+    ]
+  },
+  {
+    "name": "swift-en-1440-save-error.png",
+    "pixels": [
+      2880,
+      960
+    ]
+  },
+  {
+    "name": "swift-ja-640-load-error.png",
+    "pixels": [
+      1280,
+      960
+    ]
+  },
+  {
+    "name": "swift-ja-820-load-error.png",
+    "pixels": [
+      1640,
+      960
+    ]
+  },
+  {
+    "name": "swift-ja-1200-load-error.png",
+    "pixels": [
+      2400,
+      960
+    ]
+  },
+  {
+    "name": "swift-ja-1440-load-error.png",
+    "pixels": [
+      2880,
+      960
+    ]
+  },
+  {
+    "name": "swift-ja-640-save-error.png",
+    "pixels": [
+      1280,
+      960
+    ]
+  },
+  {
+    "name": "swift-ja-820-save-error.png",
+    "pixels": [
+      1640,
+      960
+    ]
+  },
+  {
+    "name": "swift-ja-1200-save-error.png",
+    "pixels": [
+      2400,
+      960
+    ]
+  },
+  {
+    "name": "swift-ja-1440-save-error.png",
+    "pixels": [
+      2880,
+      960
+    ]
+  }
+]

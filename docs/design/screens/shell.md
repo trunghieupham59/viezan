@@ -362,3 +362,27 @@ Các ngưỡng của khung tính theo **bề rộng cửa sổ** (`window.innerW
 **Token và mã**
 
 21. Một số giá trị của khung vẫn là số tay trong `src/styles/codex.css`: đệm thanh bên `10px 8px`, `gap: 2px`, chuyển động `180ms ease` của `.app-sidebar` (lặp `--vzn-duration-normal`), cỡ chữ chip phím `.sidebar-shortcut` `10px` (không có token), hàng thương hiệu 40 px, bảng lệnh `560px` / `480px` / `56px` / `clamp(64px, 12vh, 112px)`. Khi chạm vào các quy tắc này, chuyển sang token.
+
+## Native preview foundation (2026-10-27)
+
+Native panel/search/shortcut refinements are tracked separately in
+[Foundation 09](../../migration/native-implementation/foundation-09.md). Search
+keeps the platform focus ring; submit shortcuts never toggle into cancellation.
+This does not change the Electron shell specification above.
+
+Native preview navigation remains selected when the current page is activated
+again; see [Foundation 10](../../migration/native-implementation/foundation-10.md).
+
+Native panel accessibility grouping and keyboard Enter parity are recorded in
+[Foundation 11](../../migration/native-implementation/foundation-11.md).
+
+Native visual alignment with Review 18 is tracked in
+[Foundation 12](../../migration/native-implementation/foundation-12.md): labeled
+adaptive toolbars, soft selected navigation, generated Graphite Qt palettes and
+opaque rounded panels. This remains a partial native implementation, not design
+acceptance or a change to the released Electron shell.
+
+Swift/macOS Review 18 alignment continues in
+[Foundation 13](../../migration/native-implementation/foundation-13.md). Navigation
+uses continuous sidebar material, reading panels stay opaque, and history uses
+its toolbar anchor with bounded placement.

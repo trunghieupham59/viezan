@@ -51,6 +51,10 @@ Không còn mục trợ năng đã biết.
 
 ## Quyết định thiết kế (2026-10-25)
 
+- **Native keyboard foundation (2026-10-27):** Return/keypad Enter dùng cùng guard IME; Undo/Redo của editor reset khi đổi phiên để không đưa nội dung phiên khác vào bản nháp. [Bằng chứng](../migration/native-implementation/foundation-11.md).
+
+- **Native foundation (2026-10-27):** giữ focus ring hệ thống cho search; phím gửi không biến thành Dừng khi task đang chạy, tránh hủy ngoài ý muốn. Xem [Foundation 09](../migration/native-implementation/foundation-09.md).
+
 Các điểm từng ghi "cần xác nhận", nay chốt để đồng bộ với hệ thống:
 
 - **Điều hướng giữ bản nháp Dịch.** Sidebar và bảng lệnh không xoá văn bản nguồn/kết quả nữa, giống AI Chat giữ hội thoại; nút Xoá trong ô nguồn là cách bắt đầu lại. Chỉ "Bắt đầu nhanh" ở Trang chủ (ý nghĩa "mở việc mới", như AI Chat tạo hội thoại mới) còn xoá bản nháp (`navigateEffect` trong `catalog.ts`).
@@ -88,3 +92,13 @@ Capability đã áp dụng: workflow `ship-viezan-feature`, `audit-local-first-s
 - Bản đầu gỡ/đặt lại từng app trong quyền người dùng; trạng thái sau gỡ nói rõ phạm vi quét, không dùng “đã sạch” cho toàn máy. Group Containers, ByHost và mục quản trị được giữ lại. Mọi thay đổi qua lớp fileActions có nhật ký trước khi chạy, Thùng rác/backup và kiểm tra trước khi Hoàn tác.
 
 - Applications (2026-10-26): mặc định chỉ chọn bundle/cache/log/saved state; dữ liệu lâu dài phải chọn rõ. Khớp tên/hãng/prefix, Containers, launch agents và quét chưa đủ không đủ bằng chứng để xoá. Lỗi dừng cả chuỗi; kết quả có mục giữ/lỗi không được trình bày như gỡ sạch.
+
+- 2026-10-27 native: ưu tiên khớp UI/UX Review 18 theo phản hồi người dùng;
+  kết quả test không thay visual acceptance. Qt dùng palette Graphite sinh một
+  chiều từ tokens.css, Swift giữ vật liệu hệ thống; toolbar có nhãn khi đủ rộng.
+
+- 2026-10-27 Swift foundation: sidebar là cột vật liệu hệ thống liền, không là
+  glass card; lịch sử/bảng lệnh/Activity dùng nền đọc đục. Giữ system fallback
+  Reduce Transparency và focus native trong toolbar bo tròn.
+
+- Native Windows selection replacement: dùng UI Automation với snapshot nội dung/vùng chọn, có hoàn tác được kiểm tra; không ghi đè khi người dùng đã sửa tiếp, giữ luồng copy cho control không hỗ trợ (mới triển khai source, chưa chạy).

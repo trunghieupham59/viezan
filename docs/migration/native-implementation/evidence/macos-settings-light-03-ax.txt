@@ -1,0 +1,70 @@
+Window: "Cài đặt", App: Viezan Native Preview.
+0 standard window Cài đặt, ID: workbench, Secondary Actions: Raise
+	1 split group workbench, SidebarNavigationSplitView
+		2 container
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) AI Chat
+					6 row (selectable) Dịch
+					7 row (selectable)
+					8 row (selected) Cài đặt
+			9 text Bản native thử nghiệm
+		10 splitter (disabled, settable, float) 236
+		11 container
+			12 search text field (settable) Tìm trong cài đặt
+				13 button Search
+			14 button Description: Chung, Help: Ngôn ngữ và cách giữ công việc trên thiết bị.
+			15 button (selected) Description: Giao diện, Help: Chế độ hiển thị và cỡ chữ nội dung.
+			16 button Description: Giới thiệu, Help: Phạm vi và cách lưu dữ liệu của bản native.
+			17 scroll area Secondary Actions: Scroll Up, Scroll Down
+				18 list Secondary Actions: AXScrollToTop, AXScrollToBottom
+					19 text Chung
+					20 text Ngôn ngữ và cách giữ công việc trên thiết bị.
+					21 container
+						22 pop up button Ngôn ngữ giao diện, Value: Tiếng Việt, ID: settings-language
+						23 text Tiếp tục công việc
+						24 text Bản nháp và kết quả được giữ khi chuyển tính năng hoặc mở lại ứng dụng. Tác vụ bị gián đoạn chỉ chạy lại khi bạn chọn Thử lại.
+					25 text Giao diện
+					26 text Chế độ hiển thị và cỡ chữ nội dung.
+					27 container
+						28 text Chế độ
+						29 text Sáng, tối hoặc theo hệ thống
+						30 Description: Chế độ, ID: settings-theme
+							31 radio button Description: Sáng, Value: 1
+							32 radio button Description: Tối, Value: 0
+							33 radio button Description: Hệ thống, Value: 0
+						34 text Cỡ chữ nội dung
+						35 text Áp dụng cho hội thoại, bản dịch, bản nháp và vùng xem trước. Điều khiển giữ kích thước theo hệ thống.
+						36 Description: Cỡ chữ nội dung, ID: settings-text-size
+							37 radio button Description: Nhỏ, Value: 0
+							38 radio button Description: Vừa, Value: 0
+							39 radio button Description: Lớn, Value: 1
+					40 heading Xem trước
+						41 text Dịch giúp tôi đoạn này. Đây là bản dịch, giữ sát giọng văn của bản gốc.
+					42 text Giới thiệu
+					43 text Phạm vi và cách lưu dữ liệu của bản native.
+					44 container
+						45 text Phạm vi bản thử nghiệm Chat, dịch văn bản, lịch sử và hoạt động đang dùng provider mô phỏng. Chưa kết nối AI thật hoặc nhập dữ liệu từ Electron. Dữ liệu riêng trên thiết bị Dữ liệu của bản native được lưu riêng với Electron. Bản thử nghiệm chỉ có provider mô phỏng.
+					46 text Thay đổi áp dụng ngay và được lưu trên thiết bị.
+				47 scroll bar (settable, float) 0.7019230769230769
+					48 value indicator (settable, float) 0.7019230769230769
+					49 increment arrow button
+					50 decrement arrow button
+					51 increment page button
+					52 decrement page button
+	53 toolbar
+		54 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+		55 button Description: Hoạt động, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Remove from toolbar
+	56 close button
+	57 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	58 minimize button
+	59 text Cài đặt
+60 menu bar
+	61 Viezan Native Preview
+	62 File
+	63 Edit
+	64 View
+	65 Window
+	66 Help
+
+The focused UI element is 12 search text field (settable) Tìm trong cài đặt

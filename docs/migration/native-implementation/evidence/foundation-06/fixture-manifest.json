@@ -1,0 +1,1154 @@
+[
+  {
+    "file": "swift-vi-light-640-chat.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "71a57c27b43dd85007577da2507041d4dfeb44e585bf18e017edb60ced1c0a14"
+  },
+  {
+    "file": "swift-vi-light-820-chat.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "ff01c3e296c22d42c6176331a110bedf2928a08460c96c8e692800f2e5f04dea"
+  },
+  {
+    "file": "swift-vi-light-1200-chat.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "1fea0358a5bad31cf9a5b6802b669fdd4627cfa81f359173a110ac8e9c7efe5d"
+  },
+  {
+    "file": "swift-vi-light-1440-chat.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "77d0025fd54f3f46bef7c675e5f30dc19da8dc4d3c836a50c17249e285543910"
+  },
+  {
+    "file": "swift-vi-light-640-commands.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "d9830389e213e5c747357fea031624a9ff33e34d548aa4bee94a9e829ecf6fd5"
+  },
+  {
+    "file": "swift-vi-light-820-commands.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "642da97a9717063edcd09225058552db710dcbc10834521cd8af58a21f591e95"
+  },
+  {
+    "file": "swift-vi-light-1200-commands.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "13afe072a1e1a8f12533cbe95d161bf05e27c0ae4b33704c96beef68e130dea9"
+  },
+  {
+    "file": "swift-vi-light-1440-commands.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "55d756bff58c87115f0120abc40fd972275991e77cc20120cb14b2d53cbe0d24"
+  },
+  {
+    "file": "swift-vi-light-640-history.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "337432862903c40e77fc11d48e422fdc661df247411bee070ffca6087f282ae8"
+  },
+  {
+    "file": "swift-vi-light-820-history.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "d26079ee2f314e54ae88893857b5de9a27da321f287ebf730564ce9b8b68d400"
+  },
+  {
+    "file": "swift-vi-light-1200-history.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "1949654ae7d036040b9311005d62d9c1d4ab366074be7efbda5e1083f406feb5"
+  },
+  {
+    "file": "swift-vi-light-1440-history.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "7ab48d51ad8a2d32c567df0fe80abe3f2d61dbab28bbecece57ab5acc89f81ff"
+  },
+  {
+    "file": "swift-vi-light-640-activity.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "dc6aa79281abf6fcb8a001d12d753afc3e77f269644d71387159553e8cec7afe"
+  },
+  {
+    "file": "swift-vi-light-820-activity.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "0bb83257e931ccb0c9fd101b3c600d1fa03d46f70365f8515e625b23819acc8a"
+  },
+  {
+    "file": "swift-vi-light-1200-activity.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "9182cdc96ed3aedd3562ff69de632e9c574f410d9c38face127479526df759cd"
+  },
+  {
+    "file": "swift-vi-light-1440-activity.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "5dd612511423212d2b5a62b656983eedc0e2b8543972d98b193579019f478521"
+  },
+  {
+    "file": "swift-vi-light-640-settings.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "99ef4465d2fb6ad8f90b182e0e9a829d5bb40cefc561a481310f655d2219c4a2"
+  },
+  {
+    "file": "swift-vi-light-820-settings.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "c6157033eb7d531812fc23d1461ca385a0826fabe5edbe876bd16b3d833b0d0c"
+  },
+  {
+    "file": "swift-vi-light-1200-settings.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "28d4306c25fcedcee67acf37308a6d3628746c8d10974d5f6cd02e70305d6b2b"
+  },
+  {
+    "file": "swift-vi-light-1440-settings.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "d54d504721383f6efdc2e20bb8627459fdf308b49120daec721557f9f2489e23"
+  },
+  {
+    "file": "swift-vi-light-640-translate.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "d109db973e4751ccc05fcc971a76830514bf86698be8efd63b99db8067cada48"
+  },
+  {
+    "file": "swift-vi-light-820-translate.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "61ce138331ae72dad246dec83cd297b94221d6bc3953f73bc4cfa6df693037b7"
+  },
+  {
+    "file": "swift-vi-light-1200-translate.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "ec0995ba7e6775368d0cc65f50ae8ac2f364078675084e0d1bb5a724cae70bff"
+  },
+  {
+    "file": "swift-vi-light-1440-translate.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "4e49698fb7a5f8c2f5beec024256b5c4fcb3f643a1053c59e07e44d1a6f6e74b"
+  },
+  {
+    "file": "swift-vi-dark-640-chat.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "4794c4852be32bdb61f0aaf87fd18a8a70d2e70131f79173267d2428a2db99cd"
+  },
+  {
+    "file": "swift-vi-dark-820-chat.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "fdd9a06b5239869d8ff99090ade9434cd7ffa9dac3a4260e8c3dbd27e50bb868"
+  },
+  {
+    "file": "swift-vi-dark-1200-chat.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "381471432378824984b1835da9204ffb3ef4dc1136038e0c178b4c984c5fc6b7"
+  },
+  {
+    "file": "swift-vi-dark-1440-chat.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "b5fe115273002c80b69db1c37ac1ba8f9abeff6166c57baac5af6f9d1ee41de8"
+  },
+  {
+    "file": "swift-vi-dark-640-commands.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "37148e8e0abf24319c3b813edbcefdadd70966c9116ae785c1dea6dc727d9751"
+  },
+  {
+    "file": "swift-vi-dark-820-commands.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "bda4d242805aef87f49cfb039522dfe5f630358110ceccf337d1b01a59154f55"
+  },
+  {
+    "file": "swift-vi-dark-1200-commands.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "26c4eeaaaec0b4ced1f540595f3c5a0c78f24c86ce9efef7d12e908dfbfd165f"
+  },
+  {
+    "file": "swift-vi-dark-1440-commands.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "9138f071cea7be1761737bfcfff4d25fccfa16d60f361aa45156678700af14dd"
+  },
+  {
+    "file": "swift-vi-dark-640-history.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "2e40142eab9a27839b4ff6c1eb151b1cb2f21cd7f0fe37e543b193ac1962e924"
+  },
+  {
+    "file": "swift-vi-dark-820-history.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "da21a153318c6df4ab1dddefd332f3cb4ad5505320986228ee3429fef9041e7f"
+  },
+  {
+    "file": "swift-vi-dark-1200-history.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "0245051d8dedbe4855726173512ab6b1795ee3133adc1ef57f49efc04f8f8fee"
+  },
+  {
+    "file": "swift-vi-dark-1440-history.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "707d039aec66c6a1c25919f8f09565616403e7c8bc0705a526982cdfb4a2788b"
+  },
+  {
+    "file": "swift-vi-dark-640-activity.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "fb0509bf6f36a14645fc157276cdfc79e7ade54fb0974bd6938d4570dff73751"
+  },
+  {
+    "file": "swift-vi-dark-820-activity.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "80ab4722a409ac20db244d8a77baa8b7cd0198adccfec0037374ef095e0a5520"
+  },
+  {
+    "file": "swift-vi-dark-1200-activity.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "f4c26e0364d7d4ad5d9cc04ec881eff10ee497f188af5aefa2d63ad47430ece9"
+  },
+  {
+    "file": "swift-vi-dark-1440-activity.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "6125bd663e9ec46236ad742ea0e851f0717548e94a4d089da40e7280b7063bfc"
+  },
+  {
+    "file": "swift-vi-dark-640-settings.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "7e76361a85fc08aaeca63b19e06b35a0e33aff691d48a62bbf7cd761dd02ca9a"
+  },
+  {
+    "file": "swift-vi-dark-820-settings.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "c20fd9de5fb76a1d709d49948802c780882d3eb497dca36be3f892aa65c8203d"
+  },
+  {
+    "file": "swift-vi-dark-1200-settings.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "9df50ec96f816237f74220770db888d72094dc0a7849663f3e5f80d6ef5e1a8e"
+  },
+  {
+    "file": "swift-vi-dark-1440-settings.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "1cfd018da76d8ff7436edb2726e2161e0dddfb8d9b2a58fb9e24e7b5da931374"
+  },
+  {
+    "file": "swift-vi-dark-640-translate.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "bac4384c25596c4cf7353230f658f81e7b7c0f668868ee63eee3ba71db127cfb"
+  },
+  {
+    "file": "swift-vi-dark-820-translate.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "45588a3f34e32978fe6dd1dce7e4f2b7f5e91fb8e98503689f756f4054e5099b"
+  },
+  {
+    "file": "swift-vi-dark-1200-translate.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "e084227ef64889df080d433731b49c224cfab54aa1504eeadd3858ffb5137ee3"
+  },
+  {
+    "file": "swift-vi-dark-1440-translate.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "3f8e9a17a54007424b60d28011e514e98e808be628964400b39a5bf7ab496477"
+  },
+  {
+    "file": "swift-en-light-640-chat.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "f5f165bb34540d79c1eed9f52554c5a2fa3f5351714b0b2d0108180f1392022e"
+  },
+  {
+    "file": "swift-en-light-820-chat.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "f5706da956cba0e06c14dce823ac39adc2d920cacb9344e06cb0ed60969191c6"
+  },
+  {
+    "file": "swift-en-light-1200-chat.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "d7a50ddb017acd742f88d417926b3592594f5e82ba1e916542dc80ae80d1d5cf"
+  },
+  {
+    "file": "swift-en-light-1440-chat.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "145e2fa7e12eb87a9eac67c3b2f5ff05b3e49e83f0bf93a7343c1e9164a3578e"
+  },
+  {
+    "file": "swift-en-light-640-commands.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "bafd94a1b3b008aeaf3ee5c84c625e3e32147f8bcc05e083660bb0a939e9dbb7"
+  },
+  {
+    "file": "swift-en-light-820-commands.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "98c4b9f9318a844b5fdd6006896c4c531d0f16275547167e40a21b306b2fb02d"
+  },
+  {
+    "file": "swift-en-light-1200-commands.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "15c722d2924ac291e48323f4f82f6f3152fdcee98e8c4b9d2e7964acc9134874"
+  },
+  {
+    "file": "swift-en-light-1440-commands.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "19950e42b2f7cb32ca5b1ac307d381bb5e59b2b7f719be7ff560c3cb0a12ee0f"
+  },
+  {
+    "file": "swift-en-light-640-history.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "c87788adb66940554b7a56b66718c2e250ec7ae7016c1bdae1b5b1256e19a911"
+  },
+  {
+    "file": "swift-en-light-820-history.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "e7049ae6478c092fa148fdde9363258ffd1f227b10826ce9b89b34ff7f114f45"
+  },
+  {
+    "file": "swift-en-light-1200-history.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "186e09b63726304a2de0f4f7285e4fb1f593859e0e0114ad7fe7fc37cae529d6"
+  },
+  {
+    "file": "swift-en-light-1440-history.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "b80f91c4bce794c61659632b83959784e9b956394d63ca500ef8bbbbe1b8cd22"
+  },
+  {
+    "file": "swift-en-light-640-activity.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "d60b07d7f12b339eca67e3dc6fc8badc6290f11ef03ccb1e0d4a46c62186edce"
+  },
+  {
+    "file": "swift-en-light-820-activity.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "fdf2648bb9cfd1e2c4455d5273410fdc0101e5ac4f157a9e587a47f5b28f1dd7"
+  },
+  {
+    "file": "swift-en-light-1200-activity.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "4ad08fb252977b96430d2a4be1ace1faae7ec45ac2f0ca735d61931a51daa516"
+  },
+  {
+    "file": "swift-en-light-1440-activity.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "61494185f046ccd5353e35212f4bc274759592dfe2679adb0cfbc257e4213b9e"
+  },
+  {
+    "file": "swift-en-light-640-settings.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "73fe55377f8c48f84c3a4186eac4819b4d10684f3f79803755e8f6df8eff86da"
+  },
+  {
+    "file": "swift-en-light-820-settings.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "d3b8cc965dbbaa76454aad9dfaa57d1d0b2a75421821af3bbe8dacce5abe2294"
+  },
+  {
+    "file": "swift-en-light-1200-settings.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "c139049566bfeb0a48fb78bcc24fcf2006717b1cf1dce56f31d75bc69920cc26"
+  },
+  {
+    "file": "swift-en-light-1440-settings.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "e5d7962b455a23eb69fa445beb31b087504e672073890b2c81ef0e4d85a84a03"
+  },
+  {
+    "file": "swift-en-light-640-translate.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "347d8fbc58827d25a5b450beacb7b8040f1f80a118d323d234beb90e090854ee"
+  },
+  {
+    "file": "swift-en-light-820-translate.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "c3cf1a38f780e35075d0e3c26edc64286a3cc6a9846963827abea4679c67b467"
+  },
+  {
+    "file": "swift-en-light-1200-translate.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "64dbc0b5a674056e2bf271b8d0041f099a706f04fae9af674584cd126485c524"
+  },
+  {
+    "file": "swift-en-light-1440-translate.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "71d87bb05ee0089b393584fff0937ab8a1f0b85258f8c0163864dabaa6e9181f"
+  },
+  {
+    "file": "swift-en-dark-640-chat.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "8149b9c7f6874e3a26ace995b35be20c7de2b6e73f36a6178414e2d9fa369971"
+  },
+  {
+    "file": "swift-en-dark-820-chat.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "54c9bd2c5eb05c0cbb90aa6a259def908dd034cb3c990302ea03d18eff3296d4"
+  },
+  {
+    "file": "swift-en-dark-1200-chat.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "0bca586d5dbc5a2b0b3c915aa448bff57de8d3da9ff7348dc240f1f108e24490"
+  },
+  {
+    "file": "swift-en-dark-1440-chat.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "679ccc030b2917af63973432292bdfd0bae3a726660b8226c04809bb2a4ad0c5"
+  },
+  {
+    "file": "swift-en-dark-640-commands.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "08b28aa1d6cff428b20f768447b589dd02fd16e8a389c0604ddbe067aa18c1d3"
+  },
+  {
+    "file": "swift-en-dark-820-commands.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "9078a7d3c0e92ed4d17732fa98796f45de35622633e6e28a1942e211209c32a5"
+  },
+  {
+    "file": "swift-en-dark-1200-commands.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "e80efc830ecc25d24ca27f59bdc49933f5d5092048bf0a0869c4eac2fc00b53a"
+  },
+  {
+    "file": "swift-en-dark-1440-commands.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "41596e16356403b0054e139df0163237a6dea74ae6b272f9307c402e55528304"
+  },
+  {
+    "file": "swift-en-dark-640-history.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "14e8b53447de3dc23e0dfe3f0b76e2ab9a843b2f86e0fb3fde8010d65cb033b2"
+  },
+  {
+    "file": "swift-en-dark-820-history.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "e74ff072bf489311a39a22f8fd0314e08356219b72ff0fb26b44bd5b041cdb1a"
+  },
+  {
+    "file": "swift-en-dark-1200-history.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "390d9178e60ff8495ab815c99268c665e699252d2635da764a954a4dfe9cfbf6"
+  },
+  {
+    "file": "swift-en-dark-1440-history.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "04b91129dc5722f8481250412671141313e14e52cf745a55fd58e8d898e56707"
+  },
+  {
+    "file": "swift-en-dark-640-activity.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "b010e9b737a7269cd2b527890fe3c2634fdce51d4b793a8cbb120773d361870e"
+  },
+  {
+    "file": "swift-en-dark-820-activity.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "9ef9b47cd382cc8db09332818f963d208b31ba8b674a4cc16da89e547797e881"
+  },
+  {
+    "file": "swift-en-dark-1200-activity.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "d90864af092c00fabd2087afde79d55ae5fd797426339a68a0f2ba850556718c"
+  },
+  {
+    "file": "swift-en-dark-1440-activity.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "8f99d0ff15e9d542d660b97d1337165ed03645a80cba95d645afa4befb71d575"
+  },
+  {
+    "file": "swift-en-dark-640-settings.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "33c29e5853815e37f7df5007abeab6260faa508797053e6840d85342a5e6862e"
+  },
+  {
+    "file": "swift-en-dark-820-settings.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "af7917cc440e51a35f673e6efc7e289d79ac04cc75dfe10636b2094a81790c86"
+  },
+  {
+    "file": "swift-en-dark-1200-settings.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "0cf2db354286ff5193496ff394a73dd6326c3d21c2d2ace9b45b23a33e6a478c"
+  },
+  {
+    "file": "swift-en-dark-1440-settings.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "7168f6302be07edc5f3aefda2b0386e58002edadb14d8fdf0674ac8e86a4f0b1"
+  },
+  {
+    "file": "swift-en-dark-640-translate.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "3650a29227f100533fcc69170ac973b9856cd6ea8f691d23a1f39ac2433eee4b"
+  },
+  {
+    "file": "swift-en-dark-820-translate.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "b02f89a4355b1fceeedb91759b1f0ebc615a9d8acc39be7a7f5a0b4739707889"
+  },
+  {
+    "file": "swift-en-dark-1200-translate.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "f9bf36f9f697bd3d652fd1a72e809c6ea57ba1510100d1f2c649bdf2b800998c"
+  },
+  {
+    "file": "swift-en-dark-1440-translate.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "ee326af55e35ec07deeb902e72e841e06f0d56022a291e13081c668126e7af9c"
+  },
+  {
+    "file": "swift-ja-light-640-chat.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "d4aa0890c953c550dd450db99e65bd419b035a9a53a456d399fb4764a2db6b49"
+  },
+  {
+    "file": "swift-ja-light-820-chat.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "6120e34b5da854268aa707ce5b25d8361068b8308aa7a5e99052a836b6c92ecd"
+  },
+  {
+    "file": "swift-ja-light-1200-chat.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "fd36b9f495b1e57882431f128bb32d3f79402119327b498ff8d614f8c96073a3"
+  },
+  {
+    "file": "swift-ja-light-1440-chat.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "b519562a728a034cee81896f2bec3bbe038991e569a2b9fbf951e7714d209c5b"
+  },
+  {
+    "file": "swift-ja-light-640-commands.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "f312a16aa3adb2883a34a2c73558909af9752b426ee6825cbf50deecab686ada"
+  },
+  {
+    "file": "swift-ja-light-820-commands.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "4d7af056affecd6af5598113d5344d751bfe8df1fdbe0993579e89d79a2cae02"
+  },
+  {
+    "file": "swift-ja-light-1200-commands.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "59f268545151143730515ea116b15c94bc4fd9d1964515cb9ecd5ff6478c6e88"
+  },
+  {
+    "file": "swift-ja-light-1440-commands.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "a804ed3af567351cb601b8d09c9f36b2b0a40163a6332fc13d0f3254a8e842f2"
+  },
+  {
+    "file": "swift-ja-light-640-history.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "179b3101cd8b681940da11e74ee1d45e84534fde4f1c54bed9bd6be471211eda"
+  },
+  {
+    "file": "swift-ja-light-820-history.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "7b08f1ac39d78ecda4d34ec206a9eed369f9730ccd252b808914ebfb8647020e"
+  },
+  {
+    "file": "swift-ja-light-1200-history.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "dd85f9dd96aef8078d333ed4230d21bbb71876f318b9789c1d583005c4e40aaa"
+  },
+  {
+    "file": "swift-ja-light-1440-history.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "da3ed6aeef3d27480cf9dbc8b2471d836eca75ee9324bf93b9fab3e88f07423e"
+  },
+  {
+    "file": "swift-ja-light-640-activity.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "a4e258f7dec88aa3fb5ea81e90f0d4cec9d1294028b86c0cc5573cebb6df7fd6"
+  },
+  {
+    "file": "swift-ja-light-820-activity.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "5980dea15f05a97bc7c85d575422c9d9bca8a540e5d5bd47ab29701d6096c774"
+  },
+  {
+    "file": "swift-ja-light-1200-activity.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "1f5cca639a1dff014532b2a8279785b186e6a2933f9af0505c32d7c1f237b9cf"
+  },
+  {
+    "file": "swift-ja-light-1440-activity.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "05d1264cb9fc9296457380a91a70c91b5cae9587182a19c8d00772a61408a199"
+  },
+  {
+    "file": "swift-ja-light-640-settings.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "980b0402666ea980e820fa460d388f4fa0d238414737b4ab39692364e260acf8"
+  },
+  {
+    "file": "swift-ja-light-820-settings.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "98068679b7afede8e25a8b1e64b166131f8ec882e3e8b4c384e2f6cd7268ec0f"
+  },
+  {
+    "file": "swift-ja-light-1200-settings.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "bdb74aded4d139701cd2a4445a9de49429d53991455f6ba062e1b471431354c3"
+  },
+  {
+    "file": "swift-ja-light-1440-settings.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "8317ed89cba9f69862c228fb2c6a67d5a271e01ae4bd7c61c3bb781799f9b224"
+  },
+  {
+    "file": "swift-ja-light-640-translate.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "dc4a846ee8fe0d3123a8a161004ac06c23285540ab78f06bcb491692afad6aad"
+  },
+  {
+    "file": "swift-ja-light-820-translate.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "1761d854dcfd3f89001e5705ebae136d2f4e4045286fcdda6fd1defeb37bc239"
+  },
+  {
+    "file": "swift-ja-light-1200-translate.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "103b0b06fa2cf69f1918d21feb6eefd36bece40f2ef03c37f250174a52c5a746"
+  },
+  {
+    "file": "swift-ja-light-1440-translate.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "e9ecdad4ac5dba3aac4b0adcbaf995e9e3bd2ce79c0b29352cae120d608f8f1e"
+  },
+  {
+    "file": "swift-ja-dark-640-chat.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "30f17bbe30ab9c390fa0536cd665d0f79336a81d12cb66f3e08344afb93ef50a"
+  },
+  {
+    "file": "swift-ja-dark-820-chat.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "eb10684bc5518612e3e134ccfa52095d5b33d70b1dc9f474783b3420177bc55e"
+  },
+  {
+    "file": "swift-ja-dark-1200-chat.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "0af69b19d0e023c584b79abb087765d42ecf379970e08e8ca90132636d823c84"
+  },
+  {
+    "file": "swift-ja-dark-1440-chat.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "2578824199726708ed4c09a18b5811298ff918b56363a079e8a5fdccfdc476ca"
+  },
+  {
+    "file": "swift-ja-dark-640-commands.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "9953de78dd4f5d1a53d8921b232f0b4a08602e5a76263d7dc8598f577e4a3650"
+  },
+  {
+    "file": "swift-ja-dark-820-commands.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "5693c4173d77d39a1b68176dc2f331d3bf492e2fa1a479e13b7579ae366194f4"
+  },
+  {
+    "file": "swift-ja-dark-1200-commands.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "b7bf0ae7a0fbc43830be2c1b5b55ac02def3dddd7383791b97742b8f5143836b"
+  },
+  {
+    "file": "swift-ja-dark-1440-commands.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "e2e25411d34054ed1c7499242cfac2c60c66247e046e6d12c0dcae904b5a78f5"
+  },
+  {
+    "file": "swift-ja-dark-640-history.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "de1883fdad4cb888c6ddd4dec74cec14e149db5503562a6526c28558b34403cf"
+  },
+  {
+    "file": "swift-ja-dark-820-history.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "4c586216b7a277d620b556c0d0b38283f64ff6d51b7a43fb20a67c97f76c22d1"
+  },
+  {
+    "file": "swift-ja-dark-1200-history.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "c7a89244b4ddf1445896c531afa18f0b9cb1544c11c887a04152cacbee78c094"
+  },
+  {
+    "file": "swift-ja-dark-1440-history.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "ef862cb60cc329dc91484c02e1c215b439f59e68919f7f95103c37587a83077a"
+  },
+  {
+    "file": "swift-ja-dark-640-activity.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "51ca4f46c9c4c49b1f0d3c10e942bb1dfc6ae91fb1162b93cc92639fc2cd901b"
+  },
+  {
+    "file": "swift-ja-dark-820-activity.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "6334ff33e329b651e59bc97a6e22a7a860961368b42874f382e700acee0e5db7"
+  },
+  {
+    "file": "swift-ja-dark-1200-activity.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "19f2ed2b327289769d3dcfd58960f4e4bc2c7212dc7040852d55f563f6f5a67b"
+  },
+  {
+    "file": "swift-ja-dark-1440-activity.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "02e815ce5a37b2cc84772aad6f322195e66d253175ce1b82a680a551a5683156"
+  },
+  {
+    "file": "swift-ja-dark-640-settings.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "fa3c78d00392651f25a3d7b8a6393d240cf14d241f0ab5fc733b2434e0e87ac7"
+  },
+  {
+    "file": "swift-ja-dark-820-settings.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "62419a49e10738393c63ec3156b3f154b6e9d837680137a0fbbc6e72a4037348"
+  },
+  {
+    "file": "swift-ja-dark-1200-settings.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "aafde464f4a83ac6323945c74ee50ec32c5d5558ae7ab8ebd3b262490453000a"
+  },
+  {
+    "file": "swift-ja-dark-1440-settings.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "619269db00165ca46ee6d29965ec454d6b9682cdcbfa640fc1a974f5005baea0"
+  },
+  {
+    "file": "swift-ja-dark-640-translate.png",
+    "pixels": [
+      1280,
+      960
+    ],
+    "sha256": "7fb43bc3e17a9c5d5fe49ba1b959dd5e201f30c8b699e0aaa5fda9636c66be86"
+  },
+  {
+    "file": "swift-ja-dark-820-translate.png",
+    "pixels": [
+      1640,
+      960
+    ],
+    "sha256": "59b1c6264ded8e9cd4f9f0bd6621f4343e294701f172dc07e79b9abfbdb9c7ff"
+  },
+  {
+    "file": "swift-ja-dark-1200-translate.png",
+    "pixels": [
+      2400,
+      960
+    ],
+    "sha256": "065b0a7e98e2f10764de7b3622ef8e683fc5536f5534e8c18770aca41b816f67"
+  },
+  {
+    "file": "swift-ja-dark-1440-translate.png",
+    "pixels": [
+      2880,
+      960
+    ],
+    "sha256": "e0c73b9d41d2da17e9e931b1e603b34d01bf2ce84863562f7d661da9e882f174"
+  }
+]

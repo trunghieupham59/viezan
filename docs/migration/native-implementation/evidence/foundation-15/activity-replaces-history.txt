@@ -1,0 +1,33 @@
+The following is a diff from the previous accessibility tree for Window: "Dịch / Foundation 11 keyboard QA." with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
++		40 container Hoạt động
++			41 text Hoạt động
++			42 button Đóng
++			43 scroll area Secondary Actions: Scroll Up, Scroll Down
++				44 list Secondary Actions: AXScrollToTop, AXScrollToBottom
++					45 text Foundation 11 keyboard QA.
++					46 text Hoàn tất
++					47 text demo.standard
++					48 button Mở lại
++					49 text Foundation 07 — close/reopen. Gi tc v ang chy v bn nhp khi ng ca
++					50 text Hoàn tất
++					51 text demo.slow
++					52 button Mở lại
++					53 text Dòng 01: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việ
++					54 text Hoàn tất
++					55 text demo.standard
++					56 button Mở lại
++					57 text Phiên kiểm tra lịch sử thứ hai.
++					58 text Hoàn tất
++					59 text demo.standard
++					60 button Mở lại
++					61 text Great tools disappear into the work.  Viezan keeps each task and
++					62 text Hoàn tất
++					63 text demo.standard
++					64 button Mở lại
++				65 scroll bar (settable, float) 0
++					66 value indicator (settable, float) 0
++					67 increment arrow button
++					68 decrement arrow button
++					69 increment page button
++					70 decrement page button
+The focused UI element is 42 button Đóng

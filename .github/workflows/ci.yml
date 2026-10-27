@@ -1,253 +1,49 @@
-name: CI
-
+name: Native CI
 on:
-    push:
-        branches: [main, develop]
-        paths-ignore:
-            - "docs/**"
-            - "**/*.md"
-            - "LICENSE"
-            - ".gitignore"
-            - ".markdownlint.json"
-            - "package.json"
-            - "package-lock.json"
-    pull_request:
-        branches: [main, develop]
-        paths-ignore:
-            - "docs/**"
-            - "**/*.md"
-            - "LICENSE"
-            - ".gitignore"
-            - ".markdownlint.json"
-    workflow_dispatch:
-
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
 permissions:
-    contents: read
-
+  contents: read
 concurrency:
-    group: ci-${{ github.workflow }}-${{ github.ref }}
-    cancel-in-progress: true
-
+  group: native-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
-    # ─────────────────────────────────────────────
-    # 1. Lint with Biome
-    # ─────────────────────────────────────────────
-    lint:
-        name: Lint (Biome)
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v7
-
-            - name: Setup Node
-              uses: actions/setup-node@v7
-              with:
-                  node-version: 22
-                  cache: npm
-
-            - name: Install dependencies
-              run: npm ci --no-audit --no-fund
-
-            - name: Run Biome
-              run: npx biome ci .
-
-            - name: Check Atomic Design boundaries
-              run: npm run check:atomic
-
-            - name: Check design tokens
-              run: npm run check:design
-
-    # ─────────────────────────────────────────────
-    # 2. Type-check (renderer + electron)
-    # ─────────────────────────────────────────────
-    typecheck:
-        name: Type-check
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v7
-
-            - name: Setup Node
-              uses: actions/setup-node@v7
-              with:
-                  node-version: 22
-                  cache: npm
-
-            - name: Install dependencies
-              run: npm ci --no-audit --no-fund
-
-            - name: Type-check renderer (tsconfig.json)
-              run: npx tsc -p tsconfig.json --noEmit
-
-            - name: Type-check electron (tsconfig.electron.json)
-              run: npx tsc -p tsconfig.electron.json --noEmit
-
-    # ─────────────────────────────────────────────
-    # 3. Unit + integration tests with coverage
-    # ─────────────────────────────────────────────
-    test:
-        name: Test (Vitest)
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v7
-
-            - name: Setup Node
-              uses: actions/setup-node@v7
-              with:
-                  node-version: 22
-                  cache: npm
-
-            - name: Install dependencies
-              run: npm ci --no-audit --no-fund
-
-            - name: Run tests
-              run: npx vitest run --reporter=default --reporter=junit --outputFile.junit=./reports/junit.xml
-
-            - name: Upload test report
-              if: always()
-              uses: actions/upload-artifact@v7
-              with:
-                  name: junit-report
-                  path: reports/junit.xml
-                  retention-days: 7
-
-    # ─────────────────────────────────────────────
-    # 4. Compile check — cheap build (tsc + esbuild +
-    #    vite) on every PR. Catches broken bundling
-    #    without packaging for three operating systems.
-    # ─────────────────────────────────────────────
-    compile:
-        name: Compile (renderer + electron)
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v7
-
-            - name: Setup Node
-              uses: actions/setup-node@v7
-              with:
-                  node-version: 22
-                  cache: npm
-
-            - name: Install dependencies
-              run: npm ci --no-audit --no-fund
-
-            - name: Build (renderer + electron)
-              run: npm run build
-
-    # ─────────────────────────────────────────────
-    # 5. Decide whether the packaging matrix is needed.
-    #    Pull requests only repackage the app when a
-    #    file that affects packaging or the installer
-    #    changed. Pushes to main/develop and manual
-    #    runs always build everything.
-    # ─────────────────────────────────────────────
-    changes:
-        name: Detect packaging changes
-        runs-on: ubuntu-latest
-        outputs:
-            packaging: ${{ steps.filter.outputs.packaging }}
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v7
-              with:
-                  # On pull_request the checkout is a merge commit; depth 2 keeps both parents.
-                  fetch-depth: 2
-
-            - name: Check changed files
-              id: filter
-              env:
-                  EVENT_NAME: ${{ github.event_name }}
-                  PACKAGING_PATHS: '^(package\.json|package-lock\.json|build/|scripts/|electron-builder\.|vite\.config\.|tsconfig[^/]*\.json|\.github/(workflows|actions)/)'
-              shell: bash
-              run: |
-                  if [ "$EVENT_NAME" != "pull_request" ]; then
-                    echo "Not a pull request: running the full build matrix."
-                    echo "packaging=true" >> "$GITHUB_OUTPUT"
-                    exit 0
-                  fi
-                  # First parent of the merge commit is the base branch.
-                  if ! files=$(git diff --name-only HEAD^1 HEAD); then
-                    echo "Could not diff against the base branch: running the full build matrix."
-                    echo "packaging=true" >> "$GITHUB_OUTPUT"
-                    exit 0
-                  fi
-                  echo "Changed files:"
-                  echo "$files"
-                  if echo "$files" | grep -Eq "$PACKAGING_PATHS"; then
-                    echo "A packaging-related file changed: running the full build matrix."
-                    echo "packaging=true" >> "$GITHUB_OUTPUT"
-                  else
-                    echo "No packaging-related file changed: skipping the build matrix."
-                    echo "packaging=false" >> "$GITHUB_OUTPUT"
-                  fi
-
-    # ─────────────────────────────────────────────
-    # 6. Build matrix — verify the app packages on
-    #    macOS / Windows / Linux. Runs on pushes to
-    #    main/develop, manual runs, and on pull
-    #    requests that touch packaging (see `changes`).
-    #    We do NOT publish; we just make sure the
-    #    full electron-builder pipeline runs cleanly.
-    # ─────────────────────────────────────────────
-    build:
-        name: Build (${{ matrix.os }})
-        needs: [lint, typecheck, test, changes]
-        if: needs.changes.outputs.packaging == 'true'
-        runs-on: ${{ matrix.os }}
-        strategy:
-            fail-fast: false
-            matrix:
-                os: [ubuntu-latest, macos-latest, windows-latest]
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v7
-
-            - name: Setup Node
-              uses: actions/setup-node@v7
-              with:
-                  node-version: 22
-                  cache: npm
-
-            - name: Install Linux build deps
-              uses: ./.github/actions/install-linux-deps
-
-            - name: Install dependencies
-              run: npm ci --no-audit --no-fund
-
-            - name: Build (renderer + electron)
-              run: npm run build
-
-            - name: Stage verified Windows Ollama runtime
-              if: runner.os == 'Windows'
-              uses: ./.github/actions/stage-ollama-runtime
-
-            - name: Build artifacts (no publish)
-              env:
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  CSC_IDENTITY_AUTO_DISCOVERY: "false"
-              run: npx electron-builder --publish never
-
-            - name: Installer smoke test (install / update / uninstall)
-              if: runner.os == 'Windows'
-              timeout-minutes: 10
-              shell: pwsh
-              run: |
-                  $installer = Get-ChildItem release -Filter *.exe | Select-Object -First 1
-                  if (-not $installer) { throw 'No installer found in release/' }
-                  ./scripts/test-windows-installer.ps1 -Installer $installer.FullName
-
-            - name: Upload build artifacts
-              uses: actions/upload-artifact@v7
-              with:
-                  name: viezan-${{ runner.os }}-${{ github.sha }}
-                  path: |
-                      release/*.dmg
-                      release/*.zip
-                      release/*.exe
-                      release/*.AppImage
-                      release/*.yml
-                      release/*.blockmap
-                  retention-days: 5
-                  if-no-files-found: ignore
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - run: swift test --package-path apps/macos
+      - run: python3 scripts/native/build.py --target macos --configuration Release --output .native-build/macos
+  qt:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxkbcommon-dev libvulkan-dev libxcb-cursor0
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          modules: 'qtmultimedia qtspeech qtwebsockets'
+          cache: true
+      - run: cmake -S apps/desktop-qt -B .native-build/qt -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build .native-build/qt --config Release --parallel 2
+      - run: ctest --test-dir .native-build/qt -C Release --output-on-failure --timeout 300
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QT_QUICK_CONTROLS_STYLE: Fusion
+      - name: Print QtTest report
+        if: always()
+        run: python -c "from pathlib import Path; p = Path('.native-build/qt/qt-test-results.txt'); print(p.read_text(encoding='utf-8', errors='replace') if p.exists() else 'QtTest did not produce a report')"

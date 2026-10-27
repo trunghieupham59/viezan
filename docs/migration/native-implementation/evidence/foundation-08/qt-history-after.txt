@@ -1,0 +1,2 @@
+There has been no change in the accessibility tree for Window: "Viezan Native — AI Chat".
+The focused UI element is 31 trường văn bản (settable) Tìm tên hoặc nội dung, ID: QGuiApplication.Main_QMLTYPE_71.Popup.SearchHistory, Secondary Actions: Raise

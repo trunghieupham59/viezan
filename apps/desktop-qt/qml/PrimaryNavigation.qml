@@ -1,0 +1,98 @@
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import QtQuick.Controls.impl
+
+Pane {
+    id: navigation
+    required property var bridge
+    required property string route
+    property bool expanded: false
+    property bool dismissible: false
+    signal selected(string route)
+    signal commands(var opener)
+    signal dismissed()
+    readonly property var metrics: bridge.resources.metrics
+    function focusInitial() { search.forceActiveFocus() }
+    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    padding: metrics.small
+    background: Rectangle { color: navigation.palette.window }
+    component NavigationContent: RowLayout {
+        required property var control
+        spacing: navigation.metrics.small
+        Item { visible: !navigation.expanded; Layout.fillWidth: true }
+        // Reuse the control icon renderer; the label is independently left aligned.
+        IconImage { source: control.icon.source; color: control.checked ? control.palette.link : control.palette.buttonText; sourceSize.width: navigation.metrics.icon; sourceSize.height: navigation.metrics.icon; Layout.preferredWidth: navigation.metrics.icon; Layout.preferredHeight: navigation.metrics.icon }
+        Label { visible: navigation.expanded; text: control.text; Accessible.ignored: true; color: control.checked ? control.palette.link : control.palette.buttonText; font.weight: control.checked ? Font.DemiBold : Font.Normal; elide: Text.ElideRight; Layout.fillWidth: true }
+        Label { visible: navigation.expanded && control === search; Accessible.ignored: true; text: Qt.platform.os === "osx" ? "⌘K" : "Ctrl K"; color: control.palette.placeholderText }
+        Item { visible: !navigation.expanded; Layout.fillWidth: true }
+    }
+    component NavigationBackground: Rectangle {
+        required property var control
+        radius: navigation.metrics.controlRadius
+        color: control.checked ? Qt.tint(control.palette.window, Qt.alpha(control.palette.highlight, navigation.metrics.selectionOpacity)) : control.hovered ? control.palette.midlight : "transparent"
+        border.width: control.visualFocus ? navigation.metrics.hairline : 0
+        border.color: control.palette.highlight
+    }
+    Accessible.name: t("primaryNavigation")
+    ColumnLayout {
+        anchors.fill: parent
+        spacing: navigation.metrics.small
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.minimumHeight: navigation.metrics.navControl + navigation.metrics.inset
+            Image { source: "brand.png"; sourceSize.width: navigation.metrics.brand; sourceSize.height: navigation.metrics.brand; fillMode: Image.PreserveAspectFit; Layout.alignment: Qt.AlignHCenter }
+            Label { visible: navigation.expanded; text: "viezan"; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
+            ToolButton { visible: navigation.dismissible; implicitWidth: navigation.metrics.control; implicitHeight: navigation.metrics.control; icon.source: "icons/close.svg"; icon.color: palette.buttonText; Accessible.name: navigation.t("close"); onClicked: navigation.dismissed() }
+        }
+        Button {
+            id: search
+            leftPadding: navigation.metrics.small
+            rightPadding: navigation.metrics.small
+            contentItem: NavigationContent { control: search }
+            background: NavigationBackground { control: search }
+            Layout.fillWidth: true
+            Layout.preferredHeight: navigation.metrics.navControl
+            display: navigation.expanded ? AbstractButton.TextBesideIcon : AbstractButton.IconOnly
+            text: navigation.t("commands")
+            icon.source: "icons/search.svg"
+            icon.color: palette.buttonText
+            flat: true
+            Accessible.name: text
+            ToolTip.visible: hovered
+            ToolTip.text: text
+            onClicked: navigation.commands(search)
+        }
+        Repeater {
+            model: navigation.bridge.resources.navigation.filter(item => item.id !== "settings" && !(navigation.bridge.state.disabledModules || []).includes(item.id === "everywhere" ? "translate" : item.id))
+            delegate: NavItem { required property var modelData; entry: modelData }
+        }
+        Item { Layout.fillHeight: true }
+        NavItem { entry: navigation.bridge.resources.navigation.find(item => item.id === "settings") }
+        Label { visible: navigation.expanded; text: navigation.t("preview"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.margins: navigation.metrics.small; ToolTip.visible: footerHover.hovered; ToolTip.text: navigation.t("simulation"); HoverHandler { id: footerHover } }
+    }
+    component NavItem: Button {
+        id: navItem
+        leftPadding: navigation.metrics.small
+        rightPadding: navigation.metrics.small
+        contentItem: NavigationContent { control: navItem }
+        background: NavigationBackground { control: navItem }
+        required property var entry
+        Layout.fillWidth: true
+        Layout.preferredHeight: navigation.metrics.navControl
+        display: navigation.expanded ? AbstractButton.TextBesideIcon : AbstractButton.IconOnly
+        text: navigation.t(entry.title)
+        icon.source: "icons/" + entry.icon + ".svg"
+        icon.color: palette.buttonText
+        checkable: true
+        autoExclusive: true
+        checked: navigation.route === entry.id
+        enabled: !navigation.bridge.loadBlocked || entry.id === "settings"
+        flat: true
+        Accessible.name: text
+        Accessible.selected: checked
+        ToolTip.visible: hovered
+        ToolTip.text: text
+        onClicked: navigation.selected(entry.id)
+    }
+}

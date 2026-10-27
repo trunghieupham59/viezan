@@ -1,0 +1,6 @@
+The following is a diff from the previous accessibility tree for Window: "AI Chat / Foundation 07 — close/reopen. Gi tc v ang chy v bn nhp khi ng ca" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 43-50
+~			41 search text field (settable) Description: Tìm trang hoặc thao tác…, Value: zz-no-command
++				43 button cancel
++			44 text Không có lệnh phù hợp.
+The focused UI element is 41 search text field (settable) Description: Tìm trang hoặc thao tác…, Value: zz-no-command

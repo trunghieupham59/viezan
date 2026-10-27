@@ -32,6 +32,8 @@ jobs:
                 include:
                     - language: javascript-typescript
                       build-mode: none
+                    - language: c-cpp
+                      build-mode: manual
 
         steps:
             - name: Checkout
@@ -40,6 +42,20 @@ jobs:
                   # Không cần extractor JS/TS quét submodule (viezanagent) – submodule
                   # có repo + workflow CodeQL riêng.
                   submodules: false
+
+            - uses: actions/setup-python@v6
+              if: matrix.language == 'c-cpp'
+              with:
+                  python-version: '3.12'
+            - name: Install Qt build dependencies
+              if: matrix.language == 'c-cpp'
+              run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxkbcommon-dev libvulkan-dev libxcb-cursor0
+            - uses: jurplel/install-qt-action@v4
+              if: matrix.language == 'c-cpp'
+              with:
+                  version: '6.8.3'
+                  modules: 'qtmultimedia qtspeech qtwebsockets'
+                  cache: true
 
             - name: Initialize CodeQL
               uses: github/codeql-action/init@v4
@@ -61,6 +77,12 @@ jobs:
                         - "build/**"
                         - "viezanagent/**"
                         - "chrome-extension/icons/**"
+
+            - name: Build native Qt for analysis
+              if: matrix.language == 'c-cpp'
+              run: |
+                  cmake -S apps/desktop-qt -B .native-build/codeql -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+                  cmake --build .native-build/codeql --parallel 2
 
             - name: Perform CodeQL Analysis
               uses: github/codeql-action/analyze@v4

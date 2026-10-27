@@ -1,4 +1,5 @@
 {
   "css.lint.unknownAtRules": "ignore",
-  "markdownlint.enable": false
+  "markdownlint.enable": false,
+  "cmake.sourceDirectory": "${workspaceFolder}/apps/desktop-qt"
 }

@@ -1,0 +1,6 @@
+The following is a diff from the previous accessibility tree for Window: "Lịch sử" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 43-50
+~		41 search text field (settable) Description: Tìm tên hoặc nội dung, Value: zz-no-match-19
++			43 button cancel
++		44 text Không có kết quả phù hợp
+The focused UI element is 41 search text field (settable) Description: Tìm tên hoặc nội dung, Value: zz-no-match-19

@@ -1795,7 +1795,7 @@ html:not(.dark) .quick-chat-answer-card {
 /* Matches PRIMARY_NAVIGATION_NARROW_BREAKPOINT (`< 900`) in PrimaryNavigationSidebar. */
 @media (max-width: 899px) {
   :root {
-    --vzn-sidebar-expanded-width: 208px;
+    --vzn-sidebar-expanded-width: var(--vzn-sidebar-compact-expanded-width);
     --vzn-chat-sidebar-width: 220px;
   }
 }

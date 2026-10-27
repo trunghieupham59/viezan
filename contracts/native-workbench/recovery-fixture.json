@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "sessions": [
+    {
+      "id": "chat-fixture",
+      "feature": "chat",
+      "title": "Đổi ngôn ngữ 日本語",
+      "draft": "Bản nháp chưa gửi",
+      "model": "demo.standard",
+      "source": "en",
+      "target": "vi",
+      "revision": 2,
+      "output": "",
+      "messages": [
+        {
+          "id": "user-fixture",
+          "role": "user",
+          "text": "Đổi ngôn ngữ 日本語"
+        },
+        {
+          "id": "task-fixture",
+          "role": "assistant",
+          "text": "Phản hồi dở dang"
+        }
+      ]
+    },
+    {
+      "id": "translation-fixture",
+      "feature": "translate",
+      "title": "",
+      "draft": "Text to translate",
+      "model": "demo.standard",
+      "source": "en",
+      "target": "vi",
+      "revision": 0,
+      "output": "",
+      "messages": []
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-fixture",
+      "attemptID": "attempt-fixture",
+      "attemptNumber": 1,
+      "request": {
+        "sessionID": "chat-fixture",
+        "feature": "chat",
+        "model": "demo.slow",
+        "input": "Đổi ngôn ngữ 日本語",
+        "source": "en",
+        "target": "vi",
+        "revision": 1,
+        "locale": "vi"
+      },
+      "status": "running",
+      "output": "Phản hồi dở dang"
+    }
+  ],
+  "active": {
+    "chat": "chat-fixture",
+    "translate": "translation-fixture"
+  },
+  "feature": "chat",
+  "locale": "vi"
+}

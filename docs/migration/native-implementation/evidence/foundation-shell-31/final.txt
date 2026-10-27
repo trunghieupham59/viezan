@@ -1,0 +1,6 @@
+◇ Test japaneseDarkCommandsOpenTheRowSelectedByHomeEndAndWrap() started.
+✔ Test japaneseDarkCommandsOpenTheRowSelectedByHomeEndAndWrap() passed after 0.357 seconds.
+➜ Test renderFoundationLocaleWidthThemeMatrix() skipped.
+➜ Test renderStorageFailureStates() skipped.
+✔ Test run with 29 tests in 1 suite passed after 4.084 seconds.
+✔ Test run with 17 tests in 0 suites passed after 0.017 seconds.

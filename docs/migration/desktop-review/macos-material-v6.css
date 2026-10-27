@@ -1,0 +1,31 @@
+/* The imported, unchanged source-token snapshot owns every literal material value.
+   Glass is scoped to navigation/chrome; main content uses the Graphite palette. */
+body[data-platform=macos] .desktop{background:var(--vzn-app-backdrop),var(--vzn-app-bg);padding-top:var(--vzn-space-3)}
+body[data-platform=macos] .window{background:transparent;backdrop-filter:none;box-shadow:var(--vzn-shadow-lg);border-radius:var(--vzn-radius-2xl);border:var(--vzn-border-width) solid var(--vzn-material-border)}
+body[data-platform=macos] .main{background:var(--vzn-surface)}
+body[data-platform=macos] .sidebar{background:var(--vzn-primary-nav-material);backdrop-filter:var(--vzn-blur);border-right:var(--vzn-border-width) solid var(--vzn-material-border);box-shadow:inset calc(-1 * var(--vzn-border-width)) 0 0 var(--vzn-material-highlight);color:var(--vzn-chrome-fg)}
+body[data-platform=macos] .sidebar nav button{height:var(--vzn-control-height-sm);min-height:var(--vzn-control-height-sm);border-radius:var(--vzn-radius-control);color:var(--vzn-chrome-fg);font-size:var(--vzn-font-size-lg)}
+body[data-platform=macos] .sidebar nav button.active{color:var(--vzn-chrome-item-active-fg);background:var(--vzn-chrome-item-active);border-color:var(--vzn-material-highlight);box-shadow:var(--vzn-shadow-xs)}
+body[data-platform=macos] .sidebar .search{background:var(--vzn-sidebar-search-bg);border:var(--vzn-border-width) solid var(--vzn-material-border);color:var(--vzn-chrome-fg-muted);height:var(--vzn-control-height-sm)}
+body[data-platform=macos] .sidebar .privacy{color:var(--vzn-chrome-fg-muted)}
+body[data-platform=macos] .toolbar{background:var(--vzn-titlebar-material);backdrop-filter:var(--vzn-blur-sm);border-bottom:0;height:var(--vzn-space-12)}
+body[data-platform=macos] .toolbar-actions{gap:var(--vzn-space-2);padding:0;box-shadow:none;background:transparent}
+body[data-platform=macos] .toolbar-actions button{background:var(--vzn-surface);border:var(--vzn-border-width) solid var(--vzn-material-border);box-shadow:var(--vzn-shadow-xs);border-radius:var(--vzn-radius-pill);height:var(--vzn-control-height-sm)}
+body[data-platform=macos] #work-strip{background:var(--vzn-titlebar-material);backdrop-filter:var(--vzn-blur-sm);border-bottom:var(--vzn-border-width) solid var(--vzn-material-border)}
+body[data-platform=macos] .session-tab{border-radius:var(--vzn-radius-pill)}
+body[data-platform=macos] .session-tab.current{background:var(--vzn-surface-raised);box-shadow:var(--vzn-shadow-sm);border-color:var(--vzn-material-highlight)}
+body[data-platform=macos] #work-strip .session-tab.current .session-open{color:var(--vzn-text-strong)}
+body[data-platform=macos] #work-strip .session-tab .iconbtn{border-radius:var(--vzn-radius-pill);margin-right:var(--vzn-space-1)}
+body[data-platform=macos] #session-panel{background:var(--vzn-context-nav-material);backdrop-filter:var(--vzn-blur);border-color:var(--vzn-material-border)}
+body[data-platform=macos] #session-panel .session-row{border-radius:var(--vzn-radius-sm)}
+body[data-platform=macos] #session-panel .session-row.selected{background:var(--vzn-action-soft);color:var(--vzn-action-text)}
+body[data-platform=macos] dialog,body[data-platform=macos] dialog[data-type=activity],body[data-platform=macos] .wb-review-tools>div{background:var(--vzn-overlay-material);backdrop-filter:var(--vzn-overlay-blur);border:var(--vzn-border-width) solid var(--vzn-material-border);box-shadow:var(--vzn-shadow-overlay);border-radius:var(--vzn-radius-xl)}
+body[data-platform=macos] dialog::backdrop{backdrop-filter:none}
+body[data-platform=macos] .composer{background:var(--vzn-surface);backdrop-filter:none;border-color:var(--vzn-border);box-shadow:var(--vzn-shadow-sm)}
+.composer-foot button{height:var(--vzn-control-height-md)}.composer .send:disabled{background:var(--vzn-surface-muted);border-color:var(--vzn-border);color:var(--vzn-text-disabled);box-shadow:none}
+.chat-column [data-action=newchat] kbd{margin-left:var(--vzn-space-1)}
+body[data-platform=macos].no-glass .sidebar{background:var(--vzn-sidebar-bg);backdrop-filter:none;box-shadow:none}
+body[data-platform=macos].no-glass .toolbar,body[data-platform=macos].no-glass #work-strip{background:var(--vzn-titlebar-bg);backdrop-filter:none}
+body[data-platform=macos].no-glass #session-panel,body[data-platform=macos].no-glass dialog,body[data-platform=macos].no-glass dialog[data-type=activity],body[data-platform=macos].no-glass .wb-review-tools>div{background:var(--vzn-app-bg);backdrop-filter:none}
+@media(prefers-reduced-transparency:reduce),(prefers-contrast:more){body[data-platform=macos] .sidebar{background:var(--vzn-sidebar-bg);backdrop-filter:none}body[data-platform=macos] .toolbar,body[data-platform=macos] #work-strip{background:var(--vzn-titlebar-bg);backdrop-filter:none}body[data-platform=macos] #session-panel,body[data-platform=macos] dialog,body[data-platform=macos] dialog[data-type=activity],body[data-platform=macos] .wb-review-tools>div{background:var(--vzn-app-bg);backdrop-filter:none}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}

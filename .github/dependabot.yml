@@ -20,48 +20,13 @@ updates:
           prefix-development: "chore(deps-dev)"
           include: scope
       groups:
-          # Gom các update React/Vite/build-tool vào 1 PR
-          react:
+          native-assets:
               patterns:
                   - "react"
                   - "react-dom"
-                  - "@types/react"
-                  - "@types/react-dom"
-          vite-and-vitest:
-              patterns:
-                  - "vite"
-                  - "vitest"
-                  - "@vitejs/*"
-                  - "@vitest/*"
-                  - "vite-plugin-*"
-          electron:
-              patterns:
-                  - "electron"
-                  - "electron-builder"
-                  - "electron-updater"
-                  - "@electron/*"
-          ai-providers:
-              patterns:
-                  - "@anthropic-ai/*"
-                  - "@google/generative-ai"
-                  - "openai"
-          testing:
-              patterns:
-                  - "@testing-library/*"
-                  - "jsdom"
-          tooling:
-              patterns:
-                  - "typescript"
                   - "esbuild"
-                  - "tailwindcss"
-                  - "autoprefixer"
-                  - "postcss"
-                  - "concurrently"
-                  - "wait-on"
       ignore:
           # Bỏ qua các major bump nhạy cảm — cần tự nâng tay
-          - dependency-name: "electron"
-            update-types: ["version-update:semver-major"]
           - dependency-name: "react"
             update-types: ["version-update:semver-major"]
           - dependency-name: "react-dom"

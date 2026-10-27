@@ -1,0 +1,16 @@
+The following is a diff from the previous accessibility tree for Window: "Viezan Native — AI Chat" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 29-34
++	36 text Value: Hoạt động, ID: QGuiApplication.Main_QMLTYPE_71.Popup.Label_QMLTYPE_2, Secondary Actions: Raise
++	37 nút Đóng, ID: QGuiApplication.Main_QMLTYPE_71.Popup.activity-close, Secondary Actions: Raise
++	38 text Value: Dòng 01: 日本語・Việt. Dòng 02: 日本語・Việt. Dòng 03: 日本語・Việt. Dòng 04 Hoàn tất · demo.standard, ID: QGuiApplication.Main_QMLTYPE_71.Popup.activity-scroll.Frame_QMLTYPE_10_QML_78.Label_QMLTYPE_2, Secondary Actions: Raise
++	39 nút Mở lại, ID: QGuiApplication.Main_QMLTYPE_71.Popup.activity-scroll.Frame_QMLTYPE_10_QML_78.Button_QMLTYPE_7, Secondary Actions: Raise
++	40 text Value: Great tools keep your work uninterrupted. Hoàn tất · demo.standard, ID: QGuiApplication.Main_QMLTYPE_71.Popup.activity-scroll.Frame_QMLTYPE_10_QML_78.Label_QMLTYPE_2, Secondary Actions: Raise
++	41 nút Mở lại, ID: QGuiApplication.Main_QMLTYPE_71.Popup.activity-scroll.Frame_QMLTYPE_10_QML_78.Button_QMLTYPE_7, Secondary Actions: Raise
++	42 text Value: Great tools keep your work uninterrupted. Hoàn tất · demo.standard, ID: QGuiApplication.Main_QMLTYPE_71.Popup.activity-scroll.Frame_QMLTYPE_10_QML_78.Label_QMLTYPE_2, Secondary Actions: Raise
++	43 nút Mở lại, ID: QGuiApplication.Main_QMLTYPE_71.Popup.activity-scroll.Frame_QMLTYPE_10_QML_78.Button_QMLTYPE_7, Secondary Actions: Raise
++	44 text Value: Lập kế hoạch cho Viezan trên Windows và Linux. Hoàn tất · demo.standard, ID: QGuiApplication.Main_QMLTYPE_71.Popup.activity-scroll.Frame_QMLTYPE_10_QML_78.Label_QMLTYPE_2, Secondary Actions: Raise
++	45 nút Mở lại, ID: QGuiApplication.Main_QMLTYPE_71.Popup.activity-scroll.Frame_QMLTYPE_10_QML_78.Button_QMLTYPE_7, Secondary Actions: Raise
++	46 thanh cuộn (settable) Value: 0, ID: QGuiApplication.Main_QMLTYPE_71.Popup.activity-scroll.ScrollBar_QMLTYPE_39, Secondary Actions: Raise
++	47 thanh cuộn (settable) Value: 0, ID: QGuiApplication.Main_QMLTYPE_71.Popup.activity-scroll.ScrollBar_QMLTYPE_39, Secondary Actions: Raise
++	48 text Viezan Native — AI Chat
+The focused UI element is 37 nút Đóng, ID: QGuiApplication.Main_QMLTYPE_71.Popup.activity-close, Secondary Actions: Raise

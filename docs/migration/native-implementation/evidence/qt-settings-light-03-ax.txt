@@ -1,0 +1,44 @@
+Window: "Viezan Native — Cài đặt", App: Viezan Qt Preview.
+0 cửa sổ thông thường Viezan Native — Cài đặt, Secondary Actions: Raise
+	1 nút Thu nhỏ thanh bên, ID: QGuiApplication.Main_QMLTYPE_54.ToolBar_QMLTYPE_34.ToolButton_QMLTYPE_32, Secondary Actions: Raise
+	2 text Value: Cài đặt, ID: QGuiApplication.Main_QMLTYPE_54.ToolBar_QMLTYPE_34.Label_QMLTYPE_1, Secondary Actions: Raise
+	3 nút Hoạt động · 0, ID: QGuiApplication.Main_QMLTYPE_54.ToolBar_QMLTYPE_34.ToolButton_QMLTYPE_32, Secondary Actions: Raise
+	4 text Value: viezan, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.Pane_QMLTYPE_5.Label_QMLTYPE_1, Secondary Actions: Raise
+	5 hộp kiểm AI Chat, Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.Pane_QMLTYPE_5.Button_QMLTYPE_30_QML_56
+	6 hộp kiểm Dịch, Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.Pane_QMLTYPE_5.Button_QMLTYPE_30_QML_56
+	7 hộp kiểm Cài đặt, Value: 1, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.Pane_QMLTYPE_5.Button_QMLTYPE_30_QML_56
+	8 text Value: Bản native thử nghiệm, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.Pane_QMLTYPE_5.Label_QMLTYPE_1, Secondary Actions: Raise
+	9 trường văn bản (settable) Tìm trong cài đặt, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.settings-search, Secondary Actions: Raise
+	10 hộp kiểm Chung, Value: 0, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.Button_QMLTYPE_30_QML_44, Secondary Actions: Raise
+	11 hộp kiểm Giao diện, Value: 1, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.Button_QMLTYPE_30_QML_44, Secondary Actions: Raise
+	12 hộp kiểm Giới thiệu, Value: 0, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.Button_QMLTYPE_30_QML_44, Secondary Actions: Raise
+	13 container QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43
+		14 text Secondary Actions: Raise, Value: Tiếp tục công việc Bản nháp và kết quả được giữ khi chuyển tính năng hoặc mở lại ứng dụng. Tác vụ bị gián đoạn chỉ chạy lại khi bạn chọn Thử lại., ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43.Label_QMLTYPE_1
+	15 text Value: Giao diện Chế độ hiển thị và cỡ chữ nội dung., ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.Label_QMLTYPE_1, Secondary Actions: Raise
+	16 container QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43
+		17 text Value: Chế độ Sáng, tối hoặc theo hệ thống, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43.Label_QMLTYPE_1
+		18 nhóm tab Chế độ, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43.settings-theme
+			19 tab Sáng, Value: 1, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43.settings-theme.TabButton_QMLTYPE_42
+			20 tab Tối, Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43.settings-theme.TabButton_QMLTYPE_42
+			21 tab Hệ thống, Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43.settings-theme.TabButton_QMLTYPE_42
+		22 text Secondary Actions: Raise, Value: Cỡ chữ nội dung Áp dụng cho hội thoại, bản dịch, bản nháp và vùng xem trước. Điều khiển giữ kích thước theo hệ thống., ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43.Label_QMLTYPE_1
+		23 nhóm tab Cỡ chữ nội dung, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43.settings-text-size
+			24 tab Nhỏ, Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43.settings-text-size.TabButton_QMLTYPE_42
+			25 tab Vừa, Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43.settings-text-size.TabButton_QMLTYPE_42
+			26 tab Lớn, Value: 1, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43.settings-text-size.TabButton_QMLTYPE_42
+	27 container Xem trước, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43
+		28 text Value: Dịch giúp tôi đoạn này. Đây là bản dịch, giữ sát giọng văn của bản gốc., Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43.Label_QMLTYPE_1
+	29 text Value: Giới thiệu Phạm vi và cách lưu dữ liệu của bản native., ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.Label_QMLTYPE_1, Secondary Actions: Raise
+	30 container QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43
+		31 text Secondary Actions: Raise, Value: Phạm vi bản thử nghiệm Chat, dịch văn bản, lịch sử và hoạt động đang dùng provider mô phỏng. Chưa kết nối AI thật hoặc nhập dữ liệu từ Electron., ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43.Label_QMLTYPE_1
+		32 text Value: Dữ liệu riêng trên thiết bị, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.GroupBox_QMLTYPE_43.Label_QMLTYPE_1
+	33 thanh cuộn (settable) Value: 71.39107611548556, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.ScrollBar_QMLTYPE_4
+	34 thanh cuộn (settable) Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.ScrollView_QMLTYPE_3.ScrollBar_QMLTYPE_4
+	35 nút đóng
+	36 nút toàn màn hình Help: nút này cũng có tác vụ thu phóng cửa sổ, Secondary Actions: thu phóng cửa sổ
+	37 nút thu nhỏ
+	38 text Viezan Native — Cài đặt
+39 menu bar
+	40 Viezan Qt Preview
+
+The focused UI element is 9 trường văn bản (settable) Tìm trong cài đặt, ID: QGuiApplication.Main_QMLTYPE_54.ApplicationWindowContentControl.settings-search, Secondary Actions: Raise

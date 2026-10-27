@@ -1,0 +1,92 @@
+BEFORE CLOSE
+Window: "AI Chat / Foundation 07 — close/reopen. Gi tc v ang chy v bn nhp khi ng ca", App: Viezan Native Preview.
+0 standard window AI Chat / Foundation 07 — close/reopen. Gi tc v ang chy v bn nhp khi ng ca, ID: workbench, Secondary Actions: Raise
+	1 container
+		2 container Điều hướng chính
+			3 text viezan
+			4 button Description: Bảng lệnh, Help: Bảng lệnh (⌘K)
+			5 scroll area
+				6 button (selected) Description: AI Chat, ID: nav-chat
+				7 button Description: Dịch, ID: nav-translate
+			8 button Description: Cài đặt, ID: nav-settings
+			9 text Bản native thử nghiệm
+		10 text Provider mô phỏng · không gửi dữ liệu ra mạng
+		11 scroll area
+			12 list Secondary Actions: AXScrollToTop, AXScrollToBottom
+				13 text entry area Description: Bạn, Value: Foundation 07 — close/reopen. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit.
+				14 text Viezan
+				15 text entry area Description: Phản hồi, Value: Đây là phản hồi mô phỏng của Viezan native. Bạn có thể chuyển sang Dịch, mở phiên khác hoặc dừng riêng tác vụ này mà vẫn giữ bản nháp. Nội dung bạn gửi: Foundation 07 — close/reopen. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. T
+				16 button Sao chép phản hồi
+		17 scroll area Secondary Actions: Scroll Up, Scroll Down
+			18 text entry area (settable) Description: Hỏi bất kỳ điều gì…, Value: Foundation 07 unsent draft 日本語 · Tiếng Việt, ID: chat-draft
+			19 scroll bar (disabled, settable, float) 0
+		20 pop up button Description: Mô hình cho phiên này, Mô hình cho phiên này, Help: demo.slow, Value: Mô phỏng chậm
+		21 busy indicator Description: Đang xử lý, Value: 0
+		22 button Dừng
+	23 toolbar
+		24 button Description: Thu nhỏ thanh bên, ID: navigation-toggle, Secondary Actions: Move next, Remove from toolbar
+		25 button Description: Bảng lệnh, ID: commands-toggle, Secondary Actions: Move previous, Move next, Remove from toolbar
+		26 button Description: Lịch sử, ID: history-toggle, Secondary Actions: Move previous, Move next, Remove from toolbar
+		27 button Description: Chat mới, ID: new-work, Secondary Actions: Move previous, Move next, Remove from toolbar
+		28 button Description: Hoạt động, Value: 1, ID: activity-toggle, Secondary Actions: Move previous, Remove from toolbar
+	29 close button
+	30 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	31 minimize button
+	32 text AI Chat / Foundation 07 — close/reopen. Gi tc v ang chy v bn nhp khi ng ca
+33 menu bar
+	34 Viezan Native Preview
+	35 File
+	36 Edit
+	37 View
+	38 Bảng lệnh
+	39 Window
+	40 Help
+
+The focused UI element is 18 text entry area (settable) Description: Hỏi bất kỳ điều gì…, Value: Foundation 07 unsent draft 日本語 · Tiếng Việt, ID: chat-draft
+APP AFTER CLOSE
+{"displayName":"Viezan Native Preview","id":"com.viezan.native.preview","isRunning":true}
+AFTER REOPEN
+Window: "AI Chat / Foundation 07 — close/reopen. Gi tc v ang chy v bn nhp khi ng ca", App: Viezan Native Preview.
+0 standard window AI Chat / Foundation 07 — close/reopen. Gi tc v ang chy v bn nhp khi ng ca, ID: workbench, Secondary Actions: Raise
+	1 container
+		2 container Điều hướng chính
+			3 text viezan
+			4 button Description: Bảng lệnh, Help: Bảng lệnh (⌘K)
+			5 scroll area
+				6 button (selected) Description: AI Chat, ID: nav-chat
+				7 button Description: Dịch, ID: nav-translate
+			8 button Description: Cài đặt, ID: nav-settings
+			9 text Bản native thử nghiệm
+		10 text Provider mô phỏng · không gửi dữ liệu ra mạng
+		11 scroll area
+			12 list Secondary Actions: AXScrollToTop, AXScrollToBottom
+				13 text entry area Description: Bạn, Value: Foundation 07 — close/reopen. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit.
+				14 text Viezan
+				15 text entry area Description: Phản hồi, Value: Đây là phản hồi mô phỏng của Viezan native. Bạn có thể chuyển sang Dịch, mở phiên khác hoặc dừng riêng tác vụ này mà vẫn giữ bản nháp. Nội dung bạn gửi: Foundation 07 — close/reopen. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Ting Vit. Gi tc v ang chy v bn nhp khi ng ca s. Tin
+				16 button Sao chép phản hồi
+		17 scroll area Secondary Actions: Scroll Up, Scroll Down
+			18 text entry area (settable) Description: Hỏi bất kỳ điều gì…, Value: Foundation 07 unsent draft 日本語 · Tiếng Việt, ID: chat-draft
+			19 scroll bar (disabled, settable, float) 0
+		20 pop up button Description: Mô hình cho phiên này, Mô hình cho phiên này, Help: demo.slow, Value: Mô phỏng chậm
+		21 busy indicator Description: Đang xử lý, Value: 0
+		22 button Dừng
+	23 toolbar
+		24 button Description: Thu nhỏ thanh bên, ID: navigation-toggle, Secondary Actions: Move next, Remove from toolbar
+		25 button Description: Bảng lệnh, ID: commands-toggle, Secondary Actions: Move previous, Move next, Remove from toolbar
+		26 button Description: Lịch sử, ID: history-toggle, Secondary Actions: Move previous, Move next, Remove from toolbar
+		27 button Description: Chat mới, ID: new-work, Secondary Actions: Move previous, Move next, Remove from toolbar
+		28 button Description: Hoạt động, Value: 1, ID: activity-toggle, Secondary Actions: Move previous, Remove from toolbar
+	29 close button
+	30 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	31 minimize button
+	32 text AI Chat / Foundation 07 — close/reopen. Gi tc v ang chy v bn nhp khi ng ca
+33 menu bar
+	34 Viezan Native Preview
+	35 File
+	36 Edit
+	37 View
+	38 Bảng lệnh
+	39 Window
+	40 Help
+
+The focused UI element is 18 text entry area (settable) Description: Hỏi bất kỳ điều gì…, Value: Foundation 07 unsent draft 日本語 · Tiếng Việt, ID: chat-draft

@@ -1,350 +1,170 @@
-<p align="right">
-  <a href="https://me.momo.vn/aMI2T6tWf3uRteU4tqUZtn">
-    <img src="https://img.shields.io/badge/Support%20via%20MoMo-ae2070?style=for-the-badge" alt="Support via MoMo">
-  </a>
-</p>
-
 # Viezan
 
-<p align="center">
-  <img src="public/icon.png" width="96" alt="Viezan logo">
-</p>
+Local-first AI chat, translation, dictionary and live interpretation for desktop.
+The application is now implemented in **SwiftUI/AppKit + Swift on macOS** and
+**Qt Quick/QML + C++ on Windows/Linux**. There is no Electron main process,
+preload, renderer host, updater, builder or Electron dependency in the active
+application or package manifest.
 
-<p align="center">
-  <strong>Local-first AI translation for desktop and browser.</strong><br>
-  Viezan runs on macOS, Windows and Linux, with Local AI support plus bring-your-own-key cloud providers.
-</p>
+This checkout is a **source migration awaiting full runtime acceptance**.
+The macOS Desktop Review 18 bundle was rebuilt and opened on 2026-10-27
+from the latest UI source. macOS automated tests and the Release build now pass
+in CI. Windows/Linux builds complete; cross-platform regression and CodeQL follow-up
+are tracked in PR #178. Full feature and visual acceptance remain separate from CI.
+Existing GitHub releases may still be the previous app.
 
-<p align="center">
-  <a href="https://github.com/trunghieupham59/Viezan/releases/latest">
-    <img src="https://img.shields.io/github/v/release/trunghieupham59/Viezan?style=flat-square&color=f97316" alt="Latest Release">
-  </a>
-  <img src="https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-blue?style=flat-square" alt="Platform">
-  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License">
-  <img src="https://img.shields.io/badge/Electron-47848F?style=flat-square&logo=electron&logoColor=white" alt="Electron">
-  <img src="https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React">
-</p>
+## Features in the native source
 
-Viezan is a desktop workspace for AI chat, translation, live interpretation and dictionary lookup, with a quick launcher and system monitoring. It supports local AI and your own cloud provider keys. AI requests go directly from the desktop app to local runtimes or external providers; there is no Viezan-hosted relay. Cloud AI, speech and web search features require their respective external services.
+- Ollama, LM Studio, llama.cpp, OpenAI, Claude and Gemini streaming, model discovery, cancellation,
+  retries, conversation-specific settings and careful reasoning, Markdown, charts
+  and image attachments.
+- Translation language pairs, styles, phonetics, annotations, rewrite, chunking,
+  model comparison and sentence assembly, model-specific reasoning effort and opt-in
+  automatic translation after edits; dictionary details, context and favorites.
+- Image translation with validated text regions, native overlays, original/translated
+  text and image export. Source attachments and completed results survive native backups.
+- Search and resumable research, saved prompts, image generation/editing and OCR.
+- Microphone, system and mixed audio capture; language-aware STT with explicit
+  provider selection or opt-in automatic routing, translated interpretation,
+  subtitles, pause-based speaker hints/names, summaries, action items, decisions,
+  history and TXT/SRT export. Speaker hints are not acoustic identity recognition.
+- System, Edge, OpenAI, Gemini and ElevenLabs speech; provider credentials stored
+  through OS credential facilities rather than renderer storage.
+- Desktop Review 18 UI organization: compact composer tools, translation options,
+  category-based Settings, searchable interpretation history, responsive application
+  details, dedicated desktop-tools pages and a recent-work Home workspace.
+  Background interpretation exposes Open/Stop while navigating; closing the main
+  window stops capture. Latest UI edits await
+  visual/runtime acceptance.
+- Independent app/chat navigation, native detached Quick Chat and translation
+  panels, global shortcuts, application/file launcher, calculator, currency
+  conversion, browser search and native window/tray lifecycle.
+- macOS application inventory, selected uninstall/reset plans, Trash operations,
+  preference backup/reset, journals, recovery and undo; thermal monitoring,
+  fan profiles, calibration and helper lease restoration. Linux exposes available
+  hwmon readings; Windows uses system application settings for app management.
+- Local Ollama management, model downloads/deletion, runtime limits, GPU/hybrid
+  comparison and persistent measured profiles; optional prepared Windows runtime.
+- EN/VI/JA, theme presets and accents, reading size, module preferences, login
+  startup, permission links, diagnostics and token usage with user-entered pricing.
+- Authenticated loopback Chrome-extension bridge, allowed origins, native speech
+  adapters, session/history backup and offline legacy conversion. Backups exclude
+  provider credentials and bridge authentication tokens.
+- Native installer packaging and update discovery/download with bounded transfers
+  and SHA-256 verification. Installation is explicit; the running binary stays
+  intact during download. Windows verifies installer signatures before opening.
 
-<!-- BEGIN GENERATED:overview -->
-This README describes the source in this checkout (package version **2.4.2**).
-The latest published installer may differ; see [Releases](https://github.com/trunghieupham59/Viezan/releases/latest).
+## Source layout
 
-- AI providers: Local AI, OpenAI GPT, Anthropic Claude, Google Gemini.
-- Interface languages: English, Tiếng Việt, 日本語.
-<!-- END GENERATED:overview -->
-
-## Screenshots
-
-<p align="center">
-  <a href="https://trunghieupham59.github.io/viezan/" title="Open interactive screenshot slider">
-    <img src="docs/screenshots/demo.gif" width="800" alt="Viezan screenshots">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://trunghieupham59.github.io/viezan/">Open interactive screenshot gallery</a>
-</p>
-
-## Download
-
-| Platform | Package |
+| Path | Purpose |
 | --- | --- |
-| macOS Apple Silicon | DMG from the [latest release](https://github.com/trunghieupham59/Viezan/releases/latest) |
-| macOS Intel x64 | DMG from the [latest release](https://github.com/trunghieupham59/Viezan/releases/latest) |
-| Windows x64 | NSIS installer from the [latest release](https://github.com/trunghieupham59/Viezan/releases/latest) |
-| Linux x64 | AppImage from the [latest release](https://github.com/trunghieupham59/Viezan/releases/latest) |
-| Chrome Extension | Extension package from the matching [release](https://github.com/trunghieupham59/Viezan/releases/latest) |
+| `apps/macos` | Swift package: native UI and application/domain services |
+| `apps/desktop-qt` | C++ services, QML UI and CMake project |
+| `native` | macOS filesystem, SMC and privileged fan helper sources |
+| `apps/packaging` | Native entitlements, per-user Windows installer and Linux desktop entry |
+| `scripts/native` | Resource generation, build, packaging and offline migration |
+| `contracts/native-workbench` | Shared data/resource contracts and translation policy |
+| `chrome-extension` | Browser extension, connecting to the native loopback bridge |
+| `src` | Retained renderer/design reference; locales, tokens and icon catalog feed native assets |
+| `docs/migration` | Implementation inventory, data migration and acceptance notes |
 
-View all versions on the [GitHub Releases page](https://github.com/trunghieupham59/Viezan/releases).
+The retained React/TypeScript reference is not loaded by the native app. Node,
+React and esbuild are development-only resource-generation tools. QML uses binding
+expressions; application state and privileged services execute in C++.
 
-## Release Notes
+## Build when ready
 
-See [CHANGELOG.md](CHANGELOG.md) for version-specific changes and limitations.
-The feature guide below describes the current checkout, including changes that may not yet be in a published installer.
+Prerequisites: macOS 15+ with Xcode 26+ / Swift 6.2+ for the macOS target; Qt 6.8+ with
+Quick, Quick Controls, QML, Widgets, Network, Concurrent, Multimedia, TextToSpeech,
+WebSockets, SVG (plus DBus on Linux), CMake 3.21+, a C++17 compiler and Python 3.11+ for
+Windows/Linux. Resource regeneration uses Node 22.13+ and the locked development
+dependencies. Committed native resources let you build without Node.
 
-## Features
+```sh
+# macOS: creates an application bundle including native helpers
+python3 scripts/native/build.py --target macos --configuration Release --output .native-build/macos
 
-| Feature | Description |
-| --- | --- |
-| [Home](src/pages/HomePage.tsx) | Quick starts, recent activity and system status for enabled modules. |
-| [AI Translate](src/pages/TranslatePage.tsx) | Translate text with source detection, tone and phonetic controls, or compare up to three models across providers in one run. Image translation is available inside this workspace. |
-| [Dictionary](src/pages/DictionaryPage.tsx) | Look up words and phrases with optional context, definitions and examples; save favorites, revisit lookup history and reuse a term in translation. |
-| Local AI | Run translation, rewrite and chat through Ollama, LM Studio or llama.cpp without a cloud API key. |
-| Cloud Providers | Use Google Gemini, Anthropic Claude or OpenAI with your own API keys. |
-| [AI Interpret](src/pages/LiveTranslatePage.tsx) | Live microphone/system-audio transcription, translation and floating subtitles. Audio capture availability depends on the OS and permissions. |
-| Image Translation | Drag, drop or paste images; AI extracts and translates visible text. |
-| Voice Input | Records audio locally, then sends the completed clip through Electron Main to Whisper, Gemini STT or Groq. |
-| Text-to-Speech | Edge TTS, OpenAI, Gemini and ElevenLabs, with fallback order based on the selected quality mode and available keys. |
-| [AI Chat](src/pages/ChatPage.tsx) | Chat with image attachments, voice input, saved system prompts, conversation history, optional web search and native chart blocks in AI responses. |
-| Web Search | Tavily and Brave key support with a Jina fallback path. |
-| [Translate everywhere](src/pages/EverywherePage.tsx) | Configure Quick Translate for text selected in other apps and the Chrome extension connection. The extension supports a context menu, selection button and `Alt+T`. |
-| [Quick Launcher](src/pages/QuickLauncher.tsx) | Search apps and files, calculate, convert currencies and open AI or translation actions. Native search support varies by platform; currency rates need a network connection. |
-| [Launcher & shortcuts](src/pages/UtilitiesPage.tsx) | Configure the launcher and global shortcuts. |
-| [Applications](src/pages/AppsPage.tsx) | macOS app inventory, previewed removal or reset, per-item results and Undo. User-level operations only; shared, protected and administrator-owned items are kept. |
-| [Thermal](src/pages/ThermalPage.tsx) | Monitor temperatures, fan readings and CPU load on macOS (SMC) and Linux (hwmon). Optional macOS fan control supports fixed speeds, sensor rules, profiles and calibration through a privileged helper. Packaged builds can install the background helper once and reconnect on later launches; development runs use a session helper. Windows thermal readings are not supported. |
-| [Settings](src/pages/SettingsPage.tsx) | Manage AI models and keys, voice, appearance, chat presets, feature modules, preferences and updates. |
-| History | Feature-specific translation, interpretation, conversation and dictionary history. History has storage limits; keep separate copies of work you need long term. |
-| Session recovery | Reopen the active chat and text drafts, or recover translation and dictionary work after navigation or restart. Completed work can start fresh after an absence, with an option to reopen the previous result. |
-| Security | API keys are encrypted with Electron safeStorage and are used only by the Electron main process. |
+# Windows/Linux: use the installed Qt kit
+python3 scripts/native/build.py --target qt --configuration Release --output .native-build/qt --qt-prefix /path/to/Qt/6.8/kit
 
-## Getting Started
-
-### 1. Install Viezan
-
-Download the package for your platform from [Releases](https://github.com/trunghieupham59/Viezan/releases/latest), install it, then launch Viezan.
-
-For unsigned macOS builds, Gatekeeper may show `"Viezan" cannot be opened` on first launch. Open **System Settings -> Privacy & Security** and choose **Open Anyway** for Viezan. If you trust the downloaded app and macOS still blocks it after dragging it to Applications, run:
-
-```bash
-xattr -dr com.apple.quarantine /Applications/Viezan.app
+# Only after modifying canonical locales/tokens/icons
+npm ci
+npm run resources
 ```
 
-### 2. Choose a Provider
+Choose a fresh output directory for each macOS app bundle. Add `--launch` only
+when you want to start the resulting application. `npm run build`, `build:mac`,
+`build:win` and `build:linux` call these native entrypoints. No dependency manager
+is invoked by the native build helper.
 
-Local AI works without cloud keys when a compatible local runtime is available.
-
-For cloud providers, open **Settings -> AI models**, choose a provider, paste your key, and save it. Keys are encrypted by Electron safeStorage on the current OS and are not stored in the browser extension.
-
-| Provider | Key required | Where to configure |
-| --- | --- | --- |
-| Local AI | No | **Settings -> AI models -> Local AI** |
-| Google Gemini | Yes | **Settings -> AI models** |
-| Anthropic Claude | Yes | **Settings -> AI models** |
-| OpenAI | Yes | **Settings -> AI models** |
-| Groq STT | Optional | **Settings -> Voice** |
-| Tavily / Brave Search | Optional | **Settings -> AI models**, web search provider controls |
-
-### 3. Start Translating
-
-- **AI Translate**: translate text, compare up to three models or use image translation.
-- **AI Interpret**: live subtitles from microphone, system audio or both where supported.
-- **Dictionary**: look up a word or phrase and optionally supply its context.
-- **AI Chat**: multimodal chat with voice input, saved prompts and optional web search.
-- Open history within the relevant workspace to revisit saved results or conversations.
-
-### Returning to your work
-
-AI Chat keeps the selected conversation and text drafts. Translate and Dictionary
-save their current work locally; translation recovery includes image drafts and
-completed comparison results. Restoring work does not send another AI request.
-
-With **Settings -> Preferences -> Start fresh after completed work** enabled,
-returning after 2 hours away from Translate or 30 minutes away from Dictionary
-opens a fresh workspace for successfully saved, completed work. **Open previous
-work** restores that result. Unfinished drafts and active operations are kept;
-reading a screen without leaving does not trigger a reset.
-
-Recovery keeps the current workspace and one previous completed workspace. It is
-separate from history, which retains the existing limits: 20 chats, 100
-translations, 50 interpretation sessions, 100 recent dictionary entries and 500
-favorites. A warning appears at these limits. Unsent chat image attachments are
-not restored after a restart. If saving fails, keep the app open and use
-**Retry saving**; a forced shutdown can still lose changes not yet saved.
-
-### Removing or resetting an app (macOS)
-
-Open **Applications**, select one app, inspect its related files and choose
-**Uninstall app** or **Reset**. Reset keeps the application bundle. Only the bundle and exact bundle-ID matches for caches, logs and saved window
-state are selected automatically. Persistent data and preferences require explicit
-selection. Name/vendor/prefix matches, Containers, launch agents and shared data stay. A native confirmation lists the chosen paths before any changes. Apps are
-asked to quit normally, never force-quit. Incomplete scans or uncertain installed-app
-metadata block changes. Inventory reads standard, flat and wrapped bundle metadata,
-including valid plists that cannot be converted wholesale to JSON. Wrapped iOS apps
-remain protected, and a data folder ending in `.app` is not sufficient evidence
-of an installed app. The full selection is checked before the first operation;
-a failure stops subsequent removals and restores.
-
-Files go to Trash; preference domains are exported before removal. **Journal and
-Undo** records individual outcomes, including skipped/failed items. Undo refuses
-to overwrite a recreated file or preference domain, or restore changed Trash
-content. Preference backups have checksums; an empty plist retained by macOS after
-clearing a domain is recorded and checked before Undo. An interrupted restoration
-is reconciled where its exact filesystem identity can be verified, otherwise it
-stays pending and blocks new removals. Emptying Trash makes those files unavailable for Undo. A post-operation
-scan reports what remains within the supported locations, not a guarantee that
-all traces anywhere on the disk are gone.
-
-This draft has not been approved for general use with real apps. It does not remove
-administrator helpers, package receipts, user launch agents, ByHost preferences,
-Containers or Group Containers. Managed Macs are conservatively blocked.
-Updates and orphan-data scanning are planned separately. No app inventory is sent
-to a server. Native actions require the unprivileged `viezan-fs` binary built by
-`npm run build:native` with the Xcode Command Line Tools; without it, the page is
-preview-only. There is no root helper or permanent-delete action in this module.
-
-## Chrome Extension
-
-The extension connects browser-selected text to the Viezan desktop app over `127.0.0.1:39875`.
-
-1. Install the extension package from the matching release, or load `chrome-extension/` unpacked for local development.
-2. Open **Viezan -> Translate everywhere** and find the browser extension controls.
-3. Copy or create a connection token.
-4. Open the extension **Options** page, paste the token, set your preferred language/provider, then save.
-
-The desktop app must be running for browser translations to work. The connection token is sent through the local auth header, and the extension never stores cloud provider API keys.
-
-See [chrome-extension/README.md](chrome-extension/README.md) for the detailed extension guide.
-
-## Development
-
-### Prerequisites
-
-- Node.js 22 (the version used in CI)
-- npm
-- macOS, Windows or Linux
-
-### Setup
-
-```bash
-git clone https://github.com/trunghieupham59/Viezan.git
-cd Viezan
-npm install
-npm run dev
+```sh
+# Package an already-built app; output must be a new directory
+python3 scripts/native/package.py --input .native-build/macos/Viezan.app --output .native-packages/macos --identity "Developer ID Application: …" --notary-profile Viezan
 ```
 
-For browser-based UI development and AI-assisted visual testing, run the
-deterministic Web Preview instead. It mocks the Electron bridge and never reads
-real API keys or invokes native OS features:
+Windows packaging requires `windeployqt`, NSIS and an installed signing certificate
+(`--qt-bin`, `--certificate-thumbprint`); an optional `--patched-runtime` directory
+is checked against its full manifest and pinned binary hashes. Linux packaging requires a provisioned
+linuxdeploy executable and its Qt plugin (`--linuxdeploy`, `--qt-bin`). Packaging
+emits version/platform/architecture-specific artifacts and checksum manifests.
+The manual release workflow uses prepared signing runners and uploads artifacts
+for review; it does not publish or install them. Publish the matching manifest
+alongside each installer for the native updater to discover it.
 
-```bash
-npm run dev:web
-```
+## Existing data
 
-Then open `http://localhost:5173`. Translation, chat, models, settings and
-history remain interactive; native-only features return safe preview results.
+Native storage deliberately retains its existing migration-era location to avoid
+silently abandoning earlier native sessions: `ViezanNativePreview/workbench.json`
+on macOS and Qt's `ViezanNativePreview/ViezanNativeQt` application-data location on
+Windows/Linux. The legacy browser profile is not modified automatically.
 
-### Dev vs installed app
+1. While the previous app is still available, export using the procedure in
+   [legacy migration](docs/migration/native-implementation/legacy-data-migration.md).
+2. Convert the export offline:
+   `node scripts/native/convert-legacy.mjs old-export.json native-backup.json`.
+3. In native Settings → Data, preview and import the converted backup. Existing
+   IDs are preserved. Restore compatible preferences only if selected.
+4. Re-enter provider credentials and pair the browser extension with a new token.
 
-`npm run dev` can run next to the installed Viezan (even while it is resident in the
-system tray) because a development run is isolated from the official build:
+Keep the original export. Conversion preserves the original envelope alongside
+mapped conversations, translations, dictionary entries, interpretation, images,
+usage records and research checkpoints. Provider-specific legacy metadata that
+has no native representation remains in that envelope rather than being silently
+fabricated. Importing workspace and interpretation history uses separate atomic
+files; retrying an interrupted import deduplicates their IDs.
 
-| | Installed app | `npm run dev` |
-| --- | --- | --- |
-| Data folder on Windows (settings, API keys, tokens) | `%APPDATA%\viezan` | `%APPDATA%\viezan-dev` |
-| Local server port | `39875` | `39876` |
-| Window title / tray tooltip | `Viezan` | `Viezan (Dev)` |
-| Closing the window | stays resident when a tray is available | quits (tray: `VIEZAN_DEV_TRAY=1`) |
+History trimming is explicit, bounded by a selected count and protects active
+sessions, favorites and drafts. Export before trimming. Unreferenced attachments
+older than one day are moved to an application-owned recovery directory rather
+than permanently erased.
 
-- Override the dev port with `VIEZAN_LOCAL_PORT` (1024-65535). Environment overrides
-  are ignored by the packaged app.
-- The Chrome extension is built for `39875`, so it talks to the installed app. To test
-  it against a dev run, quit the installed app and start dev with `VIEZAN_LOCAL_PORT=39875`.
-- Global hotkeys are OS-wide: if both builds are running, the second one to start reports
-  its hotkey as "in use". Quit the installed app to test hotkeys in dev.
-- A dev run starts with empty settings; add your API keys in the dev window once.
+## Platform requirements and limits
 
-### Test
+- Microphone, Screen Recording and Accessibility permissions are requested by the
+  relevant native features. macOS helper installation requires OS authorization.
+- Linux global shortcuts and Wayland screenshots require a desktop portal that
+  implements those interfaces. Wayland intentionally restricts reading and
+  replacing another application's selection; clipboard/manual paste remains
+  available. Linux system audio uses a PulseAudio/PipeWire monitor via `parec`.
+- Windows capture uses WASAPI; available microphone/speech devices depend on the
+  Qt/platform plugins installed with the app. Native Windows selection reading
+  depends on the target application's UI Automation support. Replacement/undo is
+  available for editable plain-value controls only: the original document and
+  selection are checked again, and undo refuses to overwrite subsequent edits.
+  Other controls keep the manual copy/paste path.
+- macOS application cleanup and fan control preserve their platform scope. They
+  are not presented as portable Windows/Linux uninstall or fan-control backends.
+- Cloud AI, speech, search and currency conversion need their external services.
+  Local model availability depends on the selected runtime: Ollama (`11434`),
+  LM Studio (`1234/v1`) or llama.cpp (`8080/v1`), all on `127.0.0.1`. Select a
+  provider from the model refresh menu; discovery does not change the current
+  conversation model. Only Ollama has managed start/stop/download controls.
+  Rates are cached and dated. Automatic STT may send audio to another configured
+  provider after a failure; choose an explicit provider to disable that behavior.
+- Usage pricing is an estimate for reported input/output tokens; missing usage,
+  audio/image/search costs, discounts and taxes are not inferred.
+- Update installation remains a user action after quitting. No silent installer,
+  in-place updater replacement or automatic rollback is claimed.
 
-```bash
-npm test
-npm test -- --watch
-npm run test:coverage
-npm run test:docs
-```
-
-Tests live in `src/**/__tests__/` and `electron/ipc/__tests__/`.
-
-### Build
-
-```bash
-npm run build
-npm run build:mac
-npm run build:win
-npm run build:linux
-```
-
-Build artifacts are written to `release/`.
-
-### Keeping documentation current
-
-Update the feature guide, setup instructions and limitations in the same change
-as user-visible behavior. Before a version bump is released:
-
-1. Review source and tests changed since the previous release using the repository's
-   `sync-docs` workflow and [documentation rules](AGENTS.md#documentation-and-version-changes).
-2. Update this README and add a `## [X.Y.Z]` entry to [CHANGELOG.md](CHANGELOG.md).
-   Bump `package.json` and both root versions in `package-lock.json` together.
-3. Run `npm run docs:sync` to refresh generated facts, then read the full README.
-4. Record the completed review and run the checks:
-
-```bash
-npm run docs:review -- --summary "Reviewed features, setup and platform limitations against the changed source."
-npm run check:docs
-npm run test:docs
-```
-
-Commit the review record together with the reviewed source and docs. A later source,
-README or changelog edit invalidates that record. Tests and generated binaries do
-not invalidate it. If an internal-only fix needs no prose change, explain why in
-the review summary. The record detects stale reviews; it cannot prove the prose is
-correct. Never run `docs:review` in CI or use it to dismiss an unread diff.
-
-PR documentation checks, auto-tag and direct tag releases use the same checker.
-Release tags must match the already-reviewed package version; CI does not rewrite
-the version to make a mismatched tag pass. See the
-[release guide](.github/WORKFLOWS.md) for the full policy.
-
-## Project Map
-
-```text
-Viezan/
-├── electron/                 # Electron main process and IPC handlers
-│   ├── main.ts               # App lifecycle and window management
-│   ├── preload.ts            # Context bridge entry
-│   ├── preload/              # Renderer-facing preload modules
-│   └── ipc/                  # Providers, storage, local server, audio, updater
-├── src/                      # React renderer
-│   ├── pages/                # Home, Chat, Translate, Interpret, Dictionary, Applications, Thermal, Settings
-│   ├── components/           # Shared UI and feature components
-│   ├── store/                # Zustand app state
-│   ├── services/             # Renderer service helpers
-│   ├── i18n/                 # App UI translations
-│   └── types/                # Shared TypeScript types
-├── chrome-extension/         # Chrome/Chromium extension
-├── docs/                     # GitHub Pages landing page and screenshots
-├── scripts/                  # Build and asset scripts
-└── viezanagent/              # Agent rules, skills, workflows, reports and docs
-```
-
-## Tech Stack
-
-<!-- BEGIN GENERATED:stack -->
-| Technology | Declared version | Role |
-| --- | --- | --- |
-| Electron | `^41.10.7` | Desktop shell, native capabilities and secure storage |
-| React | `^18.3.1` | Renderer UI |
-| TypeScript | `^7.0.2` | Type safety across renderer and Electron code |
-| Vite | `^8.3.5` | Renderer build pipeline |
-| Tailwind CSS | `^4.3.3` | Styling |
-| Zustand | `^5.0.16` | Client state |
-| electron-builder | `^26.15.3` | Packaging and publishing |
-| Vitest | `^5.0.3` | Unit and integration tests |
-<!-- END GENERATED:stack -->
-
-## Contributing
-
-Contributions, bug reports and feature requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Support
-
-If Viezan is useful to you, you can support development via MoMo:
-
-<p align="center">
-  <a href="https://me.momo.vn/aMI2T6tWf3uRteU4tqUZtn">
-    <img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-MoMo-ae2070?style=for-the-badge" alt="Buy me a coffee via MoMo">
-  </a>
-</p>
-
-## Author
-
-**trunghieupham59** - [github.com/trunghieupham59](https://github.com/trunghieupham59)
-
-## Disclaimer
-
-Viezan is an independent desktop application and is not affiliated with Google, Anthropic, OpenAI, Groq, Tavily, Brave, Ollama, LM Studio or llama.cpp. You are responsible for your own provider usage and associated costs.
-
-## License
-
-[MIT](LICENSE)
+See the [source migration inventory](docs/migration/native-implementation/full-migration-status.md)
+for implementation paths and the remaining compilation/runtime acceptance boundary.

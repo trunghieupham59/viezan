@@ -1,0 +1,643 @@
+{
+  "pageChecks": [
+    {
+      "os": "macos",
+      "page": "Trang chủ",
+      "content": 605
+    },
+    {
+      "os": "macos",
+      "page": "AI Chat",
+      "content": 581
+    },
+    {
+      "os": "macos",
+      "page": "Dịch",
+      "content": 604
+    },
+    {
+      "os": "macos",
+      "page": "Phiên dịch",
+      "content": 737
+    },
+    {
+      "os": "macos",
+      "page": "Từ điển",
+      "content": 448
+    },
+    {
+      "os": "macos",
+      "page": "Dịch mọi nơi",
+      "content": 516
+    },
+    {
+      "os": "macos",
+      "page": "Ứng dụng",
+      "content": 503
+    },
+    {
+      "os": "macos",
+      "page": "Nhiệt độ & quạt",
+      "content": 534
+    },
+    {
+      "os": "macos",
+      "page": "Launcher & phím tắt",
+      "content": 412
+    },
+    {
+      "os": "macos",
+      "page": "Cài đặt",
+      "content": 535
+    },
+    {
+      "os": "macos",
+      "settings": "Chung",
+      "content": 535
+    },
+    {
+      "os": "macos",
+      "settings": "Giao diện",
+      "content": 378
+    },
+    {
+      "os": "macos",
+      "settings": "Mô hình AI",
+      "content": 477
+    },
+    {
+      "os": "macos",
+      "settings": "Giọng nói",
+      "content": 396
+    },
+    {
+      "os": "macos",
+      "settings": "Chat",
+      "content": 382
+    },
+    {
+      "os": "macos",
+      "settings": "Module",
+      "content": 478
+    },
+    {
+      "os": "macos",
+      "settings": "Cập nhật",
+      "content": 384
+    },
+    {
+      "os": "macos",
+      "settings": "Giới thiệu",
+      "content": 354
+    },
+    {
+      "os": "windows",
+      "page": "Trang chủ",
+      "content": 624
+    },
+    {
+      "os": "windows",
+      "page": "AI Chat",
+      "content": 581
+    },
+    {
+      "os": "windows",
+      "page": "Dịch",
+      "content": 604
+    },
+    {
+      "os": "windows",
+      "page": "Phiên dịch",
+      "content": 737
+    },
+    {
+      "os": "windows",
+      "page": "Từ điển",
+      "content": 448
+    },
+    {
+      "os": "windows",
+      "page": "Dịch mọi nơi",
+      "content": 454
+    },
+    {
+      "os": "windows",
+      "page": "Ứng dụng",
+      "content": 455
+    },
+    {
+      "os": "windows",
+      "page": "Nhiệt độ & quạt",
+      "content": 431
+    },
+    {
+      "os": "windows",
+      "page": "Launcher & phím tắt",
+      "content": 432
+    },
+    {
+      "os": "windows",
+      "page": "Cài đặt",
+      "content": 363
+    },
+    {
+      "os": "windows",
+      "settings": "Chung",
+      "content": 535
+    },
+    {
+      "os": "windows",
+      "settings": "Giao diện",
+      "content": 440
+    },
+    {
+      "os": "windows",
+      "settings": "Mô hình AI",
+      "content": 477
+    },
+    {
+      "os": "windows",
+      "settings": "Giọng nói",
+      "content": 396
+    },
+    {
+      "os": "windows",
+      "settings": "Chat",
+      "content": 382
+    },
+    {
+      "os": "windows",
+      "settings": "Module",
+      "content": 478
+    },
+    {
+      "os": "windows",
+      "settings": "Cập nhật",
+      "content": 384
+    },
+    {
+      "os": "windows",
+      "settings": "Giới thiệu",
+      "content": 363
+    },
+    {
+      "os": "linux",
+      "page": "Trang chủ",
+      "content": 624
+    },
+    {
+      "os": "linux",
+      "page": "AI Chat",
+      "content": 581
+    },
+    {
+      "os": "linux",
+      "page": "Dịch",
+      "content": 604
+    },
+    {
+      "os": "linux",
+      "page": "Phiên dịch",
+      "content": 737
+    },
+    {
+      "os": "linux",
+      "page": "Từ điển",
+      "content": 448
+    },
+    {
+      "os": "linux",
+      "page": "Dịch mọi nơi",
+      "content": 484
+    },
+    {
+      "os": "linux",
+      "page": "Ứng dụng",
+      "content": 468
+    },
+    {
+      "os": "linux",
+      "page": "Nhiệt độ & quạt",
+      "content": 429
+    },
+    {
+      "os": "linux",
+      "page": "Launcher & phím tắt",
+      "content": 432
+    },
+    {
+      "os": "linux",
+      "page": "Cài đặt",
+      "content": 361
+    },
+    {
+      "os": "linux",
+      "settings": "Chung",
+      "content": 535
+    },
+    {
+      "os": "linux",
+      "settings": "Giao diện",
+      "content": 428
+    },
+    {
+      "os": "linux",
+      "settings": "Mô hình AI",
+      "content": 477
+    },
+    {
+      "os": "linux",
+      "settings": "Giọng nói",
+      "content": 396
+    },
+    {
+      "os": "linux",
+      "settings": "Chat",
+      "content": 382
+    },
+    {
+      "os": "linux",
+      "settings": "Module",
+      "content": 478
+    },
+    {
+      "os": "linux",
+      "settings": "Cập nhật",
+      "content": 385
+    },
+    {
+      "os": "linux",
+      "settings": "Giới thiệu",
+      "content": 361
+    }
+  ],
+  "sheetChecks": [
+    {
+      "os": "macos",
+      "sheet": "launcher",
+      "text": "Launcher\nSample Notes\nỨng dụng\nProduct brief.pdf\nTệp mẫu\n24 × 18 = 432\nMáy tính\nHỏi Quick Chat\n"
+    },
+    {
+      "os": "macos",
+      "sheet": "quickchat",
+      "text": "Quick Chat\nOllama · qwen3:4b\nMột ý tưởng hay bắt đầu từ một câu hỏi.\nMở trong AI Chat\nGửi mẫu\n\n"
+    },
+    {
+      "os": "macos",
+      "sheet": "command",
+      "text": "Bảng lệnh\nTrang chủ\nAI Chat\nDịch\nPhiên dịch\nTừ điển\nDịch mọi nơi\nỨng dụng\nNhiệt độ & quạt\nLaunc"
+    },
+    {
+      "os": "macos",
+      "sheet": "activity",
+      "text": "Hoạt động · tác vụ độc lập\nA · Kế hoạch ra mắt\nChat · Đang chạy\nMở\nHủy A\nB · Product brief\nDịch"
+    },
+    {
+      "os": "macos",
+      "sheet": "model",
+      "text": "Mô hình cho phiên này\nTRÊN THIẾT BỊ\nOllama · qwen3:4b\nSẵn sàng\nOllama · gemma3:4b\nSẵn sàng\nLM S"
+    },
+    {
+      "os": "macos",
+      "sheet": "history",
+      "text": "Lịch sử\nKế hoạch ra mắt sản phẩm\nAI Chat · Hôm nay\nMở\nProduct brief\nEN → VI · Hôm nay\nMở\nHọp th"
+    },
+    {
+      "os": "macos",
+      "sheet": "compare",
+      "text": "So sánh bản dịch\nOllama · qwen3:4b\n\nCông cụ tốt hòa vào công việc.\n\nDùng bản này\nMô hình thứ ha"
+    },
+    {
+      "os": "macos",
+      "sheet": "image",
+      "text": "Dịch hình ảnh\nThêm ảnh để trích xuất nội dung.\n\nỞ prototype, dùng văn bản mẫu để xem bước tiếp "
+    },
+    {
+      "os": "macos",
+      "sheet": "tone",
+      "text": "Giọng điệu\nTự nhiên Trang trọng Ngắn gọn Thân thiện"
+    },
+    {
+      "os": "macos",
+      "sheet": "audio",
+      "text": "Nguồn âm thanh\nMicro\nDừng phiên trước khi đổi nguồn\nChọn\nÂm thanh hệ thống\nDừng phiên trước khi"
+    },
+    {
+      "os": "macos",
+      "sheet": "subtitles",
+      "text": "Phụ đề nổi\nTiếng Anh → Tiếng Việt · Đang nghe\nThey need to move between tasks without losing co"
+    },
+    {
+      "os": "macos",
+      "sheet": "summary",
+      "text": "Tóm tắt phiên\nTính liên tục là ưu tiên.\n\nNgười dùng cần chuyển việc mà không mất ngữ cảnh. Kiểm"
+    },
+    {
+      "os": "macos",
+      "sheet": "provider",
+      "text": "Cấu hình nhà cung cấp\n\nBiểu mẫu thiết kế · không nhập thông tin xác thực thật.\n\nNhà cung cấp\nOl"
+    },
+    {
+      "os": "macos",
+      "sheet": "permissions",
+      "text": "Quyền trên macOS\nMicro\nChỉ yêu cầu khi bắt đầu thu\nChưa kiểm tra\nÂm thanh hệ thống\nQuyền ghi mà"
+    },
+    {
+      "os": "macos",
+      "sheet": "bridge",
+      "text": "Kết nối Chrome\nKết nối qua cầu nối cục bộ.\n\nToken kết nối thật không xuất hiện trong bản thiết "
+    },
+    {
+      "os": "macos",
+      "sheet": "shortcut",
+      "text": "Đổi phím tắt\nPhím tắt mới\n\nTriển khai native phải kiểm tra trùng tổ hợp trước khi lưu.\n\nLưu mẫu"
+    },
+    {
+      "os": "macos",
+      "sheet": "profiles",
+      "text": "Hồ sơ quạt\nHệ thống\nChỉ xem trước · cần xác minh phần cứng\nChọn mẫu\nÊm\nChỉ xem trước · cần xác "
+    },
+    {
+      "os": "macos",
+      "sheet": "rules",
+      "text": "Quy tắc quạt\nCảm biến \nCPU proximity\nGPU proximity\nNgưỡng kích hoạt\nGiá trị do người dùng nhập "
+    },
+    {
+      "os": "macos",
+      "sheet": "calibrate",
+      "text": "Hiệu chuẩn · bước xem trước\nKiểm tra điều kiện trước khi bắt đầu.\nThiết bị và helper\nChưa xác m"
+    },
+    {
+      "os": "macos",
+      "sheet": "cleanup",
+      "text": "Xem trước thay đổi\nSample Notes\n\nDanh sách mẫu. Không thao tác trên máy.\n\nỨng dụng\n/Application"
+    },
+    {
+      "os": "macos",
+      "sheet": "reset",
+      "text": "Xem trước đặt lại\nSample Notes\n\nDanh sách mẫu. Không thao tác trên máy.\n\nỨng dụng\n/Applications"
+    },
+    {
+      "os": "macos",
+      "sheet": "journal",
+      "text": "Nhật ký & hoàn tác\nChưa có thao tác thực tế\nPrototype không gỡ ứng dụng hoặc xóa dữ liệu.\nXem l"
+    },
+    {
+      "os": "macos",
+      "sheet": "update",
+      "text": "Cập nhật\nChưa thực hiện kiểm tra trực tuyến.\n\nMẫu trạng thái khi tải một bản cập nhật:\n\nĐang tả"
+    },
+    {
+      "os": "macos",
+      "sheet": "presets",
+      "text": "Preset hội thoại\nViết & biên tập\nGiữ ý chính, gợi ý cách diễn đạt\nDùng mẫu\nNghiên cứu\nTrình bày"
+    },
+    {
+      "os": "macos",
+      "sheet": "rename",
+      "text": "Đổi tên\nLưu mẫu"
+    },
+    {
+      "os": "macos",
+      "sheet": "delete",
+      "text": "Xóa mục lịch sử?\n\nLuồng xác nhận mẫu. Không xóa hội thoại của bạn.\n\nHủyXóa mẫu"
+    },
+    {
+      "os": "macos",
+      "sheet": "error",
+      "text": "Không thể kết nối mô hình\nBản nháp vẫn ở đây.\n\nOllama chưa phản hồi. Các công việc khác tiếp tụ"
+    },
+    {
+      "os": "windows",
+      "sheet": "permissions",
+      "text": "Quyền trên Windows\nMicro\nChỉ yêu cầu khi bắt đầu thu\nChưa kiểm tra\nÂm thanh hệ thống\nNguồn loop"
+    },
+    {
+      "os": "windows",
+      "sheet": "cleanup",
+      "text": "Xem trước · Windows\nSample Notes\nNguồn quản lý\nTrình gỡ cài đặt đăng ký\nỨng dụng\nMở quy trình g"
+    },
+    {
+      "os": "windows",
+      "sheet": "profiles",
+      "text": "Hồ sơ quạt\nChưa có điều khiển được xác minh.\n\nChỉ mở hồ sơ khi backend phần cứng đã sẵn sàng. H"
+    },
+    {
+      "os": "windows",
+      "sheet": "update",
+      "text": "Cập nhật\nChưa thực hiện kiểm tra trực tuyến.\n\nMẫu trạng thái khi tải một bản cập nhật:\n\nĐang tả"
+    },
+    {
+      "os": "windows",
+      "sheet": "provider",
+      "text": "Cấu hình nhà cung cấp\n\nBiểu mẫu thiết kế · không nhập thông tin xác thực thật.\n\nNhà cung cấp\nOl"
+    },
+    {
+      "os": "linux",
+      "sheet": "permissions",
+      "text": "Quyền trên Linux\nMicro\nChỉ yêu cầu khi bắt đầu thu\nChưa kiểm tra\nÂm thanh hệ thống\nThiết bị âm "
+    },
+    {
+      "os": "linux",
+      "sheet": "cleanup",
+      "text": "Xem trước · Linux\nSample Notes\nNguồn quản lý\nFlatpak / trình quản lý gói / AppImage\nỨng dụng\nGó"
+    },
+    {
+      "os": "linux",
+      "sheet": "profiles",
+      "text": "Hồ sơ quạt\nChưa có điều khiển được xác minh.\n\nChỉ mở hồ sơ khi backend phần cứng đã sẵn sàng. H"
+    },
+    {
+      "os": "linux",
+      "sheet": "update",
+      "text": "Cập nhật theo nguồn cài\nQuản lý từ nguồn cài đặt.\n\nGói hệ thống và Flatpak được cập nhật qua cô"
+    },
+    {
+      "os": "linux",
+      "sheet": "provider",
+      "text": "Cấu hình nhà cung cấp\n\nBiểu mẫu thiết kế · không nhập thông tin xác thực thật.\n\nNhà cung cấp\nOl"
+    }
+  ],
+  "stateChecks": [
+    {
+      "os": "macos",
+      "scenario": "ready",
+      "hasComposer": true,
+      "text": "Giúp tôi lên kế hoạch ra mắt Viezan, ưu tiên trải nghiệm desktop.\nViezan\nMột kế "
+    },
+    {
+      "os": "macos",
+      "scenario": "empty",
+      "hasComposer": true,
+      "text": "v\nBắt đầu từ một ý tưởng.\n\nNhập câu hỏi hoặc thêm tài liệu để bắt đầu."
+    },
+    {
+      "os": "macos",
+      "scenario": "running",
+      "hasComposer": true,
+      "text": "Đang xử lý\n\nBạn có thể chuyển công việc. Kết quả vẫn gắn với đúng phiên.\n\nTrạng "
+    },
+    {
+      "os": "macos",
+      "scenario": "queued",
+      "hasComposer": true,
+      "text": "Đang chờ mô hình\n\nCông việc đã vào hàng đợi. Chưa có yêu cầu mới được gửi.\n\nTrạn"
+    },
+    {
+      "os": "macos",
+      "scenario": "error",
+      "hasComposer": true,
+      "text": "Không thể kết nối\n\nBản nháp được giữ. Kiểm tra mô hình hoặc thử lại có chủ đích."
+    },
+    {
+      "os": "macos",
+      "scenario": "rate",
+      "hasComposer": true,
+      "text": "Đã đạt giới hạn yêu cầu\n\nChờ theo thông báo nhà cung cấp. Không tự động thử lại "
+    },
+    {
+      "os": "macos",
+      "scenario": "key",
+      "hasComposer": true,
+      "text": "Cần cấu hình nhà cung cấp\n\nThêm thông tin xác thực trong kho bảo mật trước khi g"
+    },
+    {
+      "os": "macos",
+      "scenario": "cancelled",
+      "hasComposer": true,
+      "text": "Đã hủy công việc này\n\nNội dung đã có được giữ. Các công việc khác không bị ảnh h"
+    },
+    {
+      "os": "macos",
+      "scenario": "interrupted",
+      "hasComposer": true,
+      "text": "Phiên trước bị gián đoạn\n\nĐã khôi phục bản nháp mẫu. Chỉ chạy lại khi bạn chọn t"
+    },
+    {
+      "os": "macos",
+      "scenario": "unsupported",
+      "hasComposer": true,
+      "text": "Khả năng này chưa sẵn sàng\n\nGiữ phần còn lại của ứng dụng sử dụng được; không yê"
+    },
+    {
+      "os": "windows",
+      "scenario": "ready",
+      "hasComposer": true,
+      "text": "Giúp tôi lên kế hoạch ra mắt Viezan, ưu tiên trải nghiệm desktop.\nViezan\nMột kế "
+    },
+    {
+      "os": "windows",
+      "scenario": "empty",
+      "hasComposer": true,
+      "text": "v\nBắt đầu từ một ý tưởng.\n\nNhập câu hỏi hoặc thêm tài liệu để bắt đầu."
+    },
+    {
+      "os": "windows",
+      "scenario": "running",
+      "hasComposer": true,
+      "text": "Đang xử lý\n\nBạn có thể chuyển công việc. Kết quả vẫn gắn với đúng phiên.\n\nTrạng "
+    },
+    {
+      "os": "windows",
+      "scenario": "queued",
+      "hasComposer": true,
+      "text": "Đang chờ mô hình\n\nCông việc đã vào hàng đợi. Chưa có yêu cầu mới được gửi.\n\nTrạn"
+    },
+    {
+      "os": "windows",
+      "scenario": "error",
+      "hasComposer": true,
+      "text": "Không thể kết nối\n\nBản nháp được giữ. Kiểm tra mô hình hoặc thử lại có chủ đích."
+    },
+    {
+      "os": "windows",
+      "scenario": "rate",
+      "hasComposer": true,
+      "text": "Đã đạt giới hạn yêu cầu\n\nChờ theo thông báo nhà cung cấp. Không tự động thử lại "
+    },
+    {
+      "os": "windows",
+      "scenario": "key",
+      "hasComposer": true,
+      "text": "Cần cấu hình nhà cung cấp\n\nThêm thông tin xác thực trong kho bảo mật trước khi g"
+    },
+    {
+      "os": "windows",
+      "scenario": "cancelled",
+      "hasComposer": true,
+      "text": "Đã hủy công việc này\n\nNội dung đã có được giữ. Các công việc khác không bị ảnh h"
+    },
+    {
+      "os": "windows",
+      "scenario": "interrupted",
+      "hasComposer": true,
+      "text": "Phiên trước bị gián đoạn\n\nĐã khôi phục bản nháp mẫu. Chỉ chạy lại khi bạn chọn t"
+    },
+    {
+      "os": "windows",
+      "scenario": "unsupported",
+      "hasComposer": true,
+      "text": "Khả năng này chưa sẵn sàng\n\nGiữ phần còn lại của ứng dụng sử dụng được; không yê"
+    },
+    {
+      "os": "linux",
+      "scenario": "ready",
+      "hasComposer": true,
+      "text": "Giúp tôi lên kế hoạch ra mắt Viezan, ưu tiên trải nghiệm desktop.\nViezan\nMột kế "
+    },
+    {
+      "os": "linux",
+      "scenario": "empty",
+      "hasComposer": true,
+      "text": "v\nBắt đầu từ một ý tưởng.\n\nNhập câu hỏi hoặc thêm tài liệu để bắt đầu."
+    },
+    {
+      "os": "linux",
+      "scenario": "running",
+      "hasComposer": true,
+      "text": "Đang xử lý\n\nBạn có thể chuyển công việc. Kết quả vẫn gắn với đúng phiên.\n\nTrạng "
+    },
+    {
+      "os": "linux",
+      "scenario": "queued",
+      "hasComposer": true,
+      "text": "Đang chờ mô hình\n\nCông việc đã vào hàng đợi. Chưa có yêu cầu mới được gửi.\n\nTrạn"
+    },
+    {
+      "os": "linux",
+      "scenario": "error",
+      "hasComposer": true,
+      "text": "Không thể kết nối\n\nBản nháp được giữ. Kiểm tra mô hình hoặc thử lại có chủ đích."
+    },
+    {
+      "os": "linux",
+      "scenario": "rate",
+      "hasComposer": true,
+      "text": "Đã đạt giới hạn yêu cầu\n\nChờ theo thông báo nhà cung cấp. Không tự động thử lại "
+    },
+    {
+      "os": "linux",
+      "scenario": "key",
+      "hasComposer": true,
+      "text": "Cần cấu hình nhà cung cấp\n\nThêm thông tin xác thực trong kho bảo mật trước khi g"
+    },
+    {
+      "os": "linux",
+      "scenario": "cancelled",
+      "hasComposer": true,
+      "text": "Đã hủy công việc này\n\nNội dung đã có được giữ. Các công việc khác không bị ảnh h"
+    },
+    {
+      "os": "linux",
+      "scenario": "interrupted",
+      "hasComposer": true,
+      "text": "Phiên trước bị gián đoạn\n\nĐã khôi phục bản nháp mẫu. Chỉ chạy lại khi bạn chọn t"
+    },
+    {
+      "os": "linux",
+      "scenario": "unsupported",
+      "hasComposer": true,
+      "text": "Khả năng này chưa sẵn sàng\n\nGiữ phần còn lại của ứng dụng sử dụng được; không yê"
+    }
+  ]
+}

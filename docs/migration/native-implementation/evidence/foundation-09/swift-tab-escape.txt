@@ -1,0 +1,2 @@
+The following is a diff from the previous accessibility tree for Window: "Cài đặt" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 44-45, 47-48, 51-57
