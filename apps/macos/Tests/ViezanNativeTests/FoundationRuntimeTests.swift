@@ -148,7 +148,7 @@ import ViezanDomain
         let field = try #require(descendants(host).compactMap { $0 as? NSSearchField }.first)
         let delegate = try #require(field.delegate as? HistorySearch.Coordinator)
         let editor = NSTextView()
-        for (selector, expected) in [(#selector(NSResponder.scrollToEndOfDocument(_:)), "navigation"), (#selector(NSResponder.moveDown(_:)), "chat"), (#selector(NSResponder.moveUp(_:)), "navigation"), (#selector(NSResponder.scrollToBeginningOfDocument(_:)), "chat")] {
+        for (selector, expected) in [(#selector(NSResponder.scrollToEndOfDocument(_:)), "navigation"), (#selector(NSResponder.moveDown(_:)), "apps"), (#selector(NSResponder.moveUp(_:)), "navigation"), (#selector(NSResponder.scrollToBeginningOfDocument(_:)), "apps")] {
             #expect(delegate.control(field, textView: editor, doCommandBy: selector))
             try await Task.sleep(for: .milliseconds(30))
             #expect(delegate.control(field, textView: editor, doCommandBy: #selector(NSResponder.insertNewline(_:))))
@@ -325,6 +325,7 @@ import ViezanDomain
         let storage = FaultStorage()
         let store = WorkbenchStore(persistence: storage, automaticProvider: false)
         store.setLocale("ja")
+        store.setRoute("chat")
         store.setDraft(store.session.id, "下書き・Bản nháp")
         let task = try #require(store.submit(store.session.id))
         store.setDraft(store.session.id, "Unsent next message")
@@ -332,6 +333,11 @@ import ViezanDomain
         let sessions = store.workspace.sessions
         let shell = ShellPresentation()
         let host = NSHostingView(rootView: FoundationFixture(store: store, shell: shell, route: "chat"))
+        // History is a native anchored panel and needs a real hosting window.
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 600), styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        defer { window.contentView = nil; window.close() }
         host.frame = NSRect(x: 0, y: 0, width: 1200, height: 600)
         host.layoutSubtreeIfNeeded()
         await Task.yield()

@@ -389,7 +389,7 @@ void WorkbenchBridge::captureImage(const QString &sessionID) {
         if (generation != m_captureGeneration) return;
 #ifdef Q_OS_LINUX
         if (QGuiApplication::platformName().contains("wayland", Qt::CaseInsensitive)) {
-            const auto bus = QDBusConnection::sessionBus(); auto sender = bus.baseService(); sender.remove(0,1); sender.replace('.', '_');
+            auto bus = QDBusConnection::sessionBus(); auto sender = bus.baseService(); sender.remove(0,1); sender.replace('.', '_');
             const auto token = "viezan_" + QUuid::createUuid().toString(QUuid::WithoutBraces).remove('-');
             m_capturePortal = "/org/freedesktop/portal/desktop/request/" + sender + '/' + token;
             if (!bus.connect("org.freedesktop.portal.Desktop", m_capturePortal, "org.freedesktop.portal.Request", "Response", this, SLOT(screenshotResponse(uint,QVariantMap)))) { m_storageError = "captureError"; cancelCapture(); emit changed(); return; }
@@ -437,7 +437,7 @@ void WorkbenchBridge::renderMarkdown(QObject *wrapper, const QString &text) {
     auto *quick = qobject_cast<QQuickTextDocument *>(wrapper); if (!quick || text.toUtf8().size() > 16777216) return;
     auto *document = dynamic_cast<MarkdownDocument *>(quick->textDocument());
     if (!document) { document = new MarkdownDocument(quick); if (quick->textDocument()) document->setDefaultFont(quick->textDocument()->defaultFont()); quick->setTextDocument(document); }
-    document->setMarkdown(text, QTextDocument::MarkdownDialectGitHub | QTextDocument::MarkdownNoHTML);
+    document->setMarkdown(text, QTextDocument::MarkdownFeatures(QTextDocument::MarkdownDialectGitHub) | QTextDocument::MarkdownNoHTML);
 }
 void WorkbenchBridge::openLink(const QString &text) {
     const QUrl url(text); if (url.isValid() && QStringList{"https", "http", "mailto"}.contains(url.scheme().toLower())) QDesktopServices::openUrl(url);

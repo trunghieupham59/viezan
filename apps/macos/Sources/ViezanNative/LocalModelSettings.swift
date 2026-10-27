@@ -7,6 +7,11 @@ struct LocalModelSettings: View {
     private var context: Int { store.workspace.runtime?.context ?? 4096 }
     @State private var confirmComparison = false
     @State private var deletion: String?
+    private func resultSummary(id: String, tokens: Double?, gpu: Double?) -> String {
+        let speed = (tokens ?? 0).formatted(.number.precision(.fractionLength(1)))
+        let percentage = (gpu ?? 0).formatted(.number.precision(.fractionLength(1)))
+        return "\(id) · \(speed) token/s · GPU \(percentage)%"
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: metric("inset")) {
             Button(store.text("installRuntime")) { NSWorkspace.shared.open(URL(string: "https://ollama.com/download")!) }
@@ -45,7 +50,7 @@ struct LocalModelSettings: View {
                     if let error = result.error { Text(result.id + ": " + store.text(error)) }
                     else {
                         HStack {
-                            Text(result.id + " · " + (result.tokensPerSecond ?? 0).formatted(.number.precision(.fractionLength(1))) + " token/s · GPU " + (result.gpuPercent ?? 0).formatted(.number.precision(.fractionLength(1))) + "%")
+                            Text(resultSummary(id: result.id, tokens: result.tokensPerSecond, gpu: result.gpuPercent))
                             Button(store.text("apply")) { store.localPerformance.select(result.id) }.disabled(store.localPerformance.busy)
                         }
                     }

@@ -19,12 +19,13 @@ import Testing
     store.setDraft(chat, "Next message")
     store.navigate(.translate)
     let translate = store.session.id
+    let translationModel = store.session.model
     store.setDraft(translate, "Translate prompt")
     let second = try #require(store.submit(translate))
     store.setModel(chat, "demo.standard")
     store.receive(taskID: first.id, attemptID: first.attemptID, chunk: "Reply")
     #expect(store.session.id == translate)
-    #expect(store.session.model == "demo.standard")
+    #expect(store.session.model == translationModel)
     #expect(store.session.output.isEmpty)
     #expect(first.request.model == "demo.slow")
     store.cancel(first.id)
@@ -120,8 +121,8 @@ import Testing
     try storage.save(workspace)
     #expect(try storage.load() == workspace)
     workspace.schemaVersion = 99
-    try storage.save(workspace)
-    #expect(throws: (any Error).self) { try storage.load() }
+    #expect(throws: (any Error).self) { try storage.save(workspace) }
+    #expect(try storage.load()?.schemaVersion == 1)
 }
 
 @Test func resourcesHaveLocaleParityAndCanonicalMetrics() {
@@ -164,7 +165,7 @@ import Testing
 @Test func oldSnapshotsDefaultAppearanceAndInvalidValuesFailClosed() throws {
     let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../../../contracts/native-workbench/recovery-fixture.json")
     let original = try Data(contentsOf: url)
-    let old = try JSONDecoder().decode(Workspace.self, from: original).validated()
+    let old = try JSONDecoder().decode(Workspace.self, from: original).upgrading().validated()
     #expect(old.preferences.mode == .system)
     #expect(old.preferences.textSize == .medium)
     var object = try #require(JSONSerialization.jsonObject(with: original) as? [String: Any])
@@ -175,7 +176,7 @@ import Testing
 
 @Test func settingsSearchIncludesLocalizedRowLabelsWithoutDiacritics() {
     let resource = NativeResources.shared
-    #expect(resource.settings(query: "  ", locale: "vi").count == 3)
+    #expect(Set(resource.settings(query: "  ", locale: "vi").map(\.id)) == Set(resource.settingsSections.map(\.id)))
     #expect(resource.settings(query: "co chu", locale: "vi").map(\.id) == ["appearance"])
     #expect(resource.settings(query: "ngon ngu", locale: "vi").map(\.id) == ["general"])
     #expect(resource.settings(query: "text size", locale: "en").map(\.id) == ["appearance"])
@@ -201,11 +202,11 @@ import Testing
 @Test @MainActor func sharedRecoveryContractPreservesUnicodeAndIdentities() throws {
     let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../../../contracts/native-workbench/recovery-fixture.json")
     let persistence = MemoryPersistence()
-    persistence.value = try JSONDecoder().decode(Workspace.self, from: Data(contentsOf: url)).validated()
+    persistence.value = try JSONDecoder().decode(Workspace.self, from: Data(contentsOf: url)).upgrading().validated()
     let store = WorkbenchStore(persistence: persistence, automaticProvider: false)
     #expect(store.workspace.tasks[0].status == .interrupted)
     #expect(store.workspace.tasks[0].attemptID == "attempt-fixture")
-    #expect(store.workspace.tasks[0].request.model == "demo.slow")
+    #expect(store.workspace.tasks[0].request.model == "ollama:llama3.2")
     #expect(store.session.draft == "Bản nháp chưa gửi")
     #expect(store.session.messages.last?.text == "Phản hồi dở dang")
 }
