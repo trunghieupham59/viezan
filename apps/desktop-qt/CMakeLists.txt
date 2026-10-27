@@ -32,7 +32,7 @@ if(BUILD_TESTING)
     qt_add_resources(ViezanQtTests workbench_tests PREFIX "/" FILES ${NATIVE_RESOURCES})
     target_link_libraries(ViezanQtTests PRIVATE Qt6::Svg Qt6::Widgets Qt6::Quick Qt6::QuickControls2 Qt6::Qml Qt6::Network Qt6::Concurrent Qt6::Multimedia Qt6::TextToSpeech Qt6::WebSockets Qt6::Test)
     target_compile_definitions(ViezanQtTests PRIVATE VIEZAN_CONTRACT_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/../../contracts/native-workbench/recovery-fixture.json")
-    add_test(NAME native-qt-bridge COMMAND ViezanQtTests)
+    add_test(NAME native-qt-bridge COMMAND ViezanQtTests -o qt-test-results.txt,txt -o -,txt)
     set_tests_properties(native-qt-bridge PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_CONTROLS_STYLE=Fusion")
 endif()
 

@@ -44,3 +44,6 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
           QT_QUICK_CONTROLS_STYLE: Fusion
+      - name: Print QtTest report
+        if: always()
+        run: python -c "from pathlib import Path; p = Path('.native-build/qt/qt-test-results.txt'); print(p.read_text(encoding='utf-8', errors='replace') if p.exists() else 'QtTest did not produce a report')"
