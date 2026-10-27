@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "version": "2.4.2",
+  "sourceSha256": "253ea38d4cc54cb7a4a5a21e12f001aaac3f5524bee6f2ccf1f600a1e7663b8e",
+  "readmeSha256": "7cc0ae7ec0201d4e0dd58e954d64f8cd94808f5a8cf7a7f47a297e244cdac56c",
+  "changelogSha256": "506627b3464451ee9a2ca91a890a4cd2b9b21fe0bc4b6599bcbde9ccb90eba0d",
+  "summary": "Reviewed native command focus behavior against AppKit integration and marked-text tests: Tab/Shift-Tab cycle search and Close, command rows remain arrow-selectable, other search fields retain native Tab. Other README feature/setup/limitations prose remains accurate."
+}

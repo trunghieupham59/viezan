@@ -38,8 +38,7 @@ Closes #
 <!-- Hướng dẫn reviewer cách test thủ công (nếu cần). -->
 
 ```bash
-npm install
-npm run dev
+python3 scripts/native/build.py --target macos --configuration Debug --output .native-build/review --launch
 ```
 
 ## 📷 Screenshots / Recordings
@@ -49,12 +48,12 @@ npm run dev
 ## ✅ Checklist
 
 - [ ] Tiêu đề PR theo [Conventional Commits](https://www.conventionalcommits.org/) (ví dụ `feat(translate): add streaming`)
-- [ ] Đã chạy `npm run test` và toàn bộ tests pass
-- [ ] Đã chạy `npx biome ci .` không còn warning/error
-- [ ] Đã chạy `npx tsc -p tsconfig.json --noEmit` và `npx tsc -p tsconfig.electron.json --noEmit`
+- [ ] Ghi rõ kiểm thử Swift/Qt đã chạy và các cổng chưa chạy cùng lý do
+- [ ] Đã rà thay đổi source và định dạng theo ngôn ngữ tương ứng
+- [ ] Ghi rõ build macOS, Windows và Linux riêng biệt; không suy ra parity từ một OS
 - [ ] Đã thêm / cập nhật unit test cho các thay đổi (nếu áp dụng)
 - [ ] Đã cập nhật tài liệu (`README.md`, `docs/`, hoặc comment) (nếu áp dụng)
-- [ ] Đã rà README theo source, chạy `npm run docs:sync`, ghi nhận `npm run docs:review -- --summary "..."` sau khi rà, và chạy `npm run check:docs`; nếu không đổi mô tả, giải thích trong summary
+- [ ] Đã rà README theo source native, cập nhật giới hạn nền tảng và ghi rõ trạng thái `npm run check:docs`
 - [ ] Khi bump version: `package-lock.json` và mục phiên bản trong `CHANGELOG.md` đã đồng bộ
 - [ ] Không commit secrets / API keys / cấu hình cá nhân
 - [ ] Đã tự review diff lần cuối

@@ -1,17 +1,17 @@
 # Cấu hình cho actions/labeler@v5
 # Tự động gán nhãn theo path file thay đổi trong PR.
 
-"area/electron":
+"area/native":
     - changed-files:
           - any-glob-to-any-file:
-                - electron/**
+                - apps/**
+                - native/**
+                - contracts/**
 
-"area/renderer":
+"area/design-assets":
     - changed-files:
           - any-glob-to-any-file:
                 - src/**
-                - index.html
-                - quick-chat.html
 
 "area/chrome-extension":
     - changed-files:
@@ -22,11 +22,7 @@
     - changed-files:
           - any-glob-to-any-file:
                 - build/**
-                - vite.config.ts
-                - vitest.config.ts
-                - postcss.config.mjs
-                - tailwind.config.js
-                - tsconfig*.json
+                - apps/packaging/**
                 - scripts/**
 
 "area/ci":
@@ -48,7 +44,8 @@
                 - "**/__tests__/**"
                 - "**/*.test.ts"
                 - "**/*.test.tsx"
-                - src/test/**
+                - apps/macos/Tests/**
+                - apps/desktop-qt/tests/**
 
 "area/dependencies":
     - changed-files:

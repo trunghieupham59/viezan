@@ -4,6 +4,15 @@
  */
 import type { IconProps } from './types'
 
+/** Background work — a pulse identifies task activity rather than audio input. */
+export function ActivityIcon({ className = 'w-5 h-5' }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+      <path d="M2 12h4l3-9 6 18 3-9h4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 /** Window panel with a chevron indicating the next sidebar action. */
 export function SidebarPanelIcon({ className = 'w-4 h-4', action }: IconProps & { action: 'expand' | 'collapse' }) {
   return (

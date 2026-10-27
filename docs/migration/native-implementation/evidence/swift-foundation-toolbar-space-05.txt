@@ -1,0 +1,52 @@
+Window: "Dịch / Bản dịch mới", App: Viezan Native Preview.
+0 standard window Dịch / Bản dịch mới, ID: workbench, Secondary Actions: Raise
+	1 container
+		2 container Điều hướng chính
+			3 button Description: Bảng lệnh, Help: Bảng lệnh (⌘K), ID: magnifyingglass
+			4 scroll area
+				5 button Description: AI Chat, ID: nav-chat
+				6 button (selected) Description: Dịch, ID: nav-translate
+			7 button Description: Cài đặt, ID: nav-settings
+		8 container Điều hướng chính
+			9 text viezan
+			10 button Đóng
+			11 button Description: Bảng lệnh, Help: Bảng lệnh (⌘K)
+			12 scroll area
+				13 button Description: AI Chat, ID: nav-chat
+				14 button (selected) Description: Dịch, ID: nav-translate
+			15 button Description: Cài đặt, ID: nav-settings
+			16 text Bản native thử nghiệm
+		17 text Provider mô phỏng · không gửi dữ liệu ra mạng
+		18 pop up button Đầu vào, Value: Tiếng Anh
+		19 button Đảo chiều ngôn ngữ
+		20 pop up button Đầu ra, Value: Tiếng Việt
+		21 pop up button Description: Mô hình cho phiên này, Mô hình cho phiên này, Help: demo.standard, Value: Mô phỏng tiêu chuẩn
+		22 text Nguyên bản Bản dịch
+		23 scroll area Secondary Actions: Scroll Up, Scroll Down
+			24 text entry area (settable) Nguyên bản
+			25 scroll bar (disabled, settable, float) 0
+		26 scroll area
+			27 text Bản dịch sẽ xuất hiện ở đây
+		28 text Bản nháp được giữ trên thiết bị
+		29 button (disabled) Dịch
+		30 button (disabled) Sao chép
+	31 toolbar
+		32 button Description: Mở rộng thanh bên, ID: navigation-toggle, Secondary Actions: Move next, Remove from toolbar
+		33 button Description: Bảng lệnh, ID: commands-toggle, Secondary Actions: Move previous, Move next, Remove from toolbar
+		34 button Description: Lịch sử, ID: history-toggle, Secondary Actions: Move previous, Move next, Remove from toolbar
+		35 button Description: Bản dịch mới, ID: new-work, Secondary Actions: Move previous, Move next, Remove from toolbar
+		36 button Description: Hoạt động, ID: activity-toggle, Secondary Actions: Move previous, Remove from toolbar
+	37 close button
+	38 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	39 minimize button
+	40 text Dịch / Bản dịch mới
+41 menu bar
+	42 Viezan Native Preview
+	43 File
+	44 Edit
+	45 View
+	46 Bảng lệnh
+	47 Window
+	48 Help
+
+The focused UI element is 3 button Description: Bảng lệnh, Help: Bảng lệnh (⌘K), ID: magnifyingglass

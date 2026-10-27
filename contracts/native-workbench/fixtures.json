@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "models": [
+    "demo.standard",
+    "demo.slow",
+    "demo.failure"
+  ],
+  "responses": {
+    "vi": {
+      "chat": "Đây là phản hồi mô phỏng của Viezan native. Bạn có thể chuyển sang Dịch, mở phiên khác hoặc dừng riêng tác vụ này mà vẫn giữ bản nháp. Nội dung bạn gửi: {input}",
+      "translate": "[Kết quả mô phỏng, không phải bản dịch AI]\n\n{input}"
+    },
+    "en": {
+      "chat": "This is a simulated Viezan native response. Switch to Translation, open another session or stop this task independently while preserving your draft. Your input: {input}",
+      "translate": "[Simulated result, not an AI translation]\n\n{input}"
+    },
+    "ja": {
+      "chat": "Viezanネイティブ版のシミュレーションです。翻訳や別のセッションに切り替えても、下書きは保持されます。このタスクだけを停止できます。入力内容: {input}",
+      "translate": "[シミュレーション結果・AI翻訳ではありません]\n\n{input}"
+    }
+  }
+}

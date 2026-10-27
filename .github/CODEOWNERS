@@ -8,10 +8,12 @@
 /.github/                           @trunghieupham59
 /.github/workflows/                 @trunghieupham59
 
-# Electron main process & IPC
-/electron/                          @trunghieupham59
+# Native application and domain services
+/apps/                              @trunghieupham59
+/native/                            @trunghieupham59
+/contracts/                         @trunghieupham59
 
-# Renderer (React)
+# Canonical design assets and retained renderer reference
 /src/                               @trunghieupham59
 
 # Chrome extension
@@ -20,7 +22,6 @@
 # Build / packaging
 /build/                             @trunghieupham59
 /scripts/                           @trunghieupham59
-electron-builder*                   @trunghieupham59
 
 # Tài liệu
 /docs/                              @trunghieupham59

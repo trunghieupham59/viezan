@@ -1,0 +1,2 @@
+01 Home: 4 oversized entry cards push recent work below fold; primary sidebar needs scroll, hiding Settings. Review chrome consumes two rows.
+02 Chat: single composer is good; title/spacing and large composer leave only short answer visible; recent session context absent at this width.

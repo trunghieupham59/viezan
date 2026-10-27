@@ -1,8 +1,0 @@
-{
-  "schemaVersion": 1,
-  "version": "2.4.2",
-  "sourceSha256": "16fe5c4d288f43cb10e5e4b21808d2d5cb377461a3510ae1f75f5b37aa069092",
-  "readmeSha256": "5018ef6367a8470cb3d56401e128621942a6e92891a2e7a2ce4a71763711d4b9",
-  "changelogSha256": "506627b3464451ee9a2ca91a890a4cd2b9b21fe0bc4b6599bcbde9ccb90eba0d",
-  "summary": "Rechecked the complete README against current source and Applications tests. Inventory now handles scalar extraction for valid non-JSON plists, flat/wrapped metadata and protected Apple underscore identifiers, without relaxing malformed-bundle or uncertain-ownership guards. Wrapped iOS apps stay protected. Backup hashing uses one no-follow file descriptor. Full native-runtime inventory/inspect/confirm/uninstall/post-scan/restart/Undo passed on strictly allowlisted synthetic paths; general-use, MDM/TCC/external-volume/power-loss limitations remain explicit."
-}

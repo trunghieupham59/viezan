@@ -1,0 +1,1841 @@
+/*
+ * Viezan Design Tokens
+ *
+ * Canonical visual foundation for every renderer surface. Component styles
+ * consume semantic aliases below instead of choosing literal values.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Primitive palette --------------------------------------------------- */
+  --vzn-neutral-0: #ffffff;
+  --vzn-neutral-25: #fdfdfd;
+  --vzn-neutral-50: #fafafa;
+  --vzn-neutral-100: #f2f2f4;
+  --vzn-neutral-200: #e6e6e9;
+  --vzn-neutral-300: #d1d1d6;
+  --vzn-neutral-400: #aeaeb2;
+  --vzn-neutral-500: #8e8e93;
+  --vzn-neutral-600: #66666c;
+  --vzn-neutral-700: #48484a;
+  --vzn-neutral-800: #2c2c2e;
+  --vzn-neutral-900: #1c1c1e;
+  --vzn-neutral-950: #0f0f10;
+
+  --vzn-blue-50: #edf6ff;
+  --vzn-blue-100: #d9ecff;
+  --vzn-blue-200: #b9dcff;
+  --vzn-blue-300: #88c4ff;
+  --vzn-blue-400: #409cff;
+  --vzn-blue-500: #0a84ff;
+  --vzn-blue-600: #007aff;
+  --vzn-blue-700: #0064d6;
+  --vzn-blue-800: #0050aa;
+  --vzn-blue-900: #003e84;
+
+  /* Glass and Midnight preset accent ramp. */
+  --vzn-sky-600: #0284c7;
+  --vzn-sky-700: #0369a1;
+  --vzn-cyan-300: #67e8f9;
+  --vzn-cyan-400: #22d3ee;
+  --vzn-cyan-500: #06b6d4;
+
+  --vzn-red-50: #fef2f2;
+  --vzn-red-200: #fecaca;
+  --vzn-red-500: #ef4444;
+  --vzn-red-600: #dc2626;
+  --vzn-red-700: #b91c1c;
+
+  --vzn-green-50: #ecfdf5;
+  --vzn-green-500: #10b981;
+  --vzn-green-600: #059669;
+  --vzn-amber-50: #fffbeb;
+  --vzn-amber-500: #f59e0b;
+  --vzn-amber-600: #c96a04;
+
+  /* Illustrative tones: feature/prompt-card icon accents, not status colors. */
+  --vzn-tone-blue: #3485f6;
+  --vzn-tone-violet: #8b5cf6;
+  --vzn-tone-green: #1aa75b;
+  --vzn-tone-orange: #ef6a32;
+
+}
+
+/* Palette (light) --------------------------------------------------------
+ * Every palette preset redeclares this exact token set for light and dark.
+ * The `:root` entry is the Graphite default and the fallback for windows
+ * that never set `data-theme`; the `[data-theme]` entry lets any element
+ * (for example a preset preview card) render a palette other than the
+ * window's. Status, tone, and elevation tokens stay in the mode blocks.
+ *
+ * Surface ladder (light): primary chrome (title bar + sidebar) is the
+ * darkest step, the chat sidebar sits between, the page canvas is the
+ * lightest, and cards/composer are pure white on top. */
+:root,
+[data-theme="graphite"],
+:root [data-theme="graphite"][data-mode="light"] {
+  /* Surfaces */
+  --vzn-app-bg: #eeeeef;
+  --vzn-bg: #f4f4f6;
+  --vzn-canvas: var(--vzn-neutral-0);
+  --vzn-titlebar-bg: #eeeeef;
+  --vzn-sidebar-bg: #ececef;
+  --vzn-chat-sidebar-bg: var(--vzn-neutral-0);
+  --vzn-surface: var(--vzn-neutral-0);
+  --vzn-surface-raised: var(--vzn-neutral-25);
+  --vzn-surface-muted: #f6f6f7;
+  --vzn-surface-subtle: var(--vzn-neutral-100);
+  --vzn-surface-hover: #e6e6e9;
+  --vzn-surface-selected: rgba(0, 122, 255, 0.1);
+  --vzn-text: var(--vzn-neutral-800);
+  --vzn-text-strong: var(--vzn-neutral-900);
+  --vzn-text-muted: var(--vzn-neutral-600);
+  --vzn-text-soft: #74747a;
+  --vzn-text-disabled: var(--vzn-neutral-400);
+  --vzn-text-inverse: var(--vzn-neutral-0);
+  --vzn-border: rgba(60, 60, 67, 0.16);
+  --vzn-border-strong: rgba(60, 60, 67, 0.23);
+  --vzn-divider: rgba(60, 60, 67, 0.12);
+  --vzn-titlebar-material: rgba(246, 246, 248, 0.78);
+  --vzn-primary-nav-material: rgba(244, 244, 247, 0.74);
+  --vzn-context-nav-material: rgba(250, 250, 252, 0.86);
+  --vzn-overlay-material: rgba(250, 250, 252, 0.96);
+  --vzn-material-border: rgba(60, 60, 67, 0.14);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.72);
+  --vzn-user-avatar-bg: #3a3a3c;
+  --vzn-user-avatar-fg: #f5f5f7;
+  --vzn-assistant-avatar-bg: rgba(255, 255, 255, 0.72);
+
+  /* Accent */
+  --vzn-action: var(--vzn-blue-600);
+  --vzn-action-hover: var(--vzn-blue-700);
+  --vzn-action-active: var(--vzn-blue-800);
+  --vzn-action-soft: rgba(0, 122, 255, 0.1);
+  --vzn-action-soft-hover: rgba(0, 122, 255, 0.16);
+  --vzn-action-border: rgba(0, 122, 255, 0.28);
+  --vzn-action-text: #0066cc;
+  --vzn-action-fg: var(--vzn-neutral-0);
+  --vzn-focus-ring: color-mix(in srgb, var(--vzn-blue-500) 52%, transparent);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: var(--vzn-surface-muted);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-divider);
+
+  /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface);
+  --vzn-chrome-fg: var(--vzn-text);
+  --vzn-chrome-fg-strong: var(--vzn-text-strong);
+  --vzn-chrome-fg-muted: var(--vzn-text-muted);
+  --vzn-chrome-fg-soft: var(--vzn-text-soft);
+  --vzn-chrome-divider: var(--vzn-divider);
+  --vzn-chrome-item-hover: var(--vzn-surface-subtle);
+  --vzn-chrome-item-active: var(--vzn-surface);
+  --vzn-chrome-item-active-fg: var(--vzn-action-text);
+  --vzn-chrome-accent: var(--vzn-action-text);
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #3485f6;
+  --vzn-tone-violet: #8b5cf6;
+  --vzn-tone-green: #1aa75b;
+  --vzn-tone-orange: #ef6a32;
+
+  /* Shape */
+  --vzn-radius-2xs: 4px;
+  --vzn-radius-xs: 6px;
+  --vzn-radius-sm: 8px;
+  --vzn-radius-control: 10px;
+  --vzn-radius-md: 12px;
+  --vzn-radius-lg: 16px;
+  --vzn-radius-xl: 20px;
+  --vzn-radius-2xl: 24px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: 0 1px 1px rgba(28, 28, 30, 0.025);
+  --vzn-shadow-sm: 0 1px 2px rgba(28, 28, 30, 0.045), 0 6px 18px rgba(28, 28, 30, 0.035);
+  --vzn-shadow-md: 0 10px 30px rgba(28, 28, 30, 0.08);
+  --vzn-shadow-lg: 0 20px 52px rgba(28, 28, 30, 0.13);
+  --vzn-shadow-overlay: 0 28px 76px rgba(28, 28, 30, 0.22);
+  --vzn-prompt-card-shadow-hover: 0 6px 18px rgba(24, 23, 21, 0.06);
+  --vzn-blur: none;
+  --vzn-blur-sm: none;
+  --vzn-overlay-blur: none;
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: var(--vzn-font-sans);
+  --vzn-line-reading: 1.6;
+  --vzn-font-display: var(--vzn-font-sans);
+
+  /* Backdrop (painted behind an opaque shell; a transparent native shell ignores it) */
+  --vzn-app-backdrop: none;
+}
+
+:root {
+  --vzn-opacity-disabled: 0.48;
+
+  /* Typography ---------------------------------------------------------- */
+  --vzn-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  /* Japanese glyphs fall through the Latin system fonts to a Japanese face
+   * (not a Chinese one), so kanji keep Japanese forms in every persona. */
+  --vzn-font-cjk: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo",
+    "Noto Sans JP", "Noto Sans CJK JP";
+  /* Settings › Appearance › Text size multiplies every font-size token by
+   * this factor (see [data-text-size] below). Control heights and spacing
+   * stay fixed, so layout keeps its rhythm. */
+  --vzn-text-scale: 1;
+  /* rem stays fixed whatever the text size; it sizes layout, not type. */
+  --vzn-root-font-size: 15px;
+  --vzn-font-size-micro: calc(10px * var(--vzn-text-scale));
+  --vzn-font-size-caption: calc(11px * var(--vzn-text-scale));
+  --vzn-font-size-sm: calc(12px * var(--vzn-text-scale));
+  --vzn-font-size-md: calc(13px * var(--vzn-text-scale));
+  --vzn-font-size-lg: calc(14px * var(--vzn-text-scale));
+  --vzn-font-size-subtitle: calc(15px * var(--vzn-text-scale));
+  --vzn-font-size-title: calc(16px * var(--vzn-text-scale));
+  --vzn-font-size-title-lg: calc(18px * var(--vzn-text-scale));
+  --vzn-font-size-heading: calc(22px * var(--vzn-text-scale));
+  --vzn-font-size-heading-lg: calc(28px * var(--vzn-text-scale));
+  --vzn-line-height-reading: 1.6;
+  --vzn-font-size-display: calc(32px * var(--vzn-text-scale));
+  --vzn-line-tight: 1.2;
+  /** Letter spacing for small uppercase labels (section kickers, group headings). */
+  --vzn-tracking-caps: 0.06em;
+  --vzn-line-normal: 1.45;
+  --vzn-line-relaxed: 1.6;
+  --vzn-weight-regular: 400;
+  --vzn-weight-medium: 500;
+  --vzn-weight-semibold: 600;
+  --vzn-weight-bold: 700;
+
+  /* 4px spacing grid ---------------------------------------------------- */
+  --vzn-space-0: 0;
+  --vzn-border-width: 1px;
+  /* Keyboard focus ring: shape is shared, colour (--vzn-focus-ring) is per preset. */
+  --vzn-focus-ring-width: var(--vzn-space-0-5);
+  --vzn-focus-ring-offset: var(--vzn-space-0-5);
+  --vzn-space-0-5: 2px;
+  --vzn-space-1: 4px;
+  --vzn-space-1-5: 6px;
+  --vzn-space-2: 8px;
+  --vzn-space-3: 12px;
+  --vzn-space-4: 16px;
+  --vzn-space-5: 20px;
+  --vzn-space-6: 24px;
+  --vzn-space-8: 32px;
+  --vzn-space-10: 40px;
+  --vzn-space-12: 48px;
+
+  /* Shape --------------------------------------------------------------- */
+  --vzn-radius-pill: 999px;
+
+  /* Controls and icons -------------------------------------------------- */
+  --vzn-control-height-xs: 28px;
+  --vzn-control-height-sm: 32px;
+  --vzn-control-height-md: 36px;
+  --vzn-control-height-lg: 40px;
+  --vzn-control-height-xl: 48px;
+  --vzn-icon-xs: 12px;
+  --vzn-icon-sm: 14px;
+  --vzn-icon-md: 16px;
+  --vzn-icon-lg: 20px;
+  --vzn-icon-xl: 24px;
+  --vzn-icon-2xl: 32px;
+  --vzn-brand-mark-sm: 28px;
+  --vzn-brand-mark-md: 36px;
+  --vzn-brand-mark-lg: 48px;
+
+  /* Elevation and motion ------------------------------------------------ */
+  /* Scrims and media surfaces: modal dim layer, full-screen media viewer
+   * backdrop, the matte behind transparent images, and text on filled danger. */
+  --vzn-scrim-media: rgba(12, 12, 11, 0.84);
+  --vzn-media-matte: #ffffff;
+  --vzn-danger-fg: var(--vzn-action-fg);
+  --vzn-duration-fast: 120ms;
+  --vzn-duration-normal: 180ms;
+  --vzn-duration-pulse: 1s;
+  --vzn-duration-spin: 2s;
+  --vzn-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Layering ------------------------------------------------------------ */
+  --vzn-layer-context-overlay: 60;
+  --vzn-layer-local-sticky: 1;
+  --vzn-layer-local-toolbar: 2;
+  --vzn-layer-navigation-backdrop: 65;
+  --vzn-layer-navigation-overlay: 70;
+  --vzn-layer-modal: 80;
+  --vzn-layer-picker: 90;
+  --vzn-layer-notification: 100;
+
+  /* Layout -------------------------------------------------------------- */
+  --vzn-sidebar-width: 60px;
+  --vzn-sidebar-expanded-width: 236px;
+  --vzn-titlebar-height: 40px;
+  --vzn-titlebar-mac-controls-width: 80px;
+  --vzn-chat-sidebar-width: 264px;
+  /* Header model chip: the raw model id truncates past this. */
+  --vzn-model-chip-model-max: 180px;
+  /* Shared page header: the large control height plus its vertical padding (56px). */
+  --vzn-page-header-min-height: calc(var(--vzn-control-height-lg) + var(--vzn-space-2) * 2);
+  --vzn-chat-header-height: calc(var(--vzn-control-height-sm) + var(--vzn-space-2) * 2);
+  --vzn-content-max: 980px;
+  /* Overview pages (Home): side column, resume basis, fan row columns and a quick-start card. */
+  --vzn-overview-side: 320px;
+  --vzn-overview-resume-basis: 460px;
+  --vzn-overview-fan-label: 72px;
+  --vzn-overview-fan-value: 76px;
+  --vzn-quick-card-min: 200px;
+  /* System pages: the narrowest card before two columns stack. */
+  --vzn-system-card-min: 420px;
+  /* Settings rows: the label column's preferred width before controls wrap below; a step tile's narrowest width. */
+  --vzn-settings-row-copy-basis: 220px;
+  --vzn-step-min: 180px;
+  --vzn-about-feature-min: 150px;
+  --vzn-settings-select-min: 180px;
+  /* Settings: the section list column beside the content. */
+  --vzn-settings-nav-width: 240px;
+  /* Settings › Appearance: the live preview column. */
+  --vzn-appearance-preview-width: 300px;
+  /* Interpret: the "This session" column beside the transcript. */
+  --vzn-live-session-panel-width: 280px;
+  /* One 760px column for messages, suggestions and the composer. */
+  --vzn-chat-stage-max: 760px;
+  --vzn-chat-reading-max: 760px;
+  --vzn-chat-composer-max: 760px;
+  --vzn-translate-workspace-max: 1440px;
+  --vzn-translate-history-width: calc(var(--vzn-space-12) * 6);
+  --vzn-translate-source-min-block: 18rem;
+  --vzn-translate-result-min-block: 15rem;
+  --vzn-translate-body-min-block: 10rem;
+  --vzn-translate-compare-source-min-block: 8rem;
+  --vzn-translate-compare-source-max-block: 24rem;
+  /* Translate page geometry (translate.css). */
+  --vzn-translate-mode-toggle-min-inline: 9.5rem;
+  --vzn-translate-options-panel-width: 27rem;
+  --vzn-translate-image-name-max: 24rem;
+  --vzn-translate-submit-min-inline: 6rem;
+  --vzn-translate-reading-max: 48rem;
+  --vzn-translate-hint-max: 28rem;
+  --vzn-translate-loading-lines-width: 22rem;
+  --vzn-translate-viewport-clearance: 10rem;
+  --vzn-translate-viewport-clearance-compact: 8rem;
+  --vzn-translate-model-picker-block: 34rem;
+  --vzn-translate-model-picker-compact-block: 38rem;
+  --vzn-translate-model-picker-stacked-min-block: 16rem;
+  --vzn-translate-model-selected-min-inline: 15rem;
+  --vzn-translate-model-available-min-inline: 18rem;
+  --vzn-translate-model-dialog-width: 54rem;
+  --vzn-translate-model-dialog-block: 44rem;
+  --vzn-translate-model-dialog-note-max: 30rem;
+  --vzn-translate-model-sheet-max-block: 46rem;
+  --vzn-translate-model-sheet-selected-max-block: 14rem;
+  --vzn-translate-compare-card-min-block: 16rem;
+  --vzn-translate-compare-card-body-min-block: 8rem;
+  --vzn-translate-compare-card-body-max-block: 28rem;
+  --vzn-translate-compare-tab-max-inline: 13rem;
+  /* By-sentence comparison: source column share and the assembled-text preview cap. */
+  --vzn-translate-compare-sentence-source-inline: 30%;
+  --vzn-translate-compare-assembly-max-block: calc(var(--vzn-space-12) * 2.5);
+  --vzn-live-panel-min-block: 16rem;
+  --vzn-notification-max-inline: 400px;
+  --vzn-chat-gutter: clamp(16px, 2.2vw, 40px);
+  --vzn-chat-message-end-clearance: var(--vzn-space-4);
+  --vzn-chat-avatar-size: 2rem;
+  --vzn-composer-min-height: 116px;
+  --vzn-chat-textarea-max-height: 140px;
+  /* Quick AI popup: prompt field growth cap and empty/info state height. */
+  --vzn-quick-chat-input-max-block: calc(var(--vzn-space-12) * 2.5);
+  --vzn-quick-chat-empty-min-block: calc(var(--vzn-space-12) * 5);
+  --vzn-chat-plus-menu-inline: 220px;
+  --vzn-prompt-card-min-height: 116px;
+  --vzn-workspace-pad: var(--vzn-space-4);
+  --vzn-panel-gap: var(--vzn-space-3);
+  /* Thermal: minimum tile widths for the sensor and fan grids and the headline figures. */
+  --vzn-thermal-tile-min-inline: 10.5rem;
+  --vzn-thermal-fan-tile-min-inline: 14rem;
+  --vzn-thermal-summary-min-inline: 7.5rem;
+  --vzn-thermal-fan-column-max: 30rem;
+  --vzn-thermal-raw-list-max-block: 20rem;
+  --vzn-empty-state-copy-max: calc(var(--vzn-space-12) * 4);
+  /* Lookup column (term, context, Recent / Favorites) beside the result page. */
+  --vzn-dictionary-lookup-width: calc(var(--vzn-space-12) * 7);
+  --vzn-dictionary-reading-max: calc(var(--vzn-space-12) * 16);
+  --vzn-dictionary-context-max-block: calc(var(--vzn-control-height-md) * 3);
+  --vzn-dictionary-pane-min-block: calc(var(--vzn-space-12) * 6);
+  --vzn-popover-wide: 420px;
+  /* Secondary option list that opens beside a popover row (OptionFlyout). */
+  --vzn-flyout-inline: calc(var(--vzn-space-12) * 5);
+  --vzn-picker-min-inline: 280px;
+  /* Longest a LanguagePairBar half grows before its label truncates. */
+  --vzn-language-pair-half-max: calc(var(--vzn-space-12) * 4.5);
+  --vzn-picker-max-block: 360px;
+  --vzn-ai-configuration-inline: var(--vzn-popover-wide);
+  --vzn-ai-configuration-max-block: min(
+    calc(100dvh - var(--vzn-space-8)),
+    calc(var(--vzn-space-12) * 10)
+  );
+  --vzn-ai-configuration-content-max-block: calc(
+    var(--vzn-ai-configuration-max-block) - (var(--vzn-space-12) * 2)
+  );
+  --vzn-select-menu-max-block: calc(var(--vzn-space-12) * 5);
+  --vzn-translate-model-chip-min-inline: calc(var(--vzn-space-12) * 4.5);
+  --vzn-translate-model-selected-max-block: calc(var(--vzn-space-12) * 4);
+  --vzn-translate-model-available-min-block: calc(var(--vzn-space-12) * 6);
+  --vzn-translate-model-scroll-clearance: calc(
+    var(--vzn-control-height-md) + var(--vzn-space-2)
+  );
+  --vzn-history-search-width: calc(var(--vzn-space-12) * 5);
+  --vzn-modal-viewport-block: 90vh;
+  --vzn-update-dialog-max-inline: 560px;
+  --vzn-dialog-sm-max-inline: 420px;
+  --vzn-dialog-md-max-inline: 560px;
+  --vzn-dialog-lg-max-inline: 720px;
+  --vzn-dictionary-headword-size: var(--vzn-font-size-heading);
+  --vzn-theme-preview-block: calc(var(--vzn-space-12) * 5);
+  --vzn-theme-preview-sidebar-inline: calc(var(--vzn-space-12) + var(--vzn-space-4));
+  --vzn-theme-preview-bubble-max-inline: calc(var(--vzn-space-12) * 4);
+  --vzn-theme-preset-tile-min-inline: calc(var(--vzn-space-12) * 2);
+  --vzn-theme-preset-tile-swatch-block: var(--vzn-space-10);
+  --vzn-dictionary-hint-chip-max: calc(var(--vzn-space-12) * 5);
+
+  /* Compatibility aliases ---------------------------------------------- */
+  --vzn-accent: var(--vzn-action);
+  --vzn-accent-hover: var(--vzn-action-hover);
+  --vzn-accent-active: var(--vzn-action-active);
+  --vzn-accent-soft: var(--vzn-action-soft);
+  --vzn-accent-border: var(--vzn-action-border);
+}
+
+/* Text size (Settings › Appearance). Set on <html> by the app. */
+:root[data-text-size="small"] {
+  --vzn-text-scale: 0.9;
+}
+
+:root[data-text-size="large"] {
+  --vzn-text-scale: 1.15;
+}
+
+html {
+  font-size: var(--vzn-root-font-size);
+}
+
+/* Japanese has no letter case: uppercase labels would only gain letter spacing. */
+:root:lang(ja) {
+  --vzn-tracking-caps: normal;
+}
+
+/* Status, disabled and overlay values (light). The dark set is declared under
+ * `html.dark, [data-mode="dark"]`; `[data-mode="light"]` pins an element (the
+ * Settings preview, spec boards) to light inside a dark window. */
+:root,
+[data-mode="light"] {
+  --vzn-success: var(--vzn-green-600);
+  --vzn-success-soft: var(--vzn-green-50);
+  --vzn-success-border: color-mix(in srgb, var(--vzn-green-500) 42%, transparent);
+  --vzn-warning: var(--vzn-amber-600);
+  --vzn-warning-soft: var(--vzn-amber-50);
+  --vzn-warning-border: color-mix(in srgb, var(--vzn-amber-500) 45%, transparent);
+  --vzn-danger: var(--vzn-red-600);
+  --vzn-danger-hover: var(--vzn-red-700);
+  --vzn-danger-soft: var(--vzn-red-50);
+  --vzn-danger-soft-hover: #fee2e2;
+  --vzn-danger-border: var(--vzn-red-200);
+
+  --vzn-disabled-bg: var(--vzn-neutral-100);
+  --vzn-disabled-border: var(--vzn-neutral-200);
+  --vzn-disabled-fg: var(--vzn-neutral-400);
+
+  --vzn-scrim: rgba(20, 19, 17, 0.42);
+  --vzn-skeleton: color-mix(in srgb, var(--vzn-neutral-900) 6%, transparent);
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* Palette (dark) --------------------------------------------------------- */
+html.dark,
+html.dark [data-theme="graphite"],
+html.dark[data-theme="graphite"],
+:root [data-theme="graphite"][data-mode="dark"] {
+  /* Surfaces */
+  --vzn-app-bg: #111113;
+  --vzn-bg: #111113;
+  --vzn-canvas: #111113;
+  --vzn-titlebar-bg: #18181b;
+  --vzn-sidebar-bg: #18181b;
+  --vzn-chat-sidebar-bg: #18181b;
+  --vzn-surface: #1c1c1f;
+  --vzn-surface-raised: #232327;
+  --vzn-surface-muted: #222226;
+  --vzn-surface-subtle: #222226;
+  --vzn-surface-hover: #2a2a2e;
+  --vzn-surface-selected: rgba(77, 155, 255, 0.16);
+  --vzn-text: #ececf0;
+  --vzn-text-strong: #f5f5f7;
+  --vzn-text-muted: #a8a8b0;
+  --vzn-text-soft: #9a9aa2;
+  --vzn-text-disabled: #6b6b73;
+  --vzn-text-inverse: #111113;
+  --vzn-border: #2c2c31;
+  --vzn-border-strong: #3a3a40;
+  --vzn-divider: #26262a;
+  --vzn-titlebar-material: rgba(30, 30, 32, 0.76);
+  --vzn-primary-nav-material: rgba(34, 34, 37, 0.76);
+  --vzn-context-nav-material: rgba(28, 28, 30, 0.88);
+  --vzn-overlay-material: rgba(36, 36, 38, 0.96);
+  --vzn-material-border: rgba(235, 235, 245, 0.12);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.08);
+  --vzn-user-avatar-bg: #636366;
+  --vzn-user-avatar-fg: #ffffff;
+  --vzn-assistant-avatar-bg: rgba(44, 44, 46, 0.78);
+
+  /* Accent */
+  --vzn-action: #2f7bea;
+  --vzn-action-hover: #4d8ff0;
+  --vzn-action-active: #2569cf;
+  --vzn-action-soft: rgba(77, 155, 255, 0.16);
+  --vzn-action-soft-hover: rgba(77, 155, 255, 0.23);
+  --vzn-action-border: rgba(77, 155, 255, 0.4);
+  --vzn-action-text: #8cc2ff;
+  --vzn-action-fg: #ffffff;
+  --vzn-focus-ring: rgba(77, 155, 255, 0.62);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: var(--vzn-surface-muted);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-divider);
+
+  /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface-subtle);
+  --vzn-chrome-fg: var(--vzn-text);
+  --vzn-chrome-fg-strong: var(--vzn-text-strong);
+  --vzn-chrome-fg-muted: var(--vzn-text-muted);
+  --vzn-chrome-fg-soft: var(--vzn-text-soft);
+  --vzn-chrome-divider: var(--vzn-divider);
+  --vzn-chrome-item-hover: var(--vzn-surface-subtle);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+  --vzn-chrome-item-active-fg: var(--vzn-action-text);
+  --vzn-chrome-accent: var(--vzn-action-text);
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #72a7ff;
+  --vzn-tone-violet: #ae8aff;
+  --vzn-tone-green: #55c982;
+  --vzn-tone-orange: #ff8a57;
+
+  /* Shape */
+  --vzn-radius-2xs: 4px;
+  --vzn-radius-xs: 6px;
+  --vzn-radius-sm: 8px;
+  --vzn-radius-control: 10px;
+  --vzn-radius-md: 12px;
+  --vzn-radius-lg: 16px;
+  --vzn-radius-xl: 20px;
+  --vzn-radius-2xl: 24px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.14);
+  --vzn-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.18);
+  --vzn-shadow-md: 0 10px 28px rgba(0, 0, 0, 0.26);
+  --vzn-shadow-lg: 0 20px 52px rgba(0, 0, 0, 0.36);
+  --vzn-shadow-overlay: 0 28px 80px rgba(0, 0, 0, 0.5);
+  --vzn-prompt-card-shadow-hover: 0 8px 22px rgba(0, 0, 0, 0.18);
+  --vzn-blur: none;
+  --vzn-blur-sm: none;
+  --vzn-overlay-blur: none;
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: var(--vzn-font-sans);
+  --vzn-line-reading: 1.6;
+  --vzn-font-display: var(--vzn-font-sans);
+
+  /* Backdrop (painted behind an opaque shell; a transparent native shell ignores it) */
+  --vzn-app-backdrop: none;
+}
+
+/* Status, disabled and overlay values follow the mode. `[data-mode]` lets an
+ * element pin its own mode (the Settings preview, spec boards) regardless of
+ * `html.dark`, so both selectors carry the same set. */
+html.dark,
+[data-mode="dark"] {
+  --vzn-success: #4ade80;
+  --vzn-success-soft: rgba(74, 222, 128, 0.1);
+  --vzn-success-border: rgba(74, 222, 128, 0.28);
+  --vzn-warning: #fbbf24;
+  --vzn-warning-soft: rgba(251, 191, 36, 0.1);
+  --vzn-warning-border: rgba(251, 191, 36, 0.28);
+  --vzn-danger: #fb7185;
+  --vzn-danger-hover: #fda4af;
+  --vzn-danger-soft: rgba(251, 113, 133, 0.14);
+  --vzn-danger-soft-hover: rgba(251, 113, 133, 0.2);
+  --vzn-danger-border: rgba(251, 113, 133, 0.3);
+
+  --vzn-disabled-bg: rgba(255, 255, 255, 0.07);
+  --vzn-disabled-border: rgba(255, 255, 255, 0.08);
+  --vzn-disabled-fg: #667085;
+
+  --vzn-scrim: rgba(0, 0, 0, 0.58);
+  --vzn-skeleton: rgba(255, 255, 255, 0.06);
+}
+
+/* Palette presets ----------------------------------------------------------
+ * Selected in Settings > Appearance and applied as `data-theme` on <html>.
+ * A preset is a persona, not a repaint: it owns surfaces, accent intensity,
+ * primary chrome, shape, depth/material, and reading type. Every preset
+ * declares the identical token set for light and dark so an element carrying
+ * `data-theme` (the Settings preview) renders that persona exactly, never
+ * inheriting a stray value from the window's palette. An element may also
+ * carry `data-mode="light|dark"` to pin its own mode regardless of
+ * `html.dark`, which is how the preview shows a mode before it is applied.
+ * This section is generated from a value table; keep blocks in lockstep. */
+
+/* Glass: Liquid Glass look. Translucent surfaces with blur and a light rim, ocean gradient actions; the window material shows through on macOS. */
+[data-theme="glass"],
+:root [data-theme="glass"][data-mode="light"] {
+  /* Surfaces */
+  --vzn-app-bg: #f0f2f8;
+  --vzn-bg: rgba(248, 249, 253, 0.42);
+  --vzn-canvas: rgba(255, 255, 255, 0.5);
+  --vzn-titlebar-bg: #eef0f7;
+  --vzn-sidebar-bg: #eef0f7;
+  --vzn-chat-sidebar-bg: rgba(244, 246, 251, 0.55);
+  --vzn-surface: rgba(255, 255, 255, 0.58);
+  --vzn-surface-raised: rgba(255, 255, 255, 0.72);
+  --vzn-surface-muted: rgba(240, 242, 250, 0.6);
+  --vzn-surface-subtle: rgba(226, 230, 243, 0.6);
+  --vzn-surface-hover: rgba(214, 219, 238, 0.7);
+  --vzn-surface-selected: rgba(10, 132, 255, 0.14);
+  --vzn-text: #1c2340;
+  --vzn-text-strong: #0f1430;
+  --vzn-text-muted: #4f5878;
+  --vzn-text-soft: #717a99;
+  --vzn-text-disabled: #a6adc4;
+  --vzn-text-inverse: var(--vzn-neutral-0);
+  --vzn-border: rgba(40, 50, 90, 0.14);
+  --vzn-border-strong: rgba(40, 50, 90, 0.24);
+  --vzn-divider: rgba(40, 50, 90, 0.1);
+  --vzn-titlebar-material: rgba(255, 255, 255, 0.42);
+  --vzn-primary-nav-material: rgba(255, 255, 255, 0.36);
+  --vzn-context-nav-material: rgba(255, 255, 255, 0.5);
+  --vzn-overlay-material: rgba(255, 255, 255, 0.76);
+  --vzn-material-border: rgba(40, 50, 90, 0.12);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.9);
+  --vzn-user-avatar-bg: #1f5fd6;
+  --vzn-user-avatar-fg: #ffffff;
+  --vzn-assistant-avatar-bg: rgba(255, 255, 255, 0.7);
+
+  /* Accent */
+  --vzn-action: var(--vzn-blue-500);
+  --vzn-action-hover: var(--vzn-blue-600);
+  --vzn-action-active: var(--vzn-blue-700);
+  --vzn-action-soft: rgba(10, 132, 255, 0.14);
+  --vzn-action-soft-hover: rgba(10, 132, 255, 0.2);
+  --vzn-action-border: rgba(10, 132, 255, 0.36);
+  --vzn-action-text: #0066cc;
+  --vzn-action-fg: var(--vzn-neutral-0);
+  --vzn-focus-ring: rgba(10, 132, 255, 0.55);
+  --vzn-action-fill: linear-gradient(135deg, var(--vzn-blue-700) 0%, var(--vzn-sky-600) 100%);
+  --vzn-action-fill-hover: linear-gradient(135deg, var(--vzn-blue-800) 0%, var(--vzn-sky-700) 100%);
+  --vzn-accent-glow: rgba(10, 132, 255, 0.35);
+  --vzn-shadow-glow: 0 8px 24px rgba(10, 132, 255, 0.25);
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: linear-gradient(135deg, var(--vzn-blue-700) 0%, var(--vzn-sky-600) 100%);
+  --vzn-user-bubble-fg: var(--vzn-neutral-0);
+  --vzn-user-bubble-border: transparent;
+
+  /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface);
+  --vzn-chrome-fg: #2a3152;
+  --vzn-chrome-fg-strong: #0f1430;
+  --vzn-chrome-fg-muted: #596283;
+  --vzn-chrome-fg-soft: #7b84a3;
+  --vzn-chrome-divider: rgba(40, 50, 90, 0.12);
+  --vzn-chrome-item-hover: rgba(255, 255, 255, 0.45);
+  --vzn-chrome-item-active: rgba(10, 132, 255, 0.16);
+  --vzn-chrome-item-active-fg: #0f1430;
+  --vzn-chrome-accent: var(--vzn-blue-500);
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #3485f6;
+  --vzn-tone-violet: #8b5cf6;
+  --vzn-tone-green: #1aa75b;
+  --vzn-tone-orange: #ef6a32;
+
+  /* Shape */
+  --vzn-radius-2xs: 8px;
+  --vzn-radius-xs: 10px;
+  --vzn-radius-sm: 14px;
+  --vzn-radius-control: 16px;
+  --vzn-radius-md: 18px;
+  --vzn-radius-lg: 22px;
+  --vzn-radius-xl: 26px;
+  --vzn-radius-2xl: 30px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: 0 1px 2px rgba(20, 30, 60, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --vzn-shadow-sm: 0 2px 8px rgba(20, 30, 60, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --vzn-shadow-md: 0 12px 36px rgba(20, 30, 60, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --vzn-shadow-lg: 0 24px 64px rgba(20, 30, 60, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --vzn-shadow-overlay: 0 32px 96px rgba(20, 30, 60, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --vzn-prompt-card-shadow-hover: 0 12px 32px rgba(10, 132, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  --vzn-blur: blur(24px) saturate(160%);
+  --vzn-blur-sm: blur(12px) saturate(140%);
+  /* Floating layers (menus, pickers, popovers, tooltips, toasts): heavier than --vzn-blur so text behind them never reads. */
+  --vzn-overlay-blur: blur(40px) saturate(180%);
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: var(--vzn-font-sans);
+  --vzn-line-reading: 1.6;
+  --vzn-font-display: var(--vzn-font-sans);
+
+  /* Backdrop (painted behind an opaque shell; a transparent native shell ignores it) */
+  --vzn-app-backdrop: radial-gradient(120% 80% at 0% 0%, rgba(10, 132, 255, 0.3) 0%, transparent 55%), radial-gradient(100% 80% at 100% 100%, rgba(34, 211, 238, 0.26) 0%, transparent 55%);
+}
+
+html.dark [data-theme="glass"],
+html.dark[data-theme="glass"],
+:root [data-theme="glass"][data-mode="dark"] {
+  /* Surfaces */
+  --vzn-app-bg: #0f1118;
+  --vzn-bg: rgba(18, 20, 30, 0.4);
+  --vzn-canvas: rgba(18, 20, 30, 0.5);
+  --vzn-titlebar-bg: #171a26;
+  --vzn-sidebar-bg: #171a26;
+  --vzn-chat-sidebar-bg: rgba(20, 23, 36, 0.6);
+  --vzn-surface: rgba(32, 36, 52, 0.6);
+  --vzn-surface-raised: rgba(40, 44, 62, 0.66);
+  --vzn-surface-muted: rgba(24, 27, 40, 0.6);
+  --vzn-surface-subtle: rgba(44, 48, 68, 0.55);
+  --vzn-surface-hover: rgba(58, 63, 88, 0.65);
+  --vzn-surface-selected: rgba(10, 132, 255, 0.22);
+  --vzn-text: #e4e7f2;
+  --vzn-text-strong: #f7f8fc;
+  --vzn-text-muted: #aab1c7;
+  --vzn-text-soft: #828aa3;
+  --vzn-text-disabled: #5a6178;
+  --vzn-text-inverse: #0f1118;
+  --vzn-border: rgba(255, 255, 255, 0.12);
+  --vzn-border-strong: rgba(255, 255, 255, 0.2);
+  --vzn-divider: rgba(255, 255, 255, 0.09);
+  --vzn-titlebar-material: rgba(22, 25, 38, 0.5);
+  --vzn-primary-nav-material: rgba(22, 25, 38, 0.46);
+  --vzn-context-nav-material: rgba(18, 20, 30, 0.6);
+  --vzn-overlay-material: rgba(30, 34, 50, 0.8);
+  --vzn-material-border: rgba(255, 255, 255, 0.14);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.16);
+  --vzn-user-avatar-bg: #3d6ef0;
+  --vzn-user-avatar-fg: #ffffff;
+  --vzn-assistant-avatar-bg: rgba(32, 36, 52, 0.7);
+
+  /* Accent */
+  --vzn-action: var(--vzn-blue-500);
+  --vzn-action-hover: var(--vzn-blue-600);
+  --vzn-action-active: var(--vzn-blue-700);
+  --vzn-action-soft: rgba(64, 156, 255, 0.18);
+  --vzn-action-soft-hover: rgba(64, 156, 255, 0.26);
+  --vzn-action-border: rgba(64, 156, 255, 0.45);
+  --vzn-action-text: var(--vzn-blue-300);
+  --vzn-action-fg: #ffffff;
+  --vzn-focus-ring: rgba(64, 156, 255, 0.6);
+  --vzn-action-fill: linear-gradient(135deg, var(--vzn-blue-500) 0%, var(--vzn-sky-600) 100%);
+  --vzn-action-fill-hover: linear-gradient(135deg, var(--vzn-blue-600) 0%, var(--vzn-sky-700) 100%);
+  --vzn-accent-glow: rgba(64, 156, 255, 0.4);
+  --vzn-shadow-glow: 0 8px 28px rgba(64, 156, 255, 0.3);
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: linear-gradient(135deg, var(--vzn-blue-500) 0%, var(--vzn-sky-600) 100%);
+  --vzn-user-bubble-fg: #ffffff;
+  --vzn-user-bubble-border: transparent;
+
+  /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface-subtle);
+  --vzn-chrome-fg: #cfd5e6;
+  --vzn-chrome-fg-strong: #ffffff;
+  --vzn-chrome-fg-muted: #9aa3bd;
+  --vzn-chrome-fg-soft: #737c97;
+  --vzn-chrome-divider: rgba(255, 255, 255, 0.08);
+  --vzn-chrome-item-hover: rgba(255, 255, 255, 0.08);
+  --vzn-chrome-item-active: rgba(64, 156, 255, 0.22);
+  --vzn-chrome-item-active-fg: #ffffff;
+  --vzn-chrome-accent: var(--vzn-blue-300);
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #72a7ff;
+  --vzn-tone-violet: #ae8aff;
+  --vzn-tone-green: #55c982;
+  --vzn-tone-orange: #ff8a57;
+
+  /* Shape */
+  --vzn-radius-2xs: 8px;
+  --vzn-radius-xs: 10px;
+  --vzn-radius-sm: 14px;
+  --vzn-radius-control: 16px;
+  --vzn-radius-md: 18px;
+  --vzn-radius-lg: 22px;
+  --vzn-radius-xl: 26px;
+  --vzn-radius-2xl: 30px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --vzn-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --vzn-shadow-md: 0 12px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --vzn-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --vzn-shadow-overlay: 0 32px 96px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --vzn-prompt-card-shadow-hover: 0 12px 32px rgba(64, 156, 255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --vzn-blur: blur(24px) saturate(160%);
+  --vzn-blur-sm: blur(12px) saturate(140%);
+  /* Floating layers (menus, pickers, popovers, tooltips, toasts): heavier than --vzn-blur so text behind them never reads. */
+  --vzn-overlay-blur: blur(40px) saturate(160%);
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: var(--vzn-font-sans);
+  --vzn-line-reading: 1.6;
+  --vzn-font-display: var(--vzn-font-sans);
+
+  /* Backdrop (painted behind an opaque shell; a transparent native shell ignores it) */
+  --vzn-app-backdrop: radial-gradient(120% 80% at 0% 0%, rgba(64, 156, 255, 0.3) 0%, transparent 55%), radial-gradient(100% 80% at 100% 100%, rgba(34, 211, 238, 0.22) 0%, transparent 55%);
+}
+
+/* Paper: translators, writers, scholars. Warm editorial: cream paper, terracotta actions, serif display and reading type. */
+[data-theme="paper"],
+:root [data-theme="paper"][data-mode="light"] {
+  /* Surfaces */
+  --vzn-app-bg: #ece5d6;
+  --vzn-bg: #f6f1e6;
+  --vzn-canvas: #fbf7ee;
+  --vzn-titlebar-bg: #ece5d6;
+  --vzn-sidebar-bg: #ece5d6;
+  --vzn-chat-sidebar-bg: #f1ebdf;
+  --vzn-surface: #fbf7ee;
+  --vzn-surface-raised: #fdfaf3;
+  --vzn-surface-muted: #f3ecdf;
+  --vzn-surface-subtle: #ebe3d3;
+  --vzn-surface-hover: #e2d8c5;
+  --vzn-surface-selected: rgba(176, 88, 52, 0.12);
+  --vzn-text: #2b2520;
+  --vzn-text-strong: #171310;
+  --vzn-text-muted: #6a5f54;
+  --vzn-text-soft: #8b8074;
+  --vzn-text-disabled: #b5aa9c;
+  --vzn-text-inverse: #fbf7ee;
+  --vzn-border: rgba(70, 50, 30, 0.18);
+  --vzn-border-strong: rgba(70, 50, 30, 0.3);
+  --vzn-divider: rgba(70, 50, 30, 0.14);
+  --vzn-titlebar-material: rgba(236, 229, 214, 0.86);
+  --vzn-primary-nav-material: rgba(236, 229, 214, 0.84);
+  --vzn-context-nav-material: rgba(241, 235, 223, 0.9);
+  --vzn-overlay-material: rgba(251, 247, 238, 0.97);
+  --vzn-material-border: rgba(70, 50, 30, 0.16);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.5);
+  --vzn-user-avatar-bg: #8a4328;
+  --vzn-user-avatar-fg: #fff8ee;
+  --vzn-assistant-avatar-bg: rgba(251, 247, 238, 0.8);
+
+  /* Accent */
+  --vzn-action: #b05834;
+  --vzn-action-hover: #94482a;
+  --vzn-action-active: #7a3a21;
+  --vzn-action-soft: rgba(176, 88, 52, 0.1);
+  --vzn-action-soft-hover: rgba(176, 88, 52, 0.16);
+  --vzn-action-border: rgba(176, 88, 52, 0.34);
+  --vzn-action-text: #9a4a2c;
+  --vzn-action-fg: #fff8ee;
+  --vzn-focus-ring: rgba(176, 88, 52, 0.5);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: #f3ecdf;
+  --vzn-user-bubble-fg: #171310;
+  --vzn-user-bubble-border: rgba(176, 88, 52, 0.22);
+
+  /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface);
+  --vzn-chrome-fg: #3d322a;
+  --vzn-chrome-fg-strong: #171310;
+  --vzn-chrome-fg-muted: #6a5f54;
+  --vzn-chrome-fg-soft: #8b8074;
+  --vzn-chrome-divider: rgba(70, 50, 30, 0.14);
+  --vzn-chrome-item-hover: rgba(70, 50, 30, 0.07);
+  --vzn-chrome-item-active: rgba(176, 88, 52, 0.14);
+  --vzn-chrome-item-active-fg: #7a3a21;
+  --vzn-chrome-accent: #b05834;
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #5a6d8a;
+  --vzn-tone-violet: #7a5c8a;
+  --vzn-tone-green: #5e7a4e;
+  --vzn-tone-orange: #b05834;
+
+  /* Shape */
+  --vzn-radius-2xs: 3px;
+  --vzn-radius-xs: 4px;
+  --vzn-radius-sm: 5px;
+  --vzn-radius-control: 6px;
+  --vzn-radius-md: 6px;
+  --vzn-radius-lg: 8px;
+  --vzn-radius-xl: 10px;
+  --vzn-radius-2xl: 12px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: none;
+  --vzn-shadow-sm: 0 1px 0 rgba(70, 50, 30, 0.08);
+  --vzn-shadow-md: 0 2px 6px rgba(70, 50, 30, 0.1);
+  --vzn-shadow-lg: 0 8px 24px rgba(70, 50, 30, 0.14);
+  --vzn-shadow-overlay: 0 16px 48px rgba(70, 50, 30, 0.2);
+  --vzn-prompt-card-shadow-hover: 0 2px 8px rgba(70, 50, 30, 0.1);
+  --vzn-blur: none;
+  --vzn-blur-sm: none;
+  --vzn-overlay-blur: none;
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: "Iowan Old Style", "Palatino Linotype", Charter, Georgia,
+    "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif", serif;
+  --vzn-line-reading: 1.75;
+  --vzn-font-display: "Iowan Old Style", "Palatino Linotype", Charter, Georgia,
+    "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif", serif;
+
+  /* Backdrop (painted behind an opaque shell; a transparent native shell ignores it) */
+  --vzn-app-backdrop: none;
+}
+
+html.dark [data-theme="paper"],
+html.dark[data-theme="paper"],
+:root [data-theme="paper"][data-mode="dark"] {
+  /* Surfaces */
+  --vzn-app-bg: #1a1714;
+  --vzn-bg: #211d19;
+  --vzn-canvas: #211d19;
+  --vzn-titlebar-bg: #26211c;
+  --vzn-sidebar-bg: #26211c;
+  --vzn-chat-sidebar-bg: #231e1a;
+  --vzn-surface: #2a2521;
+  --vzn-surface-raised: #302a25;
+  --vzn-surface-muted: #262119;
+  --vzn-surface-subtle: #2e2823;
+  --vzn-surface-hover: #39322c;
+  --vzn-surface-selected: rgba(214, 160, 120, 0.14);
+  --vzn-text: #e8e0d4;
+  --vzn-text-strong: #f6f0e6;
+  --vzn-text-muted: #b3a797;
+  --vzn-text-soft: #8f8475;
+  --vzn-text-disabled: #665c52;
+  --vzn-text-inverse: #1a1714;
+  --vzn-border: rgba(240, 220, 195, 0.14);
+  --vzn-border-strong: rgba(240, 220, 195, 0.22);
+  --vzn-divider: rgba(240, 220, 195, 0.1);
+  --vzn-titlebar-material: rgba(38, 33, 28, 0.86);
+  --vzn-primary-nav-material: rgba(38, 33, 28, 0.84);
+  --vzn-context-nav-material: rgba(35, 30, 26, 0.9);
+  --vzn-overlay-material: rgba(42, 37, 33, 0.97);
+  --vzn-material-border: rgba(240, 220, 195, 0.12);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.05);
+  --vzn-user-avatar-bg: #a9573a;
+  --vzn-user-avatar-fg: #fff8ee;
+  --vzn-assistant-avatar-bg: rgba(42, 37, 33, 0.8);
+
+  /* Accent */
+  --vzn-action: #e0825a;
+  --vzn-action-hover: #f0a07e;
+  --vzn-action-active: #c96a44;
+  --vzn-action-soft: rgba(224, 130, 90, 0.12);
+  --vzn-action-soft-hover: rgba(224, 130, 90, 0.2);
+  --vzn-action-border: rgba(224, 130, 90, 0.4);
+  --vzn-action-text: #f0a07e;
+  --vzn-action-fg: #1a1714;
+  --vzn-focus-ring: rgba(224, 130, 90, 0.55);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: #2e2823;
+  --vzn-user-bubble-fg: #f6f0e6;
+  --vzn-user-bubble-border: rgba(224, 130, 90, 0.26);
+
+  /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface-subtle);
+  --vzn-chrome-fg: #d9cfc0;
+  --vzn-chrome-fg-strong: #f6f0e6;
+  --vzn-chrome-fg-muted: #a89c8c;
+  --vzn-chrome-fg-soft: #857a6c;
+  --vzn-chrome-divider: rgba(240, 220, 195, 0.1);
+  --vzn-chrome-item-hover: rgba(240, 220, 195, 0.07);
+  --vzn-chrome-item-active: rgba(224, 130, 90, 0.18);
+  --vzn-chrome-item-active-fg: #f6f0e6;
+  --vzn-chrome-accent: #e0825a;
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #8ea3c4;
+  --vzn-tone-violet: #a98cbd;
+  --vzn-tone-green: #8fae7e;
+  --vzn-tone-orange: #e0825a;
+
+  /* Shape */
+  --vzn-radius-2xs: 3px;
+  --vzn-radius-xs: 4px;
+  --vzn-radius-sm: 5px;
+  --vzn-radius-control: 6px;
+  --vzn-radius-md: 6px;
+  --vzn-radius-lg: 8px;
+  --vzn-radius-xl: 10px;
+  --vzn-radius-2xl: 12px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: none;
+  --vzn-shadow-sm: 0 1px 0 rgba(0, 0, 0, 0.25);
+  --vzn-shadow-md: 0 2px 6px rgba(0, 0, 0, 0.3);
+  --vzn-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --vzn-shadow-overlay: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --vzn-prompt-card-shadow-hover: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --vzn-blur: none;
+  --vzn-blur-sm: none;
+  --vzn-overlay-blur: none;
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: "Iowan Old Style", "Palatino Linotype", Charter, Georgia,
+    "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif", serif;
+  --vzn-line-reading: 1.75;
+  --vzn-font-display: "Iowan Old Style", "Palatino Linotype", Charter, Georgia,
+    "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif", serif;
+
+  /* Backdrop (painted behind an opaque shell; a transparent native shell ignores it) */
+  --vzn-app-backdrop: none;
+}
+
+/* Corporate: business and enterprise users. Navy chrome over a crisp white workspace, square geometry, strong borders. */
+[data-theme="corporate"],
+:root [data-theme="corporate"][data-mode="light"] {
+  /* Surfaces */
+  --vzn-app-bg: #f3f4f6;
+  --vzn-bg: #f8f9fb;
+  --vzn-canvas: var(--vzn-neutral-0);
+  --vzn-titlebar-bg: #141c2e;
+  --vzn-sidebar-bg: #141c2e;
+  --vzn-chat-sidebar-bg: #eef1f5;
+  --vzn-surface: var(--vzn-neutral-0);
+  --vzn-surface-raised: var(--vzn-neutral-0);
+  --vzn-surface-muted: #f3f5f8;
+  --vzn-surface-subtle: #e9edf2;
+  --vzn-surface-hover: #dde3ea;
+  --vzn-surface-selected: rgba(11, 99, 160, 0.12);
+  --vzn-text: #1f2937;
+  --vzn-text-strong: #0b1220;
+  --vzn-text-muted: #4b5563;
+  --vzn-text-soft: #6b7280;
+  --vzn-text-disabled: #9ca3af;
+  --vzn-text-inverse: var(--vzn-neutral-0);
+  --vzn-border: rgba(15, 23, 42, 0.2);
+  --vzn-border-strong: rgba(15, 23, 42, 0.32);
+  --vzn-divider: rgba(15, 23, 42, 0.14);
+  --vzn-titlebar-material: rgba(20, 28, 46, 0.94);
+  --vzn-primary-nav-material: rgba(20, 28, 46, 0.94);
+  --vzn-context-nav-material: rgba(238, 241, 245, 0.96);
+  --vzn-overlay-material: rgba(255, 255, 255, 0.98);
+  --vzn-material-border: rgba(15, 23, 42, 0.18);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.06);
+  --vzn-user-avatar-bg: #1e3a8a;
+  --vzn-user-avatar-fg: #ffffff;
+  --vzn-assistant-avatar-bg: var(--vzn-neutral-0);
+
+  /* Accent */
+  --vzn-action: #0b63a0;
+  --vzn-action-hover: #084d7d;
+  --vzn-action-active: #063a5e;
+  --vzn-action-soft: rgba(11, 99, 160, 0.1);
+  --vzn-action-soft-hover: rgba(11, 99, 160, 0.16);
+  --vzn-action-border: rgba(11, 99, 160, 0.38);
+  --vzn-action-text: #0b63a0;
+  --vzn-action-fg: var(--vzn-neutral-0);
+  --vzn-focus-ring: rgba(11, 99, 160, 0.55);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: #e9edf2;
+  --vzn-user-bubble-fg: #0b1220;
+  --vzn-user-bubble-border: rgba(15, 23, 42, 0.14);
+
+  /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface);
+  --vzn-chrome-fg: #c7cfdd;
+  --vzn-chrome-fg-strong: #ffffff;
+  --vzn-chrome-fg-muted: #a3aec2;
+  --vzn-chrome-fg-soft: #7f8aa0;
+  --vzn-chrome-divider: rgba(255, 255, 255, 0.1);
+  --vzn-chrome-item-hover: rgba(255, 255, 255, 0.08);
+  --vzn-chrome-item-active: rgba(56, 189, 248, 0.18);
+  --vzn-chrome-item-active-fg: #ffffff;
+  --vzn-chrome-accent: #38bdf8;
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #2563eb;
+  --vzn-tone-violet: #7c3aed;
+  --vzn-tone-green: #15803d;
+  --vzn-tone-orange: #c2410c;
+
+  /* Shape */
+  --vzn-radius-2xs: 3px;
+  --vzn-radius-xs: 4px;
+  --vzn-radius-sm: 6px;
+  --vzn-radius-control: 6px;
+  --vzn-radius-md: 8px;
+  --vzn-radius-lg: 10px;
+  --vzn-radius-xl: 12px;
+  --vzn-radius-2xl: 14px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: 0 1px 1px rgba(15, 23, 42, 0.06);
+  --vzn-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
+  --vzn-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.1);
+  --vzn-shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.16);
+  --vzn-shadow-overlay: 0 20px 60px rgba(15, 23, 42, 0.24);
+  --vzn-prompt-card-shadow-hover: 0 4px 12px rgba(15, 23, 42, 0.1);
+  --vzn-blur: none;
+  --vzn-blur-sm: none;
+  --vzn-overlay-blur: none;
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: var(--vzn-font-sans);
+  --vzn-line-reading: 1.5;
+  --vzn-font-display: var(--vzn-font-sans);
+
+  /* Backdrop (painted behind an opaque shell; a transparent native shell ignores it) */
+  --vzn-app-backdrop: none;
+}
+
+html.dark [data-theme="corporate"],
+html.dark[data-theme="corporate"],
+:root [data-theme="corporate"][data-mode="dark"] {
+  /* Surfaces */
+  --vzn-app-bg: #0b1020;
+  --vzn-bg: #111827;
+  --vzn-canvas: #111827;
+  --vzn-titlebar-bg: #080c17;
+  --vzn-sidebar-bg: #080c17;
+  --vzn-chat-sidebar-bg: #0f1524;
+  --vzn-surface: #1a2234;
+  --vzn-surface-raised: #1f2a3f;
+  --vzn-surface-muted: #161d2d;
+  --vzn-surface-subtle: #1d2638;
+  --vzn-surface-hover: #273246;
+  --vzn-surface-selected: rgba(56, 189, 248, 0.16);
+  --vzn-text: #dbe2ee;
+  --vzn-text-strong: #f8fafc;
+  --vzn-text-muted: #a6b1c4;
+  --vzn-text-soft: #7f8aa0;
+  --vzn-text-disabled: #525c70;
+  --vzn-text-inverse: #0b1020;
+  --vzn-border: rgba(203, 213, 225, 0.14);
+  --vzn-border-strong: rgba(203, 213, 225, 0.24);
+  --vzn-divider: rgba(203, 213, 225, 0.1);
+  --vzn-titlebar-material: rgba(8, 12, 23, 0.94);
+  --vzn-primary-nav-material: rgba(8, 12, 23, 0.94);
+  --vzn-context-nav-material: rgba(15, 21, 36, 0.96);
+  --vzn-overlay-material: rgba(26, 34, 52, 0.98);
+  --vzn-material-border: rgba(203, 213, 225, 0.14);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.05);
+  --vzn-user-avatar-bg: #3b5bb5;
+  --vzn-user-avatar-fg: #ffffff;
+  --vzn-assistant-avatar-bg: rgba(26, 34, 52, 0.9);
+
+  /* Accent */
+  --vzn-action: #38bdf8;
+  --vzn-action-hover: #7dd3fc;
+  --vzn-action-active: #0ea5e9;
+  --vzn-action-soft: rgba(56, 189, 248, 0.14);
+  --vzn-action-soft-hover: rgba(56, 189, 248, 0.22);
+  --vzn-action-border: rgba(56, 189, 248, 0.45);
+  --vzn-action-text: #7dd3fc;
+  --vzn-action-fg: #06213a;
+  --vzn-focus-ring: rgba(56, 189, 248, 0.6);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: #1d2638;
+  --vzn-user-bubble-fg: #f8fafc;
+  --vzn-user-bubble-border: rgba(203, 213, 225, 0.12);
+
+  /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface-subtle);
+  --vzn-chrome-fg: #b5c0d3;
+  --vzn-chrome-fg-strong: #ffffff;
+  --vzn-chrome-fg-muted: #8d99b0;
+  --vzn-chrome-fg-soft: #6b7891;
+  --vzn-chrome-divider: rgba(255, 255, 255, 0.08);
+  --vzn-chrome-item-hover: rgba(255, 255, 255, 0.07);
+  --vzn-chrome-item-active: rgba(56, 189, 248, 0.18);
+  --vzn-chrome-item-active-fg: #ffffff;
+  --vzn-chrome-accent: #38bdf8;
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #60a5fa;
+  --vzn-tone-violet: #a78bfa;
+  --vzn-tone-green: #4ade80;
+  --vzn-tone-orange: #fb923c;
+
+  /* Shape */
+  --vzn-radius-2xs: 3px;
+  --vzn-radius-xs: 4px;
+  --vzn-radius-sm: 6px;
+  --vzn-radius-control: 6px;
+  --vzn-radius-md: 8px;
+  --vzn-radius-lg: 10px;
+  --vzn-radius-xl: 12px;
+  --vzn-radius-2xl: 14px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.3);
+  --vzn-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --vzn-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --vzn-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+  --vzn-shadow-overlay: 0 20px 60px rgba(0, 0, 0, 0.6);
+  --vzn-prompt-card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --vzn-blur: none;
+  --vzn-blur-sm: none;
+  --vzn-overlay-blur: none;
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: var(--vzn-font-sans);
+  --vzn-line-reading: 1.5;
+  --vzn-font-display: var(--vzn-font-sans);
+
+  /* Backdrop (painted behind an opaque shell; a transparent native shell ignores it) */
+  --vzn-app-backdrop: none;
+}
+
+/* Midnight: night owls and power users. OLED black with a cyan accent and faint glow; dark in both modes (the app forces dark mode for it). */
+[data-theme="midnight"],
+:root [data-theme="midnight"][data-mode="light"] {
+  /* Surfaces */
+  --vzn-app-bg: #000000;
+  --vzn-bg: #050507;
+  --vzn-canvas: #050507;
+  --vzn-titlebar-bg: #000000;
+  --vzn-sidebar-bg: #000000;
+  --vzn-chat-sidebar-bg: #030305;
+  --vzn-surface: #0d0d12;
+  --vzn-surface-raised: #131319;
+  --vzn-surface-muted: #09090d;
+  --vzn-surface-subtle: #111117;
+  --vzn-surface-hover: #1a1a22;
+  --vzn-surface-selected: rgba(34, 211, 238, 0.16);
+  --vzn-text: #e2e4ec;
+  --vzn-text-strong: #ffffff;
+  --vzn-text-muted: #9a9eb0;
+  --vzn-text-soft: #6f7386;
+  --vzn-text-disabled: #45485a;
+  --vzn-text-inverse: #000000;
+  --vzn-border: rgba(255, 255, 255, 0.1);
+  --vzn-border-strong: rgba(255, 255, 255, 0.18);
+  --vzn-divider: rgba(255, 255, 255, 0.07);
+  --vzn-titlebar-material: rgba(0, 0, 0, 0.9);
+  --vzn-primary-nav-material: rgba(0, 0, 0, 0.9);
+  --vzn-context-nav-material: rgba(3, 3, 5, 0.95);
+  --vzn-overlay-material: rgba(13, 13, 18, 0.97);
+  --vzn-material-border: rgba(255, 255, 255, 0.1);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.05);
+  --vzn-user-avatar-bg: #0e7490;
+  --vzn-user-avatar-fg: #ffffff;
+  --vzn-assistant-avatar-bg: rgba(13, 13, 18, 0.9);
+
+  /* Accent */
+  --vzn-action: var(--vzn-cyan-400);
+  --vzn-action-hover: var(--vzn-cyan-300);
+  --vzn-action-active: var(--vzn-cyan-500);
+  --vzn-action-soft: rgba(34, 211, 238, 0.14);
+  --vzn-action-soft-hover: rgba(34, 211, 238, 0.22);
+  --vzn-action-border: rgba(34, 211, 238, 0.45);
+  --vzn-action-text: var(--vzn-cyan-300);
+  --vzn-action-fg: #04161b;
+  --vzn-focus-ring: rgba(34, 211, 238, 0.6);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: rgba(34, 211, 238, 0.45);
+  --vzn-shadow-glow: 0 0 24px rgba(34, 211, 238, 0.25);
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: #111117;
+  --vzn-user-bubble-fg: #ffffff;
+  --vzn-user-bubble-border: rgba(34, 211, 238, 0.25);
+
+  /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface-subtle);
+  --vzn-chrome-fg: #c8ccd8;
+  --vzn-chrome-fg-strong: #ffffff;
+  --vzn-chrome-fg-muted: #8d92a6;
+  --vzn-chrome-fg-soft: #62667a;
+  --vzn-chrome-divider: rgba(255, 255, 255, 0.07);
+  --vzn-chrome-item-hover: rgba(255, 255, 255, 0.06);
+  --vzn-chrome-item-active: rgba(34, 211, 238, 0.14);
+  --vzn-chrome-item-active-fg: #ffffff;
+  --vzn-chrome-accent: var(--vzn-cyan-400);
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #38bdf8;
+  --vzn-tone-violet: #a78bfa;
+  --vzn-tone-green: #34d399;
+  --vzn-tone-orange: #fb923c;
+
+  /* Shape */
+  --vzn-radius-2xs: 6px;
+  --vzn-radius-xs: 8px;
+  --vzn-radius-sm: 10px;
+  --vzn-radius-control: 10px;
+  --vzn-radius-md: 12px;
+  --vzn-radius-lg: 16px;
+  --vzn-radius-xl: 20px;
+  --vzn-radius-2xl: 24px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --vzn-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --vzn-shadow-md: 0 10px 30px rgba(0, 0, 0, 0.7);
+  --vzn-shadow-lg: 0 20px 52px rgba(0, 0, 0, 0.8), 0 0 40px rgba(34, 211, 238, 0.06);
+  --vzn-shadow-overlay: 0 28px 80px rgba(0, 0, 0, 0.9);
+  --vzn-prompt-card-shadow-hover: 0 0 24px rgba(34, 211, 238, 0.18);
+  --vzn-blur: none;
+  --vzn-blur-sm: none;
+  --vzn-overlay-blur: none;
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: var(--vzn-font-sans);
+  --vzn-line-reading: 1.6;
+  --vzn-font-display: var(--vzn-font-sans);
+
+  /* Backdrop (painted behind an opaque shell; a transparent native shell ignores it) */
+  --vzn-app-backdrop: none;
+}
+
+html.dark [data-theme="midnight"],
+html.dark[data-theme="midnight"],
+:root [data-theme="midnight"][data-mode="dark"] {
+  /* Surfaces */
+  --vzn-app-bg: #000000;
+  --vzn-bg: #050507;
+  --vzn-canvas: #050507;
+  --vzn-titlebar-bg: #000000;
+  --vzn-sidebar-bg: #000000;
+  --vzn-chat-sidebar-bg: #030305;
+  --vzn-surface: #0d0d12;
+  --vzn-surface-raised: #131319;
+  --vzn-surface-muted: #09090d;
+  --vzn-surface-subtle: #111117;
+  --vzn-surface-hover: #1a1a22;
+  --vzn-surface-selected: rgba(34, 211, 238, 0.16);
+  --vzn-text: #e2e4ec;
+  --vzn-text-strong: #ffffff;
+  --vzn-text-muted: #9a9eb0;
+  --vzn-text-soft: #6f7386;
+  --vzn-text-disabled: #45485a;
+  --vzn-text-inverse: #000000;
+  --vzn-border: rgba(255, 255, 255, 0.1);
+  --vzn-border-strong: rgba(255, 255, 255, 0.18);
+  --vzn-divider: rgba(255, 255, 255, 0.07);
+  --vzn-titlebar-material: rgba(0, 0, 0, 0.9);
+  --vzn-primary-nav-material: rgba(0, 0, 0, 0.9);
+  --vzn-context-nav-material: rgba(3, 3, 5, 0.95);
+  --vzn-overlay-material: rgba(13, 13, 18, 0.97);
+  --vzn-material-border: rgba(255, 255, 255, 0.1);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.05);
+  --vzn-user-avatar-bg: #0e7490;
+  --vzn-user-avatar-fg: #ffffff;
+  --vzn-assistant-avatar-bg: rgba(13, 13, 18, 0.9);
+
+  /* Accent */
+  --vzn-action: var(--vzn-cyan-400);
+  --vzn-action-hover: var(--vzn-cyan-300);
+  --vzn-action-active: var(--vzn-cyan-500);
+  --vzn-action-soft: rgba(34, 211, 238, 0.14);
+  --vzn-action-soft-hover: rgba(34, 211, 238, 0.22);
+  --vzn-action-border: rgba(34, 211, 238, 0.45);
+  --vzn-action-text: var(--vzn-cyan-300);
+  --vzn-action-fg: #04161b;
+  --vzn-focus-ring: rgba(34, 211, 238, 0.6);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: rgba(34, 211, 238, 0.45);
+  --vzn-shadow-glow: 0 0 24px rgba(34, 211, 238, 0.25);
+  --vzn-send-bg: var(--vzn-action-fill);
+  --vzn-send-bg-hover: var(--vzn-action-fill-hover);
+  --vzn-send-fg: var(--vzn-action-fg);
+  --vzn-user-bubble-bg: #111117;
+  --vzn-user-bubble-fg: #ffffff;
+  --vzn-user-bubble-border: rgba(34, 211, 238, 0.25);
+
+  /* Primary chrome */
+  --vzn-sidebar-search-bg: var(--vzn-surface-subtle);
+  --vzn-chrome-fg: #c8ccd8;
+  --vzn-chrome-fg-strong: #ffffff;
+  --vzn-chrome-fg-muted: #8d92a6;
+  --vzn-chrome-fg-soft: #62667a;
+  --vzn-chrome-divider: rgba(255, 255, 255, 0.07);
+  --vzn-chrome-item-hover: rgba(255, 255, 255, 0.06);
+  --vzn-chrome-item-active: rgba(34, 211, 238, 0.14);
+  --vzn-chrome-item-active-fg: #ffffff;
+  --vzn-chrome-accent: var(--vzn-cyan-400);
+
+  /* Illustrative tones */
+  --vzn-tone-blue: #38bdf8;
+  --vzn-tone-violet: #a78bfa;
+  --vzn-tone-green: #34d399;
+  --vzn-tone-orange: #fb923c;
+
+  /* Shape */
+  --vzn-radius-2xs: 6px;
+  --vzn-radius-xs: 8px;
+  --vzn-radius-sm: 10px;
+  --vzn-radius-control: 10px;
+  --vzn-radius-md: 12px;
+  --vzn-radius-lg: 16px;
+  --vzn-radius-xl: 20px;
+  --vzn-radius-2xl: 24px;
+
+  /* Depth and material */
+  --vzn-shadow-xs: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --vzn-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --vzn-shadow-md: 0 10px 30px rgba(0, 0, 0, 0.7);
+  --vzn-shadow-lg: 0 20px 52px rgba(0, 0, 0, 0.8), 0 0 40px rgba(34, 211, 238, 0.06);
+  --vzn-shadow-overlay: 0 28px 80px rgba(0, 0, 0, 0.9);
+  --vzn-prompt-card-shadow-hover: 0 0 24px rgba(34, 211, 238, 0.18);
+  --vzn-blur: none;
+  --vzn-blur-sm: none;
+  --vzn-overlay-blur: none;
+
+  /* Type */
+  --vzn-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, var(--vzn-font-cjk), sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --vzn-font-reading: var(--vzn-font-sans);
+  --vzn-line-reading: 1.6;
+  --vzn-font-display: var(--vzn-font-sans);
+
+  /* Backdrop (painted behind an opaque shell; a transparent native shell ignores it) */
+  --vzn-app-backdrop: none;
+}
+
+/* Reduced transparency or more contrast: Glass floating layers turn solid and
+ * stop blurring. The other presets already float near-opaque, unblurred layers. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  [data-theme="glass"],
+  :root [data-theme="glass"][data-mode="light"] {
+    --vzn-overlay-material: #f8f9fd;
+    --vzn-overlay-blur: none;
+  }
+
+  html.dark [data-theme="glass"],
+  html.dark[data-theme="glass"],
+  :root [data-theme="glass"][data-mode="dark"] {
+    --vzn-overlay-material: #1e2232;
+    --vzn-overlay-blur: none;
+  }
+}
+
+/* Accent overrides --------------------------------------------------------
+ * A user-picked hue layered on top of any preset: `data-accent` on <html>,
+ * or on any element that also pins `data-mode` (the Settings preview and
+ * the accent swatches). Each block replaces only the accent family;
+ * surfaces, chrome text, shape and type stay with the preset. The doubled
+ * attribute lifts specificity above a preset's own `data-mode` block. */
+
+/* Accent: violet. */
+html[data-accent="violet"],
+[data-accent="violet"][data-accent][data-mode="light"] {
+  --vzn-action: #7c3aed;
+  --vzn-action-hover: #6d28d9;
+  --vzn-action-active: #5b21b6;
+  --vzn-action-text: #6d28d9;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(139, 92, 246, 0.12);
+  --vzn-action-soft-hover: rgba(139, 92, 246, 0.18);
+  --vzn-action-border: rgba(139, 92, 246, 0.34);
+  --vzn-focus-ring: rgba(139, 92, 246, 0.55);
+  --vzn-surface-selected: rgba(139, 92, 246, 0.12);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+html.dark[data-accent="violet"],
+[data-accent="violet"][data-accent][data-mode="dark"] {
+  --vzn-action: #a78bfa;
+  --vzn-action-hover: #c4b5fd;
+  --vzn-action-active: #8b5cf6;
+  --vzn-action-text: #c4b5fd;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(139, 92, 246, 0.16);
+  --vzn-action-soft-hover: rgba(139, 92, 246, 0.24);
+  --vzn-action-border: rgba(139, 92, 246, 0.42);
+  --vzn-focus-ring: rgba(139, 92, 246, 0.6);
+  --vzn-surface-selected: rgba(139, 92, 246, 0.16);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+/* Accent: pink. */
+html[data-accent="pink"],
+[data-accent="pink"][data-accent][data-mode="light"] {
+  --vzn-action: #db2777;
+  --vzn-action-hover: #be185d;
+  --vzn-action-active: #9d174d;
+  --vzn-action-text: #be185d;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(236, 72, 153, 0.12);
+  --vzn-action-soft-hover: rgba(236, 72, 153, 0.18);
+  --vzn-action-border: rgba(236, 72, 153, 0.34);
+  --vzn-focus-ring: rgba(236, 72, 153, 0.55);
+  --vzn-surface-selected: rgba(236, 72, 153, 0.12);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+html.dark[data-accent="pink"],
+[data-accent="pink"][data-accent][data-mode="dark"] {
+  --vzn-action: #f472b6;
+  --vzn-action-hover: #f9a8d4;
+  --vzn-action-active: #ec4899;
+  --vzn-action-text: #f9a8d4;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(236, 72, 153, 0.16);
+  --vzn-action-soft-hover: rgba(236, 72, 153, 0.24);
+  --vzn-action-border: rgba(236, 72, 153, 0.42);
+  --vzn-focus-ring: rgba(236, 72, 153, 0.6);
+  --vzn-surface-selected: rgba(236, 72, 153, 0.16);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+/* Accent: teal. */
+html[data-accent="teal"],
+[data-accent="teal"][data-accent][data-mode="light"] {
+  --vzn-action: #0d9488;
+  --vzn-action-hover: #0f766e;
+  --vzn-action-active: #115e59;
+  --vzn-action-text: #0f766e;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(20, 184, 166, 0.12);
+  --vzn-action-soft-hover: rgba(20, 184, 166, 0.18);
+  --vzn-action-border: rgba(20, 184, 166, 0.34);
+  --vzn-focus-ring: rgba(20, 184, 166, 0.55);
+  --vzn-surface-selected: rgba(20, 184, 166, 0.12);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+html.dark[data-accent="teal"],
+[data-accent="teal"][data-accent][data-mode="dark"] {
+  --vzn-action: #2dd4bf;
+  --vzn-action-hover: #5eead4;
+  --vzn-action-active: #14b8a6;
+  --vzn-action-text: #5eead4;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(20, 184, 166, 0.16);
+  --vzn-action-soft-hover: rgba(20, 184, 166, 0.24);
+  --vzn-action-border: rgba(20, 184, 166, 0.42);
+  --vzn-focus-ring: rgba(20, 184, 166, 0.6);
+  --vzn-surface-selected: rgba(20, 184, 166, 0.16);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+/* Accent: green. */
+html[data-accent="green"],
+[data-accent="green"][data-accent][data-mode="light"] {
+  --vzn-action: #16a34a;
+  --vzn-action-hover: #15803d;
+  --vzn-action-active: #166534;
+  --vzn-action-text: #15803d;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(34, 197, 94, 0.12);
+  --vzn-action-soft-hover: rgba(34, 197, 94, 0.18);
+  --vzn-action-border: rgba(34, 197, 94, 0.34);
+  --vzn-focus-ring: rgba(34, 197, 94, 0.55);
+  --vzn-surface-selected: rgba(34, 197, 94, 0.12);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+html.dark[data-accent="green"],
+[data-accent="green"][data-accent][data-mode="dark"] {
+  --vzn-action: #4ade80;
+  --vzn-action-hover: #86efac;
+  --vzn-action-active: #22c55e;
+  --vzn-action-text: #86efac;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(34, 197, 94, 0.16);
+  --vzn-action-soft-hover: rgba(34, 197, 94, 0.24);
+  --vzn-action-border: rgba(34, 197, 94, 0.42);
+  --vzn-focus-ring: rgba(34, 197, 94, 0.6);
+  --vzn-surface-selected: rgba(34, 197, 94, 0.16);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+/* Accent: amber. */
+html[data-accent="amber"],
+[data-accent="amber"][data-accent][data-mode="light"] {
+  --vzn-action: #d97706;
+  --vzn-action-hover: #b45309;
+  --vzn-action-active: #92400e;
+  --vzn-action-text: #b45309;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(245, 158, 11, 0.12);
+  --vzn-action-soft-hover: rgba(245, 158, 11, 0.18);
+  --vzn-action-border: rgba(245, 158, 11, 0.34);
+  --vzn-focus-ring: rgba(245, 158, 11, 0.55);
+  --vzn-surface-selected: rgba(245, 158, 11, 0.12);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+html.dark[data-accent="amber"],
+[data-accent="amber"][data-accent][data-mode="dark"] {
+  --vzn-action: #fbbf24;
+  --vzn-action-hover: #fcd34d;
+  --vzn-action-active: #f59e0b;
+  --vzn-action-text: #fcd34d;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(245, 158, 11, 0.16);
+  --vzn-action-soft-hover: rgba(245, 158, 11, 0.24);
+  --vzn-action-border: rgba(245, 158, 11, 0.42);
+  --vzn-focus-ring: rgba(245, 158, 11, 0.6);
+  --vzn-surface-selected: rgba(245, 158, 11, 0.16);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+/* Accent: red. */
+html[data-accent="red"],
+[data-accent="red"][data-accent][data-mode="light"] {
+  --vzn-action: #dc2626;
+  --vzn-action-hover: #b91c1c;
+  --vzn-action-active: #991b1b;
+  --vzn-action-text: #b91c1c;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(239, 68, 68, 0.12);
+  --vzn-action-soft-hover: rgba(239, 68, 68, 0.18);
+  --vzn-action-border: rgba(239, 68, 68, 0.34);
+  --vzn-focus-ring: rgba(239, 68, 68, 0.55);
+  --vzn-surface-selected: rgba(239, 68, 68, 0.12);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+html.dark[data-accent="red"],
+[data-accent="red"][data-accent][data-mode="dark"] {
+  --vzn-action: #f87171;
+  --vzn-action-hover: #fca5a5;
+  --vzn-action-active: #ef4444;
+  --vzn-action-text: #fca5a5;
+  --vzn-action-fg: var(--vzn-text-inverse);
+  --vzn-action-soft: rgba(239, 68, 68, 0.16);
+  --vzn-action-soft-hover: rgba(239, 68, 68, 0.24);
+  --vzn-action-border: rgba(239, 68, 68, 0.42);
+  --vzn-focus-ring: rgba(239, 68, 68, 0.6);
+  --vzn-surface-selected: rgba(239, 68, 68, 0.16);
+  --vzn-action-fill: var(--vzn-action);
+  --vzn-action-fill-hover: var(--vzn-action-hover);
+  --vzn-accent-glow: transparent;
+  --vzn-shadow-glow: none;
+  --vzn-user-bubble-bg: var(--vzn-action-soft);
+  --vzn-user-bubble-fg: var(--vzn-text-strong);
+  --vzn-user-bubble-border: var(--vzn-action-border);
+  --vzn-chrome-accent: var(--vzn-action);
+  --vzn-chrome-item-active: var(--vzn-action-soft);
+}
+
+body {
+  font-family: var(--vzn-font-sans);
+  font-size: var(--vzn-font-size-lg);
+  line-height: var(--vzn-line-normal);
+}
+
+.app-logo {
+  display: block;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.app-logo--sm {
+  width: var(--vzn-brand-mark-sm);
+  height: var(--vzn-brand-mark-sm);
+}
+
+.app-logo--md {
+  width: var(--vzn-brand-mark-md);
+  height: var(--vzn-brand-mark-md);
+}
+
+.app-logo--lg {
+  width: var(--vzn-brand-mark-lg);
+  height: var(--vzn-brand-mark-lg);
+}
+
+.ui-micro {
+  color: var(--vzn-text-soft);
+  font-size: var(--vzn-font-size-micro);
+  font-weight: var(--vzn-weight-regular);
+  line-height: var(--vzn-line-tight);
+}
+
+.ui-kicker {
+  color: var(--vzn-text-muted);
+  font-size: var(--vzn-font-size-caption);
+  font-weight: var(--vzn-weight-semibold);
+  line-height: var(--vzn-line-tight);
+  letter-spacing: var(--vzn-tracking-caps);
+  text-transform: uppercase;
+}
+
+/* Shared keyboard focus signal. Zero-specificity so a control that draws its
+ * own focus ring (see codex.css) can opt out with a plain class selector.
+ * `tabindex="-1"` targets only receive focus programmatically. */
+/* Text fields are left out: they show focus with the caret and a stronger
+ * neutral border of their own, never the accent ring. */
+:where(button, a, select, summary, [tabindex]:not([tabindex="-1"]), input:is([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="button"], [type="submit"], [type="reset"])):focus-visible {
+  outline: var(--vzn-focus-ring-width) solid var(--vzn-focus-ring);
+  outline-offset: var(--vzn-focus-ring-offset);
+}
+
+/* Text fields draw no outline at all. Leaving them out of the rule above is
+ * not enough: the browser's own `outline: auto` (in the system accent colour)
+ * would come back. */
+:where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="button"], [type="submit"], [type="reset"]), textarea, [contenteditable]:not([contenteditable="false"])):focus-visible {
+  outline: none;
+}
+
+/* Text selection follows the preset accent instead of the browser default. */
+::selection {
+  background: color-mix(in srgb, var(--vzn-action) 28%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

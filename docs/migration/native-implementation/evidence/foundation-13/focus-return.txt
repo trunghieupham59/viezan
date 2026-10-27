@@ -1,0 +1,42 @@
+Window: "Dịch / Foundation 11 keyboard QA.", App: Viezan Native Preview.
+0 standard window Dịch / Foundation 11 keyboard QA., ID: workbench, Secondary Actions: Raise
+	1 container
+		2 container Điều hướng chính
+			3 text viezan
+			4 button Description: Bảng lệnh, Help: Bảng lệnh (⌘K)
+			5 scroll area
+				6 button Description: AI Chat, ID: nav-chat
+				7 button (selected) Description: Dịch, ID: nav-translate
+			8 button Description: Cài đặt, ID: nav-settings
+			9 text Help: Provider mô phỏng · không gửi dữ liệu ra mạng, Value: Bản native thử nghiệm
+		10 pop up button Đầu vào, Value: Tiếng Anh
+		11 button Đảo chiều ngôn ngữ
+		12 pop up button Đầu ra, Value: Tiếng Việt
+		13 pop up button Description: Mô hình cho phiên này, Mô hình cho phiên này, Help: demo.standard, Value: Mô phỏng tiêu chuẩn
+		14 text Nguyên bản Bản dịch
+		15 scroll area Secondary Actions: Scroll Up, Scroll Down
+			16 text entry area (settable) Description: Nguyên bản, Value: Foundation 11 keyboard QA. Undo check undo2x, ID: translation-source
+			17 scroll bar (disabled, settable, float) 0
+		18 scroll area
+			19 text Bản dịch sẽ xuất hiện ở đây
+		20 text Bản nháp được giữ trên thiết bị
+		21 button Dịch
+		22 button (disabled) Sao chép
+	23 toolbar
+		24 button Description: Thu nhỏ thanh bên, ID: navigation-toggle, Secondary Actions: Move next, Remove from toolbar
+		25 button Description: Bảng lệnh, ID: commands-toggle, Secondary Actions: Move previous, Move next, Remove from toolbar
+		26 button Description: Lịch sử, ID: history-toggle, Secondary Actions: Move previous, Move next, Remove from toolbar
+		27 button Description: Bản dịch mới, ID: new-work, Secondary Actions: Move previous, Move next, Remove from toolbar
+		28 button Description: Hoạt động, ID: activity-toggle, Secondary Actions: Move previous, Remove from toolbar
+	29 close button
+	30 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	31 minimize button
+	32 text Dịch / Foundation 11 keyboard QA.
+33 menu bar
+	34 Viezan Native Preview
+	35 File
+	36 Edit
+	37 View
+	38 Bảng lệnh
+	39 Window
+	40 Help

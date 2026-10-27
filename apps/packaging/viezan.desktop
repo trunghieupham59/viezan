@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Viezan
+Comment=Local-first AI workspace
+Exec=ViezanNativeQt
+Icon=viezan
+Terminal=false
+Categories=Utility;Office;
+StartupWMClass=ViezanNativeQt

@@ -1,0 +1,16 @@
+The following is a diff from the previous accessibility tree for Window: "Dịch / Foundation 11 keyboard QA." with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 26-53
++		68 container Bảng lệnh
++			69 text Bảng lệnh
++			70 button Đóng
++			71 search text field (settable) Tìm trang hoặc thao tác…
++				72 button Search
++			73 scroll area
++				74 button AI Chat, ⌘1
++				75 button Dịch, ⌘2
++				76 button Cài đặt, ⌘,
++				77 button Tạo mới, ⌘N
++				78 button Lịch sử, ⌘⇧H
++				79 button Hoạt động, ⌘⇧A
++				80 button (selected) Ẩn hoặc hiện nhãn điều hướng, ⌘\
+The focused UI element is 71 search text field (settable) Tìm trang hoặc thao tác…

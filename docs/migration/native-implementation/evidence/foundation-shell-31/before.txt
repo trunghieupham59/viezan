@@ -1,0 +1,7 @@
+◇ Test japaneseDarkCommandsOpenTheRowSelectedByHomeEndAndWrap() started.
+✘ Test japaneseDarkCommandsOpenTheRowSelectedByHomeEndAndWrap() recorded an issue at FoundationRuntimeTests.swift:160:13: Expectation failed: delegate.control(field, textView: editor, doCommandBy: selector)
+✘ Test japaneseDarkCommandsOpenTheRowSelectedByHomeEndAndWrap() recorded an issue at FoundationRuntimeTests.swift:162:13: Expectation failed: window.firstResponder === close
+✘ Test japaneseDarkCommandsOpenTheRowSelectedByHomeEndAndWrap() recorded an issue at FoundationRuntimeTests.swift:160:13: Expectation failed: delegate.control(field, textView: editor, doCommandBy: selector)
+✘ Test japaneseDarkCommandsOpenTheRowSelectedByHomeEndAndWrap() recorded an issue at FoundationRuntimeTests.swift:162:13: Expectation failed: window.firstResponder === close
+✘ Test japaneseDarkCommandsOpenTheRowSelectedByHomeEndAndWrap() failed after 0.580 seconds with 4 issues.
+✘ Test run with 1 test in 1 suite failed after 0.580 seconds with 4 issues.

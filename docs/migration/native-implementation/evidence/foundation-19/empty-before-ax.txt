@@ -1,0 +1,35 @@
+Window: "Lịch sử", App: Viezan Native Preview.
+0 standard window Lịch sử, ID: workbench, Secondary Actions: Raise
+	1 container
+		2 button Thu nhỏ thanh bên, Help: Thu nhỏ thanh bên (⌘\), ID: navigation-toggle
+		3 button Quay lại công việc, ID: history-back
+		4 text Lịch sử
+		5 button Bảng lệnh, Help: Bảng lệnh (⌘K), ID: commands-toggle
+		6 button Hoạt động, Help: Hoạt động (⌘⇧A), ID: activity-toggle
+		7 container Điều hướng chính
+			8 text viezan
+			9 button Description: Bảng lệnh, Help: Bảng lệnh (⌘K)
+			10 scroll area
+				11 button Description: AI Chat, ID: nav-chat
+				12 button (selected) Description: Dịch, ID: nav-translate
+			13 button Description: Cài đặt, ID: nav-settings
+			14 text Help: Provider mô phỏng · không gửi dữ liệu ra mạng, Value: Bản native thử nghiệm
+		15 search text field (settable) Description: Tìm tên hoặc nội dung, Value: no-matching-foundation-session
+			16 button Search
+			17 button cancel
+		18 scroll area
+			19 list
+		20 text Không có kết quả phù hợp Không có kết quả phù hợp
+	21 close button
+	22 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	23 minimize button
+24 menu bar
+	25 Viezan Native Preview
+	26 File
+	27 Edit
+	28 View
+	29 Bảng lệnh
+	30 Window
+	31 Help
+
+The focused UI element is 15 search text field (settable) Description: Tìm tên hoặc nội dung, Value: no-matching-foundation-session

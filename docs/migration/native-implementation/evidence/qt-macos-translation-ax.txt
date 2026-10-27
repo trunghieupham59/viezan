@@ -1,0 +1,39 @@
+Window: "Viezan Native — Dịch", App: Viezan Qt Preview.
+0 cửa sổ thông thường Viezan Native — Dịch, Secondary Actions: Raise
+	1 nút Thu nhỏ thanh bên, ID: QGuiApplication.Main_QMLTYPE_44.ToolBar_QMLTYPE_37.ToolButton_QMLTYPE_2, Secondary Actions: Raise
+	2 text Value: Great tools keep your work uninterrupted., ID: QGuiApplication.Main_QMLTYPE_44.ToolBar_QMLTYPE_37.Label_QMLTYPE_7, Secondary Actions: Raise
+	3 nút Lịch sử, ID: QGuiApplication.Main_QMLTYPE_44.ToolBar_QMLTYPE_37.ToolButton_QMLTYPE_2, Secondary Actions: Raise
+	4 nút + Bản dịch mới, ID: QGuiApplication.Main_QMLTYPE_44.ToolBar_QMLTYPE_37.ToolButton_QMLTYPE_2, Secondary Actions: Raise
+	5 nút Hoạt động · 0, ID: QGuiApplication.Main_QMLTYPE_44.ToolBar_QMLTYPE_37.ToolButton_QMLTYPE_2, Secondary Actions: Raise
+	6 text Value: viezan, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Pane_QMLTYPE_43.Label_QMLTYPE_7, Secondary Actions: Raise
+	7 hộp kiểm AI Chat, Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Pane_QMLTYPE_43.Button_QMLTYPE_41_QML_46
+	8 hộp kiểm Dịch, Value: 1, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Pane_QMLTYPE_43.Button_QMLTYPE_41_QML_46
+	9 hộp kiểm Cài đặt, Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Pane_QMLTYPE_43.Button_QMLTYPE_41_QML_46
+	10 text Value: Bản native thử nghiệm Provider mô phỏng · không gửi dữ liệu ra mạng, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Pane_QMLTYPE_43.Label_QMLTYPE_7, Secondary Actions: Raise
+	11 nút menu Đầu vào, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.LanguagePicker, Secondary Actions: Raise
+		12 trường văn bản (disabled, settable) Value: Tiếng Anh, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.LanguagePicker.QQuickTextField
+	13 nút Đảo chiều ngôn ngữ, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Button_QMLTYPE_41, Secondary Actions: Raise
+	14 nút menu Đầu ra, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.LanguagePicker, Secondary Actions: Raise
+		15 trường văn bản (disabled, settable) Value: Tiếng Nhật, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.LanguagePicker.QQuickTextField
+	16 nút menu Mô hình cho phiên này, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.ModelPicker, Secondary Actions: Raise
+		17 trường văn bản (disabled, settable) Value: Mô phỏng tiêu chuẩn, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.ModelPicker.QQuickTextField
+	18 text Value: Nguyên bản, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_6.Label_QMLTYPE_7, Secondary Actions: Raise
+	19 trường văn bản (settable) Nguyên bản, Description: Nhập nội dung và bắt đầu một tác vụ mô phỏng., Value: Great tools keep your work uninterrupted., Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_6.ScrollView_QMLTYPE_40.TextArea_QMLTYPE_8
+	20 thanh cuộn (settable) Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_6.ScrollView_QMLTYPE_40.ScrollBar_QMLTYPE_4
+	21 thanh cuộn (settable) Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_6.ScrollView_QMLTYPE_40.ScrollBar_QMLTYPE_4
+	22 text Value: Tiếng Anh, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_6.Label_QMLTYPE_7, Secondary Actions: Raise
+	23 nút Dịch, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_6.Button_QMLTYPE_41, Secondary Actions: Raise
+	24 text Value: Bản dịch, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_6.Label_QMLTYPE_7, Secondary Actions: Raise
+	25 trường văn bản (settable) Bản dịch, Description: Bản dịch sẽ xuất hiện ở đây, Value: [シミュレーション結果・AI翻訳ではありません]  Great tools keep your work uninterrupted., Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_6.ScrollView_QMLTYPE_40.TextArea_QMLTYPE_8
+	26 thanh cuộn (settable) Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_6.ScrollView_QMLTYPE_40.ScrollBar_QMLTYPE_4
+	27 thanh cuộn (settable) Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_6.ScrollView_QMLTYPE_40.ScrollBar_QMLTYPE_4
+	28 text Value: Tiếng Nhật, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_6.Label_QMLTYPE_7, Secondary Actions: Raise
+	29 nút Sao chép, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.Frame_QMLTYPE_6.Button_QMLTYPE_41, Secondary Actions: Raise
+	30 nút đóng
+	31 nút toàn màn hình Help: nút này cũng có tác vụ thu phóng cửa sổ, Secondary Actions: thu phóng cửa sổ
+	32 nút thu nhỏ
+	33 text Viezan Native — Dịch
+34 menu bar
+	35 Viezan Qt Preview
+
+The focused UI element is 14 nút menu Đầu ra, ID: QGuiApplication.Main_QMLTYPE_44.ApplicationWindowContentControl.LanguagePicker, Secondary Actions: Raise

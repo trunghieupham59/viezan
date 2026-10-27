@@ -1,0 +1,25 @@
+The following is a diff from the previous accessibility tree for Window: "AI Chat / Foundation 07 — close/reopen. Gi tc v ang chy v bn nhp khi ng ca" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 45-70
+~		40 container Lịch sử
+~			41 text Lịch sử
+~			43 search text field (settable) Tìm tên hoặc nội dung
+~				44 button Search
++			45 scroll area Secondary Actions: Scroll Up, Scroll Down
++				46 list Secondary Actions: AXScrollToTop, AXScrollToBottom
++					47 button (selected) Help: Đang mở, Description: Foundation 07 — close/reopen. Gi tc v ang chy v bn nhp khi ng ca, Foundation 07 unsent draft 日本語 · Tiếng Việt, demo.slow, Đang mở
++					48 button Chat mới, demo.standard
++					49 button Dòng 01: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việ, Đây là phản hồi mô phỏng của Viezan native. Bạn có thể chuyển sang Dịch, mở phiên khác hoặc dừng riêng tác vụ này mà vẫn giữ bản nháp. Nội dung bạn gửi: Dòng 01: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 02: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 03: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 04: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 05: Giữ vùng chọn kh
++					50 button Phiên kiểm tra lịch sử thứ hai., Bản nháp phiên thứ hai chưa gửi., demo.standard
++					51 button Lập kế hoạch ra mắt Viezan trên desktop., Bản nháp đang làm — không đổi khi xem lịch sử., demo.failure
++				52 scroll bar (settable, float) 0
++					53 value indicator (settable, float) 0
++					54 increment arrow button
++					55 decrement arrow button
++					56 increment page button
++					57 decrement page button
++			58 link Xem tất cả lịch sử
+The focused UI element is 43 search text field (settable) Tìm tên hoặc nội dung

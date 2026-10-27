@@ -277,6 +277,10 @@
   /* Layout -------------------------------------------------------------- */
   --vzn-sidebar-width: 60px;
   --vzn-sidebar-expanded-width: 236px;
+  --vzn-sidebar-compact-expanded-width: 208px;
+  --vzn-navigation-compact-breakpoint: 900px;
+  --vzn-native-window-min-width: 640px;
+  --vzn-native-window-min-height: 480px;
   --vzn-titlebar-height: 40px;
   --vzn-titlebar-mac-controls-width: 80px;
   --vzn-chat-sidebar-width: 264px;

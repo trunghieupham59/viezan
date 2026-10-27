@@ -1,0 +1,4 @@
+The following is a diff from the previous accessibility tree for Window: "Viezan Native — AI Chat" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 23-35, 39
++	43 text Viezan Native — AI Chat
+The focused UI element is 0 cửa sổ thông thường Viezan Native — AI Chat, Secondary Actions: Raise

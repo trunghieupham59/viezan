@@ -1,0 +1,21 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "native-debug",
+      "displayName": "Native desktop (no tests)",
+      "binaryDir": "${sourceDir}/build/native-debug",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Debug", "BUILD_TESTING": "OFF"}
+    },
+    {
+      "name": "native-release",
+      "inherits": "native-debug",
+      "binaryDir": "${sourceDir}/build/native-release",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release"}
+    }
+  ],
+  "buildPresets": [
+    {"name": "native-debug", "configurePreset": "native-debug", "configuration": "Debug"},
+    {"name": "native-release", "configurePreset": "native-release", "configuration": "Release"}
+  ]
+}

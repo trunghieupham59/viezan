@@ -1,0 +1,3 @@
+The following is a diff from the previous accessibility tree for Window: "Dịch / Foundation 11 keyboard QA." with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+~			17 text entry area (settable) Description: Nguyên bản, Value: Foundation 11 keyboard QA. Undo check undo2xy, ID: translation-source
+The focused UI element is 17 text entry area (settable) Description: Nguyên bản, Value: Foundation 11 keyboard QA. Undo check undo2xy, ID: translation-source

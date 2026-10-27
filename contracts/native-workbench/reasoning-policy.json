@@ -1,0 +1,6 @@
+{
+  "openai": "^(?!gpt-5-chat|o1-(?:mini|preview))(?:gpt-5(?:[.-]|$)|o[134](?:[.-]|$))",
+  "claude": "^claude-(?:sonnet|opus)-(?:4-6|4-7|4-8|5)(?:-|$)",
+  "geminiLevel": "^gemini-3(?:\\.\\d+)?-",
+  "geminiBudget": "^gemini-2\\.5-(?:pro|flash(?:-lite)?)(?:-|$)"
+}

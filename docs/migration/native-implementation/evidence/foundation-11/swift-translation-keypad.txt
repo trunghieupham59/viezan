@@ -1,0 +1,10 @@
+The following is a diff from the previous accessibility tree for Window: "Dịch / Foundation 11 keyboard QA." with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 49, 51
+~0 standard window Dịch / Foundation 11 keyboard QA., ID: workbench, Secondary Actions: Raise
++			53 text [Kết quả mô phỏng, không phải bản dịch AI]
+
+Foundation 11 keyboard QA.
++		54 button Dịch
+~		52 button Sao chép
+~	31 text Dịch / Foundation 11 keyboard QA.
+The focused UI element is 46 text entry area (settable) Description: Nguyên bản, Value: Foundation 11 keyboard QA., ID: translation-source

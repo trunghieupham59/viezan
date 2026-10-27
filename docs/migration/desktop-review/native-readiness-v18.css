@@ -1,0 +1,37 @@
+/* Use canonical token roles; glass belongs to navigation, reading stays opaque. */
+body #dialog[data-type="activity"] {
+  inset:auto;
+  margin:0;
+  width:calc(var(--vzn-space-12) * 8);
+  padding:0;
+  border:var(--vzn-border-width) solid var(--vzn-border);
+  border-radius:var(--vzn-radius-xl);
+  background:var(--vzn-neutral-0);
+  color:var(--vzn-text);
+  box-shadow:var(--vzn-shadow-overlay);
+  backdrop-filter:none;
+  overflow:auto;
+}
+html.dark body #dialog[data-type="activity"] {background:var(--vzn-neutral-900);}
+#dialog[data-type="activity"] .dialog-head {
+  padding:var(--vzn-space-3) var(--vzn-space-4);
+  border-bottom:var(--vzn-border-width) solid var(--vzn-border);
+}
+#dialog[data-type="activity"] .dialog-head h2 {font-size:var(--vzn-font-size-lg);}
+.activity18-content {padding:var(--vzn-space-4);display:grid;gap:var(--vzn-space-3);}
+.activity18-note {margin:0;color:var(--vzn-text-muted);font-size:var(--vzn-font-size-sm);line-height:var(--vzn-line-reading);}
+.activity18-task {padding:var(--vzn-space-4);border:var(--vzn-border-width) solid var(--vzn-border);border-radius:var(--vzn-radius-lg);}
+.activity18-task small {color:var(--vzn-text-muted);font-size:var(--vzn-font-size-sm);}
+.activity18-task h3 {margin:var(--vzn-space-1) 0;font-size:var(--vzn-font-size-lg);}
+.activity18-task p {margin:0;font-size:var(--vzn-font-size-sm);color:var(--vzn-text-muted);}
+.activity18-actions {display:flex;justify-content:flex-end;gap:var(--vzn-space-2);margin-top:var(--vzn-space-3);}
+.activity18-actions button {height:var(--vzn-control-height-sm);min-height:var(--vzn-control-height-sm);}
+.activity18-actions .danger {color:var(--vzn-danger);}
+#session-panel.history-popover {overscroll-behavior:contain;}
+#session-panel .ch-search input {caret-color:var(--vzn-text);}
+body:not([data-platform="macos"]) #session-panel.history-popover,
+body:not([data-platform="macos"]) #dialog[data-type="activity"] {
+  border-radius:var(--vzn-radius-md);
+  box-shadow:var(--vzn-shadow-md);
+}
+body:not([data-platform="macos"]) .activity18-task {border-radius:var(--vzn-radius-sm);}

@@ -1,0 +1,119 @@
+Window: "AI Chat / Dòng 01: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việ", App: Viezan Native Preview.
+0 standard window AI Chat / Dòng 01: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việ, ID: workbench, Secondary Actions: Raise
+	1 split group workbench, SidebarNavigationSplitView
+		2 container
+			3 scroll area
+				4 list Sidebar
+					5 row (selected) AI Chat
+					6 row (selectable) Dịch
+					7 row (selectable)
+					8 row (selectable) Cài đặt
+			9 text Bản native thử nghiệm
+		10 splitter (disabled, settable, float) 236
+		11 container
+			12 text Provider mô phỏng · không gửi dữ liệu ra mạng
+			13 scroll area Secondary Actions: Scroll Up, Scroll Down
+				14 list Secondary Actions: AXScrollToTop, AXScrollToBottom
+					15 text entry area Description: Bạn, Value: Dòng 01: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 02: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 03: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 04: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 05: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 06: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 07: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 08: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 09: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 10: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 11: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 12: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 13: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 14: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 15: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 16: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 17: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 18: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 19: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 20: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 21: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 22: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 23: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 24: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 25: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 26: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 27: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 28: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 29: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 30: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 31: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 32: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 33: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 34: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 35: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 36: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+					16 text Viezan
+					17 text entry area Description: Phản hồi, Value: Đây là phản hồi mô phỏng của Viezan native. Bạn có thể chuyển sang Dịch, mở phiên khác hoặc dừng riêng tác vụ này mà vẫn giữ bản nháp. Nội dung bạn gửi: Dòng 01: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 02: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 03: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 04: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 05: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 06: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 07: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 08: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 09: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 10: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 11: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 12: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 13: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 14: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 15: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 16: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 17: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 18: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 19: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 20: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 21: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 22: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 23: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 24: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 25: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 26: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 27: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 28: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 29: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 30: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 31: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 32: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 33: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 34: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 35: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+Dòng 36: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việt.
+					18 button Đã sao chép
+				19 scroll bar (settable, float) 0.9715909090909091
+					20 value indicator (settable, float) 0.9715909090909091
+					21 increment arrow button
+					22 decrement arrow button
+					23 increment page button
+					24 decrement page button
+			25 scroll area Secondary Actions: Scroll Up, Scroll Down
+				26 text entry area (settable) Description: Hỏi bất kỳ điều gì…, ID: chat-draft
+				27 scroll bar (disabled, settable, float) 1
+			28 pop up button Description: Mô hình cho phiên này, Mô hình cho phiên này, Help: demo.standard, Value: Mô phỏng tiêu chuẩn
+			29 button (disabled) Description: Gửi, Help: Gửi (⌘↩)
+	30 toolbar
+		31 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+		32 button Description: Lịch sử, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+		33 button Description: Chat mới, Help: Tạo mới (⌘N), Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+		34 button Description: Hoạt động, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Remove from toolbar
+	35 close button
+	36 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	37 minimize button
+	38 text AI Chat / Dòng 01: Giữ vùng chọn khi nội dung đang cập nhật. 日本語・Tiếng Việ
+39 menu bar
+	40 Viezan Native Preview
+	41 File
+	42 Edit
+	43 View
+	44 Window
+	45 Help
+
+The focused UI element is 26 text entry area (settable) Description: Hỏi bất kỳ điều gì…, ID: chat-draft

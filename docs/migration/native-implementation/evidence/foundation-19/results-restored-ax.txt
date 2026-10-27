@@ -1,0 +1,20 @@
+The following is a diff from the previous accessibility tree for Window: "Lịch sử" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 43-44
+~		41 search text field (settable) Tìm tên hoặc nội dung
++		43 scroll area
++			44 list
++				45 row (selected) Description: Ký Tự Trong Bong Bóng Lời Thoại, Value: Foundation 11 keyboard QA.
+Foundation 11 keyboard QA. Undo check undo2x
+Mô phỏng tiêu chuẩn
++				46 row (selectable) Description: Ký Tự Trong Bong Bóng Lời Thoại
+Đang mở, Value: Bản dịch mới
+Mô phỏng tiêu chuẩn
++				47 row (selectable) Description: Ký Tự Trong Bong Bóng Lời Thoại, Value: Great tools disappear into the work.  Viezan keeps each task and
+Great tools disappear into the work.
+
+Viezan keeps each task and draft independent.
+Mô phỏng tiêu chuẩn
++		48 scroll area
++			49 text Xem trước Foundation 11 keyboard QA. Mô phỏng tiêu chuẩn Nguyên bản Foundation 11 keyboard QA. Undo check undo2x Bản dịch Bản dịch sẽ xuất hiện ở đây
++		50 button Mở lại, ID: history-open
+The focused UI element is 41 search text field (settable) Tìm tên hoặc nội dung

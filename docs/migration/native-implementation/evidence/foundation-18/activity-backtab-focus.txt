@@ -1,0 +1,2 @@
+There has been no change in the accessibility tree for Window: "Dịch / Foundation 11 keyboard QA.".
+The focused UI element is 42 button Đóng, ID: activity-close

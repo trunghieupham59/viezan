@@ -1,0 +1,20 @@
+The following is a diff from the previous accessibility tree for Window: "Dịch / Foundation 11 keyboard QA." with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
++		55 container Lịch sử
++			56 text Lịch sử
++			57 button Đóng
++			58 search text field (settable) Tìm tên hoặc nội dung
++				59 button Search
++			60 scroll area Secondary Actions: Scroll Up, Scroll Down
++				61 button (selected) Help: Đang mở, Description: Foundation 11 keyboard QA., Foundation 11 keyboard QA. Undo check undo2x, Mô phỏng tiêu chuẩn, Đang mở
++				62 button Bản dịch mới, Mô phỏng tiêu chuẩn
++				63 button Great tools disappear into the work.  Viezan keeps each task and, Great tools disappear into the work.
+
+Viezan keeps each task and draft independent., Mô phỏng tiêu chuẩn
++				64 scroll bar (settable, float) 0
++					65 value indicator (settable, float) 0
++					66 increment arrow button
++					67 decrement arrow button
++					68 increment page button
++					69 decrement page button
++			70 button Xem tất cả lịch sử
+The focused UI element is 58 search text field (settable) Tìm tên hoặc nội dung

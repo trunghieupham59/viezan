@@ -1,0 +1,15 @@
+The following is a diff from the previous accessibility tree for Window: "AI Chat / Foundation 07 — close/reopen. Gi tc v ang chy v bn nhp khi ng ca" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
++		40 container Bảng lệnh
++			41 text Bảng lệnh
++			42 button Đóng
++			43 search text field (settable) Tìm trang hoặc thao tác…
++				44 button Search
++			45 scroll area
++				46 button (selected) AI Chat, ⌘1
++				47 button Dịch, ⌘2
++				48 button Cài đặt, ⌘,
++				49 button Tạo mới, ⌘N
++				50 button Lịch sử, ⌘⇧H
++				51 button Hoạt động, ⌘⇧A
++				52 button Ẩn hoặc hiện nhãn điều hướng, ⌘\
+The focused UI element is 43 search text field (settable) Tìm trang hoặc thao tác…

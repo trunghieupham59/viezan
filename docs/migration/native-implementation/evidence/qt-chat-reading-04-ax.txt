@@ -1,0 +1,34 @@
+Window: "Viezan Native — AI Chat", App: Viezan Qt Preview.
+0 cửa sổ thông thường Viezan Native — AI Chat, Secondary Actions: Raise
+	1 nút Thu nhỏ thanh bên, ID: QGuiApplication.Main_QMLTYPE_64.ToolBar_QMLTYPE_1.ToolButton_QMLTYPE_55, Secondary Actions: Raise
+	2 text Value: Dòng 01: 日本語・Việt. Dòng 02: 日本語・Việt. Dòng 03: 日本語・Việt. Dòng 04, ID: QGuiApplication.Main_QMLTYPE_64.ToolBar_QMLTYPE_1.Label_QMLTYPE_27, Secondary Actions: Raise
+	3 nút Lịch sử, ID: QGuiApplication.Main_QMLTYPE_64.ToolBar_QMLTYPE_1.ToolButton_QMLTYPE_55, Secondary Actions: Raise
+	4 nút + Chat mới, ID: QGuiApplication.Main_QMLTYPE_64.ToolBar_QMLTYPE_1.ToolButton_QMLTYPE_55, Secondary Actions: Raise
+	5 nút Hoạt động · 0, ID: QGuiApplication.Main_QMLTYPE_64.ToolBar_QMLTYPE_1.ToolButton_QMLTYPE_55, Secondary Actions: Raise
+	6 text Value: viezan, ID: QGuiApplication.Main_QMLTYPE_64.ApplicationWindowContentControl.Pane_QMLTYPE_26.Label_QMLTYPE_27, Secondary Actions: Raise
+	7 hộp kiểm AI Chat, Value: 1, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_64.ApplicationWindowContentControl.Pane_QMLTYPE_26.Button_QMLTYPE_35_QML_66
+	8 hộp kiểm Dịch, Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_64.ApplicationWindowContentControl.Pane_QMLTYPE_26.Button_QMLTYPE_35_QML_66
+	9 hộp kiểm Cài đặt, Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_64.ApplicationWindowContentControl.Pane_QMLTYPE_26.Button_QMLTYPE_35_QML_66
+	10 text Value: Bản native thử nghiệm Provider mô phỏng · không gửi dữ liệu ra mạng, ID: QGuiApplication.Main_QMLTYPE_64.ApplicationWindowContentControl.Pane_QMLTYPE_26.Label_QMLTYPE_27, Secondary Actions: Raise
+	11 trường văn bản (settable) Phản hồi, Secondary Actions: Raise, Value: Đây là phản hồi mô phỏng của Viezan native. Bạn có thể chuyển sang Dịch, mở phiên khác hoặc dừng riêng tác vụ này mà vẫn giữ bản nháp. Nội dung bạn gửi: Dòng 01: 日本語・Việt. Dòng 02: 日本語・Việt. Dòng 03: 日本語・Việt. Dòng 04: 日本語・Việt. Dòng 05: 日本語・Việt. Dòng 06: 日本語・Việt. Dòng 07: 日本語・Việt. Dòng 08: 日本語・Việt. Dòng 09: 日本語・Việt. Dòng 10: 日本語・Việt. Dòng 11: 日本語・Việt. Dòng 12: 日本語・Việt. Dòng 13: 日本語・Việt. Dòng 14: 日本語・Việt. Dòng 15: 日本語・Việt. Dòng 16: 日本語・Việt. Dòng 17: 日本語・Việt. Dòng 18: 日本語・Việt. Dòng 19: 日本語・Việt. Dòng 20: 日本語・Việt. Dòng 21: 日本語・Việt. Dòng 22: 日本語・Việt. Dòng 23: 日本語・Việt. Dòng 24: 日本語・Việt. Dòng 25: 日本語・Việt. Dòng 26: 日本語・Việt. Dòng 27: 日本語・Việt. Dòng 28: 日本語・Việt. Dòng 29: 日本語・Việt. Dòng 30: 日本語・Việt. Dòng 31: 日本語・Việt. Dòng 32: 日本語・Việt., ID: QGuiApplication.Main_QMLTYPE_64.ApplicationWindowContentControl.QQuickItem_QML_37.chat-text-583a7152-a414-4e29-b5f4-098443e50b29
+	12 nút Sao chép phản hồi, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_64.ApplicationWindowContentControl.QQuickItem_QML_37.chat-copy-583a7152-a414-4e29-b5f4-098443e50b29
+	13 thanh cuộn (settable) Value: 100, ID: QGuiApplication.Main_QMLTYPE_64.ApplicationWindowContentControl.ScrollBar_QMLTYPE_30, Secondary Actions: Raise
+	14 nút Về cuối hội thoại, ID: QGuiApplication.Main_QMLTYPE_64.ApplicationWindowContentControl.chat-return-latest, Secondary Actions: Raise
+	15 trường văn bản (settable) Bản nháp được giữ trên thiết bị, Description: Hỏi bất kỳ điều gì…, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_64.ApplicationWindowContentControl.Frame_QMLTYPE_49.ScrollView_QMLTYPE_46.TextArea_QMLTYPE_3
+	16 thanh cuộn (settable) Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_64.ApplicationWindowContentControl.Frame_QMLTYPE_49.ScrollView_QMLTYPE_46.ScrollBar_QMLTYPE_30
+	17 thanh cuộn (settable) Value: 0, Secondary Actions: Raise, ID: QGuiApplication.Main_QMLTYPE_64.ApplicationWindowContentControl.Frame_QMLTYPE_49.ScrollView_QMLTYPE_46.ScrollBar_QMLTYPE_30
+	18 nút menu Mô hình cho phiên này, ID: QGuiApplication.Main_QMLTYPE_64.ApplicationWindowContentControl.Frame_QMLTYPE_49.ModelPicker, Secondary Actions: Raise
+		19 trường văn bản (disabled, settable) Value: Mô phỏng tiêu chuẩn, ID: QGuiApplication.Main_QMLTYPE_64.ApplicationWindowContentControl.Frame_QMLTYPE_49.ModelPicker.QQuickTextField
+	20 nút (disabled) Gửi, ID: QGuiApplication.Main_QMLTYPE_64.ApplicationWindowContentControl.Frame_QMLTYPE_49.Button_QMLTYPE_35
+	21 nút đóng
+	22 nút toàn màn hình Help: nút này cũng có tác vụ thu phóng cửa sổ, Secondary Actions: thu phóng cửa sổ
+	23 nút thu nhỏ
+	24 text Viezan Native — AI Chat
+25 menu bar
+	26 Viezan Qt Preview
+
+Selected text: ```
+Đây là phản hồi mô phỏng của Viezan native. Bạn có thể chuyển sang Dịch, mở phiên khác hoặc dừng riêng tác vụ này mà vẫn giữ bản nháp. Nội dung bạn gửi: Dòng 01: 日本語・Việt. Dòng 02: 日本語・Việt. Dòng 03: 日本語・Việt. Dòng 04: 日本語・Việt. Dòng 05: 日本語・Việt. Dòng 06: 日本語・Việt. Dòng 07: 日本語・Việt. Dòng 08: 日本語・Việt. Dòng 09: 日本語・Việt. Dòng 10: 日本語・Việt. Dòng 11: 日本語・Việt. Dòng 12: 日本語・Việt. Dòng 13: 日本語・Việt. Dòng 14: 日本語・Việt. Dòng 15: 日本語・Việt. Dòng 16: 日本語・Việt. Dòng 17: 日本語・Việt. Dòng 18: 日本語・Việt. Dòng 19: 日本語・Việt. Dòng 20: 日本語・Việt. Dòng 21: 日本語・Việt. Dòng 22: 日本語・Việt. Dòng 23: 日本語・Việt. Dòng 24: 日本語・Việt. Dòng 25: 日本語・Việt. Dòng 26: 日本語・Việt. Dòng 27: 日本語・Việt. Dòng 28: 日本語・Việt. Dòng 29: 日本語・Việt. Dòng 30: 日本語・Việt. Dòng 31: 日本語・Việt. Dòng 32: 日本語・Việt.
+```
+
+Note: Pay special attention to the content selected by the user. If the user asks a question or refers to the content they are looking at on-screen, they might be referring to the selected content (but they might be referring to something else that's visible, too).

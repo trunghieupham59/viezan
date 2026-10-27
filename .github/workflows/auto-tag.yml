@@ -1,74 +1,13 @@
-name: Auto Tag Release
-
-# Tạo tag vX.Y.Z khi version trong package.json thay đổi trên develop, rồi kích
-# hoạt Release Production. Tag push bằng GITHUB_TOKEN không tự kích hoạt workflow
-# khác, nên bước cuối dispatch release.yml trực tiếp trên ref của tag.
-
+name: Native Version Metadata
+# Native installers require explicit platform/signing selection. Version edits
+# no longer create tags or publish an unreviewed application automatically.
 on:
-    push:
-        branches: [develop]
-        paths: [package.json]
-    workflow_dispatch:
-
+  workflow_dispatch:
 permissions:
-    contents: write
-    actions: write
-
-concurrency:
-    group: auto-tag
-    cancel-in-progress: false
-
+  contents: read
 jobs:
-    tag:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v7
-
-            - name: Read version
-              id: version
-              shell: bash
-              run: |
-                  VERSION=$(node -p "require('./package.json').version")
-                  if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
-                    echo "::error::Invalid version in package.json: '$VERSION'"
-                    exit 1
-                  fi
-                  echo "TAG=v${VERSION}" >> "$GITHUB_OUTPUT"
-
-            - name: Check whether tag exists
-              id: exists
-              shell: bash
-              run: |
-                  if git ls-remote --exit-code --tags origin "refs/tags/${{ steps.version.outputs.TAG }}" >/dev/null 2>&1; then
-                    echo "Tag ${{ steps.version.outputs.TAG }} already exists; nothing to do."
-                    echo "EXISTS=true" >> "$GITHUB_OUTPUT"
-                  else
-                    echo "EXISTS=false" >> "$GITHUB_OUTPUT"
-                  fi
-
-            - name: Setup Node for documentation checks
-              if: steps.exists.outputs.EXISTS == 'false'
-              uses: actions/setup-node@v7
-              with:
-                  node-version: 22
-
-            - name: Check documentation before creating a tag
-              if: steps.exists.outputs.EXISTS == 'false'
-              run: npm run test:docs && npm run check:docs
-
-            - name: Create and push tag
-              if: steps.exists.outputs.EXISTS == 'false'
-              shell: bash
-              run: |
-                  git config user.name "github-actions[bot]"
-                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-                  git tag -a "${{ steps.version.outputs.TAG }}" -m "Release ${{ steps.version.outputs.TAG }}" "$GITHUB_SHA"
-                  git push origin "refs/tags/${{ steps.version.outputs.TAG }}"
-
-            - name: Dispatch Release Production
-              if: steps.exists.outputs.EXISTS == 'false'
-              shell: bash
-              env:
-                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              run: gh workflow run release.yml --repo "$GITHUB_REPOSITORY" --ref "${{ steps.version.outputs.TAG }}"
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: node scripts/native/documentation.mjs

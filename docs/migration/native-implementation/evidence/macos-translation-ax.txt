@@ -1,0 +1,54 @@
+Window: "Dịch / Great tools disappear into the work.  Viezan keeps each task and", App: Viezan Native Preview.
+0 standard window Dịch / Great tools disappear into the work.  Viezan keeps each task and, ID: workbench, Secondary Actions: Raise
+	1 split group workbench, SidebarNavigationSplitView
+		2 container
+			3 scroll area
+				4 list Sidebar
+					5 row (selectable) AI Chat
+					6 row (selected) Dịch
+					7 row (selectable)
+					8 row (selectable) Cài đặt
+			9 text Bản native thử nghiệm
+		10 splitter (disabled, settable, float) 236
+		11 container
+			12 text Provider mô phỏng · không gửi dữ liệu ra mạng
+			13 pop up button Đầu vào, Value: Tiếng Anh
+			14 button Đảo chiều ngôn ngữ
+			15 pop up button Đầu ra, Value: Tiếng Nhật
+			16 pop up button Description: Mô hình cho phiên này, Mô hình cho phiên này, Help: demo.standard, Value: Mô phỏng tiêu chuẩn
+			17 text Nguyên bản Bản dịch
+			18 scroll area Secondary Actions: Scroll Up, Scroll Down
+				19 text entry area (settable) Description: Nguyên bản, Value: Great tools disappear into the work.
+
+Viezan keeps each task and draft independent.
+				20 scroll bar (disabled, settable, float) 0
+			21 scroll area
+				22 text [シミュレーション結果・AI翻訳ではありません]
+
+Great tools disappear into the work.
+
+Viezan keeps each task and draft independent.
+			23 text Bản nháp được giữ trên thiết bị
+			24 button Dịch
+			25 button Sao chép
+	26 toolbar
+		27 button Description: Hide Sidebar, Secondary Actions: Increment, Decrement, Delete, Cancel
+		28 button Description: Lịch sử, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+		29 button Description: Bản dịch mới, Help: Tạo mới (⌘N), Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Move next, Remove from toolbar
+		30 button Description: Hoạt động, Secondary Actions: Increment, Decrement, Delete, Cancel, Move previous, Remove from toolbar
+	31 close button
+	32 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	33 minimize button
+	34 text Dịch / Great tools disappear into the work.  Viezan keeps each task and
+35 menu bar
+	36 Viezan Native Preview
+	37 File
+	38 Edit
+	39 View
+	40 Window
+	41 Help
+
+Selected:
+	6 row (selected)
+
+Note: Pay special attention to the content selected by the user. If the user asks a question or refers to the content they are looking at on-screen, they might be referring to the selected content (but they might be referring to something else that's visible, too).

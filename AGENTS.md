@@ -22,11 +22,12 @@ verifiable, and aligned with the repository rather than personal preferences.
 
 ## Product and Architecture
 
-- Viezan is a local-first Electron application with a React renderer.
-- Keep the trust boundary `renderer -> typed preload API -> Electron main`.
-  Renderer code must not import Node or Electron internals directly.
-- Keep secrets, provider credentials, filesystem access, and privileged OS
-  operations behind the existing preload/main-process APIs.
+- Viezan is a local-first native application: SwiftUI/AppKit and Swift on macOS;
+  Qt Quick/QML and C++ on Windows/Linux. Build entrypoints live in `scripts/native/`.
+- Keep privileged operations in `ViezanDomain` or the C++ service layer. Views
+  must not gain arbitrary shell, credential or filesystem access.
+- Preserve OS credential stores, bounded provider requests, atomic persistence,
+  explicit operation ownership and helper authorization boundaries.
 - Reuse Zustand slices, services, utilities, i18n keys, and icon registry
   before introducing parallel abstractions.
 - User-facing text must use the existing EN/VI/JA localization system.
@@ -199,3 +200,13 @@ npm run test:web
   trivia. UI changes require visual QA at relevant states and widths.
 - Before reporting completion, state what changed, what was verified, and any
   check that was not run with its reason.
+
+## Native migration work
+
+For Electron-to-native migration or native multitasking UX work, resolve
+`viezanagent/agent/native-migration/native-migration.json` and its workflow first.
+Read the linked `SKILL.md` entrypoints. These project-local skills are routed here;
+they are not claimed to be installed globally. Plans and review evidence live in
+`docs/migration/`. Native source implementation is separate from compilation and
+runtime acceptance. The retired renderer under `src/` supplies canonical design
+resources and migration reference; it is not an application entrypoint.

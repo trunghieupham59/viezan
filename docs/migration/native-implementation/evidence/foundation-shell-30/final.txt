@@ -1,0 +1,6 @@
+➜ Test renderFoundationLocaleWidthThemeMatrix() skipped.
+➜ Test renderStorageFailureStates() skipped.
+◇ Test switchingPanelsReturnsFocusToOriginalResponder() started.
+✔ Test switchingPanelsReturnsFocusToOriginalResponder() passed after 0.012 seconds.
+✔ Test run with 29 tests in 1 suite passed after 3.926 seconds.
+✔ Test run with 17 tests in 0 suites passed after 0.016 seconds.

@@ -16,7 +16,7 @@
  *   - build/icon.ico            : Multi-size ICO with dedicated 16–256px frames,
  *                                 each rendered from the trimmed mark (small
  *                                 frames are supersampled and sharpened).
- *   - build/icon.png            : 1024×1024 squircle (used as Electron tray /
+ *   - build/icon.png            : 1024×1024 squircle (used as app /
  *                                 Linux fallback icon — squircle still works
  *                                 on Linux desktops, white square would also
  *                                 be fine but squircle is friendlier).
