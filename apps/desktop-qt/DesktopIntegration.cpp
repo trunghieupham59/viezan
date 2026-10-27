@@ -240,13 +240,16 @@ void DesktopIntegration::openFile(const QString &path) {
 }
 
 namespace {
+#ifdef Q_OS_WIN
 QString startupCommand() { return "\"" + QDir::toNativeSeparators(QCoreApplication::applicationFilePath()) + "\""; }
+#elif defined(Q_OS_LINUX)
 QString startupFile() { return QStandardPaths::writableLocation(QStandardPaths::ConfigLocation) + "/autostart/viezan-native.desktop"; }
 QByteArray startupDesktop() {
     auto executable = QCoreApplication::applicationFilePath();
     executable.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$").replace("`", "\\`").replace("%", "%%");
     return ("[Desktop Entry]\nType=Application\nName=Viezan\nX-Viezan-Native=true\nExec=\"" + executable + "\"\nTerminal=false\n").toUtf8();
 }
+#endif
 }
 bool DesktopIntegration::launchAtLogin() const {
 #ifdef Q_OS_WIN

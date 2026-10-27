@@ -41,8 +41,9 @@ bool isList(const QVariant &v) { return v.metaType().id() == QMetaType::QVariant
 bool integer(const QVariant &v, double minimum = 0) {
     const auto type = v.metaType().id();
     if (type != QMetaType::Int && type != QMetaType::LongLong && type != QMetaType::Double && type != QMetaType::UInt && type != QMetaType::ULongLong) return false;
+    // Revisions/counts must be exact integers, not approximately integral floats.
     const auto n = v.toDouble();
-    return std::isfinite(n) && n >= minimum && n <= 9007199254740991.0 && std::floor(n) == n;
+    return std::isfinite(n) && n >= minimum && n <= 9007199254740991.0 && std::fpclassify(n - std::trunc(n)) == FP_ZERO;
 }
 Map freshSession(const QString &id, const QString &feature) {
     return {{"id", id}, {"feature", feature}, {"title", ""}, {"draft", ""},
@@ -245,6 +246,8 @@ QVariantMap recover(const Map &saved) {
 }
 QVariantMap command(const Map &original, const QString &name, const Map &p, const QString &id, const QString &attemptID) {
     auto state = original;
+    // Bulk history operations preserve active work, drafts, favorites and comparison parents.
+    // They construct a candidate snapshot first; callers persist only validated state.
     if (name == "trimHistory") {
         const auto keep = p.value("keep").toInt(); if (!QList<int>{20, 100, 500, 1000}.contains(keep)) return original;
         auto tasks = state.value("tasks").toList(); for (const auto &value : tasks) if (value.toMap().value("status") == "running") return original;
@@ -261,6 +264,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
         for (qsizetype i = tasks.size(); i-- > 0;) if (removed.contains(tasks[i].toMap().value("request").toMap().value("sessionID").toString())) tasks.removeAt(i);
         state["sessions"] = sessions; state["tasks"] = tasks; return state;
     }
+    // Disabling a module cancels only its owned tasks, leaving other features untouched.
     if (name == "module") {
         const auto module = p.value("id").toString();
         if (!QStringList{"chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities", "bridge"}.contains(module) || p.value("enabled").metaType().id() != QMetaType::Bool) return original;
@@ -313,14 +317,15 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
     }
     if (name == "deleteArchived") {
         auto records = state.value("sessions").toList(), jobs = state.value("tasks").toList();
-        const auto id = p.value("sessionID").toString(); const auto index = find(records, id);
+        const auto archivedID = p.value("sessionID").toString(); const auto index = find(records, archivedID);
         if (index < 0 || !records[index].toMap().value("archived").toBool()) return original;
-        QSet<QString> ids{id}; for (const auto &record : records) if (record.toMap().value("comparisonParent") == id) ids.insert(record.toMap().value("id").toString());
+        QSet<QString> ids{archivedID}; for (const auto &record : records) if (record.toMap().value("comparisonParent") == archivedID) ids.insert(record.toMap().value("id").toString());
         for (const auto &job : jobs) if (ids.contains(job.toMap().value("request").toMap().value("sessionID").toString()) && job.toMap().value("status") == "running") return original;
         for (qsizetype i = records.size(); i-- > 0;) if (ids.contains(records[i].toMap().value("id").toString())) records.removeAt(i);
         for (qsizetype i = jobs.size(); i-- > 0;) if (ids.contains(jobs[i].toMap().value("request").toMap().value("sessionID").toString())) jobs.removeAt(i);
         state["sessions"] = records; state["tasks"] = jobs; return validate(state) ? state : original;
     }
+    // Comparison children retain the parent revision so stale results cannot be adopted.
     if (name == "compare") {
         auto sessions = state.value("sessions").toList(), tasks = state.value("tasks").toList();
         const auto parentID = p.value("sessionID").toString(); const auto position = find(sessions, parentID); if (position < 0) return original;
@@ -363,6 +368,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
         }
         sessions[index] = item; state["sessions"] = sessions; return state;
     }
+    // Navigation changes selection without mutating drafts or task identities.
     if (name == "navigate" && features.contains(p.value("feature").toString())) state["feature"] = p.value("feature");
     else if (name == "select" && index >= 0 && !item.value("archived").toBool()) { state["feature"] = item.value("feature"); active[item.value("feature").toString()] = item.value("id"); }
     else if (name == "speechProvider" && QStringList{"auto", "openai", "groq", "gemini"}.contains(p.value("value").toString())) state["speechProvider"] = p.value("value");
@@ -433,6 +439,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
         cancelRunning(tasks, sessionID); item["source"] = p.value("source"); item["target"] = p.value("target");
         item["revision"] = item.value("revision").toLongLong() + 1; item["output"] = "";
     } else if (name == "submit" && index >= 0 && (!item.value("draft").toString().trimmed().isEmpty() || (QStringList{"chat", "translate"}.contains(item.value("feature").toString()) && !item.value("images").toList().isEmpty())) && running(tasks, sessionID) < 0 && (item.value("feature") != "dictionary" || item.value("draft").toString().toUcs4().size() <= 120)) {
+        // Freeze provider, language, revision and message context for this attempt.
         Map request{{"sessionID", sessionID}, {"locale", state.value("locale")}};
         for (const auto &key : {"feature", "model", "source", "target", "revision"}) request[key] = item.value(key);
         request["input"] = item.value("draft");
@@ -497,6 +504,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
             if (si >= 0) { sessions[si] = target; if (si == index) item = target; }
         }
     }
+    // Ignored commands must not change recency or trigger unnecessary persistence.
     if (index >= 0 && (item != sessions[index].toMap() || tasks != original.value("tasks").toList()) && QStringList{"draft", "submit", "rename", "pair", "dictionaryContext"}.contains(name) && p.value("_updated").toDouble() > 0 && std::isfinite(p.value("_updated").toDouble())) item["updated"] = p.value("_updated");
     // New inserts before the old index; do not overwrite the newly created session.
     if (index >= 0 && name != "new") sessions[index] = item;

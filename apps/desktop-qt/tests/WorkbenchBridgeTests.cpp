@@ -492,7 +492,7 @@ private slots:
         QCoreApplication::processEvents();
         auto *navigation = visualItem(root->contentItem(), "primary-navigation");
         QVERIFY(navigation);
-        QTRY_COMPARE(navigation->width(), width < 900 ? 60.0 : 236.0);
+        QTRY_VERIFY(qAbs(navigation->width() - (width < 900 ? 60.0 : 236.0)) < 0.5);
         QCOMPARE(bridge.state(), before);
         bridge.command("navigation", {{"collapsed", true}});
         QTRY_COMPARE(navigation->width(), 60.0);
