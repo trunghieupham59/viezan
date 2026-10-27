@@ -211,11 +211,15 @@ struct ActivityView: View {
     @State private var focusedControl = "close"
     @State private var focusEpoch = 1
     private var controls: [String] {
-        ["close"] + store.workspace.tasks.flatMap { task in
-            ["open-" + task.id] + (task.status == .running ? ["stop-" + task.id]
-                : store.canRetry(task) ? ["retry-" + task.id] : [])
+        var ids = ["close"]
+        for task in store.workspace.tasks {
+            ids.append("open-" + task.id)
+            if task.status == .running { ids.append("stop-" + task.id) }
+            else if store.canRetry(task) { ids.append("retry-" + task.id) }
         }
+        return ids
     }
+
     private func moveFocus(from id: String, backwards: Bool) {
         let ids = controls
         let index = ids.firstIndex(of: id) ?? 0

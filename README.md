@@ -73,7 +73,7 @@ expressions; application state and privileged services execute in C++.
 
 ## Build when ready
 
-Prerequisites: macOS 15+ with Xcode/Swift 6 for the macOS target; Qt 6.8+ with
+Prerequisites: macOS 15+ with Xcode 26+ / Swift 6.2+ for the macOS target; Qt 6.8+ with
 Quick, Quick Controls, QML, Widgets, Network, Concurrent, Multimedia, TextToSpeech,
 WebSockets, SVG (plus DBus on Linux), CMake 3.21+, a C++17 compiler and Python 3.11+ for
 Windows/Linux. Resource regeneration uses Node 22.13+ and the locked development

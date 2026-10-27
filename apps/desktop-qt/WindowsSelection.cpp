@@ -5,6 +5,13 @@
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
 namespace {
+bool setValue(IUIAutomationValuePattern *editor, const QString &text) {
+    BSTR value = SysAllocStringLen(reinterpret_cast<const OLECHAR *>(text.utf16()), static_cast<UINT>(text.size()));
+    if (!value) return false;
+    const auto result = editor->SetValue(value);
+    SysFreeString(value);
+    return SUCCEEDED(result);
+}
 QString take(BSTR value) { const auto result = value ? QString::fromWCharArray(value, SysStringLen(value)) : QString{}; SysFreeString(value); return result; }
 bool text(IUIAutomationTextRange *range, QString &result) {
     BSTR value = nullptr; if (!range || FAILED(range->GetText(131073, &value))) { SysFreeString(value); return false; }
@@ -86,7 +93,7 @@ bool WindowsSelection::replace(const QString &replacement) {
         FAILED(selection->CompareEndpoints(TextPatternRangeEndpoint_End, s.selected.Get(), TextPatternRangeEndpoint_End, &end)) || end != 0 ||
         !text(selection.Get(), current) || current != s.selection) return false;
     s.applied = s.prefix + replacement + s.suffix;
-    if (s.applied.size() > 131072 || FAILED(s.editor->SetValue(reinterpret_cast<LPCWSTR>(s.applied.utf16())))) { s.applied.clear(); return false; }
+    if (s.applied.size() > 131072 || !setValue(s.editor.Get(), s.applied)) { s.applied.clear(); return false; }
     s.replaced = true;
     return s.value(current) && current == s.applied;
 #else
@@ -97,7 +104,7 @@ bool WindowsSelection::replace(const QString &replacement) {
 bool WindowsSelection::undo() {
 #ifdef Q_OS_WIN
     auto &s = *state; QString current;
-    if (!canUndo() || !s.value(current) || current != s.applied || FAILED(s.editor->SetValue(reinterpret_cast<LPCWSTR>(s.full.utf16())))) return false;
+    if (!canUndo() || !s.value(current) || current != s.applied || !setValue(s.editor.Get(), s.full)) return false;
     s.captured = false; s.replaced = false; return s.value(current) && current == s.full;
 #else
     return false;

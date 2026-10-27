@@ -12,7 +12,7 @@ ScrollView {
             const data = JSON.parse(output)
             if (!data || typeof data.headword !== "string" || typeof data.meaning !== "string" || !Array.isArray(data.translations)) return null
             const list = value => Array.isArray(value) ? value.filter(item => typeof item === "string") : []
-            data.translations = data.translations.filter(item => item && typeof item.text === "string" && typeof item.pronunciation === "string").slice(0, 6).map(item => ({...item, examples: list(item.examples), collocations: list(item.collocations), notes: list(item.notes)}))
+            data.translations = data.translations.filter(item => item && typeof item.text === "string" && typeof item.pronunciation === "string").slice(0, 6).map(item => Object.assign({}, item, {examples: list(item.examples), collocations: list(item.collocations), notes: list(item.notes)}))
             data.examples = list(data.examples); data.notes = list(data.notes)
             return data
         } catch (_) { return null }

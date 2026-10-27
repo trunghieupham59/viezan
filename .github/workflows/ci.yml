@@ -39,8 +39,8 @@ jobs:
           modules: 'qtmultimedia qtspeech qtwebsockets'
           cache: true
       - run: cmake -S apps/desktop-qt -B .native-build/qt -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
-      - run: cmake --build .native-build/qt --config Release
-      - run: ctest --test-dir .native-build/qt -C Release --output-on-failure
+      - run: cmake --build .native-build/qt --config Release --parallel 2
+      - run: ctest --test-dir .native-build/qt -C Release --output-on-failure --timeout 300
         env:
           QT_QPA_PLATFORM: offscreen
           QT_QUICK_CONTROLS_STYLE: Fusion

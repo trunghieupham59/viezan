@@ -10,6 +10,7 @@
 #include <QPointer>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTimer>
 
 static QVariantMap current(const WorkbenchBridge &bridge) {
     const auto state = bridge.state();
@@ -582,7 +583,7 @@ private slots:
         QCOMPARE(current(restored).value("draft").toString(), QString("Translate draft"));
         restored.command("select", {{"sessionID", chatID}});
         QCOMPARE(current(restored).value("draft").toString(), QString("Tiếng Việt・日本語"));
-        QCOMPARE(current(restored).value("model").toString(), QString("demo.slow"));
+        QCOMPARE(current(restored).value("model").toString(), QString("ollama:llama3.2"));
     }
     void corruptFileIsPreserved() {
         QTemporaryDir dir;
@@ -637,14 +638,25 @@ private slots:
         WorkbenchBridge restored(nullptr, blocker + "/state.json", false);
         QCOMPARE(current(restored).value("draft").toString(), QString("Keep this draft"));
     }
-    void fakeFailureAndRetryUseRealTimers() {
+    void failureAndRetryUseQueuedProviderEvents() {
         QTemporaryDir dir;
-        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"));
-        bridge.command("model", {{"value", "demo.failure"}});
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("model", {{"value", "ollama:test-model"}});
         bridge.command("draft", {{"value", "Question"}}); bridge.command("submit");
-        QTRY_COMPARE_WITH_TIMEOUT(latest(bridge).value("status").toString(), QString("failed"), 3000);
-        bridge.command("retry", {{"taskID", latest(bridge).value("id")}});
-        QTRY_COMPARE_WITH_TIMEOUT(latest(bridge).value("status").toString(), QString("succeeded"), 10000);
+        const auto first = latest(bridge);
+        QTimer::singleShot(0, &bridge, [&bridge, first] {
+            bridge.command("receive", {{"taskID", first.value("id")}, {"attemptID", first.value("attemptID")}, {"terminal", "failed"}});
+        });
+        QTRY_COMPARE(latest(bridge).value("status").toString(), QString("failed"));
+        bridge.command("retry", {{"taskID", first.value("id")}});
+        const auto retry = latest(bridge);
+        QVERIFY(retry.value("attemptID") != first.value("attemptID"));
+        QTimer::singleShot(0, &bridge, [&bridge, first, retry] {
+            chunk(bridge, first, "stale");
+            bridge.command("receive", {{"taskID", retry.value("id")}, {"attemptID", retry.value("attemptID")}, {"chunk", "Recovered reply"}, {"terminal", "succeeded"}});
+        });
+        QTRY_COMPARE(latest(bridge).value("status").toString(), QString("succeeded"));
+        QCOMPARE(latest(bridge).value("output").toString(), QString("Recovered reply"));
         QCOMPARE(latest(bridge).value("attemptNumber").toInt(), 2);
         QCOMPARE(current(bridge).value("messages").toList().size(), 2);
     }
