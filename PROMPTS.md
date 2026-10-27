@@ -207,3 +207,15 @@ find viezanagent -name "*.json" -exec jq -e . {} \;
 jq -r '[.type,.classification.lifecycle,.name,(.classification.domain|join(","))] | @tsv' \
   viezanagent/agent/*/*.json viezanagent/rule/*/*.json viezanagent/skill/*/*.json viezanagent/workflow/*/*.json | sort
 ```
+
+## Native desktop migration
+
+Dùng [agent native-migration](agent/native-migration/native-migration.json) cho
+chuyển đổi Electron, thiết kế native và nghiệm thu đa nhiệm.
+Workflow: [native-migration](workflow/native-migration/native-migration.json).
+Rule: [native-migration](rule/native-migration/rules.json).
+Skills: [migration](skill/viezan-native-migration/SKILL.md),
+[UX acceptance](skill/viezan-native-ux/SKILL.md).
+Plan: [docs/migration](../docs/migration/README.md).
+Report: `report/native-migration-report-*.md`.
+Đây là capability mới; chưa thay kiến trúc Electron đang vận hành.

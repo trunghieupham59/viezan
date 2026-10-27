@@ -5,7 +5,11 @@
   "type": "skill",
   "classification": {
     "lifecycle": "maintenance",
-    "domain": ["docs", "drift", "release"],
+    "domain": [
+      "docs",
+      "drift",
+      "release"
+    ],
     "use_for": "Find and repair drift between current code, agent docs, public docs, and release-facing documentation."
   },
   "trigger": "Khi sửa IPC/provider/store/preload/i18n/extension hoặc trước release để rà drift docs",
@@ -291,6 +295,7 @@
   "references": {
     "workflow": "../../workflow/sync-docs/sync-docs.json",
     "rule": "../../rule/viezan-product-engineering/rules.json",
-    "readme": "./README.md"
+    "readme": "./README.md",
+    "native_migration": "../../agent/native-migration/native-migration.json"
   }
 }
