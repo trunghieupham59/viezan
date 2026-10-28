@@ -246,3 +246,20 @@ khi ghi, kiểm tra control không phải mật khẩu/chỉ đọc, document kh
 hai đầu vùng chọn còn nguyên. Hoàn tác chỉ ghi lại snapshot nếu giá trị hiện tại
 vẫn bằng kết quả vừa thay; không dùng clipboard hoặc gửi phím vào cửa sổ hiện tại.
 Control không đáp ứng hợp đồng tiếp tục dùng sao chép thủ công. Mã chưa build/test.
+
+## Native implementation follow-up — 2026-10-28 (Dịch nhanh)
+
+SwiftUI (macOS), đã chạy thật: ⌥T lấy vùng chọn qua Accessibility, tự dịch theo **cặp
+ngôn ngữ riêng của Dịch nhanh** (ngôn ngữ chính/phụ, nhận diện ngôn ngữ trên máy bằng
+NaturalLanguage; chọn ngôn ngữ phụ làm chính thì đảo cặp) và **thay chữ tại chỗ** (⌘Z trong
+ứng dụng đó lấy lại chữ gốc). Chỉ báo nổi cạnh con trỏ (panel không lấy focus): "Đang lấy văn bản
+đang chọn…" → "Đang dịch sang {lang}…" → "Đã thay thế văn bản." (ẩn sau 1,5 s); "Không có văn bản
+được chọn."; thiếu quyền → câu hướng dẫn + "Mở Cài đặt hệ thống"; lỗi dịch → mã lỗi + chi tiết +
+"Mở trong Dịch". Không thay được (chữ chỉ đọc) → thẻ "Bản dịch sang {lang}" với Sao chép / Mở trong
+Dịch. Ứng dụng không cho đọc vùng chọn (Safari, trình duyệt, Electron) → sao chép bằng ⌘C rồi trả lại
+clipboard; thẻ có thêm "Dán thay vùng chọn". Trang: hàng quyền Trợ năng hiện "Đã cấp"/"Chưa cấp" (đọc
+lại khi app được kích hoạt), hai hàng ngôn ngữ, hàng Model chỉ đọc. Mục 10 dòng 4 (chỉ báo luôn hiện)
+và dòng 9 (model chỉ đọc) vẫn đúng với native.
+
+Qt (Windows/Linux): cùng cặp ngôn ngữ (đoán theo hệ chữ), panel tự dịch khi có vùng chọn; luồng
+thay chữ giữ nguyên (UI Automation trên Windows). Chưa chạy trên Windows/Linux thật.

@@ -447,3 +447,37 @@ import Testing
     for i in 0..<20 { events.append(gate.feed(noise[i % noise.count])) }
     #expect(events.filter { $0 != .none } == [.finish])
 }
+
+@Test func quickTranslatePairRoutesTextAlreadyInThePrimaryLanguage() {
+    let off = QuickTranslatePreferences(primary: "vi")
+    #expect(off.target(detected: "vi") == "vi" && off.target(detected: "en") == "vi")
+    let pair = QuickTranslatePreferences(primary: "vi", secondary: "en")
+    #expect(pair.target(detected: "vi") == "en" && pair.target(detected: "ja") == "vi" && pair.target(detected: nil) == "vi")
+    #expect(QuickTranslatePreferences(primary: "zh", secondary: "en").target(detected: "zh-TW") == "en")
+    // Choosing the secondary as primary swaps the pair.
+    #expect(pair.choosing(primary: "en") == QuickTranslatePreferences(primary: "en", secondary: "vi"))
+    #expect(pair.choosing(primary: "ja") == QuickTranslatePreferences(primary: "ja", secondary: "en"))
+    #expect(TextLanguage.detect("Xin chào, cuộc họp bắt đầu lúc chín giờ sáng nay.") == "vi")
+    #expect(TextLanguage.detect("Good morning, the meeting starts at nine.") == "en")
+    #expect(TextLanguage.detect("会議は午前九時に始まります。") == "ja")
+}
+
+@Test @MainActor func quickTranslatePairDefaultsToTheTranslateTargetAndPersists() throws {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("workspace.json")
+    let store = WorkbenchStore(persistence: FilePersistence(url: url))
+    #expect(store.quickTranslate.secondary == nil && NativeResources.shared.nativeLanguages.contains(store.quickTranslate.primary))
+    store.quickTranslate = QuickTranslatePreferences(primary: "ja", secondary: "en")
+    store.quickTranslate = QuickTranslatePreferences(primary: "ja", secondary: "ja")   // invalid: ignored
+    #expect(WorkbenchStore(persistence: FilePersistence(url: url)).quickTranslate == QuickTranslatePreferences(primary: "ja", secondary: "en"))
+}
+
+@Test func launcherRanksNamePrefixThenWordThenAnywhereWithRecentFirst() {
+    let apps = ["Safari", "System Settings", "Photos", "Visual Studio Code", "Messages", "Notes", "Font Book"].map { LauncherApplication(id: "/Applications/\($0).app", name: $0) }
+    let names = { (query: String, recent: [String]) in LauncherRanking.applications(apps, query: query, recent: recent).map(\.name) }
+    #expect(names("s", []) == ["Safari", "System Settings", "Visual Studio Code", "Notes", "Photos", "Messages"])
+    #expect(names("set", []) == ["System Settings"])
+    #expect(names("code", []) == ["Visual Studio Code"])
+    #expect(names("s", ["/Applications/System Settings.app"]).first == "System Settings")
+    #expect(names("", ["/Applications/Notes.app", "/Applications/Safari.app"]) == ["Notes", "Safari"])
+    #expect(names("zzz", []).isEmpty)
+}

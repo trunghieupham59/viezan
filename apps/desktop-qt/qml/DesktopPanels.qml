@@ -32,7 +32,11 @@ Window {
             if (!panel.bridge.moduleEnabled(action === "launcher" ? "utilities" : action === "quickChat" ? "chat" : "translate")) return
             panel.mode = action
             if (action === "launcher") panel.desktop.refreshApplications()
-            else if (action === "translateSelection") panel.ownerID = panel.bridge.createDetachedSession("translate", selectedText)
+            else if (action === "translateSelection") {
+                // Translate right away into quick translate's own pair (same as macOS).
+                panel.ownerID = panel.bridge.createDetachedSession("translate", selectedText)
+                if (selectedText.trim()) { panel.command("pair", {source: "auto", target: panel.bridge.quickTranslateTarget(selectedText)}); panel.command("submit") }
+            }
             else {
                 if (!panel.chatID || panel.bridge.state.sessions.find(value => value.id === panel.chatID)?.archived) panel.chatID = panel.bridge.createDetachedSession("chat", "")
                 panel.ownerID = panel.chatID

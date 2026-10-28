@@ -95,6 +95,9 @@ public:
     ThermalMonitor *thermalMonitor() { return &m_thermalMonitor; }
     DesktopIntegration *desktopIntegration() { return &m_desktopIntegration; }
     Q_INVOKABLE QString createDetachedSession(const QString &feature, const QString &draft = {});
+    // Quick translate's pair ({primary, secondary}; until set, the Translate page's target) and the target for `text`.
+    Q_INVOKABLE QVariantMap quickTranslate() const;
+    Q_INVOKABLE QString quickTranslateTarget(const QString &text) const;
     ExtensionBridge *extensionBridge() { return &m_extensionBridge; }
     bool ocrBusy() const { return !m_ocrID.isEmpty(); }
     QString ocrError() const { return m_ocrError; }

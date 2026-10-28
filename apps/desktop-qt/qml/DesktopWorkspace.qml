@@ -33,7 +33,29 @@ ScrollView {
                     Label { text: page.t("contentSources"); font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.subtitleScale; Layout.bottomMargin: page.metrics.small }
                     Kit.CardRow { title: page.t("pasteText"); detail: page.t("pasteTextHint"); Kit.PrimaryButton { text: page.t("openInTranslate"); onClicked: page.newTranslation() } }
                     Kit.CardRow { title: page.t("browserExtension"); detail: page.t("browserExtensionHint"); Button { text: page.t(page.bridge.extensionBridge.listening ? "enabled" : "connect"); onClicked: bridgeDialog.open() } }
-                    Kit.CardRow { title: page.t("globalShortcut"); detail: page.t(page.linux ? "globalShortcutHintLinux" : "globalShortcutHintWindows"); divider: false; Button { text: page.t("setUp"); onClicked: page.routeRequested("utilities") } }
+                    Kit.CardRow { title: page.t("globalShortcut"); detail: page.t(page.linux ? "globalShortcutHintLinux" : "globalShortcutHintWindows"); Button { text: page.t("setUp"); onClicked: page.routeRequested("utilities") } }
+                    // Quick translate's own pair and the model it uses (the app's current choice).
+                    Kit.CardRow {
+                        id: primaryRow
+                        readonly property var pair: (page.bridge.state, page.bridge.quickTranslate())
+                        title: page.t("quickPrimary"); detail: page.t(pair.secondary ? "quickPairOn" : "quickPairOff")
+                        ComboBox {
+                            readonly property var codes: page.bridge.resources.nativeLanguages
+                            model: codes.map(value => page.t("lang_" + value)); currentIndex: codes.indexOf(primaryRow.pair.primary)
+                            implicitContentWidthPolicy: ComboBox.WidestText; Accessible.name: page.t("quickPrimary"); onActivated: page.bridge.command("quickTranslatePrimary", {value: codes[currentIndex]})
+                        }
+                    }
+                    Kit.CardRow {
+                        id: secondaryRow
+                        readonly property var pair: (page.bridge.state, page.bridge.quickTranslate())
+                        title: page.t("quickSecondary"); detail: page.t("quickSecondaryHint")
+                        ComboBox {
+                            readonly property var codes: [""].concat(page.bridge.resources.nativeLanguages.filter(value => value !== secondaryRow.pair.primary))
+                            model: codes.map(value => value ? page.t("lang_" + value) : page.t("quickSecondaryOff")); currentIndex: Math.max(0, codes.indexOf(secondaryRow.pair.secondary || ""))
+                            implicitContentWidthPolicy: ComboBox.WidestText; Accessible.name: page.t("quickSecondary"); onActivated: page.bridge.command("quickTranslateSecondary", {value: codes[currentIndex]})
+                        }
+                    }
+                    Kit.CardRow { title: page.t("quickModel"); detail: page.t("quickModelHint"); divider: false; Label { text: page.session?.model || ""; color: palette.placeholderText; elide: Text.ElideMiddle } }
                 }
             }
             Kit.Card {

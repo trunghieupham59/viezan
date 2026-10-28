@@ -1,4 +1,5 @@
 #include "WorkbenchBridge.h"
+#include "TextLanguage.h"
 #include "ImageTranslation.h"
 #include "LanguageSegments.h"
 #include "MarkdownDocument.h"
@@ -502,6 +503,12 @@ void WorkbenchBridge::screenshotResponse(uint code, const QVariantMap &results) 
     cancelCapture(); emit changed();
 }
 
+QVariantMap WorkbenchBridge::quickTranslate() const {
+    auto quick = m_state.value("quickTranslate").toMap();
+    if (!quick.contains("primary")) { quick["primary"] = "vi"; for (const auto &entry : m_state.value("sessions").toList()) if (entry.toMap().value("id") == m_state.value("active").toMap().value("translate")) quick["primary"] = entry.toMap().value("target"); }
+    return quick;
+}
+QString WorkbenchBridge::quickTranslateTarget(const QString &text) const { return TextLanguage::target(quickTranslate(), TextLanguage::detect(text)); }
 QString WorkbenchBridge::createDetachedSession(const QString &feature, const QString &draft) {
     if (m_loadBlocked || !moduleEnabled(feature) || !QStringList{"chat", "translate", "dictionary"}.contains(feature)) return {};
     const auto id = freshID(); m_state = WorkbenchDomain::command(m_state, "newDetached", {{"feature", feature}, {"draft", draft}}, id, freshID()); save(); return id;

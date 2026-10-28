@@ -151,6 +151,10 @@ bool validate(const Map &state) {
     }
     if (state.contains("voice")) { const auto voice = state.value("voice").toMap(); if (!QStringList{"system", "edge", "openai", "gemini", "elevenlabs"}.contains(voice.value("provider").toString()) || voice.value("voice").toString().toUtf8().size() > 256) return false; }
     if (state.contains("autoTranslate") && state.value("autoTranslate").metaType().id() != QMetaType::Bool) return false;
+    if (state.contains("quickTranslate")) {
+        const auto quick = state.value("quickTranslate").toMap(); const auto primary = quick.value("primary").toString(), secondary = quick.value("secondary").toString();
+        if (!languages.contains(primary) || (!secondary.isEmpty() && (!languages.contains(secondary) || secondary == primary))) return false;
+    }
     if (state.contains("autoTranslateDelay") && (!integer(state.value("autoTranslateDelay"),100) || state.value("autoTranslateDelay").toInt()>5000)) return false;
     if (state.contains("runtime")) { const auto runtime = state.value("runtime").toMap(); if (!QList<int>{1,2,4}.contains(runtime.value("parallel").toInt()) || !QList<int>{2048,4096,8192,16384,32768}.contains(runtime.value("context").toInt())) return false; }
     if (state.contains("prompts")) {
@@ -379,6 +383,14 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
     // Navigation changes selection without mutating drafts or task identities.
     if (name == "navigate" && features.contains(p.value("feature").toString())) state["feature"] = p.value("feature");
     else if (name == "select" && index >= 0 && !item.value("archived").toBool()) { state["feature"] = item.value("feature"); active[item.value("feature").toString()] = item.value("id"); }
+    // Quick translate's pair; choosing the current secondary as primary swaps the two.
+    else if ((name == "quickTranslatePrimary" || name == "quickTranslateSecondary") && (languages.contains(p.value("value").toString()) || (name == "quickTranslateSecondary" && p.value("value").toString().isEmpty()))) {
+        auto quick = state.value("quickTranslate").toMap(); const auto value = p.value("value").toString();
+        if (!quick.contains("primary")) { quick["primary"] = "vi"; for (const auto &entry : sessions) if (entry.toMap().value("id") == active.value("translate")) quick["primary"] = entry.toMap().value("target"); }
+        if (name == "quickTranslatePrimary") { if (quick.value("secondary") == value) quick["secondary"] = quick.value("primary"); quick["primary"] = value; }
+        else if (value != quick.value("primary").toString()) quick["secondary"] = value;
+        state["quickTranslate"] = quick;
+    }
     else if (name == "speechProvider" && QStringList{"auto", "openai", "groq", "gemini"}.contains(p.value("value").toString())) state["speechProvider"] = p.value("value");
     else if (name == "locale" && locales.contains(p.value("value").toString())) state["locale"] = p.value("value");
     else if (name == "route" && QStringList{"home", "chat", "translate", "dictionary", "settings", "utilities", "everywhere", "thermal", "interpret", "apps"}.contains(p.value("value").toString())) {

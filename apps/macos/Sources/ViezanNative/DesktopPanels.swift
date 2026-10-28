@@ -7,31 +7,38 @@ import ViezanDomain
     private var panel: NSPanel?
     private var chatID: String?
     private let openMain: (String) -> Void
+    private let quickTranslate: QuickTranslate
+    private var launcher: Launcher!
     init(store: WorkbenchStore, openMain: @escaping (String) -> Void) {
         self.store = store; self.openMain = openMain
+        quickTranslate = QuickTranslate(store: store, openMain: openMain)
+        launcher = Launcher(store: store, actions: .init(
+            askAI: { [weak self] text in self?.askAI(text) },
+            openFeature: { [weak self] feature, text in
+                guard let self else { return }
+                let id = store.createDetachedSession(feature: feature, draft: text); store.submit(id); self.openMain(id)
+            }))
         store.desktopIntegration.onAction = { [weak self] action in self?.present(action) }
         store.desktopIntegration.activate()
     }
+    /// Launcher's "Ask AI": the quick chat panel with the question already sent.
+    func askAI(_ text: String) {
+        present("quickChat")
+        guard let id = chatID, !text.isEmpty else { return }
+        store.setDraft(id, text); store.submit(id)
+    }
     func present(_ action: String) {
         guard !store.loadBlocked, store.moduleEnabled(action == "launcher" ? "utilities" : action == "quickChat" ? "chat" : "translate") else { return }
-        var selected: SelectedTextTarget?
-        if action == "translateSelection" { selected = try? SelectedTextTarget.capture() }
+        if action == "translateSelection" { quickTranslate.start(); return }
+        if action == "launcher" { launcher.toggle(); return }
         let window = panel ?? NSPanel(contentRect: NSRect(x: 0, y: 0, width: metric("reading"), height: metric("reading")), styleMask: [.titled, .closable, .resizable, .utilityWindow], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.level = .floating; window.hidesOnDeactivate = false
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         window.minSize = NSSize(width: metric("sidebar") + metric("editor"), height: metric("editor") * 3)
         window.title = store.text(action)
-        if action == "launcher" {
-            window.contentView = NSHostingView(rootView: NativeLauncher(store: store, dismiss: { window.orderOut(nil) }, quickChat: { [weak self] in self?.present("quickChat") }, openFeature: { [weak self] feature in guard let self, let id = self.store.workspace.active[feature.rawValue] else { return }; self.openMain(id); window.orderOut(nil) }))
-        } else {
-            let id: String
-            if action == "translateSelection" { id = store.createDetachedSession(feature: .translate, draft: selected?.text ?? "") }
-            else {
-                if chatID == nil || store.session(chatID!)?.archived == true { chatID = store.createDetachedSession(feature: .chat) }
-                id = chatID!
-            }
-            window.contentView = NSHostingView(rootView: QuickSessionPanel(store: store, sessionID: id, target: selected, selectionRequested: action == "translateSelection", openMain: { [weak self] in self?.openMain(id); window.orderOut(nil) }))
-        }
+        if chatID == nil || store.session(chatID!)?.archived == true { chatID = store.createDetachedSession(feature: .chat) }
+        let id = chatID!
+        window.contentView = NSHostingView(rootView: QuickSessionPanel(store: store, sessionID: id, openMain: { [weak self] in self?.openMain(id); window.orderOut(nil) }))
         if panel == nil { window.center() }; panel = window
         NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil)
     }
@@ -39,10 +46,7 @@ import ViezanDomain
 private struct QuickSessionPanel: View {
     @Bindable var store: WorkbenchStore
     let sessionID: String
-    let target: SelectedTextTarget?
-    let selectionRequested: Bool
     var openMain: () -> Void
-    @State private var error: String?
     @State private var modelDraft = ""
     private var session: Session? { store.session(sessionID) }
     var body: some View {
@@ -52,8 +56,6 @@ private struct QuickSessionPanel: View {
                     Text(store.title(session)).font(.headline).lineLimit(1)
                     Spacer(); Button(store.text("open"), action: openMain)
                 }
-                if selectionRequested && target == nil { Text(store.text("selectionUnavailable")).foregroundStyle(.secondary) }
-                if let target { Text(target.applicationName).font(.caption).foregroundStyle(.secondary) }
                 ScrollView {
                     VStack(alignment: .leading, spacing: metric("inset")) {
                         if session.feature == .chat { ForEach(session.messages) { message in Text(message.text).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) } }
@@ -78,75 +80,12 @@ private struct QuickSessionPanel: View {
                 HStack {
                     if let task = store.running(sessionID) { Button(store.text("stop"), role: .destructive) { store.cancel(task.id) } }
                     else { Button(store.text(session.feature == .chat ? "send" : "translate")) { store.submit(sessionID) }.buttonStyle(.vznPrimary).disabled(session.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).keyboardShortcut(.return, modifiers: .command) }
-                    if let target, !session.output.isEmpty {
-                        Button(store.text("replaceSelection")) { do { try target.replace(with: session.output); error = nil } catch { self.error = "selectionChanged" } }.disabled(store.running(sessionID) != nil)
-                    }
                     Spacer()
                     Button(store.text("copy")) { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(session.feature == .chat ? session.messages.last?.text ?? "" : session.output, forType: .string) }
                 }
                 if let task = store.workspace.tasks.first(where: { $0.request.sessionID == sessionID }), task.status == .failed { TaskStatusText(store: store, task: task) }
-                if let error { Text(store.text(error)).foregroundStyle(.secondary) }
             }
         }.padding(metric("inset"))
-    }
-}
-private struct NativeLauncher: View {
-    let store: WorkbenchStore
-    var dismiss: () -> Void
-    var quickChat: () -> Void
-    var openFeature: (Feature) -> Void
-    @State private var query = ""
-    @State private var apps: [LauncherApplication] = []
-    @State private var files: [LauncherFile] = []
-    @State private var currency: String?
-    @State private var error = false
-    @FocusState private var focused: Bool
-    private var matches: [LauncherApplication] {
-        let recent = UserDefaults.standard.stringArray(forKey: "launcher.recent") ?? []
-        return apps.filter { query.isEmpty || $0.name.localizedStandardContains(query) }.sorted { (recent.firstIndex(of: $0.id) ?? Int.max) < (recent.firstIndex(of: $1.id) ?? Int.max) }
-    }
-    var body: some View {
-        VStack(alignment: .leading, spacing: metric("inset")) {
-            TextField(store.text("searchLabel"), text: $query).textFieldStyle(.roundedBorder).focused($focused).onSubmit { if let app = matches.first { launch(app) } }
-            HStack {
-                Button(store.text("quickChat"), action: quickChat)
-                Button(store.text("searchWeb")) {
-                    var components = URLComponents(string: "https://www.google.com/search")!; components.queryItems = [URLQueryItem(name: "q", value: query)]
-                    if let url = components.url { NSWorkspace.shared.open(url) }
-                }.disabled(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                Menu(store.text("open")) { ForEach(Feature.allCases, id: \.self) { feature in Button(store.text(feature.rawValue)) { openFeature(feature) } } }
-            }
-            if let calculation = LauncherCalculator.evaluate(query) {
-                Button(calculation) { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(calculation, forType: .string) }.help(store.text("copyResponse"))
-            }
-            if let currency { Button(currency) { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(currency, forType: .string) }.help(store.text("copyResponse")) }
-            if !files.isEmpty {
-                List(files) { file in Button { if NSWorkspace.shared.open(URL(fileURLWithPath: file.id)) { dismiss() } else { error = true } } label: { VStack(alignment: .leading) { Text(file.name); Text(file.id).font(.caption).foregroundStyle(.secondary).lineLimit(1) } }.buttonStyle(.plain).contextMenu { Button(store.text("revealFile")) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: file.id)]) } } }
-            }
-            List(matches) { app in Button { launch(app) } label: { HStack { Image(nsImage: NSWorkspace.shared.icon(forFile: app.id)).resizable().frame(width: metric("icon"), height: metric("icon")); Text(app.name).frame(maxWidth: .infinity, alignment: .leading) } }.buttonStyle(.plain) }
-            if error { Text(store.text("launchError")).foregroundStyle(.secondary) }
-        }.padding(metric("inset")).task { apps = await Task.detached { LauncherCatalog.applications() }.value; focused = true }
-            .task(id: query) {
-                files = []; let input = query
-                do { try await Task.sleep(for: .milliseconds(250)); try Task.checkCancellation() } catch { return }
-                let worker = Task.detached { LauncherFiles.search(input) }
-                let result = await withTaskCancellationHandler(operation: { await worker.value }, onCancel: { worker.cancel() })
-                if !Task.isCancelled && query == input { files = result }
-            }
-            .task(id: query) {
-                currency = nil; let input = query
-                do { try await Task.sleep(for: .milliseconds(250)); try Task.checkCancellation() } catch { return }
-                let value = await CurrencyRates.shared.convert(input)
-                if !Task.isCancelled && query == input { currency = value }
-            }
-            .onExitCommand(perform: dismiss)
-    }
-    private func launch(_ app: LauncherApplication) {
-        guard apps.contains(where: { $0.id == app.id }) else { return }
-        var recent = UserDefaults.standard.stringArray(forKey: "launcher.recent") ?? []; recent.removeAll { $0 == app.id }; recent.insert(app.id, at: 0); UserDefaults.standard.set(Array(recent.prefix(50)), forKey: "launcher.recent")
-        NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: app.id), configuration: .init()) { _, failure in
-            Task { @MainActor in if failure == nil { dismiss() } else { error = true } }
-        }
     }
 }
 struct DesktopSettings: View {
@@ -161,11 +100,21 @@ struct DesktopSettings: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(shortcuts) { shortcut in NativeShortcutRow(store: store, shortcut: shortcut, everywhere: route == "everywhere") }
+            if route == "everywhere" { QuickTranslatePairRows(store: store) }
             if route != "utilities" {
+                let granted = store.desktopIntegration.accessibilityGranted
                 CardRow(title: store.text("accessibilityPermission"), detail: store.text(route == "everywhere" ? "accessibilityHint" : "selectionPermissionHint"), divider: route != nil) {
-                    Button(store.text(route == "everywhere" ? "setUp" : "requestAccessibility")) { store.desktopIntegration.requestAccessibility() }
-                        .help(store.text("selectionPermissionHint"))
+                    HStack(spacing: metric("gap")) {
+                        StatusBadge(text: store.text(granted ? "permissionGranted" : "permissionMissing"), tone: granted ? .ready : .idle)
+                        if !granted {
+                            Button(store.text("openSystemSettings")) { store.desktopIntegration.requestAccessibility() }
+                                .buttonStyle(.vznPrimary).help(store.text("selectionPermissionHint"))
+                        }
+                    }
                 }
+                // Granted in System Settings while Viezan was in the background.
+                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in store.desktopIntegration.refreshAccessibility() }
+                .onAppear { store.desktopIntegration.refreshAccessibility() }
             }
             if route == nil {
                 HStack {
@@ -174,6 +123,27 @@ struct DesktopSettings: View {
                 }.padding(.vertical, metric("small"))
             }
             if let error = store.desktopIntegration.error { Label(store.text(error), systemImage: "exclamationmark.triangle").foregroundStyle(.secondary).padding(.top, metric("small")) }
+        }
+    }
+}
+// Quick translate's own language pair and the model it uses (the app's current choice).
+private struct QuickTranslatePairRows: View {
+    @Bindable var store: WorkbenchStore
+    var body: some View {
+        let pair = store.quickTranslate, languages = nativeResources.nativeLanguages
+        CardRow(title: store.text("quickPrimary"), detail: store.text(pair.secondary == nil ? "quickPairOff" : "quickPairOn")) {
+            Picker(store.text("quickPrimary"), selection: Binding(get: { pair.primary }, set: { store.quickTranslate = store.quickTranslate.choosing(primary: $0) })) {
+                ForEach(languages, id: \.self) { Text(store.text("lang_" + $0)).tag($0) }
+            }.labelsHidden().fixedSize()
+        }
+        CardRow(title: store.text("quickSecondary"), detail: store.text("quickSecondaryHint")) {
+            Picker(store.text("quickSecondary"), selection: Binding(get: { pair.secondary ?? "" }, set: { var next = store.quickTranslate; next.secondary = $0.isEmpty ? nil : $0; store.quickTranslate = next })) {
+                Text(store.text("quickSecondaryOff")).tag("")
+                ForEach(languages.filter { $0 != pair.primary }, id: \.self) { Text(store.text("lang_" + $0)).tag($0) }
+            }.labelsHidden().fixedSize()
+        }
+        CardRow(title: store.text("quickModel"), detail: store.text("quickModelHint")) {
+            Text(nativeModelLabel(store.session.model, store: store)).foregroundStyle(.secondary).lineLimit(1)
         }
     }
 }

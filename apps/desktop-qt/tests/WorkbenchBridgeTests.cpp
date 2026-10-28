@@ -4,6 +4,7 @@
 #include "../ImageGeneration.h"
 #include "../CloudProtocol.h"
 #include "../VoiceGate.h"
+#include "../TextLanguage.h"
 #include <QFile>
 #include <QInputMethodEvent>
 #include <QJsonDocument>
@@ -844,6 +845,28 @@ private slots:
         QCOMPARE(CloudProtocol::errorMessage(R"({"error":{"message":"The model does not exist\nor no access."}})"), QString("The model does not exist or no access."));
         QCOMPARE(ImageGeneration::imageModel("openai", "gpt-4o", {"openai:gpt-image-1", "openai:gpt-image-1-mini", "openai:gpt-image-1.5"}), QString("gpt-image-1.5"));
         QCOMPARE(ImageGeneration::imageModel("gemini", "", {"gemini:imagen-4.0", "gemini:gemini-2.5-flash-image"}), QString("gemini-2.5-flash-image"));
+    }
+    void quickTranslatePairRoutesTextAlreadyInThePrimaryLanguage() {
+        QCOMPARE(TextLanguage::detect("Xin chào, cuộc họp bắt đầu lúc chín giờ."), QString("vi"));
+        QCOMPARE(TextLanguage::detect("会議は九時に始まります。"), QString("ja"));
+        QCOMPARE(TextLanguage::detect("회의는 아홉 시에 시작합니다"), QString("ko"));
+        QCOMPARE(TextLanguage::detect("Встреча начнётся в девять"), QString("ru"));
+        QCOMPARE(TextLanguage::detect("The meeting starts at nine"), QString());
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        QCOMPARE(bridge.quickTranslate().value("secondary").toString(), QString());
+        bridge.command("quickTranslatePrimary", {{"value", "vi"}});
+        bridge.command("quickTranslateSecondary", {{"value", "en"}});
+        QCOMPARE(bridge.quickTranslateTarget("Xin chào các bạn, hôm nay trời đẹp."), QString("en"));
+        QCOMPARE(bridge.quickTranslateTarget("Good morning"), QString("vi"));
+        bridge.command("quickTranslateSecondary", {{"value", "vi"}});   // same as primary: ignored
+        QCOMPARE(bridge.quickTranslate().value("secondary").toString(), QString("en"));
+        bridge.command("quickTranslatePrimary", {{"value", "en"}});     // the secondary: swaps
+        QCOMPARE(bridge.quickTranslate(), (QVariantMap{{"primary", "en"}, {"secondary", "vi"}}));
+        bridge.command("quickTranslateSecondary", {{"value", ""}});
+        QCOMPARE(bridge.quickTranslateTarget("Hello"), QString("en"));
+        WorkbenchBridge reloaded(nullptr, dir.filePath("state.json"), false);
+        QCOMPARE(reloaded.quickTranslate().value("primary").toString(), QString("en"));
     }
     void transcriptionUsesTheBestModelTheAccountLists() {
         QCOMPARE(NativeAudio::transcriptionModel({}), QString("whisper-1"));

@@ -1,6 +1,7 @@
 import AppKit
 @preconcurrency import ApplicationServices
 import Carbon
+import NaturalLanguage
 import Observation
 
 public struct NativeShortcut: Codable, Identifiable, Sendable {
@@ -15,7 +16,9 @@ public struct NativeShortcut: Codable, Identifiable, Sendable {
         .init(id: "launcher", key: "Option+Space", enabled: false)]
     public private(set) var error: String?
     public var onAction: ((String) -> Void)?
-    public var accessibilityGranted: Bool { AXIsProcessTrusted() }
+    /// Read again when the app becomes active, since the user grants it in System Settings.
+    public private(set) var accessibilityGranted = AXIsProcessTrusted()
+    public func refreshAccessibility() { let value = AXIsProcessTrusted(); if value != accessibilityGranted { accessibilityGranted = value } }
     @ObservationIgnored private var references: [String: EventHotKeyRef] = [:]
     @ObservationIgnored private var handler: EventHandlerRef?
     @ObservationIgnored private let file = FilePersistence.previewURL().deletingLastPathComponent().appendingPathComponent("shortcuts.json")
@@ -37,7 +40,8 @@ public struct NativeShortcut: Codable, Identifiable, Sendable {
         for shortcut in shortcuts where shortcut.enabled { if !register(shortcut) { error = "shortcutError" } }
     }
     public func requestAccessibility() {
-        _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
+        // The prompt lists Viezan in Privacy & Security › Accessibility and offers to open it.
+        accessibilityGranted = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary)
     }
     public func configure(_ id: String, key: String, enabled: Bool) {
         guard let index = shortcuts.firstIndex(where: { $0.id == id }) else { return }
@@ -112,6 +116,55 @@ public struct NativeShortcut: Codable, Identifiable, Sendable {
         guard AXValueGetValue(selectionRange as! AXValue, .cfRange, &current), current.location == range.location, current.length == range.length,
               AXUIElementIsAttributeSettable(element, kAXSelectedTextAttribute as CFString, &writable) == .success, writable.boolValue,
               AXUIElementSetAttributeValue(element, kAXSelectedTextAttribute as CFString, translation as CFString) == .success else { throw StorageFailure.invalidData }
+    }
+}
+/// The language of a selection, among the languages Viezan translates; nil when unsure.
+public enum TextLanguage {
+    public static func detect(_ text: String) -> String? {
+        let recognizer = NLLanguageRecognizer()
+        recognizer.languageConstraints = NativeResources.shared.nativeLanguages.map { NLLanguage(rawValue: $0 == "zh" ? "zh-Hans" : $0 == "zh-TW" ? "zh-Hant" : $0) }
+        recognizer.processString(String(text.prefix(2000)))
+        guard let (language, confidence) = recognizer.languageHypotheses(withMaximum: 1).first, confidence >= 0.5 else { return nil }
+        switch language.rawValue { case "zh-Hans": return "zh"; case "zh-Hant": return "zh-TW"; case let code: return code }
+    }
+}
+/// For apps whose text does not expose the selection to Accessibility (browsers, Electron):
+/// copy it with ⌘C and put the pasteboard back. Needs Accessibility to post the keystroke.
+@MainActor public enum SelectionClipboard {
+    public static func copy(from application: NSRunningApplication) async -> String? {
+        guard AXIsProcessTrusted() else { return nil }
+        let board = NSPasteboard.general, saved = snapshot(board), before = board.changeCount
+        post(key: 8, to: application)  // C
+        for _ in 0..<12 where board.changeCount == before { try? await Task.sleep(for: .milliseconds(50)) }
+        let text = board.changeCount == before ? nil : board.string(forType: .string)
+        restore(saved, to: board)
+        guard let text, !text.isEmpty, text.utf8.count <= 131072 else { return nil }
+        return text
+    }
+    /// Pastes over the selection in `application` (it must be frontmost), then restores the pasteboard.
+    public static func paste(_ text: String, into application: NSRunningApplication) async -> Bool {
+        guard AXIsProcessTrusted(), !application.isTerminated, !text.isEmpty else { return false }
+        let board = NSPasteboard.general, saved = snapshot(board)
+        board.clearContents(); board.setString(text, forType: .string)
+        application.activate()
+        try? await Task.sleep(for: .milliseconds(150))
+        post(key: 9, to: application)  // V
+        try? await Task.sleep(for: .milliseconds(400))
+        restore(saved, to: board); return true
+    }
+    private static func post(key: CGKeyCode, to application: NSRunningApplication) {
+        let source = CGEventSource(stateID: .combinedSessionState)
+        for down in [true, false] {
+            guard let event = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: down) else { continue }
+            event.flags = .maskCommand; event.postToPid(application.processIdentifier)
+        }
+    }
+    private static func snapshot(_ board: NSPasteboard) -> [[NSPasteboard.PasteboardType: Data]] {
+        (board.pasteboardItems ?? []).map { item in Dictionary(uniqueKeysWithValues: item.types.compactMap { type in item.data(forType: type).map { (type, $0) } }) }
+    }
+    private static func restore(_ items: [[NSPasteboard.PasteboardType: Data]], to board: NSPasteboard) {
+        board.clearContents()
+        board.writeObjects(items.map { values in let item = NSPasteboardItem(); for (type, data) in values { item.setData(data, forType: type) }; return item })
     }
 }
 public struct LauncherApplication: Identifiable, Sendable { public let id: String; public let name: String }

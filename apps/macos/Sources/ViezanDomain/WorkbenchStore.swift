@@ -13,6 +13,11 @@ import Observation
     public let updates = NativeUpdates()
     public let localPerformance = LocalPerformance()
     public let localRuntime = LocalRuntime()
+    /// The pair quick translate uses; until set, the Translate page's target with no secondary.
+    public var quickTranslate: QuickTranslatePreferences {
+        get { workspace.quickTranslate ?? QuickTranslatePreferences(primary: workspace.sessions.first { $0.id == workspace.active[Feature.translate.rawValue] }?.target ?? "vi") }
+        set { guard newValue.valid, !loadBlocked else { return }; workspace.quickTranslate = newValue; save() }
+    }
     public var speechProvider: String {
         // Unset means "auto": use whichever speech provider has a key on this device.
         get { workspace.speechProvider ?? "auto" }

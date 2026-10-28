@@ -243,3 +243,17 @@ Cửa sổ rộng cố định 760 px; không có ngưỡng bề rộng.
 7. Kích thước nút trong header AI: "Tìm kiếm", logo và Gửi là `md`, nút xoá trong ô là `xs` (nằm trong ô nên chấp nhận được). Footer dùng `xs` thống nhất.
 8. Khi Hỏi AI từ ô **trống** bằng Tab, chế độ AI mở với câu hỏi rỗng (không gửi) — đúng, nhưng footer chế độ tìm không nói Tab làm gì khi ô trống.
 9. Tìm tệp chỉ có trên macOS và Windows; trên Linux nhóm Tệp không bao giờ xuất hiện và không có thông báo.
+
+## Native implementation follow-up — 2026-10-28
+
+SwiftUI (macOS), đã chạy thật: cửa sổ nổi không viền rộng 760, đặt giữa màn hình có con trỏ, cách
+đỉnh 22%, nhận bàn phím mà không kích hoạt cửa sổ chính, ẩn khi mất focus; chiều cao theo nội dung.
+Ô tìm lớn + gợi ý "Hỏi AI ⇥"; nhóm Máy tính / Tiền tệ / Gần đây (ô trống) hoặc Ứng dụng / Tệp /
+"Dùng "{query}" với…" (Hỏi AI, Dịch, Tra từ điển, Tìm trên Google); footer: mục đang chọn + Mở ↵
+(Sao chép cho máy tính/tiền tệ, Mở thư mục chứa ⇧↵ cho tệp) + Hỏi AI ⌘↵. ↑↓ chọn (giữ theo mục, không
+theo vị trí, khi kết quả tệp về sau), Esc xoá chữ rồi ẩn. Xếp hạng ứng dụng: đầu tên → đầu từ → chứa,
+ứng dụng mở gần đây trước. Tìm tệp chỉ qua Spotlight, bỏ thư mục phụ thuộc/build; không tự quét
+Desktop/Documents/Downloads (tránh hộp thoại quyền thư mục giữa lúc gõ).
+
+Chênh lệch còn lại: Hỏi AI mở panel Chat nhanh riêng (đã gửi câu hỏi) thay vì chế độ AI trong cùng cửa
+sổ; không có bộ chọn loại tiền; Qt giữ Launcher cũ.
