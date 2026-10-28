@@ -47,7 +47,7 @@ public struct ApplicationJournal: Codable, Identifiable, Sendable {
     public var created = Date().timeIntervalSince1970
     public var items: [Item]
 }
-private enum ApplicationFiles {
+enum ApplicationFiles {
     static func canonical(_ path: String) throws -> String {
         guard let value = Darwin.realpath(path, nil) else { throw StorageFailure.invalidData }; defer { free(value) }; return String(cString: value)
     }
@@ -76,7 +76,7 @@ private enum ApplicationFiles {
         if missing { var info = stat(); guard lstat(path, &info) != 0, errno == ENOENT, try canonical((path as NSString).deletingLastPathComponent) == (path as NSString).deletingLastPathComponent else { throw StorageFailure.invalidData } }
         else { guard try canonical(path) == path else { throw StorageFailure.invalidData } }
     }
-    static func inventory() throws -> [InstalledApplication] {
+    static func inventory(roots: [String]? = nil) throws -> [InstalledApplication] {
         let fm = FileManager.default; let home = fm.homeDirectoryForCurrentUser.path
         var applications: [InstalledApplication] = []; var visited = 0; var incomplete = false
         func scan(_ path: String, depth: Int) {
@@ -84,7 +84,15 @@ private enum ApplicationFiles {
             guard let children = try? fm.contentsOfDirectory(atPath: path) else { if fm.fileExists(atPath: path) { incomplete = true }; return }
             for child in children {
                 let entry = path + "/" + child; var st = stat(); guard lstat(entry, &st) == 0 else { incomplete = true; continue }
-                if st.st_mode & S_IFMT == S_IFLNK { if child.hasSuffix(".app") { incomplete = true }; continue }
+                if st.st_mode & S_IFMT == S_IFLNK {
+                    // macOS links some apps into /Applications (Safari lives in /System/Cryptexes). A link
+                    // to a real bundle is listed for ownership checks but never uninstalled through the link;
+                    // only a link that does not resolve to a bundle leaves the inventory incomplete.
+                    guard child.hasSuffix(".app") else { continue }
+                    guard let target = try? canonical(entry), let bundle = Bundle(path: target), let id = bundle.bundleIdentifier, id.contains(".") else { incomplete = true; continue }
+                    applications.append(InstalledApplication(path: entry, name: bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? bundle.object(forInfoDictionaryKey: "CFBundleName") as? String ?? String(child.dropLast(4)), bundleID: id, version: bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "", blocked: "appProtected"))
+                    continue
+                }
                 guard st.st_mode & S_IFMT == S_IFDIR else { continue }
                 if child.hasSuffix(".app") {
                     guard let bundle = Bundle(path: entry), let id = bundle.bundleIdentifier, id.contains("."), let canonical = try? canonical(entry), canonical == entry else { incomplete = true; continue }
@@ -93,7 +101,7 @@ private enum ApplicationFiles {
                 } else { scan(entry, depth: depth + 1) }
             }
         }
-        for root in ["/Applications", "/System/Applications", home + "/Applications"] { scan(root, depth: 0) }
+        for root in roots ?? ["/Applications", "/System/Applications", home + "/Applications"] { scan(root, depth: 0) }
         if incomplete { for i in applications.indices { applications[i].blocked = "appIncomplete" } }
         return applications.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }

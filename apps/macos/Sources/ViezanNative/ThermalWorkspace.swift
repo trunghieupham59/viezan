@@ -30,10 +30,10 @@ struct ThermalWorkspace: View {
                 // Live metric tiles: the hottest sensor, then each fan.
                 UniformGrid(maxColumns: 3) {
                     if let hottest = sensors.max(by: { $0.celsius < $1.celsius }) {
-                        metricTile(store.text("hottestSensor"), String(format: "%.0f °C", hottest.celsius), hottest.key, progress: min(1, hottest.celsius / 110))
+                        metricTile(store.text("thermal_hottest"), String(format: "%.0f °C", hottest.celsius), sensorName(hottest.key) + " · " + hottest.key, progress: min(1, hottest.celsius / 110))
                     }
                     ForEach(fans) { fan in
-                        metricTile(fan.name ?? "Fan \(fan.index + 1)", fan.rpm.formatted(.number.precision(.fractionLength(0))), store.text("rpm"),
+                        metricTile(fanName(fan), fan.rpm.formatted(.number.precision(.fractionLength(0))), store.text("rpm"),
                                    progress: fan.max.map { $0 > 0 ? min(1, fan.rpm / $0) : 0 } ?? 0)
                     }
                 }
@@ -61,6 +61,9 @@ struct ThermalWorkspace: View {
     }
 }
 extension ThermalWorkspace {
+    /// A sensor key in words ("Nhân hiệu năng"), or the key itself when its meaning is unknown.
+    func sensorName(_ key: String) -> String { ThermalSensors.classify(key).label.map { store.text("thermal_label_" + $0) } ?? key }
+    func fanName(_ fan: ThermalSnapshot.Fan) -> String { fan.name ?? store.text("thermal_fan_name").replacingOccurrences(of: "{n}", with: String(fan.index + 1)) }
     private func metricTile(_ title: String, _ value: String, _ detail: String, progress: Double) -> some View {
         VStack(alignment: .leading, spacing: metric("small")) {
             Eyebrow(text: title)
@@ -84,7 +87,8 @@ extension ThermalWorkspace {
             VStack(alignment: .leading, spacing: metric("small")) {
                 Text(store.text("manualControl")).fontWeight(.semibold)
                 Text(store.text(monitor.helperStatus)).font(.vzn("labelScale")).foregroundStyle(.secondary)
-                ForEach(monitor.snapshot?.fans ?? []) { fan in NativeFanRow(store: store, fan: fan) }
+                // Targets are only offered once the helper can apply them.
+                if monitor.helperStatus == "helperEnabled" { ForEach(monitor.snapshot?.fans ?? []) { fan in NativeFanRow(store: store, fan: fan, name: fanName(fan)) } }
                 Menu(store.text("setUpHelper")) { helperActions(monitor) }
                     .menuStyle(.button).buttonStyle(.vznOutline).fixedSize()
             }.padding(metric("inset")).frame(maxWidth: .infinity, alignment: .leading)
@@ -111,7 +115,7 @@ extension ThermalWorkspace {
                 Text(store.text("fanAllSensors")).tag("all")
                 Text("CPU").tag("cpu"); Text("GPU").tag("gpu")
                 Text(store.text("fanAffinity")).tag("affinity")
-                ForEach(monitor.snapshot?.sensors ?? []) { Text($0.key).tag($0.key) }
+                ForEach(monitor.snapshot?.sensors ?? []) { Text(sensorName($0.key) + " · " + $0.key).tag($0.key) }
             }
             Stepper(store.text("fanMinimumTemperature") + ": " + String(Int(lower)) + " °C", value: $lower, in: 20...109)
             Stepper(store.text("fanMaximumTemperature") + ": " + String(Int(upper)) + " °C", value: $upper, in: 21...110)
@@ -124,20 +128,27 @@ extension ThermalWorkspace {
         Button(store.text("unregisterHelper"), role: .destructive) { confirmRemoval = true }
     }
     @ViewBuilder fileprivate func sensorCard(_ monitor: ThermalMonitor) -> some View {
-        CardSection(title: store.text("sensors")) {
-            // Hottest first; long hardware lists collapse behind a disclosure.
-            let sensors = (monitor.snapshot?.sensors ?? []).sorted { $0.celsius > $1.celsius }
-            let lead = Array(sensors.prefix(6)), rest = Array(sensors.dropFirst(6))
+        CardSection(title: store.text("thermal_sensors_title")) {
+            // Hundreds of SMC keys folded into rows that mean one thing, per group, hottest first.
+            let sensors = monitor.snapshot?.sensors ?? []
+            let groups = ThermalSensors.rows(sensors)
             if sensors.isEmpty { Text(store.text("sensorsEmptyHint")).font(.callout).foregroundStyle(.secondary) }
-            ForEach(Array(lead.enumerated()), id: \.element.id) { index, sensor in
-                CardRow(title: sensor.key, divider: index < lead.count - 1 || !rest.isEmpty) {
-                    Text(String(format: "%.0f °C", sensor.celsius)).monospacedDigit()
+            ForEach(ThermalSensors.Group.allCases, id: \.self) { group in
+                if let rows = groups[group], !rows.isEmpty {
+                    Eyebrow(text: store.text("thermal_group_" + group.rawValue)).padding(.top, metric("small"))
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                        CardRow(title: row.label.map { store.text("thermal_label_" + $0) } ?? store.text("thermal_sensor_unlabeled"),
+                                detail: store.text("thermal_sensor_row_caption").replacingOccurrences(of: "{count}", with: String(row.sensors.count)).replacingOccurrences(of: "{avg}", with: String(format: "%.0f °C", row.average)),
+                                divider: index < rows.count - 1) {
+                            Text(String(format: "%.0f °C", row.max)).monospacedDigit().fontWeight(.semibold).foregroundStyle(toneColor(row.max))
+                        }.help(row.sensors.map { $0.key + " " + String(format: "%.0f °C", $0.celsius) }.joined(separator: "\n"))
+                    }
                 }
             }
-            if !rest.isEmpty {
-                DisclosureGroup(store.text("sensors") + " · " + String(rest.count)) {
-                    ForEach(Array(rest.enumerated()), id: \.element.id) { index, sensor in
-                        CardRow(title: sensor.key, divider: index < rest.count - 1) { Text(String(format: "%.0f °C", sensor.celsius)).monospacedDigit() }
+            if !sensors.isEmpty {
+                DisclosureGroup(store.text("thermal_sensor_count").replacingOccurrences(of: "{count}", with: String(sensors.count))) {
+                    ForEach(sensors.sorted { $0.celsius > $1.celsius }) { sensor in
+                        CardRow(title: sensor.key, detail: sensorName(sensor.key)) { Text(String(format: "%.0f °C", sensor.celsius)).monospacedDigit() }
                     }
                 }.padding(.vertical, metric("small"))
             }
@@ -148,19 +159,26 @@ extension ThermalWorkspace {
                     Button(store.text("stop"), role: .destructive) { monitor.cancelCalibration() }
                 }
             }
-            ForEach(monitor.affinity.keys.sorted(), id: \.self) { index in Text("Fan " + String(index + 1) + ": " + (monitor.affinity[index] ?? []).joined(separator: ", ")).font(.caption).foregroundStyle(.secondary) }
+            ForEach(monitor.affinity.keys.sorted(), id: \.self) { index in Text(store.text("thermal_fan_name").replacingOccurrences(of: "{n}", with: String(index + 1)) + ": " + (monitor.affinity[index] ?? []).joined(separator: ", ")).font(.caption).foregroundStyle(.secondary) }
         }
     }
 }
 
+extension ThermalWorkspace {
+    /// Warm (≥ 70 °C) and hot (≥ 90 °C) readings stand out; the number still carries the meaning.
+    func toneColor(_ celsius: Double) -> Color {
+        switch ThermalSensors.tone(celsius) { case "hot": contentColor("danger", scheme); case "warm": Color(nsColor: .systemOrange); default: .primary }
+    }
+}
 private struct NativeFanRow: View {
     let store: WorkbenchStore
     let fan: ThermalSnapshot.Fan
+    let name: String
     @State private var target = 0.0
     @State private var confirm = false
     var body: some View {
         VStack(alignment: .leading, spacing: metric("small")) {
-            Text((fan.name ?? "Fan \(fan.index + 1)") + " · " + String(Int(fan.rpm)) + " RPM")
+            Text(name + " · " + String(Int(fan.rpm)) + " RPM")
             if let minimum = fan.min, let maximum = fan.max, maximum > minimum {
                 Slider(value: $target, in: minimum...maximum, step: 50).accessibilityLabel(store.text("targetRPM"))
                 HStack { Text(String(Int(target)) + " RPM"); Button(store.text("apply")) { confirm = true } }

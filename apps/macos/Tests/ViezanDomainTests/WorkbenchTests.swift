@@ -481,3 +481,42 @@ import Testing
     #expect(names("", ["/Applications/Notes.app", "/Applications/Safari.app"]) == ["Notes", "Safari"])
     #expect(names("zzz", []).isEmpty)
 }
+
+@Test func applicationInventoryListsLinkedAppsAsProtectedAndOnlyBrokenLinksBlockIt() throws {
+    // The inventory insists on canonical paths; /var/folders is itself a link.
+    let temporary = realpath(FileManager.default.temporaryDirectory.path, nil)!; defer { free(temporary) }
+    let root = URL(fileURLWithPath: String(cString: temporary)).appendingPathComponent(UUID().uuidString)
+    func app(_ name: String, id: String, at folder: URL) throws {
+        let contents = folder.appendingPathComponent(name + ".app/Contents")
+        try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+        try PropertyListSerialization.data(fromPropertyList: ["CFBundleIdentifier": id, "CFBundleName": name, "CFBundlePackageType": "APPL"], format: .xml, options: 0)
+            .write(to: contents.appendingPathComponent("Info.plist"))
+    }
+    let installed = root.appendingPathComponent("Applications"), elsewhere = root.appendingPathComponent("Cryptex")
+    try app("Fixture", id: "dev.viezan.fixture", at: installed)
+    try app("Linked", id: "dev.viezan.linked", at: elsewhere)
+    try FileManager.default.createSymbolicLink(at: installed.appendingPathComponent("Linked.app"), withDestinationURL: elsewhere.appendingPathComponent("Linked.app"))
+    defer { try? FileManager.default.removeItem(at: root) }
+    let listed = try ApplicationFiles.inventory(roots: [installed.path])
+    #expect(Set(listed.map(\.bundleID)) == ["dev.viezan.fixture", "dev.viezan.linked"])
+    #expect(listed.first { $0.bundleID == "dev.viezan.linked" }?.blocked == "appProtected")
+    #expect(!listed.contains { $0.blocked == "appIncomplete" })
+    // A link that resolves to nothing still means the inventory cannot be trusted.
+    try FileManager.default.createSymbolicLink(at: installed.appendingPathComponent("Gone.app"), withDestinationURL: root.appendingPathComponent("missing.app"))
+    #expect(try ApplicationFiles.inventory(roots: [installed.path]).allSatisfy { $0.blocked == "appIncomplete" })
+}
+
+@Test func thermalSensorsFoldIntoNamedRowsPerGroup() {
+    #expect(ThermalSensors.classify("Tp0Y") == .init(group: .cpu, label: "cpu_performance_core"))
+    #expect(ThermalSensors.classify("Te02") == .init(group: .cpu, label: "cpu_efficiency_core"))
+    #expect(ThermalSensors.classify("TB1T") == .init(group: .other, label: "battery"))
+    #expect(ThermalSensors.classify("TCMz") == .init(group: .cpu, label: "cpu_core"))
+    #expect(ThermalSensors.classify("Tz9q") == .init(group: .other, label: nil))
+    let sensors = [("Tp01", 61.0), ("Tp02", 55.0), ("Te02", 58.0), ("Tg0a", 49.0), ("Tz9q", 80.0), ("TB0T", 31.0)].map { ThermalSnapshot.Sensor(key: $0.0, celsius: $0.1) }
+    let rows = ThermalSensors.rows(sensors)
+    #expect(rows[.cpu]?.map(\.label) == ["cpu_performance_core", "cpu_efficiency_core"])
+    #expect(rows[.cpu]?.first?.max == 61 && rows[.cpu]?.first?.sensors.count == 2 && rows[.cpu]?.first?.average == 58)
+    // The unrecognized row goes last even when it is the hottest.
+    #expect(rows[.other]?.map(\.label) == ["battery", nil])
+    #expect(ThermalSensors.tone(69.9) == "ok" && ThermalSensors.tone(70) == "warm" && ThermalSensors.tone(90) == "hot")
+}

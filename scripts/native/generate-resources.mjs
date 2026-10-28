@@ -51,8 +51,8 @@ for (const locale of ['vi', 'en', 'ja']) {
   const catalog = module.exports
   locales[locale] = { ...catalog.nativePreview }
   for (const [code, label] of Object.entries(catalog.lang_names)) locales[locale][`lang_${code}`] = label
-  // Launcher copy is shared with the retired renderer; keep its keys verbatim.
-  for (const [key, value] of Object.entries(catalog)) if (key.startsWith('launcher_') && typeof value === 'string') locales[locale][key] = value
+  // Launcher and thermal copy is shared with the retired renderer; keep its keys verbatim.
+  for (const [key, value] of Object.entries(catalog)) if ((key.startsWith('launcher_') || key.startsWith('thermal_')) && typeof value === 'string') locales[locale][key] = value
   for (const preset of ['graphite','glass','paper','corporate','midnight']) locales[locale]['preset_' + preset] = catalog['settings_theme_preset_' + preset]
   for (const accent of ['auto','violet','pink','teal','green','amber','red']) locales[locale]['accent_' + accent] = catalog['settings_theme_accent_' + accent]
   locales[locale].themeAccent = catalog.settings_theme_accent

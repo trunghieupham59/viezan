@@ -108,3 +108,14 @@ bằng chứng và trạng thái nhật ký. EN/JA cùng shape; số/ngày theo 
 
 - Inventory đọc các layout Contents/Info.plist, Info.plist và Wrapper một app; plist có kiểu không chuyển được sang JSON được đọc theo từng trường cần thiết. App iOS bọc và app Apple vẫn bị bảo vệ. Thư mục dữ liệu chỉ trùng đuôi `.app` ngoài gốc cài app không được coi là app. Bundle hỏng trong gốc cài đặt vẫn chặn thay đổi.
 - Đã kiểm thử runtime thật từ inventory đến xác nhận, quét lại, gỡ, restart và Undo trên fixture riêng; callback xác nhận khoá đúng hai đường dẫn fixture. Không gỡ ứng dụng thật để thử.
+
+## Native implementation follow-up — 2026-10-28
+
+- Kho ứng dụng: symlink `.app` trỏ tới bundle hợp lệ (Safari nằm trong `/System/Cryptexes` và được
+  link vào `/Applications` trên mọi máy hiện đại) được liệt kê là "được bảo vệ" để xét dữ liệu dùng chung;
+  chỉ symlink không trỏ tới bundle mới làm kho "chưa đầy đủ". Trước đó mọi app bị khoá trên mọi máy.
+- Sau Gỡ/Đặt lại: dòng kết quả "Đã chuyển {count} mục vào Thùng rác." + Hoàn tác ngay tại chỗ, rồi
+  "Đã khôi phục {count} mục."; hộp xác nhận có nút Huỷ bản địa hoá (mặc định); kế hoạch có "Đã chọn {count}
+  mục · {size}"; đường dẫn trong nhà hiện `~/…`; lọc tìm thì khung chi tiết theo kết quả đầu tiên.
+- Đã chạy thật trên ứng dụng giả riêng (`~/Applications`, cache, Application Support): xem trước → Thùng rác
+  → Hoàn tác, tệp về đúng chỗ, mục không chọn được giữ. Không gỡ ứng dụng thật.

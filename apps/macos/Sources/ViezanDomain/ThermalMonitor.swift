@@ -277,3 +277,68 @@ private final class FanSocket: @unchecked Sendable {
         }
     }
 }
+
+/// Meaning of Apple SMC temperature keys (four characters; the second names the subsystem
+/// on most machines). Exact keys differ per model, so well-known keys come first and the
+/// subsystem letter is the fallback. Labels are `thermal_label_*` copy ids.
+public enum ThermalSensors {
+    public enum Group: String, CaseIterable, Sendable { case cpu, gpu, other }
+    public struct Meaning: Equatable, Sendable { public let group: Group; public let label: String? }
+    private static let known: [String: Meaning] = [
+        // Intel Macs
+        "TC0P": .init(group: .cpu, label: "cpu_proximity"), "TC0D": .init(group: .cpu, label: "cpu_die"), "TC0E": .init(group: .cpu, label: "cpu_die"),
+        "TC0F": .init(group: .cpu, label: "cpu_die"), "TC0H": .init(group: .cpu, label: "cpu_package"), "TCXC": .init(group: .cpu, label: "cpu_package"),
+        "TG0D": .init(group: .gpu, label: "gpu_die"), "TG0P": .init(group: .gpu, label: "gpu_proximity"), "TG0H": .init(group: .gpu, label: "gpu"),
+        "TM0P": .init(group: .other, label: "memory"), "TA0P": .init(group: .other, label: "ambient"), "TH0P": .init(group: .other, label: "storage"),
+        "TL0P": .init(group: .other, label: "display"), "TPCD": .init(group: .other, label: "power"), "TI0P": .init(group: .other, label: "thunderbolt"),
+        "TI1P": .init(group: .other, label: "thunderbolt"),
+        // Apple Silicon
+        "TaLP": .init(group: .other, label: "airflow_left"), "TaRF": .init(group: .other, label: "airflow_right"), "Ts0P": .init(group: .other, label: "palm_rest"),
+        "Ts1P": .init(group: .other, label: "palm_rest"), "TW0P": .init(group: .other, label: "wifi"), "TB0T": .init(group: .other, label: "battery"),
+        "TB1T": .init(group: .other, label: "battery"), "TB2T": .init(group: .other, label: "battery"), "TH0a": .init(group: .other, label: "storage"),
+        "TH0b": .init(group: .other, label: "storage"), "TH0x": .init(group: .other, label: "storage"),
+    ]
+    private static let subsystems: [Character: Meaning] = [
+        "p": .init(group: .cpu, label: "cpu_performance_core"), "e": .init(group: .cpu, label: "cpu_efficiency_core"),
+        "C": .init(group: .cpu, label: "cpu_core"), "c": .init(group: .cpu, label: "cpu_core"),
+        "G": .init(group: .gpu, label: "gpu"), "g": .init(group: .gpu, label: "gpu"), "f": .init(group: .gpu, label: "gpu"),
+        "B": .init(group: .other, label: "battery"), "W": .init(group: .other, label: "wifi"), "M": .init(group: .other, label: "memory"),
+        "m": .init(group: .other, label: "memory"), "H": .init(group: .other, label: "storage"), "L": .init(group: .other, label: "display"),
+        "s": .init(group: .other, label: "skin"), "I": .init(group: .other, label: "thunderbolt"), "P": .init(group: .other, label: "power"),
+    ]
+    public static func classify(_ key: String) -> Meaning {
+        if let meaning = known[key] { return meaning }
+        let characters = Array(key)
+        return characters.count > 1 ? subsystems[characters[1]] ?? .init(group: .other, label: nil) : .init(group: .other, label: nil)
+    }
+
+    /// Every sensor that means the same thing folded into one row showing the hottest reading:
+    /// a Mac exposes hundreds of keys; a dozen rows is what a person can read.
+    public struct Row: Identifiable, Equatable, Sendable {
+        public let group: Group
+        public let label: String?          // nil: the group's unrecognized sensors
+        public let sensors: [ThermalSnapshot.Sensor]   // hottest first
+        public var id: String { group.rawValue + "/" + (label ?? "") }
+        public var max: Double { sensors.first?.celsius ?? 0 }
+        public var average: Double { sensors.isEmpty ? 0 : sensors.map(\.celsius).reduce(0, +) / Double(sensors.count) }
+        public static func == (a: Row, b: Row) -> Bool { a.id == b.id && a.sensors.map(\.key) == b.sensors.map(\.key) && a.max == b.max }
+    }
+    /// Rows per group, hottest first, the unrecognized row last.
+    public static func rows(_ sensors: [ThermalSnapshot.Sensor]) -> [Group: [Row]] {
+        var buckets: [String: (Group, String?, [ThermalSnapshot.Sensor])] = [:]
+        for sensor in sensors where sensor.celsius.isFinite {
+            let meaning = classify(sensor.key), key = meaning.group.rawValue + "/" + (meaning.label ?? "")
+            buckets[key, default: (meaning.group, meaning.label, [])].2.append(sensor)
+        }
+        var result: [Group: [Row]] = [:]
+        for (group, label, members) in buckets.values {
+            result[group, default: []].append(Row(group: group, label: label, sensors: members.sorted { $0.celsius > $1.celsius }))
+        }
+        for group in Group.allCases {
+            result[group]?.sort { ($0.label == nil ? 1 : 0, -$0.max) < ($1.label == nil ? 1 : 0, -$1.max) }
+        }
+        return result
+    }
+    /// Warm at 70 °C, hot at 90 °C.
+    public static func tone(_ celsius: Double) -> String { celsius >= 90 ? "hot" : celsius >= 70 ? "warm" : "ok" }
+}

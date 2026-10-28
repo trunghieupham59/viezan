@@ -153,6 +153,11 @@ export interface Translations {
     "appHelperMissing": string;
     "appActionError": string;
     "appReset": string;
+    "appTrashedCount": string;
+    "appResetCount": string;
+    "appRestoredCount": string;
+    "appSelectedSummary": string;
+    "appUndo": string;
     "appUninstall": string;
     "appQuit": string;
     "appInspect": string;

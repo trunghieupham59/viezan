@@ -365,3 +365,11 @@ Thiếu sót trong mã (không có trong bản vẽ):
 13. **Hai vùng `role="status"` cho cùng tiến trình nhận diện** (bảng quạt và popover) có thể đọc trùng khi popover mở.
 14. **Đồng ý miễn trừ:** trang ghi `acknowledged` mà không chờ kết quả; nếu lưu thất bại, dialog sẽ hỏi lại lần sau (an toàn, nhưng im lặng).
 15. **Chuỗi lỗi từ main chưa qua i18n:** các hook đã bỏ chuỗi dự phòng tiếng Anh, nhưng thông báo lỗi đọc cảm biến và lỗi lệnh quạt do main gửi về (`error`, `res.error`, `control.error`) vẫn hiển thị nguyên văn, nên người dùng tiếng Việt có thể thấy câu tiếng Anh trong `CapabilityNotice` và toast. **Đề xuất:** ánh xạ mã lỗi sang khoá i18n, chỉ giữ chi tiết kỹ thuật làm dòng phụ.
+
+## Native implementation follow-up — 2026-10-28
+
+SwiftUI (macOS), đã chạy thật: khoá SMC được phân loại như bản cũ (`ThermalSensors.classify`, bảng
+khoá biết trước rồi tới chữ cái phân hệ) và gộp thành hàng theo nhóm CPU/GPU/Cảm biến khác (tên
+`thermal_label_*`, "{count} cảm biến · TB {avg}", số đo ấm ≥ 70 °C cam, nóng ≥ 90 °C đỏ; hàng chưa nhận diện
+đứng cuối nhóm); danh sách khoá thô nằm trong mục mở rộng "{count} cảm biến". Ô nóng nhất ghi tên + khoá;
+quạt "Quạt {n}". Điều khiển thủ công chỉ hiện thanh trượt khi helper đã bật. Qt chưa đổi.
