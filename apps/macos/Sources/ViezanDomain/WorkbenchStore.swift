@@ -476,6 +476,10 @@ import Observation
     }
     /// Probes every provider concurrently and lets sessions without work follow what
     /// this device can run. A new call supersedes one still in flight.
+    /// A provider's model listing as a Result (the async `Result { }` initializer needs a newer toolchain than CI's).
+    private nonisolated static func listing(_ provider: String, _ list: @Sendable (String) async throws -> [String]) async -> Result<[String], Error> {
+        do { return .success(try await list(provider)) } catch { return .failure(error) }
+    }
     @discardableResult public func discoverProviders() -> Task<Void, Never> {
         discovery?.cancel(); discovering = true
         let list = listModels, hasKey = hasKey
@@ -485,7 +489,7 @@ import Observation
             next.keyed = Set(ProviderDiscovery.cloudProviders.filter(hasKey))
             next.speechKeyed = Set(["openai", "gemini", "groq"].filter(hasKey))
             await withTaskGroup(of: (String, Result<[String], Error>).self) { group in
-                for provider in ProviderDiscovery.localProviders { group.addTask { (provider, await Result { try await list(provider) }) } }
+                for provider in ProviderDiscovery.localProviders { group.addTask { await (provider, Self.listing(provider, list)) } }
                 for await (provider, result) in group { if case .success(let models) = result { next.models[provider] = models } }
             }
             guard !Task.isCancelled, let self else { return }
@@ -493,7 +497,7 @@ import Observation
             // a keychain prompt, and readiness must not hang behind them.
             next.checked = true; publishProviders(next)
             await withTaskGroup(of: (String, Result<[String], Error>).self) { group in
-                for provider in next.keyed.sorted() { group.addTask { (provider, await Result { try await list(provider) }) } }
+                for provider in next.keyed.sorted() { group.addTask { await (provider, Self.listing(provider, list)) } }
                 for await (provider, result) in group {
                     guard !Task.isCancelled else { continue }
                     switch result {
