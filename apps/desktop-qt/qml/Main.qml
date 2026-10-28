@@ -70,7 +70,8 @@ ApplicationWindow {
     // One-shot section request for Settings (consumed when the workspace opens it).
     property string settingsSection: ""
     function openSettingsSection(section) { settingsQuery = ""; settingsSection = section; selectRoute("settings") }
-    function runtimeOffline(model) { return (model || "").startsWith("ollama:") && workbench.localRuntime.checked && !workbench.localRuntime.available }
+    // Reads localModels so bindings re-evaluate when discovery publishes a new snapshot.
+    function modelUnavailable(model) { workbench.localModels; const state = workbench.availability(model || ""); return state !== "available" && state !== "unknown" }
     function selectRoute(route) {
         if (!workbench.moduleEnabled(route)) return
         if (workbench.loadBlocked && route !== "settings") return
@@ -320,7 +321,7 @@ ApplicationWindow {
         spacing: metrics.small
         RowLayout {
             spacing: metrics.small
-            Kit.StatusDot { visible: root.runtimeOffline(session.model); tone: "failed"; failedColor: root.colors.danger }
+            Kit.StatusDot { visible: root.modelUnavailable(session.model); tone: "failed"; failedColor: root.colors.danger }
             ComboBox {
                 id: modelCombo
                 flat: parent.parent.compact
@@ -331,7 +332,7 @@ ApplicationWindow {
                 model: root.models.map(id => root.modelLabel(id))
                 ToolTip.visible: hovered; ToolTip.text: session.model
                 currentIndex: root.models.indexOf(session.model)
-                Accessible.name: t("model") + (root.runtimeOffline(session.model) ? ", " + t("unavailable") : "")
+                Accessible.name: t("model") + (root.modelUnavailable(session.model) ? ", " + t("unavailable") : "")
                 onActivated: command("model", {value: root.models[currentIndex]})
             }
             // Compact: one options control holds refresh and configuration.
@@ -535,7 +536,7 @@ ApplicationWindow {
             }
             RetryNotice { Layout.fillWidth: true }
             // Same column as the composer it warns about; never a frame around it.
-            Kit.ProviderNotice { model: session.model; dangerColor: root.colors.danger; Layout.fillWidth: true; Layout.maximumWidth: metrics.reading; Layout.alignment: Qt.AlignHCenter; onOpenRequested: root.openSettingsSection("localModels") }
+            Kit.ProviderNotice { model: session.model; dangerColor: root.colors.danger; Layout.fillWidth: true; Layout.maximumWidth: metrics.reading; Layout.alignment: Qt.AlignHCenter; onOpenRequested: section => root.openSettingsSection(section); onUseRequested: model => command("model", {value: model}) }
             Frame {
                 padding: metrics.inset
                 background: Rectangle { color: root.palette.base; radius: metrics.surfaceRadius; border.width: metrics.hairline; border.color: chatDraft.activeFocus ? root.palette.mid : root.palette.midlight }
@@ -615,7 +616,7 @@ ApplicationWindow {
                 ModelPicker { compact: true }
             }
             Rectangle { color: root.palette.midlight; implicitHeight: metrics.hairline; Layout.fillWidth: true }
-            Kit.ProviderNotice { model: session.model; dangerColor: root.colors.danger; Layout.fillWidth: true; onOpenRequested: root.openSettingsSection("localModels") }
+            Kit.ProviderNotice { model: session.model; dangerColor: root.colors.danger; Layout.fillWidth: true; onOpenRequested: section => root.openSettingsSection(section); onUseRequested: model => command("model", {value: model}) }
             Dialog {
                 id: translationOptionsDialog
                 property string ownerID: ""
@@ -816,6 +817,7 @@ ApplicationWindow {
         id: homeView
         HomeWorkspace {
             bridge: workbench
+            dangerColor: root.colors.danger
             onStart: feature => { root.selectRoute(feature); if (feature !== "interpret") { root.command("new"); root.composerFocusEpoch++ } }
             onResume: sessionID => root.choose(sessionID)
             onSettings: root.selectRoute("settings")
@@ -840,7 +842,7 @@ ApplicationWindow {
 
     Component {
         id: settingsView
-        SettingsWorkspace { bridge: workbench; query: root.settingsQuery; requestedSection: root.settingsSection; onQueryEdited: value => root.settingsQuery = value; onSectionOpened: root.settingsSection = "" }
+        SettingsWorkspace { bridge: workbench; dangerColor: root.colors.danger; query: root.settingsQuery; requestedSection: root.settingsSection; onQueryEdited: value => root.settingsQuery = value; onSectionOpened: root.settingsSection = "" }
     }
     component HistoryList: ListView {
         id: historyList

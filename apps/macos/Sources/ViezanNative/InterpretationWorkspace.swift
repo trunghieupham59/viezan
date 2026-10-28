@@ -37,7 +37,7 @@ struct InterpretationWorkspace: View {
         VStack(alignment: .leading, spacing: metric("inset")) {
             languageRow
             Divider()
-            ProviderNotice(store: store, model: model)
+            ProviderNotice(store: store, model: model) { model = $0 }
             sessionBar
             if live.listening { ProgressView(value: live.level).progressViewStyle(.linear).accessibilityLabel(store.text("inputLevel")) }
             else if live.busy { ProgressView(store.text("running")).controlSize(.small) }
@@ -90,7 +90,7 @@ struct InterpretationWorkspace: View {
                 LanguageMenu(store: store, label: store.text("outputLanguage"), codes: nativeResources.nativeLanguages, selection: target, choose: { target = $0 }, disabled: live.busy)
             }
             Spacer(minLength: metric("small"))
-            Button { setupOpen = true } label: { ModelBadgeLabel(text: model.isEmpty ? store.text("modelID") : nativeModelLabel(model, store: store), offline: runtimeOffline(model, store: store)) }
+            Button { setupOpen = true } label: { ModelBadgeLabel(text: model.isEmpty ? store.text("modelID") : nativeModelLabel(model, store: store), offline: modelUnavailable(model, store: store)) }
                 .buttonStyle(.vznQuiet).foregroundStyle(.secondary).help(model).disabled(live.busy)
         }
     }

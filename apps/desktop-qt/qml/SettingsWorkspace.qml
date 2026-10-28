@@ -13,6 +13,7 @@ Item {
     readonly property real readingPointSize: Qt.application.font.pointSize * bridge.resources.textScales[preferences.textSize]
     property string query: ""
     signal queryEdited(string value)
+    property color dangerColor: palette.placeholderText
     // Section another workspace asked to open (e.g. "localModels" from a provider notice).
     property string requestedSection: ""
     signal sectionOpened()
@@ -182,7 +183,7 @@ Item {
     }
     Component {
         id: providersCard
-        ProviderSettings { bridge: settings.bridge; width: parent.width }
+        ProviderSettings { bridge: settings.bridge; dangerColor: settings.dangerColor; width: parent.width }
     }
     Component {
         id: generalCard

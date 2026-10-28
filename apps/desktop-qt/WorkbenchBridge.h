@@ -11,6 +11,8 @@
 #include "LocalRuntime.h"
 #include "LocalPerformance.h"
 #include "NativeUpdates.h"
+#include "ProviderDiscovery.h"
+#include "CredentialStore.h"
 #include <QVariantMap>
 #include <QTimer>
 #include <QImage>
@@ -40,6 +42,11 @@ class WorkbenchBridge final : public QObject {
     Q_PROPERTY(QStringList localModels READ localModels NOTIFY changed)
     Q_PROPERTY(bool loadingModels READ loadingModels NOTIFY changed)
     Q_PROPERTY(QString modelError READ modelError NOTIFY changed)
+    // Provider discovery: which local runtimes answer and which cloud providers have a key.
+    Q_PROPERTY(bool providersChecked READ providersChecked NOTIFY changed)
+    Q_PROPERTY(bool providersEmpty READ providersEmpty NOTIFY changed)
+    Q_PROPERTY(bool discovering READ discovering NOTIFY changed)
+    Q_PROPERTY(QString preferredModel READ preferredModel NOTIFY changed)
     Q_PROPERTY(QVariantMap state READ state NOTIFY changed)
     Q_PROPERTY(QVariantMap resources READ resources CONSTANT)
     Q_PROPERTY(QString storageError READ storageError NOTIFY changed)
@@ -55,6 +62,22 @@ public:
     QStringList localModels() const { return m_localModels; }
     bool loadingModels() const { return m_loadingModels; }
     QString modelError() const { return m_modelError; }
+    bool providersChecked() const { return m_providers.checked; }
+    bool providersEmpty() const { return m_providers.empty(); }
+    bool discovering() const { return m_discovering; }
+    QString preferredModel() const;
+    // unknown | available | offline | missingKey | notInstalled | unsupported
+    Q_INVOKABLE QString availability(const QString &model) const { return m_providers.availability(model); }
+    Q_INVOKABLE void discoverProviders();
+    Q_INVOKABLE bool chatCapable(const QString &model) const { return ProviderDiscovery::chatCapable(model); }
+    // Settings row state: {keyed, models (count, -1 when not listed), failure}. Presence
+    // never unlocks the credential store; chat providers are verified by their listing.
+    Q_INVOKABLE QVariantMap providerState(const QString &provider) const {
+        return {{"keyed", m_credentials.contains(provider)}, {"models", m_providers.models.contains(provider) ? m_providers.models.value(provider).size() : -1}, {"failure", m_providers.failures.value(provider)}};
+    }
+    // C++-only entry for tests and diagnostics: publish a known snapshot without probing.
+    void applyProviderSnapshot(const ProviderDiscovery::Snapshot &snapshot) { publishProviders(snapshot); }
+    Q_INVOKABLE void discoverIfNeeded() { if (m_automaticProvider && !m_providers.checked && !m_discovering) discoverProviders(); }
     LocalModelManager *modelManager() { return &m_modelManager; }
     NativeAudio *audio() { return &m_audio; }
     QString pendingTranscript() const { return m_pendingTranscript; }
@@ -140,6 +163,13 @@ private:
     QStringList m_localModels;
     QString m_modelError;
     bool m_loadingModels = false;
+    ProviderDiscovery::Snapshot m_providers;
+    QSet<QString> m_credentials; // every provider with a saved key, refreshed by discovery
+    bool m_discovering = false, m_runtimeAvailable = false;
+    quint64 m_discoveryEpoch = 0;
+    void publishProviders(const ProviderDiscovery::Snapshot &snapshot);
+    void adoptAvailableModels();
+    QStringList recentModels() const;
     QHash<QString, QString> m_networkWorkers; // task ID -> attempt ID
     bool m_synchronizing = false, m_synchronizeAgain = false, m_shuttingDown = false;
     QVariantMap m_state, m_resources;

@@ -71,13 +71,15 @@ struct HomeWorkspace: View {
                 }.buttonStyle(.vznOutline).disabled(store.loadBlocked)
             }
             HStack(spacing: metric("small")) {
-                StatusDot(tone: store.localRuntime.available ? .ready : .idle)
-                Text("Ollama " + store.text(store.localRuntime.available ? "runtimeReady" : "unavailable").lowercased()).fontWeight(.medium)
-                Text(nativeModelLabel(store.session.model, store: store) + " · " + store.text("onDevice")).foregroundStyle(.secondary).lineLimit(1)
+                // The active model's real readiness, local or cloud (not only Ollama).
+                let model = store.session.model, state = store.providers.availability(model)
+                StatusDot(tone: state == .available ? .ready : state == .unknown ? .idle : .failed)
+                Text(nativeModelLabel(model, store: store) + (state == .unknown ? "" : " · " + store.text(state == .available ? "runtimeReady" : "unavailable").lowercased())).fontWeight(.medium).lineLimit(1)
+                Text(store.text(ProviderDiscovery.localProviders.contains(where: { model.hasPrefix($0 + ":") }) ? "onDevice" : "viaCloud")).foregroundStyle(.secondary).lineLimit(1)
                 Spacer(minLength: metric("small"))
                 Button(store.text("manage"), action: settings).buttonStyle(.vznOutline)
             }.font(.callout).accessibilityElement(children: .contain)
-        }.task { await store.localRuntime.refresh() }
+        }.task { store.discoverIfNeeded() }
     }
     private func recentRow(_ item: Session) -> some View {
         let detail = item.feature == .chat ? store.text("chat") : store.text(item.feature.rawValue) + " · " + store.text("lang_" + item.source) + " → " + store.text("lang_" + item.target)

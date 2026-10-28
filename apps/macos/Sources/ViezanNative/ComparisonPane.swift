@@ -4,15 +4,33 @@ import ViezanDomain
 struct ComparisonPane: View {
     let store: WorkbenchStore
     let sessionID: String
-    @State private var models = ""
-    @State private var expanded = false
+    @State private var selected: [String] = []
+    @State private var filter = ""
+    // Opened from the Compare button, so the model picker is the first thing shown.
+    @State private var expanded = true
     @State private var sentences = false
     private var session: Session? { store.session(sessionID) }
-    private var ids: [String] { models.split(whereSeparator: { $0.isNewline || $0 == "," }).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty } }
+    private var ids: [String] { selected }
+    // Pick 2–3 models this device can run (discovery), instead of typing raw model IDs.
+    private var choices: [String] {
+        let needle = filter.trimmingCharacters(in: .whitespaces).lowercased()
+        return store.availableModels.filter { ProviderDiscovery.chatCapable($0) && (needle.isEmpty || nativeModelLabel($0, store: store).lowercased().contains(needle)) }
+    }
     var body: some View {
         DisclosureGroup(store.text("compareModels"), isExpanded: $expanded) {
             VStack(alignment: .leading, spacing: metric("small")) {
-                TextField(store.text("compareModelHint"), text: $models, axis: .vertical)
+                TextField(store.text("compareModelHint"), text: $filter).textFieldStyle(.roundedBorder)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: metric("tight")) {
+                        ForEach(choices, id: \.self) { model in
+                            Toggle(nativeModelLabel(model, store: store), isOn: Binding(
+                                get: { selected.contains(model) },
+                                set: { on in if on { if selected.count < 3 { selected.append(model) } } else { selected.removeAll { $0 == model } } }))
+                                .disabled(!selected.contains(model) && selected.count >= 3).help(model)
+                        }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }.frame(maxHeight: metric("editor"))
+                    .onAppear { if selected.isEmpty, let model = session?.model, store.availableModels.contains(model) { selected = [model] } }
                 HStack {
                     Button(store.text("compareModels")) { store.compare(sessionID, models: ids) }.disabled(!(2...3).contains(Set(ids).count) || !ids.allSatisfy(NativeModel.valid) || session?.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false)
                     Toggle(store.text("compareSentences"), isOn: $sentences)
@@ -21,7 +39,7 @@ struct ComparisonPane: View {
                     HStack(alignment: .top, spacing: metric("inset")) {
                         ForEach(store.comparisons(sessionID)) { child in
                             VStack(alignment: .leading, spacing: metric("small")) {
-                                Text(child.model).font(.headline).textSelection(.enabled)
+                                Text(nativeModelLabel(child.model, store: store)).font(.headline).help(child.model)
                                 let task = store.workspace.tasks.first { $0.request.sessionID == child.id }
                                 Text(store.text(task?.errorCode ?? task?.status.rawValue ?? "queued"))
                                 if !store.comparisonCurrent(child) { Text(store.text("comparisonStale")) }

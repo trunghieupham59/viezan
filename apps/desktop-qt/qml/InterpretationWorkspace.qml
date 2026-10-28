@@ -16,6 +16,8 @@ Item {
     // Named here: inside ProviderNotice, "model" would resolve to its own property.
     readonly property string modelID: model.text
     signal openSettings(string section)
+    // Root scope: inside ProviderNotice handlers "model" names the notice's own property.
+    function useModel(id) { model.text = id }
     function syncSelection() {
         const current = live.current
         if (!current.id || current.id === shownSessionID) return
@@ -46,12 +48,12 @@ Item {
             }
             RowLayout {
                 spacing: root.metrics.small
-                Kit.StatusDot { visible: notice.offline; tone: "failed"; failedColor: root.dangerColor }
+                Kit.StatusDot { visible: notice.unavailable; tone: "failed"; failedColor: root.dangerColor }
                 Kit.ModelLabel { modelID: root.modelID; text: root.modelID ? format(root.modelID) : root.t("modelID"); color: palette.placeholderText; elide: Text.ElideRight; Layout.maximumWidth: root.metrics.sidebar; ToolTip.visible: modelHover.hovered && !!root.modelID; ToolTip.text: root.modelID; HoverHandler { id: modelHover } }
             }
         }
         Rectangle { color: palette.midlight; implicitHeight: root.metrics.hairline; Layout.fillWidth: true }
-        Kit.ProviderNotice { id: notice; model: root.modelID; dangerColor: root.dangerColor; Layout.fillWidth: true; onOpenRequested: root.openSettings("localModels") }
+        Kit.ProviderNotice { id: notice; model: root.modelID; dangerColor: root.dangerColor; Layout.fillWidth: true; onOpenRequested: section => root.openSettings(section); onUseRequested: id => root.useModel(id) }
         RowLayout {
             Layout.fillWidth: true; spacing: root.metrics.small
             Kit.StatusBadge { visible: root.live.listening; text: root.t("listening") }

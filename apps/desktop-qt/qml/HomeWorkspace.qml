@@ -6,6 +6,7 @@ import QtQuick.Layouts
 ScrollView {
     id: home
     required property var bridge
+    property color dangerColor: palette.placeholderText
     signal start(string feature)
     signal resume(string sessionID)
     signal settings()
@@ -148,9 +149,12 @@ ScrollView {
             spacing: home.metrics.small
             Layout.fillWidth: true
             Layout.bottomMargin: home.metrics.inset
-            Kit.StatusDot { tone: home.bridge.localRuntime.available ? "ready" : "idle" }
-            Label { text: "Ollama " + home.t(home.bridge.localRuntime.available ? "runtimeReady" : "unavailable").toLowerCase(); font.bold: true }
-            Kit.ModelLabel { modelID: home.bridge.state.sessions.find(item => item.id === home.bridge.state.active[home.bridge.state.feature])?.model || ""; text: format(modelID) + " · " + home.t("onDevice"); color: palette.placeholderText; elide: Text.ElideRight; Layout.fillWidth: true }
+            // The active model's real readiness, local or cloud (not only Ollama).
+            readonly property string activeModel: home.bridge.state.sessions.find(item => item.id === home.bridge.state.active[home.bridge.state.feature])?.model || ""
+            readonly property string availability: (home.bridge.localModels, home.bridge.providersChecked, home.bridge.availability(activeModel))
+            Kit.StatusDot { tone: parent.availability === "available" ? "ready" : parent.availability === "unknown" ? "idle" : "failed"; failedColor: home.dangerColor }
+            Kit.ModelLabel { modelID: parent.activeModel; text: format(modelID) + (parent.availability === "unknown" ? "" : " · " + home.t(parent.availability === "available" ? "runtimeReady" : "unavailable").toLowerCase()); font.bold: true; elide: Text.ElideRight }
+            Label { text: home.t(["ollama", "lmstudio", "llamacpp"].includes(parent.activeModel.split(":")[0]) ? "onDevice" : "viaCloud"); color: palette.placeholderText; elide: Text.ElideRight; Layout.fillWidth: true }
             Button { text: home.t("manage"); onClicked: home.settings() }
         }
     }

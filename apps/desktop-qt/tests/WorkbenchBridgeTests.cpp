@@ -1,4 +1,5 @@
 #include "../WorkbenchBridge.h"
+#include "../ProviderDiscovery.h"
 #include <QFile>
 #include <QInputMethodEvent>
 #include <QJsonDocument>
@@ -782,6 +783,59 @@ private slots:
         QCOMPARE(bridge.state(), before);
         QCOMPARE(warnings.count(), 0);
     }
+    void providerSnapshotPrefersOnDeviceThenCloudDefaults() {
+        ProviderDiscovery::Snapshot snapshot;
+        QCOMPARE(snapshot.availability("ollama:llama3.2"), QString("unknown"));
+        snapshot.checked = true;
+        QVERIFY(snapshot.empty());
+        snapshot.keyed = {"openai"};
+        snapshot.models["openai"] = {"openai:text-embedding-3-small", "openai:whisper-1", "openai:gpt-4o", "openai:gpt-4.1-mini-2025-04-14"};
+        QVERIFY(!snapshot.empty());
+        QCOMPARE(snapshot.preferredModel({}), QString("openai:gpt-4.1-mini-2025-04-14"));
+        QCOMPARE(snapshot.availability("ollama:llama3.2"), QString("offline"));
+        QCOMPARE(snapshot.availability("claude:claude-haiku-4"), QString("missingKey"));
+        QCOMPARE(snapshot.availability("demo.standard"), QString("unsupported"));
+        snapshot.models["ollama"] = {"ollama:nomic-embed-text", "ollama:qwen3:4b"};
+        QCOMPARE(snapshot.preferredModel({}), QString("ollama:qwen3:4b"));
+        QCOMPARE(snapshot.availability("ollama:llama3.2"), QString("notInstalled"));
+        // A recently used model that still runs wins over the provider order.
+        QCOMPARE(snapshot.preferredModel({"ollama:llama3.2", "openai:gpt-4o"}), QString("openai:gpt-4o"));
+    }
+    void dictionaryAcceptsJSONInsideAMarkdownFence() {
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        const QString json = R"({"headword":"serendipity","pronunciation":"/ser/","meaning":"chance","translations":[{"text":"sự tình cờ","pronunciation":"sự tình cờ"}]})";
+        for (const auto &[reply, valid] : QList<QPair<QString, bool>>{{"```json\n" + json + "\n```", true}, {"not json", false}}) {
+            bridge.command("navigate", {{"feature", "dictionary"}});
+            bridge.command("new");
+            bridge.command("draft", {{"value", "serendipity"}});
+            bridge.command("submit", {{"sessionID", current(bridge).value("id")}});
+            const auto task = bridge.state().value("tasks").toList().first().toMap();
+            bridge.command("receive", {{"taskID", task.value("id")}, {"attemptID", task.value("attemptID")}, {"chunk", reply}, {"terminal", "succeeded"}});
+            const auto done = bridge.state().value("tasks").toList().first().toMap();
+            QCOMPARE(done.value("status").toString(), QString(valid ? "succeeded" : "failed"));
+            if (valid) QCOMPARE(current(bridge).value("output").toString(), json);
+            else QCOMPARE(done.value("errorCode").toString(), QString("providerInvalidResponse"));
+        }
+    }
+    void adoptModelMovesOnlySessionsWithoutWork() {
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("navigate", {{"feature", "chat"}});
+        bridge.command("draft", {{"value", "Earlier question"}});
+        const auto started = current(bridge).value("id").toString();
+        bridge.command("submit", {{"sessionID", started}});
+        bridge.command("navigate", {{"feature", "translate"}});
+        bridge.command("draft", {{"value", "Not sent yet"}});
+        const auto blank = current(bridge).value("id").toString();
+        const auto model = [&](const QString &id) { for (const auto &value : bridge.state().value("sessions").toList()) if (value.toMap().value("id") == id) return value.toMap().value("model").toString(); return QString(); };
+        bridge.command("adoptModel", {{"value", "gemini:gemini-2.5-flash"}, {"sessionIDs", QStringList{started, blank}}});
+        QCOMPARE(model(blank), QString("gemini:gemini-2.5-flash"));
+        QCOMPARE(model(started), QString("ollama:llama3.2"));
+        QCOMPARE(current(bridge).value("draft").toString(), QString("Not sent yet"));
+        bridge.command("adoptModel", {{"value", "not-a-model"}, {"sessionIDs", QStringList{blank}}});
+        QCOMPARE(model(blank), QString("gemini:gemini-2.5-flash"));
+    }
     void providerNoticeFollowsRuntimeAndOpensLocalModels() {
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
@@ -796,13 +850,24 @@ private slots:
         QVERIFY(root);
         auto *notice = visualItem(root->contentItem(), "provider-notice");
         QVERIFY(notice);
-        // The notice never warns before a probe has answered; afterwards it mirrors it.
-        QTRY_VERIFY_WITH_TIMEOUT(bridge.localRuntime()->checked(), 10000);
+        // Never warns before discovery has answered.
         QCoreApplication::processEvents();
-        QCOMPARE(notice->isVisible(), !bridge.localRuntime()->available());
-        // Only local Ollama models have a probe.
-        bridge.command("model", {{"value", "demo.standard"}});
+        QVERIFY(!notice->isVisible());
+        ProviderDiscovery::Snapshot snapshot; snapshot.checked = true;
+        bridge.applyProviderSnapshot(snapshot); // nothing local answered, no cloud key
+        QTRY_VERIFY(notice->isVisible());
+        QVERIFY(bridge.providersEmpty());
+        snapshot.models["ollama"] = {"ollama:llama3.2"};
+        bridge.applyProviderSnapshot(snapshot);
         QTRY_VERIFY(!notice->isVisible());
+        // A model this device cannot run warns again and offers the one it can.
+        bridge.command("model", {{"value", "claude:claude-haiku-4"}});
+        QTRY_VERIFY(notice->isVisible());
+        auto *use = visualItem(root->contentItem(), "provider-notice-use");
+        QVERIFY(use); QTRY_VERIFY(use->isVisible());
+        QMetaObject::invokeMethod(notice, "useRequested", Q_ARG(QString, "ollama:llama3.2"));
+        QTRY_VERIFY(!notice->isVisible());
+        QCOMPARE(current(bridge).value("model").toString(), QString("ollama:llama3.2"));
         const auto before = bridge.state();
         QVERIFY(QMetaObject::invokeMethod(root, "openSettingsSection", Q_ARG(QVariant, "localModels")));
         auto *settings = root->findChild<QQuickItem *>("settings-workspace");

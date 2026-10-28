@@ -52,6 +52,8 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
                 }
                 .onAppear {
                     delegate.store = store
+                    // Find which local runtimes and keyed cloud providers this device can use.
+                    store.discoverProviders()
                     if delegate.desktopPanels == nil { delegate.desktopPanels = DesktopPanels(store: store) { id in store.select(id); screen = store.session.feature.rawValue; delegate.window?.makeKeyAndOrderFront(nil) } }
                     NSApp.activate(ignoringOtherApps: true)
                 }
@@ -369,15 +371,15 @@ struct ModelPicker: View {
                 Button(store.text("configureModel")) { modelSessionID = store.session.id; customPrompt = store.session.systemPrompt ?? ""; customModel = store.session.model; configuring = true }
             } label: {
                 // An offline local runtime shows a red dot inside the chip; ProviderNotice carries the words.
-                if badge { ModelBadgeLabel(text: nativeModelLabel(store.session.model, store: store), offline: runtimeOffline(store.session.model, store: store)).foregroundStyle(contentColor("text-muted", scheme)) }
+                if badge { ModelBadgeLabel(text: nativeModelLabel(store.session.model, store: store), offline: modelUnavailable(store.session.model, store: store)).foregroundStyle(contentColor("text-muted", scheme)) }
                 else {
                     HStack(spacing: metric("small")) {
-                        if runtimeOffline(store.session.model, store: store) { StatusDot(tone: .failed) }
+                        if modelUnavailable(store.session.model, store: store) { StatusDot(tone: .failed) }
                         Label(nativeModelLabel(store.session.model, store: store), systemImage: "chevron.down").labelStyle(ModelMenuLabelStyle()).font(.vzn("labelScale"))
                     }
                 }
             }.menuStyle(.button).buttonStyle(.vznQuiet).menuIndicator(.hidden).fixedSize()
-                .help(store.session.model).accessibilityLabel(store.text("model") + ": " + store.session.model + (runtimeOffline(store.session.model, store: store) ? ", " + store.text("unavailable") : ""))
+                .help(store.session.model).accessibilityLabel(store.text("model") + ": " + store.session.model + (modelUnavailable(store.session.model, store: store) ? ", " + store.text("unavailable") : ""))
 
             if store.loadingModels { ProgressView().controlSize(.small) }
             if let error = store.modelError { Image(systemName: "exclamationmark.triangle").foregroundStyle(.secondary).help(store.text(error)).accessibilityLabel(store.text(error)) }

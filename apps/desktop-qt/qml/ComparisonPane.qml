@@ -9,13 +9,39 @@ ColumnLayout {
     readonly property var sourceRows: bridge.sentences(session.draft)
     readonly property var metrics: bridge.resources.metrics
     function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    // Pick 2–3 models this device can run (discovery), instead of typing raw model IDs.
+    property var selected: []
+    readonly property var choices: bridge.localModels.filter(model => bridge.chatCapable(model) && (!filter.text.trim() || formatter.format(model).toLowerCase().includes(filter.text.trim().toLowerCase())))
+    function toggleModel(model, on) {
+        const next = selected.filter(value => value !== model)
+        if (on && next.length < 3) next.push(model)
+        selected = next
+    }
+    Component.onCompleted: if (bridge.localModels.includes(session.model)) selected = [session.model]
     function command(name, payload) { bridge.command(name, Object.assign({sessionID: session.id}, payload || {})) }
     Button { text: root.t("compareModels"); checkable: true; id: toggle; checked: root.candidates.length > 0 }
     ColumnLayout {
         visible: toggle.checked; Layout.fillWidth: true
-        TextField { id: modelIDs; placeholderText: root.t("compareModelHint"); Accessible.name: placeholderText; Layout.fillWidth: true }
+        Kit.ModelLabel { id: formatter; visible: false }
+        TextField { id: filter; placeholderText: root.t("compareModelHint"); Accessible.name: placeholderText; Layout.fillWidth: true }
+        ListView {
+            id: modelChoices
+            objectName: "compare-model-choices"
+            Layout.fillWidth: true; Layout.preferredHeight: Math.min(contentHeight, root.metrics.editor)
+            clip: true; model: root.choices
+            delegate: CheckBox {
+                required property string modelData
+                width: modelChoices.width
+                text: formatter.format(modelData)
+                checked: root.selected.includes(modelData)
+                enabled: checked || root.selected.length < 3
+                ToolTip.visible: hovered; ToolTip.text: modelData
+                onToggled: root.toggleModel(modelData, checked)
+            }
+            ScrollBar.vertical: ScrollBar {}
+        }
         RowLayout {
-            Button { text: root.t("compareModels"); enabled: !!root.session.draft.trim(); onClicked: root.command("compare", {models: modelIDs.text.split(/[,\n]/).map(value => value.trim()).filter(value => !!value)}) }
+            Button { text: root.t("compareModels"); enabled: !!root.session.draft.trim() && root.selected.length >= 2; onClicked: root.command("compare", {models: root.selected}) }
             CheckBox { id: sentenceMode; text: root.t("compareSentences") }
         }
         ScrollView {
@@ -31,7 +57,7 @@ ColumnLayout {
                         readonly property bool current: modelData.comparisonRevision === root.session.revision
                         readonly property var rows: root.bridge.sentences(modelData.output)
                         Layout.preferredWidth: root.metrics.sidebar; Layout.alignment: Qt.AlignTop
-                        Label { text: modelData.model; textFormat: Text.PlainText; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                        Label { text: formatter.format(modelData.model); textFormat: Text.PlainText; font.bold: true; wrapMode: Text.Wrap; Layout.fillWidth: true; ToolTip.visible: titleHover.hovered; ToolTip.text: modelData.model; HoverHandler { id: titleHover } }
                         Label { text: root.t(candidate.current ? candidate.task?.errorCode || candidate.task?.status || "queued" : "comparisonStale"); wrapMode: Text.Wrap; Layout.fillWidth: true }
                         TextArea { visible: !sentenceMode.checked || candidate.rows.length !== root.sourceRows.length; text: modelData.output; textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; Layout.fillWidth: true }
                         Repeater {

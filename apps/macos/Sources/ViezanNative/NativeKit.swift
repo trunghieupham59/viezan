@@ -172,10 +172,11 @@ struct StatusBadge: View {
     var tone: StatusTone = .busy
     @Environment(\.colorScheme) private var scheme
     var body: some View {
+        // Accent only for live/ready state; idle reads neutral and failures read as danger.
         HStack(spacing: metric("small")) { StatusDot(tone: tone); Text(text).font(.callout) }
-            .foregroundStyle(contentColor("action-text", scheme))
+            .foregroundStyle(contentColor(tone == .idle ? "text-muted" : tone == .failed ? "danger" : "action-text", scheme))
             .padding(.horizontal, metric("small") + metric("tight")).padding(.vertical, metric("tight"))
-            .background(contentColor("action-soft", scheme), in: Capsule())
+            .background(tone == .idle || tone == .failed ? contentColor("surface-muted", scheme) : contentColor("action-soft", scheme), in: Capsule())
             .fixedSize()
     }
 }
@@ -392,30 +393,62 @@ struct FilterTabs<Value: Hashable>: View {
 // Session model as a quiet trailing control: sparkle, provider · model.
 // Readiness at the point of action. Only local Ollama models have a probe; a
 // configured cloud provider reports its own failure after sending.
-@MainActor func runtimeOffline(_ model: String, store: WorkbenchStore) -> Bool {
-    model.hasPrefix("ollama:") && store.localRuntime.checked && !store.localRuntime.available
+// Readiness at the point of action, from the store's provider discovery: local
+// runtimes that answer and cloud providers with a saved key. Unknown never warns.
+@MainActor func modelUnavailable(_ model: String, store: WorkbenchStore) -> Bool {
+    ![.available, .unknown].contains(store.providers.availability(model))
 }
 
 // One quiet line under a feature's language row or above the chat composer (never a
-// frame around the composer). Send stays enabled: the notice says what will happen
-// and offers the fix; it re-checks whenever the model changes.
+// frame around the composer). Send stays enabled: the line says what will happen and
+// offers the fix — switch to a model this device can run, or open the right settings.
 struct ProviderNotice: View {
     @Bindable var store: WorkbenchStore
     var model: String
+    /// Applies a replacement model; defaults to the active session.
+    var use: ((String) -> Void)? = nil
+    private var reason: String {
+        switch store.providers.availability(model) {
+        case .offline: store.text("modelOfflineReason")
+        case .missingKey: store.text("modelMissingKeyReason")
+        case .notInstalled: store.text("modelNotInstalledReason")
+        default: store.text("modelUnsupportedReason")
+        }
+    }
     var body: some View {
         Group {
-            if runtimeOffline(model, store: store) {
-                HStack(spacing: metric("small")) {
-                    StatusDot(tone: .failed)
-                    Text(store.text("runtimeOfflineNotice")).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: metric("small"))
-                    Button(store.text("checkAgain")) { Task { await store.localRuntime.refresh() } }
-                        .buttonStyle(.vznQuiet).tint(.primary).disabled(store.localRuntime.busy).accessibilityIdentifier("provider-notice-check")
-                    Button(store.text("openLocalModels")) { NotificationCenter.default.post(name: .viezanOpenSettings, object: "localModels") }
-                        .buttonStyle(.vznOutline).accessibilityIdentifier("provider-notice-open")
-                }.accessibilityElement(children: .contain)
+            if store.providers.empty {
+                row(store.text("noProviderNotice")) {
+                    open("localModels", label: "openLocalModels", primary: false)
+                    open("providers", label: "openProviders", primary: true)
+                }
+            } else if modelUnavailable(model, store: store) {
+                row(nativeModelLabel(model, store: store) + " — " + reason) {
+                    if let preferred = store.preferredModel, preferred != model {
+                        Button(store.text("useModel") + " " + nativeModelLabel(preferred, store: store)) { (use ?? { store.setModel(store.session.id, $0) })(preferred) }
+                            .buttonStyle(.vznOutline).help(preferred).accessibilityIdentifier("provider-notice-use")
+                    } else if store.providers.availability(model) == .missingKey {
+                        open("providers", label: "openProviders", primary: false)
+                    } else {
+                        open("localModels", label: "openLocalModels", primary: false)
+                    }
+                }
             }
-        }.task(id: model) { if model.hasPrefix("ollama:") { await store.localRuntime.refresh() } }
+        }.task { store.discoverIfNeeded() }
+    }
+    private func row<Actions: View>(_ text: String, @ViewBuilder actions: () -> Actions) -> some View {
+        HStack(spacing: metric("small")) {
+            StatusDot(tone: .failed)
+            Text(text).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: metric("small"))
+            Button(store.text("checkAgain")) { store.discoverProviders(); Task { await store.localRuntime.refresh() } }
+                .buttonStyle(.vznQuiet).tint(.primary).disabled(store.discovering).accessibilityIdentifier("provider-notice-check")
+            actions()
+        }.accessibilityElement(children: .contain)
+    }
+    private func open(_ section: String, label: String, primary: Bool) -> some View {
+        Button(store.text(label)) { NotificationCenter.default.post(name: .viezanOpenSettings, object: section) }
+            .buttonStyle(primary ? .vznPrimary : .vznOutline).accessibilityIdentifier("provider-notice-open-" + section)
     }
 }
 

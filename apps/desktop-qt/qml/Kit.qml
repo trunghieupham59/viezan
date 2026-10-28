@@ -146,27 +146,46 @@ QtObject {
         color: tone === "ready" ? palette.highlight : tone === "failed" ? failedColor : palette.placeholderText
         Accessible.ignored: true
     }
-    // Readiness at the point of action: a local Ollama model whose runtime has not
-    // answered gets one quiet line with the fix. Send stays enabled; the line says
-    // what will happen. It re-checks whenever the model changes.
+    // Readiness at the point of action, from the bridge's provider discovery (local
+    // runtimes that answer, cloud providers with a key). One quiet line; Send stays
+    // enabled. Offers a model this device can run, or the settings that fix it.
     component ProviderNotice: RowLayout {
         id: notice
         property string model
         property color dangerColor: palette.placeholderText
-        readonly property var runtime: workbench.localRuntime
-        readonly property bool offline: model.startsWith("ollama:") && runtime.checked && !runtime.available
-        signal openRequested()
+        // availability() is a method: read the notifying snapshot properties so the binding re-evaluates.
+        readonly property string availability: (workbench.localModels, workbench.providersChecked, workbench.availability(model))
+        readonly property bool unavailable: availability !== "available" && availability !== "unknown"
+        readonly property string preferred: workbench.preferredModel
+        signal openRequested(string section)
+        signal useRequested(string model)
         function t(key) { return workbench.resources.locales[workbench.state.locale][key] || key }
-        function check() { if (model.startsWith("ollama:")) runtime.refresh() }
+        readonly property string reason: t(availability === "offline" ? "modelOfflineReason" : availability === "missingKey" ? "modelMissingKeyReason" : availability === "notInstalled" ? "modelNotInstalledReason" : "modelUnsupportedReason")
         objectName: "provider-notice"
-        visible: offline
+        visible: workbench.providersEmpty || unavailable
         spacing: workbench.resources.metrics.small
-        onModelChanged: check()
-        Component.onCompleted: check()
+        Component.onCompleted: workbench.discoverIfNeeded()
+        ModelLabel { id: formatter; visible: false }
         StatusDot { tone: "failed"; failedColor: notice.dangerColor }
-        Label { text: notice.t("runtimeOfflineNotice"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
-        Button { text: notice.t("checkAgain"); flat: true; enabled: !notice.runtime.busy; onClicked: notice.runtime.refresh() }
-        Button { objectName: "provider-notice-open"; text: notice.t("openLocalModels"); onClicked: notice.openRequested() }
+        Label { text: workbench.providersEmpty ? notice.t("noProviderNotice") : formatter.format(notice.model) + " — " + notice.reason; color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
+        Button { objectName: "provider-notice-check"; text: notice.t("checkAgain"); flat: true; enabled: !workbench.discovering; onClicked: workbench.discoverProviders() }
+        Button {
+            objectName: "provider-notice-use"
+            visible: !workbench.providersEmpty && !!notice.preferred && notice.preferred !== notice.model
+            text: notice.t("useModel") + " " + formatter.format(notice.preferred)
+            ToolTip.visible: hovered; ToolTip.text: notice.preferred
+            onClicked: notice.useRequested(notice.preferred)
+        }
+        Button {
+            objectName: "provider-notice-open-localModels"
+            visible: workbench.providersEmpty || (!(!!notice.preferred && notice.preferred !== notice.model) && notice.availability !== "missingKey")
+            text: notice.t("openLocalModels"); onClicked: notice.openRequested("localModels")
+        }
+        Button {
+            objectName: "provider-notice-open-providers"
+            visible: workbench.providersEmpty || (!(!!notice.preferred && notice.preferred !== notice.model) && notice.availability === "missingKey")
+            text: notice.t("openProviders"); onClicked: notice.openRequested("providers")
+        }
     }
     // "provider:model" reads as "Provider · model"; demo IDs read as their names.
     // The raw ID stays in tooltips. The single formatter for every Qt view.
@@ -179,7 +198,8 @@ QtObject {
             const split = id.indexOf(":")
             if (split < 0) return id
             const names = {ollama: "Ollama", lmstudio: "LM Studio", llamacpp: "llama.cpp", openai: "OpenAI", claude: "Claude", gemini: "Gemini", groq: "Groq"}
-            return (names[id.slice(0, split)] || id.slice(0, split)) + " · " + id.slice(split + 1)
+            // Cloud IDs carry a release date ("claude-haiku-4-5-20251001"); the label drops it.
+            return (names[id.slice(0, split)] || id.slice(0, split)) + " · " + id.slice(split + 1).replace(/-(\d{8}|\d{4}-\d{2}-\d{2})$/, "")
         }
         text: format(modelID)
     }

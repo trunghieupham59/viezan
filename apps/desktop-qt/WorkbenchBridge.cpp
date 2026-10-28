@@ -8,6 +8,8 @@
 #include <QJsonObject>
 #include "WorkbenchDomain.h"
 #include "CredentialStore.h"
+#include "ModelCatalog.h"
+#include <functional>
 #include "Attachments.h"
 #include <QtConcurrent/QtConcurrent>
 #include <QFutureWatcher>
@@ -66,7 +68,12 @@ WorkbenchBridge::WorkbenchBridge(QObject *parent, const QString &storageFile, bo
         } else m_ocrError = event.value("errorCode", "imageError").toString();
         m_ocrID.clear(); m_ocrText.clear(); emit changed();
     });
-    connect(&m_modelManager, &LocalModelManager::completed, this, [this] { refreshModels("ollama"); });
+    // Downloads, deletions and runtime start/stop change what this device can run.
+    connect(&m_modelManager, &LocalModelManager::completed, this, [this] { discoverProviders(); });
+    connect(&m_localRuntime, &LocalRuntime::changed, this, [this] {
+        if (m_localRuntime.available() == m_runtimeAvailable) return;
+        m_runtimeAvailable = m_localRuntime.available(); if (m_providers.checked) discoverProviders();
+    });
     connect(&m_audio, &NativeAudio::transcribed, this, [this](const QString &owner, const QString &text) {
         for (const auto &value : m_state.value("sessions").toList()) {
             const auto session = value.toMap();
@@ -80,12 +87,19 @@ WorkbenchBridge::WorkbenchBridge(QObject *parent, const QString &storageFile, bo
     });
     connect(&m_provider, &LocalProvider::received, this, [this](const QVariantMap &event) { command("receive", event); });
     connect(&m_provider, &LocalProvider::modelsReady, this, [this](const QStringList &models, bool success) {
-        m_loadingModels = false; m_modelError = success ? QString() : QString("providerError");
-        if (success) { m_localModels.removeIf([this](const QString &model) { return model.startsWith(m_catalogProvider + ":"); }); m_localModels.append(models); m_localModels.removeDuplicates(); m_localModels.sort(); }
+        m_loadingModels = false;
+        // Say why a listing failed: a local runtime that does not answer, or a missing key.
+        m_modelError = success ? QString() : ProviderDiscovery::localProviders.contains(m_catalogProvider) ? QString("providerOffline") : CredentialStore::has(m_catalogProvider) ? QString("providerError") : QString("providerMissingKey");
+        if (success) {
+            m_localModels.removeIf([this](const QString &model) { return model.startsWith(m_catalogProvider + ":"); }); m_localModels.append(models); m_localModels.removeDuplicates(); m_localModels.sort();
+            if (m_providers.checked) { m_providers.models[m_catalogProvider] = models; adoptAvailableModels(); }
+        }
         emit changed();
     });
     m_saveTimer.setSingleShot(true);
     m_saveTimer.setInterval(200);
+    // Find which local runtimes and keyed cloud providers this device can use.
+    if (m_automaticProvider) QTimer::singleShot(0, this, &WorkbenchBridge::discoverProviders);
     connect(&m_saveTimer, &QTimer::timeout, this, &WorkbenchBridge::save);
     QFile resources(":/qml/native.json");
     if (!resources.open(QIODevice::ReadOnly)) qFatal("Native resources missing");
@@ -176,7 +190,59 @@ void WorkbenchBridge::command(const QString &name, const QVariantMap &payload) {
     }
     if (restartBridge) m_extensionBridge.start();
     synchronizeWorkers();
+    if (name == "new" || name == "newDetached") adoptAvailableModels();
     if (QStringList{"draft", "pair", "model", "translationOptions", "reasoning", "addImage", "removeImage", "autoTranslate"}.contains(name)) scheduleTranslation(payload.value("sessionID", m_state.value("active").toMap().value(m_state.value("feature").toString())).toString());
+}
+QStringList WorkbenchBridge::recentModels() const {
+    auto sessions = m_state.value("sessions").toList();
+    std::stable_sort(sessions.begin(), sessions.end(), [](const QVariant &a, const QVariant &b) { return a.toMap().value("updated").toDouble() > b.toMap().value("updated").toDouble(); });
+    QStringList models; for (const auto &value : sessions) models << value.toMap().value("model").toString(); return models;
+}
+QString WorkbenchBridge::preferredModel() const { return m_providers.preferredModel(recentModels()); }
+// Probes every provider concurrently. Loopback results publish first; cloud listings
+// may wait on the network (or an OS credential prompt) and update the snapshot later.
+void WorkbenchBridge::discoverProviders() {
+    const auto epoch = ++m_discoveryEpoch; m_discovering = true; emit changed();
+    auto next = std::make_shared<ProviderDiscovery::Snapshot>();
+    m_credentials.clear();
+    for (const auto &provider : {"openai", "claude", "gemini", "groq", "tavily", "brave", "jina", "elevenlabs"}) if (CredentialStore::has(provider)) m_credentials.insert(provider);
+    for (const auto &provider : ProviderDiscovery::cloudProviders) if (m_credentials.contains(provider)) next->keyed.insert(provider);
+    auto probe = [this, epoch, next](const QStringList &providers, std::function<void()> done) {
+        auto pending = std::make_shared<int>(providers.size());
+        if (providers.isEmpty()) { done(); return; }
+        for (const auto &provider : providers) {
+            auto *watcher = new QFutureWatcher<ModelCatalog::Result>(this);
+            connect(watcher, &QFutureWatcher<ModelCatalog::Result>::finished, this, [this, watcher, epoch, next, provider, pending, done] {
+                const auto result = watcher->result(); watcher->deleteLater();
+                if (epoch != m_discoveryEpoch) return;
+                if (result.success) next->models[provider] = result.models;
+                else if (!ProviderDiscovery::localProviders.contains(provider)) next->failures[provider] = result.error;
+                if (next->checked) publishProviders(*next);
+                if (--*pending == 0) done();
+            });
+            watcher->setFuture(QtConcurrent::run([provider] { return ModelCatalog::fetch(provider); }));
+        }
+    };
+    const auto cloud = QStringList(next->keyed.cbegin(), next->keyed.cend());
+    probe(ProviderDiscovery::localProviders, [this, epoch, next, probe, cloud] {
+        if (epoch != m_discoveryEpoch) return;
+        next->checked = true; publishProviders(*next);
+        probe(cloud, [this, epoch] { if (epoch == m_discoveryEpoch) { m_discovering = false; emit changed(); } });
+    });
+}
+void WorkbenchBridge::publishProviders(const ProviderDiscovery::Snapshot &snapshot) {
+    m_providers = snapshot; m_localModels = snapshot.all(); adoptAvailableModels(); emit changed();
+}
+// Sessions that have produced nothing follow the device; sessions with work keep their
+// model (conversation-aware) and the view offers a one-click switch instead.
+void WorkbenchBridge::adoptAvailableModels() {
+    const auto preferred = preferredModel(); if (preferred.isEmpty() || m_loadBlocked) return;
+    QStringList ids;
+    for (const auto &value : m_state.value("sessions").toList()) {
+        const auto session = value.toMap(); const auto state = m_providers.availability(session.value("model").toString());
+        if (state != "available" && state != "unknown") ids << session.value("id").toString();
+    }
+    if (!ids.isEmpty()) command("adoptModel", {{"value", preferred}, {"sessionIDs", ids}});
 }
 void WorkbenchBridge::refreshModels(const QString &requestedProvider) {
     if (m_loadingModels) return;
@@ -237,6 +303,7 @@ void WorkbenchBridge::saveCredential(const QString &provider, const QString &sec
     auto *watcher = new QFutureWatcher<bool>(this);
     connect(watcher, &QFutureWatcher<bool>::finished, this, [this, watcher] {
         m_credentialBusy = false; m_credentialStatus = watcher->result() ? "keySaved" : "keyStorageError";
+        if (watcher->result()) discoverProviders(); // a saved or removed key changes which AI is usable
         watcher->deleteLater(); emit changed();
     });
     watcher->setFuture(QtConcurrent::run([provider, secret = secret.toUtf8(), remove]() mutable {

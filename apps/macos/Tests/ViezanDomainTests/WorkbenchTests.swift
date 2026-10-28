@@ -279,3 +279,71 @@ import Testing
     await runtime.refresh()
     #expect(runtime.checked)
 }
+
+@Test func providerSnapshotPrefersOnDeviceThenCloudDefaults() {
+    var snapshot = ProviderDiscovery.Snapshot()
+    #expect(snapshot.availability("ollama:llama3.2") == .unknown)
+    snapshot.checked = true
+    #expect(snapshot.empty)
+    snapshot.keyed = ["openai"]
+    snapshot.models["openai"] = ["openai:text-embedding-3-small", "openai:whisper-1", "openai:gpt-4o", "openai:gpt-4.1-mini-2025-04-14"]
+    #expect(!snapshot.empty)
+    #expect(snapshot.preferredModel(recent: []) == "openai:gpt-4.1-mini-2025-04-14")
+    #expect(snapshot.availability("ollama:llama3.2") == .offline)
+    #expect(snapshot.availability("claude:claude-haiku-4") == .missingKey)
+    #expect(snapshot.availability("demo.standard") == .unsupported)
+    snapshot.models["ollama"] = ["ollama:nomic-embed-text", "ollama:qwen3:4b"]
+    #expect(snapshot.preferredModel(recent: []) == "ollama:qwen3:4b")
+    #expect(snapshot.availability("ollama:llama3.2") == .notInstalled)
+    // A recently used model that still runs wins over the provider order.
+    #expect(snapshot.preferredModel(recent: ["ollama:llama3.2", "openai:gpt-4o"]) == "openai:gpt-4o")
+}
+
+@Test @MainActor func discoveryMovesOnlySessionsWithoutWorkToAvailableModels() async {
+    let persistence = MemoryPersistence()
+    let store = WorkbenchStore(persistence: persistence, automaticProvider: false,
+                               listModels: { provider in
+                                   guard provider == "gemini" else { throw ProviderFailure.unavailable }
+                                   return ["gemini:gemini-2.5-flash", "gemini:gemini-2.5-pro"]
+                               },
+                               hasKey: { $0 == "gemini" })
+    store.navigate(.chat)
+    let started = store.session.id
+    store.setDraft(started, "Earlier question")
+    _ = store.submit(started)
+    store.navigate(.translate)
+    let blank = store.session.id
+    await store.discoverProviders().value
+    #expect(store.providers.checked && !store.providers.empty)
+    #expect(store.session(blank)?.model == "gemini:gemini-2.5-flash")
+    #expect(store.session(started)?.model == "ollama:llama3.2")
+    #expect(store.availableModels.contains("gemini:gemini-2.5-pro"))
+    store.newSession()
+    #expect(store.session.model == "gemini:gemini-2.5-flash")
+}
+
+@Test @MainActor func discoveryWithNothingAvailableKeepsModelsAndReportsEmpty() async {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false,
+                               listModels: { _ in throw ProviderFailure.unavailable }, hasKey: { _ in false })
+    let model = store.session.model
+    await store.discoverProviders().value
+    #expect(store.providers.empty)
+    #expect(store.preferredModel == nil)
+    #expect(store.session.model == model)
+    #expect(store.providers.availability(model) == .offline)
+}
+
+@Test func unreachableLocalRuntimeFailsAsOfflineNotGeneric() {
+    #expect(WorkbenchStore.failureCode(URLError(.cannotConnectToHost), model: "ollama:qwen3:4b") == "providerOffline")
+    #expect(WorkbenchStore.failureCode(ProviderFailure.unavailable, model: "lmstudio:gemma") == "providerOffline")
+    #expect(WorkbenchStore.failureCode(URLError(.timedOut), model: "openai:gpt-4o") == "providerError")
+    #expect(WorkbenchStore.failureCode(CloudFailure.missingKey, model: "openai:gpt-4o") == "providerMissingKey")
+}
+
+@Test func dictionaryAcceptsJSONInsideAMarkdownFence() {
+    let json = #"{"headword":"serendipity","pronunciation":"/ˌserənˈdɪpɪti/","meaning":"chance","translations":[{"text":"sự tình cờ","pronunciation":"sự tình cờ"}]}"#
+    #expect(DictionaryEntry.extractJSON("```json\n" + json + "\n```") == json)
+    #expect(DictionaryEntry.extractJSON("Here you go:\n" + json + "\nHope it helps") == json)
+    #expect(DictionaryEntry.parse("```json\n" + json + "\n```")?.headword == "serendipity")
+    #expect(DictionaryEntry.extractJSON("not json") == "not json")
+}

@@ -20,8 +20,8 @@ struct LocalModelSettings: View {
             Picker(store.text("runtimeParallel"), selection: Binding(get: { parallel }, set: { store.setRuntime(parallel: $0, context: context) })) { ForEach([1, 2, 4], id: \.self) { Text(String($0)).tag($0) } }.disabled(store.localRuntime.owned || store.localRuntime.busy)
             Picker(store.text("runtimeContext"), selection: Binding(get: { context }, set: { store.setRuntime(parallel: parallel, context: $0) })) { ForEach([2048, 4096, 8192, 16384, 32768], id: \.self) { Text(String($0)).tag($0) } }.disabled(store.localRuntime.owned || store.localRuntime.busy)
             HStack {
-                Button(store.text("runtimeStart")) { Task { await store.localRuntime.start(parallel: parallel, context: context); await store.refreshModels(provider: "ollama") } }.disabled(store.localRuntime.owned || store.localRuntime.busy)
-                if store.localRuntime.owned { Button(store.text("runtimeStop"), role: .destructive) { store.localRuntime.stop() } }
+                Button(store.text("runtimeStart")) { Task { await store.localRuntime.start(parallel: parallel, context: context); store.discoverProviders() } }.disabled(store.localRuntime.owned || store.localRuntime.busy)
+                if store.localRuntime.owned { Button(store.text("runtimeStop"), role: .destructive) { store.localRuntime.stop(); store.discoverProviders() } }
                 Text(store.localRuntime.version)
             }
             if let error = store.localRuntime.error { Text(store.text(error)).foregroundStyle(.secondary) }
@@ -29,7 +29,7 @@ struct LocalModelSettings: View {
             Text(store.text("localModelsHint")).foregroundStyle(.secondary)
             TextField(store.text("modelID"), text: $name).textFieldStyle(.roundedBorder)
             HStack {
-                Button(store.text("downloadModel")) { store.modelManager.run(model: name) { await store.refreshModels(provider: "ollama") } }
+                Button(store.text("downloadModel")) { store.modelManager.run(model: name) { store.discoverProviders() } }
                     .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.modelManager.busy)
                 Button(store.text("refreshModels")) { Task { await store.refreshModels(provider: "ollama") } }.disabled(store.loadingModels)
                 if store.modelManager.busy { Button(store.text("stop"), role: .destructive) { store.modelManager.cancel() } }
@@ -70,7 +70,7 @@ struct LocalModelSettings: View {
         .task { await store.localRuntime.refresh() }
         .confirmationDialog(store.text("deleteModelConfirm"), isPresented: Binding(get: { deletion != nil }, set: { if !$0 { deletion = nil } }), titleVisibility: .visible) {
             Button(store.text("deleteModel"), role: .destructive) {
-                if let model = deletion { store.modelManager.run(model: model, delete: true) { await store.refreshModels(provider: "ollama") } }; deletion = nil
+                if let model = deletion { store.modelManager.run(model: model, delete: true) { store.discoverProviders() } }; deletion = nil
             }
         } message: { Text(deletion ?? "") }
     }

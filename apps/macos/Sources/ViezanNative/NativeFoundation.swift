@@ -76,7 +76,9 @@ struct HistoryAnchorPreference: PreferenceKey {
     }
     // "provider:model" reads as "Provider · model"; the raw ID stays in help text.
     guard let split = id.firstIndex(of: ":") else { return id }
-    let provider = String(id[..<split]), model = String(id[id.index(after: split)...])
+    let provider = String(id[..<split])
+    // Cloud IDs carry a release date ("claude-haiku-4-5-20251001", "gpt-4.1-mini-2025-04-14"); the label drops it.
+    let model = String(id[id.index(after: split)...]).replacingOccurrences(of: #"-(\d{8}|\d{4}-\d{2}-\d{2})$"#, with: "", options: .regularExpression)
     let names = ["ollama": "Ollama", "lmstudio": "LM Studio", "llamacpp": "llama.cpp", "openai": "OpenAI", "claude": "Claude", "gemini": "Gemini", "groq": "Groq"]
     return (names[provider] ?? provider) + " · " + model
 }
