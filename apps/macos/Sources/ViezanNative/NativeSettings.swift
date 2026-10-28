@@ -100,9 +100,9 @@ struct NativeSettings: View {
         if id == "desktop" {
             DesktopSettings(store: store)
         } else if id == "bridge" {
-            BridgeSettings(store: store)
+            CardSection { BridgeSettings(store: store, showsDescription: false) }
         } else if id == "data" {
-            DataSettings(store: store)
+            CardSection { DataSettings(store: store) }
         } else if id == "localModels" {
             LocalModelSettings(store: store)
         } else if id == "providers" {
@@ -192,12 +192,20 @@ struct NativeSettings: View {
                 }.font(readingFont(store))
             }
         } else {
-            GroupBox {
-                VStack(alignment: .leading, spacing: metric("inset")) {
-                    description("previewScopeTitle", "previewScopeDescription")
-                    Divider()
-                    description("localDataTitle", "settingsInfo")
-                }.padding(metric("small"))
+            VStack(alignment: .leading, spacing: metric("inset")) {
+                CardSection(flush: true, title: "Viezan") {
+                    CardRow(title: store.text("currentVersion")) { Text(nativeVersion).foregroundStyle(.secondary).textSelection(.enabled) }
+                    CardRow(title: store.text("sourceCode"), divider: false) {
+                        Link("GitHub", destination: URL(string: "https://github.com/trunghieupham59/viezan")!)
+                    }
+                }
+                GroupBox {
+                    VStack(alignment: .leading, spacing: metric("inset")) {
+                        description("previewScopeTitle", "previewScopeDescription")
+                        Divider()
+                        description("localDataTitle", "settingsInfo")
+                    }.padding(metric("small"))
+                }
             }
         }
     }

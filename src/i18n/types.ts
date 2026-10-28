@@ -153,6 +153,17 @@ export interface Translations {
     "appHelperMissing": string;
     "appActionError": string;
     "appReset": string;
+    "currentVersion": string;
+    "thisDevice": string;
+    "localRuntimes": string;
+    "runtimeRunning": string;
+    "runtimeNotRunning": string;
+    "runtimeSettings": string;
+    "downloadedModels": string;
+    "noLocalModels": string;
+    "sourceCode": string;
+    "tokensTitle": string;
+    "bridgeServer": string;
     "appTrashedCount": string;
     "appResetCount": string;
     "appRestoredCount": string;

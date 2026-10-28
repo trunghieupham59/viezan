@@ -8,6 +8,12 @@ struct SystemSettings: View {
     @State private var login = SMAppService.mainApp.status == .enabled
     @State private var error = false
     @State private var diagnostics = ""
+    @State private var granted: [String: Bool] = [:]
+    /// Read again whenever Viezan comes back from System Settings.
+    private func refresh() {
+        granted = ["microphonePermission": AVCaptureDevice.authorizationStatus(for: .audio) == .authorized,
+                   "screenPermission": CGPreflightScreenCaptureAccess(), "accessibilityPermission": AXIsProcessTrusted()]
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             CardRow(title: store.text("launchAtLogin"), detail: error ? store.text("startupError") : store.text("launchDescription")) {
@@ -23,6 +29,8 @@ struct SystemSettings: View {
             }
             ForEach([("microphonePermission", "Privacy_Microphone"), ("screenPermission", "Privacy_ScreenCapture"), ("accessibilityPermission", "Privacy_Accessibility")], id: \.0) { key, pane in
                 CardRow(title: store.text(key)) {
+                    let allowed = granted[key] == true
+                    StatusBadge(text: store.text(allowed ? "permissionGranted" : "permissionMissing"), tone: allowed ? .ready : .idle)
                     Button(store.text("openShort")) { NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?" + pane)!) }
                 }
             }
@@ -38,5 +46,7 @@ struct SystemSettings: View {
             }
             if !diagnostics.isEmpty { Text(diagnostics).textSelection(.enabled).font(.system(.caption, design: .monospaced)).padding(metric("inset")) }
         }
+        .onAppear(perform: refresh)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in refresh() }
     }
 }

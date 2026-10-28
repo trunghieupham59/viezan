@@ -443,3 +443,12 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 Trong Tuỳ chọn có công tắc “Làm mới lượt đã hoàn tất”, mặc định bật. Mô tả nêu rõ Dịch 2 giờ, Từ điển 30 phút; giữ bản nháp, lịch sử và cuộc trò chuyện. Tắt chỉ ngừng làm mới tự động, vẫn khôi phục nội dung. Chưa có bộ chọn thời gian riêng trong V1.
 
 Lỗi lưu là thông báo toàn ứng dụng có “Thử lưu lại”, tự tắt khi lưu thành công. Không đọc được kho phục hồi thì giữ dữ liệu cũ, không ghi đè và thông báo giới hạn phục hồi cho phiên hiện tại.
+
+## Native implementation follow-up — 2026-10-28 (SwiftUI)
+
+Đã chạy thật trên macOS: Chung hiện "Đã cấp"/"Chưa cấp" cho Micro, Ghi màn hình, Trợ năng (đọc lại khi
+Viezan được kích hoạt). Model AI local: thẻ "Dịch vụ AI cục bộ" (Ollama, LM Studio, llama.cpp — "Đang chạy ·
+{count} model"/"Không chạy", nút tải Ollama khi chưa có), thẻ "Cấu hình runtime", mục "Model đã tải". Tiện ích
+Chrome và Dữ liệu nằm trong thẻ; máy chủ cục bộ có nhãn "Đã bật"/"Đã dừng"; thời hạn token chọn 7/30/90/365
+ngày. Cập nhật và Giới thiệu hiện phiên bản; Giới thiệu có liên kết mã nguồn. Bỏ mô tả lặp lại giữa phụ đề
+trang và khối nội dung (Model AI local, Chrome, Dữ liệu, Cập nhật). Qt chưa đổi.

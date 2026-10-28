@@ -4,9 +4,9 @@ struct UpdateSettings: View {
     let store: WorkbenchStore
     var body: some View {
         let updates = store.updates
+        // The page title and hint come from the settings section; this card holds the actions.
         VStack(alignment: .leading, spacing: metric("small")) {
-            Text(store.text("updatesTitle")).font(.headline)
-            Text(store.text("updatesHint")).foregroundStyle(.secondary)
+            CardRow(title: store.text("currentVersion"), divider: false) { Text(nativeVersion).foregroundStyle(.secondary).textSelection(.enabled) }
             HStack {
                 Button(store.text("checkUpdates")) { updates.check() }.disabled(updates.busy)
                 if updates.release != nil { Button(store.text("downloadUpdate")) { updates.download() }.disabled(updates.busy) }
@@ -19,3 +19,10 @@ struct UpdateSettings: View {
         }
     }
 }
+
+/// The running build's version, e.g. "2.4.2 (1)".
+var nativeVersion: String {
+    let info = Bundle.main.infoDictionary
+    return (info?["CFBundleShortVersionString"] as? String ?? "–") + (info?["CFBundleVersion"] as? String).map { " (" + $0 + ")" }.orEmpty
+}
+private extension Optional where Wrapped == String { var orEmpty: String { self ?? "" } }

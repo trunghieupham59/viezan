@@ -2,6 +2,8 @@ import SwiftUI
 import ViezanDomain
 struct BridgeSettings: View {
     @Bindable var store: WorkbenchStore
+    /// Settings shows the same text as its page subtitle; the Everywhere sheet needs it here.
+    var showsDescription = true
     @State private var name = "Chrome"
     @State private var days = 30
     @State private var revokeID: String?
@@ -11,8 +13,9 @@ struct BridgeSettings: View {
     var body: some View {
         let bridge = store.extensionBridge
         VStack(alignment: .leading, spacing: metric("small")) {
-            Text(store.text("bridgeDescription")).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            CardRow(title: "127.0.0.1:39875", detail: store.text("model") + ": " + store.session.model) {
+            if showsDescription { Text(store.text("bridgeDescription")).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            CardRow(title: store.text("bridgeServer"), detail: "127.0.0.1:39875 · " + nativeModelLabel(store.session.model, store: store)) {
+                StatusBadge(text: store.text(bridge.listening ? "enabled" : "stopped"), tone: bridge.listening ? .ready : .idle)
                 Button(store.text(bridge.listening ? "stop" : "startBridge")) { if bridge.listening { bridge.stop() } else { bridge.model = store.session.model; bridge.start() } }
                     .buttonStyle(.vznOutline)
             }
@@ -31,7 +34,7 @@ struct BridgeSettings: View {
             Divider().padding(.vertical, metric("tight"))
             HStack(spacing: metric("small")) {
                 TextField(store.text("tokenName"), text: $name).textFieldStyle(.roundedBorder)
-                Stepper(store.text("tokenDays") + ": " + String(days), value: $days, in: 1...365).fixedSize()
+                Picker(store.text("tokenDays"), selection: $days) { ForEach([7, 30, 90, 365], id: \.self) { Text(String($0)).tag($0) } }.fixedSize()
                 Button(store.text("createToken")) { bridge.createToken(name: name, days: days) }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             if !bridge.revealedToken.isEmpty {
