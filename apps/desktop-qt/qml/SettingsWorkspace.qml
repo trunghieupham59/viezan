@@ -171,11 +171,11 @@ Item {
     }
     Component {
         id: bridgeCard
-        BridgeSettings { bridge: settings.bridge; width: parent.width }
+        Kit.CardBox { width: parent.width; BridgeSettings { bridge: settings.bridge; showsDescription: false; width: parent.width } }
     }
     Component {
         id: dataCard
-        DataSettings { bridge: settings.bridge; width: parent.width }
+        Kit.CardBox { width: parent.width; DataSettings { bridge: settings.bridge; width: parent.width } }
     }
     Component {
         id: localModelsCard
@@ -373,6 +373,9 @@ Item {
             ColumnLayout {
                 anchors.fill: parent
                 spacing: metrics.inset
+                Kit.CardRow { title: settings.t("currentVersion"); Layout.fillWidth: true; Label { text: Qt.application.version; color: palette.placeholderText } }
+                Kit.CardRow { title: settings.t("sourceCode"); divider: false; Layout.fillWidth: true; Button { text: "GitHub"; onClicked: Qt.openUrlExternally("https://github.com/trunghieupham59/viezan") } }
+                ToolSeparator { orientation: Qt.Horizontal; Layout.fillWidth: true }
                 Description { heading: "previewScopeTitle"; detail: "previewScopeDescription" }
                 ToolSeparator { orientation: Qt.Horizontal; Layout.fillWidth: true }
                 Description { heading: "localDataTitle"; detail: "settingsInfo" }

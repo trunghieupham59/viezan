@@ -372,4 +372,8 @@ SwiftUI (macOS), đã chạy thật: khoá SMC được phân loại như bản 
 khoá biết trước rồi tới chữ cái phân hệ) và gộp thành hàng theo nhóm CPU/GPU/Cảm biến khác (tên
 `thermal_label_*`, "{count} cảm biến · TB {avg}", số đo ấm ≥ 70 °C cam, nóng ≥ 90 °C đỏ; hàng chưa nhận diện
 đứng cuối nhóm); danh sách khoá thô nằm trong mục mở rộng "{count} cảm biến". Ô nóng nhất ghi tên + khoá;
-quạt "Quạt {n}". Điều khiển thủ công chỉ hiện thanh trượt khi helper đã bật. Qt chưa đổi.
+quạt "Quạt {n}". Điều khiển thủ công chỉ hiện thanh trượt khi helper đã bật.
+
+Qt (Linux hwmon): `ThermalSensors.h` phân loại theo chip/kênh (coretemp, k10temp → CPU; amdgpu, i915 → GPU;
+nvme → Ổ lưu trữ; BAT → Pin; iwlwifi → Wi-Fi) và gộp hàng như trên; cảm biến chưa nhận diện giữ tên driver.
+Ô nóng nhất ghi tên + nguồn; quạt "Quạt {n}". Nóng ≥ 90 °C dùng màu danger của theme. Chưa chạy trên Linux thật.

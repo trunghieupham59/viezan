@@ -13,7 +13,8 @@ ApplicationWindow {
         function onCapturePreparing() { root.beforeCaptureVisibility = root.visibility; root.hide() }
         function onCaptureFinished() { root.visibility = root.beforeCaptureVisibility; root.raise(); root.requestActivate() }
     }
-    DesktopPanels { bridge: workbench; onOpenMainRequested: sessionID => { root.choose(sessionID); root.show(); root.raise(); root.requestActivate() } }
+    DesktopPanels { id: panels; bridge: workbench; onOpenMainRequested: sessionID => { root.choose(sessionID); root.show(); root.raise(); root.requestActivate() }; onLauncherRequested: launcher.toggle() }
+    Launcher { id: launcher; bridge: workbench; onAskRequested: text => panels.ask(text); onOpenMainRequested: sessionID => { root.choose(sessionID); root.show(); root.raise(); root.requestActivate() } }
     visible: true
     readonly property var workspace: workbench.state
     readonly property var metrics: workbench.resources.metrics
@@ -839,7 +840,7 @@ ApplicationWindow {
     }
     Component {
         id: thermalView
-        ThermalWorkspace { bridge: workbench }
+        ThermalWorkspace { bridge: workbench; dangerColor: root.colors.danger }
     }
     Component {
         id: desktopView

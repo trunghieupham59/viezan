@@ -6,8 +6,8 @@ ColumnLayout {
     required property var bridge
     readonly property var updates: bridge.updates
     function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
-    Label { text: panel.t("updatesTitle"); font.bold: true }
-    Label { text: panel.t("updatesHint"); wrapMode: Text.Wrap; Layout.fillWidth: true }
+    // The page title and hint come from the settings section; this card holds the actions.
+    Kit.CardRow { title: panel.t("currentVersion"); divider: false; Layout.fillWidth: true; Label { text: Qt.application.version; color: palette.placeholderText } }
     Flow {
         Layout.fillWidth: true; Layout.preferredHeight: implicitHeight; spacing: panel.bridge.resources.metrics.small
         Button { text: panel.t("checkUpdates"); enabled: !panel.updates.busy; onClicked: panel.updates.check() }

@@ -9,11 +9,16 @@ ScrollView {
     readonly property var metrics: bridge.resources.metrics
     readonly property var hottest: monitor.sensors.length ? monitor.sensors.reduce((a, b) => b.value > a.value ? b : a) : null
     function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    // A sensor in words ("Nhân CPU") when its meaning is known, else the driver's own name.
+    function sensorTitle(row) { return row.label ? t("thermal_label_" + row.label) : row.title }
+    function hottestRow() { return monitor.rows.length ? monitor.rows.reduce((a, b) => b.max > a.max ? b : a) : null }
     // Readings start with the page (Review 18 shows live tiles); stop only what this page started.
     property bool startedHere: false
     Component.onCompleted: if (!monitor.monitoring) { monitor.start(); startedHere = true }
     Component.onDestruction: if (startedHere) monitor.stop()
     contentWidth: availableWidth
+    // Hot (≥ 90 °C) readings use the theme's danger color; the number still carries the meaning.
+    property color dangerColor: palette.text
     component MetricTile: Kit.Card {
         id: tile
         property string title
@@ -39,10 +44,10 @@ ScrollView {
             columns: Math.max(1, Math.floor(width / page.metrics.sidebar))
             columnSpacing: page.metrics.inset; rowSpacing: page.metrics.inset
             Layout.fillWidth: true
-            MetricTile { visible: !!page.hottest; title: page.t("hottestSensor"); value: page.hottest ? page.hottest.value.toFixed(0) + " °C" : ""; detail: page.hottest?.name || "" }
+            MetricTile { visible: !!page.hottest; title: page.t("thermal_hottest"); value: page.hottest ? page.hottest.value.toFixed(0) + " °C" : ""; detail: page.hottest ? (page.hottestRow()?.label ? page.t("thermal_label_" + page.hottestRow().label) + " · " : "") + page.hottest.name : "" }
             Repeater {
                 model: page.monitor.fans
-                delegate: MetricTile { required property var modelData; title: modelData.name; value: modelData.value.toFixed(0); detail: page.t("rpm") }
+                delegate: MetricTile { required property var modelData; required property int index; title: page.t("thermal_fan_name").replace("{n}", index + 1); value: modelData.value.toFixed(0); detail: page.t("rpm") + " · " + modelData.name }
             }
         }
         // Windows/Linux (Review 18): verified readings only; fan control stays with the OS.
@@ -55,14 +60,23 @@ ScrollView {
                     Label { visible: !page.monitor.sensors.length; text: "—"; font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.displayScale }
                     Label { visible: !page.monitor.sensors.length; text: page.t("noVerifiedBackend"); wrapMode: Text.Wrap; Layout.fillWidth: true }
                     Label { visible: !page.monitor.sensors.length; text: page.t("noFakeReadings"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                    // hwmon sensors folded into named rows per group, hottest first (as on macOS).
                     Repeater {
-                        model: page.monitor.sensors.slice().sort((a, b) => b.value - a.value)
-                        delegate: Kit.CardRow {
+                        model: page.monitor.rows
+                        delegate: ColumnLayout {
                             required property var modelData
                             required property int index
-                            title: modelData.name
-                            divider: index < page.monitor.sensors.length - 1
-                            Label { text: modelData.value.toFixed(0) + " °C" }
+                            spacing: 0; Layout.fillWidth: true
+                            Kit.Eyebrow { visible: index === 0 || page.monitor.rows[index - 1].group !== modelData.group; text: page.t("thermal_group_" + modelData.group); Layout.topMargin: page.metrics.small }
+                            Kit.CardRow {
+                                title: page.sensorTitle(modelData)
+                                detail: page.t("thermal_sensor_row_caption").replace("{count}", modelData.count).replace("{avg}", modelData.average.toFixed(0) + " °C")
+                                divider: index < page.monitor.rows.length - 1 && page.monitor.rows[index + 1].group === modelData.group
+                                Layout.fillWidth: true
+                                ToolTip.text: modelData.members.map(member => member.name + " " + member.value.toFixed(0) + " °C").join("\n"); ToolTip.visible: rowHover.hovered
+                                HoverHandler { id: rowHover }
+                                Label { text: modelData.max.toFixed(0) + " °C"; font.bold: true; color: modelData.max >= 90 ? page.dangerColor : palette.text; Accessible.name: text }
+                            }
                         }
                     }
                     Kit.PrimaryButton { text: page.t(page.monitor.monitoring ? "stop" : "checkCapability"); Layout.topMargin: page.metrics.small; onClicked: page.monitor.monitoring ? page.monitor.stop() : page.monitor.start() }

@@ -207,16 +207,18 @@ QtObject {
     component StatusBadge: Pane {
         id: badge
         property string text
+        // Idle reads neutral (not running, not granted); the text, not only the color, carries meaning.
+        property bool idle: false
         readonly property var metrics: workbench.resources.metrics
         leftPadding: metrics.small + metrics.tight
         rightPadding: leftPadding
         topPadding: metrics.tight
         bottomPadding: metrics.tight
-        background: Rectangle { radius: height / 2; color: Qt.tint(badge.palette.base, Qt.alpha(badge.palette.highlight, badge.metrics.selectionOpacity)) }
+        background: Rectangle { radius: height / 2; color: Qt.tint(badge.palette.base, Qt.alpha(badge.idle ? badge.palette.placeholderText : badge.palette.highlight, badge.metrics.selectionOpacity)) }
         contentItem: RowLayout {
             spacing: badge.metrics.small
-            Rectangle { implicitWidth: badge.metrics.small; implicitHeight: implicitWidth; radius: implicitWidth / 2; color: badge.palette.highlight }
-            Label { text: badge.text; color: badge.palette.link }
+            Rectangle { implicitWidth: badge.metrics.small; implicitHeight: implicitWidth; radius: implicitWidth / 2; color: badge.idle ? badge.palette.placeholderText : badge.palette.highlight }
+            Label { text: badge.text; color: badge.idle ? badge.palette.placeholderText : badge.palette.link }
         }
         Accessible.name: text
     }

@@ -451,4 +451,8 @@ Viezan được kích hoạt). Model AI local: thẻ "Dịch vụ AI cục bộ"
 {count} model"/"Không chạy", nút tải Ollama khi chưa có), thẻ "Cấu hình runtime", mục "Model đã tải". Tiện ích
 Chrome và Dữ liệu nằm trong thẻ; máy chủ cục bộ có nhãn "Đã bật"/"Đã dừng"; thời hạn token chọn 7/30/90/365
 ngày. Cập nhật và Giới thiệu hiện phiên bản; Giới thiệu có liên kết mã nguồn. Bỏ mô tả lặp lại giữa phụ đề
-trang và khối nội dung (Model AI local, Chrome, Dữ liệu, Cập nhật). Qt chưa đổi.
+trang và khối nội dung (Model AI local, Chrome, Dữ liệu, Cập nhật).
+
+Qt: cùng thay đổi cho Model AI local (thẻ dịch vụ AI cục bộ), Tiện ích Chrome (thẻ, trạng thái, 7/30/90/365),
+Dữ liệu (thẻ), Cập nhật và Giới thiệu (phiên bản `Qt.application.version`, liên kết mã nguồn). Quyền hệ thống
+không thêm vào Chung (Windows/Linux không có mô hình quyền tương ứng).

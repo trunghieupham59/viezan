@@ -169,8 +169,12 @@ void DesktopIntegration::refreshApplications() {
         std::sort(apps.begin(), apps.end(), [](const QVariant &a, const QVariant &b) { return a.toMap().value("name").toString().localeAwareCompare(b.toMap().value("name").toString()) < 0; }); return apps;
     }));
 }
+QVariantList DesktopIntegration::rankApplications(const QString &query) const {
+    return LauncherTools::rank(m_applications, query, QSettings().value("launcher/recent").toStringList(), query.trimmed().isEmpty() ? 6 : 8);
+}
 void DesktopIntegration::launch(const QString &id) {
     bool known = false; for (const auto &app : m_applications) known |= app.toMap().value("id") == id; if (!known || QFileInfo(id).canonicalFilePath() != id) return;
+    QSettings settings; auto recent = settings.value("launcher/recent").toStringList(); recent.removeAll(id); recent.prepend(id); settings.setValue("launcher/recent", recent.mid(0, 50));
 #ifdef Q_OS_WIN
     if (!QDesktopServices::openUrl(QUrl::fromLocalFile(id))) { m_error = "launchError"; emit changed(); }
 #else

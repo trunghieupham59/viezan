@@ -5,6 +5,8 @@
 #include "../CloudProtocol.h"
 #include "../VoiceGate.h"
 #include "../TextLanguage.h"
+#include "../ThermalSensors.h"
+#include "../LauncherTools.h"
 #include <QFile>
 #include <QInputMethodEvent>
 #include <QJsonDocument>
@@ -867,6 +869,36 @@ private slots:
         QCOMPARE(bridge.quickTranslateTarget("Hello"), QString("en"));
         WorkbenchBridge reloaded(nullptr, dir.filePath("state.json"), false);
         QCOMPARE(reloaded.quickTranslate().value("primary").toString(), QString("en"));
+    }
+    void thermalHwmonSensorsFoldIntoNamedRows() {
+        QCOMPARE(ThermalSensors::classify("coretemp / Package id 0").label, QString("cpu_package"));
+        QCOMPARE(ThermalSensors::classify("coretemp / Core 3").label, QString("cpu_core"));
+        QCOMPARE(ThermalSensors::classify("k10temp / Tctl").label, QString("cpu_package"));
+        QCOMPARE(ThermalSensors::classify("amdgpu / edge").group, QString("gpu"));
+        QCOMPARE(ThermalSensors::classify("nvme / Composite").label, QString("storage"));
+        QCOMPARE(ThermalSensors::classify("acpitz / temp1").label, QString());
+        const QVariantList sensors{QVariantMap{{"name", "coretemp / Core 0"}, {"value", 52.0}}, QVariantMap{{"name", "coretemp / Core 1"}, {"value", 58.0}},
+            QVariantMap{{"name", "coretemp / Package id 0"}, {"value", 60.0}}, QVariantMap{{"name", "acpitz / temp1"}, {"value", 95.0}}, QVariantMap{{"name", "nvme / Composite"}, {"value", 41.0}}};
+        const auto rows = ThermalSensors::rows(sensors);
+        QCOMPARE(rows.size(), 4);
+        QCOMPARE(rows[0].toMap().value("label").toString(), QString("cpu_package"));
+        QCOMPARE(rows[1].toMap().value("count").toInt(), 2);
+        QCOMPARE(rows[1].toMap().value("max").toDouble(), 58.0);
+        QCOMPARE(rows[1].toMap().value("average").toDouble(), 55.0);
+        // A sensor of unknown meaning keeps its driver name and follows the named rows, even when hottest.
+        QCOMPARE(rows[2].toMap().value("label").toString(), QString("storage"));
+        QCOMPARE(rows[3].toMap().value("title").toString(), QString("acpitz / temp1"));
+        QCOMPARE(ThermalSensors::tone(70), QString("warm"));
+    }
+    void launcherRanksNamePrefixThenWordThenAnywhereWithRecentFirst() {
+        QVariantList apps; for (const auto &name : {"Safari", "System Settings", "Photos", "Visual Studio Code", "Messages", "Notes", "Font Book"}) apps.append(QVariantMap{{"id", QString("/apps/") + name}, {"name", name}});
+        const auto names = [&apps](const QString &query, const QStringList &recent) { QStringList out; for (const auto &app : LauncherTools::rank(apps, query, recent)) out.append(app.toMap().value("name").toString()); return out; };
+        QCOMPARE(names("s", {}), (QStringList{"Safari", "System Settings", "Visual Studio Code", "Notes", "Photos", "Messages"}));
+        QCOMPARE(names("set", {}), QStringList{"System Settings"});
+        QCOMPARE(names("code", {}), QStringList{"Visual Studio Code"});
+        QCOMPARE(names("s", {"/apps/System Settings"}).first(), QString("System Settings"));
+        QCOMPARE(names("", {"/apps/Notes", "/apps/Safari"}), (QStringList{"Notes", "Safari"}));
+        QVERIFY(names("zzz", {}).isEmpty());
     }
     void transcriptionUsesTheBestModelTheAccountLists() {
         QCOMPARE(NativeAudio::transcriptionModel({}), QString("whisper-1"));

@@ -2,6 +2,10 @@
 #include <QDirIterator>
 #include <QStandardPaths>
 #include <QElapsedTimer>
+#include <QRegularExpression>
+#include <algorithm>
+#include <climits>
+#include <tuple>
 #include <cmath>
 namespace {
 struct Parser {
@@ -40,4 +44,25 @@ QVariantList files(const QString &input) {
     }
     return result;
 }
+}
+
+QVariantList LauncherTools::rank(const QVariantList &applications, const QString &input, const QStringList &recent, int limit) {
+    const auto needle = input.trimmed();
+    QList<std::tuple<int, int, int, QVariant>> ranked;
+    for (const auto &value : applications) {
+        const auto app = value.toMap(); const auto name = app.value("name").toString(); const int order = recent.indexOf(app.value("id").toString());
+        int tier = -1;
+        if (needle.isEmpty()) { if (order < 0) continue; tier = 0; }
+        else if (name.startsWith(needle, Qt::CaseInsensitive)) tier = 0;
+        else {
+            static const QRegularExpression separators("[ .-]");
+            const auto words = name.split(separators, Qt::SkipEmptyParts);
+            if (std::any_of(words.begin(), words.end(), [&needle](const QString &word) { return word.startsWith(needle, Qt::CaseInsensitive); })) tier = 1;
+            else if (name.contains(needle, Qt::CaseInsensitive)) tier = 2;
+        }
+        if (tier >= 0) ranked.append({tier, order < 0 ? INT_MAX : order, int(name.size()), value});
+    }
+    std::sort(ranked.begin(), ranked.end(), [](const auto &a, const auto &b) { return std::tie(std::get<0>(a), std::get<1>(a), std::get<2>(a)) < std::tie(std::get<0>(b), std::get<1>(b), std::get<2>(b)); });
+    QVariantList result; for (const auto &entry : ranked) { if (result.size() >= limit) break; result.append(std::get<3>(entry)); }
+    return result;
 }

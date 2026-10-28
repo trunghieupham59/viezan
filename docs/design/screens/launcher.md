@@ -256,4 +256,9 @@ theo vị trí, khi kết quả tệp về sau), Esc xoá chữ rồi ẩn. Xế
 Desktop/Documents/Downloads (tránh hộp thoại quyền thư mục giữa lúc gõ).
 
 Chênh lệch còn lại: Hỏi AI mở panel Chat nhanh riêng (đã gửi câu hỏi) thay vì chế độ AI trong cùng cửa
-sổ; không có bộ chọn loại tiền; Qt giữ Launcher cũ.
+sổ; không có bộ chọn loại tiền.
+
+Qt: `Launcher.qml` là cửa sổ riêng cùng hành vi (không viền, 22%, ẩn khi mất focus, nhóm kết quả, ↑↓ ↵
+Shift+↵ Ctrl/⌘+↵ Tab Esc, chọn theo id); `LauncherTools::rank` xếp ứng dụng, ứng dụng mở gần đây lưu trong
+QSettings. Đã chạy trên Mac (máy tính, "Dùng … với", Dịch mở trang chính); danh sách ứng dụng Windows/Linux chưa
+chạy thật.

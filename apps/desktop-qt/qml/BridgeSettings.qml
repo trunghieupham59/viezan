@@ -5,9 +5,15 @@ ColumnLayout {
     id: panel
     required property var bridge
     readonly property var server: bridge.extensionBridge
+    // Settings shows the same text as its page subtitle; the Everywhere dialog needs it here.
+    property bool showsDescription: true
     function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
-    Label { text: panel.t("bridgeDescription"); wrapMode: Text.Wrap; Layout.fillWidth: true }
-    Label { text: "127.0.0.1:39875" }
+    Label { visible: panel.showsDescription; text: panel.t("bridgeDescription"); wrapMode: Text.Wrap; Layout.fillWidth: true }
+    Kit.CardRow {
+        title: panel.t("bridgeServer"); detail: "127.0.0.1:39875"; Layout.fillWidth: true
+        Kit.StatusBadge { text: panel.t(panel.server.listening ? "enabled" : "stopped"); idle: !panel.server.listening }
+        Button { text: panel.t(panel.server.listening ? "stop" : "startBridge"); onClicked: panel.server.listening ? panel.server.stop() : panel.server.start() }
+    }
     CheckBox { id: automatic; text: panel.t("bridgeAutomatic"); checked: !!(panel.bridge.state.bridge || {}).automatic }
     Label { text: panel.t("bridgeOrigins") }
     TextArea { id: origins; text: ((panel.bridge.state.bridge || {}).origins || []).join("\n"); Accessible.name: panel.t("bridgeOrigins"); wrapMode: TextEdit.Wrap; Layout.fillWidth: true }
@@ -18,10 +24,9 @@ ColumnLayout {
         if (!invalid.visible) panel.bridge.command("bridgePreferences", {automatic: automatic.checked, origins: values})
     } }
     Label { id: invalid; visible: false; text: panel.t("bridgeOriginsInvalid"); wrapMode: Text.Wrap; Layout.fillWidth: true }
-    Button { text: panel.t(panel.server.listening ? "stop" : "startBridge"); onClicked: panel.server.listening ? panel.server.stop() : panel.server.start() }
     TextField { id: tokenName; text: "Chrome"; placeholderText: panel.t("tokenName"); Accessible.name: placeholderText; maximumLength: 80; Layout.fillWidth: true }
-    RowLayout { Label { text: panel.t("tokenDays") } SpinBox { id: days; from: 1; to: 365; value: 30; editable: true; Accessible.name: panel.t("tokenDays") } }
-    Button { text: panel.t("createToken"); enabled: !!tokenName.text.trim(); onClicked: panel.server.createToken(tokenName.text, days.value) }
+    RowLayout { Label { text: panel.t("tokenDays") } ComboBox { id: days; model: [7, 30, 90, 365]; currentIndex: 1; Accessible.name: panel.t("tokenDays") } }
+    Button { text: panel.t("createToken"); enabled: !!tokenName.text.trim(); onClicked: panel.server.createToken(tokenName.text, days.currentValue) }
     ColumnLayout {
         visible: !!panel.server.revealedToken
         Label { text: panel.t("tokenOnce"); wrapMode: Text.Wrap; Layout.fillWidth: true }
