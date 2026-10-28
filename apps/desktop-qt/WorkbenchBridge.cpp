@@ -225,7 +225,7 @@ void WorkbenchBridge::discoverProviders() {
                 if (next->checked) publishProviders(*next);
                 if (--*pending == 0) done();
             });
-            watcher->setFuture(QtConcurrent::run([provider] { return ModelCatalog::fetch(provider); }));
+            watcher->setFuture(QtConcurrent::run(&ModelCatalog::fetch, provider));
         }
     };
     const auto cloud = QStringList(next->keyed.cbegin(), next->keyed.cend());
