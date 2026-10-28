@@ -106,6 +106,18 @@ test('Qt UI uses generated catalogs and identical shared resources', () => {
   for (const section of resource.settingsSections) for (const key of [section.title, section.description, ...section.terms]) for (const locale of ['vi', 'en', 'ja']) assert.ok(resource.locales[locale][key], `${locale}.${key}`)
 })
 
+test('QML avoids JavaScript APIs missing from the Qt V4 engine', () => {
+  // V4 lacks these (checked with Qt 6.12's qml runtime); a call throws and leaves
+  // bindings at their defaults, e.g. a hidden label becomes visible.
+  const missing = /\.(flatMap|flat|at|findLast|findLastIndex|replaceAll|toSorted|toReversed)\(|Object\.(fromEntries|hasOwn)\(|structuredClone\(/
+  const folder = new URL('../../../apps/desktop-qt/qml/', import.meta.url)
+  for (const file of fs.readdirSync(folder).filter(name => name.endsWith('.qml'))) {
+    fs.readFileSync(new URL(file, folder), 'utf8').split('\n').forEach((line, index) => {
+      assert.doesNotMatch(line.replace(/\/\/.*$|\/\*.*?\*\//g, ''), missing, `${file}:${index + 1}`)
+    })
+  }
+})
+
 test('shared recovery contract preserves Unicode and cross-platform identities', () => {
   const saved = JSON.parse(fs.readFileSync(new URL('../../../contracts/native-workbench/recovery-fixture.json', import.meta.url), 'utf8'))
   const state = domain.recover(saved)

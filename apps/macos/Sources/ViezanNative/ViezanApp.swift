@@ -5,7 +5,8 @@ import ViezanDomain
 let nativeResources = NativeResources.shared
 func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
 @MainActor func readingNSFont(_ store: WorkbenchStore) -> NSFont {
-    .systemFont(ofSize: NSFont.preferredFont(forTextStyle: .body).pointSize * nativeResources.textScales[store.workspace.preferences.textSize.rawValue]!)
+    // Reading text is the "lg" role (14 at medium), scaled by the text-size setting.
+    .systemFont(ofSize: NSFont.systemFontSize * metric("labelScale") * nativeResources.textScales[store.workspace.preferences.textSize.rawValue]!)
 }
 @MainActor func readingFont(_ store: WorkbenchStore) -> Font { Font(readingNSFont(store)) }
 
@@ -115,7 +116,8 @@ struct WorkbenchView: View {
     @Environment(\.colorScheme) private var scheme
     private var settings: Bool { ["settings", "utilities", "everywhere", "thermal", "interpret", "apps"].contains(screen) }
     private var home: Bool { screen == "home" }
-    private var title: String { home ? store.text("home") : settings ? store.text(screen) : shell.library ? store.text("history") : store.text(store.workspace.feature.rawValue) + " / " + store.title(store.session) }
+    private var workspacePage: Bool { home || ["everywhere", "apps", "thermal", "utilities"].contains(screen) }
+    private var title: String { home ? store.text("home") : screen == "interpret" ? store.text("interpret") + " / " + (store.interpretation.current.map { Date(timeIntervalSince1970: $0.created).formatted(date: .abbreviated, time: .shortened) } ?? store.text("newInterpretation")) : settings ? store.text(screen) : shell.library ? store.text("history") : store.text(store.workspace.feature.rawValue) + " / " + store.title(store.session) }
     private func dismissOverlay() {
         if let editor = window?.firstResponder as? NSTextView, editor.hasMarkedText() { return }
         shell.dismiss()
@@ -138,23 +140,24 @@ struct WorkbenchView: View {
     }
     var body: some View {
         GeometryReader { geometry in
-            let layout = ShellLayout(width: geometry.size.width, height: geometry.size.height - ShellLayout.titlebarHeight - ShellLayout.headerHeight, collapsed: store.workspace.navigationCollapsed)
+            let layout = ShellLayout(width: geometry.size.width, height: geometry.size.height - ShellLayout.headerHeight, collapsed: store.workspace.navigationCollapsed)
+            // Review 18: no titlebar band. Window controls and the navigation toggle
+            // share the sidebar's first row; the context header aligns with it.
             VStack(spacing: 0) {
-                titlebar(layout)
-                ChromeDivider()
                 ZStack(alignment: .topLeading) {
                     HStack(spacing: 0) {
-                        NativeNavigation(store: store, screen: screen, expanded: !layout.compact && !store.workspace.navigationCollapsed, select: select, commands: { execute("commands") })
-                            .frame(width: layout.navigationWidth)
+                        VStack(spacing: 0) {
+                            sidebarTop(layout)
+                            NativeNavigation(store: store, screen: screen, expanded: !layout.compact && !store.workspace.navigationCollapsed, select: select, commands: { execute("commands") })
+                        }.frame(width: layout.navigationWidth)
                         ChromeDivider(vertical: true)
                         VStack(spacing: 0) {
                             header(layout)
-                            ChromeDivider()
                             if let error = store.storageError {
                                 ViewThatFits(in: .horizontal) {
                                     HStack(alignment: .top, spacing: metric("inset")) { storageMessage(error); Spacer(minLength: metric("small")); retryStorage }
                                     VStack(alignment: .leading, spacing: metric("small")) { storageMessage(error); retryStorage }
-                                }.padding(metric("inset")).frame(maxWidth: .infinity, alignment: .leading).background(chromeColor("canvas", scheme)).accessibilityElement(children: .contain)
+                                }.padding(metric("inset")).frame(maxWidth: .infinity, alignment: .leading).background(contentColor("canvas", scheme)).accessibilityElement(children: .contain)
                                 Divider()
                             }
                             if store.audio.recordingOwner != nil || store.audio.transcribingOwner != nil {
@@ -183,8 +186,8 @@ struct WorkbenchView: View {
                                     InterpretationWorkspace(store: store)
                                 } else if screen == "thermal" { ThermalWorkspace(store: store) }
                             else if screen == "utilities" || screen == "everywhere" { DesktopWorkspace(store: store, route: screen) }
-                            else if settings { NativeSettings(store: store) }
-                            else if shell.library { HistoryLibrary(store: store) { shell.library = false } }
+                            else if settings { NativeSettings(store: store, query: $shell.settingsQuery, section: $shell.settingsSection) }
+                            else if shell.library { HistoryLibrary(store: store, initialFavorites: shell.libraryFavorites) { shell.library = false; shell.libraryFavorites = false } }
                             else {
                                 if store.recovered { Text(store.text("recovered")).font(.caption).foregroundStyle(.secondary).padding(.horizontal, metric("gutter")) }
                                 Group {
@@ -192,7 +195,7 @@ struct WorkbenchView: View {
                                     else { TranslationWorkspace(store: store, focusEpoch: composerFocus) }
                                 }.disabled(store.loadBlocked)
                             }
-                        }.frame(maxWidth: .infinity, maxHeight: .infinity).background(chromeColor("app-bg", scheme))
+                        }.frame(maxWidth: .infinity, maxHeight: .infinity).background(contentColor("surface", scheme))
                     }
                     if let overlay = shell.overlay {
                         // Deliberate native hit surface: outside click closes the temporary layer.
@@ -229,7 +232,9 @@ struct WorkbenchView: View {
         .onPreferenceChange(HistoryAnchorPreference.self) { historyAnchor = $0 }
         .frame(minWidth: metric("minWindowWidth"), minHeight: metric("minWindowHeight"))
         .ignoresSafeArea(.container, edges: .top)
-        .background(WindowReference { window in self.window = window; windowReady(window) })
+        // Launch without a focused toolbar control; Tab still enters the shell.
+        .background(WindowReference { window in self.window = window; windowReady(window); if window.firstResponder is NSButton { window.makeFirstResponder(nil) } })
+        .buttonStyle(.vznOutline)
         .tint(chromeColor("action", scheme))
         .navigationTitle(title)
         .onExitCommand(perform: dismissOverlay)
@@ -244,21 +249,30 @@ struct WorkbenchView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in
             if let source = notification.object as? NSWindow, source === window { store.interpretation.cancel(); store.audio.cancel(); store.thermalMonitor.stop() }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .viezanOpenSettings)) { notification in
+            shell.settingsQuery = ""; shell.settingsSection = notification.object as? String
+            select("settings")
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification)) { notification in
             if let source = notification.object as? NSWindow, source === window { shell.dismiss(returnFocus: false) }
         }
     }
-    private func titlebar(_ layout: ShellLayout) -> some View {
-        HStack(spacing: 0) {
-            Color.clear.frame(width: metric("trafficLights") + metric("gap"))
+    private func navigationToggle(_ layout: ShellLayout) -> some View {
             ShellToolbarButton(label: store.text((layout.compact ? shell.overlay != .navigation : store.workspace.navigationCollapsed) ? "expandNavigation" : "collapseNavigation"), symbol: "sidebar.left", identifier: "navigation-toggle", expanded: layout.compact ? shell.overlay == .navigation : !store.workspace.navigationCollapsed, hint: "⌘\\", focusEpoch: shell.focusEpochs["navigation", default: 0]) { execute("navigation") }
                 .frame(width: metric("control"), height: metric("control"))
+    }
+    // Rail widths cannot hold the window controls; the toggle then leads the header.
+    private func railChrome(_ layout: ShellLayout) -> Bool { layout.navigationWidth < metric("trafficLights") + metric("control") + metric("small") }
+    private func sidebarTop(_ layout: ShellLayout) -> some View {
+        HStack(spacing: 0) {
             Spacer(minLength: 0)
-        }.frame(height: ShellLayout.titlebarHeight)
-            .background { ChromeSurface(titlebar: true).overlay { WindowDragRegion() } }
+            if !railChrome(layout) { navigationToggle(layout).padding(.trailing, metric("small")) }
+        }.frame(height: ShellLayout.headerHeight)
+            .background { ChromeSurface().overlay { WindowDragRegion() } }
     }
     private func header(_ layout: ShellLayout) -> some View {
         HStack(spacing: metric("small")) {
+            if railChrome(layout) { navigationToggle(layout) }
             if shell.library {
                 ShellToolbarButton(label: store.text("back"), symbol: "arrow.left", identifier: "history-back") {
                     shell.library = false
@@ -266,24 +280,55 @@ struct WorkbenchView: View {
                 }
                     .frame(width: metric("control"), height: metric("control"))
             }
-            Text(title).font(.title3).fontWeight(.semibold).lineLimit(1).truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .leading).help(title)
+            breadcrumb.frame(maxWidth: .infinity, alignment: .leading).help(title)
             HStack(spacing: metric("small")) {
-                ShellToolbarButton(label: store.text("commands"), symbol: "magnifyingglass", identifier: "commands-toggle", expanded: shell.overlay == .commands, hint: "⌘K", focusEpoch: shell.focusEpochs["commands", default: 0]) { execute("commands") }
+                if screen == "settings" {
+                    HistorySearch(query: $shell.settingsQuery, label: store.text("settingsSearch"), cancel: { shell.settingsQuery = "" }, autofocus: false)
+                        .frame(width: metric("sidebar"), height: metric("compactControl"))
+                }
+                if workspacePage && store.moduleEnabled("utilities") {
+                    ShellToolbarButton(label: store.text("launcher"), symbol: "command", identifier: "launcher-open", showsLabel: !layout.compact, enabled: !store.loadBlocked) { store.desktopIntegration.onAction?("launcher") }
+                }
+                if screen == "interpret" {
+                    ShellToolbarButton(label: store.text("summarizeShort"), symbol: "sparkles", identifier: "interpret-summarize", showsLabel: !layout.compact, enabled: !store.interpretation.busy && !(store.interpretation.current?.segments.isEmpty ?? true)) { store.interpretation.summarize(kind: "summary") }
+                    ShellToolbarButton(label: store.text("history"), symbol: "clock", identifier: "interpret-history", showsLabel: !layout.compact, enabled: !store.interpretation.busy) { NotificationCenter.default.post(name: .viezanInterpretHistory, object: nil) }
+                    ShellToolbarButton(label: store.text("newInterpretation"), symbol: "plus", identifier: "interpret-new", showsLabel: !layout.compact, soft: true, enabled: !store.interpretation.busy) { store.interpretation.clearSelection() }
+                    ChromeDivider(vertical: true).frame(height: metric("compactControl"))
+                }
+                if !home && !settings && !shell.library && store.workspace.feature == .translate {
+                    ShellToolbarButton(label: store.text("addImage"), symbol: "photo", identifier: "translate-add-image", showsLabel: !layout.compact, enabled: !store.loadBlocked && (store.session.images ?? []).isEmpty) { NotificationCenter.default.post(name: .viezanAttachImage, object: nil) }
+                }
+                if !home && !settings && !shell.library && store.workspace.feature == .dictionary {
+                    ShellToolbarButton(label: store.text("savedWords"), symbol: "books.vertical", identifier: "dictionary-saved", showsLabel: !layout.compact, enabled: !store.loadBlocked) { shell.libraryFavorites = true; shell.library = true }
+                }
                 if !home && !settings && !shell.library {
                     ShellToolbarButton(label: store.text("history"), symbol: "clock", identifier: "history-toggle", showsLabel: !layout.compact, expanded: shell.overlay == .history, hint: "⌘⇧H", enabled: !store.loadBlocked, focusEpoch: shell.focusEpochs["history", default: 0]) { execute("history") }
                         .background { GeometryReader { proxy in
                             Color.clear.preference(key: HistoryAnchorPreference.self, value: proxy.frame(in: .named("workbench")).maxX)
                         } }
-                    ShellToolbarButton(label: store.text(store.workspace.feature == .chat ? "newChat" : store.workspace.feature == .dictionary ? "dictionary" : "newTranslation"), symbol: "plus", identifier: "new-work", showsLabel: !layout.compact, primary: true, hint: "⌘N", enabled: !store.loadBlocked) { execute("new") }
+                    ShellToolbarButton(label: store.text(store.workspace.feature == .chat ? "newChat" : store.workspace.feature == .dictionary ? "newLookup" : "newTranslation"), symbol: "plus", identifier: "new-work", showsLabel: !layout.compact, soft: true, hint: "⌘N", enabled: !store.loadBlocked) { execute("new") }
+                    ChromeDivider(vertical: true).frame(height: metric("compactControl"))
                 }
-                ShellToolbarButton(label: store.text("activity"), symbol: "waveform.path", identifier: "activity-toggle", showsLabel: !layout.compact, expanded: shell.overlay == .activity, hint: "⌘⇧A", count: store.workspace.tasks.filter { $0.status == .running }.count, focusEpoch: shell.focusEpochs["activity", default: 0]) { execute("activity") }
+                ShellToolbarButton(label: store.text("activity"), symbol: "waveform.path.ecg", identifier: "activity-toggle", showsLabel: !layout.compact, expanded: shell.overlay == .activity, hint: "⌘⇧A", count: store.workspace.tasks.filter { $0.status == .running }.count, focusEpoch: shell.focusEpochs["activity", default: 0]) { execute("activity") }
             }.fixedSize(horizontal: true, vertical: false).frame(height: metric("control")).layoutPriority(1)
                 .padding(.trailing, metric("inset"))
-        }.padding(.leading, metric("gutter")).frame(height: ShellLayout.headerHeight)
+        }.padding(.leading, railChrome(layout) ? max(metric("gutter"), metric("trafficLights") - layout.navigationWidth + metric("small")) : metric("gutter"))
+            .frame(height: ShellLayout.headerHeight)
             .foregroundStyle(chromeColor("text-strong", scheme))
-            .background(chromeColor("surface", scheme))
+            .background { contentColor("surface", scheme).overlay(chromeColor("titlebar-material", scheme)).overlay { WindowDragRegion() } }
             .accessibilityElement(children: .contain)
+    }
+    // Workspace pages read "Workspace / Page"; feature pages read "Feature / Session".
+    @ViewBuilder private var breadcrumb: some View {
+        if workspacePage {
+            HStack(spacing: metric("small")) {
+                Text(store.text("workspace")).foregroundStyle(chromeColor("text-muted", scheme))
+                Text("/").foregroundStyle(chromeColor("text-soft", scheme)).accessibilityHidden(true)
+                Text(store.text(screen)).fontWeight(.semibold)
+            }.lineLimit(1).accessibilityElement(children: .combine).accessibilityAddTraits(.isHeader)
+        } else {
+            Text(title).fontWeight(.semibold).lineLimit(1).truncationMode(.tail).accessibilityAddTraits(.isHeader)
+        }
     }
     private func storageMessage(_ key: String) -> some View {
         Label(store.text(key), systemImage: "exclamationmark.triangle.fill")
@@ -297,11 +342,48 @@ struct WorkbenchView: View {
 
 struct ModelPicker: View {
     @Bindable var store: WorkbenchStore
+    // Compact: one menu showing the session model; refresh/configure live inside it.
+    var compact = false
+    // Badge: quiet trailing "✦ Provider · model" (language pages); otherwise composer style.
+    var badge = false
+    @Environment(\.colorScheme) private var scheme
     @State private var customModel = ""
     @State private var configuring = false
     @State private var modelSessionID = ""
     @State private var customPrompt = ""
     var body: some View {
+        if compact { compactMenu.popover(isPresented: $configuring) { configuration } } else { full }
+    }
+    private var compactMenu: some View {
+        HStack(spacing: metric("tight")) {
+            Menu {
+                Picker(store.text("model"), selection: Binding(get: { store.session.model }, set: { store.setModel(store.session.id, $0) })) {
+                    ForEach(store.availableModels, id: \.self) { id in Text(nativeModelLabel(id, store: store)).tag(id) }
+                }.pickerStyle(.inline)
+                Divider()
+                Menu(store.text("refreshModels")) {
+                    ForEach(["ollama", "lmstudio", "llamacpp", "openai", "claude", "gemini"], id: \.self) { provider in
+                        Button(provider) { Task { await store.refreshModels(provider: provider) } }
+                    }
+                }.disabled(store.loadingModels)
+                Button(store.text("configureModel")) { modelSessionID = store.session.id; customPrompt = store.session.systemPrompt ?? ""; customModel = store.session.model; configuring = true }
+            } label: {
+                // An offline local runtime shows a red dot inside the chip; ProviderNotice carries the words.
+                if badge { ModelBadgeLabel(text: nativeModelLabel(store.session.model, store: store), offline: runtimeOffline(store.session.model, store: store)).foregroundStyle(contentColor("text-muted", scheme)) }
+                else {
+                    HStack(spacing: metric("small")) {
+                        if runtimeOffline(store.session.model, store: store) { StatusDot(tone: .failed) }
+                        Label(nativeModelLabel(store.session.model, store: store), systemImage: "chevron.down").labelStyle(ModelMenuLabelStyle()).font(.vzn("labelScale"))
+                    }
+                }
+            }.menuStyle(.button).buttonStyle(.vznQuiet).menuIndicator(.hidden).fixedSize()
+                .help(store.session.model).accessibilityLabel(store.text("model") + ": " + store.session.model + (runtimeOffline(store.session.model, store: store) ? ", " + store.text("unavailable") : ""))
+
+            if store.loadingModels { ProgressView().controlSize(.small) }
+            if let error = store.modelError { Image(systemName: "exclamationmark.triangle").foregroundStyle(.secondary).help(store.text(error)).accessibilityLabel(store.text(error)) }
+        }
+    }
+    private var full: some View {
         VStack(alignment: .leading, spacing: metric("small")) {
             HStack(spacing: metric("small")) {
                 Picker(store.text("model"), selection: Binding(get: { store.session.model }, set: { store.setModel(store.session.id, $0) })) {
@@ -319,14 +401,16 @@ struct ModelPicker: View {
                 }.disabled(store.loadingModels).help(store.text("refreshModels"))
                     .accessibilityLabel(store.text("refreshModels"))
                 Button { modelSessionID = store.session.id; customPrompt = store.session.systemPrompt ?? ""; customModel = store.session.model; configuring = true } label: { Image(systemName: "slider.horizontal.3") }
-                    .buttonStyle(.borderless).help(store.text("configureModel")).accessibilityLabel(store.text("configureModel"))
+                    .buttonStyle(.vznQuiet).help(store.text("configureModel")).accessibilityLabel(store.text("configureModel"))
                 if store.loadingModels { ProgressView().controlSize(.small) }
             }
             if let error = store.modelError {
                 Text(store.text(error)).font(.caption).foregroundStyle(.secondary)
             }
         }.frame(maxWidth: metric("sidebar"))
-            .popover(isPresented: $configuring) {
+            .popover(isPresented: $configuring) { configuration }
+    }
+    private var configuration: some View {
                 VStack(alignment: .leading, spacing: metric("inset")) {
                     TextField(store.text("modelID"), text: $customModel)
                     Text(store.text("modelIDHint")).font(.caption)
@@ -336,6 +420,12 @@ struct ModelPicker: View {
                     TextField(store.text("systemPrompt"), text: $customPrompt, axis: .vertical)
                     PromptLibrary(store: store, text: $customPrompt)
                 }.padding(metric("inset")).frame(width: metric("sidebar") + metric("editor"))
-            }
+    }
+}
+
+// Chevron before the model label, matching the composer's model control.
+struct ModelMenuLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: metric("small")) { configuration.icon.imageScale(.small); configuration.title.lineLimit(1) }
     }
 }

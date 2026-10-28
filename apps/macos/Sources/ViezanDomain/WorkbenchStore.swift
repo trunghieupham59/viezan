@@ -51,7 +51,7 @@ import Observation
     }
     public var session: Session { workspace.sessions.first { $0.id == workspace.active[workspace.feature.rawValue] }! }
     public func text(_ key: String) -> String { NativeResources.shared.text(key, locale: workspace.locale) }
-    public func title(_ session: Session) -> String { session.title.isEmpty ? text(session.feature == .chat ? "newChat" : session.feature == .dictionary ? "dictionary" : "newTranslation") : session.title }
+    public func title(_ session: Session) -> String { session.title.isEmpty ? text(session.feature == .chat ? "newChat" : session.feature == .dictionary ? "newLookup" : "newTranslation") : session.title }
     public func history(query: String, archived: Bool = false) -> [Session] {
         func normalized(_ value: String) -> String {
             value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: workspace.locale))

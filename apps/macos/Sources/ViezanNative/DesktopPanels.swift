@@ -77,7 +77,7 @@ private struct QuickSessionPanel: View {
                 }.onAppear { modelDraft = session.model }
                 HStack {
                     if let task = store.running(sessionID) { Button(store.text("stop"), role: .destructive) { store.cancel(task.id) } }
-                    else { Button(store.text(session.feature == .chat ? "send" : "translate")) { store.submit(sessionID) }.buttonStyle(.borderedProminent).disabled(session.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).keyboardShortcut(.return, modifiers: .command) }
+                    else { Button(store.text(session.feature == .chat ? "send" : "translate")) { store.submit(sessionID) }.buttonStyle(.vznPrimary).disabled(session.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).keyboardShortcut(.return, modifiers: .command) }
                     if let target, !session.output.isEmpty {
                         Button(store.text("replaceSelection")) { do { try target.replace(with: session.output); error = nil } catch { self.error = "selectionChanged" } }.disabled(store.running(sessionID) != nil)
                     }
@@ -152,33 +152,58 @@ private struct NativeLauncher: View {
 struct DesktopSettings: View {
     @Bindable var store: WorkbenchStore
     var route: String? = nil
+    // Launcher leads, as in Review 18; Everywhere shows only selection translation.
+    private var shortcuts: [NativeShortcut] {
+        let order = ["launcher", "translateSelection", "quickChat"]
+        return store.desktopIntegration.shortcuts.filter { route != "everywhere" || $0.id == "translateSelection" }
+            .sorted { (order.firstIndex(of: $0.id) ?? order.count) < (order.firstIndex(of: $1.id) ?? order.count) }
+    }
     var body: some View {
-        VStack(alignment: .leading, spacing: metric("inset")) {
-            ForEach(store.desktopIntegration.shortcuts.filter { route != "everywhere" || $0.id == "translateSelection" }) { shortcut in NativeShortcutRow(store: store, shortcut: shortcut) }
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(shortcuts) { shortcut in NativeShortcutRow(store: store, shortcut: shortcut, everywhere: route == "everywhere") }
             if route != "utilities" {
-                Button(store.text("requestAccessibility")) { store.desktopIntegration.requestAccessibility() }
-                Text(store.text("selectionPermissionHint")).foregroundStyle(.secondary)
+                CardRow(title: store.text("accessibilityPermission"), detail: store.text(route == "everywhere" ? "accessibilityHint" : "selectionPermissionHint"), divider: route != nil) {
+                    Button(store.text(route == "everywhere" ? "setUp" : "requestAccessibility")) { store.desktopIntegration.requestAccessibility() }
+                        .help(store.text("selectionPermissionHint"))
+                }
             }
-            if route != "everywhere" {
+            if route == nil {
                 HStack {
                     Button(store.text("launcher")) { store.desktopIntegration.onAction?("launcher") }
                     Button(store.text("quickChat")) { store.desktopIntegration.onAction?("quickChat") }
-                }
+                }.padding(.vertical, metric("small"))
             }
-            if let error = store.desktopIntegration.error { Text(store.text(error)).foregroundStyle(.secondary) }
+            if let error = store.desktopIntegration.error { Label(store.text(error), systemImage: "exclamationmark.triangle").foregroundStyle(.secondary).padding(.top, metric("small")) }
         }
     }
 }
+// Shortcut row: label, enable switch, and the key cap that opens its editor.
 private struct NativeShortcutRow: View {
     let store: WorkbenchStore
     let shortcut: NativeShortcut
+    var everywhere = false
     @State private var key = ""
+    @State private var editing = false
+    private var display: String {
+        shortcut.key.split(separator: "+").map { part -> String in
+            switch part { case "Control": "⌃"; case "Option": "⌥"; case "Shift": "⇧"; case "Command": "⌘"; default: String(part) }
+        }.joined(separator: " ")
+    }
     var body: some View {
-        VStack(alignment: .leading, spacing: metric("small")) {
-            Toggle(store.text(shortcut.id), isOn: Binding(get: { shortcut.enabled }, set: { store.desktopIntegration.configure(shortcut.id, key: key, enabled: $0) }))
-            HStack {
-                TextField(store.text("shortcut"), text: $key).textFieldStyle(.roundedBorder)
-                Button(store.text("apply")) { store.desktopIntegration.configure(shortcut.id, key: key, enabled: shortcut.enabled) }
+        CardRow(title: everywhere ? store.text("allShortcuts") : store.text(shortcut.id), detail: store.text(everywhere ? "shortcutCustomizable" : "shortcutDetail_" + shortcut.id)) {
+            HStack(spacing: metric("small")) {
+                Button { editing.toggle() } label: { KeyCap(text: display) }.buttonStyle(.plain)
+                    .help(store.text("shortcut")).accessibilityLabel(store.text("shortcut") + ": " + shortcut.key)
+                    .popover(isPresented: $editing) {
+                        VStack(alignment: .leading, spacing: metric("small")) {
+                            Text(store.text(shortcut.id)).font(.headline)
+                            TextField(store.text("shortcut"), text: $key).textFieldStyle(.roundedBorder)
+                                .onSubmit { store.desktopIntegration.configure(shortcut.id, key: key, enabled: shortcut.enabled); editing = false }
+                            HStack { Spacer(); Button(store.text("apply")) { store.desktopIntegration.configure(shortcut.id, key: key, enabled: shortcut.enabled); editing = false }.buttonStyle(.vznPrimary) }
+                        }.padding(metric("inset")).frame(width: metric("sidebar") + metric("large"))
+                    }
+                Toggle(store.text(shortcut.id), isOn: Binding(get: { shortcut.enabled }, set: { store.desktopIntegration.configure(shortcut.id, key: key, enabled: $0) }))
+                    .toggleStyle(.switch).labelsHidden().controlSize(.small)
             }
         }.onAppear { key = shortcut.key }.onChange(of: shortcut.key) { _, value in key = value }
     }

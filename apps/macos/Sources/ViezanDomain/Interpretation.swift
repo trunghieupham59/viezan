@@ -91,6 +91,8 @@ public struct InterpretationSession: Codable, Identifiable, Sendable {
         guard persist() else { sessions = previous; return }
         if selectedID == id { selectedID = sessions.first?.id }; playback.stopSpeaking()
     }
+    // A fresh, empty transcript; the next start creates the session.
+    public func clearSelection() { guard !busy else { return }; selectedID = nil }
     public func select(_ id: String) { guard !busy, sessions.contains(where: { $0.id == id }) else { return }; selectedID = id }
     public func start(model: String, provider: String, source: String, target: String, locale: String, captureMode: String = "microphone", deviceID: String = "") async {
         guard ["microphone", "system", "mixed"].contains(captureMode), !busy, !storageBlocked, NativeModel.valid(model), !model.hasPrefix("demo."),

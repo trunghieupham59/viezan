@@ -38,6 +38,8 @@ public:
     Q_INVOKABLE void cancel();
     Q_INVOKABLE void deleteSession(const QString &id);
     Q_INVOKABLE void select(const QString &id);
+    // A fresh, empty transcript; the next start creates the session.
+    Q_INVOKABLE void clearSelection() { if (busy()) return; m_selected.clear(); emit changed(); }
     Q_INVOKABLE void summarize(const QString &kind = "summary");
     Q_INVOKABLE void retry(const QString &id);
     Q_INVOKABLE QString exportText(bool srt = false) const;

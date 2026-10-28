@@ -8,99 +8,164 @@ struct HomeWorkspace: View {
     var resume: (String) -> Void
     var settings: () -> Void
     var interpret: () -> Void
+    @State private var filter: Feature?
+    @Environment(\.colorScheme) private var scheme
     private var recent: [Session] {
         store.workspace.sessions.filter { store.moduleEnabled($0.feature.rawValue) && $0.comparisonParent == nil && $0.archived != true && (!$0.draft.isEmpty || !$0.messages.isEmpty || !$0.output.isEmpty) }.sorted { ($0.updated ?? 0) > ($1.updated ?? 0) }
     }
+    private var active: [Session] {
+        let ids = Set(store.workspace.tasks.filter { $0.status == .running }.map(\.request.sessionID))
+        return recent.filter { ids.contains($0.id) }
+    }
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: metric("gutter")) {
+        WorkspacePage {
+            PageIntro(title: store.text("workspace"), subtitle: store.text("workspaceSubtitle")) {
+                Button(store.text("newWork"), systemImage: "plus") { start(.chat) }
+                    .buttonStyle(.vznPrimary).fixedSize()
+                    .disabled(store.loadBlocked || !store.moduleEnabled("chat")).help(store.text("newChat") + " (⌘N)")
+            }
+            if !active.isEmpty {
                 VStack(alignment: .leading, spacing: metric("small")) {
-                    Text(store.text("home")).font(.title2).fontWeight(.semibold)
-                    Text(store.text("homeSubtitle")).foregroundStyle(.secondary)
-                }
-                Text(store.text("quickStart")).font(.headline)
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: metric("sidebar")), spacing: metric("inset"))], spacing: metric("inset")) {
-                    ForEach(Feature.allCases.filter { store.moduleEnabled($0.rawValue) }, id: \.self) { feature in
-                        Button { start(feature) } label: {
-                            Label(store.text(feature.rawValue), systemImage: feature == .chat ? "bubble.left.and.bubble.right" : feature == .dictionary ? "book.closed" : "character.bubble")
-                                .frame(maxWidth: .infinity, alignment: .leading).padding(metric("inset"))
-                        }.buttonStyle(.bordered).disabled(store.loadBlocked)
-                    }
-                    if store.moduleEnabled("interpret") {
-                        Button(action: interpret) {
-                            Label(store.text("interpret"), systemImage: "waveform")
-                                .frame(maxWidth: .infinity, alignment: .leading).padding(metric("inset"))
-                        }.buttonStyle(.bordered).disabled(store.loadBlocked)
-                    }
-                }
-                GroupBox(store.text("continueWork")) {
-                    VStack(alignment: .leading, spacing: metric("small")) {
-                        if recent.isEmpty { Text(store.text("noRecentWork")).foregroundStyle(.secondary) }
-                        ForEach(recent.prefix(6)) { item in
+                    Eyebrow(text: store.text("inProgress"))
+                    UniformGrid(maxColumns: 2, minimum: metric("sidebar") + metric("large")) {
+                        ForEach(active.prefix(4)) { item in
                             Button { resume(item.id) } label: {
-                                HStack(spacing: metric("inset")) {
-                                    VStack(alignment: .leading, spacing: metric("small")) {
-                                        Text(store.title(item)).lineLimit(1)
-                                        Text(store.text(item.feature.rawValue) + " · " + item.model).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                HStack(spacing: metric("gap")) {
+                                    Image(systemName: item.feature.symbol).foregroundStyle(Color.accentColor).frame(width: metric("icon"))
+                                    VStack(alignment: .leading, spacing: metric("tight")) {
+                                        Text(store.title(item)).fontWeight(.semibold).lineLimit(1)
+                                        Text(store.text("running")).font(.callout).foregroundStyle(.secondary)
                                     }
-                                    Spacer()
-                                    if store.running(item.id) != nil { ProgressView().controlSize(.small).accessibilityLabel(store.text("running")) }
-                                    Image(systemName: "chevron.right").accessibilityHidden(true)
-                                }.frame(maxWidth: .infinity, alignment: .leading).padding(metric("small"))
+                                    Spacer(minLength: metric("small"))
+                                    Label(store.text("open"), systemImage: "arrow.right").labelStyle(.titleAndIcon).font(.callout).foregroundStyle(.secondary)
+                                }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle()).cardSurface()
                             }.buttonStyle(.plain).disabled(store.loadBlocked).help(store.title(item))
                         }
-                    }.frame(maxWidth: .infinity, alignment: .leading).padding(metric("small"))
+                    }
                 }
-                DisclosureGroup(store.text("systemStatus")) {
-                    VStack(alignment: .leading, spacing: metric("small")) {
-                        Text("CPU: " + String(store.localRuntime.processors) + " · RAM: " + ByteCountFormatter.string(fromByteCount: Int64(store.localRuntime.memory), countStyle: .memory))
-                        Text("Ollama · " + store.text(store.localRuntime.available ? "available" : "unavailable") + " " + store.localRuntime.version)
-                        if let value = store.thermalMonitor.snapshot?.sensors?.map(\.celsius).max() { Text(String(format: "%.0f °C", value)) }
-                        ForEach(store.desktopIntegration.shortcuts) { shortcut in
-                            Text(store.text(shortcut.id) + " · " + shortcut.key + " · " + store.text(shortcut.enabled ? "enabled" : "disabled"))
-                        }
-                        Button(store.text("settings"), action: settings)
-                    }.frame(maxWidth: .infinity, alignment: .leading).padding(metric("small"))
+            }
+            VStack(alignment: .leading, spacing: metric("small")) {
+                HStack {
+                    Text(store.text("recentWork")).font(.vzn("sectionScale", .bold)).accessibilityAddTraits(.isHeader)
+                    Spacer()
+                    FilterTabs(label: store.text("recentWork"), items: [(Feature?.none, store.text("filterAll"))] + Feature.allCases.filter { store.moduleEnabled($0.rawValue) }.map { (Feature?.some($0), store.text($0.rawValue)) }, selection: $filter)
                 }
-                GroupBox(store.text("model")) {
-                    VStack(alignment: .leading, spacing: metric("small")) {
-                        Text(store.session.model).textSelection(.enabled)
-                        Button(store.text("settings"), action: settings)
-                    }.frame(maxWidth: .infinity, alignment: .leading).padding(metric("small"))
+                let rows = recent.filter { filter == nil || $0.feature == filter }
+                VStack(spacing: 0) {
+                    Divider()
+                    if rows.isEmpty { Text(store.text("noRecentWork")).foregroundStyle(.secondary).padding(.vertical, metric("inset")).frame(maxWidth: .infinity, alignment: .leading) }
+                    ForEach(rows.prefix(6)) { item in
+                        Button { resume(item.id) } label: { recentRow(item) }
+                            .buttonStyle(.plain).disabled(store.loadBlocked).help(store.title(item))
+                        Divider()
+                    }
                 }
-            }.frame(maxWidth: metric("reading"), alignment: .leading).frame(maxWidth: .infinity).padding(metric("gutter"))
+            }
+            VStack(alignment: .leading, spacing: metric("small")) {
+                Text(store.text("quickStart")).font(.vzn("sectionScale", .bold)).accessibilityAddTraits(.isHeader)
+                NativeFlow(spacing: metric("small")) {
+                    if store.moduleEnabled("chat") { Button(store.text("newChat"), systemImage: "plus") { start(.chat) } }
+                    if store.moduleEnabled("translate") { Button(store.text("translateText"), systemImage: Feature.translate.symbol) { start(.translate) } }
+                    if store.moduleEnabled("interpret") { Button(store.text("interpret"), systemImage: "waveform", action: interpret) }
+                    if store.moduleEnabled("dictionary") { Button(store.text("lookup"), systemImage: Feature.dictionary.symbol) { start(.dictionary) } }
+                }.buttonStyle(.vznOutline).disabled(store.loadBlocked)
+            }
+            HStack(spacing: metric("small")) {
+                StatusDot(tone: store.localRuntime.available ? .ready : .idle)
+                Text("Ollama " + store.text(store.localRuntime.available ? "runtimeReady" : "unavailable").lowercased()).fontWeight(.medium)
+                Text(nativeModelLabel(store.session.model, store: store) + " · " + store.text("onDevice")).foregroundStyle(.secondary).lineLimit(1)
+                Spacer(minLength: metric("small"))
+                Button(store.text("manage"), action: settings).buttonStyle(.vznOutline)
+            }.font(.callout).accessibilityElement(children: .contain)
         }.task { await store.localRuntime.refresh() }
+    }
+    private func recentRow(_ item: Session) -> some View {
+        let detail = item.feature == .chat ? store.text("chat") : store.text(item.feature.rawValue) + " · " + store.text("lang_" + item.source) + " → " + store.text("lang_" + item.target)
+        return HStack(spacing: metric("gap")) {
+            Image(systemName: item.feature.symbol).imageScale(.large).foregroundStyle(.secondary).frame(width: metric("icon") + metric("tight"))
+            VStack(alignment: .leading, spacing: metric("tight")) {
+                Text(store.title(item)).font(.vzn("labelScale", .semibold)).foregroundStyle(.primary).lineLimit(1)
+                Text(detail).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: metric("small"))
+            if store.running(item.id) != nil { Text(store.text("running")).font(.callout).foregroundStyle(Color.accentColor) }
+            else if item.favorite == true { Text(store.text("favorite")).font(.callout).foregroundStyle(.secondary) }
+            Text(relativeTime(item.updated, store: store)).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1).fixedSize()
+            Image(systemName: "arrow.right").fontWeight(.semibold).foregroundStyle(.primary).accessibilityHidden(true)
+        }.padding(.vertical, metric("gap")).padding(.horizontal, metric("small"))
+            .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
     }
 }
 
 struct DictionaryResultView: View {
     let entry: DictionaryEntry
-    let store: WorkbenchStore
+    @Bindable var store: WorkbenchStore
+    @Environment(\.colorScheme) private var scheme
+    @State private var selectedTab = "meaning"
+    private var examples: [String] { (entry.examples ?? []) + entry.translations.flatMap { $0.examples ?? [] } }
     var body: some View {
         VStack(alignment: .leading, spacing: metric("inset")) {
-            Text(entry.headword).font(.title2).fontWeight(.semibold)
-            Text(entry.pronunciation).foregroundStyle(.secondary)
-            HStack {
-                Button(store.text("speak")) { store.audio.speak(entry.headword, language: store.session.source == "auto" ? store.session.target : store.session.source) }
-                Button(store.text("translate")) { let id = store.createDetachedSession(feature: .translate, draft: entry.headword); store.select(id); store.setRoute("translate") }
-                Button(store.text("chat")) { let id = store.createDetachedSession(feature: .chat, draft: entry.headword + "\n" + entry.meaning); store.select(id); store.setRoute("chat") }
+            HStack(alignment: .firstTextBaseline, spacing: metric("inset")) {
+                Text(entry.headword).font(.vzn("heroScale", .bold)).accessibilityAddTraits(.isHeader)
+                Spacer(minLength: metric("small"))
+                Button { store.toggleFavorite(store.session.id) } label: {
+                    Label(store.text(store.session.favorite == true ? "savedWord" : "saveWord"), systemImage: store.session.favorite == true ? "star.fill" : "star")
+                }.buttonStyle(.vznQuiet).accessibilityAddTraits(store.session.favorite == true ? .isSelected : [])
             }
-            if let language = entry.detectedSourceLang, nativeResources.nativeLanguages.contains(language) { Text(store.text("lang_" + language)).font(.caption).foregroundStyle(.secondary) }
-            Text(entry.meaning)
-            ForEach(Array(entry.translations.enumerated()), id: \.offset) { _, translation in
-                GroupBox {
-                    VStack(alignment: .leading, spacing: metric("small")) {
-                        Text(translation.text).fontWeight(.semibold)
-                        Text(translation.pronunciation).foregroundStyle(.secondary)
-                        DisclosureGroup(store.text("dictionaryDetails")) {
-                        ForEach(Array([translation.partOfSpeech, translation.meaning, translation.usage, translation.nuance].compactMap { $0 }.enumerated()), id: \.offset) { _, value in Text(value) }
-                        ForEach(Array(((translation.examples ?? []) + (translation.collocations ?? []) + (translation.notes ?? [])).enumerated()), id: \.offset) { _, value in Text(value) }
+            HStack(spacing: metric("small")) {
+                if !entry.pronunciation.isEmpty { Text(entry.pronunciation).foregroundStyle(.secondary) }
+                if let language = entry.detectedSourceLang, nativeResources.nativeLanguages.contains(language) {
+                    Text(store.text("lang_" + language)).font(.callout).padding(.horizontal, metric("small")).padding(.vertical, metric("tight"))
+                        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
+                }
+                Button { store.audio.speak(entry.headword, language: store.session.source == "auto" ? store.session.target : store.session.source) } label: { Image(systemName: "speaker.wave.2") }
+                    .buttonStyle(.vznQuiet).help(store.text("speak")).accessibilityLabel(store.text("speak"))
+                Spacer(minLength: 0)
+                Button(store.text("translate")) { let id = store.createDetachedSession(feature: .translate, draft: entry.headword); store.select(id); store.setRoute("translate") }.buttonStyle(.vznOutline)
+                Button(store.text("chat")) { let id = store.createDetachedSession(feature: .chat, draft: entry.headword + "\n" + entry.meaning); store.select(id); store.setRoute("chat") }.buttonStyle(.vznOutline)
+            }
+            FilterTabs(label: store.text("dictionary"), items: [("meaning", store.text("dictionaryMeaning")), ("examples", store.text("dictionaryExamples"))], selection: $selectedTab)
+            Divider()
+            if selectedTab == "meaning" {
+                if !entry.meaning.isEmpty { Text(entry.meaning) }
+                ForEach(Array(entry.translations.enumerated()), id: \.offset) { index, translation in
+                    HStack(alignment: .firstTextBaseline, spacing: metric("inset")) {
+                        Text(String(format: "%02d", index + 1)).font(.callout).monospacedDigit().foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: metric("small")) {
+                            HStack(alignment: .firstTextBaseline, spacing: metric("small")) {
+                                Text(translation.text).font(.vzn("titleScale", .bold))
+                                if !translation.pronunciation.isEmpty { Text(translation.pronunciation).foregroundStyle(.secondary) }
+                                Button { store.audio.speak(translation.text, language: store.session.target) } label: { Image(systemName: "speaker.wave.2") }
+                                    .buttonStyle(.vznQuiet).help(store.text("speak")).accessibilityLabel(store.text("speak") + " " + translation.text)
+                            }
+                            ForEach(Array([translation.partOfSpeech, translation.meaning].compactMap { $0 }.enumerated()), id: \.offset) { _, value in Text(value).foregroundStyle(.secondary) }
+                            if translation.usage != nil || translation.nuance != nil || !((translation.examples ?? []) + (translation.collocations ?? []) + (translation.notes ?? [])).isEmpty {
+                                DisclosureGroup(store.text("dictionaryDetails")) {
+                                    VStack(alignment: .leading, spacing: metric("small")) {
+                                        ForEach(Array([translation.usage, translation.nuance].compactMap { $0 }.enumerated()), id: \.offset) { _, value in Text(value) }
+                                        ForEach(Array(((translation.examples ?? []) + (translation.collocations ?? []) + (translation.notes ?? [])).enumerated()), id: \.offset) { _, value in Text(value) }
+                                    }.frame(maxWidth: .infinity, alignment: .leading).padding(.top, metric("small"))
+                                }
+                            }
                         }
-                        Button(store.text("speak")) { store.audio.speak(translation.text, language: store.session.target) }
-                    }.frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                if let notes = entry.notes, !notes.isEmpty {
+                    ForEach(Array(notes.enumerated()), id: \.offset) { _, value in Text(value).foregroundStyle(.secondary) }
                 }
             }
-            ForEach(Array(((entry.examples ?? []) + (entry.notes ?? [])).enumerated()), id: \.offset) { _, value in Text(value) }
+            if selectedTab == "examples" && examples.isEmpty {
+                Text(store.text("dictionaryNoExamples")).foregroundStyle(.secondary)
+            }
+            if !examples.isEmpty {
+                VStack(alignment: .leading, spacing: metric("small")) {
+                    Eyebrow(text: store.text("dictionaryExamples"))
+                    ForEach(Array((selectedTab == "meaning" ? Array(examples.prefix(1)) : examples).enumerated()), id: \.offset) { _, value in Text(value) }
+                }.padding(metric("inset")).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(contentColor("surface-muted", scheme), in: RoundedRectangle(cornerRadius: metric("radius")))
+            }
         }.font(readingFont(store)).textSelection(.enabled)
+            .onChange(of: store.session.id) { _, _ in selectedTab = "meaning" }
+            .onChange(of: entry.headword) { _, _ in selectedTab = "meaning" }
     }
 }

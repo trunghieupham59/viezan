@@ -782,6 +782,40 @@ private slots:
         QCOMPARE(bridge.state(), before);
         QCOMPARE(warnings.count(), 0);
     }
+    void providerNoticeFollowsRuntimeAndOpensLocalModels() {
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("route", {{"value", "chat"}});
+        bridge.command("model", {{"value", "ollama:llama3.2"}});
+        QQmlApplicationEngine engine;
+        QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.rootContext()->setContextProperty("workbench", &bridge);
+        engine.load(QUrl("qrc:/qml/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *root = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(root);
+        auto *notice = visualItem(root->contentItem(), "provider-notice");
+        QVERIFY(notice);
+        // The notice never warns before a probe has answered; afterwards it mirrors it.
+        QTRY_VERIFY_WITH_TIMEOUT(bridge.localRuntime()->checked(), 10000);
+        QCoreApplication::processEvents();
+        QCOMPARE(notice->isVisible(), !bridge.localRuntime()->available());
+        // Only local Ollama models have a probe.
+        bridge.command("model", {{"value", "demo.standard"}});
+        QTRY_VERIFY(!notice->isVisible());
+        const auto before = bridge.state();
+        QVERIFY(QMetaObject::invokeMethod(root, "openSettingsSection", Q_ARG(QVariant, "localModels")));
+        auto *settings = root->findChild<QQuickItem *>("settings-workspace");
+        QTRY_VERIFY(settings);
+        QTRY_COMPARE(settings->property("activeSection").toString(), QString("localModels"));
+        QTRY_COMPARE(root->property("settingsSection").toString(), QString());
+        QCOMPARE(bridge.state().value("sessions"), before.value("sessions"));
+        // A synchronous "section consumed" reset would loop the binding. Leaving Chat
+        // also emits the known ChatTranscript.qml:33 warning, so filter for loops only.
+        for (const auto &warning : warnings)
+            for (const auto &error : qvariant_cast<QList<QQmlError>>(warning.at(0)))
+                QVERIFY2(!error.toString().contains("Binding loop"), qPrintable(error.toString()));
+    }
     void qmlLoadsWithRealBridge_data() {
         QTest::addColumn<QString>("feature");
         QTest::addColumn<bool>("library");

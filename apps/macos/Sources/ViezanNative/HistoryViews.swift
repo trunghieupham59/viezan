@@ -90,6 +90,7 @@ struct SessionRow: View {
 
 struct HistoryLibrary: View {
     @Bindable var store: WorkbenchStore
+    var initialFavorites = false
     var close: () -> Void
     @State private var query = ""
     @State private var selected: String?
@@ -107,6 +108,9 @@ struct HistoryLibrary: View {
         selected = records[min(max(index + offset, 0), records.count - 1)].id
     }
     var body: some View {
+        libraryBody.onAppear { favoritesOnly = initialFavorites }
+    }
+    private var libraryBody: some View {
         GeometryReader { geometry in
             let wide = geometry.size.width >= metric("reading")
             let layout = wide ? AnyLayout(HStackLayout(spacing: 0)) : AnyLayout(VStackLayout(spacing: 0))
@@ -249,8 +253,8 @@ struct ActivityView: View {
                                         NativePanelButton(label: store.text("stop"), identifier: "activity-stop-" + task.id, role: .destructive, focusEpoch: epoch("stop-" + task.id), onTab: { moveFocus(from: "stop-" + task.id, backwards: $0) }) { focusedControl = "stop-" + task.id; store.cancel(task.id) }
                                     } else if store.canRetry(task) { NativePanelButton(label: store.text("retry"), identifier: "activity-retry-" + task.id, role: .primary, focusEpoch: epoch("retry-" + task.id), onTab: { moveFocus(from: "retry-" + task.id, backwards: $0) }) { focusedControl = "retry-" + task.id; store.retry(task.id) } }
                                 }
-                            }.padding(metric("inset")).frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: metric("radius")))
+                            // Bordered card: the panel is now an opaque surface of the same tone.
+                            }.frame(maxWidth: .infinity, alignment: .leading).cardSurface()
                         }
                     }.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
                 }.frame(height: min(max(metric("control"), contentHeight), max(metric("control"), availableHeight - metric("control") - metric("inset") * 3)))

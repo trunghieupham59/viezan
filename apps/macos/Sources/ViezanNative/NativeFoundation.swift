@@ -8,8 +8,17 @@ import ViezanDomain
 }
 // Colors are generated from the canonical product tokens.
 @MainActor func chromeColor(_ role: String, _ scheme: ColorScheme) -> Color {
+    paletteColor(NativeTheme.shared.preferences.preset ?? "glass", role, scheme)
+}
+// Review 18: Glass owns navigation/chrome materials; content keeps Graphite
+// surfaces and text. Other personas own both layers.
+@MainActor func contentColor(_ role: String, _ scheme: ColorScheme) -> Color {
+    let preset = NativeTheme.shared.preferences.preset ?? "glass"
+    return paletteColor(preset == "glass" ? "graphite" : preset, role, scheme)
+}
+@MainActor private func paletteColor(_ preset: String, _ role: String, _ scheme: ColorScheme) -> Color {
     let preferences = NativeTheme.shared.preferences
-    let key = (preferences.preset ?? "glass") + ":" + (preferences.accent ?? "auto")
+    let key = preset + ":" + (preferences.accent ?? "auto")
     let mode = preferences.preset == "midnight" || scheme == .dark ? "dark" : "light"
     let hex = nativeResources.themePalettes[key]?[mode]?[role] ?? nativeResources.chromePalettes[mode]![role]!
     let raw = UInt64(hex.dropFirst(), radix: 16)!
@@ -18,16 +27,27 @@ import ViezanDomain
                  green: Double((raw >> 8) & 255) / 255, blue: Double(raw & 255) / 255, opacity: alpha)
 }
 
+// Primary navigation material: real behind-window vibrancy tinted by the
+// persona's nav material; Reduce Transparency falls back to the solid role.
 struct ChromeSurface: View {
     var titlebar = false
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     var body: some View {
-        if titlebar {
-            chromeColor("titlebar-bg", scheme).overlay {
-                LinearGradient(colors: [chromeColor("action-soft", scheme), .clear], startPoint: .leading, endPoint: .trailing)
-            }
-        } else { chromeColor("sidebar-bg", scheme) }
+        if reduceTransparency { chromeColor(titlebar ? "titlebar-bg" : "sidebar-bg", scheme) }
+        else {
+            VisualEffectBackground(material: titlebar ? .titlebar : .sidebar)
+                .overlay(chromeColor(titlebar ? "titlebar-material" : "primary-nav-material", scheme))
+        }
     }
+}
+
+struct VisualEffectBackground: NSViewRepresentable {
+    var material: NSVisualEffectView.Material
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView(); view.blendingMode = .behindWindow; view.state = .followsWindowActiveState; return view
+    }
+    func updateNSView(_ view: NSVisualEffectView, context: Context) { view.material = material }
 }
 
 // Explicit chrome dividers keep fixture and live-window contrast identical.
@@ -35,8 +55,7 @@ struct ChromeDivider: View {
     var vertical = false
     @Environment(\.colorScheme) private var scheme
     var body: some View {
-        Rectangle().fill(chromeColor("divider", scheme))
-            .background(chromeColor("sidebar-bg", scheme))
+        Rectangle().fill(chromeColor("material-border", scheme))
             .frame(width: vertical ? metric("hairline") : nil,
                    height: vertical ? nil : metric("hairline"))
             .accessibilityHidden(true)
@@ -50,11 +69,16 @@ struct HistoryAnchorPreference: PreferenceKey {
 
 @MainActor func nativeModelLabel(_ id: String, store: WorkbenchStore) -> String {
     switch id {
-    case "demo.standard": store.text("steady")
-    case "demo.slow": store.text("slow")
-    case "demo.failure": store.text("failure")
-    default: id
+    case "demo.standard": return store.text("steady")
+    case "demo.slow": return store.text("slow")
+    case "demo.failure": return store.text("failure")
+    default: break
     }
+    // "provider:model" reads as "Provider · model"; the raw ID stays in help text.
+    guard let split = id.firstIndex(of: ":") else { return id }
+    let provider = String(id[..<split]), model = String(id[id.index(after: split)...])
+    let names = ["ollama": "Ollama", "lmstudio": "LM Studio", "llamacpp": "llama.cpp", "openai": "OpenAI", "claude": "Claude", "gemini": "Gemini", "groq": "Groq"]
+    return (names[provider] ?? provider) + " · " + model
 }
 
 enum ShellOverlay: String { case navigation, history, activity, commands }
@@ -64,7 +88,7 @@ struct ShellLayout {
     var height: CGFloat
     var collapsed: Bool
     static var titlebarHeight: CGFloat { metric("titlebar") }
-    static var headerHeight: CGFloat { metric("navControl") + metric("inset") }
+    static var headerHeight: CGFloat { metric("navControl") + metric("small") }
     var compact: Bool { width < metric("compact") }
     var navigationWidth: CGFloat { compact || collapsed ? metric("rail") : metric("sidebar") }
     var navigationOverlayWidth: CGFloat { compact ? metric("compactSidebar") : metric("sidebar") }
@@ -81,6 +105,10 @@ struct ShellLayout {
     var request: Request?
     var overlay: ShellOverlay?
     var library = false
+    var libraryFavorites = false
+    var settingsQuery = ""
+    // One-shot request for the section Settings should open on (consumed on arrival).
+    var settingsSection: String?
     var focusEpochs: [String: Int] = [:]
     func issue(_ command: String) { request = Request(command: command) }
     weak var opener: NSResponder?
@@ -139,11 +167,13 @@ struct SidebarSurface: View {
 }
 
 // Text-bearing panels keep an opaque reading surface in every system mode.
+// Content roles, not chrome: Glass's chrome canvas is translucent with no blur,
+// which let page text show through history, activity and the command palette.
 struct ReadingPanelSurface: View {
     @Environment(\.colorScheme) private var scheme
     var body: some View {
         RoundedRectangle(cornerRadius: metric("surfaceRadius"))
-            .fill(chromeColor("canvas", scheme))
+            .fill(contentColor("surface", scheme))
             .overlay(RoundedRectangle(cornerRadius: metric("surfaceRadius"))
                 .strokeBorder(Color(nsColor: .separatorColor), lineWidth: metric("hairline")))
             .shadow(color: Color(nsColor: .shadowColor).opacity(metric("overlayShadowOpacity")), radius: metric("inset"), y: metric("small"))
@@ -175,6 +205,7 @@ struct ShellToolbarButton: NSViewRepresentable {
     var identifier: String
     var showsLabel = false
     var primary = false
+    var soft = false
     var panelAction: NativePanelAction? = nil
     var expanded: Bool? = nil
     var hint: String = ""
@@ -206,9 +237,10 @@ struct ShellToolbarButton: NSViewRepresentable {
         button.image = symbol.isEmpty ? nil : NSImage(systemSymbolName: symbol, accessibilityDescription: label)
         button.imagePosition = symbol.isEmpty ? .noImage : showsLabel || count > 0 ? .imageLeading : .imageOnly
         button.title = showsLabel ? label + (count > 0 ? " · " + String(count) : "") : count > 0 ? String(count) : ""
+        button.font = .systemFont(ofSize: panelAction == nil ? NSFont.systemFontSize * metric("labelScale") : NSFont.systemFontSize)
         button.titlebarControl = identifier == "navigation-toggle"
         button.solidPrimary = primary
-        button.emphasized = primary || (expanded == true && identifier != "navigation-toggle")
+        button.emphasized = primary || soft || (expanded == true && identifier != "navigation-toggle")
         if let expanded { button.setAccessibilityExpanded(expanded) }
         button.panelAction = panelAction
         button.bounded = showsLabel
@@ -251,7 +283,7 @@ struct ShellToolbarButton: NSViewRepresentable {
         var emphasized = false
         var bounded = false
         var panelAction: NativePanelAction?
-        private var surfaceRadius: CGFloat { metric(panelAction == nil ? "surfaceRadius" : "controlRadius") }
+        private var surfaceRadius: CGFloat { panelAction == nil ? metric("compactControl") / 2 : metric("controlRadius") }
         var onTab: ((Bool) -> Void)?
         override func keyDown(with event: NSEvent) {
             if event.keyCode == 48, let onTab {
@@ -288,7 +320,7 @@ struct ShellToolbarButton: NSViewRepresentable {
                 if panelAction == nil {
                     let scheme: ColorScheme = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .dark : .light
                     let color: (String) -> NSColor = { NSColor(chromeColor($0, scheme)) }
-                    layer?.borderColor = color("border").cgColor
+                    layer?.borderColor = color("material-border").cgColor
                     layer?.backgroundColor = (!isEnabled ? NSColor.controlBackgroundColor
                         : solidPrimary ? color(hovered ? "action-hover" : "action")
                         : emphasized ? color("action-soft")
@@ -322,7 +354,7 @@ struct ShellToolbarButton: NSViewRepresentable {
             NSBezierPath(roundedRect: focusRingMaskBounds, xRadius: surfaceRadius, yRadius: surfaceRadius).fill()
         }
         override var intrinsicContentSize: NSSize {
-            NSSize(width: max(metric("control"), super.intrinsicContentSize.width + (bounded ? metric("inset") * 2 : 0)), height: metric("control"))
+            NSSize(width: max(metric("compactControl"), super.intrinsicContentSize.width + (bounded ? metric("inset") * 2 : 0)), height: metric("compactControl"))
         }
     }
     @MainActor class Coordinator: NSObject {
@@ -362,6 +394,14 @@ struct WindowDragRegion: NSViewRepresentable {
         private func alignWindowControls() {
             guard let window, window.styleMask.contains(.titled),
                   !window.styleMask.contains(.fullScreen), bounds.height > 0 else { return }
+            // The system titlebar container is shorter than the Review 18 header
+            // row; grow it so centered window controls are not clipped.
+            if let titlebar = window.standardWindowButton(.closeButton)?.superview,
+               let container = titlebar.superview, let frame = container.superview,
+               abs(container.frame.height - bounds.height) > metric("hairline") {
+                container.frame = NSRect(x: 0, y: frame.bounds.height - bounds.height, width: frame.bounds.width, height: bounds.height)
+                titlebar.frame = container.bounds
+            }
             for kind in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
                 guard let button = window.standardWindowButton(kind), let parent = button.superview else { continue }
                 let center = convert(NSPoint(x: bounds.midX, y: bounds.midY), to: parent)
@@ -411,93 +451,82 @@ struct NativeNavigation: View {
     var close: (() -> Void)?
     @Environment(\.colorScheme) private var scheme
     @State private var hoveredItem: String?
-    private let groups: [(String, [(String, String)])] = [
-        ("groupAI", [("chat", "bubble.left.and.bubble.right")]),
-        ("groupLanguage", [("translate", "character.bubble"), ("interpret", "mic"), ("dictionary", "book.closed"), ("everywhere", "globe")]),
-        ("groupSystem", [("apps", "square.grid.2x2"), ("thermal", "thermometer.medium")]),
-        ("groupTools", [("utilities", "keyboard")])
-    ]
+    // Review 18: one workspace list, then a single system group that ends in Settings.
+    private let workspaceItems: [(String, String)] = [("chat", "bubble.left.and.bubble.right"), ("translate", "translate"), ("interpret", "waveform"), ("dictionary", "book"), ("everywhere", "text.viewfinder")]
+    private let systemItems: [(String, String)] = [("apps", "macwindow"), ("thermal", "thermometer.medium"), ("utilities", "command")]
     var body: some View {
         VStack(spacing: metric("small")) {
             HStack(spacing: metric("gap")) {
                 if let url = NativeResources.brandURL, let icon = NSImage(contentsOf: url) {
                     Image(nsImage: icon).resizable().scaledToFit()
-                        .frame(width: metric("brand"), height: metric("brand")).accessibilityHidden(true)
+                        .frame(width: metric("large") - metric("tight"), height: metric("large") - metric("tight")).accessibilityHidden(true)
                 }
-                if expanded { Text("Viezan").font(.title2).fontWeight(.semibold); Spacer(minLength: 0) }
+                if expanded { Text("viezan").font(.title3).fontWeight(.semibold); Spacer(minLength: 0) }
                 if let close { ShellCloseButton(label: store.text("close"), focusOnAppear: true, action: close) }
             }.frame(height: metric("navControl")).padding(.horizontal, expanded ? metric("small") : 0)
             Button(action: commands) {
                 HStack {
-                    Image(systemName: "magnifyingglass").frame(width: metric("icon"))
+                    if !expanded { Image(systemName: "magnifyingglass").frame(width: metric("icon")) }
                     if expanded {
-                        Text(store.text("searchLabel")).lineLimit(1)
+                        Text(store.text("searchEverything")).lineLimit(1)
                         Spacer(minLength: metric("tight"))
-                        Text("⌘K").font(.system(.caption, design: .monospaced))
-                            .padding(.horizontal, metric("tight"))
-                            .background(chromeColor("surface-raised", scheme), in: RoundedRectangle(cornerRadius: metric("chromeShortcutRadius")))
-                            .overlay(RoundedRectangle(cornerRadius: metric("chromeShortcutRadius"))
-                                .strokeBorder(chromeColor("border-strong", scheme), lineWidth: metric("hairline")))
-                            .accessibilityHidden(true)
+                        Text("⌘ K").font(.caption).accessibilityHidden(true)
                     }
                 }.padding(.horizontal, expanded ? metric("gap") : 0)
                     .frame(maxWidth: .infinity).frame(height: metric("compactControl"))
-                    .background(chromeColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("chromeSearchRadius")))
-                    .overlay(RoundedRectangle(cornerRadius: metric("chromeSearchRadius")).strokeBorder(chromeColor("border-strong", scheme), lineWidth: metric("hairline")))
-            }.buttonStyle(.plain).foregroundStyle(chromeColor(hoveredItem == "search" ? "chrome-fg-strong" : "chrome-fg-muted", scheme))
+                    .font(.system(size: NSFont.systemFontSize * metric("smallScale")))
+                    .background(chromeColor("sidebar-search-bg", scheme), in: RoundedRectangle(cornerRadius: metric("chromeItemRadius")))
+                    .overlay(RoundedRectangle(cornerRadius: metric("chromeItemRadius")).strokeBorder(chromeColor("material-border", scheme), lineWidth: metric("hairline")))
+            }.buttonStyle(.plain).foregroundStyle(chromeColor(hoveredItem == "search" ? "chrome-fg" : "chrome-fg-muted", scheme))
                 .onHover { hoveredItem = $0 ? "search" : nil }
                 .accessibilityIdentifier("navigation-search")
-                .accessibilityLabel(store.text("searchLabel")).help(store.text("commands") + " (⌘K)")
-            ChromeDivider().padding(.vertical, metric("small"))
+                .accessibilityLabel(store.text("searchEverything")).help(store.text("commands") + " (⌘K)")
             ScrollView {
                 VStack(alignment: .leading, spacing: metric("tight")) {
+                    Color.clear.frame(height: metric("small")).accessibilityHidden(true)
                     row("home", "house")
-                    ForEach(groups.indices, id: \.self) { index in
-                        if expanded {
-                            Text(store.text(groups[index].0).uppercased()).font(.caption).tracking(metric("hairline"))
-                                .foregroundStyle(chromeColor("chrome-fg-soft", scheme))
-                                .padding(.horizontal, metric("gap")).padding(.top, metric("gap")).padding(.bottom, metric("tight"))
-                        } else { ChromeDivider().padding(.vertical, metric("small")) }
-                        ForEach(groups[index].1.filter { store.moduleEnabled($0.0) }, id: \.0) { id, symbol in row(id, symbol) }
-                    }
+                    ForEach(workspaceItems.filter { store.moduleEnabled($0.0) }, id: \.0) { id, symbol in row(id, symbol) }
+                    if expanded {
+                        Text(store.text("groupSystem").uppercased()).font(.caption).tracking(metric("hairline"))
+                            .foregroundStyle(chromeColor("chrome-fg-soft", scheme))
+                            .padding(.horizontal, metric("gap")).padding(.top, metric("gap")).padding(.bottom, metric("tight"))
+                            .accessibilityAddTraits(.isHeader)
+                    } else { ChromeDivider().padding(.vertical, metric("small")) }
+                    ForEach(systemItems.filter { store.moduleEnabled($0.0) }, id: \.0) { id, symbol in row(id, symbol) }
+                    row("settings", "slider.horizontal.3")
                 }
             }.frame(maxHeight: .infinity)
-            if expanded {
-                VStack(spacing: metric("small")) {
-                    footer("hotkeys", "keyboard")
-                    footer("browserBridge", "globe")
-                }.padding(.horizontal, metric("gap"))
-            }
-            ChromeDivider()
-            row("settings", "gearshape")
+            if expanded { privacyFooter }
         }.padding(metric("small"))
-            .foregroundStyle(chromeColor("chrome-fg-strong", scheme)).background { ChromeSurface() }
+            .foregroundStyle(chromeColor("chrome-fg", scheme)).background { ChromeSurface() }
             .accessibilityElement(children: .contain).accessibilityLabel(store.text("primaryNavigation"))
     }
-    private func footer(_ key: String, _ symbol: String) -> some View {
-        let active = key == "browserBridge" ? store.extensionBridge.listening : store.desktopIntegration.error == nil && store.desktopIntegration.shortcuts.contains { $0.enabled }
-        return Button { select(key == "browserBridge" ? "everywhere" : "utilities") } label: {
-            HStack(spacing: metric("small")) {
-                Image(systemName: symbol).frame(width: metric("icon")); Text(store.text(key)).lineLimit(1)
-                Spacer(minLength: 0)
-                Image(systemName: active ? "checkmark.circle" : "minus.circle").accessibilityLabel(store.text(active ? "running" : "stopped"))
-            }.font(.caption).foregroundStyle(chromeColor("chrome-fg-soft", scheme))
-        }.buttonStyle(.plain).disabled(store.loadBlocked)
+    // Local-first reminder; data never leaves the device unless a provider is chosen.
+    private var privacyFooter: some View {
+        HStack(alignment: .firstTextBaseline, spacing: metric("small")) {
+            StatusDot(tone: .ready)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(store.text("privacyTitle")); Text(store.text("privacyHint"))
+            }.lineLimit(1)
+            Spacer(minLength: 0)
+        }.font(.vzn("smallScale")).foregroundStyle(chromeColor("chrome-fg-muted", scheme))
+            .padding(.horizontal, metric("gap")).padding(.vertical, metric("small"))
+            .accessibilityElement(children: .combine)
     }
     private func row(_ id: String, _ symbol: String) -> some View {
         let implemented = ["home", "chat", "translate", "dictionary", "settings", "utilities", "everywhere", "thermal", "interpret", "apps"].contains(id)
         let enabled = implemented && (!store.loadBlocked || id == "settings")
         return Button { select(id) } label: {
             HStack(spacing: metric("gap")) {
-                Image(systemName: symbol).symbolRenderingMode(.monochrome).frame(width: metric("icon"))
-                    .foregroundStyle(screen == id ? chromeColor("chrome-accent", scheme) : chromeColor("chrome-fg-muted", scheme))
+                Image(systemName: symbol).symbolRenderingMode(.monochrome).imageScale(.medium).frame(width: metric("icon"))
                 if expanded { Text(store.text(id)).lineLimit(1); Spacer(minLength: 0) }
             }.padding(.horizontal, expanded ? metric("gap") : 0)
                 .frame(maxWidth: .infinity, alignment: expanded ? .leading : .center).frame(height: metric("compactControl"))
                 .contentShape(Rectangle())
-        }.buttonStyle(.plain).foregroundStyle(chromeColor(screen == id ? "chrome-fg-strong" : "chrome-fg-muted", scheme))
-            .fontWeight(screen == id ? .semibold : .regular)
-            .background(screen == id ? chromeColor("chrome-item-active", scheme) : enabled && hoveredItem == id ? chromeColor("chrome-item-hover", scheme) : .clear, in: RoundedRectangle(cornerRadius: metric("surfaceRadius")))
+        }.buttonStyle(.plain).foregroundStyle(chromeColor(screen == id ? "chrome-item-active-fg" : "chrome-fg", scheme))
+            .font(.system(size: NSFont.systemFontSize * metric("labelScale"), weight: screen == id ? .semibold : .regular))
+            .background(screen == id ? chromeColor("chrome-item-active", scheme) : enabled && hoveredItem == id ? chromeColor("chrome-item-hover", scheme) : .clear, in: RoundedRectangle(cornerRadius: metric("chromeItemRadius")))
+            .overlay(RoundedRectangle(cornerRadius: metric("chromeItemRadius")).strokeBorder(screen == id ? chromeColor("material-highlight", scheme) : .clear, lineWidth: metric("hairline")))
             .onHover { hoveredItem = $0 && enabled ? id : nil }
             .accessibilityLabel(store.text(id)).accessibilityIdentifier("nav-" + id)
             .accessibilityAddTraits(screen == id ? .isSelected : []).disabled(!enabled)
@@ -547,7 +576,9 @@ struct NativeCommands: View {
                                     HStack {
                                         Label(store.text(item.title), systemImage: item.systemImage).lineLimit(1)
                                         Spacer()
-                                        Text("⌘" + item.shortcut.replacingOccurrences(of: "Shift+", with: "⇧")).font(.caption).foregroundStyle(.secondary).fixedSize()
+                                        if !item.shortcut.isEmpty {
+                                            Text("⌘" + item.shortcut.replacingOccurrences(of: "Shift+", with: "⇧")).font(.caption).foregroundStyle(.secondary).fixedSize()
+                                        }
                                     }.padding(.horizontal, metric("small")).frame(maxWidth: .infinity, alignment: .leading)
                                         .frame(height: metric("compactControl")).contentShape(Rectangle())
                                 }.buttonStyle(.plain).focusable(false)

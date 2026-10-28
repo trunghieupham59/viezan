@@ -10,22 +10,30 @@ struct BridgeSettings: View {
     @State private var invalidOrigins = false
     var body: some View {
         let bridge = store.extensionBridge
-        VStack(alignment: .leading, spacing: metric("inset")) {
-            Text(store.text("bridgeDescription")).foregroundStyle(.secondary)
-            Text("127.0.0.1:39875").textSelection(.enabled)
+        VStack(alignment: .leading, spacing: metric("small")) {
+            Text(store.text("bridgeDescription")).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            CardRow(title: "127.0.0.1:39875", detail: store.text("model") + ": " + store.session.model) {
+                Button(store.text(bridge.listening ? "stop" : "startBridge")) { if bridge.listening { bridge.stop() } else { bridge.model = store.session.model; bridge.start() } }
+                    .buttonStyle(.vznOutline)
+            }
             Toggle(store.text("bridgeAutomatic"), isOn: $automatic)
-            Text(store.text("bridgeOrigins"))
-            TextEditor(text: $origins).accessibilityLabel(store.text("bridgeOrigins"))
+            Text(store.text("bridgeOrigins")).fontWeight(.medium)
+            TextEditor(text: $origins).font(.callout).frame(minHeight: metric("control") * 2, maxHeight: metric("control") * 3)
+                .scrollContentBackground(.hidden).padding(metric("tight"))
+                .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
+                .overlay(RoundedRectangle(cornerRadius: metric("controlRadius")).strokeBorder(Color(nsColor: .separatorColor), lineWidth: metric("hairline")))
+                .accessibilityLabel(store.text("bridgeOrigins"))
             Text(store.text("bridgeOriginsHint")).font(.caption).foregroundStyle(.secondary)
             Button(store.text("apply")) {
                 invalidOrigins = !store.setBridge(automatic: automatic, origins: origins.split(whereSeparator: \.isNewline).map(String.init).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty })
             }
             if invalidOrigins { Text(store.text("bridgeOriginsInvalid")).foregroundStyle(.red) }
-            Button(store.text(bridge.listening ? "stop" : "startBridge")) { if bridge.listening { bridge.stop() } else { bridge.model = store.session.model; bridge.start() } }
-            Text(store.text("model") + ": " + store.session.model).textSelection(.enabled)
-            TextField(store.text("tokenName"), text: $name).textFieldStyle(.roundedBorder)
-            Stepper(store.text("tokenDays") + ": " + String(days), value: $days, in: 1...365)
-            Button(store.text("createToken")) { bridge.createToken(name: name, days: days) }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            Divider().padding(.vertical, metric("tight"))
+            HStack(spacing: metric("small")) {
+                TextField(store.text("tokenName"), text: $name).textFieldStyle(.roundedBorder)
+                Stepper(store.text("tokenDays") + ": " + String(days), value: $days, in: 1...365).fixedSize()
+                Button(store.text("createToken")) { bridge.createToken(name: name, days: days) }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
             if !bridge.revealedToken.isEmpty {
                 Text(store.text("tokenOnce"))
                 Text(bridge.revealedToken).font(.system(.caption, design: .monospaced)).textSelection(.enabled)

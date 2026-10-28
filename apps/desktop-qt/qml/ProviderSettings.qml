@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-GroupBox {
+Kit.CardBox {
     id: providers
     required property var bridge
     readonly property var metrics: bridge.resources.metrics

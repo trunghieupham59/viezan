@@ -4,13 +4,35 @@ import ViezanDomain
 
 struct ImageControls: View {
     @Bindable var store: WorkbenchStore
+    // Compact: icon menu in a composer row; attachments render as chips elsewhere.
+    var compact = false
+    // The translation source owns the header's "Add image" request.
+    var acceptsHeaderRequest = false
+    // Header owns the visible control; this instance keeps status and the request.
+    var statusOnly = false
+    var extraMenu: AnyView? = nil
     @State private var busy = false
     @State private var error: String?
     @State private var pendingText = ""
     var body: some View {
+        if compact {
+            HStack(spacing: metric("tight")) {
+                if !statusOnly {
+                    Menu { imageActions; if let extraMenu { Divider(); extraMenu } } label: { Image(systemName: "plus").imageScale(.large) }
+                        .menuStyle(.button).buttonStyle(.vznQuiet).menuIndicator(.hidden).fixedSize()
+                        .help(store.text("attachImage")).accessibilityLabel(store.text("attachImage"))
+                }
+                if busy { ProgressView().controlSize(.small).accessibilityLabel(store.text("running")) }
+                if !pendingText.isEmpty { Button(store.text("insertTranscript")) { store.setDraft(store.session.id, store.session.draft + (store.session.draft.isEmpty ? "" : "\n") + pendingText); pendingText = "" } }
+                if let error { Image(systemName: "exclamationmark.triangle").foregroundStyle(.secondary).help(store.text(error)).accessibilityLabel(store.text(error)) }
+            }.onReceive(headerRequests) { _ in if acceptsHeaderRequest && !busy { pick(ocr: false) } }
+        } else { full }
+    }
+    private var headerRequests: NotificationCenter.Publisher { NotificationCenter.default.publisher(for: .viezanAttachImage) }
+    private var full: some View {
         VStack(alignment: .leading, spacing: metric("small")) {
             Menu { imageActions } label: { Label(store.text("attachImage"), systemImage: "plus") }
-                .menuStyle(.borderlessButton).fixedSize().help(store.text("attachImage"))
+                .menuStyle(.borderlessButton).fixedSize().help(store.text("attachImage")).tint(.primary)
             if busy { ProgressView().controlSize(.small).accessibilityLabel(store.text("running")) }
             ForEach(store.session.images ?? []) { image in
                 HStack {
@@ -58,6 +80,33 @@ struct ImageControls: View {
                     } else { store.addImage(result.0, sessionID: owner) }
                 } catch { self.error = "imageError" }
                 busy = false
+            }
+        }
+    }
+}
+
+// Pending composer images as removable chips above the editor.
+extension Notification.Name {
+    static let viezanAttachImage = Notification.Name("viezan.attachImage")
+    static let viezanInterpretHistory = Notification.Name("viezan.interpretHistory")
+    // Object: the settings section id to open (e.g. "localModels").
+    static let viezanOpenSettings = Notification.Name("viezan.openSettings")
+}
+
+struct AttachmentChips: View {
+    @Bindable var store: WorkbenchStore
+    var body: some View {
+        if let images = store.session.images, !images.isEmpty {
+            NativeFlow(spacing: metric("small")) {
+                ForEach(images) { image in
+                    HStack(spacing: metric("tight")) {
+                        Image(systemName: "photo").accessibilityHidden(true)
+                        Text(image.name).lineLimit(1).truncationMode(.middle).frame(maxWidth: metric("sidebar"))
+                        Button { store.removeImage(image.id, sessionID: store.session.id) } label: { Image(systemName: "xmark") }
+                            .buttonStyle(.vznQuiet).accessibilityLabel(store.text("removeAttachment") + " " + image.name).help(store.text("removeAttachment"))
+                    }.font(.callout).padding(.horizontal, metric("small")).padding(.vertical, metric("tight"))
+                        .background(Color(nsColor: .controlBackgroundColor), in: Capsule())
+                }
             }
         }
     }

@@ -263,3 +263,19 @@ import Testing
     #expect(resources.matchingCommands(query: "lich su", locale: "vi").contains { $0.id == "history" })
     #expect(resources.matchingCommands(query: resources.text("history", locale: "ja"), locale: "ja").contains { $0.id == "history" })
 }
+
+@Test func commandPaletteListsDestinationsInNavigationOrderBeforeActions() {
+    let resources = NativeResources.shared
+    let ids = resources.matchingCommands(query: "", locale: "vi").map(\.id)
+    let destinations = resources.navigation.map(\.id)
+    #expect(Array(ids.prefix(destinations.count)) == destinations)
+}
+
+// Provider notices must not warn before the first probe; afterwards the flag holds
+// whether or not a local runtime answered.
+@Test @MainActor func localRuntimeReportsCheckedOnlyAfterAProbe() async {
+    let runtime = LocalRuntime()
+    #expect(!runtime.checked)
+    await runtime.refresh()
+    #expect(runtime.checked)
+}

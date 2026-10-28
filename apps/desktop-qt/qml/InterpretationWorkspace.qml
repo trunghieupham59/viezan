@@ -12,6 +12,10 @@ Item {
     Component.onDestruction: live.silence()
     property bool showOriginal: true
     property string shownSessionID: ""
+    property color dangerColor: palette.placeholderText
+    // Named here: inside ProviderNotice, "model" would resolve to its own property.
+    readonly property string modelID: model.text
+    signal openSettings(string section)
     function syncSelection() {
         const current = live.current
         if (!current.id || current.id === shownSessionID) return
@@ -22,28 +26,65 @@ Item {
         captureMode.currentIndex = captureMode.keys.indexOf(current.captureMode || "microphone")
     }
     Component.onCompleted: syncSelection()
+    // Opened from the shell header's History control (Review 18).
+    function openHistory() { historyPopup.open() }
     Connections { target: root.live; function onChanged() { root.syncSelection() } }
 
     ColumnLayout {
-        anchors.fill: parent; anchors.margins: root.metrics.inset; spacing: root.metrics.inset
-        Flow {
-            Layout.fillWidth: true; Layout.preferredHeight: implicitHeight; spacing: root.metrics.small
-            ComboBox { id: source; model: ["auto"].concat(root.languages).map(code => root.t("lang_" + code)); enabled: !root.live.busy; Accessible.name: root.t("inputLanguage") }
-            ComboBox { id: target; model: root.languages.map(code => root.t("lang_" + code)); currentIndex: root.languages.indexOf("vi"); enabled: !root.live.busy; Accessible.name: root.t("outputLanguage") }
-            Button { text: root.t("captureOptions"); icon.source: "icons/settings.svg"; onClicked: setupDialog.open() }
-            Button { text: root.t(root.live.listening ? "stop" : "startInterpretation"); enabled: root.live.listening || (!root.live.busy && !root.bridge.loadBlocked && model.text.includes(":")); onClicked: { if (root.live.listening) root.live.stop(); else { root.bridge.audio.cancel(); root.live.start(model.text, root.bridge.state.speechProvider || "openai", ["auto"].concat(root.languages)[source.currentIndex], root.languages[target.currentIndex], root.bridge.state.locale, captureMode.keys[captureMode.currentIndex], inputDevice.devices[inputDevice.currentIndex]?.id || "") } } }
-            Button { visible: root.live.busy; text: root.t("cancel"); onClicked: root.live.cancel() }
+        anchors.fill: parent; anchors.leftMargin: root.metrics.large; anchors.rightMargin: root.metrics.large; anchors.topMargin: root.metrics.inset; anchors.bottomMargin: root.metrics.inset; spacing: root.metrics.inset
+        // Review 18: language row, session bar, then the transcript bar.
+        // Language row; below the reading width the model takes its own line (see Main).
+        GridLayout {
+            Layout.fillWidth: true; columns: width >= root.metrics.reading ? 2 : 1; columnSpacing: root.metrics.small; rowSpacing: root.metrics.tight
+            RowLayout {
+                Layout.fillWidth: true; spacing: root.metrics.small
+                Label { text: root.t("inputLanguage"); color: palette.placeholderText }
+                ComboBox { id: source; flat: true; implicitContentWidthPolicy: ComboBox.WidestText; model: ["auto"].concat(root.languages).map(code => root.t("lang_" + code)); enabled: !root.live.busy; Accessible.name: root.t("inputLanguage") }
+                Label { text: root.t("outputLanguage"); color: palette.placeholderText }
+                ComboBox { id: target; flat: true; implicitContentWidthPolicy: ComboBox.WidestText; model: root.languages.map(code => root.t("lang_" + code)); currentIndex: root.languages.indexOf("vi"); enabled: !root.live.busy; Accessible.name: root.t("outputLanguage") }
+                Item { Layout.fillWidth: true }
+            }
+            RowLayout {
+                spacing: root.metrics.small
+                Kit.StatusDot { visible: notice.offline; tone: "failed"; failedColor: root.dangerColor }
+                Kit.ModelLabel { modelID: root.modelID; text: root.modelID ? format(root.modelID) : root.t("modelID"); color: palette.placeholderText; elide: Text.ElideRight; Layout.maximumWidth: root.metrics.sidebar; ToolTip.visible: modelHover.hovered && !!root.modelID; ToolTip.text: root.modelID; HoverHandler { id: modelHover } }
+            }
+        }
+        Rectangle { color: palette.midlight; implicitHeight: root.metrics.hairline; Layout.fillWidth: true }
+        Kit.ProviderNotice { id: notice; model: root.modelID; dangerColor: root.dangerColor; Layout.fillWidth: true; onOpenRequested: root.openSettings("localModels") }
+        RowLayout {
+            Layout.fillWidth: true; spacing: root.metrics.small
+            Kit.StatusBadge { visible: root.live.listening; text: root.t("listening") }
+            Button { flat: true; text: root.t("capture_" + captureMode.keys[captureMode.currentIndex]); icon.source: "icons/interpret.svg"; Accessible.name: root.t("captureOptions") + ": " + text; ToolTip.visible: hovered; ToolTip.text: root.t("captureOptions"); onClicked: setupDialog.open() }
+            Item { Layout.fillWidth: true }
+            Button { flat: true; text: root.t("subtitles"); checkable: true; checked: subtitles.visible; onClicked: subtitles.visible = !subtitles.visible }
+            Button { visible: root.live.busy && !root.live.listening; text: root.t("cancel"); onClicked: root.live.cancel() }
+            Button { visible: root.live.listening; text: root.t("stop"); onClicked: root.live.stop() }
+            Kit.PrimaryButton { visible: !root.live.listening; text: root.t("startInterpretation"); icon.source: "icons/interpret.svg"; enabled: !root.live.busy && !root.bridge.loadBlocked && model.text.includes(":"); onClicked: { root.bridge.audio.cancel(); root.live.start(model.text, root.bridge.state.speechProvider || "openai", ["auto"].concat(root.languages)[source.currentIndex], root.languages[target.currentIndex], root.bridge.state.locale, captureMode.keys[captureMode.currentIndex], inputDevice.devices[inputDevice.currentIndex]?.id || "") } }
         }
         ProgressBar { visible: root.live.listening; value: root.live.level; Layout.fillWidth: true; Accessible.name: root.t("inputLevel") }
         Label { text: root.live.error ? root.t(root.live.error) : ""; visible: !!text; Layout.fillWidth: true; wrapMode: Text.Wrap }
-        Flow {
-            Layout.fillWidth: true; Layout.preferredHeight: implicitHeight; spacing: root.metrics.small
-            Button { id: historyTrigger; text: root.t("history"); enabled: !root.live.busy; onClicked: historyPopup.open() }
-            ComboBox { model: [root.t("pairedTranscript"), root.t("translationOnly")]; Accessible.name: root.t("transcriptView"); currentIndex: root.showOriginal ? 0 : 1; onActivated: root.showOriginal = currentIndex === 0 }
-            Button { text: root.t("subtitles"); checkable: true; checked: subtitles.visible; onClicked: subtitles.visible = !subtitles.visible }
-            Button { text: root.t("copy"); onClicked: root.bridge.copy(root.live.exportText(false)) }
+        RowLayout {
+            Layout.fillWidth: true; spacing: root.metrics.small
+            Kit.SectionTitle { text: root.t("transcript"); Layout.fillWidth: true }
+            Repeater {
+                model: [[true, root.t("pairedTranscript")], [false, root.t("translationOnly")]]
+                delegate: Button { required property var modelData; text: modelData[1]; flat: !checked; checkable: true; checked: root.showOriginal === modelData[0]; Accessible.checked: checked; onClicked: root.showOriginal = modelData[0] }
+            }
+            Kit.IconButton {
+                iconName: "settings"; text: root.t("summarize")
+                enabled: !root.live.busy && !!root.live.current.segments?.length
+                onClicked: analysisMenu.open()
+                Menu {
+                    id: analysisMenu
+                    Repeater { model: ["summary", "actionItems", "decisions", "speakerAnalysis"]; delegate: MenuItem { required property string modelData; text: root.t("interpret_" + modelData); onTriggered: root.live.summarize(modelData) } }
+                    MenuSeparator {}
+                    MenuItem { text: root.t("stopSpeaking"); onTriggered: root.live.silence() }
+                }
+            }
+            Button { flat: true; text: root.t("copy"); onClicked: root.bridge.copy(root.live.exportText(false)) }
             Button {
-                text: root.t("export"); enabled: !!root.live.current.segments?.length; onClicked: exportMenu.open()
+                flat: true; text: root.t("export"); enabled: !!root.live.current.segments?.length; onClicked: exportMenu.open()
                 Menu {
                     id: exportMenu
                     MenuItem { text: "TXT"; onTriggered: { exportDialog.srt = false; exportDialog.open() } }
@@ -51,6 +92,7 @@ Item {
                 }
             }
         }
+        Rectangle { color: palette.midlight; implicitHeight: root.metrics.hairline; Layout.fillWidth: true }
         EmptyState {
             visible: !(root.live.current.segments || []).length
             Layout.fillWidth: true; Layout.fillHeight: true
@@ -64,35 +106,43 @@ Item {
             delegate: ColumnLayout {
                 required property var modelData
                 width: ListView.view.width
-                TextField { visible: !!modelData.speaker; text: root.live.current.speakerNameMap?.[modelData.speaker] || modelData.speaker || ""; enabled: !root.live.busy; Accessible.name: root.t("speakerName"); onEditingFinished: root.live.renameSpeaker(modelData.speaker, text) }
-                Label { visible: root.showOriginal; text: modelData.original || ""; textFormat: Text.PlainText; wrapMode: Text.Wrap; Layout.fillWidth: true }
-                TextArea { text: modelData.translated || ""; textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; Layout.fillWidth: true }
+                spacing: root.metrics.small
                 RowLayout {
-                    Label { text: root.t(modelData.error || modelData.status); Layout.fillWidth: true }
-                    Button { visible: ["failed", "interrupted", "cancelled"].includes(modelData.status) && !!modelData.original; text: root.t("retry"); enabled: !root.live.busy; onClicked: root.live.retry(modelData.id) }
-                    Button { text: root.t("speak"); enabled: !root.live.listening && !!modelData.translated; onClicked: root.live.speak(modelData.translated) }
+                    spacing: root.metrics.gutter
+                    Layout.fillWidth: true
+                    ColumnLayout {
+                        Layout.preferredWidth: root.metrics.sidebar / 2; Layout.alignment: Qt.AlignTop
+                        Label { text: String(Math.floor(modelData.start / 60)).padStart(2, "0") + ":" + String(Math.floor(modelData.start % 60)).padStart(2, "0"); color: palette.placeholderText }
+                        TextField { visible: !!modelData.speaker; text: root.live.current.speakerNameMap?.[modelData.speaker] || modelData.speaker || ""; font.bold: true; background: null; enabled: !root.live.busy; Accessible.name: root.t("speakerName"); Layout.fillWidth: true; onEditingFinished: root.live.renameSpeaker(modelData.speaker, text) }
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Label { visible: root.showOriginal; text: modelData.original || ""; textFormat: Text.PlainText; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                        TextArea { text: modelData.translated || ""; textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; background: null; color: root.showOriginal ? palette.placeholderText : palette.text; padding: 0; Layout.fillWidth: true }
+                        RowLayout {
+                            visible: ["queued", "transcribing", "translating", "failed", "interrupted", "cancelled"].includes(modelData.status) || !!modelData.error
+                            Label { text: root.t(modelData.error || modelData.status); color: palette.placeholderText; Layout.fillWidth: true }
+                            Button { visible: ["failed", "interrupted", "cancelled"].includes(modelData.status) && !!modelData.original; text: root.t("retry"); enabled: !root.live.busy; onClicked: root.live.retry(modelData.id) }
+                        }
+                    }
+                    Kit.IconButton { iconName: "interpret"; text: root.t("speak"); enabled: !root.live.listening && !!modelData.translated; Layout.alignment: Qt.AlignTop; onClicked: root.live.speak(modelData.translated) }
                 }
+                Rectangle { color: palette.midlight; implicitHeight: root.metrics.hairline; Layout.fillWidth: true }
             }
         }
         ToolButton { id: analysisDetails; text: root.t("summarize"); checkable: true; visible: !!(root.live.current.summary || root.live.current.actionItems || root.live.current.decisions || root.live.current.speakerAnalysis) }
         ScrollView { visible: analysisDetails.checked && !!(root.live.current.summary || root.live.current.actionItems || root.live.current.decisions || root.live.current.speakerAnalysis); Layout.fillWidth: true; Layout.preferredHeight: root.metrics.editor * 2; TextArea { text: [root.live.current.summary, root.live.current.actionItems, root.live.current.decisions, root.live.current.speakerAnalysis].filter(Boolean).join("\n\n"); textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap } }
-        RowLayout {
-            ComboBox { id: analysis; readonly property var keys: ["summary", "actionItems", "decisions", "speakerAnalysis"]; model: keys.map(key => root.t("interpret_" + key)); Accessible.name: root.t("summarize") }
-            Button { text: root.t("summarize"); enabled: !root.live.busy && !!root.live.current.segments?.length; onClicked: root.live.summarize(analysis.keys[analysis.currentIndex]) }
-            Item { Layout.fillWidth: true }
-            Button { text: root.t("stopSpeaking"); onClicked: root.live.silence() }
-        }
     }
     Popup {
         id: historyPopup; parent: Overlay.overlay; modal: false; focus: true
         width: Math.min(root.width, root.metrics.sidebar + root.metrics.editor)
         height: Math.min(root.height, root.metrics.editor * 3)
-        x: Math.max(0, Math.min(historyTrigger.mapToItem(parent, 0, 0).x, parent.width-width))
-        y: Math.max(0, Math.min(historyTrigger.mapToItem(parent, 0, historyTrigger.height).y, parent.height-height))
+        x: Math.max(0, parent.width - width - root.metrics.inset)
+        y: root.metrics.navControl + root.metrics.small
         closePolicy: Popup.CloseOnPressOutside
         Keys.onEscapePressed: event => { if (!historySearch.inputMethodComposing) historyPopup.close(); else event.accepted = false }
         onOpened: historySearch.forceActiveFocus()
-        onClosed: historyTrigger.forceActiveFocus()
+        onClosed: root.forceActiveFocus()
         contentItem: ColumnLayout {
             Label { text: root.t("history"); font.bold: true }
             TextField {

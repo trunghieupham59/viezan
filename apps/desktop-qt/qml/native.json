@@ -528,15 +528,26 @@
     "minWindowHeight": 480,
     "compactControl": 32,
     "surfaceRadius": 20,
+    "largeRadius": 16,
     "controlRadius": 10,
     "composerMinimum": 116,
     "navControl": 40,
     "icon": 20,
     "brand": 32,
+    "captionScale": 0.846,
+    "smallScale": 0.923,
+    "labelScale": 1.077,
+    "sectionScale": 1.231,
+    "subtitleScale": 1.154,
+    "titleScale": 1.385,
+    "headingScale": 1.692,
+    "displayScale": 2.154,
+    "heroScale": 2.462,
     "selectionOpacity": 0.1,
     "overlayShadowOpacity": 0.22,
     "chromeSearchRadius": 14,
-    "chromeShortcutRadius": 10
+    "chromeShortcutRadius": 10,
+    "chromeItemRadius": 16
   },
   "palettes": {
     "light": {
@@ -597,7 +608,15 @@
       "chrome-fg-soft": "#7b84a3",
       "chrome-accent": "#0a84ff",
       "chrome-item-active": "#290a84ff",
-      "chrome-item-hover": "#73ffffff"
+      "chrome-item-hover": "#73ffffff",
+      "chrome-fg": "#2a3152",
+      "chrome-item-active-fg": "#0f1430",
+      "material-border": "#1f28325a",
+      "material-highlight": "#e6ffffff",
+      "primary-nav-material": "#5cffffff",
+      "titlebar-material": "#6bffffff",
+      "sidebar-search-bg": "#94ffffff",
+      "surface-muted": "#99f0f2fa"
     },
     "dark": {
       "app-bg": "#0f1118",
@@ -623,7 +642,15 @@
       "chrome-fg-soft": "#737c97",
       "chrome-accent": "#88c4ff",
       "chrome-item-active": "#38409cff",
-      "chrome-item-hover": "#14ffffff"
+      "chrome-item-hover": "#14ffffff",
+      "chrome-fg": "#cfd5e6",
+      "chrome-item-active-fg": "#ffffff",
+      "material-border": "#24ffffff",
+      "material-highlight": "#29ffffff",
+      "primary-nav-material": "#75161926",
+      "titlebar-material": "#80161926",
+      "sidebar-search-bg": "#8c2c3044",
+      "surface-muted": "#99181b28"
     }
   },
   "themePalettes": {
@@ -656,7 +683,15 @@
         "chrome-fg-soft": "#74747a",
         "chrome-accent": "#0066cc",
         "chrome-item-active": "#ffffff",
-        "chrome-item-hover": "#f2f2f4"
+        "chrome-item-hover": "#f2f2f4",
+        "chrome-fg": "#2c2c2e",
+        "chrome-item-active-fg": "#0066cc",
+        "material-border": "#243c3c43",
+        "material-highlight": "#b8ffffff",
+        "primary-nav-material": "#bdf4f4f7",
+        "titlebar-material": "#c7f6f6f8",
+        "sidebar-search-bg": "#ffffff",
+        "surface-muted": "#f6f6f7"
       },
       "dark": {
         "canvas": "#111113",
@@ -686,7 +721,15 @@
         "chrome-fg-soft": "#9a9aa2",
         "chrome-accent": "#8cc2ff",
         "chrome-item-active": "#294d9bff",
-        "chrome-item-hover": "#222226"
+        "chrome-item-hover": "#222226",
+        "chrome-fg": "#ececf0",
+        "chrome-item-active-fg": "#8cc2ff",
+        "material-border": "#1febebf5",
+        "material-highlight": "#14ffffff",
+        "primary-nav-material": "#c2222225",
+        "titlebar-material": "#c21e1e20",
+        "sidebar-search-bg": "#222226",
+        "surface-muted": "#222226"
       }
     },
     "graphite:violet": {
@@ -718,7 +761,15 @@
         "chrome-fg-soft": "#74747a",
         "chrome-accent": "#7c3aed",
         "chrome-item-active": "#1f8b5cf6",
-        "chrome-item-hover": "#f2f2f4"
+        "chrome-item-hover": "#f2f2f4",
+        "chrome-fg": "#2c2c2e",
+        "chrome-item-active-fg": "#6d28d9",
+        "material-border": "#243c3c43",
+        "material-highlight": "#b8ffffff",
+        "primary-nav-material": "#bdf4f4f7",
+        "titlebar-material": "#c7f6f6f8",
+        "sidebar-search-bg": "#ffffff",
+        "surface-muted": "#f6f6f7"
       },
       "dark": {
         "canvas": "#111113",
@@ -748,7 +799,15 @@
         "chrome-fg-soft": "#9a9aa2",
         "chrome-accent": "#a78bfa",
         "chrome-item-active": "#298b5cf6",
-        "chrome-item-hover": "#222226"
+        "chrome-item-hover": "#222226",
+        "chrome-fg": "#ececf0",
+        "chrome-item-active-fg": "#c4b5fd",
+        "material-border": "#1febebf5",
+        "material-highlight": "#14ffffff",
+        "primary-nav-material": "#c2222225",
+        "titlebar-material": "#c21e1e20",
+        "sidebar-search-bg": "#222226",
+        "surface-muted": "#222226"
       }
     },
     "graphite:pink": {
@@ -780,7 +839,15 @@
         "chrome-fg-soft": "#74747a",
         "chrome-accent": "#db2777",
         "chrome-item-active": "#1fec4899",
-        "chrome-item-hover": "#f2f2f4"
+        "chrome-item-hover": "#f2f2f4",
+        "chrome-fg": "#2c2c2e",
+        "chrome-item-active-fg": "#be185d",
+        "material-border": "#243c3c43",
+        "material-highlight": "#b8ffffff",
+        "primary-nav-material": "#bdf4f4f7",
+        "titlebar-material": "#c7f6f6f8",
+        "sidebar-search-bg": "#ffffff",
+        "surface-muted": "#f6f6f7"
       },
       "dark": {
         "canvas": "#111113",
@@ -810,7 +877,15 @@
         "chrome-fg-soft": "#9a9aa2",
         "chrome-accent": "#f472b6",
         "chrome-item-active": "#29ec4899",
-        "chrome-item-hover": "#222226"
+        "chrome-item-hover": "#222226",
+        "chrome-fg": "#ececf0",
+        "chrome-item-active-fg": "#f9a8d4",
+        "material-border": "#1febebf5",
+        "material-highlight": "#14ffffff",
+        "primary-nav-material": "#c2222225",
+        "titlebar-material": "#c21e1e20",
+        "sidebar-search-bg": "#222226",
+        "surface-muted": "#222226"
       }
     },
     "graphite:teal": {
@@ -842,7 +917,15 @@
         "chrome-fg-soft": "#74747a",
         "chrome-accent": "#0d9488",
         "chrome-item-active": "#1f14b8a6",
-        "chrome-item-hover": "#f2f2f4"
+        "chrome-item-hover": "#f2f2f4",
+        "chrome-fg": "#2c2c2e",
+        "chrome-item-active-fg": "#0f766e",
+        "material-border": "#243c3c43",
+        "material-highlight": "#b8ffffff",
+        "primary-nav-material": "#bdf4f4f7",
+        "titlebar-material": "#c7f6f6f8",
+        "sidebar-search-bg": "#ffffff",
+        "surface-muted": "#f6f6f7"
       },
       "dark": {
         "canvas": "#111113",
@@ -872,7 +955,15 @@
         "chrome-fg-soft": "#9a9aa2",
         "chrome-accent": "#2dd4bf",
         "chrome-item-active": "#2914b8a6",
-        "chrome-item-hover": "#222226"
+        "chrome-item-hover": "#222226",
+        "chrome-fg": "#ececf0",
+        "chrome-item-active-fg": "#5eead4",
+        "material-border": "#1febebf5",
+        "material-highlight": "#14ffffff",
+        "primary-nav-material": "#c2222225",
+        "titlebar-material": "#c21e1e20",
+        "sidebar-search-bg": "#222226",
+        "surface-muted": "#222226"
       }
     },
     "graphite:green": {
@@ -904,7 +995,15 @@
         "chrome-fg-soft": "#74747a",
         "chrome-accent": "#16a34a",
         "chrome-item-active": "#1f22c55e",
-        "chrome-item-hover": "#f2f2f4"
+        "chrome-item-hover": "#f2f2f4",
+        "chrome-fg": "#2c2c2e",
+        "chrome-item-active-fg": "#15803d",
+        "material-border": "#243c3c43",
+        "material-highlight": "#b8ffffff",
+        "primary-nav-material": "#bdf4f4f7",
+        "titlebar-material": "#c7f6f6f8",
+        "sidebar-search-bg": "#ffffff",
+        "surface-muted": "#f6f6f7"
       },
       "dark": {
         "canvas": "#111113",
@@ -934,7 +1033,15 @@
         "chrome-fg-soft": "#9a9aa2",
         "chrome-accent": "#4ade80",
         "chrome-item-active": "#2922c55e",
-        "chrome-item-hover": "#222226"
+        "chrome-item-hover": "#222226",
+        "chrome-fg": "#ececf0",
+        "chrome-item-active-fg": "#86efac",
+        "material-border": "#1febebf5",
+        "material-highlight": "#14ffffff",
+        "primary-nav-material": "#c2222225",
+        "titlebar-material": "#c21e1e20",
+        "sidebar-search-bg": "#222226",
+        "surface-muted": "#222226"
       }
     },
     "graphite:amber": {
@@ -966,7 +1073,15 @@
         "chrome-fg-soft": "#74747a",
         "chrome-accent": "#d97706",
         "chrome-item-active": "#1ff59e0b",
-        "chrome-item-hover": "#f2f2f4"
+        "chrome-item-hover": "#f2f2f4",
+        "chrome-fg": "#2c2c2e",
+        "chrome-item-active-fg": "#b45309",
+        "material-border": "#243c3c43",
+        "material-highlight": "#b8ffffff",
+        "primary-nav-material": "#bdf4f4f7",
+        "titlebar-material": "#c7f6f6f8",
+        "sidebar-search-bg": "#ffffff",
+        "surface-muted": "#f6f6f7"
       },
       "dark": {
         "canvas": "#111113",
@@ -996,7 +1111,15 @@
         "chrome-fg-soft": "#9a9aa2",
         "chrome-accent": "#fbbf24",
         "chrome-item-active": "#29f59e0b",
-        "chrome-item-hover": "#222226"
+        "chrome-item-hover": "#222226",
+        "chrome-fg": "#ececf0",
+        "chrome-item-active-fg": "#fcd34d",
+        "material-border": "#1febebf5",
+        "material-highlight": "#14ffffff",
+        "primary-nav-material": "#c2222225",
+        "titlebar-material": "#c21e1e20",
+        "sidebar-search-bg": "#222226",
+        "surface-muted": "#222226"
       }
     },
     "graphite:red": {
@@ -1028,7 +1151,15 @@
         "chrome-fg-soft": "#74747a",
         "chrome-accent": "#dc2626",
         "chrome-item-active": "#1fef4444",
-        "chrome-item-hover": "#f2f2f4"
+        "chrome-item-hover": "#f2f2f4",
+        "chrome-fg": "#2c2c2e",
+        "chrome-item-active-fg": "#b91c1c",
+        "material-border": "#243c3c43",
+        "material-highlight": "#b8ffffff",
+        "primary-nav-material": "#bdf4f4f7",
+        "titlebar-material": "#c7f6f6f8",
+        "sidebar-search-bg": "#ffffff",
+        "surface-muted": "#f6f6f7"
       },
       "dark": {
         "canvas": "#111113",
@@ -1058,7 +1189,15 @@
         "chrome-fg-soft": "#9a9aa2",
         "chrome-accent": "#f87171",
         "chrome-item-active": "#29ef4444",
-        "chrome-item-hover": "#222226"
+        "chrome-item-hover": "#222226",
+        "chrome-fg": "#ececf0",
+        "chrome-item-active-fg": "#fca5a5",
+        "material-border": "#1febebf5",
+        "material-highlight": "#14ffffff",
+        "primary-nav-material": "#c2222225",
+        "titlebar-material": "#c21e1e20",
+        "sidebar-search-bg": "#222226",
+        "surface-muted": "#222226"
       }
     },
     "glass:auto": {
@@ -1090,7 +1229,15 @@
         "chrome-fg-soft": "#7b84a3",
         "chrome-accent": "#0a84ff",
         "chrome-item-active": "#290a84ff",
-        "chrome-item-hover": "#73ffffff"
+        "chrome-item-hover": "#73ffffff",
+        "chrome-fg": "#2a3152",
+        "chrome-item-active-fg": "#0f1430",
+        "material-border": "#1f28325a",
+        "material-highlight": "#e6ffffff",
+        "primary-nav-material": "#5cffffff",
+        "titlebar-material": "#6bffffff",
+        "sidebar-search-bg": "#94ffffff",
+        "surface-muted": "#99f0f2fa"
       },
       "dark": {
         "canvas": "#8012141e",
@@ -1120,7 +1267,15 @@
         "chrome-fg-soft": "#737c97",
         "chrome-accent": "#88c4ff",
         "chrome-item-active": "#38409cff",
-        "chrome-item-hover": "#14ffffff"
+        "chrome-item-hover": "#14ffffff",
+        "chrome-fg": "#cfd5e6",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#24ffffff",
+        "material-highlight": "#29ffffff",
+        "primary-nav-material": "#75161926",
+        "titlebar-material": "#80161926",
+        "sidebar-search-bg": "#8c2c3044",
+        "surface-muted": "#99181b28"
       }
     },
     "glass:violet": {
@@ -1152,7 +1307,15 @@
         "chrome-fg-soft": "#7b84a3",
         "chrome-accent": "#7c3aed",
         "chrome-item-active": "#1f8b5cf6",
-        "chrome-item-hover": "#73ffffff"
+        "chrome-item-hover": "#73ffffff",
+        "chrome-fg": "#2a3152",
+        "chrome-item-active-fg": "#0f1430",
+        "material-border": "#1f28325a",
+        "material-highlight": "#e6ffffff",
+        "primary-nav-material": "#5cffffff",
+        "titlebar-material": "#6bffffff",
+        "sidebar-search-bg": "#94ffffff",
+        "surface-muted": "#99f0f2fa"
       },
       "dark": {
         "canvas": "#8012141e",
@@ -1182,7 +1345,15 @@
         "chrome-fg-soft": "#737c97",
         "chrome-accent": "#a78bfa",
         "chrome-item-active": "#298b5cf6",
-        "chrome-item-hover": "#14ffffff"
+        "chrome-item-hover": "#14ffffff",
+        "chrome-fg": "#cfd5e6",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#24ffffff",
+        "material-highlight": "#29ffffff",
+        "primary-nav-material": "#75161926",
+        "titlebar-material": "#80161926",
+        "sidebar-search-bg": "#8c2c3044",
+        "surface-muted": "#99181b28"
       }
     },
     "glass:pink": {
@@ -1214,7 +1385,15 @@
         "chrome-fg-soft": "#7b84a3",
         "chrome-accent": "#db2777",
         "chrome-item-active": "#1fec4899",
-        "chrome-item-hover": "#73ffffff"
+        "chrome-item-hover": "#73ffffff",
+        "chrome-fg": "#2a3152",
+        "chrome-item-active-fg": "#0f1430",
+        "material-border": "#1f28325a",
+        "material-highlight": "#e6ffffff",
+        "primary-nav-material": "#5cffffff",
+        "titlebar-material": "#6bffffff",
+        "sidebar-search-bg": "#94ffffff",
+        "surface-muted": "#99f0f2fa"
       },
       "dark": {
         "canvas": "#8012141e",
@@ -1244,7 +1423,15 @@
         "chrome-fg-soft": "#737c97",
         "chrome-accent": "#f472b6",
         "chrome-item-active": "#29ec4899",
-        "chrome-item-hover": "#14ffffff"
+        "chrome-item-hover": "#14ffffff",
+        "chrome-fg": "#cfd5e6",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#24ffffff",
+        "material-highlight": "#29ffffff",
+        "primary-nav-material": "#75161926",
+        "titlebar-material": "#80161926",
+        "sidebar-search-bg": "#8c2c3044",
+        "surface-muted": "#99181b28"
       }
     },
     "glass:teal": {
@@ -1276,7 +1463,15 @@
         "chrome-fg-soft": "#7b84a3",
         "chrome-accent": "#0d9488",
         "chrome-item-active": "#1f14b8a6",
-        "chrome-item-hover": "#73ffffff"
+        "chrome-item-hover": "#73ffffff",
+        "chrome-fg": "#2a3152",
+        "chrome-item-active-fg": "#0f1430",
+        "material-border": "#1f28325a",
+        "material-highlight": "#e6ffffff",
+        "primary-nav-material": "#5cffffff",
+        "titlebar-material": "#6bffffff",
+        "sidebar-search-bg": "#94ffffff",
+        "surface-muted": "#99f0f2fa"
       },
       "dark": {
         "canvas": "#8012141e",
@@ -1306,7 +1501,15 @@
         "chrome-fg-soft": "#737c97",
         "chrome-accent": "#2dd4bf",
         "chrome-item-active": "#2914b8a6",
-        "chrome-item-hover": "#14ffffff"
+        "chrome-item-hover": "#14ffffff",
+        "chrome-fg": "#cfd5e6",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#24ffffff",
+        "material-highlight": "#29ffffff",
+        "primary-nav-material": "#75161926",
+        "titlebar-material": "#80161926",
+        "sidebar-search-bg": "#8c2c3044",
+        "surface-muted": "#99181b28"
       }
     },
     "glass:green": {
@@ -1338,7 +1541,15 @@
         "chrome-fg-soft": "#7b84a3",
         "chrome-accent": "#16a34a",
         "chrome-item-active": "#1f22c55e",
-        "chrome-item-hover": "#73ffffff"
+        "chrome-item-hover": "#73ffffff",
+        "chrome-fg": "#2a3152",
+        "chrome-item-active-fg": "#0f1430",
+        "material-border": "#1f28325a",
+        "material-highlight": "#e6ffffff",
+        "primary-nav-material": "#5cffffff",
+        "titlebar-material": "#6bffffff",
+        "sidebar-search-bg": "#94ffffff",
+        "surface-muted": "#99f0f2fa"
       },
       "dark": {
         "canvas": "#8012141e",
@@ -1368,7 +1579,15 @@
         "chrome-fg-soft": "#737c97",
         "chrome-accent": "#4ade80",
         "chrome-item-active": "#2922c55e",
-        "chrome-item-hover": "#14ffffff"
+        "chrome-item-hover": "#14ffffff",
+        "chrome-fg": "#cfd5e6",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#24ffffff",
+        "material-highlight": "#29ffffff",
+        "primary-nav-material": "#75161926",
+        "titlebar-material": "#80161926",
+        "sidebar-search-bg": "#8c2c3044",
+        "surface-muted": "#99181b28"
       }
     },
     "glass:amber": {
@@ -1400,7 +1619,15 @@
         "chrome-fg-soft": "#7b84a3",
         "chrome-accent": "#d97706",
         "chrome-item-active": "#1ff59e0b",
-        "chrome-item-hover": "#73ffffff"
+        "chrome-item-hover": "#73ffffff",
+        "chrome-fg": "#2a3152",
+        "chrome-item-active-fg": "#0f1430",
+        "material-border": "#1f28325a",
+        "material-highlight": "#e6ffffff",
+        "primary-nav-material": "#5cffffff",
+        "titlebar-material": "#6bffffff",
+        "sidebar-search-bg": "#94ffffff",
+        "surface-muted": "#99f0f2fa"
       },
       "dark": {
         "canvas": "#8012141e",
@@ -1430,7 +1657,15 @@
         "chrome-fg-soft": "#737c97",
         "chrome-accent": "#fbbf24",
         "chrome-item-active": "#29f59e0b",
-        "chrome-item-hover": "#14ffffff"
+        "chrome-item-hover": "#14ffffff",
+        "chrome-fg": "#cfd5e6",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#24ffffff",
+        "material-highlight": "#29ffffff",
+        "primary-nav-material": "#75161926",
+        "titlebar-material": "#80161926",
+        "sidebar-search-bg": "#8c2c3044",
+        "surface-muted": "#99181b28"
       }
     },
     "glass:red": {
@@ -1462,7 +1697,15 @@
         "chrome-fg-soft": "#7b84a3",
         "chrome-accent": "#dc2626",
         "chrome-item-active": "#1fef4444",
-        "chrome-item-hover": "#73ffffff"
+        "chrome-item-hover": "#73ffffff",
+        "chrome-fg": "#2a3152",
+        "chrome-item-active-fg": "#0f1430",
+        "material-border": "#1f28325a",
+        "material-highlight": "#e6ffffff",
+        "primary-nav-material": "#5cffffff",
+        "titlebar-material": "#6bffffff",
+        "sidebar-search-bg": "#94ffffff",
+        "surface-muted": "#99f0f2fa"
       },
       "dark": {
         "canvas": "#8012141e",
@@ -1492,7 +1735,15 @@
         "chrome-fg-soft": "#737c97",
         "chrome-accent": "#f87171",
         "chrome-item-active": "#29ef4444",
-        "chrome-item-hover": "#14ffffff"
+        "chrome-item-hover": "#14ffffff",
+        "chrome-fg": "#cfd5e6",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#24ffffff",
+        "material-highlight": "#29ffffff",
+        "primary-nav-material": "#75161926",
+        "titlebar-material": "#80161926",
+        "sidebar-search-bg": "#8c2c3044",
+        "surface-muted": "#99181b28"
       }
     },
     "paper:auto": {
@@ -1524,7 +1775,15 @@
         "chrome-fg-soft": "#8b8074",
         "chrome-accent": "#b05834",
         "chrome-item-active": "#24b05834",
-        "chrome-item-hover": "#1246321e"
+        "chrome-item-hover": "#1246321e",
+        "chrome-fg": "#3d322a",
+        "chrome-item-active-fg": "#7a3a21",
+        "material-border": "#2946321e",
+        "material-highlight": "#80ffffff",
+        "primary-nav-material": "#d6ece5d6",
+        "titlebar-material": "#dbece5d6",
+        "sidebar-search-bg": "#fbf7ee",
+        "surface-muted": "#f3ecdf"
       },
       "dark": {
         "canvas": "#211d19",
@@ -1554,7 +1813,15 @@
         "chrome-fg-soft": "#857a6c",
         "chrome-accent": "#e0825a",
         "chrome-item-active": "#2ee0825a",
-        "chrome-item-hover": "#12f0dcc3"
+        "chrome-item-hover": "#12f0dcc3",
+        "chrome-fg": "#d9cfc0",
+        "chrome-item-active-fg": "#f6f0e6",
+        "material-border": "#1ff0dcc3",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#d626211c",
+        "titlebar-material": "#db26211c",
+        "sidebar-search-bg": "#2e2823",
+        "surface-muted": "#262119"
       }
     },
     "paper:violet": {
@@ -1586,7 +1853,15 @@
         "chrome-fg-soft": "#8b8074",
         "chrome-accent": "#7c3aed",
         "chrome-item-active": "#1f8b5cf6",
-        "chrome-item-hover": "#1246321e"
+        "chrome-item-hover": "#1246321e",
+        "chrome-fg": "#3d322a",
+        "chrome-item-active-fg": "#7a3a21",
+        "material-border": "#2946321e",
+        "material-highlight": "#80ffffff",
+        "primary-nav-material": "#d6ece5d6",
+        "titlebar-material": "#dbece5d6",
+        "sidebar-search-bg": "#fbf7ee",
+        "surface-muted": "#f3ecdf"
       },
       "dark": {
         "canvas": "#211d19",
@@ -1616,7 +1891,15 @@
         "chrome-fg-soft": "#857a6c",
         "chrome-accent": "#a78bfa",
         "chrome-item-active": "#298b5cf6",
-        "chrome-item-hover": "#12f0dcc3"
+        "chrome-item-hover": "#12f0dcc3",
+        "chrome-fg": "#d9cfc0",
+        "chrome-item-active-fg": "#f6f0e6",
+        "material-border": "#1ff0dcc3",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#d626211c",
+        "titlebar-material": "#db26211c",
+        "sidebar-search-bg": "#2e2823",
+        "surface-muted": "#262119"
       }
     },
     "paper:pink": {
@@ -1648,7 +1931,15 @@
         "chrome-fg-soft": "#8b8074",
         "chrome-accent": "#db2777",
         "chrome-item-active": "#1fec4899",
-        "chrome-item-hover": "#1246321e"
+        "chrome-item-hover": "#1246321e",
+        "chrome-fg": "#3d322a",
+        "chrome-item-active-fg": "#7a3a21",
+        "material-border": "#2946321e",
+        "material-highlight": "#80ffffff",
+        "primary-nav-material": "#d6ece5d6",
+        "titlebar-material": "#dbece5d6",
+        "sidebar-search-bg": "#fbf7ee",
+        "surface-muted": "#f3ecdf"
       },
       "dark": {
         "canvas": "#211d19",
@@ -1678,7 +1969,15 @@
         "chrome-fg-soft": "#857a6c",
         "chrome-accent": "#f472b6",
         "chrome-item-active": "#29ec4899",
-        "chrome-item-hover": "#12f0dcc3"
+        "chrome-item-hover": "#12f0dcc3",
+        "chrome-fg": "#d9cfc0",
+        "chrome-item-active-fg": "#f6f0e6",
+        "material-border": "#1ff0dcc3",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#d626211c",
+        "titlebar-material": "#db26211c",
+        "sidebar-search-bg": "#2e2823",
+        "surface-muted": "#262119"
       }
     },
     "paper:teal": {
@@ -1710,7 +2009,15 @@
         "chrome-fg-soft": "#8b8074",
         "chrome-accent": "#0d9488",
         "chrome-item-active": "#1f14b8a6",
-        "chrome-item-hover": "#1246321e"
+        "chrome-item-hover": "#1246321e",
+        "chrome-fg": "#3d322a",
+        "chrome-item-active-fg": "#7a3a21",
+        "material-border": "#2946321e",
+        "material-highlight": "#80ffffff",
+        "primary-nav-material": "#d6ece5d6",
+        "titlebar-material": "#dbece5d6",
+        "sidebar-search-bg": "#fbf7ee",
+        "surface-muted": "#f3ecdf"
       },
       "dark": {
         "canvas": "#211d19",
@@ -1740,7 +2047,15 @@
         "chrome-fg-soft": "#857a6c",
         "chrome-accent": "#2dd4bf",
         "chrome-item-active": "#2914b8a6",
-        "chrome-item-hover": "#12f0dcc3"
+        "chrome-item-hover": "#12f0dcc3",
+        "chrome-fg": "#d9cfc0",
+        "chrome-item-active-fg": "#f6f0e6",
+        "material-border": "#1ff0dcc3",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#d626211c",
+        "titlebar-material": "#db26211c",
+        "sidebar-search-bg": "#2e2823",
+        "surface-muted": "#262119"
       }
     },
     "paper:green": {
@@ -1772,7 +2087,15 @@
         "chrome-fg-soft": "#8b8074",
         "chrome-accent": "#16a34a",
         "chrome-item-active": "#1f22c55e",
-        "chrome-item-hover": "#1246321e"
+        "chrome-item-hover": "#1246321e",
+        "chrome-fg": "#3d322a",
+        "chrome-item-active-fg": "#7a3a21",
+        "material-border": "#2946321e",
+        "material-highlight": "#80ffffff",
+        "primary-nav-material": "#d6ece5d6",
+        "titlebar-material": "#dbece5d6",
+        "sidebar-search-bg": "#fbf7ee",
+        "surface-muted": "#f3ecdf"
       },
       "dark": {
         "canvas": "#211d19",
@@ -1802,7 +2125,15 @@
         "chrome-fg-soft": "#857a6c",
         "chrome-accent": "#4ade80",
         "chrome-item-active": "#2922c55e",
-        "chrome-item-hover": "#12f0dcc3"
+        "chrome-item-hover": "#12f0dcc3",
+        "chrome-fg": "#d9cfc0",
+        "chrome-item-active-fg": "#f6f0e6",
+        "material-border": "#1ff0dcc3",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#d626211c",
+        "titlebar-material": "#db26211c",
+        "sidebar-search-bg": "#2e2823",
+        "surface-muted": "#262119"
       }
     },
     "paper:amber": {
@@ -1834,7 +2165,15 @@
         "chrome-fg-soft": "#8b8074",
         "chrome-accent": "#d97706",
         "chrome-item-active": "#1ff59e0b",
-        "chrome-item-hover": "#1246321e"
+        "chrome-item-hover": "#1246321e",
+        "chrome-fg": "#3d322a",
+        "chrome-item-active-fg": "#7a3a21",
+        "material-border": "#2946321e",
+        "material-highlight": "#80ffffff",
+        "primary-nav-material": "#d6ece5d6",
+        "titlebar-material": "#dbece5d6",
+        "sidebar-search-bg": "#fbf7ee",
+        "surface-muted": "#f3ecdf"
       },
       "dark": {
         "canvas": "#211d19",
@@ -1864,7 +2203,15 @@
         "chrome-fg-soft": "#857a6c",
         "chrome-accent": "#fbbf24",
         "chrome-item-active": "#29f59e0b",
-        "chrome-item-hover": "#12f0dcc3"
+        "chrome-item-hover": "#12f0dcc3",
+        "chrome-fg": "#d9cfc0",
+        "chrome-item-active-fg": "#f6f0e6",
+        "material-border": "#1ff0dcc3",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#d626211c",
+        "titlebar-material": "#db26211c",
+        "sidebar-search-bg": "#2e2823",
+        "surface-muted": "#262119"
       }
     },
     "paper:red": {
@@ -1896,7 +2243,15 @@
         "chrome-fg-soft": "#8b8074",
         "chrome-accent": "#dc2626",
         "chrome-item-active": "#1fef4444",
-        "chrome-item-hover": "#1246321e"
+        "chrome-item-hover": "#1246321e",
+        "chrome-fg": "#3d322a",
+        "chrome-item-active-fg": "#7a3a21",
+        "material-border": "#2946321e",
+        "material-highlight": "#80ffffff",
+        "primary-nav-material": "#d6ece5d6",
+        "titlebar-material": "#dbece5d6",
+        "sidebar-search-bg": "#fbf7ee",
+        "surface-muted": "#f3ecdf"
       },
       "dark": {
         "canvas": "#211d19",
@@ -1926,7 +2281,15 @@
         "chrome-fg-soft": "#857a6c",
         "chrome-accent": "#f87171",
         "chrome-item-active": "#29ef4444",
-        "chrome-item-hover": "#12f0dcc3"
+        "chrome-item-hover": "#12f0dcc3",
+        "chrome-fg": "#d9cfc0",
+        "chrome-item-active-fg": "#f6f0e6",
+        "material-border": "#1ff0dcc3",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#d626211c",
+        "titlebar-material": "#db26211c",
+        "sidebar-search-bg": "#2e2823",
+        "surface-muted": "#262119"
       }
     },
     "corporate:auto": {
@@ -1958,7 +2321,15 @@
         "chrome-fg-soft": "#7f8aa0",
         "chrome-accent": "#38bdf8",
         "chrome-item-active": "#2e38bdf8",
-        "chrome-item-hover": "#14ffffff"
+        "chrome-item-hover": "#14ffffff",
+        "chrome-fg": "#c7cfdd",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#2e0f172a",
+        "material-highlight": "#0fffffff",
+        "primary-nav-material": "#f0141c2e",
+        "titlebar-material": "#f0141c2e",
+        "sidebar-search-bg": "#ffffff",
+        "surface-muted": "#f3f5f8"
       },
       "dark": {
         "canvas": "#111827",
@@ -1988,7 +2359,15 @@
         "chrome-fg-soft": "#6b7891",
         "chrome-accent": "#38bdf8",
         "chrome-item-active": "#2e38bdf8",
-        "chrome-item-hover": "#12ffffff"
+        "chrome-item-hover": "#12ffffff",
+        "chrome-fg": "#b5c0d3",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#24cbd5e1",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#f0080c17",
+        "titlebar-material": "#f0080c17",
+        "sidebar-search-bg": "#1d2638",
+        "surface-muted": "#161d2d"
       }
     },
     "corporate:violet": {
@@ -2020,7 +2399,15 @@
         "chrome-fg-soft": "#7f8aa0",
         "chrome-accent": "#7c3aed",
         "chrome-item-active": "#1f8b5cf6",
-        "chrome-item-hover": "#14ffffff"
+        "chrome-item-hover": "#14ffffff",
+        "chrome-fg": "#c7cfdd",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#2e0f172a",
+        "material-highlight": "#0fffffff",
+        "primary-nav-material": "#f0141c2e",
+        "titlebar-material": "#f0141c2e",
+        "sidebar-search-bg": "#ffffff",
+        "surface-muted": "#f3f5f8"
       },
       "dark": {
         "canvas": "#111827",
@@ -2050,7 +2437,15 @@
         "chrome-fg-soft": "#6b7891",
         "chrome-accent": "#a78bfa",
         "chrome-item-active": "#298b5cf6",
-        "chrome-item-hover": "#12ffffff"
+        "chrome-item-hover": "#12ffffff",
+        "chrome-fg": "#b5c0d3",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#24cbd5e1",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#f0080c17",
+        "titlebar-material": "#f0080c17",
+        "sidebar-search-bg": "#1d2638",
+        "surface-muted": "#161d2d"
       }
     },
     "corporate:pink": {
@@ -2082,7 +2477,15 @@
         "chrome-fg-soft": "#7f8aa0",
         "chrome-accent": "#db2777",
         "chrome-item-active": "#1fec4899",
-        "chrome-item-hover": "#14ffffff"
+        "chrome-item-hover": "#14ffffff",
+        "chrome-fg": "#c7cfdd",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#2e0f172a",
+        "material-highlight": "#0fffffff",
+        "primary-nav-material": "#f0141c2e",
+        "titlebar-material": "#f0141c2e",
+        "sidebar-search-bg": "#ffffff",
+        "surface-muted": "#f3f5f8"
       },
       "dark": {
         "canvas": "#111827",
@@ -2112,7 +2515,15 @@
         "chrome-fg-soft": "#6b7891",
         "chrome-accent": "#f472b6",
         "chrome-item-active": "#29ec4899",
-        "chrome-item-hover": "#12ffffff"
+        "chrome-item-hover": "#12ffffff",
+        "chrome-fg": "#b5c0d3",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#24cbd5e1",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#f0080c17",
+        "titlebar-material": "#f0080c17",
+        "sidebar-search-bg": "#1d2638",
+        "surface-muted": "#161d2d"
       }
     },
     "corporate:teal": {
@@ -2144,7 +2555,15 @@
         "chrome-fg-soft": "#7f8aa0",
         "chrome-accent": "#0d9488",
         "chrome-item-active": "#1f14b8a6",
-        "chrome-item-hover": "#14ffffff"
+        "chrome-item-hover": "#14ffffff",
+        "chrome-fg": "#c7cfdd",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#2e0f172a",
+        "material-highlight": "#0fffffff",
+        "primary-nav-material": "#f0141c2e",
+        "titlebar-material": "#f0141c2e",
+        "sidebar-search-bg": "#ffffff",
+        "surface-muted": "#f3f5f8"
       },
       "dark": {
         "canvas": "#111827",
@@ -2174,7 +2593,15 @@
         "chrome-fg-soft": "#6b7891",
         "chrome-accent": "#2dd4bf",
         "chrome-item-active": "#2914b8a6",
-        "chrome-item-hover": "#12ffffff"
+        "chrome-item-hover": "#12ffffff",
+        "chrome-fg": "#b5c0d3",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#24cbd5e1",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#f0080c17",
+        "titlebar-material": "#f0080c17",
+        "sidebar-search-bg": "#1d2638",
+        "surface-muted": "#161d2d"
       }
     },
     "corporate:green": {
@@ -2206,7 +2633,15 @@
         "chrome-fg-soft": "#7f8aa0",
         "chrome-accent": "#16a34a",
         "chrome-item-active": "#1f22c55e",
-        "chrome-item-hover": "#14ffffff"
+        "chrome-item-hover": "#14ffffff",
+        "chrome-fg": "#c7cfdd",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#2e0f172a",
+        "material-highlight": "#0fffffff",
+        "primary-nav-material": "#f0141c2e",
+        "titlebar-material": "#f0141c2e",
+        "sidebar-search-bg": "#ffffff",
+        "surface-muted": "#f3f5f8"
       },
       "dark": {
         "canvas": "#111827",
@@ -2236,7 +2671,15 @@
         "chrome-fg-soft": "#6b7891",
         "chrome-accent": "#4ade80",
         "chrome-item-active": "#2922c55e",
-        "chrome-item-hover": "#12ffffff"
+        "chrome-item-hover": "#12ffffff",
+        "chrome-fg": "#b5c0d3",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#24cbd5e1",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#f0080c17",
+        "titlebar-material": "#f0080c17",
+        "sidebar-search-bg": "#1d2638",
+        "surface-muted": "#161d2d"
       }
     },
     "corporate:amber": {
@@ -2268,7 +2711,15 @@
         "chrome-fg-soft": "#7f8aa0",
         "chrome-accent": "#d97706",
         "chrome-item-active": "#1ff59e0b",
-        "chrome-item-hover": "#14ffffff"
+        "chrome-item-hover": "#14ffffff",
+        "chrome-fg": "#c7cfdd",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#2e0f172a",
+        "material-highlight": "#0fffffff",
+        "primary-nav-material": "#f0141c2e",
+        "titlebar-material": "#f0141c2e",
+        "sidebar-search-bg": "#ffffff",
+        "surface-muted": "#f3f5f8"
       },
       "dark": {
         "canvas": "#111827",
@@ -2298,7 +2749,15 @@
         "chrome-fg-soft": "#6b7891",
         "chrome-accent": "#fbbf24",
         "chrome-item-active": "#29f59e0b",
-        "chrome-item-hover": "#12ffffff"
+        "chrome-item-hover": "#12ffffff",
+        "chrome-fg": "#b5c0d3",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#24cbd5e1",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#f0080c17",
+        "titlebar-material": "#f0080c17",
+        "sidebar-search-bg": "#1d2638",
+        "surface-muted": "#161d2d"
       }
     },
     "corporate:red": {
@@ -2330,7 +2789,15 @@
         "chrome-fg-soft": "#7f8aa0",
         "chrome-accent": "#dc2626",
         "chrome-item-active": "#1fef4444",
-        "chrome-item-hover": "#14ffffff"
+        "chrome-item-hover": "#14ffffff",
+        "chrome-fg": "#c7cfdd",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#2e0f172a",
+        "material-highlight": "#0fffffff",
+        "primary-nav-material": "#f0141c2e",
+        "titlebar-material": "#f0141c2e",
+        "sidebar-search-bg": "#ffffff",
+        "surface-muted": "#f3f5f8"
       },
       "dark": {
         "canvas": "#111827",
@@ -2360,7 +2827,15 @@
         "chrome-fg-soft": "#6b7891",
         "chrome-accent": "#f87171",
         "chrome-item-active": "#29ef4444",
-        "chrome-item-hover": "#12ffffff"
+        "chrome-item-hover": "#12ffffff",
+        "chrome-fg": "#b5c0d3",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#24cbd5e1",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#f0080c17",
+        "titlebar-material": "#f0080c17",
+        "sidebar-search-bg": "#1d2638",
+        "surface-muted": "#161d2d"
       }
     },
     "midnight:auto": {
@@ -2392,7 +2867,15 @@
         "chrome-fg-soft": "#62667a",
         "chrome-accent": "#22d3ee",
         "chrome-item-active": "#2422d3ee",
-        "chrome-item-hover": "#0fffffff"
+        "chrome-item-hover": "#0fffffff",
+        "chrome-fg": "#c8ccd8",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#1affffff",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#e6000000",
+        "titlebar-material": "#e6000000",
+        "sidebar-search-bg": "#111117",
+        "surface-muted": "#09090d"
       },
       "dark": {
         "canvas": "#050507",
@@ -2422,7 +2905,15 @@
         "chrome-fg-soft": "#62667a",
         "chrome-accent": "#22d3ee",
         "chrome-item-active": "#2422d3ee",
-        "chrome-item-hover": "#0fffffff"
+        "chrome-item-hover": "#0fffffff",
+        "chrome-fg": "#c8ccd8",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#1affffff",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#e6000000",
+        "titlebar-material": "#e6000000",
+        "sidebar-search-bg": "#111117",
+        "surface-muted": "#09090d"
       }
     },
     "midnight:violet": {
@@ -2454,7 +2945,15 @@
         "chrome-fg-soft": "#62667a",
         "chrome-accent": "#7c3aed",
         "chrome-item-active": "#1f8b5cf6",
-        "chrome-item-hover": "#0fffffff"
+        "chrome-item-hover": "#0fffffff",
+        "chrome-fg": "#c8ccd8",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#1affffff",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#e6000000",
+        "titlebar-material": "#e6000000",
+        "sidebar-search-bg": "#111117",
+        "surface-muted": "#09090d"
       },
       "dark": {
         "canvas": "#050507",
@@ -2484,7 +2983,15 @@
         "chrome-fg-soft": "#62667a",
         "chrome-accent": "#a78bfa",
         "chrome-item-active": "#298b5cf6",
-        "chrome-item-hover": "#0fffffff"
+        "chrome-item-hover": "#0fffffff",
+        "chrome-fg": "#c8ccd8",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#1affffff",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#e6000000",
+        "titlebar-material": "#e6000000",
+        "sidebar-search-bg": "#111117",
+        "surface-muted": "#09090d"
       }
     },
     "midnight:pink": {
@@ -2516,7 +3023,15 @@
         "chrome-fg-soft": "#62667a",
         "chrome-accent": "#db2777",
         "chrome-item-active": "#1fec4899",
-        "chrome-item-hover": "#0fffffff"
+        "chrome-item-hover": "#0fffffff",
+        "chrome-fg": "#c8ccd8",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#1affffff",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#e6000000",
+        "titlebar-material": "#e6000000",
+        "sidebar-search-bg": "#111117",
+        "surface-muted": "#09090d"
       },
       "dark": {
         "canvas": "#050507",
@@ -2546,7 +3061,15 @@
         "chrome-fg-soft": "#62667a",
         "chrome-accent": "#f472b6",
         "chrome-item-active": "#29ec4899",
-        "chrome-item-hover": "#0fffffff"
+        "chrome-item-hover": "#0fffffff",
+        "chrome-fg": "#c8ccd8",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#1affffff",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#e6000000",
+        "titlebar-material": "#e6000000",
+        "sidebar-search-bg": "#111117",
+        "surface-muted": "#09090d"
       }
     },
     "midnight:teal": {
@@ -2578,7 +3101,15 @@
         "chrome-fg-soft": "#62667a",
         "chrome-accent": "#0d9488",
         "chrome-item-active": "#1f14b8a6",
-        "chrome-item-hover": "#0fffffff"
+        "chrome-item-hover": "#0fffffff",
+        "chrome-fg": "#c8ccd8",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#1affffff",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#e6000000",
+        "titlebar-material": "#e6000000",
+        "sidebar-search-bg": "#111117",
+        "surface-muted": "#09090d"
       },
       "dark": {
         "canvas": "#050507",
@@ -2608,7 +3139,15 @@
         "chrome-fg-soft": "#62667a",
         "chrome-accent": "#2dd4bf",
         "chrome-item-active": "#2914b8a6",
-        "chrome-item-hover": "#0fffffff"
+        "chrome-item-hover": "#0fffffff",
+        "chrome-fg": "#c8ccd8",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#1affffff",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#e6000000",
+        "titlebar-material": "#e6000000",
+        "sidebar-search-bg": "#111117",
+        "surface-muted": "#09090d"
       }
     },
     "midnight:green": {
@@ -2640,7 +3179,15 @@
         "chrome-fg-soft": "#62667a",
         "chrome-accent": "#16a34a",
         "chrome-item-active": "#1f22c55e",
-        "chrome-item-hover": "#0fffffff"
+        "chrome-item-hover": "#0fffffff",
+        "chrome-fg": "#c8ccd8",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#1affffff",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#e6000000",
+        "titlebar-material": "#e6000000",
+        "sidebar-search-bg": "#111117",
+        "surface-muted": "#09090d"
       },
       "dark": {
         "canvas": "#050507",
@@ -2670,7 +3217,15 @@
         "chrome-fg-soft": "#62667a",
         "chrome-accent": "#4ade80",
         "chrome-item-active": "#2922c55e",
-        "chrome-item-hover": "#0fffffff"
+        "chrome-item-hover": "#0fffffff",
+        "chrome-fg": "#c8ccd8",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#1affffff",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#e6000000",
+        "titlebar-material": "#e6000000",
+        "sidebar-search-bg": "#111117",
+        "surface-muted": "#09090d"
       }
     },
     "midnight:amber": {
@@ -2702,7 +3257,15 @@
         "chrome-fg-soft": "#62667a",
         "chrome-accent": "#d97706",
         "chrome-item-active": "#1ff59e0b",
-        "chrome-item-hover": "#0fffffff"
+        "chrome-item-hover": "#0fffffff",
+        "chrome-fg": "#c8ccd8",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#1affffff",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#e6000000",
+        "titlebar-material": "#e6000000",
+        "sidebar-search-bg": "#111117",
+        "surface-muted": "#09090d"
       },
       "dark": {
         "canvas": "#050507",
@@ -2732,7 +3295,15 @@
         "chrome-fg-soft": "#62667a",
         "chrome-accent": "#fbbf24",
         "chrome-item-active": "#29f59e0b",
-        "chrome-item-hover": "#0fffffff"
+        "chrome-item-hover": "#0fffffff",
+        "chrome-fg": "#c8ccd8",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#1affffff",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#e6000000",
+        "titlebar-material": "#e6000000",
+        "sidebar-search-bg": "#111117",
+        "surface-muted": "#09090d"
       }
     },
     "midnight:red": {
@@ -2764,7 +3335,15 @@
         "chrome-fg-soft": "#62667a",
         "chrome-accent": "#dc2626",
         "chrome-item-active": "#1fef4444",
-        "chrome-item-hover": "#0fffffff"
+        "chrome-item-hover": "#0fffffff",
+        "chrome-fg": "#c8ccd8",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#1affffff",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#e6000000",
+        "titlebar-material": "#e6000000",
+        "sidebar-search-bg": "#111117",
+        "surface-muted": "#09090d"
       },
       "dark": {
         "canvas": "#050507",
@@ -2794,7 +3373,15 @@
         "chrome-fg-soft": "#62667a",
         "chrome-accent": "#f87171",
         "chrome-item-active": "#29ef4444",
-        "chrome-item-hover": "#0fffffff"
+        "chrome-item-hover": "#0fffffff",
+        "chrome-fg": "#c8ccd8",
+        "chrome-item-active-fg": "#ffffff",
+        "material-border": "#1affffff",
+        "material-highlight": "#0dffffff",
+        "primary-nav-material": "#e6000000",
+        "titlebar-material": "#e6000000",
+        "sidebar-search-bg": "#111117",
+        "surface-muted": "#09090d"
       }
     }
   },
@@ -2805,6 +3392,121 @@
   },
   "locales": {
     "vi": {
+      "dictionaryMeaning": "Ý nghĩa",
+      "dictionaryExamples": "Ví dụ",
+      "dictionaryNoExamples": "Chưa có ví dụ cho từ này.",
+      "modulesDescription": "Chọn các tính năng xuất hiện trong thanh điều hướng.",
+      "qtEverywhereTitle": "Nội dung bạn chọn. Quyền bạn kiểm soát.",
+      "qtEverywhereSubtitle": "Dịch từ trình duyệt hoặc văn bản bạn chủ động dán.",
+      "contentSources": "Cách lấy nội dung",
+      "pasteText": "Dán văn bản",
+      "pasteTextHint": "Luôn có phương án nhập thủ công",
+      "browserExtension": "Tiện ích trình duyệt",
+      "browserExtensionHint": "Chỉ gửi nội dung được chọn",
+      "globalShortcut": "Phím tắt toàn hệ thống",
+      "globalShortcutHintWindows": "Kiểm tra xung đột trước khi đăng ký",
+      "globalShortcutHintLinux": "Phụ thuộc desktop và hỗ trợ portal",
+      "permissionStatus": "Trạng thái quyền",
+      "notVerified": "Chưa xác minh",
+      "permissionHintWindows": "Chỉ tích hợp đọc vùng chọn sau khi xác minh API, ứng dụng nguồn và quyền cần thiết. Giữ phương án dán văn bản.",
+      "permissionHintLinux": "Trên Wayland, không giả định có thể đọc vùng chọn từ mọi ứng dụng. Nếu môi trường không cho phép, dùng dán văn bản hoặc tiện ích trình duyệt.",
+      "viewPermissions": "Xem quyền",
+      "qtThermalTitle": "Chỉ hiển thị điều có thể xác minh.",
+      "qtThermalSubtitle": "Cảm biến phụ thuộc thiết bị và backend trên {platform}.",
+      "sensorStatus": "Trạng thái cảm biến",
+      "noVerifiedBackend": "Chưa có backend được xác minh cho thiết bị này.",
+      "noFakeReadings": "Không dùng số đo mẫu để giả lập hỗ trợ phần cứng.",
+      "checkCapability": "Kiểm tra khả năng",
+      "notSupported": "Chưa hỗ trợ",
+      "fanUnsupportedHint": "Hệ điều hành hoặc firmware tiếp tục điều khiển quạt. Không yêu cầu quyền quản trị chỉ để mở màn hình này.",
+      "manualMode": "Chế độ thủ công",
+      "viewReason": "Xem lý do",
+      "qtAppsTitle": "Rõ nguồn cài đặt. Đúng cách quản lý.",
+      "qtAppsSubtitle": "Chọn ứng dụng để xem phạm vi thao tác trên {platform}.",
+      "appsNoticeWindows": "Ưu tiên trình gỡ cài đặt đã đăng ký. Không áp dụng quy tắc xóa bundle của macOS cho Windows.",
+      "appsNoticeLinux": "Gói hệ thống, Flatpak và AppImage có cơ chế quản lý khác nhau. Không tự xóa tệp do trình quản lý gói sở hữu.",
+      "actionScope": "Phạm vi thao tác",
+      "installSource": "Nguồn cài đặt",
+      "installSourceWindows": "Trình cài đặt đã đăng ký",
+      "installSourceLinux": "Theo trình quản lý gói",
+      "sharedData": "Dữ liệu dùng chung",
+      "sharedDataHint": "Giữ lại; không chọn tự động",
+      "summarizeShort": "Tổng hợp",
+      "exportTranscript": "Xuất bản ghi",
+      "everywhereHint": "Chọn văn bản trong ứng dụng đang dùng và nhấn {key}.",
+      "shortcutCustomizable": "Có thể thay đổi trong Launcher & phím tắt",
+      "accessibilityHint": "Đọc văn bản bạn chủ động chọn",
+      "setUp": "Thiết lập",
+      "chromeConnect": "Kết nối Chrome",
+      "chromeConnectHint": "Kết nối cục bộ với tiện ích trình duyệt",
+      "connect": "Kết nối",
+      "localModelNote": "Chọn mô hình cục bộ để xử lý trên máy. Chỉ gửi nội dung bạn chủ động chọn.",
+      "quickPreview": "Xem trước cửa sổ dịch nhanh",
+      "previewSource": "Stay curious. Keep creating.",
+      "previewTranslated": "Luôn tò mò.\nKhông ngừng sáng tạo.",
+      "previewTarget": "vi",
+      "openInTranslate": "Mở trong Dịch",
+      "utilitiesIntro": "Mở ứng dụng, tìm tệp, tính toán hoặc hỏi nhanh mà không mất nhịp.",
+      "openLauncher": "Mở Launcher",
+      "shortcutDetail_launcher": "Phím tắt có thể tùy chỉnh",
+      "shortcutDetail_translateSelection": "Trong ứng dụng đang hoạt động",
+      "shortcutDetail_quickChat": "Hỏi nhanh với mô hình của bạn",
+      "shortcutDetail_commands": "Trong cửa sổ Viezan",
+      "fanControlMode": "Chế độ điều khiển",
+      "systemControlled": "Hệ thống đang điều khiển",
+      "fanModeHint": "Để macOS tự quản lý quạt, hoặc thiết lập hồ sơ sau khi xác nhận phần cứng và quyền trợ giúp.",
+      "fanRules": "Quy tắc",
+      "manualControl": "Điều khiển thủ công",
+      "setUpHelper": "Thiết lập helper",
+      "journalUndo": "Nhật ký & hoàn tác",
+      "previewChanges": "Xem trước thay đổi",
+      "resetData": "Đặt lại dữ liệu",
+      "dictionaryEmpty": "Nhập một từ để xem nghĩa, phát âm và ví dụ.",
+      "openShort": "Mở",
+      "systemPermissions": "Quyền hệ thống",
+      "voiceTitle": "Giọng nói",
+      "appearanceMode": "Chế độ hiển thị",
+      "searchEverything": "Tìm kiếm mọi thứ",
+      "refresh": "Làm mới",
+      "cancel": "Hủy",
+      "workspace": "Không gian làm việc",
+      "workspaceSubtitle": "Tiếp tục công việc, hoặc bắt đầu một việc mới.",
+      "inProgress": "Đang diễn ra",
+      "recentWork": "Gần đây",
+      "filterAll": "Tất cả",
+      "privacyTitle": "Lưu trên thiết bị",
+      "privacyHint": "Không gian riêng của bạn",
+      "runtimeReady": "Sẵn sàng",
+      "runtimeOfflineNotice": "Ollama chưa chạy trên máy này. Gửi lúc này sẽ báo lỗi.",
+      "checkAgain": "Kiểm tra lại",
+      "openLocalModels": "Mở Model AI local",
+      "onDevice": "xử lý trên thiết bị",
+      "manage": "Quản lý",
+      "addImage": "Thêm hình ảnh",
+      "savedWords": "Từ đã lưu",
+      "newLookup": "Tra cứu mới",
+      "newInterpretation": "Phiên mới",
+      "compare": "So sánh",
+      "translateText": "Dịch văn bản",
+      "saveWord": "Lưu từ",
+      "savedWord": "Đã lưu",
+      "everywhereTitle": "Hiểu ngay, ở bất cứ đâu.",
+      "appsTitle": "Gọn gàng. Có kiểm soát.",
+      "appsSubtitle": "Xem trước từng thay đổi trước khi gỡ hoặc đặt lại.",
+      "thermalTitle": "Biết thiết bị đang hoạt động ra sao.",
+      "thermalTitleMac": "Biết chiếc Mac đang hoạt động ra sao.",
+      "thermalSubtitle": "Số liệu từ các cảm biến mà thiết bị hỗ trợ.",
+      "hottestSensor": "Cảm biến nóng nhất",
+      "sensors": "Cảm biến",
+      "rpm": "vòng / phút",
+      "utilitiesTitle": "Một phím tắt. Nhiều việc hơn.",
+      "launcherPitch": "Nhỏ gọn, luôn sẵn sàng.",
+      "launcherPitchDetail": "Tìm ứng dụng và tệp.\nTính toán và đổi tiền tệ.\nQuick Chat với mô hình của bạn.",
+      "groupCustomize": "Tùy chỉnh",
+      "groupApplication": "Ứng dụng",
+      "speakers": "Người nói",
+      "transcript": "Bản ghi",
+      "listening": "Đang nghe",
       "interpretEmpty": "Sẵn sàng cho phiên dịch",
       "interpretEmptyHint": "Chọn ngôn ngữ và nguồn âm thanh, rồi bắt đầu. Bản ghi và bản dịch sẽ xuất hiện tại đây.",
       "sensorsEmpty": "Chưa có dữ liệu cảm biến",
@@ -3133,7 +3835,7 @@
       "retry": "Thử lại",
       "emptyChat": "Bạn muốn làm gì hôm nay?",
       "emptyResult": "Bản dịch sẽ xuất hiện ở đây",
-      "emptyHint": "Nhập nội dung và bắt đầu một tác vụ mô phỏng.",
+      "emptyHint": "Hỏi, viết hoặc nghiên cứu. Nội dung được lưu trên thiết bị.",
       "draft": "Bản nháp được giữ trên thiết bị",
       "storageError": "Chưa thể lưu thay đổi. Bản nháp vẫn còn trong bộ nhớ.",
       "storageLoadError": "Không thể đọc dữ liệu đã lưu. File gốc được giữ nguyên; lưu tự động đã tạm dừng.",
@@ -3241,8 +3943,15 @@
       "send": "Gửi",
       "copy": "Sao chép",
       "prompt": "Hỏi bất kỳ điều gì…",
+      "sourcePlaceholder": "Nhập hoặc dán văn bản…",
+      "dictionaryPlaceholder": "Nhập từ hoặc cụm từ…",
       "expandNavigation": "Mở rộng thanh bên",
       "collapseNavigation": "Thu nhỏ thanh bên",
+      "languageDescription": "Ngôn ngữ giao diện ứng dụng",
+      "launchDescription": "Mở Viezan chạy ngầm khi bạn đăng nhập máy, để phím tắt và khay hệ thống sẵn sàng ngay.",
+      "presetDescription": "Chọn diện mạo hợp với cách bạn làm việc; phong cách đi theo chế độ sáng/tối ở trên",
+      "accentDescription": "Tô nút, liên kết và vùng chọn bằng màu bạn thích, hoặc giữ màu của phong cách",
+      "voiceDescription": "Nhận dạng giọng nói và đọc to",
       "settingsSearch": "Tìm trong cài đặt",
       "clearSearch": "Xoá tìm kiếm",
       "noSettings": "Không có mục cài đặt nào khớp.",
@@ -3261,6 +3970,121 @@
       "previewAssistant": "Đây là bản dịch, giữ sát giọng văn của bản gốc."
     },
     "en": {
+      "dictionaryMeaning": "Meaning",
+      "dictionaryExamples": "Examples",
+      "dictionaryNoExamples": "No examples are available for this entry.",
+      "modulesDescription": "Choose which features appear in navigation.",
+      "qtEverywhereTitle": "Your selection. Your control.",
+      "qtEverywhereSubtitle": "Translate from the browser or text you paste yourself.",
+      "contentSources": "Ways to bring in text",
+      "pasteText": "Paste text",
+      "pasteTextHint": "Manual entry is always available",
+      "browserExtension": "Browser extension",
+      "browserExtensionHint": "Sends only the selected text",
+      "globalShortcut": "System-wide shortcut",
+      "globalShortcutHintWindows": "Checks for conflicts before registering",
+      "globalShortcutHintLinux": "Depends on the desktop and portal support",
+      "permissionStatus": "Permission status",
+      "notVerified": "Not verified",
+      "permissionHintWindows": "Selection reading is used only after the API, source app and permissions are verified. Pasting stays available.",
+      "permissionHintLinux": "On Wayland, reading the selection from every app is not assumed. If the session does not allow it, paste or use the browser extension.",
+      "viewPermissions": "View permissions",
+      "qtThermalTitle": "Only what can be verified.",
+      "qtThermalSubtitle": "Sensors depend on the device and backend on {platform}.",
+      "sensorStatus": "Sensor status",
+      "noVerifiedBackend": "No verified backend for this device yet.",
+      "noFakeReadings": "Sample readings are never used to fake hardware support.",
+      "checkCapability": "Check capability",
+      "notSupported": "Not supported",
+      "fanUnsupportedHint": "The OS or firmware keeps controlling the fans. Opening this page never asks for admin rights.",
+      "manualMode": "Manual mode",
+      "viewReason": "View reason",
+      "qtAppsTitle": "Know the source. Manage it the right way.",
+      "qtAppsSubtitle": "Choose an app to see what you can do on {platform}.",
+      "appsNoticeWindows": "Registered uninstallers come first. macOS bundle removal rules never apply on Windows.",
+      "appsNoticeLinux": "System packages, Flatpak and AppImage are managed differently. Files owned by a package manager are never removed directly.",
+      "actionScope": "What you can do",
+      "installSource": "Install source",
+      "installSourceWindows": "Registered installer",
+      "installSourceLinux": "Managed by the package system",
+      "sharedData": "Shared data",
+      "sharedDataHint": "Kept; never selected automatically",
+      "summarizeShort": "Summarize",
+      "exportTranscript": "Export transcript",
+      "everywhereHint": "Select text in the app you are using and press {key}.",
+      "shortcutCustomizable": "Change it in Launcher & shortcuts",
+      "accessibilityHint": "Reads only the text you select",
+      "setUp": "Set up",
+      "chromeConnect": "Connect Chrome",
+      "chromeConnectHint": "Local connection to the browser extension",
+      "connect": "Connect",
+      "localModelNote": "Choose a local model to process on this device. Only the text you select is sent.",
+      "quickPreview": "Quick translate window preview",
+      "previewSource": "Stay curious. Keep creating.",
+      "previewTranslated": "Luôn tò mò.\nKhông ngừng sáng tạo.",
+      "previewTarget": "vi",
+      "openInTranslate": "Open in Translate",
+      "utilitiesIntro": "Open apps, find files, calculate or ask quickly without breaking your flow.",
+      "openLauncher": "Open Launcher",
+      "shortcutDetail_launcher": "A customizable shortcut",
+      "shortcutDetail_translateSelection": "In the active app",
+      "shortcutDetail_quickChat": "Ask your model quickly",
+      "shortcutDetail_commands": "In the Viezan window",
+      "fanControlMode": "Control mode",
+      "systemControlled": "System is in control",
+      "fanModeHint": "Let macOS manage the fans, or set up a profile after confirming the hardware and helper permission.",
+      "fanRules": "Rules",
+      "manualControl": "Manual control",
+      "setUpHelper": "Set up helper",
+      "journalUndo": "Log & undo",
+      "previewChanges": "Preview changes",
+      "resetData": "Reset data",
+      "dictionaryEmpty": "Enter a word to see its meanings, pronunciation and examples.",
+      "openShort": "Open",
+      "systemPermissions": "System permissions",
+      "voiceTitle": "Voice",
+      "appearanceMode": "Appearance",
+      "searchEverything": "Search everything",
+      "refresh": "Refresh",
+      "cancel": "Cancel",
+      "workspace": "Workspace",
+      "workspaceSubtitle": "Continue your work, or start something new.",
+      "inProgress": "In progress",
+      "recentWork": "Recent",
+      "filterAll": "All",
+      "privacyTitle": "Stored on this device",
+      "privacyHint": "Your private workspace",
+      "runtimeReady": "Ready",
+      "runtimeOfflineNotice": "Ollama isn't running on this device. Sending now will fail.",
+      "checkAgain": "Check again",
+      "openLocalModels": "Open local AI models",
+      "onDevice": "processed on this device",
+      "manage": "Manage",
+      "addImage": "Add image",
+      "savedWords": "Saved words",
+      "newLookup": "New lookup",
+      "newInterpretation": "New session",
+      "compare": "Compare",
+      "translateText": "Translate text",
+      "saveWord": "Save word",
+      "savedWord": "Saved",
+      "everywhereTitle": "Understand it, wherever you are.",
+      "appsTitle": "Tidy, and in control.",
+      "appsSubtitle": "Preview every change before you uninstall or reset.",
+      "thermalTitle": "See how your computer is doing.",
+      "thermalTitleMac": "See how your Mac is doing.",
+      "thermalSubtitle": "Readings from the sensors this device supports.",
+      "hottestSensor": "Hottest sensor",
+      "sensors": "Sensors",
+      "rpm": "RPM",
+      "utilitiesTitle": "One shortcut. More done.",
+      "launcherPitch": "Compact, and always ready.",
+      "launcherPitchDetail": "Find apps and files.\nCalculate and convert currencies.\nQuick Chat with your model.",
+      "groupCustomize": "Customize",
+      "groupApplication": "Application",
+      "speakers": "Speaker",
+      "transcript": "Transcript",
+      "listening": "Listening",
       "interpretEmpty": "Ready to interpret",
       "interpretEmptyHint": "Choose languages and an audio source, then start. Your transcript and translation will appear here.",
       "sensorsEmpty": "No sensor data yet",
@@ -3589,7 +4413,7 @@
       "retry": "Retry",
       "emptyChat": "What would you like to work on?",
       "emptyResult": "Your translation will appear here",
-      "emptyHint": "Enter text and start a simulated task.",
+      "emptyHint": "Ask, write or research. Your work stays on this device.",
       "draft": "Draft saved on this device",
       "storageError": "Changes could not be saved. Your draft remains in memory.",
       "storageLoadError": "Saved data could not be read. The original file is preserved; automatic saving is paused.",
@@ -3697,8 +4521,15 @@
       "send": "Send",
       "copy": "Copy",
       "prompt": "Ask anything…",
+      "sourcePlaceholder": "Enter or paste text…",
+      "dictionaryPlaceholder": "Enter a word or phrase…",
       "expandNavigation": "Expand sidebar",
       "collapseNavigation": "Collapse sidebar",
+      "languageDescription": "Language for the application interface",
+      "launchDescription": "Open Viezan in the background when you sign in, so hotkeys and the tray are ready right away.",
+      "presetDescription": "Pick the look that fits how you work; it follows the light or dark mode above",
+      "accentDescription": "Tint buttons, links and selection with your own hue, or keep the style’s",
+      "voiceDescription": "Speech recognition and read-aloud.",
       "settingsSearch": "Search settings",
       "clearSearch": "Clear search",
       "noSettings": "No settings match.",
@@ -3717,6 +4548,121 @@
       "previewAssistant": "Here is the translation, kept close to the original tone."
     },
     "ja": {
+      "dictionaryMeaning": "意味",
+      "dictionaryExamples": "用例",
+      "dictionaryNoExamples": "この単語の用例はまだありません。",
+      "modulesDescription": "ナビゲーションに表示する機能を選びます。",
+      "qtEverywhereTitle": "選んだ内容を、あなたの管理下で。",
+      "qtEverywhereSubtitle": "ブラウザーや自分で貼り付けたテキストを翻訳します。",
+      "contentSources": "テキストの取り込み方法",
+      "pasteText": "テキストを貼り付け",
+      "pasteTextHint": "手動入力はいつでも使えます",
+      "browserExtension": "ブラウザー拡張機能",
+      "browserExtensionHint": "選択したテキストだけを送信",
+      "globalShortcut": "システム全体のショートカット",
+      "globalShortcutHintWindows": "登録前に競合を確認します",
+      "globalShortcutHintLinux": "デスクトップとポータルの対応に依存します",
+      "permissionStatus": "権限の状態",
+      "notVerified": "未確認",
+      "permissionHintWindows": "API・元のアプリ・必要な権限を確認してから選択範囲を読み取ります。貼り付けはいつでも使えます。",
+      "permissionHintLinux": "Waylandでは、すべてのアプリから選択範囲を読めるとは限りません。許可されない場合は貼り付けかブラウザー拡張機能を使ってください。",
+      "viewPermissions": "権限を表示",
+      "qtThermalTitle": "確認できる情報だけを表示します。",
+      "qtThermalSubtitle": "センサーは{platform}のデバイスとバックエンドに依存します。",
+      "sensorStatus": "センサーの状態",
+      "noVerifiedBackend": "このデバイスで確認済みのバックエンドはまだありません。",
+      "noFakeReadings": "サンプル値でハードウェア対応を装うことはしません。",
+      "checkCapability": "対応を確認",
+      "notSupported": "未対応",
+      "fanUnsupportedHint": "ファンはOSまたはファームウェアが制御します。この画面を開くだけで管理者権限を求めることはありません。",
+      "manualMode": "手動モード",
+      "viewReason": "理由を表示",
+      "qtAppsTitle": "インストール元を明確に。正しい方法で管理。",
+      "qtAppsSubtitle": "アプリを選ぶと、{platform}での操作範囲を表示します。",
+      "appsNoticeWindows": "登録済みのアンインストーラーを優先します。macOSのバンドル削除ルールはWindowsに適用しません。",
+      "appsNoticeLinux": "システムパッケージ、Flatpak、AppImageは管理方法が異なります。パッケージマネージャーが所有するファイルは直接削除しません。",
+      "actionScope": "操作範囲",
+      "installSource": "インストール元",
+      "installSourceWindows": "登録済みインストーラー",
+      "installSourceLinux": "パッケージ管理に従う",
+      "sharedData": "共有データ",
+      "sharedDataHint": "保持され、自動では選択されません",
+      "summarizeShort": "要約",
+      "exportTranscript": "文字起こしを書き出す",
+      "everywhereHint": "使用中のアプリでテキストを選択し、{key}を押します。",
+      "shortcutCustomizable": "「ランチャーとショートカット」で変更できます",
+      "accessibilityHint": "選択したテキストだけを読み取ります",
+      "setUp": "設定",
+      "chromeConnect": "Chromeと接続",
+      "chromeConnectHint": "ブラウザ拡張機能とのローカル接続",
+      "connect": "接続",
+      "localModelNote": "ローカルモデルを選ぶとデバイス上で処理します。送信されるのは選択したテキストだけです。",
+      "quickPreview": "クイック翻訳ウィンドウのプレビュー",
+      "previewSource": "Stay curious. Keep creating.",
+      "previewTranslated": "好奇心を忘れずに。\n創り続けよう。",
+      "previewTarget": "ja",
+      "openInTranslate": "翻訳で開く",
+      "utilitiesIntro": "アプリを開く、ファイルを探す、計算する、すばやく質問する。流れを止めずに。",
+      "openLauncher": "ランチャーを開く",
+      "shortcutDetail_launcher": "カスタマイズできるショートカット",
+      "shortcutDetail_translateSelection": "使用中のアプリで",
+      "shortcutDetail_quickChat": "モデルにすばやく質問",
+      "shortcutDetail_commands": "Viezanウィンドウ内",
+      "fanControlMode": "制御モード",
+      "systemControlled": "システムが制御中",
+      "fanModeHint": "ファンはmacOSに任せるか、ハードウェアとヘルパーの権限を確認してからプロファイルを設定します。",
+      "fanRules": "ルール",
+      "manualControl": "手動制御",
+      "setUpHelper": "ヘルパーを設定",
+      "journalUndo": "履歴と取り消し",
+      "previewChanges": "変更をプレビュー",
+      "resetData": "データをリセット",
+      "dictionaryEmpty": "単語を入力すると、意味・発音・例文を表示します。",
+      "openShort": "開く",
+      "systemPermissions": "システムの権限",
+      "voiceTitle": "音声",
+      "appearanceMode": "表示モード",
+      "searchEverything": "すべてを検索",
+      "refresh": "更新",
+      "cancel": "キャンセル",
+      "workspace": "ワークスペース",
+      "workspaceSubtitle": "作業を続けるか、新しく始めましょう。",
+      "inProgress": "進行中",
+      "recentWork": "最近",
+      "filterAll": "すべて",
+      "privacyTitle": "このデバイスに保存",
+      "privacyHint": "あなた専用のワークスペース",
+      "runtimeReady": "準備完了",
+      "runtimeOfflineNotice": "このデバイスで Ollama が起動していません。今送信するとエラーになります。",
+      "checkAgain": "再確認",
+      "openLocalModels": "ローカルAIモデルを開く",
+      "onDevice": "デバイス上で処理",
+      "manage": "管理",
+      "addImage": "画像を追加",
+      "savedWords": "保存した単語",
+      "newLookup": "新しく調べる",
+      "newInterpretation": "新しいセッション",
+      "compare": "比較",
+      "translateText": "テキストを翻訳",
+      "saveWord": "単語を保存",
+      "savedWord": "保存済み",
+      "everywhereTitle": "どこでも、すぐに理解。",
+      "appsTitle": "すっきり、確実に。",
+      "appsSubtitle": "アンインストールやリセットの前に、すべての変更を確認します。",
+      "thermalTitle": "コンピューターの状態をひと目で。",
+      "thermalTitleMac": "Macの状態をひと目で。",
+      "thermalSubtitle": "このデバイスが対応するセンサーの値です。",
+      "hottestSensor": "最も高温のセンサー",
+      "sensors": "センサー",
+      "rpm": "回転/分",
+      "utilitiesTitle": "ひとつのショートカットで、もっと多くを。",
+      "launcherPitch": "コンパクトで、いつでも使える。",
+      "launcherPitchDetail": "アプリやファイルを検索。\n計算や通貨換算。\nお使いのモデルでQuick Chat。",
+      "groupCustomize": "カスタマイズ",
+      "groupApplication": "アプリケーション",
+      "speakers": "話者",
+      "transcript": "文字起こし",
+      "listening": "聞き取り中",
       "interpretEmpty": "通訳を開始できます",
       "interpretEmptyHint": "言語と音声ソースを選択して開始してください。文字起こしと翻訳がここに表示されます。",
       "sensorsEmpty": "センサーデータはまだありません",
@@ -4045,7 +4991,7 @@
       "retry": "再試行",
       "emptyChat": "何から始めますか？",
       "emptyResult": "翻訳結果がここに表示されます",
-      "emptyHint": "テキストを入力してシミュレーションを開始してください。",
+      "emptyHint": "質問、文章作成、調査ができます。内容はこのデバイスに保存されます。",
       "draft": "下書きをこのデバイスに保存",
       "storageError": "変更を保存できませんでした。下書きはメモリに保持されています。",
       "storageLoadError": "保存済みデータを読み込めません。元のファイルは保持され、自動保存は一時停止されています。",
@@ -4153,8 +5099,15 @@
       "send": "送信",
       "copy": "コピー",
       "prompt": "何でも聞いてください…",
+      "sourcePlaceholder": "テキストを入力または貼り付け…",
+      "dictionaryPlaceholder": "単語またはフレーズを入力…",
       "expandNavigation": "サイドバーを展開",
       "collapseNavigation": "サイドバーを折りたたむ",
+      "languageDescription": "アプリケーションインターフェースの言語",
+      "launchDescription": "サインイン時にViezanをバックグラウンドで起動し、ホットキーとトレイをすぐ使えるようにします。",
+      "presetDescription": "仕事のスタイルに合う外観を選択します。上のライト／ダーク設定に従います",
+      "accentDescription": "ボタン、リンク、選択範囲を好みの色で彩るか、スタイルの色のままにします",
+      "voiceDescription": "音声認識と読み上げ",
       "settingsSearch": "設定を検索",
       "clearSearch": "検索をクリア",
       "noSettings": "一致する設定はありません。",
@@ -4237,48 +5190,6 @@
   ],
   "commands": [
     {
-      "id": "apps",
-      "title": "apps",
-      "systemImage": "square.grid.2x2",
-      "icon": "apps",
-      "shortcut": ""
-    },
-    {
-      "id": "interpret",
-      "title": "interpret",
-      "systemImage": "mic",
-      "icon": "interpret",
-      "shortcut": ""
-    },
-    {
-      "id": "everywhere",
-      "title": "everywhere",
-      "systemImage": "globe",
-      "icon": "everywhere",
-      "shortcut": ""
-    },
-    {
-      "id": "thermal",
-      "title": "thermal",
-      "systemImage": "thermometer.medium",
-      "icon": "thermal",
-      "shortcut": ""
-    },
-    {
-      "id": "utilities",
-      "title": "utilities",
-      "systemImage": "keyboard",
-      "icon": "utilities",
-      "shortcut": ""
-    },
-    {
-      "id": "dictionary",
-      "title": "dictionary",
-      "systemImage": "book.closed",
-      "icon": "dictionary",
-      "shortcut": "3"
-    },
-    {
       "id": "home",
       "title": "home",
       "systemImage": "house",
@@ -4298,6 +5209,48 @@
       "systemImage": "character.bubble",
       "icon": "translate",
       "shortcut": "2"
+    },
+    {
+      "id": "interpret",
+      "title": "interpret",
+      "systemImage": "mic",
+      "icon": "interpret",
+      "shortcut": ""
+    },
+    {
+      "id": "dictionary",
+      "title": "dictionary",
+      "systemImage": "book.closed",
+      "icon": "dictionary",
+      "shortcut": "3"
+    },
+    {
+      "id": "everywhere",
+      "title": "everywhere",
+      "systemImage": "globe",
+      "icon": "everywhere",
+      "shortcut": ""
+    },
+    {
+      "id": "apps",
+      "title": "apps",
+      "systemImage": "square.grid.2x2",
+      "icon": "apps",
+      "shortcut": ""
+    },
+    {
+      "id": "thermal",
+      "title": "thermal",
+      "systemImage": "thermometer.medium",
+      "icon": "thermal",
+      "shortcut": ""
+    },
+    {
+      "id": "utilities",
+      "title": "utilities",
+      "systemImage": "keyboard",
+      "icon": "utilities",
+      "shortcut": ""
     },
     {
       "id": "settings",
@@ -4380,6 +5333,28 @@
       ]
     },
     {
+      "id": "voice",
+      "title": "voiceTitle",
+      "description": "voiceDescription",
+      "terms": [
+        "speechProvider",
+        "voiceProvider",
+        "voiceID"
+      ]
+    },
+    {
+      "id": "modules",
+      "title": "modulesTitle",
+      "description": "modulesDescription",
+      "terms": [
+        "chat",
+        "translate",
+        "interpret",
+        "thermal",
+        "apps"
+      ]
+    },
+    {
       "id": "desktop",
       "title": "utilities",
       "description": "shortcutPlatformHint",
@@ -4405,6 +5380,16 @@
       "terms": [
         "exportBackup",
         "importBackup"
+      ]
+    },
+    {
+      "id": "updates",
+      "title": "updatesTitle",
+      "description": "updatesHint",
+      "terms": [
+        "checkUpdates",
+        "downloadUpdate",
+        "releaseNotes"
       ]
     },
     {
