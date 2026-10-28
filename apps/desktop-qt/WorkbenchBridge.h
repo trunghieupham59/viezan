@@ -70,6 +70,10 @@ public:
     // unknown | available | offline | missingKey | notInstalled | unsupported
     Q_INVOKABLE QString availability(const QString &model) const { return m_providers.availability(model); }
     Q_INVOKABLE void discoverProviders();
+    // Speech-to-text runs in the cloud: "auto" needs any of OpenAI/Gemini/Groq, else that provider's key.
+    Q_INVOKABLE bool speechReady(const QString &provider) const {
+        return provider == "auto" ? (m_credentials.contains("openai") || m_credentials.contains("gemini") || m_credentials.contains("groq")) : m_credentials.contains(provider);
+    }
     Q_INVOKABLE bool chatCapable(const QString &model) const { return ProviderDiscovery::chatCapable(model); }
     // Who draws in image mode for this model ("openai" | "gemini" | ""), from cached key presence.
     Q_INVOKABLE QString imageProvider(const QString &model) const { return ImageGeneration::imageProvider(model, [this](const QString &id) { return m_credentials.contains(id); }); }

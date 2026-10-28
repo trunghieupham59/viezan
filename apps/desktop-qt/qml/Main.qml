@@ -467,8 +467,8 @@ ApplicationWindow {
         property bool compact: false
         RowLayout {
             spacing: metrics.small
-            Kit.IconButton { visible: parent.parent.compact; iconName: "interpret"; text: t(workbench.audio.recording ? "stopRecording" : "record"); checked: workbench.audio.recording; enabled: !workbench.audio.busy; onClicked: workbench.audio.recording ? workbench.audio.stop(workspace.speechProvider || "openai") : workbench.startRecording() }
-            Button { visible: !parent.parent.compact; text: t(workbench.audio.recording ? "stopRecording" : "record"); implicitHeight: metrics.control; enabled: !workbench.audio.busy; onClicked: workbench.audio.recording ? workbench.audio.stop(workspace.speechProvider || "openai") : workbench.startRecording() }
+            Kit.IconButton { visible: parent.parent.compact; iconName: "interpret"; text: t(workbench.audio.recording ? "stopRecording" : "record"); checked: workbench.audio.recording; enabled: !workbench.audio.busy; onClicked: workbench.audio.recording ? workbench.audio.stop(workspace.speechProvider || "auto") : workbench.startRecording() }
+            Button { visible: !parent.parent.compact; text: t(workbench.audio.recording ? "stopRecording" : "record"); implicitHeight: metrics.control; enabled: !workbench.audio.busy; onClicked: workbench.audio.recording ? workbench.audio.stop(workspace.speechProvider || "auto") : workbench.startRecording() }
             Button {
                 visible: !parent.parent.compact
                 text: t(workbench.audio.speaking ? "stopSpeaking" : "listen"); implicitHeight: metrics.control
@@ -484,7 +484,7 @@ ApplicationWindow {
                     id: speechMenu
                     Repeater {
                         model: ["auto", "openai", "gemini", "groq"]
-                        delegate: MenuItem { required property string modelData; text: modelData === "auto" ? t("reasoning_auto") : modelData; checkable: true; checked: (workspace.speechProvider || "openai") === modelData; onTriggered: root.command("speechProvider", {value: modelData}) }
+                        delegate: MenuItem { required property string modelData; text: modelData === "auto" ? t("reasoning_auto") : modelData; checkable: true; checked: (workspace.speechProvider || "auto") === modelData; onTriggered: root.command("speechProvider", {value: modelData}) }
                     }
                     MenuSeparator {}
                     MenuItem { text: t("speechAutoHint"); enabled: false; implicitWidth: metrics.sidebar; contentItem: Label { text: t("speechAutoHint"); wrapMode: Text.Wrap; color: palette.text } }

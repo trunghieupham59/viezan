@@ -377,3 +377,73 @@ import Testing
     #expect(ImageGeneration.imageModel(provider: "gemini", selected: "", available: listed) == "gemini-2.5-flash-image")
     #expect(ImageGeneration.imageModel(provider: "openai", selected: "", available: []) == "gpt-image-1")
 }
+
+@Test @MainActor func speechRecognitionDefaultsToAnyKeyedProvider() async {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false,
+                               listModels: { _ in throw ProviderFailure.unavailable }, hasKey: { $0 == "groq" })
+    #expect(store.speechProvider == "auto")
+    await store.discoverProviders().value
+    #expect(store.providers.speechReady("auto"))
+    #expect(store.providers.speechReady("groq") && !store.providers.speechReady("openai"))
+    store.speechProvider = "openai"
+    #expect(store.speechProvider == "openai")
+    #expect(Interpretation.speechFailure(CloudFailure.missingKey) == "providerMissingKey")
+    #expect(Interpretation.speechFailure(URLError(.notConnectedToInternet)) == "providerNetworkError")
+    #expect(Interpretation.speechFailure(ProviderFailure.oversizedResponse) == "audioError")
+}
+
+@Test func transcriptionUsesTheBestModelTheAccountLists() {
+    #expect(SpeechProvider.transcriptionModel([]) == "whisper-1")
+    #expect(SpeechProvider.transcriptionModel(["openai:whisper-1", "openai:gpt-4o-mini-transcribe"]) == "gpt-4o-mini-transcribe")
+    #expect(SpeechProvider.transcriptionModel(["openai:gpt-4o-mini-transcribe", "openai:gpt-4o-transcribe"]) == "gpt-4o-transcribe")
+}
+
+@Test func voiceGateIgnoresSteadyRoomNoiseAndClosesAtAPause() {
+    var gate = VoiceGate()
+    // A fan at -38 dB (above the old fixed -42 dB threshold) is learned as the floor.
+    for _ in 0..<300 { #expect(gate.feed(-38) != .finish) }
+    #expect(!gate.heard)
+    // Speech 15 dB above the floor for two seconds, then a pause, closes the utterance.
+    for _ in 0..<20 { #expect(gate.feed(-23) == .none) }
+    #expect(gate.heard)
+    var events: [VoiceGate.Event] = []
+    for _ in 0..<10 { events.append(gate.feed(-38)) }
+    #expect(events.contains(.finish))
+}
+
+@Test func voiceGateDropsClicksAndSplitsLongSpeechAtAGap() {
+    var gate = VoiceGate()
+    for _ in 0..<10 { _ = gate.feed(-70) }
+    // A 0.1 s click is not an utterance.
+    _ = gate.feed(-30)
+    var events: [VoiceGate.Event] = []
+    for _ in 0..<10 { events.append(gate.feed(-70)) }
+    #expect(events.contains(.discard) && !events.contains(.finish))
+    // Typing: short taps every 0.4 s for 8 s keep the clip open but are not speech.
+    events = []
+    for i in 0..<80 { events.append(gate.feed(i % 4 == 0 ? -30 : -70)) }
+    for _ in 0..<10 { events.append(gate.feed(-70)) }
+    #expect(events.contains(.discard) && !events.contains(.finish))
+    // Continuous speech past 12 s closes at the next short gap, before the 25 s cap.
+    var finished = 0.0
+    for i in 0..<250 {
+        let gap = i >= 140 && i % 30 < 5
+        if gate.feed(gap ? -70 : -30) == .finish { finished = Double(i) * VoiceGate.frame; break }
+    }
+    #expect(finished >= VoiceGate.longClip && finished < VoiceGate.maximum)
+    #expect(VoiceGate.meaningful("Hello.") && VoiceGate.meaningful("Xin chào") && !VoiceGate.meaningful(" ... ") && !VoiceGate.meaningful("."))
+}
+
+@Test func voiceGateKeepsQuietSpeechInANoisyRoomAsOneUtterance() {
+    // Levels measured on a real Mac: room noise flickers between -27 and -34 dB while a
+    // speaker's voice is only -20…-29 dB. A 16 s sentence must stay one utterance.
+    let noise = [-31, -28, -33, -30, -27.5, -32, -29, -34], speech = [-23, -25, -22, -26, -24, -28.8, -21, -24.5, -23.5, -25.5]
+    var gate = VoiceGate(), events: [VoiceGate.Event] = []
+    for i in 0..<60 { events.append(gate.feed(noise[i % noise.count])) }
+    #expect(!events.contains(.finish))
+    events = []
+    for i in 0..<160 { events.append(gate.feed(speech[i % speech.count])) }
+    #expect(events.allSatisfy { $0 == .none })
+    for i in 0..<20 { events.append(gate.feed(noise[i % noise.count])) }
+    #expect(events.filter { $0 != .none } == [.finish])
+}

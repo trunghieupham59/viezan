@@ -1,6 +1,7 @@
 #pragma once
 #include "NativeAudio.h"
 #include "SpeakerTurns.h"
+#include "VoiceGate.h"
 #include "LocalProvider.h"
 #include "AudioCapture.h"
 #include <QAudioSource>
@@ -47,6 +48,7 @@ public:
     Q_INVOKABLE void speak(const QString &text);
     void configureVoice(const QString &provider, const QString &voice) { m_audio.configureVoice(provider, voice); }
     Q_INVOKABLE void silence() { m_audio.silence(); }
+    void setAvailableModels(const QStringList &models) { m_audio.setAvailableModels(models); }
 signals:
     void changed();
 private:
@@ -61,7 +63,8 @@ private:
     QString m_captureMode = "microphone", m_deviceID;
     QAudioFormat m_format;
     QByteArray m_pending, m_clip, m_preroll;
-    qint64 m_totalFrames = 0, m_clipStart = 0, m_lastSpeech = 0;
+    qint64 m_totalFrames = 0, m_clipStart = 0;
+    VoiceGate m_gate;
     bool m_heard = false;
     NativeAudio m_audio;
     LocalProvider m_provider;

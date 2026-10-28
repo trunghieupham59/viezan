@@ -53,6 +53,16 @@ Item {
             }
         }
         Rectangle { color: palette.midlight; implicitHeight: root.metrics.hairline; Layout.fillWidth: true }
+        // Transcription runs in the cloud: warn before recording when no speech provider has a key.
+        RowLayout {
+            objectName: "speech-notice"
+            readonly property string provider: root.bridge.state.speechProvider || "auto"
+            visible: (root.bridge.localModels, root.bridge.providersChecked) && !root.bridge.speechReady(provider)
+            Layout.fillWidth: true; spacing: root.metrics.small
+            Kit.StatusDot { tone: "failed"; failedColor: root.dangerColor }
+            Label { text: root.t(parent.provider === "auto" ? "speechProviderMissing" : "speechProviderKeyMissing"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
+            Button { text: root.t("openProviders"); onClicked: root.openSettings("providers") }
+        }
         Kit.ProviderNotice { id: notice; model: root.modelID; dangerColor: root.dangerColor; Layout.fillWidth: true; onOpenRequested: section => root.openSettings(section); onUseRequested: id => root.useModel(id) }
         RowLayout {
             Layout.fillWidth: true; spacing: root.metrics.small
@@ -62,7 +72,7 @@ Item {
             Button { flat: true; text: root.t("subtitles"); checkable: true; checked: subtitles.visible; onClicked: subtitles.visible = !subtitles.visible }
             Button { visible: root.live.busy && !root.live.listening; text: root.t("cancel"); onClicked: root.live.cancel() }
             Button { visible: root.live.listening; text: root.t("stop"); onClicked: root.live.stop() }
-            Kit.PrimaryButton { visible: !root.live.listening; text: root.t("startInterpretation"); icon.source: "icons/interpret.svg"; enabled: !root.live.busy && !root.bridge.loadBlocked && model.text.includes(":"); onClicked: { root.bridge.audio.cancel(); root.live.start(model.text, root.bridge.state.speechProvider || "openai", ["auto"].concat(root.languages)[source.currentIndex], root.languages[target.currentIndex], root.bridge.state.locale, captureMode.keys[captureMode.currentIndex], inputDevice.devices[inputDevice.currentIndex]?.id || "") } }
+            Kit.PrimaryButton { visible: !root.live.listening; text: root.t("startInterpretation"); icon.source: "icons/interpret.svg"; enabled: !root.live.busy && !root.bridge.loadBlocked && model.text.includes(":"); onClicked: { root.bridge.audio.cancel(); root.live.start(model.text, root.bridge.state.speechProvider || "auto", ["auto"].concat(root.languages)[source.currentIndex], root.languages[target.currentIndex], root.bridge.state.locale, captureMode.keys[captureMode.currentIndex], inputDevice.devices[inputDevice.currentIndex]?.id || "") } }
         }
         ProgressBar { visible: root.live.listening; value: root.live.level; Layout.fillWidth: true; Accessible.name: root.t("inputLevel") }
         Label { text: root.live.error ? root.t(root.live.error) : ""; visible: !!text; Layout.fillWidth: true; wrapMode: Text.Wrap }

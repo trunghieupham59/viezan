@@ -452,6 +452,23 @@ struct ProviderNotice: View {
     }
 }
 
+// Interpretation and voice input transcribe in the cloud: say so before recording when the
+// chosen speech provider ("auto" = any of OpenAI, Gemini, Groq) has no key on this device.
+struct SpeechProviderNotice: View {
+    let store: WorkbenchStore
+    var body: some View {
+        if store.providers.checked && !store.providers.speechReady(store.speechProvider) {
+            HStack(spacing: metric("small")) {
+                StatusDot(tone: .failed)
+                Text(store.text(store.speechProvider == "auto" ? "speechProviderMissing" : "speechProviderKeyMissing")).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: metric("small"))
+                Button(store.text("openProviders")) { NotificationCenter.default.post(name: .viezanOpenSettings, object: "providers") }
+                    .buttonStyle(.vznOutline).accessibilityIdentifier("speech-notice-open")
+            }.accessibilityElement(children: .contain)
+        }
+    }
+}
+
 // A task's localized status/error, with the provider's own explanation under it when one exists.
 struct TaskStatusText: View {
     let store: WorkbenchStore

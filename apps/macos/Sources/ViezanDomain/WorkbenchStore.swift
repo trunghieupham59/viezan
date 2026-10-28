@@ -14,7 +14,8 @@ import Observation
     public let localPerformance = LocalPerformance()
     public let localRuntime = LocalRuntime()
     public var speechProvider: String {
-        get { workspace.speechProvider ?? "openai" }
+        // Unset means "auto": use whichever speech provider has a key on this device.
+        get { workspace.speechProvider ?? "auto" }
         set { guard ["auto", "openai", "groq", "gemini"].contains(newValue), !loadBlocked else { return }; workspace.speechProvider = newValue; save() }
     }
     public private(set) var pendingTranscript: String?
@@ -477,6 +478,7 @@ import Observation
             var next = ProviderDiscovery.Snapshot()
             // Key presence never unlocks the keychain, so it is known immediately.
             next.keyed = Set(ProviderDiscovery.cloudProviders.filter(hasKey))
+            next.speechKeyed = Set(["openai", "gemini", "groq"].filter(hasKey))
             await withTaskGroup(of: (String, Result<[String], Error>).self) { group in
                 for provider in ProviderDiscovery.localProviders { group.addTask { (provider, await Result { try await list(provider) }) } }
                 for await (provider, result) in group { if case .success(let models) = result { next.models[provider] = models } }
@@ -508,6 +510,8 @@ import Observation
     }
     private func publishProviders(_ snapshot: ProviderDiscovery.Snapshot) {
         providers = snapshot; localModels = snapshot.all; adoptAvailableModels()
+        // Speech-to-text picks the best transcription model the account lists.
+        audio.availableModels = snapshot.all; interpretation.availableModels = snapshot.all
     }
     private var recentModels: [String] { workspace.sessions.sorted { ($0.updated ?? 0) > ($1.updated ?? 0) }.map(\.model) }
     /// The model new or still-empty sessions use on this device, if any AI is available.

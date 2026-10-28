@@ -3,6 +3,7 @@
 #include <QUuid>
 #include "../ImageGeneration.h"
 #include "../CloudProtocol.h"
+#include "../VoiceGate.h"
 #include <QFile>
 #include <QInputMethodEvent>
 #include <QJsonDocument>
@@ -843,6 +844,50 @@ private slots:
         QCOMPARE(CloudProtocol::errorMessage(R"({"error":{"message":"The model does not exist\nor no access."}})"), QString("The model does not exist or no access."));
         QCOMPARE(ImageGeneration::imageModel("openai", "gpt-4o", {"openai:gpt-image-1", "openai:gpt-image-1-mini", "openai:gpt-image-1.5"}), QString("gpt-image-1.5"));
         QCOMPARE(ImageGeneration::imageModel("gemini", "", {"gemini:imagen-4.0", "gemini:gemini-2.5-flash-image"}), QString("gemini-2.5-flash-image"));
+    }
+    void transcriptionUsesTheBestModelTheAccountLists() {
+        QCOMPARE(NativeAudio::transcriptionModel({}), QString("whisper-1"));
+        QCOMPARE(NativeAudio::transcriptionModel({"openai:whisper-1", "openai:gpt-4o-mini-transcribe"}), QString("gpt-4o-mini-transcribe"));
+        QCOMPARE(NativeAudio::transcriptionModel({"openai:gpt-4o-mini-transcribe", "openai:gpt-4o-transcribe"}), QString("gpt-4o-transcribe"));
+    }
+    void voiceGateIgnoresRoomNoiseAndClosesAtAPause() {
+        VoiceGate gate;
+        // A fan at -38 dB (above the old fixed 0.008 RMS ≈ -42 dB threshold) is learned as the floor.
+        for (int i = 0; i < 300; ++i) QVERIFY(gate.feed(-38) != VoiceGate::Finish);
+        QVERIFY(!gate.heard);
+        for (int i = 0; i < 20; ++i) QCOMPARE(gate.feed(-23), VoiceGate::None);
+        QVERIFY(gate.heard);
+        bool finished = false; for (int i = 0; i < 10; ++i) finished |= gate.feed(-38) == VoiceGate::Finish;
+        QVERIFY(finished);
+        // A click is dropped; continuous speech closes at a gap after 12 s, before the 25 s cap.
+        bool discarded = false; gate.feed(-10); for (int i = 0; i < 10; ++i) discarded |= gate.feed(-38) == VoiceGate::Discard;
+        QVERIFY(discarded);
+        // Typing: short taps every 0.4 s keep the clip open but are not speech.
+        bool typed = false, kept = false; for (int i = 0; i < 90; ++i) { const auto event = gate.feed(i < 80 && i % 4 == 0 ? -10 : -38); typed |= event == VoiceGate::Discard; kept |= event == VoiceGate::Finish; }
+        QVERIFY(typed && !kept);
+        double at = 0; for (int i = 0; i < 250 && at == 0; ++i) if (gate.feed(i >= 140 && i % 30 < 5 ? -38 : -20) == VoiceGate::Finish) at = i * VoiceGate::frame;
+        QVERIFY(at >= VoiceGate::longClip && at < VoiceGate::maximum);
+        QVERIFY(VoiceGate::meaningful("Xin chào") && !VoiceGate::meaningful(" ... "));
+    }
+    void voiceGateKeepsQuietSpeechInANoisyRoomAsOneUtterance() {
+        // Levels measured on a real Mac: room noise -27…-34 dB, voice only -20…-29 dB.
+        const double noise[] = {-31, -28, -33, -30, -27.5, -32, -29, -34}, speech[] = {-23, -25, -22, -26, -24, -28.8, -21, -24.5, -23.5, -25.5};
+        VoiceGate gate; int finished = 0, other = 0;
+        for (int i = 0; i < 60; ++i) finished += gate.feed(noise[i % 8]) == VoiceGate::Finish;
+        QCOMPARE(finished, 0);
+        for (int i = 0; i < 160; ++i) other += gate.feed(speech[i % 10]) != VoiceGate::None;
+        QCOMPARE(other, 0);
+        for (int i = 0; i < 20; ++i) { const auto event = gate.feed(noise[i % 8]); finished += event == VoiceGate::Finish; other += event == VoiceGate::Discard; }
+        QCOMPARE(finished, 1); QCOMPARE(other, 0);
+    }
+    void speechRecognitionDefaultsToAutoInEveryEntryPoint() {
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        QVERIFY(!bridge.state().contains("speechProvider") || bridge.state().value("speechProvider").toString() == "auto");
+        for (const auto &file : {":/qml/Main.qml", ":/qml/InterpretationWorkspace.qml"}) {
+            QFile qml(file); QVERIFY(qml.open(QIODevice::ReadOnly));
+            QVERIFY2(!qml.readAll().contains(R"(speechProvider || "openai")"), file); // Settings shows Auto when unset
+        }
     }
     void adoptModelMovesOnlySessionsWithoutWork() {
         QTemporaryDir dir;

@@ -1,4 +1,5 @@
 #include "Interpretation.h"
+#include <algorithm>
 #include <cmath>
 #include "WorkbenchDomain.h"
 #include <QMediaDevices>
@@ -60,7 +61,7 @@ Interpretation::Interpretation(QObject *parent) : QObject(parent) {
         const auto id = event.value("taskID").toString();
         if (id == m_summaryID && m_summarizing) {
             for (auto &value : m_sessions) { auto session = value.toMap(); if (session.value("id") != m_selected) continue; session[m_summaryKind] = session.value(m_summaryKind).toString() + event.value("chunk").toString(); value = session; }
-            if (event.contains("terminal")) { m_summarizing = false; m_summaryID.clear(); if (event.value("terminal") != "succeeded") m_error = event.value("errorCode", "audioError").toString(); persist(); }
+            if (event.contains("terminal")) { m_summarizing = false; m_summaryID.clear(); if (event.value("terminal") != "succeeded") m_error = event.value("errorCode", "providerError").toString(); persist(); }
             emit changed(); return;
         }
         if (id != m_active || event.value("attemptID") != m_attempt) return;
@@ -93,7 +94,7 @@ void Interpretation::start(const QString &model, const QString &provider, const 
 void Interpretation::beginCapture() {
     m_format.setSampleRate(24000); m_format.setChannelCount(1); m_format.setSampleFormat(QAudioFormat::Int16);
     if (!m_directory.isValid()) { m_error = "audioError"; return; }
-    m_turns = {}; m_pending.clear(); m_clip.clear(); m_preroll.clear(); m_heard = false; m_totalFrames = 0; m_level = 0; m_listening = true;
+    m_turns = {}; m_gate = {}; m_pending.clear(); m_clip.clear(); m_preroll.clear(); m_heard = false; m_totalFrames = 0; m_level = 0; m_listening = true;
     if (!m_audioCapture.start(m_captureMode, m_deviceID)) { m_listening = false; m_error = "systemAudioError"; }
 }
 void Interpretation::consume(const QByteArray &data) {
@@ -114,13 +115,12 @@ void Interpretation::consume(const QByteArray &data) {
             squares += value * value;
         }
         m_level = qBound(0.0, std::sqrt(squares / samples), 1.0); m_totalFrames += frames;
-        if (m_level > 0.008) {
-            if (!m_heard) { m_heard = true; m_clipStart = m_totalFrames - frames - m_preroll.size() / m_format.bytesPerFrame(); m_clip = m_preroll; m_preroll.clear(); }
-            m_lastSpeech = m_totalFrames;
-        }
+        const auto event = m_gate.feed(VoiceGate::decibels(m_level));
+        if (!m_heard && m_gate.heard) { m_heard = true; m_clipStart = m_totalFrames - frames - m_preroll.size() / m_format.bytesPerFrame(); m_clip = m_preroll; m_preroll.clear(); }
         if (m_heard) {
             m_clip += block;
-            if (m_totalFrames - m_lastSpeech >= m_format.sampleRate() * 0.8 || m_totalFrames - m_clipStart >= m_format.sampleRate() * 20) finishClip();
+            if (event == VoiceGate::Finish) finishClip();
+            else if (event == VoiceGate::Discard) { m_heard = false; m_clip.clear(); }
         } else { m_preroll += block; if (m_preroll.size() > bytes * 3) m_preroll.remove(0, m_preroll.size() - bytes * 3); }
         if (m_queue.size() >= 8 || current().value("segments").toList().size() >= 10000) { m_error = "interpretQueueFull"; stop(); }
     }
@@ -159,6 +159,12 @@ void Interpretation::updateSegment(const QString &id, const QVariantMap &fields,
     emit changed();
 }
 void Interpretation::translate(const QString &id, const QString &original) {
+    // Noise that slipped past the gate comes back as "." or "...": drop it, never translate it.
+    if (!VoiceGate::meaningful(original)) {
+        for (auto &value : m_sessions) { auto session = value.toMap(); if (session.value("id") != m_selected) continue; auto segments = session.value("segments").toList(); segments.erase(std::remove_if(segments.begin(), segments.end(), [&id](const QVariant &item) { return item.toMap().value("id") == id; }), segments.end()); session["segments"] = segments; value = session; }
+        m_active.clear(); if (!persist()) { cancel(); m_error = "interpretStorageError"; emit changed(); return; }
+        emit changed(); processNext(); return;
+    }
     updateSegment(id, {{"original", original}, {"status", "translating"}}); if (!persist()) { cancel(); m_error = "interpretStorageError"; emit changed(); return; }
     const auto session = current(); m_attempt = newID();
     QVariantMap request{{"sessionID", m_selected}, {"feature", "translate"}, {"model", session.value("model")}, {"input", original}, {"source", session.value("source")}, {"target", session.value("target")}, {"revision", 0}, {"locale", session.value("locale")}};

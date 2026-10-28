@@ -34,6 +34,12 @@ public enum ProviderDiscovery {
         public var models: [String: [String]] = [:]
         /// Cloud providers that have a saved key (listing may still have failed).
         public var keyed: Set<String> = []
+        /// Speech-to-text providers (OpenAI, Gemini, Groq) with a saved key.
+        public var speechKeyed: Set<String> = []
+        /// Whether recording can be transcribed with this choice ("auto" or one provider).
+        public func speechReady(_ provider: String) -> Bool {
+            provider == "auto" ? !speechKeyed.isEmpty : speechKeyed.contains(provider)
+        }
         /// provider → failure code of its last listing (e.g. "providerAuthError" for a rejected key).
         public var failures: [String: String] = [:]
         public var checked = false

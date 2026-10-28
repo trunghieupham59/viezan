@@ -115,6 +115,8 @@ const ja: Translations = {
     capturePermission: "キャプチャには画面収録の許可が必要です。システム設定 › プライバシーとセキュリティ › 画面収録 で有効にしてください。",
     ocrNoText: "画像に文字が見つかりません。",
     imageProviderNone: "キーなし",
+    speechProviderMissing: "音声認識には OpenAI、Gemini、Groq のいずれかの API キーが必要です。",
+    speechProviderKeyMissing: "選択した音声認識プロバイダーに API キーがありません。",
     onDevice: "デバイス上で処理",
     manage: "管理",
     addImage: "画像を追加",

@@ -115,6 +115,8 @@ const vi: Translations = {
     capturePermission: "Cần quyền Ghi màn hình để chụp. Bật trong Cài đặt hệ thống › Quyền riêng tư & Bảo mật › Ghi màn hình.",
     ocrNoText: "Không tìm thấy chữ trong ảnh.",
     imageProviderNone: "chưa có key",
+    speechProviderMissing: "Nhận dạng giọng nói cần API key OpenAI, Gemini hoặc Groq.",
+    speechProviderKeyMissing: "Nhà cung cấp nhận dạng giọng nói đã chọn chưa có API key.",
     onDevice: "xử lý trên thiết bị",
     manage: "Quản lý",
     addImage: "Thêm hình ảnh",

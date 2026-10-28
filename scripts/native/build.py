@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Build the native applications using platform toolchains. Never runs tests or npm."""
 import json
+import os
 import argparse
 import pathlib
 import plistlib
@@ -15,6 +16,29 @@ def run(*args, capture=False):
     result = subprocess.run([str(arg) for arg in args], cwd=ROOT, check=True,
                             text=True, stdout=subprocess.PIPE if capture else None)
     return result.stdout.strip() if capture else None
+
+
+def signing_identity():
+    """A stable signing identity keeps keychain "Always Allow" and privacy grants across builds.
+
+    VIEZAN_SIGN_IDENTITY overrides; otherwise the first valid Apple Development identity.
+    Ad-hoc signatures change with every build, so macOS asks again for each saved key."""
+    explicit = os.environ.get("VIEZAN_SIGN_IDENTITY")
+    if explicit:
+        return explicit
+    listing = run("security", "find-identity", "-v", "-p", "codesigning", capture=True)
+    # `security` lists identities in no fixed order; a different identity changes the
+    # designated requirement and re-prompts, so always pick the same one (by name, then hash).
+    identities = sorted((line.split('"')[1], line.split()[1]) for line in listing.splitlines()
+                        if '"Apple Development:' in line)
+    return identities[0][1] if identities else None
+
+
+def sign_mac(app, identity):
+    # Sign helpers first, then the bundle; never --deep (it re-signs nested code blindly).
+    for binary in sorted((app / "Contents/Resources/native").iterdir()):
+        run("codesign", "--force", "--sign", identity, "--identifier", "com.viezan.native.preview." + binary.name, binary)
+    run("codesign", "--force", "--sign", identity, "--identifier", "com.viezan.native.preview", app)
 
 
 def build_mac(configuration, output):
@@ -61,6 +85,12 @@ def build_mac(configuration, output):
     daemon["AssociatedBundleIdentifiers"] = ["com.viezan.native.preview"]
     with (daemon_dir / "com.viezan.fan-helper.plist").open("wb") as stream:
         plistlib.dump(daemon, stream)
+    identity = signing_identity()
+    if identity:
+        sign_mac(app, identity)
+    else:
+        print("warning: no valid Apple Development identity; ad-hoc signed builds re-prompt for keychain access",
+              file=sys.stderr)
     print(app)
     return app
 
@@ -86,6 +116,15 @@ def main():
             args.append(f"-DCMAKE_PREFIX_PATH={options.qt_prefix.expanduser().resolve()}")
         run(*args)
         run("cmake", "--build", output, "--config", options.configuration)
+        bundle = output / "ViezanNativeQt.app"
+        if sys.platform == "darwin" and bundle.exists():
+            # Same reason as the SwiftUI app: a stable signature keeps keychain/privacy grants.
+            identity = signing_identity()
+            if identity:
+                run("codesign", "--force", "--sign", identity, "--identifier", "com.viezan.native.qt.preview", bundle)
+            else:
+                print("warning: no valid Apple Development identity; ad-hoc signed builds re-prompt for keychain access",
+                      file=sys.stderr)
         if options.launch:
             executable = output / (options.configuration + "/ViezanNativeQt.exe" if sys.platform == "win32" else "ViezanNativeQt")
             if not executable.exists() and sys.platform == "win32": executable = output / "ViezanNativeQt.exe"

@@ -115,6 +115,8 @@ const en: Translations = {
     capturePermission: "Screen Recording permission is needed to capture. Turn it on in System Settings › Privacy & Security › Screen Recording.",
     ocrNoText: "No text found in the image.",
     imageProviderNone: "no key",
+    speechProviderMissing: "Speech recognition needs an OpenAI, Gemini or Groq API key.",
+    speechProviderKeyMissing: "The selected speech recognition provider has no API key.",
     onDevice: "processed on this device",
     manage: "Manage",
     addImage: "Add image",

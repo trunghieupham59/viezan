@@ -249,7 +249,14 @@ struct ShellToolbarButton: NSViewRepresentable {
         (button.cell as? PaddedButtonCell)?.horizontalInset = showsLabel ? metric("inset") : 0
         button.invalidateIntrinsicContentSize()
         button.onTab = onTab
-        button.isEnabled = enabled
+        if button.isEnabled != enabled {
+            // Disabling the key view makes AppKit recompute the key loop, which reads SwiftUI's
+            // focus graph re-entrantly during this update and spins (AttributeGraph cycle), e.g.
+            // "New session" focused when interpretation starts. Defer it out of the update.
+            if !enabled, button.window?.firstResponder === button {
+                DispatchQueue.main.async { [weak button] in button?.isEnabled = false; button?.refreshSurface() }
+            } else { button.isEnabled = enabled }
+        }
         button.refreshSurface()
         button.toolTip = hint.isEmpty ? label : label + " (" + hint + ")"
         button.setAccessibilityLabel(label)

@@ -235,7 +235,10 @@ void WorkbenchBridge::discoverProviders() {
     });
 }
 void WorkbenchBridge::publishProviders(const ProviderDiscovery::Snapshot &snapshot) {
-    m_providers = snapshot; m_localModels = snapshot.all(); adoptAvailableModels(); emit changed();
+    m_providers = snapshot; m_localModels = snapshot.all(); adoptAvailableModels();
+    // Speech-to-text picks the best transcription model the account lists.
+    m_audio.setAvailableModels(m_localModels); m_interpretation.setAvailableModels(m_localModels);
+    emit changed();
 }
 // Sessions that have produced nothing follow the device; sessions with work keep their
 // model (conversation-aware) and the view offers a one-click switch instead.

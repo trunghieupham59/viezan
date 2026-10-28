@@ -38,6 +38,7 @@ struct InterpretationWorkspace: View {
             languageRow
             Divider()
             ProviderNotice(store: store, model: model) { model = $0 }
+            SpeechProviderNotice(store: store)
             sessionBar
             if live.listening { ProgressView(value: live.level).progressViewStyle(.linear).accessibilityLabel(store.text("inputLevel")) }
             else if live.busy { ProgressView(store.text("running")).controlSize(.small) }
