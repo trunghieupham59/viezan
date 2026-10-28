@@ -13,6 +13,7 @@
 #include "NativeUpdates.h"
 #include "ProviderDiscovery.h"
 #include "CredentialStore.h"
+#include "ImageGeneration.h"
 #include <QVariantMap>
 #include <QTimer>
 #include <QImage>
@@ -70,6 +71,8 @@ public:
     Q_INVOKABLE QString availability(const QString &model) const { return m_providers.availability(model); }
     Q_INVOKABLE void discoverProviders();
     Q_INVOKABLE bool chatCapable(const QString &model) const { return ProviderDiscovery::chatCapable(model); }
+    // Who draws in image mode for this model ("openai" | "gemini" | ""), from cached key presence.
+    Q_INVOKABLE QString imageProvider(const QString &model) const { return ImageGeneration::imageProvider(model, [this](const QString &id) { return m_credentials.contains(id); }); }
     // Settings row state: {keyed, models (count, -1 when not listed), failure}. Presence
     // never unlocks the credential store; chat providers are verified by their listing.
     Q_INVOKABLE QVariantMap providerState(const QString &provider) const {

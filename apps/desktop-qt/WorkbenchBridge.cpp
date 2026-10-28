@@ -55,7 +55,8 @@ WorkbenchBridge::WorkbenchBridge(QObject *parent, const QString &storageFile, bo
         if (event.value("taskID") != m_ocrID) return;
         m_ocrText += event.value("chunk").toString();
         if (!event.contains("terminal")) return;
-        if (event.value("terminal") == "succeeded") {
+        if (event.value("terminal") == "succeeded" && m_ocrText.trimmed().isEmpty()) m_ocrError = "ocrNoText";
+        else if (event.value("terminal") == "succeeded") {
             bool inserted = false;
             for (const auto &value : m_state.value("sessions").toList()) {
                 const auto session = value.toMap();
@@ -65,7 +66,10 @@ WorkbenchBridge::WorkbenchBridge(QObject *parent, const QString &storageFile, bo
                 }
             }
             if (!inserted) m_pendingTranscript += (m_pendingTranscript.isEmpty() ? "" : "\n") + m_ocrText;
-        } else m_ocrError = event.value("errorCode", "imageError").toString();
+        } else {
+            const auto code = event.value("errorCode", "imageError").toString();
+            m_ocrError = QStringList{"providerRejected", "providerInvalidResponse"}.contains(code) ? QString("imageModelUnsupported") : code;
+        }
         m_ocrID.clear(); m_ocrText.clear(); emit changed();
     });
     // Downloads, deletions and runtime start/stop change what this device can run.
@@ -280,7 +284,9 @@ void WorkbenchBridge::synchronizeWorkers() {
             }
             if (!current) continue;
             m_networkWorkers.insert(it.key(), it.value().value("attemptID").toString());
-            m_provider.start(it.value());
+            // Image generation picks a model the account actually lists (discovery).
+            auto task = it.value(); task["availableModels"] = m_providers.all();
+            m_provider.start(task);
         }
     } while (m_synchronizeAgain);
 }

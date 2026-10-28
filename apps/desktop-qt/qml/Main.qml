@@ -520,7 +520,12 @@ ApplicationWindow {
     component RetryNotice: RowLayout {
         readonly property var lastTask: root.workspace.tasks.find(task => task.request.sessionID === session.id)
         visible: !!lastTask && ["failed", "interrupted", "cancelled"].includes(lastTask.status)
-        Label { text: lastTask ? t(lastTask.status === "failed" ? (lastTask.errorCode || "providerError") : lastTask.status) : ""; Layout.fillWidth: true; wrapMode: Text.Wrap }
+        ColumnLayout {
+            Layout.fillWidth: true; spacing: metrics.tight
+            Label { text: lastTask ? t(lastTask.status === "failed" ? (lastTask.errorCode || "providerError") : lastTask.status) : ""; Layout.fillWidth: true; wrapMode: Text.Wrap }
+            // The provider's own explanation, when it gave one.
+            Label { objectName: "task-error-detail"; visible: !!lastTask && lastTask.status === "failed" && !!lastTask.errorDetail; text: lastTask?.errorDetail || ""; textFormat: Text.PlainText; color: root.palette.placeholderText; font.pointSize: Qt.application.font.pointSize * metrics.captionScale; wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight; Layout.fillWidth: true }
+        }
         Button { text: t("retry"); enabled: !activeTask && !!lastTask && (session.feature === "chat" || lastTask.request.revision === session.revision); onClicked: command("retry", {taskID: lastTask.id}) }
     }
     Component {
@@ -573,7 +578,8 @@ ApplicationWindow {
                         ImageControls { compact: true }
                         ModelPicker { compact: true }
                         AudioControls { compact: true }
-                        Label { visible: (session.chatMode || "text") !== "text"; text: t("chatMode_" + (session.chatMode || "text")); color: root.palette.link }
+                        // Image mode names who will draw (OpenAI/Gemini with a key), whatever the chat model is.
+                        Label { visible: (session.chatMode || "text") !== "text"; text: t("chatMode_" + (session.chatMode || "text")) + (session.chatMode === "image" ? " · " + ((workbench.localModels, workbench.imageProvider(session.model)) === "openai" ? "OpenAI" : workbench.imageProvider(session.model) === "gemini" ? "Gemini" : t("imageProviderNone")) : ""); color: root.palette.link }
                         Item { Layout.fillWidth: true }
                         Button {
                             id: sendButton

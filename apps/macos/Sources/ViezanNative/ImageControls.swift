@@ -52,6 +52,8 @@ struct ImageControls: View {
 
     }
     private func capture() {
+        // Without Screen Recording access screencapture silently returns only the wallpaper.
+        guard CGPreflightScreenCaptureAccess() else { _ = CGRequestScreenCaptureAccess(); error = "capturePermission"; return }
         let owner = store.session.id; busy = true; error = nil
         Task {
             do { let image = try await Task.detached { try Attachments.captureScreen() }.value; store.addImage(image, sessionID: owner) }
@@ -73,7 +75,8 @@ struct ImageControls: View {
                         let image = try Attachments.ingest(url)
                         return (image, ocr ? try Attachments.recognize(image) : "")
                     }.value
-                    if ocr {
+                    if ocr && result.1.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { error = "ocrNoText" }
+                    else if ocr {
                         if let session = store.session(owner), session.revision == revision {
                             store.setDraft(owner, session.draft.isEmpty ? result.1 : session.draft + "\n" + result.1)
                         } else { pendingText = result.1; error = "draftChanged" }

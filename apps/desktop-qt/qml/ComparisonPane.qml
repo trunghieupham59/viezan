@@ -58,6 +58,7 @@ ColumnLayout {
                         readonly property var rows: root.bridge.sentences(modelData.output)
                         Layout.preferredWidth: root.metrics.sidebar; Layout.alignment: Qt.AlignTop
                         Label { text: formatter.format(modelData.model); textFormat: Text.PlainText; font.bold: true; wrapMode: Text.Wrap; Layout.fillWidth: true; ToolTip.visible: titleHover.hovered; ToolTip.text: modelData.model; HoverHandler { id: titleHover } }
+                        Label { visible: candidate.current && !!candidate.task?.errorDetail; text: candidate.task?.errorDetail || ""; textFormat: Text.PlainText; color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
                         Label { text: root.t(candidate.current ? candidate.task?.errorCode || candidate.task?.status || "queued" : "comparisonStale"); wrapMode: Text.Wrap; Layout.fillWidth: true }
                         TextArea { visible: !sentenceMode.checked || candidate.rows.length !== root.sourceRows.length; text: modelData.output; textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; Layout.fillWidth: true }
                         Repeater {

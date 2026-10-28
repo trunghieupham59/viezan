@@ -25,8 +25,11 @@ Call prepare(const QVariantMap &input, const QJsonArray &messages) {
     for (const auto &value : messages) {
         auto object = value.toObject(); QJsonArray parts;
         const auto text = object.value("content").toString();
-        if (provider == "gemini") parts.append(QJsonObject{{"text", text}});
-        else parts.append(QJsonObject{{"type", "text"}, {"text", text}});
+        // Image-only turns send no text block: Claude rejects an empty text block with HTTP 400.
+        if (!text.isEmpty() || object.value("images").toArray().isEmpty()) {
+            if (provider == "gemini") parts.append(QJsonObject{{"text", text}});
+            else parts.append(QJsonObject{{"type", "text"}, {"text", text}});
+        }
         for (const auto &value : object.value("images").toArray()) {
             const auto image = value.toObject(); const auto bytes = Attachments::data(image.toVariantMap());
             if (bytes.isEmpty()) { key.fill('\0'); return {{}, {}, "imageError"}; }
@@ -129,5 +132,11 @@ Event decode(const QString &provider, const QByteArray &data, bool successfulFin
         }
     }
     return result;
+}
+QString errorMessage(const QByteArray &body) {
+    const auto root = QJsonDocument::fromJson(body.left(16384)).object();
+    const auto error = root.value("error");
+    auto text = error.isObject() ? error.toObject().value("message").toString() : error.isString() ? error.toString() : root.value("message").toString();
+    return text.replace('\n', ' ').trimmed().left(300);
 }
 }

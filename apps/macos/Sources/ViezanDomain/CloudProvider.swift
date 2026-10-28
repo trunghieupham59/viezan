@@ -30,8 +30,28 @@ public enum ProviderPrompt {
 public enum CloudFailure: String, Error, Sendable {
     case missingKey = "providerMissingKey", authentication = "providerAuthError", rateLimit = "providerRateLimit"
     case network = "providerNetworkError", invalidResponse = "providerInvalidResponse", truncated = "providerTruncated"
+    // The provider understood but refused the request (e.g. a model that cannot take images).
+    case rejected = "providerRejected"
+    case imageProviderMissing = "imageProviderMissing"
     public static func http(_ status: Int) -> CloudFailure {
-        switch status { case 401, 403: .authentication; case 429: .rateLimit; default: .network }
+        switch status { case 401, 403: .authentication; case 429: .rateLimit; case 400, 404, 413, 415, 422: .rejected; default: .network }
+    }
+}
+/// A non-200 answer with the provider's own explanation (e.g. "model not found",
+/// "organization must be verified"), so the user sees why instead of only a status class.
+public struct ProviderRejection: Error, Sendable {
+    public let failure: CloudFailure
+    public let detail: String
+    /// Reads at most 16 KB of the error body and keeps only the provider's message.
+    static func from(status: Int, bytes: URLSession.AsyncBytes) async -> ProviderRejection {
+        var data = Data()
+        do { for try await byte in bytes { data.append(byte); if data.count >= 16_384 { break } } } catch {}
+        return ProviderRejection(failure: .http(status), detail: message(data))
+    }
+    static func message(_ data: Data) -> String {
+        let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        let text = (root?["error"] as? [String: Any])?["message"] as? String ?? root?["error"] as? String ?? root?["message"] as? String ?? ""
+        return String(text.replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespaces).prefix(300))
     }
 }
 final class NoRedirectDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
@@ -52,7 +72,9 @@ public enum CloudProvider {
         func content(_ message: ProviderMessage, format: String) throws -> Any {
             let images = message.images ?? []
             if format == "openai", images.isEmpty { return message.content }
-            var parts: [[String: Any]] = format == "gemini" ? [["text": message.content]] : [["type": "text", "text": message.content]]
+            // Image-only turns (e.g. translating a picture with no typed text) send no text block:
+            // Claude rejects an empty text block with HTTP 400.
+            var parts: [[String: Any]] = message.content.isEmpty && !images.isEmpty ? [] : format == "gemini" ? [["text": message.content]] : [["type": "text", "text": message.content]]
             for image in images {
                 let data = try Attachments.data(image).base64EncodedString()
                 if format == "openai" { parts.append(["type": "image_url", "image_url": ["url": "data:" + image.mime + ";base64," + data]]) }
@@ -104,7 +126,7 @@ public enum CloudProvider {
         defer { session.invalidateAndCancel() }
         let (bytes, response) = try await session.bytes(for: call(request))
         guard let http = response as? HTTPURLResponse else { throw CloudFailure.network }
-        guard http.statusCode == 200 else { throw CloudFailure.http(http.statusCode) }
+        guard http.statusCode == 200 else { throw await ProviderRejection.from(status: http.statusCode, bytes: bytes) }
         var line = Data(), event = Data(), total = 0, successfulFinish = false, terminal = false
         var lastUsage = TokenUsage()
         func decode(_ data: Data) async throws -> Bool {

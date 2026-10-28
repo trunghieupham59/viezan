@@ -1,5 +1,8 @@
 #include "../WorkbenchBridge.h"
 #include "../ProviderDiscovery.h"
+#include <QUuid>
+#include "../ImageGeneration.h"
+#include "../CloudProtocol.h"
 #include <QFile>
 #include <QInputMethodEvent>
 #include <QJsonDocument>
@@ -817,6 +820,29 @@ private slots:
             if (valid) QCOMPARE(current(bridge).value("output").toString(), json);
             else QCOMPARE(done.value("errorCode").toString(), QString("providerInvalidResponse"));
         }
+    }
+    void imageGenerationUsesAnyKeyedImageProvider() {
+        const auto keys = [](const QStringList &present) { return [present](const QString &id) { return present.contains(id); }; };
+        QCOMPARE(ImageGeneration::imageProvider("gemini:gemini-2.5-flash", keys({"openai", "gemini"})), QString("gemini"));
+        QCOMPARE(ImageGeneration::imageProvider("claude:claude-haiku-4-5", keys({"openai"})), QString("openai"));
+        QCOMPARE(ImageGeneration::imageProvider("openai:gpt-4o", keys({"gemini"})), QString("gemini"));
+        QCOMPARE(ImageGeneration::imageProvider("ollama:qwen3:4b", keys({})), QString());
+    }
+    void refusedImageRequestExplainsTheModelCannotReadImages() {
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("navigate", {{"feature", "chat"}});
+        bridge.command("addImage", {{"image", QVariantMap{{"id", QUuid::createUuid().toString(QUuid::WithoutBraces)}, {"name", "photo.png"}, {"mime", "image/png"}}}});
+        bridge.command("draft", {{"value", "What is in this photo?"}});
+        bridge.command("submit", {{"sessionID", current(bridge).value("id")}});
+        const auto task = bridge.state().value("tasks").toList().first().toMap();
+        QVERIFY(!task.value("request").toMap().value("messages").toList().last().toMap().value("images").toList().isEmpty());
+        bridge.command("receive", {{"taskID", task.value("id")}, {"attemptID", task.value("attemptID")}, {"chunk", ""}, {"terminal", "failed"}, {"errorCode", "providerRejected"}, {"errorDetail", "image too large"}});
+        QCOMPARE(bridge.state().value("tasks").toList().first().toMap().value("errorCode").toString(), QString("imageModelUnsupported"));
+        QCOMPARE(bridge.state().value("tasks").toList().first().toMap().value("errorDetail").toString(), QString("image too large"));
+        QCOMPARE(CloudProtocol::errorMessage(R"({"error":{"message":"The model does not exist\nor no access."}})"), QString("The model does not exist or no access."));
+        QCOMPARE(ImageGeneration::imageModel("openai", "gpt-4o", {"openai:gpt-image-1", "openai:gpt-image-1-mini", "openai:gpt-image-1.5"}), QString("gpt-image-1.5"));
+        QCOMPARE(ImageGeneration::imageModel("gemini", "", {"gemini:imagen-4.0", "gemini:gemini-2.5-flash-image"}), QString("gemini-2.5-flash-image"));
     }
     void adoptModelMovesOnlySessionsWithoutWork() {
         QTemporaryDir dir;

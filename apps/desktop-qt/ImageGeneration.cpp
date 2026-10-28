@@ -8,10 +8,29 @@
 #include <QTemporaryFile>
 #include <QRegularExpression>
 namespace ImageGeneration {
+QString imageProvider(const QString &model, const std::function<bool(const QString &)> &hasKey) {
+    const auto own = model.section(':', 0, 0);
+    if (QStringList{"openai", "gemini"}.contains(own) && hasKey(own)) return own;
+    for (const auto &provider : {QStringLiteral("openai"), QStringLiteral("gemini")}) if (hasKey(provider)) return provider;
+    return {};
+}
+QString imageModel(const QString &provider, const QString &selected, const QStringList &available) {
+    const auto image = [&](const QString &id) { return provider == "openai" ? id.startsWith("gpt-image-") : id.contains("image") && !id.startsWith("imagen"); };
+    if (image(selected)) return selected;
+    QStringList listed; for (const auto &model : available) if (model.startsWith(provider + ":") && image(model.mid(provider.size() + 1))) listed << model.mid(provider.size() + 1);
+    listed.sort();
+    for (qsizetype i = listed.size(); i-- > 0;) if (!listed[i].contains("mini")) return listed[i];
+    return !listed.isEmpty() ? listed.last() : provider == "openai" ? "gpt-image-1" : "gemini-3.1-flash-image-preview";
+}
 CloudProtocol::Call prepare(const QVariantMap &input) {
-    const auto provider = input.value("model").toString().section(':', 0, 0), selected = input.value("model").toString().section(':', 1);
-    if (!QStringList{"openai", "gemini"}.contains(provider) || input.value("input").toString().toUtf8().size() > 32768) return {{}, {}, "imageError"};
-    const auto model = provider == "openai" ? (selected.startsWith("gpt-image-") ? selected : "gpt-image-1") : (selected.contains("image") ? selected : "gemini-3.1-flash-image-preview");
+    // Drawn by OpenAI or Gemini: the session's provider when it can draw, otherwise any keyed one.
+    const auto own = input.value("model").toString().section(':', 0, 0);
+    const auto provider = imageProvider(input.value("model").toString(), [](const QString &id) { return CredentialStore::has(id); });
+    if (provider.isEmpty()) return {{}, {}, "imageProviderMissing"};
+    if (input.value("input").toString().toUtf8().size() > 32768) return {{}, {}, "imageError"};
+    // A chosen image model is kept only when it belongs to the provider that draws.
+    const auto selected = own == provider ? input.value("model").toString().section(':', 1) : QString();
+    const auto model = imageModel(provider, selected, input.value("availableModels").toStringList());
     if (!QRegularExpression("^[A-Za-z0-9._-]+$").match(model).hasMatch()) return {{}, {}, "imageError"};
     auto key = CredentialStore::read(provider); if (key.isEmpty()) return {{}, {}, "providerMissingKey"};
     QVariantList images; for (const auto &value : input.value("messages").toList()) if (value.toMap().value("role") == "user") images = value.toMap().value("images").toList();

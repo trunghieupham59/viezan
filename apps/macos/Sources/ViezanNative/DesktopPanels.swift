@@ -84,7 +84,7 @@ private struct QuickSessionPanel: View {
                     Spacer()
                     Button(store.text("copy")) { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(session.feature == .chat ? session.messages.last?.text ?? "" : session.output, forType: .string) }
                 }
-                if let task = store.workspace.tasks.first(where: { $0.request.sessionID == sessionID }), task.status == .failed { Text(store.text(task.errorCode ?? "providerError")).foregroundStyle(.secondary) }
+                if let task = store.workspace.tasks.first(where: { $0.request.sessionID == sessionID }), task.status == .failed { TaskStatusText(store: store, task: task) }
                 if let error { Text(store.text(error)).foregroundStyle(.secondary) }
             }
         }.padding(metric("inset"))

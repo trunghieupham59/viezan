@@ -89,6 +89,8 @@ public struct WorkTask: Codable, Identifiable, Equatable, Sendable {
     public var attemptID: String
     public var attemptNumber: Int = 1
     public var errorCode: String?
+    /// The provider's own explanation of a failure (shown under the localized error).
+    public var errorDetail: String?
     public var request: Request
     public var status: TaskStatus
     public var output: String

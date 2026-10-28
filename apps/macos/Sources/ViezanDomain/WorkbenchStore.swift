@@ -408,7 +408,7 @@ import Observation
         guard let index = workspace.tasks.firstIndex(where: { $0.id == id }), canRetry(workspace.tasks[index]) else { return }
         workspace.tasks[index].attemptID = UUID().uuidString
         workspace.tasks[index].attemptNumber += 1
-        workspace.tasks[index].status = .running; workspace.tasks[index].output = ""; workspace.tasks[index].errorCode = nil
+        workspace.tasks[index].status = .running; workspace.tasks[index].output = ""; workspace.tasks[index].errorCode = nil; workspace.tasks[index].errorDetail = nil
         let task = workspace.tasks[index]
         edit(task.request.sessionID, persist: false) { item in
             if item.feature != .chat { item.output = "" }
@@ -428,7 +428,7 @@ import Observation
         else if let i = workspace.sessions[sessionIndex].messages.firstIndex(where: { $0.id == taskID }) { workspace.sessions[sessionIndex].messages[i].text = workspace.tasks[index].output }
         if let terminal, terminal != .running {
             if terminal == .succeeded && ImageTranslation.isImageRequest(request) && ImageTranslation.parse(workspace.tasks[index].output) == nil {
-                workspace.tasks[index].status = .failed; workspace.tasks[index].errorCode = "providerInvalidResponse"
+                workspace.tasks[index].status = .failed; workspace.tasks[index].errorCode = "imageModelUnsupported"
                 workers.removeValue(forKey: taskID); save(); return
             }
             if terminal == .succeeded && request.feature == .dictionary {
@@ -454,13 +454,16 @@ import Observation
         }
         workspace.sessions[index].favorite = favorite
     }
-    private func fail(taskID: String, attemptID: String, code: String) {
+    private func fail(taskID: String, attemptID: String, code: String, detail: String? = nil) {
         guard let index = workspace.tasks.firstIndex(where: { $0.id == taskID && $0.attemptID == attemptID && $0.status == .running }) else { return }
-        workspace.tasks[index].errorCode = code
+        workspace.tasks[index].errorCode = code; workspace.tasks[index].errorDetail = detail.flatMap { $0.isEmpty ? nil : $0 }
         receive(taskID: taskID, attemptID: attemptID, chunk: "", terminal: .failed)
     }
     // A local runtime that does not answer is "offline", not a generic provider error.
-    nonisolated static func failureCode(_ error: Error, model: String) -> String {
+    nonisolated static func failureCode(_ error: Error, model: String, images: Bool = false) -> String {
+        if let rejection = error as? ProviderRejection { return failureCode(rejection.failure, model: model, images: images) }
+        // A request with images that the provider refuses or answers unusably usually means the model cannot read images.
+        if images, let failure = error as? CloudFailure, [.rejected, .invalidResponse].contains(failure) { return "imageModelUnsupported" }
         if let failure = error as? CloudFailure { return failure.rawValue }
         let local = ProviderDiscovery.localProviders.contains { model.hasPrefix($0 + ":") }
         return local && (error is URLError || (error as? ProviderFailure) == .unavailable) ? "providerOffline" : "providerError"
@@ -556,6 +559,7 @@ import Observation
     }
     private func start(_ task: WorkTask) {
         guard automaticProvider else { return }
+        let available = providers.all // image generation picks a model the account actually lists
             workers[task.id] = Task { [weak self] in
                 do {
                     let receiver: @Sendable (String) async -> Void = { [weak self] chunk in
@@ -567,14 +571,16 @@ import Observation
                             await self?.researchCheckpoint(state, taskID: task.id, attemptID: task.attemptID)
                         }, receive: receiver)
                     } else if task.request.chatMode == "image" {
-                        let images = try await ImageGeneration.generate(task.request); try Task.checkCancellation()
+                        let images = try await ImageGeneration.generate(task.request, available: available); try Task.checkCancellation()
                         self?.receiveImages(taskID: task.id, attemptID: task.attemptID, images: images)
                     } else { try await NativeProvider.stream(task.request, usage: usage, receive: receiver) }
                     try Task.checkCancellation()
                     self?.receive(taskID: task.id, attemptID: task.attemptID, chunk: "", terminal: .succeeded)
                 } catch {
                     if !Task.isCancelled {
-                        self?.fail(taskID: task.id, attemptID: task.attemptID, code: WorkbenchStore.failureCode(error, model: task.request.model))
+                        let images = ImageTranslation.isImageRequest(task.request) || !(task.request.messages?.last(where: { $0.role == "user" })?.images ?? []).isEmpty
+                        let rejection = error as? ProviderRejection
+                        self?.fail(taskID: task.id, attemptID: task.attemptID, code: task.request.chatMode == "image" ? (rejection?.failure ?? error as? CloudFailure)?.rawValue ?? "providerError" : WorkbenchStore.failureCode(error, model: task.request.model, images: images), detail: rejection?.detail)
                     }
                 }
             }

@@ -499,7 +499,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
             if (name == "cancel" && task.value("status") == "running") task["status"] = "cancelled";
             else if (name == "retry" && si >= 0 && !target.value("archived").toBool() && task.value("status") != "running" && task.value("status") != "succeeded" && running(tasks, request.value("sessionID").toString()) < 0 && currentRevision) {
                 task["attemptID"] = attemptID; task["attemptNumber"] = task.value("attemptNumber", 1).toLongLong() + 1;
-                task["status"] = "running"; task["output"] = ""; task.remove("errorCode"); setOutput(target, task.value("id").toString(), "");
+                task["status"] = "running"; task["output"] = ""; task.remove("errorCode"); task.remove("errorDetail"); setOutput(target, task.value("id").toString(), "");
             } else if (name == "receive" && task.value("status") == "running" && task.value("attemptID") == p.value("attemptID")) {
                 if (si < 0 || !currentRevision) task["status"] = "cancelled";
                 else {
@@ -510,13 +510,21 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
                     }
                     if (p.contains("research")) task["research"] = p.value("research");
                     task["output"] = task.value("output").toString() + p.value("chunk").toString();
-                    if (p.value("terminal") == "failed") task["errorCode"] = p.value("errorCode", "providerError");
+                    if (p.value("terminal") == "failed") {
+                        task["errorCode"] = p.value("errorCode", "providerError");
+                        // The provider's own explanation, shown under the localized error.
+                        if (!p.value("errorDetail").toString().isEmpty()) task["errorDetail"] = p.value("errorDetail").toString().left(300); else task.remove("errorDetail");
+                        // A refused or unusable answer to a request with images usually means the model cannot read images.
+                        bool images = ImageTranslation::isImageRequest(request);
+                        if (!images) for (const auto &message : request.value("messages").toList()) if (message.toMap().value("role") == "user") images = !message.toMap().value("images").toList().isEmpty(); // last user turn
+                        if (images && request.value("chatMode") != "image" && QStringList{"providerRejected", "providerInvalidResponse"}.contains(task.value("errorCode").toString())) task["errorCode"] = "imageModelUnsupported";
+                    }
                     setOutput(target, task.value("id").toString(), task.value("output").toString());
                     if (p.contains("images") && validImages(p.value("images")) && target.value("feature") == "chat") {
                         auto messages = target.value("messages").toList(); const auto mi = find(messages, task.value("id").toString());
                         if (mi >= 0) { auto message = messages[mi].toMap(); message["images"] = p.value("images"); messages[mi] = message; target["messages"] = messages; }
                     }
-                    if (p.value("terminal") == "succeeded" && ImageTranslation::isImageRequest(request) && !ImageTranslation::valid(task.value("output").toString())) { task["status"] = "failed"; task["errorCode"] = "providerInvalidResponse"; }
+                    if (p.value("terminal") == "succeeded" && ImageTranslation::isImageRequest(request) && !ImageTranslation::valid(task.value("output").toString())) { task["status"] = "failed"; task["errorCode"] = "imageModelUnsupported"; }
                     else if (p.value("terminal") == "succeeded" && request.value("feature") == "dictionary") {
                         // Models often fence the JSON despite the prompt; keep the JSON only.
                         const auto json = dictionaryJSON(task.value("output").toString());

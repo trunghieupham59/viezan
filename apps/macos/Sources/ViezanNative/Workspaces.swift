@@ -92,7 +92,7 @@ struct ChatWorkspace: View {
             }
             if let task = store.workspace.tasks.first(where: { $0.request.sessionID == session.id }), [.failed, .interrupted, .cancelled].contains(task.status) {
                 HStack {
-                    Text(store.text(task.status == .failed ? (task.errorCode ?? "providerError") : task.status.rawValue)).foregroundStyle(.secondary)
+                    TaskStatusText(store: store, task: task)
                     Button(store.text("retry")) { store.retry(task.id) }.disabled(!store.canRetry(task))
                 }.font(.callout)
             }
@@ -139,10 +139,16 @@ struct ChatWorkspace: View {
         Divider()
         AudioControls.speechMenu(store)
     }
+    // Image mode names who will draw (OpenAI/Gemini with a key), whatever the chat model is.
+    private var imageProviderSuffix: String {
+        guard session.chatMode == "image" else { return "" }
+        guard let provider = ImageGeneration.provider(for: session.model, hasKey: { store.providers.keyed.contains($0) }) else { return " · " + store.text("imageProviderNone") }
+        return " · " + (provider == "openai" ? "OpenAI" : "Gemini")
+    }
     private var modeChip: some View {
         Button { store.setChatMode(session.id, "text"); store.setCarefulReasoning(session.id, false) } label: {
             HStack(spacing: metric("tight")) {
-                Text([(session.chatMode ?? "text") != "text" ? store.text("chatMode_" + (session.chatMode ?? "text")) : nil, session.carefulReasoning == true ? store.text("carefulReasoning") : nil].compactMap { $0 }.joined(separator: " · "))
+                Text([(session.chatMode ?? "text") != "text" ? store.text("chatMode_" + (session.chatMode ?? "text")) + imageProviderSuffix : nil, session.carefulReasoning == true ? store.text("carefulReasoning") : nil].compactMap { $0 }.joined(separator: " · "))
                 Image(systemName: "xmark").imageScale(.small)
             }.font(.vzn("smallScale"))
         }.buttonStyle(.vznQuiet).foregroundStyle(contentColor("action-text", scheme))
@@ -236,7 +242,7 @@ struct TranslationWorkspace: View {
         if let task = store.workspace.tasks.first(where: { $0.request.sessionID == session.id }), [.failed, .interrupted, .cancelled].contains(task.status) {
             HStack(spacing: metric("small")) {
                 Image(systemName: "exclamationmark.triangle").foregroundStyle(Color(nsColor: task.status == .failed ? .systemRed : .secondaryLabelColor)).accessibilityHidden(true)
-                Text(store.text(task.status == .failed ? (task.errorCode ?? "providerError") : task.status.rawValue)).foregroundStyle(.secondary)
+                TaskStatusText(store: store, task: task)
                 Button(store.text("retry")) { store.retry(task.id) }.disabled(!store.canRetry(task))
             }
         }

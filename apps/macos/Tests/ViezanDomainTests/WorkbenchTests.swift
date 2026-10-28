@@ -347,3 +347,33 @@ import Testing
     #expect(DictionaryEntry.parse("```json\n" + json + "\n```")?.headword == "serendipity")
     #expect(DictionaryEntry.extractJSON("not json") == "not json")
 }
+
+@Test func imageGenerationUsesAnyKeyedImageProvider() {
+    #expect(ImageGeneration.provider(for: "gemini:gemini-2.5-flash", hasKey: { _ in true }) == "gemini")
+    #expect(ImageGeneration.provider(for: "claude:claude-haiku-4-5", hasKey: { $0 == "openai" }) == "openai")
+    #expect(ImageGeneration.provider(for: "ollama:qwen3:4b", hasKey: { $0 == "gemini" }) == "gemini")
+    #expect(ImageGeneration.provider(for: "openai:gpt-4o", hasKey: { $0 == "gemini" }) == "gemini")
+    #expect(ImageGeneration.provider(for: "claude:claude-haiku-4-5", hasKey: { _ in false }) == nil)
+}
+
+@Test func refusedImageRequestsExplainTheModelCannotReadImages() {
+    #expect(CloudFailure.http(400) == .rejected && CloudFailure.http(503) == .network)
+    #expect(WorkbenchStore.failureCode(CloudFailure.rejected, model: "openai:gpt-3.5-turbo", images: true) == "imageModelUnsupported")
+    #expect(WorkbenchStore.failureCode(CloudFailure.rejected, model: "openai:gpt-3.5-turbo") == "providerRejected")
+    #expect(WorkbenchStore.failureCode(CloudFailure.authentication, model: "openai:gpt-4o", images: true) == "providerAuthError")
+}
+
+@Test func providerRejectionKeepsOnlyTheProvidersMessage() {
+    let body = Data(#"{"error":{"message":"The model `gpt-image-1` does not exist\nor you do not have access.","type":"invalid_request_error"}}"#.utf8)
+    #expect(ProviderRejection.message(body) == "The model `gpt-image-1` does not exist or you do not have access.")
+    #expect(ProviderRejection.message(Data("<html>bad gateway</html>".utf8)) == "")
+    #expect(WorkbenchStore.failureCode(ProviderRejection(failure: .rejected, detail: "x"), model: "claude:claude-haiku-4-5", images: true) == "imageModelUnsupported")
+}
+
+@Test func imageGenerationPicksAnImageModelTheAccountLists() {
+    let listed = ["openai:gpt-4o", "openai:gpt-image-1", "openai:gpt-image-1-mini", "openai:gpt-image-1.5", "gemini:imagen-4.0", "gemini:gemini-2.5-flash-image"]
+    #expect(ImageGeneration.imageModel(provider: "openai", selected: "gpt-4o", available: listed) == "gpt-image-1.5")
+    #expect(ImageGeneration.imageModel(provider: "openai", selected: "gpt-image-1-mini", available: listed) == "gpt-image-1-mini")
+    #expect(ImageGeneration.imageModel(provider: "gemini", selected: "", available: listed) == "gemini-2.5-flash-image")
+    #expect(ImageGeneration.imageModel(provider: "openai", selected: "", available: []) == "gpt-image-1")
+}

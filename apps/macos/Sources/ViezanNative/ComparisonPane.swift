@@ -41,7 +41,7 @@ struct ComparisonPane: View {
                             VStack(alignment: .leading, spacing: metric("small")) {
                                 Text(nativeModelLabel(child.model, store: store)).font(.headline).help(child.model)
                                 let task = store.workspace.tasks.first { $0.request.sessionID == child.id }
-                                Text(store.text(task?.errorCode ?? task?.status.rawValue ?? "queued"))
+                                if let task { TaskStatusText(store: store, task: task) } else { Text(store.text("queued")) }
                                 if !store.comparisonCurrent(child) { Text(store.text("comparisonStale")) }
                                 let rows = LanguageSegments.sentences(child.output)
                                 if sentences && rows.count == LanguageSegments.sentences(session?.draft ?? "").count {

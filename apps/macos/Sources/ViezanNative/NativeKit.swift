@@ -452,6 +452,20 @@ struct ProviderNotice: View {
     }
 }
 
+// A task's localized status/error, with the provider's own explanation under it when one exists.
+struct TaskStatusText: View {
+    let store: WorkbenchStore
+    let task: WorkTask
+    var body: some View {
+        VStack(alignment: .leading, spacing: metric("tight")) {
+            Text(store.text(task.status == .failed ? (task.errorCode ?? "providerError") : task.status.rawValue)).foregroundStyle(.secondary)
+            if task.status == .failed, let detail = task.errorDetail {
+                Text(detail).font(.caption).foregroundStyle(.secondary).textSelection(.enabled).lineLimit(3).help(detail)
+            }
+        }
+    }
+}
+
 struct ModelBadgeLabel: View {
     var text: String
     var offline = false
