@@ -23,6 +23,10 @@ class NativeAudio final : public QObject {
     Q_PROPERTY(QString error READ error NOTIFY changed)
 public:
     explicit NativeAudio(QObject *parent = nullptr);
+    // OpenAI's newer transcription models detect the language better and invent less on noise
+    // than whisper-1; use the best one the account lists (provider discovery).
+    static QString transcriptionModel(const QStringList &available);
+    void setAvailableModels(const QStringList &models) { m_availableModels = models; }
     ~NativeAudio() override;
     bool speaking() const { return m_speaking; }
     QStringList voices() const;
@@ -66,6 +70,7 @@ private:
     bool m_transcribeRequested = false, m_startPending = false;
     quint64 m_generation = 0;
     void transcribe();
+    QStringList m_availableModels;
     void dispatchSpeech(const CloudProtocol::Call &call, const QString &provider);
     void cleanup();
 };

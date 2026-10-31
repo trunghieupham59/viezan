@@ -148,7 +148,7 @@ import ViezanDomain
         let field = try #require(descendants(host).compactMap { $0 as? NSSearchField }.first)
         let delegate = try #require(field.delegate as? HistorySearch.Coordinator)
         let editor = NSTextView()
-        for (selector, expected) in [(#selector(NSResponder.scrollToEndOfDocument(_:)), "navigation"), (#selector(NSResponder.moveDown(_:)), "apps"), (#selector(NSResponder.moveUp(_:)), "navigation"), (#selector(NSResponder.scrollToBeginningOfDocument(_:)), "apps")] {
+        for (selector, expected) in [(#selector(NSResponder.scrollToEndOfDocument(_:)), "navigation"), (#selector(NSResponder.moveDown(_:)), "home"), (#selector(NSResponder.moveUp(_:)), "navigation"), (#selector(NSResponder.scrollToBeginningOfDocument(_:)), "home")] {
             #expect(delegate.control(field, textView: editor, doCommandBy: selector))
             try await Task.sleep(for: .milliseconds(30))
             #expect(delegate.control(field, textView: editor, doCommandBy: #selector(NSResponder.insertNewline(_:))))

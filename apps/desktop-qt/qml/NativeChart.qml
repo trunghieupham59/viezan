@@ -18,7 +18,7 @@ ColumnLayout {
         onPaint: {
             const c = getContext("2d"); c.clearRect(0,0,width,height)
             const series = root.artifact.series, labels = root.artifact.labels, inset = root.metrics.inset
-            const w = Math.max(1,width-inset*2), h = Math.max(1,height-inset*2), all = series.flatMap(item=>item.values), low=Math.min(0,...all), high=Math.max(0,...all), range=high-low||1
+            const w = Math.max(1,width-inset*2), h = Math.max(1,height-inset*2), all = series.reduce((values,item)=>values.concat(item.values),[]) /* V4 has no flatMap */, low=Math.min(0,...all), high=Math.max(0,...all), range=high-low||1
             if (root.artifact.type === "pie") {
                 const values=series[0].values, total=values.reduce((a,b)=>a+b,0)||1, radius=Math.min(w,h)/2
                 let start=-Math.PI/2

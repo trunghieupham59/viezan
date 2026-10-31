@@ -1,4 +1,12 @@
 #include "../WorkbenchBridge.h"
+#include "../ProviderDiscovery.h"
+#include <QUuid>
+#include "../ImageGeneration.h"
+#include "../CloudProtocol.h"
+#include "../VoiceGate.h"
+#include "../TextLanguage.h"
+#include "../ThermalSensors.h"
+#include "../LauncherTools.h"
 #include <QFile>
 #include <QInputMethodEvent>
 #include <QJsonDocument>
@@ -781,6 +789,223 @@ private slots:
         QCoreApplication::processEvents();
         QCOMPARE(bridge.state(), before);
         QCOMPARE(warnings.count(), 0);
+    }
+    void providerSnapshotPrefersOnDeviceThenCloudDefaults() {
+        ProviderDiscovery::Snapshot snapshot;
+        QCOMPARE(snapshot.availability("ollama:llama3.2"), QString("unknown"));
+        snapshot.checked = true;
+        QVERIFY(snapshot.empty());
+        snapshot.keyed = {"openai"};
+        snapshot.models["openai"] = {"openai:text-embedding-3-small", "openai:whisper-1", "openai:gpt-4o", "openai:gpt-4.1-mini-2025-04-14"};
+        QVERIFY(!snapshot.empty());
+        QCOMPARE(snapshot.preferredModel({}), QString("openai:gpt-4.1-mini-2025-04-14"));
+        QCOMPARE(snapshot.availability("ollama:llama3.2"), QString("offline"));
+        QCOMPARE(snapshot.availability("claude:claude-haiku-4"), QString("missingKey"));
+        QCOMPARE(snapshot.availability("demo.standard"), QString("unsupported"));
+        snapshot.models["ollama"] = {"ollama:nomic-embed-text", "ollama:qwen3:4b"};
+        QCOMPARE(snapshot.preferredModel({}), QString("ollama:qwen3:4b"));
+        QCOMPARE(snapshot.availability("ollama:llama3.2"), QString("notInstalled"));
+        // A recently used model that still runs wins over the provider order.
+        QCOMPARE(snapshot.preferredModel({"ollama:llama3.2", "openai:gpt-4o"}), QString("openai:gpt-4o"));
+    }
+    void dictionaryAcceptsJSONInsideAMarkdownFence() {
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        const QString json = R"({"headword":"serendipity","pronunciation":"/ser/","meaning":"chance","translations":[{"text":"sự tình cờ","pronunciation":"sự tình cờ"}]})";
+        for (const auto &[reply, valid] : QList<QPair<QString, bool>>{{"```json\n" + json + "\n```", true}, {"not json", false}}) {
+            bridge.command("navigate", {{"feature", "dictionary"}});
+            bridge.command("new");
+            bridge.command("draft", {{"value", "serendipity"}});
+            bridge.command("submit", {{"sessionID", current(bridge).value("id")}});
+            const auto task = bridge.state().value("tasks").toList().first().toMap();
+            bridge.command("receive", {{"taskID", task.value("id")}, {"attemptID", task.value("attemptID")}, {"chunk", reply}, {"terminal", "succeeded"}});
+            const auto done = bridge.state().value("tasks").toList().first().toMap();
+            QCOMPARE(done.value("status").toString(), QString(valid ? "succeeded" : "failed"));
+            if (valid) QCOMPARE(current(bridge).value("output").toString(), json);
+            else QCOMPARE(done.value("errorCode").toString(), QString("providerInvalidResponse"));
+        }
+    }
+    void imageGenerationUsesAnyKeyedImageProvider() {
+        const auto keys = [](const QStringList &present) { return [present](const QString &id) { return present.contains(id); }; };
+        QCOMPARE(ImageGeneration::imageProvider("gemini:gemini-2.5-flash", keys({"openai", "gemini"})), QString("gemini"));
+        QCOMPARE(ImageGeneration::imageProvider("claude:claude-haiku-4-5", keys({"openai"})), QString("openai"));
+        QCOMPARE(ImageGeneration::imageProvider("openai:gpt-4o", keys({"gemini"})), QString("gemini"));
+        QCOMPARE(ImageGeneration::imageProvider("ollama:qwen3:4b", keys({})), QString());
+    }
+    void refusedImageRequestExplainsTheModelCannotReadImages() {
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("navigate", {{"feature", "chat"}});
+        bridge.command("addImage", {{"image", QVariantMap{{"id", QUuid::createUuid().toString(QUuid::WithoutBraces)}, {"name", "photo.png"}, {"mime", "image/png"}}}});
+        bridge.command("draft", {{"value", "What is in this photo?"}});
+        bridge.command("submit", {{"sessionID", current(bridge).value("id")}});
+        const auto task = bridge.state().value("tasks").toList().first().toMap();
+        QVERIFY(!task.value("request").toMap().value("messages").toList().last().toMap().value("images").toList().isEmpty());
+        bridge.command("receive", {{"taskID", task.value("id")}, {"attemptID", task.value("attemptID")}, {"chunk", ""}, {"terminal", "failed"}, {"errorCode", "providerRejected"}, {"errorDetail", "image too large"}});
+        QCOMPARE(bridge.state().value("tasks").toList().first().toMap().value("errorCode").toString(), QString("imageModelUnsupported"));
+        QCOMPARE(bridge.state().value("tasks").toList().first().toMap().value("errorDetail").toString(), QString("image too large"));
+        QCOMPARE(CloudProtocol::errorMessage(R"({"error":{"message":"The model does not exist\nor no access."}})"), QString("The model does not exist or no access."));
+        QCOMPARE(ImageGeneration::imageModel("openai", "gpt-4o", {"openai:gpt-image-1", "openai:gpt-image-1-mini", "openai:gpt-image-1.5"}), QString("gpt-image-1.5"));
+        QCOMPARE(ImageGeneration::imageModel("gemini", "", {"gemini:imagen-4.0", "gemini:gemini-2.5-flash-image"}), QString("gemini-2.5-flash-image"));
+    }
+    void quickTranslatePairRoutesTextAlreadyInThePrimaryLanguage() {
+        QCOMPARE(TextLanguage::detect("Xin chào, cuộc họp bắt đầu lúc chín giờ."), QString("vi"));
+        QCOMPARE(TextLanguage::detect("会議は九時に始まります。"), QString("ja"));
+        QCOMPARE(TextLanguage::detect("회의는 아홉 시에 시작합니다"), QString("ko"));
+        QCOMPARE(TextLanguage::detect("Встреча начнётся в девять"), QString("ru"));
+        QCOMPARE(TextLanguage::detect("The meeting starts at nine"), QString());
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        QCOMPARE(bridge.quickTranslate().value("secondary").toString(), QString());
+        bridge.command("quickTranslatePrimary", {{"value", "vi"}});
+        bridge.command("quickTranslateSecondary", {{"value", "en"}});
+        QCOMPARE(bridge.quickTranslateTarget("Xin chào các bạn, hôm nay trời đẹp."), QString("en"));
+        QCOMPARE(bridge.quickTranslateTarget("Good morning"), QString("vi"));
+        bridge.command("quickTranslateSecondary", {{"value", "vi"}});   // same as primary: ignored
+        QCOMPARE(bridge.quickTranslate().value("secondary").toString(), QString("en"));
+        bridge.command("quickTranslatePrimary", {{"value", "en"}});     // the secondary: swaps
+        QCOMPARE(bridge.quickTranslate(), (QVariantMap{{"primary", "en"}, {"secondary", "vi"}}));
+        bridge.command("quickTranslateSecondary", {{"value", ""}});
+        QCOMPARE(bridge.quickTranslateTarget("Hello"), QString("en"));
+        WorkbenchBridge reloaded(nullptr, dir.filePath("state.json"), false);
+        QCOMPARE(reloaded.quickTranslate().value("primary").toString(), QString("en"));
+    }
+    void thermalHwmonSensorsFoldIntoNamedRows() {
+        QCOMPARE(ThermalSensors::classify("coretemp / Package id 0").label, QString("cpu_package"));
+        QCOMPARE(ThermalSensors::classify("coretemp / Core 3").label, QString("cpu_core"));
+        QCOMPARE(ThermalSensors::classify("k10temp / Tctl").label, QString("cpu_package"));
+        QCOMPARE(ThermalSensors::classify("amdgpu / edge").group, QString("gpu"));
+        QCOMPARE(ThermalSensors::classify("nvme / Composite").label, QString("storage"));
+        QCOMPARE(ThermalSensors::classify("acpitz / temp1").label, QString());
+        const QVariantList sensors{QVariantMap{{"name", "coretemp / Core 0"}, {"value", 52.0}}, QVariantMap{{"name", "coretemp / Core 1"}, {"value", 58.0}},
+            QVariantMap{{"name", "coretemp / Package id 0"}, {"value", 60.0}}, QVariantMap{{"name", "acpitz / temp1"}, {"value", 95.0}}, QVariantMap{{"name", "nvme / Composite"}, {"value", 41.0}}};
+        const auto rows = ThermalSensors::rows(sensors);
+        QCOMPARE(rows.size(), 4);
+        QCOMPARE(rows[0].toMap().value("label").toString(), QString("cpu_package"));
+        QCOMPARE(rows[1].toMap().value("count").toInt(), 2);
+        QCOMPARE(rows[1].toMap().value("max").toDouble(), 58.0);
+        QCOMPARE(rows[1].toMap().value("average").toDouble(), 55.0);
+        // A sensor of unknown meaning keeps its driver name and follows the named rows, even when hottest.
+        QCOMPARE(rows[2].toMap().value("label").toString(), QString("storage"));
+        QCOMPARE(rows[3].toMap().value("title").toString(), QString("acpitz / temp1"));
+        QCOMPARE(ThermalSensors::tone(70), QString("warm"));
+    }
+    void launcherRanksNamePrefixThenWordThenAnywhereWithRecentFirst() {
+        QVariantList apps; for (const auto &name : {"Safari", "System Settings", "Photos", "Visual Studio Code", "Messages", "Notes", "Font Book"}) apps.append(QVariantMap{{"id", QString("/apps/") + name}, {"name", name}});
+        const auto names = [&apps](const QString &query, const QStringList &recent) { QStringList out; for (const auto &app : LauncherTools::rank(apps, query, recent)) out.append(app.toMap().value("name").toString()); return out; };
+        QCOMPARE(names("s", {}), (QStringList{"Safari", "System Settings", "Visual Studio Code", "Notes", "Photos", "Messages"}));
+        QCOMPARE(names("set", {}), QStringList{"System Settings"});
+        QCOMPARE(names("code", {}), QStringList{"Visual Studio Code"});
+        QCOMPARE(names("s", {"/apps/System Settings"}).first(), QString("System Settings"));
+        QCOMPARE(names("", {"/apps/Notes", "/apps/Safari"}), (QStringList{"Notes", "Safari"}));
+        QVERIFY(names("zzz", {}).isEmpty());
+    }
+    void transcriptionUsesTheBestModelTheAccountLists() {
+        QCOMPARE(NativeAudio::transcriptionModel({}), QString("whisper-1"));
+        QCOMPARE(NativeAudio::transcriptionModel({"openai:whisper-1", "openai:gpt-4o-mini-transcribe"}), QString("gpt-4o-mini-transcribe"));
+        QCOMPARE(NativeAudio::transcriptionModel({"openai:gpt-4o-mini-transcribe", "openai:gpt-4o-transcribe"}), QString("gpt-4o-transcribe"));
+    }
+    void voiceGateIgnoresRoomNoiseAndClosesAtAPause() {
+        VoiceGate gate;
+        // A fan at -38 dB (above the old fixed 0.008 RMS ≈ -42 dB threshold) is learned as the floor.
+        for (int i = 0; i < 300; ++i) QVERIFY(gate.feed(-38) != VoiceGate::Finish);
+        QVERIFY(!gate.heard);
+        for (int i = 0; i < 20; ++i) QCOMPARE(gate.feed(-23), VoiceGate::None);
+        QVERIFY(gate.heard);
+        bool finished = false; for (int i = 0; i < 10; ++i) finished |= gate.feed(-38) == VoiceGate::Finish;
+        QVERIFY(finished);
+        // A click is dropped; continuous speech closes at a gap after 12 s, before the 25 s cap.
+        bool discarded = false; gate.feed(-10); for (int i = 0; i < 10; ++i) discarded |= gate.feed(-38) == VoiceGate::Discard;
+        QVERIFY(discarded);
+        // Typing: short taps every 0.4 s keep the clip open but are not speech.
+        bool typed = false, kept = false; for (int i = 0; i < 90; ++i) { const auto event = gate.feed(i < 80 && i % 4 == 0 ? -10 : -38); typed |= event == VoiceGate::Discard; kept |= event == VoiceGate::Finish; }
+        QVERIFY(typed && !kept);
+        double at = 0; for (int i = 0; i < 250 && at == 0; ++i) if (gate.feed(i >= 140 && i % 30 < 5 ? -38 : -20) == VoiceGate::Finish) at = i * VoiceGate::frame;
+        QVERIFY(at >= VoiceGate::longClip && at < VoiceGate::maximum);
+        QVERIFY(VoiceGate::meaningful("Xin chào") && !VoiceGate::meaningful(" ... "));
+    }
+    void voiceGateKeepsQuietSpeechInANoisyRoomAsOneUtterance() {
+        // Levels measured on a real Mac: room noise -27…-34 dB, voice only -20…-29 dB.
+        const double noise[] = {-31, -28, -33, -30, -27.5, -32, -29, -34}, speech[] = {-23, -25, -22, -26, -24, -28.8, -21, -24.5, -23.5, -25.5};
+        VoiceGate gate; int finished = 0, other = 0;
+        for (int i = 0; i < 60; ++i) finished += gate.feed(noise[i % 8]) == VoiceGate::Finish;
+        QCOMPARE(finished, 0);
+        for (int i = 0; i < 160; ++i) other += gate.feed(speech[i % 10]) != VoiceGate::None;
+        QCOMPARE(other, 0);
+        for (int i = 0; i < 20; ++i) { const auto event = gate.feed(noise[i % 8]); finished += event == VoiceGate::Finish; other += event == VoiceGate::Discard; }
+        QCOMPARE(finished, 1); QCOMPARE(other, 0);
+    }
+    void speechRecognitionDefaultsToAutoInEveryEntryPoint() {
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        QVERIFY(!bridge.state().contains("speechProvider") || bridge.state().value("speechProvider").toString() == "auto");
+        for (const auto &file : {":/qml/Main.qml", ":/qml/InterpretationWorkspace.qml"}) {
+            QFile qml(file); QVERIFY(qml.open(QIODevice::ReadOnly));
+            QVERIFY2(!qml.readAll().contains(R"(speechProvider || "openai")"), file); // Settings shows Auto when unset
+        }
+    }
+    void adoptModelMovesOnlySessionsWithoutWork() {
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("navigate", {{"feature", "chat"}});
+        bridge.command("draft", {{"value", "Earlier question"}});
+        const auto started = current(bridge).value("id").toString();
+        bridge.command("submit", {{"sessionID", started}});
+        bridge.command("navigate", {{"feature", "translate"}});
+        bridge.command("draft", {{"value", "Not sent yet"}});
+        const auto blank = current(bridge).value("id").toString();
+        const auto model = [&](const QString &id) { for (const auto &value : bridge.state().value("sessions").toList()) if (value.toMap().value("id") == id) return value.toMap().value("model").toString(); return QString(); };
+        bridge.command("adoptModel", {{"value", "gemini:gemini-2.5-flash"}, {"sessionIDs", QStringList{started, blank}}});
+        QCOMPARE(model(blank), QString("gemini:gemini-2.5-flash"));
+        QCOMPARE(model(started), QString("ollama:llama3.2"));
+        QCOMPARE(current(bridge).value("draft").toString(), QString("Not sent yet"));
+        bridge.command("adoptModel", {{"value", "not-a-model"}, {"sessionIDs", QStringList{blank}}});
+        QCOMPARE(model(blank), QString("gemini:gemini-2.5-flash"));
+    }
+    void providerNoticeFollowsRuntimeAndOpensLocalModels() {
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("route", {{"value", "chat"}});
+        bridge.command("model", {{"value", "ollama:llama3.2"}});
+        QQmlApplicationEngine engine;
+        QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.rootContext()->setContextProperty("workbench", &bridge);
+        engine.load(QUrl("qrc:/qml/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *root = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(root);
+        auto *notice = visualItem(root->contentItem(), "provider-notice");
+        QVERIFY(notice);
+        // Never warns before discovery has answered.
+        QCoreApplication::processEvents();
+        QVERIFY(!notice->isVisible());
+        ProviderDiscovery::Snapshot snapshot; snapshot.checked = true;
+        bridge.applyProviderSnapshot(snapshot); // nothing local answered, no cloud key
+        QTRY_VERIFY(notice->isVisible());
+        QVERIFY(bridge.providersEmpty());
+        snapshot.models["ollama"] = {"ollama:llama3.2"};
+        bridge.applyProviderSnapshot(snapshot);
+        QTRY_VERIFY(!notice->isVisible());
+        // A model this device cannot run warns again and offers the one it can.
+        bridge.command("model", {{"value", "claude:claude-haiku-4"}});
+        QTRY_VERIFY(notice->isVisible());
+        auto *use = visualItem(root->contentItem(), "provider-notice-use");
+        QVERIFY(use); QTRY_VERIFY(use->isVisible());
+        QMetaObject::invokeMethod(notice, "useRequested", Q_ARG(QString, "ollama:llama3.2"));
+        QTRY_VERIFY(!notice->isVisible());
+        QCOMPARE(current(bridge).value("model").toString(), QString("ollama:llama3.2"));
+        const auto before = bridge.state();
+        QVERIFY(QMetaObject::invokeMethod(root, "openSettingsSection", Q_ARG(QVariant, "localModels")));
+        auto *settings = root->findChild<QQuickItem *>("settings-workspace");
+        QTRY_VERIFY(settings);
+        QTRY_COMPARE(settings->property("activeSection").toString(), QString("localModels"));
+        QTRY_COMPARE(root->property("settingsSection").toString(), QString());
+        QCOMPARE(bridge.state().value("sessions"), before.value("sessions"));
+        // A synchronous "section consumed" reset would loop the binding. Leaving Chat
+        // also emits the known ChatTranscript.qml:33 warning, so filter for loops only.
+        for (const auto &warning : warnings)
+            for (const auto &error : qvariant_cast<QList<QQmlError>>(warning.at(0)))
+                QVERIFY2(!error.toString().contains("Binding loop"), qPrintable(error.toString()));
     }
     void qmlLoadsWithRealBridge_data() {
         QTest::addColumn<QString>("feature");

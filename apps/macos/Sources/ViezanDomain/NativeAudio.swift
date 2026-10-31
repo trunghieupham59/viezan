@@ -10,6 +10,8 @@ public struct NativeVoice: Identifiable, Sendable { public let id: String; publi
     public private(set) var transcribingOwner: String?
     public private(set) var error: String?
     public private(set) var speaking = false
+    /// Models the account lists (provider discovery), for choosing a transcription model.
+    public var availableModels: [String] = []
     public var voiceProvider = "system"
     public var voiceID = ""
     @ObservationIgnored private var voiceRequest: Task<Void, Never>?
@@ -43,14 +45,14 @@ public struct NativeVoice: Identifiable, Sendable { public let id: String; publi
     public func stop(provider: String, completion: @escaping @MainActor (String, String) -> Void) {
         guard let owner = recordingOwner, let file else { return }
         recorder?.stop(); recorder = nil; recordingOwner = nil; transcribingOwner = owner
-        let generation = permissionGeneration, language = recordingLanguage
+        let generation = permissionGeneration, language = recordingLanguage, available = availableModels
         request = Task { [weak self] in
             defer {
                 try? FileManager.default.removeItem(at: file)
                 if self?.permissionGeneration == generation { self?.transcribingOwner = nil; self?.file = nil; self?.request = nil }
             }
             do {
-                let text = try await SpeechProvider.transcribe(file: file, mime: "audio/mp4", provider: provider, language: language)
+                let text = try await SpeechProvider.transcribe(file: file, mime: "audio/mp4", provider: provider, language: language, available: available)
                 try Task.checkCancellation(); completion(owner, text)
             } catch {
                 if !Task.isCancelled { self?.error = (error as? CloudFailure)?.rawValue ?? "audioError" }
@@ -92,7 +94,12 @@ public struct NativeVoice: Identifiable, Sendable { public let id: String; publi
     }
 }
 public enum SpeechProvider {
-    public static func transcribe(file: URL, mime: String, provider: String, language: String = "auto") async throws -> String {
+    /// OpenAI's newer transcription models detect the spoken language better and invent far less
+    /// text on noise than whisper-1; use the best one the account lists (discovery).
+    public static func transcriptionModel(_ available: [String]) -> String {
+        ["gpt-4o-transcribe", "gpt-4o-mini-transcribe"].first { available.contains("openai:" + $0) } ?? "whisper-1"
+    }
+    public static func transcribe(file: URL, mime: String, provider: String, language: String = "auto", available: [String] = []) async throws -> String {
         guard (NativeResources.shared.nativeLanguages + ["auto"]).contains(language) else { throw CloudFailure.invalidResponse }
         // Auto routing is an explicit user choice. Explicit providers never upload
         // to another service; cancellation always stops the candidate chain.
@@ -100,7 +107,7 @@ public enum SpeechProvider {
             var failure: Error = CloudFailure.missingKey
             for candidate in ["openai", "gemini", "groq"] where CredentialStore.has(candidate) {
                 try Task.checkCancellation()
-                do { return try await transcribe(file: file, mime: mime, provider: candidate, language: language) }
+                do { return try await transcribe(file: file, mime: mime, provider: candidate, language: language, available: available) }
                 catch { try Task.checkCancellation(); failure = error }
             }
             throw failure
@@ -120,7 +127,7 @@ public enum SpeechProvider {
             call.setValue("Bearer " + key, forHTTPHeaderField: "Authorization")
             let boundary = UUID().uuidString
             call.setValue("multipart/form-data; boundary=" + boundary, forHTTPHeaderField: "Content-Type")
-            var body = Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\n\(provider == "groq" ? "whisper-large-v3-turbo" : "whisper-1")\r\n--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"recording.m4a\"\r\nContent-Type: \(mime)\r\n\r\n".utf8)
+            var body = Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\n\(provider == "groq" ? "whisper-large-v3-turbo" : transcriptionModel(available))\r\n--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"recording.m4a\"\r\nContent-Type: \(mime)\r\n\r\n".utf8)
             if language != "auto" { body.insert(contentsOf: Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\n\(language.split(separator: "-").first.map(String.init) ?? language)\r\n".utf8), at: 0) }
             body.append(audio); body.append(Data("\r\n--\(boundary)--\r\n".utf8)); call.httpBody = body
         }

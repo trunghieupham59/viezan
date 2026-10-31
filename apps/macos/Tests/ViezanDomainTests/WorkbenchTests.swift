@@ -263,3 +263,260 @@ import Testing
     #expect(resources.matchingCommands(query: "lich su", locale: "vi").contains { $0.id == "history" })
     #expect(resources.matchingCommands(query: resources.text("history", locale: "ja"), locale: "ja").contains { $0.id == "history" })
 }
+
+@Test func commandPaletteListsDestinationsInNavigationOrderBeforeActions() {
+    let resources = NativeResources.shared
+    let ids = resources.matchingCommands(query: "", locale: "vi").map(\.id)
+    let destinations = resources.navigation.map(\.id)
+    #expect(Array(ids.prefix(destinations.count)) == destinations)
+}
+
+// Provider notices must not warn before the first probe; afterwards the flag holds
+// whether or not a local runtime answered.
+@Test @MainActor func localRuntimeReportsCheckedOnlyAfterAProbe() async {
+    let runtime = LocalRuntime()
+    #expect(!runtime.checked)
+    await runtime.refresh()
+    #expect(runtime.checked)
+}
+
+@Test func providerSnapshotPrefersOnDeviceThenCloudDefaults() {
+    var snapshot = ProviderDiscovery.Snapshot()
+    #expect(snapshot.availability("ollama:llama3.2") == .unknown)
+    snapshot.checked = true
+    #expect(snapshot.empty)
+    snapshot.keyed = ["openai"]
+    snapshot.models["openai"] = ["openai:text-embedding-3-small", "openai:whisper-1", "openai:gpt-4o", "openai:gpt-4.1-mini-2025-04-14"]
+    #expect(!snapshot.empty)
+    #expect(snapshot.preferredModel(recent: []) == "openai:gpt-4.1-mini-2025-04-14")
+    #expect(snapshot.availability("ollama:llama3.2") == .offline)
+    #expect(snapshot.availability("claude:claude-haiku-4") == .missingKey)
+    #expect(snapshot.availability("demo.standard") == .unsupported)
+    snapshot.models["ollama"] = ["ollama:nomic-embed-text", "ollama:qwen3:4b"]
+    #expect(snapshot.preferredModel(recent: []) == "ollama:qwen3:4b")
+    #expect(snapshot.availability("ollama:llama3.2") == .notInstalled)
+    // A recently used model that still runs wins over the provider order.
+    #expect(snapshot.preferredModel(recent: ["ollama:llama3.2", "openai:gpt-4o"]) == "openai:gpt-4o")
+}
+
+@Test @MainActor func discoveryMovesOnlySessionsWithoutWorkToAvailableModels() async {
+    let persistence = MemoryPersistence()
+    let store = WorkbenchStore(persistence: persistence, automaticProvider: false,
+                               listModels: { provider in
+                                   guard provider == "gemini" else { throw ProviderFailure.unavailable }
+                                   return ["gemini:gemini-2.5-flash", "gemini:gemini-2.5-pro"]
+                               },
+                               hasKey: { $0 == "gemini" })
+    store.navigate(.chat)
+    let started = store.session.id
+    store.setDraft(started, "Earlier question")
+    _ = store.submit(started)
+    store.navigate(.translate)
+    let blank = store.session.id
+    await store.discoverProviders().value
+    #expect(store.providers.checked && !store.providers.empty)
+    #expect(store.session(blank)?.model == "gemini:gemini-2.5-flash")
+    #expect(store.session(started)?.model == "ollama:llama3.2")
+    #expect(store.availableModels.contains("gemini:gemini-2.5-pro"))
+    store.newSession()
+    #expect(store.session.model == "gemini:gemini-2.5-flash")
+}
+
+@Test @MainActor func discoveryWithNothingAvailableKeepsModelsAndReportsEmpty() async {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false,
+                               listModels: { _ in throw ProviderFailure.unavailable }, hasKey: { _ in false })
+    let model = store.session.model
+    await store.discoverProviders().value
+    #expect(store.providers.empty)
+    #expect(store.preferredModel == nil)
+    #expect(store.session.model == model)
+    #expect(store.providers.availability(model) == .offline)
+}
+
+@Test func unreachableLocalRuntimeFailsAsOfflineNotGeneric() {
+    #expect(WorkbenchStore.failureCode(URLError(.cannotConnectToHost), model: "ollama:qwen3:4b") == "providerOffline")
+    #expect(WorkbenchStore.failureCode(ProviderFailure.unavailable, model: "lmstudio:gemma") == "providerOffline")
+    #expect(WorkbenchStore.failureCode(URLError(.timedOut), model: "openai:gpt-4o") == "providerError")
+    #expect(WorkbenchStore.failureCode(CloudFailure.missingKey, model: "openai:gpt-4o") == "providerMissingKey")
+}
+
+@Test func dictionaryAcceptsJSONInsideAMarkdownFence() {
+    let json = #"{"headword":"serendipity","pronunciation":"/ˌserənˈdɪpɪti/","meaning":"chance","translations":[{"text":"sự tình cờ","pronunciation":"sự tình cờ"}]}"#
+    #expect(DictionaryEntry.extractJSON("```json\n" + json + "\n```") == json)
+    #expect(DictionaryEntry.extractJSON("Here you go:\n" + json + "\nHope it helps") == json)
+    #expect(DictionaryEntry.parse("```json\n" + json + "\n```")?.headword == "serendipity")
+    #expect(DictionaryEntry.extractJSON("not json") == "not json")
+}
+
+@Test func imageGenerationUsesAnyKeyedImageProvider() {
+    #expect(ImageGeneration.provider(for: "gemini:gemini-2.5-flash", hasKey: { _ in true }) == "gemini")
+    #expect(ImageGeneration.provider(for: "claude:claude-haiku-4-5", hasKey: { $0 == "openai" }) == "openai")
+    #expect(ImageGeneration.provider(for: "ollama:qwen3:4b", hasKey: { $0 == "gemini" }) == "gemini")
+    #expect(ImageGeneration.provider(for: "openai:gpt-4o", hasKey: { $0 == "gemini" }) == "gemini")
+    #expect(ImageGeneration.provider(for: "claude:claude-haiku-4-5", hasKey: { _ in false }) == nil)
+}
+
+@Test func refusedImageRequestsExplainTheModelCannotReadImages() {
+    #expect(CloudFailure.http(400) == .rejected && CloudFailure.http(503) == .network)
+    #expect(WorkbenchStore.failureCode(CloudFailure.rejected, model: "openai:gpt-3.5-turbo", images: true) == "imageModelUnsupported")
+    #expect(WorkbenchStore.failureCode(CloudFailure.rejected, model: "openai:gpt-3.5-turbo") == "providerRejected")
+    #expect(WorkbenchStore.failureCode(CloudFailure.authentication, model: "openai:gpt-4o", images: true) == "providerAuthError")
+}
+
+@Test func providerRejectionKeepsOnlyTheProvidersMessage() {
+    let body = Data(#"{"error":{"message":"The model `gpt-image-1` does not exist\nor you do not have access.","type":"invalid_request_error"}}"#.utf8)
+    #expect(ProviderRejection.message(body) == "The model `gpt-image-1` does not exist or you do not have access.")
+    #expect(ProviderRejection.message(Data("<html>bad gateway</html>".utf8)) == "")
+    #expect(WorkbenchStore.failureCode(ProviderRejection(failure: .rejected, detail: "x"), model: "claude:claude-haiku-4-5", images: true) == "imageModelUnsupported")
+}
+
+@Test func imageGenerationPicksAnImageModelTheAccountLists() {
+    let listed = ["openai:gpt-4o", "openai:gpt-image-1", "openai:gpt-image-1-mini", "openai:gpt-image-1.5", "gemini:imagen-4.0", "gemini:gemini-2.5-flash-image"]
+    #expect(ImageGeneration.imageModel(provider: "openai", selected: "gpt-4o", available: listed) == "gpt-image-1.5")
+    #expect(ImageGeneration.imageModel(provider: "openai", selected: "gpt-image-1-mini", available: listed) == "gpt-image-1-mini")
+    #expect(ImageGeneration.imageModel(provider: "gemini", selected: "", available: listed) == "gemini-2.5-flash-image")
+    #expect(ImageGeneration.imageModel(provider: "openai", selected: "", available: []) == "gpt-image-1")
+}
+
+@Test @MainActor func speechRecognitionDefaultsToAnyKeyedProvider() async {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false,
+                               listModels: { _ in throw ProviderFailure.unavailable }, hasKey: { $0 == "groq" })
+    #expect(store.speechProvider == "auto")
+    await store.discoverProviders().value
+    #expect(store.providers.speechReady("auto"))
+    #expect(store.providers.speechReady("groq") && !store.providers.speechReady("openai"))
+    store.speechProvider = "openai"
+    #expect(store.speechProvider == "openai")
+    #expect(Interpretation.speechFailure(CloudFailure.missingKey) == "providerMissingKey")
+    #expect(Interpretation.speechFailure(URLError(.notConnectedToInternet)) == "providerNetworkError")
+    #expect(Interpretation.speechFailure(ProviderFailure.oversizedResponse) == "audioError")
+}
+
+@Test func transcriptionUsesTheBestModelTheAccountLists() {
+    #expect(SpeechProvider.transcriptionModel([]) == "whisper-1")
+    #expect(SpeechProvider.transcriptionModel(["openai:whisper-1", "openai:gpt-4o-mini-transcribe"]) == "gpt-4o-mini-transcribe")
+    #expect(SpeechProvider.transcriptionModel(["openai:gpt-4o-mini-transcribe", "openai:gpt-4o-transcribe"]) == "gpt-4o-transcribe")
+}
+
+@Test func voiceGateIgnoresSteadyRoomNoiseAndClosesAtAPause() {
+    var gate = VoiceGate()
+    // A fan at -38 dB (above the old fixed -42 dB threshold) is learned as the floor.
+    for _ in 0..<300 { #expect(gate.feed(-38) != .finish) }
+    #expect(!gate.heard)
+    // Speech 15 dB above the floor for two seconds, then a pause, closes the utterance.
+    for _ in 0..<20 { #expect(gate.feed(-23) == .none) }
+    #expect(gate.heard)
+    var events: [VoiceGate.Event] = []
+    for _ in 0..<10 { events.append(gate.feed(-38)) }
+    #expect(events.contains(.finish))
+}
+
+@Test func voiceGateDropsClicksAndSplitsLongSpeechAtAGap() {
+    var gate = VoiceGate()
+    for _ in 0..<10 { _ = gate.feed(-70) }
+    // A 0.1 s click is not an utterance.
+    _ = gate.feed(-30)
+    var events: [VoiceGate.Event] = []
+    for _ in 0..<10 { events.append(gate.feed(-70)) }
+    #expect(events.contains(.discard) && !events.contains(.finish))
+    // Typing: short taps every 0.4 s for 8 s keep the clip open but are not speech.
+    events = []
+    for i in 0..<80 { events.append(gate.feed(i % 4 == 0 ? -30 : -70)) }
+    for _ in 0..<10 { events.append(gate.feed(-70)) }
+    #expect(events.contains(.discard) && !events.contains(.finish))
+    // Continuous speech past 12 s closes at the next short gap, before the 25 s cap.
+    var finished = 0.0
+    for i in 0..<250 {
+        let gap = i >= 140 && i % 30 < 5
+        if gate.feed(gap ? -70 : -30) == .finish { finished = Double(i) * VoiceGate.frame; break }
+    }
+    #expect(finished >= VoiceGate.longClip && finished < VoiceGate.maximum)
+    #expect(VoiceGate.meaningful("Hello.") && VoiceGate.meaningful("Xin chào") && !VoiceGate.meaningful(" ... ") && !VoiceGate.meaningful("."))
+}
+
+@Test func voiceGateKeepsQuietSpeechInANoisyRoomAsOneUtterance() {
+    // Levels measured on a real Mac: room noise flickers between -27 and -34 dB while a
+    // speaker's voice is only -20…-29 dB. A 16 s sentence must stay one utterance.
+    let noise = [-31, -28, -33, -30, -27.5, -32, -29, -34], speech = [-23, -25, -22, -26, -24, -28.8, -21, -24.5, -23.5, -25.5]
+    var gate = VoiceGate(), events: [VoiceGate.Event] = []
+    for i in 0..<60 { events.append(gate.feed(noise[i % noise.count])) }
+    #expect(!events.contains(.finish))
+    events = []
+    for i in 0..<160 { events.append(gate.feed(speech[i % speech.count])) }
+    #expect(events.allSatisfy { $0 == .none })
+    for i in 0..<20 { events.append(gate.feed(noise[i % noise.count])) }
+    #expect(events.filter { $0 != .none } == [.finish])
+}
+
+@Test func quickTranslatePairRoutesTextAlreadyInThePrimaryLanguage() {
+    let off = QuickTranslatePreferences(primary: "vi")
+    #expect(off.target(detected: "vi") == "vi" && off.target(detected: "en") == "vi")
+    let pair = QuickTranslatePreferences(primary: "vi", secondary: "en")
+    #expect(pair.target(detected: "vi") == "en" && pair.target(detected: "ja") == "vi" && pair.target(detected: nil) == "vi")
+    #expect(QuickTranslatePreferences(primary: "zh", secondary: "en").target(detected: "zh-TW") == "en")
+    // Choosing the secondary as primary swaps the pair.
+    #expect(pair.choosing(primary: "en") == QuickTranslatePreferences(primary: "en", secondary: "vi"))
+    #expect(pair.choosing(primary: "ja") == QuickTranslatePreferences(primary: "ja", secondary: "en"))
+    #expect(TextLanguage.detect("Xin chào, cuộc họp bắt đầu lúc chín giờ sáng nay.") == "vi")
+    #expect(TextLanguage.detect("Good morning, the meeting starts at nine.") == "en")
+    #expect(TextLanguage.detect("会議は午前九時に始まります。") == "ja")
+}
+
+@Test @MainActor func quickTranslatePairDefaultsToTheTranslateTargetAndPersists() throws {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("workspace.json")
+    let store = WorkbenchStore(persistence: FilePersistence(url: url))
+    #expect(store.quickTranslate.secondary == nil && NativeResources.shared.nativeLanguages.contains(store.quickTranslate.primary))
+    store.quickTranslate = QuickTranslatePreferences(primary: "ja", secondary: "en")
+    store.quickTranslate = QuickTranslatePreferences(primary: "ja", secondary: "ja")   // invalid: ignored
+    #expect(WorkbenchStore(persistence: FilePersistence(url: url)).quickTranslate == QuickTranslatePreferences(primary: "ja", secondary: "en"))
+}
+
+@Test func launcherRanksNamePrefixThenWordThenAnywhereWithRecentFirst() {
+    let apps = ["Safari", "System Settings", "Photos", "Visual Studio Code", "Messages", "Notes", "Font Book"].map { LauncherApplication(id: "/Applications/\($0).app", name: $0) }
+    let names = { (query: String, recent: [String]) in LauncherRanking.applications(apps, query: query, recent: recent).map(\.name) }
+    #expect(names("s", []) == ["Safari", "System Settings", "Visual Studio Code", "Notes", "Photos", "Messages"])
+    #expect(names("set", []) == ["System Settings"])
+    #expect(names("code", []) == ["Visual Studio Code"])
+    #expect(names("s", ["/Applications/System Settings.app"]).first == "System Settings")
+    #expect(names("", ["/Applications/Notes.app", "/Applications/Safari.app"]) == ["Notes", "Safari"])
+    #expect(names("zzz", []).isEmpty)
+}
+
+@Test func applicationInventoryListsLinkedAppsAsProtectedAndOnlyBrokenLinksBlockIt() throws {
+    // The inventory insists on canonical paths; /var/folders is itself a link.
+    let temporary = realpath(FileManager.default.temporaryDirectory.path, nil)!; defer { free(temporary) }
+    let root = URL(fileURLWithPath: String(cString: temporary)).appendingPathComponent(UUID().uuidString)
+    func app(_ name: String, id: String, at folder: URL) throws {
+        let contents = folder.appendingPathComponent(name + ".app/Contents")
+        try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+        try PropertyListSerialization.data(fromPropertyList: ["CFBundleIdentifier": id, "CFBundleName": name, "CFBundlePackageType": "APPL"], format: .xml, options: 0)
+            .write(to: contents.appendingPathComponent("Info.plist"))
+    }
+    let installed = root.appendingPathComponent("Applications"), elsewhere = root.appendingPathComponent("Cryptex")
+    try app("Fixture", id: "dev.viezan.fixture", at: installed)
+    try app("Linked", id: "dev.viezan.linked", at: elsewhere)
+    try FileManager.default.createSymbolicLink(at: installed.appendingPathComponent("Linked.app"), withDestinationURL: elsewhere.appendingPathComponent("Linked.app"))
+    defer { try? FileManager.default.removeItem(at: root) }
+    let listed = try ApplicationFiles.inventory(roots: [installed.path])
+    #expect(Set(listed.map(\.bundleID)) == ["dev.viezan.fixture", "dev.viezan.linked"])
+    #expect(listed.first { $0.bundleID == "dev.viezan.linked" }?.blocked == "appProtected")
+    #expect(!listed.contains { $0.blocked == "appIncomplete" })
+    // A link that resolves to nothing still means the inventory cannot be trusted.
+    try FileManager.default.createSymbolicLink(at: installed.appendingPathComponent("Gone.app"), withDestinationURL: root.appendingPathComponent("missing.app"))
+    #expect(try ApplicationFiles.inventory(roots: [installed.path]).allSatisfy { $0.blocked == "appIncomplete" })
+}
+
+@Test func thermalSensorsFoldIntoNamedRowsPerGroup() {
+    #expect(ThermalSensors.classify("Tp0Y") == .init(group: .cpu, label: "cpu_performance_core"))
+    #expect(ThermalSensors.classify("Te02") == .init(group: .cpu, label: "cpu_efficiency_core"))
+    #expect(ThermalSensors.classify("TB1T") == .init(group: .other, label: "battery"))
+    #expect(ThermalSensors.classify("TCMz") == .init(group: .cpu, label: "cpu_core"))
+    #expect(ThermalSensors.classify("Tz9q") == .init(group: .other, label: nil))
+    let sensors = [("Tp01", 61.0), ("Tp02", 55.0), ("Te02", 58.0), ("Tg0a", 49.0), ("Tz9q", 80.0), ("TB0T", 31.0)].map { ThermalSnapshot.Sensor(key: $0.0, celsius: $0.1) }
+    let rows = ThermalSensors.rows(sensors)
+    #expect(rows[.cpu]?.map(\.label) == ["cpu_performance_core", "cpu_efficiency_core"])
+    #expect(rows[.cpu]?.first?.max == 61 && rows[.cpu]?.first?.sensors.count == 2 && rows[.cpu]?.first?.average == 58)
+    // The unrecognized row goes last even when it is the hottest.
+    #expect(rows[.other]?.map(\.label) == ["battery", nil])
+    #expect(ThermalSensors.tone(69.9) == "ok" && ThermalSensors.tone(70) == "warm" && ThermalSensors.tone(90) == "hot")
+}

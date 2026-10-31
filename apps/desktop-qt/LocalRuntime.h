@@ -7,6 +7,8 @@ class LocalRuntime final : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool owned READ owned NOTIFY changed)
     Q_PROPERTY(bool available READ available NOTIFY changed)
+    // True once a probe has answered, so views never warn before the first check.
+    Q_PROPERTY(bool checked READ checked NOTIFY changed)
     Q_PROPERTY(bool busy READ busy NOTIFY changed)
     Q_PROPERTY(QString version READ version NOTIFY changed)
     Q_PROPERTY(QString error READ error NOTIFY changed)
@@ -16,6 +18,7 @@ public:
     ~LocalRuntime() override;
     bool owned() const { return m_process.state() != QProcess::NotRunning; }
     bool available() const { return m_available; }
+    bool checked() const { return m_checked; }
     bool busy() const { return m_busy; }
     QString version() const { return m_version; }
     QString error() const { return m_error; }
@@ -26,7 +29,7 @@ public:
 private:
     QProcess m_process;
     QNetworkAccessManager m_network;
-    bool m_available = false, m_busy = false;
+    bool m_available = false, m_busy = false, m_checked = false;
     QString m_version, m_error;
     quint64 m_generation = 0;
     void probe(std::function<void(QString)> completion);

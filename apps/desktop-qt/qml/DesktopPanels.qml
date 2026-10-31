@@ -10,12 +10,18 @@ Window {
     property string mode: "quickChat"
     property string ownerID: ""
     property string chatID: ""
-    property string query: ""
-    onQueryChanged: fileDelay.restart()
-    Timer { id: fileDelay; interval: 250; onTriggered: panel.desktop.searchFiles(panel.query) }
-    readonly property var session: bridge.state.sessions.find(value => value.id === ownerID)
+    // The launcher is its own window (Launcher.qml); its shortcut and toolbar button land here.
+    signal launcherRequested()
+    // Launcher's "Ask AI": the quick chat panel with the question already sent.
+    function ask(text) {
+        mode = "quickChat"
+        if (!chatID || bridge.state.sessions.find(value => value.id === chatID)?.archived) chatID = bridge.createDetachedSession("chat", "")
+        ownerID = chatID
+        if (text.trim()) { command("draft", {value: text}); command("submit") }
+        show(); raise(); requestActivate()
+    }
+        readonly property var session: bridge.state.sessions.find(value => value.id === ownerID)
     readonly property var task: bridge.state.tasks.find(value => value.request.sessionID === ownerID && value.status === "running")
-    readonly property var apps: desktop.applications.filter(value => !query || value.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
     width: metrics.reading
     height: metrics.reading
     minimumWidth: metrics.sidebar + metrics.editor
@@ -30,9 +36,13 @@ Window {
         target: panel.desktop
         function onActivated(action, selectedText) {
             if (!panel.bridge.moduleEnabled(action === "launcher" ? "utilities" : action === "quickChat" ? "chat" : "translate")) return
+            if (action === "launcher") { panel.launcherRequested(); return }
             panel.mode = action
-            if (action === "launcher") panel.desktop.refreshApplications()
-            else if (action === "translateSelection") panel.ownerID = panel.bridge.createDetachedSession("translate", selectedText)
+            if (action === "translateSelection") {
+                // Translate right away into quick translate's own pair (same as macOS).
+                panel.ownerID = panel.bridge.createDetachedSession("translate", selectedText)
+                if (selectedText.trim()) { panel.command("pair", {source: "auto", target: panel.bridge.quickTranslateTarget(selectedText)}); panel.command("submit") }
+            }
             else {
                 if (!panel.chatID || panel.bridge.state.sessions.find(value => value.id === panel.chatID)?.archived) panel.chatID = panel.bridge.createDetachedSession("chat", "")
                 panel.ownerID = panel.chatID
@@ -43,37 +53,8 @@ Window {
     Shortcut { sequence: "Escape"; onActivated: panel.hide() }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: panel.metrics.inset; spacing: panel.metrics.inset
-        TextField { visible: panel.mode === "launcher"; text: panel.query; onTextEdited: panel.query = text; placeholderText: panel.t("searchLabel"); Layout.fillWidth: true; onAccepted: { if (panel.apps.length) { panel.desktop.launch(panel.apps[0].id); panel.hide() } } }
-        RowLayout {
-            visible: panel.mode === "launcher"
-            Repeater {
-                model: ["chat", "translate", "dictionary"]
-                delegate: Button { required property string modelData; text: panel.t(modelData); onClicked: { panel.openMainRequested(panel.bridge.state.active[modelData]); panel.hide() } }
-            }
-        }
-        Button { visible: panel.mode === "launcher"; text: panel.t("searchWeb"); enabled: panel.query.trim().length > 0; onClicked: panel.desktop.searchWeb(panel.query) }
-        Button {
-            readonly property string result: panel.desktop.currency || panel.desktop.calculate(panel.query)
-            visible: panel.mode === "launcher" && !!result
-            text: result; Accessible.name: panel.t("copyResponse") + " " + result
-            onClicked: panel.bridge.copy(result)
-        }
-        ListView {
-            visible: panel.mode === "launcher" && panel.desktop.files.length > 0
-            Layout.fillWidth: true; Layout.fillHeight: true; clip: true
-            model: panel.desktop.files
-            delegate: ItemDelegate { required property var modelData; width: ListView.view.width; text: modelData.name; ToolTip.text: modelData.id; ToolTip.visible: hovered; onClicked: { panel.desktop.openFile(modelData.id); panel.hide() }
-                onPressAndHold: fileMenu.open()
-                Menu { id: fileMenu; MenuItem { text: panel.t("revealFile"); onTriggered: panel.desktop.revealFile(modelData.id) } }
-            }
-        }
-        ListView {
-            visible: panel.mode === "launcher"; Layout.fillWidth: true; Layout.fillHeight: true; clip: true
-            model: panel.apps
-            delegate: ItemDelegate { required property var modelData; width: ListView.view.width; text: modelData.name; onClicked: { panel.desktop.launch(modelData.id); panel.hide() } }
-        }
         ColumnLayout {
-            visible: panel.mode !== "launcher" && !!panel.session
+            visible: !!panel.session
             Layout.fillWidth: true; Layout.fillHeight: true
             RowLayout {
                 Label { textFormat: Text.PlainText; text: panel.session?.title || panel.t(panel.mode); font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }

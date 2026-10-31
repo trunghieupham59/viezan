@@ -4,6 +4,8 @@ import Observation
 @MainActor @Observable public final class LocalRuntime {
     public private(set) var owned = false
     public private(set) var available = false
+    /// True once a probe has answered, so callers never warn before the first check.
+    public private(set) var checked = false
     public private(set) var busy = false
     public private(set) var error: String?
     public private(set) var version = ""
@@ -15,7 +17,7 @@ import Observation
     public func refresh() async {
         let epoch = generation
         let result = await Self.probe()
-        guard epoch == generation else { return }; available = result != nil; version = result ?? ""
+        guard epoch == generation else { return }; available = result != nil; version = result ?? ""; checked = true
     }
     public func start(parallel: Int, context: Int) async {
         guard !busy, !owned, [1, 2, 4].contains(parallel), [2048, 4096, 8192, 16384, 32768].contains(context) else { return }

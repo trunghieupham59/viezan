@@ -13,7 +13,7 @@ ColumnLayout {
         Button { text: data.t("trimHistory"); enabled: !data.bridge.loadBlocked && !data.bridge.state.tasks.some(t => t.status === "running"); onClicked: trim.open() }
     }
     Dialog { id: trim; title: data.t("trimHistory"); modal: true; standardButtons: Dialog.Ok | Dialog.Cancel; Label { text: data.t("trimHistoryConfirm"); wrapMode: Text.Wrap; width: data.bridge.resources.metrics.reading } onAccepted: data.bridge.command("trimHistory", {keep: Number(keep.currentText)}) }
-    Label { text: data.t("backupDescription"); wrapMode: Text.Wrap; Layout.fillWidth: true }
+    ToolSeparator { orientation: Qt.Horizontal; Layout.fillWidth: true }
     RowLayout {
         Button { text: data.t("exportBackup"); enabled: !data.bridge.backupBusy && !data.bridge.loadBlocked; onClicked: exportPicker.open() }
         Button { text: data.t("importBackup"); enabled: !data.bridge.backupBusy && !data.bridge.loadBlocked; onClicked: importPicker.open() }

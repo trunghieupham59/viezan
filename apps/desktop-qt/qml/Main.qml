@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
+import QtQuick.Controls.impl
 
 ApplicationWindow {
     id: root
@@ -12,7 +13,8 @@ ApplicationWindow {
         function onCapturePreparing() { root.beforeCaptureVisibility = root.visibility; root.hide() }
         function onCaptureFinished() { root.visibility = root.beforeCaptureVisibility; root.raise(); root.requestActivate() }
     }
-    DesktopPanels { bridge: workbench; onOpenMainRequested: sessionID => { root.choose(sessionID); root.show(); root.raise(); root.requestActivate() } }
+    DesktopPanels { id: panels; bridge: workbench; onOpenMainRequested: sessionID => { root.choose(sessionID); root.show(); root.raise(); root.requestActivate() }; onLauncherRequested: launcher.toggle() }
+    Launcher { id: launcher; bridge: workbench; onAskRequested: text => panels.ask(text); onOpenMainRequested: sessionID => { root.choose(sessionID); root.show(); root.raise(); root.requestActivate() } }
     visible: true
     readonly property var workspace: workbench.state
     readonly property var metrics: workbench.resources.metrics
@@ -66,6 +68,11 @@ ApplicationWindow {
         overlayOpener = switching ? previous : (opener || root.activeFocusItem)
         popup.open()
     }
+    // One-shot section request for Settings (consumed when the workspace opens it).
+    property string settingsSection: ""
+    function openSettingsSection(section) { settingsQuery = ""; settingsSection = section; selectRoute("settings") }
+    // Reads localModels so bindings re-evaluate when discovery publishes a new snapshot.
+    function modelUnavailable(model) { workbench.localModels; const state = workbench.availability(model || ""); return state !== "available" && state !== "unknown" }
     function selectRoute(route) {
         if (!workbench.moduleEnabled(route)) return
         if (workbench.loadBlocked && route !== "settings") return
@@ -74,7 +81,7 @@ ApplicationWindow {
     }
     function execute(id, opener) {
         if (["home", "chat", "translate", "dictionary", "settings", "utilities", "everywhere", "thermal", "interpret", "apps"].includes(id)) selectRoute(id)
-        else if (id === "commands") toggleOverlay(commands, opener || commandsTrigger)
+        else if (id === "commands") toggleOverlay(commands, opener || root.activeFocusItem)
         else if (id === "navigation") {
             if (compact) toggleOverlay(navigationOverlay, opener || navigationTrigger)
             else { closeOverlays(true); command("navigation", {collapsed: !navigationCollapsed}) }
@@ -90,6 +97,9 @@ ApplicationWindow {
     property bool settings: !!systemRoute
     property bool home: workspace.shell?.lastRoute === "home" || !workspace.shell?.lastRoute
     property bool library: false
+    property string settingsQuery: ""
+    readonly property int runningCount: workspace.tasks.filter(task => task.status === "running").length
+    readonly property bool workspacePage: home || ["everywhere", "apps", "thermal", "utilities"].includes(systemRoute)
     property bool favoritesOnly: false
     property bool archivedHistory: false
     property string historyQuery: ""
@@ -104,12 +114,16 @@ ApplicationWindow {
     height: metrics.reading
     minimumWidth: metrics.minWindowWidth
     minimumHeight: metrics.minWindowHeight
-    title: "Viezan Native — " + t(home ? "home" : settings ? "settings" : root.workspace.feature)
+    // System pages (Interpretation, Apps, Thermal…) share the settings shell but keep their own name.
+    title: "Viezan Native — " + t(home ? "home" : settings ? (systemRoute || "settings") : root.workspace.feature)
     color: palette.base
     function t(key) { return workbench.resources.locales[root.workspace.locale][key] || key }
     function command(name, payload) { workbench.command(name, payload || {}) }
-    function titleFor(item) { return item.title || t(item.feature === "chat" ? "newChat" : item.feature === "dictionary" ? "dictionary" : "newTranslation") }
+    function titleFor(item) { return item.title || t(item.feature === "chat" ? "newChat" : item.feature === "dictionary" ? "newLookup" : "newTranslation") }
     function lang(code) { return t("lang_" + code) }
+    // Delegates to Kit.ModelLabel so every view formats model IDs the same way.
+    Kit.ModelLabel { id: modelFormatter; visible: false }
+    function modelLabel(id) { return modelFormatter.format(id) }
     function speechText() {
         if (session.feature === "chat") return session.messages.filter(message => message.role === "assistant").slice(-1)[0]?.text || ""
         if (session.feature === "dictionary") { try { const entry = JSON.parse(session.output); return entry.headword + ". " + entry.meaning } catch (_) { return "" } }
@@ -179,7 +193,7 @@ ApplicationWindow {
         background: Rectangle {
             radius: metrics.surfaceRadius
             color: shellButton.primary ? Qt.tint(shellButton.palette.base, Qt.alpha(shellButton.palette.highlight, metrics.selectionOpacity)) : shellButton.hovered ? shellButton.palette.alternateBase : "transparent"
-            border.width: shellButton.visualFocus || shellButton.showsLabel ? metrics.hairline : 0
+            border.width: shellButton.visualFocus ? metrics.hairline : 0
             border.color: shellButton.visualFocus ? shellButton.palette.highlight : shellButton.palette.midlight
         }
         implicitWidth: showsLabel ? implicitContentWidth + leftPadding + rightPadding : metrics.control
@@ -192,26 +206,6 @@ ApplicationWindow {
         Accessible.name: text
         ToolTip.visible: hovered
         ToolTip.text: text
-    }
-    header: ToolBar {
-        implicitHeight: metrics.control + metrics.inset
-        background: Rectangle { color: root.palette.base }
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: metrics.inset
-            anchors.rightMargin: metrics.inset
-            Item {
-                Layout.preferredWidth: Math.max(metrics.control, (root.compact || root.navigationCollapsed ? metrics.rail : metrics.sidebar) - metrics.inset * 2)
-                Layout.preferredHeight: metrics.control
-                ShellButton { id: navigationTrigger; anchors.right: parent.right; objectName: "navigation-toggle"; iconName: root.compact || root.navigationCollapsed ? "expand" : "collapse"; text: t(root.compact || root.navigationCollapsed ? "expandNavigation" : "collapseNavigation"); onClicked: execute("navigation", this) }
-            }
-            ShellButton { visible: library; iconName: "back"; text: t("back"); onClicked: library = false }
-            Label { text: settings ? t(root.systemRoute || "settings") : library ? t("history") : t(root.workspace.feature) + " / " + titleFor(session); elide: Text.ElideRight; Layout.fillWidth: true; font.bold: true }
-            ShellButton { id: commandsTrigger; iconName: "search"; text: t("commands"); onClicked: execute("commands", this) }
-            ShellButton { id: historyTrigger; showsLabel: !root.compact; visible: !home && !settings && !library; iconName: "history"; text: t("history"); enabled: !workbench.loadBlocked; onClicked: execute("history", this) }
-            ShellButton { showsLabel: !root.compact; primary: true; visible: !home && !settings && !library; iconName: "new"; text: t(root.workspace.feature === "chat" ? "newChat" : root.workspace.feature === "dictionary" ? "dictionary" : "newTranslation"); enabled: !workbench.loadBlocked; onClicked: execute("new", this) }
-            ShellButton { id: activityTrigger; showsLabel: !root.compact; iconName: "activity"; text: t("activity") + " · " + root.workspace.tasks.filter(task => task.status === "running").length; onClicked: execute("activity", this) }
-        }
     }
     RowLayout {
         anchors.fill: parent
@@ -227,7 +221,64 @@ ApplicationWindow {
             Layout.fillHeight: true
             onSelected: route => root.selectRoute(route)
             onCommands: opener => root.execute("commands", opener)
+            onToggleRequested: opener => root.execute("navigation", opener)
         }
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 0
+            ToolBar {
+                id: shellHeader
+                Layout.fillWidth: true
+                implicitHeight: metrics.navControl + metrics.small
+                background: Rectangle { color: root.palette.base }
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: metrics.gutter
+                    anchors.rightMargin: metrics.inset
+                    // Rail widths: the toggle leads the header; expanded, it sits in the sidebar.
+                    ShellButton { id: navigationTrigger; visible: root.compact || root.navigationCollapsed; objectName: "navigation-toggle"; iconName: "expand"; text: t("expandNavigation"); onClicked: execute("navigation", this) }
+                    ShellButton { visible: library; iconName: "back"; text: t("back"); onClicked: library = false }
+                    // Workspace pages read "Workspace / Page"; feature pages read "Feature / Session".
+                    RowLayout {
+                        visible: root.workspacePage
+                        spacing: metrics.small
+                        Layout.fillWidth: true
+                        Accessible.role: Accessible.Heading
+                        Accessible.name: t("workspace") + " / " + t(root.home ? "home" : root.systemRoute)
+                        Label { text: t("workspace"); color: root.palette.placeholderText; Accessible.ignored: true }
+                        Label { text: "/"; color: root.palette.placeholderText; Accessible.ignored: true }
+                        Label { text: t(root.home ? "home" : root.systemRoute); font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
+                    }
+                    Label { visible: !root.workspacePage; text: settings ? t(root.systemRoute || "settings") : library ? t("history") : t(root.workspace.feature) + " / " + titleFor(session); elide: Text.ElideRight; Layout.fillWidth: true; font.bold: true; Accessible.role: Accessible.Heading }
+                    ShellButton { visible: root.workspacePage && workbench.moduleEnabled("utilities"); showsLabel: !root.compact; iconName: "utilities"; text: t("launcher"); enabled: !workbench.loadBlocked; onClicked: workbench.desktopIntegration.trigger("launcher") }
+                    TextField {
+                        visible: root.systemRoute === "" && settings
+                        objectName: "settings-header-search"
+                        Layout.preferredWidth: metrics.sidebar
+                        implicitHeight: metrics.compactControl
+                        text: root.settingsQuery
+                        placeholderText: t("settingsSearch")
+                        Accessible.name: placeholderText
+                        selectByMouse: true
+                        // Text entry: neutral border and caret, no accent ring.
+                        background: Rectangle { color: root.palette.base; radius: metrics.compactControl / 2; border.width: metrics.hairline; border.color: parent.activeFocus ? root.palette.mid : root.palette.midlight }
+                        onTextChanged: root.settingsQuery = text
+                        Keys.onEscapePressed: event => { if (!inputMethodComposing) { root.settingsQuery = ""; event.accepted = true } else event.accepted = false }
+                    }
+                    ShellButton { visible: root.systemRoute === "interpret"; showsLabel: !root.compact; iconName: "new"; text: t("summarize"); enabled: !workbench.interpretation.busy && !!workbench.interpretation.current.segments?.length; onClicked: workbench.interpretation.summarize("summary") }
+                    ShellButton { visible: root.systemRoute === "interpret"; showsLabel: !root.compact; iconName: "history"; text: t("history"); enabled: !workbench.interpretation.busy; onClicked: contentLoader.item?.openHistory?.() }
+                    ShellButton { visible: root.systemRoute === "interpret"; showsLabel: !root.compact; primary: true; iconName: "new"; text: t("newInterpretation"); enabled: !workbench.interpretation.busy; onClicked: workbench.interpretation.clearSelection() }
+                    Rectangle { visible: root.systemRoute === "interpret"; color: root.palette.midlight; implicitWidth: metrics.hairline; implicitHeight: metrics.compactControl }
+                    ShellButton { visible: !home && !settings && !library && root.workspace.feature === "translate"; showsLabel: !root.compact; iconName: "new"; text: t("addImage"); enabled: !workbench.loadBlocked && !(root.session.images || []).length; onClicked: { imagePicker.ocr = false; imagePicker.ownerID = root.session.id; imagePicker.open() } }
+                    ShellButton { visible: !home && !settings && !library && root.workspace.feature === "dictionary"; showsLabel: !root.compact; iconName: "dictionary"; text: t("savedWords"); enabled: !workbench.loadBlocked; onClicked: { root.favoritesOnly = true; root.library = true } }
+                    ShellButton { id: historyTrigger; showsLabel: !root.compact; visible: !home && !settings && !library; iconName: "history"; text: t("history"); enabled: !workbench.loadBlocked; onClicked: execute("history", this) }
+                    ShellButton { showsLabel: !root.compact; primary: true; visible: !home && !settings && !library; iconName: "new"; text: t(root.workspace.feature === "chat" ? "newChat" : root.workspace.feature === "dictionary" ? "newLookup" : "newTranslation"); enabled: !workbench.loadBlocked; onClicked: execute("new", this) }
+                    Rectangle { visible: !home && !settings && !library; color: root.palette.midlight; implicitWidth: metrics.hairline; implicitHeight: metrics.compactControl }
+                    ShellButton { id: activityTrigger; showsLabel: !root.compact; iconName: "activity"; text: t("activity") + (root.runningCount ? " · " + root.runningCount : ""); onClicked: execute("activity", this) }
+                }
+            }
+            Rectangle { color: root.palette.midlight; implicitHeight: metrics.hairline; Layout.fillWidth: true }
         ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -256,27 +307,52 @@ ApplicationWindow {
                 Button { text: t("stop"); onClicked: workbench.interpretation.listening ? workbench.interpretation.stop() : workbench.interpretation.cancel() }
             }
             Loader {
+                id: contentLoader
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 enabled: settings || !workbench.loadBlocked
                 sourceComponent: home ? homeView : settings ? (systemRoute === "apps" ? applicationsView : systemRoute === "interpret" ? interpretationView : systemRoute === "thermal" ? thermalView : systemRoute === "utilities" || systemRoute === "everywhere" ? desktopView : settingsView) : library ? libraryView : root.workspace.feature === "chat" ? chatView : translateView
             }
         }
+        }
     }
     component ModelPicker: ColumnLayout {
+        // Compact: borderless model menu; refresh/configure stay reachable as icons.
+        property bool compact: false
         spacing: metrics.small
         RowLayout {
             spacing: metrics.small
+            Kit.StatusDot { visible: root.modelUnavailable(session.model); tone: "failed"; failedColor: root.colors.danger }
             ComboBox {
+                id: modelCombo
+                flat: parent.parent.compact
                 implicitHeight: metrics.control
+                implicitContentWidthPolicy: ComboBox.WidestText
                 Layout.maximumWidth: metrics.sidebar
-                background: Rectangle { color: root.colors.surface; radius: metrics.controlRadius; border.width: metrics.hairline; border.color: root.colors.border }
-                model: root.models.map(id => id === "demo.standard" ? t("steady") : id === "demo.slow" ? t("slow") : id === "demo.failure" ? t("failure") : id)
+                background: Rectangle { visible: !modelCombo.flat || modelCombo.hovered; color: modelCombo.flat ? root.colors["surface-hover"] : root.colors.surface; radius: metrics.controlRadius; border.width: modelCombo.flat ? 0 : metrics.hairline; border.color: root.colors.border }
+                model: root.models.map(id => root.modelLabel(id))
+                ToolTip.visible: hovered; ToolTip.text: session.model
                 currentIndex: root.models.indexOf(session.model)
-                Accessible.name: t("model")
+                Accessible.name: t("model") + (root.modelUnavailable(session.model) ? ", " + t("unavailable") : "")
                 onActivated: command("model", {value: root.models[currentIndex]})
             }
+            // Compact: one options control holds refresh and configuration.
+            Kit.IconButton {
+                visible: parent.parent.compact
+                iconName: "refresh"; text: t("configureModel")
+                onClicked: modelOptions.open()
+                Menu {
+                    id: modelOptions
+                    Repeater {
+                        model: ["ollama", "lmstudio", "llamacpp", "openai", "claude", "gemini"]
+                        delegate: MenuItem { required property string modelData; text: t("refreshModels") + " · " + modelData; enabled: !workbench.loadingModels; onTriggered: workbench.refreshModels(modelData) }
+                    }
+                    MenuSeparator {}
+                    MenuItem { text: t("configureModel"); onTriggered: { modelDialog.ownerID = session.id; modelID.text = session.model; instructions.text = session.systemPrompt || ""; modelDialog.open() } }
+                }
+            }
             Button {
+                visible: !parent.parent.compact
                 icon.source: "icons/refresh.svg"
                 text: t("refreshModels")
                 display: AbstractButton.IconOnly
@@ -295,7 +371,7 @@ ApplicationWindow {
                     }
                 }
             }
-            Button { text: t("configureModel"); icon.source: "icons/settings.svg"; display: AbstractButton.IconOnly; Accessible.name: text; ToolTip.visible: hovered; ToolTip.text: text; implicitHeight: metrics.control; implicitWidth: metrics.control; onClicked: { modelDialog.ownerID = session.id; modelID.text = session.model; instructions.text = session.systemPrompt || ""; modelDialog.open() } }
+            Button { visible: !parent.parent.compact; text: t("configureModel"); icon.source: "icons/settings.svg"; display: AbstractButton.IconOnly; Accessible.name: text; ToolTip.visible: hovered; ToolTip.text: text; implicitHeight: metrics.control; implicitWidth: metrics.control; onClicked: { modelDialog.ownerID = session.id; modelID.text = session.model; instructions.text = session.systemPrompt || ""; modelDialog.open() } }
             BusyIndicator { running: workbench.loadingModels; visible: running; implicitWidth: metrics.control; implicitHeight: metrics.control }
         }
 
@@ -350,8 +426,14 @@ ApplicationWindow {
         onAccepted: { if (ocr) workbench.extractImageText(selectedFile, ownerID); else workbench.attachImage(selectedFile, ownerID) }
     }
     component ImageControls: ColumnLayout {
+        // Compact: icon menu inside a composer row; attachments render as chips.
+        property bool compact: false
         Button {
             text: t("attachImage"); icon.source: "icons/new.svg"
+            display: parent.compact ? AbstractButton.IconOnly : AbstractButton.TextBesideIcon
+            flat: parent.compact
+            implicitWidth: parent.compact ? metrics.control : implicitContentWidth + leftPadding + rightPadding
+            Accessible.name: text; ToolTip.visible: hovered; ToolTip.text: text
             implicitHeight: metrics.control
             onClicked: attachmentMenu.open()
             Menu {
@@ -360,12 +442,20 @@ ApplicationWindow {
                 MenuItem { text: t("captureImage"); enabled: ["chat", "translate"].includes(root.session.feature) && (root.session.images || []).length < (root.session.feature === "translate" ? 1 : 4); onTriggered: workbench.captureImage(root.session.id) }
                 MenuSeparator {}
                 MenuItem { text: t("extractImageText"); enabled: !workbench.ocrBusy; onTriggered: { imagePicker.ocr = true; imagePicker.ownerID = root.session.id; imagePicker.open() } }
-                MenuItem { text: t("stop"); visible: workbench.ocrBusy; onTriggered: workbench.cancelOCR() }
+                MenuItem { text: t("stop"); visible: workbench.ocrBusy; height: visible ? implicitHeight : 0; onTriggered: workbench.cancelOCR() }
+                // Chat modes ride in the "+" menu (Review 18 shows one attach control).
+                MenuSeparator { visible: root.session.feature === "chat"; height: visible ? implicitHeight : 0 }
+                Repeater {
+                    model: root.session.feature === "chat" ? ["text", "web", "research", "image"] : []
+                    delegate: MenuItem { required property string modelData; text: t("chatMode_" + modelData); checkable: true; checked: (root.session.chatMode || "text") === modelData; onTriggered: command("chatMode", {value: modelData}) }
+                }
+                MenuItem { visible: root.session.feature === "chat"; height: visible ? implicitHeight : 0; text: t("carefulReasoning"); checkable: true; checked: root.session.carefulReasoning || false; onTriggered: command("carefulReasoning", {value: checked}) }
+                MenuItem { visible: root.session.feature === "chat"; height: visible ? implicitHeight : 0; text: t(workbench.audio.speaking ? "stopSpeaking" : "listen"); enabled: workbench.audio.speaking || !!root.speechText().trim(); onTriggered: workbench.audio.speaking ? workbench.audio.silence() : workbench.audio.speak(root.speechText(), session.target) }
             }
         }
-        Label { text: t(workbench.ocrError); visible: !!workbench.ocrError; wrapMode: Text.Wrap; Layout.maximumWidth: metrics.sidebar }
+        Label { text: t(workbench.ocrError); visible: !!workbench.ocrError && !parent.compact; wrapMode: Text.Wrap; Layout.maximumWidth: metrics.sidebar }
         Repeater {
-            model: root.session.images || []
+            model: parent.compact ? [] : root.session.images || []
             delegate: RowLayout {
                 required property var modelData
                 Label { textFormat: Text.PlainText; text: modelData.name; elide: Text.ElideMiddle; Layout.maximumWidth: metrics.sidebar; ToolTip.visible: attachmentHover.hovered; ToolTip.text: text; HoverHandler { id: attachmentHover } }
@@ -374,15 +464,20 @@ ApplicationWindow {
         }
     }
     component AudioControls: ColumnLayout {
+        // Compact: record icon only; speech output moves to the options menu.
+        property bool compact: false
         RowLayout {
             spacing: metrics.small
-            Button { text: t(workbench.audio.recording ? "stopRecording" : "record"); implicitHeight: metrics.control; enabled: !workbench.audio.busy; onClicked: workbench.audio.recording ? workbench.audio.stop(workspace.speechProvider || "openai") : workbench.startRecording() }
+            Kit.IconButton { visible: parent.parent.compact; iconName: "interpret"; text: t(workbench.audio.recording ? "stopRecording" : "record"); checked: workbench.audio.recording; enabled: !workbench.audio.busy; onClicked: workbench.audio.recording ? workbench.audio.stop(workspace.speechProvider || "auto") : workbench.startRecording() }
+            Button { visible: !parent.parent.compact; text: t(workbench.audio.recording ? "stopRecording" : "record"); implicitHeight: metrics.control; enabled: !workbench.audio.busy; onClicked: workbench.audio.recording ? workbench.audio.stop(workspace.speechProvider || "auto") : workbench.startRecording() }
             Button {
+                visible: !parent.parent.compact
                 text: t(workbench.audio.speaking ? "stopSpeaking" : "listen"); implicitHeight: metrics.control
                 enabled: workbench.audio.speaking || !!root.speechText().trim()
                 onClicked: workbench.audio.speaking ? workbench.audio.silence() : workbench.audio.speak(root.speechText(), session.target)
             }
             Button {
+                visible: !parent.parent.compact
                 text: t("speechProvider"); icon.source: "icons/settings.svg"; display: AbstractButton.IconOnly
                 implicitWidth: metrics.control; implicitHeight: metrics.control; Accessible.name: text; ToolTip.visible: hovered; ToolTip.text: text
                 onClicked: speechMenu.open()
@@ -390,7 +485,7 @@ ApplicationWindow {
                     id: speechMenu
                     Repeater {
                         model: ["auto", "openai", "gemini", "groq"]
-                        delegate: MenuItem { required property string modelData; text: modelData === "auto" ? t("reasoning_auto") : modelData; checkable: true; checked: (workspace.speechProvider || "openai") === modelData; onTriggered: root.command("speechProvider", {value: modelData}) }
+                        delegate: MenuItem { required property string modelData; text: modelData === "auto" ? t("reasoning_auto") : modelData; checkable: true; checked: (workspace.speechProvider || "auto") === modelData; onTriggered: root.command("speechProvider", {value: modelData}) }
                     }
                     MenuSeparator {}
                     MenuItem { text: t("speechAutoHint"); enabled: false; implicitWidth: metrics.sidebar; contentItem: Label { text: t("speechAutoHint"); wrapMode: Text.Wrap; color: palette.text } }
@@ -411,10 +506,27 @@ ApplicationWindow {
         Accessible.name: t(source ? "inputLanguage" : "outputLanguage")
         onActivated: command("pair", {source: source ? choices[currentIndex] : session.source, target: source ? session.target : choices[currentIndex]})
     }
+    component AttachmentChips: Flow {
+        visible: (root.session.images || []).length > 0
+        spacing: metrics.small
+        Repeater {
+            model: root.session.images || []
+            delegate: Kit.StatusBadge {
+                required property var modelData
+                text: modelData.name
+                Kit.IconButton { iconName: "close"; text: t("removeAttachment") + " " + modelData.name; implicitWidth: metrics.compactControl; implicitHeight: metrics.compactControl; onClicked: workbench.command("removeImage", {sessionID: root.session.id, imageID: modelData.id}) }
+            }
+        }
+    }
     component RetryNotice: RowLayout {
         readonly property var lastTask: root.workspace.tasks.find(task => task.request.sessionID === session.id)
         visible: !!lastTask && ["failed", "interrupted", "cancelled"].includes(lastTask.status)
-        Label { text: lastTask ? t(lastTask.status === "failed" ? (lastTask.errorCode || "providerError") : lastTask.status) : ""; Layout.fillWidth: true; wrapMode: Text.Wrap }
+        ColumnLayout {
+            Layout.fillWidth: true; spacing: metrics.tight
+            Label { text: lastTask ? t(lastTask.status === "failed" ? (lastTask.errorCode || "providerError") : lastTask.status) : ""; Layout.fillWidth: true; wrapMode: Text.Wrap }
+            // The provider's own explanation, when it gave one.
+            Label { objectName: "task-error-detail"; visible: !!lastTask && lastTask.status === "failed" && !!lastTask.errorDetail; text: lastTask?.errorDetail || ""; textFormat: Text.PlainText; color: root.palette.placeholderText; font.pointSize: Qt.application.font.pointSize * metrics.captionScale; wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight; Layout.fillWidth: true }
+        }
         Button { text: t("retry"); enabled: !activeTask && !!lastTask && (session.feature === "chat" || lastTask.request.revision === session.revision); onClicked: command("retry", {taskID: lastTask.id}) }
     }
     Component {
@@ -429,6 +541,8 @@ ApplicationWindow {
                 Layout.fillHeight: true
             }
             RetryNotice { Layout.fillWidth: true }
+            // Same column as the composer it warns about; never a frame around it.
+            Kit.ProviderNotice { model: session.model; dangerColor: root.colors.danger; Layout.fillWidth: true; Layout.maximumWidth: metrics.reading; Layout.alignment: Qt.AlignHCenter; onOpenRequested: section => root.openSettingsSection(section); onUseRequested: model => command("model", {value: model}) }
             Frame {
                 padding: metrics.inset
                 background: Rectangle { color: root.palette.base; radius: metrics.surfaceRadius; border.width: metrics.hairline; border.color: chatDraft.activeFocus ? root.palette.mid : root.palette.midlight }
@@ -437,6 +551,7 @@ ApplicationWindow {
                 Layout.alignment: Qt.AlignHCenter
                 ColumnLayout {
                     anchors.fill: parent
+                    AttachmentChips { Layout.fillWidth: true }
                     ScrollView {
                         contentWidth: availableWidth
                         Layout.fillWidth: true
@@ -458,26 +573,14 @@ ApplicationWindow {
                             Keys.onEnterPressed: event => root.submitKey(event, inputMethodComposing)
                         }
                     }
-                    Flow {
-                        Layout.fillWidth: true; spacing: metrics.small
-                        ImageControls {}
-                        AudioControls {}
-                        Button {
-                            text: t("chatMode_" + (session.chatMode || "text")); implicitHeight: metrics.control
-                            onClicked: chatOptions.open()
-                            Menu {
-                                id: chatOptions
-                                Repeater {
-                                    model: ["text", "web", "research", "image"]
-                                    delegate: MenuItem { required property string modelData; text: t("chatMode_" + modelData); checkable: true; checked: (session.chatMode || "text") === modelData; onTriggered: command("chatMode", {value: modelData}) }
-                                }
-                                MenuSeparator {}
-                                MenuItem { text: t("carefulReasoning"); checkable: true; checked: session.carefulReasoning || false; onTriggered: command("carefulReasoning", {value: checked}) }
-                            }
-                        }
-                    }
+                    // Review 18: one control row under the editor.
                     RowLayout {
-                        ModelPicker {}
+                        spacing: metrics.small
+                        ImageControls { compact: true }
+                        ModelPicker { compact: true }
+                        AudioControls { compact: true }
+                        // Image mode names who will draw (OpenAI/Gemini with a key), whatever the chat model is.
+                        Label { visible: (session.chatMode || "text") !== "text"; text: t("chatMode_" + (session.chatMode || "text")) + (session.chatMode === "image" ? " · " + ((workbench.localModels, workbench.imageProvider(session.model)) === "openai" ? "OpenAI" : workbench.imageProvider(session.model) === "gemini" ? "Gemini" : t("imageProviderNone")) : ""); color: root.palette.link }
                         Item { Layout.fillWidth: true }
                         Button {
                             id: sendButton
@@ -499,20 +602,28 @@ ApplicationWindow {
         id: translateView
         ColumnLayout {
             spacing: metrics.gap
-            Flow {
+            // Review 18 language row: input ⇄ output, session model at the trailing edge.
+            // Below the reading width the model takes its own line: RowLayout keeps
+            // non-filling controls at their preferred width, so one row would overflow.
+            GridLayout {
                 Layout.fillWidth: true
-                spacing: metrics.small
-                LanguagePicker { source: true }
-                Button { text: "⇄"; Accessible.name: t("swap"); onClicked: command("pair", {source: session.target, target: session.source === "auto" ? "en" : session.source}) }
-                LanguagePicker { source: false }
-                ModelPicker {}
+                columns: width >= metrics.reading ? 2 : 1
+                columnSpacing: metrics.small
+                rowSpacing: metrics.tight
+                RowLayout {
+                    spacing: metrics.small
+                    Layout.fillWidth: true
+                    Label { text: t("inputLanguage"); color: root.palette.placeholderText }
+                    LanguagePicker { source: true; flat: true }
+                    ToolButton { text: "⇄"; Accessible.name: t("swap"); ToolTip.visible: hovered; ToolTip.text: t("swap"); onClicked: command("pair", {source: session.target, target: session.source === "auto" ? "en" : session.source}) }
+                    Label { text: t("outputLanguage"); color: root.palette.placeholderText }
+                    LanguagePicker { source: false; flat: true }
+                    Item { Layout.fillWidth: true }
+                }
+                ModelPicker { compact: true }
             }
-            Flow {
-                Layout.fillWidth: true; spacing: metrics.small
-                ImageControls {}
-                AudioControls {}
-                Button { visible: session.feature === "translate"; text: t("translationOptions"); icon.source: "icons/settings.svg"; implicitHeight: metrics.control; onClicked: translationOptionsDialog.open() }
-            }
+            Rectangle { color: root.palette.midlight; implicitHeight: metrics.hairline; Layout.fillWidth: true }
+            Kit.ProviderNotice { model: session.model; dangerColor: root.colors.danger; Layout.fillWidth: true; onOpenRequested: section => root.openSettingsSection(section); onUseRequested: model => command("model", {value: model}) }
             Dialog {
                 id: translationOptionsDialog
                 property string ownerID: ""
@@ -536,9 +647,41 @@ ApplicationWindow {
                     }
                 }
             }
+            // Review 18 dictionary: one search field with its lookup action, then the entry.
+            Frame {
+                visible: session.feature === "dictionary"
+                Layout.fillWidth: true
+                padding: metrics.small
+                leftPadding: metrics.gap
+                rightPadding: metrics.small
+                background: Rectangle { radius: metrics.largeRadius; color: "transparent"; border.width: metrics.hairline; border.color: termDraft.activeFocus ? root.palette.mid : root.palette.midlight }
+                RowLayout {
+                    anchors.fill: parent
+                    spacing: metrics.small
+                    Image { source: "icons/search.svg"; sourceSize.width: metrics.icon; sourceSize.height: metrics.icon; Accessible.ignored: true }
+                    TextField {
+                        id: termDraft
+                        objectName: session.feature === "dictionary" ? "source-draft" : "dictionary-term"
+                        Layout.fillWidth: true
+                        text: session.draft
+                        font.pointSize: Qt.application.font.pointSize * metrics.sectionScale
+                        placeholderText: t("dictionaryPlaceholder")
+                        Accessible.name: t("source")
+                        background: null
+                        selectByMouse: true
+                        onTextEdited: if (text !== session.draft) command("draft", {value: text})
+                        Keys.onReturnPressed: event => { event.accepted = !inputMethodComposing; if (event.accepted && !!text.trim() && Array.from(text).length <= 120) root.submit() }
+                        Keys.onEnterPressed: event => { event.accepted = !inputMethodComposing; if (event.accepted && !!text.trim() && Array.from(text).length <= 120) root.submit() }
+                        Connections { target: root; function onComposerFocusEpochChanged() { if (root.session.feature === "dictionary") termDraft.forceActiveFocus() } }
+                    }
+                    Button { visible: !!activeTask; text: t("stop"); onClicked: root.submit() }
+                    Kit.PrimaryButton { visible: !activeTask; text: t("lookup"); enabled: !!session.draft.trim() && Array.from(session.draft).length <= 120; onClicked: root.submit() }
+                }
+            }
             TextField {
                 visible: session.feature === "dictionary"
                 Layout.fillWidth: true
+                background: null
                 placeholderText: t("dictionaryContext")
                 Accessible.name: placeholderText
                 maximumLength: 500
@@ -546,21 +689,52 @@ ApplicationWindow {
                 onTextEdited: command("dictionaryContext", {value: text})
             }
             Label { visible: session.feature === "dictionary" && Array.from(session.draft).length > 120; text: t("dictionaryTermLimit"); wrapMode: Text.Wrap; Layout.fillWidth: true }
-            GridLayout {
+            ScrollView {
+                visible: session.feature === "dictionary"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                columns: session.feature === "dictionary" ? 1 : width >= metrics.sidebar * 2 ? 2 : 1
+                contentWidth: availableWidth
+                ColumnLayout {
+                    width: Math.min(parent.width, metrics.reading)
+                    x: (parent.width - width) / 2
+                    spacing: metrics.inset
+                    // Centered like the other empty states (matches macOS).
+                    Label { visible: !session.output; text: t(activeTask ? "running" : "dictionaryEmpty"); color: root.palette.placeholderText; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true; Layout.topMargin: metrics.large }
+                    RowLayout {
+                        visible: !!session.output
+                        Layout.fillWidth: true
+                        Item { Layout.fillWidth: true }
+                        Button { flat: true; text: t(session.favorite ? "savedWord" : "saveWord"); checkable: true; checked: !!session.favorite; onClicked: command("favorite") }
+                    }
+                    DictionaryResult { visible: !!session.output; Layout.fillWidth: true; output: session.output; bridge: workbench }
+                }
+            }
+            Kit.Card {
+                visible: session.feature !== "dictionary"
+                padding: 0
+                clip: true
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+            GridLayout {
+                id: panes
+                anchors.fill: parent
+                // Review 18 stacks the editors below the reading width (its 820 px preview).
+                columns: session.feature === "dictionary" ? 1 : width >= metrics.reading ? 2 : 1
                 columnSpacing: 0
                 rowSpacing: 0
                 Frame {
                     padding: metrics.inset
-                    background: Rectangle { color: root.colors["surface"]; border.width: metrics.hairline; border.color: root.colors.border }
+                    background: Item { Rectangle { visible: panes.columns > 1; anchors.right: parent.right; width: metrics.hairline; height: parent.height; color: root.colors.border } }
                     Layout.fillWidth: true
                     Layout.fillHeight: session.feature !== "dictionary"
                     Layout.preferredWidth: metrics.sidebar
                     ColumnLayout {
                         anchors.fill: parent
-                        Label { text: t("source"); font.bold: true; Layout.minimumHeight: metrics.control }
+                        RowLayout {
+                            Layout.minimumHeight: metrics.control
+                            Label { text: t(session.feature === "dictionary" ? "lookup" : "source"); font.bold: true; Layout.fillWidth: true }
+                            Label { text: lang(session.source); color: root.palette.placeholderText }
+                        }
                         Rectangle { Layout.fillWidth: true; implicitHeight: metrics.hairline; color: root.colors.border }
                         ScrollView {
                             contentWidth: availableWidth
@@ -568,32 +742,47 @@ ApplicationWindow {
                             Layout.preferredHeight: session.feature === "dictionary" ? metrics.control * 2 : metrics.editor
                             TextArea {
                                 id: sourceDraft
-                                objectName: "source-draft"
+                                objectName: session.feature === "dictionary" ? "panel-source-draft" : "source-draft"
                                 Connections { target: root; function onComposerFocusEpochChanged() { sourceDraft.forceActiveFocus() } }
                                 Component.onCompleted: if (root.composerFocusEpoch > 0) forceActiveFocus()
-                                text: session.draft; font.pointSize: root.readingPointSize; placeholderText: t("emptyHint"); wrapMode: TextEdit.Wrap; selectByMouse: true; background: null; Accessible.name: t("source")
+                                text: session.draft; font.pointSize: root.readingPointSize; placeholderText: t("sourcePlaceholder"); wrapMode: TextEdit.Wrap; selectByMouse: true; background: null; Accessible.name: t("source")
                                 onTextChanged: if (text !== session.draft) command("draft", {value: text})
                                 Keys.onReturnPressed: event => root.submitKey(event, inputMethodComposing)
                                 Keys.onEnterPressed: event => root.submitKey(event, inputMethodComposing)
                             }
                         }
                         Rectangle { Layout.fillWidth: true; implicitHeight: metrics.hairline; color: root.colors.border }
+                        AttachmentChips { Layout.fillWidth: true }
                         RowLayout {
                             Layout.minimumHeight: metrics.control
-                            Label { text: lang(session.source); Layout.fillWidth: true }
-                            Button { text: t(activeTask ? "stop" : session.feature === "dictionary" ? "lookup" : "translate"); highlighted: !activeTask; enabled: !!activeTask || !!session.draft.trim() || (["chat", "translate"].includes(session.feature) && (session.images || []).length > 0); onClicked: root.submit() }
+                            spacing: metrics.small
+                            ImageControls { compact: true; visible: session.feature === "translate" }
+                            AudioControls { compact: true }
+                            Label { text: t("draft"); color: root.palette.placeholderText; elide: Text.ElideRight; Layout.fillWidth: true }
+                            Button { visible: !!activeTask; text: t("stop"); onClicked: root.submit() }
+                            Kit.PrimaryButton { visible: !activeTask; text: t(session.feature === "dictionary" ? "lookup" : "translateText"); icon.source: "icons/" + (session.feature === "dictionary" ? "search" : "translate") + ".svg"; enabled: !!session.draft.trim() || (session.feature === "translate" && (session.images || []).length > 0); onClicked: root.submit() }
                         }
                     }
                 }
                 Frame {
                     padding: metrics.inset
-                    background: Rectangle { color: root.colors["surface-subtle"]; border.width: metrics.hairline; border.color: root.colors.border }
+                    // Rounded only on the corners it shares with the card outline.
+                    background: Rectangle {
+                        readonly property real r: metrics.radius
+                        color: root.colors["surface-subtle"]
+                        topRightRadius: panes.columns > 1 ? r : 0; bottomRightRadius: r; bottomLeftRadius: panes.columns > 1 ? 0 : r
+                        Rectangle { visible: panes.columns === 1; width: parent.width; height: metrics.hairline; color: root.colors.border }
+                    }
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.preferredWidth: metrics.sidebar
                     ColumnLayout {
                         anchors.fill: parent
-                        Label { text: t("result"); font.bold: true; Layout.minimumHeight: metrics.control }
+                        RowLayout {
+                            Layout.minimumHeight: metrics.control
+                            Label { text: t("result"); font.bold: true; Layout.fillWidth: true }
+                            Button { visible: session.feature === "translate"; flat: true; text: t("style_" + (session.translationStyle || "general")) + " ▾"; Accessible.name: t("translationOptions"); ToolTip.visible: hovered; ToolTip.text: t("translationOptions"); onClicked: translationOptionsDialog.open() }
+                        }
                         Rectangle { Layout.fillWidth: true; implicitHeight: metrics.hairline; color: root.colors.border }
                         ScrollView {
                             visible: session.feature !== "dictionary" && !(session.images || []).length
@@ -616,12 +805,17 @@ ApplicationWindow {
                         Rectangle { Layout.fillWidth: true; implicitHeight: metrics.hairline; color: root.colors.border }
                         RowLayout {
                             Layout.minimumHeight: metrics.control
-                            Button { visible: session.feature === "dictionary"; text: t("favorite"); checkable: true; checked: !!session.favorite; onClicked: command("favorite") }
-                            Label { text: lang(session.target); Layout.fillWidth: true }
+                            Label { text: lang(session.target); color: root.palette.placeholderText; Layout.fillWidth: true }
+                            Button { visible: session.feature === "dictionary"; text: t(session.favorite ? "savedWord" : "saveWord"); checkable: true; checked: !!session.favorite; onClicked: command("favorite") }
+                            Button { visible: session.feature === "translate" && !(session.images || []).length; text: t("compare"); onClicked: translationOptionsDialog.open() }
+                            Kit.IconButton { iconName: "interpret"; text: t(workbench.audio.speaking ? "stopSpeaking" : "listen"); enabled: workbench.audio.speaking || !!root.speechText().trim(); onClicked: workbench.audio.speaking ? workbench.audio.silence() : workbench.audio.speak(root.speechText(), session.target) }
                             Button { text: t("copy"); enabled: !!session.output; onClicked: workbench.copy((session.images || []).length ? workbench.imageTranslationText(session.output) : session.output) }
                         }
                     }
                 }
+            }
+                // Outline drawn above both panes so their fills never hide it.
+                Rectangle { anchors.fill: parent; color: "transparent"; radius: metrics.radius; border.width: metrics.hairline; border.color: root.colors.border }
             }
             RetryNotice { Layout.fillWidth: true }
         }
@@ -630,6 +824,7 @@ ApplicationWindow {
         id: homeView
         HomeWorkspace {
             bridge: workbench
+            dangerColor: root.colors.danger
             onStart: feature => { root.selectRoute(feature); if (feature !== "interpret") { root.command("new"); root.composerFocusEpoch++ } }
             onResume: sessionID => root.choose(sessionID)
             onSettings: root.selectRoute("settings")
@@ -641,20 +836,20 @@ ApplicationWindow {
     }
     Component {
         id: interpretationView
-        InterpretationWorkspace { bridge: workbench }
+        InterpretationWorkspace { bridge: workbench; dangerColor: root.colors.danger; onOpenSettings: section => root.openSettingsSection(section) }
     }
     Component {
         id: thermalView
-        ThermalWorkspace { bridge: workbench }
+        ThermalWorkspace { bridge: workbench; dangerColor: root.colors.danger }
     }
     Component {
         id: desktopView
-        DesktopWorkspace { bridge: workbench; route: root.systemRoute }
+        DesktopWorkspace { bridge: workbench; route: root.systemRoute; onRouteRequested: value => root.selectRoute(value); onNewTranslation: { root.selectRoute("translate"); root.command("new"); root.composerFocusEpoch++ } }
     }
 
     Component {
         id: settingsView
-        SettingsWorkspace { bridge: workbench }
+        SettingsWorkspace { bridge: workbench; dangerColor: root.colors.danger; query: root.settingsQuery; requestedSection: root.settingsSection; onQueryEdited: value => root.settingsQuery = value; onSectionOpened: root.settingsSection = "" }
     }
     component HistoryList: ListView {
         id: historyList
@@ -668,7 +863,8 @@ ApplicationWindow {
             required property var modelData
             width: historyList.width
             text: titleFor(modelData)
-            ToolTip.visible: hovered
+            // Only a cut-off title needs a tooltip; a fresh panel under the pointer must not cover search.
+            ToolTip.visible: hovered && rowTitle.truncated
             ToolTip.text: titleFor(modelData)
             highlighted: modelData.id === (historyList.preview ? previewID : quickID)
             padding: metrics.gap
@@ -678,10 +874,10 @@ ApplicationWindow {
             Accessible.selected: highlighted
             contentItem: ColumnLayout {
                 spacing: metrics.small
-                Label { text: titleFor(modelData); color: root.colors.text; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
+                Label { id: rowTitle; text: titleFor(modelData); color: root.colors.text; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
                 Label { objectName: "history-snippet"; text: (modelData.draft || modelData.messages[modelData.messages.length - 1]?.text || modelData.output || "").replace(/\s+/g, " "); maximumLineCount: 1; wrapMode: Text.NoWrap; color: root.colors.text; elide: Text.ElideRight; Layout.fillWidth: true; visible: text.length > 0 }
                 RowLayout {
-                    Label { text: t(modelData.model === "demo.standard" ? "steady" : modelData.model === "demo.slow" ? "slow" : modelData.model === "demo.failure" ? "failure" : modelData.model); color: root.colors["text-muted"]; elide: Text.ElideRight; Layout.fillWidth: true }
+                    Label { text: root.modelLabel(modelData.model); color: root.colors["text-muted"]; elide: Text.ElideRight; Layout.fillWidth: true }
                     Label { text: t("currentSession"); color: root.colors.text; visible: modelData.id === session.id }
                 }
             }
@@ -791,7 +987,7 @@ ApplicationWindow {
         objectName: "quick-history"
         parent: Overlay.overlay
         width: Math.min(metrics.sidebar + metrics.editor, root.width - metrics.inset * 2)
-        height: Math.min(metrics.editor * 3, root.height - root.header.height - metrics.inset, metrics.control * (Math.min(Math.max(quickHistory.count, 1), 4) * 3 + 3) + metrics.inset * 3)
+        height: Math.min(metrics.editor * 3, root.height - shellHeader.height - metrics.inset, metrics.control * (Math.min(Math.max(quickHistory.count, 1), 4) * 3 + 3) + metrics.inset * 3)
         modal: false
         focus: true
         closePolicy: Popup.CloseOnPressOutside | (root.composing() ? 0 : Popup.CloseOnEscape)
@@ -807,7 +1003,20 @@ ApplicationWindow {
             }
             SearchHistory { id: historySearch; targetList: quickHistory; Layout.fillWidth: true }
             HistoryList { id: quickHistory; Layout.fillWidth: true; Layout.fillHeight: true }
-            Button { text: t("allHistory"); Layout.fillWidth: true; onClicked: { root.closeOverlays(false); historyQuery = ""; previewID = session.id; library = true } }
+            Rectangle { Layout.fillWidth: true; implicitHeight: metrics.hairline; color: root.colors.border }
+            // Review 18: a quiet link row, not a second bordered button.
+            Button {
+                id: allHistory
+                text: t("allHistory")
+                flat: true
+                Layout.fillWidth: true
+                contentItem: RowLayout {
+                    Label { text: allHistory.text; color: root.palette.link; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
+                    IconImage { source: "icons/back.svg"; rotation: 180; color: root.palette.link; sourceSize.width: metrics.icon; sourceSize.height: metrics.icon; Accessible.ignored: true }
+                }
+                Accessible.name: text
+                onClicked: { root.closeOverlays(false); historyQuery = ""; previewID = session.id; library = true }
+            }
         }
     }
     Popup {
@@ -818,7 +1027,7 @@ ApplicationWindow {
         onOpened: activityClose.forceActiveFocus()
         parent: Overlay.overlay
         x: Math.max(metrics.inset, root.width - width - metrics.inset)
-        y: root.header.height
+        y: shellHeader.height
         width: Math.min(metrics.sidebar + metrics.editor, root.width - metrics.inset * 2)
         height: Math.min(metrics.editor * 3, root.height - y - metrics.inset)
         modal: false
@@ -850,7 +1059,7 @@ ApplicationWindow {
                             ColumnLayout {
                                 anchors.fill: parent
                                 Label { text: titleFor(target); elide: Text.ElideRight; Layout.fillWidth: true }
-                                Label { text: t(modelData.status) + " · " + modelData.request.model; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                                Label { text: t(modelData.status) + " · " + root.modelLabel(modelData.request.model); wrapMode: Text.Wrap; Layout.fillWidth: true }
                                 RowLayout {
                                     Button { text: t("open"); onClicked: choose(target.id) }
                                     Button {
@@ -871,7 +1080,7 @@ ApplicationWindow {
         id: navigationOverlay
         objectName: "navigation-overlay"
         parent: Overlay.overlay
-        y: root.header.height
+        y: shellHeader.height
         width: metrics.sidebar
         height: root.height - y
         padding: 0
@@ -897,9 +1106,9 @@ ApplicationWindow {
         objectName: "command-palette"
         parent: Overlay.overlay
         width: Math.min(metrics.sidebar + metrics.editor, root.width - metrics.inset * 2)
-        height: Math.min(metrics.editor * 3, root.height - root.header.height - metrics.inset * 2)
+        height: Math.min(metrics.editor * 3, root.height - shellHeader.height - metrics.inset * 2)
         x: (root.width - width) / 2
-        y: root.header.height + metrics.inset
+        y: shellHeader.height + metrics.inset
         modal: false
         focus: true
         closePolicy: Popup.CloseOnPressOutside | (root.composing() ? 0 : Popup.CloseOnEscape)
@@ -938,16 +1147,23 @@ ApplicationWindow {
                 clip: true
                 model: root.commandEntries
                 delegate: ItemDelegate {
+                    id: commandItem
                     required property var modelData
                     required property int index
                     width: commandList.width
                     text: t(modelData.title)
                     Accessible.role: Accessible.Button
                     Accessible.name: text
-                    icon.source: "icons/" + modelData.icon + ".svg"
-                    icon.color: highlighted ? palette.highlightedText : palette.text
                     highlighted: index === root.commandIndex
                     Accessible.selected: highlighted
+                    // Label, not the default content item: titles such as "Nhiệt độ & quạt"
+                    // must not turn "&" into a mnemonic. Selection matches settings navigation.
+                    contentItem: RowLayout {
+                        spacing: metrics.small
+                        IconImage { source: "icons/" + commandItem.modelData.icon + ".svg"; color: commandItem.highlighted ? palette.link : palette.text; sourceSize.width: metrics.icon; sourceSize.height: metrics.icon; Layout.preferredWidth: metrics.icon; Layout.preferredHeight: metrics.icon; Accessible.ignored: true }
+                        Label { text: commandItem.text; color: commandItem.highlighted ? palette.link : palette.text; font.bold: commandItem.highlighted; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
+                    }
+                    background: Rectangle { radius: metrics.radius; color: commandItem.highlighted ? Qt.tint(palette.base, Qt.alpha(palette.highlight, metrics.selectionOpacity)) : commandItem.hovered ? palette.alternateBase : "transparent" }
                     onClicked: commands.run(modelData.id)
                 }
                 Label { anchors.centerIn: parent; visible: !commandList.count; text: t("noCommands") }

@@ -7,9 +7,27 @@ ColumnLayout {
     readonly property var manager: bridge.modelManager
     function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
     Component.onCompleted: bridge.localRuntime.refresh()
-    Button { text: models.t("installRuntime"); onClicked: Qt.openUrlExternally("https://ollama.com/download") }
-    Label { text: models.t("runtimeHint"); wrapMode: Text.Wrap; Layout.fillWidth: true }
-    Label { text: "CPU: " + models.bridge.localRuntime.processors + " · " + models.bridge.localRuntime.version }
+    // Which local runtimes answer right now (the same discovery the model pickers use).
+    Kit.CardBox {
+        title: models.t("localRuntimes"); Layout.fillWidth: true
+        ColumnLayout {
+            width: parent.width; spacing: 0
+            Repeater {
+                model: [["ollama", "Ollama"], ["lmstudio", "LM Studio"], ["llamacpp", "llama.cpp"]]
+                delegate: Kit.CardRow {
+                    required property var modelData
+                    required property int index
+                    readonly property int count: (models.bridge.localModels, models.bridge.discovering, models.bridge.providerState(modelData[0]).models)
+                    title: modelData[1]; detail: modelData[0] === "ollama" ? models.bridge.localRuntime.version : ""; divider: index < 2; Layout.fillWidth: true
+                    Kit.StatusBadge { text: count >= 0 ? models.t("runtimeRunning").replace("{count}", count) : models.t("runtimeNotRunning"); idle: count < 0 }
+                    Button { visible: modelData[0] === "ollama" && count < 0; text: models.t("installRuntime"); onClicked: Qt.openUrlExternally("https://ollama.com/download") }
+                }
+            }
+        }
+    }
+    Label { text: models.t("runtimeSettings"); font.bold: true; Layout.topMargin: models.bridge.resources.metrics.small }
+    Label { text: models.t("runtimeHint"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
+    Label { text: models.t("thisDevice") + ": CPU " + models.bridge.localRuntime.processors }
     RowLayout {
         Label { text: models.t("runtimeParallel") }
         ComboBox { id: parallel; model: [1, 2, 4]; currentIndex: model.indexOf(models.bridge.state.runtime?.parallel || 1); onActivated: models.bridge.command("runtime", {parallel:model[currentIndex], context:context.model[context.currentIndex]}); enabled: !models.bridge.localRuntime.owned && !models.bridge.localRuntime.busy; Accessible.name: models.t("runtimeParallel") }
@@ -21,7 +39,8 @@ ColumnLayout {
         Button { text: models.t("runtimeStop"); visible: models.bridge.localRuntime.owned; onClicked: models.bridge.localRuntime.stop() }
     }
     Label { text: models.bridge.localRuntime.error ? models.t(models.bridge.localRuntime.error) : ""; visible: !!text; wrapMode: Text.Wrap; Layout.fillWidth: true }
-    Label { textFormat: Text.PlainText; text: models.t("localModelsHint"); wrapMode: Text.Wrap; Layout.fillWidth: true }
+    Label { text: models.t("downloadedModels"); font.bold: true; Layout.topMargin: models.bridge.resources.metrics.small }
+    Label { visible: !models.bridge.localModels.some(model => model.startsWith("ollama:")); text: models.t("noLocalModels"); color: palette.placeholderText }
     TextField { id: modelName; placeholderText: models.t("modelID"); Accessible.name: placeholderText; Layout.fillWidth: true; maximumLength: 505 }
     Flow {
         Layout.fillWidth: true; spacing: models.bridge.resources.metrics.small

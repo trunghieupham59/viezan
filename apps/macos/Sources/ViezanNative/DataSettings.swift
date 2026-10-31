@@ -13,12 +13,12 @@ struct DataSettings: View {
     var body: some View {
         VStack(alignment: .leading, spacing: metric("inset")) {
             UsageSettings(store: store)
-            Picker(store.text("historyKeep"), selection: $keep) { ForEach([20, 100, 500, 1000], id: \.self) { Text(String($0)).tag($0) } }
+            Picker(store.text("historyKeep"), selection: $keep) { ForEach([20, 100, 500, 1000], id: \.self) { Text(String($0)).tag($0) } }.fixedSize()
             Button(store.text("trimHistory"), role: .destructive) { trim = true }.disabled(busy || store.loadBlocked || store.workspace.tasks.contains { $0.status == .running })
                 .confirmationDialog(store.text("trimHistoryConfirm"), isPresented: $trim) {
                     Button(store.text("trimHistory"), role: .destructive) { do { try store.trimHistory(keeping: keep); completed = true } catch { self.error = "dataOperationError" } }
                 }
-            Text(store.text("backupDescription")).foregroundStyle(.secondary)
+            Divider()
             HStack {
                 Button(store.text("exportBackup"), action: export).disabled(busy || store.loadBlocked)
                 Button(store.text("importBackup"), action: inspect).disabled(busy || store.loadBlocked)

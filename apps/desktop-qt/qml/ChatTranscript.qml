@@ -89,7 +89,8 @@ Item {
                         }
                     }
                 }
-                Label { text: speaker === "assistant" ? "Viezan" : t("you"); font.bold: true; Layout.fillWidth: true }
+                // Review 18: only the assistant carries a quiet "✦ Viezan" label.
+                Label { visible: speaker === "assistant"; text: "✦ Viezan"; color: palette.placeholderText; font.pointSize: Qt.application.font.pointSize * chat.metrics.smallScale; Layout.fillWidth: true; Accessible.ignored: true }
                 Label {
                     readonly property var research: chat.bridge.state.tasks.find(task => task.id === messageRow.messageID)?.research
                     visible: !!research
@@ -100,6 +101,11 @@ Item {
                     id: messageText
                     objectName: "chat-text-" + messageID
                     Layout.fillWidth: true
+                    Layout.leftMargin: speaker === "user" ? chat.metrics.large : 0
+                    leftPadding: speaker === "user" ? chat.metrics.inset : 0
+                    rightPadding: leftPadding
+                    topPadding: speaker === "user" ? chat.metrics.gap : 0
+                    bottomPadding: topPadding
                     readOnly: true
                     selectByMouse: true
                     persistentSelection: true
@@ -107,7 +113,7 @@ Item {
                     wrapMode: TextEdit.Wrap
                     font.pointSize: chat.readingPointSize
                     Accessible.name: t(speaker === "assistant" ? "response" : "you")
-                    background: Rectangle { visible: speaker === "user"; color: palette.alternateBase; radius: metrics.radius }
+                    background: Rectangle { visible: speaker === "user"; color: palette.midlight; radius: chat.metrics.radius }
                     function updateContent() {
                         const start = selectionStart, end = selectionEnd, cursor = cursorPosition
                         const next = messageRow.displayBody
@@ -133,7 +139,9 @@ Item {
                     property bool copied: false
                     visible: speaker === "assistant" && rawBody.length > 0
                     flat: true
-                    text: t(copied ? "copied" : "copyResponse")
+                    text: t(copied ? "copied" : "copy")
+                    icon.source: "icons/new.svg"
+                    display: AbstractButton.TextOnly
                     Layout.alignment: Qt.AlignLeft
                     onClicked: { bridge.copy(rawBody); copied = true }
                     Connections { target: messageRow; function onRawBodyChanged() { copy.copied = false } }
@@ -141,13 +149,14 @@ Item {
             }
         }
     }
-    Label {
+    // Same empty state as macOS: heading and hint, centered on the composer's axis.
+    EmptyState {
         visible: rows.count === 0
-        text: t("emptyChat")
-        wrapMode: Text.Wrap
         anchors.centerIn: parent
         width: Math.min(parent.width, metrics.reading)
-        horizontalAlignment: Text.AlignHCenter
+        heading: t("emptyChat")
+        detail: t("emptyHint")
+        metrics: chat.metrics
     }
     Button {
         objectName: "chat-return-latest"

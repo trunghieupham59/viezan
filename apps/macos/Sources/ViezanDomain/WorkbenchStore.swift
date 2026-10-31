@@ -13,8 +13,14 @@ import Observation
     public let updates = NativeUpdates()
     public let localPerformance = LocalPerformance()
     public let localRuntime = LocalRuntime()
+    /// The pair quick translate uses; until set, the Translate page's target with no secondary.
+    public var quickTranslate: QuickTranslatePreferences {
+        get { workspace.quickTranslate ?? QuickTranslatePreferences(primary: workspace.sessions.first { $0.id == workspace.active[Feature.translate.rawValue] }?.target ?? "vi") }
+        set { guard newValue.valid, !loadBlocked else { return }; workspace.quickTranslate = newValue; save() }
+    }
     public var speechProvider: String {
-        get { workspace.speechProvider ?? "openai" }
+        // Unset means "auto": use whichever speech provider has a key on this device.
+        get { workspace.speechProvider ?? "auto" }
         set { guard ["auto", "openai", "groq", "gemini"].contains(newValue), !loadBlocked else { return }; workspace.speechProvider = newValue; save() }
     }
     public private(set) var pendingTranscript: String?
@@ -25,14 +31,23 @@ import Observation
     public private(set) var localModels: [String] = []
     public private(set) var loadingModels = false
     public private(set) var modelError: String?
+    /// What this device can run now (local runtimes + keyed cloud providers).
+    public private(set) var providers = ProviderDiscovery.Snapshot()
+    @ObservationIgnored private var discovery: Task<Void, Never>?
+    public private(set) var discovering = false
+    @ObservationIgnored private let listModels: @Sendable (String) async throws -> [String]
+    @ObservationIgnored private let hasKey: @Sendable (String) -> Bool
     @ObservationIgnored private let persistence: any WorkspacePersistence
     @ObservationIgnored private var workers: [String: Task<Void, Never>] = [:]
     @ObservationIgnored private var autoTranslationRequest: Task<Void, Never>?
     @ObservationIgnored private var deferredSave: Task<Void, Never>?
     @ObservationIgnored private let automaticProvider: Bool
 
-    public init(persistence: any WorkspacePersistence, automaticProvider: Bool = true) {
+    public init(persistence: any WorkspacePersistence, automaticProvider: Bool = true,
+                listModels: @escaping @Sendable (String) async throws -> [String] = { try await ModelCatalog.models(provider: $0) },
+                hasKey: @escaping @Sendable (String) -> Bool = { CredentialStore.has($0) }) {
         self.persistence = persistence; self.automaticProvider = automaticProvider
+        self.listModels = listModels; self.hasKey = hasKey
         reload(); extensionBridge.model = session.model; if workspace.bridge?.automatic == true && moduleEnabled("bridge") { extensionBridge.start() }
     }
     public func moduleEnabled(_ route: String) -> Bool { !(workspace.disabledModules ?? []).contains(route == "everywhere" ? "translate" : route) }
@@ -51,7 +66,7 @@ import Observation
     }
     public var session: Session { workspace.sessions.first { $0.id == workspace.active[workspace.feature.rawValue] }! }
     public func text(_ key: String) -> String { NativeResources.shared.text(key, locale: workspace.locale) }
-    public func title(_ session: Session) -> String { session.title.isEmpty ? text(session.feature == .chat ? "newChat" : session.feature == .dictionary ? "dictionary" : "newTranslation") : session.title }
+    public func title(_ session: Session) -> String { session.title.isEmpty ? text(session.feature == .chat ? "newChat" : session.feature == .dictionary ? "newLookup" : "newTranslation") : session.title }
     public func history(query: String, archived: Bool = false) -> [Session] {
         func normalized(_ value: String) -> String {
             value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: workspace.locale))
@@ -154,13 +169,15 @@ import Observation
     }
     @discardableResult public func createDetachedSession(feature: Feature, draft: String = "") -> String {
         var item = Session(feature: feature)
-        item.model = session.model; item.source = session.source; item.target = session.target; item.draft = draft
+        item.model = providers.availability(session.model) == .available ? session.model : preferredModel ?? session.model
+        item.source = session.source; item.target = session.target; item.draft = draft
         guard !loadBlocked else { return session.id }
         workspace.sessions.insert(item, at: 0); save(); return item.id
     }
     public func newSession() {
         guard !loadBlocked else { return }
-        let item = Session(feature: workspace.feature)
+        var item = Session(feature: workspace.feature)
+        if let preferredModel { item.model = preferredModel }
         workspace.sessions.insert(item, at: 0); workspace.active[item.feature.rawValue] = item.id; save()
     }
     private func edit(_ id: String, persist: Bool = true, _ mutation: (inout Session) -> Void) {
@@ -397,7 +414,7 @@ import Observation
         guard let index = workspace.tasks.firstIndex(where: { $0.id == id }), canRetry(workspace.tasks[index]) else { return }
         workspace.tasks[index].attemptID = UUID().uuidString
         workspace.tasks[index].attemptNumber += 1
-        workspace.tasks[index].status = .running; workspace.tasks[index].output = ""; workspace.tasks[index].errorCode = nil
+        workspace.tasks[index].status = .running; workspace.tasks[index].output = ""; workspace.tasks[index].errorCode = nil; workspace.tasks[index].errorDetail = nil
         let task = workspace.tasks[index]
         edit(task.request.sessionID, persist: false) { item in
             if item.feature != .chat { item.output = "" }
@@ -417,8 +434,14 @@ import Observation
         else if let i = workspace.sessions[sessionIndex].messages.firstIndex(where: { $0.id == taskID }) { workspace.sessions[sessionIndex].messages[i].text = workspace.tasks[index].output }
         if let terminal, terminal != .running {
             if terminal == .succeeded && ImageTranslation.isImageRequest(request) && ImageTranslation.parse(workspace.tasks[index].output) == nil {
-                workspace.tasks[index].status = .failed; workspace.tasks[index].errorCode = "providerInvalidResponse"
+                workspace.tasks[index].status = .failed; workspace.tasks[index].errorCode = "imageModelUnsupported"
                 workers.removeValue(forKey: taskID); save(); return
+            }
+            if terminal == .succeeded && request.feature == .dictionary {
+                // Models often wrap the JSON in a markdown fence despite the prompt; keep the JSON only.
+                let json = DictionaryEntry.extractJSON(workspace.tasks[index].output)
+                workspace.tasks[index].output = json; workspace.sessions[sessionIndex].output = json
+                if DictionaryEntry.parse(json) == nil { workspace.tasks[index].errorCode = "providerInvalidResponse" }
             }
             workspace.tasks[index].status = terminal == .succeeded && request.feature == .dictionary && DictionaryEntry.parse(workspace.tasks[index].output) == nil ? .failed : terminal; workers.removeValue(forKey: taskID); if workspace.tasks[index].status == .succeeded && request.feature == .dictionary { deduplicateDictionary(request.sessionID) }; save()
         } else { scheduleSave() }
@@ -437,10 +460,83 @@ import Observation
         }
         workspace.sessions[index].favorite = favorite
     }
-    private func fail(taskID: String, attemptID: String, code: String) {
+    private func fail(taskID: String, attemptID: String, code: String, detail: String? = nil) {
         guard let index = workspace.tasks.firstIndex(where: { $0.id == taskID && $0.attemptID == attemptID && $0.status == .running }) else { return }
-        workspace.tasks[index].errorCode = code
+        workspace.tasks[index].errorCode = code; workspace.tasks[index].errorDetail = detail.flatMap { $0.isEmpty ? nil : $0 }
         receive(taskID: taskID, attemptID: attemptID, chunk: "", terminal: .failed)
+    }
+    // A local runtime that does not answer is "offline", not a generic provider error.
+    nonisolated static func failureCode(_ error: Error, model: String, images: Bool = false) -> String {
+        if let rejection = error as? ProviderRejection { return failureCode(rejection.failure, model: model, images: images) }
+        // A request with images that the provider refuses or answers unusably usually means the model cannot read images.
+        if images, let failure = error as? CloudFailure, [.rejected, .invalidResponse].contains(failure) { return "imageModelUnsupported" }
+        if let failure = error as? CloudFailure { return failure.rawValue }
+        let local = ProviderDiscovery.localProviders.contains { model.hasPrefix($0 + ":") }
+        return local && (error is URLError || (error as? ProviderFailure) == .unavailable) ? "providerOffline" : "providerError"
+    }
+    /// Probes every provider concurrently and lets sessions without work follow what
+    /// this device can run. A new call supersedes one still in flight.
+    /// A provider's model listing as a Result (the async `Result { }` initializer needs a newer toolchain than CI's).
+    private nonisolated static func listing(_ provider: String, _ list: @Sendable (String) async throws -> [String]) async -> Result<[String], Error> {
+        do { return .success(try await list(provider)) } catch { return .failure(error) }
+    }
+    @discardableResult public func discoverProviders() -> Task<Void, Never> {
+        discovery?.cancel(); discovering = true
+        let list = listModels, hasKey = hasKey
+        let probe = Task { [weak self] in
+            var next = ProviderDiscovery.Snapshot()
+            // Key presence never unlocks the keychain, so it is known immediately.
+            next.keyed = Set(ProviderDiscovery.cloudProviders.filter(hasKey))
+            next.speechKeyed = Set(["openai", "gemini", "groq"].filter(hasKey))
+            await withTaskGroup(of: (String, Result<[String], Error>).self) { group in
+                for provider in ProviderDiscovery.localProviders { group.addTask { await (provider, Self.listing(provider, list)) } }
+                for await (provider, result) in group { if case .success(let models) = result { next.models[provider] = models } }
+            }
+            guard !Task.isCancelled, let self else { return }
+            // Publish loopback results first: cloud listings may wait on the network or on
+            // a keychain prompt, and readiness must not hang behind them.
+            next.checked = true; publishProviders(next)
+            await withTaskGroup(of: (String, Result<[String], Error>).self) { group in
+                for provider in next.keyed.sorted() { group.addTask { await (provider, Self.listing(provider, list)) } }
+                for await (provider, result) in group {
+                    guard !Task.isCancelled else { continue }
+                    switch result {
+                    case .success(let models): next.models[provider] = models
+                    // Kept for Settings: a rejected key reads differently from a network fault.
+                    case .failure(let error): next.failures[provider] = WorkbenchStore.failureCode(error, model: provider + ":")
+                    }
+                    publishProviders(next)
+                }
+            }
+            if !Task.isCancelled { discovering = false }
+        }
+        discovery = probe; return probe
+    }
+    /// Views call this; it never probes for stores without real providers (tests, previews).
+    public func discoverIfNeeded() {
+        guard automaticProvider, !providers.checked, !discovering else { return }
+        discoverProviders()
+    }
+    private func publishProviders(_ snapshot: ProviderDiscovery.Snapshot) {
+        providers = snapshot; localModels = snapshot.all; adoptAvailableModels()
+        // Speech-to-text picks the best transcription model the account lists.
+        audio.availableModels = snapshot.all; interpretation.availableModels = snapshot.all
+    }
+    private var recentModels: [String] { workspace.sessions.sorted { ($0.updated ?? 0) > ($1.updated ?? 0) }.map(\.model) }
+    /// The model new or still-empty sessions use on this device, if any AI is available.
+    public var preferredModel: String? { providers.preferredModel(recent: recentModels) }
+    // Sessions that have produced nothing yet follow the device; sessions with work keep
+    // their model (conversation-aware), and the view offers a one-click switch instead.
+    private func adoptAvailableModels() {
+        guard !loadBlocked, let preferred = preferredModel else { return }
+        var changed = false
+        for index in workspace.sessions.indices {
+            let item = workspace.sessions[index]
+            guard item.messages.isEmpty, item.output.isEmpty, item.comparisonParent == nil, running(item.id) == nil,
+                  ![.available, .unknown].contains(providers.availability(item.model)) else { continue }
+            workspace.sessions[index].model = preferred; changed = true
+        }
+        if changed { save(); extensionBridge.model = session.model }
     }
     public func refreshModels(provider requestedProvider: String? = nil) async {
         guard !loadingModels else { return }
@@ -448,11 +544,14 @@ import Observation
         defer { loadingModels = false }
         let provider = requestedProvider ?? session.model.split(separator: ":", maxSplits: 1).first.map(String.init) ?? "ollama"
         do {
-            let models = try await ModelCatalog.models(provider: provider.hasPrefix("demo.") ? "ollama" : provider)
+            let models = try await listModels(provider.hasPrefix("demo.") ? "ollama" : provider)
             localModels = localModels.filter { !$0.hasPrefix(provider + ":") } + models
+            if providers.checked { providers.models[provider] = models }
         }
         catch is CancellationError { }
-        catch { modelError = "providerError" }
+        catch let failure as CloudFailure { modelError = failure.rawValue }
+        // Local runtimes fail by not answering; say so instead of a generic provider error.
+        catch { modelError = ProviderDiscovery.localProviders.contains(provider) ? "providerOffline" : "providerError" }
     }
     public var availableModels: [String] {
         Array(Set(localModels + [session.model])).filter { !$0.hasPrefix("demo.") }.sorted()
@@ -473,6 +572,7 @@ import Observation
     }
     private func start(_ task: WorkTask) {
         guard automaticProvider else { return }
+        let available = providers.all // image generation picks a model the account actually lists
             workers[task.id] = Task { [weak self] in
                 do {
                     let receiver: @Sendable (String) async -> Void = { [weak self] chunk in
@@ -484,14 +584,16 @@ import Observation
                             await self?.researchCheckpoint(state, taskID: task.id, attemptID: task.attemptID)
                         }, receive: receiver)
                     } else if task.request.chatMode == "image" {
-                        let images = try await ImageGeneration.generate(task.request); try Task.checkCancellation()
+                        let images = try await ImageGeneration.generate(task.request, available: available); try Task.checkCancellation()
                         self?.receiveImages(taskID: task.id, attemptID: task.attemptID, images: images)
                     } else { try await NativeProvider.stream(task.request, usage: usage, receive: receiver) }
                     try Task.checkCancellation()
                     self?.receive(taskID: task.id, attemptID: task.attemptID, chunk: "", terminal: .succeeded)
                 } catch {
                     if !Task.isCancelled {
-                        self?.fail(taskID: task.id, attemptID: task.attemptID, code: (error as? CloudFailure)?.rawValue ?? "providerError")
+                        let images = ImageTranslation.isImageRequest(task.request) || !(task.request.messages?.last(where: { $0.role == "user" })?.images ?? []).isEmpty
+                        let rejection = error as? ProviderRejection
+                        self?.fail(taskID: task.id, attemptID: task.attemptID, code: task.request.chatMode == "image" ? (rejection?.failure ?? error as? CloudFailure)?.rawValue ?? "providerError" : WorkbenchStore.failureCode(error, model: task.request.model, images: images), detail: rejection?.detail)
                     }
                 }
             }

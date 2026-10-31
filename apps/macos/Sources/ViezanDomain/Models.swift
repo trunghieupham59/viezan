@@ -89,9 +89,33 @@ public struct WorkTask: Codable, Identifiable, Equatable, Sendable {
     public var attemptID: String
     public var attemptNumber: Int = 1
     public var errorCode: String?
+    /// The provider's own explanation of a failure (shown under the localized error).
+    public var errorDetail: String?
     public var request: Request
     public var status: TaskStatus
     public var output: String
+}
+/// Quick translate (the global selection shortcut) keeps its own language pair, apart from
+/// the Translate page: text already in `primary` goes to `secondary`, everything else to `primary`.
+public struct QuickTranslatePreferences: Codable, Equatable, Sendable {
+    public var primary: String
+    public var secondary: String?
+    public init(primary: String, secondary: String? = nil) { self.primary = primary; self.secondary = secondary }
+    var valid: Bool {
+        let languages = NativeResources.shared.nativeLanguages
+        return languages.contains(primary) && (secondary.map { languages.contains($0) && $0 != primary } ?? true)
+    }
+    /// Choosing the current secondary as primary swaps the pair instead of merging it.
+    public func choosing(primary value: String) -> Self {
+        Self(primary: value, secondary: secondary == value ? primary : secondary)
+    }
+    /// The target for `text`; `detected` is the text's language when known.
+    public func target(detected: String?) -> String {
+        guard let secondary, let detected else { return primary }
+        let base = { (code: String) in code.split(separator: "-").first.map(String.init) ?? code }
+        // zh and zh-TW share a family; a Chinese text with a Chinese primary is "already primary".
+        return base(detected) == base(primary) ? secondary : primary
+    }
 }
 public struct BridgePreferences: Codable, Equatable, Sendable {
     public var automatic = false
@@ -134,6 +158,7 @@ public struct Workspace: Codable, Equatable, Sendable {
     public var speechProvider: String?
     public var appearance: AppearancePreferences?
     public var shell: ShellPreferences?
+    public var quickTranslate: QuickTranslatePreferences?
     public var navigationCollapsed: Bool { shell?.navigationCollapsed ?? false }
     public var preferences: AppearancePreferences { appearance ?? AppearancePreferences() }
     public init() {
@@ -154,6 +179,7 @@ public struct Workspace: Codable, Equatable, Sendable {
     public func validated() throws -> Workspace {
         guard ["graphite", "glass", "paper", "corporate", "midnight"].contains(preferences.preset ?? "glass"), ["auto", "violet", "pink", "teal", "green", "amber", "red"].contains(preferences.accent ?? "auto"), (disabledModules ?? []).allSatisfy({ ["chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities", "bridge"].contains($0) }), (rates?.count ?? 0) <= 1000, rates?.allSatisfy({ NativeModel.valid($0.key) && $0.value.valid }) ?? true, schemaVersion == 1,
               ["vi", "en", "ja"].contains(locale),
+              quickTranslate?.valid ?? true,
               Set(sessions.map(\.id)).count == sessions.count,
               Set(tasks.map(\.id)).count == tasks.count,
               Feature.allCases.allSatisfy({ feature in sessions.contains { $0.feature == feature && $0.id == active[feature.rawValue] && $0.archived != true } }),

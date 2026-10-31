@@ -47,6 +47,8 @@ public:
     Q_INVOKABLE void shutdown();
     Q_INVOKABLE void refreshApplications();
     Q_INVOKABLE void launch(const QString &id);
+    // Launcher results: ranked applications, recent ones first (recent only when the query is empty).
+    Q_INVOKABLE QVariantList rankApplications(const QString &query) const;
     Q_INVOKABLE void openApplicationSettings();
     Q_INVOKABLE void trigger(const QString &action);
     bool nativeEventFilter(const QByteArray &type, void *message, qintptr *result) override;

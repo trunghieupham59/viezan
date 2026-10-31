@@ -31,7 +31,8 @@ Existing GitHub releases may still be the previous app.
 - System, Edge, OpenAI, Gemini and ElevenLabs speech; provider credentials stored
   through OS credential facilities rather than renderer storage.
 - Desktop Review 18 UI organization: compact composer tools, translation options,
-  category-based Settings, searchable interpretation history, responsive application
+  category-based Settings with separate Voice, Modules and Updates sections,
+  dictionary Meaning/Examples tabs, searchable interpretation history, responsive application
   details, dedicated desktop-tools pages and a recent-work Home workspace.
   Background interpretation exposes Open/Stop while navigating; closing the main
   window stops capture. Latest UI edits await

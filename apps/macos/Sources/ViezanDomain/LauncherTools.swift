@@ -25,6 +25,8 @@ public enum LauncherCalculator {
 }
 public struct LauncherFile: Identifiable, Sendable { public var id: String; public var name: String }
 public enum LauncherFiles {
+    /// Dependency and build folders hold thousands of files nobody opens from a launcher.
+    static let skipped: Set<String> = ["node_modules", "DerivedData", "Pods", "Carthage", "site-packages", "__pycache__", "target", "dist", "build"]
     public static func search(_ input: String) -> [LauncherFile] {
         let query = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard query.count >= 2, query.utf8.count <= 256 else { return [] }
@@ -33,22 +35,31 @@ public enum LauncherFiles {
             let paths = String(decoding: result.output, as: UTF8.self).split(separator: "\n").map(String.init)
             let indexed = paths.compactMap { path -> LauncherFile? in
                 let url = URL(fileURLWithPath: path)
-                guard path.hasPrefix(manager.homeDirectoryForCurrentUser.path + "/"), !url.pathComponents.contains(where: { $0.hasPrefix(".") }), let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .isDirectoryKey, .isSymbolicLinkKey]), (values.isRegularFile == true || values.isDirectory == true), values.isSymbolicLink != true else { return nil }
+                guard path.hasPrefix(manager.homeDirectoryForCurrentUser.path + "/"), !url.pathComponents.contains(where: { $0.hasPrefix(".") || LauncherFiles.skipped.contains($0) }), let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .isDirectoryKey, .isSymbolicLinkKey]), (values.isRegularFile == true || values.isDirectory == true), values.isSymbolicLink != true else { return nil }
                 return LauncherFile(id: path, name: url.lastPathComponent)
             }
-            if !indexed.isEmpty { return Array(indexed.prefix(50)) }
+            return Array(indexed.prefix(50))
         }
-        var results: [LauncherFile] = []; var visited = 0
-        let deadline = Date().addingTimeInterval(2)
-        for folder in [FileManager.SearchPathDirectory.documentDirectory, .desktopDirectory, .downloadsDirectory] {
-            guard let root = manager.urls(for: folder, in: .userDomainMask).first,
-                  let iterator = manager.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey, .isDirectoryKey, .isSymbolicLinkKey], options: [.skipsHiddenFiles, .skipsPackageDescendants]) else { continue }
-            for case let url as URL in iterator {
-                visited += 1; if visited > 20000 || results.count >= 50 || Date() > deadline || Task.isCancelled { return results }
-                guard let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .isDirectoryKey, .isSymbolicLinkKey]), values.isSymbolicLink != true else { continue }
-                if (values.isRegularFile == true || values.isDirectory == true) && url.lastPathComponent.localizedStandardContains(query) { results.append(.init(id: url.path, name: url.lastPathComponent)) }
-            }
+        // Without Spotlight there are no file results: walking Desktop, Documents and Downloads
+        // would raise macOS's folder-access prompt in the middle of typing.
+        return []
+    }
+}
+/// Orders launcher applications for a query: name prefix, then a word prefix, then anywhere;
+/// recently opened apps first within each tier. An empty query lists only recent apps.
+public enum LauncherRanking {
+    public static func applications(_ apps: [LauncherApplication], query: String, recent: [String], limit: Int = 8) -> [LauncherApplication] {
+        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let order = Dictionary(recent.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+        guard !needle.isEmpty else { return Array(apps.filter { order[$0.id] != nil }.sorted { order[$0.id]! < order[$1.id]! }.prefix(limit)) }
+        func tier(_ name: String) -> Int? {
+            let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+            if name.range(of: needle, options: options.union(.anchored)) != nil { return 0 }
+            if name.split(whereSeparator: { $0 == " " || $0 == "-" || $0 == "." }).contains(where: { $0.range(of: needle, options: options.union(.anchored)) != nil }) { return 1 }
+            return name.range(of: needle, options: options) != nil ? 2 : nil
         }
-        return results
+        return Array(apps.compactMap { app in tier(app.name).map { (app, $0) } }
+            .sorted { ($0.1, order[$0.0.id] ?? Int.max, $0.0.name.count) < ($1.1, order[$1.0.id] ?? Int.max, $1.0.name.count) }
+            .map(\.0).prefix(limit))
     }
 }

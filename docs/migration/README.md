@@ -17,6 +17,8 @@ Ngày: 2026-10-26. Desktop trước; mobile chỉ thiết kế ranh giới kiế
 - [Implementation 02: lịch sử nhanh và xem trước thư viện](native-implementation/history-02.md)
 - [Implementation 03: workspace Cài đặt và giao diện](native-implementation/settings-03.md)
 - [Implementation 04: đọc Chat, vùng chọn và sao chép](native-implementation/chat-reading-04.md)
+- **[Bàn giao 2026-10-28: UI/UX Review 18 — đọc trước khi làm tiếp](native-implementation/HANDOFF-2026-10-28.md)**
+- [Native code 39: UI/UX Review 18 trên SwiftUI và Qt, có ảnh chạy thật](native-implementation/native-code-39.md)
 - [Bằng chứng runtime và kiểm thử](native-implementation/verification.md)
 - [Kiến trúc và lộ trình](architecture.md)
 - [Quy tắc UI/UX đa nhiệm](workbench-ux.md)
@@ -37,3 +39,5 @@ Prompt tiếp tục:
 
 Thiết kế được nghiệm thu riêng với runtime. Không dùng screenshot hoặc prototype
 để tuyên bố đã hỗ trợ native, background task, accessibility hay khôi phục dữ liệu.
+
+Review 18 follow-up: [native code 40](native-implementation/native-code-40.md) records Settings/Dictionary alignment, successful local builds, and the concurrent-review blocker.

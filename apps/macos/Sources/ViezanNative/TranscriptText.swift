@@ -99,7 +99,7 @@ struct CopyResponseButton: View {
         Button(copied ? copiedLabel : label, systemImage: copied ? "checkmark" : "doc.on.doc") {
             NSPasteboard.general.clearContents()
             copied = NSPasteboard.general.setString(text, forType: .string)
-        }.buttonStyle(.borderless).controlSize(.small).disabled(text.isEmpty)
+        }.buttonStyle(.vznQuiet).disabled(text.isEmpty)
             .onChange(of: text) { _, _ in copied = false }
     }
 }

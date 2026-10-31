@@ -1,4 +1,5 @@
 #include <QRegularExpression>
+#include <algorithm>
 #include "WorkbenchDomain.h"
 #include "ImageTranslation.h"
 #include "LanguageSegments.h"
@@ -65,6 +66,13 @@ qsizetype running(const List &tasks, const QString &sessionID) {
 void cancelRunning(List &tasks, const QString &sessionID) {
     const auto i = running(tasks, sessionID);
     if (i >= 0) { auto task = tasks[i].toMap(); task["status"] = "cancelled"; tasks[i] = task; }
+}
+// The JSON object inside a reply: strips a ```json fence or any text around the outermost braces.
+QString dictionaryJSON(const QString &text) {
+    const auto trimmed = text.trimmed();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) return trimmed;
+    const auto start = trimmed.indexOf('{'), end = trimmed.lastIndexOf('}');
+    return start >= 0 && end > start ? trimmed.mid(start, end - start + 1) : trimmed;
 }
 bool validDictionary(const QString &text) {
     if (text.toUtf8().size() > 1048576) return false;
@@ -143,6 +151,10 @@ bool validate(const Map &state) {
     }
     if (state.contains("voice")) { const auto voice = state.value("voice").toMap(); if (!QStringList{"system", "edge", "openai", "gemini", "elevenlabs"}.contains(voice.value("provider").toString()) || voice.value("voice").toString().toUtf8().size() > 256) return false; }
     if (state.contains("autoTranslate") && state.value("autoTranslate").metaType().id() != QMetaType::Bool) return false;
+    if (state.contains("quickTranslate")) {
+        const auto quick = state.value("quickTranslate").toMap(); const auto primary = quick.value("primary").toString(), secondary = quick.value("secondary").toString();
+        if (!languages.contains(primary) || (!secondary.isEmpty() && (!languages.contains(secondary) || secondary == primary))) return false;
+    }
     if (state.contains("autoTranslateDelay") && (!integer(state.value("autoTranslateDelay"),100) || state.value("autoTranslateDelay").toInt()>5000)) return false;
     if (state.contains("runtime")) { const auto runtime = state.value("runtime").toMap(); if (!QList<int>{1,2,4}.contains(runtime.value("parallel").toInt()) || !QList<int>{2048,4096,8192,16384,32768}.contains(runtime.value("context").toInt())) return false; }
     if (state.contains("prompts")) {
@@ -371,6 +383,14 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
     // Navigation changes selection without mutating drafts or task identities.
     if (name == "navigate" && features.contains(p.value("feature").toString())) state["feature"] = p.value("feature");
     else if (name == "select" && index >= 0 && !item.value("archived").toBool()) { state["feature"] = item.value("feature"); active[item.value("feature").toString()] = item.value("id"); }
+    // Quick translate's pair; choosing the current secondary as primary swaps the two.
+    else if ((name == "quickTranslatePrimary" || name == "quickTranslateSecondary") && (languages.contains(p.value("value").toString()) || (name == "quickTranslateSecondary" && p.value("value").toString().isEmpty()))) {
+        auto quick = state.value("quickTranslate").toMap(); const auto value = p.value("value").toString();
+        if (!quick.contains("primary")) { quick["primary"] = "vi"; for (const auto &entry : sessions) if (entry.toMap().value("id") == active.value("translate")) quick["primary"] = entry.toMap().value("target"); }
+        if (name == "quickTranslatePrimary") { if (quick.value("secondary") == value) quick["secondary"] = quick.value("primary"); quick["primary"] = value; }
+        else if (value != quick.value("primary").toString()) quick["secondary"] = value;
+        state["quickTranslate"] = quick;
+    }
     else if (name == "speechProvider" && QStringList{"auto", "openai", "groq", "gemini"}.contains(p.value("value").toString())) state["speechProvider"] = p.value("value");
     else if (name == "locale" && locales.contains(p.value("value").toString())) state["locale"] = p.value("value");
     else if (name == "route" && QStringList{"home", "chat", "translate", "dictionary", "settings", "utilities", "everywhere", "thermal", "interpret", "apps"}.contains(p.value("value").toString())) {
@@ -435,6 +455,18 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
     } else if (name == "favorite" && index >= 0 && item.value("feature") == "dictionary") {
         item["favorite"] = !item.value("favorite").toBool();
     } else if (name == "model" && index >= 0 && validModel(p.value("value").toString())) item["model"] = p.value("value");
+    // Provider discovery moves sessions that have produced nothing to a model this device
+    // can run. Unlike "model" it never schedules auto-translation (no provider charge).
+    else if (name == "adoptModel" && validModel(p.value("value").toString())) {
+        const auto ids = p.value("sessionIDs").toStringList(); bool changed = false;
+        for (auto &value : sessions) {
+            auto session = value.toMap(); if (!ids.contains(session.value("id").toString())) continue;
+            const bool running = std::any_of(tasks.cbegin(), tasks.cend(), [&](const QVariant &task) { return task.toMap().value("request").toMap().value("sessionID") == session.value("id") && task.toMap().value("status") == "running"; });
+            if (running || !session.value("messages").toList().isEmpty() || !session.value("output").toString().isEmpty() || !session.value("comparisonParent").toString().isEmpty()) continue;
+            session["model"] = p.value("value"); value = session; changed = true;
+        }
+        if (!changed) return original;
+    }
     else if (name == "pair" && index >= 0 && sourceLanguage(p.value("source").toString()) && languages.contains(p.value("target").toString())) {
         cancelRunning(tasks, sessionID); item["source"] = p.value("source"); item["target"] = p.value("target");
         item["revision"] = item.value("revision").toLongLong() + 1; item["output"] = "";
@@ -479,7 +511,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
             if (name == "cancel" && task.value("status") == "running") task["status"] = "cancelled";
             else if (name == "retry" && si >= 0 && !target.value("archived").toBool() && task.value("status") != "running" && task.value("status") != "succeeded" && running(tasks, request.value("sessionID").toString()) < 0 && currentRevision) {
                 task["attemptID"] = attemptID; task["attemptNumber"] = task.value("attemptNumber", 1).toLongLong() + 1;
-                task["status"] = "running"; task["output"] = ""; task.remove("errorCode"); setOutput(target, task.value("id").toString(), "");
+                task["status"] = "running"; task["output"] = ""; task.remove("errorCode"); task.remove("errorDetail"); setOutput(target, task.value("id").toString(), "");
             } else if (name == "receive" && task.value("status") == "running" && task.value("attemptID") == p.value("attemptID")) {
                 if (si < 0 || !currentRevision) task["status"] = "cancelled";
                 else {
@@ -490,14 +522,29 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
                     }
                     if (p.contains("research")) task["research"] = p.value("research");
                     task["output"] = task.value("output").toString() + p.value("chunk").toString();
-                    if (p.value("terminal") == "failed") task["errorCode"] = p.value("errorCode", "providerError");
+                    if (p.value("terminal") == "failed") {
+                        task["errorCode"] = p.value("errorCode", "providerError");
+                        // The provider's own explanation, shown under the localized error.
+                        if (!p.value("errorDetail").toString().isEmpty()) task["errorDetail"] = p.value("errorDetail").toString().left(300); else task.remove("errorDetail");
+                        // A refused or unusable answer to a request with images usually means the model cannot read images.
+                        bool images = ImageTranslation::isImageRequest(request);
+                        if (!images) for (const auto &message : request.value("messages").toList()) if (message.toMap().value("role") == "user") images = !message.toMap().value("images").toList().isEmpty(); // last user turn
+                        if (images && request.value("chatMode") != "image" && QStringList{"providerRejected", "providerInvalidResponse"}.contains(task.value("errorCode").toString())) task["errorCode"] = "imageModelUnsupported";
+                    }
                     setOutput(target, task.value("id").toString(), task.value("output").toString());
                     if (p.contains("images") && validImages(p.value("images")) && target.value("feature") == "chat") {
                         auto messages = target.value("messages").toList(); const auto mi = find(messages, task.value("id").toString());
                         if (mi >= 0) { auto message = messages[mi].toMap(); message["images"] = p.value("images"); messages[mi] = message; target["messages"] = messages; }
                     }
-                    if (p.value("terminal") == "succeeded" && ImageTranslation::isImageRequest(request) && !ImageTranslation::valid(task.value("output").toString())) { task["status"] = "failed"; task["errorCode"] = "providerInvalidResponse"; }
-                    else if (p.value("terminal") == "succeeded" || p.value("terminal") == "failed") task["status"] = p.value("terminal") == "succeeded" && request.value("feature") == "dictionary" && !validDictionary(task.value("output").toString()) ? QVariant("failed") : p.value("terminal");
+                    if (p.value("terminal") == "succeeded" && ImageTranslation::isImageRequest(request) && !ImageTranslation::valid(task.value("output").toString())) { task["status"] = "failed"; task["errorCode"] = "imageModelUnsupported"; }
+                    else if (p.value("terminal") == "succeeded" && request.value("feature") == "dictionary") {
+                        // Models often fence the JSON despite the prompt; keep the JSON only.
+                        const auto json = dictionaryJSON(task.value("output").toString());
+                        task["output"] = json; setOutput(target, task.value("id").toString(), json);
+                        task["status"] = validDictionary(json) ? "succeeded" : "failed";
+                        if (!validDictionary(json)) task["errorCode"] = "providerInvalidResponse";
+                    }
+                    else if (p.value("terminal") == "succeeded" || p.value("terminal") == "failed") task["status"] = p.value("terminal");
                 }
             }
             tasks[ti] = task;
@@ -507,7 +554,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
     // Ignored commands must not change recency or trigger unnecessary persistence.
     if (index >= 0 && (item != sessions[index].toMap() || tasks != original.value("tasks").toList()) && QStringList{"draft", "submit", "rename", "pair", "dictionaryContext"}.contains(name) && p.value("_updated").toDouble() > 0 && std::isfinite(p.value("_updated").toDouble())) item["updated"] = p.value("_updated");
     // New inserts before the old index; do not overwrite the newly created session.
-    if (index >= 0 && name != "new") sessions[index] = item;
+    if (index >= 0 && name != "new" && name != "adoptModel") sessions[index] = item;
     if (name == "receive" && p.value("terminal") == "succeeded") {
         QString owner; for (const auto &value : tasks) { const auto task = value.toMap(); if (task.value("id") == p.value("taskID") && task.value("status") == "succeeded" && task.value("request").toMap().value("feature") == "dictionary") owner = task.value("request").toMap().value("sessionID").toString(); }
         const auto currentIndex = find(sessions, owner);

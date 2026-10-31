@@ -1,10 +1,27 @@
 import Foundation
 public enum ImageGeneration {
-    public static func generate(_ input: Request) async throws -> [ImageAttachment] {
+    /// Images are drawn by OpenAI or Gemini: the session's own provider when it can draw,
+    /// otherwise any image provider this device has a key for (local AI cannot draw).
+    public static func provider(for model: String, hasKey: (String) -> Bool = { CredentialStore.has($0) }) -> String? {
+        let own = String(model.split(separator: ":", maxSplits: 1).first ?? "")
+        if ["openai", "gemini"].contains(own), hasKey(own) { return own }
+        return ["openai", "gemini"].first(where: hasKey)
+    }
+    /// The image model to call: the session's own image model, else the newest full-size image
+    /// model the account lists (discovery), else a known default.
+    static func imageModel(provider: String, selected: String, available: [String]) -> String {
+        if provider == "openai" ? selected.hasPrefix("gpt-image-") : selected.contains("image") && !selected.hasPrefix("imagen") { return selected }
+        let listed = available.filter { $0.hasPrefix(provider + ":") }.map { String($0.dropFirst(provider.count + 1)) }
+            .filter { provider == "openai" ? $0.hasPrefix("gpt-image-") : $0.contains("image") && !$0.hasPrefix("imagen") }.sorted()
+        return listed.last(where: { !$0.contains("mini") }) ?? listed.last ?? (provider == "openai" ? "gpt-image-1" : "gemini-3.1-flash-image-preview")
+    }
+    public static func generate(_ input: Request, available: [String] = []) async throws -> [ImageAttachment] {
         let parts = input.model.split(separator: ":", maxSplits: 1).map(String.init)
-        guard parts.count == 2, ["openai", "gemini"].contains(parts[0]), input.input.utf8.count <= 32768 else { throw CloudFailure.invalidResponse }
-        let provider = parts[0], selected = parts[1]
-        let model = provider == "openai" ? (selected.hasPrefix("gpt-image-") ? selected : "gpt-image-1") : (selected.contains("image") ? selected : "gemini-3.1-flash-image-preview")
+        guard input.input.utf8.count <= 32768 else { throw CloudFailure.invalidResponse }
+        guard let provider = provider(for: input.model) else { throw CloudFailure.imageProviderMissing }
+        // A chosen image model is kept only when it belongs to the provider that draws.
+        let selected = parts.count == 2 && parts[0] == provider ? parts[1] : ""
+        let model = imageModel(provider: provider, selected: selected, available: available)
         guard model.range(of: "^[A-Za-z0-9._-]+$", options: .regularExpression) != nil, let key = try? CredentialStore.read(provider) else { throw CloudFailure.missingKey }
         let images = input.messages?.last(where: { $0.role == "user" })?.images ?? []
         guard images.count <= 4 else { throw CloudFailure.invalidResponse }
@@ -35,7 +52,7 @@ public enum ImageGeneration {
         let config = URLSessionConfiguration.ephemeral; config.timeoutIntervalForRequest = 300; config.timeoutIntervalForResource = 600
         let session = URLSession(configuration: config, delegate: NoRedirectDelegate(), delegateQueue: nil); defer { session.invalidateAndCancel() }
         let (bytes, response) = try await session.bytes(for: request)
-        guard let response = response as? HTTPURLResponse else { throw CloudFailure.network }; guard response.statusCode == 200 else { throw CloudFailure.http(response.statusCode) }
+        guard let response = response as? HTTPURLResponse else { throw CloudFailure.network }; guard response.statusCode == 200 else { throw await ProviderRejection.from(status: response.statusCode, bytes: bytes) }
         var data = Data(); for try await byte in bytes { try Task.checkCancellation(); guard data.count < 64_000_000 else { throw ProviderFailure.oversizedResponse }; data.append(byte) }
         guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw CloudFailure.invalidResponse }
         var encoded: [(String, String)] = []

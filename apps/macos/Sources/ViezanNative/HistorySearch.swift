@@ -12,6 +12,8 @@ struct HistorySearch: NSViewRepresentable {
     var last: (() -> Void)? = nil
     var onTab: ((Bool) -> Void)? = nil
     var focusEpoch = 0
+    // Panels focus their search on open; a persistent header field does not.
+    var autofocus = true
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> FocusSearchField {
@@ -19,8 +21,9 @@ struct HistorySearch: NSViewRepresentable {
         field.delegate = context.coordinator
         field.sendsSearchStringImmediately = true
         field.focusRingType = .exterior
+        if !autofocus { field.controlSize = .large }
         field.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        field.requestInitialFocus()
+        if autofocus { field.requestInitialFocus() }
         return field
     }
     func updateNSView(_ field: FocusSearchField, context: Context) {

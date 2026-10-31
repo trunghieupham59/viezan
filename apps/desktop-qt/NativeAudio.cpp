@@ -58,7 +58,11 @@ void NativeAudio::stop(const QString &provider) {
     if (!recording()) return;
     prepareCandidates(provider); m_transcribeRequested = true; m_recorder.stop();
 }
-static CloudProtocol::Call prepareSpeech(const QString &path, const QString &provider, const QString &language) {
+QString NativeAudio::transcriptionModel(const QStringList &available) {
+    for (const auto &model : {QStringLiteral("gpt-4o-transcribe"), QStringLiteral("gpt-4o-mini-transcribe")}) if (available.contains("openai:" + model)) return model;
+    return "whisper-1";
+}
+static CloudProtocol::Call prepareSpeech(const QString &path, const QString &provider, const QString &language, const QString &openaiModel) {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly) || file.size() <= 0 || file.size() > 25000000 || !QStringList{"openai", "groq", "gemini"}.contains(provider)) {
         return {{}, {}, "audioError"};
@@ -78,7 +82,7 @@ static CloudProtocol::Call prepareSpeech(const QString &path, const QString &pro
         request.setRawHeader("Authorization", "Bearer " + key);
         const auto boundary = QUuid::createUuid().toByteArray(QUuid::WithoutBraces);
         request.setHeader(QNetworkRequest::ContentTypeHeader, "multipart/form-data; boundary=" + boundary);
-        body = "--" + boundary + "\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\n" + (provider == "groq" ? QByteArray("whisper-large-v3-turbo") : QByteArray("whisper-1")) + "\r\n--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"recording.wav\"\r\nContent-Type: audio/wav\r\n\r\n" + audio + "\r\n--" + boundary + "--\r\n";
+        body = "--" + boundary + "\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\n" + (provider == "groq" ? QByteArray("whisper-large-v3-turbo") : openaiModel.toUtf8()) + "\r\n--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"recording.wav\"\r\nContent-Type: audio/wav\r\n\r\n" + audio + "\r\n--" + boundary + "--\r\n";
     }
     if (provider != "gemini" && language != "auto" && QRegularExpression("^[a-z]{2,3}(-[A-Za-z]{2,4})?$").match(language).hasMatch()) {
         const auto boundary = request.header(QNetworkRequest::ContentTypeHeader).toString().section("boundary=",1).toUtf8();
@@ -97,7 +101,7 @@ void NativeAudio::transcribe() {
         if (!call.error.isEmpty()) { speechFailed(call.error); return; }
         dispatchSpeech(call, provider);
     });
-    watcher->setFuture(QtConcurrent::run([path, provider, language] { return prepareSpeech(path, provider, language); }));
+    watcher->setFuture(QtConcurrent::run([path, provider, language, model = transcriptionModel(m_availableModels)] { return prepareSpeech(path, provider, language, model); }));
 }
 void NativeAudio::dispatchSpeech(const CloudProtocol::Call &call, const QString &provider) {
     auto *reply = m_network.post(call.request, call.body); m_reply = reply;

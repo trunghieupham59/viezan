@@ -9,7 +9,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 // The renderer icon registry owns the paths; native Qt gets generated SVGs.
 export function generateIcons(root, check) {
   const result = buildSync({
-    stdin: {contents: "export * from './src/components/ui/icons/actions'; export * from './src/components/ui/icons/navigation'; export * from './src/components/ui/icons/files'; export * from './src/components/ui/icons/media'", resolveDir: root, loader: 'ts'},
+    stdin: {contents: "export * from './src/components/ui/icons/actions'; export * from './src/components/ui/icons/navigation'; export * from './src/components/ui/icons/files'; export * from './src/components/ui/icons/media'; export * from './src/components/ui/icons/status'", resolveDir: root, loader: 'ts'},
     bundle: true, write: false, platform: 'node', format: 'cjs', jsx: 'automatic',
     external: ['react', 'react/jsx-runtime'],
   })
@@ -22,6 +22,8 @@ export function generateIcons(root, check) {
     history: ['ClockIcon'], search: ['SearchIcon'], new: ['PlusIcon'],
     refresh: ['RefreshIcon'], activity: ['ActivityIcon'], close: ['XIcon'], back: ['ChevronLeftIcon'],
     expand: ['SidebarPanelIcon', {action: 'expand'}], collapse: ['SidebarPanelIcon', {action: 'collapse'}],
+    // Settings sections (Review 18 settings navigation); general/desktop/bridge reuse settings/utilities/everywhere.
+    appearance: ['PaletteIcon'], providers: ['SparklesIcon'], localModels: ['MonitorIcon'], data: ['FolderIcon'], about: ['InfoCircleIcon'],
   }
   const write = (relative, bytes) => {
     const destination = path.join(root, relative)

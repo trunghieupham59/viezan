@@ -28,7 +28,7 @@ void LocalRuntime::probe(std::function<void(QString)> completion) {
     connect(reply, &QNetworkReply::finished, this, [reply, buffer, completion] { *buffer += reply->readAll(); QString version; if (reply->error() == QNetworkReply::NoError && reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() == 200 && buffer->size() <= 65536) version = QJsonDocument::fromJson(*buffer).object().value("version").toString(); reply->deleteLater(); completion(version); });
     QTimer::singleShot(2500, reply, [reply] { if (!reply->isFinished()) reply->abort(); });
 }
-void LocalRuntime::refresh() { const auto generation = m_generation; probe([this, generation](QString version) { if (generation != m_generation) return; m_available = !version.isEmpty(); m_version = version; emit changed(); }); }
+void LocalRuntime::refresh() { const auto generation = m_generation; probe([this, generation](QString version) { if (generation != m_generation) return; m_available = !version.isEmpty(); m_version = version; m_checked = true; emit changed(); }); }
 void LocalRuntime::start(int parallel, int context) {
     if (m_busy || owned() || !QList<int>{1, 2, 4}.contains(parallel) || !QList<int>{2048, 4096, 8192, 16384, 32768}.contains(context)) return;
     const auto generation = ++m_generation; m_busy = true; m_error.clear(); emit changed();
