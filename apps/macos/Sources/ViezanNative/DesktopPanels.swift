@@ -7,25 +7,22 @@ import ViezanDomain
     private var panel: NSPanel?
     private var chatID: String?
     private let openMain: (String) -> Void
+    private let openRoute: (String) -> Void
     private let quickTranslate: QuickTranslate
     private var launcher: Launcher!
-    init(store: WorkbenchStore, openMain: @escaping (String) -> Void) {
-        self.store = store; self.openMain = openMain
+    /// `openMain` shows a session in the main window; `openRoute` shows a page there ("settings", "interpret", a feature).
+    init(store: WorkbenchStore, openMain: @escaping (String) -> Void, openRoute: @escaping (String) -> Void) {
+        self.store = store; self.openMain = openMain; self.openRoute = openRoute
         quickTranslate = QuickTranslate(store: store, openMain: openMain)
         launcher = Launcher(store: store, actions: .init(
-            askAI: { [weak self] text in self?.askAI(text) },
-            openFeature: { [weak self] feature, text in
-                guard let self else { return }
-                let id = store.createDetachedSession(feature: feature, draft: text); store.submit(id); self.openMain(id)
-            }))
+            openFeature: { feature, text in
+                let id = store.createDetachedSession(feature: feature, draft: text); store.submit(id); openMain(id)
+            },
+            openRoute: openRoute,
+            openChat: { id in if let id { openMain(id) } else { openRoute("chat") } },
+            openSettings: { section in openRoute("settings"); NotificationCenter.default.post(name: .viezanOpenSettings, object: section) }))
         store.desktopIntegration.onAction = { [weak self] action in self?.present(action) }
         store.desktopIntegration.activate()
-    }
-    /// Launcher's "Ask AI": the quick chat panel with the question already sent.
-    func askAI(_ text: String) {
-        present("quickChat")
-        guard let id = chatID, !text.isEmpty else { return }
-        store.setDraft(id, text); store.submit(id)
     }
     func present(_ action: String) {
         guard !store.loadBlocked, store.moduleEnabled(action == "launcher" ? "utilities" : action == "quickChat" ? "chat" : "translate") else { return }
