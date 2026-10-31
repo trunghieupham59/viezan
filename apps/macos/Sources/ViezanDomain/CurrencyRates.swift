@@ -1,4 +1,15 @@
 import Foundation
+/// Rates against USD and the day the provider published them.
+public struct CurrencySnapshot: Sendable, Equatable {
+    public var rates: [String: Double]
+    public var updated: Double
+    public init(rates: [String: Double], updated: Double) { self.rates = rates; self.updated = updated }
+    /// `amount` of `from` in `to`, with the rate for one unit; nil when either currency is missing.
+    public func convert(_ amount: Double, from: String, to: String) -> (value: Double, rate: Double)? {
+        guard let a = rates[from], let b = rates[to], (amount / a * b).isFinite else { return nil }
+        return (amount / a * b, b / a)
+    }
+}
 public actor CurrencyRates {
     public static let shared = CurrencyRates()
     private struct Snapshot: Codable, Sendable { var rates: [String: Double]; var updated: Double; var fetched: Double }
@@ -9,14 +20,12 @@ public actor CurrencyRates {
     private static func valid(_ value: Snapshot) -> Bool {
         value.updated > 0 && value.updated <= Date().timeIntervalSince1970 + 86400 && value.updated.isFinite && value.fetched > 0 && value.fetched <= Date().timeIntervalSince1970 + 60 && value.rates.count <= 1000 && value.rates["USD"] == 1 && value.rates.allSatisfy { $0.key.range(of: "^[A-Z]{3}$", options: .regularExpression) != nil && $0.value.isFinite && $0.value > 0 }
     }
-    public func convert(_ query: String) async -> String? {
-        guard query.utf8.count <= 128, let expression = try? NSRegularExpression(pattern: #"^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s+([A-Za-z]{3})\s+(?:to|in|=)\s+([A-Za-z]{3})\s*$"#, options: .caseInsensitive),
-              let match = expression.firstMatch(in: query, range: NSRange(query.startIndex..., in: query)) else { return nil }
-        let text = query as NSString
-        guard let amount = Double(text.substring(with: match.range(at: 1))), amount.isFinite, abs(amount) <= 1e15 else { return nil }
-        let from = text.substring(with: match.range(at: 2)).uppercased(), to = text.substring(with: match.range(at: 3)).uppercased()
+    /// Today's rates against USD: the cached day if fresh, otherwise one shared download.
+    /// `retry` lifts the five-minute back-off after a failed download (the launcher's ↵ on "no rates").
+    public func rates(retry: Bool = false) async -> CurrencySnapshot? {
         if snapshot == nil, let size = try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= 524288, let data = try? Data(contentsOf: file), let value = try? JSONDecoder().decode(Snapshot.self, from: data), Self.valid(value) { snapshot = value }
         let now = Date().timeIntervalSince1970
+        if retry { retryAfter = 0 }
         if now - (snapshot?.fetched ?? 0) >= 86400 {
             if refreshTask == nil && now >= retryAfter {
                 retryAfter = now + 300
@@ -34,9 +43,7 @@ public actor CurrencyRates {
                 refreshTask = nil
             }
         }
-        guard let snapshot, let a = snapshot.rates[from], let b = snapshot.rates[to], (amount / a * b).isFinite else { return nil }
-        let date = Date(timeIntervalSince1970: snapshot.updated).formatted(date: .numeric, time: .omitted)
-        return amount.formatted() + " " + from + " = " + (amount / a * b).formatted(.number.precision(.fractionLength(0...6))) + " " + to + " · " + date
+        return snapshot.map { CurrencySnapshot(rates: $0.rates, updated: $0.updated) }
     }
     private static func fetch() async throws -> Snapshot {
         let config = URLSessionConfiguration.ephemeral; config.timeoutIntervalForRequest = 8; config.timeoutIntervalForResource = 10
