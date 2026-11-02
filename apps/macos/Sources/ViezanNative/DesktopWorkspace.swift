@@ -4,7 +4,6 @@ import ViezanDomain
 struct DesktopWorkspace: View {
     @Bindable var store: WorkbenchStore
     let route: String
-    @State private var bridgeOpen = false
     @Environment(\.colorScheme) private var scheme
     private func keyDisplay(_ id: String) -> String {
         (store.desktopIntegration.shortcuts.first { $0.id == id }?.key ?? "").split(separator: "+").map { part -> String in
@@ -20,24 +19,11 @@ struct DesktopWorkspace: View {
             }
             AdaptiveColumns { primary; secondary }
         }
-        .sheet(isPresented: $bridgeOpen) {
-            VStack(alignment: .leading, spacing: metric("inset")) {
-                HStack {
-                    Text(store.text("connections")).font(.vzn("titleScale", .bold))
-                    Spacer()
-                    Button(store.text("close")) { bridgeOpen = false }.keyboardShortcut(.cancelAction)
-                }
-                ScrollView { BridgeSettings(store: store) }
-            }.padding(metric("gutter")).frame(width: metric("reading"), height: metric("editor") * 3)
-        }
     }
     @ViewBuilder private var primary: some View {
         if route == "everywhere" {
             CardSection(title: store.text("translateSelection")) {
                 DesktopSettings(store: store, route: route)
-                CardRow(title: store.text("chromeConnect"), detail: store.text("chromeConnectHint")) {
-                    Button(store.text(store.extensionBridge.listening ? "enabled" : "connect")) { bridgeOpen = true }
-                }
                 Text(store.text("localModelNote")).font(.vzn("labelScale")).fixedSize(horizontal: false, vertical: true)
                     .padding(metric("inset")).frame(maxWidth: .infinity, alignment: .leading)
                     .background(contentColor("surface-muted", scheme), in: RoundedRectangle(cornerRadius: metric("radius")))

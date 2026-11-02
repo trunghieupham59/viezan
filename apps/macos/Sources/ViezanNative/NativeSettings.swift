@@ -72,7 +72,7 @@ struct NativeSettings: View {
         .onChange(of: section) { _, _ in openRequestedSection() }
     }
 
-    private static let symbols = ["general": "slider.horizontal.3", "appearance": "paintpalette", "providers": "sparkles", "localModels": "cpu", "desktop": "command", "bridge": "globe", "data": "externaldrive", "about": "info.circle", "voice": "mic", "modules": "square.grid.2x2", "updates": "arrow.triangle.2.circlepath"]
+    private static let symbols = ["general": "slider.horizontal.3", "appearance": "paintpalette", "providers": "sparkles", "localModels": "cpu", "desktop": "command", "data": "externaldrive", "about": "info.circle", "voice": "mic", "modules": "square.grid.2x2", "updates": "arrow.triangle.2.circlepath"]
     private var groupedSections: [(String, [NativeResources.SettingsSection])] {
         let application = ["data", "updates", "about"]
         return [("groupCustomize", sections.filter { !application.contains($0.id) }), ("groupApplication", sections.filter { application.contains($0.id) })].filter { !$0.1.isEmpty }
@@ -100,8 +100,6 @@ struct NativeSettings: View {
     @ViewBuilder private func sectionContent(_ id: String) -> some View {
         if id == "desktop" {
             CardSection(flush: true, title: store.text("allShortcuts")) { DesktopSettings(store: store) }
-        } else if id == "bridge" {
-            CardSection { BridgeSettings(store: store, showsDescription: false) }
         } else if id == "data" {
             CardSection { DataSettings(store: store) }
         } else if id == "localModels" {
@@ -145,8 +143,8 @@ struct NativeSettings: View {
                         CardSection(flush: true, title: store.text(group)) {
                             ForEach(modules, id: \.self) { module in
                                 let locked = store.lockedModule == module
-                                CardRow(title: store.text(module == "bridge" ? "browserBridge" : module == "utilities" ? "launcher" : module), detail: locked ? store.text("modulesLastHint") : store.text("moduleDesc_" + module), divider: module != modules.last) {
-                                    Toggle(store.text(module == "bridge" ? "browserBridge" : module), isOn: Binding(get: { store.moduleEnabled(module) }, set: { store.setModule(module, enabled: $0) }))
+                                CardRow(title: store.text(module == "utilities" ? "launcher" : module), detail: locked ? store.text("modulesLastHint") : store.text("moduleDesc_" + module), divider: module != modules.last) {
+                                    Toggle(store.text(module), isOn: Binding(get: { store.moduleEnabled(module) }, set: { store.setModule(module, enabled: $0) }))
                                         .toggleStyle(.switch).labelsHidden().disabled(locked).accessibilityIdentifier("module-" + module)
                                 }
                             }

@@ -21,7 +21,7 @@ ColumnLayout {
     BusyIndicator { running: data.bridge.backupBusy; visible: running }
     ColumnLayout {
         visible: data.bridge.backupPreview.newSessions !== undefined
-        Label { text: data.t("interpretation") + ": " + (data.bridge.backupPreview.interpretation || 0) }
+        Label { text: data.t("interpret") + ": " + (data.bridge.backupPreview.interpretation || 0) }
         Label { text: data.t("newSessions") + ": " + (data.bridge.backupPreview.newSessions || 0) }
         Label { text: data.t("existingSessions") + ": " + (data.bridge.backupPreview.existingSessions || 0) }
         CheckBox { id: restorePreferences; text: data.t("restorePreferences") }

@@ -11,12 +11,7 @@
 "area/design-assets":
     - changed-files:
           - any-glob-to-any-file:
-                - src/**
-
-"area/chrome-extension":
-    - changed-files:
-          - any-glob-to-any-file:
-                - chrome-extension/**
+                - resources/**
 
 "area/build":
     - changed-files:

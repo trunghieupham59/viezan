@@ -24,11 +24,6 @@ const QStringList models{"demo.standard", "demo.slow", "demo.failure"};
 const QStringList statuses{"running", "succeeded", "cancelled", "failed", "interrupted"};
 const QStringList modes{"system", "light", "dark"};
 const QStringList sizes{"small", "medium", "large"};
-QString normalizeOrigin(const QString &value) {
-    QUrl url(value.trimmed(), QUrl::StrictMode);
-    if (!url.isValid() || url.scheme() != "https" || url.host().isEmpty() || !url.userInfo().isEmpty() || url.hasQuery() || url.hasFragment() || (!url.path().isEmpty() && url.path() != "/")) return {};
-    url.setPath(""); if (url.port() == 443) url.setPort(-1); return url.toString();
-}
 bool validModel(const QString &id) {
     if (models.contains(id)) return true;
     const auto prefix = id.section(':', 0, 0);
@@ -127,9 +122,9 @@ static bool validImages(const QVariant &value) {
     return true;
 }
 bool validate(const Map &state) {
-    for (const auto &key : {"rates", "bridge", "runtime", "voice"}) if (state.contains(key) && !state.value(key).isNull() && !isMap(state.value(key))) return false;
+    for (const auto &key : {"rates", "runtime", "voice"}) if (state.contains(key) && !state.value(key).isNull() && !isMap(state.value(key))) return false;
     if (state.contains("disabledModules") && !state.value("disabledModules").isNull() && !isList(state.value("disabledModules")) && state.value("disabledModules").metaType().id() != QMetaType::QStringList) return false;
-    for (const auto &module : state.value("disabledModules").toStringList()) if (!QStringList{"chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities", "bridge"}.contains(module)) return false;
+    for (const auto &module : state.value("disabledModules").toStringList()) if (!QStringList{"chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities"}.contains(module)) return false;
     const auto rates = state.value("rates").toMap(); if (rates.size() > 1000) return false;
     for (auto it = rates.begin(); it != rates.end(); ++it) {
         if (!isMap(it.value())) return false;
@@ -143,11 +138,6 @@ bool validate(const Map &state) {
         if (rawUsage.isValid() && !rawUsage.isNull() && !isMap(rawUsage)) return false;
         const auto usage = rawUsage.toMap();
         for (auto it = usage.begin(); it != usage.end(); ++it) if ((it.key() != "input" && it.key() != "output") || !integer(it.value()) || it.value().toLongLong() < 0 || it.value().toLongLong() > 1000000000) return false;
-    }
-    if (state.contains("bridge")) {
-        const auto bridge = state.value("bridge").toMap(); const auto origins = bridge.value("origins").toStringList();
-        if (bridge.value("automatic").metaType().id() != QMetaType::Bool || origins.size() > 32 || QSet<QString>(origins.begin(), origins.end()).size() != origins.size()) return false;
-        for (const auto &origin : origins) if (origin.toUtf8().size() > 2048 || normalizeOrigin(origin) != origin) return false;
     }
     if (state.contains("voice")) { const auto voice = state.value("voice").toMap(); if (!QStringList{"system", "edge", "openai", "gemini", "elevenlabs"}.contains(voice.value("provider").toString()) || voice.value("voice").toString().toUtf8().size() > 256) return false; }
     if (state.contains("autoTranslate") && state.value("autoTranslate").metaType().id() != QMetaType::Bool) return false;
@@ -232,6 +222,9 @@ bool validate(const Map &state) {
 }
 QVariantMap recover(const Map &saved) {
     auto state = saved;
+    state.remove("bridge");
+    auto disabled = state.value("disabledModules").toStringList();
+    if (disabled.removeAll("bridge")) state["disabledModules"] = disabled;
     auto legacySessions = state.value("sessions").toList();
     auto legacyActive = state.value("active").toMap();
     bool hasDictionary = false;
@@ -279,7 +272,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
     // Disabling a module cancels only its owned tasks, leaving other features untouched.
     if (name == "module") {
         const auto module = p.value("id").toString();
-        if (!QStringList{"chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities", "bridge"}.contains(module) || p.value("enabled").metaType().id() != QMetaType::Bool) return original;
+        if (!QStringList{"chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities"}.contains(module) || p.value("enabled").metaType().id() != QMetaType::Bool) return original;
         auto disabled = state.value("disabledModules").toStringList(); disabled.removeAll(module); if (!p.value("enabled").toBool()) disabled.append(module); state["disabledModules"] = disabled;
         auto jobs = state.value("tasks").toList(); for (auto &value : jobs) { auto job = value.toMap(); if (disabled.contains(job.value("request").toMap().value("feature").toString()) && job.value("status") == "running") { job["status"] = "cancelled"; value = job; } }; state["tasks"] = jobs; return state;
     }
@@ -301,12 +294,6 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
             if (!found) prompts.append(Map{{"id", id}, {"name", title}, {"text", text}});
         }
         state["prompts"] = prompts; return state;
-    }
-    if (name == "bridgePreferences") {
-        const auto input = p.value("origins").toStringList(); QStringList origins;
-        if (input.size() > 32 || p.value("automatic").metaType().id() != QMetaType::Bool) return original;
-        for (const auto &value : input) { const auto origin = normalizeOrigin(value); if (origin.isEmpty() || origin.toUtf8().size() > 2048) return original; origins.append(origin); }
-        origins.removeDuplicates(); origins.sort(); state["bridge"] = Map{{"automatic", p.value("automatic")}, {"origins", origins}}; return state;
     }
     if (name == "usageRate") {
         const auto model = p.value("model").toString(), currency = p.value("currency").toString();

@@ -40,8 +40,7 @@ struct SystemSettings: View {
                     diagnostics = ["Viezan " + (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "development"), info.operatingSystemVersionString,
                         "CPU: \(info.activeProcessorCount) · RAM: \(info.physicalMemory)",
                         "Microphone: \(AVCaptureDevice.authorizationStatus(for: .audio).rawValue) · Accessibility: \(AXIsProcessTrusted()) · Screen: \(CGPreflightScreenCaptureAccess())",
-                        "Storage blocked: \(store.loadBlocked) · Ollama: \(store.localRuntime.available)",
-                        "Bridge: \(store.extensionBridge.listening)"].joined(separator: "\n")
+                        "Storage blocked: \(store.loadBlocked) · Ollama: \(store.localRuntime.available)"].joined(separator: "\n")
                 }
             }
             if !diagnostics.isEmpty { Text(diagnostics).textSelection(.enabled).font(.system(.caption, design: .monospaced)).padding(metric("inset")) }

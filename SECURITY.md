@@ -58,20 +58,17 @@ Viezan stores API keys (Google Gemini, Anthropic Claude, OpenAI GPT) **exclusive
 
 All AI API calls are made **directly** from your device to the respective AI provider's API endpoint. Viezan does not operate any backend servers that proxy or intercept your requests or data.
 
-### Electron Security
+### Native application boundaries
 
-This application is built on Electron. We follow Electron's [security recommendations](https://www.electronjs.org/docs/latest/tutorial/security), including:
-
-- Context isolation enabled
-- Node integration disabled in renderer processes
-- Hardened runtime (macOS)
+SwiftUI and Qt Quick views delegate privileged work to native services.
+Security reports may cover credential access, macOS helper authorization,
+and native backup or update handling.
 
 ## Scope
 
 The following are **in scope** for vulnerability reports:
 
-- The Viezan desktop application (Electron app)
-- The Chrome Extension (`chrome-extension/`)
+- The Viezan desktop application (macOS, Windows and Linux)
 - Any logic that handles API keys or user data
 
 The following are **out of scope**:

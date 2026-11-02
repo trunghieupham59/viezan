@@ -2,7 +2,7 @@
 //
 // Path B of docs/plans/fan-helper-daemon.md. SMAppService looks the job up in the calling
 // app's `Contents/Library/LaunchDaemons`, so this tool lives in `Contents/MacOS` where its
-// main bundle is Viezan.app; Electron runs it and reads one JSON line from stdout. It only
+// main bundle is Viezan.app; the calling app runs it and reads one JSON line from stdout. It only
 // works in an app signed with a Developer ID (the daemon must carry the app's Team ID),
 // which is why the app keeps it behind a switch until the release is signed.
 //

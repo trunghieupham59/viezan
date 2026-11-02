@@ -13,11 +13,8 @@
 /native/                            @trunghieupham59
 /contracts/                         @trunghieupham59
 
-# Canonical design assets and retained renderer reference
-/src/                               @trunghieupham59
-
-# Chrome extension
-/chrome-extension/                  @trunghieupham59
+# Shared native design assets
+/resources/                               @trunghieupham59
 
 # Build / packaging
 /build/                             @trunghieupham59

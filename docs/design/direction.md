@@ -16,7 +16,7 @@ từ menu Share của trang.
 
 | Nguồn | Vai trò từ 2026-11-02 |
 | --- | --- |
-| `src/styles/tokens.css` → `native.json` (`metrics`, `palettes`) | **Giá trị.** Mọi số đo, màu, tỷ lệ chữ trong view đọc từ đây qua `metric()`, `contentColor()`, `chromeColor()`, `Font.vzn()`. |
+| `resources/tokens.css` → `native.json` (`metrics`, `palettes`) | **Giá trị.** Mọi số đo, màu, tỷ lệ chữ trong view đọc từ đây qua `metric()`, `contentColor()`, `chromeColor()`, `Font.vzn()`. |
 | `AGENTS.md`, `.claude/rules/ui-ux.md` | **Luật.** Button semantics, một composer, không literal, focus, bản địa hoá. |
 | `docs/design/foundations.md` | Nguyên tắc nền (bậc bề mặt, vai trò chữ, trạng thái chung). |
 | **Tài liệu này + bản vẽ Claude Design** | **Hình hài native.** Khi spec Electron và bản native khác nhau về bố cục, bản native thắng. |

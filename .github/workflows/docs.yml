@@ -25,3 +25,5 @@ jobs:
                   node-version: 24
             # Built-in Node modules only: this also runs on docs-only/version-only changes.
             - run: npm run check:docs
+            - run: npm run check:resources
+            - run: node --test scripts/native/__tests__/domain.test.mjs

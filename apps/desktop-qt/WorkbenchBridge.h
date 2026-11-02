@@ -4,7 +4,6 @@
 #include "NativeAudio.h"
 #include "LocalModelManager.h"
 #include "NativeBackup.h"
-#include "ExtensionBridge.h"
 #include "DesktopIntegration.h"
 #include "ThermalMonitor.h"
 #include "Interpretation.h"
@@ -29,7 +28,6 @@ class WorkbenchBridge final : public QObject {
     Q_PROPERTY(Interpretation* interpretation READ interpretation CONSTANT)
     Q_PROPERTY(ThermalMonitor* thermalMonitor READ thermalMonitor CONSTANT)
     Q_PROPERTY(DesktopIntegration* desktopIntegration READ desktopIntegration CONSTANT)
-    Q_PROPERTY(ExtensionBridge* extensionBridge READ extensionBridge CONSTANT)
     Q_PROPERTY(bool ocrBusy READ ocrBusy NOTIFY changed)
     Q_PROPERTY(QString ocrError READ ocrError NOTIFY changed)
     Q_PROPERTY(bool backupBusy READ backupBusy NOTIFY changed)
@@ -98,7 +96,6 @@ public:
     // Quick translate's pair ({primary, secondary}; until set, the Translate page's target) and the target for `text`.
     Q_INVOKABLE QVariantMap quickTranslate() const;
     Q_INVOKABLE QString quickTranslateTarget(const QString &text) const;
-    ExtensionBridge *extensionBridge() { return &m_extensionBridge; }
     bool ocrBusy() const { return !m_ocrID.isEmpty(); }
     QString ocrError() const { return m_ocrError; }
     Q_INVOKABLE void finishCapture(double x, double y, double width, double height);
@@ -155,7 +152,6 @@ private:
     Interpretation m_interpretation;
     ThermalMonitor m_thermalMonitor;
     DesktopIntegration m_desktopIntegration;
-    ExtensionBridge m_extensionBridge;
     LocalProvider m_ocrProvider;
     QString m_ocrID, m_ocrOwner, m_ocrText, m_ocrError;
     qlonglong m_ocrRevision = 0;

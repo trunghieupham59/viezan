@@ -4,7 +4,7 @@
 
 ## Đã sửa
 
-- [x] Token trạng thái (success, warning, danger, disabled, scrim, skeleton) chỉ khai báo dưới `html.dark`, nên phần tử ghim `data-mode="dark"` (thẻ xem trước Giao diện, khung tối của board) vẫn nhận màu sáng. Đã chuyển sang `html.dark, [data-mode="dark"]` và `:root, [data-mode="light"]` trong `src/styles/tokens.css` (sửa cùng đợt viết tài liệu).
+- [x] Token trạng thái (success, warning, danger, disabled, scrim, skeleton) chỉ khai báo dưới `html.dark`, nên phần tử ghim `data-mode="dark"` (thẻ xem trước Giao diện, khung tối của board) vẫn nhận màu sáng. Đã chuyển sang `html.dark, [data-mode="dark"]` và `:root, [data-mode="light"]` trong `resources/tokens.css` (sửa cùng đợt viết tài liệu).
 - [x] AI Chat: nút nghiên cứu lỗi đổi nhãn thành "Chạy lại nghiên cứu từ đầu", khớp với việc chạy lại toàn bộ (`chat_research_retry_step`, `src/i18n/locales/*.ts`).
 - [x] AI Chat: sidebar chỉ ghi "Chuyên sâu · đang dừng" khi phiên không đang chạy (`chatRunningSessionIds` trong `chatSlice.ts`, `AIChatSidebar.tsx`).
 - [x] AI Chat: bỏ hai nút thích/không thích không có `onClick` (`MessageBubble.tsx`).

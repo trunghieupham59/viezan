@@ -1,10 +1,7 @@
 ---
 paths:
-  - "src/pages/ChatPage*.tsx"
-  - "src/components/ModelSelector.tsx"
-  - "src/components/{chat,organisms}/**/*.tsx"
-  - "src/store/**/*.{ts,tsx}"
-  - "src/types/index.ts"
+  - "apps/macos/Sources/**/*.swift"
+  - "apps/desktop-qt/**"
 ---
 
 # Chat State
@@ -14,7 +11,7 @@ paths:
 - Empty and active chats use the same single composer surface.
 - Never wrap the active composer in an extra border, panel, or darker frame.
 - Do not add Clear/Delete to the active conversation canvas.
-- Composer controls use the shared `md` Button contract and expose accessible
+- Composer controls use the shared medium control size and expose accessible
   names/states.
 - Bind provider/model changes to the owning session. Guard async model fetches
   against stale session/provider responses.

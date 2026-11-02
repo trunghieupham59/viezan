@@ -1,4 +1,5 @@
 #include "../WorkbenchBridge.h"
+#include "../WorkbenchDomain.h"
 #include "../ProviderDiscovery.h"
 #include <QUuid>
 #include "../ImageGeneration.h"
@@ -45,6 +46,15 @@ static QQuickItem *visualText(QQuickItem *item, const QString &text) {
 class WorkbenchBridgeTests : public QObject {
     Q_OBJECT
 private slots:
+    void workspaceDropsRetiredBrowserSettingsDuringRecovery() {
+        auto saved = WorkbenchDomain::create("chat-id", "translate-id");
+        saved["bridge"] = QVariantMap{{"automatic", true}, {"origins", QStringList{"https://example.org"}}};
+        saved["disabledModules"] = QStringList{"bridge", "thermal"};
+        const auto recovered = WorkbenchDomain::recover(saved);
+        QVERIFY(!recovered.contains("bridge"));
+        QCOMPARE(recovered.value("disabledModules").toStringList(), QStringList{"thermal"});
+        QCOMPARE(recovered.value("active"), saved.value("active"));
+    }
     void editorUndoDoesNotCrossSessions_data() {
         QTest::addColumn<QString>("feature");
         QTest::newRow("chat") << QString("chat");
@@ -501,13 +511,17 @@ private slots:
         QCoreApplication::processEvents();
         auto *navigation = visualItem(root->contentItem(), "primary-navigation");
         QVERIFY(navigation);
-        QTRY_VERIFY(qAbs(navigation->width() - (width < 900 ? 60.0 : 236.0)) < 0.5);
+        const auto metrics = bridge.resources().value("metrics").toMap();
+        const auto rail = metrics.value("rail").toDouble();
+        const auto sidebar = metrics.value("sidebar").toDouble();
+        QVERIFY(rail > 0 && sidebar > rail);
+        QTRY_VERIFY(qAbs(navigation->width() - (width < 900 ? rail : sidebar)) < 0.5);
         QCOMPARE(bridge.state(), before);
         bridge.command("navigation", {{"collapsed", true}});
-        QTRY_COMPARE(navigation->width(), 60.0);
+        QTRY_COMPARE(navigation->width(), rail);
         root->setWidth(820); QCoreApplication::processEvents();
         root->setWidth(1200); QCoreApplication::processEvents();
-        QTRY_COMPARE(navigation->width(), 60.0);
+        QTRY_COMPARE(navigation->width(), rail);
         QVERIFY(bridge.state().value("shell").toMap().value("navigationCollapsed").toBool());
         QCOMPARE(bridge.state().value("sessions"), before.value("sessions"));
         WorkbenchBridge restored(nullptr, dir.filePath("state.json"), false);

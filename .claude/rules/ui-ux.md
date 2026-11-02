@@ -1,20 +1,18 @@
 ---
 paths:
-  - "src/**/*.{ts,tsx,css}"
-  - "tailwind.config.mjs"
+  - "apps/macos/Sources/**/*.swift"
+  - "apps/desktop-qt/**"
+  - "resources/**"
   - "docs/design/**"
 ---
 
 # UI/UX Design Rules
 
-Decisions settled while building the "quiet workbench" design. They extend
-`AGENTS.md` (Atomic UI, tokens, chat invariants) and `atomic-ui.md`; follow
-both. Each rule names the code that already implements it, so a new change
-can copy the pattern instead of inventing one.
+Apply these decisions to SwiftUI/AppKit and Qt Quick controls.
 
 ## Sources of truth
 
-- Precedence when sources disagree: `src/styles/tokens.css` (values) →
+- Precedence when sources disagree: `resources/tokens.css` (values) →
   `AGENTS.md` (rules) → `docs/design/foundations.md` →
   `docs/design/direction.md` (the single native direction, "Quiet Workbench",
   with its Claude Design canvas) → the screen spec in
@@ -34,17 +32,8 @@ can copy the pattern instead of inventing one.
 
 ## Typography
 
-- One interface family: `var(--vzn-font-sans)` (system font with the CJK
-  fallback). Mono text uses `var(--vzn-font-mono)` or Tailwind `font-mono`
-  (mapped to the token). Serif appears only through `--vzn-font-display` /
-  `--vzn-font-reading` in the Paper persona. Never write a `font-family`
-  stack by hand.
-- Every font size is a `--vzn-font-size-*` token, never a px/rem/em literal or
-  a Tailwind bracket. The tokens multiply `--vzn-text-scale`, which the Text
-  size setting drives through `html[data-text-size]`; a literal size silently
-  ignores the setting.
-- Never set the root `font-size`. `rem` is fixed by `--vzn-root-font-size` and
-  sizes layout, not type.
+- Use native system fonts, the shared reading/mono roles, and generated scale
+  metrics. Honor text-size preferences and CJK fallback.
 - Role sizes (foundations §4): page title `title-lg` (18) · section card title
   `subtitle` (15) · primary and Settings navigation items, row labels `lg`
   (14) · body text and buttons `md` (13) · descriptions `sm` (12) · uppercase
@@ -57,9 +46,8 @@ can copy the pattern instead of inventing one.
 - Never build a sentence from fragments. Use one key with placeholders
   (`{name}`, `{key}`, `{count}`) and `tpl()`; word order differs per language.
   To place a component inside a sentence, split the template on the
-  placeholder (see `pressStepTitle` in `HotkeySection.tsx`).
-- One concept, one name, in every screen and language (e.g. "Chất lượng cao",
-  "token" for the Chrome extension credential, never "API key").
+  placeholder.
+- One concept, one name, in every screen and language (e.g. "Chất lượng cao").
 - Japanese: no space between Latin words and kana/kanji (`AIチャット`,
   `APIキー`), full-width punctuation (`：`, `（）`), the verb last
   (`{key}を押す`), and katakana instead of English words (`キー`, not `key`).
@@ -74,58 +62,23 @@ can copy the pattern instead of inventing one.
 - Untitled stored data (e.g. the default chat title) is shown through a
   helper in the UI language (`chatSessionTitle`), never as the raw string.
 
-## Layout
+## Layout and controls
 
-- Size feature layout from container queries on `app-main`, not the window.
-- A page header stays on one row while it fits: the language pair shrinks
-  first, then text labels collapse to icons that keep `aria-label` and
-  `title`; only below the stated width do actions wrap to a second row
-  (`.live-page-header`, `.translate-page-header`). Never let a header wrap at
-  a width where it fits when compacted.
-- Header controls are `sm` (32px). A language pair in a page header uses
-  `size="sm"` and the shared separated style (`.page-header
-  .language-pair-bar`): two framed language buttons with the swap, arrow or
-  lock standing between them, on every page.
-- Side-by-side panels keep their toolbars the same height so their dividers
-  line up (`.live-panel-toolbar` min block size), even when only one holds a
-  control.
-- After a change, nothing may overflow its frame: a child taller than its
-  container, text clipped without an ellipsis and `title`, or a horizontal
-  page scroll are bugs.
+- Size feature layouts from the available content area. Keep the header on
+  one row while it fits. Let the language pair shrink first, then collapse
+  labels into named icon controls before wrapping actions.
+- Use small controls in headers and align sibling toolbars. Keep language
+  selectors on either side of their swap or lock control. Check for clipping
+  and horizontal overflow at compact widths.
+- Use shared control metrics, a neutral disabled appearance and toolkit
+  disabled semantics. Preserve a visible selected state beyond colour.
 
-## Overriding the Button atom
+## Focus and shortcuts
 
-- `.ui-button` sets its size, colours and disabled state with `!important`
-  inside `@layer components`. A layered `!important` beats any unlayered
-  `!important`, so `height: … !important` in a feature stylesheet has no
-  effect. Change the atom through its custom properties instead
-  (`--vzn-button-height`, `--vzn-button-min-height`, `--vzn-button-bg`,
-  `--vzn-button-border`, …).
-- Scope colour overrides to `:not(:disabled)` so a disabled control keeps the
-  atom's gray disabled contract.
-
-## Focus
-
-- Buttons, links, selects and other controls show keyboard focus with the
-  shared `:focus-visible` ring (`--vzn-focus-ring`, `tokens.css`). Inside a
-  connected control (language pair, navigation rows) draw it inset with a
-  negative `outline-offset`.
-- Text fields (text inputs, textareas, the chat composer, filter inputs)
-  never show an accent ring or outline. Focus is the caret plus the border
-  moving to `--vzn-border-strong`. Reset the outline explicitly: leaving a
-  field out of the shared rule brings back the browser's `outline: auto` in
-  the system accent colour. `src/styles/__tests__/focusRing.test.ts` guards
-  this.
-- Never remove focus outlines globally (`*:focus { outline: none }`).
-
-## Shortcuts
-
-- A shortcut hint lives inside the control it triggers, never beside it as a
-  separate non-clickable chip (`.ai-chat-header-new`, `.sidebar-search-trigger`).
-- Format key caps with `shortcutKeyCaps()`: `⌘N` on macOS, `Ctrl N`
-  elsewhere. Also set `title` with the shortcut and `aria-keyshortcuts`.
-- Enter and Escape handlers ignore IME composition (`isComposing` or
-  `keyCode === 229`); use `shouldSendChatMessage` for send keys.
+- Draw a visible keyboard focus indicator on actionable controls. For text
+  fields, use the caret and a stronger border. Preserve the native focus order.
+- Place shortcut hints inside their controls and expose accessible names.
+  Use platform key names. Enter and Escape respect active IME composition.
 
 ## Behaviour
 
@@ -147,10 +100,8 @@ can copy the pattern instead of inventing one.
 
 ## Verifying UI changes
 
-- Check in the web preview (`npm run dev:web -- --port 5174`) at 1200px and 820px
-  windows, in light and dark, and for typography changes at all three text
-  sizes. Measure (`getComputedStyle`, `scrollWidth` vs `clientWidth`,
-  bounding boxes) rather than judging screenshots alone.
-- A preview tab running in the background freezes CSS transitions; disable
-  transitions before measuring values that animate.
-- Restore any preview state you changed (theme, preset, page, text size).
+- Exercise the changed native screen at desktop and compact widths (1200 and
+  820 points or logical pixels), in light and dark modes. For typography
+  changes include all three text sizes and EN/VI/JA.
+- Check clipping, keyboard focus, accessibility and IME in the running app.
+  Restore any theme, locale or text-size settings changed during verification.

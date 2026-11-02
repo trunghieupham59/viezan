@@ -15,11 +15,11 @@ Bộ thiết kế đầy đủ của Viezan: nguyên tắc chung, bản vẽ g�
 
 Quy tắc rút ra cho agent AI (chữ, bản địa hoá, bố cục, focus, phím tắt, hành vi) nằm ở [`.claude/rules/ui-ux.md`](../../.claude/rules/ui-ux.md); khi chốt một quyết định mới, cập nhật cả file đó.
 
-Thứ tự ưu tiên khi các nguồn mâu thuẫn: `src/styles/tokens.css` (giá trị) → `AGENTS.md` (luật) → `foundations.md` → đặc tả màn hình → bản vẽ.
+Thứ tự ưu tiên khi các nguồn mâu thuẫn: `resources/tokens.css` (giá trị) → `AGENTS.md` (luật) → `foundations.md` → đặc tả màn hình → bản vẽ.
 
 ## Mở bản vẽ
 
-Board dùng chính `src/styles/tokens.css` của app, nên phải mở qua một máy chủ tĩnh tại gốc repo (mở bằng `file://` thì không tải được token):
+Board dùng chính `resources/tokens.css` của app, nên phải mở qua một máy chủ tĩnh tại gốc repo (mở bằng `file://` thì không tải được token):
 
 ```bash
 python3 -m http.server 5191 --bind 127.0.0.1
@@ -54,7 +54,7 @@ Các bản vẽ dùng chung cho mọi màn hình: `States` (trống, lỗi, đan
 
 ## Cập nhật bộ thiết kế
 
-- Đổi một giá trị hình ảnh: sửa `src/styles/tokens.css`. Board tự cập nhật theo.
+- Đổi một giá trị hình ảnh: sửa `resources/tokens.css`. Board tự cập nhật theo.
 - Thêm hoặc đổi hành vi một màn hình: sửa đặc tả trong `screens/` cùng commit với mã, và vẽ trạng thái mới trong `specs/`.
 - Mục "Chênh lệch với bản dựng hiện tại" ở cuối mỗi đặc tả là danh sách việc còn lại; xoá dòng khi mã đã khớp.
 - Không đưa vào bản vẽ tính năng mà app chưa có, trừ khi ghi rõ "đề xuất".

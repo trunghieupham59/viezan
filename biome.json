@@ -7,10 +7,8 @@
       "!**/*.md",
       "!build",
       "!dist",
-      "!dist-electron",
       "!docs/design",
       "!node_modules",
-      "!public/vad",
       "!release"
     ]
   },

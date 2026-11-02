@@ -1,7 +1,7 @@
 /*
  * Spec boards: detailed, state-by-state drawings of each Viezan screen.
  *
- * Every board links ../../../src/styles/tokens.css first, so the drawings use
+ * Every board links ../../../resources/tokens.css first, so the drawings use
  * the app's real design values. A frame pins its own persona and mode with
  * `data-theme="graphite" data-mode="light|dark"`, exactly like the Settings
  * preview card. This file only lays out the board itself (frames, captions,

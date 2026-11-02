@@ -69,9 +69,7 @@ jobs:
                         - "**/*.bundle.js"
                         - "**/*.bundle.min.js"
                         - "docs/**"
-                        - "public/vad/**"
                         - "build/**"
-                        - "chrome-extension/icons/**"
 
             - name: Build native Qt for analysis
               if: matrix.language == 'c-cpp'

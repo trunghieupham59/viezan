@@ -2,7 +2,7 @@
 
 Đặc tả cho trục "phong cách" (`data-theme`) trong [foundations.md §2](foundations.md#2-ba-trục-chủ-đề). Board: [specs/personas.html](specs/personas.html) vẽ Trang chủ, AI Chat, Dịch và Cài đặt › Giao diện ở cả 9 tổ hợp persona × chế độ, cùng 7 lựa chọn màu nhấn trên Graphite.
 
-Giá trị nằm trong `src/styles/tokens.css`; danh sách persona và đặc tính nằm trong `src/constants/themePresets.ts` (`THEME_PRESETS`, `THEME_PRESET_TRAITS`); bảng màu cửa sổ native nằm trong `electron/windowPalette.ts`; mô tả hiển thị là các khoá `settings_theme_preset_*`.
+Giá trị nằm trong `resources/tokens.css`; danh sách persona và đặc tính nằm trong `src/constants/themePresets.ts` (`THEME_PRESETS`, `THEME_PRESET_TRAITS`); bảng màu cửa sổ native nằm trong `electron/windowPalette.ts`; mô tả hiển thị là các khoá `settings_theme_preset_*`.
 
 ## 1. Năm persona
 

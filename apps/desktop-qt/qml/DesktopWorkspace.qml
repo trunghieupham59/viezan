@@ -32,7 +32,6 @@ ScrollView {
                     anchors.fill: parent; spacing: 0
                     Label { text: page.t("contentSources"); font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.subtitleScale; Layout.bottomMargin: page.metrics.small }
                     Kit.CardRow { title: page.t("pasteText"); detail: page.t("pasteTextHint"); Kit.PrimaryButton { text: page.t("openInTranslate"); onClicked: page.newTranslation() } }
-                    Kit.CardRow { title: page.t("browserExtension"); detail: page.t("browserExtensionHint"); Button { text: page.t(page.bridge.extensionBridge.listening ? "enabled" : "connect"); onClicked: bridgeDialog.open() } }
                     Kit.CardRow { title: page.t("globalShortcut"); detail: page.t(page.linux ? "globalShortcutHintLinux" : "globalShortcutHintWindows"); Button { text: page.t("setUp"); onClicked: page.routeRequested("utilities") } }
                     // Quick translate's own pair and the model it uses (the app's current choice).
                     Kit.CardRow {
@@ -90,21 +89,6 @@ ScrollView {
                     Kit.PrimaryButton { text: page.t("openLauncher"); icon.source: "icons/search.svg"; onClicked: page.bridge.desktopIntegration.trigger("launcher") }
                 }
             }
-        }
-    }
-    Dialog {
-        id: bridgeDialog
-        parent: Overlay.overlay
-        title: page.t("connections")
-        modal: true
-        standardButtons: Dialog.Close
-        width: Math.min(parent.width - page.metrics.inset * 2, page.metrics.reading)
-        height: Math.min(parent.height - page.metrics.inset * 2, page.metrics.editor * 3)
-        x: (parent.width - width) / 2; y: (parent.height - height) / 2
-        contentItem: ScrollView {
-            id: bridgeScroll
-            contentWidth: availableWidth
-            BridgeSettings { width: bridgeScroll.availableWidth; bridge: page.bridge }
         }
     }
 }

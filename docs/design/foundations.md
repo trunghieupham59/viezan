@@ -2,7 +2,7 @@
 
 Tài liệu này là luật chung cho mọi màn hình. Đặc tả từng màn hình trong `screens/` chỉ ghi phần riêng của màn hình đó và dẫn về đây cho phần chung.
 
-Nguồn sự thật duy nhất cho mọi giá trị hình ảnh là `src/styles/tokens.css`. Tài liệu này nêu tên token và vai trò của chúng, không lặp lại con số trừ khi cần để đọc bản vẽ. Nếu con số ở đây lệch với `tokens.css`, `tokens.css` đúng.
+Nguồn sự thật duy nhất cho mọi giá trị hình ảnh là `resources/tokens.css`. Tài liệu này nêu tên token và vai trò của chúng, không lặp lại con số trừ khi cần để đọc bản vẽ. Nếu con số ở đây lệch với `tokens.css`, `tokens.css` đúng.
 
 ## 1. Tinh thần: "bàn làm việc yên tĩnh"
 
