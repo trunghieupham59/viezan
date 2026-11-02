@@ -21,8 +21,8 @@ Item {
     onRequestedSectionChanged: openRequested()
     Component.onCompleted: openRequested()
     property string activeSection: "general"
-    // Review 18 settings navigation icons, generated from the renderer icon registry.
-    readonly property var sectionIcons: ({general: "settings", appearance: "appearance", providers: "providers", localModels: "localModels", desktop: "utilities", bridge: "everywhere", data: "data", about: "about", voice: "interpret", modules: "apps", updates: "refresh"})
+    // Review 18 settings navigation icons, packaged from qml/icons.
+    readonly property var sectionIcons: ({general: "settings", appearance: "appearance", providers: "providers", localModels: "localModels", desktop: "utilities", data: "data", about: "about", voice: "interpret", modules: "apps", updates: "refresh"})
     readonly property var sections: bridge.resources.settingsSections.filter(section => {
         const haystack = [section.title, section.description].concat(section.terms).map(t).join(" ")
         return normalize(haystack).includes(normalize(query.trim()))
@@ -146,7 +146,7 @@ Item {
                                 Kit.PageIntro { title: t(modelData.title); subtitle: t(modelData.description); Layout.fillWidth: true }
                                 Loader {
                                     Layout.fillWidth: true
-                                    sourceComponent: modelData.id === "desktop" ? desktopCard : modelData.id === "bridge" ? bridgeCard : modelData.id === "data" ? dataCard : modelData.id === "localModels" ? localModelsCard : modelData.id === "providers" ? providersCard : modelData.id === "voice" ? voiceCard : modelData.id === "modules" ? modulesCard : modelData.id === "updates" ? updatesCard : modelData.id === "general" ? generalCard : modelData.id === "appearance" ? appearanceCard : aboutCard
+                                    sourceComponent: modelData.id === "desktop" ? desktopCard : modelData.id === "data" ? dataCard : modelData.id === "localModels" ? localModelsCard : modelData.id === "providers" ? providersCard : modelData.id === "voice" ? voiceCard : modelData.id === "modules" ? modulesCard : modelData.id === "updates" ? updatesCard : modelData.id === "general" ? generalCard : modelData.id === "appearance" ? appearanceCard : aboutCard
                                 }
                             }
                         }
@@ -168,10 +168,6 @@ Item {
     Component {
         id: desktopCard
         DesktopSettings { bridge: settings.bridge; width: parent.width }
-    }
-    Component {
-        id: bridgeCard
-        Kit.CardBox { width: parent.width; BridgeSettings { bridge: settings.bridge; showsDescription: false; width: parent.width } }
     }
     Component {
         id: dataCard
@@ -286,15 +282,15 @@ Item {
                 anchors.fill: parent
                 spacing: 0
                 Repeater {
-                    model: ["chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities", "bridge"]
+                    model: ["chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities"]
                     delegate: Kit.CardRow {
                         required property string modelData
-                        title: settings.t(modelData === "bridge" ? "browserBridge" : modelData)
-                        divider: modelData !== "bridge"
+                        title: settings.t(modelData)
+                        divider: modelData !== "utilities"
                         Switch {
                             checked: !(settings.workspace.disabledModules || []).includes(modelData)
                             enabled: !settings.bridge.loadBlocked
-                            Accessible.name: settings.t(modelData === "bridge" ? "browserBridge" : modelData)
+                            Accessible.name: settings.t(modelData)
                             onToggled: settings.bridge.command("module", {id: modelData, enabled: checked})
                         }
                     }

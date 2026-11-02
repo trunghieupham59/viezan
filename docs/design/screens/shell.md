@@ -68,7 +68,7 @@ Trang AI Chat chèn sidebar lịch sử (organism riêng, `AIChatSidebar`) giữ
 | Popup cập nhật | `UpdatePopupPage` trong `BrowserWindow` riêng | Cửa sổ 440 × 320 DIP, không viền, không đổi cỡ; lề `--vzn-space-6`; tiêu đề `--vzn-font-size-heading` | Không |
 | Hộp thoại cập nhật trong app (dự phòng) | `UpdateNotification` (`.update-notification`) | Rộng tối đa `--vzn-update-dialog-max-inline` (560), cao tối đa `--vzn-modal-viewport-block`; lề `--vzn-space-6` | Thân cuộn khi thấp |
 
-Lớp chồng (thấp → cao): lớp phủ ngữ cảnh 60 → nền bắt bấm của điều hướng phủ 65 → điều hướng phủ 70 → hộp thoại/bảng lệnh 80 → bộ chọn 90 → toast 100 (`--vzn-layer-*`, `src/styles/tokens.css:269-276`). Scrim của mọi hộp thoại bắt đầu dưới thanh tiêu đề (`.app-shell[data-titlebar="app"] .modal-backdrop`) vì nút cửa sổ do hệ điều hành vẽ không làm mờ được.
+Lớp chồng (thấp → cao): lớp phủ ngữ cảnh 60 → nền bắt bấm của điều hướng phủ 65 → điều hướng phủ 70 → hộp thoại/bảng lệnh 80 → bộ chọn 90 → toast 100 (`--vzn-layer-*`, `resources/tokens.css:269-276`). Scrim của mọi hộp thoại bắt đầu dưới thanh tiêu đề (`.app-shell[data-titlebar="app"] .modal-backdrop`) vì nút cửa sổ do hệ điều hành vẽ không làm mờ được.
 
 ## 4. Thành phần và hành động
 

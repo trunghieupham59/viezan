@@ -14,6 +14,19 @@ import Testing
     func save(_ workspace: Workspace) throws { if failSave { throw StorageFailure.invalidData }; value = workspace; writes += 1 }
 }
 
+@Test func workspaceDropsRetiredBrowserSettingsDuringRecovery() throws {
+    let original = Workspace()
+    var snapshot = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
+    snapshot["bridge"] = ["automatic": true, "origins": ["https://example.org"]] as [String: Any]
+    snapshot["disabledModules"] = ["bridge", "thermal"]
+    let data = try JSONSerialization.data(withJSONObject: snapshot)
+    let restored = try JSONDecoder().decode(Workspace.self, from: data).upgrading().validated()
+    #expect(restored.disabledModules == ["thermal"])
+    #expect(restored.active == original.active)
+    let saved = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(restored)) as? [String: Any])
+    #expect(saved["bridge"] == nil)
+}
+
 @Test @MainActor func sessionsKeepIndependentDraftsAndModelsWhileTasksRun() throws {
     let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
     let chat = store.session.id

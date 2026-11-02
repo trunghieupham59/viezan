@@ -16,7 +16,6 @@ const TRANSLATIONS = {
       platform_mac: 'macOS',
       platform_win: 'Windows',
       platform_linux: 'Linux',
-      platform_ext: 'Chrome Extension',
     },
     providers: { label: 'Powered by local runtimes and bring-your-own-key cloud providers' },
     features: {
@@ -31,10 +30,9 @@ const TRANSLATIONS = {
       { title: 'AI Chat',            desc: 'Full-featured AI chat with image attachments, voice input, custom System Prompts, preset templates, web search, native chart responses, and complete searchable chat history.', tag: 'Assistant' },
       { title: 'Voice I/O',          desc: 'Voice input via Web Speech API, OpenAI Whisper, Gemini STT, and Groq fallback. Text-to-Speech uses free-first and premium provider paths.', tag: 'Audio' },
       { title: 'Furigana Support',   desc: 'Automatic furigana overlay on Japanese translations. Essential for learners, BrSE, and anyone working daily with Japanese text.', tag: 'Japanese' },
-      { title: 'Chrome Extension',   desc: 'Translate selected text in your browser with Alt+T shortcut, platform-aware hints, and a redesigned two-column popup UI. Works via local server.', tag: 'Browser' },
       { title: 'Global Hotkey',      desc: 'Summon Viezan from any application with a global keyboard shortcut. No need to switch apps mid-workflow.', tag: 'Productivity' },
-      { title: 'Privacy First',      desc: 'Provider keys are encrypted with Electron safeStorage and used by the desktop app only. No Viezan-hosted relay server sits between you and the selected provider.', tag: 'Security' },
-      { title: 'Settings Modal',     desc: 'Settings redesigned as a clean popup overlay — access API keys, model preferences and extension settings instantly from any tab without losing context.', tag: 'UX' },
+      { title: 'Privacy First',      desc: 'Provider keys are stored in the operating system credential store and used by the desktop app only. No Viezan-hosted relay server sits between you and the selected provider.', tag: 'Security' },
+      { title: 'Settings Modal',     desc: 'Settings redesigned as a clean popup overlay — access API keys, and model preferences instantly from any tab without losing context.', tag: 'UX' },
       { title: 'Phonetic Mode',      desc: 'Pure phonetic transcription mode — get romanization or phonetics instead of a full translation. Perfect for pronunciation learning and language study.', tag: 'Translate' },
       { title: 'Web Search in Chat', desc: 'AI Chat with optional real-time web search through Tavily or Brave keys, plus a Jina fallback path when available.', tag: 'Chat' },
       { title: 'Local AI Support',   desc: 'Run translation and chat through Ollama, LM Studio or llama.cpp. Benchmark your hardware, download curated models, and keep work fully local.', tag: 'Available' },
@@ -57,7 +55,7 @@ const TRANSLATIONS = {
     download: {
       label: 'Download', title: 'Get Viezan for free',
       sub: 'Available for macOS, Windows and Linux. No account required. Start translating in minutes.',
-      mac_btn: '⬇ Download .dmg', win_btn: '⬇ Download .exe', linux_btn: '⬇ Download .AppImage', ext_btn: '⬇ Download .zip',
+      mac_btn: '⬇ Download .dmg', win_btn: '⬇ Download .exe', linux_btn: '⬇ Download .AppImage',
       warning: '⚠️ macOS may block the app because it is not signed/notarized yet. Use System Settings → Privacy & Security → Open Anyway, or see the README for the trusted-download Terminal fallback. <a href="https://github.com/trunghieupham59/Viezan#readme" style="color:var(--accent)" target="_blank">See instructions →</a>',
     },
     support: {
@@ -84,7 +82,6 @@ const TRANSLATIONS = {
       platform_mac: 'macOS',
       platform_win: 'Windows',
       platform_linux: 'Linux',
-      platform_ext: 'Tiện ích Chrome',
     },
     providers: { label: 'Chạy với runtime local và cloud provider BYOK' },
     features: {
@@ -99,10 +96,9 @@ const TRANSLATIONS = {
       { title: 'Chat AI',              desc: 'Chat AI đầy đủ tính năng với đính kèm ảnh, nhập liệu bằng giọng nói, System Prompts tùy chỉnh, mẫu sẵn có, tìm kiếm web và lịch sử chat có thể tìm kiếm.', tag: 'Trợ lý' },
       { title: 'Giọng nói I/O',        desc: 'Nhập liệu bằng giọng nói qua Web Speech API, OpenAI Whisper, Gemini STT và Groq dự phòng. Text-to-Speech có đường dẫn miễn phí trước và provider cao cấp.', tag: 'Âm thanh' },
       { title: 'Hỗ trợ Furigana',      desc: 'Overlay furigana tự động trên bản dịch tiếng Nhật. Không thể thiếu cho người học, BrSE và những ai làm việc hàng ngày với văn bản tiếng Nhật.', tag: 'Tiếng Nhật' },
-      { title: 'Tiện ích Chrome',      desc: 'Dịch văn bản bằng phím tắt Alt+T, gợi ý phím theo nền tảng, giao diện popup 2 cột thiết kế lại. Hoạt động cùng ứng dụng desktop qua máy chủ cục bộ.', tag: 'Trình duyệt' },
       { title: 'Phím tắt toàn cục',    desc: 'Gọi Viezan từ bất kỳ ứng dụng nào bằng phím tắt toàn cục. Không cần chuyển ứng dụng giữa chừng công việc.', tag: 'Năng suất' },
-      { title: 'Bảo mật trước tiên',   desc: 'Provider key được mã hóa bằng Electron safeStorage và chỉ dùng trong desktop app. Không có relay server của Viezan nằm giữa bạn và provider đã chọn.', tag: 'Bảo mật' },
-      { title: 'Cài đặt dạng Modal',   desc: 'Cài đặt được thiết kế lại thành popup overlay — truy cập API key, tùy chọn mô hình và cài đặt tiện ích ngay lập tức từ bất kỳ tab nào mà không mất ngữ cảnh.', tag: 'UX' },
+      { title: 'Bảo mật trước tiên',   desc: 'Provider key được lưu trong kho thông tin xác thực của hệ điều hành và chỉ dùng trong desktop app. Không có relay server của Viezan nằm giữa bạn và provider đã chọn.', tag: 'Bảo mật' },
+      { title: 'Cài đặt dạng Modal',   desc: 'Cài đặt được thiết kế lại thành popup overlay — truy cập API key, và tùy chọn mô hình ngay lập tức từ bất kỳ tab nào mà không mất ngữ cảnh.', tag: 'UX' },
       { title: 'Chế độ Phiên âm',      desc: 'Chế độ phiên âm thuần tuý — nhận phiên âm/romanization thay vì bản dịch đầy đủ. Hoàn hảo cho việc học phát âm và nghiên cứu ngôn ngữ.', tag: 'Dịch thuật' },
       { title: 'Tìm kiếm Web trong Chat', desc: 'Chat AI với tìm kiếm web tùy chọn qua Tavily hoặc Brave key, kèm đường dẫn Jina fallback khi khả dụng.', tag: 'Chat' },
       { title: 'Hỗ trợ AI cục bộ',     desc: 'Dịch và chat qua Ollama, LM Studio hoặc llama.cpp. Benchmark phần cứng, tải model đề xuất và giữ dữ liệu hoàn toàn trên máy.', tag: 'Đã có' },
@@ -125,7 +121,7 @@ const TRANSLATIONS = {
     download: {
       label: 'Tải xuống', title: 'Tải Viezan miễn phí',
       sub: 'Có sẵn cho macOS, Windows và Linux. Không cần tài khoản. Bắt đầu dịch trong vài phút.',
-      mac_btn: '⬇ Tải .dmg', win_btn: '⬇ Tải .exe', linux_btn: '⬇ Tải .AppImage', ext_btn: '⬇ Tải .zip',
+      mac_btn: '⬇ Tải .dmg', win_btn: '⬇ Tải .exe', linux_btn: '⬇ Tải .AppImage',
       warning: '⚠️ macOS có thể chặn ứng dụng vì chưa ký/notarize. Vào System Settings → Privacy & Security → Open Anyway, hoặc xem README để dùng lệnh Terminal khi bạn tin tưởng file tải về. <a href="https://github.com/trunghieupham59/Viezan#readme" style="color:var(--accent)" target="_blank">Xem hướng dẫn →</a>',
     },
     support: {
@@ -152,7 +148,6 @@ const TRANSLATIONS = {
       platform_mac: 'macOS',
       platform_win: 'Windows',
       platform_linux: 'Linux',
-      platform_ext: 'Chrome 扩展',
     },
     providers: { label: '由本地运行时和 BYOK 云端提供商驱动' },
     features: {
@@ -167,10 +162,9 @@ const TRANSLATIONS = {
       { title: 'AI 聊天',        desc: '功能齐全的 AI 聊天，支持图片附件、语音输入、自定义系统提示、预设模板、网页搜索和完整可搜索的聊天历史。', tag: '助手' },
       { title: '语音输入/输出',  desc: '通过 Web Speech API、OpenAI Whisper、Gemini STT 和 Groq 备用进行语音输入。Text-to-Speech 支持免费优先和高级提供商路径。', tag: '音频' },
       { title: '假名支持',       desc: '日语翻译自动添加假名注音。对日语学习者、BrSE 以及日常使用日文的人来说必不可少。', tag: '日语' },
-      { title: 'Chrome 扩展',    desc: '使用 Alt+T 快捷键在浏览器中翻译选中文本，平台感知提示，全新两列弹出界面。通过本地服务器协同工作。', tag: '浏览器' },
       { title: '全局快捷键',     desc: '使用全局键盘快捷键从任何应用程序中呼出 Viezan。工作流程中途无需切换应用。', tag: '效率' },
-      { title: '隐私优先',       desc: '提供商密钥通过 Electron safeStorage 加密，并且只由桌面应用使用。你和所选提供商之间没有 Viezan 托管的中继服务器。', tag: '安全' },
-      { title: '设置弹窗',       desc: '设置重新设计为简洁弹出层 — 可从任何标签页即时访问 API 密钥、模型偏好和扩展设置，无需离开当前页面。', tag: 'UX' },
+      { title: '隐私优先',       desc: '提供商密钥存储在操作系统的凭据存储中，并且只由桌面应用使用。你和所选提供商之间没有 Viezan 托管的中继服务器。', tag: '安全' },
+      { title: '设置弹窗',       desc: '设置重新设计为简洁弹出层 — 可从任何标签页即时访问 API 密钥和模型偏好，无需离开当前页面。', tag: 'UX' },
       { title: '音标模式',       desc: '纯音标转录模式 — 获取罗马音或音标而非完整翻译。非常适合发音学习和语言研究。', tag: '翻译' },
       { title: 'Chat 网页搜索',  desc: 'AI 聊天支持通过 Tavily 或 Brave 密钥进行可选实时网页搜索，并在可用时使用 Jina fallback。', tag: '聊天' },
       { title: '本地 AI 支持',   desc: '通过 Ollama、LM Studio 或 llama.cpp 进行翻译和聊天。测试硬件、下载推荐模型，并让数据保留在本机。', tag: '已可用' },
@@ -193,7 +187,7 @@ const TRANSLATIONS = {
     download: {
       label: '下载', title: '免费获取 Viezan',
       sub: '适用于 macOS、Windows 和 Linux。无需账户。几分钟内开始翻译。',
-      mac_btn: '⬇ 下载 .dmg', win_btn: '⬇ 下载 .exe', linux_btn: '⬇ 下载 .AppImage', ext_btn: '⬇ 下载 .zip',
+      mac_btn: '⬇ 下载 .dmg', win_btn: '⬇ 下载 .exe', linux_btn: '⬇ 下载 .AppImage',
       warning: '⚠️ 由于应用尚未签名/公证，macOS 可能会阻止打开。请在 System Settings → Privacy & Security → Open Anyway 中允许，或查看 README 中针对可信下载的 Terminal 备用命令。<a href="https://github.com/trunghieupham59/Viezan#readme" style="color:var(--accent)" target="_blank">查看说明 →</a>',
     },
     support: {
@@ -220,7 +214,6 @@ const TRANSLATIONS = {
       platform_mac: 'macOS',
       platform_win: 'Windows',
       platform_linux: 'Linux',
-      platform_ext: 'Chrome 拡張機能',
     },
     providers: { label: 'ローカルランタイムと BYOK クラウドプロバイダーに対応' },
     features: {
@@ -235,10 +228,9 @@ const TRANSLATIONS = {
       { title: 'AI チャット',           desc: '画像添付、音声入力、カスタムシステムプロンプト、プリセットテンプレート、ウェブ検索、検索可能な完全なチャット履歴を備えたフル機能 AI チャット。', tag: 'アシスタント' },
       { title: '音声 I/O',              desc: 'Web Speech API、OpenAI Whisper、Gemini STT、Groq フォールバックによる音声入力。Text-to-Speech は無料優先とプレミアムプロバイダーの経路に対応。', tag: 'オーディオ' },
       { title: 'ふりがなサポート',       desc: '日本語翻訳に自動ふりがなオーバーレイ。学習者、BrSE、日本語テキストを日常的に扱う方に必須。', tag: '日本語' },
-      { title: 'Chrome 拡張機能',       desc: 'Alt+T ショートカットでブラウザ内のテキストを即翻訳。プラットフォーム対応ヒント、リデザインされた 2 列ポップアップ UI。', tag: 'ブラウザ' },
       { title: 'グローバルホットキー',   desc: 'グローバルキーボードショートカットで任意のアプリから Viezan を呼び出し。ワークフロー中にアプリを切り替える必要なし。', tag: '生産性' },
-      { title: 'プライバシー第一',       desc: 'プロバイダーキーは Electron safeStorage で暗号化され、デスクトップアプリだけが使用します。あなたと選択したプロバイダーの間に Viezan の中継サーバーはありません。', tag: 'セキュリティ' },
-      { title: '設定モーダル',          desc: '設定をクリーンなポップアップオーバーレイに刷新 — どのタブからでも即座に API キー、モデル設定、拡張機能設定にアクセス。コンテキストを失わない。', tag: 'UX' },
+      { title: 'プライバシー第一',       desc: 'プロバイダーキーは OS の資格情報ストアに保存され、デスクトップアプリだけが使用します。あなたと選択したプロバイダーの間に Viezan の中継サーバーはありません。', tag: 'セキュリティ' },
+      { title: '設定モーダル',          desc: '設定をクリーンなポップアップオーバーレイに刷新 — どのタブからでも即座に API キーとモデル設定にアクセス。コンテキストを失わない。', tag: 'UX' },
       { title: 'フォネティックモード',   desc: '純粋な音声転写モード — 完全な翻訳の代わりにローマ字や音声表記を取得。発音学習や語学研究に最適。', tag: '翻訳' },
       { title: 'チャットでウェブ検索',   desc: 'Tavily または Brave キーによる任意のリアルタイムウェブ検索に対応し、利用可能な場合は Jina fallback も使います。', tag: 'チャット' },
       { title: 'ローカル AI サポート',   desc: 'Ollama、LM Studio、llama.cpp で翻訳とチャットを実行。ハードウェアを測定し、推奨モデルをダウンロードして、作業を完全にローカルに保ちます。', tag: '利用可能' },
@@ -261,7 +253,7 @@ const TRANSLATIONS = {
     download: {
       label: 'ダウンロード', title: 'Viezan を無料で入手',
       sub: 'macOS、Windows および Linux で利用可能。アカウント不要。数分で翻訳開始。',
-      mac_btn: '⬇ .dmg をダウンロード', win_btn: '⬇ .exe をダウンロード', linux_btn: '⬇ .AppImage をダウンロード', ext_btn: '⬇ .zip をダウンロード',
+      mac_btn: '⬇ .dmg をダウンロード', win_btn: '⬇ .exe をダウンロード', linux_btn: '⬇ .AppImage をダウンロード',
       warning: '⚠️ アプリはまだ署名/公証されていないため、macOS がブロックする場合があります。System Settings → Privacy & Security → Open Anyway を使うか、信頼できるダウンロードの場合は README の Terminal fallback を確認してください。<a href="https://github.com/trunghieupham59/Viezan#readme" style="color:var(--accent)" target="_blank">手順を見る →</a>',
     },
     support: {
@@ -288,7 +280,6 @@ const TRANSLATIONS = {
       platform_mac: 'macOS',
       platform_win: 'Windows',
       platform_linux: 'Linux',
-      platform_ext: 'Extension Chrome',
     },
     providers: { label: 'Propulsé par des runtimes locaux et des fournisseurs cloud BYOK' },
     features: {
@@ -303,10 +294,9 @@ const TRANSLATIONS = {
       { title: 'Chat IA',                    desc: 'Chat IA complet avec pièces jointes d\'images, saisie vocale, Prompts Système personnalisés, modèles prédéfinis, recherche web et historique de chat complet et consultable.', tag: 'Assistant' },
       { title: 'E/S vocale',                 desc: 'Saisie vocale via Web Speech API, OpenAI Whisper, Gemini STT et fallback Groq. La synthèse vocale propose des chemins gratuits d\'abord et des fournisseurs premium.', tag: 'Audio' },
       { title: 'Support Furigana',           desc: 'Overlay furigana automatique sur les traductions japonaises. Indispensable pour les apprenants, BrSE et tous ceux qui travaillent quotidiennement avec du texte japonais.', tag: 'Japonais' },
-      { title: 'Extension Chrome',           desc: 'Traduisez le texte sélectionné avec le raccourci Alt+T, des indices adaptés à la plateforme et une nouvelle UI popup à deux colonnes. Fonctionne via un serveur local.', tag: 'Navigateur' },
       { title: 'Raccourci global',           desc: 'Invoquez Viezan depuis n\'importe quelle application avec un raccourci clavier global. Pas besoin de changer d\'application en plein travail.', tag: 'Productivité' },
-      { title: 'Confidentialité avant tout', desc: 'Les clés fournisseurs sont chiffrées avec Electron safeStorage et utilisées uniquement par l\'application desktop. Aucun serveur relais Viezan ne se place entre vous et le fournisseur choisi.', tag: 'Sécurité' },
-      { title: 'Fenêtre Paramètres',         desc: 'Les paramètres redessinés en popup overlay — accédez aux clés API, préférences de modèle et paramètres d\'extension instantanément depuis n\'importe quel onglet.', tag: 'UX' },
+      { title: 'Confidentialité avant tout', desc: 'Les clés fournisseurs sont stockées dans le gestionnaire d’identifiants du système et utilisées uniquement par l\'application desktop. Aucun serveur relais Viezan ne se place entre vous et le fournisseur choisi.', tag: 'Sécurité' },
+      { title: 'Fenêtre Paramètres',         desc: 'Les paramètres redessinés en popup overlay — accédez aux clés API, préférences de modèle instantanément depuis n\'importe quel onglet.', tag: 'UX' },
       { title: 'Mode Phonétique',            desc: 'Mode de transcription phonétique pure — obtenez la romanisation ou la phonétique au lieu d\'une traduction complète. Parfait pour l\'apprentissage de la prononciation.', tag: 'Traduction' },
       { title: 'Recherche Web dans le Chat', desc: 'Chat IA avec recherche web optionnelle via des clés Tavily ou Brave, plus un chemin Jina fallback lorsqu\'il est disponible.', tag: 'Chat' },
       { title: 'Support IA local',           desc: 'Traduisez et chattez via Ollama, LM Studio ou llama.cpp. Évaluez votre matériel, téléchargez des modèles recommandés et gardez tout en local.', tag: 'Disponible' },
@@ -329,7 +319,7 @@ const TRANSLATIONS = {
     download: {
       label: 'Télécharger', title: 'Obtenez Viezan gratuitement',
       sub: 'Disponible pour macOS, Windows et Linux. Aucun compte requis. Commencez à traduire en quelques minutes.',
-      mac_btn: '⬇ Télécharger .dmg', win_btn: '⬇ Télécharger .exe', linux_btn: '⬇ Télécharger .AppImage', ext_btn: '⬇ Télécharger .zip',
+      mac_btn: '⬇ Télécharger .dmg', win_btn: '⬇ Télécharger .exe', linux_btn: '⬇ Télécharger .AppImage',
       warning: '⚠️ macOS peut bloquer l\'application car elle n\'est pas encore signée/notariée. Utilisez System Settings → Privacy & Security → Open Anyway, ou consultez le README pour le fallback Terminal avec un téléchargement de confiance. <a href="https://github.com/trunghieupham59/Viezan#readme" style="color:var(--accent)" target="_blank">Voir les instructions →</a>',
     },
     support: {
@@ -356,7 +346,6 @@ const TRANSLATIONS = {
       platform_mac: 'macOS',
       platform_win: 'Windows',
       platform_linux: 'Linux',
-      platform_ext: 'Chrome 확장',
     },
     providers: { label: '로컬 런타임과 BYOK 클라우드 제공업체 지원' },
     features: {
@@ -371,10 +360,9 @@ const TRANSLATIONS = {
       { title: 'AI 채팅',            desc: '이미지 첨부, 음성 입력, 사용자 정의 시스템 프롬프트, 프리셋 템플릿, 웹 검색, 완전한 검색 가능한 채팅 기록을 갖춘 완전한 AI 채팅.', tag: '어시스턴트' },
       { title: '음성 I/O',           desc: 'Web Speech API, OpenAI Whisper, Gemini STT, Groq 폴백을 통한 음성 입력. Text-to-Speech는 무료 우선 경로와 프리미엄 제공업체 경로를 지원합니다.', tag: '오디오' },
       { title: '후리가나 지원',       desc: '일본어 번역에 자동 후리가나 오버레이. 학습자, BrSE, 일본어 텍스트를 매일 다루는 모든 분에게 필수.', tag: '일본어' },
-      { title: 'Chrome 확장',        desc: 'Alt+T 단축키로 브라우저에서 선택한 텍스트를 즉시 번역. 플랫폼 인식 힌트, 새로 디자인된 2열 팝업 UI. 로컬 서버로 연동.', tag: '브라우저' },
       { title: '글로벌 단축키',      desc: '글로벌 키보드 단축키로 모든 애플리케이션에서 Viezan 호출. 작업 중 앱 전환 불필요.', tag: '생산성' },
-      { title: '개인정보 우선',      desc: '제공업체 키는 Electron safeStorage로 암호화되고 데스크톱 앱에서만 사용됩니다. 사용자와 선택한 제공업체 사이에 Viezan 릴레이 서버가 없습니다.', tag: '보안' },
-      { title: '설정 모달',          desc: '설정이 깔끔한 팝업 오버레이로 재설계 — 어떤 탭에서든 API 키, 모델 기본 설정 및 확장 설정에 즉시 접근. 컨텍스트 유지.', tag: 'UX' },
+      { title: '개인정보 우선',      desc: '제공업체 키는 운영체제의 자격 증명 저장소에 보관되며 데스크톱 앱에서만 사용됩니다. 사용자와 선택한 제공업체 사이에 Viezan 릴레이 서버가 없습니다.', tag: '보안' },
+      { title: '설정 모달',          desc: '설정이 깔끔한 팝업 오버레이로 재설계 — 어떤 탭에서든 API 키, 모델 기본 설정에 즉시 접근. 컨텍스트 유지.', tag: 'UX' },
       { title: '발음 표기 모드',      desc: '순수 음성 전사 모드 — 완전한 번역 대신 로마자나 발음 기호를 받아보세요. 발음 학습과 언어 연구에 완벽합니다.', tag: '번역' },
       { title: 'Chat 웹 검색',       desc: 'Tavily 또는 Brave 키를 통한 선택적 실시간 웹 검색과 사용 가능한 경우 Jina fallback 경로를 지원합니다.', tag: '채팅' },
       { title: '로컬 AI 지원',       desc: 'Ollama, LM Studio 또는 llama.cpp로 번역과 채팅을 실행합니다. 하드웨어를 벤치마크하고 추천 모델을 다운로드하며 작업을 로컬에 유지합니다.', tag: '사용 가능' },
@@ -397,7 +385,7 @@ const TRANSLATIONS = {
     download: {
       label: '다운로드', title: '무료로 Viezan 받기',
       sub: 'macOS, Windows 및 Linux에서 사용 가능. 계정 불필요. 몇 분 안에 번역 시작.',
-      mac_btn: '⬇ .dmg 다운로드', win_btn: '⬇ .exe 다운로드', linux_btn: '⬇ .AppImage 다운로드', ext_btn: '⬇ .zip 다운로드',
+      mac_btn: '⬇ .dmg 다운로드', win_btn: '⬇ .exe 다운로드', linux_btn: '⬇ .AppImage 다운로드',
       warning: '⚠️ 앱이 아직 서명/공증되지 않아 macOS가 차단할 수 있습니다. System Settings → Privacy & Security → Open Anyway를 사용하거나, 신뢰한 다운로드라면 README의 Terminal fallback을 확인하세요. <a href="https://github.com/trunghieupham59/Viezan#readme" style="color:var(--accent)" target="_blank">안내 보기 →</a>',
     },
     support: {
@@ -462,11 +450,9 @@ function setLang(lang) {
   const dlMac   = document.getElementById('dl-mac');
   const dlWin   = document.getElementById('dl-win');
   const dlLinux = document.getElementById('dl-linux');
-  const dlExt   = document.getElementById('dl-ext');
   if (dlMac)   dlMac.textContent   = t.download.mac_btn;
   if (dlWin)   dlWin.textContent   = t.download.win_btn;
   if (dlLinux) dlLinux.textContent = t.download.linux_btn;
-  if (dlExt)   dlExt.textContent   = t.download.ext_btn;
 
   /* active lang button */
   document.querySelectorAll('.lang-btn').forEach(btn => {

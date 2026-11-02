@@ -46,7 +46,6 @@ body:
               - Image translate
               - Settings / API keys
               - Updater
-              - Chrome Extension
               - Other
 
     - type: textarea

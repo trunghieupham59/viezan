@@ -718,10 +718,6 @@ section {
 }
 [data-theme="light"] .download-card .dl-btn { color: #fff; }
 .download-card .dl-btn:hover { opacity: 0.85; }
-.download-card.extension {
-  border-style: dashed;
-}
-
 /* ══════════════════════════ SUPPORT ══════════════════════════ */
 .support-section {
   padding: 80px 24px;

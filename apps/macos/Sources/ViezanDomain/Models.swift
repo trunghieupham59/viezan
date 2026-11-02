@@ -129,16 +129,6 @@ public struct QuickTranslatePreferences: Codable, Equatable, Sendable {
         return base(detected) == base(primary) ? secondary : primary
     }
 }
-public struct BridgePreferences: Codable, Equatable, Sendable {
-    public var automatic = false
-    public var origins: [String] = []
-    public init(automatic: Bool = false, origins: [String] = []) { self.automatic = automatic; self.origins = origins }
-    public static func normalize(_ value: String) -> String? {
-        guard var url = URLComponents(string: value.trimmingCharacters(in: .whitespacesAndNewlines)), url.scheme == "https", let host = url.host, !host.isEmpty, url.user == nil, url.password == nil, url.query == nil, url.fragment == nil, url.path.isEmpty || url.path == "/" else { return nil }
-        url.host = host.lowercased(); url.path = ""; if url.port == 443 { url.port = nil }; return url.string
-    }
-    public var valid: Bool { origins.count <= 32 && Set(origins).count == origins.count && origins.allSatisfy { $0.utf8.count <= 2048 && Self.normalize($0) == $0 } }
-}
 public struct VoicePreferences: Codable, Equatable, Sendable {
     public var provider = "system"
     public var voice = ""
@@ -172,7 +162,6 @@ public struct Workspace: Codable, Equatable, Sendable {
     public var disabledModules: [String]?
     public var rates: [String: UsageRate]?
     public var prompts: [SavedPrompt]?
-    public var bridge: BridgePreferences?
     public var voice: VoicePreferences?
     public var runtime: RuntimePreferences?
     public var autoTranslate: Bool?
@@ -199,6 +188,7 @@ public struct Workspace: Codable, Equatable, Sendable {
     }
     public func upgrading() -> Workspace {
         var result = self
+        result.disabledModules?.removeAll { $0 == "bridge" }
         for i in result.sessions.indices where result.sessions[i].model.hasPrefix("demo.") { result.sessions[i].model = "ollama:llama3.2" }
         for i in result.tasks.indices where result.tasks[i].request.model.hasPrefix("demo.") { result.tasks[i].request.model = "ollama:llama3.2" }
         if !sessions.contains(where: { $0.feature == .dictionary }), active["dictionary"] == nil {
@@ -208,7 +198,7 @@ public struct Workspace: Codable, Equatable, Sendable {
         return result
     }
     public func validated() throws -> Workspace {
-        guard ["graphite", "glass", "paper", "corporate", "midnight"].contains(preferences.preset ?? "glass"), ["auto", "violet", "pink", "teal", "green", "amber", "red"].contains(preferences.accent ?? "auto"), (disabledModules ?? []).allSatisfy({ ["chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities", "bridge"].contains($0) }), (rates?.count ?? 0) <= 1000, rates?.allSatisfy({ NativeModel.valid($0.key) && $0.value.valid }) ?? true, schemaVersion == 1,
+        guard ["graphite", "glass", "paper", "corporate", "midnight"].contains(preferences.preset ?? "glass"), ["auto", "violet", "pink", "teal", "green", "amber", "red"].contains(preferences.accent ?? "auto"), (disabledModules ?? []).allSatisfy({ ["chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities"].contains($0) }), (rates?.count ?? 0) <= 1000, rates?.allSatisfy({ NativeModel.valid($0.key) && $0.value.valid }) ?? true, schemaVersion == 1,
               ["vi", "en", "ja"].contains(locale),
               quickTranslate?.valid ?? true,
               Set(sessions.map(\.id)).count == sessions.count,
@@ -241,7 +231,6 @@ public struct Workspace: Codable, Equatable, Sendable {
             if task.status == .running { guard busy.insert(task.request.sessionID).inserted else { throw StorageFailure.invalidData } }
         }
         if let prompts { guard prompts.count <= 500, Set(prompts.map(\.id)).count == prompts.count, prompts.allSatisfy({ !$0.name.isEmpty && $0.name.count <= 100 && $0.text.utf8.count <= 32768 }) else { throw StorageFailure.invalidData } }
-        if let bridge, !bridge.valid { throw StorageFailure.invalidData }
         if let voice, !voice.valid { throw StorageFailure.invalidData }
         if let runtime, !runtime.valid { throw StorageFailure.invalidData }
         if let autoTranslateDelay, !(100...5000).contains(autoTranslateDelay) { throw StorageFailure.invalidData }

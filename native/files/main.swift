@@ -33,7 +33,7 @@ do {
         try fm.trashItem(at: source, resultingItemURL: &result)
         guard let result else { try reject() }
         let trashedPath = try canonical(result.path ?? "")
-        // Written by the helper, so a terminated Electron process can recover the result.
+        // Written by the helper, so the app can recover the result after a restart.
         let receipt = URL(fileURLWithPath: args[4])
         let data = try JSONSerialization.data(withJSONObject: ["path": trashedPath])
         try data.write(to: receipt, options: .atomic)

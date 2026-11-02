@@ -1,40 +1,6 @@
 version: 2
 
 updates:
-    # ─────────────────────────────────────────────
-    # NPM dependencies
-    # ─────────────────────────────────────────────
-    - package-ecosystem: npm
-      directory: "/"
-      schedule:
-          interval: weekly
-          day: monday
-          time: "06:00"
-          timezone: "Asia/Ho_Chi_Minh"
-      open-pull-requests-limit: 10
-      labels:
-          - "area/dependencies"
-          - "type/chore"
-      commit-message:
-          prefix: "chore(deps)"
-          prefix-development: "chore(deps-dev)"
-          include: scope
-      groups:
-          native-assets:
-              patterns:
-                  - "react"
-                  - "react-dom"
-                  - "esbuild"
-      ignore:
-          # Bỏ qua các major bump nhạy cảm — cần tự nâng tay
-          - dependency-name: "react"
-            update-types: ["version-update:semver-major"]
-          - dependency-name: "react-dom"
-            update-types: ["version-update:semver-major"]
-
-    # ─────────────────────────────────────────────
-    # GitHub Actions
-    # ─────────────────────────────────────────────
     - package-ecosystem: github-actions
       directory: "/"
       schedule:

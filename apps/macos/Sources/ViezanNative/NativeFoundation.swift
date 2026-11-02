@@ -127,7 +127,7 @@ extension EnvironmentValues { var shellLayer: ShellOverlay? { get { self[ShellLa
         if overlay == next { dismiss(); return }
         if overlay == nil {
             opener = responder
-            openedByKeyboard = NSApp.currentEvent.map { [.keyDown, .keyUp, .flagsChanged].contains($0.type) } ?? true
+            openedByKeyboard = NSApp?.currentEvent.map { [.keyDown, .keyUp, .flagsChanged].contains($0.type) } ?? true
         }
         overlay = next
     }
@@ -566,7 +566,7 @@ struct NativeNavigation: View {
             .foregroundStyle(chromeColor("chrome-fg", scheme)).background { ChromeSurface() }
             .accessibilityElement(children: .contain).accessibilityLabel(store.text("primaryNavigation"))
     }
-    /// What keeps running behind the pages: fan control, global shortcuts, the Chrome bridge.
+    /// What keeps running behind the pages: fan control, global shortcuts.
     private var backgroundRows: [(route: String, text: String)] {
         var rows: [(String, String)] = []
         let monitor = store.thermalMonitor
@@ -576,7 +576,6 @@ struct NativeNavigation: View {
         }
         let shortcuts = store.desktopIntegration.shortcuts.filter(\.enabled).count
         if store.moduleEnabled("utilities"), shortcuts > 0 { rows.append(("utilities", store.text("hotkeys") + " · " + String(shortcuts))) }
-        if store.moduleEnabled("bridge"), store.extensionBridge.listening { rows.append(("everywhere", store.text("browserBridge"))) }
         return rows.map { (route: $0.0, text: $0.1) }
     }
     // Expanded only: the rail shows the same state as a dot on the route's own icon.

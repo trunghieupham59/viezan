@@ -2,11 +2,10 @@ import fs from 'node:fs'
 import { stripTypeScriptTypes } from 'node:module'
 import path from 'node:path'
 import vm from 'node:vm'
-import { generateIcons } from './generate-icons.mjs'
 
 // One-way adapter: existing product locales/tokens -> both native presentations.
 const root = path.resolve(import.meta.dirname, '../..')
-const css = fs.readFileSync(path.join(root, 'src/styles/tokens.css'), 'utf8')
+const css = fs.readFileSync(path.join(root, 'resources/tokens.css'), 'utf8')
 const metric = (name) => {
   const value = css.match(new RegExp(`${name}:\\s*([\\d.]+)px;`))?.[1]
   if (!value) throw new Error(`Missing scalar native metric ${name}`)
@@ -65,47 +64,10 @@ for (const size of ['small', 'large']) {
 if (Object.values(textScales).some(value => !Number.isFinite(value) || value <= 0)) throw new Error('Missing canonical text scale')
 const locales = {}
 for (const locale of ['vi', 'en', 'ja']) {
-  const source = fs.readFileSync(path.join(root, `src/i18n/locales/${locale}.ts`), 'utf8')
-  const module = { exports: {} }
-  const code = stripTypeScriptTypes(source).replace(/export default (vi|en|ja)\s*;?/, 'module.exports = $1')
-  vm.runInNewContext(code, { exports: module.exports, module }, { timeout: 1000 })
-  const catalog = module.exports
-  locales[locale] = { ...catalog.nativePreview }
-  for (const [code, label] of Object.entries(catalog.lang_names)) locales[locale][`lang_${code}`] = label
-  // Launcher, quick AI and thermal copy is shared with the retired renderer; keep its keys verbatim.
-  for (const [key, value] of Object.entries(catalog)) if (['launcher_', 'ai_chat_popup_', 'thermal_'].some(prefix => key.startsWith(prefix)) && typeof value === 'string') locales[locale][key] = value
-  for (const preset of ['graphite','glass','paper','corporate','midnight']) locales[locale]['preset_' + preset] = catalog['settings_theme_preset_' + preset]
-  for (const accent of ['auto','violet','pink','teal','green','amber','red']) locales[locale]['accent_' + accent] = catalog['settings_theme_accent_' + accent]
-  locales[locale].themeAccent = catalog.settings_theme_accent
-  locales[locale].themePreset = catalog.nativePreview.themePreset
-  for (const style of ['general','formal','casual','business','technical','natural']) locales[locale][`style_${style}`] = catalog[`translate_style_${style}`]
-
-  for (const [key, sourceKey] of Object.entries({
-    everywhereSubtitle: 'everywhere_subtitle', utilitiesSubtitle: 'utilities_subtitle', homeSubtitle: 'home_subtitle', autoTranslate: 'settings_auto_translate', autoTranslateHint: 'settings_auto_translate_desc', reasoning: 'translate_reasoning_label', reasoning_auto: 'translate_reasoning_auto', reasoning_low: 'translate_reasoning_low', reasoning_medium: 'translate_reasoning_medium', reasoning_high: 'translate_reasoning_high', imageNoText: 'image_translate_no_text', exportImage: 'image_translate_download', name: 'thermal_fan_profile_name_placeholder', save: 'settings_key_save', start: 'live_start', selected: 'translate_models_selected', delete: 'history_delete',
-    chatMode_web: 'chat_menu_web_search', chatMode_research: 'chat_menu_deep_research', chatMode_image: 'chat_menu_image_mode', chatMode_text: 'nav_chat', speak: 'translate_speak', stopSpeaking: 'translate_speak_stop', export: 'live_export', quickStart: 'home_quick_start', continueWork: 'home_resume_title', noRecentWork: 'home_resume_empty', home: 'nav_home', interpret: 'nav_live_translate', dictionary: 'nav_dictionary', everywhere: 'nav_everywhere', thermal: 'nav_thermal', apps: 'nav_apps', utilities: 'nav_utilities',
-    groupAI: 'nav_space_ai', groupLanguage: 'nav_space_language', groupSystem: 'nav_space_system', groupTools: 'nav_space_tools', searchLabel: 'nav_search_label', hotkeys: 'nav_background_hotkeys', browserBridge: 'nav_background_browser',
-    chat: 'nav_chat', translate: 'nav_translate', settings: 'nav_settings',
-    quickThinking: 'chat_thinking', quickRegenerate: 'chat_regenerate', quickOpenSettings: 'chat_error_open_settings', quickClear: 'chat_clear',
-    modulesWorkspaceGroup: 'settings_modules_pages_group', modulesSystemGroup: 'settings_modules_system_group', modulesLastHint: 'settings_modules_last_page_hint', modulesDescription: 'settings_modules_section_desc',
-    moduleDesc_chat: 'command_palette_chat_description', moduleDesc_translate: 'command_palette_translate_description', moduleDesc_interpret: 'command_palette_live_description', moduleDesc_dictionary: 'command_palette_dictionary_description', moduleDesc_thermal: 'command_palette_thermal_description', moduleDesc_utilities: 'settings_modules_launcher_desc', moduleDesc_bridge: 'settings_modules_browser_bridge_desc',
-    backgroundRunning: 'nav_background_title', fansProfile: 'nav_background_fans_profile', fansCustom: 'nav_background_fans_custom',
-    charCount: 'translate_char_count', clearSource: 'translate_clear', useAsSource: 'translate_use_as_source',
-    updateAvailableVersion: 'settings_update_available', updateDownloading: 'settings_update_downloading', updateReadyVersion: 'settings_update_downloaded', remindLater: 'update_popup_later', viewChanges: 'update_popup_view', updateChecking: 'settings_update_checking', speechReady: 'settings_stt_ready',
-    smartReset: 'session_smart_reset', smartResetDescription: 'session_smart_reset_desc', reopenPrevious: 'session_restore_previous', pressKeys: 'settings_hotkey_recording',
-    undo: 'chat_session_deleted_undo', chatDeleted: 'chat_session_deleted', translationDeleted: 'translate_history_deleted', jumpToLatest: 'live_jump_latest',
-    send: 'chat_send', copy: 'chat_copy', prompt: 'chat_placeholder', sourcePlaceholder: 'translate_placeholder', dictionaryPlaceholder: 'dictionary_term_placeholder',
-    expandNavigation: 'nav_expand_sidebar', collapseNavigation: 'nav_collapse_sidebar',
-    languageDescription: 'settings_app_language_desc', launchDescription: 'settings_launch_at_login_desc', presetDescription: 'settings_theme_palette_desc', accentDescription: 'settings_theme_accent_desc', voiceDescription: 'settings_voice_section_desc',
-    settingsSearch: 'settings_search_placeholder', clearSearch: 'settings_search_clear',
-    noSettings: 'settings_search_empty', appearanceTitle: 'settings_appearance',
-    themeMode: 'settings_theme_mode', themeDescription: 'settings_theme_desc',
-    themeSystem: 'settings_theme_system', themeLight: 'settings_theme_light', themeDark: 'settings_theme_dark',
-    textSmall: 'settings_font_size_small', textMedium: 'settings_font_size_medium', textLarge: 'settings_font_size_large',
-    aboutTitle: 'settings_about', previewHeading: 'settings_theme_preview_heading',
-    previewUser: 'settings_theme_preview_user', previewAssistant: 'settings_theme_preview_assistant',
-  })) {
-    if (typeof catalog[sourceKey] !== 'string') throw new Error(`Missing ${locale}.${sourceKey}`)
-    locales[locale][key] = catalog[sourceKey]
+  const file = path.join(root, 'resources/locales', locale + '.json')
+  locales[locale] = JSON.parse(fs.readFileSync(file, 'utf8'))
+  if (Object.values(locales[locale]).some(value => typeof value !== 'string')) {
+    throw new Error(`Invalid native string in ${file}`)
   }
 }
 const keys = Object.keys(locales.vi).sort().join(',')
@@ -214,7 +176,6 @@ const resources = {
     {id: "voice", title: "voiceTitle", description: "voiceDescription", terms: ["speechProvider", "voiceProvider", "voiceID"]},
     {id: "modules", title: "modulesTitle", description: "modulesDescription", terms: ["chat", "translate", "interpret", "thermal", "apps"]},
     {id: "desktop", title: "utilities", description: "shortcutPlatformHint", terms: ["quickChat", "translateSelection", "launcher"]},
-    {id: "bridge", title: "browserBridge", description: "bridgeDescription", terms: ["createToken", "tokenDays"]},
     {id: "data", title: "backupTitle", description: "backupDescription", terms: ["exportBackup", "importBackup"]},
     {id: "updates", title: "updatesTitle", description: "updatesHint", terms: ["checkUpdates", "downloadUpdate", "releaseNotes"]},
     {id: 'about', title: 'aboutTitle', description: 'aboutDescription', terms: ['previewScopeTitle', 'previewScopeDescription', 'localDataTitle', 'settingsInfo']},
@@ -228,5 +189,11 @@ for (const relative of ['apps/macos/Sources/ViezanDomain/Resources/native.json',
     if (!fs.existsSync(destination) || fs.readFileSync(destination, 'utf8') !== output) throw new Error(`Stale native resources: ${relative}`)
   } else fs.writeFileSync(destination, output)
 }
-generateIcons(root, process.argv.includes('--check'))
+const brandSource = path.join(root, 'public/icon.png')
+const qtBrand = path.join(root, 'apps/desktop-qt/qml/brand.png')
+if (process.argv.includes('--check')) {
+  if (!fs.readFileSync(brandSource).equals(fs.readFileSync(qtBrand))) throw new Error('Stale Qt brand asset')
+} else {
+  fs.copyFileSync(brandSource, qtBrand)
+}
 console.log(`Native resources ${process.argv.includes('--check') ? 'verified' : 'generated'}: 3 locales, ${Object.keys(metrics).length} metrics.`)

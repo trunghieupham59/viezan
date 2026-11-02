@@ -50,9 +50,8 @@ Existing GitHub releases may still be the previous app.
   comparison and persistent measured profiles; optional prepared Windows runtime.
 - EN/VI/JA, theme presets and accents, reading size, module preferences, login
   startup, permission links, diagnostics and token usage with user-entered pricing.
-- Authenticated loopback Chrome-extension bridge, allowed origins, native speech
-  adapters, session/history backup and offline legacy conversion. Backups exclude
-  provider credentials and bridge authentication tokens.
+- Native speech adapters, session/history backup and offline legacy conversion.
+  Backups exclude provider credentials.
 - Native installer packaging and update discovery/download with bounded transfers
   and SHA-256 verification. Installation is explicit; the running binary stays
   intact during download. Windows verifies installer signatures before opening.
@@ -67,12 +66,11 @@ Existing GitHub releases may still be the previous app.
 | `apps/packaging` | Native entitlements, per-user Windows installer and Linux desktop entry |
 | `scripts/native` | Resource generation, build, packaging and offline migration |
 | `contracts/native-workbench` | Shared data/resource contracts and translation policy |
-| `chrome-extension` | Browser extension, connecting to the native loopback bridge |
-| `src` | Retained renderer/design reference; locales, tokens and icon catalog feed native assets |
+| `resources` | Canonical design tokens and native EN/VI/JA catalogs |
+| `apps/desktop-qt/qml/icons` | SVG sources packaged directly by Qt |
 | `docs/migration` | Implementation inventory, data migration and acceptance notes |
 
-The retained React/TypeScript reference is not loaded by the native app. Node,
-React and esbuild are development-only resource-generation tools. QML uses binding
+Resource generation uses Node built-ins. QML uses binding
 expressions; application state and privileged services execute in C++.
 
 ## Build when ready
@@ -80,8 +78,7 @@ expressions; application state and privileged services execute in C++.
 Prerequisites: macOS 15+ with Xcode 26+ / Swift 6.2+ for the macOS target; Qt 6.8+ with
 Quick, Quick Controls, QML, Widgets, Network, Concurrent, Multimedia, TextToSpeech,
 WebSockets, SVG (plus DBus on Linux), CMake 3.21+, a C++17 compiler and Python 3.11+ for
-Windows/Linux. Resource regeneration uses Node 22.13+ and the locked development
-dependencies. Committed native resources let you build without Node.
+Windows/Linux. Resource regeneration uses Node 22.13+. Committed native resources let you build without Node.
 
 ```sh
 # macOS: creates an application bundle including native helpers
@@ -90,9 +87,9 @@ python3 scripts/native/build.py --target macos --configuration Release --output 
 # Windows/Linux: use the installed Qt kit
 python3 scripts/native/build.py --target qt --configuration Release --output .native-build/qt --qt-prefix /path/to/Qt/6.8/kit
 
-# Only after modifying canonical locales/tokens/icons
-npm ci
+# After editing shared tokens, native locales or resource contracts
 npm run resources
+npm run check:resources
 ```
 
 Choose a fresh output directory for each macOS app bundle. Add `--launch` only
@@ -127,7 +124,7 @@ Windows/Linux. The legacy browser profile is not modified automatically.
    `node scripts/native/convert-legacy.mjs old-export.json native-backup.json`.
 3. In native Settings → Data, preview and import the converted backup. Existing
    IDs are preserved. Restore compatible preferences only if selected.
-4. Re-enter provider credentials and pair the browser extension with a new token.
+4. Re-enter provider credentials.
 
 Keep the original export. Conversion preserves the original envelope alongside
 mapped conversations, translations, dictionary entries, interpretation, images,

@@ -20,16 +20,10 @@
     "build:linux": "python3 scripts/native/build.py --target qt --configuration Release --output .native-build/linux",
     "resources": "node scripts/native/generate-resources.mjs",
     "package:native": "python3 scripts/native/package.py",
-    "check:atomic": "node scripts/check-atomic-design.mjs",
-    "check:design": "node scripts/check-design-system.mjs",
     "check:agent": "node scripts/validate-viezanagent.mjs",
     "check:docs": "node scripts/native/documentation.mjs",
     "docs:sync": "node scripts/native/documentation.mjs",
-    "migrate:legacy": "node scripts/native/convert-legacy.mjs"
-  },
-  "devDependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "esbuild": "^0.28.2"
+    "migrate:legacy": "node scripts/native/convert-legacy.mjs",
+    "check:resources": "node scripts/native/generate-resources.mjs --check"
   }
 }

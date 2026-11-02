@@ -8,7 +8,6 @@ import Observation
     public let applications = Applications()
     public let thermalMonitor = ThermalMonitor()
     public let desktopIntegration = DesktopIntegration()
-    public let extensionBridge = ExtensionBridge()
     public let modelManager = LocalModelManager()
     public let updates = NativeUpdates()
     public let localPerformance = LocalPerformance()
@@ -59,7 +58,7 @@ import Observation
                 hasKey: @escaping @Sendable (String) -> Bool = { CredentialStore.has($0) }) {
         self.persistence = persistence; self.automaticProvider = automaticProvider
         self.listModels = listModels; self.hasKey = hasKey
-        reload(); extensionBridge.model = session.model; if workspace.bridge?.automatic == true && moduleEnabled("bridge") { extensionBridge.start() }
+        reload()
         // Quitting recorded when the current feature was left; reopening applies the same rule.
         applySmartReset(workspace.feature)
         if automaticProvider { scheduleUpdateCheck() }
@@ -67,7 +66,7 @@ import Observation
     public func moduleEnabled(_ route: String) -> Bool { !(workspace.disabledModules ?? []).contains(route == "everywhere" ? "translate" : route) }
     /// Pages of the workspace (one must stay on) and the two system services.
     public static let workspaceModules = ["chat", "translate", "interpret", "dictionary", "thermal", "apps"]
-    public static let systemModules = ["utilities", "bridge"]
+    public static let systemModules = ["utilities"]
     /// The one workspace module still enabled; it cannot be switched off.
     public var lockedModule: String? {
         let enabled = Self.workspaceModules.filter(moduleEnabled)
@@ -82,7 +81,6 @@ import Observation
             for task in workspace.tasks where task.request.feature.rawValue == module && task.status == .running { cancel(task.id) }
             if module == "interpret" { interpretation.cancel() }
             if module == "thermal" { thermalMonitor.stop() }
-            if module == "bridge" { extensionBridge.stop() }
             if module == "chat" || module == "translate" || module == "dictionary" { audio.cancel() }
         }
         applyVoice(); save()
@@ -433,16 +431,6 @@ import Observation
         guard !loadBlocked, NativeResources.shared.locales[locale] != nil else { return }
         workspace.locale = locale; save()
     }
-    @discardableResult public func setBridge(automatic: Bool, origins: [String]) -> Bool {
-        guard !loadBlocked, origins.count <= 32 else { return false }
-        let normalized = origins.compactMap(BridgePreferences.normalize)
-        guard normalized.count == origins.count else { return false }
-        let value = BridgePreferences(automatic: automatic, origins: Array(Set(normalized)).sorted())
-        guard value.valid else { return false }
-        let restart = automatic || extensionBridge.listening
-        extensionBridge.stop(); workspace.bridge = value; extensionBridge.allowedOrigins = value.origins; save()
-        if restart { extensionBridge.start() }; return true
-    }
     public func setVoice(provider: String, voice: String, rate: Double? = nil) {
         let value = VoicePreferences(provider: provider, voice: voice, rate: rate ?? workspace.voice?.rate)
         guard !loadBlocked, value.valid else { return }; workspace.voice = value; applyVoice(); save()
@@ -486,8 +474,7 @@ import Observation
         }
     }
     private func applyVoice() {
-        extensionBridge.enabled = moduleEnabled("bridge")
-        let value = workspace.voice ?? VoicePreferences(); extensionBridge.voice = value; extensionBridge.allowedOrigins = workspace.bridge?.origins ?? []
+        let value = workspace.voice ?? VoicePreferences()
         for playback in [audio, interpretation.playback] where playback.voiceProvider != value.provider || playback.voiceID != value.voice || playback.voiceRate != value.rate ?? 1 {
             playback.stopSpeaking(); playback.voiceProvider = value.provider; playback.voiceID = value.voice; playback.voiceRate = value.rate ?? 1
         }
@@ -681,7 +668,7 @@ import Observation
                   ![.available, .unknown].contains(providers.availability(item.model)) else { continue }
             workspace.sessions[index].model = preferred; changed = true
         }
-        if changed { save(); extensionBridge.model = session.model }
+        if changed { save() }
     }
     public func refreshModels(provider requestedProvider: String? = nil) async {
         guard !loadingModels else { return }
@@ -761,7 +748,6 @@ import Observation
         } catch { loadBlocked = true; storageError = "storageLoadError" }
     }
     public func save() {
-        extensionBridge.model = session.model
         deferredSave?.cancel(); deferredSave = nil
         guard !loadBlocked else { return }
         do { try persistence.save(workspace); storageError = nil }
@@ -778,7 +764,7 @@ import Observation
     public func shutdown() {
         autoTranslationRequest?.cancel(); autoTranslationRequest = nil
         updateTimer?.cancel(); updateTimer = nil
-        localPerformance.cancel(); updates.cancel(); localRuntime.stop(); interpretation.cancel(); thermalMonitor.stop(); desktopIntegration.shutdown(); extensionBridge.stop(); modelManager.cancel(); audio.cancel()
+        localPerformance.cancel(); updates.cancel(); localRuntime.stop(); interpretation.cancel(); thermalMonitor.stop(); desktopIntegration.shutdown(); modelManager.cancel(); audio.cancel()
         for worker in workers.values { worker.cancel() }
         workers.removeAll()
         for index in workspace.tasks.indices where workspace.tasks[index].status == .running { workspace.tasks[index].status = .interrupted }

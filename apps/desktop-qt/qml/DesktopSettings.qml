@@ -10,8 +10,8 @@ ColumnLayout {
     function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
     Label { visible: !settings.route; text: settings.t("modulesTitle"); font.bold: true }
     Repeater {
-        model: settings.route ? [] : ["chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities", "bridge"]
-        delegate: CheckBox { required property string modelData; text: settings.t(modelData === "bridge" ? "browserBridge" : modelData); checked: !(settings.bridge.state.disabledModules || []).includes(modelData); onClicked: settings.bridge.command("module", {id: modelData, enabled: checked}) }
+        model: settings.route ? [] : ["chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities"]
+        delegate: CheckBox { required property string modelData; text: settings.t(modelData); checked: !(settings.bridge.state.disabledModules || []).includes(modelData); onClicked: settings.bridge.command("module", {id: modelData, enabled: checked}) }
     }
     CheckBox { visible: !settings.route; text: settings.t("launchAtLogin"); checked: settings.desktop.launchAtLogin; onClicked: settings.desktop.setLaunchAtLogin(checked) }
     Button { visible: !settings.route; text: settings.t("microphonePermission"); onClicked: settings.desktop.openPrivacySettings() }

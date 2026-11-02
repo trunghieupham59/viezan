@@ -112,9 +112,6 @@ WorkbenchBridge::WorkbenchBridge(QObject *parent, const QString &storageFile, bo
     m_file = storageFile.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/workbench.json" : storageFile;
     m_state = WorkbenchDomain::create(freshID(), freshID());
     reload();
-    if (m_state.value("bridge").toMap().value("automatic").toBool()) m_extensionBridge.start();
-    const auto selected = m_state.value("active").toMap().value(m_state.value("feature").toString());
-    for (const auto &value : m_state.value("sessions").toList()) if (value.toMap().value("id") == selected) m_extensionBridge.setModel(value.toMap().value("model").toString());
 }
 void WorkbenchBridge::reload() {
     if (m_shuttingDown || !m_networkWorkers.isEmpty()) return;
@@ -130,15 +127,11 @@ void WorkbenchBridge::reload() {
     m_loadBlocked = false; m_storageError.clear(); applyAppearance(m_state); applyVoice(); emit changed();
 }
 void WorkbenchBridge::applyVoice() {
-    m_extensionBridge.setEnabled(moduleEnabled("bridge"));
     const auto voice = m_state.value("voice").toMap(); const auto provider = voice.value("provider", "system").toString(), id = voice.value("voice").toString();
-    m_extensionBridge.setAllowedOrigins(m_state.value("bridge").toMap().value("origins").toStringList());
-    m_audio.configureVoice(provider, id); m_interpretation.configureVoice(provider, id); m_extensionBridge.setVoice(provider, id);
+    m_audio.configureVoice(provider, id); m_interpretation.configureVoice(provider, id);
 }
 void WorkbenchBridge::save() {
     applyVoice();
-    const auto selected = m_state.value("active").toMap().value(m_state.value("feature").toString());
-    for (const auto &value : m_state.value("sessions").toList()) if (value.toMap().value("id") == selected) m_extensionBridge.setModel(value.toMap().value("model").toString());
     m_saveTimer.stop();
     if (m_loadBlocked) return;
     const QFileInfo destination(m_file);
@@ -162,8 +155,6 @@ void WorkbenchBridge::command(const QString &name, const QVariantMap &payload) {
     auto stamped = payload; stamped["_updated"] = QDateTime::currentMSecsSinceEpoch() / 1000.0;
     const auto state = WorkbenchDomain::command(m_state, name, stamped, freshID(), freshID());
     if (state == m_state) return;
-    const bool restartBridge = name == "bridgePreferences" && (m_extensionBridge.listening() || state.value("bridge").toMap().value("automatic").toBool());
-    if (name == "bridgePreferences") m_extensionBridge.stop();
     const auto oldAppearance = m_state.value("appearance");
     m_state = state;
     if (m_state.value("appearance") != oldAppearance) applyAppearance(m_state);
@@ -193,7 +184,6 @@ void WorkbenchBridge::command(const QString &name, const QVariantMap &payload) {
         if (module == "thermal") m_thermalMonitor.stop();
         if (module == "chat" || module == "translate" || module == "dictionary") m_audio.cancel();
     }
-    if (restartBridge) m_extensionBridge.start();
     synchronizeWorkers();
     if (name == "new" || name == "newDetached") adoptAvailableModels();
     if (QStringList{"draft", "pair", "model", "translationOptions", "reasoning", "addImage", "removeImage", "autoTranslate"}.contains(name)) scheduleTranslation(payload.value("sessionID", m_state.value("active").toMap().value(m_state.value("feature").toString())).toString());
@@ -297,7 +287,7 @@ void WorkbenchBridge::synchronizeWorkers() {
 void WorkbenchBridge::shutdown() {
     if (m_shuttingDown) return;
     m_shuttingDown = true;
-    cancelCapture(); m_localPerformance.finishBeforeShutdown(); m_updates.cancel(); m_localRuntime.stop(); m_interpretation.cancel(); m_thermalMonitor.stop(); m_desktopIntegration.shutdown(); m_extensionBridge.stop();
+    cancelCapture(); m_localPerformance.finishBeforeShutdown(); m_updates.cancel(); m_localRuntime.stop(); m_interpretation.cancel(); m_thermalMonitor.stop(); m_desktopIntegration.shutdown();
     cancelOCR(); m_modelManager.cancel();
     m_audio.cancel();
     m_networkWorkers.clear(); m_provider.cancelAll();
