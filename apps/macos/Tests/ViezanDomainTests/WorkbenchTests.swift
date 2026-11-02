@@ -678,3 +678,81 @@ import Testing
     store.compareBySentence = true
     #expect(store.workspace.compareBySentence == true)
 }
+
+// History reads newest first, scoped to one feature or to all, and never lists sessions without work.
+@Test @MainActor func historyOrdersByLatestChangeAcrossFeatures() throws {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
+    // Edits land within one millisecond otherwise, and the order under test is by time of change.
+    func later() { Thread.sleep(forTimeInterval: 0.003) }
+    let first = store.session.id
+    store.setDraft(first, "first chat"); later()
+    store.newSession(); let second = store.session.id
+    store.setDraft(second, "second chat"); later()
+    store.navigate(.translate); store.setDraft(store.session.id, "a translation"); let translation = store.session.id; later()
+    store.navigate(.chat)
+    store.setDraft(first, "first chat, edited later"); later()
+    store.setDraft(translation, "a translation, edited last")
+    #expect(store.history(query: "").map(\.id) == [first, second])
+    #expect(store.history(query: "", features: []).map(\.id) == [translation, first, second])
+    #expect(store.history(query: "", features: [.translate]).map(\.id) == [translation])
+    #expect(store.history(query: "translation", features: []).map(\.id) == [translation])
+}
+
+@Test @MainActor func newSessionSweepsEarlierEmptySessionsOfItsFeature() {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
+    let kept = store.session.id
+    store.setDraft(kept, "keep me")
+    store.newSession(); store.newSession(); store.newSession()
+    #expect(store.workspace.sessions.filter { $0.feature == .chat }.count == 2)
+    #expect(store.workspace.sessions.contains { $0.id == kept })
+    #expect(store.session.hasWork == false)
+    // Other features' empty sessions are not this feature's business.
+    #expect(store.workspace.sessions.contains { $0.feature == .translate })
+}
+
+@Test @MainActor func removingASessionIsUndoableAndKeepsAnActiveSession() throws {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
+    let id = store.session.id
+    store.setDraft(id, "to delete")
+    store.newSession(); let other = store.session.id; store.setDraft(other, "other")
+    store.select(id)
+    let removed = try store.removeSession(id)
+    #expect(store.session(id) == nil)
+    #expect(store.session.id == other)
+    #expect(removed.session.draft == "to delete")
+    store.restoreSession(removed.session, at: removed.index)
+    #expect(store.session(id)?.draft == "to delete")
+    #expect(store.session.id == id)
+    // Deleting the last session of a feature leaves a fresh one to type into.
+    try store.removeSession(id); try store.removeSession(other)
+    #expect(store.session.feature == .chat && !store.session.hasWork)
+}
+
+@Test func importedTitlesReadThroughMacRomanAreRepaired() {
+    let damaged = String(data: "Giải thích ngắn gọn".data(using: .utf8)!, encoding: .macOSRoman)!
+    #expect(TextRepair.looksDamaged(damaged))
+    #expect(TextRepair.repaired(damaged) == "Giải thích ngắn gọn")
+    #expect(TextRepair.repaired("Giải thích ngắn gọn") == "Giải thích ngắn gọn")
+    #expect(TextRepair.repaired("√2 ≈ 1,41") == "√2 ≈ 1,41")
+    #expect(TextRepair.looksDamaged("plain title") == false)
+}
+
+@Test func derivedTitlesPreferTheImageOverADroppedPath() {
+    let image = ImageAttachment(id: "a", name: "screenshot.png", mime: "image/png")
+    #expect(Session.derivedTitle(draft: "file:///private/tmp/x/screenshot.png", images: [image]) == "screenshot.png")
+    #expect(Session.derivedTitle(draft: "", images: [image]) == "screenshot.png")
+    #expect(Session.derivedTitle(draft: "file:///Users/me/B%C3%A1o%20c%C3%A1o.png", images: nil) == "Báo cáo.png")
+    #expect(Session.derivedTitle(draft: "Hello\nworld", images: [image]) == "Hello world")
+    #expect(Session.derivedTitle(draft: String(repeating: "x", count: 100), images: nil).count == 64)
+}
+
+@Test func historyBucketsFollowTheCalendar() {
+    var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh")!
+    let now = calendar.date(from: DateComponents(year: 2026, month: 11, day: 2, hour: 15))!
+    func at(daysAgo: Int, hour: Int = 9) -> Double { calendar.date(byAdding: .day, value: -daysAgo, to: calendar.date(bySettingHour: hour, minute: 0, second: 0, of: now)!)!.timeIntervalSince1970 }
+    #expect(HistoryBucket.of(at(daysAgo: 0, hour: 1), now: now, calendar: calendar) == .today)
+    #expect(HistoryBucket.of(at(daysAgo: 1, hour: 23), now: now, calendar: calendar) == .yesterday)
+    #expect(HistoryBucket.of(at(daysAgo: 5), now: now, calendar: calendar) == .week)
+    #expect(HistoryBucket.of(at(daysAgo: 9), now: now, calendar: calendar) == .older)
+    #expect(HistoryBucket.of(nil, now: now, calendar: calendar) == .older)
+}

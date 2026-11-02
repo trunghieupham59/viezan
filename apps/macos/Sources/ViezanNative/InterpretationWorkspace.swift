@@ -283,7 +283,7 @@ struct InterpretationWorkspace: View {
     private var historyPanel: some View {
         VStack(alignment: .leading, spacing: metric("inset")) {
             HStack { Text(store.text("history")).font(.vzn("labelScale", .semibold)); Spacer(); Button(store.text("close")) { historyOpen = false } }
-            HistorySearch(query: $historyQuery, label: store.text("historySearch"), move: moveHistory, submit: openHistory, cancel: { historyOpen = false }).frame(height: metric("control"))
+            SearchBox(query: $historyQuery, label: store.text("historySearch"), move: moveHistory, submit: openHistory, cancel: { historyOpen = false })
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: metric("small")) {
                     if historyRecords.isEmpty { Text(store.text("noHistory")).foregroundStyle(.secondary) }

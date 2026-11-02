@@ -25,6 +25,18 @@ public struct Message: Codable, Identifiable, Equatable, Sendable {
     public var images: [ImageAttachment]?
 }
 public struct Session: Codable, Identifiable, Equatable, Sendable {
+    /// Anything a person made here: a message, a result, a draft or an attachment. Sessions
+    /// without work are not history and are swept when the next one of their feature starts.
+    public var hasWork: Bool { !messages.isEmpty || !output.isEmpty || !draft.isEmpty || !(images ?? []).isEmpty }
+    /// The first title a session gets when work is sent: the draft's first line, or the attached
+    /// image's name when the draft is empty or is itself a file path (an image dropped as text).
+    public static func derivedTitle(draft: String, images: [ImageAttachment]?) -> String {
+        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let pathLike = text.hasPrefix("file://") || text.hasPrefix("/")
+        if let image = images?.first, text.isEmpty || pathLike { return String(image.name.prefix(64)) }
+        if pathLike, let last = text.split(separator: "/").last, !last.isEmpty { return String(last.removingPercentEncoding ?? String(last)).prefix(64).description }
+        return String(text.prefix(64)).replacingOccurrences(of: "\n", with: " ")
+    }
     public var id: String
     public var feature: Feature
     public var updated: Double?
@@ -301,5 +313,18 @@ public struct NativeResources: Decodable, Sendable {
         return settingsSections.filter { section in
             needle.isEmpty || normalize(([section.title, section.description] + section.terms).map { text($0, locale: locale) }.joined(separator: " ")).contains(needle)
         }
+    }
+}
+
+/// Where a session sits in a history list ordered by time: the groups a person scans by.
+public enum HistoryBucket: String, CaseIterable, Sendable {
+    case today, yesterday, week, older
+    public static func of(_ updated: Double?, now: Date = Date(), calendar: Calendar = .current) -> HistoryBucket {
+        guard let updated else { return .older }
+        let date = Date(timeIntervalSince1970: updated)
+        if calendar.isDate(date, inSameDayAs: now) { return .today }
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(date, inSameDayAs: yesterday) { return .yesterday }
+        if let weekAgo = calendar.date(byAdding: .day, value: -7, to: now), date > weekAgo { return .week }
+        return .older
     }
 }

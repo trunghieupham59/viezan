@@ -275,7 +275,7 @@
   --vzn-layer-notification: 100;
 
   /* Layout -------------------------------------------------------------- */
-  --vzn-sidebar-width: 60px;
+  --vzn-sidebar-width: 68px;
   --vzn-sidebar-expanded-width: 236px;
   --vzn-sidebar-compact-expanded-width: 208px;
   --vzn-navigation-compact-breakpoint: 900px;
@@ -362,6 +362,10 @@
   --vzn-chat-message-end-clearance: var(--vzn-space-4);
   --vzn-chat-avatar-size: 2rem;
   --vzn-composer-min-height: 116px;
+  /* Chat composer grows from one line to this many, then scrolls inside. */
+  --vzn-composer-max-lines: 5;
+  /* A person's chat turn is a bubble no wider than this share of the reading column. */
+  --vzn-native-bubble-fraction: 0.75;
   --vzn-chat-textarea-max-height: 140px;
   /* Quick AI popup: prompt field growth cap and empty/info state height. */
   --vzn-quick-chat-input-max-block: calc(var(--vzn-space-12) * 2.5);

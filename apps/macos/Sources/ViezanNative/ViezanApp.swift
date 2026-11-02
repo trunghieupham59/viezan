@@ -121,8 +121,12 @@ struct WorkbenchView: View {
     @State private var window: NSWindow?
     @State private var compact = false
     @State private var historyAnchor: CGFloat?
+    /// Where the control that asked for the open layer was (window coordinates, AppKit origin).
+    @State private var layerAnchor: CGRect?
     @State private var composerFocus = 0
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var navigationAnimation: Animation? { reduceMotion ? nil : .easeOut(duration: metric("durationNormal")) }
     private var settings: Bool { ["settings", "utilities", "everywhere", "thermal", "interpret", "apps"].contains(screen) }
     private var home: Bool { screen == "home" }
     private var workspacePage: Bool { home || ["everywhere", "apps", "thermal", "utilities"].contains(screen) }
@@ -139,8 +143,12 @@ struct WorkbenchView: View {
     private func execute(_ command: String) {
         if nativeResources.navigation.contains(where: { $0.id == command }) { if !store.loadBlocked || command == "settings" { select(command) } }
         else if command == "navigation" {
-            if compact { shell.show(.navigation, from: window?.firstResponder) }
-            else { shell.dismiss(); store.setNavigationCollapsed(!store.workspace.navigationCollapsed) }
+            if compact { if shell.overlay == .navigation { dismissOverlay() } else { shell.show(.navigation, from: window?.firstResponder) } }
+            else {
+                shell.dismiss()
+                // The column resizes and labels fade together; Reduce Motion switches at once.
+                withAnimation(navigationAnimation) { store.setNavigationCollapsed(!store.workspace.navigationCollapsed) }
+            }
         } else if command == "commands" { shell.show(.commands, from: window?.firstResponder) }
         else if command == "new", !store.loadBlocked {
             shell.dismiss(returnFocus: false); shell.library = false; if home || settings { store.navigate(.chat) }; store.newSession(); screen = store.workspace.feature.rawValue; composerFocus += 1
@@ -159,6 +167,8 @@ struct WorkbenchView: View {
                             sidebarTop(layout)
                             NativeNavigation(store: store, screen: screen, expanded: !layout.compact && !store.workspace.navigationCollapsed, select: select, commands: { execute("commands") })
                         }.frame(width: layout.navigationWidth)
+                            // Explicit value animation: the column and its labels move together on every path (⌘\, menu, button).
+                            .animation(navigationAnimation, value: store.workspace.navigationCollapsed)
                         ChromeDivider(vertical: true)
                         VStack(spacing: 0) {
                             header(layout)
@@ -211,9 +221,36 @@ struct WorkbenchView: View {
                         Button(action: dismissOverlay) { Color.clear.contentShape(Rectangle()) }
                             .buttonStyle(.plain).accessibilityHidden(true).focusable(false)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        if overlay == .navigation {
-                            NativeNavigation(store: store, screen: screen, expanded: true, select: select, commands: { execute("commands") }, close: dismissOverlay)
-                                .frame(width: layout.navigationOverlayWidth)
+                        if [.models, .tools, .instructions].contains(overlay), let anchor = layerAnchor {
+                            // Anchored layers sit above their control when there is room (the composer is at
+                            // the bottom), else below it; width is the panel width, height bounded by the stage.
+                            let width = metric("sidebar") + metric("editor")
+                            let height = min(metric("editor") * 3, geometry.size.height - ShellLayout.headerHeight - metric("inset") * 2)
+                            let top = geometry.size.height - anchor.maxY
+                            let fitsAbove = top - metric("small") - height >= ShellLayout.headerHeight
+                            // The panel hugs its content inside a slot of the maximum height; the slot is
+                            // aligned so the panel's edge stays against the control whatever its height.
+                            Group {
+                                if overlay == .models {
+                                    ModelPanel(store: store, dismiss: dismissOverlay, availableHeight: height)
+                                } else if overlay == .instructions {
+                                    InstructionsPanel(store: store, dismiss: dismissOverlay, availableHeight: height)
+                                } else {
+                                    ComposerToolsPanel(store: store, dismiss: dismissOverlay, availableHeight: height)
+                                }
+                            }
+                                // Layers are short lists: no legacy scroller track; the wheel still scrolls.
+                                .scrollIndicators(.hidden)
+                                .frame(width: width).background { ReadingPanelSurface() }
+                                .frame(height: height, alignment: fitsAbove ? .bottom : .top)
+                                .offset(x: max(metric("inset"), min(anchor.midX - width / 2, geometry.size.width - width - metric("inset"))),
+                                        y: fitsAbove ? top - metric("small") - height : geometry.size.height - anchor.minY + metric("small"))
+                        } else if overlay == .navigation {
+                            // The first row stays clear for the window controls and the fixed toggle.
+                            VStack(spacing: 0) {
+                                Color.clear.frame(height: ShellLayout.titlebarHeight).background { ChromeSurface() }
+                                NativeNavigation(store: store, screen: screen, expanded: true, select: select, commands: { execute("commands") }, close: dismissOverlay)
+                            }.frame(width: layout.navigationOverlayWidth)
                                 .frame(maxHeight: .infinity)
                                 .overlay(alignment: .trailing) { ChromeDivider(vertical: true) }
                                 .shadow(color: Color(nsColor: .shadowColor).opacity(metric("overlayShadowOpacity")), radius: metric("inset"), y: metric("small"))
@@ -225,7 +262,7 @@ struct WorkbenchView: View {
                                 } else if overlay == .activity {
                                     ActivityView(store: store, open: { id in store.select(id); screen = store.workspace.feature.rawValue; shell.library = false; shell.dismiss() }, openRoute: { route in shell.dismiss(); select(route) }, dismiss: dismissOverlay, availableHeight: layout.panelHeight)
                                 } else { NativeCommands(store: store, historyAvailable: !home && !settings && !shell.library, availableHeight: min(metric("editor") * 3, layout.height + ShellLayout.headerHeight - metric("inset") * 2), execute: execute, dismiss: dismissOverlay) }
-                            }.frame(width: layout.panelWidth, alignment: .top)
+                            }.scrollIndicators(.hidden).frame(width: layout.panelWidth, alignment: .top)
                                 .background { ReadingPanelSurface() }
                                 .offset(x: overlay == .commands ? (geometry.size.width - layout.panelWidth) / 2 : layout.panelX(anchor: overlay == .history ? historyAnchor : nil), y: (overlay == .commands ? 0 : ShellLayout.headerHeight) + metric("inset"))
                         }
@@ -233,6 +270,8 @@ struct WorkbenchView: View {
                 }
                 // Transient navigation/panel shadows belong below system chrome.
                 .clipped()
+                // Finder rule: the toggle keeps one window position whichever column is beneath it.
+                .overlay(alignment: .topLeading) { navigationToggle(layout).padding(.leading, Self.toggleLeading).frame(height: ShellLayout.headerHeight) }
                 // Feedback for whole actions (Undo, export/backup errors) sits at the bottom-right corner.
                 .overlay(alignment: .bottomTrailing) { ToastStack(store: store).padding(metric("inset")) }
             }
@@ -261,6 +300,19 @@ struct WorkbenchView: View {
             if let source = notification.object as? NSWindow, source === window { store.interpretation.cancel(); store.audio.cancel(); store.thermalMonitor.stop() }
         }
         .sheet(isPresented: Binding(get: { store.updatePrompt != nil }, set: { if !$0 { store.dismissUpdatePrompt() } })) { UpdatePrompt(store: store) }
+        .environment(\.shellLayer, shell.overlay)
+        .onReceive(NotificationCenter.default.publisher(for: .viezanOpenModels)) { note in
+            if shell.overlay == .models { dismissOverlay(); return }
+            layerAnchor = (note.object as? NSValue)?.rectValue
+            shell.show(.models, from: window?.firstResponder)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .viezanOpenTools)) { note in
+            if shell.overlay == .tools { dismissOverlay(); return }
+            layerAnchor = (note.object as? NSValue)?.rectValue
+            shell.show(.tools, from: window?.firstResponder)
+        }
+        // Reached from the tools layer, so it keeps that layer's anchor (the "+" control).
+        .onReceive(NotificationCenter.default.publisher(for: .viezanOpenInstructions)) { _ in shell.show(.instructions, from: window?.firstResponder) }
         .onReceive(NotificationCenter.default.publisher(for: .viezanOpenRoute)) { notification in
             if let route = notification.object as? String { select(route) }
         }
@@ -272,22 +324,22 @@ struct WorkbenchView: View {
             if let source = notification.object as? NSWindow, source === window { shell.dismiss(returnFocus: false) }
         }
     }
+    // The glyph states the column: leading half filled while it shows, outlined once it is hidden.
+    static func navigationSymbol(open: Bool) -> String { open ? "rectangle.leadinghalf.inset.filled" : "sidebar.leading" }
     private func navigationToggle(_ layout: ShellLayout) -> some View {
-            ShellToolbarButton(label: store.text((layout.compact ? shell.overlay != .navigation : store.workspace.navigationCollapsed) ? "expandNavigation" : "collapseNavigation"), symbol: "sidebar.left", identifier: "navigation-toggle", expanded: layout.compact ? shell.overlay == .navigation : !store.workspace.navigationCollapsed, hint: "⌘\\", focusEpoch: shell.focusEpochs["navigation", default: 0]) { execute("navigation") }
+        let open = layout.compact ? shell.overlay == .navigation : !store.workspace.navigationCollapsed
+        return ShellToolbarButton(label: store.text(open ? "collapseNavigation" : "expandNavigation"), symbol: Self.navigationSymbol(open: open), identifier: "navigation-toggle", expanded: open, hint: "⌘\\", focusEpoch: shell.focusEpochs["navigation", default: 0]) { execute("navigation") }
                 .frame(width: metric("control"), height: metric("control"))
     }
-    // Rail widths cannot hold the window controls; the toggle then leads the header.
-    private func railChrome(_ layout: ShellLayout) -> Bool { layout.navigationWidth < metric("trafficLights") + metric("control") + metric("small") }
+    /// Window x of the toggle: right after the traffic lights, in every state and width.
+    static var toggleLeading: CGFloat { metric("trafficLights") + metric("gap") }
+    private static var toggleTrailing: CGFloat { toggleLeading + metric("control") }
     private func sidebarTop(_ layout: ShellLayout) -> some View {
-        HStack(spacing: 0) {
-            Spacer(minLength: 0)
-            if !railChrome(layout) { navigationToggle(layout).padding(.trailing, metric("small")) }
-        }.frame(height: ShellLayout.headerHeight)
+        Color.clear.frame(height: ShellLayout.headerHeight)
             .background { ChromeSurface().overlay { WindowDragRegion() } }
     }
     private func header(_ layout: ShellLayout) -> some View {
         HStack(spacing: metric("small")) {
-            if railChrome(layout) { navigationToggle(layout) }
             if shell.library {
                 ShellToolbarButton(label: store.text("back"), symbol: "arrow.left", identifier: "history-back") {
                     shell.library = false
@@ -298,8 +350,8 @@ struct WorkbenchView: View {
             breadcrumb.frame(maxWidth: .infinity, alignment: .leading).help(title)
             HStack(spacing: metric("small")) {
                 if screen == "settings" {
-                    HistorySearch(query: $shell.settingsQuery, label: store.text("settingsSearch"), cancel: { shell.settingsQuery = "" }, autofocus: false)
-                        .frame(width: metric("sidebar"), height: metric("compactControl"))
+                    SearchBox(query: $shell.settingsQuery, label: store.text("settingsSearch"), cancel: { shell.settingsQuery = "" }, autofocus: false, compact: true)
+                        .frame(width: metric("sidebar"))
                 }
                 if workspacePage && store.moduleEnabled("utilities") {
                     ShellToolbarButton(label: store.text("launcher"), symbol: "command", identifier: "launcher-open", showsLabel: !layout.compact, enabled: !store.loadBlocked) { store.desktopIntegration.onAction?("launcher") }
@@ -327,7 +379,7 @@ struct WorkbenchView: View {
                 ShellToolbarButton(label: store.text("activity"), symbol: "waveform.path.ecg", identifier: "activity-toggle", showsLabel: !layout.compact, expanded: shell.overlay == .activity, hint: "⌘⇧A", count: store.workspace.tasks.filter { $0.status == .running }.count + (store.interpretation.busy ? 1 : 0), focusEpoch: shell.focusEpochs["activity", default: 0]) { execute("activity") }
             }.fixedSize(horizontal: true, vertical: false).frame(height: metric("control")).layoutPriority(1)
                 .padding(.trailing, metric("inset"))
-        }.padding(.leading, railChrome(layout) ? max(metric("gutter"), metric("trafficLights") - layout.navigationWidth + metric("small")) : metric("gutter"))
+        }.padding(.leading, max(metric("gutter"), Self.toggleTrailing + metric("small") - layout.navigationWidth - metric("hairline")))
             .frame(height: ShellLayout.headerHeight)
             .foregroundStyle(chromeColor("text-strong", scheme))
             .background { contentColor("surface", scheme).overlay(chromeColor("titlebar-material", scheme)).overlay { WindowDragRegion() } }
@@ -361,80 +413,24 @@ struct ModelPicker: View {
     var compact = false
     // Badge: quiet trailing "✦ Provider · model" (language pages); otherwise composer style.
     var badge = false
+    // Dense: the one-row chat composer; the model reads at small size and muted colour.
+    var dense = false
     @Environment(\.colorScheme) private var scheme
-    @State private var customModel = ""
-    @State private var configuring = false
-    @State private var modelSessionID = ""
-    @State private var customPrompt = ""
-    var body: some View {
-        if compact { compactMenu.popover(isPresented: $configuring) { configuration } } else { full }
-    }
+    var body: some View { compactMenu }
+    @Environment(\.shellLayer) private var shellLayer
+    // The chip: short name (the full ID in help and the accessibility label); it opens the shell's
+    // model panel anchored to itself, so the picker is a quiet layer of the app, not a system menu.
     private var compactMenu: some View {
         HStack(spacing: metric("tight")) {
-            Menu {
-                Picker(store.text("model"), selection: Binding(get: { store.session.model }, set: { store.setModel(store.session.id, $0) })) {
-                    ForEach(store.availableModels, id: \.self) { id in Text(nativeModelLabel(id, store: store)).tag(id) }
-                }.pickerStyle(.inline)
-                Divider()
-                Menu(store.text("refreshModels")) {
-                    ForEach(["ollama", "lmstudio", "llamacpp", "openai", "claude", "gemini"], id: \.self) { provider in
-                        Button(provider) { Task { await store.refreshModels(provider: provider) } }
-                    }
-                }.disabled(store.loadingModels)
-                Button(store.text("configureModel")) { modelSessionID = store.session.id; customPrompt = store.session.systemPrompt ?? ""; customModel = store.session.model; configuring = true }
-            } label: {
-                // An offline local runtime shows a red dot inside the chip; ProviderNotice carries the words.
-                if badge { ModelBadgeLabel(text: nativeModelLabel(store.session.model, store: store), offline: modelUnavailable(store.session.model, store: store)).foregroundStyle(contentColor("text-muted", scheme)) }
-                else {
-                    HStack(spacing: metric("small")) {
-                        if modelUnavailable(store.session.model, store: store) { StatusDot(tone: .failed) }
-                        Label(nativeModelLabel(store.session.model, store: store), systemImage: "chevron.down").labelStyle(ModelMenuLabelStyle()).font(.vzn("labelScale"))
-                    }
-                }
-            }.menuStyle(.button).buttonStyle(.vznQuiet).menuIndicator(.hidden).fixedSize()
-                .help(store.session.model).accessibilityLabel(store.text("model") + ": " + store.session.model + (modelUnavailable(store.session.model, store: store) ? ", " + store.text("unavailable") : ""))
-
+            if modelUnavailable(store.session.model, store: store) { StatusDot(tone: .failed) }
+            ShellToolbarButton(label: (store.session.carefulReasoning == true ? store.text("tierCareful") + " · " : "") + ModelLineup.shortName(store.session.model), symbol: badge ? "sparkles" : "chevron.down", identifier: "model-toggle", showsLabel: true, quiet: true, small: dense || badge,
+                               expanded: shellLayer == .models, hint: store.session.model, enabled: !store.loadingModels,
+                               frameAction: { frame in NotificationCenter.default.post(name: .viezanOpenModels, object: NSValue(rect: frame)) }) {}
+                .frame(height: metric(dense || badge ? "compactControl" : "control"))
+                .accessibilityLabel(store.text("model") + ": " + store.session.model + (modelUnavailable(store.session.model, store: store) ? ", " + store.text("unavailable") : ""))
             if store.loadingModels { ProgressView().controlSize(.small) }
             if let error = store.modelError { Image(systemName: "exclamationmark.triangle").foregroundStyle(.secondary).help(store.text(error)).accessibilityLabel(store.text(error)) }
         }
-    }
-    private var full: some View {
-        VStack(alignment: .leading, spacing: metric("small")) {
-            HStack(spacing: metric("small")) {
-                Picker(store.text("model"), selection: Binding(get: { store.session.model }, set: { store.setModel(store.session.id, $0) })) {
-                    ForEach(store.availableModels, id: \.self) { id in
-                        Text(nativeModelLabel(id, store: store)).tag(id)
-                    }
-                }.labelsHidden().pickerStyle(.menu)
-                    .help(store.session.model).accessibilityLabel(store.text("model"))
-                Menu {
-                    ForEach(["ollama", "lmstudio", "llamacpp", "openai", "claude", "gemini"], id: \.self) { provider in
-                        Button(provider) { Task { await store.refreshModels(provider: provider) } }
-                    }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }.disabled(store.loadingModels).help(store.text("refreshModels"))
-                    .accessibilityLabel(store.text("refreshModels"))
-                Button { modelSessionID = store.session.id; customPrompt = store.session.systemPrompt ?? ""; customModel = store.session.model; configuring = true } label: { Image(systemName: "slider.horizontal.3") }
-                    .buttonStyle(.vznQuiet).help(store.text("configureModel")).accessibilityLabel(store.text("configureModel"))
-                if store.loadingModels { ProgressView().controlSize(.small) }
-            }
-            if let error = store.modelError {
-                Text(store.text(error)).font(.vzn("captionScale")).foregroundStyle(.secondary)
-            }
-        }.frame(maxWidth: metric("sidebar"))
-            .popover(isPresented: $configuring) { configuration }
-    }
-    private var configuration: some View {
-                VStack(alignment: .leading, spacing: metric("inset")) {
-                    TextField(store.text("modelID"), text: $customModel)
-                    Text(store.text("modelIDHint")).font(.vzn("captionScale"))
-                    Button(store.text("apply")) {
-                        store.setModel(modelSessionID, customModel.trimmingCharacters(in: .whitespacesAndNewlines)); store.setSystemPrompt(modelSessionID, customPrompt); configuring = false
-                    }.disabled(!NativeModel.valid(customModel.trimmingCharacters(in: .whitespacesAndNewlines)))
-                    TextField(store.text("systemPrompt"), text: $customPrompt, axis: .vertical)
-                    PromptLibrary(store: store, text: $customPrompt)
-                }.padding(metric("inset")).frame(width: metric("sidebar") + metric("editor"))
     }
 }
 

@@ -116,7 +116,7 @@ pages -> templates -> organisms -> molecules -> atoms
   token before reporting the change complete, even where the scripts pass.
 - The global app sidebar and the AI Chat conversation sidebar are different
   organisms. Keep their tokens, widths, state, and responsibilities separate.
-- On desktop, primary navigation is a persistent 60px/236px layout column and
+- On desktop, primary navigation is a persistent 68px/236px layout column and
   its stored collapse preference survives feature navigation. At compact
   widths only, expansion becomes a temporary portal overlay. Keep its logo and
   toggle in separate layout slots. AI Chat navigation owns session context and

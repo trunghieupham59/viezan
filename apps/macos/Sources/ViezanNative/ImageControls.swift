@@ -10,7 +10,9 @@ struct ImageControls: View {
     var acceptsHeaderRequest = false
     // Header owns the visible control; this instance keeps status and the request.
     var statusOnly = false
-    var extraMenu: AnyView? = nil
+    /// A non-default chat mode is on: "+" reads selected so the row shows it without a chip.
+    var selected = false
+    @Environment(\.shellLayer) private var shellLayer
     @State private var busy = false
     @State private var error: String?
     @State private var pendingText = ""
@@ -18,14 +20,20 @@ struct ImageControls: View {
         if compact {
             HStack(spacing: metric("tight")) {
                 if !statusOnly {
-                    Menu { imageActions; if let extraMenu { Divider(); extraMenu } } label: { Image(systemName: "plus").imageScale(.large) }
-                        .menuStyle(.button).buttonStyle(.vznQuiet).menuIndicator(.hidden).fixedSize()
-                        .help(store.text("attachImage")).accessibilityLabel(store.text("attachImage"))
+                    // "+" opens the shell's tools panel anchored here (attachments, chat mode, reasoning, voice).
+                    ShellToolbarButton(label: store.text("attachImage"), symbol: "plus", identifier: "tools-toggle", soft: selected, expanded: shellLayer == .tools, enabled: !busy,
+                                       frameAction: { frame in NotificationCenter.default.post(name: .viezanOpenTools, object: NSValue(rect: frame)) }) {}
+                        .frame(width: metric("control"), height: metric("control"))
                 }
                 if busy { ProgressView().controlSize(.small).accessibilityLabel(store.text("running")) }
                 if !pendingText.isEmpty { Button(store.text("insertTranscript")) { store.setDraft(store.session.id, store.session.draft + (store.session.draft.isEmpty ? "" : "\n") + pendingText); pendingText = "" } }
-                if let error { Image(systemName: "exclamationmark.triangle").foregroundStyle(.secondary).help(store.text(error)).accessibilityLabel(store.text(error)) }
             }.onReceive(headerRequests) { _ in if acceptsHeaderRequest && !busy { pick(ocr: false) } }
+                // Attachment errors are whole-action feedback: a toast, not a warning icon parked in the row.
+                .onChange(of: error) { _, value in if let value { ToastCenter.shared.show(store.text(value), key: "attach", error: true); error = nil } }
+                .onReceive(NotificationCenter.default.publisher(for: .viezanComposerAction)) { note in
+                    guard !statusOnly, !busy, let action = note.object as? String else { return }
+                    if action == "attach" { pick(ocr: false) } else if action == "capture" { capture() } else if action == "ocr" { pick(ocr: true) }
+                }
         } else { full }
     }
     private var headerRequests: NotificationCenter.Publisher { NotificationCenter.default.publisher(for: .viezanAttachImage) }
@@ -162,6 +170,14 @@ extension Notification.Name {
     static let viezanOpenSettings = Notification.Name("viezan.openSettings")
     // Object: a route id ("translate", "interpret", …) to show in the main window.
     static let viezanOpenRoute = Notification.Name("viezan.openRoute")
+    /// Object: the model control's frame in window coordinates (NSValue); the shell shows the model panel there.
+    static let viezanOpenModels = Notification.Name("viezan.openModels")
+    /// The shell shows the session instructions layer at the "+" anchor.
+    static let viezanOpenInstructions = Notification.Name("viezan.openInstructions")
+    /// Object: the "+" control's frame (NSValue); the shell shows the composer tools panel there.
+    static let viezanOpenTools = Notification.Name("viezan.openTools")
+    /// Object: "attach" | "capture" | "ocr", chosen in the tools panel for the mounted composer.
+    static let viezanComposerAction = Notification.Name("viezan.composerAction")
 }
 
 struct AttachmentChips: View {

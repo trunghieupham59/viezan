@@ -21,8 +21,17 @@ const metrics = Object.fromEntries(Object.entries({
   rail: '--vzn-sidebar-width', compact: '--vzn-navigation-compact-breakpoint',
   minWindowWidth: '--vzn-native-window-min-width', minWindowHeight: '--vzn-native-window-min-height',
   compactControl: '--vzn-control-height-sm', surfaceRadius: '--vzn-radius-xl', largeRadius: '--vzn-radius-lg', controlRadius: '--vzn-radius-control', composerMinimum: '--vzn-composer-min-height',
-  navControl: '--vzn-control-height-lg', icon: '--vzn-space-5', brand: '--vzn-space-8', notificationInline: '--vzn-notification-max-inline',
+  navControl: '--vzn-control-height-lg', icon: '--vzn-space-5', brand: '--vzn-space-8', hero: '--vzn-space-12', notificationInline: '--vzn-notification-max-inline',
 }).map(([key, name]) => [key, metric(name)]))
+// Motion durations in ms become seconds, the unit SwiftUI and Qt animations take.
+const duration = (name) => {
+  const value = css.match(new RegExp(`${name}:\\s*([\\d.]+)ms;`))?.[1]
+  if (!value) throw new Error(`Missing native duration ${name}`)
+  return Number(value) / 1000
+}
+Object.assign(metrics, Object.fromEntries(Object.entries({
+  durationFast: '--vzn-duration-fast', durationNormal: '--vzn-duration-normal',
+}).map(([key, name]) => [key, duration(name)])))
 // Unitless ratios and scales for native layout (no px): read verbatim.
 const ratio = (name) => {
   const value = css.match(new RegExp(`${name}:\\s*([\\d.]+);`))?.[1]
@@ -32,6 +41,8 @@ const ratio = (name) => {
 Object.assign(metrics, Object.fromEntries(Object.entries({
   launcherTop: '--vzn-native-launcher-top-fraction', launcherHeight: '--vzn-native-launcher-height-fraction', launcherResults: '--vzn-native-launcher-results-fraction',
   toastSeconds: '--vzn-native-toast-seconds', skeletonShort: '--vzn-native-skeleton-short-fraction', quickCard: '--vzn-native-quick-card-fraction', inventorySplit: '--vzn-native-inventory-fraction', thermalScaleMax: '--vzn-native-thermal-scale-max',
+  composerMaxLines: '--vzn-composer-max-lines',
+  bubbleFraction: '--vzn-native-bubble-fraction',
 }).map(([key, name]) => [key, ratio(name)])))
 // Type roles as ratios to body (md) so native system fonts keep their own base size.
 const fontSize = (name) => Number(css.match(new RegExp(`--vzn-font-size-${name}:\\s*calc\\(([\\d.]+)px`))?.[1])

@@ -39,13 +39,30 @@ gradient, không bóng đổ nặng. Chữ hệ thống (SF), mọi cỡ là t�
 
 ## Khung ứng dụng
 
-- Hai cột: điều hướng 236 pt (rail 60 pt khi thu gọn hoặc cửa sổ < 900 pt) và
-  vùng làm việc. Không có dải titlebar riêng: nút cửa sổ và nút thu gọn nằm ở
-  hàng đầu của sidebar (40 pt), header ngữ cảnh 48 pt thẳng hàng với nó.
-- Sidebar: logo + "Viezan", ô "Tìm kiếm mọi thứ ⌘K", danh sách làm việc
+- Hai cột: điều hướng 236 pt (rail 68 pt khi thu gọn hoặc cửa sổ < 900 pt, đủ
+  chỗ cho ba nút đèn kết thúc ở 59 pt) và
+  vùng làm việc. Không có dải titlebar riêng: nút cửa sổ nằm ở hàng đầu của
+  sidebar (40 pt), header ngữ cảnh 48 pt thẳng hàng với nó.
+- Nút thu gọn (quy tắc Finder, chốt 2026-11-02 sau khi hướng cũ bị loại): một
+  vị trí cửa sổ duy nhất, ngay sau ba nút đèn (`trafficLights + gap`), ở mọi
+  trạng thái và bề rộng. Mở rộng thì nó thuộc hàng đầu sidebar; rail thì nó
+  đè lên đầu header và breadcrumb lùi sau nó; lớp nổi ở bề rộng hẹp chừa hàng
+  đầu trống cho nó và bấm lại là đóng lớp nổi. Nút đổi hình thái theo trạng
+  thái: cột đang mở → `rectangle.leadinghalf.inset.filled` (nửa trái tô
+  đầy), đã thu → `sidebar.leading` (viền rỗng), cross-fade `durationFast`;
+  giữ chuột thì nền `chrome-item-active`. Bấm chuột không để lại vòng
+  focus (focus chỉ giữ khi kích hoạt bằng bàn phím hoặc trợ năng). Đổi bề
+  rộng chạy `durationNormal` (easeOut), nhãn mờ dần; Reduce Motion chuyển
+  tức thì.
+- Sidebar: logo + "Viezan" (viết hoa chữ đầu), ô "Tìm ⌘K", danh sách làm việc
   (Trang chủ, AI Chat, Dịch, Phiên dịch, Từ điển, Dịch mọi nơi), nhóm HỆ THỐNG
-  (Ứng dụng, Nhiệt độ & quạt, Launcher & phím tắt, Cài đặt), chân "Lưu trên
-  thiết bị". Mục đang chọn: nền `chrome-item-active`, chữ semibold.
+  (Ứng dụng, Nhiệt độ & quạt, Launcher & phím tắt, Cài đặt), dải "Đang chạy
+  nền", chân "Lưu trên thiết bị". Mục đang chọn: nền `chrome-item-active`, chữ
+  semibold; lề trái mục là `inset` 16 pt nên trục icon (34 pt) trùng tâm rail.
+  Logo 28 pt ở cả hai trạng thái, tâm trùng trục icon nên không nhảy khi đổi.
+  Rail chỉ có một loại hình: tìm kiếm là icon lặng cùng
+  cỡ các mục (không viền), trạng thái chạy nền là chấm trên icon của route đó
+  (có nhãn trợ năng), không có dải hay chân riêng.
 - Header: một tiêu đề ngữ cảnh bên trái (`Tính năng / tên phiên`, hoặc
   breadcrumb `Không gian làm việc / Trang` ở trang hệ thống). Bên phải, cùng
   một thứ tự ở mọi tính năng: *nút theo trang* (Thêm hình ảnh, Từ đã lưu, Tổng
@@ -55,7 +72,9 @@ gradient, không bóng đổ nặng. Chữ hệ thống (SF), mọi cỡ là t�
   giữ accessible name và tooltip.
 - Lớp nổi (Lịch sử nhanh, Hoạt động, bảng lệnh ⌘K): bề mặt đọc đục
   `surface`, bo 20 pt, viền hệ thống, bóng nhẹ; neo theo nút mở; Escape đóng
-  lớp nổi trước, không huỷ tác vụ; focus trả về nút mở. Hoạt động liệt kê mọi
+  lớp nổi trước, không huỷ tác vụ; focus trả về nút mở **chỉ khi lớp được mở
+  bằng bàn phím hoặc trợ năng**; mở bằng chuột thì đóng xong không control nào
+  nhận focus, nên không có vòng focus thừa. Hoạt động liệt kê mọi
   việc chạy nền (tác vụ văn bản **và** phiên dịch đang nghe), mỗi việc có Mở và
   Dừng/Thử lại riêng.
 
@@ -90,7 +109,120 @@ gradient, không bóng đổ nặng. Chữ hệ thống (SF), mọi cỡ là t�
 
 Ô nhập chữ: viền `border`, khi focus chỉ đổi sang `border-strong` và hiện con
 trỏ; không bao giờ có viền màu nhấn. Composer Chat là một bề mặt duy nhất bo
-20 pt với bóng nhẹ; không khung ngoài.
+20 pt, viền hairline, không bóng, không khung ngoài.
+
+## AI Chat: trạng thái trống và composer (chốt 2026-11-02, vòng 2)
+
+- Chưa có tin nhắn và không có việc đang chạy: logo 48 pt (`hero`), câu "Chúng ta bắt
+  đầu từ đâu?" (`headingScale`, không đậm) và composer đứng ở khoảng 40 % chiều
+  cao vùng làm việc; dưới composer là "Tiếp tục": tối đa ba phiên gần nhất của
+  mọi tính năng, hàng chữ lặng có icon và thời gian, bấm mở đúng phiên. Không
+  bịa gợi ý: không có phiên thì không có danh sách.
+- Composer một hàng khi bản nháp một dòng: [+] · chữ · model · mic · Gửi, cao
+  một `control`; từ dòng thứ hai (hoặc có ảnh đính kèm) chữ lên trên, hàng nút
+  xuống dưới. Nở theo nội dung tới `--vzn-composer-max-lines` (5) rồi cuộn
+  bên trong. Enter gửi, Shift+Enter xuống dòng, ⌘↩ vẫn gửi; đang gõ IME (có
+  marked text) thì Enter không gửi.
+- Gửi tin đầu tiên: composer trượt xuống đáy (`durationNormal`), bản ghi
+  hiện ở cột đọc; vẫn một bề mặt `chat-composer`.
+- Bản ghi: lượt của người dùng là bong bóng co theo chữ, căn phải, rộng tối
+  đa `--vzn-native-bubble-fraction` (0,75) cột đọc, nền `surface-muted`, bo
+  `largeRadius`; câu trả lời là văn bản trần bên trái có nhãn "Viezan". Meta
+  dưới câu trả lời đọc tên model ngắn như chip ("GPT-6.1 Sol · 109 token"),
+  ID đầy đủ trong tooltip. Khung xem trước lịch sử dùng cùng bong bóng.
+- Gợi ý theo thói quen tầng 2 (hành động lặp ≥ 3 lần trong 30 ngày, có suy
+  giảm theo thời gian) và tầng 3 (giờ trong ngày) là việc còn mở.
+
+## Chọn model (chốt 2026-11-02)
+
+- Nút trong composer đọc tên ngắn suy từ ID (`ModelLineup.shortName`: "Sonnet
+  5.5", "GPT-5.5 Mini", "GPT-6 Astra", "Gemini 3 Pro"; mọi từ sau phiên bản
+  viết hoa chữ đầu như nhau; local giữ nguyên tên); khi đang bật suy luận kỹ
+  chip đọc "Kỹ · GPT-6.1 Sol". Tooltip và nhãn trợ năng đọc ID đầy đủ. Không
+  có danh mục tên viết tay. "GPT-6" giữ gạch nối theo cách viết của OpenAI.
+- Bộ chọn là **một lớp nổi của shell** (`ModelPanel`, cùng cơ chế với Lịch sử
+  nhanh và ⌘K: bề mặt đọc, bo 20, viền hệ thống, neo trên chip model trong
+  composer, Escape đóng, focus trả về nút mở), không phải menu hệ thống. Ô
+  tìm đứng đầu: gõ là lọc toàn bộ model chat của mọi nhà cung cấp (snapshot
+  có ngày gộp, tối đa sáu mỗi nhà), gõ "provider:model" chưa có trong listing
+  vẫn chọn được; ↑↓ di chuyển, Return chọn. Hàng đang dùng có dấu chọn; hàng
+  "Thiết lập…" mờ.
+- Nhóm, từ trên xuống: **Mục đích** (Nhanh · Cân bằng · Kỹ, mỗi mức là một
+  model của nhà cung cấp hiện tại; thế hệ xếp trước cỡ: Kỹ là bản mới nhất
+  trong các cỡ từ dòng chính trở lên kèm suy luận kỹ, không bao giờ là Pro cũ
+  hơn bản đang dùng; Cân bằng là dòng chính mới nhất, Sonnet/GPT/Flash; Nhanh
+  là cỡ nhỏ mới nhất, cùng thế hệ thì cỡ nhỏ nhất; ẩn khi nhà cung cấp local
+  hoặc chỉ có một cỡ) · **Gần đây** (tối đa ba model của các phiên có
+  nội dung mới nhất, tên ngắn, bỏ model đã có trong Mục đích) · một nhóm cho
+  mỗi nhà cung cấp cloud với **một model mỗi cỡ** (tối đa bốn, mạnh nhất
+  trước; dòng chính GPT thắng dòng o cùng cỡ; loại model không phải chat và
+  bí danh "latest"; bản có ngày thua bản không ngày; ID có tên mã như
+  `gpt-6-astra` đọc thành "GPT-6 Astra" và vẫn xếp theo phiên bản) · **Trên
+  máy** liệt kê model đã cài. Không có submenu hay danh sách thô. Nhà cung
+  cấp chưa có khoá hay runtime chưa chạy hiện một dòng "Thiết lập…" mở Cài
+  đặt, không ẩn. Chân panel: Tải lại model, Cấu hình model.
+- Còn mở: ghim model; phím tắt mở panel.
+- **Mọi dropdown trong AI Chat là lớp nổi của shell, không dùng menu hệ
+  thống.** Nút "+" mở panel công cụ (`ComposerToolsPanel`, cùng bề rộng 376
+  pt, neo và phím như panel model): bốn nhóm ngăn bằng vạch hairline, không
+  tiêu đề nhóm: Đính kèm ảnh · Chụp màn hình · Trích chữ (icon; mờ khi hết
+  chỗ ảnh) | AI Chat · Tìm kiếm trên web · Nghiên cứu sâu · Tạo hình ảnh (dấu
+  chọn, mô tả ngắn bên phải, Tạo ảnh ghi nhà cung cấp sẽ vẽ) | Suy luận cẩn
+  thận (hàng có công tắc) | Nghe · Dừng đọc. Nhà cung cấp nhận dạng giọng nói
+  chỉ ở Cài đặt › Giọng nói. Panel ôm sát nội dung, không cuộn ở cỡ cửa sổ
+  thường; khi mở lên trên thì mép dưới tựa vào nút, mở xuống thì mép trên.
+- Lớp nổi và sidebar không hiện thanh cuộn kiểu cũ (rãnh dày khi macOS đặt
+  "luôn hiện thanh cuộn"): `scrollIndicators(.hidden)`, bánh xe vẫn cuộn;
+  composer quá trần dòng dùng thanh cuộn mỏng overlay.
+- Lịch sử nhanh: chỉ phiên có nội dung (tin nhắn, kết quả hoặc bản nháp),
+  mỗi phiên một hàng hai dòng cố định: tiêu đề + thời gian tương đối ở mép
+  phải, dưới là một dòng mờ (lượt trao đổi gần nhất, bản nháp, hoặc tên
+  model; "Đang xử lý" khi đang chạy). Phiên hiện tại: dấu chọn mảnh ở đầu
+  hàng và tiêu đề semibold, không nền hay chữ màu nhấn; highlight bàn phím là
+  `surface-hover`. Chân panel "Xem tất cả lịch sử →" là nút lặng. Cùng hàng
+  này dùng trong thư viện lịch sử. Hàng: dòng một chỉ tiêu đề; dòng hai là
+  dòng mờ và thời gian ở mép phải; danh sách nhiều tính năng hiện icon tính
+  năng ở đầu hàng.
+- Thư viện lịch sử (AI Chat → Lịch sử → Xem tất cả): bộ lọc Tất cả · AI Chat
+  · Dịch · Từ điển (mở ở tính năng đang đứng), rồi Lịch sử · Đã lưu trữ; danh
+  sách theo lần cập nhật mới nhất, không có phiên trống. Khung xem trước là
+  cuộc trao đổi theo cột đọc (lượt người dùng trên nền `surface-muted` như
+  bản ghi), đầu khung: tiêu đề, dòng meta "model · thời gian · n lượt", hàng
+  nút lặng Đổi tên · Xuất JSON · Lưu trữ · Xoá, và "Mở lại" là nút chính bên
+  phải. Xoá không hỏi: toast Hoàn tác vài giây (cả phiên đã lưu trữ). Phím:
+  ↑↓ chọn, Return mở, ⌫ xoá, Escape về trang. Mở phiên của tính năng khác
+  thì chuyển sang tính năng đó.
+- Danh sách thư viện rộng 376 pt (`sidebar + editor`) khi cửa sổ đủ rộng,
+  nhóm theo Hôm nay · Hôm qua · Tuần này · Cũ hơn (`HistoryBucket`); tab lọc
+  không bao giờ gãy dòng. Hàng phiên Dịch/Từ điển: dòng hai là kết quả, hoặc
+  cặp ngôn ngữ khi chưa có, không in lại nguyên bản; khung xem trước của
+  phiên Dịch cắt tiêu đề còn một dòng và meta ghi "model · Tiếng Anh → Tiếng
+  Việt · thời gian". Tiêu đề phiên có ảnh lấy tên ảnh, không lấy đường dẫn.
+- Chỉ dẫn cho phiên (hướng dẫn hệ thống) là lớp nổi `InstructionsPanel`,
+  mở từ hàng "Chỉ dẫn cho phiên" trong nhóm Suy luận của panel "+", neo cùng
+  nút "+": ô soạn nhiều dòng (font đọc, nền/viền như ô tìm, tới tám dòng), áp
+  dụng tức thì khi gõ, không có nút Áp dụng; dưới là "Chỉ dẫn đã lưu" bằng
+  hàng có dấu chọn ở chỉ dẫn đang áp dụng, "Lưu thành chỉ dẫn mới…" mở ô tên
+  tại chỗ, "Xoá chỉ dẫn đã lưu" có Hoàn tác. Hàng trong panel "+" ghi tên chỉ
+  dẫn đang dùng; "+" ở trạng thái chọn khi phiên có chỉ dẫn. Không còn
+  popover "Cấu hình model" hay ô nhập ID model (ô tìm của panel model nhận ID
+  gõ tay).
+- Dữ liệu: tạo "Chat mới" dọn các phiên trống trước đó của cùng tính năng;
+  tiêu đề nhập từ bản cũ bị đọc sai bảng mã ("Gi·∫£i th√≠ch") được sửa một
+  lần lúc nạp (`TextRepair`).
+- Một ô tìm duy nhất cho cả app (`SearchBox`: kính lúp của app, chữ trần
+  trên nền `surface-subtle`, bo `controlRadius`, viền hairline `border` và
+  `border-strong` khi đang nhập, không vòng focus hệ thống; cao một `control`,
+  trong header là `compactControl`). Lịch sử nhanh, thư viện, lịch sử Phiên
+  dịch, chọn model, ⌘K và Cài đặt dùng chung; cùng hình dạng với ô "Tìm ⌘K"
+  ở sidebar. Hàng composer không
+  thêm chip cho chế độ hay suy luận: chế độ Web/Nghiên cứu/Tạo ảnh đổi
+  placeholder ("Tìm trên web rồi trả lời…") và nút "+" sang trạng thái chọn;
+  suy luận kỹ đọc trên chip model; lỗi đính kèm là toast, không có biểu tượng
+  cảnh báo trong hàng. Chân panel model chỉ
+  còn "Tải lại model" (một nút, làm mới mọi nhà cung cấp) và "Cấu hình
+  model". Hàng của mọi panel dùng chung `PanelRow`. Menu hệ thống còn lại chỉ
+  ở Dịch (chọn ngôn ngữ, loa) và thanh menu app; chuyển sau.
 
 ## Quyết định đã chốt trong đợt này (2026-11-02)
 
@@ -109,7 +241,12 @@ trỏ; không bao giờ có viền màu nhấn. Composer Chat là một bề m�
 ## Việc còn mở theo hướng này
 
 Loạt 2026-11-02 gồm chín đợt, báo cáo [native-code-49](../migration/native-implementation/native-code-49.md)
-đến [native-code-57](../migration/native-implementation/native-code-57.md), mỗi báo cáo có mục "Còn lại".
+đến [native-code-57](../migration/native-implementation/native-code-57.md), mỗi báo cáo có mục "Còn lại";
+[native-code-58](../migration/native-implementation/native-code-58.md) chốt lại nút thu gọn và rail sau
+khi người dùng loại hướng cũ; [native-code-59](../migration/native-implementation/native-code-59.md) làm
+lại trạng thái trống và composer AI Chat; [native-code-60](../migration/native-implementation/native-code-60.md)
+rút gọn menu chọn model theo mục đích, gần đây và dòng mới nhất. Còn mở ở AI Chat: gợi ý theo thói quen tầng 2 và 3, menu "+"
+có mô tả từng chế độ, mức nỗ lực suy luận nhiều bậc.
 Tổng hợp: Qt trên Windows/Linux (làm khi có máy Windows); các luồng cần API hoặc phần cứng thật để chạy
 (so sánh model, nghiên cứu web, tổng hợp phiên dịch, tải và đo model local, helper quạt, bản cập nhật mới);
 nghiệm thu trợ năng (VoiceOver, ba cỡ chữ, 640 pt); cài đặt cập nhật tại chỗ.

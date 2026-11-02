@@ -90,15 +90,40 @@ import Observation
     public var session: Session { workspace.sessions.first { $0.id == workspace.active[workspace.feature.rawValue] }! }
     public func text(_ key: String) -> String { NativeResources.shared.text(key, locale: workspace.locale) }
     public func title(_ session: Session) -> String { session.title.isEmpty ? text(session.feature == .chat ? "newChat" : session.feature == .dictionary ? "newLookup" : "newTranslation") : session.title }
-    public func history(query: String, archived: Bool = false) -> [Session] {
+    /// Sessions for the history views, newest change first, only those with work. `features` nil =
+    /// the current feature; an empty set = every enabled feature.
+    public func history(query: String, archived: Bool = false, features: Set<Feature>? = nil) -> [Session] {
         func normalized(_ value: String) -> String {
             value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: workspace.locale))
                 .replacingOccurrences(of: "đ", with: "d")
         }
         let needle = normalized(query.trimmingCharacters(in: .whitespacesAndNewlines))
+        let scope = features ?? [workspace.feature]
         return workspace.sessions.filter { item in
-            item.comparisonParent == nil && item.feature == workspace.feature && (item.archived == true) == archived && (needle.isEmpty || normalized(title(item) + " " + item.draft + " " + item.output + " " + item.messages.map(\.text).joined(separator: " ")).contains(needle))
+            item.hasWork && item.comparisonParent == nil && (scope.isEmpty ? moduleEnabled(item.feature.rawValue) : scope.contains(item.feature)) && (item.archived == true) == archived && (needle.isEmpty || normalized(title(item) + " " + item.draft + " " + item.output + " " + item.messages.map(\.text).joined(separator: " ")).contains(needle))
+        }.sorted { ($0.updated ?? 0) > ($1.updated ?? 0) }
+    }
+    /// Delete any session that is not running, keeping it for Undo; comparisons go with their parent.
+    @discardableResult public func removeSession(_ id: String) throws -> (session: Session, index: Int) {
+        guard !loadBlocked, let index = workspace.sessions.firstIndex(where: { $0.id == id }), running(id) == nil else { throw StorageFailure.invalidData }
+        let item = workspace.sessions[index]
+        let ids = Set([id] + comparisons(id).map(\.id))
+        guard !workspace.tasks.contains(where: { ids.contains($0.request.sessionID) && $0.status == .running }) else { throw StorageFailure.invalidData }
+        if audio.recordingOwner == id || audio.transcribingOwner == id { audio.cancel() }
+        var candidate = workspace; candidate.sessions.removeAll { ids.contains($0.id) }; candidate.tasks.removeAll { ids.contains($0.request.sessionID) }
+        if candidate.active[item.feature.rawValue] == id {
+            if let next = candidate.sessions.first(where: { $0.feature == item.feature && $0.archived != true && $0.comparisonParent == nil }) { candidate.active[item.feature.rawValue] = next.id }
+            else { let next = Session(feature: item.feature); candidate.sessions.insert(next, at: 0); candidate.active[item.feature.rawValue] = next.id }
         }
+        _ = try candidate.validated(); try persistence.save(candidate); workspace = candidate
+        return (item, index)
+    }
+    /// Undo of `removeSession`: the session returns where it was and becomes current again.
+    public func restoreSession(_ item: Session, at index: Int) {
+        guard !loadBlocked, session(item.id) == nil else { return }
+        workspace.sessions.insert(item, at: min(index, workspace.sessions.count))
+        if item.archived != true { workspace.active[item.feature.rawValue] = item.id }
+        save()
     }
     public func session(_ id: String) -> Session? { workspace.sessions.first { $0.id == id } }
     public func running(_ id: String) -> WorkTask? { workspace.tasks.first { $0.request.sessionID == id && $0.status == .running } }
@@ -232,6 +257,11 @@ import Observation
         if resetNotice?.feature == workspace.feature { resetNotice = nil }
         var item = Session(feature: workspace.feature)
         if let preferredModel { item.model = preferredModel }
+        // Earlier sessions of this feature that never got any work are not history: sweep them,
+        // so "New chat" pressed ten times leaves one chat, not ten.
+        let feature = workspace.feature
+        let busy = Set(workspace.tasks.filter { $0.status == .running }.map(\.request.sessionID))
+        workspace.sessions.removeAll { $0.feature == feature && $0.comparisonParent == nil && $0.archived != true && !$0.hasWork && $0.title.isEmpty && !busy.contains($0.id) }
         workspace.sessions.insert(item, at: 0); workspace.active[item.feature.rawValue] = item.id; save()
     }
     private func edit(_ id: String, persist: Bool = true, _ mutation: (inout Session) -> Void) {
@@ -242,6 +272,19 @@ import Observation
         guard session(id)?.feature == .chat else { return }
         edit(id) { $0.carefulReasoning = enabled }
     }
+    /// The three purposes for the session's provider, or nil when they would not differ.
+    public func modelTiers(_ id: String) -> [ModelTier: String]? {
+        guard let current = session(id) else { return nil }
+        return ModelLineup.tiers(for: current.model, listing: providers.models[ModelLineup.provider(current.model)] ?? [])
+    }
+    /// Pick by purpose: the tier's model, and careful reasoning only for Careful.
+    public func applyModelTier(_ id: String, _ tier: ModelTier) {
+        guard let model = modelTiers(id)?[tier] else { return }
+        setModel(id, model)
+        if session(id)?.feature == .chat { setCarefulReasoning(id, tier == .careful) }
+    }
+    /// The picker's Recent group: distinct models of the latest sessions with work, newest first.
+    public var recentPicks: [String] { ModelLineup.recent(workspace.sessions.filter { !$0.messages.isEmpty || !$0.output.isEmpty }.sorted { ($0.updated ?? 0) > ($1.updated ?? 0) }.map(\.model)) }
     public func setAutoTranslate(_ enabled: Bool, delay: Int? = nil) {
         guard !loadBlocked, delay == nil || (100...5000).contains(delay!) else { return }
         workspace.autoTranslate = enabled; if let delay { workspace.autoTranslateDelay = delay }; save()
@@ -478,7 +521,7 @@ import Observation
         request.messages?.append(user)
         let task = WorkTask(id: UUID().uuidString, attemptID: UUID().uuidString, request: request, status: .running, output: "")
         edit(id, persist: false) { item in
-            if item.title.isEmpty { item.title = String((current.draft.isEmpty ? current.images?.first?.name ?? "" : current.draft).prefix(64)).replacingOccurrences(of: "\n", with: " ") }
+            if item.title.isEmpty { item.title = Session.derivedTitle(draft: current.draft, images: current.images) }
             if current.feature == .chat {
                 item.messages.append(Message(id: UUID().uuidString, role: "user", text: current.draft, images: current.images))
                 item.messages.append(Message(id: task.id, role: "assistant", text: ""))
@@ -708,6 +751,10 @@ import Observation
                 var loaded = saved.upgrading()
                 recovered = loaded.tasks.contains { $0.status == .running }
                 for i in loaded.tasks.indices where loaded.tasks[i].status == .running { loaded.tasks[i].status = .interrupted }
+                // Titles imported with a mis-read encoding are repaired once, here, not at every display.
+                for i in loaded.sessions.indices where TextRepair.looksDamaged(loaded.sessions[i].title) { loaded.sessions[i].title = TextRepair.repaired(loaded.sessions[i].title) }
+                // Titles that captured a dropped file path get the image's (or file's) name instead.
+                for i in loaded.sessions.indices where loaded.sessions[i].title.hasPrefix("file://") { loaded.sessions[i].title = Session.derivedTitle(draft: loaded.sessions[i].title, images: loaded.sessions[i].images) }
                 workspace = loaded
             }
             loadBlocked = false; storageError = nil; applyVoice()
