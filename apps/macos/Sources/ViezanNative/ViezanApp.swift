@@ -54,7 +54,11 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
                     delegate.store = store
                     // Find which local runtimes and keyed cloud providers this device can use.
                     store.discoverProviders()
-                    if delegate.desktopPanels == nil { delegate.desktopPanels = DesktopPanels(store: store) { id in store.select(id); screen = store.session.feature.rawValue; delegate.window?.makeKeyAndOrderFront(nil) } }
+                    if delegate.desktopPanels == nil {
+                        delegate.desktopPanels = DesktopPanels(store: store,
+                            openMain: { id in store.select(id); screen = store.session.feature.rawValue; NSApp.activate(); delegate.window?.makeKeyAndOrderFront(nil) },
+                            openRoute: { route in screen = route; NSApp.activate(); delegate.window?.makeKeyAndOrderFront(nil) })
+                    }
                     NSApp.activate(ignoringOtherApps: true)
                 }
         }

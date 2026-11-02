@@ -209,3 +209,15 @@ Khác biệt với bản vẽ / đề xuất:
 17. **Không có tệp đính kèm, ảnh, chọn model hay chọn nhà cung cấp trong popup**: popup luôn dùng provider/model đang chọn ở cửa sổ chính, chỉ đổi được qua Cài đặt. Chọn model ngay trong popup là **đề xuất**.
 18. **Không có lối vào từ khay hệ thống hay bảng lệnh ⌘K**; "Hỏi AI" trong ⌘K là một bề mặt trả lời khác, có bộ nút riêng. Hợp nhất hai bề mặt là **đề xuất**.
 19. "Mở Cài đặt" mở mục mặc định của Cài đặt, không nhảy tới Cài đặt › Mô hình AI như `foundations.md` §12 yêu cầu cho trạng thái thiếu khoá.
+
+## Native implementation follow-up — 2026-10-31
+
+SwiftUI (macOS), đã chạy thật (native-code-48): chế độ Hỏi AI nằm **trong cửa sổ Launcher** (`LauncherChat.swift`),
+cao 540; Tab / ⌘↵ / hàng "Hỏi AI" vào và tự gửi chữ đã gõ, Tab với ô trống vào trạng thái trống. Phiên là một phiên
+AI Chat tách rời, chỉ tạo khi gửi câu đầu; "Mở trong Chat" mở chính phiên đó (không sao chép) và Launcher bắt đầu
+mới. Thiếu AI dùng được: dòng `ProviderNotice` chung (kiểm tra lại / dùng model khác / mở Cài đặt), câu hỏi giữ
+trong ô. Chip model mở Cài đặt › Nhà cung cấp (khác bản Electron, xem mục 19). Bộ đếm "{n} / 3000" + "Nội dung quá
+dài…" nằm dưới ô hỏi, hội thoại vẫn hiện (theo đề xuất ở mục 4).
+
+Chênh lệch còn lại so với spec: chỉ thẻ mới nhất có "Tạo lại phản hồi" (tạo lại ở thẻ cũ cần cắt các lượt sau —
+chưa có trong store); chưa có lưu đệm câu hỏi đầu 10 phút và Smart Thinking; Qt vẫn mở Chat nhanh riêng.

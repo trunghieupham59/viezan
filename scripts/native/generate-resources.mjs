@@ -51,8 +51,8 @@ for (const locale of ['vi', 'en', 'ja']) {
   const catalog = module.exports
   locales[locale] = { ...catalog.nativePreview }
   for (const [code, label] of Object.entries(catalog.lang_names)) locales[locale][`lang_${code}`] = label
-  // Launcher and thermal copy is shared with the retired renderer; keep its keys verbatim.
-  for (const [key, value] of Object.entries(catalog)) if ((key.startsWith('launcher_') || key.startsWith('thermal_')) && typeof value === 'string') locales[locale][key] = value
+  // Launcher, quick AI and thermal copy is shared with the retired renderer; keep its keys verbatim.
+  for (const [key, value] of Object.entries(catalog)) if (['launcher_', 'ai_chat_popup_', 'thermal_'].some(prefix => key.startsWith(prefix)) && typeof value === 'string') locales[locale][key] = value
   for (const preset of ['graphite','glass','paper','corporate','midnight']) locales[locale]['preset_' + preset] = catalog['settings_theme_preset_' + preset]
   for (const accent of ['auto','violet','pink','teal','green','amber','red']) locales[locale]['accent_' + accent] = catalog['settings_theme_accent_' + accent]
   locales[locale].themeAccent = catalog.settings_theme_accent
@@ -64,6 +64,7 @@ for (const locale of ['vi', 'en', 'ja']) {
     chatMode_web: 'chat_menu_web_search', chatMode_research: 'chat_menu_deep_research', chatMode_image: 'chat_menu_image_mode', chatMode_text: 'nav_chat', speak: 'translate_speak', stopSpeaking: 'translate_speak_stop', export: 'live_export', quickStart: 'home_quick_start', continueWork: 'home_resume_title', noRecentWork: 'home_resume_empty', home: 'nav_home', interpret: 'nav_live_translate', dictionary: 'nav_dictionary', everywhere: 'nav_everywhere', thermal: 'nav_thermal', apps: 'nav_apps', utilities: 'nav_utilities',
     groupAI: 'nav_space_ai', groupLanguage: 'nav_space_language', groupSystem: 'nav_space_system', groupTools: 'nav_space_tools', searchLabel: 'nav_search_label', hotkeys: 'nav_background_hotkeys', browserBridge: 'nav_background_browser',
     chat: 'nav_chat', translate: 'nav_translate', settings: 'nav_settings',
+    quickThinking: 'chat_thinking', quickRegenerate: 'chat_regenerate', quickOpenSettings: 'chat_error_open_settings', quickClear: 'chat_clear',
     send: 'chat_send', copy: 'chat_copy', prompt: 'chat_placeholder', sourcePlaceholder: 'translate_placeholder', dictionaryPlaceholder: 'dictionary_term_placeholder',
     expandNavigation: 'nav_expand_sidebar', collapseNavigation: 'nav_collapse_sidebar',
     languageDescription: 'settings_app_language_desc', launchDescription: 'settings_launch_at_login_desc', presetDescription: 'settings_theme_palette_desc', accentDescription: 'settings_theme_accent_desc', voiceDescription: 'settings_voice_section_desc',

@@ -398,7 +398,9 @@ import Observation
     public func canRetry(_ task: WorkTask) -> Bool {
         guard !loadBlocked, let owner = session(task.request.sessionID), moduleEnabled(owner.feature.rawValue),
               !(task.request.model.hasPrefix("ollama:") && localPerformance.busy) else { return false }
-        return (owner.comparisonParent == nil || comparisonCurrent(owner)) && owner.archived != true && task.status != .running && task.status != .succeeded && running(owner.id) == nil &&
+        // A finished chat answer can be regenerated while it is still the newest message.
+        let regenerate = task.request.feature == .chat && owner.messages.last?.id == task.id
+        return (owner.comparisonParent == nil || comparisonCurrent(owner)) && owner.archived != true && task.status != .running && (task.status != .succeeded || regenerate) && running(owner.id) == nil &&
             (task.request.feature == .chat || owner.revision == task.request.revision)
     }
     private func savedForDispatch(_ task: WorkTask) -> Bool {

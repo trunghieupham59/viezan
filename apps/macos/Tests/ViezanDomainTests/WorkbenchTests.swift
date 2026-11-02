@@ -520,3 +520,58 @@ import Testing
     #expect(rows[.other]?.map(\.label) == ["battery", nil])
     #expect(ThermalSensors.tone(69.9) == "ok" && ThermalSensors.tone(70) == "warm" && ThermalSensors.tone(90) == "hot")
 }
+
+@Test func launcherCurrencyReadsAmountsUnitsAndTargetsLikeTheRenderer() {
+    func parse(_ query: String, _ locale: String = "en") -> CurrencyQuery? { LauncherCurrency.parse(query, locale: locale) }
+    func money(_ amount: Double, _ from: String, _ to: String? = nil) -> CurrencyQuery { CurrencyQuery(amount: amount, from: from, to: to) }
+    for (query, expected) in [("2$", money(2, "USD")), ("$2", money(2, "USD")), ("2 usd", money(2, "USD")), ("2USD", money(2, "USD")), ("100 yen", money(100, "JPY")),
+                              ("50€", money(50, "EUR")), ("£ 10", money(10, "GBP")), ("1000₩", money(1000, "KRW")), ("US$ 3", money(3, "USD")),
+                              ("2 usd to vnd", money(2, "USD", "VND")), ("2$ in jpy", money(2, "USD", "JPY")), ("2$ → eur", money(2, "USD", "EUR")), ("2$ = eur", money(2, "USD", "EUR")),
+                              ("2 usd vnd", money(2, "USD", "VND")), ("$2 vnd", money(2, "USD", "VND")), ("2$ inr", money(2, "USD", "INR")), ("2$ to", money(2, "USD")),
+                              ("2 usd to usd", money(2, "USD")), ("1.5 usd", money(1.5, "USD")), ("1,500 usd", money(1500, "USD")), ("1.5m usd", money(1_500_000, "USD")), ("2 krw", money(2, "KRW"))] {
+        #expect(parse(query) == expected, "\(query)")
+    }
+    for (query, expected) in [("2 đô sang yên", money(2, "USD", "JPY")), ("2 do la", money(2, "USD")), ("50.000đ", money(50_000, "VND")), ("50.000 đồng", money(50_000, "VND")),
+                              ("1,5 usd", money(1.5, "USD")), ("1.500.000 vnd", money(1_500_000, "VND")), ("500k vnd", money(500_000, "VND")), ("2tr vnd", money(2_000_000, "VND"))] {
+        #expect(parse(query, "vi") == expected, "\(query)")
+    }
+    for (query, expected) in [("100円", money(100, "JPY")), ("100ドル に 円", money(100, "USD", "JPY")), ("1万円", money(10_000, "JPY"))] {
+        #expect(parse(query, "ja") == expected, "\(query)")
+    }
+    for query in ["", "2", "2 + 2", "chat", "2 abc", "1password", "2$ to abc", "2 m", "12 tr", "2 in", "usd", "$", "2$$", "9999999999999999 usd", "2,5,5 usd", String(repeating: "x", count: 61)] {
+        #expect(parse(query) == nil, "\(query)")
+    }
+}
+
+@Test func launcherCurrencyTargetFollowsChoiceThenLanguageButNeverTheTypedCurrency() {
+    #expect(LauncherCurrency.defaultTarget(locale: "en", preferred: nil) == "USD")
+    #expect(LauncherCurrency.defaultTarget(locale: "vi", preferred: nil) == "VND")
+    #expect(LauncherCurrency.defaultTarget(locale: "ja", preferred: "") == "JPY")
+    #expect(LauncherCurrency.defaultTarget(locale: "vi", preferred: "JPY") == "JPY")
+    #expect(LauncherCurrency.defaultTarget(locale: "vi", preferred: "XXX") == "VND")
+    #expect(LauncherCurrency.defaultTarget(locale: "vi", preferred: nil, from: "VND") == "USD")
+    #expect(LauncherCurrency.defaultTarget(locale: "en", preferred: nil, from: "USD") == "EUR")
+    #expect(LauncherCurrency.defaultTarget(locale: "vi", preferred: "JPY", from: "JPY") == "VND")
+    let snapshot = CurrencySnapshot(rates: ["USD": 1, "VND": 25_000, "JPY": 150], updated: 1)
+    #expect(snapshot.convert(2, from: "USD", to: "VND")?.value == 50_000)
+    #expect(snapshot.convert(300, from: "JPY", to: "USD")?.rate == 1.0 / 150)
+    #expect(snapshot.convert(1, from: "USD", to: "EUR") == nil)
+}
+
+@Test @MainActor func onlyTheNewestFinishedChatAnswerCanBeRegenerated() throws {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
+    store.navigate(.chat)
+    let id = store.session.id
+    store.setDraft(id, "First")
+    let first = try #require(store.submit(id))
+    store.receive(taskID: first.id, attemptID: first.attemptID, chunk: "One", terminal: .succeeded)
+    #expect(store.canRetry(try #require(store.workspace.tasks.first { $0.id == first.id })))
+    store.setDraft(id, "Second")
+    let second = try #require(store.submit(id))
+    store.receive(taskID: second.id, attemptID: second.attemptID, chunk: "Two", terminal: .succeeded)
+    #expect(!store.canRetry(try #require(store.workspace.tasks.first { $0.id == first.id })))
+    store.retry(second.id)
+    #expect(store.running(id)?.id == second.id)
+    #expect(store.session.messages.last?.text == "")
+    #expect(store.session.messages.map(\.text).prefix(3) == ["First", "One", "Second"])
+}

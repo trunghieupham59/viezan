@@ -39,7 +39,9 @@ Existing GitHub releases may still be the previous app.
   visual/runtime acceptance.
 - Independent app/chat navigation, native detached Quick Chat and translation
   panels, global shortcuts, application/file launcher, calculator, currency
-  conversion, browser search and native window/tray lifecycle.
+  conversion with a remembered target, browser search and native window/tray
+  lifecycle. On macOS the launcher asks AI in the same window and hands the
+  conversation to AI Chat.
 - macOS application inventory, selected uninstall/reset plans, Trash operations,
   preference backup/reset, journals, recovery and undo; thermal monitoring,
   fan profiles, calibration and helper lease restoration. Linux exposes available

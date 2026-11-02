@@ -255,8 +255,12 @@ theo vị trí, khi kết quả tệp về sau), Esc xoá chữ rồi ẩn. Xế
 ứng dụng mở gần đây trước. Tìm tệp chỉ qua Spotlight, bỏ thư mục phụ thuộc/build; không tự quét
 Desktop/Documents/Downloads (tránh hộp thoại quyền thư mục giữa lúc gõ).
 
-Chênh lệch còn lại: Hỏi AI mở panel Chat nhanh riêng (đã gửi câu hỏi) thay vì chế độ AI trong cùng cửa
-sổ; không có bộ chọn loại tiền.
+2026-10-31 (native-code-48): Tab / ⌘↵ / "Hỏi AI" chuyển **cùng cửa sổ** sang chế độ Hỏi AI (xem
+`quick-chat.md`); "Hỏi tiếp AI" và "Tiếp tục Quick AI" theo phiên < 30 phút; nhóm Viezan (ô trống: Tiếp tục
+Quick AI, Dịch, Tra từ điển, Phiên dịch AI, Mở trong Chat, Mở Cài đặt; khi gõ: lệnh khớp tên). Đổi tiền hiểu
+mọi dạng ở §4 (`LauncherCurrency`), hàng có tỷ giá + ngày, đang tải / không có tỷ giá (↵ thử lại); bộ chọn
+"Đổi sang" nhớ tiền đích. Chênh lệch còn lại: bộ chọn tiền là menu hệ thống (gõ chữ cái để nhảy), không có ô
+"Tìm loại tiền…" — popover có ô nhập sẽ lấy focus khỏi Launcher và làm nó tự ẩn.
 
 Qt: `Launcher.qml` là cửa sổ riêng cùng hành vi (không viền, 22%, ẩn khi mất focus, nhóm kết quả, ↑↓ ↵
 Shift+↵ Ctrl/⌘+↵ Tab Esc, chọn theo id); `LauncherTools::rank` xếp ứng dụng, ứng dụng mở gần đây lưu trong
