@@ -251,7 +251,7 @@ Kết quả thực hiện giai đoạn 3 (cùng nhánh `feat/ui-foundation`, m�
   - tương phản 4.5:1;
   - điều hướng bàn phím trong popover và dialog.
 - **Dọn mã**: xoá `ChatPageV2.tsx` (không được dùng), `Sidebar.tsx` cũ, `SettingsModal` và CSS mồ côi.
-- **Cập nhật rule agent**: `viezanagent/rule/viezan-product-engineering/rules.json`
+- **Cập nhật rule agent**: `docs/agents/rule/viezan-product-engineering/rules.json`
   vẫn mô tả Viezan là app dịch và từ chối "dashboard không liên quan trực tiếp
   tới dịch thuật". Cần cập nhật định vị sản phẩm (trợ lý desktop local-first
   gồm AI, ngôn ngữ, hệ thống, tiện ích) trước khi agent review các trang mới

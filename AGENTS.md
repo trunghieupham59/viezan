@@ -3,8 +3,8 @@
 ## Source ownership
 
 - Inspect relevant code and nearby tests before editing. Preserve unrelated
-  work. Follow the matching purpose under `viezanagent/agent/` according to
-  `viezanagent/agent/CAPABILITY_CONTRACT.md`.
+  work. Follow the matching purpose under `docs/agents/agent/` according to
+  `docs/agents/agent/CAPABILITY_CONTRACT.md`.
 - macOS uses SwiftUI/AppKit in `apps/macos/Sources/ViezanNative` and Swift
   services in `ViezanDomain` in the same package. The helper executables and
   authorization boundaries live under `native/`.
@@ -12,7 +12,7 @@
   Keep privileged filesystem, process and credential operations in services.
 - Build and packaging entrypoints live in `scripts/native/`. Keep portable
   schemas, policies and fixtures in `contracts/native-workbench/`.
-- For migration work resolve `viezanagent/agent/native-migration/native-migration.json`
+- For migration work resolve `docs/agents/agent/native-migration/native-migration.json`
   and its linked workflow and skills. Record acceptance evidence in `docs/migration/`.
 
 ## Presentation and behavior

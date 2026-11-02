@@ -1,0 +1,301 @@
+{
+  "name": "viezan-doc-sync",
+  "version": "1.0.0",
+  "description": "Skill phát hiện drift giữa source code Viezan và tài liệu (ARCHITECTURE.md, PROMPTS.md, docs/migration/legacy-reference/agent-handbook/manual/, README.md, chrome-extension/README.md). Đảm bảo IPC channel, provider list, locale list, hotkey, store slice, file path mô tả trong docs khớp với code thực tế.",
+  "type": "skill",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": [
+      "docs",
+      "drift",
+      "release"
+    ],
+    "use_for": "Find and repair drift between current code, agent docs, public docs, and release-facing documentation."
+  },
+  "trigger": "Khi sửa IPC/provider/store/preload/i18n/extension hoặc trước release để rà drift docs",
+  "required_context": [
+    "../../../migration/legacy-reference/agent-handbook/ARCHITECTURE.md",
+    "../../PROMPTS.md",
+    "../../../migration/legacy-reference/agent-handbook/product-intro.md",
+    "../../rule/viezan-product-engineering/rules.json"
+  ],
+  "doc_sources": [
+    {
+      "id": "architecture",
+      "path": "docs/migration/legacy-reference/agent-handbook/ARCHITECTURE.md",
+      "covers": [
+        "process model (main/preload/renderer)",
+        "IPC channels (domain:action)",
+        "preload domain modules",
+        "store slices",
+        "provider system",
+        "error/retry",
+        "live translate pipeline"
+      ]
+    },
+    {
+      "id": "prompts",
+      "path": "docs/agents/PROMPTS.md",
+      "covers": [
+        "rule list",
+        "skill list",
+        "workflow list",
+        "report paths"
+      ]
+    },
+    {
+      "id": "product-intro",
+      "path": "docs/migration/legacy-reference/agent-handbook/product-intro.md",
+      "covers": [
+        "value proposition",
+        "supported providers",
+        "supported locales",
+        "platforms"
+      ]
+    },
+    {
+      "id": "viezanagent-docs",
+      "path": "docs/migration/legacy-reference/agent-handbook/manual/",
+      "covers": [
+        "live translate pipeline thresholds",
+        "TTS architecture",
+        "provider routing",
+        "security boundaries",
+        "phase 2 local AI tasks"
+      ]
+    },
+    {
+      "id": "repo-readme",
+      "path": "README.md",
+      "covers": [
+        "feature list user-facing",
+        "supported providers",
+        "platforms"
+      ]
+    },
+    {
+      "id": "extension-readme",
+      "path": "chrome-extension/README.md",
+      "covers": [
+        "extension features",
+        "shortcut",
+        "options"
+      ]
+    },
+    {
+      "id": "viezan-product-engineering-rule",
+      "path": "docs/agents/rule/viezan-product-engineering/rules.json",
+      "covers": [
+        "rule reference list",
+        "constraints chiếu trên code thực"
+      ]
+    }
+  ],
+  "code_truth_anchors": [
+    {
+      "id": "ipc-channels",
+      "name": "IPC Channels",
+      "extract_method": "Liệt kê tất cả ipcMain.handle('<channel>', ...) trong electron/main.ts và electron/ipc/",
+      "search_command": "rg -n \"ipcMain\\.handle\\(['\\\"][^'\\\"]+['\\\"]\" electron",
+      "doc_section": "ARCHITECTURE.md - Section 2: IPC Protocol",
+      "drift_signals": [
+        "Channel có trong code nhưng thiếu trong bảng ARCHITECTURE.md",
+        "Channel có trong ARCHITECTURE.md nhưng đã xóa khỏi code",
+        "Channel đổi tên domain:action mà chưa update docs"
+      ]
+    },
+    {
+      "id": "preload-domains",
+      "name": "Preload Domain Modules",
+      "extract_method": "List file trong electron/preload/",
+      "search_command": "ls electron/preload",
+      "doc_section": "ARCHITECTURE.md - Section 2: Preload domain modules",
+      "drift_signals": [
+        "Có file preload mới chưa được liệt kê trong docs",
+        "File preload đã xóa nhưng vẫn còn trong docs"
+      ]
+    },
+    {
+      "id": "providers",
+      "name": "Supported Providers",
+      "extract_method": "Đọc SUPPORTED_PROVIDERS trong electron/ipc/providers/types.ts và PROVIDERS trong src/constants/providers.ts",
+      "search_command": "rg -n \"SUPPORTED_PROVIDERS|PROVIDERS\\.push|id:\\s*['\\\"](local|gemini|claude|openai)\" electron src",
+      "doc_section": "ARCHITECTURE.md - Section 4: Provider System; product-intro.md; README.md",
+      "drift_signals": [
+        "Provider mới chưa xuất hiện trong README/product-intro",
+        "Provider bị remove vẫn còn trong docs"
+      ]
+    },
+    {
+      "id": "store-slices",
+      "name": "Store Slices",
+      "extract_method": "List file trong src/store/slices/",
+      "search_command": "ls src/store/slices",
+      "doc_section": "ARCHITECTURE.md - Section 3: State Management",
+      "drift_signals": [
+        "Slice mới chưa nêu trong docs",
+        "Slice cũ đã merge/đổi tên"
+      ]
+    },
+    {
+      "id": "locales",
+      "name": "Supported Locales",
+      "extract_method": "List file trong src/i18n/locales/",
+      "search_command": "ls src/i18n/locales",
+      "doc_section": "product-intro.md, README.md",
+      "drift_signals": [
+        "Thêm locale mà chưa cập nhật docs",
+        "Locale chỉ có trong docs nhưng không có file"
+      ]
+    },
+    {
+      "id": "skills-workflows",
+      "name": "Agents, Rules, Skills, Workflows and Classification",
+      "extract_method": "List folder trong docs/agents/agent/, docs/agents/rule/, docs/agents/skill/, docs/agents/workflow/ và đọc classification trong JSON",
+      "search_command": "jq -r '[.classification.lifecycle,.type,.name,(.classification.domain|join(\",\"))] | @tsv' docs/agents/agent/*/*.json docs/agents/rule/*/*.json docs/agents/skill/*/*.json docs/agents/workflow/*/*.json | sort",
+      "doc_section": "PROMPTS.md - Quick Chooser, Agent Catalog, Agent-To-Capability Map, Report Paths; README.md - Agent Chinh and Capability Noi Bo",
+      "drift_signals": [
+        "Agent/skill/workflow mới chưa có trong PROMPTS.md",
+        "PROMPTS.md tham chiếu agent/skill/workflow đã xóa",
+        "JSON thiếu classification.lifecycle, classification.domain hoặc classification.use_for",
+        "Purpose/lifecycle/domain trong JSON không khớp Agent Catalog hoặc README.md"
+      ]
+    },
+    {
+      "id": "report-paths",
+      "name": "Report Paths",
+      "extract_method": "Đọc save_path/filename_pattern trong tất cả workflow JSON",
+      "search_command": "rg -n \"save_path|filename_pattern\" docs/agents/workflow",
+      "doc_section": "PROMPTS.md - Report Paths",
+      "drift_signals": [
+        "Workflow ghi report vào path khác PROMPTS.md liệt kê",
+        "Có workflow tạo report nhưng không nêu trong PROMPTS.md"
+      ]
+    },
+    {
+      "id": "live-pipeline-thresholds",
+      "name": "Live Pipeline Thresholds",
+      "extract_method": "Đọc threshold trong src/hooks/useLiveTranslate.ts và src/constants/audio.ts",
+      "search_command": "rg -n \"noSpeechProb|avgLogprob|compressionRatio|jaccard|RMS|sustained|peak\" src",
+      "doc_section": "ARCHITECTURE.md - Section 7; docs/migration/legacy-reference/agent-handbook/manual/live-translate-pipeline.md",
+      "drift_signals": [
+        "Threshold trong docs khác giá trị hardcode trong code"
+      ]
+    }
+  ],
+  "audit_categories": [
+    {
+      "id": "missing-in-docs",
+      "name": "Code feature missing in docs",
+      "severity_if_failed": "high",
+      "checks": [
+        "IPC channel mới chưa nêu trong ARCHITECTURE.md",
+        "Provider mới chưa nêu trong README/product-intro",
+        "Agent/skill/workflow mới chưa nêu trong PROMPTS.md",
+        "Locale mới chưa nêu trong README/product-intro"
+      ]
+    },
+    {
+      "id": "stale-in-docs",
+      "name": "Stale docs vs code",
+      "severity_if_failed": "high",
+      "checks": [
+        "Docs nhắc tới channel/provider/file đã bị xóa",
+        "Docs ghi store slice cũ đã đổi tên",
+        "Docs ghi threshold sai số với code"
+      ]
+    },
+    {
+      "id": "broken-paths",
+      "name": "Broken file path references",
+      "severity_if_failed": "medium",
+      "checks": [
+        "Đường dẫn trong docs trỏ tới file không tồn tại",
+        "Tài liệu chéo (cross-link) giữa agent/skill/workflow JSON tham chiếu file sai"
+      ],
+      "suggested_searches": [
+        "rg -n \"\\.\\./\\.\\./\" docs/agents/agent docs/agents/skill docs/agents/workflow docs/agents/rule"
+      ]
+    },
+    {
+      "id": "report-path-drift",
+      "name": "Report path drift",
+      "severity_if_failed": "medium",
+      "checks": [
+        "save_path trong workflow JSON khớp PROMPTS.md",
+        "Tên file pattern (YYYYMMDD-HHmm) đồng bộ"
+      ]
+    },
+    {
+      "id": "classification-drift",
+      "name": "Agent classification drift",
+      "severity_if_failed": "medium",
+      "checks": [
+        "Mọi agent/rule/skill/workflow JSON có classification.lifecycle",
+        "Mọi agent/rule/skill/workflow JSON có classification.domain không rỗng",
+        "Mọi agent/rule/skill/workflow JSON có classification.use_for",
+        "Purpose/lifecycle trong JSON khớp PROMPTS.md Agent Catalog và README.md"
+      ]
+    },
+    {
+      "id": "release-notes-coverage",
+      "name": "Release notes coverage",
+      "severity_if_failed": "high",
+      "checks": [
+        "Feature lớn có ghi trong README và product-intro",
+        "Provider/locale mới có nêu trong release notes nếu có",
+        "npm run check:docs passes for generated facts, exact-version changelog and the recorded source/README review",
+        "Review summary explains source changes and limits; docs:review is never run just to bypass a stale fingerprint"
+      ]
+    }
+  ],
+  "severity_levels": [
+    {
+      "level": "critical",
+      "meaning": "Docs sai dẫn tới user/dev hiểu sai cam kết bảo mật/local-first"
+    },
+    {
+      "level": "high",
+      "meaning": "Drift gây hiểu nhầm về feature/provider/IPC/locale"
+    },
+    {
+      "level": "medium",
+      "meaning": "Path/threshold sai số nhưng feature vẫn dùng được"
+    },
+    {
+      "level": "low",
+      "meaning": "Polish wording"
+    }
+  ],
+  "output_format": {
+    "sections": [
+      "Drift Summary",
+      "Missing in Docs",
+      "Stale in Docs",
+      "Broken Paths",
+      "Report Path Drift",
+      "Required Updates"
+    ],
+    "finding_fields": [
+      "severity",
+      "anchor",
+      "doc_path",
+      "code_path",
+      "issue",
+      "recommended_fix"
+    ]
+  },
+  "instructions": [
+    "Luôn extract truth từ code trước, rồi mới so với docs",
+    "Không tự xóa nội dung docs nếu chưa chắc tính năng đã bị remove — đề xuất manual confirm",
+    "Khi cập nhật ARCHITECTURE.md/PROMPTS.md, giữ format bảng và section hiện có",
+    "Nếu thêm provider/locale: cập nhật cả README, product-intro và rule reference",
+    "Trả ra patch suggestion thay vì viết lại toàn bộ docs"
+  ],
+  "references": {
+    "workflow": "../../workflow/sync-docs/sync-docs.json",
+    "rule": "../../rule/viezan-product-engineering/rules.json",
+    "readme": "./README.md",
+    "native_migration": "../../agent/native-migration/native-migration.json"
+  }
+}

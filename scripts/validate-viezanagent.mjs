@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const root = 'viezanagent'
+const root = 'docs/agents'
 const jsonFiles = []
 
 function walk(dir) {

@@ -27,8 +27,8 @@ Ngày: 2026-10-26. Desktop trước; mobile chỉ thiết kế ranh giới kiế
 - [Review 02: toàn bộ module macOS 27 / Liquid Glass](macos27-review.md)
 - [Review 03: bộ thiết kế macOS, Windows, Linux](desktop-review/README.md)
 - [Plugin và công cụ](tooling.md)
-- [Skill chuyển đổi](../../viezanagent/skill/viezan-native-migration/SKILL.md)
-- [Skill nghiệm thu UI](../../viezanagent/skill/viezan-native-ux/SKILL.md)
+- [Skill chuyển đổi](../agents/skill/viezan-native-migration/SKILL.md)
+- [Skill nghiệm thu UI](../agents/skill/viezan-native-ux/SKILL.md)
 - [Figma — bản thiết kế để review](https://www.figma.com/design/AXNXvFbXPr5CK1K5Vjhz6b)
 
 Prompt tiếp tục:

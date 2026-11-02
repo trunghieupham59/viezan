@@ -28,10 +28,14 @@ jobs:
             - name: Setup Pages
               uses: actions/configure-pages@v6
 
-            - name: Upload docs/ folder
+            - name: Prepare published documentation
+              run: |
+                  rsync -a --exclude=/agents/ --exclude=/migration/reports/ --exclude=/migration/legacy-reference/agent-handbook/ docs/ "$RUNNER_TEMP/viezan-pages/"
+
+            - name: Upload published documentation
               uses: actions/upload-pages-artifact@v5
               with:
-                  path: docs
+                  path: ${{ runner.temp }}/viezan-pages
 
             - name: Deploy to GitHub Pages
               id: deployment

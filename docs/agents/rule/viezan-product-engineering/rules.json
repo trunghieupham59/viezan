@@ -1,0 +1,244 @@
+{
+  "name": "viezan-product-engineering",
+  "version": "1.0.0",
+  "description": "Bộ rule nền để generate, review và refactor code cho Viezan đúng PRD local-first AI translation desktop app",
+  "type": "rule",
+  "classification": {
+    "lifecycle": "foundation",
+    "domain": ["product-engineering", "security-privacy", "electron-boundary", "provider-models", "ui-i18n", "extension", "reliability"],
+    "use_for": "Always-on Viezan product guardrails for feature work, refactors, reviews, and release gates."
+  },
+  "applies_to": [
+    "Electron main/preload/renderer work",
+    "AI provider integration",
+    "translation, live translation, image translation, chat, STT, TTS",
+    "settings, history, i18n, Chrome Extension bridge",
+    "release readiness and security review"
+  ],
+  "source_docs": [
+    "../../../migration/legacy-reference/agent-handbook/product-intro.md",
+    "../../../migration/legacy-reference/agent-handbook/ARCHITECTURE.md",
+    "../../../migration/legacy-reference/agent-handbook/manual/live_trans.md",
+    "../../../migration/legacy-reference/agent-handbook/manual/tts.md",
+    "../../../migration/legacy-reference/agent-handbook/manual/TTS_ARCHITECTURE.md"
+  ],
+  "rule_groups": [
+    {
+      "id": "product-fit",
+      "name": "Product Fit",
+      "priority": "mandatory",
+      "goal": "Tính năng mới phải phục vụ ngữ cảnh dịch thuật AI local-first cho BrSE/PM/dev",
+      "rules": [
+        {
+          "id": "R-VZN-PRD-01",
+          "name": "Giữ đúng người dùng và use case",
+          "description": "Mỗi thay đổi phải giúp dịch, hiểu, trao đổi, lưu lại hoặc vận hành ngữ cảnh đa ngôn ngữ tốt hơn.",
+          "reject_if": [
+            "Biến app thành landing page hoặc dashboard không liên quan trực tiếp tới dịch thuật/chat/live/browser translation",
+            "Thêm workflow cần server trung gian của project cho dữ liệu người dùng",
+            "Tăng ma sát cho tác vụ dịch nhanh hoặc live session"
+          ]
+        },
+        {
+          "id": "R-VZN-PRD-02",
+          "name": "Không phá vỡ các trụ cột sản phẩm",
+          "description": "Text translation, live translation, image translation, chat, voice, TTS, history, Chrome Extension và settings phải tiếp tục hoạt động độc lập.",
+          "checks": [
+            "Feature mới không làm thay đổi default provider/model ngoài ý muốn",
+            "Không xóa hoặc bypass lịch sử/preset hiện có",
+            "Không thay đổi behavior hotkey/subtitle/browser bridge nếu không được yêu cầu"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "local-first-privacy",
+      "name": "Local-first Privacy",
+      "priority": "mandatory",
+      "goal": "Bảo vệ cam kết dữ liệu không đi qua server trung gian của project",
+      "rules": [
+        {
+          "id": "R-VZN-SEC-01",
+          "name": "API key chỉ nằm ở Main Process",
+          "description": "Renderer và preload không được nhận raw API key. Chỉ expose trạng thái như hasKey(provider).",
+          "must": [
+            "Lưu key qua Electron safeStorage/keychain",
+            "Gọi SDK provider từ Main Process",
+            "Validate IPC input trước khi dùng key"
+          ],
+          "must_not": [
+            "Return raw key qua window.api",
+            "Persist key vào localStorage hoặc file plain text",
+            "Log key hoặc request chứa key"
+          ]
+        },
+        {
+          "id": "R-VZN-SEC-02",
+          "name": "Không thêm server trung gian cho dữ liệu người dùng",
+          "description": "Transcript, ảnh, prompt, chat history và text dịch chỉ được gửi trực tiếp tới provider user chọn, hoặc xử lý local.",
+          "exceptions": [
+            "Local bridge server cho Chrome Extension chạy trên máy user",
+            "Provider API do user cấu hình key và chọn sử dụng"
+          ]
+        },
+        {
+          "id": "R-VZN-SEC-03",
+          "name": "External URL phải allowlist",
+          "description": "Mọi shell.openExternal phải qua validation https và domain allowlist."
+        }
+      ]
+    },
+    {
+      "id": "electron-boundary",
+      "name": "Electron Boundary",
+      "priority": "mandatory",
+      "goal": "Giữ ranh giới Main/Preload/Renderer rõ ràng và an toàn",
+      "rules": [
+        {
+          "id": "R-VZN-IPC-01",
+          "name": "IPC channel theo domain:action",
+          "description": "Channel mới phải có tên dạng domain:action và được đặt trong file domain phù hợp.",
+          "examples": ["audio:transcribe", "audio:tts", "chat:send", "image:translate", "subtitle:show"]
+        },
+        {
+          "id": "R-VZN-IPC-02",
+          "name": "Preload là wrapper mỏng",
+          "description": "Preload chỉ expose hàm tối thiểu qua contextBridge và không chứa business logic provider."
+        },
+        {
+          "id": "R-VZN-IPC-03",
+          "name": "Renderer không có Node access",
+          "description": "Code trong src/ không import electron, fs, path, provider SDK hoặc Node-only package."
+        }
+      ]
+    },
+    {
+      "id": "provider-contract",
+      "name": "Provider Contract",
+      "priority": "important",
+      "goal": "Provider/model/tác vụ AI nhất quán, dễ mở rộng",
+      "rules": [
+        {
+          "id": "R-VZN-AI-01",
+          "name": "Registry pattern cho provider",
+          "description": "Tác vụ AI phải dispatch qua registry theo provider ID thay vì if/else rải rác.",
+          "registries": [
+            "TRANSLATE_PROVIDERS",
+            "REWRITE_PROVIDERS",
+            "DETECT_PROVIDERS",
+            "STREAM_PROVIDERS",
+            "CHAT_PROVIDERS",
+            "TTS provider candidates",
+            "models fetchers"
+          ]
+        },
+        {
+          "id": "R-VZN-AI-02",
+          "name": "Error classification trước khi hiển thị",
+          "description": "Auth, rate limit, network và unknown errors phải được phân loại nhất quán."
+        },
+        {
+          "id": "R-VZN-AI-03",
+          "name": "Model defaults nhất quán",
+          "description": "Khi thêm model/provider, cập nhật constants, settings default, UI selector, verification model và tests liên quan."
+        }
+      ]
+    },
+    {
+      "id": "ux-i18n",
+      "name": "UX and i18n",
+      "priority": "important",
+      "goal": "Giao diện công cụ làm việc rõ ràng, đa ngôn ngữ và nhất quán",
+      "rules": [
+        {
+          "id": "R-VZN-UI-01",
+          "name": "Text UI đi qua i18n",
+          "description": "Label, button, tooltip, error text user-facing phải có key trong VI/EN/JA.",
+          "files": ["src/i18n/locales/vi.ts", "src/i18n/locales/en.ts", "src/i18n/locales/ja.ts", "src/i18n/types.ts"]
+        },
+        {
+          "id": "R-VZN-UI-02",
+          "name": "Icon qua registry",
+          "description": "Không inline SVG trong page/feature component; dùng src/components/ui/icons/."
+        },
+        {
+          "id": "R-VZN-UI-03",
+          "name": "State UX đầy đủ",
+          "description": "Async UI phải có loading, error, empty/retry nếu phù hợp; không làm layout nhảy khi trạng thái thay đổi."
+        }
+      ]
+    },
+    {
+      "id": "browser-extension-ux",
+      "name": "Browser Extension UX",
+      "priority": "important",
+      "goal": "Chrome Extension phải là tool dịch nhanh, đồng bộ với app và không phá trang host",
+      "rules": [
+        {
+          "id": "R-VZN-EXT-UI-01",
+          "name": "Popup/options/tooltip dùng chung visual language",
+          "description": "Các surface trong chrome-extension/ phải dùng neutral surface, accent tiết chế, radius tối đa 10px, typography nhỏ gọn và state rõ.",
+          "must": [
+            "Popup, Options và selection tooltip dùng cùng token/pattern UI nếu có thể",
+            "Provider/model badge dùng text + dot màu hoặc asset sẵn có thay vì inline SVG trang trí",
+            "Options lưu cùng default mà popup và tooltip sử dụng: target language, translation style",
+            "Floating button/tooltip clamp trong viewport và không làm thay đổi layout trang host"
+          ],
+          "must_not": [
+            "Dùng emoji làm action/status icon trong extension UI",
+            "Thêm hero/marketing layout vào popup hoặc options",
+            "Persist transient loading/error/result text vào Chrome storage"
+          ]
+        },
+        {
+          "id": "R-VZN-EXT-UI-02",
+          "name": "Local bridge state phải recoverable",
+          "description": "Extension phải hiển thị rõ connecting/active/offline/token invalid/loading/copied/replaced/TTS failed và có đường quay lại Options khi thiếu token.",
+          "checks": [
+            "Missing token state mở được Options",
+            "App offline hoặc token invalid có message hành động được",
+            "Translate, copy, replace, listen không làm layout nhảy bất thường"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reliability-test",
+      "name": "Reliability and Test",
+      "priority": "mandatory",
+      "goal": "Async/audio/stream/network không gây crash hoặc rò rỉ state",
+      "rules": [
+        {
+          "id": "R-VZN-LIVE-01",
+          "name": "Cleanup mọi resource async",
+          "description": "Recorder, stream, timers, event listeners và subscriptions phải được cleanup; React state update phải guard unmount."
+        },
+        {
+          "id": "R-VZN-DATA-01",
+          "name": "Persist có chủ đích",
+          "description": "Persist settings/history/preset có chủ đích. Bản nháp Dịch/Từ điển và kết quả đang mở có snapshot phục hồi giới hạn trong IndexedDB riêng; ảnh không vào localStorage. Không khôi phục loading/error/recording như tác vụ đang chạy, không tự gọi AI khi phục hồi."
+        },
+        {
+          "id": "R-VZN-TEST-01",
+          "name": "Test theo tầng bị ảnh hưởng",
+          "description": "Thêm hoặc cập nhật test tại utils/store/ipc/component tương ứng với thay đổi."
+        }
+      ]
+    }
+  ],
+  "quick_checklist": [
+    "Feature có phục vụ translation/chat/live/image/voice/browser workflow không?",
+    "Renderer có nhận raw API key hoặc gọi Node/provider SDK không?",
+    "IPC channel mới có domain:action, validate input và preload wrapper mỏng không?",
+    "Provider/model có cập nhật constants, types, defaults, registry và tests không?",
+    "UI text mới đã có VI/EN/JA chưa?",
+    "Nếu chạm Chrome Extension: popup/options/tooltip có đồng bộ UI, không emoji icon, có state offline/loading/error và manual smoke chưa?",
+    "Async/audio/stream có cleanup, retry/fallback/error state chưa?",
+    "Đã chạy test/build/lint hẹp phù hợp chưa?"
+  ],
+  "references": {
+    "feature_planner_skill": "../../skill/viezan-feature-planner/viezan-feature-planner.json",
+    "security_audit_skill": "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json",
+    "ship_feature_workflow": "../../workflow/ship-viezan-feature/ship-viezan-feature.json"
+  }
+}

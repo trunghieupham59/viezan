@@ -1,0 +1,246 @@
+{
+  "name": "split-ui-component",
+  "version": "1.0.0",
+  "description": "Workflow phân tích tổ chức UI component và Extension UI, phát hiện icon hardcode, UI pattern duplicate, Extension UI drift, tạo báo cáo và kế hoạch tách component",
+  "type": "workflow",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["ui-components", "extension", "hardcode-duplication"],
+    "use_for": "Run the full UI component classification, icon hardcode, duplicate pattern, and extension drift report workflow."
+  },
+  "steps": [
+    {
+      "id": "step-1-scope",
+      "name": "Xác định phạm vi kiểm tra",
+      "description": "Xác định rõ target: toàn bộ src/, chỉ src/components/, src/pages/, hay file cụ thể",
+      "action": "Hỏi hoặc suy luận phạm vi từ yêu cầu người dùng",
+      "default_scope": {
+        "include": [
+          "src/components/",
+          "src/pages/",
+          "chrome-extension/ when the request mentions extension, popup, options or browser tooltip"
+        ],
+        "exclude": [
+          "src/components/ui/icons/  ← SVG trong đây là hợp lệ, không báo vi phạm",
+          "node_modules/",
+          "dist/",
+          "build/",
+          "src/**/__tests__/",
+          "src/**/*.test.tsx",
+          "src/**/*.spec.tsx"
+        ]
+      }
+    },
+    {
+      "id": "step-2-read",
+      "name": "Đọc toàn bộ source code trong phạm vi",
+      "description": "Đọc hết tất cả file .tsx/.ts trong phạm vi đã xác định trước khi phân tích",
+      "action": "Đọc tuần tự từng file, ghi nhận pattern, không phân tích ngay từng file riêng lẻ",
+      "read_order": [
+        "1. src/components/ui/icons/ — đọc để biết icon nào đã có trong registry",
+        "2. src/components/ui/ — đọc tất cả reusable components hiện có",
+        "3. src/components/{feature}/ — đọc feature-specific components",
+        "4. src/components/*.tsx — đọc root-level components (Sidebar, AppLogo...)",
+        "5. src/pages/ — đọc các page components",
+        "6. chrome-extension/ — nếu scope chạm extension, đọc popup/options/content CSS/JS"
+      ],
+      "rules": [
+        "Đọc hết tất cả file trước khi phân tích",
+        "Ghi nhớ icon registry: danh sách icon đã có để đối chiếu khi thấy SVG inline",
+        "Ghi nhớ các đoạn JSX để phát hiện UI pattern duplicate",
+        "Ghi nhớ inline sub-component nào có kích thước >= 30 dòng"
+      ]
+    },
+    {
+      "id": "step-3-classify-components",
+      "name": "Phân loại tất cả Component hiện có",
+      "description": "Áp dụng skill split-ui-component (phần component_classification) để phân loại từng component",
+      "skill": "split-ui-component",
+      "skill_section": "component_classification",
+      "action": "Với mỗi component, áp dụng 5 tiêu chí Reusable để phán xét",
+      "checklist": [
+        "Kiểm tra component có import store/service của feature không (tiêu chí 1)",
+        "Kiểm tra component có dùng useAppStore() bên trong không (tiêu chí 2)",
+        "Kiểm tra tên và logic có domain-agnostic không (tiêu chí 3)",
+        "Kiểm tra có SVG inline không (tiêu chí 4)",
+        "Kiểm tra có label hardcode không (tiêu chí 5)",
+        "Xác định component đang đặt đúng thư mục chưa",
+        "Kiểm tra component ở src/components/*.tsx root là reusable"
+      ],
+      "output": "Bảng phân loại: Reusable / Feature-specific / Root-level reusable / Cần tách"
+    },
+    {
+      "id": "step-4-detect-inline-svg",
+      "name": "Phát hiện SVG Icon Hardcode Inline",
+      "description": "Áp dụng skill split-ui-component (phần inline-svg-icon) để tìm toàn bộ SVG inline vi phạm",
+      "skill": "split-ui-component",
+      "skill_section": "detection_categories.inline-svg-icon",
+      "action": "Quét toàn bộ file .tsx/.ts ngoài src/components/ui/icons/ tìm thẻ <svg>",
+      "scan_command": "rg -n --glob '*.{tsx,ts}' '<svg' src -g '!src/components/ui/icons/**'",
+      "checklist": [
+        "Với mỗi SVG inline tìm được: trích dẫn đoạn code, xác định chức năng icon",
+        "Kiểm tra icon registry xem đã có icon tương đương chưa",
+        "Nếu có: gợi ý import từ registry",
+        "Nếu chưa có: đề xuất tên icon mới + category file phù hợp (actions/navigation/media/status/auth/files) + code template",
+        "Không báo <svg> trong src/components/ui/icons/ — đây là icon definition hợp lệ"
+      ]
+    },
+    {
+      "id": "step-5-detect-emoji-icon",
+      "name": "Phát hiện Emoji dùng làm Icon",
+      "description": "Tìm emoji ký tự được dùng như icon trong UI component",
+      "skill": "split-ui-component",
+      "skill_section": "detection_categories.emoji-as-icon",
+      "action": "Tìm emoji trong JSX của các component (không phải text content của người dùng)",
+      "checklist": [
+        "Tìm emoji status/action như ⚠ ✅ ❌ 🔍 📋 trong JSX",
+        "Phân biệt emoji làm icon vs emoji metadata (provider badge)",
+        "Với mỗi emoji vi phạm: đề xuất SVG icon tương đương từ registry hoặc tạo mới"
+      ],
+      "false_positive_check": [
+        "provider badge emoji (p?.emoji) — KHÔNG phải vi phạm",
+        "Emoji trong text content thực của người dùng — KHÔNG phải vi phạm"
+      ]
+    },
+    {
+      "id": "step-6-detect-ui-duplicate",
+      "name": "Phát hiện UI Pattern Duplicate không tách Component",
+      "description": "Tìm đoạn JSX có cấu trúc tương tự lặp lại 2+ lần mà chưa được abstract thành component",
+      "skill": "split-ui-component",
+      "skill_section": "detection_categories.ui-pattern-duplicate",
+      "action": "So sánh các đoạn JSX trong cùng file và giữa các file để phát hiện pattern trùng lặp",
+      "checklist": [
+        "Tìm button có className dài > 3 dòng xuất hiện 2+ lần trong cùng file",
+        "Tìm empty-state pattern (icon + title + description) lặp nhiều lần",
+        "Tìm card/container layout tương tự",
+        "Với mỗi duplicate: đề xuất tên component mới + props interface + vị trí đặt"
+      ]
+    },
+    {
+      "id": "step-7-detect-large-inline",
+      "name": "Phát hiện Sub-component Inline quá lớn",
+      "description": "Tìm function component được định nghĩa inline trong page/component khác với kích thước >= 30 dòng",
+      "skill": "split-ui-component",
+      "skill_section": "detection_categories.large-inline-sub-component",
+      "action": "Kiểm tra từng file xem có function component inline không, đếm số dòng",
+      "checklist": [
+        "Tìm function ComponentName() {} bên trong hoặc cùng file với page component",
+        "Đếm số dòng của mỗi inline component",
+        "Với component >= 30 dòng: đề xuất tách ra file riêng + phân loại reusable hay feature-specific"
+      ]
+    },
+    {
+      "id": "step-8-detect-extension-ui-drift",
+      "name": "Phát hiện Extension UI Drift",
+      "description": "Áp dụng khi scope có chrome-extension/ hoặc yêu cầu nói về browser extension",
+      "skill": "split-ui-component",
+      "skill_section": "detection_categories.extension-ui-drift",
+      "action": "Kiểm tra popup/options/content tooltip có cùng visual language, không emoji action/status icon, không inline SVG trang trí và có đầy đủ state UX.",
+      "checklist": [
+        "Popup/options dùng shared CSS/token nếu có thể",
+        "Content tooltip được scope bằng #tre-result-tooltip và không ảnh hưởng trang host",
+        "Không dùng emoji làm action/status icon trong chrome-extension UI",
+        "Không dùng inline SVG provider/action badge trang trí trong popup.js/content.js",
+        "Options lưu treToken, treTargetLang và treTranslationStyle khi các surface khác đọc các key này"
+      ]
+    },
+    {
+      "id": "step-9-deduplicate-findings",
+      "name": "Loại bỏ False Positive và trùng lặp",
+      "description": "Review lại danh sách findings, loại bỏ false positive",
+      "action": "Đối chiếu với quy tắc false positive trước khi đưa vào báo cáo",
+      "false_positive_rules": [
+        "<svg> bên trong src/components/ui/icons/ — BỎ QUA, đây là icon definition hợp lệ",
+        "Emoji trong provider badge (p?.emoji, p?.name) — BỎ QUA, đây là metadata",
+        "Sub-component inline < 30 dòng — BỎ QUA, chấp nhận được",
+        "Component dùng 1 lần nhưng pass 5 tiêu chí reusable — KHÔNG phải vấn đề",
+        "Emoji trong text content thực của người dùng — BỎ QUA"
+      ]
+    },
+    {
+      "id": "step-10-prioritize",
+      "name": "Ưu tiên hóa vấn đề",
+      "description": "Sắp xếp findings theo mức độ ưu tiên",
+      "priority_order": [
+        "🟠 High ưu tiên 1: SVG icon inline trong các component được dùng nhiều (Sidebar, shared components)",
+        "🟠 High ưu tiên 2: UI pattern duplicate có thể tách thành reusable component ngay",
+        "🟡 Medium ưu tiên 3: Large inline sub-component cần tách",
+        "🟡 Medium ưu tiên 4: Component đặt sai thư mục",
+        "🟡 Medium ưu tiên 5: Extension UI Drift trong popup/options/content tooltip",
+        "🟡 Low ưu tiên 6: Emoji dùng như icon"
+      ]
+    },
+    {
+      "id": "step-11-report",
+      "name": "Tạo báo cáo đầy đủ",
+      "description": "Xuất báo cáo với format chuẩn",
+      "output_format": {
+        "sections": [
+          "## Tổng quan",
+          "## Bản đồ Component (phân loại hiện trạng)",
+          "## Vấn đề: SVG Icon Hardcode Inline",
+          "## Vấn đề: UI Pattern Duplicate",
+          "## Vấn đề: Sub-component Inline quá lớn",
+          "## Vấn đề: Component đặt sai thư mục",
+            "## Vấn đề: Emoji dùng làm Icon",
+          "## Vấn đề: Extension UI Drift",
+          "## Kế hoạch tách component (action plan)",
+          "## Tóm tắt & Ưu tiên"
+        ],
+        "component_map_table": {
+          "columns": ["Component", "Loại", "Vị trí hiện tại", "Vị trí đúng", "Ghi chú"],
+          "types": ["Reusable", "Feature-specific", "Root-reusable", "Cần tách", "Sai vị trí"]
+        },
+        "action_plan_table": {
+          "columns": ["Ưu tiên", "Action", "File nguồn", "File đích", "Component/Icon mới"],
+          "actions": ["Tạo icon mới", "Tách component", "Di chuyển component", "Thay SVG bằng icon"]
+        },
+        "summary_table": {
+          "columns": ["Loại vấn đề", "🟠 High", "🟡 Medium", "🟢 Low", "Tổng"],
+          "rows": [
+            "SVG Icon Hardcode Inline",
+            "UI Pattern Duplicate",
+            "Sub-component Inline quá lớn",
+            "Component sai thư mục",
+            "Emoji dùng như Icon"
+          ]
+        }
+      }
+    },
+    {
+      "id": "step-12-save-report",
+      "name": "Lưu báo cáo",
+      "description": "Lưu báo cáo vào thư mục docs/agents/reports với tên file theo convention",
+      "action": "Tạo file markdown với tên: split-ui-report-YYYYMMDD-HHmm.md",
+      "save_path": "docs/agents/reports/",
+      "filename_pattern": "split-ui-report-{YYYYMMDD}-{HHmm}.md"
+    }
+  ],
+  "activation_examples": [
+    "Hãy dùng workflow split-ui-component để phân tích toàn bộ src/components và src/pages",
+    "Hãy dùng workflow split-ui-component để kiểm tra src/components/Sidebar.tsx và src/pages/HistoryPage.tsx",
+    "Hãy dùng workflow split-ui-component để tìm tất cả SVG icon hardcode trong project"
+  ],
+  "false_positive_guide": {
+    "NOT_inline_svg": [
+      "<svg> nằm bên trong src/components/ui/icons/ — là icon definition hợp lệ",
+      "<img src='*.svg'> — không phải inline SVG"
+    ],
+    "NOT_emoji_icon": [
+      "provider.emoji (p?.emoji ?? '🤖') — metadata của AI provider",
+      "Emoji trong user message content",
+      "Emoji trong i18n label"
+    ],
+    "NOT_misplaced": [
+      "src/components/*.tsx root — được xem là reusable dù không ở trong ui/",
+      "Component dùng 1 lần nhưng pass 5 tiêu chí reusable — đúng vị trí rồi"
+    ],
+    "NOT_large_inline": [
+      "Inline function component < 30 dòng — chấp nhận được"
+    ]
+  },
+  "references": {
+    "skill": "../../skill/split-ui-component/split-ui-component.json",
+    "readme": "./README.md"
+  }
+}

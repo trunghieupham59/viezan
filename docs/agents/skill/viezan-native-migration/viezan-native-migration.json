@@ -1,0 +1,19 @@
+{
+  "name": "viezan-native-migration",
+  "version": "1.0.0",
+  "type": "skill",
+  "description": "Plan and implement incremental Viezan desktop migration from Electron to SwiftUI and Qt, including shared-core spikes and data rollback.",
+  "classification": {
+    "lifecycle": "migration",
+    "domain": [
+      "native",
+      "desktop",
+      "ux"
+    ],
+    "use_for": "Plan and implement incremental Viezan desktop migration from Electron to SwiftUI and Qt, including shared-core spikes and data rollback."
+  },
+  "references": {
+    "instructions": "./SKILL.md",
+    "plan": "../../../migration/README.md"
+  }
+}

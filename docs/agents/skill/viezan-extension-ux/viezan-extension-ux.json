@@ -1,0 +1,218 @@
+{
+  "name": "viezan-extension-ux",
+  "version": "1.0.0",
+  "description": "Skill audit và thiết kế UX cho Chrome Extension của Viezan: popup quick translate, options page, selection tooltip, floating button, local bridge với Electron app. Đảm bảo visual parity, state UX đầy đủ và bảo mật bridge.",
+  "type": "skill",
+  "classification": {
+    "lifecycle": "audit",
+    "domain": ["extension", "ux", "security-privacy", "i18n"],
+    "use_for": "Review or design Chrome Extension surfaces, local bridge states, and extension UX parity."
+  },
+  "trigger": "Khi thay đổi hoặc audit chrome-extension/ và local bridge giữa extension và Electron app",
+  "required_context": [
+    "../../../migration/legacy-reference/agent-handbook/ARCHITECTURE.md",
+    "../../rule/viezan-product-engineering/rules.json"
+  ],
+  "extension_surfaces": [
+    {
+      "id": "popup",
+      "name": "Popup quick translate",
+      "files": [
+        "chrome-extension/popup.html",
+        "chrome-extension/popup.js",
+        "chrome-extension/extension-ui.css",
+        "chrome-extension/model-display.js"
+      ],
+      "must_have_states": [
+        "missing-token",
+        "no-bridge / app-offline",
+        "loading",
+        "error",
+        "success",
+        "empty-input"
+      ]
+    },
+    {
+      "id": "options",
+      "name": "Options page",
+      "files": [
+        "chrome-extension/options.html",
+        "chrome-extension/options.js"
+      ],
+      "must_persist": [
+        "default target language",
+        "translation style",
+        "default provider/model display",
+        "shortcut/feature toggles"
+      ]
+    },
+    {
+      "id": "content-script",
+      "name": "Selection tooltip + floating button",
+      "files": [
+        "chrome-extension/content.js",
+        "chrome-extension/content.css"
+      ],
+      "interactions": [
+        "selection translate tooltip",
+        "floating translate button",
+        "copy / replace / listen actions"
+      ]
+    },
+    {
+      "id": "background",
+      "name": "Background service worker",
+      "files": [
+        "chrome-extension/background.js"
+      ],
+      "responsibilities": [
+        "context menu",
+        "shortcut command",
+        "message routing giữa popup/content/options và local bridge"
+      ]
+    },
+    {
+      "id": "local-bridge",
+      "name": "Local bridge với Electron",
+      "files": [
+        "electron/ipc/localServer.ts",
+        "electron/preload/localServer.ts",
+        "electron/preload/legacyAssistant.ts"
+      ],
+      "responsibilities": [
+        "expose translate/chat/tts endpoint cho extension qua localhost",
+        "không gửi raw API key cho extension",
+        "guard origin/method/payload"
+      ]
+    }
+  ],
+  "audit_categories": [
+    {
+      "id": "visual-parity",
+      "name": "Visual Parity",
+      "severity_if_failed": "medium",
+      "checks": [
+        "Popup, Options, Tooltip dùng cùng visual language (typography, spacing, color, button shape)",
+        "Cùng provider/model badge style giữa các surface",
+        "Không pha trộn nhiều design token rời rạc"
+      ],
+      "suggested_searches": [
+        "rg -n \"background|color|font-size|padding|border-radius\" chrome-extension/extension-ui.css chrome-extension/content.css"
+      ]
+    },
+    {
+      "id": "icon-emoji-policy",
+      "name": "Icon / Emoji Policy",
+      "severity_if_failed": "high",
+      "checks": [
+        "Không dùng emoji làm action/status icon (translate, copy, replace, listen, error, loading)",
+        "Không inline <svg> trang trí cho provider/action badge trong popup.js / content.js",
+        "Icon decorative phải có abstraction hoặc CSS class chuẩn"
+      ],
+      "suggested_searches": [
+        "rg -n \"<svg\" chrome-extension/popup.js chrome-extension/options.js chrome-extension/content.js",
+        "rg -n \"[\\x{1F300}-\\x{1FAFF}\\x{2600}-\\x{27BF}]\" chrome-extension"
+      ]
+    },
+    {
+      "id": "state-ux",
+      "name": "State UX Coverage",
+      "severity_if_failed": "high",
+      "checks": [
+        "Popup có hiển thị rõ ràng cho missing-token, app-offline, loading, error, success",
+        "Tooltip có loading + error state, không treo UI nếu provider lỗi",
+        "Có recoverable action: retry, mở Options, mở Settings của Viezan app",
+        "Không hiển thị raw error message từ provider SDK"
+      ]
+    },
+    {
+      "id": "options-storage",
+      "name": "Options Storage Consistency",
+      "severity_if_failed": "high",
+      "checks": [
+        "Options lưu cùng key với popup/tooltip đọc (chrome.storage.local hoặc sync)",
+        "Default target language, translation style nhất quán giữa Options ↔ Popup ↔ Tooltip",
+        "Khi đổi setting trong Options, các surface khác phản ánh ngay (qua message hoặc reload)"
+      ],
+      "suggested_searches": [
+        "rg -n \"chrome\\.storage\\.(local|sync)\\.(get|set)\" chrome-extension"
+      ]
+    },
+    {
+      "id": "bridge-security",
+      "name": "Local Bridge Security",
+      "severity_if_failed": "critical",
+      "checks": [
+        "Local server bind localhost/127.0.0.1, không bind 0.0.0.0",
+        "CORS/origin allowlist chỉ cho extension origin (chrome-extension://...) hoặc Viezan local UI",
+        "Không trả raw API key qua bridge response",
+        "Validate method + payload schema trước khi gọi provider",
+        "Có rate limit hoặc guard chống flood"
+      ],
+      "suggested_searches": [
+        "rg -n \"createServer|express\\(\\)|listen\\(|bind\\(|0\\.0\\.0\\.0\" electron/ipc/localServer.ts",
+        "rg -n \"Access-Control-Allow-Origin|origin\\s*:|allowlist\" electron/ipc/localServer.ts"
+      ]
+    },
+    {
+      "id": "manual-smoke",
+      "name": "Manual Smoke Coverage",
+      "severity_if_failed": "medium",
+      "checks": [
+        "Smoke: translate selection → copy → replace → listen",
+        "Smoke: popup quick translate khi app online vs offline",
+        "Smoke: đổi target language trong Options và xác nhận popup/tooltip dùng giá trị mới",
+        "Smoke: shortcut/context-menu kích hoạt đúng action"
+      ]
+    }
+  ],
+  "severity_levels": [
+    {
+      "level": "critical",
+      "meaning": "Bridge/extension lộ key, lỗi sandbox, hoặc app rò dữ liệu sang origin khác"
+    },
+    {
+      "level": "high",
+      "meaning": "User mất khả năng dùng feature chính hoặc UX divergence rõ ràng"
+    },
+    {
+      "level": "medium",
+      "meaning": "Visual/text inconsistency có thể đọc hiểu"
+    },
+    {
+      "level": "low",
+      "meaning": "Polish/defense-in-depth"
+    }
+  ],
+  "output_format": {
+    "sections": [
+      "Surface Map",
+      "Findings",
+      "State UX Verdict",
+      "Bridge Security Verdict",
+      "Required Fixes",
+      "Manual Smoke Plan"
+    ],
+    "finding_fields": [
+      "severity",
+      "surface",
+      "category",
+      "file_line",
+      "issue",
+      "recommended_fix"
+    ]
+  },
+  "instructions": [
+    "Luôn xét 5 surface: popup, options, content-script, background, local-bridge",
+    "Khi audit bridge: bắt buộc kiểm tra bind address, origin allowlist, không trả raw key",
+    "Đề xuất manual smoke cụ thể bằng tiếng Việt, không bỏ qua khi feature thay đổi action button",
+    "Nếu skill kèm thay đổi i18n trong extension: phối hợp với skill viezan-i18n-audit"
+  ],
+  "references": {
+    "workflow": "../../workflow/audit-extension-ux/audit-extension-ux.json",
+    "rule": "../../rule/viezan-product-engineering/rules.json",
+    "feature_planner": "../viezan-feature-planner/viezan-feature-planner.json",
+    "security_audit": "../viezan-ipc-security-audit/viezan-ipc-security-audit.json",
+    "readme": "./README.md"
+  }
+}

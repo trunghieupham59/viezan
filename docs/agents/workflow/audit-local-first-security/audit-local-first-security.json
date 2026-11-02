@@ -1,0 +1,107 @@
+{
+  "name": "audit-local-first-security",
+  "version": "1.0.0",
+  "description": "Workflow audit local-first privacy, API key safety, Electron IPC/preload boundary, external URL và data flow cho Viezan",
+  "type": "workflow",
+  "classification": {
+    "lifecycle": "audit",
+    "domain": ["security-privacy", "electron-boundary", "local-first"],
+    "use_for": "Run the full local-first privacy, IPC, preload, key safety, URL, and data egress audit."
+  },
+  "trigger": "Khi cần security/privacy audit cho feature, PR hoặc trước release",
+  "skills": [
+    "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json"
+  ],
+  "rules": [
+    "../../rule/viezan-product-engineering/rules.json"
+  ],
+  "steps": [
+    {
+      "id": "step-1-scope",
+      "name": "Xác định phạm vi",
+      "action": "Xem git diff hoặc danh sách file user cung cấp; ưu tiên files chạm src/, electron/, chrome-extension/, package config."
+    },
+    {
+      "id": "step-2-static-search",
+      "name": "Static security searches",
+      "action": "Chạy các lệnh rg để tìm dấu hiệu rủi ro trước khi đọc sâu.",
+      "commands": [
+        {
+          "target": "Electron/Node imports trong renderer",
+          "command": "rg -n \"from ['\\\"]electron['\\\"]|require\\(['\\\"]electron['\\\"]\\)|from ['\\\"](fs|path|child_process|os)['\\\"]\" src"
+        },
+        {
+          "target": "Credential exposure",
+          "command": "rg -n \"apiKey|secret|token|password|credential|safeStorage|localStorage|partialize\" src electron chrome-extension"
+        },
+        {
+          "target": "IPC surface",
+          "command": "rg -n \"ipcMain.handle|ipcRenderer.invoke|contextBridge|exposeInMainWorld\" electron"
+        },
+        {
+          "target": "External URL/navigation",
+          "command": "rg -n \"openExternal|will-navigate|setWindowOpenHandler|allowlist|allowed\" electron"
+        },
+        {
+          "target": "Network/data egress",
+          "command": "rg -n \"fetch\\(|WebSocket|new WebSocket|analytics|telemetry|localhost\" src electron chrome-extension"
+        },
+        {
+          "target": "Potential committed secrets",
+          "command": "rg -n \"sk-[A-Za-z0-9]|AIza[0-9A-Za-z_-]|ANTHROPIC_API_KEY|OPENAI_API_KEY|GEMINI_API_KEY\" ."
+        }
+      ]
+    },
+    {
+      "id": "step-3-read-context",
+      "name": "Đọc context liên quan",
+      "action": "Đọc files có hit rủi ro và files diff liên quan; lấy đủ context quanh handler/API surface."
+    },
+    {
+      "id": "step-4-classify",
+      "name": "Phân loại findings",
+      "skill": "viezan-ipc-security-audit",
+      "action": "Phân loại theo renderer-boundary, preload-surface, ipc-validation, key-storage, external-url-navigation, local-first-data-flow."
+    },
+    {
+      "id": "step-5-fix-or-plan",
+      "name": "Sửa hoặc lập action plan",
+      "action": "Sửa Critical/High nếu nằm trong scope; Medium/Low có thể gom thành follow-up nếu không chặn release.",
+      "blocking_policy": [
+        "Critical luôn chặn merge/release",
+        "High chặn release trừ khi có mitigation rõ",
+        "Medium cần issue/follow-up rõ",
+        "Low có thể ghi chú"
+      ]
+    },
+    {
+      "id": "step-6-verify",
+      "name": "Verify",
+      "action": "Chạy build/test liên quan tới files đã sửa.",
+      "recommended_commands": [
+        "npm run build:electron",
+        "npm test -- --run electron/ipc",
+        "npm run build"
+      ]
+    },
+    {
+      "id": "step-7-report",
+      "name": "Báo cáo",
+      "action": "Trả Findings, Security Boundary Verdict, Required Fixes, Verification. Lưu file report nếu user yêu cầu.",
+      "save_path": "docs/agents/reports/",
+      "filename_pattern": "local-first-security-audit-{YYYYMMDD}-{HHmm}.md"
+    }
+  ],
+  "output_format": {
+    "sections": [
+      "Findings",
+      "Security Boundary Verdict",
+      "Required Fixes",
+      "Verification"
+    ]
+  },
+  "references": {
+    "readme": "./README.md",
+    "skill": "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json"
+  }
+}
