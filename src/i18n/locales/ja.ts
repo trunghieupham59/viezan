@@ -610,7 +610,6 @@ const ja: Translations = {
     "group_yesterday": "昨日",
     "group_week": "今週",
     "group_older": "それ以前",
-    "deleteSession": "削除",
     "sessionDeleted": "削除しました",
     "turnsCount": "{n} ターン",
     "deleteUndoHint": "このセッションを削除。数秒間は元に戻せます。",

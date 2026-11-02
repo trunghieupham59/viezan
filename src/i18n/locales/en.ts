@@ -610,7 +610,6 @@ const en: Translations = {
     "group_yesterday": "Yesterday",
     "group_week": "This week",
     "group_older": "Older",
-    "deleteSession": "Delete",
     "sessionDeleted": "Deleted",
     "turnsCount": "{n} turns",
     "deleteUndoHint": "Delete this session. Undo for a few seconds.",

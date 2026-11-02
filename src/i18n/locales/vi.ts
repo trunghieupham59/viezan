@@ -610,7 +610,6 @@ const vi: Translations = {
     "group_yesterday": "Hôm qua",
     "group_week": "Tuần này",
     "group_older": "Cũ hơn",
-    "deleteSession": "Xoá",
     "sessionDeleted": "Đã xoá",
     "turnsCount": "{n} lượt",
     "deleteUndoHint": "Xoá phiên này. Hoàn tác được trong vài giây.",
