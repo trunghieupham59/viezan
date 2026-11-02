@@ -381,6 +381,7 @@ struct FilterTabs<Value: Hashable>: View {
                 let active = item.0 == selection
                 Button { selection = item.0 } label: {
                     Text(item.1).font(.vzn(accent ? "labelScale" : "smallScale", active && !accent ? .semibold : .regular))
+                        .lineLimit(1).fixedSize(horizontal: true, vertical: false)
                         .padding(.horizontal, metric("gap")).frame(minHeight: metric("compactControl"))
                         .foregroundStyle(contentColor(active ? (accent ? "action-text" : "text-strong") : (accent ? "text" : "text-muted"), scheme))
                         .background(active ? contentColor(accent ? "action-soft" : "surface-raised", scheme) : .clear, in: RoundedRectangle(cornerRadius: metric("controlRadius")))

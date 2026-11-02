@@ -83,7 +83,7 @@ struct HistoryAnchorPreference: PreferenceKey {
     return (names[provider] ?? provider) + " · " + model
 }
 
-enum ShellOverlay: String { case navigation, history, activity, commands }
+enum ShellOverlay: String { case navigation, history, activity, commands, models, tools, instructions }
 
 struct ShellLayout {
     var width: CGFloat
@@ -102,6 +102,10 @@ struct ShellLayout {
     }
 }
 
+/// Which shell layer is open, so the control that opened it can report `expanded`.
+struct ShellLayerKey: EnvironmentKey { static let defaultValue: ShellOverlay? = nil }
+extension EnvironmentValues { var shellLayer: ShellOverlay? { get { self[ShellLayerKey.self] } set { self[ShellLayerKey.self] = newValue } } }
+
 @MainActor @Observable final class ShellPresentation {
     struct Request: Equatable { let id = UUID(); let command: String }
     var request: Request?
@@ -114,11 +118,17 @@ struct ShellLayout {
     var focusEpochs: [String: Int] = [:]
     func issue(_ command: String) { request = Request(command: command) }
     weak var opener: NSResponder?
+    /// Whether the first layer of this run was opened from the keyboard (or assistively, when no
+    /// event is current): only then does closing hand focus back, so a mouse user never sees a ring.
+    private(set) var openedByKeyboard = true
     private var focusGeneration = 0
     func show(_ next: ShellOverlay, from responder: NSResponder? = nil) {
         focusGeneration += 1
         if overlay == next { dismiss(); return }
-        if overlay == nil { opener = responder }
+        if overlay == nil {
+            opener = responder
+            openedByKeyboard = NSApp.currentEvent.map { [.keyDown, .keyUp, .flagsChanged].contains($0.type) } ?? true
+        }
         overlay = next
     }
     func dismiss(returnFocus: Bool = true) {
@@ -126,11 +136,12 @@ struct ShellLayout {
         let generation = focusGeneration
         guard let old = overlay else { return }
         overlay = nil
-        if returnFocus {
+        if returnFocus, openedByKeyboard {
             if let view = opener as? NSView, let window = view.window {
                 DispatchQueue.main.async { [weak self, weak view, weak window] in
                     guard let self, self.focusGeneration == generation, self.overlay == nil else { return }
                     // Compact reflow may detach or disable the original control.
+                    (view as? ShellToolbarButton.FocusButton)?.focusGranted = true
                     if let view, let window, view.window === window,
                        view.acceptsFirstResponder, window.makeFirstResponder(view) { return }
                     self.focusEpochs[old.rawValue, default: 0] += 1
@@ -206,6 +217,9 @@ struct ShellToolbarButton: NSViewRepresentable {
     var symbol: String
     var identifier: String
     var showsLabel = false
+    /// Quiet: a labelled control without the pill surface (the composer's model chip).
+    var quiet = false
+    var small = false
     var primary = false
     var soft = false
     var panelAction: NativePanelAction? = nil
@@ -215,6 +229,8 @@ struct ShellToolbarButton: NSViewRepresentable {
     var enabled = true
     var focusEpoch = 0
     var onTab: ((Bool) -> Void)? = nil
+    /// Receives the control's frame in window coordinates on activation, for a layer anchored to it.
+    var frameAction: ((CGRect) -> Void)? = nil
     var action: () -> Void
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> FocusButton {
@@ -229,6 +245,8 @@ struct ShellToolbarButton: NSViewRepresentable {
         button.target = context.coordinator
         button.action = #selector(Coordinator.activate(_:))
         button.setContentHuggingPriority(.required, for: .horizontal)
+        // A label never wraps inside the control; it truncates, and the full text stays in help.
+        button.lineBreakMode = .byTruncatingTail
         return button
     }
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: FocusButton, context: Context) -> CGSize? {
@@ -236,17 +254,23 @@ struct ShellToolbarButton: NSViewRepresentable {
     }
     func updateNSView(_ button: FocusButton, context: Context) {
         context.coordinator.parent = self
+        // A state glyph swaps with a short cross-fade so the press visibly changes the control.
+        if button.image != nil, !symbol.isEmpty, context.coordinator.symbol != symbol, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            let fade = CATransition(); fade.type = .fade; fade.duration = metric("durationFast")
+            button.layer?.add(fade, forKey: "symbol")
+        }
+        context.coordinator.symbol = symbol
         button.image = symbol.isEmpty ? nil : NSImage(systemSymbolName: symbol, accessibilityDescription: label)
         button.imagePosition = symbol.isEmpty ? .noImage : showsLabel || count > 0 ? .imageLeading : .imageOnly
         button.title = showsLabel ? label + (count > 0 ? " · " + String(count) : "") : count > 0 ? String(count) : ""
-        button.font = .systemFont(ofSize: panelAction == nil ? NSFont.systemFontSize * metric("labelScale") : NSFont.systemFontSize)
+        button.font = .systemFont(ofSize: panelAction == nil ? NSFont.systemFontSize * metric(small ? "smallScale" : "labelScale") : NSFont.systemFontSize)
         button.titlebarControl = identifier == "navigation-toggle"
         button.solidPrimary = primary
         button.emphasized = primary || soft || (expanded == true && identifier != "navigation-toggle")
         if let expanded { button.setAccessibilityExpanded(expanded) }
         button.panelAction = panelAction
-        button.bounded = showsLabel
-        (button.cell as? PaddedButtonCell)?.horizontalInset = showsLabel ? metric("inset") : 0
+        button.bounded = showsLabel && !quiet
+        (button.cell as? PaddedButtonCell)?.horizontalInset = showsLabel ? metric(quiet ? "small" : "inset") : 0
         button.invalidateIntrinsicContentSize()
         button.onTab = onTab
         if button.isEnabled != enabled {
@@ -289,6 +313,12 @@ struct ShellToolbarButton: NSViewRepresentable {
         }
         override func mouseEntered(with event: NSEvent) { hovered = true; refreshSurface() }
         override func mouseExited(with event: NSEvent) { hovered = false; refreshSurface() }
+        // Pressed state: the surface darkens while the mouse is down, not only the glyph.
+        var pressed = false
+        override func highlight(_ flag: Bool) {
+            super.highlight(flag)
+            if pressed != flag { pressed = flag; refreshSurface() }
+        }
         var emphasized = false
         var bounded = false
         var panelAction: NativePanelAction?
@@ -307,6 +337,7 @@ struct ShellToolbarButton: NSViewRepresentable {
         }
         private func restorePendingFocus() {
             guard pendingFocus, let window else { return }
+            focusGranted = true
             if window.makeFirstResponder(self) {
                 pendingFocus = false
                 if panelAction != nil { scrollToVisible(bounds) }
@@ -333,11 +364,14 @@ struct ShellToolbarButton: NSViewRepresentable {
                     layer?.backgroundColor = (!isEnabled ? NSColor.controlBackgroundColor
                         : solidPrimary ? color(hovered ? "action-hover" : "action")
                         : emphasized ? color("action-soft")
+                        : pressed ? color(titlebarControl ? "chrome-item-active" : "surface-hover")
                         : hovered ? color(titlebarControl ? "chrome-item-hover" : "surface-hover")
                         : bounded ? color("surface") : NSColor.clear).cgColor
                     contentTintColor = !isEnabled ? .disabledControlTextColor
                         : solidPrimary ? color("action-fg")
-                        : emphasized ? color("action-text") : color(titlebarControl ? "chrome-fg-muted" : "text-muted")
+                        : emphasized ? color("action-text")
+                        : pressed || hovered ? color(titlebarControl ? "chrome-fg-strong" : "text-strong")
+                        : color(titlebarControl ? "chrome-fg-muted" : "text-muted")
                     return
                 }
                 layer?.borderColor = (danger ? NSColor.systemRed : NSColor.separatorColor).cgColor
@@ -353,6 +387,16 @@ struct ShellToolbarButton: NSViewRepresentable {
         // Borderless custom chrome has no AppKit bezel alignment insets.
         override var alignmentRectInsets: NSEdgeInsets { NSEdgeInsetsZero }
         override var acceptsFirstResponder: Bool { isEnabled }
+        // Focus arrives only from keyboard navigation, an explicit request (focus return, assistive
+        // press) or VoiceOver. AppKit otherwise selects the first control in the key loop whenever
+        // the window becomes key, which rang the toggle without anyone asking for it.
+        var focusGranted = false
+        override func becomeFirstResponder() -> Bool {
+            let keyboard = NSApp.currentEvent?.type == .keyDown
+            guard focusGranted || keyboard || NSWorkspace.shared.isVoiceOverEnabled else { return false }
+            focusGranted = false
+            return super.becomeFirstResponder()
+        }
         override func isAccessibilityFocused() -> Bool { window?.firstResponder === self }
         // A 36pt exterior ring otherwise exceeds the 40pt titlebar and clips.
         // Inset only its drawing mask, preserving the full native hit target.
@@ -363,14 +407,23 @@ struct ShellToolbarButton: NSViewRepresentable {
             NSBezierPath(roundedRect: focusRingMaskBounds, xRadius: surfaceRadius, yRadius: surfaceRadius).fill()
         }
         override var intrinsicContentSize: NSSize {
-            NSSize(width: max(metric("compactControl"), super.intrinsicContentSize.width + (bounded ? metric("inset") * 2 : 0)), height: metric("compactControl"))
+            // The drawing inset is part of the width, so a labelled quiet control never wraps its title.
+            NSSize(width: max(metric("compactControl"), super.intrinsicContentSize.width + ((cell as? PaddedButtonCell)?.horizontalInset ?? 0) * 2), height: metric("compactControl"))
         }
     }
     @MainActor class Coordinator: NSObject {
         var parent: ShellToolbarButton
         var focusEpoch = 0
+        var symbol = ""
         init(_ parent: ShellToolbarButton) { self.parent = parent }
-        @objc func activate(_ sender: NSButton) { sender.window?.makeFirstResponder(sender); parent.action() }
+        // Keyboard and assistive activation keep focus on the control (the ring is the cue);
+        // a mouse click leaves focus where it was, as native toolbar buttons do.
+        @objc func activate(_ sender: NSButton) {
+            let mouse = NSApp.currentEvent.map { [.leftMouseDown, .leftMouseUp, .rightMouseUp, .otherMouseUp].contains($0.type) } ?? false
+            if !mouse { (sender as? FocusButton)?.focusGranted = true; sender.window?.makeFirstResponder(sender) }
+            parent.frameAction?(sender.convert(sender.bounds, to: nil))
+            parent.action()
+        }
     }
 }
 
@@ -467,12 +520,13 @@ struct NativeNavigation: View {
         VStack(spacing: metric("small")) {
             HStack(spacing: metric("gap")) {
                 if let url = NativeResources.brandURL, let icon = NSImage(contentsOf: url) {
+                    // One size in both states; its centre sits on the icon axis (rail centre), so nothing jumps.
                     Image(nsImage: icon).resizable().scaledToFit()
                         .frame(width: metric("large") - metric("tight"), height: metric("large") - metric("tight")).accessibilityHidden(true)
                 }
-                if expanded { Text("viezan").font(.vzn("titleScale", .semibold)).fontWeight(.semibold); Spacer(minLength: 0) }
+                if expanded { Text("Viezan").font(.vzn("titleScale", .semibold)).fontWeight(.semibold).transition(.opacity); Spacer(minLength: 0) }
                 if let close { ShellCloseButton(label: store.text("close"), focusOnAppear: true, action: close) }
-            }.frame(height: metric("navControl")).padding(.horizontal, expanded ? metric("small") : 0)
+            }.frame(height: metric("navControl")).padding(.horizontal, expanded ? metric("gap") : 0)
             Button(action: commands) {
                 HStack {
                     if !expanded { Image(systemName: "magnifyingglass").frame(width: metric("icon")) }
@@ -481,15 +535,16 @@ struct NativeNavigation: View {
                         Spacer(minLength: metric("tight"))
                         Text("⌘ K").font(.vzn("captionScale")).accessibilityHidden(true)
                     }
-                }.padding(.horizontal, expanded ? metric("gap") : 0)
+                }.padding(.horizontal, expanded ? metric("inset") : 0)
                     .frame(maxWidth: .infinity).frame(height: metric("compactControl"))
                     .font(.system(size: NSFont.systemFontSize * metric("smallScale")))
-                    .background(chromeColor("sidebar-search-bg", scheme), in: RoundedRectangle(cornerRadius: metric("chromeItemRadius")))
-                    .overlay(RoundedRectangle(cornerRadius: metric("chromeItemRadius")).strokeBorder(chromeColor("material-border", scheme), lineWidth: metric("hairline")))
+                    // Expanded it reads as a field; in the rail it is one more quiet icon, like the rows.
+                    .background(expanded ? chromeColor("sidebar-search-bg", scheme) : hoveredItem == "search" ? chromeColor("chrome-item-hover", scheme) : .clear, in: RoundedRectangle(cornerRadius: metric("chromeItemRadius")))
+                    .overlay(RoundedRectangle(cornerRadius: metric("chromeItemRadius")).strokeBorder(expanded ? chromeColor("material-border", scheme) : .clear, lineWidth: metric("hairline")))
             }.buttonStyle(.plain).foregroundStyle(chromeColor(hoveredItem == "search" ? "chrome-fg" : "chrome-fg-muted", scheme))
                 .onHover { hoveredItem = $0 ? "search" : nil }
                 .accessibilityIdentifier("navigation-search")
-                .accessibilityLabel(store.text("searchEverything")).help(store.text("commands") + " (⌘K)")
+                .accessibilityLabel(store.text("searchEverything") + " · " + store.text("commands")).help(store.text("commands") + " (⌘K)")
             ScrollView {
                 VStack(alignment: .leading, spacing: metric("tight")) {
                     Color.clear.frame(height: metric("small")).accessibilityHidden(true)
@@ -498,13 +553,13 @@ struct NativeNavigation: View {
                     if expanded {
                         Text(store.text("groupSystem").uppercased()).font(.vzn("captionScale")).tracking(metric("hairline"))
                             .foregroundStyle(chromeColor("chrome-fg-soft", scheme))
-                            .padding(.horizontal, metric("gap")).padding(.top, metric("gap")).padding(.bottom, metric("tight"))
-                            .accessibilityAddTraits(.isHeader)
+                            .padding(.horizontal, metric("inset")).padding(.top, metric("gap")).padding(.bottom, metric("tight"))
+                            .accessibilityAddTraits(.isHeader).transition(.opacity)
                     } else { ChromeDivider().padding(.vertical, metric("small")) }
                     ForEach(systemItems.filter { store.moduleEnabled($0.0) }, id: \.0) { id, symbol in row(id, symbol) }
                     row("settings", "slider.horizontal.3")
                 }
-            }.frame(maxHeight: .infinity)
+            }.scrollIndicators(.hidden).frame(maxHeight: .infinity)
             backgroundStrip
             if expanded { privacyFooter }
         }.padding(metric("small"))
@@ -524,25 +579,21 @@ struct NativeNavigation: View {
         if store.moduleEnabled("bridge"), store.extensionBridge.listening { rows.append(("everywhere", store.text("browserBridge"))) }
         return rows.map { (route: $0.0, text: $0.1) }
     }
+    // Expanded only: the rail shows the same state as a dot on the route's own icon.
     @ViewBuilder private var backgroundStrip: some View {
         let rows = backgroundRows
-        if !rows.isEmpty {
+        if !rows.isEmpty, expanded {
             ChromeDivider().padding(.vertical, metric("tight"))
-            if expanded {
-                VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                     Text(store.text("backgroundRunning").uppercased()).font(.vzn("captionScale")).tracking(metric("hairline"))
-                        .foregroundStyle(chromeColor("chrome-fg-soft", scheme)).padding(.horizontal, metric("gap")).padding(.bottom, metric("tight")).accessibilityAddTraits(.isHeader)
+                        .foregroundStyle(chromeColor("chrome-fg-soft", scheme)).padding(.horizontal, metric("inset")).padding(.bottom, metric("tight")).accessibilityAddTraits(.isHeader)
                     ForEach(rows, id: \.route) { row in
                         Button { select(row.route) } label: {
                             HStack(spacing: metric("small")) { StatusDot(tone: .ready); Text(row.text).lineLimit(1); Spacer(minLength: 0) }
-                                .font(.vzn("smallScale")).padding(.horizontal, metric("gap")).frame(height: metric("compactControl") - metric("tight")).contentShape(Rectangle())
+                                .font(.vzn("smallScale")).padding(.horizontal, metric("inset")).frame(height: metric("compactControl") - metric("tight")).contentShape(Rectangle())
                         }.buttonStyle(.plain).foregroundStyle(chromeColor("chrome-fg-muted", scheme)).accessibilityIdentifier("background-" + row.route)
                     }
-                }.accessibilityElement(children: .contain).accessibilityLabel(store.text("backgroundRunning"))
-            } else {
-                StatusDot(tone: .ready).frame(height: metric("compactControl")).frame(maxWidth: .infinity)
-                    .help(rows.map(\.text).joined(separator: "\n")).accessibilityLabel(store.text("backgroundRunning") + ": " + rows.map(\.text).joined(separator: ", "))
-            }
+            }.accessibilityElement(children: .contain).accessibilityLabel(store.text("backgroundRunning"))
         }
     }
     // Local-first reminder; data never leaves the device unless a provider is chosen.
@@ -554,7 +605,7 @@ struct NativeNavigation: View {
             }.lineLimit(1)
             Spacer(minLength: 0)
         }.font(.vzn("smallScale")).foregroundStyle(chromeColor("chrome-fg-muted", scheme))
-            .padding(.horizontal, metric("gap")).padding(.vertical, metric("small"))
+            .padding(.horizontal, metric("inset")).padding(.vertical, metric("small"))
             .accessibilityElement(children: .combine)
     }
     private func row(_ id: String, _ symbol: String) -> some View {
@@ -562,15 +613,19 @@ struct NativeNavigation: View {
         let enabled = implemented && (!store.loadBlocked || id == "settings")
         // Settings carries the one shell-level warning: the chosen cloud provider has no key yet.
         let missingKey = id == "settings" && store.providers.availability(store.session.model) == .missingKey
+        let running = backgroundRows.first { $0.route == id }
+        let railNote = expanded ? "" : missingKey ? ": " + store.text("keyAbsent") : running.map { ": " + $0.text } ?? ""
         return Button { select(id) } label: {
             HStack(spacing: metric("gap")) {
                 Image(systemName: symbol).symbolRenderingMode(.monochrome).imageScale(.medium).frame(width: metric("icon"))
-                    .overlay(alignment: .topTrailing) { if missingKey && !expanded { StatusDot(tone: .failed).offset(x: metric("tight"), y: -metric("tight")) } }
+                    .overlay(alignment: .topTrailing) {
+                        if !expanded, missingKey || running != nil { StatusDot(tone: missingKey ? .failed : .ready).offset(x: metric("tight"), y: -metric("tight")) }
+                    }
                 if expanded {
-                    Text(store.text(id)).lineLimit(1); Spacer(minLength: 0)
+                    Text(store.text(id)).lineLimit(1).transition(.opacity); Spacer(minLength: 0)
                     if missingKey { HStack(spacing: metric("tight")) { StatusDot(tone: .failed); Text(store.text("keyAbsent")).font(.vzn("captionScale")) }.foregroundStyle(chromeColor("chrome-fg-muted", scheme)) }
                 }
-            }.padding(.horizontal, expanded ? metric("gap") : 0)
+            }.padding(.horizontal, expanded ? metric("inset") : 0)
                 .frame(maxWidth: .infinity, alignment: expanded ? .leading : .center).frame(height: metric("compactControl"))
                 .contentShape(Rectangle())
         }.buttonStyle(.plain).foregroundStyle(chromeColor(screen == id ? "chrome-item-active-fg" : "chrome-fg", scheme))
@@ -578,9 +633,9 @@ struct NativeNavigation: View {
             .background(screen == id ? chromeColor("chrome-item-active", scheme) : enabled && hoveredItem == id ? chromeColor("chrome-item-hover", scheme) : .clear, in: RoundedRectangle(cornerRadius: metric("chromeItemRadius")))
             .overlay(RoundedRectangle(cornerRadius: metric("chromeItemRadius")).strokeBorder(screen == id ? chromeColor("material-highlight", scheme) : .clear, lineWidth: metric("hairline")))
             .onHover { hoveredItem = $0 && enabled ? id : nil }
-            .accessibilityLabel(store.text(id) + (missingKey ? ": " + store.text("keyAbsent") : "")).accessibilityIdentifier("nav-" + id)
+            .accessibilityLabel(store.text(id) + (missingKey ? ": " + store.text("keyAbsent") : railNote)).accessibilityIdentifier("nav-" + id)
             .accessibilityAddTraits(screen == id ? .isSelected : []).disabled(!enabled)
-            .help(implemented ? store.text(id) : store.text(id) + " — " + store.text("shellUnavailable"))
+            .help(implemented ? store.text(id) + railNote : store.text(id) + " — " + store.text("shellUnavailable"))
     }
 }
 
@@ -657,7 +712,7 @@ struct NativeCommands: View {
                 ShellToolbarButton(label: store.text("close"), symbol: "xmark", identifier: "panel-close", focusEpoch: closeFocusEpoch, onTab: { _ in searchFocusEpoch += 1 }, action: dismiss)
                     .frame(width: metric("control"), height: metric("control"))
             }.frame(height: metric("control"))
-            HistorySearch(query: $query, label: store.text("commandSearch"), move: move, submit: open, cancel: dismiss, first: { index = 0 }, last: { index = max(0, entries.count - 1) }, onTab: { _ in closeFocusEpoch += 1 }, focusEpoch: searchFocusEpoch).frame(height: metric("control"))
+            SearchBox(query: $query, label: store.text("commandSearch"), move: move, submit: open, cancel: dismiss, first: { index = 0 }, last: { index = max(0, entries.count - 1) }, onTab: { _ in closeFocusEpoch += 1 }, focusEpoch: searchFocusEpoch).frame(height: metric("control"))
             if entries.isEmpty { Text(store.text("noCommands")).foregroundStyle(.secondary).frame(maxWidth: .infinity, minHeight: metric("control")) }
             else {
                 ScrollViewReader { proxy in

@@ -14,13 +14,20 @@ struct HistorySearch: NSViewRepresentable {
     var focusEpoch = 0
     // Panels focus their search on open; a persistent header field does not.
     var autofocus = true
+    /// The wrapping `SearchBox` strengthens its border while the field edits.
+    var onFocus: ((Bool) -> Void)? = nil
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> FocusSearchField {
         let field = FocusSearchField()
         field.delegate = context.coordinator
         field.sendsSearchStringImmediately = true
-        field.focusRingType = .exterior
+        // Bare text: the surrounding SearchBox draws the surface, border and magnifier from tokens, so
+        // every search reads like the sidebar's "Tìm" field. Focus is the caret and a stronger border.
+        field.focusRingType = .none
+        field.isBezeled = false; field.isBordered = false; field.drawsBackground = false
+        (field.cell as? NSSearchFieldCell)?.searchButtonCell = nil
+        field.font = .systemFont(ofSize: NSFont.systemFontSize * metric(autofocus ? "labelScale" : "smallScale"))
         if !autofocus { field.controlSize = .large }
         field.setContentHuggingPriority(.defaultLow, for: .horizontal)
         if autofocus { field.requestInitialFocus() }
@@ -64,6 +71,8 @@ struct HistorySearch: NSViewRepresentable {
             guard let field = notification.object as? NSSearchField else { return }
             parent.query = field.stringValue
         }
+        func controlTextDidBeginEditing(_ notification: Notification) { if let onFocus = parent.onFocus { DispatchQueue.main.async { onFocus(true) } } }
+        func controlTextDidEndEditing(_ notification: Notification) { if let onFocus = parent.onFocus { DispatchQueue.main.async { onFocus(false) } } }
         func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
             guard !textView.hasMarkedText() else { return false }
             switch commandSelector {
@@ -86,5 +95,33 @@ struct HistorySearch: NSViewRepresentable {
             }
             return true
         }
+    }
+}
+
+// The one search field of the app: magnifier, bare text, a quiet surface with a hairline that
+// strengthens on focus. Same shape as the sidebar's "Tìm" field; height is one control (or the
+// compact control in a header).
+struct SearchBox: View {
+    @Binding var query: String
+    var label: String
+    var move: (Int) -> Void = { _ in }
+    var submit: () -> Void = {}
+    var cancel: (() -> Void)? = nil
+    var first: (() -> Void)? = nil
+    var last: (() -> Void)? = nil
+    var onTab: ((Bool) -> Void)? = nil
+    var focusEpoch = 0
+    var autofocus = true
+    var compact = false
+    @Environment(\.colorScheme) private var scheme
+    @State private var focused = false
+    var body: some View {
+        HStack(spacing: metric("small")) {
+            Image(systemName: "magnifyingglass").imageScale(.medium).foregroundStyle(.secondary).accessibilityHidden(true)
+            HistorySearch(query: $query, label: label, move: move, submit: submit, cancel: cancel, first: first, last: last, onTab: onTab, focusEpoch: focusEpoch, autofocus: autofocus, onFocus: { focused = $0 })
+        }
+        .padding(.horizontal, metric("gap")).frame(height: metric(compact ? "compactControl" : "control"))
+        .background(contentColor("surface-subtle", scheme), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
+        .overlay(RoundedRectangle(cornerRadius: metric("controlRadius")).strokeBorder(contentColor(focused ? "border-strong" : "border", scheme), lineWidth: metric("hairline")))
     }
 }

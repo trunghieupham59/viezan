@@ -78,6 +78,39 @@ import ViezanDomain
         }
     }
 
+    // Finder rule: collapsing the column must not move the control that collapsed it.
+    @Test func navigationToggleKeepsItsWindowPositionWhenTheColumnCollapses() async throws {
+        _ = NSApplication.shared
+        let store = WorkbenchStore(persistence: FaultStorage(), automaticProvider: false)
+        store.setLocale("vi")
+        let shell = ShellPresentation()
+        let host = NSHostingView(rootView: FoundationFixture(store: store, shell: shell, route: "chat"))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1200, height: 760), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        defer { window.contentView = nil; window.close() }
+        func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+        func toggleFrame() throws -> CGRect {
+            host.layoutSubtreeIfNeeded()
+            let toggle = try #require(descendants(host).compactMap { $0 as? NSButton }.first { $0.accessibilityIdentifier() == "navigation-toggle" })
+            return toggle.convert(toggle.bounds, to: nil)
+        }
+        try await Task.sleep(for: .milliseconds(50))
+        let expanded = try toggleFrame()
+        // The 32 pt button sits centred in its `control` slot that starts at toggleLeading.
+        #expect(abs(expanded.midX - WorkbenchView.toggleLeading - metric("control") / 2) < 0.5)
+        #expect(expanded.maxX < metric("sidebar"))
+        store.setNavigationCollapsed(true)
+        try await Task.sleep(for: .milliseconds(50))
+        let collapsed = try toggleFrame()
+        #expect(store.workspace.navigationCollapsed)
+        #expect(abs(collapsed.minX - expanded.minX) < 0.5 && abs(collapsed.minY - expanded.minY) < 0.5)
+        #expect(collapsed.minX > metric("rail"))
+        store.setNavigationCollapsed(false)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(abs(try toggleFrame().minX - expanded.minX) < 0.5)
+    }
+
     @Test(arguments: ["vi", "ja"], [AppearanceMode.light, .dark])
     func compactNavigationCoversRailAndDismissesAtDesktopWidth(locale: String, mode: AppearanceMode) async throws {
         _ = NSApplication.shared
@@ -799,6 +832,82 @@ import ViezanDomain
         #expect(coordinator.control(field, textView: fieldEditor, doCommandBy: #selector(NSResponder.cancelOperation(_:))))
         #expect(moved == 1 && opened == 1 && cancelled == 1)
     }
+}
+
+// Chat composer: Return sends, Shift+Return stays a newline, ⌘Return always sends.
+@MainActor @Test func composerReturnSendsAndShiftReturnKeepsTyping() throws {
+    _ = NSApplication.shared
+    let editor = ComposerEditor.CommandTextView()
+    editor.submitOnReturn = true
+    var sent = 0
+    editor.submit = { sent += 1 }
+    func key(_ flags: NSEvent.ModifierFlags) -> NSEvent {
+        try! #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0, windowNumber: 0, context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36))
+    }
+    editor.keyDown(with: key([]))
+    #expect(sent == 1)
+    editor.keyDown(with: key(.shift))
+    #expect(sent == 1)
+    editor.keyDown(with: key(.command))
+    #expect(sent == 2)
+    editor.submitOnReturn = false
+    editor.keyDown(with: key([]))
+    #expect(sent == 2)
+}
+
+// One line stays one control row; growth stops at `composerMaxLines` and scrolls inside.
+@MainActor @Test func composerGrowsToFiveLinesThenCaps() {
+    let line: CGFloat = 20, inset: CGFloat = 4
+    let one = ComposerEditor.fit(measured: line, lineHeight: line, insetHeight: inset, maxLines: 5)
+    #expect(one.lines == 1)
+    #expect(one.height == metric("control") + metric("tight"))
+    let three = ComposerEditor.fit(measured: line * 3, lineHeight: line, insetHeight: inset, maxLines: 5)
+    #expect(three.lines == 3)
+    #expect(three.height == line * 3 + inset * 2)
+    let eight = ComposerEditor.fit(measured: line * 8, lineHeight: line, insetHeight: inset, maxLines: 5)
+    #expect(eight.lines == 8)
+    #expect(eight.height == line * 5 + inset * 2)
+    #expect(Int(metric("composerMaxLines")) == 5)
+    // A line-capped editor centres one line: inset twice plus the line is exactly one control row.
+    let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+    let centred = ComposerEditor.verticalInset(for: font) * 2 + ComposerEditor.lineHeight(of: font)
+    #expect(abs(centred - (metric("control") + metric("tight"))) <= 1)
+    // Uncapped editors (Translate, panels) keep their former chrome.
+    let legacy = ComposerEditor.fit(measured: line * 3, lineHeight: line, insetHeight: 0, maxLines: nil)
+    #expect(legacy.height == line * 3 + metric("small"))
+}
+
+// The "+" panel offers what the session can use: attachments while there is room, chat mode and
+// careful reasoning only in Chat, Listen only with an answer, Stop only while speaking.
+@Test func composerToolsFollowTheSession() {
+    let chat = ComposerTools.sections(feature: .chat, imageCount: 0, chatMode: "web", careful: true, speaking: false, hasAnswer: true)
+    #expect(chat.map(\.key) == ["attach", "chatMode", "reasoning", "voice"])
+    #expect(chat[1].rows.first { $0.selected }?.id == "mode-web")
+    #expect(chat[2].rows == [ComposerTools.Row(kind: .careful, selected: true), ComposerTools.Row(kind: .instructions, selected: false)])
+    #expect(ComposerTools.sections(feature: .chat, imageCount: 0, chatMode: "text", careful: false, hasInstructions: true, speaking: false, hasAnswer: false)[2].rows.last?.selected == true)
+    #expect(chat[3].rows.map(\.enabled) == [true, false])
+    let full = ComposerTools.sections(feature: .chat, imageCount: 4, chatMode: "text", careful: false, speaking: true, hasAnswer: true)
+    #expect(full[0].rows.map(\.enabled) == [false, false, true])
+    #expect(full[3].rows.map(\.enabled) == [false, true])
+    let translate = ComposerTools.sections(feature: .translate, imageCount: 1, chatMode: "text", careful: false, speaking: false, hasAnswer: false)
+    #expect(translate.map(\.key) == ["attach", "voice"])
+    #expect(translate[0].rows.map(\.enabled) == [false, false, true])
+    #expect(translate[1].rows[0].enabled == false)
+}
+
+// A translation row never repeats its source on the second line.
+@Test func sessionRowSummaryShowsTheResultNotTheSourceAgain() throws {
+    var translation = Session(feature: .translate); translation.source = "en"; translation.target = "vi"; translation.draft = "The quarterly report"
+    #expect(SessionRow.summary(for: translation, running: false) == .pair("en", "vi"))
+    translation.output = "Báo cáo quý"
+    #expect(SessionRow.summary(for: translation, running: false) == .text("Báo cáo quý"))
+    #expect(SessionRow.summary(for: translation, running: true) == .running)
+    var chat = Session(feature: .chat)
+    #expect(SessionRow.summary(for: chat, running: false) == .model)
+    chat.messages = [try JSONDecoder().decode(Message.self, from: Data(#"{"id":"m","role":"assistant","text":"Hello there"}"#.utf8))]
+    #expect(SessionRow.summary(for: chat, running: false) == .text("Hello there"))
+    chat.draft = "typing…"
+    #expect(SessionRow.summary(for: chat, running: false) == .text("typing…"))
 }
 
 @MainActor @Test func composerPasteHandsImagesToTheIntakeInsteadOfTheText() throws {

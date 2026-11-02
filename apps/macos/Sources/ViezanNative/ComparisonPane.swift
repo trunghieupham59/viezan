@@ -115,24 +115,3 @@ struct ComparisonPane: View {
     }
 }
 
-struct PromptLibrary: View {
-    let store: WorkbenchStore
-    @Binding var text: String
-    @State private var name = ""
-    @State private var selected = ""
-    @State private var deleting = false
-    var body: some View {
-        VStack(alignment: .leading, spacing: metric("small")) {
-            Text(store.text("promptLibrary")).font(.vzn("labelScale", .semibold))
-            Picker(store.text("promptLibrary"), selection: $selected) {
-                Text(store.text("selectPrompt")).tag("")
-                ForEach(store.workspace.prompts ?? []) { prompt in Text(prompt.name).tag(prompt.id) }
-            }.onChange(of: selected) { _, id in if let prompt = store.workspace.prompts?.first(where: { $0.id == id }) { text = prompt.text; name = prompt.name } }
-            TextField(store.text("promptName"), text: $name)
-            HStack {
-                Button(store.text("savePrompt")) { store.savePrompt(name: name, text: text) }.buttonStyle(.vznOutline).disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || text.utf8.count > 32768)
-                Button(store.text("deletePrompt"), role: .destructive) { deleting = true }.buttonStyle(.vznOutline).disabled(selected.isEmpty)
-            }
-        }.confirmationDialog(store.text("deletePrompt"), isPresented: $deleting) { Button(store.text("deletePrompt"), role: .destructive) { store.deletePrompt(selected); selected = "" } }
-    }
-}

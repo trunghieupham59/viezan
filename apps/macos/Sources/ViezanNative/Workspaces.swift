@@ -10,10 +10,29 @@ struct ChatWorkspace: View {
     @State private var userScrolling = false
     @State private var selectedMessage: String?
     @State private var selectionReset = 0
+    @State private var draftLines = 1
+    @State private var composerFocused = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var session: Session { store.session }
+    /// No messages yet and nothing running: the composer sits mid-stage with a greeting and recent work.
+    private var starting: Bool { session.messages.isEmpty && store.running(session.id) == nil }
+    /// Tier 1 of the suggestions: the three most recent sessions of any feature, to continue.
+    private var recent: [Session] {
+        store.workspace.sessions.filter { $0.id != session.id && store.moduleEnabled($0.feature.rawValue) && $0.comparisonParent == nil && $0.archived != true && (!$0.messages.isEmpty || !$0.output.isEmpty) }
+            .sorted { ($0.updated ?? 0) > ($1.updated ?? 0) }.prefix(3).map { $0 }
+    }
     var body: some View {
         let sessionID = session.id
         VStack(spacing: metric("inset")) {
+            if starting {
+                Spacer(minLength: 0)
+                VStack(spacing: metric("gap")) {
+                    if let url = NativeResources.brandURL, let icon = NSImage(contentsOf: url) {
+                        Image(nsImage: icon).resizable().scaledToFit().frame(width: metric("hero"), height: metric("hero")).accessibilityHidden(true)
+                    }
+                    Text(store.text("chatStart")).font(.vzn("headingScale")).accessibilityAddTraits(.isHeader)
+                }.padding(.bottom, metric("small")).transition(.opacity)
+            } else {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: metric("gutter")) {
@@ -29,24 +48,33 @@ struct ChatWorkspace: View {
                                 if let task = store.workspace.tasks.first(where: { $0.id == message.id }), let research = task.research {
                                     ResearchPanel(store: store, task: task, research: research)
                                 }
-                                if message.role == "assistant" { Label("Viezan", systemImage: "sparkles").font(.vzn("smallScale")).foregroundStyle(.secondary) }
+                                if message.role == "user" {
+                                    // The person's turn: a bubble that hugs its text, trailing, at most `bubbleFraction`
+                                    // of the reading column; the answer stays plain text on the leading edge.
+                                    Text(message.text.isEmpty && (message.images ?? []).isEmpty ? store.text("noContent") : message.text)
+                                        .font(readingFont(store)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                                        .padding(.vertical, metric("gap")).padding(.horizontal, metric("inset"))
+                                        .background(contentColor("surface-muted", scheme), in: RoundedRectangle(cornerRadius: metric("largeRadius")))
+                                        .frame(maxWidth: metric("reading") * metric("bubbleFraction"), alignment: .trailing)
+                                        .frame(maxWidth: .infinity, alignment: .trailing)
+                                        .accessibilityLabel(store.text("you") + ": " + message.text)
+                                } else {
+                                Label("Viezan", systemImage: "sparkles").font(.vzn("smallScale")).foregroundStyle(.secondary)
                                 TranscriptText(text: message.text.isEmpty && (message.images ?? []).isEmpty ? store.text(store.workspace.tasks.first(where: { $0.id == message.id })?.status.rawValue ?? "noContent") : message.text,
-                                               font: readingNSFont(store), label: store.text(message.role == "assistant" ? "response" : "you"), markdown: message.role == "assistant" && store.workspace.tasks.first(where: { $0.id == message.id })?.status != .running, resetSelection: selectionReset) { selected in
+                                               font: readingNSFont(store), label: store.text("response"), markdown: store.workspace.tasks.first(where: { $0.id == message.id })?.status != .running, resetSelection: selectionReset) { selected in
                                     if selected { selectedMessage = message.id; followBottom = false }
                                     else if selectedMessage == message.id { selectedMessage = nil }
                                 }.frame(maxWidth: .infinity, alignment: .leading)
-                                    // Review 18 user message: muted surface, inset from the reading column.
-                                    .padding(.vertical, message.role == "user" ? metric("gap") : 0).padding(.horizontal, message.role == "user" ? metric("inset") : 0)
-                                    .background(message.role == "user" ? contentColor("surface-muted", scheme) : Color.clear, in: RoundedRectangle(cornerRadius: metric("radius")))
-                                    .padding(.leading, message.role == "user" ? metric("large") : 0)
+                                }
                                 if message.role == "assistant", !message.text.isEmpty {
                                     if store.workspace.tasks.first(where: { $0.id == message.id })?.status != .running { ForEach(ChartArtifact.parse(message.text)) { NativeChart(artifact: $0) } }
                                     HStack(spacing: metric("tight")) {
                                         CopyResponseButton(text: message.text, label: store.text("copy"), copiedLabel: store.text("copied"))
                                         if let task = store.workspace.tasks.first(where: { $0.id == message.id }) {
                                             // Which model answered and what it cost in tokens, quietly, after the actions.
-                                            Text(nativeModelLabel(task.request.model, store: store) + (task.usage.map { " · " + store.text("tokensCount").replacingOccurrences(of: "{n}", with: ($0.input + $0.output).formatted()) } ?? ""))
-                                                .font(.vzn("captionScale")).foregroundStyle(.secondary).lineLimit(1).padding(.leading, metric("small")).help(task.request.model)
+                                            // The same short name as the composer chip; the full ID stays in the tooltip.
+                                            Text(ModelLineup.shortName(task.request.model) + (task.usage.map { " · " + store.text("tokensCount").replacingOccurrences(of: "{n}", with: ($0.input + $0.output).formatted()) } ?? ""))
+                                                .font(.vzn("captionScale")).foregroundStyle(.secondary).lineLimit(1).padding(.horizontal, metric("gap")).help(task.request.model)
                                         }
                                         if message.id == session.messages.last?.id, let task = store.workspace.tasks.first(where: { $0.id == message.id }), task.status != .running {
                                             Button(store.text("retry"), systemImage: "arrow.clockwise") { store.retry(task.id) }
@@ -76,13 +104,6 @@ struct ChatWorkspace: View {
                     followBottom = true; selectedMessage = nil; selectionReset += 1
                     if let last = session.messages.last { proxy.scrollTo(last.id, anchor: .bottom) }
                 }
-                .overlay {
-                    if session.messages.isEmpty {
-                        // Centered on the same axis as the composer, not the leading reading edge.
-                        ContentUnavailableView(store.text("emptyChat"), systemImage: "bubble.left.and.bubble.right", description: Text(store.text("emptyHint")))
-                            .frame(maxWidth: metric("reading"))
-                    }
-                }
                 .overlay(alignment: .bottom) {
                     if !followBottom && !session.messages.isEmpty {
                         Button(store.text("returnLatest"), systemImage: "arrow.down") {
@@ -91,6 +112,7 @@ struct ChatWorkspace: View {
                         }.buttonStyle(.vznOutline).padding(metric("small"))
                     }
                 }
+            }.transition(.opacity)
             }
             if let task = store.workspace.tasks.first(where: { $0.request.sessionID == session.id }), [.failed, .interrupted, .cancelled].contains(task.status) {
                 HStack {
@@ -101,62 +123,85 @@ struct ChatWorkspace: View {
             // Same column as the composer it warns about.
             ProviderNotice(store: store, model: session.model)
                 .frame(maxWidth: metric("reading")).padding(.horizontal, metric("gutter"))
-            // Review 18: one opaque composer; the editor leads, one control row follows.
-            VStack(alignment: .leading, spacing: metric("small")) {
-                AttachmentChips(store: store)
-                ComposerEditor(text: Binding(get: { store.session(sessionID)?.draft ?? "" }, set: { store.setDraft(sessionID, $0) }), identity: sessionID, label: store.text("prompt"), font: readingNSFont(store), focusEpoch: focusEpoch, growsWithContent: true, pasteImages: { urls, data in ImageIntake.attach(urls: urls, data: data, to: sessionID, store: store) }) { store.submit(sessionID) }
-                    .fixedSize(horizontal: false, vertical: true)
-                    .modifier(EditorPlaceholder(text: store.text("prompt"), visible: session.draft.isEmpty))
-                HStack(spacing: metric("small")) {
-                    ImageControls(store: store, compact: true, extraMenu: AnyView(composerModes))
-                    ModelPicker(store: store, compact: true)
-                    AudioControls(store: store, compact: true)
-                    if (session.chatMode ?? "text") != "text" || session.carefulReasoning == true { modeChip }
-                    Spacer(minLength: metric("small"))
-                    if let task = store.running(session.id) {
-                        ProgressView().controlSize(.small).accessibilityLabel(store.text("running"))
-                        Button(store.text("stop"), systemImage: "stop.fill", role: .destructive) { store.cancel(task.id) }.buttonStyle(.vznOutline)
-                    } else {
-                        Button(store.text("send"), systemImage: "arrow.up") { store.submit(session.id) }
-                            .buttonStyle(.vznPrimary).disabled(session.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (session.images ?? []).isEmpty)
-                            .help(store.text("send") + " (⌘↩)")
+            // One composer surface: a single row while the draft is one line; from two lines
+            // (or with attachments) the text leads and the controls drop to their own row.
+            let stacked = draftLines > 1 || !(session.images ?? []).isEmpty || session.draft.contains("\n")
+            HStack(alignment: .center, spacing: metric("small")) {
+                if !stacked { ImageControls(store: store, compact: true, selected: (session.chatMode ?? "text") != "text" || !(session.systemPrompt ?? "").isEmpty).controlSize(.large).imageScale(.large) }
+                VStack(alignment: .leading, spacing: metric("small")) {
+                    AttachmentChips(store: store)
+                    ComposerEditor(text: Binding(get: { store.session(sessionID)?.draft ?? "" }, set: { store.setDraft(sessionID, $0) }), identity: sessionID, label: store.text("prompt"), font: readingNSFont(store), focusEpoch: focusEpoch, growsWithContent: true, submitOnReturn: true, maxLines: Int(metric("composerMaxLines")), onLines: { draftLines = $0 }, onFocus: { composerFocused = $0 }, pasteImages: { urls, data in ImageIntake.attach(urls: urls, data: data, to: sessionID, store: store) }) { store.submit(sessionID) }
+                        .fixedSize(horizontal: false, vertical: true)
+                        // The placeholder says what the mode does; no chip is added to the row for it.
+                        .modifier(EditorPlaceholder(text: store.text((session.chatMode ?? "text") == "text" ? "prompt" : "promptMode_" + (session.chatMode ?? "text")), visible: session.draft.isEmpty, font: readingFont(store), leadingInset: ComposerEditor.caretLeading, topInset: ComposerEditor.verticalInset(for: readingNSFont(store))))
+                    if stacked {
+                        HStack(spacing: metric("small")) {
+                            ImageControls(store: store, compact: true, selected: (session.chatMode ?? "text") != "text" || !(session.systemPrompt ?? "").isEmpty)
+                            composerTrailing(dense: false)
+                        }.controlSize(.large).imageScale(.large)
                     }
-                }.controlSize(.large).imageScale(.large)
-                AudioStatus(store: store)
+                    AudioStatus(store: store)
+                }
+                // The controls keep their natural width; only the editor flexes.
+                if !stacked { HStack(spacing: metric("tight")) { composerTrailing(dense: true) }.controlSize(.large).imageScale(.large).fixedSize() }
             }
-            .padding(.horizontal, metric("inset") - metric("hairline") * 2).padding(.vertical, metric("gap"))
+            .padding(.horizontal, stacked ? metric("inset") - metric("hairline") * 2 : metric("small")).padding(.vertical, stacked ? metric("gap") : metric("tight"))
             .background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("largeRadius")))
-            .overlay(RoundedRectangle(cornerRadius: metric("largeRadius")).strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")))
-            .shadow(color: Color(nsColor: .shadowColor).opacity(metric("overlayShadowOpacity")), radius: metric("tight") / 2, y: metric("hairline"))
+            // Quiet surface: a hairline that strengthens on focus, never a shadow or an accent ring.
+            .overlay(RoundedRectangle(cornerRadius: metric("largeRadius")).strokeBorder(contentColor(composerFocused ? "border-strong" : "border", scheme), lineWidth: metric("hairline")))
             .modifier(ImageDropTarget(store: store, sessionID: sessionID, radius: metric("largeRadius")))
-            .frame(maxWidth: metric("reading")).padding(.horizontal, metric("gutter")).padding(.bottom, metric("gutter"))
+            .frame(maxWidth: metric("reading")).padding(.horizontal, metric("gutter")).padding(.bottom, starting ? 0 : metric("gutter"))
+            if starting {
+                if !recent.isEmpty { continueList.transition(.opacity) }
+                Spacer(minLength: 0); Spacer(minLength: 0)
+            }
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: metric("durationNormal")), value: starting)
+    }
+    // Model, speech, the non-default-mode chip and Send/Stop, in one order for both composer shapes.
+    // Dense (one row): the model reads small, Send is a square icon; stacked: labelled Send.
+    @ViewBuilder private func composerTrailing(dense: Bool) -> some View {
+        let canSend = !(session.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (session.images ?? []).isEmpty)
+        ModelPicker(store: store, compact: true, dense: dense)
+        AudioControls(store: store, compact: true)
+        if !dense { Spacer(minLength: metric("small")) }
+        if let task = store.running(session.id) {
+            ProgressView().controlSize(.small).accessibilityLabel(store.text("running"))
+            if dense {
+                Button(role: .destructive) { store.cancel(task.id) } label: { Image(systemName: "stop.fill").frame(width: metric("control") - metric("gap") * 2) }
+                    .buttonStyle(.vznOutline).accessibilityLabel(store.text("stop")).help(store.text("stop"))
+            } else { Button(store.text("stop"), systemImage: "stop.fill", role: .destructive) { store.cancel(task.id) }.buttonStyle(.vznOutline) }
+        } else if dense {
+            Button { store.submit(session.id) } label: { Image(systemName: "arrow.up").fontWeight(.semibold).frame(width: metric("control") - metric("gap") * 2) }
+                .buttonStyle(.vznPrimary).disabled(!canSend).accessibilityLabel(store.text("send")).help(store.text("send") + " (↩)")
+        } else {
+            Button(store.text("send"), systemImage: "arrow.up") { store.submit(session.id) }
+                .buttonStyle(.vznPrimary).disabled(!canSend).help(store.text("send") + " (↩)")
         }
     }
-    // Chat mode, careful reasoning and speech ride in the "+" menu (Review 18
-    // shows one attach control); a chip keeps a non-default mode visible.
-    @ViewBuilder private var composerModes: some View {
-        Picker(store.text("chatMode"), selection: Binding(get: { session.chatMode ?? "text" }, set: { store.setChatMode(session.id, $0) })) {
-            ForEach(["text", "web", "research", "image"], id: \.self) { Text(store.text("chatMode_" + $0)).tag($0) }
-        }
-        Toggle(store.text("carefulReasoning"), isOn: Binding(get: { session.carefulReasoning ?? false }, set: { store.setCarefulReasoning(session.id, $0) }))
-        Divider()
-        AudioControls.speechMenu(store)
+    // Continue: recent sessions of any feature, as quiet rows under the centred composer.
+    private var continueList: some View {
+        VStack(alignment: .leading, spacing: metric("tight")) {
+            Eyebrow(text: store.text("continueRecent")).padding(.horizontal, metric("small"))
+            ForEach(recent) { item in
+                Button {
+                    store.select(item.id)
+                    NotificationCenter.default.post(name: .viezanOpenRoute, object: item.feature.rawValue)
+                } label: {
+                    HStack(spacing: metric("small")) {
+                        Image(systemName: item.feature.symbol).foregroundStyle(.secondary).frame(width: metric("icon"))
+                        Text(store.title(item)).lineLimit(1)
+                        Spacer(minLength: metric("small"))
+                        Text(relativeTime(item.updated, store: store)).font(.vzn("smallScale")).foregroundStyle(.secondary).fixedSize()
+                    }.padding(.horizontal, metric("small")).frame(height: metric("compactControl")).contentShape(Rectangle())
+                }.buttonStyle(.vznQuiet).accessibilityIdentifier("continue-" + item.id)
+            }
+        }.frame(maxWidth: metric("reading")).padding(.horizontal, metric("gutter"))
+            .accessibilityElement(children: .contain).accessibilityLabel(store.text("continueRecent"))
     }
-    // Image mode names who will draw (OpenAI/Gemini with a key), whatever the chat model is.
-    private var imageProviderSuffix: String {
-        guard session.chatMode == "image" else { return "" }
-        guard let provider = ImageGeneration.provider(for: session.model, hasKey: { store.providers.keyed.contains($0) }) else { return " · " + store.text("imageProviderNone") }
-        return " · " + (provider == "openai" ? "OpenAI" : "Gemini")
-    }
-    private var modeChip: some View {
-        Button { store.setChatMode(session.id, "text"); store.setCarefulReasoning(session.id, false) } label: {
-            HStack(spacing: metric("tight")) {
-                Text([(session.chatMode ?? "text") != "text" ? store.text("chatMode_" + (session.chatMode ?? "text")) + imageProviderSuffix : nil, session.carefulReasoning == true ? store.text("carefulReasoning") : nil].compactMap { $0 }.joined(separator: " · "))
-                Image(systemName: "xmark").imageScale(.small)
-            }.font(.vzn("smallScale"))
-        }.buttonStyle(.vznQuiet).foregroundStyle(contentColor("action-text", scheme))
-            .help(store.text("chatMode")).accessibilityLabel(store.text("chatMode") + ": " + store.text("chatMode_" + (session.chatMode ?? "text")))
-    }
+    // Chat mode, careful reasoning and speech live in the "+" tools panel (Review 18 shows one
+    // attach control). The row never grows a chip for them: the mode shows in the placeholder and
+    // on "+", careful reasoning on the model chip ("Kỹ · …").
     private func saveImage(_ image: ImageAttachment) {
         let panel = NSSavePanel(); panel.nameFieldStringValue = "image." + (image.mime == "image/jpeg" ? "jpg" : image.mime == "image/webp" ? "webp" : "png")
         panel.begin { response in guard response == .OK, let url = panel.url else { return }; Task { do { try await Task.detached { try Attachments.data(image).write(to: url, options: .atomic) }.value } catch { let alert = NSAlert(); alert.messageText = store.text("exportError"); alert.runModal() } } }
@@ -398,10 +443,13 @@ struct EditorPlaceholder: ViewModifier {
     var text: String
     var visible: Bool
     var font: Font = .body
+    /// Where the editor draws its first line, so the placeholder sits exactly under the caret.
+    var leadingInset: CGFloat = metric("small")
+    var topInset: CGFloat = metric("tight") / 2
     func body(content: Content) -> some View {
         content.overlay(alignment: .topLeading) {
             if visible {
-                Text(text).font(font).foregroundStyle(.tertiary).padding(.leading, metric("small")).padding(.top, metric("tight") / 2)
+                Text(text).font(font).foregroundStyle(.tertiary).padding(.leading, leadingInset).padding(.top, topInset)
                     .allowsHitTesting(false).accessibilityHidden(true)
             }
         }
@@ -418,9 +466,20 @@ struct ComposerEditor: NSViewRepresentable {
     var accessibilityID = "chat-draft"
     var growsWithContent = false
     var submitOnReturn = false
+    /// Grow to this many lines, then scroll inside (chat composer); nil keeps the `editor` height cap.
+    var maxLines: Int? = nil
+    /// How many lines the text wraps to at the current width, for layouts that change shape at two.
+    var onLines: ((Int) -> Void)? = nil
+    var onFocus: ((Bool) -> Void)? = nil
     /// Pasted images (file URLs or bitmap data) go here instead of into the text.
     var pasteImages: (([URL], [Data]) -> Void)? = nil
     var submit: () -> Void
+    private var lineHeight: CGFloat { Self.lineHeight(of: font) }
+    static func lineHeight(of font: NSFont) -> CGFloat { ceil(font.ascender - font.descender + font.leading) }
+    /// Line-capped editors centre a single line in one control height; the inset is symmetric, so
+    /// every further line adds exactly one line height.
+    static func verticalInset(for font: NSFont) -> CGFloat { max(0, ((metric("control") + metric("tight") - lineHeight(of: font)) / 2).rounded()) }
+    static var caretLeading: CGFloat { metric("tight") + metric("hairline") }
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSScrollView, context: Context) -> CGSize? {
         guard growsWithContent else { return nil }
         let width = proposal.width ?? metric("reading")
@@ -428,7 +487,22 @@ struct ComposerEditor: NSViewRepresentable {
         let padding = (nsView.documentView as? NSTextView)?.textContainer?.lineFragmentPadding ?? 0
         let available = max(metric("control"), width - inset.width * 2 - padding * 2)
         let measured = ((text.isEmpty ? " " : text) as NSString).boundingRect(with: NSSize(width: available, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font]).height
-        return CGSize(width: width, height: min(metric("editor"), max(metric("control") + metric("tight"), ceil(measured) + inset.height * 2 + metric("small"))))
+        let fit = Self.fit(measured: measured, lineHeight: lineHeight, insetHeight: inset.height, maxLines: maxLines)
+        // A rounding slip must never show a scroller on a one-line draft: it exists only past the cap.
+        if let maxLines { let scrolls = fit.lines > maxLines; if nsView.hasVerticalScroller != scrolls { nsView.hasVerticalScroller = scrolls } }
+        if let onLines, context.coordinator.lines != fit.lines {
+            context.coordinator.lines = fit.lines
+            DispatchQueue.main.async { onLines(fit.lines) }
+        }
+        return CGSize(width: width, height: fit.height)
+    }
+    /// Height for a measured text block: one control row at least, `maxLines` lines at most (else the
+    /// `editor` cap), plus the container insets; and how many lines the text wraps to.
+    static func fit(measured: CGFloat, lineHeight: CGFloat, insetHeight: CGFloat, maxLines: Int?) -> (height: CGFloat, lines: Int) {
+        let lines = max(1, Int((measured / lineHeight).rounded()))
+        let chrome = insetHeight * 2 + (maxLines == nil ? metric("small") : 0)
+        let cap = maxLines.map { lineHeight * CGFloat($0) + chrome } ?? metric("editor")
+        return (min(cap, max(metric("control") + metric("tight"), ceil(measured) + chrome)), lines)
     }
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> NSScrollView {
@@ -440,9 +514,12 @@ struct ComposerEditor: NSViewRepresentable {
         editor.autoresizingMask = [.width]; editor.textContainer?.widthTracksTextView = true
         editor.font = font; editor.textColor = .textColor
         editor.drawsBackground = false; editor.focusRingType = .none
+        if maxLines != nil { editor.textContainerInset = NSSize(width: 0, height: Self.verticalInset(for: font)) }
         editor.delegate = context.coordinator; editor.submit = submit; editor.submitOnReturn = submitOnReturn; editor.pasteImages = pasteImages
         editor.setAccessibilityLabel(label); editor.setAccessibilityIdentifier(accessibilityID)
-        scroll.documentView = editor; scroll.hasVerticalScroller = true; scroll.drawsBackground = false
+        scroll.documentView = editor; scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true; scroll.drawsBackground = false
+        // Past the line cap the composer scrolls with a thin overlay scroller, whatever the system setting.
+        scroll.scrollerStyle = .overlay
         return scroll
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
@@ -455,6 +532,7 @@ struct ComposerEditor: NSViewRepresentable {
         }
         context.coordinator.parent = self
         if !editor.hasMarkedText(), editor.font != font { editor.font = font }
+        if maxLines != nil { let inset = NSSize(width: 0, height: Self.verticalInset(for: font)); if editor.textContainerInset != inset { editor.textContainerInset = inset } }
         editor.submit = submit; editor.pasteImages = pasteImages; editor.setAccessibilityLabel(label)
         if context.coordinator.focusEpoch != focusEpoch {
             context.coordinator.focusEpoch = focusEpoch
@@ -466,12 +544,15 @@ struct ComposerEditor: NSViewRepresentable {
     }
     class Coordinator: NSObject, NSTextViewDelegate {
         var focusEpoch = 0
+        var lines = 0
         var parent: ComposerEditor
         init(_ parent: ComposerEditor) { self.parent = parent }
         func textDidChange(_ notification: Notification) {
             guard let editor = notification.object as? NSTextView else { return }
             parent.text = editor.string
         }
+        func textDidBeginEditing(_ notification: Notification) { if let onFocus = parent.onFocus { DispatchQueue.main.async { onFocus(true) } } }
+        func textDidEndEditing(_ notification: Notification) { if let onFocus = parent.onFocus { DispatchQueue.main.async { onFocus(false) } } }
     }
     class CommandTextView: NSTextView {
         private let sessionUndoManager = UndoManager()
