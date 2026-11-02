@@ -88,42 +88,70 @@ struct LocalModelSettings: View {
                     .buttonStyle(.vznOutline).disabled(store.localRuntime.owned || store.localRuntime.busy || !store.localRuntime.available)
                 if store.localRuntime.owned { Button(store.text("runtimeStop"), role: .destructive) { store.localRuntime.stop(); store.discoverProviders() }.buttonStyle(.vznOutline) }
             }
-            if let error = store.localRuntime.error { Text(store.text(error)).font(.vzn("smallScale")).foregroundStyle(.secondary).padding(.horizontal, metric("inset")).padding(.bottom, metric("inset")) }
+            if let error = store.localRuntime.error { noteText(error) }
         }
-        // Suggested models: one Download per row; the row that is downloading shows its progress.
+    }
+    // Download status as one string so the row's view tree stays small.
+    private var managerProgressText: String {
+        var text = store.text(store.modelManager.status)
+        if let progress = store.modelManager.progress { text += " · " + String(Int(progress * 100)) + "%" }
+        return text
+    }
+    private var trimmedName: String { name.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var customDownload: String? {
+        guard store.modelManager.busy, let model = downloading else { return nil }
+        return Self.suggestions.contains(where: { $0.id == model }) ? nil : model
     }
     private var suggestionsCard: some View {
         CardSection(flush: true, title: store.text("suggestedModels")) {
-            ForEach(Self.suggestions) { item in
-                let have = installed.contains("ollama:" + item.id)
-                let active = store.modelManager.busy && downloading == item.id
-                CardRow(title: item.name + " · " + item.id, detail: store.text(item.note) + " · " + ByteCountFormatter.string(fromByteCount: item.bytes, countStyle: .file)) {
-                    if have { StatusBadge(text: store.text("modelInstalled"), tone: .ready) }
-                    else if active {
-                        VStack(alignment: .trailing, spacing: metric("tight")) {
-                            HStack(spacing: metric("small")) {
-                                Text(store.text(store.modelManager.status) + (store.modelManager.progress.map { " · " + String(Int($0 * 100)) + "%" } ?? "")).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1)
-                                Button(store.text("stop"), role: .destructive) { store.modelManager.cancel() }.buttonStyle(.vznQuiet)
-                            }
-                            if let progress = store.modelManager.progress { ProgressView(value: progress).frame(width: metric("sidebar") - metric("large")) } else { ProgressView().controlSize(.small) }
-                        }
-                    } else if !ollamaRunning { Text(store.text("modelWaitingRuntime")).font(.vzn("smallScale")).foregroundStyle(.secondary) }
-                    else { Button(store.text("download"), systemImage: "arrow.down.circle") { download(item.id) }.buttonStyle(.vznOutline).disabled(anyBusy).accessibilityIdentifier("download-" + item.id) }
-                }
-            }
-            CardRow(title: store.text("otherModel"), detail: store.text("modelID"), divider: false) {
-                TextField(store.text("modelID"), text: $name).textFieldStyle(.roundedBorder).frame(width: metric("sidebar") - metric("large"))
-                Button(store.text("download"), systemImage: "arrow.down.circle") { download(name.trimmingCharacters(in: .whitespacesAndNewlines)) }
-                    .buttonStyle(.vznOutline).disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || anyBusy || !ollamaRunning)
-            }
-            if store.modelManager.busy, let model = downloading, !Self.suggestions.contains(where: { $0.id == model }) {
-                HStack(spacing: metric("small")) {
-                    Text(model + " · " + store.text(store.modelManager.status) + (store.modelManager.progress.map { " · " + String(Int($0 * 100)) + "%" } ?? "")).font(.vzn("smallScale")).foregroundStyle(.secondary)
-                    Spacer(); Button(store.text("stop"), role: .destructive) { store.modelManager.cancel() }.buttonStyle(.vznQuiet)
-                }.padding(.horizontal, metric("inset")).padding(.bottom, metric("inset"))
-            }
-            if let error = store.modelManager.error ?? store.modelError { Text(store.text(error)).font(.vzn("smallScale")).foregroundStyle(.secondary).padding(.horizontal, metric("inset")).padding(.bottom, metric("inset")) }
+            ForEach(Self.suggestions) { item in suggestionRow(item) }
+            otherModelRow
+            if let model = customDownload { customDownloadRow(model) }
+            if let error = store.modelManager.error ?? store.modelError { noteText(error) }
         }
+    }
+    private func suggestionRow(_ item: Suggestion) -> some View {
+        let have = installed.contains("ollama:" + item.id)
+        let active = store.modelManager.busy && downloading == item.id
+        let detail = store.text(item.note) + " · " + ByteCountFormatter.string(fromByteCount: item.bytes, countStyle: .file)
+        return CardRow(title: item.name + " · " + item.id, detail: detail) {
+            if have { StatusBadge(text: store.text("modelInstalled"), tone: .ready) }
+            else if active { downloadProgress }
+            else if !ollamaRunning { Text(store.text("modelWaitingRuntime")).font(.vzn("smallScale")).foregroundStyle(.secondary) }
+            else { downloadButton(item.id).accessibilityIdentifier("download-" + item.id) }
+        }
+    }
+    private func downloadButton(_ model: String) -> some View {
+        Button(store.text("download"), systemImage: "arrow.down.circle") { download(model) }.buttonStyle(.vznOutline).disabled(anyBusy)
+    }
+    private var stopButton: some View {
+        Button(store.text("stop"), role: .destructive) { store.modelManager.cancel() }.buttonStyle(.vznQuiet)
+    }
+    private var downloadProgress: some View {
+        VStack(alignment: .trailing, spacing: metric("tight")) {
+            HStack(spacing: metric("small")) {
+                Text(managerProgressText).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1)
+                stopButton
+            }
+            if let progress = store.modelManager.progress { ProgressView(value: progress).frame(width: metric("sidebar") - metric("large")) } else { ProgressView().controlSize(.small) }
+        }
+    }
+    private var otherModelRow: some View {
+        CardRow(title: store.text("otherModel"), detail: store.text("modelID"), divider: false) {
+            TextField(store.text("modelID"), text: $name).textFieldStyle(.roundedBorder).frame(width: metric("sidebar") - metric("large"))
+            Button(store.text("download"), systemImage: "arrow.down.circle") { download(trimmedName) }
+                .buttonStyle(.vznOutline).disabled(trimmedName.isEmpty || anyBusy || !ollamaRunning)
+        }
+    }
+    private func customDownloadRow(_ model: String) -> some View {
+        HStack(spacing: metric("small")) {
+            Text(model + " · " + managerProgressText).font(.vzn("smallScale")).foregroundStyle(.secondary)
+            Spacer()
+            stopButton
+        }.padding(.horizontal, metric("inset")).padding(.bottom, metric("inset"))
+    }
+    private func noteText(_ key: String) -> some View {
+        Text(store.text(key)).font(.vzn("smallScale")).foregroundStyle(.secondary).padding(.horizontal, metric("inset")).padding(.bottom, metric("inset"))
     }
     private var installedCard: some View {
         CardSection(flush: true, title: store.text("downloadedModels")) {
@@ -141,42 +169,63 @@ struct LocalModelSettings: View {
             }.padding(.horizontal, metric("small")).padding(.vertical, metric("small"))
         }
     }
+    private var performance: LocalPerformance { store.localPerformance }
     @ViewBuilder private var performanceCard: some View {
-        if store.localPerformance.busy || store.localPerformance.error != nil || !store.localPerformance.results.isEmpty {
+        if performance.busy || performance.error != nil || !performance.results.isEmpty {
             CardSection(title: store.text("benchmarkResults")) {
-                if store.localPerformance.busy {
-                    HStack(spacing: metric("small")) { ProgressView().controlSize(.small); Text(store.text("running")).foregroundStyle(.secondary); Spacer(); Button(store.text("cancel"), role: .destructive) { store.localPerformance.cancel() }.buttonStyle(.vznOutline) }
-                }
-                if let error = store.localPerformance.error { Text(store.text(error)).foregroundStyle(.secondary) }
-                if !store.localPerformance.results.isEmpty {
-                    let performance = store.localPerformance, mode = performance.selectedMode
+                if performance.busy { performanceBusyRow }
+                if let error = performance.error { Text(store.text(error)).foregroundStyle(.secondary) }
+                if !performance.results.isEmpty {
                     Text(nativeModelLabel(performance.model, store: store)).font(.vzn("labelScale", .semibold))
-                    // One table: mode, speed, first token, GPU share; the mode in use is marked, not only colored.
-                    Grid(alignment: .leading, horizontalSpacing: metric("inset"), verticalSpacing: metric("small")) {
-                        GridRow {
-                            ForEach([store.text("modeLabel"), store.text("tokensPerSecond"), store.text("firstToken"), store.text("gpuShare"), ""], id: \.self) { Text($0).font(.vzn("captionScale")).foregroundStyle(.secondary) }
-                        }
-                        GridRow {
-                            HStack(spacing: metric("small")) { Text(store.text("voiceAutomatic")); if mode == "auto" { StatusBadge(text: store.text("inUse"), tone: .ready) } }
-                            Text("–").foregroundStyle(.secondary); Text("–").foregroundStyle(.secondary); Text("–").foregroundStyle(.secondary)
-                            Button(store.text("apply")) { performance.select("auto") }.buttonStyle(.vznOutline).disabled(performance.busy || mode == "auto")
-                        }
-                        ForEach(performance.results) { result in
-                            GridRow {
-                                HStack(spacing: metric("small")) { Text(result.id); if mode == result.id { StatusBadge(text: store.text("inUse"), tone: .ready) } }
-                                if let error = result.error {
-                                    Text(store.text(error)).foregroundStyle(contentColor("danger", scheme)).gridCellColumns(3)
-                                    Text("")
-                                } else {
-                                    Text((result.tokensPerSecond ?? 0).formatted(.number.precision(.fractionLength(1)))).monospacedDigit()
-                                    Text(result.firstTokenMilliseconds.map { $0.formatted(.number.precision(.fractionLength(0))) + " ms" } ?? "–").monospacedDigit()
-                                    Text((result.gpuPercent ?? 0).formatted(.number.precision(.fractionLength(0))) + "%").monospacedDigit()
-                                    Button(store.text("apply")) { performance.select(result.id) }.buttonStyle(.vznOutline).disabled(performance.busy || mode == result.id)
-                                }
-                            }
-                        }
-                    }
+                    performanceTable
                 }
+            }
+        }
+    }
+    private var performanceBusyRow: some View {
+        HStack(spacing: metric("small")) {
+            ProgressView().controlSize(.small)
+            Text(store.text("running")).foregroundStyle(.secondary)
+            Spacer()
+            Button(store.text("cancel"), role: .destructive) { performance.cancel() }.buttonStyle(.vznOutline)
+        }
+    }
+    // One table: mode, speed, first token, GPU share; the mode in use is marked, not only colored.
+    private var performanceTable: some View {
+        Grid(alignment: .leading, horizontalSpacing: metric("inset"), verticalSpacing: metric("small")) {
+            GridRow {
+                ForEach([store.text("modeLabel"), store.text("tokensPerSecond"), store.text("firstToken"), store.text("gpuShare"), ""], id: \.self) { Text($0).font(.vzn("captionScale")).foregroundStyle(.secondary) }
+            }
+            GridRow {
+                modeCell("auto", label: store.text("voiceAutomatic"))
+                dash; dash; dash
+                applyButton("auto")
+            }
+            ForEach(performance.results) { result in resultRow(result) }
+        }
+    }
+    private var dash: some View { Text("–").foregroundStyle(.secondary) }
+    private func modeCell(_ mode: String, label: String) -> some View {
+        HStack(spacing: metric("small")) {
+            Text(label)
+            if performance.selectedMode == mode { StatusBadge(text: store.text("inUse"), tone: .ready) }
+        }
+    }
+    private func applyButton(_ mode: String) -> some View {
+        Button(store.text("apply")) { performance.select(mode) }.buttonStyle(.vznOutline).disabled(performance.busy || performance.selectedMode == mode)
+    }
+    private static func number(_ value: Double?, digits: Int) -> String { (value ?? 0).formatted(.number.precision(.fractionLength(digits))) }
+    private func resultRow(_ result: LocalMeasurement) -> some View {
+        GridRow {
+            modeCell(result.id, label: result.id)
+            if let error = result.error {
+                Text(store.text(error)).foregroundStyle(contentColor("danger", scheme)).gridCellColumns(3)
+                Text("")
+            } else {
+                Text(Self.number(result.tokensPerSecond, digits: 1)).monospacedDigit()
+                Text(result.firstTokenMilliseconds.map { Self.number($0, digits: 0) + " ms" } ?? "–").monospacedDigit()
+                Text(Self.number(result.gpuPercent, digits: 0) + "%").monospacedDigit()
+                applyButton(result.id)
             }
         }
     }
