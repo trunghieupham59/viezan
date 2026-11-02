@@ -281,6 +281,15 @@
   --vzn-navigation-compact-breakpoint: 900px;
   --vzn-native-window-min-width: 640px;
   --vzn-native-window-min-height: 480px;
+  /* Native-only layout ratios and scales; SwiftUI reads them through native.json. */
+  --vzn-native-launcher-top-fraction: 0.22;
+  --vzn-native-launcher-height-fraction: 0.71;
+  --vzn-native-launcher-results-fraction: 0.5;
+  --vzn-native-skeleton-short-fraction: 0.4;
+  --vzn-native-quick-card-fraction: 0.6;
+  --vzn-native-inventory-fraction: 0.45;
+  --vzn-native-thermal-scale-max: 110;
+  --vzn-native-toast-seconds: 6;
   --vzn-titlebar-height: 40px;
   --vzn-titlebar-mac-controls-width: 80px;
   --vzn-chat-sidebar-width: 264px;

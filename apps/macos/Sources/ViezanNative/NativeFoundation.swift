@@ -470,7 +470,7 @@ struct NativeNavigation: View {
                     Image(nsImage: icon).resizable().scaledToFit()
                         .frame(width: metric("large") - metric("tight"), height: metric("large") - metric("tight")).accessibilityHidden(true)
                 }
-                if expanded { Text("viezan").font(.title3).fontWeight(.semibold); Spacer(minLength: 0) }
+                if expanded { Text("viezan").font(.vzn("titleScale", .semibold)).fontWeight(.semibold); Spacer(minLength: 0) }
                 if let close { ShellCloseButton(label: store.text("close"), focusOnAppear: true, action: close) }
             }.frame(height: metric("navControl")).padding(.horizontal, expanded ? metric("small") : 0)
             Button(action: commands) {
@@ -479,7 +479,7 @@ struct NativeNavigation: View {
                     if expanded {
                         Text(store.text("searchEverything")).lineLimit(1)
                         Spacer(minLength: metric("tight"))
-                        Text("⌘ K").font(.caption).accessibilityHidden(true)
+                        Text("⌘ K").font(.vzn("captionScale")).accessibilityHidden(true)
                     }
                 }.padding(.horizontal, expanded ? metric("gap") : 0)
                     .frame(maxWidth: .infinity).frame(height: metric("compactControl"))
@@ -496,7 +496,7 @@ struct NativeNavigation: View {
                     row("home", "house")
                     ForEach(workspaceItems.filter { store.moduleEnabled($0.0) }, id: \.0) { id, symbol in row(id, symbol) }
                     if expanded {
-                        Text(store.text("groupSystem").uppercased()).font(.caption).tracking(metric("hairline"))
+                        Text(store.text("groupSystem").uppercased()).font(.vzn("captionScale")).tracking(metric("hairline"))
                             .foregroundStyle(chromeColor("chrome-fg-soft", scheme))
                             .padding(.horizontal, metric("gap")).padding(.top, metric("gap")).padding(.bottom, metric("tight"))
                             .accessibilityAddTraits(.isHeader)
@@ -505,10 +505,45 @@ struct NativeNavigation: View {
                     row("settings", "slider.horizontal.3")
                 }
             }.frame(maxHeight: .infinity)
+            backgroundStrip
             if expanded { privacyFooter }
         }.padding(metric("small"))
             .foregroundStyle(chromeColor("chrome-fg", scheme)).background { ChromeSurface() }
             .accessibilityElement(children: .contain).accessibilityLabel(store.text("primaryNavigation"))
+    }
+    /// What keeps running behind the pages: fan control, global shortcuts, the Chrome bridge.
+    private var backgroundRows: [(route: String, text: String)] {
+        var rows: [(String, String)] = []
+        let monitor = store.thermalMonitor
+        if store.moduleEnabled("thermal"), monitor.controlling {
+            let profile = monitor.activeProfile.flatMap { id in monitor.profiles.first { $0.id == id } }
+            rows.append(("thermal", profile.map { store.text("fansProfile").replacingOccurrences(of: "{profile}", with: UUID(uuidString: $0.id) == nil ? store.text($0.name) : $0.name) } ?? store.text("fansCustom")))
+        }
+        let shortcuts = store.desktopIntegration.shortcuts.filter(\.enabled).count
+        if store.moduleEnabled("utilities"), shortcuts > 0 { rows.append(("utilities", store.text("hotkeys") + " · " + String(shortcuts))) }
+        if store.moduleEnabled("bridge"), store.extensionBridge.listening { rows.append(("everywhere", store.text("browserBridge"))) }
+        return rows.map { (route: $0.0, text: $0.1) }
+    }
+    @ViewBuilder private var backgroundStrip: some View {
+        let rows = backgroundRows
+        if !rows.isEmpty {
+            ChromeDivider().padding(.vertical, metric("tight"))
+            if expanded {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(store.text("backgroundRunning").uppercased()).font(.vzn("captionScale")).tracking(metric("hairline"))
+                        .foregroundStyle(chromeColor("chrome-fg-soft", scheme)).padding(.horizontal, metric("gap")).padding(.bottom, metric("tight")).accessibilityAddTraits(.isHeader)
+                    ForEach(rows, id: \.route) { row in
+                        Button { select(row.route) } label: {
+                            HStack(spacing: metric("small")) { StatusDot(tone: .ready); Text(row.text).lineLimit(1); Spacer(minLength: 0) }
+                                .font(.vzn("smallScale")).padding(.horizontal, metric("gap")).frame(height: metric("compactControl") - metric("tight")).contentShape(Rectangle())
+                        }.buttonStyle(.plain).foregroundStyle(chromeColor("chrome-fg-muted", scheme)).accessibilityIdentifier("background-" + row.route)
+                    }
+                }.accessibilityElement(children: .contain).accessibilityLabel(store.text("backgroundRunning"))
+            } else {
+                StatusDot(tone: .ready).frame(height: metric("compactControl")).frame(maxWidth: .infinity)
+                    .help(rows.map(\.text).joined(separator: "\n")).accessibilityLabel(store.text("backgroundRunning") + ": " + rows.map(\.text).joined(separator: ", "))
+            }
+        }
     }
     // Local-first reminder; data never leaves the device unless a provider is chosen.
     private var privacyFooter: some View {
@@ -525,10 +560,16 @@ struct NativeNavigation: View {
     private func row(_ id: String, _ symbol: String) -> some View {
         let implemented = ["home", "chat", "translate", "dictionary", "settings", "utilities", "everywhere", "thermal", "interpret", "apps"].contains(id)
         let enabled = implemented && (!store.loadBlocked || id == "settings")
+        // Settings carries the one shell-level warning: the chosen cloud provider has no key yet.
+        let missingKey = id == "settings" && store.providers.availability(store.session.model) == .missingKey
         return Button { select(id) } label: {
             HStack(spacing: metric("gap")) {
                 Image(systemName: symbol).symbolRenderingMode(.monochrome).imageScale(.medium).frame(width: metric("icon"))
-                if expanded { Text(store.text(id)).lineLimit(1); Spacer(minLength: 0) }
+                    .overlay(alignment: .topTrailing) { if missingKey && !expanded { StatusDot(tone: .failed).offset(x: metric("tight"), y: -metric("tight")) } }
+                if expanded {
+                    Text(store.text(id)).lineLimit(1); Spacer(minLength: 0)
+                    if missingKey { HStack(spacing: metric("tight")) { StatusDot(tone: .failed); Text(store.text("keyAbsent")).font(.vzn("captionScale")) }.foregroundStyle(chromeColor("chrome-fg-muted", scheme)) }
+                }
             }.padding(.horizontal, expanded ? metric("gap") : 0)
                 .frame(maxWidth: .infinity, alignment: expanded ? .leading : .center).frame(height: metric("compactControl"))
                 .contentShape(Rectangle())
@@ -537,7 +578,7 @@ struct NativeNavigation: View {
             .background(screen == id ? chromeColor("chrome-item-active", scheme) : enabled && hoveredItem == id ? chromeColor("chrome-item-hover", scheme) : .clear, in: RoundedRectangle(cornerRadius: metric("chromeItemRadius")))
             .overlay(RoundedRectangle(cornerRadius: metric("chromeItemRadius")).strokeBorder(screen == id ? chromeColor("material-highlight", scheme) : .clear, lineWidth: metric("hairline")))
             .onHover { hoveredItem = $0 && enabled ? id : nil }
-            .accessibilityLabel(store.text(id)).accessibilityIdentifier("nav-" + id)
+            .accessibilityLabel(store.text(id) + (missingKey ? ": " + store.text("keyAbsent") : "")).accessibilityIdentifier("nav-" + id)
             .accessibilityAddTraits(screen == id ? .isSelected : []).disabled(!enabled)
             .help(implemented ? store.text(id) : store.text(id) + " — " + store.text("shellUnavailable"))
     }
@@ -550,7 +591,22 @@ enum CommandSelection {
     }
 }
 
+/// What a palette query means beyond page names: a sum, a `t `/`d ` prefix, or a `?` question.
+enum PaletteQuery: Equatable {
+    case calculation(String), translate(String), lookup(String), ask(String)
+    static func parse(_ raw: String) -> PaletteQuery? {
+        let query = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return nil }
+        if let value = LauncherCalculator.evaluate(query) { return .calculation(value) }
+        if query.hasPrefix("?") { let text = query.drop(while: { $0 == "?" }).trimmingCharacters(in: .whitespaces); return text.isEmpty ? nil : .ask(text) }
+        if raw.lowercased().hasPrefix("t ") { let text = raw.dropFirst(2).trimmingCharacters(in: .whitespacesAndNewlines); return text.isEmpty ? nil : .translate(text) }
+        if raw.lowercased().hasPrefix("d ") { let text = raw.dropFirst(2).trimmingCharacters(in: .whitespacesAndNewlines); return text.isEmpty ? nil : .lookup(text) }
+        return nil
+    }
+}
+
 struct NativeCommands: View {
+    @Environment(\.colorScheme) private var scheme
     @Bindable var store: WorkbenchStore
     var historyAvailable = true
     var availableHeight: CGFloat
@@ -561,15 +617,42 @@ struct NativeCommands: View {
     @State private var index = 0
     @State private var searchFocusEpoch = 0
     @State private var closeFocusEpoch = 0
-    private var entries: [NativeResources.CommandItem] {
-        nativeResources.matchingCommands(query: query, locale: store.workspace.locale).filter { (!store.loadBlocked || ["settings", "activity"].contains($0.id)) && (historyAvailable || $0.id != "history") }
+    private struct Entry: Identifiable { let id: String; let title: String; let symbol: String; let shortcut: String; let run: () -> Void }
+    private var entries: [Entry] {
+        var rows: [Entry] = []
+        // Calculator, Ask AI and the t / d prefixes come first; page commands follow.
+        let special = PaletteQuery.parse(query)
+        if let special, !store.loadBlocked {
+            switch special {
+            case .calculation(let value):
+                rows.append(Entry(id: "calc", title: store.text("paletteCalc").replacingOccurrences(of: "{result}", with: value), symbol: "equal.circle", shortcut: "") {
+                    NSPasteboard.general.clearContents(); NSPasteboard.general.setString(value, forType: .string); dismiss()
+                })
+            case .ask(let text):
+                rows.append(Entry(id: "ask", title: store.text("paletteAsk").replacingOccurrences(of: "{query}", with: text), symbol: "sparkles", shortcut: "") { start(.chat, text: text) })
+            case .translate(let text):
+                if store.moduleEnabled("translate") { rows.append(Entry(id: "translate-text", title: store.text("paletteTranslate").replacingOccurrences(of: "{text}", with: text), symbol: "translate", shortcut: "") { start(.translate, text: text) }) }
+            case .lookup(let text):
+                if store.moduleEnabled("dictionary") { rows.append(Entry(id: "lookup-text", title: store.text("paletteLookup").replacingOccurrences(of: "{text}", with: text), symbol: "book", shortcut: "") { start(.dictionary, text: text) }) }
+            }
+        }
+        for item in nativeResources.matchingCommands(query: special == nil ? query : "", locale: store.workspace.locale) where store.moduleEnabled(item.id) && (!store.loadBlocked || ["settings", "activity"].contains(item.id)) && (historyAvailable || item.id != "history") {
+            rows.append(Entry(id: item.id, title: store.text(item.title), symbol: item.systemImage, shortcut: item.shortcut) { execute(item.id) })
+        }
+        return rows
+    }
+    /// A new session of that feature with the text sent at once; the page opens on it.
+    private func start(_ feature: Feature, text: String) {
+        guard store.moduleEnabled(feature.rawValue) else { return }
+        store.navigate(feature); store.newSession(); let id = store.session.id
+        store.setDraft(id, text); store.submit(id); execute(feature.rawValue)
     }
     private func move(_ offset: Int) { index = CommandSelection.moved(index, by: offset, count: entries.count) }
-    private func open() { if entries.indices.contains(index) { execute(entries[index].id) } }
+    private func open() { if entries.indices.contains(index) { entries[index].run() } }
     var body: some View {
         VStack(alignment: .leading, spacing: metric("inset")) {
             HStack {
-                Text(store.text("commands")).font(.headline)
+                Text(store.text("commands")).font(.vzn("labelScale", .semibold))
                 Spacer()
                 ShellToolbarButton(label: store.text("close"), symbol: "xmark", identifier: "panel-close", focusEpoch: closeFocusEpoch, onTab: { _ in searchFocusEpoch += 1 }, action: dismiss)
                     .frame(width: metric("control"), height: metric("control"))
@@ -581,20 +664,20 @@ struct NativeCommands: View {
                     ScrollView {
                         VStack(spacing: metric("tight")) {
                             ForEach(Array(entries.enumerated()), id: \.element.id) { offset, item in
-                                Button { execute(item.id) } label: {
+                                Button { item.run() } label: {
                                     HStack {
-                                        Label(store.text(item.title), systemImage: item.systemImage).lineLimit(1)
+                                        Label(item.title, systemImage: item.symbol).lineLimit(1)
                                         Spacer()
                                         if !item.shortcut.isEmpty {
-                                            Text("⌘" + item.shortcut.replacingOccurrences(of: "Shift+", with: "⇧")).font(.caption).foregroundStyle(.secondary).fixedSize()
+                                            Text("⌘" + item.shortcut.replacingOccurrences(of: "Shift+", with: "⇧")).font(.vzn("captionScale")).foregroundStyle(.secondary).fixedSize()
                                         }
                                     }.padding(.horizontal, metric("small")).frame(maxWidth: .infinity, alignment: .leading)
                                         .frame(height: metric("compactControl")).contentShape(Rectangle())
                                 }.buttonStyle(.plain).focusable(false)
-                                    .foregroundStyle(offset == index ? Color.accentColor : Color.primary)
+                                    .foregroundStyle(offset == index ? contentColor("action-text", scheme) : Color.primary)
                                     .onHover { if $0 { index = offset } }
-                                    .help(store.text(item.title))
-                                    .background(offset == index ? Color.accentColor.opacity(metric("selectionOpacity")) : Color.clear, in: RoundedRectangle(cornerRadius: metric("radius")))
+                                    .help(item.title)
+                                    .background(offset == index ? contentColor("action-soft", scheme) : Color.clear, in: RoundedRectangle(cornerRadius: metric("radius")))
                                     .accessibilityAddTraits(offset == index ? .isSelected : []).id(item.id)
                             }
                         }.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }

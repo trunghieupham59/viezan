@@ -35,13 +35,17 @@ public enum Attachments {
         defer { if accessing { source.stopAccessingSecurityScopedResource() } }
         let size = try source.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard size > 0, size <= 20_000_000 else { throw ProviderFailure.oversizedResponse }
-        let data = try Data(contentsOf: source)
-        guard data.count <= 20_000_000, let image = CGImageSourceCreateWithData(data as CFData, nil), let type = CGImageSourceGetType(image),
+        return try ingest(try Data(contentsOf: source), name: source.lastPathComponent)
+    }
+    /// Pasted or dropped image bytes: the same limits and formats as a picked file.
+    public static func ingest(_ data: Data, name: String) throws -> ImageAttachment {
+        guard !data.isEmpty, data.count <= 20_000_000 else { throw ProviderFailure.oversizedResponse }
+        guard let image = CGImageSourceCreateWithData(data as CFData, nil), let type = CGImageSourceGetType(image),
               let mime = UTType(type as String)?.preferredMIMEType, ["image/jpeg", "image/png", "image/webp", "image/gif"].contains(mime),
               let properties = CGImageSourceCopyPropertiesAtIndex(image, 0, nil) as? [CFString: Any],
               let width = properties[kCGImagePropertyPixelWidth] as? Int, let height = properties[kCGImagePropertyPixelHeight] as? Int,
               width > 0, height > 0, Double(width) * Double(height) <= 40_000_000 else { throw ProviderFailure.invalidResponse }
-        let attachment = ImageAttachment(id: UUID().uuidString, name: source.lastPathComponent, mime: mime)
+        let attachment = ImageAttachment(id: UUID().uuidString, name: name, mime: mime)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let destination = directory.appendingPathComponent(attachment.id)
         try data.write(to: destination, options: .atomic)

@@ -52,7 +52,8 @@ struct DesktopWorkspace: View {
     }
     @ViewBuilder private var secondary: some View {
         if route == "everywhere" {
-            // Illustrative preview of the quick translate window; actions stay real.
+            // Illustrative preview of the quick translate window. The sample text is never
+            // copied or seeded into a session; the only action opens the real Translate page.
             VStack(alignment: .leading, spacing: metric("gap")) {
                 Eyebrow(text: store.text("quickPreview"))
                 VStack(alignment: .leading, spacing: metric("gap")) {
@@ -61,12 +62,8 @@ struct DesktopWorkspace: View {
                     Text(store.text("previewTranslated")).font(.vzn("titleScale", .bold)).fixedSize(horizontal: false, vertical: true)
                     Text(nativeModelLabel(store.session.model, store: store)).font(.vzn("smallScale")).foregroundStyle(.secondary)
                     HStack(spacing: metric("small")) {
-                        Button(store.text("openInTranslate")) {
-                            let id = store.createDetachedSession(feature: .translate, draft: store.text("previewSource")); store.select(id); store.setRoute("translate")
-                        }.buttonStyle(.vznPrimary)
-                        Button(store.text("copy"), systemImage: "doc.on.doc") {
-                            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(store.text("previewTranslated"), forType: .string)
-                        }.buttonStyle(.vznQuiet)
+                        Button(store.text("openInTranslate")) { NotificationCenter.default.post(name: .viezanOpenRoute, object: "translate") }
+                            .buttonStyle(.vznOutline).disabled(!store.moduleEnabled("translate"))
                     }
                 }.padding(metric("gutter")).frame(maxWidth: .infinity, alignment: .leading)
                     .background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("largeRadius")))

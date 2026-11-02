@@ -1,6 +1,7 @@
 import SwiftUI
 import ViezanDomain
 struct BridgeSettings: View {
+    @Environment(\.colorScheme) private var scheme
     @Bindable var store: WorkbenchStore
     /// Settings shows the same text as its page subtitle; the Everywhere sheet needs it here.
     var showsDescription = true
@@ -13,7 +14,7 @@ struct BridgeSettings: View {
     var body: some View {
         let bridge = store.extensionBridge
         VStack(alignment: .leading, spacing: metric("small")) {
-            if showsDescription { Text(store.text("bridgeDescription")).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            if showsDescription { Text(store.text("bridgeDescription")).font(.vzn("smallScale")).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
             CardRow(title: store.text("bridgeServer"), detail: "127.0.0.1:39875 · " + nativeModelLabel(store.session.model, store: store)) {
                 StatusBadge(text: store.text(bridge.listening ? "enabled" : "stopped"), tone: bridge.listening ? .ready : .idle)
                 Button(store.text(bridge.listening ? "stop" : "startBridge")) { if bridge.listening { bridge.stop() } else { bridge.model = store.session.model; bridge.start() } }
@@ -21,16 +22,16 @@ struct BridgeSettings: View {
             }
             Toggle(store.text("bridgeAutomatic"), isOn: $automatic)
             Text(store.text("bridgeOrigins")).fontWeight(.medium)
-            TextEditor(text: $origins).font(.callout).frame(minHeight: metric("control") * 2, maxHeight: metric("control") * 3)
+            TextEditor(text: $origins).font(.vzn("smallScale")).frame(minHeight: metric("control") * 2, maxHeight: metric("control") * 3)
                 .scrollContentBackground(.hidden).padding(metric("tight"))
-                .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
+                .background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
                 .overlay(RoundedRectangle(cornerRadius: metric("controlRadius")).strokeBorder(Color(nsColor: .separatorColor), lineWidth: metric("hairline")))
                 .accessibilityLabel(store.text("bridgeOrigins"))
-            Text(store.text("bridgeOriginsHint")).font(.caption).foregroundStyle(.secondary)
+            Text(store.text("bridgeOriginsHint")).font(.vzn("captionScale")).foregroundStyle(.secondary)
             Button(store.text("apply")) {
                 invalidOrigins = !store.setBridge(automatic: automatic, origins: origins.split(whereSeparator: \.isNewline).map(String.init).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty })
             }
-            if invalidOrigins { Text(store.text("bridgeOriginsInvalid")).foregroundStyle(.red) }
+            if invalidOrigins { Text(store.text("bridgeOriginsInvalid")).foregroundStyle(contentColor("danger", scheme)) }
             Divider().padding(.vertical, metric("tight"))
             HStack(spacing: metric("small")) {
                 TextField(store.text("tokenName"), text: $name).textFieldStyle(.roundedBorder)
@@ -45,7 +46,7 @@ struct BridgeSettings: View {
             }
             ForEach(bridge.tokens) { token in
                 HStack {
-                    VStack(alignment: .leading) { Text(token.name); Text(Date(timeIntervalSince1970: token.expiresAt), style: .date).font(.caption) }
+                    VStack(alignment: .leading) { Text(token.name); Text(Date(timeIntervalSince1970: token.expiresAt), style: .date).font(.vzn("captionScale")) }
                     Spacer()
                     Button(store.text("revokeToken"), role: .destructive) { revokeID = token.id }
                 }

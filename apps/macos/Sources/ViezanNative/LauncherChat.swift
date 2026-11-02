@@ -166,14 +166,14 @@ struct LauncherChatView: View {
                     Label(t("quickThinking"), systemImage: "sparkles").font(.vzn("smallScale")).foregroundStyle(.secondary)
                     ForEach(0..<3, id: \.self) { line in
                         RoundedRectangle(cornerRadius: metric("tight")).fill(contentColor("surface-muted", scheme))
-                            .frame(height: metric("gap")).frame(maxWidth: line == 2 ? metric("reading") * 0.4 : .infinity)
+                            .frame(height: metric("gap")).frame(maxWidth: line == 2 ? metric("reading") * metric("skeletonShort") : .infinity)
                     }
                 } else if !answer.isEmpty {
                     TranscriptText(text: answer, font: readingNSFont(store), label: t("response"), markdown: task?.status != .running, resetSelection: 0) { _ in }
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 if let task, [.failed, .interrupted].contains(task.status) {
-                    TaskStatusText(store: store, task: task).font(.callout)
+                    TaskStatusText(store: store, task: task).font(.vzn("smallScale"))
                         .padding(metric("small")).frame(maxWidth: .infinity, alignment: .leading)
                         .background(contentColor("danger", scheme).opacity(metric("selectionOpacity")), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
                 }

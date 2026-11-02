@@ -5,7 +5,7 @@ struct NativeChart: View {
     let artifact: ChartArtifact
     var body: some View {
         VStack(alignment: .leading, spacing: metric("small")) {
-            if !artifact.title.isEmpty { Text(artifact.title).font(.headline) }
+            if !artifact.title.isEmpty { Text(artifact.title).font(.vzn("labelScale", .semibold)) }
             Chart(artifact.points) { point in
                 if artifact.type == "pie" {
                     SectorMark(angle: .value(point.label, point.value)).foregroundStyle(by: .value("", point.label)).accessibilityLabel(point.label).accessibilityValue(String(point.value))

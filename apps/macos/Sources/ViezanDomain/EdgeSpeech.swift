@@ -6,8 +6,10 @@ import CryptoKit
 public enum EdgeSpeech {
     private static let publicClient = "6A5AA1D4EAFF4E9FB37E23D68491D6F4"
     public static let voices = ["vi": "vi-VN-HoaiMyNeural", "en": "en-US-JennyNeural", "zh": "zh-CN-XiaoxiaoNeural", "zh-TW": "zh-TW-HsiaoChenNeural", "ja": "ja-JP-NanamiNeural", "ko": "ko-KR-SunHiNeural", "fr": "fr-FR-DeniseNeural", "de": "de-DE-KatjaNeural", "es": "es-ES-ElviraNeural", "pt": "pt-PT-RaquelNeural", "ru": "ru-RU-SvetlanaNeural", "ar": "ar-SA-ZariyahNeural", "th": "th-TH-PremwadeeNeural", "id": "id-ID-GadisNeural", "it": "it-IT-ElsaNeural", "nl": "nl-NL-ColetteNeural", "pl": "pl-PL-ZofiaNeural", "tr": "tr-TR-EmelNeural", "hi": "hi-IN-SwaraNeural"]
-    public static func audio(_ text: String, language: String, voice: String) async throws -> Data {
-        guard !text.isEmpty, text.count <= 5000 else { throw CloudFailure.invalidResponse }
+    public static func audio(_ text: String, language: String, voice: String, rate: Double = 1) async throws -> Data {
+        guard !text.isEmpty, text.count <= 5000, (0.5...2).contains(rate) else { throw CloudFailure.invalidResponse }
+        // Edge's default reads slow; +20% is the baseline the app has always used, scaled by the user's rate.
+        let prosodyRate = String(format: "%+d%%", Int((rate * 120).rounded()) - 100)
         let selected = voice.isEmpty ? (voices[language] ?? voices["en"]!) : voice
         guard selected.range(of: "^[A-Za-z]{2,3}-[A-Za-z]{2,4}-[A-Za-z0-9-]{1,80}$", options: .regularExpression) != nil else { throw CloudFailure.invalidResponse }
         let now = Int64(Date().timeIntervalSince1970) + 11_644_473_600, ticks = (now - now % 300) * 10_000_000
@@ -31,7 +33,7 @@ public enum EdgeSpeech {
                     try await socket.send(.string("X-Timestamp:\(timestamp)\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n" + body))
                     let escaped = text.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;").replacingOccurrences(of: "\"", with: "&quot;")
                     let xmlLanguage = selected.split(separator: "-").prefix(2).joined(separator: "-")
-                    let ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='\(xmlLanguage)'><voice name='\(selected)'><prosody pitch='+0Hz' rate='+20%' volume='+0%'>\(escaped)</prosody></voice></speak>"
+                    let ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='\(xmlLanguage)'><voice name='\(selected)'><prosody pitch='+0Hz' rate='\(prosodyRate)' volume='+0%'>\(escaped)</prosody></voice></speak>"
                     try await socket.send(.string("X-RequestId:\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:\(timestamp)Z\r\nPath:ssml\r\n\r\n" + ssml))
                     var result = Data()
                     while true {

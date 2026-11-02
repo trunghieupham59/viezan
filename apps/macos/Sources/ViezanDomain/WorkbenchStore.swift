@@ -24,6 +24,17 @@ import Observation
         set { guard ["auto", "openai", "groq", "gemini"].contains(newValue), !loadBlocked else { return }; workspace.speechProvider = newValue; save() }
     }
     public private(set) var pendingTranscript: String?
+    /// A fresh turn replaced completed work after a break; the previous session stays one click away.
+    public struct ResetNotice: Equatable, Sendable { public let feature: Feature; public let previousID: String }
+    public private(set) var resetNotice: ResetNotice?
+    /// Wall-clock seconds; tests replace it to simulate a break.
+    @ObservationIgnored public var clock: () -> Double = { Date().timeIntervalSince1970 }
+    /// Break after which a completed Translate turn starts fresh (2 hours) or a Dictionary lookup does (30 minutes).
+    public static let resetAfter: [Feature: Double] = [.translate: 7200, .dictionary: 1800]
+    public var smartReset: Bool {
+        get { workspace.smartReset ?? true }
+        set { guard !loadBlocked else { return }; workspace.smartReset = newValue; save() }
+    }
     @ObservationIgnored private var recordingRevision: Int?
     public private(set) var storageError: String?
     public private(set) var recovered = false
@@ -49,10 +60,22 @@ import Observation
         self.persistence = persistence; self.automaticProvider = automaticProvider
         self.listModels = listModels; self.hasKey = hasKey
         reload(); extensionBridge.model = session.model; if workspace.bridge?.automatic == true && moduleEnabled("bridge") { extensionBridge.start() }
+        // Quitting recorded when the current feature was left; reopening applies the same rule.
+        applySmartReset(workspace.feature)
+        if automaticProvider { scheduleUpdateCheck() }
     }
     public func moduleEnabled(_ route: String) -> Bool { !(workspace.disabledModules ?? []).contains(route == "everywhere" ? "translate" : route) }
+    /// Pages of the workspace (one must stay on) and the two system services.
+    public static let workspaceModules = ["chat", "translate", "interpret", "dictionary", "thermal", "apps"]
+    public static let systemModules = ["utilities", "bridge"]
+    /// The one workspace module still enabled; it cannot be switched off.
+    public var lockedModule: String? {
+        let enabled = Self.workspaceModules.filter(moduleEnabled)
+        return enabled.count == 1 ? enabled[0] : nil
+    }
     public func setModule(_ module: String, enabled: Bool) {
-        guard !loadBlocked, ["chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities", "bridge"].contains(module) else { return }
+        guard !loadBlocked, (Self.workspaceModules + Self.systemModules).contains(module) else { return }
+        if !enabled, lockedModule == module { return }
         var disabled = Set(workspace.disabledModules ?? []); if enabled { disabled.remove(module) } else { disabled.insert(module) }
         workspace.disabledModules = disabled.sorted()
         if !enabled {
@@ -79,7 +102,36 @@ import Observation
     }
     public func session(_ id: String) -> Session? { workspace.sessions.first { $0.id == id } }
     public func running(_ id: String) -> WorkTask? { workspace.tasks.first { $0.request.sessionID == id && $0.status == .running } }
-    public func navigate(_ feature: Feature) { guard moduleEnabled(feature.rawValue) else { return }; workspace.feature = feature; save() }
+    public func navigate(_ feature: Feature) {
+        guard moduleEnabled(feature.rawValue) else { return }
+        if workspace.feature != feature { markLeft(workspace.feature) }
+        workspace.feature = feature; applySmartReset(feature); save()
+    }
+    private func markLeft(_ feature: Feature) {
+        var left = workspace.featureLeft ?? [:]; left[feature.rawValue] = clock(); workspace.featureLeft = left
+    }
+    /// Returning after the feature's break with completed, saved work opens a new turn and remembers the old one.
+    /// Drafts, running work and unfinished turns are never replaced.
+    public func applySmartReset(_ feature: Feature) {
+        guard !loadBlocked, smartReset, let after = Self.resetAfter[feature], let left = workspace.featureLeft?[feature.rawValue] else { return }
+        var leftTimes = workspace.featureLeft ?? [:]; leftTimes.removeValue(forKey: feature.rawValue); workspace.featureLeft = leftTimes
+        guard clock() - left >= after, let activeID = workspace.active[feature.rawValue], let active = session(activeID),
+              !active.output.isEmpty, running(activeID) == nil, workspace.tasks.first(where: { $0.request.sessionID == activeID })?.status != .interrupted else { return }
+        var item = Session(feature: feature); if let preferredModel { item.model = preferredModel }
+        item.source = active.source; item.target = active.target
+        workspace.sessions.insert(item, at: 0); workspace.active[feature.rawValue] = item.id
+        resetNotice = ResetNotice(feature: feature, previousID: activeID)
+    }
+    public func reopenPrevious() {
+        guard let notice = resetNotice else { return }
+        resetNotice = nil
+        // The empty replacement turn leaves with the notice; the previous work becomes active again.
+        if let fresh = workspace.active[notice.feature.rawValue], let item = session(fresh), item.draft.isEmpty, item.output.isEmpty, item.messages.isEmpty {
+            workspace.sessions.removeAll { $0.id == fresh }
+        }
+        select(notice.previousID)
+    }
+    public func dismissResetNotice() { resetNotice = nil }
     public func setRoute(_ route: String) {
         guard !loadBlocked, ["home", "chat", "translate", "dictionary", "settings", "utilities", "everywhere", "thermal", "interpret", "apps"].contains(route) else { return }
         var shell = workspace.shell ?? ShellPreferences()
@@ -94,6 +146,7 @@ import Observation
     }
     public func select(_ id: String) {
         guard let session = session(id), moduleEnabled(session.feature.rawValue), session.archived != true else { return }
+        if resetNotice?.feature == session.feature { resetNotice = nil }
         workspace.feature = session.feature; workspace.active[session.feature.rawValue] = id; save()
     }
     public func importBackup(_ preview: BackupPreview, restorePreferences: Bool = false) throws {
@@ -176,6 +229,7 @@ import Observation
     }
     public func newSession() {
         guard !loadBlocked else { return }
+        if resetNotice?.feature == workspace.feature { resetNotice = nil }
         var item = Session(feature: workspace.feature)
         if let preferredModel { item.model = preferredModel }
         workspace.sessions.insert(item, at: 0); workspace.active[item.feature.rawValue] = item.id; save()
@@ -264,6 +318,14 @@ import Observation
         else { workspace.prompts?.append(SavedPrompt(name: name, text: text)) }; save()
     }
     public func deletePrompt(_ id: String) { guard !loadBlocked else { return }; workspace.prompts?.removeAll { $0.id == id }; save() }
+    public var menuBarTemperature: Bool {
+        get { workspace.menuBarTemperature ?? true }
+        set { guard !loadBlocked else { return }; workspace.menuBarTemperature = newValue; save() }
+    }
+    public var compareBySentence: Bool {
+        get { workspace.compareBySentence ?? false }
+        set { guard !loadBlocked else { return }; workspace.compareBySentence = newValue; save() }
+    }
     public func comparisons(_ id: String) -> [Session] { workspace.sessions.filter { $0.comparisonParent == id } }
     private func cancelComparisons(_ id: String) { for item in comparisons(id) { if let task = running(item.id) { cancel(task.id) } } }
     public func compare(_ id: String, models: [String]) {
@@ -338,15 +400,53 @@ import Observation
         extensionBridge.stop(); workspace.bridge = value; extensionBridge.allowedOrigins = value.origins; save()
         if restart { extensionBridge.start() }; return true
     }
-    public func setVoice(provider: String, voice: String) {
-        let value = VoicePreferences(provider: provider, voice: voice)
+    public func setVoice(provider: String, voice: String, rate: Double? = nil) {
+        let value = VoicePreferences(provider: provider, voice: voice, rate: rate ?? workspace.voice?.rate)
         guard !loadBlocked, value.valid else { return }; workspace.voice = value; applyVoice(); save()
+    }
+    // Updates: a background check at launch and daily; the prompt only for a version not snoozed.
+    public private(set) var updatePrompt: NativeRelease?
+    @ObservationIgnored private var updateTimer: Task<Void, Never>?
+    public var autoCheckUpdates: Bool {
+        get { workspace.updates?.autoCheck ?? true }
+        set { guard !loadBlocked else { return }; var value = workspace.updates ?? UpdatePreferences(); value.autoCheck = newValue; workspace.updates = value; save() }
+    }
+    public func updateSnoozed(_ version: String) -> Bool {
+        guard let value = workspace.updates, value.snoozedVersion == version, let until = value.snoozedUntil else { return false }
+        return clock() < until
+    }
+    /// "Remind me in 24 hours": the prompt leaves and this version stays quiet for a day.
+    public func snoozeUpdate() {
+        guard let release = updatePrompt else { return }
+        var value = workspace.updates ?? UpdatePreferences(); value.snoozedVersion = release.version; value.snoozedUntil = clock() + 86_400
+        workspace.updates = value; updatePrompt = nil; save()
+    }
+    public func dismissUpdatePrompt() { updatePrompt = nil }
+    /// Shows the prompt when a check (background or manual) found a version that is not snoozed.
+    public func presentUpdateIfAvailable() {
+        guard let release = updates.release, !updateSnoozed(release.version) else { return }
+        updatePrompt = release
+    }
+    func scheduleUpdateCheck() {
+        updateTimer?.cancel()
+        updateTimer = Task { [weak self] in
+            // A minute after launch, then once a day; never while another check or download runs.
+            var delay: Duration = .seconds(60)
+            while !Task.isCancelled {
+                try? await Task.sleep(for: delay); guard !Task.isCancelled, let self else { return }
+                delay = .seconds(86_400)
+                guard self.autoCheckUpdates, !self.updates.busy else { continue }
+                self.updates.check()
+                while self.updates.busy { try? await Task.sleep(for: .milliseconds(500)); if Task.isCancelled { return } }
+                self.presentUpdateIfAvailable()
+            }
+        }
     }
     private func applyVoice() {
         extensionBridge.enabled = moduleEnabled("bridge")
         let value = workspace.voice ?? VoicePreferences(); extensionBridge.voice = value; extensionBridge.allowedOrigins = workspace.bridge?.origins ?? []
-        for playback in [audio, interpretation.playback] where playback.voiceProvider != value.provider || playback.voiceID != value.voice {
-            playback.stopSpeaking(); playback.voiceProvider = value.provider; playback.voiceID = value.voice
+        for playback in [audio, interpretation.playback] where playback.voiceProvider != value.provider || playback.voiceID != value.voice || playback.voiceRate != value.rate ?? 1 {
+            playback.stopSpeaking(); playback.voiceProvider = value.provider; playback.voiceID = value.voice; playback.voiceRate = value.rate ?? 1
         }
     }
     public func setRuntime(parallel: Int, context: Int) {
@@ -630,10 +730,12 @@ import Observation
     }
     public func shutdown() {
         autoTranslationRequest?.cancel(); autoTranslationRequest = nil
+        updateTimer?.cancel(); updateTimer = nil
         localPerformance.cancel(); updates.cancel(); localRuntime.stop(); interpretation.cancel(); thermalMonitor.stop(); desktopIntegration.shutdown(); extensionBridge.stop(); modelManager.cancel(); audio.cancel()
         for worker in workers.values { worker.cancel() }
         workers.removeAll()
         for index in workspace.tasks.indices where workspace.tasks[index].status == .running { workspace.tasks[index].status = .interrupted }
+        markLeft(workspace.feature)
         save()
     }
 }

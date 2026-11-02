@@ -1,4 +1,7 @@
 import Foundation
+import CoreGraphics
+import ImageIO
+import UniformTypeIdentifiers
 import Testing
 @testable import ViezanDomain
 
@@ -574,4 +577,104 @@ import Testing
     #expect(store.running(id)?.id == second.id)
     #expect(store.session.messages.last?.text == "")
     #expect(store.session.messages.map(\.text).prefix(3) == ["First", "One", "Second"])
+}
+
+@Test @MainActor func smartResetOpensAFreshTurnAfterTheBreakAndKeepsThePreviousOneReachable() throws {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
+    var now: Double = 1_000_000
+    store.clock = { now }
+    store.navigate(.translate)
+    let finished = store.session.id
+    store.setDraft(finished, "Good evening")
+    let task = try #require(store.submit(finished))
+    store.receive(taskID: task.id, attemptID: task.attemptID, chunk: "Chào buổi tối", terminal: .succeeded)
+    // A short break keeps the completed turn.
+    store.navigate(.chat); now += 600; store.navigate(.translate)
+    #expect(store.session.id == finished)
+    #expect(store.resetNotice == nil)
+    // Two hours away: a fresh turn with the same pair, the old one one click away.
+    store.navigate(.chat); now += WorkbenchStore.resetAfter[.translate]!; store.navigate(.translate)
+    #expect(store.session.id != finished)
+    #expect(store.session.output.isEmpty && store.session.draft.isEmpty)
+    #expect(store.resetNotice == WorkbenchStore.ResetNotice(feature: .translate, previousID: finished))
+    store.reopenPrevious()
+    #expect(store.session.id == finished)
+    #expect(store.resetNotice == nil)
+    #expect(store.workspace.sessions.filter { $0.feature == .translate }.count == 1)
+    // Drafts are never replaced, and the switch turns the rule off.
+    store.setDraft(finished, "Good evening again")
+    store.navigate(.chat); now += 10_000; store.navigate(.translate)
+    #expect(store.session.id == finished)
+    store.smartReset = false
+    let dictionary = store.workspace.sessions.first { $0.feature == .dictionary }!.id
+    store.setDraft(dictionary, "serendipity"); store.navigate(.dictionary)
+    let lookup = try #require(store.submit(dictionary))
+    store.receive(taskID: lookup.id, attemptID: lookup.attemptID, chunk: "sự tình cờ may mắn", terminal: .succeeded)
+    store.navigate(.chat); now += 10_000; store.navigate(.dictionary)
+    #expect(store.session.id == dictionary)
+}
+
+@Test func shortcutKeyNamesRoundTripThroughTheRegistryFormat() {
+    #expect(DesktopIntegration.keyName(code: 17) == "T")
+    #expect(DesktopIntegration.keyName(code: 49) == "Space")
+    #expect(DesktopIntegration.keyName(code: 53) == nil)
+    #expect(DesktopIntegration.isValid("Option+T"))
+    #expect(DesktopIntegration.isValid("Control+Option+Space"))
+    #expect(!DesktopIntegration.isValid("Shift+T"))
+    #expect(!DesktopIntegration.isValid("T"))
+    #expect(DesktopIntegration.defaults["launcher"] == "Option+Space")
+}
+
+@Test @MainActor func updateSnoozeHidesTheVersionForADayAndVoiceRateStaysWithinBounds() {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
+    var now: Double = 5_000_000
+    store.clock = { now }
+    #expect(store.autoCheckUpdates)
+    store.autoCheckUpdates = false
+    #expect(!store.autoCheckUpdates)
+    #expect(!store.updateSnoozed("9.9.9"))
+    // No prompt means nothing to snooze; the preference stays untouched.
+    store.snoozeUpdate()
+    #expect(store.workspace.updates?.snoozedVersion == nil)
+    store.setVoice(provider: "edge", voice: "", rate: 1.25)
+    #expect(store.workspace.voice?.rate == 1.25)
+    #expect(store.audio.voiceRate == 1.25)
+    store.setVoice(provider: "system", voice: "")
+    #expect(store.workspace.voice?.rate == 1.25)
+    store.setVoice(provider: "system", voice: "", rate: 9)
+    #expect(store.workspace.voice?.rate == 1.25)
+    #expect(!VoicePreferences(provider: "openai", voice: "nova", rate: 0.1).valid)
+    #expect(VoicePreferences(provider: "openai", voice: "nova", rate: 1.5).valid)
+}
+
+@Test func pastedImageBytesIngestLikeAFileAndRejectNonImages() throws {
+    let context = CGContext(data: nil, width: 4, height: 4, bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+    context.setFillColor(CGColor(red: 0, green: 0.5, blue: 1, alpha: 1)); context.fill(CGRect(x: 0, y: 0, width: 4, height: 4))
+    let png = NSMutableData()
+    let destination = CGImageDestinationCreateWithData(png, UTType.png.identifier as CFString, 1, nil)!
+    CGImageDestinationAddImage(destination, context.makeImage()!, nil); #expect(CGImageDestinationFinalize(destination))
+    let attachment = try Attachments.ingest(png as Data, name: "pasted-image.png")
+    // Ingest writes into the real attachment store; leave nothing behind.
+    defer { try? FileManager.default.removeItem(at: FilePersistence.previewURL().deletingLastPathComponent().appendingPathComponent("attachments").appendingPathComponent(attachment.id)) }
+    #expect(attachment.mime == "image/png")
+    #expect(attachment.name == "pasted-image.png")
+    #expect(try Attachments.data(attachment).count == png.length)
+    #expect(throws: (any Error).self) { try Attachments.ingest(Data("not an image".utf8), name: "x.png") }
+    #expect(throws: (any Error).self) { try Attachments.ingest(Data(), name: "empty.png") }
+}
+
+@Test @MainActor func theLastWorkspaceModuleStaysOnAndSentenceComparisonIsRemembered() {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
+    #expect(store.lockedModule == nil)
+    for module in WorkbenchStore.workspaceModules where module != "translate" { store.setModule(module, enabled: false) }
+    #expect(store.lockedModule == "translate")
+    store.setModule("translate", enabled: false)
+    #expect(store.moduleEnabled("translate"))
+    store.setModule("chat", enabled: true)
+    #expect(store.lockedModule == nil)
+    store.setModule("translate", enabled: false)
+    #expect(!store.moduleEnabled("translate"))
+    #expect(!store.compareBySentence)
+    store.compareBySentence = true
+    #expect(store.workspace.compareBySentence == true)
 }

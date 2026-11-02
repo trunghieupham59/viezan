@@ -15,8 +15,12 @@ can copy the pattern instead of inventing one.
 ## Sources of truth
 
 - Precedence when sources disagree: `src/styles/tokens.css` (values) →
-  `AGENTS.md` (rules) → `docs/design/foundations.md` → the screen spec in
-  `docs/design/screens/*.md` → the boards in `docs/design/boards/`.
+  `AGENTS.md` (rules) → `docs/design/foundations.md` →
+  `docs/design/direction.md` (the single native direction, "Quiet Workbench",
+  with its Claude Design canvas) → the screen spec in
+  `docs/design/screens/*.md` → the Review 18 prototype in
+  `docs/migration/desktop-review/`. The boards in `docs/design/boards/`, the
+  macOS 27 review and the Figma file are historical reference only.
 - Boards are mocks. Their Inter / JetBrains Mono fonts and literal colours are
   not requirements; the specs and tokens are.
 - Before changing a screen, read its spec. When behaviour changes, update the

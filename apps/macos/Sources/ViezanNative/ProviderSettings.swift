@@ -1,20 +1,23 @@
 import SwiftUI
 import ViezanDomain
 
+// One row per provider: purpose, live status, and the key actions for that row.
+// Keys never leave the keychain: the view only learns whether one is present, and
+// chat providers are verified by discovery listing their models.
 struct ProviderSettings: View {
     let store: WorkbenchStore
-    @State private var provider = "openai"
+    @State private var editing: String?
     @State private var key = ""
-    @State private var busy = false
-    @State private var status = ""
-    @State private var confirmDelete = false
+    @State private var busy: String?
+    @State private var confirmDelete: String?
     @State private var keyed: Set<String> = []
     private static let names = ["openai": "OpenAI", "claude": "Claude", "gemini": "Gemini", "groq": "Groq", "tavily": "Tavily", "brave": "Brave Search", "jina": "Jina", "elevenlabs": "ElevenLabs"]
+    // Where each provider issues keys; opened in the browser, never fetched by the app.
+    private static let keyPages = ["openai": "https://platform.openai.com/api-keys", "claude": "https://console.anthropic.com/settings/keys", "gemini": "https://aistudio.google.com/app/apikey",
+                                   "groq": "https://console.groq.com/keys", "tavily": "https://app.tavily.com/home", "brave": "https://api.search.brave.com/app/keys", "jina": "https://jina.ai/api-dashboard/", "elevenlabs": "https://elevenlabs.io/app/settings/api-keys"]
     private static func purpose(_ id: String) -> String {
         ProviderDiscovery.cloudProviders.contains(id) ? "purposeChat" : id == "groq" ? "purposeSpeech" : id == "elevenlabs" ? "purposeVoice" : "purposeSearch"
     }
-    // Presence comes from the keychain without unlocking it; chat providers are verified
-    // by discovery listing their models (free), so a rejected key shows its error here.
     private func status(_ id: String) -> (String, StatusTone) {
         guard keyed.contains(id) else { return (store.text("keyAbsent"), .idle) }
         guard ProviderDiscovery.cloudProviders.contains(id) else { return (store.text("keyPresent"), .ready) }
@@ -23,47 +26,63 @@ struct ProviderSettings: View {
         return (store.text("keyPresent") + " · " + store.text("keyUnverified"), store.discovering ? .busy : .idle)
     }
     var body: some View {
-        GroupBox(store.text("providerSettings")) {
-            VStack(alignment: .leading, spacing: metric("inset")) {
-                VStack(spacing: 0) {
-                    ForEach(CredentialStore.providers, id: \.self) { id in
-                        CardRow(title: Self.names[id] ?? id, detail: store.text(Self.purpose(id)), divider: id != CredentialStore.providers.last) {
-                            let (text, tone) = status(id)
-                            StatusBadge(text: text, tone: tone)
+        VStack(alignment: .leading, spacing: metric("inset")) {
+            CardSection(flush: true, title: store.text("providerSettings")) {
+                ForEach(CredentialStore.providers, id: \.self) { id in
+                    CardRow(title: Self.names[id] ?? id, detail: store.text(Self.purpose(id)), divider: id != CredentialStore.providers.last) {
+                        let (text, tone) = status(id)
+                        StatusBadge(text: text, tone: tone)
+                        if busy == id { ProgressView().controlSize(.small) }
+                        if let page = Self.keyPages[id].flatMap(URL.init) {
+                            Link(destination: page) { Label(store.text("getKey"), systemImage: "arrow.up.right.square") }
+                                .buttonStyle(.vznQuiet).help(page.absoluteString).accessibilityLabel(store.text("getKey") + " · " + (Self.names[id] ?? id))
+                        }
+                        Button(store.text(keyed.contains(id) ? "replaceKey" : "addKey")) { key = ""; editing = id }
+                            .buttonStyle(.vznOutline).disabled(busy != nil).accessibilityIdentifier("provider-key-" + id)
+                            .popover(isPresented: Binding(get: { editing == id }, set: { if !$0 { editing = nil; key = "" } })) { keyEditor(id) }
+                        if keyed.contains(id) {
+                            Button(store.text("deleteKey"), role: .destructive) { confirmDelete = id }.buttonStyle(.vznQuiet).disabled(busy != nil)
                         }
                     }
                 }
-                Button(store.text("checkAgain")) { refreshKeys(); store.discoverProviders() }.disabled(store.discovering)
-                Picker(store.text("provider"), selection: $provider) {
-                    Text("OpenAI").tag("openai"); Text("Claude").tag("claude"); Text("Gemini").tag("gemini"); Text("Groq").tag("groq"); Text("Tavily").tag("tavily"); Text("Brave Search").tag("brave"); Text("Jina").tag("jina"); Text("ElevenLabs").tag("elevenlabs")
-                }.disabled(busy).onChange(of: provider) { _, _ in key = ""; status = "" }
-                SecureField(store.text("apiKey"), text: $key).textFieldStyle(.roundedBorder)
-                HStack {
-                    Button(store.text("saveKey")) { perform(delete: false) }.disabled(key.isEmpty || busy)
-                    Button(store.text("deleteKey"), role: .destructive) { confirmDelete = true }.disabled(busy)
-                    if busy { ProgressView().controlSize(.small) }
-                }
-                Text(store.text("keyStorageHint")).font(.caption).foregroundStyle(.secondary)
-                if !status.isEmpty { Text(store.text(status)).font(.callout) }
-            }.padding(metric("small"))
-        }.confirmationDialog(store.text("deleteKeyConfirm"), isPresented: $confirmDelete) {
-            Button(store.text("deleteKey"), role: .destructive) { perform(delete: true) }
-        }.onAppear(perform: refreshKeys).onDisappear { key = "" }
+            }
+            HStack(spacing: metric("inset")) {
+                Button(store.text("checkAgain")) { refreshKeys(); store.discoverProviders() }.buttonStyle(.vznOutline).disabled(store.discovering)
+                Text(store.text("keyStorageHint")).font(.vzn("captionScale")).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .confirmationDialog(store.text("deleteKeyConfirm"), isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } })) {
+            Button(store.text("deleteKey"), role: .destructive) { if let id = confirmDelete { perform(id, delete: true) }; confirmDelete = nil }
+        }
+        .onAppear(perform: refreshKeys).onDisappear { key = "" }
+    }
+    // A bounded sheet-like popover: one secret field, Save as the only primary action.
+    private func keyEditor(_ id: String) -> some View {
+        VStack(alignment: .leading, spacing: metric("gap")) {
+            Text(Self.names[id] ?? id).font(.vzn("labelScale", .semibold))
+            SecureField(store.text("apiKey"), text: $key).textFieldStyle(.roundedBorder).onSubmit { if !key.isEmpty { perform(id, delete: false) } }
+                .accessibilityIdentifier("provider-key-field")
+            HStack {
+                Spacer()
+                Button(store.text("close")) { editing = nil; key = "" }.buttonStyle(.vznOutline).keyboardShortcut(.cancelAction)
+                Button(store.text("saveKey")) { perform(id, delete: false) }.buttonStyle(.vznPrimary).disabled(key.isEmpty).keyboardShortcut(.defaultAction)
+            }
+        }.padding(metric("inset")).frame(width: metric("sidebar") + metric("editor"))
     }
     private func refreshKeys() { keyed = Set(CredentialStore.providers.filter(CredentialStore.has)) }
-    private func perform(delete: Bool) {
-        let selected = provider, secret = key
-        key = ""; busy = true; status = ""
+    private func perform(_ id: String, delete: Bool) {
+        let secret = key
+        key = ""; editing = nil; busy = id
         Task {
             let success = await Task.detached {
                 do {
-                    if delete { try CredentialStore.remove(selected) }
-                    else { try CredentialStore.save(secret, provider: selected) }
+                    if delete { try CredentialStore.remove(id) } else { try CredentialStore.save(secret, provider: id) }
                     return true
                 } catch { return false }
             }.value
-            busy = false; if provider == selected { status = success ? "keySaved" : "keyStorageError" }
-            // A saved or removed key changes which AI this device can use.
+            busy = nil
+            ToastCenter.shared.show(store.text(success ? "keySaved" : "keyStorageError"), key: "provider-key", error: !success)
+            // A saved or removed key changes which AI this device can use; discovery verifies chat keys.
             if success { refreshKeys(); store.discoverProviders() }
         }
     }

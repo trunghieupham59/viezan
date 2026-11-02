@@ -41,6 +41,7 @@ import ViezanDomain
     }
 }
 private struct QuickSessionPanel: View {
+    @Environment(\.colorScheme) private var scheme
     @Bindable var store: WorkbenchStore
     let sessionID: String
     var openMain: () -> Void
@@ -50,7 +51,7 @@ private struct QuickSessionPanel: View {
         VStack(alignment: .leading, spacing: metric("inset")) {
             if let session {
                 HStack {
-                    Text(store.title(session)).font(.headline).lineLimit(1)
+                    Text(store.title(session)).font(.vzn("labelScale", .semibold)).lineLimit(1)
                     Spacer(); Button(store.text("open"), action: openMain)
                 }
                 ScrollView {
@@ -62,7 +63,7 @@ private struct QuickSessionPanel: View {
                 ComposerEditor(text: Binding(get: { self.session?.draft ?? "" }, set: { store.setDraft(sessionID, $0) }), identity: sessionID, label: store.text("prompt"), font: readingNSFont(store), growsWithContent: true) { store.submit(sessionID) }
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(metric("inset"))
-                    .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: metric("radius")))
+                    .background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("radius")))
                     .overlay(RoundedRectangle(cornerRadius: metric("radius")).stroke(Color(nsColor: .separatorColor)))
                 if session.feature == .translate {
                     Picker(store.text("outputLanguage"), selection: Binding(get: { self.session?.target ?? "vi" }, set: { store.setPair(sessionID, source: "auto", target: $0) })) {
@@ -144,34 +145,103 @@ private struct QuickTranslatePairRows: View {
         }
     }
 }
-// Shortcut row: label, enable switch, and the key cap that opens its editor.
+func shortcutDisplay(_ key: String) -> String {
+    key.split(separator: "+").map { part -> String in
+        switch part { case "Control": "⌃"; case "Option": "⌥"; case "Shift": "⇧"; case "Command": "⌘"; default: String(part) }
+    }.joined(separator: " ")
+}
+
+// Shortcut row: label, enable switch, and the key cap that opens its recorder.
 private struct NativeShortcutRow: View {
     let store: WorkbenchStore
     let shortcut: NativeShortcut
     var everywhere = false
-    @State private var key = ""
     @State private var editing = false
-    private var display: String {
-        shortcut.key.split(separator: "+").map { part -> String in
-            switch part { case "Control": "⌃"; case "Option": "⌥"; case "Shift": "⇧"; case "Command": "⌘"; default: String(part) }
-        }.joined(separator: " ")
-    }
     var body: some View {
         CardRow(title: everywhere ? store.text("allShortcuts") : store.text(shortcut.id), detail: store.text(everywhere ? "shortcutCustomizable" : "shortcutDetail_" + shortcut.id)) {
             HStack(spacing: metric("small")) {
-                Button { editing.toggle() } label: { KeyCap(text: display) }.buttonStyle(.plain)
-                    .help(store.text("shortcut")).accessibilityLabel(store.text("shortcut") + ": " + shortcut.key)
-                    .popover(isPresented: $editing) {
-                        VStack(alignment: .leading, spacing: metric("small")) {
-                            Text(store.text(shortcut.id)).font(.headline)
-                            TextField(store.text("shortcut"), text: $key).textFieldStyle(.roundedBorder)
-                                .onSubmit { store.desktopIntegration.configure(shortcut.id, key: key, enabled: shortcut.enabled); editing = false }
-                            HStack { Spacer(); Button(store.text("apply")) { store.desktopIntegration.configure(shortcut.id, key: key, enabled: shortcut.enabled); editing = false }.buttonStyle(.vznPrimary) }
-                        }.padding(metric("inset")).frame(width: metric("sidebar") + metric("large"))
-                    }
-                Toggle(store.text(shortcut.id), isOn: Binding(get: { shortcut.enabled }, set: { store.desktopIntegration.configure(shortcut.id, key: key, enabled: $0) }))
+                Button { editing.toggle() } label: { KeyCap(text: shortcutDisplay(shortcut.key)) }.buttonStyle(.plain)
+                    .help(store.text("shortcut")).accessibilityLabel(store.text("shortcut") + ": " + shortcut.key).accessibilityIdentifier("shortcut-" + shortcut.id)
+                    .popover(isPresented: $editing) { ShortcutRecorderPanel(store: store, shortcut: shortcut) { editing = false } }
+                // The switch keeps the saved key; only the recorder changes it.
+                Toggle(store.text(shortcut.id), isOn: Binding(get: { shortcut.enabled }, set: { store.desktopIntegration.configure(shortcut.id, key: shortcut.key, enabled: $0) }))
                     .toggleStyle(.switch).labelsHidden().controlSize(.small)
             }
-        }.onAppear { key = shortcut.key }.onChange(of: shortcut.key) { _, value in key = value }
+        }
+    }
+}
+
+// Press the combination; Esc cancels. A key another Viezan shortcut uses, or one without
+// ⌘/⌃/⌥, is shown as the reason the Apply button stays off.
+private struct ShortcutRecorderPanel: View {
+    let store: WorkbenchStore
+    let shortcut: NativeShortcut
+    var close: () -> Void
+    @State private var captured: String?
+    @State private var recording = true
+    @Environment(\.colorScheme) private var scheme
+    private var conflict: NativeShortcut? {
+        guard let captured else { return nil }
+        return store.desktopIntegration.shortcuts.first { $0.id != shortcut.id && $0.key == captured }
+    }
+    private var problem: String? {
+        guard let captured else { return nil }
+        if let conflict { return store.text("shortcutConflict").replacingOccurrences(of: "{name}", with: store.text(conflict.id)) }
+        return DesktopIntegration.isValid(captured) ? nil : store.text("shortcutNeedsModifier")
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: metric("gap")) {
+            Text(store.text(shortcut.id)).font(.vzn("labelScale", .semibold))
+            ZStack {
+                ShortcutRecorder(recording: $recording) { captured = $0; recording = false } cancel: { close() }
+                HStack(spacing: metric("small")) {
+                    if recording { Text(store.text("pressKeys")).foregroundStyle(.secondary) }
+                    else { KeyCap(text: shortcutDisplay(captured ?? shortcut.key)) }
+                    Spacer(minLength: 0)
+                    if !recording { Button(store.text("shortcut")) { captured = nil; recording = true }.buttonStyle(.vznQuiet) }
+                }.padding(.horizontal, metric("gap")).allowsHitTesting(!recording)
+            }
+            .frame(height: metric("control"))
+            .background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
+            .overlay(RoundedRectangle(cornerRadius: metric("controlRadius")).strokeBorder(contentColor(recording ? "border-strong" : "border", scheme), lineWidth: metric("hairline")))
+            .accessibilityElement(children: .contain).accessibilityLabel(store.text("shortcut"))
+            if let problem { Text(problem).font(.vzn("smallScale")).foregroundStyle(contentColor("danger", scheme)) }
+            HStack {
+                Button(store.text("shortcutDefault")) { captured = DesktopIntegration.defaults[shortcut.id]; recording = false }
+                    .buttonStyle(.vznQuiet).disabled(shortcut.key == DesktopIntegration.defaults[shortcut.id] && captured == nil)
+                Spacer()
+                Button(store.text("close"), action: close).buttonStyle(.vznOutline)
+                Button(store.text("apply")) { if let captured { store.desktopIntegration.configure(shortcut.id, key: captured, enabled: shortcut.enabled) }; close() }
+                    .buttonStyle(.vznPrimary).disabled(captured == nil || problem != nil || captured == shortcut.key).accessibilityIdentifier("shortcut-apply")
+            }
+        }.padding(metric("inset")).frame(width: metric("sidebar") + metric("editor"))
+    }
+}
+
+// A focusable AppKit view that turns the next key press into "Modifier+Key".
+private struct ShortcutRecorder: NSViewRepresentable {
+    @Binding var recording: Bool
+    var capture: (String) -> Void
+    var cancel: () -> Void
+    func makeNSView(context: Context) -> RecorderView { let view = RecorderView(); view.capture = capture; view.cancel = cancel; return view }
+    func updateNSView(_ view: RecorderView, context: Context) {
+        view.capture = capture; view.cancel = cancel
+        if recording { DispatchQueue.main.async { view.window?.makeFirstResponder(view) } }
+    }
+    final class RecorderView: NSView {
+        var capture: ((String) -> Void)?
+        var cancel: (() -> Void)?
+        override var acceptsFirstResponder: Bool { true }
+        override func keyDown(with event: NSEvent) {
+            if event.keyCode == 53 { cancel?(); return }
+            guard let name = DesktopIntegration.keyName(code: event.keyCode) else { NSSound.beep(); return }
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            var parts: [String] = []
+            if flags.contains(.control) { parts.append("Control") }
+            if flags.contains(.option) { parts.append("Option") }
+            if flags.contains(.shift) { parts.append("Shift") }
+            if flags.contains(.command) { parts.append("Command") }
+            capture?((parts + [name]).joined(separator: "+"))
+        }
     }
 }

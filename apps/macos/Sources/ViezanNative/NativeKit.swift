@@ -159,9 +159,10 @@ struct KeyCap: View {
 enum StatusTone { case ready, busy, idle, failed }
 
 struct StatusDot: View {
+    @Environment(\.colorScheme) private var scheme
     var tone: StatusTone
     var body: some View {
-        Circle().fill(tone == .ready ? Color(nsColor: .systemGreen) : tone == .busy ? Color.accentColor : tone == .failed ? Color(nsColor: .systemRed) : Color(nsColor: .tertiaryLabelColor))
+        Circle().fill(tone == .ready ? contentColor("success", scheme) : tone == .busy ? contentColor("action", scheme) : tone == .failed ? contentColor("danger", scheme) : contentColor("text-soft", scheme))
             .frame(width: metric("small"), height: metric("small")).accessibilityHidden(true)
     }
 }
@@ -173,7 +174,7 @@ struct StatusBadge: View {
     @Environment(\.colorScheme) private var scheme
     var body: some View {
         // Accent only for live/ready state; idle reads neutral and failures read as danger.
-        HStack(spacing: metric("small")) { StatusDot(tone: tone); Text(text).font(.callout) }
+        HStack(spacing: metric("small")) { StatusDot(tone: tone); Text(text).font(.vzn("smallScale")) }
             .foregroundStyle(contentColor(tone == .idle ? "text-muted" : tone == .failed ? "danger" : "action-text", scheme))
             .padding(.horizontal, metric("small") + metric("tight")).padding(.vertical, metric("tight"))
             .background(tone == .idle || tone == .failed ? contentColor("surface-muted", scheme) : contentColor("action-soft", scheme), in: Capsule())
@@ -241,7 +242,7 @@ extension Feature {
 struct CardGroupBoxStyle: GroupBoxStyle {
     func makeBody(configuration: Configuration) -> some View {
         VStack(alignment: .leading, spacing: metric("small")) {
-            configuration.label.font(.headline)
+            configuration.label.font(.vzn("labelScale", .semibold))
             configuration.content
         }.frame(maxWidth: .infinity, alignment: .leading).cardSurface()
     }
@@ -439,7 +440,7 @@ struct ProviderNotice: View {
     private func row<Actions: View>(_ text: String, @ViewBuilder actions: () -> Actions) -> some View {
         HStack(spacing: metric("small")) {
             StatusDot(tone: .failed)
-            Text(text).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(text).font(.vzn("smallScale")).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: metric("small"))
             Button(store.text("checkAgain")) { store.discoverProviders(); Task { await store.localRuntime.refresh() } }
                 .buttonStyle(.vznQuiet).tint(.primary).disabled(store.discovering).accessibilityIdentifier("provider-notice-check")
@@ -460,7 +461,7 @@ struct SpeechProviderNotice: View {
         if store.providers.checked && !store.providers.speechReady(store.speechProvider) {
             HStack(spacing: metric("small")) {
                 StatusDot(tone: .failed)
-                Text(store.text(store.speechProvider == "auto" ? "speechProviderMissing" : "speechProviderKeyMissing")).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text(store.text(store.speechProvider == "auto" ? "speechProviderMissing" : "speechProviderKeyMissing")).font(.vzn("smallScale")).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: metric("small"))
                 Button(store.text("openProviders")) { NotificationCenter.default.post(name: .viezanOpenSettings, object: "providers") }
                     .buttonStyle(.vznOutline).accessibilityIdentifier("speech-notice-open")
@@ -477,7 +478,7 @@ struct TaskStatusText: View {
         VStack(alignment: .leading, spacing: metric("tight")) {
             Text(store.text(task.status == .failed ? (task.errorCode ?? "providerError") : task.status.rawValue)).foregroundStyle(.secondary)
             if task.status == .failed, let detail = task.errorDetail {
-                Text(detail).font(.caption).foregroundStyle(.secondary).textSelection(.enabled).lineLimit(3).help(detail)
+                Text(detail).font(.vzn("captionScale")).foregroundStyle(.secondary).textSelection(.enabled).lineLimit(3).help(detail)
             }
         }
     }

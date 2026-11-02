@@ -130,8 +130,18 @@ public struct BridgePreferences: Codable, Equatable, Sendable {
 public struct VoicePreferences: Codable, Equatable, Sendable {
     public var provider = "system"
     public var voice = ""
-    public init(provider: String = "system", voice: String = "") { self.provider = provider; self.voice = voice }
-    public var valid: Bool { ["system", "edge", "openai", "gemini", "elevenlabs"].contains(provider) && voice.utf8.count <= 256 && !voice.unicodeScalars.contains { CharacterSet.controlCharacters.contains($0) } }
+    /// Speaking rate multiplier (nil = 1); applies to the system voice, Edge and OpenAI.
+    public var rate: Double?
+    public init(provider: String = "system", voice: String = "", rate: Double? = nil) { self.provider = provider; self.voice = voice; self.rate = rate }
+    public static let rates: [Double] = [0.75, 1, 1.25, 1.5]
+    public var valid: Bool { ["system", "edge", "openai", "gemini", "elevenlabs"].contains(provider) && voice.utf8.count <= 256 && !voice.unicodeScalars.contains { CharacterSet.controlCharacters.contains($0) } && (rate.map { (0.5...2).contains($0) } ?? true) }
+}
+public struct UpdatePreferences: Codable, Equatable, Sendable {
+    /// Background checks at launch and daily (nil = on); manual checks always run.
+    public var autoCheck: Bool?
+    public var snoozedVersion: String?
+    public var snoozedUntil: Double?
+    public init() {}
 }
 public struct RuntimePreferences: Codable, Equatable, Sendable {
     public var parallel = 1
@@ -159,6 +169,15 @@ public struct Workspace: Codable, Equatable, Sendable {
     public var appearance: AppearancePreferences?
     public var shell: ShellPreferences?
     public var quickTranslate: QuickTranslatePreferences?
+    /// Smart session reset (nil = on): completed Translate/Dictionary work starts fresh after a break.
+    public var smartReset: Bool?
+    /// When the user last left each feature (or quit while on it), by feature id.
+    public var featureLeft: [String: Double]?
+    public var updates: UpdatePreferences?
+    /// Model comparison shows sentence rows instead of whole columns (nil = columns).
+    public var compareBySentence: Bool?
+    /// Thermal reading in the menu bar item (nil = shown while monitoring).
+    public var menuBarTemperature: Bool?
     public var navigationCollapsed: Bool { shell?.navigationCollapsed ?? false }
     public var preferences: AppearancePreferences { appearance ?? AppearancePreferences() }
     public init() {

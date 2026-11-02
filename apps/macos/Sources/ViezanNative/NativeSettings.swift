@@ -2,6 +2,7 @@ import SwiftUI
 import ViezanDomain
 
 struct NativeSettings: View {
+    @Environment(\.colorScheme) private var scheme
     @Bindable var store: WorkbenchStore
     // The search field lives in the shell header (Review 18).
     @Binding var query: String
@@ -54,7 +55,7 @@ struct NativeSettings: View {
                                                 sectionContent(section.id)
                                             }.id(section.id)
                                         }
-                                        Text(store.text("changesImmediately")).font(.caption).foregroundStyle(.secondary)
+                                        Text(store.text("changesImmediately")).font(.vzn("captionScale")).foregroundStyle(.secondary)
                                     }.scrollTargetLayout()
                                         .frame(maxWidth: metric("reading"), alignment: .leading)
                                         .frame(maxWidth: .infinity, alignment: .leading).padding(metric("gutter"))
@@ -90,15 +91,15 @@ struct NativeSettings: View {
                 .fontWeight(active ? .semibold : .regular).lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, metric("small")).frame(height: metric("compactControl"))
                 .contentShape(Rectangle())
-        }.buttonStyle(.plain).foregroundStyle(active ? Color.accentColor : Color.primary)
-            .background(active ? Color.accentColor.opacity(metric("selectionOpacity")) : Color.clear, in: RoundedRectangle(cornerRadius: metric("radius")))
+        }.buttonStyle(.plain).foregroundStyle(active ? contentColor("action-text", scheme) : contentColor("text-strong", scheme))
+            .background(active ? contentColor("action-soft", scheme) : Color.clear, in: RoundedRectangle(cornerRadius: metric("radius")))
             .accessibilityAddTraits(active ? .isSelected : [])
             .help(store.text(section.description))
     }
 
     @ViewBuilder private func sectionContent(_ id: String) -> some View {
         if id == "desktop" {
-            DesktopSettings(store: store)
+            CardSection(flush: true, title: store.text("allShortcuts")) { DesktopSettings(store: store) }
         } else if id == "bridge" {
             CardSection { BridgeSettings(store: store, showsDescription: false) }
         } else if id == "data" {
@@ -130,30 +131,31 @@ struct NativeSettings: View {
                     }
                 }
                 CardSection(flush: true, title: store.text("recoveryTitle")) {
+                    CardRow(title: store.text("smartReset"), detail: store.text("smartResetDescription")) {
+                        Toggle(store.text("smartReset"), isOn: Binding(get: { store.smartReset }, set: { store.smartReset = $0 })).toggleStyle(.switch).labelsHidden().accessibilityIdentifier("settings-smart-reset")
+                    }
                     Text(store.text("recoveryDescription")).font(.vzn("labelScale")).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true).padding(metric("inset"))
                 }
             }.disabled(store.loadBlocked)
         } else if id == "voice" {
-                CardSection(flush: true, title: store.text("voiceTitle")) {
-                    CardRow(title: store.text("speechProvider"), detail: store.text("speechAutoHint")) {
-                        Picker(store.text("speechProvider"), selection: $store.speechProvider) {
-                            Text(store.text("reasoning_auto")).tag("auto"); Text("OpenAI").tag("openai"); Text("Groq").tag("groq"); Text("Gemini").tag("gemini")
-                        }.labelsHidden().fixedSize()
-                    }
-                    VoiceSettings(store: store)
-                }.disabled(store.loadBlocked)
+                VoiceSettings(store: store).disabled(store.loadBlocked)
         } else if id == "modules" {
-                CardSection(flush: true, title: store.text("modulesTitle")) {
-                    let modules = ["chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities", "bridge"]
-                    ForEach(modules, id: \.self) { module in
-                        CardRow(title: store.text(module == "bridge" ? "browserBridge" : module), divider: module != modules.last) {
-                            Toggle(store.text(module == "bridge" ? "browserBridge" : module), isOn: Binding(get: { store.moduleEnabled(module) }, set: { store.setModule(module, enabled: $0) }))
-                                .toggleStyle(.switch).labelsHidden()
+                VStack(alignment: .leading, spacing: metric("inset")) {
+                    ForEach([("modulesWorkspaceGroup", WorkbenchStore.workspaceModules), ("modulesSystemGroup", WorkbenchStore.systemModules)], id: \.0) { group, modules in
+                        CardSection(flush: true, title: store.text(group)) {
+                            ForEach(modules, id: \.self) { module in
+                                let locked = store.lockedModule == module
+                                CardRow(title: store.text(module == "bridge" ? "browserBridge" : module == "utilities" ? "launcher" : module), detail: locked ? store.text("modulesLastHint") : store.text("moduleDesc_" + module), divider: module != modules.last) {
+                                    Toggle(store.text(module == "bridge" ? "browserBridge" : module), isOn: Binding(get: { store.moduleEnabled(module) }, set: { store.setModule(module, enabled: $0) }))
+                                        .toggleStyle(.switch).labelsHidden().disabled(locked).accessibilityIdentifier("module-" + module)
+                                }
+                            }
                         }
                     }
+                    Text(store.text("modulesDescription")).font(.vzn("captionScale")).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }.disabled(store.loadBlocked)
         } else if id == "updates" {
-            CardSection { UpdateSettings(store: store) }
+            UpdateSettings(store: store)
         } else if id == "appearance" {
             VStack(alignment: .leading, spacing: metric("inset")) {
                 CardSection(flush: true, title: store.text("appearanceTitle")) {
@@ -185,7 +187,7 @@ struct NativeSettings: View {
                 CardSection(flush: true, title: store.text("previewHeading")) {
                     Text(store.text("previewUser")).padding(metric("inset"))
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: metric("radius")))
+                        .background(contentColor("surface-muted", scheme), in: RoundedRectangle(cornerRadius: metric("radius")))
                         .padding(metric("inset"))
                     Text(store.text("previewAssistant")).frame(maxWidth: .infinity, alignment: .leading)
                         .padding([.horizontal, .bottom], metric("inset"))
@@ -213,7 +215,7 @@ struct NativeSettings: View {
     private func description(_ title: String, _ detail: String) -> some View {
         VStack(alignment: .leading, spacing: metric("small")) {
             Text(store.text(title)).fontWeight(.medium)
-            Text(store.text(detail)).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(store.text(detail)).font(.vzn("smallScale")).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
 }

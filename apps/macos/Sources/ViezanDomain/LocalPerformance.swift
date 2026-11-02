@@ -42,6 +42,11 @@ public struct LocalMeasurement: Codable, Identifiable, Sendable {
     }
     public init() {}
     public func selectModel(_ value: String) { guard !busy else { return }; model = value; results = Self.load()[value]?.results ?? []; error = nil }
+    /// Which measured mode the next request uses: a result id, "auto" (runtime default) or "custom" (a stored profile no result matches).
+    public var selectedMode: String {
+        guard let selected = Self.load()[model]?.selected else { return "auto" }
+        return results.first { $0.profile == selected }?.id ?? "custom"
+    }
     public func select(_ mode: String) {
         guard !busy, model.hasPrefix("ollama:") else { return }
         var values = Self.load(); var record = values[model] ?? Record(results: results)

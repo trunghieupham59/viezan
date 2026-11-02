@@ -91,12 +91,12 @@ import ViezanDomain
         let pointer = NSEvent.mouseLocation
         guard let screen = NSScreen.screens.first(where: { $0.frame.contains(pointer) }) ?? NSScreen.main else { return }
         let bounds = screen.visibleFrame
-        window.setFrameTopLeftPoint(NSPoint(x: bounds.midX - window.frame.width / 2, y: bounds.maxY - bounds.height * 0.22))
+        window.setFrameTopLeftPoint(NSPoint(x: bounds.midX - window.frame.width / 2, y: bounds.maxY - bounds.height * metric("launcherTop")))
     }
     /// The view reports its height; grow or shrink downward from a fixed top edge.
     private func resize(_ height: CGFloat) {
         guard let panel else { return }
-        let top = panel.frame.maxY, value = min(max(height, metric("navControl") + metric("gutter")), metric("reading") * 0.71)
+        let top = panel.frame.maxY, value = min(max(height, metric("navControl") + metric("gutter")), metric("reading") * metric("launcherHeight"))
         guard abs(panel.frame.height - value) > 0.5 else { return }
         panel.setFrame(NSRect(x: panel.frame.minX, y: top - value, width: metric("reading"), height: value), display: true)
     }
@@ -201,7 +201,7 @@ private struct LauncherView: View {
                 LauncherChatView(store: store, keys: keys, sessionID: $chatID, question: $question, sendOnOpen: $sendOnOpen,
                                  back: { chatting = false; keys.chat = false; focused = true },
                                  dismiss: dismiss, openInChat: openChat, openSettings: openSettings)
-                    .frame(height: metric("reading") * 0.71)
+                    .frame(height: metric("reading") * metric("launcherHeight"))
             } else { search }
         }
         .background(GeometryReader { geometry in Color.clear.onChange(of: geometry.size.height, initial: true) { _, value in resize(value) } })
@@ -250,7 +250,7 @@ private struct LauncherView: View {
                             }
                         }.padding(metric("small"))
                     }
-                    .frame(maxHeight: metric("reading") * 0.5)
+                    .frame(maxHeight: metric("reading") * metric("launcherResults"))
                     .onChange(of: selectedID) { _, value in if let value { proxy.scrollTo(value) } }
                 }
             }
