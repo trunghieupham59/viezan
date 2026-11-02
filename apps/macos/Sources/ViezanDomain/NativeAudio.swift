@@ -14,6 +14,7 @@ public struct NativeVoice: Identifiable, Sendable { public let id: String; publi
     public var availableModels: [String] = []
     public var voiceProvider = "system"
     public var voiceID = ""
+    public var voiceRate: Double = 1
     @ObservationIgnored private var voiceRequest: Task<Void, Never>?
     @ObservationIgnored private var player: AVAudioPlayer?
     @ObservationIgnored private var voiceGeneration = UUID()
@@ -72,13 +73,14 @@ public struct NativeVoice: Identifiable, Sendable { public let id: String; publi
         if voiceProvider == "system" {
             let utterance = AVSpeechUtterance(string: text)
             utterance.voice = voiceID.isEmpty ? AVSpeechSynthesisVoice(language: ["en": "en-US", "vi": "vi-VN", "ja": "ja-JP"][language] ?? language) : AVSpeechSynthesisVoice(identifier: voiceID)
+            utterance.rate = min(AVSpeechUtteranceMaximumSpeechRate, max(AVSpeechUtteranceMinimumSpeechRate, AVSpeechUtteranceDefaultSpeechRate * Float(voiceRate)))
             synthesizer.speak(utterance); speaking = true; return
         }
-        let provider = voiceProvider, voice = voiceID; speaking = true; error = nil
+        let provider = voiceProvider, voice = voiceID, rate = voiceRate; speaking = true; error = nil
         voiceRequest = Task { [weak self] in
             do {
                 for chunk in LanguageSegments.chunks(text, limit: 3000) {
-                    let audio = try await NativeTTS.audio(chunk, voice: voice, provider: provider, language: language); try Task.checkCancellation()
+                    let audio = try await NativeTTS.audio(chunk, voice: voice, provider: provider, language: language, rate: rate); try Task.checkCancellation()
                     guard let self, self.voiceGeneration == epoch else { return }
                     let player = try AVAudioPlayer(data: audio); self.player = player
                     guard player.play() else { throw CloudFailure.invalidResponse }

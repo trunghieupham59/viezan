@@ -22,7 +22,7 @@ struct SystemSettings: View {
                         do {
                             if value { try SMAppService.mainApp.register() } else { try await SMAppService.mainApp.unregister() }
                             login = SMAppService.mainApp.status == .enabled; error = value && !login
-                        } catch { self.error = true; login = SMAppService.mainApp.status == .enabled }
+                        } catch { self.error = true; login = SMAppService.mainApp.status == .enabled; ToastCenter.shared.show(store.text("startupError"), key: "login-item", error: true) }
                     }
                 })).toggleStyle(.switch).labelsHidden()
                 Button(store.text("openSystemSettings")) { SMAppService.openSystemSettingsLoginItems() }

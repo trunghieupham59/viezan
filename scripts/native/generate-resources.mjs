@@ -21,8 +21,18 @@ const metrics = Object.fromEntries(Object.entries({
   rail: '--vzn-sidebar-width', compact: '--vzn-navigation-compact-breakpoint',
   minWindowWidth: '--vzn-native-window-min-width', minWindowHeight: '--vzn-native-window-min-height',
   compactControl: '--vzn-control-height-sm', surfaceRadius: '--vzn-radius-xl', largeRadius: '--vzn-radius-lg', controlRadius: '--vzn-radius-control', composerMinimum: '--vzn-composer-min-height',
-  navControl: '--vzn-control-height-lg', icon: '--vzn-space-5', brand: '--vzn-space-8',
+  navControl: '--vzn-control-height-lg', icon: '--vzn-space-5', brand: '--vzn-space-8', notificationInline: '--vzn-notification-max-inline',
 }).map(([key, name]) => [key, metric(name)]))
+// Unitless ratios and scales for native layout (no px): read verbatim.
+const ratio = (name) => {
+  const value = css.match(new RegExp(`${name}:\\s*([\\d.]+);`))?.[1]
+  if (!value) throw new Error(`Missing native ratio ${name}`)
+  return Number(value)
+}
+Object.assign(metrics, Object.fromEntries(Object.entries({
+  launcherTop: '--vzn-native-launcher-top-fraction', launcherHeight: '--vzn-native-launcher-height-fraction', launcherResults: '--vzn-native-launcher-results-fraction',
+  toastSeconds: '--vzn-native-toast-seconds', skeletonShort: '--vzn-native-skeleton-short-fraction', quickCard: '--vzn-native-quick-card-fraction', inventorySplit: '--vzn-native-inventory-fraction', thermalScaleMax: '--vzn-native-thermal-scale-max',
+}).map(([key, name]) => [key, ratio(name)])))
 // Type roles as ratios to body (md) so native system fonts keep their own base size.
 const fontSize = (name) => Number(css.match(new RegExp(`--vzn-font-size-${name}:\\s*calc\\(([\\d.]+)px`))?.[1])
 for (const [key, role] of Object.entries({ captionScale: 'caption', smallScale: 'sm', labelScale: 'lg', sectionScale: 'title', subtitleScale: 'subtitle', titleScale: 'title-lg', headingScale: 'heading', displayScale: 'heading-lg', heroScale: 'display' })) {
@@ -65,6 +75,13 @@ for (const locale of ['vi', 'en', 'ja']) {
     groupAI: 'nav_space_ai', groupLanguage: 'nav_space_language', groupSystem: 'nav_space_system', groupTools: 'nav_space_tools', searchLabel: 'nav_search_label', hotkeys: 'nav_background_hotkeys', browserBridge: 'nav_background_browser',
     chat: 'nav_chat', translate: 'nav_translate', settings: 'nav_settings',
     quickThinking: 'chat_thinking', quickRegenerate: 'chat_regenerate', quickOpenSettings: 'chat_error_open_settings', quickClear: 'chat_clear',
+    modulesWorkspaceGroup: 'settings_modules_pages_group', modulesSystemGroup: 'settings_modules_system_group', modulesLastHint: 'settings_modules_last_page_hint', modulesDescription: 'settings_modules_section_desc',
+    moduleDesc_chat: 'command_palette_chat_description', moduleDesc_translate: 'command_palette_translate_description', moduleDesc_interpret: 'command_palette_live_description', moduleDesc_dictionary: 'command_palette_dictionary_description', moduleDesc_thermal: 'command_palette_thermal_description', moduleDesc_utilities: 'settings_modules_launcher_desc', moduleDesc_bridge: 'settings_modules_browser_bridge_desc',
+    backgroundRunning: 'nav_background_title', fansProfile: 'nav_background_fans_profile', fansCustom: 'nav_background_fans_custom',
+    charCount: 'translate_char_count', clearSource: 'translate_clear', useAsSource: 'translate_use_as_source',
+    updateAvailableVersion: 'settings_update_available', updateDownloading: 'settings_update_downloading', updateReadyVersion: 'settings_update_downloaded', remindLater: 'update_popup_later', viewChanges: 'update_popup_view', updateChecking: 'settings_update_checking', speechReady: 'settings_stt_ready',
+    smartReset: 'session_smart_reset', smartResetDescription: 'session_smart_reset_desc', reopenPrevious: 'session_restore_previous', pressKeys: 'settings_hotkey_recording',
+    undo: 'chat_session_deleted_undo', chatDeleted: 'chat_session_deleted', translationDeleted: 'translate_history_deleted', jumpToLatest: 'live_jump_latest',
     send: 'chat_send', copy: 'chat_copy', prompt: 'chat_placeholder', sourcePlaceholder: 'translate_placeholder', dictionaryPlaceholder: 'dictionary_term_placeholder',
     expandNavigation: 'nav_expand_sidebar', collapseNavigation: 'nav_collapse_sidebar',
     languageDescription: 'settings_app_language_desc', launchDescription: 'settings_launch_at_login_desc', presetDescription: 'settings_theme_palette_desc', accentDescription: 'settings_theme_accent_desc', voiceDescription: 'settings_voice_section_desc',
@@ -94,6 +111,7 @@ const makePalettes = (preset, roles, accent = "auto") => Object.fromEntries(['li
   if (accent !== 'auto' && !accentBlock) throw new Error(`Missing accent ${accent}/${mode}`)
   const values = {...primitives, ...declarations(block), ...declarations(accentBlock || '')}
   values['--vzn-danger'] = css.slice(mode === 'dark' ? css.indexOf('/* Palette (dark)') : 0).match(/--vzn-danger:\s*([^;]+);/)?.[1].trim()
+  for (const status of ['success', 'warning']) values[`--vzn-${status}`] = css.slice(mode === 'dark' ? css.indexOf('/* Palette (dark)') : 0).match(new RegExp(`--vzn-${status}:\\s*([^;]+);`))?.[1].trim()
   function resolve(key, seen = new Set()) {
     if (seen.has(key) || !values[key]) throw new Error(`Unresolved color ${key}`)
     seen.add(key)
@@ -110,7 +128,7 @@ const makePalettes = (preset, roles, accent = "auto") => Object.fromEntries(['li
   }
   return [mode, Object.fromEntries(roles.map(role => [role,resolve(`--vzn-${role}`)]))]
 }))
-const palettes = makePalettes('graphite', ['canvas','surface','sidebar-bg','surface-hover','text','text-muted','border','border-strong','action','action-text','action-fg','surface-subtle','text-disabled','danger'])
+const palettes = makePalettes('graphite', ['canvas','surface','sidebar-bg','surface-hover','text','text-muted','border','border-strong','action','action-text','action-fg','surface-subtle','text-disabled','danger','success','warning'])
 const chromePalettes = makePalettes('glass', ['app-bg','sidebar-bg','titlebar-bg','surface','surface-raised','border-strong','text','text-strong','text-muted','text-soft','border','divider','action-text','action-soft','action','action-hover','action-fg','surface-hover','chrome-fg-strong','chrome-fg-muted','chrome-fg-soft','chrome-accent','chrome-item-active','chrome-item-hover','chrome-fg','chrome-item-active-fg','material-border','material-highlight','primary-nav-material','titlebar-material','sidebar-search-bg','surface-muted'])
 const themePalettes = {}
 const themeRoles = Array.from(new Set([...Object.keys(palettes.light), ...Object.keys(chromePalettes.light)]))

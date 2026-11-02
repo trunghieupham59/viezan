@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 import ViezanDomain
 
 struct ChatWorkspace: View {
@@ -26,11 +27,7 @@ struct ChatWorkspace: View {
                                     }
                                 }
                                 if let task = store.workspace.tasks.first(where: { $0.id == message.id }), let research = task.research {
-                                    HStack {
-                                        if task.status == .running { ProgressView().controlSize(.small) }
-                                        Text(store.text("research_" + research.phase))
-                                        if !research.queries.isEmpty { Text("\(research.cursor)/\(research.queries.count)").monospacedDigit() }
-                                    }.font(.caption).foregroundStyle(.secondary)
+                                    ResearchPanel(store: store, task: task, research: research)
                                 }
                                 if message.role == "assistant" { Label("Viezan", systemImage: "sparkles").font(.vzn("smallScale")).foregroundStyle(.secondary) }
                                 TranscriptText(text: message.text.isEmpty && (message.images ?? []).isEmpty ? store.text(store.workspace.tasks.first(where: { $0.id == message.id })?.status.rawValue ?? "noContent") : message.text,
@@ -46,6 +43,11 @@ struct ChatWorkspace: View {
                                     if store.workspace.tasks.first(where: { $0.id == message.id })?.status != .running { ForEach(ChartArtifact.parse(message.text)) { NativeChart(artifact: $0) } }
                                     HStack(spacing: metric("tight")) {
                                         CopyResponseButton(text: message.text, label: store.text("copy"), copiedLabel: store.text("copied"))
+                                        if let task = store.workspace.tasks.first(where: { $0.id == message.id }) {
+                                            // Which model answered and what it cost in tokens, quietly, after the actions.
+                                            Text(nativeModelLabel(task.request.model, store: store) + (task.usage.map { " · " + store.text("tokensCount").replacingOccurrences(of: "{n}", with: ($0.input + $0.output).formatted()) } ?? ""))
+                                                .font(.vzn("captionScale")).foregroundStyle(.secondary).lineLimit(1).padding(.leading, metric("small")).help(task.request.model)
+                                        }
                                         if message.id == session.messages.last?.id, let task = store.workspace.tasks.first(where: { $0.id == message.id }), task.status != .running {
                                             Button(store.text("retry"), systemImage: "arrow.clockwise") { store.retry(task.id) }
                                                 .buttonStyle(.vznQuiet).disabled(!store.canRetry(task))
@@ -94,7 +96,7 @@ struct ChatWorkspace: View {
                 HStack {
                     TaskStatusText(store: store, task: task)
                     Button(store.text("retry")) { store.retry(task.id) }.disabled(!store.canRetry(task))
-                }.font(.callout)
+                }.font(.vzn("smallScale"))
             }
             // Same column as the composer it warns about.
             ProviderNotice(store: store, model: session.model)
@@ -102,7 +104,7 @@ struct ChatWorkspace: View {
             // Review 18: one opaque composer; the editor leads, one control row follows.
             VStack(alignment: .leading, spacing: metric("small")) {
                 AttachmentChips(store: store)
-                ComposerEditor(text: Binding(get: { store.session(sessionID)?.draft ?? "" }, set: { store.setDraft(sessionID, $0) }), identity: sessionID, label: store.text("prompt"), font: readingNSFont(store), focusEpoch: focusEpoch, growsWithContent: true) { store.submit(sessionID) }
+                ComposerEditor(text: Binding(get: { store.session(sessionID)?.draft ?? "" }, set: { store.setDraft(sessionID, $0) }), identity: sessionID, label: store.text("prompt"), font: readingNSFont(store), focusEpoch: focusEpoch, growsWithContent: true, pasteImages: { urls, data in ImageIntake.attach(urls: urls, data: data, to: sessionID, store: store) }) { store.submit(sessionID) }
                     .fixedSize(horizontal: false, vertical: true)
                     .modifier(EditorPlaceholder(text: store.text("prompt"), visible: session.draft.isEmpty))
                 HStack(spacing: metric("small")) {
@@ -126,6 +128,7 @@ struct ChatWorkspace: View {
             .background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("largeRadius")))
             .overlay(RoundedRectangle(cornerRadius: metric("largeRadius")).strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")))
             .shadow(color: Color(nsColor: .shadowColor).opacity(metric("overlayShadowOpacity")), radius: metric("tight") / 2, y: metric("hairline"))
+            .modifier(ImageDropTarget(store: store, sessionID: sessionID, radius: metric("largeRadius")))
             .frame(maxWidth: metric("reading")).padding(.horizontal, metric("gutter")).padding(.bottom, metric("gutter"))
         }
     }
@@ -178,6 +181,15 @@ struct TranslationWorkspace: View {
             }
             Divider().padding(.bottom, metric("tight"))
             ProviderNotice(store: store, model: session.model)
+            if let notice = store.resetNotice, notice.feature == session.feature {
+                HStack(spacing: metric("small")) {
+                    Image(systemName: "sparkles").foregroundStyle(.secondary).accessibilityHidden(true)
+                    Text(store.text("resetNotice")).font(.vzn("smallScale")).foregroundStyle(.secondary)
+                    Spacer(minLength: metric("small"))
+                    Button(store.text("reopenPrevious")) { store.reopenPrevious() }.buttonStyle(.vznOutline).accessibilityIdentifier("reopen-previous")
+                    Button { store.dismissResetNotice() } label: { Image(systemName: "xmark") }.buttonStyle(.vznQuiet).accessibilityLabel(store.text("close"))
+                }.accessibilityElement(children: .contain)
+            }
             if session.feature == .dictionary { dictionaryBody } else { panels }
         }.padding(.horizontal, metric("large") + metric("gap")).padding(.top, metric("gap")).padding(.bottom, metric("gap"))
             .onChange(of: session.id) { _, _ in optionsOpen = false; compareOpen = false }
@@ -216,15 +228,18 @@ struct TranslationWorkspace: View {
             }.padding(.horizontal, metric("gap")).padding(.vertical, metric("small"))
                 .background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("largeRadius")))
                 .overlay(RoundedRectangle(cornerRadius: metric("largeRadius")).strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")))
+            // Context is a bounded field like the term above it, not a bare line of text.
             TextField(store.text("dictionaryContext"), text: Binding(get: { session.dictionaryContext ?? "" }, set: { store.setDictionaryContext(session.id, $0) }))
-                .textFieldStyle(.plain).font(.callout).padding(.horizontal, metric("gap"))
-            if session.draft.count > 120 { Text(store.text("dictionaryTermLimit")).font(.callout).foregroundStyle(Color(nsColor: .systemRed)) }
+                .textFieldStyle(.plain).font(.vzn("labelScale")).padding(.horizontal, metric("gap")).frame(height: metric("control"))
+                .background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
+                .overlay(RoundedRectangle(cornerRadius: metric("controlRadius")).strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")))
+            if session.draft.count > 120 { Text(store.text("dictionaryTermLimit")).font(.vzn("smallScale")).foregroundStyle(contentColor("danger", scheme)) }
             ScrollView {
                 VStack(alignment: .leading, spacing: metric("inset")) {
                     if session.output.isEmpty {
                         // Centered like the Chat/Interpretation empty states, not a stray left-aligned line.
                         VStack(spacing: metric("small")) {
-                            Image(systemName: "book.closed").font(.title2).accessibilityHidden(true)
+                            Image(systemName: "book.closed").font(.vzn("headingScale", .semibold)).accessibilityHidden(true)
                             Text(store.text(store.running(session.id) == nil ? "dictionaryEmpty" : "running")).multilineTextAlignment(.center)
                         }.foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, metric("large"))
                     } else if let entry = DictionaryEntry.parse(session.output) {
@@ -252,8 +267,9 @@ struct TranslationWorkspace: View {
             LanguageMenu(store: store, label: store.text("inputLanguage"), codes: ["auto"] + nativeResources.nativeLanguages, selection: session.source) { value in
                 store.setPair(session.id, source: value, target: session.target)
             }
-            Button { store.setPair(session.id, source: session.target, target: session.source == "auto" ? "en" : session.source) } label: { Image(systemName: "arrow.left.arrow.right").foregroundStyle(contentColor("text-muted", scheme)) }
-                .buttonStyle(.vznQuiet).controlSize(.large).help(store.text("swap")).accessibilityLabel(store.text("swap"))
+            // Swapping needs a known source; with auto-detect the button waits, like Interpretation.
+            Button { store.setPair(session.id, source: session.target, target: session.source) } label: { Image(systemName: "arrow.left.arrow.right").foregroundStyle(contentColor("text-muted", scheme)) }
+                .buttonStyle(.vznQuiet).controlSize(.large).disabled(session.source == "auto").help(store.text("swap")).accessibilityLabel(store.text("swap"))
             LanguageMenu(store: store, label: store.text("outputLanguage"), codes: nativeResources.nativeLanguages, selection: session.target) { value in
                 store.setPair(session.id, source: session.source, target: value)
             }
@@ -287,10 +303,10 @@ struct TranslationWorkspace: View {
         let sessionID = session.id
         return VStack(alignment: .leading, spacing: 0) {
             paneHeader(store.text("source")) {
-                Text(store.text("lang_" + session.source)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                Text(store.text("lang_" + session.source)).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1)
             }
             AttachmentChips(store: store).padding(.horizontal, metric("inset"))
-            ComposerEditor(text: Binding(get: { store.session(sessionID)?.draft ?? "" }, set: { store.setDraft(sessionID, $0) }), identity: sessionID, label: store.text("source"), font: readingNSFont(store), focusEpoch: focusEpoch, accessibilityID: "translation-source") { store.submit(sessionID) }
+            ComposerEditor(text: Binding(get: { store.session(sessionID)?.draft ?? "" }, set: { store.setDraft(sessionID, $0) }), identity: sessionID, label: store.text("source"), font: readingNSFont(store), focusEpoch: focusEpoch, accessibilityID: "translation-source", pasteImages: { urls, data in ImageIntake.attach(urls: urls, data: data, to: sessionID, store: store) }) { store.submit(sessionID) }
                 .modifier(EditorPlaceholder(text: store.text("sourcePlaceholder"), visible: session.draft.isEmpty))
                 // Same top inset as the result column so both texts start on one line.
                 .padding(.horizontal, metric("small")).padding(.top, metric("small"))
@@ -298,7 +314,15 @@ struct TranslationWorkspace: View {
             HStack(spacing: metric("small")) {
                 ImageControls(store: store, compact: true, acceptsHeaderRequest: true, statusOnly: true)
                 AudioControls(store: store, compact: true)
-                Text(store.text("draft")).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1)
+                // Length at a glance; past the provider-safe limit the count turns into the warning.
+                let count = session.draft.count
+                Text(count > TranslationWorkspace.sourceLimit ? store.text("sourceTooLong") : store.text("charCount").replacingOccurrences(of: "{count}", with: count.formatted()))
+                    .font(.vzn("smallScale")).foregroundStyle(count > TranslationWorkspace.sourceLimit ? contentColor("danger", scheme) : contentColor("text-muted", scheme)).lineLimit(1)
+                    .accessibilityIdentifier("translation-char-count")
+                if !session.draft.isEmpty, store.running(session.id) == nil {
+                    Button { store.setDraft(sessionID, "") } label: { Image(systemName: "xmark.circle") }
+                        .buttonStyle(.vznQuiet).help(store.text("clearSource")).accessibilityLabel(store.text("clearSource")).accessibilityIdentifier("translation-clear")
+                }
                 Spacer(minLength: metric("small"))
                 if let task = store.running(session.id) {
                     Button(store.text("stop"), systemImage: "stop.fill", role: .destructive) { store.cancel(task.id) }.buttonStyle(.vznOutline)
@@ -309,7 +333,15 @@ struct TranslationWorkspace: View {
                 }
             }.controlSize(.large).frame(height: metric("control")).padding(metric("small"))
             AudioStatus(store: store).padding(.horizontal, metric("small"))
-        }
+        }.modifier(ImageDropTarget(store: store, sessionID: sessionID, radius: 0))
+    }
+    /// Characters a single translation request handles well; longer text is split by the user.
+    static let sourceLimit = 5000
+    // The result becomes the next source, read the other way round (Electron's "use as source").
+    private func useResultAsSource() {
+        let id = session.id, text = session.output
+        store.setPair(id, source: session.target, target: session.source == "auto" ? store.workspace.locale : session.source)
+        store.setDraft(id, text)
     }
     private var resultPane: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -320,7 +352,7 @@ struct TranslationWorkspace: View {
                     .popover(isPresented: $optionsOpen) {
                         ScrollView {
                             VStack(alignment: .leading, spacing: metric("inset")) {
-                                Text(store.text("translationOptions")).font(.headline)
+                                Text(store.text("translationOptions")).font(.vzn("labelScale", .semibold))
                                 translationOptions
                             }.padding(metric("inset"))
                         }.frame(width: metric("sidebar") + metric("editor"))
@@ -340,6 +372,10 @@ struct TranslationWorkspace: View {
                 if store.running(session.id) != nil { ProgressView().controlSize(.small); Text(store.text("running")).font(.vzn("smallScale")) }
                 else { Text(store.text("lang_" + session.target)).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1) }
                 Spacer(minLength: metric("small"))
+                if (session.images ?? []).isEmpty, !session.output.isEmpty, store.running(session.id) == nil {
+                    Button { useResultAsSource() } label: { Image(systemName: "arrow.left") }
+                        .buttonStyle(.vznQuiet).help(store.text("useAsSource")).accessibilityLabel(store.text("useAsSource")).accessibilityIdentifier("translation-use-as-source")
+                }
                 if (session.images ?? []).isEmpty {
                     Button(store.text("compare")) { compareOpen.toggle() }.buttonStyle(.vznOutline).fixedSize()
                         .popover(isPresented: $compareOpen) {
@@ -382,6 +418,8 @@ struct ComposerEditor: NSViewRepresentable {
     var accessibilityID = "chat-draft"
     var growsWithContent = false
     var submitOnReturn = false
+    /// Pasted images (file URLs or bitmap data) go here instead of into the text.
+    var pasteImages: (([URL], [Data]) -> Void)? = nil
     var submit: () -> Void
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSScrollView, context: Context) -> CGSize? {
         guard growsWithContent else { return nil }
@@ -402,7 +440,7 @@ struct ComposerEditor: NSViewRepresentable {
         editor.autoresizingMask = [.width]; editor.textContainer?.widthTracksTextView = true
         editor.font = font; editor.textColor = .textColor
         editor.drawsBackground = false; editor.focusRingType = .none
-        editor.delegate = context.coordinator; editor.submit = submit; editor.submitOnReturn = submitOnReturn
+        editor.delegate = context.coordinator; editor.submit = submit; editor.submitOnReturn = submitOnReturn; editor.pasteImages = pasteImages
         editor.setAccessibilityLabel(label); editor.setAccessibilityIdentifier(accessibilityID)
         scroll.documentView = editor; scroll.hasVerticalScroller = true; scroll.drawsBackground = false
         return scroll
@@ -417,7 +455,7 @@ struct ComposerEditor: NSViewRepresentable {
         }
         context.coordinator.parent = self
         if !editor.hasMarkedText(), editor.font != font { editor.font = font }
-        editor.submit = submit; editor.setAccessibilityLabel(label)
+        editor.submit = submit; editor.pasteImages = pasteImages; editor.setAccessibilityLabel(label)
         if context.coordinator.focusEpoch != focusEpoch {
             context.coordinator.focusEpoch = focusEpoch
             DispatchQueue.main.async { [weak editor] in
@@ -443,15 +481,45 @@ struct ComposerEditor: NSViewRepresentable {
         override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
             if menuItem.action == #selector(undo(_:)) { return sessionUndoManager.canUndo }
             if menuItem.action == #selector(redo(_:)) { return sessionUndoManager.canRedo }
+            // A plain-text view would disable Paste for an image-only pasteboard; the composer accepts it.
+            if menuItem.action == #selector(paste(_:)), pasteImages != nil, Self.imagePayload(NSPasteboard.general) != nil { return true }
             return super.validateMenuItem(menuItem)
         }
         override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
             if item.action == #selector(undo(_:)) { return sessionUndoManager.canUndo }
             if item.action == #selector(redo(_:)) { return sessionUndoManager.canRedo }
+            if item.action == #selector(paste(_:)), pasteImages != nil, Self.imagePayload(NSPasteboard.general) != nil { return true }
             return super.validateUserInterfaceItem(item)
+        }
+        /// Image files or a bitmap on a pasteboard; nil when it carries text (text wins for a web selection).
+        static func imagePayload(_ board: NSPasteboard) -> (urls: [URL], data: [Data])? {
+            let urls = (board.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true, .urlReadingContentsConformToTypes: [UTType.image.identifier]]) as? [URL]) ?? []
+            if !urls.isEmpty { return (urls, []) }
+            guard board.string(forType: .string) == nil, let image = (board.readObjects(forClasses: [NSImage.self], options: nil) as? [NSImage])?.first,
+                  let tiff = image.tiffRepresentation, let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else { return nil }
+            return ([], [png])
+        }
+        // Dropping onto the text itself: images attach instead of pasting a file path.
+        override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {
+            if pasteImages != nil, Self.imagePayload(sender.draggingPasteboard) != nil { return .copy }
+            return super.draggingEntered(sender)
+        }
+        override func draggingUpdated(_ sender: any NSDraggingInfo) -> NSDragOperation {
+            if pasteImages != nil, Self.imagePayload(sender.draggingPasteboard) != nil { return .copy }
+            return super.draggingUpdated(sender)
+        }
+        override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
+            if let pasteImages, let payload = Self.imagePayload(sender.draggingPasteboard) { pasteImages(payload.urls, payload.data); return true }
+            return super.performDragOperation(sender)
         }
         var submit: (() -> Void)?
         var submitOnReturn = false
+        var pasteImages: (([URL], [Data]) -> Void)?
+        // ⌘V with an image on the pasteboard attaches it; text pastes as before.
+        override func paste(_ sender: Any?) {
+            if let pasteImages, let payload = Self.imagePayload(NSPasteboard.general) { pasteImages(payload.urls, payload.data); return }
+            super.paste(sender)
+        }
         override func keyDown(with event: NSEvent) {
             let plainReturn = submitOnReturn && !event.modifierFlags.contains(.shift)
             if [36, 76].contains(event.keyCode), event.modifierFlags.contains(.command) || plainReturn, !hasMarkedText() { submit?() }
@@ -462,13 +530,14 @@ struct ComposerEditor: NSViewRepresentable {
 
 struct AudioControls: View {
     @Bindable var store: WorkbenchStore
+    @Environment(\.colorScheme) private var scheme
     // Compact: icon record/stop only; speech output lives in the options menu.
     var compact = false
     var body: some View {
         if compact {
             HStack(spacing: metric("tight")) {
                 if store.audio.recordingOwner != nil {
-                    Button { store.stopRecording() } label: { Image(systemName: "stop.circle.fill").foregroundStyle(Color(nsColor: .systemRed)) }
+                    Button { store.stopRecording() } label: { Image(systemName: "stop.circle.fill").foregroundStyle(contentColor("danger", scheme)) }
                         .help(store.text("stopRecording")).accessibilityLabel(store.text("stopRecording"))
                 } else {
                     Button { Task { await store.startRecording() } } label: { Image(systemName: "mic") }
@@ -488,7 +557,7 @@ struct AudioControls: View {
                 HStack { actions }
                 VStack(alignment: .leading, spacing: metric("small")) { actions }
             }
-            if let error = store.audio.error { Text(store.text(error)).font(.caption).foregroundStyle(.secondary) }
+            if let error = store.audio.error { Text(store.text(error)).font(.vzn("captionScale")).foregroundStyle(.secondary) }
             if store.pendingTranscript != nil { Button(store.text("insertTranscript")) { store.usePendingTranscript() } }
         }
     }
@@ -536,7 +605,7 @@ struct AudioStatus: View {
     var body: some View {
         if store.audio.error != nil || store.pendingTranscript != nil {
             HStack(spacing: metric("small")) {
-                if let error = store.audio.error { Text(store.text(error)).font(.caption).foregroundStyle(.secondary) }
+                if let error = store.audio.error { Text(store.text(error)).font(.vzn("captionScale")).foregroundStyle(.secondary) }
                 if store.pendingTranscript != nil { Button(store.text("insertTranscript")) { store.usePendingTranscript() }.controlSize(.small) }
             }
         }

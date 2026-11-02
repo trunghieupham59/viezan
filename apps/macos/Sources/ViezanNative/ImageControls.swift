@@ -41,7 +41,7 @@ struct ImageControls: View {
                 }
             }
             if !pendingText.isEmpty { Button(store.text("insertTranscript")) { store.setDraft(store.session.id, store.session.draft + (store.session.draft.isEmpty ? "" : "\n") + pendingText); pendingText = "" } }
-            if let error { Text(store.text(error)).font(.caption).foregroundStyle(.secondary) }
+            if let error { Text(store.text(error)).font(.vzn("captionScale")).foregroundStyle(.secondary) }
         }
     }
     @ViewBuilder private var imageActions: some View {
@@ -88,15 +88,84 @@ struct ImageControls: View {
     }
 }
 
+// Pasted or dropped images: one background ingest per item, the store decides the limit.
+enum ImageIntake {
+    @MainActor static func attach(urls: [URL], data: [Data], to sessionID: String, store: WorkbenchStore) {
+        guard let target = store.session(sessionID), [.chat, .translate].contains(target.feature) else { return }
+        let room = (target.feature == .translate ? 1 : 4) - (target.images?.count ?? 0)
+        guard room > 0 else { ToastCenter.shared.show(store.text("attachFailed"), key: "attach", error: true); return }
+        Task {
+            var attached = 0, failed = false
+            for url in urls.prefix(room) {
+                if let image = try? await Task.detached { try Attachments.ingest(url) }.value { store.addImage(image, sessionID: sessionID); attached += 1 } else { failed = true }
+            }
+            for bytes in data.prefix(max(0, room - attached)) {
+                if let image = try? await Task.detached { try Attachments.ingest(bytes, name: "pasted-image.png") }.value { store.addImage(image, sessionID: sessionID) } else { failed = true }
+            }
+            if failed { ToastCenter.shared.show(store.text("attachFailed"), key: "attach", error: true) }
+        }
+    }
+    /// Reads dropped items (Finder files or image data) off their providers.
+    @MainActor static func receive(_ providers: [NSItemProvider], completion: @escaping @MainActor ([URL], [Data]) -> Void) -> Bool {
+        let relevant = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) || $0.hasItemConformingToTypeIdentifier(UTType.image.identifier) }
+        guard !relevant.isEmpty else { return false }
+        Task {
+            var urls: [URL] = [], data: [Data] = []
+            for provider in relevant {
+                if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                    if let item = try? await provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) {
+                        if let bytes = item as? Data, let url = URL(dataRepresentation: bytes, relativeTo: nil) { urls.append(url) }
+                        else if let url = item as? URL { urls.append(url) }
+                    }
+                } else if let type = [UTType.png, .jpeg, .tiff, .image].first(where: { provider.hasItemConformingToTypeIdentifier($0.identifier) }) {
+                    let bytes: Data? = await withCheckedContinuation { continuation in
+                        _ = provider.loadDataRepresentation(forTypeIdentifier: type.identifier) { data, _ in continuation.resume(returning: data) }
+                    }
+                    if let bytes { data.append(bytes) }
+                }
+            }
+            await completion(urls, data)
+        }
+        return true
+    }
+}
+
+// Highlights the composer while an image hovers and attaches what is dropped.
+struct ImageDropTarget: ViewModifier {
+    let store: WorkbenchStore
+    let sessionID: String
+    var radius: CGFloat
+    @State private var targeted = false
+    @Environment(\.colorScheme) private var scheme
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                if targeted {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: radius).fill(contentColor("action-soft", scheme))
+                        RoundedRectangle(cornerRadius: radius).strokeBorder(contentColor("action", scheme), lineWidth: metric("hairline") * 2)
+                        Label(store.text("dropImageHint"), systemImage: "photo.badge.plus").font(.vzn("labelScale", .medium)).foregroundStyle(contentColor("action-text", scheme))
+                    }.allowsHitTesting(false)
+                }
+            }
+            .onDrop(of: [.fileURL, .image], isTargeted: $targeted) { providers in
+                ImageIntake.receive(providers) { urls, data in ImageIntake.attach(urls: urls, data: data, to: sessionID, store: store) }
+            }
+    }
+}
+
 // Pending composer images as removable chips above the editor.
 extension Notification.Name {
     static let viezanAttachImage = Notification.Name("viezan.attachImage")
     static let viezanInterpretHistory = Notification.Name("viezan.interpretHistory")
     // Object: the settings section id to open (e.g. "localModels").
     static let viezanOpenSettings = Notification.Name("viezan.openSettings")
+    // Object: a route id ("translate", "interpret", …) to show in the main window.
+    static let viezanOpenRoute = Notification.Name("viezan.openRoute")
 }
 
 struct AttachmentChips: View {
+    @Environment(\.colorScheme) private var scheme
     @Bindable var store: WorkbenchStore
     var body: some View {
         if let images = store.session.images, !images.isEmpty {
@@ -107,8 +176,8 @@ struct AttachmentChips: View {
                         Text(image.name).lineLimit(1).truncationMode(.middle).frame(maxWidth: metric("sidebar"))
                         Button { store.removeImage(image.id, sessionID: store.session.id) } label: { Image(systemName: "xmark") }
                             .buttonStyle(.vznQuiet).accessibilityLabel(store.text("removeAttachment") + " " + image.name).help(store.text("removeAttachment"))
-                    }.font(.callout).padding(.horizontal, metric("small")).padding(.vertical, metric("tight"))
-                        .background(Color(nsColor: .controlBackgroundColor), in: Capsule())
+                    }.font(.vzn("smallScale")).padding(.horizontal, metric("small")).padding(.vertical, metric("tight"))
+                        .background(contentColor("surface-muted", scheme), in: Capsule())
                 }
             }
         }
@@ -121,7 +190,7 @@ struct AttachmentPreview: View {
     var body: some View {
         Group {
             if let image { Image(nsImage: image).resizable().scaledToFit().frame(maxHeight: metric("editor") * 2).accessibilityLabel(attachment.name) }
-            else { Label(attachment.name, systemImage: "photo").font(.caption) }
+            else { Label(attachment.name, systemImage: "photo").font(.vzn("captionScale")) }
         }.task(id: attachment.id) {
             let attachment = attachment
             if let bytes = try? await Task.detached(operation: { try Attachments.data(attachment) }).value { image = NSImage(data: bytes) }

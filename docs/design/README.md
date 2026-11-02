@@ -6,6 +6,7 @@ Bộ thiết kế đầy đủ của Viezan: nguyên tắc chung, bản vẽ g�
 
 | Lớp | Thư mục | Nội dung |
 | --- | --- | --- |
+| Hướng native | [`direction.md`](direction.md) | Hướng thiết kế duy nhất cho bản native (Quiet Workbench), nguồn còn hiệu lực, bộ thành phần `NativeKit`, link bản vẽ Claude Design |
 | Nền tảng | [`foundations.md`](foundations.md) | Tinh thần thiết kế, ba trục chủ đề, bề mặt, chữ, khoảng cách, hợp đồng Button, khung cửa sổ, responsive, lớp chồng, trợ năng, trạng thái chung |
 | Bản vẽ gốc | [`boards/`](boards) | 31 artboard của đợt thiết kế lại ("quiet workbench"), mỗi file một màn hình hoặc nhóm bề mặt |
 | Đặc tả màn hình | [`screens/`](screens) | Mỗi màn hình một file Markdown theo [`screens/_template.md`](screens/_template.md) |

@@ -14,6 +14,8 @@ public struct InterpretationSegment: Codable, Identifiable, Sendable {
 }
 public struct InterpretationSession: Codable, Identifiable, Sendable {
     public var captureMode: String?
+    /// Input device chosen for this recording ("" = system default); restored when the session is reopened.
+    public var deviceID: String?
     public var id = UUID().uuidString
     public var created = Date().timeIntervalSince1970
     public var model: String
@@ -93,6 +95,14 @@ public struct InterpretationSession: Codable, Identifiable, Sendable {
         guard persist() else { sessions = previous; return }
         if selectedID == id { selectedID = sessions.first?.id }; playback.stopSpeaking()
     }
+    /// Puts a deleted session back (Undo), in its original chronological place.
+    public func restoreSession(_ session: InterpretationSession) {
+        guard !busy, !storageBlocked, !sessions.contains(where: { $0.id == session.id }), sessions.count < 1000 else { return }
+        let previous = sessions
+        sessions.insert(session, at: sessions.firstIndex { $0.created < session.created } ?? sessions.count)
+        guard persist() else { sessions = previous; return }
+        selectedID = session.id
+    }
     // A fresh, empty transcript; the next start creates the session.
     public func clearSelection() { guard !busy else { return }; selectedID = nil }
     public func select(_ id: String) { guard !busy, sessions.contains(where: { $0.id == id }) else { return }; selectedID = id }
@@ -105,7 +115,7 @@ public struct InterpretationSession: Codable, Identifiable, Sendable {
         guard generation == epoch else { return }; starting = false
         guard permitted else { error = "microphoneDenied"; return }
         var session = InterpretationSession(model: model, provider: provider, source: source, target: target, locale: locale)
-        session.captureMode = captureMode
+        session.captureMode = captureMode; session.deviceID = deviceID
         sessions.insert(session, at: 0); selectedID = session.id
         guard persist() else { return }
         turns = SpeakerTurns(); gate = VoiceGate(); started = ProcessInfo.processInfo.systemUptime; listening = true

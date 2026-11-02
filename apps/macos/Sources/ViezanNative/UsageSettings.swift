@@ -8,13 +8,13 @@ struct UsageSettings: View {
     @State private var invalid = false
     var body: some View {
         DisclosureGroup(store.text("usageTitle")) {
-            Text(store.text("usageHint")).font(.caption)
+            Text(store.text("usageHint")).font(.vzn("captionScale"))
             ForEach(Array(Set(store.workspace.tasks.map { $0.request.model })).sorted(), id: \.self) { model in
                 let jobs = store.workspace.tasks.filter { $0.request.model == model }
                 let incoming = jobs.reduce(0.0) { $0 + Double($1.usage?.input ?? 0) }
                 let outgoing = jobs.reduce(0.0) { $0 + Double($1.usage?.output ?? 0) }
                 VStack(alignment: .leading) {
-                    Text(model).font(.headline)
+                    Text(model).font(.vzn("labelScale", .semibold))
                     Text(store.text("usageInput") + ": " + incoming.formatted() + " · " + store.text("usageOutput") + ": " + outgoing.formatted())
                     if let rate = store.workspace.rates?[model] {
                         Text(store.text("usageEstimate") + ": " + ((incoming * rate.input + outgoing * rate.output) / 1_000_000).formatted(.currency(code: rate.currency)))

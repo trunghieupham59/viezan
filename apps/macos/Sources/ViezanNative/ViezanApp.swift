@@ -95,6 +95,9 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
             Divider()
             if store.moduleEnabled("thermal") {
                 Menu(store.text("thermal")) {
+                    Button(store.text("openThermal")) { delegate.window?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); NotificationCenter.default.post(name: .viezanOpenRoute, object: "thermal") }
+                    Toggle(store.text("menuBarTemperature"), isOn: Binding(get: { store.menuBarTemperature }, set: { store.menuBarTemperature = $0 }))
+                    Divider()
                     Button(store.text(store.thermalMonitor.monitoring ? "stop" : "startMonitoring")) { if store.thermalMonitor.monitoring { store.thermalMonitor.stop() } else { store.thermalMonitor.start() } }
                     ForEach(store.thermalMonitor.profiles) { profile in Button(store.text(profile.name)) { store.thermalMonitor.applyProfile(profile.id) }.disabled(!store.thermalMonitor.monitoring || store.thermalMonitor.calibrating) }
                     Button(store.text("restoreAutomatic")) { store.thermalMonitor.restoreAutomatic() }
@@ -104,7 +107,7 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
         } label: {
             HStack {
                 Image(systemName: "bubble.left.and.text.bubble.right")
-                if store.thermalMonitor.monitoring, let temperature = store.thermalMonitor.snapshot?.sensors?.map(\.celsius).max() { Text(String(format: "%.0f °C", temperature)) }
+                if store.menuBarTemperature, store.thermalMonitor.monitoring, let temperature = store.thermalMonitor.snapshot?.sensors?.map(\.celsius).max() { Text(String(format: "%.0f °C", temperature)) }
             }.accessibilityLabel("Viezan")
         }
     }
@@ -195,7 +198,7 @@ struct WorkbenchView: View {
                             else if settings { NativeSettings(store: store, query: $shell.settingsQuery, section: $shell.settingsSection) }
                             else if shell.library { HistoryLibrary(store: store, initialFavorites: shell.libraryFavorites) { shell.library = false; shell.libraryFavorites = false } }
                             else {
-                                if store.recovered { Text(store.text("recovered")).font(.caption).foregroundStyle(.secondary).padding(.horizontal, metric("gutter")) }
+                                if store.recovered { Text(store.text("recovered")).font(.vzn("captionScale")).foregroundStyle(.secondary).padding(.horizontal, metric("gutter")) }
                                 Group {
                                     if store.workspace.feature == .chat { ChatWorkspace(store: store, focusEpoch: composerFocus) }
                                     else { TranslationWorkspace(store: store, focusEpoch: composerFocus) }
@@ -220,7 +223,7 @@ struct WorkbenchView: View {
                                 if overlay == .history {
                                     QuickHistory(store: store, select: { id in store.select(id); shell.dismiss(); }, all: { shell.dismiss(returnFocus: false); shell.library = true }, dismiss: dismissOverlay, availableHeight: layout.panelHeight)
                                 } else if overlay == .activity {
-                                    ActivityView(store: store, open: { id in store.select(id); screen = store.workspace.feature.rawValue; shell.library = false; shell.dismiss() }, dismiss: dismissOverlay, availableHeight: layout.panelHeight)
+                                    ActivityView(store: store, open: { id in store.select(id); screen = store.workspace.feature.rawValue; shell.library = false; shell.dismiss() }, openRoute: { route in shell.dismiss(); select(route) }, dismiss: dismissOverlay, availableHeight: layout.panelHeight)
                                 } else { NativeCommands(store: store, historyAvailable: !home && !settings && !shell.library, availableHeight: min(metric("editor") * 3, layout.height + ShellLayout.headerHeight - metric("inset") * 2), execute: execute, dismiss: dismissOverlay) }
                             }.frame(width: layout.panelWidth, alignment: .top)
                                 .background { ReadingPanelSurface() }
@@ -230,6 +233,8 @@ struct WorkbenchView: View {
                 }
                 // Transient navigation/panel shadows belong below system chrome.
                 .clipped()
+                // Feedback for whole actions (Undo, export/backup errors) sits at the bottom-right corner.
+                .overlay(alignment: .bottomTrailing) { ToastStack(store: store).padding(metric("inset")) }
             }
             .onAppear { compact = layout.compact }
             .onChange(of: layout.compact) { _, value in compact = value; if shell.overlay == .navigation { shell.dismiss() } }
@@ -254,6 +259,10 @@ struct WorkbenchView: View {
         .onChange(of: store.workspace.feature) { _, value in screen = value.rawValue }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in
             if let source = notification.object as? NSWindow, source === window { store.interpretation.cancel(); store.audio.cancel(); store.thermalMonitor.stop() }
+        }
+        .sheet(isPresented: Binding(get: { store.updatePrompt != nil }, set: { if !$0 { store.dismissUpdatePrompt() } })) { UpdatePrompt(store: store) }
+        .onReceive(NotificationCenter.default.publisher(for: .viezanOpenRoute)) { notification in
+            if let route = notification.object as? String { select(route) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .viezanOpenSettings)) { notification in
             shell.settingsQuery = ""; shell.settingsSection = notification.object as? String
@@ -315,7 +324,7 @@ struct WorkbenchView: View {
                     ShellToolbarButton(label: store.text(store.workspace.feature == .chat ? "newChat" : store.workspace.feature == .dictionary ? "newLookup" : "newTranslation"), symbol: "plus", identifier: "new-work", showsLabel: !layout.compact, soft: true, hint: "⌘N", enabled: !store.loadBlocked) { execute("new") }
                     ChromeDivider(vertical: true).frame(height: metric("compactControl"))
                 }
-                ShellToolbarButton(label: store.text("activity"), symbol: "waveform.path.ecg", identifier: "activity-toggle", showsLabel: !layout.compact, expanded: shell.overlay == .activity, hint: "⌘⇧A", count: store.workspace.tasks.filter { $0.status == .running }.count, focusEpoch: shell.focusEpochs["activity", default: 0]) { execute("activity") }
+                ShellToolbarButton(label: store.text("activity"), symbol: "waveform.path.ecg", identifier: "activity-toggle", showsLabel: !layout.compact, expanded: shell.overlay == .activity, hint: "⌘⇧A", count: store.workspace.tasks.filter { $0.status == .running }.count + (store.interpretation.busy ? 1 : 0), focusEpoch: shell.focusEpochs["activity", default: 0]) { execute("activity") }
             }.fixedSize(horizontal: true, vertical: false).frame(height: metric("control")).layoutPriority(1)
                 .padding(.trailing, metric("inset"))
         }.padding(.leading, railChrome(layout) ? max(metric("gutter"), metric("trafficLights") - layout.navigationWidth + metric("small")) : metric("gutter"))
@@ -338,7 +347,7 @@ struct WorkbenchView: View {
     }
     private func storageMessage(_ key: String) -> some View {
         Label(store.text(key), systemImage: "exclamationmark.triangle.fill")
-            .foregroundStyle(Color(nsColor: .systemRed)).fixedSize(horizontal: false, vertical: true)
+            .foregroundStyle(contentColor("danger", scheme)).fixedSize(horizontal: false, vertical: true)
     }
     private var retryStorage: some View {
         NativePanelButton(label: store.text(store.loadBlocked ? "retryLoad" : "retrySave"),
@@ -411,7 +420,7 @@ struct ModelPicker: View {
                 if store.loadingModels { ProgressView().controlSize(.small) }
             }
             if let error = store.modelError {
-                Text(store.text(error)).font(.caption).foregroundStyle(.secondary)
+                Text(store.text(error)).font(.vzn("captionScale")).foregroundStyle(.secondary)
             }
         }.frame(maxWidth: metric("sidebar"))
             .popover(isPresented: $configuring) { configuration }
@@ -419,7 +428,7 @@ struct ModelPicker: View {
     private var configuration: some View {
                 VStack(alignment: .leading, spacing: metric("inset")) {
                     TextField(store.text("modelID"), text: $customModel)
-                    Text(store.text("modelIDHint")).font(.caption)
+                    Text(store.text("modelIDHint")).font(.vzn("captionScale"))
                     Button(store.text("apply")) {
                         store.setModel(modelSessionID, customModel.trimmingCharacters(in: .whitespacesAndNewlines)); store.setSystemPrompt(modelSessionID, customPrompt); configuring = false
                     }.disabled(!NativeModel.valid(customModel.trimmingCharacters(in: .whitespacesAndNewlines)))

@@ -561,7 +561,7 @@ import ViezanDomain
         store.setDraft(store.session.id, "Keyboard activity fixture")
         store.submit(store.session.id)
         var opened: String?
-        let host = NSHostingView(rootView: ActivityView(store: store, open: { opened = $0 }, dismiss: {}, availableHeight: 360))
+        let host = NSHostingView(rootView: ActivityView(store: store, open: { opened = $0 }, openRoute: { _ in }, dismiss: {}, availableHeight: 360))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 376, height: 360), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.contentView = host
@@ -799,4 +799,26 @@ import ViezanDomain
         #expect(coordinator.control(field, textView: fieldEditor, doCommandBy: #selector(NSResponder.cancelOperation(_:))))
         #expect(moved == 1 && opened == 1 && cancelled == 1)
     }
+}
+
+@MainActor @Test func composerPasteHandsImagesToTheIntakeInsteadOfTheText() throws {
+    _ = NSApplication.shared
+    let editor = ComposerEditor.CommandTextView()
+    var received: (urls: Int, data: Int)?
+    editor.pasteImages = { urls, data in received = (urls.count, data.count) }
+    let board = NSPasteboard.general
+    let image = NSImage(size: NSSize(width: 4, height: 4), flipped: false) { rect in NSColor.systemBlue.setFill(); rect.fill(); return true }
+    board.clearContents(); board.writeObjects([image])
+    let pasteItem = NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+    #expect(editor.validateMenuItem(pasteItem))
+    editor.paste(nil)
+    #expect(received?.data == 1)
+    #expect(received?.urls == 0)
+    #expect(editor.string.isEmpty)
+    board.clearContents(); board.setString("plain", forType: .string)
+    received = nil
+    editor.paste(nil)
+    #expect(received == nil)
+    #expect(editor.string == "plain")
+    board.clearContents()
 }

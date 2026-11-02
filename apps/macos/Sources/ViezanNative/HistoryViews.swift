@@ -10,6 +10,7 @@ enum HistoryPanelLayout {
 }
 
 struct QuickHistory: View {
+    @Environment(\.colorScheme) private var scheme
     @Bindable var store: WorkbenchStore
     var select: (String) -> Void
     var all: () -> Void
@@ -29,7 +30,7 @@ struct QuickHistory: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: metric("inset")) {
-            HStack { Text(store.text("history")).font(.headline); Spacer(); ShellCloseButton(label: store.text("close"), action: dismiss) }
+            HStack { Text(store.text("history")).font(.vzn("labelScale", .semibold)); Spacer(); ShellCloseButton(label: store.text("close"), action: dismiss) }
                 .frame(height: metric("control"))
             HistorySearch(query: $query, label: store.text("historySearch"), move: move, submit: openHighlighted, cancel: dismiss)
                 .frame(height: metric("control"))
@@ -40,8 +41,8 @@ struct QuickHistory: View {
                         ForEach(records) { session in
                             Button { select(session.id) } label: { SessionRow(store: store, session: session, highlighted: session.id == highlighted) }
                                 .buttonStyle(.plain).padding(metric("small"))
-                                .background(session.id == highlighted ? Color.accentColor.opacity(metric("selectionOpacity")) : Color.clear, in: RoundedRectangle(cornerRadius: metric("radius")))
-                                .overlay(RoundedRectangle(cornerRadius: metric("radius")).stroke(session.id == highlighted ? Color.accentColor.opacity(metric("selectionOpacity")) : Color.clear))
+                                .background(session.id == highlighted ? contentColor("action-soft", scheme) : Color.clear, in: RoundedRectangle(cornerRadius: metric("radius")))
+                                .overlay(RoundedRectangle(cornerRadius: metric("radius")).stroke(session.id == highlighted ? contentColor("action-soft", scheme) : Color.clear))
                                 .accessibilityAddTraits(session.id == highlighted ? .isSelected : [])
                                 .id(session.id)
                         }
@@ -53,7 +54,7 @@ struct QuickHistory: View {
                 HStack { Text(store.text("allHistory")); Spacer(); Image(systemName: "arrow.right") }
                     .frame(maxWidth: .infinity).frame(minHeight: metric("compactControl"))
                     .contentShape(Rectangle())
-            }.buttonStyle(.plain).foregroundStyle(Color.accentColor)
+            }.buttonStyle(.plain).foregroundStyle(contentColor("action-text", scheme))
         }.padding(metric("inset")).frame(maxWidth: .infinity)
             .accessibilityElement(children: .contain).accessibilityLabel(store.text("history"))
             .onAppear { highlighted = store.session.id }
@@ -62,22 +63,23 @@ struct QuickHistory: View {
 }
 
 struct SessionRow: View {
+    @Environment(\.colorScheme) private var scheme
     var store: WorkbenchStore
     var session: Session
     var highlighted = false
     var body: some View {
         HStack(alignment: .top, spacing: metric("small")) {
-            Image(systemName: session.feature == .chat ? "bubble.left.and.bubble.right" : "character.bubble").foregroundStyle(highlighted ? Color.accentColor : Color.primary)
+            Image(systemName: session.feature == .chat ? "bubble.left.and.bubble.right" : "character.bubble").foregroundStyle(highlighted ? contentColor("action-text", scheme) : Color.primary)
             VStack(alignment: .leading, spacing: metric("small")) {
-                Text(store.title(session)).font(.body).fontWeight(.semibold).lineLimit(1).foregroundStyle(highlighted ? Color.accentColor : Color.primary).help(store.title(session))
+                Text(store.title(session)).font(.body).fontWeight(.semibold).lineLimit(1).foregroundStyle(highlighted ? contentColor("action-text", scheme) : Color.primary).help(store.title(session))
                 let snippet = session.draft.isEmpty ? session.messages.last?.text ?? session.output : session.draft
                 if !snippet.isEmpty {
-                    Text(snippet).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    Text(snippet).font(.vzn("captionScale")).foregroundStyle(.secondary).lineLimit(1)
                 }
                 HStack {
                     Text(nativeModelLabel(session.model, store: store)).lineLimit(1)
                     if store.running(session.id) != nil { Text(store.text("running")) }
-                }.font(.caption2).foregroundStyle(.secondary)
+                }.font(.vzn("captionScale")).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
             if session.id == store.session.id {
@@ -97,10 +99,8 @@ struct HistoryLibrary: View {
     @State private var archived = false
     @State private var favoritesOnly = false
     @State private var deleteID: String?
-    @State private var deletionError = false
     @State private var renameID: String?
     @State private var newTitle = ""
-    @State private var exportError = false
     private var records: [Session] { store.history(query: query, archived: archived).filter { !favoritesOnly || $0.feature != .dictionary || $0.favorite == true } }
     private func move(_ offset: Int) {
         guard !records.isEmpty else { return }
@@ -116,13 +116,16 @@ struct HistoryLibrary: View {
             let layout = wide ? AnyLayout(HStackLayout(spacing: 0)) : AnyLayout(VStackLayout(spacing: 0))
             layout {
                 VStack(alignment: .leading, spacing: metric("small")) {
-                    if store.workspace.feature == .dictionary { Toggle(store.text("favorite"), isOn: $favoritesOnly).padding(.horizontal, metric("inset")) }
-                    Toggle(store.text("archivedSessions"), isOn: $archived).padding(.horizontal, metric("inset"))
+                    // Review 18: small exclusive tabs, not switches, for what the list shows.
+                    if store.workspace.feature == .dictionary {
+                        FilterTabs(label: store.text("dictionary"), items: [(false, store.text("recentLookups")), (true, store.text("savedWords"))], selection: $favoritesOnly).padding(.horizontal, metric("inset"))
+                    }
+                    FilterTabs(label: store.text("history"), items: [(false, store.text("history")), (true, store.text("archivedSessions"))], selection: $archived).padding(.horizontal, metric("inset"))
                     HistorySearch(query: $query, label: store.text("historySearch"), move: move)
                         .frame(width: wide ? metric("sidebar") + metric("gutter") - metric("inset") * 2 : nil, height: metric("control")).padding(metric("inset"))
                     if records.isEmpty {
                         VStack(spacing: metric("small")) {
-                            Image(systemName: "magnifyingglass").font(.title2).accessibilityHidden(true)
+                            Image(systemName: "magnifyingglass").font(.vzn("headingScale", .semibold)).accessibilityHidden(true)
                             Text(store.text("noHistory")).multilineTextAlignment(.center)
                         }.foregroundStyle(.secondary).padding(metric("inset"))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -137,10 +140,10 @@ struct HistoryLibrary: View {
                         VStack(alignment: .leading, spacing: metric("small")) {
                             ScrollView {
                                 VStack(alignment: .leading, spacing: metric("small")) {
-                                    Text(store.text("historyPreview")).font(.caption).foregroundStyle(.secondary)
+                                    Text(store.text("historyPreview")).font(.vzn("captionScale")).foregroundStyle(.secondary)
                                     Text(store.title(session)).font(wide ? .title2 : .headline).fontWeight(.semibold)
                                         .lineLimit(wide ? 2 : 1).help(store.title(session))
-                                    Text(nativeModelLabel(session.model, store: store)).font(.caption).foregroundStyle(.secondary)
+                                    Text(nativeModelLabel(session.model, store: store)).font(.vzn("captionScale")).foregroundStyle(.secondary)
                                     SessionPreview(store: store, session: session)
                                 }.frame(maxWidth: .infinity, alignment: .leading)
                             }.id(session.id).frame(maxHeight: .infinity)
@@ -148,7 +151,13 @@ struct HistoryLibrary: View {
                             HStack {
                                 Button(store.text("rename")) { renameID = id; newTitle = session.title }
                                 Button(store.text("exportSession")) { export(id) }
-                                Button(store.text(archived ? "restoreSession" : "archiveSession")) { store.archiveSession(id, archived: !archived); selected = records.first?.id }
+                                Button(store.text(archived ? "restoreSession" : "archiveSession")) {
+                                    let wasArchived = archived
+                                    store.archiveSession(id, archived: !wasArchived); selected = records.first?.id
+                                    ToastCenter.shared.show(store.text(wasArchived ? "sessionRestored" : "sessionArchived") + ": " + store.title(session), key: "archive-" + id, actionLabel: store.text("undo")) {
+                                        store.archiveSession(id, archived: wasArchived)
+                                    }
+                                }
                                 if archived { Button(store.text("deletePermanently"), role: .destructive) { deleteID = id } }
                                 Spacer(); NativePanelButton(label: store.text("open"), symbol: "arrow.right", identifier: "history-open", role: .primary) { store.select(id); close() }.disabled(archived) }
                         }.padding(wide ? metric("gutter") : metric("inset")).frame(maxWidth: .infinity)
@@ -157,16 +166,14 @@ struct HistoryLibrary: View {
             }
         }.onAppear { selected = store.session.id }
             .confirmationDialog(store.text("deletePermanentlyConfirm"), isPresented: Binding(get: { deleteID != nil }, set: { if !$0 { deleteID = nil } })) {
-                Button(store.text("deletePermanently"), role: .destructive) { if let id = deleteID { do { try store.deleteArchivedSession(id); selected = records.first?.id } catch { deletionError = true } }; deleteID = nil }
+                Button(store.text("deletePermanently"), role: .destructive) { if let id = deleteID { do { try store.deleteArchivedSession(id); selected = records.first?.id } catch { ToastCenter.shared.show(store.text("dataOperationError"), key: "history-delete", error: true) } }; deleteID = nil }
             }
-            .alert(store.text("dataOperationError"), isPresented: $deletionError) { Button(store.text("close"), role: .cancel) {} }
             .onChange(of: archived) { _, _ in selected = records.first?.id }
             .alert(store.text("rename"), isPresented: Binding(get: { renameID != nil }, set: { if !$0 { renameID = nil } })) {
                 TextField(store.text("sessionTitle"), text: $newTitle)
                 Button(store.text("apply")) { if let id = renameID { store.renameSession(id, title: newTitle) }; renameID = nil }
                 Button(store.text("close"), role: .cancel) { renameID = nil }
             }
-            .alert(store.text("exportError"), isPresented: $exportError) { Button(store.text("close"), role: .cancel) {} }
             .onChange(of: query) { _, _ in if !records.contains(where: { $0.id == selected }) { selected = records.first?.id } }
     }
     private func export(_ id: String) {
@@ -174,7 +181,7 @@ struct HistoryLibrary: View {
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
             do { try store.exportSession(id).write(to: url, options: .atomic) }
-            catch { exportError = true }
+            catch { ToastCenter.shared.show(store.text("exportError"), key: "history-export", error: true) }
         }
     }
 
@@ -200,7 +207,7 @@ struct SessionPreview: View {
     }
     private func section(_ title: String, _ content: String) -> some View {
         VStack(alignment: .leading, spacing: metric("small")) {
-            Text(title).font(.caption).fontWeight(.semibold).foregroundStyle(.secondary)
+            Text(title).font(.vzn("captionScale")).fontWeight(.semibold).foregroundStyle(.secondary)
             Text(content).font(readingFont(store)).frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -209,6 +216,7 @@ struct SessionPreview: View {
 struct ActivityView: View {
     @Bindable var store: WorkbenchStore
     var open: (String) -> Void
+    var openRoute: (String) -> Void
     var dismiss: () -> Void
     var availableHeight: CGFloat
     @State private var contentHeight: CGFloat = 0
@@ -216,6 +224,7 @@ struct ActivityView: View {
     @State private var focusEpoch = 1
     private var controls: [String] {
         var ids = ["close"]
+        if store.interpretation.busy { ids += ["open-interpretation", "stop-interpretation"] }
         for task in store.workspace.tasks {
             ids.append("open-" + task.id)
             if task.status == .running { ids.append("stop-" + task.id) }
@@ -233,19 +242,32 @@ struct ActivityView: View {
     private func epoch(_ id: String) -> Int { focusedControl == id ? focusEpoch : 0 }
     var body: some View {
         VStack(alignment: .leading, spacing: metric("inset")) {
-            HStack { Text(store.text("activity")).font(.headline); Spacer(); ShellToolbarButton(label: store.text("close"), symbol: "xmark", identifier: "activity-close", focusEpoch: epoch("close"), onTab: { moveFocus(from: "close", backwards: $0) }, action: dismiss) }
+            HStack { Text(store.text("activity")).font(.vzn("labelScale", .semibold)); Spacer(); ShellToolbarButton(label: store.text("close"), symbol: "xmark", identifier: "activity-close", focusEpoch: epoch("close"), onTab: { moveFocus(from: "close", backwards: $0) }, action: dismiss) }
                 .frame(height: metric("control"))
-            if store.workspace.tasks.isEmpty {
+            if store.workspace.tasks.isEmpty && !store.interpretation.busy {
                 Text(store.text("noTasks")).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: metric("control"), alignment: .leading)
             } else {
                 ScrollView {
                     VStack(spacing: metric("inset")) {
+                        // Live interpretation is a background job too: it keeps capturing after navigation.
+                        if store.interpretation.busy, let session = store.interpretation.current {
+                            VStack(alignment: .leading, spacing: metric("small")) {
+                                Text(store.text("interpret") + " · " + Date(timeIntervalSince1970: session.created).formatted(date: .abbreviated, time: .shortened)).font(.vzn("labelScale", .semibold)).lineLimit(2)
+                                Text(store.text(store.interpretation.listening ? "listening" : "running")).font(.vzn("captionScale")).foregroundStyle(.secondary)
+                                Text(nativeModelLabel(session.model, store: store)).font(.vzn("captionScale")).foregroundStyle(.secondary)
+                                HStack {
+                                    NativePanelButton(label: store.text("open"), identifier: "activity-open-interpretation", focusEpoch: epoch("open-interpretation"), onTab: { moveFocus(from: "open-interpretation", backwards: $0) }) { openRoute("interpret") }
+                                    Spacer()
+                                    NativePanelButton(label: store.text("stop"), identifier: "activity-stop-interpretation", role: .destructive, focusEpoch: epoch("stop-interpretation"), onTab: { moveFocus(from: "stop-interpretation", backwards: $0) }) { focusedControl = "close"; store.interpretation.stop() }
+                                }
+                            }.frame(maxWidth: .infinity, alignment: .leading).cardSurface()
+                        }
                         ForEach(store.workspace.tasks) { task in
                             VStack(alignment: .leading, spacing: metric("small")) {
-                                Text(store.session(task.request.sessionID).map(store.title) ?? store.text("noContent")).font(.headline).lineLimit(2)
-                                Text(store.text(task.status.rawValue)).font(.caption).foregroundStyle(.secondary)
-                                Text(nativeModelLabel(task.request.model, store: store)).font(.caption2).foregroundStyle(.secondary)
+                                Text(store.session(task.request.sessionID).map(store.title) ?? store.text("noContent")).font(.vzn("labelScale", .semibold)).lineLimit(2)
+                                Text(store.text(task.status.rawValue)).font(.vzn("captionScale")).foregroundStyle(.secondary)
+                                Text(nativeModelLabel(task.request.model, store: store)).font(.vzn("captionScale")).foregroundStyle(.secondary)
                                 HStack {
                                     NativePanelButton(label: store.text("open"), identifier: "activity-open-" + task.id, focusEpoch: epoch("open-" + task.id), onTab: { moveFocus(from: "open-" + task.id, backwards: $0) }) { open(task.request.sessionID) }
                                     Spacer()

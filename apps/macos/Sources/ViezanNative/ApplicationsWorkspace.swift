@@ -2,6 +2,7 @@ import SwiftUI
 import ViezanDomain
 
 struct ApplicationsWorkspace: View {
+    @Environment(\.colorScheme) private var scheme
     let store: WorkbenchStore
     @State private var query = ""
     @State private var selected = Set<String>()
@@ -23,7 +24,7 @@ struct ApplicationsWorkspace: View {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
                     TextField(store.text("searchLabel"), text: $query).textFieldStyle(.plain)
                 }.padding(.horizontal, metric("gap")).frame(maxWidth: metric("sidebar") + metric("large"), minHeight: metric("control"))
-                    .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
+                    .background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
                     .overlay(RoundedRectangle(cornerRadius: metric("controlRadius")).strokeBorder(Color(nsColor: .separatorColor), lineWidth: metric("hairline")))
                 Button { Task { await apps.refresh() } } label: { Image(systemName: "arrow.clockwise") }
                     .buttonStyle(.vznQuiet).disabled(apps.busy).help(store.text("refresh")).accessibilityLabel(store.text("refresh"))
@@ -33,14 +34,14 @@ struct ApplicationsWorkspace: View {
                     .buttonStyle(.vznQuiet).tint(.primary)
                     .popover(isPresented: $journalOpen) { journal }
             }
-            if let error = apps.error { Label(store.text(error), systemImage: "exclamationmark.triangle").foregroundStyle(Color(nsColor: .systemRed)).textSelection(.enabled) }
+            if let error = apps.error { Label(store.text(error), systemImage: "exclamationmark.triangle").foregroundStyle(contentColor("danger", scheme)).textSelection(.enabled) }
             if let outcome, let journal = apps.journals.first(where: { $0.id == outcome.journal }) { result(journal, undone: outcome.undone) }
             GeometryReader { geometry in
                 let wide = geometry.size.width >= metric("reading")
                 let _ = DispatchQueue.main.async { if wideLayout != wide { wideLayout = wide } }
                 HStack(alignment: .top, spacing: metric("inset")) {
                     if wide || (apps.plan == nil && focused == nil) {
-                        inventory.frame(maxWidth: wide ? geometry.size.width * 0.45 : .infinity).cardSurface(padded: false)
+                        inventory.frame(maxWidth: wide ? geometry.size.width * metric("inventorySplit") : .infinity).cardSurface(padded: false)
                     }
                     if wide || apps.plan != nil || focused != nil {
                         detail.frame(maxWidth: .infinity, alignment: .topLeading).cardSurface()
@@ -65,7 +66,7 @@ struct ApplicationsWorkspace: View {
         let restored = journal.items.filter { $0.status == "restored" }.count
         let key = undone ? "appRestoredCount" : journal.action == "reset" ? "appResetCount" : "appTrashedCount"
         return HStack(spacing: metric("gap")) {
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(Color(nsColor: .systemGreen)).accessibilityHidden(true)
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(contentColor("success", scheme)).accessibilityHidden(true)
             Text(store.text(key).replacingOccurrences(of: "{count}", with: String(undone ? restored : done)))
             Spacer()
             if !undone && done > 0 {
@@ -76,7 +77,7 @@ struct ApplicationsWorkspace: View {
                 .help(store.text("close")).accessibilityLabel(store.text("close"))
         }
         .padding(.horizontal, metric("inset")).padding(.vertical, metric("small"))
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: metric("radius")))
+        .background(contentColor("surface-muted", scheme), in: RoundedRectangle(cornerRadius: metric("radius")))
         .accessibilityElement(children: .contain)
     }
     /// Paths under the home folder read as ~/…
@@ -87,7 +88,7 @@ struct ApplicationsWorkspace: View {
     private var journal: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: metric("small")) {
-                Text(store.text("appActionHistory")).font(.headline)
+                Text(store.text("appActionHistory")).font(.vzn("labelScale", .semibold))
                 if apps.journals.isEmpty { Text(store.text("noHistory")).foregroundStyle(.secondary) }
                 ForEach(apps.journals) { journal in
                     HStack {
@@ -96,7 +97,7 @@ struct ApplicationsWorkspace: View {
                         Text("\(journal.items.filter { ["trashed", "preferencesRemoved"].contains($0.status) }.count) / \(journal.items.count)").monospacedDigit()
                         Button(store.text("appRestore")) { Task { await apps.undo(journal.id) } }.disabled(apps.busy || !journal.items.contains { ["trashed", "preferencesRemoved", "preferencesBackedUp"].contains($0.status) || ($0.status == "failed" && $0.preferenceBackup != nil) })
                     }
-                    ForEach(journal.items) { item in Text(shortPath(item.path) + " · " + store.text("app_" + item.status)).font(.caption).foregroundStyle(.secondary).textSelection(.enabled) }
+                    ForEach(journal.items) { item in Text(shortPath(item.path) + " · " + store.text("app_" + item.status)).font(.vzn("captionScale")).foregroundStyle(.secondary).textSelection(.enabled) }
                     Divider()
                 }
             }.padding(metric("inset"))
@@ -111,12 +112,12 @@ struct ApplicationsWorkspace: View {
                             Image(nsImage: NSWorkspace.shared.icon(forFile: app.path)).resizable().frame(width: metric("gutter") + metric("small"), height: metric("gutter") + metric("small")).accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: metric("tight")) {
                                 Text(app.name).fontWeight(.medium).lineLimit(1)
-                                Text(app.version).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                                Text(app.version).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1)
                             }
                             Spacer(minLength: 0)
                             if app.blocked != nil { Image(systemName: "lock").foregroundStyle(.secondary).help(store.text(app.blocked ?? "")) }
                         }.padding(metric("small")).frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-                            .background(focused == app.id ? Color.accentColor.opacity(metric("selectionOpacity")) : Color.clear, in: RoundedRectangle(cornerRadius: metric("radius")))
+                            .background(focused == app.id ? contentColor("action-soft", scheme) : Color.clear, in: RoundedRectangle(cornerRadius: metric("radius")))
                     }.buttonStyle(.plain).accessibilityAddTraits(focused == app.id ? .isSelected : []).help(app.path)
                 }
             }.padding(metric("small"))
@@ -131,7 +132,7 @@ struct ApplicationsWorkspace: View {
             VStack(alignment: .leading, spacing: metric("inset")) {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: app.path)).resizable().frame(width: metric("large") + metric("small"), height: metric("large") + metric("small")).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: metric("tight")) {
-                    Text(app.name).font(.title2).fontWeight(.semibold)
+                    Text(app.name).font(.vzn("headingScale", .semibold)).fontWeight(.semibold)
                     Text(app.bundleID).foregroundStyle(.secondary).textSelection(.enabled)
                 }
                 CardRow(title: store.text("apps"), detail: shortPath(app.path)) { Text(app.version).foregroundStyle(.secondary) }
@@ -153,21 +154,36 @@ struct ApplicationsWorkspace: View {
     @ViewBuilder private var planDetails: some View {
         if let plan = apps.plan {
             VStack(alignment: .leading, spacing: metric("inset")) {
-                HStack { Text(plan.app.name).font(.headline); Spacer(); Button(store.text("close")) { apps.dismissPlan() }.disabled(apps.busy) }
+                HStack { Text(plan.app.name).font(.vzn("labelScale", .semibold)); Spacer(); Button(store.text("close")) { apps.dismissPlan() }.disabled(apps.busy) }
                 if plan.incomplete { Text(store.text("appIncomplete")) }
                 Toggle(store.text("appReset"), isOn: $reset).disabled(apps.busy).onChange(of: reset) { _, value in if value { for item in plan.items where item.kind == "bundle" { selected.remove(item.id) } } }
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: metric("small")) {
-                        ForEach(plan.items) { item in
-                            HStack {
-                                Toggle(isOn: Binding(get: { selected.contains(item.id) }, set: { if $0 { selected.insert(item.id) } else { selected.remove(item.id) } })) {
-                                    VStack(alignment: .leading) {
-                                        Text(shortPath(item.path)).textSelection(.enabled).help(item.path)
-                                        if let blocked = item.blocked { Text(store.text(blocked)).foregroundStyle(.secondary) }
-                                        else if let bytes = item.bytes { Text(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)).foregroundStyle(.secondary) }
+                        // Grouped the way the spec reads them: the bundle, its preferences, then related data.
+                        ForEach(["bundle", "preferences", "data"], id: \.self) { kind in
+                            let items = plan.items.filter { $0.kind == kind }
+                            if !items.isEmpty {
+                                let total = items.compactMap(\.bytes).reduce(0, +)
+                                HStack {
+                                    Eyebrow(text: store.text("appKind_" + kind))
+                                    Spacer()
+                                    Text(String(items.count) + " · " + ByteCountFormatter.string(fromByteCount: total, countStyle: .file)).font(.vzn("captionScale")).foregroundStyle(.secondary).monospacedDigit()
+                                }.padding(.top, metric("small"))
+                                ForEach(items) { item in
+                                    HStack {
+                                        Toggle(isOn: Binding(get: { selected.contains(item.id) }, set: { if $0 { selected.insert(item.id) } else { selected.remove(item.id) } })) {
+                                            VStack(alignment: .leading, spacing: metric("tight")) {
+                                                Text(shortPath(item.path)).textSelection(.enabled).help(item.path)
+                                                HStack(spacing: metric("small")) {
+                                                    if let blocked = item.blocked { Text(store.text(blocked)) }
+                                                    else { Text(item.bytes.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? store.text("notMeasured")) }
+                                                    Text("·"); Text(store.text("appEvidence_" + item.evidence))
+                                                }.font(.vzn("smallScale")).foregroundStyle(.secondary)
+                                            }
+                                        }.disabled(apps.busy || item.blocked != nil || (reset && item.kind == "bundle"))
+                                        Button(store.text("reveal")) { apps.reveal(item.id) }.buttonStyle(.vznQuiet)
                                     }
-                                }.disabled(apps.busy || item.blocked != nil || (reset && item.kind == "bundle"))
-                                Button(store.text("reveal")) { apps.reveal(item.id) }
+                                }
                             }
                         }
                     }

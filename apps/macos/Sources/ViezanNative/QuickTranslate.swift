@@ -123,17 +123,17 @@ struct QuickTranslateView: View {
     @Environment(\.colorScheme) private var scheme
     private var language: String { store.text("lang_" + model.language) }
     static func width(_ phase: QuickTranslate.Phase) -> CGFloat {
-        switch phase { case .result, .failed, .needsAccess: metric("reading") * 0.6; default: metric("sidebar") + metric("rail") }
+        switch phase { case .result, .failed, .needsAccess: metric("reading") * metric("quickCard"); default: metric("sidebar") + metric("rail") }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: metric("gap")) {
             switch model.phase {
             case .reading: status(store.text("quickReading"), busy: true)
             case .translating(let target): status(store.text("quickTranslating").replacingOccurrences(of: "{lang}", with: store.text("lang_" + target)), busy: true)
-            case .replaced: status(store.text("quickReplaced"), symbol: "checkmark.circle.fill", tone: Color(nsColor: .systemGreen))
-            case .noSelection: status(store.text("quickNoSelection"), symbol: "exclamationmark.circle", tone: Color(nsColor: .systemOrange))
+            case .replaced: status(store.text("quickReplaced"), symbol: "checkmark.circle.fill", tone: contentColor("success", scheme))
+            case .noSelection: status(store.text("quickNoSelection"), symbol: "exclamationmark.circle", tone: contentColor("warning", scheme))
             case .needsAccess:
-                header(store.text("quickNeedsAccessibility"), symbol: "lock.shield", tone: Color(nsColor: .systemOrange))
+                header(store.text("quickNeedsAccessibility"), symbol: "lock.shield", tone: contentColor("warning", scheme))
                 HStack { Spacer(); Button(store.text("openSystemSettings"), action: actions.settings).buttonStyle(.vznPrimary) }
             case .failed(let code, let detail):
                 header(store.text("quickFailed"), symbol: "exclamationmark.triangle", tone: contentColor("danger", scheme))

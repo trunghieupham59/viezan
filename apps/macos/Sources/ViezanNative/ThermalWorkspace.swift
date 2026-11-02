@@ -30,7 +30,7 @@ struct ThermalWorkspace: View {
                 // Live metric tiles: the hottest sensor, then each fan.
                 UniformGrid(maxColumns: 3) {
                     if let hottest = sensors.max(by: { $0.celsius < $1.celsius }) {
-                        metricTile(store.text("thermal_hottest"), String(format: "%.0f °C", hottest.celsius), sensorName(hottest.key) + " · " + hottest.key, progress: min(1, hottest.celsius / 110))
+                        metricTile(store.text("thermal_hottest"), String(format: "%.0f °C", hottest.celsius), sensorName(hottest.key) + " · " + hottest.key, progress: min(1, hottest.celsius / metric("thermalScaleMax")))
                     }
                     ForEach(fans) { fan in
                         metricTile(fanName(fan), fan.rpm.formatted(.number.precision(.fractionLength(0))), store.text("rpm"),
@@ -68,7 +68,7 @@ extension ThermalWorkspace {
         VStack(alignment: .leading, spacing: metric("small")) {
             Eyebrow(text: title)
             Text(value).font(.system(size: metric("gutter") + metric("small"), weight: .semibold)).monospacedDigit()
-            Text(detail).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+            Text(detail).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1)
             ProgressView(value: progress).progressViewStyle(.linear).accessibilityHidden(true)
         }.frame(maxWidth: .infinity, alignment: .leading).cardSurface().accessibilityElement(children: .combine)
     }
@@ -109,7 +109,7 @@ extension ThermalWorkspace {
     }
     private func ruleEditor(_ monitor: ThermalMonitor) -> some View {
         VStack(alignment: .leading, spacing: metric("small")) {
-            Text(store.text("fanRules")).font(.headline)
+            Text(store.text("fanRules")).font(.vzn("labelScale", .semibold))
             TextField(store.text("name"), text: $profileName).textFieldStyle(.roundedBorder)
             Picker(store.text("fanSensor"), selection: $sensor) {
                 Text(store.text("fanAllSensors")).tag("all")
@@ -123,16 +123,17 @@ extension ThermalWorkspace {
         }.padding(metric("inset")).frame(width: metric("sidebar") + metric("editor"))
     }
     @ViewBuilder fileprivate func helperActions(_ monitor: ThermalMonitor) -> some View {
-        Button(store.text("registerHelper")) { confirmHelper = true }
-        Button(store.text("openSystemSettings")) { monitor.openHelperSettings() }
-        Button(store.text("unregisterHelper"), role: .destructive) { confirmRemoval = true }
+        // Register only while the daemon is absent; remove only once it is installed or awaiting approval.
+        if monitor.helperStatus != "helperEnabled" && monitor.helperStatus != "helperApproval" { Button(store.text("registerHelper")) { confirmHelper = true } }
+        if monitor.helperStatus == "helperApproval" { Button(store.text("openSystemSettings")) { monitor.openHelperSettings() } }
+        if monitor.helperStatus == "helperEnabled" || monitor.helperStatus == "helperApproval" { Button(store.text("unregisterHelper"), role: .destructive) { confirmRemoval = true } }
     }
     @ViewBuilder fileprivate func sensorCard(_ monitor: ThermalMonitor) -> some View {
         CardSection(title: store.text("thermal_sensors_title")) {
             // Hundreds of SMC keys folded into rows that mean one thing, per group, hottest first.
             let sensors = monitor.snapshot?.sensors ?? []
             let groups = ThermalSensors.rows(sensors)
-            if sensors.isEmpty { Text(store.text("sensorsEmptyHint")).font(.callout).foregroundStyle(.secondary) }
+            if sensors.isEmpty { Text(store.text("sensorsEmptyHint")).font(.vzn("smallScale")).foregroundStyle(.secondary) }
             ForEach(ThermalSensors.Group.allCases, id: \.self) { group in
                 if let rows = groups[group], !rows.isEmpty {
                     Eyebrow(text: store.text("thermal_group_" + group.rawValue)).padding(.top, metric("small"))
@@ -159,7 +160,7 @@ extension ThermalWorkspace {
                     Button(store.text("stop"), role: .destructive) { monitor.cancelCalibration() }
                 }
             }
-            ForEach(monitor.affinity.keys.sorted(), id: \.self) { index in Text(store.text("thermal_fan_name").replacingOccurrences(of: "{n}", with: String(index + 1)) + ": " + (monitor.affinity[index] ?? []).joined(separator: ", ")).font(.caption).foregroundStyle(.secondary) }
+            ForEach(monitor.affinity.keys.sorted(), id: \.self) { index in Text(store.text("thermal_fan_name").replacingOccurrences(of: "{n}", with: String(index + 1)) + ": " + (monitor.affinity[index] ?? []).joined(separator: ", ")).font(.vzn("captionScale")).foregroundStyle(.secondary) }
         }
     }
 }
@@ -167,7 +168,7 @@ extension ThermalWorkspace {
 extension ThermalWorkspace {
     /// Warm (≥ 70 °C) and hot (≥ 90 °C) readings stand out; the number still carries the meaning.
     func toneColor(_ celsius: Double) -> Color {
-        switch ThermalSensors.tone(celsius) { case "hot": contentColor("danger", scheme); case "warm": Color(nsColor: .systemOrange); default: .primary }
+        switch ThermalSensors.tone(celsius) { case "hot": contentColor("danger", scheme); case "warm": contentColor("warning", scheme); default: .primary }
     }
 }
 private struct NativeFanRow: View {

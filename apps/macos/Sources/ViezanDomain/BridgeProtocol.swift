@@ -65,9 +65,9 @@ enum BridgeAuth {
     }
 }
 public enum NativeTTS {
-    public static func audio(_ text: String, voice: String = "", provider: String = "openai", language: String = "en") async throws -> Data {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text.count <= 5000, ["openai", "gemini", "elevenlabs", "edge"].contains(provider) else { throw StorageFailure.invalidData }
-        if provider == "edge" { return try await EdgeSpeech.audio(text, language: language, voice: voice) }
+    public static func audio(_ text: String, voice: String = "", provider: String = "openai", language: String = "en", rate: Double = 1) async throws -> Data {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text.count <= 5000, ["openai", "gemini", "elevenlabs", "edge"].contains(provider), (0.5...2).contains(rate) else { throw StorageFailure.invalidData }
+        if provider == "edge" { return try await EdgeSpeech.audio(text, language: language, voice: voice, rate: rate) }
         let selected = voice.isEmpty ? (provider == "gemini" ? "Aoede" : provider == "elevenlabs" ? "pNInz6obpgDQGcFmaJgB" : "alloy") : voice
         guard selected.range(of: "^[A-Za-z0-9_-]{1,100}$", options: .regularExpression) != nil else { throw StorageFailure.invalidData }
         guard let key = try? CredentialStore.read(provider) else { throw CloudFailure.missingKey }
@@ -77,7 +77,7 @@ public enum NativeTTS {
         let body: [String: Any]
         if provider == "gemini" { body = ["contents": [["parts": [["text": text]]]], "generationConfig": ["responseModalities": ["AUDIO"], "speechConfig": ["voiceConfig": ["prebuiltVoiceConfig": ["voiceName": selected]]]]] }
         else if provider == "elevenlabs" { body = ["text": text, "model_id": "eleven_multilingual_v2"] }
-        else { body = ["model": "tts-1", "input": text, "voice": selected, "response_format": "mp3"] }
+        else { body = ["model": "tts-1", "input": text, "voice": selected, "response_format": "mp3", "speed": rate] }
         call.httpBody = try JSONSerialization.data(withJSONObject: body)
         let config = URLSessionConfiguration.ephemeral; config.timeoutIntervalForRequest = 60; config.timeoutIntervalForResource = 180
         let session = URLSession(configuration: config, delegate: NoRedirectDelegate(), delegateQueue: nil); defer { session.invalidateAndCancel() }
