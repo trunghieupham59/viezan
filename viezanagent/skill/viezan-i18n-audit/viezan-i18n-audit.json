@@ -1,0 +1,181 @@
+{
+  "name": "viezan-i18n-audit",
+  "version": "1.0.0",
+  "description": "Skill audit i18n coverage và chất lượng dịch của Viezan: kiểm tra missing key giữa locales VI/EN/JA, hardcoded UI string, key trùng lặp, key chưa dùng và parity giữa renderer + chrome-extension",
+  "type": "skill",
+  "classification": {
+    "lifecycle": "audit",
+    "domain": ["i18n", "extension", "ux"],
+    "use_for": "Audit locale parity, hardcoded UI strings, duplicate or unused keys, and renderer-extension i18n coverage."
+  },
+  "trigger": "Khi cần kiểm tra i18n coverage, thêm/đổi locale, audit hardcoded string trong UI, hoặc verify trước release",
+  "required_context": [
+    "../../ARCHITECTURE.md",
+    "../../rule/viezan-product-engineering/rules.json"
+  ],
+  "locale_layout": {
+    "renderer_locales_dir": "src/i18n/locales/",
+    "renderer_locale_files": [
+      "src/i18n/locales/vi.ts",
+      "src/i18n/locales/en.ts",
+      "src/i18n/locales/ja.ts"
+    ],
+    "renderer_types": "src/i18n/types.ts",
+    "renderer_index": "src/i18n/index.ts",
+    "supported_locales": [
+      "vi",
+      "en",
+      "ja"
+    ],
+    "default_locale": "vi",
+    "extension_strings": [
+      "chrome-extension/popup.html",
+      "chrome-extension/popup.js",
+      "chrome-extension/options.html",
+      "chrome-extension/options.js",
+      "chrome-extension/content.js"
+    ],
+    "renderer_string_scan_globs": [
+      "src/components/**/*.{ts,tsx}",
+      "src/pages/**/*.{ts,tsx}"
+    ]
+  },
+  "audit_categories": [
+    {
+      "id": "missing-keys",
+      "name": "Missing Translation Keys",
+      "severity_if_failed": "high",
+      "checks": [
+        "Mỗi key có trong vi.ts phải có trong en.ts và ja.ts (và ngược lại)",
+        "Cấu trúc nested object phải đối xứng giữa 3 locale",
+        "Không có key bị bỏ trống hoặc set bằng key gốc làm placeholder"
+      ],
+      "suggested_searches": [
+        "rg -n \"export const \" src/i18n/locales",
+        "rg -n \"^\\s*[a-zA-Z0-9_]+:\\s*['\\\"]\" src/i18n/locales/vi.ts",
+        "rg -n \"^\\s*[a-zA-Z0-9_]+:\\s*['\\\"]\" src/i18n/locales/en.ts",
+        "rg -n \"^\\s*[a-zA-Z0-9_]+:\\s*['\\\"]\" src/i18n/locales/ja.ts"
+      ]
+    },
+    {
+      "id": "hardcoded-ui-strings",
+      "name": "Hardcoded UI Strings",
+      "severity_if_failed": "high",
+      "checks": [
+        "JSX text node không phải biến/i18n → có khả năng hardcode",
+        "title=, placeholder=, aria-label=, alt= không nên hardcode tiếng Việt/Anh/Nhật",
+        "toast/notification/error message render trực tiếp không qua t()",
+        "label/title trong SettingsModal/SettingsPage phải qua i18n"
+      ],
+      "exclusions": [
+        "icon name (lowercase ASCII) dùng cho data-* attribute",
+        "test fixture/mock data trong __tests__/",
+        "log message trong electron/ipc (không hiển thị cho user)",
+        "console.log nội bộ"
+      ],
+      "suggested_searches": [
+        "rg -n \">[^<>{]*[A-Za-zÀ-ỹぁ-んァ-ン一-龯][^<>{]{2,}<\" src/components src/pages",
+        "rg -n \"placeholder=['\\\"][^'\\\"]{2,}\" src/components src/pages",
+        "rg -n \"title=['\\\"][^'\\\"]{2,}\" src/components src/pages",
+        "rg -n \"aria-label=['\\\"][^'\\\"]{2,}\" src/components src/pages",
+        "rg -n \"toast\\.|alert\\(|setError\\(\" src/components src/pages src/hooks"
+      ]
+    },
+    {
+      "id": "unused-keys",
+      "name": "Unused Translation Keys",
+      "severity_if_failed": "low",
+      "checks": [
+        "Key được khai báo trong locales nhưng không được tham chiếu qua t('...') hoặc i18n.t('...') ở src/",
+        "Trừ namespace meta (__namespace, __name) hoặc key dynamic được build runtime"
+      ],
+      "suggested_searches": [
+        "rg -n \"t\\(['\\\"][a-zA-Z0-9_.]+['\\\"]\\)\" src",
+        "rg -n \"useTranslation|useI18n\" src"
+      ]
+    },
+    {
+      "id": "duplicate-or-typoed-keys",
+      "name": "Duplicate or Inconsistent Keys",
+      "severity_if_failed": "medium",
+      "checks": [
+        "Cùng giá trị tiếng Việt/Anh/Nhật xuất hiện ở nhiều key khác nhau (nên hợp nhất)",
+        "Key có tên gần giống nhau (typo) khiến gọi sai i18n key",
+        "Plural/singular không nhất quán trong cùng một feature"
+      ]
+    },
+    {
+      "id": "extension-i18n-parity",
+      "name": "Chrome Extension i18n Parity",
+      "severity_if_failed": "medium",
+      "condition": "Khi scope chạm chrome-extension/",
+      "checks": [
+        "Popup/Options/Content script không hardcode label tiếng Việt nếu app đã có i18n",
+        "Nếu extension chỉ hỗ trợ EN: nhất quán toàn bộ surface và document trong README",
+        "Action/status text giữa popup và selection tooltip dùng cùng từ ngữ",
+        "Default target language/translation style đồng bộ giữa popup và options"
+      ],
+      "suggested_searches": [
+        "rg -n \"textContent\\s*=|innerText\\s*=|innerHTML\\s*=\" chrome-extension",
+        "rg -n \"placeholder=|title=\" chrome-extension"
+      ]
+    },
+    {
+      "id": "interpolation-and-format",
+      "name": "Interpolation, Plural, Format",
+      "severity_if_failed": "medium",
+      "checks": [
+        "Interpolation placeholder ({name}, {count}, %s) đồng nhất giữa các locale",
+        "Số lượng placeholder bằng nhau giữa vi/en/ja cho cùng key",
+        "Không hardcode thứ tự đảo ngữ chỉ đúng cho 1 ngôn ngữ"
+      ]
+    }
+  ],
+  "severity_levels": [
+    {
+      "level": "critical",
+      "meaning": "App crash hoặc render undefined cho 1 locale"
+    },
+    {
+      "level": "high",
+      "meaning": "Người dùng locale đó thấy text sai/empty/lẫn ngôn ngữ"
+    },
+    {
+      "level": "medium",
+      "meaning": "UX thiếu nhất quán nhưng có thể đọc hiểu"
+    },
+    {
+      "level": "low",
+      "meaning": "Cải thiện hoặc dọn dẹp"
+    }
+  ],
+  "output_format": {
+    "sections": [
+      "Coverage Summary",
+      "Missing Keys",
+      "Hardcoded Strings",
+      "Unused or Duplicate Keys",
+      "Extension i18n Parity",
+      "Required Fixes"
+    ],
+    "finding_fields": [
+      "severity",
+      "category",
+      "locale_or_file",
+      "key_or_line",
+      "issue",
+      "recommended_fix"
+    ]
+  },
+  "instructions": [
+    "Luôn so sánh 3 locale VI/EN/JA cùng lúc, không chỉ 1 file",
+    "Khi tìm hardcoded string: ưu tiên báo cho UI khả kiến của user, bỏ qua log/dev-only",
+    "Đề xuất tên i18n key theo convention dot-namespace: section.subsection.key",
+    "Không tạo report nếu user không yêu cầu, chỉ trả output trong message"
+  ],
+  "references": {
+    "workflow": "../../workflow/audit-i18n-coverage/audit-i18n-coverage.json",
+    "rule": "../../rule/viezan-product-engineering/rules.json",
+    "readme": "./README.md"
+  }
+}

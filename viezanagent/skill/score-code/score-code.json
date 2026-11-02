@@ -1,0 +1,242 @@
+{
+  "name": "score-code",
+  "version": "1.0.0",
+  "description": "Skill chấm điểm source code theo từng tiêu chí cụ thể, có thang điểm rõ ràng và tránh chồng chéo",
+  "type": "skill",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["code-quality", "review", "rubric"],
+    "use_for": "Score a focused code slice or criterion and produce review evidence."
+  },
+  "project_overlays": {
+    "viezan-electron": {
+      "description": "Overlay khi chấm code trong Viezan: Electron local-first AI translation app",
+      "extra_evidence": [
+        "Main/Preload/Renderer boundary được giữ đúng",
+        "IPC channel theo domain:action và validate input",
+        "API key chỉ ở Main Process/keychain, renderer không nhận raw key",
+        "Provider registry/default models/error classification nhất quán",
+        "UI text qua i18n VI/EN/JA và icon qua src/components/ui/icons/",
+        "Audio/stream/live translate cleanup đầy đủ",
+        "Tests đúng tầng: utils/store/ipc/component"
+      ]
+    }
+  },
+  "criteria": [
+    {
+      "id": "correctness",
+      "name": "Correctness",
+      "scope": "Kết quả đúng, logic đúng, xử lý edge cases",
+      "evaluate": [
+        "Kết quả khớp yêu cầu / specification",
+        "Xử lý đủ happy path và edge cases (null, rỗng, boundary)",
+        "Không crash với input hợp lệ",
+        "Output đúng format",
+        "Không hard-code kết quả"
+      ],
+      "not_overlap_with": ["Code Quality", "Structure", "Architecture"],
+      "scale": [
+        { "range": [90, 100], "description": "Tất cả cases đúng, xử lý đủ edge cases" },
+        { "range": [70, 89], "description": "Đúng phần lớn, còn sót 1–2 edge case nhỏ" },
+        { "range": [50, 69], "description": "Logic đúng nhưng thiếu nhiều edge case" },
+        { "range": [30, 49], "description": "Đúng một phần, sai logic chính" },
+        { "range": [0, 29], "description": "Không chạy hoặc sai hoàn toàn" }
+      ]
+    },
+    {
+      "id": "code-quality",
+      "name": "Code Quality",
+      "scope": "Chất lượng viết code ở mức dòng / hàm / class",
+      "evaluate": [
+        "Tên biến, hàm, class có rõ nghĩa",
+        "Hàm ngắn gọn, một trách nhiệm (Single Responsibility)",
+        "Ít lặp code không cần thiết (DRY)",
+        "Không có magic number / magic string",
+        "Điều kiện, vòng lặp dễ hiểu",
+        "Coding style nhất quán"
+      ],
+      "not_overlap_with": ["Architecture", "Structure"],
+      "scale": [
+        { "range": [90, 100], "description": "Code rất sạch, tên rõ ràng, không trùng lặp" },
+        { "range": [70, 89], "description": "Tốt, còn vài chỗ naming mờ hoặc lặp nhỏ" },
+        { "range": [50, 69], "description": "Trung bình, còn magic number, naming kém" },
+        { "range": [30, 49], "description": "Nhiều vấn đề: tên biến mơ hồ, hàm dài, lặp nhiều" },
+        { "range": [0, 29], "description": "Rất khó đọc, gần như không thể maintain" }
+      ]
+    },
+    {
+      "id": "structure",
+      "name": "Structure",
+      "scope": "Cách tổ chức module, file, layer trong codebase",
+      "evaluate": [
+        "Chia file, class, module hợp lý",
+        "Phân tầng rõ ràng (UI / logic / data)",
+        "Không nhồi toàn bộ logic vào một chỗ",
+        "Dependency giữa các phần rõ ràng",
+        "Dễ tìm nơi cần sửa"
+      ],
+      "not_overlap_with": ["Code Quality", "Architecture"],
+      "scale": [
+        { "range": [90, 100], "description": "Cấu trúc rất rõ, dễ điều hướng" },
+        { "range": [70, 89], "description": "Tốt, còn vài chỗ chưa tách layer rõ" },
+        { "range": [50, 69], "description": "Trung bình, một số logic nhồi sai chỗ" },
+        { "range": [30, 49], "description": "Cấu trúc rối, khó tìm, nhiều file thừa" },
+        { "range": [0, 29], "description": "Không có tổ chức rõ ràng" }
+      ]
+    },
+    {
+      "id": "maintainability",
+      "name": "Maintainability",
+      "scope": "Khả năng sống lâu: dễ sửa, dễ mở rộng, dễ debug",
+      "evaluate": [
+        "Mức độ coupling thấp, cohesion cao",
+        "Dễ thay đổi yêu cầu mà không vỡ nhiều chỗ",
+        "Có tách abstraction hợp lý",
+        "Config tách khỏi code cứng",
+        "Tránh side effects khó đoán"
+      ],
+      "not_overlap_with": ["Correctness", "Structure"],
+      "scale": [
+        { "range": [90, 100], "description": "Rất dễ mở rộng, coupling thấp, dễ debug" },
+        { "range": [70, 89], "description": "Tốt, còn vài phụ thuộc chặt chưa cần thiết" },
+        { "range": [50, 69], "description": "Trung bình, sửa 1 chỗ dễ vỡ nhiều chỗ" },
+        { "range": [30, 49], "description": "Khó mở rộng, hard-code nhiều" },
+        { "range": [0, 29], "description": "Gần như không thể modify an toàn" }
+      ]
+    },
+    {
+      "id": "architecture",
+      "name": "Architecture",
+      "scope": "Thiết kế tổng thể, hướng phụ thuộc, pattern suitability",
+      "evaluate": [
+        "Chọn pattern/phân lớp phù hợp với quy mô",
+        "Tách domain, application, infrastructure hợp lý",
+        "Dependency đi đúng hướng (không có circular)",
+        "Không over-engineering",
+        "Quyết định kỹ thuật có lý do rõ ràng"
+      ],
+      "not_overlap_with": ["Code Quality", "Structure"],
+      "scale": [
+        { "range": [90, 100], "description": "Architecture rất phù hợp, đúng pattern" },
+        { "range": [70, 89], "description": "Tốt, còn vài chỗ over/under-engineer" },
+        { "range": [50, 69], "description": "Trung bình, một số pattern dùng sai mục đích" },
+        { "range": [30, 49], "description": "Architecture lộn xộn, nhiều circular dependency" },
+        { "range": [0, 29], "description": "Không có thiết kế rõ ràng" }
+      ]
+    },
+    {
+      "id": "testing",
+      "name": "Testing",
+      "scope": "Chất lượng test và khả năng testability của code",
+      "evaluate": [
+        "Có unit test / integration test nếu yêu cầu",
+        "Test cover các case quan trọng (không chỉ happy path)",
+        "Test dễ đọc, có ý nghĩa",
+        "Code thiết kế để mock/stub được",
+        "Tránh phụ thuộc global state"
+      ],
+      "not_overlap_with": ["Documentation", "Correctness"],
+      "scale": [
+        { "range": [90, 100], "description": "Test đầy đủ, cover edge case, dễ đọc" },
+        { "range": [70, 89], "description": "Có test, cover phần lớn case quan trọng" },
+        { "range": [50, 69], "description": "Có test nhưng thiếu nhiều case" },
+        { "range": [30, 49], "description": "Test rất ít hoặc chỉ kiểm tra case đẹp" },
+        { "range": [0, 29], "description": "Không có test" }
+      ]
+    },
+    {
+      "id": "documentation",
+      "name": "Documentation",
+      "scope": "README, comment, hướng dẫn cho người dùng / developer",
+      "evaluate": [
+        "README rõ ràng, có hướng dẫn chạy/build/test",
+        "Comment giải thích logic khó",
+        "API docs nếu cần",
+        "Ghi rõ assumptions / limitations",
+        "Không có comment thừa chỉ lặp lại code"
+      ],
+      "not_overlap_with": ["Testing", "Code Quality"],
+      "scale": [
+        { "range": [90, 100], "description": "Docs rất đầy đủ, rõ ràng" },
+        { "range": [70, 89], "description": "Tốt, còn thiếu vài phần nhỏ" },
+        { "range": [50, 69], "description": "Có README nhưng thiếu hướng dẫn quan trọng" },
+        { "range": [30, 49], "description": "Thiếu nhiều, khó hiểu cách dùng" },
+        { "range": [0, 29], "description": "Gần như không có docs" }
+      ]
+    },
+    {
+      "id": "performance",
+      "name": "Performance",
+      "scope": "Hiệu năng phù hợp yêu cầu",
+      "evaluate": [
+        "Độ phức tạp thời gian / bộ nhớ hợp lý",
+        "Không có bottleneck rõ ràng",
+        "Không query / lặp thừa",
+        "Chọn cấu trúc dữ liệu phù hợp"
+      ],
+      "not_overlap_with": ["Correctness"],
+      "scale": [
+        { "range": [90, 100], "description": "Hiệu năng tốt, thuật toán tối ưu" },
+        { "range": [70, 89], "description": "Chấp nhận được, còn vài chỗ có thể tối ưu" },
+        { "range": [50, 69], "description": "Có bottleneck rõ ràng nhưng không nghiêm trọng" },
+        { "range": [30, 49], "description": "Thuật toán kém, nhiều query thừa" },
+        { "range": [0, 29], "description": "Hiệu năng rất kém, không phù hợp yêu cầu" }
+      ]
+    },
+    {
+      "id": "security",
+      "name": "Security",
+      "scope": "An toàn khi chạy thực tế (áp dụng cho web/app/backend)",
+      "evaluate": [
+        "Validate và sanitize input",
+        "Không lộ secret / API key trong code",
+        "Với Viezan: renderer/preload không nhận raw API key; provider SDK chỉ chạy ở Main Process",
+        "Với Viezan: external URL có allowlist và dữ liệu user không đi qua server trung gian của project",
+        "Phân quyền đúng",
+        "Tránh SQL injection, XSS, command injection",
+        "Mã hóa / password handling đúng chuẩn"
+      ],
+      "not_overlap_with": ["Reliability"],
+      "scale": [
+        { "range": [90, 100], "description": "Không có lỗ hổng bảo mật rõ ràng" },
+        { "range": [70, 89], "description": "Tốt, còn vài điểm nhỏ chưa xử lý" },
+        { "range": [50, 69], "description": "Có một số vấn đề bảo mật cần sửa" },
+        { "range": [30, 49], "description": "Nhiều lỗ hổng nghiêm trọng" },
+        { "range": [0, 29], "description": "Rất nhiều lỗ hổng, không an toàn" }
+      ]
+    },
+    {
+      "id": "reliability",
+      "name": "Reliability",
+      "scope": "Mức độ ổn định và an toàn khi chạy thực tế",
+      "evaluate": [
+        "Xử lý lỗi hợp lý (không bỏ qua exception)",
+        "Validate input",
+        "Không làm chương trình chết vì lỗi có thể xử lý",
+        "Timeout / retry nếu bối cảnh cần",
+        "Trạng thái hệ thống nhất quán",
+        "Với Viezan: stream/audio/timer/listener cleanup và mounted guard đầy đủ"
+      ],
+      "not_overlap_with": ["Security", "Correctness"],
+      "scale": [
+        { "range": [90, 100], "description": "Xử lý lỗi rất tốt, hệ thống ổn định" },
+        { "range": [70, 89], "description": "Tốt, còn vài exception bị bỏ qua" },
+        { "range": [50, 69], "description": "Trung bình, một số lỗi không được xử lý" },
+        { "range": [30, 49], "description": "Nhiều lỗi bị bỏ qua, dễ crash" },
+        { "range": [0, 29], "description": "Không có error handling" }
+      ]
+    }
+  ],
+  "instructions": [
+    "Xác định loại bài để chọn rubric phù hợp; với repo này ưu tiên overlay viezan-electron",
+    "Với mỗi tiêu chí: trích dẫn đoạn code cụ thể làm bằng chứng",
+    "Ghi nhận điểm tốt và điểm xấu riêng biệt",
+    "Cho điểm theo thang 5 mức tương ứng",
+    "Giải thích lý do ngắn gọn",
+    "Kiểm tra không có 2 tiêu chí chấm trùng nhau"
+  ],
+  "references": {
+    "criteria_detail": "../../workflow/score-code/README.md",
+    "workflow": "../../workflow/score-code/score-code.json"
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "name": "audit-live-perf",
+  "version": "1.0.0",
+  "description": "Workflow audit hiệu năng và lifecycle của pipeline Live Translate trong Viezan: pre-filter rủi ro bằng rg, đọc useLiveTranslate.ts theo stage, phát hiện leak/setState-after-unmount, latency và đề xuất tuning",
+  "type": "workflow",
+  "classification": {
+    "lifecycle": "audit",
+    "domain": ["live-translate", "performance", "reliability", "security-privacy"],
+    "use_for": "Run the full Live Translate performance, lifecycle, subtitle, and audio cleanup audit."
+  },
+  "trigger": "Khi PR/feature chạm useLiveTranslate.ts, LiveTranslatePage.tsx, transcribe.ts, translate live-stream, subtitle.ts, hoặc trước release",
+  "rules": [
+    "../../rule/viezan-product-engineering/rules.json"
+  ],
+  "skills": [
+    "../../skill/viezan-live-perf-audit/viezan-live-perf-audit.json",
+    "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json"
+  ],
+  "steps": [
+    {
+      "id": "step-1-scope",
+      "name": "Xác định scope",
+      "action": "Mặc định scope: src/hooks/useLiveTranslate.ts + src/pages/LiveTranslatePage.tsx + src/components/live/ + electron/ipc/transcribe.ts + electron/ipc/translate.ts (live-stream) + electron/ipc/subtitle.ts."
+    },
+    {
+      "id": "step-2-static-search",
+      "name": "Static lifecycle/perf searches",
+      "action": "Pre-filter rủi ro lifecycle và magic number trước khi đọc.",
+      "commands": [
+        {
+          "target": "Audio API + capture",
+          "command": "rg -n \"new AudioContext|getUserMedia|getDisplayMedia|MediaRecorder|AudioWorklet|audioWorkletNode\" src"
+        },
+        {
+          "target": "Mounted/abort guard",
+          "command": "rg -n \"mountedRef|isMounted|abortController|AbortController|signal\" src/hooks src/pages"
+        },
+        {
+          "target": "useEffect cleanup",
+          "command": "rg -n \"return\\s*\\(\\)\\s*=>\\s*\\{|cleanup|removeEventListener|stop\\(\\)|disconnect\\(\\)|close\\(\\)\" src/hooks/useLiveTranslate.ts"
+        },
+        {
+          "target": "Threshold magic number",
+          "command": "rg -n \"0\\.[0-9]{2,}|[0-9]{3,}\" src/hooks/useLiveTranslate.ts"
+        },
+        {
+          "target": "Streaming subtitle IPC",
+          "command": "rg -n \"translate:live-stream|subtitle:|webContents.send\" electron/ipc src"
+        },
+        {
+          "target": "Logging audio/transcript",
+          "command": "rg -n \"console\\.(log|info|debug)\" src/hooks/useLiveTranslate.ts electron/ipc/transcribe.ts electron/ipc/subtitle.ts"
+        }
+      ]
+    },
+    {
+      "id": "step-3-read-pipeline",
+      "name": "Đọc theo từng stage",
+      "skill": "viezan-live-perf-audit",
+      "action": "Đọc useLiveTranslate.ts theo 8 stage: audio-capture, vad, stt-whisper, filter, sentence-boundary, translation, subtitle, history-session."
+    },
+    {
+      "id": "step-4-classify",
+      "name": "Phân loại findings",
+      "skill": "viezan-live-perf-audit",
+      "action": "Phân theo lifecycle-safety, throughput, back-pressure, constants-and-tunables, subtitle-window-perf."
+    },
+    {
+      "id": "step-5-cross-check-security",
+      "name": "Cross-check security/local-first",
+      "skill": "viezan-ipc-security-audit",
+      "condition": "Scope chạm electron/ipc/transcribe.ts hoặc subtitle.ts hoặc preload audio",
+      "action": "Verify audio/transcript chỉ gửi tới provider được chọn, không log raw transcript, không đẩy sang analytics."
+    },
+    {
+      "id": "step-6-fix-or-plan",
+      "name": "Sửa hoặc lập action plan",
+      "action": "Critical (memory leak, audio rò ngoài) phải fix. High (setState-after-unmount, no cleanup) chặn release.",
+      "blocking_policy": [
+        "Critical: leak AudioContext/MediaStream chắc chắn → chặn merge",
+        "High: setState sau unmount, missing cleanup, repaint storm → chặn release",
+        "Medium: hardcode threshold → đề xuất move sang constants",
+        "Low: log noise, polish"
+      ]
+    },
+    {
+      "id": "step-7-verify",
+      "name": "Verify",
+      "action": "Build + test + manual smoke live.",
+      "commands": [
+        "npm run build",
+        "npm run build:electron",
+        "npm test -- --run src/hooks",
+        "npm test -- --run electron/ipc"
+      ],
+      "manual_smoke": [
+        "Bật Live Translate → nói thử 30 giây → tắt → xác nhận không còn process audio",
+        "Bật subtitle window → tắt → bật lại 3 lần → kiểm tra không leak listener",
+        "Đổi target language giữa chừng → pipeline reset đúng",
+        "Đổi nguồn audio (mic ↔ system) → cleanup MediaStream cũ"
+      ]
+    },
+    {
+      "id": "step-8-report",
+      "name": "Báo cáo",
+      "action": "Trả Pipeline Map + Findings + Lifecycle Verdict + Performance Verdict + Required Fixes + Tunable Constants. Lưu file report nếu user yêu cầu.",
+      "save_path": "viezanagent/report/",
+      "filename_pattern": "live-perf-report-{YYYYMMDD}-{HHmm}.md"
+    }
+  ],
+  "output_format": {
+    "sections": [
+      "Pipeline Map",
+      "Findings",
+      "Lifecycle Verdict",
+      "Performance Verdict",
+      "Required Fixes",
+      "Tunable Constants Suggestion",
+      "Verification"
+    ]
+  },
+  "references": {
+    "skill": "../../skill/viezan-live-perf-audit/viezan-live-perf-audit.json",
+    "readme": "./README.md"
+  }
+}

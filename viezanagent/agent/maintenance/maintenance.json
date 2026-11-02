@@ -1,0 +1,215 @@
+{
+  "name": "maintenance",
+  "version": "1.1.0",
+  "description": "Purpose agent maintenance he thong Viezan: diagnostics, duplicate/hardcode, score-code, UI/component/extension drift, docs drift, security/i18n/perf gates, fix va bao cao tong hop co section bat buoc.",
+  "type": "agent",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["diagnostics", "hardcode-duplication", "code-quality", "ui-components", "extension", "docs", "security-privacy", "i18n", "performance", "release"],
+    "use_for": "Use when the user asks to maintain the system, clean up technical debt, fix diagnostics, or run a broad quality pass."
+  },
+  "activation_examples": [
+    "Hay maintenance he thong",
+    "Bao tri source code hien tai",
+    "Kiem tra va fix cac van de chat luong code"
+  ],
+  "primary_workflow": "../../workflow/maintenance/maintenance.json",
+  "capabilities": {
+    "rules": [
+      "../../rule/viezan-product-engineering/rules.json",
+      "../../rule/generate-code/rules.json"
+    ],
+    "skills": [
+      "../../skill/fix-vscode-problems/fix-vscode-problems.json",
+      "../../skill/check-dup-hardcode/check-dup-hardcode.json",
+      "../../skill/score-code/score-code.json",
+      "../../skill/split-ui-component/split-ui-component.json",
+      "../../skill/viezan-doc-sync/viezan-doc-sync.json",
+      "../../skill/viezan-i18n-audit/viezan-i18n-audit.json",
+      "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json",
+      "../../skill/viezan-extension-ux/viezan-extension-ux.json",
+      "../../skill/viezan-live-perf-audit/viezan-live-perf-audit.json"
+    ],
+    "workflows": [
+      "../../workflow/maintenance/maintenance.json",
+      "../../workflow/fix-vscode-problems/fix-vscode-problems.json",
+      "../../workflow/check-dup-hardcode/check-dup-hardcode.json",
+      "../../workflow/score-code/score-code.json",
+      "../../workflow/split-ui-component/split-ui-component.json",
+      "../../workflow/sync-docs/sync-docs.json",
+      "../../workflow/audit-i18n-coverage/audit-i18n-coverage.json",
+      "../../workflow/audit-local-first-security/audit-local-first-security.json",
+      "../../workflow/audit-extension-ux/audit-extension-ux.json",
+      "../../workflow/audit-live-perf/audit-live-perf.json",
+      "../../workflow/release-readiness/release-readiness.json"
+    ]
+  },
+  "capability_resolution": {
+    "mode": "capability-first",
+    "relationship_model": [
+      "agent -> maintenance workflow -> diagnostic, score, duplicate, UI, docs, i18n, security, extension, live-perf and release gates",
+      "workflow -> rules/skills used by each gate",
+      "skill -> domain rubric/checklist and false-positive policy",
+      "rule -> guardrail applied while fixing Critical/High findings"
+    ],
+    "requirements": [
+      "Resolve primary_workflow, mandatory_gates and all referenced capabilities before reporting maintenance status.",
+      "Do not replace score-code, check-dup-hardcode or split-ui-component with ad hoc scans.",
+      "Use only declared capabilities unless the user asks to add a new maintenance capability.",
+      "If any required gate capability is missing or blocked, mark it Blocked and include it in Remaining Queue."
+    ]
+  },
+  "mandatory_capability_use": {
+    "always": [
+      "workflow: maintenance",
+      "rule: viezan-product-engineering",
+      "rule: generate-code",
+      "workflow: fix-vscode-problems",
+      "workflow: check-dup-hardcode",
+      "workflow: score-code",
+      "workflow: split-ui-component",
+      "workflow: sync-docs",
+      "workflow: audit-i18n-coverage",
+      "workflow: audit-local-first-security"
+    ],
+    "conditional": [
+      {
+        "when": "chrome-extension/ or browser bridge is in scope",
+        "use": ["workflow: audit-extension-ux"]
+      },
+      {
+        "when": "Live Translate, audio, streaming, subtitle, timers or listeners are in scope",
+        "use": ["workflow: audit-live-perf"]
+      },
+      {
+        "when": "package, version, CI, signing, notarization or distribution assets are in scope",
+        "use": ["workflow: release-readiness"]
+      }
+    ]
+  },
+  "mandatory_gates": [
+    {
+      "id": "repo-scope",
+      "name": "Repo scope",
+      "required_output": "Branch/submodule/dirty-state summary and explicit maintenance scope."
+    },
+    {
+      "id": "diagnostics",
+      "name": "Diagnostics",
+      "workflow": "../../workflow/fix-vscode-problems/fix-vscode-problems.json",
+      "required_output": "Command/status table for build, renderer/electron typecheck, tests and Biome or VS Code diagnostics."
+    },
+    {
+      "id": "system-score",
+      "name": "System Score",
+      "workflow": "../../workflow/score-code/score-code.json",
+      "required_output": "Viezan Electron rubric score table with weighted total, evidence and point deductions."
+    },
+    {
+      "id": "duplicate-code",
+      "name": "Duplicate Code Audit",
+      "workflow": "../../workflow/check-dup-hardcode/check-dup-hardcode.json",
+      "required_output": "Duplicate summary by clone type and severity, top repeated files or explicit clean result."
+    },
+    {
+      "id": "hardcode-secret",
+      "name": "Hardcode & Secret Audit",
+      "workflow": "../../workflow/check-dup-hardcode/check-dup-hardcode.json",
+      "required_output": "Hardcode/secret/magic literal summary by category and severity, including false-positive notes."
+    },
+    {
+      "id": "ui-component-extension",
+      "name": "UI/Component/Extension Audit",
+      "workflows": [
+        "../../workflow/split-ui-component/split-ui-component.json",
+        "../../workflow/audit-extension-ux/audit-extension-ux.json"
+      ],
+      "required_output": "Component classification, inline SVG/icon, duplicate UI pattern and extension UI drift summary."
+    },
+    {
+      "id": "docs-i18n-security",
+      "name": "Docs/I18n/Security Gates",
+      "workflows": [
+        "../../workflow/sync-docs/sync-docs.json",
+        "../../workflow/audit-i18n-coverage/audit-i18n-coverage.json",
+        "../../workflow/audit-local-first-security/audit-local-first-security.json"
+      ],
+      "required_output": "Docs drift, locale parity/hardcoded UI text and local-first security result."
+    },
+    {
+      "id": "live-performance",
+      "name": "Live/Performance Gate",
+      "workflow": "../../workflow/audit-live-perf/audit-live-perf.json",
+      "required_output": "Lifecycle/performance result when live translate, audio, streaming or timer/listener code is in scope."
+    },
+    {
+      "id": "release-readiness",
+      "name": "Release Readiness",
+      "workflow": "../../workflow/release-readiness/release-readiness.json",
+      "required_output": "Release/package gate result when package, version, CI or distribution assets are in scope."
+    }
+  ],
+  "operating_workflow": [
+    {
+      "id": "scope",
+      "action": "Read repo state, recent reports and user scope; do not reset unrelated dirty files."
+    },
+    {
+      "id": "diagnostics",
+      "action": "Run or consume build/test/Biome/VS Code diagnostics and classify root causes."
+    },
+    {
+      "id": "quality-audit",
+      "action": "Run duplicate/hardcode, score-code and UI component capabilities; dedupe false positives; keep separate evidence buckets for scoring, duplicate, hardcode and UI."
+    },
+    {
+      "id": "system-gates",
+      "action": "Run docs, i18n and local-first security checks as gates; run live-perf when live/audio/streaming code is in scope; release readiness only when release/package scope is present."
+    },
+    {
+      "id": "fix",
+      "action": "Fix Critical/High findings in scope, keep reports synchronized and avoid broad redesign."
+    },
+    {
+      "id": "report",
+      "action": "Write a consolidated maintenance report with all mandatory sections. If a gate was skipped, write Not run/Blocked with a reason instead of omitting it."
+    }
+  ],
+  "outputs": {
+    "report_path": "viezanagent/report/maintenance-report-{YYYYMMDD}-{HHmm}.md",
+    "sections": [
+      "Scope",
+      "Maintenance Gate Matrix",
+      "Diagnostics",
+      "System Score",
+      "Duplicate Code Audit",
+      "Hardcode & Secret Audit",
+      "UI/Component/Extension Audit",
+      "Docs/I18n/Security Gates",
+      "Findings",
+      "Fixes Applied",
+      "Verification",
+      "Remaining Queue",
+      "Report Completeness Checklist"
+    ],
+    "status_values": ["Pass", "Fail", "Partial", "Not run", "Blocked"],
+    "minimum_evidence": [
+      "Every mandatory gate appears in Maintenance Gate Matrix.",
+      "System Score includes weighted total and per-criterion rows.",
+      "Duplicate Code Audit and Hardcode & Secret Audit are separate sections.",
+      "UI/Component/Extension Audit names inspected surfaces and any false-positive rules used.",
+      "Verification lists commands actually run, not generic validation claims."
+    ]
+  },
+  "completion_rules": [
+    "A maintenance report is incomplete if any mandatory gate is omitted.",
+    "A clean result still needs a short evidence line explaining what was checked.",
+    "Do not collapse score-code, check-dup-hardcode and split-ui-component into a single generic Findings row.",
+    "Do not claim a gate passed from static intuition; cite commands, files scanned or report artifacts.",
+    "If time or environment prevents a gate from running, mark it Blocked or Not run and add it to Remaining Queue."
+  ],
+  "references": {
+    "workflow": "../../workflow/maintenance/maintenance.json",
+    "readme": "./README.md"
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "name": "viezan-provider-integration",
+  "version": "1.0.0",
+  "description": "Skill thêm, sửa hoặc audit AI provider/model/task trong Viezan theo provider contract, registry pattern và security boundary",
+  "type": "skill",
+  "classification": {
+    "lifecycle": "feature",
+    "domain": ["provider-models", "local-ai", "security-privacy"],
+    "use_for": "Add or audit provider, model, verification, and AI task integrations through the Viezan provider contract."
+  },
+  "trigger": "Khi thêm provider, model, verification, hoặc tác vụ AI mới cho translate/chat/tts/stt/image/models",
+  "required_context": [
+    "../../ARCHITECTURE.md",
+    "../../rule/viezan-product-engineering/rules.json"
+  ],
+  "provider_contract": {
+    "type_files": [
+      "src/types/index.ts",
+      "electron/ipc/providers/types.ts"
+    ],
+    "config_files": [
+      "src/constants/providers.ts",
+      "src/constants/urls.ts"
+    ],
+    "key_files": [
+      "electron/ipc/keychain.ts",
+      "electron/preload/keychain.ts",
+      "src/pages/settings/ApiKeysSection.tsx"
+    ],
+    "task_files": {
+      "translate": ["electron/ipc/translate.ts", "electron/preload/translate.ts", "src/services/translationService.ts"],
+      "chat": ["electron/ipc/chat.ts", "electron/preload/chat.ts", "src/services/chatService.ts"],
+      "tts": ["electron/ipc/tts.ts", "electron/preload/audio.ts", "src/hooks/useTTS.ts"],
+      "stt": ["electron/ipc/transcribe.ts", "electron/preload/audio.ts", "src/hooks/useVoiceInput.ts"],
+      "image": ["electron/ipc/imageTranslate.ts", "src/components/translate/ImageTranslator.tsx"],
+      "models": ["electron/ipc/models.ts", "src/components/ModelSelector.tsx"]
+    }
+  },
+  "integration_steps": [
+    {
+      "id": "step-1-scope",
+      "name": "Scope provider capability",
+      "action": "Xác định provider hỗ trợ task nào: translate, rewrite, detect, stream, chat, image, stt, tts, models."
+    },
+    {
+      "id": "step-2-types-config",
+      "name": "Update types and config",
+      "action": "Cập nhật Provider union, SUPPORTED_PROVIDERS, provider config, docsUrl, keyPrefix, models, defaultModels."
+    },
+    {
+      "id": "step-3-main-implementation",
+      "name": "Implement in Main Process",
+      "action": "Viết SDK/API calls trong electron/ipc hoặc provider module; không import SDK vào src/."
+    },
+    {
+      "id": "step-4-register",
+      "name": "Register task handlers",
+      "action": "Thêm provider function vào registry tương ứng và unknownProviderError path."
+    },
+    {
+      "id": "step-5-key-verification",
+      "name": "Key verification",
+      "action": "Thêm verify model/endpoint nếu provider cần kiểm tra key; không expose key ra renderer."
+    },
+    {
+      "id": "step-6-errors-retry",
+      "name": "Error and retry",
+      "action": "Map auth/rate limit/network errors vào classifyProviderError hoặc handler tương đương; chỉ retry network transient."
+    },
+    {
+      "id": "step-7-ui-i18n",
+      "name": "UI and i18n",
+      "action": "Cập nhật model selector, settings/API key UI, provider icon/name/color, VI/EN/JA labels nếu có."
+    },
+    {
+      "id": "step-8-tests",
+      "name": "Tests",
+      "action": "Thêm IPC tests cho validation, unknown provider, success/error paths; thêm UI/store tests nếu behavior renderer đổi."
+    }
+  ],
+  "security_requirements": [
+    "Raw API key chỉ đọc trong Main Process",
+    "Không log request body chứa user text/image/transcript nếu không được redacted",
+    "Không gửi dữ liệu tới provider khác với provider user chọn trừ fallback đã được mô tả rõ trong UX",
+    "Không retry auth/rate-limit vô hạn",
+    "Không hard-code provider secret hoặc endpoint private"
+  ],
+  "output_format": {
+    "sections": [
+      "Provider Scope",
+      "Required Code Changes",
+      "Security Checks",
+      "Tests",
+      "Manual Verification"
+    ]
+  },
+  "references": {
+    "readme": "./README.md",
+    "rule": "../../rule/viezan-product-engineering/rules.json"
+  }
+}

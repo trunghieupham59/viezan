@@ -1,0 +1,132 @@
+{
+  "name": "audit-extension-ux",
+  "version": "1.0.0",
+  "description": "Workflow audit Chrome Extension UX và local bridge security cho Viezan: visual parity, state UX, options storage, bridge bind/origin/key safety, manual smoke",
+  "type": "workflow",
+  "classification": {
+    "lifecycle": "audit",
+    "domain": ["extension", "ux", "security-privacy", "i18n"],
+    "use_for": "Run the full Chrome Extension UX and local bridge audit with report output."
+  },
+  "trigger": "Khi PR/feature chạm chrome-extension/, electron/ipc/localServer.ts, electron/preload/localServer.ts hoặc trước release",
+  "rules": [
+    "../../rule/viezan-product-engineering/rules.json"
+  ],
+  "skills": [
+    "../../skill/viezan-extension-ux/viezan-extension-ux.json",
+    "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json",
+    "../../skill/viezan-i18n-audit/viezan-i18n-audit.json"
+  ],
+  "steps": [
+    {
+      "id": "step-1-scope",
+      "name": "Xác định scope",
+      "action": "Xem git diff + danh sách file user cung cấp; nếu trống thì audit toàn bộ chrome-extension/ và localServer."
+    },
+    {
+      "id": "step-2-static-search",
+      "name": "Static UX/security searches",
+      "action": "Pre-filter bằng rg trước khi đọc sâu.",
+      "commands": [
+        {
+          "target": "Inline SVG hoặc emoji icon trong popup/options/content",
+          "command": "rg -n \"<svg|[\\x{1F300}-\\x{1FAFF}\\x{2600}-\\x{27BF}]\" chrome-extension"
+        },
+        {
+          "target": "chrome.storage usage",
+          "command": "rg -n \"chrome\\.storage\\.(local|sync)\\.(get|set)\" chrome-extension"
+        },
+        {
+          "target": "Bridge bind/origin/key",
+          "command": "rg -n \"createServer|listen\\(|bind\\(|0\\.0\\.0\\.0|127\\.0\\.0\\.1|Access-Control-Allow-Origin|allowlist|origin\" electron/ipc/localServer.ts electron/preload/localServer.ts"
+        },
+        {
+          "target": "Direct provider/SDK call trong extension",
+          "command": "rg -n \"openai|anthropic|googleapis|gemini|sk-|AIza\" chrome-extension"
+        },
+        {
+          "target": "State labels: missing-token / offline / loading / error",
+          "command": "rg -n \"missing|offline|loading|error|retry\" chrome-extension"
+        }
+      ]
+    },
+    {
+      "id": "step-3-read-context",
+      "name": "Đọc surface liên quan",
+      "action": "Đọc 5 surface (popup/options/content/background/local-bridge) trong scope để build mental model trước khi phân loại."
+    },
+    {
+      "id": "step-4-classify",
+      "name": "Phân loại findings",
+      "skill": "viezan-extension-ux",
+      "action": "Phân theo visual-parity, icon-emoji-policy, state-ux, options-storage, bridge-security, manual-smoke."
+    },
+    {
+      "id": "step-5-bridge-security-cross-check",
+      "name": "Cross-check bridge security",
+      "skill": "viezan-ipc-security-audit",
+      "condition": "Scope chạm electron/ipc/localServer.ts hoặc electron/preload/localServer.ts",
+      "action": "Verify bind 127.0.0.1, origin allowlist, không trả raw key, validate payload, không log dữ liệu user."
+    },
+    {
+      "id": "step-6-i18n-cross-check",
+      "name": "Cross-check i18n parity",
+      "skill": "viezan-i18n-audit",
+      "skill_category": "extension-i18n-parity",
+      "condition": "Scope thêm/sửa text trong popup/options/content",
+      "action": "Đảm bảo từ ngữ giữa popup ↔ options ↔ tooltip nhất quán, default target language/style đồng bộ."
+    },
+    {
+      "id": "step-7-fix-or-plan",
+      "name": "Sửa hoặc lập action plan",
+      "action": "Critical (bridge security) phải fix trước merge. High (state UX, icon policy, storage drift) chặn release.",
+      "blocking_policy": [
+        "Critical: bind 0.0.0.0, lộ raw key qua bridge → chặn merge",
+        "High: missing state hiển thị cho user, emoji/inline SVG action icon → chặn release",
+        "Medium: visual divergence nhỏ, missing manual smoke → follow-up",
+        "Low: polish copy"
+      ]
+    },
+    {
+      "id": "step-8-verify",
+      "name": "Verify",
+      "action": "Smoke check + lint + build.",
+      "commands": [
+        "node --check chrome-extension/popup.js",
+        "node --check chrome-extension/options.js",
+        "node --check chrome-extension/content.js",
+        "node --check chrome-extension/background.js",
+        "npm run build:electron",
+        "npm test -- --run electron/ipc"
+      ],
+      "manual_smoke": [
+        "Load unpacked extension, mở popup translate text",
+        "Bật Options, đổi target language, mở popup lại",
+        "Chọn text trên trang web → tooltip translate → copy → replace → listen",
+        "Tắt Viezan app → popup hiển thị state offline rõ ràng"
+      ]
+    },
+    {
+      "id": "step-9-report",
+      "name": "Báo cáo",
+      "action": "Trả Findings + Verdict + Required Fixes + Manual Smoke. Lưu file report nếu user yêu cầu.",
+      "save_path": "viezanagent/report/",
+      "filename_pattern": "extension-ux-report-{YYYYMMDD}-{HHmm}.md"
+    }
+  ],
+  "output_format": {
+    "sections": [
+      "Surface Map",
+      "Findings",
+      "State UX Verdict",
+      "Bridge Security Verdict",
+      "Required Fixes",
+      "Manual Smoke Plan",
+      "Verification"
+    ]
+  },
+  "references": {
+    "skill": "../../skill/viezan-extension-ux/viezan-extension-ux.json",
+    "readme": "./README.md"
+  }
+}

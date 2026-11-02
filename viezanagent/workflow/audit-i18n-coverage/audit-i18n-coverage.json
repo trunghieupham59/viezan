@@ -1,0 +1,164 @@
+{
+  "name": "audit-i18n-coverage",
+  "version": "1.0.0",
+  "description": "Workflow audit i18n VI/EN/JA của Viezan: pre-filter bằng rg, đối chiếu key giữa 3 locale, tìm hardcoded UI string, kiểm tra parity với Chrome Extension và lưu báo cáo",
+  "type": "workflow",
+  "classification": {
+    "lifecycle": "audit",
+    "domain": ["i18n", "extension", "ux"],
+    "use_for": "Run the full VI/EN/JA locale coverage and hardcoded UI string audit with report output."
+  },
+  "trigger": "Khi cần kiểm tra i18n trước release, sau khi thêm/sửa locale, hoặc audit hardcoded UI string",
+  "rules": [
+    "../../rule/viezan-product-engineering/rules.json"
+  ],
+  "skills": [
+    "../../skill/viezan-i18n-audit/viezan-i18n-audit.json"
+  ],
+  "steps": [
+    {
+      "id": "step-1-scope",
+      "name": "Xác định phạm vi",
+      "action": "Mặc định scope là toàn bộ src/ + chrome-extension/. Cho phép user giới hạn theo folder hoặc file.",
+      "options": [
+        {
+          "type": "full",
+          "label": "Toàn bộ renderer + extension"
+        },
+        {
+          "type": "renderer-only",
+          "label": "Chỉ src/"
+        },
+        {
+          "type": "extension-only",
+          "label": "Chỉ chrome-extension/"
+        },
+        {
+          "type": "scoped",
+          "label": "Folder/file user cung cấp"
+        }
+      ]
+    },
+    {
+      "id": "step-2-static-search",
+      "name": "Static i18n searches (zero token)",
+      "action": "Chạy rg pre-filter cho missing key, hardcoded string, dynamic key.",
+      "commands": [
+        {
+          "target": "Liệt kê top-level key của từng locale",
+          "command": "rg -n \"^\\s*[a-zA-Z0-9_]+:\\s*[{'\\\"]\" src/i18n/locales/vi.ts src/i18n/locales/en.ts src/i18n/locales/ja.ts"
+        },
+        {
+          "target": "Tham chiếu i18n trong code",
+          "command": "rg -n \"t\\(['\\\"][a-zA-Z0-9_.]+['\\\"]\\)\" src"
+        },
+        {
+          "target": "JSX text node tiếng Việt/Anh/Nhật có thể hardcode",
+          "command": "rg -n \">[^<>{]*[A-Za-zÀ-ỹぁ-んァ-ン一-龯][^<>{]{3,}<\" src/components src/pages"
+        },
+        {
+          "target": "Attribute hardcode (placeholder/title/aria-label/alt)",
+          "command": "rg -n \"(placeholder|title|aria-label|alt)=['\\\"][^'\\\"{}]{3,}['\\\"]\" src/components src/pages"
+        },
+        {
+          "target": "Toast/alert/error literal",
+          "command": "rg -n \"toast\\.(success|error|info|warn)\\(['\\\"]|alert\\(['\\\"]|setError\\(['\\\"]\" src"
+        },
+        {
+          "target": "Extension hardcoded text (popup/options/content)",
+          "command": "rg -n \"textContent|innerText|innerHTML|placeholder=|title=\" chrome-extension"
+        }
+      ]
+    },
+    {
+      "id": "step-3-load-locales",
+      "name": "Đọc 3 locale",
+      "action": "Đọc full vi.ts, en.ts, ja.ts để build cây key. Đọc types.ts để hiểu shape."
+    },
+    {
+      "id": "step-4-key-diff",
+      "name": "Đối chiếu key giữa 3 locale",
+      "skill": "viezan-i18n-audit",
+      "skill_category": "missing-keys",
+      "action": "Tính tập key trong vi/en/ja, liệt kê missing/extra cho từng cặp. Cảnh báo nếu nested shape không đối xứng.",
+      "output_fields": [
+        "locale",
+        "missing_in_locale",
+        "key_path"
+      ]
+    },
+    {
+      "id": "step-5-detect-hardcode",
+      "name": "Phát hiện hardcoded UI string",
+      "skill": "viezan-i18n-audit",
+      "skill_category": "hardcoded-ui-strings",
+      "action": "Với mỗi hit từ step-2: đọc ±5 dòng quanh vị trí, loại bỏ false positive (test, log, icon name), đề xuất i18n key theo namespace.",
+      "exclusions": [
+        "src/__tests__",
+        "src/components/__tests__",
+        "src/hooks/__tests__",
+        "electron/ipc/__tests__",
+        "*.test.ts",
+        "*.spec.ts"
+      ]
+    },
+    {
+      "id": "step-6-unused-and-duplicates",
+      "name": "Kiểm tra key chưa dùng và key trùng giá trị",
+      "skill": "viezan-i18n-audit",
+      "skill_category": "unused-keys",
+      "action": "So tập key đã khai báo với tập t('...') tham chiếu. Đánh dấu key chỉ tham chiếu động (qua biến) là indeterminate, không xóa."
+    },
+    {
+      "id": "step-7-extension-parity",
+      "name": "Chrome Extension i18n parity",
+      "condition": "Scope chạm chrome-extension/",
+      "skill": "viezan-i18n-audit",
+      "skill_category": "extension-i18n-parity",
+      "action": "Kiểm tra popup/options/content tooltip có dùng cùng từ ngữ và cùng default target language/style không. Báo cáo các text divergence."
+    },
+    {
+      "id": "step-8-prioritize-fix",
+      "name": "Ưu tiên fix",
+      "action": "Critical/High → fix ngay nếu trong scope; Medium/Low → đề xuất follow-up.",
+      "blocking_policy": [
+        "Critical (render undefined) chặn release",
+        "High (hardcode hiển thị cho user) chặn release",
+        "Medium/Low có thể gom thành issue follow-up"
+      ]
+    },
+    {
+      "id": "step-9-verify",
+      "name": "Verify",
+      "action": "Sau khi fix, chạy build và test liên quan.",
+      "recommended_commands": [
+        "npm run build",
+        "npm test -- --run src/i18n",
+        "npm test -- --run src/components",
+        "npx biome check src/i18n"
+      ]
+    },
+    {
+      "id": "step-10-report",
+      "name": "Báo cáo",
+      "action": "Trả Coverage Summary + Findings + Required Fixes. Lưu file report nếu user yêu cầu.",
+      "save_path": "viezanagent/report/",
+      "filename_pattern": "i18n-audit-report-{YYYYMMDD}-{HHmm}.md"
+    }
+  ],
+  "output_format": {
+    "sections": [
+      "Coverage Summary",
+      "Missing Keys",
+      "Hardcoded Strings",
+      "Unused or Duplicate Keys",
+      "Extension i18n Parity",
+      "Required Fixes",
+      "Verification"
+    ]
+  },
+  "references": {
+    "skill": "../../skill/viezan-i18n-audit/viezan-i18n-audit.json",
+    "readme": "./README.md"
+  }
+}

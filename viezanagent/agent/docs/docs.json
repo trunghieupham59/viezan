@@ -1,0 +1,95 @@
+{
+  "name": "docs",
+  "version": "1.1.0",
+  "description": "Purpose agent dong bo tai lieu Viezan voi code hien tai: ARCHITECTURE, PROMPTS, product-intro, docs, README va Chrome Extension docs.",
+  "type": "agent",
+  "classification": {
+    "lifecycle": "docs",
+    "domain": ["docs", "drift", "architecture", "product-copy", "release"],
+    "use_for": "Use when the user asks to update, rewrite or sync Viezan documentation with current source code."
+  },
+  "activation_examples": [
+    "Hay cap nhat docs theo code moi nhat",
+    "Hay sync docs",
+    "Viet lai product-intro dua theo source hien tai"
+  ],
+  "primary_workflow": "../../workflow/sync-docs/sync-docs.json",
+  "capabilities": {
+    "rules": [
+      "../../rule/viezan-product-engineering/rules.json"
+    ],
+    "skills": [
+      "../../skill/viezan-doc-sync/viezan-doc-sync.json",
+      "../../skill/viezan-i18n-audit/viezan-i18n-audit.json"
+    ],
+    "workflows": [
+      "../../workflow/sync-docs/sync-docs.json",
+      "../../workflow/audit-i18n-coverage/audit-i18n-coverage.json"
+    ],
+    "source_docs": [
+      "../../ARCHITECTURE.md",
+      "../../PROMPTS.md",
+      "../../product-intro.md",
+      "../../docs/README.md"
+    ]
+  },
+  "capability_resolution": {
+    "mode": "capability-first",
+    "relationship_model": [
+      "agent -> sync-docs workflow -> viezan-doc-sync skill",
+      "sync-docs workflow -> product-engineering rule and source-of-truth anchors",
+      "i18n audit workflow -> locale/text checks when documentation changes UI text or locale guidance",
+      "docs source files -> current truth targets that must stay aligned with agent/workflow registries"
+    ],
+    "requirements": [
+      "Resolve every capability and source_docs path before editing docs.",
+      "Use sync-docs as the primary workflow for all docs changes.",
+      "Use audit-i18n-coverage when docs changes add or rename UI text, locale keys or extension copy.",
+      "If docs mention a rule, skill, workflow, report path or agent that is not defined, report Capability Drift and fix the registry/docs together."
+    ]
+  },
+  "mandatory_capability_use": {
+    "always": [
+      "workflow: sync-docs",
+      "rule: viezan-product-engineering",
+      "skill: viezan-doc-sync"
+    ],
+    "conditional": [
+      {
+        "when": "Docs mention UI labels, locale keys, extension copy or public-facing translated text",
+        "use": ["skill: viezan-i18n-audit", "workflow: audit-i18n-coverage"]
+      }
+    ]
+  },
+  "operating_workflow": [
+    {
+      "id": "extract-truth",
+      "action": "Inspect code-owned truth for IPC, preload, providers, store slices, locales, extension, release and agent assets."
+    },
+    {
+      "id": "diff-docs",
+      "action": "Compare truth with target docs and classify missing, stale, broken path, report path and agent classification drift."
+    },
+    {
+      "id": "patch",
+      "action": "Apply minimal docs edits in the existing language/style unless the user asks for a rewrite."
+    },
+    {
+      "id": "verify",
+      "action": "Validate Markdown/JSON references and summarize updated files."
+    }
+  ],
+  "outputs": {
+    "report_path": "viezanagent/report/doc-sync-report-{YYYYMMDD}-{HHmm}.md",
+    "sections": ["Drift Summary", "Capability Drift", "Updated Docs", "Broken Paths", "Verification"]
+  },
+  "completion_rules": [
+    "Do not rewrite docs from memory when a defined code-truth anchor or workflow can be read.",
+    "Every documented rule/skill/workflow/agent/report path must exist or be listed under Capability Drift.",
+    "Final verification must include JSON/reference validation when agent docs or PROMPTS.md changed."
+  ],
+  "references": {
+    "workflow": "../../workflow/sync-docs/sync-docs.json",
+    "readme": "./README.md"
+  }
+}

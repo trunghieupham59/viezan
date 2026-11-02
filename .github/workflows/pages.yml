@@ -22,10 +22,8 @@ jobs:
             url: ${{ steps.deployment.outputs.page_url }}
         runs-on: ubuntu-latest
         steps:
-            - name: Checkout (no submodules)
+            - name: Checkout
               uses: actions/checkout@v7
-              with:
-                  submodules: false
 
             - name: Setup Pages
               uses: actions/configure-pages@v6

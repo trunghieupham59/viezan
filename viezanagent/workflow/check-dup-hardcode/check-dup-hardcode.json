@@ -1,0 +1,279 @@
+{
+  "name": "check-dup-hardcode",
+  "version": "2.0.0",
+  "description": "Workflow kiểm tra duplicate code và hardcode trong source code theo kiến trúc Phễu lọc 3 tầng: Static Analysis (0 token) → Chunking → LLM Adjudicator (token tối thiểu). Tạo báo cáo có phân loại, mức độ ưu tiên và gợi ý refactor.",
+  "type": "workflow",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["hardcode-duplication", "code-quality", "security-privacy"],
+    "use_for": "Run the full duplicate and hardcode scan, adjudication, prioritization, and report workflow."
+  },
+  "architecture": {
+    "name": "Phễu lọc 3 tầng (Token-Optimal Pipeline)",
+    "layers": [
+      {
+        "layer": 1,
+        "name": "Static Pre-filter",
+        "token_cost": 0,
+        "description": "Dùng rg/git diff để rà quét toàn bộ project, khoanh vùng các dòng code nghi ngờ mà không tốn token nào",
+        "tools": ["rg", "git diff", "trufflehog optional", "biome optional"]
+      },
+      {
+        "layer": 2,
+        "name": "Context Extraction & Chunking",
+        "token_cost": "minimal",
+        "description": "Trích xuất snippet hẹp (±5 dòng) quanh dòng nghi ngờ, minify trước khi gửi AI",
+        "methods": ["line-range extraction (+/- 5 lines)", "AST-based extraction", "minification"]
+      },
+      {
+        "layer": 3,
+        "name": "LLM Adjudicator",
+        "token_cost": "low",
+        "description": "Gửi snippet nhỏ cho LLM với prompt yêu cầu trả về JSON ngắn gọn để loại false positive",
+        "output_format": "JSON: { is_hardcoded: boolean, fix_suggestion: string (max 15 words) }"
+      }
+    ]
+  },
+  "token_optimization": {
+    "strategy": "Tuyệt đối không gửi toàn bộ file cho AI",
+    "chunking": {
+      "method": "line-range",
+      "context_lines": 5,
+      "description": "Lấy dòng nghi ngờ cùng ±5 dòng xung quanh để giữ ngữ cảnh cơ bản"
+    },
+    "minification": {
+      "remove": ["blank lines", "excessive comments", "import statements (if irrelevant)"],
+      "keep": ["logic context", "variable names", "surrounding function signature"]
+    },
+    "llm_prompt_template": {
+      "system": "Bạn là công cụ kiểm tra bảo mật. Đánh giá đoạn mã JSON dưới đây. Trả về đúng định dạng JSON có khóa `is_hardcoded` (true/false) và `fix_suggestion` (tối đa 15 từ). Không giải thích thêm.",
+      "user_payload_example": {
+        "file": "utils/auth.js",
+        "lines": "12-18",
+        "code": "const login = (user) => { \n const api = 'https://prod.api.com/v1'; \n return http.post(api, user); \n}"
+      }
+    }
+  },
+  "steps": [
+    {
+      "id": "step-0-prefilter",
+      "name": "Pre-filter tĩnh (Zero-Token)",
+      "description": "Tầng 1: Dùng rg để rà quét toàn bộ project, khoanh vùng dòng code nghi ngờ trước khi đưa vào AI",
+      "token_cost": 0,
+      "action": "Chạy các lệnh rg bên dưới, thu thập danh sách file:line nghi ngờ vào suspected_lines",
+      "static_scan_commands": [
+        {
+          "target": "API Key / Secret / Credential",
+          "command": "rg -n --glob '*.{ts,tsx,js}' \"(api[_-]?key|secret|password|token|credential)\\s*=\\s*['\\\"][^'\\\"]{8,}\" src electron chrome-extension",
+          "severity": "🔴 Critical"
+        },
+        {
+          "target": "Hardcode URL / Endpoint",
+          "command": "rg -n --glob '*.{ts,tsx,js}' \"['\\\"]https?://[^'\\\"]+['\\\"]\" src electron chrome-extension",
+          "severity": "🟡 Medium"
+        },
+        {
+          "target": "Magic Number (timeout, port, limit, size)",
+          "command": "rg -n --glob '*.{ts,tsx,js}' \"(setTimeout|setInterval|port|limit|size|delay)\\s*[,(]\\s*[0-9]{3,}\" src electron chrome-extension",
+          "severity": "🟠 High"
+        },
+        {
+          "target": "SVG inline ngoài ui/icons",
+          "command": "rg -n --glob '*.{tsx,ts}' '<svg' src -g '!src/components/ui/icons/**'",
+          "severity": "🟠 High"
+        },
+        {
+          "target": "Icon library import vi phạm",
+          "command": "rg -n --glob '*.{ts,tsx}' \"from ['\\\"](lucide-react|react-icons|@heroicons|@phosphor-icons)\" src -g '!src/components/ui/icons/**'",
+          "severity": "🟠 High"
+        },
+        {
+          "target": "Magic String phổ biến (status/type literals)",
+          "command": "rg -n --glob '*.{ts,tsx,js}' \"===\\s*['\\\"][a-zA-Z_-]{3,}['\\\"]\" src electron chrome-extension",
+          "severity": "🟠 High"
+        },
+        {
+          "target": "Hardcode color / hex",
+          "command": "rg -n --glob '*.{ts,tsx,css}' \"#[0-9a-fA-F]{3,6}\" src chrome-extension",
+          "severity": "🟢 Low"
+        },
+        {
+          "target": "Raw key / secret exposure qua renderer hoặc preload",
+          "command": "rg -n \"apiKey|secret|token|password\" src electron/preload chrome-extension",
+          "severity": "🔴 Critical"
+        }
+      ],
+      "output": "Danh sách suspected_lines: [{file, line, content, severity}]"
+    },
+    {
+      "id": "step-1-scope",
+      "name": "Xác định phạm vi kiểm tra",
+      "description": "Xác định rõ target: toàn bộ codebase, một folder, hay danh sách file cụ thể",
+      "action": "Hỏi hoặc suy luận phạm vi từ yêu cầu người dùng",
+      "options": [
+        {
+          "type": "full-codebase",
+          "label": "Toàn bộ codebase",
+          "note": "Đọc tất cả file source, bỏ qua node_modules, dist, build, .git"
+        },
+        {
+          "type": "folder",
+          "label": "Một folder cụ thể",
+          "note": "Ví dụ: src/services, electron/ipc"
+        },
+        {
+          "type": "files",
+          "label": "Danh sách file cụ thể",
+          "note": "Người dùng cung cấp list file cần kiểm tra"
+        }
+      ]
+    },
+    {
+      "id": "step-2-read",
+      "name": "Đọc source code (chỉ file có suspected_lines)",
+      "description": "Tầng 2: Chỉ đọc các file đã bị pre-filter đánh dấu, trích xuất snippet ±5 dòng quanh dòng nghi ngờ",
+      "action": "Đọc file, extract snippet, minify trước khi phân tích — không đọc toàn bộ file nếu không cần thiết",
+      "rules": [
+        "Chỉ đọc các file có trong suspected_lines từ step-0",
+        "Với mỗi file:line nghi ngờ, lấy ±5 dòng xung quanh làm snippet",
+        "Ghi nhớ các đoạn code có khả năng bị duplicate để đối chiếu",
+        "Bỏ qua: test fixtures, mock data, generated code",
+        "Fallback: Nếu không có pre-filter, đọc toàn bộ file theo phạm vi đã chọn"
+      ]
+    },
+    {
+      "id": "step-3-detect-duplicate",
+      "name": "Phát hiện Duplicate Code",
+      "description": "Áp dụng skill check-dup-hardcode (phần duplicate) để tìm code bị lặp",
+      "skill": "check-dup-hardcode",
+      "skill_category": "duplicate-code",
+      "action": "Với mỗi duplicate tìm được: xác định loại clone → tìm tất cả vị trí xuất hiện → ghi file:line → đánh giá severity → đề xuất refactor",
+      "checklist": [
+        "Quét các hàm/method có body tương tự (≥ 5 dòng)",
+        "Quét các component/class có cấu trúc giống nhau",
+        "Tìm các đoạn logic xử lý lặp lại không được abstract",
+        "Tìm các error handling pattern lặp lại",
+        "Tìm các utility function bị implement nhiều lần"
+      ]
+    },
+    {
+      "id": "step-4-detect-hardcode",
+      "name": "Phát hiện Hardcode",
+      "description": "Tầng 3: Dùng LLM Adjudicator để xác minh suspected_lines từ pre-filter, loại false positive, bổ sung phân tích ngữ nghĩa",
+      "skill": "check-dup-hardcode",
+      "skill_category": "hardcode",
+      "action": "Với mỗi snippet từ step-2: gửi LLM adjudicator → nhận JSON {is_hardcoded, fix_suggestion} → nếu true thì ghi nhận + đề xuất tên constant/config phù hợp",
+      "checklist": [
+        "Tìm số literal có nghĩa đặc biệt (timeout, limit, port, size)",
+        "Tìm chuỗi literal lặp hơn 2 lần hoặc có semantic rõ ràng",
+        "Tìm API key, token, password, secret trong code",
+        "Tìm URL endpoint, host, port cứng",
+        "Tìm màu hex, px, font-size cứng không qua design token",
+        "Tìm label text UI không qua i18n",
+        "Tìm icon hardcode: <svg> inline, emoji làm icon, import trực tiếp từ thư viện icon bên ngoài mà không qua src/components/ui/icons/"
+      ],
+      "icon_check": {
+        "description": "Kiểm tra icon có được quản lý tập trung không",
+        "registry": "src/components/ui/icons/",
+        "rule": "Mọi icon phải được định nghĩa hoặc tái sử dụng từ src/components/ui/icons/. Không được hardcode <svg> inline hay import thư viện icon trực tiếp vào component.",
+        "how_to_check": [
+          "Dùng rg tìm `<svg` trong toàn bộ file .tsx/.ts ngoài src/components/ui/icons/ — mỗi kết quả là potential hardcode icon",
+          "Dùng rg tìm import từ 'react-icons', 'lucide-react', '@heroicons', '@phosphor-icons' ngoài src/components/ui/icons/ — là vi phạm cần wrap",
+          "Tìm emoji character được render trong JSX như icon (ký tự không phải text content thực sự)",
+          "Kiểm tra src/components/ui/icons/ để biết icon nào đã có sẵn trước khi kết luận cần tạo mới"
+        ],
+        "fix_flow": [
+          "Bước 1: Xác định icon cần dùng",
+          "Bước 2: Kiểm tra src/components/ui/icons/ xem đã có chưa (xem index.ts để biết category)",
+          "Bước 3a: Nếu có → import từ src/components/ui/icons và dùng",
+          "Bước 3b: Nếu chưa có → tạo component mới trong category file phù hợp (actions/navigation/media/status/auth/files), export qua index.ts"
+        ]
+      }
+    },
+    {
+      "id": "step-5-deduplicate-findings",
+      "name": "Loại bỏ trùng lặp trong báo cáo",
+      "description": "Kiểm tra không báo cùng một vấn đề nhiều lần",
+      "action": "Review lại danh sách findings, gộp các vấn đề liên quan, loại false positive",
+      "checks": [
+        "Không báo cùng một đoạn code duplicate 2 lần",
+        "Phân biệt rõ: code tương tự có lý do chính đáng vs duplicate thực sự",
+        "Không đánh dấu constant definitions là hardcode",
+        "Không đánh dấu test data/fixtures là hardcode",
+        "Không đánh dấu intentional inline style là hardcode nếu là one-off"
+      ]
+    },
+    {
+      "id": "step-6-prioritize",
+      "name": "Ưu tiên hóa vấn đề",
+      "description": "Sắp xếp findings theo mức độ ưu tiên cần xử lý",
+      "action": "Phân nhóm theo severity, xác định top issues cần fix ngay",
+      "priority_order": [
+        "🔴 Critical: Hardcode credential, Exact duplicate lớn",
+        "🟠 High: Magic number/string phổ biến, Near duplicate",
+        "🟡 Medium: Hardcode config, Structural duplicate",
+        "🟢 Low: Hardcode UI, Semantic duplicate"
+      ]
+    },
+    {
+      "id": "step-7-report",
+      "name": "Tạo báo cáo",
+      "description": "Xuất báo cáo đầy đủ với format chuẩn",
+      "output_format": {
+        "sections": [
+          "## Tổng quan",
+          "## Duplicate Code",
+          "## Hardcode",
+          "## Tóm tắt & Ưu tiên",
+          "## Kế hoạch refactor gợi ý"
+        ],
+        "per_issue": [
+          "Severity label",
+          "Loại vấn đề",
+          "File path + line number",
+          "Code trích dẫn",
+          "Giải thích vấn đề",
+          "Gợi ý sửa kèm code example"
+        ],
+        "summary_table": {
+          "columns": ["Loại vấn đề", "Critical", "High", "Medium", "Low", "Tổng"],
+          "rows": ["Exact Duplicate", "Near Duplicate", "Structural Duplicate", "Semantic Duplicate", "Hardcode Credential", "Magic Number", "Magic String", "Hardcode Config", "Hardcode UI", "Hardcode Icon"]
+        }
+      }
+    },
+    {
+      "id": "step-8-save-report",
+      "name": "Lưu báo cáo",
+      "description": "Lưu báo cáo vào thư mục viezanagent/fix với tên file theo convention",
+      "action": "Tạo file markdown báo cáo với tên: dup-hardcode-report-YYYYMMDD-HHmm.md",
+      "save_path": "viezanagent/fix/",
+      "filename_pattern": "dup-hardcode-report-{YYYYMMDD}-{HHmm}.md"
+    }
+  ],
+  "cicd_integration": {
+    "description": "Tích hợp workflow này vào CI/CD để tự động scan mỗi Pull Request",
+    "github_actions_file": ".github/workflows/hardcode-scan.yml",
+    "trigger": "on: pull_request",
+    "on_violation": "Comment cảnh báo trực tiếp vào dòng code bị lỗi nếu AI trả về is_hardcoded: true"
+  },
+  "false_positive_guide": {
+    "NOT_duplicate": [
+      "Hai hàm tương tự nhưng serve different domain context (ví dụ: validateUserInput vs validatePaymentInput)",
+      "Code giống nhau nhưng cần tách vì sẽ diverge trong tương lai",
+      "Boilerplate pattern theo convention của framework (ví dụ: Redux slice structure)"
+    ],
+    "NOT_hardcode": [
+      "Số 0, 1, -1 trong context rõ ràng (index, boolean-like, default)",
+      "Chuỗi rỗng '' làm default value",
+      "Constant được define với const/enum rõ ràng",
+      "Test data trong file *.test.ts hoặc *.spec.ts",
+      "Số trong Tailwind class names (p-4, text-sm) theo design system",
+      "<svg> nằm bên trong src/components/ui/icons/ — đây là icon definition hợp lệ"
+    ]
+  },
+  "references": {
+    "skill": "../../skill/check-dup-hardcode/check-dup-hardcode.json",
+    "readme": "./README.md",
+    "architecture_source": "Báo cáo Workflow Tự Động Rà Soát Hard Code (Tối Ưu Token AI) - 26/04/2026"
+  }
+}

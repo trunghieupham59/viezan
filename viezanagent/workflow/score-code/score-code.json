@@ -1,0 +1,116 @@
+{
+  "name": "score-code",
+  "version": "1.0.0",
+  "description": "Workflow chấm điểm source code theo bộ tiêu chí chuẩn",
+  "type": "workflow",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["code-quality", "review", "rubric"],
+    "use_for": "Run the full scoring workflow and produce a quality rubric report."
+  },
+  "steps": [
+    {
+      "id": "step-1-identify",
+      "name": "Xác định loại bài",
+      "description": "Xác định loại bài để chọn bộ rubric phù hợp",
+      "action": "Hỏi hoặc suy luận loại bài từ code: cơ bản, OOP/backend, project lớn, hoặc viezan-electron",
+      "options": [
+        {
+          "type": "basic",
+          "label": "Bài lập trình cơ bản",
+          "criteria": ["Correctness", "Code Quality", "Structure", "Testing", "Documentation"]
+        },
+        {
+          "type": "oop-backend",
+          "label": "Assignment OOP / Backend",
+          "criteria": ["Correctness", "Code Quality", "Structure", "Maintainability", "Testing", "Architecture", "Documentation"]
+        },
+        {
+          "type": "project",
+          "label": "Project lớn / Đồ án nhóm",
+          "criteria": ["Correctness", "Architecture", "Code Quality", "Maintainability", "Testing", "Performance", "Security", "Documentation"]
+        },
+        {
+          "type": "viezan-electron",
+          "label": "Viezan Electron local-first app",
+          "criteria": ["Correctness", "Architecture", "Security", "Reliability", "Code Quality", "Maintainability", "Testing", "Performance", "Documentation"]
+        }
+      ]
+    },
+    {
+      "id": "step-2-read",
+      "name": "Đọc toàn bộ source code",
+      "description": "Đọc qua toàn bộ file trước khi chấm",
+      "action": "Đọc tất cả file, ghi nhận điểm nổi bật tốt và chưa tốt. Không chấm vội từng phần riêng lẻ"
+    },
+    {
+      "id": "step-3-score",
+      "name": "Chấm từng tiêu chí",
+      "description": "Áp dụng skill score-code để chấm từng tiêu chí trong rubric đã chọn",
+      "skill": "score-code",
+      "action": "Với mỗi tiêu chí: đọc định nghĩa → tìm bằng chứng → ghi ví dụ cụ thể → cho điểm → kiểm tra không chấm trùng"
+    },
+    {
+      "id": "step-4-summarize",
+      "name": "Tổng hợp kết quả",
+      "description": "Tổng hợp thành bảng điểm và báo cáo nhận xét",
+      "output_format": {
+        "table": ["Tiêu chí", "Điểm tối đa", "Điểm đạt", "Nhận xét"],
+        "sections": ["Điểm mạnh", "Điểm cần cải thiện", "Khuyến nghị"]
+      }
+    },
+    {
+      "id": "step-5-verify",
+      "name": "Kiểm tra lại",
+      "description": "Kiểm tra không có tiêu chí chấm trùng, điểm phản ánh đúng thực tế",
+      "checks": [
+        "Không có 2 tiêu chí chấm trùng nhau",
+        "Mỗi điểm trừ có ví dụ cụ thể từ code",
+        "Tổng điểm không vượt quá 100"
+      ]
+    }
+  ],
+  "weights": {
+    "basic": {
+      "Correctness": 50,
+      "Code Quality": 20,
+      "Structure": 10,
+      "Testing": 10,
+      "Documentation": 10
+    },
+    "oop-backend": {
+      "Correctness": 35,
+      "Code Quality": 15,
+      "Structure": 15,
+      "Maintainability": 10,
+      "Testing": 10,
+      "Architecture": 10,
+      "Documentation": 5
+    },
+    "project": {
+      "Correctness": 25,
+      "Architecture": 15,
+      "Code Quality": 15,
+      "Maintainability": 15,
+      "Testing": 10,
+      "Performance": 10,
+      "Security": 5,
+      "Documentation": 5
+    },
+    "viezan-electron": {
+      "Correctness": 20,
+      "Architecture": 15,
+      "Security": 15,
+      "Reliability": 15,
+      "Code Quality": 10,
+      "Maintainability": 10,
+      "Testing": 10,
+      "Performance": 3,
+      "Documentation": 2
+    }
+  },
+  "references": {
+    "criteria_detail": "./README.md",
+    "skill": "../../skill/score-code/score-code.json"
+  }
+}
