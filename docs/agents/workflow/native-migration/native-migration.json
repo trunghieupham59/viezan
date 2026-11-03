@@ -30,7 +30,7 @@
     },
     {
       "id": "design",
-      "action": "Create/edit UX review with task isolation and platform states."
+      "action": "Use viezan-native-ux and its pinned UI UX Pro Max reference for relevant design research; adapt results to current Viezan tokens, direction and SwiftUI/Qt semantics. Create/edit UX review with task isolation and platform states."
     },
     {
       "id": "spike",

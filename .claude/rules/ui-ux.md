@@ -30,6 +30,19 @@ Apply these decisions to SwiftUI/AppKit and Qt Quick controls.
 - A screen's three-language behaviour lives in `docs/design/locales.md`;
   persona behaviour in `docs/design/personas.md`.
 
+## Design research with UI UX Pro Max
+
+- Use `docs/agents/skill/viezan-native-ux/SKILL.md` and its
+  `references/ui-ux-pro-max.md` when designing or reviewing native UI.
+  The pinned upstream skill is in `.agents/skills/ui-ux-pro-max/`.
+- Search the relevant style, UX concern or SwiftUI stack; check each result's
+  platform before applying it. Qt uses general UX results and Qt documentation,
+  not a fabricated Qt stack. Existing tokens, native semantics and the source
+  precedence above govern the result.
+- Keep the existing design system. Do not generate a competing `MASTER.md`,
+  replace desktop metrics with web/mobile defaults, or use a search result as
+  evidence of native rendering, accessibility or runtime acceptance.
+
 ## Typography
 
 - Use native system fonts, the shared reading/mono roles, and generated scale

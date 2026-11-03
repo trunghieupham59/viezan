@@ -1,0 +1,17 @@
+{
+  "repository": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
+  "commit": "3a13158ff1f32156cbe144108de48eda2ecaed9a",
+  "source_path": ".claude/skills/ui-ux-pro-max",
+  "installed_on": "2026-11-02",
+  "scope": "Viezan repository only",
+  "license": "MIT",
+  "license_file": "LICENSE",
+  "local_changes": {
+    "SKILL.md": "Added Viezan project integration section; upstream body retained.",
+    "LICENSE": "Copied root license from the same upstream commit.",
+    "UPSTREAM.json": "Added provenance for this pinned import."
+  },
+  "upstream_skill_sha256": "ea087c341bfb5b23195c7302027268ede86da802554c18a5c4896a6017b439f9",
+  "installed_skill_sha256": "723a7058ceaf83c08b4255a44158a90f8b8a3078dd4be8d2094f460e9f0438a8",
+  "unchanged": "Upstream data, scripts, tests and reference files."
+}

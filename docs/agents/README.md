@@ -130,6 +130,9 @@ Workflow: [native-migration](workflow/native-migration/native-migration.json).
 Rule: [native-migration](rule/native-migration/rules.json).
 Skills: [migration](skill/viezan-native-migration/SKILL.md),
 [UX acceptance](skill/viezan-native-ux/SKILL.md).
+Thiết kế và review UI dùng [UI UX Pro Max cho Viezan](skill/viezan-native-ux/references/ui-ux-pro-max.md)
+qua skill UX hiện có: tra cứu local, bổ sung hướng dẫn SwiftUI/Qt và Liquid Glass,
+giữ token/spec của Viezan làm chuẩn. Bản upstream được ghim trong `.agents/skills/`.
 Plan: [docs/migration](../migration/README.md).
 Report: `docs/migration/reports/native-migration-report-*.md`.
 Đây là capability mới; chưa thay kiến trúc Electron đang vận hành.

@@ -19,6 +19,8 @@
 
 - Before UI or copy work read `.claude/rules/ui-ux.md` and the affected spec
   in `docs/design/screens/`. Reuse native controls and semantic tokens.
+- For design and UX review use `docs/agents/skill/viezan-native-ux/SKILL.md`,
+  including its UI UX Pro Max reference and SwiftUI/Qt adaptation.
 - Edit shared tokens in `resources/tokens.css` and native strings in the EN/VI/JA
   JSON files under `resources/locales/`. Regenerate both native bundles with
   `npm run resources`. Qt icons are SVG sources in `apps/desktop-qt/qml/icons/`.

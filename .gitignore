@@ -26,3 +26,4 @@ native/bin/
 .native-packages/
 apps/macos/.build/
 apps/desktop-qt/build/
+__pycache__/
