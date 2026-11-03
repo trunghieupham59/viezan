@@ -60,7 +60,7 @@ ColumnLayout {
             Kit.GlassButton { text: models.t("deleteModel"); enabled: !models.manager.busy; onClicked: { removeModel.modelName = modelData.slice(7); removeModel.open() } }
         }
     }
-    Kit.GlassDialog {
+    GlassDialog {
         id: removeModel
         property string modelName
         title: models.t("deleteModelConfirm"); modal: true; standardButtons: Dialog.Yes | Dialog.Cancel
@@ -80,5 +80,5 @@ ColumnLayout {
             Kit.GlassButton { text: models.t("apply"); enabled: !modelData.error && !models.bridge.localPerformance.busy; onClicked: models.bridge.localPerformance.select(modelData.id) }
         }
     }
-    Kit.GlassDialog { id: compare; title: models.t("runtimeCompare"); modal: true; standardButtons: Dialog.Yes | Dialog.Cancel; Label { text: models.t("runtimeCompareHint"); wrapMode: Text.Wrap; width: models.bridge.resources.metrics.sidebar } onAccepted: models.bridge.localPerformance.compare() }
+    GlassDialog { id: compare; title: models.t("runtimeCompare"); modal: true; standardButtons: Dialog.Yes | Dialog.Cancel; Label { text: models.t("runtimeCompareHint"); wrapMode: Text.Wrap; width: models.bridge.resources.metrics.sidebar } onAccepted: models.bridge.localPerformance.compare() }
 }

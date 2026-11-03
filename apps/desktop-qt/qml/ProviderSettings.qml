@@ -51,7 +51,7 @@ Kit.CardBox {
         Label { text: providers.t("keyStorageHint"); wrapMode: Text.Wrap; Layout.fillWidth: true }
         Label { text: providers.bridge.credentialStatus ? providers.t(providers.bridge.credentialStatus) : ""; visible: !!text; wrapMode: Text.Wrap; Layout.fillWidth: true }
     }
-    Kit.GlassDialog {
+    GlassDialog {
         id: confirmation
         title: providers.t("deleteKeyConfirm")
         modal: true

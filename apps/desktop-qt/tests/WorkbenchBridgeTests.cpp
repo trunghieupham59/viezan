@@ -768,10 +768,19 @@ private slots:
         QVERIFY(bridge.state().value("tasks").toList().isEmpty());
         QCOMPARE(warnings.count(), 0);
     }
+    void glassDialogPreservesStandardActions_data() {
+        QTest::addColumn<QString>("initialPreset");
+        QTest::addColumn<QString>("mode");
+        for (const auto &preset : {QString("graphite"), QString("glass")})
+            for (const auto &mode : {QString("light"), QString("dark")})
+                QTest::newRow(qPrintable(preset + "-" + mode)) << preset << mode;
+    }
     void glassDialogPreservesStandardActions() {
+        QFETCH(QString, initialPreset);
+        QFETCH(QString, mode);
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
-        bridge.command("appearance", {{"preset", "graphite"}, {"mode", "light"}});
+        bridge.command("appearance", {{"preset", initialPreset}, {"mode", mode}});
         QQmlEngine engine;
         QSignalSpy warnings(&engine, &QQmlEngine::warnings);
         engine.rootContext()->setContextProperty("workbench", &bridge);
@@ -782,7 +791,7 @@ private slots:
             import "qrc:/qml" as Viezan
             ApplicationWindow {
                 width: 500; height: 300; visible: true
-                Viezan.Kit.GlassDialog {
+                Viezan.GlassDialog {
                     objectName: "standard-dialog"
                     title: "Synthetic dialog"
                     modal: true; focus: true
@@ -809,7 +818,7 @@ private slots:
         const auto nativePadding = dialog->property("padding").toDouble();
         int nativeReturnActivation = -1;
         for (const auto &preset : {QString("graphite"), QString("glass"), QString("graphite")}) {
-            bridge.command("appearance", {{"preset", preset}, {"mode", "light"}});
+            bridge.command("appearance", {{"preset", preset}, {"mode", mode}});
             QCoreApplication::processEvents();
             QCOMPARE(dialog->property("footer").value<QObject *>(), footer);
             QVERIFY(QMetaObject::invokeMethod(dialog, "open"));
@@ -837,7 +846,7 @@ private slots:
             QTRY_COMPARE(accepted.count(), before + 1);
             QTRY_VERIFY(!dialog->property("visible").toBool());
         }
-        bridge.command("appearance", {{"preset", "glass"}, {"mode", "light"}});
+        bridge.command("appearance", {{"preset", "glass"}, {"mode", mode}});
         QCoreApplication::processEvents();
         QVERIFY(QMetaObject::invokeMethod(dialog, "open"));
         QTRY_VERIFY(dialog->property("visible").toBool());

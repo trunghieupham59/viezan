@@ -12,7 +12,7 @@ ColumnLayout {
         Kit.GlassComboBox { id: keep; model: [20, 100, 500, 1000]; currentIndex: 1; Accessible.name: data.t("historyKeep") }
         Kit.GlassButton { text: data.t("trimHistory"); enabled: !data.bridge.loadBlocked && !data.bridge.state.tasks.some(t => t.status === "running"); onClicked: trim.open() }
     }
-    Kit.GlassDialog { id: trim; title: data.t("trimHistory"); modal: true; standardButtons: Dialog.Ok | Dialog.Cancel; Label { text: data.t("trimHistoryConfirm"); wrapMode: Text.Wrap; width: data.bridge.resources.metrics.reading } onAccepted: data.bridge.command("trimHistory", {keep: Number(keep.currentText)}) }
+    GlassDialog { id: trim; title: data.t("trimHistory"); modal: true; standardButtons: Dialog.Ok | Dialog.Cancel; Label { text: data.t("trimHistoryConfirm"); wrapMode: Text.Wrap; width: data.bridge.resources.metrics.reading } onAccepted: data.bridge.command("trimHistory", {keep: Number(keep.currentText)}) }
     ToolSeparator { orientation: Qt.Horizontal; Layout.fillWidth: true }
     RowLayout {
         Kit.GlassButton { text: data.t("exportBackup"); enabled: !data.bridge.backupBusy && !data.bridge.loadBlocked; onClicked: exportPicker.open() }

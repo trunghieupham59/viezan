@@ -183,20 +183,32 @@ const resources = {
   fixtures: JSON.parse(fs.readFileSync(path.join(root, 'contracts/native-workbench/fixtures.json'), 'utf8')),
 }
 const output = `${JSON.stringify(resources, null, 2)}\n`
-for (const relative of ['apps/macos/Sources/ViezanDomain/Resources/native.json', 'apps/desktop-qt/qml/native.json']) {
+function updateResource(relative, content, staleMessage) {
   const destination = path.join(root, relative)
-  if (process.argv.includes('--check')) {
-    if (!fs.existsSync(destination) || fs.readFileSync(destination, 'utf8') !== output) throw new Error(`Stale native resources: ${relative}`)
-  } else if (!fs.existsSync(destination) || fs.readFileSync(destination, 'utf8') !== output) {
-    // Preserve timestamps so a dev reload does not invalidate unchanged resources.
-    fs.writeFileSync(destination, output)
+  const bytes = Buffer.isBuffer(content) ? content : Buffer.from(content)
+  try {
+    // A direct read avoids an existence-check/read race and preserves timestamps
+    // when a dev reload generates identical resources.
+    if (fs.readFileSync(destination).equals(bytes)) return
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error
+  }
+  if (process.argv.includes('--check')) throw new Error(staleMessage)
+
+  // Replace the directory entry atomically instead of opening a path that may
+  // have been swapped for a symlink after the comparison. A private sibling
+  // directory keeps staging on the same filesystem and away from other writers.
+  const staging = fs.mkdtempSync(path.join(path.dirname(destination), '.native-resource-'))
+  try {
+    const staged = path.join(staging, 'resource')
+    fs.writeFileSync(staged, bytes, { flag: 'wx' })
+    fs.renameSync(staged, destination)
+  } finally {
+    fs.rmSync(staging, { recursive: true, force: true })
   }
 }
-const brandSource = path.join(root, 'public/icon.png')
-const qtBrand = path.join(root, 'apps/desktop-qt/qml/brand.png')
-if (process.argv.includes('--check')) {
-  if (!fs.readFileSync(brandSource).equals(fs.readFileSync(qtBrand))) throw new Error('Stale Qt brand asset')
-} else if (!fs.existsSync(qtBrand) || !fs.readFileSync(brandSource).equals(fs.readFileSync(qtBrand))) {
-  fs.copyFileSync(brandSource, qtBrand)
+for (const relative of ['apps/macos/Sources/ViezanDomain/Resources/native.json', 'apps/desktop-qt/qml/native.json']) {
+  updateResource(relative, output, `Stale native resources: ${relative}`)
 }
+updateResource('apps/desktop-qt/qml/brand.png', fs.readFileSync(path.join(root, 'public/icon.png')), 'Stale Qt brand asset')
 console.log(`Native resources ${process.argv.includes('--check') ? 'verified' : 'generated'}: 3 locales, ${Object.keys(metrics).length} metrics.`)

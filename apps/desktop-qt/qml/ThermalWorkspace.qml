@@ -96,7 +96,7 @@ ScrollView {
         }
         Label { text: page.monitor.error && page.monitor.error !== "thermalPlatformHint" ? page.t(page.monitor.error) : ""; visible: !!text; wrapMode: Text.Wrap; Layout.fillWidth: true }
     }
-    Kit.GlassDialog {
+    GlassDialog {
         id: reason
         parent: Overlay.overlay
         title: page.t("viewReason")

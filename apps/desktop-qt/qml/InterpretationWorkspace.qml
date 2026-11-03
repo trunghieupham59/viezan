@@ -176,7 +176,7 @@ Item {
             Kit.GlassButton { text: root.t("delete"); enabled: !!root.live.current.id; onClicked: { historyPopup.close(); deleteMeeting.sessionID = root.live.current.id; deleteMeeting.open() } }
         }
     }
-    Kit.GlassDialog {
+    GlassDialog {
         id: setupDialog; parent: Overlay.overlay; title: root.t("captureOptions"); modal: false
         width: Math.min(root.width, root.metrics.sidebar + root.metrics.editor)
         height: Math.min(root.height, root.metrics.editor * 3)
@@ -205,5 +205,5 @@ Item {
             Kit.GlassButton { visible: root.live.listening; text: root.t("stop"); onClicked: root.live.stop() }
         }
     }
-    Kit.GlassDialog { id: deleteMeeting; property string sessionID; title: root.t("deleteInterpretation"); modal: true; standardButtons: Dialog.Yes | Dialog.Cancel; onAccepted: root.live.deleteSession(sessionID) }
+    GlassDialog { id: deleteMeeting; property string sessionID; title: root.t("deleteInterpretation"); modal: true; standardButtons: Dialog.Yes | Dialog.Cancel; onAccepted: root.live.deleteSession(sessionID) }
 }

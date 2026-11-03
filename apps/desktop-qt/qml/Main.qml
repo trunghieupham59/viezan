@@ -526,7 +526,7 @@ ApplicationWindow {
             BusyIndicator { running: workbench.loadingModels; visible: running; implicitWidth: metrics.control; implicitHeight: metrics.control }
         }
 
-        Kit.GlassDialog {
+        GlassDialog {
             id: modelDialog
             objectName: "model-configuration-dialog"
             parent: Overlay.overlay
@@ -551,13 +551,13 @@ ApplicationWindow {
         }
         Label { text: workbench.modelError ? t(workbench.modelError) : ""; visible: !!workbench.modelError; wrapMode: Text.Wrap; Layout.maximumWidth: metrics.sidebar }
     }
-    Kit.GlassDialog {
+    GlassDialog {
         id: deleteSavedPrompt
         property string promptID: ""
         title: t("deletePrompt"); modal: true; standardButtons: Dialog.Yes | Dialog.Cancel
         onAccepted: root.command("deletePrompt", {id: promptID})
     }
-    Kit.GlassDialog {
+    GlassDialog {
         id: renameDialog
         property string ownerID
         title: t("rename"); modal: true; anchors.centerIn: parent
@@ -904,7 +904,7 @@ ApplicationWindow {
             }
             Rectangle { color: root.palette.midlight; implicitHeight: metrics.hairline; Layout.fillWidth: true }
             Kit.ProviderNotice { model: session.model; dangerColor: root.colors.danger; Layout.fillWidth: true; onOpenRequested: section => root.openSettingsSection(section); onUseRequested: model => command("model", {value: model}) }
-            Kit.GlassDialog {
+            GlassDialog {
                 id: translationOptionsDialog
                 property string ownerID: ""
                 onOpened: ownerID = root.session.id
@@ -1252,7 +1252,7 @@ ApplicationWindow {
             }
         }
     }
-    Kit.GlassDialog {
+    GlassDialog {
         id: deleteHistory
         property string ownerID: ""
         title: root.t("deletePermanentlyConfirm")

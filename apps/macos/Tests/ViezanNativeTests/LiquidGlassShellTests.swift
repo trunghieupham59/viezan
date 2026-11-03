@@ -280,7 +280,7 @@ extension AppKitFixtureTests {
             let owned = try #require(buttons.first { $0.accessibilityIdentifier() == "glass-owned" })
             let borrowedDisabled = try #require(buttons.first { $0.accessibilityIdentifier() == "glass-borrowed-disabled" })
             #expect(!borrowed.usesGlass)
-            #expect(owned.usesGlass)
+            #expect(owned.glassShape && owned.bounded)
             #expect(!borrowedDisabled.usesGlass && !borrowedDisabled.bounded)
             #expect(!borrowedDisabled.isEnabled && !borrowedDisabled.acceptsFirstResponder)
             #expect(borrowedDisabled.layer?.backgroundColor?.alpha == 0)
@@ -289,16 +289,27 @@ extension AppKitFixtureTests {
             #expect(borrowedDisabled.layer?.backgroundColor?.alpha == 0)
             borrowedDisabled.performClick(nil)
             #expect(activations == 0)
-            if #available(macOS 26.0, *) {
-                for button in [enabled, disabled, owned] + panelButtons {
-                    #expect(button.usesGlass)
-                    let container = try #require(button.superview as? ShellToolbarButton.ButtonHost)
+            for button in [enabled, disabled, owned] + panelButtons {
+                // Hosted runners can enable Reduce Transparency or high contrast.
+                // The owned lens still exists, but must use its solid fallback.
+                #expect(button.glassShape && button.bounded)
+                #expect(button.usesGlass == !button.opaqueSurface)
+                let container = try #require(button.superview as? ShellToolbarButton.ButtonHost)
+                if #available(macOS 26.0, *), button.usesGlass {
                     let material = try #require(container.subviews.compactMap { $0 as? NSGlassEffectView }.first)
                     #expect(!material.isHidden && !material.isAccessibilityElement())
                     #expect(material.frame == button.frame)
                     #expect(container.subviews.last === button)
                     // A legacy panel fill must not cover the real material.
                     #expect(button.layer?.backgroundColor?.alpha == 0)
+                } else {
+                    #expect(button.layer?.borderWidth == metric("hairline"))
+                    let background = try #require(button.layer?.backgroundColor)
+                    #expect(background.alpha > 0)
+                    if button.opaqueSurface { #expect(background.alpha == 1) }
+                    if #available(macOS 26.0, *) {
+                        #expect(!container.subviews.contains { $0 is NSGlassEffectView && !$0.isHidden })
+                    }
                 }
             }
             for button in panelButtons {
@@ -375,6 +386,18 @@ extension AppKitFixtureTests {
                 #expect(button.accessibilityLabel() == "History")
                 #expect(button.superview === container)
                 #expect(window.firstResponder === button)
+            }
+            button.isEnabled = false
+            button.hovered = true
+            button.pressed = true
+            button.refreshSurface()
+            #expect(!button.acceptsFirstResponder)
+            #expect(button.layer?.backgroundColor?.alpha == 1)
+            #expect(button.contentTintColor == NSColor.disabledControlTextColor)
+            #expect(button.intrinsicContentSize.height == originalHeight)
+            #expect(button.accessibilityLabel() == "History")
+            if #available(macOS 26.0, *) {
+                #expect(!container.subviews.contains { $0 is NSGlassEffectView && !$0.isHidden })
             }
         }
     }
