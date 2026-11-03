@@ -55,10 +55,10 @@ public enum NativeBackup {
         }
         for session in workspace.sessions {
             for image in (session.images ?? []) + session.messages.flatMap({ $0.images ?? [] }) {
-                guard images.contains(image) else { throw StorageFailure.invalidData }
+                guard images.contains(where: image.sameFile) else { throw StorageFailure.invalidData }
             }
         }
-        for task in workspace.tasks { for image in task.request.messages?.flatMap({ $0.images ?? [] }) ?? [] { guard images.contains(image) else { throw StorageFailure.invalidData } } }
+        for task in workspace.tasks { for image in task.request.messages?.flatMap({ $0.images ?? [] }) ?? [] { guard images.contains(where: image.sameFile) else { throw StorageFailure.invalidData } } }
         return BackupPreview(preferences: workspace, interpretation: meetings, tasks: workspace.tasks.map { task in var copy = task; if copy.status == .running { copy.status = .interrupted }; return copy }, prompts: workspace.prompts ?? [], sessions: workspace.sessions, attachments: images, bytes: bytes)
     }
     public static func materialize(_ preview: BackupPreview) throws {

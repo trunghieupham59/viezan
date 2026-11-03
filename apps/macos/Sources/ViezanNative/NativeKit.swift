@@ -188,19 +188,42 @@ private struct ChatButtonBody: View {
     @Environment(\.isEnabled) private var enabled
     @Environment(\.colorScheme) private var scheme
     @Environment(\.isFocused) private var focused
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
     @State private var hovered = false
     private var danger: Bool { configuration.role == .destructive }
+    // Send (`.btn.primary` round): the painted accent face, never tinted glass.
+    private var painted: Bool { kind == .primary && !danger && enabled && !reduceTransparency && contrast != .increased }
     var body: some View {
         configuration.label.lineLimit(1)
             .padding(.horizontal, circular ? 0 : metric("gap"))
             .frame(width: circular ? metric("control") : nil)
             .frame(minWidth: metric("control"), minHeight: metric("control"))
             .foregroundStyle(contentColor(!enabled ? "text-disabled" : danger ? "danger" : kind == .primary ? "action-fg" : "text-strong", scheme))
-            .modifier(ControlGlass(selected: hovered || configuration.isPressed,
+            .background { if painted { PrimaryFace(shape: Capsule(), hovered: hovered, pressed: configuration.isPressed, focused: focused) } }
+            .modifier(ControlGlass(active: !painted, selected: hovered || configuration.isPressed,
                                        emphasized: kind == .primary && !danger, focused: focused,
                                        pressed: configuration.isPressed, enabled: enabled, danger: danger))
             .contentShape(Capsule())
             .onHover { hovered = $0 }
+    }
+}
+
+// `.btn.primary`: accent gradient (action-fill), darker while hovered/pressed,
+// an accent shadow, and a separate 2 pt focus ring outside the face.
+struct PrimaryFace<S: InsettableShape>: View {
+    var shape: S
+    var hovered = false
+    var pressed = false
+    var focused = false
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        shape.fill(LinearGradient(colors: [contentColor("action-fill-top", scheme), contentColor("action-fill-bottom", scheme)],
+                                  startPoint: .top, endPoint: .bottom))
+            .overlay { if hovered || pressed { shape.fill(contentColor("action-active", scheme).opacity(metric("selectionOpacity") * (pressed ? 3 : 2))) } }
+            .shadow(color: contentColor("action", scheme).opacity(metric("overlayShadowOpacity")), radius: metric("small"), y: metric("shadowSmY"))
+            .overlay { if focused { shape.inset(by: -metric("hairline") * 2).strokeBorder(contentColor("action-text", scheme), lineWidth: metric("hairline") * 2) } }
+            .allowsHitTesting(false).accessibilityHidden(true)
     }
 }
 
@@ -212,30 +235,31 @@ struct CardSurface: ViewModifier {
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     private var radius: CGFloat { metric((NativeTheme.shared.preferences.preset ?? "glass") == "glass" ? "chromeCardRadius" : "radius") }
-    private var lightGlass: Bool { scheme == .light && (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
-    func body(content: Content) -> some View {
-        content.padding(padded ? metric("inset") : 0)
-            .background {
-                let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-                shape.fill(selected ? contentColor("action-soft", scheme) : contentColor("surface", scheme))
-                    .overlay {
-                        if lightGlass && !selected && !reduceTransparency && contrast != .increased {
-                            // A broad light wash sits behind the text on an
-                            // opaque base; it is illumination, not extra blur.
-                            shape.fill(LinearGradient(colors: [chromeColor("surface-raised", scheme), .clear],
-                                                      startPoint: .topLeading, endPoint: .bottomTrailing))
-                        }
-                    }
+    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
+    @ViewBuilder func body(content: Content) -> some View {
+        if glass { glassCard(content) } else { quietCard(content) }
+    }
+    // `.card`: a flat hairline surface on the reading pane; no blur, no nested pane.
+    private func glassCard(_ content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        let solid = contrast == .increased || reduceTransparency
+        return content.padding(padded ? metric("inset") : 0)
+            .background(shape.fill(contentColor(selected ? "action-soft" : "surface", scheme)))
+            .overlay {
+                shape.strokeBorder(selected ? contentColor("action", scheme).opacity(metric("selectionOpacity") * 4) : contentColor(solid ? "border-strong" : "border", scheme), lineWidth: metric("hairline"))
             }
+            .shadow(color: scheme == .light && !solid ? contentColor("border", scheme) : .clear, radius: metric("hairline"), y: metric("hairline"))
+    }
+    private func quietCard(_ content: Content) -> some View {
+        content.padding(padded ? metric("inset") : 0)
+            .background(selected ? contentColor("action-soft", scheme) : contentColor("surface", scheme),
+                        in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay {
                 if selected {
                     RoundedRectangle(cornerRadius: radius, style: .continuous)
                         .strokeBorder(contentColor("action", scheme).opacity(metric("selectionOpacity") * 4), lineWidth: metric("hairline"))
                 } else { QuietSurfaceEdge(radius: radius) }
             }
-            .shadow(color: chromeColor("text-strong", scheme).opacity(
-                lightGlass && contrast != .increased && !reduceTransparency ? metric("selectionOpacity") / 4 : 0),
-                    radius: metric("small"), y: metric("tight"))
     }
 }
 
@@ -254,7 +278,7 @@ struct CardSection<Content: View>: View {
                 if let title {
                     Text(title).font(.system(size: NSFont.systemFontSize, weight: .semibold)).accessibilityAddTraits(.isHeader)
                         .padding(.horizontal, metric("inset")).frame(minHeight: metric("navControl") + metric("tight"), alignment: .leading)
-                    Divider()
+                    CardDivider()
                 }
                 content.environment(\.cardRowInset, metric("inset"))
             }.frame(maxWidth: .infinity, alignment: .leading).cardSurface(padded: false)
@@ -272,7 +296,19 @@ extension EnvironmentValues {
     var cardRowInset: CGFloat { get { self[CardRowInsetKey.self] } set { self[CardRowInsetKey.self] = newValue } }
 }
 
-// A labelled setting/action row. Dividers sit between rows, not around them.
+// Edge-to-edge row separator inside a card: the warm Glass hairline, the
+// system separator elsewhere.
+struct CardDivider: View {
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        if (NativeTheme.shared.preferences.preset ?? "glass") == "glass" {
+            Rectangle().fill(contentColor("divider", scheme)).frame(height: metric("hairline")).accessibilityHidden(true)
+        } else { Divider() }
+    }
+}
+
+// A labelled setting/action row (`.srow`: at least 48 pt, label 14, description 12).
+// Dividers sit between rows, not around them.
 struct CardRow<Trailing: View>: View {
     var title: String
     var detail: String = ""
@@ -293,7 +329,8 @@ struct CardRow<Trailing: View>: View {
                 copy
                 HStack(spacing: metric("small")) { trailing }
             }.padding(.vertical, metric("gap")).padding(.horizontal, inset)
-            if divider { Divider() }
+                .frame(minHeight: (NativeTheme.shared.preferences.preset ?? "glass") == "glass" ? metric("navControl") + metric("small") : nil)
+            if divider { CardDivider() }
         }.accessibilityElement(children: .contain)
     }
 }
@@ -332,20 +369,39 @@ struct KeyCap: View {
     var text: String
     @Environment(\.colorScheme) private var scheme
     var body: some View {
-        Text(text).font(.vzn("labelScale")).foregroundStyle(contentColor("text-strong", scheme))
-            .padding(.horizontal, metric("small") + metric("tight")).frame(minHeight: metric("compactControl"))
-            .overlay(RoundedRectangle(cornerRadius: metric("controlRadius")).strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")))
-            .fixedSize()
+        if (NativeTheme.shared.preferences.preset ?? "glass") == "glass" {
+            // `.kbd`: a 20 pt mono cap, raised white with a hairline and top highlight.
+            let shape = RoundedRectangle(cornerRadius: metric("chromeShortcutRadius"), style: .continuous)
+            Text(text).font(.system(size: NSFont.systemFontSize * metric("captionScale"), weight: .medium, design: .monospaced))
+                .foregroundStyle(contentColor("text-muted", scheme))
+                .padding(.horizontal, metric("small") - metric("hairline") * 2).frame(height: metric("icon"))
+                .background(shape.fill(contentColor("surface", scheme)))
+                .overlay {
+                    shape.strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline"))
+                }
+                .overlay(alignment: .top) {
+                    if scheme == .light {
+                        shape.inset(by: metric("hairline")).strokeBorder(chromeColor("material-highlight", scheme), lineWidth: metric("hairline"))
+                            .mask(alignment: .top) { Rectangle().frame(height: metric("hairline") * 2) }
+                    }
+                }
+                .fixedSize()
+        } else {
+            Text(text).font(.vzn("labelScale")).foregroundStyle(contentColor("text-strong", scheme))
+                .padding(.horizontal, metric("small") + metric("tight")).frame(minHeight: metric("compactControl"))
+                .overlay(RoundedRectangle(cornerRadius: metric("controlRadius")).strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")))
+                .fixedSize()
+        }
     }
 }
 
-enum StatusTone { case ready, busy, idle, failed }
+enum StatusTone { case ready, busy, idle, failed, warning }
 
 struct StatusDot: View {
     @Environment(\.colorScheme) private var scheme
     var tone: StatusTone
     var body: some View {
-        Circle().fill(tone == .ready ? contentColor("success", scheme) : tone == .busy ? contentColor("action", scheme) : tone == .failed ? contentColor("danger", scheme) : contentColor("text-soft", scheme))
+        Circle().fill(tone == .ready ? contentColor("success", scheme) : tone == .busy ? contentColor("action", scheme) : tone == .failed ? contentColor("danger", scheme) : tone == .warning ? contentColor("warning", scheme) : contentColor("text-soft", scheme))
             .frame(width: metric("small"), height: metric("small")).accessibilityHidden(true)
     }
 }
@@ -356,6 +412,21 @@ struct StatusBadge: View {
     var tone: StatusTone = .busy
     @Environment(\.colorScheme) private var scheme
     var body: some View {
+        if (NativeTheme.shared.preferences.preset ?? "glass") == "glass" { chip } else { badge }
+    }
+    // `.chip`: 24 pt capsule, 12 medium. Ready reads success, live work the
+    // accent, idle neutral and failure danger; the words carry the meaning.
+    private var chip: some View {
+        let role = tone == .ready ? "success" : tone == .busy ? "action-text" : tone == .failed ? "danger" : tone == .warning ? "warning" : "text-muted"
+        return HStack(spacing: metric("small") - metric("hairline") * 2) { StatusDot(tone: tone); Text(text).font(.vzn("smallScale", .medium)) }
+            .foregroundStyle(contentColor(role, scheme))
+            .padding(.horizontal, metric("small") + metric("hairline") * 2).frame(height: metric("gutter"))
+            .background(tone == .idle ? contentColor("surface-muted", scheme)
+                        : tone == .busy ? contentColor("action-soft", scheme)
+                        : contentColor(role, scheme).opacity(metric("selectionOpacity")), in: Capsule())
+            .fixedSize()
+    }
+    private var badge: some View {
         // Accent only for live/ready state; idle reads neutral and failures read as danger.
         HStack(spacing: metric("small")) { StatusDot(tone: tone); Text(text).font(.vzn("smallScale")) }
             .foregroundStyle(contentColor(tone == .idle ? "text-muted" : tone == .failed ? "danger" : "action-text", scheme))
@@ -363,6 +434,268 @@ struct StatusBadge: View {
             .background(tone == .idle || tone == .failed ? contentColor("surface-muted", scheme) : contentColor("action-soft", scheme), in: Capsule())
             .fixedSize()
     }
+}
+
+// Glass notice band (Shell-States, Interpret-States, Apps-States): a soft tone
+// fill (`selectionOpacity`) with a hairline. `edge` is the band under the
+// header that spans the reading pane; otherwise it is a rounded 12 pt box with
+// a tinted border inside the page.
+struct NoticeBand<Content: View>: View {
+    var role: String
+    var edge = true
+    @ViewBuilder var content: Content
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: edge ? 0 : metric("radius"), style: .continuous)
+        HStack(spacing: metric("small") + metric("hairline") * 2) { content }
+            .font(.system(size: NSFont.systemFontSize))
+            .padding(.leading, edge ? metric("gutter") - metric("tight") : metric("inset"))
+            .padding(.trailing, edge ? metric("inset") : metric("gap"))
+            .padding(.vertical, metric("tight"))
+            .frame(maxWidth: .infinity, minHeight: metric("navControl") + metric("tight"), alignment: .leading)
+            .background(contentColor(role, scheme).opacity(metric("selectionOpacity")), in: shape)
+            .overlay {
+                if !edge { shape.strokeBorder(contentColor(role, scheme).opacity(metric("selectionOpacity") * 2), lineWidth: metric("hairline")) }
+            }
+            .overlay(alignment: .bottom) { if edge { CardDivider() } }
+            .accessibilityElement(children: .contain)
+    }
+}
+
+// Inline failure inside a message or card (Chat-States, Launcher-States):
+// danger icon, a strong first line and an optional muted reason.
+struct InlineFailure: View {
+    var title: String
+    var detail: String? = nil
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: metric("radius"), style: .continuous)
+        HStack(alignment: .firstTextBaseline, spacing: metric("small") + metric("hairline") * 2) {
+            Image(systemName: "exclamationmark.triangle").foregroundStyle(contentColor("danger", scheme)).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: metric("hairline") * 2) {
+                Text(title).font(.system(size: NSFont.systemFontSize, weight: detail == nil ? .regular : .medium)).foregroundStyle(contentColor("text-strong", scheme))
+                if let detail { Text(detail).font(.system(size: NSFont.systemFontSize)).foregroundStyle(contentColor("text-muted", scheme)) }
+            }.fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, metric("gap")).padding(.vertical, metric("small") + metric("hairline") * 2)
+        .background(contentColor("danger", scheme).opacity(metric("selectionOpacity") * 0.7), in: shape)
+        .overlay { shape.strokeBorder(contentColor("danger", scheme).opacity(metric("selectionOpacity") * 1.6), lineWidth: metric("hairline")) }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// Empty state of a Glass page (Dictionary, Interpret, Thermal, Apps): a 52 pt
+// tone disc with the glyph, a 15 semibold title and a muted hint.
+struct GlassEmptyState: View {
+    var symbol: String
+    var tone: String
+    var title: String
+    var hint: String? = nil
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        VStack(spacing: metric("small")) {
+            Image(systemName: symbol).font(.system(size: metric("gutter") - metric("hairline") * 2))
+                .foregroundStyle(contentColor(tone, scheme))
+                .frame(width: metric("hero") + metric("tight"), height: metric("hero") + metric("tight"))
+                .background(contentColor(tone, scheme).opacity(metric("selectionOpacity") * 1.5), in: Circle())
+                .padding(.bottom, metric("tight")).accessibilityHidden(true)
+            Text(title).font(.vzn("subtitleScale", .semibold)).foregroundStyle(contentColor("text-strong", scheme))
+            if let hint { Text(hint).font(.system(size: NSFont.systemFontSize)).foregroundStyle(contentColor("text-muted", scheme)) }
+        }
+        .multilineTextAlignment(.center).frame(maxWidth: metric("dialog") - metric("editor")).frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Listen layer (Overlays-Listen)
+
+/// One thing the Listen layer can read: a titled text in a language.
+struct ListenSource: Identifiable, Equatable {
+    var id: String
+    var title: String
+    var text: String
+    var language: String
+}
+
+extension NativeAudio {
+    /// Reads a Listen source; the player remembers which one, so every speaker control agrees.
+    func read(_ source: ListenSource, provider: String? = nil) { speak(source.text, language: source.language, source: source.id, provider: provider) }
+    func reading(_ sources: [ListenSource]) -> Bool { speaking && sources.contains { $0.id == speakingSource } }
+}
+
+private let listenProviderNames = ["system": "voiceSystem", "edge": "Microsoft Edge", "openai": "OpenAI", "gemini": "Gemini", "elevenlabs": "ElevenLabs"]
+
+// The 360 pt layer: a row per source (the first is the lens), a reading line with Read again
+// and Stop, an inline failure, then the voice and the speed seg at the foot.
+struct ListenPanel: View {
+    let store: WorkbenchStore
+    var sources: [ListenSource]
+    /// Interpretation reads through its own player; everything else uses the store's.
+    var audio: NativeAudio? = nil
+    var close: () -> Void
+    private var player: NativeAudio { audio ?? store.audio }
+    @Environment(\.colorScheme) private var scheme
+    private var voice: VoicePreferences { store.workspace.voice ?? VoicePreferences() }
+    private var providerName: String {
+        let key = listenProviderNames[voice.provider] ?? voice.provider
+        return key == "voiceSystem" ? store.text(key) : key
+    }
+    private var rateSupported: Bool { VoicePreferences.rateSupported(voice.provider) }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(store.text("listen")).font(.system(size: NSFont.systemFontSize, weight: .semibold)).foregroundStyle(contentColor("text-strong", scheme)).accessibilityAddTraits(.isHeader)
+                Spacer(minLength: metric("small"))
+                Button(action: close) { Image(systemName: "xmark").imageScale(.small) }.buttonStyle(.vznQuiet).help(store.text("close")).accessibilityLabel(store.text("close"))
+            }.padding(.leading, metric("inset")).padding(.trailing, metric("small")).frame(height: metric("navControl") + metric("tight"))
+            VStack(alignment: .leading, spacing: metric("hairline") * 2) {
+                // A reading row keeps its height: the subtitle becomes the reading line and Read again /
+                // Stop take the ↩ cap's place, so starting or ending playback never moves the layer.
+                ForEach(Array(sources.enumerated()), id: \.element.id) { index, source in
+                    let reading = player.speaking && player.speakingSource == source.id
+                    sourceRow(source, lens: index == 0 && !reading, reading: reading)
+                }
+                if let error = player.error {
+                    InlineFailure(title: store.text(error)).padding(.horizontal, metric("hairline") * 2).padding(.top, metric("tight"))
+                    HStack(spacing: metric("small")) {
+                        // A cloud voice failed: read this once with the system voice, settings unchanged.
+                        if voice.provider != "system", let failed = sources.first(where: { $0.id == player.lastSource }) ?? sources.first {
+                            Button(store.text("readWithSystemVoice")) { player.read(failed, provider: "system") }.buttonStyle(.vznOutline).controlSize(.small)
+                        }
+                        Button(store.text("openVoiceSettings")) { close(); NotificationCenter.default.post(name: .viezanOpenSettings, object: "voice") }
+                            .modifier(NoticeLinkStyle(glass: true, accent: true))
+                    }.padding(.horizontal, metric("small")).padding(.vertical, metric("small"))
+                }
+            }.padding(.horizontal, metric("small")).padding(.bottom, metric("small"))
+            CardDivider()
+            VStack(alignment: .leading, spacing: metric("small")) {
+                HStack(spacing: metric("small")) {
+                    footLabel(store.text("voiceShort"))
+                    Text(providerName + (voice.voice.isEmpty ? "" : " · " + voiceName)).font(.vzn("smallScale")).foregroundStyle(contentColor("text-strong", scheme)).lineLimit(1)
+                    Spacer(minLength: metric("small"))
+                    Button(store.text("changeVoice")) { close(); NotificationCenter.default.post(name: .viezanOpenSettings, object: "voice") }
+                        .modifier(NoticeLinkStyle(glass: true, accent: true)).accessibilityLabel(store.text("changeVoice") + " " + store.text("voiceProvider"))
+                }
+                HStack(spacing: metric("small")) {
+                    footLabel(store.text("rateShort"))
+                    Spacer(minLength: metric("small"))
+                    FilterTabs(label: store.text("voiceRate"), items: VoicePreferences.rates.map { ($0, $0.formatted(.number.precision(.fractionLength(0...2))) + "×") },
+                               selection: Binding(get: { voice.rate ?? 1 }, set: { store.setVoice(provider: voice.provider, voice: voice.voice, rate: $0) }))
+                        .disabled(!rateSupported).opacity(rateSupported ? 1 : 0.45)
+                }
+            }.padding(.horizontal, metric("inset")).padding(.vertical, metric("gap") - metric("hairline") * 2)
+        }
+        .frame(width: metric("dialog") - metric("compactSidebar"))
+        .accessibilityElement(children: .contain).accessibilityLabel(store.text("listen"))
+    }
+    private var voiceName: String { player.voices.first { $0.id == voice.voice }?.name ?? voice.voice }
+    private func footLabel(_ text: String) -> some View {
+        Text(text.uppercased(with: Locale(identifier: store.workspace.locale))).font(.system(size: NSFont.systemFontSize * metric("captionScale") * 0.9, weight: .semibold))
+            .foregroundStyle(contentColor("text-muted", scheme)).frame(minWidth: metric("large") + metric("gap"), alignment: .leading)
+    }
+    private func sourceRow(_ source: ListenSource, lens: Bool, reading: Bool) -> some View {
+        HStack(spacing: metric("small")) {
+            Button { player.read(source) } label: {
+                HStack(spacing: metric("gap")) {
+                    Group {
+                        if reading { ReadingWave(color: contentColor("action", scheme)) }
+                        else { Image(systemName: "play.fill").imageScale(.small).foregroundStyle(contentColor("text-muted", scheme)) }
+                    }.frame(width: metric("large"), height: metric("large")).background(contentColor("surface-muted", scheme), in: Circle())
+                    VStack(alignment: .leading, spacing: metric("hairline")) {
+                        Text(source.title).font(.system(size: NSFont.systemFontSize, weight: .medium)).foregroundStyle(contentColor("text-strong", scheme)).lineLimit(1)
+                        Text(reading ? (player.preparing ? store.text("preparingVoice") : store.text("readingCount").replacingOccurrences(of: "{count}", with: source.text.count.formatted()))
+                                     : store.text("lang_" + source.language) + " · " + (player.voice(for: source.language)?.name ?? providerName))
+                            .font(.vzn("smallScale")).foregroundStyle(contentColor(reading ? "action" : "text-muted", scheme)).lineLimit(1)
+                    }.layoutPriority(1)
+                    Spacer(minLength: 0)
+                }.frame(maxHeight: .infinity).contentShape(Rectangle())
+            }.buttonStyle(.plain)
+                .keyboardShortcut(lens ? .defaultAction : nil)
+                .disabled(source.text.isEmpty)
+                .accessibilityLabel(store.text("listen") + ": " + source.title).accessibilityAddTraits(reading ? .isSelected : [])
+                .accessibilityIdentifier("listen-source-" + source.id)
+            if reading {
+                Button { player.read(source) } label: { Image(systemName: "arrow.clockwise") }.buttonStyle(.vznOutline).controlSize(.small)
+                    .help(store.text("readAgain")).accessibilityLabel(store.text("readAgain"))
+                Button(store.text("stop"), systemImage: "stop.fill", role: .destructive) { player.stopSpeaking() }.buttonStyle(.vznQuiet).controlSize(.small)
+                    .foregroundStyle(contentColor("danger", scheme)).accessibilityIdentifier("listen-stop")
+            } else if lens { KeyCap(text: "↩").accessibilityHidden(true) }
+        }
+        .padding(.horizontal, metric("small") + metric("hairline") * 2).frame(height: metric("hero"))
+        .background { if lens { GlassLens(radius: metric("radius")) } }
+    }
+}
+
+/// Four accent bars for "reading now" that rise and fall while reading; still under Reduce Motion.
+struct ReadingWave: View {
+    var color: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private static let rest: [Double] = [0.4, 0.85, 0.55, 1.0]
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
+            let time = context.date.timeIntervalSinceReferenceDate
+            HStack(alignment: .bottom, spacing: metric("hairline") * 2) {
+                ForEach(Self.rest.indices, id: \.self) { index in
+                    let height = reduceMotion ? Self.rest[index] : 0.3 + 0.7 * abs(sin(time * 4.2 + Double(index) * 1.3))
+                    RoundedRectangle(cornerRadius: metric("hairline") * 1.5).fill(color).frame(width: metric("hairline") * 2.5, height: metric("gap") * height)
+                }
+            }.frame(height: metric("gap"), alignment: .bottom)
+        }.accessibilityHidden(true)
+    }
+}
+
+/// The speaker control: a click reads the first source at once and, while reading, turns into a
+/// "Reading" pill that stops on click. A secondary click (or ⌥-click) opens the Listen layer.
+struct ListenSpeakerButton: View {
+    let store: WorkbenchStore
+    var label: String
+    var sources: [ListenSource]
+    var pill = false
+    var audio: NativeAudio? = nil
+    private var player: NativeAudio { audio ?? store.audio }
+    @State private var open = false
+    @Environment(\.colorScheme) private var scheme
+    private var reading: Bool { player.reading(sources) }
+    var body: some View {
+        Button {
+            if reading { player.stopSpeaking() }
+            else if NSEvent.modifierFlags.contains(.option) { open = true }
+            else if let first = sources.first { player.read(first) }
+        } label: {
+            if reading {
+                HStack(spacing: metric("small") - metric("hairline") * 2) { ReadingWave(color: contentColor("action-text", scheme)); Text(store.text("readingNow")).fontWeight(.semibold) }
+                    .foregroundStyle(contentColor("action-text", scheme))
+            } else if pill { Image(systemName: "speaker.wave.2") }
+            else { Image(systemName: "speaker.wave.2").imageScale(.small).foregroundStyle(contentColor("text-muted", scheme)) }
+        }
+        .buttonStyle(pill || reading ? AnyButtonStyle(.vznOutline) : AnyButtonStyle(.vznQuiet)).fixedSize()
+        .disabled(sources.allSatisfy { $0.text.isEmpty })
+        .help(reading ? store.text("stopSpeaking") : label)
+        .accessibilityLabel(reading ? store.text("readingNow") + ", " + store.text("stopSpeaking") : label)
+        .accessibilityAddTraits(reading ? .isSelected : [])
+        .contextMenu { Button(store.text("listen") + "…") { open = true } }
+        .popover(isPresented: $open, arrowEdge: .bottom) { ListenPanel(store: store, sources: sources, audio: audio) { open = false } }
+    }
+}
+
+/// "1,4 giây": a task's duration in the UI language, one decimal under a minute.
+@MainActor func durationText(_ seconds: Double, store: WorkbenchStore) -> String {
+    let value = seconds.formatted(.number.precision(.fractionLength(seconds < 60 ? 1 : 0)).locale(Locale(identifier: store.workspace.locale)))
+    return store.text("durationSeconds").replacingOccurrences(of: "{n}", with: value)
+}
+
+/// Confirms a file written by the app, with Reveal in Finder as the toast action.
+@MainActor func announceSaved(_ url: URL, store: WorkbenchStore) {
+    ToastCenter.shared.show(store.text("fileSaved").replacingOccurrences(of: "{name}", with: url.lastPathComponent), key: "saved-" + url.path,
+                            actionLabel: store.text("reveal")) { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+}
+
+/// Copies text and confirms it with a toast (Overlays board: success toast, bottom trailing).
+@MainActor func copyText(_ text: String, store: WorkbenchStore) {
+    NSPasteboard.general.clearContents()
+    let ok = NSPasteboard.general.setString(text, forType: .string)
+    ToastCenter.shared.show(store.text(ok ? "copied" : "copyFailed"), key: "copy", error: !ok)
 }
 
 private struct WorkspaceOuterInsetKey: EnvironmentKey { static let defaultValue: CGFloat = 0 }
@@ -375,23 +708,38 @@ extension EnvironmentValues {
 
 // One stable feature container. Its outer gutter replaces part of the page's
 // existing inset, preserving the reading width and compact toolbar budget.
+// Glass (`.content`): the one warm reading pane of the window, `gap` from the
+// navigation pane and the window edge, `small` from the header and the bottom.
 struct WorkspaceSurface: ViewModifier {
     var compact: Bool
     @Environment(\.colorScheme) private var scheme
-    private var lightGlass: Bool { scheme == .light && (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     func body(content: Content) -> some View {
-        let inset = lightGlass ? metric(compact ? "gap" : "inset") : 0
-        let radius = lightGlass ? metric("chromeSurfaceRadius") : 0
+        let inset = glass ? metric("gap") : 0
+        let shape = RoundedRectangle(cornerRadius: glass ? metric("chromeSurfaceRadius") : 0, style: .continuous)
+        let solid = reduceTransparency || contrast == .increased
         content
             .environment(\.workspaceOuterInset, inset)
-            .background(contentColor(lightGlass ? "canvas" : "surface", scheme))
-            .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+            // Shell-Solid: the reading pane stays the lightest solid surface, above the solid navigation pane.
+            .background {
+                if glass && solid { chromeColor("titlebar-bg", scheme).overlay(contentColor("surface", scheme)) }
+                else { contentColor(glass ? "canvas" : "surface", scheme) }
+            }
+            .clipShape(shape)
             .overlay {
-                if lightGlass { QuietSurfaceEdge(radius: radius) }
+                if glass {
+                    if solid { shape.strokeBorder(contentColor("border-strong", scheme), lineWidth: metric("hairline")) }
+                    else { GlassRim(shape: shape, border: scheme == .light ? "material-border" : "border") }
+                }
+            }
+            .background {
+                if glass && !solid { OuterShadow(shape: shape, role: "shadow-sm-color", blur: metric("shadowMdBlur"), y: metric("shadowMdY")) }
             }
             .padding(.horizontal, inset)
-            .padding(.top, lightGlass ? metric("small") : 0)
-            .padding(.bottom, lightGlass ? metric("gap") : 0)
+            .padding(.top, glass ? metric("small") : 0)
+            .padding(.bottom, glass ? metric("small") : 0)
     }
 }
 
@@ -547,8 +895,14 @@ private struct VznButtonBody: View {
     @Environment(\.isFocused) private var focused
     @State private var hovered = false
     private var danger: Bool { configuration.role == .destructive }
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
     private var glass: Bool { allowsGlass && (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
-    private var radius: CGFloat { metric((NativeTheme.shared.preferences.preset ?? "glass") == "glass" ? "chromeControlRadius" : "controlRadius") }
+    private var height: CGFloat { size == .large ? metric("control") : metric("compactControl") }
+    // Glass buttons are pills (`.btn`); other presets keep their control radius.
+    private var radius: CGFloat { glass ? height / 2 : metric((NativeTheme.shared.preferences.preset ?? "glass") == "glass" ? "chromeControlRadius" : "controlRadius") }
+    // `.btn.primary`: the accent gradient face with a light top edge and accent shadow.
+    private var paintedPrimary: Bool { glass && kind == .primary && !danger && enabled && !reduceTransparency && contrast != .increased }
     private func color(_ role: String) -> Color { contentColor(role, scheme) }
     private var foreground: Color {
         if !enabled { return color("text-disabled") }
@@ -568,6 +922,26 @@ private struct VznButtonBody: View {
         return !enabled ? color("border") : danger ? .clear : color("border-strong")
     }
     var body: some View {
+        if glass { glassBody } else { quietBody }
+    }
+    private var glassBody: some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        return configuration.label
+            .lineLimit(1)
+            .font(.system(size: NSFont.systemFontSize, weight: kind == .primary ? .semibold : .medium))
+            .padding(.horizontal, size == .large ? metric("gap") + metric("tight") / 2 : metric("gap"))
+            .frame(minWidth: height, minHeight: height)
+            .foregroundStyle(foreground)
+            .background {
+                if paintedPrimary { PrimaryFace(shape: shape, hovered: hovered, pressed: configuration.isPressed, focused: focused) }
+            }
+            .modifier(ControlGlass(active: !paintedPrimary && (kind != .quiet || hovered || configuration.isPressed), radius: radius,
+                selected: hovered || configuration.isPressed, emphasized: kind == .primary && !danger, focused: focused,
+                pressed: configuration.isPressed, enabled: enabled, danger: danger))
+            .contentShape(shape)
+            .onHover { hovered = $0 }
+    }
+    private var quietBody: some View {
         configuration.label
             .lineLimit(1)
             .padding(.horizontal, kind == .quiet ? metric("small") : metric("gap"))
@@ -608,15 +982,16 @@ struct FilterTabs<Value: Hashable>: View {
     private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     private var radius: CGFloat { metric(glass ? "chromeControlRadius" : "controlRadius") }
     var body: some View {
-        HStack(spacing: metric("tight")) {
+        HStack(spacing: glass ? metric("hairline") * 2 : metric("tight")) {
             ForEach(items.indices, id: \.self) { index in
                 let item = items[index]
                 let active = item.0 == selection
                 Button { selection = item.0 } label: {
-                    Text(item.1).font(.vzn(accent ? "labelScale" : "smallScale", active && (glass || !accent) ? .semibold : .regular))
+                    Text(item.1).font(glass ? .system(size: NSFont.systemFontSize, weight: active ? .semibold : .medium)
+                                            : .vzn(accent ? "labelScale" : "smallScale", active && !accent ? .semibold : .regular))
                         .lineLimit(1).fixedSize(horizontal: true, vertical: false)
-                        .padding(.horizontal, metric("gap")).frame(minHeight: metric("compactControl"))
-                        .foregroundStyle(contentColor(active ? (accent ? "action-text" : "text-strong") : (accent ? "text" : "text-muted"), scheme))
+                        .padding(.horizontal, metric("gap")).frame(minHeight: glass ? metric("compactControl") - metric("tight") * 2 : metric("compactControl"))
+                        .foregroundStyle(contentColor(active ? (accent && !glass ? "action-text" : "text-strong") : (accent && !glass ? "text" : "text-muted"), scheme))
                         .background(active && !glass ? contentColor(accent ? "action-soft" : "surface-raised", scheme) : .clear, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
                         .contentShape(Rectangle())
                 }.buttonStyle(FilterSegmentStyle(glass: glass, selected: active, hovered: hoveredIndex == index))
@@ -625,8 +1000,22 @@ struct FilterTabs<Value: Hashable>: View {
             }
         }
         .padding(glass ? metric("tight") : 0)
-        .background { if glass { InsetInputSurface(radius: radius + metric("tight")) } }
+        .background { if glass { SegmentTrack() } }
         .accessibilityElement(children: .contain).accessibilityLabel(label)
+    }
+}
+
+// `.seg` track: a recessed capsule (surface-muted with an inner top shade).
+private struct SegmentTrack: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
+    var body: some View {
+        Capsule().fill(contentColor("surface-muted", scheme))
+            .overlay {
+                Capsule().strokeBorder(contentColor(contrast == .increased ? "border-strong" : "border", scheme), lineWidth: metric("hairline"))
+                    .mask(alignment: .top) { LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: .center) }
+            }
+            .allowsHitTesting(false).accessibilityHidden(true)
     }
 }
 
@@ -676,7 +1065,7 @@ struct ProviderNotice: View {
                     open("providers", label: "openProviders", primary: true)
                 }
             } else if modelUnavailable(model, store: store) {
-                row(nativeModelLabel(model, store: store) + " — " + reason) {
+                row(nativeModelLabel(model, store: store) + " — " + reason, tone: .warning) {
                     if let preferred = store.preferredModel, preferred != model {
                         Button(store.text("useModel") + " " + nativeModelLabel(preferred, store: store)) { (use ?? { store.setModel(store.session.id, $0) })(preferred) }
                             .buttonStyle(.vznOutline).help(preferred).accessibilityIdentifier("provider-notice-use")
@@ -689,19 +1078,43 @@ struct ProviderNotice: View {
             }
         }.task { store.discoverIfNeeded() }
     }
-    private func row<Actions: View>(_ text: String, @ViewBuilder actions: () -> Actions) -> some View {
+    @Environment(\.colorScheme) private var scheme
+    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
+    // Glass (Chat-States): one quiet 12 pt line above the composer — a danger dot when
+    // nothing can answer, a warning dot for an unavailable model — with text-link actions.
+    private func row<Actions: View>(_ text: String, tone: StatusTone = .failed, @ViewBuilder actions: () -> Actions) -> some View {
         HStack(spacing: metric("small")) {
-            StatusDot(tone: .failed)
-            Text(text).font(.vzn("smallScale")).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            StatusDot(tone: glass ? tone : .failed)
+            Text(text).font(.vzn("smallScale")).foregroundStyle(glass ? contentColor("text-muted", scheme) : .secondary).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: metric("small"))
             Button(store.text("checkAgain")) { store.discoverProviders(); Task { await store.localRuntime.refresh() } }
-                .buttonStyle(.vznQuiet).tint(.primary).disabled(store.discovering).accessibilityIdentifier("provider-notice-check")
+                .modifier(NoticeLinkStyle(glass: glass)).disabled(store.discovering).accessibilityIdentifier("provider-notice-check")
             actions()
         }.accessibilityElement(children: .contain)
     }
-    private func open(_ section: String, label: String, primary: Bool) -> some View {
-        Button(store.text(label)) { NotificationCenter.default.post(name: .viezanOpenSettings, object: section) }
-            .buttonStyle(primary ? .vznPrimary : .vznOutline).accessibilityIdentifier("provider-notice-open-" + section)
+    @ViewBuilder private func open(_ section: String, label: String, primary: Bool) -> some View {
+        if glass {
+            Button(store.text(label)) { NotificationCenter.default.post(name: .viezanOpenSettings, object: section) }
+                .modifier(NoticeLinkStyle(glass: true, accent: true)).accessibilityIdentifier("provider-notice-open-" + section)
+        } else {
+            Button(store.text(label)) { NotificationCenter.default.post(name: .viezanOpenSettings, object: section) }
+                .buttonStyle(primary ? .vznPrimary : .vznOutline).accessibilityIdentifier("provider-notice-open-" + section)
+        }
+    }
+}
+
+// A notice action in Glass reads as a text link (12 medium, accent or muted); other presets keep the quiet button.
+struct NoticeLinkStyle: ViewModifier {
+    var glass: Bool
+    var accent = false
+    @Environment(\.colorScheme) private var scheme
+    func body(content: Content) -> some View {
+        if glass {
+            content.buttonStyle(.plain).font(.vzn("smallScale", .medium))
+                .foregroundStyle(contentColor(accent ? "action-text" : "text-muted", scheme)).fixedSize()
+        } else {
+            content.buttonStyle(.vznQuiet).tint(.primary)
+        }
     }
 }
 

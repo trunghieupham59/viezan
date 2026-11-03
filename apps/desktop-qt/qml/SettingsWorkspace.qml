@@ -17,6 +17,8 @@ Item {
     // Section another workspace asked to open (e.g. "localModels" from a provider notice).
     property string requestedSection: ""
     signal sectionOpened()
+    /// Opens a sidebar page (the global shortcuts row leads to Launcher & shortcuts).
+    signal routeRequested(string route)
     function openRequested() { if (requestedSection && sections.some(section => section.id === requestedSection)) { selectSection(requestedSection); Qt.callLater(sectionOpened) } }
     onRequestedSectionChanged: openRequested()
     Component.onCompleted: openRequested()
@@ -153,7 +155,7 @@ Item {
                                 Kit.PageIntro { title: t(modelData.title); subtitle: t(modelData.description); Layout.fillWidth: true }
                                 Loader {
                                     Layout.fillWidth: true
-                                    sourceComponent: modelData.id === "desktop" ? desktopCard : modelData.id === "data" ? dataCard : modelData.id === "localModels" ? localModelsCard : modelData.id === "providers" ? providersCard : modelData.id === "voice" ? voiceCard : modelData.id === "modules" ? modulesCard : modelData.id === "updates" ? updatesCard : modelData.id === "general" ? generalCard : modelData.id === "appearance" ? appearanceCard : aboutCard
+                                    sourceComponent: modelData.id === "data" ? dataCard : modelData.id === "localModels" ? localModelsCard : modelData.id === "providers" ? providersCard : modelData.id === "voice" ? voiceCard : modelData.id === "modules" ? modulesCard : modelData.id === "updates" ? updatesCard : modelData.id === "general" ? generalCard : modelData.id === "appearance" ? appearanceCard : aboutCard
                                 }
                             }
                         }
@@ -171,10 +173,6 @@ Item {
         spacing: metrics.small
         Label { text: t(heading); font.bold: true; wrapMode: Text.Wrap; Layout.fillWidth: true }
         Label { text: t(detail); wrapMode: Text.Wrap; Layout.fillWidth: true }
-    }
-    Component {
-        id: desktopCard
-        DesktopSettings { bridge: settings.bridge; width: parent.width }
     }
     Component {
         id: dataCard
@@ -201,7 +199,7 @@ Item {
                     anchors.fill: parent
                     spacing: 0
                     Kit.CardRow {
-                        title: t("language"); detail: t("languageDescription"); divider: false
+                        title: t("language"); detail: t("languageDescription"); divider: !(bridge.state.disabledModules || []).includes("utilities")
                         Kit.GlassComboBox {
                             objectName: "settings-language"
                             model: ["Tiếng Việt", "English", "日本語"]
@@ -210,6 +208,17 @@ Item {
                             Accessible.name: t("language")
                             onActivated: bridge.command("locale", {value: ["vi", "en", "ja"][currentIndex]})
                         }
+                    }
+                    // Liquid Glass 2.0: Settings no longer records shortcuts; this row lists the
+                    // enabled ones and leads to the sidebar page that owns them.
+                    Kit.CardRow {
+                        objectName: "settings-hotkeys"
+                        visible: !(bridge.state.disabledModules || []).includes("utilities")
+                        title: t("hotkeys")
+                        detail: bridge.desktopIntegration.shortcuts.filter(item => item.enabled).map(item => t(item.id) + " " + item.key.replace(/Control/g, "Ctrl").split("+").join(" ")).join(" · ")
+                        divider: false
+                        // "&&" keeps the ampersand literal; a single "&" would become a mnemonic underline.
+                        Kit.GlassButton { objectName: "settings-open-utilities"; text: t("utilities").replace(/&/g, "&&"); Accessible.name: t("utilities"); onClicked: settings.routeRequested("utilities") }
                     }
                 }
             }

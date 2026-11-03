@@ -34,6 +34,8 @@ public:
     QVariantList shortcuts() const { return m_shortcuts; }
     QVariantList files() const { return m_files; }
     Q_INVOKABLE QString calculate(const QString &input) const;
+    /// ⌘K / Ctrl+K palette: {kind: calculation|ask|translate|lookup, value} or empty (Swift PaletteQuery).
+    Q_INVOKABLE QVariantMap paletteQuery(const QString &input) const;
     Q_INVOKABLE void searchFiles(const QString &input);
     Q_INVOKABLE void openFile(const QString &path);
     Q_INVOKABLE void revealFile(const QString &path);

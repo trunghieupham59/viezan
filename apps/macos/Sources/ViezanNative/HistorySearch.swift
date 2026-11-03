@@ -113,6 +113,8 @@ struct SearchBox: View {
     var focusEpoch = 0
     var autofocus = true
     var compact = false
+    /// A bare search row (the command palette's head): no field surface of its own.
+    var bare = false
     @Environment(\.isEnabled) private var enabled
     @State private var focused = false
     private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
@@ -123,7 +125,7 @@ struct SearchBox: View {
             Image(systemName: "magnifyingglass").imageScale(.medium).foregroundStyle(.secondary).accessibilityHidden(true)
             HistorySearch(query: $query, label: label, move: move, submit: submit, cancel: cancel, first: first, last: last, onTab: onTab, focusEpoch: focusEpoch, autofocus: autofocus, onFocus: { focused = $0 })
         }
-        .padding(.horizontal, metric("gap")).frame(height: height)
-        .background { InsetInputSurface(radius: radius, focused: focused, enabled: enabled) }
+        .padding(.horizontal, bare ? 0 : metric("gap")).frame(height: height)
+        .background { if !bare { InsetInputSurface(radius: radius, focused: focused, enabled: enabled) } }
     }
 }

@@ -23,19 +23,20 @@ Pane {
     function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
     readonly property var systemIDs: ["apps", "thermal", "utilities", "settings"]
     function available(id) { return id === "settings" || !(bridge.state.disabledModules || []).includes(id === "everywhere" ? "translate" : id) }
-    padding: glass ? metrics.small + metrics.tight : metrics.small
+    // Glass: the pane is inset `small` from the window's leading edge; rows sit `gap` inside it.
+    padding: glass ? metrics.gap : metrics.small
+    leftPadding: glass ? metrics.small + metrics.gap : padding
     background: Item {
-        Rectangle { anchors.fill: parent; color: navigation.lightGlass ? "transparent" : navigation.palette.window }
-        Kit.ChromeSurface {
+        Rectangle { anchors.fill: parent; color: navigation.glass ? "transparent" : navigation.palette.window }
+        // Liquid Glass 2.0 `.pane`: starts below the 48 pt header row, bo 22, light rim, outer shadow.
+        Kit.GlassPane {
             objectName: "navigation-glass-pane"
             visible: navigation.glass
             anchors.fill: parent
-            anchors.margins: navigation.metrics.small
-            anchors.topMargin: navigation.lightGlass && !navigation.dismissible ? navigation.headerHeight + navigation.metrics.small : navigation.metrics.small
-            radius: navigation.metrics.chromeSurfaceRadius
-            fillColor: Qt.tint(navigation.chromeColors["sidebar-bg"], navigation.chromeColors["primary-nav-material"])
-            edgeColor: navigation.chromeColors["material-border"]
-            edgeHighlight: navigation.chromeColors["material-highlight"]
+            anchors.leftMargin: navigation.metrics.small
+            anchors.rightMargin: navigation.dismissible ? navigation.metrics.small : 0
+            anchors.bottomMargin: navigation.metrics.small
+            anchors.topMargin: !navigation.dismissible ? navigation.headerHeight + navigation.metrics.small : navigation.metrics.small
         }
     }
     component NavigationContent: RowLayout {
@@ -44,27 +45,40 @@ Pane {
         Item { visible: !navigation.expanded; Layout.fillWidth: true }
         // Reuse the control icon renderer; the label is independently left aligned.
         IconImage { visible: navigation.glass || !(navigation.expanded && control === search); source: control.icon.source; color: !control.enabled ? control.palette.placeholderText : control.checked ? control.palette.link : control.palette.buttonText; sourceSize.width: navigation.metrics.icon; sourceSize.height: navigation.metrics.icon; Layout.preferredWidth: navigation.metrics.icon; Layout.preferredHeight: navigation.metrics.icon }
-        Label { visible: navigation.expanded; text: control.text; Accessible.ignored: true; color: !control.enabled ? control.palette.placeholderText : control.checked ? (navigation.glass ? navigation.chromeColors["chrome-item-active-fg"] : control.palette.link) : control.palette.buttonText; font.weight: control.checked ? Font.DemiBold : Font.Normal; elide: Text.ElideRight; Layout.fillWidth: true }
-        Label { visible: navigation.expanded && control === search; Accessible.ignored: true; text: Qt.platform.os === "osx" ? "⌘ K" : "Ctrl+K"; color: control.palette.placeholderText }
+        Label { visible: navigation.expanded; text: control.text; Accessible.ignored: true; color: !control.enabled ? control.palette.placeholderText : control.checked ? (navigation.glass ? navigation.chromeColors["chrome-item-active-fg"] : control.palette.link) : control === search && navigation.glass ? control.palette.placeholderText : control.palette.buttonText; font.weight: control.checked ? Font.DemiBold : Font.Normal; font.pointSize: Qt.application.font.pointSize * (navigation.glass && control !== search ? navigation.metrics.labelScale : 1); elide: Text.ElideRight; Layout.fillWidth: true }
+        Label { visible: navigation.expanded && control === search && !navigation.glass; Accessible.ignored: true; text: Qt.platform.os === "osx" ? "⌘ K" : "Ctrl+K"; color: control.palette.placeholderText }
+        Kit.KeyCap { visible: navigation.expanded && control === search && navigation.glass; Accessible.ignored: true; text: Qt.platform.os === "osx" ? "⌘K" : "Ctrl+K" }
         Item { visible: !navigation.expanded; Layout.fillWidth: true }
     }
     component NavigationBackground: Rectangle {
         required property var control
         readonly property bool restingLens: control.checked || control === search
         readonly property bool interacting: control.enabled && (control.hovered || control.down)
-        readonly property bool glassSurface: navigation.glass && (restingLens || interacting)
-        // The shared pane stays quiet; selection is a persistent capsule lens,
-        // while hover reveals a softer one without moving the row or its label.
-        radius: navigation.glass ? height / 2 : navigation.metrics.controlRadius
-        color: navigation.glass ? "transparent" : control.checked ? Qt.tint(control.palette.window, Qt.alpha(control.palette.highlight, navigation.metrics.selectionOpacity)) : control.hovered ? control.palette.midlight : "transparent"
+        readonly property bool isSearch: control === search
+        // Liquid Glass 2.0: the selected row is a lens (bo 12), hover the flat softer lens;
+        // search is an inset capsule field when expanded and a round glass on the rail.
+        radius: navigation.glass ? (isSearch ? height / 2 : navigation.metrics.radius) : navigation.metrics.controlRadius
+        color: navigation.glass ? (isSearch && navigation.expanded ? navigation.chromeColors["sidebar-search-bg"] : "transparent") : control.checked ? Qt.tint(control.palette.window, Qt.alpha(control.palette.highlight, navigation.metrics.selectionOpacity)) : control.hovered ? control.palette.midlight : "transparent"
+        Kit.GlassLens {
+            anchors.fill: parent
+            visible: navigation.glass && !parent.isSearch && (parent.control.checked || parent.interacting)
+            hover: !parent.control.checked
+            radius: parent.radius
+        }
         Kit.ControlGlassSurface {
             anchors.fill: parent
-            visible: parent.glassSurface
+            visible: navigation.glass && parent.isSearch && !navigation.expanded
             radius: parent.radius
-            opacity: parent.restingLens || parent.control.down ? 1 : navigation.metrics.selectionOpacity * 4
             pressed: parent.control.enabled && parent.control.down
             hovered: parent.control.enabled && parent.control.hovered
-            inactive: !parent.control.enabled
+        }
+        Rectangle {
+            anchors.fill: parent
+            visible: navigation.glass && parent.isSearch && navigation.expanded
+            radius: parent.radius
+            color: "transparent"
+            border.width: navigation.metrics.hairline
+            border.color: navigation.chromeColors["border"]
         }
         // Keep native keyboard focus above the decorative rim.
         Rectangle {
@@ -81,7 +95,7 @@ Pane {
     Accessible.name: t("primaryNavigation")
     ColumnLayout {
         anchors.fill: parent
-        spacing: navigation.metrics.small
+        spacing: navigation.glass ? navigation.metrics.tight : navigation.metrics.small
         // Review 18: the collapse control owns the sidebar's first row.
         RowLayout {
             visible: navigation.expanded && !navigation.dismissible
@@ -94,10 +108,11 @@ Pane {
             Layout.fillWidth: true
             // The light pane starts below the fixed header; keep the brand
             // inside its rounded shoulder in expanded, rail and overlay modes.
-            Layout.topMargin: navigation.lightGlass ? (navigation.expanded || navigation.dismissible ? navigation.metrics.small : navigation.headerHeight + navigation.metrics.small) : 0
+            Layout.topMargin: navigation.glass ? (navigation.expanded || navigation.dismissible ? navigation.metrics.gap : navigation.headerHeight + navigation.metrics.gap) : 0
+            Layout.bottomMargin: navigation.glass ? navigation.metrics.small : 0
             Layout.minimumHeight: navigation.metrics.compactControl
             Image { source: "brand.png"; sourceSize.width: navigation.metrics.brand; sourceSize.height: navigation.metrics.brand; fillMode: Image.PreserveAspectFit; Layout.alignment: Qt.AlignHCenter }
-            Label { visible: navigation.expanded; text: "Viezan"; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
+            Label { visible: navigation.expanded; text: "Viezan"; font.bold: true; font.pointSize: Qt.application.font.pointSize * (navigation.glass ? navigation.metrics.subtitleScale : 1); Layout.fillWidth: true; elide: Text.ElideRight }
             Kit.GlassToolButton { visible: navigation.dismissible; implicitWidth: navigation.metrics.control; implicitHeight: navigation.metrics.control; icon.source: "icons/close.svg"; icon.color: palette.buttonText; Accessible.name: navigation.t("close"); onClicked: navigation.dismissed() }
         }
         Kit.GlassButton {
@@ -110,8 +125,8 @@ Pane {
             background: NavigationBackground { control: search }
             Layout.fillWidth: navigation.expanded || !navigation.glass
             Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: navigation.glass && !navigation.expanded ? navigation.metrics.navControl : -1
-            Layout.preferredHeight: navigation.metrics.navControl
+            Layout.preferredWidth: navigation.glass && !navigation.expanded ? navigation.metrics.compactControl : -1
+            Layout.preferredHeight: navigation.glass ? navigation.metrics.compactControl : navigation.metrics.navControl
             display: navigation.expanded ? AbstractButton.TextBesideIcon : AbstractButton.IconOnly
             text: navigation.t("searchEverything")
             icon.source: "icons/search.svg"
@@ -127,7 +142,7 @@ Pane {
             model: navigation.bridge.resources.navigation.filter(item => !navigation.systemIDs.includes(item.id) && navigation.available(item.id))
             delegate: NavItem { required property var modelData; entry: modelData }
         }
-        Kit.Eyebrow { visible: navigation.expanded; text: navigation.t("groupSystem"); Layout.leftMargin: navigation.metrics.small; Layout.topMargin: navigation.metrics.gap }
+        Kit.Eyebrow { visible: navigation.expanded; text: navigation.t("groupSystem"); Layout.leftMargin: navigation.metrics.small; Layout.topMargin: navigation.metrics.gap; Layout.bottomMargin: navigation.glass ? navigation.metrics.tight : 0 }
         Rectangle { visible: !navigation.expanded; color: palette.midlight; implicitHeight: navigation.metrics.hairline; Layout.fillWidth: true; Layout.topMargin: navigation.metrics.small; Layout.bottomMargin: navigation.metrics.small }
         Repeater {
             model: navigation.bridge.resources.navigation.filter(item => navigation.systemIDs.includes(item.id) && navigation.available(item.id))
@@ -183,7 +198,7 @@ Pane {
         Layout.fillWidth: navigation.expanded || !navigation.glass
         Layout.alignment: Qt.AlignHCenter
         Layout.preferredWidth: navigation.glass && !navigation.expanded ? navigation.metrics.navControl : -1
-        Layout.preferredHeight: navigation.metrics.navControl
+        Layout.preferredHeight: navigation.glass ? navigation.metrics.compactControl : navigation.metrics.navControl
         display: navigation.expanded ? AbstractButton.TextBesideIcon : AbstractButton.IconOnly
         text: navigation.t(entry.title)
         icon.source: "icons/" + entry.icon + ".svg"

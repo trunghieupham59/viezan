@@ -8,5 +8,5 @@ QString imageProvider(const QString &model, const std::function<bool(const QStri
 // The session's image model, else the newest full-size image model the account lists, else a default.
 QString imageModel(const QString &provider, const QString &selected, const QStringList &available);
 CloudProtocol::Call prepare(const QVariantMap &request);
-QVariantList decode(const QByteArray &response, const QString &provider);
+QVariantList decode(const QByteArray &response, const QString &provider, const QString &model = {});
 }

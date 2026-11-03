@@ -1,3 +1,4 @@
+#include <QDateTime>
 #include "NativeUpdates.h"
 #include <QCoreApplication>
 #include <QJsonDocument>
@@ -44,12 +45,16 @@ void NativeUpdates::get(const QUrl &url, qsizetype limit, std::function<void(QBy
     });
     QTimer::singleShot(45000, reply, [reply] { if (!reply->isFinished()) reply->abort(); });
 }
+double NativeUpdates::remainingSeconds() const {
+    if (!m_busy || m_size <= 0 || m_downloadStarted <= 0) return -1;
+    return remaining(QDateTime::currentMSecsSinceEpoch() / 1000.0 - m_downloadStarted, double(m_received) / m_size);
+}
 void NativeUpdates::check() {
-    if (m_busy) return; cancel(); m_downloaded.clear(); m_busy = true; m_version.clear(); m_notes.clear(); m_package.clear(); m_manifest.clear(); m_status.clear(); emit changed();
+    if (m_busy) return; cancel(); m_downloaded.clear(); m_busy = true; m_packageSize = 0; m_version.clear(); m_notes.clear(); m_package.clear(); m_manifest.clear(); m_status.clear(); emit changed();
     get(QUrl("https://api.github.com/repos/trunghieupham59/viezan/releases/latest"), 2097152, [this](QByteArray bytes) {
         const auto object = QJsonDocument::fromJson(bytes).object(); auto version = object.value("tag_name").toString(); if (version.startsWith('v')) version.remove(0,1);
         if (object.value("draft").toBool(true) || object.value("prerelease").toBool(true) || !QRegularExpression("^[0-9]+\\.[0-9]+\\.[0-9]+$").match(version).hasMatch()) { fail(); return; }
-        if (QVersionNumber::fromString(version) <= QVersionNumber::fromString(QCoreApplication::applicationVersion())) { m_busy = false; m_status = "updateCurrent"; emit changed(); return; }
+        if (QVersionNumber::fromString(version) <= QVersionNumber::fromString(QCoreApplication::applicationVersion())) { m_busy = false; m_status = "updateCurrent"; m_checkedAt = QDateTime::currentMSecsSinceEpoch() / 1000.0; emit changed(); return; }
         auto arch = QSysInfo::buildCpuArchitecture(); if (arch == "x86_64") arch = "x64"; else if (arch == "aarch64") arch = "arm64";
 #ifdef Q_OS_WIN
         const auto prefix = "Viezan-" + version + "-win32-" + arch; m_name = prefix + ".exe";
@@ -59,16 +64,16 @@ void NativeUpdates::check() {
         for (const auto &value : object.value("assets").toArray()) {
             const auto asset = value.toObject(); const QUrl url(asset.value("browser_download_url").toString());
             if (!allowed(url) || url.host() != "github.com" || !url.path().startsWith("/trunghieupham59/viezan/releases/download/")) continue;
-            if (asset.value("name") == m_name) m_package = url;
+            if (asset.value("name") == m_name) { m_package = url; m_packageSize = qMax<qint64>(0, asset.value("size").toInteger()); }
             if (asset.value("name") == prefix + ".json") m_manifest = url;
         }
         if (m_package.isEmpty() || m_manifest.isEmpty()) { fail(); return; }
-        m_version = version; m_notes = object.value("body").toString().left(65536); m_busy = false; m_status = "updateAvailable"; emit changed();
+        m_version = version; m_notes = object.value("body").toString().left(65536); m_busy = false; m_status = "updateAvailable"; m_checkedAt = QDateTime::currentMSecsSinceEpoch() / 1000.0; emit changed();
     });
 }
 void NativeUpdates::download() {
     if (m_busy || m_package.isEmpty() || m_manifest.isEmpty()) return;
-    m_busy = true; m_status.clear(); m_downloaded.clear(); m_received = 0; emit changed();
+    m_busy = true; m_status.clear(); m_downloaded.clear(); m_received = 0; m_downloadStarted = QDateTime::currentMSecsSinceEpoch() / 1000.0; emit changed();
     get(m_manifest, 65536, [this](QByteArray bytes) {
         const auto manifest = QJsonDocument::fromJson(bytes).object(); QJsonObject artifact;
         if (manifest.value("version") != m_version) { fail(); return; }

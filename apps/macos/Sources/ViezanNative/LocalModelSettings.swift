@@ -8,17 +8,13 @@ struct LocalModelSettings: View {
     @State private var name = ""
     @State private var confirmComparison = false
     @State private var deletion: String?
+    @Environment(\.settingsConfirm) private var confirm
     @State private var downloading: String?
     @Environment(\.colorScheme) private var scheme
     private var parallel: Int { store.workspace.runtime?.parallel ?? 1 }
     private var context: Int { store.workspace.runtime?.context ?? 4096 }
-    private struct Suggestion: Identifiable { let id: String; let name: String; let note: String; let bytes: Int64 }
-    private static let suggestions = [
-        Suggestion(id: "qwen3:4b", name: "Qwen3 4B", note: "suggestion_balanced", bytes: 2_600_000_000),
-        Suggestion(id: "gemma3:4b", name: "Gemma 3 4B", note: "suggestion_vision", bytes: 3_300_000_000),
-        Suggestion(id: "llama3.2:3b", name: "Llama 3.2 3B", note: "suggestion_light", bytes: 2_000_000_000),
-        Suggestion(id: "qwen2.5:7b", name: "Qwen2.5 7B", note: "suggestion_quality", bytes: 4_700_000_000),
-    ]
+    private typealias Suggestion = NativeResources.LocalModelSuggestion
+    private static var suggestions: [Suggestion] { NativeResources.shared.localModelSuggestions }
     private var installed: [String] { store.localModels.filter { $0.hasPrefix("ollama:") } }
     private var ollamaRunning: Bool { store.providers.models["ollama"] != nil }
     private var anyBusy: Bool { store.modelManager.busy || store.localPerformance.busy }
@@ -78,12 +74,14 @@ struct LocalModelSettings: View {
                 Text("CPU \(store.localRuntime.processors) · " + ByteCountFormatter.string(fromByteCount: Int64(store.localRuntime.memory), countStyle: .memory)).foregroundStyle(.secondary)
             }
             CardRow(title: store.text("runtimeParallel")) {
-                Picker(store.text("runtimeParallel"), selection: Binding(get: { parallel }, set: { store.setRuntime(parallel: $0, context: context) })) { ForEach([1, 2, 4], id: \.self) { Text(String($0)).tag($0) } }
-                    .labelsHidden().fixedSize().disabled(store.localRuntime.owned || store.localRuntime.busy)
+                SettingsPicker(id: "runtime-parallel", label: store.text("runtimeParallel"), options: [1, 2, 4].map { SettingsPickerOption(id: String($0), title: String($0)) },
+                               selection: String(parallel)) { store.setRuntime(parallel: Int($0) ?? parallel, context: context) }
+                    .disabled(store.localRuntime.owned || store.localRuntime.busy)
             }
             CardRow(title: store.text("runtimeContext"), divider: false) {
-                Picker(store.text("runtimeContext"), selection: Binding(get: { context }, set: { store.setRuntime(parallel: parallel, context: $0) })) { ForEach([2048, 4096, 8192, 16384, 32768], id: \.self) { Text(String($0)).tag($0) } }
-                    .labelsHidden().fixedSize().disabled(store.localRuntime.owned || store.localRuntime.busy)
+                SettingsPicker(id: "runtime-context", label: store.text("runtimeContext"), options: [2048, 4096, 8192, 16384, 32768].map { SettingsPickerOption(id: String($0), title: String($0)) },
+                               selection: String(context)) { store.setRuntime(parallel: parallel, context: Int($0) ?? context) }
+                    .disabled(store.localRuntime.owned || store.localRuntime.busy)
                 Button(store.text("runtimeStart")) { Task { await store.localRuntime.start(parallel: parallel, context: context); store.discoverProviders() } }
                     .buttonStyle(.vznOutline).disabled(store.localRuntime.owned || store.localRuntime.busy || !store.localRuntime.available)
                 if store.localRuntime.owned { Button(store.text("runtimeStop"), role: .destructive) { store.localRuntime.stop(); store.discoverProviders() }.buttonStyle(.vznOutline) }
@@ -158,9 +156,18 @@ struct LocalModelSettings: View {
             if installed.isEmpty { Text(store.text("noLocalModels")).foregroundStyle(.secondary).padding(metric("inset")) }
             ForEach(installed, id: \.self) { model in
                 CardRow(title: nativeModelLabel(model, store: store), detail: model, divider: model != installed.last) {
-                    Button(store.text("runtimeCompare")) { store.localPerformance.selectModel(model); confirmComparison = true }
+                    Button(store.text("runtimeCompare")) {
+                        store.localPerformance.selectModel(model)
+                        // Overlays-Settings board: ask first in the centred dialog, the result card follows.
+                        if let confirm { confirm(SettingsConfirm(title: store.text("runtimeCompare"), message: store.text("runtimeCompareHint"), confirm: store.text("start"), destructive: false) { store.localPerformance.compare() }) }
+                        else { confirmComparison = true }
+                    }
                         .buttonStyle(.vznOutline).disabled(anyBusy || store.interpretation.busy || store.workspace.tasks.contains { $0.status == .running && $0.request.model.hasPrefix("ollama:") })
-                    Button(store.text("deleteModel"), role: .destructive) { deletion = String(model.dropFirst(7)) }.buttonStyle(.vznQuiet).disabled(store.modelManager.busy)
+                    Button(store.text("deleteModel"), role: .destructive) {
+                        let name = String(model.dropFirst(7))
+                        if let confirm { confirm(SettingsConfirm(title: store.text("deleteModelConfirm"), message: name, confirm: store.text("deleteModel")) { remove(name) }) }
+                        else { deletion = name }
+                    }.buttonStyle(.vznQuiet).disabled(store.modelManager.busy)
                 }
             }
             HStack {

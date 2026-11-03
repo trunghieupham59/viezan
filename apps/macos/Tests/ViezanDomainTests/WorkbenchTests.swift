@@ -769,3 +769,305 @@ import Testing
     #expect(HistoryBucket.of(at(daysAgo: 9), now: now, calendar: calendar) == .older)
     #expect(HistoryBucket.of(nil, now: now, calendar: calendar) == .older)
 }
+
+// MARK: - Liquid Glass 2.0 backend (BACKEND-GAPS #1, #2, #5, #9, #21)
+
+@Test @MainActor func unchangedDictionaryContextKeepsTheEntry() throws {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
+    store.navigate(.dictionary)
+    let id = store.session.id
+    store.setDraft(id, "serendipity"); store.setModel(id, "demo.standard")
+    let task = try #require(store.submit(id))
+    let json = #"{"headword":"serendipity","pronunciation":"/x/","meaning":"chance","translations":[{"text":"tình cờ","pronunciation":"tình cờ"}]}"#
+    store.receive(taskID: task.id, attemptID: task.attemptID, chunk: json, terminal: .succeeded)
+    let revision = try #require(store.session(id)).revision
+    // A field echoing its own value (focus, a session switch) must not clear the entry.
+    store.setDictionaryContext(id, "")
+    #expect(store.session(id)?.output == json)
+    #expect(store.session(id)?.revision == revision)
+    // A real change still invalidates the entry, as before.
+    store.setDictionaryContext(id, "science")
+    #expect(store.session(id)?.output == "")
+    #expect(store.session(id)?.revision == revision + 1)
+}
+
+@Test @MainActor func tasksRecordWhenEachAttemptStartedAndEnded() throws {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
+    var now = 1_000.0; store.clock = { now }
+    let id = store.session.id
+    store.setDraft(id, "Hello"); store.setModel(id, "demo.slow")
+    let task = try #require(store.submit(id))
+    #expect(store.workspace.tasks.first?.started == 1_000)
+    #expect(store.workspace.tasks.first?.duration == nil) // still running
+    now = 1_001.4
+    store.receive(taskID: task.id, attemptID: task.attemptID, chunk: "Hi", terminal: .succeeded)
+    let finished = try #require(store.workspace.tasks.first)
+    #expect(finished.finished == 1_001.4)
+    #expect(abs((finished.duration ?? 0) - 1.4) < 0.0001)
+}
+
+@Test func tasksFromOlderSnapshotsDecodeWithoutTimes() throws {
+    let request = Request(sessionID: "s", feature: .chat, model: "demo.standard", input: "Hi", source: "auto", target: "vi", revision: 1, locale: "vi")
+    var saved = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(WorkTask(id: "t", attemptID: "a", request: request, status: .succeeded, output: "ok"))) as? [String: Any])
+    saved.removeValue(forKey: "started"); saved.removeValue(forKey: "finished")
+    let task = try JSONDecoder().decode(WorkTask.self, from: JSONSerialization.data(withJSONObject: saved))
+    #expect(task.started == nil && task.finished == nil && task.duration == nil)
+}
+
+@Test func dictionaryEntriesCarryOptionalRelatedWords() {
+    let base = #""headword":"serendipity","pronunciation":"/x/","meaning":"chance","translations":[{"text":"tình cờ","pronunciation":"tình cờ"}]"#
+    let related = DictionaryEntry.parse("{" + base + #","related":{"derived":["serendipitous"],"synonyms":["luck","chance",""],"antonyms":[]}}"#)
+    #expect(related?.related?.derived == ["serendipitous"])
+    #expect(related?.related?.synonyms == ["luck", "chance"])
+    #expect(related?.related?.antonyms == nil)
+    #expect(related?.related?.count == 3)
+    // Older entries have no related block; a malformed one is dropped, never failing the entry.
+    #expect(DictionaryEntry.parse("{" + base + "}")?.related == nil)
+    let malformed = DictionaryEntry.parse("{" + base + #","related":"luck, chance"}"#)
+    #expect(malformed?.headword == "serendipity")
+    #expect(malformed?.related == nil)
+}
+
+@Test func dictionaryPromptIsTheSharedContract() {
+    let request = Request(sessionID: "s", feature: .dictionary, model: "demo.standard", input: "serendipity", source: "en", target: "vi", revision: 1, locale: "vi", dictionaryContext: "science")
+    let system = DictionaryEntry.prompt(request)
+    #expect(system.contains("\"vi\"") && system.contains("\"en\""))
+    #expect(!system.contains("{{TARGET}}") && !system.contains("{{SOURCE}}"))
+    #expect(system.contains("\"related\"") && system.contains("nuance") && system.contains("→"))
+    #expect(DictionaryEntry.userMessage(request) == "Term: serendipity\nContext: science")
+}
+
+@Test func onlyProvidersThatHonourItGetASpeakingRate() {
+    #expect(VoicePreferences.rateSupported("system"))
+    #expect(VoicePreferences.rateSupported("edge"))
+    #expect(VoicePreferences.rateSupported("openai"))
+    #expect(!VoicePreferences.rateSupported("gemini"))
+    #expect(!VoicePreferences.rateSupported("elevenlabs"))
+}
+
+// Overlays-Listen: the system voice's own "finished" event ends reading, whatever the
+// synthesizer still reports; a late event from an earlier utterance does not end the next one.
+@MainActor @Test func systemSpeechFinishEndsReading() {
+    let audio = NativeAudio(), first = NSObject(), second = NSObject()
+    audio.beginSystemSpeech(ObjectIdentifier(first))
+    #expect(audio.speaking)
+    audio.systemSpeechFinished(ObjectIdentifier(first))
+    #expect(!audio.speaking)
+    audio.beginSystemSpeech(ObjectIdentifier(second))
+    audio.systemSpeechFinished(ObjectIdentifier(first))
+    #expect(audio.speaking)
+    audio.stopSpeaking()
+    #expect(!audio.speaking)
+    audio.systemSpeechFinished(ObjectIdentifier(second))
+    #expect(!audio.speaking)
+}
+
+// MARK: - Liquid Glass 2.0 backend, second pass (BACKEND-GAPS #3 #4 #6 #7 #23 #30 #41 #52 #53 #56 #57 #64 #70)
+
+@Test @MainActor func emptiedNameFallsBackToTheFirstQuestion() throws {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
+    let id = store.session.id
+    store.setDraft(id, "1 dặm bằng bao nhiêu km?"); store.setModel(id, "demo.standard")
+    let task = try #require(store.submit(id))
+    store.receive(taskID: task.id, attemptID: task.attemptID, chunk: "1,609 km", terminal: .succeeded)
+    store.renameSession(id, title: "Đổi đơn vị")
+    #expect(store.session(id)?.title == "Đổi đơn vị")
+    store.renameSession(id, title: "   ")
+    #expect(store.session(id)?.title == "1 dặm bằng bao nhiêu km?")
+    // A session with nothing asked yet still shows the default name.
+    store.newSession(); let empty = store.session.id
+    store.renameSession(empty, title: "")
+    #expect(store.session(empty)?.title == "")
+}
+
+@Test @MainActor func archivingRecordsWhenAndTheArchiveSortsByIt() throws {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
+    var now = 100.0; store.clock = { now }
+    let first = store.session.id; store.setDraft(first, "first")
+    store.newSession(); let second = store.session.id; store.setDraft(second, "second")
+    now = 200; store.archiveSession(second, archived: true)
+    now = 300; store.archiveSession(first, archived: true)
+    #expect(store.session(first)?.archivedAt == 300 && store.session(first)?.updated == 300)
+    #expect(store.history(query: "", archived: true).map(\.id) == [first, second])
+    store.archiveSession(first, archived: false)
+    #expect(store.session(first)?.archivedAt == nil)
+    // Sessions archived before the field existed fall back to their last change.
+    var legacy = Session(feature: .chat); legacy.archived = true; legacy.updated = 50
+    #expect(WorkbenchStore.historyTime(legacy, archived: true) == 50)
+    var saved = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(legacy)) as? [String: Any]); saved.removeValue(forKey: "archivedAt")
+    #expect(try JSONDecoder().decode(Session.self, from: JSONSerialization.data(withJSONObject: saved)).archivedAt == nil)
+}
+
+@Test @MainActor func comparisonKeepsTheCallersColumnOrder() throws {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
+    store.navigate(.translate); let id = store.session.id
+    store.setDraft(id, "Xin chào")
+    store.compare(id, models: ["demo.standard", "demo.failure", "demo.standard", "demo.slow"])
+    #expect(store.comparisons(id).map(\.model) == ["demo.standard", "demo.failure", "demo.slow"])
+}
+
+@Test @MainActor func clearHistoryRemovesEveryEntryAndKeepsOneEmptySessionPerFeature() throws {
+    let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let meetings: [InterpretationSession] = [InterpretationSession(model: "openai:gpt-4.1", provider: "openai", source: "en", target: "vi", locale: "vi")]
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    try JSONEncoder().encode(meetings).write(to: folder.appendingPathComponent("interpretation.json"))
+    let interpretation = Interpretation(file: folder.appendingPathComponent("interpretation.json"))
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false, interpretation: interpretation)
+    var quarantined = 0; store.quarantine = { _ in quarantined += 1 }
+    let chat = store.session.id; store.setDraft(chat, "Hello"); store.setModel(chat, "demo.slow")
+    let task = try #require(store.submit(chat))
+    store.navigate(.dictionary); let word = store.session.id; store.setDraft(word, "luck"); store.toggleFavorite(word)
+    #expect(store.clearableHistoryCount == 3)
+    // Never while something runs.
+    #expect(throws: StorageFailure.self) { try store.clearHistory() }
+    store.receive(taskID: task.id, attemptID: task.attemptID, chunk: "Hi", terminal: .succeeded)
+    try store.clearHistory()
+    #expect(store.workspace.sessions.count == 3 && store.workspace.tasks.isEmpty)
+    #expect(store.workspace.sessions.allSatisfy { !$0.hasWork })
+    #expect(store.session(store.workspace.active["chat"]!)?.model == "demo.slow")
+    #expect(interpretation.sessions.isEmpty && quarantined == 1 && store.clearableHistoryCount == 0)
+}
+
+@Test func dictionaryEntriesCarryOptionalContextSenseAndRegisters() {
+    let translations = #"[{"text":"tình cờ","pronunciation":"x","examples":["a → b","c → d"],"exampleRegisters":["đời thường"]},{"text":"may","pronunciation":"y"}]"#
+    let entry = DictionaryEntry.parse(#"{"headword":"serendipity","pronunciation":"/x/","meaning":"m","contextSense":1,"translations":"# + translations + "}")
+    #expect(entry?.contextSense == 1)
+    #expect(entry?.translations[0].register(0) == "đời thường")
+    #expect(entry?.translations[0].register(1) == nil)
+    // Older entries have neither; a wrong type or an out-of-range sense is dropped, never failing the entry.
+    let older = DictionaryEntry.parse(#"{"headword":"w","pronunciation":"p","meaning":"m","translations":[{"text":"t","pronunciation":"p"}]}"#)
+    #expect(older?.contextSense == nil && older?.translations[0].exampleRegisters == nil)
+    let malformed = DictionaryEntry.parse(#"{"headword":"w","pronunciation":"p","meaning":"m","contextSense":9,"translations":[{"text":"t","pronunciation":"p","exampleRegisters":"formal"}]}"#)
+    #expect(malformed?.headword == "w" && malformed?.contextSense == nil && malformed?.translations[0].exampleRegisters == nil)
+    #expect(DictionaryEntry.prompt(Request(sessionID: "s", feature: .dictionary, model: "demo.standard", input: "x", source: "en", target: "vi", revision: 1, locale: "vi")).contains("notFound"))
+}
+
+@Test @MainActor func dictionaryNotFoundIsItsOwnOutcomeWithSuggestions() throws {
+    let reply = #"{"notFound":true,"suggestions":[{"word":"serendipitous","partOfSpeech":"tính từ","meaning":"tình cờ may mắn"},"serendipity",{"word":""},1]}"#
+    let missing = try #require(DictionaryEntry.notFound(reply))
+    #expect(missing.suggestions.map(\.word) == ["serendipitous", "serendipity"])
+    #expect(missing.suggestions.first?.meaning == "tình cờ may mắn")
+    #expect(DictionaryEntry.notFound(#"{"headword":"x"}"#) == nil)
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
+    store.navigate(.dictionary); let id = store.session.id
+    store.setDraft(id, "serendipituos"); store.setModel(id, "demo.standard")
+    let task = try #require(store.submit(id))
+    store.receive(taskID: task.id, attemptID: task.attemptID, chunk: reply, terminal: .succeeded)
+    #expect(store.workspace.tasks.first?.status == .failed && store.workspace.tasks.first?.errorCode == "dictionaryNotFound")
+    #expect(store.session(id)?.output == reply)
+}
+
+@Test func imageDetailsAreOptionalAndBackupsMatchOnTheFile() throws {
+    let old = try JSONDecoder().decode(ImageAttachment.self, from: Data(#"{"id":"a","name":"x.png","mime":"image/png"}"#.utf8))
+    #expect(old.width == nil && old.height == nil && old.generator == nil)
+    var sized = old; sized.width = 1024; sized.height = 1024; sized.generator = "openai:gpt-image-1"
+    #expect(sized.sameFile(old) && sized != old)
+    let encoded = try JSONDecoder().decode(ImageAttachment.self, from: JSONEncoder().encode(sized))
+    #expect(encoded == sized)
+}
+
+@MainActor @Test func speakingRemembersItsSourceAndAOneOffProvider() {
+    let audio = NativeAudio(); audio.voiceProvider = "system"
+    // A cloud reading is preparing until audio plays; stopping first never reads a key.
+    audio.speak("Xin chào", language: "vi", source: "result", provider: "openai")
+    #expect(audio.speaking && audio.preparing && audio.speakingSource == "result" && audio.lastSource == "result")
+    audio.stopSpeaking()
+    #expect(!audio.speaking && !audio.preparing && audio.speakingSource == nil)
+    #expect(audio.lastSource == "result" && audio.voiceProvider == "system")
+}
+
+// BACKEND-GAPS #18: Translate refuses a source over 5 000 characters before any provider call.
+@Test @MainActor func translateRefusesASourceOverTheLimit() {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
+    store.navigate(.translate); let id = store.session.id
+    store.setModel(id, "demo.standard")
+    store.setDraft(id, String(repeating: "a", count: WorkbenchStore.translateLimit + 1))
+    #expect(store.submit(id) == nil)
+    store.compare(id, models: ["demo.standard", "demo.slow"])
+    #expect(store.comparisons(id).isEmpty)
+    store.setDraft(id, String(repeating: "a", count: WorkbenchStore.translateLimit))
+    #expect(store.submit(id) != nil)
+}
+
+// BACKEND-GAPS #37: cancelling a summary that is not running changes nothing.
+@Test @MainActor func cancellingNoSummaryIsANoOp() throws {
+    let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let interpretation = Interpretation(file: folder.appendingPathComponent("interpretation.json"))
+    interpretation.cancelSummary()
+    #expect(!interpretation.summarizing && interpretation.error == nil)
+}
+
+// MARK: - Remaining gaps (BACKEND-GAPS #8 #10 #12 #15 #16 #32 #45 #47 #59 #63 #66 #68)
+
+@Test func paletteQueriesReadSumsPrefixesAndQuestions() {
+    #expect(PaletteQuery.parse("2+3*4") == .calculation("14"))
+    #expect(PaletteQuery.parse("? what is a mile") == .ask("what is a mile"))
+    #expect(PaletteQuery.parse("t xin chào") == .translate("xin chào"))
+    #expect(PaletteQuery.parse("D serendipity") == .lookup("serendipity"))
+    #expect(PaletteQuery.parse("settings") == nil && PaletteQuery.parse("t ") == nil && PaletteQuery.parse("   ") == nil)
+}
+
+@Test func launcherHomeOffersEnabledPagesAndAFreshQuickChat() {
+    #expect(LauncherHome.pages(enabled: { $0 != "interpret" }).map(\.route) == ["translate", "dictionary", "chat", "settings"])
+    #expect(LauncherHome.pages(enabled: { _ in false }).map(\.route) == ["settings"])
+    var chat = Session(feature: .chat); chat.updated = 1_000
+    #expect(LauncherHome.continuable(chat) == nil) // nothing asked yet
+    chat.messages = [Message(id: "m", role: "user", text: "Hi")]
+    #expect(LauncherHome.continuable(chat)?.id == chat.id)
+    #expect(LauncherHome.fresh(chat, now: 1_000 + 1_799) && !LauncherHome.fresh(chat, now: 1_000 + 1_800))
+    chat.archived = true
+    #expect(LauncherHome.continuable(chat) == nil)
+}
+
+@Test func localModelSuggestionsComeFromTheSharedContract() {
+    let suggestions = NativeResources.shared.localModelSuggestions
+    #expect(suggestions.map(\.id) == ["qwen3:4b", "gemma3:4b", "llama3.2:3b", "qwen2.5:7b"])
+    #expect(suggestions.allSatisfy { $0.bytes > 0 && !$0.name.isEmpty && $0.note.hasPrefix("suggestion_") })
+}
+
+@Test func downloadEstimatesWaitForAStableRate() {
+    #expect(NativeUpdates.remaining(elapsed: 10, fraction: 0.5) == 10)
+    #expect(NativeUpdates.remaining(elapsed: 0.5, fraction: 0.5) == nil)
+    #expect(NativeUpdates.remaining(elapsed: 10, fraction: 0.01) == nil)
+    #expect(NativeUpdates.remaining(elapsed: 10, fraction: 1) == nil)
+    #expect(ThermalMonitor.calibrationSeconds(fans: 2) == 45 + 2 * 82)
+}
+
+@MainActor @Test func voicesFollowTheLanguageTheyRead() {
+    let audio = NativeAudio()
+    audio.voiceProvider = "edge"
+    #expect(audio.voice(for: "en") == nil) // cloud voices are named by the provider
+    audio.voiceProvider = "system"; audio.voiceID = ""
+    if let english = audio.voice(for: "en") { #expect(english.language.lowercased().hasPrefix("en")) }
+    // A chosen Japanese voice never reads English.
+    if let japanese = audio.voices.first(where: { $0.language.hasPrefix("ja") }) {
+        audio.voiceID = japanese.id
+        #expect(audio.voice(for: "ja")?.id == japanese.id)
+        #expect(audio.voice(for: "en")?.id != japanese.id)
+    }
+    #expect(audio.recordingStarted == nil)
+    #expect(["granted", "denied", "undetermined"].contains(MicrophonePermission.status))
+}
+
+@MainActor @Test func interpretationExportsTranslationOnlyAndReloadsAfterAStorageFailure() throws {
+    let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: folder) }
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    let file = folder.appendingPathComponent("interpretation.json")
+    var session = InterpretationSession(model: "openai:gpt-5", provider: "openai", source: "en", target: "vi", locale: "vi")
+    var segment = InterpretationSegment(start: 0, end: 2); segment.speaker = "A"; segment.original = "Hello"; segment.translated = "Xin chào"; segment.status = "done"
+    session.segments = [segment]
+    // #68: an unreadable store blocks writes; "Thử lại" reads it again once it is fixed.
+    try Data("not json".utf8).write(to: file)
+    let interpretation = Interpretation(file: file)
+    #expect(interpretation.storageBlocked && interpretation.error == "interpretStorageError")
+    try JSONEncoder().encode([session]).write(to: file)
+    interpretation.reload()
+    #expect(!interpretation.storageBlocked && interpretation.error == nil && interpretation.sessions.count == 1)
+    // #66: "Chỉ bản dịch" keeps speakers and timings, drops the original lines.
+    #expect(interpretation.export(srt: false, translatedOnly: true).hasPrefix("[A] Xin chào"))
+    #expect(!interpretation.export(srt: true, translatedOnly: true).contains("Hello"))
+    #expect(interpretation.export(srt: false).hasPrefix("[A] Hello\nXin chào"))
+}

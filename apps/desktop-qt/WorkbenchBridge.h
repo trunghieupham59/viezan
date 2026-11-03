@@ -50,6 +50,12 @@ class WorkbenchBridge final : public QObject {
     Q_PROPERTY(QVariantMap resources READ resources CONSTANT)
     Q_PROPERTY(QString storageError READ storageError NOTIFY changed)
     Q_PROPERTY(bool loadBlocked READ loadBlocked NOTIFY changed)
+    /// Smart reset: {feature, previousID} while a fresh turn replaced finished work after a break.
+    Q_PROPERTY(QVariantMap resetNotice READ resetNotice NOTIFY changed)
+    // Update prompt (Swift WorkbenchStore.updatePrompt): {version, notes} after a check found a version
+    // that is not snoozed; empty otherwise. autoCheckUpdates: background checks at launch and daily.
+    Q_PROPERTY(QVariantMap updatePrompt READ updatePrompt NOTIFY changed)
+    Q_PROPERTY(bool autoCheckUpdates READ autoCheckUpdates WRITE setAutoCheckUpdates NOTIFY changed)
 public:
     explicit WorkbenchBridge(QObject *parent = nullptr, const QString &storageFile = {}, bool automaticProvider = true);
     QVariantMap state() const { return m_state; }
@@ -126,11 +132,52 @@ public:
     Q_INVOKABLE void save();
     Q_INVOKABLE void reload();
     Q_INVOKABLE void copy(const QString &text);
+    Q_INVOKABLE bool copyImage(const QVariantMap &image);
+    /// Items "Clear history" removes: Chat, Translate and Dictionary sessions plus Interpretation transcripts.
+    Q_INVOKABLE int clearableHistoryCount() const;
+    /// A "not found" dictionary reply's suggestions, or undefined for any other output.
+    Q_INVOKABLE QVariant dictionarySuggestions(const QString &output) const;
+    /// Delete a session that is not running (Swift removeSession); returns {session, index} for Undo,
+    /// or an empty map when refused. restoreSession puts it back where it was.
+    Q_INVOKABLE QVariantMap removeSession(const QString &sessionID);
+    Q_INVOKABLE void restoreSession(const QVariantMap &session, int index);
+    /// Model picker (Swift ModelLineup): purposes for the session's provider ({fast, balanced, careful} or
+    /// empty), picking one (Careful also turns on careful reasoning in Chat), recent picks, short names
+    /// and the panel's sections for a query.
+    Q_INVOKABLE QVariantMap modelTiers(const QString &sessionID) const;
+    Q_INVOKABLE void applyModelTier(const QString &sessionID, const QString &tier);
+    Q_INVOKABLE QStringList recentPicks() const;
+    Q_INVOKABLE QString shortModelName(const QString &id) const;
+    /// Whether a voice provider honours the speaking rate (the speed seg dims otherwise).
+    Q_INVOKABLE bool rateSupported(const QString &provider) const { return NativeAudio::rateSupported(provider); }
+    Q_INVOKABLE QVariantList modelSections(const QString &query, const QString &sessionID) const;
+    /// The launcher before anything is typed (Swift LauncherHome): Viezan pages {route, title} for enabled
+    /// modules (Settings always), and the quick AI chat to continue ({id, title, fresh}) when that session
+    /// still has messages; fresh = changed within 30 minutes, so a new question continues it.
+    Q_INVOKABLE QVariantMap launcherHome(const QString &quickSessionID) const;
+    QVariantMap updatePrompt() const { return m_updatePrompt; }
+    bool autoCheckUpdates() const { return m_state.value("updates").toMap().value("autoCheck", true).toBool(); }
+    void setAutoCheckUpdates(bool value) { command("autoCheckUpdates", {{"value", value}}); }
+    Q_INVOKABLE bool updateSnoozed(const QString &version) const;
+    /// "Remind me in 24 hours": the prompt leaves and this version stays quiet for a day.
+    Q_INVOKABLE void snoozeUpdate();
+    Q_INVOKABLE void dismissUpdatePrompt() { if (m_updatePrompt.isEmpty()) return; m_updatePrompt.clear(); emit changed(); }
+    /// Shows the prompt when a check (background or manual) found a version that is not snoozed.
+    Q_INVOKABLE void presentUpdateIfAvailable();
     Q_INVOKABLE QVariantList chartArtifacts(const QString &text) const;
     Q_INVOKABLE void renderMarkdown(QObject *document, const QString &text);
     Q_INVOKABLE void openLink(const QString &url);
     Q_INVOKABLE QStringList sentences(const QString &text) const;
     Q_INVOKABLE void shutdown();
+    QVariantMap resetNotice() const { return m_resetNotice; }
+    Q_INVOKABLE void reopenPrevious();
+    Q_INVOKABLE void dismissResetNotice();
+    /// Sessions for the history views (Swift WorkbenchStore.history): only those with work, no
+    /// comparison children, newest change first. `features` empty = every enabled feature.
+    /// The language to read `text` aloud in: its script when that tells, otherwise `fallback`
+    /// (the UI locale for answers, the session source for originals). Same rule as macOS.
+    Q_INVOKABLE QString speechLanguage(const QString &text, const QString &fallback = {}) const;
+    Q_INVOKABLE QVariantList history(const QString &query, bool archived = false, const QStringList &features = {}) const;
 signals:
     void capturePreparing();
     void captureReady(const QUrl &image, int x, int y, int width, int height);
@@ -179,6 +226,9 @@ private:
     QHash<QString, QString> m_networkWorkers; // task ID -> attempt ID
     bool m_synchronizing = false, m_synchronizeAgain = false, m_shuttingDown = false;
     QVariantMap m_state, m_resources;
+    QVariantMap m_resetNotice, m_updatePrompt;
+    QTimer m_updateTimer;
+    bool m_backgroundCheck = false;
     QString m_file, m_storageError;
     bool m_loadBlocked = false;
     bool m_automaticProvider;

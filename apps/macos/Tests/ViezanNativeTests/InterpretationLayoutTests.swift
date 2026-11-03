@@ -58,7 +58,8 @@ extension AppKitFixtureTests {
                 let textWidth = (label as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: NSFont.systemFontSize)]).width
                 #expect(frames[offset].width >= textWidth + metric("small") * 2)
             }
-            if windowWidth == 640 { #expect(frames[0].minY >= metric("compactControl") + metric("tight") * 2 + metric("small")) }
+            // The Glass `.seg` track is one compact control tall (Liquid Glass 2.0).
+            if windowWidth == 640 { #expect(frames[0].minY >= metric("compactControl") + metric("small")) }
             if windowWidth == 1200 { #expect(frames[0].minY < metric("compactControl")) }
             #expect(abs(frames[0].midY - frames[1].midY) < 1)
             #expect(frames[0].maxX <= frames[1].minX)

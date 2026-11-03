@@ -1,0 +1,6 @@
+[
+  {"id": "qwen3:4b", "name": "Qwen3 4B", "note": "suggestion_balanced", "bytes": 2600000000},
+  {"id": "gemma3:4b", "name": "Gemma 3 4B", "note": "suggestion_vision", "bytes": 3300000000},
+  {"id": "llama3.2:3b", "name": "Llama 3.2 3B", "note": "suggestion_light", "bytes": 2000000000},
+  {"id": "qwen2.5:7b", "name": "Qwen2.5 7B", "note": "suggestion_quality", "bytes": 4700000000}
+]

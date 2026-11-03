@@ -13,6 +13,8 @@ class LocalRuntime final : public QObject {
     Q_PROPERTY(QString version READ version NOTIFY changed)
     Q_PROPERTY(QString error READ error NOTIFY changed)
     Q_PROPERTY(int processors READ processors CONSTANT)
+    // Physical memory in bytes (Swift LocalRuntime.memory), 0 when the system does not say.
+    Q_PROPERTY(qint64 memoryBytes READ memoryBytes CONSTANT)
 public:
     explicit LocalRuntime(QObject *parent = nullptr);
     ~LocalRuntime() override;
@@ -23,6 +25,7 @@ public:
     QString version() const { return m_version; }
     QString error() const { return m_error; }
     int processors() const;
+    static qint64 memoryBytes();
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void start(int parallel, int context);
     Q_INVOKABLE void stop();

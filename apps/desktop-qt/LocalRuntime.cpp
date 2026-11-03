@@ -12,6 +12,16 @@
 #include <QProcessEnvironment>
 #include <QTimer>
 #include <QSharedPointer>
+#if defined(Q_OS_WIN)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#elif defined(Q_OS_MACOS)
+#include <sys/sysctl.h>
+#else
+#include <unistd.h>
+#endif
 
 LocalRuntime::LocalRuntime(QObject *parent) : QObject(parent) {
     m_network.setProxy(QNetworkProxy::NoProxy);
@@ -21,6 +31,18 @@ LocalRuntime::LocalRuntime(QObject *parent) : QObject(parent) {
 }
 LocalRuntime::~LocalRuntime() { m_process.disconnect(this); if (owned()) { m_process.terminate(); if (!m_process.waitForFinished(1500)) { m_process.kill(); m_process.waitForFinished(1500); } } }
 int LocalRuntime::processors() const { return QThread::idealThreadCount(); }
+qint64 LocalRuntime::memoryBytes() {
+#if defined(Q_OS_WIN)
+    MEMORYSTATUSEX status; status.dwLength = sizeof(status);
+    return GlobalMemoryStatusEx(&status) ? qint64(status.ullTotalPhys) : 0;
+#elif defined(Q_OS_MACOS)
+    quint64 bytes = 0; size_t size = sizeof(bytes);
+    return sysctlbyname("hw.memsize", &bytes, &size, nullptr, 0) == 0 ? qint64(bytes) : 0;
+#else
+    const auto pages = sysconf(_SC_PHYS_PAGES), page = sysconf(_SC_PAGE_SIZE);
+    return pages > 0 && page > 0 ? qint64(pages) * qint64(page) : 0;
+#endif
+}
 void LocalRuntime::probe(std::function<void(QString)> completion) {
     QNetworkRequest request(QUrl("http://127.0.0.1:11434/api/version")); request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy); request.setTransferTimeout(2000);
     auto *reply = m_network.get(request); const auto buffer = QSharedPointer<QByteArray>::create();

@@ -4,7 +4,7 @@ import Observation
 @MainActor @Observable public final class WorkbenchStore {
     public private(set) var workspace = Workspace()
     public let audio = NativeAudio()
-    public let interpretation = Interpretation()
+    public let interpretation: Interpretation
     public let applications = Applications()
     public let thermalMonitor = ThermalMonitor()
     public let desktopIntegration = DesktopIntegration()
@@ -53,9 +53,12 @@ import Observation
     @ObservationIgnored private var deferredSave: Task<Void, Never>?
     @ObservationIgnored private let automaticProvider: Bool
 
-    public init(persistence: any WorkspacePersistence, automaticProvider: Bool = true,
+    /// Moves attachments no session references into recovery after bulk deletes; tests replace it.
+    @ObservationIgnored public var quarantine: (Workspace) throws -> Void = { try Attachments.quarantineUnreferenced(workspace: $0) }
+    public init(persistence: any WorkspacePersistence, automaticProvider: Bool = true, interpretation: Interpretation? = nil,
                 listModels: @escaping @Sendable (String) async throws -> [String] = { try await ModelCatalog.models(provider: $0) },
                 hasKey: @escaping @Sendable (String) -> Bool = { CredentialStore.has($0) }) {
+        self.interpretation = interpretation ?? Interpretation()
         self.persistence = persistence; self.automaticProvider = automaticProvider
         self.listModels = listModels; self.hasKey = hasKey
         reload()
@@ -99,7 +102,12 @@ import Observation
         let scope = features ?? [workspace.feature]
         return workspace.sessions.filter { item in
             item.hasWork && item.comparisonParent == nil && (scope.isEmpty ? moduleEnabled(item.feature.rawValue) : scope.contains(item.feature)) && (item.archived == true) == archived && (needle.isEmpty || normalized(title(item) + " " + item.draft + " " + item.output + " " + item.messages.map(\.text).joined(separator: " ")).contains(needle))
-        }.sorted { ($0.updated ?? 0) > ($1.updated ?? 0) }
+        }.sorted { Self.historyTime($0, archived: archived) > Self.historyTime($1, archived: archived) }
+    }
+    /// When a history row happened: its last change, or for the archive when it was archived
+    /// (sessions archived before `archivedAt` existed fall back to their last change).
+    public static func historyTime(_ session: Session, archived: Bool) -> Double {
+        (archived ? session.archivedAt ?? session.updated : session.updated) ?? 0
     }
     /// Delete any session that is not running, keeping it for Undo; comparisons go with their parent.
     @discardableResult public func removeSession(_ id: String) throws -> (session: Session, index: Int) {
@@ -196,7 +204,8 @@ import Observation
     }
     public func renameSession(_ id: String, title: String) {
         let value = String(title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(256))
-        edit(id) { $0.title = value }
+        // An emptied name falls back to the title the session got from its first question.
+        edit(id) { item in item.title = value.isEmpty ? item.firstTitle : value }
     }
     public func archiveSession(_ id: String, archived: Bool) {
         guard !loadBlocked, let target = session(id) else { return }
@@ -205,7 +214,7 @@ import Observation
             if let task = running(id) { cancel(task.id) }
             if audio.recordingOwner == id || audio.transcribingOwner == id { audio.cancel() }
         }
-        edit(id, persist: false) { $0.archived = archived }
+        edit(id, persist: false) { $0.archived = archived; $0.archivedAt = archived ? self.clock() : nil }
         if archived && workspace.active[target.feature.rawValue] == id {
             if let next = workspace.sessions.first(where: { $0.feature == target.feature && $0.archived != true }) {
                 workspace.active[target.feature.rawValue] = next.id
@@ -230,6 +239,26 @@ import Observation
         candidate.sessions.removeAll { removed.contains($0.id) }; candidate.tasks.removeAll { removed.contains($0.request.sessionID) }
         _ = try candidate.validated(); try persistence.save(candidate); workspace = candidate
         try Attachments.quarantineUnreferenced(workspace: candidate)
+    }
+    /// Sessions "Clear history" removes: every Chat, Translate and Dictionary session with work
+    /// (archived ones and favourites included), plus every Interpretation transcript.
+    public var clearableHistoryCount: Int {
+        workspace.sessions.filter { $0.comparisonParent == nil && ($0.hasWork || $0.archived == true) }.count + interpretation.sessions.count
+    }
+    /// "Clear history": everything goes, after a confirmation (it cannot be undone). Each feature keeps
+    /// one empty session with its model and language pair; nothing runs while it happens.
+    public func clearHistory() throws {
+        guard !loadBlocked, !interpretation.busy, !interpretation.storageBlocked, !workspace.tasks.contains(where: { $0.status == .running }) else { throw StorageFailure.invalidData }
+        var candidate = workspace; candidate.sessions = []; candidate.tasks = []
+        for feature in Feature.allCases {
+            var fresh = Session(feature: feature)
+            if let previous = workspace.active[feature.rawValue].flatMap(session) { fresh.model = previous.model; fresh.source = previous.source; fresh.target = previous.target }
+            candidate.sessions.append(fresh); candidate.active[feature.rawValue] = fresh.id
+        }
+        _ = try candidate.validated(); try persistence.save(candidate)
+        workspace = candidate; resetNotice = nil
+        try quarantine(candidate)
+        try interpretation.clearAll()
     }
     public func deleteArchivedSession(_ id: String) throws {
         guard !loadBlocked, let item = session(id), item.archived == true, running(id) == nil else { throw StorageFailure.invalidData }
@@ -264,7 +293,7 @@ import Observation
     }
     private func edit(_ id: String, persist: Bool = true, _ mutation: (inout Session) -> Void) {
         guard !loadBlocked, let index = workspace.sessions.firstIndex(where: { $0.id == id }) else { return }
-        mutation(&workspace.sessions[index]); workspace.sessions[index].updated = Date().timeIntervalSince1970; if persist { save() }
+        mutation(&workspace.sessions[index]); workspace.sessions[index].updated = clock(); if persist { save() }
     }
     public func setCarefulReasoning(_ id: String, _ enabled: Bool) {
         guard session(id)?.feature == .chat else { return }
@@ -370,8 +399,9 @@ import Observation
     public func comparisons(_ id: String) -> [Session] { workspace.sessions.filter { $0.comparisonParent == id } }
     private func cancelComparisons(_ id: String) { for item in comparisons(id) { if let task = running(item.id) { cancel(task.id) } } }
     public func compare(_ id: String, models: [String]) {
-        let models = Array(Set(models)).sorted()
-        guard !loadBlocked, let parent = session(id), parent.feature == .translate, !parent.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, (2...3).contains(models.count), models.allSatisfy(NativeModel.valid) else { return }
+        // The caller's order is the column order: the session's model first (Swift and Qt alike).
+        var seen = Set<String>(); let models = models.filter { seen.insert($0).inserted }
+        guard !loadBlocked, let parent = session(id), parent.feature == .translate, !parent.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, parent.draft.count <= Self.translateLimit, (2...3).contains(models.count), models.allSatisfy(NativeModel.valid) else { return }
         cancelComparisons(id); edit(id) { $0.assemblyParts = nil }
         let old = Set(comparisons(id).map(\.id)); workspace.sessions.removeAll { old.contains($0.id) }; workspace.tasks.removeAll { old.contains($0.request.sessionID) }
         for model in models {
@@ -419,7 +449,8 @@ import Observation
         edit(id) { $0.assemblyParts = nil; $0.translationStyle = style; $0.translationMode = mode; $0.revision += 1; $0.output = "" }; scheduleTranslation(id)
     }
     public func setDictionaryContext(_ id: String, _ context: String) {
-        guard session(id)?.feature == .dictionary, context.count <= 500 else { return }
+        // Same rule as setDraft: an unchanged context neither cancels work nor clears the entry.
+        guard session(id)?.feature == .dictionary, context.count <= 500, (session(id)?.dictionaryContext ?? "") != context else { return }
         if let task = running(id) { cancel(task.id) }
         edit(id) { $0.dictionaryContext = context; $0.revision += 1; $0.output = "" }
     }
@@ -494,10 +525,13 @@ import Observation
         guard preferences != workspace.preferences else { return }
         workspace.appearance = preferences; save()
     }
+    /// Longest source Translate sends (characters); longer text is refused before any provider call.
+    public static let translateLimit = 5000
     @discardableResult public func submit(_ id: String) -> WorkTask? {
         autoTranslationRequest?.cancel(); autoTranslationRequest = nil
         guard !loadBlocked, let current = session(id), moduleEnabled(current.feature.rawValue), !(current.model.hasPrefix("ollama:") && localPerformance.busy), (!current.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || ([.chat, .translate].contains(current.feature) && !(current.images ?? []).isEmpty)),
-              current.feature != .dictionary || (current.draft.count <= 120 && (current.dictionaryContext?.count ?? 0) <= 500), running(id) == nil else { return nil }
+              current.feature != .dictionary || (current.draft.count <= 120 && (current.dictionaryContext?.count ?? 0) <= 500),
+              current.feature != .translate || current.draft.count <= Self.translateLimit, running(id) == nil else { return nil }
         var request = Request(sessionID: id, feature: current.feature, model: current.model, input: current.draft, source: current.source, target: current.target, revision: current.revision, locale: workspace.locale)
         request.reasoningEffort = current.reasoningEffort
         request.translationStyle = current.translationStyle; request.translationMode = current.translationMode
@@ -506,7 +540,8 @@ import Observation
         request.messages = (current.feature == .chat ? current.messages : []).filter { !$0.text.isEmpty || !($0.images ?? []).isEmpty }.map { message in var value = ProviderMessage(role: message.role, content: message.text); value.images = message.images; return value }
         var user = ProviderMessage(role: "user", content: current.draft); user.images = current.images
         request.messages?.append(user)
-        let task = WorkTask(id: UUID().uuidString, attemptID: UUID().uuidString, request: request, status: .running, output: "")
+        var task = WorkTask(id: UUID().uuidString, attemptID: UUID().uuidString, request: request, status: .running, output: "")
+        task.started = clock()
         edit(id, persist: false) { item in
             if item.title.isEmpty { item.title = Session.derivedTitle(draft: current.draft, images: current.images) }
             if current.feature == .chat {
@@ -522,7 +557,7 @@ import Observation
     public func cancel(_ id: String) {
         autoTranslationRequest?.cancel(); autoTranslationRequest = nil
         guard let index = workspace.tasks.firstIndex(where: { $0.id == id && $0.status == .running }) else { return }
-        workspace.tasks[index].status = .cancelled
+        workspace.tasks[index].status = .cancelled; workspace.tasks[index].finished = clock()
         workers.removeValue(forKey: id)?.cancel(); save()
     }
     public func canRetry(_ task: WorkTask) -> Bool {
@@ -547,6 +582,7 @@ import Observation
         workspace.tasks[index].attemptID = UUID().uuidString
         workspace.tasks[index].attemptNumber += 1
         workspace.tasks[index].status = .running; workspace.tasks[index].output = ""; workspace.tasks[index].errorCode = nil; workspace.tasks[index].errorDetail = nil
+        workspace.tasks[index].started = clock(); workspace.tasks[index].finished = nil
         let task = workspace.tasks[index]
         edit(task.request.sessionID, persist: false) { item in
             if item.feature != .chat { item.output = "" }
@@ -565,6 +601,7 @@ import Observation
         if request.feature != .chat { workspace.sessions[sessionIndex].output = workspace.tasks[index].output }
         else if let i = workspace.sessions[sessionIndex].messages.firstIndex(where: { $0.id == taskID }) { workspace.sessions[sessionIndex].messages[i].text = workspace.tasks[index].output }
         if let terminal, terminal != .running {
+            workspace.tasks[index].finished = clock()
             if terminal == .succeeded && ImageTranslation.isImageRequest(request) && ImageTranslation.parse(workspace.tasks[index].output) == nil {
                 workspace.tasks[index].status = .failed; workspace.tasks[index].errorCode = "imageModelUnsupported"
                 workers.removeValue(forKey: taskID); save(); return
@@ -573,7 +610,8 @@ import Observation
                 // Models often wrap the JSON in a markdown fence despite the prompt; keep the JSON only.
                 let json = DictionaryEntry.extractJSON(workspace.tasks[index].output)
                 workspace.tasks[index].output = json; workspace.sessions[sessionIndex].output = json
-                if DictionaryEntry.parse(json) == nil { workspace.tasks[index].errorCode = "providerInvalidResponse" }
+                // "No entry for this term" is its own outcome, with suggestions, not a broken reply.
+                if DictionaryEntry.parse(json) == nil { workspace.tasks[index].errorCode = DictionaryEntry.notFound(json) == nil ? "providerInvalidResponse" : "dictionaryNotFound" }
             }
             workspace.tasks[index].status = terminal == .succeeded && request.feature == .dictionary && DictionaryEntry.parse(workspace.tasks[index].output) == nil ? .failed : terminal; workers.removeValue(forKey: taskID); if workspace.tasks[index].status == .succeeded && request.feature == .dictionary { deduplicateDictionary(request.sessionID) }; save()
         } else { scheduleSave() }
@@ -586,7 +624,7 @@ import Observation
         for other in workspace.sessions.indices where other != index {
             let value = workspace.sessions[other]
             if value.feature == .dictionary && value.archived != true && value.source == current.source && value.target == current.target && key(value.draft) == key(current.draft) && key(value.dictionaryContext ?? "") == key(current.dictionaryContext ?? "") && running(value.id) == nil {
-                favorite = favorite || value.favorite == true; workspace.sessions[other].archived = true; workspace.sessions[other].favorite = false
+                favorite = favorite || value.favorite == true; workspace.sessions[other].archived = true; workspace.sessions[other].archivedAt = clock(); workspace.sessions[other].favorite = false
                 if workspace.active["dictionary"] == value.id { workspace.active["dictionary"] = current.id }
             }
         }

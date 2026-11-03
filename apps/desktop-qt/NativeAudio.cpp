@@ -13,6 +13,7 @@
 #include <QTimer>
 #include <QSharedPointer>
 #include <QRegularExpression>
+#include <QDateTime>
 #include <QFutureWatcher>
 #include <QtConcurrent/QtConcurrent>
 
@@ -20,9 +21,10 @@ NativeAudio::NativeAudio(QObject *parent) : QObject(parent) {
     m_player.setAudioOutput(&m_output);
     connect(&m_player, &QMediaPlayer::mediaStatusChanged, this, [this](QMediaPlayer::MediaStatus status) { if (status == QMediaPlayer::EndOfMedia && m_speaking) nextVoiceChunk(); });
     connect(&m_player, &QMediaPlayer::errorOccurred, this, [this](QMediaPlayer::Error, const QString &) { if (m_speaking) { silence(); m_error = "audioError"; emit changed(); } });
-    connect(&m_speech, &QTextToSpeech::stateChanged, this, [this](QTextToSpeech::State state) { if (m_voiceProvider == "system") { m_speaking = state == QTextToSpeech::Speaking || state == QTextToSpeech::Paused; emit changed(); } });
+    connect(&m_speech, &QTextToSpeech::stateChanged, this, [this](QTextToSpeech::State state) { if (m_activeProvider == "system") { m_speaking = state == QTextToSpeech::Speaking || state == QTextToSpeech::Paused; if (!m_speaking) m_speakingSource.clear(); emit changed(); } });
     m_capture.setAudioInput(&m_input); m_capture.setRecorder(&m_recorder);
     connect(&m_recorder, &QMediaRecorder::recorderStateChanged, this, [this](QMediaRecorder::RecorderState state) {
+        if (state == QMediaRecorder::RecordingState) m_recordingStarted = QDateTime::currentMSecsSinceEpoch() / 1000.0;
         emit changed(); if (state == QMediaRecorder::StoppedState && m_transcribeRequested) transcribe();
     });
     connect(&m_recorder, &QMediaRecorder::errorOccurred, this, [this](QMediaRecorder::Error, const QString &) {
@@ -134,39 +136,66 @@ void NativeAudio::cancel() {
     if (m_reply) { m_reply->disconnect(this); m_reply->abort(); m_reply->deleteLater(); m_reply = nullptr; }
     m_owner.clear(); m_speechCandidates.clear(); cleanup(); silence(); emit changed();
 }
-QStringList NativeAudio::voices() const { QStringList values; for (const auto &voice : m_speech.availableVoices()) values.append(voice.name()); return values; }
-void NativeAudio::configureVoice(const QString &provider, const QString &voice) {
-    if (!QStringList{"system", "edge", "openai", "gemini", "elevenlabs"}.contains(provider) || voice.toUtf8().size() > 256) return;
-    if (provider == m_voiceProvider && voice == m_voiceID) return;
-    silence(); m_voiceProvider = provider; m_voiceID = voice;
+QString NativeAudio::microphonePermission() const {
+    switch (qApp->checkPermission(QMicrophonePermission{})) {
+    case Qt::PermissionStatus::Granted: return "granted";
+    case Qt::PermissionStatus::Denied: return "denied";
+    default: return "undetermined";
+    }
 }
-void NativeAudio::speak(const QString &text, const QString &language) {
+QVariantList NativeAudio::voiceList() const {
+    QVariantList values; for (const auto &voice : m_speech.availableVoices()) values.append(QVariantMap{{"name", voice.name()}, {"language", voice.locale().name()}});
+    return values;
+}
+static QString languageBase(const QString &code) { return code.section(QRegularExpression("[-_]"), 0, 0).toLower(); }
+QString NativeAudio::voiceFor(const QString &language) const {
+    if (m_voiceProvider != "system") return {};
+    for (const auto &voice : m_speech.availableVoices()) if (voice.name() == m_voiceID && languageBase(voice.locale().name()) == languageBase(language)) return voice.name();
+    for (const auto &voice : m_speech.findVoices(QLocale(language))) return voice.name();
+    return {};
+}
+QStringList NativeAudio::voices() const { QStringList values; for (const auto &voice : m_speech.availableVoices()) values.append(voice.name()); return values; }
+void NativeAudio::configureVoice(const QString &provider, const QString &voice, double rate) {
+    if (!QStringList{"system", "edge", "openai", "gemini", "elevenlabs"}.contains(provider) || voice.toUtf8().size() > 256) return;
+    if (!std::isfinite(rate) || rate < 0.5 || rate > 2) rate = 1;
+    if (provider == m_voiceProvider && voice == m_voiceID && qFuzzyCompare(rate, m_voiceRate)) return;
+    silence(); m_voiceProvider = provider; m_voiceID = voice; m_voiceRate = rate;
+}
+void NativeAudio::speak(const QString &text, const QString &language, const QString &source, const QString &provider) {
     silence(); if (text.isEmpty() || text.toUtf8().size() > 100000) return;
-    m_error.clear(); m_speaking = true; m_voiceLanguage = language;
-    if (m_voiceProvider == "system") {
-        m_speech.setLocale(QLocale(language)); for (const auto &voice : m_speech.availableVoices()) if (voice.name() == m_voiceID) { m_speech.setVoice(voice); break; }
+    if (!provider.isEmpty() && !QStringList{"system", "edge", "openai", "gemini", "elevenlabs"}.contains(provider)) return;
+    m_error.clear(); m_speaking = true; m_voiceLanguage = language; m_speakingSource = source; m_lastSource = source;
+    m_activeProvider = provider.isEmpty() ? m_voiceProvider : provider;
+    if (m_activeProvider == "system") {
+        // A one-off system reading uses the language's default voice, not the chosen cloud voice.
+        // The chosen voice reads its own language only; other languages use the language's default.
+        m_speech.setLocale(QLocale(language));
+        if (provider.isEmpty()) for (const auto &voice : m_speech.availableVoices()) if (voice.name() == m_voiceID && languageBase(voice.locale().name()) == languageBase(language)) { m_speech.setVoice(voice); break; }
+        // QTextToSpeech rate is -1…1 around normal (0); the multiplier 0.5–2 maps onto it.
+        m_speech.setRate(qBound(-1.0, m_voiceRate >= 1 ? m_voiceRate - 1 : (m_voiceRate - 1) * 2, 1.0));
         m_speech.say(text); emit changed(); return;
     }
-    m_voiceQueue = LanguageSegments::chunks(text, 3000); nextVoiceChunk(); emit changed();
+    m_preparing = true; m_voiceQueue = LanguageSegments::chunks(text, 3000); nextVoiceChunk(); emit changed();
 }
 void NativeAudio::silence() {
     if (m_edge) { m_edge->disconnect(this); m_edge->cancel(); m_edge->deleteLater(); m_edge = nullptr; }
-    ++m_voiceGeneration; m_speaking = false; m_voiceQueue.clear(); m_speech.stop(); m_player.stop(); m_player.setSource(QUrl()); m_voiceBuffer.close();
+    ++m_voiceGeneration; m_speaking = false; m_preparing = false; m_speakingSource.clear(); m_voiceQueue.clear(); m_speech.stop(); m_player.stop(); m_player.setSource(QUrl()); m_voiceBuffer.close();
     if (m_voiceReply) { m_voiceReply->disconnect(this); m_voiceReply->abort(); m_voiceReply->deleteLater(); m_voiceReply = nullptr; }
     emit changed();
 }
 void NativeAudio::nextVoiceChunk() {
     m_player.stop(); m_player.setSource(QUrl()); m_voiceBuffer.close();
-    if (m_voiceQueue.isEmpty()) { m_speaking = false; emit changed(); return; }
-    const auto text = m_voiceQueue.takeFirst(), provider = m_voiceProvider, voice = m_voiceID; const auto generation = m_voiceGeneration;
+    if (m_voiceQueue.isEmpty()) { m_speaking = false; m_preparing = false; m_speakingSource.clear(); emit changed(); return; }
+    const auto text = m_voiceQueue.takeFirst(), provider = m_activeProvider, voice = m_voiceID; const auto generation = m_voiceGeneration;
+    const auto rate = rateSupported(provider) ? m_voiceRate : 1.0;
     if (provider == "edge") {
         auto *edge = new EdgeSpeech(this); m_edge = edge;
         connect(edge, &EdgeSpeech::finished, this, [this, edge, generation](const QByteArray &audio) {
             if (generation != m_voiceGeneration || m_edge != edge) return;
-            m_edge = nullptr; edge->deleteLater(); m_voiceBuffer.setData(audio); m_voiceBuffer.open(QIODevice::ReadOnly); m_player.setSourceDevice(&m_voiceBuffer, QUrl("speech.mp3")); m_player.play();
+            m_edge = nullptr; edge->deleteLater(); m_voiceBuffer.setData(audio); m_voiceBuffer.open(QIODevice::ReadOnly); m_player.setSourceDevice(&m_voiceBuffer, QUrl("speech.mp3")); m_player.play(); m_preparing = false; emit changed();
         });
         connect(edge, &EdgeSpeech::failed, this, [this, generation] { if (generation == m_voiceGeneration) { silence(); m_error = "audioError"; emit changed(); } });
-        edge->start(text, m_voiceLanguage, voice); return;
+        edge->start(text, m_voiceLanguage, voice, rate); return;
     }
     auto *watcher = new QFutureWatcher<CloudProtocol::Call>(this);
     connect(watcher, &QFutureWatcher<CloudProtocol::Call>::finished, this, [this, watcher, generation, provider] {
@@ -179,11 +208,11 @@ void NativeAudio::nextVoiceChunk() {
             const auto status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
             if (status != 200 || reply->error() != QNetworkReply::NoError) { silence(); m_error = status == 401 || status == 403 ? "providerAuthError" : status == 429 ? "providerRateLimit" : "audioError"; emit changed(); return; }
             const auto audio = SpeechSynthesis::decode(*bytes, provider); if (audio.isEmpty()) { silence(); m_error = "audioError"; emit changed(); return; }
-            m_voiceBuffer.setData(audio); m_voiceBuffer.open(QIODevice::ReadOnly); m_player.setSourceDevice(&m_voiceBuffer, QUrl(provider == "gemini" ? "speech.wav" : "speech.mp3")); m_player.play();
+            m_voiceBuffer.setData(audio); m_voiceBuffer.open(QIODevice::ReadOnly); m_player.setSourceDevice(&m_voiceBuffer, QUrl(provider == "gemini" ? "speech.wav" : "speech.mp3")); m_player.play(); m_preparing = false; emit changed();
         });
         QTimer::singleShot(180000, reply, [reply] { if (!reply->isFinished()) reply->abort(); });
     });
-    watcher->setFuture(QtConcurrent::run([text, provider, voice] { return SpeechSynthesis::prepare(text, provider, voice); }));
+    watcher->setFuture(QtConcurrent::run([text, provider, voice, rate] { return SpeechSynthesis::prepare(text, provider, voice, rate); }));
 }
 
 void NativeAudio::transcribeFile(const QString &owner, const QString &path, const QString &provider, const QString &language) {

@@ -52,7 +52,7 @@ import ViezanDomain
         store.setPair(id, source: "auto", target: language)
         model.sessionID = id; model.language = language
         show(.translating(language))
-        guard let task = store.submit(id) else { show(.failed("providerError", nil)); return }
+        guard let task = store.submit(id) else { show(.failed(text.count > WorkbenchStore.translateLimit ? "sourceTooLong" : "providerError", nil)); return }
         while !Task.isCancelled, store.workspace.tasks.first(where: { $0.id == task.id })?.status == .running { try? await Task.sleep(for: .milliseconds(100)) }
         guard !Task.isCancelled, let finished = store.workspace.tasks.first(where: { $0.id == task.id }) else { return }
         let output = store.session(id)?.output.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -122,6 +122,7 @@ struct QuickTranslateView: View {
     let actions: Actions
     @Environment(\.colorScheme) private var scheme
     private var language: String { store.text("lang_" + model.language) }
+    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     static func width(_ phase: QuickTranslate.Phase) -> CGFloat {
         switch phase { case .result, .failed, .needsAccess: metric("reading") * metric("quickCard"); default: metric("sidebar") + metric("rail") }
     }
@@ -140,6 +141,25 @@ struct QuickTranslateView: View {
                 Text(store.text(code)).font(.vzn("smallScale")).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 if let detail { Text(detail).font(.vzn("captionScale")).foregroundStyle(.secondary).lineLimit(3).textSelection(.enabled) }
                 HStack { Spacer(); Button(store.text("openInTranslate"), action: actions.open).buttonStyle(.vznOutline) }
+            case .result(let text, let paste) where glass:
+                // QuickTranslate board: title, the translation, a one-line meta, then the actions on
+                // their own row (never beside the meta, which the card's width would crowd under 400).
+                Text(store.text("quickResultTitle").replacingOccurrences(of: "{lang}", with: language)).font(.system(size: NSFont.systemFontSize, weight: .semibold))
+                    .foregroundStyle(contentColor("text-strong", scheme)).padding(.trailing, metric("gutter")).accessibilityAddTraits(.isHeader)
+                Text(text).font(.vzn("labelScale")).foregroundStyle(contentColor("text-strong", scheme)).textSelection(.enabled).lineLimit(12).fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading).help(text)
+                if let id = model.sessionID, let session = store.session(id) {
+                    let seconds = store.workspace.tasks.first(where: { $0.request.sessionID == id })?.duration
+                    Text(ModelLineup.shortName(session.model) + (seconds.map { " · " + durationText($0, store: store) } ?? "")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).lineLimit(1).help(session.model)
+                }
+                if !paste { Text(store.text("quickReadOnly")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)) }
+                HStack(spacing: metric("small")) {
+                    Button(store.text("openInTranslate"), action: actions.open).buttonStyle(.vznQuiet).fixedSize()
+                    Spacer(minLength: 0)
+                    Button(store.text("copy")) { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string); actions.close() }
+                        .buttonStyle(paste ? .vznOutline : .vznPrimary).fixedSize()
+                    if paste { Button(store.text("quickPaste")) { actions.paste(text) }.buttonStyle(.vznPrimary).fixedSize() }
+                }
             case .result(let text, let paste):
                 header(store.text("quickResultTitle").replacingOccurrences(of: "{lang}", with: language), symbol: "character.bubble", tone: contentColor("action-text", scheme))
                 // Quick results are short; a long one stays whole in Translate ("Open in Translate").
@@ -157,8 +177,9 @@ struct QuickTranslateView: View {
         .padding(metric("inset"))
         .frame(width: Self.width(model.phase), alignment: .leading)
         .fixedSize(horizontal: false, vertical: true)
-        .background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("largeRadius")))
-        .overlay(RoundedRectangle(cornerRadius: metric("largeRadius")).strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")))
+        // Glass: the floating `.float` card; other presets keep the bordered surface.
+        .background { if glass { ReadingPanelSurface() } else { RoundedRectangle(cornerRadius: metric("largeRadius")).fill(contentColor("surface", scheme)) } }
+        .overlay { if !glass { RoundedRectangle(cornerRadius: metric("largeRadius")).strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")) } }
         .overlay(alignment: .topTrailing) {
             Button(action: actions.close) { Image(systemName: "xmark").font(.vzn("captionScale")) }
                 .buttonStyle(.vznQuiet).foregroundStyle(.secondary).padding(metric("small"))

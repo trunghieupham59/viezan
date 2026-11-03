@@ -6,6 +6,7 @@
 #include <QCryptographicHash>
 #include <QUuid>
 #include <QStringList>
+#include <algorithm>
 namespace {
 QString hash(const QByteArray &bytes) { return QString::fromLatin1(QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex()); }
 QVariantList images(const QVariantMap &session) {
@@ -55,8 +56,13 @@ Preview preview(const QByteArray &data) {
     for (const auto &key : {"locale", "appearance", "voice", "speechProvider", "runtime", "rates", "autoTranslate", "autoTranslateDelay"}) if (state.contains(key)) result.preferences[key] = state.value(key);
     result.tasks = state.value("tasks").toList(); result.prompts = state.value("prompts").toList();
     result.sessions = state.value("sessions").toList();
-    for (const auto &value : result.sessions) for (const auto &image : images(value.toMap())) if (!result.attachments.contains(image)) return {};
-    for (const auto &task : result.tasks) for (const auto &image : images(task.toMap().value("request").toMap())) if (!result.attachments.contains(image)) return {};
+    // Same stored file: match identity, not the optional details (width, height, generator).
+    const auto known = [&result](const QVariant &value) {
+        const auto image = value.toMap();
+        return std::any_of(result.attachments.cbegin(), result.attachments.cend(), [&image](const QVariant &entry) { const auto file = entry.toMap(); return file.value("id") == image.value("id") && file.value("name") == image.value("name") && file.value("mime") == image.value("mime"); });
+    };
+    for (const auto &value : result.sessions) for (const auto &image : images(value.toMap())) if (!known(image)) return {};
+    for (const auto &task : result.tasks) for (const auto &image : images(task.toMap().value("request").toMap())) if (!known(image)) return {};
     result.valid = true; return result;
 }
 bool materialize(const Preview &preview) {

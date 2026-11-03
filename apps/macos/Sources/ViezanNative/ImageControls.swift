@@ -25,7 +25,8 @@ struct ImageControls: View {
                     ShellToolbarButton(label: store.text("attachImage"), symbol: "plus", identifier: "tools-toggle", quiet: glassChat, soft: selected, expanded: shellLayer == .tools, enabled: !busy,
                                        frameAction: { frame in NotificationCenter.default.post(name: .viezanOpenTools, object: NSValue(rect: frame)) }) {}
                         .frame(width: metric("control"), height: metric("control"))
-                        .modifier(ControlGlass(active: glassChat, selected: selected || shellLayer == .tools, enabled: !busy))
+                        // Chat board: "+" is a raised white lens inside the composer capsule.
+                        .background { if glassChat { GlassLens(radius: metric("control") / 2) } }
                 }
                 if busy { ProgressView().controlSize(.small).accessibilityLabel(store.text("running")) }
                 if !pendingText.isEmpty { Button(store.text("insertTranscript")) { store.setDraft(store.session.id, store.session.draft + (store.session.draft.isEmpty ? "" : "\n") + pendingText); pendingText = "" } }
@@ -186,7 +187,25 @@ struct AttachmentChips: View {
     @Environment(\.colorScheme) private var scheme
     @Bindable var store: WorkbenchStore
     var body: some View {
-        if let images = store.session.images, !images.isEmpty {
+        if let images = store.session.images, !images.isEmpty, (NativeTheme.shared.preferences.preset ?? "glass") == "glass" {
+            // Chat-States: 56 pt thumbnails, each with a 20 pt round remove control on its corner.
+            NativeFlow(spacing: metric("small") + metric("hairline") * 2) {
+                ForEach(images) { image in
+                    AttachmentThumbnail(attachment: image)
+                        .overlay(alignment: .topTrailing) {
+                            Button { store.removeImage(image.id, sessionID: store.session.id) } label: {
+                                Image(systemName: "xmark").font(.system(size: metric("gap") - metric("hairline"), weight: .semibold))
+                                    .frame(width: metric("icon"), height: metric("icon"))
+                                    .background(chromeColor("surface-raised", scheme), in: Circle())
+                                    .overlay(Circle().strokeBorder(contentColor("border-strong", scheme), lineWidth: metric("hairline")))
+                                    .shadow(color: chromeColor("shadow-md-color", scheme), radius: metric("tight") / 2, y: metric("hairline"))
+                                    .contentShape(Circle())
+                            }.buttonStyle(.plain).offset(x: metric("small") - metric("hairline") * 2, y: -(metric("small") - metric("hairline") * 2))
+                                .accessibilityLabel(store.text("removeAttachment") + " " + image.name).help(store.text("removeAttachment"))
+                        }
+                }
+            }.padding(.top, metric("tight")).padding(.leading, metric("tight"))
+        } else if let images = store.session.images, !images.isEmpty {
             NativeFlow(spacing: metric("small")) {
                 ForEach(images) { image in
                     HStack(spacing: metric("tight")) {
@@ -202,12 +221,43 @@ struct AttachmentChips: View {
     }
 }
 
-struct AttachmentPreview: View {
+// Square thumbnail of a pending attachment (56 pt, 10 pt corners, hairline).
+struct AttachmentThumbnail: View {
     let attachment: ImageAttachment
     @State private var image: NSImage?
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        let side = metric("hero") + metric("small"), shape = RoundedRectangle(cornerRadius: metric("controlRadius"), style: .continuous)
+        Group {
+            if let image { Image(nsImage: image).resizable().scaledToFill() }
+            else { contentColor("surface-muted", scheme).overlay(Image(systemName: "photo").foregroundStyle(contentColor("text-soft", scheme))) }
+        }
+        .frame(width: side, height: side).clipShape(shape)
+        .overlay(shape.strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")))
+        .accessibilityLabel(attachment.name)
+        .task(id: attachment.id) {
+            let attachment = attachment
+            if let bytes = try? await Task.detached(operation: { try Attachments.data(attachment) }).value { image = NSImage(data: bytes) }
+        }
+    }
+}
+
+struct AttachmentPreview: View {
+    let attachment: ImageAttachment
+    /// Glass result frame (Chat-States): bounded square side and corner radius; nil keeps the plain preview.
+    var maxSide: CGFloat? = nil
+    var radius: CGFloat = 0
+    @State private var image: NSImage?
+    @Environment(\.colorScheme) private var scheme
     var body: some View {
         Group {
-            if let image { Image(nsImage: image).resizable().scaledToFit().frame(maxHeight: metric("editor") * 2).accessibilityLabel(attachment.name) }
+            if let image, let maxSide {
+                Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: maxSide, maxHeight: maxSide)
+                    .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+                    .shadow(color: chromeColor("shadow-md-color", scheme), radius: metric("shadowSmBlur") / 2, y: metric("shadowSmY"))
+                    .accessibilityLabel(attachment.name)
+            }
+            else if let image { Image(nsImage: image).resizable().scaledToFit().frame(maxHeight: metric("editor") * 2).accessibilityLabel(attachment.name) }
             else { Label(attachment.name, systemImage: "photo").font(.vzn("captionScale")) }
         }.task(id: attachment.id) {
             let attachment = attachment

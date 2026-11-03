@@ -69,7 +69,8 @@ public enum ImageGeneration {
             try Task.checkCancellation(); guard let bytes = Data(base64Encoded: encoded), !bytes.isEmpty, bytes.count <= 20_000_000, ["image/png", "image/jpeg", "image/webp"].contains(mime) else { throw CloudFailure.invalidResponse }
             let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".png")
             defer { try? FileManager.default.removeItem(at: temporary) }; try bytes.write(to: temporary, options: .atomic)
-            return try Attachments.ingest(temporary)
+            var image = try Attachments.ingest(temporary); image.generator = provider + ":" + model
+            return image
         }
     }
 }
