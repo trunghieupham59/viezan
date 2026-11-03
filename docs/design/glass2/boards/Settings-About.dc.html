@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Cài đặt Giới thiệu</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;color:#3F3A35}
+a{color:#5A5FA3;text-decoration:none}a:hover{color:#4E5292}
+.win{position:relative;overflow:hidden;color:#3F3A35;background:radial-gradient(900px 620px at 10% 0%,rgba(246,230,205,.90),transparent 62%),radial-gradient(760px 560px at 100% 100%,rgba(160,182,204,.70),transparent 62%),linear-gradient(150deg,#EADFCF 0%,#C8B8AB 36%,#9896AE 68%,#B3BFCC 100%)}
+.win.dark{color:#E0D8CE;background:radial-gradient(900px 620px at 10% 0%,rgba(150,118,86,.42),transparent 62%),radial-gradient(760px 560px at 100% 100%,rgba(92,104,150,.45),transparent 62%),linear-gradient(150deg,#2B231D 0%,#2C2731 46%,#1F2531 100%)}
+.glass{background:linear-gradient(135deg,rgba(255,255,255,.68),rgba(255,255,255,.40));backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);border:1px solid rgba(255,255,255,.70);box-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -1px 0 rgba(255,255,255,.25),0 1px 1px rgba(62,48,34,.05),0 6px 18px rgba(62,48,34,.08)}
+.dark .glass{background:linear-gradient(135deg,rgba(255,255,255,.14),rgba(255,255,255,.06));border-color:rgba(255,255,255,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(255,255,255,.04),0 1px 1px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.28)}
+.pane{background:linear-gradient(160deg,rgba(255,255,255,.52),rgba(255,255,255,.30));backdrop-filter:blur(36px) saturate(170%);-webkit-backdrop-filter:blur(36px) saturate(170%);border:1px solid rgba(255,255,255,.62);box-shadow:inset 0 1px 0 rgba(255,255,255,.80),0 2px 4px rgba(62,48,34,.04),0 18px 48px rgba(62,48,34,.14)}
+.dark .pane{background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.04));border-color:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 2px 4px rgba(0,0,0,.3),0 18px 48px rgba(0,0,0,.4)}
+.content{background:rgba(255,255,255,.82);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(255,255,255,.75);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 4px rgba(62,48,34,.04),0 18px 48px rgba(62,48,34,.10)}
+.dark .content{background:rgba(32,28,30,.80);border-color:rgba(255,255,255,.10);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 18px 48px rgba(0,0,0,.4)}
+.float{background:rgba(255,255,255,.88);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);border:1px solid rgba(255,255,255,.8);box-shadow:inset 0 1px 0 #fff,0 24px 64px rgba(62,48,34,.22),0 2px 6px rgba(62,48,34,.08);border-radius:20px}
+.dark .float{background:rgba(38,34,38,.90);border-color:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 24px 64px rgba(0,0,0,.55)}
+.card{background:rgba(255,255,255,.70);border:1px solid rgba(62,48,34,.08);border-radius:16px;box-shadow:0 1px 2px rgba(62,48,34,.04)}
+.dark .card{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.10);box-shadow:none}
+.field{background:rgba(255,255,255,.62);border:1px solid rgba(62,48,34,.10);box-shadow:inset 0 1px 2px rgba(62,48,34,.05);color:#3F3A35}
+.dark .field{background:rgba(0,0,0,.24);border-color:rgba(255,255,255,.12);box-shadow:inset 0 1px 2px rgba(0,0,0,.3);color:#E0D8CE}
+.field input,.field textarea{border:0;background:transparent;font:inherit;outline:0;min-width:0;color:inherit;padding:0;resize:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:500;line-height:1;font-family:inherit;color:#3F3A35;border:1px solid transparent;background:transparent;cursor:pointer;white-space:nowrap;position:relative}
+.btn.md{height:36px;padding:0 14px}.btn.icon{width:32px;padding:0}.btn.icon.md{width:36px}.btn.sm{height:28px;padding:0 10px;font-size:12px}.btn.icon.sm{width:28px}
+.btn.primary{color:#fff;background:linear-gradient(180deg,#7B7FC6 0%,#5A5FA3 100%);border-color:rgba(255,255,255,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 1px 2px rgba(90,95,163,.35),0 6px 16px rgba(90,95,163,.28);font-weight:600}
+.btn.tint{color:#5A5FA3;font-weight:600}
+.dark .btn{color:#E0D8CE}.dark .btn.tint{color:#A6AAEE}
+.btn.danger{color:#C4473F}.dark .btn.danger{color:#FF7B7B}
+.btn.disabled{opacity:.45}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:rgba(62,48,34,.06);box-shadow:inset 0 1px 2px rgba(62,48,34,.05)}
+.dark .seg{background:rgba(0,0,0,.25)}
+.seg button{height:26px;padding:0 12px;border-radius:999px;border:1px solid transparent;background:transparent;font-size:13px;font-weight:500;line-height:1;font-family:inherit;color:#6F675F;cursor:pointer;white-space:nowrap}
+.dark .seg button{color:#B3A99D}
+.seg button.on{background:linear-gradient(135deg,rgba(255,255,255,.95),rgba(255,255,255,.78));color:#2A2622;font-weight:600;border-color:rgba(255,255,255,.9);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(62,48,34,.10),0 4px 10px rgba(62,48,34,.08)}
+.dark .seg button.on{background:linear-gradient(135deg,rgba(255,255,255,.20),rgba(255,255,255,.10));color:#fff;border-color:rgba(255,255,255,.22)}
+.cap{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6F675F}
+.dark .cap{color:#AAA094}
+.t1{color:#2A2622}.t3{color:#6F675F}.t4{color:#7A7167}
+.dark .t1{color:#F4EFE7}.dark .t3{color:#B3A99D}.dark .t4{color:#9A9084}
+.hair{border-top:1px solid rgba(62,48,34,.08)}.dark .hair{border-top-color:rgba(255,255,255,.08)}
+.kbd{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:6px;font-size:11px;font-weight:500;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#6F675F;background:rgba(255,255,255,.7);border:1px solid rgba(62,48,34,.10);box-shadow:inset 0 1px 0 #fff}
+.dark .kbd{color:#B3A99D;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.12);box-shadow:none}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.ic{width:16px;height:16px;flex:none}
+.tl{display:flex;gap:8px}.tl i{width:12px;height:12px;border-radius:50%;display:block;border:1px solid rgba(0,0,0,.12)}
+.lens{background:linear-gradient(135deg,rgba(255,255,255,.92),rgba(255,255,255,.72));border:1px solid rgba(255,255,255,.95);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(62,48,34,.08),0 6px 14px rgba(62,48,34,.08)}
+.dark .lens{background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.09));border-color:rgba(255,255,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 6px 14px rgba(0,0,0,.3)}
+.bubble{background:rgba(62,48,34,.06);border-radius:18px 18px 6px 18px;padding:10px 14px;font-size:14px;line-height:1.55;max-width:75%;color:#2A2622}
+.dark .bubble{background:rgba(255,255,255,.10);color:#F4EFE7}
+.composer{height:52px;border-radius:26px;display:flex;align-items:center;gap:8px;padding:0 8px}
+.crumb{position:absolute;left:272px;top:0;height:48px;display:flex;align-items:center;gap:6px;font-size:13px;color:#6F675F}
+.crumb b{color:#2A2622;font-weight:600}.dark .crumb{color:#B3A99D}.dark .crumb b{color:#F4EFE7}
+.vsep{width:1px;height:18px;background:rgba(62,48,34,.14);margin:0 4px}.dark .vsep{background:rgba(255,255,255,.16)}
+.row{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 12px;border-radius:12px}
+.srow{display:flex;align-items:center;gap:16px;min-height:48px;padding:10px 16px}
+.tile{display:flex;align-items:center;gap:12px;height:56px;padding:0 12px 0 10px;border-radius:14px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:500;color:#2A2622;text-align:left}
+.dark .tile{color:#F4EFE7}
+.itile{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none}
+.tog{width:36px;height:22px;border-radius:11px;position:relative;display:inline-block;flex:none;box-shadow:inset 0 1px 2px rgba(0,0,0,.15)}
+.tog i{position:absolute;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.tog.on{background:#5A5FA3}.tog.on i{left:16px}.tog.off{background:rgba(62,48,34,.18)}.tog.off i{left:2px}
+.dark .tog.off{background:rgba(255,255,255,.18)}
+.badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:8px;background:#5A5FA3;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;border:1.5px solid #fff}
+.meter{height:6px;border-radius:3px;background:rgba(62,48,34,.08);overflow:hidden}.meter i{display:block;height:100%;border-radius:3px;background:#5A5FA3}
+.dark .meter{background:rgba(255,255,255,.10)}
+.read{font-size:14px;line-height:1.6;color:#2A2622}.dark .read{color:#EFE9E1}
+.note{font-size:12px;line-height:1.5;color:#6F675F}.dark .note{color:#B3A99D}
+.content > div:last-child > *,.content > div:last-child > div > *{flex-shrink:0}
+</style>
+</helmet>
+<div class="win" style="width:1280px;height:800px;border-radius:12px">
+  <div style="position:absolute;left:0;top:0;right:0;height:48px;display:flex;align-items:center;padding:0 16px 0 13px;gap:12px">
+    <div class="tl" aria-hidden="true"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div>
+    <button class="btn glass icon" style="width:30px;height:28px;border-radius:8px;margin-left:12px" aria-label="Thu nhỏ thanh bên (⌘\)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 7a3 3 0 0 1 3-3h3v16H6a3 3 0 0 1-3-3z" fill="currentColor" stroke="none"/></svg></button>
+    <div class="crumb"><span>Cài đặt</span><span>/</span><b>Giới thiệu</b></div>
+    <div style="flex:1"></div>
+    <label class="field glass" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:999px;width:220px;font-size:13px;color:#7A7167;background:rgba(255,255,255,.55)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input aria-label="Tìm trong cài đặt" placeholder="Tìm trong cài đặt" style="flex:1"></label><div class="vsep"></div><button class="btn glass" aria-label="Hoạt động (⌘⇧A)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span>Hoạt động</span></button>
+  </div>
+  <div style="position:absolute;left:8px;top:56px"><dc-import name="Sidebar" active="settings" h="736" hint-size="236px,736px"></dc-import></div>
+  <div class="content" style="position:absolute;left:256px;top:56px;width:1012px;height:736px;border-radius:22px;overflow:hidden;display:flex">
+<div style="width:292px;flex:none;padding:16px 12px 16px 16px;border-right:1px solid rgba(62,48,34,.08);display:flex;flex-direction:column;gap:2px;overflow:hidden"><div class="cap" style="padding:4px 10px 8px">Tuỳ chỉnh</div><a class="row" href="#" style="min-height:34px;padding:0 10px;gap:10px;font-size:14px;font-weight:400;color:#2A2622"><svg class="ic" style="width:18px;height:18px;color:#6F675F" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/></svg>Chung</a><a class="row" href="#" style="min-height:34px;padding:0 10px;gap:10px;font-size:14px;font-weight:400;color:#2A2622"><svg class="ic" style="width:18px;height:18px;color:#6F675F" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 2-.8 2-2v-1a2 2 0 0 1 2-2h2a3 3 0 0 0 3-3 10 10 0 0 0-9-10zM7.5 10a1 1 0 1 0 0 .01M12 7a1 1 0 1 0 0 .01M16.5 10a1 1 0 1 0 0 .01"/></svg>Giao diện</a><a class="row" href="#" style="min-height:34px;padding:0 10px;gap:10px;font-size:14px;font-weight:400;color:#2A2622"><svg class="ic" style="width:18px;height:18px;color:#6F675F" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2 5.5 5.5 2-5.5 2L12 18l-2-5.5-5.5-2 5.5-2z"/></svg>Nhà cung cấp AI</a><a class="row" href="#" style="min-height:34px;padding:0 10px;gap:10px;font-size:14px;font-weight:400;color:#2A2622"><svg class="ic" style="width:18px;height:18px;color:#6F675F" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4zM9 9h6v6H9zM9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/></svg>Model AI local</a><a class="row" href="#" style="min-height:34px;padding:0 10px;gap:10px;font-size:14px;font-weight:400;color:#2A2622"><svg class="ic" style="width:18px;height:18px;color:#6F675F" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg>Giọng nói</a><a class="row" href="#" style="min-height:34px;padding:0 10px;gap:10px;font-size:14px;font-weight:400;color:#2A2622"><svg class="ic" style="width:18px;height:18px;color:#6F675F" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg>Các module được bật</a><div class="cap" style="padding:16px 10px 8px">Ứng dụng</div><a class="row" href="#" style="min-height:34px;padding:0 10px;gap:10px;font-size:14px;font-weight:400;color:#2A2622"><svg class="ic" style="width:18px;height:18px;color:#6F675F" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12H2M5.5 5l-3 7v5a2 2 0 0 0 2 2h15a2 2 0 0 0 2-2v-5l-3-7a1 1 0 0 0-1-.6H6.4a1 1 0 0 0-.9.6zM6 16h.01M10 16h.01"/></svg>Dữ liệu và sao lưu</a><a class="row" href="#" style="min-height:34px;padding:0 10px;gap:10px;font-size:14px;font-weight:400;color:#2A2622"><svg class="ic" style="width:18px;height:18px;color:#6F675F" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Cập nhật ứng dụng</a><a class="row lens" href="#" style="min-height:34px;padding:0 10px;gap:10px;font-size:14px;font-weight:600;color:#2A2622"><svg class="ic" style="width:18px;height:18px;color:#5A5FA3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 16v-4M12 8h.01"/></svg>Giới thiệu</a><div style="flex:1"></div><div class="note" style="padding:0 10px">Thay đổi áp dụng ngay và được lưu trên thiết bị.</div></div>
+    <div style="flex:1;min-width:0;padding:28px 32px;display:flex;flex-direction:column;gap:16px;overflow:hidden">
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px"><div style="flex:1;min-width:0"><h1 class="t1" style="margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em">Giới thiệu</h1><p class="t3" style="margin:6px 0 0;font-size:13px">Viezan là bàn làm việc ngôn ngữ chạy native trên macOS.</p></div></div>
+<div class="card" style="overflow:hidden"><div style="padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between"><div class="t1" style="font-size:15px;font-weight:600">Viezan</div></div>
+<div style="display:flex;align-items:center;gap:16px;padding:6px 16px 16px"><div style="width:64px;height:64px;border-radius:18px;background:linear-gradient(180deg,#fff,#F2EAE0);border:1px solid rgba(255,255,255,.9);box-shadow:0 2px 8px rgba(62,48,34,.16);display:flex;align-items:center;justify-content:center" aria-hidden="true"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#5A5FA3" stroke-width="2.2" stroke-linecap="round"><path d="M4 12a8 8 0 1 1 8 8"/><path d="M8 12a4 4 0 1 1 4 4"/></svg></div><div><div class="t1" style="font-size:18px;font-weight:600">Viezan</div><div class="t3" style="font-size:13px">Phiên bản 2.5.0 (412)</div></div></div>
+<div class="srow" style="border-top:1px solid rgba(62,48,34,.08)"><div style="flex:1;min-width:0"><div style="font-size:14px;line-height:1.4">Mã nguồn</div><div class="note" style="margin-top:2px">github.com/trunghieupham59/viezan</div></div><a class="btn glass" href="#">GitHub ↗</a></div>
+<div class="srow" style="border-top:1px solid rgba(62,48,34,.08)"><div style="flex:1;min-width:0"><div style="font-size:14px;line-height:1.4">Giấy phép</div></div><button class="btn sm">Xem giấy phép mã nguồn mở</button></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:16px">
+<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:6px"><div class="t1" style="font-size:15px;font-weight:600">Ứng dụng native</div><p class="note" style="margin:0">SwiftUI và AppKit trên macOS; Qt trên Windows và Linux. Không có lớp web.</p></div>
+<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:6px"><div class="t1" style="font-size:15px;font-weight:600">Dữ liệu riêng trên thiết bị</div><p class="note" style="margin:0">Lịch sử lưu cục bộ. Chỉ nội dung bạn gửi mới tới nhà cung cấp AI đã chọn; API key nằm trong kho bảo mật hệ điều hành.</p></div>
+</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

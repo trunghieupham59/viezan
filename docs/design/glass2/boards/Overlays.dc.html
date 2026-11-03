@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Lớp nổi</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;color:#3F3A35}
+a{color:#5A5FA3;text-decoration:none}a:hover{color:#4E5292}
+.win{position:relative;overflow:hidden;color:#3F3A35;background:radial-gradient(900px 620px at 10% 0%,rgba(246,230,205,.90),transparent 62%),radial-gradient(760px 560px at 100% 100%,rgba(160,182,204,.70),transparent 62%),linear-gradient(150deg,#EADFCF 0%,#C8B8AB 36%,#9896AE 68%,#B3BFCC 100%)}
+.win.dark{color:#E0D8CE;background:radial-gradient(900px 620px at 10% 0%,rgba(150,118,86,.42),transparent 62%),radial-gradient(760px 560px at 100% 100%,rgba(92,104,150,.45),transparent 62%),linear-gradient(150deg,#2B231D 0%,#2C2731 46%,#1F2531 100%)}
+.glass{background:linear-gradient(135deg,rgba(255,255,255,.68),rgba(255,255,255,.40));backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);border:1px solid rgba(255,255,255,.70);box-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -1px 0 rgba(255,255,255,.25),0 1px 1px rgba(62,48,34,.05),0 6px 18px rgba(62,48,34,.08)}
+.dark .glass{background:linear-gradient(135deg,rgba(255,255,255,.14),rgba(255,255,255,.06));border-color:rgba(255,255,255,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(255,255,255,.04),0 1px 1px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.28)}
+.pane{background:linear-gradient(160deg,rgba(255,255,255,.52),rgba(255,255,255,.30));backdrop-filter:blur(36px) saturate(170%);-webkit-backdrop-filter:blur(36px) saturate(170%);border:1px solid rgba(255,255,255,.62);box-shadow:inset 0 1px 0 rgba(255,255,255,.80),0 2px 4px rgba(62,48,34,.04),0 18px 48px rgba(62,48,34,.14)}
+.dark .pane{background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.04));border-color:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 2px 4px rgba(0,0,0,.3),0 18px 48px rgba(0,0,0,.4)}
+.content{background:rgba(255,255,255,.82);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(255,255,255,.75);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 4px rgba(62,48,34,.04),0 18px 48px rgba(62,48,34,.10)}
+.dark .content{background:rgba(32,28,30,.80);border-color:rgba(255,255,255,.10);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 18px 48px rgba(0,0,0,.4)}
+.float{background:rgba(255,255,255,.88);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);border:1px solid rgba(255,255,255,.8);box-shadow:inset 0 1px 0 #fff,0 24px 64px rgba(62,48,34,.22),0 2px 6px rgba(62,48,34,.08);border-radius:20px}
+.dark .float{background:rgba(38,34,38,.90);border-color:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 24px 64px rgba(0,0,0,.55)}
+.card{background:rgba(255,255,255,.70);border:1px solid rgba(62,48,34,.08);border-radius:16px;box-shadow:0 1px 2px rgba(62,48,34,.04)}
+.dark .card{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.10);box-shadow:none}
+.field{background:rgba(255,255,255,.62);border:1px solid rgba(62,48,34,.10);box-shadow:inset 0 1px 2px rgba(62,48,34,.05);color:#3F3A35}
+.dark .field{background:rgba(0,0,0,.24);border-color:rgba(255,255,255,.12);box-shadow:inset 0 1px 2px rgba(0,0,0,.3);color:#E0D8CE}
+.field input,.field textarea{border:0;background:transparent;font:inherit;outline:0;min-width:0;color:inherit;padding:0;resize:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:500;line-height:1;font-family:inherit;color:#3F3A35;border:1px solid transparent;background:transparent;cursor:pointer;white-space:nowrap;position:relative}
+.btn.md{height:36px;padding:0 14px}.btn.icon{width:32px;padding:0}.btn.icon.md{width:36px}.btn.sm{height:28px;padding:0 10px;font-size:12px}.btn.icon.sm{width:28px}
+.btn.primary{color:#fff;background:linear-gradient(180deg,#7B7FC6 0%,#5A5FA3 100%);border-color:rgba(255,255,255,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 1px 2px rgba(90,95,163,.35),0 6px 16px rgba(90,95,163,.28);font-weight:600}
+.btn.tint{color:#5A5FA3;font-weight:600}
+.dark .btn{color:#E0D8CE}.dark .btn.tint{color:#A6AAEE}
+.btn.danger{color:#C4473F}.dark .btn.danger{color:#FF7B7B}
+.btn.disabled{opacity:.45}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:rgba(62,48,34,.06);box-shadow:inset 0 1px 2px rgba(62,48,34,.05)}
+.dark .seg{background:rgba(0,0,0,.25)}
+.seg button{height:26px;padding:0 12px;border-radius:999px;border:1px solid transparent;background:transparent;font-size:13px;font-weight:500;line-height:1;font-family:inherit;color:#6F675F;cursor:pointer;white-space:nowrap}
+.dark .seg button{color:#B3A99D}
+.seg button.on{background:linear-gradient(135deg,rgba(255,255,255,.95),rgba(255,255,255,.78));color:#2A2622;font-weight:600;border-color:rgba(255,255,255,.9);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(62,48,34,.10),0 4px 10px rgba(62,48,34,.08)}
+.dark .seg button.on{background:linear-gradient(135deg,rgba(255,255,255,.20),rgba(255,255,255,.10));color:#fff;border-color:rgba(255,255,255,.22)}
+.cap{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6F675F}
+.dark .cap{color:#AAA094}
+.t1{color:#2A2622}.t3{color:#6F675F}.t4{color:#7A7167}
+.dark .t1{color:#F4EFE7}.dark .t3{color:#B3A99D}.dark .t4{color:#9A9084}
+.hair{border-top:1px solid rgba(62,48,34,.08)}.dark .hair{border-top-color:rgba(255,255,255,.08)}
+.kbd{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:6px;font-size:11px;font-weight:500;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#6F675F;background:rgba(255,255,255,.7);border:1px solid rgba(62,48,34,.10);box-shadow:inset 0 1px 0 #fff}
+.dark .kbd{color:#B3A99D;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.12);box-shadow:none}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.ic{width:16px;height:16px;flex:none}
+.tl{display:flex;gap:8px}.tl i{width:12px;height:12px;border-radius:50%;display:block;border:1px solid rgba(0,0,0,.12)}
+.lens{background:linear-gradient(135deg,rgba(255,255,255,.92),rgba(255,255,255,.72));border:1px solid rgba(255,255,255,.95);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(62,48,34,.08),0 6px 14px rgba(62,48,34,.08)}
+.dark .lens{background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.09));border-color:rgba(255,255,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 6px 14px rgba(0,0,0,.3)}
+.bubble{background:rgba(62,48,34,.06);border-radius:18px 18px 6px 18px;padding:10px 14px;font-size:14px;line-height:1.55;max-width:75%;color:#2A2622}
+.dark .bubble{background:rgba(255,255,255,.10);color:#F4EFE7}
+.composer{height:52px;border-radius:26px;display:flex;align-items:center;gap:8px;padding:0 8px}
+.crumb{position:absolute;left:272px;top:0;height:48px;display:flex;align-items:center;gap:6px;font-size:13px;color:#6F675F}
+.crumb b{color:#2A2622;font-weight:600}.dark .crumb{color:#B3A99D}.dark .crumb b{color:#F4EFE7}
+.vsep{width:1px;height:18px;background:rgba(62,48,34,.14);margin:0 4px}.dark .vsep{background:rgba(255,255,255,.16)}
+.row{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 12px;border-radius:12px}
+.srow{display:flex;align-items:center;gap:16px;min-height:48px;padding:10px 16px}
+.tile{display:flex;align-items:center;gap:12px;height:56px;padding:0 12px 0 10px;border-radius:14px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:500;color:#2A2622;text-align:left}
+.dark .tile{color:#F4EFE7}
+.itile{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none}
+.tog{width:36px;height:22px;border-radius:11px;position:relative;display:inline-block;flex:none;box-shadow:inset 0 1px 2px rgba(0,0,0,.15)}
+.tog i{position:absolute;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.tog.on{background:#5A5FA3}.tog.on i{left:16px}.tog.off{background:rgba(62,48,34,.18)}.tog.off i{left:2px}
+.dark .tog.off{background:rgba(255,255,255,.18)}
+.badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:8px;background:#5A5FA3;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;border:1.5px solid #fff}
+.meter{height:6px;border-radius:3px;background:rgba(62,48,34,.08);overflow:hidden}.meter i{display:block;height:100%;border-radius:3px;background:#5A5FA3}
+.dark .meter{background:rgba(255,255,255,.10)}
+.read{font-size:14px;line-height:1.6;color:#2A2622}.dark .read{color:#EFE9E1}
+.note{font-size:12px;line-height:1.5;color:#6F675F}.dark .note{color:#B3A99D}
+</style>
+</helmet>
+<div class="win" style="width:1440px;height:1700px;border-radius:12px;padding:32px 40px;display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;gap:28px;align-items:flex-start">
+    <div style="width:560px;flex:none">
+<div class="cap" style="margin-bottom:8px">Bảng lệnh ⌘K · giữa cửa sổ, 560 pt</div>
+      <div class="float" role="dialog" aria-label="Bảng lệnh" style="display:flex;flex-direction:column;overflow:hidden">
+        <label class="field" style="display:flex;align-items:center;gap:10px;height:48px;padding:0 16px;border:0;border-bottom:1px solid rgba(62,48,34,.08);border-radius:0;box-shadow:none;background:transparent;font-size:15px"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input aria-label="Tìm trang hoặc thao tác" value="t good evening" style="flex:1;color:#2A2622"><span class="kbd">esc</span></label>
+        <div style="padding:8px;display:flex;flex-direction:column;gap:2px">
+<a class="row lens" href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1m14 20-5-10-5 10m2-4h6"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Dịch “good evening”</span><span class="t3" style="font-size:12px">Tiếng Anh → Tiếng Việt</span><span class="kbd">↩</span></a>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Hỏi AI: “good evening”</span><span class="kbd">?</span></a>
+          <div class="cap" style="padding:10px 10px 4px">Trang</div>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Trang chủ</span><span class="kbd">⌘0</span></a>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">AI Chat</span><span class="kbd">⌘1</span></a>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1m14 20-5-10-5 10m2-4h6"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Dịch</span><span class="kbd">⌘2</span></a>
+          <div class="cap" style="padding:10px 10px 4px">Thao tác</div>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tạo mới</span><span class="kbd">⌘N</span></a>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Hoạt động</span><span class="kbd">⌘⇧A</span></a>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Ẩn hoặc hiện nhãn điều hướng</span><span class="kbd">⌘\\</span></a>
+        </div>
+        <div class="note" style="display:flex;gap:14px;padding:8px 16px 10px;border-top:1px solid rgba(62,48,34,.08)"><span><b class="t1">t</b> dịch</span><span><b class="t1">d</b> tra từ</span><span><b class="t1">?</b> hỏi AI</span><span><b class="t1">=</b> tính toán</span></div>
+      </div>
+    </div>
+    <div style="width:360px;flex:none">
+<div class="cap" style="margin-bottom:8px">Hoạt động · neo dưới nút Hoạt động</div>
+      <div class="float" role="dialog" aria-label="Hoạt động" style="display:flex;flex-direction:column;overflow:hidden">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 12px 8px 16px"><span class="t1" style="font-size:13px;font-weight:600">Hoạt động · 2 việc</span><button class="btn icon sm" aria-label="Đóng"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+        <div style="padding:0 8px 8px;display:flex;flex-direction:column;gap:4px">
+          <div class="card" style="padding:12px 12px 10px;display:flex;flex-direction:column;gap:8px;border-radius:12px">
+            <div style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:#5A5FA3;box-shadow:0 0 0 3px rgba(90,95,163,.18)"></span><span class="t1" style="font-size:13px;font-weight:500;flex:1">Phiên dịch · 03/11/2026</span><span class="t3" style="font-size:12px">Đang nghe · 04:12</span></div>
+            <div style="display:flex;gap:6px"><button class="btn glass sm">Mở lại</button><button class="btn danger sm">Dừng</button></div>
+          </div>
+          <div class="card" style="padding:12px 12px 10px;display:flex;flex-direction:column;gap:8px;border-radius:12px">
+            <div style="display:flex;align-items:center;gap:8px"><svg class="ic" style="width:14px;height:14px;color:#5A5FA3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-6.4 2.6"/></svg><span class="t1" style="font-size:13px;font-weight:500;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">So sánh 3 model · Great tools disappear…</span><span class="t3" style="font-size:12px">2/3 xong</span></div>
+            <div style="display:flex;gap:6px"><button class="btn glass sm">Mở lại</button><button class="btn danger sm">Dừng</button></div>
+          </div>
+          <div class="card" style="padding:12px 12px 10px;display:flex;flex-direction:column;gap:8px;border-radius:12px;opacity:.85">
+            <div style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:#C4473F"></span><span class="t1" style="font-size:13px;font-weight:500;flex:1">giải thích REST trong 2 câu</span><span style="font-size:12px;color:#C4473F">Không thành công</span></div>
+            <div style="display:flex;gap:6px"><button class="btn glass sm">Mở lại</button><button class="btn primary sm">Thử lại</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="width:376px;flex:none">
+<div class="cap" style="margin-bottom:8px">Lịch sử nhanh · neo dưới nút Lịch sử</div>
+      <div class="float" role="dialog" aria-label="Lịch sử" style="display:flex;flex-direction:column;overflow:hidden">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 12px 8px 16px"><span class="t1" style="font-size:13px;font-weight:600">Lịch sử</span><button class="btn icon sm" aria-label="Đóng"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+        <div style="padding:0 12px 8px"><label class="field" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:999px;font-size:13px;color:#7A7167"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input aria-label="Tìm tên hoặc nội dung" placeholder="Tìm tên hoặc nội dung" style="flex:1"></label></div>
+        <div style="padding:0 8px;display:flex;flex-direction:column;gap:2px">
+          <a class="row" href="#" aria-current="true" style="min-height:0;padding:8px 10px;align-items:flex-start;gap:8px"><span style="flex:1;min-width:0"><span class="t1" style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600"><span style="color:#5A5FA3"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>1 dặm bằng bao nhiêu km? trả lời 1 dòng</span><span style="display:flex;gap:8px;margin-top:2px"><span class="t3" style="flex:1;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Đang mở</span><span class="t4" style="font-size:11px">15 giờ trước</span></span></span></a>
+          <a class="row lens" href="#" style="min-height:0;padding:8px 10px;align-items:flex-start"><span style="flex:1;min-width:0"><span class="t1" style="display:block;font-size:13px;font-weight:500">xin chào bạn</span><span style="display:flex;gap:8px;margin-top:2px"><span class="t3" style="flex:1;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Hôm nay là thứ Hai, ngày 02/11/2026.</span><span class="t4" style="font-size:11px">16 giờ trước</span></span></span></a>
+          <a class="row" href="#" style="min-height:0;padding:8px 10px;align-items:flex-start"><span style="flex:1;min-width:0"><span class="t1" style="display:block;font-size:13px;font-weight:500">giải thích REST trong 2 câu</span><span style="display:flex;gap:8px;margin-top:2px"><span class="t3" style="flex:1;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Đang xử lý</span><span class="t4" style="font-size:11px">20 giờ trước</span></span></span></a>
+          <a class="row" href="#" style="min-height:0;padding:8px 10px;align-items:flex-start"><span style="flex:1;min-width:0"><span class="t1" style="display:block;font-size:13px;font-weight:500">thủ đô Nhật</span><span style="display:flex;gap:8px;margin-top:2px"><span class="t3" style="flex:1;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Thủ đô của Nhật Bản là Tokyo (Đông Kinh).</span><span class="t4" style="font-size:11px">Hôm kia</span></span></span></a>
+        </div>
+        <div style="padding:6px 8px 8px;border-top:1px solid rgba(62,48,34,.08);margin-top:6px"><button class="btn" style="color:#5A5FA3">Xem tất cả lịch sử<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-7-7 7 7-7 7"/></svg></button></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:28px;align-items:flex-start">
+    <div style="width:376px;flex:none">
+<div class="cap" style="margin-bottom:8px">Chọn model · neo trên chip model trong composer</div>
+      <div class="float" role="dialog" aria-label="Chọn model" style="display:flex;flex-direction:column;overflow:hidden">
+        <div style="padding:10px 12px 6px"><label class="field" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:999px;font-size:13px;color:#7A7167"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input aria-label="Tìm model hoặc nhập ID" placeholder="Tìm model hoặc nhập ID" style="flex:1"></label></div>
+        <div style="padding:0 8px;display:flex;flex-direction:column;gap:1px">
+          <div class="cap" style="padding:6px 10px 4px">Mục đích</div>
+<a class="row lens" href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Nhanh · Haiku 5.5</span><span style="color:#5A5FA3"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></a>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M3 12h18"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Cân bằng · Sonnet 5.5</span></a>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" style="width:13px;height:13px;color:#5A5FA3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l2 5.5 5.5 2-5.5 2L12 18l-2-5.5-5.5-2 5.5-2z"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Kỹ · Opus 5.5</span><span class="t3" style="font-size:12px">suy luận kỹ</span></a>
+          <div class="cap" style="padding:10px 10px 4px">Gần đây</div>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">GPT-5.5 Mini</span><span class="t3" style="font-size:12px">OpenAI</span></a>
+          <div class="cap" style="padding:10px 10px 4px">Claude</div>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Opus 5.5</span><span class="t3" style="font-size:12px">claude-opus-5-5</span></a>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Sonnet 5.5</span><span class="t3" style="font-size:12px">claude-sonnet-5-5</span></a>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Haiku 5.5</span><span class="t3" style="font-size:12px">claude-haiku-5-5</span><span style="color:#5A5FA3"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></a>
+          <div class="cap" style="padding:10px 10px 4px">OpenAI</div>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">GPT-5.5</span><span class="t3" style="font-size:12px">gpt-5.5</span></a>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">GPT-5.5 Mini</span><span class="t3" style="font-size:12px">gpt-5.5-mini</span></a>
+          <div class="cap" style="padding:10px 10px 4px">Gemini</div>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t3">Thiết lập Gemini…</span></a>
+          <div class="cap" style="padding:10px 10px 4px">Trên máy</div>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t3">Thiết lập model local…</span></a>
+        </div>
+        <div style="display:flex;gap:4px;padding:8px;border-top:1px solid rgba(62,48,34,.08);margin-top:6px"><button class="btn sm"><svg class="ic" style="width:13px;height:13px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>Tải lại model</button><button class="btn sm">Cấu hình model</button></div>
+      </div>
+    </div>
+    <div style="width:376px;flex:none">
+<div class="cap" style="margin-bottom:8px">Công cụ “+” · neo trên nút + của composer</div>
+      <div class="float" role="dialog" aria-label="Công cụ" style="display:flex;flex-direction:column;overflow:hidden;padding:8px">
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Đính kèm ảnh</span><span class="t4" style="font-size:11px">0/4</span></a>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Chụp màn hình</span></a>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M8 12h8M8 9h8M8 15h5"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Trích xuất chữ từ ảnh</span></a>
+        <div class="hair" style="margin:6px 4px"></div>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">AI Chat</span><span class="t3" style="font-size:12px">Trả lời từ model</span><span style="color:#5A5FA3"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></a>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tìm kiếm trên mạng</span><span class="t3" style="font-size:12px">Tìm trên web trước</span></a>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Nghiên cứu chuyên sâu</span><span class="t3" style="font-size:12px">Nhiều vòng, có nguồn</span></a>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tạo hình ảnh</span><span class="t3" style="font-size:12px">OpenAI sẽ vẽ</span></a>
+        <div class="hair" style="margin:6px 4px"></div>
+        <div class="row" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" style="width:13px;height:13px;color:#5A5FA3" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l2 5.5 5.5 2-5.5 2L12 18l-2-5.5-5.5-2 5.5-2z"/></svg></span><span class="t1" style="flex:1">Suy luận cẩn thận</span><span class="t3" style="font-size:12px">Chậm hơn, kỹ hơn</span><span class="tog off" role="switch" aria-checked="false" aria-label="Suy luận cẩn thận"><i></i></span></div>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Hướng dẫn cho phiên</span><span class="t3" style="font-size:12px">Không</span><svg class="ic" style="width:12px;height:12px;color:#7A7167" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></a>
+        <div class="hair" style="margin:6px 4px"></div>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Nghe</span></a>
+<a class="row " href="#" style="min-height:40px;padding:0 10px;gap:10px;font-size:13px"><span style="width:18px;display:flex;justify-content:center;color:#6F675F"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t4">Dừng đọc</span></a>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:20px">
+      <div>
+<div class="cap" style="margin-bottom:8px">Toast · góc dưới phải, 6 giây</div>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+          <div class="float" role="status" style="display:flex;align-items:center;gap:12px;padding:10px 10px 10px 16px;border-radius:14px;width:380px"><span style="color:#3C8F5A"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span class="t1" style="flex:1;font-size:13px">Đã xoá: giải thích REST trong 2 câu</span><button class="btn glass sm">Hoàn tác</button><button class="btn icon sm" aria-label="Đóng"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+          <div class="float" role="alert" style="display:flex;align-items:center;gap:12px;padding:10px 10px 10px 16px;border-radius:14px;width:380px;border-color:rgba(196,71,63,.3)"><span class="dot" style="background:#C4473F"></span><span class="t1" style="flex:1;font-size:13px">Không đính kèm được ảnh: quá 10 MB.</span><button class="btn icon sm" aria-label="Đóng"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+        </div>
+      </div>
+      <div>
+<div class="cap" style="margin-bottom:8px">Sheet xác nhận · chỉ cho việc không hoàn tác được</div>
+        <div class="float" role="alertdialog" style="width:420px;padding:20px;display:flex;flex-direction:column;gap:8px;border-radius:18px">
+          <div class="t1" style="font-size:15px;font-weight:600">Xoá API key của Claude?</div>
+          <p class="note" style="margin:0">Viezan sẽ gỡ khoá khỏi kho bảo mật của hệ điều hành. Các model Claude ngừng khả dụng cho tới khi thêm khoá mới.</p>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px"><button class="btn glass">Huỷ</button><button class="btn" style="color:#fff;background:linear-gradient(180deg,#D9605A,#C4473F);border-color:rgba(255,255,255,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 6px 16px rgba(196,71,63,.28);font-weight:600">Xoá khoá</button></div>
+        </div>
+      </div>
+      <div>
+<div class="cap" style="margin-bottom:8px">Tooltip và hint phím</div>
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+          <span class="float" style="padding:6px 10px;border-radius:8px;font-size:12px" class="t1">Chat mới · <span class="kbd">⌘N</span></span>
+          <span class="float" style="padding:6px 10px;border-radius:8px;font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">claude-haiku-5-5</span>
+          <span class="float" style="padding:6px 10px;border-radius:8px;font-size:12px">AI xử lý trên thiết bị hoặc qua cloud, tuỳ mô hình.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1700}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

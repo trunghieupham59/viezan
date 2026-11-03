@@ -621,98 +621,98 @@ html.dark,
  * `html.dark`, which is how the preview shows a mode before it is applied.
  * This section is generated from a value table; keep blocks in lockstep. */
 
-/* Glass: Liquid Glass look. Translucent surfaces with blur and a light rim, ocean gradient actions; the window material shows through on macOS. */
+/* Glass: Liquid Glass 2.0 (2026-11-03). Three-layer scene: lit champagne→taupe→lavender→steel backdrop, one milky reading pane, glass only on navigation, controls and floating layers. Lavender-indigo actions. Source: docs/design/glass2/. */
 [data-theme="glass"],
 :root [data-theme="glass"][data-mode="light"] {
-  /* Cyan desktop glass: visible blue scene, ice workspace and milky raised cards. */
-  --vzn-app-bg: #a5d9f0;
-  --vzn-bg: rgba(206, 234, 247, 0.72);
-  --vzn-canvas: #ceeaf7;
-  --vzn-titlebar-bg: #c4e7f5;
-  --vzn-sidebar-bg: #b7e1f3;
-  --vzn-chat-sidebar-bg: #c4e5f3;
-  --vzn-surface: #e7f5fc;
-  --vzn-surface-raised: rgba(255, 255, 255, 0.54);
-  --vzn-surface-muted: #dceff8;
-  --vzn-surface-subtle: #d2eaf6;
-  --vzn-surface-hover: #c3e2f2;
-  --vzn-surface-selected: rgba(0, 109, 199, 0.12);
-  --vzn-text: #243e4b;
-  --vzn-text-strong: #16313f;
-  --vzn-text-muted: #486471;
-  --vzn-text-soft: #496572;
-  --vzn-text-disabled: #829ba7;
+  /* Warm-white reading pane over the lit backdrop; cards are flat hairline surfaces. */
+  --vzn-app-bg: #c8b8ab;
+  --vzn-bg: rgba(255, 253, 250, 0.82);
+  --vzn-canvas: rgba(255, 253, 250, 0.82);
+  --vzn-titlebar-bg: #e4d9cc;
+  --vzn-sidebar-bg: rgba(255, 255, 255, 0.4);
+  --vzn-chat-sidebar-bg: rgba(255, 253, 250, 0.82);
+  --vzn-surface: rgba(255, 255, 255, 0.7);
+  --vzn-surface-raised: rgba(255, 255, 255, 0.88);
+  --vzn-surface-muted: rgba(62, 48, 34, 0.06);
+  --vzn-surface-subtle: rgba(255, 255, 255, 0.62);
+  --vzn-surface-hover: rgba(255, 255, 255, 0.45);
+  --vzn-surface-selected: rgba(255, 255, 255, 0.85);
+  --vzn-text: #3f3a35;
+  --vzn-text-strong: #2a2622;
+  --vzn-text-muted: #6f675f;
+  --vzn-text-soft: #7a7167;
+  --vzn-text-disabled: #a89e92;
   --vzn-text-inverse: var(--vzn-neutral-0);
-  --vzn-border: rgba(72, 124, 150, 0.12);
-  --vzn-border-strong: rgba(48, 97, 123, 0.32);
-  --vzn-divider: rgba(72, 124, 150, 0.12);
-  --vzn-titlebar-material: rgba(196, 231, 245, 0.86);
-  --vzn-primary-nav-material: rgba(183, 225, 243, 0.88);
-  --vzn-context-nav-material: rgba(206, 234, 247, 0.86);
-  --vzn-overlay-material: rgba(231, 245, 252, 0.96);
-  --vzn-material-border: rgba(85, 153, 184, 0.12);
-  --vzn-material-highlight: rgba(255, 255, 255, 0.56);
-  --vzn-user-avatar-bg: #1f5fd6;
+  --vzn-border: rgba(62, 48, 34, 0.08);
+  --vzn-border-strong: rgba(62, 48, 34, 0.18);
+  --vzn-divider: rgba(62, 48, 34, 0.08);
+  --vzn-titlebar-material: rgba(255, 255, 255, 0.14);
+  --vzn-primary-nav-material: rgba(255, 255, 255, 0.42);
+  --vzn-context-nav-material: rgba(255, 253, 250, 0.82);
+  --vzn-overlay-material: rgba(255, 255, 255, 0.88);
+  --vzn-material-border: rgba(255, 255, 255, 0.7);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.85);
+  --vzn-user-avatar-bg: #5a5fa3;
   --vzn-user-avatar-fg: #ffffff;
   --vzn-assistant-avatar-bg: rgba(255, 255, 255, 0.7);
 
   /* Accent */
-  --vzn-action: #006dc7;
-  --vzn-action-hover: #005eae;
-  --vzn-action-active: #004f91;
-  --vzn-action-soft: rgba(0, 109, 199, 0.12);
-  --vzn-action-soft-hover: rgba(0, 109, 199, 0.18);
-  --vzn-action-border: rgba(0, 109, 199, 0.36);
-  --vzn-action-text: #005f9e;
+  --vzn-action: #5a5fa3;
+  --vzn-action-hover: #4e5292;
+  --vzn-action-active: #434682;
+  --vzn-action-soft: rgba(90, 95, 163, 0.12);
+  --vzn-action-soft-hover: rgba(90, 95, 163, 0.18);
+  --vzn-action-border: rgba(90, 95, 163, 0.36);
+  --vzn-action-text: #4e5292;
   --vzn-action-fg: var(--vzn-neutral-0);
-  --vzn-focus-ring: rgba(0, 109, 199, 0.6);
-  --vzn-action-fill: linear-gradient(135deg, var(--vzn-blue-700) 0%, var(--vzn-sky-600) 100%);
-  --vzn-action-fill-hover: linear-gradient(135deg, var(--vzn-blue-800) 0%, var(--vzn-sky-700) 100%);
-  --vzn-accent-glow: rgba(10, 132, 255, 0.35);
-  --vzn-shadow-glow: 0 8px 24px rgba(10, 132, 255, 0.25);
+  --vzn-focus-ring: rgba(90, 95, 163, 0.6);
+  --vzn-action-fill: linear-gradient(180deg, #7b7fc6 0%, #5a5fa3 100%);
+  --vzn-action-fill-hover: linear-gradient(180deg, #6d71b8 0%, #4e5292 100%);
+  --vzn-accent-glow: rgba(90, 95, 163, 0.35);
+  --vzn-shadow-glow: 0 6px 16px rgba(90, 95, 163, 0.28);
   --vzn-send-bg: var(--vzn-action-fill);
   --vzn-send-bg-hover: var(--vzn-action-fill-hover);
   --vzn-send-fg: var(--vzn-action-fg);
-  --vzn-user-bubble-bg: linear-gradient(135deg, var(--vzn-blue-700) 0%, var(--vzn-sky-600) 100%);
-  --vzn-user-bubble-fg: var(--vzn-neutral-0);
+  --vzn-user-bubble-bg: rgba(62, 48, 34, 0.06);
+  --vzn-user-bubble-fg: #2a2622;
   --vzn-user-bubble-border: transparent;
 
   /* Primary chrome */
-  --vzn-sidebar-search-bg: rgba(255, 255, 255, 0.48);
-  --vzn-chrome-fg: #274654;
-  --vzn-chrome-fg-strong: #16313f;
-  --vzn-chrome-fg-muted: #3f5e6b;
-  --vzn-chrome-fg-soft: #496572;
-  --vzn-chrome-divider: rgba(85, 153, 184, 0.12);
-  --vzn-chrome-item-hover: rgba(241, 250, 255, 0.5);
-  --vzn-chrome-item-active: rgba(255, 255, 255, 0.52);
-  --vzn-chrome-item-active-fg: #16313f;
+  --vzn-sidebar-search-bg: rgba(255, 255, 255, 0.62);
+  --vzn-chrome-fg: #3f3a35;
+  --vzn-chrome-fg-strong: #2a2622;
+  --vzn-chrome-fg-muted: #6f675f;
+  --vzn-chrome-fg-soft: #7a7167;
+  --vzn-chrome-divider: rgba(62, 48, 34, 0.08);
+  --vzn-chrome-item-hover: rgba(255, 255, 255, 0.45);
+  --vzn-chrome-item-active: rgba(255, 255, 255, 0.85);
+  --vzn-chrome-item-active-fg: #2a2622;
   --vzn-chrome-accent: var(--vzn-action);
 
   /* Illustrative tones */
-  --vzn-tone-blue: #3485f6;
-  --vzn-tone-violet: #8b5cf6;
-  --vzn-tone-green: #1aa75b;
-  --vzn-tone-orange: #ef6a32;
+  --vzn-tone-blue: #5a5fa3;
+  --vzn-tone-violet: #8b6f9e;
+  --vzn-tone-green: #4e7d5e;
+  --vzn-tone-orange: #9c6530;
 
   /* Shape */
-  --vzn-radius-2xs: 8px;
-  --vzn-radius-xs: 10px;
-  --vzn-radius-sm: 14px;
-  --vzn-radius-control: 16px;
-  --vzn-radius-md: 18px;
-  --vzn-radius-lg: 22px;
-  --vzn-radius-xl: 26px;
-  --vzn-radius-2xl: 30px;
+  --vzn-radius-2xs: 6px;
+  --vzn-radius-xs: 8px;
+  --vzn-radius-sm: 10px;
+  --vzn-radius-control: 10px;
+  --vzn-radius-md: 16px;
+  --vzn-radius-lg: 20px;
+  --vzn-radius-xl: 22px;
+  --vzn-radius-2xl: 26px;
 
   /* Depth and material */
-  --vzn-shadow-xs: 0 1px 2px rgba(20, 30, 60, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.75);
-  --vzn-shadow-sm: 0 2px 8px rgba(20, 30, 60, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.75);
-  --vzn-shadow-md: 0 12px 36px rgba(20, 30, 60, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.75);
-  --vzn-shadow-lg: 0 24px 64px rgba(20, 30, 60, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.75);
-  --vzn-shadow-overlay: 0 32px 96px rgba(20, 30, 60, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.75);
-  --vzn-prompt-card-shadow-hover: 0 12px 32px rgba(10, 132, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.75);
-  --vzn-blur: blur(24px) saturate(160%);
+  --vzn-shadow-xs: 0 1px 1px rgba(62, 48, 34, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --vzn-shadow-sm: 0 6px 18px rgba(62, 48, 34, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --vzn-shadow-md: 0 18px 48px rgba(62, 48, 34, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --vzn-shadow-lg: 0 24px 64px rgba(62, 48, 34, 0.22), inset 0 1px 0 rgba(255, 255, 255, 1);
+  --vzn-shadow-overlay: 0 24px 64px rgba(42, 38, 34, 0.35), 0 2px 6px rgba(42, 38, 34, 0.12);
+  --vzn-prompt-card-shadow-hover: 0 6px 14px rgba(62, 48, 34, 0.08), inset 0 1px 0 rgba(255, 255, 255, 1);
+  --vzn-blur: blur(18px) saturate(160%);
   --vzn-blur-sm: blur(12px) saturate(140%);
   /* Floating layers (menus, pickers, popovers, tooltips, toasts): heavier than --vzn-blur so text behind them never reads. */
   --vzn-overlay-blur: blur(40px) saturate(180%);
@@ -725,101 +725,101 @@ html.dark,
   --vzn-font-display: var(--vzn-font-sans);
 
   /* Backdrop (painted behind an opaque shell; a transparent native shell ignores it) */
-  --vzn-app-backdrop: radial-gradient(120% 80% at 0% 0%, rgba(10, 132, 255, 0.3) 0%, transparent 55%), radial-gradient(100% 80% at 100% 100%, rgba(34, 211, 238, 0.26) 0%, transparent 55%);
+  --vzn-app-backdrop: radial-gradient(900px 620px at 10% 0%, rgba(246, 230, 205, 0.9) 0%, transparent 62%), radial-gradient(760px 560px at 100% 100%, rgba(160, 182, 204, 0.7) 0%, transparent 62%), linear-gradient(150deg, #eadfcf 0%, #c8b8ab 36%, #9896ae 68%, #b3bfcc 100%);
 }
 
 html.dark [data-theme="glass"],
 html.dark[data-theme="glass"],
 :root [data-theme="glass"][data-mode="dark"] {
   /* Surfaces */
-  --vzn-app-bg: #0f1118;
-  --vzn-bg: rgba(18, 20, 30, 0.4);
-  --vzn-canvas: rgba(18, 20, 30, 0.5);
-  --vzn-titlebar-bg: #171a26;
-  --vzn-sidebar-bg: #171a26;
-  --vzn-chat-sidebar-bg: rgba(20, 23, 36, 0.6);
-  --vzn-surface: rgba(32, 36, 52, 0.6);
-  --vzn-surface-raised: rgba(40, 44, 62, 0.66);
-  --vzn-surface-muted: rgba(24, 27, 40, 0.6);
-  --vzn-surface-subtle: rgba(44, 48, 68, 0.55);
-  --vzn-surface-hover: rgba(58, 63, 88, 0.65);
-  --vzn-surface-selected: rgba(10, 132, 255, 0.22);
-  --vzn-text: #e4e7f2;
-  --vzn-text-strong: #f7f8fc;
-  --vzn-text-muted: #aab1c7;
-  --vzn-text-soft: #828aa3;
-  --vzn-text-disabled: #5a6178;
+  --vzn-app-bg: #2c2731;
+  --vzn-bg: rgba(32, 28, 30, 0.8);
+  --vzn-canvas: rgba(32, 28, 30, 0.8);
+  --vzn-titlebar-bg: #2b231d;
+  --vzn-sidebar-bg: rgba(255, 255, 255, 0.08);
+  --vzn-chat-sidebar-bg: rgba(32, 28, 30, 0.8);
+  --vzn-surface: rgba(255, 255, 255, 0.05);
+  --vzn-surface-raised: rgba(38, 34, 38, 0.9);
+  --vzn-surface-muted: rgba(255, 255, 255, 0.1);
+  --vzn-surface-subtle: rgba(0, 0, 0, 0.24);
+  --vzn-surface-hover: rgba(255, 255, 255, 0.08);
+  --vzn-surface-selected: rgba(255, 255, 255, 0.16);
+  --vzn-text: #e0d8ce;
+  --vzn-text-strong: #f4efe7;
+  --vzn-text-muted: #b3a99d;
+  --vzn-text-soft: #9a9084;
+  --vzn-text-disabled: #6e665d;
   --vzn-text-inverse: #0f1118;
-  --vzn-border: rgba(255, 255, 255, 0.12);
+  --vzn-border: rgba(255, 255, 255, 0.1);
   --vzn-border-strong: rgba(255, 255, 255, 0.2);
-  --vzn-divider: rgba(255, 255, 255, 0.09);
-  --vzn-titlebar-material: rgba(22, 25, 38, 0.32);
-  --vzn-primary-nav-material: rgba(22, 25, 38, 0.28);
-  --vzn-context-nav-material: rgba(18, 20, 30, 0.6);
-  --vzn-overlay-material: rgba(30, 34, 50, 0.8);
-  --vzn-material-border: rgba(255, 255, 255, 0.14);
-  --vzn-material-highlight: rgba(255, 255, 255, 0.32);
-  --vzn-user-avatar-bg: #3d6ef0;
+  --vzn-divider: rgba(255, 255, 255, 0.08);
+  --vzn-titlebar-material: rgba(255, 255, 255, 0.04);
+  --vzn-primary-nav-material: rgba(255, 255, 255, 0.08);
+  --vzn-context-nav-material: rgba(32, 28, 30, 0.8);
+  --vzn-overlay-material: rgba(38, 34, 38, 0.9);
+  --vzn-material-border: rgba(255, 255, 255, 0.18);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.22);
+  --vzn-user-avatar-bg: #a6aaee;
   --vzn-user-avatar-fg: #ffffff;
-  --vzn-assistant-avatar-bg: rgba(32, 36, 52, 0.7);
+  --vzn-assistant-avatar-bg: rgba(255, 255, 255, 0.08);
 
   /* Accent */
-  --vzn-action: var(--vzn-blue-500);
-  --vzn-action-hover: var(--vzn-blue-600);
-  --vzn-action-active: var(--vzn-blue-700);
-  --vzn-action-soft: rgba(64, 156, 255, 0.18);
-  --vzn-action-soft-hover: rgba(64, 156, 255, 0.26);
-  --vzn-action-border: rgba(64, 156, 255, 0.45);
-  --vzn-action-text: var(--vzn-blue-300);
-  --vzn-action-fg: #ffffff;
-  --vzn-focus-ring: rgba(64, 156, 255, 0.6);
-  --vzn-action-fill: linear-gradient(135deg, var(--vzn-blue-500) 0%, var(--vzn-sky-600) 100%);
-  --vzn-action-fill-hover: linear-gradient(135deg, var(--vzn-blue-600) 0%, var(--vzn-sky-700) 100%);
-  --vzn-accent-glow: rgba(64, 156, 255, 0.4);
-  --vzn-shadow-glow: 0 8px 28px rgba(64, 156, 255, 0.3);
+  --vzn-action: #a6aaee;
+  --vzn-action-hover: #b7baf2;
+  --vzn-action-active: #9094de;
+  --vzn-action-soft: rgba(166, 170, 238, 0.18);
+  --vzn-action-soft-hover: rgba(166, 170, 238, 0.26);
+  --vzn-action-border: rgba(166, 170, 238, 0.45);
+  --vzn-action-text: #b7baf2;
+  --vzn-action-fg: #1f1d2b;
+  --vzn-focus-ring: rgba(166, 170, 238, 0.6);
+  --vzn-action-fill: linear-gradient(180deg, #b7baf2 0%, #9094de 100%);
+  --vzn-action-fill-hover: linear-gradient(180deg, #c4c6f5 0%, #a6aaee 100%);
+  --vzn-accent-glow: rgba(166, 170, 238, 0.4);
+  --vzn-shadow-glow: 0 6px 16px rgba(166, 170, 238, 0.3);
   --vzn-send-bg: var(--vzn-action-fill);
   --vzn-send-bg-hover: var(--vzn-action-fill-hover);
   --vzn-send-fg: var(--vzn-action-fg);
-  --vzn-user-bubble-bg: linear-gradient(135deg, var(--vzn-blue-500) 0%, var(--vzn-sky-600) 100%);
-  --vzn-user-bubble-fg: #ffffff;
+  --vzn-user-bubble-bg: rgba(255, 255, 255, 0.1);
+  --vzn-user-bubble-fg: #f4efe7;
   --vzn-user-bubble-border: transparent;
 
   /* Primary chrome */
-  --vzn-sidebar-search-bg: var(--vzn-surface-subtle);
-  --vzn-chrome-fg: #cfd5e6;
+  --vzn-sidebar-search-bg: rgba(0, 0, 0, 0.24);
+  --vzn-chrome-fg: #e0d8ce;
   --vzn-chrome-fg-strong: #ffffff;
-  --vzn-chrome-fg-muted: #9aa3bd;
-  --vzn-chrome-fg-soft: #737c97;
+  --vzn-chrome-fg-muted: #b3a99d;
+  --vzn-chrome-fg-soft: #9a9084;
   --vzn-chrome-divider: rgba(255, 255, 255, 0.08);
   --vzn-chrome-item-hover: rgba(255, 255, 255, 0.08);
-  --vzn-chrome-item-active: rgba(64, 156, 255, 0.22);
+  --vzn-chrome-item-active: rgba(255, 255, 255, 0.16);
   --vzn-chrome-item-active-fg: #ffffff;
-  --vzn-chrome-accent: var(--vzn-blue-300);
+  --vzn-chrome-accent: #a6aaee;
 
   /* Illustrative tones */
-  --vzn-tone-blue: #72a7ff;
-  --vzn-tone-violet: #ae8aff;
-  --vzn-tone-green: #55c982;
-  --vzn-tone-orange: #ff8a57;
+  --vzn-tone-blue: #a6aaee;
+  --vzn-tone-violet: #c3a7d6;
+  --vzn-tone-green: #8fc0a0;
+  --vzn-tone-orange: #d9a06c;
 
   /* Shape */
-  --vzn-radius-2xs: 8px;
-  --vzn-radius-xs: 10px;
-  --vzn-radius-sm: 14px;
-  --vzn-radius-control: 16px;
-  --vzn-radius-md: 18px;
-  --vzn-radius-lg: 22px;
-  --vzn-radius-xl: 26px;
-  --vzn-radius-2xl: 30px;
+  --vzn-radius-2xs: 6px;
+  --vzn-radius-xs: 8px;
+  --vzn-radius-sm: 10px;
+  --vzn-radius-control: 10px;
+  --vzn-radius-md: 16px;
+  --vzn-radius-lg: 20px;
+  --vzn-radius-xl: 22px;
+  --vzn-radius-2xl: 26px;
 
   /* Depth and material */
-  --vzn-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  --vzn-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  --vzn-shadow-md: 0 12px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  --vzn-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  --vzn-shadow-overlay: 0 32px 96px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  --vzn-prompt-card-shadow-hover: 0 12px 32px rgba(64, 156, 255, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  --vzn-blur: blur(24px) saturate(160%);
+  --vzn-shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  --vzn-shadow-sm: 0 6px 18px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  --vzn-shadow-md: 0 18px 48px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --vzn-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --vzn-shadow-overlay: 0 24px 64px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --vzn-prompt-card-shadow-hover: 0 6px 14px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  --vzn-blur: blur(18px) saturate(160%);
   --vzn-blur-sm: blur(12px) saturate(140%);
   /* Floating layers (menus, pickers, popovers, tooltips, toasts): heavier than --vzn-blur so text behind them never reads. */
   --vzn-overlay-blur: blur(40px) saturate(160%);
@@ -832,7 +832,7 @@ html.dark[data-theme="glass"],
   --vzn-font-display: var(--vzn-font-sans);
 
   /* Backdrop (painted behind an opaque shell; a transparent native shell ignores it) */
-  --vzn-app-backdrop: radial-gradient(120% 80% at 0% 0%, rgba(64, 156, 255, 0.3) 0%, transparent 55%), radial-gradient(100% 80% at 100% 100%, rgba(34, 211, 238, 0.22) 0%, transparent 55%);
+  --vzn-app-backdrop: radial-gradient(900px 620px at 10% 0%, rgba(150, 118, 86, 0.42) 0%, transparent 62%), radial-gradient(760px 560px at 100% 100%, rgba(92, 104, 150, 0.45) 0%, transparent 62%), linear-gradient(150deg, #2b231d 0%, #2c2731 46%, #1f2531 100%);
 }
 
 /* Paper: translators, writers, scholars. Warm editorial: cream paper, terracotta actions, serif display and reading type. */

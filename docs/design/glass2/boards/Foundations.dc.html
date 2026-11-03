@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Nền tảng Liquid Glass</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;color:#3F3A35}
+a{color:#5A5FA3;text-decoration:none}a:hover{color:#4E5292}
+.win{position:relative;overflow:hidden;color:#3F3A35;background:radial-gradient(900px 620px at 10% 0%,rgba(246,230,205,.90),transparent 62%),radial-gradient(760px 560px at 100% 100%,rgba(160,182,204,.70),transparent 62%),linear-gradient(150deg,#EADFCF 0%,#C8B8AB 36%,#9896AE 68%,#B3BFCC 100%)}
+.win.dark{color:#E0D8CE;background:radial-gradient(900px 620px at 10% 0%,rgba(150,118,86,.42),transparent 62%),radial-gradient(760px 560px at 100% 100%,rgba(92,104,150,.45),transparent 62%),linear-gradient(150deg,#2B231D 0%,#2C2731 46%,#1F2531 100%)}
+.glass{background:linear-gradient(135deg,rgba(255,255,255,.68),rgba(255,255,255,.40));backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);border:1px solid rgba(255,255,255,.70);box-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -1px 0 rgba(255,255,255,.25),0 1px 1px rgba(62,48,34,.05),0 6px 18px rgba(62,48,34,.08)}
+.dark .glass{background:linear-gradient(135deg,rgba(255,255,255,.14),rgba(255,255,255,.06));border-color:rgba(255,255,255,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(255,255,255,.04),0 1px 1px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.28)}
+.pane{background:linear-gradient(160deg,rgba(255,255,255,.52),rgba(255,255,255,.30));backdrop-filter:blur(36px) saturate(170%);-webkit-backdrop-filter:blur(36px) saturate(170%);border:1px solid rgba(255,255,255,.62);box-shadow:inset 0 1px 0 rgba(255,255,255,.80),0 2px 4px rgba(62,48,34,.04),0 18px 48px rgba(62,48,34,.14)}
+.dark .pane{background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.04));border-color:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 2px 4px rgba(0,0,0,.3),0 18px 48px rgba(0,0,0,.4)}
+.content{background:rgba(255,255,255,.82);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(255,255,255,.75);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 4px rgba(62,48,34,.04),0 18px 48px rgba(62,48,34,.10)}
+.dark .content{background:rgba(32,28,30,.80);border-color:rgba(255,255,255,.10);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 18px 48px rgba(0,0,0,.4)}
+.float{background:rgba(255,255,255,.88);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);border:1px solid rgba(255,255,255,.8);box-shadow:inset 0 1px 0 #fff,0 24px 64px rgba(62,48,34,.22),0 2px 6px rgba(62,48,34,.08);border-radius:20px}
+.dark .float{background:rgba(38,34,38,.90);border-color:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 24px 64px rgba(0,0,0,.55)}
+.card{background:rgba(255,255,255,.70);border:1px solid rgba(62,48,34,.08);border-radius:16px;box-shadow:0 1px 2px rgba(62,48,34,.04)}
+.dark .card{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.10);box-shadow:none}
+.field{background:rgba(255,255,255,.62);border:1px solid rgba(62,48,34,.10);box-shadow:inset 0 1px 2px rgba(62,48,34,.05);color:#3F3A35}
+.dark .field{background:rgba(0,0,0,.24);border-color:rgba(255,255,255,.12);box-shadow:inset 0 1px 2px rgba(0,0,0,.3);color:#E0D8CE}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:500;line-height:1;font-family:inherit;color:#3F3A35;border:1px solid transparent;background:transparent;cursor:pointer;white-space:nowrap}
+.btn.md{height:36px;padding:0 14px}.btn.icon{width:32px;padding:0}.btn.icon.md{width:36px}
+.btn.primary{color:#fff;background:linear-gradient(180deg,#7B7FC6 0%,#5A5FA3 100%);border-color:rgba(255,255,255,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 1px 2px rgba(90,95,163,.35),0 6px 16px rgba(90,95,163,.28);font-weight:600}
+.btn.tint{color:#5A5FA3;font-weight:600}
+.dark .btn{color:#E0D8CE}.dark .btn.tint{color:#A6AAEE}
+.btn.danger{color:#C4473F}.dark .btn.danger{color:#FF7B7B}
+.btn.disabled{opacity:.45}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:rgba(62,48,34,.06);box-shadow:inset 0 1px 2px rgba(62,48,34,.05)}
+.dark .seg{background:rgba(0,0,0,.25)}
+.seg button{height:26px;padding:0 12px;border-radius:999px;border:1px solid transparent;background:transparent;font-size:13px;font-weight:500;line-height:1;font-family:inherit;color:#6F675F;cursor:pointer;white-space:nowrap}
+.dark .seg button{color:#B3A99D}
+.seg button.on{background:linear-gradient(135deg,rgba(255,255,255,.95),rgba(255,255,255,.78));color:#2A2622;font-weight:600;border-color:rgba(255,255,255,.9);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(62,48,34,.10),0 4px 10px rgba(62,48,34,.08)}
+.dark .seg button.on{background:linear-gradient(135deg,rgba(255,255,255,.20),rgba(255,255,255,.10));color:#fff;border-color:rgba(255,255,255,.22)}
+.cap{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6F675F}
+.dark .cap{color:#AAA094}
+.t1{color:#2A2622}.t3{color:#6F675F}.t4{color:#7A7167}
+.dark .t1{color:#F4EFE7}.dark .t3{color:#B3A99D}.dark .t4{color:#9A9084}
+.hair{border-top:1px solid rgba(62,48,34,.08)}.dark .hair{border-top-color:rgba(255,255,255,.08)}
+.kbd{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:6px;font-size:11px;font-weight:500;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#6F675F;background:rgba(255,255,255,.7);border:1px solid rgba(62,48,34,.10);box-shadow:inset 0 1px 0 #fff}
+.dark .kbd{color:#B3A99D;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.12);box-shadow:none}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.ic{width:16px;height:16px;flex:none}
+.tl{display:flex;gap:8px}.tl i{width:12px;height:12px;border-radius:50%;display:block;border:1px solid rgba(0,0,0,.12)}
+.lens{background:linear-gradient(135deg,rgba(255,255,255,.92),rgba(255,255,255,.72));border:1px solid rgba(255,255,255,.95);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(62,48,34,.08),0 6px 14px rgba(62,48,34,.08)}
+.dark .lens{background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.09));border-color:rgba(255,255,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 6px 14px rgba(0,0,0,.3)}
+.bubble{background:rgba(62,48,34,.06);border-radius:18px 18px 6px 18px;padding:10px 14px;font-size:14px;line-height:1.55;max-width:75%;color:#2A2622}
+.dark .bubble{background:rgba(255,255,255,.10);color:#F4EFE7}
+.composer{height:52px;border-radius:26px;display:flex;align-items:center;gap:8px;padding:0 8px}
+.sw{width:56px;height:56px;border-radius:14px;border:1px solid rgba(62,48,34,.10);flex:none}
+.spec{font-size:12px;line-height:1.5;color:#6F675F}
+.spec b{color:#2A2622;font-weight:600}
+.sec{display:flex;flex-direction:column;gap:14px}
+.callout{font-size:12px;color:#6F675F;display:flex;gap:8px;align-items:flex-start;line-height:1.4}
+.callout b{display:inline-flex;width:18px;height:18px;border-radius:50%;background:#5A5FA3;color:#fff;font-size:11px;align-items:center;justify-content:center;flex:none}
+.navrow{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border-radius:12px;font-size:14px;width:200px;color:#3F3A35}
+</style>
+</helmet>
+<div class="win" style="width:1280px;height:1180px;padding:44px 48px;display:flex;flex-direction:column;gap:32px">
+
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:24px">
+    <div>
+      <div class="cap" style="margin-bottom:8px">Nền tảng · 2026-11-03</div>
+      <h1 class="t1" style="margin:0;font-size:28px;font-weight:600;letter-spacing:-.01em">Viezan · Liquid Glass 2.0</h1>
+      <p class="t3" style="margin:8px 0 0;font-size:14px;line-height:1.5;max-width:720px">Một cảnh ba lớp: nền có ánh sáng, một mặt đọc trắng sữa, và kính chỉ nằm ở điều hướng, điều khiển và lớp nổi. Chữ luôn đứng trên mặt đọc, không bao giờ trên kính loãng.</p>
+    </div>
+    <div class="glass" style="border-radius:16px;padding:12px 16px;display:flex;gap:20px;font-size:12px;color:#6F675F">
+      <div><b class="t1">Chữ</b> · SF Pro (hệ thống)</div>
+      <div><b class="t1">Nhịp</b> · 4 / 8 / 12 / 16 / 24</div>
+      <div><b class="t1">Bo</b> · 10 · 16 · 20 · 22 · pill</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:24px">
+    <div class="sec">
+      <div class="cap">1 · Nền (backdrop)</div>
+      <div style="height:120px;border-radius:16px;border:1px solid rgba(62,48,34,.10);background:radial-gradient(260px 160px at 8% 0%,rgba(246,230,205,.9),transparent 60%),radial-gradient(240px 160px at 100% 100%,rgba(160,182,204,.7),transparent 60%),linear-gradient(160deg,#EDE3D6 0%,#CFC2B6 50%,#A9A6B8 100%)"></div>
+      <p class="spec" style="margin:0"><b>Gradient 150°</b> champagne #EADFCF → taupe #C8B8AB → lavender-slate #9896AE → xám thép #B3BFCC; quầng kem ấm ở góc trên-trái, quầng thép lạnh ở dưới-phải (theo ảnh tham chiếu). Tối: #2B231D → #2C2731 → #1F2531. Đây là thứ duy nhất kính được phép khúc xạ; không ảnh nền, không hạt.</p>
+    </div>
+    <div class="sec">
+      <div class="cap">2 · Mặt đọc (content)</div>
+      <div style="height:120px;border-radius:16px;padding:12px;background:radial-gradient(260px 160px at 8% 0%,rgba(246,230,205,.9),transparent 60%),linear-gradient(160deg,#EDE3D6 0%,#C3BCC2 100%)"><div class="content" style="height:100%;border-radius:14px;padding:12px;font-size:13px;color:#3F3A35">Vùng đọc, nhập, lịch sử, cài đặt. <span class="t3">Trắng ấm 82 % + blur 30 — nhận ánh kem và lavender từ nền, vẫn đủ đặc để chữ đạt 4,5:1.</span></div></div>
+      <p class="spec" style="margin:0"><b>Một mặt duy nhất</b> cho mỗi cửa sổ, bo 22, viền sáng 1 px, bóng 18/48 px 10 %. Bên trong chỉ còn thẻ phẳng viền hairline và vạch ngăn — không lồng thêm pane bo góc.</p>
+    </div>
+    <div class="sec">
+      <div class="cap">3 · Kính (glass)</div>
+      <div style="height:120px;border-radius:16px;padding:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:radial-gradient(260px 160px at 100% 100%,rgba(160,182,204,.75),transparent 60%),linear-gradient(160deg,#E4D9CC 0%,#A9A6B8 100%)">
+        <button class="btn glass">Lịch sử</button>
+        <button class="btn glass tint">+ Chat mới</button>
+        <button class="btn glass icon" aria-label="Hoạt động"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></button>
+        <div class="seg"><button class="on">Tất cả</button><button>AI Chat</button><button>Dịch</button></div>
+      </div>
+      <p class="spec" style="margin:0"><b>Sidebar, nút header, composer, bộ lọc, lớp nổi.</b> Blur 18–40, fill trắng 40–68 % nghiêng 135°, viền sáng 1 px, highlight trong 1 px, bóng thấp. Không bao giờ đặt một đoạn văn dài lên kính.</p>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:minmax(0, 5fr) minmax(0, 7fr);gap:24px">
+    <div class="sec">
+      <div class="cap">Giải phẫu một control kính</div>
+      <div style="display:flex;gap:20px;align-items:center">
+        <div style="padding:28px;border-radius:16px;background:radial-gradient(200px 140px at 20% 10%,rgba(246,230,205,.9),transparent 60%),linear-gradient(160deg,#E8DED1 0%,#A9A6B8 100%);flex:none">
+          <div class="glass" style="width:180px;height:48px;border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500">Kính nghỉ</div>
+          <div class="lens" style="width:180px;height:48px;border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;margin-top:12px">Lens · đang chọn</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="callout"><b>1</b><span>Viền sáng 1 px <code>rgba(255,255,255,.70)</code> — mép kính bắt sáng.</span></div>
+          <div class="callout"><b>2</b><span>Highlight trong: <code>inset 0 1px 0 #fff 85 %</code> trên, 25 % dưới.</span></div>
+          <div class="callout"><b>3</b><span>Fill 135°: trắng 68 % → 40 % + <code>blur(18px) saturate(160%)</code>.</span></div>
+          <div class="callout"><b>4</b><span>Bóng: <code>0 1px 1px 5 %</code> + <code>0 6px 18px 8 %</code>. Lens chọn: fill 92 → 72 %, bóng 6/14.</span></div>
+          <div class="callout"><b>5</b><span>Hover = fill +8 %. Nhấn = fill −6 %, bóng ngoài tắt. Focus bàn phím = vòng 2 px nhấn, cách 2 px.</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="cap">Màu</div>
+      <div style="display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));gap:12px">
+        <div><div class="sw" style="background:#2A2622"></div><div class="spec" style="margin-top:6px"><b>Chữ mạnh</b><br>#2A2622</div></div>
+        <div><div class="sw" style="background:#3F3A35"></div><div class="spec" style="margin-top:6px"><b>Chữ thân</b><br>#3F3A35</div></div>
+        <div><div class="sw" style="background:#6F675F"></div><div class="spec" style="margin-top:6px"><b>Chữ phụ</b><br>#6F675F · 5,6:1</div></div>
+        <div><div class="sw" style="background:#7A7167"></div><div class="spec" style="margin-top:6px"><b>Thời gian, mờ</b><br>#7A7167 · 4,8:1</div></div>
+        <div><div class="sw" style="background:rgba(62,48,34,.08)"></div><div class="spec" style="margin-top:6px"><b>Hairline</b><br>navy 8 %</div></div>
+        <div><div class="sw" style="background:linear-gradient(180deg,#7B7FC6,#5A5FA3)"></div><div class="spec" style="margin-top:6px"><b>Nhấn · lavender-indigo</b><br>#5A5FA3 · chữ trắng 6,4:1</div></div>
+        <div><div class="sw" style="background:#A6AAEE"></div><div class="spec" style="margin-top:6px"><b>Nhấn (tối)</b><br>#A6AAEE</div></div>
+        <div><div class="sw" style="background:#C4473F"></div><div class="spec" style="margin-top:6px"><b>Nguy hiểm</b><br>#C4473F</div></div>
+        <div><div class="sw" style="background:#3C8F5A"></div><div class="spec" style="margin-top:6px"><b>Thành công</b><br>#3C8F5A</div></div>
+        <div><div class="sw" style="background:#B9781A"></div><div class="spec" style="margin-top:6px"><b>Cảnh báo</b><br>#B9781A</div></div>
+      </div>
+      <p class="spec" style="margin:0">Lavender-indigo lấy từ nếp gấp giữa ảnh; chỉ cho <b>đang chọn · tạo mới · gửi · link</b>. Đỏ chỉ cho <b>dừng · xoá · đặt lại</b>. Màu trạng thái luôn đi kèm chữ, không bao giờ một mình.</p>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:minmax(0, 5fr) minmax(0, 7fr);gap:24px">
+    <div class="sec">
+      <div class="cap">Chữ · SF Pro, cỡ "Vừa"</div>
+      <div class="content" style="border-radius:16px;padding:16px 20px;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="t1" style="font-size:22px;font-weight:600;letter-spacing:-.01em">Không gian làm việc</span><span class="t4" style="font-size:11px">heading 22 · 600</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="t1" style="font-size:18px;font-weight:600">1 dặm bằng bao nhiêu km?</span><span class="t4" style="font-size:11px">title 18 · 600</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="t1" style="font-size:16px;font-weight:600">Chế độ điều khiển</span><span class="t4" style="font-size:11px">section 16 · 600</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="t1" style="font-size:15px;font-weight:600">Bắt đầu nhanh</span><span class="t4" style="font-size:11px">card 15 · 600</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:14px">Phiên dịch · Nhiệt độ &amp; quạt</span><span class="t4" style="font-size:11px">nav / row 14 · 400</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:13px">Thân chữ và nhãn nút</span><span class="t4" style="font-size:11px">body 13 · 400/500</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="t3" style="font-size:12px">Mô tả dưới hàng cài đặt</span><span class="t4" style="font-size:11px">desc 12 · 400</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span class="cap">Hệ thống</span><span class="t4" style="font-size:11px">caps 11 · 600 · .06em</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:14px;line-height:1.6">Nội dung đọc dài dùng 14 / 1,6.</span><span class="t4" style="font-size:11px">reading 14 · 1.6</span></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="cap">Điều khiển</div>
+      <div class="content" style="border-radius:16px;padding:16px 20px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn primary">Dịch văn bản</button>
+          <button class="btn glass tint">+ Tạo mới</button>
+          <button class="btn glass">So sánh</button>
+          <button class="btn">Sao chép</button>
+          <button class="btn glass danger">Xoá phiên</button>
+          <button class="btn glass disabled" aria-disabled="true">Dừng</button>
+          <button class="btn glass icon" aria-label="Nghe"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7"/></svg></button>
+          <button class="btn primary icon md" aria-label="Gửi" style="border-radius:50%"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5m-7 7 7-7 7 7"/></svg></button>
+          <span class="spec">primary · tint · glass · quiet · danger · disabled · icon 32 · gửi 36</span>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <div class="seg"><button class="on">Tất cả</button><button>AI Chat</button><button>Dịch</button><button>Từ điển</button></div>
+          <div class="seg"><button class="on">Sáng</button><button>Tối</button><button>Hệ thống</button></div>
+          <label class="field" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 10px 0 12px;border-radius:999px;width:220px;font-size:13px;color:#7A7167"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input aria-label="Tìm" placeholder="Tìm tên hoặc nội dung" style="flex:1;border:0;background:transparent;font:inherit;outline:0;min-width:0;color:#3F3A35"><span class="kbd">⌘K</span></label>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <span class="chip glass"><svg class="ic" style="width:13px;height:13px" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l2 5.5 5.5 2-5.5 2L12 18l-2-5.5-5.5-2 5.5-2z"/></svg>Haiku 5.5<svg class="ic" style="width:12px;height:12px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span>
+          <span class="chip" style="background:rgba(60,143,90,.14);color:#2F7A4C"><span class="dot" style="background:#3C8F5A"></span>Đã cấp</span>
+          <span class="chip" style="background:rgba(185,120,26,.12);color:#8A5A12"><span class="dot" style="background:#B9781A"></span>Chưa có key</span>
+          <span class="chip" style="background:rgba(90,95,163,.10);color:#5A5FA3"><span class="dot" style="background:#5A5FA3"></span>Đang nghe · 04:12</span>
+          <span class="chip" style="background:rgba(62,48,34,.06);color:#6F675F">Haiku 5.5 · 109 token</span>
+          <span class="kbd">⌘⇧H</span><span class="kbd">⌘N</span>
+          <label style="display:inline-flex;align-items:center;gap:8px;font-size:13px"><span class="t3">Tự động dịch</span><span style="width:36px;height:22px;border-radius:11px;background:#5A5FA3;position:relative;display:inline-block;box-shadow:inset 0 1px 2px rgba(0,0,0,.15)"><span style="position:absolute;top:2px;left:16px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25)"></span></span></label>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div class="navrow"><svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Nghỉ</div>
+            <div class="navrow" style="background:rgba(255,255,255,.45)"><svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Hover</div>
+            <div class="navrow lens" style="font-weight:600;color:#2A2622"><svg class="ic" style="width:18px;height:18px;color:#5A5FA3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Đang chọn</div>
+            <div class="navrow" style="outline:2px solid #5A5FA3;outline-offset:2px"><svg class="ic" style="width:18px;height:18px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Focus bàn phím</div>
+          </div>
+          <div class="spec" style="flex:1;min-width:240px">Hàng điều hướng 34 pt, bo 12, icon 18 nét 1,7. Chọn = lens kính + chữ semibold + icon màu nhấn. Hover chỉ là nền trắng 45 %, nhẹ hơn chọn. Focus là vòng riêng, không trùng với chọn. Chấm xanh lá 6 pt trên icon khi route có việc chạy nền.<br><br>Ô nhập: nền trắng 62 % lõm, viền navy 10 %; khi gõ viền 18 %, caret là chỉ báo chính, không vòng nhấn.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="cap">Nhịp và hình học</div>
+    <div style="display:flex;gap:24px;align-items:flex-end;flex-wrap:wrap">
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div style="width:4px;height:4px;background:#5A5FA3;border-radius:1px"></div><div style="width:8px;height:8px;background:#5A5FA3;border-radius:2px"></div><div style="width:12px;height:12px;background:#5A5FA3;border-radius:2px"></div><div style="width:16px;height:16px;background:#5A5FA3;border-radius:3px"></div><div style="width:24px;height:24px;background:#5A5FA3;border-radius:4px"></div><div style="width:32px;height:32px;background:#5A5FA3;border-radius:5px"></div>
+        <span class="spec" style="margin-left:8px"><b>Khoảng cách</b> 4 · 8 · 12 · 16 · 24 · 32<br>lề pane 8, lề nội dung 24, thẻ 16</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-end">
+        <div class="glass" style="width:40px;height:40px;border-radius:10px"></div><div class="glass" style="width:40px;height:40px;border-radius:16px"></div><div class="glass" style="width:40px;height:40px;border-radius:20px"></div><div class="glass" style="width:56px;height:40px;border-radius:999px"></div>
+        <span class="spec" style="margin-left:8px"><b>Bo góc</b> 10 ô nhập · 16 thẻ · 20 lớp nổi · 22 pane · pill cho nút, chip, composer</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-end">
+        <div class="glass" style="width:64px;height:28px;border-radius:999px"></div><div class="glass" style="width:64px;height:32px;border-radius:999px"></div><div class="glass" style="width:64px;height:36px;border-radius:999px"></div><div class="glass" style="width:64px;height:52px;border-radius:999px"></div>
+        <span class="spec" style="margin-left:8px"><b>Chiều cao</b> 28 chip trong tin · 32 header, hàng công cụ · 36 form, nút gửi · 52 composer. Hàng cài đặt 48, hàng danh sách 52.</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

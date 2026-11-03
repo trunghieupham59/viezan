@@ -6,7 +6,9 @@ Chốt ngày 2026-11-02. Viezan có **một** hướng thiết kế cho bản na
 mọi lớp nổi và mọi cửa sổ phụ đều theo một bộ nguyên tắc dưới đây; không còn
 "thử" hướng khác song song.
 
-Bản vẽ chuẩn (Claude Design): <https://claude.ai/artifact/VeqxUQ2GsC716JPr1vVreM>
+Bản vẽ chuẩn (Claude Design, từ 2026-11-03): <https://claude.ai/artifact/A39txAordDuiSCrtznFhrQ>
+— Liquid Glass 2.0, 36 board, đã chép vào `docs/design/glass2/` kèm
+[HANDOFF.md](glass2/HANDOFF.md). Bản vẽ cũ <https://claude.ai/artifact/VeqxUQ2GsC716JPr1vVreM>
 — board hệ thống thiết kế (màu, chữ, khoảng cách, nút, chip, thẻ, hàng) và
 năm màn hình chuẩn: AI Chat sáng 1400, Dịch tối 1400, Cài đặt sáng 1400, Dịch
 hẹp 820 (rail), Launcher. Bản vẽ là tài liệu riêng tư cho tới khi được chia sẻ
@@ -28,6 +30,33 @@ từ menu Share của trang.
 Thứ tự ưu tiên khi mâu thuẫn: giá trị (`tokens.css`) → luật (`AGENTS.md`,
 `ui-ux.md`) → `foundations.md` → **direction.md + bản vẽ** → spec màn hình →
 prototype Review 18.
+
+## Liquid Glass 2.0 — hướng hiện hành (chốt 2026-11-03)
+
+Người dùng bác bản Glass cyan ngày 2026-11-02 ("mọi lớp cùng một tông, kính
+không có gì để khúc xạ, bốn lớp bo góc lồng nhau") và duyệt bản vẽ mới. Từ
+ngày này, preset Glass theo **cảnh ba lớp**; chi tiết số đo, màu và từng màn
+hình nằm trong [`glass2/HANDOFF.md`](glass2/HANDOFF.md), là nguồn hình hiện
+hành cho macOS. Các mục "Tinh thần", "Áp dụng bộ ảnh tham chiếu" và "AI Chat
+với Glass" phía dưới mô tả vòng cyan và chỉ còn giá trị lịch sử ở phần màu và
+vật liệu; phần hành vi, kích thước khung (236/68, hàng 48, breakpoint 900) và
+quy tắc nút vẫn hiệu lực.
+
+1. **Nền**: gradient 150° champagne → taupe → lavender-slate → xám thép với hai
+   quầng sáng (`--vzn-app-backdrop`). Không ảnh, không hạt, không motion.
+2. **Mặt đọc**: một pane trắng ấm 82 % bo 22 cho mỗi cửa sổ (`--vzn-canvas`).
+   Bên trong chỉ còn thẻ phẳng viền hairline và vạch ngăn, không lồng pane.
+3. **Kính** chỉ ở sidebar, pill header, composer, bộ lọc, chip model và lớp
+   nổi: fill trắng 68→40 %, blur 18, viền sáng 1 px, bóng thấp; lens 92→72 %
+   cho mục đang chọn.
+
+Màu nhấn là lavender-indigo `#5A5FA3` (tối `#A6AAEE`), lấy từ ảnh tham chiếu
+của người dùng; đỏ chỉ cho dừng / xoá / đặt lại. Bong bóng người dùng trung
+tính. Hộp thoại chặn nằm giữa cửa sổ, bo 18, nền phủ 22 %; lớp nổi không chặn
+neo theo nút mở. Mọi menu hệ thống còn lại của Dịch / Từ điển / Phiên dịch
+chuyển sang lớp nổi của shell. Cài đặt còn 9 mục; phím tắt chỉ quản lý ở
+trang Launcher & phím tắt. Thư viện lịch sử lọc phiên lưu trữ tại chỗ. So sánh
+mô hình chọn model trước khi chạy.
 
 ## Tinh thần
 

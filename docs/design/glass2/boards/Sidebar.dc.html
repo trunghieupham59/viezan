@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Sidebar Viezan</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.sb{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;color:#3F3A35;box-sizing:border-box;border-radius:22px;display:flex;flex-direction:column;background:linear-gradient(160deg,rgba(255,255,255,.52),rgba(255,255,255,.30));backdrop-filter:blur(36px) saturate(170%);-webkit-backdrop-filter:blur(36px) saturate(170%);border:1px solid rgba(255,255,255,.62);box-shadow:inset 0 1px 0 rgba(255,255,255,.80),0 2px 4px rgba(62,48,34,.04),0 18px 48px rgba(62,48,34,.14)}
+.sb *{box-sizing:border-box}
+.sb.sb-dark{color:#E0D8CE;background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.04));border-color:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 2px 4px rgba(0,0,0,.3),0 18px 48px rgba(0,0,0,.4)}
+.sb-logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(180deg,#fff,#F2EAE0);border:1px solid rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(62,48,34,.12);display:flex;align-items:center;justify-content:center;flex:none}
+.sb-dark .sb-logo{background:linear-gradient(180deg,#4A4258,#2E2A36);border-color:rgba(255,255,255,.18)}
+.sb-search{display:flex;align-items:center;gap:8px;height:32px;padding:0 8px 0 12px;border-radius:999px;font-size:13px;color:#6F675F;background:rgba(255,255,255,.62);border:1px solid rgba(62,48,34,.10);box-shadow:inset 0 1px 2px rgba(62,48,34,.05);cursor:pointer;width:100%;font-family:inherit;text-align:left}
+.sb-dark .sb-search{color:#B3A99D;background:rgba(0,0,0,.24);border-color:rgba(255,255,255,.12);box-shadow:inset 0 1px 2px rgba(0,0,0,.3)}
+.sb-kbd{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:6px;font-size:11px;font-weight:500;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#6F675F;background:rgba(255,255,255,.7);border:1px solid rgba(62,48,34,.10);box-shadow:inset 0 1px 0 #fff}
+.sb-dark .sb-kbd{color:#B3A99D;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.12);box-shadow:none}
+.sb-row{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border-radius:12px;font-size:14px;color:#3F3A35;text-decoration:none;position:relative}
+.sb-dark .sb-row{color:#E0D8CE}
+.sb-row:hover{background:rgba(255,255,255,.45)}
+.sb-dark .sb-row:hover{background:rgba(255,255,255,.08)}
+.sb-row.on{font-weight:600;color:#2A2622;background:linear-gradient(135deg,rgba(255,255,255,.92),rgba(255,255,255,.72));border:1px solid rgba(255,255,255,.95);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(62,48,34,.08),0 6px 14px rgba(62,48,34,.08);padding:0 9px}
+.sb-dark .sb-row.on{color:#fff;background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.09));border-color:rgba(255,255,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 6px 14px rgba(0,0,0,.3)}
+.sb-row svg{width:18px;height:18px;flex:none}
+.sb-row.on svg{color:#5A5FA3}
+.sb-dark .sb-row.on svg{color:#A6AAEE}
+.sb-rail .sb-row{width:40px;height:36px;padding:0;justify-content:center;margin:0 auto}
+.sb-rail .sb-row.on{padding:0}
+.sb-cap{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6F675F;padding:14px 10px 6px}
+.sb-dark .sb-cap{color:#AAA094}
+.sb-foot{font-size:12px;color:#6F675F;display:flex;align-items:center;gap:8px;height:28px;padding:0 10px}
+.sb-dark .sb-foot{color:#B3A99D}
+.sb-dot{width:8px;height:8px;border-radius:50%;background:#3C8F5A;flex:none;box-shadow:0 0 0 2px rgba(60,143,90,.2)}
+.sb-badge{position:absolute;top:7px;right:9px;width:7px;height:7px;border-radius:50%;background:#3C8F5A;border:1.5px solid #fff}
+.sb-hair{border-top:1px solid rgba(62,48,34,.08);margin:8px 6px}
+.sb-dark .sb-hair{border-top-color:rgba(255,255,255,.08)}
+.sb-round{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;color:#6F675F;background:linear-gradient(135deg,rgba(255,255,255,.68),rgba(255,255,255,.40));border:1px solid rgba(255,255,255,.70);box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 1px 1px rgba(62,48,34,.05),0 6px 18px rgba(62,48,34,.08);cursor:pointer;font-family:inherit}
+.sb-dark .sb-round{color:#B3A99D;background:linear-gradient(135deg,rgba(255,255,255,.14),rgba(255,255,255,.06));border-color:rgba(255,255,255,.18);box-shadow:none}
+</style>
+</helmet>
+<nav class="sb {{cls}}" aria-label="Điều hướng chính" style="width:{{w}}px;height:{{h}}px;padding:14px 10px 10px">
+  <sc-if value="{{expanded}}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;align-items:center;gap:10px;height:32px;padding:0 4px;margin-bottom:12px">
+      <div class="sb-logo" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A5FA3" stroke-width="2.2" stroke-linecap="round"><path d="M4 12a8 8 0 1 1 8 8"/><path d="M8 12a4 4 0 1 1 4 4"/></svg></div>
+      <span style="font-size:15px;font-weight:600;letter-spacing:-.01em">Viezan</span>
+    </div>
+    <button class="sb-search" type="button" aria-label="Tìm hoặc chạy lệnh (⌘K)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <span style="flex:1">Tìm</span>
+      <span class="sb-kbd">⌘K</span>
+    </button>
+    <div style="display:flex;flex-direction:column;gap:2px;margin-top:12px">
+      <sc-for list="{{main}}" as="item" hint-placeholder-count="6">
+        <a class="{{item.cls}}" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{item.d}}"/></svg><span>{{item.l}}</span></a>
+      </sc-for>
+    </div>
+    <div class="sb-cap">Hệ thống</div>
+    <div style="display:flex;flex-direction:column;gap:2px">
+      <sc-for list="{{sys}}" as="item" hint-placeholder-count="4">
+        <a class="{{item.cls}}" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{item.d}}"/></svg><span style="flex:1">{{item.l}}</span><sc-if value="{{item.warn}}" hint-placeholder-val="{{ false }}"><span style="width:7px;height:7px;border-radius:50%;background:#C4473F" aria-label="Chưa có key"></span></sc-if></a>
+      </sc-for>
+    </div>
+    <div style="flex:1"></div>
+    <div class="sb-cap" style="padding-top:0">Đang chạy nền</div>
+    <a class="sb-foot" href="#"><span class="sb-dot" aria-hidden="true"></span><span>Phím tắt toàn cục · 2</span></a>
+    <div class="sb-hair"></div>
+    <div class="sb-foot" title="AI xử lý trên thiết bị hoặc qua cloud, tuỳ mô hình."><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12H2M5.5 5l-3 7v5a2 2 0 0 0 2 2h15a2 2 0 0 0 2-2v-5l-3-7a1 1 0 0 0-1-.6H6.4a1 1 0 0 0-.9.6zM6 16h.01M10 16h.01"/></svg><span>Lịch sử lưu trên thiết bị</span></div>
+  </sc-if>
+  <sc-if value="{{collapsed}}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;justify-content:center;height:32px;align-items:center;margin-bottom:12px">
+      <div class="sb-logo" aria-label="Viezan"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5A5FA3" stroke-width="2.2" stroke-linecap="round"><path d="M4 12a8 8 0 1 1 8 8"/><path d="M8 12a4 4 0 1 1 4 4"/></svg></div>
+    </div>
+    <button class="sb-round" type="button" aria-label="Tìm hoặc chạy lệnh (⌘K)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+    <div class="sb-rail" style="display:flex;flex-direction:column;gap:2px;margin-top:12px">
+      <sc-for list="{{main}}" as="item" hint-placeholder-count="6">
+        <a class="{{item.cls}}" href="#" aria-label="{{item.l}}" title="{{item.l}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{item.d}}"/></svg></a>
+      </sc-for>
+    </div>
+    <div class="sb-hair"></div>
+    <div class="sb-rail" style="display:flex;flex-direction:column;gap:2px">
+      <sc-for list="{{sys}}" as="item" hint-placeholder-count="4">
+        <a class="{{item.cls}}" href="#" aria-label="{{item.l}}" title="{{item.l}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{item.d}}"/></svg><sc-if value="{{item.run}}" hint-placeholder-val="{{ false }}"><span class="sb-badge" aria-label="Đang chạy nền"></span></sc-if></a>
+      </sc-for>
+    </div>
+    <div style="flex:1"></div>
+    <div class="sb-foot" style="justify-content:center;padding:0" title="Lịch sử lưu trên thiết bị"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12H2M5.5 5l-3 7v5a2 2 0 0 0 2 2h15a2 2 0 0 0 2-2v-5l-3-7a1 1 0 0 0-1-.6H6.4a1 1 0 0 0-.9.6zM6 16h.01M10 16h.01"/></svg></div>
+  </sc-if>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"enum","options":["home","chat","translate","interpret","dictionary","everywhere","apps","thermal","shortcuts","settings"],"default":"chat","section":"Trạng thái"},"collapsed":{"editor":"boolean","default":false,"section":"Trạng thái"},"dark":{"editor":"boolean","default":false,"section":"Trạng thái"},"h":{"editor":"int","default":712,"min":400,"max":1200,"unit":"px","section":"Kích thước"},"$preview":{"width":236,"height":712}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const active = this.props.active ?? 'chat';
+    const collapsed = this.props.collapsed === true || this.props.collapsed === 'true';
+    const dark = this.props.dark === true || this.props.dark === 'true';
+    const h = Number(this.props.h ?? 712);
+    const main = [
+      { k: 'home', l: 'Trang chủ', d: 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z' },
+      { k: 'chat', l: 'AI Chat', d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' },
+      { k: 'translate', l: 'Dịch', d: 'm5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1m14 20-5-10-5 10m2-4h6' },
+      { k: 'interpret', l: 'Phiên dịch', d: 'M2 10v4M6 7v10M10 4v16M14 8v8M18 6v12M22 10v4' },
+      { k: 'dictionary', l: 'Từ điển', d: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z' },
+      { k: 'everywhere', l: 'Dịch mọi nơi', d: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM2 12h20M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z' }
+    ];
+    const sys = [
+      { k: 'apps', l: 'Ứng dụng', d: 'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z' },
+      { k: 'thermal', l: 'Nhiệt độ & quạt', d: 'M14 4v10.5a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0z' },
+      { k: 'shortcuts', l: 'Launcher & phím tắt', d: 'M18 3a3 3 0 0 0-3 3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3z', run: true },
+      { k: 'settings', l: 'Cài đặt', d: 'M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4' }
+    ];
+    const mark = (xs) => xs.map((x) => ({ ...x, cls: x.k === active ? 'sb-row on' : 'sb-row', warn: false, run: x.run === true }));
+    return {
+      main: mark(main), sys: mark(sys),
+      collapsed, expanded: !collapsed,
+      w: collapsed ? 68 : 236, h,
+      cls: (dark ? 'sb-dark ' : '') + (collapsed ? 'sb-rail' : '')
+    };
+  }
+}
+</script>
+</body>
+</html>

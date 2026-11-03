@@ -58,6 +58,38 @@ No known accessibility items remain in this list.
 - Hardcoded CSS values: `codex.css` (sidebar `10px 8px`, `180ms`, command palette `560px`/`480px`); `chat.css` (`5px 9px`, `104px`, `44px`, `720px`, `.usage-cost-badge` at 18/10/11 px).
 - Dead code: Home's activity icon is not passed to `ActivityRow`; nine thermal i18n keys are unused.
 
+## Quyết định thiết kế (2026-11-03 · Liquid Glass 2.0)
+
+Nguồn: canvas <https://claude.ai/artifact/A39txAordDuiSCrtznFhrQ>, chép vào
+`docs/design/glass2/` cùng [HANDOFF.md](glass2/HANDOFF.md). Các dòng dưới thay
+thế quyết định cùng chủ đề của ngày 2026-11-02 và 2026-11-03 phía dưới khi mâu
+thuẫn; người dùng đã duyệt từng board trước khi ghi.
+
+- Preset Glass đổi sang cảnh ba lớp và bảng màu champagne / taupe / lavender /
+  thép theo ảnh tham chiếu của người dùng; nhấn lavender-indigo `#5A5FA3`. Lý
+  do: cyan trên cyan không có gì để kính khúc xạ, bốn lớp bo góc lồng nhau.
+- Mặt đọc là một pane duy nhất; thẻ bên trong phẳng, viền hairline, không
+  lồng pane bo góc. Kính chỉ ở điều hướng, điều khiển và lớp nổi.
+- Hộp thoại chặn (cập nhật, ghi phím tắt, xoá khoá, dọn lịch sử, xoá model, đo
+  hiệu năng) ở giữa cửa sổ, bo 18, nền phủ 22 %; không dùng sheet treo mép
+  trên. Lý do: sheet che hàng nút cửa sổ và breadcrumb của vỏ kính.
+- Thư viện lịch sử: "Phiên đã lưu trữ" là nút bật tắt cạnh ô tìm, lọc tại chỗ;
+  khung xem trước đổi Lưu trữ → Khôi phục, Xoá → Xoá vĩnh viễn (có xác nhận).
+  Không có màn hình lưu trữ riêng.
+- Cài đặt bỏ mục "Launcher & phím tắt"; mục Chung có hàng "Phím tắt toàn cục"
+  dẫn sang trang ở sidebar. Lý do: hai nơi cùng nội dung là hai nguồn sự thật.
+- So sánh mô hình: "So sánh" mở bước chọn model (checkbox theo nhóm, model đang
+  dùng khoá làm cột đầu, tối đa 4) rồi chạy; bảng kết quả có "Đổi model"; lần
+  sau nhớ bộ đã chọn. Lý do: bản cũ bắt người dùng lọc bằng ô tìm.
+- Picker ngôn ngữ, Tuỳ chọn dịch, menu Nghe, Thiết lập phiên dịch và mọi picker
+  trong Cài đặt là lớp nổi của shell, cùng listbox bo 14, hàng 34, ✓ ở mục chọn.
+- Sidebar mở rộng giữ hàng "Phím tắt toàn cục · n" trong nhóm chân; rail dùng
+  chấm trên icon. Lý do: chữ nói được "cái gì" và "bao nhiêu", chấm thì không.
+- Tổng hợp của Phiên dịch vẫn là thẻ có tab ở đầu cột bản ghi (không phải cửa sổ
+  nổi); trạng thái đang tạo có skeleton và Huỷ. Phụ đề nổi nền tối 78 %, không
+  có tuỳ chỉnh màu/cỡ.
+- Cửa sổ nổi hẹp hơn 400 pt: meta và nút không chung một hàng.
+
 ## Quyết định thiết kế (2026-11-02)
 
 - 2026-11-03: ảnh mẫu sidebar yêu cầu một pane kính chung, mục đang chọn là capsule kính nổi và rail là nút tròn; mục nghỉ để trong, hover nhẹ hơn selection. Thay nền phẳng của hàng điều hướng bằng vật liệu control thật trên macOS, giữ màu hiện tại và focus riêng. [Evidence](../migration/reports/native-migration-report-20261103-sidebar-lens.md).

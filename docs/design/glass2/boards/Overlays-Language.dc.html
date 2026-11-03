@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Lớp nổi của Dịch, Từ điển, Phiên dịch</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;color:#3F3A35}
+a{color:#5A5FA3;text-decoration:none}a:hover{color:#4E5292}
+.win{position:relative;overflow:hidden;color:#3F3A35;background:radial-gradient(900px 620px at 10% 0%,rgba(246,230,205,.90),transparent 62%),radial-gradient(760px 560px at 100% 100%,rgba(160,182,204,.70),transparent 62%),linear-gradient(150deg,#EADFCF 0%,#C8B8AB 36%,#9896AE 68%,#B3BFCC 100%)}
+.win.dark{color:#E0D8CE;background:radial-gradient(900px 620px at 10% 0%,rgba(150,118,86,.42),transparent 62%),radial-gradient(760px 560px at 100% 100%,rgba(92,104,150,.45),transparent 62%),linear-gradient(150deg,#2B231D 0%,#2C2731 46%,#1F2531 100%)}
+.glass{background:linear-gradient(135deg,rgba(255,255,255,.68),rgba(255,255,255,.40));backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);border:1px solid rgba(255,255,255,.70);box-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -1px 0 rgba(255,255,255,.25),0 1px 1px rgba(62,48,34,.05),0 6px 18px rgba(62,48,34,.08)}
+.dark .glass{background:linear-gradient(135deg,rgba(255,255,255,.14),rgba(255,255,255,.06));border-color:rgba(255,255,255,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(255,255,255,.04),0 1px 1px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.28)}
+.pane{background:linear-gradient(160deg,rgba(255,255,255,.52),rgba(255,255,255,.30));backdrop-filter:blur(36px) saturate(170%);-webkit-backdrop-filter:blur(36px) saturate(170%);border:1px solid rgba(255,255,255,.62);box-shadow:inset 0 1px 0 rgba(255,255,255,.80),0 2px 4px rgba(62,48,34,.04),0 18px 48px rgba(62,48,34,.14)}
+.dark .pane{background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.04));border-color:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 2px 4px rgba(0,0,0,.3),0 18px 48px rgba(0,0,0,.4)}
+.content{background:rgba(255,255,255,.82);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(255,255,255,.75);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 4px rgba(62,48,34,.04),0 18px 48px rgba(62,48,34,.10)}
+.dark .content{background:rgba(32,28,30,.80);border-color:rgba(255,255,255,.10);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 18px 48px rgba(0,0,0,.4)}
+.float{background:rgba(255,255,255,.88);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);border:1px solid rgba(255,255,255,.8);box-shadow:inset 0 1px 0 #fff,0 24px 64px rgba(62,48,34,.22),0 2px 6px rgba(62,48,34,.08);border-radius:20px}
+.dark .float{background:rgba(38,34,38,.90);border-color:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 24px 64px rgba(0,0,0,.55)}
+.card{background:rgba(255,255,255,.70);border:1px solid rgba(62,48,34,.08);border-radius:16px;box-shadow:0 1px 2px rgba(62,48,34,.04)}
+.dark .card{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.10);box-shadow:none}
+.field{background:rgba(255,255,255,.62);border:1px solid rgba(62,48,34,.10);box-shadow:inset 0 1px 2px rgba(62,48,34,.05);color:#3F3A35}
+.dark .field{background:rgba(0,0,0,.24);border-color:rgba(255,255,255,.12);box-shadow:inset 0 1px 2px rgba(0,0,0,.3);color:#E0D8CE}
+.field input,.field textarea{border:0;background:transparent;font:inherit;outline:0;min-width:0;color:inherit;padding:0;resize:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:500;line-height:1;font-family:inherit;color:#3F3A35;border:1px solid transparent;background:transparent;cursor:pointer;white-space:nowrap;position:relative}
+.btn.md{height:36px;padding:0 14px}.btn.icon{width:32px;padding:0}.btn.icon.md{width:36px}.btn.sm{height:28px;padding:0 10px;font-size:12px}.btn.icon.sm{width:28px}
+.btn.primary{color:#fff;background:linear-gradient(180deg,#7B7FC6 0%,#5A5FA3 100%);border-color:rgba(255,255,255,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 1px 2px rgba(90,95,163,.35),0 6px 16px rgba(90,95,163,.28);font-weight:600}
+.btn.tint{color:#5A5FA3;font-weight:600}
+.dark .btn{color:#E0D8CE}.dark .btn.tint{color:#A6AAEE}
+.btn.danger{color:#C4473F}.dark .btn.danger{color:#FF7B7B}
+.btn.disabled{opacity:.45}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:rgba(62,48,34,.06);box-shadow:inset 0 1px 2px rgba(62,48,34,.05)}
+.dark .seg{background:rgba(0,0,0,.25)}
+.seg button{height:26px;padding:0 12px;border-radius:999px;border:1px solid transparent;background:transparent;font-size:13px;font-weight:500;line-height:1;font-family:inherit;color:#6F675F;cursor:pointer;white-space:nowrap}
+.dark .seg button{color:#B3A99D}
+.seg button.on{background:linear-gradient(135deg,rgba(255,255,255,.95),rgba(255,255,255,.78));color:#2A2622;font-weight:600;border-color:rgba(255,255,255,.9);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(62,48,34,.10),0 4px 10px rgba(62,48,34,.08)}
+.dark .seg button.on{background:linear-gradient(135deg,rgba(255,255,255,.20),rgba(255,255,255,.10));color:#fff;border-color:rgba(255,255,255,.22)}
+.cap{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6F675F}
+.dark .cap{color:#AAA094}
+.t1{color:#2A2622}.t3{color:#6F675F}.t4{color:#7A7167}
+.dark .t1{color:#F4EFE7}.dark .t3{color:#B3A99D}.dark .t4{color:#9A9084}
+.hair{border-top:1px solid rgba(62,48,34,.08)}.dark .hair{border-top-color:rgba(255,255,255,.08)}
+.kbd{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:6px;font-size:11px;font-weight:500;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#6F675F;background:rgba(255,255,255,.7);border:1px solid rgba(62,48,34,.10);box-shadow:inset 0 1px 0 #fff}
+.dark .kbd{color:#B3A99D;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.12);box-shadow:none}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.ic{width:16px;height:16px;flex:none}
+.tl{display:flex;gap:8px}.tl i{width:12px;height:12px;border-radius:50%;display:block;border:1px solid rgba(0,0,0,.12)}
+.lens{background:linear-gradient(135deg,rgba(255,255,255,.92),rgba(255,255,255,.72));border:1px solid rgba(255,255,255,.95);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(62,48,34,.08),0 6px 14px rgba(62,48,34,.08)}
+.dark .lens{background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.09));border-color:rgba(255,255,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 6px 14px rgba(0,0,0,.3)}
+.bubble{background:rgba(62,48,34,.06);border-radius:18px 18px 6px 18px;padding:10px 14px;font-size:14px;line-height:1.55;max-width:75%;color:#2A2622}
+.dark .bubble{background:rgba(255,255,255,.10);color:#F4EFE7}
+.composer{height:52px;border-radius:26px;display:flex;align-items:center;gap:8px;padding:0 8px}
+.crumb{position:absolute;left:272px;top:0;height:48px;display:flex;align-items:center;gap:6px;font-size:13px;color:#6F675F}
+.crumb b{color:#2A2622;font-weight:600}.dark .crumb{color:#B3A99D}.dark .crumb b{color:#F4EFE7}
+.vsep{width:1px;height:18px;background:rgba(62,48,34,.14);margin:0 4px}.dark .vsep{background:rgba(255,255,255,.16)}
+.row{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 12px;border-radius:12px}
+.srow{display:flex;align-items:center;gap:16px;min-height:48px;padding:10px 16px}
+.tile{display:flex;align-items:center;gap:12px;height:56px;padding:0 12px 0 10px;border-radius:14px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:500;color:#2A2622;text-align:left}
+.dark .tile{color:#F4EFE7}
+.itile{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none}
+.tog{width:36px;height:22px;border-radius:11px;position:relative;display:inline-block;flex:none;box-shadow:inset 0 1px 2px rgba(0,0,0,.15)}
+.tog i{position:absolute;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.tog.on{background:#5A5FA3}.tog.on i{left:16px}.tog.off{background:rgba(62,48,34,.18)}.tog.off i{left:2px}
+.dark .tog.off{background:rgba(255,255,255,.18)}
+.badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:8px;background:#5A5FA3;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;border:1.5px solid #fff}
+.meter{height:6px;border-radius:3px;background:rgba(62,48,34,.08);overflow:hidden}.meter i{display:block;height:100%;border-radius:3px;background:#5A5FA3}
+.dark .meter{background:rgba(255,255,255,.10)}
+.read{font-size:14px;line-height:1.6;color:#2A2622}.dark .read{color:#EFE9E1}
+.note{font-size:12px;line-height:1.5;color:#6F675F}.dark .note{color:#B3A99D}
+</style>
+</helmet>
+<div class="win" style="width:1440px;height:1600px;border-radius:12px;padding:32px 40px;display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;gap:28px;align-items:flex-start">
+    <div style="width:320px;flex:none">
+<div class="cap" style="margin-bottom:8px">Chọn ngôn ngữ · Đầu vào · neo dưới nút ngôn ngữ</div>
+      <div class="float" role="dialog" aria-label="Chọn ngôn ngữ đầu vào" style="display:flex;flex-direction:column;overflow:hidden">
+        <div style="padding:10px 12px 6px"><label class="field" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:999px;font-size:13px;color:#7A7167"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input aria-label="Tìm ngôn ngữ" placeholder="Tìm ngôn ngữ" style="flex:1"></label></div>
+        <div style="padding:0 8px 8px;display:flex;flex-direction:column;gap:1px">
+<a class="row " href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tự động nhận dạng</span></a>
+          <div class="cap" style="padding:8px 10px 4px">Gần đây</div>
+<a class="row lens" href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tiếng Anh</span><span class="t3" style="font-size:12px">English</span><span style="color:#5A5FA3"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></a>
+<a class="row " href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tiếng Việt</span><span class="t3" style="font-size:12px">Vietnamese</span></a>
+<a class="row " href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tiếng Nhật</span><span class="t3" style="font-size:12px">日本語</span></a>
+          <div class="cap" style="padding:8px 10px 4px">Tất cả</div>
+<a class="row " href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tiếng Ả Rập</span><span class="t3" style="font-size:12px">العربية</span></a>
+<a class="row " href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tiếng Đức</span><span class="t3" style="font-size:12px">Deutsch</span></a>
+<a class="row " href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tiếng Hàn</span><span class="t3" style="font-size:12px">한국어</span></a>
+<a class="row " href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tiếng Pháp</span><span class="t3" style="font-size:12px">Français</span></a>
+<a class="row " href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tiếng Tây Ban Nha</span><span class="t3" style="font-size:12px">Español</span></a>
+<a class="row " href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tiếng Thái</span><span class="t3" style="font-size:12px">ไทย</span></a>
+<a class="row " href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tiếng Trung (Giản thể)</span><span class="t3" style="font-size:12px">简体中文</span></a>
+          <div class="note" style="padding:6px 10px 2px">… 12 ngôn ngữ nữa, cuộn để xem</div>
+        </div>
+      </div>
+      <p class="note" style="margin:10px 0 0">Tìm bỏ qua dấu: gõ "nhat" vẫn ra Tiếng Nhật. ↑↓ di chuyển, Return chọn, Escape đóng và trả focus về nút ngôn ngữ. "Tự động nhận dạng" chỉ có ở Đầu vào; khi chọn, nút ⇄ mờ đi.</p>
+    </div>
+    <div style="width:320px;flex:none">
+<div class="cap" style="margin-bottom:8px">Chọn ngôn ngữ · Đầu ra · đang gõ "nh"</div>
+      <div class="float" role="dialog" aria-label="Chọn ngôn ngữ đầu ra" style="display:flex;flex-direction:column;overflow:hidden">
+        <div style="padding:10px 12px 6px"><label class="field" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border-radius:999px;font-size:13px;border-color:rgba(62,48,34,.18)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input aria-label="Tìm ngôn ngữ" value="nh" style="flex:1;color:#2A2622"></label></div>
+        <div style="padding:0 8px 8px;display:flex;flex-direction:column;gap:1px">
+<a class="row lens" href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tiếng <b>Nh</b>ật</span><span class="t3" style="font-size:12px">日本語</span></a>
+<a class="row " href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tiếng Việt</span><span class="t3" style="font-size:12px">Vietnamese · đang chọn</span><span style="color:#5A5FA3"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></a>
+        </div>
+        <div class="note" style="padding:4px 16px 12px">Hàng đang chọn vẫn hiện khi lọc để không mất ngữ cảnh.</div>
+      </div>
+      <div style="margin-top:20px">
+<div class="cap" style="margin-bottom:8px">Menu Nghe · neo dưới nút loa</div>
+        <div class="float" role="menu" style="display:flex;flex-direction:column;overflow:hidden;padding:8px">
+<a class="row " href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Nghe bản dịch</span><span class="t3" style="font-size:12px">Giọng hệ thống · Linh</span></a>
+<a class="row " href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Nghe nguyên bản</span><span class="t3" style="font-size:12px">Giọng hệ thống · Samantha</span></a>
+          <div class="hair" style="margin:6px 4px"></div>
+<a class="row " href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t1">Tốc độ 1,0×</span><svg class="ic" style="width:12px;height:12px;color:#6F7F8F" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></a>
+<a class="row " href="#" style="min-height:36px;padding:0 10px;gap:10px;font-size:13px"><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" class="t3">Đổi giọng trong Cài đặt</span></a>
+        </div>
+      </div>
+    </div>
+    <div style="width:380px;flex:none">
+<div class="cap" style="margin-bottom:8px">Tuỳ chọn dịch · neo dưới nút "Thông thường"</div>
+      <div class="float" role="dialog" aria-label="Tuỳ chọn dịch" style="display:flex;flex-direction:column;overflow:hidden">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 12px 8px 16px"><span class="t1" style="font-size:13px;font-weight:600">Tuỳ chọn dịch</span><button class="btn icon sm" aria-label="Đóng"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:1px solid rgba(62,48,34,.06)"><div style="flex:1;min-width:0"><div style="font-size:13px">Tự động dịch</div><div class="note" style="margin-top:1px">Dịch khi ngừng gõ</div></div><span class="tog on" role="switch" aria-checked="true" aria-label="Tự động dịch"><i></i></span></div>
+<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:1px solid rgba(62,48,34,.06)"><div style="flex:1;min-width:0"><div style="font-size:13px">Thời gian chờ</div></div><div class="seg"><button>500 ms</button><button class="on">800 ms</button><button>1,5 s</button></div></div>
+<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:1px solid rgba(62,48,34,.06)"><div style="flex:1;min-width:0"><div style="font-size:13px">Mức suy luận</div></div><div class="seg"><button class="on">Tự động</button><button>Thấp</button><button>Vừa</button><button>Cao</button></div></div>
+<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:1px solid rgba(62,48,34,.06)"><div style="flex:1;min-width:0"><div style="font-size:13px">Văn phong</div><div class="note" style="margin-top:1px">Áp dụng cho lượt dịch tiếp theo</div></div><button class="btn glass sm" aria-haspopup="listbox"><span class="t1" style="font-weight:500">Thông thường</span><svg class="ic" style="width:12px;height:12px;color:#6F7F8F" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></div>
+<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:1px solid rgba(62,48,34,.06)"><div style="flex:1;min-width:0"><div style="font-size:13px">Thao tác văn bản</div></div><button class="btn glass sm" aria-haspopup="listbox"><span class="t1" style="font-weight:500">Dịch</span><svg class="ic" style="width:12px;height:12px;color:#6F7F8F" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></div>
+        <div class="note" style="padding:8px 16px 12px;border-top:1px solid rgba(62,48,34,.06)">Nút ở header đọc văn phong đang chọn; thao tác khác "Dịch" hiện thêm một dấu chấm nhấn trên nút.</div>
+      </div>
+      <div style="margin-top:20px">
+<div class="cap" style="margin-bottom:8px">Thiết lập phiên dịch · neo dưới nút Microphone</div>
+        <div class="float" role="dialog" aria-label="Thiết lập phiên dịch" style="display:flex;flex-direction:column;overflow:hidden">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 12px 8px 16px"><span class="t1" style="font-size:13px;font-weight:600">Thiết lập phiên dịch</span><button class="btn icon sm" aria-label="Đóng"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:1px solid rgba(62,48,34,.06)"><div style="flex:1;min-width:0"><div style="font-size:13px">Nguồn âm thanh</div></div><div class="seg"><button class="on">Microphone</button><button>Hệ thống</button><button>Cả hai</button></div></div>
+<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:1px solid rgba(62,48,34,.06)"><div style="flex:1;min-width:0"><div style="font-size:13px">Thiết bị microphone</div></div><button class="btn glass sm" aria-haspopup="listbox"><span class="t1" style="font-weight:500">MacBook Pro Microphone</span><svg class="ic" style="width:12px;height:12px;color:#6F7F8F" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></div>
+<div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:1px solid rgba(62,48,34,.06)"><div style="flex:1;min-width:0"><div style="font-size:13px">Quyền ghi màn hình</div><div class="note" style="margin-top:1px">Cần cho âm thanh hệ thống</div></div><span class="chip" style="background:rgba(185,120,26,.12);color:#8A5A12"><span class="dot" style="background:#B9781A"></span>Chưa cấp</span><button class="btn glass sm">Mở</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="width:100%">
+<div class="cap" style="margin-bottom:8px">So sánh mô hình · bước 1 chọn model (mở khi bấm "So sánh") → bước 2 kết quả</div>
+<div style="display:flex;gap:28px;align-items:flex-start">
+  <div class="float" role="dialog" aria-label="Chọn model để so sánh" style="width:420px;flex:none;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 12px 4px 16px"><div><div class="t1" style="font-size:13px;font-weight:600">Chọn model để so sánh</div><div class="note">Model đang dùng luôn là cột đầu. Tối đa 4 model.</div></div><button class="btn icon sm" aria-label="Đóng"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div style="padding:8px 8px 4px;display:flex;flex-direction:column;gap:1px">
+      <div class="cap" style="padding:6px 10px 4px">Đang dùng</div>
+<label style="display:flex;align-items:center;gap:12px;min-height:36px;padding:0 10px;border-radius:12px;font-size:13px;cursor:pointer"><input type="checkbox" checked disabled style="width:16px;height:16px;margin:0;accent-color:#5A5FA3;flex:none"><span style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px"><span class="t1" style="font-weight:500">Haiku 5.5</span><span class="t3" style="font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">claude-haiku-5-5</span></span><span class="chip" style="background:rgba(90,95,163,.10);color:#5A5FA3;height:20px;font-size:11px">Cột đầu</span></label>
+      <div class="cap" style="padding:8px 10px 4px">Gợi ý</div>
+<label style="display:flex;align-items:center;gap:12px;min-height:36px;padding:0 10px;border-radius:12px;font-size:13px;cursor:pointer"><input type="checkbox" checked style="width:16px;height:16px;margin:0;accent-color:#5A5FA3;flex:none"><span style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px"><span class="t1" style="font-weight:500">Sonnet 5.5</span><span class="t3" style="font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">claude-sonnet-5-5</span></span><span class="t3" style="font-size:12px">Cân bằng</span></label>
+<label style="display:flex;align-items:center;gap:12px;min-height:36px;padding:0 10px;border-radius:12px;font-size:13px;cursor:pointer"><input type="checkbox" checked style="width:16px;height:16px;margin:0;accent-color:#5A5FA3;flex:none"><span style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px"><span class="t1" style="font-weight:500">GPT-5.5 Mini</span><span class="t3" style="font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">gpt-5.5-mini</span></span><span class="t3" style="font-size:12px">Gần đây</span></label>
+      <div class="cap" style="padding:8px 10px 4px">Claude</div>
+<label style="display:flex;align-items:center;gap:12px;min-height:36px;padding:0 10px;border-radius:12px;font-size:13px;cursor:pointer"><input type="checkbox"  style="width:16px;height:16px;margin:0;accent-color:#5A5FA3;flex:none"><span style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px"><span class="t1" style="font-weight:500">Opus 5.5</span><span class="t3" style="font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">claude-opus-5-5</span></span></label>
+      <div class="cap" style="padding:8px 10px 4px">OpenAI</div>
+<label style="display:flex;align-items:center;gap:12px;min-height:36px;padding:0 10px;border-radius:12px;font-size:13px;cursor:pointer"><input type="checkbox"  style="width:16px;height:16px;margin:0;accent-color:#5A5FA3;flex:none"><span style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px"><span class="t1" style="font-weight:500">GPT-5.5</span><span class="t3" style="font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">gpt-5.5</span></span></label>
+      <div class="cap" style="padding:8px 10px 4px">Gemini</div>
+<label style="display:flex;align-items:center;gap:12px;min-height:36px;padding:0 10px;border-radius:12px;font-size:13px;cursor:pointer"><input type="checkbox"  style="width:16px;height:16px;margin:0;accent-color:#5A5FA3;flex:none"><span style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px"><span class="t1" style="font-weight:500">Gemini 3 Pro</span><span class="t3" style="font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">gemini-3-pro</span></span></label>
+<label style="display:flex;align-items:center;gap:12px;min-height:36px;padding:0 10px;border-radius:12px;font-size:13px;cursor:pointer"><input type="checkbox"  style="width:16px;height:16px;margin:0;accent-color:#5A5FA3;flex:none"><span style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px"><span class="t1" style="font-weight:500">Gemini 3 Flash</span><span class="t3" style="font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">gemini-3-flash</span></span></label>
+      <div class="cap" style="padding:8px 10px 4px">Trên máy</div>
+<label style="display:flex;align-items:center;gap:12px;min-height:36px;padding:0 10px;border-radius:12px;font-size:13px;cursor:pointer"><input type="checkbox" disabled style="width:16px;height:16px;margin:0;accent-color:#5A5FA3;flex:none"><span style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px"><span class="t3" style="font-weight:400">Thiết lập model local…</span><span class="t3" style="font-size:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace"></span></span><span class="t4" style="font-size:12px">Chưa chạy</span></label>
+    </div>
+    <div style="padding:6px 16px 8px"><label class="field" style="display:flex;align-items:center;gap:8px;height:28px;padding:0 10px;border-radius:999px;font-size:12px;color:#7A7167"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input aria-label="Lọc danh sách model" placeholder="Lọc danh sách dài…" style="flex:1"></label></div>
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 16px 12px;border-top:1px solid rgba(62,48,34,.08)"><span class="t3" style="font-size:12px;flex:1">Đã chọn 3 / 4</span><button class="btn">Huỷ</button><button class="btn primary">So sánh 3 model<span class="kbd" style="background:rgba(255,255,255,.22);border-color:transparent;color:#fff;box-shadow:none">↩</span></button></div>
+  </div>
+  <div class="float" role="dialog" aria-label="Kết quả so sánh" style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 12px 10px 16px"><span class="t1" style="font-size:13px;font-weight:600">So sánh mô hình</span><span class="t3" style="font-size:12px">2/3 xong</span><div style="display:flex;gap:4px;margin-left:6px"><span class="chip" style="background:rgba(62,48,34,.06);color:#3F3A35">Haiku 5.5</span><span class="chip" style="background:rgba(62,48,34,.06);color:#3F3A35">Sonnet 5.5</span><span class="chip" style="background:rgba(62,48,34,.06);color:#3F3A35">GPT-5.5 Mini</span></div><button class="btn sm" style="color:#5A5FA3">Đổi model</button><div style="flex:1"></div><div class="seg"><button class="on">Theo cột</button><button>Theo câu</button></div><button class="btn icon sm" aria-label="Đóng"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="note" style="padding:0 16px 10px">Phần khác với cột đầu được tô nhẹ. Nguồn đã đổi? Nút "Chạy lại" sẽ hiện ở đây.</div>
+    <div style="display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));border-top:1px solid rgba(62,48,34,.08)">
+      <div style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;border-right:1px solid rgba(62,48,34,.08)"><div style="display:flex;align-items:center;gap:6px"><span class="t1" style="font-size:12px;font-weight:600;flex:1">Haiku 5.5 · đang dùng</span><span class="chip" style="background:rgba(60,143,90,.14);color:#2F7A4C;height:20px;font-size:11px">Xong · 0,9 s</span></div><p class="read" style="margin:0;font-size:13px">Công cụ tốt thì tan vào công việc. Viezan là bàn làm việc ưu tiên lưu trên máy dành cho những ai chuyển đổi giữa các ngôn ngữ cả ngày.</p><div style="display:flex;gap:4px;margin-top:auto"><button class="btn glass sm">Chọn bản dịch này</button><button class="btn icon sm" aria-label="Sao chép"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>
+      <div style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;border-right:1px solid rgba(62,48,34,.08)"><div style="display:flex;align-items:center;gap:6px"><span class="t1" style="font-size:12px;font-weight:600;flex:1">Sonnet 5.5</span><span class="chip" style="background:rgba(60,143,90,.14);color:#2F7A4C;height:20px;font-size:11px">Xong · 1,8 s</span></div><p class="read" style="margin:0;font-size:13px">Công cụ tốt <mark style="background:rgba(90,95,163,.14);color:inherit;border-radius:3px;padding:0 2px">sẽ hoà vào</mark> công việc. Viezan là bàn làm việc <mark style="background:rgba(90,95,163,.14);color:inherit;border-radius:3px;padding:0 2px">lưu trữ tại chỗ</mark> dành cho những ai chuyển đổi giữa các ngôn ngữ cả ngày.</p><div style="display:flex;gap:4px;margin-top:auto"><button class="btn glass sm">Chọn bản dịch này</button><button class="btn icon sm" aria-label="Sao chép"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></div></div>
+      <div style="padding:12px 14px;display:flex;flex-direction:column;gap:8px"><div style="display:flex;align-items:center;gap:6px"><span class="t1" style="font-size:12px;font-weight:600;flex:1">GPT-5.5 Mini</span><span class="chip" style="background:rgba(90,95,163,.10);color:#5A5FA3;height:20px;font-size:11px">Đang chờ</span></div><div style="display:flex;flex-direction:column;gap:6px"><span style="height:10px;border-radius:5px;background:rgba(62,48,34,.08);width:100%"></span><span style="height:10px;border-radius:5px;background:rgba(62,48,34,.08);width:92%"></span><span style="height:10px;border-radius:5px;background:rgba(62,48,34,.08);width:60%"></span></div><div style="display:flex;gap:4px;margin-top:auto"><button class="btn danger sm">Dừng</button></div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid rgba(62,48,34,.08)"><span class="t1" style="font-size:12px;font-weight:600">Bản dịch ghép</span><span class="note" style="flex:1">Chế độ "Theo câu" cho phép chọn từng câu từ mỗi cột bằng "Dùng câu này".</span><button class="btn glass sm">Chọn bản dịch này</button></div>
+  </div>
+</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1600}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

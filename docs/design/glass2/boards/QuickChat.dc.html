@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Quick AI</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;color:#3F3A35}
+a{color:#5A5FA3;text-decoration:none}a:hover{color:#4E5292}
+.win{position:relative;overflow:hidden;color:#3F3A35;background:radial-gradient(900px 620px at 10% 0%,rgba(246,230,205,.90),transparent 62%),radial-gradient(760px 560px at 100% 100%,rgba(160,182,204,.70),transparent 62%),linear-gradient(150deg,#EADFCF 0%,#C8B8AB 36%,#9896AE 68%,#B3BFCC 100%)}
+.win.dark{color:#E0D8CE;background:radial-gradient(900px 620px at 10% 0%,rgba(150,118,86,.42),transparent 62%),radial-gradient(760px 560px at 100% 100%,rgba(92,104,150,.45),transparent 62%),linear-gradient(150deg,#2B231D 0%,#2C2731 46%,#1F2531 100%)}
+.glass{background:linear-gradient(135deg,rgba(255,255,255,.68),rgba(255,255,255,.40));backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);border:1px solid rgba(255,255,255,.70);box-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -1px 0 rgba(255,255,255,.25),0 1px 1px rgba(62,48,34,.05),0 6px 18px rgba(62,48,34,.08)}
+.dark .glass{background:linear-gradient(135deg,rgba(255,255,255,.14),rgba(255,255,255,.06));border-color:rgba(255,255,255,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(255,255,255,.04),0 1px 1px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.28)}
+.pane{background:linear-gradient(160deg,rgba(255,255,255,.52),rgba(255,255,255,.30));backdrop-filter:blur(36px) saturate(170%);-webkit-backdrop-filter:blur(36px) saturate(170%);border:1px solid rgba(255,255,255,.62);box-shadow:inset 0 1px 0 rgba(255,255,255,.80),0 2px 4px rgba(62,48,34,.04),0 18px 48px rgba(62,48,34,.14)}
+.dark .pane{background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.04));border-color:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 2px 4px rgba(0,0,0,.3),0 18px 48px rgba(0,0,0,.4)}
+.content{background:rgba(255,255,255,.82);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(255,255,255,.75);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 4px rgba(62,48,34,.04),0 18px 48px rgba(62,48,34,.10)}
+.dark .content{background:rgba(32,28,30,.80);border-color:rgba(255,255,255,.10);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 18px 48px rgba(0,0,0,.4)}
+.float{background:rgba(255,255,255,.88);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);border:1px solid rgba(255,255,255,.8);box-shadow:inset 0 1px 0 #fff,0 24px 64px rgba(62,48,34,.22),0 2px 6px rgba(62,48,34,.08);border-radius:20px}
+.dark .float{background:rgba(38,34,38,.90);border-color:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 24px 64px rgba(0,0,0,.55)}
+.card{background:rgba(255,255,255,.70);border:1px solid rgba(62,48,34,.08);border-radius:16px;box-shadow:0 1px 2px rgba(62,48,34,.04)}
+.dark .card{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.10);box-shadow:none}
+.field{background:rgba(255,255,255,.62);border:1px solid rgba(62,48,34,.10);box-shadow:inset 0 1px 2px rgba(62,48,34,.05);color:#3F3A35}
+.dark .field{background:rgba(0,0,0,.24);border-color:rgba(255,255,255,.12);box-shadow:inset 0 1px 2px rgba(0,0,0,.3);color:#E0D8CE}
+.field input,.field textarea{border:0;background:transparent;font:inherit;outline:0;min-width:0;color:inherit;padding:0;resize:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:500;line-height:1;font-family:inherit;color:#3F3A35;border:1px solid transparent;background:transparent;cursor:pointer;white-space:nowrap;position:relative}
+.btn.md{height:36px;padding:0 14px}.btn.icon{width:32px;padding:0}.btn.icon.md{width:36px}.btn.sm{height:28px;padding:0 10px;font-size:12px}.btn.icon.sm{width:28px}
+.btn.primary{color:#fff;background:linear-gradient(180deg,#7B7FC6 0%,#5A5FA3 100%);border-color:rgba(255,255,255,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 1px 2px rgba(90,95,163,.35),0 6px 16px rgba(90,95,163,.28);font-weight:600}
+.btn.tint{color:#5A5FA3;font-weight:600}
+.dark .btn{color:#E0D8CE}.dark .btn.tint{color:#A6AAEE}
+.btn.danger{color:#C4473F}.dark .btn.danger{color:#FF7B7B}
+.btn.disabled{opacity:.45}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:rgba(62,48,34,.06);box-shadow:inset 0 1px 2px rgba(62,48,34,.05)}
+.dark .seg{background:rgba(0,0,0,.25)}
+.seg button{height:26px;padding:0 12px;border-radius:999px;border:1px solid transparent;background:transparent;font-size:13px;font-weight:500;line-height:1;font-family:inherit;color:#6F675F;cursor:pointer;white-space:nowrap}
+.dark .seg button{color:#B3A99D}
+.seg button.on{background:linear-gradient(135deg,rgba(255,255,255,.95),rgba(255,255,255,.78));color:#2A2622;font-weight:600;border-color:rgba(255,255,255,.9);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(62,48,34,.10),0 4px 10px rgba(62,48,34,.08)}
+.dark .seg button.on{background:linear-gradient(135deg,rgba(255,255,255,.20),rgba(255,255,255,.10));color:#fff;border-color:rgba(255,255,255,.22)}
+.cap{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6F675F}
+.dark .cap{color:#AAA094}
+.t1{color:#2A2622}.t3{color:#6F675F}.t4{color:#7A7167}
+.dark .t1{color:#F4EFE7}.dark .t3{color:#B3A99D}.dark .t4{color:#9A9084}
+.hair{border-top:1px solid rgba(62,48,34,.08)}.dark .hair{border-top-color:rgba(255,255,255,.08)}
+.kbd{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:6px;font-size:11px;font-weight:500;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#6F675F;background:rgba(255,255,255,.7);border:1px solid rgba(62,48,34,.10);box-shadow:inset 0 1px 0 #fff}
+.dark .kbd{color:#B3A99D;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.12);box-shadow:none}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.ic{width:16px;height:16px;flex:none}
+.tl{display:flex;gap:8px}.tl i{width:12px;height:12px;border-radius:50%;display:block;border:1px solid rgba(0,0,0,.12)}
+.lens{background:linear-gradient(135deg,rgba(255,255,255,.92),rgba(255,255,255,.72));border:1px solid rgba(255,255,255,.95);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(62,48,34,.08),0 6px 14px rgba(62,48,34,.08)}
+.dark .lens{background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.09));border-color:rgba(255,255,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 6px 14px rgba(0,0,0,.3)}
+.bubble{background:rgba(62,48,34,.06);border-radius:18px 18px 6px 18px;padding:10px 14px;font-size:14px;line-height:1.55;max-width:75%;color:#2A2622}
+.dark .bubble{background:rgba(255,255,255,.10);color:#F4EFE7}
+.composer{height:52px;border-radius:26px;display:flex;align-items:center;gap:8px;padding:0 8px}
+.crumb{position:absolute;left:272px;top:0;height:48px;display:flex;align-items:center;gap:6px;font-size:13px;color:#6F675F}
+.crumb b{color:#2A2622;font-weight:600}.dark .crumb{color:#B3A99D}.dark .crumb b{color:#F4EFE7}
+.vsep{width:1px;height:18px;background:rgba(62,48,34,.14);margin:0 4px}.dark .vsep{background:rgba(255,255,255,.16)}
+.row{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 12px;border-radius:12px}
+.srow{display:flex;align-items:center;gap:16px;min-height:48px;padding:10px 16px}
+.tile{display:flex;align-items:center;gap:12px;height:56px;padding:0 12px 0 10px;border-radius:14px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:500;color:#2A2622;text-align:left}
+.dark .tile{color:#F4EFE7}
+.itile{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none}
+.tog{width:36px;height:22px;border-radius:11px;position:relative;display:inline-block;flex:none;box-shadow:inset 0 1px 2px rgba(0,0,0,.15)}
+.tog i{position:absolute;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.tog.on{background:#5A5FA3}.tog.on i{left:16px}.tog.off{background:rgba(62,48,34,.18)}.tog.off i{left:2px}
+.dark .tog.off{background:rgba(255,255,255,.18)}
+.badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:8px;background:#5A5FA3;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;border:1.5px solid #fff}
+.meter{height:6px;border-radius:3px;background:rgba(62,48,34,.08);overflow:hidden}.meter i{display:block;height:100%;border-radius:3px;background:#5A5FA3}
+.dark .meter{background:rgba(255,255,255,.10)}
+.read{font-size:14px;line-height:1.6;color:#2A2622}.dark .read{color:#EFE9E1}
+.note{font-size:12px;line-height:1.5;color:#6F675F}.dark .note{color:#B3A99D}
+</style>
+</helmet>
+<div class="win" style="width:480px;height:560px;border-radius:20px;padding:0">
+  <div class="float" role="dialog" aria-label="Hỏi AI" style="position:absolute;inset:0;border-radius:20px;display:flex;flex-direction:column;overflow:hidden;background:rgba(255,255,255,.86)">
+    <div style="display:flex;align-items:center;gap:8px;height:52px;padding:0 10px 0 8px;border-bottom:1px solid rgba(62,48,34,.08)">
+      <button class="btn sm"><svg class="ic" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Tìm kiếm</button>
+      <button class="btn glass icon sm" aria-label="Cuộc trò chuyện mới (⌘N)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+      <label style="flex:1;display:flex;min-width:0"><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Câu hỏi</span><input placeholder="Hỏi tiếp…" style="flex:1;border:0;background:transparent;font:inherit;font-size:14px;outline:0;min-width:0;color:#2A2622"></label>
+      <button class="btn icon sm" aria-label="Xoá"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      <button class="btn primary icon" style="border-radius:50%" aria-label="Gửi (↩)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5m-7 7 7-7 7 7"/></svg></button>
+    </div>
+    <div style="flex:1;overflow:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+      <div class="card" style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;border-radius:14px">
+        <div style="display:flex;align-items:flex-start;gap:8px"><span class="chip" style="background:rgba(90,95,163,.10);color:#5A5FA3;height:20px;font-size:11px;padding:0 8px">Hỏi</span><span class="t1" style="font-size:13px;font-weight:500;line-height:1.5">Tóm tắt 3 điểm chính của Liquid Glass</span></div>
+        <div class="read" style="font-size:13px">
+          <p style="margin:0 0 6px">1. <b>Vật liệu động</b>: kính lấy màu và ánh sáng từ nội dung bên dưới, không phải một màu phẳng.</p>
+          <p style="margin:0 0 6px">2. <b>Chỉ ở lớp điều khiển</b>: điều hướng, nút, lớp nổi; nội dung vẫn đứng trên mặt đọc ổn định.</p>
+          <p style="margin:0">3. <b>Tôn trọng trợ năng</b>: Reduce Transparency và Increase Contrast trả về bề mặt đặc, viền rõ.</p>
+        </div>
+        <div style="display:flex;gap:2px;margin-left:-8px"><button class="btn sm" aria-label="Sao chép"><svg class="ic" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Sao chép</button><button class="btn sm"><svg class="ic" style="width:14px;height:14px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>Tạo lại phản hồi</button></div>
+      </div>
+      <div class="note" style="text-align:center;display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:auto"><span><span class="kbd">↵</span> Gửi</span><span><span class="kbd">⇧↵</span> Xuống dòng</span><span><span class="kbd">⌘↵</span> Mở trong Chat</span><span><span class="kbd">esc</span> Đóng</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;height:44px;padding:0 10px 0 12px;border-top:1px solid rgba(62,48,34,.08);background:rgba(62,48,34,.03)">
+      <button class="btn sm" title="Đổi mô hình trong Cài đặt" style="gap:8px"><span class="dot" style="background:#3C8F5A;width:7px;height:7px"></span>Haiku 5.5 · 1 lượt</button>
+      <div style="flex:1"></div>
+      <button class="btn sm danger disabled" aria-disabled="true">Dừng</button>
+      <button class="btn glass sm">Mở trong Chat<span class="kbd">⌘↵</span></button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":480,"height":560}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
