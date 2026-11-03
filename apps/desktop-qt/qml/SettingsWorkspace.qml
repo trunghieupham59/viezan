@@ -53,7 +53,7 @@ Item {
         RowLayout {
             visible: false
             Layout.fillWidth: true
-            TextField {
+            Kit.SearchField {
                 id: search
                 objectName: "settings-search"
                 text: settings.query
@@ -83,8 +83,9 @@ Item {
                         Kit.Eyebrow { text: t(modelData[0]); Layout.leftMargin: metrics.small; Layout.topMargin: metrics.gap }
                         Repeater {
                             model: modelData[1]
-                            delegate: Button {
+                            delegate: Kit.GlassButton {
                                 id: sectionButton
+                                glassMaterial: false
                                 required property var modelData
                                 text: t(modelData.title)
                                 Layout.fillWidth: true
@@ -98,7 +99,13 @@ Item {
                                     IconImage { source: "icons/" + settings.sectionIcons[sectionButton.modelData.id] + ".svg"; color: sectionButton.checked ? palette.link : palette.buttonText; sourceSize.width: metrics.icon; sourceSize.height: metrics.icon; Layout.preferredWidth: metrics.icon; Layout.preferredHeight: metrics.icon; Accessible.ignored: true }
                                     Label { text: sectionButton.text; font.bold: sectionButton.checked; color: sectionButton.checked ? palette.link : palette.buttonText; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
                                 }
-                                background: Rectangle { radius: metrics.radius; color: sectionButton.checked ? Qt.tint(palette.base, Qt.alpha(palette.highlight, metrics.selectionOpacity)) : sectionButton.hovered ? palette.alternateBase : "transparent"; border.width: sectionButton.visualFocus ? metrics.hairline : 0; border.color: palette.highlight }
+                                background: Rectangle {
+                                    radius: metrics.radius
+                                    color: workbench.state.appearance?.preset === "glass" && sectionButton.checked ? "transparent" : sectionButton.checked ? Qt.tint(palette.base, Qt.alpha(palette.highlight, metrics.selectionOpacity)) : sectionButton.hovered ? palette.alternateBase : "transparent"
+                                    Kit.ControlGlassSurface { anchors.fill: parent; visible: workbench.state.appearance?.preset === "glass" && sectionButton.checked; radius: metrics.radius }
+                                    border.width: sectionButton.visualFocus ? metrics.hairline : 0
+                                    border.color: palette.highlight
+                                }
                                 Accessible.name: text
                                 onClicked: settings.selectSection(modelData.id)
                                 ToolTip.visible: hovered
@@ -113,7 +120,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 spacing: metrics.inset
-                ComboBox {
+                Kit.GlassComboBox {
                     objectName: "settings-section-picker"
                     visible: !settings.wide && sections.length > 0
                     Layout.fillWidth: true
@@ -195,7 +202,7 @@ Item {
                     spacing: 0
                     Kit.CardRow {
                         title: t("language"); detail: t("languageDescription"); divider: false
-                        ComboBox {
+                        Kit.GlassComboBox {
                             objectName: "settings-language"
                             model: ["Tiếng Việt", "English", "日本語"]
                             currentIndex: ["vi", "en", "ja"].indexOf(workspace.locale)
@@ -219,7 +226,7 @@ Item {
                     Kit.CardRow {
                         visible: !!settings.workspace.autoTranslate
                         title: settings.t("autoTranslateDelay"); divider: false
-                        ComboBox { readonly property var delays: [500, 800, 1500]; model: delays.map(value => value + " ms"); currentIndex: delays.indexOf(settings.workspace.autoTranslateDelay || 800); Accessible.name: settings.t("autoTranslateDelay"); onActivated: settings.bridge.command("autoTranslate", {enabled: true, delay: delays[currentIndex]}) }
+                        Kit.GlassComboBox { readonly property var delays: [500, 800, 1500]; model: delays.map(value => value + " ms"); currentIndex: delays.indexOf(settings.workspace.autoTranslateDelay || 800); Accessible.name: settings.t("autoTranslateDelay"); onActivated: settings.bridge.command("autoTranslate", {enabled: true, delay: delays[currentIndex]}) }
                     }
                 }
             }
@@ -243,7 +250,7 @@ Item {
                     spacing: 0
                     Kit.CardRow {
                         title: settings.t("speechProvider"); detail: settings.t("speechAutoHint")
-                        ComboBox {
+                        Kit.GlassComboBox {
                             readonly property var providers: ["auto", "openai", "groq", "gemini"]
                             model: [settings.t("reasoning_auto"), "OpenAI", "Groq", "Gemini"]
                             currentIndex: providers.indexOf(settings.workspace.speechProvider || "auto")
@@ -253,7 +260,7 @@ Item {
                     }
                     Kit.CardRow {
                         title: settings.t("voiceProvider")
-                        ComboBox {
+                        Kit.GlassComboBox {
                             id: voiceProvider
                             readonly property var providers: ["system", "edge", "openai", "gemini", "elevenlabs"]
                             implicitContentWidthPolicy: ComboBox.WidestText
@@ -265,9 +272,9 @@ Item {
                     }
                     Kit.CardRow {
                         title: settings.t("voiceID"); detail: settings.t("voiceHint"); divider: false
-                        ComboBox { visible: voiceProvider.currentIndex === 0; Layout.preferredWidth: metrics.sidebar; model: [settings.t("voiceAutomatic")].concat(settings.bridge.audio.voices); Accessible.name: settings.t("voiceID"); onActivated: voiceID.text = currentIndex === 0 ? "" : currentText }
+                        Kit.GlassComboBox { visible: voiceProvider.currentIndex === 0; Layout.preferredWidth: metrics.sidebar; model: [settings.t("voiceAutomatic")].concat(settings.bridge.audio.voices); Accessible.name: settings.t("voiceID"); onActivated: voiceID.text = currentIndex === 0 ? "" : currentText }
                         TextField { id: voiceID; visible: voiceProvider.currentIndex !== 0; Layout.preferredWidth: metrics.sidebar; text: settings.workspace.voice?.voice || ""; placeholderText: settings.t("voiceID"); Accessible.name: placeholderText; maximumLength: 256 }
-                        Button { text: settings.t("apply"); onClicked: settings.bridge.command("voice", {provider:voiceProvider.providers[voiceProvider.currentIndex], voice:voiceID.text}) }
+                        Kit.GlassButton { text: settings.t("apply"); onClicked: settings.bridge.command("voice", {provider:voiceProvider.providers[voiceProvider.currentIndex], voice:voiceID.text}) }
                     }
                 }
             }
@@ -318,34 +325,38 @@ Item {
                     spacing: 0
                     Kit.CardRow {
                         title: settings.t("themePreset"); detail: settings.t("presetDescription")
-                        ComboBox { readonly property var keys: ["graphite", "glass", "paper", "corporate", "midnight"]; implicitContentWidthPolicy: ComboBox.WidestText; model: keys.map(key => settings.t("preset_" + key)); currentIndex: keys.indexOf(preferences.preset || "graphite"); Accessible.name: settings.t("themePreset"); onActivated: bridge.command("appearance", {preset: keys[currentIndex]}) }
+                        Kit.GlassComboBox { readonly property var keys: ["graphite", "glass", "paper", "corporate", "midnight"]; implicitContentWidthPolicy: ComboBox.WidestText; model: keys.map(key => settings.t("preset_" + key)); currentIndex: keys.indexOf(preferences.preset || "graphite"); Accessible.name: settings.t("themePreset"); onActivated: bridge.command("appearance", {preset: keys[currentIndex]}) }
                     }
                     Kit.CardRow {
                         title: settings.t("themeAccent"); detail: settings.t("accentDescription")
-                        ComboBox { readonly property var keys: ["auto", "violet", "pink", "teal", "green", "amber", "red"]; implicitContentWidthPolicy: ComboBox.WidestText; model: keys.map(key => settings.t("accent_" + key)); currentIndex: keys.indexOf(preferences.accent || "auto"); Accessible.name: settings.t("themeAccent"); onActivated: bridge.command("appearance", {accent: keys[currentIndex]}) }
+                        Kit.GlassComboBox { readonly property var keys: ["auto", "violet", "pink", "teal", "green", "amber", "red"]; implicitContentWidthPolicy: ComboBox.WidestText; model: keys.map(key => settings.t("accent_" + key)); currentIndex: keys.indexOf(preferences.accent || "auto"); Accessible.name: settings.t("themeAccent"); onActivated: bridge.command("appearance", {accent: keys[currentIndex]}) }
                     }
                     Kit.CardRow {
                         title: t("themeMode"); detail: t("themeDescription")
-                        TabBar {
+                        Kit.FilterGroup {
                             objectName: "settings-theme"
+                            readonly property var keys: ["light", "dark", "system"]
                             Layout.preferredWidth: metrics.sidebar + metrics.large
-                            currentIndex: ["light", "dark", "system"].indexOf(preferences.mode)
+                            currentIndex: keys.indexOf(preferences.mode)
+                            onSelectionChanged: index => { if (keys[index] !== preferences.mode) bridge.command("appearance", {mode: keys[index]}) }
                             Accessible.name: t("themeMode")
-                            TabButton { implicitHeight: metrics.control; text: t("themeLight"); onClicked: bridge.command("appearance", {mode: "light"}) }
-                            TabButton { implicitHeight: metrics.control; text: t("themeDark"); onClicked: bridge.command("appearance", {mode: "dark"}) }
-                            TabButton { implicitHeight: metrics.control; text: t("themeSystem"); onClicked: bridge.command("appearance", {mode: "system"}) }
+                            Kit.FilterButton { text: t("themeLight") }
+                            Kit.FilterButton { text: t("themeDark") }
+                            Kit.FilterButton { text: t("themeSystem") }
                         }
                     }
                     Kit.CardRow {
                         title: t("readingSize"); detail: t("readingSizeDescription"); divider: false
-                        TabBar {
+                        Kit.FilterGroup {
                             objectName: "settings-text-size"
+                            readonly property var keys: ["small", "medium", "large"]
                             Layout.preferredWidth: metrics.sidebar + metrics.large
-                            currentIndex: ["small", "medium", "large"].indexOf(preferences.textSize)
+                            currentIndex: keys.indexOf(preferences.textSize)
+                            onSelectionChanged: index => { if (keys[index] !== preferences.textSize) bridge.command("appearance", {textSize: keys[index]}) }
                             Accessible.name: t("readingSize")
-                            TabButton { implicitHeight: metrics.control; text: t("textSmall"); onClicked: bridge.command("appearance", {textSize: "small"}) }
-                            TabButton { implicitHeight: metrics.control; text: t("textMedium"); onClicked: bridge.command("appearance", {textSize: "medium"}) }
-                            TabButton { implicitHeight: metrics.control; text: t("textLarge"); onClicked: bridge.command("appearance", {textSize: "large"}) }
+                            Kit.FilterButton { text: t("textSmall") }
+                            Kit.FilterButton { text: t("textMedium") }
+                            Kit.FilterButton { text: t("textLarge") }
                         }
                     }
                 }
@@ -370,7 +381,7 @@ Item {
                 anchors.fill: parent
                 spacing: metrics.inset
                 Kit.CardRow { title: settings.t("currentVersion"); Layout.fillWidth: true; Label { text: Qt.application.version; color: palette.placeholderText } }
-                Kit.CardRow { title: settings.t("sourceCode"); divider: false; Layout.fillWidth: true; Button { text: "GitHub"; onClicked: Qt.openUrlExternally("https://github.com/trunghieupham59/viezan") } }
+                Kit.CardRow { title: settings.t("sourceCode"); divider: false; Layout.fillWidth: true; Kit.GlassButton { text: "GitHub"; onClicked: Qt.openUrlExternally("https://github.com/trunghieupham59/viezan") } }
                 ToolSeparator { orientation: Qt.Horizontal; Layout.fillWidth: true }
                 Description { heading: "previewScopeTitle"; detail: "previewScopeDescription" }
                 ToolSeparator { orientation: Qt.Horizontal; Layout.fillWidth: true }

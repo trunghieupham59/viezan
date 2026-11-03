@@ -15,22 +15,51 @@ struct PanelRow: View {
     var identifier: String
     var action: () -> Void
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.isEnabled) private var enabled
+    @FocusState private var focused: Bool
     @State private var hovered = false
+    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
+    private var radius: CGFloat { metric(glass ? "chromeControlRadius" : "radius") }
+    private var titleColor: Color { contentColor(glass && !enabled ? "text-disabled" : muted ? "text-muted" : "text", scheme) }
+    private var detailColor: Color { glass ? contentColor(enabled ? "text-muted" : "text-disabled", scheme) : .secondary }
+    @ViewBuilder private var rowBackground: some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        if glass {
+            ZStack {
+                shape.fill(.clear)
+                if enabled && hovered && !selected {
+                    shape.fill(contentColor("surface-hover", scheme))
+                        .opacity(selected ? metric("selectionOpacity") : 1)
+                }
+            }
+            .overlay {
+                if enabled && !selected && (highlighted || focused) {
+                    shape.strokeBorder(contentColor("action-text", scheme), lineWidth: metric("hairline") * 2)
+                }
+            }
+            .allowsHitTesting(false).accessibilityHidden(true)
+        } else {
+            RoundedRectangle(cornerRadius: radius).fill(highlighted || hovered ? contentColor("surface-hover", scheme) : .clear)
+                .allowsHitTesting(false).accessibilityHidden(true)
+        }
+    }
     var body: some View {
         Button(action: action) {
             HStack(spacing: metric("small")) {
-                if let symbol { Image(systemName: symbol).imageScale(.medium).frame(width: metric("icon")).foregroundStyle(.secondary).accessibilityHidden(true) }
-                else { Image(systemName: "checkmark").imageScale(.small).opacity(selected ? 1 : 0).frame(width: metric("icon") - metric("tight")).accessibilityHidden(true) }
-                Text(title).lineLimit(1).foregroundStyle(muted ? contentColor("text-muted", scheme) : contentColor("text", scheme))
+                if let symbol { Image(systemName: symbol).imageScale(.medium).frame(width: metric("icon")).foregroundStyle(detailColor).accessibilityHidden(true) }
+                else { Image(systemName: "checkmark").imageScale(.small).opacity(selected ? 1 : 0).frame(width: metric("icon") - metric("tight")).foregroundStyle(glass ? titleColor : .primary).accessibilityHidden(true) }
+                Text(title).fontWeight(glass && selected ? .semibold : nil).lineLimit(1).foregroundStyle(titleColor)
                 Spacer(minLength: metric("small"))
-                if symbol != nil, selected { Image(systemName: "checkmark").imageScale(.small).accessibilityHidden(true) }
-                if !detail.isEmpty { Text(detail).font(.vzn("captionScale")).monospacedDigit().foregroundStyle(.secondary).lineLimit(1) }
+                if symbol != nil, selected { Image(systemName: "checkmark").imageScale(.small).foregroundStyle(glass ? titleColor : .primary).accessibilityHidden(true) }
+                if !detail.isEmpty { Text(detail).font(.vzn("captionScale")).monospacedDigit().foregroundStyle(detailColor).lineLimit(1) }
                 if let toggle { Toggle("", isOn: .constant(toggle)).toggleStyle(.switch).labelsHidden().controlSize(.mini).allowsHitTesting(false).accessibilityHidden(true) }
             }
             .padding(.horizontal, metric("small")).frame(height: metric("compactControl")).frame(maxWidth: .infinity, alignment: .leading)
-            .background(highlighted || hovered ? contentColor("surface-hover", scheme) : .clear, in: RoundedRectangle(cornerRadius: metric("radius")))
+            .modifier(ControlGlass(active: glass && selected, radius: radius, selected: true,
+                                       focused: enabled && (highlighted || focused), enabled: enabled))
+            .background { rowBackground }
             .contentShape(Rectangle())
-        }.buttonStyle(.plain).onHover { hovered = $0 }
+        }.buttonStyle(.plain).focused($focused).focusEffectDisabled(glass).onHover { hovered = $0 }
             .accessibilityLabel(title + (detail.isEmpty ? "" : " · " + detail)).accessibilityAddTraits(selected || toggle == true ? .isSelected : [])
             .accessibilityIdentifier(identifier)
     }
@@ -79,6 +108,7 @@ struct ComposerToolsPanel: View {
     var availableHeight: CGFloat
     @State private var highlighted: String?
     @FocusState private var focused: Bool
+    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     private var session: Session { store.session }
     private var sections: [ComposerTools.Section] {
         ComposerTools.sections(feature: session.feature, imageCount: session.images?.count ?? 0, chatMode: session.chatMode ?? "text",
@@ -130,7 +160,7 @@ struct ComposerToolsPanel: View {
     }
     var body: some View {
         // Groups read by their hairlines, not headers: attachments, mode (one checked), reasoning
-        // (a switch), voice. Short enough to never scroll at the stage heights the shell allows.
+        // (a switch), voice. The rows scroll when the shell provides a compact stage height.
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -141,6 +171,7 @@ struct ComposerToolsPanel: View {
                             PanelRow(title: text.title, detail: text.detail, symbol: row.kind == .instructions ? "text.quote" : text.symbol, selected: row.selected, highlighted: highlighted == row.id, muted: !row.enabled,
                                      toggle: row.kind == .careful ? row.selected : nil, identifier: "tool-" + row.id) { activate(row) }
                                 .id(row.id).disabled(!row.enabled)
+                                .padding(.bottom, glass ? metric("tight") : 0)
                         }
                     }
                 }.padding(.vertical, metric("small"))

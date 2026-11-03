@@ -28,6 +28,11 @@ struct HomeWorkspace: View {
         let ids = Set(store.workspace.tasks.filter { $0.status == .running }.map(\.request.sessionID))
         return recent.filter { ids.contains($0.id) }
     }
+    private var layered: Bool { scheme == .light && (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
+    private enum HomeSection: Hashable { case overview, quickStart, running, recent, provider }
+    private var sectionOrder: [HomeSection] {
+        layered ? [.overview, .running, .recent] : [.running, .recent, .quickStart, .provider]
+    }
     var body: some View {
         WorkspacePage {
             PageIntro(title: store.text("workspace"), subtitle: store.text("workspaceSubtitle")) {
@@ -35,65 +40,116 @@ struct HomeWorkspace: View {
                     .buttonStyle(.vznPrimary).fixedSize()
                     .disabled(store.loadBlocked || !store.moduleEnabled("chat")).help(store.text("newChat") + " (⌘N)")
             }
-            if !active.isEmpty {
-                VStack(alignment: .leading, spacing: metric("small")) {
-                    Eyebrow(text: store.text("inProgress"))
-                    UniformGrid(maxColumns: 2, minimum: metric("sidebar") + metric("large")) {
-                        ForEach(active.prefix(4)) { item in
-                            Button { resume(item.id) } label: {
-                                HStack(spacing: metric("gap")) {
-                                    Image(systemName: item.feature.symbol).foregroundStyle(contentColor("action-text", scheme)).frame(width: metric("icon"))
-                                    VStack(alignment: .leading, spacing: metric("tight")) {
-                                        Text(store.title(item)).fontWeight(.semibold).lineLimit(1)
-                                        Text(store.text("running")).font(.vzn("smallScale")).foregroundStyle(.secondary)
-                                    }
-                                    Spacer(minLength: metric("small"))
-                                    Label(store.text("open"), systemImage: "arrow.right").labelStyle(.titleAndIcon).font(.vzn("smallScale")).foregroundStyle(.secondary)
-                                }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle()).cardSurface()
-                            }.buttonStyle(.plain).disabled(store.loadBlocked).help(store.title(item))
-                        }
+            ForEach(sectionOrder, id: \.self) { section in
+                switch section {
+                case .overview:
+                    HomeOverviewLayout {
+                        quickStartSection.frame(maxHeight: .infinity, alignment: .topLeading).modifier(HomeSectionSurface(enabled: true))
+                        providerSection.frame(maxHeight: .infinity, alignment: .topLeading).modifier(HomeSectionSurface(enabled: true))
                     }
+                case .quickStart: quickStartSection.modifier(HomeSectionSurface(enabled: layered))
+                case .running: runningSection
+                case .recent: recentSection.modifier(HomeSectionSurface(enabled: layered))
+                case .provider: providerSection.modifier(HomeSectionSurface(enabled: layered))
                 }
             }
-            VStack(alignment: .leading, spacing: metric("small")) {
-                HStack {
-                    Text(store.text("recentWork")).font(.vzn("sectionScale", .bold)).accessibilityAddTraits(.isHeader)
-                    Spacer()
-                    FilterTabs(label: store.text("recentWork"), items: [(String?.none, store.text("filterAll"))] + ["chat", "translate", "dictionary", "interpret"].filter { store.moduleEnabled($0) }.map { (String?.some($0), store.text($0)) }, selection: $filter)
-                }
-                let rows = entries.filter { filter == nil || $0.route == filter }
-                VStack(spacing: 0) {
-                    Divider()
-                    if rows.isEmpty { Text(store.text("noRecentWork")).foregroundStyle(.secondary).padding(.vertical, metric("inset")).frame(maxWidth: .infinity, alignment: .leading) }
-                    ForEach(rows.prefix(6)) { entry in
-                        Button { open(entry) } label: { entryRow(entry) }
-                            .buttonStyle(.plain).disabled(store.loadBlocked).help(entryTitle(entry))
-                        Divider()
-                    }
-                }
-            }
-            VStack(alignment: .leading, spacing: metric("small")) {
-                Text(store.text("quickStart")).font(.vzn("sectionScale", .bold)).accessibilityAddTraits(.isHeader)
-                NativeFlow(spacing: metric("small")) {
-                    if store.moduleEnabled("chat") { Button(store.text("newChat"), systemImage: "plus") { start(.chat) } }
-                    if store.moduleEnabled("translate") { Button(store.text("translateText"), systemImage: Feature.translate.symbol) { start(.translate) } }
-                    if store.moduleEnabled("interpret") { Button(store.text("interpret"), systemImage: "waveform", action: interpret) }
-                    if store.moduleEnabled("dictionary") { Button(store.text("lookup"), systemImage: Feature.dictionary.symbol) { start(.dictionary) } }
-                }.buttonStyle(.vznOutline).disabled(store.loadBlocked)
-            }
-            HStack(spacing: metric("small")) {
-                // The active model's real readiness, local or cloud (not only Ollama).
-                let model = store.session.model, state = store.providers.availability(model)
-                StatusDot(tone: state == .available ? .ready : state == .unknown ? .idle : .failed)
-                Text(nativeModelLabel(model, store: store) + (state == .unknown ? "" : " · " + store.text(state == .available ? "runtimeReady" : "unavailable").lowercased())).fontWeight(.medium).lineLimit(1)
-                Text(store.text(ProviderDiscovery.localProviders.contains(where: { model.hasPrefix($0 + ":") }) ? "onDevice" : "viaCloud")).foregroundStyle(.secondary).lineLimit(1)
-                Spacer(minLength: metric("small"))
-                // Manage opens the section that owns the active model: local runtimes or cloud providers.
-                Button(store.text("manage")) {
-                    NotificationCenter.default.post(name: .viezanOpenSettings, object: ProviderDiscovery.localProviders.contains(where: { model.hasPrefix($0 + ":") }) ? "localModels" : "providers")
-                }.buttonStyle(.vznOutline)
-            }.font(.vzn("smallScale")).accessibilityElement(children: .contain)
         }.task { store.discoverIfNeeded() }
+    }
+    @ViewBuilder private var runningSection: some View {
+        if !active.isEmpty {
+            VStack(alignment: .leading, spacing: metric("small")) {
+                Eyebrow(text: store.text("inProgress"))
+                UniformGrid(maxColumns: 2, minimum: metric("sidebar") + metric("large")) {
+                    ForEach(active.prefix(4)) { item in
+                        Button { resume(item.id) } label: {
+                            HStack(spacing: metric("gap")) {
+                                Image(systemName: item.feature.symbol).foregroundStyle(contentColor("action-text", scheme)).frame(width: metric("icon"))
+                                VStack(alignment: .leading, spacing: metric("tight")) {
+                                    Text(store.title(item)).fontWeight(.semibold).lineLimit(1)
+                                    Text(store.text("running")).font(.vzn("smallScale")).foregroundStyle(.secondary)
+                                }
+                                Spacer(minLength: metric("small"))
+                                Label(store.text("open"), systemImage: "arrow.right").labelStyle(.titleAndIcon).font(.vzn("smallScale")).foregroundStyle(.secondary)
+                            }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle()).cardSurface()
+                        }.buttonStyle(.plain).disabled(store.loadBlocked).help(store.title(item))
+                    }
+                }
+            }
+        }
+    }
+    private var recentSection: some View {
+        VStack(alignment: .leading, spacing: metric("small")) {
+            HomeRecentHeaderLayout(spacing: metric("small")) {
+                Text(store.text("recentWork")).font(.vzn("sectionScale", .bold)).accessibilityAddTraits(.isHeader)
+                FilterTabs(label: store.text("recentWork"), items: [(String?.none, store.text("filterAll"))] + ["chat", "translate", "dictionary", "interpret"].filter { store.moduleEnabled($0) }.map { (String?.some($0), store.text($0)) }, selection: $filter)
+            }
+            let rows = entries.filter { filter == nil || $0.route == filter }
+            VStack(spacing: 0) {
+                Divider()
+                if rows.isEmpty {
+                    Text(store.text("noRecentWork")).foregroundStyle(.secondary)
+                        .padding(.vertical, metric("inset"))
+                        .frame(maxWidth: .infinity, minHeight: layered ? metric("editor") : nil, alignment: .leading)
+                }
+                ForEach(rows.prefix(6)) { entry in
+                    Button { open(entry) } label: { entryRow(entry) }
+                        .buttonStyle(.plain).disabled(store.loadBlocked).help(entryTitle(entry))
+                    Divider()
+                }
+            }
+        }
+    }
+    private var quickStartSection: some View {
+        VStack(alignment: .leading, spacing: metric("small")) {
+            Text(store.text("quickStart")).font(.vzn("sectionScale", .bold)).accessibilityAddTraits(.isHeader)
+            let layout = layered ? AnyLayout(UniformGrid(maxColumns: 2, minimum: metric("sidebar") - metric("large"), spacing: metric("small"))) : AnyLayout(NativeFlow(spacing: metric("small")))
+            layout {
+                if store.moduleEnabled("chat") { quickStartButton("newChat", symbol: "plus") { start(.chat) } }
+                if store.moduleEnabled("translate") { quickStartButton("translateText", symbol: Feature.translate.symbol) { start(.translate) } }
+                if store.moduleEnabled("interpret") { quickStartButton("interpret", symbol: "waveform", action: interpret) }
+                if store.moduleEnabled("dictionary") { quickStartButton("lookup", symbol: Feature.dictionary.symbol) { start(.dictionary) } }
+            }.disabled(store.loadBlocked)
+        }
+    }
+    private func quickStartButton(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            if layered {
+                HStack(spacing: metric("gap")) {
+                    Image(systemName: symbol).font(.vzn("titleScale"))
+                        .foregroundStyle(contentColor(store.loadBlocked ? "text-disabled" : "action-text", scheme))
+                        .frame(width: metric("control"), height: metric("control"))
+                        .background(contentColor(store.loadBlocked ? "surface-subtle" : "action-soft", scheme), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
+                        .accessibilityHidden(true)
+                    Text(store.text(title)).font(.vzn("labelScale", .semibold)).lineLimit(1)
+                    Spacer(minLength: 0)
+                    Image(systemName: "arrow.right").foregroundStyle(.secondary).accessibilityHidden(true)
+                }.padding(.vertical, metric("small")).frame(maxWidth: .infinity, alignment: .leading)
+            } else { Label(store.text(title), systemImage: symbol) }
+        }.buttonStyle(VznButtonStyle(kind: layered ? .quiet : .outline))
+    }
+    private var providerSection: some View {
+        // The active model's real readiness, local or cloud (not only Ollama).
+        let model = store.session.model, state = store.providers.availability(model)
+        let local = ProviderDiscovery.localProviders.contains(where: { model.hasPrefix($0 + ":") })
+        let layout = layered ? AnyLayout(VStackLayout(alignment: .leading, spacing: metric("inset"))) : AnyLayout(HStackLayout(spacing: metric("small")))
+        let details = layered ? AnyLayout(VStackLayout(alignment: .leading, spacing: metric("tight"))) : AnyLayout(HStackLayout(spacing: metric("small")))
+        return layout {
+            HStack(alignment: layered ? .top : .center, spacing: metric("small")) {
+                StatusDot(tone: state == .available ? .ready : state == .unknown ? .idle : .failed)
+                    .padding(.top, layered ? metric("tight") : 0)
+                details {
+                    Text(nativeModelLabel(model, store: store) + (state == .unknown ? "" : " · " + store.text(state == .available ? "runtimeReady" : "unavailable").lowercased()))
+                        .fontWeight(.medium).lineLimit(layered ? 3 : 1).fixedSize(horizontal: false, vertical: layered)
+                    Text(store.text(local ? "onDevice" : "viaCloud")).foregroundStyle(.secondary)
+                        .lineLimit(layered ? 2 : 1).fixedSize(horizontal: false, vertical: layered)
+                }
+            }
+            if !layered { Spacer(minLength: metric("small")) }
+            // Manage opens the section that owns the active model.
+            Button(store.text("manage")) {
+                NotificationCenter.default.post(name: .viezanOpenSettings, object: local ? "localModels" : "providers")
+            }.buttonStyle(.vznOutline).fixedSize()
+        }.font(.vzn("smallScale")).accessibilityElement(children: .contain)
     }
     private func open(_ entry: RecentEntry) {
         switch entry {
@@ -144,6 +200,83 @@ struct HomeWorkspace: View {
             Image(systemName: "arrow.right").fontWeight(.semibold).foregroundStyle(.primary).accessibilityHidden(true)
         }.padding(.vertical, metric("gap")).padding(.horizontal, metric("small"))
             .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+    }
+}
+
+// Apply the shared card as decoration without replacing section content when
+// appearance changes; filter selection and controls keep their identity.
+private struct HomeSectionSurface: ViewModifier {
+    var enabled: Bool
+    func body(content: Content) -> some View {
+        content.padding(enabled ? metric("inset") : 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                if enabled { Color.clear.cardSurface(padded: false).allowsHitTesting(false).accessibilityHidden(true) }
+            }
+    }
+}
+
+// A wider launch card and a compact status card share the top row when the
+// feature container allows it. Compact windows retain the same cards in a stack.
+private struct HomeOverviewLayout: Layout {
+    private var spacing: CGFloat { metric("inset") }
+    private var supportWidth: CGFloat { metric("sidebar") }
+    private var minimumColumnsWidth: CGFloat {
+        let quickCell = metric("sidebar") - metric("large")
+        let quickCard = metric("inset") * 2 + quickCell * 2 + metric("small")
+        return quickCard + spacing + supportWidth
+    }
+    private func columns(_ width: CGFloat) -> Bool { width >= minimumColumnsWidth }
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width.flatMap { $0.isFinite ? max(0, $0) : nil } ?? metric("reading")
+        if columns(width) {
+            let main = subviews[0].sizeThatFits(ProposedViewSize(width: width - supportWidth - spacing, height: nil))
+            let support = subviews[1].sizeThatFits(ProposedViewSize(width: supportWidth, height: nil))
+            return CGSize(width: width, height: max(main.height, support.height))
+        }
+        let heights = subviews.map { $0.sizeThatFits(ProposedViewSize(width: width, height: nil)).height }
+        return CGSize(width: width, height: heights.reduce(0, +) + spacing)
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        if columns(bounds.width) {
+            let mainWidth = bounds.width - supportWidth - spacing
+            subviews[0].place(at: bounds.origin, anchor: .topLeading, proposal: ProposedViewSize(width: mainWidth, height: bounds.height))
+            subviews[1].place(at: CGPoint(x: bounds.maxX - supportWidth, y: bounds.minY), anchor: .topLeading, proposal: ProposedViewSize(width: supportWidth, height: bounds.height))
+        } else {
+            var y = bounds.minY
+            for view in subviews {
+                let height = view.sizeThatFits(ProposedViewSize(width: bounds.width, height: nil)).height
+                view.place(at: CGPoint(x: bounds.minX, y: y), anchor: .topLeading, proposal: ProposedViewSize(width: bounds.width, height: height))
+                y += height + spacing
+            }
+        }
+    }
+}
+
+// One title and one FilterTabs instance: wrapping never substitutes another
+// control tree, so the focused tab survives a compact-window resize.
+private struct HomeRecentHeaderLayout: Layout {
+    var spacing: CGFloat
+    private func measurements(_ subviews: Subviews, width: CGFloat) -> (title: CGSize, tabs: CGSize, horizontal: Bool) {
+        let title = subviews[0].sizeThatFits(ProposedViewSize(width: width, height: nil))
+        let tabs = subviews[1].sizeThatFits(.unspecified)
+        return (title, tabs, title.width + spacing + tabs.width <= width)
+    }
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width.flatMap { $0.isFinite ? max(0, $0) : nil }
+            ?? subviews.reduce(spacing) { $0 + $1.sizeThatFits(.unspecified).width }
+        let sizes = measurements(subviews, width: width)
+        return CGSize(width: width, height: sizes.horizontal ? max(sizes.title.height, sizes.tabs.height) : sizes.title.height + spacing + sizes.tabs.height)
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let sizes = measurements(subviews, width: bounds.width)
+        if sizes.horizontal {
+            subviews[0].place(at: CGPoint(x: bounds.minX, y: bounds.midY), anchor: .leading, proposal: ProposedViewSize(sizes.title))
+            subviews[1].place(at: CGPoint(x: bounds.maxX, y: bounds.midY), anchor: .trailing, proposal: ProposedViewSize(sizes.tabs))
+        } else {
+            subviews[0].place(at: bounds.origin, anchor: .topLeading, proposal: ProposedViewSize(sizes.title))
+            subviews[1].place(at: CGPoint(x: bounds.minX, y: bounds.minY + sizes.title.height + spacing), anchor: .topLeading, proposal: ProposedViewSize(sizes.tabs))
+        }
     }
 }
 

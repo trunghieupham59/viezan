@@ -86,9 +86,9 @@ Window {
                 spacing: launcher.metrics.gap
                 Layout.fillWidth: true; Layout.preferredHeight: launcher.metrics.navControl + launcher.metrics.small
                 Layout.leftMargin: launcher.metrics.inset; Layout.rightMargin: launcher.metrics.inset
-                Image { source: "icons/search.svg"; sourceSize.width: launcher.metrics.icon; sourceSize.height: launcher.metrics.icon; Accessible.ignored: true }
-                TextField {
+                Kit.SearchField {
                     id: field
+                    embedded: true
                     text: launcher.query; onTextEdited: launcher.query = text
                     placeholderText: launcher.t("launcher_placeholder"); Accessible.name: placeholderText
                     font.pointSize: Qt.application.font.pointSize * launcher.metrics.titleScale

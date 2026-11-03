@@ -41,12 +41,12 @@ def sign_mac(app, identity):
     run("codesign", "--force", "--sign", identity, "--identifier", "com.viezan.native.preview", app)
 
 
-def build_mac(configuration, output):
+def build_mac(configuration, output, *, scratch=None, development=None):
     if sys.platform != "darwin":
         raise SystemExit("The SwiftUI target requires macOS and Xcode.")
     package = ROOT / "apps/macos"
     common = ["--package-path", package, "--configuration", configuration.lower(),
-              "--scratch-path", output / "swift"]
+              "--scratch-path", scratch or output / "swift"]
     run("swift", "build", *common, "--product", "ViezanNative")
     products = pathlib.Path(run("swift", "build", *common, "--show-bin-path", capture=True))
     bundles = list(products.glob("*ViezanDomain*.bundle"))
@@ -62,7 +62,7 @@ def build_mac(configuration, output):
     shutil.copytree(bundles[0], contents / "Resources" / bundles[0].name)
     shutil.copy2(ROOT / "build/icon.icns", contents / "Resources/AppIcon.icns")
     with (contents / "Info.plist").open("wb") as stream:
-        plistlib.dump({
+        info = {
             "CFBundleExecutable": "ViezanNative", "CFBundleIdentifier": "com.viezan.native.preview",
             "CFBundleName": "Viezan", "CFBundleDisplayName": "Viezan",
             "CFBundlePackageType": "APPL", "CFBundleShortVersionString": json.loads((ROOT / "package.json").read_text())["version"],
@@ -71,7 +71,12 @@ def build_mac(configuration, output):
             "NSAudioCaptureUsageDescription": "Viezan captures system audio only when you start system-audio interpretation.",
             "NSAppleEventsUsageDescription": "Viezan uses keyboard shortcuts only when you invoke translation in another application.",
             "NSHighResolutionCapable": True, "NSPrincipalClass": "NSApplication",
-        }, stream)
+        }
+        if development is not None:
+            if configuration != "Debug":
+                raise ValueError("Development reload metadata requires Debug")
+            info["ViezanDevelopment"] = development
+        plistlib.dump(info, stream)
     native_resources = contents / "Resources/native"
     native_resources.mkdir()
     run("swiftc", "-O", ROOT / "native/files/main.swift", "-o", native_resources / "viezan-fs", "-framework", "AppKit")

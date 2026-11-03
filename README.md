@@ -42,12 +42,34 @@ Existing GitHub releases may still be the previous app.
   conversion with a remembered target, browser search and native window/tray
   lifecycle. On macOS the launcher asks AI in the same window and hands the
   conversation to AI Chat.
+- The sidebar identifies history stored on this device separately from live
+  background services. Its storage hint explains that AI processing runs locally
+  or in the cloud depending on the selected model.
 - macOS application inventory, selected uninstall/reset plans, Trash operations,
   preference backup/reset, journals, recovery and undo; thermal monitoring,
   fan profiles, calibration and helper lease restoration. Linux exposes available
   hwmon readings; Windows uses system application settings for app management.
 - Local Ollama management, model downloads/deletion, runtime limits, GPU/hybrid
   comparison and persistent measured profiles; optional prepared Windows runtime.
+- Glass shell: light mode layers a cyan scene, floating navigation, an ice-blue
+  workspace and brighter frosted cards. Home groups real actions, recent work
+  and model status into panels. Reading/composer surfaces remain opaque; native
+  window controls stay clear. Dark mode retains its existing glass treatment.
+  Qt shell/cards use opaque color composition; Windows/Linux visual acceptance
+  is pending.
+- Glass AI Chat: a growing capsule composer groups model and recording controls,
+  with separate attachment and Send/Stop buttons. Selected models keep a lit
+  glass row and checkmark; keyboard focus stays distinct. Both native toolkits
+  preserve one editor and its draft when controls move below multiline input.
+- Glass buttons throughout the app use native Liquid Glass on macOS 26+,
+  with material/opaque accessibility fallbacks. Qt draws translucent control
+  faces, directional reflections and local depth; it does not blur the desktop.
+  Sidebar selection uses a raised capsule (round in the compact rail); hover
+  shows a softer lens, while idle destinations stay clear over the shared pane.
+- Shared Glass components: capsule search fields and the composer use inset,
+  opaque editing surfaces with neutral focus borders. Filters and Settings
+  navigation use raised selection lenses. Floating text panels share one quiet
+  perimeter and shadow, preserving readable content and native input behavior.
 - EN/VI/JA, theme presets and accents, reading size, module preferences, login
   startup, permission links, diagnostics and token usage with user-entered pricing.
 - Native speech adapters, session/history backup and offline legacy conversion.
@@ -92,7 +114,25 @@ npm run resources
 npm run check:resources
 ```
 
-Choose a fresh output directory for each macOS app bundle. Add `--launch` only
+For macOS development, run `npm run dev` (or `python3 scripts/native/dev.py`).
+The Debug app has **Development → Rebuild and relaunch (⌘⇧R)**. It keeps running
+while the next build compiles, then saves through normal shutdown and reopens.
+Build failures leave the current app running; the menu opens `.native-build/dev/build.log`.
+Finish IME composition and stop performance benchmarks before reloading. Running
+AI/audio work is interrupted on restart, not replayed; saved drafts, history and
+the last route use normal workspace recovery.
+
+This workflow reuses `.native-build/dev/swift`, stages and verifies the new bundle,
+and retains only `.native-build/dev/Viezan.app` plus `previous/Viezan.app` as the
+previous build. Quit the dev app before starting `npm run dev` again, or use its
+shortcut. To roll back, quit the app and open `previous/Viezan.app`. Existing
+`dev-01`, `dev-02`, etc. are left untouched. Resource regeneration requires Node
+on the PATH used for the initial build; Xcode, Python and signing prerequisites
+still apply. This is incremental build/relaunch, not in-process hot reload.
+Release builds contain no development menu or checkout metadata. Qt keeps its
+existing build/launch workflow; the reload shortcut is macOS-only.
+
+For standalone/release builds, choose a fresh output directory for each macOS app bundle. Add `--launch` only
 when you want to start the resulting application. `npm run build`, `build:mac`,
 `build:win` and `build:linux` call these native entrypoints. No dependency manager
 is invoked by the native build helper.

@@ -309,7 +309,7 @@ Viezan/
 ├── chrome-extension/         # Chrome/Chromium extension
 ├── docs/                     # GitHub Pages landing page and screenshots
 ├── scripts/                  # Build and asset scripts
-└── viezanagent/              # Agent rules, skills, workflows, reports and docs
+└── docs/agents/              # Agent rules, skills, workflows, reports and docs
 ```
 
 ## Tech Stack

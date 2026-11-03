@@ -40,7 +40,9 @@ jobs:
           cache: true
       - run: cmake -S apps/desktop-qt -B .native-build/qt -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
       - run: cmake --build .native-build/qt --config Release --parallel 2
-      - run: ctest --test-dir .native-build/qt -C Release --output-on-failure --timeout 300
+      # The full locale/size/theme matrix exceeds five minutes on Qt 6.8
+      # Windows runners. Keep every case and a bounded per-test timeout.
+      - run: ctest --test-dir .native-build/qt -C Release --output-on-failure --timeout 600
         env:
           QT_QPA_PLATFORM: offscreen
           QT_QUICK_CONTROLS_STYLE: Fusion

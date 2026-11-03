@@ -8,6 +8,7 @@ struct NativeSettings: View {
     @Binding var query: String
     @Binding var section: String?
     @State private var selected: String? = "general"
+    @State private var hoveredSection: String?
     private var sections: [NativeResources.SettingsSection] { nativeResources.settings(query: query, locale: store.workspace.locale) }
 
     private var visibleSections: [NativeResources.SettingsSection] {
@@ -83,6 +84,7 @@ struct NativeSettings: View {
     }
     private func navigationRow(_ section: NativeResources.SettingsSection, proxy: ScrollViewProxy) -> some View {
         let active = selected == section.id
+        let glass = (NativeTheme.shared.preferences.preset ?? "glass") == "glass"
         return Button {
             selected = section.id
             proxy.scrollTo(section.id, anchor: .top)
@@ -91,8 +93,10 @@ struct NativeSettings: View {
                 .fontWeight(active ? .semibold : .regular).lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, metric("small")).frame(height: metric("compactControl"))
                 .contentShape(Rectangle())
-        }.buttonStyle(.plain).foregroundStyle(active ? contentColor("action-text", scheme) : contentColor("text-strong", scheme))
-            .background(active ? contentColor("action-soft", scheme) : Color.clear, in: RoundedRectangle(cornerRadius: metric("radius")))
+        }.buttonStyle(SettingsNavigationStyle(glass: glass, selected: active, hovered: hoveredSection == section.id))
+            .onHover { hoveredSection = $0 ? section.id : nil }
+            .foregroundStyle(active ? contentColor("action-text", scheme) : contentColor("text-strong", scheme))
+            .background(active && !glass ? contentColor("action-soft", scheme) : Color.clear, in: RoundedRectangle(cornerRadius: metric("radius")))
             .accessibilityAddTraits(active ? .isSelected : [])
             .help(store.text(section.description))
     }
@@ -215,5 +219,18 @@ struct NativeSettings: View {
             Text(store.text(title)).fontWeight(.medium)
             Text(store.text(detail)).font(.vzn("smallScale")).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct SettingsNavigationStyle: ButtonStyle {
+    var glass: Bool
+    var selected: Bool
+    var hovered: Bool
+    @Environment(\.isEnabled) private var enabled
+    @ViewBuilder func makeBody(configuration: Configuration) -> some View {
+        if glass {
+            NavigationButtonStyle(glass: true, selected: selected, hovered: hovered)
+                .makeBody(configuration: configuration)
+        } else { configuration.label.opacity(enabled ? (configuration.isPressed ? 0.8 : 1) : 0.5) }
     }
 }

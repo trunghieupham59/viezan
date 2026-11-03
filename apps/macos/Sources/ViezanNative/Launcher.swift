@@ -359,7 +359,7 @@ private struct LauncherView: View {
                 Button(code + " · " + (numberLocale.localizedString(forCurrencyCode: code) ?? code)) { currencyTarget = code; selectedID = nil; focused = true }
             }
         } label: { Text(t("launcher_currency_target") + ": " + target) }
-            .menuStyle(.borderlessButton).fixedSize().font(.vzn("smallScale"))
+            .menuStyle(.button).buttonStyle(.vznQuiet).fixedSize().font(.vzn("smallScale"))
             .disabled(typedTarget).help(t("launcher_currency_target"))
     }
     private func loadRates(retry: Bool) async {

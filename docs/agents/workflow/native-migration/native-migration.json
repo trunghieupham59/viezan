@@ -1,0 +1,50 @@
+{
+  "name": "native-migration",
+  "version": "1.0.0",
+  "type": "workflow",
+  "description": "Plan, design, spike and incrementally migrate native desktop",
+  "classification": {
+    "lifecycle": "migration",
+    "domain": [
+      "native",
+      "desktop",
+      "ux"
+    ],
+    "use_for": "Native migration scoped to requested phase"
+  },
+  "rules": [
+    "../../rule/native-migration/rules.json",
+    "../../rule/viezan-product-engineering/rules.json"
+  ],
+  "skills": [
+    "../../skill/viezan-native-migration/viezan-native-migration.json",
+    "../../skill/viezan-native-ux/viezan-native-ux.json"
+  ],
+  "related_workflows": [
+    "../sync-docs/sync-docs.json"
+  ],
+  "steps": [
+    {
+      "id": "inventory",
+      "action": "Read source/tests, dirty state and current migration evidence."
+    },
+    {
+      "id": "design",
+      "action": "Use viezan-native-ux and its pinned UI UX Pro Max reference for relevant design research; adapt results to current Viezan tokens, direction and SwiftUI/Qt semantics. Create/edit UX review with task isolation and platform states."
+    },
+    {
+      "id": "spike",
+      "action": "When implementation requested, validate one vertical slice on each target OS."
+    },
+    {
+      "id": "migrate",
+      "action": "Move one capability with parity and rollback checks."
+    },
+    {
+      "id": "verify",
+      "action": "Record actual gates separately for design, prototype, runtime and release."
+    }
+  ],
+  "save_path": "docs/migration/reports/",
+  "filename_pattern": "native-migration-report-{YYYYMMDD}-{HHmm}.md"
+}

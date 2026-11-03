@@ -1,0 +1,28 @@
+{
+  "name": "native-migration",
+  "version": "1.0.0",
+  "type": "rule",
+  "description": "Incremental native migration boundaries",
+  "classification": {
+    "lifecycle": "migration",
+    "domain": [
+      "native",
+      "data",
+      "ux"
+    ],
+    "use_for": "Electron to native planning and implementation"
+  },
+  "rules": [
+    "Keep production Electron operational until per-OS acceptance passes.",
+    "Use SwiftUI/AppKit and Qt/QML as proposed targets; validate Rust bridge before commitment.",
+    "Never share writable storage between old and new runtimes.",
+    "Task identity, cancellation, recovery and credentials follow architecture contract.",
+    "Figma approval is separate from runtime and release acceptance.",
+    "Mobile remains plan-only unless explicitly requested."
+  ],
+  "references": {
+    "architecture": "../../../migration/architecture.md",
+    "ux": "../../../migration/workbench-ux.md",
+    "acceptance": "../../../migration/acceptance.md"
+  }
+}

@@ -19,11 +19,11 @@ ColumnLayout {
     }
     Component.onCompleted: if (bridge.localModels.includes(session.model)) selected = [session.model]
     function command(name, payload) { bridge.command(name, Object.assign({sessionID: session.id}, payload || {})) }
-    Button { text: root.t("compareModels"); checkable: true; id: toggle; checked: root.candidates.length > 0 }
+    Kit.GlassButton { text: root.t("compareModels"); checkable: true; id: toggle; checked: root.candidates.length > 0 }
     ColumnLayout {
         visible: toggle.checked; Layout.fillWidth: true
         Kit.ModelLabel { id: formatter; visible: false }
-        TextField { id: filter; placeholderText: root.t("compareModelHint"); Accessible.name: placeholderText; Layout.fillWidth: true }
+        Kit.SearchField { id: filter; placeholderText: root.t("compareModelHint"); Accessible.name: placeholderText; Layout.fillWidth: true }
         ListView {
             id: modelChoices
             objectName: "compare-model-choices"
@@ -41,7 +41,7 @@ ColumnLayout {
             ScrollBar.vertical: ScrollBar {}
         }
         RowLayout {
-            Button { text: root.t("compareModels"); enabled: !!root.session.draft.trim() && root.selected.length >= 2; onClicked: root.command("compare", {models: root.selected}) }
+            Kit.GlassButton { text: root.t("compareModels"); enabled: !!root.session.draft.trim() && root.selected.length >= 2; onClicked: root.command("compare", {models: root.selected}) }
             CheckBox { id: sentenceMode; text: root.t("compareSentences") }
         }
         ScrollView {
@@ -67,18 +67,18 @@ ColumnLayout {
                                 required property string modelData
                                 required property int index
                                 Label { text: modelData; textFormat: Text.PlainText; wrapMode: Text.Wrap; Layout.fillWidth: true }
-                                Button { text: root.t("useSentence"); enabled: candidate.current && candidate.task?.status === "succeeded"; onClicked: root.command("useSentence", {childID: candidate.modelData.id, index: index}) }
+                                Kit.GlassButton { text: root.t("useSentence"); enabled: candidate.current && candidate.task?.status === "succeeded"; onClicked: root.command("useSentence", {childID: candidate.modelData.id, index: index}) }
                             }
                         }
-                        Button { text: root.t("adoptTranslation"); enabled: candidate.current && candidate.task?.status === "succeeded"; onClicked: root.command("adoptComparison", {childID: modelData.id}) }
-                        Button { visible: candidate.task?.status === "running"; text: root.t("stop"); onClicked: root.bridge.command("cancel", {taskID: candidate.task.id}) }
-                        Button { visible: !!candidate.task && ["failed", "cancelled", "interrupted"].includes(candidate.task.status); enabled: candidate.current; text: root.t("retry"); onClicked: root.bridge.command("retry", {taskID: candidate.task.id}) }
-                        Button { text: root.t("copy"); onClicked: root.bridge.copy(modelData.output) }
+                        Kit.GlassButton { text: root.t("adoptTranslation"); enabled: candidate.current && candidate.task?.status === "succeeded"; onClicked: root.command("adoptComparison", {childID: modelData.id}) }
+                        Kit.GlassButton { visible: candidate.task?.status === "running"; text: root.t("stop"); onClicked: root.bridge.command("cancel", {taskID: candidate.task.id}) }
+                        Kit.GlassButton { visible: !!candidate.task && ["failed", "cancelled", "interrupted"].includes(candidate.task.status); enabled: candidate.current; text: root.t("retry"); onClicked: root.bridge.command("retry", {taskID: candidate.task.id}) }
+                        Kit.GlassButton { text: root.t("copy"); onClicked: root.bridge.copy(modelData.output) }
                     }
                 }
             }
         }
         TextArea { visible: !!root.session.assemblyParts; text: Object.keys(root.session.assemblyParts || {}).sort((a,b) => Number(a)-Number(b)).map(key => root.session.assemblyParts[key]).join("\n"); textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; Layout.fillWidth: true; Accessible.name: root.t("assembly") }
-        Button { visible: !!root.session.assemblyParts; text: root.t("adoptTranslation"); enabled: Object.keys(root.session.assemblyParts || {}).length === root.sourceRows.length; onClicked: root.command("adoptAssembly") }
+        Kit.GlassButton { visible: !!root.session.assemblyParts; text: root.t("adoptTranslation"); enabled: Object.keys(root.session.assemblyParts || {}).length === root.sourceRows.length; onClicked: root.command("adoptAssembly") }
     }
 }

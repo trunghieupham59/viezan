@@ -51,4 +51,4 @@
 "area/agent":
     - changed-files:
           - any-glob-to-any-file:
-                - viezanagent/**
+                - docs/agents/**

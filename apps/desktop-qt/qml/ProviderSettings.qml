@@ -40,18 +40,18 @@ Kit.CardBox {
                 }
             }
         }
-        Button { text: providers.t("checkAgain"); enabled: !providers.bridge.discovering; onClicked: providers.bridge.discoverProviders() }
-        ComboBox { id: provider; enabled: !providers.bridge.credentialBusy; textRole: "name"; valueRole: "id"; model: ["openai", "claude", "gemini", "groq", "tavily", "brave", "jina", "elevenlabs"].map(id => ({id: id, name: providers.names[id]})); Accessible.name: providers.t("provider"); onActivated: key.clear() }
+        Kit.GlassButton { text: providers.t("checkAgain"); enabled: !providers.bridge.discovering; onClicked: providers.bridge.discoverProviders() }
+        Kit.GlassComboBox { id: provider; enabled: !providers.bridge.credentialBusy; textRole: "name"; valueRole: "id"; model: ["openai", "claude", "gemini", "groq", "tavily", "brave", "jina", "elevenlabs"].map(id => ({id: id, name: providers.names[id]})); Accessible.name: providers.t("provider"); onActivated: key.clear() }
         TextField { id: key; echoMode: TextInput.Password; placeholderText: providers.t("apiKey"); Accessible.name: placeholderText; maximumLength: 4096; Layout.fillWidth: true }
         RowLayout {
-            Button { text: providers.t("saveKey"); enabled: !providers.bridge.credentialBusy && key.text.length > 0; onClicked: { providers.bridge.saveCredential(provider.currentValue, key.text); key.clear() } }
-            Button { text: providers.t("deleteKey"); enabled: !providers.bridge.credentialBusy; onClicked: confirmation.open() }
+            Kit.GlassButton { text: providers.t("saveKey"); enabled: !providers.bridge.credentialBusy && key.text.length > 0; onClicked: { providers.bridge.saveCredential(provider.currentValue, key.text); key.clear() } }
+            Kit.GlassButton { text: providers.t("deleteKey"); enabled: !providers.bridge.credentialBusy; onClicked: confirmation.open() }
             BusyIndicator { visible: running; running: providers.bridge.credentialBusy; implicitWidth: providers.metrics.control; implicitHeight: providers.metrics.control }
         }
         Label { text: providers.t("keyStorageHint"); wrapMode: Text.Wrap; Layout.fillWidth: true }
         Label { text: providers.bridge.credentialStatus ? providers.t(providers.bridge.credentialStatus) : ""; visible: !!text; wrapMode: Text.Wrap; Layout.fillWidth: true }
     }
-    Dialog {
+    GlassDialog {
         id: confirmation
         title: providers.t("deleteKeyConfirm")
         modal: true

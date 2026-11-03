@@ -12,6 +12,7 @@ struct ModelPanel: View {
     @Environment(\.colorScheme) private var scheme
     @State private var query = ""
     @State private var highlighted: String?
+    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     static let providerNames = ["claude": "Claude", "openai": "OpenAI", "gemini": "Gemini", "ollama": "Ollama", "lmstudio": "LM Studio", "llamacpp": "llama.cpp"]
     private var sections: [ModelLineup.Section] {
         ModelLineup.sections(query: query, tiers: store.modelTiers(store.session.id), recent: store.recentPicks, listings: store.providers.models,
@@ -77,7 +78,9 @@ struct ModelPanel: View {
                         if sections.isEmpty { Text(store.text("noModelMatch")).foregroundStyle(.secondary).padding(metric("inset")) }
                         ForEach(sections, id: \.key) { section in
                             Eyebrow(text: title(section.key)).padding(.horizontal, metric("small")).padding(.top, metric("gap")).padding(.bottom, metric("tight"))
-                            ForEach(section.rows) { row in rowView(row).id(row.id) }
+                            ForEach(section.rows) { row in
+                                rowView(row).id(row.id).padding(.bottom, glass ? metric("tight") : 0)
+                            }
                         }
                     }
                 }

@@ -41,9 +41,9 @@ Item {
             RowLayout {
                 Layout.fillWidth: true; spacing: root.metrics.small
                 Label { text: root.t("inputLanguage"); color: palette.placeholderText }
-                ComboBox { id: source; flat: true; implicitContentWidthPolicy: ComboBox.WidestText; model: ["auto"].concat(root.languages).map(code => root.t("lang_" + code)); enabled: !root.live.busy; Accessible.name: root.t("inputLanguage") }
+                Kit.GlassComboBox { id: source; flat: true; implicitContentWidthPolicy: ComboBox.WidestText; model: ["auto"].concat(root.languages).map(code => root.t("lang_" + code)); enabled: !root.live.busy; Accessible.name: root.t("inputLanguage") }
                 Label { text: root.t("outputLanguage"); color: palette.placeholderText }
-                ComboBox { id: target; flat: true; implicitContentWidthPolicy: ComboBox.WidestText; model: root.languages.map(code => root.t("lang_" + code)); currentIndex: root.languages.indexOf("vi"); enabled: !root.live.busy; Accessible.name: root.t("outputLanguage") }
+                Kit.GlassComboBox { id: target; flat: true; implicitContentWidthPolicy: ComboBox.WidestText; model: root.languages.map(code => root.t("lang_" + code)); currentIndex: root.languages.indexOf("vi"); enabled: !root.live.busy; Accessible.name: root.t("outputLanguage") }
                 Item { Layout.fillWidth: true }
             }
             RowLayout {
@@ -61,17 +61,17 @@ Item {
             Layout.fillWidth: true; spacing: root.metrics.small
             Kit.StatusDot { tone: "failed"; failedColor: root.dangerColor }
             Label { text: root.t(parent.provider === "auto" ? "speechProviderMissing" : "speechProviderKeyMissing"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
-            Button { text: root.t("openProviders"); onClicked: root.openSettings("providers") }
+            Kit.GlassButton { text: root.t("openProviders"); onClicked: root.openSettings("providers") }
         }
         Kit.ProviderNotice { id: notice; model: root.modelID; dangerColor: root.dangerColor; Layout.fillWidth: true; onOpenRequested: section => root.openSettings(section); onUseRequested: id => root.useModel(id) }
         RowLayout {
             Layout.fillWidth: true; spacing: root.metrics.small
             Kit.StatusBadge { visible: root.live.listening; text: root.t("listening") }
-            Button { flat: true; text: root.t("capture_" + captureMode.keys[captureMode.currentIndex]); icon.source: "icons/interpret.svg"; Accessible.name: root.t("captureOptions") + ": " + text; ToolTip.visible: hovered; ToolTip.text: root.t("captureOptions"); onClicked: setupDialog.open() }
+            Kit.GlassButton { flat: true; text: root.t("capture_" + captureMode.keys[captureMode.currentIndex]); icon.source: "icons/interpret.svg"; Accessible.name: root.t("captureOptions") + ": " + text; ToolTip.visible: hovered; ToolTip.text: root.t("captureOptions"); onClicked: setupDialog.open() }
             Item { Layout.fillWidth: true }
-            Button { flat: true; text: root.t("subtitles"); checkable: true; checked: subtitles.visible; onClicked: subtitles.visible = !subtitles.visible }
-            Button { visible: root.live.busy && !root.live.listening; text: root.t("cancel"); onClicked: root.live.cancel() }
-            Button { visible: root.live.listening; text: root.t("stop"); onClicked: root.live.stop() }
+            Kit.GlassButton { flat: true; text: root.t("subtitles"); checkable: true; checked: subtitles.visible; onClicked: subtitles.visible = !subtitles.visible }
+            Kit.GlassButton { visible: root.live.busy && !root.live.listening; text: root.t("cancel"); onClicked: root.live.cancel() }
+            Kit.GlassButton { visible: root.live.listening; text: root.t("stop"); onClicked: root.live.stop() }
             Kit.PrimaryButton { visible: !root.live.listening; text: root.t("startInterpretation"); icon.source: "icons/interpret.svg"; enabled: !root.live.busy && !root.bridge.loadBlocked && model.text.includes(":"); onClicked: { root.bridge.audio.cancel(); root.live.start(model.text, root.bridge.state.speechProvider || "auto", ["auto"].concat(root.languages)[source.currentIndex], root.languages[target.currentIndex], root.bridge.state.locale, captureMode.keys[captureMode.currentIndex], inputDevice.devices[inputDevice.currentIndex]?.id || "") } }
         }
         ProgressBar { visible: root.live.listening; value: root.live.level; Layout.fillWidth: true; Accessible.name: root.t("inputLevel") }
@@ -81,7 +81,7 @@ Item {
             Kit.SectionTitle { text: root.t("transcript"); Layout.fillWidth: true }
             Repeater {
                 model: [[true, root.t("pairedTranscript")], [false, root.t("translationOnly")]]
-                delegate: Button { required property var modelData; text: modelData[1]; flat: !checked; checkable: true; checked: root.showOriginal === modelData[0]; Accessible.checked: checked; onClicked: root.showOriginal = modelData[0] }
+                delegate: Kit.GlassButton { required property var modelData; text: modelData[1]; flat: !checked; checkable: true; checked: root.showOriginal === modelData[0]; Accessible.checked: checked; onClicked: root.showOriginal = modelData[0] }
             }
             Kit.IconButton {
                 iconName: "settings"; text: root.t("summarize")
@@ -94,8 +94,8 @@ Item {
                     MenuItem { text: root.t("stopSpeaking"); onTriggered: root.live.silence() }
                 }
             }
-            Button { flat: true; text: root.t("copy"); onClicked: root.bridge.copy(root.live.exportText(false)) }
-            Button {
+            Kit.GlassButton { flat: true; text: root.t("copy"); onClicked: root.bridge.copy(root.live.exportText(false)) }
+            Kit.GlassButton {
                 flat: true; text: root.t("export"); enabled: !!root.live.current.segments?.length; onClicked: exportMenu.open()
                 Menu {
                     id: exportMenu
@@ -134,7 +134,7 @@ Item {
                         RowLayout {
                             visible: ["queued", "transcribing", "translating", "failed", "interrupted", "cancelled"].includes(modelData.status) || !!modelData.error
                             Label { text: root.t(modelData.error || modelData.status); color: palette.placeholderText; Layout.fillWidth: true }
-                            Button { visible: ["failed", "interrupted", "cancelled"].includes(modelData.status) && !!modelData.original; text: root.t("retry"); enabled: !root.live.busy; onClicked: root.live.retry(modelData.id) }
+                            Kit.GlassButton { visible: ["failed", "interrupted", "cancelled"].includes(modelData.status) && !!modelData.original; text: root.t("retry"); enabled: !root.live.busy; onClicked: root.live.retry(modelData.id) }
                         }
                     }
                     Kit.IconButton { iconName: "interpret"; text: root.t("speak"); enabled: !root.live.listening && !!modelData.translated; Layout.alignment: Qt.AlignTop; onClicked: root.live.speak(modelData.translated) }
@@ -142,11 +142,12 @@ Item {
                 Rectangle { color: palette.midlight; implicitHeight: root.metrics.hairline; Layout.fillWidth: true }
             }
         }
-        ToolButton { id: analysisDetails; text: root.t("summarize"); checkable: true; visible: !!(root.live.current.summary || root.live.current.actionItems || root.live.current.decisions || root.live.current.speakerAnalysis) }
+        Kit.GlassToolButton { id: analysisDetails; text: root.t("summarize"); checkable: true; visible: !!(root.live.current.summary || root.live.current.actionItems || root.live.current.decisions || root.live.current.speakerAnalysis) }
         ScrollView { visible: analysisDetails.checked && !!(root.live.current.summary || root.live.current.actionItems || root.live.current.decisions || root.live.current.speakerAnalysis); Layout.fillWidth: true; Layout.preferredHeight: root.metrics.editor * 2; TextArea { text: [root.live.current.summary, root.live.current.actionItems, root.live.current.decisions, root.live.current.speakerAnalysis].filter(Boolean).join("\n\n"); textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap } }
     }
     Popup {
         id: historyPopup; parent: Overlay.overlay; modal: false; focus: true
+        background: Kit.ReadingPanelSurface {}
         width: Math.min(root.width, root.metrics.sidebar + root.metrics.editor)
         height: Math.min(root.height, root.metrics.editor * 3)
         x: Math.max(0, parent.width - width - root.metrics.inset)
@@ -157,9 +158,8 @@ Item {
         onClosed: root.forceActiveFocus()
         contentItem: ColumnLayout {
             Label { text: root.t("history"); font.bold: true }
-            TextField {
+            Kit.SearchField {
                 id: historySearch; placeholderText: root.t("historySearch"); Accessible.name: placeholderText; Layout.fillWidth: true; selectByMouse: true
-                background: Rectangle { color: palette.base; radius: root.metrics.radius; border.width: root.metrics.hairline; border.color: historySearch.activeFocus ? palette.text : palette.mid }
                 Keys.onDownPressed: event => { if (!inputMethodComposing) historyList.currentIndex = Math.min(historyList.count-1, historyList.currentIndex+1); else event.accepted = false }
                 Keys.onUpPressed: event => { if (!inputMethodComposing) historyList.currentIndex = Math.max(0, historyList.currentIndex-1); else event.accepted = false }
                 Keys.onReturnPressed: event => { if (!inputMethodComposing && historyList.currentIndex >= 0 && historyList.currentIndex < historyList.count) { root.live.select(historyList.model[historyList.currentIndex].id); historyPopup.close() } else event.accepted = false }
@@ -173,10 +173,10 @@ Item {
                 ScrollBar.vertical: ScrollBar {}
                 delegate: ItemDelegate { required property var modelData; width: ListView.view.width; text: new Date(modelData.created*1000).toLocaleString(); highlighted: ListView.isCurrentItem; onClicked: { root.live.select(modelData.id); historyPopup.close() } }
             }
-            Button { text: root.t("delete"); enabled: !!root.live.current.id; onClicked: { historyPopup.close(); deleteMeeting.sessionID = root.live.current.id; deleteMeeting.open() } }
+            Kit.GlassButton { text: root.t("delete"); enabled: !!root.live.current.id; onClicked: { historyPopup.close(); deleteMeeting.sessionID = root.live.current.id; deleteMeeting.open() } }
         }
     }
-    Dialog {
+    GlassDialog {
         id: setupDialog; parent: Overlay.overlay; title: root.t("captureOptions"); modal: false
         width: Math.min(root.width, root.metrics.sidebar + root.metrics.editor)
         height: Math.min(root.height, root.metrics.editor * 3)
@@ -186,8 +186,8 @@ Item {
             id: setupScroll; contentWidth: availableWidth
             ColumnLayout {
                 width: setupScroll.availableWidth; spacing: root.metrics.inset
-            ComboBox { id: captureMode; readonly property var keys: ["microphone", "system", "mixed"]; model: keys.map(key => root.t("capture_" + key)); enabled: !root.live.busy; Accessible.name: root.t("captureSource") }
-            ComboBox { id: inputDevice; readonly property var devices: [{id:"", name:root.t("voiceAutomatic")}].concat(root.live.inputs); model: devices; textRole: "name"; enabled: !root.live.busy && captureMode.currentIndex !== 1; Accessible.name: root.t("captureDevice") }
+            Kit.GlassComboBox { id: captureMode; readonly property var keys: ["microphone", "system", "mixed"]; model: keys.map(key => root.t("capture_" + key)); enabled: !root.live.busy; Accessible.name: root.t("captureSource") }
+            Kit.GlassComboBox { id: inputDevice; readonly property var devices: [{id:"", name:root.t("voiceAutomatic")}].concat(root.live.inputs); model: devices; textRole: "name"; enabled: !root.live.busy && captureMode.currentIndex !== 1; Accessible.name: root.t("captureDevice") }
             TextField { id: model; text: root.bridge.state.sessions.find(value => value.id === root.bridge.state.active[root.bridge.state.feature])?.model || ""; enabled: !root.live.busy; Accessible.name: root.t("modelID") }
             }
         }
@@ -202,8 +202,8 @@ Item {
             anchors.fill: parent; anchors.margins: root.metrics.inset
             Label { text: subtitles.segment?.original || ""; textFormat: Text.PlainText; wrapMode: Text.Wrap; Layout.fillWidth: true }
             Label { text: subtitles.segment?.translated || ""; textFormat: Text.PlainText; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.fillHeight: true }
-            Button { visible: root.live.listening; text: root.t("stop"); onClicked: root.live.stop() }
+            Kit.GlassButton { visible: root.live.listening; text: root.t("stop"); onClicked: root.live.stop() }
         }
     }
-    Dialog { id: deleteMeeting; property string sessionID; title: root.t("deleteInterpretation"); modal: true; standardButtons: Dialog.Yes | Dialog.Cancel; onAccepted: root.live.deleteSession(sessionID) }
+    GlassDialog { id: deleteMeeting; property string sessionID; title: root.t("deleteInterpretation"); modal: true; standardButtons: Dialog.Yes | Dialog.Cancel; onAccepted: root.live.deleteSession(sessionID) }
 }

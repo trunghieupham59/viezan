@@ -32,13 +32,13 @@ ScrollView {
                     anchors.fill: parent; spacing: 0
                     Label { text: page.t("contentSources"); font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.subtitleScale; Layout.bottomMargin: page.metrics.small }
                     Kit.CardRow { title: page.t("pasteText"); detail: page.t("pasteTextHint"); Kit.PrimaryButton { text: page.t("openInTranslate"); onClicked: page.newTranslation() } }
-                    Kit.CardRow { title: page.t("globalShortcut"); detail: page.t(page.linux ? "globalShortcutHintLinux" : "globalShortcutHintWindows"); Button { text: page.t("setUp"); onClicked: page.routeRequested("utilities") } }
+                    Kit.CardRow { title: page.t("globalShortcut"); detail: page.t(page.linux ? "globalShortcutHintLinux" : "globalShortcutHintWindows"); Kit.GlassButton { text: page.t("setUp"); onClicked: page.routeRequested("utilities") } }
                     // Quick translate's own pair and the model it uses (the app's current choice).
                     Kit.CardRow {
                         id: primaryRow
                         readonly property var pair: (page.bridge.state, page.bridge.quickTranslate())
                         title: page.t("quickPrimary"); detail: page.t(pair.secondary ? "quickPairOn" : "quickPairOff")
-                        ComboBox {
+                        Kit.GlassComboBox {
                             readonly property var codes: page.bridge.resources.nativeLanguages
                             model: codes.map(value => page.t("lang_" + value)); currentIndex: codes.indexOf(primaryRow.pair.primary)
                             implicitContentWidthPolicy: ComboBox.WidestText; Accessible.name: page.t("quickPrimary"); onActivated: page.bridge.command("quickTranslatePrimary", {value: codes[currentIndex]})
@@ -48,7 +48,7 @@ ScrollView {
                         id: secondaryRow
                         readonly property var pair: (page.bridge.state, page.bridge.quickTranslate())
                         title: page.t("quickSecondary"); detail: page.t("quickSecondaryHint")
-                        ComboBox {
+                        Kit.GlassComboBox {
                             readonly property var codes: [""].concat(page.bridge.resources.nativeLanguages.filter(value => value !== secondaryRow.pair.primary))
                             model: codes.map(value => value ? page.t("lang_" + value) : page.t("quickSecondaryOff")); currentIndex: Math.max(0, codes.indexOf(secondaryRow.pair.secondary || ""))
                             implicitContentWidthPolicy: ComboBox.WidestText; Accessible.name: page.t("quickSecondary"); onActivated: page.bridge.command("quickTranslateSecondary", {value: codes[currentIndex]})
@@ -65,7 +65,7 @@ ScrollView {
                     Label { text: page.t("permissionStatus"); font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.subtitleScale }
                     Kit.StatusBadge { text: page.t("notVerified") }
                     Label { text: page.t(page.linux ? "permissionHintLinux" : "permissionHintWindows"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
-                    Button { text: page.t("viewPermissions"); onClicked: page.bridge.desktopIntegration.openPrivacySettings() }
+                    Kit.GlassButton { text: page.t("viewPermissions"); onClicked: page.bridge.desktopIntegration.openPrivacySettings() }
                 }
             }
             Kit.Card {

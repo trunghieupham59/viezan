@@ -13,7 +13,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "dev": "python3 scripts/native/build.py --output .native-build/dev --launch",
+    "dev": "python3 scripts/native/dev.py",
     "build": "python3 scripts/native/build.py --configuration Release --output .native-build/release",
     "build:mac": "python3 scripts/native/build.py --target macos --configuration Release --output .native-build/macos",
     "build:win": "python3 scripts/native/build.py --target qt --configuration Release --output .native-build/windows",

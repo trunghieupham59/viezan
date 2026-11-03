@@ -98,9 +98,9 @@ struct HistorySearch: NSViewRepresentable {
     }
 }
 
-// The one search field of the app: magnifier, bare text, a quiet surface with a hairline that
-// strengthens on focus. Same shape as the sidebar's "Tìm" field; height is one control (or the
-// compact control in a header).
+// The one search field of the app: magnifier, native text and an inset reading
+// surface. Glass follows the sidebar's capsule geometry while retaining a
+// neutral editing edge; the actual field height determines the corner radius.
 struct SearchBox: View {
     @Binding var query: String
     var label: String
@@ -113,15 +113,17 @@ struct SearchBox: View {
     var focusEpoch = 0
     var autofocus = true
     var compact = false
-    @Environment(\.colorScheme) private var scheme
+    @Environment(\.isEnabled) private var enabled
     @State private var focused = false
+    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
+    private var height: CGFloat { metric(compact ? "compactControl" : "control") }
+    private var radius: CGFloat { glass ? height / 2 : metric("controlRadius") }
     var body: some View {
         HStack(spacing: metric("small")) {
             Image(systemName: "magnifyingglass").imageScale(.medium).foregroundStyle(.secondary).accessibilityHidden(true)
             HistorySearch(query: $query, label: label, move: move, submit: submit, cancel: cancel, first: first, last: last, onTab: onTab, focusEpoch: focusEpoch, autofocus: autofocus, onFocus: { focused = $0 })
         }
-        .padding(.horizontal, metric("gap")).frame(height: metric(compact ? "compactControl" : "control"))
-        .background(contentColor("surface-subtle", scheme), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
-        .overlay(RoundedRectangle(cornerRadius: metric("controlRadius")).strokeBorder(contentColor(focused ? "border-strong" : "border", scheme), lineWidth: metric("hairline")))
+        .padding(.horizontal, metric("gap")).frame(height: height)
+        .background { InsetInputSurface(radius: radius, focused: focused, enabled: enabled) }
     }
 }

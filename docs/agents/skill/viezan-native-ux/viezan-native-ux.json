@@ -1,0 +1,22 @@
+{
+  "name": "viezan-native-ux",
+  "version": "1.1.0",
+  "type": "skill",
+  "description": "Design and review Viezan native multitasking desktop UX, Figma screens and platform-specific acceptance scenarios.",
+  "classification": {
+    "lifecycle": "migration",
+    "domain": [
+      "native",
+      "desktop",
+      "ux"
+    ],
+    "use_for": "Design and review Viezan native multitasking desktop UX, Figma screens and platform-specific acceptance scenarios."
+  },
+  "references": {
+    "instructions": "./SKILL.md",
+    "plan": "../../../migration/README.md",
+    "design_research": "./references/ui-ux-pro-max.md",
+    "upstream_skill": "../../../../.agents/skills/ui-ux-pro-max/SKILL.md",
+    "upstream_record": "../../../../.agents/skills/ui-ux-pro-max/UPSTREAM.json"
+  }
+}

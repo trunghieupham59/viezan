@@ -26,7 +26,7 @@ Item {
         }
         RowLayout {
             spacing: root.metrics.small
-            TextField { id: search; placeholderText: root.t("searchLabel"); Accessible.name: placeholderText; Layout.preferredWidth: root.metrics.sidebar + root.metrics.large; selectByMouse: true }
+            Kit.SearchField { id: search; placeholderText: root.t("searchLabel"); Accessible.name: placeholderText; Layout.preferredWidth: root.metrics.sidebar + root.metrics.large; selectByMouse: true }
             Kit.IconButton { iconName: "refresh"; text: root.t("refresh"); enabled: !root.desktop.applicationsBusy; onClicked: root.desktop.refreshApplications() }
             BusyIndicator { visible: running; running: root.desktop.applicationsBusy; implicitHeight: root.metrics.control; implicitWidth: root.metrics.control }
             Item { Layout.fillWidth: true }
@@ -81,9 +81,9 @@ Item {
                     Flow {
                         Layout.fillWidth: true; spacing: root.metrics.small
                         Kit.PrimaryButton { text: root.t("open"); enabled: !!root.selected; onClicked: root.desktop.launch(root.selected.id) }
-                        Button { text: root.t("reveal"); enabled: !!root.selected; onClicked: root.desktop.revealFile(root.selected.id) }
-                        Button { visible: Qt.platform.os === "windows"; text: root.t("openSystemSettings"); onClicked: root.desktop.openApplicationSettings() }
-                        Button { visible: split.columns === 1; text: root.t("close"); onClicked: root.selectedID = "" }
+                        Kit.GlassButton { text: root.t("reveal"); enabled: !!root.selected; onClicked: root.desktop.revealFile(root.selected.id) }
+                        Kit.GlassButton { visible: Qt.platform.os === "windows"; text: root.t("openSystemSettings"); onClicked: root.desktop.openApplicationSettings() }
+                        Kit.GlassButton { visible: split.columns === 1; text: root.t("close"); onClicked: root.selectedID = "" }
                     }
                     Item { Layout.fillHeight: true }
                 }

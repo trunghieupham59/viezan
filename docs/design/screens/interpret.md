@@ -1,5 +1,14 @@
 # Phiên dịch
 
+## Tinh chỉnh native theo ảnh tham chiếu (2026-11-02)
+
+SwiftUI dùng thẻ tổng hợp với bốn tab trong cùng một nhóm. Preset Glass áp dụng
+nền nhóm nhẹ và pill chọn của thành phần `FilterTabs`; vùng nội dung vẫn đục.
+Nhóm Sao chép/Tạo lại đi liền nhau và xuống hàng khi không đủ chiều rộng cạnh
+các tab, giữ nguyên nhãn, thứ tự focus, trạng thái đang xử lý và disabled.
+Các mục dưới đây ghi lại đặc tả renderer trước; hướng native hiện tại theo
+[`direction.md`](../direction.md).
+
 > Bản vẽ gốc: `boards/Interpret.dc.html` (cùng `boards/Histories.dc.html`, `boards/Popovers.dc.html`, `boards/States.dc.html`, `boards/SmallSurfaces.dc.html`) · Board chi tiết: `specs/interpret.html` · Mã nguồn: `src/pages/LiveTranslatePage.tsx`
 
 Luật chung (token, hợp đồng Button, bậc bề mặt, responsive, trạng thái chung) nằm ở [`foundations.md`](../foundations.md). Tài liệu này chỉ ghi phần riêng của màn hình Phiên dịch.

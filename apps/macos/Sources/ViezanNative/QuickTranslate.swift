@@ -161,7 +161,7 @@ struct QuickTranslateView: View {
         .overlay(RoundedRectangle(cornerRadius: metric("largeRadius")).strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")))
         .overlay(alignment: .topTrailing) {
             Button(action: actions.close) { Image(systemName: "xmark").font(.vzn("captionScale")) }
-                .buttonStyle(.plain).foregroundStyle(.secondary).padding(metric("small"))
+                .buttonStyle(.vznQuiet).foregroundStyle(.secondary).padding(metric("small"))
                 .help(store.text("close")).accessibilityLabel(store.text("close"))
         }
         .accessibilityElement(children: .contain)

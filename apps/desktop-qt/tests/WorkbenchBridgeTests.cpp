@@ -13,6 +13,7 @@
 #include <QJsonDocument>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQmlComponent>
 #include <QSignalSpy>
 #include <QQuickItem>
 #include <QQuickWindow>
@@ -54,6 +55,34 @@ private slots:
         QVERIFY(!recovered.contains("bridge"));
         QCOMPARE(recovered.value("disabledModules").toStringList(), QStringList{"thermal"});
         QCOMPARE(recovered.value("active"), saved.value("active"));
+    }
+    void voiceGlyphInstantiatesInsideLoader() {
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        QQmlEngine engine;
+        QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.rootContext()->setContextProperty("workbench", &bridge);
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import "qrc:/qml" as Viezan
+            Item {
+                width: 100; height: 40
+                Loader {
+                    objectName: "voice-loader"
+                    sourceComponent: Viezan.Kit.VoiceGlyph { color: "black" }
+                }
+            }
+        )", QUrl("qrc:/voice-glyph-test.qml"));
+        QScopedPointer<QObject> owner(component.create());
+        QVERIFY2(owner, qPrintable(component.errorString()));
+        auto *loader = owner->findChild<QObject *>("voice-loader");
+        QVERIFY(loader);
+        auto *glyph = loader->property("item").value<QQuickItem *>();
+        QVERIFY(glyph);
+        QVERIFY(glyph->implicitWidth() > 0 && glyph->implicitHeight() > 0);
+        QCoreApplication::processEvents();
+        QCOMPARE(warnings.count(), 0);
     }
     void editorUndoDoesNotCrossSessions_data() {
         QTest::addColumn<QString>("feature");
@@ -186,17 +215,26 @@ private slots:
     void navigationSelectionSurvivesRepeatedActivation_data() {
         QTest::addColumn<QString>("locale");
         QTest::addColumn<int>("width");
+        QTest::addColumn<QString>("preset");
+        QTest::addColumn<QString>("mode");
         for (const auto &locale : {"vi", "en", "ja"})
-            for (int width : {640, 820, 1200, 1440})
-                QTest::newRow(qPrintable(QString("%1-%2").arg(locale).arg(width))) << QString(locale) << width;
+            for (int width : {640, 820, 1200, 1440}) {
+                QTest::newRow(qPrintable(QString("%1-%2-graphite").arg(locale).arg(width)))
+                    << QString(locale) << width << QString("graphite") << QString("light");
+                for (const auto &mode : {"light", "dark"})
+                    QTest::newRow(qPrintable(QString("%1-%2-glass-%3").arg(locale).arg(width).arg(mode)))
+                        << QString(locale) << width << QString("glass") << QString(mode);
+            }
     }
     void navigationSelectionSurvivesRepeatedActivation() {
         QFETCH(QString, locale); QFETCH(int, width);
+        QFETCH(QString, preset); QFETCH(QString, mode);
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
         // Feature regression fixtures resume Chat; fresh production installs open Home.
         bridge.command("route", {{"value", "chat"}});
         bridge.command("locale", {{"value", locale}});
+        bridge.command("appearance", {{"preset", preset}, {"mode", mode}});
         const auto labels = bridge.resources().value("locales").toMap().value(locale).toMap();
         QQmlApplicationEngine engine;
         engine.rootContext()->setContextProperty("workbench", &bridge);
@@ -615,6 +653,284 @@ private slots:
         QCOMPARE(current(bridge).value("draft").toString(), QString("Next draft"));
         QCOMPARE(warnings.count(), 0);
     }
+    void glassComposerKeepsEditorAndModelOwnership_data() {
+        QTest::addColumn<QString>("mode");
+        QTest::newRow("light") << QString("light");
+        QTest::newRow("dark") << QString("dark");
+    }
+    void glassComposerKeepsEditorAndModelOwnership() {
+        QFETCH(QString, mode);
+        QTemporaryDir dir;
+        auto fixture = WorkbenchDomain::create("chat-first", "translate-first");
+        auto sessions = fixture.value("sessions").toList();
+        auto historicalChat = sessions.first().toMap();
+        historicalChat["id"] = "chat-history";
+        historicalChat["messages"] = QVariantList{QVariantMap{{"id", "synthetic-message"}, {"role", "user"}, {"text", "A synthetic saved conversation"}}};
+        sessions.append(historicalChat);
+        fixture["sessions"] = sessions;
+        QVERIFY(WorkbenchDomain::validate(fixture));
+        QFile file(dir.filePath("state.json"));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QVERIFY(file.write(QJsonDocument::fromVariant(fixture).toJson()) > 0);
+        file.close();
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("route", {{"value", "chat"}});
+        bridge.command("appearance", {{"preset", "glass"}, {"mode", mode}});
+        ProviderDiscovery::Snapshot snapshot;
+        snapshot.checked = true;
+        snapshot.models["ollama"] = {"ollama:llama3.2", "ollama:qwen3:8b"};
+        bridge.applyProviderSnapshot(snapshot); // No provider requests or credentials.
+        bridge.command("model", {{"value", "ollama:llama3.2"}});
+        QQmlApplicationEngine engine;
+        QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.rootContext()->setContextProperty("workbench", &bridge);
+        engine.load(QUrl("qrc:/qml/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *root = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(root);
+        root->resize(1200, 820);
+        QCoreApplication::processEvents();
+        auto *composer = visualItem(root->contentItem(), "chat-composer");
+        auto *scroll = visualItem(root->contentItem(), "chat-draft-scroll");
+        auto *send = visualItem(root->contentItem(), "chat-send");
+        auto *combo = visualItem(root->contentItem(), "chat-model-picker");
+        auto *modelOptions = visualItem(root->contentItem(), "chat-model-options");
+        auto *record = visualItem(root->contentItem(), "chat-record");
+        QPointer<QQuickItem> editor = visualItem(root->contentItem(), "chat-draft");
+        QVERIFY(composer); QVERIFY(scroll); QVERIFY(send); QVERIFY(combo); QVERIFY(modelOptions); QVERIFY(record); QVERIFY(editor);
+        QTRY_VERIFY(composer->property("singleRow").toBool());
+        const auto emptyComposerY = composer->mapToScene(QPointF()).y();
+        QVERIFY(!send->isEnabled());
+        const auto chatID = current(bridge).value("id");
+        const QString draft = QString::fromUtf8("Hi 日本語");
+        editor->setProperty("text", draft);
+        editor->forceActiveFocus();
+        QVERIFY(QMetaObject::invokeMethod(editor, "select", Q_ARG(int, 3), Q_ARG(int, 6)));
+        const auto selected = editor->property("selectedText").toString();
+        const auto cursor = editor->property("cursorPosition").toInt();
+        for (const auto width : {820, 640, 1200}) {
+            root->setWidth(width);
+            QCoreApplication::processEvents();
+            QCOMPARE(editor.data(), visualItem(root->contentItem(), "chat-draft"));
+            QCOMPARE(editor->property("text").toString(), draft);
+            QCOMPARE(editor->property("selectedText").toString(), selected);
+            QCOMPARE(editor->property("cursorPosition").toInt(), cursor);
+            QCOMPARE(current(bridge).value("id"), chatID);
+            QVERIFY(editor->hasActiveFocus());
+            // The named controls must own separate click regions. A custom
+            // ComboBox label cannot rely on Fusion's TextInput width measuring.
+            QVERIFY(combo->width() >= bridge.resources().value("metrics").toMap().value("editor").toDouble());
+            const auto comboRight = combo->mapToScene(QPointF(combo->width(), 0)).x();
+            const auto optionsLeft = modelOptions->mapToScene(QPointF()).x();
+            const auto optionsRight = modelOptions->mapToScene(QPointF(modelOptions->width(), 0)).x();
+            const auto recordLeft = record->mapToScene(QPointF()).x();
+            QVERIFY(comboRight <= optionsLeft);
+            QVERIFY(optionsRight <= recordLeft);
+            QVERIFY(record->mapToScene(QPointF(record->width(), 0)).x() <= send->mapToScene(QPointF()).x());
+            auto *modelLabel = combo->property("contentItem").value<QQuickItem *>();
+            QVERIFY(modelLabel);
+            QVERIFY(modelLabel->width() <= combo->width());
+        }
+        QVERIFY(send->isEnabled());
+        const QString fiveLines = QString::fromUtf8("Một\nHai\n三\n四\nFive");
+        editor->setProperty("text", fiveLines);
+        QTRY_VERIFY(!composer->property("singleRow").toBool());
+        QTRY_VERIFY(scroll->height() >= editor->height() - 1);
+        const auto cappedHeight = scroll->height();
+        editor->setProperty("text", fiveLines + "\nSix");
+        QTRY_VERIFY(editor->height() > scroll->height());
+        QCOMPARE(scroll->height(), cappedHeight);
+        QCOMPARE(editor.data(), visualItem(root->contentItem(), "chat-draft"));
+        QCOMPARE(current(bridge).value("draft").toString(), fiveLines + "\nSix");
+        // Qt 6.8 deletes a ComboBox's replaced delegate. A theme round trip
+        // must retain this owned component before the popup creates its rows.
+        QPointer<QQmlComponent> modelDelegate = combo->property("delegate").value<QQmlComponent *>();
+        QVERIFY(modelDelegate);
+        bridge.command("appearance", {{"preset", "graphite"}, {"mode", mode}});
+        QCoreApplication::processEvents();
+        QVERIFY(modelDelegate);
+        QCOMPARE(combo->property("delegate").value<QQmlComponent *>(), modelDelegate.data());
+        auto *nativeLabel = combo->property("contentItem").value<QQuickItem *>();
+        QVERIFY(nativeLabel);
+        QVERIFY(nativeLabel->isVisible());
+        QCOMPARE(editor.data(), visualItem(root->contentItem(), "chat-draft"));
+        bridge.command("appearance", {{"preset", "glass"}, {"mode", mode}});
+        QCoreApplication::processEvents();
+        QVERIFY(modelDelegate);
+        QCOMPARE(combo->property("delegate").value<QQmlComponent *>(), modelDelegate.data());
+        QCOMPARE(combo->property("contentItem").value<QQuickItem *>(), nativeLabel);
+        QVERIFY(!nativeLabel->isVisible());
+        auto *glassLabel = visualItem(combo, "chat-model-label");
+        QVERIFY(glassLabel);
+        QVERIFY(glassLabel->isVisible());
+        QCOMPARE(editor.data(), visualItem(root->contentItem(), "chat-draft"));
+        QCOMPARE(current(bridge).value("draft").toString(), fiveLines + "\nSix");
+        QObject *popup = nullptr;
+        for (const auto &preset : {QString("glass"), QString("graphite"), QString("glass")}) {
+            bridge.command("appearance", {{"preset", preset}, {"mode", mode}});
+            QCoreApplication::processEvents();
+            popup = combo->property("popup").value<QObject *>();
+            QVERIFY(popup);
+            QVERIFY(QMetaObject::invokeMethod(popup, "open"));
+            QTRY_VERIFY2(popup->property("visible").toBool(), qPrintable(preset));
+            auto *popupContent = popup->property("contentItem").value<QQuickItem *>();
+            QVERIFY(popupContent);
+            QTRY_VERIFY(visualItem(popupContent, "chat-model-option"));
+            auto *option = visualItem(popupContent, "chat-model-option");
+            auto *nativeContent = option->property("contentItem").value<QQuickItem *>();
+            auto *nativeBackground = option->property("background").value<QQuickItem *>();
+            auto *glassContent = visualItem(option, "chat-model-option-label");
+            auto *glassBackground = visualItem(option, "chat-model-option-glass");
+            QVERIFY(nativeContent && nativeBackground && glassContent && glassBackground);
+            QTRY_VERIFY(option->isVisible());
+            const bool glass = preset == "glass";
+            QCOMPARE(nativeContent->isVisible(), !glass);
+            QCOMPARE(glassContent->isVisible(), glass);
+            QCOMPARE(glassBackground->isVisible(), glass);
+            // Fusion owns its native hover/pressed background visibility.
+            QCOMPARE(nativeBackground->isVisible(), !glass && (option->property("highlighted").toBool() || option->property("down").toBool()));
+            QVERIFY(QMetaObject::invokeMethod(popup, "close"));
+            QTRY_VERIFY(!popup->property("visible").toBool());
+        }
+        QVERIFY(QMetaObject::invokeMethod(popup, "open"));
+        QTRY_VERIFY(popup->property("visible").toBool());
+        bridge.command("new");
+        QTRY_VERIFY(!popup->property("visible").toBool());
+        QVERIFY(current(bridge).value("id") != chatID);
+        bridge.command("select", {{"sessionID", chatID}});
+        QCoreApplication::processEvents();
+        combo->forceActiveFocus();
+        QTest::keyClick(root, Qt::Key_Space);
+        QTRY_VERIFY(popup->property("visible").toBool());
+        QTest::keyClick(root, Qt::Key_Down);
+        QTest::keyClick(root, Qt::Key_Return);
+        QTRY_COMPARE(current(bridge).value("model").toString(), QString("ollama:qwen3:8b"));
+        QCOMPARE(current(bridge).value("draft").toString(), fiveLines + "\nSix");
+        bridge.command("select", {{"sessionID", "chat-history"}});
+        QTRY_VERIFY(composer->mapToScene(QPointF()).y() > emptyComposerY);
+        QCOMPARE(editor.data(), visualItem(root->contentItem(), "chat-draft"));
+        bridge.command("select", {{"sessionID", chatID}});
+        QTRY_COMPARE(editor->property("text").toString(), fiveLines + "\nSix");
+        QCOMPARE(editor.data(), visualItem(root->contentItem(), "chat-draft"));
+        // Model settings belong to the window overlay, not the composer at
+        // the bottom of the conversation. Opening must not clamp its content.
+        auto *configuration = root->findChild<QObject *>("model-configuration-dialog");
+        QVERIFY(configuration);
+        const auto beforeConfiguration = bridge.state();
+        for (const auto size : {QSize(640, 480), QSize(820, 820), QSize(1200, 820)}) {
+            root->resize(size);
+            QCoreApplication::processEvents();
+            QVERIFY(QMetaObject::invokeMethod(configuration, "open"));
+            QTRY_VERIFY(configuration->property("visible").toBool());
+            auto *content = configuration->property("contentItem").value<QQuickItem *>();
+            QVERIFY(content);
+            QTRY_VERIFY(content->height() >= configuration->property("contentHeight").toDouble());
+            const auto x = configuration->property("x").toDouble();
+            const auto y = configuration->property("y").toDouble();
+            QVERIFY(x >= 0 && y >= 0);
+            QVERIFY(x + configuration->property("width").toDouble() <= size.width());
+            QVERIFY(y + configuration->property("height").toDouble() <= size.height());
+            QVERIFY(QMetaObject::invokeMethod(configuration, "close"));
+            QTRY_VERIFY(!configuration->property("visible").toBool());
+        }
+        QCOMPARE(bridge.state(), beforeConfiguration);
+        QVERIFY(bridge.state().value("tasks").toList().isEmpty());
+        QCOMPARE(warnings.count(), 0);
+    }
+    void glassDialogPreservesStandardActions_data() {
+        QTest::addColumn<QString>("initialPreset");
+        QTest::addColumn<QString>("mode");
+        for (const auto &preset : {QString("graphite"), QString("glass")})
+            for (const auto &mode : {QString("light"), QString("dark")})
+                QTest::newRow(qPrintable(preset + "-" + mode)) << preset << mode;
+    }
+    void glassDialogPreservesStandardActions() {
+        QFETCH(QString, initialPreset);
+        QFETCH(QString, mode);
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("appearance", {{"preset", initialPreset}, {"mode", mode}});
+        QQmlEngine engine;
+        QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.rootContext()->setContextProperty("workbench", &bridge);
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import QtQuick.Controls
+            import "qrc:/qml" as Viezan
+            ApplicationWindow {
+                width: 500; height: 300; visible: true
+                Viezan.GlassDialog {
+                    objectName: "standard-dialog"
+                    title: "Synthetic dialog"
+                    modal: true; focus: true
+                    standardButtons: Dialog.Ok | Dialog.Cancel
+                    Label { text: "Synthetic content" }
+                    function acceptButton() { return footer.standardButton(Dialog.Ok) }
+                    function cancelButton() { return footer.standardButton(Dialog.Cancel) }
+                }
+            }
+        )", QUrl("qrc:/glass-dialog-test.qml"));
+        QScopedPointer<QObject> owner(component.create());
+        QVERIFY2(owner, qPrintable(component.errorString()));
+        auto *root = qobject_cast<QQuickWindow *>(owner.data());
+        QVERIFY(root);
+        auto *dialog = owner->findChild<QObject *>("standard-dialog");
+        QVERIFY(dialog);
+        QSignalSpy accepted(dialog, SIGNAL(accepted()));
+        QSignalSpy rejected(dialog, SIGNAL(rejected()));
+        auto *footer = dialog->property("footer").value<QObject *>();
+        QVERIFY(footer);
+        auto *nativeBackground = dialog->property("background").value<QQuickItem *>();
+        auto *nativeHeader = dialog->property("header").value<QQuickItem *>();
+        QVERIFY(nativeBackground); QVERIFY(nativeHeader);
+        const auto nativePadding = dialog->property("padding").toDouble();
+        int nativeReturnActivation = -1;
+        for (const auto &preset : {QString("graphite"), QString("glass"), QString("graphite")}) {
+            bridge.command("appearance", {{"preset", preset}, {"mode", mode}});
+            QCoreApplication::processEvents();
+            QCOMPARE(dialog->property("footer").value<QObject *>(), footer);
+            QVERIFY(QMetaObject::invokeMethod(dialog, "open"));
+            QTRY_VERIFY(dialog->property("visible").toBool());
+            QCOMPARE(dialog->property("background").value<QQuickItem *>(), nativeBackground);
+            QCOMPARE(dialog->property("header").value<QQuickItem *>(), nativeHeader);
+            QCOMPARE(nativeBackground->isVisible(), preset != "glass");
+            if (preset == "graphite") QCOMPARE(dialog->property("padding").toDouble(), nativePadding);
+            QVariant result;
+            QVERIFY(QMetaObject::invokeMethod(dialog, "acceptButton", Q_RETURN_ARG(QVariant, result)));
+            auto *button = qobject_cast<QQuickItem *>(result.value<QObject *>());
+            QVERIFY(button);
+            QVERIFY(button->metaObject()->indexOfProperty("usesGlass") >= 0);
+            QCOMPARE(button->property("usesGlass").toBool(), preset == "glass");
+            const auto before = accepted.count();
+            button->forceActiveFocus();
+            QCoreApplication::processEvents();
+            QVERIFY(button->hasActiveFocus());
+            QTest::keyClick(root, Qt::Key_Return);
+            QCoreApplication::processEvents();
+            const auto returnActivation = accepted.count() - before;
+            if (nativeReturnActivation < 0) nativeReturnActivation = returnActivation;
+            else QCOMPARE(returnActivation, nativeReturnActivation);
+            if (!returnActivation) QTest::keyClick(root, Qt::Key_Space);
+            QTRY_COMPARE(accepted.count(), before + 1);
+            QTRY_VERIFY(!dialog->property("visible").toBool());
+        }
+        bridge.command("appearance", {{"preset", "glass"}, {"mode", mode}});
+        QCoreApplication::processEvents();
+        QVERIFY(QMetaObject::invokeMethod(dialog, "open"));
+        QTRY_VERIFY(dialog->property("visible").toBool());
+        QVariant result;
+        QVERIFY(QMetaObject::invokeMethod(dialog, "cancelButton", Q_RETURN_ARG(QVariant, result)));
+        auto *cancel = qobject_cast<QQuickItem *>(result.value<QObject *>());
+        QVERIFY(cancel);
+        cancel->forceActiveFocus();
+        QCoreApplication::processEvents();
+        QVERIFY(cancel->hasActiveFocus());
+        QTest::keyClick(root, Qt::Key_Space);
+        QTRY_COMPARE(rejected.count(), 1);
+        QVERIFY(bridge.state().value("tasks").toList().isEmpty());
+        QCOMPARE(warnings.count(), 0);
+    }
     void roundTripAndSeparateDrafts() {
         QTemporaryDir dir;
         const auto file = dir.filePath("state.json");
@@ -744,6 +1060,98 @@ private slots:
         const auto valid = restored.state();
         restored.command("appearance", {{"mode", "unsupported"}});
         QCOMPARE(restored.state(), valid);
+    }
+    void glassSearchAndFiltersPreserveNativeInteraction_data() {
+        QTest::addColumn<QString>("mode");
+        QTest::addColumn<QString>("locale");
+        QTest::addColumn<int>("width");
+        QTest::newRow("light-vi-640") << QString("light") << QString("vi") << 640;
+        QTest::newRow("dark-ja-1200") << QString("dark") << QString("ja") << 1200;
+    }
+    void glassSearchAndFiltersPreserveNativeInteraction() {
+        QFETCH(QString, mode); QFETCH(QString, locale); QFETCH(int, width);
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("appearance", {{"preset", "glass"}, {"mode", mode}, {"textSize", "large"}});
+        bridge.command("locale", {{"value", locale}});
+        bridge.command("draft", {{"value", "Preserve draft 日本語"}});
+        const auto sessions = bridge.state().value("sessions");
+        QQmlApplicationEngine engine;
+        QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.rootContext()->setContextProperty("workbench", &bridge);
+        engine.load(QUrl("qrc:/qml/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *root = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(root);
+        root->resize(width, 820);
+        QCoreApplication::processEvents();
+        auto *home = visualItem(root->contentItem(), "home-workspace");
+        auto *filters = visualItem(root->contentItem(), "home-recent-filters");
+        QVERIFY(home); QVERIFY(filters);
+        QCOMPARE(filters->property("count").toInt(), 4);
+        QCOMPARE(filters->property("currentIndex").toInt(), 0);
+        auto *selected = filters->property("currentItem").value<QQuickItem *>();
+        QVERIFY(selected);
+        selected->forceActiveFocus();
+        QTest::keyClick(root, Qt::Key_Right);
+        QTRY_COMPARE(filters->property("currentIndex").toInt(), 1);
+        QTRY_COMPARE(home->property("filter").toString(), QString("chat"));
+        QVERIFY(filters->mapToScene(QPointF()).x() >= 0);
+        QVERIFY(filters->mapToScene(QPointF(filters->width(), 0)).x() <= width);
+        const auto labels = bridge.resources().value("locales").toMap().value(locale).toMap();
+        auto *all = visualText(filters, labels.value("filterAll").toString());
+        QVERIFY(all);
+        QTest::mouseClick(root, Qt::LeftButton, Qt::NoModifier, all->mapToScene(QPointF(all->width() / 2, all->height() / 2)).toPoint());
+        QTRY_COMPARE(home->property("filter").toString(), QString());
+        QTRY_COMPARE(filters->property("currentIndex").toInt(), 0);
+        QCOMPARE(bridge.state().value("sessions"), sessions);
+        QVERIFY(QMetaObject::invokeMethod(root, "openSettingsSection", Q_ARG(QVariant, "appearance")));
+        QCoreApplication::processEvents();
+        auto *theme = visualItem(root->contentItem(), "settings-theme");
+        auto *search = visualItem(root->contentItem(), "settings-header-search");
+        QVERIFY(theme); QVERIFY(search);
+        QCOMPARE(theme->property("count").toInt(), 3);
+        selected = theme->property("currentItem").value<QQuickItem *>();
+        QVERIFY(selected);
+        selected->forceActiveFocus();
+        QTest::keyClick(root, Qt::Key_Right);
+        QTRY_COMPARE(bridge.state().value("appearance").toMap().value("mode").toString(), mode == "light" ? QString("dark") : QString("system"));
+        bridge.command("appearance", {{"mode", mode}});
+        QTRY_COMPARE(theme->property("currentIndex").toInt(), mode == "light" ? 0 : 1);
+        search->forceActiveFocus();
+        search->setProperty("text", QString::fromUtf8("日本語"));
+        QVERIFY(QMetaObject::invokeMethod(search, "select", Q_ARG(int, 0), Q_ARG(int, 3)));
+        QCOMPARE(search->property("selectedText").toString(), QString::fromUtf8("日本語"));
+        root->setWidth(width == 640 ? 1200 : 640);
+        QCoreApplication::processEvents();
+        QCOMPARE(search, visualItem(root->contentItem(), "settings-header-search"));
+        QCOMPARE(search->property("selectedText").toString(), QString::fromUtf8("日本語"));
+        QVERIFY(QMetaObject::invokeMethod(search, "deselect"));
+        search->setProperty("cursorPosition", 3);
+        const auto query = root->property("settingsQuery").toString();
+        QInputMethodEvent preedit(QString::fromUtf8("にほん"), {});
+        QCoreApplication::sendEvent(search, &preedit);
+        QTRY_VERIFY(search->property("inputMethodComposing").toBool());
+        QTest::keyClick(root, Qt::Key_Escape);
+        QCOMPARE(root->property("settingsQuery").toString(), query);
+        QInputMethodEvent committed;
+        committed.setCommitString(QString::fromUtf8("日本"));
+        QCoreApplication::sendEvent(search, &committed);
+        QTRY_VERIFY(!search->property("inputMethodComposing").toBool());
+        QTest::keyClick(root, Qt::Key_Escape);
+        QTRY_COMPARE(root->property("settingsQuery").toString(), QString());
+        QVERIFY(QMetaObject::invokeMethod(root, "execute", Q_ARG(QVariant, "commands"), Q_ARG(QVariant, QVariant())));
+        auto *commandSearch = visualItem(root->contentItem(), "command-search");
+        QVERIFY(commandSearch);
+        QTRY_VERIFY(commandSearch->hasActiveFocus());
+        QTest::keyClick(root, Qt::Key_Down);
+        QTRY_COMPARE(root->property("commandIndex").toInt(), 1);
+        QTest::keyClick(root, Qt::Key_Up);
+        QTRY_COMPARE(root->property("commandIndex").toInt(), 0);
+        QTest::keyClick(root, Qt::Key_Escape);
+        QTRY_VERIFY(!root->findChild<QObject *>("command-palette")->property("visible").toBool());
+        QCOMPARE(bridge.state().value("sessions"), sessions);
+        QCOMPARE(warnings.count(), 0);
     }
     void settingsLayoutAndSearch_data() {
         QTest::addColumn<QString>("locale");
@@ -1025,19 +1433,28 @@ private slots:
         QTest::addColumn<QString>("feature");
         QTest::addColumn<bool>("library");
         QTest::addColumn<bool>("compact");
-        QTest::newRow("chat") << "chat" << false << false;
-        QTest::newRow("translation") << "translate" << false << false;
-        QTest::newRow("chat-library") << "chat" << true << false;
-        QTest::newRow("translation-library") << "translate" << true << false;
-        QTest::newRow("chat-library-640") << "chat" << true << true;
-        QTest::newRow("translation-library-640") << "translate" << true << true;
+        QTest::addColumn<QString>("preset");
+        QTest::addColumn<QString>("mode");
+        QTest::newRow("chat") << "chat" << false << false << "graphite" << "light";
+        QTest::newRow("translation") << "translate" << false << false << "graphite" << "light";
+        QTest::newRow("chat-library") << "chat" << true << false << "graphite" << "light";
+        QTest::newRow("translation-library") << "translate" << true << false << "graphite" << "light";
+        QTest::newRow("chat-library-640") << "chat" << true << true << "graphite" << "light";
+        QTest::newRow("translation-library-640") << "translate" << true << true << "graphite" << "light";
+        QTest::newRow("glass-light") << "chat" << false << false << "glass" << "light";
+        QTest::newRow("glass-dark") << "translate" << false << false << "glass" << "dark";
+        QTest::newRow("glass-library-640") << "chat" << true << true << "glass" << "light";
+        QTest::newRow("glass-library-dark-640") << "translate" << true << true << "glass" << "dark";
     }
     void qmlLoadsWithRealBridge() {
         QFETCH(QString, feature);
         QFETCH(bool, library);
         QFETCH(bool, compact);
+        QFETCH(QString, preset);
+        QFETCH(QString, mode);
         QTemporaryDir dir;
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("appearance", {{"preset", preset}, {"mode", mode}});
         // Feature regression fixtures resume Chat; fresh production installs open Home.
         bridge.command("route", {{"value", "chat"}});
         bridge.command("navigate", {{"feature", feature}});

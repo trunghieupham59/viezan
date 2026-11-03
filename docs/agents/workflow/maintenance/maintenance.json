@@ -1,0 +1,202 @@
+{
+  "name": "maintenance",
+  "version": "1.1.0",
+  "description": "Workflow tong hop maintenance he thong Viezan, gom diagnostics, duplicate/hardcode, score-code, UI component split, extension drift, docs drift, i18n/security/perf gates, fix va report co section bat buoc.",
+  "type": "workflow",
+  "classification": {
+    "lifecycle": "maintenance",
+    "domain": ["diagnostics", "hardcode-duplication", "code-quality", "ui-components", "extension", "docs", "security-privacy", "i18n", "performance", "release"],
+    "use_for": "Use as the canonical maintenance workflow instead of asking users to choose individual maintenance workflows."
+  },
+  "trigger": "Khi user yeu cau maintenance he thong, bao tri codebase, fix technical debt, hoac muon AI tu danh gia va sua cac van de chat luong.",
+  "rules": [
+    "../../rule/viezan-product-engineering/rules.json",
+    "../../rule/generate-code/rules.json"
+  ],
+  "skills": [
+    "../../skill/fix-vscode-problems/fix-vscode-problems.json",
+    "../../skill/check-dup-hardcode/check-dup-hardcode.json",
+    "../../skill/score-code/score-code.json",
+    "../../skill/split-ui-component/split-ui-component.json",
+    "../../skill/viezan-doc-sync/viezan-doc-sync.json",
+    "../../skill/viezan-i18n-audit/viezan-i18n-audit.json",
+    "../../skill/viezan-ipc-security-audit/viezan-ipc-security-audit.json",
+    "../../skill/viezan-extension-ux/viezan-extension-ux.json",
+    "../../skill/viezan-live-perf-audit/viezan-live-perf-audit.json"
+  ],
+  "capability_workflows": [
+    "../fix-vscode-problems/fix-vscode-problems.json",
+    "../check-dup-hardcode/check-dup-hardcode.json",
+    "../score-code/score-code.json",
+    "../split-ui-component/split-ui-component.json",
+    "../sync-docs/sync-docs.json",
+    "../audit-i18n-coverage/audit-i18n-coverage.json",
+    "../audit-local-first-security/audit-local-first-security.json",
+    "../audit-extension-ux/audit-extension-ux.json",
+    "../audit-live-perf/audit-live-perf.json",
+    "../release-readiness/release-readiness.json"
+  ],
+  "required_gate_matrix": [
+    {
+      "gate": "Repo Scope",
+      "source": "git status, recent reports",
+      "required_report_section": "Scope",
+      "required_evidence": "Branch, submodule state, dirty files relevant to maintenance and excluded unrelated changes."
+    },
+    {
+      "gate": "Diagnostics",
+      "source": "fix-vscode-problems plus build/typecheck/test/Biome commands",
+      "required_report_section": "Diagnostics",
+      "required_evidence": "Command/status table with exact failures or pass counts."
+    },
+    {
+      "gate": "System Score",
+      "source": "score-code with viezan-electron rubric",
+      "required_report_section": "System Score",
+      "required_evidence": "Weighted score table: Correctness, Architecture, Security, Reliability, Code Quality, Maintainability, Testing, Performance, Documentation."
+    },
+    {
+      "gate": "Duplicate Code Audit",
+      "source": "check-dup-hardcode duplicate-code category",
+      "required_report_section": "Duplicate Code Audit",
+      "required_evidence": "Counts by clone type, top candidates with file:line pairs or an explicit clean result with scan scope."
+    },
+    {
+      "gate": "Hardcode & Secret Audit",
+      "source": "check-dup-hardcode hardcode category",
+      "required_report_section": "Hardcode & Secret Audit",
+      "required_evidence": "Counts by credential, magic number/string, config, URL, UI value and icon categories; include false-positive notes."
+    },
+    {
+      "gate": "UI/Component/Extension Audit",
+      "source": "split-ui-component and audit-extension-ux when extension is in scope",
+      "required_report_section": "UI/Component/Extension Audit",
+      "required_evidence": "Component map summary, inline SVG/icon results, duplicate UI pattern results and extension drift results."
+    },
+    {
+      "gate": "Docs/I18n/Security Gates",
+      "source": "sync-docs, audit-i18n-coverage, audit-local-first-security",
+      "required_report_section": "Docs/I18n/Security Gates",
+      "required_evidence": "Docs drift result, locale parity/hardcoded UI text result and local-first IPC/key boundary result."
+    },
+    {
+      "gate": "Live/Performance Gate",
+      "source": "audit-live-perf when live/audio/streaming/timer code is in scope",
+      "required_report_section": "Docs/I18n/Security Gates",
+      "required_evidence": "Lifecycle/perf risk result or Not run with reason."
+    },
+    {
+      "gate": "Release Readiness",
+      "source": "release-readiness when package/version/CI/release assets are in scope",
+      "required_report_section": "Docs/I18n/Security Gates",
+      "required_evidence": "Release gate result or Not run with reason."
+    }
+  ],
+  "steps": [
+    {
+      "id": "step-1-scope",
+      "name": "Xac dinh maintenance scope",
+      "action": "Doc user request, git status, recent reports trong docs/agents/reports va docs/agents/fix. Mac dinh scope: src/, electron/, chrome-extension/, docs, .github/, package/config files va agent assets. Khong reset dirty changes khong thuoc task. Khoi tao Maintenance Gate Matrix voi tat ca gate required truoc khi chay scan."
+    },
+    {
+      "id": "step-2-diagnostics",
+      "name": "Diagnostics gate",
+      "action": "Chay hoac tieu thu output tu TypeScript, build, tests, Biome/VS Code Problems; dung fix-vscode-problems de phan loai root cause.",
+      "commands": [
+        "npm run build",
+        "npm run build:electron",
+        "npm test -- --run",
+        "npx biome check ."
+      ],
+      "policy": "Neu command fail do network/cache package, ghi ro environment blocker thay vi gan loi code."
+    },
+    {
+      "id": "step-3-quality-audit",
+      "name": "Code quality va hardcode audit",
+      "action": "Dung check-dup-hardcode va score-code de tim duplicate, hardcode, magic literals, secrets, maintainability debt va quality regression. Ket qua score-code, duplicate va hardcode phai thanh 3 section rieng trong report.",
+      "default_scope": ["src/", "electron/", "chrome-extension/"],
+      "exclude": ["node_modules/", "dist/", "release/", "build/"]
+    },
+    {
+      "id": "step-4-ui-docs-gates",
+      "name": "UI va docs gates",
+      "action": "Dung split-ui-component cho UI/icon/extension drift; dung audit-extension-ux neu chrome-extension/ nam trong scope; dung sync-docs/viezan-doc-sync de kiem tra docs va agent classification drift."
+    },
+    {
+      "id": "step-5-system-gates",
+      "name": "System gates",
+      "action": "Chay audit-i18n-coverage khi co UI text/locale/extension; chay audit-local-first-security khi cham IPC/preload/provider/key/local server; chay audit-live-perf khi cham live/audio/stream/timer/listener; chay release-readiness khi scope lien quan package/release. Gate khong chay phai co Not run/Blocked + ly do."
+    },
+    {
+      "id": "step-6-prioritize",
+      "name": "Uu tien findings",
+      "action": "Sap xep Critical/High truoc. Critical security/secret/build break/core flow break phai fix hoac block. Medium/Low dua vao Remaining Queue neu ngoai scope."
+    },
+    {
+      "id": "step-7-fix",
+      "name": "Apply fixes",
+      "action": "Sua truc tiep cac finding Critical/High trong scope; giu fix hep, khong redesign neu khong can; cap nhat report/fix artifacts lien quan."
+    },
+    {
+      "id": "step-8-verify",
+      "name": "Verify",
+      "action": "Chay lai commands lien quan toi phan da sua; validate JSON/Markdown agent assets neu co thay doi viezanagent."
+    },
+    {
+      "id": "step-9-report",
+      "name": "Report",
+      "action": "Luu report tong hop gom tat ca required sections va Report Completeness Checklist. Khong duoc gop System Score, Duplicate Code Audit, Hardcode & Secret Audit va UI/Component/Extension Audit vao Findings chung.",
+      "save_path": "docs/agents/reports/",
+      "filename_pattern": "maintenance-report-{YYYYMMDD}-{HHmm}.md"
+    }
+  ],
+  "output_format": {
+    "sections": [
+      "Scope",
+      "Maintenance Gate Matrix",
+      "Diagnostics",
+      "System Score",
+      "Duplicate Code Audit",
+      "Hardcode & Secret Audit",
+      "UI/Component/Extension Audit",
+      "Docs/I18n/Security Gates",
+      "Findings",
+      "Fixes Applied",
+      "Verification",
+      "Remaining Queue",
+      "Report Completeness Checklist"
+    ],
+    "gate_matrix_columns": ["Gate", "Status", "Evidence", "Report Section", "Follow-up"],
+    "status_values": ["Pass", "Fail", "Partial", "Not run", "Blocked"],
+    "system_score_table": ["Criterion", "Weight", "Score", "Evidence", "Reason for deduction"],
+    "dup_hardcode_tables": [
+      "Duplicate counts by clone type and severity",
+      "Hardcode counts by category and severity",
+      "Top 3 prioritized findings or explicit clean result"
+    ],
+    "ui_audit_tables": [
+      "Component map summary",
+      "Inline SVG/icon findings",
+      "UI pattern duplicate findings",
+      "Extension UI drift findings"
+    ],
+    "completion_checklist": [
+      "All required gates appear in Maintenance Gate Matrix",
+      "Every required section exists even when clean",
+      "Skipped gates use Not run/Blocked with reason",
+      "Commands or scanned scopes are recorded",
+      "Critical/High findings are fixed or blocked with owner/next action"
+    ]
+  },
+  "completion_rules": [
+    "Report thieu System Score, Duplicate Code Audit, Hardcode & Secret Audit hoac UI/Component/Extension Audit thi xem la incomplete.",
+    "Khong xem `Info: no secret found` la thay the cho Hardcode & Secret Audit; phai ghi scope, patterns/commands va false positives.",
+    "Khong xem `Icon policy has no High violation` la thay the cho UI/Component/Extension Audit; phai co component/UI/extension scope.",
+    "Neu chi chay diagnostics/package audit, phai ket luan report chua hoan tat thay vi ghi maintenance pass.",
+    "Report cuoi cung phai tu review bang Report Completeness Checklist truoc khi tra loi user."
+  ],
+  "references": {
+    "agent": "../../agent/maintenance/maintenance.json",
+    "readme": "./README.md"
+  }
+}

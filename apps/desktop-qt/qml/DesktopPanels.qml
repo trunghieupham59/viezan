@@ -58,7 +58,7 @@ Window {
             Layout.fillWidth: true; Layout.fillHeight: true
             RowLayout {
                 Label { textFormat: Text.PlainText; text: panel.session?.title || panel.t(panel.mode); font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
-                Button { text: panel.t("open"); onClicked: { panel.openMainRequested(panel.ownerID); panel.hide() } }
+                Kit.GlassButton { text: panel.t("open"); onClicked: { panel.openMainRequested(panel.ownerID); panel.hide() } }
             }
             ScrollView {
                 Layout.fillWidth: true; Layout.fillHeight: true
@@ -86,7 +86,7 @@ Window {
                     Keys.onEnterPressed: event => sendKey(event)
                 }
             }
-            ComboBox {
+            Kit.GlassComboBox {
                 visible: panel.session?.feature === "translate"
                 readonly property var codes: panel.bridge.resources.nativeLanguages
                 model: codes.map(value => panel.t("lang_" + value))
@@ -96,19 +96,19 @@ Window {
             }
             TextField { text: panel.session?.model || ""; onEditingFinished: panel.command("model", {value: text}); Accessible.name: panel.t("modelID"); Layout.fillWidth: true }
             RowLayout {
-                Button { text: panel.t(panel.task ? "stop" : "send"); highlighted: !panel.task; enabled: !!panel.task || !!panel.session?.draft.trim(); onClicked: panel.task ? panel.bridge.command("cancel", {taskID: panel.task.id}) : panel.command("submit") }
+                Kit.GlassButton { text: panel.t(panel.task ? "stop" : "send"); highlighted: !panel.task; enabled: !!panel.task || !!panel.session?.draft.trim(); onClicked: panel.task ? panel.bridge.command("cancel", {taskID: panel.task.id}) : panel.command("submit") }
                 Item { Layout.fillWidth: true }
-                Button { text: panel.t("copy"); onClicked: panel.bridge.copy(panel.session?.feature === "chat" ? panel.session.messages.slice(-1)[0]?.text || "" : panel.session?.output || "") }
+                Kit.GlassButton { text: panel.t("copy"); onClicked: panel.bridge.copy(panel.session?.feature === "chat" ? panel.session.messages.slice(-1)[0]?.text || "" : panel.session?.output || "") }
             }
             RowLayout {
                 visible: panel.mode === "translateSelection"
-                Button {
+                Kit.GlassButton {
                     visible: panel.desktop.canReplaceSelection
                     text: panel.t("replaceSelection")
                     enabled: !panel.task && !!panel.session?.output && panel.bridge.state.tasks.some(value => value.request.sessionID === panel.ownerID && value.request.revision === panel.session.revision && value.status === "succeeded")
                     onClicked: panel.desktop.replaceSelection(panel.session.output)
                 }
-                Button { visible: panel.desktop.canUndoSelection; text: panel.t("undoSelection"); onClicked: panel.desktop.undoSelection() }
+                Kit.GlassButton { visible: panel.desktop.canUndoSelection; text: panel.t("undoSelection"); onClicked: panel.desktop.undoSelection() }
             }
             Label { visible: panel.mode === "translateSelection"; text: panel.t("selectionCopyHint"); wrapMode: Text.Wrap; Layout.fillWidth: true }
         }
