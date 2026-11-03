@@ -56,6 +56,34 @@ private slots:
         QCOMPARE(recovered.value("disabledModules").toStringList(), QStringList{"thermal"});
         QCOMPARE(recovered.value("active"), saved.value("active"));
     }
+    void voiceGlyphInstantiatesInsideLoader() {
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        QQmlEngine engine;
+        QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.rootContext()->setContextProperty("workbench", &bridge);
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import "qrc:/qml" as Viezan
+            Item {
+                width: 100; height: 40
+                Loader {
+                    objectName: "voice-loader"
+                    sourceComponent: Viezan.Kit.VoiceGlyph { color: "black" }
+                }
+            }
+        )", QUrl("qrc:/voice-glyph-test.qml"));
+        QScopedPointer<QObject> owner(component.create());
+        QVERIFY2(owner, qPrintable(component.errorString()));
+        auto *loader = owner->findChild<QObject *>("voice-loader");
+        QVERIFY(loader);
+        auto *glyph = loader->property("item").value<QQuickItem *>();
+        QVERIFY(glyph);
+        QVERIFY(glyph->implicitWidth() > 0 && glyph->implicitHeight() > 0);
+        QCoreApplication::processEvents();
+        QCOMPARE(warnings.count(), 0);
+    }
     void editorUndoDoesNotCrossSessions_data() {
         QTest::addColumn<QString>("feature");
         QTest::newRow("chat") << QString("chat");

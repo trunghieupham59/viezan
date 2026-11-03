@@ -58,3 +58,20 @@ Remote macOS 15, Windows/Linux Qt 6.8 and CodeQL results must be read from the
 new PR head after publication; the original run remains failed evidence. Live
 IME, screen reader, GPU rendering and full desktop acceptance were not repeated
 for these fixes. CI does not establish those acceptance gates.
+
+## Follow-up from the first repair run
+
+At `97d17eb`, Native CI run `41567601827` passed macOS 15 tests and the Release
+build. CodeQL's JavaScript analysis marked alert 249 fixed; its inline thread
+was resolved after that confirmation. Documentation and Dependency Review passed.
+
+Qt still crashed, but the Windows stack moved from `QQuickDialogButtonBox` to
+`QQuickRepeater` under the Chat content loader. The fixed five-bar voice icon
+used a deferred repeater inside another inline component. It now draws five
+static bars with the same geometry, eliminating unnecessary delegate creation.
+An isolated construction/geometry regression covers that icon in addition to
+the full shell tests. The next remote run remains the Qt 6.8 acceptance gate.
+Local Release rebuild and focused tests passed (9 cases); full CTest passed
+1/1 in 44.87 seconds, with QTest 142 passed and 0 failed/skipped. The shared
+domain/catalog tests and fix whitespace checks also passed. Logs are under
+`/private/tmp/pr185-qt-waveform-{build,focused,full}.log`.

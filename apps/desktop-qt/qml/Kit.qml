@@ -288,10 +288,13 @@ QtObject {
         Row {
             anchors.centerIn: parent
             spacing: parent.metrics.hairline * 2
-            Repeater {
-                model: [0.4, 0.75, 1, 0.6, 0.35]
-                Rectangle { required property real modelData; width: workbench.resources.metrics.hairline * 2; height: workbench.resources.metrics.icon * modelData; radius: width / 2; anchors.verticalCenter: parent.verticalCenter; color: parent.parent.color }
-            }
+            // This icon has five fixed bars. Avoid a deferred delegate inside
+            // an inline component, which Qt 6.8 can miscreate during Loader setup.
+            Rectangle { width: workbench.resources.metrics.hairline * 2; height: workbench.resources.metrics.icon * 0.4; radius: width / 2; anchors.verticalCenter: parent.verticalCenter; color: parent.parent.color }
+            Rectangle { width: workbench.resources.metrics.hairline * 2; height: workbench.resources.metrics.icon * 0.75; radius: width / 2; anchors.verticalCenter: parent.verticalCenter; color: parent.parent.color }
+            Rectangle { width: workbench.resources.metrics.hairline * 2; height: workbench.resources.metrics.icon; radius: width / 2; anchors.verticalCenter: parent.verticalCenter; color: parent.parent.color }
+            Rectangle { width: workbench.resources.metrics.hairline * 2; height: workbench.resources.metrics.icon * 0.6; radius: width / 2; anchors.verticalCenter: parent.verticalCenter; color: parent.parent.color }
+            Rectangle { width: workbench.resources.metrics.hairline * 2; height: workbench.resources.metrics.icon * 0.35; radius: width / 2; anchors.verticalCenter: parent.verticalCenter; color: parent.parent.color }
         }
         Accessible.ignored: true
     }
