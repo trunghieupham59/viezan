@@ -83,7 +83,7 @@ private struct QuickSessionPanel: View {
                 }
                 if let task = store.workspace.tasks.first(where: { $0.request.sessionID == sessionID }), task.status == .failed { TaskStatusText(store: store, task: task) }
             }
-        }.padding(metric("inset"))
+        }.padding(metric("inset")).buttonStyle(.vznOutline)
     }
 }
 struct DesktopSettings: View {
@@ -160,7 +160,7 @@ private struct NativeShortcutRow: View {
     var body: some View {
         CardRow(title: everywhere ? store.text("allShortcuts") : store.text(shortcut.id), detail: store.text(everywhere ? "shortcutCustomizable" : "shortcutDetail_" + shortcut.id)) {
             HStack(spacing: metric("small")) {
-                Button { editing.toggle() } label: { KeyCap(text: shortcutDisplay(shortcut.key)) }.buttonStyle(.plain)
+                Button { editing.toggle() } label: { Text(shortcutDisplay(shortcut.key)).monospaced() }.buttonStyle(.vznOutline)
                     .help(store.text("shortcut")).accessibilityLabel(store.text("shortcut") + ": " + shortcut.key).accessibilityIdentifier("shortcut-" + shortcut.id)
                     .popover(isPresented: $editing) { ShortcutRecorderPanel(store: store, shortcut: shortcut) { editing = false } }
                 // The switch keeps the saved key; only the recorder changes it.

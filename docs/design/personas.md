@@ -1,5 +1,15 @@
 # Biến thể persona
 
+## Native hiện tại (2026-11-02)
+
+SwiftUI/AppKit và Qt dùng token chung, theo [direction.md](direction.md) và
+[shell.md](screens/shell.md). Glass sáng dùng bốn lớp cyan → điều hướng xanh
+nhạt → workspace xanh băng → card trắng xanh, với accent xanh dương và vùng
+đọc/nhập đục. Pane nằm dưới hàng nút cửa sổ. Glass tối giữ hình học và màu
+cũ. macOS dùng vật liệu native ở chrome; Qt dùng màu pha đục và cần nghiệm
+thu runtime Windows/Linux riêng. Mode, preset và accent độc lập. Các mô tả
+DOM, acrylic Electron, gradient/glow và board phía dưới là tham chiếu lịch sử.
+
 Đặc tả cho trục "phong cách" (`data-theme`) trong [foundations.md §2](foundations.md#2-ba-trục-chủ-đề). Board: [specs/personas.html](specs/personas.html) vẽ Trang chủ, AI Chat, Dịch và Cài đặt › Giao diện ở cả 9 tổ hợp persona × chế độ, cùng 7 lựa chọn màu nhấn trên Graphite.
 
 Giá trị nằm trong `resources/tokens.css`; danh sách persona và đặc tính nằm trong `src/constants/themePresets.ts` (`THEME_PRESETS`, `THEME_PRESET_TRAITS`); bảng màu cửa sổ native nằm trong `electron/windowPalette.ts`; mô tả hiển thị là các khoá `settings_theme_preset_*`.

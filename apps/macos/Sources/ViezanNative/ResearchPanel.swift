@@ -27,7 +27,7 @@ struct ResearchPanel: View {
                     if !research.sources.isEmpty { Text("· \(research.sources.count) " + store.text("researchSources").lowercased()) }
                     Image(systemName: expanded ? "chevron.up" : "chevron.down").imageScale(.small)
                 }.font(.vzn("captionScale")).foregroundStyle(.secondary).contentShape(Rectangle())
-            }.buttonStyle(.plain).accessibilityLabel(store.text("researchSteps")).accessibilityAddTraits(expanded ? .isSelected : [])
+            }.buttonStyle(.vznQuiet).accessibilityLabel(store.text("researchSteps")).accessibilityAddTraits(expanded ? .isSelected : [])
                 .accessibilityIdentifier("research-toggle")
             if expanded {
                 VStack(alignment: .leading, spacing: metric("inset")) {

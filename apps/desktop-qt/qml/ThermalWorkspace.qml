@@ -89,14 +89,14 @@ ScrollView {
                     Label { text: page.t("fanControl"); font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.subtitleScale }
                     Kit.StatusBadge { text: page.t("notSupported") }
                     Label { text: page.t("fanUnsupportedHint"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
-                    Button { text: page.t("manualMode"); enabled: false }
-                    Button { text: page.t("viewReason"); ToolTip.visible: hovered; ToolTip.text: page.t("thermalPlatformHint"); onClicked: reason.open() }
+                    Kit.GlassButton { text: page.t("manualMode"); enabled: false }
+                    Kit.GlassButton { text: page.t("viewReason"); ToolTip.visible: hovered; ToolTip.text: page.t("thermalPlatformHint"); onClicked: reason.open() }
                 }
             }
         }
         Label { text: page.monitor.error && page.monitor.error !== "thermalPlatformHint" ? page.t(page.monitor.error) : ""; visible: !!text; wrapMode: Text.Wrap; Layout.fillWidth: true }
     }
-    Dialog {
+    Kit.GlassDialog {
         id: reason
         parent: Overlay.overlay
         title: page.t("viewReason")

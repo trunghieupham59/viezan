@@ -10,6 +10,7 @@ Item {
     required property var session
     required property real readingPointSize
     readonly property var metrics: bridge.resources.metrics
+    readonly property real emptyHeight: emptyGreeting.implicitHeight
     property bool followLatest: true
     property string selectionID: ""
     property string conversationID: ""
@@ -30,7 +31,9 @@ Item {
             if (index >= rows.count) rows.append(values)
             else for (const key of Object.keys(values)) if (rows.get(index)[key] !== values[key]) rows.setProperty(index, key, values[key])
         }
-        Qt.callLater(settleFollow)
+        // A route change may tear down this view before a queued reconciliation
+        // finishes. Do not enqueue a method from a closing QML context.
+        if (chat && chat.ready && typeof chat.settleFollow === "function") Qt.callLater(chat.settleFollow)
     }
     function settleFollow() {
         if (ready && followLatest && !selectionID && !transcript.moving && !bar.pressed) transcript.positionViewAtEnd()
@@ -40,6 +43,7 @@ Item {
         selectionID = ""; followLatest = true; transcript.positionViewAtEnd()
     }
     Component.onCompleted: { ready = true; reconcile() }
+    Component.onDestruction: ready = false
     Connections { target: bridge; function onChanged() { Qt.callLater(chat.reconcile) } }
     onSessionChanged: if (ready) Qt.callLater(reconcile)
     ListModel { id: rows }
@@ -84,8 +88,8 @@ Item {
                             Accessible.name: modelData.name
                         }
                         RowLayout {
-                            Button { text: chat.t("saveImage"); onClicked: { saveImage.attachment = modelData; saveImage.open() } }
-                            Button { text: chat.t("editImage"); onClicked: chat.bridge.reuseImage(chat.session.id, modelData) }
+                            Kit.GlassButton { text: chat.t("saveImage"); onClicked: { saveImage.attachment = modelData; saveImage.open() } }
+                            Kit.GlassButton { text: chat.t("editImage"); onClicked: chat.bridge.reuseImage(chat.session.id, modelData) }
                         }
                     }
                 }
@@ -133,7 +137,7 @@ Item {
                     Connections { target: messageRow; function onDisplayBodyChanged() { messageText.updateContent() } function onStatusChanged() { messageText.updateContent() } }
                 }
                 Repeater { model: messageRow.speaker === "assistant" && messageRow.status !== "running" ? chat.bridge.chartArtifacts(messageRow.rawBody) : []; delegate: NativeChart { required property var modelData; artifact: modelData; metrics: chat.metrics; Layout.fillWidth: true } }
-                Button {
+                Kit.GlassButton {
                     id: copy
                     objectName: "chat-copy-" + messageID
                     property bool copied: false
@@ -151,6 +155,7 @@ Item {
     }
     // Same empty state as macOS: heading and hint, centered on the composer's axis.
     EmptyState {
+        id: emptyGreeting
         visible: rows.count === 0
         anchors.centerIn: parent
         width: Math.min(parent.width, metrics.reading)
@@ -158,7 +163,7 @@ Item {
         detail: t("emptyHint")
         metrics: chat.metrics
     }
-    Button {
+    Kit.GlassButton {
         objectName: "chat-return-latest"
         visible: !chat.followLatest && rows.count > 0
         text: t("returnLatest")

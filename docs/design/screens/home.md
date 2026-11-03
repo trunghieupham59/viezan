@@ -1,5 +1,21 @@
 # Trang chủ
 
+## Native cyan Glass refinement (2026-11-02)
+
+Glass light now groups existing quick actions, recent work and real model
+readiness into separate bright cards over an ice-blue workspace. Running work
+continues to reflect actual tasks. Recent filters reflow at compact widths.
+The selected cyan reference guides spacing and layers only: no KPI values,
+charts, duplicate navigation or new routes are introduced. Other appearances
+retain the existing Home grouping. The historical Electron details below remain
+behavior references; native source owns the current layout.
+
+From 2026-11-03, recent-work filters share one inset group. The selected segment
+is a raised Glass lens with semibold text; idle segments remain clear and hover
+is weaker than selection. Compact reflow, filtering and accessible selection
+remain unchanged. This shared treatment also applies to native mode filters.
+
+
 > Bản vẽ gốc: `boards/Home.dc.html`, `boards/HomeDark.dc.html` (tham khảo thêm `boards/Main.dc.html`, `boards/Narrow.dc.html`, `boards/States.dc.html`) · Board chi tiết: [`specs/home.html`](../specs/home.html) · Mã nguồn: `src/pages/HomePage.tsx`
 
 Luật chung (token, hợp đồng Button, bậc bề mặt, responsive, trạng thái chung) nằm ở [`foundations.md`](../foundations.md). Tài liệu này chỉ ghi phần riêng của Trang chủ.

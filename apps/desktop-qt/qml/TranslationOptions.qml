@@ -14,20 +14,20 @@ ColumnLayout {
     Flow {
         visible: session.feature === "translate"
         Layout.fillWidth: true; spacing: metrics.small
-        ComboBox {
+        Kit.GlassComboBox {
             readonly property var styles: ["general", "formal", "casual", "business", "technical", "natural"]
             model: styles.map(value => t("style_" + value)); currentIndex: styles.indexOf(session.translationStyle || "general")
             Accessible.name: t("translationStyle")
             onActivated: command("translationOptions", {style: styles[currentIndex], mode: session.translationMode || "translate"})
         }
-        ComboBox {
+        Kit.GlassComboBox {
             readonly property var modes: ["translate", "annotate", "phonetic", "rewrite"]
             model: modes.map(value => t(value)); currentIndex: modes.indexOf(session.translationMode || "translate")
             Accessible.name: t("translationMode")
             onActivated: command("translationOptions", {style: session.translationStyle || "general", mode: modes[currentIndex]})
         }
     }
-    ComboBox {
+    Kit.GlassComboBox {
         visible: session.feature === "translate"
         readonly property var efforts: ["auto", "low", "medium", "high"]
         model: efforts.map(value => t("reasoning_" + value))

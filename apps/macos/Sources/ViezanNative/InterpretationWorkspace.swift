@@ -121,9 +121,9 @@ struct InterpretationWorkspace: View {
         let tab = kinds.contains(summaryTab) ? summaryTab : (kinds.first ?? "summary")
         let text = summaryText(session, tab)
         return CardSection(title: store.text("summaryTitle")) {
-            HStack(spacing: metric("small")) {
-                FilterTabs(label: store.text("summaryTitle"), items: Self.summaryOrder.map { ($0, store.text("interpret_" + $0)) }, selection: $summaryTab, accent: true)
-                Spacer(minLength: metric("small"))
+            InterpretationSummaryToolbar(label: store.text("summaryTitle"),
+                                         tabs: Self.summaryOrder.map { ($0, store.text("interpret_" + $0)) },
+                                         selection: $summaryTab) {
                 if live.summarizing {
                     ProgressView().controlSize(.small); Text(store.text("summarizing")).font(.vzn("smallScale")).foregroundStyle(.secondary)
                     Button(store.text("cancel"), role: .destructive) { live.cancel() }.buttonStyle(.vznOutline)
@@ -266,7 +266,7 @@ struct InterpretationWorkspace: View {
                     Button(store.text("interpret_" + kind)) { live.summarize(kind: kind) }
                 }
             } label: { Image(systemName: "sparkles") }
-                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().tint(.primary).disabled(live.busy || live.current?.segments.isEmpty != false)
+                .menuStyle(.button).buttonStyle(.vznQuiet).menuIndicator(.hidden).fixedSize().tint(.primary).disabled(live.busy || live.current?.segments.isEmpty != false)
                 .help(store.text("summarize")).accessibilityLabel(store.text("summarize"))
             if live.processing || live.summarizing { Button(store.text("cancel"), role: .destructive) { live.cancel() } }
             Menu {
@@ -357,6 +357,26 @@ struct InterpretationWorkspace: View {
         panel.orderFrontRegardless(); subtitle = panel
     }
 }
+// Keep the analysis tabs and their actions intact when the reading column narrows.
+// One layout changes positions without replacing controls or their state on resize.
+struct InterpretationSummaryToolbar<Actions: View>: View {
+    var label: String
+    var tabs: [(String, String)]
+    @Binding var selection: String
+    @ViewBuilder var actions: Actions
+    private var groupHeight: CGFloat {
+        metric("compactControl") + ((NativeTheme.shared.preferences.preset ?? "glass") == "glass" ? metric("tight") * 2 : 0)
+    }
+    var body: some View {
+        NativeFlow(spacing: metric("small")) {
+            FilterTabs(label: label, items: tabs, selection: $selection, accent: true)
+            HStack(spacing: metric("small")) { actions }
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(minHeight: groupHeight)
+        }
+    }
+}
+
 private struct InterpretationSubtitles: View {
     let store: WorkbenchStore
     var body: some View {
@@ -369,7 +389,7 @@ private struct InterpretationSubtitles: View {
                             Text(segment.original).foregroundStyle(.secondary)
                     Text(segment.translated).font(.vzn("headingScale", .semibold))
                 }
-                if store.interpretation.listening { Button(store.text("stop"), role: .destructive) { store.interpretation.stop() } }
+                if store.interpretation.listening { Button(store.text("stop"), role: .destructive) { store.interpretation.stop() }.buttonStyle(.vznOutline) }
             }.padding(metric("inset")).frame(maxWidth: .infinity, alignment: .leading)
         }
     }

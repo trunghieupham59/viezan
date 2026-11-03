@@ -624,48 +624,48 @@ html.dark,
 /* Glass: Liquid Glass look. Translucent surfaces with blur and a light rim, ocean gradient actions; the window material shows through on macOS. */
 [data-theme="glass"],
 :root [data-theme="glass"][data-mode="light"] {
-  /* Surfaces */
-  --vzn-app-bg: #f0f2f8;
-  --vzn-bg: rgba(248, 249, 253, 0.42);
-  --vzn-canvas: rgba(255, 255, 255, 0.5);
-  --vzn-titlebar-bg: #eef0f7;
-  --vzn-sidebar-bg: #eef0f7;
-  --vzn-chat-sidebar-bg: rgba(244, 246, 251, 0.55);
-  --vzn-surface: rgba(255, 255, 255, 0.58);
-  --vzn-surface-raised: rgba(255, 255, 255, 0.72);
-  --vzn-surface-muted: rgba(240, 242, 250, 0.6);
-  --vzn-surface-subtle: rgba(226, 230, 243, 0.6);
-  --vzn-surface-hover: rgba(214, 219, 238, 0.7);
-  --vzn-surface-selected: rgba(10, 132, 255, 0.14);
-  --vzn-text: #1c2340;
-  --vzn-text-strong: #0f1430;
-  --vzn-text-muted: #4f5878;
-  --vzn-text-soft: #717a99;
-  --vzn-text-disabled: #a6adc4;
+  /* Cyan desktop glass: visible blue scene, ice workspace and milky raised cards. */
+  --vzn-app-bg: #a5d9f0;
+  --vzn-bg: rgba(206, 234, 247, 0.72);
+  --vzn-canvas: #ceeaf7;
+  --vzn-titlebar-bg: #c4e7f5;
+  --vzn-sidebar-bg: #b7e1f3;
+  --vzn-chat-sidebar-bg: #c4e5f3;
+  --vzn-surface: #e7f5fc;
+  --vzn-surface-raised: rgba(255, 255, 255, 0.54);
+  --vzn-surface-muted: #dceff8;
+  --vzn-surface-subtle: #d2eaf6;
+  --vzn-surface-hover: #c3e2f2;
+  --vzn-surface-selected: rgba(0, 109, 199, 0.12);
+  --vzn-text: #243e4b;
+  --vzn-text-strong: #16313f;
+  --vzn-text-muted: #486471;
+  --vzn-text-soft: #496572;
+  --vzn-text-disabled: #829ba7;
   --vzn-text-inverse: var(--vzn-neutral-0);
-  --vzn-border: rgba(40, 50, 90, 0.14);
-  --vzn-border-strong: rgba(40, 50, 90, 0.24);
-  --vzn-divider: rgba(40, 50, 90, 0.1);
-  --vzn-titlebar-material: rgba(255, 255, 255, 0.42);
-  --vzn-primary-nav-material: rgba(255, 255, 255, 0.36);
-  --vzn-context-nav-material: rgba(255, 255, 255, 0.5);
-  --vzn-overlay-material: rgba(255, 255, 255, 0.76);
-  --vzn-material-border: rgba(40, 50, 90, 0.12);
-  --vzn-material-highlight: rgba(255, 255, 255, 0.9);
+  --vzn-border: rgba(72, 124, 150, 0.12);
+  --vzn-border-strong: rgba(48, 97, 123, 0.32);
+  --vzn-divider: rgba(72, 124, 150, 0.12);
+  --vzn-titlebar-material: rgba(196, 231, 245, 0.86);
+  --vzn-primary-nav-material: rgba(183, 225, 243, 0.88);
+  --vzn-context-nav-material: rgba(206, 234, 247, 0.86);
+  --vzn-overlay-material: rgba(231, 245, 252, 0.96);
+  --vzn-material-border: rgba(85, 153, 184, 0.12);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.56);
   --vzn-user-avatar-bg: #1f5fd6;
   --vzn-user-avatar-fg: #ffffff;
   --vzn-assistant-avatar-bg: rgba(255, 255, 255, 0.7);
 
   /* Accent */
-  --vzn-action: var(--vzn-blue-500);
-  --vzn-action-hover: var(--vzn-blue-600);
-  --vzn-action-active: var(--vzn-blue-700);
-  --vzn-action-soft: rgba(10, 132, 255, 0.14);
-  --vzn-action-soft-hover: rgba(10, 132, 255, 0.2);
-  --vzn-action-border: rgba(10, 132, 255, 0.36);
-  --vzn-action-text: #0066cc;
+  --vzn-action: #006dc7;
+  --vzn-action-hover: #005eae;
+  --vzn-action-active: #004f91;
+  --vzn-action-soft: rgba(0, 109, 199, 0.12);
+  --vzn-action-soft-hover: rgba(0, 109, 199, 0.18);
+  --vzn-action-border: rgba(0, 109, 199, 0.36);
+  --vzn-action-text: #005f9e;
   --vzn-action-fg: var(--vzn-neutral-0);
-  --vzn-focus-ring: rgba(10, 132, 255, 0.55);
+  --vzn-focus-ring: rgba(0, 109, 199, 0.6);
   --vzn-action-fill: linear-gradient(135deg, var(--vzn-blue-700) 0%, var(--vzn-sky-600) 100%);
   --vzn-action-fill-hover: linear-gradient(135deg, var(--vzn-blue-800) 0%, var(--vzn-sky-700) 100%);
   --vzn-accent-glow: rgba(10, 132, 255, 0.35);
@@ -678,16 +678,16 @@ html.dark,
   --vzn-user-bubble-border: transparent;
 
   /* Primary chrome */
-  --vzn-sidebar-search-bg: var(--vzn-surface);
-  --vzn-chrome-fg: #2a3152;
-  --vzn-chrome-fg-strong: #0f1430;
-  --vzn-chrome-fg-muted: #596283;
-  --vzn-chrome-fg-soft: #7b84a3;
-  --vzn-chrome-divider: rgba(40, 50, 90, 0.12);
-  --vzn-chrome-item-hover: rgba(255, 255, 255, 0.45);
-  --vzn-chrome-item-active: rgba(10, 132, 255, 0.16);
-  --vzn-chrome-item-active-fg: #0f1430;
-  --vzn-chrome-accent: var(--vzn-blue-500);
+  --vzn-sidebar-search-bg: rgba(255, 255, 255, 0.48);
+  --vzn-chrome-fg: #274654;
+  --vzn-chrome-fg-strong: #16313f;
+  --vzn-chrome-fg-muted: #3f5e6b;
+  --vzn-chrome-fg-soft: #496572;
+  --vzn-chrome-divider: rgba(85, 153, 184, 0.12);
+  --vzn-chrome-item-hover: rgba(241, 250, 255, 0.5);
+  --vzn-chrome-item-active: rgba(255, 255, 255, 0.52);
+  --vzn-chrome-item-active-fg: #16313f;
+  --vzn-chrome-accent: var(--vzn-action);
 
   /* Illustrative tones */
   --vzn-tone-blue: #3485f6;
@@ -753,12 +753,12 @@ html.dark[data-theme="glass"],
   --vzn-border: rgba(255, 255, 255, 0.12);
   --vzn-border-strong: rgba(255, 255, 255, 0.2);
   --vzn-divider: rgba(255, 255, 255, 0.09);
-  --vzn-titlebar-material: rgba(22, 25, 38, 0.5);
-  --vzn-primary-nav-material: rgba(22, 25, 38, 0.46);
+  --vzn-titlebar-material: rgba(22, 25, 38, 0.32);
+  --vzn-primary-nav-material: rgba(22, 25, 38, 0.28);
   --vzn-context-nav-material: rgba(18, 20, 30, 0.6);
   --vzn-overlay-material: rgba(30, 34, 50, 0.8);
   --vzn-material-border: rgba(255, 255, 255, 0.14);
-  --vzn-material-highlight: rgba(255, 255, 255, 0.16);
+  --vzn-material-highlight: rgba(255, 255, 255, 0.32);
   --vzn-user-avatar-bg: #3d6ef0;
   --vzn-user-avatar-fg: #ffffff;
   --vzn-assistant-avatar-bg: rgba(32, 36, 52, 0.7);

@@ -20,9 +20,13 @@ ApplicationWindow {
     readonly property var metrics: workbench.resources.metrics
     readonly property bool darkMode: workspace.appearance?.preset === "midnight" || workspace.appearance?.mode === "dark" || (workspace.appearance?.mode !== "light" && workspace.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
     readonly property var colors: workbench.resources.themePalettes[(workspace.appearance?.preset || "graphite") + ":" + (workspace.appearance?.accent || "auto")][darkMode ? "dark" : "light"]
+    readonly property bool glassChrome: workspace.appearance?.preset === "glass"
+    readonly property bool lightGlass: glassChrome && !darkMode
+    readonly property real workspaceGutter: compact ? metrics.gap : metrics.inset
     palette.window: colors["sidebar-bg"]
-    palette.base: colors.surface
-    palette.alternateBase: colors.canvas
+    // Keep light Glass reading, composer and popup surfaces opaque.
+    palette.base: lightGlass ? Qt.tint(colors["sidebar-bg"], colors.surface) : colors.surface
+    palette.alternateBase: lightGlass ? Qt.tint(colors["sidebar-bg"], colors.canvas) : colors.canvas
     palette.text: colors.text
     palette.windowText: colors.text
     palette.buttonText: colors.text
@@ -116,7 +120,15 @@ ApplicationWindow {
     minimumHeight: metrics.minWindowHeight
     // System pages (Interpretation, Apps, Thermal…) share the settings shell but keep their own name.
     title: "Viezan Native — " + t(home ? "home" : settings ? (systemRoute || "settings") : root.workspace.feature)
-    color: palette.base
+    color: lightGlass ? colors["app-bg"] : palette.base
+    background: Rectangle {
+        visible: root.lightGlass
+        gradient: Gradient {
+            GradientStop { position: 0; color: root.colors["titlebar-bg"] }
+            GradientStop { position: 1; color: root.colors["app-bg"] }
+        }
+        Accessible.ignored: true
+    }
     function t(key) { return workbench.resources.locales[root.workspace.locale][key] || key }
     function command(name, payload) { workbench.command(name, payload || {}) }
     function titleFor(item) { return item.title || t(item.feature === "chat" ? "newChat" : item.feature === "dictionary" ? "newLookup" : "newTranslation") }
@@ -182,25 +194,42 @@ ApplicationWindow {
         }
     }
 
-    component ShellButton: ToolButton {
+    component ShellButton: Kit.GlassToolButton {
         id: shellButton
         property string iconName
         property bool showsLabel: false
         property bool primary: false
+        readonly property color materialBase: root.colors[root.lightGlass ? "titlebar-bg" : "sidebar-bg"]
         palette.buttonText: !enabled ? root.colors["text-disabled"] : primary ? root.colors["action-text"] : root.colors.text
         leftPadding: showsLabel ? metrics.gap : 0
         rightPadding: leftPadding
         background: Rectangle {
-            radius: metrics.surfaceRadius
+            radius: root.glassChrome ? metrics.chromeControlRadius : metrics.surfaceRadius
             color: shellButton.primary ? Qt.tint(shellButton.palette.base, Qt.alpha(shellButton.palette.highlight, metrics.selectionOpacity)) : shellButton.hovered ? shellButton.palette.alternateBase : "transparent"
-            border.width: shellButton.visualFocus ? metrics.hairline : 0
+            Kit.ChromeSurface {
+                anchors.fill: parent
+                visible: root.glassChrome
+                radius: parent.radius
+                fillColor: !shellButton.enabled ? Qt.tint(shellButton.materialBase, root.colors["surface-subtle"]) : shellButton.primary ? Qt.tint(shellButton.materialBase, Qt.alpha(shellButton.palette.highlight, metrics.selectionOpacity)) : Qt.tint(shellButton.materialBase, root.colors[shellButton.down || shellButton.hovered ? "chrome-item-hover" : "titlebar-material"])
+                edgeColor: root.colors["material-border"]
+                edgeHighlight: root.colors["material-highlight"]
+            }
+            Rectangle {
+                anchors.fill: parent
+                radius: parent.radius
+                color: "transparent"
+                visible: shellButton.visualFocus
+                border.width: metrics.hairline
+                border.color: shellButton.palette.highlight
+            }
+            border.width: !root.glassChrome && shellButton.visualFocus ? metrics.hairline : 0
             border.color: shellButton.visualFocus ? shellButton.palette.highlight : shellButton.palette.midlight
         }
-        implicitWidth: showsLabel ? implicitContentWidth + leftPadding + rightPadding : metrics.control
-        implicitHeight: metrics.control
+        implicitWidth: showsLabel ? implicitContentWidth + leftPadding + rightPadding : root.glassChrome ? metrics.compactControl : metrics.control
+        implicitHeight: root.glassChrome ? metrics.compactControl : metrics.control
         display: showsLabel ? AbstractButton.TextBesideIcon : AbstractButton.IconOnly
         icon.source: "icons/" + iconName + ".svg"
-        icon.color: primary ? palette.highlight : palette.buttonText
+        icon.color: !enabled ? root.colors["text-disabled"] : primary ? palette.highlight : palette.buttonText
         icon.width: metrics.icon
         icon.height: metrics.icon
         Accessible.name: text
@@ -231,7 +260,22 @@ ApplicationWindow {
                 id: shellHeader
                 Layout.fillWidth: true
                 implicitHeight: metrics.navControl + metrics.small
-                background: Rectangle { color: root.palette.base }
+                background: Item {
+                    Rectangle { anchors.fill: parent; color: root.lightGlass ? "transparent" : root.palette.base }
+                    Kit.ChromeSurface {
+                        objectName: "header-glass-surface"
+                        visible: root.glassChrome && !root.lightGlass
+                        anchors.fill: parent
+                        anchors.leftMargin: metrics.small
+                        anchors.rightMargin: metrics.small
+                        anchors.topMargin: metrics.tight
+                        anchors.bottomMargin: metrics.tight
+                        radius: height / 2
+                        fillColor: Qt.tint(root.colors["sidebar-bg"], root.colors["titlebar-material"])
+                        edgeColor: root.colors["material-border"]
+                        edgeHighlight: root.colors["material-highlight"]
+                    }
+                }
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: metrics.gutter
@@ -246,13 +290,14 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Accessible.role: Accessible.Heading
                         Accessible.name: t("workspace") + " / " + t(root.home ? "home" : root.systemRoute)
-                        Label { text: t("workspace"); color: root.palette.placeholderText; Accessible.ignored: true }
-                        Label { text: "/"; color: root.palette.placeholderText; Accessible.ignored: true }
+                        Label { text: t("workspace"); color: root.lightGlass ? root.colors["chrome-fg-muted"] : root.palette.placeholderText; Accessible.ignored: true }
+                        Label { text: "/"; color: root.lightGlass ? root.colors["chrome-fg-muted"] : root.palette.placeholderText; Accessible.ignored: true }
                         Label { text: t(root.home ? "home" : root.systemRoute); font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
                     }
                     Label { visible: !root.workspacePage; text: settings ? t(root.systemRoute || "settings") : library ? t("history") : t(root.workspace.feature) + " / " + titleFor(session); elide: Text.ElideRight; Layout.fillWidth: true; font.bold: true; Accessible.role: Accessible.Heading }
                     ShellButton { visible: root.workspacePage && workbench.moduleEnabled("utilities"); showsLabel: !root.compact; iconName: "utilities"; text: t("launcher"); enabled: !workbench.loadBlocked; onClicked: workbench.desktopIntegration.trigger("launcher") }
-                    TextField {
+                    Kit.SearchField {
+                        compact: true
                         visible: root.systemRoute === "" && settings
                         objectName: "settings-header-search"
                         Layout.preferredWidth: metrics.sidebar
@@ -261,8 +306,6 @@ ApplicationWindow {
                         placeholderText: t("settingsSearch")
                         Accessible.name: placeholderText
                         selectByMouse: true
-                        // Text entry: neutral border and caret, no accent ring.
-                        background: Rectangle { color: root.palette.base; radius: metrics.compactControl / 2; border.width: metrics.hairline; border.color: parent.activeFocus ? root.palette.mid : root.palette.midlight }
                         onTextChanged: root.settingsQuery = text
                         Keys.onEscapePressed: event => { if (!inputMethodComposing) { root.settingsQuery = ""; event.accepted = true } else event.accepted = false }
                     }
@@ -278,33 +321,47 @@ ApplicationWindow {
                     ShellButton { id: activityTrigger; showsLabel: !root.compact; iconName: "activity"; text: t("activity") + (root.runningCount ? " · " + root.runningCount : ""); onClicked: execute("activity", this) }
                 }
             }
-            Rectangle { color: root.palette.midlight; implicitHeight: metrics.hairline; Layout.fillWidth: true }
-        ColumnLayout {
+            Rectangle { visible: !root.lightGlass; color: root.palette.midlight; implicitHeight: metrics.hairline; Layout.fillWidth: true }
+        Pane {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.margins: metrics.gutter
+            Layout.leftMargin: root.lightGlass ? root.workspaceGutter : metrics.gutter
+            Layout.rightMargin: Layout.leftMargin
+            Layout.topMargin: root.lightGlass ? metrics.small : metrics.gutter
+            Layout.bottomMargin: root.lightGlass ? metrics.gap : metrics.gutter
+            // Reuse the existing content width: outer gutter + inner padding
+            // still total 24 px, including the minimum-width presentation.
+            padding: root.lightGlass ? metrics.gutter - root.workspaceGutter : 0
+            background: Kit.ChromeSurface {
+                visible: root.lightGlass
+                radius: metrics.chromeSurfaceRadius
+                fillColor: root.colors.canvas
+                edgeColor: root.colors["material-border"]
+                edgeHighlight: root.colors["material-highlight"]
+            }
+            contentItem: ColumnLayout {
             spacing: metrics.gap
             RowLayout {
                 visible: workbench.storageError.length > 0
                 Label { text: t(workbench.storageError); wrapMode: Text.Wrap; Layout.fillWidth: true }
-                Button { text: t(workbench.loadBlocked ? "retryLoad" : "retrySave"); onClicked: workbench.loadBlocked ? workbench.reload() : workbench.save() }
+                Kit.GlassButton { text: t(workbench.loadBlocked ? "retryLoad" : "retrySave"); onClicked: workbench.loadBlocked ? workbench.reload() : workbench.save() }
             }
 
             RowLayout {
                 visible: workbench.audio.recording || workbench.audio.busy
                 Label { text: t(workbench.audio.recording ? "record" : "running"); Layout.fillWidth: true }
-                Button { text: t("stop"); onClicked: workbench.audio.cancel() }
+                Kit.GlassButton { text: t("stop"); onClicked: workbench.audio.cancel() }
             }
             RowLayout {
                 visible: workbench.ocrBusy
                 Label { text: t("extractImageText"); Layout.fillWidth: true }
-                Button { text: t("stop"); onClicked: workbench.cancelOCR() }
+                Kit.GlassButton { text: t("stop"); onClicked: workbench.cancelOCR() }
             }
             RowLayout {
                 visible: workbench.interpretation.busy && root.systemRoute !== "interpret"
                 Label { text: t("interpret") + " · " + t(workbench.interpretation.listening ? "record" : "running"); Layout.fillWidth: true; wrapMode: Text.Wrap }
-                Button { text: t("open"); onClicked: root.selectRoute("interpret") }
-                Button { text: t("stop"); onClicked: workbench.interpretation.listening ? workbench.interpretation.stop() : workbench.interpretation.cancel() }
+                Kit.GlassButton { text: t("open"); onClicked: root.selectRoute("interpret") }
+                Kit.GlassButton { text: t("stop"); onClicked: workbench.interpretation.listening ? workbench.interpretation.stop() : workbench.interpretation.cancel() }
             }
             Loader {
                 id: contentLoader
@@ -313,33 +370,127 @@ ApplicationWindow {
                 enabled: settings || !workbench.loadBlocked
                 sourceComponent: home ? homeView : settings ? (systemRoute === "apps" ? applicationsView : systemRoute === "interpret" ? interpretationView : systemRoute === "thermal" ? thermalView : systemRoute === "utilities" || systemRoute === "everywhere" ? desktopView : settingsView) : library ? libraryView : root.workspace.feature === "chat" ? chatView : translateView
             }
+            }
         }
         }
     }
     component ModelPicker: ColumnLayout {
+        id: modelPicker
         // Compact: borderless model menu; refresh/configure stay reachable as icons.
         property bool compact: false
+        property bool glassChat: false
+        onGlassChatChanged: if (!glassChat) modelPopup.close()
         spacing: metrics.small
         RowLayout {
             spacing: metrics.small
             Kit.StatusDot { visible: root.modelUnavailable(session.model); tone: "failed"; failedColor: root.colors.danger }
-            ComboBox {
+            Kit.GlassComboBox {
                 id: modelCombo
+                glassMaterial: !modelPicker.glassChat
+                objectName: modelPicker.glassChat ? "chat-model-picker" : ""
                 flat: parent.parent.compact
                 implicitHeight: metrics.control
                 implicitContentWidthPolicy: ComboBox.WidestText
-                Layout.maximumWidth: metrics.sidebar
-                background: Rectangle { visible: !modelCombo.flat || modelCombo.hovered; color: modelCombo.flat ? root.colors["surface-hover"] : root.colors.surface; radius: metrics.controlRadius; border.width: modelCombo.flat ? 0 : metrics.hairline; border.color: root.colors.border }
-                model: root.models.map(id => root.modelLabel(id))
+                Layout.minimumWidth: modelPicker.glassChat ? metrics.editor : 0
+                Layout.preferredWidth: modelPicker.glassChat ? metrics.compactSidebar - metrics.control - metrics.small : -1
+                Layout.maximumWidth: modelPicker.glassChat ? metrics.compactSidebar - metrics.control - metrics.small : metrics.sidebar
+                background: Rectangle { visible: !modelCombo.flat || modelCombo.hovered || (modelPicker.glassChat && modelCombo.visualFocus); color: modelPicker.glassChat ? Qt.alpha(root.colors["surface-hover"], metrics.selectionOpacity) : modelCombo.flat ? root.colors["surface-hover"] : root.colors.surface; radius: modelPicker.glassChat ? height / 2 : metrics.controlRadius; border.width: (modelPicker.glassChat && modelCombo.visualFocus) || !modelCombo.flat ? metrics.hairline : 0; border.color: modelPicker.glassChat && modelCombo.visualFocus ? root.palette.highlight : root.colors.border }
+                model: root.models.map(id => ({modelID: id, label: root.modelLabel(id)}))
+                textRole: "label"
+                valueRole: "modelID"
                 ToolTip.visible: hovered; ToolTip.text: session.model
                 currentIndex: root.models.indexOf(session.model)
-                Accessible.name: t("model") + (root.modelUnavailable(session.model) ? ", " + t("unavailable") : "")
-                onActivated: command("model", {value: root.models[currentIndex]})
+                Accessible.name: t("model") + ", " + session.model + (root.modelUnavailable(session.model) ? ", " + t("unavailable") : "")
+                onActivated: if (currentValue) command("model", {value: currentValue})
+                property Item lensContent: Label {
+                    width: modelCombo.availableWidth
+                    height: modelCombo.availableHeight
+                    text: modelCombo.displayText
+                    font: modelCombo.font
+                    color: modelCombo.enabled ? root.palette.buttonText : root.colors["text-disabled"]
+                    leftPadding: metrics.small
+                    verticalAlignment: Text.AlignVCenter
+                    elide: Text.ElideRight
+                    Accessible.ignored: true
+                }
+                Binding { target: modelCombo; property: "contentItem"; value: modelCombo.lensContent; when: modelPicker.glassChat }
+                // Style the existing ComboBox, retaining native keyboard selection
+                // and an ID-bearing model even when discovery refreshes its labels.
+                property Component lensDelegate: Component {
+                    ItemDelegate {
+                        id: modelOption
+                        required property var modelData
+                        required property int index
+                        readonly property bool selectedModel: modelData.modelID === root.session.model
+                        width: modelList.width
+                        implicitHeight: metrics.navControl
+                        text: modelData.label
+                        highlighted: modelCombo.highlightedIndex === index
+                        Accessible.name: text + ", " + modelData.modelID + (root.modelUnavailable(modelData.modelID) ? ", " + t("unavailable") : "")
+                        Accessible.selected: selectedModel
+                        ToolTip.visible: hovered
+                        ToolTip.text: modelData.modelID
+                        contentItem: RowLayout {
+                            spacing: metrics.small
+                            Label { text: modelOption.text; font.weight: modelOption.selectedModel ? Font.DemiBold : Font.Normal; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
+                            Kit.StatusDot { visible: root.modelUnavailable(modelOption.modelData.modelID); tone: "failed"; failedColor: root.colors.danger }
+                            Label { text: "✓"; opacity: modelOption.selectedModel ? 1 : 0; Accessible.ignored: true }
+                        }
+                        background: Item {
+                            Rectangle { anchors.fill: parent; visible: modelOption.hovered && !modelOption.selectedModel; radius: metrics.chromeControlRadius; color: Qt.alpha(root.colors["surface-hover"], 0.36) }
+                            Kit.ControlGlassSurface {
+                                anchors.fill: parent
+                                visible: modelOption.selectedModel
+                                radius: metrics.chromeControlRadius
+                            }
+                            Rectangle { anchors.fill: parent; radius: metrics.chromeControlRadius; color: "transparent"; border.width: modelOption.highlighted ? metrics.hairline : 0; border.color: root.palette.highlight; Accessible.ignored: true }
+                        }
+                    }
+                }
+                property Popup lensPopup: Popup {
+                    id: modelPopup
+                    objectName: "chat-model-popup"
+                    property string ownerID: ""
+                    readonly property color baseColor: Qt.tint(root.palette.window, root.palette.base)
+                    // ComboBox detaches its previous popup when the preset changes.
+                    // Rebind the owner when Glass installs this popup again.
+                    parent: modelPicker.glassChat ? modelCombo : null
+                    width: Math.min(metrics.sidebar + metrics.editor, root.width - metrics.inset * 2)
+                    height: Math.min(contentItem.implicitHeight + padding * 2, root.height - metrics.navControl * 3)
+                    x: Math.min(0, root.width - metrics.inset - modelCombo.mapToItem(null, 0, 0).x - width)
+                    y: -height - metrics.small
+                    padding: metrics.small
+                    onAboutToShow: ownerID = root.session.id
+                    Connections { target: root; function onSessionChanged() { if (modelPopup.visible && modelPopup.ownerID !== root.session.id) modelPopup.close() } }
+                    contentItem: ListView {
+                        id: modelList
+                        clip: true
+                        implicitHeight: contentHeight
+                        model: modelPopup.visible ? modelCombo.delegateModel : null
+                        currentIndex: modelCombo.highlightedIndex
+                        boundsBehavior: Flickable.StopAtBounds
+                        ScrollBar.vertical: ScrollBar {}
+                    }
+                    background: Kit.ChromeSurface {
+                        radius: metrics.chromeSurfaceRadius
+                        fillColor: modelPopup.baseColor
+                        illuminatedFill: true
+                        fillHighlight: Qt.tint(fillColor, root.colors["surface-raised"])
+                        edgeColor: root.colors["material-border"]
+                        edgeHighlight: root.colors["material-highlight"]
+                    }
+                }
+                Binding { target: modelCombo; property: "delegate"; value: modelCombo.lensDelegate; when: modelPicker.glassChat }
+                Binding { target: modelCombo; property: "popup"; value: modelCombo.lensPopup; when: modelPicker.glassChat }
             }
             // Compact: one options control holds refresh and configuration.
             Kit.IconButton {
+                id: modelOptionsButton
+                glassMaterial: !modelPicker.glassChat
+                objectName: modelPicker.glassChat ? "chat-model-options" : ""
                 visible: parent.parent.compact
                 iconName: "refresh"; text: t("configureModel")
+                Kit.ControlLens { control: modelOptionsButton; active: modelPicker.glassChat; quiet: true }
                 onClicked: modelOptions.open()
                 Menu {
                     id: modelOptions
@@ -351,7 +502,7 @@ ApplicationWindow {
                     MenuItem { text: t("configureModel"); onTriggered: { modelDialog.ownerID = session.id; modelID.text = session.model; instructions.text = session.systemPrompt || ""; modelDialog.open() } }
                 }
             }
-            Button {
+            Kit.GlassButton {
                 visible: !parent.parent.compact
                 icon.source: "icons/refresh.svg"
                 text: t("refreshModels")
@@ -371,12 +522,16 @@ ApplicationWindow {
                     }
                 }
             }
-            Button { visible: !parent.parent.compact; text: t("configureModel"); icon.source: "icons/settings.svg"; display: AbstractButton.IconOnly; Accessible.name: text; ToolTip.visible: hovered; ToolTip.text: text; implicitHeight: metrics.control; implicitWidth: metrics.control; onClicked: { modelDialog.ownerID = session.id; modelID.text = session.model; instructions.text = session.systemPrompt || ""; modelDialog.open() } }
+            Kit.GlassButton { visible: !parent.parent.compact; text: t("configureModel"); icon.source: "icons/settings.svg"; display: AbstractButton.IconOnly; Accessible.name: text; ToolTip.visible: hovered; ToolTip.text: text; implicitHeight: metrics.control; implicitWidth: metrics.control; onClicked: { modelDialog.ownerID = session.id; modelID.text = session.model; instructions.text = session.systemPrompt || ""; modelDialog.open() } }
             BusyIndicator { running: workbench.loadingModels; visible: running; implicitWidth: metrics.control; implicitHeight: metrics.control }
         }
 
-        Dialog {
+        Kit.GlassDialog {
             id: modelDialog
+            objectName: "model-configuration-dialog"
+            parent: Overlay.overlay
+            anchors.centerIn: parent
+            margins: metrics.inset
             property string ownerID: ""
             title: t("configureModel")
             modal: true
@@ -385,24 +540,24 @@ ApplicationWindow {
             ColumnLayout {
                 TextField { id: modelID; placeholderText: t("modelID"); Accessible.name: placeholderText; Layout.fillWidth: true }
                 Label { text: t("modelIDHint"); wrapMode: Text.Wrap; Layout.maximumWidth: metrics.sidebar + metrics.editor }
-                ComboBox { id: savedPrompt; model: root.workspace.prompts || []; textRole: "name"; Accessible.name: t("promptLibrary"); Layout.fillWidth: true; onActivated: { instructions.text = model[currentIndex].text; promptName.text = model[currentIndex].name } }
+                Kit.GlassComboBox { id: savedPrompt; model: root.workspace.prompts || []; textRole: "name"; Accessible.name: t("promptLibrary"); Layout.fillWidth: true; onActivated: { instructions.text = model[currentIndex].text; promptName.text = model[currentIndex].name } }
                 TextField { id: promptName; placeholderText: t("promptName"); Accessible.name: placeholderText; Layout.fillWidth: true }
                 RowLayout {
-                    Button { text: t("savePrompt"); enabled: !!promptName.text.trim(); onClicked: root.command("savePrompt", {name: promptName.text, text: instructions.text}) }
-                    Button { text: t("deletePrompt"); enabled: savedPrompt.currentIndex >= 0; onClicked: { deleteSavedPrompt.promptID = savedPrompt.model[savedPrompt.currentIndex].id; deleteSavedPrompt.open() } }
+                    Kit.GlassButton { text: t("savePrompt"); enabled: !!promptName.text.trim(); onClicked: root.command("savePrompt", {name: promptName.text, text: instructions.text}) }
+                    Kit.GlassButton { text: t("deletePrompt"); enabled: savedPrompt.currentIndex >= 0; onClicked: { deleteSavedPrompt.promptID = savedPrompt.model[savedPrompt.currentIndex].id; deleteSavedPrompt.open() } }
                 }
                 TextArea { id: instructions; placeholderText: t("systemPrompt"); Accessible.name: placeholderText; wrapMode: TextEdit.Wrap; Layout.fillWidth: true }
             }
         }
         Label { text: workbench.modelError ? t(workbench.modelError) : ""; visible: !!workbench.modelError; wrapMode: Text.Wrap; Layout.maximumWidth: metrics.sidebar }
     }
-    Dialog {
+    Kit.GlassDialog {
         id: deleteSavedPrompt
         property string promptID: ""
         title: t("deletePrompt"); modal: true; standardButtons: Dialog.Yes | Dialog.Cancel
         onAccepted: root.command("deletePrompt", {id: promptID})
     }
-    Dialog {
+    Kit.GlassDialog {
         id: renameDialog
         property string ownerID
         title: t("rename"); modal: true; anchors.centerIn: parent
@@ -426,15 +581,20 @@ ApplicationWindow {
         onAccepted: { if (ocr) workbench.extractImageText(selectedFile, ownerID); else workbench.attachImage(selectedFile, ownerID) }
     }
     component ImageControls: ColumnLayout {
+        id: imageControls
         // Compact: icon menu inside a composer row; attachments render as chips.
         property bool compact: false
-        Button {
+        property bool glassChat: false
+        Kit.GlassButton {
+            id: attachmentButton
+            glassMaterial: !imageControls.glassChat
             text: t("attachImage"); icon.source: "icons/new.svg"
             display: parent.compact ? AbstractButton.IconOnly : AbstractButton.TextBesideIcon
             flat: parent.compact
             implicitWidth: parent.compact ? metrics.control : implicitContentWidth + leftPadding + rightPadding
             Accessible.name: text; ToolTip.visible: hovered; ToolTip.text: text
             implicitHeight: metrics.control
+            Kit.ControlLens { control: attachmentButton; active: imageControls.glassChat }
             onClicked: attachmentMenu.open()
             Menu {
                 id: attachmentMenu
@@ -459,24 +619,40 @@ ApplicationWindow {
             delegate: RowLayout {
                 required property var modelData
                 Label { textFormat: Text.PlainText; text: modelData.name; elide: Text.ElideMiddle; Layout.maximumWidth: metrics.sidebar; ToolTip.visible: attachmentHover.hovered; ToolTip.text: text; HoverHandler { id: attachmentHover } }
-                Button { text: t("removeAttachment"); icon.source: "icons/close.svg"; display: AbstractButton.IconOnly; Accessible.name: text; ToolTip.visible: hovered; ToolTip.text: text; implicitWidth: metrics.compactControl; implicitHeight: metrics.compactControl; onClicked: workbench.command("removeImage", {sessionID: root.session.id, imageID: modelData.id}) }
+                Kit.GlassButton { text: t("removeAttachment"); icon.source: "icons/close.svg"; display: AbstractButton.IconOnly; Accessible.name: text; ToolTip.visible: hovered; ToolTip.text: text; implicitWidth: metrics.compactControl; implicitHeight: metrics.compactControl; onClicked: workbench.command("removeImage", {sessionID: root.session.id, imageID: modelData.id}) }
             }
         }
     }
     component AudioControls: ColumnLayout {
+        id: audioControls
         // Compact: record icon only; speech output moves to the options menu.
         property bool compact: false
+        property bool glassChat: false
         RowLayout {
             spacing: metrics.small
-            Kit.IconButton { visible: parent.parent.compact; iconName: "interpret"; text: t(workbench.audio.recording ? "stopRecording" : "record"); checked: workbench.audio.recording; enabled: !workbench.audio.busy; onClicked: workbench.audio.recording ? workbench.audio.stop(workspace.speechProvider || "auto") : workbench.startRecording() }
-            Button { visible: !parent.parent.compact; text: t(workbench.audio.recording ? "stopRecording" : "record"); implicitHeight: metrics.control; enabled: !workbench.audio.busy; onClicked: workbench.audio.recording ? workbench.audio.stop(workspace.speechProvider || "auto") : workbench.startRecording() }
-            Button {
+            Kit.IconButton {
+                id: recordButton
+                glassMaterial: !audioControls.glassChat
+                objectName: audioControls.glassChat ? "chat-record" : ""
+                visible: parent.parent.compact
+                iconName: "interpret"
+                text: t(workbench.audio.recording ? "stopRecording" : "record")
+                checked: workbench.audio.recording
+                enabled: !workbench.audio.busy
+                onClicked: workbench.audio.recording ? workbench.audio.stop(workspace.speechProvider || "auto") : workbench.startRecording()
+                Kit.ControlLens { control: recordButton; active: audioControls.glassChat; destructive: workbench.audio.recording; quiet: true }
+                Binding { target: recordButton.contentItem; property: "visible"; value: false; when: audioControls.glassChat }
+                Kit.VoiceGlyph { anchors.centerIn: parent; visible: audioControls.glassChat && !workbench.audio.recording; color: recordButton.enabled ? root.palette.buttonText : root.colors["text-disabled"] }
+                Rectangle { anchors.centerIn: parent; visible: audioControls.glassChat && workbench.audio.recording; width: metrics.icon - metrics.small; height: width; radius: metrics.hairline; color: root.colors.danger; Accessible.ignored: true }
+            }
+            Kit.GlassButton { visible: !parent.parent.compact; text: t(workbench.audio.recording ? "stopRecording" : "record"); implicitHeight: metrics.control; enabled: !workbench.audio.busy; onClicked: workbench.audio.recording ? workbench.audio.stop(workspace.speechProvider || "auto") : workbench.startRecording() }
+            Kit.GlassButton {
                 visible: !parent.parent.compact
                 text: t(workbench.audio.speaking ? "stopSpeaking" : "listen"); implicitHeight: metrics.control
                 enabled: workbench.audio.speaking || !!root.speechText().trim()
                 onClicked: workbench.audio.speaking ? workbench.audio.silence() : workbench.audio.speak(root.speechText(), session.target)
             }
-            Button {
+            Kit.GlassButton {
                 visible: !parent.parent.compact
                 text: t("speechProvider"); icon.source: "icons/settings.svg"; display: AbstractButton.IconOnly
                 implicitWidth: metrics.control; implicitHeight: metrics.control; Accessible.name: text; ToolTip.visible: hovered; ToolTip.text: text
@@ -492,12 +668,12 @@ ApplicationWindow {
                 }
             }
             BusyIndicator { visible: running; running: workbench.audio.busy; implicitWidth: metrics.control; implicitHeight: metrics.control }
-            Button { text: t("stop"); visible: workbench.audio.busy; onClicked: workbench.audio.cancel() }
+            Kit.GlassButton { text: t("stop"); visible: workbench.audio.busy; onClicked: workbench.audio.cancel() }
         }
         Label { text: workbench.audio.error ? t(workbench.audio.error) : ""; visible: !!text; wrapMode: Text.Wrap; Layout.maximumWidth: metrics.sidebar }
-        Button { text: t("insertTranscript"); visible: !!workbench.pendingTranscript; onClicked: workbench.insertTranscript() }
+        Kit.GlassButton { text: t("insertTranscript"); visible: !!workbench.pendingTranscript; onClicked: workbench.insertTranscript() }
     }
-    component LanguagePicker: ComboBox {
+    component LanguagePicker: Kit.GlassComboBox {
         implicitContentWidthPolicy: ComboBox.WidestText
         property bool source: true
         readonly property var choices: (source ? ["auto"] : []).concat(root.languages)
@@ -527,35 +703,93 @@ ApplicationWindow {
             // The provider's own explanation, when it gave one.
             Label { objectName: "task-error-detail"; visible: !!lastTask && lastTask.status === "failed" && !!lastTask.errorDetail; text: lastTask?.errorDetail || ""; textFormat: Text.PlainText; color: root.palette.placeholderText; font.pointSize: Qt.application.font.pointSize * metrics.captionScale; wrapMode: Text.Wrap; maximumLineCount: 3; elide: Text.ElideRight; Layout.fillWidth: true }
         }
-        Button { text: t("retry"); enabled: !activeTask && !!lastTask && (session.feature === "chat" || lastTask.request.revision === session.revision); onClicked: command("retry", {taskID: lastTask.id}) }
+        Kit.GlassButton { text: t("retry"); enabled: !activeTask && !!lastTask && (session.feature === "chat" || lastTask.request.revision === session.revision); onClicked: command("retry", {taskID: lastTask.id}) }
     }
     Component {
         id: chatView
         ColumnLayout {
+            id: chatWorkspace
+            readonly property bool groupedEmpty: root.glassChrome && !(root.session.messages || []).length && !root.activeTask
             spacing: metrics.gap
+            Item { visible: chatWorkspace.groupedEmpty; Layout.fillHeight: true; Layout.preferredHeight: 0; Layout.verticalStretchFactor: 2 }
             ChatTranscript {
+                id: transcript
                 bridge: workbench
                 session: root.session
                 readingPointSize: root.readingPointSize
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                Layout.fillHeight: !chatWorkspace.groupedEmpty
+                Layout.preferredHeight: chatWorkspace.groupedEmpty ? emptyHeight : -1
             }
             RetryNotice { Layout.fillWidth: true }
             // Same column as the composer it warns about; never a frame around it.
             Kit.ProviderNotice { model: session.model; dangerColor: root.colors.danger; Layout.fillWidth: true; Layout.maximumWidth: metrics.reading; Layout.alignment: Qt.AlignHCenter; onOpenRequested: section => root.openSettingsSection(section); onUseRequested: model => command("model", {value: model}) }
             Frame {
-                padding: metrics.inset
-                background: Rectangle { color: root.palette.base; radius: metrics.surfaceRadius; border.width: metrics.hairline; border.color: chatDraft.activeFocus ? root.palette.mid : root.palette.midlight }
+                id: composer
+                objectName: "chat-composer"
+                readonly property real oneRowMinimum: metrics.editor + metrics.compactSidebar + metrics.control * 3 + metrics.small * 6
+                readonly property real inlineEditorWidth: availableWidth - composerTools.implicitWidth - metrics.control * 2 - metrics.small * 3
+                // Measure the unwrapped draft, so widening the editor after a wrap
+                // cannot oscillate between one and two rows. The TextArea stays put.
+                readonly property bool singleRow: root.glassChrome && width >= oneRowMinimum && !(session.images || []).length && !chatDraft.text.includes("\n") && draftMeasure.advanceWidth <= inlineEditorWidth - metrics.small * 2 && (session.chatMode || "text") === "text" && !workbench.audio.busy && !workbench.audio.error && !workbench.pendingTranscript && !workbench.modelError && !workbench.loadingModels
+                function editorHeight() {
+                    // Cursor rectangles come from the shaped text layout, including
+                    // CJK fallback and wrapped lines. FontMetrics alone can clip it.
+                    const contentHeight = chatDraft.contentHeight
+                    const layoutWidth = chatDraft.width
+                    const padding = chatDraft.topPadding + chatDraft.bottomPadding
+                    if (chatDraft.lineCount <= metrics.composerMaxLines)
+                        return Math.max(metrics.control, contentHeight + padding)
+                    let position = 0
+                    const top = chatDraft.positionToRectangle(0).y
+                    for (let line = 0; line < metrics.composerMaxLines; line++) {
+                        const y = chatDraft.positionToRectangle(position).y
+                        let lower = position + 1, upper = chatDraft.length + 1
+                        while (lower < upper) {
+                            const middle = Math.floor((lower + upper) / 2)
+                            if (chatDraft.positionToRectangle(middle).y > y) upper = middle
+                            else lower = middle + 1
+                        }
+                        position = lower
+                        if (position > chatDraft.length) return Math.max(metrics.control, contentHeight + padding)
+                    }
+                    return Math.max(metrics.control, chatDraft.positionToRectangle(position).y - top + padding)
+                }
+                padding: root.glassChrome ? metrics.small : metrics.inset
+                background: Item {
+                    Rectangle { anchors.fill: parent; visible: !root.glassChrome; color: root.palette.base; radius: metrics.surfaceRadius; border.width: metrics.hairline; border.color: chatDraft.activeFocus ? root.palette.mid : root.palette.midlight }
+                    Kit.ChromeSurface {
+                        anchors.fill: parent
+                        visible: root.glassChrome
+                        radius: metrics.chromeSurfaceRadius
+                        fillColor: Qt.tint(root.palette.window, root.palette.base)
+                        illuminatedFill: true
+                        fillHighlight: Qt.tint(fillColor, root.colors["surface-raised"])
+                        edgeColor: root.colors["material-border"]
+                        edgeHighlight: root.colors["material-highlight"]
+                    }
+                    Rectangle { anchors.fill: parent; visible: root.glassChrome && chatDraft.activeFocus; color: "transparent"; radius: metrics.chromeSurfaceRadius; border.width: metrics.hairline * 2; border.color: root.colors["border-strong"]; Accessible.ignored: true }
+                }
                 Layout.fillWidth: true
                 Layout.maximumWidth: metrics.reading
                 Layout.alignment: Qt.AlignHCenter
-                ColumnLayout {
+                TextMetrics { id: draftMeasure; font: chatDraft.font; text: chatDraft.text }
+                GridLayout {
+                    id: composerGrid
                     anchors.fill: parent
-                    AttachmentChips { Layout.fillWidth: true }
+                    columns: 6
+                    columnSpacing: metrics.small
+                    Binding { target: composerGrid; property: "rowSpacing"; value: metrics.small; when: root.glassChrome }
+                    AttachmentChips { Layout.row: 0; Layout.column: 0; Layout.columnSpan: 6; Layout.fillWidth: true }
                     ScrollView {
+                        id: draftScroll
+                        objectName: "chat-draft-scroll"
                         contentWidth: availableWidth
+                        Layout.row: 1
+                        Layout.column: composer.singleRow ? 1 : 0
+                        Layout.columnSpan: composer.singleRow ? 1 : 6
                         Layout.fillWidth: true
-                        Layout.preferredHeight: Math.min(metrics.editor, Math.max(metrics.composerMinimum - metrics.control - metrics.inset, chatDraft.contentHeight + metrics.small))
+                        Layout.preferredHeight: root.glassChrome ? (composer.singleRow ? metrics.control : composer.editorHeight()) : Math.min(metrics.editor, Math.max(metrics.composerMinimum - metrics.control - metrics.inset, chatDraft.contentHeight + metrics.small))
                         TextArea {
                             id: chatDraft
                             objectName: "chat-draft"
@@ -573,29 +807,75 @@ ApplicationWindow {
                             Keys.onEnterPressed: event => root.submitKey(event, inputMethodComposing)
                         }
                     }
-                    // Review 18: one control row under the editor.
-                    RowLayout {
-                        spacing: metrics.small
-                        ImageControls { compact: true }
-                        ModelPicker { compact: true }
-                        AudioControls { compact: true }
-                        // Image mode names who will draw (OpenAI/Gemini with a key), whatever the chat model is.
-                        Label { visible: (session.chatMode || "text") !== "text"; text: t("chatMode_" + (session.chatMode || "text")) + (session.chatMode === "image" ? " · " + ((workbench.localModels, workbench.imageProvider(session.model)) === "openai" ? "OpenAI" : workbench.imageProvider(session.model) === "gemini" ? "Gemini" : t("imageProviderNone")) : ""); color: root.palette.link }
-                        Item { Layout.fillWidth: true }
-                        Button {
-                            id: sendButton
-                            implicitHeight: metrics.control
-                            leftPadding: metrics.inset
-                            rightPadding: metrics.inset
-                            text: t(activeTask ? "stop" : "send")
-                            enabled: !!activeTask || !!session.draft.trim() || (["chat", "translate"].includes(session.feature) && (session.images || []).length > 0)
-                            contentItem: Label { text: sendButton.text; Accessible.ignored: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; color: !sendButton.enabled ? root.colors["text-disabled"] : activeTask ? root.colors.danger : root.colors["action-fg"] }
-                            background: Rectangle { radius: metrics.controlRadius; color: !sendButton.enabled ? root.colors["surface-subtle"] : activeTask ? root.colors.surface : root.colors.action; border.width: sendButton.visualFocus ? metrics.hairline : 0; border.color: root.colors["border-strong"] }
-                            onClicked: root.submit()
+                    ImageControls { compact: true; glassChat: root.glassChrome; Layout.row: composer.singleRow ? 1 : 2; Layout.column: 0; Layout.alignment: Qt.AlignBottom }
+                    Pane {
+                        id: composerTools
+                        padding: 0
+                        Layout.row: composer.singleRow ? 1 : 2
+                        Layout.column: composer.singleRow ? 2 : 1
+                        Layout.columnSpan: 2
+                        Layout.alignment: Qt.AlignBottom
+                        background: Kit.ControlGlassSurface {
+                            visible: root.glassChrome
+                            radius: metrics.control / 2
                         }
+                        RowLayout {
+                            spacing: metrics.small
+                            ModelPicker { compact: true; glassChat: root.glassChrome }
+                            AudioControls { compact: true; glassChat: root.glassChrome }
+                        }
+                    }
+                    // Image mode names who will draw, regardless of the chat model.
+                    Label {
+                        visible: (session.chatMode || "text") !== "text"
+                        Layout.row: root.glassChrome ? 3 : 2
+                        Layout.column: root.glassChrome ? 0 : 3
+                        Layout.columnSpan: root.glassChrome ? 6 : 1
+                        Layout.fillWidth: root.glassChrome
+                        wrapMode: Text.Wrap
+                        text: t("chatMode_" + (session.chatMode || "text")) + (session.chatMode === "image" ? " · " + ((workbench.localModels, workbench.imageProvider(session.model)) === "openai" ? "OpenAI" : workbench.imageProvider(session.model) === "gemini" ? "Gemini" : t("imageProviderNone")) : "")
+                        color: root.palette.link
+                    }
+                    Item { visible: !composer.singleRow; Layout.row: 2; Layout.column: 4; Layout.fillWidth: true }
+                    Kit.GlassButton {
+                        id: sendButton
+                        glassMaterial: false
+                        objectName: "chat-send"
+                        Layout.row: composer.singleRow ? 1 : 2
+                        Layout.column: 5
+                        Layout.alignment: Qt.AlignBottom
+                        implicitHeight: metrics.control
+                        implicitWidth: root.glassChrome ? metrics.control : implicitContentWidth + leftPadding + rightPadding
+                        leftPadding: root.glassChrome ? 0 : metrics.inset
+                        rightPadding: leftPadding
+                        text: t(activeTask ? "stop" : "send")
+                        enabled: !!activeTask || !!session.draft.trim() || (["chat", "translate"].includes(session.feature) && (session.images || []).length > 0)
+                        Accessible.name: text
+                        ToolTip.visible: hovered
+                        ToolTip.text: text
+                        contentItem: Item {
+                            implicitWidth: sendLabel.implicitWidth
+                            implicitHeight: sendLabel.implicitHeight
+                            readonly property color foreground: !sendButton.enabled ? root.colors["text-disabled"] : activeTask ? root.colors.danger : root.colors["action-fg"]
+                            Label { id: sendLabel; anchors.fill: parent; visible: !root.glassChrome; text: sendButton.text; Accessible.ignored: true; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; color: parent.foreground }
+                            // Existing chevron becomes an upward send arrow; Stop is
+                            // a solid square. Both retain the named native button.
+                            Item {
+                                visible: root.glassChrome
+                                anchors.centerIn: parent
+                                width: metrics.icon; height: width
+                                IconImage { anchors.centerIn: parent; visible: !activeTask; source: "icons/back.svg"; rotation: 90; sourceSize.width: metrics.icon; sourceSize.height: metrics.icon; color: parent.parent.foreground; Accessible.ignored: true }
+                                Rectangle { visible: !activeTask; width: metrics.hairline * 2; height: metrics.gap; x: (parent.width - width) / 2; y: metrics.small; radius: metrics.hairline; color: parent.parent.foreground; Accessible.ignored: true }
+                                Rectangle { anchors.centerIn: parent; visible: !!activeTask; width: metrics.icon - metrics.small; height: width; radius: metrics.hairline; color: parent.parent.foreground; Accessible.ignored: true }
+                            }
+                        }
+                        background: Rectangle { radius: metrics.controlRadius; color: !sendButton.enabled ? root.colors["surface-subtle"] : activeTask ? root.colors.surface : root.colors.action; border.width: sendButton.visualFocus ? metrics.hairline : 0; border.color: root.colors["border-strong"] }
+                        Kit.ControlLens { control: sendButton; active: root.glassChrome; prominent: true; destructive: !!activeTask }
+                        onClicked: root.submit()
                     }
                 }
             }
+            Item { visible: chatWorkspace.groupedEmpty; Layout.fillHeight: true; Layout.preferredHeight: 0; Layout.verticalStretchFactor: 3 }
         }
     }
     Component {
@@ -615,7 +895,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     Label { text: t("inputLanguage"); color: root.palette.placeholderText }
                     LanguagePicker { source: true; flat: true }
-                    ToolButton { text: "⇄"; Accessible.name: t("swap"); ToolTip.visible: hovered; ToolTip.text: t("swap"); onClicked: command("pair", {source: session.target, target: session.source === "auto" ? "en" : session.source}) }
+                    Kit.GlassToolButton { text: "⇄"; Accessible.name: t("swap"); ToolTip.visible: hovered; ToolTip.text: t("swap"); onClicked: command("pair", {source: session.target, target: session.source === "auto" ? "en" : session.source}) }
                     Label { text: t("outputLanguage"); color: root.palette.placeholderText }
                     LanguagePicker { source: false; flat: true }
                     Item { Layout.fillWidth: true }
@@ -624,7 +904,7 @@ ApplicationWindow {
             }
             Rectangle { color: root.palette.midlight; implicitHeight: metrics.hairline; Layout.fillWidth: true }
             Kit.ProviderNotice { model: session.model; dangerColor: root.colors.danger; Layout.fillWidth: true; onOpenRequested: section => root.openSettingsSection(section); onUseRequested: model => command("model", {value: model}) }
-            Dialog {
+            Kit.GlassDialog {
                 id: translationOptionsDialog
                 property string ownerID: ""
                 onOpened: ownerID = root.session.id
@@ -674,7 +954,7 @@ ApplicationWindow {
                         Keys.onEnterPressed: event => { event.accepted = !inputMethodComposing; if (event.accepted && !!text.trim() && Array.from(text).length <= 120) root.submit() }
                         Connections { target: root; function onComposerFocusEpochChanged() { if (root.session.feature === "dictionary") termDraft.forceActiveFocus() } }
                     }
-                    Button { visible: !!activeTask; text: t("stop"); onClicked: root.submit() }
+                    Kit.GlassButton { visible: !!activeTask; text: t("stop"); onClicked: root.submit() }
                     Kit.PrimaryButton { visible: !activeTask; text: t("lookup"); enabled: !!session.draft.trim() && Array.from(session.draft).length <= 120; onClicked: root.submit() }
                 }
             }
@@ -704,7 +984,7 @@ ApplicationWindow {
                         visible: !!session.output
                         Layout.fillWidth: true
                         Item { Layout.fillWidth: true }
-                        Button { flat: true; text: t(session.favorite ? "savedWord" : "saveWord"); checkable: true; checked: !!session.favorite; onClicked: command("favorite") }
+                        Kit.GlassButton { flat: true; text: t(session.favorite ? "savedWord" : "saveWord"); checkable: true; checked: !!session.favorite; onClicked: command("favorite") }
                     }
                     DictionaryResult { visible: !!session.output; Layout.fillWidth: true; output: session.output; bridge: workbench }
                 }
@@ -759,7 +1039,7 @@ ApplicationWindow {
                             ImageControls { compact: true; visible: session.feature === "translate" }
                             AudioControls { compact: true }
                             Label { text: t("draft"); color: root.palette.placeholderText; elide: Text.ElideRight; Layout.fillWidth: true }
-                            Button { visible: !!activeTask; text: t("stop"); onClicked: root.submit() }
+                            Kit.GlassButton { visible: !!activeTask; text: t("stop"); onClicked: root.submit() }
                             Kit.PrimaryButton { visible: !activeTask; text: t(session.feature === "dictionary" ? "lookup" : "translateText"); icon.source: "icons/" + (session.feature === "dictionary" ? "search" : "translate") + ".svg"; enabled: !!session.draft.trim() || (session.feature === "translate" && (session.images || []).length > 0); onClicked: root.submit() }
                         }
                     }
@@ -781,7 +1061,7 @@ ApplicationWindow {
                         RowLayout {
                             Layout.minimumHeight: metrics.control
                             Label { text: t("result"); font.bold: true; Layout.fillWidth: true }
-                            Button { visible: session.feature === "translate"; flat: true; text: t("style_" + (session.translationStyle || "general")) + " ▾"; Accessible.name: t("translationOptions"); ToolTip.visible: hovered; ToolTip.text: t("translationOptions"); onClicked: translationOptionsDialog.open() }
+                            Kit.GlassButton { visible: session.feature === "translate"; flat: true; text: t("style_" + (session.translationStyle || "general")) + " ▾"; Accessible.name: t("translationOptions"); ToolTip.visible: hovered; ToolTip.text: t("translationOptions"); onClicked: translationOptionsDialog.open() }
                         }
                         Rectangle { Layout.fillWidth: true; implicitHeight: metrics.hairline; color: root.colors.border }
                         ScrollView {
@@ -806,10 +1086,10 @@ ApplicationWindow {
                         RowLayout {
                             Layout.minimumHeight: metrics.control
                             Label { text: lang(session.target); color: root.palette.placeholderText; Layout.fillWidth: true }
-                            Button { visible: session.feature === "dictionary"; text: t(session.favorite ? "savedWord" : "saveWord"); checkable: true; checked: !!session.favorite; onClicked: command("favorite") }
-                            Button { visible: session.feature === "translate" && !(session.images || []).length; text: t("compare"); onClicked: translationOptionsDialog.open() }
+                            Kit.GlassButton { visible: session.feature === "dictionary"; text: t(session.favorite ? "savedWord" : "saveWord"); checkable: true; checked: !!session.favorite; onClicked: command("favorite") }
+                            Kit.GlassButton { visible: session.feature === "translate" && !(session.images || []).length; text: t("compare"); onClicked: translationOptionsDialog.open() }
                             Kit.IconButton { iconName: "interpret"; text: t(workbench.audio.speaking ? "stopSpeaking" : "listen"); enabled: workbench.audio.speaking || !!root.speechText().trim(); onClicked: workbench.audio.speaking ? workbench.audio.silence() : workbench.audio.speak(root.speechText(), session.target) }
-                            Button { text: t("copy"); enabled: !!session.output; onClicked: workbench.copy((session.images || []).length ? workbench.imageTranslationText(session.output) : session.output) }
+                            Kit.GlassButton { text: t("copy"); enabled: !!session.output; onClicked: workbench.copy((session.images || []).length ? workbench.imageTranslationText(session.output) : session.output) }
                         }
                     }
                 }
@@ -886,7 +1166,7 @@ ApplicationWindow {
         Label { anchors.centerIn: parent; visible: historyList.count === 0; text: t("noHistory") }
         ScrollBar.vertical: ScrollBar {}
     }
-    component SearchHistory: TextField {
+    component SearchHistory: Kit.SearchField {
         objectName: "history-search"
         property var targetList: null
         text: historyQuery
@@ -960,19 +1240,19 @@ ApplicationWindow {
                         }
                     }
                     RowLayout {
-                        Button { text: t("exportSession"); enabled: !!previewCard.selected; onClicked: { sessionExport.ownerID = previewID; sessionExport.open() } }
-                        Button { text: t("rename"); enabled: !!previewCard.selected; onClicked: { renameDialog.ownerID = previewID; renameInput.text = previewCard.selected.title; renameDialog.open() } }
-                        Button { text: t(root.archivedHistory ? "restoreSession" : "archiveSession"); enabled: !!previewCard.selected; onClicked: command("archive", {sessionID: previewID, value: !root.archivedHistory}) }
-                        Button { text: t("deletePermanently"); visible: root.archivedHistory; enabled: !!previewCard.selected; onClicked: { deleteHistory.ownerID = previewID; deleteHistory.open() } }
+                        Kit.GlassButton { text: t("exportSession"); enabled: !!previewCard.selected; onClicked: { sessionExport.ownerID = previewID; sessionExport.open() } }
+                        Kit.GlassButton { text: t("rename"); enabled: !!previewCard.selected; onClicked: { renameDialog.ownerID = previewID; renameInput.text = previewCard.selected.title; renameDialog.open() } }
+                        Kit.GlassButton { text: t(root.archivedHistory ? "restoreSession" : "archiveSession"); enabled: !!previewCard.selected; onClicked: command("archive", {sessionID: previewID, value: !root.archivedHistory}) }
+                        Kit.GlassButton { text: t("deletePermanently"); visible: root.archivedHistory; enabled: !!previewCard.selected; onClicked: { deleteHistory.ownerID = previewID; deleteHistory.open() } }
                         Label { text: t("currentSession"); visible: previewCard.selected?.id === session.id }
                         Item { Layout.fillWidth: true }
-                        Button { objectName: "history-open"; text: t("open"); highlighted: true; enabled: !!previewCard.selected && !root.archivedHistory; onClicked: choose(previewID) }
+                        Kit.GlassButton { objectName: "history-open"; text: t("open"); highlighted: true; enabled: !!previewCard.selected && !root.archivedHistory; onClicked: choose(previewID) }
                     }
                 }
             }
         }
     }
-    Dialog {
+    Kit.GlassDialog {
         id: deleteHistory
         property string ownerID: ""
         title: root.t("deletePermanentlyConfirm")
@@ -983,7 +1263,7 @@ ApplicationWindow {
     Popup {
         id: history
         padding: metrics.inset
-        background: Rectangle { color: root.palette.base; radius: metrics.surfaceRadius; border.width: metrics.hairline; border.color: root.palette.midlight }
+        background: Kit.ReadingPanelSurface {}
         objectName: "quick-history"
         parent: Overlay.overlay
         width: Math.min(metrics.sidebar + metrics.editor, root.width - metrics.inset * 2)
@@ -1005,7 +1285,7 @@ ApplicationWindow {
             HistoryList { id: quickHistory; Layout.fillWidth: true; Layout.fillHeight: true }
             Rectangle { Layout.fillWidth: true; implicitHeight: metrics.hairline; color: root.colors.border }
             // Review 18: a quiet link row, not a second bordered button.
-            Button {
+            Kit.GlassButton {
                 id: allHistory
                 text: t("allHistory")
                 flat: true
@@ -1022,7 +1302,7 @@ ApplicationWindow {
     Popup {
         id: activity
         padding: metrics.inset
-        background: Rectangle { color: root.palette.base; radius: metrics.surfaceRadius; border.width: metrics.hairline; border.color: root.palette.midlight }
+        background: Kit.ReadingPanelSurface {}
         objectName: "activity-panel"
         onOpened: activityClose.forceActiveFocus()
         parent: Overlay.overlay
@@ -1061,8 +1341,8 @@ ApplicationWindow {
                                 Label { text: titleFor(target); elide: Text.ElideRight; Layout.fillWidth: true }
                                 Label { text: t(modelData.status) + " · " + root.modelLabel(modelData.request.model); wrapMode: Text.Wrap; Layout.fillWidth: true }
                                 RowLayout {
-                                    Button { text: t("open"); onClicked: choose(target.id) }
-                                    Button {
+                                    Kit.GlassButton { text: t("open"); onClicked: choose(target.id) }
+                                    Kit.GlassButton {
                                         visible: modelData.status !== "succeeded"
                                         text: t(modelData.status === "running" ? "stop" : "retry")
                                         enabled: modelData.status === "running" || (!root.workspace.tasks.some(task => task.request.sessionID === target.id && task.status === "running") && (target.feature === "chat" || target.revision === modelData.request.revision))
@@ -1102,7 +1382,7 @@ ApplicationWindow {
     Popup {
         id: commands
         padding: metrics.inset
-        background: Rectangle { color: root.palette.base; radius: metrics.surfaceRadius; border.width: metrics.hairline; border.color: root.palette.midlight }
+        background: Kit.ReadingPanelSurface {}
         objectName: "command-palette"
         parent: Overlay.overlay
         width: Math.min(metrics.sidebar + metrics.editor, root.width - metrics.inset * 2)
@@ -1123,7 +1403,7 @@ ApplicationWindow {
                 Label { text: t("commands"); font.bold: true; Layout.fillWidth: true }
                 ShellButton { iconName: "close"; text: t("close"); onClicked: commands.close() }
             }
-            TextField {
+            Kit.SearchField {
                 id: commandSearch
                 objectName: "command-search"
                 Layout.fillWidth: true
@@ -1164,6 +1444,7 @@ ApplicationWindow {
                         Label { text: commandItem.text; color: commandItem.highlighted ? palette.link : palette.text; font.bold: commandItem.highlighted; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
                     }
                     background: Rectangle { radius: metrics.radius; color: commandItem.highlighted ? Qt.tint(palette.base, Qt.alpha(palette.highlight, metrics.selectionOpacity)) : commandItem.hovered ? palette.alternateBase : "transparent" }
+                    Kit.ControlLens { control: commandItem; active: root.glassChrome; quiet: !commandItem.highlighted; selectionMarker: false }
                     onClicked: commands.run(modelData.id)
                 }
                 Label { anchors.centerIn: parent; visible: !commandList.count; text: t("noCommands") }

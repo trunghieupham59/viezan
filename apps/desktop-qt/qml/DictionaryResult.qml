@@ -45,15 +45,15 @@ ScrollView {
         Label { textFormat: Text.PlainText; text: result.entry?.pronunciation || ""; color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
         RowLayout {
             visible: !!result.entry
-            Button { text: result.t("speak"); onClicked: result.bridge.audio.speak(result.entry.headword, result.session.source === "auto" ? result.session.target : result.session.source) }
-            Button { text: result.t("translate"); onClicked: result.handoff("translate") }
-            Button { text: result.t("chat"); onClicked: result.handoff("chat") }
+            Kit.GlassButton { text: result.t("speak"); onClicked: result.bridge.audio.speak(result.entry.headword, result.session.source === "auto" ? result.session.target : result.session.source) }
+            Kit.GlassButton { text: result.t("translate"); onClicked: result.handoff("translate") }
+            Kit.GlassButton { text: result.t("chat"); onClicked: result.handoff("chat") }
         }
         RowLayout {
             visible: !!result.entry
             Repeater {
                 model: ["dictionaryMeaning", "dictionaryExamples"]
-                delegate: Button {
+                delegate: Kit.GlassButton {
                     required property string modelData
                     required property int index
                     text: result.t(modelData)
@@ -73,8 +73,8 @@ ScrollView {
                     width: parent.width
                     Label { textFormat: Text.PlainText; text: modelData.pronunciation || ""; color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
                     TextArea { text: [modelData.partOfSpeech, modelData.meaning].filter(value => typeof value === "string").join("\n"); readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; background: null; Layout.fillWidth: true }
-                    Button { id: details; text: result.t("dictionaryDetails"); checkable: true; Accessible.role: Accessible.CheckBox }
-                    Button { text: result.t("speak"); onClicked: result.bridge.audio.speak(modelData.text, result.session.target) }
+                    Kit.GlassButton { id: details; text: result.t("dictionaryDetails"); checkable: true; Accessible.role: Accessible.CheckBox }
+                    Kit.GlassButton { text: result.t("speak"); onClicked: result.bridge.audio.speak(modelData.text, result.session.target) }
                     TextArea {
                         visible: details.checked
                         text: [modelData.usage, modelData.nuance].filter(value => typeof value === "string").concat(modelData.examples || [], modelData.collocations || [], modelData.notes || []).join("\n\n")

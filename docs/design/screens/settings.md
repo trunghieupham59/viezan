@@ -1,5 +1,16 @@
 # Cài đặt
 
+## Native Glass components (2026-11-03)
+
+The native Settings search uses the shared capsule field with an opaque inset
+editing face and neutral focus edge. Section navigation uses a raised selected
+lens, clear idle destinations and softer hover feedback; selection remains
+visible independently of keyboard focus. Qt appearance and text-size choices
+reuse the shared segmented group; compact macOS sections retain their native menu picker.
+Native switches, pickers and secure fields retain
+their platform semantics. The historical Electron details below do not define
+the native material or geometry.
+
 > Bản vẽ gốc: `boards/Settings.dc.html` (Mô hình AI), `boards/SettingsSections.dc.html` (Chung, Giọng nói, Chat, Module, Cập nhật), `boards/SettingsAppearance.dc.html`, `boards/SettingsAbout.dc.html`, `boards/Providers.dc.html` (AI local, khoá API) · Board chi tiết: `specs/settings.html` · Mã nguồn: `src/pages/SettingsPage.tsx`, `src/pages/settings/*.tsx`
 
 Luật chung (token, nút, bề mặt, responsive, trạng thái) nằm ở [`../foundations.md`](../foundations.md). Tài liệu này chỉ ghi phần riêng của trang Cài đặt.

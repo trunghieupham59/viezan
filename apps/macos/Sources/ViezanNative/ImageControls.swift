@@ -12,6 +12,7 @@ struct ImageControls: View {
     var statusOnly = false
     /// A non-default chat mode is on: "+" reads selected so the row shows it without a chip.
     var selected = false
+    var glassChat = false
     @Environment(\.shellLayer) private var shellLayer
     @State private var busy = false
     @State private var error: String?
@@ -21,9 +22,10 @@ struct ImageControls: View {
             HStack(spacing: metric("tight")) {
                 if !statusOnly {
                     // "+" opens the shell's tools panel anchored here (attachments, chat mode, reasoning, voice).
-                    ShellToolbarButton(label: store.text("attachImage"), symbol: "plus", identifier: "tools-toggle", soft: selected, expanded: shellLayer == .tools, enabled: !busy,
+                    ShellToolbarButton(label: store.text("attachImage"), symbol: "plus", identifier: "tools-toggle", quiet: glassChat, soft: selected, expanded: shellLayer == .tools, enabled: !busy,
                                        frameAction: { frame in NotificationCenter.default.post(name: .viezanOpenTools, object: NSValue(rect: frame)) }) {}
                         .frame(width: metric("control"), height: metric("control"))
+                        .modifier(ControlGlass(active: glassChat, selected: selected || shellLayer == .tools, enabled: !busy))
                 }
                 if busy { ProgressView().controlSize(.small).accessibilityLabel(store.text("running")) }
                 if !pendingText.isEmpty { Button(store.text("insertTranscript")) { store.setDraft(store.session.id, store.session.draft + (store.session.draft.isEmpty ? "" : "\n") + pendingText); pendingText = "" } }
@@ -40,7 +42,7 @@ struct ImageControls: View {
     private var full: some View {
         VStack(alignment: .leading, spacing: metric("small")) {
             Menu { imageActions } label: { Label(store.text("attachImage"), systemImage: "plus") }
-                .menuStyle(.borderlessButton).fixedSize().help(store.text("attachImage")).tint(.primary)
+                .menuStyle(.button).buttonStyle(.vznQuiet).fixedSize().help(store.text("attachImage")).tint(.primary)
             if busy { ProgressView().controlSize(.small).accessibilityLabel(store.text("running")) }
             ForEach(store.session.images ?? []) { image in
                 HStack {

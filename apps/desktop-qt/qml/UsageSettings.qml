@@ -36,7 +36,7 @@ ColumnLayout {
     TextField { id: incoming; placeholderText: usage.t("usageInput"); Accessible.name: placeholderText; text: String(((usage.bridge.state.rates || {})[usage.modelID] || {}).input ?? "") }
     TextField { id: outgoing; placeholderText: usage.t("usageOutput"); Accessible.name: placeholderText; text: String(((usage.bridge.state.rates || {})[usage.modelID] || {}).output ?? "") }
     TextField { id: currency; placeholderText: usage.t("usageCurrency"); Accessible.name: placeholderText; maximumLength: 3; text: ((usage.bridge.state.rates || {})[usage.modelID] || {}).currency || "USD" }
-    Button { text: usage.t("apply"); onClicked: {
+    Kit.GlassButton { text: usage.t("apply"); onClicked: {
         var a = Number(incoming.text), b = Number(outgoing.text), code = currency.text.toUpperCase()
         invalid.visible = !incoming.text.trim() || !outgoing.text.trim() || !isFinite(a) || !isFinite(b) || a < 0 || b < 0 || a > 1000000 || b > 1000000 || !/^[A-Z]{3}$/.test(code)
         if (!invalid.visible) usage.bridge.command("usageRate", {model: usage.modelID, input: a, output: b, currency: code})

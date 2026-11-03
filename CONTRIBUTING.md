@@ -23,6 +23,7 @@ Run the checks for the affected targets. From the repository root:
 npm run check:resources
 npm run check:docs
 node --test scripts/native/__tests__/domain.test.mjs
+python3 -m unittest discover -s scripts/native/__tests__ -p 'test_*.py'
 
 # macOS
 swift test --package-path apps/macos

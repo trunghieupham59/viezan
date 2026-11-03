@@ -10,11 +10,11 @@ import ViezanDomain
 @MainActor func chromeColor(_ role: String, _ scheme: ColorScheme) -> Color {
     paletteColor(NativeTheme.shared.preferences.preset ?? "glass", role, scheme)
 }
-// Review 18: Glass owns navigation/chrome materials; content keeps Graphite
-// surfaces and text. Other personas own both layers.
+// Light Glass shares the cyan surface hierarchy with Qt. Dark reading
+// surfaces keep the established Graphite foundation.
 @MainActor func contentColor(_ role: String, _ scheme: ColorScheme) -> Color {
     let preset = NativeTheme.shared.preferences.preset ?? "glass"
-    return paletteColor(preset == "glass" ? "graphite" : preset, role, scheme)
+    return paletteColor(preset == "glass" && scheme == .dark ? "graphite" : preset, role, scheme)
 }
 @MainActor private func paletteColor(_ preset: String, _ role: String, _ scheme: ColorScheme) -> Color {
     let preferences = NativeTheme.shared.preferences
@@ -31,23 +31,42 @@ import ViezanDomain
 // persona's nav material; Reduce Transparency falls back to the solid role.
 struct ChromeSurface: View {
     var titlebar = false
+    var identifier: String? = nil
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
     var body: some View {
-        if reduceTransparency { chromeColor(titlebar ? "titlebar-bg" : "sidebar-bg", scheme) }
+        if reduceTransparency || contrast == .increased { chromeColor(titlebar ? "titlebar-bg" : "sidebar-bg", scheme) }
         else {
-            VisualEffectBackground(material: titlebar ? .titlebar : .sidebar)
-                .overlay(chromeColor(titlebar ? "titlebar-material" : "primary-nav-material", scheme))
+            let milkyGlass = scheme == .light && (NativeTheme.shared.preferences.preset ?? "glass") == "glass"
+            VisualEffectBackground(material: milkyGlass ? .sidebar : titlebar ? .titlebar : .sidebar, identifier: identifier)
+                .overlay {
+                    if milkyGlass && !titlebar {
+                        LinearGradient(colors: [chromeColor("titlebar-material", scheme), chromeColor("primary-nav-material", scheme)],
+                                       startPoint: .top, endPoint: .bottom)
+                    } else { chromeColor(titlebar ? "titlebar-material" : "primary-nav-material", scheme) }
+                }
         }
     }
 }
 
 struct VisualEffectBackground: NSViewRepresentable {
     var material: NSVisualEffectView.Material
+    var identifier: String? = nil
     func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView(); view.blendingMode = .behindWindow; view.state = .followsWindowActiveState; return view
+        let view = PassiveMaterialView()
+        view.blendingMode = .behindWindow
+        view.state = .followsWindowActiveState
+        view.setAccessibilityElement(false)
+        return view
     }
-    func updateNSView(_ view: NSVisualEffectView, context: Context) { view.material = material }
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {
+        view.material = material
+        view.setAccessibilityIdentifier(identifier)
+    }
+    final class PassiveMaterialView: NSVisualEffectView {
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
 }
 
 // Explicit chrome dividers keep fixture and live-window contrast identical.
@@ -174,9 +193,141 @@ struct ShellSurface: View {
     }
 }
 
-// Navigation is a continuous material column, not a floating glass card.
+// Bounded navigation floats below native window controls. Its cyan tint reads
+// as a separate layer above the app scene; the logo stays inside the pane.
 struct SidebarSurface: View {
-    var body: some View { ChromeSurface() }
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: metric("chromeSurfaceRadius"), style: .continuous) }
+    var body: some View {
+        floatingPane.allowsHitTesting(false).accessibilityHidden(true)
+    }
+    private var floatingPane: some View {
+        Group {
+            if reduceTransparency || contrast == .increased {
+                chromeColor("sidebar-bg", scheme)
+            } else if scheme == .light {
+                ChromeSurface(identifier: "navigation-frosted-material")
+            } else if #available(macOS 26.0, *) {
+                NavigationGlassMaterial(tint: NSColor(chromeColor("primary-nav-material", scheme)))
+            } else { ChromeSurface() }
+        }
+        .clipShape(shape)
+        .overlay {
+            if reduceTransparency || contrast == .increased {
+                shape.strokeBorder(chromeColor("border-strong", scheme), lineWidth: metric("hairline"))
+            } else {
+                shape.strokeBorder(
+                    LinearGradient(colors: [chromeColor("material-highlight", scheme),
+                                            chromeColor("material-border", scheme),
+                                            chromeColor("material-highlight", scheme)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing),
+                    lineWidth: metric("hairline"))
+            }
+        }
+        .shadow(color: Color(nsColor: .shadowColor).opacity(reduceTransparency || contrast == .increased ? 0 : metric("overlayShadowOpacity") / (scheme == .light ? 8 : 1)),
+                radius: metric("small"), y: metric("tight"))
+        .padding(.horizontal, metric("small"))
+        .padding(.top, ShellLayout.headerHeight + metric("small"))
+        .padding(.bottom, metric("small"))
+        .allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
+
+@available(macOS 26.0, *)
+struct NavigationGlassMaterial: NSViewRepresentable {
+    var tint: NSColor
+    func makeNSView(context: Context) -> MaterialView { MaterialView() }
+    func updateNSView(_ view: MaterialView, context: Context) { view.glass.tintColor = tint }
+    class MaterialView: NSView {
+        let backdrop = NSVisualEffectView()
+        let glass = NSGlassEffectView()
+        override init(frame: NSRect) {
+            super.init(frame: frame)
+            setAccessibilityIdentifier("navigation-glass-material")
+            setAccessibilityElement(false)
+            backdrop.material = .sidebar
+            backdrop.blendingMode = .behindWindow
+            backdrop.state = .followsWindowActiveState
+            glass.style = .regular
+            glass.cornerRadius = metric("chromeSurfaceRadius")
+            backdrop.setAccessibilityElement(false)
+            glass.setAccessibilityElement(false)
+            addSubview(backdrop)
+            addSubview(glass)
+        }
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+        override func layout() {
+            super.layout()
+            backdrop.frame = bounds
+            glass.frame = bounds
+        }
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
+}
+
+// One raised selection lens over the shared navigation pane. Idle rows stay
+// clear; hover borrows a softer lens. The Button and its label never change
+// identity when material appears, preserving keyboard and accessibility focus.
+struct NavigationButtonStyle: ButtonStyle {
+    var glass: Bool
+    var selected = false
+    var hovered = false
+    var resting = false
+    func makeBody(configuration: Configuration) -> some View {
+        NavigationButtonBody(configuration: configuration, glass: glass,
+                             selected: selected, hovered: hovered, resting: resting)
+    }
+}
+
+private struct NavigationButtonBody: View {
+    var configuration: ButtonStyleConfiguration
+    var glass: Bool
+    var selected: Bool
+    var hovered: Bool
+    var resting: Bool
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    private var solid: Bool { reduceTransparency || contrast == .increased }
+    private var interacting: Bool { enabled && (hovered || configuration.isPressed) }
+    private var radius: CGFloat { glass ? metric("compactControl") / 2 : metric("chromeItemRadius") }
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: radius, style: .continuous) }
+    var body: some View {
+        configuration.label
+            .opacity(enabled ? 1 : 0.5)
+            .background {
+                if glass {
+                    if selected || resting || interacting {
+                        Color.clear
+                            .modifier(ControlGlass(radius: radius, pressed: configuration.isPressed, enabled: enabled))
+                            // No painted face over the material. Transient hover
+                            // is softer than the persistent selected/search lens.
+                            .opacity(solid || selected || resting || configuration.isPressed ? 1 : 0.5)
+                            .allowsHitTesting(false).accessibilityHidden(true)
+                    }
+                } else {
+                    shape.fill(chromeColor(selected ? "chrome-item-active" : interacting ? "chrome-item-hover" : "sidebar-search-bg", scheme)
+                        .opacity(selected || interacting || resting ? 1 : 0))
+                        .overlay {
+                            if selected || resting { shape.strokeBorder(chromeColor("material-border", scheme), lineWidth: metric("hairline")) }
+                        }
+                }
+            }
+            .overlay {
+                if glass {
+                    if configuration.isPressed && enabled && !solid {
+                        shape.fill(chromeColor("chrome-fg", scheme).opacity(metric("selectionOpacity")))
+                            .allowsHitTesting(false).accessibilityHidden(true)
+                    }
+                }
+            }
+            // Keep the native focus halo inside the scroll bounds, including
+            // the first row, without shrinking the rectangular pointer target.
+            .contentShape(.focusEffect, shape.inset(by: metric("hairline") * 2))
+    }
 }
 
 // Text-bearing panels keep an opaque reading surface in every system mode.
@@ -184,12 +335,26 @@ struct SidebarSurface: View {
 // which let page text show through history, activity and the command palette.
 struct ReadingPanelSurface: View {
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
+    private var solid: Bool { reduceTransparency || contrast == .increased }
     var body: some View {
-        RoundedRectangle(cornerRadius: metric("surfaceRadius"))
-            .fill(contentColor("surface", scheme))
-            .overlay(RoundedRectangle(cornerRadius: metric("surfaceRadius"))
-                .strokeBorder(Color(nsColor: .separatorColor), lineWidth: metric("hairline")))
-            .shadow(color: Color(nsColor: .shadowColor).opacity(metric("overlayShadowOpacity")), radius: metric("inset"), y: metric("small"))
+        Group {
+            if glass {
+                // Reading panels share a quiet lit perimeter, never a blur
+                // behind list text. Interactive lenses live above this base.
+                ChatGlassSurface(radius: metric("chromeSurfaceRadius"))
+            } else {
+                RoundedRectangle(cornerRadius: metric("surfaceRadius"))
+                    .fill(contentColor("surface", scheme))
+                    .overlay(RoundedRectangle(cornerRadius: metric("surfaceRadius"))
+                        .strokeBorder(Color(nsColor: .separatorColor), lineWidth: metric("hairline")))
+            }
+        }
+        .shadow(color: Color(nsColor: .shadowColor).opacity(solid ? 0 : metric("overlayShadowOpacity") / (glass ? 3 : 1)),
+                radius: metric("inset"), y: metric("small"))
+        .allowsHitTesting(false).accessibilityHidden(true)
     }
 }
 
@@ -217,7 +382,9 @@ struct ShellToolbarButton: NSViewRepresentable {
     var symbol: String
     var identifier: String
     var showsLabel = false
-    /// Quiet: a labelled control without the pill surface (the composer's model chip).
+    /// Explicit opt-in for a quiet control; ordinary actions use the Glass preset automatically.
+    var glass = false
+    /// Quiet controls borrow their parent's material unless `glass` explicitly opts in.
     var quiet = false
     var small = false
     var primary = false
@@ -232,8 +399,10 @@ struct ShellToolbarButton: NSViewRepresentable {
     /// Receives the control's frame in window coordinates on activation, for a layer anchored to it.
     var frameAction: ((CGRect) -> Void)? = nil
     var action: () -> Void
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
     func makeCoordinator() -> Coordinator { Coordinator(self) }
-    func makeNSView(context: Context) -> FocusButton {
+    func makeNSView(context: Context) -> ButtonHost {
         let button = FocusButton()
         button.cell = PaddedButtonCell()
         button.bezelStyle = .toolbar
@@ -247,12 +416,13 @@ struct ShellToolbarButton: NSViewRepresentable {
         button.setContentHuggingPriority(.required, for: .horizontal)
         // A label never wraps inside the control; it truncates, and the full text stays in help.
         button.lineBreakMode = .byTruncatingTail
-        return button
+        return ButtonHost(button: button)
     }
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: FocusButton, context: Context) -> CGSize? {
-        nsView.intrinsicContentSize
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: ButtonHost, context: Context) -> CGSize? {
+        nsView.button.intrinsicContentSize
     }
-    func updateNSView(_ button: FocusButton, context: Context) {
+    func updateNSView(_ host: ButtonHost, context: Context) {
+        let button = host.button
         context.coordinator.parent = self
         // A state glyph swaps with a short cross-fade so the press visibly changes the control.
         if button.image != nil, !symbol.isEmpty, context.coordinator.symbol != symbol, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
@@ -269,7 +439,11 @@ struct ShellToolbarButton: NSViewRepresentable {
         button.emphasized = primary || soft || (expanded == true && identifier != "navigation-toggle")
         if let expanded { button.setAccessibilityExpanded(expanded) }
         button.panelAction = panelAction
-        button.bounded = showsLabel && !quiet
+        let glassPreset = (glass || !quiet) && (NativeTheme.shared.preferences.preset ?? "glass") == "glass"
+        button.bounded = (showsLabel && !quiet) || glassPreset
+        button.glassShape = glassPreset
+        button.opaqueSurface = reduceTransparency || contrast == .increased
+        button.usesGlass = glassPreset && !button.opaqueSurface
         (button.cell as? PaddedButtonCell)?.horizontalInset = showsLabel ? metric(quiet ? "small" : "inset") : 0
         button.invalidateIntrinsicContentSize()
         button.onTab = onTab
@@ -278,10 +452,16 @@ struct ShellToolbarButton: NSViewRepresentable {
             // focus graph re-entrantly during this update and spins (AttributeGraph cycle), e.g.
             // "New session" focused when interpretation starts. Defer it out of the update.
             if !enabled, button.window?.firstResponder === button {
-                DispatchQueue.main.async { [weak button] in button?.isEnabled = false; button?.refreshSurface() }
+                DispatchQueue.main.async { [weak button, weak host] in
+                    button?.isEnabled = false
+                    button?.refreshSurface()
+                    host?.updateGlass()
+                }
             } else { button.isEnabled = enabled }
         }
         button.refreshSurface()
+        host.updateGlass()
+        host.invalidateIntrinsicContentSize()
         button.toolTip = hint.isEmpty ? label : label + " (" + hint + ")"
         button.setAccessibilityLabel(label)
         button.setAccessibilityTitle(label)
@@ -290,6 +470,55 @@ struct ShellToolbarButton: NSViewRepresentable {
         if focusEpoch != context.coordinator.focusEpoch {
             context.coordinator.focusEpoch = focusEpoch
             if focusEpoch > 0 { button.requestFocusWhenAttached() }
+        }
+    }
+    // Keep the original NSButton mounted above the native material. A custom
+    // NSButtonCell does not draw AppKit's glass bezel reliably, while a separate
+    // effect view preserves the cell, key loop and exact shared control sizing.
+    class ButtonHost: NSView {
+        let button: FocusButton
+        private var materialView: NSView?
+        init(button: FocusButton) {
+            self.button = button
+            super.init(frame: .zero)
+            addSubview(button)
+        }
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+        override var intrinsicContentSize: NSSize { button.intrinsicContentSize }
+        override func layout() {
+            super.layout()
+            button.frame = bounds
+            materialView?.frame = bounds
+        }
+        override func viewDidChangeEffectiveAppearance() {
+            super.viewDidChangeEffectiveAppearance()
+            updateGlass()
+        }
+        func updateGlass() {
+            if #available(macOS 26.0, *), button.usesGlass {
+                let glass: NSGlassEffectView
+                if let existing = materialView as? NSGlassEffectView { glass = existing }
+                else {
+                    glass = NSGlassEffectView()
+                    glass.setAccessibilityElement(false)
+                    addSubview(glass, positioned: .below, relativeTo: button)
+                    materialView = glass
+                }
+                glass.cornerRadius = metric("compactControl") / 2
+                glass.style = .regular
+                let scheme: ColorScheme = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .dark : .light
+                if !button.isEnabled { glass.tintColor = nil }
+                else if button.panelAction == .destructive {
+                    glass.tintColor = NSColor(contentColor("danger", scheme)).withAlphaComponent(metric("selectionOpacity"))
+                } else if button.solidPrimary || button.panelAction == .primary {
+                    glass.tintColor = NSColor(contentColor(scheme == .dark || button.pressed ? "action-active" : button.hovered ? "action-hover" : "action", scheme))
+                } else {
+                    glass.tintColor = button.emphasized ? NSColor(chromeColor("action-soft", scheme)) : nil
+                }
+                glass.isHidden = false
+                glass.frame = bounds
+            } else { materialView?.isHidden = true }
+            needsLayout = true
         }
     }
     // AppKit's borderless image-leading cell otherwise puts the icon against
@@ -301,6 +530,9 @@ struct ShellToolbarButton: NSViewRepresentable {
         }
     }
     class FocusButton: NSButton {
+        var usesGlass = false
+        var glassShape = false
+        var opaqueSurface = false
         var titlebarControl = false
         var solidPrimary = false
         var hovered = false
@@ -322,7 +554,7 @@ struct ShellToolbarButton: NSViewRepresentable {
         var emphasized = false
         var bounded = false
         var panelAction: NativePanelAction?
-        private var surfaceRadius: CGFloat { panelAction == nil ? metric("compactControl") / 2 : metric("controlRadius") }
+        private var surfaceRadius: CGFloat { panelAction == nil || glassShape ? metric("compactControl") / 2 : metric("controlRadius") }
         var onTab: ((Bool) -> Void)?
         override func keyDown(with event: NSEvent) {
             if event.keyCode == 48, let onTab {
@@ -353,20 +585,49 @@ struct ShellToolbarButton: NSViewRepresentable {
         }
         func refreshSurface() {
             effectiveAppearance.performAsCurrentDrawingAppearance {
+                let scheme: ColorScheme = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .dark : .light
+                // The host owns refraction; the native button keeps input,
+                // disabled text and restrained hover/press feedback above it.
+                if #available(macOS 26.0, *), usesGlass {
+                    isBordered = false
+                    layer?.borderWidth = 0
+                    layer?.cornerRadius = surfaceRadius
+                    layer?.backgroundColor = (isEnabled && (pressed || hovered)
+                        ? NSColor(chromeColor(pressed ? "chrome-item-active" : "chrome-item-hover", scheme))
+                            .withAlphaComponent(metric("selectionOpacity") * (pressed ? 2 : 1))
+                        : NSColor.clear).cgColor
+                    contentTintColor = !isEnabled ? .disabledControlTextColor
+                        : panelAction == .destructive ? NSColor(contentColor("danger", scheme))
+                        : solidPrimary || panelAction == .primary ? NSColor(contentColor("action-fg", scheme))
+                        : NSColor(chromeColor(emphasized ? "action-text" : "chrome-fg", scheme))
+                    (superview as? ButtonHost)?.updateGlass()
+                    return
+                }
+                if bezelStyle != .toolbar { bezelStyle = .toolbar }
+                isBordered = false
+                bezelColor = nil
                 layer?.cornerRadius = surfaceRadius
                 layer?.borderWidth = bounded ? metric("hairline") : 0
                 let danger = panelAction == .destructive && isEnabled
                 let solid = panelAction == .primary && isEnabled
                 if panelAction == nil {
-                    let scheme: ColorScheme = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .dark : .light
                     let color: (String) -> NSColor = { NSColor(chromeColor($0, scheme)) }
                     layer?.borderColor = color("material-border").cgColor
-                    layer?.backgroundColor = (!isEnabled ? NSColor.controlBackgroundColor
+                    // Unbounded controls borrow the surrounding group's material,
+                    // including its disabled surface; never add a solid child plate.
+                    let fill = !isEnabled ? (bounded ? NSColor.controlBackgroundColor : NSColor.clear)
                         : solidPrimary ? color(hovered ? "action-hover" : "action")
                         : emphasized ? color("action-soft")
                         : pressed ? color(titlebarControl ? "chrome-item-active" : "surface-hover")
                         : hovered ? color(titlebarControl ? "chrome-item-hover" : "surface-hover")
-                        : bounded ? color("surface") : NSColor.clear).cgColor
+                        : bounded ? color("surface") : NSColor.clear
+                    // Flatten every state, including selection and hover, over
+                    // the opaque reading color when transparency is reduced.
+                    let base = NSColor(contentColor("surface", scheme)).withAlphaComponent(1)
+                    let resolved = opaqueSurface && fill.alphaComponent > 0
+                        ? base.blended(withFraction: fill.alphaComponent, of: fill.withAlphaComponent(1)) ?? base
+                        : fill
+                    layer?.backgroundColor = resolved.cgColor
                     contentTintColor = !isEnabled ? .disabledControlTextColor
                         : solidPrimary ? color("action-fg")
                         : emphasized ? color("action-text")
@@ -375,10 +636,15 @@ struct ShellToolbarButton: NSViewRepresentable {
                     return
                 }
                 layer?.borderColor = (danger ? NSColor.systemRed : NSColor.separatorColor).cgColor
-                layer?.backgroundColor = (solid ? NSColor.controlAccentColor
+                let fill = solid ? NSColor.controlAccentColor
                     : danger ? NSColor.systemRed.withAlphaComponent(metric("selectionOpacity"))
                     : emphasized && isEnabled ? NSColor.controlAccentColor.withAlphaComponent(metric("selectionOpacity"))
-                    : bounded ? NSColor.controlBackgroundColor : NSColor.clear).cgColor
+                    : bounded ? NSColor.controlBackgroundColor : NSColor.clear
+                let base = NSColor(contentColor("surface", scheme)).withAlphaComponent(1)
+                let resolved = opaqueSurface && fill.alphaComponent > 0
+                    ? base.blended(withFraction: fill.alphaComponent, of: fill.withAlphaComponent(1)) ?? base
+                    : fill
+                layer?.backgroundColor = resolved.cgColor
                 contentTintColor = !isEnabled ? .disabledControlTextColor
                     : solid ? .alternateSelectedControlTextColor : danger ? .systemRed
                     : emphasized ? .controlAccentColor : .labelColor
@@ -429,45 +695,103 @@ struct ShellToolbarButton: NSViewRepresentable {
 
 // Only the empty header surface drags; controls retain their native hit targets.
 struct WindowDragRegion: NSViewRepresentable {
-    func makeNSView(context: Context) -> DragView { DragView() }
-    func updateNSView(_ view: DragView, context: Context) {}
+    // Only the sidebar's fixed top row owns traffic-light alignment. Other
+    // draggable headers must not race to reposition the same system controls.
+    var alignsWindowControls = false
+    func makeNSView(context: Context) -> DragView {
+        let view = DragView(); view.alignsWindowControls = alignsWindowControls; return view
+    }
+    func updateNSView(_ view: DragView, context: Context) {
+        view.alignsWindowControls = alignsWindowControls
+        view.scheduleAlignment()
+    }
     class DragView: NSView {
+        var alignsWindowControls = false {
+            didSet { if oldValue != alignsWindowControls { observeWindowGeometry() } }
+        }
+        private var alignmentQueued = false
+        private var aligning = false
+        private var observedGeometry: [ObjectIdentifier] = []
         override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            NotificationCenter.default.removeObserver(self, name: NSWindow.didResizeNotification, object: nil)
-            NotificationCenter.default.removeObserver(self, name: NSWindow.didExitFullScreenNotification, object: nil)
-            if let window {
-                NotificationCenter.default.addObserver(self, selector: #selector(windowGeometryChanged), name: NSWindow.didResizeNotification, object: window)
-                NotificationCenter.default.addObserver(self, selector: #selector(windowGeometryChanged), name: NSWindow.didExitFullScreenNotification, object: window)
+            observeWindowGeometry()
+        }
+        private func observeWindowGeometry() {
+            NotificationCenter.default.removeObserver(self)
+            observedGeometry = []
+            guard alignsWindowControls, let window else { return }
+            for name in [NSWindow.didResizeNotification, NSWindow.didExitFullScreenNotification,
+                         NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification,
+                         NSWindow.didBecomeMainNotification, NSWindow.didResignMainNotification,
+                         NSWindow.didDeminiaturizeNotification] {
+                NotificationCenter.default.addObserver(self, selector: #selector(windowGeometryChanged), name: name, object: window)
             }
-            windowGeometryChanged()
+            observeControlGeometry(in: window)
+            scheduleAlignment()
+        }
+        private func observeControlGeometry(in window: NSWindow) {
+            var views: [NSView] = []
+            var seen: Set<ObjectIdentifier> = []
+            for kind in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+                var ancestor: NSView? = window.standardWindowButton(kind)
+                while let view = ancestor {
+                    if seen.insert(ObjectIdentifier(view)).inserted { views.append(view) }
+                    ancestor = view.superview
+                }
+            }
+            let identities = views.map(ObjectIdentifier.init)
+            guard identities != observedGeometry else { return }
+            observedGeometry = identities
+            let center = NotificationCenter.default
+            center.removeObserver(self, name: NSView.frameDidChangeNotification, object: nil)
+            center.removeObserver(self, name: NSView.boundsDidChangeNotification, object: nil)
+            for view in views {
+                // AppKit can reset these frames after SwiftUI has finished its
+                // layout, even though the window and our header did not resize.
+                view.postsFrameChangedNotifications = true
+                view.postsBoundsChangedNotifications = true
+                center.addObserver(self, selector: #selector(windowGeometryChanged), name: NSView.frameDidChangeNotification, object: view)
+                center.addObserver(self, selector: #selector(windowGeometryChanged), name: NSView.boundsDidChangeNotification, object: view)
+            }
         }
         override func layout() {
             super.layout()
-            // SwiftUI may still reposition ancestors during this layout pass.
-            DispatchQueue.main.async { [weak self] in self?.alignWindowControls() }
+            scheduleAlignment()
         }
-        @objc private func windowGeometryChanged() {
-            // Height-only resize can reset AppKit controls without laying out
-            // this fixed-height titlebar view again.
-            DispatchQueue.main.async { [weak self] in self?.alignWindowControls() }
+        @objc private func windowGeometryChanged() { scheduleAlignment() }
+        func scheduleAlignment() {
+            guard alignsWindowControls, window != nil, !aligning, !alignmentQueued else { return }
+            alignmentQueued = true
+            // Coalesce native frame notifications and let the current layout
+            // finish. Ignore notifications caused by our own correction.
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.alignmentQueued = false
+                self.alignWindowControls()
+            }
         }
         private func alignWindowControls() {
-            guard let window, window.styleMask.contains(.titled),
-                  !window.styleMask.contains(.fullScreen), bounds.height > 0 else { return }
+            guard alignsWindowControls, let window, window.styleMask.contains(.titled),
+                  !window.styleMask.contains(.fullScreen), !window.isMiniaturized, bounds.height > 0 else { return }
+            aligning = true
+            defer { aligning = false }
+            observeControlGeometry(in: window)
             // The system titlebar container is shorter than the Review 18 header
-            // row; grow it so centered window controls are not clipped.
+            // row. Repair origins too: AppKit can move it without changing its
+            // height, which previously left the controls ten points out of line.
             if let titlebar = window.standardWindowButton(.closeButton)?.superview,
-               let container = titlebar.superview, let frame = container.superview,
-               abs(container.frame.height - bounds.height) > metric("hairline") {
-                container.frame = NSRect(x: 0, y: frame.bounds.height - bounds.height, width: frame.bounds.width, height: bounds.height)
-                titlebar.frame = container.bounds
+               let container = titlebar.superview, let frame = container.superview {
+                let top = frame.isFlipped ? frame.bounds.minY : frame.bounds.maxY - bounds.height
+                let target = NSRect(x: frame.bounds.minX, y: top, width: frame.bounds.width, height: bounds.height)
+                if container.frame != target { container.frame = target }
+                if titlebar.frame != container.bounds { titlebar.frame = container.bounds }
             }
             for kind in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
                 guard let button = window.standardWindowButton(kind), let parent = button.superview else { continue }
                 let center = convert(NSPoint(x: bounds.midX, y: bounds.midY), to: parent)
-                button.setFrameOrigin(NSPoint(x: button.frame.minX, y: center.y - button.frame.height / 2))
+                let origin = NSPoint(x: button.frame.minX, y: center.y - button.frame.height / 2)
+                if abs(button.frame.minY - origin.y) > metric("hairline") / 2 { button.setFrameOrigin(origin) }
             }
         }
     }
@@ -513,6 +837,9 @@ struct NativeNavigation: View {
     var close: (() -> Void)?
     @Environment(\.colorScheme) private var scheme
     @State private var hoveredItem: String?
+    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
+    // Increase the row-to-pane gap without moving the existing icon/text axes.
+    private var rowInset: CGFloat { metric(glass ? "gap" : "inset") }
     // Review 18: one workspace list, then a single system group that ends in Settings.
     private let workspaceItems: [(String, String)] = [("chat", "bubble.left.and.bubble.right"), ("translate", "translate"), ("interpret", "waveform"), ("dictionary", "book"), ("everywhere", "text.viewfinder")]
     private let systemItems: [(String, String)] = [("apps", "macwindow"), ("thermal", "thermometer.medium"), ("utilities", "command")]
@@ -526,34 +853,32 @@ struct NativeNavigation: View {
                 }
                 if expanded { Text("Viezan").font(.vzn("titleScale", .semibold)).fontWeight(.semibold).transition(.opacity); Spacer(minLength: 0) }
                 if let close { ShellCloseButton(label: store.text("close"), focusOnAppear: true, action: close) }
-            }.frame(height: metric("navControl")).padding(.horizontal, expanded ? metric("gap") : 0)
+            }.frame(minHeight: metric("compactControl")).padding(.horizontal, expanded ? metric(glass ? "small" : "gap") : 0)
             Button(action: commands) {
-                HStack {
-                    if !expanded { Image(systemName: "magnifyingglass").frame(width: metric("icon")) }
+                HStack(spacing: metric("gap")) {
+                    Image(systemName: "magnifyingglass").frame(width: metric("icon")).accessibilityHidden(true)
                     if expanded {
                         Text(store.text("searchEverything")).lineLimit(1)
                         Spacer(minLength: metric("tight"))
                         Text("⌘ K").font(.vzn("captionScale")).accessibilityHidden(true)
                     }
-                }.padding(.horizontal, expanded ? metric("inset") : 0)
-                    .frame(maxWidth: .infinity).frame(height: metric("compactControl"))
+                }.padding(.horizontal, expanded ? rowInset : 0)
+                    .frame(maxWidth: expanded || !glass ? .infinity : nil)
+                    .frame(width: glass && !expanded ? metric("compactControl") : nil, height: metric("compactControl"))
                     .font(.system(size: NSFont.systemFontSize * metric("smallScale")))
-                    // Expanded it reads as a field; in the rail it is one more quiet icon, like the rows.
-                    .background(expanded ? chromeColor("sidebar-search-bg", scheme) : hoveredItem == "search" ? chromeColor("chrome-item-hover", scheme) : .clear, in: RoundedRectangle(cornerRadius: metric("chromeItemRadius")))
-                    .overlay(RoundedRectangle(cornerRadius: metric("chromeItemRadius")).strokeBorder(expanded ? chromeColor("material-border", scheme) : .clear, lineWidth: metric("hairline")))
-            }.buttonStyle(.plain).foregroundStyle(chromeColor(hoveredItem == "search" ? "chrome-fg" : "chrome-fg-muted", scheme))
+            }.buttonStyle(NavigationButtonStyle(glass: glass, hovered: hoveredItem == "search", resting: glass || expanded))
+                .frame(maxWidth: .infinity).foregroundStyle(chromeColor(hoveredItem == "search" ? "chrome-fg" : "chrome-fg-muted", scheme))
                 .onHover { hoveredItem = $0 ? "search" : nil }
                 .accessibilityIdentifier("navigation-search")
                 .accessibilityLabel(store.text("searchEverything") + " · " + store.text("commands")).help(store.text("commands") + " (⌘K)")
             ScrollView {
                 VStack(alignment: .leading, spacing: metric("tight")) {
-                    Color.clear.frame(height: metric("small")).accessibilityHidden(true)
                     row("home", "house")
                     ForEach(workspaceItems.filter { store.moduleEnabled($0.0) }, id: \.0) { id, symbol in row(id, symbol) }
                     if expanded {
                         Text(store.text("groupSystem").uppercased()).font(.vzn("captionScale")).tracking(metric("hairline"))
                             .foregroundStyle(chromeColor("chrome-fg-soft", scheme))
-                            .padding(.horizontal, metric("inset")).padding(.top, metric("gap")).padding(.bottom, metric("tight"))
+                            .padding(.horizontal, rowInset).padding(.top, metric("gap")).padding(.bottom, metric("tight"))
                             .accessibilityAddTraits(.isHeader).transition(.opacity)
                     } else { ChromeDivider().padding(.vertical, metric("small")) }
                     ForEach(systemItems.filter { store.moduleEnabled($0.0) }, id: \.0) { id, symbol in row(id, symbol) }
@@ -562,8 +887,14 @@ struct NativeNavigation: View {
             }.scrollIndicators(.hidden).frame(maxHeight: .infinity)
             backgroundStrip
             if expanded { privacyFooter }
-        }.padding(metric("small"))
-            .foregroundStyle(chromeColor("chrome-fg", scheme)).background { ChromeSurface() }
+        }.padding(.vertical, metric("small"))
+            // Keep the brand row clear of the window-control row and of the
+            // floating pane's rounded shoulder in every presentation.
+            .padding(.top, glass ? metric("gap") : 0)
+            .padding(.horizontal, metric(glass ? "gap" : "small"))
+            .padding(.bottom, glass ? metric("small") : 0)
+            .foregroundStyle(chromeColor("chrome-fg", scheme))
+            .background { if !glass { ChromeSurface() } }
             .accessibilityElement(children: .contain).accessibilityLabel(store.text("primaryNavigation"))
     }
     /// What keeps running behind the pages: fan control, global shortcuts.
@@ -585,27 +916,33 @@ struct NativeNavigation: View {
             ChromeDivider().padding(.vertical, metric("tight"))
             VStack(alignment: .leading, spacing: 0) {
                     Text(store.text("backgroundRunning").uppercased()).font(.vzn("captionScale")).tracking(metric("hairline"))
-                        .foregroundStyle(chromeColor("chrome-fg-soft", scheme)).padding(.horizontal, metric("inset")).padding(.bottom, metric("tight")).accessibilityAddTraits(.isHeader)
+                        .foregroundStyle(chromeColor("chrome-fg-soft", scheme)).padding(.horizontal, rowInset).padding(.bottom, metric("tight")).accessibilityAddTraits(.isHeader)
                     ForEach(rows, id: \.route) { row in
                         Button { select(row.route) } label: {
                             HStack(spacing: metric("small")) { StatusDot(tone: .ready); Text(row.text).lineLimit(1); Spacer(minLength: 0) }
-                                .font(.vzn("smallScale")).padding(.horizontal, metric("inset")).frame(height: metric("compactControl") - metric("tight")).contentShape(Rectangle())
-                        }.buttonStyle(.plain).foregroundStyle(chromeColor("chrome-fg-muted", scheme)).accessibilityIdentifier("background-" + row.route)
+                                .font(.vzn("smallScale")).padding(.horizontal, rowInset).frame(height: metric("compactControl") - metric("tight")).contentShape(Rectangle())
+                        }.buttonStyle(NavigationButtonStyle(glass: glass, hovered: glass && hoveredItem == "background-" + row.route))
+                            .onHover { hoveredItem = $0 ? "background-" + row.route : nil }
+                            .foregroundStyle(chromeColor("chrome-fg-muted", scheme)).accessibilityIdentifier("background-" + row.route)
                     }
             }.accessibilityElement(children: .contain).accessibilityLabel(store.text("backgroundRunning"))
         }
     }
-    // Local-first reminder; data never leaves the device unless a provider is chosen.
+    // Storage is a static fact, separate from live background services and AI processing.
     private var privacyFooter: some View {
-        HStack(alignment: .firstTextBaseline, spacing: metric("small")) {
-            StatusDot(tone: .ready)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(store.text("privacyTitle")); Text(store.text("privacyHint"))
-            }.lineLimit(1)
-            Spacer(minLength: 0)
-        }.font(.vzn("smallScale")).foregroundStyle(chromeColor("chrome-fg-muted", scheme))
-            .padding(.horizontal, metric("inset")).padding(.vertical, metric("small"))
-            .accessibilityElement(children: .combine)
+        VStack(alignment: .leading, spacing: metric("small")) {
+            ChromeDivider()
+            HStack(alignment: .firstTextBaseline, spacing: metric("small")) {
+                Image(systemName: "internaldrive").accessibilityHidden(true)
+                Text(store.text("privacyTitle")).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }.font(.vzn("smallScale")).foregroundStyle(chromeColor("chrome-fg-muted", scheme))
+                .padding(.horizontal, rowInset).padding(.vertical, metric("tight"))
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(store.text("privacyTitle"))
+                .accessibilityHint(store.text("privacyHint"))
+                .help(store.text("privacyHint"))
+        }
     }
     private func row(_ id: String, _ symbol: String) -> some View {
         let implemented = ["home", "chat", "translate", "dictionary", "settings", "utilities", "everywhere", "thermal", "interpret", "apps"].contains(id)
@@ -617,6 +954,7 @@ struct NativeNavigation: View {
         return Button { select(id) } label: {
             HStack(spacing: metric("gap")) {
                 Image(systemName: symbol).symbolRenderingMode(.monochrome).imageScale(.medium).frame(width: metric("icon"))
+                    .foregroundStyle(chromeColor(glass && screen == id ? "action-text" : screen == id ? "chrome-item-active-fg" : "chrome-fg", scheme))
                     .overlay(alignment: .topTrailing) {
                         if !expanded, missingKey || running != nil { StatusDot(tone: missingKey ? .failed : .ready).offset(x: metric("tight"), y: -metric("tight")) }
                     }
@@ -624,13 +962,14 @@ struct NativeNavigation: View {
                     Text(store.text(id)).lineLimit(1).transition(.opacity); Spacer(minLength: 0)
                     if missingKey { HStack(spacing: metric("tight")) { StatusDot(tone: .failed); Text(store.text("keyAbsent")).font(.vzn("captionScale")) }.foregroundStyle(chromeColor("chrome-fg-muted", scheme)) }
                 }
-            }.padding(.horizontal, expanded ? metric("inset") : 0)
-                .frame(maxWidth: .infinity, alignment: expanded ? .leading : .center).frame(height: metric("compactControl"))
+            }.padding(.horizontal, expanded ? rowInset : 0)
+                .frame(maxWidth: expanded || !glass ? .infinity : nil, alignment: expanded ? .leading : .center)
+                .frame(width: glass && !expanded ? metric("compactControl") : nil, height: metric("compactControl"))
                 .contentShape(Rectangle())
-        }.buttonStyle(.plain).foregroundStyle(chromeColor(screen == id ? "chrome-item-active-fg" : "chrome-fg", scheme))
+        }.buttonStyle(NavigationButtonStyle(glass: glass, selected: screen == id, hovered: hoveredItem == id))
+            .frame(maxWidth: .infinity)
+            .foregroundStyle(chromeColor(screen == id ? "chrome-item-active-fg" : "chrome-fg", scheme))
             .font(.system(size: NSFont.systemFontSize * metric("labelScale"), weight: screen == id ? .semibold : .regular))
-            .background(screen == id ? chromeColor("chrome-item-active", scheme) : enabled && hoveredItem == id ? chromeColor("chrome-item-hover", scheme) : .clear, in: RoundedRectangle(cornerRadius: metric("chromeItemRadius")))
-            .overlay(RoundedRectangle(cornerRadius: metric("chromeItemRadius")).strokeBorder(screen == id ? chromeColor("material-highlight", scheme) : .clear, lineWidth: metric("hairline")))
             .onHover { hoveredItem = $0 && enabled ? id : nil }
             .accessibilityLabel(store.text(id) + (missingKey ? ": " + store.text("keyAbsent") : railNote)).accessibilityIdentifier("nav-" + id)
             .accessibilityAddTraits(screen == id ? .isSelected : []).disabled(!enabled)
@@ -661,6 +1000,7 @@ enum PaletteQuery: Equatable {
 
 struct NativeCommands: View {
     @Environment(\.colorScheme) private var scheme
+    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     @Bindable var store: WorkbenchStore
     var historyAvailable = true
     var availableHeight: CGFloat
@@ -728,10 +1068,20 @@ struct NativeCommands: View {
                                     }.padding(.horizontal, metric("small")).frame(maxWidth: .infinity, alignment: .leading)
                                         .frame(height: metric("compactControl")).contentShape(Rectangle())
                                 }.buttonStyle(.plain).focusable(false)
+                                    .fontWeight(glass && offset == index ? .semibold : .regular)
                                     .foregroundStyle(offset == index ? contentColor("action-text", scheme) : Color.primary)
                                     .onHover { if $0 { index = offset } }
                                     .help(item.title)
-                                    .background(offset == index ? contentColor("action-soft", scheme) : Color.clear, in: RoundedRectangle(cornerRadius: metric("radius")))
+                                    .background {
+                                        if offset == index {
+                                            if glass {
+                                                Color.clear.modifier(ControlGlass(radius: metric("compactControl") / 2))
+                                                    .allowsHitTesting(false).accessibilityHidden(true)
+                                            } else {
+                                                RoundedRectangle(cornerRadius: metric("radius")).fill(contentColor("action-soft", scheme))
+                                            }
+                                        }
+                                    }
                                     .accessibilityAddTraits(offset == index ? .isSelected : []).id(item.id)
                             }
                         }.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }

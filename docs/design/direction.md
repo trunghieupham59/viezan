@@ -31,18 +31,59 @@ prototype Review 18.
 
 ## Tinh thần
 
-Một bàn làm việc yên tĩnh. Canvas trung tính, điều hướng là một cột vật liệu hệ
-thống liền (không phải thẻ kính nổi), nội dung đọc trên bề mặt đục có viền
-mảnh. Một màu nhấn xanh cho *đang chọn / tạo mới / gửi*; đỏ chỉ cho *dừng /
-xoá / đặt lại*. Mỗi vùng tối đa một nút solid. Không dashboard KPI, không
-gradient, không bóng đổ nặng. Chữ hệ thống (SF), mọi cỡ là tỷ lệ trên cỡ gốc.
+Một bàn làm việc yên tĩnh, với phân lớp rõ ở Glass sáng: nền cyan, pane
+điều hướng xanh nhạt, workspace xanh băng và card trắng xanh. Chữ hệ thống,
+vùng đọc/nhập đục và một màu nhấn cho *đang chọn / tạo mới / gửi*; đỏ chỉ cho
+*dừng / xoá / đặt lại*. Không thêm dashboard KPI, dữ liệu giả hay bóng nặng.
+
+Ảnh dashboard cyan được người dùng chọn lại ngày 2026-11-02 **thay thế quyết
+định kính liền sky/sage của vòng Finder trước**. Bản trước phẳng vì nền trang
+và card cùng màu. `app-bg` giờ lộ ra quanh pane; `canvas` là workspace,
+`surface` là card sáng hơn. Nền chuyển cyan rất nhẹ để tạo ánh sáng của cả
+cảnh; card chỉ có cạnh sáng mềm và bóng thấp. Không thêm ảnh nền hay blur
+cho vùng văn bản.
+
+Pane điều hướng có lề `small` (8 pt), góc `chromeSurfaceRadius` (26 pt), bắt
+đầu dưới header 48 pt cộng `small`; không chạm nút cửa sổ. Workspace bắt
+đầu cùng cao độ, lề ngang `inset` (16 pt) ở desktop / `gap` (12 pt) ở cửa
+sổ hẹp, đáy `gap`. `WorkspacePage` trừ lề ngoài khỏi đệm trong 44 pt cũ để
+giữ ngân sách chiều ngang. Trang chủ gom bắt đầu nhanh, việc gần đây và
+trạng thái mô hình thật thành các panel; không thêm route hay rail trùng.
+
+Giữ hàng nút cửa sổ và nút thu gọn cố định, bề rộng điều hướng 236/68 pt,
+logo 28 pt và đệm trong phía trên 12 pt. Mục chọn sáng hơn, chữ semibold,
+icon xanh; focus bàn phím là trạng thái riêng. Glass sáng dùng accent xanh
+dương có chữ trắng rõ; mode, preset và accent người dùng vẫn độc lập.
+
+macOS giữ vật liệu native ở chrome; Qt dùng các lớp màu đục tương ứng,
+không tuyên bố có khúc xạ Apple hay blur desktop. Reduce Transparency /
+Increase Contrast dùng nền đục và cạnh rõ. Glass tối giữ pane nổi và bảng
+màu cũ, các preset khác giữ hình học và màu của chúng. Mặc định desktop
+1044 × 760, tối thiểu 640 × 480, breakpoint 900; cửa sổ co giãn tự do,
+không khoá tỷ lệ. Runtime Windows/Linux cần nghiệm thu riêng.
+
+### Áp dụng bộ ảnh tham chiếu Liquid Glass (2026-11-02)
+
+- Thanh điều hướng capsule và mẫu Finder: Glass sáng dùng pane cyan tách lớp theo
+  tinh chỉnh mới ở trên, Glass tối giữ pane nổi; mục đang
+  chọn là lớp nền trung tính sáng hơn, nhãn semibold và icon theo accent hiện có.
+  Focus bàn phím vẫn là trạng thái riêng. Tìm kiếm có icon ở cả hai bề rộng;
+  khi rail, nút tìm là một hình tròn riêng. Giữ thứ tự route và breakpoint 900.
+- Các mẫu thẻ sáng/tối: dùng `chromeCardRadius` (18 pt) cho thẻ nội dung ở Glass,
+  `chromeControlRadius` (16 pt) cho nút SwiftUI và toolbar Qt; các control Qt
+  thông thường giữ hành vi và nội dung native của toolkit. Ánh sáng chỉ nằm trên viền; vùng chữ,
+  bảng, lịch sử và composer giữ nền đục. Các preset khác giữ hình học của chúng.
+- Bộ lọc SwiftUI và Qt dùng một nền nhóm nhẹ và pill kính nổi cho mục đang chọn,
+  lấy tinh thần của thanh capsule; Qt dùng chung `Kit.FilterGroup`/`FilterButton`.
+- Các mẫu widget màu gợi ý nhấn trạng thái bằng màu ngữ nghĩa. Không thêm widget,
+  dữ liệu KPI, ảnh nền hay motion trang trí vào luồng làm việc của Viezan.
 
 ## Khung ứng dụng
 
 - Hai cột: điều hướng 236 pt (rail 68 pt khi thu gọn hoặc cửa sổ < 900 pt, đủ
   chỗ cho ba nút đèn kết thúc ở 59 pt) và
-  vùng làm việc. Không có dải titlebar riêng: nút cửa sổ nằm ở hàng đầu của
-  sidebar (40 pt), header ngữ cảnh 48 pt thẳng hàng với nó.
+  vùng làm việc. Không có dải titlebar riêng: nút cửa sổ và nút thu gọn nằm
+  giữa cùng hàng đầu 48 pt, thẳng hàng với header ngữ cảnh.
 - Nút thu gọn (quy tắc Finder, chốt 2026-11-02 sau khi hướng cũ bị loại): một
   vị trí cửa sổ duy nhất, ngay sau ba nút đèn (`trafficLights + gap`), ở mọi
   trạng thái và bề rộng. Mở rộng thì nó thuộc hàng đầu sidebar; rail thì nó
@@ -53,15 +94,26 @@ gradient, không bóng đổ nặng. Chữ hệ thống (SF), mọi cỡ là t�
   giữ chuột thì nền `chrome-item-active`. Bấm chuột không để lại vòng
   focus (focus chỉ giữ khi kích hoạt bằng bàn phím hoặc trợ năng). Đổi bề
   rộng chạy `durationNormal` (easeOut), nhãn mờ dần; Reduce Motion chuyển
-  tức thì.
+  tức thì. Hàng đầu sidebar là nơi duy nhất căn ba nút cửa sổ; theo dõi cả
+  thay đổi frame của nút và titlebar do AppKit thực hiện muộn, kể cả khi cửa
+  sổ không resize. Sau khi kích hoạt lại hoặc thoát toàn màn hình phải giữ
+  cùng trục dọc, không làm nút thu gọn nhảy theo sidebar.
 - Sidebar: logo + "Viezan" (viết hoa chữ đầu), ô "Tìm ⌘K", danh sách làm việc
   (Trang chủ, AI Chat, Dịch, Phiên dịch, Từ điển, Dịch mọi nơi), nhóm HỆ THỐNG
   (Ứng dụng, Nhiệt độ & quạt, Launcher & phím tắt, Cài đặt), dải "Đang chạy
-  nền", chân "Lưu trên thiết bị". Mục đang chọn: nền `chrome-item-active`, chữ
-  semibold; lề trái mục là `inset` 16 pt nên trục icon (34 pt) trùng tâm rail.
+  nền", chân "Lịch sử lưu trên thiết bị" tách bằng vạch ngăn, dùng icon ổ lưu
+  trữ trung tính, không dùng chấm trạng thái. Chú giải và tên mô tả trợ năng nói
+  rõ AI xử lý trên thiết bị hoặc qua cloud, tuỳ mô hình. Mục đang chọn dùng
+  chữ semibold; Glass dùng nền trung tính và icon accent theo bộ ảnh tham chiếu
+  ở trên, các preset khác giữ `chrome-item-active`. Focus bàn phím vẫn theo
+  control native. Lề trái mục là `gap` 12 pt trong Glass và `inset` 16 pt ở
+  các preset khác, giữ trục icon trùng tâm rail. Hàng thương hiệu cao tối thiểu `compactControl` 32 pt,
+  không thêm spacer trước mục Trang chủ; giữ nguyên chiều cao các mục điều hướng.
   Logo 28 pt ở cả hai trạng thái, tâm trùng trục icon nên không nhảy khi đổi.
-  Rail chỉ có một loại hình: tìm kiếm là icon lặng cùng
-  cỡ các mục (không viền), trạng thái chạy nền là chấm trên icon của route đó
+  Nội dung Glass có thêm `gap` (12 pt) ở phía trên để logo và tên cách hàng
+  nút cửa sổ, đồng thời tránh góc bo của pane tối; áp dụng cả mở rộng, rail và overlay.
+  Trong Glass, tìm kiếm ở rail là nút tròn 32 pt có viền sáng nhẹ;
+  các preset khác giữ icon lặng cùng cỡ các mục. Trạng thái chạy nền là chấm trên icon của route đó
   (có nhãn trợ năng), không có dải hay chân riêng.
 - Header: một tiêu đề ngữ cảnh bên trái (`Tính năng / tên phiên`, hoặc
   breadcrumb `Không gian làm việc / Trang` ở trang hệ thống). Bên phải, cùng
@@ -107,9 +159,65 @@ gradient, không bóng đổ nặng. Chữ hệ thống (SF), mọi cỡ là t�
 | `Font.vzn("…Scale", weight)` | Mọi cỡ chữ: caption 11 · small 12 · body 13 · label 14 · subtitle 15 · section 16 · title 18 · heading 22 · display 28 · hero 32. | `.callout`, `.caption`, `.headline`, `.title2`… của hệ thống (đã thay toàn bộ 2026-11-02). |
 | `contentColor(role)` / `chromeColor(role)` | Mọi màu. | `Color(nsColor: .systemRed)`, `.accentColor.opacity(…)`. |
 
-Ô nhập chữ: viền `border`, khi focus chỉ đổi sang `border-strong` và hiện con
-trỏ; không bao giờ có viền màu nhấn. Composer Chat là một bề mặt duy nhất bo
-20 pt, viền hairline, không bóng, không khung ngoài.
+Ô nhập chữ thông thường: viền `border`, khi focus đổi sang `border-strong`
+và hiện con trỏ. Composer Chat là một bề mặt duy nhất, viền hairline, không
+khung ngoài. Glass giữ viền focus trung tính và caret cho mặt nhập;
+nút điều khiển có chỉ báo focus bàn phím riêng.
+
+### Nút Glass toàn ứng dụng — sửa vật liệu 2026-11-03
+
+Người dùng xác nhận áp dụng cho toàn bộ Viezan. Lượt trước chỉ sơn nền đục
+và viền sáng nên nút còn phẳng; không coi đó là hoàn tất chất liệu kính.
+SwiftUI dùng `ControlGlass` với `glassEffect` trên macOS 26+, AppKit dùng
+`NSGlassEffectView` sau chính NSButton hiện có. Không đặt fill đục trước
+vật liệu. macOS cũ dùng material dự phòng; Reduce Transparency/Increase
+Contrast giữ bề mặt đặc. Qt dùng mặt bán trong, phản sáng hai mép và bóng
+cục bộ; đây là mô phỏng quang học trong scene, không phải kính Apple hay
+blur desktop.
+
+- Primary, secondary và icon/quiet actions kế thừa vật liệu qua thành phần
+  chung. Menu ngôn ngữ, nhóm bộ lọc và trigger trước đây bỏ qua style chung
+  cũng dùng kính. Control ở trạng thái disabled còn hình dáng kính trung
+  tính nhưng không tương tác; hành động nguy hiểm giữ màu và semantics riêng.
+- Nhóm model/thu âm Chat chỉ có một vật liệu chung; các nút con không thêm
+  lớp kính thứ hai. Bộ lọc dùng một nền nhóm lõm nhẹ, pill chọn là lớp kính nổi;
+  mục nghỉ để trong và hover nhẹ hơn trạng thái chọn.
+- Hàng nội dung đọc, danh sách lịch sử và control chọn của hệ thống giữ đúng
+  vai trò; không biến mọi vùng click được thành một capsule nổi. Nền soạn,
+  transcript và card nội dung không nhận blur của control.
+- Xác nhận chất liệu bằng app đang chạy; ảnh cache AppKit có thể bỏ mất
+  lớp compositor của `glassEffect`. Kiểm tra bố cục đạt không đồng nghĩa
+  người dùng đã chấp nhận hình ảnh.
+
+### AI Chat với Glass — cấu trúc theo ảnh tham chiếu 2026-11-02
+
+- Dùng hình học và hướng ánh sáng của bốn ảnh nút/menu/composer/thanh công cụ:
+  mặt kính sạch, mép sáng trên-trái và dưới-phải, lòng nút có chuyển sắc nhẹ.
+  Màu theo preset và accent hiện tại. Không đưa nền neon, hạt lấp lánh hoặc
+  model minh hoạ trong ảnh vào sản phẩm.
+- Composer một dòng cao 52 pt, bo 26 pt: nút `+` tròn 36 pt, vùng nhập linh
+  hoạt, model và thu âm chung một capsule, Gửi/Dừng là nút 36 pt riêng. Khi
+  nhiều dòng, có ảnh hoặc vùng composer hẹp hơn 504 pt, hàng công cụ xuống
+  dưới; giữ cùng editor, bản nháp, con trỏ và cơ chế IME. Trần vẫn là 5 dòng.
+- Nút Gửi dùng `action` ở sáng, `action-active` ở tối và chữ `action-fg`;
+  không phủ trắng làm nhạt màu nền nút chính. Nút chưa dùng được giữ trạng
+  thái disabled gốc. Waveform tĩnh là nút thu âm sẵn có, không phải tính năng
+  voice chat mới; lúc ghi âm vẫn dùng trạng thái Dừng/đang ghi thật.
+- Mặt nhập và danh sách model đục để chữ giữ độ tương phản. Viền kính chỉ
+  trang trí, không bắt chuột. Focus mặt nhập dùng caret và viền trung tính
+  `border-strong`; nút vẫn có focus riêng. Reduce Transparency hoặc Increase
+  Contrast dùng bề mặt đặc và viền rõ thay hiệu ứng mép sáng.
+- Model đang dùng có một lớp kính sáng thường trực và dấu ✓. Hàng đang đi
+  tới bằng bàn phím có viền riêng; hover, selected và disabled phân biệt.
+  Model/tools/instructions của macOS dùng bề mặt bo 26 pt; mỗi hàng bo 16 pt.
+  Qt giữ popup của ComboBox và cơ chế model hiện có, áp dụng cùng lớp sáng
+  cho hàng chọn. Chưa coi đây là hoàn tất parity chức năng ModelPanel.
+- Cấu trúc Chat giữ một composer và các bảng điều khiển đã chọn. Vật liệu
+  nút đã mở rộng toàn app theo yêu cầu 2026-11-03; bản ghi vẫn dùng nền đọc
+  ổn định, shell/Home cyan và các preset khác giữ hướng đã chọn.
+
+Chi tiết phân tích và mức kiểm chứng nằm trong
+[báo cáo Chat Glass](../migration/reports/native-migration-report-20261102-chat-glass.md).
 
 ## AI Chat: trạng thái trống và composer (chốt 2026-11-02, vòng 2)
 
@@ -214,8 +322,9 @@ trỏ; không bao giờ có viền màu nhấn. Composer Chat là một bề m�
   trên nền `surface-subtle`, bo `controlRadius`, viền hairline `border` và
   `border-strong` khi đang nhập, không vòng focus hệ thống; cao một `control`,
   trong header là `compactControl`). Lịch sử nhanh, thư viện, lịch sử Phiên
-  dịch, chọn model, ⌘K và Cài đặt dùng chung; cùng hình dạng với ô "Tìm ⌘K"
-  ở sidebar. Hàng composer không
+  dịch, chọn model, ⌘K và Cài đặt dùng chung. "Tìm ⌘K" ở sidebar là nút
+  mở bảng lệnh; preset Glass dùng capsule hoặc nút tròn khi thu gọn.
+  Hàng composer không
   thêm chip cho chế độ hay suy luận: chế độ Web/Nghiên cứu/Tạo ảnh đổi
   placeholder ("Tìm trên web rồi trả lời…") và nút "+" sang trạng thái chọn;
   suy luận kỹ đọc trên chip model; lỗi đính kèm là toast, không có biểu tượng

@@ -102,14 +102,14 @@ const makePalettes = (preset, roles, accent = "auto") => Object.fromEntries(['li
   return [mode, Object.fromEntries(roles.map(role => [role,resolve(`--vzn-${role}`)]))]
 }))
 const palettes = makePalettes('graphite', ['canvas','surface','sidebar-bg','surface-hover','text','text-muted','border','border-strong','action','action-text','action-fg','surface-subtle','text-disabled','danger','success','warning'])
-const chromePalettes = makePalettes('glass', ['app-bg','sidebar-bg','titlebar-bg','surface','surface-raised','border-strong','text','text-strong','text-muted','text-soft','border','divider','action-text','action-soft','action','action-hover','action-fg','surface-hover','chrome-fg-strong','chrome-fg-muted','chrome-fg-soft','chrome-accent','chrome-item-active','chrome-item-hover','chrome-fg','chrome-item-active-fg','material-border','material-highlight','primary-nav-material','titlebar-material','sidebar-search-bg','surface-muted'])
+const chromePalettes = makePalettes('glass', ['app-bg','sidebar-bg','titlebar-bg','surface','surface-raised','border-strong','text','text-strong','text-muted','text-soft','border','divider','action-text','action-soft','action','action-hover','action-active','action-fg','surface-hover','chrome-fg-strong','chrome-fg-muted','chrome-fg-soft','chrome-accent','chrome-item-active','chrome-item-hover','chrome-fg','chrome-item-active-fg','material-border','material-highlight','primary-nav-material','titlebar-material','sidebar-search-bg','surface-muted'])
 const themePalettes = {}
 const themeRoles = Array.from(new Set([...Object.keys(palettes.light), ...Object.keys(chromePalettes.light)]))
 for (const preset of ['graphite','glass','paper','corporate','midnight']) for (const accent of ['auto','violet','pink','teal','green','amber','red']) {
   themePalettes[preset + ':' + accent] = makePalettes(preset, themeRoles, accent)
 }
 // Glass chrome geometry follows the same preset as its generated colors.
-for (const [key, token] of Object.entries({chromeSearchRadius: '--vzn-radius-sm', chromeShortcutRadius: '--vzn-radius-xs', chromeItemRadius: '--vzn-radius-control'})) {
+for (const [key, token] of Object.entries({chromeSearchRadius: '--vzn-radius-sm', chromeShortcutRadius: '--vzn-radius-xs', chromeItemRadius: '--vzn-radius-control', chromeControlRadius: '--vzn-radius-control', chromeCardRadius: '--vzn-radius-md', chromeSurfaceRadius: '--vzn-radius-xl'})) {
   const value = declarations(paletteBlock('glass', 'light'))[token]
   if (!/^\d+(?:\.\d+)?px$/.test(value)) throw new Error(`Missing Glass metric ${token}`)
   metrics[key] = Number(value.slice(0, -2))
@@ -187,13 +187,16 @@ for (const relative of ['apps/macos/Sources/ViezanDomain/Resources/native.json',
   const destination = path.join(root, relative)
   if (process.argv.includes('--check')) {
     if (!fs.existsSync(destination) || fs.readFileSync(destination, 'utf8') !== output) throw new Error(`Stale native resources: ${relative}`)
-  } else fs.writeFileSync(destination, output)
+  } else if (!fs.existsSync(destination) || fs.readFileSync(destination, 'utf8') !== output) {
+    // Preserve timestamps so a dev reload does not invalidate unchanged resources.
+    fs.writeFileSync(destination, output)
+  }
 }
 const brandSource = path.join(root, 'public/icon.png')
 const qtBrand = path.join(root, 'apps/desktop-qt/qml/brand.png')
 if (process.argv.includes('--check')) {
   if (!fs.readFileSync(brandSource).equals(fs.readFileSync(qtBrand))) throw new Error('Stale Qt brand asset')
-} else {
+} else if (!fs.existsSync(qtBrand) || !fs.readFileSync(brandSource).equals(fs.readFileSync(qtBrand))) {
   fs.copyFileSync(brandSource, qtBrand)
 }
 console.log(`Native resources ${process.argv.includes('--check') ? 'verified' : 'generated'}: 3 locales, ${Object.keys(metrics).length} metrics.`)

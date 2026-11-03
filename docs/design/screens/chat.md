@@ -1,5 +1,33 @@
 # AI Chat
 
+## Native hiện tại — Glass, 2026-11-02
+
+Phần native tuân theo [direction.md](../direction.md), không lấy thông số
+Electron bên dưới làm chuẩn triển khai. SwiftUI ở `Workspaces.swift`,
+`NativeKit.swift`, `ModelPanel.swift` và `ComposerPanels.swift`; Qt ở
+`Main.qml` và `Kit.qml`.
+
+Glass dùng composer capsule 52 pt/bo 26 pt, nút `+` riêng, nhóm model/thu âm
+chung một lớp kính và Gửi/Dừng riêng. Nhiều dòng, ảnh đính kèm hoặc vùng
+composer dưới 504 pt chuyển các nút xuống hàng dưới mà giữ cùng editor.
+Nội dung nở tới năm dòng rồi cuộn. Hàng model được chọn có lớp sáng và dấu ✓;
+viền bàn phím khác với trạng thái chọn. Màu theo preset hiện tại, nền nhập
+đục, chữ rõ. Từ 2026-11-03, nút và nhóm model/thu âm dùng vật liệu control
+thật trên macOS 26+, cùng fallback theo nền tảng; không còn chỉ sơn viền
+và chuyển sắc trên nền đục. Xem [nút Glass toàn app](../direction.md).
+Giữ nguyên ID model,
+scope của phiên, gửi/dừng, thu âm, phím tắt và IME.
+
+Từ 2026-11-03, composer dùng mặt nhập lõm nhẹ, nền đục và viền focus trung
+tính thay cho vòng xanh dày. Ô tìm model/lịch sử có dáng capsule; panel model,
+công cụ và hướng dẫn dùng chung mặt đọc, bán kính và viền sáng của shell.
+Caret và focus bàn phím trên nút vẫn riêng biệt, không thay đổi editor khi focus.
+
+[Báo cáo kiểm chứng](../../migration/reports/native-migration-report-20261102-chat-glass.md)
+phân biệt source, fixture, build và live acceptance. Các mục từ đây trở xuống
+là đặc tả Electron lịch sử; popup Qt hiện chưa có toàn bộ khả năng ModelPanel
+của macOS.
+
 > Bản vẽ gốc: `boards/Chat.dc.html`, `boards/ChatExtras.dc.html`, `boards/Popovers.dc.html` (cột "Chọn model" và "Tác vụ Chat"), `boards/States.dc.html` (Chat · chưa có AI nào, Chat · lỗi nhà cung cấp), `boards/Narrow.dc.html` · Board chi tiết: `specs/chat.html` · Mã nguồn: `src/pages/ChatPage.tsx`, `src/components/organisms/AIChatSidebar.tsx`, khung trang trong `src/App.tsx`
 
 Luật chung (token, hợp đồng Button, bậc bề mặt, responsive, trạng thái) nằm ở [`foundations.md`](../foundations.md). Tài liệu này chỉ ghi phần riêng của AI Chat. Mọi khẳng định đều dẫn về mã; điều mã chưa có được đánh dấu **đề xuất**.

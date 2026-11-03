@@ -41,6 +41,9 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
     }
     @State private var screen = "home"
     @State private var shell = ShellPresentation()
+    #if DEBUG
+    @State private var development = DevelopmentReload()
+    #endif
     var body: some Scene {
         Window("Viezan", id: "workbench") {
             WorkbenchView(store: store, screen: $screen, shell: shell) { window in delegate.window = window; window.isReleasedWhenClosed = false }
@@ -66,6 +69,17 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
         .windowResizability(.automatic)
         .windowStyle(.hiddenTitleBar)
         .commands {
+            #if DEBUG
+            CommandMenu(store.text("devMenu")) {
+                Button(store.text(development.building ? "devRebuilding" : "devReload")) {
+                    development.reload(store: store)
+                }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .disabled(development.building || !development.available)
+                Button(store.text("devOpenBuildLog")) { development.openLog() }
+                    .disabled(!development.available)
+            }
+            #endif
             CommandGroup(replacing: .appSettings) {
                 Button(store.text("settings")) { shell.issue("settings") }.keyboardShortcut(",")
             }
@@ -126,6 +140,8 @@ struct WorkbenchView: View {
     @State private var composerFocus = 0
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var glassNavigation: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
+    private var lightGlass: Bool { glassNavigation && scheme == .light }
     private var navigationAnimation: Animation? { reduceMotion ? nil : .easeOut(duration: metric("durationNormal")) }
     private var settings: Bool { ["settings", "utilities", "everywhere", "thermal", "interpret", "apps"].contains(screen) }
     private var home: Bool { screen == "home" }
@@ -167,11 +183,22 @@ struct WorkbenchView: View {
                             sidebarTop(layout)
                             NativeNavigation(store: store, screen: screen, expanded: !layout.compact && !store.workspace.navigationCollapsed, select: select, commands: { execute("commands") })
                         }.frame(width: layout.navigationWidth)
+                            .background {
+                                if glassNavigation { SidebarSurface() }
+                            }
+                            // The temporary pane replaces the rail visually and
+                            // in accessibility, avoiding doubled glass and rows.
+                            .opacity(glassNavigation && shell.overlay == .navigation ? 0 : 1)
+                            .accessibilityHidden(shell.overlay == .navigation)
                             // Explicit value animation: the column and its labels move together on every path (⌘\, menu, button).
                             .animation(navigationAnimation, value: store.workspace.navigationCollapsed)
-                        ChromeDivider(vertical: true)
+                        Group {
+                            if glassNavigation { Color.clear.frame(width: metric("hairline")) }
+                            else { ChromeDivider(vertical: true) }
+                        }
                         VStack(spacing: 0) {
                             header(layout)
+                            VStack(spacing: 0) {
                             if let error = store.storageError {
                                 ViewThatFits(in: .horizontal) {
                                     HStack(alignment: .top, spacing: metric("inset")) { storageMessage(error); Spacer(minLength: metric("small")); retryStorage }
@@ -214,7 +241,9 @@ struct WorkbenchView: View {
                                     else { TranslationWorkspace(store: store, focusEpoch: composerFocus) }
                                 }.disabled(store.loadBlocked)
                             }
-                        }.frame(maxWidth: .infinity, maxHeight: .infinity).background(contentColor("surface", scheme))
+                            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .modifier(WorkspaceSurface(compact: layout.compact))
+                        }.frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     if let overlay = shell.overlay {
                         // Deliberate native hit surface: outside click closes the temporary layer.
@@ -222,12 +251,16 @@ struct WorkbenchView: View {
                             .buttonStyle(.plain).accessibilityHidden(true).focusable(false)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         if [.models, .tools, .instructions].contains(overlay), let anchor = layerAnchor {
-                            // Anchored layers sit above their control when there is room (the composer is at
-                            // the bottom), else below it; width is the panel width, height bounded by the stage.
-                            let width = metric("sidebar") + metric("editor")
-                            let height = min(metric("editor") * 3, geometry.size.height - ShellLayout.headerHeight - metric("inset") * 2)
+                            // Choose the side with enough space, then bound the
+                            // panel to that side. A centred empty composer has
+                            // less room below it than the whole stage height.
+                            let width = min(metric("sidebar") + metric("editor"), geometry.size.width - metric("inset") * 2)
+                            let idealHeight = metric("editor") * 3
                             let top = geometry.size.height - anchor.maxY
-                            let fitsAbove = top - metric("small") - height >= ShellLayout.headerHeight
+                            let above = max(0, top - metric("small") - ShellLayout.headerHeight - metric("inset"))
+                            let below = max(0, anchor.minY - metric("small") - metric("inset"))
+                            let fitsAbove = above >= idealHeight || above >= below
+                            let height = min(idealHeight, fitsAbove ? above : below)
                             // The panel hugs its content inside a slot of the maximum height; the slot is
                             // aligned so the panel's edge stays against the control whatever its height.
                             Group {
@@ -248,12 +281,16 @@ struct WorkbenchView: View {
                         } else if overlay == .navigation {
                             // The first row stays clear for the window controls and the fixed toggle.
                             VStack(spacing: 0) {
-                                Color.clear.frame(height: ShellLayout.titlebarHeight).background { ChromeSurface() }
+                                Color.clear.frame(height: glassNavigation ? ShellLayout.headerHeight : ShellLayout.titlebarHeight)
+                                    .background { if !glassNavigation { ChromeSurface() } }
                                 NativeNavigation(store: store, screen: screen, expanded: true, select: select, commands: { execute("commands") }, close: dismissOverlay)
                             }.frame(width: layout.navigationOverlayWidth)
                                 .frame(maxHeight: .infinity)
-                                .overlay(alignment: .trailing) { ChromeDivider(vertical: true) }
-                                .shadow(color: Color(nsColor: .shadowColor).opacity(metric("overlayShadowOpacity")), radius: metric("inset"), y: metric("small"))
+                                .background { if glassNavigation { SidebarSurface() } }
+                                .overlay(alignment: .trailing) {
+                                    if !glassNavigation { ChromeDivider(vertical: true) }
+                                }
+                                .shadow(color: Color(nsColor: .shadowColor).opacity(glassNavigation ? 0 : metric("overlayShadowOpacity")), radius: metric("inset"), y: metric("small"))
                                 .accessibilityIdentifier("navigation-overlay")
                         } else {
                             Group {
@@ -266,6 +303,13 @@ struct WorkbenchView: View {
                                 .background { ReadingPanelSurface() }
                                 .offset(x: overlay == .commands ? (geometry.size.width - layout.panelWidth) / 2 : layout.panelX(anchor: overlay == .history ? historyAnchor : nil), y: (overlay == .commands ? 0 : ShellLayout.headerHeight) + metric("inset"))
                         }
+                    }
+                }
+                .background {
+                    if lightGlass {
+                        LinearGradient(colors: [chromeColor("titlebar-bg", scheme), chromeColor("app-bg", scheme)],
+                                       startPoint: .topTrailing, endPoint: .bottomLeading)
+                            .allowsHitTesting(false).accessibilityHidden(true)
                     }
                 }
                 // Transient navigation/panel shadows belong below system chrome.
@@ -336,12 +380,13 @@ struct WorkbenchView: View {
     private static var toggleTrailing: CGFloat { toggleLeading + metric("control") }
     private func sidebarTop(_ layout: ShellLayout) -> some View {
         Color.clear.frame(height: ShellLayout.headerHeight)
-            .background { ChromeSurface().overlay { WindowDragRegion() } }
+            .background { if !glassNavigation { ChromeSurface() } }
+            .overlay { WindowDragRegion(alignsWindowControls: true) }
     }
     private func header(_ layout: ShellLayout) -> some View {
         HStack(spacing: metric("small")) {
             if shell.library {
-                ShellToolbarButton(label: store.text("back"), symbol: "arrow.left", identifier: "history-back") {
+                ShellToolbarButton(label: store.text("back"), symbol: "arrow.left", identifier: "history-back", glass: true) {
                     shell.library = false
                     shell.focusEpochs["history", default: 0] += 1
                 }
@@ -354,35 +399,45 @@ struct WorkbenchView: View {
                         .frame(width: metric("sidebar"))
                 }
                 if workspacePage && store.moduleEnabled("utilities") {
-                    ShellToolbarButton(label: store.text("launcher"), symbol: "command", identifier: "launcher-open", showsLabel: !layout.compact, enabled: !store.loadBlocked) { store.desktopIntegration.onAction?("launcher") }
+                    ShellToolbarButton(label: store.text("launcher"), symbol: "command", identifier: "launcher-open", showsLabel: !layout.compact, glass: true, enabled: !store.loadBlocked) { store.desktopIntegration.onAction?("launcher") }
                 }
                 if screen == "interpret" {
-                    ShellToolbarButton(label: store.text("summarizeShort"), symbol: "sparkles", identifier: "interpret-summarize", showsLabel: !layout.compact, enabled: !store.interpretation.busy && !(store.interpretation.current?.segments.isEmpty ?? true)) { store.interpretation.summarize(kind: "summary") }
-                    ShellToolbarButton(label: store.text("history"), symbol: "clock", identifier: "interpret-history", showsLabel: !layout.compact, enabled: !store.interpretation.busy) { NotificationCenter.default.post(name: .viezanInterpretHistory, object: nil) }
-                    ShellToolbarButton(label: store.text("newInterpretation"), symbol: "plus", identifier: "interpret-new", showsLabel: !layout.compact, soft: true, enabled: !store.interpretation.busy) { store.interpretation.clearSelection() }
+                    ShellToolbarButton(label: store.text("summarizeShort"), symbol: "sparkles", identifier: "interpret-summarize", showsLabel: !layout.compact, glass: true, enabled: !store.interpretation.busy && !(store.interpretation.current?.segments.isEmpty ?? true)) { store.interpretation.summarize(kind: "summary") }
+                    ShellToolbarButton(label: store.text("history"), symbol: "clock", identifier: "interpret-history", showsLabel: !layout.compact, glass: true, enabled: !store.interpretation.busy) { NotificationCenter.default.post(name: .viezanInterpretHistory, object: nil) }
+                    ShellToolbarButton(label: store.text("newInterpretation"), symbol: "plus", identifier: "interpret-new", showsLabel: !layout.compact, glass: true, soft: true, enabled: !store.interpretation.busy) { store.interpretation.clearSelection() }
                     ChromeDivider(vertical: true).frame(height: metric("compactControl"))
                 }
                 if !home && !settings && !shell.library && store.workspace.feature == .translate {
-                    ShellToolbarButton(label: store.text("addImage"), symbol: "photo", identifier: "translate-add-image", showsLabel: !layout.compact, enabled: !store.loadBlocked && (store.session.images ?? []).isEmpty) { NotificationCenter.default.post(name: .viezanAttachImage, object: nil) }
+                    ShellToolbarButton(label: store.text("addImage"), symbol: "photo", identifier: "translate-add-image", showsLabel: !layout.compact, glass: true, enabled: !store.loadBlocked && (store.session.images ?? []).isEmpty) { NotificationCenter.default.post(name: .viezanAttachImage, object: nil) }
                 }
                 if !home && !settings && !shell.library && store.workspace.feature == .dictionary {
-                    ShellToolbarButton(label: store.text("savedWords"), symbol: "books.vertical", identifier: "dictionary-saved", showsLabel: !layout.compact, enabled: !store.loadBlocked) { shell.libraryFavorites = true; shell.library = true }
+                    ShellToolbarButton(label: store.text("savedWords"), symbol: "books.vertical", identifier: "dictionary-saved", showsLabel: !layout.compact, glass: true, enabled: !store.loadBlocked) { shell.libraryFavorites = true; shell.library = true }
                 }
                 if !home && !settings && !shell.library {
-                    ShellToolbarButton(label: store.text("history"), symbol: "clock", identifier: "history-toggle", showsLabel: !layout.compact, expanded: shell.overlay == .history, hint: "⌘⇧H", enabled: !store.loadBlocked, focusEpoch: shell.focusEpochs["history", default: 0]) { execute("history") }
+                    ShellToolbarButton(label: store.text("history"), symbol: "clock", identifier: "history-toggle", showsLabel: !layout.compact, glass: true, expanded: shell.overlay == .history, hint: "⌘⇧H", enabled: !store.loadBlocked, focusEpoch: shell.focusEpochs["history", default: 0]) { execute("history") }
                         .background { GeometryReader { proxy in
                             Color.clear.preference(key: HistoryAnchorPreference.self, value: proxy.frame(in: .named("workbench")).maxX)
                         } }
-                    ShellToolbarButton(label: store.text(store.workspace.feature == .chat ? "newChat" : store.workspace.feature == .dictionary ? "newLookup" : "newTranslation"), symbol: "plus", identifier: "new-work", showsLabel: !layout.compact, soft: true, hint: "⌘N", enabled: !store.loadBlocked) { execute("new") }
+                    ShellToolbarButton(label: store.text(store.workspace.feature == .chat ? "newChat" : store.workspace.feature == .dictionary ? "newLookup" : "newTranslation"), symbol: "plus", identifier: "new-work", showsLabel: !layout.compact, glass: true, soft: true, hint: "⌘N", enabled: !store.loadBlocked) { execute("new") }
                     ChromeDivider(vertical: true).frame(height: metric("compactControl"))
                 }
-                ShellToolbarButton(label: store.text("activity"), symbol: "waveform.path.ecg", identifier: "activity-toggle", showsLabel: !layout.compact, expanded: shell.overlay == .activity, hint: "⌘⇧A", count: store.workspace.tasks.filter { $0.status == .running }.count + (store.interpretation.busy ? 1 : 0), focusEpoch: shell.focusEpochs["activity", default: 0]) { execute("activity") }
+                ShellToolbarButton(label: store.text("activity"), symbol: "waveform.path.ecg", identifier: "activity-toggle", showsLabel: !layout.compact, glass: true, expanded: shell.overlay == .activity, hint: "⌘⇧A", count: store.workspace.tasks.filter { $0.status == .running }.count + (store.interpretation.busy ? 1 : 0), focusEpoch: shell.focusEpochs["activity", default: 0]) { execute("activity") }
             }.fixedSize(horizontal: true, vertical: false).frame(height: metric("control")).layoutPriority(1)
                 .padding(.trailing, metric("inset"))
         }.padding(.leading, max(metric("gutter"), Self.toggleTrailing + metric("small") - layout.navigationWidth - metric("hairline")))
             .frame(height: ShellLayout.headerHeight)
             .foregroundStyle(chromeColor("text-strong", scheme))
-            .background { contentColor("surface", scheme).overlay(chromeColor("titlebar-material", scheme)).overlay { WindowDragRegion() } }
+            .background {
+                Group {
+                    if lightGlass {
+                        Color.clear
+                    } else if glassNavigation {
+                        ChromeSurface(titlebar: true)
+                    } else {
+                        contentColor("surface", scheme).overlay(chromeColor("titlebar-material", scheme))
+                    }
+                }.overlay { WindowDragRegion() }
+            }
             .accessibilityElement(children: .contain)
     }
     // Workspace pages read "Workspace / Page"; feature pages read "Feature / Session".
@@ -415,6 +470,7 @@ struct ModelPicker: View {
     var badge = false
     // Dense: the one-row chat composer; the model reads at small size and muted colour.
     var dense = false
+    var glassChat = false
     @Environment(\.colorScheme) private var scheme
     var body: some View { compactMenu }
     @Environment(\.shellLayer) private var shellLayer
@@ -423,10 +479,11 @@ struct ModelPicker: View {
     private var compactMenu: some View {
         HStack(spacing: metric("tight")) {
             if modelUnavailable(store.session.model, store: store) { StatusDot(tone: .failed) }
-            ShellToolbarButton(label: (store.session.carefulReasoning == true ? store.text("tierCareful") + " · " : "") + ModelLineup.shortName(store.session.model), symbol: badge ? "sparkles" : "chevron.down", identifier: "model-toggle", showsLabel: true, quiet: true, small: dense || badge,
+            ShellToolbarButton(label: (store.session.carefulReasoning == true ? store.text("tierCareful") + " · " : "") + ModelLineup.shortName(store.session.model), symbol: badge ? "sparkles" : "chevron.down", identifier: "model-toggle", showsLabel: true, glass: !glassChat, quiet: true, small: (dense || badge) && !glassChat,
                                expanded: shellLayer == .models, hint: store.session.model, enabled: !store.loadingModels,
                                frameAction: { frame in NotificationCenter.default.post(name: .viezanOpenModels, object: NSValue(rect: frame)) }) {}
-                .frame(height: metric(dense || badge ? "compactControl" : "control"))
+                .frame(maxWidth: glassChat ? metric("compactSidebar") : nil)
+                .frame(height: metric(glassChat ? "control" : dense || badge ? "compactControl" : "control"))
                 .accessibilityLabel(store.text("model") + ": " + store.session.model + (modelUnavailable(store.session.model, store: store) ? ", " + store.text("unavailable") : ""))
             if store.loadingModels { ProgressView().controlSize(.small) }
             if let error = store.modelError { Image(systemName: "exclamationmark.triangle").foregroundStyle(.secondary).help(store.text(error)).accessibilityLabel(store.text(error)) }
