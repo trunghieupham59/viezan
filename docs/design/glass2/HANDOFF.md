@@ -142,11 +142,9 @@ Mỗi mục: board → thay đổi so với bản dựng hiện tại → giữ 
   bản ghi khi phiên dừng; menu ✦, Xuất, popover lịch sử, phụ đề nổi tối 78 %.
 - Giữ: toàn bộ luồng thu âm, nguồn âm thanh, quyền, Undo.
 
-### Từ điển (`Dictionary`)
-- Đổi: ô tra 36 + ô ngữ cảnh 32 xếp dọc, "Tra từ" chính bên phải; kết quả trong
-  cột 760: headword 28, hàng phiên âm + chip + loa + Dịch / AI Chat kính; seg
-  Ý nghĩa / Ví dụ; nghĩa đánh số 01 02 mono; thẻ Ví dụ.
-- Giữ: giới hạn 120 / 500 ký tự, Từ đã lưu, bàn giao sang Dịch / Chat.
+### Từ điển
+Board `Dictionary` và `Dictionary-States` đã gỡ ngày 2026-11-03 (Đợt 3 và
+Đợt 8 dựng theo chúng). Bản hiện hành là mục "Từ điển · bản vẽ lại" bên dưới.
 
 ### Trang hệ thống (`Everywhere`, `Apps`, `Thermal`, `Shortcuts`, `Shortcuts-Recorder`)
 - Đổi: intro 22 + câu mục đích; thẻ `.card` với `.srow`; chip trạng thái; Ứng
@@ -168,9 +166,133 @@ Mỗi mục: board → thay đổi so với bản dựng hiện tại → giữ 
   với ba trạng thái.
 - Giữ: phím tắt, vị trí 22 % từ đỉnh, ẩn khi mất focus, luồng cập nhật.
 
+### Bổ sung sau Đợt 1–7 (`*-Compact`, `Nav-Overlay`, `Shell-*`, `*-States`)
+
+Vẽ ngày 2026-11-03 từ các "Chênh lệch còn lại" của báo cáo Đợt 1–7: những
+trạng thái và cửa sổ mà bản dựng phải tự suy ra vì chưa có board. Ba hàng
+cuối của canvas; mỗi board `*-States` là nhiều khối có chú thích, số đo
+nằm trong HTML như mọi board khác.
+
+- `Home-Compact`, `Chat-Compact` (820×640, rail): header icon-only, intro
+  20, dải model rút thành pill "● Haiku 5.5 ▾", Bắt đầu nhanh 2×2; cột chat
+  bằng mặt đọc trừ 2×24, composer rộng theo cột.
+- `Nav-Overlay` (820×640): dưới 900 pt, ⌘\ hoặc nút thu gọn mở pane 236
+  tạm thời đè lên mặt đọc (bóng 24/64, scrim 10 %); rail ẩn; đóng khi chọn
+  mục hoặc Esc; không đổi `navigationCollapsed` đã lưu.
+- `Shell-Minimum` (640×480): rail, breadcrumb chỉ còn tên trang, composer
+  gộp model vào nút tròn kính; `Shell-States` (1280×800): dải thông báo xếp
+  ngay dưới header trong mặt đọc (lỗi lưu đỏ 7 %, đang ghi âm nhấn 6 %, phiên
+  dịch chạy nền xanh 7 %, cao 44, vạch dưới), badge Hoạt động, dòng nhắc 12
+  giữa transcript và composer; `Shell-Solid`: Reduce Transparency — kính
+  thành mặt đặc `#FBF8F3` / pane `#F4EEE6` / mặt đọc trắng, viền 14 %, không
+  blur; Increase Contrast tăng viền lên 24 %.
+- `Chat-States`: đang trả lời (Gửi → Dừng tròn viền đỏ 35 %, chip
+  "Đang trả lời…", con trỏ 2 pt nhấn, `aria-busy`), lượt lỗi (khối đỏ 7 %
+  viền 16 %, Thử lại nhấn, chip meta đỏ), composer nhiều dòng (bo 24, đệm 12,
+  dải ảnh 56 có nút bỏ 20, hàng điều khiển riêng), thẻ Nghiên cứu (5 bước,
+  truy vấn, phát hiện, chip thời gian + Dừng), kết quả Tạo hình ảnh 216,
+  bốn dòng nhắc trên composer.
+- `Translate-States`: đang dịch (hàng ngôn ngữ khoá, Dừng đỏ ở chân nguyên
+  bản, chip + khung chờ ở pane bản dịch), dịch ảnh (nút Ảnh bật, thẻ ảnh 96×72
+  + chữ đã trích sửa được), vượt 5 000 (đếm đỏ đậm, nhãn "Quá giới hạn", Dịch
+  vô hiệu), dòng lượt mới sau nghỉ, So sánh bước 2 chế độ Theo câu (ô đang
+  chọn nhấn 8 % viền 30 %, bản ghép ở chân).
+- `Interpret-States`: sẵn sàng (chip xanh, "Bắt đầu phiên dịch" chính, minh
+  hoạ sóng tone xanh lá, ba thẻ phải ở trạng thái chờ), đã dừng (chip trung
+  tính "Đã dừng · mm:ss", Phiên mới + Bắt đầu), thiếu quyền (chip ấm, thẻ
+  quyền 520 giữa cột), menu model 320 kèm "Tuỳ chọn ghi âm…", dải lỗi lưu
+  lịch sử phiên dịch, toast lỗi thu âm hệ thống.
+- `Thermal-States`: chưa theo dõi, thiếu reader, helper không chạy (chip
+  trạng thái + ba hành động), lớp Profile 420 (hàng 48, đang dùng là lens +
+  chip, profile tự tạo có Xoá, lưu ở chân), lớp Quy tắc 420 (tên, nguồn nhiệt,
+  hai stepper, đường cong), hộp thoại bật helper và nhận diện cảm biến, hàng
+  tiến trình nhận diện trong thẻ Nhiệt độ.
+- `Apps-States`: dải kết quả xanh 10 % với Hoàn tác, ứng dụng bị khoá (thẻ
+  quyền ấm thay kế hoạch), xác nhận giữa cửa sổ 440 (tiêu đề có số mục, đường
+  dẫn mono, nút đỏ đặc), lớp Nhật ký & hoàn tác 420, bố cục hẹp hơn cột đọc
+  (chi tiết thay danh sách, nút quay lại), không tìm thấy ứng dụng.
+- `History-States`: xem trước phiên Dịch (thẻ Nguyên bản + Bản dịch phẳng),
+  phiên Từ điển (seg phụ, phiên âm, chip, Đã lưu, nghĩa đánh số), không có kết
+  quả (nút Lưu trữ bật màu nhấn), hộp thoại Đổi tên và Xoá vĩnh viễn.
+- `Launcher-States`: truy vấn trống (Gợi ý + Gần đây, chân tiền tố t/d/?/=),
+  đang tải và lỗi mở, tiền tệ (hàng hai dòng, nút "Đổi sang" thay nhãn loại)
+  và máy tính, Quick AI đang nghĩ / lỗi / chưa có model, cửa sổ Chat nhanh
+  480×520 (tiêu đề + chip + Mở lại, composer nổi, chân phím).
+- Giữ: mọi hành vi, chuỗi và luồng đã có; các trạng thái này chỉ đổi cách
+  trình bày của phần đã tồn tại trong code.
+
+### Từ điển · bản vẽ lại (`Dictionary-Empty`, `Dictionary-Entry`, `Dictionary-Redesign-States`)
+
+Vẽ 2026-11-03 sau khi bản dựng Đợt 8 cho thấy màn Từ điển còn yếu: ô tra và
+ô ngữ cảnh xếp hai tầng nên nút Tra từ lửng lơ, trạng thái trống là khoảng
+rỗng, tra cứu gần đây và từ đã lưu giấu ở Lịch sử. Đây là bản hiện hành của
+Từ điển; `Dictionary` và `Dictionary-States` đã gỡ.
+
+- Ô tra là trọng tâm: `.field` cao 52 (44 khi đã có kết quả hoặc cửa sổ hẹp),
+  chữ 17, bo tròn; bên trong có nút ngữ cảnh 36 (bật/tắt, ⌘⇧C) và "Tra từ ↩"
+  là nút chính 36. Ngữ cảnh mở thành dòng 40 dưới ô, có đếm n / 500 và nút
+  bỏ. Dưới ô là một dòng gợi ý phím 12.
+- Trống: câu hỏi ngắn 22 căn giữa ("Bạn muốn tra từ gì?", cùng giọng với
+  Chat trống), ô tra, rồi hai danh sách phẳng cạnh nhau trong cột 760, cùng
+  từ vựng với Gần đây ở Trang chủ: nhãn caps + liên kết "Xem lịch sử" / "Mở
+  thư viện" trên một hàng, hàng 48 ngăn bằng hairline (từ đậm, cặp ngôn ngữ
+  11, nghĩa ngắn 12, thời gian); "Từ đã lưu" có sao màu ấm và nút nghe.
+  Không bọc thẻ.
+- Mục từ: headword 30 + loa, hành động kính bên phải (Lưu từ, Dịch cả câu,
+  Hỏi AI); dòng phiên âm mono 14 + chip loại từ + chip cặp ngôn ngữ; dòng
+  "Theo ngữ cảnh" nền nhấn 6 % khi có ngữ cảnh; seg có số đếm (Nghĩa · Ví dụ
+  · Từ liên quan); mỗi nghĩa: số mono, nghĩa 16 semibold, phiên âm, chip, loa,
+  ví dụ song ngữ (câu 14, bản dịch mờ 13, không vạch), dòng "Sắc thái";
+  "Từ liên quan" và "Sắc thái" là phần đã chốt giữ; chân cột ghi model ·
+  thời gian · lưu trên thiết bị, Sao chép, Tra lại.
+- Trạng thái: đang tra (Tra từ → Dừng đỏ trong ô, headword hiện sớm + chip +
+  khung chờ); không tìm thấy (headword mờ, chip ấm, ba lối thoát: dạng gần
+  đúng ↩, dịch như cụm, hỏi AI); tab Ví dụ (mỗi câu ghi thuộc nghĩa nào, nghe
+  và sao chép); tab Từ liên quan (pill kính: cùng gốc, gần nghĩa, trái nghĩa;
+  bấm để tra tiếp, giữ ngữ cảnh); cửa sổ hẹp 820 (một cột, Từ đã lưu rời
+  sang nút header).
+- Giữ: giới hạn 120 / 500 ký tự, chuỗi và luồng tra cứu, bàn giao sang Dịch /
+  Chat, "Từ đã lưu" ở header. "Từ liên quan" và "Sắc thái" chỉ hiện khi mô
+  hình trả về; không thêm gọi AI.
+- Dữ liệu (BACKEND-GAPS, lượt 2): "— nghĩa 01 được xếp trước" chỉ hiện khi
+  mục từ có `contextSense`; nhãn ví dụ "nghĩa 01 · đời thường" lấy văn phong
+  từ `exampleRegisters` (mục cũ chỉ ghi số nghĩa); "Không tìm thấy" là phản hồi
+  `notFound` kèm gợi ý (task `failed`, `errorCode: dictionaryNotFound`). Có
+  ngữ cảnh thì nút là "Dịch cả câu" và gửi câu ngữ cảnh; không có thì là "Dịch".
+
+### Lớp Nghe (`Overlays-Listen`)
+
+Vẽ 2026-11-03; thay cho khối "Menu Nghe · neo dưới nút loa" trong
+`Overlays-Language` (khối đó không còn hiệu lực). Một lớp `.float` 360 dùng
+chung cho Dịch, Từ điển, AI Chat và Phiên dịch, neo dưới nút loa đã mở nó.
+
+- Đầu lớp: "Nghe" + nút đóng. Thân: mỗi nguồn một hàng 48 (vòng 32 với ▶,
+  tên nguồn 13 medium, "ngôn ngữ · giọng" 12 mờ); hàng đầu là lens, ↩ đọc
+  ngay. Chân lớp hai dòng: "Giọng" + tên giọng + liên kết "Đổi" (mở Cài đặt ›
+  Giọng nói); "Tốc độ" + seg 0,75× / 1,0× / 1,25× / 1,5× ghi vào
+  `voiceRate`, mờ khi nhà cung cấp không hỗ trợ (Gemini, ElevenLabs).
+- Đang đọc: hàng nguồn đổi ▶ thành sóng 4 vạch màu nhấn (nhấp nhô, đứng yên
+  khi Reduce Motion); dòng phụ của chính hàng đó thành "Đang đọc · n ký tự",
+  Đọc lại (nút biểu tượng ↻, kính nhỏ) và Dừng (chữ đỏ) thay chỗ ↩ ở cuối hàng. Hàng giữ cao 48,
+  không chèn hàng mới, nên lớp không xê dịch khi bắt đầu / dừng đọc
+  (sửa 2026-11-03 sau khi xem trên app). Đọc xong thì tự về ▶. Giọng đám mây có
+  bước "Đang tạo giọng…" (chip nhấn + meter 4 pt); Dừng huỷ cả bước này. Đóng
+  lớp không dừng đọc.
+- Lỗi: `InlineFailure` ngay dưới hàng nguồn ("Không xử lý được âm thanh." +
+  gợi ý), kèm "Đọc bằng giọng hệ thống" (kính nhỏ) và "Mở Cài đặt › Giọng
+  nói" (liên kết). Không dùng toast cho lỗi đọc.
+- Nút mở lớp khi đang đọc: pill kính "Đang đọc" có sóng, chữ màu nhấn,
+  `aria-pressed`; bấm là dừng. Từ điển: loa nhỏ cạnh headword / nghĩa đọc
+  ngay bằng giọng của ngôn ngữ đó, không mở lớp; chuột phải mở lớp. AI Chat:
+  nút loa cùng hàng Sao chép · Thử lại.
+- Bỏ: mục "Nhà cung cấp nhận dạng giọng nói" trong lớp Nghe hiện tại — đó là
+  thiết lập thu âm, chỉ còn ở Cài đặt › Giọng nói.
+- Giữ: `audio.speak` / `stopSpeaking`, `voiceProvider`, `voiceID`,
+  `voiceRate`; không có timeline hay tạm dừng vì engine không báo tiến độ.
+
 ## 6. Thứ tự triển khai và prompt sẵn dùng
 
-Làm **đúng thứ tự 1 → 7**, mỗi đợt một phiên agent mới, không gộp. Đợt sau
+Làm **đúng thứ tự 1 → 8**, mỗi đợt một phiên agent mới, không gộp. Đợt sau
 dựa vào thành phần của đợt trước (style chung ở Đợt 1, lớp nổi shell ở Đợt 2,
 hộp thoại chặn ở Đợt 2/4). Chỉ chuyển đợt khi anh/chị đã xem báo cáo và ảnh
 đối chiếu của đợt trước và hài lòng.
@@ -184,6 +306,10 @@ hộp thoại chặn ở Đợt 2/4). Chỉ chuyển đợt khi anh/chị đã x
 | 5 | Cài đặt | Đợt 4 duyệt | Settings-*, Overlays-Settings khớp |
 | 6 | Cửa sổ phụ và cập nhật | Đợt 5 duyệt | Launcher, QuickChat, QuickTranslate, UpdateSheet* khớp |
 | 7 | Qt | Đợt 6 duyệt, có máy Windows/Linux | QtTest xanh, ảnh đối chiếu |
+| 8 | Trạng thái bổ sung (macOS) | Đợt 1–6 duyệt | `*-Compact`, `Nav-Overlay`, `Shell-*`, `*-States` khớp |
+| 9 | Từ điển vẽ lại và lớp Nghe (macOS) | Đợt 8 duyệt | `Dictionary-*`, `Overlays-Listen` khớp |
+| — | Kết nối backend | Đợt 9 xong | [BACKEND-GAPS.md](BACKEND-GAPS.md) mọi mục có quyết định |
+| 7b+ | Qt trên Windows | Backend xong, đã commit/push | [WINDOWS-HANDOFF.md](WINDOWS-HANDOFF.md) |
 
 Copy nguyên khối prompt của đợt đang làm; không cần sửa gì.
 
@@ -270,7 +396,7 @@ Từ điển, Phiên dịch với thẻ Tổng hợp có tab, menu ✦, Xuất, 
 phụ đề nổi.
 
 Board (đọc cả .dc.html và .png trong docs/design/glass2/boards/):
-Translate, Translate-Compact, Dictionary, Interpret, Interpret-Summary,
+Translate, Translate-Compact, Dictionary (đã gỡ, xem mục Từ điển), Interpret, Interpret-Summary,
 Overlays-Language, Overlays-Interpret
 
 File được sửa (apps/macos/Sources/ViezanNative/ trừ khi ghi khác):
@@ -421,6 +547,95 @@ Luật chung cho đợt này:
 - Nghiệm thu: chụp app ở 1280×800 và 820×640, sáng và tối, đặt cạnh PNG của
   từng board; liệt kê mọi chênh lệch còn lại kèm lý do.
 - Thêm một báo cáo docs/migration/reports/native-migration-report-<ngày>-glass2-dot<n>.md.
+- Không commit. Dừng và báo cáo khi xong đợt.
+```
+
+### Đợt 8 · trạng thái bổ sung (macOS)
+
+```
+Đọc AGENTS.md, .claude/rules/ui-ux.md, docs/design/direction.md và
+docs/design/glass2/HANDOFF.md (mục 2, 3, 4, và mục 5 "Bổ sung sau Đợt 1–7").
+
+Kiểm tra trước: báo cáo Đợt 1–6 tồn tại.
+
+Việc: triển khai Đợt 8 của Liquid Glass 2.0 trên macOS — các trạng thái và cửa
+sổ đã vẽ bổ sung: cửa sổ hẹp 820 (Trang chủ, AI Chat), pane điều hướng tạm dưới
+900, cửa sổ 640×480, dải thông báo shell, Reduce Transparency; trạng thái của
+AI Chat, Dịch, Từ điển, Phiên dịch, Nhiệt độ, Ứng dụng, Thư viện lịch sử,
+Launcher, Quick AI và cửa sổ Chat nhanh.
+
+Board (đọc cả .dc.html và .png trong docs/design/glass2/boards/):
+Home-Compact, Chat-Compact, Nav-Overlay, Shell-Minimum, Shell-States, Shell-Solid,
+Chat-States, Translate-States, Interpret-States,
+Thermal-States, Apps-States, History-States, Launcher-States
+
+File được sửa (apps/macos/Sources/ViezanNative/):
+ViezanApp.swift (dải thông báo, pane tạm, badge), NativeFoundation.swift,
+NativeKit.swift, HomeWorkspace.swift, Workspaces.swift, ResearchPanel.swift,
+ImageControls.swift, ComparisonPane.swift, InterpretationWorkspace.swift,
+ThermalWorkspace.swift, ApplicationsWorkspace.swift, HistoryViews.swift,
+Launcher.swift, LauncherChat.swift, DesktopPanels.swift (QuickSessionPanel)
+
+Luật chung cho đợt này:
+- Lấy số đo, màu, bo góc, bóng từ resources/tokens.css (preset glass, đã
+  cập nhật) và từ file HTML của board; không tự chọn giá trị khác, không đổi
+  preset Graphite / Paper / Corporate / Midnight.
+- Chỉ sửa các file liệt kê ở trên; cần đụng file khác thì dừng và hỏi.
+  Không đổi hành vi, dữ liệu, dịch vụ, route, phím tắt hay chuỗi đã có.
+- Chuỗi mới thêm vào resources/locales/{vi,en,ja}.json rồi chạy
+  `npm run resources`; giữ cả hai native.json đồng bộ.
+- Chạy `swift build` và `swift test` trong apps/macos, dán tổng kết nguyên văn.
+- Nghiệm thu: chụp app ở 1280×800, 820×640 và 640×480, sáng và tối, bật
+  Reduce Transparency cho Shell-Solid; đặt cạnh PNG của từng board; trạng thái
+  cần AI hoặc micro thật thì ghi rõ chưa chụp, không giả lập dữ liệu.
+- Thêm một báo cáo docs/migration/reports/native-migration-report-<ngày>-glass2-dot8.md.
+- Không commit. Dừng và báo cáo khi xong đợt.
+```
+
+### Đợt 9 · Từ điển vẽ lại và lớp Nghe (macOS)
+
+```
+Đọc AGENTS.md, .claude/rules/ui-ux.md, docs/design/direction.md và
+docs/design/glass2/HANDOFF.md (mục 2, 3, 4; mục 5 "Từ điển · bản vẽ lại" và
+"Lớp Nghe"). Đọc docs/design/screens/ của Từ điển và Dịch.
+
+Kiểm tra trước: báo cáo Đợt 8 tồn tại; board Dictionary và Dictionary-States
+đã gỡ (không dùng chúng làm nguồn).
+
+Việc: triển khai Đợt 9 của Liquid Glass 2.0 trên macOS.
+1. Từ điển theo Dictionary-Empty, Dictionary-Entry, Dictionary-Redesign-States:
+   ô tra 52/44 có nút ngữ cảnh và "Tra từ" bên trong; trạng thái trống với hai
+   danh sách phẳng (tra cứu gần đây, từ đã lưu); mục từ với seg có số đếm
+   (Nghĩa · Ví dụ · Từ liên quan), dòng "Theo ngữ cảnh", dòng "Sắc thái";
+   đang tra, không tìm thấy, cửa sổ hẹp 820.
+2. Lớp Nghe theo Overlays-Listen, dùng chung cho Dịch, Từ điển, AI Chat,
+   Phiên dịch; bỏ mục "Nhà cung cấp nhận dạng giọng nói" khỏi lớp này.
+Phần nào cần dữ liệu domain chưa có (ví dụ Từ liên quan, bước "Đang tạo
+giọng", nguồn đang đọc, thời gian tra): dựng giao diện, ẩn khi không có dữ
+liệu, ghi vào docs/design/glass2/BACKEND-GAPS.md; không tự sửa domain.
+
+Board (đọc cả .dc.html và .png trong docs/design/glass2/boards/):
+Dictionary-Empty, Dictionary-Entry, Dictionary-Redesign-States, Overlays-Listen
+
+File được sửa (apps/macos/Sources/ViezanNative/):
+Workspaces.swift, HomeWorkspace.swift (DictionaryResultView), HistoryViews.swift,
+NativeKit.swift, ViezanApp.swift (header Từ điển), InterpretationWorkspace.swift (nút Nghe)
+
+Luật chung cho đợt này:
+- Lấy số đo, màu, bo góc, bóng từ resources/tokens.css (preset glass) và từ
+  file HTML của board; không tự chọn giá trị khác, không đổi preset Graphite /
+  Paper / Corporate / Midnight.
+- Chỉ sửa các file liệt kê ở trên; cần đụng file khác thì dừng và hỏi.
+  Không đổi hành vi, dữ liệu, dịch vụ, route, phím tắt hay chuỗi đã có.
+- Chuỗi mới thêm vào resources/locales/{vi,en,ja}.json rồi chạy
+  `npm run resources`; giữ cả hai native.json đồng bộ.
+- Mọi thao tác thành công cần phản hồi (toast "Đã sao chép", "Đã lưu từ"…);
+  dùng copyText / announceSaved / ToastCenter có sẵn.
+- Chạy `swift build` và `swift test` trong apps/macos, dán tổng kết nguyên văn.
+  Chạy lại test sau thay đổi cuối cùng, không chỉ giữa chừng.
+- Nghiệm thu: chụp app ở 1280×800 và 820×640, sáng và tối, đặt cạnh PNG của
+  từng board; trạng thái cần AI thật thì ghi chưa chụp, không giả lập dữ liệu.
+- Thêm docs/migration/reports/native-migration-report-<ngày>-glass2-dot9.md.
 - Không commit. Dừng và báo cáo khi xong đợt.
 ```
 
