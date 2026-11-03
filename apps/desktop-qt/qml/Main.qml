@@ -374,183 +374,6 @@ ApplicationWindow {
         }
         }
     }
-    component ModelPicker: ColumnLayout {
-        id: modelPicker
-        // Compact: borderless model menu; refresh/configure stay reachable as icons.
-        property bool compact: false
-        property bool glassChat: false
-        onGlassChatChanged: if (!glassChat) modelPopup.close()
-        spacing: metrics.small
-        RowLayout {
-            spacing: metrics.small
-            Kit.StatusDot { visible: root.modelUnavailable(session.model); tone: "failed"; failedColor: root.colors.danger }
-            Kit.GlassComboBox {
-                id: modelCombo
-                glassMaterial: !modelPicker.glassChat
-                objectName: modelPicker.glassChat ? "chat-model-picker" : ""
-                flat: parent.parent.compact
-                implicitHeight: metrics.control
-                implicitContentWidthPolicy: ComboBox.WidestText
-                Layout.minimumWidth: modelPicker.glassChat ? metrics.editor : 0
-                Layout.preferredWidth: modelPicker.glassChat ? metrics.compactSidebar - metrics.control - metrics.small : -1
-                Layout.maximumWidth: modelPicker.glassChat ? metrics.compactSidebar - metrics.control - metrics.small : metrics.sidebar
-                background: Rectangle { visible: !modelCombo.flat || modelCombo.hovered || (modelPicker.glassChat && modelCombo.visualFocus); color: modelPicker.glassChat ? Qt.alpha(root.colors["surface-hover"], metrics.selectionOpacity) : modelCombo.flat ? root.colors["surface-hover"] : root.colors.surface; radius: modelPicker.glassChat ? height / 2 : metrics.controlRadius; border.width: (modelPicker.glassChat && modelCombo.visualFocus) || !modelCombo.flat ? metrics.hairline : 0; border.color: modelPicker.glassChat && modelCombo.visualFocus ? root.palette.highlight : root.colors.border }
-                model: root.models.map(id => ({modelID: id, label: root.modelLabel(id)}))
-                textRole: "label"
-                valueRole: "modelID"
-                ToolTip.visible: hovered; ToolTip.text: session.model
-                currentIndex: root.models.indexOf(session.model)
-                Accessible.name: t("model") + ", " + session.model + (root.modelUnavailable(session.model) ? ", " + t("unavailable") : "")
-                onActivated: if (currentValue) command("model", {value: currentValue})
-                property Item lensContent: Label {
-                    width: modelCombo.availableWidth
-                    height: modelCombo.availableHeight
-                    text: modelCombo.displayText
-                    font: modelCombo.font
-                    color: modelCombo.enabled ? root.palette.buttonText : root.colors["text-disabled"]
-                    leftPadding: metrics.small
-                    verticalAlignment: Text.AlignVCenter
-                    elide: Text.ElideRight
-                    Accessible.ignored: true
-                }
-                Binding { target: modelCombo; property: "contentItem"; value: modelCombo.lensContent; when: modelPicker.glassChat }
-                // Style the existing ComboBox, retaining native keyboard selection
-                // and an ID-bearing model even when discovery refreshes its labels.
-                property Component lensDelegate: Component {
-                    ItemDelegate {
-                        id: modelOption
-                        required property var modelData
-                        required property int index
-                        readonly property bool selectedModel: modelData.modelID === root.session.model
-                        width: modelList.width
-                        implicitHeight: metrics.navControl
-                        text: modelData.label
-                        highlighted: modelCombo.highlightedIndex === index
-                        Accessible.name: text + ", " + modelData.modelID + (root.modelUnavailable(modelData.modelID) ? ", " + t("unavailable") : "")
-                        Accessible.selected: selectedModel
-                        ToolTip.visible: hovered
-                        ToolTip.text: modelData.modelID
-                        contentItem: RowLayout {
-                            spacing: metrics.small
-                            Label { text: modelOption.text; font.weight: modelOption.selectedModel ? Font.DemiBold : Font.Normal; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
-                            Kit.StatusDot { visible: root.modelUnavailable(modelOption.modelData.modelID); tone: "failed"; failedColor: root.colors.danger }
-                            Label { text: "✓"; opacity: modelOption.selectedModel ? 1 : 0; Accessible.ignored: true }
-                        }
-                        background: Item {
-                            Rectangle { anchors.fill: parent; visible: modelOption.hovered && !modelOption.selectedModel; radius: metrics.chromeControlRadius; color: Qt.alpha(root.colors["surface-hover"], 0.36) }
-                            Kit.ControlGlassSurface {
-                                anchors.fill: parent
-                                visible: modelOption.selectedModel
-                                radius: metrics.chromeControlRadius
-                            }
-                            Rectangle { anchors.fill: parent; radius: metrics.chromeControlRadius; color: "transparent"; border.width: modelOption.highlighted ? metrics.hairline : 0; border.color: root.palette.highlight; Accessible.ignored: true }
-                        }
-                    }
-                }
-                property Popup lensPopup: Popup {
-                    id: modelPopup
-                    objectName: "chat-model-popup"
-                    property string ownerID: ""
-                    readonly property color baseColor: Qt.tint(root.palette.window, root.palette.base)
-                    // ComboBox detaches its previous popup when the preset changes.
-                    // Rebind the owner when Glass installs this popup again.
-                    parent: modelPicker.glassChat ? modelCombo : null
-                    width: Math.min(metrics.sidebar + metrics.editor, root.width - metrics.inset * 2)
-                    height: Math.min(contentItem.implicitHeight + padding * 2, root.height - metrics.navControl * 3)
-                    x: Math.min(0, root.width - metrics.inset - modelCombo.mapToItem(null, 0, 0).x - width)
-                    y: -height - metrics.small
-                    padding: metrics.small
-                    onAboutToShow: ownerID = root.session.id
-                    Connections { target: root; function onSessionChanged() { if (modelPopup.visible && modelPopup.ownerID !== root.session.id) modelPopup.close() } }
-                    contentItem: ListView {
-                        id: modelList
-                        clip: true
-                        implicitHeight: contentHeight
-                        model: modelPopup.visible ? modelCombo.delegateModel : null
-                        currentIndex: modelCombo.highlightedIndex
-                        boundsBehavior: Flickable.StopAtBounds
-                        ScrollBar.vertical: ScrollBar {}
-                    }
-                    background: Kit.ChromeSurface {
-                        radius: metrics.chromeSurfaceRadius
-                        fillColor: modelPopup.baseColor
-                        illuminatedFill: true
-                        fillHighlight: Qt.tint(fillColor, root.colors["surface-raised"])
-                        edgeColor: root.colors["material-border"]
-                        edgeHighlight: root.colors["material-highlight"]
-                    }
-                }
-                Binding { target: modelCombo; property: "delegate"; value: modelCombo.lensDelegate; when: modelPicker.glassChat }
-                Binding { target: modelCombo; property: "popup"; value: modelCombo.lensPopup; when: modelPicker.glassChat }
-            }
-            // Compact: one options control holds refresh and configuration.
-            Kit.IconButton {
-                id: modelOptionsButton
-                glassMaterial: !modelPicker.glassChat
-                objectName: modelPicker.glassChat ? "chat-model-options" : ""
-                visible: parent.parent.compact
-                iconName: "refresh"; text: t("configureModel")
-                Kit.ControlLens { control: modelOptionsButton; active: modelPicker.glassChat; quiet: true }
-                onClicked: modelOptions.open()
-                Menu {
-                    id: modelOptions
-                    Repeater {
-                        model: ["ollama", "lmstudio", "llamacpp", "openai", "claude", "gemini"]
-                        delegate: MenuItem { required property string modelData; text: t("refreshModels") + " · " + modelData; enabled: !workbench.loadingModels; onTriggered: workbench.refreshModels(modelData) }
-                    }
-                    MenuSeparator {}
-                    MenuItem { text: t("configureModel"); onTriggered: { modelDialog.ownerID = session.id; modelID.text = session.model; instructions.text = session.systemPrompt || ""; modelDialog.open() } }
-                }
-            }
-            Kit.GlassButton {
-                visible: !parent.parent.compact
-                icon.source: "icons/refresh.svg"
-                text: t("refreshModels")
-                display: AbstractButton.IconOnly
-                implicitHeight: metrics.control
-                implicitWidth: metrics.control
-                Accessible.name: text
-                ToolTip.visible: hovered
-                ToolTip.text: text
-                enabled: !workbench.loadingModels
-                onClicked: modelRefreshMenu.open()
-                Menu {
-                    id: modelRefreshMenu
-                    Repeater {
-                        model: ["ollama", "lmstudio", "llamacpp", "openai", "claude", "gemini"]
-                        delegate: MenuItem { required property string modelData; text: modelData; onTriggered: workbench.refreshModels(modelData) }
-                    }
-                }
-            }
-            Kit.GlassButton { visible: !parent.parent.compact; text: t("configureModel"); icon.source: "icons/settings.svg"; display: AbstractButton.IconOnly; Accessible.name: text; ToolTip.visible: hovered; ToolTip.text: text; implicitHeight: metrics.control; implicitWidth: metrics.control; onClicked: { modelDialog.ownerID = session.id; modelID.text = session.model; instructions.text = session.systemPrompt || ""; modelDialog.open() } }
-            BusyIndicator { running: workbench.loadingModels; visible: running; implicitWidth: metrics.control; implicitHeight: metrics.control }
-        }
-
-        GlassDialog {
-            id: modelDialog
-            objectName: "model-configuration-dialog"
-            parent: Overlay.overlay
-            anchors.centerIn: parent
-            margins: metrics.inset
-            property string ownerID: ""
-            title: t("configureModel")
-            modal: true
-            standardButtons: Dialog.Ok | Dialog.Cancel
-            onAccepted: { root.command("model", {sessionID: ownerID, value: modelID.text.trim()}); root.command("systemPrompt", {sessionID: ownerID, value: instructions.text}) }
-            ColumnLayout {
-                TextField { id: modelID; placeholderText: t("modelID"); Accessible.name: placeholderText; Layout.fillWidth: true }
-                Label { text: t("modelIDHint"); wrapMode: Text.Wrap; Layout.maximumWidth: metrics.sidebar + metrics.editor }
-                Kit.GlassComboBox { id: savedPrompt; model: root.workspace.prompts || []; textRole: "name"; Accessible.name: t("promptLibrary"); Layout.fillWidth: true; onActivated: { instructions.text = model[currentIndex].text; promptName.text = model[currentIndex].name } }
-                TextField { id: promptName; placeholderText: t("promptName"); Accessible.name: placeholderText; Layout.fillWidth: true }
-                RowLayout {
-                    Kit.GlassButton { text: t("savePrompt"); enabled: !!promptName.text.trim(); onClicked: root.command("savePrompt", {name: promptName.text, text: instructions.text}) }
-                    Kit.GlassButton { text: t("deletePrompt"); enabled: savedPrompt.currentIndex >= 0; onClicked: { deleteSavedPrompt.promptID = savedPrompt.model[savedPrompt.currentIndex].id; deleteSavedPrompt.open() } }
-                }
-                TextArea { id: instructions; placeholderText: t("systemPrompt"); Accessible.name: placeholderText; wrapMode: TextEdit.Wrap; Layout.fillWidth: true }
-            }
-        }
-        Label { text: workbench.modelError ? t(workbench.modelError) : ""; visible: !!workbench.modelError; wrapMode: Text.Wrap; Layout.maximumWidth: metrics.sidebar }
-    }
     GlassDialog {
         id: deleteSavedPrompt
         property string promptID: ""
@@ -821,7 +644,11 @@ ApplicationWindow {
                         }
                         RowLayout {
                             spacing: metrics.small
-                            ModelPicker { compact: true; glassChat: root.glassChrome }
+                            SessionModelPicker {
+                                shell: root; bridge: workbench
+                                compact: true; glassChat: root.glassChrome
+                                onDeletePromptRequested: promptID => { deleteSavedPrompt.promptID = promptID; deleteSavedPrompt.open() }
+                            }
                             AudioControls { compact: true; glassChat: root.glassChrome }
                         }
                     }
@@ -900,7 +727,11 @@ ApplicationWindow {
                     LanguagePicker { source: false; flat: true }
                     Item { Layout.fillWidth: true }
                 }
-                ModelPicker { compact: true }
+                SessionModelPicker {
+                    shell: root; bridge: workbench
+                    compact: true
+                    onDeletePromptRequested: promptID => { deleteSavedPrompt.promptID = promptID; deleteSavedPrompt.open() }
+                }
             }
             Rectangle { color: root.palette.midlight; implicitHeight: metrics.hairline; Layout.fillWidth: true }
             Kit.ProviderNotice { model: session.model; dangerColor: root.colors.danger; Layout.fillWidth: true; onOpenRequested: section => root.openSettingsSection(section); onUseRequested: model => command("model", {value: model}) }

@@ -75,3 +75,41 @@ Local Release rebuild and focused tests passed (9 cases); full CTest passed
 1/1 in 44.87 seconds, with QTest 142 passed and 0 failed/skipped. The shared
 domain/catalog tests and fix whitespace checks also passed. Logs are under
 `/private/tmp/pr185-qt-waveform-{build,focused,full}.log`.
+
+## Model popup and full-matrix runtime
+
+At `1e5817e`, Native CI run `41568393570` passed macOS and both CodeQL analyses.
+Linux passed 97 Qt cases before a later crash in
+`glassComposerKeepsEditorAndModelOwnership`. The test changes Glass to Graphite
+and back before opening the model popup. Qt 6.8.3's
+[`QQuickComboBox::setDelegate`](https://github.com/qt/qtdeclarative/blob/v6.8.3/src/quicktemplates/qquickcombobox.cpp#L1195)
+deletes the previous delegate; the conditional Binding restored a destroyed
+component on that round trip. The fix keeps one native MenuItem delegate for
+the ComboBox's lifetime and changes only its appearance. A QPointer regression
+checks that the same delegate survives both preset changes.
+
+The model picker lives in `SessionModelPicker.qml`, with explicit shell/bridge
+dependencies and a prompt-deletion signal. Existing editor/model/session
+ownership checks remain, including popup dismissal when switching sessions.
+
+Focused visibility checks also exposed a blank native model label after
+Glass-to-Graphite switching: Qt hides an outgoing content item, and restoring
+the saved pointer does not make it visible again. The picker now keeps native
+content/background objects mounted and applies Glass decoration as child
+layers, with conditional visibility that restores the native style bindings.
+This also preserves hover-only native menu backgrounds.
+The same round-trip test exposed a parentless restored native popup: Qt detaches
+an outgoing popup. The picker now reattaches whichever popup is installed to
+its ComboBox. Tests open both popup variants and check labels/backgrounds,
+selection and session ownership after repeated preset changes.
+
+Windows reached the foundation matrix and streaming tests with no failed
+assertions before the 300-second CTest budget expired. The complete Qt matrix
+now has a bounded 600-second budget on both runners; no cases are removed.
+
+Final local Release rebuild passed. Focused composer light/dark checks passed
+4 cases, including both popup variants and visibility/ownership restoration;
+full CTest passed 1/1 in 42.13 seconds, QTest 142 passed with no failures/skips.
+Logs: `/private/tmp/pr185-qt-final-{build,focused,full}.log`. Shared catalog
+and domain checks, documentation and whitespace validation passed. Independent
+review checked the extracted picker dependencies and session invalidation.

@@ -742,15 +742,56 @@ private slots:
         QCOMPARE(scroll->height(), cappedHeight);
         QCOMPARE(editor.data(), visualItem(root->contentItem(), "chat-draft"));
         QCOMPARE(current(bridge).value("draft").toString(), fiveLines + "\nSix");
+        // Qt 6.8 deletes a ComboBox's replaced delegate. A theme round trip
+        // must retain this owned component before the popup creates its rows.
+        QPointer<QQmlComponent> modelDelegate = combo->property("delegate").value<QQmlComponent *>();
+        QVERIFY(modelDelegate);
         bridge.command("appearance", {{"preset", "graphite"}, {"mode", mode}});
         QCoreApplication::processEvents();
+        QVERIFY(modelDelegate);
+        QCOMPARE(combo->property("delegate").value<QQmlComponent *>(), modelDelegate.data());
+        auto *nativeLabel = combo->property("contentItem").value<QQuickItem *>();
+        QVERIFY(nativeLabel);
+        QVERIFY(nativeLabel->isVisible());
         QCOMPARE(editor.data(), visualItem(root->contentItem(), "chat-draft"));
         bridge.command("appearance", {{"preset", "glass"}, {"mode", mode}});
         QCoreApplication::processEvents();
+        QVERIFY(modelDelegate);
+        QCOMPARE(combo->property("delegate").value<QQmlComponent *>(), modelDelegate.data());
+        QCOMPARE(combo->property("contentItem").value<QQuickItem *>(), nativeLabel);
+        QVERIFY(!nativeLabel->isVisible());
+        auto *glassLabel = visualItem(combo, "chat-model-label");
+        QVERIFY(glassLabel);
+        QVERIFY(glassLabel->isVisible());
         QCOMPARE(editor.data(), visualItem(root->contentItem(), "chat-draft"));
         QCOMPARE(current(bridge).value("draft").toString(), fiveLines + "\nSix");
-        auto *popup = combo->property("popup").value<QObject *>();
-        QVERIFY(popup);
+        QObject *popup = nullptr;
+        for (const auto &preset : {QString("glass"), QString("graphite"), QString("glass")}) {
+            bridge.command("appearance", {{"preset", preset}, {"mode", mode}});
+            QCoreApplication::processEvents();
+            popup = combo->property("popup").value<QObject *>();
+            QVERIFY(popup);
+            QVERIFY(QMetaObject::invokeMethod(popup, "open"));
+            QTRY_VERIFY2(popup->property("visible").toBool(), qPrintable(preset));
+            auto *popupContent = popup->property("contentItem").value<QQuickItem *>();
+            QVERIFY(popupContent);
+            QTRY_VERIFY(visualItem(popupContent, "chat-model-option"));
+            auto *option = visualItem(popupContent, "chat-model-option");
+            auto *nativeContent = option->property("contentItem").value<QQuickItem *>();
+            auto *nativeBackground = option->property("background").value<QQuickItem *>();
+            auto *glassContent = visualItem(option, "chat-model-option-label");
+            auto *glassBackground = visualItem(option, "chat-model-option-glass");
+            QVERIFY(nativeContent && nativeBackground && glassContent && glassBackground);
+            QTRY_VERIFY(option->isVisible());
+            const bool glass = preset == "glass";
+            QCOMPARE(nativeContent->isVisible(), !glass);
+            QCOMPARE(glassContent->isVisible(), glass);
+            QCOMPARE(glassBackground->isVisible(), glass);
+            // Fusion owns its native hover/pressed background visibility.
+            QCOMPARE(nativeBackground->isVisible(), !glass && (option->property("highlighted").toBool() || option->property("down").toBool()));
+            QVERIFY(QMetaObject::invokeMethod(popup, "close"));
+            QTRY_VERIFY(!popup->property("visible").toBool());
+        }
         QVERIFY(QMetaObject::invokeMethod(popup, "open"));
         QTRY_VERIFY(popup->property("visible").toBool());
         bridge.command("new");
