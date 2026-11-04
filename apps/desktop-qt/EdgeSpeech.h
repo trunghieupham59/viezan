@@ -6,7 +6,7 @@ class EdgeSpeech final : public QObject {
     Q_OBJECT
 public:
     explicit EdgeSpeech(QObject *parent = nullptr);
-    void start(const QString &text, const QString &language, const QString &voice);
+    void start(const QString &text, const QString &language, const QString &voice, double rate = 1);
     void cancel();
 signals:
     void finished(const QByteArray &audio);
@@ -16,6 +16,7 @@ private:
     QTimer m_timeout;
     QByteArray m_audio;
     QString m_text, m_voice;
+    double m_rate = 1;
     bool m_done = false;
     void fail();
 };

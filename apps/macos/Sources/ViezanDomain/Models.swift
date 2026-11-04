@@ -61,6 +61,15 @@ public struct Session: Codable, Identifiable, Equatable, Sendable {
     public var assemblyParts: [String: String]?
     public var favorite: Bool?
     public var archived: Bool?
+    /// When the session was archived (seconds since 1970). Optional: sessions archived before
+    /// this field existed group by `updated` instead.
+    public var archivedAt: Double?
+    /// The title a session gets from its first question: the first user message in a chat,
+    /// otherwise the draft (or the attached image's name). Empty when there is nothing yet.
+    public var firstTitle: String {
+        if feature == .chat, let first = messages.first(where: { $0.role == "user" }) { return Session.derivedTitle(draft: first.text, images: first.images) }
+        return Session.derivedTitle(draft: draft, images: images)
+    }
     public init(id: String = UUID().uuidString, feature: Feature) { self.id = id; self.feature = feature }
 }
 public struct Request: Codable, Equatable, Sendable {
@@ -106,6 +115,15 @@ public struct WorkTask: Codable, Identifiable, Equatable, Sendable {
     public var request: Request
     public var status: TaskStatus
     public var output: String
+    /// When the current attempt started and ended (seconds since 1970). Optional: older snapshots
+    /// and tasks interrupted by a quit have none, and then no duration is shown.
+    public var started: Double? = nil
+    public var finished: Double? = nil
+    /// Seconds the last attempt took, when both ends are known and the attempt has ended.
+    public var duration: Double? {
+        guard status != .running, let started, let finished, finished >= started, finished - started < 86_400 else { return nil }
+        return finished - started
+    }
 }
 /// Quick translate (the global selection shortcut) keeps its own language pair, apart from
 /// the Translate page: text already in `primary` goes to `secondary`, everything else to `primary`.
@@ -136,6 +154,8 @@ public struct VoicePreferences: Codable, Equatable, Sendable {
     public var rate: Double?
     public init(provider: String = "system", voice: String = "", rate: Double? = nil) { self.provider = provider; self.voice = voice; self.rate = rate }
     public static let rates: [Double] = [0.75, 1, 1.25, 1.5]
+    /// Providers whose speech honours the rate (Gemini and ElevenLabs read at 1×). Shared with Qt.
+    public static func rateSupported(_ provider: String) -> Bool { !["gemini", "elevenlabs"].contains(provider) }
     public var valid: Bool { ["system", "edge", "openai", "gemini", "elevenlabs"].contains(provider) && voice.utf8.count <= 256 && !voice.unicodeScalars.contains { CharacterSet.controlCharacters.contains($0) } && (rate.map { (0.5...2).contains($0) } ?? true) }
 }
 public struct UpdatePreferences: Codable, Equatable, Sendable {
@@ -265,6 +285,10 @@ public struct NativeResources: Decodable, Sendable {
     public let nativeLanguages: [String]
     public let translationTemplates: [String: String]
     public let chatPrompt: [String: String]
+    public let dictionaryPrompt: [String: String]
+    /// Ollama models Settings › Local AI suggests (contracts/native-workbench/local-models.json).
+    public struct LocalModelSuggestion: Decodable, Identifiable, Sendable { public let id: String; public let name: String; public let note: String; public let bytes: Int64 }
+    public let localModelSuggestions: [LocalModelSuggestion]
     public let imageTranslationPrompt: String
     public let reasoningPolicy: [String: String]
     public let translationSystem: String

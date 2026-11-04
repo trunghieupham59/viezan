@@ -149,8 +149,8 @@ extension AppKitFixtureTests {
                 try #require(descendants(host).compactMap { $0 as? ShellToolbarButton.FocusButton }.first { $0.accessibilityIdentifier() == "navigation-toggle" })
             }
             func paneFrames() throws -> [CGRect] {
-                let identifier = mode == .light ? "navigation-frosted-material" : "navigation-glass-material"
-                let panes = descendants(host).filter { $0.accessibilityIdentifier() == identifier && !$0.isHidden }
+                // Liquid Glass 2.0: one in-window glass pane in both modes (never the desktop).
+                let panes = descendants(host).filter { $0.accessibilityIdentifier() == "navigation-glass-material" && !$0.isHidden }
                 try #require(!panes.isEmpty)
                 let nativeControls = try [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].map { kind in
                     try #require(window.standardWindowButton(kind))
@@ -164,12 +164,9 @@ extension AppKitFixtureTests {
                     #expect(frame.width <= max(metric("sidebar"), metric("compactSidebar")))
                     #expect(!pane.isAccessibilityElement())
                     let top = host.isFlipped ? frame.minY : host.bounds.maxY - frame.maxY
-                    if mode == .light {
-                        // The cyan material is decorative, not an input surface.
-                        #expect(pane is NSVisualEffectView)
-                        let point = pane.convert(NSPoint(x: pane.bounds.midX, y: pane.bounds.midY), to: pane.superview)
-                        #expect(pane.hitTest(point) == nil)
-                    }
+                    // The pane material is decorative, not an input surface.
+                    let point = pane.convert(NSPoint(x: pane.bounds.midX, y: pane.bounds.midY), to: pane.superview)
+                    #expect(pane.hitTest(point) == nil)
                     // Every floating pane must leave window controls and their
                     // hit regions clear, including the narrow rail and overlay.
                     #expect(top >= ShellLayout.headerHeight + metric("small") - 1)
@@ -186,7 +183,7 @@ extension AppKitFixtureTests {
             let initialToggle = try toggle()
             let toggleFrame = initialToggle.convert(initialToggle.bounds, to: nil)
             let expandedPane = try #require(paneFrames().max { $0.width < $1.width })
-            #expect(expandedPane.maxX <= metric("sidebar"))
+            #expect(expandedPane.minX >= metric("small") - 1 && expandedPane.maxX <= metric("sidebar") + metric("small"))
             try capture(host, name: "glass-navigation-\(mode.rawValue)-expanded")
             initialToggle.focusGranted = true
             #expect(window.makeFirstResponder(initialToggle))
@@ -194,7 +191,7 @@ extension AppKitFixtureTests {
             try await settle()
             #expect(store.workspace.navigationCollapsed)
             let railPane = try #require(paneFrames().max { $0.width < $1.width })
-            #expect(railPane.maxX <= metric("rail") && railPane.width < expandedPane.width)
+            #expect(railPane.maxX <= metric("rail") + metric("small") && railPane.width < expandedPane.width)
             try capture(host, name: "glass-navigation-\(mode.rawValue)-rail")
 
             window.setContentSize(NSSize(width: 820, height: 760))
@@ -208,7 +205,7 @@ extension AppKitFixtureTests {
             #expect(shell.overlay == .navigation)
             #expect(store.workspace.navigationCollapsed)
             let overlayPane = try #require(paneFrames().max { $0.width < $1.width })
-            #expect(overlayPane.maxX <= metric("compactSidebar") && overlayPane.width > railPane.width)
+            #expect(overlayPane.maxX <= metric("compactSidebar") + metric("small") && overlayPane.width > railPane.width)
             let close = try #require(descendants(host).compactMap { $0 as? ShellToolbarButton.FocusButton }.first { $0.accessibilityIdentifier() == "panel-close" })
             let closeFrame = close.convert(close.bounds, to: host)
             #expect(closeFrame.minX >= overlayPane.minX && closeFrame.maxX <= overlayPane.maxX)
@@ -221,7 +218,7 @@ extension AppKitFixtureTests {
             window.setContentSize(NSSize(width: 1200, height: 760))
             try await settle()
             #expect(shell.overlay == nil && store.workspace.navigationCollapsed)
-            #expect(try paneFrames().allSatisfy { $0.maxX <= metric("rail") })
+            #expect(try paneFrames().allSatisfy { $0.maxX <= metric("rail") + metric("small") })
             let restoredToggle = try toggle()
             restoredToggle.performClick(nil)
             try await settle()

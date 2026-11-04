@@ -11,7 +11,7 @@ struct SystemSettings: View {
     @State private var granted: [String: Bool] = [:]
     /// Read again whenever Viezan comes back from System Settings.
     private func refresh() {
-        granted = ["microphonePermission": AVCaptureDevice.authorizationStatus(for: .audio) == .authorized,
+        granted = ["microphonePermission": MicrophonePermission.status == "granted",
                    "screenPermission": CGPreflightScreenCaptureAccess(), "accessibilityPermission": AXIsProcessTrusted()]
     }
     var body: some View {

@@ -26,33 +26,7 @@ Interpretation::Interpretation(QObject *parent) : QObject(parent) {
     connect(&m_audioCapture, &AudioCapture::failed, this, [this] { m_error = "systemAudioError"; stop(); });
     connect(&m_audioCapture, &AudioCapture::devicesChanged, this, &Interpretation::changed);
     m_file = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/interpretation.json";
-    QFile file(m_file);
-    if (file.exists()) {
-        QJsonParseError error;
-        if (!file.open(QIODevice::ReadOnly) || file.size() > 134217728) m_blocked = true;
-        else {
-            const auto document = QJsonDocument::fromJson(file.readAll(), &error);
-            if (error.error != QJsonParseError::NoError || !document.isArray() || document.array().size() > 1000) m_blocked = true;
-            else {
-                m_sessions = document.toVariant().toList(); QSet<QString> ids;
-                for (auto &value : m_sessions) {
-                    auto session = value.toMap(); const auto id = session.value("id").toString();
-                    auto segments = session.value("segments").toList(); QSet<QString> segmentIDs;
-                    if (id.isEmpty() || ids.contains(id) || segments.size() > 10000) m_blocked = true;
-                    ids.insert(id);
-                    for (auto &item : segments) {
-                        auto segment = item.toMap(); const auto sid = segment.value("id").toString();
-                        if (sid.isEmpty() || segmentIDs.contains(sid)) m_blocked = true; segmentIDs.insert(sid);
-                        if (QStringList{"queued", "transcribing", "translating"}.contains(segment.value("status").toString())) segment["status"] = "interrupted";
-                        item = segment;
-                    }
-                    session["segments"] = segments; value = session;
-                }
-                if (!m_sessions.isEmpty()) m_selected = m_sessions.first().toMap().value("id").toString();
-            }
-        }
-    }
-    if (m_blocked) m_error = "interpretStorageError";
+    load();
     connect(&m_audio, &NativeAudio::transcribed, this, [this](const QString &id, const QString &text) { if (id == m_active) translate(id, text); });
     connect(&m_audio, &NativeAudio::changed, this, [this] {
         if (!m_active.isEmpty() && !m_audio.busy() && !m_audio.recording() && !m_audio.error().isEmpty()) finish("failed", m_audio.error());
@@ -79,7 +53,7 @@ void Interpretation::start(const QString &model, const QString &provider, const 
     const auto begin = [this, generation, model, provider, source, target, locale] {
         if (generation != m_generation) return;
         m_starting = false; m_selected = newID();
-        m_sessions.prepend(QVariantMap{{"id", m_selected}, {"created", double(QDateTime::currentSecsSinceEpoch())}, {"model", model}, {"provider", provider}, {"source", source}, {"target", target}, {"locale", locale}, {"segments", QVariantList{}}, {"summary", ""}, {"captureMode", m_captureMode}});
+        m_sessions.prepend(QVariantMap{{"id", m_selected}, {"created", double(QDateTime::currentSecsSinceEpoch())}, {"model", model}, {"provider", provider}, {"source", source}, {"target", target}, {"locale", locale}, {"segments", QVariantList{}}, {"summary", ""}, {"captureMode", m_captureMode}, {"deviceID", m_deviceID}});
         if (persist()) beginCapture(); emit changed();
     };
     if (captureMode == "system") { begin(); return; }
@@ -181,13 +155,13 @@ void Interpretation::summarize(const QString &kind) {
     if (!persist()) { m_summarizing = false; m_summaryID.clear(); emit changed(); return; }
     m_provider.start({{"id", m_summaryID}, {"attemptID", newID()}, {"request", request}}); emit changed();
 }
-QString Interpretation::exportText(bool srt) const {
+QString Interpretation::exportText(bool srt, bool translatedOnly) const {
     const auto timestamp = [](double seconds) { const auto ms = qMax<qint64>(0, qint64(seconds * 1000)); return QString("%1:%2:%3,%4").arg(ms / 3600000, 2, 10, QChar('0')).arg(ms / 60000 % 60, 2, 10, QChar('0')).arg(ms / 1000 % 60, 2, 10, QChar('0')).arg(ms % 1000, 3, 10, QChar('0')); };
     QStringList rows; int index = 0;
-    for (const auto &value : current().value("segments").toList()) { const auto segment = value.toMap(); const auto speaker = segment.value("speaker").toString(); const auto name = current().value("speakerNameMap").toMap().value(speaker, speaker).toString(); const auto text = (name.isEmpty() ? QString{} : "[" + name + "] ") + segment.value("original").toString() + "\n" + segment.value("translated").toString(); rows.append(srt ? QString::number(++index) + "\n" + timestamp(segment.value("start").toDouble()) + " --> " + timestamp(segment.value("end").toDouble()) + "\n" + text : text); }
+    for (const auto &value : current().value("segments").toList()) { const auto segment = value.toMap(); const auto speaker = segment.value("speaker").toString(); const auto name = current().value("speakerNameMap").toMap().value(speaker, speaker).toString(); const auto text = (name.isEmpty() ? QString{} : "[" + name + "] ") + (translatedOnly ? segment.value("translated").toString() : segment.value("original").toString() + "\n" + segment.value("translated").toString()); rows.append(srt ? QString::number(++index) + "\n" + timestamp(segment.value("start").toDouble()) + " --> " + timestamp(segment.value("end").toDouble()) + "\n" + text : text); }
     if (!srt) for (const auto &kind : {"summary", "actionItems", "decisions", "speakerAnalysis"}) if (!current().value(kind).toString().isEmpty()) rows.append(current().value(kind).toString()); return rows.join("\n\n");
 }
-void Interpretation::exportFile(const QUrl &url, bool srt) { if (!url.isLocalFile()) return; QSaveFile file(url.toLocalFile()); const auto data = exportText(srt).toUtf8(); if (!file.open(QIODevice::WriteOnly) || file.write(data) != data.size() || !file.commit()) { m_error = "interpretStorageError"; emit changed(); } }
+void Interpretation::exportFile(const QUrl &url, bool srt, bool translatedOnly) { if (!url.isLocalFile()) return; QSaveFile file(url.toLocalFile()); const auto data = exportText(srt, translatedOnly).toUtf8(); if (!file.open(QIODevice::WriteOnly) || file.write(data) != data.size() || !file.commit()) { m_error = "interpretStorageError"; emit changed(); } }
 void Interpretation::speak(const QString &text) { if (!m_listening && !m_starting) m_audio.speak(text, current().value("target").toString()); }
 bool Interpretation::persist() {
     if (m_blocked) return false;
@@ -236,6 +210,62 @@ bool Interpretation::importArchive(const QVariantList &values) {
     emit changed(); return true;
 }
 
+void Interpretation::load() {
+    m_blocked = false; QVariantList loaded;
+    QFile file(m_file);
+    if (file.exists()) {
+        QJsonParseError error;
+        if (!file.open(QIODevice::ReadOnly) || file.size() > 134217728) m_blocked = true;
+        else {
+            const auto document = QJsonDocument::fromJson(file.readAll(), &error);
+            if (error.error != QJsonParseError::NoError || !document.isArray() || document.array().size() > 1000) m_blocked = true;
+            else {
+                loaded = document.toVariant().toList(); QSet<QString> ids;
+                for (auto &value : loaded) {
+                    auto session = value.toMap(); const auto id = session.value("id").toString();
+                    auto segments = session.value("segments").toList(); QSet<QString> segmentIDs;
+                    if (id.isEmpty() || ids.contains(id) || segments.size() > 10000) m_blocked = true;
+                    ids.insert(id);
+                    for (auto &item : segments) {
+                        auto segment = item.toMap(); const auto sid = segment.value("id").toString();
+                        if (sid.isEmpty() || segmentIDs.contains(sid)) m_blocked = true; segmentIDs.insert(sid);
+                        if (QStringList{"queued", "transcribing", "translating"}.contains(segment.value("status").toString())) segment["status"] = "interrupted";
+                        item = segment;
+                    }
+                    session["segments"] = segments; value = session;
+                }
+            }
+        }
+    }
+    // A failed read blocks writes and keeps what is in memory; nothing is replaced until a read succeeds.
+    if (m_blocked) { m_error = "interpretStorageError"; return; }
+    m_sessions = loaded; m_selected = m_sessions.isEmpty() ? QString{} : m_sessions.first().toMap().value("id").toString();
+    if (m_error == "interpretStorageError") m_error.clear();
+}
+// Interpret-States "Thử lại" after a storage failure: read the store again. Never while busy.
+void Interpretation::reload() { if (busy()) return; load(); emit changed(); }
+// "Clear history": every transcript goes; refused while anything runs or storage is blocked.
+bool Interpretation::clearAll() {
+    if (busy() || m_blocked) return false;
+    const auto previous = m_sessions; m_sessions.clear();
+    if (!persist()) { m_sessions = previous; emit changed(); return false; }
+    m_selected.clear(); m_audio.silence(); emit changed(); return true;
+}
+void Interpretation::restoreSession(const QVariantMap &session) {
+    const auto id = session.value("id").toString();
+    if (busy() || m_blocked || id.isEmpty() || m_sessions.size() >= 1000 || !validateArchive(QVariantList{session})) return;
+    for (const auto &value : m_sessions) if (value.toMap().value("id") == id) return;
+    const auto previous = m_sessions; qsizetype at = m_sessions.size();
+    for (qsizetype i = 0; i < m_sessions.size(); ++i) if (m_sessions[i].toMap().value("created").toDouble() < session.value("created").toDouble()) { at = i; break; }
+    m_sessions.insert(at, session);
+    if (!persist()) { m_sessions = previous; emit changed(); return; }
+    m_selected = id; emit changed();
+}
+void Interpretation::cancelSummary() {
+    if (!m_summarizing) return;
+    // Only the analysis stops; what arrived so far stays, saved. Late chunks no longer match m_summaryID.
+    m_provider.cancel(m_summaryID); m_summaryID.clear(); m_summarizing = false; persist(); emit changed();
+}
 void Interpretation::deleteSession(const QString &id) {
     if (busy() || m_blocked) return;
     const auto previous = m_sessions;

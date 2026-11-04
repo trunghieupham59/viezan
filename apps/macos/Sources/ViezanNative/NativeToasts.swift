@@ -55,10 +55,13 @@ private struct ToastCard: View {
     var center: ToastCenter
     let toast: ToastCenter.Toast
     @Environment(\.colorScheme) private var scheme
+    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     var body: some View {
         HStack(alignment: .center, spacing: metric("gap")) {
             if toast.error { StatusDot(tone: .failed) }
-            Text(toast.text).font(.vzn("labelScale")).foregroundStyle(contentColor("text-strong", scheme))
+            // Glass (Overlays board): a completed action leads with a success check.
+            else if glass { Image(systemName: "checkmark").fontWeight(.semibold).foregroundStyle(contentColor("success", scheme)).accessibilityHidden(true) }
+            Text(toast.text).font(glass ? .system(size: NSFont.systemFontSize) : .vzn("labelScale")).foregroundStyle(contentColor("text-strong", scheme))
                 .fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
             if let label = toast.actionLabel {
                 Button(label) { center.run(toast.id) }.buttonStyle(.vznOutline).tint(contentColor("action-text", scheme))

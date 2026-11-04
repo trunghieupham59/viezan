@@ -1,5 +1,31 @@
 # Cài đặt
 
+## Liquid Glass 2.0 trên macOS (2026-11-03, Đợt 5)
+
+Nguồn hình: `docs/design/glass2/boards/Settings-*.png` và `Overlays-Settings.png`.
+
+- **Chín mục.** Mục "Launcher & phím tắt" không còn trong Cài đặt. Generator đã bỏ
+  `desktop` khỏi `settingsSections`; việc ghi phím tắt chỉ diễn ra ở trang sidebar
+  Launcher & phím tắt.
+- **Hàng "Phím tắt toàn cục" trong Chung.** Mô tả hàng liệt kê các phím đang bật
+  (Launcher ⌥ Space · Chat nhanh ⌥ C · …). Nút "Launcher & phím tắt" mở trang
+  sidebar đó. Tìm "phím tắt", "Launcher"… sẽ ra mục Chung.
+- **Cột mục.** Rộng 292 pt, chia nhóm TUỲ CHỈNH / ỨNG DỤNG. Mục đang chọn là lens:
+  chữ semibold, icon màu nhấn. Câu "Thay đổi áp dụng ngay…" nằm ở chân cột.
+- **Đầu nội dung.** Mỗi mục có tiêu đề 22 và câu mô tả, rồi các thẻ một cột.
+- **Picker là lớp nổi của shell** (`SettingsPicker`). Nút dạng pill kính, bấm vào thì
+  mở danh sách `.float` neo dưới nút. Hàng cao 40; mục đang dùng là lens kèm ✓.
+  Giọng hệ thống được nhóm theo ngôn ngữ. ↑↓ để di chuyển, Return để chọn, Escape
+  hoặc bấm ra ngoài để đóng. Các preset khác vẫn dùng popup hệ thống.
+- **Hộp thoại xác nhận** dùng `BlockingDialog`, nằm giữa trang, chỉ cho việc không
+  hoàn tác được: xoá khoá, dọn lịch sử, xoá model. Nút nguy hiểm đỏ đặc. Đo hiệu
+  năng hỏi trước bằng nút chính "Bắt đầu", rồi hiện thẻ kết quả như cũ.
+- **Tìm trong Cài đặt.** Khi gõ vào ô tìm ở header, các mục khớp hiện thành danh
+  sách thả xuống ngay dưới ô (tên mục + mô tả). Chọn một dòng thì mở mục đó và xoá
+  từ khoá. Không có mục nào khớp thì hiện "Không có mục cài đặt nào khớp."
+- **Dưới 760.** Cột mục thay bằng một picker "icon · tên mục ⌄", danh sách vẫn chia
+  theo nhóm.
+
 ## Native Glass components (2026-11-03)
 
 The native Settings search uses the shared capsule field with an opaque inset
@@ -433,8 +459,7 @@ Không có tiêu đề mục nhìn thấy (`<h2 className="sr-only">`).
 | Giới thiệu: **"Mở thư mục"** dữ liệu | Chỉ có chữ "Lưu trên máy này" | Đề xuất |
 | Tính năng "Dịch nhanh ⌥T" ghi phím tắt | Chuỗi `settings_about_feature_everywhere_desc` không có phím | Giữ mã (phím có thể đổi) |
 | Preset: mỗi hàng chỉ một nút "Sửa" | Bốn nút icon: Đặt mặc định, Dùng, Sửa, Xoá (`PresetActions.tsx`) | Giữ mã; cân nhắc gom vào menu |
-| Danh sách mục rộng 200 | 240 (`--vzn-settings-nav-width`) | Chọn một: sửa bản vẽ hoặc đổi token |
-| Tìm kiếm ngụ ý tìm theo từng cài đặt | Chỉ lọc theo tên + mô tả của **mục**; gõ "Groq" ra rỗng (`SettingsPage.tsx`) | Đề xuất tìm theo nhãn hàng |
+| Tìm kiếm ngụ ý tìm theo từng cài đặt (Glass 2.0: "Phím tắt toàn cục · Chung › Ứng dụng") | Danh sách thả xuống native chỉ trả về **mục**, theo tên, mô tả và `terms`; chưa cuộn tới hàng và chưa nháy hàng | Đề xuất tìm theo nhãn hàng |
 
 ### App có, bản vẽ chưa vẽ
 

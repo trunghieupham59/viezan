@@ -226,6 +226,7 @@ void DesktopIntegration::openApplicationSettings() {
 }
 
 QString DesktopIntegration::calculate(const QString &input) const { return LauncherTools::calculate(input); }
+QVariantMap DesktopIntegration::paletteQuery(const QString &input) const { return LauncherTools::paletteQuery(input); }
 void DesktopIntegration::searchFiles(const QString &input) {
     const auto generation = ++m_fileSearchGeneration; m_files.clear(); m_currency.clear(); emit changed();
     if (input.trimmed().size() < 2) return;

@@ -1,5 +1,6 @@
 #include "../WorkbenchBridge.h"
 #include "../WorkbenchDomain.h"
+#include "../NativeAudio.h"
 #include "../ProviderDiscovery.h"
 #include <QUuid>
 #include "../ImageGeneration.h"
@@ -8,6 +9,13 @@
 #include "../TextLanguage.h"
 #include "../ThermalSensors.h"
 #include "../LauncherTools.h"
+#include "../NativeBackup.h"
+#include "../LocalRuntime.h"
+#include "../ModelLineup.h"
+#include "../NativeUpdates.h"
+#include "../Interpretation.h"
+#include <QStandardPaths>
+#include <QCryptographicHash>
 #include <QFile>
 #include <QInputMethodEvent>
 #include <QJsonDocument>
@@ -47,6 +55,359 @@ static QQuickItem *visualText(QQuickItem *item, const QString &text) {
 class WorkbenchBridgeTests : public QObject {
     Q_OBJECT
 private slots:
+    // Liquid Glass 2.0 backend (BACKEND-GAPS #2, #5, #9, #21, #24, #25, #29, #42).
+    void glassBackendReducerRules() {
+        using namespace WorkbenchDomain;
+        auto session = [](const QVariantMap &state, const QString &id) { for (const auto &v : state.value("sessions").toList()) if (v.toMap().value("id") == id) return v.toMap(); return QVariantMap{}; };
+        auto state = create("chat", "translate");
+        // #21: an unchanged dictionary context neither bumps the revision nor clears the entry.
+        state = command(state, "navigate", {{"feature", "dictionary"}, {"_updated", 10.0}}, "n1", "a1");
+        const QString dict = "chat-dictionary";
+        state = command(state, "draft", {{"sessionID", dict}, {"value", "serendipity"}}, "d1", "a1");
+        state = command(state, "submit", {{"sessionID", dict}, {"_updated", 100.0}}, "t1", "a1");
+        const auto json = QString(R"({"headword":"serendipity","pronunciation":"/x/","meaning":"chance","translations":[{"text":"tình cờ","pronunciation":"tình cờ"}],"related":{"synonyms":["luck"]}})");
+        state = command(state, "receive", {{"taskID", "t1"}, {"attemptID", "a1"}, {"chunk", json}, {"terminal", "succeeded"}, {"_updated", 101.5}}, "r1", "a1");
+        const auto task = state.value("tasks").toList().value(0).toMap();
+        QCOMPARE(task.value("status").toString(), QString("succeeded")); // related words do not fail validation
+        // #5: the attempt carries when it started and ended.
+        QCOMPARE(task.value("started").toDouble(), 100.0);
+        QCOMPARE(task.value("finished").toDouble(), 101.5);
+        const auto revision = session(state, dict).value("revision").toLongLong();
+        const auto unchanged = command(state, "dictionaryContext", {{"sessionID", dict}, {"value", ""}}, "c1", "a1");
+        QCOMPARE(session(unchanged, dict).value("output").toString(), json);
+        QCOMPARE(session(unchanged, dict).value("revision").toLongLong(), revision);
+        const auto changed = command(state, "dictionaryContext", {{"sessionID", dict}, {"value", "science"}}, "c2", "a1");
+        QCOMPARE(session(changed, dict).value("output").toString(), QString());
+
+        // #24: the newest finished chat answer can be regenerated; an older one cannot.
+        auto chat = command(create("c", "t"), "draft", {{"sessionID", "c"}, {"value", "Hi"}}, "x", "a");
+        chat = command(chat, "submit", {{"sessionID", "c"}}, "q1", "a1");
+        chat = command(chat, "receive", {{"taskID", "q1"}, {"attemptID", "a1"}, {"chunk", "Hello"}, {"terminal", "succeeded"}}, "x", "a");
+        auto regenerated = command(chat, "retry", {{"taskID", "q1"}}, "x", "a2");
+        QCOMPARE(regenerated.value("tasks").toList().value(0).toMap().value("status").toString(), QString("running"));
+        chat = command(chat, "draft", {{"sessionID", "c"}, {"value", "Again"}}, "x", "a");
+        chat = command(chat, "submit", {{"sessionID", "c"}}, "q2", "b1");
+        chat = command(chat, "receive", {{"taskID", "q2"}, {"attemptID", "b1"}, {"chunk", "Sure"}, {"terminal", "succeeded"}}, "x", "a");
+        QCOMPARE(command(chat, "retry", {{"taskID", "q1"}}, "x", "a3"), chat);
+
+        // #42: the last enabled workspace page cannot be switched off.
+        auto modules = create("c", "t");
+        for (const auto &page : {"chat", "translate", "interpret", "dictionary", "thermal"}) modules = command(modules, "module", {{"id", page}, {"enabled", false}}, "x", "a");
+        QCOMPARE(command(modules, "module", {{"id", "apps"}, {"enabled", false}}, "x", "a"), modules);
+        QVERIFY(command(modules, "module", {{"id", "utilities"}, {"enabled", false}}, "x", "a") != modules);
+
+        // #29: "new" sweeps earlier empty sessions of the feature instead of piling them up.
+        auto fresh = create("c", "t");
+        fresh = command(fresh, "new", {}, "n1", "a"); fresh = command(fresh, "new", {}, "n2", "a"); fresh = command(fresh, "new", {}, "n3", "a");
+        int chats = 0; for (const auto &v : fresh.value("sessions").toList()) if (v.toMap().value("feature") == "chat") ++chats;
+        QCOMPARE(chats, 1);
+
+        // #9: the speaking rate is kept, validated, and survives a provider change without a rate.
+        auto voice = command(create("c", "t"), "voice", {{"provider", "openai"}, {"voice", "alloy"}, {"rate", 1.25}}, "x", "a");
+        QCOMPARE(voice.value("voice").toMap().value("rate").toDouble(), 1.25);
+        QVERIFY(validate(voice));
+        QCOMPARE(command(voice, "voice", {{"provider", "openai"}, {"voice", "alloy"}, {"rate", 3.0}}, "x", "a"), voice);
+        QCOMPARE(command(voice, "voice", {{"provider", "edge"}, {"voice", ""}}, "x", "a").value("voice").toMap().value("rate").toDouble(), 1.25);
+        auto legacy = create("c", "t"); legacy["voice"] = QVariantMap{{"provider", "system"}, {"voice", ""}};
+        QVERIFY(validate(legacy)); // snapshots without a rate stay readable
+        QVERIFY(NativeAudio::rateSupported("edge") && !NativeAudio::rateSupported("gemini") && !NativeAudio::rateSupported("elevenlabs"));
+    }
+    void glassBackendSmartReset() {
+        using namespace WorkbenchDomain;
+        auto state = create("c", "t");
+        state = command(state, "navigate", {{"feature", "translate"}, {"_updated", 10.0}}, "x", "a");
+        state = command(state, "draft", {{"sessionID", "t"}, {"value", "Hello"}}, "x", "a");
+        state = command(state, "submit", {{"sessionID", "t"}}, "job", "a1");
+        state = command(state, "receive", {{"taskID", "job"}, {"attemptID", "a1"}, {"chunk", "Xin chào"}, {"terminal", "succeeded"}}, "x", "a");
+        state = command(state, "navigate", {{"feature", "chat"}, {"_updated", 1000.0}}, "x", "a");
+        // Back within two hours: the finished turn stays.
+        auto soon = command(state, "navigate", {{"feature", "translate"}, {"_updated", 2000.0}}, "fresh", "a");
+        QCOMPARE(soon.value("active").toMap().value("translate").toString(), QString("t"));
+        QVERIFY(!soon.contains("_resetNotice"));
+        // Back after the break: a fresh turn opens and the old one is remembered.
+        auto later = command(state, "navigate", {{"feature", "translate"}, {"_updated", 1000.0 + 7200}}, "fresh", "a");
+        QCOMPARE(later.value("active").toMap().value("translate").toString(), QString("fresh"));
+        QCOMPARE(later.value("_resetNotice").toMap().value("previousID").toString(), QString("t"));
+        later.remove("_resetNotice");
+        auto reopened = command(later, "reopenPrevious", {{"feature", "translate"}, {"previousID", "t"}}, "x", "a");
+        QCOMPARE(reopened.value("active").toMap().value("translate").toString(), QString("t"));
+        for (const auto &v : reopened.value("sessions").toList()) QVERIFY(v.toMap().value("id") != "fresh"); // the empty replacement leaves
+        // The setting turns it off.
+        auto off = command(state, "smartReset", {{"value", false}}, "x", "a");
+        off = command(off, "navigate", {{"feature", "translate"}, {"_updated", 1000.0 + 7200}}, "fresh", "a");
+        QCOMPARE(off.value("active").toMap().value("translate").toString(), QString("t"));
+        QVERIFY(validate(off));
+    }
+    // Liquid Glass 2.0 backend, second pass (BACKEND-GAPS #4, #30, #31, #39, #40, #46, #52, #56, #57, #64, #6/#23).
+    void glassBackendSecondPassReducer() {
+        using namespace WorkbenchDomain;
+        auto session = [](const QVariantMap &state, const QString &id) { for (const auto &v : state.value("sessions").toList()) if (v.toMap().value("id") == id) return v.toMap(); return QVariantMap{}; };
+        // #31: an image-only turn takes the image's name; a dropped path its file name.
+        const QVariantMap image{{"id", QUuid::createUuid().toString(QUuid::WithoutBraces)}, {"name", "beach.png"}, {"mime", "image/png"}, {"width", 1024}, {"height", 768}};
+        auto state = command(create("c", "t"), "addImage", {{"sessionID", "c"}, {"image", image}}, "x", "a");
+        state = command(state, "submit", {{"sessionID", "c"}, {"_updated", 10.0}}, "q1", "a1");
+        QCOMPARE(session(state, "c").value("title").toString(), QString("beach.png"));
+        QCOMPARE(derivedTitle("file:///Users/me/My%20Shot.png", {}), QString("My Shot.png"));
+        QCOMPARE(derivedTitle("line one\nline two", {}), QString("line one line two"));
+        state = command(state, "receive", {{"taskID", "q1"}, {"attemptID", "a1"}, {"chunk", "Sand"}, {"terminal", "succeeded"}}, "x", "a");
+        // #57: an emptied name falls back to the first question's title.
+        state = command(state, "rename", {{"sessionID", "c"}, {"value", "Holiday"}, {"_updated", 11.0}}, "x", "a");
+        QCOMPARE(session(state, "c").value("title").toString(), QString("Holiday"));
+        state = command(state, "rename", {{"sessionID", "c"}, {"value", "  "}, {"_updated", 12.0}}, "x", "a");
+        QCOMPARE(session(state, "c").value("title").toString(), QString("beach.png"));
+        // #30: every edit moves the session up, archiving and favourites included; a no-op does not.
+        state = command(state, "model", {{"sessionID", "c"}, {"value", "openai:gpt-5"}, {"_updated", 20.0}}, "x", "a");
+        QCOMPARE(session(state, "c").value("updated").toDouble(), 20.0);
+        state = command(state, "model", {{"sessionID", "c"}, {"value", "openai:gpt-5"}, {"_updated", 21.0}}, "x", "a");
+        QCOMPARE(session(state, "c").value("updated").toDouble(), 20.0);
+        // #56: archiving records when; restoring drops it; a malformed value fails closed, an old state passes.
+        auto archived = command(state, "archive", {{"sessionID", "c"}, {"value", true}, {"_updated", 30.0}}, "fresh", "a");
+        QCOMPARE(session(archived, "c").value("archivedAt").toDouble(), 30.0);
+        QCOMPARE(session(archived, "c").value("updated").toDouble(), 30.0);
+        QVERIFY(validate(archived));
+        QVERIFY(!session(command(archived, "archive", {{"sessionID", "c"}, {"value", false}, {"_updated", 31.0}}, "x", "a"), "c").contains("archivedAt"));
+        auto broken = archived; auto sessions = broken.value("sessions").toList();
+        for (auto &value : sessions) { auto item = value.toMap(); if (item.value("id") == "c") item["archivedAt"] = "yesterday"; value = item; }
+        broken["sessions"] = sessions; QVERIFY(!validate(broken));
+        QVERIFY(validate(create("c", "t")));
+        // #40: the comparison layout is remembered and type-checked.
+        auto layout = command(create("c", "t"), "compareBySentence", {{"value", true}}, "x", "a");
+        QCOMPARE(layout.value("compareBySentence").toBool(), true);
+        QCOMPARE(command(layout, "compareBySentence", {{"value", "yes"}}, "x", "a"), layout);
+        layout["compareBySentence"] = "yes"; QVERIFY(!validate(layout));
+        // #39: a dictionary context over 500 characters never reaches a provider.
+        auto dictionary = command(create("c", "t"), "draft", {{"sessionID", "c-dictionary"}, {"value", "luck"}}, "x", "a");
+        sessions = dictionary.value("sessions").toList();
+        for (auto &value : sessions) { auto item = value.toMap(); if (item.value("id") == "c-dictionary") item["dictionaryContext"] = QString(501, 'x'); value = item; }
+        dictionary["sessions"] = sessions;
+        QCOMPARE(command(dictionary, "submit", {{"sessionID", "c-dictionary"}}, "d1", "a1").value("tasks").toList().size(), 0);
+        // #4: "not found" replies are their own outcome, with at most 5 cleaned suggestions.
+        auto lookup = command(create("c", "t"), "draft", {{"sessionID", "c-dictionary"}, {"value", "serendipituos"}}, "x", "a");
+        lookup = command(lookup, "submit", {{"sessionID", "c-dictionary"}}, "d1", "a1");
+        const QString reply = R"({"notFound":true,"suggestions":[{"word":"serendipitous","partOfSpeech":"tính từ","meaning":"tình cờ"},"serendipity",{"word":""}]})";
+        lookup = command(lookup, "receive", {{"taskID", "d1"}, {"attemptID", "a1"}, {"chunk", reply}, {"terminal", "succeeded"}}, "x", "a");
+        QCOMPARE(lookup.value("tasks").toList().value(0).toMap().value("errorCode").toString(), QString("dictionaryNotFound"));
+        const auto suggestions = dictionarySuggestions(reply).toList();
+        QCOMPARE(suggestions.size(), 2);
+        QCOMPARE(suggestions.value(0).toMap().value("meaning").toString(), QString("tình cờ"));
+        QVERIFY(!dictionarySuggestions(R"({"headword":"x"})").isValid());
+        // #64: clear history refuses while a task runs, then keeps one empty session per feature.
+        auto busy = command(create("c", "t"), "draft", {{"sessionID", "c"}, {"value", "Hi"}}, "x", "a");
+        busy = command(busy, "model", {{"sessionID", "c"}, {"value", "openai:gpt-5"}}, "x", "a");
+        busy = command(busy, "submit", {{"sessionID", "c"}}, "q1", "a1");
+        QCOMPARE(clearableHistory(busy), 1);
+        QCOMPARE(command(busy, "clearHistory", {}, "z", "a"), busy);
+        busy = command(busy, "receive", {{"taskID", "q1"}, {"attemptID", "a1"}, {"chunk", "Hello"}, {"terminal", "succeeded"}}, "x", "a");
+        const auto cleared = command(busy, "clearHistory", {}, "z", "a");
+        QCOMPARE(cleared.value("sessions").toList().size(), 3);
+        QVERIFY(cleared.value("tasks").toList().isEmpty());
+        QCOMPARE(session(cleared, cleared.value("active").toMap().value("chat").toString()).value("model").toString(), QString("openai:gpt-5"));
+        QVERIFY(validate(cleared)); QCOMPARE(clearableHistory(cleared), 0);
+    }
+    void glassBackendSecondPassServices() {
+        // #52/#53: a backup whose images carry size and generator still matches its attachment records.
+        const auto id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        const QVariantMap image{{"id", id}, {"name", "a.png"}, {"mime", "image/png"}, {"width", 1024}, {"height", 1024}, {"generator", "openai:gpt-image-1"}};
+        auto workspace = WorkbenchDomain::command(WorkbenchDomain::create("c", "t"), "addImage", {{"sessionID", "c"}, {"image", image}}, "x", "a");
+        const auto snapshot = QJsonDocument::fromVariant(workspace).toJson(QJsonDocument::Compact); const QByteArray bytes("not-really-a-png");
+        const auto sha = [](const QByteArray &data) { return QString::fromLatin1(QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex()); };
+        auto record = image; record["data"] = QString::fromLatin1(bytes.toBase64()); record["sha256"] = sha(bytes);
+        const auto backup = QJsonDocument::fromVariant(QVariantMap{{"format", "viezan-native-backup"}, {"version", 1}, {"workspace", QString::fromLatin1(snapshot.toBase64())}, {"sha256", sha(snapshot)}, {"attachments", QVariantList{record}}}).toJson();
+        QVERIFY(NativeBackup::preview(backup).valid);
+        // #56: the archive lists the most recently archived session first.
+        QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        const auto first = current(bridge).value("id").toString(); bridge.command("draft", {{"sessionID", first}, {"value", "first"}});
+        bridge.command("new"); const auto second = current(bridge).value("id").toString(); bridge.command("draft", {{"sessionID", second}, {"value", "second"}});
+        bridge.command("archive", {{"sessionID", second}, {"value", true}}); QTest::qWait(5);
+        bridge.command("archive", {{"sessionID", first}, {"value", true}});
+        const auto archive = bridge.history({}, true);
+        QCOMPARE(archive.size(), 2);
+        QCOMPARE(archive.value(0).toMap().value("id").toString(), first);
+        // #46: physical memory is known on every desktop platform.
+        QVERIFY(LocalRuntime::memoryBytes() > 0);
+        // #6/#23: an unknown one-off provider is refused; nothing starts.
+        NativeAudio audio;
+        audio.speak("Xin chào", "vi", "result", "bogus");
+        QVERIFY(!audio.speaking()); QVERIFY(audio.speakingSource().isEmpty()); QVERIFY(!audio.preparing());
+    }
+    // Qt parity pass (BACKEND-GAPS #18, #26, #27, #28, #37, #43). ModelLineup cases are Swift's ModelLineupTests.
+    void parityModelLineupMatchesSwift() {
+        using namespace ModelLineup;
+        QStringList claude; for (const auto &id : {"claude-fable-5", "claude-fable-5-1", "claude-haiku-4-5", "claude-haiku-5-5", "claude-opus-4-5", "claude-opus-4-6", "claude-opus-4-7", "claude-opus-4-8", "claude-opus-5", "claude-opus-5-5", "claude-sonnet-4-5", "claude-sonnet-4-6", "claude-sonnet-5", "claude-sonnet-5-5"}) claude << QString("claude:") + id;
+        QCOMPARE(featured(claude), (QStringList{"claude:claude-fable-5-1", "claude:claude-opus-5-5", "claude:claude-sonnet-5-5", "claude:claude-haiku-5-5"}));
+        QStringList openAI; for (const auto &id : {"babbage-002", "chat-latest", "chatgpt-image-latest", "computer-use-preview", "davinci-002", "gpt-3.5-turbo", "gpt-3.5-turbo-0125", "gpt-4.1", "gpt-4.1-mini", "gpt-5", "gpt-5-mini", "gpt-5.5", "gpt-5.5-mini", "gpt-5.5-nano", "o3", "o3-mini", "o4-mini", "text-embedding-3-small", "tts-1", "whisper-1"}) openAI << QString("openai:") + id;
+        QCOMPARE(featured(openAI), (QStringList{"openai:gpt-5.5", "openai:gpt-5.5-mini", "openai:gpt-5.5-nano"}));
+        QCOMPARE(featured({"openai:o3-pro", "openai:gpt-5.5", "openai:o3", "openai:gpt-5.5-mini"}), (QStringList{"openai:o3-pro", "openai:gpt-5.5", "openai:gpt-5.5-mini"}));
+        QStringList gemini; for (const auto &id : {"gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-flash-preview", "gemini-3-pro", "gemini-2.5-flash-lite", "gemini-embedding-001", "gemini-2.5-flash-live-001"}) gemini << QString("gemini:") + id;
+        QCOMPARE(featured(gemini), (QStringList{"gemini:gemini-3-pro", "gemini:gemini-3-flash-preview", "gemini:gemini-2.5-flash-lite"}));
+        QCOMPARE(featured({"claude:claude-sonnet-5-5-20260301", "claude:claude-sonnet-5-5"}), QStringList{"claude:claude-sonnet-5-5"});
+        QCOMPARE(featured({"ollama:qwen3:4b", "ollama:gemma3:4b"}), (QStringList{"ollama:gemma3:4b", "ollama:qwen3:4b"}));
+        QCOMPARE(featured({"openai:zeta-1", "openai:alpha-2"}), (QStringList{"openai:alpha-2", "openai:zeta-1"}));
+        QVERIFY(featured({}).isEmpty());
+        // Short names.
+        QCOMPARE(shortName("claude:claude-sonnet-5-5"), QString("Sonnet 5.5"));
+        QCOMPARE(shortName("claude:claude-opus-5"), QString("Opus 5"));
+        QCOMPARE(shortName("claude:claude-fable-5-1-20260301"), QString("Fable 5.1"));
+        QCOMPARE(shortName("openai:gpt-5.5-mini"), QString("GPT-5.5 Mini"));
+        QCOMPARE(shortName("openai:o4-mini"), QString("o4 Mini"));
+        QCOMPARE(shortName("gemini:gemini-2.5-flash-lite"), QString("Gemini 2.5 Flash Lite"));
+        QCOMPARE(shortName("ollama:qwen3:4b"), QString("qwen3:4b"));
+        QCOMPARE(shortName("openai:some-new-thing-2026-05-01"), QString("some-new-thing"));
+        QCOMPARE(shortName("openai:gpt-6-astra"), QString("GPT-6 Astra"));
+        // Tiers.
+        const QStringList claudeListing{"claude:claude-haiku-5-5", "claude:claude-sonnet-5-5", "claude:claude-opus-5-5", "claude:claude-fable-5-1"};
+        QCOMPARE(tiers("claude:claude-sonnet-5-5", claudeListing), (QVariantMap{{"fast", "claude:claude-haiku-5-5"}, {"balanced", "claude:claude-sonnet-5-5"}, {"careful", "claude:claude-opus-5-5"}}));
+        QCOMPARE(tiers("openai:gpt-5.5", {"openai:gpt-5.5", "openai:gpt-5.5-mini", "openai:gpt-5.5-nano", "openai:babbage-002"}), (QVariantMap{{"fast", "openai:gpt-5.5-nano"}, {"balanced", "openai:gpt-5.5"}, {"careful", "openai:gpt-5.5"}}));
+        QCOMPARE(tiers("gemini:gemini-3-flash", {"gemini:gemini-3-pro", "gemini:gemini-3-flash"}), (QVariantMap{{"fast", "gemini:gemini-3-flash"}, {"balanced", "gemini:gemini-3-flash"}, {"careful", "gemini:gemini-3-pro"}}));
+        QVERIFY(tiers("claude:claude-sonnet-5-5", {"claude:claude-sonnet-5-5", "claude:claude-sonnet-5"}).isEmpty());
+        QVERIFY(tiers("ollama:qwen3:4b", {"ollama:qwen3:4b", "ollama:gemma3:4b"}).isEmpty());
+        QStringList shown; for (const auto &id : {"gpt-6.1-sol", "gpt-6-astra", "gpt-5.5-pro", "gpt-5.5", "gpt-5.4-mini", "gpt-5.4-nano"}) shown << QString("openai:") + id;
+        QCOMPARE(tiers("openai:gpt-6-astra", shown), (QVariantMap{{"fast", "openai:gpt-5.4-nano"}, {"balanced", "openai:gpt-6.1-sol"}, {"careful", "openai:gpt-6.1-sol"}}));
+        QCOMPARE(tiers("openai:gpt-6.1-sol", shown + QStringList{"openai:gpt-6.1-mini"}).value("fast").toString(), QString("openai:gpt-6.1-mini"));
+        // Search.
+        QStringList listing; for (const auto &id : {"gpt-4o", "gpt-4o-2024-05-13", "gpt-4o-2024-08-06", "gpt-4o-mini", "gpt-4o-mini-tts", "gpt-4o-transcribe", "gpt-4o-mini-search-preview", "gpt-4.1-mini", "gpt-5", "whisper-1"}) listing << QString("openai:") + id;
+        QCOMPARE(search(listing, ""), (QStringList{"openai:gpt-4.1-mini", "openai:gpt-4o", "openai:gpt-4o-mini", "openai:gpt-5"}));
+        QCOMPARE(search(listing, "MINI"), (QStringList{"openai:gpt-4.1-mini", "openai:gpt-4o-mini"}));
+        QCOMPARE(search({"openai:gpt-4o-2024-05-13", "openai:gpt-4o-2024-08-06"}, "4o"), QStringList{"openai:gpt-4o-2024-08-06"});
+        // Sections and recent.
+        const QMap<QString, QStringList> listings{{"openai", {"openai:gpt-5.5", "openai:gpt-5.5-mini", "openai:whisper-1"}}, {"claude", {"claude:claude-sonnet-5-5", "claude:claude-haiku-5-5"}}, {"ollama", {"ollama:qwen3:4b"}}};
+        const QVariantMap tierMap{{"fast", "openai:gpt-5.5-mini"}, {"balanced", "openai:gpt-5.5"}, {"careful", "openai:gpt-5.5"}};
+        const QStringList cloud{"openai", "claude", "gemini"}, local{"ollama", "lmstudio", "llamacpp"};
+        const auto keys = [](const QVariantList &list) { QStringList out; for (const auto &v : list) out << v.toMap().value("key").toString(); return out; };
+        const auto idle = sections("", tierMap, {"claude:claude-haiku-5-5", "openai:gpt-5.5"}, listings, cloud, local);
+        QCOMPARE(keys(idle), (QStringList{"purpose", "recent", "openai", "claude", "gemini", "local"}));
+        QCOMPARE(idle[1].toMap().value("rows").toList().size(), 1);
+        QCOMPARE(idle[4].toMap().value("rows").toList().value(0).toMap().value("kind").toString(), QString("setup"));
+        QCOMPARE(keys(sections("mini", tierMap, {}, listings, cloud, local)), QStringList{"openai"});
+        QCOMPARE(keys(sections("openai:gpt-7", {}, {}, listings, cloud, local)).last(), QString("typed"));
+        QVERIFY(sections("zzz", {}, {}, listings, cloud, local).isEmpty());
+        QCOMPARE(recent({"ollama:d", "gemini:c", "ollama:d", "openai:whisper-1", "claude:a", "openai:b"}), (QStringList{"ollama:d", "gemini:c", "claude:a"}));
+    }
+    void parityReducerAndBridge() {
+        using namespace WorkbenchDomain;
+        // #18: Translate refuses a source over 5 000 characters, for a turn and for a comparison.
+        auto state = command(create("c", "t"), "draft", {{"sessionID", "t"}, {"value", QString(5001, 'a')}}, "x", "a");
+        QVERIFY(command(state, "submit", {{"sessionID", "t"}}, "q", "a").value("tasks").toList().isEmpty());
+        QVERIFY(command(state, "compare", {{"sessionID", "t"}, {"models", QStringList{"openai:gpt-5", "claude:claude-sonnet-5"}}}, "x", "a").value("tasks").toList().isEmpty());
+        state = command(state, "draft", {{"sessionID", "t"}, {"value", QString(5000, 'a')}}, "x", "a");
+        QCOMPARE(command(state, "submit", {{"sessionID", "t"}}, "q", "a").value("tasks").toList().size(), 1);
+        // #27: delete a session at once, never while it runs; Undo puts it back as the current one.
+        auto chat = command(create("c", "t"), "draft", {{"sessionID", "c"}, {"value", "Hi"}}, "x", "a");
+        chat = command(chat, "submit", {{"sessionID", "c"}}, "q1", "a1");
+        QCOMPARE(command(chat, "removeSession", {{"sessionID", "c"}}, "fresh", "a"), chat);
+        chat = command(chat, "receive", {{"taskID", "q1"}, {"attemptID", "a1"}, {"chunk", "Hello"}, {"terminal", "succeeded"}}, "x", "a");
+        const auto removed = command(chat, "removeSession", {{"sessionID", "c"}}, "fresh", "a");
+        QVERIFY(validate(removed)); QCOMPARE(removed.value("active").toMap().value("chat").toString(), QString("fresh"));
+        QVERIFY(removed.value("tasks").toList().isEmpty());
+        QVariantMap original; for (const auto &v : chat.value("sessions").toList()) if (v.toMap().value("id") == "c") original = v.toMap();
+        const auto restored = command(removed, "restoreSession", {{"session", original}, {"index", 0}}, "x", "a");
+        QCOMPARE(restored.value("active").toMap().value("chat").toString(), QString("c"));
+        QCOMPARE(command(restored, "restoreSession", {{"session", original}, {"index", 0}}, "x", "a"), restored);
+        // #43: update preferences are optional, typed, and the snooze lasts 24 hours.
+        auto updates = command(create("c", "t"), "autoCheckUpdates", {{"value", false}}, "x", "a");
+        QCOMPARE(updates.value("updates").toMap().value("autoCheck").toBool(), false);
+        updates = command(updates, "snoozeUpdate", {{"version", "2.5.0"}, {"_updated", 1000.0}}, "x", "a");
+        QCOMPARE(updates.value("updates").toMap().value("snoozedUntil").toDouble(), 87400.0);
+        QVERIFY(validate(updates));
+        auto broken = updates; broken["updates"] = QVariantMap{{"autoCheck", "yes"}}; QVERIFY(!validate(broken));
+        // Bridge: remove returns what Undo needs; a fresh bridge checks updates in the background by default.
+        QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        const auto id = current(bridge).value("id").toString(); bridge.command("draft", {{"sessionID", id}, {"value", "keep me"}});
+        const auto undo = bridge.removeSession(id);
+        QCOMPARE(undo.value("session").toMap().value("draft").toString(), QString("keep me"));
+        QVERIFY(current(bridge).value("id").toString() != id);
+        bridge.restoreSession(undo.value("session").toMap(), undo.value("index").toInt());
+        QCOMPARE(current(bridge).value("id").toString(), id);
+        QVERIFY(bridge.autoCheckUpdates()); bridge.setAutoCheckUpdates(false); QVERIFY(!bridge.autoCheckUpdates());
+        QVERIFY(bridge.updatePrompt().isEmpty()); QVERIFY(!bridge.updateSnoozed("9.9.9"));
+        QVERIFY(bridge.modelTiers(id).isEmpty()); // no provider listing in tests
+        QCOMPARE(bridge.shortModelName("claude:claude-sonnet-5-5"), QString("Sonnet 5.5"));
+        QVERIFY(bridge.rateSupported("edge")); QVERIFY(!bridge.rateSupported("gemini"));
+    }
+    void parityInterpretationRestoreAndCancelSummary() {
+        QStandardPaths::setTestModeEnabled(true);
+        QFile::remove(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/interpretation.json");
+        {
+            Interpretation interpretation;
+            const QVariantMap session{{"id", "meeting"}, {"created", 100.0}, {"model", "openai:gpt-5"}, {"provider", "openai"}, {"source", "en"}, {"target", "vi"}, {"locale", "vi"}, {"segments", QVariantList{}}, {"summary", ""}};
+            interpretation.restoreSession(session);
+            QCOMPARE(interpretation.sessions().size(), 1);
+            interpretation.restoreSession(session); // already there: no duplicate
+            QCOMPARE(interpretation.sessions().size(), 1);
+            interpretation.deleteSession("meeting"); QVERIFY(interpretation.sessions().isEmpty());
+            interpretation.restoreSession(session); QCOMPARE(interpretation.sessions().size(), 1);
+            QVERIFY(!interpretation.summarizing()); interpretation.cancelSummary(); QVERIFY(!interpretation.summarizing());
+        }
+        QFile::remove(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/interpretation.json");
+        QStandardPaths::setTestModeEnabled(false);
+    }
+    // Remaining gaps (BACKEND-GAPS #8, #10, #12, #16, #32, #45, #47, #63, #66, #68).
+    void remainingGapsServices() {
+        // #32: palette queries read sums, prefixes and questions, as Swift PaletteQuery.
+        QCOMPARE(LauncherTools::paletteQuery("2+3*4"), (QVariantMap{{"kind", "calculation"}, {"value", "14"}}));
+        QCOMPARE(LauncherTools::paletteQuery("? what is a mile"), (QVariantMap{{"kind", "ask"}, {"value", "what is a mile"}}));
+        QCOMPARE(LauncherTools::paletteQuery("t xin chào"), (QVariantMap{{"kind", "translate"}, {"value", "xin chào"}}));
+        QCOMPARE(LauncherTools::paletteQuery("D serendipity"), (QVariantMap{{"kind", "lookup"}, {"value", "serendipity"}}));
+        QVERIFY(LauncherTools::paletteQuery("settings").isEmpty()); QVERIFY(LauncherTools::paletteQuery("t ").isEmpty());
+        // #63: download estimates wait for a stable rate.
+        QCOMPARE(NativeUpdates::remaining(10, 0.5), 10.0);
+        QCOMPARE(NativeUpdates::remaining(0.5, 0.5), -1.0); QCOMPARE(NativeUpdates::remaining(10, 0.01), -1.0);
+        NativeUpdates updates; QCOMPARE(updates.packageSize(), qint64(0)); QCOMPARE(updates.checkedAt(), 0.0); QCOMPARE(updates.remainingSeconds(), -1.0);
+        // #10 / #16 / #8: no recording yet; a known permission word; system voices carry their language.
+        NativeAudio audio;
+        QCOMPARE(audio.recordingStarted(), 0.0);
+        QVERIFY(QStringList({"granted", "denied", "undetermined"}).contains(audio.microphonePermission()));
+        for (const auto &voice : audio.voiceList()) QVERIFY(!voice.toMap().value("language").toString().isEmpty());
+        audio.configureVoice("edge", "", 1); QVERIFY(audio.voiceFor("en").isEmpty());
+        // #45 / #47: launcher home and the shared local model suggestions.
+        QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("module", {{"id", "interpret"}, {"enabled", false}});
+        const auto home = bridge.launcherHome({});
+        QStringList routes; for (const auto &page : home.value("pages").toList()) routes << page.toMap().value("route").toString();
+        QCOMPARE(routes, (QStringList{"translate", "dictionary", "chat", "settings"}));
+        QVERIFY(!home.contains("continue"));
+        const auto chat = current(bridge).value("id").toString();
+        bridge.command("draft", {{"sessionID", chat}, {"value", "Hi"}}); bridge.command("model", {{"sessionID", chat}, {"value", "openai:gpt-5"}}); bridge.command("submit", {{"sessionID", chat}});
+        QCOMPARE(bridge.launcherHome(chat).value("continue").toMap().value("fresh").toBool(), true);
+        QStringList suggested; for (const auto &item : bridge.resources().value("localModelSuggestions").toList()) suggested << item.toMap().value("id").toString();
+        QCOMPARE(suggested, (QStringList{"qwen3:4b", "gemma3:4b", "llama3.2:3b", "qwen2.5:7b"}));
+    }
+    void remainingGapsInterpretation() {
+        // #68 and #66 on Qt, against the test-mode store (never the app's own data).
+        QStandardPaths::setTestModeEnabled(true);
+        const auto folder = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation); QDir().mkpath(folder);
+        const auto path = folder + "/interpretation.json";
+        { QFile file(path); QVERIFY(file.open(QIODevice::WriteOnly)); file.write("not json"); }
+        {
+            Interpretation interpretation;
+            QVERIFY(interpretation.blocked()); QCOMPARE(interpretation.error(), QString("interpretStorageError"));
+            const QVariantList sessions{QVariantMap{{"id", "meeting"}, {"created", 100.0}, {"model", "openai:gpt-5"}, {"provider", "openai"}, {"source", "en"}, {"target", "vi"}, {"locale", "vi"}, {"summary", ""},
+                                                    {"segments", QVariantList{QVariantMap{{"id", "s1"}, {"start", 0.0}, {"end", 2.0}, {"speaker", "A"}, {"original", "Hello"}, {"translated", "Xin chào"}, {"status", "done"}}}}}};
+            { QFile file(path); QVERIFY(file.open(QIODevice::WriteOnly)); file.write(QJsonDocument::fromVariant(sessions).toJson()); }
+            interpretation.reload();
+            QVERIFY(!interpretation.blocked()); QVERIFY(interpretation.error().isEmpty()); QCOMPARE(interpretation.sessions().size(), 1);
+            QVERIFY(interpretation.exportText(false, true).startsWith("[A] Xin chào"));
+            QVERIFY(!interpretation.exportText(true, true).contains("Hello"));
+            QVERIFY(interpretation.exportText(false).startsWith("[A] Hello\nXin chào"));
+        }
+        QFile::remove(path); QStandardPaths::setTestModeEnabled(false);
+    }
+    void glassBackendHistoryAndSpeechLanguage() {
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("route", {{"value", "chat"}});
+        bridge.command("draft", {{"value", "Xin chào bạn"}});
+        bridge.command("navigate", {{"feature", "translate"}});
+        bridge.command("draft", {{"value", "Đường phố"}});
+        bridge.command("navigate", {{"feature", "dictionary"}}); // empty dictionary session stays out of history
+        QCOMPARE(bridge.history("", false, {}).size(), 2);
+        QCOMPARE(bridge.history("", false, {"chat"}).size(), 1);
+        QCOMPARE(bridge.history("duong", false, {}).size(), 1); // diacritics and đ fold
+        QCOMPARE(bridge.history("", true, {}).size(), 0);
+        QCOMPARE(bridge.speechLanguage("こんにちは"), QString("ja"));
+        QCOMPARE(bridge.speechLanguage("Hello there", "en"), QString("en"));
+        QCOMPARE(bridge.speechLanguage("Hello there", "auto"), QString("vi")); // falls back to the UI locale
+    }
     void workspaceDropsRetiredBrowserSettingsDuringRecovery() {
         auto saved = WorkbenchDomain::create("chat-id", "translate-id");
         saved["bridge"] = QVariantMap{{"automatic", true}, {"origins", QStringList{"https://example.org"}}};
@@ -1096,6 +1457,20 @@ private slots:
         QTest::keyClick(root, Qt::Key_Right);
         QTRY_COMPARE(filters->property("currentIndex").toInt(), 1);
         QTRY_COMPARE(home->property("filter").toString(), QString("chat"));
+        selected = filters->property("currentItem").value<QQuickItem *>();
+        QVERIFY(selected);
+        // Force the title + filters beyond the row budget independently of OS fonts.
+        // Reflow must preserve the same native tabs, selection and keyboard focus.
+        auto *recentTitle = visualItem(root->contentItem(), "home-recent-title");
+        QVERIFY(recentTitle);
+        const auto titleWidth = recentTitle->implicitWidth();
+        recentTitle->setImplicitWidth(filters->parentItem()->width());
+        QTRY_VERIFY(filters->mapToScene(QPointF()).y() >= recentTitle->mapToScene(QPointF(0, recentTitle->height())).y());
+        QCOMPARE(filters->property("currentItem").value<QQuickItem *>(), selected);
+        QVERIFY(selected->hasActiveFocus());
+        QTRY_VERIFY(filters->mapToScene(QPointF(filters->width(), 0)).x() <= width);
+        recentTitle->setImplicitWidth(titleWidth);
+        QCoreApplication::processEvents();
         QVERIFY(filters->mapToScene(QPointF()).x() >= 0);
         QVERIFY(filters->mapToScene(QPointF(filters->width(), 0)).x() <= width);
         const auto labels = bridge.resources().value("locales").toMap().value(locale).toMap();

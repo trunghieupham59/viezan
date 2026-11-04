@@ -13,10 +13,22 @@ private var shortVersion: String { Bundle.main.infoDictionary?["CFBundleShortVer
 @MainActor private func updateStatusText(_ store: WorkbenchStore) -> String {
     let updates = store.updates
     if updates.busy && updates.release == nil { return store.text("updateChecking") }
-    if updates.busy, let release = updates.release { return store.text("updateDownloading").replacingOccurrences(of: "{percent}", with: String(Int(updates.progress * 100))) + " · v" + release.version }
+    if updates.busy, let release = updates.release {
+        // UpdateSheet-States: "… · khoảng 20 giây nữa" once the estimate settles.
+        let remaining = updates.remainingSeconds.map { seconds in
+            seconds < 60 ? store.text("updateRemainingSeconds").replacingOccurrences(of: "{n}", with: max(1, Int(seconds.rounded())).formatted())
+                         : store.text("updateRemainingMinutes").replacingOccurrences(of: "{n}", with: Int((seconds / 60).rounded(.up)).formatted())
+        }
+        return ([store.text("updateDownloading").replacingOccurrences(of: "{percent}", with: String(Int(updates.progress * 100))), "v" + release.version] + [remaining].compactMap { $0 }).joined(separator: " · ")
+    }
     if updates.downloaded != nil, let release = updates.release { return store.text("updateReadyVersion").replacingOccurrences(of: "{version}", with: release.version) }
-    if let release = updates.release { return store.text("updateAvailableVersion").replacingOccurrences(of: "{version}", with: release.version) }
-    if updates.status == "updateCurrent" { return store.text("updateLatestVersion").replacingOccurrences(of: "{version}", with: shortVersion) }
+    // Settings-Update: the package size and when Viezan last checked.
+    let checked = updates.checkedAt.map { store.text("updateCheckedAgo").replacingOccurrences(of: "{time}", with: relativeTime($0, store: store)) }
+    if let release = updates.release {
+        let size = release.size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) }
+        return ([store.text("updateAvailableVersion").replacingOccurrences(of: "{version}", with: release.version)] + [size, checked].compactMap { $0 }).joined(separator: " · ")
+    }
+    if updates.status == "updateCurrent" { return ([store.text("updateLatestVersion").replacingOccurrences(of: "{version}", with: shortVersion)] + [checked].compactMap { $0 }).joined(separator: " · ") }
     if updates.status == "updateError" { return store.text("updateError") }
     return ""
 }
@@ -60,9 +72,58 @@ struct UpdateSettings: View {
 struct UpdatePrompt: View {
     @Bindable var store: WorkbenchStore
     @Environment(\.colorScheme) private var scheme
+    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     var body: some View {
+        if glass { glassBody } else { classicBody }
+    }
+    // UpdateSheet board, inside the window's centred blocking dialog: app icon, title and state,
+    // the notes as bullets, a meter while downloading, then View changes · Later · the one action.
+    private var glassBody: some View {
         let updates = store.updates
-        VStack(alignment: .leading, spacing: metric("inset")) {
+        let release = updates.release ?? store.updatePrompt
+        let notes = (release?.notes ?? "").split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "-*• ")) }.filter { !$0.isEmpty }
+        return VStack(alignment: .leading, spacing: metric("inset")) {
+            HStack(alignment: .center, spacing: metric("inset")) {
+                if let url = NativeResources.brandURL, let icon = NSImage(contentsOf: url) {
+                    Image(nsImage: icon).resizable().scaledToFit().frame(width: metric("hero") + metric("small"), height: metric("hero") + metric("small")).accessibilityHidden(true)
+                }
+                VStack(alignment: .leading, spacing: metric("tight")) {
+                    Text(store.text("updateTitle") + " Viezan").font(.vzn("subtitleScale", .semibold)).foregroundStyle(contentColor("text-strong", scheme)).accessibilityAddTraits(.isHeader)
+                    Text(updateStatusText(store)).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).monospacedDigit()
+                }
+            }
+            if updates.busy, updates.release != nil {
+                GeometryReader { proxy in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(contentColor("surface-muted", scheme))
+                        Capsule().fill(contentColor("action", scheme)).frame(width: proxy.size.width * max(0, min(1, updates.progress)))
+                    }
+                }.frame(height: metric("small")).accessibilityLabel(store.text("updateDownloading").replacingOccurrences(of: "{percent}", with: String(Int(updates.progress * 100))))
+            } else if !notes.isEmpty {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: metric("tight")) {
+                        ForEach(Array(notes.prefix(12).enumerated()), id: \.offset) { _, line in
+                            HStack(alignment: .firstTextBaseline, spacing: metric("small")) { Text("•").accessibilityHidden(true); Text(line).fixedSize(horizontal: false, vertical: true) }
+                        }
+                    }.font(.system(size: NSFont.systemFontSize)).foregroundStyle(contentColor("text", scheme)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+                }.frame(maxHeight: metric("editor")).scrollIndicators(.hidden)
+            }
+            HStack(spacing: metric("small")) {
+                if let page = release?.page {
+                    Link(destination: page) { Label(store.text("viewChanges"), systemImage: "arrow.up.right").labelStyle(TrailingIconLabelStyle()) }
+                        .font(.vzn("smallScale", .medium)).foregroundStyle(contentColor("action-text", scheme))
+                }
+                Spacer()
+                Button(store.text("remindLater")) { store.snoozeUpdate() }.buttonStyle(.vznOutline).keyboardShortcut(.cancelAction).accessibilityIdentifier("update-later")
+                if updates.busy { Button(store.text("cancel"), role: .destructive) { updates.cancel() }.buttonStyle(.vznOutline) }
+                else if updates.downloaded != nil { Button(store.text("openUpdate")) { updates.openInstaller(); store.dismissUpdatePrompt() }.buttonStyle(.vznPrimary) }
+                else { Button(store.text("downloadUpdate")) { updates.download() }.buttonStyle(.vznPrimary).keyboardShortcut(.defaultAction).accessibilityIdentifier("update-download") }
+            }
+        }
+    }
+    private var classicBody: some View {
+        let updates = store.updates
+        return VStack(alignment: .leading, spacing: metric("inset")) {
             VStack(alignment: .leading, spacing: metric("small")) {
                 Text(store.text("updateTitle")).font(.vzn("headingScale", .semibold)).accessibilityAddTraits(.isHeader)
                 Text(updateStatusText(store)).foregroundStyle(.secondary)

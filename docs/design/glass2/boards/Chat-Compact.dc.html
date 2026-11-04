@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>AI Chat · cửa sổ hẹp 820 (rail) · cột chat = mặt đọc − 2×24</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;color:#3F3A35}
+a{color:#5A5FA3;text-decoration:none}a:hover{color:#4E5292}
+.win{position:relative;overflow:hidden;color:#3F3A35;background:radial-gradient(900px 620px at 10% 0%,rgba(246,230,205,.90),transparent 62%),radial-gradient(760px 560px at 100% 100%,rgba(160,182,204,.70),transparent 62%),linear-gradient(150deg,#EADFCF 0%,#C8B8AB 36%,#9896AE 68%,#B3BFCC 100%)}
+.win.dark{color:#E0D8CE;background:radial-gradient(900px 620px at 10% 0%,rgba(150,118,86,.42),transparent 62%),radial-gradient(760px 560px at 100% 100%,rgba(92,104,150,.45),transparent 62%),linear-gradient(150deg,#2B231D 0%,#2C2731 46%,#1F2531 100%)}
+.glass{background:linear-gradient(135deg,rgba(255,255,255,.68),rgba(255,255,255,.40));backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);border:1px solid rgba(255,255,255,.70);box-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -1px 0 rgba(255,255,255,.25),0 1px 1px rgba(62,48,34,.05),0 6px 18px rgba(62,48,34,.08)}
+.dark .glass{background:linear-gradient(135deg,rgba(255,255,255,.14),rgba(255,255,255,.06));border-color:rgba(255,255,255,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(255,255,255,.04),0 1px 1px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.28)}
+.pane{background:linear-gradient(160deg,rgba(255,255,255,.52),rgba(255,255,255,.30));backdrop-filter:blur(36px) saturate(170%);-webkit-backdrop-filter:blur(36px) saturate(170%);border:1px solid rgba(255,255,255,.62);box-shadow:inset 0 1px 0 rgba(255,255,255,.80),0 2px 4px rgba(62,48,34,.04),0 18px 48px rgba(62,48,34,.14)}
+.dark .pane{background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.04));border-color:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 2px 4px rgba(0,0,0,.3),0 18px 48px rgba(0,0,0,.4)}
+.content{background:rgba(255,255,255,.82);backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);border:1px solid rgba(255,255,255,.75);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 4px rgba(62,48,34,.04),0 18px 48px rgba(62,48,34,.10)}
+.dark .content{background:rgba(32,28,30,.80);border-color:rgba(255,255,255,.10);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 18px 48px rgba(0,0,0,.4)}
+.float{background:rgba(255,255,255,.88);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);border:1px solid rgba(255,255,255,.8);box-shadow:inset 0 1px 0 #fff,0 24px 64px rgba(62,48,34,.22),0 2px 6px rgba(62,48,34,.08);border-radius:20px}
+.dark .float{background:rgba(38,34,38,.90);border-color:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 24px 64px rgba(0,0,0,.55)}
+.card{background:rgba(255,255,255,.70);border:1px solid rgba(62,48,34,.08);border-radius:16px;box-shadow:0 1px 2px rgba(62,48,34,.04)}
+.dark .card{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.10);box-shadow:none}
+.field{background:rgba(255,255,255,.62);border:1px solid rgba(62,48,34,.10);box-shadow:inset 0 1px 2px rgba(62,48,34,.05);color:#3F3A35}
+.dark .field{background:rgba(0,0,0,.24);border-color:rgba(255,255,255,.12);box-shadow:inset 0 1px 2px rgba(0,0,0,.3);color:#E0D8CE}
+.field input,.field textarea{border:0;background:transparent;font:inherit;outline:0;min-width:0;color:inherit;padding:0;resize:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;font-size:13px;font-weight:500;line-height:1;font-family:inherit;color:#3F3A35;border:1px solid transparent;background:transparent;cursor:pointer;white-space:nowrap;position:relative}
+.btn.md{height:36px;padding:0 14px}.btn.icon{width:32px;padding:0}.btn.icon.md{width:36px}.btn.sm{height:28px;padding:0 10px;font-size:12px}.btn.icon.sm{width:28px}
+.btn.primary{color:#fff;background:linear-gradient(180deg,#7B7FC6 0%,#5A5FA3 100%);border-color:rgba(255,255,255,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 1px 2px rgba(90,95,163,.35),0 6px 16px rgba(90,95,163,.28);font-weight:600}
+.btn.tint{color:#5A5FA3;font-weight:600}
+.dark .btn{color:#E0D8CE}.dark .btn.tint{color:#A6AAEE}
+.btn.danger{color:#C4473F}.dark .btn.danger{color:#FF7B7B}
+.btn.disabled{opacity:.45}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:rgba(62,48,34,.06);box-shadow:inset 0 1px 2px rgba(62,48,34,.05)}
+.dark .seg{background:rgba(0,0,0,.25)}
+.seg button{height:26px;padding:0 12px;border-radius:999px;border:1px solid transparent;background:transparent;font-size:13px;font-weight:500;line-height:1;font-family:inherit;color:#6F675F;cursor:pointer;white-space:nowrap}
+.dark .seg button{color:#B3A99D}
+.seg button.on{background:linear-gradient(135deg,rgba(255,255,255,.95),rgba(255,255,255,.78));color:#2A2622;font-weight:600;border-color:rgba(255,255,255,.9);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(62,48,34,.10),0 4px 10px rgba(62,48,34,.08)}
+.dark .seg button.on{background:linear-gradient(135deg,rgba(255,255,255,.20),rgba(255,255,255,.10));color:#fff;border-color:rgba(255,255,255,.22)}
+.cap{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6F675F}
+.dark .cap{color:#AAA094}
+.t1{color:#2A2622}.t3{color:#6F675F}.t4{color:#7A7167}
+.dark .t1{color:#F4EFE7}.dark .t3{color:#B3A99D}.dark .t4{color:#9A9084}
+.hair{border-top:1px solid rgba(62,48,34,.08)}.dark .hair{border-top-color:rgba(255,255,255,.08)}
+.kbd{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:6px;font-size:11px;font-weight:500;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#6F675F;background:rgba(255,255,255,.7);border:1px solid rgba(62,48,34,.10);box-shadow:inset 0 1px 0 #fff}
+.dark .kbd{color:#B3A99D;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.12);box-shadow:none}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.ic{width:16px;height:16px;flex:none}
+.tl{display:flex;gap:8px}.tl i{width:12px;height:12px;border-radius:50%;display:block;border:1px solid rgba(0,0,0,.12)}
+.lens{background:linear-gradient(135deg,rgba(255,255,255,.92),rgba(255,255,255,.72));border:1px solid rgba(255,255,255,.95);box-shadow:inset 0 1px 0 #fff,0 1px 2px rgba(62,48,34,.08),0 6px 14px rgba(62,48,34,.08)}
+.dark .lens{background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.09));border-color:rgba(255,255,255,.22);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 6px 14px rgba(0,0,0,.3)}
+.bubble{background:rgba(62,48,34,.06);border-radius:18px 18px 6px 18px;padding:10px 14px;font-size:14px;line-height:1.55;max-width:75%;color:#2A2622}
+.dark .bubble{background:rgba(255,255,255,.10);color:#F4EFE7}
+.composer{height:52px;border-radius:26px;display:flex;align-items:center;gap:8px;padding:0 8px}
+.crumb{position:absolute;left:272px;top:0;height:48px;display:flex;align-items:center;gap:6px;font-size:13px;color:#6F675F}
+.crumb b{color:#2A2622;font-weight:600}.dark .crumb{color:#B3A99D}.dark .crumb b{color:#F4EFE7}
+.vsep{width:1px;height:18px;background:rgba(62,48,34,.14);margin:0 4px}.dark .vsep{background:rgba(255,255,255,.16)}
+.row{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 12px;border-radius:12px}
+.srow{display:flex;align-items:center;gap:16px;min-height:48px;padding:10px 16px}
+.tile{display:flex;align-items:center;gap:12px;height:56px;padding:0 12px 0 10px;border-radius:14px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:500;color:#2A2622;text-align:left}
+.dark .tile{color:#F4EFE7}
+.itile{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none}
+.tog{width:36px;height:22px;border-radius:11px;position:relative;display:inline-block;flex:none;box-shadow:inset 0 1px 2px rgba(0,0,0,.15)}
+.tog i{position:absolute;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.tog.on{background:#5A5FA3}.tog.on i{left:16px}.tog.off{background:rgba(62,48,34,.18)}.tog.off i{left:2px}
+.dark .tog.off{background:rgba(255,255,255,.18)}
+.badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:8px;background:#5A5FA3;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;border:1.5px solid #fff}
+.meter{height:6px;border-radius:3px;background:rgba(62,48,34,.08);overflow:hidden}.meter i{display:block;height:100%;border-radius:3px;background:#5A5FA3}
+.dark .meter{background:rgba(255,255,255,.10)}
+.read{font-size:14px;line-height:1.6;color:#2A2622}.dark .read{color:#EFE9E1}
+.note{font-size:12px;line-height:1.5;color:#6F675F}.dark .note{color:#B3A99D}
+</style>
+</helmet>
+<div class="win" style="width:820px;height:640px;border-radius:12px">
+  <div style="position:absolute;left:0;top:0;right:0;height:48px;display:flex;align-items:center;padding:0 16px 0 13px;gap:12px">
+    <div class="tl" aria-hidden="true"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div>
+    <button class="btn glass icon" style="width:30px;height:28px;border-radius:8px;margin-left:12px" aria-label="Thu nhỏ thanh bên (⌘\)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M3 4h18v16H3zM9 4v16"/></svg></button>
+    <div class="crumb" style="left:124px"><span>AI Chat</span><span>/</span><b>1 dặm bằng bao nhiêu km?</b></div>
+    <div style="flex:1"></div>
+    <button class="btn glass icon" aria-label="Lịch sử (⌘⇧H)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"/></svg></button><button class="btn glass icon tint" aria-label="Chat mới (⌘N)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M12 5v14M5 12h14"/></svg></button><div class="vsep"></div><button class="btn glass icon" aria-label="Hoạt động (⌘⇧A)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2"/></svg><span class="badge">1</span></button>
+  </div>
+  <div style="position:absolute;left:8px;top:56px"><dc-import name="Sidebar" active="chat" h="576" collapsed="{{ true }}" hint-size="68px,576px"></dc-import></div>
+  
+  <div class="content" style="position:absolute;left:88px;top:56px;width:720px;height:576px;border-radius:22px;overflow:hidden;display:flex;flex-direction:column;align-items:center;padding:0 24px">
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:20px;padding:20px 0 12px;overflow:hidden;width:100%">
+      <div style="display:flex;justify-content:flex-end"><div class="bubble">1 dặm bằng bao nhiêu km? trả lời 1 dòng</div></div>
+      <div style="display:flex;flex-direction:column;gap:8px;padding-right:48px">
+        <div class="t3" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;color:#5A5FA3"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8z"/></svg>Viezan</div>
+        <p class="read" style="margin:0">1 dặm ≈ 1,609 km (chính xác: 1 dặm = 1,609344 km).</p>
+        <div style="display:flex;align-items:center;gap:4px;margin-left:-8px"><button class="btn sm" aria-label="Sao chép"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M8 8h12v12H8zM16 8V4H4v12h4"/></svg></button><span class="chip" style="background:rgba(62,48,34,.06);color:#6F675F;height:22px">Haiku 5.5 · 42 token</span></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end"><div class="bubble">còn 5 dặm?</div></div>
+      <div style="display:flex;flex-direction:column;gap:8px;padding-right:48px">
+        <div class="t3" style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;color:#5A5FA3"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8z"/></svg>Viezan</div>
+        <p class="read" style="margin:0">5 dặm ≈ 8,05 km (chính xác: 5 × 1,609344 = 8,04672 km).</p>
+        <div style="display:flex;align-items:center;gap:4px;margin-left:-8px"><button class="btn sm" aria-label="Sao chép"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M8 8h12v12H8zM16 8V4H4v12h4"/></svg></button><button class="btn sm"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>Thử lại</button><span class="chip" style="background:rgba(62,48,34,.06);color:#6F675F;height:22px">Haiku 5.5 · 67 token</span></div>
+      </div>
+    </div>
+    <div style="width:100%;padding:0 0 12px"><div class="composer" style="width:100%;background:rgba(255,255,255,.92);border:1px solid rgba(255,255,255,.95);box-shadow:inset 0 1px 0 #fff,0 2px 4px rgba(62,48,34,.05),0 12px 32px rgba(62,48,34,.12)">
+          <button class="btn glass icon md" style="border-radius:50%" aria-label="Công cụ: đính kèm, chế độ, suy luận, giọng nói"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M12 5v14M5 12h14"/></svg></button>
+          <label style="flex:1;display:flex;min-width:0"><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Tin nhắn</span><input placeholder="Hỏi bất kỳ điều gì…" style="flex:1;border:0;background:transparent;font:inherit;font-size:14px;outline:0;min-width:0;color:#2A2622;padding:0 4px"></label>
+          <div class="glass" style="display:flex;align-items:center;height:36px;border-radius:18px;padding:0 4px 0 12px;gap:4px">
+            <button class="btn" style="height:28px;padding:0 4px;gap:6px" aria-haspopup="dialog" title="claude-haiku-5-5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;color:#5A5FA3"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8z"/></svg>Haiku 5.5<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none;color:#7A7167"><path d="m6 9 6 6 6-6"/></svg></button>
+            <span class="vsep" style="height:16px"></span>
+            <button class="btn icon" style="width:28px;height:28px" aria-label="Thu âm"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg></button>
+          </div>
+          <button class="btn primary icon md" style="border-radius:50%" aria-label="Gửi (↩)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:none"><path d="M12 19V5m-7 7 7-7 7 7"/></svg></button>
+        </div></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":820,"height":640}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

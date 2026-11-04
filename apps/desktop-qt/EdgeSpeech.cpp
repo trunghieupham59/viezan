@@ -1,3 +1,4 @@
+#include <cmath>
 #include "EdgeSpeech.h"
 #include <QDateTime>
 #include <QUrlQuery>
@@ -23,7 +24,7 @@ EdgeSpeech::EdgeSpeech(QObject *parent) : QObject(parent), m_socket("chrome-exte
         m_socket.sendTextMessage("X-Timestamp:" + stamp + "\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n" + config);
         auto escaped = m_text; escaped.replace('&', "&amp;"); escaped.replace('<', "&lt;"); escaped.replace('>', "&gt;"); escaped.replace('"', "&quot;");
         const auto language = m_voice.section('-', 0, 1);
-        const auto ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='" + language + "'><voice name='" + m_voice + "'><prosody pitch='+0Hz' rate='+20%' volume='+0%'>" + escaped + "</prosody></voice></speak>";
+        const auto ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='" + language + "'><voice name='" + m_voice + "'><prosody pitch='+0Hz' rate='" + QString::asprintf("%+d%%", int(std::lround(m_rate * 120)) - 100) + "' volume='+0%'>" + escaped + "</prosody></voice></speak>";
         m_socket.sendTextMessage("X-RequestId:" + identifier() + "\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:" + stamp + "Z\r\nPath:ssml\r\n\r\n" + ssml);
     });
     connect(&m_socket, &QWebSocket::binaryMessageReceived, this, [this](const QByteArray &data) {
@@ -40,7 +41,9 @@ EdgeSpeech::EdgeSpeech(QObject *parent) : QObject(parent), m_socket("chrome-exte
 }
 void EdgeSpeech::cancel() { m_done = true; m_timeout.stop(); m_socket.abort(); m_audio.clear(); }
 void EdgeSpeech::fail() { if (m_done) return; cancel(); emit failed(); }
-void EdgeSpeech::start(const QString &text, const QString &language, const QString &voice) {
+void EdgeSpeech::start(const QString &text, const QString &language, const QString &voice, double rate) {
+    // Edge reads slow; +20 % is the baseline, scaled by the user's rate (Swift EdgeSpeech).
+    m_rate = std::isfinite(rate) && rate >= 0.5 && rate <= 2 ? rate : 1;
     if (text.isEmpty() || text.toUcs4().size() > 5000) { fail(); return; }
     m_text = text; m_voice = voice.isEmpty() ? voices.value(language, voices.value("en")) : voice;
     if (!QRegularExpression("^[A-Za-z]{2,3}-[A-Za-z]{2,4}-[A-Za-z0-9-]{1,80}$").match(m_voice).hasMatch()) { fail(); return; }

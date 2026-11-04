@@ -12,7 +12,6 @@ struct ModelPanel: View {
     @Environment(\.colorScheme) private var scheme
     @State private var query = ""
     @State private var highlighted: String?
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     static let providerNames = ["claude": "Claude", "openai": "OpenAI", "gemini": "Gemini", "ollama": "Ollama", "lmstudio": "LM Studio", "llamacpp": "llama.cpp"]
     private var sections: [ModelLineup.Section] {
         ModelLineup.sections(query: query, tiers: store.modelTiers(store.session.id), recent: store.recentPicks, listings: store.providers.models,
@@ -79,14 +78,14 @@ struct ModelPanel: View {
                         ForEach(sections, id: \.key) { section in
                             Eyebrow(text: title(section.key)).padding(.horizontal, metric("small")).padding(.top, metric("gap")).padding(.bottom, metric("tight"))
                             ForEach(section.rows) { row in
-                                rowView(row).id(row.id).padding(.bottom, glass ? metric("tight") : 0)
+                                rowView(row).id(row.id)
                             }
                         }
                     }
                 }
                 .onChange(of: highlighted) { _, id in if let id { proxy.scrollTo(id) } }
             }.frame(maxHeight: .infinity)
-            Divider()
+            CardDivider()
             HStack(spacing: metric("small")) {
                 // One refresh for every provider; no submenu.
                 Button(store.text("refreshModels"), systemImage: "arrow.clockwise") { store.discoverProviders() }.buttonStyle(.vznQuiet).disabled(store.loadingModels || store.discovering)

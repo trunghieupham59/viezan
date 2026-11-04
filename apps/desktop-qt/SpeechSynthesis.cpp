@@ -1,3 +1,4 @@
+#include <cmath>
 #include "SpeechSynthesis.h"
 #include "CredentialStore.h"
 #include <QJsonObject>
@@ -6,7 +7,7 @@
 #include <QRegularExpression>
 #include <QtEndian>
 namespace SpeechSynthesis {
-CloudProtocol::Call prepare(const QString &text, const QString &provider, const QString &voice) {
+CloudProtocol::Call prepare(const QString &text, const QString &provider, const QString &voice, double rate) {
     if (text.trimmed().isEmpty() || text.toUcs4().size() > 5000 || !QStringList{"openai", "gemini", "elevenlabs"}.contains(provider)) return {{}, {}, "providerInvalidResponse"};
     const auto selected = voice.isEmpty() ? (provider == "gemini" ? QString("Aoede") : provider == "elevenlabs" ? QString("pNInz6obpgDQGcFmaJgB") : QString("alloy")) : voice;
     if (!QRegularExpression("^[A-Za-z0-9_-]{1,100}$").match(selected).hasMatch()) return {{}, {}, "providerInvalidResponse"};
@@ -22,7 +23,8 @@ CloudProtocol::Call prepare(const QString &text, const QString &provider, const 
         body = {{"contents", QJsonArray{QJsonObject{{"parts", parts}}}}, {"generationConfig", generation}};
     }
     else if (provider == "elevenlabs") body = {{"text", text}, {"model_id", "eleven_multilingual_v2"}};
-    else body = {{"model", "tts-1"}, {"input", text}, {"voice", selected}, {"response_format", "mp3"}};
+    // OpenAI honours the multiplier directly (Swift NativeTTS sends the same "speed").
+    else body = {{"model", "tts-1"}, {"input", text}, {"voice", selected}, {"response_format", "mp3"}, {"speed", std::isfinite(rate) && rate >= 0.5 && rate <= 2 ? rate : 1.0}};
     return {request, QJsonDocument(body).toJson(QJsonDocument::Compact), {}, provider};
 }
 QByteArray decode(const QByteArray &data, const QString &provider) {

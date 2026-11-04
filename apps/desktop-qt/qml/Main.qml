@@ -120,15 +120,9 @@ ApplicationWindow {
     minimumHeight: metrics.minWindowHeight
     // System pages (Interpretation, Apps, Thermal…) share the settings shell but keep their own name.
     title: "Viezan Native — " + t(home ? "home" : settings ? (systemRoute || "settings") : root.workspace.feature)
-    color: lightGlass ? colors["app-bg"] : palette.base
-    background: Rectangle {
-        visible: root.lightGlass
-        gradient: Gradient {
-            GradientStop { position: 0; color: root.colors["titlebar-bg"] }
-            GradientStop { position: 1; color: root.colors["app-bg"] }
-        }
-        Accessible.ignored: true
-    }
+    color: glassChrome ? colors["app-bg"] : palette.base
+    // Liquid Glass 2.0: the lit scene behind every layer, light and dark.
+    background: Kit.AppBackdrop { visible: root.glassChrome }
     function t(key) { return workbench.resources.locales[root.workspace.locale][key] || key }
     function command(name, payload) { workbench.command(name, payload || {}) }
     function titleFor(item) { return item.title || t(item.feature === "chat" ? "newChat" : item.feature === "dictionary" ? "newLookup" : "newTranslation") }
@@ -203,16 +197,18 @@ ApplicationWindow {
         palette.buttonText: !enabled ? root.colors["text-disabled"] : primary ? root.colors["action-text"] : root.colors.text
         leftPadding: showsLabel ? metrics.gap : 0
         rightPadding: leftPadding
+        // `.btn.glass` pill 32; "new" (`.tint`) keeps clear glass and reads accent text.
+        font.weight: root.glassChrome ? (primary ? Font.DemiBold : Font.Medium) : Font.Normal
         background: Rectangle {
-            radius: root.glassChrome ? metrics.chromeControlRadius : metrics.surfaceRadius
-            color: shellButton.primary ? Qt.tint(shellButton.palette.base, Qt.alpha(shellButton.palette.highlight, metrics.selectionOpacity)) : shellButton.hovered ? shellButton.palette.alternateBase : "transparent"
-            Kit.ChromeSurface {
+            radius: root.glassChrome ? height / 2 : metrics.surfaceRadius
+            color: root.glassChrome ? "transparent" : shellButton.primary ? Qt.tint(shellButton.palette.base, Qt.alpha(shellButton.palette.highlight, metrics.selectionOpacity)) : shellButton.hovered ? shellButton.palette.alternateBase : "transparent"
+            Kit.ControlGlassSurface {
                 anchors.fill: parent
                 visible: root.glassChrome
                 radius: parent.radius
-                fillColor: !shellButton.enabled ? Qt.tint(shellButton.materialBase, root.colors["surface-subtle"]) : shellButton.primary ? Qt.tint(shellButton.materialBase, Qt.alpha(shellButton.palette.highlight, metrics.selectionOpacity)) : Qt.tint(shellButton.materialBase, root.colors[shellButton.down || shellButton.hovered ? "chrome-item-hover" : "titlebar-material"])
-                edgeColor: root.colors["material-border"]
-                edgeHighlight: root.colors["material-highlight"]
+                pressed: shellButton.down
+                hovered: shellButton.hovered
+                inactive: !shellButton.enabled
             }
             Rectangle {
                 anchors.fill: parent
@@ -244,7 +240,8 @@ ApplicationWindow {
             bridge: workbench
             route: root.home ? "home" : root.settings ? (root.systemRoute || "settings") : root.workspace.feature
             expanded: !root.compact && !root.navigationCollapsed
-            Layout.preferredWidth: expanded ? metrics.sidebar : metrics.rail
+            // Glass reserves the `small` window margin to the left of the pane.
+            Layout.preferredWidth: (expanded ? metrics.sidebar : metrics.rail) + (root.glassChrome ? metrics.small : 0)
             Layout.minimumWidth: Layout.preferredWidth
             Layout.maximumWidth: Layout.preferredWidth
             Layout.fillHeight: true
@@ -261,10 +258,10 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 implicitHeight: metrics.navControl + metrics.small
                 background: Item {
-                    Rectangle { anchors.fill: parent; color: root.lightGlass ? "transparent" : root.palette.base }
+                    Rectangle { anchors.fill: parent; color: root.glassChrome ? "transparent" : root.palette.base }
                     Kit.ChromeSurface {
                         objectName: "header-glass-surface"
-                        visible: root.glassChrome && !root.lightGlass
+                        visible: false
                         anchors.fill: parent
                         anchors.leftMargin: metrics.small
                         anchors.rightMargin: metrics.small
@@ -278,8 +275,9 @@ ApplicationWindow {
                 }
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: metrics.gutter
-                    anchors.rightMargin: metrics.inset
+                    // Glass: the breadcrumb sits at the reading pane's edge + inset.
+                    anchors.leftMargin: root.glassChrome ? metrics.gap + metrics.inset : metrics.gutter
+                    anchors.rightMargin: root.glassChrome ? metrics.gap : metrics.inset
                     // Rail widths: the toggle leads the header; expanded, it sits in the sidebar.
                     ShellButton { id: navigationTrigger; visible: root.compact || root.navigationCollapsed; objectName: "navigation-toggle"; iconName: "expand"; text: t("expandNavigation"); onClicked: execute("navigation", this) }
                     ShellButton { visible: library; iconName: "back"; text: t("back"); onClicked: library = false }
@@ -290,11 +288,22 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Accessible.role: Accessible.Heading
                         Accessible.name: t("workspace") + " / " + t(root.home ? "home" : root.systemRoute)
-                        Label { text: t("workspace"); color: root.lightGlass ? root.colors["chrome-fg-muted"] : root.palette.placeholderText; Accessible.ignored: true }
-                        Label { text: "/"; color: root.lightGlass ? root.colors["chrome-fg-muted"] : root.palette.placeholderText; Accessible.ignored: true }
+                        Label { text: t("workspace"); color: root.glassChrome ? root.colors["chrome-fg-muted"] : root.palette.placeholderText; Accessible.ignored: true }
+                        Label { text: "/"; color: root.glassChrome ? root.colors["chrome-fg-muted"] : root.palette.placeholderText; Accessible.ignored: true }
                         Label { text: t(root.home ? "home" : root.systemRoute); font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
                     }
-                    Label { visible: !root.workspacePage; text: settings ? t(root.systemRoute || "settings") : library ? t("history") : t(root.workspace.feature) + " / " + titleFor(session); elide: Text.ElideRight; Layout.fillWidth: true; font.bold: true; Accessible.role: Accessible.Heading }
+                    // Glass splits feature titles too: muted feature, strong session.
+                    RowLayout {
+                        visible: !root.workspacePage && root.glassChrome && !settings && !library
+                        spacing: metrics.small
+                        Layout.fillWidth: true
+                        Accessible.role: Accessible.Heading
+                        Accessible.name: t(root.workspace.feature) + " / " + titleFor(session)
+                        Label { text: t(root.workspace.feature); color: root.colors["chrome-fg-muted"]; Accessible.ignored: true }
+                        Label { text: "/"; color: root.colors["chrome-fg-muted"]; Accessible.ignored: true }
+                        Label { text: titleFor(session); font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
+                    }
+                    Label { visible: !root.workspacePage && !(root.glassChrome && !settings && !library); text: settings ? t(root.systemRoute || "settings") : library ? t("history") : t(root.workspace.feature) + " / " + titleFor(session); elide: Text.ElideRight; Layout.fillWidth: true; font.bold: true; Accessible.role: Accessible.Heading }
                     ShellButton { visible: root.workspacePage && workbench.moduleEnabled("utilities"); showsLabel: !root.compact; iconName: "utilities"; text: t("launcher"); enabled: !workbench.loadBlocked; onClicked: workbench.desktopIntegration.trigger("launcher") }
                     Kit.SearchField {
                         compact: true
@@ -312,32 +321,31 @@ ApplicationWindow {
                     ShellButton { visible: root.systemRoute === "interpret"; showsLabel: !root.compact; iconName: "new"; text: t("summarize"); enabled: !workbench.interpretation.busy && !!workbench.interpretation.current.segments?.length; onClicked: workbench.interpretation.summarize("summary") }
                     ShellButton { visible: root.systemRoute === "interpret"; showsLabel: !root.compact; iconName: "history"; text: t("history"); enabled: !workbench.interpretation.busy; onClicked: contentLoader.item?.openHistory?.() }
                     ShellButton { visible: root.systemRoute === "interpret"; showsLabel: !root.compact; primary: true; iconName: "new"; text: t("newInterpretation"); enabled: !workbench.interpretation.busy; onClicked: workbench.interpretation.clearSelection() }
-                    Rectangle { visible: root.systemRoute === "interpret"; color: root.palette.midlight; implicitWidth: metrics.hairline; implicitHeight: metrics.compactControl }
+                    Rectangle { visible: root.systemRoute === "interpret"; color: root.glassChrome ? root.colors["border-strong"] : root.palette.midlight; implicitWidth: metrics.hairline; implicitHeight: root.glassChrome ? metrics.inset + metrics.hairline * 2 : metrics.compactControl }
                     ShellButton { visible: !home && !settings && !library && root.workspace.feature === "translate"; showsLabel: !root.compact; iconName: "new"; text: t("addImage"); enabled: !workbench.loadBlocked && !(root.session.images || []).length; onClicked: { imagePicker.ocr = false; imagePicker.ownerID = root.session.id; imagePicker.open() } }
                     ShellButton { visible: !home && !settings && !library && root.workspace.feature === "dictionary"; showsLabel: !root.compact; iconName: "dictionary"; text: t("savedWords"); enabled: !workbench.loadBlocked; onClicked: { root.favoritesOnly = true; root.library = true } }
                     ShellButton { id: historyTrigger; showsLabel: !root.compact; visible: !home && !settings && !library; iconName: "history"; text: t("history"); enabled: !workbench.loadBlocked; onClicked: execute("history", this) }
                     ShellButton { showsLabel: !root.compact; primary: true; visible: !home && !settings && !library; iconName: "new"; text: t(root.workspace.feature === "chat" ? "newChat" : root.workspace.feature === "dictionary" ? "newLookup" : "newTranslation"); enabled: !workbench.loadBlocked; onClicked: execute("new", this) }
-                    Rectangle { visible: !home && !settings && !library; color: root.palette.midlight; implicitWidth: metrics.hairline; implicitHeight: metrics.compactControl }
+                    Rectangle { visible: (!home && !settings && !library) || (root.glassChrome && root.workspacePage && workbench.moduleEnabled("utilities")); color: root.glassChrome ? root.colors["border-strong"] : root.palette.midlight; implicitWidth: metrics.hairline; implicitHeight: root.glassChrome ? metrics.inset + metrics.hairline * 2 : metrics.compactControl }
                     ShellButton { id: activityTrigger; showsLabel: !root.compact; iconName: "activity"; text: t("activity") + (root.runningCount ? " · " + root.runningCount : ""); onClicked: execute("activity", this) }
                 }
             }
-            Rectangle { visible: !root.lightGlass; color: root.palette.midlight; implicitHeight: metrics.hairline; Layout.fillWidth: true }
+            Rectangle { visible: !root.glassChrome; color: root.palette.midlight; implicitHeight: metrics.hairline; Layout.fillWidth: true }
         Pane {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.leftMargin: root.lightGlass ? root.workspaceGutter : metrics.gutter
+            // `.content` (Glass): the one warm reading pane, gap from the navigation pane and
+            // the window edge, small from the header and the bottom.
+            Layout.leftMargin: root.glassChrome ? metrics.gap : metrics.gutter
             Layout.rightMargin: Layout.leftMargin
-            Layout.topMargin: root.lightGlass ? metrics.small : metrics.gutter
-            Layout.bottomMargin: root.lightGlass ? metrics.gap : metrics.gutter
-            // Reuse the existing content width: outer gutter + inner padding
-            // still total 24 px, including the minimum-width presentation.
-            padding: root.lightGlass ? metrics.gutter - root.workspaceGutter : 0
-            background: Kit.ChromeSurface {
-                visible: root.lightGlass
-                radius: metrics.chromeSurfaceRadius
-                fillColor: root.colors.canvas
-                edgeColor: root.colors["material-border"]
-                edgeHighlight: root.colors["material-highlight"]
+            Layout.topMargin: root.glassChrome ? metrics.small : metrics.gutter
+            Layout.bottomMargin: root.glassChrome ? metrics.small : metrics.gutter
+            padding: root.glassChrome ? metrics.gutter - metrics.gap : 0
+            background: Kit.GlassPane {
+                visible: root.glassChrome
+                startRole: "canvas"; endRole: "canvas"
+                shadowRole: "shadow-sm-color"
+                borderRole: root.darkMode ? "border" : "material-border"
             }
             contentItem: ColumnLayout {
             spacing: metrics.gap
@@ -960,7 +968,7 @@ ApplicationWindow {
 
     Component {
         id: settingsView
-        SettingsWorkspace { bridge: workbench; dangerColor: root.colors.danger; query: root.settingsQuery; requestedSection: root.settingsSection; onQueryEdited: value => root.settingsQuery = value; onSectionOpened: root.settingsSection = "" }
+        SettingsWorkspace { bridge: workbench; dangerColor: root.colors.danger; query: root.settingsQuery; requestedSection: root.settingsSection; onQueryEdited: value => root.settingsQuery = value; onSectionOpened: root.settingsSection = ""; onRouteRequested: route => root.selectRoute(route) }
     }
     component HistoryList: ListView {
         id: historyList

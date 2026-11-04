@@ -21,27 +21,20 @@ struct InsetInputSurface: View {
         shape.fill(contentColor(enabled ? baseRole : "surface-subtle", scheme))
             .overlay {
                 if glass && !solid && enabled {
-                    // The upper inner shade and lower reflection make this an
-                    // inset field, distinct from the raised action lenses.
+                    // `.field`: an inner shade along the top edge reads as a
+                    // recess, distinct from the raised action lenses.
                     shape.inset(by: metric("hairline"))
-                        .strokeBorder(LinearGradient(stops: [
-                            .init(color: contentColor("text-strong", scheme).opacity(metric("selectionOpacity") / 2), location: 0),
-                            .init(color: .clear, location: 0.45),
-                            .init(color: chromeColor("material-highlight", scheme).opacity(0.5), location: 1)
-                        ], startPoint: .top, endPoint: .bottom), lineWidth: metric("hairline"))
+                        .strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline"))
+                        .mask(alignment: .top) {
+                            LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: .bottom).frame(height: metric("tight"))
+                        }
                 }
             }
             .overlay {
-                if glass && !solid && !editing && enabled {
-                    shape.strokeBorder(LinearGradient(stops: [
-                        .init(color: contentColor("border", scheme), location: 0),
-                        .init(color: chromeColor("material-border", scheme), location: 0.55),
-                        .init(color: chromeColor("material-highlight", scheme), location: 1)
-                    ], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: metric("hairline"))
-                } else {
-                    shape.strokeBorder(contentColor(contrast == .increased ? "text-muted" : editing || solid ? "border-strong" : "border", scheme),
-                                       lineWidth: metric("hairline"))
-                }
+                // A hairline at rest, the stronger neutral edge while editing;
+                // the caret is the main focus cue, never an accent ring.
+                shape.strokeBorder(contentColor(contrast == .increased ? "text-muted" : editing || solid ? "border-strong" : "border", scheme),
+                                   lineWidth: metric("hairline"))
             }
             .allowsHitTesting(false)
             .accessibilityHidden(true)

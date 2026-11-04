@@ -2,14 +2,32 @@ import Foundation
 import AVFoundation
 import Observation
 
+/// Microphone access as the views show it: "granted", "denied" (denied or restricted) or "undetermined".
+public enum MicrophonePermission {
+    public static var status: String {
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized: "granted"
+        case .denied, .restricted: "denied"
+        default: "undetermined"
+        }
+    }
+}
 public struct NativeVoice: Identifiable, Sendable { public let id: String; public let name: String; public let language: String }
 
 @MainActor @Observable public final class NativeAudio {
     public private(set) var permissionPending = false
     public private(set) var recordingOwner: String?
+    /// When the current recording started (seconds since 1970), for "Đang ghi âm · 00:14".
+    public private(set) var recordingStarted: Double?
     public private(set) var transcribingOwner: String?
     public private(set) var error: String?
     public private(set) var speaking = false
+    /// Which text is being read (the caller's source id), so every speaker control shows the same state.
+    public private(set) var speakingSource: String?
+    /// The source last asked to read; stays after a failure so "Read with the system voice" can retry it.
+    public private(set) var lastSource: String?
+    /// A cloud voice is being generated: reading has started but no audio plays yet.
+    public private(set) var preparing = false
     /// Models the account lists (provider discovery), for choosing a transcription model.
     public var availableModels: [String] = []
     public var voiceProvider = "system"
@@ -25,7 +43,15 @@ public struct NativeVoice: Identifiable, Sendable { public let id: String; publi
     @ObservationIgnored private var permissionGeneration = UUID()
     @ObservationIgnored private var recordingLanguage = "auto"
     @ObservationIgnored private let speechEvents = NativeSpeechEvents()
-    public init() { synthesizer.delegate = speechEvents; speechEvents.finished = { [weak self] in guard let self, self.voiceRequest == nil, !self.synthesizer.isSpeaking else { return }; self.speaking = false } }
+    /// The system utterance being read. Its own "finished" event ends `speaking`; asking the
+    /// synthesizer `isSpeaking` there is unreliable (it can still be true) and left the UI reading.
+    @ObservationIgnored private var systemUtterance: ObjectIdentifier?
+    public init() { synthesizer.delegate = speechEvents; speechEvents.finished = { [weak self] id in self?.systemSpeechFinished(id) } }
+    func beginSystemSpeech(_ id: ObjectIdentifier) { systemUtterance = id; speaking = true }
+    func systemSpeechFinished(_ id: ObjectIdentifier) {
+        guard systemUtterance == id, voiceRequest == nil else { return }
+        systemUtterance = nil; speaking = false; speakingSource = nil
+    }
     public func start(owner: String, language: String = "auto") async {
         guard recordingOwner == nil, transcribingOwner == nil, !permissionPending else { return }
         stopSpeaking(); recordingLanguage = language
@@ -40,12 +66,12 @@ public struct NativeVoice: Identifiable, Sendable { public let id: String; publi
             let recorder = try AVAudioRecorder(url: url, settings: [AVFormatIDKey: kAudioFormatMPEG4AAC,
                 AVSampleRateKey: 44100, AVNumberOfChannelsKey: 1, AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue])
             guard recorder.record() else { throw CloudFailure.network }
-            self.recorder = recorder; recordingOwner = owner; error = nil
+            self.recorder = recorder; recordingOwner = owner; recordingStarted = Date().timeIntervalSince1970; error = nil
         } catch { self.error = "audioError"; cleanup() }
     }
     public func stop(provider: String, completion: @escaping @MainActor (String, String) -> Void) {
         guard let owner = recordingOwner, let file else { return }
-        recorder?.stop(); recorder = nil; recordingOwner = nil; transcribingOwner = owner
+        recorder?.stop(); recorder = nil; recordingOwner = nil; recordingStarted = nil; transcribingOwner = owner
         let generation = permissionGeneration, language = recordingLanguage, available = availableModels
         request = Task { [weak self] in
             defer {
@@ -62,35 +88,57 @@ public struct NativeVoice: Identifiable, Sendable { public let id: String; publi
     }
     public func cancel() {
         permissionGeneration = UUID(); permissionPending = false; request?.cancel(); request = nil
-        recorder?.stop(); recorder = nil; recordingOwner = nil; transcribingOwner = nil
+        recorder?.stop(); recorder = nil; recordingOwner = nil; recordingStarted = nil; transcribingOwner = nil
         cleanup(); stopSpeaking()
     }
+    /// The system voice that reads `language`: the chosen one when it speaks that language, otherwise
+    /// the language's default voice (a Japanese voice never reads Vietnamese). Nil for cloud providers.
+    public func voice(for language: String) -> NativeVoice? {
+        guard voiceProvider == "system" else { return nil }
+        let base = { (code: String) in String(code.lowercased().split(whereSeparator: { $0 == "-" || $0 == "_" }).first ?? "") }
+        if !voiceID.isEmpty, let chosen = AVSpeechSynthesisVoice(identifier: voiceID), base(chosen.language) == base(language) {
+            return NativeVoice(id: chosen.identifier, name: chosen.name, language: chosen.language)
+        }
+        return Self.defaultVoice(language).map { NativeVoice(id: $0.identifier, name: $0.name, language: $0.language) }
+    }
+    private static func defaultVoice(_ language: String) -> AVSpeechSynthesisVoice? {
+        AVSpeechSynthesisVoice(language: ["en": "en-US", "vi": "vi-VN", "ja": "ja-JP"][language] ?? language)
+    }
     public var voices: [NativeVoice] { AVSpeechSynthesisVoice.speechVoices().map { NativeVoice(id: $0.identifier, name: $0.name, language: $0.language) }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending } }
-    public func speak(_ text: String, language: String) {
+    /// Reads `text`. `source` names what is read (for the speaker controls); `provider` overrides the
+    /// voice provider for this one reading only ("system" after a cloud voice failed).
+    public func speak(_ text: String, language: String, source: String? = nil, provider: String? = nil) {
         stopSpeaking()
         guard !text.isEmpty, text.utf8.count <= 100000 else { return }
-        let epoch = voiceGeneration
+        let epoch = voiceGeneration, voiceProvider = provider ?? self.voiceProvider
+        error = nil; speakingSource = source; lastSource = source
         if voiceProvider == "system" {
             let utterance = AVSpeechUtterance(string: text)
-            utterance.voice = voiceID.isEmpty ? AVSpeechSynthesisVoice(language: ["en": "en-US", "vi": "vi-VN", "ja": "ja-JP"][language] ?? language) : AVSpeechSynthesisVoice(identifier: voiceID)
+            // The chosen voice reads its own language; other languages (and a one-off system reading
+            // after a cloud failure) use the language's default voice.
+            utterance.voice = provider != nil ? Self.defaultVoice(language) : voice(for: language).flatMap { AVSpeechSynthesisVoice(identifier: $0.id) } ?? Self.defaultVoice(language)
             utterance.rate = min(AVSpeechUtteranceMaximumSpeechRate, max(AVSpeechUtteranceMinimumSpeechRate, AVSpeechUtteranceDefaultSpeechRate * Float(voiceRate)))
-            synthesizer.speak(utterance); speaking = true; return
+            synthesizer.speak(utterance); beginSystemSpeech(ObjectIdentifier(utterance)); return
         }
-        let provider = voiceProvider, voice = voiceID, rate = voiceRate; speaking = true; error = nil
+        let voice = voiceID, rate = voiceRate; speaking = true; preparing = true
         voiceRequest = Task { [weak self] in
+            let provider = voiceProvider
             do {
                 for chunk in LanguageSegments.chunks(text, limit: 3000) {
+                    // Stopped before this ran: never read a key or call the provider.
+                    try Task.checkCancellation()
                     let audio = try await NativeTTS.audio(chunk, voice: voice, provider: provider, language: language, rate: rate); try Task.checkCancellation()
                     guard let self, self.voiceGeneration == epoch else { return }
                     let player = try AVAudioPlayer(data: audio); self.player = player
                     guard player.play() else { throw CloudFailure.invalidResponse }
+                    self.preparing = false
                     while player.isPlaying { try await Task.sleep(for: .milliseconds(100)); try Task.checkCancellation() }
                 }
             } catch { if !Task.isCancelled, self?.voiceGeneration == epoch { self?.error = (error as? CloudFailure)?.rawValue ?? "audioError" } }
-            if self?.voiceGeneration == epoch { self?.speaking = false; self?.player = nil; self?.voiceRequest = nil }
+            if self?.voiceGeneration == epoch { self?.speaking = false; self?.preparing = false; self?.speakingSource = nil; self?.player = nil; self?.voiceRequest = nil }
         }
     }
-    public func stopSpeaking() { voiceGeneration = UUID(); voiceRequest?.cancel(); voiceRequest = nil; player?.stop(); player = nil; synthesizer.stopSpeaking(at: .immediate); speaking = false }
+    public func stopSpeaking() { voiceGeneration = UUID(); systemUtterance = nil; preparing = false; speakingSource = nil; voiceRequest?.cancel(); voiceRequest = nil; player?.stop(); player = nil; synthesizer.stopSpeaking(at: .immediate); speaking = false }
     private func cleanup() {
         if let file { try? FileManager.default.removeItem(at: file) }; file = nil
     }
@@ -155,6 +203,9 @@ public enum SpeechProvider {
 }
 
 private final class NativeSpeechEvents: NSObject, AVSpeechSynthesizerDelegate, @unchecked Sendable {
-    @MainActor var finished: (() -> Void)?
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) { Task { @MainActor [weak self] in self?.finished?() } }
+    @MainActor var finished: ((ObjectIdentifier) -> Void)?
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        let id = ObjectIdentifier(utterance)
+        Task { @MainActor [weak self] in self?.finished?(id) }
+    }
 }

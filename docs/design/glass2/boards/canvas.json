@@ -1,408 +1,588 @@
 {
-  "v": 3,
-  "attachments": {},
-  "boards": {
-    "Apps.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Ứng dụng",
-      "w": 1280,
-      "x": 4080,
-      "y": 2580
-    },
-    "Chat-Active.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "AI Chat · đang trò chuyện",
-      "w": 1280,
-      "x": 2720,
-      "y": 1540
-    },
-    "Chat-Dark.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "AI Chat · chế độ tối",
-      "w": 1280,
-      "x": 4080,
-      "y": 3620
-    },
-    "Chat-Empty.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "AI Chat · trống",
-      "w": 1280,
-      "x": 1360,
-      "y": 1540
-    },
-    "Dictionary.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Từ điển · mục từ",
-      "w": 1280,
-      "x": 1360,
-      "y": 2580
-    },
-    "Everywhere.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Dịch mọi nơi",
-      "w": 1280,
-      "x": 2720,
-      "y": 2580
-    },
-    "Foundations.dc.html": {
-      "h": 1180,
-      "radius": 12,
-      "title": "Nền tảng · vật liệu, màu, chữ, điều khiển",
-      "w": 1280,
-      "x": 0,
-      "y": 0
-    },
-    "History.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Thư viện lịch sử",
-      "w": 1280,
-      "x": 4080,
-      "y": 1540
-    },
-    "Home.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Trang chủ",
-      "w": 1280,
-      "x": 0,
-      "y": 1540
-    },
-    "Interpret.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Phiên dịch · đang nghe",
-      "w": 1280,
-      "x": 0,
-      "y": 2580
-    },
-    "Launcher.dc.html": {
-      "h": 520,
-      "radius": 20,
-      "title": "Launcher (cửa sổ nổi)",
-      "w": 720,
-      "x": 1520,
-      "y": 4660
-    },
-    "Overlays.dc.html": {
-      "h": 1700,
-      "radius": 12,
-      "title": "Lớp nổi · ⌘K, Hoạt động, Lịch sử nhanh, Model, +, Toast, Sheet",
-      "w": 1440,
-      "x": 0,
-      "y": 4660
-    },
-    "QuickChat.dc.html": {
-      "h": 560,
-      "radius": 20,
-      "title": "Quick Chat (cửa sổ nổi)",
-      "w": 480,
-      "x": 2320,
-      "y": 4660
-    },
-    "QuickTranslate.dc.html": {
-      "h": 440,
-      "radius": 20,
-      "title": "Dịch nhanh (cửa sổ nổi)",
-      "w": 680,
-      "x": 2880,
-      "y": 4660
-    },
-    "Settings-Appearance.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Cài đặt · Giao diện",
-      "w": 1280,
-      "x": 1360,
-      "y": 3620
-    },
-    "Settings-Models.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Cài đặt · Mô hình AI",
-      "w": 1280,
-      "x": 2720,
-      "y": 3620
-    },
-    "Shortcuts.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Launcher & phím tắt",
-      "w": 1280,
-      "x": 0,
-      "y": 3620
-    },
-    "Sidebar.dc.html": {
-      "h": 712,
-      "radius": 22,
-      "title": "Sidebar (component)",
-      "w": 236,
-      "x": 1360,
-      "y": 0
-    },
-    "Thermal.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Nhiệt độ & quạt",
-      "w": 1280,
-      "x": 5440,
-      "y": 2580
-    },
-    "Translate-Compact.dc.html": {
-      "h": 640,
-      "radius": 12,
-      "title": "Dịch · cửa sổ hẹp 820 (rail)",
-      "w": 820,
-      "x": 5440,
-      "y": 3620
-    },
-    "Translate.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Dịch · có kết quả",
-      "w": 1280,
-      "x": 5440,
-      "y": 1540
-    },
-    "History-Archived.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Thư viện lịch sử · đã lưu trữ (cùng màn, bật nút Lưu trữ)",
-      "w": 1280,
-      "x": 6800,
-      "y": 1540
-    },
-    "Overlays-Language.dc.html": {
-      "h": 1600,
-      "radius": 12,
-      "title": "Lớp nổi · chọn ngôn ngữ, Tuỳ chọn dịch, Nghe, Thiết lập phiên dịch, So sánh",
-      "w": 1440,
-      "x": 3640,
-      "y": 4660
-    },
-    "Settings-General.dc.html": {
-      "h": 960,
-      "radius": 12,
-      "title": "Cài đặt · Chung",
-      "w": 1280,
-      "x": 0,
-      "y": 6600
-    },
-    "Settings-Local.dc.html": {
-      "h": 1180,
-      "radius": 12,
-      "title": "Cài đặt · Model AI local",
-      "w": 1280,
-      "x": 1360,
-      "y": 6600
-    },
-    "Settings-Speech.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Cài đặt · Giọng nói",
-      "w": 1280,
-      "x": 2720,
-      "y": 6600
-    },
-    "Settings-Modules.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Cài đặt · Các module được bật",
-      "w": 1280,
-      "x": 4080,
-      "y": 6600
-    },
-    "Settings-Data.dc.html": {
-      "h": 1020,
-      "radius": 12,
-      "title": "Cài đặt · Dữ liệu và sao lưu",
-      "w": 1280,
-      "x": 5440,
-      "y": 6600
-    },
-    "Settings-Update.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Cài đặt · Cập nhật ứng dụng",
-      "w": 1280,
-      "x": 6800,
-      "y": 6600
-    },
-    "Settings-About.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Cài đặt · Giới thiệu",
-      "w": 1280,
-      "x": 8160,
-      "y": 6600
-    },
-    "UpdateSheet.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Cập nhật · hộp thoại giữa cửa sổ",
-      "w": 1280,
-      "x": 5160,
-      "y": 4660
-    },
-    "UpdateSheet-States.dc.html": {
-      "h": 960,
-      "radius": 12,
-      "title": "Cập nhật · ba trạng thái của hộp thoại",
-      "w": 640,
-      "x": 6520,
-      "y": 4660
-    },
-    "Overlays-Settings.dc.html": {
-      "h": 1320,
-      "radius": 12,
-      "title": "Lớp nổi của Cài đặt · picker, xác nhận, đo hiệu năng, tìm kiếm, picker mục hẹp",
-      "w": 1440,
-      "x": 7240,
-      "y": 4660
-    },
-    "Shortcuts-Recorder.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Launcher & phím tắt · hộp thoại ghi phím tắt (trùng Spotlight)",
-      "w": 1280,
-      "x": 6340,
-      "y": 3620
-    },
-    "Interpret-Summary.dc.html": {
-      "h": 800,
-      "radius": 12,
-      "title": "Phiên dịch · đã dừng, thẻ Tổng hợp có tab",
-      "w": 1280,
-      "x": 6800,
-      "y": 2580
-    },
-    "Overlays-Interpret.dc.html": {
-      "h": 900,
-      "radius": 12,
-      "title": "Lớp nổi của Phiên dịch · menu ✦, Xuất, Các phiên trước, Phụ đề nổi, đang tổng hợp",
-      "w": 1440,
-      "x": 8760,
-      "y": 4660
-    }
+ "v": 3,
+ "attachments": {},
+ "boards": {
+  "Apps.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Ứng dụng",
+   "w": 1280,
+   "x": 4080,
+   "y": 2580
   },
-  "createdOnFiles": {
-    "at": "2026-11-03T09:00:00Z",
-    "v": 1
+  "Chat-Active.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "AI Chat · đang trò chuyện",
+   "w": 1280,
+   "x": 2720,
+   "y": 1540
   },
-  "designSystems": [],
-  "launch": {
-    "view": "canvas"
+  "Chat-Dark.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "AI Chat · chế độ tối",
+   "w": 1280,
+   "x": 4080,
+   "y": 3620
   },
-  "noteOrder": [
-    "t0",
-    "t1",
-    "t2",
-    "t3",
-    "t4",
-    "s0",
-    "t5"
-  ],
-  "notes": {
-    "s0": {
-      "fill": "blue",
-      "text": "Cách đọc bản vẽ\n\n1. Nền tảng: 3 lớp cảnh, vật liệu kính, màu, chữ, điều khiển.\n2. Mỗi màn hình là cửa sổ 1280×800 thật, dữ liệu thật từ ảnh chụp.\n3. Các màn chưa có ảnh chụp (Phiên dịch, Từ điển, Dịch mọi nơi, Ứng dụng, Nhiệt độ, Launcher & phím tắt, Cài đặt, cửa sổ nổi) dựng theo spec docs/design/screens.\n4. Số đo là pt macOS; tokens.css sẽ được cập nhật theo bản này sau khi duyệt.",
-      "w": 300,
-      "x": 1680,
-      "y": 0
-    },
-    "t0": {
-      "kind": "title1",
-      "maxW": 1600,
-      "text": "Viezan · Liquid Glass 2.0 — Nền tảng",
-      "w": 240,
-      "x": 0,
-      "y": -300
-    },
-    "t1": {
-      "kind": "title1",
-      "maxW": 8080,
-      "text": "Màn hình chính · 1280×800 · Sáng · bảng màu champagne / taupe / lavender",
-      "w": 240,
-      "x": 0,
-      "y": 1300
-    },
-    "t2": {
-      "kind": "title1",
-      "maxW": 8080,
-      "text": "Ngôn ngữ và hệ thống",
-      "w": 240,
-      "x": 0,
-      "y": 2340
-    },
-    "t3": {
-      "kind": "title1",
-      "maxW": 7620,
-      "text": "Cài đặt · Chế độ tối · Cửa sổ hẹp",
-      "w": 240,
-      "x": 0,
-      "y": 3380
-    },
-    "t4": {
-      "kind": "title1",
-      "maxW": 10200,
-      "text": "Lớp nổi và cửa sổ phụ",
-      "w": 240,
-      "x": 0,
-      "y": 4420
-    },
-    "t5": {
-      "kind": "title1",
-      "maxW": 10800,
-      "text": "Cài đặt · 7 mục còn lại (Giao diện và Nhà cung cấp AI ở hàng trên; Launcher & phím tắt chỉ còn ở sidebar)",
-      "w": 240,
-      "x": 0,
-      "y": 6360
-    }
+  "Chat-Empty.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "AI Chat · trống",
+   "w": 1280,
+   "x": 1360,
+   "y": 1540
   },
-  "order": [
-    "Foundations.dc.html",
-    "Sidebar.dc.html",
-    "Home.dc.html",
-    "Chat-Empty.dc.html",
-    "Chat-Active.dc.html",
-    "History.dc.html",
-    "History-Archived.dc.html",
-    "Translate.dc.html",
-    "Interpret.dc.html",
-    "Interpret-Summary.dc.html",
-    "Dictionary.dc.html",
-    "Everywhere.dc.html",
-    "Apps.dc.html",
-    "Thermal.dc.html",
-    "Shortcuts.dc.html",
-    "Shortcuts-Recorder.dc.html",
-    "Settings-Appearance.dc.html",
-    "Settings-Models.dc.html",
-    "Chat-Dark.dc.html",
-    "Translate-Compact.dc.html",
-    "Overlays.dc.html",
-    "Overlays-Language.dc.html",
-    "Launcher.dc.html",
-    "QuickChat.dc.html",
-    "QuickTranslate.dc.html",
-    "Settings-General.dc.html",
-    "Settings-Local.dc.html",
-    "Settings-Speech.dc.html",
-    "Settings-Modules.dc.html",
-    "Settings-Data.dc.html",
-    "Settings-Update.dc.html",
-    "Settings-About.dc.html",
-    "UpdateSheet.dc.html",
-    "UpdateSheet-States.dc.html",
-    "Overlays-Settings.dc.html",
-    "Overlays-Interpret.dc.html"
-  ],
-  "pages": [],
-  "title": "Viezan Liquid Glass Redesign"
+  "Everywhere.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Dịch mọi nơi",
+   "w": 1280,
+   "x": 2720,
+   "y": 2580
+  },
+  "Foundations.dc.html": {
+   "h": 1180,
+   "radius": 12,
+   "title": "Nền tảng · vật liệu, màu, chữ, điều khiển",
+   "w": 1280,
+   "x": 0,
+   "y": 0
+  },
+  "History.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Thư viện lịch sử",
+   "w": 1280,
+   "x": 4080,
+   "y": 1540
+  },
+  "Home.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Trang chủ",
+   "w": 1280,
+   "x": 0,
+   "y": 1540
+  },
+  "Interpret.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Phiên dịch · đang nghe",
+   "w": 1280,
+   "x": 0,
+   "y": 2580
+  },
+  "Launcher.dc.html": {
+   "h": 520,
+   "radius": 20,
+   "title": "Launcher (cửa sổ nổi)",
+   "w": 720,
+   "x": 1520,
+   "y": 4660
+  },
+  "Overlays.dc.html": {
+   "h": 1700,
+   "radius": 12,
+   "title": "Lớp nổi · ⌘K, Hoạt động, Lịch sử nhanh, Model, +, Toast, Sheet",
+   "w": 1440,
+   "x": 0,
+   "y": 4660
+  },
+  "QuickChat.dc.html": {
+   "h": 560,
+   "radius": 20,
+   "title": "Quick Chat (cửa sổ nổi)",
+   "w": 480,
+   "x": 2320,
+   "y": 4660
+  },
+  "QuickTranslate.dc.html": {
+   "h": 440,
+   "radius": 20,
+   "title": "Dịch nhanh (cửa sổ nổi)",
+   "w": 680,
+   "x": 2880,
+   "y": 4660
+  },
+  "Settings-Appearance.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Cài đặt · Giao diện",
+   "w": 1280,
+   "x": 1360,
+   "y": 3620
+  },
+  "Settings-Models.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Cài đặt · Mô hình AI",
+   "w": 1280,
+   "x": 2720,
+   "y": 3620
+  },
+  "Shortcuts.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Launcher & phím tắt",
+   "w": 1280,
+   "x": 0,
+   "y": 3620
+  },
+  "Sidebar.dc.html": {
+   "h": 712,
+   "radius": 22,
+   "title": "Sidebar (component)",
+   "w": 236,
+   "x": 1360,
+   "y": 0
+  },
+  "Thermal.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Nhiệt độ & quạt",
+   "w": 1280,
+   "x": 5440,
+   "y": 2580
+  },
+  "Translate-Compact.dc.html": {
+   "h": 640,
+   "radius": 12,
+   "title": "Dịch · cửa sổ hẹp 820 (rail)",
+   "w": 820,
+   "x": 5440,
+   "y": 3620
+  },
+  "Translate.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Dịch · có kết quả",
+   "w": 1280,
+   "x": 5440,
+   "y": 1540
+  },
+  "History-Archived.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Thư viện lịch sử · đã lưu trữ (cùng màn, bật nút Lưu trữ)",
+   "w": 1280,
+   "x": 6800,
+   "y": 1540
+  },
+  "Overlays-Language.dc.html": {
+   "h": 1600,
+   "radius": 12,
+   "title": "Lớp nổi · chọn ngôn ngữ, Tuỳ chọn dịch, Nghe, Thiết lập phiên dịch, So sánh",
+   "w": 1440,
+   "x": 3640,
+   "y": 4660
+  },
+  "Settings-General.dc.html": {
+   "h": 960,
+   "radius": 12,
+   "title": "Cài đặt · Chung",
+   "w": 1280,
+   "x": 0,
+   "y": 6600
+  },
+  "Settings-Local.dc.html": {
+   "h": 1180,
+   "radius": 12,
+   "title": "Cài đặt · Model AI local",
+   "w": 1280,
+   "x": 1360,
+   "y": 6600
+  },
+  "Settings-Speech.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Cài đặt · Giọng nói",
+   "w": 1280,
+   "x": 2720,
+   "y": 6600
+  },
+  "Settings-Modules.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Cài đặt · Các module được bật",
+   "w": 1280,
+   "x": 4080,
+   "y": 6600
+  },
+  "Settings-Data.dc.html": {
+   "h": 1020,
+   "radius": 12,
+   "title": "Cài đặt · Dữ liệu và sao lưu",
+   "w": 1280,
+   "x": 5440,
+   "y": 6600
+  },
+  "Settings-Update.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Cài đặt · Cập nhật ứng dụng",
+   "w": 1280,
+   "x": 6800,
+   "y": 6600
+  },
+  "Settings-About.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Cài đặt · Giới thiệu",
+   "w": 1280,
+   "x": 8160,
+   "y": 6600
+  },
+  "UpdateSheet.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Cập nhật · hộp thoại giữa cửa sổ",
+   "w": 1280,
+   "x": 5160,
+   "y": 4660
+  },
+  "UpdateSheet-States.dc.html": {
+   "h": 960,
+   "radius": 12,
+   "title": "Cập nhật · ba trạng thái của hộp thoại",
+   "w": 640,
+   "x": 6520,
+   "y": 4660
+  },
+  "Overlays-Settings.dc.html": {
+   "h": 1320,
+   "radius": 12,
+   "title": "Lớp nổi của Cài đặt · picker, xác nhận, đo hiệu năng, tìm kiếm, picker mục hẹp",
+   "w": 1440,
+   "x": 7240,
+   "y": 4660
+  },
+  "Shortcuts-Recorder.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Launcher & phím tắt · hộp thoại ghi phím tắt (trùng Spotlight)",
+   "w": 1280,
+   "x": 6340,
+   "y": 3620
+  },
+  "Interpret-Summary.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Phiên dịch · đã dừng, thẻ Tổng hợp có tab",
+   "w": 1280,
+   "x": 6800,
+   "y": 2580
+  },
+  "Overlays-Interpret.dc.html": {
+   "h": 900,
+   "radius": 12,
+   "title": "Lớp nổi của Phiên dịch · menu ✦, Xuất, Các phiên trước, Phụ đề nổi, đang tổng hợp",
+   "w": 1440,
+   "x": 8760,
+   "y": 4660
+  },
+  "Home-Compact.dc.html": {
+   "h": 640,
+   "radius": 12,
+   "title": "Trang chủ · cửa sổ hẹp 820 (rail)",
+   "w": 820,
+   "x": 0,
+   "y": 8340
+  },
+  "Chat-Compact.dc.html": {
+   "h": 640,
+   "radius": 12,
+   "title": "AI Chat · cửa sổ hẹp 820 (rail) · cột chat = mặt đọc − 2×24",
+   "w": 820,
+   "x": 900,
+   "y": 8340
+  },
+  "Nav-Overlay.dc.html": {
+   "h": 640,
+   "radius": 12,
+   "title": "Điều hướng dưới 900 · pane tạm thời phủ lên mặt đọc (⌘\\ hoặc nút thu gọn), đóng khi chọn mục hoặc Esc",
+   "w": 820,
+   "x": 1800,
+   "y": 8340
+  },
+  "Shell-Minimum.dc.html": {
+   "h": 480,
+   "radius": 12,
+   "title": "Cửa sổ nhỏ nhất 640×480 · rail, header icon-only, breadcrumb chỉ còn tên trang, composer gộp model vào nút tròn",
+   "w": 640,
+   "x": 2700,
+   "y": 8340
+  },
+  "Shell-States.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Shell · dải thông báo xếp dưới header (lỗi lưu, đang ghi âm, phiên dịch chạy nền), badge Hoạt động, dòng nhắc trên composer",
+   "w": 1280,
+   "x": 3420,
+   "y": 8340
+  },
+  "Shell-Solid.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Trợ năng · Reduce Transparency: mọi kính thành mặt đặc ấm, viền 14 %, không blur; Increase Contrast tăng viền lên 24 % và chữ mờ lên #4A443D",
+   "w": 1280,
+   "x": 4780,
+   "y": 8340
+  },
+  "Chat-States.dc.html": {
+   "h": 1420,
+   "radius": 12,
+   "title": "AI Chat · trạng thái: đang trả lời, lỗi, composer nhiều dòng + ảnh, nghiên cứu, tạo ảnh, dòng nhắc",
+   "w": 1440,
+   "x": 0,
+   "y": 9640
+  },
+  "Translate-States.dc.html": {
+   "h": 2250,
+   "radius": 12,
+   "title": "Dịch · trạng thái: đang dịch, dịch ảnh, vượt giới hạn, lượt mới sau nghỉ, so sánh theo câu",
+   "w": 1440,
+   "x": 1520,
+   "y": 9640
+  },
+  "Interpret-States.dc.html": {
+   "h": 1500,
+   "radius": 12,
+   "title": "Phiên dịch · trạng thái: sẵn sàng, đã dừng, thiếu quyền, menu model, lỗi lưu/thu âm",
+   "w": 1440,
+   "x": 4560,
+   "y": 9640
+  },
+  "Thermal-States.dc.html": {
+   "h": 1560,
+   "radius": 12,
+   "title": "Nhiệt độ & quạt · trạng thái: chưa theo dõi, thiếu reader, helper lỗi, Profile, Quy tắc, hộp thoại, nhận diện",
+   "w": 1440,
+   "x": 0,
+   "y": 12400
+  },
+  "Apps-States.dc.html": {
+   "h": 1700,
+   "radius": 12,
+   "title": "Ứng dụng · trạng thái: kết quả + hoàn tác, bị khoá, xác nhận, nhật ký, hẹp, không tìm thấy",
+   "w": 1440,
+   "x": 1520,
+   "y": 12400
+  },
+  "History-States.dc.html": {
+   "h": 1900,
+   "radius": 12,
+   "title": "Thư viện lịch sử · trạng thái: xem trước Dịch, Từ điển, không có kết quả, đổi tên, xoá vĩnh viễn",
+   "w": 1440,
+   "x": 3040,
+   "y": 12400
+  },
+  "Launcher-States.dc.html": {
+   "h": 2100,
+   "radius": 12,
+   "title": "Launcher & Quick AI · trạng thái: trống, tải/lỗi, tiền tệ/máy tính, đang nghĩ, lỗi, chưa có model, cửa sổ Chat nhanh",
+   "w": 1600,
+   "x": 4560,
+   "y": 12400
+  },
+  "Dictionary-Empty.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Từ điển · vẽ lại · trạng thái trống: câu hỏi ngắn + ô tra là trọng tâm (Tra từ và ngữ cảnh trong ô); tra cứu gần đây và từ đã lưu là danh sách phẳng như Trang chủ",
+   "w": 1280,
+   "x": 0,
+   "y": 15000
+  },
+  "Dictionary-Entry.dc.html": {
+   "h": 800,
+   "radius": 12,
+   "title": "Từ điển · vẽ lại · mục từ: ô tra 44 giữ từ và ngữ cảnh, headword 30, hành động bên phải, dòng ngữ cảnh, seg có số đếm, mỗi nghĩa kèm ví dụ song ngữ và sắc thái",
+   "w": 1280,
+   "x": 1360,
+   "y": 15000
+  },
+  "Dictionary-Redesign-States.dc.html": {
+   "h": 2060,
+   "radius": 12,
+   "title": "Từ điển · vẽ lại · trạng thái: đang tra, không tìm thấy, tab Ví dụ, tab Từ liên quan, cửa sổ hẹp",
+   "w": 1440,
+   "x": 2720,
+   "y": 15000
+  },
+  "Overlays-Listen.dc.html": {
+   "h": 1640,
+   "radius": 12,
+   "title": "Lớp Nghe · chọn nguồn, đang tạo giọng, đang đọc, lỗi; cách neo ở Dịch, Từ điển, AI Chat; thay cho khối \"Menu Nghe\" trong Overlays-Language",
+   "w": 1440,
+   "x": 4240,
+   "y": 15000
+  }
+ },
+ "createdOnFiles": {
+  "at": "2026-11-03T09:00:00Z",
+  "v": 1
+ },
+ "designSystems": [],
+ "launch": {
+  "view": "canvas"
+ },
+ "noteOrder": [
+  "t0",
+  "t1",
+  "t2",
+  "t3",
+  "t4",
+  "s0",
+  "t5",
+  "t6",
+  "t7",
+  "t8",
+  "t9"
+ ],
+ "notes": {
+  "s0": {
+   "fill": "blue",
+   "text": "Cách đọc bản vẽ\n\n1. Nền tảng: 3 lớp cảnh, vật liệu kính, màu, chữ, điều khiển.\n2. Mỗi màn hình là cửa sổ 1280×800 thật, dữ liệu thật từ ảnh chụp.\n3. Các màn chưa có ảnh chụp (Phiên dịch, Từ điển, Dịch mọi nơi, Ứng dụng, Nhiệt độ, Launcher & phím tắt, Cài đặt, cửa sổ nổi) dựng theo spec docs/design/screens.\n4. Số đo là pt macOS; tokens.css sẽ được cập nhật theo bản này sau khi duyệt.",
+   "w": 300,
+   "x": 1680,
+   "y": 0
+  },
+  "t0": {
+   "kind": "title1",
+   "maxW": 1600,
+   "text": "Viezan · Liquid Glass 2.0 — Nền tảng",
+   "w": 240,
+   "x": 0,
+   "y": -300
+  },
+  "t1": {
+   "kind": "title1",
+   "maxW": 8080,
+   "text": "Màn hình chính · 1280×800 · Sáng · bảng màu champagne / taupe / lavender",
+   "w": 240,
+   "x": 0,
+   "y": 1300
+  },
+  "t2": {
+   "kind": "title1",
+   "maxW": 8080,
+   "text": "Ngôn ngữ và hệ thống",
+   "w": 240,
+   "x": 0,
+   "y": 2340
+  },
+  "t3": {
+   "kind": "title1",
+   "maxW": 7620,
+   "text": "Cài đặt · Chế độ tối · Cửa sổ hẹp",
+   "w": 240,
+   "x": 0,
+   "y": 3380
+  },
+  "t4": {
+   "kind": "title1",
+   "maxW": 10200,
+   "text": "Lớp nổi và cửa sổ phụ",
+   "w": 240,
+   "x": 0,
+   "y": 4420
+  },
+  "t5": {
+   "kind": "title1",
+   "maxW": 10800,
+   "text": "Cài đặt · 7 mục còn lại (Giao diện và Nhà cung cấp AI ở hàng trên; Launcher & phím tắt chỉ còn ở sidebar)",
+   "w": 240,
+   "x": 0,
+   "y": 6360
+  },
+  "t6": {
+   "kind": "title1",
+   "maxW": 6100,
+   "text": "Bổ sung sau Đợt 1–7 · cửa sổ hẹp 820, pane điều hướng tạm, cửa sổ nhỏ nhất 640×480, dải thông báo shell, Reduce Transparency",
+   "w": 240,
+   "x": 0,
+   "y": 8100
+  },
+  "t7": {
+   "kind": "title1",
+   "maxW": 6100,
+   "text": "Trạng thái từng màn · AI Chat, Dịch, Phiên dịch (đang chạy, lỗi, trống, thiếu quyền, lớp nổi còn thiếu); Từ điển xem hàng cuối",
+   "w": 240,
+   "x": 0,
+   "y": 9400
+  },
+  "t8": {
+   "kind": "title1",
+   "maxW": 6200,
+   "text": "Trạng thái trang hệ thống, thư viện lịch sử, Launcher & Quick AI, cửa sổ Chat nhanh",
+   "w": 240,
+   "x": 0,
+   "y": 12160
+  },
+  "t9": {
+   "kind": "title1",
+   "maxW": 5700,
+   "text": "Từ điển · bản hiện hành (2026-11-03) · thay cho Dictionary và Dictionary-States đã gỡ  ·  Lớp Nghe (Overlays-Listen) thay cho khối Menu Nghe trong Overlays-Language",
+   "w": 240,
+   "x": 0,
+   "y": 14760
+  }
+ },
+ "order": [
+  "Foundations.dc.html",
+  "Sidebar.dc.html",
+  "Home.dc.html",
+  "Chat-Empty.dc.html",
+  "Chat-Active.dc.html",
+  "History.dc.html",
+  "History-Archived.dc.html",
+  "Translate.dc.html",
+  "Interpret.dc.html",
+  "Interpret-Summary.dc.html",
+  "Everywhere.dc.html",
+  "Apps.dc.html",
+  "Thermal.dc.html",
+  "Shortcuts.dc.html",
+  "Shortcuts-Recorder.dc.html",
+  "Settings-Appearance.dc.html",
+  "Settings-Models.dc.html",
+  "Chat-Dark.dc.html",
+  "Translate-Compact.dc.html",
+  "Overlays.dc.html",
+  "Overlays-Language.dc.html",
+  "Launcher.dc.html",
+  "QuickChat.dc.html",
+  "QuickTranslate.dc.html",
+  "Settings-General.dc.html",
+  "Settings-Local.dc.html",
+  "Settings-Speech.dc.html",
+  "Settings-Modules.dc.html",
+  "Settings-Data.dc.html",
+  "Settings-Update.dc.html",
+  "Settings-About.dc.html",
+  "UpdateSheet.dc.html",
+  "UpdateSheet-States.dc.html",
+  "Overlays-Settings.dc.html",
+  "Overlays-Interpret.dc.html",
+  "Home-Compact.dc.html",
+  "Chat-Compact.dc.html",
+  "Nav-Overlay.dc.html",
+  "Shell-Minimum.dc.html",
+  "Shell-States.dc.html",
+  "Shell-Solid.dc.html",
+  "Chat-States.dc.html",
+  "Translate-States.dc.html",
+  "Interpret-States.dc.html",
+  "Thermal-States.dc.html",
+  "Apps-States.dc.html",
+  "History-States.dc.html",
+  "Launcher-States.dc.html",
+  "Dictionary-Empty.dc.html",
+  "Dictionary-Entry.dc.html",
+  "Dictionary-Redesign-States.dc.html",
+  "Overlays-Listen.dc.html"
+ ],
+ "pages": [],
+ "title": "Viezan Liquid Glass Redesign"
 }

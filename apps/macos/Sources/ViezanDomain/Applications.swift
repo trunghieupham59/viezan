@@ -21,6 +21,9 @@ public struct ApplicationDataItem: Codable, Identifiable, Sendable {
     public var selected: Bool
     public var blocked: String?
     var snapshot: ApplicationSnapshot?
+    /// Why an allowed item starts unticked: "personalData" (documents, settings, site data are kept
+    /// unless the person ticks them). Nil for pre-ticked and blocked items.
+    public var note: String? = nil
 }
 public struct ApplicationPlan: Identifiable, Sendable {
     public var id = UUID().uuidString
@@ -40,7 +43,11 @@ public struct ApplicationJournal: Codable, Identifiable, Sendable {
         public var preferenceDomain: String?
         public var preferenceBackup: String?
         public var issue: String?
+        /// Size when it was moved (Apps journal row).
+        public var bytes: Int64 { snapshot.bytes }
     }
+    /// What the action moved, in bytes (items that reached the Trash or had preferences removed).
+    public var movedBytes: Int64 { items.filter { ["trashed", "preferencesRemoved"].contains($0.status) }.reduce(0) { $0 + $1.bytes } }
     public var id = UUID().uuidString
     public var appName: String
     public var action: String
@@ -109,7 +116,9 @@ enum ApplicationFiles {
         let fm = FileManager.default; let home = fm.homeDirectoryForCurrentUser.path; var items: [ApplicationDataItem] = []; var incomplete = false
         func add(_ path: String, kind: String, evidence: String, blocked: String?, selected: Bool) {
             let snapshot = try? snapshot(path); if snapshot == nil { incomplete = true }
-            items.append(ApplicationDataItem(path: path, kind: kind, evidence: evidence, bytes: snapshot?.bytes, selected: selected && blocked == nil && snapshot != nil, blocked: snapshot == nil ? "appIncomplete" : blocked, snapshot: snapshot))
+            let finalBlocked = snapshot == nil ? "appIncomplete" : blocked
+            items.append(ApplicationDataItem(path: path, kind: kind, evidence: evidence, bytes: snapshot?.bytes, selected: selected && blocked == nil && snapshot != nil, blocked: finalBlocked, snapshot: snapshot,
+                                             note: finalBlocked == nil && !selected ? "personalData" : nil))
         }
         add(app.path, kind: "bundle", evidence: "exact", blocked: app.blocked, selected: true)
         let vendor = app.bundleID.split(separator: ".").dropLast().joined(separator: ".")

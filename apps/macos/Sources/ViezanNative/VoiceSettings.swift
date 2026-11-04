@@ -25,20 +25,20 @@ struct VoiceSettings: View {
                 CardRow(title: store.text("speechProvider"), detail: store.text("speechAutoHint")) {
                     let (text, tone) = speechStatus
                     StatusBadge(text: text, tone: tone)
-                    Picker(store.text("speechProvider"), selection: $store.speechProvider) {
-                        Text(store.text("reasoning_auto")).tag("auto"); Text("OpenAI").tag("openai"); Text("Groq").tag("groq"); Text("Gemini").tag("gemini")
-                    }.labelsHidden().fixedSize()
+                    SettingsPicker(id: "speech-provider", label: store.text("speechProvider"),
+                                   options: [("auto", store.text("reasoning_auto")), ("openai", "OpenAI"), ("groq", "Groq"), ("gemini", "Gemini")].map { SettingsPickerOption(id: $0.0, title: $0.1) },
+                                   selection: store.speechProvider) { store.speechProvider = $0 }
                 }
                 CardRow(title: store.text("voiceProvider")) {
-                    Picker(store.text("voiceProvider"), selection: Binding(get: { voice.provider }, set: { set(provider: $0) })) {
-                        Text(store.text("voiceSystem")).tag("system"); Text("Microsoft Edge").tag("edge"); Text("OpenAI").tag("openai"); Text("Gemini").tag("gemini"); Text("ElevenLabs").tag("elevenlabs")
-                    }.labelsHidden().fixedSize().accessibilityIdentifier("settings-voice-provider")
+                    SettingsPicker(id: "voice-provider", label: store.text("voiceProvider"),
+                                   options: [("system", store.text("voiceSystem")), ("edge", "Microsoft Edge"), ("openai", "OpenAI"), ("gemini", "Gemini"), ("elevenlabs", "ElevenLabs")].map { SettingsPickerOption(id: $0.0, title: $0.1) },
+                                   selection: voice.provider) { set(provider: $0) }.accessibilityIdentifier("settings-voice-provider")
                 }
                 CardRow(title: store.text("voiceID"), detail: store.text("voiceHint")) { voicePicker }
                 CardRow(title: store.text("voiceRate")) {
-                    Picker(store.text("voiceRate"), selection: Binding(get: { voice.rate ?? 1 }, set: { set(rate: $0) })) {
-                        ForEach(VoicePreferences.rates, id: \.self) { Text($0.formatted(.number.precision(.fractionLength(0...2))) + "×").tag($0) }
-                    }.labelsHidden().fixedSize().disabled(["gemini", "elevenlabs"].contains(voice.provider))
+                    SettingsPicker(id: "voice-rate", label: store.text("voiceRate"),
+                                   options: VoicePreferences.rates.map { SettingsPickerOption(id: String($0), title: $0.formatted(.number.precision(.fractionLength(0...2))) + "×") },
+                                   selection: String(voice.rate ?? 1)) { set(rate: Double($0) ?? 1) }.disabled(!VoicePreferences.rateSupported(voice.provider))
                 }
                 CardRow(title: store.text("voicePreview"), detail: store.text("voicePreviewText"), divider: false) {
                     if store.audio.speaking { Button(store.text("stopSpeaking"), role: .destructive) { store.audio.stopSpeaking() }.buttonStyle(.vznOutline) }
@@ -57,20 +57,19 @@ struct VoiceSettings: View {
         let selection = Binding(get: { voice.voice }, set: { set(voice: $0) })
         switch voice.provider {
         case "system":
-            Picker(store.text("voiceID"), selection: selection) {
-                Text(store.text("voiceAutomatic")).tag("")
-                ForEach(store.audio.voices) { Text($0.name + " · " + $0.language).tag($0.id) }
-            }.labelsHidden().frame(maxWidth: metric("sidebar"))
+            // Overlays-Settings board: system voices grouped by language with their locale.
+            SettingsPicker(id: "voice-id", label: store.text("voiceID"),
+                           options: [SettingsPickerOption(id: "", title: store.text("voiceAutomatic"))] + store.audio.voices.sorted { ($0.language, $0.name) < ($1.language, $1.name) }
+                               .map { SettingsPickerOption(id: $0.id, title: $0.name, detail: $0.language, group: Locale.current.localizedString(forIdentifier: $0.language) ?? $0.language) },
+                           selection: voice.voice) { set(voice: $0) }.frame(maxWidth: metric("sidebar"))
         case "edge":
-            Picker(store.text("voiceID"), selection: selection) {
-                Text(store.text("voiceAutomatic")).tag("")
-                ForEach(EdgeSpeech.voices.sorted { $0.value < $1.value }, id: \.value) { Text($0.value).tag($0.value) }
-            }.labelsHidden().frame(maxWidth: metric("sidebar"))
+            SettingsPicker(id: "voice-id", label: store.text("voiceID"),
+                           options: [SettingsPickerOption(id: "", title: store.text("voiceAutomatic"))] + EdgeSpeech.voices.sorted { $0.value < $1.value }.map { SettingsPickerOption(id: $0.value, title: $0.value) },
+                           selection: voice.voice) { set(voice: $0) }.frame(maxWidth: metric("sidebar"))
         case "openai", "gemini":
-            Picker(store.text("voiceID"), selection: selection) {
-                Text(store.text("voiceAutomatic")).tag("")
-                ForEach(voice.provider == "openai" ? Self.openAIVoices : Self.geminiVoices, id: \.self) { Text($0.capitalized).tag($0) }
-            }.labelsHidden().fixedSize()
+            SettingsPicker(id: "voice-id", label: store.text("voiceID"),
+                           options: [SettingsPickerOption(id: "", title: store.text("voiceAutomatic"))] + (voice.provider == "openai" ? Self.openAIVoices : Self.geminiVoices).map { SettingsPickerOption(id: $0, title: $0.capitalized) },
+                           selection: voice.voice) { set(voice: $0) }
         default:
             TextField(store.text("voiceID"), text: selection).textFieldStyle(.roundedBorder).frame(maxWidth: metric("sidebar"))
         }

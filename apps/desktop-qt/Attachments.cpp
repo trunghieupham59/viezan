@@ -30,7 +30,8 @@ QVariantMap ingest(const QUrl &source) {
     QSaveFile output(directory() + '/' + id);
     if (!output.open(QIODevice::WriteOnly) || output.write(bytes) != bytes.size() || !output.commit()) return {};
     QFile::setPermissions(output.fileName(), QFileDevice::ReadOwner | QFileDevice::WriteOwner);
-    return {{"id", id}, {"name", info.fileName()}, {"mime", "image/" + QString::fromLatin1(format)}};
+    // Pixel size travels with the attachment (Swift ImageAttachment.width/height); older ones have none.
+    return {{"id", id}, {"name", info.fileName()}, {"mime", "image/" + QString::fromLatin1(format)}, {"width", size.width()}, {"height", size.height()}};
 }
 bool restore(const QVariantMap &attachment, const QByteArray &bytes) {
     const auto id = attachment.value("id").toString();

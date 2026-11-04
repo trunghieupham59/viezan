@@ -14,6 +14,8 @@ public struct NativeRelease: Sendable {
     public let version: String
     public let notes: String
     public let page: URL
+    /// The package's size in bytes, from the release listing (nil when the listing omits it).
+    public let size: Int64?
     let package: URL
     let manifest: URL
     let name: String
@@ -24,6 +26,19 @@ public struct NativeRelease: Sendable {
     public private(set) var status = ""
     public private(set) var progress: Double = 0
     public private(set) var downloaded: URL?
+    /// When the last check finished (seconds since 1970), for "Đã kiểm tra 8 phút trước". Not saved.
+    public private(set) var checkedAt: Double?
+    @ObservationIgnored private var downloadStarted: Double?
+    /// Estimated seconds left in the download ("khoảng 20 giây nữa"); nil until it can be told.
+    public var remainingSeconds: Double? {
+        guard busy, let downloadStarted else { return nil }
+        return Self.remaining(elapsed: Date().timeIntervalSince1970 - downloadStarted, fraction: progress)
+    }
+    /// Linear estimate from the time so far; none before 2 % or the first second (too noisy).
+    public nonisolated static func remaining(elapsed: Double, fraction: Double) -> Double? {
+        guard elapsed >= 1, fraction >= 0.02, fraction < 1 else { return nil }
+        return elapsed * (1 - fraction) / fraction
+    }
     @ObservationIgnored private var worker: Task<Void, Never>?
     @ObservationIgnored private var generation = UUID()
     public init() {}
@@ -34,13 +49,13 @@ public struct NativeRelease: Sendable {
         worker = Task {
             do {
                 let value = try await Self.fetchRelease(current: current); try Task.checkCancellation()
-                guard generation == epoch else { return }; release = value; status = value == nil ? "updateCurrent" : "updateAvailable"
+                guard generation == epoch else { return }; release = value; status = value == nil ? "updateCurrent" : "updateAvailable"; checkedAt = Date().timeIntervalSince1970
             } catch { if !Task.isCancelled, generation == epoch { status = "updateError" } }
             if generation == epoch { busy = false; worker = nil }
         }
     }
     public func download() {
-        guard !busy, let release else { return }; busy = true; downloaded = nil; progress = 0; status = ""; let epoch = UUID(); generation = epoch
+        guard !busy, let release else { return }; busy = true; downloaded = nil; progress = 0; status = ""; downloadStarted = Date().timeIntervalSince1970; let epoch = UUID(); generation = epoch
         worker = Task {
             do {
                 let url = try await Self.downloadRelease(release) { [weak self] value in await MainActor.run { if self?.generation == epoch { self?.progress = value } } }
@@ -75,11 +90,12 @@ public struct NativeRelease: Sendable {
         let architecture = "x64"
         #endif
         let prefix = "Viezan-\(version)-darwin-\(architecture)"
+        let packageSize = (assets.first(where: { $0["name"] as? String == prefix + ".dmg" })?["size"] as? NSNumber).map(\.int64Value).flatMap { $0 > 0 ? $0 : nil }
         func asset(_ name: String) -> URL? {
             guard let item = assets.first(where: { $0["name"] as? String == name }), let raw = item["browser_download_url"] as? String, let url = URL(string: raw), ReleaseRedirect.allowed(url), url.host == "github.com", url.path.hasPrefix("/trunghieupham59/viezan/releases/download/") else { return nil }; return url
         }
         guard let package = asset(prefix + ".dmg"), let manifest = asset(prefix + ".json") else { throw CloudFailure.invalidResponse }
-        return NativeRelease(version: version, notes: String((object["body"] as? String ?? "").prefix(65536)), page: URL(string: "https://github.com/trunghieupham59/viezan/releases")!, package: package, manifest: manifest, name: prefix + ".dmg")
+        return NativeRelease(version: version, notes: String((object["body"] as? String ?? "").prefix(65536)), page: URL(string: "https://github.com/trunghieupham59/viezan/releases")!, size: packageSize, package: package, manifest: manifest, name: prefix + ".dmg")
     }
     private nonisolated static func downloadRelease(_ release: NativeRelease, progress: @escaping @Sendable (Double) async -> Void) async throws -> URL {
         let data = try await bytes(release.manifest, limit: 65536)

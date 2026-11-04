@@ -19,6 +19,10 @@ class Interpretation final : public QObject {
     Q_PROPERTY(QVariantMap current READ current NOTIFY changed)
     Q_PROPERTY(bool listening READ listening NOTIFY changed)
     Q_PROPERTY(bool busy READ busy NOTIFY changed)
+    // An analysis is being written (Interpret-Summary "Đang tổng hợp…"); cancelSummary stops only it.
+    Q_PROPERTY(bool summarizing READ summarizing NOTIFY changed)
+    // The transcript store could not be read; writes stay blocked until reload() succeeds.
+    Q_PROPERTY(bool blocked READ blocked NOTIFY changed)
     Q_PROPERTY(double level READ level NOTIFY changed)
     Q_PROPERTY(QString error READ error NOTIFY changed)
 public:
@@ -38,15 +42,23 @@ public:
     Q_INVOKABLE void stop();
     Q_INVOKABLE void cancel();
     Q_INVOKABLE void deleteSession(const QString &id);
+    /// Undo of deleteSession: the session returns in its chronological place and is selected.
+    Q_INVOKABLE void restoreSession(const QVariantMap &session);
+    Q_INVOKABLE void cancelSummary();
+    bool summarizing() const { return m_summarizing; }
+    bool blocked() const { return m_blocked; }
+    Q_INVOKABLE void reload();
+    bool clearAll();
     Q_INVOKABLE void select(const QString &id);
     // A fresh, empty transcript; the next start creates the session.
     Q_INVOKABLE void clearSelection() { if (busy()) return; m_selected.clear(); emit changed(); }
     Q_INVOKABLE void summarize(const QString &kind = "summary");
     Q_INVOKABLE void retry(const QString &id);
-    Q_INVOKABLE QString exportText(bool srt = false) const;
-    Q_INVOKABLE void exportFile(const QUrl &url, bool srt);
+    /// `translatedOnly` drops the original lines ("Chỉ bản dịch"), as Swift export(srt:translatedOnly:).
+    Q_INVOKABLE QString exportText(bool srt = false, bool translatedOnly = false) const;
+    Q_INVOKABLE void exportFile(const QUrl &url, bool srt, bool translatedOnly = false);
     Q_INVOKABLE void speak(const QString &text);
-    void configureVoice(const QString &provider, const QString &voice) { m_audio.configureVoice(provider, voice); }
+    void configureVoice(const QString &provider, const QString &voice, double rate = 1) { m_audio.configureVoice(provider, voice, rate); }
     Q_INVOKABLE void silence() { m_audio.silence(); }
     void setAvailableModels(const QStringList &models) { m_audio.setAvailableModels(models); }
 signals:
@@ -78,4 +90,5 @@ private:
     void finish(const QString &status, const QString &error = {});
     void updateSegment(const QString &id, const QVariantMap &fields, const QString &chunk = {});
     bool persist();
+    void load();
 };

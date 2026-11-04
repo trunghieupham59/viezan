@@ -164,3 +164,42 @@ public enum LauncherCurrency {
         return value
     }
 }
+
+/// What a ⌘K palette query means beyond page names: a sum, a `t ` / `d ` prefix, or a `?` question.
+/// Shared with Qt (`LauncherTools::paletteQuery`).
+public enum PaletteQuery: Equatable, Sendable {
+    case calculation(String), translate(String), lookup(String), ask(String)
+    public static func parse(_ raw: String) -> PaletteQuery? {
+        let query = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return nil }
+        if let value = LauncherCalculator.evaluate(query) { return .calculation(value) }
+        if query.hasPrefix("?") { let text = query.drop(while: { $0 == "?" }).trimmingCharacters(in: .whitespaces); return text.isEmpty ? nil : .ask(text) }
+        if raw.lowercased().hasPrefix("t ") { let text = raw.dropFirst(2).trimmingCharacters(in: .whitespacesAndNewlines); return text.isEmpty ? nil : .translate(text) }
+        if raw.lowercased().hasPrefix("d ") { let text = raw.dropFirst(2).trimmingCharacters(in: .whitespacesAndNewlines); return text.isEmpty ? nil : .lookup(text) }
+        return nil
+    }
+}
+
+/// The launcher before anything is typed (Launcher board): continue the quick AI conversation and
+/// Viezan's own pages. Shared with Qt (`WorkbenchBridge::launcherHome`); where the quick session id
+/// is remembered stays with each app.
+public enum LauncherHome {
+    public struct Page: Equatable, Sendable { public let route: String; public let title: String; public let symbol: String }
+    /// Viezan pages in launcher order; Settings is always offered, the rest follow enabled modules.
+    public static let pages: [Page] = [
+        Page(route: "translate", title: "launcher_translate", symbol: "character.bubble"),
+        Page(route: "dictionary", title: "launcher_dictionary", symbol: "book"),
+        Page(route: "interpret", title: "launcher_live", symbol: "waveform"),
+        Page(route: "chat", title: "ai_chat_popup_open_in_chat", symbol: "bubble.left.and.bubble.right"),
+        Page(route: "settings", title: "quickOpenSettings", symbol: "gearshape"),
+    ]
+    public static func pages(enabled: (String) -> Bool) -> [Page] { pages.filter { $0.route == "settings" || enabled($0.route) } }
+    /// A quick conversation worth continuing: a live chat with at least one message.
+    public static func continuable(_ session: Session?) -> Session? {
+        guard let session, session.feature == .chat, session.archived != true, !session.messages.isEmpty else { return nil }
+        return session
+    }
+    /// Within 30 minutes of its last change a new question continues it instead of starting over.
+    public static let freshFor: Double = 1800
+    public static func fresh(_ session: Session, now: Double) -> Bool { now - (session.updated ?? 0) < freshFor }
+}

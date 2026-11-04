@@ -19,18 +19,17 @@ struct PanelRow: View {
     @FocusState private var focused: Bool
     @State private var hovered = false
     private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
-    private var radius: CGFloat { metric(glass ? "chromeControlRadius" : "radius") }
+    private var radius: CGFloat { metric("radius") }
     private var titleColor: Color { contentColor(glass && !enabled ? "text-disabled" : muted ? "text-muted" : "text", scheme) }
     private var detailColor: Color { glass ? contentColor(enabled ? "text-muted" : "text-disabled", scheme) : .secondary }
     @ViewBuilder private var rowBackground: some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         if glass {
+            // Overlays board: the current choice is a lens, hover the softer lens;
+            // the keyboard position keeps its own accent ring.
             ZStack {
-                shape.fill(.clear)
-                if enabled && hovered && !selected {
-                    shape.fill(contentColor("surface-hover", scheme))
-                        .opacity(selected ? metric("selectionOpacity") : 1)
-                }
+                if enabled && selected { GlassLens(radius: radius) }
+                else if enabled && hovered { GlassLens(radius: radius, hover: true) }
             }
             .overlay {
                 if enabled && !selected && (highlighted || focused) {
@@ -47,16 +46,16 @@ struct PanelRow: View {
         Button(action: action) {
             HStack(spacing: metric("small")) {
                 if let symbol { Image(systemName: symbol).imageScale(.medium).frame(width: metric("icon")).foregroundStyle(detailColor).accessibilityHidden(true) }
-                else { Image(systemName: "checkmark").imageScale(.small).opacity(selected ? 1 : 0).frame(width: metric("icon") - metric("tight")).foregroundStyle(glass ? titleColor : .primary).accessibilityHidden(true) }
-                Text(title).fontWeight(glass && selected ? .semibold : nil).lineLimit(1).foregroundStyle(titleColor)
+                else { Image(systemName: "checkmark").imageScale(.small).opacity(selected && !glass ? 1 : 0).frame(width: metric("icon") - metric("tight")).foregroundStyle(.primary).accessibilityHidden(true) }
+                Text(title).fontWeight(glass && selected ? .medium : nil).lineLimit(1).foregroundStyle(titleColor)
                 Spacer(minLength: metric("small"))
-                if symbol != nil, selected { Image(systemName: "checkmark").imageScale(.small).foregroundStyle(glass ? titleColor : .primary).accessibilityHidden(true) }
-                if !detail.isEmpty { Text(detail).font(.vzn("captionScale")).monospacedDigit().foregroundStyle(detailColor).lineLimit(1) }
+                if symbol != nil, selected, !glass { Image(systemName: "checkmark").imageScale(.small).foregroundStyle(.primary).accessibilityHidden(true) }
+                if !detail.isEmpty { Text(detail).font(.vzn(glass ? "smallScale" : "captionScale")).monospacedDigit().foregroundStyle(detailColor).lineLimit(1) }
+                // Glass: one accent check at the trailing edge for the current choice.
+                if glass, selected { Image(systemName: "checkmark").imageScale(.small).fontWeight(.semibold).foregroundStyle(contentColor("action", scheme)).accessibilityHidden(true) }
                 if let toggle { Toggle("", isOn: .constant(toggle)).toggleStyle(.switch).labelsHidden().controlSize(.mini).allowsHitTesting(false).accessibilityHidden(true) }
             }
-            .padding(.horizontal, metric("small")).frame(height: metric("compactControl")).frame(maxWidth: .infinity, alignment: .leading)
-            .modifier(ControlGlass(active: glass && selected, radius: radius, selected: true,
-                                       focused: enabled && (highlighted || focused), enabled: enabled))
+            .padding(.horizontal, metric("small")).frame(height: metric(glass ? "navControl" : "compactControl")).frame(maxWidth: .infinity, alignment: .leading)
             .background { rowBackground }
             .contentShape(Rectangle())
         }.buttonStyle(.plain).focused($focused).focusEffectDisabled(glass).onHover { hovered = $0 }
@@ -108,7 +107,6 @@ struct ComposerToolsPanel: View {
     var availableHeight: CGFloat
     @State private var highlighted: String?
     @FocusState private var focused: Bool
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     private var session: Session { store.session }
     private var sections: [ComposerTools.Section] {
         ComposerTools.sections(feature: session.feature, imageCount: session.images?.count ?? 0, chatMode: session.chatMode ?? "text",
@@ -165,13 +163,12 @@ struct ComposerToolsPanel: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(sections.enumerated()), id: \.element.key) { index, section in
-                        if index > 0 { Divider().padding(.vertical, metric("small")) }
+                        if index > 0 { CardDivider().padding(.vertical, metric("small")) }
                         ForEach(section.rows) { row in
                             let text = label(row)
                             PanelRow(title: text.title, detail: text.detail, symbol: row.kind == .instructions ? "text.quote" : text.symbol, selected: row.selected, highlighted: highlighted == row.id, muted: !row.enabled,
                                      toggle: row.kind == .careful ? row.selected : nil, identifier: "tool-" + row.id) { activate(row) }
                                 .id(row.id).disabled(!row.enabled)
-                                .padding(.bottom, glass ? metric("tight") : 0)
                         }
                     }
                 }.padding(.vertical, metric("small"))

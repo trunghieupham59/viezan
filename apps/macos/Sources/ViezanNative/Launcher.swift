@@ -145,6 +145,7 @@ private struct LauncherView: View {
     @State private var failed = false
     @FocusState private var focused: Bool
     @Environment(\.colorScheme) private var scheme
+    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     private func t(_ key: String) -> String { store.text(key) }
     /// Section titles are set in capitals; the typed query inside one keeps its own case.
     private func section(_ key: String, query: String = "") -> String {
@@ -176,9 +177,8 @@ private struct LauncherView: View {
         // Viezan's own pages: all of them on an empty query, the matching ones while typing.
         var viezan: [LauncherItem] = []
         if trimmed.isEmpty, fresh, let continueQuick { viezan.append(continueQuick) }
-        for (route, title, symbol) in [("translate", "launcher_translate", "character.bubble"), ("dictionary", "launcher_dictionary", "book"), ("interpret", "launcher_live", "waveform"), ("chat", "ai_chat_popup_open_in_chat", "bubble.left.and.bubble.right"), ("settings", "quickOpenSettings", "gearshape")]
-            where route == "settings" || store.moduleEnabled(route) {
-            viezan.append(.init(id: "page-" + route, kind: .command, section: "", title: t(title), detail: t("launcher_command"), symbol: symbol) { _ in openRoute(route) })
+        for page in LauncherHome.pages(enabled: store.moduleEnabled) {
+            viezan.append(.init(id: "page-" + page.route, kind: .command, section: "", title: t(page.title), detail: t("launcher_command"), symbol: page.symbol) { _ in openRoute(page.route) })
         }
         let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
         result += viezan.filter { trimmed.isEmpty || $0.title.range(of: trimmed, options: options) != nil }.map { $0.with(section: section("launcher_section_viezan")) }
@@ -205,9 +205,10 @@ private struct LauncherView: View {
             } else { search }
         }
         .background(GeometryReader { geometry in Color.clear.onChange(of: geometry.size.height, initial: true) { _, value in resize(value) } })
-        .background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("largeRadius")))
-        .clipShape(RoundedRectangle(cornerRadius: metric("largeRadius")))
-        .overlay(RoundedRectangle(cornerRadius: metric("largeRadius")).strokeBorder(contentColor("border-strong", scheme), lineWidth: metric("hairline")))
+        // Launcher board: the `.float` glass layer (raised white over a heavy blur, bo 20).
+        .background { if glass { ReadingPanelSurface() } else { RoundedRectangle(cornerRadius: metric("largeRadius")).fill(contentColor("surface", scheme)) } }
+        .clipShape(RoundedRectangle(cornerRadius: metric(glass ? "surfaceRadius" : "largeRadius"), style: .continuous))
+        .overlay { if !glass { RoundedRectangle(cornerRadius: metric("largeRadius")).strokeBorder(contentColor("border-strong", scheme), lineWidth: metric("hairline")) } }
         .frame(width: metric("reading"))
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -231,19 +232,23 @@ private struct LauncherView: View {
                         }
                     }
                     .accessibilityLabel(t("launcher_placeholder"))
-                HStack(spacing: metric("tight")) { Text(t("launcher_ai_hint")).font(.vzn("smallScale")).foregroundStyle(.secondary); KeyCap(text: "⇥") }
+                HStack(spacing: metric("tight")) { Text(t("launcher_ai_hint")).font(.vzn(glass ? "labelScale" : "smallScale")).foregroundStyle(.secondary); KeyCap(text: "⇥") }
                     .accessibilityHidden(true)
             }
-            .padding(.horizontal, metric("inset")).frame(height: metric("navControl") + metric("small"))
+            // Glass: a 60 pt search head with 18 pt text.
+            .padding(.horizontal, metric(glass ? "gutter" : "inset") - (glass ? metric("tight") : 0)).frame(height: metric("navControl") + metric("small") + (glass ? metric("gap") : 0))
             if !rows.isEmpty {
-                Divider()
+                if glass { CardDivider() } else { Divider() }
                 ScrollViewReader { proxy in
                     ScrollView {
                         VStack(alignment: .leading, spacing: 0) {
                             ForEach(Array(rows.enumerated()), id: \.element.id) { index, item in
                                 if index == 0 || rows[index - 1].section != item.section {
-                                    Text(item.section).font(.vzn("captionScale", .semibold)).foregroundStyle(.secondary)
-                                        .padding(.horizontal, metric("small")).padding(.top, metric("small")).padding(.bottom, metric("tight"))
+                                    if glass { Eyebrow(text: item.section).padding(.horizontal, metric("small") + metric("hairline") * 2).padding(.top, metric("gap")).padding(.bottom, metric("tight")) }
+                                    else {
+                                        Text(item.section).font(.vzn("captionScale", .semibold)).foregroundStyle(.secondary)
+                                            .padding(.horizontal, metric("small")).padding(.top, metric("small")).padding(.bottom, metric("tight"))
+                                    }
                                 }
                                 row(item, selected: item.id == chosen?.id).id(item.id)
                                     .onTapGesture { selectedID = item.id; activate(item) }
@@ -254,12 +259,18 @@ private struct LauncherView: View {
                     .onChange(of: selectedID) { _, value in if let value { proxy.scrollTo(value) } }
                 }
             }
-            if !appsLoaded || failed {
+            if glass && (!appsLoaded || failed) {
+                // Launcher-States: loading is an accent chip under the groups; a failed open is a soft danger block.
+                Group {
+                    if failed { InlineFailure(title: t("launcher_open_failed")) }
+                    else { StatusBadge(text: t("launcher_loading"), tone: .busy).frame(maxWidth: .infinity, alignment: .leading) }
+                }.padding(.horizontal, metric("gap") + metric("hairline") * 2).padding(.bottom, metric("small")).padding(.top, rows.isEmpty ? metric("small") : 0)
+            } else if !appsLoaded || failed {
                 Text(t(failed ? "launcher_open_failed" : "launcher_loading")).font(.vzn("smallScale")).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, metric("inset")).padding(.vertical, metric("small"))
             }
             if let chosen {
-                Divider()
+                if glass { CardDivider() } else { Divider() }
                 HStack(spacing: metric("gap")) {
                     Text(chosen.title).lineLimit(1).truncationMode(.middle)
                     Spacer()
@@ -268,7 +279,8 @@ private struct LauncherView: View {
                     if chosen.kind != .command || chosen.id != "ai" { hint(t("launcher_ai"), "⌘ ↵") }
                 }
                 .font(.vzn("smallScale")).foregroundStyle(.secondary)
-                .padding(.horizontal, metric("inset")).padding(.vertical, metric("small"))
+                .padding(.horizontal, metric("inset")).padding(.vertical, glass ? 0 : metric("small"))
+                .frame(minHeight: glass ? metric("control") : nil)
                 .background(contentColor("surface-muted", scheme))
             }
         }
@@ -288,21 +300,41 @@ private struct LauncherView: View {
         HStack(spacing: metric("gap")) {
             Group {
                 if let path = item.path { Image(nsImage: NSWorkspace.shared.icon(forFile: path)).resizable() }
+                else if glass {
+                    // Launcher board: commands sit on a 28 pt toned tile.
+                    Image(systemName: item.symbol).foregroundStyle(contentColor(tone(item), scheme))
+                        .frame(width: metric("compactControl") - metric("tight"), height: metric("compactControl") - metric("tight"))
+                        .background(contentColor(tone(item), scheme).opacity(metric("selectionOpacity") * 1.5), in: RoundedRectangle(cornerRadius: metric("chromeShortcutRadius"), style: .continuous))
+                }
                 else { Image(systemName: item.symbol).foregroundStyle(contentColor("action-text", scheme)) }
-            }.frame(width: metric("icon"), height: metric("icon"))
+            }.frame(width: glass ? metric("compactControl") - metric("tight") : metric("icon"), height: glass ? metric("compactControl") - metric("tight") : metric("icon"))
             VStack(alignment: .leading, spacing: 0) {
-                Text(item.title).lineLimit(1).truncationMode(.middle)
+                Text(item.title).font(glass ? .vzn("labelScale", .medium) : .body).lineLimit(1).truncationMode(.middle)
                 if !item.subtitle.isEmpty { Text(item.subtitle).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1) }
             }
             Spacer(minLength: metric("gap"))
             if let accessory = item.accessory { accessory }
             else { Text(item.detail).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head) }
         }
-        .padding(.horizontal, metric("small")).padding(.vertical, item.subtitle.isEmpty ? 0 : metric("tight")).frame(minHeight: metric("navControl"))
-        .background(selected ? contentColor("action-soft", scheme) : .clear, in: RoundedRectangle(cornerRadius: metric("controlRadius")))
+        .padding(.horizontal, metric("small")).padding(.vertical, item.subtitle.isEmpty ? 0 : metric("tight")).frame(minHeight: metric("navControl") + (glass ? metric("tight") : 0))
+        .background {
+            if selected {
+                if glass { GlassLens(radius: metric("radius")) }
+                else { RoundedRectangle(cornerRadius: metric("controlRadius")).fill(contentColor("action-soft", scheme)) }
+            }
+        }
         .contentShape(Rectangle())
         // A row with its own control (the currency picker) keeps it reachable instead of merging it into the row.
         .accessibilityElement(children: item.accessory == nil ? .combine : .contain).accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+    /// Command tone for its icon tile: AI accent, Translate violet, Dictionary orange, the rest green/blue.
+    private func tone(_ item: LauncherItem) -> String {
+        if item.symbol == "character.bubble" { return "tone-violet" }
+        if item.symbol == "book" { return "tone-orange" }
+        if item.symbol == "waveform" || item.symbol == "dollarsign.circle" { return "tone-green" }
+        // Launcher-States: the calculator tile is neutral.
+        if item.symbol == "function" { return "text-muted" }
+        return "tone-blue"
     }
     private func hint(_ label: String, _ key: String) -> some View {
         HStack(spacing: metric("tight")) { Text(label); KeyCap(text: key) }
@@ -359,7 +391,8 @@ private struct LauncherView: View {
                 Button(code + " · " + (numberLocale.localizedString(forCurrencyCode: code) ?? code)) { currencyTarget = code; selectedID = nil; focused = true }
             }
         } label: { Text(t("launcher_currency_target") + ": " + target) }
-            .menuStyle(.button).buttonStyle(.vznQuiet).fixedSize().font(.vzn("smallScale"))
+            // Launcher-States: on Glass the target picker is a small glass pill with its chevron.
+            .menuStyle(.button).buttonStyle(glass ? AnyButtonStyle(.vznOutline) : AnyButtonStyle(.vznQuiet)).menuIndicator(glass ? .visible : .automatic).controlSize(glass ? .small : .regular).fixedSize().font(.vzn("smallScale"))
             .disabled(typedTarget).help(t("launcher_currency_target"))
     }
     private func loadRates(retry: Bool) async {

@@ -79,22 +79,32 @@ private final class FanSocket: @unchecked Sendable {
     public private(set) var calibrationPhase = ""
     public private(set) var calibrationRemaining = 0
     public private(set) var affinity: [Int: [String]] = [:]
+    /// Calibration progress (Thermal-States): seconds done of the whole run, and which fan (1-based) of how many.
+    public private(set) var calibrationElapsed = 0
+    public private(set) var calibrationTotal = 0
+    public private(set) var calibrationFan = 0
+    public private(set) var calibrationFanCount = 0
+    public var calibrationProgress: Double { calibrationTotal > 0 ? min(1, Double(calibrationElapsed) / Double(calibrationTotal)) : 0 }
+    /// When the saved fan → sensor result was measured (seconds since 1970); nil for results saved before this field.
+    public private(set) var calibratedAt: Double?
+    /// The whole run: settle, then baseline, full speed and settle again for each fan.
+    public nonisolated static func calibrationSeconds(fans: Int) -> Int { 45 + fans * (12 + 40 + 30) }
     @ObservationIgnored private var policy: Task<Void, Never>?
     @ObservationIgnored private var calibration: Task<Void, Never>?
     @ObservationIgnored private var lastSnapshot = ContinuousClock.now
     @ObservationIgnored private var samples: [(Date, ThermalSnapshot)] = []
     @ObservationIgnored private let preferences = FilePersistence.previewURL().deletingLastPathComponent().appendingPathComponent("fan-profiles.json")
-    private struct Saved: Codable { var profiles: [FanProfile]; var affinity: [Int: [String]] }
+    private struct Saved: Codable { var profiles: [FanProfile]; var affinity: [Int: [String]]; var calibratedAt: Double? }
     public init() {
         if let size = try? preferences.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= 1_048_576,
            let data = try? Data(contentsOf: preferences), let saved = try? JSONDecoder().decode(Saved.self, from: data), saved.profiles.count <= 50,
            saved.profiles.allSatisfy({ UUID(uuidString: $0.id) != nil && !$0.name.isEmpty && $0.name.count <= 100 && $0.rules.count <= 16 && $0.rules.values.allSatisfy(\.valid) }) {
-            profiles += saved.profiles; affinity = saved.affinity
+            profiles += saved.profiles; affinity = saved.affinity; calibratedAt = saved.calibratedAt
         }
     }
     private func persistProfiles() {
         do {
-            let data = try JSONEncoder().encode(Saved(profiles: profiles.filter { UUID(uuidString: $0.id) != nil }, affinity: affinity))
+            let data = try JSONEncoder().encode(Saved(profiles: profiles.filter { UUID(uuidString: $0.id) != nil }, affinity: affinity, calibratedAt: calibratedAt))
             try FileManager.default.createDirectory(at: preferences.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
             try data.write(to: preferences, options: .atomic); try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: preferences.path)
         } catch { self.error = "fanControlError" }
@@ -140,17 +150,24 @@ private final class FanSocket: @unchecked Sendable {
             } catch { if let self, self.controlGeneration == owner { self.disconnectControl(); if !Task.isCancelled { self.error = "fanControlError" } } }
         }
     }
+    /// Thermal "Quên kết quả": drop the measured fan → sensor map; profiles fall back to their own sensors.
+    public func forgetCalibration() {
+        guard !calibrating, !affinity.isEmpty || calibratedAt != nil else { return }
+        affinity = [:]; calibratedAt = nil; persistProfiles()
+    }
     public func cancelCalibration() { calibration?.cancel(); calibration = nil; calibrating = false; calibrationRemaining = 0; samples.removeAll(); disconnectControl() }
     public func calibrate() {
         guard !calibrating, monitoring, let fans = snapshot?.fans, !fans.isEmpty, fans.count <= 16, fans.allSatisfy({ ($0.max ?? 0).isFinite && ($0.max ?? 0) > 0 }) else { return }
         disconnectControl(); let owner = fan.beginLease(); controlGeneration = owner; calibrating = true; samples.removeAll(); let socket = fan
+        calibrationElapsed = 0; calibrationTotal = Self.calibrationSeconds(fans: fans.count); calibrationFan = 0; calibrationFanCount = fans.count
         calibration = Task { [weak self] in
             guard let self else { return }
             do {
                 _ = try await Task.detached { try socket.command("fans.restoreAll", lease: owner) }.value
                 try await self.calibrationWait(45, phase: "fanSettle", owner: owner)
                 var deltas: [Int: [String: Double]] = [:]
-                for item in fans {
+                for (position, item) in fans.enumerated() {
+                    self.calibrationFan = position + 1
                     try await self.calibrationWait(12, phase: "fanBaseline", owner: owner); let before = self.averageSamples()
                     let rpm = item.max!
                     _ = try await Task.detached { try socket.command("fans.setTarget", args: ["id": "fan\(item.index)"], rpm: rpm, lease: owner) }.value
@@ -172,7 +189,7 @@ private final class FanSocket: @unchecked Sendable {
                     }
                     affinity[index] = Array((owned.isEmpty ? candidates : owned).prefix(12).map(\.key))
                 }
-                self.affinity = affinity; self.persistProfiles(); self.calibrationPhase = "succeeded"
+                self.affinity = affinity; self.calibratedAt = Date().timeIntervalSince1970; self.persistProfiles(); self.calibrationPhase = "succeeded"
             } catch { if !Task.isCancelled { self.error = "fanControlError" } }
             if self.controlGeneration == owner { self.calibrating = false; self.calibrationRemaining = 0; self.samples.removeAll(); self.disconnectControl() }
         }
@@ -181,7 +198,7 @@ private final class FanSocket: @unchecked Sendable {
         calibrationPhase = phase
         for remaining in stride(from: seconds, to: 0, by: -1) {
             try Task.checkCancellation(); guard controlGeneration == owner, lastSnapshot.duration(to: .now) < .seconds(8) else { throw StorageFailure.invalidData }
-            calibrationRemaining = remaining; let socket = fan
+            calibrationRemaining = remaining; calibrationElapsed += 1; let socket = fan
             let data = try await Task.detached { try socket.command("status", lease: owner) }.value
             if phase == "fanSpin" {
                 let result = try JSONSerialization.jsonObject(with: data) as? [String: Any]

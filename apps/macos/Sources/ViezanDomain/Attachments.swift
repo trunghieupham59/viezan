@@ -7,6 +7,13 @@ public struct ImageAttachment: Codable, Equatable, Identifiable, Sendable {
     public let id: String
     public let name: String
     public let mime: String
+    /// Pixel size, read when the image is stored. Optional: attachments saved before have none.
+    public var width: Int? = nil
+    public var height: Int? = nil
+    /// The image model that drew it ("openai:gpt-image-1"); nil for pictures a person attached.
+    public var generator: String? = nil
+    /// Same stored file: backups and imports match on identity, not on the optional details.
+    public func sameFile(_ other: ImageAttachment) -> Bool { id == other.id && name == other.name && mime == other.mime }
 }
 public enum Attachments {
     private static var directory: URL { FilePersistence.previewURL().deletingLastPathComponent().appendingPathComponent("attachments", isDirectory: true) }
@@ -45,7 +52,7 @@ public enum Attachments {
               let properties = CGImageSourceCopyPropertiesAtIndex(image, 0, nil) as? [CFString: Any],
               let width = properties[kCGImagePropertyPixelWidth] as? Int, let height = properties[kCGImagePropertyPixelHeight] as? Int,
               width > 0, height > 0, Double(width) * Double(height) <= 40_000_000 else { throw ProviderFailure.invalidResponse }
-        let attachment = ImageAttachment(id: UUID().uuidString, name: name, mime: mime)
+        let attachment = ImageAttachment(id: UUID().uuidString, name: name, mime: mime, width: width, height: height)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let destination = directory.appendingPathComponent(attachment.id)
         try data.write(to: destination, options: .atomic)

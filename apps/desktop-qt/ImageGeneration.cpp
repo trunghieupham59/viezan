@@ -53,9 +53,9 @@ CloudProtocol::Call prepare(const QVariantMap &input) {
         }
     }
     key.fill('\0'); request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy); request.setTransferTimeout(300000);
-    return {request, body, {}, "image:" + provider};
+    return {request, body, {}, "image:" + provider + ":" + model};
 }
-QVariantList decode(const QByteArray &response, const QString &provider) {
+QVariantList decode(const QByteArray &response, const QString &provider, const QString &model) {
     const auto object = QJsonDocument::fromJson(response).object(); QList<QPair<QString, QString>> encoded;
     if (provider == "openai") { for (const auto &value : object.value("data").toArray()) encoded.append({value.toObject().value("b64_json").toString(), "image/png"}); }
     else { for (const auto &candidate : object.value("candidates").toArray()) for (const auto &value : candidate.toObject().value("content").toObject().value("parts").toArray()) { const auto data = value.toObject().value("inlineData").toObject(); if (!data.isEmpty()) encoded.append({data.value("data").toString(), data.value("mimeType").toString()}); } }
@@ -64,7 +64,10 @@ QVariantList decode(const QByteArray &response, const QString &provider) {
         const auto bytes = QByteArray::fromBase64(item.first.toLatin1(), QByteArray::AbortOnBase64DecodingErrors);
         if (bytes.isEmpty() || bytes.size() > 20000000 || !QStringList{"image/png", "image/jpeg", "image/webp"}.contains(item.second)) return {};
         QTemporaryFile file; if (!file.open() || file.write(bytes) != bytes.size() || !file.flush()) return {}; const auto path = file.fileName(); file.close();
-        const auto image = Attachments::ingest(QUrl::fromLocalFile(path)); if (image.isEmpty()) return {}; result.append(image);
+        auto image = Attachments::ingest(QUrl::fromLocalFile(path)); if (image.isEmpty()) return {};
+        // The image model that drew it (Swift ImageAttachment.generator), for "GPT Image · 6,2 s".
+        if (!model.isEmpty()) image["generator"] = provider + ":" + model;
+        result.append(image);
     }
     return result;
 }

@@ -1,4 +1,5 @@
 #include "WorkbenchBridge.h"
+#include "ModelLineup.h"
 #include "TextLanguage.h"
 #include "ImageTranslation.h"
 #include "LanguageSegments.h"
@@ -73,6 +74,18 @@ WorkbenchBridge::WorkbenchBridge(QObject *parent, const QString &storageFile, bo
         }
         m_ocrID.clear(); m_ocrText.clear(); emit changed();
     });
+    // Updates: a background check a minute after launch, then daily; never while a check or download runs.
+    m_updateTimer.setSingleShot(false); m_updateTimer.setInterval(60000);
+    connect(&m_updateTimer, &QTimer::timeout, this, [this] {
+        m_updateTimer.setInterval(86400000);
+        if (!autoCheckUpdates() || m_updates.busy()) return;
+        m_backgroundCheck = true; m_updates.check();
+    });
+    connect(&m_updates, &NativeUpdates::changed, this, [this] {
+        if (!m_backgroundCheck || m_updates.busy()) return;
+        m_backgroundCheck = false; presentUpdateIfAvailable();
+    });
+    if (automaticProvider) m_updateTimer.start();
     // Downloads, deletions and runtime start/stop change what this device can run.
     connect(&m_modelManager, &LocalModelManager::completed, this, [this] { discoverProviders(); });
     connect(&m_localRuntime, &LocalRuntime::changed, this, [this] {
@@ -125,10 +138,50 @@ void WorkbenchBridge::reload() {
         m_state = recovered;
     }
     m_loadBlocked = false; m_storageError.clear(); applyAppearance(m_state); applyVoice(); emit changed();
+    // Quitting recorded when the current feature was left; reopening applies the same rule.
+    command("launch");
 }
+void WorkbenchBridge::reopenPrevious() {
+    if (m_resetNotice.isEmpty()) return;
+    const auto notice = m_resetNotice;
+    command("reopenPrevious", {{"feature", notice.value("feature")}, {"previousID", notice.value("previousID")}});
+}
+QString WorkbenchBridge::speechLanguage(const QString &text, const QString &fallback) const {
+    const auto detected = TextLanguage::detect(text);
+    return !detected.isEmpty() ? detected : !fallback.isEmpty() && fallback != "auto" ? fallback : m_state.value("locale", "en").toString();
+}
+QVariantList WorkbenchBridge::history(const QString &query, bool archived, const QStringList &features) const {
+    // Case- and diacritic-insensitive, with đ folded to d, like the Swift search.
+    const auto fold = [](QString text) {
+        text = text.toLower().replace(QChar(0x0111), 'd').normalized(QString::NormalizationForm_D); QString out; out.reserve(text.size());
+        for (const auto ch : text) if (ch.category() != QChar::Mark_NonSpacing) out.append(ch);
+        return out;
+    };
+    const auto needle = fold(query.trimmed());
+    const auto disabled = m_state.value("disabledModules").toStringList();
+    QVariantList result;
+    for (const auto &value : m_state.value("sessions").toList()) {
+        const auto item = value.toMap(); const auto feature = item.value("feature").toString();
+        const bool work = !item.value("messages").toList().isEmpty() || !item.value("output").toString().isEmpty() || !item.value("draft").toString().isEmpty() || !item.value("images").toList().isEmpty();
+        if (!work || !item.value("comparisonParent").toString().isEmpty() || item.value("archived").toBool() != archived) continue;
+        if (features.isEmpty() ? disabled.contains(feature) : !features.contains(feature)) continue;
+        if (!needle.isEmpty()) {
+            QString haystack = item.value("title").toString() + ' ' + item.value("draft").toString() + ' ' + item.value("output").toString();
+            for (const auto &message : item.value("messages").toList()) haystack += ' ' + message.toMap().value("text").toString();
+            if (!fold(haystack).contains(needle)) continue;
+        }
+        result.append(item);
+    }
+    // The archive orders by when each session was archived (older ones by their last change).
+    const auto when = [archived](const QVariant &value) { const auto item = value.toMap(); return archived && item.contains("archivedAt") ? item.value("archivedAt").toDouble() : item.value("updated").toDouble(); };
+    std::stable_sort(result.begin(), result.end(), [&when](const QVariant &a, const QVariant &b) { return when(a) > when(b); });
+    return result;
+}
+void WorkbenchBridge::dismissResetNotice() { if (m_resetNotice.isEmpty()) return; m_resetNotice.clear(); emit changed(); }
 void WorkbenchBridge::applyVoice() {
     const auto voice = m_state.value("voice").toMap(); const auto provider = voice.value("provider", "system").toString(), id = voice.value("voice").toString();
-    m_audio.configureVoice(provider, id); m_interpretation.configureVoice(provider, id);
+    const auto rate = voice.value("rate", 1.0).toDouble();
+    m_audio.configureVoice(provider, id, rate); m_interpretation.configureVoice(provider, id, rate);
 }
 void WorkbenchBridge::save() {
     applyVoice();
@@ -148,13 +201,18 @@ void WorkbenchBridge::save() {
 bool WorkbenchBridge::moduleEnabled(const QString &route) const { return !m_state.value("disabledModules").toStringList().contains(route == "everywhere" ? "translate" : route); }
 void WorkbenchBridge::command(const QString &name, const QVariantMap &payload) {
     if (m_loadBlocked || m_shuttingDown) return;
+    if (name == "clearHistory" && m_interpretation.busy()) return;
     if (QStringList{"submit", "cancel", "retry", "select", "feature", "new", "module", "archive", "autoTranslate"}.contains(name)) ++m_autoTranslationEpoch;
     if (name == "submit" && m_localPerformance.busy()) for (const auto &session : m_state.value("sessions").toList()) if (session.toMap().value("id") == payload.value("sessionID") && session.toMap().value("model").toString().startsWith("ollama:")) return;
     if (name == "archive" && payload.value("value").toBool() && m_audio.owner() == payload.value("sessionID").toString()) m_audio.cancel();
     const auto before = m_state;
     auto stamped = payload; stamped["_updated"] = QDateTime::currentMSecsSinceEpoch() / 1000.0;
-    const auto state = WorkbenchDomain::command(m_state, name, stamped, freshID(), freshID());
-    if (state == m_state) return;
+    auto state = WorkbenchDomain::command(m_state, name, stamped, freshID(), freshID());
+    // Smart reset's notice is transient UI state: lift it out before the snapshot is kept or saved.
+    const auto noticeBefore = m_resetNotice;
+    if (QStringList{"new", "select", "reopenPrevious", "navigate"}.contains(name)) m_resetNotice.clear();
+    if (state.contains("_resetNotice")) { m_resetNotice = state.value("_resetNotice").toMap(); state.remove("_resetNotice"); }
+    if (state == m_state) { if (m_resetNotice != noticeBefore) emit changed(); return; }
     const auto oldAppearance = m_state.value("appearance");
     m_state = state;
     if (m_state.value("appearance") != oldAppearance) applyAppearance(m_state);
@@ -174,9 +232,11 @@ void WorkbenchBridge::command(const QString &name, const QVariantMap &payload) {
         }
         if (interrupted) { m_state["tasks"] = tasks; emit changed(); }
     }
-    if (name == "trimHistory") {
+    if (name == "trimHistory" || name == "clearHistory") {
         if (!m_storageError.isEmpty()) { m_state = before; emit changed(); return; }
         if (!Attachments::quarantineUnreferenced(m_state)) { m_storageError = "dataOperationError"; emit changed(); }
+        // Interpretation transcripts go after the workspace is saved, so a failure there loses nothing else.
+        if (name == "clearHistory") { m_resetNotice.clear(); if (!m_interpretation.clearAll()) m_storageError = "dataOperationError"; emit changed(); }
     }
     if (name == "module" && !payload.value("enabled").toBool()) {
         const auto module = payload.value("id").toString();
@@ -287,15 +347,83 @@ void WorkbenchBridge::synchronizeWorkers() {
 void WorkbenchBridge::shutdown() {
     if (m_shuttingDown) return;
     m_shuttingDown = true;
-    cancelCapture(); m_localPerformance.finishBeforeShutdown(); m_updates.cancel(); m_localRuntime.stop(); m_interpretation.cancel(); m_thermalMonitor.stop(); m_desktopIntegration.shutdown();
+    cancelCapture(); m_localPerformance.finishBeforeShutdown(); m_updateTimer.stop(); m_updates.cancel(); m_localRuntime.stop(); m_interpretation.cancel(); m_thermalMonitor.stop(); m_desktopIntegration.shutdown();
     cancelOCR(); m_modelManager.cancel();
     m_audio.cancel();
     m_networkWorkers.clear(); m_provider.cancelAll();
+    if (!m_loadBlocked) m_state = WorkbenchDomain::command(m_state, "leave", {{"_updated", QDateTime::currentMSecsSinceEpoch() / 1000.0}}, freshID(), freshID());
     const auto recovered = WorkbenchDomain::recover(m_state);
     if (!recovered.isEmpty()) m_state = recovered;
     save();
 }
 void WorkbenchBridge::copy(const QString &text) { QGuiApplication::clipboard()->setText(text); }
+// Chat-States "Copy image": the picture itself on the clipboard, read from the attachment store.
+bool WorkbenchBridge::copyImage(const QVariantMap &image) {
+    const auto picture = QImage::fromData(Attachments::data(image)); if (picture.isNull()) return false;
+    QGuiApplication::clipboard()->setImage(picture); return true;
+}
+int WorkbenchBridge::clearableHistoryCount() const { return WorkbenchDomain::clearableHistory(m_state) + int(m_interpretation.sessions().size()); }
+QVariant WorkbenchBridge::dictionarySuggestions(const QString &output) const { return WorkbenchDomain::dictionarySuggestions(output); }
+QVariantMap WorkbenchBridge::removeSession(const QString &sessionID) {
+    if (m_loadBlocked || m_shuttingDown) return {};
+    const auto sessions = m_state.value("sessions").toList(); qsizetype index = -1;
+    for (qsizetype i = 0; i < sessions.size(); ++i) if (sessions[i].toMap().value("id") == sessionID) { index = i; break; }
+    if (index < 0) return {};
+    const auto before = m_state;
+    if (m_audio.owner() == sessionID) m_audio.cancel();
+    command("removeSession", {{"sessionID", sessionID}});
+    if (m_state == before || !m_storageError.isEmpty()) return {};
+    return {{"session", sessions[index]}, {"index", int(index)}};
+}
+void WorkbenchBridge::restoreSession(const QVariantMap &session, int index) { command("restoreSession", {{"session", session}, {"index", index}}); }
+QVariantMap WorkbenchBridge::modelTiers(const QString &sessionID) const {
+    for (const auto &value : m_state.value("sessions").toList()) {
+        const auto session = value.toMap(); if (session.value("id") != sessionID) continue;
+        const auto model = session.value("model").toString();
+        return ModelLineup::tiers(model, m_providers.models.value(ModelLineup::provider(model)));
+    }
+    return {};
+}
+void WorkbenchBridge::applyModelTier(const QString &sessionID, const QString &tier) {
+    const auto model = modelTiers(sessionID).value(tier).toString(); if (model.isEmpty()) return;
+    command("model", {{"sessionID", sessionID}, {"value", model}});
+    for (const auto &value : m_state.value("sessions").toList()) if (value.toMap().value("id") == sessionID && value.toMap().value("feature") == "chat") command("carefulReasoning", {{"sessionID", sessionID}, {"value", tier == "careful"}});
+}
+QStringList WorkbenchBridge::recentPicks() const {
+    auto sessions = m_state.value("sessions").toList();
+    sessions.erase(std::remove_if(sessions.begin(), sessions.end(), [](const QVariant &v) { const auto s = v.toMap(); return s.value("messages").toList().isEmpty() && s.value("output").toString().isEmpty(); }), sessions.end());
+    std::stable_sort(sessions.begin(), sessions.end(), [](const QVariant &a, const QVariant &b) { return a.toMap().value("updated").toDouble() > b.toMap().value("updated").toDouble(); });
+    QStringList models; for (const auto &value : sessions) models << value.toMap().value("model").toString();
+    return ModelLineup::recent(models);
+}
+QString WorkbenchBridge::shortModelName(const QString &id) const { return ModelLineup::shortName(id); }
+QVariantList WorkbenchBridge::modelSections(const QString &query, const QString &sessionID) const {
+    return ModelLineup::sections(query, modelTiers(sessionID), recentPicks(), m_providers.models, ProviderDiscovery::cloudProviders, ProviderDiscovery::localProviders);
+}
+QVariantMap WorkbenchBridge::launcherHome(const QString &quickSessionID) const {
+    static const QList<QPair<QString, QString>> pages{{"translate", "launcher_translate"}, {"dictionary", "launcher_dictionary"}, {"interpret", "launcher_live"}, {"chat", "ai_chat_popup_open_in_chat"}, {"settings", "quickOpenSettings"}};
+    QVariantList list; for (const auto &[route, title] : pages) if (route == "settings" || moduleEnabled(route)) list.append(QVariantMap{{"route", route}, {"title", title}});
+    QVariantMap result{{"pages", list}};
+    for (const auto &value : m_state.value("sessions").toList()) {
+        const auto session = value.toMap();
+        if (quickSessionID.isEmpty() || session.value("id") != quickSessionID || session.value("feature") != "chat" || session.value("archived").toBool() || session.value("messages").toList().isEmpty()) continue;
+        const auto now = QDateTime::currentMSecsSinceEpoch() / 1000.0;
+        result["continue"] = QVariantMap{{"id", quickSessionID}, {"title", session.value("title")}, {"fresh", now - session.value("updated").toDouble() < 1800}};
+    }
+    return result;
+}
+bool WorkbenchBridge::updateSnoozed(const QString &version) const {
+    const auto updates = m_state.value("updates").toMap();
+    return updates.value("snoozedVersion") == version && QDateTime::currentMSecsSinceEpoch() / 1000.0 < updates.value("snoozedUntil").toDouble();
+}
+void WorkbenchBridge::snoozeUpdate() {
+    const auto version = m_updatePrompt.value("version").toString(); if (version.isEmpty()) return;
+    command("snoozeUpdate", {{"version", version}}); m_updatePrompt.clear(); emit changed();
+}
+void WorkbenchBridge::presentUpdateIfAvailable() {
+    if (m_updates.status() != "updateAvailable" || m_updates.version().isEmpty() || updateSnoozed(m_updates.version())) return;
+    m_updatePrompt = {{"version", m_updates.version()}, {"notes", m_updates.notes()}}; emit changed();
+}
 
 void WorkbenchBridge::saveCredential(const QString &provider, const QString &secret, bool remove) {
     if (m_credentialBusy || !CredentialStore::validProvider(provider)) return;

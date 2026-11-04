@@ -58,6 +58,12 @@ qsizetype running(const List &tasks, const QString &sessionID) {
     }
     return -1;
 }
+// A session with anything in it (Swift Session.hasWork).
+bool hasWork(const Map &session) {
+    return !session.value("messages").toList().isEmpty() || !session.value("output").toString().isEmpty() || !session.value("draft").toString().isEmpty() || !session.value("images").toList().isEmpty();
+}
+// The bridge's wall-clock stamp for this command (seconds since 1970), or 0 when absent.
+double clock(const Map &p) { const auto value = p.value("_updated").toDouble(); return std::isfinite(value) && value > 0 ? value : 0; }
 void cancelRunning(List &tasks, const QString &sessionID) {
     const auto i = running(tasks, sessionID);
     if (i >= 0) { auto task = tasks[i].toMap(); task["status"] = "cancelled"; tasks[i] = task; }
@@ -93,6 +99,13 @@ bool validDictionary(const QString &text) {
     }
     return true;
 }
+// The title a session gets from its first question (Swift Session.firstTitle).
+QString firstTitle(const Map &session) {
+    if (session.value("feature") == "chat") for (const auto &value : session.value("messages").toList()) {
+        const auto message = value.toMap(); if (message.value("role") == "user") return WorkbenchDomain::derivedTitle(message.value("text").toString(), message.value("images").toList());
+    }
+    return WorkbenchDomain::derivedTitle(session.value("draft").toString(), session.value("images").toList());
+}
 void setOutput(Map &session, const QString &taskID, const QString &output) {
     if (session.value("feature") != "chat") session["output"] = output;
     else {
@@ -105,6 +118,34 @@ void setOutput(Map &session, const QString &taskID, const QString &output) {
 }
 
 namespace WorkbenchDomain {
+QString derivedTitle(const QString &draft, const QVariantList &images) {
+    const auto text = draft.trimmed();
+    const auto prefix = [](const QString &value) { const auto points = value.toUcs4(); return QString::fromUcs4(reinterpret_cast<const char32_t *>(points.constData()), qMin(qsizetype(64), points.size())); };
+    const bool pathLike = text.startsWith("file://") || text.startsWith('/');
+    if (!images.isEmpty() && (text.isEmpty() || pathLike)) return prefix(images.first().toMap().value("name").toString());
+    if (pathLike) { const auto last = text.section('/', -1); if (!last.isEmpty()) return prefix(QUrl::fromPercentEncoding(last.toUtf8())); }
+    return prefix(text).replace('\n', ' ');
+}
+QVariant dictionarySuggestions(const QString &text) {
+    const auto json = dictionaryJSON(text); if (json.toUtf8().size() > 65536) return {};
+    const auto object = QJsonDocument::fromJson(json.toUtf8()).object();
+    if (!object.value("notFound").isBool() || !object.value("notFound").toBool()) return {};
+    const auto clean = [](const QJsonValue &value, int limit) { const auto text = value.toString().trimmed(); return text.size() <= limit ? text : QString(); };
+    QVariantList suggestions;
+    for (const auto &value : object.value("suggestions").toArray()) {
+        if (suggestions.size() >= 5) break;
+        const auto word = clean(value.isString() ? value : value.toObject().value("word"), 120); if (word.isEmpty()) continue;
+        Map suggestion{{"word", word}};
+        if (value.isObject()) for (const auto &[key, limit] : {std::pair{"partOfSpeech", 60}, std::pair{"meaning", 200}}) { const auto field = clean(value.toObject().value(key), limit); if (!field.isEmpty()) suggestion[key] = field; }
+        suggestions.append(suggestion);
+    }
+    return suggestions;
+}
+int clearableHistory(const QVariantMap &state) {
+    int count = 0;
+    for (const auto &value : state.value("sessions").toList()) { const auto session = value.toMap(); if (session.value("comparisonParent").toString().isEmpty() && (hasWork(session) || session.value("archived").toBool())) ++count; }
+    return count;
+}
 QVariantMap create(const QString &chatID, const QString &translateID) {
     return {{"schemaVersion", 1}, {"sessions", List{freshSession(chatID, "chat"), freshSession(translateID, "translate"), freshSession(chatID + "-dictionary", "dictionary")}},
             {"tasks", List{}}, {"active", Map{{"chat", chatID}, {"translate", translateID}, {"dictionary", chatID + "-dictionary"}}},
@@ -139,8 +180,19 @@ bool validate(const Map &state) {
         const auto usage = rawUsage.toMap();
         for (auto it = usage.begin(); it != usage.end(); ++it) if ((it.key() != "input" && it.key() != "output") || !integer(it.value()) || it.value().toLongLong() < 0 || it.value().toLongLong() > 1000000000) return false;
     }
-    if (state.contains("voice")) { const auto voice = state.value("voice").toMap(); if (!QStringList{"system", "edge", "openai", "gemini", "elevenlabs"}.contains(voice.value("provider").toString()) || voice.value("voice").toString().toUtf8().size() > 256) return false; }
+    if (state.contains("voice")) { const auto voice = state.value("voice").toMap(); if (!QStringList{"system", "edge", "openai", "gemini", "elevenlabs"}.contains(voice.value("provider").toString()) || voice.value("voice").toString().toUtf8().size() > 256) return false;
+        if (voice.contains("rate") && !voice.value("rate").isNull()) { const auto rate = voice.value("rate").toDouble(); if (!std::isfinite(rate) || rate < 0.5 || rate > 2) return false; } }
     if (state.contains("autoTranslate") && state.value("autoTranslate").metaType().id() != QMetaType::Bool) return false;
+    if (state.contains("smartReset") && state.value("smartReset").metaType().id() != QMetaType::Bool) return false;
+    if (state.contains("compareBySentence") && state.value("compareBySentence").metaType().id() != QMetaType::Bool) return false;
+    if (state.contains("updates")) {
+        // Update preferences (Swift UpdatePreferences): every field optional.
+        if (!isMap(state.value("updates"))) return false; const auto updates = state.value("updates").toMap();
+        if (updates.contains("autoCheck") && updates.value("autoCheck").metaType().id() != QMetaType::Bool) return false;
+        if (updates.contains("snoozedVersion") && (!isString(updates.value("snoozedVersion")) || updates.value("snoozedVersion").toString().size() > 64)) return false;
+        if (updates.contains("snoozedUntil")) { bool ok = false; const auto until = updates.value("snoozedUntil").toDouble(&ok); if (!ok || !std::isfinite(until)) return false; }
+    }
+    if (state.contains("featureLeft")) { if (!isMap(state.value("featureLeft"))) return false; const auto left = state.value("featureLeft").toMap(); for (auto it = left.begin(); it != left.end(); ++it) if (!features.contains(it.key()) || !std::isfinite(it.value().toDouble())) return false; }
     if (state.contains("quickTranslate")) {
         const auto quick = state.value("quickTranslate").toMap(); const auto primary = quick.value("primary").toString(), secondary = quick.value("secondary").toString();
         if (!languages.contains(primary) || (!secondary.isEmpty() && (!languages.contains(secondary) || secondary == primary))) return false;
@@ -176,6 +228,7 @@ bool validate(const Map &state) {
         if (s.contains("translationStyle") && !QStringList{"general", "formal", "casual", "business", "technical", "natural"}.contains(s.value("translationStyle").toString())) return false;
         if (s.contains("translationMode") && !QStringList{"translate", "annotate", "phonetic", "rewrite"}.contains(s.value("translationMode").toString())) return false;
         if (s.contains("carefulReasoning") && s.value("carefulReasoning").metaType().id() != QMetaType::Bool) return false;
+        if (s.contains("archivedAt")) { bool ok = false; const auto at = s.value("archivedAt").toDouble(&ok); if (!ok || !std::isfinite(at) || at < 0) return false; }
         if (s.contains("reasoningEffort") && !QStringList{"auto", "low", "medium", "high"}.contains(s.value("reasoningEffort").toString())) return false;
         sessionIDs.insert(id);
         QSet<QString> messageIDs;
@@ -249,8 +302,100 @@ QVariantMap recover(const Map &saved) {
     state["tasks"] = tasks;
     return state;
 }
+namespace {
+// Returning after the feature's break with completed, saved work opens a new turn and remembers the
+// old one (Swift applySmartReset). Drafts, running work and unfinished turns are never replaced.
+// The transient notice travels as "_resetNotice" for the bridge to lift out before saving.
+void applySmartReset(Map &state, const QString &feature, double now, const QString &freshID) {
+    if (state.contains("smartReset") && !state.value("smartReset").toBool()) return;
+    const QMap<QString, double> resetAfter{{"translate", 7200}, {"dictionary", 1800}};
+    auto left = state.value("featureLeft").toMap();
+    if (!resetAfter.contains(feature) || !left.contains(feature) || now <= 0) return;
+    const auto leftAt = left.value(feature).toDouble(); left.remove(feature); state["featureLeft"] = left;
+    auto sessions = state.value("sessions").toList(); auto active = state.value("active").toMap(); const auto tasks = state.value("tasks").toList();
+    const auto activeID = active.value(feature).toString(); const auto index = find(sessions, activeID);
+    if (now - leftAt < resetAfter.value(feature) || index < 0 || sessions[index].toMap().value("output").toString().isEmpty() || running(tasks, activeID) >= 0) return;
+    for (const auto &value : tasks) { const auto task = value.toMap(); if (task.value("request").toMap().value("sessionID") == activeID) { if (task.value("status") == "interrupted") return; break; } }
+    const auto previous = sessions[index].toMap(); auto fresh = freshSession(freshID, feature);
+    for (const auto &key : {"model", "source", "target"}) fresh[key] = previous.value(key, fresh.value(key));
+    sessions.prepend(fresh); active[feature] = freshID; state["sessions"] = sessions; state["active"] = active;
+    state["_resetNotice"] = Map{{"feature", feature}, {"previousID", activeID}};
+}
+}
 QVariantMap command(const Map &original, const QString &name, const Map &p, const QString &id, const QString &attemptID) {
     auto state = original;
+    // Smart reset: a setting, the moment a feature is left, the launch check and reopening the previous turn.
+    if (name == "smartReset") {
+        if (p.value("value").metaType().id() != QMetaType::Bool) return original;
+        state["smartReset"] = p.value("value"); return state;
+    }
+    if (name == "leave") {
+        if (clock(p) <= 0) return original;
+        auto left = state.value("featureLeft").toMap(); left[state.value("feature").toString()] = clock(p); state["featureLeft"] = left; return state;
+    }
+    if (name == "launch") { applySmartReset(state, state.value("feature").toString(), clock(p), id); return state; }
+    // Background update checks (nil = on) and "Remind me in 24 hours" for one version (Swift UpdatePreferences).
+    if (name == "autoCheckUpdates") {
+        if (p.value("value").metaType().id() != QMetaType::Bool) return original;
+        auto updates = state.value("updates").toMap(); updates["autoCheck"] = p.value("value"); state["updates"] = updates; return state;
+    }
+    if (name == "snoozeUpdate") {
+        const auto version = p.value("version").toString().trimmed();
+        if (version.isEmpty() || version.size() > 64 || clock(p) <= 0) return original;
+        auto updates = state.value("updates").toMap(); updates["snoozedVersion"] = version; updates["snoozedUntil"] = clock(p) + 86400; state["updates"] = updates; return state;
+    }
+    // Delete a session that is not running, comparisons with it (Swift removeSession). The bridge keeps
+    // the removed session for Undo ("restoreSession"); an active one is replaced by the next or a fresh one.
+    if (name == "removeSession") {
+        auto sessions = state.value("sessions").toList(), tasks = state.value("tasks").toList(); auto active = state.value("active").toMap();
+        const auto target = p.value("sessionID").toString(); const auto index = find(sessions, target); if (index < 0) return original;
+        const auto item = sessions[index].toMap(); const auto feature = item.value("feature").toString();
+        QSet<QString> ids{target}; for (const auto &value : sessions) if (value.toMap().value("comparisonParent") == target) ids.insert(value.toMap().value("id").toString());
+        for (const auto &removedID : ids) if (running(tasks, removedID) >= 0) return original;
+        for (qsizetype i = sessions.size(); i-- > 0;) if (ids.contains(sessions[i].toMap().value("id").toString())) sessions.removeAt(i);
+        for (qsizetype i = tasks.size(); i-- > 0;) if (ids.contains(tasks[i].toMap().value("request").toMap().value("sessionID").toString())) tasks.removeAt(i);
+        if (active.value(feature) == target) {
+            QString next; for (const auto &value : sessions) { const auto other = value.toMap(); if (other.value("feature") == feature && !other.value("archived").toBool() && other.value("comparisonParent").toString().isEmpty()) { next = other.value("id").toString(); break; } }
+            if (next.isEmpty()) { auto fresh = freshSession(id, feature); for (const auto &key : {"model", "source", "target"}) fresh[key] = item.value(key); sessions.prepend(fresh); next = id; }
+            active[feature] = next;
+        }
+        state["sessions"] = sessions; state["tasks"] = tasks; state["active"] = active; return validate(state) ? state : original;
+    }
+    if (name == "restoreSession") {
+        auto sessions = state.value("sessions").toList(); auto active = state.value("active").toMap();
+        const auto item = p.value("session").toMap(); const auto restoredID = item.value("id").toString();
+        if (restoredID.isEmpty() || find(sessions, restoredID) >= 0) return original;
+        sessions.insert(qBound(qsizetype(0), qsizetype(p.value("index").toLongLong()), sessions.size()), item);
+        if (!item.value("archived").toBool()) active[item.value("feature").toString()] = restoredID;
+        state["sessions"] = sessions; state["active"] = active; return validate(state) ? state : original;
+    }
+    // Model comparison layout (Swift compareBySentence): sentence rows instead of whole columns.
+    if (name == "compareBySentence") {
+        if (p.value("value").metaType().id() != QMetaType::Bool) return original;
+        state["compareBySentence"] = p.value("value"); return state;
+    }
+    // "Clear history" (Swift clearHistory): every Chat, Translate and Dictionary session goes, archived
+    // and favourites included; each feature keeps one empty session with its model and pair. Refused
+    // while anything runs. The bridge clears Interpretation and persists only validated state.
+    if (name == "clearHistory") {
+        for (const auto &value : state.value("tasks").toList()) if (value.toMap().value("status") == "running") return original;
+        const auto oldSessions = state.value("sessions").toList(); auto active = state.value("active").toMap(); List fresh;
+        for (const auto &feature : features) {
+            auto next = freshSession(id + "-" + feature, feature); const auto previous = find(oldSessions, active.value(feature).toString());
+            if (previous >= 0) for (const auto &key : {"model", "source", "target"}) next[key] = oldSessions[previous].toMap().value(key);
+            fresh.append(next); active[feature] = next.value("id");
+        }
+        state["sessions"] = fresh; state["tasks"] = List{}; state["active"] = active; return state;
+    }
+    if (name == "reopenPrevious") {
+        auto sessions = state.value("sessions").toList(); auto active = state.value("active").toMap();
+        const auto feature = p.value("feature").toString(), previousID = p.value("previousID").toString(); const auto previous = find(sessions, previousID);
+        if (previous < 0 || sessions[previous].toMap().value("feature") != feature || sessions[previous].toMap().value("archived").toBool()) return original;
+        // The empty replacement turn leaves with the notice; the previous work becomes active again.
+        const auto freshIndex = find(sessions, active.value(feature).toString());
+        if (freshIndex >= 0 && freshIndex != previous && !hasWork(sessions[freshIndex].toMap())) sessions.removeAt(freshIndex);
+        active[feature] = previousID; state["sessions"] = sessions; state["active"] = active; state["feature"] = feature; return state;
+    }
     // Bulk history operations preserve active work, drafts, favorites and comparison parents.
     // They construct a candidate snapshot first; callers persist only validated state.
     if (name == "trimHistory") {
@@ -273,7 +418,13 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
     if (name == "module") {
         const auto module = p.value("id").toString();
         if (!QStringList{"chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities"}.contains(module) || p.value("enabled").metaType().id() != QMetaType::Bool) return original;
-        auto disabled = state.value("disabledModules").toStringList(); disabled.removeAll(module); if (!p.value("enabled").toBool()) disabled.append(module); state["disabledModules"] = disabled;
+        auto disabled = state.value("disabledModules").toStringList();
+        // The last enabled workspace page cannot be switched off (Swift lockedModule).
+        if (!p.value("enabled").toBool() && module != "utilities") {
+            int enabled = 0; for (const auto &page : {"chat", "translate", "interpret", "dictionary", "thermal", "apps"}) if (!disabled.contains(page)) ++enabled;
+            if (enabled == 1 && !disabled.contains(module)) return original;
+        }
+        disabled.removeAll(module); if (!p.value("enabled").toBool()) disabled.append(module); state["disabledModules"] = disabled;
         auto jobs = state.value("tasks").toList(); for (auto &value : jobs) { auto job = value.toMap(); if (disabled.contains(job.value("request").toMap().value("feature").toString()) && job.value("status") == "running") { job["status"] = "cancelled"; value = job; } }; state["tasks"] = jobs; return state;
     }
     const auto disabled = state.value("disabledModules").toStringList();
@@ -304,7 +455,11 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
     }
     if (name == "voice") {
         if (!QStringList{"system", "edge", "openai", "gemini", "elevenlabs"}.contains(p.value("provider").toString()) || p.value("voice").toString().toUtf8().size() > 256) return original;
-        state["voice"] = Map{{"provider", p.value("provider")}, {"voice", p.value("voice")}}; return state;
+        Map voice{{"provider", p.value("provider")}, {"voice", p.value("voice")}};
+        // Speaking rate multiplier (Swift VoicePreferences.rate): 0.5–2, kept only for providers that honour it.
+        if (p.contains("rate") && !p.value("rate").isNull()) { bool ok = false; const auto rate = p.value("rate").toDouble(&ok); if (!ok || !std::isfinite(rate) || rate < 0.5 || rate > 2) return original; voice["rate"] = rate; }
+        else if (state.value("voice").toMap().contains("rate")) voice["rate"] = state.value("voice").toMap().value("rate");
+        state["voice"] = voice; return state;
     }
     if (name == "autoTranslate") {
         if (p.value("enabled").metaType().id() != QMetaType::Bool || !integer(p.value("delay"),100) || p.value("delay").toInt()>5000) return original;
@@ -329,11 +484,11 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
         auto sessions = state.value("sessions").toList(), tasks = state.value("tasks").toList();
         const auto parentID = p.value("sessionID").toString(); const auto position = find(sessions, parentID); if (position < 0) return original;
         auto parent = sessions[position].toMap(); auto selected = p.value("models").toStringList(); selected.removeDuplicates();
-        if (parent.value("feature") != "translate" || parent.value("draft").toString().trimmed().isEmpty() || selected.size() < 2 || selected.size() > 3) return original;
+        if (parent.value("feature") != "translate" || parent.value("draft").toString().trimmed().isEmpty() || parent.value("draft").toString().toUcs4().size() > WorkbenchDomain::translateLimit || selected.size() < 2 || selected.size() > 3) return original;
         for (const auto &model : selected) if (!validModel(model)) return original;
         QSet<QString> obsolete; for (qsizetype i = sessions.size(); i-- > 0;) if (sessions[i].toMap().value("comparisonParent") == parentID) { obsolete.insert(sessions[i].toMap().value("id").toString()); sessions.removeAt(i); }
         for (qsizetype i = tasks.size(); i-- > 0;) if (obsolete.contains(tasks[i].toMap().value("request").toMap().value("sessionID").toString())) tasks.removeAt(i);
-        parent.remove("assemblyParts"); sessions[find(sessions, parentID)] = parent; state["sessions"] = sessions; state["tasks"] = tasks;
+        parent.remove("assemblyParts"); if (clock(p) > 0) parent["updated"] = clock(p); sessions[find(sessions, parentID)] = parent; state["sessions"] = sessions; state["tasks"] = tasks;
         for (const auto &model : selected) {
             const auto childID = QUuid::createUuid().toString(QUuid::WithoutBraces); auto child = freshSession(childID, "translate");
             for (const auto &key : {"draft", "source", "target", "translationStyle", "translationMode", "reasoningEffort"}) if (parent.contains(key)) child[key] = parent.value(key);
@@ -365,10 +520,17 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
             if (name == "adoptComparison") { item["output"] = child.value("output"); item["model"] = child.value("model"); }
             else { const auto translated = LanguageSegments::sentences(child.value("output").toString()); const auto source = LanguageSegments::sentences(item.value("draft").toString()); const auto row = p.value("index").toInt(); if (translated.size() != source.size() || row < 0 || row >= translated.size()) return original; auto parts = item.value("assemblyParts").toMap(); parts[QString::number(row)] = translated[row]; item["assemblyParts"] = parts; }
         }
+        if (clock(p) > 0) item["updated"] = clock(p);
         sessions[index] = item; state["sessions"] = sessions; return state;
     }
     // Navigation changes selection without mutating drafts or task identities.
-    if (name == "navigate" && features.contains(p.value("feature").toString())) state["feature"] = p.value("feature");
+    if (name == "navigate" && features.contains(p.value("feature").toString())) {
+        const auto next = p.value("feature").toString(), previousFeature = state.value("feature").toString();
+        if (next != previousFeature && clock(p) > 0) { auto left = state.value("featureLeft").toMap(); left[previousFeature] = clock(p); state["featureLeft"] = left; }
+        state["feature"] = next;
+        state["sessions"] = sessions; state["active"] = active; applySmartReset(state, next, clock(p), id);
+        sessions = state.value("sessions").toList(); active = state.value("active").toMap();
+    }
     else if (name == "select" && index >= 0 && !item.value("archived").toBool()) { state["feature"] = item.value("feature"); active[item.value("feature").toString()] = item.value("id"); }
     // Quick translate's pair; choosing the current secondary as primary swaps the two.
     else if ((name == "quickTranslatePrimary" || name == "quickTranslateSecondary") && (languages.contains(p.value("value").toString()) || (name == "quickTranslateSecondary" && p.value("value").toString().isEmpty()))) {
@@ -396,16 +558,25 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
         const auto preset = p.value("preset", appearance.value("preset", "graphite")).toString(), accent = p.value("accent", appearance.value("accent", "auto")).toString();
         if (modes.contains(mode) && sizes.contains(size) && QStringList{"graphite", "glass", "paper", "corporate", "midnight"}.contains(preset) && QStringList{"auto", "violet", "pink", "teal", "green", "amber", "red"}.contains(accent)) state["appearance"] = Map{{"mode", mode}, {"textSize", size}, {"preset", preset}, {"accent", accent}};
     } else if (name == "new") {
-        sessions.prepend(freshSession(id, state.value("feature").toString()));
+        // Earlier sessions of this feature that never got any work are not history (Swift newSession).
+        const auto feature = state.value("feature").toString();
+        for (qsizetype i = sessions.size(); i-- > 0;) {
+            const auto old = sessions[i].toMap();
+            if (old.value("feature") == feature && old.value("comparisonParent").toString().isEmpty() && !old.value("archived").toBool() && !hasWork(old) && old.value("title").toString().isEmpty() && running(tasks, old.value("id").toString()) < 0) sessions.removeAt(i);
+        }
+        sessions.prepend(freshSession(id, feature));
         active[state.value("feature").toString()] = id;
     } else if (name == "newDetached" && features.contains(p.value("feature").toString())) {
         auto next = freshSession(id, p.value("feature").toString()); next["draft"] = p.value("draft", "");
         for (const auto &key : {"model", "source", "target"}) next[key] = item.value(key, next.value(key));
         sessions.append(next);
     } else if (name == "rename" && index >= 0 && isString(p.value("value"))) {
-        item["title"] = p.value("value").toString().trimmed().left(256);
+        // An emptied name falls back to the title the session got from its first question.
+        const auto value = p.value("value").toString().trimmed().left(256); item["title"] = value.isEmpty() ? firstTitle(item) : value;
     } else if (name == "archive" && index >= 0 && p.value("value").metaType().id() == QMetaType::Bool) {
         const auto archived = p.value("value").toBool(); item["archived"] = archived;
+        // When it was archived, for the archive's groups (Swift Session.archivedAt).
+        if (archived && clock(p) > 0) item["archivedAt"] = clock(p); else item.remove("archivedAt");
         if (archived) cancelRunning(tasks, sessionID);
         sessions[index] = item;
         if (archived && active.value(item.value("feature").toString()) == sessionID) {
@@ -436,7 +607,8 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
         cancelRunning(tasks, sessionID); item["reasoningEffort"] = p.value("value"); item["revision"] = item.value("revision").toLongLong() + 1; item["output"] = "";
     } else if (name == "translationOptions" && index >= 0 && item.value("feature") == "translate" && QStringList{"general", "formal", "casual", "business", "technical", "natural"}.contains(p.value("style").toString()) && QStringList{"translate", "annotate", "phonetic", "rewrite"}.contains(p.value("mode").toString())) {
         cancelRunning(tasks, sessionID); item["translationStyle"] = p.value("style"); item["translationMode"] = p.value("mode"); item["revision"] = item.value("revision").toLongLong() + 1; item["output"] = "";
-    } else if (name == "dictionaryContext" && index >= 0 && item.value("feature") == "dictionary" && isString(p.value("value")) && p.value("value").toString().size() <= 500) {
+    } else if (name == "dictionaryContext" && index >= 0 && item.value("feature") == "dictionary" && isString(p.value("value")) && p.value("value").toString().size() <= 500 && item.value("dictionaryContext").toString() != p.value("value").toString()) {
+        // Same rule as draft: an unchanged context neither cancels work nor clears the entry.
         cancelRunning(tasks, sessionID); item["dictionaryContext"] = p.value("value");
         item["revision"] = item.value("revision").toLongLong() + 1; item["output"] = "";
     } else if (name == "favorite" && index >= 0 && item.value("feature") == "dictionary") {
@@ -457,7 +629,17 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
     else if (name == "pair" && index >= 0 && sourceLanguage(p.value("source").toString()) && languages.contains(p.value("target").toString())) {
         cancelRunning(tasks, sessionID); item["source"] = p.value("source"); item["target"] = p.value("target");
         item["revision"] = item.value("revision").toLongLong() + 1; item["output"] = "";
-    } else if (name == "submit" && index >= 0 && (!item.value("draft").toString().trimmed().isEmpty() || (QStringList{"chat", "translate"}.contains(item.value("feature").toString()) && !item.value("images").toList().isEmpty())) && running(tasks, sessionID) < 0 && (item.value("feature") != "dictionary" || item.value("draft").toString().toUcs4().size() <= 120)) {
+    } else if (name == "submit" && index >= 0 && running(tasks, sessionID) < 0) {
+        const auto feature = item.value("feature").toString();
+        const auto draft = item.value("draft").toString();
+        const bool acceptsImages = feature == "chat" || feature == "translate";
+        const bool hasImages = acceptsImages && !item.value("images").toList().isEmpty();
+        if (draft.trimmed().isEmpty() && !hasImages) return original;
+        if (feature == "dictionary") {
+            if (draft.toUcs4().size() > 120) return original;
+            if (item.value("dictionaryContext").toString().size() > 500) return original;
+        }
+        if (feature == "translate" && draft.toUcs4().size() > WorkbenchDomain::translateLimit) return original;
         // Freeze provider, language, revision and message context for this attempt.
         Map request{{"sessionID", sessionID}, {"locale", state.value("locale")}};
         for (const auto &key : {"feature", "model", "source", "target", "revision"}) request[key] = item.value(key);
@@ -475,17 +657,16 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
         }
         context.append(Map{{"role", "user"}, {"content", item.value("draft")}, {"images", item.value("images").toList()}});
         request["messages"] = context;
-        if (item.value("title").toString().isEmpty()) {
-            const auto points = item.value("draft").toString().toUcs4();
-            item["title"] = QString::fromUcs4(points.constData(), qMin(qsizetype(64), points.size())).replace('\n', ' ');
-        }
+        if (item.value("title").toString().isEmpty()) item["title"] = derivedTitle(item.value("draft").toString(), item.value("images").toList());
         if (item.value("feature") == "chat") {
             auto messages = item.value("messages").toList();
             messages.append(Map{{"id", id + "-user"}, {"role", "user"}, {"text", item.value("draft")}, {"images", item.value("images").toList()}});
             messages.append(Map{{"id", id}, {"role", "assistant"}, {"text", ""}});
             item["messages"] = messages; item["draft"] = ""; item["images"] = List{};
         } else { item["output"] = ""; item["messages"] = List{}; }
-        tasks.prepend(Map{{"id", id}, {"attemptID", attemptID}, {"attemptNumber", 1}, {"request", request}, {"status", "running"}, {"output", ""}});
+        Map started{{"id", id}, {"attemptID", attemptID}, {"attemptNumber", 1}, {"request", request}, {"status", "running"}, {"output", ""}};
+        if (clock(p) > 0) started["started"] = clock(p);
+        tasks.prepend(started);
     } else if (name == "cancel" || name == "retry" || name == "receive") {
         const auto ti = find(tasks, p.value("taskID").toString());
         if (ti >= 0) {
@@ -496,9 +677,11 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
             const auto parentIndex = find(sessions, target.value("comparisonParent").toString());
             const bool currentRevision = (request.value("feature") == "chat" || target.value("revision") == request.value("revision")) && (!target.contains("comparisonParent") || (parentIndex >= 0 && sessions[parentIndex].toMap().value("revision") == target.value("comparisonRevision")));
             if (name == "cancel" && task.value("status") == "running") task["status"] = "cancelled";
-            else if (name == "retry" && si >= 0 && !target.value("archived").toBool() && task.value("status") != "running" && task.value("status") != "succeeded" && running(tasks, request.value("sessionID").toString()) < 0 && currentRevision) {
+            // A finished chat answer can be regenerated while it is still the newest message (Swift canRetry).
+            else if (name == "retry" && si >= 0 && !target.value("archived").toBool() && task.value("status") != "running" && (task.value("status") != "succeeded" || (request.value("feature") == "chat" && target.value("messages").toList().value(target.value("messages").toList().size() - 1).toMap().value("id") == task.value("id"))) && running(tasks, request.value("sessionID").toString()) < 0 && currentRevision) {
                 task["attemptID"] = attemptID; task["attemptNumber"] = task.value("attemptNumber", 1).toLongLong() + 1;
                 task["status"] = "running"; task["output"] = ""; task.remove("errorCode"); task.remove("errorDetail"); setOutput(target, task.value("id").toString(), "");
+                task.remove("finished"); if (clock(p) > 0) { task["started"] = clock(p); target["updated"] = clock(p); }
             } else if (name == "receive" && task.value("status") == "running" && task.value("attemptID") == p.value("attemptID")) {
                 if (si < 0 || !currentRevision) task["status"] = "cancelled";
                 else {
@@ -521,7 +704,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
                     setOutput(target, task.value("id").toString(), task.value("output").toString());
                     if (p.contains("images") && validImages(p.value("images")) && target.value("feature") == "chat") {
                         auto messages = target.value("messages").toList(); const auto mi = find(messages, task.value("id").toString());
-                        if (mi >= 0) { auto message = messages[mi].toMap(); message["images"] = p.value("images"); messages[mi] = message; target["messages"] = messages; }
+                        if (mi >= 0) { auto message = messages[mi].toMap(); message["images"] = p.value("images"); messages[mi] = message; target["messages"] = messages; if (clock(p) > 0) target["updated"] = clock(p); }
                     }
                     if (p.value("terminal") == "succeeded" && ImageTranslation::isImageRequest(request) && !ImageTranslation::valid(task.value("output").toString())) { task["status"] = "failed"; task["errorCode"] = "imageModelUnsupported"; }
                     else if (p.value("terminal") == "succeeded" && request.value("feature") == "dictionary") {
@@ -529,17 +712,22 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
                         const auto json = dictionaryJSON(task.value("output").toString());
                         task["output"] = json; setOutput(target, task.value("id").toString(), json);
                         task["status"] = validDictionary(json) ? "succeeded" : "failed";
-                        if (!validDictionary(json)) task["errorCode"] = "providerInvalidResponse";
+                        // "No entry for this term" is its own outcome, with suggestions, not a broken reply.
+                        if (!validDictionary(json)) task["errorCode"] = dictionarySuggestions(json).isValid() ? "dictionaryNotFound" : "providerInvalidResponse";
                     }
                     else if (p.value("terminal") == "succeeded" || p.value("terminal") == "failed") task["status"] = p.value("terminal");
                 }
             }
+            // When the attempt ended (seconds since 1970), for "1,4 giây" style durations.
+            if (name != "retry" && task.value("status") != "running" && !task.contains("finished") && clock(p) > 0 && tasks[ti].toMap().value("status") == "running") task["finished"] = clock(p);
             tasks[ti] = task;
             if (si >= 0) { sessions[si] = target; if (si == index) item = target; }
         }
     }
-    // Ignored commands must not change recency or trigger unnecessary persistence.
-    if (index >= 0 && (item != sessions[index].toMap() || tasks != original.value("tasks").toList()) && QStringList{"draft", "submit", "rename", "pair", "dictionaryContext"}.contains(name) && p.value("_updated").toDouble() > 0 && std::isfinite(p.value("_updated").toDouble())) item["updated"] = p.value("_updated");
+    // Every edit of a session moves it up the history (Swift WorkbenchStore.edit), archiving included;
+    // ignored commands must not change recency or trigger unnecessary persistence.
+    static const QStringList edits{"draft", "submit", "rename", "pair", "dictionaryContext", "archive", "favorite", "model", "carefulReasoning", "chatMode", "systemPrompt", "reasoning", "translationOptions", "addImage", "removeImage"};
+    if (index >= 0 && edits.contains(name) && clock(p) > 0 && (item != original.value("sessions").toList().value(index).toMap() || tasks != original.value("tasks").toList())) item["updated"] = clock(p);
     // New inserts before the old index; do not overwrite the newly created session.
     if (index >= 0 && name != "new" && name != "adoptModel") sessions[index] = item;
     if (name == "receive" && p.value("terminal") == "succeeded") {
@@ -550,7 +738,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
             const auto key = [](QString text) { return text.normalized(QString::NormalizationForm_C).toLower().simplified(); };
             for (qsizetype i = 0; i < sessions.size(); ++i) { if (i == currentIndex) continue; auto other = sessions[i].toMap();
                 if (other.value("feature") == "dictionary" && !other.value("archived").toBool() && other.value("source") == current.value("source") && other.value("target") == current.value("target") && key(other.value("draft").toString()) == key(current.value("draft").toString()) && key(other.value("dictionaryContext").toString()) == key(current.value("dictionaryContext").toString()) && running(tasks, other.value("id").toString()) < 0) {
-                    favorite = favorite || other.value("favorite").toBool(); other["archived"] = true; other["favorite"] = false; sessions[i] = other; if (active.value("dictionary") == other.value("id")) active["dictionary"] = current.value("id");
+                    favorite = favorite || other.value("favorite").toBool(); other["archived"] = true; other["favorite"] = false; if (clock(p) > 0) other["archivedAt"] = clock(p); sessions[i] = other; if (active.value("dictionary") == other.value("id")) active["dictionary"] = current.value("id");
                 }
             }
             current["favorite"] = favorite; sessions[currentIndex] = current;

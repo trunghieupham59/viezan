@@ -25,6 +25,16 @@ struct Parser {
 };
 }
 namespace LauncherTools {
+QVariantMap paletteQuery(const QString &raw) {
+    const auto query = raw.trimmed(); if (query.isEmpty()) return {};
+    if (const auto value = calculate(query); !value.isEmpty()) return {{"kind", "calculation"}, {"value", value}};
+    if (query.startsWith('?')) { auto text = query; while (text.startsWith('?')) text.remove(0, 1); text = text.trimmed(); return text.isEmpty() ? QVariantMap{} : QVariantMap{{"kind", "ask"}, {"value", text}}; }
+    for (const auto &[prefix, kind] : {std::pair{"t ", "translate"}, std::pair{"d ", "lookup"}}) {
+        if (!raw.toLower().startsWith(prefix)) continue;
+        const auto text = raw.mid(2).trimmed(); return text.isEmpty() ? QVariantMap{} : QVariantMap{{"kind", kind}, {"value", text}};
+    }
+    return {};
+}
 QString calculate(const QString &input) {
     if (input.toUtf8().size() > 512) return {};
     bool expression = false; for (const auto c : input) if (QString("+-*/^%()").contains(c)) expression = true;
