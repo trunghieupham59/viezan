@@ -14,6 +14,9 @@ From 2026-11-03, recent-work filters share one inset group. The selected segment
 is a raised Glass lens with semibold text; idle segments remain clear and hover
 is weaker than selection. Compact reflow, filtering and accessible selection
 remain unchanged. This shared treatment also applies to native mode filters.
+The Qt Glass recent-work header measures the title and filter group before
+placing them on one row. When they do not fit, the same native filter group
+moves below the title, preserving selection and keyboard focus.
 
 
 > Bản vẽ gốc: `boards/Home.dc.html`, `boards/HomeDark.dc.html` (tham khảo thêm `boards/Main.dc.html`, `boards/Narrow.dc.html`, `boards/States.dc.html`) · Board chi tiết: [`specs/home.html`](../specs/home.html) · Mã nguồn: `src/pages/HomePage.tsx`

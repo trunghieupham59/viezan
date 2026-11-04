@@ -152,10 +152,17 @@ ScrollView {
     component GlassRecent: ColumnLayout {
         spacing: home.metrics.small
         Layout.fillWidth: true
-        RowLayout {
+        GridLayout {
+            id: recentHeader
             Layout.fillWidth: true
-            Kit.Eyebrow { text: home.t("recentWork"); Layout.fillWidth: true }
+            columns: width >= recentTitle.implicitWidth + recentFilters.implicitWidth + columnSpacing ? 2 : 1
+            columnSpacing: home.metrics.gap
+            rowSpacing: home.metrics.small
+            Kit.Eyebrow { id: recentTitle; objectName: "home-recent-title"; text: home.t("recentWork"); Layout.fillWidth: true }
             Kit.FilterGroup {
+                id: recentFilters
+                Layout.alignment: recentHeader.columns === 2 ? Qt.AlignRight : Qt.AlignLeft
+                Layout.maximumWidth: recentHeader.width
                 objectName: "home-recent-filters"
                 readonly property var keys: [""].concat(home.features)
                 currentIndex: keys.indexOf(home.filter)

@@ -351,7 +351,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
         const auto target = p.value("sessionID").toString(); const auto index = find(sessions, target); if (index < 0) return original;
         const auto item = sessions[index].toMap(); const auto feature = item.value("feature").toString();
         QSet<QString> ids{target}; for (const auto &value : sessions) if (value.toMap().value("comparisonParent") == target) ids.insert(value.toMap().value("id").toString());
-        for (const auto &id : ids) if (running(tasks, id) >= 0) return original;
+        for (const auto &removedID : ids) if (running(tasks, removedID) >= 0) return original;
         for (qsizetype i = sessions.size(); i-- > 0;) if (ids.contains(sessions[i].toMap().value("id").toString())) sessions.removeAt(i);
         for (qsizetype i = tasks.size(); i-- > 0;) if (ids.contains(tasks[i].toMap().value("request").toMap().value("sessionID").toString())) tasks.removeAt(i);
         if (active.value(feature) == target) {
@@ -363,10 +363,10 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
     }
     if (name == "restoreSession") {
         auto sessions = state.value("sessions").toList(); auto active = state.value("active").toMap();
-        const auto item = p.value("session").toMap(); const auto id = item.value("id").toString();
-        if (id.isEmpty() || find(sessions, id) >= 0) return original;
+        const auto item = p.value("session").toMap(); const auto restoredID = item.value("id").toString();
+        if (restoredID.isEmpty() || find(sessions, restoredID) >= 0) return original;
         sessions.insert(qBound(qsizetype(0), qsizetype(p.value("index").toLongLong()), sessions.size()), item);
-        if (!item.value("archived").toBool()) active[item.value("feature").toString()] = id;
+        if (!item.value("archived").toBool()) active[item.value("feature").toString()] = restoredID;
         state["sessions"] = sessions; state["active"] = active; return validate(state) ? state : original;
     }
     // Model comparison layout (Swift compareBySentence): sentence rows instead of whole columns.
@@ -629,7 +629,17 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
     else if (name == "pair" && index >= 0 && sourceLanguage(p.value("source").toString()) && languages.contains(p.value("target").toString())) {
         cancelRunning(tasks, sessionID); item["source"] = p.value("source"); item["target"] = p.value("target");
         item["revision"] = item.value("revision").toLongLong() + 1; item["output"] = "";
-    } else if (name == "submit" && index >= 0 && (!item.value("draft").toString().trimmed().isEmpty() || (QStringList{"chat", "translate"}.contains(item.value("feature").toString()) && !item.value("images").toList().isEmpty())) && running(tasks, sessionID) < 0 && (item.value("feature") != "dictionary" || (item.value("draft").toString().toUcs4().size() <= 120 && item.value("dictionaryContext").toString().size() <= 500)) && (item.value("feature") != "translate" || item.value("draft").toString().toUcs4().size() <= WorkbenchDomain::translateLimit)) {
+    } else if (name == "submit" && index >= 0 && running(tasks, sessionID) < 0) {
+        const auto feature = item.value("feature").toString();
+        const auto draft = item.value("draft").toString();
+        const bool acceptsImages = feature == "chat" || feature == "translate";
+        const bool hasImages = acceptsImages && !item.value("images").toList().isEmpty();
+        if (draft.trimmed().isEmpty() && !hasImages) return original;
+        if (feature == "dictionary") {
+            if (draft.toUcs4().size() > 120) return original;
+            if (item.value("dictionaryContext").toString().size() > 500) return original;
+        }
+        if (feature == "translate" && draft.toUcs4().size() > WorkbenchDomain::translateLimit) return original;
         // Freeze provider, language, revision and message context for this attempt.
         Map request{{"sessionID", sessionID}, {"locale", state.value("locale")}};
         for (const auto &key : {"feature", "model", "source", "target", "revision"}) request[key] = item.value(key);

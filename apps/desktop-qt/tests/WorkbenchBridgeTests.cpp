@@ -1457,6 +1457,20 @@ private slots:
         QTest::keyClick(root, Qt::Key_Right);
         QTRY_COMPARE(filters->property("currentIndex").toInt(), 1);
         QTRY_COMPARE(home->property("filter").toString(), QString("chat"));
+        selected = filters->property("currentItem").value<QQuickItem *>();
+        QVERIFY(selected);
+        // Force the title + filters beyond the row budget independently of OS fonts.
+        // Reflow must preserve the same native tabs, selection and keyboard focus.
+        auto *recentTitle = visualItem(root->contentItem(), "home-recent-title");
+        QVERIFY(recentTitle);
+        const auto titleWidth = recentTitle->implicitWidth();
+        recentTitle->setImplicitWidth(filters->parentItem()->width());
+        QTRY_VERIFY(filters->mapToScene(QPointF()).y() >= recentTitle->mapToScene(QPointF(0, recentTitle->height())).y());
+        QCOMPARE(filters->property("currentItem").value<QQuickItem *>(), selected);
+        QVERIFY(selected->hasActiveFocus());
+        QTRY_VERIFY(filters->mapToScene(QPointF(filters->width(), 0)).x() <= width);
+        recentTitle->setImplicitWidth(titleWidth);
+        QCoreApplication::processEvents();
         QVERIFY(filters->mapToScene(QPointF()).x() >= 0);
         QVERIFY(filters->mapToScene(QPointF(filters->width(), 0)).x() <= width);
         const auto labels = bridge.resources().value("locales").toMap().value(locale).toMap();
