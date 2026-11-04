@@ -388,6 +388,10 @@ import Observation
         else { workspace.prompts?.append(SavedPrompt(name: name, text: text)) }; save()
     }
     public func deletePrompt(_ id: String) { guard !loadBlocked else { return }; workspace.prompts?.removeAll { $0.id == id }; save() }
+    public var menuBarVisible: Bool {
+        get { workspace.menuBarVisible ?? true }
+        set { guard !loadBlocked, menuBarVisible != newValue else { return }; workspace.menuBarVisible = newValue; save() }
+    }
     public var menuBarTemperature: Bool {
         get { workspace.menuBarTemperature ?? true }
         set { guard !loadBlocked else { return }; workspace.menuBarTemperature = newValue; save() }

@@ -327,6 +327,8 @@
   "paletteTranslate": "Dịch “{text}”",
   "paletteLookup": "Tra cứu “{text}”",
   "recentLookups": "Tra cứu gần đây",
+  "menuBarVisible": "Hiện Viezan trên thanh menu",
+  "menuBarVisibleHint": "Ẩn biểu tượng không tắt ứng dụng hay phím tắt. Bật lại tại đây.",
   "menuBarTemperature": "Hiện nhiệt độ trên thanh menu",
   "openThermal": "Mở Nhiệt độ & quạt",
   "tokensCount": "{n} token",

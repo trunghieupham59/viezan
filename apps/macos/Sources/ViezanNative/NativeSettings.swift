@@ -206,6 +206,10 @@ struct NativeSettings: View {
                                        selection: store.workspace.locale) { store.setLocale($0) }
                             .accessibilityIdentifier("settings-language")
                     }
+                    CardRow(title: store.text("menuBarVisible"), detail: store.text("menuBarVisibleHint")) {
+                        Toggle(store.text("menuBarVisible"), isOn: Binding(get: { store.menuBarVisible }, set: { store.menuBarVisible = $0 }))
+                            .toggleStyle(.switch).labelsHidden().accessibilityIdentifier("settings-menu-bar-visible")
+                    }
                     if glass && store.moduleEnabled("utilities") { hotkeysRow }
                     SystemSettings(store: store)
                 }

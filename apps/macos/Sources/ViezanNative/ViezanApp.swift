@@ -44,6 +44,14 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
     #if DEBUG
     @State private var development = DevelopmentReload()
     #endif
+    /// Resize the bundled brand asset before handing it to the native status item.
+    private static let menuBarLogo: NSImage = {
+        let image = NativeResources.brandURL.flatMap { NSImage(contentsOf: $0) }
+            ?? NSImage(named: NSImage.applicationIconName) ?? NSImage()
+        image.size = NSSize(width: metric("icon"), height: metric("icon"))
+        image.isTemplate = false
+        return image
+    }()
     var body: some Scene {
         Window("Viezan", id: "workbench") {
             WorkbenchView(store: store, screen: $screen, shell: shell) { window in delegate.window = window; window.isReleasedWhenClosed = false }
@@ -101,7 +109,7 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
             }
 
         }
-        MenuBarExtra {
+        MenuBarExtra(isInserted: Binding(get: { store.menuBarVisible }, set: { store.menuBarVisible = $0 })) {
             Button(store.text("openMain")) { delegate.window?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
             ForEach(["quickChat", "translateSelection", "launcher"], id: \.self) { action in
                 Button(store.text(action)) { store.desktopIntegration.onAction?(action) }
@@ -120,7 +128,7 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
             Button(store.text("quit")) { NSApp.terminate(nil) }
         } label: {
             HStack {
-                Image(systemName: "bubble.left.and.text.bubble.right")
+                Image(nsImage: Self.menuBarLogo)
                 if store.menuBarTemperature, store.thermalMonitor.monitoring, let temperature = store.thermalMonitor.snapshot?.sensors?.map(\.celsius).max() { Text(String(format: "%.0f °C", temperature)) }
             }.accessibilityLabel("Viezan")
         }

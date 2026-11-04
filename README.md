@@ -192,6 +192,12 @@ than permanently erased.
   available for editable plain-value controls only: the original document and
   selection are checked again, and undo refuses to overwrite subsequent edits.
   Other controls keep the manual copy/paste path.
+- On macOS, the menu bar uses the Viezan logo. Settings → General can hide or
+  restore the status item; hiding it keeps shortcuts and background work running.
+- macOS selection translation verifies the edited value before reporting success.
+  Editable controls use the native paste command only while the original application,
+  document and selection still match. Read-only web text and controls without
+  verifiable Accessibility values show a result card for manual copying.
 - macOS application cleanup and fan control preserve their platform scope. They
   are not presented as portable Windows/Linux uninstall or fan-control backends.
 - Cloud AI, speech, search and currency conversion need their external services.

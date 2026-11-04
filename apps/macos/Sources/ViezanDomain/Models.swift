@@ -199,6 +199,8 @@ public struct Workspace: Codable, Equatable, Sendable {
     public var compareBySentence: Bool?
     /// Thermal reading in the menu bar item (nil = shown while monitoring).
     public var menuBarTemperature: Bool?
+    /// macOS status item visibility (nil = visible for existing workspaces).
+    public var menuBarVisible: Bool?
     public var navigationCollapsed: Bool { shell?.navigationCollapsed ?? false }
     public var preferences: AppearancePreferences { appearance ?? AppearancePreferences() }
     public init() {
