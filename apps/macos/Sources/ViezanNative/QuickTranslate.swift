@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import OSLog
 import ViezanDomain
 
 /// Quick translate: select text in any app, press the shortcut, and the translation replaces
@@ -24,12 +25,15 @@ import ViezanDomain
     private let openMain: (String) -> Void
     private let model = Model()
     private var panel: NSPanel?
+    private var replacementTarget: SelectedTextTarget?
     private var run: Task<Void, Never>?
     private var hide: Task<Void, Never>?
     init(store: WorkbenchStore, openMain: @escaping (String) -> Void) { self.store = store; self.openMain = openMain }
 
     func start() {
+        SelectionDiagnostics.record("quick-start")
         run?.cancel(); hide?.cancel()
+        replacementTarget = nil
         guard let application = NSWorkspace.shared.frontmostApplication, application.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
             // Pressed while Viezan itself is in front: there is no other app's selection.
             show(.noSelection); return
@@ -43,6 +47,7 @@ import ViezanDomain
     private func translate(from application: NSRunningApplication) async {
         // Accessibility gives the exact range to replace; apps without it fall back to copy.
         let target = try? SelectedTextTarget.capture()
+        SelectionDiagnostics.record("capture:\(target != nil);editable:\(target?.canReplace == true)")
         var text = target?.text
         if text == nil { text = await SelectionClipboard.copy(from: application) }
         guard !Task.isCancelled else { return }
@@ -57,12 +62,32 @@ import ViezanDomain
         guard !Task.isCancelled, let finished = store.workspace.tasks.first(where: { $0.id == task.id }) else { return }
         let output = store.session(id)?.output.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard finished.status == .succeeded, !output.isEmpty else { show(.failed(finished.errorCode ?? "providerError", finished.errorDetail)); return }
-        if let target, (try? target.replace(with: output)) != nil { show(.replaced, hideAfter: 1.5); return }
-        // Read-only text, or text we could only copy: show it, and offer to paste when we copied it.
-        show(.result(output, paste: target == nil))
+        SelectionDiagnostics.record("translation-ready;unchanged:\(output == text)")
+        #if DEBUG
+        Logger(subsystem: "app.viezan", category: "selection").notice("Translation ready; unchanged=\(output == text, privacy: .public); editable=\(target?.canReplace == true, privacy: .public)")
+        #endif
+        if let target, (try? await target.replace(with: output)) != nil {
+            guard !Task.isCancelled else { return }
+            show(.replaced, hideAfter: 1.5); return
+        }
+        guard !Task.isCancelled else { return }
+        replacementTarget = target
+        // Unknown/read-only targets keep the result available for manual copying.
+        show(.result(output, paste: target?.canReplace == true))
     }
 
     private func show(_ phase: Phase, hideAfter seconds: Double? = nil) {
+        let event: String
+        switch phase {
+        case .reading: event = "reading"
+        case .translating: event = "translating"
+        case .replaced: event = "replaced"
+        case .result: event = "result-card"
+        case .noSelection: event = "no-selection"
+        case .needsAccess: event = "needs-access"
+        case .failed: event = "provider-failed"
+        }
+        SelectionDiagnostics.record(event)
         model.phase = phase
         let window = panel ?? makePanel()
         panel = window
@@ -74,11 +99,22 @@ import ViezanDomain
         let fitting = measure.sizeThatFits(in: NSSize(width: width, height: metric("reading")))
         window.setContentSize(NSSize(width: width, height: ceil(fitting.height)))
         if let top { window.setFrameTopLeftPoint(NSPoint(x: window.frame.minX, y: top)); keepOnScreen(window) } else { place(window) }
+        // The SwiftUI material is rounded, but its AppKit backing view is rectangular.
+        // Clip that backing layer too, then recompute the native shadow after resizing.
+        if let content = window.contentView {
+            content.wantsLayer = true
+            content.layer?.backgroundColor = NSColor.clear.cgColor
+            content.layer?.cornerRadius = (NativeTheme.shared.preferences.preset ?? "glass") == "glass" ? metric("surfaceRadius") : metric("largeRadius")
+            content.layer?.cornerCurve = .continuous
+            content.layer?.masksToBounds = true
+            content.layoutSubtreeIfNeeded()
+        }
+        window.invalidateShadow()
         window.orderFrontRegardless()
         hide?.cancel()
         if let seconds { hide = Task { [weak self] in try? await Task.sleep(for: .seconds(seconds)); guard !Task.isCancelled else { return }; self?.dismiss() } }
     }
-    func dismiss() { run?.cancel(); hide?.cancel(); panel?.orderOut(nil) }
+    func dismiss() { run?.cancel(); hide?.cancel(); replacementTarget = nil; panel?.orderOut(nil) }
 
     private func makePanel() -> NSPanel {
         // Non-activating so the selection's app keeps focus and its text can be replaced.
@@ -86,15 +122,21 @@ import ViezanDomain
         window.isReleasedWhenClosed = false; window.level = .floating; window.hidesOnDeactivate = false
         window.isOpaque = false; window.backgroundColor = .clear; window.hasShadow = true; window.isMovableByWindowBackground = true
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient]
-        let host = NSHostingController(rootView: QuickTranslateView(store: store, model: model, actions: .init(
+        let host = QuickTranslateHostingView(rootView: QuickTranslateView(store: store, model: model, actions: .init(
             close: { [weak self] in self?.dismiss() },
             open: { [weak self] in guard let self, let id = self.model.sessionID else { return }; self.dismiss(); self.openMain(id) },
             settings: { [weak self] in self?.store.desktopIntegration.requestAccessibility(); self?.dismiss() },
             paste: { [weak self] text in
-                guard let self, let application = NSWorkspace.shared.frontmostApplication else { return }
-                Task { if await SelectionClipboard.paste(text, into: application) { self.show(.replaced, hideAfter: 1.5) } }
+                guard let self, let target = self.replacementTarget else { return }
+                self.run?.cancel()
+                self.run = Task {
+                    let replaced = (try? await target.replace(with: text)) != nil
+                    guard !Task.isCancelled else { return }
+                    if replaced { self.show(.replaced, hideAfter: 1.5) }
+                    else { self.show(.result(text, paste: false)) }
+                }
             })))
-        host.sizingOptions = []; window.contentViewController = host
+        host.sizingOptions = []; window.contentView = host
         return window
     }
     /// Below and to the right of the pointer, flipped above or left when the screen ends.
@@ -113,6 +155,11 @@ import ViezanDomain
         frame.origin.y = min(max(frame.origin.y, bounds.minY), bounds.maxY - frame.height)
         window.setFrame(frame, display: true)
     }
+}
+
+/// A transparent native backing view keeps the window's rectangular bounds invisible.
+private final class QuickTranslateHostingView<Content: View>: NSHostingView<Content> {
+    override var isOpaque: Bool { false }
 }
 
 struct QuickTranslateView: View {

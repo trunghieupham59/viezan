@@ -327,6 +327,8 @@
   "paletteTranslate": "Translate “{text}”",
   "paletteLookup": "Look up “{text}”",
   "recentLookups": "Recent lookups",
+  "menuBarVisible": "Show Viezan in the menu bar",
+  "menuBarVisibleHint": "Hiding the icon keeps the app and shortcuts running. Show it again here.",
   "menuBarTemperature": "Show temperature in the menu bar",
   "openThermal": "Open Thermal & fans",
   "tokensCount": "{n} tokens",

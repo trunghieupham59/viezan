@@ -26,6 +26,14 @@ Nguồn hình: `docs/design/glass2/boards/Settings-*.png` và `Overlays-Settings
 - **Dưới 760.** Cột mục thay bằng một picker "icon · tên mục ⌄", danh sách vẫn chia
   theo nhóm.
 
+## macOS menu bar
+
+General → Application includes “Show Viezan in the menu bar” (on by default).
+The status item uses the bundled Viezan logo. Turning it off hides the whole
+status item, including any temperature text, without stopping shortcuts or
+background work. The preference persists and can be re-enabled in the main
+window. The separate temperature preference is retained while the item is hidden.
+
 ## Native Glass components (2026-11-03)
 
 The native Settings search uses the shared capsule field with an opaque inset

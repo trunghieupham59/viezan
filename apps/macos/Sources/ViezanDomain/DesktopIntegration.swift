@@ -73,12 +73,12 @@ public struct NativeShortcut: Codable, Identifiable, Sendable {
         for reference in references.values { UnregisterEventHotKey(reference) }; references.removeAll()
         if let handler { RemoveEventHandler(handler) }; handler = nil
     }
-    private func trigger(_ index: Int) { guard shortcuts.indices.contains(index), shortcuts[index].enabled else { return }; onAction?(shortcuts[index].id) }
+    private func trigger(_ index: Int) { SelectionDiagnostics.record("hotkey-received"); guard shortcuts.indices.contains(index), shortcuts[index].enabled else { return }; onAction?(shortcuts[index].id) }
     private func register(_ shortcut: NativeShortcut) -> Bool {
         guard let (key, modifiers) = Self.parse(shortcut.key), let index = shortcuts.firstIndex(where: { $0.id == shortcut.id }) else { return false }
         var reference: EventHotKeyRef?
         guard RegisterEventHotKey(key, modifiers, EventHotKeyID(signature: 0x565A4E31, id: UInt32(index)), GetApplicationEventTarget(), 0, &reference) == noErr, let reference else { return false }
-        references[shortcut.id] = reference; return true
+        references[shortcut.id] = reference; SelectionDiagnostics.record("hotkey-registered:" + shortcut.id); return true
     }
     nonisolated private static func parse(_ input: String) -> (UInt32, UInt32)? {
         let keys = keyCodes
@@ -89,41 +89,6 @@ public struct NativeShortcut: Codable, Identifiable, Sendable {
             switch part { case "command", "cmd", "meta": flags |= UInt32(cmdKey); case "control", "ctrl": flags |= UInt32(controlKey); case "option", "alt": flags |= UInt32(optionKey); case "shift": flags |= UInt32(shiftKey); default: return nil }
         }
         guard flags & UInt32(cmdKey | controlKey | optionKey) != 0 else { return nil }; return (key, flags)
-    }
-}
-@MainActor public final class SelectedTextTarget {
-    public let text: String
-    public let applicationName: String
-    private let application: AXUIElement
-    private let element: AXUIElement
-    private let range: CFRange
-    private let pid: pid_t
-    private init(text: String, applicationName: String, application: AXUIElement, element: AXUIElement, range: CFRange, pid: pid_t) {
-        self.text = text; self.applicationName = applicationName; self.application = application; self.element = element; self.range = range; self.pid = pid
-    }
-    public static func capture() throws -> SelectedTextTarget {
-        guard AXIsProcessTrusted(), let foreground = NSWorkspace.shared.frontmostApplication, foreground.processIdentifier != ProcessInfo.processInfo.processIdentifier else { throw StorageFailure.invalidData }
-        let application = AXUIElementCreateApplication(foreground.processIdentifier)
-        var focused: CFTypeRef?, selected: CFTypeRef?, selectionRange: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(application, kAXFocusedUIElementAttribute as CFString, &focused) == .success, let focused, CFGetTypeID(focused) == AXUIElementGetTypeID() else { throw StorageFailure.invalidData }
-        let element = focused as! AXUIElement
-        guard AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &selected) == .success, let text = selected as? String, !text.isEmpty, text.utf8.count <= 131072,
-              AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &selectionRange) == .success,
-              let selectionRange, CFGetTypeID(selectionRange) == AXValueGetTypeID() else { throw StorageFailure.invalidData }
-        var range = CFRange()
-        guard AXValueGetValue(selectionRange as! AXValue, .cfRange, &range), range.length > 0 else { throw StorageFailure.invalidData }
-        return Self(text: text, applicationName: foreground.localizedName ?? "", application: application, element: element, range: range, pid: foreground.processIdentifier)
-    }
-    public func replace(with translation: String) throws {
-        guard !translation.isEmpty, NSRunningApplication(processIdentifier: pid)?.isTerminated == false else { throw StorageFailure.invalidData }
-        var focused: CFTypeRef?, selected: CFTypeRef?, selectionRange: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(application, kAXFocusedUIElementAttribute as CFString, &focused) == .success, let focused, CFEqual(focused, element),
-              AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &selected) == .success, selected as? String == text,
-              AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &selectionRange) == .success, let selectionRange, CFGetTypeID(selectionRange) == AXValueGetTypeID() else { throw StorageFailure.invalidData }
-        var current = CFRange(); var writable: DarwinBoolean = false
-        guard AXValueGetValue(selectionRange as! AXValue, .cfRange, &current), current.location == range.location, current.length == range.length,
-              AXUIElementIsAttributeSettable(element, kAXSelectedTextAttribute as CFString, &writable) == .success, writable.boolValue,
-              AXUIElementSetAttributeValue(element, kAXSelectedTextAttribute as CFString, translation as CFString) == .success else { throw StorageFailure.invalidData }
     }
 }
 /// The language of a selection, among the languages Viezan translates; nil when unsure.
@@ -149,16 +114,19 @@ public enum TextLanguage {
         guard let text, !text.isEmpty, text.utf8.count <= 131072 else { return nil }
         return text
     }
-    /// Pastes over the selection in `application` (it must be frontmost), then restores the pasteboard.
-    public static func paste(_ text: String, into application: NSRunningApplication) async -> Bool {
-        guard AXIsProcessTrusted(), !application.isTerminated, !text.isEmpty else { return false }
+    /// Only called with a captured target whose value and selection still match.
+    static func paste(_ text: String, into application: NSRunningApplication,
+                      isCurrent: () -> Bool, verify: () async -> Bool) async -> Bool {
+        guard AXIsProcessTrusted(), !Task.isCancelled, !application.isTerminated,
+              NSWorkspace.shared.frontmostApplication?.processIdentifier == application.processIdentifier,
+              isCurrent(), !text.isEmpty else { return false }
         let board = NSPasteboard.general, saved = snapshot(board)
         board.clearContents(); board.setString(text, forType: .string)
-        application.activate()
-        try? await Task.sleep(for: .milliseconds(150))
-        post(key: 9, to: application)  // V
-        try? await Task.sleep(for: .milliseconds(400))
-        restore(saved, to: board); return true
+        let ownedChange = board.changeCount
+        defer { if board.changeCount == ownedChange { restore(saved, to: board) } }
+        guard isCurrent(), !Task.isCancelled else { return false }
+        post(key: 9, to: application)
+        return await verify()
     }
     private static func post(key: CGKeyCode, to application: NSRunningApplication) {
         let source = CGEventSource(stateID: .combinedSessionState)

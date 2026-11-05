@@ -327,6 +327,8 @@
   "paletteTranslate": "“{text}”を翻訳",
   "paletteLookup": "“{text}”を調べる",
   "recentLookups": "最近の検索",
+  "menuBarVisible": "メニューバーにViezanを表示",
+  "menuBarVisibleHint": "非表示にしてもアプリとショートカットは動作します。ここで再表示できます。",
   "menuBarTemperature": "メニューバーに温度を表示",
   "openThermal": "温度とファンを開く",
   "tokensCount": "{n}トークン",
