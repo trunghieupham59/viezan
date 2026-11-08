@@ -2,6 +2,9 @@
 
 ## Native hiện tại — Glass, 2026-11-02
 
+- macOS (2026-11-08): "Thường làm" hiện tối đa ba chip lặng dưới "Tiếp tục" trong Chat trống; lấy hành động lặp trong 30 ngày, suy giảm theo thời gian và tăng điểm theo giờ. Thiếu dữ liệu thì không hiện, module đã tắt và chế độ chat đang dùng không được gợi ý.
+- macOS (2026-11-08): Panel "+" có bốn mức Suy luận (Tự động, Thấp, Vừa, Kỹ); Thấp/Vừa bị vô hiệu khi model không hỗ trợ effort, Kỹ vẫn thêm chỉ dẫn cẩn thận. Chip model chỉ thêm tiền tố "Kỹ ·" ở mức Kỹ. Qt chưa port hai thay đổi này.
+
 Phần native tuân theo [direction.md](../direction.md), không lấy thông số
 Electron bên dưới làm chuẩn triển khai. SwiftUI ở `Workspaces.swift`,
 `NativeKit.swift`, `ModelPanel.swift` và `ComposerPanels.swift`; Qt ở

@@ -939,18 +939,21 @@ extension AppKitFixtureTests {
     }
 
     // The "+" panel offers what the session can use: attachments while there is room, chat mode and
-    // careful reasoning only in Chat, Listen only with an answer, Stop only while speaking.
+    // reasoning levels only in Chat (Low/Medium need model support), Listen only with an answer, Stop only while speaking.
     @Test func composerToolsFollowTheSession() {
-        let chat = ComposerTools.sections(feature: .chat, imageCount: 0, chatMode: "web", careful: true, speaking: false, hasAnswer: true)
+        let chat = ComposerTools.sections(feature: .chat, imageCount: 0, chatMode: "web", effort: "high", speaking: false, hasAnswer: true)
         #expect(chat.map(\.key) == ["attach", "chatMode", "reasoning", "voice"])
         #expect(chat[1].rows.first { $0.selected }?.id == "mode-web")
-        #expect(chat[2].rows == [ComposerTools.Row(kind: .careful, selected: true), ComposerTools.Row(kind: .instructions, selected: false)])
-        #expect(ComposerTools.sections(feature: .chat, imageCount: 0, chatMode: "text", careful: false, hasInstructions: true, speaking: false, hasAnswer: false)[2].rows.last?.selected == true)
+        #expect(chat[2].rows.map(\.id) == ["reasoning-auto", "reasoning-low", "reasoning-medium", "reasoning-high", "instructions"])
+        #expect(chat[2].rows.filter(\.selected).map(\.id) == ["reasoning-high"])
+        let unsupported = ComposerTools.sections(feature: .chat, imageCount: 0, chatMode: "text", effort: "auto", supportsEffort: false, speaking: false, hasAnswer: false)
+        #expect(unsupported[2].rows.map(\.enabled) == [true, false, false, true, true])
+        #expect(ComposerTools.sections(feature: .chat, imageCount: 0, chatMode: "text", effort: "auto", hasInstructions: true, speaking: false, hasAnswer: false)[2].rows.last?.selected == true)
         #expect(chat[3].rows.map(\.enabled) == [true, false])
-        let full = ComposerTools.sections(feature: .chat, imageCount: 4, chatMode: "text", careful: false, speaking: true, hasAnswer: true)
+        let full = ComposerTools.sections(feature: .chat, imageCount: 4, chatMode: "text", effort: "auto", speaking: true, hasAnswer: true)
         #expect(full[0].rows.map(\.enabled) == [false, false, true])
         #expect(full[3].rows.map(\.enabled) == [false, true])
-        let translate = ComposerTools.sections(feature: .translate, imageCount: 1, chatMode: "text", careful: false, speaking: false, hasAnswer: false)
+        let translate = ComposerTools.sections(feature: .translate, imageCount: 1, chatMode: "text", effort: "auto", speaking: false, hasAnswer: false)
         #expect(translate.map(\.key) == ["attach", "voice"])
         #expect(translate[0].rows.map(\.enabled) == [false, false, true])
         #expect(translate[1].rows[0].enabled == false)

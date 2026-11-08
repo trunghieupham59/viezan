@@ -61,6 +61,10 @@ Existing GitHub releases may still be the previous app.
   with separate attachment and Send/Stop buttons. Selected models keep a lit
   glass row and checkmark; keyboard focus stays distinct. Both native toolkits
   preserve one editor and its draft when controls move below multiline input.
+  macOS empty Chat suggests recurring actions from the last 30 days, weighted
+  by recency and time of day. Its tools panel offers four reasoning levels;
+  low/medium require model support, while Careful also adds prompt guidance.
+  These suggestions and reasoning controls are not yet ported to Qt.
 - Glass buttons throughout the app use native Liquid Glass on macOS 26+,
   with material/opaque accessibility fallbacks. Qt draws translucent control
   faces, directional reflections and local depth; it does not blur the desktop.

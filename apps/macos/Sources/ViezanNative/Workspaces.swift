@@ -244,6 +244,7 @@ struct ChatWorkspace: View {
             .padding(.horizontal, metric("gutter")).padding(.bottom, starting ? 0 : metric("gutter"))
             if starting {
                 if !recent.isEmpty { continueList.transition(.opacity) }
+                if !habits.isEmpty { habitList.transition(.opacity) }
                 Spacer(minLength: 0); Spacer(minLength: 0)
             }
         }
@@ -306,6 +307,55 @@ struct ChatWorkspace: View {
             }
         }.frame(maxWidth: metric("reading")).padding(.horizontal, metric("gutter"))
             .accessibilityElement(children: .contain).accessibilityLabel(store.text("continueRecent"))
+    }
+    private var habits: [HabitSuggestion] { store.habitSuggestions(for: session.id) }
+    private func habitLabel(_ action: HabitAction) -> String {
+        switch action {
+        case .chatMode(let mode): return store.text("chatMode_" + mode)
+        case .translatePair(let source, let target):
+            return store.text("habitTranslatePair").replacingOccurrences(of: "{source}", with: store.text("lang_" + source)).replacingOccurrences(of: "{target}", with: store.text("lang_" + target))
+        case .dictionary: return store.text("habitDictionary")
+        }
+    }
+    private func habitSymbol(_ action: HabitAction) -> String {
+        switch action {
+        case .chatMode(let mode): return mode == "web" ? "globe" : mode == "research" ? "sparkle.magnifyingglass" : "photo"
+        case .translatePair: return Feature.translate.symbol
+        case .dictionary: return Feature.dictionary.symbol
+        }
+    }
+    private func activateHabit(_ action: HabitAction) {
+        switch action {
+        case .chatMode(let mode): store.setChatMode(session.id, mode)
+        case .translatePair(let source, let target):
+            store.navigate(.translate)
+            if store.session.hasWork { store.newSession() }
+            store.setPair(store.session.id, source: source, target: target)
+            NotificationCenter.default.post(name: .viezanOpenRoute, object: "translate")
+        case .dictionary:
+            store.navigate(.dictionary)
+            NotificationCenter.default.post(name: .viezanOpenRoute, object: "dictionary")
+        }
+    }
+    private func habitChip(_ suggestion: HabitSuggestion) -> some View {
+        Button { activateHabit(suggestion.action) } label: {
+            Label(habitLabel(suggestion.action), systemImage: habitSymbol(suggestion.action)).lineLimit(1)
+                .frame(height: metric("compactControl"))
+        }.buttonStyle(.vznQuiet).accessibilityLabel(habitLabel(suggestion.action)).accessibilityIdentifier("habit-" + suggestion.id)
+    }
+    private var habitList: some View {
+        let suggestions = habits
+        return VStack(alignment: .leading, spacing: metric("tight")) {
+            Eyebrow(text: store.text("habitSuggestions")).padding(.horizontal, metric("small"))
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: metric("small")) { ForEach(suggestions) { habitChip($0) } }.fixedSize(horizontal: true, vertical: false)
+                VStack(alignment: .leading, spacing: metric("tight")) {
+                    HStack(spacing: metric("small")) { ForEach(Array(suggestions.prefix(2))) { habitChip($0) } }
+                    HStack(spacing: metric("small")) { ForEach(Array(suggestions.dropFirst(2))) { habitChip($0) } }
+                }
+            }
+        }.frame(maxWidth: metric("reading"), alignment: .leading).padding(.horizontal, metric("gutter"))
+            .accessibilityElement(children: .contain).accessibilityLabel(store.text("habitSuggestions"))
     }
     // Chat mode, careful reasoning and speech live in the "+" tools panel (Review 18 shows one
     // attach control). The row never grows a chip for them: the mode shows in the placeholder and
