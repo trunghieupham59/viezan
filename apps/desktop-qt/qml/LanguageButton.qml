@@ -9,6 +9,7 @@ Kit.QuietButton {
     property string language: "auto"
     property bool allowAuto: false
     property string label: ""
+    property bool compact: false
     signal chosen(string code)
     readonly property var strings: workbench.resources.locales[workbench.state.locale]
     function t(key) { return strings[key] || key }
@@ -34,7 +35,7 @@ Kit.QuietButton {
     Accessible.name: label + ": " + text
     contentItem: RowLayout {
         spacing: languageButton.metrics.tight
-        Label { objectName: "language-direction"; text: languageButton.label; color: languageButton.palette.placeholderText; Accessible.ignored: true }
+        Label { objectName: "language-direction"; visible: !languageButton.compact; text: languageButton.label; color: languageButton.palette.placeholderText; Accessible.ignored: true }
         Label { text: languageButton.text; font.weight: Font.DemiBold; color: languageButton.enabled ? languageButton.palette.buttonText : languageButton.palette.placeholderText; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
         IconImage { objectName: "language-chevron"; source: "icons/back.svg"; rotation: -90; color: languageButton.palette.placeholderText; sourceSize.width: languageButton.metrics.small + languageButton.metrics.tight; sourceSize.height: languageButton.metrics.small + languageButton.metrics.tight; Accessible.ignored: true }
     }

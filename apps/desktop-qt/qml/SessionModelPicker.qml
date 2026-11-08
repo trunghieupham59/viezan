@@ -20,6 +20,7 @@ ColumnLayout {
     // Feature views share this picker without writing an interpretation choice
     // into the unrelated translation session.
     property bool glassFeature: false
+    property bool featureIconOnly: false
     property bool selectionOnly: false
     property string selectedModel: session.model || ""
     readonly property var featureModels: Array.from(new Set(bridge.localModels.concat([selectedModel]).filter(id => id && !id.startsWith("demo.") && (!selectionOnly || bridge.chatCapable(id)))))
@@ -35,13 +36,14 @@ ColumnLayout {
         visible: modelPicker.glassFeature
         text: modelPicker.bridge.shortModelName(modelPicker.selectedModel) || t("model")
         Layout.maximumWidth: metrics.sidebar
+        implicitWidth: modelPicker.featureIconOnly ? metrics.control : implicitContentWidth + leftPadding + rightPadding
         Accessible.name: t("model") + ": " + text
         ToolTip.visible: hovered && !featurePanel.visible; ToolTip.text: text
         contentItem: RowLayout {
             spacing: metrics.tight
             IconImage { source: "icons/reasoning.svg"; color: featureTrigger.palette.buttonText; sourceSize.width: metrics.icon; sourceSize.height: metrics.icon; Accessible.ignored: true }
-            Label { text: featureTrigger.text; elide: Text.ElideRight; Layout.fillWidth: true; color: featureTrigger.enabled ? featureTrigger.palette.buttonText : featureTrigger.palette.placeholderText; Accessible.ignored: true }
-            IconImage { source: "icons/back.svg"; rotation: -90; color: featureTrigger.palette.placeholderText; sourceSize.width: metrics.small + metrics.tight; sourceSize.height: metrics.small + metrics.tight; Accessible.ignored: true }
+            Label { visible: !modelPicker.featureIconOnly; text: featureTrigger.text; elide: Text.ElideRight; Layout.fillWidth: true; color: featureTrigger.enabled ? featureTrigger.palette.buttonText : featureTrigger.palette.placeholderText; Accessible.ignored: true }
+            IconImage { visible: !modelPicker.featureIconOnly; source: "icons/back.svg"; rotation: -90; color: featureTrigger.palette.placeholderText; sourceSize.width: metrics.small + metrics.tight; sourceSize.height: metrics.small + metrics.tight; Accessible.ignored: true }
         }
         onClicked: featurePanel.openAt(featureTrigger)
     }
@@ -97,8 +99,8 @@ ColumnLayout {
         text: (session.carefulReasoning ? t("tierCareful") + " · " : "") + modelPicker.bridge.shortModelName(session.model)
         implicitHeight: metrics.control
         implicitWidth: iconOnly ? metrics.control : Math.min(metrics.compactSidebar, implicitContentWidth + metrics.inset)
-        Accessible.name: t("model") + ", " + session.model
-        ToolTip.visible: hovered && !lineup.visible; ToolTip.text: session.model
+        Accessible.name: t("model") + ": " + text
+        ToolTip.visible: hovered && !lineup.visible; ToolTip.text: Accessible.name
         contentItem: RowLayout {
             spacing: metrics.tight
             Label { text: "✦"; color: modelPicker.shell.colors["action-text"]; Accessible.ignored: true }

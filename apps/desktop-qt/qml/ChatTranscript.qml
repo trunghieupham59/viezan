@@ -288,7 +288,7 @@ Item {
         width: Math.min(parent.width, metrics.reading)
         spacing: metrics.gutter - metrics.tight
         Image { source: "brand.png"; sourceSize.width: metrics.hero; sourceSize.height: metrics.hero; Layout.preferredWidth: metrics.hero; Layout.preferredHeight: metrics.hero; Layout.alignment: Qt.AlignHCenter; Accessible.ignored: true }
-        Label { text: chat.t("chatStart"); font.pointSize: Qt.application.font.pointSize * metrics.headingScale; font.weight: Font.Normal; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
+        Label { text: chat.t("chatStart"); font.pointSize: Qt.application.font.pointSize * (chat.width < metrics.reading ? (metrics.headingScale + metrics.titleScale) / 2 : metrics.headingScale); font.weight: Font.Normal; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
     }
     Kit.GlassButton {
         objectName: "chat-return-latest"
