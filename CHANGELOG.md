@@ -6,6 +6,18 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+## [2.5.0]
+
+- Officially retire the Electron desktop app. Viezan now ships only as native apps:
+  SwiftUI/AppKit on macOS and Qt Quick/QML on Windows/Linux.
+- Bring Liquid Glass 2.0 to Windows/Linux: redesigned pages, system pages and
+  Settings, Launcher home suggestions, Quick Chat/Translate notices, an automatic
+  update sheet, compact and minimum window layouts, and Ctrl+K calculation, Ask AI,
+  translate and look-up rows.
+- Uninstall Windows/Linux applications from the Applications page after one
+  confirmation; package removal has no undo.
+- Switch Glass surfaces to solid fills when reduced transparency or high contrast
+  is on.
 - Retire the Viezan browser extension and its local pairing service. Use the desktop selection shortcut to translate text, or paste it into Quick Translate when the operating system restricts selection access.
 
 - Fix Applications inventory for plist date/data values, wrapped iOS metadata and protected Apple identifiers; ignore non-bundle Spotlight suffix matches. Read backup checksums through one no-follow file descriptor and add a full native-runtime uninstall/restart/Undo fixture test.
