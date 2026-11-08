@@ -78,6 +78,7 @@ QML chỉ cần nối các phần dưới đây, không viết lại logic. `bri
 ### W1 · AI Chat, lớp nổi shell, thư viện Lịch sử
 
 - **Board:** Chat-*, Overlays, History*, Shell-States, Nav-Overlay.
+- **Gợi ý thói quen và mức suy luận (macOS native-code-62):** C++ chưa có; port `HabitSuggestions.swift` sang `WorkbenchDomain`/bridge rồi nối QML.
 - **Lịch sử:**
   - `bridge.history(query, archived, features)`: lọc nhiều tính năng, bỏ dấu, bỏ phiên rỗng; kho lưu trữ sắp theo `archivedAt`.
   - Nhóm theo `updated` (kho lưu trữ: theo `archivedAt ?? updated`) như `HistoryBucket` của macOS: hôm nay / hôm qua / tuần này / trước đó.

@@ -267,8 +267,15 @@ Chi tiết phân tích và mức kiểm chứng nằm trong
   `largeRadius`; câu trả lời là văn bản trần bên trái có nhãn "Viezan". Meta
   dưới câu trả lời đọc tên model ngắn như chip ("GPT-6.1 Sol · 109 token"),
   ID đầy đủ trong tooltip. Khung xem trước lịch sử dùng cùng bong bóng.
-- Gợi ý theo thói quen tầng 2 (hành động lặp ≥ 3 lần trong 30 ngày, có suy
-  giảm theo thời gian) và tầng 3 (giờ trong ngày) là việc còn mở.
+- Gợi ý theo thói quen: tầng 2 lấy hành động lặp ≥ 3 lần trong 30 ngày, điểm
+  suy giảm theo thời gian; tầng 3 nhân đôi điểm khi có ≥ 3 lần trong khung
+  ±90 phút quanh giờ hiện tại (vòng qua nửa đêm). Tối đa ba chip lặng trong
+  khối "Thường làm" dưới "Tiếp tục", hoặc ngay dưới composer khi không có
+  phiên gần đây; thiếu dữ liệu thì không hiện. Bỏ chế độ chat đang dùng.
+- Nhóm Suy luận trong panel "+" có bốn hàng chọn: Tự động · Thấp · Vừa · Kỹ,
+  sau đó là Chỉ dẫn cho phiên. Thấp/Vừa mờ và không bấm được khi model không
+  chỉnh được effort; Kỹ vẫn áp dụng chỉ dẫn suy luận cẩn thận. Composer chỉ
+  thêm "Kỹ ·" vào nhãn model khi chọn Kỹ, không thêm chip suy luận.
 
 ## Chọn model (chốt 2026-11-02)
 
@@ -304,8 +311,8 @@ Chi tiết phân tích và mức kiểm chứng nằm trong
   pt, neo và phím như panel model): bốn nhóm ngăn bằng vạch hairline, không
   tiêu đề nhóm: Đính kèm ảnh · Chụp màn hình · Trích chữ (icon; mờ khi hết
   chỗ ảnh) | AI Chat · Tìm kiếm trên web · Nghiên cứu sâu · Tạo hình ảnh (dấu
-  chọn, mô tả ngắn bên phải, Tạo ảnh ghi nhà cung cấp sẽ vẽ) | Suy luận cẩn
-  thận (hàng có công tắc) | Nghe · Dừng đọc. Nhà cung cấp nhận dạng giọng nói
+  chọn, mô tả ngắn bên phải, Tạo ảnh ghi nhà cung cấp sẽ vẽ) | Suy luận
+  (bốn mức chọn và Chỉ dẫn cho phiên) | Nghe · Dừng đọc. Nhà cung cấp nhận dạng giọng nói
   chỉ ở Cài đặt › Giọng nói. Panel ôm sát nội dung, không cuộn ở cỡ cửa sổ
   thường; khi mở lên trên thì mép dưới tựa vào nút, mở xuống thì mép trên.
 - Lớp nổi và sidebar không hiện thanh cuộn kiểu cũ (rãnh dày khi macOS đặt
@@ -383,8 +390,9 @@ Loạt 2026-11-02 gồm chín đợt, báo cáo [native-code-49](../migration/na
 [native-code-58](../migration/native-implementation/native-code-58.md) chốt lại nút thu gọn và rail sau
 khi người dùng loại hướng cũ; [native-code-59](../migration/native-implementation/native-code-59.md) làm
 lại trạng thái trống và composer AI Chat; [native-code-60](../migration/native-implementation/native-code-60.md)
-rút gọn menu chọn model theo mục đích, gần đây và dòng mới nhất. Còn mở ở AI Chat: gợi ý theo thói quen tầng 2 và 3, menu "+"
-có mô tả từng chế độ, mức nỗ lực suy luận nhiều bậc.
+rút gọn menu chọn model theo mục đích, gần đây và dòng mới nhất.
+[native-code-62](../migration/native-implementation/native-code-62.md) bổ sung gợi ý thói quen tầng 2/3
+và bốn mức suy luận; menu "+" đã có mô tả từng chế độ. Còn mở ở AI Chat: ghim model và phím tắt mở panel.
 Tổng hợp: Qt trên Windows/Linux (làm khi có máy Windows); các luồng cần API hoặc phần cứng thật để chạy
 (so sánh model, nghiên cứu web, tổng hợp phiên dịch, tải và đo model local, helper quạt, bản cập nhật mới);
 nghiệm thu trợ năng (VoiceOver, ba cỡ chữ, 640 pt); cài đặt cập nhật tại chỗ.

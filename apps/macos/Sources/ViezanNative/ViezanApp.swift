@@ -589,7 +589,7 @@ struct ModelPicker: View {
             if modelUnavailable(store.session.model, store: store) { StatusDot(tone: .failed) }
             // Glass composer chip (`✦ Haiku 5.5 ⌄`): an accent sparkle drawn over the
             // control's leading room, the chevron after the name.
-            ShellToolbarButton(label: (store.session.carefulReasoning == true ? store.text("tierCareful") + " · " : "") + ModelLineup.shortName(store.session.model), symbol: iconOnly ? "sparkles" : badge && !glassBadge ? "sparkles" : "chevron.down", identifier: "model-toggle", showsLabel: !iconOnly, glass: !glassChat, quiet: true, small: (dense || badge) && !glassChat,
+            ShellToolbarButton(label: ((store.session.reasoningEffort == "high" || (store.session.reasoningEffort == nil && store.session.carefulReasoning == true)) ? store.text("tierCareful") + " · " : "") + ModelLineup.shortName(store.session.model), symbol: iconOnly ? "sparkles" : badge && !glassBadge ? "sparkles" : "chevron.down", identifier: "model-toggle", showsLabel: !iconOnly, glass: !glassChat, quiet: true, small: (dense || badge) && !glassChat,
                                expanded: shellLayer == .models, hint: store.session.model,
                                trailingSymbol: sparkleChip, leadingRoom: sparkleChip ? metric("inset") + metric("tight") : 0, enabled: !store.loadingModels,
                                frameAction: { frame in NotificationCenter.default.post(name: .viezanOpenModels, object: NSValue(rect: frame)) }) {}

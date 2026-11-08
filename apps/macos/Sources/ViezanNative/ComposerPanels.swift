@@ -10,8 +10,6 @@ struct PanelRow: View {
     var selected = false
     var highlighted = false
     var muted = false
-    /// A switch at the trailing edge for on/off rows; the whole row toggles it.
-    var toggle: Bool? = nil
     var identifier: String
     var action: () -> Void
     @Environment(\.colorScheme) private var scheme
@@ -53,13 +51,12 @@ struct PanelRow: View {
                 if !detail.isEmpty { Text(detail).font(.vzn(glass ? "smallScale" : "captionScale")).monospacedDigit().foregroundStyle(detailColor).lineLimit(1) }
                 // Glass: one accent check at the trailing edge for the current choice.
                 if glass, selected { Image(systemName: "checkmark").imageScale(.small).fontWeight(.semibold).foregroundStyle(contentColor("action", scheme)).accessibilityHidden(true) }
-                if let toggle { Toggle("", isOn: .constant(toggle)).toggleStyle(.switch).labelsHidden().controlSize(.mini).allowsHitTesting(false).accessibilityHidden(true) }
             }
             .padding(.horizontal, metric("small")).frame(height: metric(glass ? "navControl" : "compactControl")).frame(maxWidth: .infinity, alignment: .leading)
             .background { rowBackground }
             .contentShape(Rectangle())
         }.buttonStyle(.plain).focused($focused).focusEffectDisabled(glass).onHover { hovered = $0 }
-            .accessibilityLabel(title + (detail.isEmpty ? "" : " · " + detail)).accessibilityAddTraits(selected || toggle == true ? .isSelected : [])
+            .accessibilityLabel(title + (detail.isEmpty ? "" : " · " + detail)).accessibilityAddTraits(selected ? .isSelected : [])
             .accessibilityIdentifier(identifier)
     }
 }
@@ -67,7 +64,7 @@ struct PanelRow: View {
 // What the composer's "+" offers, as data so the panel and its test share one source.
 enum ComposerTools {
     struct Row: Equatable, Identifiable {
-        enum Kind: Equatable { case attach, capture, ocr, mode(String), careful, instructions, listen, stopSpeaking }
+        enum Kind: Equatable { case attach, capture, ocr, mode(String), reasoning(String), instructions, listen, stopSpeaking }
         var kind: Kind
         var enabled = true
         var selected = false
@@ -77,7 +74,7 @@ enum ComposerTools {
             case .capture: return "capture"
             case .ocr: return "ocr"
             case .mode(let mode): return "mode-" + mode
-            case .careful: return "careful"
+            case .reasoning(let level): return "reasoning-" + level
             case .instructions: return "instructions"
             case .listen: return "listen"
             case .stopSpeaking: return "stop-speaking"
@@ -86,12 +83,12 @@ enum ComposerTools {
     }
     struct Section: Equatable { var key: String; var rows: [Row] }
     static let modes = ["text", "web", "research", "image"]
-    static func sections(feature: Feature, imageCount: Int, chatMode: String, careful: Bool, hasInstructions: Bool = false, speaking: Bool, hasAnswer: Bool) -> [Section] {
+    static func sections(feature: Feature, imageCount: Int, chatMode: String, effort: String, supportsEffort: Bool = true, hasInstructions: Bool = false, speaking: Bool, hasAnswer: Bool) -> [Section] {
         let roomForImages = [.chat, .translate].contains(feature) && imageCount < (feature == .translate ? 1 : 4)
         var sections = [Section(key: "attach", rows: [Row(kind: .attach, enabled: roomForImages), Row(kind: .capture, enabled: roomForImages), Row(kind: .ocr)])]
         if feature == .chat {
             sections.append(Section(key: "chatMode", rows: modes.map { Row(kind: .mode($0), selected: chatMode == $0) }))
-            sections.append(Section(key: "reasoning", rows: [Row(kind: .careful, selected: careful), Row(kind: .instructions, selected: hasInstructions)]))
+            sections.append(Section(key: "reasoning", rows: ["auto", "low", "medium", "high"].map { Row(kind: .reasoning($0), enabled: supportsEffort || ["auto", "high"].contains($0), selected: effort == $0) } + [Row(kind: .instructions, selected: hasInstructions)]))
         }
         // Speech-to-text provider lives in Settings › Voice; the panel keeps only what acts on this session.
         sections.append(Section(key: "voice", rows: [Row(kind: .listen, enabled: hasAnswer && !speaking), Row(kind: .stopSpeaking, enabled: speaking)]))
@@ -110,7 +107,7 @@ struct ComposerToolsPanel: View {
     private var session: Session { store.session }
     private var sections: [ComposerTools.Section] {
         ComposerTools.sections(feature: session.feature, imageCount: session.images?.count ?? 0, chatMode: session.chatMode ?? "text",
-                               careful: session.carefulReasoning ?? false, hasInstructions: !(session.systemPrompt ?? "").isEmpty, speaking: store.audio.speaking,
+                               effort: session.reasoningEffort ?? (session.carefulReasoning == true ? "high" : "auto"), supportsEffort: ModelLineup.supportsEffort(model: session.model), hasInstructions: !(session.systemPrompt ?? "").isEmpty, speaking: store.audio.speaking,
                                hasAnswer: session.feature == .chat ? session.messages.contains { $0.role == "assistant" && !$0.text.isEmpty } : !session.output.isEmpty)
     }
     private var rows: [ComposerTools.Row] { sections.flatMap(\.rows).filter(\.enabled) }
@@ -126,7 +123,7 @@ struct ComposerToolsPanel: View {
                 return (store.text("chatMode_image"), provider.map { $0 == "openai" ? "OpenAI" : "Gemini" } ?? store.text("imageProviderNone"), nil)
             }
             return (store.text("chatMode_" + mode), store.text("chatModeHint_" + mode), nil)
-        case .careful: return (store.text("carefulReasoning"), store.text("carefulReasoningHint"), nil)
+        case .reasoning(let level): return (store.text("reasoningLevel_" + level), store.text(!row.enabled ? "reasoningUnsupported" : level == "high" ? "carefulReasoningHint" : "reasoningLevelHint_" + level), nil)
         case .instructions:
             let text = session.systemPrompt ?? ""
             let name = store.workspace.prompts?.first { $0.text == text }?.name
@@ -142,7 +139,7 @@ struct ComposerToolsPanel: View {
         case .capture: dismiss(); NotificationCenter.default.post(name: .viezanComposerAction, object: "capture")
         case .ocr: dismiss(); NotificationCenter.default.post(name: .viezanComposerAction, object: "ocr")
         case .mode(let mode): store.setChatMode(session.id, mode); dismiss()
-        case .careful: store.setCarefulReasoning(session.id, !(session.carefulReasoning ?? false)); dismiss()
+        case .reasoning(let level): store.setChatReasoning(session.id, effort: level); dismiss()
         case .instructions: dismiss(); NotificationCenter.default.post(name: .viezanOpenInstructions, object: nil)
         case .listen:
             let text = session.feature == .chat ? session.messages.last(where: { $0.role == "assistant" })?.text ?? "" : session.feature == .dictionary ? DictionaryEntry.parse(session.output).map { $0.headword + ". " + $0.meaning } ?? "" : (session.images ?? []).isEmpty ? session.output : ImageTranslation.text(session.output)
@@ -158,7 +155,7 @@ struct ComposerToolsPanel: View {
     }
     var body: some View {
         // Groups read by their hairlines, not headers: attachments, mode (one checked), reasoning
-        // (a switch), voice. The rows scroll when the shell provides a compact stage height.
+        // (one checked), voice. The rows scroll when the shell provides a compact stage height.
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -167,7 +164,7 @@ struct ComposerToolsPanel: View {
                         ForEach(section.rows) { row in
                             let text = label(row)
                             PanelRow(title: text.title, detail: text.detail, symbol: row.kind == .instructions ? "text.quote" : text.symbol, selected: row.selected, highlighted: highlighted == row.id, muted: !row.enabled,
-                                     toggle: row.kind == .careful ? row.selected : nil, identifier: "tool-" + row.id) { activate(row) }
+                                     identifier: "tool-" + row.id) { activate(row) }
                                 .id(row.id).disabled(!row.enabled)
                         }
                     }

@@ -99,7 +99,7 @@ public enum CloudProvider {
             body = ["model": model, "stream": true, "stream_options": ["include_usage": true], "messages": try messages.map { ["role": $0.role, "content": try content($0, format: "openai")] }]
         }
         let effort = request.reasoningEffort ?? "auto"
-        func supports(_ family: String) -> Bool { NativeResources.shared.reasoningPolicy[family].map { model.range(of: $0, options: [.regularExpression, .caseInsensitive]) != nil } ?? false }
+        func supports(_ family: String) -> Bool { ModelLineup.supportsEffort(model: model, family: family) }
         if ["low", "medium", "high"].contains(effort) {
             if provider == "openai", supports("openai") { body["reasoning_effort"] = effort }
             if provider == "claude", supports("claude") { body["thinking"] = ["type": "adaptive"]; body["output_config"] = ["effort": effort] }
