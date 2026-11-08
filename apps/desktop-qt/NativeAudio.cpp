@@ -16,6 +16,9 @@
 #include <QDateTime>
 #include <QFutureWatcher>
 #include <QtConcurrent/QtConcurrent>
+#ifdef Q_OS_WIN
+#include <QSettings>
+#endif
 
 NativeAudio::NativeAudio(QObject *parent) : QObject(parent) {
     m_player.setAudioOutput(&m_output);
@@ -48,8 +51,9 @@ void NativeAudio::start(const QString &owner, const QString &language) {
         m_recorder.setOutputLocation(QUrl::fromLocalFile(m_file)); m_recorder.record(); emit changed();
     };
     QMicrophonePermission permission;
-    const auto state = qApp->checkPermission(permission);
-    if (state == Qt::PermissionStatus::Granted) begin();
+    const auto state = microphonePermissionStatus();
+    if (state == "denied") { m_startPending = false; m_error = "microphoneDenied"; emit changed(); }
+    else if (state == "granted") begin();
     else qApp->requestPermission(permission, this, [this, begin, generation](const QPermission &result) {
         if (generation != m_generation) return;
         if (result.status() == Qt::PermissionStatus::Granted) begin();
@@ -137,11 +141,37 @@ void NativeAudio::cancel() {
     m_owner.clear(); m_speechCandidates.clear(); cleanup(); silence(); emit changed();
 }
 QString NativeAudio::microphonePermission() const {
+    return microphonePermissionStatus();
+}
+#ifdef VIEZAN_CONTRACT_FIXTURE
+static QString microphonePermissionOverride;
+void NativeAudio::setMicrophonePermissionForTest(const QString &status) {
+    Q_ASSERT((status.isEmpty() || QStringList{"granted", "denied", "undetermined"}.contains(status)));
+    microphonePermissionOverride = status;
+}
+#endif
+QString NativeAudio::microphonePermissionStatus() {
+#ifdef VIEZAN_CONTRACT_FIXTURE
+    if (!microphonePermissionOverride.isEmpty()) return microphonePermissionOverride;
+#endif
+#ifdef Q_OS_WIN
+    // Qt 6.8 has no Windows permission backend. Desktop (unpackaged) apps
+    // do not prompt for per-app permission: any explicit Deny wins. Missing
+    // keys/values do not deny access. New read-only QSettings on every call
+    // makes Check again observe changes; never enumerate per-app usage keys.
+    const QString path = "\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\microphone";
+    for (const auto &key : {"HKEY_LOCAL_MACHINE" + path, "HKEY_CURRENT_USER" + path, "HKEY_CURRENT_USER" + path + "\\NonPackaged"}) {
+        const QSettings consent(key, QSettings::NativeFormat);
+        if (consent.value("Value").toString().compare("Deny", Qt::CaseInsensitive) == 0) return "denied";
+    }
+    return "granted";
+#else
     switch (qApp->checkPermission(QMicrophonePermission{})) {
     case Qt::PermissionStatus::Granted: return "granted";
     case Qt::PermissionStatus::Denied: return "denied";
     default: return "undetermined";
     }
+#endif
 }
 QVariantList NativeAudio::voiceList() const {
     QVariantList values; for (const auto &voice : m_speech.availableVoices()) values.append(QVariantMap{{"name", voice.name()}, {"language", voice.locale().name()}});

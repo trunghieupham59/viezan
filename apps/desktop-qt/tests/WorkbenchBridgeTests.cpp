@@ -1,5 +1,7 @@
 #include "../WorkbenchBridge.h"
 #include "../WorkbenchDomain.h"
+#include "../AttachmentImageProvider.h"
+#include <QClipboard>
 #include "../NativeAudio.h"
 #include "../ProviderDiscovery.h"
 #include <QUuid>
@@ -15,20 +17,27 @@
 #include "../NativeUpdates.h"
 #include "../Interpretation.h"
 #include <QStandardPaths>
+#include <QScopeGuard>
 #include <QCryptographicHash>
 #include <QFile>
 #include <QInputMethodEvent>
+#include <QHoverEvent>
 #include <QJsonDocument>
+#include <QJSValue>
+#include <QDateTime>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQmlComponent>
+#include <QQmlExpression>
 #include <QSignalSpy>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QSGRendererInterface>
 #include <QPointer>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
+#include <QtMath>
 
 static QVariantMap current(const WorkbenchBridge &bridge) {
     const auto state = bridge.state();
@@ -55,6 +64,242 @@ static QQuickItem *visualText(QQuickItem *item, const QString &text) {
 class WorkbenchBridgeTests : public QObject {
     Q_OBJECT
 private slots:
+    void glassDisabledControlRim() {
+        QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("appearance", {{"preset", "glass"}, {"mode", "light"}});
+        QQmlEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.rootContext()->setContextProperty("workbench", &bridge);
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import "qrc:/qml" as Viezan
+            Viezan.Kit.ControlGlassSurface { width: 120; height: 36 }
+        )", QUrl("qrc:/disabled-glass-test.qml"));
+        QScopedPointer<QObject> owner(component.create()); QVERIFY2(owner, qPrintable(component.errorString()));
+        auto *surface = qobject_cast<QQuickItem *>(owner.data()); QVERIFY(surface);
+        auto *reflection = visualItem(surface, "glass-control-reflections");
+        auto *rim = visualItem(surface, "glass-control-quiet-rim"); QVERIFY(reflection && rim);
+        for (const auto &mode : {QString("light"), QString("dark")}) for (const bool disabled : {true, false}) {
+            bridge.command("appearance", {{"preset", "glass"}, {"mode", mode}});
+            surface->setProperty("inactive", disabled); QCoreApplication::processEvents();
+            QCOMPARE(reflection->isVisible(), !disabled && mode == "light");
+            QCOMPARE(rim->isVisible(), disabled || mode == "dark");
+            QVERIFY(rim->property("color").value<QColor>().alpha() == 0);
+        }
+        QCOMPARE(warnings.count(), 0);
+    }
+    void acceleratedGlassSurfacesSurviveAppearanceChanges() {
+        // Offscreen CI normally selects software. Exercise this explicitly on
+        // a window-system RHI backend as well: software cannot catch the W0
+        // Qt 6.8.3 imported-inline-component/Loader crash.
+        QQuickWindow probe;
+        probe.resize(64, 64);
+        probe.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&probe));
+        const auto api = probe.rendererInterface()->graphicsApi();
+        probe.hide();
+        if (api == QSGRendererInterface::Software || api == QSGRendererInterface::Unknown)
+            QSKIP("Accelerated glass requires an initialized RHI backend; software is covered by the other UI tests.");
+        QTest::failOnWarning("ShaderEffect: Texture t1 is not assigned a valid texture provider (QQuickItem*).");
+
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("appearance", {{"preset", "glass"}, {"mode", "light"}});
+        QQmlApplicationEngine engine;
+        QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.rootContext()->setContextProperty("workbench", &bridge);
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import "qrc:/qml" as Viezan
+            Window {
+                width: 400; height: 240
+                Viezan.Kit.GlassPane {
+                    objectName: "test-pane"
+                    x: 24; y: 24; width: 180; height: 160
+                    visible: workbench.state.appearance.preset === "glass"
+                }
+                Viezan.Kit.ControlGlassSurface {
+                    objectName: "test-control"
+                    x: 240; y: 64; width: 120; height: 40
+                    visible: workbench.state.appearance.preset === "glass"
+                }
+            }
+        )", QUrl("qrc:/accelerated-glass-test.qml"));
+        QScopedPointer<QObject> owner(component.create());
+        QVERIFY2(owner, qPrintable(component.errorString()));
+        auto *window = qobject_cast<QQuickWindow *>(owner.data());
+        QVERIFY(window);
+        QSignalSpy frames(window, &QQuickWindow::frameSwapped);
+        window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(window));
+        QTRY_VERIFY(!frames.isEmpty());
+        auto *pane = visualItem(window->contentItem(), "test-pane");
+        auto *control = visualItem(window->contentItem(), "test-control");
+        auto *paneShadow = visualItem(window->contentItem(), "glass-pane-shadow");
+        auto *controlShadow = visualItem(window->contentItem(), "glass-control-shadow");
+        QVERIFY(pane && control && paneShadow && controlShadow);
+        QVERIFY(pane->property("accelerated").toBool());
+        QVERIFY(control->property("accelerated").toBool());
+        QVERIFY(paneShadow->property("blurEnabled").toBool());
+        QVERIFY(controlShadow->property("shadowEnabled").toBool());
+        for (const auto &preset : {QString("glass"), QString("graphite"), QString("glass")}) {
+            for (const auto &mode : {QString("light"), QString("dark")}) {
+                const auto before = frames.count();
+                bridge.command("appearance", {{"preset", preset}, {"mode", mode}});
+                window->update();
+                QTRY_VERIFY(frames.count() > before);
+                const bool glass = preset == "glass";
+                QVERIFY(paneShadow->property("source").value<QObject *>() != nullptr);
+                QVERIFY(controlShadow->property("source").value<QObject *>() != nullptr);
+                QCOMPARE(paneShadow->isVisible(), glass);
+                QCOMPARE(controlShadow->isVisible(), glass);
+                QCOMPARE(paneShadow->size(), pane->size());
+                QCOMPARE(controlShadow->size(), control->size());
+                control->setProperty("inactive", true); window->update();
+                QTRY_VERIFY(!visualItem(control, "glass-control-reflections")->isVisible());
+                QCOMPARE(visualItem(control, "glass-control-quiet-rim")->isVisible(), glass);
+                control->setProperty("inactive", false);
+            }
+        }
+        window->close();
+
+        // Also load the real shell with an isolated bridge and no provider
+        // discovery, then switch the same appearance states through the bridge.
+        bridge.command("route", {{"value", "home"}});
+        engine.load(QUrl("qrc:/qml/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *root = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(root);
+        QSignalSpy shellFrames(root, &QQuickWindow::frameSwapped);
+        QVERIFY(QTest::qWaitForWindowExposed(root));
+        for (const auto &preset : {QString("glass"), QString("graphite"), QString("glass")}) {
+            for (const auto &mode : {QString("light"), QString("dark")}) {
+                const auto before = shellFrames.count();
+                bridge.command("appearance", {{"preset", preset}, {"mode", mode}});
+                root->update();
+                QTRY_VERIFY(shellFrames.count() > before);
+            }
+        }
+        root->close();
+        QCOMPARE(warnings.count(), 0);
+    }
+    void platformShellGeometryAndShortcuts() {
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("locale", {{"value", "vi"}});
+        bridge.command("appearance", {{"preset", "glass"}, {"mode", "light"}});
+        QQmlApplicationEngine engine;
+        QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.rootContext()->setContextProperty("workbench", &bridge);
+        engine.load(QUrl("qrc:/qml/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *root = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(root);
+        root->requestActivate();
+        QTRY_VERIFY(root->isActive());
+        auto *menu = root->findChild<QQuickItem *>("shell-menu-bar");
+        auto *header = visualItem(root->contentItem(), "shell-header");
+        auto *toggle = visualItem(root->contentItem(), "navigation-toggle");
+        auto *breadcrumb = visualItem(root->contentItem(), "workspace-breadcrumb");
+        auto *reading = visualItem(root->contentItem(), "reading-pane");
+        auto *nav = visualItem(root->contentItem(), "primary-navigation");
+        QVERIFY(menu && header && toggle && breadcrumb && reading && nav);
+        const auto labels = bridge.resources().value("locales").toMap().value("vi").toMap();
+        const auto metrics = bridge.resources().value("metrics").toMap();
+#ifdef Q_OS_MACOS
+        QCOMPARE(root->title(), QString("Viezan Native — ") + labels.value("home").toString());
+#else
+        QVERIFY(!menu->isVisible());
+        QCOMPARE(menu->height(), 0.0);
+        QCOMPARE(root->title(), labels.value("home").toString());
+        for (const auto &mode : {QString("light"), QString("dark")}) {
+            bridge.command("appearance", {{"mode", mode}});
+            for (const auto size : {QSize(1280, 800), QSize(820, 640)}) {
+                root->resize(size);
+                for (const bool collapsed : {false, true}) {
+                    bridge.command("navigation", {{"collapsed", collapsed}});
+                    const bool expanded = size.width() >= metrics.value("compact").toInt() && !collapsed;
+                    QTRY_COMPARE(nav->property("expanded").toBool(), expanded);
+                    QTRY_COMPARE(header->mapToScene(QPointF()).x(), 0.0);
+                    QTRY_COMPARE(header->mapToScene(QPointF()).y(), 0.0);
+                    QTRY_COMPARE(header->width(), qreal(size.width()));
+                    QVERIFY(toggle->isVisible());
+                    QTRY_COMPARE(toggle->mapToScene(QPointF()).x(), metrics.value("inset").toDouble());
+                    const auto expected = expanded ? reading->mapToScene(QPointF()).x() + metrics.value("inset").toDouble()
+                        : toggle->mapToScene(QPointF(toggle->width(), 0)).x() + metrics.value("gap").toDouble();
+                    QTRY_COMPARE(breadcrumb->mapToScene(QPointF()).x(), expected);
+                    QVERIFY(!visualItem(nav, "navigation-collapse")->isVisible());
+                }
+            }
+        }
+#endif
+        root->resize(1280, 800);
+        bridge.command("navigation", {{"collapsed", false}});
+        QTest::keyClick(root, Qt::Key_Backslash, Qt::ControlModifier);
+        QTRY_VERIFY(root->property("navigationCollapsed").toBool());
+        QTest::keyClick(root, Qt::Key_Backslash, Qt::ControlModifier);
+        QTRY_VERIFY(!root->property("navigationCollapsed").toBool());
+        for (int digit : {1, 2, 3, 0}) {
+            QTest::keyClick(root, static_cast<Qt::Key>(Qt::Key_0 + digit), Qt::ControlModifier);
+            const auto route = QStringList{"home", "chat", "translate", "dictionary"}.at(digit);
+            QTRY_COMPARE(bridge.state().value("shell").toMap().value("lastRoute").toString(), route);
+#ifndef Q_OS_MACOS
+            QCOMPARE(root->title(), labels.value(route).toString());
+#endif
+        }
+        auto *commands = root->findChild<QObject *>("command-palette");
+        auto *history = root->findChild<QObject *>("quick-history");
+        auto *activity = root->findChild<QObject *>("activity-panel");
+        QVERIFY(commands && history && activity);
+        QTest::keyClick(root, Qt::Key_K, Qt::ControlModifier);
+        QTRY_VERIFY(commands->property("visible").toBool());
+        QTest::keyClick(root, Qt::Key_Escape);
+        QTRY_VERIFY(!commands->property("visible").toBool());
+        // StandardKey is platform-dependent; send its actual key combination.
+        const auto pressStandard = [root](QKeySequence::StandardKey key) {
+            const QKeySequence sequence(key);
+            for (int i = 0; i < sequence.count(); ++i)
+                QTest::keyClick(root, sequence[i].key(), sequence[i].keyboardModifiers());
+        };
+        if (!QKeySequence(QKeySequence::Preferences).isEmpty()) {
+            pressStandard(QKeySequence::Preferences);
+        } else {
+            // Qt's Windows platform theme has no Preferences binding. Keep
+            // that existing StandardKey behavior; do not invent a shortcut.
+            qInfo("StandardKey.Preferences has no platform binding; Settings remains available via commands.");
+            QVERIFY(QMetaObject::invokeMethod(root, "execute", Q_ARG(QVariant, "settings"), Q_ARG(QVariant, QVariant())));
+        }
+        QTRY_VERIFY(root->property("settings").toBool());
+        QTest::keyClick(root, Qt::Key_H, Qt::ControlModifier | Qt::ShiftModifier);
+        QVERIFY(!history->property("visible").toBool()); // Disabled in Settings.
+        pressStandard(QKeySequence::New);
+        QTRY_VERIFY(!root->property("settings").toBool() && !root->property("home").toBool());
+        QCOMPARE(bridge.state().value("feature").toString(), QString("chat"));
+        QTest::keyClick(root, Qt::Key_H, Qt::ControlModifier | Qt::ShiftModifier);
+        QTRY_VERIFY(history->property("visible").toBool());
+        QTest::keyClick(root, Qt::Key_Escape);
+        QTRY_VERIFY(!history->property("visible").toBool());
+        QTest::keyClick(root, Qt::Key_A, Qt::ControlModifier | Qt::ShiftModifier);
+        QTRY_VERIFY(activity->property("visible").toBool());
+        QTest::keyClick(root, Qt::Key_Escape);
+        QTRY_VERIFY(!activity->property("visible").toBool());
+
+        auto *editor = visualItem(root->contentItem(), "chat-draft");
+        QVERIFY(editor);
+        editor->forceActiveFocus();
+        const auto beforeComposition = bridge.state();
+        QInputMethodEvent preedit(QString::fromUtf8("にほん"), {});
+        QCoreApplication::sendEvent(editor, &preedit);
+        QVERIFY(editor->property("inputMethodComposing").toBool());
+        QTest::keyClick(root, Qt::Key_K, Qt::ControlModifier);
+        // Shortcuts must not commit a preedit or mutate work while opening UI.
+        QCOMPARE(bridge.state(), beforeComposition);
+        QInputMethodEvent cancel;
+        QCoreApplication::sendEvent(editor, &cancel);
+        QCOMPARE(warnings.count(), 0);
+    }
     // Liquid Glass 2.0 backend (BACKEND-GAPS #2, #5, #9, #21, #24, #25, #29, #42).
     void glassBackendReducerRules() {
         using namespace WorkbenchDomain;
@@ -126,6 +371,7 @@ private slots:
         QVERIFY(!soon.contains("_resetNotice"));
         // Back after the break: a fresh turn opens and the old one is remembered.
         auto later = command(state, "navigate", {{"feature", "translate"}, {"_updated", 1000.0 + 7200}}, "fresh", "a");
+        QVERIFY2(validate(later), "Smart reset must retain a unique session matching the new active ID; navigate must not overwrite the prepended session at its old index.");
         QCOMPARE(later.value("active").toMap().value("translate").toString(), QString("fresh"));
         QCOMPARE(later.value("_resetNotice").toMap().value("previousID").toString(), QString("t"));
         later.remove("_resetNotice");
@@ -137,6 +383,134 @@ private slots:
         off = command(off, "navigate", {{"feature", "translate"}, {"_updated", 1000.0 + 7200}}, "fresh", "a");
         QCOMPARE(off.value("active").toMap().value("translate").toString(), QString("t"));
         QVERIFY(validate(off));
+    }
+    void smartResetPreservesSessionIdentity_data() {
+        QTest::addColumn<QString>("feature");
+        QTest::addColumn<int>("timeout");
+        QTest::newRow("translate-two-hours") << QString("translate") << 7200;
+        QTest::newRow("dictionary-thirty-minutes") << QString("dictionary") << 1800;
+    }
+    void smartResetPreservesSessionIdentity() {
+        QFETCH(QString, feature); QFETCH(int, timeout);
+        using namespace WorkbenchDomain;
+        auto state = create("c", "t");
+        auto sessions = state.value("sessions").toList();
+        const auto previousID = state.value("active").toMap().value(feature).toString();
+        for (auto &value : sessions) {
+            auto item = value.toMap(); item["draft"] = "Retain draft " + item.value("id").toString();
+            item["output"] = "Retain output " + item.value("id").toString(); item["updated"] = 50.0;
+            if (item.value("id") == previousID) { item["model"] = "ollama:qwen3:8b"; item["source"] = "en"; item["target"] = "ja"; }
+            value = item;
+        }
+        state["featureLeft"] = QVariantMap{{feature, 1000.0}};
+        // Exercise the old active session at every list position, not just index zero.
+        for (int position = 0; position < 3; ++position) {
+            state["sessions"] = sessions; QVERIFY(validate(state));
+            const auto soon = command(state, "navigate", {{"feature", feature}, {"_updated", 1000.0 + timeout - 1}}, "fresh", "a");
+            QVERIFY(validate(soon)); QCOMPARE(soon.value("sessions"), state.value("sessions"));
+            QCOMPARE(soon.value("active"), state.value("active")); QCOMPARE(soon.value("tasks"), state.value("tasks"));
+            QVERIFY(!soon.contains("_resetNotice"));
+            const auto reset = command(state, "navigate", {{"feature", feature}, {"_updated", 1000.0 + timeout}}, "fresh", "a");
+            QVERIFY(validate(reset)); const auto after = reset.value("sessions").toList();
+            QCOMPARE(after.size(), sessions.size() + 1); QCOMPARE(after.first().toMap().value("id").toString(), QString("fresh"));
+            QCOMPARE(after.mid(1), sessions); // Every old record, including content and order, is intact.
+            QSet<QString> ids; for (const auto &value : after) { const auto id = value.toMap().value("id").toString(); QVERIFY(!ids.contains(id)); ids.insert(id); }
+            for (const auto &id : reset.value("active").toMap()) QVERIFY(ids.contains(id.toString()));
+            QCOMPARE(reset.value("active").toMap().value(feature).toString(), QString("fresh"));
+            const auto fresh = after.first().toMap();
+            QCOMPARE(fresh.value("model").toString(), QString("ollama:qwen3:8b"));
+            QCOMPARE(fresh.value("source").toString(), QString("en")); QCOMPARE(fresh.value("target").toString(), QString("ja"));
+            QVERIFY(fresh.value("draft").toString().isEmpty()); QVERIFY(fresh.value("output").toString().isEmpty());
+            const auto reopened = command(reset, "reopenPrevious", {{"feature", feature}, {"previousID", previousID}}, "unused", "a");
+            QVERIFY(validate(reopened)); QCOMPARE(reopened.value("sessions").toList(), sessions);
+            QCOMPARE(reopened.value("active"), state.value("active"));
+            sessions.append(sessions.takeFirst());
+        }
+    }
+    void featureLeftLaunchPersistence_data() {
+        QTest::addColumn<QString>("feature");
+        QTest::addColumn<QVariant>("leftAt");
+        for (const auto &feature : {QString("translate"), QString("dictionary")}) {
+            QTest::newRow(qPrintable(feature + "-fractional")) << feature << QVariant(1794072480.952);
+            QTest::newRow(qPrintable(feature + "-large-integer")) << feature << QVariant::fromValue<qlonglong>(4294967296LL);
+        }
+    }
+    void featureLeftLaunchPersistence() {
+        QFETCH(QString, feature); QFETCH(QVariant, leftAt);
+        QTemporaryDir dir; QVERIFY(dir.isValid()); const auto path = dir.filePath("state.json");
+        auto state = WorkbenchDomain::create("c", "t"); state["feature"] = feature;
+        const QVariantMap left{{"chat", 1794072258.488}, {"translate", leftAt}, {"dictionary", leftAt}};
+        state["featureLeft"] = left; QVERIFY(WorkbenchDomain::validate(state));
+        QFile file(path); QVERIFY(file.open(QIODevice::WriteOnly));
+        const auto bytes = QJsonDocument::fromVariant(state).toJson(); QCOMPARE(file.write(bytes), bytes.size()); file.close();
+        auto readState = [&]() { QFile saved(path); if (!saved.open(QIODevice::ReadOnly)) return QVariantMap{}; return QJsonDocument::fromJson(saved.readAll()).toVariant().toMap(); };
+        WorkbenchBridge bridge(nullptr, path, false);
+        // Assert before save() can clear the failed startup commit. On Windows
+        // launch replaces this very file while reload's read handle used to be open.
+        QVERIFY(!bridge.loadBlocked()); QVERIFY2(bridge.storageError().isEmpty(), qPrintable(bridge.storageError()));
+        auto remaining = left; remaining.remove(feature);
+        const auto persisted = readState(); QVERIFY(WorkbenchDomain::validate(persisted));
+        QCOMPARE(persisted.value("featureLeft").toMap(), remaining);
+        QCOMPARE(persisted.value("sessions"), state.value("sessions"));
+        bridge.save(); QVERIFY(bridge.storageError().isEmpty());
+        QCOMPARE(readState(), bridge.state());
+        // Record a real clock() timestamp, then load -> launch -> save again.
+        bridge.command("leave"); QVERIFY(bridge.storageError().isEmpty());
+        QVERIFY(readState().value("featureLeft").toMap().contains(feature));
+        bridge.reload(); QVERIFY(!bridge.loadBlocked()); QVERIFY(bridge.storageError().isEmpty());
+        QVERIFY(!readState().value("featureLeft").toMap().contains(feature));
+        bridge.save(); QVERIFY(bridge.storageError().isEmpty()); QCOMPARE(readState(), bridge.state());
+        WorkbenchBridge reopened(nullptr, path, false);
+        QVERIFY(!reopened.loadBlocked()); QVERIFY(reopened.storageError().isEmpty());
+        reopened.save(); QVERIFY(reopened.storageError().isEmpty()); QCOMPARE(readState(), reopened.state());
+    }
+    void smartResetBridgePersistence_data() { smartResetPreservesSessionIdentity_data(); }
+    void smartResetBridgePersistence() {
+        QFETCH(QString, feature); QFETCH(int, timeout);
+        for (const bool reset : {false, true}) {
+            QTemporaryDir dir; const auto path = dir.filePath("state.json");
+            auto state = WorkbenchDomain::create("c", "t"); auto sessions = state.value("sessions").toList();
+            const auto previousID = state.value("active").toMap().value(feature).toString();
+            for (auto &value : sessions) { auto item = value.toMap(); if (item.value("id") == previousID) { item["draft"] = "Saved input"; item["output"] = "Saved result"; } value = item; }
+            state["sessions"] = sessions;
+            state["featureLeft"] = QVariantMap{{feature, QDateTime::currentSecsSinceEpoch() - (reset ? timeout + 60 : timeout / 2)}};
+            QFile file(path); QVERIFY(file.open(QIODevice::WriteOnly)); file.write(QJsonDocument::fromVariant(state).toJson()); file.close();
+            WorkbenchBridge bridge(nullptr, path, false); QVERIFY(!bridge.loadBlocked());
+            bridge.command("navigate", {{"feature", feature}}); QVERIFY(WorkbenchDomain::validate(bridge.state()));
+            QVERIFY(bridge.storageError().isEmpty());
+            const auto after = bridge.state().value("sessions").toList();
+            QCOMPARE(after.size(), sessions.size() + (reset ? 1 : 0));
+            QCOMPARE(reset ? after.mid(1) : after, sessions);
+            const auto selected = current(bridge).value("id").toString();
+            QCOMPARE(selected != previousID, reset);
+            QCOMPARE(!bridge.resetNotice().isEmpty(), reset);
+            bridge.save(); QVERIFY(bridge.storageError().isEmpty());
+            QVERIFY(file.open(QIODevice::ReadOnly)); const auto persisted = QJsonDocument::fromJson(file.readAll()).toVariant().toMap(); file.close();
+            QVERIFY(WorkbenchDomain::validate(persisted)); QVERIFY(!persisted.contains("_resetNotice"));
+            QCOMPARE(persisted.value("sessions"), bridge.state().value("sessions"));
+            WorkbenchBridge reloaded(nullptr, path, false); QVERIFY(!reloaded.loadBlocked());
+            QVERIFY(WorkbenchDomain::validate(reloaded.state()));
+            QCOMPARE(reloaded.state().value("sessions").toList(), after);
+            QCOMPARE(reloaded.state().value("active"), bridge.state().value("active"));
+            QVERIFY(reloaded.resetNotice().isEmpty()); // Notice is transient, not a saved command.
+            if (reset) {
+                const auto beforeDismiss = bridge.state(); bridge.dismissResetNotice();
+                QVERIFY(bridge.resetNotice().isEmpty()); QCOMPARE(bridge.state(), beforeDismiss);
+                bridge.reopenPrevious(); QCOMPARE(bridge.state(), beforeDismiss); // Dismissed notice cannot reopen later.
+                // Restore the original fixture to exercise reopen with a live notice independently.
+                QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate)); file.write(QJsonDocument::fromVariant(state).toJson()); file.close();
+                bridge.reload(); bridge.command("navigate", {{"feature", feature}});
+                QVERIFY(!bridge.resetNotice().isEmpty()); bridge.reopenPrevious();
+                QVERIFY(bridge.resetNotice().isEmpty()); QVERIFY(WorkbenchDomain::validate(bridge.state()));
+                QCOMPARE(bridge.state().value("sessions").toList(), sessions);
+                QCOMPARE(current(bridge).value("id").toString(), previousID);
+                QCOMPARE(current(bridge).value("draft").toString(), QString("Saved input"));
+                QCOMPARE(current(bridge).value("output").toString(), QString("Saved result"));
+                bridge.save(); reloaded.reload(); QVERIFY(!reloaded.loadBlocked());
+                QCOMPARE(reloaded.state().value("sessions"), bridge.state().value("sessions"));
+                QCOMPARE(reloaded.state().value("active"), bridge.state().value("active"));
+            }
+        }
     }
     // Liquid Glass 2.0 backend, second pass (BACKEND-GAPS #4, #30, #31, #39, #40, #46, #52, #56, #57, #64, #6/#23).
     void glassBackendSecondPassReducer() {
@@ -342,6 +716,51 @@ private slots:
         QStandardPaths::setTestModeEnabled(false);
     }
     // Remaining gaps (BACKEND-GAPS #8, #10, #12, #16, #32, #45, #47, #63, #66, #68).
+    void windowsMicrophonePermissionAndCaptureModes() {
+        const bool previous = QStandardPaths::isTestModeEnabled();
+        QStandardPaths::setTestModeEnabled(true);
+        const auto reset = qScopeGuard([previous] {
+            NativeAudio::setMicrophonePermissionForTest({});
+            QStandardPaths::setTestModeEnabled(previous);
+        });
+        NativeAudio audio;
+        for (const auto &status : {"denied", "granted", "undetermined", "denied", "granted"}) {
+            NativeAudio::setMicrophonePermissionForTest(status);
+            QCOMPARE(audio.microphonePermission(), QString(status)); // every call reads again
+        }
+        NativeAudio::setMicrophonePermissionForTest("denied");
+        audio.start("permission-fixture");
+        QCOMPARE(audio.error(), QString("microphoneDenied"));
+        QVERIFY(!audio.recording() && !audio.busy() && audio.owner().isEmpty());
+        const auto folder = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+        QDir().mkpath(folder);
+        const auto path = folder + "/interpretation.json";
+        QFile::remove(path);
+        for (const auto &mode : {"microphone", "mixed", "system"}) {
+            QFile::remove(path);
+            Interpretation live;
+            // Fail persistence before capture, so even the system/granted branch never records.
+            QVERIFY(QDir().mkdir(path));
+            const auto removeBlock = qScopeGuard([path] { QDir().rmdir(path); });
+            NativeAudio::setMicrophonePermissionForTest("denied");
+            live.start("openai:gpt-5", "auto", "en", "vi", "vi", mode, "fixture-device");
+            QVERIFY(!live.listening());
+            QVERIFY(!live.busy());
+            if (QString(mode) == "system") {
+                QCOMPARE(live.error(), QString("interpretStorageError"));
+                QCOMPARE(live.current().value("captureMode").toString(), QString("system"));
+            } else {
+                QCOMPARE(live.error(), QString("microphoneDenied"));
+                QVERIFY(live.sessions().isEmpty());
+                NativeAudio::setMicrophonePermissionForTest("granted");
+                live.start("openai:gpt-5", "auto", "en", "vi", "vi", mode, "fixture-device");
+                QCOMPARE(live.error(), QString("interpretStorageError"));
+                QCOMPARE(live.current().value("captureMode").toString(), QString(mode));
+                QCOMPARE(live.current().value("deviceID").toString(), QString("fixture-device"));
+            }
+        }
+        QFile::remove(path);
+    }
     void remainingGapsServices() {
         // #32: palette queries read sums, prefixes and questions, as Swift PaletteQuery.
         QCOMPARE(LauncherTools::paletteQuery("2+3*4"), (QVariantMap{{"kind", "calculation"}, {"value", "14"}}));
@@ -515,7 +934,8 @@ private slots:
         QTRY_VERIFY(!search->property("inputMethodComposing").toBool());
         QTest::keyClick(root, Qt::Key_Enter);
         QCOMPARE(current(bridge).value("id").toString(), target);
-        QVERIFY(!root->findChild<QObject *>("quick-history")->property("visible").toBool());
+        // Native styles such as FluentWinUI3 keep the popup visible during its exit transition.
+        QTRY_VERIFY(!root->findChild<QObject *>("quick-history")->property("visible").toBool());
         QCOMPARE(bridge.state().value("sessions"), before.value("sessions"));
     }
     void keypadSubmitAndCommands_data() {
@@ -566,7 +986,8 @@ private slots:
         search->setProperty("text", "Cài đặt");
         QTest::keyClick(root, Qt::Key_Enter);
         QTRY_VERIFY(root->property("settings").toBool());
-        QVERIFY(!root->findChild<QObject *>("command-palette")->property("visible").toBool());
+        // Wait for the style's exit transition without weakening the state/IME checks.
+        QTRY_VERIFY(!root->findChild<QObject *>("command-palette")->property("visible").toBool());
         QCOMPARE(bridge.state().value("sessions"), running.value("sessions"));
         QCOMPARE(bridge.state().value("tasks"), running.value("tasks"));
         QCOMPARE(bridge.state().value("active"), running.value("active"));
@@ -876,6 +1297,15 @@ private slots:
         for (const auto &id : {"new", "translate", "history"})
             QVERIFY(QMetaObject::invokeMethod(root, "execute", Q_ARG(QVariant, id), Q_ARG(QVariant, QVariant())));
         QCOMPARE(bridge.state(), before);
+        auto *window = qobject_cast<QQuickWindow *>(root);
+        QVERIFY(window);
+        window->requestActivate();
+        QTRY_VERIFY(window->isActive());
+        for (const auto key : {Qt::Key_0, Qt::Key_1, Qt::Key_2, Qt::Key_3, Qt::Key_N})
+            QTest::keyClick(window, key, Qt::ControlModifier);
+        QTest::keyClick(window, Qt::Key_H, Qt::ControlModifier | Qt::ShiftModifier);
+        QCOMPARE(bridge.state(), before);
+        QVERIFY(!root->findChild<QObject *>("quick-history")->property("visible").toBool());
         QVERIFY(QMetaObject::invokeMethod(root, "execute", Q_ARG(QVariant, "settings"), Q_ARG(QVariant, QVariant())));
         QVERIFY(root->property("settings").toBool());
         QVERIFY(file.open(QIODevice::ReadOnly)); QCOMPARE(file.readAll(), QByteArray("invalid-json"));
@@ -1019,183 +1449,524 @@ private slots:
         QTest::newRow("light") << QString("light");
         QTest::newRow("dark") << QString("dark");
     }
-    void glassComposerKeepsEditorAndModelOwnership() {
+    void glassOverlayLayout_data() { glassComposerKeepsEditorAndModelOwnership_data(); }
+    void glassOverlayLayout() {
         QFETCH(QString, mode);
         QTemporaryDir dir;
-        auto fixture = WorkbenchDomain::create("chat-first", "translate-first");
-        auto sessions = fixture.value("sessions").toList();
-        auto historicalChat = sessions.first().toMap();
-        historicalChat["id"] = "chat-history";
-        historicalChat["messages"] = QVariantList{QVariantMap{{"id", "synthetic-message"}, {"role", "user"}, {"text", "A synthetic saved conversation"}}};
-        sessions.append(historicalChat);
-        fixture["sessions"] = sessions;
-        QVERIFY(WorkbenchDomain::validate(fixture));
-        QFile file(dir.filePath("state.json"));
-        QVERIFY(file.open(QIODevice::WriteOnly));
-        QVERIFY(file.write(QJsonDocument::fromVariant(fixture).toJson()) > 0);
-        file.close();
         WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
         bridge.command("route", {{"value", "chat"}});
         bridge.command("appearance", {{"preset", "glass"}, {"mode", mode}});
-        ProviderDiscovery::Snapshot snapshot;
-        snapshot.checked = true;
-        snapshot.models["ollama"] = {"ollama:llama3.2", "ollama:qwen3:8b"};
-        bridge.applyProviderSnapshot(snapshot); // No provider requests or credentials.
+        ProviderDiscovery::Snapshot snapshot; snapshot.checked = true;
+        snapshot.models["ollama"] = {"ollama:llama3.2"}; bridge.applyProviderSnapshot(snapshot);
         bridge.command("model", {{"value", "ollama:llama3.2"}});
-        QQmlApplicationEngine engine;
-        QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        QQmlApplicationEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.rootContext()->setContextProperty("workbench", &bridge); engine.load(QUrl("qrc:/qml/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *root = qobject_cast<QQuickWindow *>(engine.rootObjects().first()); QVERIFY(root);
+        root->resize(1280, 800); QCoreApplication::processEvents();
+        const auto strings = bridge.resources().value("locales").toMap().value(bridge.state().value("locale").toString()).toMap();
+        auto *modelTrigger = visualItem(root->contentItem(), "chat-model-trigger"); QVERIFY(modelTrigger);
+        QVERIFY(QMetaObject::invokeMethod(modelTrigger, "clicked"));
+        auto *lineup = root->findChild<QObject *>("model-lineup-panel"); QVERIFY(lineup);
+        QTRY_VERIFY(lineup->property("visible").toBool());
+        const auto rows = lineup->property("rows").value<QJSValue>().toVariant().toList();
+        for (const auto &provider : {QString("openai"), QString("claude"), QString("gemini")}) {
+            QVariantMap setup;
+            for (const auto &row : rows) if (row.toMap().value("kind") == "setup" && row.toMap().value("provider") == provider) setup = row.toMap();
+            QVERIFY(!setup.isEmpty()); QVariant label;
+            QVERIFY(QMetaObject::invokeMethod(lineup, "label", Q_RETURN_ARG(QVariant, label), Q_ARG(QVariant, setup)));
+            const auto name = provider == "openai" ? "OpenAI" : provider == "claude" ? "Claude" : "Gemini";
+            QCOMPARE(label.toString(), strings.value("setupProvider").toString().replace("{provider}", name));
+        }
+        auto *surface = lineup->property("background").value<QQuickItem *>(); QVERIFY(surface);
+        QCOMPARE(surface->property("overlayColor").value<QColor>().alpha(), 255);
+        QVERIFY(QMetaObject::invokeMethod(lineup, "close"));
+        auto *opener = visualItem(root->contentItem(), "chat-tools-trigger"); QVERIFY(opener);
+        auto *toolsPanel = root->findChild<QObject *>("chat-tools-panel"); QVERIFY(toolsPanel);
+        for (const auto width : {640, 820, 1280}) {
+            root->resize(width, 800); QCoreApplication::processEvents();
+            QVERIFY(QMetaObject::invokeMethod(opener, "clicked")); QTRY_VERIFY(toolsPanel->property("visible").toBool());
+            const auto top = toolsPanel->property("y").toDouble();
+            const auto bottom = top + toolsPanel->property("height").toDouble();
+            QVERIFY(top >= 0); QVERIFY(bottom <= opener->mapToScene(QPointF()).y()); QVERIFY(bottom <= root->height());
+            auto *attach = visualItem(root->contentItem(), "chat-tools-attach"); QVERIFY(attach);
+            QVERIFY(!attach->property("visualFocus").toBool());
+            auto *scroll = visualItem(root->contentItem(), "chat-tools-scroll"); QVERIFY(scroll);
+            auto *flick = scroll->property("contentItem").value<QQuickItem *>(); QVERIFY(flick);
+            auto *stop = visualItem(root->contentItem(), "chat-tools-stop"); QVERIFY(stop);
+            flick->setProperty("contentY", scroll->property("contentHeight").toDouble() - scroll->property("availableHeight").toDouble());
+            QTRY_VERIFY(stop->mapToScene(QPointF(0, stop->height())).y() <= bottom);
+            QVERIFY(stop->mapToScene(QPointF()).y() >= top);
+            QVERIFY(stop->mapToScene(QPointF(stop->width(), 0)).x() <= root->width());
+            auto *reasoning = visualItem(root->contentItem(), "chat-tools-reasoning"); QVERIFY(reasoning);
+            reasoning->forceActiveFocus(Qt::TabFocusReason); QCoreApplication::processEvents();
+            QVERIFY(reasoning->mapToScene(QPointF()).y() >= top);
+            QTest::keyClick(root, Qt::Key_Space); QTRY_VERIFY(current(bridge).value("carefulReasoning").toBool());
+            bridge.command("carefulReasoning", {{"value", false}});
+            QVERIFY(QMetaObject::invokeMethod(toolsPanel, "close")); QTRY_VERIFY(!toolsPanel->property("visible").toBool());
+        }
+        root->resize(820, 800); QCoreApplication::processEvents();
+        auto *nav = root->findChild<QObject *>("navigation-overlay"); QVERIFY(nav);
+        QVERIFY(QMetaObject::invokeMethod(nav, "open")); QTRY_VERIFY(nav->property("visible").toBool());
+        auto *navBackground = nav->property("background").value<QQuickItem *>(); QVERIFY(navBackground); QVERIFY(!navBackground->isVisible());
+        QVERIFY(QMetaObject::invokeMethod(nav, "close"));
+        root->resize(1280, 800); QCoreApplication::processEvents();
+        auto *palette = root->findChild<QObject *>("command-palette"); QVERIFY(palette);
+        QVERIFY(QMetaObject::invokeMethod(palette, "open")); QTRY_VERIFY(palette->property("visible").toBool());
+        QCOMPARE(palette->property("width").toInt(), 560); QVERIFY(palette->property("y").toDouble() < 100);
+        const auto commands = root->property("commandEntries").value<QJSValue>().toVariant().toList();
+        QStringList expectedPages, expectedActions, actualPages, actualActions, actualOrder;
+        const QStringList actionIDs{"new", "history", "activity", "navigation"};
+        for (const auto &entry : bridge.resources().value("commands").toList()) {
+            const auto id = entry.toMap().value("id").toString();
+            (actionIDs.contains(id) ? expectedActions : expectedPages).append(id);
+        }
+        QVERIFY(expectedPages.size() >= 10); // Use the full real catalog, not a small sort fixture.
+        for (const auto &entry : commands) {
+            const auto row = entry.toMap(); const auto id = row.value("id").toString();
+            (row.value("group") == "paletteGroupActions" ? actualActions : actualPages).append(id);
+            actualOrder.append(id);
+        }
+        QCOMPARE(actualPages, expectedPages);
+        QCOMPARE(actualActions, expectedActions);
+        QCOMPARE(actualOrder, expectedPages + expectedActions);
+        QVERIFY(QMetaObject::invokeMethod(palette, "close"));
+        root->setProperty("library", true); QCoreApplication::processEvents();
+        auto *emptyHistory = visualItem(root->contentItem(), "history-empty-message"); QVERIFY(emptyHistory);
+        QTRY_COMPARE(emptyHistory->property("text").toString(), strings.value("historyEmpty").toString());
+        auto *previewActions = visualItem(root->contentItem(), "history-preview-actions"); QVERIFY(previewActions);
+        QVERIFY(!previewActions->isVisible());
+        root->setProperty("archivedHistory", true);
+        QTRY_COMPARE(emptyHistory->property("text").toString(), strings.value("historyArchivedEmpty").toString());
+        root->setProperty("historyQuery", "no-match");
+        QTRY_COMPARE(emptyHistory->property("text").toString(), strings.value("noHistory").toString());
+        QVERIFY(visualText(root->contentItem(), strings.value("historyNoMatchesHint").toString())->isVisible());
+        root->setProperty("historyQuery", ""); root->setProperty("archivedHistory", false); root->setProperty("library", false);
+        auto *activity = root->findChild<QObject *>("activity-panel"); QVERIFY(activity);
+        QVERIFY(QMetaObject::invokeMethod(activity, "open")); QTRY_VERIFY(activity->property("visible").toBool());
+        const auto emptyHeight = activity->property("height").toDouble(); QVERIFY(emptyHeight < 140);
+        bridge.command("draft", {{"value", "Synthetic activity"}}); bridge.command("submit");
+        QTRY_VERIFY(activity->property("height").toDouble() > emptyHeight);
+        auto *heading = visualItem(root->contentItem(), "activity-title"); QVERIFY(heading);
+        QCOMPARE(heading->property("text").toString(), strings.value("activityCount").toString().replace("{count}", "1"));
+        bridge.command("cancel", {{"taskID", latest(bridge).value("id")}});
+        for (const auto &warning : warnings) for (const auto &error : qvariant_cast<QList<QQmlError>>(warning.at(0))) qWarning().noquote() << error.toString();
+        QCOMPARE(warnings.count(), 0);
+    }
+    void glassOverlayScrollbarsAndPointerFocus_data() { glassComposerKeepsEditorAndModelOwnership_data(); }
+    void glassOverlayScrollbarsAndPointerFocus() {
+        QFETCH(QString, mode);
+        QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("route", {{"value", "chat"}});
+        bridge.command("appearance", {{"preset", "glass"}, {"mode", mode}});
+        ProviderDiscovery::Snapshot snapshot; snapshot.checked = true; bridge.applyProviderSnapshot(snapshot);
+        QQmlApplicationEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.rootContext()->setContextProperty("workbench", &bridge); engine.load(QUrl("qrc:/qml/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty());
+        auto *root = qobject_cast<QQuickWindow *>(engine.rootObjects().first()); QVERIFY(root);
+        root->resize(1280, 800); QCoreApplication::processEvents();
+        auto *opener = visualItem(root->contentItem(), "chat-tools-trigger"); QVERIFY(opener);
+        auto *tools = root->findChild<QObject *>("chat-tools-panel"); QVERIFY(tools);
+        QSignalSpy toolsClosed(tools, SIGNAL(closed()));
+        const auto center = [](QQuickItem *item) { return item->mapToScene(QPointF(item->width() / 2, item->height() / 2)).toPoint(); };
+        QTest::mouseMove(root, center(opener));
+        QTest::mouseClick(root, Qt::LeftButton, Qt::NoModifier, center(opener));
+        QTRY_VERIFY(tools->property("visible").toBool());
+        // Popup grabs differ on offscreen. Reproduce the retained hover seen on
+        // Windows with a native hover event, so the tooltip assertion is not vacuous.
+        opener->setProperty("hoverEnabled", true);
+        QHoverEvent retainedHover(QEvent::HoverEnter, center(opener), root->mapToGlobal(center(opener)), QPointF(-1, -1));
+        QCoreApplication::sendEvent(opener, &retainedHover);
+        QVERIFY(opener->property("hovered").toBool());
+        QVERIFY(!opener->property("checked").toBool()); QVERIFY(!opener->property("checkable").toBool());
+        QVERIFY(!opener->property("visualFocus").toBool());
+        QQmlExpression tooltip(qmlContext(opener), opener, "ToolTip.visible");
+        QVERIFY(!tooltip.evaluate().toBool()); QVERIFY2(!tooltip.hasError(), qPrintable(tooltip.error().toString()));
+        QHoverEvent leaveHover(QEvent::HoverLeave, QPointF(-1, -1), root->mapToGlobal(QPoint(0, 0)), center(opener));
+        QCoreApplication::sendEvent(opener, &leaveHover);
+        auto *scroll = visualItem(root->contentItem(), "chat-tools-scroll"); QVERIFY(scroll);
+        auto *bar = visualItem(root->contentItem(), "chat-tools-scrollbar"); QVERIFY(bar);
+        auto *thumb = bar->property("contentItem").value<QQuickItem *>(); QVERIFY(thumb);
+        auto *flick = scroll->property("contentItem").value<QQuickItem *>(); QVERIFY(flick);
+        QTRY_VERIFY(scroll->property("contentHeight").toDouble() > scroll->height());
+        QTest::mouseMove(root, QPoint(0, 0)); QTest::qWait(800); // Beyond the native 450 + 200 ms fade.
+        QCOMPARE(bar->property("policy").toInt(), 2); // ScrollBar.AlwaysOn
+        QVERIFY(bar->isVisible() && thumb->isVisible()); QVERIFY(thumb->opacity() > .7);
+        QCOMPARE(bar->parentItem(), scroll);
+        QVERIFY(qAbs(bar->height() - scroll->property("availableHeight").toDouble()) < 1);
+        QVERIFY(qAbs(bar->x() + bar->width() - scroll->width()) < 1);
+        QVERIFY(thumb->height() > bar->width()); // Not a zero-length bar/dot at the menu origin.
+        QTest::mousePress(root, Qt::LeftButton, Qt::NoModifier, center(thumb));
+        QTest::mouseMove(root, bar->mapToScene(QPointF(bar->width() / 2, bar->height() - 1)).toPoint(), 50);
+        QTest::mouseRelease(root, Qt::LeftButton, Qt::NoModifier, bar->mapToScene(QPointF(bar->width() / 2, bar->height() - 1)).toPoint());
+        QTRY_VERIFY(flick->property("contentY").toDouble() > 0);
+        auto *stop = visualItem(root->contentItem(), "chat-tools-stop"); QVERIFY(stop);
+        QTRY_VERIFY(stop->mapToScene(QPointF(0, stop->height())).y() <= scroll->mapToScene(QPointF(0, scroll->height())).y() + 1);
+        QVERIFY(stop->mapToScene(QPointF()).y() >= scroll->mapToScene(QPointF()).y());
+        QVERIFY(QMetaObject::invokeMethod(tools, "close")); QTRY_COMPARE(toolsClosed.count(), 1);
+        QTRY_VERIFY(opener->hasActiveFocus());
+        QTest::keyClick(root, Qt::Key_Tab);
+        QTest::keyClick(root, Qt::Key_Backtab, Qt::ShiftModifier);
+        QTRY_VERIFY(opener->hasActiveFocus());
+        QTRY_VERIFY(opener->property("visualFocus").toBool());
+        QTest::keyClick(root, Qt::Key_Space); QTRY_VERIFY(tools->property("visible").toBool());
+        QVERIFY(tools->property("keyboardInvocation").toBool());
+        auto *attach = visualItem(root->contentItem(), "chat-tools-attach"); QVERIFY(attach);
+        QTRY_VERIFY(attach->property("visualFocus").toBool());
+        QVERIFY(QMetaObject::invokeMethod(tools, "close")); QTRY_VERIFY(!tools->property("visible").toBool());
+        auto *modelTrigger = visualItem(root->contentItem(), "chat-model-trigger"); QVERIFY(modelTrigger);
+        QVERIFY(QMetaObject::invokeMethod(modelTrigger, "clicked"));
+        auto *lineup = root->findChild<QObject *>("model-lineup-panel"); QVERIFY(lineup); QTRY_VERIFY(lineup->property("visible").toBool());
+        auto *models = visualItem(root->contentItem(), "model-lineup-list"); QVERIFY(models);
+        auto *modelBar = visualItem(root->contentItem(), "model-lineup-scrollbar"); QVERIFY(modelBar);
+        const auto setupRows = lineup->property("rows").value<QJSValue>().toVariant().toList();
+        bool hasLocalSetup = false;
+        for (const auto &row : setupRows) hasLocalSetup |= row.toMap().value("kind") == "setup" && row.toMap().value("provider") == "local";
+        QVERIFY(hasLocalSetup);
+        QVERIFY(QMetaObject::invokeMethod(models, "positionViewAtEnd"));
+        QQuickItem *localSetup = nullptr;
+        QTRY_VERIFY(localSetup = visualItem(root->contentItem(), "model-lineup-row-" + QString::number(setupRows.size() - 1)));
+        QVERIFY(QMetaObject::invokeMethod(models, "forceLayout"));
+        QVERIFY(QMetaObject::invokeMethod(models, "positionViewAtEnd"));
+        QCoreApplication::processEvents();
+        QTRY_VERIFY(localSetup->mapToScene(QPointF(0, localSetup->height())).y() <= models->mapToScene(QPointF(0, models->height())).y() + 1);
+        QVERIFY(localSetup->mapToScene(QPointF()).y() >= models->mapToScene(QPointF()).y());
+        // Exercise overflow with real ModelLineup output and enough synthetic local models.
+        for (int i = 0; i < 40; ++i) snapshot.models["ollama"].append("ollama:synthetic-" + QString::number(i));
+        bridge.applyProviderSnapshot(snapshot);
+        QTRY_VERIFY(models->property("contentHeight").toDouble() > models->height());
+        QTest::mouseMove(root, QPoint(0, 0)); QTest::qWait(800);
+        QCOMPARE(modelBar->property("policy").toInt(), 2); QVERIFY(modelBar->isVisible());
+        auto *modelThumb = modelBar->property("contentItem").value<QQuickItem *>(); QVERIFY(modelThumb && modelThumb->isVisible());
+        QVERIFY(modelThumb->opacity() > .7); QVERIFY(qAbs(modelBar->height() - models->height()) < 1);
+        auto *modelSearch = visualItem(root->contentItem(), "model-lineup-search"); QVERIFY(modelSearch);
+        modelSearch->setProperty("text", "unique-typed-model");
+        QTRY_VERIFY(models->property("contentHeight").toDouble() <= models->height());
+        QTRY_COMPARE(modelBar->property("policy").toInt(), 1); QVERIFY(!modelBar->isVisible());
+        QVERIFY(QMetaObject::invokeMethod(lineup, "close")); QTRY_VERIFY(!lineup->property("visible").toBool());
+        QTest::keyClick(root, Qt::Key_K, Qt::ControlModifier);
+        auto *palette = root->findChild<QObject *>("command-palette"); QVERIFY(palette); QTRY_VERIFY(palette->property("visible").toBool());
+        auto *commands = visualItem(root->contentItem(), "command-list"); QVERIFY(commands);
+        auto *commandBar = visualItem(root->contentItem(), "command-scrollbar"); QVERIFY(commandBar);
+        QTRY_VERIFY(commands->property("contentHeight").toDouble() > commands->height());
+        QTest::mouseMove(root, QPoint(0, 0)); QTest::qWait(800);
+        QCOMPARE(commandBar->property("policy").toInt(), 2); QVERIFY(commandBar->isVisible());
+        auto *commandThumb = commandBar->property("contentItem").value<QQuickItem *>(); QVERIFY(commandThumb && commandThumb->isVisible());
+        QVERIFY(commandThumb->opacity() > .7); QVERIFY(qAbs(commandBar->height() - commands->height()) < 1);
+        root->setProperty("commandQuery", "no-such-command");
+        QTRY_COMPARE(commandBar->property("policy").toInt(), 1); QVERIFY(!commandBar->isVisible());
+        QVERIFY(QMetaObject::invokeMethod(palette, "close"));
+        // A real active-chat fixture puts the composer at the bottom at the same
+        // 1280x800 size. The full tools menu then fits and needs no scrollbar.
+        bridge.command("model", {{"value", "ollama:synthetic-0"}});
+        bridge.command("draft", {{"value", "Synthetic question"}}); bridge.command("submit");
+        const auto task = latest(bridge);
+        bridge.command("receive", {{"taskID", task.value("id")}, {"attemptID", task.value("attemptID")}, {"chunk", "Synthetic answer"}, {"terminal", "succeeded"}});
+        QCoreApplication::processEvents();
+        QVERIFY(QMetaObject::invokeMethod(opener, "clicked")); QTRY_VERIFY(tools->property("visible").toBool());
+        QTRY_VERIFY(scroll->property("contentHeight").toDouble() <= scroll->height());
+        QCOMPARE(bar->property("policy").toInt(), 1); QVERIFY(!bar->isVisible()); // AlwaysOff
+        for (const auto &warning : warnings) for (const auto &error : qvariant_cast<QList<QQmlError>>(warning.at(0))) qWarning().noquote() << error.toString();
+        QCOMPARE(warnings.count(), 0);
+    }
+    void glassComposerKeepsEditorAndModelOwnership() {
+        QFETCH(QString, mode);
+        QTemporaryDir dir;
+        WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("route", {{"value", "chat"}});
+        bridge.command("appearance", {{"preset", "glass"}, {"mode", mode}});
+        ProviderDiscovery::Snapshot snapshot; snapshot.checked = true;
+        snapshot.models["ollama"] = {"ollama:llama3.2", "ollama:qwen3:8b"};
+        snapshot.models["claude"] = {"claude:claude-haiku-5-5", "claude:claude-sonnet-5-5", "claude:claude-opus-5-5"};
+        bridge.applyProviderSnapshot(snapshot);
+        bridge.command("model", {{"value", "ollama:llama3.2"}});
+        QQmlApplicationEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
         engine.rootContext()->setContextProperty("workbench", &bridge);
         engine.load(QUrl("qrc:/qml/Main.qml"));
         QVERIFY(!engine.rootObjects().isEmpty());
-        auto *root = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
-        QVERIFY(root);
-        root->resize(1200, 820);
-        QCoreApplication::processEvents();
+        auto *root = qobject_cast<QQuickWindow *>(engine.rootObjects().first()); QVERIFY(root);
+        root->resize(1200, 820); QCoreApplication::processEvents();
         auto *composer = visualItem(root->contentItem(), "chat-composer");
         auto *scroll = visualItem(root->contentItem(), "chat-draft-scroll");
         auto *send = visualItem(root->contentItem(), "chat-send");
-        auto *combo = visualItem(root->contentItem(), "chat-model-picker");
-        auto *modelOptions = visualItem(root->contentItem(), "chat-model-options");
+        auto *trigger = visualItem(root->contentItem(), "chat-model-trigger");
         auto *record = visualItem(root->contentItem(), "chat-record");
         QPointer<QQuickItem> editor = visualItem(root->contentItem(), "chat-draft");
-        QVERIFY(composer); QVERIFY(scroll); QVERIFY(send); QVERIFY(combo); QVERIFY(modelOptions); QVERIFY(record); QVERIFY(editor);
-        QTRY_VERIFY(composer->property("singleRow").toBool());
-        const auto emptyComposerY = composer->mapToScene(QPointF()).y();
-        QVERIFY(!send->isEnabled());
+        QVERIFY(composer && scroll && send && trigger && record && editor);
+        QTRY_VERIFY(composer->property("singleRow").toBool()); QVERIFY(!send->isEnabled());
         const auto chatID = current(bridge).value("id");
         const QString draft = QString::fromUtf8("Hi 日本語");
-        editor->setProperty("text", draft);
-        editor->forceActiveFocus();
+        editor->setProperty("text", draft); editor->forceActiveFocus();
         QVERIFY(QMetaObject::invokeMethod(editor, "select", Q_ARG(int, 3), Q_ARG(int, 6)));
         const auto selected = editor->property("selectedText").toString();
-        const auto cursor = editor->property("cursorPosition").toInt();
-        for (const auto width : {820, 640, 1200}) {
-            root->setWidth(width);
-            QCoreApplication::processEvents();
+        for (const auto width : {640, 820, 1200}) {
+            root->setWidth(width); QCoreApplication::processEvents();
             QCOMPARE(editor.data(), visualItem(root->contentItem(), "chat-draft"));
             QCOMPARE(editor->property("text").toString(), draft);
             QCOMPARE(editor->property("selectedText").toString(), selected);
-            QCOMPARE(editor->property("cursorPosition").toInt(), cursor);
-            QCOMPARE(current(bridge).value("id"), chatID);
-            QVERIFY(editor->hasActiveFocus());
-            // The named controls must own separate click regions. A custom
-            // ComboBox label cannot rely on Fusion's TextInput width measuring.
-            QVERIFY(combo->width() >= bridge.resources().value("metrics").toMap().value("editor").toDouble());
-            const auto comboRight = combo->mapToScene(QPointF(combo->width(), 0)).x();
-            const auto optionsLeft = modelOptions->mapToScene(QPointF()).x();
-            const auto optionsRight = modelOptions->mapToScene(QPointF(modelOptions->width(), 0)).x();
-            const auto recordLeft = record->mapToScene(QPointF()).x();
-            QVERIFY(comboRight <= optionsLeft);
-            QVERIFY(optionsRight <= recordLeft);
+            QCOMPARE(current(bridge).value("id"), chatID); QVERIFY(editor->hasActiveFocus());
+            QTRY_VERIFY(composer->property("singleRow").toBool());
+            QVERIFY(trigger->width() >= 36);
+            QVERIFY(trigger->mapToScene(QPointF(trigger->width(), 0)).x() <= record->mapToScene(QPointF()).x());
             QVERIFY(record->mapToScene(QPointF(record->width(), 0)).x() <= send->mapToScene(QPointF()).x());
-            auto *modelLabel = combo->property("contentItem").value<QQuickItem *>();
-            QVERIFY(modelLabel);
-            QVERIFY(modelLabel->width() <= combo->width());
         }
-        QVERIFY(send->isEnabled());
         const QString fiveLines = QString::fromUtf8("Một\nHai\n三\n四\nFive");
         editor->setProperty("text", fiveLines);
         QTRY_VERIFY(!composer->property("singleRow").toBool());
         QTRY_VERIFY(scroll->height() >= editor->height() - 1);
-        const auto cappedHeight = scroll->height();
-        editor->setProperty("text", fiveLines + "\nSix");
-        QTRY_VERIFY(editor->height() > scroll->height());
-        QCOMPARE(scroll->height(), cappedHeight);
-        QCOMPARE(editor.data(), visualItem(root->contentItem(), "chat-draft"));
-        QCOMPARE(current(bridge).value("draft").toString(), fiveLines + "\nSix");
-        // Qt 6.8 deletes a ComboBox's replaced delegate. A theme round trip
-        // must retain this owned component before the popup creates its rows.
-        QPointer<QQmlComponent> modelDelegate = combo->property("delegate").value<QQmlComponent *>();
-        QVERIFY(modelDelegate);
-        bridge.command("appearance", {{"preset", "graphite"}, {"mode", mode}});
-        QCoreApplication::processEvents();
-        QVERIFY(modelDelegate);
-        QCOMPARE(combo->property("delegate").value<QQmlComponent *>(), modelDelegate.data());
-        auto *nativeLabel = combo->property("contentItem").value<QQuickItem *>();
-        QVERIFY(nativeLabel);
-        QVERIFY(nativeLabel->isVisible());
-        QCOMPARE(editor.data(), visualItem(root->contentItem(), "chat-draft"));
-        bridge.command("appearance", {{"preset", "glass"}, {"mode", mode}});
-        QCoreApplication::processEvents();
-        QVERIFY(modelDelegate);
-        QCOMPARE(combo->property("delegate").value<QQmlComponent *>(), modelDelegate.data());
-        QCOMPARE(combo->property("contentItem").value<QQuickItem *>(), nativeLabel);
-        QVERIFY(!nativeLabel->isVisible());
-        auto *glassLabel = visualItem(combo, "chat-model-label");
-        QVERIFY(glassLabel);
-        QVERIFY(glassLabel->isVisible());
-        QCOMPARE(editor.data(), visualItem(root->contentItem(), "chat-draft"));
-        QCOMPARE(current(bridge).value("draft").toString(), fiveLines + "\nSix");
-        QObject *popup = nullptr;
-        for (const auto &preset : {QString("glass"), QString("graphite"), QString("glass")}) {
-            bridge.command("appearance", {{"preset", preset}, {"mode", mode}});
-            QCoreApplication::processEvents();
-            popup = combo->property("popup").value<QObject *>();
-            QVERIFY(popup);
-            QVERIFY(QMetaObject::invokeMethod(popup, "open"));
-            QTRY_VERIFY2(popup->property("visible").toBool(), qPrintable(preset));
-            auto *popupContent = popup->property("contentItem").value<QQuickItem *>();
-            QVERIFY(popupContent);
-            QTRY_VERIFY(visualItem(popupContent, "chat-model-option"));
-            auto *option = visualItem(popupContent, "chat-model-option");
-            auto *nativeContent = option->property("contentItem").value<QQuickItem *>();
-            auto *nativeBackground = option->property("background").value<QQuickItem *>();
-            auto *glassContent = visualItem(option, "chat-model-option-label");
-            auto *glassBackground = visualItem(option, "chat-model-option-glass");
-            QVERIFY(nativeContent && nativeBackground && glassContent && glassBackground);
-            QTRY_VERIFY(option->isVisible());
-            const bool glass = preset == "glass";
-            QCOMPARE(nativeContent->isVisible(), !glass);
-            QCOMPARE(glassContent->isVisible(), glass);
-            QCOMPARE(glassBackground->isVisible(), glass);
-            // Fusion owns its native hover/pressed background visibility.
-            QCOMPARE(nativeBackground->isVisible(), !glass && (option->property("highlighted").toBool() || option->property("down").toBool()));
-            QVERIFY(QMetaObject::invokeMethod(popup, "close"));
-            QTRY_VERIFY(!popup->property("visible").toBool());
+        const auto cap = scroll->height(); editor->setProperty("text", fiveLines + "\nSix");
+        QTRY_VERIFY(editor->height() > scroll->height()); QCOMPARE(scroll->height(), cap);
+        for (const auto &preset : {QString("graphite"), QString("glass"), QString("paper"), QString("glass")}) {
+            bridge.command("appearance", {{"preset", preset}, {"mode", mode}}); QCoreApplication::processEvents();
+            QCOMPARE(editor.data(), visualItem(root->contentItem(), "chat-draft"));
+            QCOMPARE(editor->property("text").toString(), fiveLines + "\nSix");
         }
-        QVERIFY(QMetaObject::invokeMethod(popup, "open"));
-        QTRY_VERIFY(popup->property("visible").toBool());
-        bridge.command("new");
-        QTRY_VERIFY(!popup->property("visible").toBool());
-        QVERIFY(current(bridge).value("id") != chatID);
-        bridge.command("select", {{"sessionID", chatID}});
-        QCoreApplication::processEvents();
-        combo->forceActiveFocus();
-        QTest::keyClick(root, Qt::Key_Space);
-        QTRY_VERIFY(popup->property("visible").toBool());
-        QTest::keyClick(root, Qt::Key_Down);
+        auto *panel = root->findChild<QObject *>("model-lineup-panel"); QVERIFY(panel);
+        QVERIFY(QMetaObject::invokeMethod(trigger, "clicked")); QTRY_VERIFY(panel->property("visible").toBool());
+        auto *search = visualItem(root->contentItem(), "model-lineup-search"); QVERIFY(search);
+        QTRY_VERIFY(search->hasActiveFocus());
+        search->setProperty("text", "ollama:qwen3:8b"); QCoreApplication::processEvents();
+        QInputMethodEvent preedit(QString::fromUtf8("にほん"), {}); QCoreApplication::sendEvent(search, &preedit);
+        QTest::keyClick(root, Qt::Key_Return); QCOMPARE(current(bridge).value("model").toString(), QString("ollama:llama3.2"));
+        QInputMethodEvent end; QCoreApplication::sendEvent(search, &end);
         QTest::keyClick(root, Qt::Key_Return);
         QTRY_COMPARE(current(bridge).value("model").toString(), QString("ollama:qwen3:8b"));
+        QTRY_VERIFY(!panel->property("visible").toBool()); QTRY_VERIFY(trigger->hasActiveFocus());
         QCOMPARE(current(bridge).value("draft").toString(), fiveLines + "\nSix");
-        bridge.command("select", {{"sessionID", "chat-history"}});
-        QTRY_VERIFY(composer->mapToScene(QPointF()).y() > emptyComposerY);
-        QCOMPARE(editor.data(), visualItem(root->contentItem(), "chat-draft"));
-        bridge.command("select", {{"sessionID", chatID}});
-        QTRY_COMPARE(editor->property("text").toString(), fiveLines + "\nSix");
-        QCOMPARE(editor.data(), visualItem(root->contentItem(), "chat-draft"));
-        // Model settings belong to the window overlay, not the composer at
-        // the bottom of the conversation. Opening must not clamp its content.
-        auto *configuration = root->findChild<QObject *>("model-configuration-dialog");
-        QVERIFY(configuration);
-        const auto beforeConfiguration = bridge.state();
-        for (const auto size : {QSize(640, 480), QSize(820, 820), QSize(1200, 820)}) {
-            root->resize(size);
-            QCoreApplication::processEvents();
-            QVERIFY(QMetaObject::invokeMethod(configuration, "open"));
-            QTRY_VERIFY(configuration->property("visible").toBool());
-            auto *content = configuration->property("contentItem").value<QQuickItem *>();
-            QVERIFY(content);
-            QTRY_VERIFY(content->height() >= configuration->property("contentHeight").toDouble());
-            const auto x = configuration->property("x").toDouble();
-            const auto y = configuration->property("y").toDouble();
-            QVERIFY(x >= 0 && y >= 0);
-            QVERIFY(x + configuration->property("width").toDouble() <= size.width());
-            QVERIFY(y + configuration->property("height").toDouble() <= size.height());
-            QVERIFY(QMetaObject::invokeMethod(configuration, "close"));
-            QTRY_VERIFY(!configuration->property("visible").toBool());
-        }
-        QCOMPARE(bridge.state(), beforeConfiguration);
+        // Tier rows are supplied by ModelLineup, and apply to the owning session.
+        bridge.command("model", {{"value", "claude:claude-haiku-5-5"}});
+        QVERIFY(QMetaObject::invokeMethod(trigger, "clicked")); QTRY_VERIFY(panel->property("visible").toBool());
+        QQuickItem *careful = nullptr; QTRY_VERIFY(careful = visualItem(root->contentItem(), "model-lineup-row-2"));
+        QVERIFY(QMetaObject::invokeMethod(careful, "clicked"));
+        QTRY_COMPARE(current(bridge).value("model").toString(), QString("claude:claude-opus-5-5"));
+        QVERIFY(current(bridge).value("carefulReasoning").toBool());
+        QTRY_VERIFY(!panel->property("visible").toBool());
+        QVERIFY(QMetaObject::invokeMethod(trigger, "clicked")); QTRY_VERIFY(panel->property("visible").toBool());
+        bridge.command("new"); QTRY_VERIFY(!panel->property("visible").toBool());
+        bridge.command("select", {{"sessionID", chatID}}); QCoreApplication::processEvents();
+        QCOMPARE(editor->property("text").toString(), fiveLines + "\nSix");
+        // Shell overlays and composer panels replace each other, without changing drafts.
+        QVERIFY(QMetaObject::invokeMethod(trigger, "clicked")); QTRY_VERIFY(panel->property("visible").toBool());
+        QVERIFY(QMetaObject::invokeMethod(root, "execute", Q_ARG(QVariant, "history"), Q_ARG(QVariant, QVariant())));
+        QTRY_VERIFY(!panel->property("visible").toBool());
+        auto *history = root->findChild<QObject *>("quick-history"); QVERIFY(history);
+        QTRY_VERIFY(history->property("visible").toBool()); QTest::keyClick(root, Qt::Key_Escape);
+        QTRY_VERIFY(!history->property("visible").toBool());
+        auto *tools = visualItem(root->contentItem(), "chat-tools-trigger"); QVERIFY(tools);
+        QVERIFY(QMetaObject::invokeMethod(tools, "clicked"));
+        auto *toolsPanel = root->findChild<QObject *>("chat-tools-panel"); QVERIFY(toolsPanel);
+        QTRY_VERIFY(toolsPanel->property("visible").toBool());
+        auto *instructions = visualItem(root->contentItem(), "chat-instructions-trigger"); QVERIFY(instructions);
+        QVERIFY(QMetaObject::invokeMethod(instructions, "clicked"));
+        auto *instructionsPanel = root->findChild<QObject *>("chat-instructions-panel"); QVERIFY(instructionsPanel);
+        QTRY_VERIFY(instructionsPanel->property("visible").toBool()); QTRY_VERIFY(!toolsPanel->property("visible").toBool());
+        auto *instructionEditor = visualItem(root->contentItem(), "chat-instructions-editor"); QVERIFY(instructionEditor);
+        instructionEditor->setProperty("text", "Keep this instruction with this session.");
+        QCOMPARE(current(bridge).value("systemPrompt").toString(), QString("Keep this instruction with this session."));
+        bridge.command("new"); QTRY_VERIFY(!instructionsPanel->property("visible").toBool());
+        QVERIFY(current(bridge).value("systemPrompt").toString().isEmpty());
         QVERIFY(bridge.state().value("tasks").toList().isEmpty());
+        for (const auto &warning : warnings) for (const auto &error : qvariant_cast<QList<QQmlError>>(warning.at(0))) qWarning().noquote() << error.toString();
+        QCOMPARE(warnings.count(), 0);
+    }
+    void glassHistoryActions_data() {
+        QTest::addColumn<int>("width");
+        QTest::addColumn<QString>("mode");
+        for (const auto width : {640, 820, 1200, 1280}) for (const auto &mode : {QString("light"), QString("dark")})
+            QTest::newRow(qPrintable(QString::number(width) + "-" + mode)) << width << mode;
+    }
+    void glassHistoryActions() {
+        QFETCH(int, width); QFETCH(QString, mode);
+        QTemporaryDir dir;
+        auto state = WorkbenchDomain::create("today", "translation");
+        auto sessions = state.value("sessions").toList();
+        const auto now = QDateTime::currentDateTime();
+        auto chat = sessions[0].toMap();
+        chat["draft"] = QString::fromUtf8("Đường về nhà"); chat["title"] = "Custom title";
+        chat["updated"] = double(now.toSecsSinceEpoch()); sessions[0] = chat;
+        for (const auto &entry : QList<QPair<QString, int>>{{"yesterday", 1}, {"week", 3}, {"older", 10}}) {
+            auto item = chat; item["id"] = entry.first; item["title"] = entry.first; item["draft"] = "Saved question";
+            item["updated"] = double(now.addDays(-entry.second).toSecsSinceEpoch()); sessions.append(item);
+        }
+        auto translation = sessions[1].toMap(); translation["draft"] = "Hello"; translation["output"] = "Xin chào";
+        translation["updated"] = double(now.addDays(-2).toSecsSinceEpoch()); sessions[1] = translation;
+        auto archived = chat; archived["id"] = "archived"; archived["archived"] = true;
+        archived["updated"] = double(now.addDays(-20).toSecsSinceEpoch()); archived["archivedAt"] = double(now.toSecsSinceEpoch()); sessions.append(archived);
+        state["sessions"] = sessions; state["appearance"] = QVariantMap{{"preset", "glass"}, {"mode", mode}, {"textSize", "medium"}};
+        state["shell"] = QVariantMap{{"lastRoute", "chat"}, {"navigationCollapsed", false}};
+        QVERIFY(WorkbenchDomain::validate(state));
+        QFile file(dir.filePath("state.json")); QVERIFY(file.open(QIODevice::WriteOnly)); file.write(QJsonDocument::fromVariant(state).toJson()); file.close();
+        WorkbenchBridge bridge(nullptr, file.fileName(), false);
+        QQmlApplicationEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.rootContext()->setContextProperty("workbench", &bridge); engine.load(QUrl("qrc:/qml/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty()); auto *root = qobject_cast<QQuickWindow *>(engine.rootObjects().first()); QVERIFY(root);
+        root->resize(width, 800); root->setProperty("library", true); QCoreApplication::processEvents();
+        const auto records = [&]() { return root->property("historyRecords").value<QJSValue>().toVariant().toList(); };
+        const auto stored = [&](const QString &id) { for (const auto &item : bridge.state().value("sessions").toList()) if (item.toMap().value("id") == id) return item.toMap(); return QVariantMap{}; };
+        QTRY_COMPARE(records().size(), 4);
+        QCOMPARE(records()[0].toMap().value("bucket").toString(), QString("today"));
+        QCOMPARE(records()[1].toMap().value("bucket").toString(), QString("yesterday"));
+        QCOMPARE(records()[2].toMap().value("bucket").toString(), QString("week"));
+        QCOMPARE(records()[3].toMap().value("bucket").toString(), QString("older"));
+        const auto activeBefore = bridge.state().value("active");
+        root->setProperty("historyFeature", ""); QTRY_COMPARE(records().size(), 5);
+        root->setProperty("historyQuery", "duong"); QTRY_COMPARE(records().size(), 1);
+        QCOMPARE(records()[0].toMap().value("id").toString(), QString("today"));
+        QCOMPARE(bridge.state().value("active"), activeBefore);
+        auto *open = visualItem(root->contentItem(), "history-open"); QVERIFY(open && open->isEnabled());
+        QVERIFY(open->mapToScene(QPointF(open->width(), open->height())).x() <= root->width());
+        QVERIFY(open->mapToScene(QPointF(open->width(), open->height())).y() <= root->height());
+        root->setProperty("historyQuery", "no-such-session"); QTRY_COMPARE(records().size(), 0); QTRY_VERIFY(!open->isEnabled());
+        auto *actions = visualItem(root->contentItem(), "history-preview-actions"); QVERIFY(actions);
+        QTRY_VERIFY(!actions->isVisible()); QVERIFY(!open->isVisible());
+        auto *emptyPreview = visualItem(root->contentItem(), "history-preview-empty"); QVERIFY(emptyPreview && emptyPreview->isVisible());
+        root->setProperty("historyQuery", ""); root->setProperty("historyFeature", "chat"); root->setProperty("previewID", "today");
+        auto *rename = visualItem(root->contentItem(), "history-rename"); QVERIFY(rename);
+        QVERIFY(QMetaObject::invokeMethod(rename, "clicked")); auto *renameDialog = root->findChild<QObject *>("history-rename-dialog"); QVERIFY(renameDialog);
+        QTRY_VERIFY(renameDialog->property("visible").toBool());
+        auto *input = visualItem(root->contentItem(), "history-rename-input"); QVERIFY(input); input->setProperty("text", "");
+        QVERIFY(QMetaObject::invokeMethod(renameDialog, "accept")); QTRY_COMPARE(stored("today").value("title").toString(), QString::fromUtf8("Đường về nhà"));
+        auto *remove = visualItem(root->contentItem(), "history-delete"); QVERIFY(remove);
+        const auto original = stored("today");
+        QVERIFY(QMetaObject::invokeMethod(remove, "clicked")); QTRY_VERIFY(stored("today").isEmpty());
+        auto *confirmation = root->findChild<QObject *>("history-delete-dialog"); QVERIFY(confirmation); QVERIFY(!confirmation->property("visible").toBool());
+        QQuickItem *undo = nullptr; QTRY_VERIFY(undo = visualItem(root->contentItem(), "toast-undo"));
+        QVERIFY(QMetaObject::invokeMethod(undo, "clicked")); QTRY_COMPARE(stored("today"), original);
+        root->setProperty("toasts", QVariantList{}); root->setProperty("previewID", "today");
+        auto *archive = visualItem(root->contentItem(), "history-archive"); QVERIFY(archive);
+        QVERIFY(QMetaObject::invokeMethod(archive, "clicked")); QTRY_VERIFY(stored("today").value("archived").toBool()); QTRY_COMPARE(records().size(), 3);
+        root->setProperty("archivedHistory", true); QTRY_COMPARE(records().size(), 2);
+        QTRY_VERIFY(actions->isVisible());
+        for (const auto &name : {"history-rename", "history-export", "history-archive", "history-delete", "history-open"}) {
+            auto *button = visualItem(root->contentItem(), name); QVERIFY(button);
+            QTRY_VERIFY(button->mapToScene(QPointF(button->width(), 0)).x() <= root->width());
+            QCOMPARE(button->mapToScene(QPointF()).y(), open->mapToScene(QPointF()).y());
+        }
+        auto *filter = visualItem(root->contentItem(), "history-archive-filter"); QVERIFY(filter);
+        auto *filterContent = filter->property("contentItem").value<QQuickItem *>(); QVERIFY(filterContent);
+        auto *filterLabel = visualText(filterContent, filter->property("text").toString()); QVERIFY(filterLabel);
+        const auto filterColor = filterLabel->property("color").value<QColor>();
+        const auto theme = bridge.resources().value("themePalettes").toMap().value("glass:auto").toMap().value(mode).toMap();
+        QCOMPARE(filterColor, QColor(theme.value("action").toString()));
+        if (mode == "light") {
+            const auto linear = [](double c) { return c <= 0.04045 ? c / 12.92 : qPow((c + 0.055) / 1.055, 2.4); };
+            const auto luminance = .2126 * linear(filterColor.redF()) + .7152 * linear(filterColor.greenF()) + .0722 * linear(filterColor.blueF());
+            QVERIFY(1.05 / (luminance + .05) >= 4.5);
+        }
+        QCOMPARE(records()[0].toMap().value("bucket").toString(), QString("today"));
+        QTRY_VERIFY(!open->isEnabled());
+        root->setProperty("previewID", "today"); QVERIFY(QMetaObject::invokeMethod(archive, "clicked")); QTRY_VERIFY(!stored("today").value("archived").toBool());
+        root->setProperty("previewID", "archived"); QVERIFY(QMetaObject::invokeMethod(remove, "clicked")); QTRY_VERIFY(confirmation->property("visible").toBool());
+        QTest::keyClick(root, Qt::Key_Escape); QTRY_VERIFY(!confirmation->property("visible").toBool()); QVERIFY(!stored("archived").isEmpty());
+        QVERIFY(QMetaObject::invokeMethod(remove, "clicked")); QTRY_VERIFY(confirmation->property("visible").toBool());
+        root->setProperty("toasts", QVariantList{}); QVERIFY(QMetaObject::invokeMethod(confirmation, "accept")); QTRY_VERIFY(stored("archived").isEmpty());
+        QTRY_VERIFY(!visualItem(root->contentItem(), "toast-undo"));
+        root->setProperty("archivedHistory", false); root->setProperty("historyFeature", "translate"); QTRY_COMPARE(records().size(), 1);
+        QVERIFY(QMetaObject::invokeMethod(open, "clicked")); QTRY_VERIFY(!root->property("library").toBool());
+        QCOMPARE(current(bridge).value("id").toString(), QString("translation"));
+        for (const auto &warning : warnings) for (const auto &error : qvariant_cast<QList<QQmlError>>(warning.at(0))) qWarning().noquote() << error.toString();
+        QCOMPARE(warnings.count(), 0);
+    }
+    void glassChatStates_data() { glassHistoryActions_data(); }
+    void glassChatStates() {
+        QFETCH(int, width); QFETCH(QString, mode);
+        QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("route", {{"value", "chat"}}); bridge.command("appearance", {{"preset", "glass"}, {"mode", mode}});
+        ProviderDiscovery::Snapshot snapshot; snapshot.checked = true; snapshot.models["ollama"] = {"ollama:llama3.2"}; bridge.applyProviderSnapshot(snapshot);
+        bridge.command("model", {{"value", "ollama:llama3.2"}});
+        QQmlApplicationEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.rootContext()->setContextProperty("workbench", &bridge); engine.load(QUrl("qrc:/qml/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty()); auto *root = qobject_cast<QQuickWindow *>(engine.rootObjects().first()); QVERIFY(root);
+        root->resize(width, 800); QCoreApplication::processEvents();
+        auto *notice = visualItem(root->contentItem(), "chat-provider-notice"); QVERIFY(notice);
+        bridge.command("chatMode", {{"value", "image"}}); QTRY_COMPARE(notice->property("kind").toString(), QString("image"));
+        bridge.command("chatMode", {{"value", "text"}});
+        auto *editor = visualItem(root->contentItem(), "chat-draft"); QVERIFY(editor); editor->setProperty("text", "First question"); editor->forceActiveFocus();
+        QInputMethodEvent preedit(QString::fromUtf8("にほん"), {}); QCoreApplication::sendEvent(editor, &preedit); QTest::keyClick(root, Qt::Key_Return, Qt::ControlModifier);
+        QVERIFY(bridge.state().value("tasks").toList().isEmpty()); QInputMethodEvent end; QCoreApplication::sendEvent(editor, &end);
+        QTest::keyClick(root, Qt::Key_Return, Qt::ControlModifier); QTRY_COMPARE(bridge.state().value("tasks").toList().size(), 1);
+        const auto first = latest(bridge); const auto id = first.value("id").toString();
+        QQuickItem *answering = nullptr; QTRY_VERIFY(answering = visualItem(root->contentItem(), "chat-answering-" + id)); QTRY_VERIFY(answering->isVisible());
+        auto *send = visualItem(root->contentItem(), "chat-send"); QVERIFY(send); QVERIFY(send->isEnabled());
+        bridge.command("receive", {{"taskID", id}, {"attemptID", first.value("attemptID")}, {"chunk", "Partial answer"}, {"terminal", "failed"}, {"errorCode", "providerError"}});
+        QQuickItem *failure = nullptr; QTRY_VERIFY(failure = visualItem(root->contentItem(), "chat-failure-" + id)); QTRY_VERIFY(failure->isVisible());
+        QQuickItem *retry = nullptr; QTRY_VERIFY(retry = visualItem(root->contentItem(), "chat-retry-" + id)); QTRY_VERIFY(retry->isVisible() && retry->isEnabled());
+        bridge.command("model", {{"value", "ollama:new-model"}}); QVERIFY(QMetaObject::invokeMethod(retry, "clicked"));
+        QTRY_COMPARE(latest(bridge).value("status").toString(), QString("running")); QVERIFY(latest(bridge).value("attemptID") != first.value("attemptID"));
+        QCOMPARE(latest(bridge).value("request").toMap().value("model"), first.value("request").toMap().value("model"));
+        const auto retried = latest(bridge);
+        bridge.command("receive", {{"taskID", id}, {"attemptID", retried.value("attemptID")}, {"chunk", "Complete answer"}, {"terminal", "succeeded"}, {"usage", QVariantMap{{"input", 12}, {"output", 24}}}});
+        QTRY_VERIFY(!failure->isVisible()); QTRY_VERIFY(!answering->isVisible()); QTRY_VERIFY(retry->isVisible());
+        auto *meta = visualItem(root->contentItem(), "chat-meta-" + id); QVERIFY(meta); QTRY_VERIFY(meta->property("text").toString().contains("36"));
+        const auto locale = bridge.resources().value("locales").toMap().value("vi").toMap();
+        QVERIFY(meta->property("text").toString().contains(locale.value("durationSeconds").toString().section("{n}", 1)));
+        auto *copy = visualItem(root->contentItem(), "chat-copy-" + id); QVERIFY(copy); QVERIFY(QMetaObject::invokeMethod(copy, "clicked"));
+        QTRY_VERIFY(!root->property("toasts").value<QJSValue>().toVariant().toList().isEmpty());
+        bridge.command("draft", {{"value", "Second question"}}); bridge.command("submit"); QTRY_VERIFY(!retry->isVisible());
+        const auto second = latest(bridge); bridge.command("cancel", {{"taskID", second.value("id")}});
+        QQuickItem *cancelled = nullptr; QTRY_VERIFY(cancelled = visualItem(root->contentItem(), "chat-failure-" + second.value("id").toString())); QTRY_VERIFY(cancelled->isVisible());
+        for (const auto &warning : warnings) for (const auto &error : qvariant_cast<QList<QQmlError>>(warning.at(0))) qWarning().noquote() << error.toString();
+        QCOMPARE(warnings.count(), 0);
+    }
+    void glassImageResearchAndReset_data() { glassHistoryActions_data(); }
+    void glassImageResearchAndReset() {
+        QFETCH(int, width); QFETCH(QString, mode);
+        const bool previousTestMode = QStandardPaths::isTestModeEnabled();
+        const auto restorePaths = qScopeGuard([previousTestMode] { QStandardPaths::setTestModeEnabled(previousTestMode); });
+        QStandardPaths::setTestModeEnabled(true);
+        QTemporaryDir dir;
+        auto state = WorkbenchDomain::create("chat", "translate"); auto sessions = state.value("sessions").toList();
+        for (int index : {1, 2}) { auto item = sessions[index].toMap(); item["draft"] = "Previous input"; item["output"] = "Previous result"; sessions[index] = item; }
+        state["sessions"] = sessions; state["featureLeft"] = QVariantMap{{"translate", 1.0}, {"dictionary", 1.0}};
+        state["appearance"] = QVariantMap{{"preset", "glass"}, {"mode", mode}, {"textSize", "medium"}};
+        state["shell"] = QVariantMap{{"lastRoute", "chat"}, {"navigationCollapsed", false}};
+        QFile file(dir.filePath("state.json")); QVERIFY(file.open(QIODevice::WriteOnly)); file.write(QJsonDocument::fromVariant(state).toJson()); file.close();
+        WorkbenchBridge bridge(nullptr, file.fileName(), false); QVERIFY(!bridge.loadBlocked());
+        ProviderDiscovery::Snapshot snapshot; snapshot.checked = true; snapshot.models["ollama"] = {"ollama:llama3.2"}; bridge.applyProviderSnapshot(snapshot);
+        bridge.command("model", {{"value", "ollama:llama3.2"}});
+        QQmlApplicationEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.addImageProvider("attachments", new AttachmentImageProvider);
+        engine.rootContext()->setContextProperty("workbench", &bridge); engine.load(QUrl("qrc:/qml/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty()); auto *root = qobject_cast<QQuickWindow *>(engine.rootObjects().first()); QVERIFY(root);
+        root->resize(width, 800); QCoreApplication::processEvents();
+        QImage sample(64, 48, QImage::Format_ARGB32); sample.fill(Qt::blue); QVERIFY(sample.save(dir.filePath("synthetic.png")));
+        QCOMPARE(current(bridge).value("id").toString(), QString("chat"));
+        bridge.attachImage(QUrl::fromLocalFile(dir.filePath("synthetic.png")), "chat");
+        QTRY_VERIFY(!current(bridge).value("images").toList().isEmpty() || !bridge.storageError().isEmpty());
+        QVERIFY2(bridge.storageError().isEmpty(), qPrintable(bridge.storageError() + " at " + QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)));
+        auto attachment = current(bridge).value("images").toList().value(0).toMap(); QVERIFY(!attachment.isEmpty());
+        attachment["generator"] = "openai:gpt-image-1";
+        bridge.command("draft", {{"value", "Synthetic image"}}); bridge.command("submit"); const auto imageTask = latest(bridge);
+        bridge.command("receive", {{"taskID", imageTask.value("id")}, {"attemptID", imageTask.value("attemptID")}, {"images", QVariantList{attachment}}, {"terminal", "succeeded"}});
+        QQuickItem *copyImage = nullptr; QTRY_VERIFY(copyImage = visualItem(root->contentItem(), "chat-copy-image-" + attachment.value("id").toString()));
+        QVERIFY(QMetaObject::invokeMethod(copyImage, "clicked")); QVERIFY(!QGuiApplication::clipboard()->image().isNull());
+        QCOMPARE(QGuiApplication::clipboard()->image().size(), QSize(64, 48));
+        auto *transcript = visualItem(root->contentItem(), "chat-transcript"); QVERIFY(transcript); QVariant caption;
+        QVERIFY(QMetaObject::invokeMethod(transcript, "imageCaption", Q_RETURN_ARG(QVariant, caption), Q_ARG(QVariant, QVariantList{attachment}), Q_ARG(QVariant, latest(bridge))));
+        QVERIFY(caption.toString().contains("64×48")); QVERIFY(caption.toString().contains("GPT Image 1"));
+        bridge.command("draft", {{"value", "Research question"}}); bridge.command("chatMode", {{"value", "research"}}); bridge.command("submit");
+        const auto researchTask = latest(bridge);
+        const QVariantMap research{{"phase", "survey"}, {"queries", QStringList{"Synthetic query"}}, {"cursor", 0}, {"findings", QStringList{"Synthetic evidence"}}, {"sources", QVariantList{QVariantMap{{"title", "Synthetic source"}, {"url", "https://example.org"}}}}, {"crossReference", "Synthetic cross-reference"}};
+        bridge.command("receive", {{"taskID", researchTask.value("id")}, {"attemptID", researchTask.value("attemptID")}, {"research", research}});
+        QQuickItem *researchToggle = nullptr; QTRY_VERIFY(researchToggle = visualItem(root->contentItem(), "chat-research-" + researchTask.value("id").toString()));
+        QVERIFY(researchToggle->isVisible()); researchToggle->setProperty("checked", true); QVERIFY(QMetaObject::invokeMethod(researchToggle, "toggled"));
+        QTRY_VERIFY(visualText(root->contentItem(), "Synthetic source"));
+        bridge.command("cancel", {{"taskID", researchTask.value("id")}});
+        // A comparison's two jobs occupy one Activity row and one running badge.
+        bridge.command("navigate", {{"feature", "translate"}});
+        QVERIFY2(WorkbenchDomain::validate(bridge.state()), "Backend smart reset returned an invalid active-session snapshot; do not work around this in QML.");
+        bridge.reopenPrevious();
+        bridge.command("compare", {{"sessionID", "translate"}, {"models", QStringList{"ollama:llama3.2", "ollama:qwen3:8b"}}});
+        const auto activities = root->property("activityRows").value<QJSValue>().toVariant().toList();
+        int comparisons = 0; for (const auto &row : activities) if (row.toMap().value("comparison").toBool()) { ++comparisons; QCOMPARE(row.toMap().value("tasks").toList().size(), 2); }
+        QCOMPARE(comparisons, 1); QCOMPARE(root->property("runningCount").toInt(), 1);
+        // Dictionary's old result triggers the independent reset notice on navigation.
+        QVERIFY(QMetaObject::invokeMethod(root, "selectRoute", Q_ARG(QVariant, "dictionary")));
+        QTRY_COMPARE(bridge.resetNotice().value("feature").toString(), QString("dictionary"));
+        QQuickItem *reopen = nullptr; QTRY_VERIFY(reopen = visualItem(root->contentItem(), "reset-reopen")); QTRY_VERIFY(reopen->isVisible());
+        QVERIFY(QMetaObject::invokeMethod(reopen, "clicked")); QTRY_VERIFY(bridge.resetNotice().isEmpty());
+        QCOMPARE(current(bridge).value("id").toString(), QString("chat-dictionary")); QCOMPARE(current(bridge).value("output").toString(), QString("Previous result"));
+        for (const auto &warning : warnings) for (const auto &error : qvariant_cast<QList<QQmlError>>(warning.at(0))) qWarning().noquote() << error.toString();
         QCOMPARE(warnings.count(), 0);
     }
     void glassDialogPreservesStandardActions_data() {
@@ -1472,7 +2243,9 @@ private slots:
         recentTitle->setImplicitWidth(titleWidth);
         QCoreApplication::processEvents();
         QVERIFY(filters->mapToScene(QPointF()).x() >= 0);
-        QVERIFY(filters->mapToScene(QPointF(filters->width(), 0)).x() <= width);
+        // Restoring the title invalidates the layout again; a frame may still
+        // be queued after processEvents, especially in a full Fluent suite.
+        QTRY_VERIFY(filters->mapToScene(QPointF(filters->width(), 0)).x() <= width);
         const auto labels = bridge.resources().value("locales").toMap().value(locale).toMap();
         auto *all = visualText(filters, labels.value("filterAll").toString());
         QVERIFY(all);
@@ -1803,6 +2576,213 @@ private slots:
         for (const auto &warning : warnings)
             for (const auto &error : qvariant_cast<QList<QQmlError>>(warning.at(0)))
                 QVERIFY2(!error.toString().contains("Binding loop"), qPrintable(error.toString()));
+    }
+    void glassW2Layout_data() {
+        QTest::addColumn<int>("width"); QTest::addColumn<QString>("mode");
+        for (int width : {640, 820, 1280}) for (const auto &mode : {QString("light"), QString("dark")})
+            QTest::newRow(qPrintable(QString::number(width) + "-" + mode)) << width << mode;
+    }
+    void glassW2Layout() {
+        QFETCH(int, width); QFETCH(QString, mode);
+        const bool previous = QStandardPaths::isTestModeEnabled(); QStandardPaths::setTestModeEnabled(true);
+        const auto reset = qScopeGuard([previous] { QStandardPaths::setTestModeEnabled(previous); NativeAudio::setMicrophonePermissionForTest({}); });
+        NativeAudio::setMicrophonePermissionForTest("granted");
+        QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("appearance", {{"preset","glass"}, {"mode",mode}});
+        bridge.command("route", {{"value","translate"}}); bridge.command("navigate", {{"feature","translate"}});
+        ProviderDiscovery::Snapshot snapshot; snapshot.checked = true; snapshot.models["ollama"] = {"ollama:llama3.2","ollama:qwen3","ollama:gemma3"}; bridge.applyProviderSnapshot(snapshot);
+        bridge.command("model", {{"value","ollama:llama3.2"}});
+        QQmlApplicationEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.rootContext()->setContextProperty("workbench", &bridge); engine.load(QUrl("qrc:/qml/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty()); auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first()); QVERIFY(window);
+        window->resize(width, width == 1280 ? 800 : 640); QCoreApplication::processEvents();
+        auto *source = visualItem(window->contentItem(), "translation-source-pane"); auto *result = visualItem(window->contentItem(), "translation-result-pane"); QVERIFY(source && result);
+        QTRY_VERIFY(qAbs(source->width() - result->width()) <= 1);
+        QVERIFY(result->mapToScene(QPointF(result->width(),0)).x() <= width);
+        auto *submit = visualItem(window->contentItem(), "translate-submit"); QVERIFY(submit);
+        auto *draft = visualItem(window->contentItem(), "source-draft"); QVERIFY(draft);
+        QCOMPARE(draft->property("verticalAlignment").toInt(), int(Qt::AlignTop));
+        auto *resultText = visualItem(window->contentItem(), "translation-result-text"); QVERIFY(resultText);
+        QCOMPARE(resultText->property("verticalAlignment").toInt(), int(Qt::AlignTop));
+        auto *resultRule = visualItem(window->contentItem(), "translation-result-rule"); QVERIFY(resultRule); QVERIFY(!resultRule->isVisible());
+        auto *sourceSurface = visualItem(window->contentItem(), "translation-source-surface"); QVERIFY(sourceSurface); QVERIFY(sourceSurface->isVisible());
+        auto *language = visualItem(window->contentItem(), "translate-source-language"); QVERIFY(language);
+        QVERIFY(visualText(language, QString::fromUtf8("Đầu vào")));
+        QVERIFY(visualItem(language, "language-chevron"));
+        auto *modelTrigger = visualItem(window->contentItem(), "feature-model-trigger"); QVERIFY(modelTrigger && modelTrigger->isVisible());
+        QVERIFY(QMetaObject::invokeMethod(modelTrigger, "clicked"));
+        auto *models = window->findChild<QObject *>("feature-model-panel"); QVERIFY(models); QTRY_VERIFY(models->property("visible").toBool());
+        QVERIFY(models->property("x").toDouble() >= 0);
+        QVERIFY(models->property("x").toDouble() + models->property("width").toDouble() <= width + 1);
+        auto *modelList = models->findChild<QQuickItem *>("feature-model-list"); QVERIFY(modelList);
+        QTRY_VERIFY(modelList->hasActiveFocus());
+        const auto modelIDs = modelTrigger->parentItem()->property("featureModels").value<QJSValue>();
+        const int nextIndex = qMin(modelList->property("currentIndex").toInt() + 1, modelIDs.property("length").toInt() - 1);
+        QTest::keyClick(window, Qt::Key_Down); QTest::keyClick(window, Qt::Key_Return);
+        QTRY_VERIFY(!models->property("visible").toBool());
+        QCOMPARE(current(bridge).value("model").toString(), modelIDs.property(nextIndex).toString());
+        bridge.command("model", {{"value", "ollama:llama3.2"}});
+        QCOMPARE(submit->property("shortcutText").toString(), QString("Ctrl+Enter"));
+        if (width == 1280) {
+            auto *shortcut = visualItem(submit, "primary-shortcut"); QVERIFY(shortcut && shortcut->isVisible());
+            QVERIFY(submit->mapToScene(QPointF(submit->width(), 0)).x() <= source->mapToScene(QPointF(source->width(), 0)).x());
+        }
+
+
+        bridge.command("draft", {{"value",QString(5001,'a')}}); QTRY_VERIFY(!submit->isEnabled());
+        bridge.command("submit"); QVERIFY(bridge.state().value("tasks").toList().isEmpty());
+        bridge.command("draft", {{"value",QString(5000,'a')}}); QTRY_VERIFY(submit->isEnabled());
+        bridge.command("draft", {{"value","One sentence. Second sentence."}}); bridge.command("submit"); auto task = latest(bridge);
+        bridge.command("receive", {{"taskID",task.value("id")}, {"attemptID",task.value("attemptID")}, {"chunk","Câu một. Câu hai."}, {"terminal","succeeded"}});
+        auto *actions = visualItem(window->contentItem(), "translation-actions"); QVERIFY(actions); QTRY_VERIFY(actions->isVisible());
+        for (const auto &pair : {qMakePair("translate-source-language","language-panel"), qMakePair("translate-listen","listen-panel"), qMakePair("translate-compare","compare-panel")}) {
+            auto *trigger = visualItem(window->contentItem(), pair.first); QVERIFY(trigger);
+            QVERIFY(QMetaObject::invokeMethod(trigger,"clicked"));
+            auto *panel = QString(pair.second) == "compare-panel" ? window->findChild<QObject *>(pair.second) : trigger->findChild<QObject *>(pair.second); QVERIFY(panel); QTRY_VERIFY(panel->property("visible").toBool());
+            const auto x = panel->property("x").toDouble(), y = panel->property("y").toDouble();
+            QVERIFY(x >= 0 && y >= 0); QVERIFY(x + panel->property("width").toDouble() <= width + 1);
+            QVERIFY(y + panel->property("height").toDouble() <= window->height() + 1);
+            const auto anchor = trigger->mapToScene(QPointF());
+            QVERIFY(y >= anchor.y() + trigger->height() || y + panel->property("height").toDouble() <= anchor.y());
+            QVERIFY(QMetaObject::invokeMethod(panel,"close"));
+        }
+        // Select order is semantically significant; compare all real IDs, not an equal-key sort sample.
+        bridge.command("compare", {{"sessionID",current(bridge).value("id")}, {"models",QStringList{"ollama:llama3.2","ollama:gemma3","ollama:qwen3"}}});
+        QStringList columns; for (const auto &value : bridge.state().value("sessions").toList()) if (value.toMap().value("comparisonParent") == current(bridge).value("id")) columns << value.toMap().value("model").toString();
+        QCOMPARE(columns, (QStringList{"ollama:llama3.2","ollama:gemma3","ollama:qwen3"}));
+        for (const auto &value : bridge.state().value("tasks").toList()) {
+            const auto childTask=value.toMap(); if (childTask.value("status") != "running") continue;
+            bridge.command("receive",{{"taskID",childTask.value("id")},{"attemptID",childTask.value("attemptID")},{"chunk","Câu một. Câu hai."},{"terminal","succeeded"}});
+        }
+        bridge.command("compareBySentence", {{"value",true}}); QVERIFY(bridge.state().value("compareBySentence").toBool());
+        auto *comparisonPanel=window->findChild<QObject *>("compare-panel"); QVERIFY(comparisonPanel);
+        auto *comparison=comparisonPanel->findChild<QObject *>("comparison-pane"); QVERIFY(comparison);
+        comparison->setProperty("choosing",false); QTRY_VERIFY(comparison->property("sentenceRows").toBool());
+        bridge.command("compareBySentence", {{"value",false}}); QVERIFY(!bridge.state().value("compareBySentence").toBool());
+        QTRY_VERIFY(!comparison->property("sentenceRows").toBool());
+        for (const auto &value : bridge.state().value("tasks").toList()) bridge.command("cancel", {{"taskID",value.toMap().value("id")}});
+        // Permission refresh is a user action; its value must not be cached by the QML binding.
+        NativeAudio::setMicrophonePermissionForTest("denied");
+        QVERIFY(QMetaObject::invokeMethod(window,"selectRoute",Q_ARG(QVariant,"interpret")));
+        QQuickItem *card = nullptr; QTRY_VERIFY(card = visualItem(window->contentItem(),"microphone-permission-card")); QTRY_VERIFY(card->isVisible());
+        auto *check = visualItem(window->contentItem(),"microphone-recheck"); QVERIFY(check);
+        auto *summaryHeader = visualItem(window->contentItem(), "interpret-summary-header"); QVERIFY(summaryHeader);
+        QVERIFY(!summaryHeader->isEnabled()); QVERIFY(!summaryHeader->property("glassMaterial").toBool());
+        QCOMPARE(summaryHeader->property("iconName").toString(), QString("reasoning"));
+        QVERIFY(summaryHeader->mapToScene(QPointF()).x() >= 0);
+        QVERIFY(summaryHeader->mapToScene(QPointF(summaryHeader->width(), 0)).x() <= width);
+        auto *interpretModel = visualItem(window->contentItem(), "interpret-model-picker"); QVERIFY(interpretModel && interpretModel->isVisible());
+        const auto translationModel = current(bridge).value("model");
+        QVERIFY(QMetaObject::invokeMethod(interpretModel, "chooseFeatureModel", Q_ARG(QVariant, "ollama:qwen3")));
+        auto *interpretView = visualItem(window->contentItem(), "interpret-workspace"); QVERIFY(interpretView);
+        QTRY_COMPARE(interpretView->property("modelID").toString(), QString("ollama:qwen3"));
+        QCOMPARE(current(bridge).value("model"), translationModel);
+        auto *swap = visualItem(window->contentItem(), "interpret-swap"); QVERIFY(swap); QVERIFY(!swap->isEnabled());
+        auto *inputLanguage = visualItem(window->contentItem(), "interpret-source-language"); QVERIFY(inputLanguage);
+        QVERIFY(QMetaObject::invokeMethod(inputLanguage, "chosen", Q_ARG(QString, "en")));
+        QTRY_VERIFY(swap->isEnabled()); QVERIFY(QMetaObject::invokeMethod(swap, "clicked"));
+        QCOMPARE(inputLanguage->property("language").toString(), QString("vi"));
+        QCOMPARE(visualItem(window->contentItem(), "interpret-target-language")->property("language").toString(), QString("en"));
+
+        QVERIFY(visualText(window->contentItem(),QString::fromUtf8("Quyền microphone · Chưa cấp")));
+        auto *settings = visualItem(window->contentItem(),"microphone-settings"); QVERIFY(settings); QCOMPARE(settings->property("text").toString(),QString::fromUtf8("Mở Cài đặt hệ thống"));
+        NativeAudio::setMicrophonePermissionForTest("granted"); QVERIFY(QMetaObject::invokeMethod(check,"clicked")); QTRY_VERIFY(!card->isVisible());
+        NativeAudio::setMicrophonePermissionForTest("undetermined"); QVERIFY(QMetaObject::invokeMethod(check,"clicked")); QTRY_VERIFY(card->isVisible());
+        const QVariantMap meeting{{"id","w2-meeting"},{"created",100.0},{"model","ollama:synthetic"},{"provider","auto"},{"source","en"},{"target","vi"},{"locale","vi"},{"captureMode","microphone"},{"deviceID","fixture-device"},{"summary",""},
+            {"segments",QVariantList{QVariantMap{{"id","s1"},{"start",0.0},{"end",2.0},{"speaker","A"},{"original","Hello"},{"translated","Xin chào"},{"status","done"}}}}};
+        auto *live=bridge.interpretation(); live->restoreSession(meeting); live->select("w2-meeting"); QCoreApplication::processEvents();
+        auto *view=visualItem(window->contentItem(),"interpret-workspace"); QVERIFY(view);
+        QVERIFY(QMetaObject::invokeMethod(view,"deleteSession",Q_ARG(QVariant,"w2-meeting")));
+        QVERIFY(live->current().value("id") != "w2-meeting");
+        auto toasts=window->property("toasts").value<QJSValue>(); auto undo=toasts.property(toasts.property("length").toInt()-1).property("undo"); QVERIFY(undo.isCallable()); undo.call();
+        QCOMPARE(live->current().value("id").toString(),QString("w2-meeting"));
+        QVERIFY(!live->exportText(false,true).contains("Hello")); QVERIFY(live->exportText(true,true).contains(QString::fromUtf8("Xin chào")));
+        // No event loop turn between start and cancel: this exercises summary ownership
+        // without waiting for or consuming a provider response.
+        live->summarize("summary"); QVERIFY(live->summarizing()); live->cancelSummary(); QVERIFY(!live->summarizing());
+        live->deleteSession("w2-meeting");
+        for (const auto &warning : warnings) for (const auto &error : qvariant_cast<QList<QQmlError>>(warning.at(0))) qWarning().noquote() << error.toString();
+        QCOMPARE(warnings.count(),0);
+    }
+    void glassW2Dictionary_data() { glassW2Layout_data(); }
+    void glassW2Dictionary() {
+        QFETCH(int, width); QFETCH(QString, mode);
+        QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("appearance", {{"preset","glass"}, {"mode",mode}});
+        bridge.command("route", {{"value","dictionary"}}); bridge.command("navigate", {{"feature","dictionary"}});
+        bridge.command("model", {{"value","ollama:llama3.2"}});
+        bridge.command("draft", {{"value","bank"}}); bridge.command("dictionaryContext", {{"value","We sat by the river bank."}}); bridge.command("submit"); auto task=latest(bridge);
+        const QString reply=R"({"headword":"bank","pronunciation":"bank","meaning":"edge","translations":[{"text":"bờ","pronunciation":"bờ","meaning":"river edge","examples":["river bank → bờ sông"],"exampleRegisters":["everyday"]}],"contextSense":1,"related":{"derived":["banking"],"synonyms":["shore"],"antonyms":[]}})";
+        bridge.command("receive", {{"taskID",task.value("id")},{"attemptID",task.value("attemptID")},{"chunk",reply},{"terminal","succeeded"}});
+        QQmlApplicationEngine engine; QSignalSpy warnings(&engine,&QQmlEngine::warnings); engine.rootContext()->setContextProperty("workbench",&bridge); engine.load(QUrl("qrc:/qml/Main.qml"));
+        QVERIFY(!engine.rootObjects().isEmpty()); auto *window=qobject_cast<QQuickWindow *>(engine.rootObjects().first()); window->resize(width,640); QCoreApplication::processEvents();
+        QQuickItem *result=nullptr; QTRY_VERIFY(result=visualItem(window->contentItem(),"dictionary-result"));
+        result->setProperty("selectedTab",2); QCoreApplication::processEvents(); QVERIFY(visualText(result,"shore"));
+        result->setProperty("selectedTab",1); QCoreApplication::processEvents(); QVERIFY(visualText(result,QString::fromUtf8("nghĩa 01 · everyday")));
+        result->setProperty("selectedTab",2); QCoreApplication::processEvents();
+        auto *related=visualItem(result,"dictionary-related-shore"); QVERIFY(related); QVERIFY(QMetaObject::invokeMethod(related,"clicked"));
+        QCOMPARE(current(bridge).value("draft").toString(),QString("shore")); QCOMPARE(current(bridge).value("dictionaryContext").toString(),QString("We sat by the river bank."));
+        task=latest(bridge); bridge.command("receive",{{"taskID",task.value("id")},{"attemptID",task.value("attemptID")},{"chunk",reply},{"terminal","succeeded"}});
+        QVariant ignored; QVERIFY(QMetaObject::invokeMethod(result,"handoff",Q_RETURN_ARG(QVariant,ignored),Q_ARG(QVariant,"translate"),Q_ARG(QVariant,"We sat by the river bank.")));
+        QCOMPARE(current(bridge).value("draft").toString(),QString("We sat by the river bank."));
+        bridge.command("navigate",{{"feature","dictionary"}}); const auto taskCount=bridge.state().value("tasks").toList().size(); bridge.command("draft",{{"value",QString(121,'a')}}); bridge.command("submit"); QCOMPARE(bridge.state().value("tasks").toList().size(),taskCount);
+        bridge.command("draft",{{"value","bnak"}}); bridge.command("submit"); task=latest(bridge);
+        bridge.command("receive",{{"taskID",task.value("id")},{"attemptID",task.value("attemptID")},{"chunk",R"({"notFound":true,"suggestions":[{"word":"bank","meaning":"edge"}]})"},{"terminal","succeeded"}});
+        QCoreApplication::processEvents();
+        QVERIFY(visualText(window->contentItem(),QString::fromUtf8("Không tìm thấy")));
+        auto *suggestion=visualItem(window->contentItem(),"dictionary-suggestion-bank"); QVERIFY(suggestion); QVERIFY(QMetaObject::invokeMethod(suggestion,"clicked"));
+        QCOMPARE(current(bridge).value("draft").toString(),QString("bank")); QCOMPARE(current(bridge).value("dictionaryContext").toString(),QString("We sat by the river bank."));
+        task=latest(bridge); bridge.command("receive",{{"taskID",task.value("id")},{"attemptID",task.value("attemptID")},{"chunk",reply},{"terminal","succeeded"}});
+        const auto savedID=current(bridge).value("id").toString(); bridge.command("favorite"); bridge.command("new");
+        QTRY_VERIFY(visualText(window->contentItem(),QString::fromUtf8("Bạn muốn tra từ gì?")));
+        QQuickItem *savedRow=nullptr; QTRY_VERIFY(savedRow=visualItem(window->contentItem(),"dictionary-saved-"+savedID));
+        QVERIFY(visualItem(window->contentItem(),"dictionary-recent-"+savedID));
+        QVERIFY(savedRow->mapToScene(QPointF(savedRow->width(),0)).x() <= width+1);
+        QVERIFY(QMetaObject::invokeMethod(savedRow,"clicked")); QCOMPARE(current(bridge).value("id").toString(),savedID);
+        QCOMPARE(warnings.count(),0);
+    }
+    void glassW2ListenStates() {
+        QTemporaryDir dir; WorkbenchBridge bridge(nullptr,dir.filePath("state.json"),false);
+        bridge.command("appearance",{{"preset","glass"},{"mode","light"}});
+        bridge.command("voice",{{"provider","edge"},{"voice",""},{"rate",1.0}});
+        QQmlEngine engine; QSignalSpy warnings(&engine,&QQmlEngine::warnings); engine.rootContext()->setContextProperty("workbench",&bridge);
+        QQmlComponent component(&engine);
+        QFile fixture(QFileInfo(QStringLiteral(VIEZAN_CONTRACT_FIXTURE)).dir().filePath("../../apps/desktop-qt/tests/ListenFixture.qml"));
+        QVERIFY(fixture.open(QIODevice::ReadOnly));
+        component.setData(fixture.readAll(), QUrl("qrc:/listen-fixture.qml"));
+        QScopedPointer<QObject> owner(component.create()); QVERIFY2(owner,qPrintable(component.errorString()));
+        auto *window=qobject_cast<QQuickWindow *>(owner.data()); QVERIFY(window);
+        auto *trigger=visualItem(window->contentItem(),"trigger"); QVERIFY(trigger); QVERIFY(QMetaObject::invokeMethod(trigger,"clicked"));
+        auto *audio=owner->findChild<QObject *>("audio-fixture"); QVERIFY(audio);
+        QQuickItem *row=nullptr; QTRY_VERIFY(row=visualItem(window->contentItem(),"listen-source-translation")); QTRY_COMPARE(row->height(),48.0);
+        auto *detail=visualItem(window->contentItem(),"listen-detail-translation"); QVERIFY(detail); QVERIFY(detail->property("text").toString().contains("Japanese voice"));
+        auto *sourceDetail=visualItem(window->contentItem(),"listen-detail-source"); QVERIFY(sourceDetail); QVERIFY(sourceDetail->property("text").toString().contains("English voice"));
+        audio->setProperty("speakingSource","translation"); audio->setProperty("speaking",true); audio->setProperty("preparing",true);
+        QTRY_COMPARE(detail->property("text").toString(),QString::fromUtf8("Đang tạo giọng…")); QCOMPARE(row->height(),48.0);
+        audio->setProperty("preparing",false); QTRY_VERIFY(detail->property("text").toString().contains(QString::fromUtf8("Đang đọc"))); QCOMPARE(row->height(),48.0);
+        QVERIFY(sourceDetail->property("text").toString().contains("English voice"));
+        audio->setProperty("speaking",false); audio->setProperty("error","audioError"); audio->setProperty("lastSource","source");
+        auto *fallback=visualItem(window->contentItem(),"listen-system-fallback"); QVERIFY(fallback); QTRY_VERIFY(fallback->isVisible()); QVERIFY(QMetaObject::invokeMethod(fallback,"clicked"));
+        QCOMPARE(audio->property("lastProvider").toString(),QString("system")); QCOMPARE(audio->property("lastText").toString(),QString("Hello")); QCOMPARE(audio->property("lastLanguage").toString(),QString("en"));
+        auto *rate=visualItem(window->contentItem(),"listen-rate-1.25"); QVERIFY(rate); QVERIFY(rate->isEnabled()); QVERIFY(QMetaObject::invokeMethod(rate,"clicked"));
+        QCOMPARE(bridge.state().value("voice").toMap().value("rate").toDouble(),1.25);
+        bridge.command("voice",{{"provider","gemini"},{"voice",""}}); QTRY_VERIFY(!rate->isEnabled());
+        QCOMPARE(warnings.count(),0);
+    }
+    void glassW2ComponentsLoad_data() {
+        QTest::addColumn<QString>("type");
+        QTest::newRow("language") << "LanguageButton";
+        QTest::newRow("listen") << "ListenButton";
+    }
+    void glassW2ComponentsLoad() {
+        QFETCH(QString, type);
+        QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("appearance", {{"preset", "glass"}, {"mode", "light"}});
+        QQmlEngine engine; engine.rootContext()->setContextProperty("workbench", &bridge);
+        QQmlComponent component(&engine);
+        component.setData(("import QtQuick\nimport QtQuick.Controls\nimport \"qrc:/qml\" as V\nApplicationWindow { visible: true; width:640; height:640; V." + type + " { objectName: \"trigger\" } }").toUtf8(), QUrl());
+        QScopedPointer<QObject> object(component.create());
+        QVERIFY2(object, qPrintable(component.errorString()));
     }
     void qmlLoadsWithRealBridge_data() {
         QTest::addColumn<QString>("feature");

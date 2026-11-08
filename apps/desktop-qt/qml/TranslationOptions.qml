@@ -6,6 +6,7 @@ ColumnLayout {
     id: options
     required property var bridge
     required property var session
+    property bool showComparison: true
     readonly property var workspace: bridge.state
     readonly property var metrics: bridge.resources.metrics
     spacing: metrics.inset
@@ -41,5 +42,5 @@ ColumnLayout {
         SpinBox { from: 100; to: 5000; stepSize: 100; value: workspace.autoTranslateDelay || 800; Accessible.name: t("autoTranslateDelay"); onValueModified: command("autoTranslate", {enabled: true, delay: value}) }
     }
     CheckBox { visible: session.feature === "translate"; text: t("autoTranslate"); checked: workspace.autoTranslate || false; onToggled: command("autoTranslate", {enabled: checked, delay: workspace.autoTranslateDelay || 800}); ToolTip.visible: hovered; ToolTip.text: t("autoTranslateHint") }
-    ComparisonPane { visible: session.feature === "translate" && !(session.images || []).length; bridge: options.bridge; session: options.session; Layout.fillWidth: true }
+    ComparisonPane { visible: options.showComparison && session.feature === "translate" && !(session.images || []).length; bridge: options.bridge; session: options.session; Layout.fillWidth: true }
 }

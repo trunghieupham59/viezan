@@ -9,6 +9,7 @@ Pane {
     required property string route
     property bool expanded: false
     property bool dismissible: false
+    property bool headerToggle: true
     signal selected(string route)
     signal commands(var opener)
     signal dismissed()
@@ -28,9 +29,16 @@ Pane {
     leftPadding: glass ? metrics.small + metrics.gap : padding
     background: Item {
         Rectangle { anchors.fill: parent; color: navigation.glass ? "transparent" : navigation.palette.window }
+        Rectangle {
+            visible: navigation.glass && navigation.dismissible
+            anchors.fill: parent; anchors.margins: navigation.metrics.small
+            radius: navigation.metrics.chromeSurfaceRadius
+            color: Qt.tint(navigation.chromeColors["app-bg"], navigation.chromeColors["surface-raised"])
+        }
         // Liquid Glass 2.0 `.pane`: starts below the 48 pt header row, bo 22, light rim, outer shadow.
         Kit.GlassPane {
             objectName: "navigation-glass-pane"
+            shadowRole: navigation.dismissible ? "shadow-lg-color" : "shadow-md-color"
             visible: navigation.glass
             anchors.fill: parent
             anchors.leftMargin: navigation.metrics.small
@@ -102,7 +110,7 @@ Pane {
             Layout.fillWidth: true
             Layout.preferredHeight: navigation.metrics.navControl
             Item { Layout.fillWidth: true }
-            Kit.GlassToolButton { id: collapseToggle; objectName: "navigation-collapse"; implicitWidth: navigation.metrics.control; implicitHeight: navigation.metrics.control; icon.source: "icons/collapse.svg"; icon.color: palette.buttonText; text: navigation.t("collapseNavigation"); display: AbstractButton.IconOnly; Accessible.name: text; ToolTip.visible: hovered; ToolTip.text: text; onClicked: navigation.toggleRequested(collapseToggle) }
+            Kit.GlassToolButton { id: collapseToggle; visible: navigation.headerToggle; objectName: "navigation-collapse"; implicitWidth: navigation.metrics.control; implicitHeight: navigation.metrics.control; icon.source: "icons/collapse.svg"; icon.color: palette.buttonText; text: navigation.t("collapseNavigation"); display: AbstractButton.IconOnly; Accessible.name: text; ToolTip.visible: hovered; ToolTip.text: text; onClicked: navigation.toggleRequested(collapseToggle) }
         }
         RowLayout {
             Layout.fillWidth: true
