@@ -739,3 +739,10 @@ phiên và không giả lập dữ liệu. Đã có QtTest.
 
 **Chưa chụp vì cần AI thật (không giả lập dữ liệu):** Chat-Active, Chat-States
 (đang trả lời, lỗi, ảnh, nghiên cứu), History có dữ liệu. Chưa kiểm Narrator.
+
+## Chụp lại bảng lệnh trên GPU (Claude, 2026-11-08 12:55)
+
+App thật, Direct3D 11, 100 % DPI: `glass2-win-W1/overlay-palette-{light,dark}-gpu.png`.
+Bảng Ctrl+K gần như đặc, không viền đôi, thanh cuộn luôn hiện khi tràn, nhóm Trang theo đúng
+thứ tự catalog, đủ biểu tượng và keycap. Đóng mục NOT RUN của bảng lệnh. Menu "+" vẫn chưa
+chụp trên GPU.
