@@ -71,7 +71,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgl1-mesa-dev libxkbcommon-dev libvulkan-dev libxcb-cursor0 libfuse2 \
             libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
-            libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libpulse0 patchelf
+            libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libpulse0 patchelf \
+            libspeechd2
       - if: runner.os != 'macOS'
         uses: jurplel/install-qt-action@v4
         with:
