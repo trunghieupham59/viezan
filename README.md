@@ -198,8 +198,17 @@ than permanently erased.
   Editable controls use the native paste command only while the original application,
   document and selection still match. Read-only web text and controls without
   verifiable Accessibility values show a result card for manual copying.
-- macOS application cleanup and fan control preserve their platform scope. They
-  are not presented as portable Windows/Linux uninstall or fan-control backends.
+- macOS selected application-data cleanup/reset and fan control retain their
+  platform scope. Qt now has a Windows/Linux uninstall service awaiting W3 QML
+  integration: registered Win32/MSI uninstallers, a Settings action for Store/MSIX,
+  Flatpak, Snap, desktop-owned apt/dnf packages, and selected AppImages to Trash.
+  Package removal has no undo; AppImages can be restored using the OS Trash.
+  System package removal requires explicit consent plus Polkit authorization.
+  This does not remove leftover data. Linux has fake-provider tests only and
+  has not been accepted on a real Linux machine.
+- Qt exposes system transparency/high-contrast preferences for the W5 solid
+  surface integration; the Shell-Solid QML branch is not implemented by this
+  backend change.
 - Cloud AI, speech, search and currency conversion need their external services.
   Local model availability depends on the selected runtime: Ollama (`11434`),
   LM Studio (`1234/v1`) or llama.cpp (`8080/v1`), all on `127.0.0.1`. Select a

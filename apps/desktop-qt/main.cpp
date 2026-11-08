@@ -14,6 +14,8 @@
 #include <QQuickStyle>
 #include "WorkbenchBridge.h"
 #include "AttachmentImageProvider.h"
+#include "AppUninstall.h"
+#include "SystemAppearance.h"
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
@@ -42,9 +44,13 @@ int main(int argc, char *argv[]) {
 #endif
     }
     WorkbenchBridge bridge;
+    AppUninstall appUninstall;
+    SystemAppearance systemAppearance;
     QQmlApplicationEngine engine;
     engine.addImageProvider("attachments", new AttachmentImageProvider);
     engine.rootContext()->setContextProperty("workbench", &bridge);
+    engine.rootContext()->setContextProperty("appUninstall", &appUninstall);
+    engine.rootContext()->setContextProperty("systemAppearance", &systemAppearance);
     QObject::connect(&app, &QGuiApplication::aboutToQuit, &bridge, &WorkbenchBridge::shutdown);
     engine.load(QUrl("qrc:/qml/Main.qml"));
     if (engine.rootObjects().isEmpty()) return 1;
