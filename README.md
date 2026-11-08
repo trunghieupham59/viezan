@@ -4,7 +4,8 @@ Local-first AI chat, translation, dictionary and live interpretation for desktop
 The application is now implemented in **SwiftUI/AppKit + Swift on macOS** and
 **Qt Quick/QML + C++ on Windows/Linux**. There is no Electron main process,
 preload, renderer host, updater, builder or Electron dependency in the active
-application or package manifest.
+application or package manifest. Version 2.5.0 is the first release line that
+officially retires the Electron app; earlier Electron builds are no longer maintained.
 
 This checkout is a **source migration awaiting full runtime acceptance**.
 The macOS Desktop Review 18 bundle was rebuilt and opened on 2026-10-27
@@ -48,7 +49,8 @@ Existing GitHub releases may still be the previous app.
 - macOS application inventory, selected uninstall/reset plans, Trash operations,
   preference backup/reset, journals, recovery and undo; thermal monitoring,
   fan profiles, calibration and helper lease restoration. Linux exposes available
-  hwmon readings; Windows uses system application settings for app management.
+  hwmon readings. Qt lists Windows/Linux applications and starts their registered
+  uninstaller after one confirmation (see limits below).
 - Local Ollama management, model downloads/deletion, runtime limits, GPU/hybrid
   comparison and persistent measured profiles; optional prepared Windows runtime.
 - Glass shell: light mode layers a cyan scene, floating navigation, an ice-blue
@@ -65,6 +67,12 @@ Existing GitHub releases may still be the previous app.
   by recency and time of day. Its tools panel offers four reasoning levels;
   low/medium require model support, while Careful also adds prompt guidance.
   These suggestions and reasoning controls are not yet ported to Qt.
+- Qt Liquid Glass 2.0 on Windows/Linux: Home, Chat, Translate, Dictionary and
+  Interpret pages, system pages, category Settings, the Launcher home and states,
+  Quick Chat/Translate notices, an automatic update sheet with a 24-hour reminder,
+  compact (820 px) and minimum (640×480) layouts, and Ctrl+K rows for calculation,
+  Ask AI, translate and look-up. GPU visual acceptance of the later pages, 150 %
+  scaling and Narrator checks are still pending.
 - Glass buttons throughout the app use native Liquid Glass on macOS 26+,
   with material/opaque accessibility fallbacks. Qt draws translucent control
   faces, directional reflections and local depth; it does not blur the desktop.
@@ -202,8 +210,18 @@ than permanently erased.
   Editable controls use the native paste command only while the original application,
   document and selection still match. Read-only web text and controls without
   verifiable Accessibility values show a result card for manual copying.
-- macOS application cleanup and fan control preserve their platform scope. They
-  are not presented as portable Windows/Linux uninstall or fan-control backends.
+- macOS selected application-data cleanup/reset and fan control retain their
+  platform scope. Qt's Applications page uses the Windows/Linux uninstall service:
+  registered Win32/MSI uninstallers, a Settings action for Store/MSIX,
+  Flatpak, Snap, desktop-owned apt/dnf packages, and selected AppImages to Trash.
+  Package removal has no undo; AppImages can be restored using the OS Trash.
+  System package removal requires explicit consent plus Polkit authorization.
+  This does not remove leftover data. Linux has fake-provider tests only and
+  has not been accepted on a real Linux machine.
+- With reduced transparency or high contrast turned on, Qt Glass surfaces become
+  opaque and use stronger borders; the setting follows the OS while the app runs.
+- Qt Launcher has no currency target picker or rate status yet, and the Launcher
+  shows file results without previews.
 - Cloud AI, speech, search and currency conversion need their external services.
   Local model availability depends on the selected runtime: Ollama (`11434`),
   LM Studio (`1234/v1`) or llama.cpp (`8080/v1`), all on `127.0.0.1`. Select a

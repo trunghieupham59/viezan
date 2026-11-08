@@ -133,6 +133,7 @@ void WorkbenchBridge::reload() {
         if (QFileInfo(file).isSymLink() || !QFileInfo(file).isFile() || file.size() <= 0 || file.size() > 134217728 || !file.open(QIODevice::ReadOnly)) { m_loadBlocked = true; m_storageError = "storageLoadError"; emit changed(); return; }
         QJsonParseError error;
         const auto parsed = QJsonDocument::fromJson(file.readAll(), &error);
+        file.close();
         const auto recovered = WorkbenchDomain::recover(parsed.toVariant().toMap());
         if (error.error != QJsonParseError::NoError || recovered.isEmpty()) { m_loadBlocked = true; m_storageError = "storageLoadError"; emit changed(); return; }
         m_state = recovered;

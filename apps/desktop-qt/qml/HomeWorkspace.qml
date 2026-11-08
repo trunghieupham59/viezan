@@ -16,6 +16,9 @@ ScrollView {
     readonly property bool darkMode: bridge.state.appearance?.mode === "dark" || (bridge.state.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
     readonly property bool lightGlass: bridge.state.appearance?.preset === "glass" && !darkMode
     readonly property bool glass: bridge.state.appearance?.preset === "glass"
+    property bool compact: width < metrics.reading
+    readonly property string activeModel: bridge.state.sessions.find(item => item.id === bridge.state.active[bridge.state.feature])?.model || ""
+    readonly property string modelAvailability: (bridge.localModels, bridge.providersChecked, bridge.availability(activeModel))
     readonly property var colors: bridge.resources.themePalettes[(bridge.state.appearance?.preset || "graphite") + ":" + (bridge.state.appearance?.accent || "auto")][darkMode ? "dark" : "light"]
     property string filter: ""
     readonly property var features: ["chat", "translate", "dictionary"].filter(feature => !(home.bridge.state.disabledModules || []).includes(feature))
@@ -64,8 +67,9 @@ ScrollView {
                 Kit.Eyebrow { text: home.t("quickStart") }
                 GridLayout {
                     id: tiles
+                    objectName: "home-quick-grid"
                     readonly property int count: ["chat", "translate", "interpret", "dictionary"].filter(feature => !(home.bridge.state.disabledModules || []).includes(feature)).length
-                    columns: width + home.metrics.gap >= count * (home.metrics.compactSidebar - home.metrics.gutter + home.metrics.gap) ? count : width + home.metrics.gap >= 2 * (home.metrics.compactSidebar - home.metrics.gutter + home.metrics.gap) ? 2 : 1
+                    columns: home.compact ? Math.min(2, count) : width + home.metrics.gap >= count * (home.metrics.compactSidebar - home.metrics.gutter + home.metrics.gap) ? count : width + home.metrics.gap >= 2 * (home.metrics.compactSidebar - home.metrics.gutter + home.metrics.gap) ? 2 : 1
                     columnSpacing: home.metrics.gap; rowSpacing: home.metrics.gap
                     Layout.fillWidth: true
                     Repeater {
@@ -79,11 +83,28 @@ ScrollView {
     }
     component GlassIntro: RowLayout {
         Layout.fillWidth: true
-        spacing: home.metrics.gutter
-        Kit.PageIntro { title: home.t("workspace"); subtitle: home.t("workspaceSubtitle"); Layout.fillWidth: true; Layout.alignment: Qt.AlignTop }
+        spacing: home.compact ? home.metrics.small : home.metrics.gutter
+        Kit.PageIntro { objectName: "home-intro"; titleScale: home.compact ? (home.metrics.headingScale + home.metrics.titleScale) / 2 : home.metrics.headingScale; title: home.t("workspace"); subtitle: home.t("workspaceSubtitle"); Layout.fillWidth: true; Layout.minimumWidth: 0; Layout.alignment: Qt.AlignTop }
+        Kit.QuietButton {
+            objectName: "home-model-pill"
+            visible: home.compact
+            Layout.alignment: Qt.AlignTop
+            Layout.maximumWidth: home.metrics.editor + home.metrics.control
+            text: home.bridge.shortModelName(home.activeModel) || home.t("model")
+            Accessible.name: home.t("model") + ": " + text + ", " + home.t(home.modelAvailability === "available" ? "runtimeReady" : home.modelAvailability === "unknown" ? "model" : "unavailable") + ". " + home.t("manage")
+            ToolTip.visible: hovered; ToolTip.text: Accessible.name
+            contentItem: RowLayout {
+                spacing: home.metrics.small
+                Kit.StatusDot { tone: home.modelAvailability === "available" ? "ready" : home.modelAvailability === "unknown" ? "idle" : "failed"; failedColor: home.dangerColor }
+                Label { text: home.bridge.shortModelName(home.activeModel) || home.t("model"); elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
+                Label { text: "⌄"; Accessible.ignored: true }
+            }
+            onClicked: home.settings()
+        }
         // One glass strip: readiness dot, provider · model, its state and a quiet Manage.
         Item {
             id: strip
+            visible: !home.compact
             readonly property string activeModel: home.bridge.state.sessions.find(item => item.id === home.bridge.state.active[home.bridge.state.feature])?.model || ""
             readonly property string availability: (home.bridge.localModels, home.bridge.providersChecked, home.bridge.availability(activeModel))
             Layout.alignment: Qt.AlignTop
@@ -111,6 +132,7 @@ ScrollView {
         }
         Kit.PrimaryButton {
             text: home.t("newWork"); icon.source: "icons/new.svg"
+            display: home.width < home.metrics.dialog ? AbstractButton.IconOnly : AbstractButton.TextBesideIcon
             Layout.alignment: Qt.AlignTop
             enabled: !home.bridge.loadBlocked && home.features.includes("chat")
             ToolTip.visible: hovered; ToolTip.text: home.t("newChat")
@@ -130,7 +152,7 @@ ScrollView {
         Accessible.name: text
         background: Item {
             // A wide tile uses the pane material (translucent face, light rim); hover lifts it to a lens.
-            Kit.GlassPane { anchors.fill: parent; radius: home.metrics.gap + home.metrics.hairline * 2; shadowRole: "shadow-sm-color"; visible: !tile.hovered && !tile.down; opacity: tile.enabled ? 1 : 0.5 }
+            Kit.GlassPane { solidRole: "control"; anchors.fill: parent; radius: home.metrics.gap + home.metrics.hairline * 2; shadowRole: "shadow-sm-color"; visible: !tile.hovered && !tile.down; opacity: tile.enabled ? 1 : 0.5 }
             Kit.GlassLens { anchors.fill: parent; radius: home.metrics.gap + home.metrics.hairline * 2; visible: tile.hovered || tile.down }
             Rectangle { anchors.fill: parent; radius: home.metrics.gap + home.metrics.hairline * 2; color: "transparent"; visible: tile.visualFocus; border.width: home.metrics.hairline * 2; border.color: home.colors["action-text"] }
         }

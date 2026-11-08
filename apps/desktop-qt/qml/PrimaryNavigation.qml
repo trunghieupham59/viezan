@@ -9,12 +9,14 @@ Pane {
     required property string route
     property bool expanded: false
     property bool dismissible: false
+    property bool headerToggle: true
     signal selected(string route)
     signal commands(var opener)
     signal dismissed()
     signal toggleRequested(var opener)
     readonly property var metrics: bridge.resources.metrics
     readonly property bool glass: bridge.state.appearance?.preset === "glass"
+    SurfaceAppearance { id: surfaceAppearance }
     readonly property bool darkMode: bridge.state.appearance?.mode === "dark" || (bridge.state.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
     readonly property bool lightGlass: glass && !darkMode
     readonly property real headerHeight: metrics.navControl + metrics.small
@@ -28,9 +30,16 @@ Pane {
     leftPadding: glass ? metrics.small + metrics.gap : padding
     background: Item {
         Rectangle { anchors.fill: parent; color: navigation.glass ? "transparent" : navigation.palette.window }
+        Rectangle {
+            visible: navigation.glass && navigation.dismissible
+            anchors.fill: parent; anchors.margins: navigation.metrics.small
+            radius: navigation.metrics.chromeSurfaceRadius
+            color: Qt.tint(navigation.chromeColors["app-bg"], navigation.chromeColors["surface-raised"])
+        }
         // Liquid Glass 2.0 `.pane`: starts below the 48 pt header row, bo 22, light rim, outer shadow.
         Kit.GlassPane {
             objectName: "navigation-glass-pane"
+            shadowRole: navigation.dismissible ? "shadow-lg-color" : "shadow-md-color"
             visible: navigation.glass
             anchors.fill: parent
             anchors.leftMargin: navigation.metrics.small
@@ -58,7 +67,7 @@ Pane {
         // Liquid Glass 2.0: the selected row is a lens (bo 12), hover the flat softer lens;
         // search is an inset capsule field when expanded and a round glass on the rail.
         radius: navigation.glass ? (isSearch ? height / 2 : navigation.metrics.radius) : navigation.metrics.controlRadius
-        color: navigation.glass ? (isSearch && navigation.expanded ? navigation.chromeColors["sidebar-search-bg"] : "transparent") : control.checked ? Qt.tint(control.palette.window, Qt.alpha(control.palette.highlight, navigation.metrics.selectionOpacity)) : control.hovered ? control.palette.midlight : "transparent"
+        color: navigation.glass ? (isSearch && navigation.expanded ? (surfaceAppearance.solid ? surfaceAppearance.reading : navigation.chromeColors["sidebar-search-bg"]) : "transparent") : control.checked ? Qt.tint(control.palette.window, Qt.alpha(control.palette.highlight, navigation.metrics.selectionOpacity)) : control.hovered ? control.palette.midlight : "transparent"
         Kit.GlassLens {
             anchors.fill: parent
             visible: navigation.glass && !parent.isSearch && (parent.control.checked || parent.interacting)
@@ -78,7 +87,7 @@ Pane {
             radius: parent.radius
             color: "transparent"
             border.width: navigation.metrics.hairline
-            border.color: navigation.chromeColors["border"]
+            border.color: surfaceAppearance.solid ? surfaceAppearance.edge : navigation.chromeColors["border"]
         }
         // Keep native keyboard focus above the decorative rim.
         Rectangle {
@@ -102,7 +111,7 @@ Pane {
             Layout.fillWidth: true
             Layout.preferredHeight: navigation.metrics.navControl
             Item { Layout.fillWidth: true }
-            Kit.GlassToolButton { id: collapseToggle; objectName: "navigation-collapse"; implicitWidth: navigation.metrics.control; implicitHeight: navigation.metrics.control; icon.source: "icons/collapse.svg"; icon.color: palette.buttonText; text: navigation.t("collapseNavigation"); display: AbstractButton.IconOnly; Accessible.name: text; ToolTip.visible: hovered; ToolTip.text: text; onClicked: navigation.toggleRequested(collapseToggle) }
+            Kit.GlassToolButton { id: collapseToggle; visible: navigation.headerToggle; objectName: "navigation-collapse"; implicitWidth: navigation.metrics.control; implicitHeight: navigation.metrics.control; icon.source: "icons/collapse.svg"; icon.color: palette.buttonText; text: navigation.t("collapseNavigation"); display: AbstractButton.IconOnly; Accessible.name: text; ToolTip.visible: hovered; ToolTip.text: text; onClicked: navigation.toggleRequested(collapseToggle) }
         }
         RowLayout {
             Layout.fillWidth: true

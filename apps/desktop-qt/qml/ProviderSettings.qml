@@ -1,62 +1,85 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-
-Kit.CardBox {
+ColumnLayout {
     id: providers
     required property var bridge
+    signal feedback(string message, bool error)
     readonly property var metrics: bridge.resources.metrics
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
-    title: t("providerSettings")
+    property color dangerColor: palette.placeholderText
+    property string editing: ""
+    property bool saving: false
     readonly property var names: ({openai: "OpenAI", claude: "Claude", gemini: "Gemini", groq: "Groq", tavily: "Tavily", brave: "Brave Search", jina: "Jina", elevenlabs: "ElevenLabs"})
-    function purpose(id) { return ["openai", "claude", "gemini"].includes(id) ? "purposeChat" : id === "groq" ? "purposeSpeech" : id === "elevenlabs" ? "purposeVoice" : "purposeSearch" }
-    // Presence never unlocks the credential store; chat providers are verified by the
-    // discovery listing their models (free), so a rejected key shows its error here.
+    readonly property var links: ({openai: "https://platform.openai.com/api-keys", claude: "https://console.anthropic.com/settings/keys", gemini: "https://aistudio.google.com/apikey", groq: "https://console.groq.com/keys", tavily: "https://app.tavily.com", brave: "https://api.search.brave.com", jina: "https://jina.ai", elevenlabs: "https://elevenlabs.io"})
+    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
     function status(id) {
-        const state = (providers.bridge.localModels, providers.bridge.discovering, providers.bridge.providerState(id))
+        const state = (bridge.localModels, bridge.discovering, bridge.credentialStatus, bridge.providerState(id))
         if (!state.keyed) return [t("keyAbsent"), "idle"]
         if (!["openai", "claude", "gemini"].includes(id)) return [t("keyPresent"), "ready"]
         if (state.models >= 0) return [t("keyPresent") + " · " + state.models + " " + t("modelsAvailable"), "ready"]
         if (state.failure) return [t(state.failure), "failed"]
         return [t("keyPresent") + " · " + t("keyUnverified"), "idle"]
     }
-    property color dangerColor: palette.placeholderText
-    ColumnLayout {
-        width: parent.width
-        spacing: providers.metrics.inset
-        ColumnLayout {
-            spacing: 0
-            Layout.fillWidth: true
-            Repeater {
-                model: ["openai", "claude", "gemini", "groq", "tavily", "brave", "jina", "elevenlabs"]
-                delegate: Kit.CardRow {
-                    required property string modelData
-                    required property int index
-                    readonly property var rowState: providers.status(modelData)
-                    title: providers.names[modelData]; detail: providers.t(providers.purpose(modelData)); divider: index < 7
-                    objectName: "provider-status-" + modelData
-                    Kit.StatusDot { tone: rowState[1]; failedColor: providers.dangerColor }
-                    Label { text: rowState[0]; color: rowState[1] === "failed" ? providers.dangerColor : palette.placeholderText; Accessible.name: providers.names[modelData] + ": " + text }
+    spacing: metrics.inset
+    Kit.GlassButton { text: providers.t("checkAgain"); icon.source: "icons/refresh.svg"; enabled: !providers.bridge.discovering; onClicked: providers.bridge.discoverProviders() }
+    Repeater {
+        model: [{title: "providerGroupCloud", ids: ["claude", "openai", "gemini"]}, {title: "providerGroupSearchVoice", ids: ["groq", "tavily", "brave", "jina", "elevenlabs"]}]
+        delegate: Kit.CardBox {
+            required property var modelData
+            title: providers.t(modelData.title); Layout.fillWidth: true
+            ColumnLayout {
+                width: parent.width; spacing: 0
+                Repeater {
+                    model: modelData.ids
+                    delegate: ColumnLayout {
+                        id: providerRow
+                        required property string modelData
+                        required property int index
+                        Layout.fillWidth: true; spacing: providers.metrics.small
+                        readonly property var rowState: providers.status(modelData)
+                        readonly property bool keyed: (providers.bridge.credentialStatus, providers.bridge.localModels, providers.bridge.providerState(modelData).keyed)
+                        Kit.CardRow {
+                            objectName: "provider-status-" + providerRow.modelData
+                            title: providers.names[providerRow.modelData]; detail: providerRow.rowState[0]; divider: false
+                            Kit.StatusDot { tone: providerRow.rowState[1]; failedColor: providers.dangerColor }
+                            Kit.GlassButton { text: providers.t(providerRow.keyed ? "replaceKey" : "addKey"); enabled: !providers.bridge.credentialBusy; onClicked: { providers.editing = providers.editing === providerRow.modelData ? "" : providerRow.modelData; key.clear(); if (providers.editing) key.forceActiveFocus() } }
+                            SettingsDangerButton { text: providers.t("deleteKey"); visible: providerRow.keyed; enabled: !providers.bridge.credentialBusy; onClicked: { confirmation.providerID = providerRow.modelData; confirmation.open() } }
+                        }
+                        Kit.QuietButton { text: providers.t("getKey") + " ↗"; onClicked: Qt.openUrlExternally(providers.links[providerRow.modelData]) }
+                        ColumnLayout {
+                            visible: providers.editing === providerRow.modelData; Layout.fillWidth: true
+                            TextField { id: key; echoMode: TextInput.Password; placeholderText: providers.t("apiKey"); Accessible.name: providers.names[providerRow.modelData] + " · " + placeholderText; maximumLength: 4096; Layout.fillWidth: true; enabled: !providers.bridge.credentialBusy; onAccepted: if (!inputMethodComposing && save.enabled) save.clicked() }
+                            Flow {
+                                Layout.fillWidth: true; spacing: providers.metrics.small
+                                Kit.PrimaryButton { id: save; text: providers.t("saveKey"); enabled: !providers.bridge.credentialBusy && !!key.text.trim(); onClicked: { providers.saving = true; providers.bridge.saveCredential(providerRow.modelData, key.text); key.clear() } }
+                                Kit.QuietButton { text: providers.t("close"); enabled: !providers.bridge.credentialBusy; onClicked: { key.clear(); providers.editing = "" } }
+                            }
+                        }
+                        Rectangle { Layout.fillWidth: true; implicitHeight: providers.metrics.hairline; color: palette.midlight }
+                        Connections { target: providers; function onEditingChanged() { if (providers.editing !== providerRow.modelData) key.clear() } }
+                        Component.onDestruction: key.clear()
+                    }
                 }
             }
         }
-        Kit.GlassButton { text: providers.t("checkAgain"); enabled: !providers.bridge.discovering; onClicked: providers.bridge.discoverProviders() }
-        Kit.GlassComboBox { id: provider; enabled: !providers.bridge.credentialBusy; textRole: "name"; valueRole: "id"; model: ["openai", "claude", "gemini", "groq", "tavily", "brave", "jina", "elevenlabs"].map(id => ({id: id, name: providers.names[id]})); Accessible.name: providers.t("provider"); onActivated: key.clear() }
-        TextField { id: key; echoMode: TextInput.Password; placeholderText: providers.t("apiKey"); Accessible.name: placeholderText; maximumLength: 4096; Layout.fillWidth: true }
-        RowLayout {
-            Kit.GlassButton { text: providers.t("saveKey"); enabled: !providers.bridge.credentialBusy && key.text.length > 0; onClicked: { providers.bridge.saveCredential(provider.currentValue, key.text); key.clear() } }
-            Kit.GlassButton { text: providers.t("deleteKey"); enabled: !providers.bridge.credentialBusy; onClicked: confirmation.open() }
-            BusyIndicator { visible: running; running: providers.bridge.credentialBusy; implicitWidth: providers.metrics.control; implicitHeight: providers.metrics.control }
+    }
+    BusyIndicator { visible: running; running: providers.bridge.credentialBusy; implicitWidth: providers.metrics.control; implicitHeight: providers.metrics.control }
+    Label { text: providers.bridge.credentialStatus ? providers.t(providers.bridge.credentialStatus) : ""; visible: !!text; wrapMode: Text.Wrap; Layout.fillWidth: true }
+    SettingsConfirm {
+        id: confirmation; objectName: "settings-delete-key-dialog"; bridge: providers.bridge
+        property string providerID: ""
+        title: providers.t("deleteKey")
+        message: providers.t("deleteNamedKeyConfirm").replace("{name}", providers.names[providerID] || "")
+        actionText: providers.t("deleteKey"); actionEnabled: !providers.bridge.credentialBusy
+        onAccepted: if (!providers.bridge.credentialBusy) { providers.saving = true; providers.bridge.saveCredential(providerID, "", true) }
+    }
+    Connections {
+        target: providers.bridge
+        function onChanged() {
+            if (providers.saving && !providers.bridge.credentialBusy && providers.bridge.credentialStatus) {
+                providers.saving = false
+                providers.feedback(providers.t(providers.bridge.credentialStatus), providers.bridge.credentialStatus !== "keySaved")
+            }
         }
-        Label { text: providers.t("keyStorageHint"); wrapMode: Text.Wrap; Layout.fillWidth: true }
-        Label { text: providers.bridge.credentialStatus ? providers.t(providers.bridge.credentialStatus) : ""; visible: !!text; wrapMode: Text.Wrap; Layout.fillWidth: true }
     }
-    GlassDialog {
-        id: confirmation
-        title: providers.t("deleteKeyConfirm")
-        modal: true
-        standardButtons: Dialog.Ok | Dialog.Cancel
-        onAccepted: providers.bridge.saveCredential(provider.currentValue, "", true)
-    }
-    Component.onDestruction: key.clear()
 }

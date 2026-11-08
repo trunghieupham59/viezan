@@ -728,8 +728,8 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
     // ignored commands must not change recency or trigger unnecessary persistence.
     static const QStringList edits{"draft", "submit", "rename", "pair", "dictionaryContext", "archive", "favorite", "model", "carefulReasoning", "chatMode", "systemPrompt", "reasoning", "translationOptions", "addImage", "removeImage"};
     if (index >= 0 && edits.contains(name) && clock(p) > 0 && (item != original.value("sessions").toList().value(index).toMap() || tasks != original.value("tasks").toList())) item["updated"] = clock(p);
-    // New inserts before the old index; do not overwrite the newly created session.
-    if (index >= 0 && name != "new" && name != "adoptModel") sessions[index] = item;
+    // New and navigate's smart reset can insert before the old index. Navigate never edits item.
+    if (index >= 0 && name != "new" && name != "adoptModel" && name != "navigate") sessions[index] = item;
     if (name == "receive" && p.value("terminal") == "succeeded") {
         QString owner; for (const auto &value : tasks) { const auto task = value.toMap(); if (task.value("id") == p.value("taskID") && task.value("status") == "succeeded" && task.value("request").toMap().value("feature") == "dictionary") owner = task.value("request").toMap().value("sessionID").toString(); }
         const auto currentIndex = find(sessions, owner);

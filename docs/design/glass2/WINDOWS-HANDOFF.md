@@ -61,7 +61,11 @@ ctest --test-dir .native-build/qt -C Release --output-on-failure
 - `MultiEffect` phải `anchors.fill: parent`, nếu không mặt kính để lại một hình chữ nhật sáng khi nút giãn ra. Tránh dùng `MultiEffect` trên mặt rộng; khi render bằng phần mềm thì không có bóng.
 - Ký tự `&` trong nhãn nút biến thành mnemonic. Thay bằng `&&`.
 - Kính trong Qt là mặt bán trong kèm phản sáng, vẽ trong scene. Đừng tuyên bố blur desktop.
-- Reduce Transparency / Increase Contrast chưa có nhánh mặt đặc trong Qt (BACKEND-GAPS #34, chưa làm). Trên Windows đọc được cài đặt "Transparency effects" và chế độ High Contrast; dùng chúng để chọn nhánh mặt đặc (board `Shell-Solid`). Đây là việc C++ nhỏ ở W5: hỏi trước khi đụng C++.
+- Reduce Transparency / Increase Contrast (#34): nhánh mặt đặc QML (`Shell-Solid`)
+  còn ở W5; dịch vụ đọc cài đặt Windows đã có ở B2.
+  Cập nhật B2 2026-11-08: đã có context `systemAppearance.reduceTransparency` /
+  `systemAppearance.highContrast` (NOTIFY), đọc lại khi kích hoạt app/thay theme.
+  W5 còn nối nhánh QML; B2 đã được cho phép C++, không cần làm lại dịch vụ.
 - Thanh tiêu đề: bản Qt trên macOS dùng khung hệ thống. Trên Windows, kiểm vị trí nút thu gọn sidebar và breadcrumb so với khung cửa sổ Windows 11.
 - Dịch mọi nơi (BACKEND-GAPS #88): Windows và Linux không có "Quyền trợ năng". Thay dòng đó bằng trạng thái "có thể thay vùng chọn" (`desktopIntegration.canReplaceSelection`).
 - Bố cục hai pane Dịch (bài học từ macOS Đợt 9): chia hai cột bằng nhau theo vùng chứa, không theo nội dung. Nút ở chân pane phải co lại (nhãn → biểu tượng) khi thiếu chỗ, nếu không pill "Đang đọc" sẽ đẩy cả màn và lớp Nghe xê dịch.
@@ -138,7 +142,9 @@ QML chỉ cần nối các phần dưới đây, không viết lại logic. `bri
 - **Board:** Everywhere, Apps*, Thermal*, Shortcuts*.
 - Thay "Quyền trợ năng" bằng `canReplaceSelection`.
 - Ghi âm (Shell-States): `audio.recordingStarted` (giây từ 1970, 0 = không ghi) → dải "Đang ghi âm · 00:14" (`recordingElapsed`), đếm mỗi giây.
-- Gỡ ứng dụng và điều khiển quạt là phạm vi chỉ macOS (README.md:195-196): trên Qt vẽ trạng thái "không hỗ trợ trên hệ điều hành này", không giả lập.
+- Điều khiển quạt vẫn chỉ macOS. B1 2026-11-08 đã bổ sung context `appUninstall`
+  cho dịch vụ gỡ Windows/Linux; W3 nối API theo [spec Apps](../screens/apps.md#11-dịch-vụ-qt-windowslinux--b1-2026-11-08).
+  Đặt lại/dọn dữ liệu ứng dụng vẫn chỉ macOS; không giả lập chúng trên Qt.
 
 ### W4 · Cài đặt
 
@@ -152,6 +158,9 @@ QML chỉ cần nối các phần dưới đây, không viết lại logic. `bri
 ### W5 · Cửa sổ phụ, cập nhật, cửa sổ hẹp / nhỏ nhất, mặt đặc
 
 - **Board:** Launcher*, QuickChat, QuickTranslate, UpdateSheet*, *-Compact, Shell-Minimum, Shell-Solid.
+- **Mặt đặc (#34):** dùng `systemAppearance.reduceTransparency || systemAppearance.highContrast`;
+  hai cờ độc lập, cập nhật bằng NOTIFY; Linux thử GNOME gsettings high-contrast,
+  không đọc được thì false. QML và nghiệm thu hình ảnh vẫn thuộc W5.
 - **Hộp cập nhật tự hiện (#43):**
   - `bridge.updatePrompt` (`{version, notes}`, rỗng = không hiện). Bridge tự kiểm tra một phút sau khi mở rồi mỗi ngày khi `autoCheckUpdates` bật.
   - "Nhắc sau 24 giờ" → `bridge.snoozeUpdate()`; đóng → `bridge.dismissUpdatePrompt()`.
@@ -218,5 +227,5 @@ Không chặn W0–W5. Vẽ trạng thái gần nhất mà backend hiện có v�
 | Âm thanh | #48 giọng có giới tính | Nhóm giọng theo ngôn ngữ (đã có `voiceList`), không ghi giới tính |
 | Phiên dịch | #36 trạng thái đọc từng câu (C++) | Xem "Hạn chế đã biết" ở W2 |
 | Hoãn | #13 So sánh 4 model, #17 Full Disk Access, #20 logo nhà cung cấp, #67 nghe tiếp cùng phiên, #69 tổng hợp cả 4 | — |
-| Qt kém macOS | #44 tiền tệ Launcher, #19 / #33 OCR trên máy, #34 mặt đặc | #34 nên làm ở W5 (C++ nhỏ, hỏi trước) |
+| Qt kém macOS | #44 tiền tệ Launcher, #19 / #33 OCR trên máy, #34 mặt đặc | #34 đã có dịch vụ B2; còn nhánh QML và nghiệm thu W5 |
 | Cả hai | #62 bytes khi tải model, #65 tệp trên Launcher, #11 / #14 / #71 chỉ còn phần hiển thị | — |

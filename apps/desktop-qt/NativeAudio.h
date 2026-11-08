@@ -50,6 +50,11 @@ public:
     /// Rate is the speaking multiplier (0.5–2); providers that ignore it (Gemini, ElevenLabs) read at 1.
     /// Microphone access: "granted", "denied" or "undetermined" (Swift MicrophonePermission.status).
     Q_INVOKABLE QString microphonePermission() const;
+    static QString microphonePermissionStatus();
+#ifdef VIEZAN_CONTRACT_FIXTURE
+    // Test executable only; never exposed to QML or the production executable.
+    static void setMicrophonePermissionForTest(const QString &status);
+#endif
     Q_INVOKABLE void configureVoice(const QString &provider, const QString &voice, double rate = 1);
     /// Providers whose speech honours the rate multiplier (shared rule with Swift).
     static bool rateSupported(const QString &provider) { return provider != "gemini" && provider != "elevenlabs"; }

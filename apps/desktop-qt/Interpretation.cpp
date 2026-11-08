@@ -48,6 +48,8 @@ QVariantMap Interpretation::current() const { for (const auto &value : m_session
 void Interpretation::select(const QString &id) { if (busy()) return; for (const auto &value : m_sessions) if (value.toMap().value("id") == id) { m_selected = id; emit changed(); return; } }
 void Interpretation::start(const QString &model, const QString &provider, const QString &source, const QString &target, const QString &locale, const QString &captureMode, const QString &deviceID) {
     if (!QStringList{"microphone", "system", "mixed"}.contains(captureMode) || busy() || m_blocked || m_sessions.size() >= 1000 || !QStringList{"auto", "openai", "groq", "gemini"}.contains(provider) || !model.contains(':') || model.size() > 512) return;
+    const auto permissionStatus = captureMode == "system" ? QString("granted") : NativeAudio::microphonePermissionStatus();
+    if (permissionStatus == "denied") { m_error = "microphoneDenied"; emit changed(); return; }
     m_captureMode = captureMode; m_deviceID = deviceID;
     const auto generation = ++m_generation; m_starting = true; m_audio.silence(); m_error.clear(); emit changed();
     const auto begin = [this, generation, model, provider, source, target, locale] {
@@ -58,7 +60,7 @@ void Interpretation::start(const QString &model, const QString &provider, const 
     };
     if (captureMode == "system") { begin(); return; }
     QMicrophonePermission permission;
-    if (qApp->checkPermission(permission) == Qt::PermissionStatus::Granted) begin();
+    if (permissionStatus == "granted") begin();
     else qApp->requestPermission(permission, this, [this, generation, begin](const QPermission &value) {
         if (generation != m_generation) return;
         if (value.status() == Qt::PermissionStatus::Granted) begin();

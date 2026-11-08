@@ -10,6 +10,10 @@ Xem trước ứng dụng và dữ liệu liên quan trên macOS, gỡ hoặc đ
 dụng trong quyền người dùng, và khôi phục qua nhật ký. Kết quả nói số mục còn
 trong phạm vi quét; không hứa tìm được mọi dấu vết trên ổ đĩa.
 
+Windows/Linux có dịch vụ C++ gỡ theo nguồn cài đặt (B1, 2026-11-08), mô tả ở
+mục 11. Luồng chọn dữ liệu/Đặt lại/nhật ký bên dưới vẫn là phạm vi macOS.
+Dịch vụ Qt đã đăng ký context property; màn QML chưa nối trong lượt B1.
+
 ## 2. Điểm vào và điểm ra
 
 | Từ | Cách vào | Ghi chú |
@@ -93,7 +97,8 @@ bằng chứng và trạng thái nhật ký. EN/JA cùng shape; số/ngày theo 
 - Thiết bị MDM: chặn gỡ toàn bộ thay vì suy đoán app nào được quản lý.
 - Bộ dò chỉ kiểm tra các gốc đã khai báo; không tìm bundle con bằng Spotlight
   hay symlink ngoài các gốc đó. Không khẳng định đã gỡ sạch toàn máy.
-- P2 tệp sót/khởi động độc lập, P3 cập nhật, P4 root, P5 đa nền tảng còn ở kế hoạch.
+- P2 tệp sót/khởi động độc lập, P3 cập nhật và P4 root còn ở kế hoạch.
+  P5 có dịch vụ gỡ Windows/Linux ở mục 11; UI và nghiệm thu máy Linux còn chờ.
 - Hoàn tác cần mục còn trong Thùng rác và không thay đổi. Nếu tiến trình native
   chết giữa chuyển tệp và ghi biên nhận, nhật ký giữ trạng thái chưa xác minh;
   không suy diễn thành đã hoàn tất. Không xoá vĩnh viễn trong bản này.
@@ -119,3 +124,46 @@ bằng chứng và trạng thái nhật ký. EN/JA cùng shape; số/ngày theo 
   mục · {size}"; đường dẫn trong nhà hiện `~/…`; lọc tìm thì khung chi tiết theo kết quả đầu tiên.
 - Đã chạy thật trên ứng dụng giả riêng (`~/Applications`, cache, Application Support): xem trước → Thùng rác
   → Hoàn tác, tệp về đúng chỗ, mục không chọn được giữ. Không gỡ ứng dụng thật.
+
+## 11. Dịch vụ Qt Windows/Linux — B1, 2026-11-08
+
+- API QML: `appUninstall.inventory()` bắt đầu quét bất đồng bộ; đọc `apps`,
+  `busy`, `inventoryComplete`, `errors`; `finished(result)` thông báo kết quả.
+  `appUninstall.uninstall(id, authorizeSystem)` chỉ nhận ID đã quét, không nhận
+  lệnh hay đường dẫn từ QML. Luồng QML W3 phải có xác nhận trước hành động không
+  thể hoàn tác, khóa thao tác khi bận và dịch các mã kết quả.
+- Windows: đọc Uninstall HKLM 64-bit, HKLM WOW6432Node và HKCU.
+  Hiển thị tên, phiên bản, nhà phát hành, vị trí, dung lượng ước tính; bỏ thành phần
+  hệ thống, mục con và update/hotfix. Chạy `UninstallString` đã đăng ký, giữ tham số
+  của nhà cung cấp; không dùng `QuietUninstallString`. MSI dùng `msiexec /x {GUID}`.
+  Trình gỡ và UAC của nhà cung cấp tự hiện; không tự thử lại bằng quyền quản trị.
+  Đường dẫn tương đối, đường dẫn có dấu cách không đặt trong ngoặc kép, lệnh không
+  phải EXE hoặc thiếu thông tin được khóa với `invalidUninstallCommand`.
+- Microsoft Store/MSIX: chỉ trả `action: openSettings` và
+  `settingsUrl: ms-settings:appsfeatures`. QML mở đúng URI cố định khi người dùng
+  chọn hành động. Danh sách package đọc được từ registry HKCU chỉ là bổ sung;
+  luôn có mục mở Cài đặt vì không bảo đảm liệt kê mọi package/tài khoản.
+- Linux: Flatpak tách `user` và `system`, nhận diện theo app/arch/branch; Snap;
+  gói sở hữu `.desktop` qua `dpkg -S` hoặc `rpm -qf`; AppImage được `Exec` trỏ trực
+  tiếp bằng đường dẫn tuyệt đối. Chỉ hỗ trợ Flatpak user và system mặc định,
+  không dò installation có tên. Không coi shell/env wrapper là đường dẫn AppImage.
+- Flatpak user không root. Flatpak system, Snap, apt-get/dnf dùng `pkexec` sau
+  khi QML xác nhận và truyền `authorizeSystem=true`; mặc định trả
+  `authorizationRequired`, không khởi chạy lệnh. Thiếu công cụ/Polkit thì khóa
+  gỡ. Gói có thể chứa nhiều ứng dụng và trình quản lý có thể yêu cầu gỡ gói phụ
+  thuộc; UI xác nhận phải giải thích hệ quả theo nguồn. Không purge dữ liệu, không
+  chạy bước dọn tệp sót hay autoremove riêng.
+- Không có Hoàn tác cho Win32/MSI, Flatpak, Snap, apt/dnf. AppImage có
+  `canUndo=true`, `undoKind=systemTrash`: chỉ chuyển đúng tệp AppImage đã chọn
+  qua `QFile::moveToTrash`; người dùng khôi phục trong Thùng rác hệ điều hành.
+  Chưa có nút/API khôi phục trong Viezan hoặc nhật ký bền vững cho Qt. Giữ nguyên
+  `.desktop` và dữ liệu ứng dụng. Từ chối symlink và tệp đã đổi sau khi quét.
+- Quét lại trước/sau thao tác. Chỉ `removed` với `verifiedRemoved=true` mới là
+  xác nhận gỡ trong phạm vi kho đã quét. Tiến trình chưa kết thúc, thiếu dữ liệu,
+  lỗi quét lại, trình gỡ giao việc cho tiến trình con, hoặc MSI yêu cầu khởi động
+  lại có trạng thái riêng; không báo đã gỡ sạch. Với apt/rpm, kiểm thêm trạng thái
+  gói, không suy luận từ việc launcher biến mất.
+  Nếu chưa biết tiến trình đã kết thúc, `operationUnverified` khóa gỡ tiếp trong
+  phiên ứng dụng; quét lại vẫn khả dụng, không tự khởi chạy trình gỡ lần nữa.
+- Kiểm chứng lượt này: QtTest chỉ dùng registry/runner/filesystem giả và build
+  Windows; không mở app hoặc gỡ ứng dụng thật. Linux chưa nghiệm thu trên máy thật.

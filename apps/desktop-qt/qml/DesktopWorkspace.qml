@@ -8,6 +8,7 @@ ScrollView {
     required property string route
     signal routeRequested(string value)
     signal newTranslation()
+    property var desktop: bridge.desktopIntegration
     readonly property bool linux: Qt.platform.os === "linux"
     readonly property var metrics: bridge.resources.metrics
     readonly property var session: bridge.state.sessions.find(item => item.id === bridge.state.active[bridge.state.feature])
@@ -30,9 +31,12 @@ ScrollView {
                 Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignTop
                 ColumnLayout {
                     anchors.fill: parent; spacing: 0
-                    Label { text: page.t("contentSources"); font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.subtitleScale; Layout.bottomMargin: page.metrics.small }
-                    Kit.CardRow { title: page.t("pasteText"); detail: page.t("pasteTextHint"); Kit.PrimaryButton { text: page.t("openInTranslate"); onClicked: page.newTranslation() } }
-                    Kit.CardRow { title: page.t("globalShortcut"); detail: page.t(page.linux ? "globalShortcutHintLinux" : "globalShortcutHintWindows"); Kit.GlassButton { text: page.t("setUp"); onClicked: page.routeRequested("utilities") } }
+                    Label { text: page.t("translateSelection"); font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.subtitleScale; Layout.bottomMargin: page.metrics.small }
+                    Kit.CardRow {
+                        title: page.t("replaceSelection"); detail: page.t("selectionReplacementHint")
+                        Kit.StatusBadge { objectName: "selection-capability"; idle: !page.desktop.canReplaceSelection; text: page.t(page.desktop.canReplaceSelection ? "selectionReplacementAvailable" : "selectionReplacementUnavailable") }
+                    }
+                    DesktopSettings { bridge: page.bridge; desktop: page.desktop; route: "everywhere"; Layout.fillWidth: true }
                     // Quick translate's own pair and the model it uses (the app's current choice).
                     Kit.CardRow {
                         id: primaryRow
@@ -54,19 +58,33 @@ ScrollView {
                             implicitContentWidthPolicy: ComboBox.WidestText; Accessible.name: page.t("quickSecondary"); onActivated: page.bridge.command("quickTranslateSecondary", {value: codes[currentIndex]})
                         }
                     }
-                    Kit.CardRow { title: page.t("quickModel"); detail: page.t("quickModelHint"); divider: false; Label { text: page.session?.model || ""; color: palette.placeholderText; elide: Text.ElideMiddle } }
+                    Kit.CardRow { title: page.t("quickModel"); detail: page.t("quickModelHint"); divider: false; Label { text: page.bridge.shortModelName(page.session?.model || ""); color: palette.placeholderText; elide: Text.ElideMiddle } }
                 }
             }
-            Kit.Card {
+            ColumnLayout {
                 visible: page.route === "everywhere"
                 Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignTop
-                ColumnLayout {
-                    anchors.fill: parent; spacing: page.metrics.gap
-                    Label { text: page.t("permissionStatus"); font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.subtitleScale }
-                    Kit.StatusBadge { text: page.t("notVerified") }
-                    Label { text: page.t(page.linux ? "permissionHintLinux" : "permissionHintWindows"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
-                    Kit.GlassButton { text: page.t("viewPermissions"); onClicked: page.bridge.desktopIntegration.openPrivacySettings() }
+                spacing: page.metrics.small
+                Kit.Eyebrow { text: page.t("quickPreview") }
+                Item {
+                    Layout.fillWidth: true
+                    implicitHeight: previewCard.implicitHeight + page.metrics.gutter * 2
+                    Kit.AppBackdrop { anchors.fill: parent }
+                    Kit.Card {
+                        id: previewCard
+                        x: page.metrics.gutter; y: page.metrics.gutter
+                        width: parent.width - page.metrics.gutter * 2
+                        ColumnLayout {
+                            width: parent.width; spacing: page.metrics.inset
+                            Kit.StatusBadge { text: page.t("lang_en") + " → " + page.t("lang_" + page.t("previewTarget")) }
+                            Label { text: page.t("previewSource"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                            Label { text: page.t("previewTranslated"); font.weight: Font.Medium; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                            Label { text: page.bridge.shortModelName(page.session?.model || ""); color: palette.placeholderText; elide: Text.ElideRight; Layout.fillWidth: true }
+                        }
+                    }
                 }
+                Label { text: page.t("previewIllustrative"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                Kit.GlassButton { text: page.t("openInTranslate"); onClicked: page.newTranslation() }
             }
             Kit.Card {
                 visible: page.route === "utilities"
@@ -74,17 +92,17 @@ ScrollView {
                 ColumnLayout {
                     anchors.fill: parent; spacing: 0
                     Label { text: page.t("allShortcuts"); font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.subtitleScale; Layout.bottomMargin: page.metrics.small }
-                    DesktopSettings { Layout.fillWidth: true; bridge: page.bridge; route: page.route }
+                    DesktopSettings { Layout.fillWidth: true; bridge: page.bridge; desktop: page.desktop; route: page.route }
                     Kit.CardRow { title: page.t("commands"); detail: page.t("shortcutDetail_commands"); divider: false; Kit.KeyCap { text: Qt.platform.os === "osx" ? "⌘ K" : "Ctrl + K" } }
                 }
             }
             Kit.Card {
                 visible: page.route === "utilities"
                 padding: page.metrics.gutter
-                Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignTop; Layout.topMargin: page.metrics.gutter
+                Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.alignment: Qt.AlignTop
                 ColumnLayout {
                     anchors.fill: parent; spacing: page.metrics.inset
-                    Label { text: page.t("launcherPitch"); font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.titleScale }
+                    Label { text: page.t("launcherPitch"); Layout.fillWidth: true; wrapMode: Text.Wrap; font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.titleScale }
                     Label { text: page.t("launcherPitchDetail"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
                     Kit.PrimaryButton { text: page.t("openLauncher"); icon.source: "icons/search.svg"; onClicked: page.bridge.desktopIntegration.trigger("launcher") }
                 }
