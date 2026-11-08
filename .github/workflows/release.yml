@@ -126,6 +126,8 @@ jobs:
             .native-packages/*.AppImage
             .native-packages/*.json
           if-no-files-found: error
+          # .native-packages is a dot directory, which upload-artifact skips by default.
+          include-hidden-files: true
 
   draft:
     needs: package
