@@ -6,6 +6,9 @@ ColumnLayout {
     required property var bridge
     readonly property var updates: bridge.updates
     readonly property var metrics: bridge.resources.metrics
+    property bool presentAfterCheck: false
+    readonly property bool updateBusy: updates.busy
+    onUpdateBusyChanged: if (!updateBusy && presentAfterCheck) { presentAfterCheck = false; bridge.presentUpdateIfAvailable() }
     property double now: Date.now() / 1000
     function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
     function checkedText() {
@@ -32,7 +35,7 @@ ColumnLayout {
             }
             Kit.CardRow {
                 objectName: "settings-update-status"; title: panel.t("updateStatus"); detail: [panel.statusText(), panel.checkedText()].filter(Boolean).join(" · "); divider: false
-                Kit.GlassButton { text: panel.t("checkUpdates"); enabled: !panel.updates.busy; onClicked: panel.updates.check() }
+                Kit.GlassButton { objectName: "settings-check-updates"; text: panel.t("checkUpdates"); enabled: !panel.updates.busy; onClicked: { if (panel.Window.window?.updatePresentation) panel.Window.window.updatePresentation.checkForUpdates(); else { panel.presentAfterCheck = true; panel.updates.check() } } }
             }
         }
     }

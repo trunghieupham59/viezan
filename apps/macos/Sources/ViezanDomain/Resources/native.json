@@ -5947,7 +5947,12 @@
       "deviceProcessors": "{count} bộ xử lý logic",
       "deviceMemory": "{size} bộ nhớ",
       "runtimePerformanceSummary": "{rate} token/giây · GPU {gpu}%",
-      "license": "Giấy phép"
+      "license": "Giấy phép",
+      "launcher_section_suggestions": "Gợi ý",
+      "launcher_prefix_hint": "t dịch · d tra từ · ? hỏi AI · = tính toán",
+      "quickKeyboardHint": "{send} Gửi · {newline} Xuống dòng · {close} Đóng",
+      "updateSheetSummary": "Viezan {version} · {size} · bạn đang dùng {current}",
+      "updateSheetSummaryNoSize": "Viezan {version} · bạn đang dùng {current}"
     },
     "en": {
       "devMenu": "Development",
@@ -7142,7 +7147,12 @@
       "deviceProcessors": "{count} logical processors",
       "deviceMemory": "{size} memory",
       "runtimePerformanceSummary": "{rate} tokens/s · GPU {gpu}%",
-      "license": "License"
+      "license": "License",
+      "launcher_section_suggestions": "Suggestions",
+      "launcher_prefix_hint": "t translate · d look up · ? ask AI · = calculate",
+      "quickKeyboardHint": "{send} Send · {newline} New line · {close} Close",
+      "updateSheetSummary": "Viezan {version} · {size} · you’re using {current}",
+      "updateSheetSummaryNoSize": "Viezan {version} · you’re using {current}"
     },
     "ja": {
       "devMenu": "開発",
@@ -8337,7 +8347,12 @@
       "deviceProcessors": "論理プロセッサー：{count}",
       "deviceMemory": "メモリ：{size}",
       "runtimePerformanceSummary": "{rate}トークン/秒・GPU {gpu}%",
-      "license": "ライセンス"
+      "license": "ライセンス",
+      "launcher_section_suggestions": "候補",
+      "launcher_prefix_hint": "t 翻訳 · d 辞書 · ? AIに質問 · = 計算",
+      "quickKeyboardHint": "{send} 送信 · {newline} 改行 · {close} 閉じる",
+      "updateSheetSummary": "Viezan {version} · {size} · 現在のバージョン：{current}",
+      "updateSheetSummaryNoSize": "Viezan {version} · 現在のバージョン：{current}"
     }
   },
   "navigation": [

@@ -1191,5 +1191,10 @@
   "deviceProcessors": "{count} bộ xử lý logic",
   "deviceMemory": "{size} bộ nhớ",
   "runtimePerformanceSummary": "{rate} token/giây · GPU {gpu}%",
-  "license": "Giấy phép"
+  "license": "Giấy phép",
+  "launcher_section_suggestions": "Gợi ý",
+  "launcher_prefix_hint": "t dịch · d tra từ · ? hỏi AI · = tính toán",
+  "quickKeyboardHint": "{send} Gửi · {newline} Xuống dòng · {close} Đóng",
+  "updateSheetSummary": "Viezan {version} · {size} · bạn đang dùng {current}",
+  "updateSheetSummaryNoSize": "Viezan {version} · bạn đang dùng {current}"
 }

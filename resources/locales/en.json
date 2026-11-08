@@ -1191,5 +1191,10 @@
   "deviceProcessors": "{count} logical processors",
   "deviceMemory": "{size} memory",
   "runtimePerformanceSummary": "{rate} tokens/s · GPU {gpu}%",
-  "license": "License"
+  "license": "License",
+  "launcher_section_suggestions": "Suggestions",
+  "launcher_prefix_hint": "t translate · d look up · ? ask AI · = calculate",
+  "quickKeyboardHint": "{send} Send · {newline} New line · {close} Close",
+  "updateSheetSummary": "Viezan {version} · {size} · you’re using {current}",
+  "updateSheetSummaryNoSize": "Viezan {version} · you’re using {current}"
 }

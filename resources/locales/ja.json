@@ -1191,5 +1191,10 @@
   "deviceProcessors": "論理プロセッサー：{count}",
   "deviceMemory": "メモリ：{size}",
   "runtimePerformanceSummary": "{rate}トークン/秒・GPU {gpu}%",
-  "license": "ライセンス"
+  "license": "ライセンス",
+  "launcher_section_suggestions": "候補",
+  "launcher_prefix_hint": "t 翻訳 · d 辞書 · ? AIに質問 · = 計算",
+  "quickKeyboardHint": "{send} 送信 · {newline} 改行 · {close} 閉じる",
+  "updateSheetSummary": "Viezan {version} · {size} · 現在のバージョン：{current}",
+  "updateSheetSummaryNoSize": "Viezan {version} · 現在のバージョン：{current}"
 }

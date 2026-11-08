@@ -2016,4 +2016,10 @@ ApplicationWindow {
         }
     }
 
+    // W5b update sheet
+    property alias updatePresentation: updateSheet
+    UpdateSheet { id: updateSheet; bridge: workbench }
+    Binding { target: launcher; property: "quickSessionID"; value: panels.chatID }
+    Connections { target: launcher; function onOpenRouteRequested(route) { root.selectRoute(route); root.show(); root.raise(); root.requestActivate() } }
+    Connections { target: panels; function onOpenRouteRequested(route) { if (route === "settings") root.openSettingsSection("providers"); else root.selectRoute(route); root.show(); root.raise(); root.requestActivate() } }
 }

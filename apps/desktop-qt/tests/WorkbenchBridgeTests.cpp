@@ -2859,6 +2859,12 @@ private slots:
     void w4UpdateMetadata();
     void w4SettingsSearchIme();
 
+    // ---- W5b Panels ----
+    void w5bLauncher();
+    void w5bQuickPanels_data();
+    void w5bQuickPanels();
+    void w5bUpdateSheet();
+
 };
 
 // ---- W3 System pages ----
@@ -3261,4 +3267,269 @@ void WorkbenchBridgeTests::w4SettingsSearchIme() {
     QTRY_COMPARE(settings->property("activeSection").toString(),QString("voice"));
     QTRY_COMPARE(window->property("settingsQuery").toString(),QString());
     QCOMPARE(warnings.count(),0);
+}
+
+// ---- W5b Panels ----
+void WorkbenchBridgeTests::w5bLauncher() {
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+    bridge.command("appearance", {{"preset", "glass"}, {"mode", "light"}});
+    bridge.command("locale", {{"value", "en"}});
+    QQmlEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench", &bridge);
+    QQmlComponent component(&engine);
+    component.setData(R"(
+        import QtQuick
+        import "qrc:/qml" as V
+        V.Launcher {
+            bridge: proxy
+            QtObject {
+                id: desktop; objectName: "launcher-desktop-fixture"
+                property var applications: [{id:"fixture-app",name:"Synthetic app"}]
+                property var files: []
+                property string currency: ""
+                property string error: ""
+                property bool applicationsBusy: false
+                function rankApplications(q) { return applications }
+                function calculate(q) { return workbench.desktopIntegration.calculate(q) }
+                function paletteQuery(q) { return workbench.desktopIntegration.paletteQuery(q) }
+                function searchFiles(q) {}
+                function launch(id) { error = "launchError" }
+            }
+            QtObject {
+                id: proxy
+                property var resources: workbench.resources
+                property var state: workbench.state
+                property var desktopIntegration: desktop
+                function launcherHome(id) { return workbench.launcherHome(id) }
+                function moduleEnabled(id) { return workbench.moduleEnabled(id) }
+            }
+        }
+    )", QUrl("qrc:/w5b-launcher.qml"));
+    QScopedPointer<QObject> owner(component.create()); QVERIFY2(owner, qPrintable(component.errorString()));
+    auto *window = qobject_cast<QQuickWindow *>(owner.data()); QVERIFY(window);
+    auto rows = [&] { return owner->property("items").value<QJSValue>().toVariant().toList(); };
+    QVERIFY(rows().size() >= 7); QCOMPARE(rows().first().toMap().value("kind").toString(), QString("ai"));
+    bool settings = false; for (const auto &value : rows()) settings |= value.toMap().value("route") == "settings"; QVERIFY(settings);
+    bridge.command("module", {{"id", "dictionary"}, {"enabled", false}});
+    for (const auto &value : rows()) QVERIFY(value.toMap().value("route") != "dictionary");
+    const auto chat = bridge.createDetachedSession("chat", "Continue synthetic chat");
+    bridge.command("submit", {{"sessionID", chat}});
+    owner->setProperty("quickSessionID", chat);
+    bool continuation = false; for (const auto &value : rows()) continuation |= value.toMap().value("kind") == "continue"; QVERIFY(continuation);
+    owner->setProperty("query", "= 12*7"); QTRY_COMPARE(rows().first().toMap().value("copy").toString(), QString("84"));
+    owner->setProperty("query", "? hello"); QTRY_COMPARE(rows().first().toMap().value("query").toString(), QString("hello"));
+    QVERIFY(!rows().first().toMap().value("title").toString().contains("{query}"));
+    owner->setProperty("query", "synthetic");
+    auto *desktop = owner->findChild<QObject *>("launcher-desktop-fixture"); QVERIFY(desktop);
+    owner->setProperty("selectedID", "fixture-app"); owner->setProperty("resultsQuery", "synthetic"); desktop->setProperty("currency", "100 USD = 2500000 VND");
+    QCOMPARE(owner->property("current").value<QJSValue>().toVariant().toMap().value("id").toString(), QString("fixture-app"));
+    window->show(); window->requestActivate(); QVERIFY(QTest::qWaitForWindowExposed(window));
+    auto *field = visualItem(window->contentItem(), "launcher-query"); QVERIFY(field); field->forceActiveFocus();
+    QInputMethodEvent preedit(QString::fromUtf8("にほん"), {}); QCoreApplication::sendEvent(field, &preedit);
+    QTRY_VERIFY(field->property("inputMethodComposing").toBool());
+    QSignalSpy ask(owner.data(), SIGNAL(askRequested(QString)));
+    QTest::keyClick(window, Qt::Key_Return, Qt::ControlModifier); QCOMPARE(ask.count(), 0);
+    QTest::keyClick(window, Qt::Key_Escape); QCOMPARE(owner->property("query").toString(), QString("synthetic"));
+    QInputMethodEvent finished; finished.setCommitString(""); QCoreApplication::sendEvent(field, &finished);
+    QVERIFY(QMetaObject::invokeMethod(owner.data(), "activate", Q_ARG(QVariant, rows().at(1)), Q_ARG(QVariant, 0)));
+    QVERIFY(owner->property("failed").toBool());
+    owner->setProperty("query", ""); QVERIFY(!owner->property("failed").toBool());
+    QCOMPARE(warnings.count(), 0);
+}
+
+void WorkbenchBridgeTests::w5bQuickPanels_data() {
+    QTest::addColumn<QString>("locale"); QTest::addColumn<QString>("mode");
+    for (const auto &locale : {"vi", "en", "ja"}) for (const auto &mode : {"light", "dark"})
+        QTest::newRow(qPrintable(QString(locale) + "-" + mode)) << QString(locale) << QString(mode);
+}
+void WorkbenchBridgeTests::w5bQuickPanels() {
+    QFETCH(QString, locale); QFETCH(QString, mode);
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+    bridge.command("appearance", {{"preset", "glass"}, {"mode", mode}}); bridge.command("locale", {{"value", locale}});
+    QQmlEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench", &bridge);
+    QQmlComponent component(&engine);
+    component.setData(R"(
+        import QtQuick
+        import "qrc:/qml" as V
+        V.DesktopPanels {
+            bridge: proxy
+            QtObject {
+                id:desktop; objectName:"selection-fixture"
+                property bool canReplaceSelection:false
+                property bool canUndoSelection:false
+                property string error:""
+                signal activated(string action, string selectedText)
+            }
+            QtObject {
+                id:proxy; objectName:"quick-proxy"
+                property var resources:workbench.resources
+                property var state:workbench.state
+                property var localModels:workbench.localModels
+                property var desktopIntegration:desktop
+                property bool providersEmpty:false
+                function availability(model) { return workbench.availability(model) }
+                function createDetachedSession(feature,text) { return workbench.createDetachedSession(feature,text) }
+                function command(name,values) { workbench.command(name,values) }
+                function moduleEnabled(id) { return workbench.moduleEnabled(id) }
+                function shortModelName(id) { return workbench.shortModelName(id) }
+                function quickTranslateTarget(text) { return workbench.quickTranslateTarget(text) }
+                function modelSections(query,id) { return workbench.modelSections(query,id) }
+            }
+        }
+    )", QUrl("qrc:/w5b-quick.qml"));
+    QScopedPointer<QObject> owner(component.create());
+    QVERIFY2(owner, qPrintable(component.errorString()));
+    auto *window = qobject_cast<QQuickWindow *>(owner.data()); QVERIFY(window);
+    QVERIFY(QMetaObject::invokeMethod(owner.data(), "activate", Q_ARG(QVariant, "translateSelection"), Q_ARG(QVariant, QString(5001, 'x'))));
+    QTRY_VERIFY(owner->property("tooLong").toBool()); QVERIFY(!owner->property("canSubmit").toBool());
+    QCOMPARE(bridge.state().value("tasks").toList().size(), 0);
+    auto *limit = visualItem(window->contentItem(), "quick-too-long"); QVERIFY(limit); QVERIFY(limit->isVisible());
+    auto *selection = owner->findChild<QObject *>("selection-fixture"); QVERIFY(selection);
+    selection->setProperty("error", "selectionUnavailable");
+    auto *selectionError = visualItem(window->contentItem(), "quick-selection-error"); QVERIFY(selectionError); QTRY_VERIFY(selectionError->isVisible());
+    selection->setProperty("error", "");
+    const auto translationID = owner->property("ownerID").toString();
+    bridge.command("draft", {{"sessionID", translationID}, {"value", "hello"}});
+    bridge.command("model", {{"sessionID", translationID}, {"value", "demo.slow"}});
+    QVERIFY(owner->property("canSubmit").toBool());
+    bridge.command("submit", {{"sessionID", translationID}}); QTRY_VERIFY(owner->property("task").value<QJSValue>().isObject());
+    const auto task = latest(bridge);
+    bridge.command("receive", {{"taskID", task.value("id")}, {"attemptID", task.value("attemptID")}, {"terminal", "failed"}, {"errorCode", "providerNetworkError"}});
+    QTRY_COMPARE(owner->property("errorCode").toString(), QString("providerNetworkError"));
+    QVERIFY(owner->property("canRetry").toBool());
+    QVERIFY(QMetaObject::invokeMethod(owner.data(), "retry"));
+    QCOMPARE(latest(bridge).value("request").toMap().value("sessionID").toString(), translationID);
+    QCOMPARE(latest(bridge).value("status").toString(), QString("running"));
+    bridge.command("cancel", {{"taskID", latest(bridge).value("id")}});
+    // A different active main-window session must not change the detached panel owner.
+    bridge.command("navigate", {{"feature", "chat"}}); QCOMPARE(owner->property("ownerID").toString(), translationID);
+    QVERIFY(QMetaObject::invokeMethod(owner.data(), "activate", Q_ARG(QVariant, "quickChat"), Q_ARG(QVariant, "")));
+    const auto chatID = owner->property("ownerID").toString(); QVERIFY(chatID != translationID);
+    auto *draft = visualItem(window->contentItem(), "quick-draft"); QVERIFY(draft);
+    bridge.command("draft", {{"sessionID", chatID}, {"value", "Synthetic draft"}});
+    draft->forceActiveFocus(); QInputMethodEvent preedit(QString::fromUtf8("にほん"), {}); QCoreApplication::sendEvent(draft, &preedit);
+    QTRY_VERIFY(draft->property("inputMethodComposing").toBool());
+    const auto count = bridge.state().value("tasks").toList().size();
+    QTest::keyClick(window, Qt::Key_Return, Qt::ControlModifier); QCOMPARE(bridge.state().value("tasks").toList().size(), count);
+    QInputMethodEvent finished; finished.setCommitString(""); QCoreApplication::sendEvent(draft, &finished);
+    for (const auto &size : {QSize(480, 560), QSize(352, 520)}) {
+        window->resize(size); QCoreApplication::processEvents();
+        auto *send = visualItem(window->contentItem(), "quick-send"); QVERIFY(send);
+        QVERIFY(send->mapToScene(QPointF(send->width(), send->height())).x() <= window->width());
+    }
+    auto *model = visualItem(window->contentItem(), "quick-model"); QVERIFY(model); QVERIFY(QMetaObject::invokeMethod(model, "clicked"));
+    QCoreApplication::processEvents(); QTest::keyClick(window, Qt::Key_Escape);
+    auto *proxy = owner->findChild<QObject *>("quick-proxy"); QVERIFY(proxy);
+    proxy->setProperty("providersEmpty", true); QTRY_VERIFY(owner->property("missingModel").toBool());
+    QVERIFY(!owner->property("canSubmit").toBool());
+    auto *notice = visualItem(window->contentItem(), "quick-provider-notice"); QVERIFY(notice); QVERIFY(notice->isVisible());
+    QCOMPARE(owner->property("ownerID").toString(), chatID);
+    QVERIFY(QMetaObject::invokeMethod(owner.data(), "ask", Q_ARG(QVariant, "")));
+    QVERIFY(owner->property("quickAI").toBool());
+    QVERIFY(!owner->property("canSubmit").toBool());
+    auto *composer = visualItem(window->contentItem(), "quick-composer"); QVERIFY(composer);
+    QTRY_VERIFY2(composer->height() < 100, qPrintable(QString("composer=%1 draftWidth=%2 draftHeight=%3").arg(composer->height()).arg(draft->width()).arg(draft->property("contentHeight").toDouble())));
+    proxy->setProperty("providersEmpty", false);
+    bridge.command("model", {{"sessionID", chatID}, {"value", "demo.slow"}});
+    QVERIFY(QMetaObject::invokeMethod(owner.data(), "ask", Q_ARG(QVariant, "Quick AI synthetic question")));
+    auto *thinking = visualItem(window->contentItem(), "quick-thinking"); QVERIFY(thinking); QTRY_VERIFY(thinking->isVisible());
+    const auto quickTask = latest(bridge);
+    bridge.command("receive", {{"taskID", quickTask.value("id")}, {"attemptID", quickTask.value("attemptID")}, {"terminal", "failed"}, {"errorCode", "providerNetworkError"}});
+    QTRY_VERIFY(owner->property("canRetry").toBool());
+    QCOMPARE(owner->property("ownerID").toString(), chatID);
+    QCOMPARE(warnings.count(), 0);
+}
+
+void WorkbenchBridgeTests::w5bUpdateSheet() {
+    const auto previousVersion = QCoreApplication::applicationVersion();
+    QCoreApplication::setApplicationVersion("2.5.0");
+    const auto restoreVersion = qScopeGuard([previousVersion] { QCoreApplication::setApplicationVersion(previousVersion); });
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+    bridge.command("appearance", {{"preset", "glass"}, {"mode", "light"}});
+    QQmlEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench", &bridge);
+    QQmlComponent component(&engine);
+    component.setData(R"(
+        import QtQuick
+        import QtQuick.Controls
+        import "qrc:/qml" as V
+        ApplicationWindow {
+            visible:true; width:820; height:640
+            property alias updatePresentation: sheet
+            QtObject {
+                id:update; objectName:"update-fixture"
+                property bool busy:false
+                property bool ready:false
+                property string version:"9.0"
+                property string notes:"Synthetic notes"
+                property string status:"updateAvailable"
+                property real packageSize:64000000
+                property real progress:0.4
+                property real checkedAt:0
+                property real remainingSeconds:20
+                property int downloads:0
+                property int installs:0
+                function download() { downloads++; busy=true }
+                function cancel() { busy=false }
+                function openInstaller() { installs++ }
+                function check() { busy=true }
+            }
+            QtObject {
+                id:proxy; objectName:"update-proxy"
+                property var resources:workbench.resources
+                property var state:workbench.state
+                property var updates:update
+                property var updatePrompt:({})
+                property bool autoCheckUpdates:false
+                property bool loadBlocked:false
+                property int snoozes:0
+                property int dismisses:0
+                property int presentations:0
+                function snoozeUpdate() { snoozes++; updatePrompt=({}) }
+                function dismissUpdatePrompt() { dismisses++; updatePrompt=({}) }
+                function presentUpdateIfAvailable() { presentations++; updatePrompt=({version:"9.0",notes:"Synthetic notes"}) }
+            }
+            V.UpdateSettings { id:settings; objectName:"update-settings-fixture"; width:600; bridge:proxy }
+            V.UpdateSheet { id:sheet; bridge:proxy }
+        }
+    )", QUrl("qrc:/w5b-updates.qml"));
+    QScopedPointer<QObject> owner(component.create()); QVERIFY2(owner, qPrintable(component.errorString()));
+    auto *window = qobject_cast<QQuickWindow *>(owner.data()); QVERIFY(window);
+    auto *proxy = owner->findChild<QObject *>("update-proxy"); auto *update = owner->findChild<QObject *>("update-fixture"); auto *sheet = owner->findChild<QObject *>("update-sheet"); QVERIFY(proxy && update && sheet);
+    QVERIFY(!sheet->property("visible").toBool());
+    auto click = [&](const QString &name) { auto *item = visualItem(window->contentItem(), name); return item && QMetaObject::invokeMethod(item, "clicked"); };
+    QVERIFY(click("settings-check-updates")); QCOMPARE(proxy->property("presentations").toInt(), 0);
+    delete owner->findChild<QObject *>("update-settings-fixture");
+    update->setProperty("busy", false); QTRY_VERIFY(sheet->property("visible").toBool()); QCOMPARE(proxy->property("presentations").toInt(), 1);
+    QCOMPARE(sheet->property("phase").toString(), QString("available"));
+    auto *summary = visualItem(window->contentItem(), "update-sheet-status"); QVERIFY(summary);
+    for (const auto &locale : {QString("vi"), QString("en"), QString("ja")}) {
+        bridge.command("locale", {{"value", locale}});
+        const auto strings = bridge.resources().value("locales").toMap().value(locale).toMap();
+        for (const double bytes : {64000000.0, 0.0, -1.0}) {
+            update->setProperty("packageSize", bytes);
+            const auto expected = strings.value(bytes > 0 ? "updateSheetSummary" : "updateSheetSummaryNoSize").toString()
+                .replace("{version}", "9.0").replace("{size}", QLocale(locale).toString(64.0, 'f', 1) + " MB").replace("{current}", "2.5.0");
+            QTRY_COMPARE(summary->property("text").toString(), expected);
+            QVERIFY(!expected.contains('{'));
+            int visibleLabels = 0;
+            for (auto *item : summary->parentItem()->childItems()) if (item->isVisible() && item->property("text").isValid()) ++visibleLabels;
+            QCOMPARE(visibleLabels, 2); // Heading plus one summary; no duplicate metadata labels.
+        }
+    }
+    update->setProperty("packageSize", 64000000.0);
+    QVERIFY(click("update-sheet-download")); QCOMPARE(update->property("downloads").toInt(), 1); QCOMPARE(sheet->property("phase").toString(), QString("downloading"));
+    const auto strings = bridge.resources().value("locales").toMap().value("ja").toMap();
+    QTRY_COMPARE(summary->property("text").toString(), strings.value("updateDownloading").toString().replace("{percent}", "40"));
+    QVERIFY(click("update-sheet-snooze")); QTRY_VERIFY(!sheet->property("visible").toBool()); QCOMPARE(proxy->property("snoozes").toInt(), 1); QCOMPARE(proxy->property("dismisses").toInt(), 0); QVERIFY(update->property("busy").toBool());
+    QVERIFY(QMetaObject::invokeMethod(proxy, "presentUpdateIfAvailable")); QTRY_VERIFY(sheet->property("visible").toBool());
+    QVERIFY(click("update-sheet-cancel")); QVERIFY(!update->property("busy").toBool());
+    update->setProperty("ready", true); QCOMPARE(sheet->property("phase").toString(), QString("ready"));
+    QTRY_COMPARE(summary->property("text").toString(), strings.value("updateReadyVersion").toString().replace("{version}", "9.0"));
+    QCOMPARE(update->property("installs").toInt(), 0); QVERIFY(click("update-sheet-install")); QCOMPARE(update->property("installs").toInt(), 1);
+    QVERIFY(click("update-sheet-close")); QTRY_VERIFY(!sheet->property("visible").toBool()); QCOMPARE(proxy->property("dismisses").toInt(), 1);
+    QVERIFY(QMetaObject::invokeMethod(proxy, "presentUpdateIfAvailable")); QTRY_VERIFY(sheet->property("visible").toBool());
+    QTest::keyClick(window, Qt::Key_Escape); QTRY_VERIFY(!sheet->property("visible").toBool()); QCOMPARE(proxy->property("dismisses").toInt(), 2);
+    QCOMPARE(warnings.count(), 0);
 }
