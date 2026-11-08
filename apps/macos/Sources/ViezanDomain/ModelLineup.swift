@@ -9,6 +9,21 @@ public enum ModelTier: String, CaseIterable, Sendable { case fast, balanced, car
 /// each family, a short name derived from the ID (never a hand-written catalog, so
 /// a model released tomorrow still appears), and the family that serves each tier.
 public enum ModelLineup {
+    static func supportsEffort(model: String, family: String) -> Bool {
+        NativeResources.shared.reasoningPolicy[family].map { model.range(of: $0, options: [.regularExpression, .caseInsensitive]) != nil } ?? false
+    }
+    public static func supportsEffort(model: String) -> Bool {
+        let parts = model.split(separator: ":", maxSplits: 1).map(String.init)
+        guard parts.count == 2 else { return false }
+        let families: [String]
+        switch parts[0] {
+        case "openai", "claude": families = [parts[0]]
+        case "gemini": families = ["geminiLevel", "geminiBudget"]
+        default: return false
+        }
+        return families.contains { supportsEffort(model: parts[1], family: $0) }
+    }
+
     /// A model family within a provider: `rank` orders capability (0 = lightest),
     /// `version` orders releases within the family.
     public struct Family: Equatable, Sendable {

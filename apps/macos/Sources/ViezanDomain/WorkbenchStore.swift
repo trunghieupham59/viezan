@@ -295,9 +295,17 @@ import Observation
         guard !loadBlocked, let index = workspace.sessions.firstIndex(where: { $0.id == id }) else { return }
         mutation(&workspace.sessions[index]); workspace.sessions[index].updated = clock(); if persist { save() }
     }
+    public func habitSuggestions(for id: String) -> [HabitSuggestion] {
+        HabitSuggestions.suggest(sessions: workspace.sessions.filter { moduleEnabled($0.feature.rawValue) }, now: clock(),
+                                 excluding: session(id).flatMap { $0.feature == .chat ? HabitSuggestions.action(for: $0) : nil })
+    }
+    public func setChatReasoning(_ id: String, effort: String) {
+        guard ["auto", "low", "medium", "high"].contains(effort), session(id)?.feature == .chat else { return }
+        edit(id) { $0.reasoningEffort = effort; $0.carefulReasoning = effort == "high" }
+    }
     public func setCarefulReasoning(_ id: String, _ enabled: Bool) {
         guard session(id)?.feature == .chat else { return }
-        edit(id) { $0.carefulReasoning = enabled }
+        edit(id) { $0.carefulReasoning = enabled; if enabled { $0.reasoningEffort = "high" } else if $0.reasoningEffort == "high" { $0.reasoningEffort = "auto" } }
     }
     /// The three purposes for the session's provider, or nil when they would not differ.
     public func modelTiers(_ id: String) -> [ModelTier: String]? {
@@ -308,7 +316,7 @@ import Observation
     public func applyModelTier(_ id: String, _ tier: ModelTier) {
         guard let model = modelTiers(id)?[tier] else { return }
         setModel(id, model)
-        if session(id)?.feature == .chat { setCarefulReasoning(id, tier == .careful) }
+        if session(id)?.feature == .chat { setChatReasoning(id, effort: tier == .careful ? "high" : "auto") }
     }
     /// The picker's Recent group: distinct models of the latest sessions with work, newest first.
     public var recentPicks: [String] { ModelLineup.recent(workspace.sessions.filter { !$0.messages.isEmpty || !$0.output.isEmpty }.sorted { ($0.updated ?? 0) > ($1.updated ?? 0) }.map(\.model)) }

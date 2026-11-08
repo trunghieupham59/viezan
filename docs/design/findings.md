@@ -60,6 +60,9 @@ No known accessibility items remain in this list.
 
 ## Quyết định thiết kế (2026-11-03 · Liquid Glass 2.0)
 
+- 2026-11-08: Gợi ý thói quen là chip lặng dưới "Tiếp tục" (hoặc dưới composer khi chưa có phiên gần đây), không bịa khi thiếu dữ liệu, để đề xuất dựa trên việc đã làm và không lấn át ô soạn.
+- 2026-11-08: Suy luận dùng bốn hàng chọn thay công tắc; hai mức giữa mờ khi model không chỉnh được, để thể hiện đúng khả năng model trong khi mức Kỹ vẫn dùng chỉ dẫn cẩn thận.
+
 Nguồn: canvas <https://claude.ai/artifact/A39txAordDuiSCrtznFhrQ>, chép vào
 `docs/design/glass2/` cùng [HANDOFF.md](glass2/HANDOFF.md). Các dòng dưới thay
 thế quyết định cùng chủ đề của ngày 2026-11-02 và 2026-11-03 phía dưới khi mâu

@@ -29,7 +29,7 @@ struct ModelPanel: View {
     }
     private func selected(_ row: ModelLineup.Row) -> Bool {
         switch row {
-        case .tier(let tier, let id): return store.session.model == id && (store.session.carefulReasoning ?? false) == (tier == .careful)
+        case .tier(let tier, let id): return store.session.model == id && (store.session.reasoningEffort == "high" || (store.session.reasoningEffort == nil && store.session.carefulReasoning == true)) == (tier == .careful)
         case .model(let id), .typed(let id): return store.session.model == id
         case .setup: return false
         }
