@@ -285,7 +285,7 @@
   "appActionError": "The operation stopped. Review the journal and remaining files.",
   "appReset": "Reset the selected data and keep the app",
   "currentVersion": "Version",
-  "thisDevice": "This Mac",
+  "thisDevice": "This device",
   "localRuntimes": "Local AI services",
   "runtimeRunning": "Running · {count} models",
   "runtimeNotRunning": "Not running",
@@ -344,7 +344,7 @@
   "researchFindings": "Findings",
   "researchRound": "Round {n}",
   "compareDiffHint": "Words that differ from the first column are tinted.",
-  "moduleDesc_apps": "Uninstall, reset and clean app data",
+  "moduleDesc_apps": "Manage and uninstall apps",
   "sessionPanel": "This session",
   "speakersAndLines": "{speakers} speakers · {lines} lines",
   "wordsCount": "{n} words",
@@ -1123,5 +1123,11 @@
   "activityCount": "Activity · {count} tasks",
   "historyEmpty": "No sessions in history yet",
   "historyArchivedEmpty": "No archived sessions yet",
-  "customInstruction": "Custom"
+  "customInstruction": "Custom",
+  "deleteNamedKeyConfirm": "Delete the key for {name} and stop using this provider until a new key is added?",
+  "deleteNamedModelConfirm": "Delete {name} from this device (you will need to download it again to use it)?",
+  "deviceProcessors": "{count} logical processors",
+  "deviceMemory": "{size} memory",
+  "runtimePerformanceSummary": "{rate} tokens/s · GPU {gpu}%",
+  "license": "License"
 }

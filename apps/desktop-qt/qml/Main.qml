@@ -447,6 +447,7 @@ ApplicationWindow {
                     Label { visible: !root.workspacePage && !(root.glassChrome && !settings && !library); text: settings ? t(root.systemRoute || "settings") : library ? t("history") : t(root.workspace.feature) + " / " + titleFor(session); elide: Text.ElideRight; Layout.fillWidth: true; font.bold: true; Accessible.role: Accessible.Heading }
                     ShellButton { visible: root.workspacePage && workbench.moduleEnabled("utilities"); showsLabel: !root.compact; iconName: "utilities"; text: t("launcher"); enabled: !workbench.loadBlocked; onClicked: workbench.desktopIntegration.trigger("launcher") }
                     Kit.SearchField {
+                        id: settingsHeaderSearch
                         compact: true
                         visible: root.systemRoute === "" && settings
                         objectName: "settings-header-search"
@@ -457,6 +458,9 @@ ApplicationWindow {
                         Accessible.name: placeholderText
                         selectByMouse: true
                         onTextChanged: root.settingsQuery = text
+                        Keys.onReturnPressed: event => { if (inputMethodComposing) event.accepted = false; else contentLoader.item?.activateSearchResult?.() }
+                        Keys.onEnterPressed: event => { if (inputMethodComposing) event.accepted = false; else contentLoader.item?.activateSearchResult?.() }
+                        Keys.onDownPressed: event => { if (inputMethodComposing) event.accepted = false; else contentLoader.item?.focusSearchResults?.() }
                         Keys.onEscapePressed: event => { if (!inputMethodComposing) { root.settingsQuery = ""; event.accepted = true } else event.accepted = false }
                     }
                     ShellButton { visible: root.systemRoute === "interpret"; showsLabel: !root.compact; objectName: "interpret-summary-header"; glassMaterial: enabled; iconName: "reasoning"; text: t("summarize"); enabled: !workbench.interpretation.busy && !!workbench.interpretation.current.segments?.length; onClicked: workbench.interpretation.summarize("summary") }
@@ -1457,7 +1461,7 @@ ApplicationWindow {
 
     Component {
         id: settingsView
-        SettingsWorkspace { bridge: workbench; dangerColor: root.colors.danger; query: root.settingsQuery; requestedSection: root.settingsSection; onQueryEdited: value => root.settingsQuery = value; onSectionOpened: root.settingsSection = ""; onRouteRequested: route => root.selectRoute(route) }
+        SettingsWorkspace { bridge: workbench; searchAnchor: settingsHeaderSearch; onFeedback: (message, error) => root.notify(message, null, error); dangerColor: root.colors.danger; query: root.settingsQuery; requestedSection: root.settingsSection; onQueryEdited: value => root.settingsQuery = value; onSectionOpened: root.settingsSection = ""; onRouteRequested: route => root.selectRoute(route) }
     }
     component HistoryList: ListView {
         id: historyList

@@ -23,6 +23,13 @@ set(NATIVE_RESOURCES qml/Kit.qml qml/GlassDialog.qml qml/SessionModelPicker.qml 
 list(APPEND NATIVE_RESOURCES
     qml/LanguageButton.qml
     qml/ListenButton.qml)
+list(APPEND NATIVE_RESOURCES
+    qml/SettingsPicker.qml
+    qml/SettingsConfirm.qml
+    qml/SettingsDangerButton.qml
+    qml/SpeechSettings.qml
+    qml/ModuleSettings.qml
+    qml/AboutSettings.qml)
 qt_add_resources(ViezanNativeQt workbench PREFIX "/" FILES ${NATIVE_RESOURCES})
 target_link_libraries(ViezanNativeQt PRIVATE Qt6::Svg Qt6::Widgets Qt6::Quick Qt6::QuickControls2 Qt6::Qml Qt6::Network Qt6::Concurrent Qt6::Multimedia Qt6::TextToSpeech Qt6::WebSockets)
 install(TARGETS ViezanNativeQt RUNTIME DESTINATION bin BUNDLE DESTINATION .)

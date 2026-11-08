@@ -5100,7 +5100,7 @@
       "researchFindings": "Phát hiện",
       "researchRound": "Vòng {n}",
       "compareDiffHint": "Phần khác với cột đầu được tô nhẹ.",
-      "moduleDesc_apps": "Gỡ, đặt lại và dọn dữ liệu ứng dụng",
+      "moduleDesc_apps": "Quản lý và gỡ ứng dụng",
       "sessionPanel": "Phiên này",
       "speakersAndLines": "{speakers} người nói · {lines} câu",
       "wordsCount": "{n} từ",
@@ -5879,7 +5879,13 @@
       "activityCount": "Hoạt động · {count} việc",
       "historyEmpty": "Chưa có phiên nào trong lịch sử",
       "historyArchivedEmpty": "Chưa có phiên nào được lưu trữ",
-      "customInstruction": "Tuỳ chỉnh"
+      "customInstruction": "Tuỳ chỉnh",
+      "deleteNamedKeyConfirm": "Xoá khoá của {name} và ngừng dùng nhà cung cấp này cho đến khi thêm khoá mới?",
+      "deleteNamedModelConfirm": "Xoá model {name} khỏi máy này (muốn dùng lại sẽ phải tải lại)?",
+      "deviceProcessors": "{count} bộ xử lý logic",
+      "deviceMemory": "{size} bộ nhớ",
+      "runtimePerformanceSummary": "{rate} token/giây · GPU {gpu}%",
+      "license": "Giấy phép"
     },
     "en": {
       "devMenu": "Development",
@@ -6168,7 +6174,7 @@
       "appActionError": "The operation stopped. Review the journal and remaining files.",
       "appReset": "Reset the selected data and keep the app",
       "currentVersion": "Version",
-      "thisDevice": "This Mac",
+      "thisDevice": "This device",
       "localRuntimes": "Local AI services",
       "runtimeRunning": "Running · {count} models",
       "runtimeNotRunning": "Not running",
@@ -6227,7 +6233,7 @@
       "researchFindings": "Findings",
       "researchRound": "Round {n}",
       "compareDiffHint": "Words that differ from the first column are tinted.",
-      "moduleDesc_apps": "Uninstall, reset and clean app data",
+      "moduleDesc_apps": "Manage and uninstall apps",
       "sessionPanel": "This session",
       "speakersAndLines": "{speakers} speakers · {lines} lines",
       "wordsCount": "{n} words",
@@ -7006,7 +7012,13 @@
       "activityCount": "Activity · {count} tasks",
       "historyEmpty": "No sessions in history yet",
       "historyArchivedEmpty": "No archived sessions yet",
-      "customInstruction": "Custom"
+      "customInstruction": "Custom",
+      "deleteNamedKeyConfirm": "Delete the key for {name} and stop using this provider until a new key is added?",
+      "deleteNamedModelConfirm": "Delete {name} from this device (you will need to download it again to use it)?",
+      "deviceProcessors": "{count} logical processors",
+      "deviceMemory": "{size} memory",
+      "runtimePerformanceSummary": "{rate} tokens/s · GPU {gpu}%",
+      "license": "License"
     },
     "ja": {
       "devMenu": "開発",
@@ -7295,7 +7307,7 @@
       "appActionError": "操作が停止しました。記録と残った項目を確認してください。",
       "appReset": "選択したデータをリセット（アプリは残す）",
       "currentVersion": "バージョン",
-      "thisDevice": "このMac",
+      "thisDevice": "このデバイス",
       "localRuntimes": "ローカルAIサービス",
       "runtimeRunning": "実行中 · {count}モデル",
       "runtimeNotRunning": "停止中",
@@ -7354,7 +7366,7 @@
       "researchFindings": "発見",
       "researchRound": "ラウンド{n}",
       "compareDiffHint": "最初の列と異なる語に色を付けています。",
-      "moduleDesc_apps": "アプリのアンインストール・リセット・データ整理",
+      "moduleDesc_apps": "アプリの管理とアンインストール",
       "sessionPanel": "このセッション",
       "speakersAndLines": "{speakers}人の話者・{lines}行",
       "wordsCount": "{n}語",
@@ -8133,7 +8145,13 @@
       "activityCount": "アクティビティ · {count}件",
       "historyEmpty": "履歴はまだありません",
       "historyArchivedEmpty": "アーカイブ済みのセッションはありません",
-      "customInstruction": "カスタム"
+      "customInstruction": "カスタム",
+      "deleteNamedKeyConfirm": "{name}のキーを削除し、新しいキーを追加するまでこのプロバイダーの利用を停止しますか？",
+      "deleteNamedModelConfirm": "このデバイスから{name}を削除しますか（再び使うには再ダウンロードが必要です）？",
+      "deviceProcessors": "論理プロセッサー：{count}",
+      "deviceMemory": "メモリ：{size}",
+      "runtimePerformanceSummary": "{rate}トークン/秒・GPU {gpu}%",
+      "license": "ライセンス"
     }
   },
   "navigation": [
