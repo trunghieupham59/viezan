@@ -16,6 +16,7 @@ Pane {
     signal toggleRequested(var opener)
     readonly property var metrics: bridge.resources.metrics
     readonly property bool glass: bridge.state.appearance?.preset === "glass"
+    SurfaceAppearance { id: surfaceAppearance }
     readonly property bool darkMode: bridge.state.appearance?.mode === "dark" || (bridge.state.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
     readonly property bool lightGlass: glass && !darkMode
     readonly property real headerHeight: metrics.navControl + metrics.small
@@ -66,7 +67,7 @@ Pane {
         // Liquid Glass 2.0: the selected row is a lens (bo 12), hover the flat softer lens;
         // search is an inset capsule field when expanded and a round glass on the rail.
         radius: navigation.glass ? (isSearch ? height / 2 : navigation.metrics.radius) : navigation.metrics.controlRadius
-        color: navigation.glass ? (isSearch && navigation.expanded ? navigation.chromeColors["sidebar-search-bg"] : "transparent") : control.checked ? Qt.tint(control.palette.window, Qt.alpha(control.palette.highlight, navigation.metrics.selectionOpacity)) : control.hovered ? control.palette.midlight : "transparent"
+        color: navigation.glass ? (isSearch && navigation.expanded ? (surfaceAppearance.solid ? surfaceAppearance.reading : navigation.chromeColors["sidebar-search-bg"]) : "transparent") : control.checked ? Qt.tint(control.palette.window, Qt.alpha(control.palette.highlight, navigation.metrics.selectionOpacity)) : control.hovered ? control.palette.midlight : "transparent"
         Kit.GlassLens {
             anchors.fill: parent
             visible: navigation.glass && !parent.isSearch && (parent.control.checked || parent.interacting)
@@ -86,7 +87,7 @@ Pane {
             radius: parent.radius
             color: "transparent"
             border.width: navigation.metrics.hairline
-            border.color: navigation.chromeColors["border"]
+            border.color: surfaceAppearance.solid ? surfaceAppearance.edge : navigation.chromeColors["border"]
         }
         // Keep native keyboard focus above the decorative rim.
         Rectangle {

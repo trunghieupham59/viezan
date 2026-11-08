@@ -21,13 +21,15 @@ ApplicationWindow {
     readonly property bool darkMode: workspace.appearance?.preset === "midnight" || workspace.appearance?.mode === "dark" || (workspace.appearance?.mode !== "light" && workspace.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
     readonly property var colors: workbench.resources.themePalettes[(workspace.appearance?.preset || "graphite") + ":" + (workspace.appearance?.accent || "auto")][darkMode ? "dark" : "light"]
     readonly property bool glassChrome: workspace.appearance?.preset === "glass"
+    SurfaceAppearance { id: surfaceAppearance }
+    readonly property bool solidChrome: surfaceAppearance.solid
     readonly property bool lightGlass: glassChrome && !darkMode
     readonly property bool nativeWindowHeader: Qt.platform.os !== "osx" && glassChrome
     readonly property real workspaceGutter: compact ? metrics.gap : metrics.inset
     palette.window: colors["sidebar-bg"]
     // Keep light Glass reading, composer and popup surfaces opaque.
-    palette.base: lightGlass ? Qt.tint(colors["sidebar-bg"], colors.surface) : colors.surface
-    palette.alternateBase: lightGlass ? Qt.tint(colors["sidebar-bg"], colors.canvas) : colors.canvas
+    palette.base: solidChrome ? surfaceAppearance.reading : lightGlass ? Qt.tint(colors["sidebar-bg"], colors.surface) : colors.surface
+    palette.alternateBase: solidChrome ? surfaceAppearance.control : lightGlass ? Qt.tint(colors["sidebar-bg"], colors.canvas) : colors.canvas
     palette.text: colors.text
     palette.windowText: colors.text
     palette.buttonText: colors.text
@@ -53,15 +55,32 @@ ApplicationWindow {
     property int composerFocusEpoch: 0
     property string commandQuery: ""
     property int commandIndex: 0
+    readonly property var paletteResult: workbench.desktopIntegration.paletteQuery(commandQuery)
     readonly property var commandEntries: {
+        const special = paletteResult.kind
         const entries = workbench.resources.commands.filter(item =>
         (!workbench.loadBlocked || ["settings", "activity"].includes(item.id)) &&
         (item.id !== "history" || (!home && !settings && !library)) &&
-        (["new", "history", "activity", "navigation", "settings"].includes(item.id) || workbench.moduleEnabled(item.id)) && normalize(t(item.title)).includes(normalize(commandQuery.trim())))
+        (["new", "history", "activity", "navigation", "settings"].includes(item.id) || workbench.moduleEnabled(item.id)) && (special || normalize(t(item.title)).includes(normalize(commandQuery.trim()))))
         .map(item => Object.assign({}, item, {group: ["new", "history", "activity", "navigation"].includes(item.id) ? "paletteGroupActions" : "paletteGroupPages"}))
         // QV4 sort is not stable for equal group keys. Preserve catalog order
         // within each group, including the ten real page commands.
-        return root.glassChrome ? entries.filter(item => item.group === "paletteGroupPages").concat(entries.filter(item => item.group === "paletteGroupActions")) : entries
+        const ordered = root.glassChrome ? entries.filter(item => item.group === "paletteGroupPages").concat(entries.filter(item => item.group === "paletteGroupActions")) : entries
+        const feature = ({ask:"chat", translate:"translate", lookup:"dictionary"})[special]
+        if (!special || workbench.loadBlocked || (feature && !workbench.moduleEnabled(feature))) return ordered
+        return [{id:"query-result", kind:special, value:paletteResult.value, group:"", icon:({calculation:"copy", ask:"reasoning", translate:"translate", lookup:"dictionary"})[special], label:tpl(({calculation:"paletteCalc", ask:"paletteAsk", translate:"paletteTranslate", lookup:"paletteLookup"})[special], {result:paletteResult.value, query:paletteResult.value, text:paletteResult.value})}].concat(ordered)
+    }
+    function runPaletteEntry(id) {
+        if (id !== "query-result") { execute(id); return }
+        const result = paletteResult
+        if (!result.kind || workbench.loadBlocked) return
+        if (result.kind === "calculation") { workbench.copy(result.value); closeOverlays(true); notify(t("copied")); return }
+        const feature = ({ask:"chat", translate:"translate", lookup:"dictionary"})[result.kind]
+        if (!feature || !workbench.moduleEnabled(feature)) return
+        selectRoute(feature); command("new")
+        const owner = root.session.id
+        command("draft", {sessionID:owner, value:result.value})
+        command("submit", {sessionID:owner}); composerFocusEpoch++
     }
     function normalize(value) { return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/đ/g, "d") }
     function composing() { return !!root.activeFocusItem?.inputMethodComposing }
@@ -426,8 +445,8 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Accessible.role: Accessible.Heading
                         Accessible.name: t("workspace") + " / " + t(root.home ? "home" : root.systemRoute)
-                        Label { text: t("workspace"); color: root.glassChrome ? root.colors["chrome-fg-muted"] : root.palette.placeholderText; Accessible.ignored: true }
-                        Label { text: "/"; color: root.glassChrome ? root.colors["chrome-fg-muted"] : root.palette.placeholderText; Accessible.ignored: true }
+                        Label { visible: !root.glassChrome || root.width >= metrics.reading; text: t("workspace"); color: root.glassChrome ? root.colors["chrome-fg-muted"] : root.palette.placeholderText; Accessible.ignored: true }
+                        Label { visible: !root.glassChrome || root.width >= metrics.reading; text: "/"; color: root.glassChrome ? root.colors["chrome-fg-muted"] : root.palette.placeholderText; Accessible.ignored: true }
                         Label { text: t(root.home ? "home" : root.systemRoute); font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
                     }
                     // Glass splits feature titles too: muted feature, strong session.
@@ -437,9 +456,9 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Accessible.role: Accessible.Heading
                         Accessible.name: t(root.workspace.feature) + " / " + titleFor(session)
-                        Label { text: t(root.workspace.feature); color: root.colors["chrome-fg-muted"]; Accessible.ignored: true }
+                        Label { visible: root.width >= metrics.reading; text: t(root.workspace.feature); color: root.colors["chrome-fg-muted"]; Accessible.ignored: true }
                         Label { text: "/"; visible: root.width >= metrics.reading; color: root.colors["chrome-fg-muted"]; Accessible.ignored: true }
-                        Label { text: titleFor(session); visible: root.width >= metrics.reading; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
+                        Label { objectName: "session-breadcrumb-title"; text: titleFor(session); font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
                     }
                     Label { visible: !root.workspacePage && !(root.glassChrome && !settings && !library); text: settings ? t(root.systemRoute || "settings") : library ? t("history") : t(root.workspace.feature) + " / " + titleFor(session); elide: Text.ElideRight; Layout.fillWidth: true; font.bold: true; Accessible.role: Accessible.Heading }
                     ShellButton { visible: root.workspacePage && workbench.moduleEnabled("utilities"); showsLabel: !root.compact; iconName: "utilities"; text: t("launcher"); enabled: !workbench.loadBlocked; onClicked: workbench.desktopIntegration.trigger("launcher") }
@@ -714,6 +733,7 @@ ApplicationWindow {
                     }
                     Kit.PanelRow { objectName: "chat-instructions-trigger"; text: root.t("systemPrompt"); iconName: "instructions"; disclosure: true; detail: (root.workspace.prompts || []).find(item => item.text === root.session.systemPrompt)?.name || (root.session.systemPrompt ? root.t("customInstruction") : root.t("noInstruction")); Layout.fillWidth: true; onClicked: root.showComposerPanel(instructionsPanel, attachmentButton) }
                     Rectangle { Layout.fillWidth: true; Layout.topMargin: metrics.tight; Layout.bottomMargin: metrics.tight; implicitHeight: metrics.hairline; color: root.colors.border }
+                    Kit.PanelRow { visible: root.width < metrics.reading; text: root.t(workbench.audio.recording ? "stopRecording" : "record"); iconName: "interpret"; Layout.fillWidth: true; enabled: !workbench.audio.busy; onClicked: { toolsPanel.close(); workbench.audio.recording ? workbench.audio.stop(workspace.speechProvider || "auto") : workbench.startRecording() } }
                     Kit.PanelRow { text: root.t("listen"); iconName: "listen"; Layout.fillWidth: true; enabled: !!root.speechText().trim(); onClicked: { toolsPanel.close(); workbench.audio.speak(root.speechText(), workbench.speechLanguage(root.speechText(), root.workspace.locale)) } }
                     Kit.PanelRow { objectName: "chat-tools-stop"; text: root.t("stopSpeaking"); iconName: "close"; Layout.fillWidth: true; enabled: workbench.audio.speaking; onClicked: { toolsPanel.close(); workbench.audio.silence() } }
                 }
@@ -1031,8 +1051,8 @@ ApplicationWindow {
                                 compact: true; glassChat: root.glassChrome
                                 onDeletePromptRequested: promptID => { deleteSavedPrompt.promptID = promptID; deleteSavedPrompt.open() }
                             }
-                            Rectangle { visible: root.glassChrome; implicitWidth: metrics.hairline; implicitHeight: metrics.inset + metrics.hairline * 2; color: root.colors.border }
-                            AudioControls { compact: true; glassChat: root.glassChrome }
+                            Rectangle { visible: root.glassChrome && root.width >= metrics.reading; implicitWidth: metrics.hairline; implicitHeight: metrics.inset + metrics.hairline * 2; color: root.colors.border }
+                            AudioControls { visible: !root.glassChrome || root.width >= metrics.reading; compact: true; glassChat: root.glassChrome }
                         }
                     }
                     // Image mode names who will draw, regardless of the chat model.
@@ -1125,11 +1145,11 @@ ApplicationWindow {
             }
             spacing: metrics.gap
             // Review 18 language row: input ⇄ output, session model at the trailing edge.
-            // Below the reading width the model takes its own line: RowLayout keeps
-            // non-filling controls at their preferred width, so one row would overflow.
+            // Compact Glass keeps the pair and icon-only model on one row.
             GridLayout {
+                objectName: "translation-language-bar"
                 Layout.fillWidth: true
-                columns: width >= metrics.reading ? 2 : 1
+                columns: root.glassChrome || width >= metrics.reading ? 2 : 1
                 columnSpacing: metrics.small
                 rowSpacing: metrics.tight
                 RowLayout {
@@ -1137,16 +1157,17 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     Label { visible: !root.glassChrome; text: t("inputLanguage"); color: root.palette.placeholderText }
                     LanguagePicker { visible: !root.glassChrome; source: true; flat: true }
-                    LanguageButton { objectName: "translate-source-language"; visible: root.glassChrome; shell: root; allowAuto: true; language: session.source; label: t("inputLanguage"); onChosen: code => command("pair", {source:code, target:session.target}) }
+                    LanguageButton { objectName: "translate-source-language"; visible: root.glassChrome; shell: root; compact: translationWorkspace.width < metrics.reading; Layout.minimumWidth: 0; Layout.maximumWidth: translationWorkspace.width / 3; allowAuto: true; language: session.source; label: t("inputLanguage"); onChosen: code => command("pair", {source:code, target:session.target}) }
                     Kit.IconButton { iconName: "swap"; text: t("swap"); enabled: session.source !== "auto"; onClicked: command("pair", {source: session.target, target: session.source}) }
                     Label { visible: !root.glassChrome; text: t("outputLanguage"); color: root.palette.placeholderText }
                     LanguagePicker { visible: !root.glassChrome; source: false; flat: true }
-                    LanguageButton { visible: root.glassChrome; shell: root; language: session.target; label: t("outputLanguage"); onChosen: code => command("pair", {source:session.source, target:code}) }
+                    LanguageButton { objectName: "translate-target-language"; visible: root.glassChrome; shell: root; compact: translationWorkspace.width < metrics.reading; Layout.minimumWidth: 0; Layout.maximumWidth: translationWorkspace.width / 3; language: session.target; label: t("outputLanguage"); onChosen: code => command("pair", {source:session.source, target:code}) }
                     Item { Layout.fillWidth: true }
                 }
                 SessionModelPicker {
                     shell: root; bridge: workbench
                     compact: true; glassFeature: root.glassChrome
+                    featureIconOnly: translationWorkspace.width < metrics.reading
                     onDeletePromptRequested: promptID => { deleteSavedPrompt.promptID = promptID; deleteSavedPrompt.open() }
                 }
             }
@@ -1373,9 +1394,15 @@ ApplicationWindow {
                     padding: metrics.inset
                     // Rounded only on the corners it shares with the card outline.
                     background: Rectangle {
+                        objectName: "translation-result-surface"
                         readonly property real r: metrics.radius
-                        color: root.glassChrome ? "transparent" : root.colors["surface-subtle"]
-                        topRightRadius: panes.columns > 1 ? r : 0; bottomRightRadius: r; bottomLeftRadius: panes.columns > 1 ? 0 : r
+                        color: root.solidChrome ? surfaceAppearance.reading : root.colors["surface-subtle"]
+                        border.width: root.glassChrome ? metrics.hairline : 0
+                        border.color: root.solidChrome ? surfaceAppearance.edge : root.colors.border
+                        topLeftRadius: root.glassChrome ? metrics.chromeCardRadius : 0
+                        topRightRadius: root.glassChrome ? metrics.chromeCardRadius : panes.columns > 1 ? r : 0
+                        bottomRightRadius: root.glassChrome ? metrics.chromeCardRadius : r
+                        bottomLeftRadius: root.glassChrome ? metrics.chromeCardRadius : panes.columns > 1 ? 0 : r
                         Rectangle { visible: !root.glassChrome && panes.columns === 1; width: parent.width; height: metrics.hairline; color: root.colors.border }
                     }
                     Layout.fillWidth: true
@@ -1403,11 +1430,10 @@ ApplicationWindow {
                             Layout.fillWidth: true; Layout.fillHeight: true
                             bridge: workbench; session: root.session
                         }
-                        Rectangle { objectName: "translation-result-rule"; visible: !root.glassChrome || !!session.output; Layout.fillWidth: true; implicitHeight: metrics.hairline; color: root.colors.border }
+                        Rectangle { objectName: "translation-result-rule"; Layout.fillWidth: true; implicitHeight: metrics.hairline; color: root.solidChrome ? surfaceAppearance.edge : root.colors.border }
                         RowLayout {
                             id: translationActions
                             objectName: "translation-actions"
-                            visible: !root.glassChrome || !!session.output
                             Layout.minimumHeight: metrics.control
                             Label { text: lang(session.target); color: root.palette.placeholderText; Layout.fillWidth: true }
                             Kit.GlassButton { visible: session.feature === "dictionary"; text: t(session.favorite ? "savedWord" : "saveWord"); checkable: true; checked: !!session.favorite; onClicked: command("favorite") }
@@ -1912,7 +1938,7 @@ ApplicationWindow {
         onOpened: commandSearch.forceActiveFocus()
         onClosed: root.restoreOverlayFocus()
         function move(offset) { root.commandIndex = Math.max(0, Math.min(root.commandIndex + offset, root.commandEntries.length - 1)); commandList.positionViewAtIndex(root.commandIndex, ListView.Contain) }
-        function run(id) { root.execute(id) }
+        function run(id) { root.runPaletteEntry(id) }
         ColumnLayout {
             Accessible.name: t("commands")
             Accessible.role: Accessible.Dialog
@@ -1949,14 +1975,14 @@ ApplicationWindow {
                 clip: true
                 model: root.commandEntries
                 section.property: root.glassChrome ? "group" : ""
-                section.delegate: Kit.Eyebrow { required property string section; text: root.t(section).toUpperCase(); height: metrics.compactControl; verticalAlignment: Text.AlignVCenter; leftPadding: metrics.gap }
+                section.delegate: Kit.Eyebrow { required property string section; text: root.t(section).toUpperCase(); height: section ? metrics.compactControl : 0; visible: !!section; verticalAlignment: Text.AlignVCenter; leftPadding: metrics.gap }
                 delegate: ItemDelegate {
                     id: commandItem
                     required property var modelData
                     required property int index
                     width: commandList.width - (root.glassChrome && commandScrollBar.visible ? commandScrollBar.width : 0)
                     implicitHeight: root.glassChrome ? metrics.navControl : implicitContentHeight + topPadding + bottomPadding
-                    text: t(modelData.title)
+                    text: modelData.label || t(modelData.title)
                     Accessible.role: Accessible.Button
                     Accessible.name: text
                     highlighted: index === root.commandIndex

@@ -1707,8 +1707,15 @@ private slots:
             QCOMPARE(current(bridge).value("id"), chatID); QVERIFY(editor->hasActiveFocus());
             QTRY_VERIFY(composer->property("singleRow").toBool());
             QVERIFY(trigger->width() >= 36);
-            QVERIFY(trigger->mapToScene(QPointF(trigger->width(), 0)).x() <= record->mapToScene(QPointF()).x());
-            QVERIFY(record->mapToScene(QPointF(record->width(), 0)).x() <= send->mapToScene(QPointF()).x());
+            if (width == 640) {
+                // Shell-Minimum moves recording into Tools; hidden controls have no layout slot.
+                QVERIFY(!record->isVisible());
+                QVERIFY(trigger->mapToScene(QPointF(trigger->width(), 0)).x() <= send->mapToScene(QPointF()).x());
+            } else {
+                QVERIFY(record->isVisible());
+                QVERIFY(trigger->mapToScene(QPointF(trigger->width(), 0)).x() <= record->mapToScene(QPointF()).x());
+                QVERIFY(record->mapToScene(QPointF(record->width(), 0)).x() <= send->mapToScene(QPointF()).x());
+            }
         }
         const QString fiveLines = QString::fromUtf8("Một\nHai\n三\n四\nFive");
         editor->setProperty("text", fiveLines);
@@ -2604,7 +2611,7 @@ private slots:
         QCOMPARE(draft->property("verticalAlignment").toInt(), int(Qt::AlignTop));
         auto *resultText = visualItem(window->contentItem(), "translation-result-text"); QVERIFY(resultText);
         QCOMPARE(resultText->property("verticalAlignment").toInt(), int(Qt::AlignTop));
-        auto *resultRule = visualItem(window->contentItem(), "translation-result-rule"); QVERIFY(resultRule); QVERIFY(!resultRule->isVisible());
+        auto *resultRule = visualItem(window->contentItem(), "translation-result-rule"); QVERIFY(resultRule); QVERIFY(resultRule->isVisible()); // W5a: the empty result keeps its footer.
         auto *sourceSurface = visualItem(window->contentItem(), "translation-source-surface"); QVERIFY(sourceSurface); QVERIFY(sourceSurface->isVisible());
         auto *language = visualItem(window->contentItem(), "translate-source-language"); QVERIFY(language);
         QVERIFY(visualText(language, QString::fromUtf8("Đầu vào")));
@@ -2864,6 +2871,12 @@ private slots:
     void w5bQuickPanels_data();
     void w5bQuickPanels();
     void w5bUpdateSheet();
+
+    // ---- W5a Shell ----
+    void w5aCompactShell_data();
+    void w5aCompactShell();
+    void w5aSolidAppearance();
+    void w5aPaletteQueries();
 
 };
 
@@ -3532,4 +3545,205 @@ void WorkbenchBridgeTests::w5bUpdateSheet() {
     QVERIFY(QMetaObject::invokeMethod(proxy, "presentUpdateIfAvailable")); QTRY_VERIFY(sheet->property("visible").toBool());
     QTest::keyClick(window, Qt::Key_Escape); QTRY_VERIFY(!sheet->property("visible").toBool()); QCOMPARE(proxy->property("dismisses").toInt(), 2);
     QCOMPARE(warnings.count(), 0);
+}
+
+// ---- W5a Shell ----
+void WorkbenchBridgeTests::w5aCompactShell_data() {
+    QTest::addColumn<int>("width"); QTest::addColumn<QString>("mode"); QTest::addColumn<QString>("locale");
+    QTest::newRow("compact-light-vi") << 820 << QString("light") << QString("vi");
+    QTest::newRow("compact-dark-en") << 820 << QString("dark") << QString("en");
+    QTest::newRow("compact-dark-ja") << 820 << QString("dark") << QString("ja");
+    QTest::newRow("minimum-light-vi") << 640 << QString("light") << QString("vi");
+    QTest::newRow("minimum-dark-ja") << 640 << QString("dark") << QString("ja");
+    QTest::newRow("breakpoint-light-vi") << 900 << QString("light") << QString("vi");
+    QTest::newRow("wide-light-en") << 1280 << QString("light") << QString("en");
+}
+
+void WorkbenchBridgeTests::w5aCompactShell() {
+    QFETCH(int,width); QFETCH(QString,mode); QFETCH(QString,locale);
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr,dir.filePath("state.json"),false);
+    bridge.command("appearance",{{"preset","glass"},{"mode",mode}});
+    bridge.command("locale",{{"value",locale}});
+    bridge.command("route",{{"value","home"}});
+    bridge.command("navigation",{{"collapsed",false}});
+    QQmlApplicationEngine engine; QSignalSpy warnings(&engine,&QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench",&bridge);
+    engine.load(QUrl("qrc:/qml/Main.qml")); QVERIFY(!engine.rootObjects().isEmpty());
+    auto *window=qobject_cast<QQuickWindow *>(engine.rootObjects().first()); QVERIFY(window);
+    window->resize(width,width == 640 ? 480 : width == 820 ? 640 : 800);
+    QVERIFY(QTest::qWaitForWindowExposed(window));
+    auto *nav=visualItem(window->contentItem(),"primary-navigation"); QVERIFY(nav);
+    QTRY_COMPARE(nav->property("expanded").toBool(),width >= 900);
+    auto *grid=visualItem(window->contentItem(),"home-quick-grid"); QVERIFY(grid);
+    QTRY_COMPARE(grid->property("columns").toInt(),width < 1100 ? 2 : 4);
+    auto *pill=visualItem(window->contentItem(),"home-model-pill"); QVERIFY(pill);
+    QCOMPARE(pill->isVisible(),width < 1100);
+    auto *intro=visualItem(window->contentItem(),"home-intro"); QVERIFY(intro);
+    if (width < 900) QVERIFY(intro->property("titleScale").toDouble() < 1.6);
+    QVERIFY(grid->mapToScene(QPointF(grid->width(),0)).x() <= width);
+
+    QVERIFY(QMetaObject::invokeMethod(window,"selectRoute",Q_ARG(QVariant,"chat")));
+    bridge.command("draft",{{"value","Synthetic W5a draft"}});
+    auto *draft=visualItem(window->contentItem(),"chat-draft"); QVERIFY(draft);
+    auto *composer=visualItem(window->contentItem(),"chat-composer"); QVERIFY(composer);
+    auto *transcript=visualItem(window->contentItem(),"chat-transcript"); QVERIFY(transcript);
+    auto *reading=visualItem(window->contentItem(),"reading-pane"); QVERIFY(reading);
+    QTRY_VERIFY(composer->property("singleRow").toBool());
+    if (width < 900) QTRY_VERIFY(qAbs(composer->width() - (reading->width()-48)) <= 1);
+    if (width < 900) QTRY_VERIFY(qAbs(composer->mapToScene(QPointF()).x()-transcript->mapToScene(QPointF()).x()) <= 1);
+    QVERIFY(composer->mapToScene(QPointF(composer->width(),composer->height())).y() <= window->height());
+    auto *lineupLabel=visualItem(window->contentItem(),"chat-lineup-label"); QVERIFY(lineupLabel);
+    QCOMPARE(lineupLabel->isVisible(),width >= 760);
+    auto *crumb=visualItem(window->contentItem(),"session-breadcrumb-title"); QVERIFY(crumb && crumb->isVisible());
+    QPointer<QQuickItem> sameDraft=draft;
+    const auto sessionID=current(bridge).value("id");
+    window->resize(1280,800); QCoreApplication::processEvents();
+    window->resize(width,width == 640 ? 480 : 640); QCoreApplication::processEvents();
+    QCOMPARE(visualItem(window->contentItem(),"chat-draft"),sameDraft.data());
+    QCOMPARE(current(bridge).value("id"),sessionID);
+    QCOMPARE(current(bridge).value("draft").toString(),QString("Synthetic W5a draft"));
+    QVERIFY(!bridge.state().value("shell").toMap().value("navigationCollapsed").toBool());
+
+    QVERIFY(QMetaObject::invokeMethod(window,"selectRoute",Q_ARG(QVariant,"translate")));
+    auto *source=visualItem(window->contentItem(),"translate-source-language");
+    auto *target=visualItem(window->contentItem(),"translate-target-language");
+    auto *model=visualItem(window->contentItem(),"feature-model-trigger"); QVERIFY(source && target && model);
+    QTRY_VERIFY(qAbs(source->mapToScene(QPointF()).y()-model->mapToScene(QPointF()).y()) <= 1);
+    QVERIFY(model->mapToScene(QPointF(model->width(),0)).x() <= width);
+    QCOMPARE(visualItem(source,"language-direction")->isVisible(),width >= 1100);
+    if (width < 1100) QTRY_COMPARE(model->width(),36.0);
+    auto *surface=visualItem(window->contentItem(),"translation-result-surface"); QVERIFY(surface);
+    QVERIFY(surface->property("color").value<QColor>().alphaF() > 0);
+    auto *actions=visualItem(window->contentItem(),"translation-actions"); QVERIFY(actions);
+    QTRY_VERIFY(actions->isVisible());
+    QTRY_VERIFY(actions->mapToScene(QPointF(actions->width(),actions->height())).y() <= window->height());
+    auto *listen=visualItem(window->contentItem(),"translate-listen"); QVERIFY(listen && !listen->isEnabled());
+    model->forceActiveFocus(Qt::TabFocusReason); QTest::keyClick(window,Qt::Key_Space);
+    // Route Loader destruction is deferred; scope the popup to this picker,
+    // not an identically named popup in the retiring Chat view.
+    auto *panel=model->parentItem()->findChild<QObject *>("feature-model-panel"); QVERIFY(panel);
+    QTRY_VERIFY(panel->property("visible").toBool());
+    QTest::keyClick(window,Qt::Key_Escape); QTRY_VERIFY(!panel->property("visible").toBool());
+    QTRY_VERIFY(model->hasActiveFocus());
+    QCOMPARE(warnings.count(),0);
+}
+
+void WorkbenchBridgeTests::w5aSolidAppearance() {
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr,dir.filePath("state.json"),false);
+    bridge.command("appearance",{{"preset","glass"},{"mode","light"}});
+    QQmlApplicationEngine engine; QSignalSpy warnings(&engine,&QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench",&bridge);
+    QQmlComponent fakeComponent(&engine);
+    fakeComponent.setData("import QtQml; QtObject { property bool reduceTransparency: false; property bool highContrast: false }",QUrl("qrc:/w5a-appearance.qml"));
+    QScopedPointer<QObject> fake(fakeComponent.create()); QVERIFY2(fake,qPrintable(fakeComponent.errorString()));
+    engine.rootContext()->setContextProperty("systemAppearance",fake.data());
+    engine.load(QUrl("qrc:/qml/Main.qml")); QVERIFY(!engine.rootObjects().isEmpty());
+    auto *window=qobject_cast<QQuickWindow *>(engine.rootObjects().first()); QVERIFY(window);
+    window->resize(820,640); QVERIFY(QTest::qWaitForWindowExposed(window));
+    QVERIFY(QMetaObject::invokeMethod(window,"selectRoute",Q_ARG(QVariant,"chat")));
+    auto *nav=visualItem(window->contentItem(),"navigation-glass-pane"); QVERIFY(nav);
+    auto *reading=visualItem(window->contentItem(),"reading-pane"); QVERIFY(reading);
+    auto *readingSurface=reading->property("background").value<QQuickItem *>(); QVERIFY(readingSurface);
+    auto *palette=window->findChild<QObject *>("command-palette"); QVERIFY(palette);
+    QVERIFY(QMetaObject::invokeMethod(palette,"open")); QTRY_VERIFY(palette->property("visible").toBool());
+    auto *overlay=palette->property("background").value<QQuickItem *>(); QVERIFY(overlay);
+    auto *overlayFace=visualItem(overlay,"glass-pane-face"); QVERIFY(overlayFace);
+    auto *toggle=visualItem(window->contentItem(),"navigation-toggle"); QVERIFY(toggle);
+    auto *controlFace=visualItem(toggle,"glass-control-solid-face"); QVERIFY(controlFace);
+    auto *control=controlFace->parentItem(); QVERIFY(control);
+    auto *search=visualItem(window->contentItem(),"command-search"); QVERIFY(search);
+    auto *searchFace=visualItem(search->property("background").value<QQuickItem *>(),"search-field-face"); QVERIFY(searchFace);
+    auto *searchBorder=searchFace->property("border").value<QObject *>(); QVERIFY(searchBorder);
+    window->requestActivate(); QTRY_VERIFY(window->isActive());
+    QColor lightPane;
+    for (const auto &mode : {QString("light"),QString("dark")}) {
+        bridge.command("appearance",{{"mode",mode}});
+        const auto theme=bridge.resources().value("themePalettes").toMap().value("glass:auto").toMap().value(mode).toMap();
+        // 00 → 10 → 11 → 01 → 00 exercises NOTIFY and independent flags.
+        for (const auto flags : {qMakePair(false,false),qMakePair(true,false),qMakePair(true,true),qMakePair(false,true),qMakePair(false,false)}) {
+            fake->setProperty("reduceTransparency",flags.first); fake->setProperty("highContrast",flags.second);
+            const bool solid=flags.first || flags.second;
+            QTRY_COMPARE(window->property("solidChrome").toBool(),solid);
+            QTRY_COMPARE(nav->property("solid").toBool(),solid);
+            QTRY_COMPARE(readingSurface->property("solid").toBool(),solid);
+            QTRY_COMPARE(controlFace->isVisible(),solid);
+            if (solid) {
+                for (auto *pane : {nav,readingSurface,overlayFace->parentItem()}) {
+                    QCOMPARE(pane->property("solidColor").value<QColor>().alpha(),255);
+                    QVERIFY(!visualItem(pane,"glass-pane-highlight")->isVisible());
+                    QVERIFY(!visualItem(pane,"glass-pane-shadow")->isVisible());
+                    auto *face=visualItem(pane,"glass-pane-face"); QVERIFY(face);
+                    const auto edge=face->property("border").value<QObject *>(); QVERIFY(edge);
+                    QCOMPARE(edge->property("color").value<QColor>(),QColor(theme.value(flags.second ? "border-strong" : "border").toString()));
+                }
+                toggle->forceActiveFocus(); QTRY_VERIFY(!search->hasActiveFocus());
+                QTRY_COMPARE(searchBorder->property("color").value<QColor>(),QColor(theme.value(flags.second ? "border-strong" : "border").toString()));
+                search->forceActiveFocus(); QTRY_VERIFY(search->hasActiveFocus());
+                QTRY_COMPARE(searchBorder->property("color").value<QColor>(),QColor(theme.value("border-strong").toString()));
+                QVERIFY(!visualItem(control,"glass-control-reflections")->isVisible());
+                QVERIFY(!visualItem(control,"glass-control-shadow")->isVisible());
+                QCOMPARE(controlFace->property("color").value<QColor>().alpha(),255);
+                if (mode == "light") lightPane=nav->property("solidColor").value<QColor>();
+                else QVERIFY(lightPane != nav->property("solidColor").value<QColor>());
+            }
+        }
+    }
+    fake->setProperty("highContrast",true);
+    bridge.command("appearance",{{"preset","graphite"}}); QTRY_VERIFY(!window->property("solidChrome").toBool());
+    bridge.command("appearance",{{"preset","glass"}}); QTRY_VERIFY(window->property("solidChrome").toBool());
+    QCOMPARE(warnings.count(),0);
+}
+
+void WorkbenchBridgeTests::w5aPaletteQueries() {
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr,dir.filePath("state.json"),false);
+    bridge.command("appearance",{{"preset","glass"},{"mode","light"}});
+    QQmlApplicationEngine engine; QSignalSpy warnings(&engine,&QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench",&bridge);
+    engine.load(QUrl("qrc:/qml/Main.qml")); QVERIFY(!engine.rootObjects().isEmpty());
+    auto *window=qobject_cast<QQuickWindow *>(engine.rootObjects().first()); QVERIFY(window);
+    window->resize(820,640); QVERIFY(QTest::qWaitForWindowExposed(window));
+    window->requestActivate(); QTRY_VERIFY(window->isActive());
+    auto *palette=window->findChild<QObject *>("command-palette"); QVERIFY(palette);
+    auto entries=[&] { return window->property("commandEntries").value<QJSValue>().toVariant().toList(); };
+    QTest::keyClick(window,Qt::Key_K,Qt::ControlModifier); QTRY_VERIFY(palette->property("visible").toBool());
+    auto *search=visualItem(window->contentItem(),"command-search"); QVERIFY(search);
+    for (const auto &locale : {QString("vi"),QString("en"),QString("ja")}) {
+        bridge.command("locale",{{"value",locale}});
+        const auto strings=bridge.resources().value("locales").toMap().value(locale).toMap();
+        search->setProperty("text","2+3*4");
+        QTRY_COMPARE(entries().first().toMap().value("kind").toString(),QString("calculation"));
+        QCOMPARE(entries().first().toMap().value("label").toString(),strings.value("paletteCalc").toString().replace("{result}","14"));
+        QVERIFY(entries().size() > 10); QCOMPARE(entries()[1].toMap().value("group").toString(),QString("paletteGroupPages"));
+    }
+    const auto before=bridge.state();
+    QInputMethodEvent preedit(QString::fromUtf8("にほん"),{}); QCoreApplication::sendEvent(search,&preedit);
+    QTRY_VERIFY(search->property("inputMethodComposing").toBool());
+    QTest::keyClick(window,Qt::Key_Return); QVERIFY(palette->property("visible").toBool()); QCOMPARE(bridge.state(),before);
+    QInputMethodEvent finished; finished.setCommitString(""); QCoreApplication::sendEvent(search,&finished);
+    QTest::keyClick(window,Qt::Key_Return); QTRY_VERIFY(!palette->property("visible").toBool());
+    QCOMPARE(QGuiApplication::clipboard()->text(),QString("14")); QCOMPARE(bridge.state(),before);
+    for (const auto &pair : {qMakePair(QString("? synthetic question"),QString("chat")),qMakePair(QString("t synthetic translation"),QString("translate")),qMakePair(QString("d synthetic"),QString("dictionary"))}) {
+        QTest::keyClick(window,Qt::Key_K,Qt::ControlModifier); QTRY_VERIFY(palette->property("visible").toBool());
+        search->setProperty("text",pair.first); QCoreApplication::processEvents();
+        const auto value=entries().first().toMap().value("value").toString(); QVERIFY(!value.isEmpty());
+        const auto oldID=current(bridge).value("id");
+        QTest::keyClick(window,Qt::Key_Return); QTRY_VERIFY(!palette->property("visible").toBool());
+        QCOMPARE(bridge.state().value("feature").toString(),pair.second);
+        QVERIFY(current(bridge).value("id") != oldID);
+        QCOMPARE(latest(bridge).value("request").toMap().value("sessionID"),current(bridge).value("id"));
+        QCOMPARE(latest(bridge).value("request").toMap().value("input").toString(),value);
+        bridge.command("cancel",{{"taskID",latest(bridge).value("id")}});
+    }
+    QTest::keyClick(window,Qt::Key_K,Qt::ControlModifier); QTRY_VERIFY(palette->property("visible").toBool());
+    search->setProperty("text","t disabled module");
+    QTRY_COMPARE(entries().first().toMap().value("id").toString(),QString("query-result"));
+    QTest::keyClick(window,Qt::Key_Down); QCOMPARE(window->property("commandIndex").toInt(),1);
+    QTest::keyClick(window,Qt::Key_Up); QCOMPARE(window->property("commandIndex").toInt(),0);
+    bridge.command("module",{{"id","translate"},{"enabled",false}});
+    QTRY_VERIFY(entries().first().toMap().value("id").toString() != "query-result");
+    const auto blockedState=bridge.state();
+    QVERIFY(QMetaObject::invokeMethod(window,"runPaletteEntry",Q_ARG(QVariant,"query-result")));
+    QCOMPARE(bridge.state(),blockedState);
+    QTest::keyClick(window,Qt::Key_Escape); QTRY_VERIFY(!palette->property("visible").toBool());
+    QCOMPARE(warnings.count(),0);
 }

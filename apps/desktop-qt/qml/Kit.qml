@@ -66,10 +66,14 @@ QtObject {
         }
     }
     // Scene layer 3 (`.pane`): a translucent white pane with a bright rim, a top
-    // inner highlight and a low outer shadow. Reduced transparency is not
-    // exposed to QML on every platform; the pane stays legible on its own.
+    // inner highlight and a low outer shadow. SurfaceAppearance supplies the
+    // opaque fallback when either system accessibility flag is enabled.
     component GlassPane: Item {
         id: pane
+        property QtObject appearance: SurfaceAppearance {}
+        readonly property bool solid: appearance.solid
+        property string solidRole: startRole === "canvas" ? "reading" : "pane"
+        readonly property color solidColor: appearance[solidRole]
         property real radius: metrics.chromeSurfaceRadius
         property string shadowRole: "shadow-md-color"
         property string startRole: "primary-nav-material"
@@ -93,22 +97,25 @@ QtObject {
         Item {
             x: -pane.shadowBlurRadius; y: -pane.shadowBlurRadius + pane.shadowOffset
             width: pane.width + pane.shadowBlurRadius * 2; height: pane.height + pane.shadowBlurRadius * 2
-            visible: pane.accelerated
+            visible: pane.accelerated && !pane.solid
             MultiEffect { objectName: "glass-pane-shadow"; source: pane.accelerated ? shadowShape : null; anchors.fill: parent; anchors.margins: pane.shadowBlurRadius; blurEnabled: true; blur: 1; blurMax: pane.shadowBlurRadius; autoPaddingEnabled: true }
         }
         Rectangle {
+            objectName: "glass-pane-face"
             anchors.fill: parent
             radius: pane.radius
             gradient: Gradient {
                 orientation: Gradient.Vertical
-                GradientStop { position: 0; color: pane.startColor }
-                GradientStop { position: 1; color: pane.endColor }
+                GradientStop { position: 0; color: pane.solid ? pane.solidColor : pane.startColor }
+                GradientStop { position: 1; color: pane.solid ? pane.solidColor : pane.endColor }
             }
             border.width: pane.metrics.hairline
-            border.color: pane.colors[pane.borderRole]
+            border.color: pane.solid ? pane.appearance.edge : pane.colors[pane.borderRole]
         }
         // 1 pt inner highlight along the top edge (`inset 0 1px 0`).
         Rectangle {
+            objectName: "glass-pane-highlight"
+            visible: !pane.solid
             x: pane.radius / 2; y: pane.metrics.hairline
             width: Math.max(0, pane.width - pane.radius); height: pane.metrics.hairline
             color: pane.colors["material-highlight"]
@@ -118,16 +125,17 @@ QtObject {
     // `.lens`: the selected row, a bright raised glass; `hover` is the softer flat state.
     component GlassLens: Rectangle {
         id: glassLens
+        property QtObject appearance: SurfaceAppearance {}
         property bool hover: false
         readonly property var metrics: workbench.resources.metrics
         readonly property bool darkMode: workbench.state.appearance?.preset === "midnight" || workbench.state.appearance?.mode === "dark" || (workbench.state.appearance?.mode !== "light" && workbench.state.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
         readonly property var colors: workbench.resources.themePalettes[(workbench.state.appearance?.preset || "graphite") + ":" + (workbench.state.appearance?.accent || "auto")][darkMode ? "dark" : "light"]
         radius: metrics.radius
-        color: colors[hover ? "chrome-item-hover" : "chrome-item-active"]
+        color: appearance.solid ? Qt.tint(appearance.pane, colors[hover ? "chrome-item-hover" : "chrome-item-active"]) : colors[hover ? "chrome-item-hover" : "chrome-item-active"]
         border.width: hover ? 0 : metrics.hairline
-        border.color: colors["material-highlight"]
+        border.color: appearance.solid ? appearance.edge : colors["material-highlight"]
         Rectangle {
-            visible: !glassLens.hover
+            visible: !glassLens.hover && !glassLens.appearance.solid
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.bottom
             anchors.leftMargin: glassLens.radius; anchors.rightMargin: glassLens.radius
             height: glassLens.metrics.hairline
@@ -139,6 +147,7 @@ QtObject {
     // not expose Apple's material or desktop backdrop through this component.
     component ChromeSurface: Rectangle {
         id: chrome
+        property QtObject appearance: SurfaceAppearance {}
         property color fillColor: "transparent"
         property bool illuminatedFill: false
         property color fillHighlight: fillColor
@@ -150,15 +159,15 @@ QtObject {
         readonly property var themeColors: workbench.resources.themePalettes[(workbench.state.appearance?.preset || "graphite") + ":" + (workbench.state.appearance?.accent || "auto")][darkMode ? "dark" : "light"]
         radius: metrics.chromeSurfaceRadius
         gradient: Gradient {
-            GradientStop { position: 0; color: chrome.edgeHighlight }
-            GradientStop { position: 1; color: chrome.edgeColor }
+            GradientStop { position: 0; color: chrome.appearance.solid ? chrome.appearance.edge : chrome.edgeHighlight }
+            GradientStop { position: 1; color: chrome.appearance.solid ? chrome.appearance.edge : chrome.edgeColor }
         }
         Rectangle {
             anchors.fill: parent
             anchors.margins: chrome.metrics.hairline
             radius: Math.max(0, chrome.radius - chrome.metrics.hairline)
-            color: chrome.fillColor
-            gradient: chrome.illuminatedFill ? illuminatedGradient : null
+            color: chrome.appearance.solid ? chrome.appearance.raised : chrome.fillColor
+            gradient: chrome.illuminatedFill && !chrome.appearance.solid ? illuminatedGradient : null
             Gradient {
                 id: illuminatedGradient
                 GradientStop { position: 0; color: chrome.fillHighlight }
@@ -171,6 +180,8 @@ QtObject {
     // rings leave the centre clear; they are not an opaque border rectangle.
     component ControlGlassSurface: Item {
         id: glassSurface
+        property QtObject appearance: SurfaceAppearance {}
+        readonly property bool solid: appearance.solid
         property real radius: height / 2
         property bool prominent: false
         property bool pressed: false
@@ -187,7 +198,7 @@ QtObject {
         Rectangle {
             id: glassFace
             anchors.fill: parent
-            visible: !glassSurface.accelerated
+            visible: !glassSurface.solid && !glassSurface.accelerated
             radius: glassSurface.radius
             gradient: Gradient {
                 GradientStop { position: 0; color: glassSurface.inactive ? glassSurface.colors["surface-subtle"] : glassSurface.prominent ? Qt.alpha(glassSurface.tint, 0.98) : Qt.alpha(glassSurface.colors["material-highlight"], glassSurface.darkMode ? (glassSurface.hovered ? 0.18 : 0.13) : (glassSurface.hovered ? 0.70 : 0.52)) }
@@ -201,7 +212,7 @@ QtObject {
         MultiEffect {
             objectName: "glass-control-shadow"
             anchors.fill: parent
-            visible: glassSurface.accelerated
+            visible: glassSurface.accelerated && !glassSurface.solid
             source: glassSurface.accelerated ? glassFace : null
             shadowEnabled: true
             shadowColor: glassSurface.inkShadow
@@ -211,7 +222,7 @@ QtObject {
             shadowVerticalOffset: glassSurface.pressed ? glassSurface.metrics.hairline : glassSurface.metrics.hairline * 2
         }
         Rectangle {
-            visible: !glassSurface.accelerated
+            visible: !glassSurface.accelerated && !glassSurface.solid
             x: -glassSurface.metrics.hairline
             y: glassSurface.metrics.hairline
             width: parent.width + glassSurface.metrics.hairline * 2
@@ -223,7 +234,7 @@ QtObject {
         }
         Rectangle {
             anchors.fill: parent
-            visible: !glassSurface.inactive && (glassSurface.hovered || glassSurface.pressed)
+            visible: !glassSurface.solid && !glassSurface.inactive && (glassSurface.hovered || glassSurface.pressed)
             radius: glassSurface.radius
             color: Qt.alpha(glassSurface.inkShadow, glassSurface.pressed ? 0.16 : 0.06)
         }
@@ -231,7 +242,7 @@ QtObject {
         Shape {
             objectName: "glass-control-reflections"
             anchors.fill: parent
-            visible: !glassSurface.inactive && !glassSurface.darkMode
+            visible: !glassSurface.solid && !glassSurface.inactive && !glassSurface.darkMode
             ShapePath {
                 strokeWidth: 0
                 fillRule: ShapePath.OddEvenFill
@@ -263,11 +274,22 @@ QtObject {
         Rectangle {
             objectName: "glass-control-quiet-rim"
             anchors.fill: parent
-            visible: glassSurface.inactive || glassSurface.darkMode
+            visible: !glassSurface.solid && (glassSurface.inactive || glassSurface.darkMode)
             radius: glassSurface.radius
             color: "transparent"
             border.width: glassSurface.metrics.hairline
             border.color: glassSurface.colors[glassSurface.inactive ? "border" : "material-border"]
+        }
+        Rectangle {
+            objectName: "glass-control-solid-face"
+            anchors.fill: parent
+            visible: glassSurface.solid
+            radius: glassSurface.radius
+            color: glassSurface.inactive ? Qt.tint(glassSurface.appearance.control, glassSurface.colors["surface-subtle"])
+                : glassSurface.prominent ? glassSurface.tint
+                : glassSurface.hovered || glassSurface.pressed ? Qt.tint(glassSurface.appearance.control, glassSurface.colors["surface-muted"]) : glassSurface.appearance.control
+            border.width: glassSurface.metrics.hairline
+            border.color: glassSurface.appearance.edge
         }
         Accessible.ignored: true
     }
@@ -320,6 +342,7 @@ QtObject {
     // the illuminated capsule edge belongs to the Glass control family.
     component SearchField: TextField {
         id: searchField
+        property QtObject appearance: SurfaceAppearance {}
         property bool compact: false
         property bool embedded: false
         readonly property var metrics: workbench.resources.metrics
@@ -335,12 +358,13 @@ QtObject {
             visible: !searchField.embedded
             // `.field` (Glass): a recessed white capsule, hairline at rest, the stronger edge while typing.
             Rectangle {
+                objectName: "search-field-face"
                 anchors.fill: parent
                 visible: searchField.glass
                 radius: searchField.fieldRadius
-                color: searchField.colors["surface-subtle"]
+                color: searchField.appearance.solid ? searchField.appearance.reading : searchField.colors["surface-subtle"]
                 border.width: searchField.metrics.hairline
-                border.color: searchField.colors[searchField.activeFocus ? "border-strong" : "border"]
+                border.color: searchField.activeFocus ? searchField.colors["border-strong"] : searchField.appearance.solid ? searchField.appearance.edge : searchField.colors.border
             }
             ChromeSurface {
                 anchors.fill: parent
@@ -387,6 +411,7 @@ QtObject {
             anchors.fill: parent
             visible: readingPanel.glass
             radius: readingPanel.radius
+            solidRole: "raised"
             shadowRole: "shadow-lg-color"
             startColor: readingPanel.overlayColor
             endColor: readingPanel.overlayColor
@@ -414,6 +439,7 @@ QtObject {
     // continue to own mutual exclusion, arrow keys and accessible tab roles.
     component FilterGroup: TabBar {
         id: filterGroup
+        property QtObject appearance: SurfaceAppearance {}
         readonly property var metrics: workbench.resources.metrics
         readonly property bool glass: workbench.state.appearance?.preset === "glass"
         property bool selectionReady: false
@@ -432,9 +458,9 @@ QtObject {
             z: -1
             visible: filterGroup.glass
             radius: height / 2
-            color: filterGroup.colors["surface-muted"]
+            color: filterGroup.appearance.solid ? Qt.tint(filterGroup.appearance.control, filterGroup.colors["surface-muted"]) : filterGroup.colors["surface-muted"]
             border.width: filterGroup.metrics.hairline
-            border.color: filterGroup.colors["border"]
+            border.color: filterGroup.appearance.solid ? filterGroup.appearance.edge : filterGroup.colors["border"]
             Accessible.ignored: true
         }
         Binding { target: filterGroup.background; property: "visible"; value: false; when: filterGroup.glass }
@@ -478,9 +504,10 @@ QtObject {
         id: intro
         property string title
         property string subtitle
+        property real titleScale: metrics.headingScale
         readonly property var metrics: workbench.resources.metrics
         spacing: metrics.small
-        Label { text: intro.title; font.bold: true; font.pointSize: Qt.application.font.pointSize * intro.metrics.headingScale; wrapMode: Text.Wrap; Layout.fillWidth: true; Accessible.role: Accessible.Heading }
+        Label { text: intro.title; font.bold: true; font.pointSize: Qt.application.font.pointSize * intro.titleScale; wrapMode: Text.Wrap; Layout.fillWidth: true; Accessible.role: Accessible.Heading }
         Label { visible: !!intro.subtitle; text: intro.subtitle; color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
     }
     component Eyebrow: Label {
@@ -517,14 +544,15 @@ QtObject {
         }
     }
     component FlatCard: Rectangle {
+        property QtObject appearance: SurfaceAppearance {}
         property bool selected: false
         readonly property var metrics: workbench.resources.metrics
         readonly property bool darkMode: workbench.state.appearance?.preset === "midnight" || workbench.state.appearance?.mode === "dark" || (workbench.state.appearance?.mode !== "light" && workbench.state.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
         readonly property var colors: workbench.resources.themePalettes[(workbench.state.appearance?.preset || "graphite") + ":" + (workbench.state.appearance?.accent || "auto")][darkMode ? "dark" : "light"]
         radius: metrics.chromeCardRadius
-        color: colors[selected ? "action-soft" : "surface"]
+        color: appearance.solid ? Qt.tint(appearance.reading, colors[selected ? "action-soft" : "surface"]) : colors[selected ? "action-soft" : "surface"]
         border.width: metrics.hairline
-        border.color: selected ? Qt.alpha(colors.action, metrics.selectionOpacity * 4) : colors.border
+        border.color: selected ? Qt.alpha(colors.action, metrics.selectionOpacity * 4) : appearance.solid ? appearance.edge : colors.border
         Accessible.ignored: true
     }
     // GroupBox drawn as a Review 18 settings card: the title is a header bar inside
@@ -611,6 +639,7 @@ QtObject {
     // The single solid accent action of a region.
     component PrimaryButton: GlassButton {
         id: primary
+        property QtObject appearance: SurfaceAppearance {}
         property string shortcutText: ""
         readonly property real expandedWidth: primaryLabel.implicitWidth + metrics.icon + metrics.small + leftPadding + rightPadding + (shortcutText ? primaryShortcut.implicitWidth + metrics.small : 0)
         glassProminent: true
@@ -633,14 +662,14 @@ QtObject {
         background: Rectangle {
             radius: primary.glass ? height / 2 : primary.metrics.controlRadius
             color: !primary.enabled ? primary.palette.disabled.button : primary.down ? Qt.darker(primary.palette.highlight) : primary.palette.highlight
-            gradient: primary.glass && primary.enabled ? primaryFill : null
+            gradient: primary.glass && primary.enabled && !primary.appearance.solid ? primaryFill : null
             Gradient {
                 id: primaryFill
                 GradientStop { position: 0; color: primary.colors["action-fill-top"] }
                 GradientStop { position: 1; color: primary.down || primary.hovered ? primary.colors["action-active"] : primary.colors["action-fill-bottom"] }
             }
-            border.width: primary.visualFocus ? primary.metrics.hairline * (primary.glass ? 2 : 1) : 0
-            border.color: primary.glass ? primary.colors["action-text"] : primary.palette.mid
+            border.width: primary.visualFocus ? primary.metrics.hairline * (primary.glass ? 2 : 1) : primary.appearance.solid ? primary.metrics.hairline : 0
+            border.color: primary.appearance.solid && !primary.visualFocus ? primary.appearance.edge : primary.glass ? primary.colors["action-text"] : primary.palette.mid
         }
         Accessible.name: text
     }
