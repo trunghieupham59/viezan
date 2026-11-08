@@ -6,32 +6,30 @@ ColumnLayout {
     required property var bridge
     property string route: ""
     property string diagnosticsText: ""
-    readonly property var desktop: bridge.desktopIntegration
+    property var desktop: bridge.desktopIntegration
     function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    function tpl(key, values) { let text = t(key); for (const name in values) text = text.split("{" + name + "}").join(values[name]); return text }
     Label { visible: !settings.route; text: settings.t("modulesTitle"); font.bold: true }
     Repeater {
-        model: settings.route ? [] : ["chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities"]
-        delegate: CheckBox { required property string modelData; text: settings.t(modelData); checked: !(settings.bridge.state.disabledModules || []).includes(modelData); onClicked: settings.bridge.command("module", {id: modelData, enabled: checked}) }
-    }
-    CheckBox { visible: !settings.route; text: settings.t("launchAtLogin"); checked: settings.desktop.launchAtLogin; onClicked: settings.desktop.setLaunchAtLogin(checked) }
-    Kit.GlassButton { visible: !settings.route; text: settings.t("microphonePermission"); onClicked: settings.desktop.openPrivacySettings() }
-    Kit.GlassButton { visible: !settings.route; text: settings.t("diagnostics"); onClicked: settings.diagnosticsText = settings.desktop.diagnostics() }
-    TextArea { visible: !!settings.diagnosticsText; text: settings.diagnosticsText; readOnly: true; selectByMouse: true; Layout.fillWidth: true; Accessible.name: settings.t("diagnostics") }
-    Label { visible: !settings.route; text: settings.t("shortcutPlatformHint"); wrapMode: Text.Wrap; Layout.fillWidth: true }
-    // Workspace pages: one label row per shortcut with its key, apply and switch.
-    Repeater {
-        // Launcher leads (Review 18); Everywhere shows only selection translation.
-        model: settings.route ? settings.desktop.shortcuts.filter(item => settings.route !== "everywhere" || item.id === "translateSelection").sort((a, b) => ["launcher", "translateSelection", "quickChat"].indexOf(a.id) - ["launcher", "translateSelection", "quickChat"].indexOf(b.id)) : []
+        model: settings.route ? ["launcher", "translateSelection", "quickChat"].map(id => settings.desktop.shortcuts.find(row => row.id === id)).filter(row => row && (settings.route !== "everywhere" || row.id === "translateSelection")) : []
         delegate: Kit.CardRow {
             required property var modelData
-            title: settings.route === "everywhere" ? settings.t("allShortcuts") : settings.t(modelData.id)
-            detail: settings.t(settings.route === "everywhere" ? "shortcutCustomizable" : "shortcutDetail_" + modelData.id)
-            TextField { id: rowKey; text: modelData.key; Accessible.name: settings.t("shortcut") + " " + settings.t(modelData.id); Layout.preferredWidth: settings.bridge.resources.metrics.sidebar * 2 / 3; onAccepted: settings.desktop.configure(modelData.id, text, modelData.enabled) }
-            Kit.GlassButton { text: settings.t("apply"); enabled: !settings.desktop.busy; onClicked: settings.desktop.configure(modelData.id, rowKey.text, modelData.enabled) }
-            Switch { checked: modelData.enabled; enabled: !settings.desktop.busy; Accessible.name: settings.t(modelData.id); onToggled: settings.desktop.configure(modelData.id, rowKey.text, checked) }
+            title: settings.t(modelData.id)
+            detail: settings.t("shortcutDetail_" + modelData.id)
+            Kit.GlassButton { visible: settings.route !== "everywhere" && modelData.id !== "translateSelection"; text: settings.t("shortcutTry"); enabled: !settings.desktop.busy; onClicked: settings.desktop.trigger(modelData.id) }
+            ShortcutKeyButton {
+                id: keyButton
+                objectName: "shortcut-edit-" + modelData.id
+                sequence: modelData.key
+                Accessible.name: settings.tpl("shortcutFor", {name: settings.t(modelData.id)}) + ": " + text
+                enabled: !settings.desktop.busy
+                onClicked: recorder.begin(modelData, keyButton)
+            }
+            Switch { checked: modelData.enabled; enabled: !settings.desktop.busy; Accessible.name: settings.t(modelData.id); onToggled: settings.desktop.configure(modelData.id, modelData.key, checked) }
         }
     }
-    Label { visible: !!settings.route; text: settings.t("shortcutPlatformHint"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.topMargin: settings.bridge.resources.metrics.small }
+    ShortcutRecorder { id: recorder; bridge: settings.bridge; desktop: settings.desktop }
+    Label { visible: settings.route === "utilities"; text: settings.t("shortcutPlatformHint"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.topMargin: settings.bridge.resources.metrics.small }
     Repeater {
         model: settings.route ? [] : settings.desktop.shortcuts
         delegate: ColumnLayout {

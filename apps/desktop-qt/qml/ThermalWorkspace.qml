@@ -5,10 +5,11 @@ import QtQuick.Layouts
 ScrollView {
     id: page
     required property var bridge
-    readonly property var monitor: bridge.thermalMonitor
+    property var monitor: bridge.thermalMonitor
     readonly property var metrics: bridge.resources.metrics
     readonly property var hottest: monitor.sensors.length ? monitor.sensors.reduce((a, b) => b.value > a.value ? b : a) : null
     function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    function tpl(key, values) { let text = t(key); for (const name in values) text = text.split("{" + name + "}").join(values[name]); return text }
     // A sensor in words ("Nhân CPU") when its meaning is known, else the driver's own name.
     function sensorTitle(row) { return row.label ? t("thermal_label_" + row.label) : row.title }
     function hottestRow() { return monitor.rows.length ? monitor.rows.reduce((a, b) => b.max > a.max ? b : a) : null }
@@ -36,7 +37,7 @@ ScrollView {
         width: Math.min(page.availableWidth - page.metrics.large * 2, page.metrics.reading + page.metrics.sidebar); x: (page.availableWidth - width) / 2; spacing: page.metrics.gutter
         Kit.PageIntro {
             title: page.t("qtThermalTitle")
-            subtitle: page.t("qtThermalSubtitle").replace("{platform}", Qt.platform.os === "linux" ? "Linux" : "Windows")
+            subtitle: page.tpl("qtThermalSubtitle", {platform: Qt.platform.os === "linux" ? "Linux" : "Windows"})
             Layout.fillWidth: true; Layout.topMargin: page.metrics.gutter
         }
         GridLayout {
@@ -47,7 +48,7 @@ ScrollView {
             MetricTile { visible: !!page.hottest; title: page.t("thermal_hottest"); value: page.hottest ? page.hottest.value.toFixed(0) + " °C" : ""; detail: page.hottest ? (page.hottestRow()?.label ? page.t("thermal_label_" + page.hottestRow().label) + " · " : "") + page.hottest.name : "" }
             Repeater {
                 model: page.monitor.fans
-                delegate: MetricTile { required property var modelData; required property int index; title: page.t("thermal_fan_name").replace("{n}", index + 1); value: modelData.value.toFixed(0); detail: page.t("rpm") + " · " + modelData.name }
+                delegate: MetricTile { required property var modelData; required property int index; title: page.tpl("thermal_fan_name", {n: index + 1}); value: modelData.value.toFixed(0); detail: page.t("rpm") + " · " + modelData.name }
             }
         }
         // Windows/Linux (Review 18): verified readings only; fan control stays with the OS.
@@ -70,7 +71,7 @@ ScrollView {
                             Kit.Eyebrow { visible: index === 0 || page.monitor.rows[index - 1].group !== modelData.group; text: page.t("thermal_group_" + modelData.group); Layout.topMargin: page.metrics.small }
                             Kit.CardRow {
                                 title: page.sensorTitle(modelData)
-                                detail: page.t("thermal_sensor_row_caption").replace("{count}", modelData.count).replace("{avg}", modelData.average.toFixed(0) + " °C")
+                                detail: page.tpl("thermal_sensor_row_caption", {count: modelData.count, avg: modelData.average.toFixed(0) + " °C"})
                                 divider: index < page.monitor.rows.length - 1 && page.monitor.rows[index + 1].group === modelData.group
                                 Layout.fillWidth: true
                                 ToolTip.text: modelData.members.map(member => member.name + " " + member.value.toFixed(0) + " °C").join("\n"); ToolTip.visible: rowHover.hovered
@@ -87,10 +88,10 @@ ScrollView {
                 ColumnLayout {
                     anchors.fill: parent; spacing: page.metrics.gap
                     Label { text: page.t("fanControl"); font.bold: true; font.pointSize: Qt.application.font.pointSize * page.metrics.subtitleScale }
-                    Kit.StatusBadge { text: page.t("notSupported") }
+                    Kit.StatusBadge { objectName: "thermal-unsupported"; idle: true; text: page.t("notSupported") }
                     Label { text: page.t("fanUnsupportedHint"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
-                    Kit.GlassButton { text: page.t("manualMode"); enabled: false }
-                    Kit.GlassButton { text: page.t("viewReason"); ToolTip.visible: hovered; ToolTip.text: page.t("thermalPlatformHint"); onClicked: reason.open() }
+                    Kit.GlassButton { objectName: "thermal-manual"; text: page.t("manualMode"); enabled: false }
+                    Kit.GlassButton { text: page.t("viewReason"); ToolTip.visible: hovered && !reason.opened; ToolTip.text: page.t("thermalPlatformHint"); onClicked: reason.open() }
                 }
             }
         }

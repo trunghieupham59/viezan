@@ -2847,6 +2847,187 @@ private slots:
         QCoreApplication::processEvents();
         QCOMPARE(warnings.count(), 0);
     }
+    // ---- W3 System pages ----
+    void w3AppsSafety();
+    void w3SystemPages();
+    void w3MainAppsRoute();
 };
+
+// ---- W3 System pages ----
+void WorkbenchBridgeTests::w3AppsSafety() {
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+    bridge.command("appearance", {{"preset", "glass"}, {"mode", "light"}});
+    QQmlEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench", &bridge);
+    QFile fixture(QFileInfo(QStringLiteral(VIEZAN_CONTRACT_FIXTURE)).dir().filePath("../../apps/desktop-qt/tests/SystemPagesFixture.qml"));
+    QVERIFY(fixture.open(QIODevice::ReadOnly)); QQmlComponent component(&engine);
+    component.setData(fixture.readAll(), QUrl("qrc:/w3-fixture.qml"));
+    QScopedPointer<QObject> owner(component.create()); QVERIFY2(owner, qPrintable(component.errorString()));
+    auto *window = qobject_cast<QQuickWindow *>(owner.data()); QVERIFY(window);
+    auto *apps = window->findChild<QQuickItem *>("w3-apps"); QVERIFY(apps);
+    auto *fake = window->findChild<QObject *>("fake-uninstall"); QVERIFY(fake);
+    auto eval = [&](const QString &code) { QQmlExpression expression(qmlContext(window), window, code); auto value = expression.evaluate(); if (expression.hasError()) qWarning() << expression.error(); return value; };
+    auto callCount = [&] { return eval("appUninstall.calls.length").toInt(); };
+    QCOMPARE(fake->property("scans").toInt(), 1);
+    const auto row = [](const QString &source, bool elevated) { return QVariantMap{{"id", "opaque-private-id"}, {"name", "Fixture app"}, {"source", source}, {"scope", elevated ? "system" : "user"}, {"version", "1.0"}, {"canUninstall", true}, {"requiresAuthorization", elevated}, {"action", source == "appimage" ? "trash" : "uninstall"}}; };
+    auto *remove = window->findChild<QQuickItem *>("apps-uninstall"); QVERIFY(remove);
+    auto *confirm = window->findChild<QObject *>("apps-confirm"); QVERIFY(confirm);
+    auto *accept = window->findChild<QQuickItem *>("apps-confirm-remove"); QVERIFY(accept);
+    auto *cancel = window->findChild<QQuickItem *>("apps-confirm-cancel"); QVERIFY(cancel);
+    int expected = 0;
+    for (const auto &source : {QString("registry"), QString("flatpak"), QString("snap"), QString("deb"), QString("rpm"), QString("appimage")}) {
+        for (const bool elevated : {false, true}) {
+            if (source != "flatpak" && elevated != (source == "snap" || source == "deb" || source == "rpm")) continue;
+            fake->setProperty("apps", QVariantList{row(source, elevated)}); apps->setProperty("selectedID", "opaque-private-id");
+            QTRY_VERIFY(remove->isEnabled());
+            QVERIFY(QMetaObject::invokeMethod(remove, "clicked"));
+            QTRY_VERIFY(confirm->property("opened").toBool());
+            QCOMPARE(callCount(), expected); QVERIFY(cancel->hasActiveFocus());
+            auto *dangerBackground = accept->property("background").value<QQuickItem *>(); QVERIFY(dangerBackground);
+            QVERIFY(dangerBackground->isVisible());
+            const auto palette = bridge.resources().value("themePalettes").toMap().value("glass:auto").toMap().value("light").toMap();
+            QCOMPARE(dangerBackground->property("color").value<QColor>(), QColor(palette.value("danger").toString()));
+            QVERIFY(QMetaObject::invokeMethod(cancel, "clicked"));
+            QTRY_VERIFY(!confirm->property("opened").toBool()); QCOMPARE(callCount(), expected);
+            QVERIFY(QMetaObject::invokeMethod(remove, "clicked")); QTRY_VERIFY(confirm->property("opened").toBool());
+            QVERIFY(QMetaObject::invokeMethod(accept, "clicked"));
+            ++expected; QTRY_COMPARE(callCount(), expected);
+            QCOMPARE(eval("appUninstall.calls[appUninstall.calls.length-1].authorizeSystem").toBool(), elevated);
+            QVERIFY(!remove->isEnabled()); QVERIFY(!window->findChild<QQuickItem *>("apps-refresh")->isEnabled());
+            QVERIFY(!visualText(window->contentItem(), "opaque-private-id"));
+            eval("appUninstall.complete({status:'removed',verifiedRemoved:false})");
+            QVERIFY(!apps->property("verified").toBool());
+            eval("appUninstall.complete({status:'unverified',verifiedRemoved:false,canUndo:true,undoKind:'systemTrash'})");
+            QVERIFY(!apps->property("verified").toBool());
+            QVERIFY(window->findChild<QQuickItem *>("apps-trash-undo")->isVisible());
+            eval("appUninstall.complete({status:'removed',verifiedRemoved:true,canUndo:true,undoKind:'systemTrash'})");
+            QVERIFY(apps->property("verified").toBool());
+        }
+    }
+    fake->setProperty("inventoryComplete", false); QTRY_VERIFY(!remove->isEnabled());
+    fake->setProperty("inventoryComplete", true); fake->setProperty("operationUnverified", true); QTRY_VERIFY(!remove->isEnabled());
+    QVERIFY(window->findChild<QQuickItem *>("apps-refresh")->isEnabled());
+    QVERIFY(QMetaObject::invokeMethod(apps, "requestRemoval")); QCOMPARE(callCount(), expected);
+    fake->setProperty("operationUnverified", false);
+    QVERIFY(QMetaObject::invokeMethod(remove, "clicked")); QTRY_VERIFY(confirm->property("opened").toBool());
+    auto changed = row("appimage", false); changed["name"] = "Changed after confirmation";
+    fake->setProperty("apps", QVariantList{changed});
+    QVERIFY(QMetaObject::invokeMethod(accept, "clicked")); QCOMPARE(callCount(), expected);
+    auto store = row("msix", false); store["canUninstall"] = false; store["action"] = "openSettings"; store["settingsUrl"] = "https://invalid.example";
+    fake->setProperty("apps", QVariantList{store}); apps->setProperty("selectedID", "opaque-private-id");
+    auto *settings = window->findChild<QQuickItem *>("apps-settings"); QVERIFY(settings);
+    QTRY_VERIFY(settings->isVisible()); QVERIFY(QMetaObject::invokeMethod(settings, "clicked"));
+    QCOMPARE(window->property("settingsOpened").toInt(), 1); QCOMPARE(callCount(), expected);
+    const QStringList codes{"removed", "scanned", "stillInstalled", "unverified", "restartRequired", "cancelled", "startFailed", "failed", "staleInventory", "inventoryIncomplete", "notAllowed", "authorizationRequired", "operationUnverified", "openSettings", "invalidUninstallCommand", "toolUnavailable", "authorizationUnavailable", "unknown", "unsupportedPlatform", "hklm64:registryUnavailable", "hklm32:registryUnavailable", "hkcu64:registryUnavailable", "registry:enumerationFailed", "registry:entryUnavailable", "desktop:directoryUnreadable", "desktop:entryUnreadable", "flatpak:user:scanFailed", "flatpak:system:scanFailed", "flatpak:invalidRecord", "snap:scanFailed", "snap:invalidRecord", "packages:ownerQueryFailed", "packages:ambiguousOwner", "packages:invalidOwner", "packages:verificationFailed"};
+    for (const auto &locale : {QString("vi"), QString("en"), QString("ja")}) {
+        const auto strings = bridge.resources().value("locales").toMap().value(locale).toMap();
+        for (const auto &code : codes) {
+            QVariant key;
+            QVERIFY(QMetaObject::invokeMethod(apps, "messageKey", Q_RETURN_ARG(QVariant, key), Q_ARG(QVariant, code)));
+            QVERIFY2(code == "unknown" || key.toString() != "appsUninstallUnknown", qPrintable(code));
+            QVERIFY2(!strings.value(key.toString()).toString().isEmpty(), qPrintable(locale + ":" + code));
+        }
+        for (auto it = strings.cbegin(); it != strings.cend(); ++it) QVERIFY(!it.key().startsWith("w3"));
+    }
+    apps->setProperty("query", "no such app"); QTRY_VERIFY(!apps->property("selected").value<QJSValue>().isObject());
+    QCoreApplication::processEvents(); QCOMPARE(warnings.count(), 0);
+}
+
+void WorkbenchBridgeTests::w3SystemPages() {
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+    bridge.command("appearance", {{"preset", "glass"}, {"mode", "light"}});
+    QQmlEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench", &bridge);
+    QFile fixture(QFileInfo(QStringLiteral(VIEZAN_CONTRACT_FIXTURE)).dir().filePath("../../apps/desktop-qt/tests/SystemPagesFixture.qml"));
+    QVERIFY(fixture.open(QIODevice::ReadOnly)); QQmlComponent component(&engine);
+    component.setData(fixture.readAll(), QUrl("qrc:/w3-fixture.qml"));
+    QScopedPointer<QObject> owner(component.create()); QVERIFY2(owner, qPrintable(component.errorString()));
+    auto *window = qobject_cast<QQuickWindow *>(owner.data()); QVERIFY(window);
+    auto eval = [&](const QString &code) { QQmlExpression expression(qmlContext(window), window, code); auto value = expression.evaluate(); if (expression.hasError()) qWarning() << expression.error(); return value; };
+    auto *strip = window->findChild<QQuickItem *>("w3-recording"); QVERIFY(strip); QVERIFY(!strip->isVisible());
+    eval("audio.recordingStarted = Date.now()/1000 - 14; audio.changed()");
+    QTRY_VERIFY(strip->isVisible()); QCOMPARE(strip->property("timeText").toString(), QString("00:14"));
+    const auto elapsed = strip->property("elapsed").toInt(); QTRY_VERIFY_WITH_TIMEOUT(strip->property("elapsed").toInt() > elapsed, 2500);
+    QVERIFY(QMetaObject::invokeMethod(window->findChild<QQuickItem *>("recording-stop"), "clicked"));
+    QTRY_VERIFY(!strip->isVisible()); QCOMPARE(eval("audio.cancelled").toInt(), 1);
+    window->setProperty("page", "everywhere");
+    auto *capability = window->findChild<QObject *>("selection-capability"); QVERIFY(capability);
+    auto before = capability->property("text").toString(); eval("desktop.canReplaceSelection = true");
+    QTRY_VERIFY(capability->property("text").toString() != before);
+    window->setProperty("page", "thermal");
+    QVERIFY(window->findChild<QQuickItem *>("thermal-unsupported")->isVisible());
+    QVERIFY(!window->findChild<QQuickItem *>("thermal-manual")->isEnabled());
+    window->setProperty("page", "utilities");
+    auto *recorder = window->findChild<QObject *>("w3-recorder"); QVERIFY(recorder);
+    eval("testRecorder.begin(desktop.shortcuts[0], null)");
+    QTRY_VERIFY(recorder->property("opened").toBool());
+    auto *capture = window->findChild<QQuickItem *>("shortcut-capture");
+    // Several page recorders exist; use the explicitly opened recorder's own field.
+    capture = recorder->findChild<QQuickItem *>("shortcut-capture"); QVERIFY(capture);
+    capture->forceActiveFocus(Qt::TabFocusReason);
+    QTest::keyClick(window, Qt::Key_J, Qt::ControlModifier | Qt::ShiftModifier);
+    QCOMPARE(recorder->property("candidate").toString(), QString("Ctrl+Shift+J"));
+    QCOMPARE(eval("desktop.calls.length").toInt(), 0);
+    QTest::keyClick(window, Qt::Key_Escape); QTRY_VERIFY(!recorder->property("opened").toBool());
+    QCOMPARE(eval("desktop.calls.length").toInt(), 0);
+    eval("testRecorder.begin(desktop.shortcuts[0], null)");
+    QTRY_VERIFY(recorder->property("opened").toBool());
+    QTest::keyClick(window, Qt::Key_Space, Qt::ControlModifier | Qt::AltModifier);
+    QVERIFY(!recorder->property("failure").toString().isEmpty());
+    QTest::keyClick(window, Qt::Key_J, Qt::ControlModifier);
+    eval("desktop.reject = true"); QVERIFY(QMetaObject::invokeMethod(recorder, "apply"));
+    QVERIFY(!recorder->property("failure").toString().isEmpty()); QVERIFY(recorder->property("opened").toBool());
+    QTest::keyClick(window, Qt::Key_L, Qt::ControlModifier); eval("desktop.reject = false");
+    QVERIFY(QMetaObject::invokeMethod(recorder, "apply")); QTRY_VERIFY(!recorder->property("opened").toBool());
+    QCOMPARE(eval("desktop.calls.length").toInt(), 2);
+    for (const auto &mode : {QString("light"), QString("dark")}) for (int width : {640, 820, 1280}) {
+        bridge.command("appearance", {{"preset", "glass"}, {"mode", mode}, {"textSize", "large"}}); window->resize(width, width == 640 ? 480 : 640);
+        for (const auto &locale : {QString("vi"), QString("en"), QString("ja")}) {
+            bridge.command("locale", {{"value", locale}});
+            for (const auto &page : {QString("apps"), QString("everywhere"), QString("utilities"), QString("thermal")}) {
+                window->setProperty("page", page); QCoreApplication::processEvents();
+                auto *view = window->findChild<QQuickItem *>(page == "apps" ? "w3-apps" : page == "thermal" ? "w3-thermal" : "w3-desktop");
+                QVERIFY(view && view->width() <= width);
+                if (page == "everywhere" || page == "utilities" || page == "thermal")
+                    QVERIFY2(view->property("contentWidth").toDouble() <= view->width(), qPrintable(page + ":" + locale));
+            }
+        }
+    }
+    QCoreApplication::processEvents(); QCOMPARE(warnings.count(), 0);
+}
+
+void WorkbenchBridgeTests::w3MainAppsRoute() {
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+    bridge.command("appearance", {{"preset", "glass"}, {"mode", "light"}});
+    bridge.command("route", {{"value", "apps"}});
+    QQmlApplicationEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench", &bridge);
+    QQmlComponent fakeComponent(&engine);
+    fakeComponent.setData(R"(
+        import QtQml
+        QtObject {
+            property var apps: []
+            property bool busy: false
+            property bool inventoryComplete: true
+            property bool operationUnverified: false
+            property var errors: []
+            property var lastResult: ({})
+            property int scans: 0
+            signal finished(var result)
+            function inventory() { scans++; return true }
+            function uninstall(id, authorizeSystem) { throw new Error("Real route must never uninstall in this test") }
+        }
+    )", QUrl("qrc:/w3-route-service.qml"));
+    QScopedPointer<QObject> fake(fakeComponent.create()); QVERIFY2(fake, qPrintable(fakeComponent.errorString()));
+    engine.rootContext()->setContextProperty("appUninstall", fake.data());
+    engine.load(QUrl("qrc:/qml/Main.qml")); QVERIFY(!engine.rootObjects().isEmpty());
+    QTRY_COMPARE(fake->property("scans").toInt(), 1);
+    auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first()); QVERIFY(window);
+    QVERIFY(visualItem(window->contentItem(), "apps-inventory"));
+    QCOMPARE(warnings.count(), 0);
+    // Context dependency outlives the route when the engine tears it down.
+    delete engine.rootObjects().first();
+}
+
 QTEST_MAIN(WorkbenchBridgeTests)
 #include "WorkbenchBridgeTests.moc"

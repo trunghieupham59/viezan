@@ -119,9 +119,6 @@ ApplicationWindow {
     property bool library: false
     property string settingsQuery: ""
     readonly property int runningCount: activityRows.filter(row => row.tasks.some(task => task.status === "running")).length + (workbench.interpretation.busy ? 1 : 0)
-    property double displayClock: Date.now() / 1000
-    Timer { interval: 1000; repeat: true; running: workbench.audio.recording; onTriggered: root.displayClock = Date.now() / 1000 }
-    function recordingTime() { const seconds = Math.max(0, Math.floor(displayClock - workbench.audio.recordingStarted)); return Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0") }
     readonly property bool workspacePage: home || ["everywhere", "apps", "thermal", "utilities"].includes(systemRoute)
     property bool favoritesOnly: false
     property bool archivedHistory: false
@@ -501,16 +498,11 @@ ApplicationWindow {
                     Kit.GlassButton { flat: root.glassChrome; glassMaterial: !root.glassChrome; text: t(workbench.loadBlocked ? "retryLoad" : "retrySave"); onClicked: workbench.loadBlocked ? workbench.reload() : workbench.save() }
                 }
             }
-            Pane {
-                visible: workbench.audio.recording || workbench.audio.busy
-                Layout.fillWidth: true
-                Layout.minimumHeight: root.glassChrome ? metrics.navControl + metrics.tight : 0
-                padding: root.glassChrome ? metrics.tight : 0
-                background: Rectangle { color: root.glassChrome ? Qt.alpha(root.colors.action, metrics.selectionOpacity) : "transparent" }
-                contentItem: RowLayout {
-                    Label { text: root.glassChrome && workbench.audio.recording ? root.tpl("recordingElapsed", {time: root.recordingTime()}) : t(workbench.audio.recording ? "record" : "running"); Layout.fillWidth: true }
-                    Kit.GlassButton { flat: root.glassChrome; glassMaterial: !root.glassChrome; text: t("stop"); palette.buttonText: root.colors.danger; onClicked: workbench.audio.cancel() }
-                }
+            RecordingStrip { bridge: workbench; Layout.fillWidth: true }
+            RowLayout {
+                visible: workbench.audio.busy && workbench.audio.recordingStarted === 0
+                Label { text: t("running"); Layout.fillWidth: true }
+                Kit.GlassButton { text: t("stop"); onClicked: workbench.audio.cancel() }
             }
             RowLayout {
                 visible: workbench.ocrBusy
