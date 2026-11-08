@@ -344,7 +344,7 @@
   "researchFindings": "Phát hiện",
   "researchRound": "Vòng {n}",
   "compareDiffHint": "Phần khác với cột đầu được tô nhẹ.",
-  "moduleDesc_apps": "Gỡ, đặt lại và dọn dữ liệu ứng dụng",
+  "moduleDesc_apps": "Quản lý và gỡ ứng dụng",
   "sessionPanel": "Phiên này",
   "speakersAndLines": "{speakers} người nói · {lines} câu",
   "wordsCount": "{n} từ",
@@ -1185,5 +1185,11 @@
   "appsPackageOwnerQueryFailed": "Không xác định được gói sở hữu launcher.",
   "appsPackageOwnerAmbiguous": "Gói sở hữu launcher không rõ ràng.",
   "appsPackageOwnerInvalid": "Thông tin gói sở hữu không hợp lệ.",
-  "appsPackageVerificationFailed": "Không xác minh được trạng thái gói sau khi gỡ."
+  "appsPackageVerificationFailed": "Không xác minh được trạng thái gói sau khi gỡ.",
+  "deleteNamedKeyConfirm": "Xoá khoá của {name} và ngừng dùng nhà cung cấp này cho đến khi thêm khoá mới?",
+  "deleteNamedModelConfirm": "Xoá model {name} khỏi máy này (muốn dùng lại sẽ phải tải lại)?",
+  "deviceProcessors": "{count} bộ xử lý logic",
+  "deviceMemory": "{size} bộ nhớ",
+  "runtimePerformanceSummary": "{rate} token/giây · GPU {gpu}%",
+  "license": "Giấy phép"
 }

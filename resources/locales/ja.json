@@ -285,7 +285,7 @@
   "appActionError": "操作が停止しました。記録と残った項目を確認してください。",
   "appReset": "選択したデータをリセット（アプリは残す）",
   "currentVersion": "バージョン",
-  "thisDevice": "このMac",
+  "thisDevice": "このデバイス",
   "localRuntimes": "ローカルAIサービス",
   "runtimeRunning": "実行中 · {count}モデル",
   "runtimeNotRunning": "停止中",
@@ -344,7 +344,7 @@
   "researchFindings": "発見",
   "researchRound": "ラウンド{n}",
   "compareDiffHint": "最初の列と異なる語に色を付けています。",
-  "moduleDesc_apps": "アプリのアンインストール・リセット・データ整理",
+  "moduleDesc_apps": "アプリの管理とアンインストール",
   "sessionPanel": "このセッション",
   "speakersAndLines": "{speakers}人の話者・{lines}行",
   "wordsCount": "{n}語",
@@ -1185,5 +1185,11 @@
   "appsPackageOwnerQueryFailed": "ランチャーを所有するパッケージを特定できません。",
   "appsPackageOwnerAmbiguous": "ランチャーを所有するパッケージが不明確です。",
   "appsPackageOwnerInvalid": "所有パッケージの情報が無効です。",
-  "appsPackageVerificationFailed": "削除後のパッケージ状態を確認できません。"
+  "appsPackageVerificationFailed": "削除後のパッケージ状態を確認できません。",
+  "deleteNamedKeyConfirm": "{name}のキーを削除し、新しいキーを追加するまでこのプロバイダーの利用を停止しますか？",
+  "deleteNamedModelConfirm": "このデバイスから{name}を削除しますか（再び使うには再ダウンロードが必要です）？",
+  "deviceProcessors": "論理プロセッサー：{count}",
+  "deviceMemory": "メモリ：{size}",
+  "runtimePerformanceSummary": "{rate}トークン/秒・GPU {gpu}%",
+  "license": "ライセンス"
 }

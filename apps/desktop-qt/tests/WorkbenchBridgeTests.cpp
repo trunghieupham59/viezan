@@ -2851,6 +2851,14 @@ private slots:
     void w3AppsSafety();
     void w3SystemPages();
     void w3MainAppsRoute();
+    // ---- W4 Settings ----
+    void w4SettingsPages_data();
+    void w4SettingsPages();
+    void w4SettingsPickerKeyboard();
+    void w4HistoryConfirmation();
+    void w4UpdateMetadata();
+    void w4SettingsSearchIme();
+
 };
 
 // ---- W3 System pages ----
@@ -3031,3 +3039,226 @@ void WorkbenchBridgeTests::w3MainAppsRoute() {
 
 QTEST_MAIN(WorkbenchBridgeTests)
 #include "WorkbenchBridgeTests.moc"
+
+// ---- W4 Settings ----
+void WorkbenchBridgeTests::w4SettingsPages_data() {
+    QTest::addColumn<int>("width"); QTest::addColumn<QString>("mode"); QTest::addColumn<QString>("locale");
+    QTest::newRow("1280-light-vi") << 1280 << QString("light") << QString("vi");
+    QTest::newRow("1280-dark-en") << 1280 << QString("dark") << QString("en");
+    QTest::newRow("820-dark-ja") << 820 << QString("dark") << QString("ja");
+    QTest::newRow("640-light-vi") << 640 << QString("light") << QString("vi");
+}
+void WorkbenchBridgeTests::w4SettingsPages() {
+    const auto previousName = QCoreApplication::applicationName();
+    const bool previousMode = QStandardPaths::isTestModeEnabled();
+    const auto restorePaths = qScopeGuard([previousName,previousMode] { QCoreApplication::setApplicationName(previousName); QStandardPaths::setTestModeEnabled(previousMode); });
+    QCoreApplication::setApplicationName("ViezanW4SettingsTest"); QStandardPaths::setTestModeEnabled(true);
+
+    QFETCH(int, width); QFETCH(QString, mode); QFETCH(QString, locale);
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+    bridge.command("appearance", {{"preset","glass"},{"mode",mode},{"textSize","large"}});
+    bridge.command("locale", {{"value",locale}});
+    bridge.command("draft", {{"value","W4 settings draft"}});
+    const auto sessions = bridge.state().value("sessions");
+    QQmlEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench", &bridge);
+    QQmlComponent component(&engine);
+    component.setData(R"(
+        import QtQuick
+        import QtQuick.Controls
+        import "qrc:/qml" as Viezan
+        ApplicationWindow {
+            visible: true; width: 1280; height: 800
+            Viezan.SettingsWorkspace { anchors.fill: parent; anchors.leftMargin: parent.width >= 900 ? 280 : 96; anchors.rightMargin: 24; anchors.topMargin: 56; anchors.bottomMargin: 24; bridge: workbench }
+        }
+    )", QUrl("qrc:/w4-settings-pages.qml"));
+    QScopedPointer<QObject> owner(component.create()); QVERIFY2(owner, qPrintable(component.errorString()));
+    auto *window = qobject_cast<QQuickWindow *>(owner.data()); QVERIFY(window);
+    window->resize(width, width < 900 ? 640 : 800);
+    auto *settings = visualItem(window->contentItem(), "settings-workspace"); QVERIFY(settings);
+    QTRY_COMPARE(settings->property("wide").toBool(), width >= 1200);
+    const QStringList sections{"general","appearance","providers","localModels","voice","modules","data","updates","about"};
+    const QStringList controls{"settings-smart-reset","settings-theme","provider-status-openai","settings-device","settings-voice-rate","settings-module-chat","settings-clear-history","settings-auto-updates",""};
+    for (int i = 0; i < sections.size(); ++i) {
+        settings->setProperty("activeSection", sections[i]);
+        QCoreApplication::processEvents();
+        if (!controls[i].isEmpty()) {
+            auto *control = visualItem(window->contentItem(), controls[i]); QVERIFY2(control, qPrintable(controls[i]));
+            QTRY_VERIFY(control->width() > 0);
+            QTRY_VERIFY2(control->mapToScene(QPointF(control->width(),0)).x() <= width, qPrintable(sections[i]));
+        }
+        if (sections[i] == "localModels") {
+            const auto suggestions = bridge.resources().value("localModelSuggestions").toList();
+            for (const auto &item : suggestions) QVERIFY(visualItem(window->contentItem(), "settings-suggestion-" + item.toMap().value("id").toString()));
+        }
+        if (sections[i] == "general") {
+            auto *toggle = visualItem(window->contentItem(), "settings-smart-reset");
+            toggle->setProperty("checked", false); QVERIFY(QMetaObject::invokeMethod(toggle,"toggled"));
+            QCOMPARE(bridge.state().value("smartReset").toBool(), false);
+            toggle->setProperty("checked", true); QVERIFY(QMetaObject::invokeMethod(toggle,"toggled"));
+            QCOMPARE(bridge.state().value("smartReset").toBool(), true);
+        }
+        if (sections[i] == "modules") {
+            for (const auto &id : {"translate","interpret","dictionary","thermal","apps"}) bridge.command("module", {{"id",id},{"enabled",false}});
+            auto *last = visualItem(window->contentItem(),"settings-module-chat"); QVERIFY(last); QTRY_VERIFY(!last->isEnabled());
+            for (const auto &id : {"translate","interpret","dictionary","thermal","apps"}) bridge.command("module", {{"id",id},{"enabled",true}});
+        }
+        if (sections[i] == "voice") {
+            bridge.command("voice", {{"provider","gemini"},{"voice","Kore"},{"rate",1.0}});
+            auto *rate = visualItem(window->contentItem(),"settings-voice-rate"); QVERIFY(rate); QTRY_VERIFY(!rate->isEnabled());
+            bridge.command("voice", {{"provider","system"},{"voice",""},{"rate",1.0}});
+            QTRY_VERIFY(rate->isEnabled());
+        }
+        if (sections[i] == "updates") {
+            auto *toggle = visualItem(window->contentItem(), "settings-auto-updates"); QVERIFY(toggle);
+            toggle->setProperty("checked", false); QVERIFY(QMetaObject::invokeMethod(toggle,"toggled"));
+            QCOMPARE(bridge.autoCheckUpdates(), false);
+            toggle->setProperty("checked", true); QVERIFY(QMetaObject::invokeMethod(toggle,"toggled"));
+            QCOMPARE(bridge.autoCheckUpdates(), true);
+        }
+    }
+    QCOMPARE(bridge.state().value("sessions"), sessions);
+    QCOMPARE(warnings.count(), 0);
+}
+void WorkbenchBridgeTests::w4SettingsPickerKeyboard() {
+    const auto previousName = QCoreApplication::applicationName();
+    const bool previousMode = QStandardPaths::isTestModeEnabled();
+    const auto restorePaths = qScopeGuard([previousName,previousMode] { QCoreApplication::setApplicationName(previousName); QStandardPaths::setTestModeEnabled(previousMode); });
+    QCoreApplication::setApplicationName("ViezanW4SettingsTest"); QStandardPaths::setTestModeEnabled(true);
+
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+    bridge.command("appearance", {{"preset","glass"},{"mode","dark"}});
+    QQmlEngine engine; QSignalSpy warnings(&engine,&QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench", &bridge);
+    QQmlComponent component(&engine);
+    component.setData(R"(
+        import QtQuick
+        import QtQuick.Controls
+        import "qrc:/qml" as Viezan
+        ApplicationWindow {
+            visible: true; width: 640; height: 480
+            Viezan.SettingsPicker { objectName: "w4-picker"; x: 380; y: 380; width: 200; model: Array.from({length:40}, (_,i) => ({label:"Voice " + i, group:i < 20 ? "English" : "日本語"})); textRole: "label"; currentIndex: 0; Accessible.name: "Voice" }
+        }
+    )", QUrl("qrc:/w4-settings-picker.qml"));
+    QScopedPointer<QObject> owner(component.create()); QVERIFY2(owner,qPrintable(component.errorString()));
+    auto *window = qobject_cast<QQuickWindow *>(owner.data()); QVERIFY(window);
+    auto *picker = visualItem(window->contentItem(),"w4-picker"); QVERIFY(picker);
+    QVERIFY(QTest::qWaitForWindowExposed(window));
+    auto *popup = picker->property("popup").value<QObject *>(); QVERIFY(popup);
+    QVERIFY(QMetaObject::invokeMethod(popup,"open")); QTRY_VERIFY(popup->property("visible").toBool());
+    QTRY_VERIFY(popup->property("x").toDouble() >= 0);
+    QVERIFY(popup->property("x").toDouble() + popup->property("width").toDouble() <= window->width());
+    QVERIFY(popup->property("y").toDouble() >= 0);
+    QVERIFY(popup->property("y").toDouble() + popup->property("height").toDouble() <= window->height());
+    auto *list = visualItem(window->contentItem(),"w4-picker-list"); QVERIFY(list); QTRY_VERIFY(list->hasActiveFocus());
+    for (int i=0; i<39; ++i) QTest::keyClick(window,Qt::Key_Down);
+    QCOMPARE(list->property("currentIndex").toInt(),39);
+    QVERIFY(list->property("contentY").toDouble() > 0);
+    QTest::keyClick(window,Qt::Key_Return);
+    QTRY_VERIFY(!popup->property("visible").toBool()); QCOMPARE(picker->property("currentIndex").toInt(),39);
+    QTRY_VERIFY(picker->hasActiveFocus());
+    QVERIFY(QMetaObject::invokeMethod(popup,"open")); QTRY_VERIFY(popup->property("visible").toBool());
+    QTest::keyClick(window,Qt::Key_Up); QTest::keyClick(window,Qt::Key_Escape);
+    QTRY_VERIFY(!popup->property("visible").toBool()); QCOMPARE(picker->property("currentIndex").toInt(),39);
+    bridge.command("appearance",{{"preset","graphite"}}); QCoreApplication::processEvents();
+    bridge.command("appearance",{{"preset","glass"}}); QCoreApplication::processEvents();
+    QCOMPARE(warnings.count(),0);
+}
+void WorkbenchBridgeTests::w4HistoryConfirmation() {
+    const auto previousName = QCoreApplication::applicationName();
+    const bool previousMode = QStandardPaths::isTestModeEnabled();
+    const auto restorePaths = qScopeGuard([previousName,previousMode] { QCoreApplication::setApplicationName(previousName); QStandardPaths::setTestModeEnabled(previousMode); });
+    QCoreApplication::setApplicationName("ViezanW4SettingsTest"); QStandardPaths::setTestModeEnabled(true);
+
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+    bridge.command("appearance",{{"preset","glass"},{"mode","light"}});
+    bridge.command("draft",{{"value","Only synthetic W4 history"}});
+    QQmlEngine engine; QSignalSpy warnings(&engine,&QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench",&bridge);
+    QQmlComponent component(&engine);
+    component.setData(R"(
+        import QtQuick
+        import QtQuick.Controls
+        import "qrc:/qml" as Viezan
+        ApplicationWindow { visible: true; width: 820; height: 640; Viezan.DataSettings { objectName:"w4-data"; width:600; bridge:workbench } }
+    )", QUrl("qrc:/w4-data.qml"));
+    QScopedPointer<QObject> owner(component.create()); QVERIFY2(owner,qPrintable(component.errorString()));
+    auto *window=qobject_cast<QQuickWindow *>(owner.data()); QVERIFY(window);
+    auto *clear=visualItem(window->contentItem(),"settings-clear-history"); QVERIFY(clear); QVERIFY(clear->isEnabled());
+    auto *dialog=owner->findChild<QObject *>("settings-clear-dialog"); QVERIFY(dialog);
+    QVERIFY(QTest::qWaitForWindowExposed(window));
+    QSignalSpy accepted(dialog, SIGNAL(accepted()));
+    const auto before=bridge.state();
+    QVERIFY(QMetaObject::invokeMethod(clear,"clicked")); QTRY_VERIFY(dialog->property("visible").toBool());
+    QVERIFY(dialog->property("message").toString().contains(QString::number(bridge.clearableHistoryCount())));
+    QTRY_VERIFY(qAbs(dialog->property("x").toDouble() * 2 + dialog->property("width").toDouble() - window->width()) < 2);
+    QTRY_VERIFY(qAbs(dialog->property("y").toDouble() * 2 + dialog->property("height").toDouble() - window->height()) < 2);
+    QTest::keyClick(window,Qt::Key_Escape); QTRY_VERIFY(!dialog->property("visible").toBool()); QCOMPARE(bridge.state(),before);
+    const auto id=current(bridge).value("id");
+    bridge.command("submit",{{"sessionID",id}});
+    QTRY_VERIFY(!clear->isEnabled());
+    bridge.command("cancel",{{"taskID",latest(bridge).value("id")}}); QTRY_VERIFY(clear->isEnabled());
+    QVERIFY(QMetaObject::invokeMethod(clear,"clicked")); QTRY_VERIFY(dialog->property("visible").toBool());
+    auto *confirm=visualItem(window->contentItem(),"settings-clear-dialog-confirm"); QVERIFY(confirm); QVERIFY(confirm->isEnabled());
+    QVERIFY(QMetaObject::invokeMethod(confirm,"clicked"));
+    QTRY_VERIFY(!dialog->property("visible").toBool()); QCOMPARE(bridge.clearableHistoryCount(),0);
+    QCOMPARE(accepted.count(),1);
+    QTRY_VERIFY(!clear->isEnabled()); QVERIFY(WorkbenchDomain::validate(bridge.state()));
+    QCOMPARE(warnings.count(),0);
+}
+
+void WorkbenchBridgeTests::w4UpdateMetadata() {
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr,dir.filePath("state.json"),false);
+    bridge.command("appearance",{{"preset","glass"},{"mode","light"}});
+    QQmlEngine engine; QSignalSpy warnings(&engine,&QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench",&bridge);
+    QQmlComponent component(&engine);
+    component.setData(R"(
+        import QtQuick
+        import QtQuick.Controls
+        import "qrc:/qml" as Viezan
+        ApplicationWindow {
+            visible:true; width:820; height:640
+            QtObject { id: update; objectName:"w4-fake-updates"; property bool busy:true; property string status:"updateDownloading"; property string version:"9.0"; property string notes:"Synthetic release notes"; property bool ready:false; property double progress:0.4; property double packageSize:64000000; property double checkedAt:Date.now()/1000-480; property double remainingSeconds:75 }
+            Viezan.UpdateSettings { objectName:"w4-updates"; width:600; bridge:({resources:workbench.resources,state:workbench.state,updates:update,autoCheckUpdates:false,loadBlocked:false}) }
+        }
+    )",QUrl("qrc:/w4-updates.qml"));
+    QScopedPointer<QObject> owner(component.create()); QVERIFY2(owner,qPrintable(component.errorString()));
+    auto *window=qobject_cast<QQuickWindow *>(owner.data()); QVERIFY(window);
+    auto *fake=owner->findChild<QObject *>("w4-fake-updates"); QVERIFY(fake);
+    auto *size=visualItem(window->contentItem(),"settings-update-size"); QVERIFY(size); QVERIFY(size->property("text").toString().contains("64"));
+    auto *remaining=visualItem(window->contentItem(),"settings-update-remaining"); QVERIFY(remaining);
+    QVERIFY(remaining->isVisible()); QVERIFY(remaining->property("text").toString().contains("2"));
+    fake->setProperty("remainingSeconds",30); QTRY_VERIFY(remaining->property("text").toString().contains("30"));
+    fake->setProperty("remainingSeconds",-1); QTRY_VERIFY(!remaining->isVisible());
+    auto *status=visualItem(window->contentItem(),"settings-update-status"); QVERIFY(status); QVERIFY(status->property("detail").toString().contains("8"));
+    fake->setProperty("packageSize",0); QTRY_VERIFY(!size->isVisible());
+    QCOMPARE(warnings.count(),0);
+}
+
+void WorkbenchBridgeTests::w4SettingsSearchIme() {
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr,dir.filePath("state.json"),false);
+    bridge.command("appearance",{{"preset","glass"},{"mode","light"}});
+    bridge.command("locale",{{"value","en"}});
+    QQmlApplicationEngine engine; QSignalSpy warnings(&engine,&QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench",&bridge);
+    engine.load(QUrl("qrc:/qml/Main.qml")); QVERIFY(!engine.rootObjects().isEmpty());
+    auto *window=qobject_cast<QQuickWindow *>(engine.rootObjects().first()); QVERIFY(window);
+    window->resize(820,640); QVERIFY(QTest::qWaitForWindowExposed(window));
+    QVERIFY(QMetaObject::invokeMethod(window,"openSettingsSection",Q_ARG(QVariant,"general")));
+    auto *settings=visualItem(window->contentItem(),"settings-workspace"); QVERIFY(settings);
+    auto *search=visualItem(window->contentItem(),"settings-header-search"); QVERIFY(search);
+    search->forceActiveFocus(); search->setProperty("text","voice");
+    QInputMethodEvent preedit(QString::fromUtf8("にほん"),{}); QCoreApplication::sendEvent(search,&preedit);
+    QTRY_VERIFY(search->property("inputMethodComposing").toBool());
+    QTest::keyClick(window,Qt::Key_Return); QTest::keyClick(window,Qt::Key_Down);
+    QCOMPARE(settings->property("activeSection").toString(),QString("general"));
+    QCOMPARE(window->property("settingsQuery").toString(),QString("voice"));
+    QVERIFY(search->hasActiveFocus());
+    QInputMethodEvent finished; finished.setCommitString(""); QCoreApplication::sendEvent(search,&finished);
+    QTRY_VERIFY(!search->property("inputMethodComposing").toBool());
+    QTest::keyClick(window,Qt::Key_Return);
+    QTRY_COMPARE(settings->property("activeSection").toString(),QString("voice"));
+    QTRY_COMPARE(window->property("settingsQuery").toString(),QString());
+    QCOMPARE(warnings.count(),0);
+}
