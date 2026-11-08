@@ -612,3 +612,18 @@ thì hỏi người dùng. File tái hiện được giữ ngoài repo (thư m�
 trạng thái cần AI hoặc micro thật (bản dịch, So sánh, mục từ, đang nghe, tổng hợp,
 thẻ quyền micro khi Windows từ chối), 150 % DPI, Narrator. Đã có QtTest cho các
 trạng thái này.
+
+## Nghiệm thu GPU sau commit (Claude, 2026-11-08 12:50)
+
+App thật, Direct3D 11, màn hình mở khoá, 100 % DPI. Exe dựng từ commit W2 cộng các file W3
+đang làm dở (W3 không sửa Dịch, Từ điển, Phiên dịch). Ảnh trong `glass2-win-W2/*-final.png`.
+
+| Màn | Ảnh | Kết luận |
+|---|---|---|
+| Dịch 1280 sáng/tối | `translate-1280-{light,dark}-final.png` | Khớp board Translate: chip Đầu vào/Đầu ra có mũi tên, nút đảo, chip model, thẻ nguồn riêng, placeholder ở đầu, keycap Ctrl+Enter, không có nút làm mới model. Nút Dịch disabled khi trống. |
+| Từ điển 1280 sáng/tối | `dictionary-1280-{light,dark}-final.png` | Khớp Dictionary-Empty. |
+| Phiên dịch 1280 sáng/tối | `interpret-1280-{light,dark}-final.png` | Khớp Interpret: chip model, "Tổng hợp nội dung" có ✦ và disabled khi chưa có bản ghi. |
+| Dịch 820 sáng | `translate-820-light-final.png` | Bố cục một cột đúng. Chênh lệch so với Translate-Compact: chip model xuống dòng hai (board thu gọn chip ngôn ngữ và chuyển model thành nút biểu tượng), thẻ Bản dịch chưa có nền và chân riêng. Board `*-Compact` thuộc W5, nên chuyển sang W5. |
+
+Còn mang theo: viền pill ở chế độ tối sáng hơn board; 150 % DPI, Narrator và các lớp nổi
+đã liệt kê ở trên vẫn NOT RUN.
