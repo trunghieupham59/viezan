@@ -26,6 +26,7 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -40,12 +41,14 @@ jobs:
           cache: true
       - run: cmake -S apps/desktop-qt -B .native-build/qt -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
       - run: cmake --build .native-build/qt --config Release --parallel 2
-      # The full locale/size/theme matrix exceeds five minutes on Qt 6.8
-      # Windows runners. Keep every case and a bounded per-test timeout.
-      - run: ctest --test-dir .native-build/qt -C Release --output-on-failure --timeout 600
+      # The full locale/size/theme/Glass 2.0 matrix (230+ rows) takes about
+      # 20 minutes on Ubuntu and close to an hour on Windows runners with
+      # software rendering. Keep every case and a bounded per-test timeout.
+      - run: ctest --test-dir .native-build/qt -C Release --output-on-failure --timeout 5400
         env:
           QT_QPA_PLATFORM: offscreen
           QT_QUICK_CONTROLS_STYLE: Fusion
+          QTEST_FUNCTION_TIMEOUT: '900000'
       - name: Print QtTest report
         if: always()
         run: python -c "from pathlib import Path; p = Path('.native-build/qt/qt-test-results.txt'); print(p.read_text(encoding='utf-8', errors='replace') if p.exists() else 'QtTest did not produce a report')"

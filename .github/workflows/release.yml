@@ -1,35 +1,125 @@
 name: Package Native Release
-# Signing machines are deliberately provisioned outside this workflow. No signing
-# keys are downloaded to hosted runners; artifacts are uploaded for review only.
+# Builds every platform on GitHub-hosted runners and attaches the packages to a
+# draft GitHub Release for review. Publishing the draft stays a manual step.
+#
+# Signing uses optional development certificates from repository secrets:
+#   MACOS_DEV_CERT_P12 / MACOS_DEV_CERT_PASSWORD   Apple Development .p12 (base64)
+#   WINDOWS_DEV_CERT_PFX / WINDOWS_DEV_CERT_PASSWORD self-signed code-signing .pfx (base64)
+# Without them macOS builds are ad-hoc signed and Windows builds are unsigned.
+# Development signatures do not satisfy Gatekeeper or SmartScreen; Developer ID,
+# notarization and a trusted Windows certificate remain on provisioned machines.
 on:
   workflow_dispatch:
-    inputs:
-      platform:
-        type: choice
-        options: [macos-arm64, macos-x64, windows-x64, linux-x64]
-        required: true
 permissions:
   contents: read
+concurrency:
+  group: native-release-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   package:
-    runs-on: [self-hosted, native-release, '${{ inputs.platform }}']
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-arm64
+            os: macos-15
+          - platform: macos-x64
+            os: macos-15-intel
+          - platform: windows-x64
+            os: windows-latest
+          - platform: linux-x64
+            os: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-      - name: Build and package using provisioned native tools
-        run: python scripts/native/release.py
+
+      # macOS (SwiftUI) ---------------------------------------------------
+      - if: runner.os == 'macOS'
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - name: Import Apple Development certificate
+        if: runner.os == 'macOS'
+        shell: bash
         env:
-          VIEZAN_PATCHED_RUNTIME: ${{ vars.VIEZAN_PATCHED_RUNTIME }}
-          VIEZAN_QT_BIN: ${{ vars.VIEZAN_QT_BIN }}
-          VIEZAN_SIGNING_IDENTITY: ${{ vars.VIEZAN_SIGNING_IDENTITY }}
-          VIEZAN_NOTARY_PROFILE: ${{ vars.VIEZAN_NOTARY_PROFILE }}
-          VIEZAN_CERTIFICATE_THUMBPRINT: ${{ vars.VIEZAN_CERTIFICATE_THUMBPRINT }}
-          VIEZAN_LINUXDEPLOY: ${{ vars.VIEZAN_LINUXDEPLOY }}
+          P12: ${{ secrets.MACOS_DEV_CERT_P12 }}
+          PASSWORD: ${{ secrets.MACOS_DEV_CERT_PASSWORD }}
+        run: |
+          if [ -z "$P12" ]; then echo "No development certificate; the app is ad-hoc signed."; exit 0; fi
+          keychain="$RUNNER_TEMP/viezan-signing.keychain-db"
+          secret="$(uuidgen)"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/dev.p12"
+          security create-keychain -p "$secret" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$secret" "$keychain"
+          security import "$RUNNER_TEMP/dev.p12" -k "$keychain" -P "$PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$secret" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/dev.p12"
+      - name: Build and package macOS
+        if: runner.os == 'macOS'
+        run: |
+          python3 scripts/native/build.py --target macos --configuration Release --output .native-build/release
+          python3 scripts/native/package.py --input .native-build/release/Viezan.app --output .native-packages
+
+      # Windows and Linux (Qt) --------------------------------------------
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev libxkbcommon-dev libvulkan-dev libxcb-cursor0 libfuse2 \
+            libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 \
+            libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libpulse0 patchelf \
+            libspeechd2
+      - if: runner.os != 'macOS'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          modules: 'qtmultimedia qtspeech qtwebsockets'
+          cache: true
+      - name: Build Qt
+        if: runner.os != 'macOS'
+        run: python scripts/native/build.py --target qt --configuration Release --output .native-build/release --qt-prefix "${{ env.QT_ROOT_DIR }}"
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          PFX: ${{ secrets.WINDOWS_DEV_CERT_PFX }}
+          PASSWORD: ${{ secrets.WINDOWS_DEV_CERT_PASSWORD }}
+        run: |
+          if (-not (Get-Command makensis -ErrorAction SilentlyContinue)) { choco install nsis -y --no-progress }
+          $env:PATH = "${env:ProgramFiles(x86)}\NSIS;$env:PATH"
+          $arguments = @('--input', '.native-build/release/Release/ViezanNativeQt.exe', '--output', '.native-packages', '--qt-bin', "$env:QT_ROOT_DIR/bin")
+          if ($env:PFX) {
+            $file = Join-Path $env:RUNNER_TEMP 'dev.pfx'
+            [IO.File]::WriteAllBytes($file, [Convert]::FromBase64String($env:PFX))
+            $secure = ConvertTo-SecureString $env:PASSWORD -AsPlainText -Force
+            $certificate = Import-PfxCertificate -FilePath $file -CertStoreLocation Cert:\CurrentUser\My -Password $secure
+            Remove-Item $file
+            $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1
+            $env:PATH = "$($signtool.DirectoryName);$env:PATH"
+            $arguments += @('--certificate-thumbprint', $certificate.Thumbprint)
+          } else { Write-Host 'No development certificate; the Windows build is unsigned.' }
+          python scripts/native/package.py @arguments
+      - name: Package Linux
+        if: runner.os == 'Linux'
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: |
+          tools="$RUNNER_TEMP/linuxdeploy"
+          mkdir -p "$tools"
+          curl -fsSL -o "$tools/linuxdeploy" https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          curl -fsSL -o "$tools/linuxdeploy-plugin-qt" https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x "$tools/linuxdeploy" "$tools/linuxdeploy-plugin-qt"
+          export PATH="$tools:$PATH"
+          python scripts/native/package.py --input .native-build/release/ViezanNativeQt --output .native-packages \
+            --linuxdeploy "$tools/linuxdeploy" --qt-bin "$QT_ROOT_DIR/bin"
+
       - uses: actions/upload-artifact@v7
         with:
-          name: Viezan-${{ inputs.platform }}
+          name: Viezan-${{ matrix.platform }}
           path: |
             .native-packages/*.dmg
             .native-packages/*.zip
@@ -37,3 +127,44 @@ jobs:
             .native-packages/*.AppImage
             .native-packages/*.json
           if-no-files-found: error
+          # .native-packages is a dot directory, which upload-artifact skips by default.
+          include-hidden-files: true
+
+  draft:
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Create or update the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          tag="v$version"
+          awk -v v="$version" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > changes.md
+          {
+            echo "## Viezan $tag"
+            echo
+            echo "Native apps only: SwiftUI/AppKit on macOS, Qt Quick/QML on Windows/Linux. The Electron app is retired."
+            echo
+            echo "> Packages are built on GitHub-hosted runners with development signatures. macOS asks you to confirm"
+            echo "> the first launch under Privacy & Security, and Windows SmartScreen may warn. Electron 2.4.x installs"
+            echo "> do not update to this release automatically; install it manually."
+            echo
+            echo "### Changes"
+            cat changes.md
+            echo
+            echo "SHA-256 checksums are listed in the \`.json\` manifest beside each package."
+          } > notes.md
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release upload "$tag" assets/* --clobber
+            gh release edit "$tag" --notes-file notes.md
+          else
+            gh release create "$tag" assets/* --draft --target "$GITHUB_SHA" --title "Viezan $tag" --notes-file notes.md
+          fi
