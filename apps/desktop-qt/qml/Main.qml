@@ -49,7 +49,7 @@ ApplicationWindow {
     // `resources` never changes: convert it once instead of on every binding update.
     readonly property var nativeResources: workbench.resources
     readonly property var textScales: nativeResources.textScales
-    readonly property real readingPointSize: Qt.application.font.pointSize * textScales[workbench.appearance?.textSize || "medium"]
+    readonly property real readingPointSize: Qt.application.font.pointSize * metrics.labelScale * textScales[workbench.appearance?.textSize || "medium"]
     readonly property bool compact: width < metrics.compact
     readonly property bool navigationCollapsed: !!workspace.shell?.navigationCollapsed
     property var overlayOpener: null
@@ -738,7 +738,7 @@ ApplicationWindow {
                         Layout.fillWidth: true; spacing: metrics.small
                         IconImage { Layout.leftMargin: metrics.gap; source: "icons/reasoning.svg"; sourceSize.width: metrics.icon; sourceSize.height: metrics.icon; color: root.colors.action; Accessible.ignored: true }
                         Label { text: root.t("carefulReasoning"); Layout.fillWidth: true; elide: Text.ElideRight; Accessible.ignored: true }
-                        Switch { objectName: "chat-tools-reasoning"; Layout.rightMargin: metrics.gap; implicitHeight: metrics.navControl; checked: !!root.session.carefulReasoning; Accessible.name: root.t("carefulReasoning"); onToggled: root.command("carefulReasoning", {sessionID: toolsPanel.ownerID, value: checked}) }
+                        Kit.GlassSwitch { objectName: "chat-tools-reasoning"; Layout.rightMargin: metrics.gap; implicitHeight: metrics.navControl; checked: !!root.session.carefulReasoning; Accessible.name: root.t("carefulReasoning"); onToggled: root.command("carefulReasoning", {sessionID: toolsPanel.ownerID, value: checked}) }
                     }
                     Kit.PanelRow { objectName: "chat-instructions-trigger"; text: root.t("systemPrompt"); iconName: "instructions"; disclosure: true; detail: (root.workspace.prompts || []).find(item => item.text === root.session.systemPrompt)?.name || (root.session.systemPrompt ? root.t("customInstruction") : root.t("noInstruction")); Layout.fillWidth: true; onClicked: root.showComposerPanel(instructionsPanel, attachmentButton) }
                     Rectangle { Layout.fillWidth: true; Layout.topMargin: metrics.tight; Layout.bottomMargin: metrics.tight; implicitHeight: metrics.hairline; color: root.colors.border }
@@ -1111,7 +1111,7 @@ ApplicationWindow {
                         }
                         background: Rectangle {
                             radius: root.glassChrome ? height / 2 : metrics.controlRadius
-                            color: !sendButton.enabled ? root.colors["surface-subtle"] : activeTask ? root.colors["surface-raised"] : root.colors.action
+                            color: !sendButton.enabled ? root.colors[root.glassChrome ? "surface-muted" : "surface-subtle"] : activeTask ? root.colors["surface-raised"] : root.colors.action
                             gradient: root.glassChrome && sendButton.enabled && !activeTask ? sendGradient : null
                             Gradient { id: sendGradient; GradientStop { position: 0; color: root.colors["action-fill-top"] } GradientStop { position: 1; color: root.colors["action-fill-bottom"] } }
                             border.width: sendButton.visualFocus || (root.glassChrome && !!activeTask) ? metrics.hairline : 0
@@ -1425,7 +1425,7 @@ ApplicationWindow {
                         RowLayout {
                             Layout.minimumHeight: metrics.control
                             Label { text: t("result"); font.bold: true; Layout.fillWidth: true }
-                            Kit.GlassButton { id: styleTrigger; visible: session.feature === "translate"; flat: true; text: t("style_" + (session.translationStyle || "general")) + " ▾"; Accessible.name: t("translationOptions"); ToolTip.visible: hovered && !translationOptionsDialog.visible && !stylePanel.visible; ToolTip.text: t("translationOptions"); onClicked: root.glassChrome ? stylePanel.openAt(styleTrigger) : translationOptionsDialog.open() }
+                            Kit.GlassButton { id: styleTrigger; visible: session.feature === "translate"; flat: true; text: t("style_" + (session.translationStyle || "general")); contentItem: RowLayout { spacing: metrics.tight; Label { text: styleTrigger.text; color: styleTrigger.palette.buttonText; Accessible.ignored: true } Kit.Chevron {} } Accessible.name: t("translationOptions"); ToolTip.visible: hovered && !translationOptionsDialog.visible && !stylePanel.visible; ToolTip.text: t("translationOptions"); onClicked: root.glassChrome ? stylePanel.openAt(styleTrigger) : translationOptionsDialog.open() }
                         }
                         Rectangle { visible: !root.glassChrome; Layout.fillWidth: true; implicitHeight: metrics.hairline; color: root.colors.border }
                         ScrollView {

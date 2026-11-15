@@ -101,7 +101,7 @@ ScrollView {
                 spacing: home.metrics.small
                 Kit.StatusDot { tone: home.modelAvailability === "available" ? "ready" : home.modelAvailability === "unknown" ? "idle" : "failed"; failedColor: home.dangerColor }
                 Label { text: home.bridge.shortModelName(home.activeModel) || home.t("model"); elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
-                Label { text: "⌄"; Accessible.ignored: true }
+                Kit.Chevron {}
             }
             onClicked: home.settings()
         }
@@ -156,7 +156,7 @@ ScrollView {
         Accessible.name: text
         background: Item {
             // A wide tile uses the pane material (translucent face, light rim); hover lifts it to a lens.
-            Kit.GlassPane { solidRole: "control"; anchors.fill: parent; radius: home.metrics.gap + home.metrics.hairline * 2; shadowRole: "shadow-sm-color"; visible: !tile.hovered && !tile.down; opacity: tile.enabled ? 1 : 0.5 }
+            Kit.GlassPane { solidRole: "control"; startRole: "surface-raised"; endRole: "surface"; anchors.fill: parent; radius: home.metrics.gap + home.metrics.hairline * 2; shadowRole: "shadow-sm-color"; visible: !tile.hovered && !tile.down; opacity: tile.enabled ? 1 : 0.5 }
             Kit.GlassLens { anchors.fill: parent; radius: home.metrics.gap + home.metrics.hairline * 2; visible: tile.hovered || tile.down }
             Rectangle { anchors.fill: parent; radius: home.metrics.gap + home.metrics.hairline * 2; color: "transparent"; visible: tile.visualFocus; border.width: home.metrics.hairline * 2; border.color: home.colors["action-text"] }
         }

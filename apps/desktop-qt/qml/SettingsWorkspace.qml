@@ -257,7 +257,7 @@ Item {
                     spacing: 0
                     Kit.CardRow {
                         title: settings.t("autoTranslate"); detail: settings.t("autoTranslateHint"); divider: !!settings.workspace.autoTranslate
-                        Switch { checked: !!settings.workspace.autoTranslate; Accessible.name: settings.t("autoTranslate"); onToggled: settings.bridge.command("autoTranslate", {enabled: checked, delay: settings.workspace.autoTranslateDelay || 800}) }
+                        Kit.GlassSwitch { checked: !!settings.workspace.autoTranslate; Accessible.name: settings.t("autoTranslate"); onToggled: settings.bridge.command("autoTranslate", {enabled: checked, delay: settings.workspace.autoTranslateDelay || 800}) }
                     }
                     Kit.CardRow {
                         visible: !!settings.workspace.autoTranslate
@@ -271,7 +271,7 @@ Item {
                 Layout.fillWidth: true
                 Kit.CardRow {
                     width: parent.width; title: settings.t("smartReset"); detail: settings.t("smartResetDescription"); divider: false
-                    Switch { objectName: "settings-smart-reset"; checked: settings.workspace.smartReset !== false; enabled: !settings.bridge.loadBlocked; Accessible.name: settings.t("smartReset"); onToggled: settings.bridge.command("smartReset", {value:checked}) }
+                    Kit.GlassSwitch { objectName: "settings-smart-reset"; checked: settings.workspace.smartReset !== false; enabled: !settings.bridge.loadBlocked; Accessible.name: settings.t("smartReset"); onToggled: settings.bridge.command("smartReset", {value:checked}) }
                 }
             }
         }

@@ -6,6 +6,14 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+- Make the Windows/Linux Glass theme easier to read: settings card titles sit
+  inside their card, switches follow the theme instead of the system accent,
+  dark-mode glass buttons lose their bright streak, Home quick-start tiles are
+  white cards, and model pickers show a real chevron and the full short name.
+- Remove the ghost edge beside header and rail buttons after the window narrows.
+- Windows/Linux: slightly larger reading and composer text, lighter icon
+  strokes, a grid icon for Apps, and a visible disabled Send button.
+
 ## [2.5.2]
 
 - Keep Windows/Linux responsive with a long history: opening the window, typing

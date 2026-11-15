@@ -25,7 +25,7 @@ ColumnLayout {
                         readonly property bool locked: modelData !== "utilities" && modules.enabledModules.length === 1 && modules.enabledModules[0] === modelData
                         title: modules.t(modelData === "utilities" ? "launcher" : modelData)
                         detail: modules.t(locked ? "modulesLastHint" : "moduleDesc_" + modelData)
-                        Switch { objectName: "settings-module-" + modelData; checked: !modules.disabledModules.includes(modelData); enabled: !modules.bridge.loadBlocked && !locked; Accessible.name: moduleRow.title; onToggled: modules.bridge.command("module", {id:modelData, enabled:checked}) }
+                        Kit.GlassSwitch { objectName: "settings-module-" + modelData; checked: !modules.disabledModules.includes(modelData); enabled: !modules.bridge.loadBlocked && !locked; Accessible.name: moduleRow.title; onToggled: modules.bridge.command("module", {id:modelData, enabled:checked}) }
                     }
                 }
             }
