@@ -8,7 +8,13 @@ name: Package Native Release
 # Without them macOS builds are ad-hoc signed and Windows builds are unsigned.
 # Development signatures do not satisfy Gatekeeper or SmartScreen; Developer ID,
 # notarization and a trusted Windows certificate remain on provisioned machines.
+#
+# Runs automatically when a push to develop changes the version in package.json,
+# and on demand. Other package.json edits (dependency bumps) do not build.
 on:
+  push:
+    branches: [develop]
+    paths: [package.json]
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,7 +22,34 @@ concurrency:
   group: native-release-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build only when the version changed
+        id: check
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch --depth=1 origin "$BEFORE"
+          old="$(git show "$BEFORE:package.json" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version")"
+          new="$(node -p "require('./package.json').version")"
+          echo "Version before: $old, after: $new"
+          if [ "$old" = "$new" ]; then
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
   package:
+    needs: version
+    if: needs.version.outputs.build == 'true'
     strategy:
       fail-fast: false
       matrix:
