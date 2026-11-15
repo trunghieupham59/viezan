@@ -72,6 +72,7 @@ ColumnLayout {
                     required property string modelData
                     required property int index
                     width: featureList.width; text: modelPicker.bridge.shortModelName(modelData)
+                    detail: text !== modelData ? modelData : ""
                     selected: modelPicker.selectedModel === modelData
                     highlighted: featureList.activeFocus && featureList.currentIndex === index
                     onClicked: modelPicker.chooseFeatureModel(modelData)
@@ -98,14 +99,14 @@ ColumnLayout {
         readonly property bool iconOnly: modelPicker.shell.width < metrics.reading
         text: (session.carefulReasoning ? t("tierCareful") + " · " : "") + modelPicker.bridge.shortModelName(session.model)
         implicitHeight: metrics.control
-        implicitWidth: iconOnly ? metrics.control : Math.min(metrics.compactSidebar, implicitContentWidth + metrics.inset)
+        implicitWidth: iconOnly ? metrics.control : Math.min(metrics.compactSidebar, implicitContentWidth + leftPadding + rightPadding)
         Accessible.name: t("model") + ": " + text
         ToolTip.visible: hovered && !lineup.visible; ToolTip.text: Accessible.name
         contentItem: RowLayout {
             spacing: metrics.tight
             Label { text: "✦"; color: modelPicker.shell.colors["action-text"]; Accessible.ignored: true }
             Label { objectName: "chat-lineup-label"; visible: !lineupTrigger.iconOnly; text: lineupTrigger.text; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
-            Label { visible: !lineupTrigger.iconOnly; text: "⌄"; color: modelPicker.shell.colors["text-muted"]; Accessible.ignored: true }
+            Kit.Chevron { visible: !lineupTrigger.iconOnly; color: modelPicker.shell.colors["text-muted"] }
         }
         Kit.ControlLens { control: lineupTrigger; active: modelPicker.glassChat; quiet: true }
         onClicked: modelPicker.shell.showComposerPanel(lineup, lineupTrigger)

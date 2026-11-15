@@ -97,6 +97,47 @@ private slots:
         }
         QCOMPARE(warnings.count(), 0);
     }
+    // Glass primitives keep their board geometry on every control style;
+    // FluentWinUI3 otherwise insets the card frame and paints the OS accent.
+    void glassKitPrimitivesFitTheControlStyle() {
+        QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+        bridge.command("appearance", {{"preset", "glass"}, {"mode", "light"}});
+        QQmlEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+        engine.rootContext()->setContextProperty("workbench", &bridge);
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import QtQuick.Controls
+            import "qrc:/qml" as Viezan
+            Item {
+                width: 600; height: 320
+                Viezan.Kit.CardBox { objectName: "test-box"; title: "Title"; width: 300; Label { text: "Row" } }
+                Viezan.Kit.FilterGroup {
+                    objectName: "test-filters"; y: 160
+                    Viezan.Kit.FilterButton { text: "All" }
+                    Viezan.Kit.FilterButton { text: "Chat" }
+                }
+                Viezan.Kit.GlassSwitch { objectName: "test-switch"; y: 240; checked: true }
+            }
+        )", QUrl("qrc:/glass-kit-test.qml"));
+        QScopedPointer<QObject> owner(component.create()); QVERIFY2(owner, qPrintable(component.errorString()));
+        auto *root = qobject_cast<QQuickItem *>(owner.data()); QVERIFY(root);
+        QCoreApplication::processEvents();
+        auto *box = visualItem(root, "test-box"); QVERIFY(box);
+        auto *frame = box->property("background").value<QQuickItem *>(); QVERIFY(frame);
+        QCOMPARE(frame->y(), 0.0);
+        QCOMPARE(frame->height(), box->height());
+        auto *filters = visualItem(root, "test-filters"); QVERIFY(filters);
+        QVERIFY(filters->width() > 0);
+        QCOMPARE(filters->width(), filters->property("contentWidth").toReal() + filters->property("leftPadding").toReal() + filters->property("rightPadding").toReal());
+        auto *toggle = visualItem(root, "test-switch"); QVERIFY(toggle);
+        auto *track = visualItem(root, "glass-switch-track"); QVERIFY(track && track->isVisible());
+        QCOMPARE(toggle->property("indicator").value<QQuickItem *>()->opacity(), 0.0);
+        QCOMPARE(track->property("color").value<QColor>(), QColor(bridge.palettes().value("light").toMap().value("action").toString()));
+        toggle->setProperty("checked", false);
+        QVERIFY(track->property("color").value<QColor>().alpha() < 255);
+        QCOMPARE(warnings.count(), 0);
+    }
     void acceleratedGlassSurfacesSurviveAppearanceChanges() {
         // Offscreen CI normally selects software. Exercise this explicitly on
         // a window-system RHI backend as well: software cannot catch the W0
@@ -1497,7 +1538,13 @@ private slots:
             QVERIFY(QMetaObject::invokeMethod(opener, "clicked")); QTRY_VERIFY(toolsPanel->property("visible").toBool());
             const auto top = toolsPanel->property("y").toDouble();
             const auto bottom = top + toolsPanel->property("height").toDouble();
-            QVERIFY(top >= 0); QVERIFY(bottom <= opener->mapToScene(QPointF()).y()); QVERIFY(bottom <= root->height());
+            QVERIFY(top >= 0); QVERIFY(bottom <= root->height());
+            // The menu never covers its opener: above it, or below when that side has more room.
+            const auto openerTop = opener->mapToScene(QPointF()).y();
+            const bool belowOpener = toolsPanel->property("placeBelow").toBool();
+            if (belowOpener) { QVERIFY(top >= openerTop + opener->height()); QVERIFY(root->height() - (openerTop + opener->height()) > openerTop); }
+            else QVERIFY(bottom <= openerTop);
+            QVERIFY(belowOpener || toolsPanel->property("above").toDouble() >= toolsPanel->property("needed").toDouble() || toolsPanel->property("above").toDouble() >= toolsPanel->property("below").toDouble());
             auto *attach = visualItem(root->contentItem(), "chat-tools-attach"); QVERIFY(attach);
             QVERIFY(!attach->property("visualFocus").toBool());
             auto *scroll = visualItem(root->contentItem(), "chat-tools-scroll"); QVERIFY(scroll);

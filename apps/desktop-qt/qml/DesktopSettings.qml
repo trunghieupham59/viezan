@@ -26,7 +26,7 @@ ColumnLayout {
                 enabled: !settings.desktop.busy
                 onClicked: recorder.begin(modelData, keyButton)
             }
-            Switch { checked: modelData.enabled; enabled: !settings.desktop.busy; Accessible.name: settings.t(modelData.id); onToggled: settings.desktop.configure(modelData.id, modelData.key, checked) }
+            Kit.GlassSwitch { checked: modelData.enabled; enabled: !settings.desktop.busy; Accessible.name: settings.t(modelData.id); onToggled: settings.desktop.configure(modelData.id, modelData.key, checked) }
         }
     }
     ShortcutRecorder { id: recorder; bridge: settings.bridge; desktop: settings.desktop }

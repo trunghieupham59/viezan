@@ -193,6 +193,11 @@ QtObject {
         readonly property color inkShadow: colors[darkMode ? "app-bg" : "chrome-fg-strong"]
         readonly property color tint: colors[darkMode || pressed ? "action-active" : "action"]
         readonly property bool accelerated: GraphicsInfo.api !== GraphicsInfo.Software && GraphicsInfo.api !== GraphicsInfo.Unknown
+        // Qt 6.8 keeps the old blur texture when a control shrinks (label -> icon-only),
+        // leaving a ghost cap beside it. Re-attaching the source rebuilds the effect.
+        property bool settled: true
+        onWidthChanged: if (accelerated && settled) { settled = false; settle.restart() }
+        Timer { id: settle; interval: 1; onTriggered: glassSurface.settled = true }
         // The effect samples only this sibling face, never a parent containing
         // itself. Software rendering keeps the same material and a quiet edge.
         Rectangle {
@@ -202,9 +207,9 @@ QtObject {
             radius: glassSurface.radius
             gradient: Gradient {
                 GradientStop { position: 0; color: glassSurface.inactive ? glassSurface.colors["surface-subtle"] : glassSurface.prominent ? Qt.alpha(glassSurface.tint, 0.98) : Qt.alpha(glassSurface.colors["material-highlight"], glassSurface.darkMode ? (glassSurface.hovered ? 0.18 : 0.13) : (glassSurface.hovered ? 0.70 : 0.52)) }
-                GradientStop { position: 0.28; color: glassSurface.inactive ? glassSurface.colors["surface-subtle"] : glassSurface.prominent ? Qt.alpha(glassSurface.tint, 0.97) : Qt.alpha(glassSurface.colors["surface-raised"], glassSurface.darkMode ? 0.38 : 0.16) }
-                GradientStop { position: 0.64; color: glassSurface.inactive ? glassSurface.colors["surface-subtle"] : glassSurface.prominent ? Qt.alpha(glassSurface.colors["action-active"], 0.98) : Qt.alpha(glassSurface.colors["primary-nav-material"], glassSurface.darkMode ? 0.48 : 0.38) }
-                GradientStop { position: 1; color: glassSurface.inactive ? glassSurface.colors["surface-subtle"] : glassSurface.prominent ? Qt.alpha(glassSurface.colors["action-active"], 0.98) : Qt.alpha(glassSurface.colors["material-highlight"], glassSurface.darkMode ? 0.08 : 0.26) }
+                GradientStop { position: 0.28; color: glassSurface.inactive ? glassSurface.colors["surface-subtle"] : glassSurface.prominent ? Qt.alpha(glassSurface.tint, 0.97) : glassSurface.darkMode ? Qt.alpha(glassSurface.colors["material-highlight"], 0.11) : Qt.alpha(glassSurface.colors["surface-raised"], 0.16) }
+                GradientStop { position: 0.64; color: glassSurface.inactive ? glassSurface.colors["surface-subtle"] : glassSurface.prominent ? Qt.alpha(glassSurface.colors["action-active"], 0.98) : Qt.alpha(glassSurface.colors["primary-nav-material"], glassSurface.darkMode ? 0.08 : 0.38) }
+                GradientStop { position: 1; color: glassSurface.inactive ? glassSurface.colors["surface-subtle"] : glassSurface.prominent ? Qt.alpha(glassSurface.colors["action-active"], 0.98) : Qt.alpha(glassSurface.colors["material-highlight"], glassSurface.darkMode ? 0.06 : 0.26) }
             }
         }
         // As in GlassPane, avoid a Loader sourceComponent nested in an imported
@@ -213,7 +218,7 @@ QtObject {
             objectName: "glass-control-shadow"
             anchors.fill: parent
             visible: glassSurface.accelerated && !glassSurface.solid
-            source: glassSurface.accelerated ? glassFace : null
+            source: glassSurface.accelerated && glassSurface.settled ? glassFace : null
             shadowEnabled: true
             shadowColor: glassSurface.inkShadow
             shadowOpacity: glassSurface.inactive ? 0.04 : glassSurface.darkMode ? 0.28 : 0.16
@@ -452,6 +457,7 @@ QtObject {
         padding: glass ? metrics.tight - metrics.hairline : 0
         spacing: glass ? metrics.hairline * 2 : 0
         implicitHeight: glass ? metrics.compactControl : Math.max(implicitBackgroundHeight + topInset + bottomInset, implicitContentHeight + topPadding + bottomPadding)
+        implicitWidth: glass ? contentWidth + leftPadding + rightPadding : Math.max(implicitBackgroundWidth + leftInset + rightInset, contentWidth + leftPadding + rightPadding)
         property Item glassGroupBackground: Rectangle {
             parent: filterGroup
             anchors.fill: parent
@@ -480,6 +486,46 @@ QtObject {
         ControlLens { control: filterButton; active: filterButton.glass && !filterButton.checked; quiet: true; selectionMarker: false }
         Binding { target: filterButton.background; property: "visible"; value: false; when: filterButton.glass }
         GlassLens { anchors.fill: parent; z: -1; visible: filterButton.glass && filterButton.checked; radius: height / 2 }
+    }
+    // `.tog` (Glass): the native Switch keeps input, focus and semantics; only
+    // its indicator is repainted so the track follows the theme, not the OS accent.
+    component GlassSwitch: Switch {
+        id: glassSwitch
+        readonly property var metrics: workbench.metrics
+        readonly property bool glass: workbench.appearance?.preset === "glass"
+        readonly property bool darkMode: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
+        readonly property var colors: workbench.palettes[darkMode ? "dark" : "light"]
+        Binding { target: glassSwitch.indicator; property: "opacity"; value: 0; when: glassSwitch.glass }
+        Rectangle {
+            objectName: "glass-switch-track"
+            visible: glassSwitch.glass
+            parent: glassSwitch.indicator ? glassSwitch.indicator.parent : glassSwitch
+            x: glassSwitch.indicator ? glassSwitch.indicator.x + (glassSwitch.indicator.width - width) / 2 : 0
+            y: glassSwitch.indicator ? glassSwitch.indicator.y + (glassSwitch.indicator.height - height) / 2 : 0
+            width: glassSwitch.metrics.control
+            height: glassSwitch.metrics.icon + glassSwitch.metrics.hairline * 2
+            radius: height / 2
+            opacity: glassSwitch.enabled ? 1 : 0.45
+            color: glassSwitch.checked ? workbench.palettes.light.action : Qt.alpha(glassSwitch.colors["chrome-fg-strong"], 0.18)
+            border.width: glassSwitch.visualFocus ? glassSwitch.metrics.hairline * 2 : 0
+            border.color: glassSwitch.colors["action-text"]
+            Rectangle {
+                width: parent.height - glassSwitch.metrics.tight; height: width; radius: width / 2
+                y: glassSwitch.metrics.hairline * 2
+                x: glassSwitch.checked ? parent.width - width - y : y
+                color: "white"
+                Behavior on x { NumberAnimation { duration: glassSwitch.metrics.durationFast * 1000 } }
+            }
+            Accessible.ignored: true
+        }
+    }
+    component Chevron: IconImage {
+        source: "icons/back.svg"
+        rotation: -90
+        color: palette.placeholderText
+        sourceSize.width: workbench.metrics.small + workbench.metrics.tight
+        sourceSize.height: workbench.metrics.small + workbench.metrics.tight
+        Accessible.ignored: true
     }
     // Static waveform means the existing record action; it is not a live meter.
     component VoiceGlyph: Item {
@@ -564,6 +610,8 @@ QtObject {
         readonly property real headerHeight: title ? metrics.navControl + metrics.tight : 0
         padding: metrics.inset
         topPadding: headerHeight + metrics.inset
+        // FluentWinUI3 insets the frame below the label; this header sits inside the card.
+        topInset: 0
         label: Item {
             visible: !!box.title
             width: box.width
@@ -856,13 +904,13 @@ QtObject {
         // a wrapping ScrollView already sizes its content from this layer.
         implicitWidth: desiredWidth
         width: Math.min(desiredWidth, (parent ? parent.width : desiredWidth) - metrics.inset * 2)
-        height: Math.min(implicitContentHeight + padding * 2, Math.max(metrics.control, availableSpace))
+        height: Math.min(implicitContentHeight + topPadding + bottomPadding, Math.max(metrics.control, availableSpace))
         property point origin: Qt.point(metrics.inset, metrics.inset)
         property string ownerID: ""
         function updateAnchor() { if (opener && parent) origin = opener.mapToItem(parent, 0, 0) }
         readonly property real below: parent ? parent.height - origin.y - (opener ? opener.height : 0) - metrics.inset - metrics.small : metrics.editor * 3
         readonly property real above: origin.y - metrics.inset - metrics.small
-        readonly property bool placeBelow: below >= implicitContentHeight + padding * 2 || below >= above
+        readonly property bool placeBelow: below >= implicitContentHeight + topPadding + bottomPadding || below >= above
         readonly property real availableSpace: placeBelow ? below : above
         x: Math.max(metrics.inset, Math.min(origin.x, (parent ? parent.width : width) - width - metrics.inset))
         y: placeBelow ? origin.y + (opener ? opener.height : 0) + metrics.small : origin.y - height - metrics.small

@@ -8,6 +8,20 @@ Entries describe their version's source and do not certify that an installer has
 
 - The Windows installer asks you to close a running Viezan before updating
   instead of failing on each locked file.
+- Make the Windows/Linux Glass theme easier to read: settings card titles sit
+  inside their card, switches follow the theme instead of the system accent,
+  dark-mode glass buttons lose their bright streak, Home quick-start tiles are
+  white cards, and model pickers show a real chevron and the full short name.
+- Remove the ghost edge beside header and rail buttons after the window narrows.
+- Windows/Linux: slightly larger reading and composer text, lighter icon
+  strokes, a grid icon for Apps, and a visible disabled Send button.
+- Windows/Linux: the translation style panel no longer cuts off its last
+  option, and the Translate/Dictionary model list shows each model's ID so
+  models with the same short name can be told apart.
+- Windows/Linux: the chat "+" menu opens below the composer when there is
+  more room there, instead of covering the header in an empty chat.
+- Windows/Linux: the logo and search button line up with the other icons on
+  the collapsed navigation rail.
 
 ## [2.5.2]
 

@@ -32,7 +32,7 @@ ColumnLayout {
             Kit.CardRow { title: panel.t("currentVersion"); detail: "Viezan " + Qt.application.version }
             Kit.CardRow {
                 title: panel.t("autoCheckUpdates"); detail: panel.t("autoCheckUpdatesDescription")
-                Switch { objectName: "settings-auto-updates"; checked: panel.bridge.autoCheckUpdates; enabled: !panel.bridge.loadBlocked; Accessible.name: panel.t("autoCheckUpdates"); onToggled: panel.bridge.autoCheckUpdates = checked }
+                Kit.GlassSwitch { objectName: "settings-auto-updates"; checked: panel.bridge.autoCheckUpdates; enabled: !panel.bridge.loadBlocked; Accessible.name: panel.t("autoCheckUpdates"); onToggled: panel.bridge.autoCheckUpdates = checked }
             }
             Kit.CardRow {
                 objectName: "settings-update-status"; title: panel.t("updateStatus"); detail: [panel.statusText(), panel.checkedText()].filter(Boolean).join(" · "); divider: false

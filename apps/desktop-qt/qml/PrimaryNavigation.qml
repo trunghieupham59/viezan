@@ -51,7 +51,7 @@ Pane {
     }
     component NavigationContent: RowLayout {
         required property var control
-        spacing: navigation.metrics.small
+        spacing: navigation.expanded ? navigation.metrics.small : 0
         Item { visible: !navigation.expanded; Layout.fillWidth: true }
         // Reuse the control icon renderer; the label is independently left aligned.
         IconImage { visible: navigation.glass || !(navigation.expanded && control === search); source: control.icon.source; color: !control.enabled ? control.palette.placeholderText : control.checked ? control.palette.link : control.palette.buttonText; sourceSize.width: navigation.metrics.icon; sourceSize.height: navigation.metrics.icon; Layout.preferredWidth: navigation.metrics.icon; Layout.preferredHeight: navigation.metrics.icon }
@@ -121,7 +121,7 @@ Pane {
             Layout.topMargin: navigation.glass ? (navigation.expanded || navigation.dismissible ? navigation.metrics.gap : navigation.headerHeight + navigation.metrics.gap) : 0
             Layout.bottomMargin: navigation.glass ? navigation.metrics.small : 0
             Layout.minimumHeight: navigation.metrics.compactControl
-            Image { source: "brand.png"; sourceSize.width: navigation.metrics.brand; sourceSize.height: navigation.metrics.brand; fillMode: Image.PreserveAspectFit; Layout.alignment: Qt.AlignHCenter }
+            Image { source: "brand.png"; sourceSize.width: navigation.metrics.brand; sourceSize.height: navigation.metrics.brand; fillMode: Image.PreserveAspectFit; Layout.fillWidth: !navigation.expanded && !navigation.dismissible; Layout.preferredHeight: navigation.metrics.brand }
             Label { visible: navigation.expanded; text: "Viezan"; font.bold: true; font.pointSize: Qt.application.font.pointSize * (navigation.glass ? navigation.metrics.subtitleScale : 1); Layout.fillWidth: true; elide: Text.ElideRight }
             Kit.GlassToolButton { visible: navigation.dismissible; implicitWidth: navigation.metrics.control; implicitHeight: navigation.metrics.control; icon.source: "icons/close.svg"; icon.color: palette.buttonText; Accessible.name: navigation.t("close"); onClicked: navigation.dismissed() }
         }
