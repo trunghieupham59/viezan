@@ -3,6 +3,8 @@
 Signing identities and notarization credentials remain in platform credential stores.
 """
 import argparse
+import base64
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -19,6 +21,15 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def run(*args, env=None):
     subprocess.run([str(a) for a in args], check=True, cwd=ROOT, env=env)
+
+
+def legacy_feed(installer, version):
+    """electron-updater metadata, so Electron 2.4.x and earlier find this installer."""
+    with installer.open('rb') as stream:
+        digest = base64.b64encode(hashlib.file_digest(stream, 'sha512').digest()).decode()
+    released = datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+    return (f'version: {version}\nfiles:\n  - url: {installer.name}\n    sha512: {digest}\n    size: {installer.stat().st_size}\n'
+            f"path: {installer.name}\nsha512: {digest}\nreleaseDate: '{released}'\n")
 
 
 def main():
@@ -127,6 +138,10 @@ def main():
             digest = hashlib.file_digest(stream, 'sha256').hexdigest()
         manifest['artifacts'].append({'name': artifact.name, 'size': artifact.stat().st_size, 'sha256': digest})
     (output / (name + '.json')).write_text(json.dumps(manifest, indent=2) + '\n')
+    # The Electron app only shipped these two x64 feeds; on macOS it reads the release assets directly.
+    feed = {'win32': 'latest.yml', 'linux': 'latest-linux.yml'}.get(sys.platform)
+    if feed and architecture == 'x64':
+        (output / feed).write_text(legacy_feed(artifacts[-1], version), encoding='utf-8', newline='\n')
     print(output)
 
 

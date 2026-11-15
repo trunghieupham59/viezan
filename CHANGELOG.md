@@ -12,6 +12,12 @@ Entries describe their version's source and do not certify that an installer has
 - Stop the workspace file growing with the square of a conversation's length;
   existing files shrink the next time they are loaded on Windows/Linux.
 
+## [2.5.1]
+
+- Let the retired Electron app (2.4.x and earlier) update itself to the native app on
+  Windows and Linux. The Windows installer removes the Electron app first, keeps its
+  data, may ask for administrator approval, and reopens Viezan after an in-app update.
+
 ## [2.5.0]
 
 - Officially retire the Electron desktop app. Viezan now ships only as native apps:

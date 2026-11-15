@@ -160,6 +160,7 @@ jobs:
             .native-packages/*.exe
             .native-packages/*.AppImage
             .native-packages/*.json
+            .native-packages/latest*.yml
           if-no-files-found: error
           # .native-packages is a dot directory, which upload-artifact skips by default.
           include-hidden-files: true
@@ -189,7 +190,8 @@ jobs:
             echo
             echo "> Packages are built on GitHub-hosted runners with development signatures. macOS asks you to confirm"
             echo "> the first launch under Privacy & Security, and Windows SmartScreen may warn. Electron 2.4.x installs"
-            echo "> do not update to this release automatically; install it manually."
+            echo "> update to this release from the app. On Windows the installer first removes the Electron app and"
+            echo "> may ask for administrator approval; your data is kept."
             echo
             echo "### Changes"
             cat changes.md

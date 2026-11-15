@@ -161,7 +161,11 @@ linuxdeploy executable and its Qt plugin (`--linuxdeploy`, `--qt-bin`). Packagin
 emits version/platform/architecture-specific artifacts and checksum manifests.
 The manual release workflow uses prepared signing runners and uploads artifacts
 for review; it does not publish or install them. Publish the matching manifest
-alongside each installer for the native updater to discover it.
+alongside each installer for the native updater to discover it. Windows and Linux
+x64 packaging also writes `latest.yml` and `latest-linux.yml`, which let the retired
+Electron app (2.4.x and earlier) update itself to the native app; publish them too.
+The Windows installer removes that Electron app first, keeping its data, and stops
+if the removal is declined or fails.
 
 ## Existing data
 
