@@ -64,6 +64,14 @@ static QQuickItem *visualText(QQuickItem *item, const QString &text) {
 class WorkbenchBridgeTests : public QObject {
     Q_OBJECT
 private slots:
+    // CTest runs this suite as concurrent shards (tests/RunShard.cmake). The
+    // organization name is part of every QStandardPaths and QSettings location,
+    // so a per-shard name keeps their files apart, also where a case switches
+    // the application name or the test mode.
+    void initTestCase() {
+        const auto shard = qEnvironmentVariable("VIEZAN_TEST_SHARD");
+        if (!shard.isEmpty()) QCoreApplication::setOrganizationName("ViezanQtTests-shard-" + shard);
+    }
     void glassDisabledControlRim() {
         QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
         bridge.command("appearance", {{"preset", "glass"}, {"mode", "light"}});

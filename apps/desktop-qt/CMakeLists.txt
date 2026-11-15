@@ -54,8 +54,17 @@ if(BUILD_TESTING)
     qt_add_resources(ViezanQtTests workbench_tests PREFIX "/" FILES ${NATIVE_RESOURCES})
     target_link_libraries(ViezanQtTests PRIVATE Qt6::Svg Qt6::Widgets Qt6::Quick Qt6::QuickControls2 Qt6::Qml Qt6::Network Qt6::Concurrent Qt6::Multimedia Qt6::TextToSpeech Qt6::WebSockets Qt6::Test)
     target_compile_definitions(ViezanQtTests PRIVATE VIEZAN_CONTRACT_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/../../contracts/native-workbench/recovery-fixture.json")
-    add_test(NAME native-qt-bridge COMMAND ViezanQtTests -o qt-test-results.txt,txt -o -,txt)
-    set_tests_properties(native-qt-bridge PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_CONTROLS_STYLE=Fusion")
+    # The suite is single-threaded and dominated by QML scene construction, so
+    # it runs as shards that `ctest -j` spreads over the cores. Each shard
+    # writes its own qt-test-results-<n>.txt report.
+    set(VIEZAN_QT_TEST_SHARDS 8 CACHE STRING "Number of native-qt-bridge CTest shards")
+    math(EXPR last_shard "${VIEZAN_QT_TEST_SHARDS} - 1")
+    foreach(shard RANGE ${last_shard})
+        add_test(NAME native-qt-bridge-${shard} COMMAND ${CMAKE_COMMAND}
+            -DTEST_BINARY=$<TARGET_FILE:ViezanQtTests> -DSHARD=${shard} -DSHARDS=${VIEZAN_QT_TEST_SHARDS}
+            -DREPORT=qt-test-results-${shard}.txt -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/RunShard.cmake")
+        set_tests_properties(native-qt-bridge-${shard} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_CONTROLS_STYLE=Fusion")
+    endforeach()
     target_sources(ViezanQtTests PRIVATE ${BACKEND_SERVICES})
     qt_add_executable(ViezanBackendTests tests/BackendServicesTests.cpp ${BACKEND_SERVICES})
     set_target_properties(ViezanBackendTests PROPERTIES WIN32_EXECUTABLE FALSE MACOSX_BUNDLE FALSE)

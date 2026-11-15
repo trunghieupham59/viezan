@@ -31,7 +31,8 @@ swift test --package-path apps/macos
 # Windows/Linux, with the Qt kit configured
 cmake -S apps/desktop-qt -B .native-build/qt -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build .native-build/qt --config Release
-ctest --test-dir .native-build/qt -C Release --output-on-failure
+# The Qt suite is split into CTest shards; give --parallel your core count.
+ctest --test-dir .native-build/qt -C Release --output-on-failure --parallel 4
 ```
 
 Use a Conventional Commits PR title. Describe behavior and tests per platform,
