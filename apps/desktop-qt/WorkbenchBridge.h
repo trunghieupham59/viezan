@@ -14,6 +14,8 @@
 #include "CredentialStore.h"
 #include "ImageGeneration.h"
 #include <QVariantMap>
+#include <QJSEngine>
+#include <QPointer>
 #include <QTimer>
 #include <QImage>
 #include <QTemporaryFile>
@@ -47,7 +49,7 @@ class WorkbenchBridge final : public QObject {
     Q_PROPERTY(bool discovering READ discovering NOTIFY changed)
     Q_PROPERTY(QString preferredModel READ preferredModel NOTIFY changed)
     Q_PROPERTY(QVariantMap state READ state NOTIFY changed)
-    Q_PROPERTY(QVariantMap resources READ resources CONSTANT)
+    Q_PROPERTY(QJSValue resources READ scriptResources CONSTANT)
     // Narrow views of state and resources. QML converts a whole QVariantMap on every read,
     // so bindings that only need these must not depend on `state` or `resources`.
     Q_PROPERTY(QString locale READ locale NOTIFY localeChanged)
@@ -69,6 +71,7 @@ public:
     explicit WorkbenchBridge(QObject *parent = nullptr, const QString &storageFile = {}, bool automaticProvider = true);
     QVariantMap state() const { return m_state; }
     QVariantMap resources() const { return m_resources; }
+    QJSValue scriptResources();
     QString locale() const { return m_locale; }
     QVariantMap strings() const { return m_resources.value("locales").toMap().value(m_locale).toMap(); }
     QVariantMap appearance() const { return m_appearance; }
@@ -247,6 +250,11 @@ private:
     QHash<QString, QString> m_networkWorkers; // task ID -> attempt ID
     bool m_synchronizing = false, m_synchronizeAgain = false, m_shuttingDown = false;
     QVariantMap m_state, m_resources;
+    // QML reads `resources` thousands of times per window. Handing out the
+    // QVariantMap converted the whole of native.json on every read, so the
+    // converted object is kept per engine.
+    QPointer<QJSEngine> m_resourcesEngine;
+    QJSValue m_scriptResources;
     QVariantMap m_resetNotice, m_updatePrompt;
     QTimer m_updateTimer;
     bool m_backgroundCheck = false;
