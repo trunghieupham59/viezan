@@ -46,7 +46,26 @@ RequestExecutionLevel user
   ${EndIf}
 !macroend
 
+; Windows locks the files of a running app, so extracting over it fails file by
+; file. A running executable cannot be opened for writing; wait until it can.
+!macro RequireAppClosed
+  ${If} ${FileExists} "$INSTDIR\ViezanNativeQt.exe"
+    ${Do}
+      ClearErrors
+      FileOpen $0 "$INSTDIR\ViezanNativeQt.exe" a
+      ${IfNot} ${Errors}
+        FileClose $0
+        ${ExitDo}
+      ${EndIf}
+      ${If} ${Cmd} `MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "Viezan is still running. Close it, then choose Retry." /SD IDCANCEL IDCANCEL`
+        Abort
+      ${EndIf}
+    ${Loop}
+  ${EndIf}
+!macroend
+
 Section "Viezan"
+  !insertmacro RequireAppClosed
   SetRegView 64
   !insertmacro RemoveLegacyElectron HKCU currentuser
   !insertmacro RemoveLegacyElectron HKLM allusers
