@@ -3,9 +3,11 @@
 - `ci.yml`: Swift package tests and macOS bundle build; Qt configure/build/test on
   Windows and Linux. These jobs run only when GitHub triggers the workflow.
 - `docs.yml`: source/manifest/README consistency, generated resources and shared domain tests.
-- `release.yml`: manual packaging on provisioned native signing runners. Builds
-  Swift/Qt, signs and packages with `scripts/native/release.py`, uploads artifacts
-  for review, and does not publish a release or install an artifact.
+- `release.yml`: packages every platform on GitHub-hosted runners when a push to
+  `develop` changes the version in `package.json`, or on manual dispatch. Runs
+  from `develop` publish the GitHub Release and create its `vX.Y.Z` tag; runs
+  from any other ref only prepare a draft. Signing uses optional development
+  certificates only.
 - `codeql.yml`, `dependency-review.yml` and `pr-checks.yml`: source/dependency and PR
   governance. `pages.yml` publishes documentation, not the desktop application.
 - `auto-tag.yml`: inspect its explicit manual inputs before using it; native

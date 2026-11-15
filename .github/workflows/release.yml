@@ -1,6 +1,7 @@
 name: Package Native Release
 # Builds every platform on GitHub-hosted runners and attaches the packages to a
-# draft GitHub Release for review. Publishing the draft stays a manual step.
+# GitHub Release. Runs from develop publish the release and create its tag;
+# runs from any other ref only prepare a draft.
 #
 # Signing uses optional development certificates from repository secrets:
 #   MACOS_DEV_CERT_P12 / MACOS_DEV_CERT_PASSWORD   Apple Development .p12 (base64)
@@ -8,7 +9,13 @@ name: Package Native Release
 # Without them macOS builds are ad-hoc signed and Windows builds are unsigned.
 # Development signatures do not satisfy Gatekeeper or SmartScreen; Developer ID,
 # notarization and a trusted Windows certificate remain on provisioned machines.
+#
+# Runs automatically when a push to develop changes the version in package.json,
+# and on demand. Other package.json edits (dependency bumps) do not build.
 on:
+  push:
+    branches: [develop]
+    paths: [package.json]
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,7 +23,34 @@ concurrency:
   group: native-release-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build only when the version changed
+        id: check
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch --depth=1 origin "$BEFORE"
+          old="$(git show "$BEFORE:package.json" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version")"
+          new="$(node -p "require('./package.json').version")"
+          echo "Version before: $old, after: $new"
+          if [ "$old" = "$new" ]; then
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
   package:
+    needs: version
+    if: needs.version.outputs.build == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -130,7 +164,7 @@ jobs:
           # .native-packages is a dot directory, which upload-artifact skips by default.
           include-hidden-files: true
 
-  draft:
+  release:
     needs: package
     runs-on: ubuntu-latest
     permissions:
@@ -141,7 +175,7 @@ jobs:
         with:
           path: assets
           merge-multiple: true
-      - name: Create or update the draft release
+      - name: Create or update the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -162,9 +196,18 @@ jobs:
             echo
             echo "SHA-256 checksums are listed in the \`.json\` manifest beside each package."
           } > notes.md
+          # Runs from develop publish the release, which creates the tag. Runs
+          # from any other ref only prepare a draft.
+          if [ "$GITHUB_REF" = "refs/heads/develop" ]; then
+            create_flags=""
+            edit_flags="--draft=false --target $GITHUB_SHA"
+          else
+            create_flags="--draft"
+            edit_flags=""
+          fi
           if gh release view "$tag" > /dev/null 2>&1; then
             gh release upload "$tag" assets/* --clobber
-            gh release edit "$tag" --notes-file notes.md
+            gh release edit "$tag" --notes-file notes.md $edit_flags
           else
-            gh release create "$tag" assets/* --draft --target "$GITHUB_SHA" --title "Viezan $tag" --notes-file notes.md
+            gh release create "$tag" assets/* $create_flags --target "$GITHUB_SHA" --title "Viezan $tag" --notes-file notes.md
           fi
