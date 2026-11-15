@@ -51,6 +51,13 @@ static void applyAppearance(const QVariantMap &state) {
     else if (mode == "dark") hints->setColorScheme(Qt::ColorScheme::Dark);
     else hints->unsetColorScheme();
 }
+QJSValue WorkbenchBridge::scriptResources() {
+    auto *engine = qjsEngine(this);
+    if (!engine) return {};
+    if (engine != m_resourcesEngine) { m_resourcesEngine = engine; m_scriptResources = engine->toScriptValue(m_resources); }
+    return m_scriptResources;
+}
+
 WorkbenchBridge::WorkbenchBridge(QObject *parent, const QString &storageFile, bool automaticProvider)
     : QObject(parent), m_automaticProvider(automaticProvider) {
     connect(&m_ocrProvider, &LocalProvider::received, this, [this](const QVariantMap &event) {
