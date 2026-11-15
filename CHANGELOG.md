@@ -6,6 +6,9 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+- The Windows installer asks you to close a running Viezan before updating
+  instead of failing on each locked file.
+
 ## [2.5.2]
 
 - Keep Windows/Linux responsive with a long history: opening the window, typing
