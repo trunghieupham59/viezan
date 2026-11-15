@@ -8,7 +8,8 @@ Window {
     color: "transparent"
     property point startPoint
     property rect selection: Qt.rect(0,0,0,0)
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     Connections {
         target: capture.bridge
         function onCaptureReady(image, x, y, width, height) {
@@ -21,8 +22,8 @@ Window {
     Image { id: preview; anchors.fill: parent; cache: false; fillMode: Image.Stretch }
     Rectangle {
         x: capture.selection.x; y: capture.selection.y; width: capture.selection.width; height: capture.selection.height
-        color: Qt.alpha(palette.highlight, capture.bridge.resources.metrics.selectionOpacity)
-        border.width: capture.bridge.resources.metrics.hairline; border.color: palette.highlight
+        color: Qt.alpha(palette.highlight, capture.bridge.metrics.selectionOpacity)
+        border.width: capture.bridge.metrics.hairline; border.color: palette.highlight
         SystemPalette { id: palette }
     }
     MouseArea {

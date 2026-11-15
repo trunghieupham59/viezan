@@ -6,6 +6,12 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+- Keep Windows/Linux responsive with a long history: opening the window, typing
+  and streaming replies no longer slow down as conversations accumulate.
+- Save a draft shortly after typing pauses instead of on every keystroke.
+- Stop the workspace file growing with the square of a conversation's length;
+  existing files shrink the next time they are loaded on Windows/Linux.
+
 ## [2.5.1]
 
 - Let the retired Electron app (2.4.x and earlier) update itself to the native app on

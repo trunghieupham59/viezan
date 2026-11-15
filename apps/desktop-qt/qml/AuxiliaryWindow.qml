@@ -4,9 +4,9 @@ import QtQuick.Controls
 ApplicationWindow {
     id: window
     required property var bridge
-    readonly property var metrics: bridge.resources.metrics
-    readonly property bool dark: bridge.state.appearance?.preset === "midnight" || bridge.state.appearance?.mode === "dark" || (bridge.state.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
-    readonly property var colors: bridge.resources.themePalettes[(bridge.state.appearance?.preset || "graphite") + ":" + (bridge.state.appearance?.accent || "auto")][dark ? "dark" : "light"]
+    readonly property var metrics: bridge.metrics
+    readonly property bool dark: bridge.appearance?.preset === "midnight" || bridge.appearance?.mode === "dark" || (bridge.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
+    readonly property var colors: bridge.palettes[dark ? "dark" : "light"]
     color: "transparent"
     palette.base: Qt.tint(colors["app-bg"], colors["overlay-material"] || colors["surface-raised"])
     palette.window: Qt.tint(colors["app-bg"], colors["overlay-material"] || colors["surface-raised"])
@@ -22,6 +22,7 @@ ApplicationWindow {
     palette.mid: colors.border
     palette.midlight: colors.border
     background: Kit.ReadingPanelSurface { radius: window.metrics.largeRadius }
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     function tpl(key, values) { let text = t(key); for (const name in values) text = text.split("{" + name + "}").join(values[name]); return text }
 }

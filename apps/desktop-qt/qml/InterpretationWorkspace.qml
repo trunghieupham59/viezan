@@ -6,8 +6,11 @@ Item {
     id: root
     objectName: "interpret-workspace"
     required property var bridge
+    // One conversion of the bridge state per change, shared by every binding below.
+    // A host that already holds one passes it in.
+    property var snapshot: bridge.state
     property var shell: null
-    readonly property bool glass: bridge.state.appearance?.preset === "glass"
+    readonly property bool glass: bridge.appearance?.preset === "glass"
     property string microphonePermission: bridge.audio.microphonePermission()
     readonly property bool permissionMissing: captureMode.currentIndex !== 1 && microphonePermission !== "granted"
     property bool exporting: false
@@ -18,7 +21,7 @@ Item {
     function tpl(key, values) { let text = t(key); Object.keys(values).forEach(key => text = text.split("{" + key + "}").join(values[key])); return text }
     function notify(text, undo) { if (shell) shell.notify(text, undo) }
     function recheckPermission() { microphonePermission = bridge.audio.microphonePermission() }
-    function begin() { recheckPermission(); bridge.audio.cancel(); live.start(model.text, bridge.state.speechProvider || "auto", ["auto"].concat(languages)[source.currentIndex], languages[target.currentIndex], bridge.state.locale, captureMode.keys[captureMode.currentIndex], inputDevice.devices[inputDevice.currentIndex]?.id || "") }
+    function begin() { recheckPermission(); bridge.audio.cancel(); live.start(model.text, snapshot.speechProvider || "auto", ["auto"].concat(languages)[source.currentIndex], languages[target.currentIndex], bridge.locale, captureMode.keys[captureMode.currentIndex], inputDevice.devices[inputDevice.currentIndex]?.id || "") }
     function deleteSession(id) {
         const service = live, feedback = shell, restored = t("sessionRestored")
         const removed = service.sessions.find(session => session.id === id)
@@ -30,9 +33,10 @@ Item {
         })
     }
     readonly property var live: bridge.interpretation
-    readonly property var metrics: bridge.resources.metrics
+    readonly property var metrics: bridge.metrics
     readonly property var languages: bridge.resources.nativeLanguages
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     Component.onDestruction: live.silence()
     property bool showOriginal: true
     property string shownSessionID: ""
@@ -82,7 +86,7 @@ Item {
         // Transcription runs in the cloud: warn before recording when no speech provider has a key.
         RowLayout {
             objectName: "speech-notice"
-            readonly property string provider: root.bridge.state.speechProvider || "auto"
+            readonly property string provider: root.snapshot.speechProvider || "auto"
             visible: (root.bridge.localModels, root.bridge.providersChecked) && !root.bridge.speechReady(provider)
             Layout.fillWidth: true; spacing: root.metrics.small
             Kit.StatusDot { tone: "failed"; failedColor: root.dangerColor }
@@ -98,7 +102,7 @@ Item {
             Kit.GlassButton { flat: true; text: root.t("subtitles"); checkable: true; checked: subtitles.visible; onClicked: subtitles.visible = !subtitles.visible }
             Kit.GlassButton { visible: root.live.busy && !root.live.listening; text: root.t("cancel"); onClicked: root.live.cancel() }
             Kit.GlassButton { visible: root.live.listening; text: root.t("stop"); onClicked: root.live.stop() }
-            Kit.PrimaryButton { visible: !root.live.listening; text: root.t("startInterpretation"); icon.source: "icons/interpret.svg"; enabled: !root.live.busy && !root.bridge.loadBlocked && model.text.includes(":"); onClicked: { root.bridge.audio.cancel(); root.live.start(model.text, root.bridge.state.speechProvider || "auto", ["auto"].concat(root.languages)[source.currentIndex], root.languages[target.currentIndex], root.bridge.state.locale, captureMode.keys[captureMode.currentIndex], inputDevice.devices[inputDevice.currentIndex]?.id || "") } }
+            Kit.PrimaryButton { visible: !root.live.listening; text: root.t("startInterpretation"); icon.source: "icons/interpret.svg"; enabled: !root.live.busy && !root.bridge.loadBlocked && model.text.includes(":"); onClicked: { root.bridge.audio.cancel(); root.live.start(model.text, root.snapshot.speechProvider || "auto", ["auto"].concat(root.languages)[source.currentIndex], root.languages[target.currentIndex], root.bridge.locale, captureMode.keys[captureMode.currentIndex], inputDevice.devices[inputDevice.currentIndex]?.id || "") } }
         }
         ProgressBar { visible: root.live.listening; value: root.live.level; Layout.fillWidth: true; Accessible.name: root.t("inputLevel") }
         Label { text: root.live.error ? root.t(root.live.error) : ""; visible: !!text; Layout.fillWidth: true; wrapMode: Text.Wrap }
@@ -209,7 +213,7 @@ Item {
                 width: setupScroll.availableWidth; spacing: root.metrics.inset
             Kit.GlassComboBox { id: captureMode; readonly property var keys: ["microphone", "system", "mixed"]; model: keys.map(key => root.t("capture_" + key)); enabled: !root.live.busy; Accessible.name: root.t("captureSource") }
             Kit.GlassComboBox { id: inputDevice; readonly property var devices: [{id:"", name:root.t("voiceAutomatic")}].concat(root.live.inputs); model: devices; textRole: "name"; enabled: !root.live.busy && captureMode.currentIndex !== 1; Accessible.name: root.t("captureDevice") }
-            TextField { id: model; text: root.bridge.state.sessions.find(value => value.id === root.bridge.state.active[root.bridge.state.feature])?.model || ""; enabled: !root.live.busy; Accessible.name: root.t("modelID") }
+            TextField { id: model; text: root.snapshot.sessions.find(value => value.id === root.snapshot.active[root.snapshot.feature])?.model || ""; enabled: !root.live.busy; Accessible.name: root.t("modelID") }
             }
         }
     }
@@ -251,7 +255,7 @@ Item {
         }
         Kit.ProviderNotice { model: root.modelID; dangerColor: root.dangerColor; Layout.fillWidth: true; onOpenRequested: section => root.openSettings(section); onUseRequested: id => root.useModel(id) }
         RowLayout {
-            readonly property string provider: root.bridge.state.speechProvider || "auto"
+            readonly property string provider: root.snapshot.speechProvider || "auto"
             visible: (root.bridge.localModels, root.bridge.providersChecked) && !root.bridge.speechReady(provider)
             Layout.fillWidth: true
             Label { text: root.t(parent.provider === "auto" ? "speechProviderMissing" : "speechProviderKeyMissing"); wrapMode: Text.Wrap; color: palette.placeholderText; Layout.fillWidth: true }

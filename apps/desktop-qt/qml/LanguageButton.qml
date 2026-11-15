@@ -11,7 +11,7 @@ Kit.QuietButton {
     property string label: ""
     property bool compact: false
     signal chosen(string code)
-    readonly property var strings: workbench.resources.locales[workbench.state.locale]
+    readonly property var strings: workbench.strings
     function t(key) { return strings[key] || key }
     function fold(value) { return String(value || "").trim().toLocaleLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g,"d") }
     function endonym(code) { if (code === "auto") return ""; const own = Qt.locale(code).nativeLanguageName; return own === t("lang_" + code) ? workbench.resources.locales.en["lang_" + code] : own }

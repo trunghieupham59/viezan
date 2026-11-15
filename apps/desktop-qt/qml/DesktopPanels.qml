@@ -14,9 +14,11 @@ AuxiliaryWindow {
     property string ownerID: ""
     property string chatID: ""
     property string feedback: ""
-    readonly property var session: bridge.state.sessions.find(value => value.id === ownerID)
-    readonly property var task: bridge.state.tasks.find(value => value.request.sessionID === ownerID && value.status === "running")
-    readonly property var latestTask: bridge.state.tasks.find(value => value.request.sessionID === ownerID)
+    // A hidden panel must not convert the whole state on every change.
+    readonly property var snapshot: visible ? bridge.state : ({sessions: [], tasks: []})
+    readonly property var session: snapshot.sessions.find(value => value.id === ownerID)
+    readonly property var task: snapshot.tasks.find(value => value.request.sessionID === ownerID && value.status === "running")
+    readonly property var latestTask: snapshot.tasks.find(value => value.request.sessionID === ownerID)
     readonly property bool translating: mode === "translateSelection"
     readonly property bool tooLong: translating && (session?.draft || "").length > 5000
     readonly property bool missingModel: { bridge.localModels; const available = bridge.availability(session?.model || ""); return bridge.providersEmpty || (available !== "available" && available !== "unknown") }
@@ -234,7 +236,7 @@ AuxiliaryWindow {
             ListView {
                 id: modelList; Layout.fillWidth: true; Layout.fillHeight: true
                 implicitHeight: Math.min(contentHeight, panel.metrics.editor * 2)
-                model: { panel.bridge.state; panel.bridge.localModels; return modelMenu.visible ? panel.bridge.modelSections("", panel.ownerID).reduce((rows, section) => rows.concat(section.rows), []) : [] }
+                model: { panel.snapshot; panel.bridge.localModels; return modelMenu.visible ? panel.bridge.modelSections("", panel.ownerID).reduce((rows, section) => rows.concat(section.rows), []) : [] }
                 clip: true; boundsBehavior: Flickable.StopAtBounds; keyNavigationEnabled: true
                 ScrollBar.vertical: ScrollBar { policy: modelList.contentHeight > modelList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff }
                 function choose(row) {

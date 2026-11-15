@@ -4,9 +4,12 @@ import QtQuick.Layouts
 ColumnLayout {
     id: speech
     required property var bridge
+    // One conversion of the bridge state per change, shared by every binding below.
+    // A host that already holds one passes it in.
+    property var snapshot: bridge.state
     signal manageKeys()
-    readonly property var metrics: bridge.resources.metrics
-    readonly property var voice: bridge.state.voice || {provider: "system", voice: "", rate: 1}
+    readonly property var metrics: bridge.metrics
+    readonly property var voice: bridge.voice
     readonly property string provider: voice.provider || "system"
     readonly property var voiceOptions: {
         let items = []
@@ -18,7 +21,8 @@ ColumnLayout {
         }
         return [{id:"", label:t("voiceAutomatic")}].concat(items)
     }
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     function languageName(code) { const base = code.replace("_", "-").split("-")[0]; return bridge.resources.nativeLanguages.includes(base) ? t("lang_" + base) : Qt.locale(code).nativeLanguageName || code }
     function setVoice(patch) { bridge.command("voice", {provider:patch.provider || provider, voice:patch.provider && patch.provider !== provider ? "" : (patch.voice !== undefined ? patch.voice : voice.voice || ""), rate:patch.rate || voice.rate || 1}) }
     enabled: !bridge.loadBlocked
@@ -32,7 +36,7 @@ ColumnLayout {
                 readonly property var ids: ["auto", "openai", "groq", "gemini"]
                 model: ids.map(id => ({label:id === "auto" ? speech.t("reasoning_auto") : ({openai:"OpenAI",groq:"Groq",gemini:"Gemini"})[id], detail:id === "auto" ? "" : (speech.bridge.discovering, speech.bridge.localModels, speech.t(speech.bridge.providerState(id).keyed ? "keyPresent" : "keyAbsent"))}))
                 textRole: "label"
-                currentIndex: ids.indexOf(speech.bridge.state.speechProvider || "auto")
+                currentIndex: ids.indexOf(speech.snapshot.speechProvider || "auto")
                 Accessible.name: speech.t("speechProvider")
                 onActivated: speech.bridge.command("speechProvider", {value:ids[currentIndex]})
             }
@@ -73,7 +77,7 @@ ColumnLayout {
                 SettingsPicker {
                     objectName: "settings-voice-rate"
                     readonly property var rates: [0.75,1,1.25,1.5,2]
-                    model: rates.map(rate => rate.toLocaleString(Qt.locale(speech.bridge.state.locale), 'g', 3) + "×")
+                    model: rates.map(rate => rate.toLocaleString(Qt.locale(speech.bridge.locale), 'g', 3) + "×")
                     currentIndex: rates.indexOf(speech.voice.rate || 1); enabled: speech.bridge.rateSupported(speech.provider)
                     Accessible.name: speech.t("voiceRate")
                     onActivated: speech.setVoice({rate:rates[currentIndex]})
@@ -84,7 +88,7 @@ ColumnLayout {
                 Kit.GlassButton {
                     objectName: "settings-voice-preview"; icon.source: "icons/listen.svg"
                     text: speech.t(speech.bridge.audio.speaking && speech.bridge.audio.speakingSource === "settings-preview" ? "stopSpeaking" : "voicePreview")
-                    onClicked: { if (speech.bridge.audio.speaking && speech.bridge.audio.speakingSource === "settings-preview") speech.bridge.audio.stopSpeaking(); else speech.bridge.audio.speak(speech.t("voicePreviewText"), speech.bridge.state.locale, "settings-preview", speech.provider) }
+                    onClicked: { if (speech.bridge.audio.speaking && speech.bridge.audio.speakingSource === "settings-preview") speech.bridge.audio.stopSpeaking(); else speech.bridge.audio.speak(speech.t("voicePreviewText"), speech.bridge.locale, "settings-preview", speech.provider) }
                 }
             }
             Label { text: speech.t(speech.bridge.audio.error); visible: !!speech.bridge.audio.error; wrapMode: Text.Wrap; Layout.fillWidth: true }

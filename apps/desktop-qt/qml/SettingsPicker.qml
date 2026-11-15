@@ -5,7 +5,7 @@ import QtQuick.Layouts
 // Own the popup/delegates in this document (Qt 6.8 imported-inline limitation).
 Kit.GlassComboBox {
     id: picker
-    readonly property var metrics: workbench.resources.metrics
+    readonly property var metrics: workbench.metrics
     property string detailRole: "detail"
     property string groupRole: "group"
     readonly property var options: {

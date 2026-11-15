@@ -12,7 +12,8 @@ GlassDialog {
     property string failure: ""
     property bool waiting: false
     readonly property string defaultKey: ({launcher: "Alt+Space", quickChat: "Ctrl+Alt+Space", translateSelection: "Alt+T"})[shortcut?.id] || ""
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     function tpl(key, values) { let text = t(key); for (const name in values) text = text.split("{" + name + "}").join(values[name]); return text }
     function begin(row, button) { shortcut = row; candidate = row.key; failure = ""; waiting = false; opener = button; open() }
     function capture(key, modifiers) {

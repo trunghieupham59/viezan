@@ -9,9 +9,9 @@ Item {
     property var removalService: typeof appUninstall !== "undefined" ? appUninstall : null
     // QtTest injects this boundary; it never opens system Settings.
     property var openSettings: function() { return Qt.openUrlExternally("ms-settings:appsfeatures") }
-    readonly property var metrics: bridge.resources.metrics
-    readonly property bool dark: bridge.state.appearance?.preset === "midnight" || bridge.state.appearance?.mode === "dark" || (bridge.state.appearance?.mode !== "light" && bridge.state.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
-    readonly property var colors: bridge.resources.themePalettes[(bridge.state.appearance?.preset || "graphite") + ":" + (bridge.state.appearance?.accent || "auto")][dark ? "dark" : "light"]
+    readonly property var metrics: bridge.metrics
+    readonly property bool dark: bridge.appearance?.preset === "midnight" || bridge.appearance?.mode === "dark" || (bridge.appearance?.mode !== "light" && bridge.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
+    readonly property var colors: bridge.palettes[dark ? "dark" : "light"]
     readonly property bool busy: removalService ? removalService.busy : false
     readonly property var apps: removalService ? removalService.apps : []
     property string selectedID: ""
@@ -23,7 +23,8 @@ Item {
     readonly property bool canRemove: allowed(selected)
     readonly property bool verified: result.status === "removed" && result.verifiedRemoved === true
     readonly property string resultText: result.status ? message(result.status === "removed" && !verified ? "unverified" : result.status) : ""
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     function tpl(key, values) { let text = t(key); for (const name in values) text = text.split("{" + name + "}").join(values[name]); return text }
     readonly property var messageKeys: ({
         "source_registry": "appsSourceRegistry",
@@ -174,7 +175,7 @@ Item {
                             width: parent.width; spacing: root.metrics.small
                             Kit.CardRow { title: root.t("installSource"); detail: root.source(root.selected) }
                             Label { text: root.selected?.installLocation || ""; visible: !!text; wrapMode: Text.WrapAnywhere; Layout.fillWidth: true; font.family: "monospace" }
-                            Label { text: root.selected?.estimatedBytes ? root.tpl("appsEstimatedSize", {size: (root.selected.estimatedBytes / 1048576).toLocaleString(Qt.locale(root.bridge.state.locale), 'f', 1)}) : ""; visible: !!text; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                            Label { text: root.selected?.estimatedBytes ? root.tpl("appsEstimatedSize", {size: (root.selected.estimatedBytes / 1048576).toLocaleString(Qt.locale(root.bridge.locale), 'f', 1)}) : ""; visible: !!text; Layout.fillWidth: true; wrapMode: Text.Wrap }
                             Label { text: root.consequence(root.selected); wrapMode: Text.Wrap; Layout.fillWidth: true }
                             Label { objectName: "apps-blocked"; text: !root.removalService?.inventoryComplete ? root.message("inventoryIncomplete") : root.selected?.reason ? root.message(root.selected.reason) : ""; visible: !!text; wrapMode: Text.Wrap; Layout.fillWidth: true }
                             Kit.GlassButton { objectName: "apps-uninstall"; palette.buttonText: enabled ? root.colors.danger : root.colors["text-disabled"]; text: root.t(root.selected?.source === "appimage" ? "appUninstall" : "appsUninstall"); visible: root.selected?.action !== "openSettings"; enabled: root.canRemove; onClicked: root.requestRemoval() }
@@ -206,8 +207,8 @@ Item {
                 text: root.t(root.pending?.source === "appimage" ? "appUninstall" : "appsUninstall")
                 enabled: root.allowed(root.pending)
                 DialogButtonBox.buttonRole: DialogButtonBox.DestructiveRole
-                readonly property bool dark: root.bridge.state.appearance?.mode === "dark" || root.bridge.state.appearance?.preset === "midnight" || (root.bridge.state.appearance?.mode === "system" && Qt.styleHints.colorScheme === Qt.Dark)
-                readonly property var colors: root.bridge.resources.themePalettes[(root.bridge.state.appearance?.preset || "graphite") + ":" + (root.bridge.state.appearance?.accent || "auto")][dark ? "dark" : "light"]
+                readonly property bool dark: root.bridge.appearance?.mode === "dark" || root.bridge.appearance?.preset === "midnight" || (root.bridge.appearance?.mode === "system" && Qt.styleHints.colorScheme === Qt.Dark)
+                readonly property var colors: root.bridge.palettes[dark ? "dark" : "light"]
                 background: Rectangle { radius: height / 2; color: removeButton.enabled ? removeButton.colors.danger : removeButton.palette.disabled.button; border.width: removeButton.visualFocus ? root.metrics.hairline * 2 : 0; border.color: removeButton.palette.highlight }
                 contentItem: Label { text: removeButton.text; color: removeButton.enabled ? removeButton.palette.highlightedText : removeButton.palette.disabled.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
                 onClicked: root.confirmRemoval()

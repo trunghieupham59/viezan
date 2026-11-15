@@ -8,7 +8,7 @@ Kit.GlassButton {
     property string sequence: ""
     text: sequence.replace(/\+/g, " + ")
     contentItem: RowLayout {
-        spacing: workbench.resources.metrics.tight
+        spacing: workbench.metrics.tight
         Repeater {
             model: button.sequence.split("+")
             delegate: Kit.KeyCap { required property string modelData; text: modelData; Accessible.ignored: true }

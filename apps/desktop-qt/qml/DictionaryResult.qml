@@ -7,16 +7,19 @@ ScrollView {
     objectName: "dictionary-result"
     required property string output
     required property var bridge
+    // One conversion of the bridge state per change, shared by every binding below.
+    // A host that already holds one passes it in.
+    property var snapshot: bridge.state
     property var shell: null
-    readonly property bool glass: bridge.state.appearance?.preset === "glass"
-    readonly property bool running: bridge.state.tasks.some(task => task.request.sessionID === session?.id && task.status === "running")
+    readonly property bool glass: bridge.appearance?.preset === "glass"
+    readonly property bool running: snapshot.tasks.some(task => task.request.sessionID === session?.id && task.status === "running")
     readonly property string sourceLanguage: bridge.speechLanguage(entry?.headword || session?.draft || "", entry?.detectedSourceLang || session?.source || "auto")
     readonly property var listenSources: [{id:(session?.id || "dictionary") + ":headword", title:t("dictionaryHeadword"), text:entry?.headword || "", language:sourceLanguage}].concat((entry?.translations || []).slice(0,3).map((item,index) => ({id:(session?.id || "dictionary") + ":sense:" + index, title:tpl("dictionaryMeaningN",{n:String(index+1).padStart(2,"0")}), text:item.text, language:session?.target || "vi"})))
     readonly property var suggestions: bridge.dictionarySuggestions(output)
     readonly property bool notFound: suggestions !== null && suggestions !== undefined
     function tpl(key, values) { let text = t(key); Object.keys(values).forEach(key => text = text.split("{" + key + "}").join(values[key])); return text }
     function lookup(word) { bridge.command("draft", {sessionID:session.id, value:word}); bridge.command("submit", {sessionID:session.id}) }
-    readonly property var metrics: bridge.resources.metrics
+    readonly property var metrics: bridge.metrics
     readonly property var entry: {
         try {
             const data = JSON.parse(output)
@@ -36,8 +39,9 @@ ScrollView {
         while ((match = pattern.exec(output)) !== null) { if (fields[match[1]] === undefined) { try { fields[match[1]] = JSON.parse(match[2]) } catch (_) {} } }
         return ["headword", "pronunciation", "meaning"].map(key => fields[key]).filter(value => typeof value === "string")
     }
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
-    property var session: bridge.state.sessions.find(item => item.id === bridge.state.active.dictionary)
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
+    property var session: snapshot.sessions.find(item => item.id === snapshot.active.dictionary)
     function handoff(feature, text) {
         const id = bridge.createDetachedSession(feature, text || (entry?.headword || session.draft) + (feature === "chat" ? "\n" + (entry?.meaning || "") : ""))
         bridge.command("select", {sessionID:id}); bridge.command("route", {value:feature})
