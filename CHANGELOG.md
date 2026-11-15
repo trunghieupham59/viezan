@@ -6,6 +6,8 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+## [2.5.2]
+
 - Keep Windows/Linux responsive with a long history: opening the window, typing
   and streaming replies no longer slow down as conversations accumulate.
 - Save a draft shortly after typing pauses instead of on every keystroke.
