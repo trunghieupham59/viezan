@@ -662,10 +662,17 @@ ApplicationWindow {
             property bool keyboardInvocation: false
             property real openerTop: 0
             property real openerLeft: 0
+            property real openerBottom: 0
+            // Above the "+" button by default; below it when the menu does not fit
+            // above and there is more room underneath (the centred empty-chat composer).
+            readonly property real needed: toolsBody.implicitHeight + topPadding + bottomPadding
+            readonly property real above: openerTop - metrics.small - metrics.inset
+            readonly property real below: root.height - openerBottom - metrics.small - metrics.inset
+            readonly property bool placeBelow: above < needed && below > above
             width: Math.min(metrics.sidebar + metrics.editor, root.width - metrics.inset * 2)
-            height: Math.min(toolsBody.implicitHeight + topPadding + bottomPadding, Math.max(metrics.control, openerTop - metrics.small - metrics.inset))
+            height: Math.min(needed, Math.max(metrics.control, placeBelow ? below : above))
             x: Math.max(metrics.inset, Math.min(openerLeft, root.width - width - metrics.inset))
-            y: openerTop - height - metrics.small
+            y: placeBelow ? openerBottom + metrics.small : openerTop - height - metrics.small
             padding: metrics.small
             focus: true; modal: false
             closePolicy: Popup.CloseOnPressOutside | (root.composing() ? 0 : Popup.CloseOnEscape)
@@ -685,7 +692,7 @@ ApplicationWindow {
                     attachmentButton.focusReason = keyboardInvocation ? Qt.TabFocusReason : Qt.MouseFocusReason
             }
             Connections { target: root; function onSessionChanged() { if (toolsPanel.visible && toolsPanel.ownerID !== root.session.id) toolsPanel.close() } function onGlassChromeChanged() { toolsPanel.close() } function onActiveFocusItemChanged() { toolsPanel.revealFocus() } function onWidthChanged() { if (toolsPanel.visible) Qt.callLater(toolsPanel.positionFromOpener) } function onHeightChanged() { if (toolsPanel.visible) Qt.callLater(toolsPanel.positionFromOpener) } }
-            function positionFromOpener() { const point = attachmentButton.mapToItem(parent, 0, 0); openerTop = point.y; openerLeft = point.x }
+            function positionFromOpener() { const point = attachmentButton.mapToItem(parent, 0, 0); openerTop = point.y; openerLeft = point.x; openerBottom = point.y + attachmentButton.height }
             function pickImage(ocr) { const owner = ownerID; close(); imagePicker.ocr = ocr; imagePicker.ownerID = owner; imagePicker.open() }
             function revealFocus() {
                 const item = root.activeFocusItem

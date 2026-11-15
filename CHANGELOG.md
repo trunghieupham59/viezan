@@ -16,6 +16,8 @@ Entries describe their version's source and do not certify that an installer has
 - Windows/Linux: the translation style panel no longer cuts off its last
   option, and the Translate/Dictionary model list shows each model's ID so
   models with the same short name can be told apart.
+- Windows/Linux: the chat "+" menu opens below the composer when there is
+  more room there, instead of covering the header in an empty chat.
 
 ## [2.5.2]
 

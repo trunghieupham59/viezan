@@ -1538,7 +1538,13 @@ private slots:
             QVERIFY(QMetaObject::invokeMethod(opener, "clicked")); QTRY_VERIFY(toolsPanel->property("visible").toBool());
             const auto top = toolsPanel->property("y").toDouble();
             const auto bottom = top + toolsPanel->property("height").toDouble();
-            QVERIFY(top >= 0); QVERIFY(bottom <= opener->mapToScene(QPointF()).y()); QVERIFY(bottom <= root->height());
+            QVERIFY(top >= 0); QVERIFY(bottom <= root->height());
+            // The menu never covers its opener: above it, or below when that side has more room.
+            const auto openerTop = opener->mapToScene(QPointF()).y();
+            const bool belowOpener = toolsPanel->property("placeBelow").toBool();
+            if (belowOpener) { QVERIFY(top >= openerTop + opener->height()); QVERIFY(root->height() - (openerTop + opener->height()) > openerTop); }
+            else QVERIFY(bottom <= openerTop);
+            QVERIFY(belowOpener || toolsPanel->property("above").toDouble() >= toolsPanel->property("needed").toDouble() || toolsPanel->property("above").toDouble() >= toolsPanel->property("below").toDouble());
             auto *attach = visualItem(root->contentItem(), "chat-tools-attach"); QVERIFY(attach);
             QVERIFY(!attach->property("visualFocus").toBool());
             auto *scroll = visualItem(root->contentItem(), "chat-tools-scroll"); QVERIFY(scroll);

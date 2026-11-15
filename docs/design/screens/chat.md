@@ -91,7 +91,7 @@ Khi chưa có tin nhắn, vùng cuộn được thay bằng `chat-empty-state`: 
 | Thanh hành động tin | `.chat-message-actions` | Button `xs` (28); ẩn tới khi hover/focus, trừ tin trả lời cuối, tin lỗi hoặc tin có ghi chú model thay thế (`chat-message-actions-pinned`) | — |
 | Bảng nghiên cứu | `ResearchStepsPanel` (`src/components/chat/ResearchStepsPanel.tsx`) | Viền `--vzn-border`, bo `--vzn-radius-md`, đệm `--vzn-space-1`; `ProgressSteps` bên trong | — |
 | Ô soạn tin | `.chat-composer.chat-page-composer` | Cao tối thiểu `--vzn-composer-min-height` (116), bo `--vzn-radius-lg`, nền `--vzn-surface`, viền `--vzn-border`; focus: viền `--vzn-action-border` + vòng `--vzn-focus-ring`; textarea cao tối đa `--vzn-chat-textarea-max-height` (140); rộng `--vzn-chat-composer-max` (760) | Textarea tự cuộn |
-| Menu "+" | portal `.floating-panel` trong `ChatPage.tsx` | Neo phía trên nút "+" | — |
+| Menu "+" | portal `.floating-panel` trong `ChatPage.tsx` | Neo phía trên nút "+"; Qt (Windows/Linux): mở xuống dưới khi phía trên không đủ chỗ và phía dưới rộng hơn (ô nhập ở giữa khi chat trống) | — |
 | Popover Tác vụ | `ChatTaskConfiguration` → `AIConfigurationPopover placement="auto" align="start"` | Như popover cấu hình AI, có footer Bỏ/Áp dụng; vật liệu lớp nổi (`--vzn-overlay-material` + `--vzn-overlay-blur`); chỗ trống đo trong `.app-workspace` nên không đè header trang hay thanh tiêu đề | Thân cuộn |
 | Toast | `NotificationViewport` (khoá `chat-voice-error`, `chat-web-search-fallback`, `chat-web-search-unavailable`, `chat-attach-image`, `chat-copied`) | Xem `foundations.md` §6 | — |
 
