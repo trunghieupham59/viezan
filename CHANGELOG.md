@@ -13,6 +13,9 @@ Entries describe their version's source and do not certify that an installer has
 - Remove the ghost edge beside header and rail buttons after the window narrows.
 - Windows/Linux: slightly larger reading and composer text, lighter icon
   strokes, a grid icon for Apps, and a visible disabled Send button.
+- Windows/Linux: the translation style panel no longer cuts off its last
+  option, and the Translate/Dictionary model list shows each model's ID so
+  models with the same short name can be told apart.
 
 ## [2.5.2]
 

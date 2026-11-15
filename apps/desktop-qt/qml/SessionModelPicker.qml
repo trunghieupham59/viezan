@@ -72,6 +72,7 @@ ColumnLayout {
                     required property string modelData
                     required property int index
                     width: featureList.width; text: modelPicker.bridge.shortModelName(modelData)
+                    detail: text !== modelData ? modelData : ""
                     selected: modelPicker.selectedModel === modelData
                     highlighted: featureList.activeFocus && featureList.currentIndex === index
                     onClicked: modelPicker.chooseFeatureModel(modelData)

@@ -904,13 +904,13 @@ QtObject {
         // a wrapping ScrollView already sizes its content from this layer.
         implicitWidth: desiredWidth
         width: Math.min(desiredWidth, (parent ? parent.width : desiredWidth) - metrics.inset * 2)
-        height: Math.min(implicitContentHeight + padding * 2, Math.max(metrics.control, availableSpace))
+        height: Math.min(implicitContentHeight + topPadding + bottomPadding, Math.max(metrics.control, availableSpace))
         property point origin: Qt.point(metrics.inset, metrics.inset)
         property string ownerID: ""
         function updateAnchor() { if (opener && parent) origin = opener.mapToItem(parent, 0, 0) }
         readonly property real below: parent ? parent.height - origin.y - (opener ? opener.height : 0) - metrics.inset - metrics.small : metrics.editor * 3
         readonly property real above: origin.y - metrics.inset - metrics.small
-        readonly property bool placeBelow: below >= implicitContentHeight + padding * 2 || below >= above
+        readonly property bool placeBelow: below >= implicitContentHeight + topPadding + bottomPadding || below >= above
         readonly property real availableSpace: placeBelow ? below : above
         x: Math.max(metrics.inset, Math.min(origin.x, (parent ? parent.width : width) - width - metrics.inset))
         y: placeBelow ? origin.y + (opener ? opener.height : 0) + metrics.small : origin.y - height - metrics.small
