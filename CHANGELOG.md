@@ -20,6 +20,8 @@ Entries describe their version's source and do not certify that an installer has
   models with the same short name can be told apart.
 - Windows/Linux: the chat "+" menu opens below the composer when there is
   more room there, instead of covering the header in an empty chat.
+- Windows/Linux: the logo and search button line up with the other icons on
+  the collapsed navigation rail.
 
 ## [2.5.2]
 
