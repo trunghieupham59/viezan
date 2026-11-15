@@ -1,6 +1,7 @@
 name: Package Native Release
 # Builds every platform on GitHub-hosted runners and attaches the packages to a
-# draft GitHub Release for review. Publishing the draft stays a manual step.
+# GitHub Release. Runs from develop publish the release and create its tag;
+# runs from any other ref only prepare a draft.
 #
 # Signing uses optional development certificates from repository secrets:
 #   MACOS_DEV_CERT_P12 / MACOS_DEV_CERT_PASSWORD   Apple Development .p12 (base64)
@@ -163,7 +164,7 @@ jobs:
           # .native-packages is a dot directory, which upload-artifact skips by default.
           include-hidden-files: true
 
-  draft:
+  release:
     needs: package
     runs-on: ubuntu-latest
     permissions:
@@ -174,7 +175,7 @@ jobs:
         with:
           path: assets
           merge-multiple: true
-      - name: Create or update the draft release
+      - name: Create or update the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -195,9 +196,18 @@ jobs:
             echo
             echo "SHA-256 checksums are listed in the \`.json\` manifest beside each package."
           } > notes.md
+          # Runs from develop publish the release, which creates the tag. Runs
+          # from any other ref only prepare a draft.
+          if [ "$GITHUB_REF" = "refs/heads/develop" ]; then
+            create_flags=""
+            edit_flags="--draft=false --target $GITHUB_SHA"
+          else
+            create_flags="--draft"
+            edit_flags=""
+          fi
           if gh release view "$tag" > /dev/null 2>&1; then
             gh release upload "$tag" assets/* --clobber
-            gh release edit "$tag" --notes-file notes.md
+            gh release edit "$tag" --notes-file notes.md $edit_flags
           else
-            gh release create "$tag" assets/* --draft --target "$GITHUB_SHA" --title "Viezan $tag" --notes-file notes.md
+            gh release create "$tag" assets/* $create_flags --target "$GITHUB_SHA" --title "Viezan $tag" --notes-file notes.md
           fi
