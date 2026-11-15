@@ -9,8 +9,8 @@ Item {
     property Item searchAnchor: null
     signal feedback(string message, bool error)
     readonly property bool glass: workspace.appearance?.preset === "glass"
-    readonly property var workspace: bridge.state
-    readonly property var metrics: bridge.resources.metrics
+    property var workspace: bridge.state // the host may pass its own converted snapshot
+    readonly property var metrics: bridge.metrics
     readonly property var preferences: workspace.appearance || {mode: "system", textSize: "medium"}
     readonly property bool wide: width >= metrics.reading
     readonly property real readingPointSize: Qt.application.font.pointSize * bridge.resources.textScales[preferences.textSize]
@@ -35,7 +35,8 @@ Item {
     readonly property var sections: glass ? bridge.resources.settingsSections : matches
     readonly property var visibleSections: !glass && query.trim() ? sections : sections.filter(section => section.id === activeSection)
     objectName: "settings-workspace"
-    function t(key) { return bridge.resources.locales[workspace.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     function normalize(value) { return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/đ/g, "d") }
     function selectSection(id) {
         activeSection = id
@@ -132,8 +133,8 @@ Item {
                                 }
                                 background: Rectangle {
                                     radius: metrics.radius
-                                    color: workbench.state.appearance?.preset === "glass" && sectionButton.checked ? "transparent" : sectionButton.checked ? Qt.tint(palette.base, Qt.alpha(palette.highlight, metrics.selectionOpacity)) : sectionButton.hovered ? palette.alternateBase : "transparent"
-                                    Kit.ControlGlassSurface { anchors.fill: parent; visible: workbench.state.appearance?.preset === "glass" && sectionButton.checked; radius: metrics.radius }
+                                    color: workbench.appearance?.preset === "glass" && sectionButton.checked ? "transparent" : sectionButton.checked ? Qt.tint(palette.base, Qt.alpha(palette.highlight, metrics.selectionOpacity)) : sectionButton.hovered ? palette.alternateBase : "transparent"
+                                    Kit.ControlGlassSurface { anchors.fill: parent; visible: workbench.appearance?.preset === "glass" && sectionButton.checked; radius: metrics.radius }
                                     border.width: sectionButton.visualFocus ? metrics.hairline : 0
                                     border.color: palette.highlight
                                 }
@@ -201,11 +202,11 @@ Item {
     }
     Component {
         id: dataCard
-        DataSettings { bridge: settings.bridge; width: parent.width; onFeedback: (message, error) => settings.feedback(message, error) }
+        DataSettings { snapshot: settings.workspace; bridge: settings.bridge; width: parent.width; onFeedback: (message, error) => settings.feedback(message, error) }
     }
     Component {
         id: localModelsCard
-        LocalModelSettings { bridge: settings.bridge; width: parent.width; onFeedback: (message, error) => settings.feedback(message, error) }
+        LocalModelSettings { snapshot: settings.workspace; bridge: settings.bridge; width: parent.width; onFeedback: (message, error) => settings.feedback(message, error) }
     }
     Component {
         id: providersCard
@@ -225,7 +226,7 @@ Item {
                     anchors.fill: parent
                     spacing: 0
                     Kit.CardRow {
-                        title: t("language"); detail: t("languageDescription"); divider: !(bridge.state.disabledModules || []).includes("utilities")
+                        title: t("language"); detail: t("languageDescription"); divider: !bridge.disabledModules.includes("utilities")
                         SettingsPicker {
                             objectName: "settings-language"
                             model: ["Tiếng Việt", "English", "日本語"]
@@ -239,7 +240,7 @@ Item {
                     // enabled ones and leads to the sidebar page that owns them.
                     Kit.CardRow {
                         objectName: "settings-hotkeys"
-                        visible: !(bridge.state.disabledModules || []).includes("utilities")
+                        visible: !bridge.disabledModules.includes("utilities")
                         title: t("hotkeys")
                         detail: bridge.desktopIntegration.shortcuts.filter(item => item.enabled).map(item => t(item.id) + " " + item.key.replace(/Control/g, "Ctrl").split("+").join(" ")).join(" · ")
                         divider: false
@@ -277,7 +278,7 @@ Item {
     }
     Component {
         id: voiceCard
-        SpeechSettings { bridge: settings.bridge; width: parent.width; onManageKeys: settings.selectSection("providers") }
+        SpeechSettings { snapshot: settings.workspace; bridge: settings.bridge; width: parent.width; onManageKeys: settings.selectSection("providers") }
     }
     Component {
         id: modulesCard

@@ -8,16 +8,17 @@ Popup {
     required property var bridge
     readonly property var updates: bridge.updates
     readonly property var prompt: bridge.updatePrompt
-    readonly property var metrics: bridge.resources.metrics
-    readonly property bool dark: bridge.state.appearance?.preset === "midnight" || bridge.state.appearance?.mode === "dark" || (bridge.state.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
-    readonly property var colors: bridge.resources.themePalettes[(bridge.state.appearance?.preset || "graphite") + ":" + (bridge.state.appearance?.accent || "auto")][dark ? "dark" : "light"]
+    readonly property var metrics: bridge.metrics
+    readonly property bool dark: bridge.appearance?.preset === "midnight" || bridge.appearance?.mode === "dark" || (bridge.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
+    readonly property var colors: bridge.palettes[dark ? "dark" : "light"]
     readonly property string phase: updates.busy ? "downloading" : updates.ready ? "ready" : "available"
     property Item previousFocus: null
     property bool presentAfterCheck: false
     readonly property bool updateBusy: updates.busy
     function checkForUpdates() { presentAfterCheck = true; updates.check() }
     onUpdateBusyChanged: if (!updateBusy && presentAfterCheck) { presentAfterCheck = false; bridge.presentUpdateIfAvailable() }
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     function tpl(key, values) { let text = t(key); for (const name in values) text = text.split("{" + name + "}").join(values[name]); return text }
     function syncPrompt() { if (prompt.version) { if (!visible) open() } else if (visible) close() }
     onPromptChanged: syncPrompt()
@@ -49,9 +50,9 @@ Popup {
                 Label { text: sheet.t("updateTitle"); font.bold: true; font.pointSize: Qt.application.font.pointSize * sheet.metrics.subtitleScale; wrapMode: Text.Wrap; Layout.fillWidth: true; Accessible.role: Accessible.Heading }
                 Label {
                     objectName: "update-sheet-status"; Layout.fillWidth: true; wrapMode: Text.Wrap; color: sheet.colors["text-muted"]
-                    text: sheet.phase === "ready" ? sheet.tpl("updateReadyVersion", {version: sheet.prompt.version || ""}) : sheet.phase === "downloading" ? sheet.tpl("updateDownloading", {percent: Math.round(sheet.updates.progress * 100)}) : sheet.tpl(sheet.updates.packageSize > 0 ? "updateSheetSummary" : "updateSheetSummaryNoSize", {version: sheet.prompt.version || "", size: (sheet.updates.packageSize / 1000000).toLocaleString(Qt.locale(sheet.bridge.state.locale), 'f', 1) + " MB", current: Qt.application.version})
+                    text: sheet.phase === "ready" ? sheet.tpl("updateReadyVersion", {version: sheet.prompt.version || ""}) : sheet.phase === "downloading" ? sheet.tpl("updateDownloading", {percent: Math.round(sheet.updates.progress * 100)}) : sheet.tpl(sheet.updates.packageSize > 0 ? "updateSheetSummary" : "updateSheetSummaryNoSize", {version: sheet.prompt.version || "", size: (sheet.updates.packageSize / 1000000).toLocaleString(Qt.locale(sheet.bridge.locale), 'f', 1) + " MB", current: Qt.application.version})
                 }
-                Label { visible: sheet.phase !== "available" && sheet.updates.packageSize > 0; text: (sheet.updates.packageSize / 1000000).toLocaleString(Qt.locale(sheet.bridge.state.locale), 'f', 1) + " MB"; color: sheet.colors["text-muted"] }
+                Label { visible: sheet.phase !== "available" && sheet.updates.packageSize > 0; text: (sheet.updates.packageSize / 1000000).toLocaleString(Qt.locale(sheet.bridge.locale), 'f', 1) + " MB"; color: sheet.colors["text-muted"] }
             }
             Kit.IconButton { objectName: "update-sheet-close"; iconName: "close"; text: sheet.t("close"); onClicked: sheet.bridge.dismissUpdatePrompt() }
         }

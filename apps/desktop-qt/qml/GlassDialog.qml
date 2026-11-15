@@ -8,8 +8,8 @@ import QtQuick.Controls
 // footer, standard button roles, ordering, default action and signals.
 Dialog {
     id: glassDialog
-    readonly property var metrics: workbench.resources.metrics
-    readonly property bool glass: workbench.state.appearance?.preset === "glass"
+    readonly property var metrics: workbench.metrics
+    readonly property bool glass: workbench.appearance?.preset === "glass"
     property Item glassPanelBackground: Kit.ReadingPanelSurface {
         parent: glassDialog.contentItem.parent
         anchors.fill: parent

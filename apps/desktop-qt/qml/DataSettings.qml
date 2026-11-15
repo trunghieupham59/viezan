@@ -5,11 +5,15 @@ import QtQuick.Dialogs
 ColumnLayout {
     id: data
     required property var bridge
+    // One conversion of the bridge state per change, shared by every binding below.
+    // A host that already holds one passes it in.
+    property var snapshot: bridge.state
     signal feedback(string message, bool error)
-    readonly property var metrics: bridge.resources.metrics
-    readonly property bool blocked: bridge.loadBlocked || bridge.backupBusy || bridge.interpretation.busy || bridge.state.tasks.some(task => task.status === "running")
-    readonly property int historyCount: (bridge.state, bridge.interpretation.sessions, bridge.clearableHistoryCount())
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var metrics: bridge.metrics
+    readonly property bool blocked: bridge.loadBlocked || bridge.backupBusy || bridge.interpretation.busy || snapshot.tasks.some(task => task.status === "running")
+    readonly property int historyCount: (snapshot, bridge.interpretation.sessions, bridge.clearableHistoryCount())
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     function runHistory(command) {
         if (blocked) return
         bridge.command(command, command === "trimHistory" ? {keep: Number(keep.currentText)} : {})
@@ -48,7 +52,7 @@ ColumnLayout {
     }
     Kit.CardBox {
         title: data.t("usageTitle"); Layout.fillWidth: true
-        UsageSettings { bridge: data.bridge; width: parent.width; onFeedback: (message, error) => data.feedback(message, error) }
+        UsageSettings { snapshot: data.snapshot; bridge: data.bridge; width: parent.width; onFeedback: (message, error) => data.feedback(message, error) }
     }
     Kit.CardBox {
         title: data.t("backupTitle"); Layout.fillWidth: true

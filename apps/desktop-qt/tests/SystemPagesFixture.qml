@@ -51,7 +51,7 @@ ApplicationWindow {
         function stop() { monitoring = false }
     }
     property QtObject fakeBridge: QtObject {
-        property var resources: workbench.resources
+        property var resources: workbench.resources; property var strings: workbench.strings; property var metrics: workbench.metrics; property var palettes: workbench.palettes; property var appearance: workbench.appearance; property var locale: workbench.locale; property var disabledModules: workbench.disabledModules; property var voice: workbench.voice
         property var state: workbench.state
         property var desktopIntegration: window.desktop
         property var thermalMonitor: window.monitor

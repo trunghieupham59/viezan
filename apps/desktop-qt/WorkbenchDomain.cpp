@@ -106,6 +106,16 @@ QString firstTitle(const Map &session) {
     }
     return WorkbenchDomain::derivedTitle(session.value("draft").toString(), session.value("images").toList());
 }
+// A finished chat answer can be regenerated only while it is the newest message. Once the
+// conversation moves on, the context frozen in its request is never read again: drop that
+// copy so the workspace does not grow with the square of the conversation length.
+void releaseSettledContext(List &tasks, const QString &sessionID, const QString &newestID) {
+    for (auto &value : tasks) {
+        auto task = value.toMap(); auto request = task.value("request").toMap();
+        if (task.value("status") != "succeeded" || task.value("id") == newestID || request.value("feature") != "chat" || request.value("sessionID") != sessionID || request.value("messages").toList().isEmpty()) continue;
+        request["messages"] = List{}; task["request"] = request; value = task;
+    }
+}
 void setOutput(Map &session, const QString &taskID, const QString &output) {
     if (session.value("feature") != "chat") session["output"] = output;
     else {
@@ -171,8 +181,9 @@ bool validate(const Map &state) {
         if (!isMap(it.value())) return false;
         const auto value = it.value().toMap();
         for (const auto &key : {"input", "output"}) { const auto type = value.value(key).metaType().id(); if (type != QMetaType::Double && type != QMetaType::Int && type != QMetaType::LongLong && type != QMetaType::UInt && type != QMetaType::ULongLong) return false; }
+        static const QRegularExpression currencyCode("^[A-Z]{3}$");
         const auto a = value.value("input").toDouble(), b = value.value("output").toDouble();
-        if (!validModel(it.key()) || !std::isfinite(a) || !std::isfinite(b) || a < 0 || b < 0 || a > 1000000 || b > 1000000 || !QRegularExpression("^[A-Z]{3}$").match(value.value("currency").toString()).hasMatch()) return false;
+        if (!validModel(it.key()) || !std::isfinite(a) || !std::isfinite(b) || a < 0 || b < 0 || a > 1000000 || b > 1000000 || !currencyCode.match(value.value("currency").toString()).hasMatch()) return false;
     }
     for (const auto &entry : state.value("tasks").toList()) {
         const auto rawUsage = entry.toMap().value("usage");
@@ -298,6 +309,10 @@ QVariantMap recover(const Map &saved) {
     for (auto &value : tasks) {
         auto task = value.toMap();
         if (task.value("status") == "running") { task["status"] = "interrupted"; value = task; }
+    }
+    for (const auto &value : state.value("sessions").toList()) {
+        const auto session = value.toMap(); const auto messages = session.value("messages").toList();
+        if (session.value("feature") == "chat") releaseSettledContext(tasks, session.value("id").toString(), messages.value(messages.size() - 1).toMap().value("id").toString());
     }
     state["tasks"] = tasks;
     return state;
@@ -666,6 +681,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
         } else { item["output"] = ""; item["messages"] = List{}; }
         Map started{{"id", id}, {"attemptID", attemptID}, {"attemptNumber", 1}, {"request", request}, {"status", "running"}, {"output", ""}};
         if (clock(p) > 0) started["started"] = clock(p);
+        if (feature == "chat") releaseSettledContext(tasks, sessionID, {});
         tasks.prepend(started);
     } else if (name == "cancel" || name == "retry" || name == "receive") {
         const auto ti = find(tasks, p.value("taskID").toString());

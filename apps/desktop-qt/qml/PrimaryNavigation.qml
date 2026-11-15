@@ -14,17 +14,18 @@ Pane {
     signal commands(var opener)
     signal dismissed()
     signal toggleRequested(var opener)
-    readonly property var metrics: bridge.resources.metrics
-    readonly property bool glass: bridge.state.appearance?.preset === "glass"
+    readonly property var metrics: bridge.metrics
+    readonly property bool glass: bridge.appearance?.preset === "glass"
     SurfaceAppearance { id: surfaceAppearance }
-    readonly property bool darkMode: bridge.state.appearance?.mode === "dark" || (bridge.state.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
+    readonly property bool darkMode: bridge.appearance?.mode === "dark" || (bridge.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
     readonly property bool lightGlass: glass && !darkMode
     readonly property real headerHeight: metrics.navControl + metrics.small
-    readonly property var chromeColors: bridge.resources.themePalettes[(bridge.state.appearance?.preset || "graphite") + ":" + (bridge.state.appearance?.accent || "auto")][darkMode ? "dark" : "light"]
+    readonly property var chromeColors: bridge.palettes[darkMode ? "dark" : "light"]
     function focusInitial() { search.forceActiveFocus() }
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     readonly property var systemIDs: ["apps", "thermal", "utilities", "settings"]
-    function available(id) { return id === "settings" || !(bridge.state.disabledModules || []).includes(id === "everywhere" ? "translate" : id) }
+    function available(id) { return id === "settings" || !bridge.disabledModules.includes(id === "everywhere" ? "translate" : id) }
     // Glass: the pane is inset `small` from the window's leading edge; rows sit `gap` inside it.
     padding: glass ? metrics.gap : metrics.small
     leftPadding: glass ? metrics.small + metrics.gap : padding

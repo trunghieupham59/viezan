@@ -345,10 +345,12 @@ import Observation
         guard let current = session(id), current.draft != text else { return }
         if current.feature != .chat { cancelComparisons(id) }
         if current.feature != .chat, let task = running(id) { cancel(task.id) }
-        edit(id) { item in
+        // Typing saves once it pauses; every other edit, submit and quit flush at once.
+        edit(id, persist: false) { item in
             item.draft = text; item.revision += 1; item.assemblyParts = nil
             if item.feature != .chat { item.output = "" }
         }
+        scheduleSave()
         scheduleTranslation(id)
     }
     public func setModel(_ id: String, _ model: String) {
@@ -561,6 +563,14 @@ import Observation
                 item.messages.append(Message(id: task.id, role: "assistant", text: ""))
                 item.draft = ""; item.images = nil
             } else { item.output = ""; item.messages = [] }
+        }
+        // A finished chat answer can be regenerated only while it is the newest message. Once the
+        // conversation moves on, the context frozen in its request is never read again: drop that
+        // copy so the workspace does not grow with the square of the conversation length.
+        if current.feature == .chat {
+            for index in workspace.tasks.indices where workspace.tasks[index].status == .succeeded && workspace.tasks[index].request.feature == .chat && workspace.tasks[index].request.sessionID == id {
+                workspace.tasks[index].request.messages = []
+            }
         }
         workspace.tasks.insert(task, at: 0); save()
         guard savedForDispatch(task) else { return nil }
@@ -804,10 +814,10 @@ import Observation
         catch { storageError = "storageError" }
     }
     private func scheduleSave() {
-        // Coalesce streaming writes; terminal events, edits and normal quit flush synchronously.
+        // Coalesce streaming and typing writes; terminal events, other edits and normal quit flush synchronously.
         guard deferredSave == nil else { return }
         deferredSave = Task { [weak self] in
-            do { try await Task.sleep(for: .milliseconds(200)); try Task.checkCancellation(); self?.save() }
+            do { try await Task.sleep(for: .milliseconds(500)); try Task.checkCancellation(); self?.save() }
             catch { /* A synchronous save already flushed the current state. */ }
         }
     }

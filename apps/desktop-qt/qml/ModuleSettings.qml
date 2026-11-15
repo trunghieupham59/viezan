@@ -5,10 +5,11 @@ ColumnLayout {
     id: modules
     required property var bridge
     readonly property var workspaceModules: ["chat","translate","interpret","dictionary","thermal","apps"]
-    readonly property var disabledModules: bridge.state.disabledModules || []
+    readonly property var disabledModules: bridge.disabledModules
     readonly property var enabledModules: workspaceModules.filter(id => !disabledModules.includes(id))
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
-    spacing: bridge.resources.metrics.inset
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
+    spacing: bridge.metrics.inset
     Repeater {
         model: [{title:"modulesWorkspaceGroup", ids:modules.workspaceModules}, {title:"modulesSystemGroup", ids:["utilities"]}]
         delegate: Kit.CardBox {

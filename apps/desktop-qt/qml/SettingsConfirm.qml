@@ -9,9 +9,9 @@ Dialog {
     property string actionText: ""
     property bool destructive: true
     property bool actionEnabled: true
-    readonly property var metrics: bridge.resources.metrics
-    readonly property bool dark: bridge.state.appearance?.preset === "midnight" || bridge.state.appearance?.mode === "dark" || (bridge.state.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
-    readonly property var colors: bridge.resources.themePalettes[(bridge.state.appearance?.preset || "graphite") + ":" + (bridge.state.appearance?.accent || "auto")][dark ? "dark" : "light"]
+    readonly property var metrics: bridge.metrics
+    readonly property bool dark: bridge.appearance?.preset === "midnight" || bridge.appearance?.mode === "dark" || (bridge.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
+    readonly property var colors: bridge.palettes[dark ? "dark" : "light"]
     property Item previousFocus: null
     onAboutToShow: previousFocus = parent ? parent.Window.window.activeFocusItem : null
     onOpened: cancelButton.forceActiveFocus(Qt.PopupFocusReason)
@@ -38,7 +38,7 @@ Dialog {
         background: Item {}
         Kit.GlassButton {
             id: cancelButton
-            text: dialog.bridge.resources.locales[dialog.bridge.state.locale].cancel
+            text: dialog.bridge.strings.cancel
             DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
         }
         Kit.PrimaryButton {

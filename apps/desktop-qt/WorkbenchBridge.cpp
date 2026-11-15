@@ -114,8 +114,21 @@ WorkbenchBridge::WorkbenchBridge(QObject *parent, const QString &storageFile, bo
         }
         emit changed();
     });
+    m_notifyTimer.setSingleShot(true);
+    m_notifyTimer.setInterval(33);
+    connect(&m_notifyTimer, &QTimer::timeout, this, &WorkbenchBridge::changed);
+    connect(this, &WorkbenchBridge::changed, this, [this] {
+        m_notifyTimer.stop();
+        const auto locale = m_state.value("locale").toString(); const auto appearance = m_state.value("appearance").toMap();
+        if (locale != m_locale) { m_locale = locale; emit localeChanged(); }
+        if (appearance != m_appearance) { m_appearance = appearance; emit appearanceChanged(); }
+        const auto modules = m_state.value("disabledModules").toStringList();
+        if (modules != m_disabledModules) { m_disabledModules = modules; emit disabledModulesChanged(); }
+        const auto voice = m_state.contains("voice") ? m_state.value("voice").toMap() : QVariantMap{{"provider", "system"}, {"voice", ""}, {"rate", 1}};
+        if (voice != m_voice) { m_voice = voice; emit voiceChanged(); }
+    });
     m_saveTimer.setSingleShot(true);
-    m_saveTimer.setInterval(200);
+    m_saveTimer.setInterval(500);
     // Find which local runtimes and keyed cloud providers this device can use.
     if (m_automaticProvider) QTimer::singleShot(0, this, &WorkbenchBridge::discoverProviders);
     connect(&m_saveTimer, &QTimer::timeout, this, &WorkbenchBridge::save);
@@ -219,6 +232,10 @@ void WorkbenchBridge::command(const QString &name, const QVariantMap &payload) {
     if (m_state.value("appearance") != oldAppearance) applyAppearance(m_state);
     if (name == "receive" && !payload.contains("terminal")) {
         if (!m_saveTimer.isActive()) m_saveTimer.start();
+        if (!m_notifyTimer.isActive()) m_notifyTimer.start();
+    } else if (name == "draft") {
+        // Typing saves once it pauses; shutdown and every other command flush at once.
+        m_saveTimer.start();
         emit changed();
     } else save();
     if (!m_storageError.isEmpty()) {

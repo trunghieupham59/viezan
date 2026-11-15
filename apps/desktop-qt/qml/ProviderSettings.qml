@@ -5,13 +5,14 @@ ColumnLayout {
     id: providers
     required property var bridge
     signal feedback(string message, bool error)
-    readonly property var metrics: bridge.resources.metrics
+    readonly property var metrics: bridge.metrics
     property color dangerColor: palette.placeholderText
     property string editing: ""
     property bool saving: false
     readonly property var names: ({openai: "OpenAI", claude: "Claude", gemini: "Gemini", groq: "Groq", tavily: "Tavily", brave: "Brave Search", jina: "Jina", elevenlabs: "ElevenLabs"})
     readonly property var links: ({openai: "https://platform.openai.com/api-keys", claude: "https://console.anthropic.com/settings/keys", gemini: "https://aistudio.google.com/apikey", groq: "https://console.groq.com/keys", tavily: "https://app.tavily.com", brave: "https://api.search.brave.com", jina: "https://jina.ai", elevenlabs: "https://elevenlabs.io"})
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     function status(id) {
         const state = (bridge.localModels, bridge.discovering, bridge.credentialStatus, bridge.providerState(id))
         if (!state.keyed) return [t("keyAbsent"), "idle"]
