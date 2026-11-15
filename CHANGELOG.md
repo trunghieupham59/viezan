@@ -6,6 +6,8 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+- The Windows installer asks you to close a running Viezan before updating
+  instead of failing on each locked file.
 - Make the Windows/Linux Glass theme easier to read: settings card titles sit
   inside their card, switches follow the theme instead of the system accent,
   dark-mode glass buttons lose their bright streak, Home quick-start tiles are
