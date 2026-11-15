@@ -32,6 +32,9 @@ The authoritative Qt reducer is now `apps/desktop-qt/WorkbenchDomain.cpp`.
 Model IDs also accept `ollama:<installed-model-name>`. Optional request `messages`
 is an array of `{role, content}` captured at submission and reused unchanged on
 retry. Older snapshots omit it; their request falls back to the saved input.
+A succeeded chat task can be retried only while its answer is the newest message,
+so its `messages` is emptied once the conversation continues (on the next submit,
+and for existing snapshots when the Qt app loads them).
 The Swift/Qt transports support Ollama discovery and streaming over fixed loopback.
 See [Native code 32](../../docs/migration/native-implementation/native-code-32.md).
 The new implementation has not been built or tested.

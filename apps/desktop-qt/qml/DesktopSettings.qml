@@ -7,7 +7,8 @@ ColumnLayout {
     property string route: ""
     property string diagnosticsText: ""
     property var desktop: bridge.desktopIntegration
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     function tpl(key, values) { let text = t(key); for (const name in values) text = text.split("{" + name + "}").join(values[name]); return text }
     Label { visible: !settings.route; text: settings.t("modulesTitle"); font.bold: true }
     Repeater {
@@ -29,7 +30,7 @@ ColumnLayout {
         }
     }
     ShortcutRecorder { id: recorder; bridge: settings.bridge; desktop: settings.desktop }
-    Label { visible: settings.route === "utilities"; text: settings.t("shortcutPlatformHint"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.topMargin: settings.bridge.resources.metrics.small }
+    Label { visible: settings.route === "utilities"; text: settings.t("shortcutPlatformHint"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true; Layout.topMargin: settings.bridge.metrics.small }
     Repeater {
         model: settings.route ? [] : settings.desktop.shortcuts
         delegate: ColumnLayout {
@@ -43,7 +44,7 @@ ColumnLayout {
     }
     Flow {
         visible: !settings.route
-        Layout.fillWidth: true; spacing: settings.bridge.resources.metrics.small
+        Layout.fillWidth: true; spacing: settings.bridge.metrics.small
         Kit.GlassButton { text: settings.t("launcher"); onClicked: settings.desktop.trigger("launcher") }
         Kit.GlassButton { text: settings.t("quickChat"); onClicked: settings.desktop.trigger("quickChat") }
     }

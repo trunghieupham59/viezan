@@ -17,10 +17,10 @@ ApplicationWindow {
     Launcher { id: launcher; bridge: workbench; onAskRequested: text => panels.ask(text); onOpenMainRequested: sessionID => { root.choose(sessionID); root.show(); root.raise(); root.requestActivate() } }
     visible: true
     readonly property var workspace: workbench.state
-    readonly property var metrics: workbench.resources.metrics
-    readonly property bool darkMode: workspace.appearance?.preset === "midnight" || workspace.appearance?.mode === "dark" || (workspace.appearance?.mode !== "light" && workspace.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
-    readonly property var colors: workbench.resources.themePalettes[(workspace.appearance?.preset || "graphite") + ":" + (workspace.appearance?.accent || "auto")][darkMode ? "dark" : "light"]
-    readonly property bool glassChrome: workspace.appearance?.preset === "glass"
+    readonly property var metrics: workbench.metrics
+    readonly property bool darkMode: workbench.appearance?.preset === "midnight" || workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
+    readonly property var colors: workbench.palettes[darkMode ? "dark" : "light"]
+    readonly property bool glassChrome: workbench.appearance?.preset === "glass"
     SurfaceAppearance { id: surfaceAppearance }
     readonly property bool solidChrome: surfaceAppearance.solid
     readonly property bool lightGlass: glassChrome && !darkMode
@@ -44,9 +44,12 @@ ApplicationWindow {
     palette.disabled.button: colors["surface-subtle"]
     readonly property var session: root.workspace.sessions.find(item => item.id === root.workspace.active[root.workspace.feature])
     readonly property var activeTask: root.workspace.tasks.find(task => task.request.sessionID === session.id && task.status === "running")
-    readonly property var languages: workbench.resources.nativeLanguages
+    readonly property var languages: nativeResources.nativeLanguages
     readonly property var models: Array.from(new Set(workbench.localModels.concat([session.model]).filter(id => !id.startsWith("demo.")))).sort()
-    readonly property real readingPointSize: Qt.application.font.pointSize * workbench.resources.textScales[root.workspace.appearance?.textSize || "medium"]
+    // `resources` never changes: convert it once instead of on every binding update.
+    readonly property var nativeResources: workbench.resources
+    readonly property var textScales: nativeResources.textScales
+    readonly property real readingPointSize: Qt.application.font.pointSize * textScales[workbench.appearance?.textSize || "medium"]
     readonly property bool compact: width < metrics.compact
     readonly property bool navigationCollapsed: !!workspace.shell?.navigationCollapsed
     property var overlayOpener: null
@@ -58,7 +61,7 @@ ApplicationWindow {
     readonly property var paletteResult: workbench.desktopIntegration.paletteQuery(commandQuery)
     readonly property var commandEntries: {
         const special = paletteResult.kind
-        const entries = workbench.resources.commands.filter(item =>
+        const entries = nativeResources.commands.filter(item =>
         (!workbench.loadBlocked || ["settings", "activity"].includes(item.id)) &&
         (item.id !== "history" || (!home && !settings && !library)) &&
         (["new", "history", "activity", "navigation", "settings"].includes(item.id) || workbench.moduleEnabled(item.id)) && (special || normalize(t(item.title)).includes(normalize(commandQuery.trim()))))
@@ -146,16 +149,20 @@ ApplicationWindow {
     property string quickID: ""
     property string historyFeature: workspace.feature
     onLibraryChanged: if (library) historyFeature = workspace.feature
-    readonly property var historyRecords: glassChrome
+    // Glass keeps history in a popup and the library: skip the search while neither is open.
+    readonly property bool historyShown: !glassChrome || library || history.visible
+    readonly property var historyRecords: !historyShown ? [] : glassChrome
         ? (workspace, workbench.history(historyQuery, library && archivedHistory, library ? (historyFeature ? [historyFeature] : []) : [workspace.feature]))
             .filter(item => !library || !favoritesOnly || item.feature !== "dictionary" || !!item.favorite)
             .map(item => Object.assign({}, item, {bucket: historyBucket(library && archivedHistory ? (item.archivedAt || item.updated) : item.updated)}))
         : root.workspace.sessions.filter(matches)
-    readonly property var recentSessions: (workspace, workbench.history("", false, [])).filter(item => item.id !== session.id).slice(0, 3)
+    readonly property var recentSessions: glassChrome && !(session.messages || []).length && !activeTask ? (workspace, workbench.history("", false, [])).filter(item => item.id !== session.id).slice(0, 3) : []
     readonly property var activityRows: {
         let result = [], groups = {}
+        const sessionByID = {}
+        for (const item of workspace.sessions) sessionByID[item.id] = item
         for (const task of workspace.tasks) {
-            const target = workspace.sessions.find(item => item.id === task.request.sessionID)
+            const target = sessionByID[task.request.sessionID]
             if (!target) continue
             if (target.comparisonParent) {
                 if (!groups[target.comparisonParent]) {
@@ -226,6 +233,7 @@ ApplicationWindow {
     }
 
     onHistoryRecordsChanged: {
+        if (!historyShown) return
         if (!historyRecords.some(item => item.id === quickID)) quickID = historyRecords[0]?.id || ""
         if (!historyRecords.some(item => item.id === previewID)) previewID = historyRecords[0]?.id || ""
     }
@@ -238,7 +246,8 @@ ApplicationWindow {
     color: glassChrome ? colors["app-bg"] : palette.base
     // Liquid Glass 2.0: the lit scene behind every layer, light and dark.
     background: Kit.AppBackdrop { visible: root.glassChrome }
-    function t(key) { return workbench.resources.locales[root.workspace.locale][key] || key }
+    readonly property var localeStrings: workbench.strings
+    function t(key) { return localeStrings[key] || key }
     function command(name, payload) { workbench.command(name, payload || {}) }
     function titleFor(item) { return item.title || t(item.feature === "chat" ? "newChat" : item.feature === "dictionary" ? "newLookup" : "newTranslation") }
     function lang(code) { return t("lang_" + code) }
@@ -252,7 +261,7 @@ ApplicationWindow {
     }
     function matches(item) {
         const normalize = value => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/đ/g, "d")
-        return (!root.library || !root.favoritesOnly || item.feature !== "dictionary" || !!item.favorite) && !item.comparisonParent && item.feature === root.workspace.feature && !!item.archived === (root.library && root.archivedHistory) && normalize(titleFor(item) + " " + item.draft + " " + item.output + " " + item.messages.map(message => message.text).join(" ")).includes(normalize(historyQuery.trim()))
+        return (!root.library || !root.favoritesOnly || item.feature !== "dictionary" || !!item.favorite) && !item.comparisonParent && item.feature === root.workspace.feature && !!item.archived === (root.library && root.archivedHistory) && (!historyQuery.trim() || normalize(titleFor(item) + " " + item.draft + " " + item.output + " " + item.messages.map(message => message.text).join(" ")).includes(normalize(historyQuery.trim())))
     }
     function choose(id) { if (workspace.sessions.find(item => item.id === id)?.archived) return; closeOverlays(true); command("select", {sessionID: id}); settings = false; home = false; library = false; command("route", {value: workspace.feature}) }
     function moveHistory(list, offset) {
@@ -734,7 +743,7 @@ ApplicationWindow {
                     Kit.PanelRow { objectName: "chat-instructions-trigger"; text: root.t("systemPrompt"); iconName: "instructions"; disclosure: true; detail: (root.workspace.prompts || []).find(item => item.text === root.session.systemPrompt)?.name || (root.session.systemPrompt ? root.t("customInstruction") : root.t("noInstruction")); Layout.fillWidth: true; onClicked: root.showComposerPanel(instructionsPanel, attachmentButton) }
                     Rectangle { Layout.fillWidth: true; Layout.topMargin: metrics.tight; Layout.bottomMargin: metrics.tight; implicitHeight: metrics.hairline; color: root.colors.border }
                     Kit.PanelRow { visible: root.width < metrics.reading; text: root.t(workbench.audio.recording ? "stopRecording" : "record"); iconName: "interpret"; Layout.fillWidth: true; enabled: !workbench.audio.busy; onClicked: { toolsPanel.close(); workbench.audio.recording ? workbench.audio.stop(workspace.speechProvider || "auto") : workbench.startRecording() } }
-                    Kit.PanelRow { text: root.t("listen"); iconName: "listen"; Layout.fillWidth: true; enabled: !!root.speechText().trim(); onClicked: { toolsPanel.close(); workbench.audio.speak(root.speechText(), workbench.speechLanguage(root.speechText(), root.workspace.locale)) } }
+                    Kit.PanelRow { text: root.t("listen"); iconName: "listen"; Layout.fillWidth: true; enabled: !!root.speechText().trim(); onClicked: { toolsPanel.close(); workbench.audio.speak(root.speechText(), workbench.speechLanguage(root.speechText(), workbench.locale)) } }
                     Kit.PanelRow { objectName: "chat-tools-stop"; text: root.t("stopSpeaking"); iconName: "close"; Layout.fillWidth: true; enabled: workbench.audio.speaking; onClicked: { toolsPanel.close(); workbench.audio.silence() } }
                 }
             }
@@ -912,6 +921,7 @@ ApplicationWindow {
             spacing: metrics.gap
             Item { visible: chatWorkspace.groupedEmpty; Layout.fillHeight: true; Layout.preferredHeight: 0; Layout.verticalStretchFactor: 2 }
             ChatTranscript {
+                snapshot: root.workspace
                 id: transcript
                 bridge: workbench
                 session: root.session
@@ -1199,6 +1209,7 @@ ApplicationWindow {
                     id: translationOptionsScroll
                     contentWidth: availableWidth
                     TranslationOptions {
+                        workspace: root.workspace
                         width: translationOptionsScroll.availableWidth
                         bridge: workbench
                         session: root.session
@@ -1321,7 +1332,7 @@ ApplicationWindow {
                         Item { Layout.fillWidth: true }
                         Kit.GlassButton { flat: true; text: t(session.favorite ? "savedWord" : "saveWord"); checkable: true; checked: !!session.favorite; onClicked: { const saved = !session.favorite; command("favorite"); root.notify(tpl(saved ? "wordSavedToast" : "wordUnsavedToast", {word:session.draft})) } }
                     }
-                    DictionaryResult { visible: !!session.output; Layout.fillWidth: true; output: session.output; bridge: workbench; shell: root }
+                    DictionaryResult { snapshot: root.workspace; visible: !!session.output; Layout.fillWidth: true; output: session.output; bridge: workbench; shell: root }
                 }
             }
             Kit.Card {
@@ -1453,6 +1464,7 @@ ApplicationWindow {
     Component {
         id: homeView
         HomeWorkspace {
+            snapshot: root.workspace
             bridge: workbench
             dangerColor: root.colors.danger
             onStart: feature => { root.selectRoute(feature); if (feature !== "interpret") { root.command("new"); root.composerFocusEpoch++ } }
@@ -1466,7 +1478,7 @@ ApplicationWindow {
     }
     Component {
         id: interpretationView
-        InterpretationWorkspace { bridge: workbench; shell: root; dangerColor: root.colors.danger; onOpenSettings: section => root.openSettingsSection(section) }
+        InterpretationWorkspace { snapshot: root.workspace; bridge: workbench; shell: root; dangerColor: root.colors.danger; onOpenSettings: section => root.openSettingsSection(section) }
     }
     Component {
         id: thermalView
@@ -1474,12 +1486,12 @@ ApplicationWindow {
     }
     Component {
         id: desktopView
-        DesktopWorkspace { bridge: workbench; route: root.systemRoute; onRouteRequested: value => root.selectRoute(value); onNewTranslation: { root.selectRoute("translate"); root.command("new"); root.composerFocusEpoch++ } }
+        DesktopWorkspace { snapshot: root.workspace; bridge: workbench; route: root.systemRoute; onRouteRequested: value => root.selectRoute(value); onNewTranslation: { root.selectRoute("translate"); root.command("new"); root.composerFocusEpoch++ } }
     }
 
     Component {
         id: settingsView
-        SettingsWorkspace { bridge: workbench; searchAnchor: settingsHeaderSearch; onFeedback: (message, error) => root.notify(message, null, error); dangerColor: root.colors.danger; query: root.settingsQuery; requestedSection: root.settingsSection; onQueryEdited: value => root.settingsQuery = value; onSectionOpened: root.settingsSection = ""; onRouteRequested: route => root.selectRoute(route) }
+        SettingsWorkspace { workspace: root.workspace; bridge: workbench; searchAnchor: settingsHeaderSearch; onFeedback: (message, error) => root.notify(message, null, error); dangerColor: root.colors.danger; query: root.settingsQuery; requestedSection: root.settingsSection; onQueryEdited: value => root.settingsQuery = value; onSectionOpened: root.settingsSection = ""; onRouteRequested: route => root.selectRoute(route) }
     }
     component HistoryList: ListView {
         id: historyList
@@ -1710,6 +1722,7 @@ ApplicationWindow {
                 }
                 Rectangle { visible: !!glassPreview.selected; Layout.fillWidth: true; implicitHeight: metrics.hairline; color: root.colors.border }
                 ChatTranscript {
+                    snapshot: root.workspace
                     visible: glassPreview.selected?.feature === "chat"
                     bridge: workbench; session: glassPreview.selected || {id: "", messages: []}
                     readingPointSize: root.readingPointSize
@@ -1738,7 +1751,7 @@ ApplicationWindow {
                             visible: glassPreview.selected?.feature === "translate"
                             text: glassPreview.selected?.output || root.t("emptyResult"); readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; background: null; Layout.fillWidth: true; Accessible.name: root.t("result")
                         }
-                        DictionaryResult { visible: glassPreview.selected?.feature === "dictionary"; session: glassPreview.selected; output: glassPreview.selected?.output || ""; bridge: workbench; shell: root; Layout.fillWidth: true; Layout.preferredHeight: metrics.editor * 2 }
+                        DictionaryResult { snapshot: root.workspace; visible: glassPreview.selected?.feature === "dictionary"; session: glassPreview.selected; output: glassPreview.selected?.output || ""; bridge: workbench; shell: root; Layout.fillWidth: true; Layout.preferredHeight: metrics.editor * 2 }
                         RowLayout {
                             visible: glassPreview.selected?.feature === "translate"
                             Kit.QuietButton { text: root.t("copy"); enabled: !!glassPreview.selected?.output; onClicked: { workbench.copy(glassPreview.selected.output); root.notify(root.t("copied")) } }
@@ -1858,7 +1871,8 @@ ApplicationWindow {
                         }
                     }
                     Repeater {
-                        model: root.activityRows
+                        // One row per task: build them only while the panel is open.
+                        model: activity.visible ? root.activityRows : []
                         delegate: Frame {
                             required property var modelData
                             readonly property var task: modelData.tasks[0]

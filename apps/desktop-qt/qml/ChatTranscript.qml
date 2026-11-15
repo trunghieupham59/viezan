@@ -7,20 +7,23 @@ import QtQuick.Dialogs
 Item {
     id: chat
     required property var bridge
+    // One conversion of the bridge state per change, shared by every binding below.
+    // A host that already holds one passes it in.
+    property var snapshot: bridge.state
     required property var session
     required property real readingPointSize
-    readonly property var metrics: bridge.resources.metrics
+    readonly property var metrics: bridge.metrics
     property bool preview: false
     signal notification(string text, bool error)
     signal imageExportRequested(url url, var image)
-    readonly property bool glass: bridge.state.appearance?.preset === "glass"
-    readonly property bool dark: bridge.state.appearance?.mode === "dark" || (bridge.state.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
-    readonly property var colors: bridge.resources.themePalettes[(bridge.state.appearance?.preset || "graphite") + ":" + (bridge.state.appearance?.accent || "auto")][dark ? "dark" : "light"]
+    readonly property bool glass: bridge.appearance?.preset === "glass"
+    readonly property bool dark: bridge.appearance?.mode === "dark" || (bridge.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
+    readonly property var colors: bridge.palettes[dark ? "dark" : "light"]
     readonly property real emptyHeight: glass ? glassGreeting.implicitHeight : emptyGreeting.implicitHeight
     function tpl(key, values) { let text = t(key); for (const name in values) text = text.split("{" + name + "}").join(values[name]); return text }
     function duration(task) {
         if (!task?.started || !task?.finished) return ""
-        return tpl("durationSeconds", {n: Number(Math.max(0, task.finished - task.started)).toLocaleString(Qt.locale(bridge.state.locale), 'f', 1)})
+        return tpl("durationSeconds", {n: Number(Math.max(0, task.finished - task.started)).toLocaleString(Qt.locale(bridge.locale), 'f', 1)})
     }
     function imageCaption(images, task) {
         const first = images[0] || {}, size = first.width && first.height ? first.width + "×" + first.height : ""
@@ -33,7 +36,11 @@ Item {
     property string conversationID: ""
     property bool ready: false
     objectName: "chat-transcript"
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
+    // Looked up once per change instead of once per message row.
+    readonly property var taskByID: { const index = {}; for (const task of snapshot.tasks) index[task.id] = task; return index }
+    readonly property bool sessionBusy: snapshot.tasks.some(task => task.request.sessionID === session.id && task.status === "running")
     function reconcile() {
         if (!ready) return
         const messages = preview && session.draft ? session.messages.concat([{id: session.id + "-draft", role: "user", text: session.draft}]) : session.messages
@@ -43,7 +50,7 @@ Item {
         }
         for (let index = 0; index < messages.length; index++) {
             const message = messages[index]
-            const status = bridge.state.tasks.find(task => task.id === message.id)?.status || "noContent"
+            const status = taskByID[message.id]?.status || "noContent"
             const values = {status: status, messageID: message.id, speaker: message.role, rawBody: message.text, displayBody: glass ? (message.text || "") : ((message.images || []).map(image => image.name).join("\n") + ((message.images || []).length ? "\n" : "") + (message.text || ((message.images || []).length ? "" : t(status))))}
             if (index >= rows.count) rows.append(values)
             else for (const key of Object.keys(values)) if (rows.get(index)[key] !== values[key]) rows.setProperty(index, key, values[key])
@@ -84,7 +91,7 @@ Item {
             required property string status
             required property string rawBody
             required property string displayBody
-            readonly property var task: chat.bridge.state.tasks.find(item => item.id === messageID)
+            readonly property var task: chat.taskByID[messageID]
             readonly property bool failed: ["failed", "cancelled", "interrupted"].includes(status)
             readonly property bool latestAnswer: chat.session.messages.slice(-1)[0]?.id === messageID
             readonly property var pictures: chat.session.messages.find(item => item.id === messageID)?.images || []
@@ -252,7 +259,7 @@ Item {
                         objectName: "chat-retry-" + messageID
                         visible: chat.glass && !!messageRow.task && messageRow.latestAnswer && status !== "running"
                         text: chat.t("retry")
-                        enabled: !chat.session.archived && !chat.bridge.state.tasks.some(task => task.request.sessionID === chat.session.id && task.status === "running")
+                        enabled: !chat.session.archived && !chat.sessionBusy
                         palette.buttonText: chat.colors["action-text"]
                         onClicked: chat.bridge.command("retry", {taskID: messageRow.messageID})
                     }

@@ -94,7 +94,7 @@ import Testing
     first.setDraft(first.session.id, "Question")
     let task = try #require(first.submit(first.session.id))
     first.receive(taskID: task.id, attemptID: task.attemptID, chunk: "Partial")
-    first.setDraft(first.session.id, "Unsent draft")
+    first.setDraft(first.session.id, "Unsent draft"); first.save() // typing is flushed after a short pause
     let recovered = WorkbenchStore(persistence: persistence, automaticProvider: false)
     #expect(recovered.recovered)
     #expect(recovered.workspace.tasks[0].status == .interrupted)
@@ -107,7 +107,7 @@ import Testing
     let persistence = MemoryPersistence()
     let store = WorkbenchStore(persistence: persistence, automaticProvider: false)
     persistence.failSave = true
-    store.setDraft(store.session.id, "Keep me")
+    store.setDraft(store.session.id, "Keep me"); store.save() // typing is flushed after a short pause
     #expect(store.storageError == "storageError")
     #expect(store.session.draft == "Keep me")
     persistence.failSave = false; store.save()
@@ -1070,4 +1070,18 @@ import Testing
     #expect(interpretation.export(srt: false, translatedOnly: true).hasPrefix("[A] Xin chào"))
     #expect(!interpretation.export(srt: true, translatedOnly: true).contains("Hello"))
     #expect(interpretation.export(srt: false).hasPrefix("[A] Hello\nXin chào"))
+}
+
+@Test @MainActor func settledChatContextIsReleased() throws {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
+    let id = store.session.id
+    store.setDraft(id, "One")
+    let first = try #require(store.submit(id))
+    store.receive(taskID: first.id, attemptID: first.attemptID, chunk: "First", terminal: .succeeded)
+    // The newest answer keeps its frozen context: it can still be regenerated.
+    #expect(store.workspace.tasks.first(where: { $0.id == first.id })?.request.messages?.count == 1)
+    store.setDraft(id, "Two")
+    let second = try #require(store.submit(id))
+    #expect(store.workspace.tasks.first(where: { $0.id == first.id })?.request.messages?.isEmpty == true)
+    #expect(store.workspace.tasks.first(where: { $0.id == second.id })?.request.messages?.count == 3)
 }

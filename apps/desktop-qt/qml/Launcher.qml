@@ -13,7 +13,8 @@ AuxiliaryWindow {
     property string quickSessionID: ""
     readonly property var desktop: bridge.desktopIntegration
     property int homeEpoch: 0
-    readonly property var home: { bridge.state; homeEpoch; return bridge.launcherHome(quickSessionID) }
+    // Hidden, the launcher follows module changes only; showing it refreshes everything (homeEpoch).
+    readonly property var home: { if (visible) bridge.state; else bridge.disabledModules; homeEpoch; return bridge.launcherHome(quickSessionID) }
     onVisibleChanged: if (visible) homeEpoch++
     property string query: ""
     property string resultsQuery: ""

@@ -11,11 +11,11 @@ Kit.QuietButton {
     readonly property string contentOwner: sources.map(source => source.id).join("\n")
     onContentOwnerChanged: if (listenPanel.visible) listenPanel.close()
     property var audio: workbench.audio
-    readonly property var voice: workbench.state.voice || {provider:"system", voice:"", rate:1}
+    readonly property var voice: workbench.voice
     readonly property bool readingHere: audio.speaking && sources.some(source => source.id === audio.speakingSource)
     readonly property string providerName: ({system:t("voiceSystem"), edge:"Microsoft Edge", openai:"OpenAI", gemini:"Gemini", elevenlabs:"ElevenLabs"})[voice.provider] || t("voiceSystem")
     readonly property string chosenVoiceName: listenPanel.visible && voice.provider === "system" ? (audio.voiceList || []).find(item => item.name === voice.voice)?.name || "" : ""
-    readonly property var strings: workbench.resources.locales[workbench.state.locale]
+    readonly property var strings: workbench.strings
     function t(key) { return strings[key] || key }
     function tpl(key, values) { let text = t(key); Object.keys(values).forEach(key => text = text.split("{" + key + "}").join(values[key])); return text }
     function read(source, provider) { audio.speak(source.text, source.language, source.id, provider || "") }

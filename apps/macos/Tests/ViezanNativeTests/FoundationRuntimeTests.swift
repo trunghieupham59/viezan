@@ -479,7 +479,7 @@ extension AppKitFixtureTests {
             store.reload()
             #expect(!store.loadBlocked)
             storage.failSave = true
-            store.setDraft(store.session.id, "Keep unsaved text")
+            store.setDraft(store.session.id, "Keep unsaved text"); store.save() // typing is flushed after a short pause
             #expect(store.storageError == "storageError")
             host.layoutSubtreeIfNeeded()
             #expect(store.session.draft == "Keep unsaved text")
@@ -513,7 +513,7 @@ extension AppKitFixtureTests {
                             storage.failLoad = failure == "load"
                             store.reload()
                             storage.failSave = failure == "save"
-                            if failure == "save" { store.setDraft(store.session.id, "Keep unsaved draft 日本語 · Tiếng Việt") }
+                            if failure == "save" { store.setDraft(store.session.id, "Keep unsaved draft 日本語 · Tiếng Việt"); store.save() }
                             #expect(store.loadBlocked == (failure == "load"))
                             #expect(store.storageError != nil)
                             try await Task.sleep(for: .milliseconds(30))

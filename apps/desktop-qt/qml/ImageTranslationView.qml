@@ -12,11 +12,12 @@ ScrollView {
     readonly property var resultImage: session.messages.filter(value => value.role === "assistant").slice(-1)[0]?.images?.[0]
     readonly property bool complete: !!task && task.status === "succeeded"
     readonly property string translated: visible && image && complete && !resultImage ? bridge.translatedImage(image, session.output) : ""
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     contentWidth: availableWidth
     ColumnLayout {
         width: root.availableWidth
-        spacing: root.bridge.resources.metrics.small
+        spacing: root.bridge.metrics.small
         Image {
             Layout.fillWidth: true
             Layout.preferredHeight: width * (sourceSize.width > 0 ? sourceSize.height / sourceSize.width : 1)

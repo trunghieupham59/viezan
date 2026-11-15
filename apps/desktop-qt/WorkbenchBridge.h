@@ -50,6 +50,15 @@ class WorkbenchBridge final : public QObject {
     Q_PROPERTY(QString preferredModel READ preferredModel NOTIFY changed)
     Q_PROPERTY(QVariantMap state READ state NOTIFY changed)
     Q_PROPERTY(QJSValue resources READ scriptResources CONSTANT)
+    // Narrow views of state and resources. QML converts a whole QVariantMap on every read,
+    // so bindings that only need these must not depend on `state` or `resources`.
+    Q_PROPERTY(QString locale READ locale NOTIFY localeChanged)
+    Q_PROPERTY(QVariantMap strings READ strings NOTIFY localeChanged)
+    Q_PROPERTY(QVariantMap appearance READ appearance NOTIFY appearanceChanged)
+    Q_PROPERTY(QVariantMap palettes READ palettes NOTIFY appearanceChanged)
+    Q_PROPERTY(QVariantMap metrics READ metrics CONSTANT)
+    Q_PROPERTY(QStringList disabledModules READ disabledModules NOTIFY disabledModulesChanged)
+    Q_PROPERTY(QVariantMap voice READ voice NOTIFY voiceChanged)
     Q_PROPERTY(QString storageError READ storageError NOTIFY changed)
     Q_PROPERTY(bool loadBlocked READ loadBlocked NOTIFY changed)
     /// Smart reset: {feature, previousID} while a fresh turn replaced finished work after a break.
@@ -63,6 +72,14 @@ public:
     QVariantMap state() const { return m_state; }
     QVariantMap resources() const { return m_resources; }
     QJSValue scriptResources();
+    QString locale() const { return m_locale; }
+    QVariantMap strings() const { return m_resources.value("locales").toMap().value(m_locale).toMap(); }
+    QVariantMap appearance() const { return m_appearance; }
+    /// {light, dark} palettes of the current preset and accent.
+    QVariantMap palettes() const { return m_resources.value("themePalettes").toMap().value(m_appearance.value("preset", "graphite").toString() + ":" + m_appearance.value("accent", "auto").toString()).toMap(); }
+    QVariantMap metrics() const { return m_resources.value("metrics").toMap(); }
+    QStringList disabledModules() const { return m_disabledModules; }
+    QVariantMap voice() const { return m_voice; }
     QString storageError() const { return m_storageError; }
     bool loadBlocked() const { return m_loadBlocked; }
     Q_INVOKABLE bool moduleEnabled(const QString &route) const;
@@ -186,6 +203,10 @@ signals:
     void captureReady(const QUrl &image, int x, int y, int width, int height);
     void captureFinished();
     void changed();
+    void localeChanged();
+    void appearanceChanged();
+    void disabledModulesChanged();
+    void voiceChanged();
 private slots:
     void screenshotResponse(uint code, const QVariantMap &results);
 private:
@@ -241,6 +262,10 @@ private:
     bool m_loadBlocked = false;
     bool m_automaticProvider;
     QTimer m_saveTimer;
+    QTimer m_notifyTimer; // coalesces `changed` while a reply streams
+    QString m_locale;
+    QVariantMap m_appearance, m_voice{{"provider", "system"}, {"voice", ""}, {"rate", 1}};
+    QStringList m_disabledModules;
     void applyVoice();
     void synchronizeWorkers();
 };

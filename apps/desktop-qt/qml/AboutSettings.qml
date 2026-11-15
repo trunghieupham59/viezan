@@ -4,8 +4,9 @@ import QtQuick.Layouts
 ColumnLayout {
     id: about
     required property var bridge
-    readonly property var metrics: bridge.resources.metrics
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var metrics: bridge.metrics
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     spacing: metrics.inset
     Kit.CardBox {
         title: "Viezan"; Layout.fillWidth: true

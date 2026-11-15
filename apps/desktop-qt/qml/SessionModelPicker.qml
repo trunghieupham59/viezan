@@ -9,7 +9,7 @@ ColumnLayout {
     id: modelPicker
     required property var shell
     required property var bridge
-    readonly property var metrics: bridge.resources.metrics
+    readonly property var metrics: bridge.metrics
     readonly property var session: shell.session
     signal deletePromptRequested(string promptID)
     function t(key) { return shell.t(key) }

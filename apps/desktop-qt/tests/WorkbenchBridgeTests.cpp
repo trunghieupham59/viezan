@@ -25,6 +25,7 @@
 #include <QJsonDocument>
 #include <QJSValue>
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQmlComponent>
@@ -1964,7 +1965,7 @@ private slots:
         const QVariantMap research{{"phase", "survey"}, {"queries", QStringList{"Synthetic query"}}, {"cursor", 0}, {"findings", QStringList{"Synthetic evidence"}}, {"sources", QVariantList{QVariantMap{{"title", "Synthetic source"}, {"url", "https://example.org"}}}}, {"crossReference", "Synthetic cross-reference"}};
         bridge.command("receive", {{"taskID", researchTask.value("id")}, {"attemptID", researchTask.value("attemptID")}, {"research", research}});
         QQuickItem *researchToggle = nullptr; QTRY_VERIFY(researchToggle = visualItem(root->contentItem(), "chat-research-" + researchTask.value("id").toString()));
-        QVERIFY(researchToggle->isVisible()); researchToggle->setProperty("checked", true); QVERIFY(QMetaObject::invokeMethod(researchToggle, "toggled"));
+        QTRY_VERIFY(researchToggle->isVisible()); researchToggle->setProperty("checked", true); QVERIFY(QMetaObject::invokeMethod(researchToggle, "toggled"));
         QTRY_VERIFY(visualText(root->contentItem(), "Synthetic source"));
         bridge.command("cancel", {{"taskID", researchTask.value("id")}});
         // A comparison's two jobs occupy one Activity row and one running badge.
@@ -2885,6 +2886,9 @@ private slots:
     void w5aCompactShell();
     void w5aSolidAppearance();
     void w5aPaletteQueries();
+    // Timings only (no thresholds): run with `ViezanQtTests performanceBaseline`.
+    void performanceBaseline();
+    void settledChatContextIsReleased();
 
 };
 
@@ -3062,6 +3066,76 @@ void WorkbenchBridgeTests::w3MainAppsRoute() {
     QCOMPARE(warnings.count(), 0);
     // Context dependency outlives the route when the engine tears it down.
     delete engine.rootObjects().first();
+}
+
+// ---- Workspace size ----
+void WorkbenchBridgeTests::settledChatContextIsReleased() {
+    using WorkbenchDomain::command;
+    const auto context = [](const QVariantMap &state, const QString &id) { for (const auto &value : state.value("tasks").toList()) if (value.toMap().value("id") == id) return value.toMap().value("request").toMap().value("messages").toList().size(); return qsizetype(-1); };
+    auto state = WorkbenchDomain::create("chat", "translate");
+    state = command(state, "route", {{"value", "chat"}}, "x", "a");
+    state = command(state, "draft", {{"value", "One"}}, "x", "a"); state = command(state, "submit", {}, "q1", "a1");
+    state = command(state, "receive", {{"taskID", "q1"}, {"attemptID", "a1"}, {"chunk", "First"}, {"terminal", "succeeded"}}, "x", "a");
+    // The newest answer keeps its frozen context: it can still be regenerated.
+    QCOMPARE(context(state, "q1"), 1);
+    QCOMPARE(context(WorkbenchDomain::recover(state), "q1"), 1);
+    state = command(state, "draft", {{"value", "Two"}}, "x", "a"); state = command(state, "submit", {}, "q2", "b1");
+    QCOMPARE(context(state, "q1"), 0); QCOMPARE(context(state, "q2"), 3);
+    state = command(state, "receive", {{"taskID", "q2"}, {"attemptID", "b1"}, {"terminal", "failed"}, {"errorCode", "providerError"}}, "x", "a");
+    state = command(state, "draft", {{"value", "Three"}}, "x", "a"); state = command(state, "submit", {}, "q3", "c1");
+    // A failed attempt stays retryable, so its request is kept whole.
+    QCOMPARE(context(state, "q2"), 3);
+    QVERIFY(WorkbenchDomain::validate(state));
+    // Workspaces written before this rule shrink when they are loaded.
+    auto legacy = state; auto tasks = legacy.value("tasks").toList();
+    for (auto &value : tasks) { auto task = value.toMap(); if (task.value("id") == "q1") { auto request = task.value("request").toMap(); request["messages"] = QVariantList{QVariantMap{{"role", "user"}, {"content", "One"}, {"images", QVariantList{}}}}; task["request"] = request; value = task; } }
+    legacy["tasks"] = tasks; QCOMPARE(context(legacy, "q1"), 1);
+    QCOMPARE(context(WorkbenchDomain::recover(legacy), "q1"), 0);
+}
+
+// ---- Performance baseline ----
+void WorkbenchBridgeTests::performanceBaseline() {
+    QTemporaryDir dir; const auto file = dir.filePath("state.json");
+    QElapsedTimer timer; timer.start();
+    {
+        WorkbenchBridge seed(nullptr, file, false);
+        seed.command("route", {{"value", "chat"}});
+        const auto answer = QString("A paragraph of readable streamed content. ").repeated(12);
+        for (int session = 0; session < 20; ++session) {
+            if (session) seed.command("new");
+            for (int turn = 0; turn < 10; ++turn) {
+                seed.command("draft", {{"value", QString("Question %1").arg(turn)}}); seed.command("submit");
+                const auto task = latest(seed);
+                seed.command("receive", {{"taskID", task.value("id")}, {"attemptID", task.value("attemptID")}, {"chunk", answer}, {"terminal", "succeeded"}});
+            }
+        }
+        seed.shutdown(); QVERIFY(seed.storageError().isEmpty());
+    }
+    qInfo() << "perf seedMs" << timer.elapsed();
+    qInfo() << "perf stateBytes" << QFileInfo(file).size();
+    timer.restart();
+    WorkbenchBridge bridge(nullptr, file, false);
+    qInfo() << "perf bridgeStartMs" << timer.elapsed();
+    QQmlApplicationEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench", &bridge);
+    timer.restart();
+    engine.load(QUrl("qrc:/qml/Main.qml"));
+    QVERIFY(!engine.rootObjects().isEmpty());
+    QCoreApplication::processEvents();
+    qInfo() << "perf qmlLoadMs" << timer.elapsed();
+    timer.restart();
+    for (int key = 0; key < 20; ++key) { bridge.command("draft", {{"value", QString("Typing %1").arg(key)}}); QCoreApplication::processEvents(); }
+    qInfo() << "perf draftKeystrokeMs" << timer.elapsed() / 20.0;
+    bridge.command("submit");
+    const auto task = latest(bridge);
+    timer.restart();
+    qint64 reducerNs = 0;
+    for (int token = 0; token < 20; ++token) { QElapsedTimer step; step.start(); chunk(bridge, task, "token "); reducerNs += step.nsecsElapsed(); QTest::qWait(40); }
+    qInfo() << "perf streamReducerMs" << reducerNs / 20e6;
+    qInfo() << "perf streamFrameMs" << timer.elapsed() / 20.0 - 40;
+    bridge.command("receive", {{"taskID", task.value("id")}, {"attemptID", task.value("attemptID")}, {"terminal", "succeeded"}});
+    QTRY_VERIFY(current(bridge).value("messages").toList().last().toMap().value("text").toString().endsWith(QString("token ").repeated(20)));
+    QCOMPARE(warnings.count(), 0);
 }
 
 QTEST_MAIN(WorkbenchBridgeTests)
@@ -3247,7 +3321,7 @@ void WorkbenchBridgeTests::w4UpdateMetadata() {
         ApplicationWindow {
             visible:true; width:820; height:640
             QtObject { id: update; objectName:"w4-fake-updates"; property bool busy:true; property string status:"updateDownloading"; property string version:"9.0"; property string notes:"Synthetic release notes"; property bool ready:false; property double progress:0.4; property double packageSize:64000000; property double checkedAt:Date.now()/1000-480; property double remainingSeconds:75 }
-            Viezan.UpdateSettings { objectName:"w4-updates"; width:600; bridge:({resources:workbench.resources,state:workbench.state,updates:update,autoCheckUpdates:false,loadBlocked:false}) }
+            Viezan.UpdateSettings { objectName:"w4-updates"; width:600; bridge:({resources:workbench.resources,strings:workbench.strings,metrics:workbench.metrics,palettes:workbench.palettes,appearance:workbench.appearance,locale:workbench.locale,disabledModules:workbench.disabledModules,voice:workbench.voice,state:workbench.state,updates:update,autoCheckUpdates:false,loadBlocked:false}) }
         }
     )",QUrl("qrc:/w4-updates.qml"));
     QScopedPointer<QObject> owner(component.create()); QVERIFY2(owner,qPrintable(component.errorString()));
@@ -3318,7 +3392,7 @@ void WorkbenchBridgeTests::w5bLauncher() {
             }
             QtObject {
                 id: proxy
-                property var resources: workbench.resources
+                property var resources: workbench.resources; property var strings: workbench.strings; property var metrics: workbench.metrics; property var palettes: workbench.palettes; property var appearance: workbench.appearance; property var locale: workbench.locale; property var disabledModules: workbench.disabledModules; property var voice: workbench.voice
                 property var state: workbench.state
                 property var desktopIntegration: desktop
                 function launcherHome(id) { return workbench.launcherHome(id) }
@@ -3384,7 +3458,7 @@ void WorkbenchBridgeTests::w5bQuickPanels() {
             }
             QtObject {
                 id:proxy; objectName:"quick-proxy"
-                property var resources:workbench.resources
+                property var resources:workbench.resources; property var strings: workbench.strings; property var metrics: workbench.metrics; property var palettes: workbench.palettes; property var appearance: workbench.appearance; property var locale: workbench.locale; property var disabledModules: workbench.disabledModules; property var voice: workbench.voice
                 property var state:workbench.state
                 property var localModels:workbench.localModels
                 property var desktopIntegration:desktop
@@ -3498,7 +3572,7 @@ void WorkbenchBridgeTests::w5bUpdateSheet() {
             }
             QtObject {
                 id:proxy; objectName:"update-proxy"
-                property var resources:workbench.resources
+                property var resources:workbench.resources; property var strings: workbench.strings; property var metrics: workbench.metrics; property var palettes: workbench.palettes; property var appearance: workbench.appearance; property var locale: workbench.locale; property var disabledModules: workbench.disabledModules; property var voice: workbench.voice
                 property var state:workbench.state
                 property var updates:update
                 property var updatePrompt:({})

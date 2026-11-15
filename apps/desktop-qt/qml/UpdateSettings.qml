@@ -5,12 +5,13 @@ ColumnLayout {
     id: panel
     required property var bridge
     readonly property var updates: bridge.updates
-    readonly property var metrics: bridge.resources.metrics
+    readonly property var metrics: bridge.metrics
     property bool presentAfterCheck: false
     readonly property bool updateBusy: updates.busy
     onUpdateBusyChanged: if (!updateBusy && presentAfterCheck) { presentAfterCheck = false; bridge.presentUpdateIfAvailable() }
     property double now: Date.now() / 1000
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     function checkedText() {
         if (!(updates.checkedAt > 0)) return ""
         const minutes = Math.max(0, Math.floor((now - updates.checkedAt) / 60))
@@ -44,7 +45,7 @@ ColumnLayout {
         ColumnLayout {
             width: parent.width; spacing: panel.metrics.small
             TextArea { text: panel.updates.notes; visible: !!text; textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; Layout.fillWidth: true; background: Item {} }
-            Label { objectName: "settings-update-size"; visible: panel.updates.packageSize > 0; text: (panel.updates.packageSize / 1000000).toLocaleString(Qt.locale(panel.bridge.state.locale), 'f', 1) + " MB"; color: palette.placeholderText }
+            Label { objectName: "settings-update-size"; visible: panel.updates.packageSize > 0; text: (panel.updates.packageSize / 1000000).toLocaleString(Qt.locale(panel.bridge.locale), 'f', 1) + " MB"; color: palette.placeholderText }
             ProgressBar { visible: panel.updates.busy; value: panel.updates.progress; Layout.fillWidth: true }
             Label { objectName: "settings-update-remaining"; visible: panel.updates.busy && panel.updates.remainingSeconds >= 0; text: panel.remainingText(); color: palette.placeholderText }
             Flow {

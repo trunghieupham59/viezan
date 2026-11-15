@@ -6,9 +6,10 @@ ScrollView {
     id: page
     required property var bridge
     property var monitor: bridge.thermalMonitor
-    readonly property var metrics: bridge.resources.metrics
+    readonly property var metrics: bridge.metrics
     readonly property var hottest: monitor.sensors.length ? monitor.sensors.reduce((a, b) => b.value > a.value ? b : a) : null
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     function tpl(key, values) { let text = t(key); for (const name in values) text = text.split("{" + name + "}").join(values[name]); return text }
     // A sensor in words ("Nhân CPU") when its meaning is known, else the driver's own name.
     function sensorTitle(row) { return row.label ? t("thermal_label_" + row.label) : row.title }

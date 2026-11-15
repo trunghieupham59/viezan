@@ -6,14 +6,15 @@ Pane {
     id: strip
     required property var bridge
     property var audio: bridge.audio
-    readonly property var metrics: bridge.resources.metrics
-    readonly property bool dark: bridge.state.appearance?.preset === "midnight" || bridge.state.appearance?.mode === "dark" || (bridge.state.appearance?.mode !== "light" && bridge.state.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
-    readonly property var colors: bridge.resources.themePalettes[(bridge.state.appearance?.preset || "graphite") + ":" + (bridge.state.appearance?.accent || "auto")][dark ? "dark" : "light"]
+    readonly property var metrics: bridge.metrics
+    readonly property bool dark: bridge.appearance?.preset === "midnight" || bridge.appearance?.mode === "dark" || (bridge.appearance?.mode !== "light" && bridge.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
+    readonly property var colors: bridge.palettes[dark ? "dark" : "light"]
     readonly property bool active: audio.recordingStarted > 0
     property real clock: Date.now() / 1000
     readonly property int elapsed: active ? Math.max(0, Math.floor(clock - audio.recordingStarted)) : 0
     readonly property string timeText: String(Math.floor(elapsed / 60)).padStart(2, "0") + ":" + String(elapsed % 60).padStart(2, "0")
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     function tpl(key, values) { let text = t(key); for (const name in values) text = text.split("{" + name + "}").join(values[name]); return text }
     visible: active
     objectName: "recording-strip"

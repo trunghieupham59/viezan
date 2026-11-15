@@ -5,14 +5,18 @@ import QtQuick.Layouts
 ScrollView {
     id: page
     required property var bridge
+    // One conversion of the bridge state per change, shared by every binding below.
+    // A host that already holds one passes it in.
+    property var snapshot: bridge.state
     required property string route
     signal routeRequested(string value)
     signal newTranslation()
     property var desktop: bridge.desktopIntegration
     readonly property bool linux: Qt.platform.os === "linux"
-    readonly property var metrics: bridge.resources.metrics
-    readonly property var session: bridge.state.sessions.find(item => item.id === bridge.state.active[bridge.state.feature])
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var metrics: bridge.metrics
+    readonly property var session: snapshot.sessions.find(item => item.id === snapshot.active[snapshot.feature])
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     function shortcutKey(id) { return (bridge.desktopIntegration.shortcuts.find(item => item.id === id)?.key || "").replace(/\+/g, " + ") }
     contentWidth: availableWidth
     ColumnLayout {
@@ -40,7 +44,7 @@ ScrollView {
                     // Quick translate's own pair and the model it uses (the app's current choice).
                     Kit.CardRow {
                         id: primaryRow
-                        readonly property var pair: (page.bridge.state, page.bridge.quickTranslate())
+                        readonly property var pair: (page.snapshot, page.bridge.quickTranslate())
                         title: page.t("quickPrimary"); detail: page.t(pair.secondary ? "quickPairOn" : "quickPairOff")
                         Kit.GlassComboBox {
                             readonly property var codes: page.bridge.resources.nativeLanguages
@@ -50,7 +54,7 @@ ScrollView {
                     }
                     Kit.CardRow {
                         id: secondaryRow
-                        readonly property var pair: (page.bridge.state, page.bridge.quickTranslate())
+                        readonly property var pair: (page.snapshot, page.bridge.quickTranslate())
                         title: page.t("quickSecondary"); detail: page.t("quickSecondaryHint")
                         Kit.GlassComboBox {
                             readonly property var codes: [""].concat(page.bridge.resources.nativeLanguages.filter(value => value !== secondaryRow.pair.primary))

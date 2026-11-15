@@ -7,30 +7,34 @@ ScrollView {
     id: home
     objectName: "home-workspace"
     required property var bridge
+    // One conversion of the bridge state per change, shared by every binding below.
+    // A host that already holds one passes it in.
+    property var snapshot: bridge.state
     property color dangerColor: palette.placeholderText
     signal start(string feature)
     signal resume(string sessionID)
     signal settings()
     Component.onCompleted: bridge.localRuntime.refresh()
-    readonly property var metrics: bridge.resources.metrics
-    readonly property bool darkMode: bridge.state.appearance?.mode === "dark" || (bridge.state.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
-    readonly property bool lightGlass: bridge.state.appearance?.preset === "glass" && !darkMode
-    readonly property bool glass: bridge.state.appearance?.preset === "glass"
+    readonly property var metrics: bridge.metrics
+    readonly property bool darkMode: bridge.appearance?.mode === "dark" || (bridge.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
+    readonly property bool lightGlass: bridge.appearance?.preset === "glass" && !darkMode
+    readonly property bool glass: bridge.appearance?.preset === "glass"
     property bool compact: width < metrics.reading
-    readonly property string activeModel: bridge.state.sessions.find(item => item.id === bridge.state.active[bridge.state.feature])?.model || ""
+    readonly property string activeModel: snapshot.sessions.find(item => item.id === snapshot.active[snapshot.feature])?.model || ""
     readonly property string modelAvailability: (bridge.localModels, bridge.providersChecked, bridge.availability(activeModel))
-    readonly property var colors: bridge.resources.themePalettes[(bridge.state.appearance?.preset || "graphite") + ":" + (bridge.state.appearance?.accent || "auto")][darkMode ? "dark" : "light"]
+    readonly property var colors: bridge.palettes[darkMode ? "dark" : "light"]
     property string filter: ""
-    readonly property var features: ["chat", "translate", "dictionary"].filter(feature => !(home.bridge.state.disabledModules || []).includes(feature))
-    readonly property var recentAll: bridge.state.sessions.filter(item => !(home.bridge.state.disabledModules || []).includes(item.feature) && !item.comparisonParent && !item.archived && (item.draft.length || item.messages.length || item.output.length)).sort((a,b) => (b.updated || 0) - (a.updated || 0))
+    readonly property var features: ["chat", "translate", "dictionary"].filter(feature => !home.bridge.disabledModules.includes(feature))
+    readonly property var recentAll: snapshot.sessions.filter(item => !home.bridge.disabledModules.includes(item.feature) && !item.comparisonParent && !item.archived && (item.draft.length || item.messages.length || item.output.length)).sort((a,b) => (b.updated || 0) - (a.updated || 0))
     readonly property var recent: recentAll.filter(item => !filter || item.feature === filter).slice(0, 6)
-    readonly property var running: recentAll.filter(item => home.bridge.state.tasks.some(task => task.status === "running" && task.request.sessionID === item.id)).slice(0, 4)
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property var running: recentAll.filter(item => home.snapshot.tasks.some(task => task.status === "running" && task.request.sessionID === item.id)).slice(0, 4)
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     function titleFor(item) { return item.title || t(item.feature === "chat" ? "newChat" : item.feature === "dictionary" ? "newLookup" : "newTranslation") }
     function detailFor(item) { return item.feature === "chat" ? t("chat") : t(item.feature) + " · " + t("lang_" + item.source) + " → " + t("lang_" + item.target) }
     function since(seconds) {
         if (!seconds) return ""
-        return new Date(seconds * 1000).toLocaleDateString(Qt.locale(bridge.state.locale), Locale.ShortFormat)
+        return new Date(seconds * 1000).toLocaleDateString(Qt.locale(bridge.locale), Locale.ShortFormat)
     }
     contentWidth: availableWidth
     contentHeight: homeBody.implicitHeight
@@ -68,12 +72,12 @@ ScrollView {
                 GridLayout {
                     id: tiles
                     objectName: "home-quick-grid"
-                    readonly property int count: ["chat", "translate", "interpret", "dictionary"].filter(feature => !(home.bridge.state.disabledModules || []).includes(feature)).length
+                    readonly property int count: ["chat", "translate", "interpret", "dictionary"].filter(feature => !home.bridge.disabledModules.includes(feature)).length
                     columns: home.compact ? Math.min(2, count) : width + home.metrics.gap >= count * (home.metrics.compactSidebar - home.metrics.gutter + home.metrics.gap) ? count : width + home.metrics.gap >= 2 * (home.metrics.compactSidebar - home.metrics.gutter + home.metrics.gap) ? 2 : 1
                     columnSpacing: home.metrics.gap; rowSpacing: home.metrics.gap
                     Layout.fillWidth: true
                     Repeater {
-                        model: ["chat", "translate", "interpret", "dictionary"].filter(feature => !(home.bridge.state.disabledModules || []).includes(feature))
+                        model: ["chat", "translate", "interpret", "dictionary"].filter(feature => !home.bridge.disabledModules.includes(feature))
                         delegate: GlassTile { required property string modelData; feature: modelData }
                     }
                 }
@@ -105,7 +109,7 @@ ScrollView {
         Item {
             id: strip
             visible: !home.compact
-            readonly property string activeModel: home.bridge.state.sessions.find(item => item.id === home.bridge.state.active[home.bridge.state.feature])?.model || ""
+            readonly property string activeModel: home.snapshot.sessions.find(item => item.id === home.snapshot.active[home.snapshot.feature])?.model || ""
             readonly property string availability: (home.bridge.localModels, home.bridge.providersChecked, home.bridge.availability(activeModel))
             Layout.alignment: Qt.AlignTop
             implicitWidth: stripRow.implicitWidth + home.metrics.gap + home.metrics.tight
@@ -342,7 +346,7 @@ ScrollView {
             Layout.fillWidth: true
             spacing: home.metrics.small
             Repeater {
-                model: ["chat", "translate", "interpret", "dictionary"].filter(feature => !(home.bridge.state.disabledModules || []).includes(feature))
+                model: ["chat", "translate", "interpret", "dictionary"].filter(feature => !home.bridge.disabledModules.includes(feature))
                 delegate: Kit.GlassButton {
                     required property string modelData
                     text: home.t(modelData === "chat" ? "newChat" : modelData === "translate" ? "translateText" : modelData === "dictionary" ? "lookup" : "interpret")
@@ -360,7 +364,7 @@ ScrollView {
         Layout.fillWidth: true
         Layout.bottomMargin: home.lightGlass ? 0 : home.metrics.inset
         // The active model's real readiness, local or cloud (not only Ollama).
-        readonly property string activeModel: home.bridge.state.sessions.find(item => item.id === home.bridge.state.active[home.bridge.state.feature])?.model || ""
+        readonly property string activeModel: home.snapshot.sessions.find(item => item.id === home.snapshot.active[home.snapshot.feature])?.model || ""
         readonly property string availability: (home.bridge.localModels, home.bridge.providersChecked, home.bridge.availability(activeModel))
         Kit.StatusDot { tone: parent.availability === "available" ? "ready" : parent.availability === "unknown" ? "idle" : "failed"; failedColor: home.dangerColor }
         Kit.ModelLabel { modelID: parent.activeModel; text: format(modelID) + (parent.availability === "unknown" ? "" : " · " + home.t(parent.availability === "available" ? "runtimeReady" : "unavailable").toLowerCase()); font.bold: true; elide: Text.ElideRight }
@@ -377,7 +381,7 @@ ScrollView {
             columnSpacing: home.metrics.small
             Layout.fillWidth: true
             Repeater {
-                model: ["chat", "translate", "interpret", "dictionary"].filter(feature => !(home.bridge.state.disabledModules || []).includes(feature))
+                model: ["chat", "translate", "interpret", "dictionary"].filter(feature => !home.bridge.disabledModules.includes(feature))
                 delegate: Kit.QuietButton {
                     required property string modelData
                     Layout.fillWidth: true
@@ -397,7 +401,7 @@ ScrollView {
 
     component LayeredProvider: ColumnLayout {
         id: provider
-        readonly property string activeModel: home.bridge.state.sessions.find(item => item.id === home.bridge.state.active[home.bridge.state.feature])?.model || ""
+        readonly property string activeModel: home.snapshot.sessions.find(item => item.id === home.snapshot.active[home.snapshot.feature])?.model || ""
         readonly property string availability: (home.bridge.localModels, home.bridge.providersChecked, home.bridge.availability(activeModel))
         spacing: home.metrics.inset
         RowLayout {

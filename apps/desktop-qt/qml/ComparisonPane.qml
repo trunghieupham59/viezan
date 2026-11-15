@@ -5,17 +5,21 @@ ColumnLayout {
     id: root
     objectName: "comparison-pane"
     required property var bridge
+    // One conversion of the bridge state per change, shared by every binding below.
+    // A host that already holds one passes it in.
+    property var snapshot: bridge.state
     required property var session
     property var shell: null
-    readonly property bool glass: bridge.state.appearance?.preset === "glass"
+    readonly property bool glass: bridge.appearance?.preset === "glass"
     property bool choosing: candidates.length === 0
     function tpl(key, values) { let text = t(key); Object.keys(values).forEach(key => text = text.split("{" + key + "}").join(values[key])); return text }
-    readonly property var candidates: bridge.state.sessions.filter(value => value.comparisonParent === session.id)
+    readonly property var candidates: snapshot.sessions.filter(value => value.comparisonParent === session.id)
     readonly property var sourceRows: bridge.sentences(session.draft)
-    readonly property bool parentRunning: bridge.state.tasks.some(task => task.request.sessionID === session.id && task.status === "running")
-    readonly property bool sentenceRows: !!bridge.state.compareBySentence && sourceRows.length > 0 && candidates.length > 0 && candidates.every(item => bridge.state.tasks.find(task => task.request.sessionID === item.id)?.status === "succeeded" && bridge.sentences(item.output).length === sourceRows.length)
-    readonly property var metrics: bridge.resources.metrics
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
+    readonly property bool parentRunning: snapshot.tasks.some(task => task.request.sessionID === session.id && task.status === "running")
+    readonly property bool sentenceRows: !!snapshot.compareBySentence && sourceRows.length > 0 && candidates.length > 0 && candidates.every(item => snapshot.tasks.find(task => task.request.sessionID === item.id)?.status === "succeeded" && bridge.sentences(item.output).length === sourceRows.length)
+    readonly property var metrics: bridge.metrics
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     // Pick 2–3 models this device can run (discovery), instead of typing raw model IDs.
     property var selected: []
     readonly property string selectionOwner: session.id + ":" + session.model
@@ -37,7 +41,7 @@ ColumnLayout {
         RowLayout {
             visible: root.glass; Layout.fillWidth: true
             Label { text: root.t(root.choosing ? "compareChooseTitle" : "compareModels"); font.bold: true; Layout.fillWidth: true }
-            Label { visible: !root.choosing; text: root.tpl("compareProgress",{done:root.candidates.filter(item => ["succeeded","failed","cancelled","interrupted"].includes(root.bridge.state.tasks.find(task => task.request.sessionID === item.id)?.status)).length,total:root.candidates.length}); color: palette.placeholderText }
+            Label { visible: !root.choosing; text: root.tpl("compareProgress",{done:root.candidates.filter(item => ["succeeded","failed","cancelled","interrupted"].includes(root.snapshot.tasks.find(task => task.request.sessionID === item.id)?.status)).length,total:root.candidates.length}); color: palette.placeholderText }
             Kit.IconButton { iconName: "close"; text: root.t("close"); onClicked: { if (root.shell?.composerPopup) root.shell.composerPopup.close() } }
         }
         Label { visible: root.glass && root.choosing; text: root.tpl("compareChooseHint", {max:3}); wrapMode: Text.Wrap; Layout.fillWidth: true }
@@ -62,7 +66,7 @@ ColumnLayout {
         RowLayout {
             Kit.GlassButton { visible: !root.glass || root.choosing; text: root.tpl("compareRun", {count:root.selected.length}); enabled: !!root.session.draft.trim() && Array.from(root.session.draft).length <= 5000 && root.selected.length >= 2; onClicked: { root.command("compare", {models:[root.session.model].concat(root.selected.filter(model => model !== root.session.model))}); root.choosing = false } }
             Kit.QuietButton { visible: root.glass && !root.choosing; text: root.t("compareChange"); onClicked: root.choosing = true }
-            CheckBox { id: sentenceMode; visible: !root.glass || !root.choosing; objectName: "compare-sentence-mode"; text: root.t("compareSentences"); checked: !!root.bridge.state.compareBySentence; onToggled: root.bridge.command("compareBySentence", {value:checked}) }
+            CheckBox { id: sentenceMode; visible: !root.glass || !root.choosing; objectName: "compare-sentence-mode"; text: root.t("compareSentences"); checked: !!root.snapshot.compareBySentence; onToggled: root.bridge.command("compareBySentence", {value:checked}) }
         }
         ScrollView {
             id: columnResults
@@ -77,7 +81,7 @@ ColumnLayout {
                     delegate: ColumnLayout {
                         id: candidate
                         required property var modelData
-                        readonly property var task: root.bridge.state.tasks.find(value => value.request.sessionID === modelData.id)
+                        readonly property var task: root.snapshot.tasks.find(value => value.request.sessionID === modelData.id)
                         readonly property bool current: modelData.comparisonRevision === root.session.revision
                         readonly property var rows: root.bridge.sentences(modelData.output)
                         Layout.preferredWidth: Math.max(root.metrics.sidebar, (root.width - root.metrics.inset * (root.candidates.length - 1)) / Math.max(1,root.candidates.length)); Layout.alignment: Qt.AlignTop

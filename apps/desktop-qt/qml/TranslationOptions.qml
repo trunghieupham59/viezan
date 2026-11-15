@@ -7,10 +7,11 @@ ColumnLayout {
     required property var bridge
     required property var session
     property bool showComparison: true
-    readonly property var workspace: bridge.state
-    readonly property var metrics: bridge.resources.metrics
+    property var workspace: bridge.state // the host may pass its own converted snapshot
+    readonly property var metrics: bridge.metrics
     spacing: metrics.inset
-    function t(key) { return bridge.resources.locales[workspace.locale][key] || key }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
     function command(name, payload) { bridge.command(name, Object.assign({sessionID: session.id}, payload || {})) }
     Flow {
         visible: session.feature === "translate"
@@ -42,5 +43,5 @@ ColumnLayout {
         SpinBox { from: 100; to: 5000; stepSize: 100; value: workspace.autoTranslateDelay || 800; Accessible.name: t("autoTranslateDelay"); onValueModified: command("autoTranslate", {enabled: true, delay: value}) }
     }
     CheckBox { visible: session.feature === "translate"; text: t("autoTranslate"); checked: workspace.autoTranslate || false; onToggled: command("autoTranslate", {enabled: checked, delay: workspace.autoTranslateDelay || 800}); ToolTip.visible: hovered; ToolTip.text: t("autoTranslateHint") }
-    ComparisonPane { visible: options.showComparison && session.feature === "translate" && !(session.images || []).length; bridge: options.bridge; session: options.session; Layout.fillWidth: true }
+    ComparisonPane { visible: options.showComparison && session.feature === "translate" && !(session.images || []).length; snapshot: options.workspace; bridge: options.bridge; session: options.session; Layout.fillWidth: true }
 }

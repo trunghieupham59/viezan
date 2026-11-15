@@ -4,13 +4,16 @@ import QtQuick.Layouts
 ColumnLayout {
     id: models
     required property var bridge
+    // One conversion of the bridge state per change, shared by every binding below.
+    // A host that already holds one passes it in.
+    property var snapshot: bridge.state
     signal feedback(string message, bool error)
     readonly property var manager: bridge.modelManager
-    readonly property var metrics: bridge.resources.metrics
+    readonly property var metrics: bridge.metrics
     readonly property var installed: bridge.localModels.filter(model => model.startsWith("ollama:"))
     readonly property bool ollamaRunning: (bridge.localModels, bridge.discovering, bridge.providerState("ollama").models >= 0)
     readonly property bool anyBusy: manager.busy || bridge.localPerformance.busy
-    readonly property bool localWork: bridge.interpretation.busy || bridge.state.tasks.some(task => task.status === "running" && task.request.model.startsWith("ollama:"))
+    readonly property bool localWork: bridge.interpretation.busy || snapshot.tasks.some(task => task.status === "running" && task.request.model.startsWith("ollama:"))
     property string downloading: ""
     property bool managerWasBusy: false
     Connections {
@@ -21,8 +24,9 @@ ColumnLayout {
             models.managerWasBusy = models.manager.busy
         }
     }
-    function t(key) { return bridge.resources.locales[bridge.state.locale][key] || key }
-    function bytes(value) { return (value / 1000000000).toLocaleString(Qt.locale(bridge.state.locale), 'f', 1) + " GB" }
+    readonly property var localeStrings: bridge.strings
+    function t(key) { return localeStrings[key] || key }
+    function bytes(value) { return (value / 1000000000).toLocaleString(Qt.locale(bridge.locale), 'f', 1) + " GB" }
     function modelLabel(id) { const suggested = bridge.resources.localModelSuggestions.find(item => "ollama:" + item.id === id); return suggested ? suggested.name : bridge.shortModelName(id) }
     function download(id) { if (!anyBusy && ollamaRunning) { downloading = id; manager.run(id, false) } }
     Component.onCompleted: bridge.localRuntime.refresh()
@@ -55,11 +59,11 @@ ColumnLayout {
             }
             Kit.CardRow {
                 title: models.t("runtimeParallel")
-                SettingsPicker { objectName: "settings-runtime-parallel"; id: parallel; model: [1,2,4]; currentIndex: model.indexOf(models.bridge.state.runtime?.parallel || 1); onActivated: models.bridge.command("runtime", {parallel:model[currentIndex], context:context.model[context.currentIndex]}); enabled: !models.bridge.loadBlocked && !models.bridge.localRuntime.owned && !models.bridge.localRuntime.busy; Accessible.name: models.t("runtimeParallel") }
+                SettingsPicker { objectName: "settings-runtime-parallel"; id: parallel; model: [1,2,4]; currentIndex: model.indexOf(models.snapshot.runtime?.parallel || 1); onActivated: models.bridge.command("runtime", {parallel:model[currentIndex], context:context.model[context.currentIndex]}); enabled: !models.bridge.loadBlocked && !models.bridge.localRuntime.owned && !models.bridge.localRuntime.busy; Accessible.name: models.t("runtimeParallel") }
             }
             Kit.CardRow {
                 title: models.t("runtimeContext"); detail: models.t("runtimeHint"); divider: false
-                SettingsPicker { objectName: "settings-runtime-context"; id: context; model: [2048,4096,8192,16384,32768]; currentIndex: model.indexOf(models.bridge.state.runtime?.context || 4096); onActivated: models.bridge.command("runtime", {parallel:parallel.model[parallel.currentIndex], context:model[currentIndex]}); enabled: !models.bridge.loadBlocked && !models.bridge.localRuntime.owned && !models.bridge.localRuntime.busy; Accessible.name: models.t("runtimeContext") }
+                SettingsPicker { objectName: "settings-runtime-context"; id: context; model: [2048,4096,8192,16384,32768]; currentIndex: model.indexOf(models.snapshot.runtime?.context || 4096); onActivated: models.bridge.command("runtime", {parallel:parallel.model[parallel.currentIndex], context:model[currentIndex]}); enabled: !models.bridge.loadBlocked && !models.bridge.localRuntime.owned && !models.bridge.localRuntime.busy; Accessible.name: models.t("runtimeContext") }
             }
             Flow {
                 Layout.fillWidth: true; spacing: models.metrics.small
