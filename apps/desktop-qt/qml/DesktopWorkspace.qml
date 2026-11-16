@@ -48,6 +48,8 @@ ScrollView {
                         title: page.t("quickPrimary"); detail: page.t(pair.secondary ? "quickPairOn" : "quickPairOff")
                         Kit.GlassComboBox {
                             readonly property var codes: page.bridge.resources.nativeLanguages
+                            // Same width as the secondary picker, whose "off" entry is the widest text.
+                            Layout.preferredWidth: quickSecondaryPicker.implicitWidth
                             model: codes.map(value => page.t("lang_" + value)); currentIndex: codes.indexOf(primaryRow.pair.primary)
                             implicitContentWidthPolicy: ComboBox.WidestText; Accessible.name: page.t("quickPrimary"); onActivated: page.bridge.command("quickTranslatePrimary", {value: codes[currentIndex]})
                         }
@@ -57,6 +59,7 @@ ScrollView {
                         readonly property var pair: (page.snapshot, page.bridge.quickTranslate())
                         title: page.t("quickSecondary"); detail: page.t("quickSecondaryHint")
                         Kit.GlassComboBox {
+                            id: quickSecondaryPicker
                             readonly property var codes: [""].concat(page.bridge.resources.nativeLanguages.filter(value => value !== secondaryRow.pair.primary))
                             model: codes.map(value => value ? page.t("lang_" + value) : page.t("quickSecondaryOff")); currentIndex: Math.max(0, codes.indexOf(secondaryRow.pair.secondary || ""))
                             implicitContentWidthPolicy: ComboBox.WidestText; Accessible.name: page.t("quickSecondary"); onActivated: page.bridge.command("quickTranslateSecondary", {value: codes[currentIndex]})

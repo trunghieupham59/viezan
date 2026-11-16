@@ -22,7 +22,12 @@ Item {
     readonly property var selected: filtered.find(row => row.id === selectedID) || null
     readonly property bool canRemove: allowed(selected)
     readonly property bool verified: result.status === "removed" && result.verifiedRemoved === true
-    readonly property string resultText: result.status ? message(result.status === "removed" && !verified ? "unverified" : result.status) : ""
+    // A refreshed list is routine: it is announced as a toast, and only when the
+    // user asked for the refresh. The result card is kept for uninstall outcomes.
+    signal notification(string message)
+    property bool scanning: false
+    property bool announceScan: false
+    readonly property string resultText: result.status && result.status !== "scanned" ? message(result.status === "removed" && !verified ? "unverified" : result.status) : ""
     readonly property var localeStrings: bridge.strings
     function t(key) { return localeStrings[key] || key }
     function tpl(key, values) { let text = t(key); for (const name in values) text = text.split("{" + name + "}").join(values[name]); return text }
@@ -97,16 +102,16 @@ Item {
         confirm.close(); pending = null
         removalService.uninstall(id, authorize)
     }
-    function scan() { if (removalService && !busy) removalService.inventory() }
+    function scan(announce) { if (removalService && !busy) { scanning = true; announceScan = announce === true; removalService.inventory() } }
     Component.onCompleted: scan()
     onFilteredChanged: if (selectedID && !filtered.some(row => row.id === selectedID)) selectedID = ""
-    Connections { target: root.removalService; function onFinished(value) { root.result = value } }
+    Connections { target: root.removalService; function onFinished(value) { root.result = value; if (root.scanning && root.announceScan && value.status === "scanned") root.notification(root.message("scanned")); root.scanning = false; root.announceScan = false } }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: root.metrics.large; spacing: root.metrics.inset
         Kit.PageIntro { title: root.t("appsTitle"); subtitle: root.t("appsUninstallIntro"); Layout.fillWidth: true }
         Label { text: root.t("appsDataCleanupPlatformHint"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
         Kit.Card {
-            visible: !!root.resultText || root.busy || !!root.removalService?.operationUnverified
+            visible: !!root.resultText || (root.busy && !root.scanning) || !!root.removalService?.operationUnverified
             Layout.fillWidth: true
             background: Rectangle { radius: root.metrics.radius; color: Qt.alpha(root.verified ? root.colors.success : root.colors.action, root.metrics.selectionOpacity) }
             ColumnLayout {
@@ -120,7 +125,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             Kit.SearchField { objectName: "apps-search"; text: root.query; onTextChanged: root.query = text; placeholderText: root.t("searchLabel"); Accessible.name: placeholderText; Layout.fillWidth: true; enabled: !root.busy }
-            Kit.IconButton { objectName: "apps-refresh"; iconName: "refresh"; text: root.t("refresh"); enabled: !!root.removalService && !root.busy; onClicked: root.scan(); ToolTip.visible: hovered && !confirm.opened }
+            Kit.IconButton { objectName: "apps-refresh"; iconName: "refresh"; text: root.t("refresh"); enabled: !!root.removalService && !root.busy; onClicked: root.scan(true); ToolTip.visible: hovered && !confirm.opened }
             BusyIndicator { running: root.busy; visible: running; implicitWidth: root.metrics.control; implicitHeight: root.metrics.control }
         }
         GridLayout {

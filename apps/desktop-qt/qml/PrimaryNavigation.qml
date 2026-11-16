@@ -147,6 +147,20 @@ Pane {
             ToolTip.text: text
             onClicked: navigation.commands(search)
         }
+        // The destinations scroll when the window is too short, so the brand, the
+        // search field and the footer stay inside the pane instead of overflowing it.
+        ScrollView {
+            id: destinations
+            objectName: "navigation-destinations"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumHeight: navigation.metrics.navControl
+            contentWidth: availableWidth
+            clip: true
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+        ColumnLayout {
+        width: destinations.availableWidth
+        spacing: navigation.glass ? navigation.metrics.tight : navigation.metrics.small
         // Review 18: one workspace list, then a system group that ends in Settings.
         Repeater {
             model: navigation.bridge.resources.navigation.filter(item => !navigation.systemIDs.includes(item.id) && navigation.available(item.id))
@@ -158,7 +172,8 @@ Pane {
             model: navigation.bridge.resources.navigation.filter(item => navigation.systemIDs.includes(item.id) && navigation.available(item.id))
             delegate: NavItem { required property var modelData; entry: modelData }
         }
-        Item { Layout.fillHeight: true }
+        }
+        }
         Rectangle {
             visible: navigation.expanded
             color: navigation.palette.midlight

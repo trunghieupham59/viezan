@@ -2674,16 +2674,20 @@ private slots:
         QVERIFY(visualItem(language, "language-chevron"));
         auto *modelTrigger = visualItem(window->contentItem(), "feature-model-trigger"); QVERIFY(modelTrigger && modelTrigger->isVisible());
         QVERIFY(QMetaObject::invokeMethod(modelTrigger, "clicked"));
-        auto *models = window->findChild<QObject *>("feature-model-panel"); QVERIFY(models); QTRY_VERIFY(models->property("visible").toBool());
+        // Feature views open the same searchable lineup as Chat, without its reasoning tiers.
+        auto *models = modelTrigger->parentItem()->findChild<QObject *>("model-lineup-panel"); QVERIFY(models); QTRY_VERIFY(models->property("visible").toBool());
         QVERIFY(models->property("x").toDouble() >= 0);
         QVERIFY(models->property("x").toDouble() + models->property("width").toDouble() <= width + 1);
-        auto *modelList = models->findChild<QQuickItem *>("feature-model-list"); QVERIFY(modelList);
-        QTRY_VERIFY(modelList->hasActiveFocus());
-        const auto modelIDs = modelTrigger->parentItem()->property("featureModels").value<QJSValue>();
-        const int nextIndex = qMin(modelList->property("currentIndex").toInt() + 1, modelIDs.property("length").toInt() - 1);
+        QVERIFY(models->property("y").toDouble() >= modelTrigger->mapToScene(QPointF(0, modelTrigger->height())).y());
+        auto *modelSearch = models->findChild<QQuickItem *>("model-lineup-search"); QVERIFY(modelSearch);
+        QTRY_VERIFY(modelSearch->hasActiveFocus());
+        const auto modelRows = models->property("rows").value<QJSValue>();
+        for (int i = 0; i < modelRows.property("length").toInt(); ++i) QVERIFY(modelRows.property(i).property("kind").toString() != "tier");
+        const int nextIndex = qMin(models->property("selectedIndex").toInt() + 1, modelRows.property("length").toInt() - 1);
+        const auto nextModel = modelRows.property(nextIndex).property("model").toString(); QVERIFY(!nextModel.isEmpty());
         QTest::keyClick(window, Qt::Key_Down); QTest::keyClick(window, Qt::Key_Return);
         QTRY_VERIFY(!models->property("visible").toBool());
-        QCOMPARE(current(bridge).value("model").toString(), modelIDs.property(nextIndex).toString());
+        QCOMPARE(current(bridge).value("model").toString(), nextModel);
         bridge.command("model", {{"value", "ollama:llama3.2"}});
         QCOMPARE(submit->property("shortcutText").toString(), QString("Ctrl+Enter"));
         if (width == 1280) {
@@ -2933,6 +2937,8 @@ private slots:
     void w5aCompactShell();
     void w5aSolidAppearance();
     void w5aPaletteQueries();
+    void buttonLabelsAreCentred();
+    void navigationFitsShortWindow();
     // Timings only (no thresholds): run with `ViezanQtTests performanceBaseline`.
     void performanceBaseline();
     void settledChatContextIsReleased();
@@ -3193,6 +3199,8 @@ void WorkbenchBridgeTests::w4SettingsPages_data() {
     QTest::addColumn<int>("width"); QTest::addColumn<QString>("mode"); QTest::addColumn<QString>("locale");
     QTest::newRow("1280-light-vi") << 1280 << QString("light") << QString("vi");
     QTest::newRow("1280-dark-en") << 1280 << QString("dark") << QString("en");
+    // Default window width: the open app sidebar must not collapse the section column.
+    QTest::newRow("1044-light-vi") << 1044 << QString("light") << QString("vi");
     QTest::newRow("820-dark-ja") << 820 << QString("dark") << QString("ja");
     QTest::newRow("640-light-vi") << 640 << QString("light") << QString("vi");
 }
@@ -3224,7 +3232,7 @@ void WorkbenchBridgeTests::w4SettingsPages() {
     auto *window = qobject_cast<QQuickWindow *>(owner.data()); QVERIFY(window);
     window->resize(width, width < 900 ? 640 : 800);
     auto *settings = visualItem(window->contentItem(), "settings-workspace"); QVERIFY(settings);
-    QTRY_COMPARE(settings->property("wide").toBool(), width >= 1200);
+    QTRY_COMPARE(settings->property("wide").toBool(), width >= 820);
     const QStringList sections{"general","appearance","providers","localModels","voice","modules","data","updates","about"};
     const QStringList controls{"settings-smart-reset","settings-theme","provider-status-openai","settings-device","settings-voice-rate","settings-module-chat","settings-clear-history","settings-auto-updates",""};
     for (int i = 0; i < sections.size(); ++i) {
@@ -3740,7 +3748,8 @@ void WorkbenchBridgeTests::w5aCompactShell() {
     QTRY_VERIFY(qAbs(source->mapToScene(QPointF()).y()-model->mapToScene(QPointF()).y()) <= 1);
     QVERIFY(model->mapToScene(QPointF(model->width(),0)).x() <= width);
     QCOMPARE(visualItem(source,"language-direction")->isVisible(),width >= 1100);
-    if (width < 1100) QTRY_COMPARE(model->width(),36.0);
+    if (width < 1100) QTRY_COMPARE(model->width(),32.0);
+    QCOMPARE(model->height(), source->height());
     auto *surface=visualItem(window->contentItem(),"translation-result-surface"); QVERIFY(surface);
     QVERIFY(surface->property("color").value<QColor>().alphaF() > 0);
     auto *actions=visualItem(window->contentItem(),"translation-actions"); QVERIFY(actions);
@@ -3750,7 +3759,7 @@ void WorkbenchBridgeTests::w5aCompactShell() {
     model->forceActiveFocus(Qt::TabFocusReason); QTest::keyClick(window,Qt::Key_Space);
     // Route Loader destruction is deferred; scope the popup to this picker,
     // not an identically named popup in the retiring Chat view.
-    auto *panel=model->parentItem()->findChild<QObject *>("feature-model-panel"); QVERIFY(panel);
+    auto *panel=model->parentItem()->findChild<QObject *>("model-lineup-panel"); QVERIFY(panel);
     QTRY_VERIFY(panel->property("visible").toBool());
     QTest::keyClick(window,Qt::Key_Escape); QTRY_VERIFY(!panel->property("visible").toBool());
     QTRY_VERIFY(model->hasActiveFocus());
@@ -3875,4 +3884,80 @@ void WorkbenchBridgeTests::w5aPaletteQueries() {
     QCOMPARE(bridge.state(),blockedState);
     QTest::keyClick(window,Qt::Key_Escape); QTRY_VERIFY(!palette->property("visible").toBool());
     QCOMPARE(warnings.count(),0);
+}
+
+// Every visible button or single-line control (chips, pickers) gives its content a full
+// line and centres a lone label.
+static void collectOffCentre(QQuickItem *item, const QString &where, QStringList &found) {
+    if (!item->isVisible()) return;
+    if (item->height() > 0 && (item->inherits("QQuickAbstractButton") || (item->inherits("QQuickControl") && item->height() <= 48))) {
+        auto *content = item->property("contentItem").value<QQuickItem *>();
+        QList<QQuickItem *> labels, pending{item};
+        while (!pending.isEmpty()) {
+            auto *next = pending.takeFirst();
+            for (auto *child : next->childItems()) if (child->isVisible()) pending << child;
+            if (next->inherits("QQuickText") && next->width() > 0 && !next->property("text").toString().isEmpty()) labels << next;
+        }
+        const auto name = where + " " + (item->objectName().isEmpty() ? item->property("text").toString() : item->objectName());
+        if (content && content->isVisible() && content->height() + 0.5 < content->implicitHeight())
+            found << QString("%1: content %2 < %3").arg(name).arg(content->height()).arg(content->implicitHeight());
+        else if (item->inherits("QQuickAbstractButton") && labels.size() == 1 && labels.first()->property("lineCount").toInt() == 1) {
+            auto *label = labels.first();
+            const auto painted = label->property("contentHeight").toDouble();
+            const auto top = label->mapToItem(item, QPointF(0, 0)).y() + (label->property("verticalAlignment").toInt() == Qt::AlignVCenter ? (label->height() - painted) / 2 : label->property("verticalAlignment").toInt() == Qt::AlignBottom ? label->height() - painted : label->property("topPadding").toDouble());
+            const auto offset = top + painted / 2 - item->height() / 2;
+            if (qAbs(offset) > 1.0) found << QString("%1: label %2 px off centre").arg(name).arg(offset);
+        }
+    }
+    for (auto *child : item->childItems()) collectOffCentre(child, where, found);
+}
+void WorkbenchBridgeTests::buttonLabelsAreCentred() {
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+    bridge.command("appearance", {{"preset", "glass"}, {"mode", "dark"}});
+    bridge.command("locale", {{"value", "vi"}});
+    ProviderDiscovery::Snapshot snapshot; snapshot.checked = true; snapshot.models["ollama"] = {"ollama:llama3.2"}; bridge.applyProviderSnapshot(snapshot);
+    bridge.command("route", {{"value", "chat"}}); bridge.command("model", {{"value", "ollama:llama3.2"}});
+    QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty("workbench", &bridge); engine.load(QUrl("qrc:/qml/Main.qml"));
+    QVERIFY(!engine.rootObjects().isEmpty()); auto *root = qobject_cast<QQuickWindow *>(engine.rootObjects().first()); QVERIFY(root);
+    root->resize(1044, 760); QVERIFY(QTest::qWaitForWindowExposed(root));
+    // A failed answer with partial text shows Copy, Retry and the meta chip.
+    bridge.command("draft", {{"value", "Question"}}); bridge.command("submit");
+    QTRY_COMPARE(bridge.state().value("tasks").toList().size(), 1);
+    const auto task = latest(bridge);
+    bridge.command("receive", {{"taskID", task.value("id")}, {"attemptID", task.value("attemptID")}, {"chunk", "Answer"}, {"terminal", "failed"}, {"errorCode", "providerError"}});
+    QQuickItem *retry = nullptr; QTRY_VERIFY(retry = visualItem(root->contentItem(), "chat-retry-" + task.value("id").toString())); QTRY_VERIFY(retry->isVisible());
+    QStringList found;
+    // Home, Local models and the system pages start real device services that outlive
+    // the test; they share these controls and are left out.
+    for (const auto &route : {QString("chat"), QString("translate"), QString("dictionary")}) {
+        bridge.command("route", {{"value", route}}); bridge.command("navigate", {{"feature", route}}); QTest::qWait(150);
+        collectOffCentre(root->contentItem(), route, found);
+    }
+    for (const auto &section : {QString("general"), QString("appearance"), QString("providers"), QString("voice"), QString("modules"), QString("data"), QString("updates"), QString("about")}) {
+        QVERIFY(QMetaObject::invokeMethod(root, "openSettingsSection", Q_ARG(QVariant, section))); QTest::qWait(150);
+        collectOffCentre(root->contentItem(), "settings/" + section, found);
+    }
+    found.removeDuplicates();
+    QVERIFY2(found.isEmpty(), qPrintable("\n" + found.join("\n")));
+}
+
+// At the minimum window height the sidebar scrolls its destinations instead of
+// overflowing the pane above the header and below the window.
+void WorkbenchBridgeTests::navigationFitsShortWindow() {
+    QTemporaryDir dir; WorkbenchBridge bridge(nullptr, dir.filePath("state.json"), false);
+    bridge.command("appearance", {{"preset", "glass"}, {"mode", "light"}});
+    bridge.command("route", {{"value", "chat"}});
+    QQmlApplicationEngine engine; QSignalSpy warnings(&engine, &QQmlEngine::warnings);
+    engine.rootContext()->setContextProperty("workbench", &bridge); engine.load(QUrl("qrc:/qml/Main.qml"));
+    QVERIFY(!engine.rootObjects().isEmpty()); auto *root = qobject_cast<QQuickWindow *>(engine.rootObjects().first()); QVERIFY(root);
+    root->resize(1044, 480); QVERIFY(QTest::qWaitForWindowExposed(root));
+    auto *navigation = visualItem(root->contentItem(), "primary-navigation"); QVERIFY(navigation);
+    auto *destinations = visualItem(navigation, "navigation-destinations"); QVERIFY(destinations);
+    QTRY_VERIFY(navigation->mapToScene(QPointF(0, 0)).y() >= 0);
+    QTRY_VERIFY(navigation->mapToScene(QPointF(0, navigation->height())).y() <= root->height());
+    QVERIFY(destinations->mapToItem(navigation, QPointF(0, 0)).y() >= 0);
+    QVERIFY(destinations->mapToItem(navigation, QPointF(0, destinations->height())).y() <= navigation->height());
+    QVERIFY(destinations->property("contentHeight").toDouble() > destinations->height());
+    QCoreApplication::processEvents(); QCOMPARE(warnings.count(), 0);
 }
