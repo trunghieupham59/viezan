@@ -782,6 +782,9 @@ QtObject {
         icon.height: metrics.icon
         implicitWidth: metrics.control
         implicitHeight: metrics.control
+        // A 32 pt caller keeps the full 20 pt glyph; the style's padding would squeeze it.
+        readonly property real glyphPadding: Math.max(0, Math.min(metrics.small, (Math.min(width, height) - metrics.icon) / 2))
+        topPadding: glyphPadding; bottomPadding: glyphPadding; leftPadding: glyphPadding; rightPadding: glyphPadding
         Accessible.name: text
         ToolTip.visible: hovered
         ToolTip.text: text
