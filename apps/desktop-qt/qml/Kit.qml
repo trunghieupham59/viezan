@@ -112,13 +112,23 @@ QtObject {
             border.width: pane.metrics.hairline
             border.color: pane.solid ? pane.appearance.edge : pane.colors[pane.borderRole]
         }
-        // 1 pt inner highlight along the top edge (`inset 0 1px 0`).
+        // 1 pt inner highlight along the top edge (`inset 0 1px 0`). It fades out
+        // before the corners: a straight line there leaves the rounded face and
+        // reads as a second border.
         Rectangle {
+            id: paneHighlight
             objectName: "glass-pane-highlight"
             visible: !pane.solid
             x: pane.radius / 2; y: pane.metrics.hairline
             width: Math.max(0, pane.width - pane.radius); height: pane.metrics.hairline
-            color: pane.colors["material-highlight"]
+            readonly property real fade: width > 0 ? Math.min(0.5, pane.radius / 2 / width) : 0.5
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0; color: Qt.alpha(pane.colors["material-highlight"], 0) }
+                GradientStop { position: paneHighlight.fade; color: pane.colors["material-highlight"] }
+                GradientStop { position: 1 - paneHighlight.fade; color: pane.colors["material-highlight"] }
+                GradientStop { position: 1; color: Qt.alpha(pane.colors["material-highlight"], 0) }
+            }
         }
         Accessible.ignored: true
     }
@@ -476,6 +486,9 @@ QtObject {
         readonly property var metrics: workbench.metrics
         readonly property bool glass: workbench.appearance?.preset === "glass"
         implicitHeight: glass ? metrics.compactControl - (metrics.tight - metrics.hairline) * 2 : metrics.control
+        // The style's vertical padding leaves the 26 pt Glass segment less than a text line.
+        topPadding: glass ? 0 : undefined
+        bottomPadding: glass ? 0 : undefined
         font.weight: checked ? Font.DemiBold : glass ? Font.Medium : Font.Normal
         readonly property bool darkMode: workbench.appearance?.preset === "midnight" || workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
         // Idle Glass segments read muted, the selected one strong (read from the theme, not
@@ -643,7 +656,8 @@ QtObject {
         Layout.fillWidth: true
         readonly property bool glass: workbench.appearance?.preset === "glass"
         GridLayout {
-            columns: row.width >= row.metrics.sidebar * 2 ? 2 : 1
+            // Narrow cards keep the control trailing while the label still has a readable column.
+            columns: row.width >= row.metrics.sidebar * 2 || row.width >= slot.implicitWidth + row.metrics.inset + row.metrics.editor ? 2 : 1
             // `.srow` (Glass): at least 48 pt, label 14, description 12.
             Layout.minimumHeight: row.glass ? row.metrics.navControl + row.metrics.small - row.metrics.small * 2 : 0
             columnSpacing: row.metrics.inset
@@ -732,8 +746,10 @@ QtObject {
         implicitHeight: metrics.control
         leftPadding: metrics.small
         rightPadding: metrics.small
-        topPadding: metrics.small
-        bottomPadding: metrics.small
+        // Compact heights (32 pt headers, chat actions) keep a full line for the
+        // icon and label; a fixed 8 pt would squeeze the row and push it off centre.
+        topPadding: Math.max(0, Math.min(metrics.small, (height - implicitContentHeight) / 2))
+        bottomPadding: topPadding
         icon.color: enabled ? palette.link : palette.placeholderText
         contentItem: RowLayout {
             spacing: quiet.metrics.gap
@@ -877,8 +893,9 @@ QtObject {
         readonly property var metrics: workbench.metrics
         leftPadding: metrics.small + metrics.tight
         rightPadding: leftPadding
-        topPadding: metrics.tight
-        bottomPadding: metrics.tight
+        // The 24 pt Glass chip keeps a full text line; a fixed 4 pt would push the label down.
+        topPadding: Math.max(0, Math.min(metrics.tight, (height - implicitContentHeight) / 2))
+        bottomPadding: topPadding
         // `.chip`: 24 pt.
         implicitHeight: workbench.appearance?.preset === "glass" ? metrics.gutter : implicitContentHeight + topPadding + bottomPadding
         background: Rectangle { radius: height / 2; color: Qt.tint(badge.palette.base, Qt.alpha(badge.idle ? badge.palette.placeholderText : badge.palette.highlight, badge.metrics.selectionOpacity)) }

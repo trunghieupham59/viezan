@@ -347,6 +347,9 @@ ApplicationWindow {
         palette.buttonText: !enabled ? root.colors["text-disabled"] : primary ? root.colors["action-text"] : root.colors.text
         leftPadding: showsLabel ? metrics.gap : 0
         rightPadding: leftPadding
+        // The style's vertical padding leaves the 32 pt pill less than its 20 pt icon.
+        topPadding: 0
+        bottomPadding: 0
         // `.btn.glass` pill 32; "new" (`.tint`) keeps clear glass and reads accent text.
         font.weight: root.glassChrome ? (primary ? Font.DemiBold : Font.Medium) : Font.Normal
         background: Rectangle {
@@ -996,6 +999,9 @@ ApplicationWindow {
                     return Math.max(metrics.control, chatDraft.positionToRectangle(position).y - top + padding)
                 }
                 padding: root.glassChrome ? metrics.small : metrics.inset
+                // FluentWinUI3 sets its own vertical padding on Frame; `padding` alone leaves it at 16.
+                topPadding: padding
+                bottomPadding: padding
                 background: Item {
                     Rectangle { anchors.fill: parent; visible: !root.glassChrome; color: root.palette.base; radius: metrics.surfaceRadius; border.width: metrics.hairline; border.color: chatDraft.activeFocus ? root.palette.mid : root.palette.midlight }
                     Kit.ChromeSurface {
@@ -1111,8 +1117,10 @@ ApplicationWindow {
                                 visible: root.glassChrome
                                 anchors.centerIn: parent
                                 width: metrics.icon; height: width
-                                IconImage { anchors.centerIn: parent; visible: !activeTask; source: "icons/back.svg"; rotation: 90; sourceSize.width: metrics.icon; sourceSize.height: metrics.icon; color: parent.parent.foreground; Accessible.ignored: true }
-                                Rectangle { visible: !activeTask; width: metrics.hairline * 2; height: metrics.gap; x: (parent.width - width) / 2; y: metrics.small; radius: metrics.hairline; color: parent.parent.foreground; Accessible.ignored: true }
+                                // The stem hangs below the chevron; lift both so the arrow sits on the button's centre.
+                                readonly property real arrowLift: metrics.tight - metrics.hairline
+                                IconImage { anchors.centerIn: parent; anchors.verticalCenterOffset: -parent.arrowLift; visible: !activeTask; source: "icons/back.svg"; rotation: 90; sourceSize.width: metrics.icon; sourceSize.height: metrics.icon; color: parent.parent.foreground; Accessible.ignored: true }
+                                Rectangle { visible: !activeTask; width: metrics.hairline * 2; height: metrics.gap; x: (parent.width - width) / 2; y: metrics.small - parent.arrowLift; radius: metrics.hairline; color: parent.parent.foreground; Accessible.ignored: true }
                                 Rectangle { anchors.centerIn: parent; visible: !!activeTask; width: metrics.icon - metrics.small; height: width; radius: metrics.hairline; color: parent.parent.foreground; Accessible.ignored: true }
                             }
                         }
@@ -1175,7 +1183,7 @@ ApplicationWindow {
                     Label { visible: !root.glassChrome; text: t("inputLanguage"); color: root.palette.placeholderText }
                     LanguagePicker { visible: !root.glassChrome; source: true; flat: true }
                     LanguageButton { objectName: "translate-source-language"; visible: root.glassChrome; shell: root; compact: translationWorkspace.width < metrics.reading; Layout.minimumWidth: 0; Layout.maximumWidth: translationWorkspace.width / 3; allowAuto: true; language: session.source; label: t("inputLanguage"); onChosen: code => command("pair", {source:code, target:session.target}) }
-                    Kit.IconButton { iconName: "swap"; text: t("swap"); enabled: session.source !== "auto"; onClicked: command("pair", {source: session.target, target: session.source}) }
+                    Kit.IconButton { iconName: "swap"; text: t("swap"); implicitWidth: root.glassChrome ? metrics.compactControl : metrics.control; implicitHeight: implicitWidth; enabled: session.source !== "auto"; onClicked: command("pair", {source: session.target, target: session.source}) }
                     Label { visible: !root.glassChrome; text: t("outputLanguage"); color: root.palette.placeholderText }
                     LanguagePicker { visible: !root.glassChrome; source: false; flat: true }
                     LanguageButton { objectName: "translate-target-language"; visible: root.glassChrome; shell: root; compact: translationWorkspace.width < metrics.reading; Layout.minimumWidth: 0; Layout.maximumWidth: translationWorkspace.width / 3; language: session.target; label: t("outputLanguage"); onChosen: code => command("pair", {source:session.source, target:code}) }
@@ -1237,8 +1245,12 @@ ApplicationWindow {
                 Layout.alignment: Qt.AlignHCenter
                 implicitHeight: root.glassChrome ? (translationWorkspace.dictionaryEmpty ? metrics.hero : metrics.navControl) + metrics.tight : implicitContentHeight + padding * 2
                 padding: metrics.small
+                // FluentWinUI3 sets its own vertical padding on Frame; `padding` alone leaves it at 16.
+                // The shorter field above a result keeps its 36 pt buttons centred.
+                topPadding: Math.max(0, Math.min(metrics.small, (height - metrics.control) / 2))
+                bottomPadding: topPadding
                 leftPadding: metrics.gap
-                rightPadding: metrics.small
+                rightPadding: root.glassChrome ? topPadding : metrics.small // concentric with the capsule end
                 background: Rectangle { radius: root.glassChrome ? height / 2 : metrics.largeRadius; color: root.glassChrome ? root.colors["surface-subtle"] : "transparent"; border.width: metrics.hairline; border.color: root.glassChrome ? root.colors[termDraft.activeFocus ? "border-strong" : "border"] : termDraft.activeFocus ? root.palette.mid : root.palette.midlight }
                 RowLayout {
                     anchors.fill: parent
@@ -1260,8 +1272,8 @@ ApplicationWindow {
                         Connections { target: root; function onComposerFocusEpochChanged() { if (root.session.feature === "dictionary") termDraft.forceActiveFocus() } }
                     }
                     Kit.IconButton { visible: root.glassChrome; iconName: "instructions"; text: t("dictionaryAddContext"); checked: translationWorkspace.showContext; onClicked: translationWorkspace.showContext = !translationWorkspace.showContext }
-                    Kit.GlassButton { visible: !!activeTask; text: t("stop"); onClicked: root.submit() }
-                    Kit.PrimaryButton { visible: !activeTask; text: t("lookup"); enabled: !!session.draft.trim() && Array.from(session.draft).length <= 120; onClicked: root.submit() }
+                    Kit.GlassButton { visible: !!activeTask; text: t("stop"); implicitHeight: lookupButton.implicitHeight; onClicked: root.submit() }
+                    Kit.PrimaryButton { id: lookupButton; visible: !activeTask; text: t("lookup"); enabled: !!session.draft.trim() && Array.from(session.draft).length <= 120; onClicked: root.submit() }
                 }
             }
             Label { visible: translationWorkspace.dictionaryEmpty && translationWorkspace.sourceLength <= 120; text: "↩ " + t("lookup") + " · " + t("dictionaryTermLimit"); color: root.colors["text-muted"]; font.pointSize: Qt.application.font.pointSize * metrics.smallScale; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap; Layout.fillWidth: true }
@@ -1481,7 +1493,7 @@ ApplicationWindow {
     }
     Component {
         id: applicationsView
-        ApplicationsWorkspace { bridge: workbench }
+        ApplicationsWorkspace { bridge: workbench; onNotification: message => root.notify(message) }
     }
     Component {
         id: interpretationView

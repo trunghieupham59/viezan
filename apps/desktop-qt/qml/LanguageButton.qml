@@ -32,6 +32,8 @@ Kit.QuietButton {
         return (allowAuto ? [{code:"auto",group:""}] : []).concat(recent.map(code => ({code:code,group:t("recentWork")})), all.filter(code => !recent.includes(code)).map(code => ({code:code,group:t("filterAll")})))
     }
     text: t("lang_" + language)
+    // Feature toolbars use the 32 pt control, like header actions and Settings pickers.
+    implicitHeight: metrics.compactControl
     Accessible.name: label + ": " + text
     contentItem: RowLayout {
         spacing: languageButton.metrics.tight

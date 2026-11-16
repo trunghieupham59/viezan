@@ -15,6 +15,21 @@ lists supported toolchains, build commands and packaging requirements.
   `npm run resources` and include both generated native.json files.
 - Keep cross-platform data contracts and fixtures in `contracts/native-workbench`.
 
+## Live QML reload (Windows/Linux)
+
+A development build can load `apps/desktop-qt/qml` from the source tree and
+rebuild its window whenever a QML file is saved. Workspace state stays in the
+C++ bridge; changes to C++, icons or `native.json` still need a normal build.
+Keep it in its own build directory so release and test builds stay packaged:
+
+```sh
+cmake -S apps/desktop-qt -B .native-build/qt-live -DVIEZAN_QML_LIVE=ON -DBUILD_TESTING=OFF
+cmake --build .native-build/qt-live --config Release --target ViezanNativeQt
+```
+
+A file that fails to load closes the window and reports the first error in a
+tray notification; the next save loads it again.
+
 ## Verification
 
 Run the checks for the affected targets. From the repository root:

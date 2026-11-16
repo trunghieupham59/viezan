@@ -6,6 +6,22 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [Unreleased]
 
+- Windows/Linux Glass: Settings keeps its section list beside the content at
+  the default window size with the sidebar open, in a narrower column, and
+  rows keep their control on the right in narrow cards.
+- Windows/Linux Glass: labels sit on the centre of compact buttons, filter
+  segments, header actions and status chips; the dictionary search field, the
+  chat composer and the Send arrow are centred; panes no longer show a second
+  line across their top edge in dark mode.
+- Windows/Linux: Translate, Dictionary and Interpret open the same searchable,
+  grouped model list as Chat, and their language, swap and model controls use
+  the 32 pt size of header actions and Settings pickers.
+- Windows/Linux: the sidebar scrolls its destinations in a short window
+  instead of overflowing its pane; the dictionary result tabs are a readable
+  segmented group; a refreshed Apps list is announced as a toast, only when
+  you asked for the refresh; the two quick-translate language pickers share
+  one width.
+
 - The Windows installer asks you to close a running Viezan before updating
   instead of failing on each locked file.
 - Make the Windows/Linux Glass theme easier to read: settings card titles sit

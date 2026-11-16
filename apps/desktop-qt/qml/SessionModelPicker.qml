@@ -23,70 +23,33 @@ ColumnLayout {
     property bool featureIconOnly: false
     property bool selectionOnly: false
     property string selectedModel: session.model || ""
-    readonly property var featureModels: Array.from(new Set(bridge.localModels.concat([selectedModel]).filter(id => id && !id.startsWith("demo.") && (!selectionOnly || bridge.chatCapable(id)))))
     signal modelChosen(string modelID)
     signal configureRequested()
     function chooseFeatureModel(id) {
         if (selectionOnly) modelChosen(id)
         else shell.command("model", {value:id})
-        featurePanel.close()
+        lineup.close()
     }
     Kit.QuietButton {
         id: featureTrigger; objectName: "feature-model-trigger"
         visible: modelPicker.glassFeature
         text: modelPicker.bridge.shortModelName(modelPicker.selectedModel) || t("model")
         Layout.maximumWidth: metrics.sidebar
-        implicitWidth: modelPicker.featureIconOnly ? metrics.control : implicitContentWidth + leftPadding + rightPadding
+        implicitHeight: metrics.compactControl
+        implicitWidth: modelPicker.featureIconOnly ? metrics.compactControl : implicitContentWidth + leftPadding + rightPadding
+        // Icon-only: equal side padding centres the 20 pt glyph in the 32 pt circle.
+        leftPadding: modelPicker.featureIconOnly ? (metrics.compactControl - metrics.icon) / 2 : metrics.small
+        rightPadding: leftPadding
         Accessible.name: t("model") + ": " + text
-        ToolTip.visible: hovered && !featurePanel.visible; ToolTip.text: text
+        ToolTip.visible: hovered && !lineup.visible; ToolTip.text: text
         contentItem: RowLayout {
             spacing: metrics.tight
             IconImage { source: "icons/reasoning.svg"; color: featureTrigger.palette.buttonText; sourceSize.width: metrics.icon; sourceSize.height: metrics.icon; Accessible.ignored: true }
             Label { visible: !modelPicker.featureIconOnly; text: featureTrigger.text; elide: Text.ElideRight; Layout.fillWidth: true; color: featureTrigger.enabled ? featureTrigger.palette.buttonText : featureTrigger.palette.placeholderText; Accessible.ignored: true }
             IconImage { visible: !modelPicker.featureIconOnly; source: "icons/back.svg"; rotation: -90; color: featureTrigger.palette.placeholderText; sourceSize.width: metrics.small + metrics.tight; sourceSize.height: metrics.small + metrics.tight; Accessible.ignored: true }
         }
-        onClicked: featurePanel.openAt(featureTrigger)
-    }
-    Kit.AnchoredPanel {
-        id: featurePanel; objectName: "feature-model-panel"; shell: modelPicker.shell
-        desiredWidth: metrics.sidebar + metrics.editor
-        onOpened: {
-            featureList.currentIndex = Math.max(0, modelPicker.featureModels.indexOf(modelPicker.selectedModel))
-            featureList.positionViewAtIndex(featureList.currentIndex, ListView.Contain)
-            featureList.forceActiveFocus()
-        }
-        contentItem: ColumnLayout {
-            spacing: metrics.small
-            ListView {
-                id: featureList; objectName: "feature-model-list"
-                Layout.fillWidth: true; Layout.fillHeight: true
-                implicitHeight: Math.min(contentHeight, metrics.editor * 2)
-                clip: true; boundsBehavior: Flickable.StopAtBounds
-                keyNavigationEnabled: true
-                model: featurePanel.visible ? modelPicker.featureModels : []
-                currentIndex: modelPicker.featureModels.indexOf(modelPicker.selectedModel)
-                Keys.onReturnPressed: if (currentIndex >= 0 && currentIndex < count) modelPicker.chooseFeatureModel(modelPicker.featureModels[currentIndex])
-                Keys.onEnterPressed: if (currentIndex >= 0 && currentIndex < count) modelPicker.chooseFeatureModel(modelPicker.featureModels[currentIndex])
-                ScrollBar.vertical: ScrollBar { policy: featureList.contentHeight > featureList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff }
-                delegate: Kit.PanelRow {
-                    required property string modelData
-                    required property int index
-                    width: featureList.width; text: modelPicker.bridge.shortModelName(modelData)
-                    detail: text !== modelData ? modelData : ""
-                    selected: modelPicker.selectedModel === modelData
-                    highlighted: featureList.activeFocus && featureList.currentIndex === index
-                    onClicked: modelPicker.chooseFeatureModel(modelData)
-                }
-            }
-            RowLayout {
-                Kit.QuietButton { text: t("refreshModels"); enabled: !modelPicker.bridge.loadingModels; onClicked: { for (const provider of ["ollama", "lmstudio", "llamacpp", "openai", "claude", "gemini"]) modelPicker.bridge.refreshModels(provider) } }
-                Kit.QuietButton { text: t("configureModel"); onClicked: {
-                    featurePanel.close()
-                    if (modelPicker.selectionOnly) modelPicker.configureRequested()
-                    else { modelDialog.ownerID = session.id; modelID.text = session.model; instructions.text = session.systemPrompt || ""; modelDialog.open() }
-                } }
-            }
-        }
+        // Feature views open the same searchable, grouped panel as Chat, below their trigger.
+        onClicked: { if (lineup.visible) lineup.close(); else { lineup.anchorItem = featureTrigger; lineup.open() } }
     }
     onGlassChatChanged: { modelPopup.close(); lineup.close() }
     spacing: metrics.small
@@ -109,7 +72,7 @@ ColumnLayout {
             Kit.Chevron { visible: !lineupTrigger.iconOnly; color: modelPicker.shell.colors["text-muted"] }
         }
         Kit.ControlLens { control: lineupTrigger; active: modelPicker.glassChat; quiet: true }
-        onClicked: modelPicker.shell.showComposerPanel(lineup, lineupTrigger)
+        onClicked: { lineup.anchorItem = lineupTrigger; modelPicker.shell.showComposerPanel(lineup, lineupTrigger) }
     }
     RowLayout {
         visible: !modelPicker.glassChat && !modelPicker.glassFeature
@@ -286,7 +249,15 @@ ColumnLayout {
         property string ownerID: ""
         property string query: ""
         property int selectedIndex: 0
+        // Chat anchors above its composer trigger; feature views anchor below theirs.
+        property Item anchorItem: lineupTrigger
+        property point origin: Qt.point(0, 0)
+        readonly property bool featureMode: anchorItem === featureTrigger
+        // Reasoning tiers are a Chat choice; a selection-only caller lists chat-capable models.
         readonly property var sections: (modelPicker.bridge.state, modelPicker.bridge.localModels, modelPicker.bridge.modelSections(query, ownerID))
+            .filter(section => !featureMode || section.key !== "purpose")
+            .map(section => !modelPicker.selectionOnly ? section : Object.assign({}, section, {rows: section.rows.filter(row => !row.model || modelPicker.bridge.chatCapable(row.model))}))
+            .filter(section => section.rows.length > 0)
         readonly property var rows: {
             let result = []
             for (const section of sections) for (let i = 0; i < section.rows.length; ++i)
@@ -294,16 +265,17 @@ ColumnLayout {
             return result
         }
         width: Math.min(metrics.sidebar + metrics.editor, modelPicker.shell.width - metrics.inset * 2)
-        height: Math.min(body.implicitHeight + topPadding + bottomPadding, modelPicker.shell.height - metrics.inset * 2)
-        x: Math.max(metrics.inset, Math.min(lineupTrigger.mapToItem(parent, 0, 0).x, modelPicker.shell.width - width - metrics.inset))
-        y: Math.max(metrics.inset, lineupTrigger.mapToItem(parent, 0, 0).y - height - metrics.small)
+        // Below a feature trigger the panel stops at the window edge instead of covering the trigger.
+        height: Math.min(body.implicitHeight + topPadding + bottomPadding, featureMode ? modelPicker.shell.height - origin.y - anchorItem.height - metrics.small - metrics.inset : modelPicker.shell.height - metrics.inset * 2)
+        x: Math.max(metrics.inset, Math.min(origin.x, modelPicker.shell.width - width - metrics.inset))
+        y: featureMode ? Math.max(metrics.inset, Math.min(origin.y + anchorItem.height + metrics.small, modelPicker.shell.height - height - metrics.inset)) : Math.max(metrics.inset, origin.y - height - metrics.small)
         padding: metrics.small
         modal: false; focus: true
         closePolicy: Popup.CloseOnPressOutside | (modelPicker.shell.composing() ? 0 : Popup.CloseOnEscape)
         background: Kit.ReadingPanelSurface {}
-        onAboutToShow: { ownerID = session.id; query = ""; selectedIndex = Math.max(0, rows.findIndex(row => row.model === session.model)) }
+        onAboutToShow: { origin = anchorItem.mapToItem(parent, 0, 0); ownerID = session.id; query = ""; selectedIndex = Math.max(0, rows.findIndex(row => row.model === modelPicker.selectedModel)) }
         onOpened: lineupSearch.forceActiveFocus()
-        onClosed: modelPicker.shell.restoreOverlayFocus()
+        onClosed: { if (featureMode) featureTrigger.forceActiveFocus(); else modelPicker.shell.restoreOverlayFocus() }
         onQueryChanged: selectedIndex = 0
         Connections { target: modelPicker.shell; function onSessionChanged() { if (lineup.visible && lineup.ownerID !== modelPicker.session.id) lineup.close() } }
         function groupTitle(key) { const title = ({purpose: "purposeSection", recent: "recentModels", local: "localSection", typed: "modelID"})[key]; return (title ? t(title) : modelNames.providerName(key)).toUpperCase() }
@@ -319,6 +291,7 @@ ColumnLayout {
             close()
             if (row.kind === "setup") modelPicker.shell.openSettingsSection(row.provider === "local" ? "localModels" : "providers")
             else if (row.kind === "tier") modelPicker.bridge.applyModelTier(owner, row.tier)
+            else if (featureMode) modelPicker.chooseFeatureModel(row.model)
             else modelPicker.shell.command("model", {sessionID: owner, value: row.model})
         }
         function move(offset) { selectedIndex = Math.max(0, Math.min(rows.length - 1, selectedIndex + offset)); lineupList.positionViewAtIndex(selectedIndex, ListView.Contain) }
@@ -353,7 +326,7 @@ ColumnLayout {
                         width: parent.width
                         text: lineup.label(modelData)
                         detail: modelData.kind === "tier" && modelData.tier === "careful" ? t("carefulReasoning") : modelData.kind === "model" ? modelData.model.split(":").slice(1).join(":") : ""
-                        selected: modelData.model === session.model && (modelData.kind !== "tier" || (modelData.tier === "careful") === !!session.carefulReasoning)
+                        selected: modelData.model === modelPicker.selectedModel && (modelData.kind !== "tier" || (modelData.tier === "careful") === !!session.carefulReasoning)
                         highlighted: index === lineup.selectedIndex
                         Accessible.name: text + (modelData.model ? ", " + modelData.model : "")
                         onClicked: lineup.choose(modelData)
@@ -370,7 +343,13 @@ ColumnLayout {
             Rectangle { Layout.fillWidth: true; implicitHeight: metrics.hairline; color: modelPicker.shell.colors.border }
             RowLayout {
                 Kit.QuietButton { text: t("refreshModels"); enabled: !modelPicker.bridge.loadingModels; onClicked: { for (const provider of ["ollama", "lmstudio", "llamacpp", "openai", "claude", "gemini"]) modelPicker.bridge.refreshModels(provider) } }
-                Kit.QuietButton { text: t("configureModel"); onClicked: { lineup.close(); modelPicker.shell.openSettingsSection(session.model.startsWith("openai:") || session.model.startsWith("claude:") || session.model.startsWith("gemini:") ? "providers" : "localModels") } }
+                Kit.QuietButton { text: t("configureModel"); onClicked: {
+                    const feature = lineup.featureMode
+                    lineup.close()
+                    // Feature views keep their own configuration: the caller's panel, or the model and instructions dialog.
+                    if (feature && modelPicker.selectionOnly) modelPicker.configureRequested()
+                    else if (feature) { modelDialog.ownerID = session.id; modelID.text = session.model; instructions.text = session.systemPrompt || ""; modelDialog.open() }
+                    else modelPicker.shell.openSettingsSection(session.model.startsWith("openai:") || session.model.startsWith("claude:") || session.model.startsWith("gemini:") ? "providers" : "localModels") } }
             }
         }
     }

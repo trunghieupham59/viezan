@@ -78,16 +78,21 @@ ScrollView {
             Kit.GlassButton { text: result.t(result.session?.dictionaryContext ? "dictionaryTranslateSentence" : "translate"); onClicked: result.handoff("translate", result.session?.dictionaryContext || "") }
             Kit.GlassButton { text: result.t("chat"); onClicked: result.handoff("chat") }
         }
-        RowLayout {
+        // The shared segmented group: a checked glass button paints its label in the
+        // accent's text colour, which is unreadable on the light lens.
+        Kit.FilterGroup {
+            id: resultTabs
             visible: !!result.entry
+            currentIndex: result.selectedTab
+            onSelectionChanged: index => result.selectedTab = index
+            // A click replaces the binding above; keep following the page's own tab changes.
+            Connections { target: result; function onSelectedTabChanged() { resultTabs.currentIndex = result.selectedTab } }
             Repeater {
                 model: result.entry?.related ? ["dictionaryMeaning", "dictionaryExamples", "dictionaryRelated"] : ["dictionaryMeaning", "dictionaryExamples"]
-                delegate: Kit.GlassButton {
+                delegate: Kit.FilterButton {
                     required property string modelData
                     required property int index
                     text: result.t(modelData) + (result.glass ? " · " + (index === 0 ? result.entry?.translations?.length || 0 : index === 1 ? result.examples.length : ["derived","synonyms","antonyms"].reduce((n,key) => n + (result.entry?.related?.[key]?.length || 0),0)) : "")
-                    flat: true; checkable: true; checked: result.selectedTab === index
-                    onClicked: result.selectedTab = index
                 }
             }
         }

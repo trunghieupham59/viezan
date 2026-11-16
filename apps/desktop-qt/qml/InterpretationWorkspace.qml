@@ -240,7 +240,7 @@ Item {
             RowLayout {
                 Layout.fillWidth: true; spacing: root.metrics.small
                 LanguageButton { objectName: "interpret-source-language"; shell: root.shell; allowAuto: true; language: ["auto"].concat(root.languages)[source.currentIndex] || "auto"; label: root.t("inputLanguage"); enabled: !root.live.busy; onChosen: code => source.currentIndex = ["auto"].concat(root.languages).indexOf(code) }
-                Kit.IconButton { objectName: "interpret-swap"; iconName: "swap"; text: root.t("swap"); enabled: !root.live.busy && source.currentIndex > 0; onClicked: {
+                Kit.IconButton { objectName: "interpret-swap"; iconName: "swap"; text: root.t("swap"); implicitWidth: root.metrics.compactControl; implicitHeight: implicitWidth; enabled: !root.live.busy && source.currentIndex > 0; onClicked: {
                     const previous = ["auto"].concat(root.languages)[source.currentIndex]
                     source.currentIndex = ["auto"].concat(root.languages).indexOf(root.languages[target.currentIndex])
                     target.currentIndex = root.languages.indexOf(previous)
@@ -250,7 +250,7 @@ Item {
             }
             RowLayout {
                 SessionModelPicker { objectName: "interpret-model-picker"; shell: root.shell; bridge: root.bridge; compact: true; glassFeature: true; selectionOnly: true; selectedModel: root.modelID; enabled: !root.live.busy; onModelChosen: id => root.useModel(id); onConfigureRequested: glassSetup.openAt(setupTrigger) }
-                Kit.QuietButton { id: setupTrigger; text: root.t("captureOptions"); icon.source: "icons/settings.svg"; icon.color: palette.buttonText; display: AbstractButton.IconOnly; Accessible.name: text; ToolTip.visible: hovered && !glassSetup.visible; ToolTip.text: text; onClicked: glassSetup.openAt(setupTrigger) }
+                Kit.QuietButton { id: setupTrigger; implicitHeight: root.metrics.compactControl; implicitWidth: implicitHeight; leftPadding: (root.metrics.compactControl - root.metrics.icon) / 2; rightPadding: leftPadding; text: root.t("captureOptions"); icon.source: "icons/settings.svg"; icon.color: palette.buttonText; display: AbstractButton.IconOnly; Accessible.name: text; ToolTip.visible: hovered && !glassSetup.visible; ToolTip.text: text; onClicked: glassSetup.openAt(setupTrigger) }
             }
         }
         Kit.ProviderNotice { model: root.modelID; dangerColor: root.dangerColor; Layout.fillWidth: true; onOpenRequested: section => root.openSettings(section); onUseRequested: id => root.useModel(id) }

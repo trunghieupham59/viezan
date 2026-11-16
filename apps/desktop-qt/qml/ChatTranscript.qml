@@ -244,10 +244,10 @@ Item {
                     visible: speaker === "assistant" && !chat.preview
                     Layout.fillWidth: true
                     spacing: metrics.tight
-                    Kit.GlassButton {
+                    // Copy, Retry and the meta chip are siblings: one control height, one centre line.
+                    Kit.QuietButton {
                         id: copy
-                        flat: true
-                        glassMaterial: !chat.glass
+                        implicitHeight: metrics.compactControl
                         objectName: "chat-copy-" + messageID
                         property bool copied: false
                         visible: rawBody.length > 0
@@ -257,15 +257,20 @@ Item {
                     }
                     Kit.QuietButton {
                         objectName: "chat-retry-" + messageID
+                        implicitHeight: metrics.compactControl
                         visible: chat.glass && !!messageRow.task && messageRow.latestAnswer && status !== "running"
                         text: chat.t("retry")
                         enabled: !chat.session.archived && !chat.sessionBusy
                         palette.buttonText: chat.colors["action-text"]
                         onClicked: chat.bridge.command("retry", {taskID: messageRow.messageID})
                     }
-                    Label {
-                        objectName: "chat-meta-" + messageID
+                    Item {
                         visible: chat.glass && !!messageRow.task && status !== "running"
+                        implicitWidth: meta.implicitWidth; implicitHeight: metrics.compactControl
+                    Label {
+                        id: meta
+                        objectName: "chat-meta-" + messageID
+                        anchors.verticalCenter: parent.verticalCenter
                         topPadding: metrics.tight; bottomPadding: metrics.tight; leftPadding: metrics.small; rightPadding: metrics.small
                         text: [chat.bridge.shortModelName(messageRow.task?.request.model || ""), messageRow.failed ? chat.t(messageRow.status) : messageRow.task?.usage ? chat.tpl("tokensCount", {n: (messageRow.task.usage.input || 0) + (messageRow.task.usage.output || 0)}) : "", chat.duration(messageRow.task)].filter(Boolean).join(" · ")
                         color: messageRow.status === "failed" ? chat.colors.danger : chat.colors["text-muted"]
@@ -273,6 +278,7 @@ Item {
                         background: Rectangle { radius: height / 2; color: messageRow.status === "failed" ? Qt.alpha(chat.colors.danger, metrics.selectionOpacity) : chat.colors["surface-muted"] }
                         ToolTip.visible: metaHover.hovered; ToolTip.text: messageRow.task?.request.model || ""
                         HoverHandler { id: metaHover }
+                    }
                     }
                 }
             }

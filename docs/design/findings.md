@@ -60,6 +60,10 @@ No known accessibility items remain in this list.
 
 ## Quyết định thiết kế (2026-11-03 · Liquid Glass 2.0)
 
+- 2026-11-16: Trên Qt, Dịch/Từ điển/Phiên dịch mở cùng bảng chọn model với Chat (ô tìm, nhóm theo nhà cung cấp), chỉ bỏ nhóm Mục đích vì mức suy luận là lựa chọn riêng của Chat; người dùng thấy hai bảng khác nhau cho cùng một việc.
+- 2026-11-16: Trên Qt Glass, nút ngôn ngữ, đảo chiều và model ở thanh công cụ tính năng dùng cỡ 32 như nút tiêu đề và ô chọn Cài đặt; ô soạn tin Chat giữ 36 vì gắn với hình viên thuốc của nó.
+- 2026-11-16: Trang Ứng dụng báo "Đã cập nhật danh sách" bằng toast và chỉ khi người dùng bấm làm mới; thẻ kết quả chỉ dành cho việc gỡ ứng dụng, vì lần quét tự động mỗi khi mở trang không cần chiếm một thẻ cố định.
+- 2026-11-15: Trên Qt Glass, cột mục Cài đặt rộng 204 thay vì 292 và giữ hai cột từ 672, vì cột cũ thừa chỗ trong khi cửa sổ mặc định với sidebar mở lại rơi xuống picker.
 - 2026-11-08: Gợi ý thói quen là chip lặng dưới "Tiếp tục" (hoặc dưới composer khi chưa có phiên gần đây), không bịa khi thiếu dữ liệu, để đề xuất dựa trên việc đã làm và không lấn át ô soạn.
 - 2026-11-08: Suy luận dùng bốn hàng chọn thay công tắc; hai mức giữa mờ khi model không chỉnh được, để thể hiện đúng khả năng model trong khi mức Kỹ vẫn dùng chỉ dẫn cẩn thận.
 

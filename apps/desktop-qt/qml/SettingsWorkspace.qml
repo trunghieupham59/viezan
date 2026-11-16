@@ -12,7 +12,9 @@ Item {
     property var workspace: bridge.state // the host may pass its own converted snapshot
     readonly property var metrics: bridge.metrics
     readonly property var preferences: workspace.appearance || {mode: "system", textSize: "medium"}
-    readonly property bool wide: width >= metrics.reading
+    readonly property real navWidth: metrics.sidebar - metrics.large
+    // Glass keeps the two columns at the default window size with the app sidebar open.
+    readonly property bool wide: width >= metrics.reading - (glass ? metrics.large * 2 + metrics.gutter : 0)
     readonly property real readingPointSize: Qt.application.font.pointSize * bridge.resources.textScales[preferences.textSize]
     property string query: ""
     signal queryEdited(string value)
@@ -103,8 +105,8 @@ Item {
             ColumnLayout {
                 visible: settings.wide && sections.length > 0
                 Layout.fillHeight: true
-                Layout.preferredWidth: settings.glass ? metrics.sidebar + metrics.large + metrics.gutter : metrics.sidebar - metrics.large
-                Layout.maximumWidth: settings.glass ? metrics.sidebar + metrics.large + metrics.gutter : metrics.sidebar - metrics.large
+                Layout.preferredWidth: settings.navWidth
+                Layout.maximumWidth: settings.navWidth
                 Repeater {
                     // Review 18 groups: customization first, then application data/about.
                     model: [["groupCustomize", sections.filter(section => !["data", "updates", "about"].includes(section.id))], ["groupApplication", sections.filter(section => ["data", "updates", "about"].includes(section.id))]].filter(group => group[1].length)

@@ -25,6 +25,9 @@ Nguồn hình: `docs/design/glass2/boards/Settings-*.png` và `Overlays-Settings
   từ khoá. Không có mục nào khớp thì hiện "Không có mục cài đặt nào khớp."
 - **Dưới 760.** Cột mục thay bằng một picker "icon · tên mục ⌄", danh sách vẫn chia
   theo nhóm.
+- **Qt (Windows/Linux), preset Glass.** Cột mục rộng 204 (`sidebar − large`) và đổi
+  sang picker khi vùng Cài đặt dưới 672, để cửa sổ mặc định (1044) vẫn giữ hai cột
+  khi sidebar ứng dụng đang mở.
 
 ## macOS menu bar
 

@@ -46,6 +46,11 @@ list(APPEND NATIVE_RESOURCES
 list(APPEND NATIVE_RESOURCES
     qml/SurfaceAppearance.qml)
 qt_add_resources(ViezanNativeQt workbench PREFIX "/" FILES ${NATIVE_RESOURCES})
+# Development only: load qml/ from the source tree and reload the window when a file is saved.
+option(VIEZAN_QML_LIVE "Load QML from the source tree and reload it on save" OFF)
+if(VIEZAN_QML_LIVE)
+    target_compile_definitions(ViezanNativeQt PRIVATE VIEZAN_QML_LIVE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
+endif()
 target_link_libraries(ViezanNativeQt PRIVATE Qt6::Svg Qt6::Widgets Qt6::Quick Qt6::QuickControls2 Qt6::Qml Qt6::Network Qt6::Concurrent Qt6::Multimedia Qt6::TextToSpeech Qt6::WebSockets)
 install(TARGETS ViezanNativeQt RUNTIME DESTINATION bin BUNDLE DESTINATION .)
 target_sources(ViezanNativeQt PRIVATE ${BACKEND_SERVICES})
