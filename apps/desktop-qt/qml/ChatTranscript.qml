@@ -16,11 +16,17 @@ Item {
     property bool preview: false
     signal notification(string text, bool error)
     signal imageExportRequested(url url, var image)
-    readonly property bool glass: bridge.appearance?.preset === "glass"
     readonly property bool dark: bridge.appearance?.mode === "dark" || (bridge.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
     readonly property var colors: bridge.palettes[dark ? "dark" : "light"]
-    readonly property real emptyHeight: glass ? glassGreeting.implicitHeight : emptyGreeting.implicitHeight
+    readonly property real emptyHeight: glassGreeting.implicitHeight
     function tpl(key, values) { let text = t(key); for (const name in values) text = text.split("{" + name + "}").join(values[name]); return text }
+    function elapsed(seconds) {
+        const total = Number.isFinite(seconds) ? Math.floor(Math.max(0, seconds)) : 0
+        const hours = Math.floor(total / 3600)
+        const minutes = Math.floor(total / 60) % 60
+        const pad = value => String(value).padStart(2, "0")
+        return (hours ? hours + ":" + pad(minutes) : minutes) + ":" + pad(total % 60)
+    }
     function duration(task) {
         if (!task?.started || !task?.finished) return ""
         return tpl("durationSeconds", {n: Number(Math.max(0, task.finished - task.started)).toLocaleString(Qt.locale(bridge.locale), 'f', 1)})
@@ -51,7 +57,7 @@ Item {
         for (let index = 0; index < messages.length; index++) {
             const message = messages[index]
             const status = taskByID[message.id]?.status || "noContent"
-            const values = {status: status, messageID: message.id, speaker: message.role, rawBody: message.text, displayBody: glass ? (message.text || "") : ((message.images || []).map(image => image.name).join("\n") + ((message.images || []).length ? "\n" : "") + (message.text || ((message.images || []).length ? "" : t(status))))}
+            const values = {status: status, messageID: message.id, speaker: message.role, rawBody: message.text, displayBody: message.text || ""}
             if (index >= rows.count) rows.append(values)
             else for (const key of Object.keys(values)) if (rows.get(index)[key] !== values[key]) rows.setProperty(index, key, values[key])
         }
@@ -74,6 +80,8 @@ Item {
     ListView {
         id: transcript
         objectName: "chat-message-list"
+        Accessible.role: Accessible.List
+        Accessible.name: chat.t("chat")
         anchors.fill: parent
         clip: true
         model: rows
@@ -83,7 +91,7 @@ Item {
         onMovementStarted: chat.followLatest = false
         onMovementEnded: if (!chat.selectionID) chat.followLatest = atYEnd
         onContentYChanged: if ((moving || bar.pressed) && !chat.selectionID) chat.followLatest = atYEnd
-        ScrollBar.vertical: ScrollBar { id: bar }
+        ScrollBar.vertical: ScrollBar { Accessible.name: chat.t("chat"); id: bar }
         delegate: Item {
             id: messageRow
             required property string messageID
@@ -93,6 +101,8 @@ Item {
             required property string displayBody
             readonly property var task: chat.taskByID[messageID]
             readonly property bool failed: ["failed", "cancelled", "interrupted"].includes(status)
+            Accessible.role: Accessible.ListItem
+            Accessible.name: chat.t(speaker === "user" ? "you" : status === "running" ? "chatAnswering" : "response")
             readonly property bool latestAnswer: chat.session.messages.slice(-1)[0]?.id === messageID
             readonly property var pictures: chat.session.messages.find(item => item.id === messageID)?.images || []
             width: transcript.width
@@ -103,12 +113,12 @@ Item {
                 width: Math.min(messageRow.width, metrics.reading)
                 anchors.horizontalCenter: parent.horizontalCenter
                 spacing: metrics.small
-                Label { visible: speaker === "assistant"; text: "✦ Viezan"; color: chat.glass ? chat.colors["text-muted"] : palette.placeholderText; font.weight: chat.glass ? Font.DemiBold : Font.Normal; font.pointSize: Qt.application.font.pointSize * chat.metrics.smallScale; Layout.fillWidth: true; Accessible.ignored: true }
+                Label { visible: speaker === "assistant"; text: "✦ Viezan"; color: chat.colors["text-muted"]; font.weight: Font.DemiBold; font.pointSize: Qt.application.font.pointSize * chat.metrics.smallScale; Layout.fillWidth: true; Accessible.ignored: true }
                 Pane {
                     id: researchCard
                     readonly property var research: messageRow.task?.research
                     property bool expanded: false
-                    visible: chat.glass && !!research
+                    visible: !!research
                     Layout.fillWidth: true
                     padding: metrics.gap
                     background: Kit.FlatCard {}
@@ -150,50 +160,39 @@ Item {
                     delegate: GridLayout {
                         required property var modelData
                         Layout.fillWidth: true
-                        columns: chat.glass && width >= metrics.compactSidebar * 2 ? 2 : 1
+                        columns: width >= metrics.compactSidebar * 2 ? 2 : 1
                         Image {
                             source: "image://attachments/" + modelData.id
                             asynchronous: true; fillMode: Image.PreserveAspectFit
                             sourceSize.width: metrics.reading; sourceSize.height: metrics.reading
-                            Layout.preferredWidth: chat.glass ? metrics.compactSidebar + metrics.small : metrics.editor
-                            Layout.preferredHeight: chat.glass ? metrics.compactSidebar + metrics.small : metrics.editor
+                            Layout.preferredWidth: metrics.compactSidebar + metrics.small
+                            Layout.preferredHeight: metrics.compactSidebar + metrics.small
                             Layout.maximumWidth: messageColumn.width
-                            Layout.fillWidth: !chat.glass
+                            Layout.fillWidth: false
                             Accessible.name: modelData.name
                         }
                         ColumnLayout {
-                            visible: chat.glass && !chat.preview
+                            visible: !chat.preview
                             Layout.fillWidth: true
                             Label { visible: messageRow.speaker === "assistant"; text: chat.imageCaption(messageRow.pictures, messageRow.task); wrapMode: Text.Wrap; Layout.fillWidth: true }
                             Kit.QuietButton { objectName: "chat-copy-image-" + modelData.id; text: chat.t("copyImage"); onClicked: { const copied = chat.bridge.copyImage(modelData); chat.notification(chat.t(copied ? "copied" : "exportError"), !copied) } }
-                            Kit.QuietButton { text: chat.t("saveImage"); onClicked: { saveImage.attachment = modelData; saveImage.open() } }
+                            Kit.QuietButton { text: chat.t("saveImage"); popupOpen: saveImage.visible && saveImage.attachment === modelData; onClicked: { saveImage.attachment = modelData; saveImage.open() } }
                             Kit.QuietButton { text: chat.t("editImage"); onClicked: chat.bridge.reuseImage(chat.session.id, modelData) }
                         }
-                        RowLayout {
-                            visible: !chat.glass && !chat.preview
-                            Kit.GlassButton { text: chat.t("saveImage"); onClicked: { saveImage.attachment = modelData; saveImage.open() } }
-                            Kit.GlassButton { text: chat.t("editImage"); onClicked: chat.bridge.reuseImage(chat.session.id, modelData) }
-                        }
                     }
-                }
-                Label {
-                    readonly property var research: messageRow.task?.research
-                    visible: !chat.glass && !!research
-                    text: research ? chat.t("research_" + research.phase) + (research.queries?.length ? " · " + research.cursor + "/" + research.queries.length : "") : ""
-                    Layout.fillWidth: true; wrapMode: Text.Wrap
                 }
                 TextMetrics { id: bubbleMeasure; font: messageText.font; text: messageRow.rawBody }
                 TextArea {
                     id: messageText
                     objectName: "chat-text-" + messageID
-                    visible: !chat.glass || !!messageRow.displayBody
-                    Layout.fillWidth: !(chat.glass && speaker === "user")
-                    Layout.preferredWidth: chat.glass && speaker === "user" ? Math.min(messageColumn.width * metrics.bubbleFraction, bubbleMeasure.advanceWidth + leftPadding + rightPadding) : -1
+                    visible: !!messageRow.displayBody
+                    Layout.fillWidth: !(speaker === "user")
+                    Layout.preferredWidth: speaker === "user" ? Math.min(messageColumn.width * metrics.bubbleFraction, bubbleMeasure.advanceWidth + leftPadding + rightPadding) : -1
                     Layout.alignment: speaker === "user" ? Qt.AlignRight : Qt.AlignLeft
-                    Layout.leftMargin: speaker === "user" && !chat.glass ? chat.metrics.large : 0
-                    leftPadding: speaker === "user" ? (chat.glass ? chat.metrics.gap + chat.metrics.hairline * 2 : chat.metrics.inset) : 0
+                    Layout.leftMargin: 0
+                    leftPadding: speaker === "user" ? (chat.metrics.gap + chat.metrics.hairline * 2) : 0
                     rightPadding: leftPadding
-                    topPadding: speaker === "user" ? (chat.glass ? chat.metrics.small + chat.metrics.hairline * 2 : chat.metrics.gap) : 0
+                    topPadding: speaker === "user" ? (chat.metrics.small + chat.metrics.hairline * 2) : 0
                     bottomPadding: topPadding
                     readOnly: true
                     selectByMouse: true
@@ -201,12 +200,13 @@ Item {
                     textFormat: TextEdit.PlainText
                     wrapMode: TextEdit.Wrap
                     font.pointSize: chat.readingPointSize
+                    Accessible.ignored: speaker === "assistant" && status === "running"
                     Accessible.name: t(speaker === "assistant" ? "response" : "you")
                     background: Rectangle {
                         visible: speaker === "user"
-                        color: chat.glass ? chat.colors["surface-muted"] : palette.midlight
-                        radius: chat.glass ? metrics.largeRadius + metrics.hairline * 2 : metrics.radius
-                        bottomRightRadius: chat.glass ? metrics.small - metrics.hairline * 2 : radius
+                        color: chat.colors["surface-muted"]
+                        radius: metrics.largeRadius + metrics.hairline * 2
+                        bottomRightRadius: metrics.small - metrics.hairline * 2
                     }
                     function updateContent() {
                         const start = selectionStart, end = selectionEnd, cursor = cursorPosition
@@ -229,17 +229,48 @@ Item {
                 Repeater { model: messageRow.speaker === "assistant" && messageRow.status !== "running" ? chat.bridge.chartArtifacts(messageRow.rawBody) : []; delegate: NativeChart { required property var modelData; artifact: modelData; metrics: chat.metrics; Layout.fillWidth: true } }
                 Pane {
                     objectName: "chat-failure-" + messageID
-                    visible: chat.glass && messageRow.failed && !chat.preview
+                    visible: messageRow.failed && !chat.preview
                     Layout.fillWidth: true
                     padding: metrics.gap
                     background: Rectangle { radius: metrics.radius; color: Qt.alpha(messageRow.status === "failed" ? chat.colors.danger : chat.colors["text-muted"], metrics.selectionOpacity); border.width: metrics.hairline; border.color: Qt.alpha(chat.colors.danger, metrics.selectionOpacity * 2) }
                     contentItem: ColumnLayout {
                         Label { text: chat.t(messageRow.status); Layout.fillWidth: true; wrapMode: Text.Wrap }
-                        Label { visible: messageRow.status === "failed"; text: chat.t(messageRow.task?.errorCode || "providerError"); color: chat.colors["text-muted"]; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                        Label { Accessible.role: Accessible.AlertMessage; visible: messageRow.status === "failed"; text: chat.t(messageRow.task?.errorCode || "providerError"); color: chat.colors["text-muted"]; Layout.fillWidth: true; wrapMode: Text.Wrap }
                         Label { objectName: "task-error-detail"; visible: !!messageRow.task?.errorDetail; text: messageRow.task?.errorDetail || ""; textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.Wrap; color: chat.colors["text-muted"] }
                     }
                 }
-                Kit.StatusBadge { objectName: "chat-answering-" + messageID; visible: chat.glass && speaker === "assistant" && status === "running" && !chat.preview; text: chat.t("chatAnswering") }
+                RowLayout {
+                    id: liveStatus
+                    readonly property bool researching: !!messageRow.task?.research || ["web", "research"].includes(messageRow.task?.request?.chatMode)
+                    visible: !chat.preview && speaker === "assistant" && messageRow.task?.status === "running"
+                    spacing: chat.metrics.small
+                    Kit.StatusBadge {
+                        id: answerStatus
+                        readonly property var started: messageRow.task?.started
+                        property double now: Date.now() / 1000
+                        tone: liveStatus.researching ? "busy" : "ready"
+                        objectName: (liveStatus.researching ? "chat-researching-" : "chat-answering-") + messageID
+                        text: liveStatus.researching && Number.isFinite(started)
+                              ? chat.tpl("researchingElapsed", {time: chat.elapsed(now - started)})
+                              : chat.t(liveStatus.researching ? "researching" : "chatAnswering")
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: chat.t(liveStatus.researching ? "researching" : "chatAnswering")
+                        Timer {
+                            interval: 1000; repeat: true; triggeredOnStart: true
+                            running: answerStatus.visible && liveStatus.researching && Number.isFinite(answerStatus.started)
+                            onTriggered: answerStatus.now = Date.now() / 1000
+                        }
+                    }
+                    SettingsDangerButton {
+                        objectName: "chat-research-stop-" + messageRow.messageID
+                        visible: liveStatus.researching
+                        implicitHeight: Math.max(chat.metrics.gutter, implicitContentHeight)
+                        font.pointSize: Qt.application.font.pointSize * chat.metrics.smallScale
+                        icon.source: "icons/stop.svg"
+                        text: chat.t("stop")
+                        onClicked: chat.bridge.command("cancel", {taskID: messageRow.messageID})
+                    }
+                }
                 Flow {
                     visible: speaker === "assistant" && !chat.preview
                     Layout.fillWidth: true
@@ -252,20 +283,26 @@ Item {
                         property bool copied: false
                         visible: rawBody.length > 0
                         text: chat.t(copied ? "copied" : "copy")
-                        onClicked: { bridge.copy(rawBody); copied = true; if (chat.glass) chat.notification(chat.t("copied"), false) }
+                        onClicked: { bridge.copy(rawBody); copied = true; chat.notification(chat.t("copied"), false) }
                         Connections { target: messageRow; function onRawBodyChanged() { copy.copied = false } }
+                    }
+                    Kit.SpeakButton {
+                        objectName: "chat-speak-" + messageID
+                        visible: messageRow.status !== "running" && !!messageRow.rawBody.trim()
+                        audio: chat.bridge.audio; sourceID: messageRow.messageID; speechText: messageRow.rawBody
+                        language: visible ? chat.bridge.speechLanguage(speechText, chat.bridge.locale) : ""
                     }
                     Kit.QuietButton {
                         objectName: "chat-retry-" + messageID
                         implicitHeight: metrics.compactControl
-                        visible: chat.glass && !!messageRow.task && messageRow.latestAnswer && status !== "running"
+                        visible: !!messageRow.task && messageRow.latestAnswer && status !== "running"
                         text: chat.t("retry")
                         enabled: !chat.session.archived && !chat.sessionBusy
                         palette.buttonText: chat.colors["action-text"]
                         onClicked: chat.bridge.command("retry", {taskID: messageRow.messageID})
                     }
                     Item {
-                        visible: chat.glass && !!messageRow.task && status !== "running"
+                        visible: !!messageRow.task && status !== "running"
                         implicitWidth: meta.implicitWidth; implicitHeight: metrics.compactControl
                     Label {
                         id: meta
@@ -285,23 +322,14 @@ Item {
         }
     }
     // Same empty state as macOS: heading and hint, centered on the composer's axis.
-    EmptyState {
-        id: emptyGreeting
-        visible: !chat.glass && !chat.preview && rows.count === 0
-        anchors.centerIn: parent
-        width: Math.min(parent.width, metrics.reading)
-        heading: t("emptyChat")
-        detail: t("emptyHint")
-        metrics: chat.metrics
-    }
     ColumnLayout {
         id: glassGreeting
-        visible: chat.glass && !chat.preview && rows.count === 0
+        visible: !chat.preview && rows.count === 0
         anchors.centerIn: parent
         width: Math.min(parent.width, metrics.reading)
         spacing: metrics.gutter - metrics.tight
         Image { source: "brand.png"; sourceSize.width: metrics.hero; sourceSize.height: metrics.hero; Layout.preferredWidth: metrics.hero; Layout.preferredHeight: metrics.hero; Layout.alignment: Qt.AlignHCenter; Accessible.ignored: true }
-        Label { text: chat.t("chatStart"); font.pointSize: Qt.application.font.pointSize * (chat.width < metrics.reading ? (metrics.headingScale + metrics.titleScale) / 2 : metrics.headingScale); font.weight: Font.Normal; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
+        Label { Accessible.role: Accessible.Heading; text: chat.t("chatStart"); font.pointSize: Qt.application.font.pointSize * (chat.width < metrics.reading ? (metrics.headingScale + metrics.titleScale) / 2 : metrics.headingScale); font.weight: Font.Normal; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
     }
     Kit.GlassButton {
         objectName: "chat-return-latest"
@@ -317,7 +345,7 @@ Item {
         property var attachment: ({})
         fileMode: FileDialog.SaveFile
         defaultSuffix: attachment.mime === "image/jpeg" ? "jpg" : attachment.mime === "image/webp" ? "webp" : "png"
-        onAccepted: { if (chat.glass) chat.imageExportRequested(selectedFile, attachment); else chat.bridge.exportImage(selectedFile, attachment) }
+        onAccepted: { chat.imageExportRequested(selectedFile, attachment) }
     }
 
 }

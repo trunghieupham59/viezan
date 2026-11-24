@@ -13,17 +13,33 @@
 #include <QTimer>
 #include <QSharedPointer>
 #include <QDesktopServices>
+#include <QFile>
 #include <QFileInfo>
-#ifdef Q_OS_WIN
-#include <windows.h>
-#include <wintrust.h>
-#include <softpub.h>
-#endif
+#include <QProcess>
+#include <QProcessEnvironment>
+#include <QTemporaryFile>
+#include <filesystem>
+extern "C" {
+#include "third_party/tweetnacl/tweetnacl.h"
+}
+// The app only verifies signatures, so TweetNaCl should never request random bytes.
+extern "C" void randombytes(unsigned char *, unsigned long long) { qFatal("Unexpected TweetNaCl randombytes call"); }
 namespace {
 bool allowed(const QUrl &url) { return url.isValid() && url.scheme() == "https" && url.userInfo().isEmpty() && url.port(443) == 443 && QStringList{"api.github.com", "github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com"}.contains(url.host().toLower()); }
 QNetworkRequest request(const QUrl &url) { QNetworkRequest value(url); value.setRawHeader("User-Agent", "Viezan-Native"); value.setTransferTimeout(30000); value.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy); return value; }
 }
 NativeUpdates::NativeUpdates(QObject *parent) : QObject(parent) {}
+const char NativeUpdates::signingKey[] = "aZpQFhJBvVltlekF09R2lM6OdOIBhKmpGXzVfnWvtWg=";
+bool NativeUpdates::isSigned(const QByteArray &manifest, const QByteArray &signature, const QByteArray &key) {
+    const auto publicKey = QByteArray::fromBase64Encoding(key, QByteArray::AbortOnBase64DecodingErrors);
+    const auto raw = QByteArray::fromBase64Encoding(signature.trimmed(), QByteArray::AbortOnBase64DecodingErrors);
+    if (!publicKey || publicKey.decoded.size() != crypto_sign_PUBLICKEYBYTES || !raw || raw.decoded.size() != crypto_sign_BYTES) return false;
+    const auto signedMessage = raw.decoded + manifest;
+    QByteArray message(signedMessage.size(), Qt::Uninitialized);
+    unsigned long long length = 0;
+    return crypto_sign_open(reinterpret_cast<unsigned char *>(message.data()), &length, reinterpret_cast<const unsigned char *>(signedMessage.constData()),
+                            signedMessage.size(), reinterpret_cast<const unsigned char *>(publicKey.decoded.constData())) == 0;
+}
 void NativeUpdates::cancel() {
     ++m_generation;
     if (m_reply) { m_reply->disconnect(this); m_reply->abort(); m_reply->deleteLater(); m_reply = nullptr; }
@@ -50,7 +66,7 @@ double NativeUpdates::remainingSeconds() const {
     return remaining(QDateTime::currentMSecsSinceEpoch() / 1000.0 - m_downloadStarted, double(m_received) / m_size);
 }
 void NativeUpdates::check() {
-    if (m_busy) return; cancel(); m_downloaded.clear(); m_busy = true; m_packageSize = 0; m_version.clear(); m_notes.clear(); m_package.clear(); m_manifest.clear(); m_status.clear(); emit changed();
+    if (m_busy) return; cancel(); m_downloaded.clear(); m_busy = true; m_packageSize = 0; m_version.clear(); m_notes.clear(); m_package.clear(); m_manifest.clear(); m_signature.clear(); m_status.clear(); emit changed();
     get(QUrl("https://api.github.com/repos/trunghieupham59/viezan/releases/latest"), 2097152, [this](QByteArray bytes) {
         const auto object = QJsonDocument::fromJson(bytes).object(); auto version = object.value("tag_name").toString(); if (version.startsWith('v')) version.remove(0,1);
         if (object.value("draft").toBool(true) || object.value("prerelease").toBool(true) || !QRegularExpression("^[0-9]+\\.[0-9]+\\.[0-9]+$").match(version).hasMatch()) { fail(); return; }
@@ -66,25 +82,29 @@ void NativeUpdates::check() {
             if (!allowed(url) || url.host() != "github.com" || !url.path().startsWith("/trunghieupham59/viezan/releases/download/")) continue;
             if (asset.value("name") == m_name) { m_package = url; m_packageSize = qMax<qint64>(0, asset.value("size").toInteger()); }
             if (asset.value("name") == prefix + ".json") m_manifest = url;
+            if (asset.value("name") == prefix + ".json.sig") m_signature = url;
         }
-        if (m_package.isEmpty() || m_manifest.isEmpty()) { fail(); return; }
+        if (m_package.isEmpty() || m_manifest.isEmpty() || m_signature.isEmpty()) { fail(); return; }
         m_version = version; m_notes = object.value("body").toString().left(65536); m_busy = false; m_status = "updateAvailable"; m_checkedAt = QDateTime::currentMSecsSinceEpoch() / 1000.0; emit changed();
     });
 }
 void NativeUpdates::download() {
-    if (m_busy || m_package.isEmpty() || m_manifest.isEmpty()) return;
+    if (m_busy || m_package.isEmpty() || m_manifest.isEmpty() || m_signature.isEmpty()) return;
     m_busy = true; m_status.clear(); m_downloaded.clear(); m_received = 0; m_downloadStarted = QDateTime::currentMSecsSinceEpoch() / 1000.0; emit changed();
     get(m_manifest, 65536, [this](QByteArray bytes) {
-        const auto manifest = QJsonDocument::fromJson(bytes).object(); QJsonObject artifact;
-        if (manifest.value("version") != m_version) { fail(); return; }
-        for (const auto &value : manifest.value("artifacts").toArray()) if (value.toObject().value("name") == m_name) artifact = value.toObject();
-        m_size = artifact.value("size").toInteger(); m_expectedHash = artifact.value("sha256").toString().toLatin1();
-        if (m_size <= 0 || m_size > 2147483648LL || !QRegularExpression("^[a-f0-9]{64}$").match(QString::fromLatin1(m_expectedHash)).hasMatch()) { fail(); return; }
-        const auto directory = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/updates/" + QUuid::createUuid().toString(QUuid::WithoutBraces);
-        if (!QDir().mkpath(directory)) { fail(); return; }
-        m_destination = directory + '/' + m_name; m_file = std::make_unique<QSaveFile>(m_destination);
-        if (!m_file->open(QIODevice::WriteOnly)) { fail(); return; }
-        m_file->setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner); m_hash.reset(); transfer(m_package);
+        get(m_signature, 1024, [this, bytes](QByteArray signature) {
+            if (!isSigned(bytes, signature)) { fail(); return; }
+            const auto manifest = QJsonDocument::fromJson(bytes).object(); QJsonObject artifact;
+            if (manifest.value("version") != m_version) { fail(); return; }
+            for (const auto &value : manifest.value("artifacts").toArray()) if (value.toObject().value("name") == m_name) artifact = value.toObject();
+            m_size = artifact.value("size").toInteger(); m_expectedHash = artifact.value("sha256").toString().toLatin1();
+            if (m_size <= 0 || m_size > 2147483648LL || !QRegularExpression("^[a-f0-9]{64}$").match(QString::fromLatin1(m_expectedHash)).hasMatch()) { fail(); return; }
+            const auto directory = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/updates/" + QUuid::createUuid().toString(QUuid::WithoutBraces);
+            if (!QDir().mkpath(directory)) { fail(); return; }
+            m_destination = directory + '/' + m_name; m_file = std::make_unique<QSaveFile>(m_destination);
+            if (!m_file->open(QIODevice::WriteOnly)) { fail(); return; }
+            m_file->setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner); m_hash.reset(); transfer(m_package);
+        });
     });
 }
 void NativeUpdates::transfer(const QUrl &url, int redirects) {
@@ -107,14 +127,94 @@ void NativeUpdates::transfer(const QUrl &url, int redirects) {
     });
     QTimer::singleShot(1800000, reply, [reply] { if (!reply->isFinished()) reply->abort(); });
 }
+bool NativeUpdates::replaceableAppImage(const QString &path) {
+    const QFileInfo file(path);
+    const auto writable = [](const QFileInfo &info) { return info.isWritable() && (info.permissions() & (QFile::WriteOwner | QFile::WriteGroup | QFile::WriteOther)); };
+    return !path.isEmpty() && file.isAbsolute() && !file.isSymLink() && file.isFile() && writable(file) && writable(QFileInfo(file.absolutePath()));
+}
+bool NativeUpdates::replaceAppImage(const QString &target, const QString &downloaded) {
+    QFile source(downloaded);
+    QSaveFile replacement(target);
+    if (!replaceableAppImage(target) || !source.open(QIODevice::ReadOnly) || !replacement.open(QIODevice::WriteOnly)) return false;
+    char buffer[64 * 1024];
+    qint64 size;
+    while ((size = source.read(buffer, sizeof(buffer))) > 0) {
+        if (replacement.write(buffer, size) != size) return false;
+    }
+    const auto permissions = QFile::permissions(target) & ~(QFile::ReadUser | QFile::WriteUser | QFile::ExeUser);
+    if (size < 0 || !replacement.setPermissions(permissions | QFile::ExeOwner) || !replacement.flush()) return false;
+
+    const auto installed = QFileInfo(target).filesystemFilePath(), previous = QFileInfo(target + ".previous").filesystemFilePath();
+    // Keep the old file under a second name first, then let commit() rename the new one over the path:
+    // the AppImage path always names a complete file, even if this process dies part-way.
+    std::error_code error;
+    std::filesystem::remove(previous, error);
+    std::filesystem::create_hard_link(installed, previous, error);
+    if (error) { error.clear(); std::filesystem::copy_file(installed, previous, std::filesystem::copy_options::overwrite_existing, error); }
+    return !error && replacement.commit();
+}
+bool NativeUpdates::canInstall() const {
+#ifdef Q_OS_WIN
+    return ready() && QFileInfo(QDir(QCoreApplication::applicationDirPath()).filePath("Uninstall.exe")).isFile();
+#elif defined(Q_OS_LINUX)
+    return ready() && replaceableAppImage(qEnvironmentVariable("APPIMAGE"));
+#else
+    return false;
+#endif
+}
+QString NativeUpdates::installerArguments(QString installDir) {
+    // NSIS consumes the unquoted remainder after /D=, including any spaces in the directory.
+    return "/S --force-run /D=" + installDir.replace('/', '\\');
+}
+bool NativeUpdates::verifyInstaller(QFile &file) {
+    QCryptographicHash hash(QCryptographicHash::Sha256);
+    if (file.open(QIODevice::ReadOnly) && hash.addData(&file) && hash.result().toHex() == m_expectedHash) return true;
+    m_status = "updateSignatureError"; emit changed(); return false;
+}
+QProcessEnvironment NativeUpdates::appImageEnvironment(QProcessEnvironment environment) {
+    const auto mount = QDir::cleanPath(environment.value("APPDIR"));
+    for (const auto key : {"APPIMAGE", "APPDIR", "ARGV0", "OWD"}) environment.remove(key);
+    if (!mount.startsWith('/') || mount == "/") return environment;
+
+    const auto prefix = mount + '/';
+    for (const auto &key : environment.keys()) {
+        auto paths = environment.value(key).split(':');
+        if (!paths.removeIf([&](const QString &path) { return path == mount || path.startsWith(prefix); })) continue;
+        if (paths.isEmpty()) environment.remove(key);
+        else environment.insert(key, paths.join(':'));
+    }
+    return environment;
+}
+bool NativeUpdates::install() {
+#if defined(Q_OS_WIN) || defined(Q_OS_LINUX)
+    if (!canInstall() || m_status == "updateInstalling") return false;
+    QFile file(m_downloaded);
+    if (!verifyInstaller(file)) return false;
+    QProcess installer;
+#ifdef Q_OS_WIN
+    // The installer runs without elevation after the app has quit; refuse here if it could not write, while the app can still say so.
+    if (QTemporaryFile probe(QDir(QCoreApplication::applicationDirPath()).filePath("update-XXXXXX")); !probe.open()) { m_status = "updateInstallError"; emit changed(); return false; }
+    installer.setProgram(m_downloaded);
+    installer.setNativeArguments(installerArguments(QCoreApplication::applicationDirPath()));
+#else
+    const auto target = qEnvironmentVariable("APPIMAGE");
+    if (!replaceAppImage(target, m_downloaded)) { m_status = "updateInstallError"; emit changed(); return false; }
+    installer.setProcessEnvironment(appImageEnvironment(QProcessEnvironment::systemEnvironment()));
+    installer.setWorkingDirectory(QDir::homePath()); // The current directory may be inside the old mount.
+    installer.setProgram("/bin/sh");
+    installer.setArguments({"-c", R"(while kill -0 "$1" 2>/dev/null; do sleep 0.2; done; exec "$2")", "sh", QString::number(QCoreApplication::applicationPid()), target});
+#endif
+    const bool started = installer.startDetached();
+    m_status = started ? "updateInstalling" : "updateInstallError"; emit changed(); return started;
+#else
+    return false;
+#endif
+}
 void NativeUpdates::openInstaller() {
     if (m_downloaded.isEmpty() || !QFileInfo(m_downloaded).isFile()) return;
 #ifdef Q_OS_WIN
-    const auto path = QDir::toNativeSeparators(m_downloaded).toStdWString();
-    WINTRUST_FILE_INFO file{}; file.cbStruct = sizeof(file); file.pcwszFilePath = path.c_str();
-    WINTRUST_DATA trust{}; trust.cbStruct = sizeof(trust); trust.dwUIChoice = WTD_UI_NONE; trust.fdwRevocationChecks = WTD_REVOKE_WHOLECHAIN; trust.dwUnionChoice = WTD_CHOICE_FILE; trust.pFile = &file; trust.dwStateAction = WTD_STATEACTION_VERIFY;
-    GUID action = WINTRUST_ACTION_GENERIC_VERIFY_V2; const auto result = WinVerifyTrust(nullptr, &action, &trust); trust.dwStateAction = WTD_STATEACTION_CLOSE; WinVerifyTrust(nullptr, &action, &trust);
-    if (result != ERROR_SUCCESS) { m_status = "updateSignatureError"; emit changed(); return; }
+    QFile file(m_downloaded);
+    if (!verifyInstaller(file)) return;
     QDesktopServices::openUrl(QUrl::fromLocalFile(m_downloaded));
 #else
     // Keep the current AppImage available for rollback; let the user choose its replacement location.

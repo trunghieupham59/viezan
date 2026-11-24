@@ -23,8 +23,9 @@
 #include <unistd.h>
 #endif
 
-LocalRuntime::LocalRuntime(QObject *parent) : QObject(parent) {
-    m_network.setProxy(QNetworkProxy::NoProxy);
+LocalRuntime::LocalRuntime(QObject *parent, QNetworkAccessManager *network)
+    : QObject(parent), m_network(network ? network : new QNetworkAccessManager(this)) {
+    m_network->setProxy(QNetworkProxy::NoProxy);
     m_process.setStandardOutputFile(QProcess::nullDevice()); m_process.setStandardErrorFile(QProcess::nullDevice()); m_process.setStandardInputFile(QProcess::nullDevice());
     connect(&m_process, &QProcess::errorOccurred, this, [this](QProcess::ProcessError) { m_busy = false; m_error = "runtimeStartError"; emit changed(); });
     connect(&m_process, &QProcess::finished, this, [this](int, QProcess::ExitStatus) { m_busy = false; m_available = false; m_version.clear(); emit changed(); });
@@ -45,7 +46,7 @@ qint64 LocalRuntime::memoryBytes() {
 }
 void LocalRuntime::probe(std::function<void(QString)> completion) {
     QNetworkRequest request(QUrl("http://127.0.0.1:11434/api/version")); request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy); request.setTransferTimeout(2000);
-    auto *reply = m_network.get(request); const auto buffer = QSharedPointer<QByteArray>::create();
+    auto *reply = m_network->get(request); const auto buffer = QSharedPointer<QByteArray>::create();
     connect(reply, &QNetworkReply::readyRead, this, [reply, buffer] { *buffer += reply->readAll(); if (buffer->size() > 65536) reply->abort(); });
     connect(reply, &QNetworkReply::finished, this, [reply, buffer, completion] { *buffer += reply->readAll(); QString version; if (reply->error() == QNetworkReply::NoError && reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() == 200 && buffer->size() <= 65536) version = QJsonDocument::fromJson(*buffer).object().value("version").toString(); reply->deleteLater(); completion(version); });
     QTimer::singleShot(2500, reply, [reply] { if (!reply->isFinished()) reply->abort(); });

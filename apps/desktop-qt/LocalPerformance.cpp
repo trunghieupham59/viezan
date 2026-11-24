@@ -75,17 +75,71 @@ QVariantMap compareModel(const QString &model, const std::shared_ptr<std::atomic
 }
 }
 QJsonObject LocalPerformance::options(const QString &model) { const auto value=load().value(model).toObject().value("selected").toObject(); return valid(value) ? QJsonObject{{"num_gpu",value.value("layers")},{"num_ctx",value.value("context")}} : QJsonObject{}; }
+QJsonObject LocalPerformance::headline(const QJsonArray &results, const QJsonObject &selected) {
+    QJsonObject fastest;
+    double bestRate = 0;
+    const bool hasSelected = valid(selected);
+    for (const auto &value : results) {
+        const auto result = value.toObject();
+        const auto rate = result.value("tokensPerSecond").toDouble();
+        const auto error = result.value("error");
+        if ((!error.isUndefined() && !error.isNull()) || result.value("id").toString().isEmpty()
+                || !std::isfinite(rate) || rate <= 0) continue;
+        const auto profile = result.value("profile").toObject();
+        if (hasSelected && profile.value("layers") == selected.value("layers")
+                && profile.value("context") == selected.value("context")) return result;
+        if (rate > bestRate) {
+            fastest = result;
+            bestRate = rate;
+        }
+    }
+    return fastest;
+}
+
+void LocalPerformance::setInstalledModels(const QStringList &models) {
+    if (models == m_installedModels) return;
+    m_installedModels = models;
+    updateMeasured(models.isEmpty() ? QJsonObject{} : load());
+}
+
+void LocalPerformance::updateMeasured(const QJsonObject &records) {
+    QVariantMap measured;
+    for (const auto &model : m_installedModels) {
+        const auto record = records.value(model).toObject();
+        const auto result = headline(record.value("results").toArray(), record.value("selected").toObject());
+        if (!result.isEmpty())
+            measured.insert(model, QVariantMap{{"id", result.value("id").toString()}, {"tokensPerSecond", result.value("tokensPerSecond").toDouble()}});
+    }
+    if (measured != m_measured) {
+        m_measured = measured;
+        emit measuredChanged();
+    }
+}
+
 void LocalPerformance::selectModel(const QString &model) { if (m_busy) return; m_model=model; m_results=load().value(model).toObject().value("results").toArray().toVariantList(); m_error.clear(); emit changed(); }
 void LocalPerformance::select(const QString &mode) {
     if (m_busy || !m_model.startsWith("ollama:")) return; auto values=load(), record=values.value(m_model).toObject();
     if (mode=="auto") record.remove("selected"); else { QJsonObject profile; for (const auto &value : record.value("results").toArray()) { const auto result=value.toObject(); if (result.value("id")==mode && !result.contains("error") && result.value("tokensPerSecond").toDouble()>0) profile=result.value("profile").toObject(); } if (!valid(profile)) return; record["selected"]=profile; }
-    values[m_model]=record; if (!save(values)) m_error="runtimeComparisonError"; emit changed();
+    values[m_model]=record;
+    if (save(values)) updateMeasured(values);
+    else m_error="runtimeComparisonError";
+    emit changed();
 }
 void LocalPerformance::cancel() { if (m_cancel) m_cancel->store(true); }
 void LocalPerformance::compare() {
     if (m_busy || !m_model.startsWith("ollama:") || m_model.size()>512) return; m_busy=true; exclusive.store(true); m_results.clear(); m_error.clear(); m_cancel=std::make_shared<std::atomic_bool>(false); emit changed(); const auto model=m_model; const auto cancel=m_cancel;
     auto *watcher=new QFutureWatcher<QVariantMap>(this); connect(watcher,&QFutureWatcher<QVariantMap>::finished,this,[this,watcher,model] {
         const auto result=watcher->result(); watcher->deleteLater(); m_results=result.value("results").toList(); m_error=result.value("error").toString(); m_busy=false; exclusive.store(false);
-        if (!result.value("cancelled").toBool() && m_error.isEmpty()) { auto values=load(), record=values.value(model).toObject(); record["results"]=QJsonArray::fromVariantList(m_results); values[model]=record; if (!save(values)) m_error="runtimeComparisonError"; } emit changed();
+        auto values = load();
+        if (!result.value("cancelled").toBool() && m_error.isEmpty()) {
+            auto record = values.value(model).toObject();
+            record["results"] = QJsonArray::fromVariantList(m_results);
+            auto updated = values;
+            updated[model] = record;
+            if (save(updated)) values = updated;
+            else m_error = "runtimeComparisonError";
+        }
+        updateMeasured(values);
+        emit changed();
     }); m_future = QtConcurrent::run([model,cancel] { return compareModel(model,cancel); }); watcher->setFuture(m_future);
 }

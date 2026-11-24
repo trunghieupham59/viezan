@@ -21,7 +21,22 @@ ColumnLayout {
     function remainingText() { const n = updates.remainingSeconds; return n < 0 ? "" : t(n < 60 ? "updateRemainingSeconds" : "updateRemainingMinutes").replace("{n}", Math.ceil(n < 60 ? n : n / 60)) }
     function statusText() {
         if (updates.busy) return updates.version ? t("updateDownloading").replace("{percent}", Math.round(updates.progress * 100)) : t("updateChecking")
+        if (updates.status === "updateReady" || updates.status === "updateInstallError") return t(install.automaticInstall ? "updateReadyInstall" : "updateReady")
         return updates.status ? t(updates.status) : ""
+    }
+    component ReadyButton: Kit.PrimaryButton {
+        required property var bridge
+        readonly property bool automaticInstall: bridge.updates.canInstall && bridge.updates.status !== "updateInstallError"
+        signal saveFailed()
+        text: bridge.strings[automaticInstall ? "installUpdate" : "openUpdate"]
+        enabled: bridge.updates.status !== "updateInstalling"
+        onClicked: {
+            if (!automaticInstall) { bridge.updates.openInstaller(); return }
+            // Save without shutting services down: if the installer cannot start, the app keeps working.
+            bridge.save()
+            if (bridge.storageError && !bridge.loadBlocked) { saveFailed(); return }
+            if (bridge.updates.install()) Qt.quit()
+        }
     }
     Timer { interval: 60000; repeat: true; running: panel.visible; onTriggered: panel.now = Date.now() / 1000 }
     spacing: metrics.inset
@@ -44,15 +59,16 @@ ColumnLayout {
         visible: !!panel.updates.version; title: "Viezan " + panel.updates.version; Layout.fillWidth: true
         ColumnLayout {
             width: parent.width; spacing: panel.metrics.small
-            TextArea { text: panel.updates.notes; visible: !!text; textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; Layout.fillWidth: true; background: Item {} }
+            TextArea { objectName: "update-notes"; Accessible.name: panel.t("releaseNotes"); text: panel.updates.notes; visible: !!text; textFormat: TextEdit.PlainText; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; Layout.fillWidth: true; background: Item {} }
             Label { objectName: "settings-update-size"; visible: panel.updates.packageSize > 0; text: (panel.updates.packageSize / 1000000).toLocaleString(Qt.locale(panel.bridge.locale), 'f', 1) + " MB"; color: palette.placeholderText }
-            ProgressBar { visible: panel.updates.busy; value: panel.updates.progress; Layout.fillWidth: true }
+            ProgressBar { objectName: "update-progress"; Accessible.name: panel.t("updateStatus"); visible: panel.updates.busy; value: panel.updates.progress; Layout.fillWidth: true }
             Label { objectName: "settings-update-remaining"; visible: panel.updates.busy && panel.updates.remainingSeconds >= 0; text: panel.remainingText(); color: palette.placeholderText }
+            PanelNotice { bridge: panel.bridge; visible: panel.updates.status === "updateInstallError"; text: panel.t("updateInstallError"); danger: true; Layout.fillWidth: true }
             Flow {
                 Layout.fillWidth: true; spacing: panel.metrics.small
                 Kit.PrimaryButton { text: panel.t("downloadUpdate"); visible: !panel.updates.ready; enabled: !!panel.updates.version && !panel.updates.busy; onClicked: panel.updates.download() }
                 SettingsDangerButton { text: panel.t("cancel"); visible: panel.updates.busy; onClicked: panel.updates.cancel() }
-                Kit.PrimaryButton { text: panel.t("openUpdate"); visible: panel.updates.ready; onClicked: panel.updates.openInstaller() }
+                ReadyButton { id: install; objectName: "settings-update-install"; bridge: panel.bridge; visible: panel.updates.ready }
             }
         }
     }

@@ -6,7 +6,6 @@ ColumnLayout {
     required property var bridge
     signal feedback(string message, bool error)
     readonly property var metrics: bridge.metrics
-    property color dangerColor: palette.placeholderText
     property string editing: ""
     property bool saving: false
     readonly property var names: ({openai: "OpenAI", claude: "Claude", gemini: "Gemini", groq: "Groq", tavily: "Tavily", brave: "Brave Search", jina: "Jina", elevenlabs: "ElevenLabs"})
@@ -16,10 +15,10 @@ ColumnLayout {
     function status(id) {
         const state = (bridge.localModels, bridge.discovering, bridge.credentialStatus, bridge.providerState(id))
         if (!state.keyed) return [t("keyAbsent"), "idle"]
-        if (!["openai", "claude", "gemini"].includes(id)) return [t("keyPresent"), "ready"]
-        if (state.models >= 0) return [t("keyPresent") + " · " + state.models + " " + t("modelsAvailable"), "ready"]
-        if (state.failure) return [t(state.failure), "failed"]
-        return [t("keyPresent") + " · " + t("keyUnverified"), "idle"]
+        if (!["openai", "claude", "gemini"].includes(id)) return [t("keyPresent"), "success"]
+        if (state.models >= 0) return [t("keyPresent") + " · " + state.models + " " + t("modelsAvailable"), "success"]
+        if (state.failure) return [t(state.failure), "danger"]
+        return [t("keyPresent") + " · " + t("keyUnverified"), "warning"]
     }
     spacing: metrics.inset
     Kit.GlassButton { text: providers.t("checkAgain"); icon.source: "icons/refresh.svg"; enabled: !providers.bridge.discovering; onClicked: providers.bridge.discoverProviders() }
@@ -42,18 +41,28 @@ ColumnLayout {
                         Kit.CardRow {
                             objectName: "provider-status-" + providerRow.modelData
                             title: providers.names[providerRow.modelData]; detail: providerRow.rowState[0]; divider: false
-                            Kit.StatusDot { tone: providerRow.rowState[1]; failedColor: providers.dangerColor }
-                            Kit.GlassButton { text: providers.t(providerRow.keyed ? "replaceKey" : "addKey"); enabled: !providers.bridge.credentialBusy; onClicked: { providers.editing = providers.editing === providerRow.modelData ? "" : providerRow.modelData; key.clear(); if (providers.editing) key.forceActiveFocus() } }
-                            SettingsDangerButton { text: providers.t("deleteKey"); visible: providerRow.keyed; enabled: !providers.bridge.credentialBusy; onClicked: { confirmation.providerID = providerRow.modelData; confirmation.open() } }
+                            Kit.StatusDot { objectName: "provider-dot-" + providerRow.modelData; tone: providerRow.rowState[1] }
+                            Kit.GlassButton { id: editKey; objectName: "edit-key-" + providerRow.modelData; text: providers.t(providerRow.keyed ? "replaceKey" : "addKey"); enabled: !providers.bridge.credentialBusy; onClicked: { providers.editing = providers.editing === providerRow.modelData ? "" : providerRow.modelData; key.clear(); if (providers.editing) key.forceActiveFocus() } }
+                            SettingsDangerButton { text: providers.t("deleteKey"); visible: providerRow.keyed; enabled: !providers.bridge.credentialBusy; popupOpen: confirmation.visible && confirmation.providerID === providerRow.modelData; onClicked: { confirmation.providerID = providerRow.modelData; confirmation.fallbackFocusItem = getKey; confirmation.openFrom(this) } }
                         }
-                        Kit.QuietButton { text: providers.t("getKey") + " ↗"; onClicked: Qt.openUrlExternally(providers.links[providerRow.modelData]) }
+                        Kit.QuietButton { id: getKey; text: providers.t("getKey") + " ↗"; onClicked: Qt.openUrlExternally(providers.links[providerRow.modelData]) }
                         ColumnLayout {
                             visible: providers.editing === providerRow.modelData; Layout.fillWidth: true
-                            TextField { id: key; echoMode: TextInput.Password; placeholderText: providers.t("apiKey"); Accessible.name: providers.names[providerRow.modelData] + " · " + placeholderText; maximumLength: 4096; Layout.fillWidth: true; enabled: !providers.bridge.credentialBusy; onAccepted: if (!inputMethodComposing && save.enabled) save.clicked() }
+                            id: editor
+                            function closeEditor() {
+                                key.clear()
+                                providers.editing = ""
+                                editKey.forceActiveFocus(Qt.TabFocusReason)
+                            }
+                            Keys.onEscapePressed: event => {
+                                event.accepted = !key.inputMethodComposing
+                                if (event.accepted) closeEditor()
+                            }
+                            TextField { id: key; objectName: "key-input-" + providerRow.modelData; echoMode: TextInput.Password; placeholderText: providers.t("apiKey"); Accessible.name: providers.names[providerRow.modelData] + " · " + placeholderText; maximumLength: 4096; Layout.fillWidth: true; enabled: !providers.bridge.credentialBusy; onAccepted: if (!inputMethodComposing && save.enabled) save.clicked() }
                             Flow {
                                 Layout.fillWidth: true; spacing: providers.metrics.small
                                 Kit.PrimaryButton { id: save; text: providers.t("saveKey"); enabled: !providers.bridge.credentialBusy && !!key.text.trim(); onClicked: { providers.saving = true; providers.bridge.saveCredential(providerRow.modelData, key.text); key.clear() } }
-                                Kit.QuietButton { text: providers.t("close"); enabled: !providers.bridge.credentialBusy; onClicked: { key.clear(); providers.editing = "" } }
+                                Kit.QuietButton { text: providers.t("close"); enabled: !providers.bridge.credentialBusy; onClicked: editor.closeEditor() }
                             }
                         }
                         Rectangle { Layout.fillWidth: true; implicitHeight: providers.metrics.hairline; color: palette.midlight }
@@ -64,8 +73,8 @@ ColumnLayout {
             }
         }
     }
-    BusyIndicator { visible: running; running: providers.bridge.credentialBusy; implicitWidth: providers.metrics.control; implicitHeight: providers.metrics.control }
-    Label { text: providers.bridge.credentialStatus ? providers.t(providers.bridge.credentialStatus) : ""; visible: !!text; wrapMode: Text.Wrap; Layout.fillWidth: true }
+    BusyIndicator { objectName: "key-busy"; Accessible.name: providers.t("apiKey"); visible: running; running: providers.bridge.credentialBusy; implicitWidth: providers.metrics.control; implicitHeight: providers.metrics.control }
+    Label { objectName: "key-status"; Accessible.role: providers.bridge.credentialStatus === "keyStorageError" ? Accessible.AlertMessage : Accessible.StaticText; text: providers.bridge.credentialStatus ? providers.t(providers.bridge.credentialStatus) : ""; visible: !!text; wrapMode: Text.Wrap; Layout.fillWidth: true }
     SettingsConfirm {
         id: confirmation; objectName: "settings-delete-key-dialog"; bridge: providers.bridge
         property string providerID: ""

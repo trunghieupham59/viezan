@@ -6,25 +6,23 @@ import QtQuick.Controls
 // compilation unit can still be under construction.
 // Skin the existing button-box delegate: the Dialog retains its native
 // footer, standard button roles, ordering, default action and signals.
-Dialog {
+BlockingDialog {
     id: glassDialog
-    readonly property var metrics: workbench.metrics
-    readonly property bool glass: workbench.appearance?.preset === "glass"
     property Item glassPanelBackground: Kit.ReadingPanelSurface {
         parent: glassDialog.contentItem.parent
         anchors.fill: parent
+        radius: glassDialog.panelRadius
         z: -1
-        visible: glassDialog.glass
     }
-    Binding { target: glassDialog.background; property: "visible"; value: !glassDialog.glass }
+    Binding { target: glassDialog.background; property: "visible"; value: false }
     // The native title/button-box backgrounds otherwise cover the rounded
     // shell with square strips. Keep their objects, roles and ordering.
-    Binding { target: glassDialog.header?.background; property: "visible"; value: !glassDialog.glass }
-    Binding { target: glassDialog.header; property: "padding"; value: glassDialog.metrics.inset; when: glassDialog.glass }
+    Binding { target: glassDialog.header?.background; property: "visible"; value: false }
+    Binding { target: glassDialog.header; property: "padding"; value: glassDialog.metrics.inset }
     footer: DialogButtonBox {
         id: dialogButtons
         visible: count > 0
         delegate: Kit.GlassButton {}
-        Binding { target: dialogButtons.background; property: "visible"; value: !glassDialog.glass }
+        Binding { target: dialogButtons.background; property: "visible"; value: false }
     }
 }

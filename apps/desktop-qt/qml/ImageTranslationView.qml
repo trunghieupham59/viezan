@@ -3,7 +3,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
 
-ScrollView {
+NamedScrollView {
+    scrollName: root.t("translate")
     id: root
     required property var bridge
     required property var session
@@ -30,7 +31,7 @@ ScrollView {
             text: !root.complete ? root.bridge.imageTranslationText(root.session.output) : (root.translated || root.resultImage) ? (root.bridge.imageTranslationText(root.session.output) || root.t("imageNoText")) : root.t("imageError")
             textFormat: Text.PlainText; wrapMode: Text.Wrap; Layout.fillWidth: true
         }
-        Kit.GlassButton { text: root.t("exportImage"); visible: root.complete; enabled: !!root.translated || !!root.resultImage; onClicked: { save.image = root.image; save.renderedImage = root.resultImage; save.output = root.session.output; save.open() } }
+        Kit.GlassButton { text: root.t("exportImage"); visible: root.complete; enabled: !!root.translated || !!root.resultImage; popupOpen: save.visible; onClicked: { save.image = root.image; save.renderedImage = root.resultImage; save.output = root.session.output; save.open() } }
     }
     FileDialog {
         id: save

@@ -17,6 +17,7 @@
 #include <QJSEngine>
 #include <QPointer>
 #include <QTimer>
+#include <QValidator>
 #include <QImage>
 #include <QTemporaryFile>
 #include <memory>
@@ -41,6 +42,7 @@ class WorkbenchBridge final : public QObject {
     Q_PROPERTY(bool credentialBusy READ credentialBusy NOTIFY changed)
     Q_PROPERTY(QString credentialStatus READ credentialStatus NOTIFY changed)
     Q_PROPERTY(QStringList localModels READ localModels NOTIFY changed)
+    Q_PROPERTY(QVariantMap installedModelSizes READ installedModelSizes NOTIFY changed)
     Q_PROPERTY(bool loadingModels READ loadingModels NOTIFY changed)
     Q_PROPERTY(QString modelError READ modelError NOTIFY changed)
     // Provider discovery: which local runtimes answer and which cloud providers have a key.
@@ -49,6 +51,8 @@ class WorkbenchBridge final : public QObject {
     Q_PROPERTY(bool discovering READ discovering NOTIFY changed)
     Q_PROPERTY(QString preferredModel READ preferredModel NOTIFY changed)
     Q_PROPERTY(QVariantMap state READ state NOTIFY changed)
+    Q_PROPERTY(quint64 historyRevision READ historyRevision NOTIFY historyChanged)
+    Q_PROPERTY(quint64 catalogRevision READ catalogRevision NOTIFY catalogChanged)
     Q_PROPERTY(QJSValue resources READ scriptResources CONSTANT)
     // Narrow views of state and resources. QML converts a whole QVariantMap on every read,
     // so bindings that only need these must not depend on `state` or `resources`.
@@ -57,6 +61,7 @@ class WorkbenchBridge final : public QObject {
     Q_PROPERTY(QVariantMap appearance READ appearance NOTIFY appearanceChanged)
     Q_PROPERTY(QVariantMap palettes READ palettes NOTIFY appearanceChanged)
     Q_PROPERTY(QVariantMap metrics READ metrics CONSTANT)
+    Q_PROPERTY(QValidator* dictionaryContextValidator MEMBER m_dictionaryContextValidator CONSTANT)
     Q_PROPERTY(QStringList disabledModules READ disabledModules NOTIFY disabledModulesChanged)
     Q_PROPERTY(QVariantMap voice READ voice NOTIFY voiceChanged)
     Q_PROPERTY(QString storageError READ storageError NOTIFY changed)
@@ -70,21 +75,25 @@ class WorkbenchBridge final : public QObject {
 public:
     explicit WorkbenchBridge(QObject *parent = nullptr, const QString &storageFile = {}, bool automaticProvider = true);
     QVariantMap state() const { return m_state; }
+    quint64 historyRevision() const { return m_historyRevision; }
+    quint64 catalogRevision() const { return m_catalogRevision; }
     QVariantMap resources() const { return m_resources; }
     QJSValue scriptResources();
     QString locale() const { return m_locale; }
     QVariantMap strings() const { return m_resources.value("locales").toMap().value(m_locale).toMap(); }
     QVariantMap appearance() const { return m_appearance; }
-    /// {light, dark} palettes of the current preset and accent.
-    QVariantMap palettes() const { return m_resources.value("themePalettes").toMap().value(m_appearance.value("preset", "graphite").toString() + ":" + m_appearance.value("accent", "auto").toString()).toMap(); }
+    /// {light, dark} palettes for Glass with the current accent.
+    QVariantMap palettes() const { return m_resources.value("themePalettes").toMap().value(QStringLiteral("glass:") + m_appearance.value("accent", "auto").toString()).toMap(); }
     QVariantMap metrics() const { return m_resources.value("metrics").toMap(); }
     QStringList disabledModules() const { return m_disabledModules; }
     QVariantMap voice() const { return m_voice; }
     QString storageError() const { return m_storageError; }
     bool loadBlocked() const { return m_loadBlocked; }
+    Q_INVOKABLE qsizetype graphemeCount(const QString &text, bool trimmed = false) const;
     Q_INVOKABLE bool moduleEnabled(const QString &route) const;
     Q_INVOKABLE void command(const QString &name, const QVariantMap &payload = {});
     QStringList localModels() const { return m_localModels; }
+    QVariantMap installedModelSizes() const { return m_providers.ollamaSizes; }
     bool loadingModels() const { return m_loadingModels; }
     QString modelError() const { return m_modelError; }
     bool providersChecked() const { return m_providers.checked; }
@@ -96,7 +105,7 @@ public:
     Q_INVOKABLE void discoverProviders();
     // Speech-to-text runs in the cloud: "auto" needs any of OpenAI/Gemini/Groq, else that provider's key.
     Q_INVOKABLE bool speechReady(const QString &provider) const {
-        return provider == "auto" ? (m_credentials.contains("openai") || m_credentials.contains("gemini") || m_credentials.contains("groq")) : m_credentials.contains(provider);
+        return provider == "auto" ? !m_providers.speechKeyed.isEmpty() : m_providers.speechKeyed.contains(provider);
     }
     Q_INVOKABLE bool chatCapable(const QString &model) const { return ProviderDiscovery::chatCapable(model); }
     // Who draws in image mode for this model ("openai" | "gemini" | ""), from cached key presence.
@@ -156,6 +165,7 @@ public:
     /// Items "Clear history" removes: Chat, Translate and Dictionary sessions plus Interpretation transcripts.
     Q_INVOKABLE int clearableHistoryCount() const;
     /// A "not found" dictionary reply's suggestions, or undefined for any other output.
+    Q_INVOKABLE QVariant dictionaryEntry(const QString &output) const;
     Q_INVOKABLE QVariant dictionarySuggestions(const QString &output) const;
     /// Delete a session that is not running (Swift removeSession); returns {session, index} for Undo,
     /// or an empty map when refused. restoreSession puts it back where it was.
@@ -166,7 +176,10 @@ public:
     /// and the panel's sections for a query.
     Q_INVOKABLE QVariantMap modelTiers(const QString &sessionID) const;
     Q_INVOKABLE void applyModelTier(const QString &sessionID, const QString &tier);
+    Q_INVOKABLE bool canPinModel(const QString &model) const;
     Q_INVOKABLE QStringList recentPicks() const;
+    Q_INVOKABLE QVariantList habitSuggestions(const QString &sessionID) const;
+    Q_INVOKABLE bool supportsEffort(const QString &id) const;
     Q_INVOKABLE QString shortModelName(const QString &id) const;
     /// Whether a voice provider honours the speaking rate (the speed seg dims otherwise).
     Q_INVOKABLE bool rateSupported(const QString &provider) const { return NativeAudio::rateSupported(provider); }
@@ -175,6 +188,7 @@ public:
     /// modules (Settings always), and the quick AI chat to continue ({id, title, fresh}) when that session
     /// still has messages; fresh = changed within 30 minutes, so a new question continues it.
     Q_INVOKABLE QVariantMap launcherHome(const QString &quickSessionID) const;
+    Q_INVOKABLE QVariantList settingsJump(const QString &query, const QString &locale, const QVariantList &sections) const;
     QVariantMap updatePrompt() const { return m_updatePrompt; }
     bool autoCheckUpdates() const { return m_state.value("updates").toMap().value("autoCheck", true).toBool(); }
     void setAutoCheckUpdates(bool value) { command("autoCheckUpdates", {{"value", value}}); }
@@ -199,9 +213,12 @@ public:
     Q_INVOKABLE QString speechLanguage(const QString &text, const QString &fallback = {}) const;
     Q_INVOKABLE QVariantList history(const QString &query, bool archived = false, const QStringList &features = {}) const;
 signals:
+    void historyChanged();
+    void catalogChanged();
     void capturePreparing();
     void captureReady(const QUrl &image, int x, int y, int width, int height);
     void captureFinished();
+    void actionFailed(const QString &code);
     void changed();
     void localeChanged();
     void appearanceChanged();
@@ -210,6 +227,7 @@ signals:
 private slots:
     void screenshotResponse(uint code, const QVariantMap &results);
 private:
+    QString writeWorkspace(const QVariantMap &state, QSaveFile *transcripts = nullptr);
     quint64 m_autoTranslationEpoch = 0;
     void scheduleTranslation(const QString &sessionID);
     QString m_captureOwner, m_capturePortal;
@@ -250,6 +268,9 @@ private:
     QHash<QString, QString> m_networkWorkers; // task ID -> attempt ID
     bool m_synchronizing = false, m_synchronizeAgain = false, m_shuttingDown = false;
     QVariantMap m_state, m_resources;
+    quint64 m_historyRevision = 0, m_catalogRevision = 0;
+    void invalidateHistory() { ++m_historyRevision; emit historyChanged(); }
+    void invalidateCatalog() { ++m_catalogRevision; emit catalogChanged(); }
     // QML reads `resources` thousands of times per window. Handing out the
     // QVariantMap converted the whole of native.json on every read, so the
     // converted object is kept per engine.
@@ -260,6 +281,7 @@ private:
     bool m_backgroundCheck = false;
     QString m_file, m_storageError;
     bool m_loadBlocked = false;
+    QValidator *const m_dictionaryContextValidator;
     bool m_automaticProvider;
     QTimer m_saveTimer;
     QTimer m_notifyTimer; // coalesces `changed` while a reply streams

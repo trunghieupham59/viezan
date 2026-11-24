@@ -1,6 +1,9 @@
 #include "CredentialStore.h"
 #include <QStringList>
-#if defined(Q_OS_WIN)
+#if defined(VIEZAN_CONTRACT_FIXTURE)
+#include <QHash>
+#include <QMutex>
+#elif defined(Q_OS_WIN)
 #include <windows.h>
 #include <wincred.h>
 #elif defined(Q_OS_MACOS)
@@ -11,7 +14,11 @@
 #endif
 namespace CredentialStore {
 bool validProvider(const QString &provider) { return QStringList{"openai", "claude", "gemini", "groq", "tavily", "brave", "jina", "elevenlabs"}.contains(provider); }
-#if defined(Q_OS_MACOS)
+#if defined(VIEZAN_CONTRACT_FIXTURE)
+// The QtTest executable never opens the user's OS credential store.
+static QMutex fixtureMutex;
+static QHash<QString, QByteArray> fixtureKeys;
+#elif defined(Q_OS_MACOS)
 static CFMutableDictionaryRef query(const QString &provider) {
     auto q = CFDictionaryCreateMutable(nullptr, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
     const auto account = provider.toUtf8();
@@ -41,7 +48,10 @@ static QByteArray secretTool(const QStringList &args, const QByteArray &input, b
 #endif
 QByteArray read(const QString &provider) {
     if (!validProvider(provider)) return {};
-#ifdef Q_OS_WIN
+#if defined(VIEZAN_CONTRACT_FIXTURE)
+    QMutexLocker lock(&fixtureMutex);
+    return fixtureKeys.value(provider);
+#elif defined(Q_OS_WIN)
     const auto target = ("ViezanNative/" + provider).toStdWString();
     PCREDENTIALW credential = nullptr;
     if (!CredReadW(target.c_str(), CRED_TYPE_GENERIC, 0, &credential)) return {};
@@ -62,7 +72,11 @@ bool has(const QString &provider) { auto value = read(provider); const bool exis
 bool save(const QString &provider, const QByteArray &secret) {
     if (!validProvider(provider) || secret.isEmpty() || secret.size() > 4096) return false;
     for (const auto c : secret) if (static_cast<unsigned char>(c) < 32 || c == 127) return false;
-#ifdef Q_OS_WIN
+#if defined(VIEZAN_CONTRACT_FIXTURE)
+    QMutexLocker lock(&fixtureMutex);
+    fixtureKeys.insert(provider, secret);
+    return true;
+#elif defined(Q_OS_WIN)
     auto target = ("ViezanNative/" + provider).toStdWString();
     CREDENTIALW credential{}; credential.Type = CRED_TYPE_GENERIC; credential.TargetName = target.data();
     credential.CredentialBlobSize = secret.size(); credential.CredentialBlob = reinterpret_cast<LPBYTE>(const_cast<char *>(secret.constData()));
@@ -81,7 +95,11 @@ bool save(const QString &provider, const QByteArray &secret) {
 }
 bool remove(const QString &provider) {
     if (!validProvider(provider)) return false;
-#ifdef Q_OS_WIN
+#if defined(VIEZAN_CONTRACT_FIXTURE)
+    QMutexLocker lock(&fixtureMutex);
+    fixtureKeys.remove(provider);
+    return true;
+#elif defined(Q_OS_WIN)
     const auto target = ("ViezanNative/" + provider).toStdWString();
     return CredDeleteW(target.c_str(), CRED_TYPE_GENERIC, 0) || GetLastError() == ERROR_NOT_FOUND;
 #elif defined(Q_OS_MACOS)

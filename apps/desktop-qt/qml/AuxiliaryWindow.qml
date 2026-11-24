@@ -5,7 +5,7 @@ ApplicationWindow {
     id: window
     required property var bridge
     readonly property var metrics: bridge.metrics
-    readonly property bool dark: bridge.appearance?.preset === "midnight" || bridge.appearance?.mode === "dark" || (bridge.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
+    readonly property bool dark: bridge.appearance?.mode === "dark" || (bridge.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
     readonly property var colors: bridge.palettes[dark ? "dark" : "light"]
     color: "transparent"
     palette.base: Qt.tint(colors["app-bg"], colors["overlay-material"] || colors["surface-raised"])

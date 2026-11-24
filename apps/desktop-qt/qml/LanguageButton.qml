@@ -42,6 +42,8 @@ Kit.QuietButton {
         IconImage { objectName: "language-chevron"; source: "icons/back.svg"; rotation: -90; color: languageButton.palette.placeholderText; sourceSize.width: languageButton.metrics.small + languageButton.metrics.tight; sourceSize.height: languageButton.metrics.small + languageButton.metrics.tight; Accessible.ignored: true }
     }
     ToolTip.visible: hovered && !languagePanel.visible; ToolTip.text: Accessible.name
+    popupOpen: languagePanel.visible
+    onEnabledChanged: if (!enabled && languagePanel?.visible) languagePanel.close()
     onClicked: languagePanel.openAt(languageButton)
     Kit.AnchoredPanel {
         id: languagePanel; objectName: "language-panel"; shell: languageButton.shell
@@ -68,6 +70,8 @@ Kit.QuietButton {
             }
             ListView {
                 id: languageList; objectName: "language-list"
+                Accessible.role: Accessible.List
+                Accessible.name: languageButton.label
                 Layout.fillWidth: true; Layout.fillHeight: true
                 implicitHeight: Math.min(contentHeight, languageButton.metrics.editor * 2)
                 clip: true; currentIndex: 0
@@ -81,7 +85,7 @@ Kit.QuietButton {
                     selected: modelData.code === languageButton.language
                     onClicked: { languageButton.chosen(modelData.code); languagePanel.close() }
                 }
-                ScrollBar.vertical: ScrollBar { policy: languageList.contentHeight > languageList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff; contentItem: Rectangle { implicitWidth: languageButton.metrics.small; radius: width / 2; color: palette.mid } }
+                ScrollBar.vertical: ScrollBar { Accessible.name: languageButton.label; policy: languageList.contentHeight > languageList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff; contentItem: Rectangle { implicitWidth: languageButton.metrics.small; radius: width / 2; color: palette.mid } }
             }
         }
     }

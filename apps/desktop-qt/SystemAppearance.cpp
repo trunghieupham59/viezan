@@ -19,6 +19,9 @@ SystemAppearance::State readAppearance() {
         L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
         L"EnableTransparency", RRF_RT_REG_DWORD, nullptr, &value, &size) == ERROR_SUCCESS)
         result.reduceTransparency = value == 0;
+    BOOL animations = TRUE;
+    if (SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, &animations, 0))
+        result.reduceMotion = !animations;
     HIGHCONTRASTW contrast{}; contrast.cbSize = sizeof(contrast);
     if (SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(contrast), &contrast, 0))
         result.highContrast = (contrast.dwFlags & HCF_HIGHCONTRASTON) != 0;
@@ -28,6 +31,8 @@ SystemAppearance::State readAppearance() {
     if (!program.isEmpty()) {
         const auto reply = dependencies.run({program, {"get", "org.gnome.desktop.a11y.interface", "high-contrast"}, {}, false});
         result.highContrast = reply.started && reply.finished && reply.exitCode == 0 && reply.output.trimmed() == "true";
+        const auto motion = dependencies.run({program, {"get", "org.gnome.desktop.interface", "enable-animations"}, {}, false});
+        result.reduceMotion = motion.started && motion.finished && motion.exitCode == 0 && motion.output.trimmed() == "false";
     }
 #endif
     return result;
@@ -53,6 +58,7 @@ void SystemAppearance::refresh() {
         const auto next = watcher->result(); watcher->deleteLater(); m_busy = false;
         const auto previous = m_state; m_state = next;
         if (previous.reduceTransparency != next.reduceTransparency) emit reduceTransparencyChanged();
+        if (previous.reduceMotion != next.reduceMotion) emit reduceMotionChanged();
         if (previous.highContrast != next.highContrast) emit highContrastChanged();
         if (m_pending) { m_pending = false; refresh(); }
     });

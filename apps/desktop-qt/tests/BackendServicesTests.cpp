@@ -261,8 +261,9 @@ private slots:
     }
     void appearanceNotifiesAndActivationRefreshes() {
         std::atomic_int flags{0}; std::atomic_int reads{0};
-        SystemAppearance appearance([&] { ++reads; const int value = flags.load(); return SystemAppearance::State{bool(value & 1), bool(value & 2)}; });
+        SystemAppearance appearance([&] { ++reads; const int value = flags.load(); return SystemAppearance::State{bool(value & 1), bool(value & 2), bool(value & 4)}; });
         QSignalSpy transparency(&appearance, &SystemAppearance::reduceTransparencyChanged);
+        QSignalSpy motion(&appearance, &SystemAppearance::reduceMotionChanged);
         QSignalSpy contrast(&appearance, &SystemAppearance::highContrastChanged);
         QTRY_VERIFY(reads.load() > 0);
         flags = 1; appearance.refresh(); QTRY_VERIFY(appearance.reduceTransparency());
@@ -270,7 +271,10 @@ private slots:
         flags = 3; QEvent activated(QEvent::ApplicationActivate); QCoreApplication::sendEvent(qApp, &activated);
         QTRY_VERIFY(appearance.highContrast()); QCOMPARE(contrast.count(), 1);
         const auto previousReads = reads.load(); appearance.refresh(); QTRY_VERIFY(reads.load() > previousReads);
-        flags = 0; appearance.refresh(); QTRY_VERIFY(!appearance.reduceTransparency() && !appearance.highContrast());
+        flags = 7; appearance.refresh(); QTRY_VERIFY(appearance.reduceMotion());
+        QCOMPARE(motion.count(), 1); QCOMPARE(contrast.count(), 1); QCOMPARE(transparency.count(), 1);
+        flags = 0; appearance.refresh(); QTRY_VERIFY(!appearance.reduceTransparency() && !appearance.highContrast() && !appearance.reduceMotion());
+        QCOMPARE(motion.count(), 2);
         QCOMPARE(transparency.count(), 2); QCOMPARE(contrast.count(), 2);
     }
     void unconfirmedProcessBlocksAnotherRemoval() {

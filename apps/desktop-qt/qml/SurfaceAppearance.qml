@@ -1,11 +1,15 @@
 import QtQuick
 
-// Shared fallback for Shell-Solid. Both OS flags notify independently;
+// Shared fallback for Shell-Solid. OS flags notify independently;
 // isolated QtTest engines may intentionally omit the context service.
 QtObject {
     readonly property bool highContrast: typeof systemAppearance !== "undefined" && !!systemAppearance && systemAppearance.highContrast
     readonly property bool reduceTransparency: typeof systemAppearance !== "undefined" && !!systemAppearance && systemAppearance.reduceTransparency
-    readonly property bool solid: workbench.appearance?.preset === "glass" && (reduceTransparency || highContrast)
+    // Qt exposes motionPreference from 6.12. Earlier releases use the platform reader.
+    readonly property bool reduceMotion: (typeof systemAppearance !== "undefined" && !!systemAppearance?.reduceMotion)
+            || (Qt.styleHints.accessibility?.motionPreference !== undefined
+                && Qt.styleHints.accessibility.motionPreference === Qt.ReducedMotion)
+    readonly property bool solid: (reduceTransparency || highContrast)
     readonly property bool dark: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
     readonly property var colors: workbench.palettes[dark ? "dark" : "light"]
     // Composite existing semantic tokens on opaque bases. Token colours

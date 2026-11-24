@@ -46,5 +46,5 @@ ColumnLayout {
         invalid.visible = !incoming.text.trim() || !outgoing.text.trim() || !isFinite(a) || !isFinite(b) || a < 0 || b < 0 || a > 1000000 || b > 1000000 || !/^[A-Z]{3}$/.test(code)
         if (!invalid.visible) { usage.bridge.command("usageRate", {model: usage.modelID, input: a, output: b, currency: code}); usage.feedback(usage.t(usage.bridge.storageError || "succeeded"), !!usage.bridge.storageError) }
     } }
-    Label { id: invalid; visible: false; text: usage.t("usageInvalid"); wrapMode: Text.Wrap; Layout.fillWidth: true }
+    Label { id: invalid; objectName: "usage-invalid"; Accessible.role: Accessible.AlertMessage; visible: false; text: usage.t("usageInvalid"); wrapMode: Text.Wrap; Layout.fillWidth: true }
 }

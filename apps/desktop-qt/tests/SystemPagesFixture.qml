@@ -31,8 +31,9 @@ ApplicationWindow {
         property var shortcuts: [{id:"launcher", key:"Alt+Space", enabled:false}, {id:"translateSelection", key:"Alt+T", enabled:false}, {id:"quickChat", key:"Ctrl+Alt+Space", enabled:true}]
         property var calls: []
         property bool reject: false
+        property bool defer: false
         signal changed()
-        function configure(id, key, enabled) { calls = calls.concat([{id:id,key:key,enabled:enabled}]); error = reject ? "shortcutError" : ""; changed() }
+        function configure(id, key, enabled) { calls = calls.concat([{id:id,key:key,enabled:enabled}]); busy = defer; error = reject ? "shortcutError" : ""; changed() }
         function trigger(id) { }
     }
     property QtObject audio: QtObject {

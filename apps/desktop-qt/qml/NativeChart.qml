@@ -6,7 +6,7 @@ ColumnLayout {
     required property var artifact
     required property var metrics
     SystemPalette { id: colors }
-    Label { text: root.artifact.title; font.bold: true; visible: !!text; textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.Wrap }
+    Label { Accessible.role: Accessible.Heading; text: root.artifact.title; font.bold: true; visible: !!text; textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.Wrap }
     Canvas {
         id: plot
         Layout.fillWidth: true; Layout.preferredHeight: root.metrics.editor * 2

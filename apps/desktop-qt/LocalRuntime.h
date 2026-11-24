@@ -16,7 +16,8 @@ class LocalRuntime final : public QObject {
     // Physical memory in bytes (Swift LocalRuntime.memory), 0 when the system does not say.
     Q_PROPERTY(qint64 memoryBytes READ memoryBytes CONSTANT)
 public:
-    explicit LocalRuntime(QObject *parent = nullptr);
+    // An injected transport must outlive this service.
+    explicit LocalRuntime(QObject *parent = nullptr, QNetworkAccessManager *network = nullptr);
     ~LocalRuntime() override;
     bool owned() const { return m_process.state() != QProcess::NotRunning; }
     bool available() const { return m_available; }
@@ -31,7 +32,7 @@ public:
     Q_INVOKABLE void stop();
 private:
     QProcess m_process;
-    QNetworkAccessManager m_network;
+    QNetworkAccessManager *const m_network;
     bool m_available = false, m_busy = false, m_checked = false;
     QString m_version, m_error;
     quint64 m_generation = 0;

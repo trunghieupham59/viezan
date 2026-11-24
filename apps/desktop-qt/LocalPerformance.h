@@ -11,6 +11,7 @@ class LocalPerformance final : public QObject {
     Q_PROPERTY(bool busy READ busy NOTIFY changed)
     Q_PROPERTY(QString model READ model NOTIFY changed)
     Q_PROPERTY(QVariantList results READ results NOTIFY changed)
+    Q_PROPERTY(QVariantMap measured READ measured NOTIFY measuredChanged)
     Q_PROPERTY(QString error READ error NOTIFY changed)
 public:
     explicit LocalPerformance(QObject *parent = nullptr) : QObject(parent) {}
@@ -20,15 +21,22 @@ public:
     bool busy() const { return m_busy; }
     QString model() const { return m_model; }
     QVariantList results() const { return m_results; }
+    const QVariantMap &measured() const { return m_measured; }
     QString error() const { return m_error; }
     static QJsonObject options(const QString &model);
+    static QJsonObject headline(const QJsonArray &results, const QJsonObject &selected);
+    void setInstalledModels(const QStringList &models);
     Q_INVOKABLE void selectModel(const QString &model);
     Q_INVOKABLE void select(const QString &mode);
     Q_INVOKABLE void compare();
     Q_INVOKABLE void cancel();
 signals:
     void changed();
+    void measuredChanged();
 private:
+    void updateMeasured(const QJsonObject &records);
+    QStringList m_installedModels;
+    QVariantMap m_measured;
     QFuture<QVariantMap> m_future;
     bool m_busy = false;
     QString m_model, m_error;

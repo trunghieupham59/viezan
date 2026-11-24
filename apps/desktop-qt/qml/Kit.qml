@@ -1,3 +1,4 @@
+import "PopupAccessibility.js" as PopupAccessibility
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.impl
@@ -16,7 +17,7 @@ QtObject {
     component AppBackdrop: Item {
         id: backdrop
         readonly property var metrics: workbench.metrics
-        readonly property bool darkMode: workbench.appearance?.preset === "midnight" || workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
+        readonly property bool darkMode: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
         readonly property var colors: workbench.palettes[darkMode ? "dark" : "light"]
         // CSS gradient line through the centre: both corners land on the end stops.
         readonly property real angle: metrics.backdropAngle * Math.PI / 180
@@ -84,7 +85,7 @@ QtObject {
         readonly property real shadowBlurRadius: shadowRole === "shadow-lg-color" ? metrics.shadowLgBlur : shadowRole === "shadow-sm-color" ? metrics.shadowSmBlur : metrics.shadowMdBlur
         readonly property real shadowOffset: shadowRole === "shadow-lg-color" ? metrics.shadowLgY : shadowRole === "shadow-sm-color" ? metrics.shadowSmY : metrics.shadowMdY
         readonly property var metrics: workbench.metrics
-        readonly property bool darkMode: workbench.appearance?.preset === "midnight" || workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
+        readonly property bool darkMode: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
         readonly property var colors: workbench.palettes[darkMode ? "dark" : "light"]
         readonly property bool accelerated: GraphicsInfo.api !== GraphicsInfo.Software && GraphicsInfo.api !== GraphicsInfo.Unknown
         // Outer shadow: a blurred silhouette drawn behind the face.
@@ -92,7 +93,7 @@ QtObject {
         // Qt 6.8.3 crashes when an imported inline component instantiates a
         // Loader's nested sourceComponent (even Rectangle). Keep the effect
         // declarative, with no source on software. Keep the GPU source stable
-        // while hidden so a preset change does not invalidate its texture.
+        // while hidden so its texture remains valid when shown again.
         // Repro/evidence: native-migration-report-20261106-glass2-win-W0.md.
         Item {
             x: -pane.shadowBlurRadius; y: -pane.shadowBlurRadius + pane.shadowOffset
@@ -138,7 +139,7 @@ QtObject {
         property QtObject appearance: SurfaceAppearance {}
         property bool hover: false
         readonly property var metrics: workbench.metrics
-        readonly property bool darkMode: workbench.appearance?.preset === "midnight" || workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
+        readonly property bool darkMode: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
         readonly property var colors: workbench.palettes[darkMode ? "dark" : "light"]
         radius: metrics.radius
         color: appearance.solid ? Qt.tint(appearance.pane, colors[hover ? "chrome-item-hover" : "chrome-item-active"]) : colors[hover ? "chrome-item-hover" : "chrome-item-active"]
@@ -164,8 +165,7 @@ QtObject {
         property color edgeColor: "transparent"
         property color edgeHighlight: edgeColor
         readonly property var metrics: workbench.metrics
-        readonly property bool glass: workbench.appearance?.preset === "glass"
-        readonly property bool darkMode: workbench.appearance?.preset === "midnight" || workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
+        readonly property bool darkMode: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
         readonly property var themeColors: workbench.palettes[darkMode ? "dark" : "light"]
         radius: metrics.chromeSurfaceRadius
         gradient: Gradient {
@@ -325,32 +325,33 @@ QtObject {
         ControlGlassSurface { anchors.fill: parent; visible: lens.active && !lens.quiet; prominent: lens.prominent && !lens.destructive; pressed: lens.control.down; hovered: lens.control.hovered; inactive: !lens.control.enabled }
         Rectangle { anchors.fill: parent; visible: lens.quiet && (lens.control.hovered || lens.control.down || lens.destructive); radius: height / 2; color: Qt.alpha(lens.control.palette.buttonText, lens.metrics.selectionOpacity); Accessible.ignored: true }
         Binding { target: lens.control.background; property: "visible"; value: false; when: lens.active }
-        Rectangle { anchors.fill: parent; color: "transparent"; radius: height / 2; border.width: lens.control.visualFocus ? lens.metrics.hairline * 2 : 0; border.color: lens.control.palette.link; Accessible.ignored: true }
+        Rectangle { anchors.fill: parent; color: "transparent"; radius: height / 2; border.width: lens.control.visualFocus ? lens.metrics.focusRingWidth : 0; border.color: lens.control.palette.link; Accessible.ignored: true }
         Rectangle { visible: lens.selectionMarker && !lens.quiet && !!lens.control.checkable && !!lens.control.checked; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: lens.metrics.tight; width: lens.metrics.small; height: lens.metrics.hairline * 2; radius: height / 2; color: lens.control.palette.link; Accessible.ignored: true }
     }
     // App-wide action primitives. Geometry, native content, shortcuts and
     // disabled semantics are inherited from the active Qt control style.
     component GlassButton: Button {
         id: glassButton
+        property var popupOpen
+        Component.onCompleted: if (popupOpen !== undefined) PopupAccessibility.bindState(glassButton, Accessible)
         property bool glassMaterial: true
         property bool glassProminent: highlighted
         property bool glassSelectionMarker: true
-        readonly property bool usesGlass: glassMaterial && workbench.appearance?.preset === "glass"
-        ControlLens { control: glassButton; active: glassButton.usesGlass && !glassButton.paintedPrimary; prominent: glassButton.glassProminent; selectionMarker: glassButton.glassSelectionMarker }
-        /// Set by PrimaryButton on Glass: its own gradient face replaces the lens.
+        ControlLens { control: glassButton; active: glassButton.glassMaterial && !glassButton.paintedPrimary; prominent: glassButton.glassProminent; selectionMarker: glassButton.glassSelectionMarker }
+        /// Set by PrimaryButton: its own gradient face replaces the lens.
         property bool paintedPrimary: false
     }
     component GlassToolButton: ToolButton {
         id: glassToolButton
+        property var popupOpen
+        Component.onCompleted: if (popupOpen !== undefined) PopupAccessibility.bindState(glassToolButton, Accessible)
         property bool glassMaterial: true
-        readonly property bool usesGlass: glassMaterial && workbench.appearance?.preset === "glass"
-        ControlLens { control: glassToolButton; active: glassToolButton.usesGlass }
+        ControlLens { control: glassToolButton; active: glassToolButton.glassMaterial }
     }
     component GlassComboBox: ComboBox {
         id: glassComboBox
         property bool glassMaterial: true
-        readonly property bool usesGlass: glassMaterial && workbench.appearance?.preset === "glass"
-        ControlLens { control: glassComboBox; active: glassComboBox.usesGlass }
+        ControlLens { control: glassComboBox; active: glassComboBox.glassMaterial }
     }
     // Search remains a native TextField: composition, selection and its caller's
     // key handlers stay intact. The editing plane is opaque and inset, while
@@ -361,13 +362,12 @@ QtObject {
         property bool compact: false
         property bool embedded: false
         readonly property var metrics: workbench.metrics
-        readonly property bool glass: workbench.appearance?.preset === "glass"
-        readonly property real fieldRadius: glass ? height / 2 : metrics.controlRadius
+        readonly property real fieldRadius: height / 2
         implicitHeight: compact ? metrics.compactControl : metrics.control
         leftPadding: (embedded ? 0 : metrics.gap) + metrics.icon + metrics.small
         rightPadding: embedded ? 0 : metrics.gap
         selectByMouse: true
-        readonly property bool darkMode: workbench.appearance?.preset === "midnight" || workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
+        readonly property bool darkMode: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
         readonly property var colors: workbench.palettes[darkMode ? "dark" : "light"]
         background: Item {
             visible: !searchField.embedded
@@ -375,27 +375,10 @@ QtObject {
             Rectangle {
                 objectName: "search-field-face"
                 anchors.fill: parent
-                visible: searchField.glass
                 radius: searchField.fieldRadius
                 color: searchField.appearance.solid ? searchField.appearance.reading : searchField.colors["surface-subtle"]
                 border.width: searchField.metrics.hairline
                 border.color: searchField.activeFocus ? searchField.colors["border-strong"] : searchField.appearance.solid ? searchField.appearance.edge : searchField.colors.border
-            }
-            ChromeSurface {
-                anchors.fill: parent
-                visible: !searchField.glass
-                radius: searchField.fieldRadius
-                fillColor: Qt.tint(searchField.palette.window, searchField.palette.base)
-                edgeColor: searchField.palette.midlight
-                edgeHighlight: edgeColor
-            }
-            Rectangle {
-                anchors.fill: parent
-                radius: searchField.fieldRadius
-                color: "transparent"
-                border.width: searchField.activeFocus && !searchField.glass ? searchField.metrics.hairline * 2 : 0
-                border.color: searchField.palette.mid
-                Accessible.ignored: true
             }
         }
         IconImage {
@@ -413,40 +396,20 @@ QtObject {
     component ReadingPanelSurface: Item {
         id: readingPanel
         readonly property var metrics: workbench.metrics
-        readonly property bool glass: workbench.appearance?.preset === "glass"
-        readonly property bool darkMode: workbench.appearance?.preset === "midnight" || workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
+        readonly property bool darkMode: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
         readonly property var colors: workbench.palettes[darkMode ? "dark" : "light"]
         property real radius: metrics.surfaceRadius
-        property color fillColor: Qt.tint(colors["sidebar-bg"], colors["surface"])
         // Glass exports surface-raised with exactly the overlay-material value.
         // Composite on the scene token: Qt has no backdrop blur to hide text below.
         readonly property color overlayColor: Qt.tint(colors["app-bg"], colors["overlay-material"] || colors["surface-raised"])
         // `.float` (Glass): the raised white layer with a bright rim and the large shadow.
         GlassPane {
             anchors.fill: parent
-            visible: readingPanel.glass
             radius: readingPanel.radius
             solidRole: "raised"
             shadowRole: "shadow-lg-color"
             startColor: readingPanel.overlayColor
             endColor: readingPanel.overlayColor
-        }
-        Rectangle {
-            visible: false
-            x: -readingPanel.metrics.hairline; y: readingPanel.metrics.hairline * 2
-            width: parent.width + readingPanel.metrics.hairline * 2; height: parent.height
-            radius: readingPanel.radius + readingPanel.metrics.hairline
-            color: "transparent"
-            border.width: readingPanel.metrics.hairline * 2
-            border.color: Qt.alpha(readingPanel.colors[readingPanel.darkMode ? "app-bg" : "chrome-fg-strong"], readingPanel.darkMode ? 0.28 : 0.10)
-        }
-        ChromeSurface {
-            anchors.fill: parent
-            visible: !readingPanel.glass
-            radius: readingPanel.radius
-            fillColor: readingPanel.fillColor
-            edgeColor: readingPanel.colors["border"]
-            edgeHighlight: edgeColor
         }
         Accessible.ignored: true
     }
@@ -456,78 +419,98 @@ QtObject {
         id: filterGroup
         property QtObject appearance: SurfaceAppearance {}
         readonly property var metrics: workbench.metrics
-        readonly property bool glass: workbench.appearance?.preset === "glass"
         property bool selectionReady: false
         signal selectionChanged(int index)
         Component.onCompleted: selectionReady = true
         onCurrentIndexChanged: if (selectionReady && currentIndex >= 0) selectionChanged(currentIndex)
-        readonly property bool darkMode: workbench.appearance?.preset === "midnight" || workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
+        readonly property bool darkMode: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
         readonly property var colors: workbench.palettes[darkMode ? "dark" : "light"]
         // `.seg` (Glass): a recessed 32 pt track; the selected segment is a lens.
-        padding: glass ? metrics.tight - metrics.hairline : 0
-        spacing: glass ? metrics.hairline * 2 : 0
-        implicitHeight: glass ? metrics.compactControl : Math.max(implicitBackgroundHeight + topInset + bottomInset, implicitContentHeight + topPadding + bottomPadding)
-        implicitWidth: glass ? contentWidth + leftPadding + rightPadding : Math.max(implicitBackgroundWidth + leftInset + rightInset, contentWidth + leftPadding + rightPadding)
+        padding: metrics.tight - metrics.hairline
+        spacing: metrics.hairline * 2
+        implicitHeight: metrics.compactControl
+        implicitWidth: contentWidth + leftPadding + rightPadding
         property Item glassGroupBackground: Rectangle {
             parent: filterGroup
             anchors.fill: parent
             z: -1
-            visible: filterGroup.glass
             radius: height / 2
             color: filterGroup.appearance.solid ? Qt.tint(filterGroup.appearance.control, filterGroup.colors["surface-muted"]) : filterGroup.colors["surface-muted"]
             border.width: filterGroup.metrics.hairline
             border.color: filterGroup.appearance.solid ? filterGroup.appearance.edge : filterGroup.colors["border"]
             Accessible.ignored: true
         }
-        Binding { target: filterGroup.background; property: "visible"; value: false; when: filterGroup.glass }
+        Binding { target: filterGroup.background; property: "visible"; value: false }
     }
     component FilterButton: TabButton {
         id: filterButton
         readonly property var metrics: workbench.metrics
-        readonly property bool glass: workbench.appearance?.preset === "glass"
-        implicitHeight: glass ? metrics.compactControl - (metrics.tight - metrics.hairline) * 2 : metrics.control
+        implicitHeight: metrics.compactControl - (metrics.tight - metrics.hairline) * 2
         // The style's vertical padding leaves the 26 pt Glass segment less than a text line.
-        topPadding: glass ? 0 : undefined
-        bottomPadding: glass ? 0 : undefined
-        font.weight: checked ? Font.DemiBold : glass ? Font.Medium : Font.Normal
-        readonly property bool darkMode: workbench.appearance?.preset === "midnight" || workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
+        topPadding: 0
+        bottomPadding: 0
+        font.weight: checked ? Font.DemiBold : Font.Medium
+        readonly property bool darkMode: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
         // Idle Glass segments read muted, the selected one strong (read from the theme, not
         // from this control's own palette, which would loop).
-        palette.buttonText: workbench.palettes[darkMode ? "dark" : "light"][glass && !checked ? "text-muted" : "text"]
+        readonly property color labelColor: workbench.palettes[darkMode ? "dark" : "light"][checked ? "text" : "text-muted"]
+        palette.active.buttonText: labelColor
+        palette.inactive.buttonText: labelColor
         // Glass segments hug their label instead of TabBar's equal split, so labels never truncate.
-        width: glass ? implicitWidth : undefined
-        ControlLens { control: filterButton; active: filterButton.glass && !filterButton.checked; quiet: true; selectionMarker: false }
-        Binding { target: filterButton.background; property: "visible"; value: false; when: filterButton.glass }
-        GlassLens { anchors.fill: parent; z: -1; visible: filterButton.glass && filterButton.checked; radius: height / 2 }
+        width: implicitWidth
+        ControlLens { control: filterButton; active: !filterButton.checked; quiet: true; selectionMarker: false }
+        Binding { target: filterButton.background; property: "visible"; value: false }
+        GlassLens { anchors.fill: parent; z: -1; visible: filterButton.checked; radius: height / 2 }
+        Rectangle { objectName: "checked-filter-focus"; anchors.fill: parent; visible: filterButton.checked && filterButton.visualFocus; radius: height / 2; color: "transparent"; border.width: filterButton.metrics.focusRingWidth; border.color: filterButton.palette.link; Accessible.ignored: true }
     }
     // `.tog` (Glass): the native Switch keeps input, focus and semantics; only
     // its indicator is repainted so the track follows the theme, not the OS accent.
     component GlassSwitch: Switch {
         id: glassSwitch
         readonly property var metrics: workbench.metrics
-        readonly property bool glass: workbench.appearance?.preset === "glass"
-        readonly property bool darkMode: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
-        readonly property var colors: workbench.palettes[darkMode ? "dark" : "light"]
-        Binding { target: glassSwitch.indicator; property: "opacity"; value: 0; when: glassSwitch.glass }
+        property QtObject appearance: SurfaceAppearance {}
+        readonly property var colors: appearance.colors
+        Binding { target: glassSwitch.indicator; property: "opacity"; value: 0 }
         Rectangle {
             objectName: "glass-switch-track"
-            visible: glassSwitch.glass
             parent: glassSwitch.indicator ? glassSwitch.indicator.parent : glassSwitch
             x: glassSwitch.indicator ? glassSwitch.indicator.x + (glassSwitch.indicator.width - width) / 2 : 0
             y: glassSwitch.indicator ? glassSwitch.indicator.y + (glassSwitch.indicator.height - height) / 2 : 0
             width: glassSwitch.metrics.control
             height: glassSwitch.metrics.icon + glassSwitch.metrics.hairline * 2
             radius: height / 2
-            opacity: glassSwitch.enabled ? 1 : 0.45
-            color: glassSwitch.checked ? workbench.palettes.light.action : Qt.alpha(glassSwitch.colors["chrome-fg-strong"], 0.18)
-            border.width: glassSwitch.visualFocus ? glassSwitch.metrics.hairline * 2 : 0
-            border.color: glassSwitch.colors["action-text"]
+            opacity: glassSwitch.enabled || glassSwitch.appearance.solid ? 1 : glassSwitch.metrics.disabledOpacity
+            color: {
+                if (!glassSwitch.enabled) {
+                    const disabled = glassSwitch.palette.disabled.button
+                    return glassSwitch.appearance.solid ? Qt.tint(glassSwitch.appearance.control, disabled) : disabled
+                }
+                if (glassSwitch.checked) return glassSwitch.colors.action
+                return glassSwitch.appearance.solid ? glassSwitch.appearance.control : Qt.alpha(glassSwitch.colors["text-disabled"], glassSwitch.metrics.disabledOpacity)
+            }
+            border.width: glassSwitch.appearance.solid ? glassSwitch.metrics.hairline : 0
+            border.color: glassSwitch.appearance.edge
             Rectangle {
+                objectName: "glass-switch-focus"
+                anchors.fill: parent
+                anchors.margins: -2 * glassSwitch.metrics.focusRingWidth
+                radius: height / 2
+                color: "transparent"
+                border.width: glassSwitch.metrics.focusRingWidth
+                border.color: glassSwitch.palette.text
+                visible: glassSwitch.visualFocus
+                Accessible.ignored: true
+            }
+            Rectangle {
+                objectName: "glass-switch-thumb"
                 width: parent.height - glassSwitch.metrics.tight; height: width; radius: width / 2
                 y: glassSwitch.metrics.hairline * 2
                 x: glassSwitch.checked ? parent.width - width - y : y
-                color: "white"
-                Behavior on x { NumberAnimation { duration: glassSwitch.metrics.durationFast * 1000 } }
+                color: glassSwitch.enabled ? "white" : glassSwitch.palette.disabled.buttonText
+                Behavior on x {
+                    enabled: !glassSwitch.appearance.reduceMotion
+                    NumberAnimation { duration: glassSwitch.metrics.durationFast * 1000 }
+                }
             }
             Accessible.ignored: true
         }
@@ -577,36 +560,23 @@ QtObject {
         color: palette.placeholderText
         Accessible.role: Accessible.Heading
     }
-    component SectionTitle: Label {
-        font.bold: true
-        font.pointSize: Qt.application.font.pointSize * workbench.metrics.sectionScale
-        Accessible.role: Accessible.Heading
-    }
     // One bounded surface: no nested frames.
     component Card: Pane {
         id: card
+        Accessible.role: Accessible.Grouping
         property bool selected: false
         readonly property var metrics: workbench.metrics
-        readonly property bool glass: workbench.appearance?.preset === "glass"
         padding: metrics.inset
         background: Item {
-            Rectangle {
-                anchors.fill: parent
-                visible: !card.glass
-                radius: card.metrics.radius
-                color: card.selected ? Qt.tint(card.palette.base, Qt.alpha(card.palette.highlight, card.metrics.selectionOpacity)) : card.palette.base
-                border.width: card.metrics.hairline
-                border.color: card.selected ? card.palette.highlight : card.palette.midlight
-            }
             // `.card` (Glass): a flat hairline surface on the reading pane; no nested pane.
-            FlatCard { anchors.fill: parent; visible: card.glass; selected: card.selected }
+            FlatCard { anchors.fill: parent; selected: card.selected }
         }
     }
     component FlatCard: Rectangle {
         property QtObject appearance: SurfaceAppearance {}
         property bool selected: false
         readonly property var metrics: workbench.metrics
-        readonly property bool darkMode: workbench.appearance?.preset === "midnight" || workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
+        readonly property bool darkMode: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
         readonly property var colors: workbench.palettes[darkMode ? "dark" : "light"]
         radius: metrics.chromeCardRadius
         color: appearance.solid ? Qt.tint(appearance.reading, colors[selected ? "action-soft" : "surface"]) : colors[selected ? "action-soft" : "surface"]
@@ -619,7 +589,6 @@ QtObject {
     component CardBox: GroupBox {
         id: box
         readonly property var metrics: workbench.metrics
-        readonly property bool glass: workbench.appearance?.preset === "glass"
         readonly property real headerHeight: title ? metrics.navControl + metrics.tight : 0
         padding: metrics.inset
         topPadding: headerHeight + metrics.inset
@@ -633,15 +602,7 @@ QtObject {
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: box.metrics.hairline; color: box.palette.midlight }
         }
         background: Item {
-            Rectangle {
-                anchors.fill: parent
-                visible: !box.glass
-                radius: box.metrics.radius
-                color: box.palette.base
-                border.width: box.metrics.hairline
-                border.color: box.palette.midlight
-            }
-            FlatCard { anchors.fill: parent; visible: box.glass }
+            FlatCard { anchors.fill: parent }
         }
     }
     // Label row: title, optional detail, trailing controls; dividers between rows.
@@ -649,17 +610,17 @@ QtObject {
         id: row
         property string title
         property string detail
+        property alias detailFont: detailLabel.font
         property bool divider: true
         default property alias trailing: slot.data
         readonly property var metrics: workbench.metrics
         spacing: 0
         Layout.fillWidth: true
-        readonly property bool glass: workbench.appearance?.preset === "glass"
         GridLayout {
             // Narrow cards keep the control trailing while the label still has a readable column.
             columns: row.width >= row.metrics.sidebar * 2 || row.width >= slot.implicitWidth + row.metrics.inset + row.metrics.editor ? 2 : 1
             // `.srow` (Glass): at least 48 pt, label 14, description 12.
-            Layout.minimumHeight: row.glass ? row.metrics.navControl + row.metrics.small - row.metrics.small * 2 : 0
+            Layout.minimumHeight: row.metrics.navControl + row.metrics.small - row.metrics.small * 2
             columnSpacing: row.metrics.inset
             rowSpacing: row.metrics.small
             Layout.fillWidth: true
@@ -668,8 +629,11 @@ QtObject {
             ColumnLayout {
                 spacing: row.metrics.tight
                 Layout.fillWidth: true
-                Label { text: row.title; font.bold: !row.glass; font.weight: row.glass ? Font.Medium : Font.Bold; font.pointSize: Qt.application.font.pointSize * (row.glass ? row.metrics.labelScale : 1); wrapMode: Text.Wrap; Layout.fillWidth: true }
-                Label { visible: !!row.detail; text: row.detail; color: palette.placeholderText; font.pointSize: Qt.application.font.pointSize * (row.glass ? row.metrics.smallScale : 1); wrapMode: Text.Wrap; Layout.fillWidth: true }
+                Accessible.role: Accessible.StaticText
+                Accessible.name: row.title
+                Accessible.description: row.detail
+                Label { Accessible.ignored: true; text: row.title; textFormat: Text.PlainText; font.weight: Font.Medium; font.pointSize: Qt.application.font.pointSize * row.metrics.labelScale; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                Label { id: detailLabel; Accessible.ignored: true; visible: !!row.detail; text: row.detail; textFormat: Text.PlainText; color: palette.placeholderText; font.pointSize: Qt.application.font.pointSize * row.metrics.smallScale; wrapMode: Text.Wrap; Layout.fillWidth: true }
             }
             RowLayout { id: slot; Layout.fillWidth: true; spacing: row.metrics.small }
         }
@@ -678,24 +642,23 @@ QtObject {
     component KeyCap: Label {
         id: cap
         readonly property var metrics: workbench.metrics
-        readonly property bool glass: workbench.appearance?.preset === "glass"
-        readonly property bool darkMode: workbench.appearance?.preset === "midnight" || workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
+        readonly property bool darkMode: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
         readonly property var colors: workbench.palettes[darkMode ? "dark" : "light"]
         // `.kbd` (Glass): a 20 pt mono cap, raised white with a hairline.
-        leftPadding: glass ? metrics.small - metrics.hairline * 2 : metrics.small
+        leftPadding: metrics.small - metrics.hairline * 2
         rightPadding: leftPadding
         // Glass: padding brings the cap to exactly 20 pt around the text.
-        topPadding: glass ? Math.max(0, (metrics.icon - contentHeight) / 2) : metrics.tight
+        topPadding: Math.max(0, (metrics.icon - contentHeight) / 2)
         bottomPadding: topPadding
         verticalAlignment: Text.AlignVCenter
-        font.family: glass ? "monospace" : Qt.application.font.family
-        font.pointSize: Qt.application.font.pointSize * (glass ? metrics.captionScale : 1)
+        font.family: "monospace"
+        font.pointSize: Qt.application.font.pointSize * metrics.captionScale
         color: palette.placeholderText
         background: Rectangle {
-            radius: cap.glass ? cap.metrics.chromeShortcutRadius : cap.metrics.controlRadius
-            color: cap.glass ? cap.colors.surface : "transparent"
+            radius: cap.metrics.chromeShortcutRadius
+            color: cap.colors.surface
             border.width: cap.metrics.hairline
-            border.color: cap.glass ? cap.colors.border : cap.palette.mid
+            border.color: cap.colors.border
         }
     }
     // The single solid accent action of a region.
@@ -705,42 +668,40 @@ QtObject {
         property string shortcutText: ""
         readonly property real expandedWidth: primaryLabel.implicitWidth + metrics.icon + metrics.small + leftPadding + rightPadding + (shortcutText ? primaryShortcut.implicitWidth + metrics.small : 0)
         glassProminent: true
-        paintedPrimary: glass
+        paintedPrimary: true
         readonly property var metrics: workbench.metrics
         implicitHeight: metrics.control
         leftPadding: metrics.inset
         rightPadding: metrics.inset
-        icon.color: enabled ? primary.palette.highlightedText : primary.palette.placeholderText
+        icon.color: enabled ? primary.palette.highlightedText : primary.palette.disabled.buttonText
         contentItem: RowLayout {
             spacing: primary.metrics.small
             IconImage { visible: !!primary.icon.source.toString(); source: primary.icon.source; color: primary.icon.color; sourceSize.width: primary.metrics.icon; sourceSize.height: primary.metrics.icon; Accessible.ignored: true }
-            Label { id: primaryLabel; visible: primary.display !== AbstractButton.IconOnly; text: primary.text; color: primary.enabled ? primary.palette.highlightedText : primary.palette.placeholderText; Accessible.ignored: true }
-            KeyCap { id: primaryShortcut; objectName: "primary-shortcut"; visible: !!primary.shortcutText && primary.display !== AbstractButton.IconOnly; text: primary.shortcutText; Accessible.ignored: true }
+            Label { id: primaryLabel; visible: primary.display !== AbstractButton.IconOnly; text: primary.text; color: primary.enabled ? primary.palette.highlightedText : primary.palette.disabled.buttonText; Accessible.ignored: true }
+            KeyCap { id: primaryShortcut; objectName: "primary-shortcut"; visible: !!primary.shortcutText && primary.display !== AbstractButton.IconOnly; text: primary.shortcutText; color: primary.enabled ? primary.palette.placeholderText : primary.palette.disabled.buttonText; Accessible.ignored: true }
         }
-        readonly property bool glass: workbench.appearance?.preset === "glass"
-        readonly property bool darkMode: workbench.appearance?.preset === "midnight" || workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
+        readonly property bool darkMode: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && workbench.appearance?.mode !== "dark" && Qt.styleHints.colorScheme === Qt.Dark)
         readonly property var colors: workbench.palettes[darkMode ? "dark" : "light"]
         // `.btn.primary` (Glass): the accent gradient pill; the focus ring is a separate 2 pt edge.
         background: Rectangle {
-            radius: primary.glass ? height / 2 : primary.metrics.controlRadius
+            radius: height / 2
             color: !primary.enabled ? primary.palette.disabled.button : primary.down ? Qt.darker(primary.palette.highlight) : primary.palette.highlight
-            gradient: primary.glass && primary.enabled && !primary.appearance.solid ? primaryFill : null
+            gradient: primary.enabled && !primary.appearance.solid ? primaryFill : null
             Gradient {
                 id: primaryFill
                 GradientStop { position: 0; color: primary.colors["action-fill-top"] }
                 GradientStop { position: 1; color: primary.down || primary.hovered ? primary.colors["action-active"] : primary.colors["action-fill-bottom"] }
             }
-            border.width: primary.visualFocus ? primary.metrics.hairline * (primary.glass ? 2 : 1) : primary.appearance.solid ? primary.metrics.hairline : 0
-            border.color: primary.appearance.solid && !primary.visualFocus ? primary.appearance.edge : primary.glass ? primary.colors["action-text"] : primary.palette.mid
+            border.width: primary.visualFocus ? primary.metrics.focusRingWidth : primary.appearance.solid ? primary.metrics.hairline : 0
+            border.color: primary.appearance.solid && !primary.visualFocus ? primary.appearance.edge : primary.colors["action-text"]
         }
         Accessible.name: text
     }
     // Quiet shared action for raised Glass panels and compact filters.
     component QuietButton: GlassButton {
         id: quiet
+        glassMaterial: false
         readonly property real expandedWidth: quietLabel.implicitWidth + metrics.icon + metrics.gap + leftPadding + rightPadding
-        property bool iconBadge: false
-        property bool disclosure: false
         property bool outlined: false
         readonly property var metrics: workbench.metrics
         implicitHeight: metrics.control
@@ -750,23 +711,21 @@ QtObject {
         // icon and label; a fixed 8 pt would squeeze the row and push it off centre.
         topPadding: Math.max(0, Math.min(metrics.small, (height - implicitContentHeight) / 2))
         bottomPadding: topPadding
-        icon.color: enabled ? palette.link : palette.placeholderText
+        icon.color: enabled ? palette.link : palette.disabled.buttonText
         contentItem: RowLayout {
             spacing: quiet.metrics.gap
             Item {
                 visible: !!quiet.icon.source.toString()
-                implicitWidth: quiet.iconBadge ? quiet.metrics.control : quiet.metrics.icon
+                implicitWidth: quiet.metrics.icon
                 implicitHeight: implicitWidth
-                Rectangle { anchors.fill: parent; visible: quiet.iconBadge; radius: quiet.metrics.controlRadius; color: Qt.tint(quiet.palette.base, Qt.alpha(quiet.enabled ? quiet.palette.highlight : quiet.palette.placeholderText, quiet.metrics.selectionOpacity)) }
                 IconImage { anchors.centerIn: parent; source: quiet.icon.source; color: quiet.icon.color; sourceSize.width: quiet.metrics.icon; sourceSize.height: quiet.metrics.icon; Accessible.ignored: true }
             }
-            Label { id: quietLabel; visible: quiet.display !== AbstractButton.IconOnly; text: quiet.text; color: quiet.enabled ? quiet.palette.buttonText : quiet.palette.placeholderText; font.weight: quiet.checked || quiet.iconBadge ? Font.DemiBold : Font.Normal; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
-            IconImage { visible: quiet.disclosure; source: "icons/back.svg"; rotation: 180; color: quiet.palette.placeholderText; sourceSize.width: quiet.metrics.icon; sourceSize.height: quiet.metrics.icon; Accessible.ignored: true }
+            Label { id: quietLabel; visible: quiet.display !== AbstractButton.IconOnly; text: quiet.text; color: quiet.enabled ? quiet.palette.buttonText : quiet.palette.disabled.buttonText; font.weight: quiet.checked ? Font.DemiBold : Font.Normal; elide: Text.ElideRight; Layout.fillWidth: true; Accessible.ignored: true }
         }
         background: Rectangle {
-            radius: quiet.metrics.chromeControlRadius
+            radius: height / 2
             color: quiet.down || quiet.hovered ? quiet.palette.alternateBase : quiet.checked ? quiet.palette.base : "transparent"
-            border.width: quiet.visualFocus || quiet.checked || quiet.outlined ? quiet.metrics.hairline : 0
+            border.width: quiet.visualFocus ? quiet.metrics.focusRingWidth : quiet.checked || quiet.outlined ? quiet.metrics.hairline : 0
             border.color: quiet.visualFocus ? quiet.palette.highlight : quiet.palette.midlight
         }
         Accessible.name: text
@@ -777,7 +736,7 @@ QtObject {
         property string iconName
         display: AbstractButton.IconOnly
         icon.source: "icons/" + iconName + ".svg"
-        icon.color: palette.buttonText
+        icon.color: enabled ? palette.buttonText : palette.disabled.buttonText
         icon.width: metrics.icon
         icon.height: metrics.icon
         implicitWidth: metrics.control
@@ -789,14 +748,30 @@ QtObject {
         ToolTip.visible: hovered
         ToolTip.text: text
     }
+    component SpeakButton: IconButton {
+        required property string speechText
+        required property string language
+        required property string sourceID
+        property var audio: workbench.audio
+        property string label: workbench.strings.speak
+        readonly property bool reading: !!audio?.speaking && audio.speakingSource === sourceID
+        implicitWidth: metrics.compactControl; implicitHeight: metrics.compactControl
+        iconName: reading ? "stop" : "listen"
+        text: reading ? workbench.strings.stopSpeaking : label
+        enabled: !!speechText.trim()
+        checked: reading
+        onClicked: reading ? audio.silence() : audio.speak(speechText, language, sourceID)
+    }
     component StatusDot: Rectangle {
         property string tone: "ready"
-        // The palette has no danger role; callers pass the theme's danger color.
+        // Older callers supply their own failed colour. Explicit tones use the theme.
         property color failedColor: palette.placeholderText
         implicitWidth: workbench.metrics.small
         implicitHeight: implicitWidth
         radius: implicitWidth / 2
-        color: tone === "ready" ? palette.highlight : tone === "failed" ? failedColor : palette.placeholderText
+        readonly property bool dark: workbench.appearance?.mode === "dark" || (workbench.appearance?.mode !== "light" && Qt.styleHints.colorScheme === Qt.Dark)
+        readonly property var colors: workbench.palettes[dark ? "dark" : "light"]
+        color: tone === "busy" ? colors["action-text"] : ["success", "warning", "danger"].includes(tone) ? colors[tone] : tone === "ready" ? palette.highlight : tone === "failed" ? failedColor : palette.placeholderText
         Accessible.ignored: true
     }
     // Readiness at the point of action, from the bridge's provider discovery (local
@@ -857,15 +832,15 @@ QtObject {
         Accessible.name: text
         contentItem: RowLayout {
             spacing: panelRow.metrics.small
-            IconImage { visible: !!panelRow.iconName; source: panelRow.iconName ? "icons/" + panelRow.iconName + ".svg" : ""; sourceSize.width: panelRow.metrics.icon; sourceSize.height: panelRow.metrics.icon; color: panelRow.colors["text-muted"]; Accessible.ignored: true }
-            Label { text: panelRow.text; elide: Text.ElideRight; font.weight: panelRow.selected ? Font.DemiBold : Font.Normal; color: panelRow.enabled ? panelRow.colors.text : panelRow.colors["text-disabled"]; Layout.fillWidth: true; Accessible.ignored: true }
-            Label { visible: !!panelRow.detail; text: panelRow.detail; elide: Text.ElideRight; Layout.maximumWidth: panelRow.availableWidth * panelRow.metrics.skeletonShort; color: panelRow.colors["text-muted"]; font.pointSize: Qt.application.font.pointSize * panelRow.metrics.smallScale; Accessible.ignored: true }
-            Label { text: "✓"; visible: panelRow.selected; color: panelRow.colors.action; Accessible.ignored: true }
-            IconImage { visible: panelRow.disclosure; source: "icons/back.svg"; rotation: -90; color: panelRow.colors["text-muted"]; sourceSize.width: panelRow.metrics.icon; sourceSize.height: panelRow.metrics.icon; Accessible.ignored: true }
+            IconImage { visible: !!panelRow.iconName; source: panelRow.iconName ? "icons/" + panelRow.iconName + ".svg" : ""; sourceSize.width: panelRow.metrics.icon; sourceSize.height: panelRow.metrics.icon; color: panelRow.enabled ? panelRow.colors["text-muted"] : panelRow.palette.disabled.buttonText; Accessible.ignored: true }
+            Label { text: panelRow.text; elide: Text.ElideRight; font.weight: panelRow.selected ? Font.DemiBold : Font.Normal; color: panelRow.enabled ? panelRow.colors.text : panelRow.palette.disabled.buttonText; Layout.fillWidth: true; Accessible.ignored: true }
+            Label { visible: !!panelRow.detail; text: panelRow.detail; elide: Text.ElideRight; Layout.maximumWidth: panelRow.availableWidth * panelRow.metrics.skeletonShort; color: panelRow.enabled ? panelRow.colors["text-muted"] : panelRow.palette.disabled.buttonText; font.pointSize: Qt.application.font.pointSize * panelRow.metrics.smallScale; Accessible.ignored: true }
+            Label { text: "✓"; visible: panelRow.selected; color: panelRow.enabled ? panelRow.colors.action : panelRow.palette.disabled.buttonText; Accessible.ignored: true }
+            IconImage { visible: panelRow.disclosure; source: "icons/back.svg"; rotation: -90; color: panelRow.enabled ? panelRow.colors["text-muted"] : panelRow.palette.disabled.buttonText; sourceSize.width: panelRow.metrics.icon; sourceSize.height: panelRow.metrics.icon; Accessible.ignored: true }
         }
         background: Item {
             GlassLens { anchors.fill: parent; visible: panelRow.selected || panelRow.hovered || panelRow.highlighted; hover: !panelRow.selected; radius: panelRow.metrics.radius }
-            Rectangle { anchors.fill: parent; color: "transparent"; radius: panelRow.metrics.radius; border.width: panelRow.visualFocus ? panelRow.metrics.hairline : 0; border.color: panelRow.colors.action }
+            Rectangle { anchors.fill: parent; color: "transparent"; radius: panelRow.metrics.radius; border.width: panelRow.visualFocus ? panelRow.metrics.focusRingWidth : 0; border.color: panelRow.colors.action }
         }
     }
     // "provider:model" reads as "Provider · model"; demo IDs read as their names.
@@ -893,20 +868,33 @@ QtObject {
         property string text
         // Idle reads neutral (not running, not granted); the text, not only the color, carries meaning.
         property bool idle: false
+        property string tone: "ready"
         readonly property var metrics: workbench.metrics
         leftPadding: metrics.small + metrics.tight
         rightPadding: leftPadding
         // The 24 pt Glass chip keeps a full text line; a fixed 4 pt would push the label down.
         topPadding: Math.max(0, Math.min(metrics.tight, (height - implicitContentHeight) / 2))
         bottomPadding: topPadding
-        // `.chip`: 24 pt.
-        implicitHeight: workbench.appearance?.preset === "glass" ? metrics.gutter : implicitContentHeight + topPadding + bottomPadding
-        background: Rectangle { radius: height / 2; color: Qt.tint(badge.palette.base, Qt.alpha(badge.idle ? badge.palette.placeholderText : badge.palette.highlight, badge.metrics.selectionOpacity)) }
+        implicitHeight: Math.max(metrics.gutter, implicitContentHeight + 2 * metrics.hairline)
+        SurfaceAppearance { id: badgeAppearance }
+        background: Rectangle {
+            radius: height / 2
+            color: badge.tone !== "busy" ? Qt.tint(badge.palette.base, Qt.alpha(badgeDot.color, badge.metrics.selectionOpacity))
+                 : badgeAppearance.solid ? Qt.tint(badgeAppearance.reading, badgeDot.colors["action-soft"])
+                 : badgeDot.colors["action-soft"]
+        }
         contentItem: RowLayout {
             spacing: badge.metrics.small
-            Rectangle { implicitWidth: badge.metrics.small; implicitHeight: implicitWidth; radius: implicitWidth / 2; color: badge.idle ? badge.palette.placeholderText : badge.palette.highlight }
-            Label { text: badge.text; color: badge.idle ? badge.palette.placeholderText : badge.palette.highlight }
+            StatusDot { id: badgeDot; tone: badge.idle ? "idle" : badge.tone }
+            Label {
+                text: badge.text; color: badgeDot.color
+                font.pointSize: Qt.application.font.pointSize * badge.metrics.smallScale
+                font.weight: Font.Medium
+                font.features: badge.tone === "busy" ? {"tnum": 1} : ({})
+                Accessible.ignored: true
+            }
         }
+        Accessible.role: Accessible.StaticText
         Accessible.name: text
     }
     // Shared W2 layers use the same opaque surface as W1. Geometry is measured in
