@@ -5755,7 +5755,9 @@ private slots:
         const auto hits = LauncherTools::files("plan", home, roots);
         QCOMPARE(hits.size(), 1);
         const auto row = hits.first().toMap();
-        QCOMPARE(row.value("id").toString(), root.filePath("plan.txt"));
+        // Qt resolves a symbolic link in the path but keeps a Windows junction, so compare
+        // with the canonical form of the path the search was given.
+        QCOMPARE(row.value("id").toString(), QFileInfo(QDir(roots.first()).filePath("plan.txt")).canonicalFilePath());
         QCOMPARE(row.value("parent").toString(), outsideHome ? root.path() : QString("~/Documents"));
         QVERIFY(LauncherTools::files("linked", home, roots).isEmpty());
     }
