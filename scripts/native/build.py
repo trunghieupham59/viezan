@@ -69,7 +69,7 @@ def build_mac(configuration, output, *, scratch=None, development=None):
             "CFBundleVersion": "1", "CFBundleIconFile": "AppIcon", "LSMinimumSystemVersion": "15.0",
             "NSMicrophoneUsageDescription": "Viezan records audio only when you start recording for transcription or interpretation.",
             "NSAudioCaptureUsageDescription": "Viezan captures system audio only when you start system-audio interpretation.",
-            "NSAppleEventsUsageDescription": "Viezan uses keyboard shortcuts only when you invoke translation in another application.",
+            "NSAppleEventsUsageDescription": "Viezan uses keyboard shortcuts when you invoke translation in another application, System Events when you switch the system appearance from the Launcher, and Finder when you uninstall an app that needs administrator permission.",
             "NSHighResolutionCapable": True, "NSPrincipalClass": "NSApplication",
         }
         if development is not None:
@@ -82,7 +82,9 @@ def build_mac(configuration, output, *, scratch=None, development=None):
     run("swiftc", "-O", ROOT / "native/files/main.swift", "-o", native_resources / "viezan-fs", "-framework", "AppKit")
     common_smc = ROOT / "native/common/SMC.swift"
     run("swiftc", "-O", common_smc, ROOT / "native/smc/main.swift", "-o", native_resources / "viezan-smc", "-framework", "IOKit")
-    run("swiftc", "-O", common_smc, ROOT / "native/fanhelper/main.swift", "-o", native_resources / "viezan-fan-helper", "-framework", "IOKit", "-framework", "Security")
+    run("swiftc", "-O", common_smc, ROOT / "native/fanhelper/FanController.swift",
+        ROOT / "native/fanhelper/CommandHandler.swift", ROOT / "native/fanhelper/main.swift",
+        "-o", native_resources / "viezan-fan-helper", "-framework", "IOKit", "-framework", "Security")
     daemon_dir = contents / "Library/LaunchDaemons"
     daemon_dir.mkdir(parents=True)
     with (ROOT / "native/fanhelper/com.viezan.fan-helper.plist").open("rb") as stream:

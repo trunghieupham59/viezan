@@ -136,7 +136,9 @@ for (const feature of ['chat','translate','dictionary']) if (!active[feature]) {
   active[feature]=session.id
 }
 const prompts = list(state.systemPromptPresets).map((prompt,index)=>({id:uuid(`prompt:${prompt.id||index}`), name:text(prompt.name).slice(0,100), text:text(prompt.prompt || prompt.content || prompt.text)}))
-const workspace = {schemaVersion:1,sessions,tasks,active,feature:'chat',locale,prompts,appearance:{mode:['light','dark'].includes(state.theme)?state.theme:'system',textSize:['small','medium','large'].includes(state.fontSize)?state.fontSize:'medium'},shell:{navigationCollapsed:!!state.sidebarCollapsed}}
+const mode = state.themePreset === 'midnight' ? 'dark' : ['light','dark'].includes(state.theme) ? state.theme : 'system'
+const accent = ['violet','pink','teal','green','amber','red'].includes(state.themeAccent) ? state.themeAccent : 'auto'
+const workspace = {schemaVersion:1,sessions,tasks,active,feature:'chat',locale,prompts,appearance:{preset:'glass',mode,accent,textSize:['small','medium','large'].includes(state.fontSize)?state.fontSize:'medium'},shell:{navigationCollapsed:!!state.sidebarCollapsed}}
 workspace.autoTranslate = state.autoTranslate === true
 workspace.autoTranslateDelay = Number.isInteger(state.autoTranslateDelay) ? Math.min(5000,Math.max(100,state.autoTranslateDelay)) : 800
 workspace.speechProvider = stt(state.sttProvider)

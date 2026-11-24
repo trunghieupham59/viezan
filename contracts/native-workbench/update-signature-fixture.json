@@ -1,0 +1,7 @@
+{
+  "description": "Ed25519 signatures over the exact manifest bytes. `signature` verifies under `publicKey` (a throwaway test key); `releaseSignature` verifies under the update key embedded in both apps. The update check must reject any change to the manifest, signature or key. The manifest names no real package.",
+  "publicKey": "R9w5FZR9vVXu1K02/9sW02AYUA46zqIEYF9+1nUpvCY=",
+  "manifest": "{\n  \"version\": \"9.9.9\",\n  \"platform\": \"fixture\",\n  \"architecture\": \"x64\",\n  \"artifacts\": [\n    {\n      \"name\": \"Viezan-9.9.9-fixture-x64.bin\",\n      \"size\": 3,\n      \"sha256\": \"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\"\n    }\n  ]\n}\n",
+  "signature": "lwCsxycGAgPa2DrXfVSn5/FXmGWkJWmprVWX2AH/d4at29C41OJc8aulXe5XoMYHIhPIniWzmjfhExNkwLvcBQ==",
+  "releaseSignature": "rSTAGOZiLg+lsDBnAjXfh/yE1vYXhBmyLIod6h6m+pnsmmUrqwJDssXd4ZIPs2VPyeIjIF7mcIsNyu+vsbagCw=="
+}
