@@ -19,6 +19,11 @@ on:
     branches: [develop]
     paths: [package.json]
   workflow_dispatch:
+    inputs:
+      preview_only:
+        description: Build and test just the two internal macOS Preview DMGs as workflow artifacts
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -29,6 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       build: ${{ steps.check.outputs.build }}
+      targets: ${{ steps.targets.outputs.matrix }}
       macos_mode: ${{ steps.macos.outputs.mode }}
     steps:
       - uses: actions/checkout@v7
@@ -50,17 +56,31 @@ jobs:
           else
             echo "build=true" >> "$GITHUB_OUTPUT"
           fi
+      - name: Select package targets
+        id: targets
+        if: steps.check.outputs.build == 'true'
+        env:
+          PREVIEW_ONLY: ${{ inputs.preview_only || false }}
+          TARGETS: >-
+            [{"platform":"macos-arm64","arch":"arm64","os":"macos-15"},
+             {"platform":"macos-x64","arch":"x64","os":"macos-15-intel"},
+             {"platform":"windows-x64","os":"windows-latest"},
+             {"platform":"linux-x64","os":"ubuntu-22.04"}]
+        run: |
+          matrix="$(jq -c --arg preview "$PREVIEW_ONLY" '[.[] | select($preview != "true" or (.platform | startswith("macos-")))]' <<< "$TARGETS")"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
       - name: Select the macOS signing mode
         id: macos
         if: steps.check.outputs.build == 'true'
         env:
+          PREVIEW_ONLY: ${{ inputs.preview_only || false }}
           HAS_CERT: ${{ secrets.MACOS_DEVELOPER_ID_P12 != '' }}
           HAS_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_PASSWORD != '' }}
           HAS_PREVIEW_CERT: ${{ secrets.MACOS_PREVIEW_DEVELOPMENT_P12 != '' }}
           HAS_PREVIEW_PASSWORD: ${{ secrets.MACOS_PREVIEW_DEVELOPMENT_PASSWORD != '' }}
         run: |
-          if [[ "$HAS_CERT" == false && "$HAS_PASSWORD" == false ]]; then
-            if [[ "$GITHUB_REF" == refs/heads/develop ]]; then
+          if [[ "$PREVIEW_ONLY" == true || ( "$HAS_CERT" == false && "$HAS_PASSWORD" == false ) ]]; then
+            if [[ "$PREVIEW_ONLY" != true && "$GITHUB_REF" == refs/heads/develop ]]; then
               echo "::error::A public release needs notarized macOS update DMGs. Configure the Developer ID certificate and password, or build a Preview on a draft branch."
               exit 1
             fi
@@ -82,17 +102,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: macos-arm64
-            arch: arm64
-            os: macos-15
-          - platform: macos-x64
-            arch: x64
-            os: macos-15-intel
-          - platform: windows-x64
-            os: windows-latest
-          - platform: linux-x64
-            os: ubuntu-22.04
+        include: ${{ fromJSON(needs.version.outputs.targets) }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -109,6 +119,7 @@ jobs:
         if: matrix.platform == 'macos-arm64'
         run: |
           python3 -m unittest discover -s scripts/native/__tests__ -p 'test_package.py'
+          python3 -m unittest discover -s scripts/native/__tests__ -p 'test_dev.py'
           bash scripts/native/test-macos.sh
       - name: Build macOS
         if: runner.os == 'macOS'
@@ -229,6 +240,7 @@ jobs:
   macos-install:
     needs: [version, package]
     strategy:
+      fail-fast: false
       matrix:
         include:
           - arch: arm64
@@ -262,8 +274,24 @@ jobs:
           python3 scripts/native/test_macos_install.py --packages packages --old-images "$RUNNER_TEMP" \
             --mode "$MACOS_MODE" --arch "$ARCH" --version "$version"
 
+      - name: Diagnose an installed app launch failure
+        if: failure()
+        run: |
+          /usr/bin/log show --last 5m --style compact --predicate '(process == "amfid" OR process == "syspolicyd" OR process == "runningboardd" OR process == "launchservicesd" OR process == "ReportCrash") AND eventMessage CONTAINS[c] "Viezan"' | tail -80
+          python3 - <<'PYTHON'
+          import json
+          from pathlib import Path
+          reports = Path.home() / 'Library/Logs/DiagnosticReports'
+          for file in sorted(reports.glob('ViezanNative*.ips'))[-3:]:
+              with file.open() as stream:
+                  header = json.loads(stream.readline())
+                  report = json.load(stream)
+              print(header.get('app_version'), report.get('exception'), report.get('termination'))
+          PYTHON
+
   windows-upgrade:
     needs: package
+    if: inputs.preview_only != true
     runs-on: windows-latest
     outputs:
       authenticode: ${{ steps.upgrade.outputs.authenticode }}
@@ -328,6 +356,7 @@ jobs:
 
   release:
     needs: [version, package, macos-install, windows-upgrade]
+    if: inputs.preview_only != true
     runs-on: ubuntu-latest
     env:
       MACOS_MODE: ${{ needs.version.outputs.macos_mode }}

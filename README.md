@@ -241,6 +241,7 @@ to sign the app and final installer with an installed certificate. An optional `
 is checked against its full manifest and pinned binary hashes. Linux packaging requires a provisioned
 linuxdeploy executable and its Qt plugin (`--linuxdeploy`, `--qt-bin`). Packaging
 emits version/platform/architecture-specific artifacts and checksum manifests.
+The manual macOS Preview workflow uploads both verified DMGs as workflow artifacts.
 The release workflow runs the macOS tests and installs the Windows candidate over
 2.5.2 in a clean runner profile, opens its Qt window, and verifies that the app
 loads the bundled Visual C++ DLLs. A trusted Windows signature enables the in-app

@@ -318,7 +318,16 @@ public struct NativeResources: Decodable, Sendable {
     public let rewriteSystem: String
     public let themePalettes: [String: [String: [String: String]]]
     public let chromePalettes: [String: [String: String]]
-    public static var brandURL: URL? { Bundle.module.url(forResource: "brand", withExtension: "png") }
+    // SwiftPM's command-line accessor may search beside the executable or in
+    // its build directory. Installed macOS apps carry this bundle in Contents/Resources.
+    private static let resourceBundle: Bundle = {
+        let app = Bundle.main
+        guard app.bundleIdentifier == "com.viezan.native.preview" else { return Bundle.module }
+        guard let url = app.url(forResource: "ViezanNative_ViezanDomain", withExtension: "bundle"),
+              let resources = Bundle(url: url) else { fatalError("Missing Viezan's packaged resource bundle") }
+        return resources
+    }()
+    public static var brandURL: URL? { resourceBundle.url(forResource: "brand", withExtension: "png") }
     public let metrics: [String: Double]
     public let textScales: [String: Double]
     public let settingsSections: [SettingsSection]
@@ -327,7 +336,7 @@ public struct NativeResources: Decodable, Sendable {
     public let locales: [String: [String: String]]
     public let fixtures: Fixtures
     public static let shared: NativeResources = {
-        guard let url = Bundle.module.url(forResource: "native", withExtension: "json"),
+        guard let url = resourceBundle.url(forResource: "native", withExtension: "json"),
               let data = try? Data(contentsOf: url), let resources = try? JSONDecoder().decode(NativeResources.self, from: data)
         else { fatalError("Run node scripts/native/generate-resources.mjs before building") }
         return resources

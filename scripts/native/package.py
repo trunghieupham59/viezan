@@ -13,6 +13,8 @@ import platform
 import shutil
 import subprocess
 import sys
+import tempfile
+import time
 import zipfile
 from runtime_manifest import verify_runtime
 from verify_macos_dmg import verify_dmg, VIEZAN_REQUIREMENT
@@ -51,6 +53,24 @@ def stage_msvc_runtime(root, architecture, stage):
         raise SystemExit(f'Missing Visual C++ runtime in {directories[0]}: {", ".join(sorted(missing))}')
     for dll in files:
         shutil.copy2(dll, stage / dll.name)
+
+
+def create_dmg(source, destination, volume):
+    # DiskImages can briefly report EBUSY on a hosted Mac. Keep each attempt
+    # separate because a failed invocation can leave a partial disk image.
+    with tempfile.TemporaryDirectory(dir=destination.parent) as staging:
+        for attempt in range(3):
+            image = Path(staging) / f'attempt-{attempt + 1}.dmg'
+            result = subprocess.run(['hdiutil', 'create', '-volname', volume, '-srcfolder', source,
+                                     '-format', 'UDZO', image], text=True, stderr=subprocess.PIPE,
+                                    env={**os.environ, 'LC_ALL': 'C'})
+            if result.returncode == 0:
+                os.link(image, destination)
+                return
+            print(result.stderr, file=sys.stderr, flush=True)
+            if 'Resource busy' not in result.stderr or attempt == 2:
+                result.check_returncode()
+            time.sleep(2 ** (attempt + 1))
 
 
 def notarize(upload, staple_target, profile, keychain):
@@ -121,7 +141,7 @@ def main():
         run('ditto', app, disk / 'Viezan.app')
         (disk / 'Applications').symlink_to('/Applications')
         image = output / (name + '.dmg')
-        run('hdiutil', 'create', '-volname', 'Viezan', '-srcfolder', disk, '-format', 'UDZO', image)
+        create_dmg(disk, image, 'Viezan')
         run('codesign', '--timestamp', '--sign', args.identity, image)
         notarize(image, image, args.notary_profile, args.notary_keychain)
         verify_dmg(image, distribution_arch=architecture, version=version)

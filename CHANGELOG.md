@@ -45,6 +45,9 @@ Entries describe their version's source and do not certify that an installer has
 
 ## [2.6.1]
 
+- The macOS app loads its resources from the installed bundle so a GitHub-built
+  DMG opens on a machine without the Swift build directory.
+
 - Internal macOS Previews now use one pinned Apple Development certificate across
   builds so macOS can match prior Accessibility and Screen Recording grants.
 - Public macOS updates require notarized Apple Silicon and Intel disk images.

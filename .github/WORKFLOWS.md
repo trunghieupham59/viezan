@@ -31,6 +31,8 @@ Configure these GitHub Actions repository secrets for notarized macOS distributi
 | `APPLE_ID` | Apple Account with access to notarization for the certificate's team. |
 | `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password for that account. |
 
+Set the manual dispatch input `preview_only` to build both Mac architectures, run the installation tests, and download the DMGs from the workflow artifacts. This mode skips release publication.
+
 The Preview path produces `Viezan-<version>-preview-arm64.dmg` and
 `Viezan-<version>-preview-x64.dmg`. On CI it uses `MACOS_PREVIEW_DEVELOPMENT_P12`
 and `MACOS_PREVIEW_DEVELOPMENT_PASSWORD`. For a local build the signing identity
