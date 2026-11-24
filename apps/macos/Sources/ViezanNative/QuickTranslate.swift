@@ -13,27 +13,49 @@ import ViezanDomain
         case translating(String)                  // target language code
         case replaced
         case result(String, paste: Bool)          // translation, whether pasting is possible
-        case noSelection, needsAccess
+        case noSelection, needsAccess, noText, needsScreenAccess
         case failed(String, String?)              // error code, provider detail
     }
+    nonisolated static func noteDetail(source: String, target: String, text: (String) -> String) -> String {
+        let targetName = text("lang_" + target)
+        return source == "auto" ? targetName : text("lang_" + source) + " → " + targetName
+    }
+
     @MainActor @Observable final class Model {
         var phase: Phase = .reading
         var sessionID: String?
         var language = ""
+        var sourceLanguage = "auto"
+        var source: String?  // nil for selection translation; empty until the screen region has been read
+        func resultTitle(_ text: (String) -> String) -> String {
+            text("quickResultTitle").replacingOccurrences(of: "{lang}", with: text("lang_" + language))
+        }
+        func screenAnnouncement(_ text: (String) -> String) -> String? {
+            guard source != nil else { return nil }
+            switch phase {
+            case .noText: return text("quickNoText")
+            case .needsScreenAccess: return text("quickNeedsScreenRecording")
+            case .failed(let code, let detail): return [text("quickFailed"), text(code), detail].compactMap { $0 }.joined(separator: " ")
+            case .result: return resultTitle(text)
+            default: return nil
+            }
+        }
     }
     private let store: WorkbenchStore
     private let openMain: (String) -> Void
     private let model = Model()
     private var panel: NSPanel?
     private var replacementTarget: SelectedTextTarget?
+    private var capturing = false
     private var run: Task<Void, Never>?
     private var hide: Task<Void, Never>?
     init(store: WorkbenchStore, openMain: @escaping (String) -> Void) { self.store = store; self.openMain = openMain }
 
     func start() {
+        guard !capturing else { return }
         SelectionDiagnostics.record("quick-start")
         run?.cancel(); hide?.cancel()
-        replacementTarget = nil
+        replacementTarget = nil; model.source = nil
         guard let application = NSWorkspace.shared.frontmostApplication, application.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
             // Pressed while Viezan itself is in front: there is no other app's selection.
             show(.noSelection); return
@@ -44,15 +66,43 @@ import ViezanDomain
         run = Task { [weak self] in await self?.translate(from: application) }
     }
 
+    func startScreen() {
+        guard !capturing else { return }
+        dismiss()
+        model.source = ""; model.sessionID = nil
+        guard CGPreflightScreenCaptureAccess() else { _ = CGRequestScreenCaptureAccess(); show(.needsScreenAccess); return }
+        capturing = true
+        run = Task {
+            let capture = await Task.detached(priority: .userInitiated) { try Attachments.captureScreenText() }.result
+            capturing = false
+            guard !Task.isCancelled else { return }
+            switch capture {
+            case .failure(is CancellationError): return
+            case .failure: show(.failed("captureError", nil))
+            case .success(let text):
+                model.source = text
+                guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { show(.noText, hideAfter: 2.5); return }
+                await translate(text: text, target: nil)
+            }
+        }
+    }
+
     private func translate(from application: NSRunningApplication) async {
+        guard !Task.isCancelled else { return }
         // Accessibility gives the exact range to replace; apps without it fall back to copy.
         let target = try? SelectedTextTarget.capture()
         SelectionDiagnostics.record("capture:\(target != nil);editable:\(target?.canReplace == true)")
         var text = target?.text
         if text == nil { text = await SelectionClipboard.copy(from: application) }
         guard !Task.isCancelled else { return }
-        guard let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { show(.noSelection, hideAfter: 2.5); return }
-        let language = store.quickTranslate.target(detected: TextLanguage.detect(text))
+        guard let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { show(.noSelection, hideAfter: 5); return }
+        await translate(text: text, target: target)
+    }
+
+    private func translate(text: String, target: SelectedTextTarget?) async {
+        let detected = TextLanguage.detect(text)
+        let language = store.quickTranslate.target(detected: detected)
+        model.sourceLanguage = detected ?? "auto"
         let id = store.createDetachedSession(feature: .translate, draft: text)
         store.setPair(id, source: "auto", target: language)
         model.sessionID = id; model.language = language
@@ -62,6 +112,7 @@ import ViezanDomain
         guard !Task.isCancelled, let finished = store.workspace.tasks.first(where: { $0.id == task.id }) else { return }
         let output = store.session(id)?.output.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard finished.status == .succeeded, !output.isEmpty else { show(.failed(finished.errorCode ?? "providerError", finished.errorDetail)); return }
+        if model.source != nil { show(.result(output, paste: false)); return }
         SelectionDiagnostics.record("translation-ready;unchanged:\(output == text)")
         #if DEBUG
         Logger(subsystem: "app.viezan", category: "selection").notice("Translation ready; unchanged=\(output == text, privacy: .public); editable=\(target?.canReplace == true, privacy: .public)")
@@ -85,6 +136,8 @@ import ViezanDomain
         case .result: event = "result-card"
         case .noSelection: event = "no-selection"
         case .needsAccess: event = "needs-access"
+        case .noText: event = "no-text"
+        case .needsScreenAccess: event = "needs-screen-access"
         case .failed: event = "provider-failed"
         }
         SelectionDiagnostics.record(event)
@@ -95,7 +148,7 @@ import ViezanDomain
         let top = window.isVisible ? window.frame.maxY : nil
         let width = QuickTranslateView.width(phase)
         // The live view has not re-rendered for the new phase yet; measure a fresh one.
-        let measure = NSHostingController(rootView: QuickTranslateView(store: store, model: model, actions: .init(close: {}, open: {}, settings: {}, paste: { _ in })))
+        let measure = NSHostingController(rootView: QuickTranslateView(store: store, model: model, actions: .init(close: {}, open: {}, settings: {}, screen: {}, paste: { _ in })))
         let fitting = measure.sizeThatFits(in: NSSize(width: width, height: metric("reading")))
         window.setContentSize(NSSize(width: width, height: ceil(fitting.height)))
         if let top { window.setFrameTopLeftPoint(NSPoint(x: window.frame.minX, y: top)); keepOnScreen(window) } else { place(window) }
@@ -104,13 +157,16 @@ import ViezanDomain
         if let content = window.contentView {
             content.wantsLayer = true
             content.layer?.backgroundColor = NSColor.clear.cgColor
-            content.layer?.cornerRadius = (NativeTheme.shared.preferences.preset ?? "glass") == "glass" ? metric("surfaceRadius") : metric("largeRadius")
+            content.layer?.cornerRadius = metric("surfaceRadius")
             content.layer?.cornerCurve = .continuous
             content.layer?.masksToBounds = true
             content.layoutSubtreeIfNeeded()
         }
         window.invalidateShadow()
         window.orderFrontRegardless()
+        if let message = model.screenAnnouncement(store.text) {
+            NSAccessibility.post(element: NSApplication.shared, notification: .announcementRequested, userInfo: [.announcement: message, .priority: NSAccessibilityPriorityLevel.medium.rawValue])
+        }
         hide?.cancel()
         if let seconds { hide = Task { [weak self] in try? await Task.sleep(for: .seconds(seconds)); guard !Task.isCancelled else { return }; self?.dismiss() } }
     }
@@ -125,7 +181,12 @@ import ViezanDomain
         let host = QuickTranslateHostingView(rootView: QuickTranslateView(store: store, model: model, actions: .init(
             close: { [weak self] in self?.dismiss() },
             open: { [weak self] in guard let self, let id = self.model.sessionID else { return }; self.dismiss(); self.openMain(id) },
-            settings: { [weak self] in self?.store.desktopIntegration.requestAccessibility(); self?.dismiss() },
+            settings: { [weak self] in
+                guard let self else { return }
+                if self.model.phase == .needsScreenAccess { openScreenRecordingSettings() } else { self.store.desktopIntegration.requestAccessibility() }
+                self.dismiss()
+            },
+            screen: { [weak self] in self?.startScreen() },
             paste: { [weak self] text in
                 guard let self, let target = self.replacementTarget else { return }
                 self.run?.cancel()
@@ -157,21 +218,23 @@ import ViezanDomain
     }
 }
 
+func openScreenRecordingSettings() {
+    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+}
+
 /// A transparent native backing view keeps the window's rectangular bounds invisible.
 private final class QuickTranslateHostingView<Content: View>: NSHostingView<Content> {
     override var isOpaque: Bool { false }
 }
 
 struct QuickTranslateView: View {
-    struct Actions { var close: () -> Void; var open: () -> Void; var settings: () -> Void; var paste: (String) -> Void }
+    struct Actions { var close: () -> Void; var open: () -> Void; var settings: () -> Void; var screen: () -> Void; var paste: (String) -> Void }
     let store: WorkbenchStore
     let model: QuickTranslate.Model
     let actions: Actions
     @Environment(\.colorScheme) private var scheme
-    private var language: String { store.text("lang_" + model.language) }
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     static func width(_ phase: QuickTranslate.Phase) -> CGFloat {
-        switch phase { case .result, .failed, .needsAccess: metric("reading") * metric("quickCard"); default: metric("sidebar") + metric("rail") }
+        switch phase { case .result, .failed, .needsAccess, .needsScreenAccess: metric("reading") * metric("quickCard"); default: metric("sidebar") + metric("rail") }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: metric("gap")) {
@@ -179,54 +242,52 @@ struct QuickTranslateView: View {
             case .reading: status(store.text("quickReading"), busy: true)
             case .translating(let target): status(store.text("quickTranslating").replacingOccurrences(of: "{lang}", with: store.text("lang_" + target)), busy: true)
             case .replaced: status(store.text("quickReplaced"), symbol: "checkmark.circle.fill", tone: contentColor("success", scheme))
-            case .noSelection: status(store.text("quickNoSelection"), symbol: "exclamationmark.circle", tone: contentColor("warning", scheme))
-            case .needsAccess:
-                header(store.text("quickNeedsAccessibility"), symbol: "lock.shield", tone: contentColor("warning", scheme))
+            case .noSelection:
+                status(store.text("quickNoSelection"), symbol: "exclamationmark.circle", tone: contentColor("warning", scheme))
+                // The same Quick Translate, the other way to give it text.
+                HStack { Spacer(); Button(store.text("translateScreen"), action: actions.screen).buttonStyle(.vznOutline).fixedSize() }
+            case .noText: status(store.text("quickNoText"), symbol: "exclamationmark.circle", tone: contentColor("warning", scheme))
+            case .needsAccess, .needsScreenAccess:
+                header(store.text(model.phase == .needsScreenAccess ? "quickNeedsScreenRecording" : "quickNeedsAccessibility"), symbol: "lock.shield", tone: contentColor("warning", scheme))
                 HStack { Spacer(); Button(store.text("openSystemSettings"), action: actions.settings).buttonStyle(.vznPrimary) }
             case .failed(let code, let detail):
                 header(store.text("quickFailed"), symbol: "exclamationmark.triangle", tone: contentColor("danger", scheme))
                 Text(store.text(code)).font(.vzn("smallScale")).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 if let detail { Text(detail).font(.vzn("captionScale")).foregroundStyle(.secondary).lineLimit(3).textSelection(.enabled) }
-                HStack { Spacer(); Button(store.text("openInTranslate"), action: actions.open).buttonStyle(.vznOutline) }
-            case .result(let text, let paste) where glass:
-                // QuickTranslate board: title, the translation, a one-line meta, then the actions on
-                // their own row (never beside the meta, which the card's width would crowd under 400).
-                Text(store.text("quickResultTitle").replacingOccurrences(of: "{lang}", with: language)).font(.system(size: NSFont.systemFontSize, weight: .semibold))
+                if model.sessionID != nil { HStack { Spacer(); Button(store.text("openInTranslate"), action: actions.open).buttonStyle(.vznOutline) } }
+            case .result(let text, let paste):
+                Text(model.resultTitle(store.text)).font(.system(size: NSFont.systemFontSize, weight: .semibold))
                     .foregroundStyle(contentColor("text-strong", scheme)).padding(.trailing, metric("gutter")).accessibilityAddTraits(.isHeader)
-                Text(text).font(.vzn("labelScale")).foregroundStyle(contentColor("text-strong", scheme)).textSelection(.enabled).lineLimit(12).fixedSize(horizontal: false, vertical: true)
+                if let source = model.source {
+                    Text(source).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).lineLimit(3).textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true).help(source).accessibilityLabel(store.text("source")).accessibilityValue(source)
+                }
+                Text(text).font(readingFont(store)).foregroundStyle(contentColor("text-strong", scheme)).textSelection(.enabled).lineLimit(12).fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading).help(text)
+                    .accessibilityLabel(store.text("result"), isEnabled: model.source != nil).accessibilityValue(text, isEnabled: model.source != nil)
                 if let id = model.sessionID, let session = store.session(id) {
                     let seconds = store.workspace.tasks.first(where: { $0.request.sessionID == id })?.duration
                     Text(ModelLineup.shortName(session.model) + (seconds.map { " · " + durationText($0, store: store) } ?? "")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).lineLimit(1).help(session.model)
                 }
-                if !paste { Text(store.text("quickReadOnly")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)) }
+                if !paste, model.source == nil { Text(store.text("quickReadOnly")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)) }
                 HStack(spacing: metric("small")) {
+                    let pin = PinAsNoteButton(label: store.text("pinAsNote"), text: text, origin: .translate,
+                                              detail: QuickTranslate.noteDetail(source: model.sourceLanguage, target: model.language, text: store.text),
+                                              onCreate: actions.close)
                     Button(store.text("openInTranslate"), action: actions.open).buttonStyle(.vznQuiet).fixedSize()
                     Spacer(minLength: 0)
+                    pin
                     Button(store.text("copy")) { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string); actions.close() }
                         .buttonStyle(paste ? .vznOutline : .vznPrimary).fixedSize()
                     if paste { Button(store.text("quickPaste")) { actions.paste(text) }.buttonStyle(.vznPrimary).fixedSize() }
-                }
-            case .result(let text, let paste):
-                header(store.text("quickResultTitle").replacingOccurrences(of: "{lang}", with: language), symbol: "character.bubble", tone: contentColor("action-text", scheme))
-                // Quick results are short; a long one stays whole in Translate ("Open in Translate").
-                Text(text).font(.vzn("labelScale")).textSelection(.enabled).lineLimit(12).fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading).help(text)
-                if !paste { Text(store.text("quickReadOnly")).font(.vzn("smallScale")).foregroundStyle(.secondary) }
-                HStack(spacing: metric("small")) {
-                    if paste { Button(store.text("quickPaste")) { actions.paste(text) }.buttonStyle(.vznPrimary) }
-                    Button(store.text("copy"), systemImage: "doc.on.doc") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string); actions.close() }
-                        .buttonStyle(paste ? .vznOutline : .vznPrimary)
-                    Button(store.text("openInTranslate"), action: actions.open).buttonStyle(.vznQuiet)
                 }
             }
         }
         .padding(metric("inset"))
         .frame(width: Self.width(model.phase), alignment: .leading)
         .fixedSize(horizontal: false, vertical: true)
-        // Glass: the floating `.float` card; other presets keep the bordered surface.
-        .background { if glass { ReadingPanelSurface() } else { RoundedRectangle(cornerRadius: metric("largeRadius")).fill(contentColor("surface", scheme)) } }
-        .overlay { if !glass { RoundedRectangle(cornerRadius: metric("largeRadius")).strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")) } }
+        // Glass: the floating `.float` card.
+        .background { ReadingPanelSurface() }
         .overlay(alignment: .topTrailing) {
             Button(action: actions.close) { Image(systemName: "xmark").font(.vzn("captionScale")) }
                 .buttonStyle(.vznQuiet).foregroundStyle(.secondary).padding(metric("small"))

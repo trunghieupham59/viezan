@@ -4,7 +4,7 @@ public enum Feature: String, Codable, CaseIterable, Sendable { case chat, transl
 public enum AppearanceMode: String, Codable, CaseIterable, Sendable { case system, light, dark }
 public enum ReadingSize: String, Codable, CaseIterable, Sendable { case small, medium, large }
 public struct AppearancePreferences: Codable, Equatable, Sendable {
-    public var preset: String?
+    public var preset: String? = "glass"
     public var accent: String?
     public var mode: AppearanceMode = .system
     public var textSize: ReadingSize = .medium
@@ -89,6 +89,9 @@ public struct Request: Codable, Equatable, Sendable {
     public var carefulReasoning: Bool?
     public var chatMode: String?
     public var dictionaryContext: String? = nil
+    /// A one-shot utility request (file-search planning): the system prompt goes out as written,
+    /// without the chat reading and formatting policy.
+    public var exactSystemPrompt: Bool? = nil
 }
 public struct UsageRate: Codable, Equatable, Sendable {
     public var input: Double
@@ -187,7 +190,7 @@ public struct Workspace: Codable, Equatable, Sendable {
     public var autoTranslate: Bool?
     public var autoTranslateDelay: Int?
     public var speechProvider: String?
-    public var appearance: AppearancePreferences?
+    public var appearance: AppearancePreferences? = AppearancePreferences()
     public var shell: ShellPreferences?
     public var quickTranslate: QuickTranslatePreferences?
     /// Smart session reset (nil = on): completed Translate/Dictionary work starts fresh after a break.
@@ -201,6 +204,8 @@ public struct Workspace: Codable, Equatable, Sendable {
     public var menuBarTemperature: Bool?
     /// macOS status item visibility (nil = visible for existing workspaces).
     public var menuBarVisible: Bool?
+    /// Models kept at the top of the picker, in the order they were pinned (nil = none).
+    public var pinnedModels: [String]?
     public var navigationCollapsed: Bool { shell?.navigationCollapsed ?? false }
     public var preferences: AppearancePreferences { appearance ?? AppearancePreferences() }
     public init() {
@@ -208,8 +213,16 @@ public struct Workspace: Codable, Equatable, Sendable {
         sessions = [chat, translate, dictionary]
         active = [Feature.chat.rawValue: chat.id, Feature.translate.rawValue: translate.id, Feature.dictionary.rawValue: dictionary.id]
     }
-    public func upgrading() -> Workspace {
+    public func upgrading() throws -> Workspace {
         var result = self
+        var appearance = preferences
+        switch appearance.preset {
+        case "midnight": appearance.mode = .dark
+        case "graphite", "glass", "paper", "corporate", nil: break
+        default: throw StorageFailure.invalidData
+        }
+        appearance.preset = "glass"
+        result.appearance = appearance
         result.disabledModules?.removeAll { $0 == "bridge" }
         for i in result.sessions.indices where result.sessions[i].model.hasPrefix("demo.") { result.sessions[i].model = "ollama:llama3.2" }
         for i in result.tasks.indices where result.tasks[i].request.model.hasPrefix("demo.") { result.tasks[i].request.model = "ollama:llama3.2" }
@@ -220,10 +233,11 @@ public struct Workspace: Codable, Equatable, Sendable {
         return result
     }
     public func validated() throws -> Workspace {
-        guard ["graphite", "glass", "paper", "corporate", "midnight"].contains(preferences.preset ?? "glass"), ["auto", "violet", "pink", "teal", "green", "amber", "red"].contains(preferences.accent ?? "auto"), (disabledModules ?? []).allSatisfy({ ["chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities"].contains($0) }), (rates?.count ?? 0) <= 1000, rates?.allSatisfy({ NativeModel.valid($0.key) && $0.value.valid }) ?? true, schemaVersion == 1,
+        guard preferences.preset == "glass", ["auto", "violet", "pink", "teal", "green", "amber", "red"].contains(preferences.accent ?? "auto"), (disabledModules ?? []).allSatisfy({ ["chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities"].contains($0) }), (rates?.count ?? 0) <= 1000, rates?.allSatisfy({ NativeModel.valid($0.key) && $0.value.valid }) ?? true, schemaVersion == 1,
               ["vi", "en", "ja"].contains(locale),
               quickTranslate?.valid ?? true,
               Set(sessions.map(\.id)).count == sessions.count,
+              (pinnedModels ?? []).count <= WorkbenchStore.pinnedModelLimit, Set(pinnedModels ?? []).count == (pinnedModels ?? []).count, (pinnedModels ?? []).allSatisfy(NativeModel.valid),
               Set(tasks.map(\.id)).count == tasks.count,
               Feature.allCases.allSatisfy({ feature in sessions.contains { $0.feature == feature && $0.id == active[feature.rawValue] && $0.archived != true } }),
               sessions.contains(where: { $0.feature == feature && $0.id == active[feature.rawValue] }),
@@ -319,6 +333,25 @@ public struct NativeResources: Decodable, Sendable {
         }
         let needle = normalize(query.trimmingCharacters(in: .whitespacesAndNewlines))
         return commands.filter { needle.isEmpty || normalize(text($0.title, locale: locale)).contains(needle) }
+    }
+    /// Settings sections a launcher query names: the title or a search term has the query at the
+    /// start of a word. Stricter than `settings(query:)`, which also reads descriptions, so two
+    /// typed letters do not list unrelated sections.
+    public func settingsJump(query: String, locale: String, limit: Int = 3) -> [SettingsSection] {
+        func normalize(_ value: String) -> String {
+            value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: locale)).replacingOccurrences(of: "đ", with: "d")
+        }
+        let needle = normalize(query.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard needle.count >= 2 else { return [] }
+        func names(_ key: String) -> Bool {
+            // Search terms include whole descriptions; only short labels name a section.
+            let name = normalize(text(key, locale: locale))
+            return name.count <= 40 && (name.hasPrefix(needle) || name.contains(" " + needle))
+        }
+        // Sections named by their title come before those named by one of their settings.
+        let titled = settingsSections.filter { names($0.title) }
+        let other = settingsSections.filter { section in !names(section.title) && section.terms.contains(where: names) }
+        return Array((titled + other).prefix(limit))
     }
     public func settings(query: String, locale: String) -> [SettingsSection] {
         func normalize(_ value: String) -> String {

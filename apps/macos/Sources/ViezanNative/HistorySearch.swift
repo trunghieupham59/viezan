@@ -117,9 +117,8 @@ struct SearchBox: View {
     var bare = false
     @Environment(\.isEnabled) private var enabled
     @State private var focused = false
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     private var height: CGFloat { metric(compact ? "compactControl" : "control") }
-    private var radius: CGFloat { glass ? height / 2 : metric("controlRadius") }
+    private var radius: CGFloat { height / 2 }
     var body: some View {
         HStack(spacing: metric("small")) {
             Image(systemName: "magnifyingglass").imageScale(.medium).foregroundStyle(.secondary).accessibilityHidden(true)

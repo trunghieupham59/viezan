@@ -10,14 +10,12 @@ struct ChatWorkspace: View {
     @State private var userScrolling = false
     @State private var selectedMessage: String?
     @State private var selectionReset = 0
-    @State private var draftLines = 1
     @State private var composerFocused = false
     @State private var composerWidth: CGFloat = metric("reading")
     @State private var composerToolsWidth: CGFloat = metric("compactSidebar") + metric("control") + metric("small")
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var session: Session { store.session }
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
-    private var composerRadius: CGFloat { metric(glass ? "chromeSurfaceRadius" : "largeRadius") }
+    private var composerRadius: CGFloat { metric("chromeSurfaceRadius") }
     /// No messages yet and nothing running: the composer sits mid-stage with a greeting and recent work.
     private var starting: Bool { session.messages.isEmpty && store.running(session.id) == nil }
     /// Tier 1 of the suggestions: the three most recent sessions of any feature, to continue.
@@ -43,27 +41,18 @@ struct ChatWorkspace: View {
                         ForEach(session.messages) { message in
                             VStack(alignment: .leading, spacing: metric("small")) {
                                 ForEach(message.images ?? []) { image in
-                                    if glass {
-                                        // Chat-States: the image in a 16 pt rounded frame with a soft shadow, its actions beside it.
-                                        HStack(alignment: .top, spacing: metric("gap") + metric("hairline") * 2) {
-                                            AttachmentPreview(attachment: image, maxSide: metric("editor") + metric("hero") + metric("gutter") + metric("tight"), radius: metric("chromeCardRadius"))
-                                            VStack(alignment: .leading, spacing: metric("small")) {
-                                                Button(store.text("saveImage"), systemImage: "square.and.arrow.down") { saveImage(image) }
-                                                Button(store.text("copyImage"), systemImage: "doc.on.doc") { copyImage(image) }
-                                                Button(store.text("editImage"), systemImage: "pencil") { store.addImage(image, sessionID: sessionID); store.setChatMode(sessionID, "image") }
-                                            }.buttonStyle(.vznOutline).controlSize(.small).padding(.top, metric("tight"))
-                                        }
-                                    } else {
-                                        AttachmentPreview(attachment: image)
-                                        HStack {
-                                            Button(store.text("saveImage")) { saveImage(image) }
-                                            Button(store.text("copyImage")) { copyImage(image) }
-                                            Button(store.text("editImage")) { store.addImage(image, sessionID: sessionID); store.setChatMode(sessionID, "image") }
-                                        }
+                                    // Chat-States: the image in a 16 pt rounded frame with a soft shadow, its actions beside it.
+                                    HStack(alignment: .top, spacing: metric("gap") + metric("hairline") * 2) {
+                                        AttachmentPreview(attachment: image, maxSide: metric("editor") + metric("hero") + metric("gutter") + metric("tight"), radius: metric("chromeCardRadius"))
+                                        VStack(alignment: .leading, spacing: metric("small")) {
+                                            Button(store.text("saveImage"), systemImage: "square.and.arrow.down") { saveImage(image) }
+                                            Button(store.text("copyImage"), systemImage: "doc.on.doc") { copyImage(image) }
+                                            Button(store.text("editImage"), systemImage: "pencil") { store.addImage(image, sessionID: sessionID); store.setChatMode(sessionID, "image") }
+                                        }.buttonStyle(.vznOutline).controlSize(.small).padding(.top, metric("tight"))
                                     }
                                 }
                                 // "Đã tạo 1 ảnh 1024×1024": generated images say how many and how large (older ones have no size).
-                                if glass, message.role == "assistant", let generated = message.images, !generated.isEmpty, generated.allSatisfy({ $0.generator != nil }) {
+                                if message.role == "assistant", let generated = message.images, !generated.isEmpty, generated.allSatisfy({ $0.generator != nil }) {
                                     Text(generatedImagesCaption(generated, task: store.workspace.tasks.first(where: { $0.id == message.id }))).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme))
                                         .help(generated.first?.generator ?? "")
                                 }
@@ -75,21 +64,19 @@ struct ChatWorkspace: View {
                                     // of the reading column; the answer stays plain text on the leading edge.
                                     Text(message.text.isEmpty && (message.images ?? []).isEmpty ? store.text("noContent") : message.text)
                                         .font(readingFont(store)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                                        .foregroundStyle(glass ? contentColor("text-strong", scheme) : .primary)
-                                        .padding(.vertical, metric(glass ? "small" : "gap") + (glass ? metric("hairline") * 2 : 0))
-                                        .padding(.horizontal, metric(glass ? "gap" : "inset") + (glass ? metric("hairline") * 2 : 0))
-                                        .background(contentColor("surface-muted", scheme), in: glass ? AnyShape(UserBubbleShape()) : AnyShape(RoundedRectangle(cornerRadius: metric("largeRadius"))))
+                                        .foregroundStyle(contentColor("text-strong", scheme))
+                                        .padding(.vertical, metric("small") + metric("hairline") * 2)
+                                        .padding(.horizontal, metric("gap") + metric("hairline") * 2)
+                                        .background(contentColor("surface-muted", scheme), in: UserBubbleShape())
                                         .frame(maxWidth: metric("reading") * metric("bubbleFraction"), alignment: .trailing)
                                         .frame(maxWidth: .infinity, alignment: .trailing)
                                         .accessibilityLabel(store.text("you") + ": " + message.text)
                                 } else {
-                                if glass {
-                                    // "✦ Viezan": accent sparkle, 12 semibold muted name.
-                                    HStack(spacing: metric("small") - metric("hairline") * 2) {
-                                        Image(systemName: "sparkles").imageScale(.small).foregroundStyle(contentColor("action", scheme))
-                                        Text("Viezan").fontWeight(.semibold).foregroundStyle(contentColor("text-muted", scheme))
-                                    }.font(.vzn("smallScale")).accessibilityElement(children: .combine)
-                                } else { Label("Viezan", systemImage: "sparkles").font(.vzn("smallScale")).foregroundStyle(.secondary) }
+                                // "✦ Viezan": accent sparkle, 12 semibold muted name.
+                                HStack(spacing: metric("small") - metric("hairline") * 2) {
+                                    Image(systemName: "sparkles").imageScale(.small).foregroundStyle(contentColor("action", scheme)).accessibilityHidden(true)
+                                    Text("Viezan").fontWeight(.semibold).foregroundStyle(contentColor("text-muted", scheme))
+                                }.font(.vzn("smallScale")).accessibilityElement(children: .combine)
                                 TranscriptText(text: message.text.isEmpty && (message.images ?? []).isEmpty ? store.text(store.workspace.tasks.first(where: { $0.id == message.id })?.status.rawValue ?? "noContent") : message.text,
                                                font: readingNSFont(store), label: store.text("response"), markdown: store.workspace.tasks.first(where: { $0.id == message.id })?.status != .running, resetSelection: selectionReset) { selected in
                                     if selected { selectedMessage = message.id; followBottom = false }
@@ -98,11 +85,29 @@ struct ChatWorkspace: View {
                                     .accessibilityAddTraits(store.workspace.tasks.first(where: { $0.id == message.id })?.status == .running ? .updatesFrequently : [])
                                 }
                                 // Chat-States: a live answer carries an "Answering…" chip until it finishes.
-                                if glass, message.role == "assistant", store.workspace.tasks.first(where: { $0.id == message.id })?.status == .running {
-                                    StatusBadge(text: store.text("chatAnswering"), tone: .busy).accessibilityIdentifier("chat-answering")
+                                if message.role == "assistant", let live = store.workspace.tasks.first(where: { $0.id == message.id }), live.status == .running {
+                                    // Research has no state to show until its first phase is saved, so the mode
+                                    // the task was sent with decides as well (the session's may change meanwhile).
+                                    let researching = live.research != nil || ["web", "research"].contains(live.request.chatMode ?? "text")
+                                    // Chat-States: research is long, so Stop also sits beside its chip.
+                                    HStack(spacing: metric("small")) {
+                                        if researching, let started = live.started {
+                                            // Chat-States: research shows how long it has run, ticking on the task's own
+                                            // seconds. The spoken name stays fixed so it is not read again every second.
+                                            TimelineView(.periodic(from: Date(timeIntervalSince1970: started), by: 1)) { context in
+                                                StatusBadge(text: store.text("researchingElapsed").replacingOccurrences(of: "{time}", with: ResearchPanel.elapsed(context.date.timeIntervalSince1970 - started)), tone: .busy).monospacedDigit()
+                                            }.accessibilityElement().accessibilityLabel(store.text("researching")).accessibilityIdentifier("chat-researching")
+                                        } else {
+                                            StatusBadge(text: store.text(researching ? "researching" : "chatAnswering"), tone: .busy).accessibilityIdentifier(researching ? "chat-researching" : "chat-answering")
+                                        }
+                                        if researching {
+                                            Button(store.text("stop"), systemImage: "stop.fill", role: .destructive) { store.cancel(live.id) }
+                                                .buttonStyle(.vznQuiet).controlSize(.small).accessibilityIdentifier("chat-research-stop")
+                                        }
+                                    }
                                 }
                                 // Chat-States: a failed or stopped turn shows its reason in a soft block, Retry beside the meta.
-                                if glass, message.role == "assistant", message.id == session.messages.last?.id,
+                                if message.role == "assistant", message.id == session.messages.last?.id,
                                    let task = store.workspace.tasks.first(where: { $0.id == message.id }), [.failed, .interrupted, .cancelled].contains(task.status) {
                                     if task.status == .failed {
                                         InlineFailure(title: store.text("failed"), detail: store.text(task.errorCode ?? "providerError")).help(task.errorDetail ?? "")
@@ -124,26 +129,24 @@ struct ChatWorkspace: View {
                                     let task = store.workspace.tasks.first(where: { $0.id == message.id })
                                     HStack(spacing: metric("tight")) {
                                         CopyResponseButton(text: message.text, label: store.text("copy"), copiedLabel: store.text("copied"))
+                                        if task == nil || task?.status == .succeeded, !message.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                            PinAsNoteButton(label: store.text("pinAsNote"), text: message.text, origin: .chat)
+                                        }
                                         // Overlays-Listen: the answer reads at once; while reading the control is a "Reading" pill.
-                                        if glass, task?.status != .running {
+                                        if task?.status != .running {
                                             ListenSpeakerButton(store: store, label: store.text("speak"),
                                                                 sources: [ListenSource(id: message.id, title: "Viezan", text: message.text, language: TextLanguage.detect(message.text) ?? store.workspace.locale)])
                                         }
-                                        // Glass board order: Copy · Retry · model chip; other presets keep model before Retry.
-                                        if glass { retryControl(message, task) }
+                                        // Glass board order: Copy · Retry · model chip.
+                                        retryControl(message, task)
                                         if let task {
                                             // Which model answered and what it cost in tokens, quietly, after the actions.
                                             // The same short name as the composer chip; the full ID stays in the tooltip.
                                             let meta = ModelLineup.shortName(task.request.model) + (task.usage.map { " · " + store.text("tokensCount").replacingOccurrences(of: "{n}", with: ($0.input + $0.output).formatted()) } ?? "")
-                                            if glass {
-                                                Text(meta).font(.vzn("captionScale", .medium)).foregroundStyle(contentColor("text-muted", scheme)).lineLimit(1)
-                                                    .padding(.horizontal, metric("small") + metric("hairline") * 2).frame(height: metric("gutter") - metric("hairline") * 2)
-                                                    .background(contentColor("surface-muted", scheme), in: Capsule()).padding(.leading, metric("tight")).help(task.request.model)
-                                            } else {
-                                                Text(meta).font(.vzn("captionScale")).foregroundStyle(.secondary).lineLimit(1).padding(.horizontal, metric("gap")).help(task.request.model)
-                                            }
+                                            Text(meta).font(.vzn("captionScale", .medium)).foregroundStyle(contentColor("text-muted", scheme)).lineLimit(1)
+                                                .padding(.horizontal, metric("small") + metric("hairline") * 2).frame(height: metric("gutter") - metric("hairline") * 2)
+                                                .background(contentColor("surface-muted", scheme), in: Capsule()).padding(.leading, metric("tight")).help(task.request.model)
                                         }
-                                        if !glass { retryControl(message, task) }
                                     }
                                 }
                             }.id(message.id)
@@ -176,31 +179,27 @@ struct ChatWorkspace: View {
                         }.buttonStyle(.vznOutline).padding(metric("small"))
                     }
                 }
-            }.transition(.opacity)
-            }
-            if !glass, let task = store.workspace.tasks.first(where: { $0.request.sessionID == session.id }), [.failed, .interrupted, .cancelled].contains(task.status) {
-                HStack {
-                    TaskStatusText(store: store, task: task)
-                    Button(store.text("retry")) { store.retry(task.id) }.disabled(!store.canRetry(task))
-                }.font(.vzn("smallScale"))
+            }.accessibilityElement(children: .contain).accessibilityLabel(store.text("chat"))
+                .accessibilityValue(store.text(store.running(session.id) == nil ? "response" : "chatAnswering"))
+                .transition(.opacity)
             }
             // Same column as the composer it warns about.
             ProviderNotice(store: store, model: session.model)
                 .frame(maxWidth: metric("reading")).padding(.horizontal, metric("gutter"))
             // Chat-States: image mode with no OpenAI or Gemini key on this device says so before sending.
-            if glass, session.chatMode == "image", store.providers.checked, !["openai", "gemini"].contains(where: store.providers.keyed.contains) {
+            if session.chatMode == "image", store.providers.checked, !["openai", "gemini"].contains(where: store.providers.keyed.contains) {
                 HStack(spacing: metric("small")) {
                     StatusDot(tone: .warning)
                     Text(store.text("imageKeyNotice")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme))
                     Spacer(minLength: metric("small"))
                     Button(store.text("addKey")) { NotificationCenter.default.post(name: .viezanOpenSettings, object: "providers") }
-                        .modifier(NoticeLinkStyle(glass: true, accent: true)).accessibilityIdentifier("image-key-notice-open")
+                        .modifier(NoticeLinkStyle(accent: true)).accessibilityIdentifier("image-key-notice-open")
                 }.accessibilityElement(children: .contain)
                     .frame(maxWidth: metric("reading")).padding(.horizontal, metric("gutter"))
             }
             // One composer surface: a single row while the draft is one line; from two lines
             // (or with attachments) the text leads and the controls drop to their own row.
-            let narrow = glass && composerWidth < metric("editor") + metric("compactSidebar") + metric("control") * 3 + metric("small") * 4 + metric("small") * 2
+            let narrow = composerWidth < metric("editor") + metric("compactSidebar") + metric("control") * 3 + metric("small") * 4 + metric("small") * 2
             // Decide wrapping against the hypothetical inline editor, not the
             // wider stacked editor. Measuring the current layout caused long
             // sentences to alternate between the two shapes indefinitely.
@@ -208,20 +207,20 @@ struct ChatWorkspace: View {
                 - metric("small") * 4 - metric("tight") - ComposerEditor.caretLeading * 2
                 - (store.running(session.id) == nil ? 0 : metric("inset") + metric("tight"))
             let naturalTextWidth = (session.draft as NSString).size(withAttributes: [.font: readingNSFont(store)]).width
-            let wraps = glass ? naturalTextWidth > max(metric("control"), inlineWidth) : draftLines > 1
+            let wraps = naturalTextWidth > max(metric("control"), inlineWidth)
             let stacked = wraps || !(session.images ?? []).isEmpty || session.draft.contains("\n")
-                || (glass && (store.audio.error != nil || store.pendingTranscript != nil || store.audio.transcribingOwner != nil))
+                || ((store.audio.error != nil || store.pendingTranscript != nil || store.audio.transcribingOwner != nil))
             HStack(alignment: .center, spacing: metric("small")) {
-                if !stacked { ImageControls(store: store, compact: true, selected: (session.chatMode ?? "text") != "text" || !(session.systemPrompt ?? "").isEmpty, glassChat: glass).controlSize(.large).imageScale(.large) }
+                if !stacked { ImageControls(store: store, compact: true, selected: (session.chatMode ?? "text") != "text" || !(session.systemPrompt ?? "").isEmpty, glassChat: true).controlSize(.large).imageScale(.large) }
                 VStack(alignment: .leading, spacing: metric("small")) {
                     AttachmentChips(store: store)
-                    ComposerEditor(text: Binding(get: { store.session(sessionID)?.draft ?? "" }, set: { store.setDraft(sessionID, $0) }), identity: sessionID, label: store.text("prompt"), font: readingNSFont(store), focusEpoch: focusEpoch, growsWithContent: true, submitOnReturn: true, maxLines: Int(metric("composerMaxLines")), onLines: { draftLines = $0 }, onFocus: { composerFocused = $0 }, pasteImages: { urls, data in ImageIntake.attach(urls: urls, data: data, to: sessionID, store: store) }) { store.submit(sessionID) }
+                    ComposerEditor(text: Binding(get: { store.session(sessionID)?.draft ?? "" }, set: { store.setDraft(sessionID, $0) }), identity: sessionID, label: store.text("prompt"), font: readingNSFont(store), focusEpoch: focusEpoch, growsWithContent: true, submitOnReturn: true, maxLines: Int(metric("composerMaxLines")), onFocus: { composerFocused = $0 }, pasteImages: { urls, data in ImageIntake.attach(urls: urls, data: data, to: sessionID, store: store) }) { store.submit(sessionID) }
                         .fixedSize(horizontal: false, vertical: true)
                         // The placeholder says what the mode does; no chip is added to the row for it.
-                        .modifier(EditorPlaceholder(text: store.text((session.chatMode ?? "text") == "text" ? "prompt" : "promptMode_" + (session.chatMode ?? "text")), visible: session.draft.isEmpty, font: readingFont(store), leadingInset: ComposerEditor.caretLeading, topInset: ComposerEditor.verticalInset(for: readingNSFont(store)), textColor: glass ? contentColor("text-muted", scheme) : nil))
+                        .modifier(EditorPlaceholder(text: store.text((session.chatMode ?? "text") == "text" ? "prompt" : "promptMode_" + (session.chatMode ?? "text")), visible: session.draft.isEmpty, font: readingFont(store), leadingInset: ComposerEditor.caretLeading, topInset: ComposerEditor.verticalInset(for: readingNSFont(store)), textColor: contentColor("text-muted", scheme)))
                     if stacked {
                         HStack(spacing: metric("small")) {
-                            ImageControls(store: store, compact: true, selected: (session.chatMode ?? "text") != "text" || !(session.systemPrompt ?? "").isEmpty, glassChat: glass)
+                            ImageControls(store: store, compact: true, selected: (session.chatMode ?? "text") != "text" || !(session.systemPrompt ?? "").isEmpty, glassChat: true)
                             composerTrailing(dense: false)
                         }.controlSize(.large).imageScale(.large)
                     }
@@ -233,10 +232,9 @@ struct ChatWorkspace: View {
             .padding(.horizontal, stacked ? metric("inset") - metric("hairline") * 2 : metric("small"))
             // AppKit's editor is control + tight (40 pt); six-point insets make
             // the 52 pt capsule align its 36 pt buttons with eight-point margins.
-            .padding(.vertical, stacked ? metric("gap") : glass ? metric("small") - metric("hairline") * 2 : metric("tight"))
+            .padding(.vertical, stacked ? metric("gap") : metric("small") - metric("hairline") * 2)
             .background {
-                if glass { ComposerSurface(radius: stacked ? composerRadius : metric("control") / 2 + metric("small"), focused: composerFocused) }
-                else { InsetInputSurface(radius: composerRadius, focused: composerFocused, baseRole: "surface") }
+                ComposerSurface(radius: stacked ? composerRadius : metric("control") / 2 + metric("small"), focused: composerFocused)
             }
             .modifier(ImageDropTarget(store: store, sessionID: sessionID, radius: composerRadius))
             .frame(maxWidth: metric("reading"))
@@ -261,31 +259,30 @@ struct ChatWorkspace: View {
     // Dense (one row): the model reads small, Send is a square icon; stacked: labelled Send.
     @ViewBuilder private func composerTrailing(dense: Bool, iconModel: Bool = false) -> some View {
         let canSend = !(session.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (session.images ?? []).isEmpty)
-        HStack(spacing: glass ? 0 : metric(dense ? "tight" : "small")) {
+        HStack(spacing: 0) {
             // Shell-Minimum: a narrow composer keeps one row; the model folds into its sparkle.
-            ModelPicker(store: store, compact: true, dense: dense, glassChat: glass, iconOnly: iconModel)
-            if glass { ChromeDivider(vertical: true).frame(height: metric("inset") + metric("hairline") * 2).padding(.horizontal, metric("tight")) }
-            AudioControls(store: store, compact: true, glassChat: glass)
+            ModelPicker(store: store, compact: true, dense: dense, glassChat: true, iconOnly: iconModel)
+            ChromeDivider(vertical: true).frame(height: metric("inset") + metric("hairline") * 2).padding(.horizontal, metric("tight"))
+            AudioControls(store: store, compact: true, glassChat: true)
         }
-        .padding(.horizontal, glass ? metric("tight") : 0)
-        .modifier(ControlGlass(active: glass))
+        .padding(.horizontal, metric("tight"))
+        .modifier(ControlGlass())
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
-            if glass && width > 0 { composerToolsWidth = width }
+            if width > 0 { composerToolsWidth = width }
         }
         if !dense { Spacer(minLength: metric("small")) }
         if let task = store.running(session.id) {
             // Glass: the answer's chip says it is live; the round Stop is drawn in danger.
-            if !glass { ProgressView().controlSize(.small).accessibilityLabel(store.text("running")) }
             if dense {
                 Button(role: .destructive) { store.cancel(task.id) } label: { Image(systemName: "stop.fill").imageScale(.small).frame(width: metric("control") - metric("gap") * 2) }
-                    .buttonStyle(ChatButtonStyle(glass: glass, kind: .outline, circular: true)).foregroundStyle(glass ? contentColor("danger", scheme) : .primary).accessibilityLabel(store.text("stop")).help(store.text("stop")).accessibilityIdentifier("chat-stop")
-            } else { Button(store.text("stop"), systemImage: "stop.fill", role: .destructive) { store.cancel(task.id) }.buttonStyle(ChatButtonStyle(glass: glass, kind: .outline)).accessibilityIdentifier("chat-stop") }
+                    .buttonStyle(ChatButtonStyle(kind: .outline, circular: true)).foregroundStyle(contentColor("danger", scheme)).accessibilityLabel(store.text("stop")).help(store.text("stop")).accessibilityIdentifier("chat-stop")
+            } else { Button(store.text("stop"), systemImage: "stop.fill", role: .destructive) { store.cancel(task.id) }.buttonStyle(ChatButtonStyle(kind: .outline)).accessibilityIdentifier("chat-stop") }
         } else if dense {
             Button { store.submit(session.id) } label: { Image(systemName: "arrow.up").fontWeight(.semibold).frame(width: metric("control") - metric("gap") * 2) }
-                .buttonStyle(ChatButtonStyle(glass: glass, kind: .primary, circular: true)).disabled(!canSend).accessibilityLabel(store.text("send")).help(store.text("send") + " (↩)").accessibilityIdentifier("chat-send")
+                .buttonStyle(ChatButtonStyle(kind: .primary, circular: true)).disabled(!canSend).accessibilityLabel(store.text("send")).help(store.text("send") + " (↩)").accessibilityIdentifier("chat-send")
         } else {
             Button(store.text("send"), systemImage: "arrow.up") { store.submit(session.id) }
-                .buttonStyle(ChatButtonStyle(glass: glass, kind: .primary)).disabled(!canSend).help(store.text("send") + " (↩)").accessibilityIdentifier("chat-send")
+                .buttonStyle(ChatButtonStyle(kind: .primary)).disabled(!canSend).help(store.text("send") + " (↩)").accessibilityIdentifier("chat-send")
         }
     }
     // Continue: recent sessions of any feature, as quiet rows under the centred composer.
@@ -298,7 +295,7 @@ struct ChatWorkspace: View {
                     NotificationCenter.default.post(name: .viezanOpenRoute, object: item.feature.rawValue)
                 } label: {
                     HStack(spacing: metric("small")) {
-                        Image(systemName: item.feature.symbol).foregroundStyle(glass ? contentColor("action-text", scheme) : .secondary).frame(width: metric("icon"))
+                        Image(systemName: item.feature.symbol).foregroundStyle(contentColor("action-text", scheme)).frame(width: metric("icon"))
                         Text(store.title(item)).lineLimit(1)
                         Spacer(minLength: metric("small"))
                         Text(relativeTime(item.updated, store: store)).font(.vzn("smallScale")).foregroundStyle(.secondary).fixedSize()
@@ -389,14 +386,13 @@ struct ComposerSurface: View {
     var radius: CGFloat
     var focused = false
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.solidSurfaces) private var solidSurfaces
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        let solid = reduceTransparency || contrast == .increased
+        let solid = solidSurfaces
         shape.fill(solid ? chromeColor("titlebar-bg", scheme) : chromeColor("surface-raised", scheme))
             .overlay {
-                if solid || focused { shape.strokeBorder(contentColor(contrast == .increased ? "text-muted" : "border-strong", scheme), lineWidth: metric("hairline")) }
+                if solid || focused { shape.strokeBorder(contentColor("border-strong", scheme), lineWidth: metric("hairline")) }
                 else { GlassRim(shape: shape, border: "material-highlight") }
             }
             .background { if !solid { OuterShadow(shape: shape, role: "shadow-md-color", blur: metric("shadowSmBlur") * 2 - metric("tight"), y: metric("gap")) } }
@@ -413,49 +409,38 @@ struct UserBubbleShape: Shape {
 }
 
 struct TranslationWorkspace: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var store: WorkbenchStore
-    @State private var optionsOpen = false
-    @State private var compareOpen = false
     /// Glass: the open floating layer (source, target, options, listen, compare).
     @State private var layer: String?
     var focusEpoch = 0
     @Environment(\.colorScheme) private var scheme
     private var session: Session { store.session }
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     var body: some View {
         VStack(alignment: .leading, spacing: metric("small")) {
             // Review 18 language row: input ⇄ output, session model at the trailing edge.
             HStack(spacing: metric("inset")) {
                 // Translate-States: the pair is locked while a request runs.
-                NativeFlow(spacing: metric(glass ? "small" : "tight")) { languageControls }.disabled(glass && store.running(session.id) != nil)
+                NativeFlow(spacing: metric("small")) { languageControls }.disabled(store.running(session.id) != nil)
                 Spacer(minLength: metric("small"))
                 ModelPicker(store: store, compact: true, badge: true)
             }
             // Glass Translate has no rule under the language row; Dictionary draws one under its fields.
-            if !glass { Divider().padding(.bottom, metric("tight")) }
             ProviderNotice(store: store, model: session.model)
-            if glass, let notice = store.resetNotice, notice.feature == session.feature {
+            if let notice = store.resetNotice, notice.feature == session.feature {
                 // Translate-States: a quiet 12 pt line — neutral dot, the notice, and a text link back.
                 HStack(spacing: metric("small")) {
                     StatusDot(tone: .idle)
                     Text(store.text("resetNotice")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme))
                     Spacer(minLength: metric("small"))
-                    Button(store.text("reopenPrevious")) { store.reopenPrevious() }.modifier(NoticeLinkStyle(glass: true, accent: true)).accessibilityIdentifier("reopen-previous")
+                    Button(store.text("reopenPrevious")) { store.reopenPrevious() }.modifier(NoticeLinkStyle(accent: true)).accessibilityIdentifier("reopen-previous")
                     Button { store.dismissResetNotice() } label: { Image(systemName: "xmark").imageScale(.small) }.buttonStyle(.plain)
                         .foregroundStyle(contentColor("text-soft", scheme)).help(store.text("close")).accessibilityLabel(store.text("close"))
                 }.padding(.horizontal, metric("tight")).accessibilityElement(children: .contain)
-            } else if let notice = store.resetNotice, notice.feature == session.feature {
-                HStack(spacing: metric("small")) {
-                    Image(systemName: "sparkles").foregroundStyle(.secondary).accessibilityHidden(true)
-                    Text(store.text("resetNotice")).font(.vzn("smallScale")).foregroundStyle(.secondary)
-                    Spacer(minLength: metric("small"))
-                    Button(store.text("reopenPrevious")) { store.reopenPrevious() }.buttonStyle(.vznOutline).accessibilityIdentifier("reopen-previous")
-                    Button { store.dismissResetNotice() } label: { Image(systemName: "xmark") }.buttonStyle(.vznQuiet).accessibilityLabel(store.text("close"))
-                }.accessibilityElement(children: .contain)
             }
             if session.feature == .dictionary { dictionaryBody } else { panels }
-        }.padding(.horizontal, glass ? metric("gutter") - metric("tight") : metric("large") + metric("gap")).padding(.top, metric("gap")).padding(.bottom, metric(glass ? "gutter" : "gap") - (glass ? metric("tight") : 0))
-            .onChange(of: session.id) { _, _ in optionsOpen = false; compareOpen = false; layer = nil }
+        }.padding(.horizontal, metric("gutter") - metric("tight")).padding(.top, metric("gap")).padding(.bottom, metric("gutter") - metric("tight"))
+            .onChange(of: session.id) { _, _ in layer = nil }
             .floatingLayers($layer, trailing: { ["options", "listen", "compare"].contains($0) }) { id, width, height in layerPanel(id, width: width, height: height) }
     }
     @ViewBuilder private func layerPanel(_ id: String, width: CGFloat, height: CGFloat) -> some View {
@@ -530,26 +515,14 @@ struct TranslationWorkspace: View {
             // Review 18 stacks the editors in its narrow (820 px) preview; two columns
             // below the reading width squeeze the footer actions until they truncate.
             let columns = geometry.size.width >= metric("reading")
-            let layout = columns ? AnyLayout(HStackLayout(spacing: 0)) : AnyLayout(VStackLayout(spacing: 0))
-            if glass {
-                // Translate board: the source is an inset field card, the translation sits flat on the pane.
-                let shape = RoundedRectangle(cornerRadius: metric("chromeCardRadius"), style: .continuous)
-                // Two equal columns from the container: a wider foot (the "Reading" pill) must not
-                // take width from the source pane and move both panes and the Listen layer.
-                let half = columns ? max(0, (geometry.size.width - metric("inset")) / 2) : nil
-                (columns ? AnyLayout(HStackLayout(spacing: metric("inset"))) : AnyLayout(VStackLayout(spacing: metric("gap")))) {
-                    sourcePane.background { InsetInputSurface(radius: metric("chromeCardRadius"), baseRole: "surface") }.clipShape(shape).frame(width: half)
-                    if columns { resultPane.frame(width: half) } else { resultPane.cardSurface(padded: false) }
-                }
-            } else {
-            layout {
-                sourcePane
-                if columns { Divider() } else { Divider() }
-                resultPane
-            }
-            .background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("largeRadius")))
-            .overlay(RoundedRectangle(cornerRadius: metric("largeRadius")).strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")))
-            .clipShape(RoundedRectangle(cornerRadius: metric("largeRadius")))
+            // Translate board: the source is an inset field card, the translation sits flat on the pane.
+            let shape = RoundedRectangle(cornerRadius: metric("chromeCardRadius"), style: .continuous)
+            // Two equal columns from the container: a wider foot (the "Reading" pill) must not
+            // take width from the source pane and move both panes and the Listen layer.
+            let half = columns ? max(0, (geometry.size.width - metric("inset")) / 2) : nil
+            (columns ? AnyLayout(HStackLayout(spacing: metric("inset"))) : AnyLayout(VStackLayout(spacing: metric("gap")))) {
+                sourcePane.background { InsetInputSurface(radius: metric("chromeCardRadius"), baseRole: "surface") }.clipShape(shape).frame(width: half)
+                if columns { resultPane.frame(width: half) } else { resultPane.cardSurface(padded: false) }
             }
         }
     }
@@ -557,6 +530,14 @@ struct TranslationWorkspace: View {
     @FocusState private var contextFocused: Bool
     /// Dictionary-Empty / Entry: the context line is opened from the field's own toggle.
     @State private var contextOpen = false
+    /// Bumped to hand focus back to the term when the context line closes.
+    @State private var termFocusBump = 0
+    /// The toggle and ⌘⇧C: opening puts the caret in the context line; closing returns it to the
+    /// term. A context that already has text stays on screen either way, so nothing typed is lost.
+    private func toggleContext() {
+        withAnimation(reduceMotion ? nil : .easeOut(duration: metric("durationFast"))) { contextOpen.toggle() }
+        if contextOpen { contextFocused = true } else { contextFocused = false; termFocusBump += 1 }
+    }
     // Dictionary-Empty / Entry: the lookup field is the hero (52 pt, 44 once an entry shows),
     // with the context toggle and Look up inside it; the entry reads in the 760 column below.
     private var glassDictionary: some View {
@@ -586,21 +567,22 @@ struct TranslationWorkspace: View {
     }
     private func dictionaryField(compact: Bool) -> some View {
         let sessionID = session.id
-        let invalid = session.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || session.draft.count > 120
+        // The store refuses a context over 500 characters; the control says so instead of doing nothing.
+        let invalid = session.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || session.draft.count > 120 || (session.dictionaryContext?.count ?? 0) > 500
         let height = compact ? metric("navControl") + metric("tight") : metric("hero") + metric("tight")
         let font = NSFont.systemFont(ofSize: NSFont.systemFontSize * metric("sectionScale"))
         let hasContext = contextOpen || !(session.dictionaryContext ?? "").isEmpty
         return HStack(spacing: metric("gap")) {
             Image(systemName: "magnifyingglass").font(.vzn("subtitleScale")).foregroundStyle(contentColor("text-muted", scheme)).accessibilityHidden(true)
-            ComposerEditor(text: Binding(get: { store.session(sessionID)?.draft ?? "" }, set: { store.setDraft(sessionID, $0) }), identity: sessionID, label: store.text("source"), font: font, focusEpoch: focusEpoch, accessibilityID: "dictionary-term", submitOnReturn: true, onFocus: { termFocused = $0 }) { if !invalid { store.submit(sessionID) } }
+            ComposerEditor(text: Binding(get: { store.session(sessionID)?.draft ?? "" }, set: { store.setDraft(sessionID, $0) }), identity: sessionID, label: store.text("source"), font: font, focusEpoch: focusEpoch + termFocusBump, accessibilityID: "dictionary-term", submitOnReturn: true, onFocus: { termFocused = $0 }) { if !invalid { store.submit(sessionID) } }
                 .modifier(EditorPlaceholder(text: store.text("dictionaryPlaceholder"), visible: session.draft.isEmpty, font: .vzn("sectionScale"), textColor: contentColor("text-muted", scheme)))
                 .frame(height: ComposerEditor.lineHeight(of: font) + metric("tight"))
             // The context toggle: tinted while the context line is open.
-            Button { withAnimation(.easeOut(duration: metric("durationFast"))) { contextOpen.toggle() }; if contextOpen { contextFocused = true } } label: {
+            Button(action: toggleContext) {
                 Image(systemName: "text.quote").frame(width: metric("control"), height: metric("control"))
                     .background(Circle().fill(contentColor("action", scheme).opacity(hasContext ? metric("selectionOpacity") : 0)))
                     .foregroundStyle(contentColor(hasContext ? "action-text" : "text-muted", scheme)).contentShape(Circle())
-            }.buttonStyle(.plain).help(store.text("dictionaryAddContext")).accessibilityLabel(store.text("dictionaryAddContext"))
+            }.buttonStyle(.plain).keyboardShortcut("c", modifiers: [.command, .shift]).help(store.text("dictionaryAddContext")).accessibilityLabel(store.text("dictionaryAddContext"))
                 .accessibilityAddTraits(hasContext ? .isSelected : []).accessibilityIdentifier("dictionary-context-toggle")
             if let task = store.running(session.id) {
                 Button(store.text("stop"), systemImage: "stop.fill", role: .destructive) { store.cancel(task.id) }.buttonStyle(.vznQuiet)
@@ -623,8 +605,9 @@ struct TranslationWorkspace: View {
             TextField(store.text("dictionaryContext"), text: Binding(get: { session.dictionaryContext ?? "" }, set: { setContext($0, for: session.id) }))
                 .textFieldStyle(.plain).focused($contextFocused).accessibilityLabel(store.text("dictionaryContextLabel"))
             Text("\(value.count) / 500").font(.vzn("captionScale")).monospacedDigit().foregroundStyle(contentColor(value.count > 500 ? "danger" : "text-soft", scheme)).fixedSize()
-            Button { setContext("", for: session.id); contextOpen = false } label: { Image(systemName: "xmark").imageScale(.small) }
-                .buttonStyle(.plain).foregroundStyle(contentColor("text-muted", scheme)).help(store.text("close")).accessibilityLabel(store.text("close"))
+            // Clearing is this control's job; the toggle and ⌘⇧C only fold the line. Focus goes back to the term.
+            Button { setContext("", for: session.id); contextOpen = false; contextFocused = false; termFocusBump += 1 } label: { Image(systemName: "xmark").imageScale(.small) }
+                .buttonStyle(.plain).foregroundStyle(contentColor("text-muted", scheme)).help(store.text("dictionaryRemoveContext")).accessibilityLabel(store.text("dictionaryRemoveContext"))
         }
         .font(.system(size: NSFont.systemFontSize)).padding(.horizontal, metric("inset") - metric("hairline") * 2).frame(height: metric("navControl"))
         .background { InsetInputSurface(radius: metric("radius"), focused: contextFocused) }
@@ -730,7 +713,7 @@ struct TranslationWorkspace: View {
                 } else if store.running(session.id) == nil, let missing = DictionaryEntry.notFound(session.output) {
                     notFound(missing)
                 } else {
-                    ForEach(Array(DictionaryEntry.preview(session.output).enumerated()), id: \.offset) { _, value in Text(value).textSelection(.enabled) }
+                    ForEach(Array(DictionaryEntry.preview(session.output).enumerated()), id: \.offset) { _, value in Text(value).font(readingFont(store)).textSelection(.enabled) }
                 }
                 if DictionaryEntry.notFound(session.output) == nil { failure }
             }.frame(maxWidth: metric("reading"), alignment: .leading)
@@ -774,50 +757,7 @@ struct TranslationWorkspace: View {
         }.padding(.top, metric("small"))
     }
     @ViewBuilder private var dictionaryBody: some View {
-        if glass { glassDictionary } else { classicDictionary }
-    }
-    private var classicDictionary: some View {
-        let sessionID = session.id
-        let invalid = session.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || session.draft.count > 120
-        return VStack(alignment: .leading, spacing: metric("inset")) {
-            HStack(spacing: metric("small")) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
-                ComposerEditor(text: Binding(get: { store.session(sessionID)?.draft ?? "" }, set: { store.setDraft(sessionID, $0) }), identity: sessionID, label: store.text("source"), font: .systemFont(ofSize: NSFont.systemFontSize * metric("sectionScale")), focusEpoch: focusEpoch, accessibilityID: "dictionary-term", submitOnReturn: true) { if !invalid { store.submit(sessionID) } }
-                    .modifier(EditorPlaceholder(text: store.text("dictionaryPlaceholder"), visible: session.draft.isEmpty, font: .vzn("sectionScale")))
-                    .frame(height: metric("control"))
-                if let task = store.running(session.id) {
-                    ProgressView().controlSize(.small).accessibilityLabel(store.text("running"))
-                    Button(store.text("stop"), role: .destructive) { store.cancel(task.id) }.buttonStyle(.vznOutline)
-                } else {
-                    Button(store.text("lookup")) { store.submit(session.id) }.buttonStyle(.vznPrimary).disabled(invalid).font(.vzn("labelScale"))
-                }
-            }.padding(.horizontal, metric("gap")).padding(.vertical, metric("small"))
-                .background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("largeRadius")))
-                .overlay(RoundedRectangle(cornerRadius: metric("largeRadius")).strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")))
-            // Context is a bounded field like the term above it, not a bare line of text.
-            TextField(store.text("dictionaryContext"), text: Binding(get: { session.dictionaryContext ?? "" }, set: { setContext($0, for: session.id) }))
-                .textFieldStyle(.plain).font(.vzn("labelScale")).padding(.horizontal, metric("gap")).frame(height: metric("control"))
-                .background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
-                .overlay(RoundedRectangle(cornerRadius: metric("controlRadius")).strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")))
-            if session.draft.count > 120 { Text(store.text("dictionaryTermLimit")).font(.vzn("smallScale")).foregroundStyle(contentColor("danger", scheme)) }
-            ScrollView {
-                VStack(alignment: .leading, spacing: metric("inset")) {
-                    if session.output.isEmpty {
-                        // Centered like the Chat/Interpretation empty states, not a stray left-aligned line.
-                        VStack(spacing: metric("small")) {
-                            Image(systemName: "book.closed").font(.vzn("headingScale", .semibold)).accessibilityHidden(true)
-                            Text(store.text(store.running(session.id) == nil ? "dictionaryEmpty" : "running")).multilineTextAlignment(.center)
-                        }.foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, metric("large"))
-                    } else if let entry = DictionaryEntry.parse(session.output) {
-                        DictionaryResultView(entry: entry, store: store)
-                    } else {
-                        ForEach(Array(DictionaryEntry.preview(session.output).enumerated()), id: \.offset) { _, value in Text(value).textSelection(.enabled) }
-                    }
-                    failure
-                }.frame(maxWidth: metric("reading"), alignment: .leading)
-                    .frame(maxWidth: .infinity).padding(.vertical, metric("inset"))
-            }.frame(maxHeight: .infinity)
-        }
+        glassDictionary
     }
     @ViewBuilder private var failure: some View {
         if let task = store.workspace.tasks.first(where: { $0.request.sessionID == session.id }), [.failed, .interrupted, .cancelled].contains(task.status) {
@@ -829,47 +769,15 @@ struct TranslationWorkspace: View {
         }
     }
     @ViewBuilder private var languageControls: some View {
-        if glass {
-            LanguagePill(store: store, role: store.text("inputLanguage"), code: session.source, open: layer == "source") { toggle("source") }.layerAnchor("source")
-            // Swapping needs a known source; with auto-detect the button waits, like Interpretation.
-            Button { store.setPair(session.id, source: session.target, target: session.source) } label: { Image(systemName: "arrow.left.arrow.right").foregroundStyle(contentColor("text-muted", scheme)) }
-                .buttonStyle(.vznOutline).disabled(session.source == "auto").help(store.text("swap")).accessibilityLabel(store.text("swap"))
-            LanguagePill(store: store, role: store.text("outputLanguage"), code: session.target, open: layer == "target") { toggle("target") }.layerAnchor("target")
-        } else { classicLanguageControls }
-    }
-    private var classicLanguageControls: some View {
-        Group {
-            LanguageMenu(store: store, label: store.text("inputLanguage"), codes: ["auto"] + nativeResources.nativeLanguages, selection: session.source) { value in
-                store.setPair(session.id, source: value, target: session.target)
-            }
-            // Swapping needs a known source; with auto-detect the button waits, like Interpretation.
-            Button { store.setPair(session.id, source: session.target, target: session.source) } label: { Image(systemName: "arrow.left.arrow.right").foregroundStyle(contentColor("text-muted", scheme)) }
-                .buttonStyle(.vznQuiet).controlSize(.large).disabled(session.source == "auto").help(store.text("swap")).accessibilityLabel(store.text("swap"))
-            LanguageMenu(store: store, label: store.text("outputLanguage"), codes: nativeResources.nativeLanguages, selection: session.target) { value in
-                store.setPair(session.id, source: session.source, target: value)
-            }
-        }
-    }
-    @ViewBuilder private var translationOptions: some View {
-        Toggle(store.text("autoTranslate"), isOn: Binding(get: { store.workspace.autoTranslate ?? false }, set: { store.setAutoTranslate($0) })).help(store.text("autoTranslateHint"))
-        if store.workspace.autoTranslate == true {
-            Stepper(value: Binding(get: { store.workspace.autoTranslateDelay ?? 800 }, set: { store.setAutoTranslate(true, delay: $0) }), in: 100...5000, step: 100) {
-                Text(store.text("autoTranslateDelay") + ": " + String(store.workspace.autoTranslateDelay ?? 800))
-            }
-        }
-        Picker(store.text("reasoning"), selection: Binding(get: { session.reasoningEffort ?? "auto" }, set: { store.setReasoning(session.id, effort: $0) })) {
-            ForEach(["auto", "low", "medium", "high"], id: \.self) { Text(store.text("reasoning_" + $0)).tag($0) }
-        }
-        Picker(store.text("translationStyle"), selection: Binding(get: { session.translationStyle ?? "general" }, set: { store.setTranslationOptions(session.id, style: $0, mode: session.translationMode ?? "translate") })) {
-            ForEach(["general", "formal", "casual", "business", "technical", "natural"], id: \.self) { Text(store.text("style_" + $0)).tag($0) }
-        }
-        Picker(store.text("translationMode"), selection: Binding(get: { session.translationMode ?? "translate" }, set: { store.setTranslationOptions(session.id, style: session.translationStyle ?? "general", mode: $0) })) {
-            ForEach(["translate", "annotate", "phonetic", "rewrite"], id: \.self) { Text(store.text($0)).tag($0) }
-        }
+        LanguagePill(store: store, role: store.text("inputLanguage"), code: session.source, open: layer == "source") { toggle("source") }.layerAnchor("source").accessibilityAddTraits(layer == "source" ? .isSelected : [])
+        // Swapping needs a known source; with auto-detect the button waits, like Interpretation.
+        Button { store.setPair(session.id, source: session.target, target: session.source) } label: { Image(systemName: "arrow.left.arrow.right").foregroundStyle(contentColor("text-muted", scheme)) }
+            .buttonStyle(.vznOutline).disabled(session.source == "auto").help(store.text("swap")).accessibilityLabel(store.text("swap"))
+        LanguagePill(store: store, role: store.text("outputLanguage"), code: session.target, open: layer == "target") { toggle("target") }.layerAnchor("target").accessibilityAddTraits(layer == "target" ? .isSelected : [])
     }
     private func paneHeader<Trailing: View>(_ title: String, @ViewBuilder trailing: () -> Trailing) -> some View {
         HStack(spacing: metric("small")) {
-            Text(title).font(.system(size: NSFont.systemFontSize, weight: glass ? .semibold : .bold)).accessibilityAddTraits(.isHeader)
+            Text(title).font(.system(size: NSFont.systemFontSize, weight: .semibold)).accessibilityAddTraits(.isHeader)
             Spacer(minLength: metric("small"))
             trailing()
         }.frame(height: metric("control")).padding(.horizontal, metric("inset")).padding(.vertical, metric("tight"))
@@ -892,12 +800,12 @@ struct TranslationWorkspace: View {
                 // Length at a glance; past the provider-safe limit the count turns into the warning.
                 let count = session.draft.count
                 Text(count > TranslationWorkspace.sourceLimit ? store.text("sourceTooLong") : store.text("charCount").replacingOccurrences(of: "{count}", with: count.formatted()))
-                    .font(.vzn("smallScale", glass && count > TranslationWorkspace.sourceLimit ? .semibold : .regular)).foregroundStyle(count > TranslationWorkspace.sourceLimit ? contentColor("danger", scheme) : contentColor("text-muted", scheme)).lineLimit(1)
+                    .font(.vzn("smallScale", count > TranslationWorkspace.sourceLimit ? .semibold : .regular)).foregroundStyle(count > TranslationWorkspace.sourceLimit ? contentColor("danger", scheme) : contentColor("text-muted", scheme)).lineLimit(1)
                     .accessibilityIdentifier("translation-char-count")
                 if !session.draft.isEmpty, store.running(session.id) == nil {
                     // Translate board: "× Xoá" — the glyph with its word, as a small quiet action.
                     Button { store.setDraft(sessionID, "") } label: {
-                        if glass { Label(store.text("clearSource"), systemImage: "xmark").font(.vzn("smallScale")) } else { Image(systemName: "xmark.circle") }
+                        Label(store.text("clearSource"), systemImage: "xmark").font(.vzn("smallScale"))
                     }
                         .buttonStyle(.vznQuiet).fixedSize().help(store.text("clearSource")).accessibilityLabel(store.text("clearSource")).accessibilityIdentifier("translation-clear")
                 }
@@ -905,61 +813,48 @@ struct TranslationWorkspace: View {
                 if let task = store.running(session.id) {
                     // Glass: Stop reads in danger as a quiet action in the footer.
                     Button(store.text("stop"), systemImage: "stop.fill", role: .destructive) { store.cancel(task.id) }
-                        .buttonStyle(glass ? AnyButtonStyle(.vznQuiet) : AnyButtonStyle(.vznOutline)).foregroundStyle(glass ? contentColor("danger", scheme) : .primary)
-                } else if glass {
+                        .buttonStyle(.vznQuiet).foregroundStyle(contentColor("danger", scheme))
+                } else {
                     // The primary carries its shortcut inside the control (`.kbd` on the button).
                     Button { store.submit(session.id) } label: {
                         HStack(spacing: metric("small")) { Text(store.text("translateText")); KeyCap(text: "⌘↩").accessibilityHidden(true) }
                     }.buttonStyle(.vznPrimary).fixedSize()
                         .disabled((session.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (session.images ?? []).isEmpty) || session.draft.count > Self.sourceLimit)
                         .help(session.draft.count > Self.sourceLimit ? store.text("sourceTooLong") : store.text("translate") + " (⌘↩)").accessibilityLabel(store.text("translateText"))
-                } else {
-                    Button(store.text("translateText"), systemImage: Feature.translate.symbol) { store.submit(session.id) }.buttonStyle(.vznPrimary).fixedSize()
-                        .disabled((session.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (session.images ?? []).isEmpty) || session.draft.count > Self.sourceLimit)
-                        .help(session.draft.count > Self.sourceLimit ? store.text("sourceTooLong") : store.text("translate") + " (⌘↩)")
                 }
             }.controlSize(.large).frame(height: metric("control")).padding(metric("small"))
             AudioStatus(store: store).padding(.horizontal, metric("small"))
         }.modifier(ImageDropTarget(store: store, sessionID: sessionID, radius: 0))
+            .accessibilityElement(children: .contain).accessibilityLabel(store.text("source"))
     }
     /// Characters a single translation request handles well; longer text is split by the user.
     static let sourceLimit = WorkbenchStore.translateLimit
     // The result becomes the next source, read the other way round (Electron's "use as source").
     private func useResultAsSource() {
-        let id = session.id, text = session.output
-        store.setPair(id, source: session.target, target: session.source == "auto" ? store.workspace.locale : session.source)
+        let id = session.id, text = session.output, draft = session.draft, source = session.source, target = session.target
+        store.setPair(id, source: target, target: TranslateSwap.target(source: source, target: target, locale: store.workspace.locale, languages: NativeResources.shared.nativeLanguages))
         store.setDraft(id, text)
+        // The draft that was replaced may not have been translated yet: Undo puts it and the pair back.
+        ToastCenter.shared.show(store.text("usedAsSource"), key: "use-as-source-" + id, actionLabel: store.text("undo")) {
+            store.setPair(id, source: source, target: target); store.setDraft(id, draft)
+        }
     }
     private var resultPane: some View {
         VStack(alignment: .leading, spacing: 0) {
             paneHeader(store.text("result")) {
-                if glass {
-                    Button { toggle("options") } label: {
-                        HStack(spacing: metric("small") - metric("hairline") * 2) {
-                            Text(store.text("style_" + (session.translationStyle ?? "general")))
-                            Image(systemName: "chevron.down").imageScale(.small).foregroundStyle(contentColor("text-soft", scheme))
-                        }
-                    }.buttonStyle(.vznOutline).fixedSize().layerAnchor("options")
-                        .help(store.text("translationOptions")).accessibilityLabel(store.text("translationOptions"))
-                } else {
-                Button { optionsOpen.toggle() } label: {
-                    Label(store.text("style_" + (session.translationStyle ?? "general")), systemImage: "chevron.down").labelStyle(ModelMenuLabelStyle())
-                }.buttonStyle(.vznQuiet).tint(.primary).foregroundStyle(.primary).help(store.text("translationOptions")).accessibilityLabel(store.text("translationOptions"))
-                    .popover(isPresented: $optionsOpen) {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: metric("inset")) {
-                                Text(store.text("translationOptions")).font(.vzn("labelScale", .semibold))
-                                translationOptions
-                            }.padding(metric("inset"))
-                        }.frame(width: metric("sidebar") + metric("editor"))
+                Button { toggle("options") } label: {
+                    HStack(spacing: metric("small") - metric("hairline") * 2) {
+                        Text(store.text("style_" + (session.translationStyle ?? "general")))
+                        Image(systemName: "chevron.down").imageScale(.small).foregroundStyle(contentColor("text-soft", scheme))
                     }
-                }
+                }.buttonStyle(.vznOutline).fixedSize().layerAnchor("options")
+                    .help(store.text("translationOptions")).accessibilityLabel(store.text("style_" + (session.translationStyle ?? "general")) + ", " + store.text("translationOptions")).accessibilityAddTraits(layer == "options" ? .isSelected : [])
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: metric("inset")) {
                     if let image = session.images?.first {
                         ImageTranslationView(store: store, image: image, output: session.output, complete: store.workspace.tasks.first(where: { $0.request.sessionID == session.id && $0.request.revision == session.revision })?.status == .succeeded, resultImage: session.messages.last(where: { $0.role == "assistant" })?.images?.first)
-                    } else if glass, session.output.isEmpty, store.running(session.id) != nil {
+                    } else if session.output.isEmpty, store.running(session.id) != nil {
                         // Translate-States: a live chip and three placeholder lines until text streams in.
                         VStack(alignment: .leading, spacing: metric("gap") - metric("hairline") * 2) {
                             StatusBadge(text: store.text("translating") + "…", tone: .busy)
@@ -969,64 +864,44 @@ struct TranslationWorkspace: View {
                                 }.frame(height: metric("small") + metric("hairline") * 2)
                             }
                         }.accessibilityElement(children: .combine).accessibilityLabel(store.text("translating"))
-                    } else if session.output.isEmpty { Text(store.text(store.running(session.id) == nil ? "emptyResult" : "running")).foregroundStyle(glass ? contentColor("text-soft", scheme) : .secondary) }
+                    } else if session.output.isEmpty { Text(store.text(store.running(session.id) == nil ? "emptyResult" : "running")).foregroundStyle(contentColor("text-soft", scheme)) }
                     else { Text(session.output).font(readingFont(store)).textSelection(.enabled) }
                     failure
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, metric("inset")).padding(.vertical, metric("small"))
             }.frame(maxHeight: .infinity)
             Divider()
             HStack(spacing: metric("small")) {
-                if !glass, store.running(session.id) != nil { ProgressView().controlSize(.small); Text(store.text("running")).font(.vzn("smallScale")) }
-                // The output language never truncates ("Tiến…"); the quiet actions give way first.
-                else { Text(store.text("lang_" + session.target)).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1).fixedSize().layoutPriority(1) }
-                if !glass { Spacer(minLength: metric("small")) }
+                Text(store.text("lang_" + session.target)).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(1).fixedSize().layoutPriority(1)
                 if (session.images ?? []).isEmpty, !session.output.isEmpty, store.running(session.id) == nil {
-                    if glass {
-                        // The labelled action folds to its icon when the foot is short of room (the wider
-                        // "Reading" pill), so the foot never grows past its pane and shifts the page.
-                        ViewThatFits(in: .horizontal) {
-                            Button(store.text("useAsSource"), systemImage: "arrow.left") { useResultAsSource() }.buttonStyle(.vznQuiet).fixedSize()
-                            Button { useResultAsSource() } label: { Image(systemName: "arrow.left") }.buttonStyle(.vznQuiet).fixedSize()
-                                .accessibilityLabel(store.text("useAsSource"))
-                        }.help(store.text("useAsSource")).accessibilityIdentifier("translation-use-as-source")
-                    } else {
-                    Button { useResultAsSource() } label: { Image(systemName: "arrow.left") }
-                        .buttonStyle(.vznQuiet).help(store.text("useAsSource")).accessibilityLabel(store.text("useAsSource")).accessibilityIdentifier("translation-use-as-source")
-                    }
+                    // The labelled action folds to its icon when the foot is short of room (the wider
+                    // "Reading" pill), so the foot never grows past its pane and shifts the page.
+                    ViewThatFits(in: .horizontal) {
+                        Button(store.text("useAsSource"), systemImage: "arrow.left") { useResultAsSource() }.buttonStyle(.vznQuiet).fixedSize()
+                        Button { useResultAsSource() } label: { Image(systemName: "arrow.left") }.buttonStyle(.vznQuiet).fixedSize()
+                            .accessibilityLabel(store.text("useAsSource"))
+                    }.help(store.text("useAsSource")).accessibilityIdentifier("translation-use-as-source")
                 }
-                if glass { Spacer(minLength: metric("small")) }
-                if glass {
-                    if (session.images ?? []).isEmpty {
-                        Button(store.text("compare"), systemImage: "rectangle.split.2x1") { toggle("compare") }.buttonStyle(.vznOutline).fixedSize().layerAnchor("compare")
-                            .disabled(store.running(session.id) != nil)
-                    }
-                    // Overlays-Listen: while this page reads, the speaker is a "Reading" pill that stops on click.
-                    Button { if readingHere { store.audio.stopSpeaking() } else { toggle("listen") } } label: {
-                        if readingHere {
-                            HStack(spacing: metric("small") - metric("hairline") * 2) { ReadingWave(color: contentColor("action-text", scheme)); Text(store.text("readingNow")).fontWeight(.semibold) }
-                                .foregroundStyle(contentColor("action-text", scheme))
-                        } else { Image(systemName: "speaker.wave.2") }
-                    }.buttonStyle(.vznOutline).fixedSize().layerAnchor("listen")
-                        .disabled(session.output.isEmpty && session.draft.isEmpty && !readingHere)
-                        .help(readingHere ? store.text("stopSpeaking") : store.text("listen"))
-                        .accessibilityLabel(readingHere ? store.text("readingNow") + ", " + store.text("stopSpeaking") : store.text("listen"))
-                        .accessibilityAddTraits(readingHere ? .isSelected : [])
-                } else if (session.images ?? []).isEmpty {
-                    Button(store.text("compare")) { compareOpen.toggle() }.buttonStyle(.vznOutline).fixedSize()
-                        .popover(isPresented: $compareOpen) {
-                            ScrollView { ComparisonPane(store: store, sessionID: session.id).padding(metric("inset")) }
-                                .frame(width: metric("sidebar") + metric("editor"), height: metric("editor") * 3)
-                        }
+                Spacer(minLength: metric("small"))
+                if (session.images ?? []).isEmpty {
+                    Button(store.text("compare"), systemImage: "rectangle.split.2x1") { toggle("compare") }.buttonStyle(.vznOutline).fixedSize().layerAnchor("compare").accessibilityAddTraits(layer == "compare" ? .isSelected : [])
+                        .disabled(store.running(session.id) != nil)
                 }
-                if !glass {
-                Menu { AudioControls.speechMenu(store) } label: { Image(systemName: "speaker.wave.2") }
-                    .menuStyle(.button).buttonStyle(.vznQuiet).menuIndicator(.hidden).fixedSize().tint(.primary)
-                    .disabled(session.output.isEmpty).help(store.text("listen")).accessibilityLabel(store.text("listen"))
-                }
+                // Overlays-Listen: while this page reads, the speaker is a "Reading" pill that stops on click.
+                Button { if readingHere { store.audio.stopSpeaking() } else { toggle("listen") } } label: {
+                    if readingHere {
+                        HStack(spacing: metric("small") - metric("hairline") * 2) { ReadingWave(color: contentColor("action-text", scheme)); Text(store.text("readingNow")).fontWeight(.semibold) }
+                            .foregroundStyle(contentColor("action-text", scheme))
+                    } else { Image(systemName: "speaker.wave.2") }
+                }.buttonStyle(.vznOutline).fixedSize().layerAnchor("listen").accessibilityAddTraits(layer == "listen" ? .isSelected : [])
+                    .disabled(session.output.isEmpty && session.draft.isEmpty && !readingHere)
+                    .help(readingHere ? store.text("stopSpeaking") : store.text("listen"))
+                    .accessibilityLabel(readingHere ? store.text("readingNow") + ", " + store.text("stopSpeaking") : store.text("listen"))
+                    .accessibilityAddTraits(readingHere ? .isSelected : [])
                 Button { copyText((session.images ?? []).isEmpty ? session.output : ImageTranslation.text(session.output), store: store) } label: { Image(systemName: "doc.on.doc") }
                     .buttonStyle(.vznOutline).disabled(session.output.isEmpty).help(store.text("copy")).accessibilityLabel(store.text("copy"))
             }.controlSize(.large).frame(height: metric("control")).padding(metric("small"))
-        }
+        }.accessibilityElement(children: .contain).accessibilityLabel(store.text("result"))
+            .accessibilityValue(store.text(store.running(session.id) == nil ? (session.output.isEmpty ? "emptyResult" : "result") : "translating"))
     }
 }
 
@@ -1080,8 +955,6 @@ struct ComposerEditor: NSViewRepresentable {
     var submitOnReturn = false
     /// Grow to this many lines, then scroll inside (chat composer); nil keeps the `editor` height cap.
     var maxLines: Int? = nil
-    /// How many lines the text wraps to at the current width, for layouts that change shape at two.
-    var onLines: ((Int) -> Void)? = nil
     var onFocus: ((Bool) -> Void)? = nil
     /// Pasted images (file URLs or bitmap data) go here instead of into the text.
     var pasteImages: (([URL], [Data]) -> Void)? = nil
@@ -1102,10 +975,6 @@ struct ComposerEditor: NSViewRepresentable {
         let fit = Self.fit(measured: measured, lineHeight: lineHeight, insetHeight: inset.height, maxLines: maxLines)
         // A rounding slip must never show a scroller on a one-line draft: it exists only past the cap.
         if let maxLines { let scrolls = fit.lines > maxLines; if nsView.hasVerticalScroller != scrolls { nsView.hasVerticalScroller = scrolls } }
-        if let onLines, context.coordinator.lines != fit.lines {
-            context.coordinator.lines = fit.lines
-            DispatchQueue.main.async { onLines(fit.lines) }
-        }
         return CGSize(width: width, height: fit.height)
     }
     /// Height for a measured text block: one control row at least, `maxLines` lines at most (else the
@@ -1159,7 +1028,6 @@ struct ComposerEditor: NSViewRepresentable {
     }
     class Coordinator: NSObject, NSTextViewDelegate {
         var focusEpoch = 0
-        var lines = 0
         var parent: ComposerEditor
         init(_ parent: ComposerEditor) { self.parent = parent }
         func textDidChange(_ notification: Notification) {
@@ -1291,17 +1159,6 @@ struct AudioControls: View {
                 } label: { Image(systemName: "speaker.wave.2") }
                     .menuStyle(.button).buttonStyle(.vznQuiet).fixedSize().accessibilityLabel(store.text("speechProvider")).tint(.primary)
 
-    }
-    // Speech output and STT provider, embedded in another menu.
-    @ViewBuilder static func speechMenu(_ store: WorkbenchStore) -> some View {
-        Picker(store.text("speechProvider"), selection: Binding(get: { store.workspace.speechProvider ?? "openai" }, set: { store.speechProvider = $0 })) {
-            ForEach(["auto", "openai", "gemini", "groq"], id: \.self) { Text($0 == "auto" ? store.text("reasoning_auto") : $0).tag($0) }
-        }
-        Button(store.text("listen"), systemImage: "speaker.wave.2") {
-            let text = store.session.feature == .chat ? store.session.messages.last(where: { $0.role == "assistant" })?.text ?? "" : store.session.feature == .dictionary ? DictionaryEntry.parse(store.session.output).map { $0.headword + ". " + $0.meaning } ?? "" : (store.session.images ?? []).isEmpty ? store.session.output : ImageTranslation.text(store.session.output)
-            store.audio.speak(text, language: store.session.target)
-        }
-        Button(store.text("stopSpeaking"), systemImage: "speaker.slash") { store.audio.stopSpeaking() }
     }
 }
 
@@ -1460,5 +1317,16 @@ struct LanguagePickerPanel: View {
             .onAppear { highlighted = selection }
             .onChange(of: query) { _, _ in highlighted = flat.first }
             .accessibilityElement(children: .contain).accessibilityLabel(store.text("languageSearch"))
+    }
+}
+
+/// "Use as source" reads the pair the other way round. With automatic detection there is no source
+/// language to swap in, so the interface language stands in, or the first other language when
+/// that would translate a language into itself.
+enum TranslateSwap {
+    static func target(source: String, target: String, locale: String, languages: [String]) -> String {
+        if source != "auto" { return source }
+        if locale != target { return locale }
+        return languages.first { $0 != target } ?? locale
     }
 }

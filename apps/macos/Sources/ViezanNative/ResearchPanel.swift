@@ -9,23 +9,18 @@ struct ResearchPanel: View {
     let task: WorkTask
     let research: ResearchState
     @State private var expanded = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
     private static let phases = ["analyze", "survey", "cross", "gap", "synth", "done"]
     private var currentIndex: Int { Self.phases.firstIndex(of: research.phase) ?? 0 }
-    private func tone(_ index: Int) -> StatusTone {
-        if index < currentIndex || research.phase == "done" { return .ready }
-        if index == currentIndex { return task.status == .running ? .busy : task.status == .succeeded ? .ready : .failed }
-        return .idle
-    }
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     var body: some View {
-        if glass { glassBody } else { classicBody }
+        glassBody
     }
     // Chat-States: one flat card; the 40 pt head names the phase with counts, and
     // opening it shows numbered steps beside the queries, sources and findings.
     private var glassBody: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button { withAnimation { expanded.toggle() } } label: {
+            Button { withAnimation(reduceMotion ? nil : .default) { expanded.toggle() } } label: {
                 HStack(spacing: metric("small")) {
                     StatusDot(tone: task.status == .running ? .busy : task.status == .succeeded ? .ready : task.status == .failed ? .failed : .idle)
                         .background(Circle().fill(contentColor("action", scheme).opacity(task.status == .running ? metric("selectionOpacity") * 2 : 0)).padding(-metric("hairline") * 3))
@@ -57,6 +52,11 @@ struct ResearchPanel: View {
                 }.padding(.horizontal, metric("gap") + metric("hairline") * 2).padding(.top, metric("gap") - metric("hairline") * 2).padding(.bottom, metric("gap"))
             }
         }.cardSurface(padded: false).accessibilityElement(children: .contain)
+    }
+    /// "1:42", or "1:02:05" past an hour; never negative when the clock moved.
+    static func elapsed(_ seconds: Double) -> String {
+        let value = seconds.isFinite ? Int(min(max(0, seconds), 359_999)) : 0
+        return value >= 3600 ? String(format: "%d:%02d:%02d", value / 3600, value / 60 % 60, value % 60) : String(format: "%d:%02d", value / 60, value % 60)
     }
     private var counts: String {
         var parts: [String] = []
@@ -110,73 +110,6 @@ struct ResearchPanel: View {
                 ForEach(Array(research.findings.enumerated()), id: \.offset) { _, finding in
                     Text(finding).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).lineLimit(3).textSelection(.enabled)
                 }
-            }
-        }
-    }
-    private var classicBody: some View {
-        VStack(alignment: .leading, spacing: metric("small")) {
-            Button { withAnimation { expanded.toggle() } } label: {
-                HStack(spacing: metric("small")) {
-                    if task.status == .running { ProgressView().controlSize(.small) } else { StatusDot(tone: task.status == .succeeded ? .ready : task.status == .failed ? .failed : .idle) }
-                    Text(store.text("research_" + research.phase))
-                    if !research.queries.isEmpty { Text("\(min(research.cursor, research.queries.count))/\(research.queries.count)").monospacedDigit() }
-                    if !research.sources.isEmpty { Text("· \(research.sources.count) " + store.text("researchSources").lowercased()) }
-                    Image(systemName: expanded ? "chevron.up" : "chevron.down").imageScale(.small)
-                }.font(.vzn("captionScale")).foregroundStyle(.secondary).contentShape(Rectangle())
-            }.buttonStyle(.vznQuiet).accessibilityLabel(store.text("researchSteps")).accessibilityAddTraits(expanded ? .isSelected : [])
-                .accessibilityIdentifier("research-toggle")
-            if expanded {
-                VStack(alignment: .leading, spacing: metric("inset")) {
-                    VStack(alignment: .leading, spacing: metric("small")) {
-                        Eyebrow(text: store.text("researchSteps"))
-                        ForEach(Array(Self.phases.enumerated()), id: \.offset) { index, phase in
-                            HStack(spacing: metric("small")) {
-                                StatusDot(tone: tone(index))
-                                Text(store.text("research_" + phase)).foregroundStyle(index <= currentIndex ? contentColor("text-strong", scheme) : contentColor("text-muted", scheme))
-                                if index == currentIndex, research.round > 0 { Text(store.text("researchRound").replacingOccurrences(of: "{n}", with: String(research.round))).foregroundStyle(.secondary) }
-                            }.font(.vzn("smallScale"))
-                        }
-                    }
-                    if !research.queries.isEmpty {
-                        VStack(alignment: .leading, spacing: metric("tight")) {
-                            Eyebrow(text: store.text("researchQueries"))
-                            ForEach(Array(research.queries.enumerated()), id: \.offset) { index, query in
-                                HStack(alignment: .firstTextBaseline, spacing: metric("small")) {
-                                    Image(systemName: index < research.cursor ? "checkmark.circle" : "circle").imageScale(.small).foregroundStyle(index < research.cursor ? contentColor("success", scheme) : contentColor("text-soft", scheme)).accessibilityHidden(true)
-                                    Text(query).font(.vzn("smallScale")).textSelection(.enabled)
-                                }
-                            }
-                        }
-                    }
-                    if !research.sources.isEmpty {
-                        VStack(alignment: .leading, spacing: metric("tight")) {
-                            Eyebrow(text: store.text("researchSources"))
-                            ForEach(Array(research.sources.enumerated()), id: \.offset) { index, source in
-                                HStack(alignment: .firstTextBaseline, spacing: metric("small")) {
-                                    Text("[\(index + 1)]").font(.vzn("smallScale")).monospacedDigit().foregroundStyle(.secondary)
-                                    if let url = URL(string: source.url) {
-                                        Link(destination: url) {
-                                            VStack(alignment: .leading, spacing: 0) {
-                                                Text(source.title).font(.vzn("smallScale")).foregroundStyle(contentColor("action-text", scheme)).lineLimit(1)
-                                                Text(url.host ?? source.url).font(.vzn("captionScale")).foregroundStyle(.secondary).lineLimit(1)
-                                            }
-                                        }.help(source.url)
-                                    } else { Text(source.title).font(.vzn("smallScale")) }
-                                }
-                            }
-                        }
-                    }
-                    if !research.findings.isEmpty {
-                        VStack(alignment: .leading, spacing: metric("tight")) {
-                            Eyebrow(text: store.text("researchFindings") + " · " + String(research.findings.count))
-                            ForEach(Array(research.findings.enumerated()), id: \.offset) { _, finding in
-                                Text(finding).font(.vzn("smallScale")).foregroundStyle(.secondary).lineLimit(3).textSelection(.enabled)
-                            }
-                        }
-                    }
-                }.padding(metric("inset")).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(contentColor("surface-muted", scheme), in: RoundedRectangle(cornerRadius: metric("radius")))
-                    .accessibilityElement(children: .contain)
             }
         }
     }

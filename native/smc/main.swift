@@ -1,5 +1,5 @@
-// viezan-smc — read temperature sensors and fan speeds from the Apple System
-// Management Controller (SMC). Read-only: reading SMC keys needs no privileges, so
+// viezan-smc — read SMC temperatures and fan speeds plus named IOHID temperatures.
+// Read-only: reading these sensors needs no privileges, so
 // this binary runs as the user next to the app. It prints one JSON document to
 // stdout, or, with `--watch <ms>`, one JSON line per interval until its parent exits.
 //
@@ -9,10 +9,77 @@
 //   {"ok":false,"error":"..."}
 //
 // Labels and grouping of sensor keys live in the app (apps/macos/Sources/ViezanDomain/ThermalMonitor.swift);
-// this binary only reports keys, types and values. SMC access is shared with the fan
+// this binary reports SMC keys and types, HID product names and readings. SMC access is shared with the fan
 // helper through native/common/SMC.swift.
 import Foundation
 import IOKit
+import CryptoKit
+
+// The event SPI is not in the SDK. It is resolved at run time, so a symbol that a future
+// macOS drops costs the HID sensors only, never the SMC reader. Create/Copy return owned CF objects.
+private let iokit = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_LAZY)
+private func spi<T>(_ name: String, as type: T.Type) -> T? {
+  iokit.flatMap { dlsym($0, name) }.map { unsafeBitCast($0, to: T.self) }
+}
+private let createHIDClient = spi("IOHIDEventSystemClientCreate", as: (@convention(c) (CFAllocator?) -> Unmanaged<CFTypeRef>?).self)
+private let matchHIDServices = spi("IOHIDEventSystemClientSetMatching", as: (@convention(c) (CFTypeRef, CFDictionary) -> Void).self)
+private let copyHIDServices = spi("IOHIDEventSystemClientCopyServices", as: (@convention(c) (CFTypeRef) -> Unmanaged<CFArray>?).self)
+private let copyHIDProperty = spi("IOHIDServiceClientCopyProperty", as: (@convention(c) (CFTypeRef, CFString) -> Unmanaged<CFTypeRef>?).self)
+private let copyHIDEvent = spi("IOHIDServiceClientCopyEvent", as: (@convention(c) (CFTypeRef, UInt32, CFTypeRef?, UInt32) -> Unmanaged<CFTypeRef>?).self)
+private let hidFloatValue = spi("IOHIDEventGetFloatValue", as: (@convention(c) (CFTypeRef, UInt32) -> Double).self)
+
+private struct HIDTemperatures {
+  private let client: CFTypeRef  // Keep the event system alive while polling its services.
+  private let sensors: [(key: String, name: String, services: [CFTypeRef])]
+
+  init?() {
+    guard let createHIDClient, let matchHIDServices, let copyHIDServices, let copyHIDProperty,
+          copyHIDEvent != nil, hidFloatValue != nil else { return nil }
+    guard let client = createHIDClient(kCFAllocatorDefault)?.takeRetainedValue() else { return nil }
+    self.client = client
+    matchHIDServices(client, ["PrimaryUsagePage": 0xff00, "PrimaryUsage": 5] as CFDictionary)
+    guard let services = copyHIDServices(client)?.takeRetainedValue() else { return nil }
+    var byName: [String: [CFTypeRef]] = [:]
+    for service in services as NSArray {
+      let service = service as AnyObject
+      guard let name = copyHIDProperty(service, "Product" as CFString)?.takeRetainedValue() as? String,
+            !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
+      byName[name, default: []].append(service)
+    }
+
+    // Reserve literal keys first. Long names get a stable suffix even if a peer disappears.
+    let limit = 64
+    var used = Set(byName.keys.map { "hid:" + $0 }.filter { $0.count <= limit })
+    sensors = byName.sorted { $0.key < $1.key }.map { name, services in
+      let fullKey = "hid:" + name
+      guard fullKey.count > limit else { return (fullKey, name, services) }
+      let digest = SHA256.hash(data: Data(name.utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
+      var suffix = "~" + digest
+      var key = String(fullKey.prefix(limit - suffix.count)) + suffix
+      var attempt = 1
+      while !used.insert(key).inserted {
+        suffix = "~\(digest)-\(attempt)"
+        key = String(fullKey.prefix(limit - suffix.count)) + suffix
+        attempt += 1
+      }
+      return (key, name, services)
+    }
+  }
+
+  func readings() -> [[String: Any]] {
+    guard let copyHIDEvent, let hidFloatValue else { return [] }
+    let temperature: UInt32 = 15
+    return sensors.compactMap { sensor in
+      let hottest = sensor.services.compactMap { service -> Double? in
+        guard let event = copyHIDEvent(service, temperature, nil, 0)?.takeRetainedValue() else { return nil }
+        let value = hidFloatValue(event, temperature << 16)
+        return value.isFinite && value > 0 && value < 150 ? value : nil
+      }.max()
+      guard let hottest else { return nil }
+      return ["key": sensor.key, "name": sensor.name, "source": "hid", "celsius": (hottest * 10).rounded() / 10]
+    }
+  }
+}
 
 struct FanKeys {
   let index: Int
@@ -46,11 +113,13 @@ func readFanName(_ smc: SMC, _ index: Int) -> String? {
 
 final class Reader {
   let smc: SMC
+  private let hid: HIDTemperatures?
   private(set) var temperatureKeys: [SensorKey] = []
   private(set) var fans: [FanKeys] = []
 
   init() throws {
     smc = try SMC()
+    hid = HIDTemperatures()
     try discover()
   }
 
@@ -104,6 +173,7 @@ final class Reader {
       guard let value = read(sensor), value > 0, value < 150 else { continue }
       sensors.append(["key": sensor.name, "type": sensor.type, "celsius": (value * 10).rounded() / 10])
     }
+    if let hid { sensors.append(contentsOf: hid.readings()) }
     var fanRows: [[String: Any]] = []
     for fan in fans {
       guard let rpm = read(fan.actual) else { continue }

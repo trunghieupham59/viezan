@@ -6,7 +6,7 @@ import ViezanDomain
 struct ComparisonPane: View {
     @Bindable var store: WorkbenchStore
     let sessionID: String
-    /// Glass floating layer bounds and its close action (the classic popover ignores them).
+    /// Glass floating layer bounds and its close action.
     var maxWidth: CGFloat = .infinity
     var maxHeight: CGFloat = .infinity
     var close: () -> Void = {}
@@ -16,7 +16,6 @@ struct ComparisonPane: View {
     @State private var choosing: Bool?
     @AppStorage("viezan.compare.models") private var rememberedModels = ""
     @Environment(\.colorScheme) private var scheme
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     /// The store compares two or three models; the current one is always the first column.
     private static let maximum = 3
     private var session: Session? { store.session(sessionID) }
@@ -30,9 +29,7 @@ struct ComparisonPane: View {
     private var finished: Int { children.filter { task($0)?.status == .succeeded }.count }
     private var sourceSentences: Int { LanguageSegments.sentences(session?.draft ?? "").count }
     var body: some View {
-        if glass {
-            if choosing ?? children.isEmpty { chooser } else { results }
-        } else { classic }
+        if choosing ?? children.isEmpty { chooser } else { results }
     }
     private var current: String { session?.model ?? "" }
     private var others: [String] { selected.filter { $0 != current } }
@@ -152,7 +149,7 @@ struct ComparisonPane: View {
                 CardDivider()
                 HStack(alignment: .firstTextBaseline, spacing: metric("small")) {
                     Text(store.text("assembly")).font(.vzn("labelScale", .semibold))
-                    Text(parts.keys.sorted { (Int($0) ?? 0) < (Int($1) ?? 0) }.compactMap { parts[$0] }.joined(separator: " ")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).lineLimit(2).textSelection(.enabled)
+                    Text(parts.keys.sorted { (Int($0) ?? 0) < (Int($1) ?? 0) }.compactMap { parts[$0] }.joined(separator: " ")).font(readingFont(store)).foregroundStyle(contentColor("text-muted", scheme)).lineLimit(2).textSelection(.enabled)
                     Spacer(minLength: metric("small"))
                     Button(store.text("adoptTranslation")) { store.adoptAssembly(sessionID) }.buttonStyle(.vznOutline)
                         .disabled(parts.count != sourceSentences || store.running(sessionID) != nil)
@@ -171,7 +168,7 @@ struct ComparisonPane: View {
             Text(String(format: "%02d", index + 1)).font(.system(size: NSFont.systemFontSize * metric("smallScale"), weight: .semibold, design: .monospaced))
                 .foregroundStyle(contentColor("text-soft", scheme)).frame(width: metric("gutter"), alignment: .leading).padding(.top, metric("hairline") * 3)
             VStack(alignment: .leading, spacing: metric("small")) {
-                Text(sentence).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).textSelection(.enabled)
+                Text(sentence).font(readingFont(store)).foregroundStyle(contentColor("text-muted", scheme)).textSelection(.enabled)
                 HStack(alignment: .top, spacing: metric("small")) {
                     ForEach(children) { child in sentenceCell(child, index) }
                 }
@@ -185,7 +182,7 @@ struct ComparisonPane: View {
         return VStack(alignment: .leading, spacing: metric("small") - metric("hairline") * 2) {
             Text(ModelLineup.shortName(child.model) + (child.model == current ? " · " + store.text("compareInUse").lowercased() : ""))
                 .font(.vzn("captionScale", .semibold)).foregroundStyle(contentColor("text-muted", scheme)).lineLimit(1).help(child.model)
-            Text(text).font(.system(size: NSFont.systemFontSize)).foregroundStyle(contentColor("text-strong", scheme)).textSelection(.enabled)
+            Text(text).font(readingFont(store)).foregroundStyle(contentColor("text-strong", scheme)).textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading).fixedSize(horizontal: false, vertical: true)
             HStack {
                 Spacer(minLength: 0)
@@ -237,56 +234,6 @@ struct ComparisonPane: View {
             }.padding(.top, metric("tight"))
         }.padding(metric("inset")).frame(width: width, alignment: .leading)
     }
-    private var classic: some View {
-        VStack(alignment: .leading, spacing: metric("inset")) {
-            HStack {
-                Text(store.text("compareModels")).font(.vzn("labelScale", .semibold)).accessibilityAddTraits(.isHeader)
-                Spacer()
-                if !children.isEmpty {
-                    Text(store.text("compareProgress").replacingOccurrences(of: "{done}", with: String(finished)).replacingOccurrences(of: "{total}", with: String(children.count)))
-                        .font(.vzn("smallScale")).foregroundStyle(.secondary).monospacedDigit().accessibilityIdentifier("compare-progress")
-                }
-            }
-            // Model choice: a filter field styled like the Dictionary context, then toggles.
-            TextField(store.text("compareFilter"), text: $filter).textFieldStyle(.plain).font(.vzn("labelScale"))
-                .padding(.horizontal, metric("gap")).frame(height: metric("control"))
-                .background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
-                .overlay(RoundedRectangle(cornerRadius: metric("controlRadius")).strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")))
-            ScrollView {
-                VStack(alignment: .leading, spacing: metric("tight")) {
-                    ForEach(choices, id: \.self) { model in
-                        Toggle(nativeModelLabel(model, store: store), isOn: Binding(
-                            get: { selected.contains(model) },
-                            set: { on in if on { if selected.count < 3 { selected.append(model) } } else { selected.removeAll { $0 == model } } }))
-                            .disabled(!selected.contains(model) && selected.count >= 3).help(model)
-                    }
-                }.frame(maxWidth: .infinity, alignment: .leading)
-            }.frame(maxHeight: metric("editor"))
-                .onAppear { if selected.isEmpty, let model = session?.model, store.availableModels.contains(model) { selected = [model] } }
-            HStack(spacing: metric("small")) {
-                Button(store.text("compareModels")) { store.compare(sessionID, models: selected) }.buttonStyle(.vznPrimary)
-                    .disabled(!(2...3).contains(Set(selected).count) || !selected.allSatisfy(NativeModel.valid) || session?.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false)
-                    .accessibilityIdentifier("compare-run")
-                Spacer(minLength: metric("small"))
-                FilterTabs(label: store.text("compareModels"), items: [(false, store.text("compareColumns")), (true, store.text("compareSentences"))],
-                           selection: Binding(get: { store.compareBySentence }, set: { store.compareBySentence = $0 }), accent: true)
-            }
-            if children.count > 1 { Text(store.text("compareDiffHint")).font(.vzn("captionScale")).foregroundStyle(.secondary) }
-            if !children.isEmpty {
-                ScrollView([.horizontal, .vertical]) {
-                    HStack(alignment: .top, spacing: metric("inset")) { ForEach(children) { column($0) } }
-                }.frame(maxHeight: metric("editor") * 2)
-            }
-            if let parts = session?.assemblyParts, !parts.isEmpty {
-                VStack(alignment: .leading, spacing: metric("small")) {
-                    Text(store.text("assembly")).font(.vzn("labelScale", .semibold))
-                    Text(parts.keys.sorted { (Int($0) ?? 0) < (Int($1) ?? 0) }.compactMap { parts[$0] }.joined(separator: "\n")).font(readingFont(store)).textSelection(.enabled)
-                    Button(store.text("adoptTranslation")) { store.adoptAssembly(sessionID) }.buttonStyle(.vznOutline)
-                        .disabled(parts.count != sourceSentences || store.running(sessionID) != nil)
-                }.frame(maxWidth: .infinity, alignment: .leading).cardSurface()
-            }
-        }
-    }
     /// Words of `text` absent from `reference` carry a soft tint; punctuation and order are ignored.
     private func highlighted(_ text: String, against reference: String?) -> AttributedString {
         guard let reference else { return AttributedString(text) }
@@ -299,37 +246,6 @@ struct ComparisonPane: View {
             result += piece
         }
         return result
-    }
-    // One model's column: name, state, the text (whole or by sentence) and its actions.
-    private func column(_ child: Session) -> some View {
-        let task = task(child), current = store.comparisonCurrent(child), done = task?.status == .succeeded
-        let rows = LanguageSegments.sentences(child.output)
-        let reference = children.first.map { $0.id == child.id ? nil : $0 } ?? nil
-        let referenceRows = reference.map { LanguageSegments.sentences($0.output) } ?? []
-        return VStack(alignment: .leading, spacing: metric("small")) {
-            Text(nativeModelLabel(child.model, store: store)).font(.vzn("labelScale", .semibold)).help(child.model)
-            if let task { TaskStatusText(store: store, task: task) } else { Text(store.text("queued")).foregroundStyle(.secondary) }
-            if !current { Text(store.text("comparisonStale")).font(.vzn("smallScale")).foregroundStyle(contentColor("warning", scheme)) }
-            if store.compareBySentence && rows.count == sourceSentences {
-                ForEach(Array(rows.enumerated()), id: \.offset) { index, text in
-                    VStack(alignment: .leading, spacing: metric("tight")) {
-                        Text(highlighted(text, against: referenceRows.indices.contains(index) ? referenceRows[index] : nil)).font(readingFont(store)).textSelection(.enabled)
-                        Button(store.text("useSentence")) { store.useSentence(child.id, index: index) }.buttonStyle(.vznQuiet)
-                            .disabled(!done || !current).foregroundStyle(contentColor("action-text", scheme))
-                    }
-                }
-            } else { Text(highlighted(child.output, against: reference?.output)).font(readingFont(store)).textSelection(.enabled) }
-            HStack(spacing: metric("small")) {
-                Button(store.text("adoptTranslation")) { store.adoptComparison(child.id) }.buttonStyle(.vznOutline)
-                    .disabled(!done || !current || store.running(sessionID) != nil)
-                if let task {
-                    if task.status == .running { Button(store.text("stop"), role: .destructive) { store.cancel(task.id) }.buttonStyle(.vznOutline) }
-                    else if store.canRetry(task) { Button(store.text("retry")) { store.retry(task.id) }.buttonStyle(.vznOutline) }
-                }
-                Button { copyText(child.output, store: store) } label: { Image(systemName: "doc.on.doc") }
-                    .buttonStyle(.vznQuiet).disabled(child.output.isEmpty).help(store.text("copy")).accessibilityLabel(store.text("copy"))
-            }
-        }.frame(width: metric("sidebar"), alignment: .leading).cardSurface()
     }
 }
 

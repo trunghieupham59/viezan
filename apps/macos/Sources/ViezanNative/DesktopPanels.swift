@@ -9,11 +9,13 @@ import ViezanDomain
     private let openMain: (String) -> Void
     private let openRoute: (String) -> Void
     private let quickTranslate: QuickTranslate
+    let pinnedNotes: PinnedNotePanels
     private var launcher: Launcher!
     /// `openMain` shows a session in the main window; `openRoute` shows a page there ("settings", "interpret", a feature).
     init(store: WorkbenchStore, openMain: @escaping (String) -> Void, openRoute: @escaping (String) -> Void) {
         self.store = store; self.openMain = openMain; self.openRoute = openRoute
         quickTranslate = QuickTranslate(store: store, openMain: openMain)
+        pinnedNotes = PinnedNotePanels(store: store)
         launcher = Launcher(store: store, actions: .init(
             openFeature: { feature, text in
                 let id = store.createDetachedSession(feature: feature, draft: text); store.submit(id); openMain(id)
@@ -27,6 +29,7 @@ import ViezanDomain
     func present(_ action: String) {
         guard !store.loadBlocked, store.moduleEnabled(action == "launcher" ? "utilities" : action == "quickChat" ? "chat" : "translate") else { return }
         if action == "translateSelection" { quickTranslate.start(); return }
+        if action == "translateScreen" { quickTranslate.startScreen(); return }
         if action == "launcher" { launcher.toggle(); return }
         let window = panel ?? NSPanel(contentRect: NSRect(x: 0, y: 0, width: metric("reading"), height: metric("reading")), styleMask: [.titled, .closable, .resizable, .utilityWindow], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.level = .floating; window.hidesOnDeactivate = false
@@ -47,31 +50,23 @@ private struct QuickSessionPanel: View {
     var openMain: () -> Void
     @State private var modelDraft = ""
     private var session: Session? { store.session(sessionID) }
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     var body: some View {
         VStack(alignment: .leading, spacing: metric("inset")) {
             if let session {
-                if glass {
-                    // Launcher-States (Chat nhanh): title, the feature as a chip, Open as a glass pill.
-                    HStack(spacing: metric("small")) {
-                        Text(store.title(session)).font(.system(size: NSFont.systemFontSize, weight: .semibold)).foregroundStyle(contentColor("text-strong", scheme)).lineLimit(1)
-                        Spacer(minLength: metric("small"))
-                        StatusBadge(text: store.text(session.feature.rawValue), tone: .idle)
-                        Button(store.text("open"), systemImage: "arrow.up.forward.square", action: openMain).buttonStyle(.vznOutline).controlSize(.small).fixedSize()
-                    }
-                } else {
-                HStack {
-                    Text(store.title(session)).font(.vzn("labelScale", .semibold)).lineLimit(1)
-                    Spacer(); Button(store.text("open"), action: openMain)
-                }
+                // Launcher-States (Chat nhanh): title, the feature as a chip, Open as a glass pill.
+                HStack(spacing: metric("small")) {
+                    Text(store.title(session)).font(.system(size: NSFont.systemFontSize, weight: .semibold)).foregroundStyle(contentColor("text-strong", scheme)).lineLimit(1)
+                    Spacer(minLength: metric("small"))
+                    StatusBadge(text: store.text(session.feature.rawValue), tone: .idle)
+                    Button(store.text("open"), systemImage: "arrow.up.forward.square", action: openMain).buttonStyle(.vznOutline).controlSize(.small).fixedSize()
                 }
                 ScrollView {
                     VStack(alignment: .leading, spacing: metric("inset")) {
-                        if glass && session.feature == .chat {
+                        if session.feature == .chat {
                             // Same turn shapes as AI Chat: the person's bubble trailing, "✦ Viezan" answers leading.
                             ForEach(session.messages) { message in
                                 if message.role == "user" {
-                                    Text(message.text).textSelection(.enabled).foregroundStyle(contentColor("text-strong", scheme))
+                                    Text(message.text).font(readingFont(store)).textSelection(.enabled).foregroundStyle(contentColor("text-strong", scheme))
                                         .padding(.vertical, metric("small") + metric("hairline") * 2).padding(.horizontal, metric("gap") + metric("hairline") * 2)
                                         .background(contentColor("surface-muted", scheme), in: UserBubbleShape())
                                         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -81,12 +76,12 @@ private struct QuickSessionPanel: View {
                                             Image(systemName: "sparkles").imageScale(.small).foregroundStyle(contentColor("action", scheme))
                                             Text("Viezan").fontWeight(.semibold).foregroundStyle(contentColor("text-muted", scheme))
                                         }.font(.vzn("smallScale")).accessibilityElement(children: .combine)
-                                        Text(message.text).textSelection(.enabled).foregroundStyle(contentColor("text-strong", scheme)).frame(maxWidth: .infinity, alignment: .leading)
+                                        Text(message.text).font(readingFont(store)).textSelection(.enabled).foregroundStyle(contentColor("text-strong", scheme)).frame(maxWidth: .infinity, alignment: .leading)
                                     }.padding(.trailing, metric("large"))
                                 }
                             }
-                        } else if session.feature == .chat { ForEach(session.messages) { message in Text(message.text).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) } }
-                        else { Text(session.output.isEmpty ? store.text("emptyResult") : session.output).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
+                        }
+                        else { Text(session.output.isEmpty ? store.text("emptyResult") : session.output).font(readingFont(store)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
                     }
                 }
                 ComposerEditor(text: Binding(get: { self.session?.draft ?? "" }, set: { store.setDraft(sessionID, $0) }), identity: sessionID, label: store.text("prompt"), font: readingNSFont(store), growsWithContent: true) { store.submit(sessionID) }
@@ -94,11 +89,7 @@ private struct QuickSessionPanel: View {
                     .padding(metric("inset"))
                     .background {
                         // Glass: the same raised composer surface as AI Chat.
-                        if (NativeTheme.shared.preferences.preset ?? "glass") == "glass" { ComposerSurface(radius: metric("chromeCardRadius")) }
-                        else {
-                            RoundedRectangle(cornerRadius: metric("radius")).fill(contentColor("surface", scheme))
-                                .overlay(RoundedRectangle(cornerRadius: metric("radius")).stroke(Color(nsColor: .separatorColor)))
-                        }
+                        ComposerSurface(radius: metric("chromeCardRadius"))
                     }
                 if session.feature == .translate {
                     Picker(store.text("outputLanguage"), selection: Binding(get: { self.session?.target ?? "vi" }, set: { store.setPair(sessionID, source: "auto", target: $0) })) {
@@ -126,43 +117,52 @@ struct DesktopSettings: View {
     var route: String? = nil
     /// Glass system pages open the recorder as the page's centred blocking dialog.
     var recording: Binding<String?>? = nil
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
-    // Launcher leads, as in Review 18; Everywhere shows only selection translation.
+    @State private var screenGranted = false
     private var shortcuts: [NativeShortcut] {
-        let order = ["launcher", "translateSelection", "quickChat"]
-        return store.desktopIntegration.shortcuts.filter { route != "everywhere" || $0.id == "translateSelection" }
+        let order = ["launcher", "translateSelection", "translateScreen", "quickChat"]
+        return store.desktopIntegration.shortcuts.filter { route != "everywhere" || ["translateSelection", "translateScreen"].contains($0.id) }
             .sorted { (order.firstIndex(of: $0.id) ?? order.count) < (order.firstIndex(of: $1.id) ?? order.count) }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Glass boards (Everywhere, Shortcuts) lead with the permission the rows depend on.
-            if glass && route != nil { accessibilityRow(divider: true) }
-            ForEach(shortcuts) { shortcut in NativeShortcutRow(store: store, shortcut: shortcut, everywhere: route == "everywhere", recording: recording) }
+            // Everywhere owns Quick Translate: its permissions lead the rows that depend on them.
+            if route == "everywhere" { permissionRows(divider: true) }
+            // The Shortcuts page only lists the two translate shortcuts and points back to Everywhere.
+            ForEach(shortcuts) { shortcut in NativeShortcutRow(store: store, shortcut: shortcut, linked: route == "utilities" && shortcut.id.hasPrefix("translate"), recording: recording) }
             if route == "everywhere" { QuickTranslatePairRows(store: store) }
-            if route != "utilities" && !(glass && route != nil) { accessibilityRow(divider: route != nil) }
             if route == nil {
+                permissionRows(divider: false)
                 HStack {
                     Button(store.text("launcher")) { store.desktopIntegration.onAction?("launcher") }
                     Button(store.text("quickChat")) { store.desktopIntegration.onAction?("quickChat") }
                 }.padding(.vertical, metric("small"))
             }
-            if let error = store.desktopIntegration.error { Label(store.text(error), systemImage: "exclamationmark.triangle").foregroundStyle(.secondary).padding(.top, metric("small")).padding(.horizontal, glass && route != nil ? metric("inset") : 0) }
+            if let error = store.desktopIntegration.error { Label(store.text(error), systemImage: "exclamationmark.triangle").foregroundStyle(.secondary).padding(.top, metric("small")).padding(.horizontal, route != nil ? metric("inset") : 0) }
         }
     }
-    private func accessibilityRow(divider: Bool) -> some View {
-                let granted = store.desktopIntegration.accessibilityGranted
-                return CardRow(title: store.text("accessibilityPermission"), detail: store.text(route == "everywhere" ? "accessibilityHint" : "selectionPermissionHint"), divider: divider) {
-                    HStack(spacing: metric("gap")) {
-                        StatusBadge(text: store.text(granted ? "permissionGranted" : "permissionMissing"), tone: granted ? .ready : .idle)
-                        if !granted {
-                            Button(store.text("openSystemSettings")) { store.desktopIntegration.requestAccessibility() }
-                                .buttonStyle(.vznPrimary).help(store.text("selectionPermissionHint"))
-                        }
-                    }
+    @ViewBuilder private func permissionRows(divider: Bool) -> some View {
+        let granted = store.desktopIntegration.accessibilityGranted
+        CardRow(title: store.text("accessibilityPermission"), detail: store.text(route == "everywhere" ? "accessibilityHint" : "selectionPermissionHint"), divider: divider) {
+            HStack(spacing: metric("gap")) {
+                StatusBadge(text: store.text(granted ? "permissionGranted" : "permissionMissing"), tone: granted ? .ready : .idle)
+                if !granted {
+                    Button(store.text("openSystemSettings")) { store.desktopIntegration.requestAccessibility() }
+                        .buttonStyle(.vznPrimary).help(store.text("selectionPermissionHint"))
                 }
-                // Granted in System Settings while Viezan was in the background.
-                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in store.desktopIntegration.refreshAccessibility() }
-                .onAppear { store.desktopIntegration.refreshAccessibility() }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in store.desktopIntegration.refreshAccessibility() }
+        .onAppear { store.desktopIntegration.refreshAccessibility() }
+        if route == "everywhere" {
+            CardRow(title: store.text("screenPermission"), detail: store.text("screenPermissionHint"), divider: divider) {
+                HStack(spacing: metric("gap")) {
+                    StatusBadge(text: store.text(screenGranted ? "permissionGranted" : "permissionMissing"), tone: screenGranted ? .ready : .idle)
+                    if !screenGranted { Button(store.text("openSystemSettings"), action: openScreenRecordingSettings).buttonStyle(.vznPrimary) }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in screenGranted = CGPreflightScreenCaptureAccess() }
+            .onAppear { screenGranted = CGPreflightScreenCaptureAccess() }
+        }
     }
 }
 // Quick translate's own language pair and the model it uses (the app's current choice).
@@ -196,19 +196,18 @@ func shortcutDisplay(_ key: String) -> String {
 private struct NativeShortcutRow: View {
     let store: WorkbenchStore
     let shortcut: NativeShortcut
-    var everywhere = false
+    var linked = false
     var recording: Binding<String?>? = nil
     @State private var editing = false
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     var body: some View {
-        CardRow(title: everywhere ? store.text("allShortcuts") : store.text(shortcut.id), detail: store.text(everywhere ? "shortcutCustomizable" : "shortcutDetail_" + shortcut.id)) {
+        CardRow(title: store.text(shortcut.id), detail: store.text(linked ? "shortcutSetInEverywhere" : "shortcutDetail_" + shortcut.id)) {
             HStack(spacing: metric("small")) {
                 // Shortcuts board: "Try" runs the action now (Launcher, Quick Chat).
-                if glass, !everywhere, ["launcher", "quickChat"].contains(shortcut.id) {
+                if ["launcher", "quickChat"].contains(shortcut.id) {
                     Button(store.text("shortcutTry")) { store.desktopIntegration.onAction?(shortcut.id) }.buttonStyle(.vznQuiet).fixedSize()
                 }
                 Button { if let recording { recording.wrappedValue = shortcut.id } else { editing.toggle() } } label: {
-                    if glass { KeyCaps(key: shortcut.key) } else { Text(shortcutDisplay(shortcut.key)).monospaced() }
+                    KeyCaps(key: shortcut.key)
                 }.buttonStyle(.vznOutline)
                     .help(store.text("shortcut")).accessibilityLabel(store.text("shortcut") + ": " + shortcut.key).accessibilityIdentifier("shortcut-" + shortcut.id)
                     .popover(isPresented: $editing) { ShortcutRecorderPanel(store: store, shortcut: shortcut) { editing = false }.padding(metric("inset")).frame(width: metric("sidebar") + metric("editor")) }
@@ -261,9 +260,8 @@ struct ShortcutRecorderPanel: View {
         if let conflict { return store.text("shortcutConflict").replacingOccurrences(of: "{name}", with: store.text(conflict.id)) }
         return DesktopIntegration.isValid(captured) ? nil : store.text("shortcutNeedsModifier")
     }
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     var body: some View {
-        if glass { glassBody } else { classicBody }
+        glassBody
     }
     // Title, the press-keys hint, a recording field with centred key caps and an accent edge,
     // the reason Apply is off, then Default · Close · Apply.
@@ -295,33 +293,6 @@ struct ShortcutRecorderPanel: View {
             }
             HStack(spacing: metric("small")) {
                 Button(store.text("shortcutDefault") + (DesktopIntegration.defaults[shortcut.id].map { " · " + shortcutDisplay($0) } ?? "")) { captured = DesktopIntegration.defaults[shortcut.id]; recording = false }
-                    .buttonStyle(.vznQuiet).disabled(shortcut.key == DesktopIntegration.defaults[shortcut.id] && captured == nil)
-                Spacer()
-                Button(store.text("close"), action: close).buttonStyle(.vznOutline)
-                Button(store.text("apply")) { if let captured { store.desktopIntegration.configure(shortcut.id, key: captured, enabled: shortcut.enabled) }; close() }
-                    .buttonStyle(.vznPrimary).disabled(captured == nil || problem != nil || captured == shortcut.key).accessibilityIdentifier("shortcut-apply")
-            }
-        }
-    }
-    private var classicBody: some View {
-        VStack(alignment: .leading, spacing: metric("gap")) {
-            Text(store.text(shortcut.id)).font(.vzn("labelScale", .semibold))
-            ZStack {
-                ShortcutRecorder(recording: $recording) { captured = $0; recording = false } cancel: { close() }
-                HStack(spacing: metric("small")) {
-                    if recording { Text(store.text("pressKeys")).foregroundStyle(.secondary) }
-                    else { KeyCap(text: shortcutDisplay(captured ?? shortcut.key)) }
-                    Spacer(minLength: 0)
-                    if !recording { Button(store.text("shortcut")) { captured = nil; recording = true }.buttonStyle(.vznQuiet) }
-                }.padding(.horizontal, metric("gap")).allowsHitTesting(!recording)
-            }
-            .frame(height: metric("control"))
-            .background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
-            .overlay(RoundedRectangle(cornerRadius: metric("controlRadius")).strokeBorder(contentColor(recording ? "border-strong" : "border", scheme), lineWidth: metric("hairline")))
-            .accessibilityElement(children: .contain).accessibilityLabel(store.text("shortcut"))
-            if let problem { Text(problem).font(.vzn("smallScale")).foregroundStyle(contentColor("danger", scheme)) }
-            HStack {
-                Button(store.text("shortcutDefault")) { captured = DesktopIntegration.defaults[shortcut.id]; recording = false }
                     .buttonStyle(.vznQuiet).disabled(shortcut.key == DesktopIntegration.defaults[shortcut.id] && captured == nil)
                 Spacer()
                 Button(store.text("close"), action: close).buttonStyle(.vznOutline)

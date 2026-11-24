@@ -10,11 +10,13 @@ public struct NativeShortcut: Codable, Identifiable, Sendable {
     public var enabled: Bool
 }
 @MainActor @Observable public final class DesktopIntegration {
-    nonisolated public static let defaults = ["quickChat": "Control+Option+Space", "translateSelection": "Option+T", "launcher": "Option+Space"]
-    public private(set) var shortcuts: [NativeShortcut] = [
+    nonisolated public static let defaults = ["quickChat": "Control+Option+Space", "translateSelection": "Option+T", "launcher": "Option+Space", "translateScreen": "Option+Shift+T"]
+    nonisolated private static let defaultShortcuts: [NativeShortcut] = [
         .init(id: "quickChat", key: defaults["quickChat"]!, enabled: false),
         .init(id: "translateSelection", key: defaults["translateSelection"]!, enabled: false),
-        .init(id: "launcher", key: defaults["launcher"]!, enabled: false)]
+        .init(id: "launcher", key: defaults["launcher"]!, enabled: false),
+        .init(id: "translateScreen", key: defaults["translateScreen"]!, enabled: false)]
+    public private(set) var shortcuts = defaultShortcuts
     /// Virtual key code → the name the stored "Modifier+Key" string uses ("T", "Space").
     nonisolated public static func keyName(code: UInt16) -> String? {
         keyCodes.first { $0.value == UInt32(code) }.map { $0.key == "space" ? "Space" : $0.key.uppercased() }
@@ -31,7 +33,17 @@ public struct NativeShortcut: Codable, Identifiable, Sendable {
     @ObservationIgnored private var handler: EventHandlerRef?
     @ObservationIgnored private let file = FilePersistence.previewURL().deletingLastPathComponent().appendingPathComponent("shortcuts.json")
     public init() {
-        if let data = try? Data(contentsOf: file), let values = try? JSONDecoder().decode([NativeShortcut].self, from: data), values.count == 3, Set(values.map(\.id)) == Set(shortcuts.map(\.id)) { shortcuts = values }
+        if let data = try? Data(contentsOf: file), let values = try? JSONDecoder().decode([NativeShortcut].self, from: data), let restored = Self.merged(values) { shortcuts = restored }
+    }
+    nonisolated static func merged(_ stored: [NativeShortcut]) -> [NativeShortcut]? {
+        guard !stored.isEmpty else { return nil }
+        var result = defaultShortcuts
+        var seen = Set<String>()
+        for shortcut in stored {
+            guard seen.insert(shortcut.id).inserted, let index = result.firstIndex(where: { $0.id == shortcut.id }) else { return nil }
+            if parse(shortcut.key) != nil { result[index] = shortcut }
+        }
+        return result
     }
     public func activate() {
         guard handler == nil else { return }

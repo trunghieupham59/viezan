@@ -9,6 +9,10 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
     .systemFont(ofSize: NSFont.systemFontSize * metric("labelScale") * nativeResources.textScales[store.workspace.preferences.textSize.rawValue]!)
 }
 @MainActor func readingFont(_ store: WorkbenchStore) -> Font { Font(readingNSFont(store)) }
+// Reading headings/phonetics keep their role at Medium while sharing the reading scale.
+@MainActor func readingFont(_ store: WorkbenchStore, base: NSFont) -> Font {
+    Font(NSFontManager.shared.convert(base, toSize: base.pointSize * nativeResources.textScales[store.workspace.preferences.textSize.rawValue]!))
+}
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
     var store: WorkbenchStore?
@@ -55,7 +59,7 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
     var body: some Scene {
         Window("Viezan", id: "workbench") {
             WorkbenchView(store: store, screen: $screen, shell: shell) { window in delegate.window = window; window.isReleasedWhenClosed = false }
-                .preferredColorScheme(store.workspace.preferences.preset == "midnight" ? .dark : store.workspace.preferences.mode == .system ? nil : store.workspace.preferences.mode == .dark ? .dark : .light)
+                .preferredColorScheme(store.workspace.preferences.mode == .system ? nil : store.workspace.preferences.mode == .dark ? .dark : .light)
                 .onChange(of: store.workspace.preferences, initial: true) { _, value in NativeTheme.shared.preferences = value }
                 .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in
                     guard let closing = notification.object as? NSWindow, closing === delegate.window else { return }
@@ -106,13 +110,30 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
                 Divider()
                 Button(store.text("history")) { shell.issue("history") }.keyboardShortcut("h", modifiers: [.command, .shift]).disabled(store.loadBlocked || (screen == "settings" || screen == "home") || shell.library)
                 Button(store.text("activity")) { shell.issue("activity") }.keyboardShortcut("a", modifiers: [.command, .shift])
+                Divider()
+                // The composer's model panel and "+" menu; each acts only where its control is on screen.
+                Button(store.text("model")) { shell.issue("models") }.keyboardShortcut("m", modifiers: [.command, .shift]).disabled(store.loadBlocked || shell.library || store.updatePrompt != nil || !["chat", "translate", "dictionary"].contains(screen))
+                Button(store.text("composerTools")) { shell.issue("tools") }.keyboardShortcut("t", modifiers: [.command, .shift]).disabled(store.loadBlocked || shell.library || store.updatePrompt != nil || screen != "chat")
             }
 
         }
         MenuBarExtra(isInserted: Binding(get: { store.menuBarVisible }, set: { store.menuBarVisible = $0 })) {
             Button(store.text("openMain")) { delegate.window?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
-            ForEach(["quickChat", "translateSelection", "launcher"], id: \.self) { action in
+            ForEach(["quickChat", "translateSelection", "translateScreen", "launcher"], id: \.self) { action in
                 Button(store.text(action)) { store.desktopIntegration.onAction?(action) }
+            }
+            Toggle(store.text(LauncherControls.awake.nameKey), isOn: Binding(get: { store.systemControls.keepAwake }, set: { store.systemControls.setKeepAwake($0) }))
+            if !store.loadBlocked {
+                Button(store.text("newPinnedNote")) { delegate.desktopPanels?.pinnedNotes.create() }
+                    .disabled(store.pinnedNotes.notes.count >= PinnedNotes.limit || store.pinnedNotes.error != nil)
+                ForEach(store.pinnedNotes.notes) { note in
+                    Button(PinnedNotePanels.menuTitle(note.text, fallback: store.text("pinnedNote"))) {
+                        delegate.desktopPanels?.pinnedNotes.show(note.id)
+                    }
+                }
+                if let panels = delegate.desktopPanels?.pinnedNotes, panels.lastDeleted != nil {
+                    Button(store.text("pinnedNoteRestore")) { panels.restoreLastDeleted() }
+                }
             }
             Divider()
             if store.moduleEnabled("thermal") {
@@ -121,7 +142,20 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
                     Toggle(store.text("menuBarTemperature"), isOn: Binding(get: { store.menuBarTemperature }, set: { store.menuBarTemperature = $0 }))
                     Divider()
                     Button(store.text(store.thermalMonitor.monitoring ? "stop" : "startMonitoring")) { if store.thermalMonitor.monitoring { store.thermalMonitor.stop() } else { store.thermalMonitor.start() } }
-                    ForEach(store.thermalMonitor.profiles) { profile in Button(store.text(profile.name)) { store.thermalMonitor.applyProfile(profile.id) }.disabled(!store.thermalMonitor.monitoring || store.thermalMonitor.calibrating) }
+                    ForEach(store.thermalMonitor.profiles) { profile in
+                        Button(store.text(profile.name)) {
+                            let monitor = store.thermalMonitor
+                            monitor.refreshHelperStatus()
+                            if FanControlDisplay.canApplyFromMenu(confirmed: monitor.manualControlConfirmed, helper: monitor.helperStatus,
+                                                                  monitoring: monitor.monitoring, calibrating: monitor.calibrating) {
+                                monitor.applyProfile(profile.id)
+                            } else {
+                                delegate.window?.makeKeyAndOrderFront(nil)
+                                NSApp.activate(ignoringOtherApps: true)
+                                NotificationCenter.default.post(name: .viezanOpenRoute, object: "thermal")
+                            }
+                        }
+                    }
                     Button(store.text("restoreAutomatic")) { store.thermalMonitor.restoreAutomatic() }
                 }
             }
@@ -129,6 +163,7 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
         } label: {
             HStack {
                 Image(nsImage: Self.menuBarLogo)
+                if store.systemControls.keepAwake { Image(systemName: "cup.and.saucer.fill") }
                 if store.menuBarTemperature, store.thermalMonitor.monitoring, let temperature = store.thermalMonitor.snapshot?.sensors?.map(\.celsius).max() { Text(String(format: "%.0f °C", temperature)) }
             }.accessibilityLabel("Viezan")
         }
@@ -148,15 +183,14 @@ struct WorkbenchView: View {
     @State private var composerFocus = 0
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private var glassNavigation: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
-    /// The Glass command palette is a centred dialog-width layer; other presets keep the panel width.
+    /// The Glass command palette is a centred dialog-width layer.
     private func paletteWidth(_ layout: ShellLayout) -> CGFloat {
-        glassNavigation ? min(metric("dialog"), layout.width - metric("inset") * 2) : layout.panelWidth
+        min(metric("dialog"), layout.width - metric("inset") * 2)
     }
-    /// Header separator (`.vsep`): 18 pt in Glass, the full control height elsewhere.
-    private var separatorHeight: CGFloat { glassNavigation ? metric("inset") + metric("hairline") * 2 : metric("compactControl") }
+    /// Header separator (`.vsep`): 18 pt.
+    private var separatorHeight: CGFloat { metric("inset") + metric("hairline") * 2 }
     /// Glass reserves the `small` window margin to the left of the navigation pane.
-    private func navigationColumn(_ layout: ShellLayout) -> CGFloat { layout.navigationWidth + (glassNavigation ? metric("small") : 0) }
+    private func navigationColumn(_ layout: ShellLayout) -> CGFloat { layout.navigationWidth + metric("small") }
     private var navigationAnimation: Animation? { reduceMotion ? nil : .easeOut(duration: metric("durationNormal")) }
     private var settings: Bool { ["settings", "utilities", "everywhere", "thermal", "interpret", "apps"].contains(screen) }
     private var home: Bool { screen == "home" }
@@ -164,7 +198,7 @@ struct WorkbenchView: View {
     private var title: String { home ? store.text("home") : screen == "interpret" ? store.text("interpret") + " / " + (store.interpretation.current.map { Date(timeIntervalSince1970: $0.created).formatted(date: .abbreviated, time: .shortened) } ?? store.text("newInterpretation")) : settings ? settingsTitle : shell.library ? store.text("history") : store.text(store.workspace.feature.rawValue) + " / " + store.title(store.session) }
     /// Glass Settings reads "Settings / section" (Settings boards); other routes keep their single title.
     private var settingsTitle: String {
-        guard glassNavigation, screen == "settings", let id = shell.settingsCurrent,
+        guard screen == "settings", let id = shell.settingsCurrent,
               let section = nativeResources.settingsSections.first(where: { $0.id == id }) else { return store.text(screen) }
         return store.text(screen) + " / " + store.text(section.title)
     }
@@ -191,6 +225,13 @@ struct WorkbenchView: View {
             shell.dismiss(returnFocus: false); shell.library = false; if home || settings { store.navigate(.chat) }; store.newSession(); screen = store.workspace.feature.rawValue; composerFocus += 1
         } else if command == "history", !home, !settings, !shell.library, !store.loadBlocked { shell.show(.history, from: window?.firstResponder) }
         else if command == "activity" { shell.show(.activity, from: window?.firstResponder) }
+        // Pressing the control itself keeps one path: its frame anchors the panel, a second press
+        // closes it, and focus sits on the control so Escape returns there.
+        else if command == "models" || command == "tools" {
+            // Already open: close it the ordinary way, which leaves an IME composition alone.
+            if shell.overlay == (command == "models" ? .models : .tools) { dismissOverlay() }
+            else if !shell.library, store.updatePrompt == nil { shellControl(command == "models" ? "model-toggle" : "tools-toggle", in: window?.contentView)?.performClick(nil) }
+        }
     }
     var body: some View {
         GeometryReader { geometry in
@@ -203,45 +244,21 @@ struct WorkbenchView: View {
                         VStack(spacing: 0) {
                             sidebarTop(layout)
                             NativeNavigation(store: store, screen: screen, expanded: !layout.compact && !store.workspace.navigationCollapsed, select: select, commands: { execute("commands") })
-                                .padding(.leading, glassNavigation ? metric("small") : 0)
+                                .padding(.leading, metric("small"))
                         }.frame(width: navigationColumn(layout))
                             .background {
-                                if glassNavigation { SidebarSurface() }
+                                SidebarSurface()
                             }
                             // The temporary pane replaces the rail visually and
                             // in accessibility, avoiding doubled glass and rows.
-                            .opacity(glassNavigation && shell.overlay == .navigation ? 0 : 1)
+                            .opacity(shell.overlay == .navigation ? 0 : 1)
                             .accessibilityHidden(shell.overlay == .navigation)
                             // Explicit value animation: the column and its labels move together on every path (⌘\, menu, button).
                             .animation(navigationAnimation, value: store.workspace.navigationCollapsed)
-                        if !glassNavigation { ChromeDivider(vertical: true) }
                         VStack(spacing: 0) {
                             header(layout)
                             VStack(spacing: 0) {
-                            if glassNavigation { glassBanners }
-                            else {
-                            if let error = store.storageError {
-                                ViewThatFits(in: .horizontal) {
-                                    HStack(alignment: .top, spacing: metric("inset")) { storageMessage(error); Spacer(minLength: metric("small")); retryStorage }
-                                    VStack(alignment: .leading, spacing: metric("small")) { storageMessage(error); retryStorage }
-                                }.padding(metric("inset")).frame(maxWidth: .infinity, alignment: .leading).background(contentColor("canvas", scheme)).accessibilityElement(children: .contain)
-                                Divider()
-                            }
-                            if store.audio.recordingOwner != nil || store.audio.transcribingOwner != nil {
-                                HStack { Text(store.text(store.audio.recordingOwner != nil ? "record" : "running")); Spacer(); Button(store.text("stop"), role: .destructive) { store.audio.cancel() } }.padding(metric("small"))
-                            }
-                            if store.interpretation.busy && screen != "interpret" {
-                                HStack {
-                                    Label(store.text("interpret"), systemImage: "waveform")
-                                    Text(store.text(store.interpretation.listening || store.interpretation.starting ? "record" : "running")).foregroundStyle(.secondary)
-                                    Spacer()
-                                    Button(store.text("open")) { select("interpret") }
-                                    Button(store.text("stop"), role: .destructive) {
-                                        if store.interpretation.listening || store.interpretation.starting { store.interpretation.stop() } else { store.interpretation.cancel() }
-                                    }
-                                }.padding(metric("small"))
-                            }
-                            }
+                            glassBanners
                             if home {
                                 HomeWorkspace(store: store, start: { feature in
                                     store.navigate(feature); store.newSession(); screen = feature.rawValue; composerFocus += 1
@@ -271,12 +288,12 @@ struct WorkbenchView: View {
                         // Deliberate native hit surface: outside click closes the temporary layer.
                         Button(action: dismissOverlay) {
                             // Nav-Overlay: the temporary pane dims the reading pane it covers (10 %).
-                            (glassNavigation && overlay == .navigation ? chromeColor("text-strong", scheme).opacity(metric("selectionOpacity")) : Color.clear)
+                            (overlay == .navigation ? chromeColor("text-strong", scheme).opacity(metric("selectionOpacity")) : Color.clear)
                                 .clipShape(RoundedRectangle(cornerRadius: metric("chromeSurfaceRadius"), style: .continuous))
-                                .padding(.leading, glassNavigation && overlay == .navigation ? navigationColumn(layout) + metric("gap") : 0)
-                                .padding([.top, .bottom], glassNavigation && overlay == .navigation ? metric("small") : 0)
-                                .padding(.top, glassNavigation && overlay == .navigation ? ShellLayout.headerHeight : 0)
-                                .padding(.trailing, glassNavigation && overlay == .navigation ? metric("gap") : 0)
+                                .padding(.leading, overlay == .navigation ? navigationColumn(layout) + metric("gap") : 0)
+                                .padding([.top, .bottom], overlay == .navigation ? metric("small") : 0)
+                                .padding(.top, overlay == .navigation ? ShellLayout.headerHeight : 0)
+                                .padding(.trailing, overlay == .navigation ? metric("gap") : 0)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity).contentShape(Rectangle())
                         }
                             .buttonStyle(.plain).accessibilityHidden(true).focusable(false)
@@ -312,17 +329,12 @@ struct WorkbenchView: View {
                         } else if overlay == .navigation {
                             // The first row stays clear for the window controls and the fixed toggle.
                             VStack(spacing: 0) {
-                                Color.clear.frame(height: glassNavigation ? ShellLayout.headerHeight : ShellLayout.titlebarHeight)
-                                    .background { if !glassNavigation { ChromeSurface() } }
+                                Color.clear.frame(height: ShellLayout.headerHeight)
                                 NativeNavigation(store: store, screen: screen, expanded: true, select: select, commands: { execute("commands") }, close: dismissOverlay)
-                                    .padding(.leading, glassNavigation ? metric("small") : 0)
-                            }.frame(width: layout.navigationOverlayWidth + (glassNavigation ? metric("small") : 0))
+                                    .padding(.leading, metric("small"))
+                            }.frame(width: layout.navigationOverlayWidth + metric("small"))
                                 .frame(maxHeight: .infinity)
-                                .background { if glassNavigation { SidebarSurface(raised: true) } }
-                                .overlay(alignment: .trailing) {
-                                    if !glassNavigation { ChromeDivider(vertical: true) }
-                                }
-                                .shadow(color: Color(nsColor: .shadowColor).opacity(glassNavigation ? 0 : metric("overlayShadowOpacity")), radius: metric("inset"), y: metric("small"))
+                                .background { SidebarSurface(raised: true) }
                                 .accessibilityIdentifier("navigation-overlay")
                         } else {
                             Group {
@@ -337,13 +349,21 @@ struct WorkbenchView: View {
                         }
                     }
                 }
-                .background { if glassNavigation { AppBackdrop() } }
+                .background { AppBackdrop() }
                 // Transient navigation/panel shadows belong below system chrome.
                 .clipped()
                 // Finder rule: the toggle keeps one window position whichever column is beneath it.
                 .overlay(alignment: .topLeading) { navigationToggle(layout).padding(.leading, Self.toggleLeading).frame(height: ShellLayout.headerHeight) }
-                // Feedback for whole actions (Undo, export/backup errors) sits at the bottom-right corner.
-                .overlay(alignment: .bottomTrailing) { ToastStack(store: store).padding(metric("inset")) }
+                // Keep action feedback just below the header's Activity button.
+                .overlay(alignment: .topTrailing) { ToastStack(store: store).padding(.top, ShellLayout.headerHeight + metric("small")).padding(.trailing, metric("inset")) }
+                // Interpretation keeps running on other screens, so its one-off failures are announced here.
+                // Each failure is announced, also when it repeats the previous error.
+                .onChange(of: store.interpretation.failures) { _, _ in
+                    if let error = store.interpretation.error, !InterpretationWorkspace.persistentError(error) { ToastCenter.shared.show(store.text(error), key: "interpret-error", level: .danger) }
+                }
+                .onChange(of: store.interpretation.error) { _, error in
+                    if error.map(InterpretationWorkspace.persistentError) ?? true { ToastCenter.shared.dismiss(key: "interpret-error") }
+                }
             }
             .onAppear { compact = layout.compact }
             .onChange(of: layout.compact) { _, value in compact = value; if shell.overlay == .navigation { shell.dismiss() } }
@@ -369,10 +389,8 @@ struct WorkbenchView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { notification in
             if let source = notification.object as? NSWindow, source === window { store.interpretation.cancel(); store.audio.cancel(); store.thermalMonitor.stop() }
         }
-        // Glass: the update prompt is a blocking dialog centred in the window (UpdateSheet board).
-        .sheet(isPresented: Binding(get: { store.updatePrompt != nil && !glassNavigation }, set: { if !$0 { store.dismissUpdatePrompt() } })) { UpdatePrompt(store: store) }
         .overlay {
-            if glassNavigation && store.updatePrompt != nil {
+            if store.updatePrompt != nil {
                 BlockingDialog(title: store.text("updateTitle"), width: metric("dialog") - metric("large"), onCancel: { store.dismissUpdatePrompt() }) { UpdatePrompt(store: store) }
             }
         }
@@ -416,7 +434,6 @@ struct WorkbenchView: View {
     private static var toggleTrailing: CGFloat { toggleLeading + metric("control") }
     private func sidebarTop(_ layout: ShellLayout) -> some View {
         Color.clear.frame(height: ShellLayout.headerHeight)
-            .background { if !glassNavigation { ChromeSurface() } }
             .overlay { WindowDragRegion(alignsWindowControls: true) }
     }
     private func header(_ layout: ShellLayout) -> some View {
@@ -428,17 +445,17 @@ struct WorkbenchView: View {
                 }
                     .frame(width: metric("control"), height: metric("control"))
             }
-            breadcrumb(leafOnly: glassNavigation && layout.width < metric("reading")).frame(maxWidth: .infinity, alignment: .leading).help(title)
+            breadcrumb(leafOnly: layout.width < metric("reading")).frame(maxWidth: .infinity, alignment: .leading).help(title)
             HStack(spacing: metric("small")) {
                 if screen == "settings" {
                     SearchBox(query: $shell.settingsQuery, label: store.text("settingsSearch"), cancel: { shell.settingsQuery = "" }, autofocus: false, compact: true)
                         .frame(width: metric("sidebar"))
                     // Settings boards: the same hairline before Activity as on feature pages.
-                    if glassNavigation { ChromeDivider(vertical: true).frame(height: separatorHeight) }
+                    ChromeDivider(vertical: true).frame(height: separatorHeight)
                 }
                 if workspacePage && store.moduleEnabled("utilities") {
                     ShellToolbarButton(label: store.text("launcher"), symbol: "command", identifier: "launcher-open", showsLabel: !layout.compact, glass: true, enabled: !store.loadBlocked) { store.desktopIntegration.onAction?("launcher") }
-                    if glassNavigation { ChromeDivider(vertical: true).frame(height: separatorHeight) }
+                    ChromeDivider(vertical: true).frame(height: separatorHeight)
                 }
                 if screen == "interpret" {
                     ShellToolbarButton(label: store.text("summarizeShort"), symbol: "sparkles", identifier: "interpret-summarize", showsLabel: !layout.compact, glass: true, enabled: !store.interpretation.busy && !(store.interpretation.current?.segments.isEmpty ?? true)) { store.interpretation.summarize(kind: "summary") }
@@ -462,23 +479,16 @@ struct WorkbenchView: View {
                 }
                 let running = store.workspace.tasks.filter { $0.status == .running }.count + (store.interpretation.busy ? 1 : 0)
                 ShellToolbarButton(label: store.text("activity"), symbol: "waveform.path.ecg", identifier: "activity-toggle", showsLabel: !layout.compact, glass: true, expanded: shell.overlay == .activity, hint: "⌘⇧A", count: running, countBadge: true, focusEpoch: shell.focusEpochs["activity", default: 0]) { execute("activity") }
-                    .overlay(alignment: .topTrailing) { if glassNavigation && running > 0 { RunningBadge(count: running).offset(x: metric("tight"), y: -metric("tight")) } }
+                    .overlay(alignment: .topTrailing) { if running > 0 { RunningBadge(count: running).offset(x: metric("tight"), y: -metric("tight")) } }
             }.fixedSize(horizontal: true, vertical: false).frame(height: metric("control")).layoutPriority(1)
                 .padding(.trailing, metric("inset"))
-        }.padding(.leading, glassNavigation
-                  // Breadcrumb at the reading pane's edge + inset; on the rail it clears the toggle by `gap`.
-                  ? max(metric("gap") + metric("inset"), Self.toggleTrailing + metric("gap") - navigationColumn(layout))
-                  : max(metric("gutter"), Self.toggleTrailing + metric("small") - layout.navigationWidth - metric("hairline")))
+        }.padding(.leading, max(metric("gap") + metric("inset"), Self.toggleTrailing + metric("gap") - navigationColumn(layout)))
             .frame(height: ShellLayout.headerHeight)
             .foregroundStyle(chromeColor("text-strong", scheme))
             .background {
                 Group {
                     // Glass: the header row is part of the lit scene, no band.
-                    if glassNavigation {
-                        Color.clear
-                    } else {
-                        contentColor("surface", scheme).overlay(chromeColor("titlebar-material", scheme))
-                    }
+                    Color.clear
                 }.overlay { WindowDragRegion() }
             }
             .accessibilityElement(children: .contain)
@@ -493,7 +503,7 @@ struct WorkbenchView: View {
             // `.crumb`: muted parent, quiet slash, strong current page.
             HStack(spacing: metric("small")) {
                 Text(crumb.parent).foregroundStyle(chromeColor("text-muted", scheme)).layoutPriority(1)
-                Text("/").foregroundStyle(chromeColor(glassNavigation ? "text-muted" : "text-soft", scheme)).accessibilityHidden(true)
+                Text("/").foregroundStyle(chromeColor("text-muted", scheme)).accessibilityHidden(true)
                 Text(crumb.leaf).fontWeight(.semibold).foregroundStyle(chromeColor("text-strong", scheme)).truncationMode(.tail)
             }.lineLimit(1).accessibilityElement(children: .combine).accessibilityAddTraits(.isHeader)
         } else {
@@ -501,10 +511,10 @@ struct WorkbenchView: View {
         }
     }
     /// Parent and current page of a two-level title. Glass also splits feature
-    /// titles ("AI Chat / session"); other presets keep the single strong title.
+    /// titles ("AI Chat / session").
     private var crumbParts: (parent: String, leaf: String)? {
         if workspacePage { return (store.text("workspace"), store.text(screen)) }
-        guard glassNavigation, let split = title.range(of: " / ") else { return nil }
+        guard let split = title.range(of: " / ") else { return nil }
         return (String(title[..<split.lowerBound]), String(title[split.upperBound...]))
     }
     // Shell-States: notices stack under the header inside the reading pane, each a
@@ -528,6 +538,8 @@ struct WorkbenchView: View {
                         let seconds = max(0, Int(context.date.timeIntervalSince1970 - started))
                         StatusBadge(text: store.text("recordingElapsed").replacingOccurrences(of: "{time}", with: String(format: "%02d:%02d", seconds / 60, seconds % 60)), tone: .busy)
                     }
+                    // Says where the recording goes, once, instead of reading the counter every second.
+                    .accessibilityElement().accessibilityLabel(store.text("recordingDraftHint"))
                 } else { StatusBadge(text: store.text(store.audio.recordingOwner != nil ? "record" : "running"), tone: .busy) }
                 Spacer(minLength: metric("small"))
                 Button(store.text("stop"), systemImage: "stop.fill", role: .destructive) { store.audio.cancel() }
@@ -555,14 +567,6 @@ struct WorkbenchView: View {
         let time = seconds >= 3600 ? String(format: "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60) : String(format: "%02d:%02d", seconds / 60, seconds % 60)
         return store.text("listeningFor").replacingOccurrences(of: "{time}", with: time)
     }
-    private func storageMessage(_ key: String) -> some View {
-        Label(store.text(key), systemImage: "exclamationmark.triangle.fill")
-            .foregroundStyle(contentColor("danger", scheme)).fixedSize(horizontal: false, vertical: true)
-    }
-    private var retryStorage: some View {
-        NativePanelButton(label: store.text(store.loadBlocked ? "retryLoad" : "retrySave"),
-                          identifier: "storage-retry", role: .primary) { store.loadBlocked ? store.reload() : store.save() }
-    }
 }
 
 struct ModelPicker: View {
@@ -579,8 +583,7 @@ struct ModelPicker: View {
     @Environment(\.colorScheme) private var scheme
     var body: some View { compactMenu }
     /// Language pages on Glass read like the composer chip: "✦ Haiku 5.5 ⌄" (Translate board).
-    private var glassBadge: Bool { badge && (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
-    private var sparkleChip: Bool { (glassChat || glassBadge) && !iconOnly }
+    private var sparkleChip: Bool { (glassChat || badge) && !iconOnly }
     @Environment(\.shellLayer) private var shellLayer
     // The chip: short name (the full ID in help and the accessibility label); it opens the shell's
     // model panel anchored to itself, so the picker is a quiet layer of the app, not a system menu.
@@ -589,7 +592,7 @@ struct ModelPicker: View {
             if modelUnavailable(store.session.model, store: store) { StatusDot(tone: .failed) }
             // Glass composer chip (`✦ Haiku 5.5 ⌄`): an accent sparkle drawn over the
             // control's leading room, the chevron after the name.
-            ShellToolbarButton(label: ((store.session.reasoningEffort == "high" || (store.session.reasoningEffort == nil && store.session.carefulReasoning == true)) ? store.text("tierCareful") + " · " : "") + ModelLineup.shortName(store.session.model), symbol: iconOnly ? "sparkles" : badge && !glassBadge ? "sparkles" : "chevron.down", identifier: "model-toggle", showsLabel: !iconOnly, glass: !glassChat, quiet: true, small: (dense || badge) && !glassChat,
+            ShellToolbarButton(label: ((store.session.reasoningEffort == "high" || (store.session.reasoningEffort == nil && store.session.carefulReasoning == true)) ? store.text("tierCareful") + " · " : "") + ModelLineup.shortName(store.session.model), symbol: iconOnly ? "sparkles" : "chevron.down", identifier: "model-toggle", showsLabel: !iconOnly, glass: !glassChat, quiet: true, small: (dense || badge) && !glassChat,
                                expanded: shellLayer == .models, hint: store.session.model,
                                trailingSymbol: sparkleChip, leadingRoom: sparkleChip ? metric("inset") + metric("tight") : 0, enabled: !store.loadingModels,
                                frameAction: { frame in NotificationCenter.default.post(name: .viezanOpenModels, object: NSValue(rect: frame)) }) {}
@@ -602,17 +605,10 @@ struct ModelPicker: View {
                 .frame(maxWidth: glassChat && !iconOnly ? metric("compactSidebar") : nil)
                 .frame(width: iconOnly ? metric("compactControl") : nil)
                 .frame(height: metric(glassChat ? "control" : dense || badge ? "compactControl" : "control"))
-                .accessibilityLabel(store.text("model") + ": " + store.session.model + (modelUnavailable(store.session.model, store: store) ? ", " + store.text("unavailable") : ""))
+                .accessibilityLabel(store.text("model") + ": " + ((store.session.reasoningEffort == "high" || (store.session.reasoningEffort == nil && store.session.carefulReasoning == true)) ? store.text("tierCareful") + " · " : "") + ModelLineup.shortName(store.session.model) + " · " + store.session.model + (modelUnavailable(store.session.model, store: store) ? ", " + store.text("unavailable") : ""))
             if store.loadingModels { ProgressView().controlSize(.small) }
             if let error = store.modelError { Image(systemName: "exclamationmark.triangle").foregroundStyle(.secondary).help(store.text(error)).accessibilityLabel(store.text(error)) }
         }
-    }
-}
-
-// Chevron before the model label, matching the composer's model control.
-struct ModelMenuLabelStyle: LabelStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: metric("small")) { configuration.icon.imageScale(.small); configuration.title.lineLimit(1) }
     }
 }
 

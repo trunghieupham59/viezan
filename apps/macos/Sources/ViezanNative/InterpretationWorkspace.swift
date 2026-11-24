@@ -4,13 +4,14 @@ import UniformTypeIdentifiers
 import ViezanDomain
 
 struct InterpretationWorkspace: View {
+    static func persistentError(_ key: String) -> Bool { key == "interpretStorageError" || key == "microphoneDenied" }
     let store: WorkbenchStore
     @State private var setupOpen = false
-    @State private var historyOpen = false
     @State private var historyQuery = ""
     @State private var historyHighlight: String?
     @State private var showOriginal = true
     @State private var summaryTab = "summary"
+    @State private var summaryCollapsed = false
     @State private var captureMode = "microphone"
     /// Read on appear, after a start is refused, and on "Kiểm tra lại" (macOS does not notify changes).
     @State private var microphone = MicrophonePermission.status
@@ -26,7 +27,6 @@ struct InterpretationWorkspace: View {
     /// Glass: the open floating layer (source, target, setup, analyses, export, history).
     @State private var layer: String?
     @Environment(\.colorScheme) private var scheme
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     private func toggle(_ id: String) { layer = layer == id ? nil : id }
     private var live: Interpretation { store.interpretation }
     private var modelChoices: [String] { (store.availableModels + [model]).filter { !$0.isEmpty }.reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } } }
@@ -40,53 +40,49 @@ struct InterpretationWorkspace: View {
     }
     private func openHistory() {
         guard let id = historyHighlight, historyRecords.contains(where: { $0.id == id }) else { return }
-        live.select(id); historyOpen = false
+        live.select(id)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: metric(glass ? "gap" : "inset")) {
+        VStack(alignment: .leading, spacing: metric("gap")) {
             languageRow
-            if !glass { Divider() }
             ProviderNotice(store: store, model: model) { model = $0 }
             SpeechProviderNotice(store: store)
             sessionBar
-            if glass { CardDivider() }
-            else if live.listening { ProgressView(value: live.level).progressViewStyle(.linear).accessibilityLabel(store.text("inputLevel")) }
+            CardDivider()
             if live.busy && !live.listening { ProgressView(store.text("running")).controlSize(.small) }
-            if let error = live.error {
-                if glass {
-                    // Interpret-States: storage and capture failures read as a soft danger band in the page.
-                    NoticeBand(role: "danger", edge: false) {
-                        Image(systemName: "exclamationmark.triangle").foregroundStyle(contentColor("danger", scheme)).accessibilityHidden(true)
-                        Text(store.text(error)).foregroundStyle(contentColor("text-strong", scheme)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                        if live.storageBlocked {
-                            Spacer(minLength: metric("small"))
-                            // Interpret-States: reading the history store again; nothing is overwritten.
-                            Button(store.text("retry")) { live.reload() }.buttonStyle(.vznOutline).controlSize(.small).fixedSize().disabled(live.busy)
-                                .accessibilityIdentifier("interpret-storage-retry")
-                        }
+            if let error = live.error, Self.persistentError(error) {
+                // A blocked store or a missing permission holds until fixed, so it stays in the page;
+                // one failed capture or summary is a toast (shown by the shell, whichever screen is open).
+                NoticeBand(role: "danger", edge: false) {
+                    Image(systemName: "exclamationmark.triangle").foregroundStyle(contentColor("danger", scheme)).accessibilityHidden(true)
+                    Text(store.text(error)).foregroundStyle(contentColor("text-strong", scheme)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+                    if live.storageBlocked {
+                        Spacer(minLength: metric("small"))
+                        // Interpret-States: reading the history store again; nothing is overwritten.
+                        Button(store.text("retry")) { live.reload() }.buttonStyle(.vznOutline).controlSize(.small).fixedSize().disabled(live.busy)
+                            .accessibilityIdentifier("interpret-storage-retry")
                     }
-                } else { Label(store.text(error), systemImage: "exclamationmark.triangle").foregroundStyle(contentColor("danger", scheme)).textSelection(.enabled) }
+                }
             }
             // Review 18: the transcript keeps the reading column; a session panel sits beside it when there is room.
             GeometryReader { geometry in
-                let panelWidth = glass ? metric("sidebar") + metric("large") + metric("gap") : metric("sidebar")
+                let panelWidth = metric("sidebar") + metric("large") + metric("gap")
                 HStack(alignment: .top, spacing: metric("gutter")) {
                     transcriptArea
                     // Glass: the panel joins once the transcript keeps reading - editor (Interpret board at 1280).
-                    if geometry.size.width >= (glass ? metric("reading") - metric("editor") + metric("gutter") + panelWidth : metric("reading") + metric("sidebar")) { sessionPanel.frame(width: panelWidth) }
+                    if geometry.size.width >= (metric("reading") - metric("editor") + metric("gutter") + panelWidth) { sessionPanel.frame(width: panelWidth) }
                 }
             }
         }
-        .padding(.horizontal, glass ? metric("gutter") - metric("tight") : metric("large") + metric("gap")).padding(.vertical, metric("inset"))
+        .padding(.horizontal, metric("gutter") - metric("tight")).padding(.vertical, metric("inset"))
         // History opens from the header's History control (Review 18).
         .overlay(alignment: .topTrailing) {
             Color.clear.frame(width: metric("hairline"), height: metric("hairline")).layerAnchor("history-head")
-                .popover(isPresented: Binding(get: { historyOpen && !glass }, set: { historyOpen = $0 }), arrowEdge: .top) { historyPanel }
         }
         .onReceive(NotificationCenter.default.publisher(for: .viezanInterpretHistory)) { _ in
             guard !live.busy else { return }
-            if glass { toggle("history-head") } else { historyOpen.toggle() }
+            toggle("history-head")
         }
         .floatingLayers($layer, trailing: { !["source", "target", "setup"].contains($0) }) { id, _, height in layerPanel(id, height: height) }
         // The subtitle panel's own close button must not leave a stale reference behind.
@@ -116,24 +112,21 @@ struct InterpretationWorkspace: View {
             .frame(maxWidth: .infinity).accessibilityElement(children: .contain).accessibilityIdentifier("interpret-microphone")
     }
     private var transcriptArea: some View {
-        VStack(alignment: .leading, spacing: metric(glass ? "small" : "inset")) {
+        VStack(alignment: .leading, spacing: metric("small")) {
             // Interpret-Summary board: the analyses card opens the transcript column.
-            if glass, let current = live.current, live.summarizing || !summaryKinds(current).isEmpty { summaryCard(current).padding(.bottom, metric("small")) }
+            if let current = live.current, live.summarizing || !summaryKinds(current).isEmpty { summaryCard(current).padding(.bottom, metric("small")) }
             transcriptBar
-            if glass { CardDivider() } else { Divider() }
+            CardDivider()
             ScrollViewReader { proxy in
                 let segments = live.current?.segments ?? []
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         if segments.isEmpty {
-                            if glass, captureMode != "system", microphone == "denied" || live.error == "microphoneDenied" {
+                            if captureMode != "system", microphone == "denied" || live.error == "microphoneDenied" {
                                 microphoneCard.padding(.top, metric("large") * 2)
-                            } else if glass {
+                            } else {
                                 GlassEmptyState(symbol: "waveform", tone: "tone-green", title: store.text("interpretEmpty"), hint: store.text("interpretEmptyHint"))
                                     .padding(.top, metric("large") * 3)
-                            } else {
-                                ContentUnavailableView(store.text("interpretEmpty"), systemImage: "waveform", description: Text(store.text("interpretEmptyHint")))
-                                    .frame(maxWidth: .infinity).padding(.top, metric("large"))
                             }
                         }
                         ForEach(segments) { segment in segmentRow(segment).id(segment.id) }
@@ -141,8 +134,7 @@ struct InterpretationWorkspace: View {
                             HStack(spacing: metric("small")) { StatusDot(tone: .ready); Text(store.text("listening") + "…") }
                                 .font(.vzn("smallScale")).foregroundStyle(.secondary).padding(.vertical, metric("inset")).id("listening-tail")
                         }
-                        if !glass, let current = live.current, live.summarizing || !summaryKinds(current).isEmpty { summaryCard(current).padding(.vertical, metric("inset")) }
-                    }.frame(maxWidth: glass ? .infinity : metric("reading"), alignment: .leading).frame(maxWidth: .infinity)
+                    }.frame(maxWidth: .infinity, alignment: .leading).frame(maxWidth: .infinity)
                 }
                 .onScrollGeometryChange(for: Bool.self) { geometry in
                     geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - metric("inset")
@@ -174,12 +166,11 @@ struct InterpretationWorkspace: View {
     private func summaryKinds(_ session: InterpretationSession) -> [String] { Self.summaryOrder.filter { !summaryText(session, $0).isEmpty } }
     // The four analyses in one card with tabs; each can be copied or run again.
     @ViewBuilder private func summaryCard(_ session: InterpretationSession) -> some View {
-        if glass { glassSummaryCard(session) } else { classicSummaryCard(session) }
+        glassSummaryCard(session)
     }
     // `✦ Tổng hợp` + tabs + Copy / Regenerate in the head, the text below, flat card.
     private func glassSummaryCard(_ session: InterpretationSession) -> some View {
-        let kinds = summaryKinds(session)
-        let tab = kinds.contains(summaryTab) ? summaryTab : (kinds.first ?? "summary")
+        let tab = Self.summaryOrder.contains(summaryTab) ? summaryTab : "summary"
         let text = summaryText(session, tab)
         return VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: metric("small")) {
@@ -191,39 +182,30 @@ struct InterpretationWorkspace: View {
                         Button(store.text("cancel"), role: .destructive) { live.cancelSummary() }.buttonStyle(.vznQuiet)
                     } else {
                         CopyResponseButton(text: text, label: store.text("copy"), copiedLabel: store.text("copied")).disabled(text.isEmpty)
-                        Button(store.text("quickRegenerate"), systemImage: "arrow.clockwise") { live.summarize(kind: tab) }.buttonStyle(.vznQuiet).disabled(live.busy)
+                        Button(store.text(text.isEmpty ? "summarize" : "quickRegenerate"), systemImage: text.isEmpty ? "sparkles" : "arrow.clockwise") { live.summarize(kind: tab) }.buttonStyle(.vznQuiet).disabled(live.busy)
                     }
                 }
+                // Collapsing leaves the head row, so the transcript gets the whole column back.
+                Button { summaryCollapsed.toggle() } label: { Image(systemName: summaryCollapsed ? "chevron.down" : "chevron.up") }.buttonStyle(.vznQuiet)
+                    .help(store.text(summaryCollapsed ? "interpretSummaryExpand" : "interpretSummaryCollapse")).accessibilityLabel(store.text(summaryCollapsed ? "interpretSummaryExpand" : "interpretSummaryCollapse")).accessibilityIdentifier("interpret-summary-toggle")
             }.padding(.horizontal, metric("inset")).padding(.vertical, metric("small"))
-            CardDivider()
-            Group {
-                if text.isEmpty { Text(store.text(live.summarizing ? "summarizing" : "interpretEmptyHint")).foregroundStyle(contentColor("text-muted", scheme)) }
-                else { Text(text).font(readingFont(store)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
-            }.frame(maxWidth: .infinity, alignment: .leading).padding(metric("inset"))
-        }.cardSurface(padded: false).accessibilityIdentifier("interpret-summary")
-    }
-    private func classicSummaryCard(_ session: InterpretationSession) -> some View {
-        let kinds = summaryKinds(session)
-        let tab = kinds.contains(summaryTab) ? summaryTab : (kinds.first ?? "summary")
-        let text = summaryText(session, tab)
-        return CardSection(title: store.text("summaryTitle")) {
-            InterpretationSummaryToolbar(label: store.text("summaryTitle"),
-                                         tabs: Self.summaryOrder.map { ($0, store.text("interpret_" + $0)) },
-                                         selection: $summaryTab) {
-                if live.summarizing {
-                    ProgressView().controlSize(.small); Text(store.text("summarizing")).font(.vzn("smallScale")).foregroundStyle(.secondary)
-                    Button(store.text("cancel"), role: .destructive) { live.cancelSummary() }.buttonStyle(.vznOutline)
-                } else {
-                    CopyResponseButton(text: text, label: store.text("copy"), copiedLabel: store.text("copied")).disabled(text.isEmpty)
-                    Button(store.text("quickRegenerate"), systemImage: "arrow.clockwise") { live.summarize(kind: tab) }.buttonStyle(.vznQuiet).disabled(live.busy)
+            if !summaryCollapsed {
+                CardDivider()
+                // A long analysis scrolls inside the card, so the transcript below keeps its share of the column.
+                ViewThatFits(in: .vertical) {
+                    glassSummaryBody(text, tab: tab)
+                    ScrollView { glassSummaryBody(text, tab: tab) }
                 }
             }
-            if text.isEmpty {
-                Text(store.text("interpretEmptyHint")).foregroundStyle(.secondary)
-            } else {
-                Text(text).font(readingFont(store)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }.accessibilityIdentifier("interpret-summary")
+        }.cardSurface(padded: false).accessibilityIdentifier("interpret-summary")
+            .onChange(of: summaryTab) { _, _ in summaryCollapsed = false }
+            .onChange(of: live.summarizing) { _, running in if running { summaryCollapsed = false } }
+    }
+    private func glassSummaryBody(_ text: String, tab: String) -> some View {
+        Group {
+            if text.isEmpty { Text(store.text(live.summarizing ? "summarizing" : "noContent")).foregroundStyle(contentColor("text-muted", scheme)) }
+            else { TranscriptText(text: text, font: readingNSFont(store), label: store.text("interpret_" + tab), markdown: !live.summarizing, resetSelection: 0) { _ in } }
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(metric("inset"))
     }
     private var words: Int { (live.current?.segments ?? []).reduce(0) { $0 + $1.original.split(whereSeparator: { $0.isWhitespace }).count } }
     private var speakerCounts: [(String, Int)] {
@@ -255,7 +237,7 @@ struct InterpretationWorkspace: View {
                             }
                         }
                     }
-                    Button { live.summarize(kind: "summary") } label: { Label(store.text("summarize"), systemImage: "sparkles").frame(maxWidth: glass ? .infinity : nil) }.buttonStyle(.vznPrimary)
+                    Button { summaryTab = "summary"; live.summarize(kind: "summary") } label: { Label(store.text("summarize"), systemImage: "sparkles").frame(maxWidth: .infinity) }.buttonStyle(.vznPrimary)
                         .disabled(live.busy || current.segments.isEmpty).padding(.top, metric("small")).accessibilityIdentifier("interpret-panel-summarize")
                 } else {
                     Text(store.text("interpretEmptyHint")).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -264,13 +246,13 @@ struct InterpretationWorkspace: View {
             CardSection(title: store.text("yourTranscript")) {
                 Text(store.text("transcriptSavedHint")).font(.vzn("smallScale")).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: metric("small")) {
-                    Button { export(srt: false) } label: { Label("TXT", systemImage: "square.and.arrow.down").frame(maxWidth: glass ? .infinity : nil) }.buttonStyle(.vznOutline)
-                    Button { export(srt: true) } label: { Label("SRT", systemImage: "square.and.arrow.down").frame(maxWidth: glass ? .infinity : nil) }.buttonStyle(.vznOutline)
+                    Button { export(srt: false) } label: { Label("TXT", systemImage: "square.and.arrow.down").frame(maxWidth: .infinity) }.buttonStyle(.vznOutline)
+                    Button { export(srt: true) } label: { Label("SRT", systemImage: "square.and.arrow.down").frame(maxWidth: .infinity) }.buttonStyle(.vznOutline)
                 }.disabled(live.current?.segments.isEmpty != false)
             }
-            Button { if glass { toggle("history") } else { historyOpen = true } } label: {
-                Label(store.text("previousSessions"), systemImage: "clock").frame(maxWidth: glass ? .infinity : nil)
-            }.buttonStyle(.vznOutline).disabled(live.busy).layerAnchor("history")
+            Button { toggle("history") } label: {
+                Label(store.text("previousSessions"), systemImage: "clock").frame(maxWidth: .infinity)
+            }.buttonStyle(.vznOutline).disabled(live.busy).layerAnchor("history").accessibilityAddTraits(layer == "history" ? .isSelected : [])
                 .accessibilityIdentifier("interpret-previous-sessions")
         }
     }
@@ -297,18 +279,11 @@ struct InterpretationWorkspace: View {
     }
     private var languageRow: some View {
         HStack(spacing: metric("inset")) {
-            NativeFlow(spacing: metric(glass ? "small" : "inset")) {
-                if glass {
-                    LanguagePill(store: store, role: store.text("inputLanguage"), code: source, open: layer == "source") { toggle("source") }.disabled(live.busy).layerAnchor("source")
-                    Button { let previous = source; source = target; target = previous } label: { Image(systemName: "arrow.left.arrow.right").foregroundStyle(contentColor("text-muted", scheme)) }
-                        .buttonStyle(.vznOutline).disabled(live.busy || source == "auto").help(store.text("swap")).accessibilityLabel(store.text("swap"))
-                    LanguagePill(store: store, role: store.text("outputLanguage"), code: target, open: layer == "target") { toggle("target") }.disabled(live.busy).layerAnchor("target")
-                } else {
-                LanguageMenu(store: store, label: store.text("inputLanguage"), codes: ["auto"] + nativeResources.nativeLanguages, selection: source, choose: { source = $0 }, disabled: live.busy)
-                Button { let previous = source; source = target; target = previous } label: { Image(systemName: "arrow.left.arrow.right") }
-                    .buttonStyle(.vznQuiet).tint(.primary).disabled(live.busy || source == "auto").help(store.text("swap")).accessibilityLabel(store.text("swap"))
-                LanguageMenu(store: store, label: store.text("outputLanguage"), codes: nativeResources.nativeLanguages, selection: target, choose: { target = $0 }, disabled: live.busy)
-                }
+            NativeFlow(spacing: metric("small")) {
+                LanguagePill(store: store, role: store.text("inputLanguage"), code: source, open: layer == "source") { toggle("source") }.disabled(live.busy).layerAnchor("source").accessibilityAddTraits(layer == "source" ? .isSelected : [])
+                Button { let previous = source; source = target; target = previous } label: { Image(systemName: "arrow.left.arrow.right").foregroundStyle(contentColor("text-muted", scheme)) }
+                    .buttonStyle(.vznOutline).disabled(live.busy || source == "auto").help(store.text("swap")).accessibilityLabel(store.text("swap"))
+                LanguagePill(store: store, role: store.text("outputLanguage"), code: target, open: layer == "target") { toggle("target") }.disabled(live.busy).layerAnchor("target").accessibilityAddTraits(layer == "target" ? .isSelected : [])
             }
             Spacer(minLength: metric("small"))
             // Real model IDs from provider discovery; the chip opens the list, not a free-text field.
@@ -319,22 +294,20 @@ struct InterpretationWorkspace: View {
                 Divider()
                 Button(store.text("recordingOptions")) { setupOpen = true }
             } label: {
-                if glass {
-                    // `✦ Haiku 5.5 ⌄` on a glass pill, like the other language pages' model chip.
-                    HStack(spacing: metric("small") - metric("hairline") * 2) {
-                        if modelUnavailable(model, store: store) { StatusDot(tone: .failed) } else { Image(systemName: "sparkles").imageScale(.small).foregroundStyle(contentColor("action", scheme)) }
-                        Text(model.isEmpty ? store.text("modelID") : ModelLineup.shortName(model)).foregroundStyle(contentColor("text-strong", scheme))
-                        Image(systemName: "chevron.down").imageScale(.small).foregroundStyle(contentColor("text-soft", scheme))
-                    }.lineLimit(1)
-                } else { ModelBadgeLabel(text: model.isEmpty ? store.text("modelID") : nativeModelLabel(model, store: store), offline: modelUnavailable(model, store: store)) }
+                // `✦ Haiku 5.5 ⌄` on a glass pill, like the other language pages' model chip.
+                HStack(spacing: metric("small") - metric("hairline") * 2) {
+                    if modelUnavailable(model, store: store) { StatusDot(tone: .failed) } else { Image(systemName: "sparkles").imageScale(.small).foregroundStyle(contentColor("action", scheme)) }
+                    Text(model.isEmpty ? store.text("modelID") : ModelLineup.shortName(model)).foregroundStyle(contentColor("text-strong", scheme))
+                    Image(systemName: "chevron.down").imageScale(.small).foregroundStyle(contentColor("text-soft", scheme))
+                }.lineLimit(1)
             }
-                .menuStyle(.button).buttonStyle(VznButtonStyle(kind: glass ? .outline : .quiet)).menuIndicator(.hidden).fixedSize().foregroundStyle(.secondary).help(model).disabled(live.busy)
+                .menuStyle(.button).buttonStyle(VznButtonStyle(kind: .outline)).menuIndicator(.hidden).fixedSize().foregroundStyle(.secondary).help(model).disabled(live.busy)
                 .accessibilityLabel(store.text("model") + ": " + model)
         }
     }
     // Session state, source and the single start/stop action.
     @ViewBuilder private var sessionBar: some View {
-        if glass { glassSessionBar } else { classicSessionBar }
+        glassSessionBar
     }
     // Interpret board: state chip with time, the capture source, a 7-bar level meter,
     // then Floating subtitles and the single Start / Stop action.
@@ -356,7 +329,7 @@ struct InterpretationWorkspace: View {
                     Text(store.text("capture_" + captureMode))
                     Image(systemName: "chevron.down").imageScale(.small).foregroundStyle(contentColor("text-soft", scheme))
                 }
-            }.buttonStyle(.vznQuiet).fixedSize().layerAnchor("setup")
+            }.buttonStyle(.vznQuiet).fixedSize().layerAnchor("setup").accessibilityAddTraits(layer == "setup" ? .isSelected : [])
                 .help(store.text("captureOptions")).accessibilityLabel(store.text("captureOptions") + ": " + store.text("capture_" + captureMode))
             if live.listening { LevelMeter(level: live.level).accessibilityLabel(store.text("inputLevel")) }
             Spacer(minLength: metric("small"))
@@ -375,94 +348,36 @@ struct InterpretationWorkspace: View {
             }
         }
     }
-    private var classicSessionBar: some View {
-        HStack(spacing: metric("inset")) {
-            if running {
-                // Elapsed time ticks beside the state so a long session reads as alive.
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    StatusBadge(text: live.listening ? store.text("listeningFor").replacingOccurrences(of: "{time}", with: elapsed(context.date)) : store.text("listening"), tone: .ready)
-                }.accessibilityIdentifier("interpret-elapsed")
-            }
-            Button { setupOpen.toggle() } label: { Label(store.text("capture_" + captureMode), systemImage: captureMode == "system" ? "speaker.wave.2" : "mic") }
-                .buttonStyle(.vznQuiet).tint(.primary).help(store.text("captureOptions")).accessibilityLabel(store.text("captureOptions") + ": " + store.text("capture_" + captureMode))
-                .popover(isPresented: $setupOpen) {
-                    VStack(alignment: .leading, spacing: metric("inset")) {
-                        HStack { Text(store.text("captureOptions")).font(.vzn("labelScale", .semibold)); Spacer(); Button(store.text("close")) { setupOpen = false } }
-                        Picker(store.text("captureSource"), selection: $captureMode) { ForEach(["microphone", "system", "mixed"], id: \.self) { Text(store.text("capture_" + $0)).tag($0) } }.disabled(live.busy)
-                        Picker(store.text("captureDevice"), selection: $deviceID) {
-                            Text(store.text("voiceAutomatic")).tag("")
-                            ForEach(inputs) { Text($0.name).tag($0.id) }
-                        }.disabled(live.busy || captureMode == "system").onAppear { inputs = SystemAudioCapture.inputs }
-                    }.padding(metric("inset")).frame(width: metric("sidebar") + metric("editor"))
-                }
-            Spacer(minLength: metric("small"))
-            Button(store.text("subtitles"), systemImage: "captions.bubble") { toggleSubtitles() }.buttonStyle(.vznQuiet).tint(.primary)
-            if running {
-                Button(store.text("stop"), systemImage: "stop.fill", role: .destructive) { live.stop() }.buttonStyle(.vznOutline).controlSize(.large)
-            } else {
-                Button(store.text("startInterpretation"), systemImage: "waveform") { store.audio.cancel(); Task { await live.start(model: model, provider: store.speechProvider, source: source, target: target, locale: store.workspace.locale, captureMode: captureMode, deviceID: deviceID) } }
-                    .buttonStyle(.vznPrimary)
-                    .disabled(live.busy || store.loadBlocked || live.storageBlocked || !NativeModel.valid(model) || model.hasPrefix("demo."))
-            }
-        }
-    }
     @ViewBuilder private var transcriptBar: some View {
-        if glass {
-            HStack(spacing: metric("small")) {
-                Text(store.text("transcript")).font(.system(size: NSFont.systemFontSize, weight: .semibold)).accessibilityAddTraits(.isHeader)
-                FilterTabs(label: store.text("transcriptView"), items: [(true, store.text("pairedTranscript")), (false, store.text("translationOnly"))], selection: $showOriginal)
-                Spacer(minLength: metric("small"))
-                Button { toggle("analyses") } label: { Image(systemName: "sparkles") }.buttonStyle(.vznQuiet).layerAnchor("analyses")
-                    .disabled(live.busy || live.current?.segments.isEmpty != false).help(store.text("summarize")).accessibilityLabel(store.text("summarize"))
-                if live.processing || live.summarizing { Button(store.text("cancel"), role: .destructive) { live.cancel() }.buttonStyle(.vznQuiet) }
-                Button { toggle("export") } label: {
-                    HStack(spacing: metric("small") - metric("hairline") * 2) {
-                        Image(systemName: "square.and.arrow.up"); Text(store.text("exportTranscript"))
-                        Image(systemName: "chevron.down").imageScale(.small).foregroundStyle(contentColor("text-soft", scheme))
-                    }
-                }.buttonStyle(.vznQuiet).fixedSize().layerAnchor("export").disabled(live.current?.segments.isEmpty != false)
-            }
-        } else { classicTranscriptBar }
-    }
-    private var classicTranscriptBar: some View {
         HStack(spacing: metric("small")) {
-            Text(store.text("transcript")).font(.vzn("titleScale", .semibold)).fontWeight(.semibold).accessibilityAddTraits(.isHeader)
+            Text(store.text("transcript")).font(.system(size: NSFont.systemFontSize, weight: .semibold)).accessibilityAddTraits(.isHeader)
+            FilterTabs(label: store.text("transcriptView"), items: [(true, store.text("pairedTranscript")), (false, store.text("translationOnly"))], selection: $showOriginal)
             Spacer(minLength: metric("small"))
-            FilterTabs(label: store.text("transcriptView"), items: [(true, store.text("pairedTranscript")), (false, store.text("translationOnly"))], selection: $showOriginal, accent: true)
-            Menu {
-                ForEach(["summary", "actionItems", "decisions", "speakerAnalysis"], id: \.self) { kind in
-                    Button(store.text("interpret_" + kind)) { live.summarize(kind: kind) }
+            Button { toggle("analyses") } label: { Image(systemName: "sparkles") }.buttonStyle(.vznQuiet).layerAnchor("analyses").accessibilityAddTraits(layer == "analyses" ? .isSelected : [])
+                .disabled(live.busy || live.current?.segments.isEmpty != false).help(store.text("summarize")).accessibilityLabel(store.text("summarize"))
+            if live.processing || live.summarizing { Button(store.text("cancel"), role: .destructive) { live.cancel() }.buttonStyle(.vznQuiet) }
+            Button { toggle("export") } label: {
+                HStack(spacing: metric("small") - metric("hairline") * 2) {
+                    Image(systemName: "square.and.arrow.up"); Text(store.text("exportTranscript"))
+                    Image(systemName: "chevron.down").imageScale(.small).foregroundStyle(contentColor("text-soft", scheme))
                 }
-            } label: { Image(systemName: "sparkles") }
-                .menuStyle(.button).buttonStyle(.vznQuiet).menuIndicator(.hidden).fixedSize().tint(.primary).disabled(live.busy || live.current?.segments.isEmpty != false)
-                .help(store.text("summarize")).accessibilityLabel(store.text("summarize"))
-            if live.processing || live.summarizing { Button(store.text("cancel"), role: .destructive) { live.cancel() } }
-            Menu {
-                Button(store.text("copy")) { copyText(live.export(srt: false, translatedOnly: !showOriginal), store: store) }
-                Divider()
-                Button("TXT") { export(srt: false) }
-                Button("SRT") { export(srt: true) }
-                Divider()
-                Button(store.text("stopSpeaking")) { live.playback.stopSpeaking() }
-            } label: { Label(store.text("exportTranscript"), systemImage: "square.and.arrow.down").font(.vzn("labelScale")) }
-                .menuStyle(.button).buttonStyle(.vznQuiet).menuIndicator(.hidden).fixedSize().disabled(live.current?.segments.isEmpty != false)
+            }.buttonStyle(.vznQuiet).fixedSize().layerAnchor("export").accessibilityAddTraits(layer == "export" ? .isSelected : []).disabled(live.current?.segments.isEmpty != false)
         }
     }
     private var historyPanel: some View {
         VStack(alignment: .leading, spacing: metric("inset")) {
             HStack {
-                Text(glass ? store.text("interpret") + " · " + store.text("history") : store.text("history")).font(.vzn("labelScale", .semibold))
+                Text(store.text("interpret") + " · " + store.text("history")).font(.vzn("labelScale", .semibold))
                 Spacer()
-                if glass { Button { layer = nil } label: { Image(systemName: "xmark") }.buttonStyle(.vznQuiet).help(store.text("close")).accessibilityLabel(store.text("close")) }
-                else { Button(store.text("close")) { historyOpen = false } }
+                Button { layer = nil } label: { Image(systemName: "xmark") }.buttonStyle(.vznQuiet).help(store.text("close")).accessibilityLabel(store.text("close"))
             }
-            SearchBox(query: $historyQuery, label: store.text("historySearch"), move: moveHistory, submit: openHistory, cancel: { historyOpen = false; layer = nil })
+            SearchBox(query: $historyQuery, label: store.text("historySearch"), move: moveHistory, submit: openHistory, cancel: { layer = nil })
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: metric("small")) {
                     if historyRecords.isEmpty { Text(store.text("noHistory")).foregroundStyle(.secondary) }
                     ForEach(historyRecords) { session in
                         Button {
-                            live.select(session.id); historyOpen = false; layer = nil
+                            live.select(session.id); layer = nil
                         } label: {
                             HStack(alignment: .top, spacing: metric("small")) {
                                 VStack(alignment: .leading, spacing: metric("tight")) {
@@ -471,14 +386,13 @@ struct InterpretationWorkspace: View {
                                     Text(store.text("lang_" + session.source) + " → " + store.text("lang_" + session.target) + " · " + store.text("speakerLines").replacingOccurrences(of: "{n}", with: String(session.segments.count)))
                                         .font(.vzn("captionScale")).foregroundStyle(.secondary).lineLimit(1)
                                 }.frame(maxWidth: .infinity, alignment: .leading)
-                                Button { historyOpen = false; layer = nil; deleteWithUndo(session.id) } label: { Image(systemName: "trash").foregroundStyle(glass ? contentColor("danger", scheme) : .primary) }
+                                Button { layer = nil; deleteWithUndo(session.id) } label: { Image(systemName: "trash").foregroundStyle(contentColor("danger", scheme)) }
                                     .buttonStyle(.vznQuiet).help(store.text("deleteSession")).accessibilityLabel(store.text("deleteSession"))
                             }.padding(metric("small"))
                         }.buttonStyle(.plain)
                             .background {
                                 if session.id == historyHighlight {
-                                    if glass { GlassLens(radius: metric("radius")) }
-                                    else { RoundedRectangle(cornerRadius: metric("radius")).fill(contentColor("action-soft", scheme)) }
+                                    GlassLens(radius: metric("radius"))
                                 }
                             }
                             .accessibilityAddTraits(session.id == live.selectedID ? .isSelected : [])
@@ -486,15 +400,15 @@ struct InterpretationWorkspace: View {
                 }
             }
             Divider()
-            Button(store.text("delete"), role: .destructive) { if let id = historyHighlight ?? live.selectedID { historyOpen = false; layer = nil; deleteWithUndo(id) } }.disabled(historyHighlight == nil && live.selectedID == nil)
-                .buttonStyle(VznButtonStyle(kind: glass ? .quiet : .outline))
-        }.padding(metric("inset")).frame(width: metric("sidebar") + metric("editor") + (glass ? metric("large") + metric("gap") : 0), height: metric("editor") * 3)
+            Button(store.text("delete"), role: .destructive) { if let id = historyHighlight ?? live.selectedID { layer = nil; deleteWithUndo(id) } }.disabled(historyHighlight == nil && live.selectedID == nil)
+                .buttonStyle(VznButtonStyle(kind: .quiet))
+        }.padding(metric("inset")).frame(width: metric("sidebar") + metric("editor") + (metric("large") + metric("gap")), height: metric("editor") * 3)
             .onAppear { historyHighlight = historyRecords.first(where: { $0.id == live.selectedID })?.id ?? historyRecords.first?.id }
             .onChange(of: historyQuery) { _, _ in historyHighlight = historyRecords.first?.id }
     }
     // Time and speaker lead each segment; original then translation on the right.
     @ViewBuilder private func segmentRow(_ segment: InterpretationSegment) -> some View {
-        if glass { glassSegmentRow(segment) } else { classicSegmentRow(segment) }
+        glassSegmentRow(segment)
     }
     // Mono time, then speaker, the original (13, muted) and the translation (14).
     private func glassSegmentRow(_ segment: InterpretationSegment) -> some View {
@@ -509,7 +423,7 @@ struct InterpretationWorkspace: View {
                             .textFieldStyle(.plain).font(.system(size: NSFont.systemFontSize, weight: .semibold)).foregroundStyle(contentColor("text", scheme))
                             .disabled(live.busy).accessibilityLabel(store.text("speakerName"))
                     }
-                    if showOriginal { Text(segment.original).font(.system(size: NSFont.systemFontSize)).foregroundStyle(contentColor("text-muted", scheme)).textSelection(.enabled) }
+                    if showOriginal { Text(segment.original).font(readingFont(store)).foregroundStyle(contentColor("text-muted", scheme)).textSelection(.enabled) }
                     Text(segment.translated).font(readingFont(store)).foregroundStyle(contentColor("text-strong", scheme)).textSelection(.enabled)
                     if segment.status != "succeeded" || segment.error != nil || ["failed", "interrupted", "cancelled"].contains(segment.status) {
                         HStack(spacing: metric("small")) {
@@ -526,33 +440,6 @@ struct InterpretationWorkspace: View {
                     .disabled(live.listening || live.starting || segment.translated.isEmpty)
             }.padding(.vertical, metric("gap"))
             CardDivider()
-        }
-    }
-    private func classicSegmentRow(_ segment: InterpretationSegment) -> some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .top, spacing: metric("gutter")) {
-                VStack(alignment: .leading, spacing: metric("small")) {
-                    Text(String(format: "%02d:%02d", Int(segment.start) / 60, Int(segment.start) % 60)).font(.vzn("smallScale")).monospacedDigit().foregroundStyle(.secondary)
-                    if let speaker = segment.speaker {
-                        TextField(speaker, text: Binding(get: { live.current?.speakerNameMap?[speaker] ?? speaker }, set: { live.renameSpeaker(speaker, name: $0) }))
-                            .textFieldStyle(.plain).fontWeight(.semibold).disabled(live.busy).accessibilityLabel(store.text("speakerName"))
-                    }
-                }.frame(width: metric("sidebar") / 2, alignment: .leading)
-                VStack(alignment: .leading, spacing: metric("small")) {
-                    if showOriginal { Text(segment.original).textSelection(.enabled) }
-                    Text(segment.translated).foregroundStyle(showOriginal ? .secondary : .primary).textSelection(.enabled)
-                    if segment.status != "succeeded" || segment.error != nil || ["failed", "interrupted", "cancelled"].contains(segment.status) {
-                        HStack(spacing: metric("small")) {
-                            Text(store.text(segment.error ?? segment.status)).font(.vzn("captionScale")).foregroundStyle(.secondary)
-                            if ["failed", "interrupted", "cancelled"].contains(segment.status), !segment.original.isEmpty { Button(store.text("retry")) { live.retry(segment.id) }.disabled(live.busy) }
-                        }
-                    }
-                }.font(readingFont(store)).frame(maxWidth: .infinity, alignment: .leading)
-                Button { live.playback.speak(segment.translated, language: live.current?.target ?? target) } label: { Image(systemName: "speaker.wave.2") }
-                    .buttonStyle(.vznQuiet).disabled(live.listening || live.starting || segment.translated.isEmpty)
-                    .help(store.text("speak")).accessibilityLabel(store.text("speak"))
-            }.padding(.vertical, metric("inset"))
-            Divider()
         }
     }
     @ViewBuilder private func layerPanel(_ id: String, height: CGFloat) -> some View {
@@ -613,11 +500,11 @@ struct InterpretationWorkspace: View {
     private func toggleSubtitles() {
         if let subtitle { subtitle.close(); self.subtitle = nil; return }
         // Glass (Overlays-Interpret board): a borderless dark card that the background drags.
-        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: metric("reading"), height: metric("editor") * (glass ? 1 : 2)),
-                            styleMask: glass ? [.borderless, .resizable, .nonactivatingPanel] : [.titled, .closable, .resizable, .nonactivatingPanel], backing: .buffered, defer: false)
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: metric("reading"), height: metric("editor")),
+                            styleMask: [.borderless, .resizable, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isReleasedWhenClosed = false; panel.level = .floating; panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]; panel.title = store.text("subtitles")
-        if glass { panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = true; panel.isMovableByWindowBackground = true }
-        panel.contentView = NSHostingView(rootView: InterpretationSubtitles(store: store, glass: glass, close: { [weak panel] in panel?.close() }))
+        panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = true; panel.isMovableByWindowBackground = true
+        panel.contentView = NSHostingView(rootView: InterpretationSubtitles(store: store, close: { [weak panel] in panel?.close() }))
         // Docked at the bottom of the screen, where captions are read, not in the middle of the work.
         if let screen = NSScreen.main?.visibleFrame {
             panel.setFrameOrigin(NSPoint(x: screen.midX - panel.frame.width / 2, y: screen.minY + metric("inset")))
@@ -633,11 +520,11 @@ struct InterpretationSummaryToolbar<Actions: View>: View {
     @Binding var selection: String
     @ViewBuilder var actions: Actions
     private var groupHeight: CGFloat {
-        metric("compactControl") + ((NativeTheme.shared.preferences.preset ?? "glass") == "glass" ? metric("tight") * 2 : 0)
+        metric("compactControl") + metric("tight") * 2
     }
     var body: some View {
         NativeFlow(spacing: metric("small")) {
-            FilterTabs(label: label, items: tabs, selection: $selection, accent: true)
+            FilterTabs(label: label, items: tabs, selection: $selection)
             HStack(spacing: metric("small")) { actions }
                 .fixedSize(horizontal: true, vertical: false)
                 .frame(minHeight: groupHeight)
@@ -647,10 +534,9 @@ struct InterpretationSummaryToolbar<Actions: View>: View {
 
 private struct InterpretationSubtitles: View {
     let store: WorkbenchStore
-    var glass = false
     var close: () -> Void = {}
     var body: some View {
-        if glass { card.environment(\.colorScheme, .dark) } else { classic }
+        card.environment(\.colorScheme, .dark)
     }
     // Speaker · time with Stop and Close, the original muted, the translation large.
     private var card: some View {
@@ -671,7 +557,7 @@ private struct InterpretationSubtitles: View {
                     .help(store.text("close")).accessibilityLabel(store.text("close"))
             }
             if let segment {
-                Text(segment.original).font(.system(size: NSFont.systemFontSize)).foregroundStyle(chromeColor("text-muted", .dark)).lineLimit(2)
+                Text(segment.original).font(readingFont(store)).foregroundStyle(chromeColor("text-muted", .dark)).lineLimit(2)
                 Text(segment.translated).font(.vzn("titleScale", .semibold)).foregroundStyle(chromeColor("text-strong", .dark)).lineLimit(3)
             } else {
                 Text(store.text(store.interpretation.listening ? "listening" : "interpretEmpty")).foregroundStyle(chromeColor("text-muted", .dark))
@@ -681,20 +567,6 @@ private struct InterpretationSubtitles: View {
             .background(shape.fill(chromeColor("surface-raised", .dark)))
             .overlay(shape.strokeBorder(chromeColor("border", .dark), lineWidth: metric("hairline")))
             .accessibilityElement(children: .contain).accessibilityLabel(store.text("subtitles"))
-    }
-    private var classic: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: metric("small")) {
-                if let segment = store.interpretation.current?.segments.last {
-                    if let speaker = segment.speaker {
-                                Text(store.interpretation.current?.speakerNameMap?[speaker] ?? speaker).font(.vzn("captionScale")).foregroundStyle(.secondary)
-                            }
-                            Text(segment.original).foregroundStyle(.secondary)
-                    Text(segment.translated).font(.vzn("headingScale", .semibold))
-                }
-                if store.interpretation.listening { Button(store.text("stop"), role: .destructive) { store.interpretation.stop() }.buttonStyle(.vznOutline) }
-            }.padding(metric("inset")).frame(maxWidth: .infinity, alignment: .leading)
-        }
     }
 }
 

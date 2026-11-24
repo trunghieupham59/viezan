@@ -32,9 +32,8 @@ struct ProviderSettings: View {
         return (store.text("keyPresent") + " · " + store.text("keyUnverified"), store.discovering ? .busy : .idle)
     }
     @Environment(\.colorScheme) private var scheme
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     var body: some View {
-        if glass { glassBody } else { classicBody }
+        glassBody
     }
     // Settings-Models board: one card in two groups (Cloud; Search and voice). Each row is a
     // 28 pt mark, the name with its status chip, "Get API key ↗" under it, and the key actions
@@ -92,7 +91,7 @@ struct ProviderSettings: View {
                     .buttonStyle(.vznOutline).fixedSize().disabled(busy != nil).accessibilityIdentifier("provider-key-" + id)
                 if keyed.contains(id) {
                     Button(store.text("deleteKey"), role: .destructive) {
-                        if let confirm { confirm(SettingsConfirm(title: store.text("deleteKeyConfirm"), message: name, confirm: store.text("deleteKey")) { perform(id, delete: true) }) }
+                        if let confirm { confirm(SettingsConfirm(title: store.text("deleteKey"), message: store.text("deleteNamedKeyConfirm").replacingOccurrences(of: "{name}", with: name), confirm: store.text("deleteKey")) { perform(id, delete: true) }) }
                         else { confirmDelete = id }
                     }.buttonStyle(.vznQuiet).foregroundStyle(contentColor("danger", scheme)).fixedSize().disabled(busy != nil)
                 }
@@ -118,54 +117,6 @@ struct ProviderSettings: View {
                 if keyed.contains(id) { Text(store.text("keyReplaceHint")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).fixedSize(horizontal: false, vertical: true) }
             }
         }
-    }
-    private var classicBody: some View {
-        VStack(alignment: .leading, spacing: metric("inset")) {
-            CardSection(flush: true, title: store.text("providerSettings")) {
-                ForEach(CredentialStore.providers, id: \.self) { id in
-                    CardRow(title: Self.names[id] ?? id, detail: store.text(Self.purpose(id)), divider: id != CredentialStore.providers.last) {
-                        let (text, tone) = status(id)
-                        StatusBadge(text: text, tone: tone)
-                        if busy == id { ProgressView().controlSize(.small) }
-                        if let page = Self.keyPages[id].flatMap(URL.init) {
-                            Link(destination: page) { Label(store.text("getKey"), systemImage: "arrow.up.right.square") }
-                                .buttonStyle(.vznQuiet).help(page.absoluteString).accessibilityLabel(store.text("getKey") + " · " + (Self.names[id] ?? id))
-                        }
-                        Button(store.text(keyed.contains(id) ? "replaceKey" : "addKey")) { key = ""; editing = id }
-                            .buttonStyle(.vznOutline).disabled(busy != nil).accessibilityIdentifier("provider-key-" + id)
-                            .popover(isPresented: Binding(get: { editing == id }, set: { if !$0 { editing = nil; key = "" } })) { keyEditor(id) }
-                        if keyed.contains(id) {
-                            Button(store.text("deleteKey"), role: .destructive) {
-                                // Glass: removing a key cannot be undone, so it asks in the page's centred dialog.
-                                if let confirm { confirm(SettingsConfirm(title: store.text("deleteKeyConfirm"), message: Self.names[id] ?? id, confirm: store.text("deleteKey")) { perform(id, delete: true) }) }
-                                else { confirmDelete = id }
-                            }.buttonStyle(.vznQuiet).disabled(busy != nil)
-                        }
-                    }
-                }
-            }
-            HStack(spacing: metric("inset")) {
-                Button(store.text("checkAgain")) { refreshKeys(); store.discoverProviders() }.buttonStyle(.vznOutline).disabled(store.discovering)
-                Text(store.text("keyStorageHint")).font(.vzn("captionScale")).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .confirmationDialog(store.text("deleteKeyConfirm"), isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } })) {
-            Button(store.text("deleteKey"), role: .destructive) { if let id = confirmDelete { perform(id, delete: true) }; confirmDelete = nil }
-        }
-        .onAppear(perform: refreshKeys).onDisappear { key = "" }
-    }
-    // A bounded sheet-like popover: one secret field, Save as the only primary action.
-    private func keyEditor(_ id: String) -> some View {
-        VStack(alignment: .leading, spacing: metric("gap")) {
-            Text(Self.names[id] ?? id).font(.vzn("labelScale", .semibold))
-            SecureField(store.text("apiKey"), text: $key).textFieldStyle(.roundedBorder).onSubmit { if !key.isEmpty { perform(id, delete: false) } }
-                .accessibilityIdentifier("provider-key-field")
-            HStack {
-                Spacer()
-                Button(store.text("close")) { editing = nil; key = "" }.buttonStyle(.vznOutline).keyboardShortcut(.cancelAction)
-                Button(store.text("saveKey")) { perform(id, delete: false) }.buttonStyle(.vznPrimary).disabled(key.isEmpty).keyboardShortcut(.defaultAction)
-            }
-        }.padding(metric("inset")).frame(width: metric("sidebar") + metric("editor"))
     }
     private func refreshKeys() { keyed = Set(CredentialStore.providers.filter(CredentialStore.has)) }
     private func perform(_ id: String, delete: Bool) {

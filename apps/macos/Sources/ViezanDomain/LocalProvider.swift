@@ -29,7 +29,8 @@ public enum LocalProvider {
         config.connectionProxyDictionary = [:]
         return URLSession(configuration: config, delegate: LocalSessionDelegate(), delegateQueue: nil)
     }
-    public static func models() async throws -> [String] {
+    /// Installed Ollama models with their size on disk in bytes (0 when the runtime gives none).
+    public static func catalog() async throws -> [String: Int64] {
         let session = session()
         defer { session.invalidateAndCancel() }
         let (bytes, response) = try await session.bytes(from: URL(string: "http://127.0.0.1:11434/api/tags")!)
@@ -40,9 +41,29 @@ public enum LocalProvider {
             guard data.count < 1_048_576 else { throw ProviderFailure.oversizedResponse }
             data.append(byte)
         }
-        struct Catalog: Decodable { struct Model: Decodable { let name: String }; let models: [Model] }
-        return Array(Set(try JSONDecoder().decode(Catalog.self, from: data).models.map { "ollama:" + $0.name }.filter(NativeModel.valid))).sorted()
+        return try parseCatalog(data)
     }
+    static func parseCatalog(_ data: Data) throws -> [String: Int64] {
+        // A size of the wrong type must not hide the model: the list of names is what chat needs.
+        struct Catalog: Decodable {
+            struct Model: Decodable {
+                let name: String; let size: Double?
+                enum CodingKeys: String, CodingKey { case name, size }
+                init(from decoder: Decoder) throws {
+                    let values = try decoder.container(keyedBy: CodingKeys.self)
+                    name = try values.decode(String.self, forKey: .name); size = try? values.decode(Double.self, forKey: .size)
+                }
+            }
+            let models: [Model]
+        }
+        var sizes: [String: Int64] = [:]
+        for model in try JSONDecoder().decode(Catalog.self, from: data).models where NativeModel.valid("ollama:" + model.name) {
+            let bytes = model.size.flatMap { $0.isFinite && $0 > 0 && $0 < 1e15 ? Int64($0) : nil } ?? 0
+            sizes["ollama:" + model.name] = max(sizes["ollama:" + model.name] ?? 0, bytes)
+        }
+        return sizes
+    }
+    public static func models() async throws -> [String] { try await catalog().keys.sorted() }
     public static func stream(_ request: Request, usage: @escaping @Sendable (TokenUsage) async -> Void = { _ in }, receive: @escaping @Sendable (String) async -> Void) async throws {
         guard !LocalPerformanceLease.occupied else { throw ProviderFailure.unavailable }
         struct Event: Decodable {

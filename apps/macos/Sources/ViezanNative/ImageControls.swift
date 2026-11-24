@@ -187,7 +187,7 @@ struct AttachmentChips: View {
     @Environment(\.colorScheme) private var scheme
     @Bindable var store: WorkbenchStore
     var body: some View {
-        if let images = store.session.images, !images.isEmpty, (NativeTheme.shared.preferences.preset ?? "glass") == "glass" {
+        if let images = store.session.images, !images.isEmpty {
             // Chat-States: 56 pt thumbnails, each with a 20 pt round remove control on its corner.
             NativeFlow(spacing: metric("small") + metric("hairline") * 2) {
                 ForEach(images) { image in
@@ -205,18 +205,6 @@ struct AttachmentChips: View {
                         }
                 }
             }.padding(.top, metric("tight")).padding(.leading, metric("tight"))
-        } else if let images = store.session.images, !images.isEmpty {
-            NativeFlow(spacing: metric("small")) {
-                ForEach(images) { image in
-                    HStack(spacing: metric("tight")) {
-                        Image(systemName: "photo").accessibilityHidden(true)
-                        Text(image.name).lineLimit(1).truncationMode(.middle).frame(maxWidth: metric("sidebar"))
-                        Button { store.removeImage(image.id, sessionID: store.session.id) } label: { Image(systemName: "xmark") }
-                            .buttonStyle(.vznQuiet).accessibilityLabel(store.text("removeAttachment") + " " + image.name).help(store.text("removeAttachment"))
-                    }.font(.vzn("smallScale")).padding(.horizontal, metric("small")).padding(.vertical, metric("tight"))
-                        .background(contentColor("surface-muted", scheme), in: Capsule())
-                }
-            }
         }
     }
 }

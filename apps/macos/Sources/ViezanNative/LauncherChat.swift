@@ -33,8 +33,8 @@ struct LauncherChatView: View {
     var openInChat: (String?) -> Void
     var openSettings: (String) -> Void
     @State private var focusEpoch = 1
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     private func t(_ key: String) -> String { store.text(key) }
     private var session: Session? { sessionID.flatMap(store.session) }
     private var model: String {
@@ -59,7 +59,7 @@ struct LauncherChatView: View {
         let turns = turns
         VStack(spacing: 0) {
             header(empty: turns.isEmpty)
-            if glass { CardDivider() } else { Divider() }
+            CardDivider()
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: metric("gap")) {
@@ -71,11 +71,11 @@ struct LauncherChatView: View {
                     }.padding(metric("inset")).frame(maxWidth: .infinity, alignment: .leading)
                 }
                 // QuickChat board: turn cards sit on the glass layer itself, no muted band.
-                .background(glass ? Color.clear : contentColor("surface-muted", scheme))
+                .background(Color.clear)
                 // A new question takes the frame; earlier turns stay above it.
-                .onChange(of: turns.count, initial: true) { _, _ in if let last = turns.last { withAnimation { proxy.scrollTo(last.id, anchor: .top) } } }
+                .onChange(of: turns.count, initial: true) { _, _ in if let last = turns.last { withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(last.id, anchor: .top) } } }
             }
-            if glass { CardDivider() } else { Divider() }
+            CardDivider()
             footer(turns: turns.count)
         }
         .onAppear { if sendOnOpen { sendOnOpen = false; send() } }
@@ -89,7 +89,7 @@ struct LauncherChatView: View {
         }
     }
 
-    private var questionFont: NSFont { .systemFont(ofSize: NSFont.systemFontSize * metric("subtitleScale"), weight: .medium) }
+    private var questionFont: NSFont { readingNSFont(store) }
     private func header(empty: Bool) -> some View {
         // Top-aligned so a growing question pushes the body down while the buttons stay put;
         // the first line sits on the buttons' centre line.
@@ -99,14 +99,14 @@ struct LauncherChatView: View {
             Button(action: newConversation) {
                 Image(systemName: empty ? "sparkles" : "plus").frame(width: metric("icon"), height: metric("icon"))
             }
-            .buttonStyle(glass ? AnyButtonStyle(ChatButtonStyle(glass: true, kind: .outline, circular: true)) : AnyButtonStyle(.vznQuiet)).disabled(empty && question.isEmpty)
+            .buttonStyle(ChatButtonStyle(kind: .outline, circular: true)).disabled(empty && question.isEmpty)
             .help(t("ai_chat_popup_new_conversation").replacingOccurrences(of: "{shortcut}", with: "⌘N"))
             .accessibilityLabel(empty ? t("ai_chat_popup_short_label") : t("ai_chat_popup_new_conversation").replacingOccurrences(of: "{shortcut}", with: "⌘N"))
             ComposerEditor(text: $question, identity: "launcher-quick-ai", label: t("ai_chat_popup_title"),
                            font: questionFont,
                            focusEpoch: focusEpoch, accessibilityID: "launcher-quick-ai", growsWithContent: true, submitOnReturn: true) { send() }
                 .fixedSize(horizontal: false, vertical: true)
-                .modifier(EditorPlaceholder(text: t(empty ? "ai_chat_popup_placeholder" : "ai_chat_popup_followup_placeholder"), visible: question.isEmpty, font: .vzn("subtitleScale")))
+                .modifier(EditorPlaceholder(text: t(empty ? "ai_chat_popup_placeholder" : "ai_chat_popup_followup_placeholder"), visible: question.isEmpty, font: readingFont(store)))
                 .padding(.top, max(0, (metric("control") - line) / 2))
             if !question.isEmpty && running == nil {
                 Button { question = ""; focusEpoch += 1 } label: { Image(systemName: "xmark.circle.fill") }
@@ -116,7 +116,7 @@ struct LauncherChatView: View {
                 if running != nil { ProgressView().controlSize(.small) } else { Image(systemName: "arrow.up").fontWeight(.semibold) }
             }
             // QuickChat board: Send is the round accent control, as in the AI Chat composer.
-            .buttonStyle(glass ? AnyButtonStyle(ChatButtonStyle(glass: true, kind: .primary, circular: true)) : AnyButtonStyle(.vznPrimary)).disabled(trimmed.isEmpty || tooLong || running != nil || !ready)
+            .buttonStyle(ChatButtonStyle(kind: .primary, circular: true)).disabled(trimmed.isEmpty || tooLong || running != nil || !ready)
             .accessibilityLabel(t("send")).help(t("send") + " (↵)")
         }
         .controlSize(.large)
@@ -158,12 +158,11 @@ struct LauncherChatView: View {
         return VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: metric("small")) {
                 Text(t("ai_chat_popup_question_badge")).font(.vzn("captionScale", .semibold)).foregroundStyle(contentColor("action-text", scheme))
-                    .padding(.horizontal, metric(glass ? "small" : "tight") + metric("hairline")).padding(.vertical, glass ? metric("hairline") * 2 : 0)
-                    .background(contentColor("action-soft", scheme), in: glass ? AnyShape(Capsule()) : AnyShape(RoundedRectangle(cornerRadius: metric("tight"))))
-                Text(turn.question).font(glass ? .vzn("labelScale", .medium) : .vzn("smallScale")).foregroundStyle(glass ? contentColor("text-strong", scheme) : .secondary).textSelection(.enabled).lineLimit(active ? nil : 2)
+                    .padding(.horizontal, metric("small") + metric("hairline")).padding(.vertical, metric("hairline") * 2)
+                    .background(contentColor("action-soft", scheme), in: Capsule())
+                Text(turn.question).font(readingFont(store)).foregroundStyle(contentColor("text-strong", scheme)).textSelection(.enabled).lineLimit(active ? nil : 2)
             }
             .padding(.horizontal, metric("inset")).padding(.vertical, metric("small"))
-            if !glass { Divider() }
             VStack(alignment: .leading, spacing: metric("small")) {
                 if thinking {
                     Label(t("quickThinking"), systemImage: "sparkles").font(.vzn("smallScale")).foregroundStyle(.secondary)
@@ -175,31 +174,26 @@ struct LauncherChatView: View {
                     TranscriptText(text: answer, font: readingNSFont(store), label: t("response"), markdown: task?.status != .running, resetSelection: 0) { _ in }
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                if glass, let task, [.failed, .interrupted].contains(task.status) {
+                if let task, [.failed, .interrupted].contains(task.status) {
                     // Launcher-States: the reason in a soft danger block inside the turn.
                     InlineFailure(title: t(task.status == .failed ? (task.errorCode ?? "providerError") : task.status.rawValue)).help(task.errorDetail ?? "")
-                } else if let task, [.failed, .interrupted].contains(task.status) {
-                    TaskStatusText(store: store, task: task).font(.vzn("smallScale"))
-                        .padding(metric("small")).frame(maxWidth: .infinity, alignment: .leading)
-                        .background(contentColor("danger", scheme).opacity(metric("selectionOpacity")), in: RoundedRectangle(cornerRadius: metric("controlRadius")))
                 }
             }
             .padding(.horizontal, metric("inset")).padding(.vertical, metric("gap"))
             .accessibilityElement(children: .contain)
             if let task, task.status != .running {
-                if !glass { Divider() }
                 HStack(spacing: metric("tight")) {
                     CopyResponseButton(text: answer, label: t("copy"), copiedLabel: t("copied")).disabled(answer.isEmpty)
                     // Regenerate only the newest answer: an earlier one would rewrite history the later turns used.
                     if active {
                         Button(t("quickRegenerate"), systemImage: "arrow.clockwise") { store.retry(task.id) }.buttonStyle(.vznQuiet).disabled(!store.canRetry(task))
                             // Launcher-States: after a failure, regenerating is the way forward, in the accent.
-                            .foregroundStyle(glass && [.failed, .interrupted].contains(task.status) ? contentColor("action-text", scheme) : .primary)
+                            .foregroundStyle([.failed, .interrupted].contains(task.status) ? contentColor("action-text", scheme) : .primary)
                     }
                 }.font(.vzn("smallScale")).padding(.horizontal, metric("small")).padding(.vertical, metric("tight"))
             }
         }
-        .modifier(QuickTurnSurface(glass: glass))
+        .cardSurface(padded: false)
         .opacity(active ? 1 : 0.7)
     }
 
@@ -209,7 +203,7 @@ struct LauncherChatView: View {
             Button { openSettings("providers") } label: {
                 HStack(spacing: metric("tight")) {
                     StatusDot(tone: ready ? .ready : .failed)
-                    Text(glass ? ModelLineup.shortName(model) : nativeModelLabel(model, store: store)).lineLimit(1).help(model)
+                    Text(ModelLineup.shortName(model)).lineLimit(1).help(model)
                     if count > 0 { Text("· " + t("ai_chat_popup_turns").replacingOccurrences(of: "{count}", with: String(count))).foregroundStyle(.secondary) }
                 }
             }
@@ -220,11 +214,11 @@ struct LauncherChatView: View {
             CopyResponseButton(text: answer, label: t("copy"), copiedLabel: t("copied"))
             Divider().frame(height: metric("icon"))
             Button(action: handOff) { HStack(spacing: metric("tight")) { Text(t("ai_chat_popup_open_in_chat")); KeyCap(text: "⌘ ↵") } }
-                .buttonStyle(glass ? AnyButtonStyle(.vznOutline) : AnyButtonStyle(.vznQuiet))
+                .buttonStyle(.vznOutline)
         }
         .font(.vzn("smallScale"))
-        .padding(.horizontal, metric("gap")).padding(.vertical, metric(glass ? "small" : "tight"))
-        .background(glass ? contentColor("surface-muted", scheme) : contentColor("surface", scheme))
+        .padding(.horizontal, metric("gap")).padding(.vertical, metric("small"))
+        .background(contentColor("surface-muted", scheme))
     }
 
     private func send() {
@@ -251,20 +245,7 @@ struct LauncherChatView: View {
     }
 }
 
-// QuickChat turn card: the flat `.card` on Glass, the bordered surface elsewhere.
-private struct QuickTurnSurface: ViewModifier {
-    var glass: Bool
-    @Environment(\.colorScheme) private var scheme
-    func body(content: Content) -> some View {
-        if glass { content.cardSurface(padded: false) }
-        else {
-            content.background(contentColor("surface", scheme), in: RoundedRectangle(cornerRadius: metric("radius")))
-                .overlay(RoundedRectangle(cornerRadius: metric("radius")).strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")))
-        }
-    }
-}
-
-/// Type-erased button style, so one control can switch style with the preset.
+/// Type-erased button style for controls that switch between button styles.
 struct AnyButtonStyle: ButtonStyle {
     private let make: (Configuration) -> AnyView
     init<S: ButtonStyle>(_ style: S) { make = { AnyView(style.makeBody(configuration: $0)) } }

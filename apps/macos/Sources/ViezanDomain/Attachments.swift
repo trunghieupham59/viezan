@@ -68,6 +68,16 @@ public enum Attachments {
         return try Data(contentsOf: url)
     }
     public static func captureScreen() throws -> ImageAttachment {
+        try withCapturedScreen(ingest)
+    }
+    public static func captureScreenText() throws -> String {
+        try withCapturedScreen { url in
+            let data = try Data(contentsOf: url, options: .alwaysMapped)
+            guard !data.isEmpty, data.count <= 20_000_000 else { throw ProviderFailure.oversizedResponse }
+            return try recognize(data)
+        }
+    }
+    private static func withCapturedScreen<Result>(_ read: (URL) throws -> Result) throws -> Result {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("png")
         defer { try? FileManager.default.removeItem(at: url) }
         let process = Process(); process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
@@ -75,7 +85,7 @@ public enum Attachments {
         process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
         try process.run(); process.waitUntilExit()
         guard process.terminationStatus == 0, FileManager.default.fileExists(atPath: url.path) else { throw CancellationError() }
-        return try ingest(url)
+        return try read(url)
     }
     static func restore(_ attachment: ImageAttachment, data: Data) throws {
         guard UUID(uuidString: attachment.id) != nil, data.count <= 20_000_000 else { throw StorageFailure.invalidData }
@@ -89,10 +99,13 @@ public enum Attachments {
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
     }
     public static func recognize(_ attachment: ImageAttachment) throws -> String {
+        try recognize(data(attachment))
+    }
+    public static func recognize(_ data: Data) throws -> String {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate; request.usesLanguageCorrection = true
         request.automaticallyDetectsLanguage = true
-        try VNImageRequestHandler(data: data(attachment), options: [:]).perform([request])
+        try VNImageRequestHandler(data: data, options: [:]).perform([request])
         return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
     }
 }

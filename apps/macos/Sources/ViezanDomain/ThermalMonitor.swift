@@ -4,13 +4,64 @@ import ServiceManagement
 import Darwin
 
 public struct ThermalSnapshot: Codable, Sendable {
-    public struct Sensor: Codable, Identifiable, Sendable { public let key: String; public let celsius: Double; public var id: String { key } }
-    public struct Fan: Codable, Identifiable, Sendable { public let index: Int; public let rpm: Double; public let min: Double?; public let max: Double?; public let target: Double?; public let name: String?; public var id: Int { index } }
+    public struct Sensor: Codable, Identifiable, Sendable {
+        public let key: String
+        public let celsius: Double
+        public let name: String?
+        public let source: String?
+        public var id: String { key }
+        public var isHID: Bool { source == "hid" }
+
+        public init(key: String, celsius: Double, name: String? = nil, source: String? = nil) {
+            self.key = key
+            self.celsius = celsius
+            self.name = name
+            self.source = source
+        }
+    }
+    public struct Fan: Codable, Identifiable, Sendable { public let index: Int; public let rpm: Double; public let min: Double?; public let max: Double?; public let target: Double?; public let name: String?; public var id: Int { index }
+        /// macOS parks the fans of some Macs while the machine is cool: no speed and a target of zero.
+        /// A stalled fan keeps its target, and a fan that reports no target is not judged.
+        public var stoppedBySystem: Bool { rpm < 1 && target.map { $0 < 1 } == true }
+        /// "Stopped because the Mac is cool" is only true while no sensor is warm: macOS can also keep
+        /// the fans parked for a while after the processor heats up.
+        public func parkedWhileCool(hottest: Double?) -> Bool { stoppedBySystem && hottest.map { ThermalSensors.tone($0) == "ok" } == true }
+    }
     public let ok: Bool
     public let sensors: [Sensor]?
     public let fans: [Fan]?
     public let model: String?
 }
+
+struct FanOverrideStatus {
+    let targets: [Int: Double]
+
+    init(data: Data) throws {
+        struct Status: Decodable {
+            struct Override: Decodable { let id: String; let rpm: Double }
+            let activeOverrides: [Override]
+        }
+        let status = try JSONDecoder().decode(Status.self, from: data)
+        guard !status.activeOverrides.isEmpty else { throw StorageFailure.invalidData }
+        var targets: [Int: Double] = [:]
+        for entry in status.activeOverrides {
+            guard entry.id.hasPrefix("fan"), let index = Int(entry.id.dropFirst(3)), entry.id == "fan\(index)",
+                  index >= 0, entry.rpm.isFinite, targets[index] == nil else { throw StorageFailure.invalidData }
+            targets[index] = entry.rpm
+        }
+        self.targets = targets
+    }
+
+    func readings(for temperatures: [Int: Double]) throws -> [Int: FanPolicy.Reading] {
+        var readings: [Int: FanPolicy.Reading] = [:]
+        for (index, celsius) in temperatures {
+            guard let rpm = targets[index] else { throw StorageFailure.invalidData }
+            readings[index] = .init(celsius: celsius, rpm: rpm)
+        }
+        return readings
+    }
+}
+
 private final class FanSocket: @unchecked Sendable {
     private let lock = NSLock()
     private var fd: Int32 = -1
@@ -27,6 +78,9 @@ private final class FanSocket: @unchecked Sendable {
             var values: [String: Any] = args; if let rpm { values["rpm"] = rpm }
             return try exchange(op, args: values)
         } catch { if fd >= 0 { Darwin.close(fd); fd = -1 }; pending.removeAll(); throw error }
+    }
+    func overrideStatus(lease: UUID) throws -> FanOverrideStatus {
+        try FanOverrideStatus(data: command("status", lease: lease))
     }
     private func connect() throws {
         let path = "/var/run/viezan-fan-helper.sock"
@@ -65,6 +119,7 @@ private final class FanSocket: @unchecked Sendable {
     public private(set) var error: String?
     public private(set) var monitoring = false
     public private(set) var controlling = false
+    public var manualControlConfirmed = false
     public private(set) var helperStatus = ""
     @ObservationIgnored private var process: Process?
     @ObservationIgnored private var output: FileHandle?
@@ -74,7 +129,12 @@ private final class FanSocket: @unchecked Sendable {
     @ObservationIgnored private var controlGeneration = UUID()
     @ObservationIgnored private var heartbeat: Task<Void, Never>?
     public private(set) var profiles: [FanProfile] = FanProfile.builtins
-    public private(set) var activeProfile: String?
+    private var runningPolicy: RunningFanPolicy?
+    public var activeProfile: String? { runningPolicy?.id }
+    public var activeRules: [String: FanRule]? { runningPolicy?.rules }
+    public private(set) var policyReadings: [Int: FanPolicy.Reading] = [:]
+    public private(set) var manualTargets: [Int: Double] = [:]
+    public private(set) var manualTargetPending = false
     public private(set) var calibrating = false
     public private(set) var calibrationPhase = ""
     public private(set) var calibrationRemaining = 0
@@ -93,25 +153,46 @@ private final class FanSocket: @unchecked Sendable {
     @ObservationIgnored private var calibration: Task<Void, Never>?
     @ObservationIgnored private var lastSnapshot = ContinuousClock.now
     @ObservationIgnored private var samples: [(Date, ThermalSnapshot)] = []
-    @ObservationIgnored private let preferences = FilePersistence.previewURL().deletingLastPathComponent().appendingPathComponent("fan-profiles.json")
+    @ObservationIgnored private let preferences: URL
     private struct Saved: Codable { var profiles: [FanProfile]; var affinity: [Int: [String]]; var calibratedAt: Double? }
-    public init() {
+    public convenience init() {
+        self.init(preferences: FilePersistence.previewURL().deletingLastPathComponent().appendingPathComponent("fan-profiles.json"))
+    }
+    init(preferences: URL) {
+        self.preferences = preferences
         if let size = try? preferences.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= 1_048_576,
            let data = try? Data(contentsOf: preferences), let saved = try? JSONDecoder().decode(Saved.self, from: data), saved.profiles.count <= 50,
            saved.profiles.allSatisfy({ UUID(uuidString: $0.id) != nil && !$0.name.isEmpty && $0.name.count <= 100 && $0.rules.count <= 16 && $0.rules.values.allSatisfy(\.valid) }) {
             profiles += saved.profiles; affinity = saved.affinity; calibratedAt = saved.calibratedAt
         }
     }
-    private func persistProfiles() {
+    @discardableResult private func persistProfiles(_ updated: [FanProfile]? = nil) -> Bool {
         do {
-            let data = try JSONEncoder().encode(Saved(profiles: profiles.filter { UUID(uuidString: $0.id) != nil }, affinity: affinity, calibratedAt: calibratedAt))
-            try FileManager.default.createDirectory(at: preferences.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-            try data.write(to: preferences, options: .atomic); try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: preferences.path)
-        } catch { self.error = "fanControlError" }
+            let data = try JSONEncoder().encode(Saved(profiles: (updated ?? profiles).filter { UUID(uuidString: $0.id) != nil }, affinity: affinity, calibratedAt: calibratedAt))
+            let directory = preferences.deletingLastPathComponent()
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            // Finish writing the private file before publishing its ID to disk or the running policy.
+            let pending = directory.appendingPathComponent(UUID().uuidString)
+            let fd = open(pending.path, O_WRONLY | O_CREAT | O_EXCL, 0o600)
+            guard fd >= 0 else { throw StorageFailure.invalidData }
+            defer { try? FileManager.default.removeItem(at: pending) }
+            let file = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
+            try file.write(contentsOf: data)
+            try file.close()
+            guard rename(pending.path, preferences.path) == 0 else { throw StorageFailure.invalidData }
+            if error == "fanProfileSaveError" { error = nil }
+            return true
+        } catch { self.error = "fanProfileSaveError"; return false }
     }
-    public func saveProfile(name: String, rules: [String: FanRule]) {
-        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 100, profiles.count < 54, !rules.isEmpty, rules.count <= 16, rules.values.allSatisfy(\.valid) else { return }
-        profiles.append(FanProfile(name: name, rules: rules)); persistProfiles()
+    @discardableResult public func saveProfile(name: String, rules: [String: FanRule]) -> String? {
+        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 100,
+              profiles.count < 54, FanPolicy.validRules(rules) else { return nil }
+        let profile = FanProfile(name: name, rules: rules)
+        let updated = profiles + [profile]
+        guard persistProfiles(updated) else { return nil }
+        profiles = updated
+        runningPolicy?.adoptSavedProfile(profile)
+        return profile.id
     }
     public func removeProfile(_ id: String) {
         guard UUID(uuidString: id) != nil else { return }; if activeProfile == id { restoreAutomatic() }; profiles.removeAll { $0.id == id }; persistProfiles()
@@ -119,35 +200,52 @@ private final class FanSocket: @unchecked Sendable {
     public func unregisterHelper() async {
         cancelCalibration(); restoreAutomatic()
         do { try await SMAppService.daemon(plistName: "com.viezan.fan-helper.plist").unregister(); refreshHelperStatus() }
-        catch { self.error = "fanControlError" }
+        catch { self.error = "helperUnregisterError" }
     }
     public func applyProfile(_ id: String) {
-        guard !calibrating, let profile = profiles.first(where: { $0.id == id }), monitoring, !(snapshot?.fans ?? []).isEmpty else { return }
-        disconnectControl(); let owner = fan.beginLease(); controlGeneration = owner; activeProfile = id; let socket = fan
+        guard let profile = profiles.first(where: { $0.id == id }) else { return }
+        startPolicy(id: id, rules: profile.rules)
+    }
+    public func applyRules(_ rules: [String: FanRule]) {
+        startPolicy(id: RunningFanPolicy.customID, rules: rules)
+    }
+    private func startPolicy(id: String, rules: [String: FanRule]) {
+        guard let next = RunningFanPolicy(id: id, rules: rules, monitoring: monitoring, calibrating: calibrating, fans: snapshot?.fans) else { return }
+        disconnectControl()
+        let owner = fan.beginLease()
+        controlGeneration = owner
+        runningPolicy = next
+        let socket = fan
         policy = Task { [weak self] in
             var smoothed: [Int: Double] = [:], targets: [Int: Double] = [:], changed: [Int: ContinuousClock.Instant] = [:]
             do {
                 while !Task.isCancelled {
-                    guard let self, self.controlGeneration == owner, let snapshot = self.snapshot, self.lastSnapshot.duration(to: .now) < .seconds(8) else { throw StorageFailure.invalidData }
-                    for item in snapshot.fans ?? [] {
-                        guard let rule = profile.rules[String(item.index)] ?? profile.rules["*"], rule.valid, let lo = item.min, let hi = item.max, lo.isFinite, hi.isFinite, hi > lo,
+                    guard let self, self.controlGeneration == owner, let snapshot = self.snapshot, self.lastSnapshot.duration(to: .now) < .seconds(8),
+                          let fans = snapshot.fans, !fans.isEmpty, Set(fans.map(\.index)).isSuperset(of: smoothed.keys) else { throw StorageFailure.invalidData }
+                    for item in fans {
+                        guard let rule = rules[String(item.index)] ?? rules["*"], rule.valid, let range = item.speedRange,
                               let reading = FanPolicy.temperature(snapshot, source: rule.sensor, affinity: self.affinity, fan: item.index) else { throw StorageFailure.invalidData }
                         let previous = smoothed[item.index] ?? reading
                         let temperature = abs(reading-previous) >= 8 ? reading : previous + (1-exp(-0.2))*(reading-previous)
                         smoothed[item.index] = temperature
-                        let rpm = FanPolicy.target(temperature: temperature, rule: rule, minimum: lo, maximum: hi)
+                        let rpm = FanPolicy.target(temperature: temperature, rule: rule, minimum: range.lowerBound, maximum: range.upperBound)
                         let delta = abs(rpm-(targets[item.index] ?? -10000))
                         if delta >= 100 && (delta >= 400 || (changed[item.index]?.duration(to: .now) ?? .seconds(6)) >= .seconds(6)) {
                             _ = try await Task.detached { try socket.command("fans.setTarget", args: ["id": "fan\(item.index)"], rpm: rpm, lease: owner) }.value
                             guard self.controlGeneration == owner else { return }; targets[item.index] = rpm; changed[item.index] = .now
                         }
                     }
-                    let data = try await Task.detached { try socket.command("status", lease: owner) }.value
-                    let result = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-                    guard (result?["activeOverrides"] as? [[String: Any]])?.isEmpty == false else { throw StorageFailure.invalidData }
+                    let status = try await Task.detached { try socket.overrideStatus(lease: owner) }.value
+                    guard self.controlGeneration == owner else { return }
+                    self.policyReadings = try status.readings(for: smoothed)
+                    if self.error == "fanProfileApplyError" { self.error = nil }
                     self.controlling = true; try await Task.sleep(for: .seconds(2))
                 }
-            } catch { if let self, self.controlGeneration == owner { self.disconnectControl(); if !Task.isCancelled { self.error = "fanControlError" } } }
+            } catch {
+                guard let self, self.controlGeneration == owner else { return }
+                if !Task.isCancelled { self.error = "fanProfileApplyError" }
+                self.disconnectControl()
+            }
         }
     }
     /// Thermal "Quên kết quả": drop the measured fan → sensor map; profiles fall back to their own sensors.
@@ -168,12 +266,12 @@ private final class FanSocket: @unchecked Sendable {
                 var deltas: [Int: [String: Double]] = [:]
                 for (position, item) in fans.enumerated() {
                     self.calibrationFan = position + 1
-                    try await self.calibrationWait(12, phase: "fanBaseline", owner: owner); let before = self.averageSamples()
+                    try await self.calibrationWait(12, phase: "fanBaseline", owner: owner); let before = Self.averageSamples(self.samples)
                     let rpm = item.max!
                     _ = try await Task.detached { try socket.command("fans.setTarget", args: ["id": "fan\(item.index)"], rpm: rpm, lease: owner) }.value
-                    try await self.calibrationWait(40, phase: "fanSpin", owner: owner); let during = self.averageSamples()
+                    try await self.calibrationWait(40, phase: "fanSpin", owner: owner); let during = Self.averageSamples(self.samples)
                     _ = try await Task.detached { try socket.command("fans.restoreAll", lease: owner) }.value
-                    try await self.calibrationWait(30, phase: "fanSettle", owner: owner); let after = self.averageSamples()
+                    try await self.calibrationWait(30, phase: "fanSettle", owner: owner); let after = Self.averageSamples(self.samples)
                     var values: [String: Double] = [:]
                     for (key, a) in before { if let b = during[key], let c = after[key] { values[key] = (a+c)/2-b } }
                     deltas[item.index] = values
@@ -190,7 +288,7 @@ private final class FanSocket: @unchecked Sendable {
                     affinity[index] = Array((owned.isEmpty ? candidates : owned).prefix(12).map(\.key))
                 }
                 self.affinity = affinity; self.calibratedAt = Date().timeIntervalSince1970; self.persistProfiles(); self.calibrationPhase = "succeeded"
-            } catch { if !Task.isCancelled { self.error = "fanControlError" } }
+            } catch { if !Task.isCancelled { self.error = "fanCalibrationError" } }
             if self.controlGeneration == owner { self.calibrating = false; self.calibrationRemaining = 0; self.samples.removeAll(); self.disconnectControl() }
         }
     }
@@ -207,10 +305,16 @@ private final class FanSocket: @unchecked Sendable {
             try await Task.sleep(for: .seconds(1))
         }
     }
-    private func averageSamples() -> [String: Double] {
-        let recent = samples.filter { $0.0 > Date().addingTimeInterval(-12) }; var sums: [String: Double] = [:], counts: [String: Int] = [:]
-        for (_, snapshot) in recent { for sensor in snapshot.sensors ?? [] where sensor.celsius.isFinite { sums[sensor.key, default: 0] += sensor.celsius; counts[sensor.key, default: 0] += 1 } }
-        return sums.mapValues { $0 }.reduce(into: [:]) { $0[$1.key] = $1.value / Double(counts[$1.key]!) }
+    nonisolated static func averageSamples(_ samples: [(Date, ThermalSnapshot)]) -> [String: Double] {
+        let cutoff = Date().addingTimeInterval(-12)
+        var totals: [String: (sum: Double, count: Int)] = [:]
+        for (date, snapshot) in samples where date > cutoff {
+            for sensor in snapshot.sensors ?? [] where !sensor.isHID && sensor.celsius.isFinite {
+                totals[sensor.key, default: (0, 0)].sum += sensor.celsius
+                totals[sensor.key, default: (0, 0)].count += 1
+            }
+        }
+        return totals.mapValues { $0.sum / Double($0.count) }
     }
     public func start() {
         guard process == nil else { return }
@@ -241,44 +345,82 @@ private final class FanSocket: @unchecked Sendable {
     }
     public func registerHelper() {
         do { try SMAppService.daemon(plistName: "com.viezan.fan-helper.plist").register(); refreshHelperStatus(); error = nil }
-        catch { refreshHelperStatus(); self.error = "fanControlError" }
+        catch { refreshHelperStatus(); self.error = Self.registrationError(status: helperStatus) }
     }
     public func refreshHelperStatus() {
+        let previous = helperStatus
         switch SMAppService.daemon(plistName: "com.viezan.fan-helper.plist").status {
         case .enabled: helperStatus = "helperEnabled"
         case .requiresApproval: helperStatus = "helperApproval"
         default: helperStatus = "helperUnavailable"
         }
+        error = Self.errorAfterHelperChange(error, from: previous, to: helperStatus)
+    }
+    /// `register()` throws while the daemon waits for approval in System Settings; that is a state, not a failure.
+    public nonisolated static func registrationError(status: String) -> String? { status == "helperUnavailable" ? "helperRegisterError" : nil }
+    /// An error about reaching the helper is retired once the helper becomes usable.
+    public nonisolated static func errorAfterHelperChange(_ error: String?, from previous: String, to status: String) -> String? {
+        ["helperRegisterError", "fanCommandError", "fanProfileApplyError"].contains(error) && status == "helperEnabled" && previous != status ? nil : error
     }
     public func openHelperSettings() { SMAppService.openSystemSettingsLoginItems() }
     public func setTarget(index: Int, rpm: Double) {
-        guard !calibrating else { return }; policy?.cancel(); policy = nil; activeProfile = nil
-        guard let item = snapshot?.fans?.first(where: { $0.index == index }), let minimum = item.min, let maximum = item.max, rpm.isFinite, maximum > minimum, rpm >= minimum, rpm <= maximum else { error = "fanControlError"; return }
+        // A stopped reader leaves a stale snapshot; its fan range must not drive a new target.
+        guard !calibrating, monitoring else { return }
+        guard let item = snapshot?.fans?.first(where: { $0.index == index }), let range = item.speedRange,
+              rpm.isFinite, range.contains(rpm) else { error = "fanCommandError"; return }
+        // Release every rule-driven override before starting a manual hold on a single fan.
+        if runningPolicy != nil { disconnectControl() }
         let fan = self.fan; heartbeat?.cancel(); heartbeat = nil
         let owner = fan.beginLease(); controlGeneration = owner
+        manualTargetPending = true
         Task {
             do {
-                _ = try await Task.detached { try fan.command("fans.setTarget", args: ["id": "fan\(index)"], rpm: rpm, lease: owner) }.value
+                let active = try await Task.detached {
+                    _ = try fan.command("fans.setTarget", args: ["id": "fan\(index)"], rpm: rpm, lease: owner)
+                    return try fan.overrideStatus(lease: owner).targets
+                }.value
                 guard controlGeneration == owner else { return }
+                guard active[index] != nil else { throw StorageFailure.invalidData }
+                manualTargets = active
+                manualTargetPending = false
                 controlling = true; error = nil; startHeartbeat(owner)
-            } catch { if controlGeneration == owner { disconnectControl(); self.error = "fanControlError" } }
+            } catch { if controlGeneration == owner { disconnectControl(); self.error = "fanCommandError" } }
         }
     }
-    public func restoreAutomatic() {
+    public func restoreAutomatic(onRestored: (@MainActor () -> Void)? = nil) {
         cancelCalibration()
         let fan = self.fan; heartbeat?.cancel(); heartbeat = nil
         let owner = fan.beginLease(); controlGeneration = owner
         Task {
             do {
                 let data = try await Task.detached { try fan.command("fans.restoreAll", lease: owner) }.value
-                guard controlGeneration == owner else { return }
-                guard let result = try JSONSerialization.jsonObject(with: data) as? [String: Bool], result["restored"] == true else { throw StorageFailure.invalidData }
-                error = nil
-            } catch { if controlGeneration == owner { self.error = "fanControlError" } }
+                try Self.confirmRestore(data, isCurrent: controlGeneration == owner) {
+                    error = nil
+                    onRestored?()
+                }
+            } catch { if controlGeneration == owner { self.error = "fanCommandError" } }
             if controlGeneration == owner { disconnectControl() }
         }
     }
-    public func disconnectControl() { policy?.cancel(); policy = nil; activeProfile = nil; controlGeneration = UUID(); heartbeat?.cancel(); heartbeat = nil; fan.disconnect(); controlling = false }
+    static func confirmRestore(_ data: Data, isCurrent: Bool, onRestored: () -> Void) throws {
+        guard isCurrent else { return }
+        guard let result = try JSONSerialization.jsonObject(with: data) as? [String: Bool], result["restored"] == true else {
+            throw StorageFailure.invalidData
+        }
+        onRestored()
+    }
+
+    public func disconnectControl() {
+        controlGeneration = UUID()
+        policy?.cancel(); policy = nil
+        heartbeat?.cancel(); heartbeat = nil
+        fan.disconnect()
+        runningPolicy = nil
+        policyReadings = [:]
+        manualTargets = [:]
+        manualTargetPending = false
+        controlling = false
+    }
     private func startHeartbeat(_ owner: UUID) {
         guard heartbeat == nil else { return }
         let fan = self.fan
@@ -286,11 +428,11 @@ private final class FanSocket: @unchecked Sendable {
             do {
                 while !Task.isCancelled {
                     try await Task.sleep(for: .seconds(3))
-                    let data = try await Task.detached { try fan.command("status", lease: owner) }.value
+                    let active = try await Task.detached { try fan.overrideStatus(lease: owner).targets }.value
                     guard self?.controlGeneration == owner else { return }
-                    if let result = try JSONSerialization.jsonObject(with: data) as? [String: Any], (result["activeOverrides"] as? [[String: Any]])?.isEmpty == true { self?.disconnectControl(); return }
+                    self?.manualTargets = active
                 }
-            } catch { if !Task.isCancelled, self?.controlGeneration == owner { self?.disconnectControl(); self?.error = "fanControlError" } }
+            } catch { if !Task.isCancelled, self?.controlGeneration == owner { self?.disconnectControl(); self?.error = "fanCommandError" } }
         }
     }
 }
@@ -329,6 +471,18 @@ public enum ThermalSensors {
         return characters.count > 1 ? subsystems[characters[1]] ?? .init(group: .other, label: nil) : .init(group: .other, label: nil)
     }
 
+    /// HID keys can be shortened for fan rules. Classify the full Product name.
+    public static func classify(_ sensor: ThermalSnapshot.Sensor) -> Meaning {
+        guard sensor.isHID else { return classify(sensor.key) }
+        let name = sensor.name?.lowercased() ?? ""
+        if name.contains("pacc") { return .init(group: .cpu, label: "cpu_performance_core") }
+        if name.contains("eacc") { return .init(group: .cpu, label: "cpu_efficiency_core") }
+        if name.contains("gpu") { return .init(group: .gpu, label: "gpu") }
+        if name.contains("nand") { return .init(group: .other, label: "storage") }
+        if name.contains("battery") { return .init(group: .other, label: "battery") }
+        return .init(group: .other, label: nil)
+    }
+
     /// Every sensor that means the same thing folded into one row showing the hottest reading:
     /// a Mac exposes hundreds of keys; a dozen rows is what a person can read.
     public struct Row: Identifiable, Equatable, Sendable {
@@ -344,7 +498,7 @@ public enum ThermalSensors {
     public static func rows(_ sensors: [ThermalSnapshot.Sensor]) -> [Group: [Row]] {
         var buckets: [String: (Group, String?, [ThermalSnapshot.Sensor])] = [:]
         for sensor in sensors where sensor.celsius.isFinite {
-            let meaning = classify(sensor.key), key = meaning.group.rawValue + "/" + (meaning.label ?? "")
+            let meaning = classify(sensor), key = meaning.group.rawValue + "/" + (meaning.label ?? "")
             buckets[key, default: (meaning.group, meaning.label, [])].2.append(sensor)
         }
         var result: [Group: [Row]] = [:]

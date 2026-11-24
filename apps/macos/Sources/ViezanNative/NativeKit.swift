@@ -49,12 +49,11 @@ struct QuietSurfaceEdge: View {
     var radius: CGFloat
     var strong = false
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.solidSurfaces) private var solidSurfaces
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        let border = contentColor(strong || contrast == .increased ? "border-strong" : "border", scheme)
-        if (NativeTheme.shared.preferences.preset ?? "glass") == "glass", contrast != .increased, !reduceTransparency {
+        let border = contentColor(strong || solidSurfaces ? "border-strong" : "border", scheme)
+        if !solidSurfaces {
             shape.strokeBorder(LinearGradient(colors: [chromeColor("material-highlight", scheme), border],
                                               startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: metric("hairline"))
                 .allowsHitTesting(false).accessibilityHidden(true)
@@ -76,11 +75,10 @@ struct ChatGlassSurface: View {
     var enabled = true
     var danger = false
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.solidSurfaces) private var solidSurfaces
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        let strong = contrast == .increased || reduceTransparency
+        let strong = solidSurfaces
         let base = !enabled ? contentColor("surface-subtle", scheme)
             : emphasized ? contentColor(scheme == .dark || pressed ? "action-active" : "action", scheme)
             : contentColor(selected ? "surface-hover" : "surface", scheme)
@@ -127,8 +125,7 @@ struct ControlGlass: ViewModifier {
     var enabled = true
     var danger = false
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.solidSurfaces) private var solidSurfaces
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: radius, style: .continuous) }
     private var tint: Color? {
@@ -139,7 +136,7 @@ struct ControlGlass: ViewModifier {
     }
     @ViewBuilder func body(content: Content) -> some View {
         if !active { content }
-        else if reduceTransparency || contrast == .increased {
+        else if solidSurfaces {
             content.background { ChatGlassSurface(radius: radius, selected: selected, emphasized: emphasized,
                 focused: focused, pressed: pressed, enabled: enabled, danger: danger) }
         } else if #available(macOS 26.0, *) {
@@ -172,12 +169,10 @@ struct ControlGlass: ViewModifier {
 
 // Chat keeps its compact circular geometry while sharing the app-wide material.
 struct ChatButtonStyle: ButtonStyle {
-    var glass: Bool
     var kind: VznButtonKind = .quiet
     var circular = false
     @ViewBuilder func makeBody(configuration: Configuration) -> some View {
-        if glass { ChatButtonBody(configuration: configuration, kind: kind, circular: circular) }
-        else { VznButtonStyle(kind: kind).makeBody(configuration: configuration) }
+        ChatButtonBody(configuration: configuration, kind: kind, circular: circular)
     }
 }
 
@@ -188,12 +183,11 @@ private struct ChatButtonBody: View {
     @Environment(\.isEnabled) private var enabled
     @Environment(\.colorScheme) private var scheme
     @Environment(\.isFocused) private var focused
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.solidSurfaces) private var solidSurfaces
     @State private var hovered = false
     private var danger: Bool { configuration.role == .destructive }
     // Send (`.btn.primary` round): the painted accent face, never tinted glass.
-    private var painted: Bool { kind == .primary && !danger && enabled && !reduceTransparency && contrast != .increased }
+    private var painted: Bool { kind == .primary && !danger && enabled && !solidSurfaces }
     var body: some View {
         configuration.label.lineLimit(1)
             .padding(.horizontal, circular ? 0 : metric("gap"))
@@ -232,34 +226,21 @@ struct CardSurface: ViewModifier {
     var padded = true
     var selected = false
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    private var radius: CGFloat { metric((NativeTheme.shared.preferences.preset ?? "glass") == "glass" ? "chromeCardRadius" : "radius") }
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
+    @Environment(\.solidSurfaces) private var solidSurfaces
+    private var radius: CGFloat { metric("chromeCardRadius") }
     @ViewBuilder func body(content: Content) -> some View {
-        if glass { glassCard(content) } else { quietCard(content) }
+        glassCard(content)
     }
     // `.card`: a flat hairline surface on the reading pane; no blur, no nested pane.
     private func glassCard(_ content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        let solid = contrast == .increased || reduceTransparency
+        let solid = solidSurfaces
         return content.padding(padded ? metric("inset") : 0)
             .background(shape.fill(contentColor(selected ? "action-soft" : "surface", scheme)))
             .overlay {
                 shape.strokeBorder(selected ? contentColor("action", scheme).opacity(metric("selectionOpacity") * 4) : contentColor(solid ? "border-strong" : "border", scheme), lineWidth: metric("hairline"))
             }
             .shadow(color: scheme == .light && !solid ? contentColor("border", scheme) : .clear, radius: metric("hairline"), y: metric("hairline"))
-    }
-    private func quietCard(_ content: Content) -> some View {
-        content.padding(padded ? metric("inset") : 0)
-            .background(selected ? contentColor("action-soft", scheme) : contentColor("surface", scheme),
-                        in: RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .overlay {
-                if selected {
-                    RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .strokeBorder(contentColor("action", scheme).opacity(metric("selectionOpacity") * 4), lineWidth: metric("hairline"))
-                } else { QuietSurfaceEdge(radius: radius) }
-            }
     }
 }
 
@@ -296,14 +277,11 @@ extension EnvironmentValues {
     var cardRowInset: CGFloat { get { self[CardRowInsetKey.self] } set { self[CardRowInsetKey.self] = newValue } }
 }
 
-// Edge-to-edge row separator inside a card: the warm Glass hairline, the
-// system separator elsewhere.
+// Edge-to-edge hairline inside a card.
 struct CardDivider: View {
     @Environment(\.colorScheme) private var scheme
     var body: some View {
-        if (NativeTheme.shared.preferences.preset ?? "glass") == "glass" {
-            Rectangle().fill(contentColor("divider", scheme)).frame(height: metric("hairline")).accessibilityHidden(true)
-        } else { Divider() }
+        Rectangle().fill(contentColor("divider", scheme)).frame(height: metric("hairline")).accessibilityHidden(true)
     }
 }
 
@@ -329,7 +307,7 @@ struct CardRow<Trailing: View>: View {
                 copy
                 HStack(spacing: metric("small")) { trailing }
             }.padding(.vertical, metric("gap")).padding(.horizontal, inset)
-                .frame(minHeight: (NativeTheme.shared.preferences.preset ?? "glass") == "glass" ? metric("navControl") + metric("small") : nil)
+                .frame(minHeight: metric("navControl") + metric("small"))
             if divider { CardDivider() }
         }.accessibilityElement(children: .contain)
     }
@@ -369,29 +347,22 @@ struct KeyCap: View {
     var text: String
     @Environment(\.colorScheme) private var scheme
     var body: some View {
-        if (NativeTheme.shared.preferences.preset ?? "glass") == "glass" {
-            // `.kbd`: a 20 pt mono cap, raised white with a hairline and top highlight.
-            let shape = RoundedRectangle(cornerRadius: metric("chromeShortcutRadius"), style: .continuous)
-            Text(text).font(.system(size: NSFont.systemFontSize * metric("captionScale"), weight: .medium, design: .monospaced))
-                .foregroundStyle(contentColor("text-muted", scheme))
-                .padding(.horizontal, metric("small") - metric("hairline") * 2).frame(height: metric("icon"))
-                .background(shape.fill(contentColor("surface", scheme)))
-                .overlay {
-                    shape.strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline"))
+        // `.kbd`: a 20 pt mono cap, raised white with a hairline and top highlight.
+        let shape = RoundedRectangle(cornerRadius: metric("chromeShortcutRadius"), style: .continuous)
+        Text(text).font(.system(size: NSFont.systemFontSize * metric("captionScale"), weight: .medium, design: .monospaced))
+            .foregroundStyle(contentColor("text-muted", scheme))
+            .padding(.horizontal, metric("small") - metric("hairline") * 2).frame(height: metric("icon"))
+            .background(shape.fill(contentColor("surface", scheme)))
+            .overlay {
+                shape.strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline"))
+            }
+            .overlay(alignment: .top) {
+                if scheme == .light {
+                    shape.inset(by: metric("hairline")).strokeBorder(chromeColor("material-highlight", scheme), lineWidth: metric("hairline"))
+                        .mask(alignment: .top) { Rectangle().frame(height: metric("hairline") * 2) }
                 }
-                .overlay(alignment: .top) {
-                    if scheme == .light {
-                        shape.inset(by: metric("hairline")).strokeBorder(chromeColor("material-highlight", scheme), lineWidth: metric("hairline"))
-                            .mask(alignment: .top) { Rectangle().frame(height: metric("hairline") * 2) }
-                    }
-                }
-                .fixedSize()
-        } else {
-            Text(text).font(.vzn("labelScale")).foregroundStyle(contentColor("text-strong", scheme))
-                .padding(.horizontal, metric("small") + metric("tight")).frame(minHeight: metric("compactControl"))
-                .overlay(RoundedRectangle(cornerRadius: metric("controlRadius")).strokeBorder(contentColor("border", scheme), lineWidth: metric("hairline")))
-                .fixedSize()
-        }
+            }
+            .fixedSize()
     }
 }
 
@@ -412,7 +383,7 @@ struct StatusBadge: View {
     var tone: StatusTone = .busy
     @Environment(\.colorScheme) private var scheme
     var body: some View {
-        if (NativeTheme.shared.preferences.preset ?? "glass") == "glass" { chip } else { badge }
+        chip
     }
     // `.chip`: 24 pt capsule, 12 medium. Ready reads success, live work the
     // accent, idle neutral and failure danger; the words carry the meaning.
@@ -424,14 +395,6 @@ struct StatusBadge: View {
             .background(tone == .idle ? contentColor("surface-muted", scheme)
                         : tone == .busy ? contentColor("action-soft", scheme)
                         : contentColor(role, scheme).opacity(metric("selectionOpacity")), in: Capsule())
-            .fixedSize()
-    }
-    private var badge: some View {
-        // Accent only for live/ready state; idle reads neutral and failures read as danger.
-        HStack(spacing: metric("small")) { StatusDot(tone: tone); Text(text).font(.vzn("smallScale")) }
-            .foregroundStyle(contentColor(tone == .idle ? "text-muted" : tone == .failed ? "danger" : "action-text", scheme))
-            .padding(.horizontal, metric("small") + metric("tight")).padding(.vertical, metric("tight"))
-            .background(tone == .idle || tone == .failed ? contentColor("surface-muted", scheme) : contentColor("action-soft", scheme), in: Capsule())
             .fixedSize()
     }
 }
@@ -453,7 +416,8 @@ struct NoticeBand<Content: View>: View {
             .padding(.trailing, edge ? metric("inset") : metric("gap"))
             .padding(.vertical, metric("tight"))
             .frame(maxWidth: .infinity, minHeight: metric("navControl") + metric("tight"), alignment: .leading)
-            .background(contentColor(role, scheme).opacity(metric("selectionOpacity")), in: shape)
+            // A failure sits on a quiet neutral ground; its icon and hairline carry the red.
+            .background(role == "danger" ? contentColor("text-strong", scheme).opacity(metric("selectionOpacity") / 2) : contentColor(role, scheme).opacity(metric("selectionOpacity")), in: shape)
             .overlay {
                 if !edge { shape.strokeBorder(contentColor(role, scheme).opacity(metric("selectionOpacity") * 2), lineWidth: metric("hairline")) }
             }
@@ -564,7 +528,7 @@ struct ListenPanel: View {
                             Button(store.text("readWithSystemVoice")) { player.read(failed, provider: "system") }.buttonStyle(.vznOutline).controlSize(.small)
                         }
                         Button(store.text("openVoiceSettings")) { close(); NotificationCenter.default.post(name: .viezanOpenSettings, object: "voice") }
-                            .modifier(NoticeLinkStyle(glass: true, accent: true))
+                            .modifier(NoticeLinkStyle(accent: true))
                     }.padding(.horizontal, metric("small")).padding(.vertical, metric("small"))
                 }
             }.padding(.horizontal, metric("small")).padding(.bottom, metric("small"))
@@ -575,7 +539,7 @@ struct ListenPanel: View {
                     Text(providerName + (voice.voice.isEmpty ? "" : " · " + voiceName)).font(.vzn("smallScale")).foregroundStyle(contentColor("text-strong", scheme)).lineLimit(1)
                     Spacer(minLength: metric("small"))
                     Button(store.text("changeVoice")) { close(); NotificationCenter.default.post(name: .viezanOpenSettings, object: "voice") }
-                        .modifier(NoticeLinkStyle(glass: true, accent: true)).accessibilityLabel(store.text("changeVoice") + " " + store.text("voiceProvider"))
+                        .modifier(NoticeLinkStyle(accent: true)).accessibilityLabel(store.text("changeVoice") + " " + store.text("voiceProvider"))
                 }
                 HStack(spacing: metric("small")) {
                     footLabel(store.text("rateShort"))
@@ -713,33 +677,29 @@ extension EnvironmentValues {
 struct WorkspaceSurface: ViewModifier {
     var compact: Bool
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
+    @Environment(\.solidSurfaces) private var solidSurfaces
     func body(content: Content) -> some View {
-        let inset = glass ? metric("gap") : 0
-        let shape = RoundedRectangle(cornerRadius: glass ? metric("chromeSurfaceRadius") : 0, style: .continuous)
-        let solid = reduceTransparency || contrast == .increased
+        let inset = metric("gap")
+        let shape = RoundedRectangle(cornerRadius: metric("chromeSurfaceRadius"), style: .continuous)
+        let solid = solidSurfaces
         content
             .environment(\.workspaceOuterInset, inset)
             // Shell-Solid: the reading pane stays the lightest solid surface, above the solid navigation pane.
             .background {
-                if glass && solid { chromeColor("titlebar-bg", scheme).overlay(contentColor("surface", scheme)) }
-                else { contentColor(glass ? "canvas" : "surface", scheme) }
+                if solid { chromeColor("titlebar-bg", scheme).overlay(contentColor("surface", scheme)) }
+                else { contentColor("canvas", scheme) }
             }
             .clipShape(shape)
             .overlay {
-                if glass {
-                    if solid { shape.strokeBorder(contentColor("border-strong", scheme), lineWidth: metric("hairline")) }
-                    else { GlassRim(shape: shape, border: scheme == .light ? "material-border" : "border") }
-                }
+                if solid { shape.strokeBorder(contentColor("border-strong", scheme), lineWidth: metric("hairline")) }
+                else { GlassRim(shape: shape, border: scheme == .light ? "material-border" : "border") }
             }
             .background {
-                if glass && !solid { OuterShadow(shape: shape, role: "shadow-sm-color", blur: metric("shadowMdBlur"), y: metric("shadowMdY")) }
+                if !solid { OuterShadow(shape: shape, role: "shadow-sm-color", blur: metric("shadowMdBlur"), y: metric("shadowMdY")) }
             }
             .padding(.horizontal, inset)
-            .padding(.top, glass ? metric("small") : 0)
-            .padding(.bottom, glass ? metric("small") : 0)
+            .padding(.top, metric("small"))
+            .padding(.bottom, metric("small"))
     }
 }
 
@@ -755,38 +715,6 @@ struct WorkspacePage<Content: View>: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, metric("large") + metric("gap") - outerInset).padding(.vertical, metric("gutter"))
         }
-    }
-}
-
-// Language pair row shared by Translation, Dictionary and Interpretation.
-struct LanguageMenu: View {
-    @Bindable var store: WorkbenchStore
-    @Environment(\.colorScheme) private var scheme
-    @State private var hovered = false
-    var label: String
-    var codes: [String]
-    var selection: String
-    var choose: (String) -> Void
-    var disabled = false
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
-    var body: some View {
-        // Framed language button: role label, language, chevron (UI rule: separated pair).
-        Menu {
-            Picker(label, selection: Binding(get: { selection }, set: choose)) {
-                ForEach(codes, id: \.self) { Text(store.text("lang_" + $0)).tag($0) }
-            }.pickerStyle(.inline).labelsHidden()
-        } label: {
-            HStack(spacing: metric("small")) {
-                Text(label).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme))
-                Text(store.text("lang_" + selection)).font(.vzn("labelScale", .medium)).foregroundStyle(contentColor("text-strong", scheme))
-                Image(systemName: "chevron.down").imageScale(.small).foregroundStyle(contentColor("text-muted", scheme))
-            }.padding(.horizontal, metric("gap")).frame(minHeight: metric("navControl"))
-                .background(hovered && !glass ? contentColor("surface-hover", scheme) : .clear, in: RoundedRectangle(cornerRadius: metric("controlRadius")))
-                .modifier(ControlGlass(active: glass, radius: metric("navControl") / 2, selected: hovered, enabled: !disabled))
-                .contentShape(RoundedRectangle(cornerRadius: metric("controlRadius")))
-        }.menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize().disabled(disabled)
-            .onHover { hovered = $0 }
-            .accessibilityLabel(label + ": " + store.text("lang_" + selection))
     }
 }
 
@@ -895,14 +823,12 @@ private struct VznButtonBody: View {
     @Environment(\.isFocused) private var focused
     @State private var hovered = false
     private var danger: Bool { configuration.role == .destructive }
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
-    private var glass: Bool { allowsGlass && (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
+    @Environment(\.solidSurfaces) private var solidSurfaces
     private var height: CGFloat { size == .large ? metric("control") : metric("compactControl") }
-    // Glass buttons are pills (`.btn`); other presets keep their control radius.
-    private var radius: CGFloat { glass ? height / 2 : metric((NativeTheme.shared.preferences.preset ?? "glass") == "glass" ? "chromeControlRadius" : "controlRadius") }
+    // Glass buttons are pills (`.btn`).
+    private var radius: CGFloat { allowsGlass ? height / 2 : metric("chromeControlRadius") }
     // `.btn.primary`: the accent gradient face with a light top edge and accent shadow.
-    private var paintedPrimary: Bool { glass && kind == .primary && !danger && enabled && !reduceTransparency && contrast != .increased }
+    private var paintedPrimary: Bool { allowsGlass && kind == .primary && !danger && enabled && !solidSurfaces }
     private func color(_ role: String) -> Color { contentColor(role, scheme) }
     private var foreground: Color {
         if !enabled { return color("text-disabled") }
@@ -922,7 +848,7 @@ private struct VznButtonBody: View {
         return !enabled ? color("border") : danger ? .clear : color("border-strong")
     }
     var body: some View {
-        if glass { glassBody } else { quietBody }
+        if allowsGlass { glassBody } else { quietBody }
     }
     private var glassBody: some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
@@ -948,14 +874,14 @@ private struct VznButtonBody: View {
             .frame(minWidth: size == .large ? metric("control") : metric("compactControl"),
                    minHeight: size == .large ? metric("control") : metric("compactControl"))
             .foregroundStyle(foreground)
-            .background(glass ? .clear : fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .background(allowsGlass ? .clear : fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
             .overlay {
-                if !glass {
+                if !allowsGlass {
                     if kind == .outline && enabled && !danger { QuietSurfaceEdge(radius: radius, strong: true) }
                     else { RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(stroke, lineWidth: metric("hairline")) }
                 }
             }
-            .modifier(ControlGlass(active: glass, radius: radius, selected: hovered || configuration.isPressed,
+            .modifier(ControlGlass(active: allowsGlass, radius: radius, selected: hovered || configuration.isPressed,
                 emphasized: kind == .primary && !danger, focused: focused, pressed: configuration.isPressed,
                 enabled: enabled, danger: danger))
             .contentShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
@@ -975,60 +901,43 @@ struct FilterTabs<Value: Hashable>: View {
     var label: String
     var items: [(Value, String)]
     @Binding var selection: Value
-    // Accent: the selected tab reads as an active mode (soft accent), not a filter.
-    var accent = false
     @Environment(\.colorScheme) private var scheme
     @State private var hoveredIndex: Int?
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
-    private var radius: CGFloat { metric(glass ? "chromeControlRadius" : "controlRadius") }
+    private var radius: CGFloat { metric("chromeControlRadius") }
     var body: some View {
-        HStack(spacing: glass ? metric("hairline") * 2 : metric("tight")) {
+        HStack(spacing: metric("hairline") * 2) {
             ForEach(items.indices, id: \.self) { index in
                 let item = items[index]
                 let active = item.0 == selection
                 Button { selection = item.0 } label: {
-                    Text(item.1).font(glass ? .system(size: NSFont.systemFontSize, weight: active ? .semibold : .medium)
-                                            : .vzn(accent ? "labelScale" : "smallScale", active && !accent ? .semibold : .regular))
+                    Text(item.1).font(.system(size: NSFont.systemFontSize, weight: active ? .semibold : .medium))
                         .lineLimit(1).fixedSize(horizontal: true, vertical: false)
-                        .padding(.horizontal, metric("gap")).frame(minHeight: glass ? metric("compactControl") - metric("tight") * 2 : metric("compactControl"))
-                        .foregroundStyle(contentColor(active ? (accent && !glass ? "action-text" : "text-strong") : (accent && !glass ? "text" : "text-muted"), scheme))
-                        .background(active && !glass ? contentColor(accent ? "action-soft" : "surface-raised", scheme) : .clear, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+                        .padding(.horizontal, metric("gap")).frame(minHeight: metric("compactControl") - metric("tight") * 2)
+                        .foregroundStyle(contentColor(active ? "text-strong" : "text-muted", scheme))
+                        .background(.clear, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
                         .contentShape(Rectangle())
-                }.buttonStyle(FilterSegmentStyle(glass: glass, selected: active, hovered: hoveredIndex == index))
+                }.buttonStyle(NavigationButtonStyle(selected: active, hovered: hoveredIndex == index))
                     .onHover { hoveredIndex = $0 ? index : nil }
                     .accessibilityAddTraits(active ? .isSelected : [])
             }
         }
-        .padding(glass ? metric("tight") : 0)
-        .background { if glass { SegmentTrack() } }
+        .padding(metric("tight"))
+        .background { SegmentTrack() }
         .accessibilityElement(children: .contain).accessibilityLabel(label)
     }
 }
 
 // `.seg` track: a recessed capsule (surface-muted with an inner top shade).
 private struct SegmentTrack: View {
+    @Environment(\.solidSurfaces) private var solidSurfaces
     @Environment(\.colorScheme) private var scheme
-    @Environment(\.colorSchemeContrast) private var contrast
     var body: some View {
         Capsule().fill(contentColor("surface-muted", scheme))
             .overlay {
-                Capsule().strokeBorder(contentColor(contrast == .increased ? "border-strong" : "border", scheme), lineWidth: metric("hairline"))
-                    .mask(alignment: .top) { LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: .center) }
+                Capsule().strokeBorder(contentColor(solidSurfaces ? "border-strong" : "border", scheme), lineWidth: metric("hairline"))
+                    .mask(alignment: .top) { if solidSurfaces { Rectangle() } else { LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: .center) } }
             }
             .allowsHitTesting(false).accessibilityHidden(true)
-    }
-}
-
-private struct FilterSegmentStyle: ButtonStyle {
-    var glass: Bool
-    var selected: Bool
-    var hovered: Bool
-    @Environment(\.isEnabled) private var enabled
-    @ViewBuilder func makeBody(configuration: Configuration) -> some View {
-        if glass {
-            NavigationButtonStyle(glass: true, selected: selected, hovered: hovered)
-                .makeBody(configuration: configuration)
-        } else { configuration.label.opacity(enabled ? (configuration.isPressed ? 0.8 : 1) : 0.5) }
     }
 }
 
@@ -1079,42 +988,31 @@ struct ProviderNotice: View {
         }.task { store.discoverIfNeeded() }
     }
     @Environment(\.colorScheme) private var scheme
-    private var glass: Bool { (NativeTheme.shared.preferences.preset ?? "glass") == "glass" }
     // Glass (Chat-States): one quiet 12 pt line above the composer — a danger dot when
     // nothing can answer, a warning dot for an unavailable model — with text-link actions.
     private func row<Actions: View>(_ text: String, tone: StatusTone = .failed, @ViewBuilder actions: () -> Actions) -> some View {
         HStack(spacing: metric("small")) {
-            StatusDot(tone: glass ? tone : .failed)
-            Text(text).font(.vzn("smallScale")).foregroundStyle(glass ? contentColor("text-muted", scheme) : .secondary).fixedSize(horizontal: false, vertical: true)
+            StatusDot(tone: tone)
+            Text(text).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: metric("small"))
             Button(store.text("checkAgain")) { store.discoverProviders(); Task { await store.localRuntime.refresh() } }
-                .modifier(NoticeLinkStyle(glass: glass)).disabled(store.discovering).accessibilityIdentifier("provider-notice-check")
+                .modifier(NoticeLinkStyle()).disabled(store.discovering).accessibilityIdentifier("provider-notice-check")
             actions()
         }.accessibilityElement(children: .contain)
     }
     @ViewBuilder private func open(_ section: String, label: String, primary: Bool) -> some View {
-        if glass {
-            Button(store.text(label)) { NotificationCenter.default.post(name: .viezanOpenSettings, object: section) }
-                .modifier(NoticeLinkStyle(glass: true, accent: true)).accessibilityIdentifier("provider-notice-open-" + section)
-        } else {
-            Button(store.text(label)) { NotificationCenter.default.post(name: .viezanOpenSettings, object: section) }
-                .buttonStyle(primary ? .vznPrimary : .vznOutline).accessibilityIdentifier("provider-notice-open-" + section)
-        }
+        Button(store.text(label)) { NotificationCenter.default.post(name: .viezanOpenSettings, object: section) }
+            .modifier(NoticeLinkStyle(accent: true)).accessibilityIdentifier("provider-notice-open-" + section)
     }
 }
 
-// A notice action in Glass reads as a text link (12 medium, accent or muted); other presets keep the quiet button.
+// A notice action in Glass reads as a text link (12 medium, accent or muted).
 struct NoticeLinkStyle: ViewModifier {
-    var glass: Bool
     var accent = false
     @Environment(\.colorScheme) private var scheme
     func body(content: Content) -> some View {
-        if glass {
-            content.buttonStyle(.plain).font(.vzn("smallScale", .medium))
-                .foregroundStyle(contentColor(accent ? "action-text" : "text-muted", scheme)).fixedSize()
-        } else {
-            content.buttonStyle(.vznQuiet).tint(.primary)
-        }
+        content.buttonStyle(.plain).font(.vzn("smallScale", .medium))
+            .foregroundStyle(contentColor(accent ? "action-text" : "text-muted", scheme)).fixedSize()
     }
 }
 
@@ -1145,17 +1043,7 @@ struct TaskStatusText: View {
             if task.status == .failed, let detail = task.errorDetail {
                 Text(detail).font(.vzn("captionScale")).foregroundStyle(.secondary).textSelection(.enabled).lineLimit(3).help(detail)
             }
-        }
-    }
-}
-
-struct ModelBadgeLabel: View {
-    var text: String
-    var offline = false
-    var body: some View {
-        HStack(spacing: metric("small")) {
-            if offline { StatusDot(tone: .failed) } else { Image(systemName: "sparkles").accessibilityHidden(true) }
-            Text(text).lineLimit(1)
-        }.font(.vzn("smallScale"))
+        }.accessibilityElement(children: .combine)
+            .accessibilityValue(store.text(task.status == .failed ? (task.errorCode ?? "providerError") : task.status.rawValue))
     }
 }
