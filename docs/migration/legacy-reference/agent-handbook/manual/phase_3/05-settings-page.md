@@ -248,7 +248,6 @@ Content Groups:
   ListRow: Cập nhật          [>] [Badge: "Mới" nếu có update]
 
 [LIÊN KẾT]
-  ListRow: Trang web         [ExternalLink: viezan.is-a.dev]
   ListRow: GitHub            [ExternalLink]
   ListRow: Báo lỗi          [ExternalLink]
 
