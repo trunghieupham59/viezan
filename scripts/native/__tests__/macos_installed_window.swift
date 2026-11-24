@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import Darwin
 
 // Launch the exact installed bundle via Launch Services. A different copy of
 // Viezan may activate itself and make a process-name check falsely pass.
@@ -23,8 +24,17 @@ let app: NSRunningApplication = try await withCheckedThrowingContinuation { cont
         else { continuation.resume(throwing: error ?? CocoaError(.executableNotLoadable)) }
     }
 }
-guard app.executableURL?.resolvingSymlinksInPath().path == executable.resolvingSymlinksInPath().path else {
-    fail("Launch Services opened a different executable")
+// Launch Services may return the app before executableURL is populated. Read
+// the image for the actual PID from the kernel once the window has appeared.
+func processExecutable() -> URL? {
+    var bytes = [CChar](repeating: 0, count: Int(MAXPATHLEN) * 4)
+    guard proc_pidpath(app.processIdentifier, &bytes, UInt32(bytes.count)) > 0 else { return nil }
+    return URL(fileURLWithPath: String(cString: bytes))
+}
+func fileID(_ url: URL) throws -> NSObject {
+    guard let value = try url.resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier as? NSObject
+    else { throw CocoaError(.fileReadUnknown) }
+    return value
 }
 func hasWindow() -> Bool {
     let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
@@ -39,6 +49,9 @@ for _ in 0..<120 where !app.isTerminated && !(app.isFinishedLaunching && hasWind
     try await Task.sleep(for: .milliseconds(250))
 }
 let opened = hasWindow() && app.isFinishedLaunching && !app.isTerminated
+guard let actual = processExecutable(), try fileID(actual).isEqual(fileID(executable)) else {
+    fail("Expected \(executable.path), PID \(app.processIdentifier), executable \(processExecutable()?.path ?? "unavailable"), Launch Services \(app.executableURL?.path ?? "unavailable"), terminated \(app.isTerminated), visible \(opened)")
+}
 if !app.isTerminated {
     app.terminate()
     for _ in 0..<60 where !app.isTerminated { try await Task.sleep(for: .milliseconds(250)) }

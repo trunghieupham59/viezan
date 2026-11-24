@@ -237,6 +237,7 @@ jobs:
   macos-install:
     needs: [version, package]
     strategy:
+      fail-fast: false
       matrix:
         include:
           - arch: arm64
@@ -269,6 +270,21 @@ jobs:
           done
           python3 scripts/native/test_macos_install.py --packages packages --old-images "$RUNNER_TEMP" \
             --mode "$MACOS_MODE" --arch "$ARCH" --version "$version"
+
+      - name: Diagnose an installed app launch failure
+        if: failure()
+        run: |
+          /usr/bin/log show --last 5m --style compact --predicate '(process == "amfid" OR process == "syspolicyd" OR process == "runningboardd" OR process == "launchservicesd" OR process == "ReportCrash") AND eventMessage CONTAINS[c] "Viezan"' | tail -80
+          python3 - <<'PYTHON'
+          import json
+          from pathlib import Path
+          reports = Path.home() / 'Library/Logs/DiagnosticReports'
+          for file in sorted(reports.glob('ViezanNative*.ips'))[-3:]:
+              with file.open() as stream:
+                  header = json.loads(stream.readline())
+                  report = json.load(stream)
+              print(header.get('app_version'), report.get('exception'), report.get('termination'))
+          PYTHON
 
   release:
     needs: [version, package, macos-install]
