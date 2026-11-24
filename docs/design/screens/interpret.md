@@ -1,11 +1,39 @@
 # Phiên dịch
 
+## Native hiện tại — trợ năng macOS (2026-11-08)
+
+- Nguyên bản trong bản ghi Glass dùng cùng cỡ chữ đọc với bản dịch; nút mở lớp nổi báo trạng thái chọn.
+
+## Thông báo — macOS (2026-11-24)
+
+- Lỗi của một lần thu âm hoặc tóm tắt (`audioError`, `systemAudioError`, `interpretQueueFull`, `interpretSummaryLimit`, lỗi nhà cung cấp khi tóm tắt) là toast lỗi do shell hiện cho mỗi lần thất bại, kể cả khi lặp lại lỗi trước, nên vẫn thấy khi đang ở màn khác; toast được gỡ khi mã lỗi của phiên dịch bị xoá (bắt đầu phiên mới) hoặc đổi sang lỗi trong trang. Tóm tắt lại thành công không xoá mã lỗi nên không gỡ toast.
+- `interpretStorageError` và `microphoneDenied` là dải trong trang (nền trung tính, icon đỏ) chừng nào mã lỗi còn được đặt; bắt đầu một phiên mới xoá mã lỗi; "Thử lại" chỉ hiện khi kho bị chặn.
+
+Qt (Windows/Linux), cùng ngày: mã lỗi khác `interpretStorageError` và `microphoneDenied` phát một toast lỗi cho mỗi lần thất bại (signal `failed`), kể cả khi lặp lại lỗi trước, chỉ trong lúc màn Phiên dịch đã được tạo; kho bị chặn hoặc `interpretStorageError` là dải trong trang nền trung tính kèm "Thử lại".
+
 ## Tinh chỉnh native theo ảnh tham chiếu (2026-11-02)
 
 SwiftUI dùng thẻ tổng hợp với bốn tab trong cùng một nhóm. Preset Glass áp dụng
 nền nhóm nhẹ và pill chọn của thành phần `FilterTabs`; vùng nội dung vẫn đục.
 Nhóm Sao chép/Tạo lại đi liền nhau và xuống hàng khi không đủ chiều rộng cạnh
 các tab, giữ nguyên nhãn, thứ tự focus, trạng thái đang xử lý và disabled.
+Thẻ luôn hiện đúng tab đang chọn: tab chưa có nội dung báo "Chưa có nội dung"
+và nút hành động đổi thành "Tổng hợp nội dung" cho riêng tab đó; không tự gọi AI
+khi đổi tab. Nội dung hiển thị Markdown. Ở Glass, thẻ cao tối đa bằng phần chia
+đều với Bản ghi và cuộn bên trong khi dài hơn, để Bản ghi luôn đọc được. Nút
+mũi tên cuối hàng tiêu đề thu gọn thẻ còn hàng tiêu đề và tab; chọn tab hoặc
+bắt đầu tổng hợp sẽ mở lại thẻ. Tên trợ năng và tooltip của nút là
+`interpretSummaryCollapse` / `interpretSummaryExpand` theo trạng thái. Trạng
+thái thu gọn không lưu qua lần mở app. Mỗi
+tab gửi một yêu cầu riêng; Tóm tắt không lặp lại ba mục còn lại.
+
+Qt (Windows/Linux) không có thẻ bốn tab trong cột Bản ghi. Ở Glass, thẻ "Phiên
+này" hiện một loại phân tích mỗi lần; menu "Tổng hợp nội dung" đánh dấu loại
+đang xem, chỉ hiển thị loại đã có kết quả và chỉ gọi AI cho loại chưa có. Nút
+"Tạo lại phản hồi" dưới nội dung chạy lại loại đang xem; nút ẩn khi đang tổng
+hợp và disabled khi phiên đang bận. Ở classic, nút "Tổng hợp nội dung" mở vùng
+cuộn cao cố định gộp cả bốn loại. Cả hai hiển thị Markdown sau khi tạo xong và
+dùng cùng bộ yêu cầu theo từng loại như SwiftUI.
 Các mục dưới đây ghi lại đặc tả renderer trước; hướng native hiện tại theo
 [`direction.md`](../direction.md).
 

@@ -1,5 +1,21 @@
 # Application shell and global surfaces
 
+## Native hiện tại — trợ năng macOS (2026-11-08)
+
+- Increase Contrast và Reduce Transparency dùng chung nhánh mặt đặc; viền `border-strong`. Focus của hàng panel/lịch sử độc lập với trạng thái chọn; toast thông báo trợ năng và tôn trọng Reduce Motion.
+
+## Native toasts — macOS and Qt (2026-11-24)
+
+Supersedes the bottom-right placement, order and timings described in sections 3–6 for both native apps. Differences on Qt: info reuses the About icon; hovering or focusing the stack restarts a toast's timer when the pointer leaves instead of resuming it; warning and danger use the alert accessibility role rather than a priority announcement; and the storage failure band keeps a red hairline. A failed image, screen capture or export on Qt is a danger toast (`actionFailed`) and no longer sets the storage error.
+
+- **Position:** top right of the content area, directly below the header (header height + 8 pt), 16 pt from the right edge. Newest on top; keyboard order follows display order.
+- **Levels:** info, success, warning, danger. Each has its own icon and icon colour (`info.circle.fill`, `checkmark.circle.fill`, `exclamationmark.triangle.fill`, `exclamationmark.circle.fill`). The card keeps the floating glass surface; no level tints the card. Danger adds a hairline border.
+- **Lifetime** (tokens `--vzn-native-toast-*-seconds`): info and success 4 s, warning 7 s, any other toast with an action 8 s; danger never leaves by itself, with or without an action. Hovering or keyboard focus inside the stack pauses every timer.
+- **Stack:** at most three. When full, the oldest self-dismissing toast leaves first; if all three are errors the oldest error leaves. The incoming toast always stays. The same `key` replaces, and `dismiss(key:)` withdraws a failure once its retry succeeds.
+- **Accessibility:** warning and danger are announced at high priority, the others politely; nothing takes keyboard focus. Escape closes the newest toast while focus is in the stack. Reduce Motion fades only.
+- **Bands:** the shell bands remain for ongoing state (recording, interpretation running elsewhere, storage failure). The storage failure band uses a neutral ground with a red icon instead of a red tint.
+- **Not built:** secondary description line, a two-toast limit in short windows, a history of dismissed errors under Activity, a spoken level name for VoiceOver.
+
 ## Shared Glass components (2026-11-03)
 
 Search fields follow a capsule silhouette at their actual control height. Their

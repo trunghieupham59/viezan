@@ -42,6 +42,8 @@ python3 -m unittest discover -s scripts/native/__tests__ -p 'test_*.py'
 
 # macOS
 swift test --package-path apps/macos
+swiftc -O native/common/SMC.swift native/fanhelper/FanController.swift native/fanhelper/CommandHandler.swift native/fanhelper/main.swift -o "$TMPDIR/viezan-fan-helper" -framework IOKit -framework Security
+swiftc -O native/common/SMC.swift native/fanhelper/FanController.swift native/fanhelper/CommandHandler.swift native/fanhelper/tests/main.swift -o "$TMPDIR/fan-helper-self-check" -framework IOKit && "$TMPDIR/fan-helper-self-check"
 
 # Windows/Linux, with the Qt kit configured
 cmake -S apps/desktop-qt -B .native-build/qt -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release

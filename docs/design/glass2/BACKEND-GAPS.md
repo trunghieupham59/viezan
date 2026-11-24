@@ -91,9 +91,9 @@ Các mục loại a có đủ ở cả hai nền tảng không liệt kê ở đ
 | 31 | Tiêu đề phiên chỉ có ảnh | Swift dùng tên ảnh (`S/Models.swift:33`); C++ chỉ dùng draft (`Q/WorkbenchDomain.cpp:478-481`) | Thống nhất | c | | Làm |
 | 32 | Bảng lệnh ⌘K: dòng "Dịch …", "Hỏi AI: …", `=` máy tính, tiền tố `t` / `d` / `?` | Logic nằm trong view macOS (`N/NativeFoundation.swift:1142` `PaletteQuery`). C++ có `calculate()` nhưng bảng lệnh Qt chỉ lọc lệnh | Đưa `PaletteQuery` vào domain dùng chung | c | | Làm |
 | 33 | Trích chữ từ ảnh trên máy | macOS: Vision trên máy. **Qt: gửi ảnh cho model** (tốn token, cần model đọc ảnh, không chạy offline) | Qt: Windows.Media.Ocr; Linux: hoãn | c | Khác hành vi và quyền riêng tư. |  |
-| 34 | Reduce Transparency / Increase Contrast → mặt đặc | macOS có. Qt không | Qt 6.10 `QStyleHints`; Windows đọc cài đặt "Transparency effects"; Linux không có chuẩn | c / d (Linux) | Board nên ghi "khi hệ điều hành báo". |  |
+| 34 | Reduce Transparency / Increase Contrast → mặt đặc | macOS: Increase Contrast đã dùng mặt đặc (native-code-63); Qt chưa | Qt 6.10 `QStyleHints`; Windows đọc cài đặt "Transparency effects"; Linux không có chuẩn | c / d (Linux) | Board nên ghi "khi hệ điều hành báo". |  |
 | 35 | Tốc độ đọc giữ khi khôi phục bản sao lưu | Xem #9 | — | — | Gộp vào #9. | — |
-| 36 | Phiên dịch: trạng thái đọc từng câu (pill "Đang đọc") | Swift `playback` public (`S/Interpretation.swift:49`). C++ `m_audio` private (`Q/Interpretation.h:69`), QML không thấy `speaking` / `error` | Đưa playback ra qua bridge | c | |  |
+| 36 | Phiên dịch: trạng thái đọc từng câu (pill "Đang đọc") | Swift `playback` public (`S/Interpretation.swift:49`). C++ `m_audio` private (`Q/Interpretation.h:69`), QML không thấy `speaking` / `error` | Đưa playback ra qua bridge | c | Làm | Xong 2026-11-24: `interpretation.speakingSource` / `preparing`, `speak(text, source)` ([qt-parity-1](../../migration/reports/native-migration-report-20261124-qt-parity-1.md)) |
 | 37 | Phiên dịch: thẻ "Đang tổng hợp…" + Huỷ riêng | Swift `summarizing` public, chỉ có `cancel()` dừng tất cả (`S/Interpretation.swift:45,189`). C++ `summarizing` không phải Q_PROPERTY | `summarizing` ra QML + `cancelSummary()` cả hai | b/c | | Làm |
 | 38 | Phiên dịch: lưu thiết bị micro theo phiên | Swift lưu `deviceID` (`S/Interpretation.swift:18,118`); C++ không | C++ lưu `deviceID` | c | | Làm |
 | 39 | Từ điển: giới hạn ngữ cảnh 500 khi tra | Swift kiểm (`S/WorkbenchStore.swift:499-500`); C++ `submit` không kiểm (`Q/WorkbenchDomain.cpp:460`) | Kiểm trong C++ | c | | Làm |
@@ -182,7 +182,7 @@ Các mục loại a có đủ ở cả hai nền tảng không liệt kê ở đ
 | 15 | Còn trống (chỉ macOS) | Chỉ có pha + số giây còn lại (`S/ThermalMonitor.swift:79-80`) |
 | 16 | Còn trống | Swift chỉ kiểm trong view (`N/SystemSettings.swift:14`). C++ kiểm nội bộ ở `Q/Interpretation.cpp:86` và `Q/NativeAudio.cpp:48`, không đưa ra bridge |
 | 17 | Còn trống (Hoãn, chính sách) | `appIncomplete` ở `S/Applications.swift:84,105,112,119` |
-| 18 | Còn trống | `N/Workspaces.swift:876`: chỉ tô đỏ bộ đếm, nút Dịch không khoá; store và C++ không có giới hạn |
+| 18 | Xong ở cả hai bên; người dùng chốt chặn cứng 2026-11-24 | `N/Workspaces.swift:876`: chỉ tô đỏ bộ đếm, nút Dịch không khoá; store và C++ không có giới hạn |
 | 19 | Còn trống (OCR trên Qt) | Luồng `ImageTranslation` đã có ở cả hai bên. Khoảng trống thật: Qt trích chữ bằng model của phiên (`Q/WorkbenchBridge.cpp:478-492`) |
 | 20 | Còn trống (Hoãn) | Không có logo; `Q/qml/icons/providers.svg` là biểu tượng chung |
 | 26 | Còn trống trên C++ | Swift `S/WorkbenchStore.swift:303-314`; C++ không có tầng model; `recentModels()` vẫn private. Bảng So sánh trên Swift cũng chưa có nhãn "Gần đây" / "Cân bằng" |
@@ -191,10 +191,10 @@ Các mục loại a có đủ ở cả hai nền tảng không liệt kê ở đ
 | 32 | Còn trống | `PaletteQuery` vẫn nằm trong view (`N/NativeFoundation.swift:1142`); bảng lệnh Qt chỉ lọc lệnh |
 | 33 | Còn trống | Như #19 |
 | 34 | Còn trống trên Qt | `Q/qml/Kit.qml:69` ghi rõ chưa đưa trạng thái này ra QML |
-| 36 | Swift xong; C++ còn trống | Swift đọc `playback.speakingSource`. C++: `m_audio` private (`Q/Interpretation.h:70`), `speak()` không truyền nguồn |
+| 36 | Swift xong; C++ xong 2026-11-24 | Swift đọc `playback.speakingSource`. C++: `m_audio` private (`Q/Interpretation.h:70`), `speak()` không truyền nguồn |
 | 37 | Còn trống | Swift `summarizing` public, chỉ có `cancel()` dừng tất cả (`S/Interpretation.swift:198`). C++ `m_summarizing` private |
 | 43 | Còn trống trên C++ | Swift `S/WorkbenchStore.swift:469-505` |
-| 44 | Còn trống trên C++ | C++ chỉ có cú pháp `<số> ABC to XYZ` (`Q/CurrencyRates.cpp:31`) |
+| 44 | C++ xong 2026-11-24 ([qt-parity-2](../../migration/reports/native-migration-report-20261124-qt-parity-2.md)); bộ chọn hiện mã ISO | C++ chỉ có cú pháp `<số> ABC to XYZ` (`Q/CurrencyRates.cpp:31`) |
 | 45 | Còn trống | Logic nằm trong view `N/Launcher.swift:160-185`, `QuickAISession` ở `N/LauncherChat.swift:7`; Qt chỉ có app gần đây |
 | 47 | Còn trống | Danh sách cứng trong view `N/LocalModelSettings.swift:16-22` |
 | 48 | Còn trống | Không có giới tính; C++ không có ngôn ngữ |
@@ -202,9 +202,9 @@ Các mục loại a có đủ ở cả hai nền tảng không liệt kê ở đ
 | 59 | Còn trống (chỉ macOS) | Đã lưu kết quả dưới dạng `affinity` (`S/ThermalMonitor.swift:81`); chưa có `calibratedAt`, "Quên kết quả", chỉ số i/n |
 | 60 | Còn trống (chỉ macOS) | `created` có nhưng chưa view nào đọc; `snapshot.bytes` internal |
 | 61 | Còn trống (chỉ macOS) | Không có mã `personalData` |
-| 62 | Một phần | Chip CPU / RAM có ở cả hai bên; dung lượng chỉ có cho model gợi ý (cứng trong view macOS). Chưa có bytes đang tải, dung lượng model đã cài, tốc độ theo từng model |
+| 62 | Một phần (bytes khi tải: macOS native-code-65, Qt qt-parity-4; dung lượng đã cài: macOS native-code-66) | Chip CPU / RAM có ở cả hai bên; dung lượng chỉ có cho model gợi ý (cứng trong view macOS). Chưa có bytes đang tải, dung lượng model đã cài, tốc độ theo từng model |
 | 63 | Còn trống | Không lưu thời điểm kiểm tra, không có ETA |
-| 65 | Còn trống | `LauncherFile` chỉ có id / tên. Swift đã có `openSettings(section)` nhưng Launcher chưa dùng; nút Thử lại chỉ có cho tỷ giá |
+| 65 | Một phần (loại và ngày sửa: macOS native-code-65, Qt qt-parity-4; mở mục Cài đặt: macOS native-code-66) | `LauncherFile` chỉ có id / tên. Swift đã có `openSettings(section)` nhưng Launcher chưa dùng; nút Thử lại chỉ có cho tỷ giá |
 | 66 | Còn trống | Xuất luôn song ngữ ở cả hai bên |
 | 67 | Còn trống (Hoãn) | `start` luôn tạo phiên mới |
 | 68 | Còn trống | Không có `reload()`; C++ còn không đưa trạng thái lỗi lưu ra ngoài |

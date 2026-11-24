@@ -381,3 +381,5 @@ stay in `userData/fileActions`; unresolved interruption is reported as pending.
 Capabilities are `apps.inventory` and `files.trash.undo`. No new network requests
 or privileged-helper operations are introduced. Root removal, updates, orphan
 scans and cross-platform file actions remain separate future phases.
+
+The native macOS Applications service authorizes broken app links directly under an allowed install root. Its separate `trash-link` and `restore-link` commands verify the link's device and inode and rename the directory entry itself.

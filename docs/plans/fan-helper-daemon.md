@@ -193,7 +193,8 @@ Daemon dùng chung cho cả máy nên đổi thành:
 2. Mỗi lúc chỉ một client, như hiện nay.
 3. Chỉ ở đường B: kiểm thêm chữ ký của peer qua `LOCAL_PEERTOKEN` (audit token),
    `SecCodeCopyGuestWithAttributes` và yêu cầu
-   `anchor apple generic and certificate leaf[subject.OU] = "<TEAMID>" and identifier "com.Viezan.app"`.
+   `anchor apple generic and certificate leaf[subject.OU] = "<TEAMID>" and identifier "com.viezan.native.preview"`
+   (định danh mà `scripts/native/build.py` ký cho ứng dụng native; helper ký ad-hoc bỏ qua bước này).
 
 **Điều kiện để bước 3 có nghĩa.** Hiện `build/entitlements.mac.plist` bật
 `allow-dyld-environment-variables` và `disable-library-validation`, đồng thời
@@ -212,13 +213,44 @@ tại. Không được thêm lệnh mạnh hơn vào daemon khi chỉ có lớp 
 
 ### 4.4 Các lớp an toàn giữ nguyên
 
-Watchdog 15 giây, trần nhiệt 105 °C, trả quạt về tự động khi client ngắt, khi
-sleep, khi wake, khi nhận tín hiệu dừng; kẹp mọi target vào dải phần cứng.
+Watchdog mặc định 15 giây dùng `CLOCK_MONOTONIC` của Darwin, tính cả thời gian
+máy ngủ. Chỉnh giờ hệ thống lùi không kéo dài hạn. Trần nhiệt mặc định là
+105 °C. Helper trả quạt về tự động khi client ngắt, khi sleep/wake và khi
+nhận tín hiệu dừng. Mục tiêu ngoài dải phần cứng bị từ chối.
 
 Phần mới thêm:
 
 - Trả quạt về tự động khi daemon khởi động (4.1) và khi người dùng console đổi
-  (4.3).
+  (4.3). Mỗi lệnh được kiểm tra trên hàng đợi SMC ngay trước khi thực thi.
+  Lệnh đã đọc từ kết nối bị ngắt sẽ bị bỏ. Khi `serve` kết thúc sau lần ngắt
+  này, helper giữ sự kiện `console-user`.
+- `fans.setTarget` trả `unsupported` trước khi ghi nếu không đọc được nhiệt độ
+  SMC nào. Nếu mất toàn bộ số đo khi đang áp mục tiêu, watchdog khôi phục tất
+  cả với lý do `ceiling-unreadable`. Nhiệt độ được xét trước hạn watchdog, nên máy
+  quá nhiệt được ghi là `ceiling` kể cả khi client cũng đang trễ. Nếu chỉ còn
+  quạt chờ khôi phục, helper vẫn kiểm tra nhiệt và ghi một sự kiện lúc bắt đầu
+  đợt quá nhiệt hoặc mất số đo. Các nhịp tiếp tục thử quạt đang chờ. Khi đọc
+  lại được nhiệt độ dưới trần hoặc đã khôi phục xong, đợt kế tiếp có thể được ghi.
+- `fans.setTarget` trả `ceiling` trước khi ghi nếu một cảm biến đã ở trần nhiệt, và
+  trả `smc-error` cho quạt đang chờ khôi phục. Quạt không có khoá chế độ không bao
+  giờ vào `pendingRestore` (nó chưa từng ở chế độ thủ công).
+- Khi dùng mặt nạ Intel `FS! `, helper trả `unsupported` trước khi ghi nếu
+  mặt nạ không có bit cho quạt đó. Lỗi đọc mặt nạ trả `smc-error` và cập nhật
+  `status.lastError`.
+- Khi thoát qua `helper.exit`, tín hiệu dừng hoặc lỗi `accept`, cả hai chế độ
+  đều thử trả mọi quạt về tự động. Nếu còn quạt chờ, helper chỉ thử lại các
+  quạt đó, cách nhau 0,25 giây, tối đa 12 lần trong ngân sách khoảng 3 giây.
+  Helper thoát ngay khi khôi phục xong. Nếu hết hạn, helper ghi một dòng log
+  liệt kê các ID chưa xác nhận được chế độ tự động rồi thoát. Từ lần khôi phục
+  đầu đến lúc thoát, helper giữ hàng đợi SMC nên lệnh client không thể chen vào.
+- Trước khi bật thủ công, helper cần biết RPM mục tiêu hiện tại. Nếu ghi RPM
+  mới lỗi, helper lập tức thử trả riêng quạt đó về tự động và trả lỗi ghi ban đầu.
+  `status.activeOverrides` giữ ID và RPM cuối đã biết của quạt còn ở chế độ thủ công.
+- `status.pendingRestore` liệt kê ID các quạt chưa khôi phục được, kể cả khi lỗi
+  xảy ra lúc khởi động. Watchdog thử lại mỗi giây đến khi thành công. Mỗi quạt
+  chỉ ghi log ở lần lỗi đầu và lần hồi phục. Các nhịp thử lại giữ nguyên
+  `restoreSeq` và `lastRestoreReason`. Helper theo phiên hoãn thoát lúc rảnh
+  nếu còn quạt đang chờ khôi phục.
 - Client im lặng quá 30 giây bị ngắt (`SO_RCVTIMEO`). App gửi heartbeat mỗi 5
   giây, nên chỉ peer bị treo hoặc cố ý chiếm chỗ mới chạm ngưỡng này; nếu không,
   nó giữ chỗ client duy nhất mãi.

@@ -305,7 +305,14 @@ Chi tiết phân tích và mức kiểm chứng nằm trong
   máy** liệt kê model đã cài. Không có submenu hay danh sách thô. Nhà cung
   cấp chưa có khoá hay runtime chưa chạy hiện một dòng "Thiết lập…" mở Cài
   đặt, không ẩn. Chân panel: Tải lại model, Cấu hình model.
-- Còn mở: ghim model; phím tắt mở panel.
+- **Ghim model** (native-code-64): hàng model có nút ghim ở mép phải (hiện khi
+  trỏ, khi phím mũi tên đang ở hàng, hoặc khi đã ghim), ⌘P ghim hàng đang
+  chọn, menu ngữ cảnh và hành động trợ năng cùng tên. Model đã ghim nằm trong
+  nhóm **Đã ghim** ngay dưới Mục đích, theo thứ tự ghim, tối đa 8, không lặp
+  lại ở Gần đây; model đã ghim mà danh sách không còn vẫn chọn được.
+- **Phím tắt mở panel** (native-code-64): ⌘⇧M mở panel model, ⌘⇧T mở menu "+"
+  của ô soạn (menu Lệnh). Lệnh bấm đúng nút trên màn hình nên panel neo vào
+  nút, bấm lần nữa để đóng, Esc trả focus về nút.
 - **Mọi dropdown trong AI Chat là lớp nổi của shell, không dùng menu hệ
   thống.** Nút "+" mở panel công cụ (`ComposerToolsPanel`, cùng bề rộng 376
   pt, neo và phím như panel model): bốn nhóm ngăn bằng vạch hairline, không
@@ -392,7 +399,7 @@ khi người dùng loại hướng cũ; [native-code-59](../migration/native-imp
 lại trạng thái trống và composer AI Chat; [native-code-60](../migration/native-implementation/native-code-60.md)
 rút gọn menu chọn model theo mục đích, gần đây và dòng mới nhất.
 [native-code-62](../migration/native-implementation/native-code-62.md) bổ sung gợi ý thói quen tầng 2/3
-và bốn mức suy luận; menu "+" đã có mô tả từng chế độ. Còn mở ở AI Chat: ghim model và phím tắt mở panel.
+và bốn mức suy luận; menu "+" đã có mô tả từng chế độ. Ghim model và phím tắt mở panel đã làm trên macOS ([native-code-64](../migration/native-implementation/native-code-64.md)) và Qt ([qt-parity-2](../migration/reports/native-migration-report-20261124-qt-parity-2.md)).
 Tổng hợp: Qt trên Windows/Linux (làm khi có máy Windows); các luồng cần API hoặc phần cứng thật để chạy
 (so sánh model, nghiên cứu web, tổng hợp phiên dịch, tải và đo model local, helper quạt, bản cập nhật mới);
-nghiệm thu trợ năng (VoiceOver, ba cỡ chữ, 640 pt); cài đặt cập nhật tại chỗ.
+nghiệm thu trợ năng sống theo checklist native-code-63 (audit tĩnh đã xong); cài đặt cập nhật tại chỗ.

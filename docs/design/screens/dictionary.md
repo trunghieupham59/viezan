@@ -1,5 +1,12 @@
 # Từ điển
 
+- Qt (2026-11-24): Ctrl+Shift+C cùng hành vi (qt-parity-11).
+- macOS (2026-11-24): ⌘⇧C bật / tắt ô ngữ cảnh; bật thì focus vào ô ngữ cảnh, tắt thì về ô từ; ngữ cảnh đang có chữ vẫn hiện ([native-code-68](../../migration/native-implementation/native-code-68.md)).
+
+## Native hiện tại — trợ năng macOS (2026-11-08)
+
+- Nghĩa, bản dịch, ví dụ, ghi chú và phiên âm dùng cỡ chữ đọc; tiêu đề mục từ giữ vai trò ở mức Vừa và co giãn theo cùng hệ số đọc. Mở ngữ cảnh tôn trọng Reduce Motion.
+
 > Bản vẽ gốc: `boards/Dictionary.dc.html` (cùng `boards/Histories.dc.html`, `boards/States.dc.html`, `boards/Popovers.dc.html`) · Board chi tiết: `specs/dictionary.html` · Mã nguồn: `src/pages/DictionaryPage.tsx`
 
 Luật chung (token, hợp đồng Button, bậc bề mặt, responsive, trạng thái chung) nằm ở [`foundations.md`](../foundations.md). Tài liệu này chỉ ghi phần riêng của màn hình Từ điển.

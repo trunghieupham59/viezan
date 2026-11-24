@@ -24,6 +24,8 @@ Existing GitHub releases may still be the previous app.
   automatic translation after edits; dictionary details, context and favorites.
 - Image translation with validated text regions, native overlays, original/translated
   text and image export. Source attachments and completed results survive native backups.
+- Quick Translate on macOS translates text in a screen region you select, with on-device text recognition and no saved image (unavailable on Qt).
+- On macOS, keep up to five floating notes from the menu bar, Quick Translate or AI Chat. Viezan saves notes on this Mac and requests their exclusion from screen sharing. Notes are outside the current backup and are unavailable on Qt.
 - Search and resumable research, saved prompts, image generation/editing and OCR.
 - Microphone, system and mixed audio capture; language-aware STT with explicit
   provider selection or opt-in automatic routing, translated interpretation,
@@ -42,12 +44,15 @@ Existing GitHub releases may still be the previous app.
   panels, global shortcuts, application/file launcher, calculator, currency
   conversion with a remembered target, browser search and native window/tray
   lifecycle. On macOS the launcher asks AI in the same window and hands the
-  conversation to AI Chat.
+  conversation to AI Chat. The macOS Launcher also offers Prevent sleep (until Viezan quits), Mute and system-wide Dark mode. These controls are pending on Qt.
+  On macOS, Launcher searches file content through Spotlight without building its own index and prepares “Find files with AI” requests using only the typed query for the selected model (both features are pending on Qt).
 - The sidebar identifies history stored on this device separately from live
   background services. Its storage hint explains that AI processing runs locally
   or in the cloud depending on the selected model.
 - macOS application inventory, selected uninstall/reset plans, Trash operations,
-  preference backup/reset, journals, recovery and undo; thermal monitoring,
+  preference backup/reset, journals, recovery and undo (⌘Z for the latest), Quick Look
+  of plan items, drag an app in from Finder, and locked display of data the app
+  declares (bundled helpers, app groups, privileged helpers, receipts); thermal monitoring of SMC and named IOHID sensors,
   fan profiles, calibration and helper lease restoration. Linux exposes available
   hwmon readings. Qt lists Windows/Linux applications and starts their registered
   uninstaller after one confirmation (see limits below).
@@ -82,13 +87,23 @@ Existing GitHub releases may still be the previous app.
   opaque editing surfaces with neutral focus borders. Filters and Settings
   navigation use raised selection lenses. Floating text panels share one quiet
   perimeter and shadow, preserving readable content and native input behavior.
-- EN/VI/JA, theme presets and accents, reading size, module preferences, login
+- EN/VI/JA, the Glass theme in light or dark with optional accents, reading size, module preferences, login
   startup, permission links, diagnostics and token usage with user-entered pricing.
 - Native speech adapters, session/history backup and offline legacy conversion.
   Backups exclude provider credentials.
 - Native installer packaging and update discovery/download with bounded transfers
-  and SHA-256 verification. Installation is explicit; the running binary stays
-  intact during download. Windows verifies installer signatures before opening.
+  and SHA-256 verification. Each package manifest carries an Ed25519 signature
+  made with Viezan's own update key, and the apps reject an update whose
+  signature does not match the public key they embed, so updates do not depend
+  on an Apple or Microsoft certificate. The running binary stays intact during
+  download. "Install and restart" then saves the workspace, replaces the app and
+  reopens it: macOS swaps the app bundle for the one in the verified disk image,
+  Windows runs the installer silently into the current install folder, and
+  Linux replaces the running AppImage and keeps the old one beside it as
+  `.previous`. Windows and Linux check the package hash again first. Where the
+  app cannot replace itself (a read-only or translocated macOS copy, an unpacked
+  Windows build, a Linux build not started from a writable AppImage), it opens
+  the package for a manual install instead.
 
 ## Source layout
 
@@ -161,7 +176,10 @@ linuxdeploy executable and its Qt plugin (`--linuxdeploy`, `--qt-bin`). Packagin
 emits version/platform/architecture-specific artifacts and checksum manifests.
 The manual release workflow uses prepared signing runners and uploads artifacts
 for review; it does not publish or install them. Publish the matching manifest
-alongside each installer for the native updater to discover it. Windows and Linux
+and its `.json.sig` signature alongside each installer for the native updater to
+discover it. The release job signs manifests with the Ed25519 private key in the
+`VIEZAN_UPDATE_SIGNING_KEY` secret and stops when that secret is missing or does
+not match the public key in both `NativeUpdates` sources. Windows and Linux
 x64 packaging also writes `latest.yml` and `latest-linux.yml`, which let the retired
 Electron app (2.4.x and earlier) update itself to the native app; publish them too.
 The Windows installer removes that Electron app first, keeping its data, and stops
@@ -198,6 +216,8 @@ than permanently erased.
 
 - Microphone, Screen Recording and Accessibility permissions are requested by the
   relevant native features. macOS helper installation requires OS authorization.
+  Dark mode in the macOS Launcher requires Automation permission for System Events.
+- File search on macOS depends on what Spotlight has indexed. “Find files with AI” currently stops before sending because the shared provider adds chat instructions to the planning prompt.
 - Linux global shortcuts and Wayland screenshots require a desktop portal that
   implements those interfaces. Wayland intentionally restricts reading and
   replacing another application's selection; clipboard/manual paste remains
@@ -224,8 +244,8 @@ than permanently erased.
   has not been accepted on a real Linux machine.
 - With reduced transparency or high contrast turned on, Qt Glass surfaces become
   opaque and use stronger borders; the setting follows the OS while the app runs.
-- Qt Launcher has no currency target picker or rate status yet, and the Launcher
-  shows file results without previews.
+- Qt Launcher lists currencies by ISO code only, and shows file results without
+  previews.
 - Cloud AI, speech, search and currency conversion need their external services.
   Local model availability depends on the selected runtime: Ollama (`11434`),
   LM Studio (`1234/v1`) or llama.cpp (`8080/v1`), all on `127.0.0.1`. Select a
@@ -235,8 +255,11 @@ than permanently erased.
   provider after a failure; choose an explicit provider to disable that behavior.
 - Usage pricing is an estimate for reported input/output tokens; missing usage,
   audio/image/search costs, discounts and taxes are not inferred.
-- Update installation remains a user action after quitting. No silent installer,
-  in-place updater replacement or automatic rollback is claimed.
+- An update installs only when the user chooses "Install and restart"; nothing is
+  installed in the background. macOS puts the previous app back if the new one
+  cannot be moved into place, and Linux keeps the previous AppImage, but the app
+  offers no rollback after a completed install. The self-install has not been
+  exercised against a published release on any platform.
 
 See the [source migration inventory](docs/migration/native-implementation/full-migration-status.md)
 for implementation paths and the remaining compilation/runtime acceptance boundary.
