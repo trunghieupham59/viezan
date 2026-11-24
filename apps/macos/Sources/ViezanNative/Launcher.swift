@@ -406,7 +406,7 @@ private struct LauncherView: View {
         return VStack(spacing: 0) {
             HStack(spacing: metric("gap")) {
                 Image(systemName: "magnifyingglass").font(.vzn("titleScale")).foregroundStyle(.secondary)
-                TextField(t("launcher_placeholder"), text: Binding(get: { query }, set: changeQuery)).textFieldStyle(.plain).font(.vzn("titleScale")).focused($focused)
+                TextField(t("launcher_placeholder"), text: Binding(get: { query }, set: { changeQuery($0) })).textFieldStyle(.plain).font(.vzn("titleScale")).focused($focused)
                     .onSubmit {
                         guard (NSApp.keyWindow?.firstResponder as? NSTextView)?.hasMarkedText() != true else { return }
                         activate(current())

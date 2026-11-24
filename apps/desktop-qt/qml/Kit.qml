@@ -332,6 +332,8 @@ QtObject {
     // disabled semantics are inherited from the active Qt control style.
     component GlassButton: Button {
         id: glassButton
+        // Qt 6.8 leaves some buttons without the implicit name taken from `text`.
+        Accessible.name: text
         property var popupOpen
         Component.onCompleted: if (popupOpen !== undefined) PopupAccessibility.bindState(glassButton, Accessible)
         property bool glassMaterial: true
@@ -444,6 +446,7 @@ QtObject {
     }
     component FilterButton: TabButton {
         id: filterButton
+        Accessible.name: text
         readonly property var metrics: workbench.metrics
         implicitHeight: metrics.compactControl - (metrics.tight - metrics.hairline) * 2
         // The style's vertical padding leaves the 26 pt Glass segment less than a text line.
