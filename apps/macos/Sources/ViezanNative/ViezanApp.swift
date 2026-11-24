@@ -587,12 +587,21 @@ struct ModelPicker: View {
     @Environment(\.shellLayer) private var shellLayer
     // The chip: short name (the full ID in help and the accessibility label); it opens the shell's
     // model panel anchored to itself, so the picker is a quiet layer of the app, not a system menu.
+    // Kept out of the view builder: inline, the chained string made the body too slow to type-check.
+    private var chipName: String {
+        let careful = store.session.reasoningEffort == "high" || (store.session.reasoningEffort == nil && store.session.carefulReasoning == true)
+        return (careful ? store.text("tierCareful") + " · " : "") + ModelLineup.shortName(store.session.model)
+    }
+    private var chipAccessibilityLabel: String {
+        let unavailable = modelUnavailable(store.session.model, store: store) ? ", " + store.text("unavailable") : ""
+        return store.text("model") + ": " + chipName + " · " + store.session.model + unavailable
+    }
     private var compactMenu: some View {
         HStack(spacing: metric("tight")) {
             if modelUnavailable(store.session.model, store: store) { StatusDot(tone: .failed) }
             // Glass composer chip (`✦ Haiku 5.5 ⌄`): an accent sparkle drawn over the
             // control's leading room, the chevron after the name.
-            ShellToolbarButton(label: ((store.session.reasoningEffort == "high" || (store.session.reasoningEffort == nil && store.session.carefulReasoning == true)) ? store.text("tierCareful") + " · " : "") + ModelLineup.shortName(store.session.model), symbol: iconOnly ? "sparkles" : "chevron.down", identifier: "model-toggle", showsLabel: !iconOnly, glass: !glassChat, quiet: true, small: (dense || badge) && !glassChat,
+            ShellToolbarButton(label: chipName, symbol: iconOnly ? "sparkles" : "chevron.down", identifier: "model-toggle", showsLabel: !iconOnly, glass: !glassChat, quiet: true, small: (dense || badge) && !glassChat,
                                expanded: shellLayer == .models, hint: store.session.model,
                                trailingSymbol: sparkleChip, leadingRoom: sparkleChip ? metric("inset") + metric("tight") : 0, enabled: !store.loadingModels,
                                frameAction: { frame in NotificationCenter.default.post(name: .viezanOpenModels, object: NSValue(rect: frame)) }) {}
@@ -605,7 +614,7 @@ struct ModelPicker: View {
                 .frame(maxWidth: glassChat && !iconOnly ? metric("compactSidebar") : nil)
                 .frame(width: iconOnly ? metric("compactControl") : nil)
                 .frame(height: metric(glassChat ? "control" : dense || badge ? "compactControl" : "control"))
-                .accessibilityLabel(store.text("model") + ": " + ((store.session.reasoningEffort == "high" || (store.session.reasoningEffort == nil && store.session.carefulReasoning == true)) ? store.text("tierCareful") + " · " : "") + ModelLineup.shortName(store.session.model) + " · " + store.session.model + (modelUnavailable(store.session.model, store: store) ? ", " + store.text("unavailable") : ""))
+                .accessibilityLabel(chipAccessibilityLabel)
             if store.loadingModels { ProgressView().controlSize(.small) }
             if let error = store.modelError { Image(systemName: "exclamationmark.triangle").foregroundStyle(.secondary).help(store.text(error)).accessibilityLabel(store.text(error)) }
         }
