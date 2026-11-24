@@ -26,13 +26,6 @@ const QStringList statuses{"running", "succeeded", "cancelled", "failed", "inter
 const QStringList modes{"system", "light", "dark"};
 const Map defaultAppearance{{"mode", "system"}, {"textSize", "medium"}, {"preset", "glass"}, {"accent", "auto"}};
 const QStringList sizes{"small", "medium", "large"};
-bool validModel(const QString &id) {
-    if (models.contains(id)) return true;
-    const auto prefix = id.section(':', 0, 0);
-    if (!QStringList{"ollama", "lmstudio", "llamacpp", "openai", "claude", "gemini"}.contains(prefix) || id.size() <= prefix.size() + 1 || id.toUtf8().size() > 512) return false;
-    for (const auto c : id) if (c.category() == QChar::Other_Control) return false;
-    return true;
-}
 bool isString(const QVariant &v) { return v.metaType().id() == QMetaType::QString; }
 bool isMap(const QVariant &v) { return v.metaType().id() == QMetaType::QVariantMap; }
 bool isList(const QVariant &v) { return v.metaType().id() == QMetaType::QVariantList; }
@@ -46,9 +39,9 @@ bool integer(const QVariant &v, double minimum = 0) {
     const auto n = v.toDouble();
     return finiteNumber(v) && n >= minimum && n <= 9007199254740991.0 && std::fpclassify(n - std::trunc(n)) == FP_ZERO;
 }
-Map freshSession(const QString &id, const QString &feature) {
+Map freshSession(const QString &id, const QString &feature, const QVariant &model = QStringLiteral("ollama:llama3.2")) {
     return {{"id", id}, {"feature", feature}, {"title", ""}, {"draft", ""},
-            {"model", "ollama:llama3.2"}, {"source", "en"}, {"target", "vi"},
+            {"model", model}, {"source", "en"}, {"target", "vi"},
             {"revision", 0}, {"output", ""}, {"messages", List{}}};
 }
 qsizetype find(const List &items, const QString &id) {
@@ -254,7 +247,23 @@ static bool validImages(const QVariant &value) {
     }
     return true;
 }
+bool validModel(const QString &id) {
+    if (models.contains(id)) return true;
+    const auto prefix = id.section(':', 0, 0);
+    if (!QStringList{"ollama", "lmstudio", "llamacpp", "openai", "claude", "gemini"}.contains(prefix) || id.size() <= prefix.size() + 1 || id.toUtf8().size() > 512) return false;
+    for (const auto c : id) if (c.category() == QChar::Other_Control) return false;
+    return true;
+}
+QString modelForNextRequest(const Map &state, const Map &session) {
+    if (session.isEmpty()) return {};
+    const auto model = session.value("model").toString();
+    if (!session.value("comparisonParent").toString().isEmpty() ||
+        (session.value("feature") == "chat" && !session.value("messages").toList().isEmpty())) return model;
+    return state.value("defaultModel").isNull() ? model : state.value("defaultModel").toString();
+}
 bool validate(const Map &state) {
+    const auto defaultModel = state.value("defaultModel");
+    if (!defaultModel.isNull() && (!isString(defaultModel) || !validModel(defaultModel.toString()))) return false;
     for (const auto &key : {"rates", "runtime", "voice"}) if (state.contains(key) && !state.value(key).isNull() && !isMap(state.value(key))) return false;
     if (state.contains("disabledModules") && !state.value("disabledModules").isNull() && !isList(state.value("disabledModules")) && state.value("disabledModules").metaType().id() != QMetaType::QStringList) return false;
     for (const auto &module : state.value("disabledModules").toStringList()) if (!QStringList{"chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities"}.contains(module)) return false;
@@ -322,8 +331,7 @@ bool validate(const Map &state) {
         !isList(state.value("sessions")) || !isList(state.value("tasks")) || !isMap(state.value("active"))) return false;
     if (state.contains("appearance") && !state.value("appearance").isNull()) {
         const auto appearance = state.value("appearance").toMap();
-        const auto preset = appearance.value("preset");
-        if (!preset.isNull() && !QStringList{"graphite", "glass", "paper", "corporate", "midnight"}.contains(preset.toString())) return false;
+        if (appearance.value("preset").toString() != "glass") return false;
         if (!QStringList{"auto", "violet", "pink", "teal", "green", "amber", "red"}.contains(appearance.value("accent", "auto").toString())) return false;
         if (!modes.contains(appearance.value("mode").toString()) || !sizes.contains(appearance.value("textSize").toString())) return false;
     }
@@ -451,6 +459,7 @@ QVariantMap recover(const Map &saved, bool repairStoredTitles) {
         legacyActive["dictionary"] = dictionaryID;
         state["sessions"] = legacySessions; state["active"] = legacyActive;
     }
+    if (state.value("defaultModel").isNull()) state.remove("defaultModel");
     auto migratedSessions = state.value("sessions").toList(), migratedTasks = state.value("tasks").toList();
     for (auto &value : migratedSessions) {
         auto session = value.toMap();
@@ -460,12 +469,17 @@ QVariantMap recover(const Map &saved, bool repairStoredTitles) {
     }
     for (auto &value : migratedTasks) { auto task = value.toMap(); auto request = task.value("request").toMap(); if (request.value("model").toString().startsWith("demo.")) request["model"] = "ollama:llama3.2"; task["request"] = request; value = task; }
     state["sessions"] = migratedSessions; state["tasks"] = migratedTasks;
-    if (!validate(state)) return {};
-    auto appearance = state.value("appearance").toMap();
-    if (appearance.isEmpty()) appearance = defaultAppearance;
-    if (appearance.value("preset") == "midnight") appearance["mode"] = "dark";
+    const auto storedAppearance = state.value("appearance");
+    auto appearance = storedAppearance.isNull() ? defaultAppearance : storedAppearance.toMap();
+    const auto preset = appearance.value("preset");
+    if (!preset.isNull() && !QStringList{"graphite", "glass", "paper", "corporate", "midnight"}.contains(preset.toString())) return {};
+    if (preset == "midnight") {
+        if (!modes.contains(appearance.value("mode").toString())) return {};
+        appearance["mode"] = "dark";
+    }
     appearance["preset"] = "glass";
     state["appearance"] = appearance;
+    if (!validate(state)) return {};
     auto tasks = state.value("tasks").toList();
     for (auto &value : tasks) {
         auto task = value.toMap();
@@ -493,7 +507,8 @@ void applySmartReset(Map &state, const QString &feature, double now, const QStri
     if (now - leftAt < resetAfter.value(feature) || index < 0 || sessions[index].toMap().value("output").toString().isEmpty() || running(tasks, activeID) >= 0) return;
     for (const auto &value : tasks) { const auto task = value.toMap(); if (task.value("request").toMap().value("sessionID") == activeID) { if (task.value("status") == "interrupted") return; break; } }
     const auto previous = sessions[index].toMap(); auto fresh = freshSession(freshID, feature);
-    for (const auto &key : {"model", "source", "target"}) fresh[key] = previous.value(key, fresh.value(key));
+    for (const auto &key : {"source", "target"}) fresh[key] = previous.value(key, fresh.value(key));
+    fresh["model"] = state.value("defaultModel", previous.value("model"));
     sessions.prepend(fresh); active[feature] = freshID; state["sessions"] = sessions; state["active"] = active;
     state["_resetNotice"] = Map{{"feature", feature}, {"previousID", activeID}};
 }
@@ -502,6 +517,10 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
     if (clearedOutput) *clearedOutput = false;
     auto state = original;
     // Smart reset: a setting, the moment a feature is left, the launch check and reopening the previous turn.
+    if (name == "defaultModel") {
+        if (!validModel(p.value("value").toString())) return original;
+        state["defaultModel"] = p.value("value"); return state;
+    }
     if (name == "smartReset") {
         if (p.value("value").metaType().id() != QMetaType::Bool) return original;
         state["smartReset"] = p.value("value"); return state;
@@ -533,7 +552,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
         for (qsizetype i = tasks.size(); i-- > 0;) if (ids.contains(tasks[i].toMap().value("request").toMap().value("sessionID").toString())) tasks.removeAt(i);
         if (active.value(feature) == target) {
             QString next; for (const auto &value : sessions) { const auto other = value.toMap(); if (other.value("feature") == feature && !other.value("archived").toBool() && other.value("comparisonParent").toString().isEmpty()) { next = other.value("id").toString(); break; } }
-            if (next.isEmpty()) { auto fresh = freshSession(id, feature); for (const auto &key : {"model", "source", "target"}) fresh[key] = item.value(key); sessions.prepend(fresh); next = id; }
+            if (next.isEmpty()) { auto fresh = freshSession(id, feature, state.value("defaultModel", item.value("model"))); for (const auto &key : {"source", "target"}) fresh[key] = item.value(key); sessions.prepend(fresh); next = id; }
             active[feature] = next;
         }
         state["sessions"] = sessions; state["tasks"] = tasks; state["active"] = active; return validate(state) ? state : original;
@@ -560,6 +579,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
         for (const auto &feature : features) {
             auto next = freshSession(id + "-" + feature, feature); const auto previous = find(oldSessions, active.value(feature).toString());
             if (previous >= 0) for (const auto &key : {"model", "source", "target"}) next[key] = oldSessions[previous].toMap().value(key);
+            next["model"] = state.value("defaultModel", next.value("model"));
             fresh.append(next); active[feature] = next.value("id");
         }
         state["sessions"] = fresh; state["tasks"] = List{}; state["active"] = active; return state;
@@ -757,11 +777,12 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
             const auto old = sessions[i].toMap();
             if (old.value("feature") == feature && old.value("comparisonParent").toString().isEmpty() && !old.value("archived").toBool() && !hasWork(old) && old.value("title").toString().isEmpty() && running(tasks, old.value("id").toString()) < 0) sessions.removeAt(i);
         }
-        sessions.prepend(freshSession(id, feature));
+        sessions.prepend(freshSession(id, feature, state.value("defaultModel", "ollama:llama3.2")));
         active[state.value("feature").toString()] = id;
     } else if (name == "newDetached" && features.contains(p.value("feature").toString())) {
         auto next = freshSession(id, p.value("feature").toString()); next["draft"] = p.value("draft", "");
         for (const auto &key : {"model", "source", "target"}) next[key] = item.value(key, next.value(key));
+        next["model"] = state.value("defaultModel", next.value("model"));
         sessions.append(next);
     } else if (name == "rename" && index >= 0 && isString(p.value("value"))) {
         // An emptied name falls back to the title the session got from its first question.
@@ -775,7 +796,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
         if (archived && active.value(item.value("feature").toString()) == sessionID) {
             QString next;
             for (const auto &value : sessions) { const auto candidate = value.toMap(); if (candidate.value("feature") == item.value("feature") && !candidate.value("archived").toBool()) { next = candidate.value("id").toString(); break; } }
-            if (next.isEmpty()) { sessions.append(freshSession(id, item.value("feature").toString())); next = id; }
+            if (next.isEmpty()) { sessions.append(freshSession(id, item.value("feature").toString(), state.value("defaultModel", "ollama:llama3.2"))); next = id; }
             active[item.value("feature").toString()] = next;
         }
     } else if (name == "draft" && index >= 0 && isString(p.value("value")) && item.value("draft") != p.value("value")) {
@@ -816,10 +837,15 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
         item["revision"] = item.value("revision").toLongLong() + 1; item["output"] = "";
     } else if (name == "favorite" && index >= 0 && item.value("feature") == "dictionary") {
         item["favorite"] = !item.value("favorite").toBool();
-    } else if (name == "model" && index >= 0 && validModel(p.value("value").toString())) item["model"] = p.value("value");
+    } else if (name == "model" && index >= 0 && validModel(p.value("value").toString())) {
+        if (item.value("archived").toBool() || !item.value("comparisonParent").toString().isEmpty()) return original;
+        state["defaultModel"] = p.value("value");
+        if (item.value("feature") == "chat" || (item.value("output").toString().isEmpty() && running(tasks, sessionID) < 0))
+            item["model"] = p.value("value");
+    }
     // Provider discovery moves sessions that have produced nothing to a model this device
     // can run. Unlike "model" it never schedules auto-translation (no provider charge).
-    else if (name == "adoptModel" && validModel(p.value("value").toString())) {
+    else if (name == "adoptModel" && state.value("defaultModel").isNull() && validModel(p.value("value").toString())) {
         const auto ids = p.value("sessionIDs").toStringList(); bool changed = false;
         for (auto &value : sessions) {
             auto session = value.toMap(); if (!ids.contains(session.value("id").toString())) continue;
@@ -842,6 +868,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
         if (draft.trimmed().isEmpty() && !hasImages) return original;
         if (!inputFits(feature, draft, item.value("dictionaryContext").toString(), p.value("quickAI").toBool())) return original;
         if (feature == "chat" && p.value("quickAI").toBool()) item["draft"] = draft.trimmed();
+        item["model"] = modelForNextRequest(state, item);
         // Freeze provider, language, revision and message context for this attempt.
         Map request{{"sessionID", sessionID}, {"locale", state.value("locale")}};
         for (const auto &key : {"feature", "model", "source", "target", "revision"}) request[key] = item.value(key);
@@ -885,6 +912,7 @@ QVariantMap command(const Map &original, const QString &name, const Map &p, cons
                 if (!inputFits(request.value("feature").toString(), request.value("input").toString(),
                                request.value("dictionaryContext").toString(), p.value("quickAI").toBool())) return original;
                 task["attemptID"] = attemptID; task["attemptNumber"] = task.value("attemptNumber", 1).toLongLong() + 1;
+                if (request.value("feature") != "chat") target["model"] = request.value("model");
                 task["status"] = "running"; task["output"] = ""; task.remove("errorCode"); task.remove("errorDetail"); setOutput(target, task.value("id").toString(), "");
                 task.remove("finished"); if (clock(p) > 0) { task["started"] = clock(p); target["updated"] = clock(p); }
             } else if (name == "receive" && task.value("status") == "running" && task.value("attemptID") == p.value("attemptID")) {

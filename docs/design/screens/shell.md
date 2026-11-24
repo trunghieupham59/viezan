@@ -4,6 +4,8 @@
 
 - Increase Contrast và Reduce Transparency dùng chung nhánh mặt đặc; viền `border-strong`. Focus của hàng panel/lịch sử độc lập với trạng thái chọn; toast thông báo trợ năng và tôn trọng Reduce Motion.
 
+Khi tìm trong Lịch sử không có kết quả, hai bản native gợi ý thử từ khoá khác. Chỉ khi bộ lọc Lưu trữ đang bật mới có thêm gợi ý tắt bộ lọc.
+
 ## Native toasts — macOS and Qt (2026-11-24)
 
 Supersedes the bottom-right placement, order and timings described in sections 3–6 for both native apps. Differences on Qt: info reuses the About icon; hovering or focusing the stack restarts a toast's timer when the pointer leaves instead of resuming it; warning and danger use the alert accessibility role rather than a priority announcement; and the storage failure band keeps a red hairline. A failed image, screen capture or export on Qt is a danger toast (`actionFailed`) and no longer sets the storage error.

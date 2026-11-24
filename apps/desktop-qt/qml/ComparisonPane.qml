@@ -21,12 +21,13 @@ ColumnLayout {
     function t(key) { return localeStrings[key] || key }
     // Pick 2–3 models this device can run (discovery), instead of typing raw model IDs.
     property var selected: []
-    readonly property string selectionOwner: session.id + ":" + session.model
-    function resetSelection() { selected = [session.model].concat(candidates.map(item => item.model).filter(model => model !== session.model)).slice(0,3); choosing = candidates.length === 0 }
+    readonly property string requestModel: (snapshot.defaultModel, bridge.modelForNextRequest(session))
+    readonly property string selectionOwner: session.id + ":" + requestModel
+    function resetSelection() { selected = [requestModel].concat(candidates.map(item => item.model).filter(model => model !== requestModel)).slice(0,3); choosing = candidates.length === 0 }
     onSelectionOwnerChanged: resetSelection()
-    readonly property var choices: [session.model].concat(bridge.localModels.filter(model => model !== session.model && bridge.chatCapable(model))).filter(model => !filter.text.trim() || formatter.format(model).toLowerCase().includes(filter.text.trim().toLowerCase()))
+    readonly property var choices: [requestModel].concat(bridge.localModels.filter(model => model !== requestModel && bridge.chatCapable(model))).filter(model => !filter.text.trim() || formatter.format(model).toLowerCase().includes(filter.text.trim().toLowerCase()))
     function toggleModel(model, on) {
-        if (model === session.model) return
+        if (model === requestModel) return
         const next = selected.filter(value => value !== model)
         if (on && next.length < 3) next.push(model)
         selected = next
@@ -55,16 +56,16 @@ ColumnLayout {
             delegate: CheckBox {
                 required property string modelData
                 width: modelChoices.width
-                text: formatter.format(modelData) + (modelData === root.session.model ? " Â· " + root.t("compareInUse") : "")
+                text: formatter.format(modelData) + (modelData === root.requestModel ? " Â· " + root.t("compareInUse") : "")
                 checked: root.selected.includes(modelData)
-                enabled: modelData !== root.session.model && (checked || root.selected.length < 3)
+                enabled: modelData !== root.requestModel && (checked || root.selected.length < 3)
                 ToolTip.visible: hovered; ToolTip.text: formatter.format(modelData)
                 onToggled: root.toggleModel(modelData, checked)
             }
             ScrollBar.vertical: ScrollBar { policy: modelChoices.contentHeight > modelChoices.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff; contentItem: Rectangle { implicitWidth: root.metrics.small; radius: width / 2; color: palette.mid } }
         }
         RowLayout {
-            Kit.GlassButton { visible: root.choosing; text: root.tpl("compareRun", {count:root.selected.length}); enabled: !root.parentRunning && !!root.session.draft.trim() && root.bridge.graphemeCount(root.session.draft) <= 5000 && root.selected.length >= 2; onClicked: { root.command("compare", {models:[root.session.model].concat(root.selected.filter(model => model !== root.session.model))}); root.choosing = false } }
+            Kit.GlassButton { visible: root.choosing; text: root.tpl("compareRun", {count:root.selected.length}); enabled: !root.parentRunning && !!root.session.draft.trim() && root.bridge.graphemeCount(root.session.draft) <= 5000 && root.selected.length >= 2; onClicked: { root.command("compare", {models:[root.requestModel].concat(root.selected.filter(model => model !== root.requestModel))}); root.choosing = false } }
             Kit.QuietButton { visible: !root.choosing; text: root.t("compareChange"); onClicked: root.choosing = true }
             CheckBox { id: sentenceMode; visible: !root.choosing; objectName: "compare-sentence-mode"; text: root.t("compareSentences"); checked: !!root.snapshot.compareBySentence; onToggled: root.bridge.command("compareBySentence", {value:checked}) }
         }

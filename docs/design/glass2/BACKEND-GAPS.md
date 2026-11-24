@@ -101,7 +101,7 @@ Các mục loại a có đủ ở cả hai nền tảng không liệt kê ở đ
 | 41 | So sánh: thứ tự cột (model đang dùng là cột đầu) | Swift **sắp xếp** model (`Array(Set(models)).sorted()` `:373`); C++ giữ thứ tự truyền vào | Giữ thứ tự truyền vào ở Swift | c | Board nói "model đang dùng luôn là cột đầu". | Làm |
 | 42 | Khoá công tắc module cuối cùng | Swift `lockedModule` (`S/WorkbenchStore.swift:71,77`); C++ không kiểm (`Q/WorkbenchDomain.cpp:276`) | Kiểm trong C++ | c | Tắt hết module trên Qt. | Làm |
 | 43 | Cập nhật: hộp thoại tự hiện, "Nhắc sau 24 giờ", kiểm tra nền, công tắc tự kiểm tra | Swift đủ (`S/WorkbenchStore.swift:438-474`). C++ chỉ có kiểm tra / tải / huỷ / ghi chú | Port vào C++ + bridge | c | | Làm |
-| 44 | Launcher tiền tệ: tỷ giá đơn vị, tiền đích mặc định / ghi nhớ, bí danh, trạng thái tải / lỗi | Swift đủ (`S/LauncherTools.swift:67-150`, `S/CurrencyRates.swift`). C++ chỉ cú pháp `<số> ABC to XYZ` (`Q/CurrencyRates.cpp:31`) | Port `LauncherCurrency` sang C++ | c | |  |
+| 44 | Launcher tiền tệ: tỷ giá đơn vị, tiền đích mặc định / ghi nhớ, bí danh, trạng thái tải / lỗi | Swift đủ (`S/LauncherTools.swift:67-150`, `S/CurrencyRates.swift`). C++ chỉ cú pháp `<số> ABC to XYZ` (`Q/CurrencyRates.cpp:31`) | Port `LauncherCurrency` sang C++ | c | Xong phần xử lý tỷ giá, bộ chọn hiện mã ISO và tên VI/EN/JA ([qt-parity-2](../../migration/reports/native-migration-report-20261124-qt-parity-2.md)) |  |
 | 45 | Launcher truy vấn trống: "Tiếp tục Quick AI", trang Viezan | Swift có (`N/Launcher.swift:161-185`, logic trong view). Qt chỉ có app gần đây | Đưa vào domain dùng chung | c | | Làm |
 | 46 | Máy này: RAM | Swift có nhân + RAM (`S/LocalRuntime.swift:12-13`); C++ chỉ số nhân (`Q/LocalRuntime.h:15`) | RAM trong C++ | c | | Làm |
 | 47 | Model local gợi ý | Danh sách cứng trong view macOS (`N/LocalModelSettings.swift:16-21`); C++ không có | Danh sách dùng chung trong domain / `native.json` | c | Board ghi tên model khác với code (xem #73). | Làm |
@@ -191,10 +191,10 @@ Các mục loại a có đủ ở cả hai nền tảng không liệt kê ở đ
 | 32 | Còn trống | `PaletteQuery` vẫn nằm trong view (`N/NativeFoundation.swift:1142`); bảng lệnh Qt chỉ lọc lệnh |
 | 33 | Còn trống | Như #19 |
 | 34 | Còn trống trên Qt | `Q/qml/Kit.qml:69` ghi rõ chưa đưa trạng thái này ra QML |
-| 36 | Swift xong; C++ xong 2026-11-24 | Swift đọc `playback.speakingSource`. C++: `m_audio` private (`Q/Interpretation.h:70`), `speak()` không truyền nguồn |
+| 36 | Swift xong; C++ xong 2026-11-24 | Swift đọc `playback.speakingSource`. Qt công bố `speakingSource` và `preparing` từ `Interpretation.h` |
 | 37 | Còn trống | Swift `summarizing` public, chỉ có `cancel()` dừng tất cả (`S/Interpretation.swift:198`). C++ `m_summarizing` private |
 | 43 | Còn trống trên C++ | Swift `S/WorkbenchStore.swift:469-505` |
-| 44 | C++ xong 2026-11-24 ([qt-parity-2](../../migration/reports/native-migration-report-20261124-qt-parity-2.md)); bộ chọn hiện mã ISO | C++ chỉ có cú pháp `<số> ABC to XYZ` (`Q/CurrencyRates.cpp:31`) |
+| 44 | C++ xong 2026-11-24 ([qt-parity-2](../../migration/reports/native-migration-report-20261124-qt-parity-2.md)); bộ chọn hiện mã ISO và tên VI/EN/JA | `CurrencyRates.cpp` xử lý biểu thức, `Launcher.qml` hiển thị mã và tên đã dịch |
 | 45 | Còn trống | Logic nằm trong view `N/Launcher.swift:160-185`, `QuickAISession` ở `N/LauncherChat.swift:7`; Qt chỉ có app gần đây |
 | 47 | Còn trống | Danh sách cứng trong view `N/LocalModelSettings.swift:16-22` |
 | 48 | Còn trống | Không có giới tính; C++ không có ngôn ngữ |

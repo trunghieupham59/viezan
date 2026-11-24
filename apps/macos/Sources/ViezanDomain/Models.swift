@@ -206,6 +206,13 @@ public struct Workspace: Codable, Equatable, Sendable {
     public var menuBarVisible: Bool?
     /// Models kept at the top of the picker, in the order they were pinned (nil = none).
     public var pinnedModels: [String]?
+    /// Explicit provider-qualified choice. Older workspaces keep device discovery until a user picks.
+    public var defaultModel: String?
+
+    public func modelForNextRequest(_ session: Session) -> String {
+        if session.comparisonParent != nil || (session.feature == .chat && !session.messages.isEmpty) { return session.model }
+        return defaultModel ?? session.model
+    }
     public var navigationCollapsed: Bool { shell?.navigationCollapsed ?? false }
     public var preferences: AppearancePreferences { appearance ?? AppearancePreferences() }
     public init() {
@@ -235,7 +242,7 @@ public struct Workspace: Codable, Equatable, Sendable {
     public func validated() throws -> Workspace {
         guard preferences.preset == "glass", ["auto", "violet", "pink", "teal", "green", "amber", "red"].contains(preferences.accent ?? "auto"), (disabledModules ?? []).allSatisfy({ ["chat", "translate", "dictionary", "interpret", "thermal", "apps", "utilities"].contains($0) }), (rates?.count ?? 0) <= 1000, rates?.allSatisfy({ NativeModel.valid($0.key) && $0.value.valid }) ?? true, schemaVersion == 1,
               ["vi", "en", "ja"].contains(locale),
-              quickTranslate?.valid ?? true,
+              quickTranslate?.valid ?? true, defaultModel.map(NativeModel.valid) ?? true,
               Set(sessions.map(\.id)).count == sessions.count,
               (pinnedModels ?? []).count <= WorkbenchStore.pinnedModelLimit, Set(pinnedModels ?? []).count == (pinnedModels ?? []).count, (pinnedModels ?? []).allSatisfy(NativeModel.valid),
               Set(tasks.map(\.id)).count == tasks.count,

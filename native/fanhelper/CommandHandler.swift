@@ -1,4 +1,15 @@
 import Foundation
+import Security
+
+func hasHardenedRuntime(_ status: NSNumber?) -> Bool {
+  guard let status else { return false }
+  return status.uint32Value & SecCodeSignatureFlags.runtime.rawValue != 0
+}
+
+func hasAdHocSignature(_ flags: NSNumber?) -> Bool {
+  guard let flags else { return false }
+  return flags.uint32Value & SecCodeSignatureFlags.adhoc.rawValue != 0
+}
 
 struct Options {
   var daemon = false

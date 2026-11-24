@@ -18,9 +18,12 @@ ColumnLayout {
             ColumnLayout {
                 width: parent.width; spacing: 0
                 Repeater {
+                    id: moduleRows
                     model: modelData.ids
                     delegate: Kit.CardRow {
                         id: moduleRow
+                        required property int index
+                        divider: index < moduleRows.count - 1
                         required property string modelData
                         readonly property bool locked: modelData !== "utilities" && modules.enabledModules.length === 1 && modules.enabledModules[0] === modelData
                         title: modules.t(modelData === "utilities" ? "launcher" : modelData)

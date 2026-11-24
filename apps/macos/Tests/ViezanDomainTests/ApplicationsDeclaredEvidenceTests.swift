@@ -146,7 +146,7 @@ struct ApplicationsDeclaredEvidenceTests {
             #expect(rows.first { $0.path == cache.path }?.blocked == "appProtected")
             #expect(rows.first { $0.path == cache.path }?.bytes != nil)
             #expect(rows.first { $0.path == saved.path }?.blocked == "appProtected")
-            #expect(rows.first { $0.path == daemon.path }?.blocked == (all.count == 1 ? "appNeedsAdmin" : "appShared"))
+            #expect(rows.first { $0.path == daemon.path }?.blocked == (all.count == 1 ? "appProtected" : "appShared"))
             #expect(plan.incomplete) // The saved-state link cannot be snapshotted.
         }
     }

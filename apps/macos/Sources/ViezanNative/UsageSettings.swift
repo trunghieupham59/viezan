@@ -21,17 +21,21 @@ struct UsageSettings: View {
                     }
                 }
             }
-            Text(store.text("usageRate") + " · " + store.session.model)
+            Text(store.text("usageRate") + " · " + store.appModel)
             TextField(store.text("usageInput"), text: $input)
             TextField(store.text("usageOutput"), text: $output)
             TextField(store.text("usageCurrency"), text: $currency)
             Button(store.text("apply")) {
                 guard let a = Double(input), let b = Double(output) else { invalid = true; return }
-                invalid = !store.setRate(model: store.session.model, rate: UsageRate(input: a, output: b, currency: currency.uppercased()))
+                invalid = !store.setRate(model: store.appModel, rate: UsageRate(input: a, output: b, currency: currency.uppercased()))
             }
             if invalid { Text(store.text("usageInvalid")) }
-        }.onAppear {
-            if let rate = store.workspace.rates?[store.session.model] { input = String(rate.input); output = String(rate.output); currency = rate.currency }
+        }.onChange(of: store.appModel, initial: true) { _, model in
+            let rate = store.workspace.rates?[model]
+            input = rate.map { String($0.input) } ?? ""
+            output = rate.map { String($0.output) } ?? ""
+            currency = rate?.currency ?? "USD"
+            invalid = false
         }
     }
 }

@@ -73,10 +73,13 @@ Popup {
         Label { visible: sheet.phase !== "available"; text: sheet.t(sheet.phase !== "ready" ? "updatesHint" : install.automaticInstall ? "updateReadyInstall" : "updateReady"); wrapMode: Text.Wrap; Layout.fillWidth: true; color: sheet.colors["text-muted"] }
         PanelNotice { bridge: sheet.bridge; visible: sheet.updates.status === "updateError" || sheet.updates.status === "updateSignatureError" || sheet.updates.status === "updateInstallError"; text: sheet.t(sheet.updates.status); danger: true; Layout.fillWidth: true }
         Flow {
-            Layout.fillWidth: true; spacing: sheet.metrics.small
-            Kit.QuietButton { text: sheet.t("viewChanges"); onClicked: Qt.openUrlExternally("https://github.com/trunghieupham59/viezan/releases") }
+            Layout.alignment: Qt.AlignRight
+            Layout.preferredWidth: Math.min(sheet.availableWidth, changes.implicitWidth + later.implicitWidth + phaseAction.width + spacing * 2)
+            spacing: sheet.metrics.small
+            Kit.QuietButton { id: changes; text: sheet.t("viewChanges"); onClicked: Qt.openUrlExternally("https://github.com/trunghieupham59/viezan/releases") }
             Kit.GlassButton { id: later; objectName: "update-sheet-snooze"; text: sheet.t("remindLater"); onClicked: sheet.bridge.snoozeUpdate() }
             FocusScope {
+                id: phaseAction
                 readonly property Item action: sheet.phase === "downloading" ? cancel : sheet.phase === "ready" ? install : download
                 width: action.implicitWidth; height: action.implicitHeight
                 Kit.PrimaryButton { id: download; objectName: "update-sheet-download"; visible: sheet.phase === "available"; focus: visible; text: sheet.t("downloadUpdate"); onClicked: sheet.updates.download() }

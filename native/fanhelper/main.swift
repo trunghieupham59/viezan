@@ -11,7 +11,7 @@
 //   only that uid, and exits a while after its client leaves.
 //
 // A helper signed with a Team ID (the Developer ID release, path B) also checks that its
-// client is the Viezan app signed by the same team; an ad-hoc build cannot tell code apart and skips it.
+// client runs with Hardened Runtime and is the Viezan app signed by the same team; an ad-hoc build cannot tell code apart and skips it.
 //
 // Either way it serves exactly one client over a Unix socket, understands a fixed set
 // of commands (docs/plans/module-platform-and-privileged-helper.md §4.3), clamps every
@@ -53,17 +53,18 @@ let executableSha256: String? = {
   return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
 }()
 
-/// The Team ID this helper is signed with; nil for an ad-hoc build.
-let ownTeamId: String? = {
+let ownSigningInfo: [String: Any]? = {
   var code: SecCode?
-  guard SecCodeCopySelf([], &code) == errSecSuccess, let code else { return nil }
+  guard SecCodeCopySelf([], &code) == errSecSuccess, let code,
+        SecCodeCheckValidity(code, [], nil) == errSecSuccess else { return nil }
   var staticCode: SecStaticCode?
   guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode else { return nil }
   var info: CFDictionary?
   guard SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &info) == errSecSuccess,
         let row = info as? [String: Any] else { return nil }
-  return row[kSecCodeInfoTeamIdentifier as String] as? String
+  return row
 }()
+let ownTeamId = ownSigningInfo?[kSecCodeInfoTeamIdentifier as String] as? String
 
 /// The only program that may drive the fans: the Viezan app (`scripts/native/build.py` signs it with this identifier).
 let clientIdentifier = "com.viezan.native.preview"
@@ -76,9 +77,9 @@ let clientRequirement: SecRequirement? = {
   return SecRequirementCreateWithString(text, [], &requirement) == errSecSuccess ? requirement : nil
 }()
 
-/// True when the peer's code signature passes `clientRequirement` (always true for an ad-hoc helper).
+/// A team-signed helper accepts the Viezan client only with Hardened Runtime enabled.
 func peerIsTrustedCode(_ fd: Int32) -> Bool {
-  guard ownTeamId != nil else { return true }
+  guard ownTeamId != nil else { return hasAdHocSignature(ownSigningInfo?[kSecCodeInfoFlags as String] as? NSNumber) }
   guard let requirement = clientRequirement else { return false }
   var token = audit_token_t()
   var length = socklen_t(MemoryLayout<audit_token_t>.size)
@@ -86,8 +87,14 @@ func peerIsTrustedCode(_ fd: Int32) -> Bool {
   let tokenData = withUnsafeBytes(of: &token) { Data($0) }
   var code: SecCode?
   guard SecCodeCopyGuestWithAttributes(nil, [kSecGuestAttributeAudit: tokenData] as CFDictionary, [], &code) == errSecSuccess,
-        let code else { return false }
-  return SecCodeCheckValidity(code, [], requirement) == errSecSuccess
+        let code, SecCodeCheckValidity(code, [], requirement) == errSecSuccess else { return false }
+  var info: CFDictionary?
+  // SecCode.h accepts the running SecCodeRef here. Using SecCodeCopyStaticCode
+  // would lose the dynamic status of the peer identified by this audit token.
+  let guest = unsafeBitCast(code, to: SecStaticCode.self)
+  guard SecCodeCopySigningInformation(guest, SecCSFlags(rawValue: kSecCSDynamicInformation), &info) == errSecSuccess,
+        let details = info as? [String: Any] else { return false }
+  return hasHardenedRuntime(details[kSecCodeInfoStatus as String] as? NSNumber)
 }
 
 // MARK: - Arguments

@@ -47,9 +47,14 @@ struct PanelRow: View {
                 Spacer(minLength: metric("small"))
                 if !detail.isEmpty { Text(detail).font(.vzn("smallScale")).monospacedDigit().foregroundStyle(detailColor).lineLimit(1) }
                 // Glass: one accent check at the trailing edge for the current choice.
-                if selected { Image(systemName: "checkmark").imageScale(.small).fontWeight(.semibold).foregroundStyle(contentColor("action", scheme)).accessibilityHidden(true) }
+                if trailingRoom > 0 { Color.clear.frame(width: trailingRoom).accessibilityHidden(true) }
+                if selected || trailingRoom > 0 {
+                    Image(systemName: "checkmark").imageScale(.small).fontWeight(.semibold)
+                        .foregroundStyle(contentColor("action", scheme)).opacity(selected ? 1 : 0)
+                        .frame(width: trailingRoom > 0 ? metric("icon") : nil).accessibilityHidden(true)
+                }
             }
-            .padding(.horizontal, metric("small")).padding(.trailing, trailingRoom).frame(height: metric("navControl")).frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, metric("small")).frame(height: metric("navControl")).frame(maxWidth: .infinity, alignment: .leading)
             .background { rowBackground }
             .contentShape(Rectangle())
         }.buttonStyle(.plain).focused($focused).focusEffectDisabled(true).onHover { hovered = $0 }
@@ -104,7 +109,7 @@ struct ComposerToolsPanel: View {
     private var session: Session { store.session }
     private var sections: [ComposerTools.Section] {
         ComposerTools.sections(feature: session.feature, imageCount: session.images?.count ?? 0, chatMode: session.chatMode ?? "text",
-                               effort: session.reasoningEffort ?? (session.carefulReasoning == true ? "high" : "auto"), supportsEffort: ModelLineup.supportsEffort(model: session.model), hasInstructions: !(session.systemPrompt ?? "").isEmpty, speaking: store.audio.speaking,
+                               effort: session.reasoningEffort ?? (session.carefulReasoning == true ? "high" : "auto"), supportsEffort: ModelLineup.supportsEffort(model: store.workspace.modelForNextRequest(session)), hasInstructions: !(session.systemPrompt ?? "").isEmpty, speaking: store.audio.speaking,
                                hasAnswer: session.feature == .chat ? session.messages.contains { $0.role == "assistant" && !$0.text.isEmpty } : !session.output.isEmpty)
     }
     private var rows: [ComposerTools.Row] { sections.flatMap(\.rows).filter(\.enabled) }
@@ -116,7 +121,7 @@ struct ComposerToolsPanel: View {
         case .mode(let mode):
             // Image mode names who will draw (OpenAI/Gemini with a key), whatever the chat model is.
             if mode == "image" {
-                let provider = ImageGeneration.provider(for: session.model, hasKey: { store.providers.keyed.contains($0) })
+                let provider = ImageGeneration.provider(for: store.workspace.modelForNextRequest(session), hasKey: { store.providers.keyed.contains($0) })
                 return (store.text("chatMode_image"), provider.map { $0 == "openai" ? "OpenAI" : "Gemini" } ?? store.text("imageProviderNone"), nil)
             }
             return (store.text("chatMode_" + mode), store.text("chatModeHint_" + mode), nil)
@@ -175,7 +180,7 @@ struct ComposerToolsPanel: View {
         .onKeyPress(.return) { if let row = rows.first(where: { $0.id == highlighted }) { activate(row); return .handled }; return .ignored }
         .onAppear { focused = true; highlighted = rows.first?.id }
         .padding(.horizontal, metric("small")).frame(maxHeight: availableHeight).fixedSize(horizontal: false, vertical: true)
-        .accessibilityElement(children: .contain).accessibilityLabel(store.text("attachImage"))
+        .accessibilityElement(children: .contain).accessibilityLabel(store.text("composerTools"))
         .accessibilityIdentifier("tools-panel")
     }
 }

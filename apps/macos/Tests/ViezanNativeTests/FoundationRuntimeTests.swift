@@ -34,6 +34,70 @@ import ViezanDomain
 
 extension AppKitFixtureTests {
     @Suite @MainActor struct FoundationRuntimeTests {
+        @Test func downloadByteCountsFollowTheAppLanguage() {
+            let vi = LocalModelSettings.transferSize(completed: 2_100_000_000, totalBytes: 4_900_000_000, locale: Locale(identifier: "vi"))
+            let en = LocalModelSettings.transferSize(completed: 2_100_000_000, totalBytes: 4_900_000_000, locale: Locale(identifier: "en"))
+            #expect(vi.hasPrefix("2,1 / 4,9"))
+            #expect(en.hasPrefix("2.1 / 4.9"))
+        }
+
+        @Test func modelPanelKeyboardPinsTheHighlightedOccurrenceAndKeepsItsPlace() {
+            let store = WorkbenchStore(persistence: FaultStorage(), automaticProvider: false)
+            let id = "ollama:gemma3"
+            func rows() -> [ModelPanelSelection.Entry] {
+                var rows: [ModelPanelSelection.Entry] = [("purpose/fast", .tier(.fast, id))]
+                if store.pinnedModels.contains(id) { rows.append(("pinned/" + id, .model(id))) }
+                return rows + [("local/" + id, .model(id)), ("local/setup", .setup("local"))]
+            }
+            var key = ModelPanelSelection.move(in: rows(), from: nil, by: 1)
+            #expect(key == "purpose/fast")
+            #expect(ModelPanelSelection.togglePin(at: key, rows: rows, store: store) == key && store.pinnedModels.isEmpty)
+            key = ModelPanelSelection.move(in: rows(), from: key, by: 1)
+            #expect(ModelPanelSelection.togglePin(at: key, rows: rows, store: store) == "local/" + id)
+            #expect(store.pinnedModels == [id])
+            key = ModelPanelSelection.move(in: rows(), from: key, by: -1)
+            #expect(key == "pinned/" + id)
+            #expect(ModelPanelSelection.togglePin(at: key, rows: rows, store: store) == "local/" + id)
+            #expect(store.pinnedModels.isEmpty)
+            #expect(ModelPanelSelection.togglePin(at: nil, rows: { [] }, store: store) == nil && store.pinnedModels.isEmpty)
+            for locale in ["en", "vi", "ja"] {
+                let count = NativeResources.shared.text("pinnedModelsCount", locale: locale)
+                #expect(count.contains("{count}") && count.contains("{max}"))
+            }
+        }
+
+        @Test func useAsSourceUndoRestoresOnlyItsOwnTranslationAfterSwitchingSessions() throws {
+            let persistence = FaultStorage()
+            var state = Workspace()
+            let index = try #require(state.sessions.firstIndex { $0.feature == .translate })
+            let id = state.sessions[index].id
+            state.feature = .translate
+            state.sessions[index].source = "auto"
+            state.sessions[index].target = "vi"
+            state.sessions[index].draft = "Original draft"
+            state.sessions[index].output = "Bản dịch"
+            persistence.snapshot = state
+            let store = WorkbenchStore(persistence: persistence, automaticProvider: false)
+            TranslationWorkspace(store: store).useResultAsSource()
+            let key = "use-as-source-" + id
+            defer { ToastCenter.shared.dismiss(key: key) }
+            let undo = try #require(ToastCenter.shared.toasts.first { $0.key == key })
+            #expect(undo.actionLabel == store.text("undo"))
+            #expect(store.session.draft == "Bản dịch" && store.session.source == "vi" && store.session.target != "vi")
+            #expect(store.session.output.isEmpty)
+            store.newSession()
+            let next = store.session.id
+            store.setPair(next, source: "ja", target: "en")
+            store.setDraft(next, "Other draft")
+            ToastCenter.shared.run(undo.id)
+            #expect(store.session.id == next && store.session.draft == "Other draft")
+            #expect(store.session.source == "ja" && store.session.target == "en")
+            let restored = try #require(store.session(id))
+            #expect(restored.draft == "Original draft" && restored.source == "auto" && restored.target == "vi")
+            store.save()
+            #expect(persistence.snapshot?.sessions.first { $0.id == id }?.draft == "Original draft")
+        }
+
         @Test(arguments: [AppearanceMode.light, .dark])
         func titledWindowKeepsTrafficLightsAlignedWithToggleAtNarrowWidths(mode: AppearanceMode) async throws {
             _ = NSApplication.shared

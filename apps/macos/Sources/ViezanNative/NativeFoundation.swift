@@ -1029,7 +1029,7 @@ struct NativeNavigation: View {
         let implemented = ["home", "chat", "translate", "dictionary", "settings", "utilities", "everywhere", "thermal", "interpret", "apps"].contains(id)
         let enabled = implemented && (!store.loadBlocked || id == "settings")
         // Settings carries the one shell-level warning: the chosen cloud provider has no key yet.
-        let missingKey = id == "settings" && store.providers.availability(store.session.model) == .missingKey
+        let missingKey = id == "settings" && store.providers.availability(store.appModel) == .missingKey
         let running = backgroundRows.first { $0.route == id }
         let railNote = expanded ? "" : missingKey ? ": " + store.text("keyAbsent") : running.map { ": " + $0.text } ?? ""
         return Button { select(id) } label: {

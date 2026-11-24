@@ -21,6 +21,12 @@ Tệp liên quan:
 | CSS | `src/styles/thermal.css` |
 | Kiểm thử | `src/pages/__tests__/ThermalPage.test.tsx` |
 
+Mỗi lần thao tác quạt thất bại có một thông báo VoiceOver ưu tiên trung bình, kể cả khi thử lại cho cùng mã lỗi. Thông báo mới thay thông báo trước, còn nguyên nhân vẫn hiện tại thẻ điều khiển.
+
+Trên macOS, quy tắc quạt CPU/GPU dùng cùng bảng phân nhóm SMC với danh sách nhiệt độ. Khi hai hàng có cùng nhiệt độ cao nhất, thứ tự theo mã hàng; trong một hàng, các cảm biến bằng nhiệt độ xếp theo khoá.
+
+Helper quạt ký theo Team ID chỉ chấp nhận ứng dụng của người dùng console khi tiến trình có đúng định danh, cùng team và đang bật Hardened Runtime. Bản phát triển ký theo team cũng bật chế độ này. Cảm biến IOHID chưa có ánh xạ đáng tin trên đúng mẫu máy tiếp tục hiển thị tên driver trong nhóm chưa nhận diện.
+
 ## 1. Mục đích
 
 Cho người dùng thấy máy đang nóng tới đâu và quạt đang quay thế nào, ngay khi mở trang: một bảng nhiệt độ gọn (vài chục hàng thay vì hàng trăm khoá SMC) và một bảng quạt có tốc độ trực tiếp. Trên macOS có helper đặc quyền, người dùng có thể giành quyền điều khiển quạt: áp dụng profile (Yên tĩnh, Mát, Gaming, AI local…), giữ một quạt ở tốc độ cố định, hoặc cho quạt theo một cảm biến, và luôn quay về tự động bằng một nút. Ngoài cửa sổ, một số đo nhỏ có thể nằm trên thanh menu (macOS) hoặc trong chú thích biểu tượng khay (Linux). Thành công là: đọc được nhiệt độ nóng nhất trong một cái liếc, đổi chế độ quạt mà không sợ làm hỏng máy, và tin rằng quạt sẽ tự về tự động khi có sự cố.
@@ -173,13 +179,13 @@ Mọi thay đổi T1–T6 đi một vòng qua main (`useThermalSettings.update`)
 | Trạng thái | Khi nào | Hiển thị | Hành động có sẵn |
 | --- | --- | --- | --- |
 | Đang tải (trang) | Main chưa trả lời `getSupport` | `FeatureLoadingState` layout `list`: skeleton header + danh sách, `role="status"` nhãn "Nhiệt độ & quạt" | Không |
-| Đang đọc lần đầu | Hỗ trợ nhưng chưa có snapshot, chưa lỗi | Ô viền nét đứt `.thermal-empty` "Đang đọc cảm biến…", `role="status"` | Header: chip helper, bánh răng (nếu có) |
+| Đang đọc lần đầu | Bộ đọc macOS đang chạy và chưa gửi mẫu | Huy hiệu “Đang đọc cảm biến…” | Dừng theo dõi |
 | Có dữ liệu | Snapshot mỗi 2 giây | Hai bảng như mục 3 | Mọi hành động mục 4 |
 | Không hỗ trợ nền tảng | `reason: 'unsupported-platform'` (Windows, hoặc API không có trong cửa sổ) | `CapabilityNotice` vàng "Chưa khả dụng trên hệ thống này" + giải thích macOS/Linux | Không; không bắt đầu theo dõi |
-| Thiếu trình đọc | `reason: 'reader-missing'` (bản mã nguồn chưa build `viezan-smc`) | `CapabilityNotice` vàng "Thiếu trình đọc cảm biến" + hướng dẫn `npm run build:native` | Không |
+| Thiếu trình đọc | Bản macOS thiếu viezan-smc | Thẻ lỗi ghi “Thiếu trình đọc cảm biến” và hướng dẫn mở bản cài đầy đủ hoặc chạy `npm run dev` ở checkout | Thử lại |
 | Không có cảm biến | `reason: 'no-sensors'` | `CapabilityNotice` "Không tìm thấy cảm biến nhiệt độ" + "Máy này không báo cáo cảm biến nhiệt độ nào mà Viezan đọc được…" | Không |
 | Bảng trống trong snapshot | Snapshot không có quạt / không có cảm biến | Ô nét đứt "Máy này không báo cáo quạt nào." / "Không tìm thấy cảm biến nhiệt độ nào." | Bảng còn lại vẫn dùng được |
-| Lỗi đọc | `onError` hoặc `setMonitoring` thất bại | `CapabilityNotice` đỏ "Không đọc được cảm biến" + thông điệp lỗi + nút "Thử lại" (primary) | Thử lại: đọc một lần; thành công thì xoá lỗi. Nếu đã có snapshot cũ, hai bảng vẫn hiện số cũ bên dưới |
+| Lỗi đọc | Bộ đọc macOS báo lỗi | Thẻ ghi “Không đọc được cảm biến”, mô tả và nút “Thử lại”. Số đo trước đó còn hiển thị bên dưới cho đến khi lượt mới bắt đầu. | Đợi tiến trình cũ thoát rồi bắt đầu lượt mới. Mẫu hợp lệ kế tiếp cũng tự xoá lỗi đọc. |
 | Điều khiển quạt: không có | Linux / snapshot không đến từ SMC / helper `unsupported` | Không chip, không nút; hàng quạt chỉ đọc "Tự động (hệ thống)"; popover không có mục nhận diện | Chỉ đọc |
 | Helper: thiếu | `missing` | Chip vàng "Thiếu helper", tooltip đường dẫn / lệnh build; `CapabilityNotice` vàng cùng nội dung dưới header | Không có nút bật |
 | Helper: tắt | `idle` | Chip trung tính "Điều khiển quạt đang tắt" + "Bật điều khiển quạt" | H2 |
@@ -393,14 +399,20 @@ Trong **Quy tắc**, Tab đi từ nguồn tới ngưỡng thấp, ngưỡng cao,
 
 Toast áp dụng chờ dịch vụ quạt xác nhận mục tiêu. Toast **Về tự động** chờ lệnh khôi phục của chính thao tác đó thành công. Các lần đọc cảm biến tiếp theo không phát lại thông báo.
 
-SwiftUI, dịch vụ quạt chờ phê duyệt (2026-11-24). Thẻ điều khiển ghi “Cần cho phép dịch vụ quạt chạy nền” kèm nút **Mở Cài đặt hệ thống**. Ứng dụng đọc lại quyền khi trở thành cửa sổ hoạt động. Khi quyền được cấp, huy hiệu chuyển sang “Dịch vụ quạt đã bật”.
+Trên macOS, khi dịch vụ quạt chưa đăng ký, thẻ điều khiển giải thích mục đích và có nút **Đăng ký dịch vụ quạt** mở hộp xác nhận. Nếu hệ thống báo thiếu helper, thẻ hướng dẫn mở bản cài đầy đủ.
 
-SwiftUI, lỗi quạt và nhóm cảm biến (2026-11-24): mỗi lỗi quạt có câu riêng (`fanCommandError`, `fanProfileApplyError`, `fanProfileSaveError`, `fanCalibrationError`, `helperRegisterError`, `helperUnregisterError`) và hiện ngay trong thẻ "Chế độ điều khiển", dưới dòng mô tả; dải lỗi cuối trang chỉ còn cho lỗi đọc cảm biến (có "Thử lại"). Nhóm "Cảm biến khác" mặc định thu gọn như mục 3, dòng tiêu đề ghi số đo nóng nhất; CPU và GPU luôn mở. Trạng thái mở không được lưu.
+SwiftUI, dịch vụ quạt chờ phê duyệt. Thẻ điều khiển hiện dải cảnh báo “Cần cho phép dịch vụ quạt chạy nền”. **Gỡ dịch vụ quạt** mở hộp xác nhận, **Mở Cài đặt hệ thống** mở nơi cấp quyền và **Thử lại** đọc lại trạng thái quyền. Ba nút xếp dọc khi cột hẹp. Ứng dụng cũng đọc lại quyền khi người dùng quay về. Khi được cấp quyền, dải cảnh báo đóng và huy hiệu chuyển sang “Dịch vụ quạt đã bật”.
+
+SwiftUI, lỗi quạt và nhóm cảm biến (2026-11-24): mỗi lỗi quạt có câu riêng (`fanCommandError`, `fanProfileApplyError`, `fanProfileSaveError`, `fanCalibrationError`, `helperRegisterError`, `helperUnregisterError`) và hiện ngay trong thẻ "Chế độ điều khiển", dưới dòng mô tả; lỗi đọc cảm biến có thẻ riêng dưới tiêu đề trang và nút “Thử lại”. Mẫu hợp lệ thiếu cảm biến nhiệt hiện dải cảnh báo, kể cả khi mẫu vẫn có số đo quạt. Nhóm "Cảm biến khác" mặc định thu gọn như mục 3, dòng tiêu đề ghi số đo nóng nhất; CPU và GPU luôn mở. Trạng thái mở không được lưu.
 
 ### Điều khiển quạt trên macOS (R4)
 
+- Cấu hình **Yên tĩnh** dùng cảm biến CPU nóng nhất và dải 70–100 °C. Khi bật, cấu hình bắt đầu từ tốc độ mục tiêu hiện tại của từng quạt, hoặc tốc độ đo được nếu máy không báo mục tiêu. Dưới 100 °C, quạt chỉ tăng khi hai mẫu liên tiếp đều yêu cầu tăng. Mỗi mẫu mới (khoảng hai giây) cho phép tăng tối đa 10% hoặc giảm tối đa 5% dải RPM của quạt. Ngay khi vòng điều khiển đọc được 100 °C trở lên, nó yêu cầu tốc độ tối đa. Dịch vụ quạt kiểm tra riêng các cảm biến SMC và trả quyền cho hệ thống khi chạm trần bảo vệ (mặc định 105 °C).
+- Khi một cấu hình đang dùng cảm biến đích danh, nếu vòng điều khiển đọc được mẫu thiếu cảm biến đó thì ứng dụng dừng cấu hình, báo lỗi và ngắt kết nối để dịch vụ trả quạt về tự động. Trang vẫn theo dõi nhiệt độ. Số đo từ cảm biến khác không thay thế nguồn đã chọn.
 - Chọn cấu hình từ thanh menu chỉ áp dụng ngay khi phiên đã xác nhận điều khiển thủ công, dịch vụ quạt đã bật, đang theo dõi và quạt có thể nhận lệnh. Các trường hợp khác mở trang **Nhiệt độ & quạt**. Người dùng chọn cấu hình tại đó và xác nhận lần đầu trước khi áp dụng.
 - Thẻ điều khiển và popover **Quy tắc** cùng ghi **Đang hiệu chuẩn quạt** trong suốt quá trình hiệu chuẩn. Khi chờ dịch vụ xác nhận lệnh, cả hai ghi **Đang áp dụng…**. **Về tự động** cho phép huỷ cả lệnh đang chờ. Rời trang giữ giám sát cho tới khi kết thúc điều khiển hoặc hiệu chuẩn.
 - Khi đổi chế độ hoặc nhả mục tiêu của quạt, thanh trượt bỏ tốc độ đang chọn. Kéo về tốc độ đang giữ sẽ hiện **Mục tiêu**. Trong lúc hiệu chuẩn hoặc khi dừng giám sát, cả thanh trượt và nút **Áp dụng** đều tắt. Lý do hiện một lần dưới tiêu đề **Điều khiển thủ công**.
 - Dòng dự kiến dùng số theo ngôn ngữ giao diện, ví dụ “Dự kiến: 56 °C → 2.450 RPM”. Thiếu số đo cho nguồn đã chọn sẽ khoá **Áp dụng** và hiện lý do. Lỗi lưu nằm dưới ô tên, người dùng có thể thử lại. Mỗi lần lưu thành công hiện một thông báo kèm tên cấu hình, kể cả khi đang chạy một quy tắc khác.
 - Khi cột hẹp, **Lưu thành cấu hình…** nằm dưới tóm tắt quy tắc. Từng nút **Áp dụng** giữ nguyên chiều rộng của nhãn.
+
+Trên Qt, ô nóng nhất có thanh theo thang 110 °C. RPM chỉ có số đọc khi driver không báo giới hạn tốc độ. Hàng cảm biến dùng màu cảnh báo từ 70 °C và màu nguy hiểm từ 90 °C. Nút Dừng theo dõi có kiểu nguy hiểm và chuyển focus sang nút kiểm tra khi dừng bằng bàn phím.

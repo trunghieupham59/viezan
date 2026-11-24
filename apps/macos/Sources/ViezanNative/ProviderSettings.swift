@@ -54,7 +54,7 @@ struct ProviderSettings: View {
     }
     /// "Claude · Haiku 5.5": the provider, then the same short model name as the composer chip.
     private var inUseLabel: String {
-        let model = store.session.model, full = nativeModelLabel(model, store: store)
+        let model = store.appModel, full = nativeModelLabel(model, store: store)
         let provider = full.components(separatedBy: " · ").first ?? full
         return provider == full ? ModelLineup.shortName(model) : provider + " · " + ModelLineup.shortName(model)
     }
@@ -62,7 +62,7 @@ struct ProviderSettings: View {
         HStack(spacing: metric("small")) {
             Text(title).font(.vzn("subtitleScale", .semibold)).foregroundStyle(contentColor("text-strong", scheme)).accessibilityAddTraits(.isHeader)
             Spacer(minLength: metric("small"))
-            if let trailing { Text(trailing).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).lineLimit(1).help(store.session.model) }
+            if let trailing { Text(trailing).font(.vzn("smallScale")).foregroundStyle(contentColor("text-muted", scheme)).lineLimit(1).help(store.appModel) }
         }.padding(.horizontal, metric("inset")).frame(minHeight: metric("navControl") + metric("small"))
     }
     private func glassRow(_ id: String) -> some View {

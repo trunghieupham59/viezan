@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 public enum StorageFailure: Error { case invalidData }
 @MainActor public protocol WorkspacePersistence {
@@ -23,12 +24,27 @@ public enum StorageFailure: Error { case invalidData }
             let properties = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
             guard properties.isRegularFile == true, properties.isSymbolicLink != true else { throw StorageFailure.invalidData }
         }
-        let directory = url.deletingLastPathComponent()
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let data = try JSONEncoder().encode(workspace)
         guard data.count <= 134_217_728 else { throw StorageFailure.invalidData }
-        try data.write(to: url, options: [.atomic])
-        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        try Self.writePrivate(data, to: url)
+    }
+    /// Publish complete, mode-0600 data as the last fallible step. A thrown save leaves the old file in place.
+    @discardableResult nonisolated static func writePrivate(_ data: Data, to url: URL, exclusive: Bool = false) throws -> stat {
+        let directory = url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        var template = Array(directory.appendingPathComponent(".viezan-XXXXXX").path.utf8CString)
+        let descriptor = mkstemp(&template)
+        guard descriptor >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        let temporary = String(cString: template)
+        defer { unlink(temporary) }
+        let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+        try handle.write(contentsOf: data)
+        var identity = stat()
+        guard fstat(descriptor, &identity) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        try handle.close()
+        let result = exclusive ? link(temporary, url.path) : rename(temporary, url.path)
+        guard result == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        return identity
     }
     nonisolated public static func previewURL() -> URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]

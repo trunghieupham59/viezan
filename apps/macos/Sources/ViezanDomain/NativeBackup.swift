@@ -2,6 +2,7 @@ import Foundation
 import CryptoKit
 
 public struct BackupPreview: Sendable {
+    public internal(set) var migratedAppearance = false
     public let preferences: Workspace
     public let interpretation: [InterpretationSession]
     public let tasks: [WorkTask]
@@ -15,7 +16,10 @@ public enum NativeBackup {
     private static func hash(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
     public static func export(_ workspace: Workspace, interpretation: [InterpretationSession] = []) throws -> Data {
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
-        let snapshot = try encoder.encode(workspace)
+        var exported = workspace
+        // An explicit empty list can be restored. Older archives without the field preserve local pins.
+        exported.pinnedModels = workspace.pinnedModels ?? []
+        let snapshot = try encoder.encode(exported)
         try Interpretation.validateArchive(interpretation)
         let meetingData = try encoder.encode(interpretation)
         var images: [String: ImageAttachment] = [:]
@@ -43,7 +47,9 @@ public enum NativeBackup {
             guard let encoded = root["interpretation"] as? String, let bytes = Data(base64Encoded: encoded), hash(bytes) == root["interpretationSHA256"] as? String else { throw StorageFailure.invalidData }
             meetings = try JSONDecoder().decode([InterpretationSession].self, from: bytes); try Interpretation.validateArchive(meetings)
         }
-        let workspace = try JSONDecoder().decode(Workspace.self, from: snapshot).upgrading().validated()
+        let original = try JSONDecoder().decode(Workspace.self, from: snapshot)
+        let workspace = try original.upgrading().validated()
+        let changedAppearance = original.appearance?.preset.map { $0 != workspace.preferences.preset } ?? false
         var images: [ImageAttachment] = [], bytes: [String: Data] = [:]
         for record in records {
             guard let id = record["id"] as? String, UUID(uuidString: id) != nil, bytes[id] == nil,
@@ -59,13 +65,25 @@ public enum NativeBackup {
             }
         }
         for task in workspace.tasks { for image in task.request.messages?.flatMap({ $0.images ?? [] }) ?? [] { guard images.contains(where: image.sameFile) else { throw StorageFailure.invalidData } } }
-        return BackupPreview(preferences: workspace, interpretation: meetings, tasks: workspace.tasks.map { task in var copy = task; if copy.status == .running { copy.status = .interrupted }; return copy }, prompts: workspace.prompts ?? [], sessions: workspace.sessions, attachments: images, bytes: bytes)
+        return BackupPreview(migratedAppearance: changedAppearance, preferences: workspace, interpretation: meetings, tasks: workspace.tasks.map { task in var copy = task; if copy.status == .running { copy.status = .interrupted }; return copy }, prompts: workspace.prompts ?? [], sessions: workspace.sessions, attachments: images, bytes: bytes)
     }
     public static func materialize(_ preview: BackupPreview) throws {
-        // Install immutable blobs first. A failed workspace save can leave an orphan, never corrupt an existing attachment.
+        var installed: [Attachments.InstalledFile] = []
+        do { try materialize(preview, in: Attachments.directory, installed: &installed) }
+        catch { try discard(installed); throw error }
+    }
+    static func materialize(_ preview: BackupPreview, in directory: URL, installed: inout [Attachments.InstalledFile]) throws {
         for image in preview.attachments {
             guard let data = preview.bytes[image.id] else { throw StorageFailure.invalidData }
-            try Attachments.restore(image, data: data)
+            if let file = try Attachments.restore(image, data: data, in: directory) { installed.append(file) }
         }
+    }
+    static func discard(_ installed: [Attachments.InstalledFile]) throws {
+        var failure: Error?
+        for file in installed {
+            do { try file.discard() }
+            catch { failure = error }
+        }
+        if let failure { throw failure }
     }
 }

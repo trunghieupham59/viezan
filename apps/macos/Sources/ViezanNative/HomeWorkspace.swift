@@ -69,7 +69,7 @@ struct HomeWorkspace: View {
     }
     // One glass strip: readiness dot, provider · model, its state, and a quiet Manage.
     private func modelStrip(detailed: Bool) -> some View {
-        let model = store.session.model, state = store.providers.availability(model)
+        let model = store.appModel, state = store.providers.availability(model)
         let local = ProviderDiscovery.localProviders.contains(where: { model.hasPrefix($0 + ":") })
         let full = nativeModelLabel(model, store: store)
         let name = model.contains(":") ? (full.components(separatedBy: " · ").first ?? full) + " · " + ModelLineup.shortName(model) : full
@@ -93,7 +93,7 @@ struct HomeWorkspace: View {
     // Compact model control: readiness dot, short model name and a chevron; it opens
     // the section that owns the model, like Manage in the full strip.
     private var modelPill: some View {
-        let model = store.session.model, state = store.providers.availability(model)
+        let model = store.appModel, state = store.providers.availability(model)
         let local = ProviderDiscovery.localProviders.contains(where: { model.hasPrefix($0 + ":") })
         let status = (state == .unknown ? "" : store.text(state == .available ? "runtimeReady" : "unavailable").lowercased() + " · ") + store.text(local ? "onDevice" : "viaCloud")
         return Button {
@@ -326,9 +326,18 @@ private struct HomeRecentHeaderLayout: Layout {
     }
 }
 
+private struct DictionaryActionLabel: LabelStyle {
+    var compact: Bool
+    func makeBody(configuration: Configuration) -> some View {
+        if compact { Label(configuration).labelStyle(.iconOnly) }
+        else { Label(configuration).labelStyle(.titleAndIcon) }
+    }
+}
+
 struct DictionaryResultView: View {
     let entry: DictionaryEntry
     @Bindable var store: WorkbenchStore
+    var compact = false
     @Environment(\.colorScheme) private var scheme
     @State private var selectedTab = "meaning"
     private var examples: [String] { exampleRows.map(\.text) }
@@ -379,11 +388,13 @@ struct DictionaryResultView: View {
                                     sources: [ListenSource(id: "headword", title: store.text("dictionaryHeadword"), text: entry.headword, language: sourceLanguage)]
                                         + entry.translations.prefix(3).enumerated().map { index, item in ListenSource(id: "sense-\(index)", title: store.text("dictionaryMeaningN").replacingOccurrences(of: "{n}", with: String(format: "%02d", index + 1)), text: item.text, language: targetLanguage) })
                 Spacer(minLength: metric("small"))
-                Button(action: toggleSaved) { Label(store.text(favorite ? "savedWord" : "saveWord"), systemImage: favorite ? "star.fill" : "star") }
-                    .buttonStyle(.vznOutline).foregroundStyle(favorite ? contentColor("warning", scheme) : contentColor("text-strong", scheme))
-                    .accessibilityAddTraits(favorite ? .isSelected : []).accessibilityIdentifier("dictionary-save")
-                Button(store.text(lookupContext.isEmpty ? "translate" : "dictionaryTranslateSentence"), systemImage: Feature.translate.symbol, action: openTranslate).buttonStyle(.vznOutline)
-                Button(store.text("launcher_ai"), systemImage: "bubble.left", action: openChat).buttonStyle(.vznOutline)
+                Group {
+                    Button(action: toggleSaved) { Label(store.text(favorite ? "savedWord" : "saveWord"), systemImage: favorite ? "star.fill" : "star") }
+                        .buttonStyle(.vznOutline).foregroundStyle(favorite ? contentColor("warning", scheme) : contentColor("text-strong", scheme))
+                        .accessibilityAddTraits(favorite ? .isSelected : []).accessibilityIdentifier("dictionary-save")
+                    Button(store.text(lookupContext.isEmpty ? "translate" : "dictionaryTranslateSentence"), systemImage: Feature.translate.symbol, action: openTranslate).buttonStyle(.vznOutline)
+                    Button(store.text("launcher_ai"), systemImage: "bubble.left", action: openChat).buttonStyle(.vznOutline)
+                }.labelStyle(DictionaryActionLabel(compact: compact))
             }
             HStack(spacing: metric("small") + metric("hairline") * 2) {
                 if !entry.pronunciation.isEmpty { Text(entry.pronunciation).font(mono).foregroundStyle(contentColor("text-muted", scheme)).lineLimit(1) }
@@ -445,6 +456,9 @@ struct DictionaryResultView: View {
             HStack(spacing: metric("small")) {
                 let seconds = store.workspace.tasks.first(where: { $0.request.sessionID == store.session.id })?.duration
                 Text(ModelLineup.shortName(store.session.model) + (seconds.map { " · " + durationText($0, store: store) } ?? "")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-soft", scheme)).help(store.session.model)
+                if store.storageError == nil && !store.loadBlocked && store.running(store.session.id) == nil {
+                    Text(store.text("savedOnDevice")).font(.vzn("smallScale")).foregroundStyle(contentColor("text-soft", scheme))
+                }
                 Spacer(minLength: metric("small"))
                 Button(store.text("copy"), systemImage: "doc.on.doc") {
                     copyText(([entry.headword, entry.pronunciation] + entry.translations.map { $0.text + ($0.meaning.map { " — " + $0 } ?? "") }).filter { !$0.isEmpty }.joined(separator: "\n"), store: store)

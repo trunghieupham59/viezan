@@ -67,13 +67,15 @@ static CloudProtocol::Call prepareCall(const QVariantMap &task) {
     if (input.value("feature") == "chat" && input.value("chatMode") == "image") { auto request = input; request["availableModels"] = task.value("availableModels"); return ImageGeneration::prepare(request); }
     auto messages = QJsonArray::fromVariantList(input.value("messages").toList());
     if (ImageTranslation::isImageRequest(input)) {
-        QFile resource(":/qml/native.json"); resource.open(QIODevice::ReadOnly);
+        QFile resource(":/qml/native.json");
+        if (!resource.open(QIODevice::ReadOnly)) return CloudProtocol::Call{{}, {}, "providerError"};
         auto prompt = QJsonDocument::fromJson(resource.readAll()).object().value("imageTranslationPrompt").toString();
         prompt.replace("{{SOURCE}}", input.value("source").toString()); prompt.replace("{{TARGET}}", input.value("target").toString()); prompt.replace("{{STYLE}}", input.value("translationStyle", "general").toString());
         QJsonArray images; for (const auto &value : messages) if (value.toObject().value("role") == "user") images = value.toObject().value("images").toArray();
         messages = {QJsonObject{{"role", "system"}, {"content", prompt}}, QJsonObject{{"role", "user"}, {"content", input.value("input") .toString()}, {"images", images}}};
     } else if (input.value("feature") == "translate") {
-        QFile resource(":/qml/native.json"); resource.open(QIODevice::ReadOnly);
+        QFile resource(":/qml/native.json");
+        if (!resource.open(QIODevice::ReadOnly)) return CloudProtocol::Call{{}, {}, "providerError"};
         const auto policy = QJsonDocument::fromJson(resource.readAll()).object();
         const auto mode = input.value("translationMode", "translate").toString(), style = input.value("translationStyle", "general").toString();
         const bool honorific = input.value("target") == "ja" && (mode == "translate" || mode == "annotate") && QRegularExpression(R"(\b[A-Z][a-z]+[- ](?:san|kun|chan|sama|sensei|senpai|dono)\b)").match(input.value("input").toString()).hasMatch();
@@ -86,7 +88,8 @@ static CloudProtocol::Call prepareCall(const QVariantMap &task) {
         if (messages.isEmpty()) return CloudProtocol::Call{{}, {}, "providerError"};
     }
     if (input.value("feature") == "chat") {
-        QFile resource(":/qml/native.json"); resource.open(QIODevice::ReadOnly);
+        QFile resource(":/qml/native.json");
+        if (!resource.open(QIODevice::ReadOnly)) return CloudProtocol::Call{{}, {}, "providerError"};
         const auto policy = QJsonDocument::fromJson(resource.readAll()).object().value("chatPrompt").toObject();
         const auto custom = input.value("systemPrompt").toString().trimmed();
         QStringList sections{custom.isEmpty() ? policy.value("default").toString() : custom, policy.value("reading").toString(), policy.value("formatting").toString()};

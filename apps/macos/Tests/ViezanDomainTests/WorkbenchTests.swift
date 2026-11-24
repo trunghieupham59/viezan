@@ -10,9 +10,10 @@ import Testing
     var value: Workspace?
     var failLoad = false
     var failSave = false
+    var failAfterWrites: Int?
     var writes = 0
     func load() throws -> Workspace? { if failLoad { throw StorageFailure.invalidData }; return value }
-    func save(_ workspace: Workspace) throws { if failSave { throw StorageFailure.invalidData }; value = workspace; writes += 1 }
+    func save(_ workspace: Workspace) throws { if failSave || writes == failAfterWrites { throw StorageFailure.invalidData }; value = workspace; writes += 1 }
 }
 
 @Test func workspaceDropsRetiredBrowserSettingsDuringRecovery() throws {
@@ -36,7 +37,7 @@ import Testing
     store.setDraft(chat, "Next message")
     store.navigate(.translate)
     let translate = store.session.id
-    let translationModel = store.session.model
+    let translationModel = store.workspace.modelForNextRequest(store.session)
     store.setDraft(translate, "Translate prompt")
     let second = try #require(store.submit(translate))
     store.setModel(chat, "demo.standard")
@@ -50,6 +51,47 @@ import Testing
     store.select(chat)
     #expect(store.session.draft == "Next message")
     #expect(store.session.messages.last?.text == "Reply")
+}
+
+@Test @MainActor func defaultModelFollowsNewWorkAcrossFeaturesAndSurvivesReload() throws {
+    let persistence = MemoryPersistence()
+    let store = WorkbenchStore(persistence: persistence, automaticProvider: false)
+    let chat = store.session.id
+    let firstModel = "ollama:fixture", nextModel = "gemini:fixture"
+    store.setModel(chat, firstModel)
+    store.setDraft(chat, "First question")
+    let first = try #require(store.submit(chat))
+    store.navigate(.translate)
+    let translation = store.session.id
+    store.setDraft(translation, "Hello")
+    let running = try #require(store.submit(translation))
+    #expect(running.request.model == firstModel)
+    store.navigate(.dictionary)
+    store.setModel(store.session.id, nextModel)
+    #expect(store.running(chat)?.request == first.request)
+    #expect(store.running(translation)?.request == running.request)
+    store.cancel(running.id)
+    store.retry(running.id)
+    #expect(store.running(translation)?.request == running.request)
+    store.cancel(running.id)
+    #expect(store.submit(translation)?.request.model == nextModel)
+    store.cancel(first.id)
+    store.select(chat)
+    #expect(store.workspace.modelForNextRequest(store.session) == firstModel)
+    store.newSession()
+    #expect(store.session.model == nextModel)
+    let restored = WorkbenchStore(persistence: persistence, automaticProvider: false)
+    #expect(restored.workspace.defaultModel == nextModel)
+    let quickChat = restored.createDetachedSession(feature: .chat)
+    #expect(restored.session(quickChat)?.model == nextModel)
+    // Interpretation has its own transcript and updates only the shared preference.
+    restored.setModel(nil, firstModel)
+    let quickTranslate = restored.createDetachedSession(feature: .translate, draft: "Hi")
+    #expect(restored.submit(quickTranslate)?.request.model == firstModel)
+    #expect(restored.workspace.tasks.first { $0.id == first.id }?.request.model == firstModel)
+    #expect(restored.session(chat)?.model == firstModel)
+    restored.setModel(nil, "invalid")
+    #expect(restored.workspace.defaultModel == firstModel)
 }
 
 @Test @MainActor func cancellationAndRetryRejectOldAttemptWithoutDuplicatingMessages() throws {
@@ -211,6 +253,9 @@ import Testing
                 #expect(try Data(contentsOf: url) == original)
                 continue
             }
+            let source = try JSONDecoder().decode(Workspace.self, from: original)
+            let preview = try NativeBackup.preview(NativeBackup.export(source))
+            #expect(preview.migratedAppearance == ["graphite", "paper", "corporate", "midnight"].contains(preset as? String ?? ""))
             #expect(!store.loadBlocked && store.storageError == nil)
             #expect(store.workspace.preferences.preset == "glass")
             #expect(store.workspace.preferences.mode == (preset as? String == "midnight" ? .dark : mode))
@@ -369,6 +414,28 @@ import Testing
     #expect(store.availableModels.contains("gemini:gemini-2.5-pro"))
     store.newSession()
     #expect(store.session.model == "gemini:gemini-2.5-flash")
+}
+
+@Test @MainActor func ollamaDiscoveryAndRefreshPublishNamesAndSizesTogether() async {
+    actor Catalog {
+        var calls = 0
+        func list(_ provider: String) throws -> ModelCatalog.Listing {
+            guard provider == "ollama" else { throw ProviderFailure.unavailable }
+            calls += 1
+            let names = calls < 3 ? ["ollama:a"] : []
+            return .init(models: names, sizes: names.isEmpty ? [:] : ["ollama:a": Int64(calls * 100)])
+        }
+    }
+    let catalog = Catalog()
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false,
+                               listCatalog: { try await catalog.list($0) }, hasKey: { _ in false })
+    await store.discoverProviders().value
+    #expect(store.localModels == ["ollama:a"] && store.providers.ollamaSizes == ["ollama:a": 100])
+    await store.refreshModels(provider: "ollama")
+    #expect(store.localModels == ["ollama:a"] && store.providers.ollamaSizes == ["ollama:a": 200])
+    await store.refreshModels(provider: "ollama")
+    #expect(store.localModels.isEmpty && store.providers.ollamaSizes.isEmpty)
+    #expect(await catalog.calls == 3)
 }
 
 @Test @MainActor func discoveryWithNothingAvailableKeepsModelsAndReportsEmpty() async {
@@ -556,7 +623,7 @@ import Testing
     let empty = installed.appendingPathComponent("Empty.app"), gone = installed.appendingPathComponent("Gone.app")
     try FileManager.default.createDirectory(at: empty, withIntermediateDirectories: false)
     let harmless = try scan()
-    #expect(harmless.issues == [.init(path: empty.path, reason: .notAnApp)])
+    #expect(harmless.issues == [.init(path: empty.path, reason: .notAnApp, installRoots: [.init(path: installed.path)])])
     #expect(harmless.issues.first?.blocking == false)
     #expect(harmless.blockingIssueCount == 0)
     #expect(harmless.applications.contains { $0.bundleID == "dev.viezan.fixture" && $0.blocked == nil })
@@ -567,7 +634,7 @@ import Testing
 
     func expectInvalidBundle() throws {
         let result = try scan()
-        #expect(result.issues == [.init(path: empty.path, reason: .invalidBundle)])
+        #expect(result.issues == [.init(path: empty.path, reason: .invalidBundle, installRoots: [.init(path: installed.path)])])
         #expect(result.issues.first?.blocking == true)
         #expect(result.applications.first { $0.bundleID == "dev.viezan.fixture" }?.blocked == "appIncomplete")
         #expect(result.applications.first { $0.bundleID == "dev.viezan.linked" }?.blocked == "appProtected")
@@ -604,7 +671,7 @@ import Testing
     #expect(repaired.applications.contains { $0.bundleID == "dev.viezan.reinstalled" && $0.blocked == nil })
     try FileManager.default.createSymbolicLink(at: gone, withDestinationURL: root.appendingPathComponent("unmounted/missing.app"))
     let broken = try scan()
-    #expect(broken.issues == [.init(path: gone.path, reason: .brokenLink)])
+    #expect(broken.issues == [.init(path: gone.path, reason: .brokenLink, installRoots: [.init(path: installed.path)])])
     #expect(broken.issues.first?.blocking == true)
     #expect(broken.applications.allSatisfy { $0.blocked != nil })
     try FileManager.default.removeItem(at: gone)
@@ -616,7 +683,7 @@ import Testing
     try FileManager.default.createSymbolicLink(at: gone, withDestinationURL: root.appendingPathComponent("unmounted/missing.app"))
     let capped = try scan()
     #expect(capped.issues.count == 50)
-    #expect(capped.issues.first == .init(path: gone.path, reason: .brokenLink))
+    #expect(capped.issues.first == .init(path: gone.path, reason: .brokenLink, installRoots: [.init(path: installed.path)]))
     #expect(capped.issues.dropFirst().allSatisfy { !$0.blocking })
     #expect(capped.blockingIssueCount == 1)
     #expect(capped.applications.first { $0.bundleID == "dev.viezan.fixture" }?.blocked == "appIncomplete")
@@ -643,7 +710,7 @@ import Testing
     // The launcher folder is still there and readable, and the app it held is gone.
     try fm.createSymbolicLink(at: link, withDestinationURL: launcher.appendingPathComponent("Client.app"))
     let removed = try scan()
-    #expect(removed.issues == [.init(path: link.path, reason: .brokenLink, targetGone: true)])
+    #expect(removed.issues == [.init(path: link.path, reason: .brokenLink, targetGone: true, installRoots: [.init(path: installed.path)])])
     #expect(removed.issues.first?.blocking == false)
     #expect(removed.blockingIssueCount == 0)
     #expect(kept(removed) == nil)
@@ -655,7 +722,7 @@ import Testing
     // An unreadable parent cannot show that the app is gone.
     try fm.setAttributes([.posixPermissions: 0o000], ofItemAtPath: launcher.path)
     let hidden = try scan()
-    #expect(hidden.issues == [.init(path: link.path, reason: .brokenLink)])
+    #expect(hidden.issues == [.init(path: link.path, reason: .brokenLink, installRoots: [.init(path: installed.path)])])
     #expect(hidden.blockingIssueCount == 1)
     #expect(kept(hidden) == "appIncomplete")
     try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: launcher.path)
@@ -666,7 +733,7 @@ import Testing
     // A target that exists but is not an app still blocks.
     try fm.removeItem(at: link)
     try fm.createSymbolicLink(at: link, withDestinationURL: launcher)
-    #expect(try scan().issues == [.init(path: link.path, reason: .brokenLink)])
+    #expect(try scan().issues == [.init(path: link.path, reason: .brokenLink, installRoots: [.init(path: installed.path)])])
 }
 
 @Test func applicationInventoryTrashRequiresTheSameIssueInAnInstallRoot() throws {
@@ -726,7 +793,7 @@ import Testing
     }
     let roots = [ApplicationInstallRoot(path: installed.path)]
     let scanned = try ApplicationFiles.scan(roots: [installed.path], installRoots: roots).issues
-    let issue = ApplicationScanIssue(path: link.path, reason: .brokenLink, targetGone: true)
+    let issue = ApplicationScanIssue(path: link.path, reason: .brokenLink, targetGone: true, installRoots: roots)
     #expect(ApplicationFiles.trashableIssue(issue.id, in: scanned, installRoots: roots) == issue)
     try ApplicationFiles.policy(link.path, isLink: true, installRoots: roots)
     #expect(throws: StorageFailure.self) { try ApplicationFiles.policy(link.path, installRoots: roots) }
@@ -812,6 +879,28 @@ import Testing
     #expect(Applications(journalDirectory: root).journals.first?.items.first?.status == "pending")
 }
 
+@Test func linkMoveStopsWhenDestinationIdentityCannotBeRead() throws {
+    let fm = FileManager.default
+    let root = URL(fileURLWithPath: try ApplicationFiles.canonical(fm.temporaryDirectory.path)).appendingPathComponent(UUID().uuidString)
+    try fm.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? fm.removeItem(at: root) }
+    let sources = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../../../native/files")
+    let fixture = root.appendingPathComponent("verify-move")
+    let build = try NativeCommand.run(URL(fileURLWithPath: "/usr/bin/swiftc"), [
+        sources.appendingPathComponent("LinkEntry.swift").path, sources.appendingPathComponent("tests/main.swift").path,
+        "-module-cache-path", root.appendingPathComponent("modules").path, "-o", fixture.path,
+    ], timeout: 120)
+    try #require(build.status == 0)
+    let source = root.appendingPathComponent("source"), destination = root.appendingPathComponent("destination")
+    try fm.createSymbolicLink(atPath: source.path, withDestinationPath: "fixture-target")
+    let before = try ApplicationFiles.linkSnapshot(source.path)
+    let reply = try NativeCommand.run(fixture, [source.path, destination.path, String(before.device), String(before.inode)])
+    try #require(reply.status == 0)
+    #expect((try? ApplicationFiles.linkSnapshot(destination.path)) == before)
+    var metadata = stat()
+    #expect(lstat(source.path, &metadata) == -1 && errno == ENOENT)
+}
+
 private var canTestSystemTrash: Bool {
     guard FileManager.default.isExecutableFile(atPath: "/usr/bin/swiftc"),
           let trash = try? FileManager.default.url(for: .trashDirectory, in: .userDomainMask, appropriateFor: FileManager.default.temporaryDirectory, create: false) else { return false }
@@ -828,7 +917,7 @@ func applicationHelperTrashesAndRestoresOnlyTheFixtureLink() throws {
     var repo = URL(fileURLWithPath: #filePath)
     for _ in 0..<5 { repo.deleteLastPathComponent() }
     let helper = root.appendingPathComponent("viezan-fs")
-    let build = try NativeCommand.run(URL(fileURLWithPath: "/usr/bin/swiftc"), ["-O", repo.appendingPathComponent("native/files/main.swift").path, "-module-cache-path", root.appendingPathComponent("modules").path, "-o", helper.path, "-framework", "AppKit"], timeout: 120)
+    let build = try NativeCommand.run(URL(fileURLWithPath: "/usr/bin/swiftc"), ["-O", repo.appendingPathComponent("native/files/LinkEntry.swift").path, repo.appendingPathComponent("native/files/main.swift").path, "-module-cache-path", root.appendingPathComponent("modules").path, "-o", helper.path, "-framework", "AppKit"], timeout: 120)
     try #require(build.status == 0)
     let source = root.appendingPathComponent("ViezanLinkFixture-" + UUID().uuidString + ".app")
     let target = root.appendingPathComponent("target"), receipt = root.appendingPathComponent("receipt.json")
@@ -876,7 +965,7 @@ func applicationHelperTrashesAndRestoresOnlyTheFixtureLink() throws {
     try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
     try PropertyListSerialization.data(fromPropertyList: ["CFBundleIdentifier": "dev.viezan.nested", "CFBundlePackageType": "APPL"], format: .xml, options: 0).write(to: contents.appendingPathComponent("Info.plist"))
     let scan = try ApplicationFiles.scan(roots: [root.appendingPathComponent("Applications").path], home: root.path)
-    #expect(scan.issues == [.init(path: group.path, reason: .invalidBundle)])
+    #expect(scan.issues == [.init(path: group.path, reason: .invalidBundle, installRoots: [.init(path: group.deletingLastPathComponent().path)])])
     #expect(scan.blockingIssueCount == 1)
 }
 
@@ -895,7 +984,7 @@ func applicationHelperTrashesAndRestoresOnlyTheFixtureLink() throws {
     try Data().write(to: installs)
     let allowed = [ApplicationInstallRoot(path: launcher.path, isLauncher: true)]
     let scan = { try ApplicationFiles.scan(roots: [launcher.path], installRoots: allowed) }
-    let inventory = try scan(), emptyIssue = ApplicationScanIssue(path: empty.path, reason: .notAnApp)
+    let inventory = try scan(), emptyIssue = ApplicationScanIssue(path: empty.path, reason: .notAnApp, installRoots: allowed)
     #expect(inventory.applications.map(\.bundleID) == [id])
     #expect(inventory.applications.contains { $0.path == client.path && $0.blocked == nil })
     #expect(inventory.issues == [emptyIssue])
@@ -914,8 +1003,10 @@ func applicationHelperTrashesAndRestoresOnlyTheFixtureLink() throws {
     let corrupt = launcher.appendingPathComponent("Damaged.app")
     try fm.createDirectory(at: corrupt.appendingPathComponent("Contents"), withIntermediateDirectories: true)
     let damaged = try scan()
-    #expect(damaged.applications.first { $0.path == link.path }?.blocked == "appProtected")
-    #expect(damaged.issues.contains(.init(path: corrupt.path, reason: .invalidBundle)))
+    #expect(!damaged.applications.contains { $0.path == link.path })
+    #expect(damaged.applications.first { $0.path == client.path }?.symbolicLinks == [link.path])
+    #expect(damaged.applications.first { $0.path == client.path }?.blocked == "appIncomplete")
+    #expect(damaged.issues.contains(.init(path: corrupt.path, reason: .invalidBundle, installRoots: allowed)))
     #expect(damaged.blockingIssueCount == 1)
 }
 
@@ -1078,6 +1169,30 @@ func applicationHelperTrashesAndRestoresOnlyTheFixtureLink() throws {
     #expect(rows[.cpu]?.first?.sensors.map(\.key) == ["hid:pACC 0", "hid:pACC 1", "Tp01"])
     #expect(rows[.gpu]?.map(\.label) == ["gpu"])
     #expect(rows[.other]?.map(\.label) == [nil])
+}
+
+@Test func fanPolicyUsesTheDisplayedSMCGroupAndStableTies() {
+    let sensors: [ThermalSnapshot.Sensor] = [.init(key: "Tf02", celsius: 77), .init(key: "Tf01", celsius: 77),
+                                             .init(key: "TG0D", celsius: 77), .init(key: "Tp01", celsius: 40)]
+    let sample = ThermalSnapshot(ok: true, sensors: sensors, fans: nil, model: nil)
+    #expect(FanPolicy.temperature(sample, source: "cpu", fan: 0) == 40)
+    #expect(FanPolicy.temperature(sample, source: "gpu", fan: 0) == 77)
+    for input in [sensors, Array(sensors.reversed())] {
+        let rows = ThermalSensors.rows(input)[.gpu] ?? []
+        #expect(rows.map(\.label) == ["gpu", "gpu_die"])
+        #expect(rows.first?.sensors.map(\.key) == ["Tf01", "Tf02"])
+    }
+}
+
+@Test func launcherCatalogDistinguishesUnreadableRootsFromAnEmptyCatalog() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let missing = root.appendingPathComponent("missing")
+    #expect(throws: CocoaError.self) { try LauncherCatalog.catalog(roots: [missing]) }
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    #expect(try LauncherCatalog.catalog(roots: [missing, root]).isEmpty)
+    try FileManager.default.createDirectory(at: root.appendingPathComponent("Sample.app"), withIntermediateDirectories: false)
+    #expect(try LauncherCatalog.catalog(roots: [missing, root]).map(\.name) == ["Sample"])
 }
 
 @Test func thermalHIDFanPolicyRequiresExactKey() {
@@ -1401,6 +1516,34 @@ func applicationHelperTrashesAndRestoresOnlyTheFixtureLink() throws {
 }
 
 // MARK: - Liquid Glass 2.0 backend (BACKEND-GAPS #1, #2, #5, #9, #21)
+
+@Test @MainActor func dictionaryKeepsOverlongContextUntilItCanBeSubmitted() throws {
+    let persistence = MemoryPersistence()
+    let store = WorkbenchStore(persistence: persistence, automaticProvider: false)
+    store.navigate(.dictionary)
+    let id = store.session.id
+    store.setDraft(id, "bank")
+    store.setModel(id, "demo.standard")
+    let limit = String(repeating: "👩🏽‍💻", count: 500)
+    let over = limit + "ề"
+    store.setDictionaryContext(id, over)
+    #expect(store.session(id)?.dictionaryContext == over)
+    #expect(store.submit(id) == nil)
+    #expect(store.workspace.tasks.isEmpty)
+
+    let reopened = WorkbenchStore(persistence: persistence, automaticProvider: false)
+    #expect(reopened.session(id)?.dictionaryContext == over)
+    #expect(reopened.submit(id) == nil)
+    reopened.setDictionaryContext(id, limit)
+    let lookup = try #require(reopened.submit(id))
+    #expect(lookup.request.dictionaryContext == limit)
+    reopened.cancel(lookup.id)
+    let cancelled = try #require(reopened.workspace.tasks.first)
+    #expect(reopened.canRetry(cancelled))
+    var overlongRequest = cancelled
+    overlongRequest.request.dictionaryContext = over
+    #expect(!reopened.canRetry(overlongRequest))
+}
 
 @Test @MainActor func unchangedDictionaryContextKeepsTheEntry() throws {
     let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)

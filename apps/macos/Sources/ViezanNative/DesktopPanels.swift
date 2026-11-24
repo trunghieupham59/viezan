@@ -48,7 +48,7 @@ private struct QuickSessionPanel: View {
     @Bindable var store: WorkbenchStore
     let sessionID: String
     var openMain: () -> Void
-    @State private var modelDraft = ""
+    @State private var choosingModel = false
     private var session: Session? { store.session(sessionID) }
     var body: some View {
         VStack(alignment: .leading, spacing: metric("inset")) {
@@ -96,11 +96,12 @@ private struct QuickSessionPanel: View {
                         ForEach(nativeResources.nativeLanguages, id: \.self) { Text(store.text("lang_" + $0)).tag($0) }
                     }
                 }
-                DisclosureGroup(store.text("configureModel")) {
-                    TextField(store.text("modelID"), text: $modelDraft).textFieldStyle(.roundedBorder)
-                    Button(store.text("apply")) { store.setModel(sessionID, modelDraft.trimmingCharacters(in: .whitespacesAndNewlines)) }
-                        .disabled(!NativeModel.valid(modelDraft.trimmingCharacters(in: .whitespacesAndNewlines)))
-                }.onAppear { modelDraft = session.model }
+                Button(ModelLineup.shortName(store.workspace.modelForNextRequest(session)), systemImage: "chevron.down") { choosingModel = true }
+                    .help(store.text("appDefaultAI"))
+                    .popover(isPresented: $choosingModel) {
+                        ModelPanel(store: store, dismiss: { choosingModel = false }, availableHeight: metric("editor") * 3, ownerID: sessionID)
+                            .frame(width: metric("sidebar") + metric("editor"))
+                    }
                 HStack {
                     if let task = store.running(sessionID) { Button(store.text("stop"), role: .destructive) { store.cancel(task.id) } }
                     else { Button(store.text(session.feature == .chat ? "send" : "translate")) { store.submit(sessionID) }.buttonStyle(.vznPrimary).disabled(session.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).keyboardShortcut(.return, modifiers: .command) }
@@ -182,7 +183,7 @@ private struct QuickTranslatePairRows: View {
             }.labelsHidden().fixedSize()
         }
         CardRow(title: store.text("quickModel"), detail: store.text("quickModelHint")) {
-            Text(nativeModelLabel(store.session.model, store: store)).foregroundStyle(.secondary).lineLimit(1)
+            ModelPicker(store: store, compact: true, badge: true, modelOverride: store.appModel)
         }
     }
 }

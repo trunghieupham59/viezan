@@ -1,5 +1,12 @@
 # Dịch mọi nơi
 
+## AI mặc định dùng chung (2026-11-25)
+
+Dịch nhanh dùng AI mặc định của ứng dụng tại thời điểm gửi. Kết quả và tác vụ đang chạy giữ model đã dùng.
+
+Trên Qt, lời hướng dẫn đọc màn hình của bộ chọn vùng nêu thao tác mũi tên để di chuyển, Shift + mũi tên để đổi kích thước, phím cách để chụp vùng, Enter để chụp màn hình và Esc để huỷ. Khi bộ ghi phím tắt đang chờ kết quả đăng ký, nó thông báo “Đang lưu phím tắt…”.
+
+
 Người dùng chọn văn bản trong ứng dụng đang làm việc và nhấn phím tắt Dịch nhanh. Trang này tập hợp thiết lập phím tắt, cặp ngôn ngữ và thông tin về quyền truy cập vùng chọn. Bản thiết kế trình duyệt cũ trong thư mục boards là tư liệu lịch sử.
 
 ## Luồng chính
@@ -23,3 +30,7 @@ Dịch nhanh có cặp ngôn ngữ chính/phụ riêng và dùng model đang ch�
 Trên macOS, hàng quyền Ghi màn hình nằm ngay dưới hàng quyền Trợ năng và cập nhật khi quay lại từ Cài đặt hệ thống. Dịch vùng màn hình chỉ cần quyền Ghi màn hình. Kiểm tra nút mở đúng mục quyền khi chưa cấp, nhấn Esc để hủy mà không hiện thẻ, chọn vùng không có chữ để thấy thông báo tự đóng, và kiểm tra thẻ báo lỗi khi dịch thất bại.
 
 Phần giao diện được triển khai ở `apps/macos/Sources/ViezanNative/DesktopWorkspace.swift` và `apps/desktop-qt/qml/DesktopWorkspace.qml`.
+
+Trên Qt, bộ chọn ngôn ngữ hỗ trợ bàn phím. Đổi mô hình mở bộ chọn ngay trên màn hình Dịch mọi nơi và cập nhật mặc định chung. Với văn bản Latin chưa có dấu hiệu ngôn ngữ đủ rõ, giữ nguồn tự động và dùng đích chính đã cấu hình. macOS dùng kết quả nhận diện của hệ điều hành khi có.
+
+Trên Windows, chỉ sửa một vùng chọn UTF-16 hợp lệ còn khớp với tài liệu đã đọc. Nếu bản dịch giống hệt vùng chọn thì hiển thị thông báo trung tính. Chỉ cung cấp Hoàn tác sau khi đọc lại đúng toàn bộ nội dung mới. Nếu tài liệu đã đổi tiếp, giữ nguyên văn bản của người dùng.

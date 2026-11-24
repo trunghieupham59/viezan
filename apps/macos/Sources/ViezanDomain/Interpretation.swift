@@ -42,7 +42,8 @@ public struct InterpretationSession: Codable, Identifiable, Sendable {
     public private(set) var listening = false
     public private(set) var starting = false
     public private(set) var processing = false
-    public private(set) var summarizing = false
+    public private(set) var summaryModel: String?
+    public var summarizing: Bool { summaryModel != nil }
     public private(set) var level: Double = 0
     public private(set) var error: String? { didSet { if error != nil { failures += 1 } } }
     /// Counts every failure, so the same error twice in a row is still two events for the UI.
@@ -230,7 +231,7 @@ public struct InterpretationSession: Codable, Identifiable, Sendable {
         if let capture = systemCapture { systemCapture = nil; captureStopping = true; Task { [weak self] in await capture.stop(flush: false); self?.captureStopping = false } }
         recorder?.stop(); recorder = nil
         if let recordingFile { try? FileManager.default.removeItem(at: recordingFile) }; recordingFile = nil
-        worker?.cancel(); worker = nil; summaryWorker?.cancel(); summaryWorker = nil; summarizing = false
+        worker?.cancel(); worker = nil; summaryWorker?.cancel(); summaryWorker = nil; summaryModel = nil
         for (_, url) in queue { try? FileManager.default.removeItem(at: url) }; queue.removeAll(); processing = false; level = 0; playback.cancel()
         if let s = sessions.firstIndex(where: { $0.id == selectedID }) {
             for i in sessions[s].segments.indices where ["queued", "transcribing", "translating"].contains(sessions[s].segments[i].status) { sessions[s].segments[i].status = "interrupted" }
@@ -300,22 +301,24 @@ public struct InterpretationSession: Codable, Identifiable, Sendable {
             guard let self, self.generation == epoch else { return }; self.processing = false; self.worker = nil; _ = self.persist()
         }
     }
-    public func summarize(kind: String = "summary") {
+    public func summarize(kind: String = "summary", model: String? = nil) {
         guard ["summary", "speakerAnalysis", "actionItems", "decisions"].contains(kind), !busy, !storageBlocked, let session = current, !session.segments.isEmpty else { return }
+        let selectedModel = model ?? session.model
+        guard NativeModel.valid(selectedModel) else { return }
         let transcript = session.segments.map { ($0.speaker.map { "[" + $0 + "] " } ?? "") + $0.original + "\n" + $0.translated }.joined(separator: "\n\n")
         guard transcript.utf8.count <= 262144 else { error = "interpretSummaryLimit"; return }
-        let epoch = generation, token = UUID(); summaryToken = token; summarizing = true
+        let epoch = generation, token = UUID(); summaryToken = token; summaryModel = selectedModel
         if let i = sessions.firstIndex(where: { $0.id == session.id }) {
             switch kind { case "speakerAnalysis": sessions[i].speakerAnalysis = ""; case "actionItems": sessions[i].actionItems = ""; case "decisions": sessions[i].decisions = ""; default: sessions[i].summary = "" }
         }
-        guard persist() else { summarizing = false; return }
+        guard persist() else { summaryModel = nil; return }
         summaryWorker = Task { [weak self] in
             do {
-                let request = Request(sessionID: session.id, feature: .chat, model: session.model, input: transcript, source: session.source, target: session.target, revision: 0, locale: session.locale, systemPrompt: Self.summaryPrompt(kind: kind, target: session.target))
+                let request = Request(sessionID: session.id, feature: .chat, model: selectedModel, input: transcript, source: session.source, target: session.target, revision: 0, locale: session.locale, systemPrompt: Self.summaryPrompt(kind: kind, target: session.target))
                 let receive: @Sendable (String) async -> Void = { [weak self] text in await self?.appendSummary(text, session: session.id, epoch: epoch, token: token, kind: kind) }
-                if session.model.hasPrefix("ollama:") { try await LocalProvider.stream(request, receive: receive) } else { try await CloudProvider.stream(request, receive: receive) }
-            } catch { if !Task.isCancelled { self?.error = WorkbenchStore.failureCode(error, model: session.model) } }
-            guard let self, self.generation == epoch, self.summaryToken == token else { return }; self.summarizing = false; self.summaryWorker = nil; _ = self.persist()
+                if selectedModel.hasPrefix("ollama:") { try await LocalProvider.stream(request, receive: receive) } else { try await CloudProvider.stream(request, receive: receive) }
+            } catch { if !Task.isCancelled { self?.error = WorkbenchStore.failureCode(error, model: selectedModel) } }
+            guard let self, self.generation == epoch, self.summaryToken == token else { return }; self.summaryModel = nil; self.summaryWorker = nil; _ = self.persist()
         }
     }
     /// One instruction per analysis tab, so the summary does not repeat the other three.
@@ -332,7 +335,7 @@ public struct InterpretationSession: Codable, Identifiable, Sendable {
     /// What arrived so far stays, saved.
     public func cancelSummary() {
         guard summarizing else { return }
-        summaryToken = UUID(); summaryWorker?.cancel(); summaryWorker = nil; summarizing = false; _ = persist()
+        summaryToken = UUID(); summaryWorker?.cancel(); summaryWorker = nil; summaryModel = nil; _ = persist()
     }
     private func appendSummary(_ text: String, session: String, epoch: UUID, token: UUID, kind: String) {
         guard generation == epoch, summaryToken == token, let i = sessions.firstIndex(where: { $0.id == session }) else { return }
@@ -358,8 +361,8 @@ public struct InterpretationSession: Codable, Identifiable, Sendable {
         guard !storageBlocked else { return false }
         do {
             let data = try JSONEncoder().encode(sessions); guard data.count <= 134_217_728 else { throw StorageFailure.invalidData }
-            try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-            try data.write(to: file, options: .atomic); try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path); return true
+            try FilePersistence.writePrivate(data, to: file)
+            return true
         } catch { self.error = "interpretStorageError"; return false }
     }
 }

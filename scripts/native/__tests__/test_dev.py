@@ -13,6 +13,7 @@ sys.path.insert(0, str(SCRIPTS))
 spec = importlib.util.spec_from_file_location("viezan_dev", SCRIPTS / "dev.py")
 dev = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(dev)
+import build as native_build
 
 
 @unittest.skipUnless(sys.platform == "darwin", "The development reload runner is macOS-only")
@@ -28,6 +29,24 @@ class DevelopmentBuildTests(unittest.TestCase):
         path.mkdir(parents=True)
         (path / "binary").write_text(content)
         return path
+
+    def test_team_signed_build_requests_runtime_for_the_app_and_helpers(self):
+        binaries = self.current / "Contents/Resources/native"
+        binaries.mkdir(parents=True)
+        (binaries / "fixture-helper").touch()
+        for identity in ("fixture-team", "-", None):
+            with self.subTest(identity=identity), patch.object(native_build, "run") as commands:
+                native_build.sign_mac(self.current, identity)
+                self.assertEqual(commands.call_count, 2)
+                helper, app = (tuple(call.args) for call in commands.call_args_list)
+                for command in (helper, app):
+                    self.assertEqual(command[command.index("--sign") + 1], identity or "-")
+                    self.assertEqual("runtime" in command, identity == "fixture-team")
+                self.assertNotIn("--entitlements", helper)
+                self.assertEqual("--entitlements" in app, identity == "fixture-team")
+                if identity == "fixture-team":
+                    self.assertEqual(app[app.index("--entitlements") + 1],
+                                     native_build.ROOT / "apps/packaging/entitlements.mac.plist")
 
     def test_rotation_keeps_one_previous_and_reuses_cache(self):
         self.bundle("previous/Viezan.app", "older")

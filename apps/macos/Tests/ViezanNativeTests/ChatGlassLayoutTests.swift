@@ -47,6 +47,42 @@ extension AppKitFixtureTests {
             try data.write(to: directory.appendingPathComponent(name + ".png"))
         }
 
+        @Test(arguments: ["interpret", "everywhere"])
+        func choosingDefaultOutsideChatKeepsTheOpenConversation(route: String) async throws {
+            _ = NSApplication.shared
+            let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            let store = WorkbenchStore(persistence: ChatLayoutStorage(), automaticProvider: false,
+                                       interpretation: Interpretation(file: file), listModels: { _ in [] }, hasKey: { _ in false })
+            let chat = store.session.id
+            store.setModel(chat, "ollama:first")
+            store.setDraft(chat, "Existing conversation")
+            let task = try #require(store.submit(chat))
+            store.setRoute(route)
+            let shell = ShellPresentation()
+            let host = NSHostingView(rootView: ChatLayoutFixture(store: store, shell: shell))
+            let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: 1200, height: 760),
+                                  styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.contentView = host
+            defer { window.contentView = nil; window.close() }
+            try await settle(host)
+            let trigger = try #require(shellControl("model-toggle", in: host))
+            trigger.performClick(nil)
+            try await settle(host)
+            let search = try #require(descendants(host).compactMap { $0 as? NSSearchField }.first { $0.accessibilityLabel() == store.text("searchModels") })
+            search.stringValue = "gemini:fixture"
+            search.delegate?.controlTextDidChange?(Notification(name: NSControl.textDidChangeNotification, object: search))
+            try await settle(host)
+            let coordinator = try #require(search.delegate as? HistorySearch.Coordinator)
+            #expect(coordinator.control(search, textView: NSTextView(), doCommandBy: #selector(NSResponder.insertNewline(_:))))
+            try await settle(host)
+            #expect(shell.overlay == nil)
+            #expect(store.workspace.defaultModel == "gemini:fixture")
+            #expect(store.session(chat)?.model == "ollama:first")
+            #expect(store.running(chat)?.request == task.request)
+            #expect(store.workspace.shell?.lastRoute == route)
+        }
+
         @Test func emptyComposerReportsFocusBeforeTypingAndResignation() async throws {
             _ = NSApplication.shared
             var focusChanges: [Bool] = []

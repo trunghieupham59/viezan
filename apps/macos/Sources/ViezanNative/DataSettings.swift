@@ -62,6 +62,7 @@ struct DataSettings: View {
                         Text(store.text("interpretation") + ": " + String(preview.interpretation.count))
                         Text(store.text("existingSessions") + ": " + String(preview.sessions.filter { known.contains($0.id) }.count))
                         Toggle(store.text("restorePreferences"), isOn: $restorePreferences).toggleStyle(.switch)
+                        if restorePreferences && preview.migratedAppearance { Text(store.text("backupGlassAppearance")).font(.vzn("smallScale")) }
                         HStack {
                             Spacer()
                             Button(store.text("close")) { self.preview = nil }.buttonStyle(.vznQuiet)

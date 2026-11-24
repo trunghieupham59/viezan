@@ -30,6 +30,7 @@ ColumnLayout {
             ColumnLayout {
                 width: parent.width; spacing: 0
                 Repeater {
+                    id: providerRows
                     model: modelData.ids
                     delegate: ColumnLayout {
                         id: providerRow
@@ -58,14 +59,14 @@ ColumnLayout {
                                 event.accepted = !key.inputMethodComposing
                                 if (event.accepted) closeEditor()
                             }
-                            TextField { id: key; objectName: "key-input-" + providerRow.modelData; echoMode: TextInput.Password; placeholderText: providers.t("apiKey"); Accessible.name: providers.names[providerRow.modelData] + " · " + placeholderText; maximumLength: 4096; Layout.fillWidth: true; enabled: !providers.bridge.credentialBusy; onAccepted: if (!inputMethodComposing && save.enabled) save.clicked() }
+                            Kit.GlassField { id: key; objectName: "key-input-" + providerRow.modelData; echoMode: TextInput.Password; placeholderText: providers.t("apiKey"); Accessible.name: providers.names[providerRow.modelData] + " · " + placeholderText; maximumLength: 4096; Layout.fillWidth: true; enabled: !providers.bridge.credentialBusy; onAccepted: if (!inputMethodComposing && save.enabled) save.clicked() }
                             Flow {
                                 Layout.fillWidth: true; spacing: providers.metrics.small
                                 Kit.PrimaryButton { id: save; text: providers.t("saveKey"); enabled: !providers.bridge.credentialBusy && !!key.text.trim(); onClicked: { providers.saving = true; providers.bridge.saveCredential(providerRow.modelData, key.text); key.clear() } }
                                 Kit.QuietButton { text: providers.t("close"); enabled: !providers.bridge.credentialBusy; onClicked: editor.closeEditor() }
                             }
                         }
-                        Rectangle { Layout.fillWidth: true; implicitHeight: providers.metrics.hairline; color: palette.midlight }
+                        Rectangle { visible: providerRow.index < providerRows.count - 1; Layout.fillWidth: true; implicitHeight: providers.metrics.hairline; color: palette.midlight }
                         Connections { target: providers; function onEditingChanged() { if (providers.editing !== providerRow.modelData) key.clear() } }
                         Component.onDestruction: key.clear()
                     }

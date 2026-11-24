@@ -32,13 +32,14 @@ struct LauncherChatView: View {
     /// A session to continue in AI Chat, or nil for the AI Chat page alone.
     var openInChat: (String?) -> Void
     var openSettings: (String) -> Void
+    @State private var choosingModel = false
     @State private var focusEpoch = 1
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
     private func t(_ key: String) -> String { store.text(key) }
     private var session: Session? { sessionID.flatMap(store.session) }
     private var model: String {
-        session?.model ?? (store.providers.availability(store.session.model) == .available ? store.session.model : store.preferredModel ?? store.session.model)
+        session.map(store.workspace.modelForNextRequest) ?? store.appModel
     }
     private var ready: Bool { !store.providers.empty && !modelUnavailable(model, store: store) }
     private var running: WorkTask? { sessionID.flatMap(store.running) }
@@ -58,28 +59,19 @@ struct LauncherChatView: View {
     var body: some View {
         let turns = turns
         VStack(spacing: 0) {
-            header(empty: turns.isEmpty)
-            CardDivider()
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: metric("gap")) {
-                        if !ready { missingModel }
-                        else if turns.isEmpty { emptyState }
-                        else {
-                            ForEach(turns) { turn in card(turn, active: turn.id == turns.last?.id).id(turn.id) }
-                        }
-                    }.padding(metric("inset")).frame(maxWidth: .infinity, alignment: .leading)
-                }
-                // QuickChat board: turn cards sit on the glass layer itself, no muted band.
-                .background(Color.clear)
-                // A new question takes the frame; earlier turns stay above it.
-                .onChange(of: turns.count, initial: true) { _, _ in if let last = turns.last { withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(last.id, anchor: .top) } } }
+            if choosingModel {
+                ModelPanel(store: store, dismiss: closeModelPicker, availableHeight: metric("editor") * 3,
+                           ownerID: sessionID, openSettings: openSettings)
+            } else {
+                conversation(turns: turns)
             }
-            CardDivider()
-            footer(turns: turns.count)
         }
         .onAppear { if sendOnOpen { sendOnOpen = false; send() } }
         .onChange(of: keys.last?.serial) { _, _ in
+            if choosingModel {
+                if keys.last?.key == .escape { closeModelPicker() }
+                return
+            }
             switch keys.last?.key {
             case .escape: dismiss()
             case .openInChat: handOff()
@@ -87,6 +79,29 @@ struct LauncherChatView: View {
             default: break
             }
         }
+    }
+    private func closeModelPicker() { choosingModel = false; focusEpoch += 1 }
+
+    @ViewBuilder private func conversation(turns: [Turn]) -> some View {
+        header(empty: turns.isEmpty)
+        CardDivider()
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: metric("gap")) {
+                    if !ready { missingModel }
+                    else if turns.isEmpty { emptyState }
+                    else {
+                        ForEach(turns) { turn in card(turn, active: turn.id == turns.last?.id).id(turn.id) }
+                    }
+                }.padding(metric("inset")).frame(maxWidth: .infinity, alignment: .leading)
+            }
+            // QuickChat board: turn cards sit on the glass layer itself, no muted band.
+            .background(Color.clear)
+            // A new question takes the frame; earlier turns stay above it.
+            .onChange(of: turns.count, initial: true) { _, _ in if let last = turns.last { withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(last.id, anchor: .top) } } }
+        }
+        CardDivider()
+        footer(turns: turns.count)
     }
 
     private var questionFont: NSFont { readingNSFont(store) }
@@ -132,7 +147,7 @@ struct LauncherChatView: View {
     private var missingModel: some View {
         VStack(alignment: .leading, spacing: metric("gap")) {
             Label(t("ai_chat_popup_title"), systemImage: "sparkles").font(.vzn("subtitleScale", .semibold))
-            ProviderNotice(store: store, model: model) { replacement in if let sessionID { store.setModel(sessionID, replacement) } }
+            ProviderNotice(store: store, model: model) { replacement in store.setModel(sessionID, replacement) }
         }.padding(.top, metric("small"))
     }
 
@@ -200,7 +215,7 @@ struct LauncherChatView: View {
     private func footer(turns count: Int) -> some View {
         let answer = turns.last?.answer?.text ?? ""
         return HStack(spacing: metric("small")) {
-            Button { openSettings("providers") } label: {
+            Button { choosingModel = true } label: {
                 HStack(spacing: metric("tight")) {
                     StatusDot(tone: ready ? .ready : .failed)
                     Text(ModelLineup.shortName(model)).lineLimit(1).help(model)

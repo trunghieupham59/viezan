@@ -3,12 +3,10 @@ name: Package Native Release
 # GitHub Release. Runs from develop publish the release and create its tag;
 # runs from any other ref only prepare a draft.
 #
-# Signing uses optional development certificates from repository secrets:
-#   MACOS_DEV_CERT_P12 / MACOS_DEV_CERT_PASSWORD   Apple Development .p12 (base64)
-#   WINDOWS_DEV_CERT_PFX / WINDOWS_DEV_CERT_PASSWORD self-signed code-signing .pfx (base64)
-# Without them macOS builds are ad-hoc signed and Windows builds are unsigned.
-# Development signatures do not satisfy Gatekeeper or SmartScreen; Developer ID,
-# notarization and a trusted Windows certificate remain on provisioned machines.
+# macOS produces notarized distribution packages or manual-install Preview DMGs.
+# Windows signing optionally uses WINDOWS_DEV_CERT_PFX / WINDOWS_DEV_CERT_PASSWORD.
+# The Windows upgrade check requires any supplied signature to be valid on a
+# fresh runner. Unsigned Windows installers use the manual upgrade route.
 #
 # Updates are trusted through Viezan's own key instead: VIEZAN_UPDATE_SIGNING_KEY
 # (Ed25519 private key, PEM) signs each package manifest, and the apps check that
@@ -31,6 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       build: ${{ steps.check.outputs.build }}
+      macos_mode: ${{ steps.macos.outputs.mode }}
     steps:
       - uses: actions/checkout@v7
       - name: Build only when the version changed
@@ -51,6 +50,31 @@ jobs:
           else
             echo "build=true" >> "$GITHUB_OUTPUT"
           fi
+      - name: Select the macOS signing mode
+        id: macos
+        if: steps.check.outputs.build == 'true'
+        env:
+          HAS_CERT: ${{ secrets.MACOS_DEVELOPER_ID_P12 != '' }}
+          HAS_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_PASSWORD != '' }}
+          HAS_PREVIEW_CERT: ${{ secrets.MACOS_PREVIEW_DEVELOPMENT_P12 != '' }}
+          HAS_PREVIEW_PASSWORD: ${{ secrets.MACOS_PREVIEW_DEVELOPMENT_PASSWORD != '' }}
+        run: |
+          if [[ "$HAS_CERT" == false && "$HAS_PASSWORD" == false ]]; then
+            if [[ "$GITHUB_REF" == refs/heads/develop ]]; then
+              echo "::error::A public release needs notarized macOS update DMGs. Configure the Developer ID certificate and password, or build a Preview on a draft branch."
+              exit 1
+            fi
+            if [[ "$HAS_PREVIEW_CERT" != true || "$HAS_PREVIEW_PASSWORD" != true ]]; then
+              echo "::error::Internal Previews require the pinned Apple Development identity and its password."
+              exit 1
+            fi
+            echo "mode=preview" >> "$GITHUB_OUTPUT"
+          elif [[ "$HAS_CERT" == true && "$HAS_PASSWORD" == true ]]; then
+            echo "mode=distribution" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::The Developer ID certificate and its password must be configured together."
+            exit 1
+          fi
 
   package:
     needs: version
@@ -60,8 +84,10 @@ jobs:
       matrix:
         include:
           - platform: macos-arm64
+            arch: arm64
             os: macos-15
           - platform: macos-x64
+            arch: x64
             os: macos-15-intel
           - platform: windows-x64
             os: windows-latest
@@ -78,30 +104,61 @@ jobs:
       - if: runner.os == 'macOS'
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
-      - name: Import Apple Development certificate
+          xcode-version: ${{ matrix.platform == 'macos-arm64' && '26.3' || 'latest-stable' }}
+      - name: Test macOS before packaging
+        if: matrix.platform == 'macos-arm64'
+        run: |
+          python3 -m unittest discover -s scripts/native/__tests__ -p 'test_package.py'
+          bash scripts/native/test-macos.sh
+      - name: Build macOS
+        if: runner.os == 'macOS'
+        run: python3 scripts/native/build.py --target macos --configuration Release --build-number "$GITHUB_RUN_NUMBER" --output .native-build/release
+      - name: Sign and verify the macOS package
         if: runner.os == 'macOS'
         shell: bash
         env:
-          P12: ${{ secrets.MACOS_DEV_CERT_P12 }}
-          PASSWORD: ${{ secrets.MACOS_DEV_CERT_PASSWORD }}
+          MACOS_MODE: ${{ needs.version.outputs.macos_mode }}
+          ARCH: ${{ matrix.arch }}
+          P12: ${{ secrets[needs.version.outputs.macos_mode == 'preview' && 'MACOS_PREVIEW_DEVELOPMENT_P12' || 'MACOS_DEVELOPER_ID_P12'] }}
+          PASSWORD: ${{ secrets[needs.version.outputs.macos_mode == 'preview' && 'MACOS_PREVIEW_DEVELOPMENT_PASSWORD' || 'MACOS_DEVELOPER_ID_PASSWORD'] }}
+          APPLE_ID: ${{ needs.version.outputs.macos_mode == 'distribution' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ needs.version.outputs.macos_mode == 'distribution' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
         run: |
-          if [ -z "$P12" ]; then echo "No development certificate; the app is ad-hoc signed."; exit 0; fi
+          set -euo pipefail
+          : "${P12:?Missing signing certificate}" "${PASSWORD:?Missing certificate password}"
+          umask 077
           keychain="$RUNNER_TEMP/viezan-signing.keychain-db"
+          p12="$RUNNER_TEMP/viezan-release.p12"
           secret="$(uuidgen)"
-          echo "$P12" | base64 --decode > "$RUNNER_TEMP/dev.p12"
+          trap 'rm -f "$p12"; if [[ -e "$keychain" ]]; then security delete-keychain "$keychain"; fi' EXIT
+          printf '%s' "$P12" | base64 -D > "$p12"
           security create-keychain -p "$secret" "$keychain"
           security set-keychain-settings -lut 21600 "$keychain"
           security unlock-keychain -p "$secret" "$keychain"
-          security import "$RUNNER_TEMP/dev.p12" -k "$keychain" -P "$PASSWORD" -T /usr/bin/codesign
+          security import "$p12" -k "$keychain" -P "$PASSWORD" -T /usr/bin/codesign
+          rm -f "$p12"
+          unset P12 PASSWORD
           security set-key-partition-list -S apple-tool:,apple: -s -k "$secret" "$keychain" > /dev/null
-          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
-          rm "$RUNNER_TEMP/dev.p12"
-      - name: Build and package macOS
-        if: runner.os == 'macOS'
-        run: |
-          python3 scripts/native/build.py --target macos --configuration Release --output .native-build/release
-          python3 scripts/native/package.py --input .native-build/release/Viezan.app --output .native-packages
+          security list-keychains -d user -s "$keychain" "$HOME/Library/Keychains/login.keychain-db"
+          if [[ "$MACOS_MODE" == preview ]]; then
+            umask 022
+            python3 scripts/native/package_macos_preview.py --input .native-build/release/Viezan.app --output .native-packages --arch "$ARCH"
+            exit 0
+          fi
+          : "${APPLE_ID:?Missing APPLE_ID}" "${APPLE_APP_SPECIFIC_PASSWORD:?Missing APPLE_APP_SPECIFIC_PASSWORD}"
+          record="$(security find-identity -v -p codesigning "$keychain" |
+            sed -En 's/^[[:space:]]*[0-9]+\) ([[:xdigit:]]{40}) "Developer ID Application: .* \(([A-Z0-9]{10})\)"$/\1 \2/p')"
+          if [[ -z "$record" || "$record" == *$'\n'* ]]; then
+            echo "::error::Import one valid Developer ID Application certificate with its private key."
+            exit 1
+          fi
+          read -r identity team_id <<< "$record"
+          xcrun notarytool store-credentials ViezanRelease --keychain "$keychain" \
+            --apple-id "$APPLE_ID" --team-id "$team_id" --password "$APPLE_APP_SPECIFIC_PASSWORD"
+          unset APPLE_ID APPLE_APP_SPECIFIC_PASSWORD
+          umask 022
+          python3 scripts/native/package.py --input .native-build/release/Viezan.app --output .native-packages \
+            --identity "$identity" --notary-profile ViezanRelease --notary-keychain "$keychain"
 
       # Windows and Linux (Qt) --------------------------------------------
       - if: runner.os == 'Linux'
@@ -169,9 +226,111 @@ jobs:
           # .native-packages is a dot directory, which upload-artifact skips by default.
           include-hidden-files: true
 
-  release:
+  macos-install:
+    needs: [version, package]
+    strategy:
+      matrix:
+        include:
+          - arch: arm64
+            os: macos-15
+          - arch: x64
+            os: macos-15-intel
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: Viezan-macos-${{ matrix.arch }}
+          path: packages
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ matrix.arch == 'arm64' && '26.3' || 'latest-stable' }}
+      - name: Test clean installation and upgrades from released Mac disk images
+        env:
+          ARCH: ${{ matrix.arch }}
+          MACOS_MODE: ${{ needs.version.outputs.macos_mode }}
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          for old in 2.4.2 2.5.2 2.6.0; do
+            prefix="Viezan-$old-darwin"
+            if [[ "$old" == 2.4.2 ]]; then prefix="Viezan-$old"; fi
+            curl --fail --location --retry 3 \
+              "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/v$old/$prefix-$ARCH.dmg" \
+              --output "$RUNNER_TEMP/$prefix-$ARCH.dmg"
+          done
+          python3 scripts/native/test_macos_install.py --packages packages --old-images "$RUNNER_TEMP" \
+            --mode "$MACOS_MODE" --arch "$ARCH" --version "$version"
+
+  windows-upgrade:
     needs: package
+    runs-on: windows-latest
+    outputs:
+      authenticode: ${{ steps.upgrade.outputs.authenticode }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: Viezan-windows-x64
+          path: packages
+      - name: Build the Windows 2.5.2 trust check
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          & "$vs/Common7/Tools/Launch-VsDevShell.ps1" -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
+          cl /nologo /EHsc scripts/native/__tests__/windows_252_trust.cpp /Fe:legacy-trust.exe wintrust.lib
+      - name: Install over Windows 2.5.2 on a clean runner
+        id: upgrade
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $name = "Viezan-$version-win32-x64"
+          $installer = (Get-Item "packages/$name.exe").FullName
+          $manifest = Get-Content "packages/$name.json" -Raw | ConvertFrom-Json
+          $expected = @($manifest.artifacts | Where-Object name -eq "$name.exe")
+          if ($manifest.version -ne $version -or $expected.Count -ne 1 -or (Get-Item $installer).Length -ne $expected[0].size -or (Get-FileHash $installer).Hash -ne $expected[0].sha256) { throw 'Installer manifest mismatch' }
+          $signature = (Get-AuthenticodeSignature $installer).Status
+          & ./legacy-trust.exe $installer "$signature"
+          if ($LASTEXITCODE -ne 0) { throw "Windows 2.5.2 trust check failed for Authenticode status $signature" }
+          if ($signature -eq 'Valid') {
+            $signtool = Get-ChildItem "${env:ProgramFiles(x86)}/Windows Kits/10/bin/*/x64/signtool.exe" | Sort-Object FullName | Select-Object -Last 1
+            & $signtool.FullName verify /pa /v $installer
+            if ($LASTEXITCODE -ne 0) { throw 'Authenticode verification failed' }
+          }
+          $legacy = Join-Path $env:RUNNER_TEMP 'Viezan-2.5.2-win32-x64.exe'
+          Invoke-WebRequest "https://github.com/trunghieupham59/viezan/releases/download/v2.5.2/Viezan-2.5.2-win32-x64.exe" -OutFile $legacy
+          if ((Get-FileHash $legacy).Hash -ne 'bc4eac6c21850c94ba90fae18d3a1cab18dfb4b1bad3766657b8730ccd80204b') { throw 'Unexpected 2.5.2 installer' }
+          # Both NSIS installers write the uninstall record from their default (32-bit) registry view.
+          $registry = [Microsoft.Win32.RegistryKey]::OpenBaseKey('CurrentUser', 'Registry32')
+          $key = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\ViezanNative'
+          function Get-InstalledVersion {
+            $record = $registry.OpenSubKey($key)
+            if ($null -ne $record) {
+              try { $record.GetValue('DisplayVersion') } finally { $record.Dispose() }
+            }
+          }
+          $workspace = Join-Path $env:LOCALAPPDATA 'ViezanNativePreview/ViezanNativeQt/workbench.json'
+          if ((Get-InstalledVersion) -or (Test-Path $workspace)) { throw 'Smoke test requires a clean user profile' }
+          function Install-Version($path, $expectedVersion) {
+            $process = Start-Process -FilePath $path -ArgumentList '/S' -Wait -PassThru
+            $installed = Join-Path $env:LOCALAPPDATA 'Programs/Viezan/ViezanNativeQt.exe'
+            if ($process.ExitCode -ne 0 -or !(Test-Path -LiteralPath $installed -PathType Leaf) -or (Get-InstalledVersion) -ne $expectedVersion) { throw "Installation failed: $expectedVersion" }
+          }
+          Install-Version $legacy '2.5.2'
+          New-Item -ItemType Directory -Force (Split-Path $workspace) | Out-Null
+          Copy-Item contracts/native-workbench/recovery-fixture.json $workspace
+          $before = (Get-FileHash $workspace).Hash
+          Install-Version $installer $version
+          if ((Get-FileHash $workspace).Hash -ne $before) { throw 'Upgrade changed the saved workspace' }
+          & ./scripts/native/__tests__/windows_installed_app.ps1 -Version $version
+          "authenticode=$signature" >> $env:GITHUB_OUTPUT
+
+  release:
+    needs: [version, package, macos-install, windows-upgrade]
     runs-on: ubuntu-latest
+    env:
+      MACOS_MODE: ${{ needs.version.outputs.macos_mode }}
     permissions:
       contents: write
     steps:
@@ -193,12 +352,35 @@ jobs:
           for source in apps/macos/Sources/ViezanDomain/NativeUpdates.swift apps/desktop-qt/NativeUpdates.cpp; do
             if ! grep -qF "\"$public\"" "$source"; then echo "::error::The signing key does not match the public key in $source."; exit 1; fi
           done
-          for manifest in assets/Viezan-*.json; do
+          version="$(node -p "require('./package.json').version")"
+          openssl pkey -in "$key" -pubout -out "$RUNNER_TEMP/update-public.pem"
+          platforms=(win32-x64 linux-x64)
+          if [[ "$MACOS_MODE" == preview ]]; then
+            for arch in arm64 x64; do
+              test -s "assets/Viezan-$version-preview-$arch.dmg"
+              if compgen -G "assets/Viezan-$version-darwin-$arch.*" >/dev/null; then
+                echo "::error::Unexpected macOS distribution assets in Preview mode."
+                exit 1
+              fi
+            done
+          else
+            platforms+=(darwin-arm64 darwin-x64)
+            # Electron 2.4.2's fallback uses a fixed name when GitHub's API is rate-limited.
+            for arch in arm64 x64; do
+              ln "assets/Viezan-$version-darwin-$arch.dmg" "assets/Viezan-$version-$arch.dmg"
+            done
+          fi
+          for platform in "${platforms[@]}"; do
+            manifest="assets/Viezan-$version-$platform.json"
+            test -s "$manifest"
             openssl pkeyutl -sign -rawin -inkey "$key" -in "$manifest" | base64 -w0 > "$manifest.sig"
+            base64 -d "$manifest.sig" > "$RUNNER_TEMP/update.sig"
+            openssl pkeyutl -verify -rawin -pubin -inkey "$RUNNER_TEMP/update-public.pem" -in "$manifest" -sigfile "$RUNNER_TEMP/update.sig"
           done
       - name: Create or update the release
         env:
           GH_TOKEN: ${{ github.token }}
+          WINDOWS_SIGNATURE: ${{ needs.windows-upgrade.outputs.authenticode }}
         run: |
           version="$(node -p "require('./package.json').version")"
           tag="v$version"
@@ -208,15 +390,28 @@ jobs:
             echo
             echo "Native apps only: SwiftUI/AppKit on macOS, Qt Quick/QML on Windows/Linux. The Electron app is retired."
             echo
-            echo "> Packages are built on GitHub-hosted runners with development signatures. macOS asks you to confirm"
-            echo "> the first launch under Privacy & Security, and Windows SmartScreen may warn. Electron 2.4.x installs"
-            echo "> update to this release from the app. On Windows the installer first removes the Electron app and"
+            if [ "$WINDOWS_SIGNATURE" = "Valid" ]; then
+              echo "Windows 2.5.2 users can use Check for updates and open the signed installer. Close Viezan when the installer asks."
+            else
+              echo "Windows 2.5.2 users: close Viezan, download [the Windows installer](https://github.com/trunghieupham59/viezan/releases/download/$tag/Viezan-$version-win32-x64.exe) and run it in your current install folder. Your saved workspace is kept. Version 2.5.2 requires a trusted Windows signature to open an installer from the app."
+            fi
+            echo
+            if [[ "$MACOS_MODE" == preview ]]; then
+              base="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$tag/Viezan-$version-preview"
+              echo "macOS Preview downloads: [Apple Silicon]($base-arm64.dmg) · [Intel]($base-x64.dmg)."
+              echo "These internal test builds use the project's pinned Apple Development certificate and have not been notarized by Apple. Drag Viezan to Applications and open it. If you trust this build and macOS offers Open Anyway, choose it in System Settings → Privacy & Security."
+            else
+              echo "macOS: open the DMG for your Mac, drag Viezan to Applications, then open Viezan from Applications."
+            fi
+            echo
+            echo "> Windows SmartScreen may warn. Windows and Linux Electron 2.4.x installs"
+            echo "> can find the native packages through the legacy update feeds. On Windows the installer first removes the Electron app and"
             echo "> may ask for administrator approval; your data is kept."
             echo
             echo "### Changes"
             cat changes.md
             echo
-            echo "SHA-256 checksums are listed in the \`.json\` manifest beside each package; \`.json.sig\` is its Ed25519 signature."
+            echo "Packages for in-app updates include a SHA-256 manifest and its Ed25519 signature. GitHub lists Preview DMG digests with the release assets."
           } > notes.md
           # Runs from develop publish the release, which creates the tag. Runs
           # from any other ref only prepare a draft.
@@ -227,7 +422,11 @@ jobs:
             create_flags="--draft"
             edit_flags=""
           fi
-          if gh release view "$tag" > /dev/null 2>&1; then
+          if existing_draft="$(gh release view "$tag" --json isDraft --jq .isDraft)"; then
+            if [ "$GITHUB_REF" != "refs/heads/develop" ] && [ "$existing_draft" != true ]; then
+              echo "::notice::$tag is already public. The tested packages are available in this run's artifacts."
+              exit 0
+            fi
             gh release upload "$tag" assets/* --clobber
             gh release edit "$tag" --notes-file notes.md $edit_flags
           else

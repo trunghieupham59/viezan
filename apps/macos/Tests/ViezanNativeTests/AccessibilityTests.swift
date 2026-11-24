@@ -51,7 +51,7 @@ extension AppKitFixtureTests {
                 #expect(control.accessibilityLabel()?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false,
                         "Missing name: \(control.accessibilityIdentifier())")
             }
-            for (id, key) in [("history-toggle", "history"), ("new-work", "newChat"), ("activity-toggle", "activity"), ("tools-toggle", "attachImage")] {
+            for (id, key) in [("history-toggle", "history"), ("new-work", "newChat"), ("activity-toggle", "activity"), ("tools-toggle", "composerTools")] {
                 let button = try #require(buttons.first { $0.accessibilityIdentifier() == id })
                 #expect(button.accessibilityLabel()?.contains(store.text(key)) == true)
                 #expect(button.title.isEmpty, "Compact icon title: \(id) = \(button.title)")

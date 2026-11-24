@@ -41,6 +41,50 @@ import Testing
         #expect(FanPolicy.preview(hidOnly, rule: .init(sensor: "cpu")).isEmpty)
     }
 
+    @Test func quietIgnoresAnIsolatedSpikeAndRampsOnFreshReadings() throws {
+        let rule = try #require(FanProfile.builtins.first { $0.id == "quiet" }?.rules["*"])
+        let item = fan(0, 1500, 5500)
+        let start = ContinuousClock.now
+        var response = QuietFanResponse()
+        func step(_ celsius: Double, _ seconds: Int) -> Double? {
+            response.nextTarget(temperature: celsius, rule: rule, fan: item, range: 1500...5500,
+                                sampledAt: start.advanced(by: .seconds(seconds)))
+        }
+
+        #expect(step(70, 0) == 1500)
+        #expect(step(95, 2) == nil)
+        #expect(step(95, 2) == nil) // The controller polled again before the reader published.
+        #expect(step(70, 4) == nil)
+        #expect(step(94, 6) == nil)
+        #expect(step(94, 8) == 1900)
+        #expect(step(94, 8) == nil)
+        for index in 2...8 {
+            #expect(step(94, 6 + 2 * index) == Double(1500 + 400 * index))
+        }
+        #expect(step(94, 24) == nil) // Steady at the curve target of 4700 RPM.
+        #expect(step(68, 26) == 4500)
+        #expect(step(68, 28) == 4300)
+    }
+
+    @Test func quietUsesTheExactMaximumOnTheFirstHotSample() {
+        let rule = FanRule(sensor: "cpu", lower: 70, upper: 100)
+        let item = ThermalSnapshot.Fan(index: 1, rpm: 5100, min: 1500, max: 5774, target: 5750, name: nil)
+        let start = ContinuousClock.now
+        var response = QuietFanResponse()
+        func step(_ celsius: Double, _ seconds: Int) -> Double? {
+            response.nextTarget(temperature: celsius, rule: rule, fan: item, range: 1500...5774,
+                                sampledAt: start.advanced(by: .seconds(seconds)))
+        }
+
+        #expect(step(99.9, 0) == 5750) // Keep the existing target on activation.
+        #expect(step(100, 2) == 5774) // A 24 RPM increase still bypasses the normal deadband.
+        #expect(step(102, 4) == nil)
+        #expect(step(70, 6) == 5560)
+        #expect(step(101, 8) == 5774)
+        response = QuietFanResponse()
+        #expect(step(100, 10) == 5774) // Also bypass the startup hold.
+    }
+
     @Test func policyAdmissionRequiresMonitoringFansAndValidRules() {
         let rules = ["*": FanRule()]
         let fans = [fan(0, 1000, 5000)]
@@ -70,6 +114,111 @@ import Testing
         #expect(monitor.activeRules == nil)
         #expect(monitor.policyReadings.isEmpty && monitor.manualTargets.isEmpty)
         #expect(!monitor.controlling && !FileManager.default.fileExists(atPath: file.path))
+    }
+
+    @Test func replacementReaderWaitsForExitAndGoodSamplesClearReadErrors() async throws {
+        let monitor = ThermalMonitor(preferences: file)
+        let first = Process(), replacement = Process()
+        let firstInput = Pipe(), secondInput = Pipe()
+        first.executableURL = URL(fileURLWithPath: "/bin/sh")
+        first.arguments = ["-c", #"trap '' TERM; echo '{"ok":true}'; read done"#]
+        first.standardInput = firstInput
+        replacement.executableURL = URL(fileURLWithPath: "/bin/cat")
+        replacement.standardInput = secondInput
+        defer {
+            try? firstInput.fileHandleForWriting.close()
+            try? secondInput.fileHandleForWriting.close()
+            monitor.stop()
+        }
+        func waitFor(_ condition: () -> Bool) async throws {
+            let deadline = ContinuousClock.now + .seconds(5)
+            while !condition(), ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
+            try #require(condition())
+        }
+        monitor.start(reader: first)
+        try await waitFor { monitor.snapshot != nil }
+        monitor.stop()
+        monitor.start(reader: replacement)
+        #expect(first.isRunning && !replacement.isRunning)
+        try firstInput.fileHandleForWriting.write(contentsOf: Data([10]))
+        try await waitFor { replacement.isRunning && !first.isRunning }
+        try secondInput.fileHandleForWriting.write(contentsOf: Data("invalid\n".utf8))
+        try await waitFor { monitor.error == "thermalReadError" }
+        try secondInput.fileHandleForWriting.write(contentsOf: Data("{\"ok\":true,\"model\":\"fixture\"}\n".utf8))
+        try await waitFor { monitor.snapshot?.model == "fixture" }
+        #expect(monitor.error == nil)
+    }
+
+    @Test func losingTheNamedSensorDisconnectsAnActiveProfile() async throws {
+        let helper = RecordingFanConnection()
+        let monitor = ThermalMonitor(preferences: file, fan: helper)
+        let id = try #require(monitor.saveProfile(name: "CPU diode", rules: ["*": FanRule(sensor: "TC0D")]))
+        let input = Pipe(), reader = Process()
+        reader.executableURL = URL(fileURLWithPath: "/bin/cat")
+        reader.standardInput = input
+        monitor.start(reader: reader)
+        defer { monitor.stop(); try? input.fileHandleForWriting.close() }
+
+        let other = ThermalSnapshot.Sensor(key: "TG0D", celsius: 85)
+        func send(_ sensors: [ThermalSnapshot.Sensor]) throws {
+            let sample = ThermalSnapshot(ok: true, sensors: sensors, fans: [fan(0, 1000, 5000)], model: nil)
+            try input.fileHandleForWriting.write(contentsOf: JSONEncoder().encode(sample) + Data([10]))
+        }
+        func waitFor(_ condition: () -> Bool) async throws {
+            let deadline = ContinuousClock.now + .seconds(10)
+            while !condition(), ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(20)) }
+            try #require(condition())
+        }
+
+        try send([.init(key: "TC0D", celsius: 60), other])
+        try await waitFor { monitor.snapshot != nil }
+        monitor.applyProfile(id)
+        try await waitFor { monitor.controlling }
+        #expect(monitor.activeProfile == id)
+        #expect(monitor.policyReadings[0] == .init(celsius: 60, rpm: 3000))
+
+        try send([other])
+        try await waitFor { monitor.activeProfile == nil }
+        #expect(monitor.monitoring && !monitor.controlling && monitor.policyReadings.isEmpty)
+        #expect(monitor.error == "fanProfileApplyError")
+        let events = helper.events
+        #expect(events.filter { $0 != "status" } == ["set:3000", "disconnect"])
+        #expect(events.contains("status") && events.last == "disconnect")
+    }
+
+    @Test func onlyTheBuiltInQuietProfileFiltersTargetsInTheLiveLoop() async throws {
+        let helper = RecordingFanConnection()
+        let monitor = ThermalMonitor(preferences: file, fan: helper)
+        let quiet = try #require(monitor.profiles.first { $0.id == "quiet" })
+        let copy = try #require(monitor.saveProfile(name: "Quiet", rules: quiet.rules))
+        let fans = [fan(0, 1000, 5000), fan(1, 1400, 5774)]
+        let input = Pipe(), reader = Process()
+        reader.executableURL = URL(fileURLWithPath: "/bin/cat")
+        reader.standardInput = input
+        monitor.start(reader: reader)
+        defer { monitor.stop(); try? input.fileHandleForWriting.close() }
+        func send(_ celsius: Double) throws {
+            let sample = ThermalSnapshot(ok: true, sensors: [.init(key: "Tp01", celsius: celsius)], fans: fans, model: nil)
+            try input.fileHandleForWriting.write(contentsOf: JSONEncoder().encode(sample) + Data([10]))
+        }
+        func waitFor(_ condition: () -> Bool) async throws {
+            let deadline = ContinuousClock.now + .seconds(10)
+            while !condition(), ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(20)) }
+            try #require(condition())
+        }
+
+        try send(85)
+        try await waitFor { monitor.snapshot != nil }
+        monitor.applyProfile(copy)
+        try await waitFor { monitor.controlling }
+        #expect(monitor.policyReadings[0]?.rpm == 3000)
+        monitor.applyProfile(quiet.id)
+        try await waitFor { monitor.controlling }
+        #expect(monitor.policyReadings.values.map(\.rpm).sorted() == [1500, 1500])
+        try send(100)
+        try await waitFor { monitor.policyReadings[1]?.celsius == 100 }
+        #expect(monitor.policyReadings[0]?.rpm == 5000)
+        #expect(monitor.policyReadings[1]?.rpm == 5774)
     }
 
     @Test func customIsReservedEvenWhenUsedAsAProfileNameOrFileID() throws {
@@ -115,6 +264,10 @@ import Testing
         #expect(monitor.saveProfile(name: "Valid", rules: ["*": .init()]) == nil)
         #expect(monitor.profiles.map(\.id) == FanProfile.builtins.map(\.id))
         #expect(monitor.error == "fanProfileSaveError")
+        let first = try #require(monitor.fanFailure)
+        #expect(monitor.saveProfile(name: "Retry", rules: ["*": .init()]) == nil)
+        let second = try #require(monitor.fanFailure)
+        #expect(first.code == second.code && first.id != second.id)
     }
 
     @Test func readingsPairTheLatestTemperatureWithTheHeldTarget() throws {
@@ -125,5 +278,38 @@ import Testing
                                                                0: .init(celsius: 54, rpm: 1800)])
         #expect(throws: StorageFailure.self) { try status.readings(for: [2: 63.2, 1: 54]) }
         #expect(throws: StorageFailure.self) { try FanOverrideStatus(data: Data(#"{"activeOverrides":[]}"#.utf8)) }
+    }
+}
+
+private final class RecordingFanConnection: FanConnection, @unchecked Sendable {
+    private let lock = NSLock()
+    private var recorded: [String] = []
+    private var targets: [String: Double] = [:]
+    private var owner: UUID?
+    var events: [String] { lock.withLock { recorded } }
+
+    func beginLease() -> UUID {
+        lock.withLock { let id = UUID(); owner = id; return id }
+    }
+    func disconnect() {
+        lock.withLock {
+            if owner != nil { recorded.append("disconnect") }
+            owner = nil
+            targets.removeAll()
+        }
+    }
+    func command(_ op: String, args: [String: String], rpm: Double?, lease: UUID) throws -> Data {
+        try lock.withLock {
+            guard lease == owner else { throw CancellationError() }
+            if op == "fans.setTarget", let id = args["id"], let rpm {
+                recorded.append("set:\(Int(rpm))")
+                targets[id] = rpm
+                return Data()
+            }
+            guard op == "status" else { throw StorageFailure.invalidData }
+            recorded.append("status")
+            let overrides = targets.map { ["id": $0.key, "rpm": $0.value] as [String: Any] }
+            return try JSONSerialization.data(withJSONObject: ["activeOverrides": overrides])
+        }
     }
 }

@@ -62,7 +62,22 @@ struct FanOverrideStatus {
     }
 }
 
-private final class FanSocket: @unchecked Sendable {
+protocol FanConnection: Sendable {
+    func beginLease() -> UUID
+    func disconnect()
+    func command(_ op: String, args: [String: String], rpm: Double?, lease: UUID) throws -> Data
+}
+
+extension FanConnection {
+    func command(_ op: String, lease: UUID) throws -> Data {
+        try command(op, args: [:], rpm: nil, lease: lease)
+    }
+    func overrideStatus(lease: UUID) throws -> FanOverrideStatus {
+        try FanOverrideStatus(data: command("status", lease: lease))
+    }
+}
+
+private final class FanSocket: FanConnection, @unchecked Sendable {
     private let lock = NSLock()
     private var fd: Int32 = -1
     private var pending = Data()
@@ -70,7 +85,7 @@ private final class FanSocket: @unchecked Sendable {
     func beginLease() -> UUID { lock.lock(); defer { lock.unlock() }; lease = UUID(); return lease }
     deinit { disconnect() }
     func disconnect() { lock.lock(); defer { lock.unlock() }; lease = UUID(); if fd >= 0 { Darwin.close(fd); fd = -1 }; pending.removeAll() }
-    func command(_ op: String, args: [String: String] = [:], rpm: Double? = nil, lease expected: UUID) throws -> Data {
+    func command(_ op: String, args: [String: String], rpm: Double?, lease expected: UUID) throws -> Data {
         lock.lock(); defer { lock.unlock() }
         guard expected == lease else { throw CancellationError() }
         do {
@@ -78,9 +93,6 @@ private final class FanSocket: @unchecked Sendable {
             var values: [String: Any] = args; if let rpm { values["rpm"] = rpm }
             return try exchange(op, args: values)
         } catch { if fd >= 0 { Darwin.close(fd); fd = -1 }; pending.removeAll(); throw error }
-    }
-    func overrideStatus(lease: UUID) throws -> FanOverrideStatus {
-        try FanOverrideStatus(data: command("status", lease: lease))
     }
     private func connect() throws {
         let path = "/var/run/viezan-fan-helper.sock"
@@ -117,15 +129,26 @@ private final class FanSocket: @unchecked Sendable {
 @MainActor @Observable public final class ThermalMonitor {
     public private(set) var snapshot: ThermalSnapshot?
     public private(set) var error: String?
+    public struct FanFailure: Equatable {
+        public let id = UUID()
+        public let code: String
+    }
+    public private(set) var fanFailure: FanFailure?
+    private func reportFanFailure(_ code: String) {
+        error = code
+        fanFailure = FanFailure(code: code)
+    }
     public private(set) var monitoring = false
     public private(set) var controlling = false
     public var manualControlConfirmed = false
     public private(set) var helperStatus = ""
     @ObservationIgnored private var process: Process?
+    @ObservationIgnored private var retiringReader: Process?
+    @ObservationIgnored private var nextReader: Process?
     @ObservationIgnored private var output: FileHandle?
     @ObservationIgnored private var buffer = Data()
     @ObservationIgnored private var generation = UUID()
-    @ObservationIgnored private let fan = FanSocket()
+    @ObservationIgnored private let fan: any FanConnection
     @ObservationIgnored private var controlGeneration = UUID()
     @ObservationIgnored private var heartbeat: Task<Void, Never>?
     public private(set) var profiles: [FanProfile] = FanProfile.builtins
@@ -158,8 +181,9 @@ private final class FanSocket: @unchecked Sendable {
     public convenience init() {
         self.init(preferences: FilePersistence.previewURL().deletingLastPathComponent().appendingPathComponent("fan-profiles.json"))
     }
-    init(preferences: URL) {
+    init(preferences: URL, fan: any FanConnection = FanSocket()) {
         self.preferences = preferences
+        self.fan = fan
         if let size = try? preferences.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= 1_048_576,
            let data = try? Data(contentsOf: preferences), let saved = try? JSONDecoder().decode(Saved.self, from: data), saved.profiles.count <= 50,
            saved.profiles.allSatisfy({ UUID(uuidString: $0.id) != nil && !$0.name.isEmpty && $0.name.count <= 100 && $0.rules.count <= 16 && $0.rules.values.allSatisfy(\.valid) }) {
@@ -182,7 +206,7 @@ private final class FanSocket: @unchecked Sendable {
             guard rename(pending.path, preferences.path) == 0 else { throw StorageFailure.invalidData }
             if error == "fanProfileSaveError" { error = nil }
             return true
-        } catch { self.error = "fanProfileSaveError"; return false }
+        } catch { self.reportFanFailure("fanProfileSaveError"); return false }
     }
     @discardableResult public func saveProfile(name: String, rules: [String: FanRule]) -> String? {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 100,
@@ -200,7 +224,7 @@ private final class FanSocket: @unchecked Sendable {
     public func unregisterHelper() async {
         cancelCalibration(); restoreAutomatic()
         do { try await SMAppService.daemon(plistName: "com.viezan.fan-helper.plist").unregister(); refreshHelperStatus() }
-        catch { self.error = "helperUnregisterError" }
+        catch { self.reportFanFailure("helperUnregisterError") }
     }
     public func applyProfile(_ id: String) {
         guard let profile = profiles.first(where: { $0.id == id }) else { return }
@@ -217,33 +241,45 @@ private final class FanSocket: @unchecked Sendable {
         runningPolicy = next
         let socket = fan
         policy = Task { [weak self] in
-            var smoothed: [Int: Double] = [:], targets: [Int: Double] = [:], changed: [Int: ContinuousClock.Instant] = [:]
+            var temperatures: [Int: Double] = [:], targets: [Int: Double] = [:], changed: [Int: ContinuousClock.Instant] = [:]
+            var quietResponses: [Int: QuietFanResponse] = [:]
             do {
                 while !Task.isCancelled {
                     guard let self, self.controlGeneration == owner, let snapshot = self.snapshot, self.lastSnapshot.duration(to: .now) < .seconds(8),
-                          let fans = snapshot.fans, !fans.isEmpty, Set(fans.map(\.index)).isSuperset(of: smoothed.keys) else { throw StorageFailure.invalidData }
+                          let fans = snapshot.fans, !fans.isEmpty, Set(fans.map(\.index)).isSuperset(of: temperatures.keys) else { throw StorageFailure.invalidData }
+                    let sampledAt = self.lastSnapshot
                     for item in fans {
                         guard let rule = rules[String(item.index)] ?? rules["*"], rule.valid, let range = item.speedRange,
                               let reading = FanPolicy.temperature(snapshot, source: rule.sensor, affinity: self.affinity, fan: item.index) else { throw StorageFailure.invalidData }
-                        let previous = smoothed[item.index] ?? reading
-                        let temperature = abs(reading-previous) >= 8 ? reading : previous + (1-exp(-0.2))*(reading-previous)
-                        smoothed[item.index] = temperature
-                        let rpm = FanPolicy.target(temperature: temperature, rule: rule, minimum: range.lowerBound, maximum: range.upperBound)
-                        let delta = abs(rpm-(targets[item.index] ?? -10000))
-                        if delta >= 100 && (delta >= 400 || (changed[item.index]?.duration(to: .now) ?? .seconds(6)) >= .seconds(6)) {
-                            _ = try await Task.detached { try socket.command("fans.setTarget", args: ["id": "fan\(item.index)"], rpm: rpm, lease: owner) }.value
-                            guard self.controlGeneration == owner else { return }; targets[item.index] = rpm; changed[item.index] = .now
+                        let rpm: Double
+                        if id == FanProfile.quietID {
+                            temperatures[item.index] = reading
+                            guard let target = quietResponses[item.index, default: QuietFanResponse()].nextTarget(
+                                temperature: reading, rule: rule, fan: item, range: range, sampledAt: sampledAt
+                            ) else { continue }
+                            rpm = target
+                        } else {
+                            let previous = temperatures[item.index] ?? reading
+                            let temperature = abs(reading-previous) >= 8 ? reading : previous + (1-exp(-0.2))*(reading-previous)
+                            temperatures[item.index] = temperature
+                            rpm = FanPolicy.target(temperature: temperature, rule: rule, minimum: range.lowerBound, maximum: range.upperBound)
+                            let delta = abs(rpm-(targets[item.index] ?? -10000))
+                            guard delta >= 100 && (delta >= 400 || (changed[item.index]?.duration(to: .now) ?? .seconds(6)) >= .seconds(6)) else { continue }
                         }
+                        _ = try await Task.detached { try socket.command("fans.setTarget", args: ["id": "fan\(item.index)"], rpm: rpm, lease: owner) }.value
+                        guard self.controlGeneration == owner else { return }
+                        targets[item.index] = rpm
+                        changed[item.index] = .now
                     }
                     let status = try await Task.detached { try socket.overrideStatus(lease: owner) }.value
                     guard self.controlGeneration == owner else { return }
-                    self.policyReadings = try status.readings(for: smoothed)
+                    self.policyReadings = try status.readings(for: temperatures)
                     if self.error == "fanProfileApplyError" { self.error = nil }
                     self.controlling = true; try await Task.sleep(for: .seconds(2))
                 }
             } catch {
                 guard let self, self.controlGeneration == owner else { return }
-                if !Task.isCancelled { self.error = "fanProfileApplyError" }
+                if !Task.isCancelled { self.reportFanFailure("fanProfileApplyError") }
                 self.disconnectControl()
             }
         }
@@ -288,7 +324,7 @@ private final class FanSocket: @unchecked Sendable {
                     affinity[index] = Array((owned.isEmpty ? candidates : owned).prefix(12).map(\.key))
                 }
                 self.affinity = affinity; self.calibratedAt = Date().timeIntervalSince1970; self.persistProfiles(); self.calibrationPhase = "succeeded"
-            } catch { if !Task.isCancelled { self.error = "fanCalibrationError" } }
+            } catch { if !Task.isCancelled { self.reportFanFailure("fanCalibrationError") } }
             if self.controlGeneration == owner { self.calibrating = false; self.calibrationRemaining = 0; self.samples.removeAll(); self.disconnectControl() }
         }
     }
@@ -319,18 +355,45 @@ private final class FanSocket: @unchecked Sendable {
     public func start() {
         guard process == nil else { return }
         guard let url = Bundle.main.resourceURL?.appendingPathComponent("native/viezan-smc"), FileManager.default.isExecutableFile(atPath: url.path) else { error = "thermalReaderMissing"; return }
+        let reader = Process()
+        reader.executableURL = url
+        reader.arguments = ["--watch", "2000"]
+        start(reader: reader)
+    }
+    func start(reader process: Process) {
+        guard self.process == nil else { return }
+        if retiringReader != nil { nextReader = process; return }
         let owner = UUID(); generation = owner
-        let process = Process(), pipe = Pipe(); process.executableURL = url; process.arguments = ["--watch", "2000"]
+        let pipe = Pipe()
         process.standardOutput = pipe; process.standardError = FileHandle.nullDevice; output = pipe.fileHandleForReading
         pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in let data = handle.availableData; Task { @MainActor in self?.consume(data, owner: owner) } }
-        process.terminationHandler = { [weak self] _ in Task { @MainActor in guard let self, self.generation == owner else { return }; self.stop(); self.error = "thermalReadError" } }
-        do { try process.run(); self.process = process; monitoring = true; error = nil }
+        process.terminationHandler = { [weak self] finished in
+            Task { @MainActor in self?.readerExited(finished, owner: owner) }
+        }
+        do { try process.run(); self.process = process; snapshot = nil; monitoring = true; error = nil }
         catch { output?.readabilityHandler = nil; output = nil; self.error = "thermalReadError" }
     }
+    private func readerExited(_ reader: Process, owner: UUID) {
+        if retiringReader === reader {
+            retiringReader = nil
+            if let nextReader {
+                self.nextReader = nil
+                start(reader: nextReader)
+            }
+        } else if generation == owner {
+            stop()
+            error = "thermalReadError"
+        }
+    }
     public func stop() {
+        nextReader = nil
         cancelCalibration()
-        generation = UUID(); output?.readabilityHandler = nil; output = nil; process?.terminationHandler = nil
-        if process?.isRunning == true { process?.terminate() }; process = nil; buffer.removeAll(); monitoring = false; disconnectControl()
+        generation = UUID(); output?.readabilityHandler = nil; output = nil
+        if let process, process.isRunning {
+            retiringReader = process
+            process.terminate()
+        }
+        process = nil; buffer.removeAll(); monitoring = false; disconnectControl()
     }
     private func consume(_ data: Data, owner: UUID) {
         guard generation == owner else { return }
@@ -339,25 +402,31 @@ private final class FanSocket: @unchecked Sendable {
         while let end = buffer.firstIndex(of: 10) {
             let line = Data(buffer[..<end]); buffer.removeSubrange(...end)
             guard let value = try? JSONDecoder().decode(ThermalSnapshot.self, from: line), value.ok else { error = "thermalReadError"; continue }
+            if error == "thermalReadError" { error = nil }
             snapshot = value; lastSnapshot = .now
             if calibrating { samples.append((Date(), value)); samples.removeAll { $0.0 < Date().addingTimeInterval(-15) } }
         }
     }
     public func registerHelper() {
         do { try SMAppService.daemon(plistName: "com.viezan.fan-helper.plist").register(); refreshHelperStatus(); error = nil }
-        catch { refreshHelperStatus(); self.error = Self.registrationError(status: helperStatus) }
+        catch {
+            refreshHelperStatus()
+            if let code = Self.registrationError(status: helperStatus) { reportFanFailure(code) }
+            else { self.error = nil }
+        }
     }
     public func refreshHelperStatus() {
         let previous = helperStatus
         switch SMAppService.daemon(plistName: "com.viezan.fan-helper.plist").status {
         case .enabled: helperStatus = "helperEnabled"
         case .requiresApproval: helperStatus = "helperApproval"
+        case .notFound: helperStatus = "thermal_fan_helper_missing_short"
         default: helperStatus = "helperUnavailable"
         }
         error = Self.errorAfterHelperChange(error, from: previous, to: helperStatus)
     }
     /// `register()` throws while the daemon waits for approval in System Settings; that is a state, not a failure.
-    public nonisolated static func registrationError(status: String) -> String? { status == "helperUnavailable" ? "helperRegisterError" : nil }
+    public nonisolated static func registrationError(status: String) -> String? { ["helperApproval", "helperEnabled"].contains(status) ? nil : "helperRegisterError" }
     /// An error about reaching the helper is retired once the helper becomes usable.
     public nonisolated static func errorAfterHelperChange(_ error: String?, from previous: String, to status: String) -> String? {
         ["helperRegisterError", "fanCommandError", "fanProfileApplyError"].contains(error) && status == "helperEnabled" && previous != status ? nil : error
@@ -367,7 +436,7 @@ private final class FanSocket: @unchecked Sendable {
         // A stopped reader leaves a stale snapshot; its fan range must not drive a new target.
         guard !calibrating, monitoring else { return }
         guard let item = snapshot?.fans?.first(where: { $0.index == index }), let range = item.speedRange,
-              rpm.isFinite, range.contains(rpm) else { error = "fanCommandError"; return }
+              rpm.isFinite, range.contains(rpm) else { reportFanFailure("fanCommandError"); return }
         // Release every rule-driven override before starting a manual hold on a single fan.
         if runningPolicy != nil { disconnectControl() }
         let fan = self.fan; heartbeat?.cancel(); heartbeat = nil
@@ -384,7 +453,7 @@ private final class FanSocket: @unchecked Sendable {
                 manualTargets = active
                 manualTargetPending = false
                 controlling = true; error = nil; startHeartbeat(owner)
-            } catch { if controlGeneration == owner { disconnectControl(); self.error = "fanCommandError" } }
+            } catch { if controlGeneration == owner { disconnectControl(); self.reportFanFailure("fanCommandError") } }
         }
     }
     public func restoreAutomatic(onRestored: (@MainActor () -> Void)? = nil) {
@@ -398,7 +467,7 @@ private final class FanSocket: @unchecked Sendable {
                     error = nil
                     onRestored?()
                 }
-            } catch { if controlGeneration == owner { self.error = "fanCommandError" } }
+            } catch { if controlGeneration == owner { self.reportFanFailure("fanCommandError") } }
             if controlGeneration == owner { disconnectControl() }
         }
     }
@@ -432,7 +501,7 @@ private final class FanSocket: @unchecked Sendable {
                     guard self?.controlGeneration == owner else { return }
                     self?.manualTargets = active
                 }
-            } catch { if !Task.isCancelled, self?.controlGeneration == owner { self?.disconnectControl(); self?.error = "fanCommandError" } }
+            } catch { if !Task.isCancelled, self?.controlGeneration == owner { self?.disconnectControl(); self?.reportFanFailure("fanCommandError") } }
         }
     }
 }
@@ -503,10 +572,10 @@ public enum ThermalSensors {
         }
         var result: [Group: [Row]] = [:]
         for (group, label, members) in buckets.values {
-            result[group, default: []].append(Row(group: group, label: label, sensors: members.sorted { $0.celsius > $1.celsius }))
+            result[group, default: []].append(Row(group: group, label: label, sensors: members.sorted { (-$0.celsius, $0.key) < (-$1.celsius, $1.key) }))
         }
         for group in Group.allCases {
-            result[group]?.sort { ($0.label == nil ? 1 : 0, -$0.max) < ($1.label == nil ? 1 : 0, -$1.max) }
+            result[group]?.sort { ($0.label == nil ? 1 : 0, -$0.max, $0.id) < ($1.label == nil ? 1 : 0, -$1.max, $1.id) }
         }
         return result
     }

@@ -42,10 +42,11 @@ ColumnLayout {
     function sizeNumber(bytes, unit) {
         return (bytes / unit[0]).toLocaleString(Qt.locale(bridge.locale), 'f', unit[0] === 1 ? 0 : 1)
     }
+    function modeLabel(id) { return id === "gpu" ? t("gpuShare") : id === "hybrid" ? t("localModeHybrid") : id }
     function installedDetail(id) {
         const size = installedSizes[id]
         const speed = measured[id]
-        const result = speed ? t("localModelMeasured").replace("{rate}", speed.tokensPerSecond.toLocaleString(Qt.locale(bridge.locale), 'f', 1)).replace("{mode}", speed.id)
+        const result = speed ? t("localModelMeasured").replace("{rate}", speed.tokensPerSecond.toLocaleString(Qt.locale(bridge.locale), 'f', 1)).replace("{mode}", modeLabel(speed.id))
                              : t("notMeasured")
         return (size > 0 ? bytes(size) + " · " : "") + id + " · " + result
     }
@@ -121,7 +122,7 @@ ColumnLayout {
             }
             Kit.CardRow {
                 title: models.t("otherModel"); divider: false
-                TextField { id: modelIDField; Layout.fillWidth: true; Layout.minimumWidth: models.metrics.control; placeholderText: models.t("modelID"); Accessible.name: placeholderText; maximumLength: 505 }
+                Kit.GlassField { id: modelIDField; Layout.fillWidth: true; Layout.minimumWidth: models.metrics.control; placeholderText: models.t("modelID"); Accessible.name: placeholderText; maximumLength: 505 }
                 Kit.GlassButton { text: models.t("download"); enabled: !!modelIDField.text.trim() && !models.anyBusy && models.ollamaRunning; onClicked: models.download(modelIDField.text.trim()) }
             }
             ProgressBar {
@@ -178,18 +179,29 @@ ColumnLayout {
         actionText: models.t("start"); actionEnabled: !models.anyBusy && !models.localWork
         onAccepted: if (!models.anyBusy && !models.localWork) models.bridge.localPerformance.compare()
     }
-    BusyIndicator { objectName: "benchmark-busy"; Accessible.name: models.t("runtimeCompare"); running: models.bridge.localPerformance.busy; visible: running }
-    SettingsDangerButton { text: models.t("cancel"); visible: models.bridge.localPerformance.busy; onClicked: models.bridge.localPerformance.cancel() }
-    Label { objectName: "benchmark-error"; Accessible.role: Accessible.AlertMessage; text: models.t(models.bridge.localPerformance.error); visible: !!models.bridge.localPerformance.error; wrapMode: Text.Wrap; Layout.fillWidth: true }
-    Label { text: models.modelLabel(models.bridge.localPerformance.model); visible: !!text; wrapMode: Text.Wrap; Layout.fillWidth: true }
-    Kit.GlassButton { text: models.t("voiceAutomatic"); visible: !!models.bridge.localPerformance.model; enabled: !models.bridge.localPerformance.busy; onClicked: { models.bridge.localPerformance.select("auto"); models.feedback(models.t("succeeded"), false) } }
-    Repeater {
-        model: models.bridge.localPerformance.results
-        delegate: Kit.CardRow {
-            required property var modelData
-            title: modelData.id === "gpu" ? "GPU" : "CPU + GPU"
-            detail: modelData.error ? models.t(modelData.error) : models.t("runtimePerformanceSummary").replace("{rate}", Number(modelData.tokensPerSecond).toFixed(1)).replace("{gpu}", Number(modelData.gpuPercent).toFixed(1))
-            Kit.GlassButton { text: models.t("apply"); enabled: !modelData.error && !models.bridge.localPerformance.busy; onClicked: { models.bridge.localPerformance.select(modelData.id); models.feedback(models.t("succeeded"), false) } }
+    Kit.CardBox {
+        Layout.fillWidth: true
+        visible: !!models.bridge.localPerformance.model || models.bridge.localPerformance.busy || !!models.bridge.localPerformance.error || comparisonRows.count > 0
+        title: models.t("runtimeCompare")
+        ColumnLayout {
+            width: parent.width; spacing: models.metrics.small
+            BusyIndicator { objectName: "benchmark-busy"; Accessible.name: models.t("runtimeCompare"); running: models.bridge.localPerformance.busy; visible: running }
+            SettingsDangerButton { text: models.t("cancel"); visible: models.bridge.localPerformance.busy; onClicked: models.bridge.localPerformance.cancel() }
+            Label { objectName: "benchmark-error"; Accessible.role: Accessible.AlertMessage; text: models.t(models.bridge.localPerformance.error); visible: !!models.bridge.localPerformance.error; wrapMode: Text.Wrap; Layout.fillWidth: true }
+            Label { text: models.modelLabel(models.bridge.localPerformance.model); visible: !!text; wrapMode: Text.Wrap; Layout.fillWidth: true }
+            Kit.GlassButton { text: models.t("voiceAutomatic"); visible: !!models.bridge.localPerformance.model; enabled: !models.bridge.localPerformance.busy; onClicked: { models.bridge.localPerformance.select("auto"); models.feedback(models.t("succeeded"), false) } }
+            Repeater {
+                id: comparisonRows
+                model: models.bridge.localPerformance.results
+                delegate: Kit.CardRow {
+                    required property var modelData
+                    required property int index
+                    divider: index < comparisonRows.count - 1
+                    title: models.modeLabel(modelData.id)
+                    detail: modelData.error ? models.t(modelData.error) : models.t("runtimePerformanceSummary").replace("{rate}", Number(modelData.tokensPerSecond).toFixed(1)).replace("{gpu}", Number(modelData.gpuPercent).toFixed(1))
+                    Kit.GlassButton { text: models.t("apply"); enabled: !modelData.error && !models.bridge.localPerformance.busy; onClicked: { models.bridge.localPerformance.select(modelData.id); models.feedback(models.t("succeeded"), false) } }
+                }
+            }
         }
     }
 }

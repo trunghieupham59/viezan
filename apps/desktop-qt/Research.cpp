@@ -119,7 +119,10 @@ void ResearchJob::synthesize() {
     complete(input, m_request.value("systemPrompt").toString() + "\nAnswer using supplied evidence with numbered citations and clear limits. Search date: " + QDateTime::currentDateTimeUtc().toString(Qt::ISODate), [this](QString) {
         QStringList lines; int number = 0;
         for (const auto &value : m_state.value("sources").toList()) { const auto source = value.toMap(); auto title = source.value("title").toString(); title.remove('['); title.remove(']'); auto url = source.value("url").toString(); url.replace(')', "%29"); lines.append(QString("[%1] [%2](%3)").arg(++number).arg(title, url)); }
-        QFile resource(":/qml/native.json"); resource.open(QIODevice::ReadOnly); const auto locales = QJsonDocument::fromJson(resource.readAll()).object().value("locales").toObject(); const auto heading = locales.value(m_request.value("locale").toString()).toObject().value("researchSources").toString();
+        QFile resource(":/qml/native.json");
+        if (!resource.open(QIODevice::ReadOnly)) { fail("providerError"); return; }
+        const auto locales = QJsonDocument::fromJson(resource.readAll()).object().value("locales").toObject();
+        const auto heading = locales.value(m_request.value("locale").toString()).toObject().value("researchSources").toString();
         emit event({{"chunk", "\n\n" + heading + "\n" + lines.join('\n')}}); m_state["phase"] = "done"; checkpoint(); emit event({{"terminal", "succeeded"}});
     }, true);
 }

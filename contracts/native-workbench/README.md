@@ -5,6 +5,7 @@ Electron's session format and is not a migration/import API.
 
 - `Workspace`: `schemaVersion: 1`, sessions, tasks, active session ID per feature,
   selected feature and UI locale (`vi`, `en`, `ja`).
+- Optional `defaultModel` stores an explicit provider-qualified model choice. New work inherits it. Chats with messages and comparison columns use their stored model. Each submitted request freezes the model for streaming and retry. Without this preference, existing workspace model selection and device discovery apply.
 - Optional `appearance`: `{mode: 'system' | 'light' | 'dark', textSize:
   'small' | 'medium' | 'large'}`. Missing/null means system appearance and medium
   content text. Older v1 snapshots remain readable; unsupported saved values

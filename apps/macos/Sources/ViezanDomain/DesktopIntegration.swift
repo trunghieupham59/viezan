@@ -157,17 +157,27 @@ public enum TextLanguage {
 }
 public struct LauncherApplication: Identifiable, Sendable { public let id: String; public let name: String }
 public enum LauncherCatalog {
-    public static func applications() -> [LauncherApplication] {
+    public static func applications() -> [LauncherApplication] { (try? catalog()) ?? [] }
+    public static func catalog(roots requestedRoots: [URL]? = nil) throws -> [LauncherApplication] {
         let fm = FileManager.default
-        let roots = [URL(fileURLWithPath: "/Applications"), URL(fileURLWithPath: "/System/Applications"), fm.homeDirectoryForCurrentUser.appendingPathComponent("Applications")]
+        let roots = requestedRoots ?? [URL(fileURLWithPath: "/Applications"), URL(fileURLWithPath: "/System/Applications"), fm.homeDirectoryForCurrentUser.appendingPathComponent("Applications")]
         var result: [LauncherApplication] = []
+        var readableRoot = false
         for root in roots {
-            guard let iterator = fm.enumerator(at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles, .skipsPackageDescendants]) else { continue }
+            guard (try? root.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { continue }
+            var failed = false
+            guard let iterator = fm.enumerator(at: root, includingPropertiesForKeys: [.isDirectoryKey],
+                                               options: [.skipsHiddenFiles, .skipsPackageDescendants], errorHandler: { url, _ in
+                if url.standardizedFileURL.path == root.standardizedFileURL.path { failed = true }
+                return true
+            }) else { continue }
             for case let url as URL in iterator {
                 if iterator.level > 3 { iterator.skipDescendants(); continue }
                 if url.pathExtension == "app" { result.append(.init(id: url.path, name: Bundle(url: url)?.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? url.deletingPathExtension().lastPathComponent)); iterator.skipDescendants() }
             }
+            if !failed { readableRoot = true }
         }
+        guard readableRoot else { throw CocoaError(.fileReadUnknown) }
         return result.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 }

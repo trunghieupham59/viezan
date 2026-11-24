@@ -12,6 +12,8 @@ NamedScrollView {
     required property string route
     signal routeRequested(string value)
     signal newTranslation()
+    signal changeModel(Item opener)
+    readonly property Item modelControl: route === "everywhere" ? quickModelButton : null
     property var desktop: bridge.desktopIntegration
     readonly property bool linux: Qt.platform.os === "linux"
     readonly property var metrics: bridge.metrics
@@ -48,7 +50,7 @@ NamedScrollView {
                         id: primaryRow
                         readonly property var pair: (page.snapshot, page.bridge.quickTranslate())
                         title: page.t("quickPrimary"); detail: page.t(pair.secondary ? "quickPairOn" : "quickPairOff")
-                        Kit.GlassComboBox {
+                        SettingsPicker {
                             readonly property var codes: page.bridge.resources.nativeLanguages
                             // Same width as the secondary picker, whose "off" entry is the widest text.
                             Layout.preferredWidth: quickSecondaryPicker.implicitWidth
@@ -60,14 +62,25 @@ NamedScrollView {
                         id: secondaryRow
                         readonly property var pair: (page.snapshot, page.bridge.quickTranslate())
                         title: page.t("quickSecondary"); detail: page.t("quickSecondaryHint")
-                        Kit.GlassComboBox {
+                        SettingsPicker {
                             id: quickSecondaryPicker
                             readonly property var codes: [""].concat(page.bridge.resources.nativeLanguages.filter(value => value !== secondaryRow.pair.primary))
                             model: codes.map(value => value ? page.t("lang_" + value) : page.t("quickSecondaryOff")); currentIndex: Math.max(0, codes.indexOf(secondaryRow.pair.secondary || ""))
                             implicitContentWidthPolicy: ComboBox.WidestText; Accessible.name: page.t("quickSecondary"); onActivated: page.bridge.command("quickTranslateSecondary", {value: codes[currentIndex]})
                         }
                     }
-                    Kit.CardRow { title: page.t("quickModel"); detail: page.t("quickModelHint"); divider: false; Label { text: page.bridge.shortModelName(page.session?.model || ""); color: palette.placeholderText; elide: Text.ElideMiddle } }
+                    Kit.CardRow {
+                        title: page.t("quickModel")
+                        detail: page.t("quickModelHint")
+                        divider: false
+                        Kit.QuietButton {
+                            id: quickModelButton; objectName: "everywhere-model-trigger"
+                            text: page.bridge.shortModelName(page.snapshot.defaultModel || page.session?.model || "")
+                            Accessible.name: page.t("quickChangeModel") + " " + text
+                            enabled: !page.bridge.loadBlocked
+                            onClicked: page.changeModel(quickModelButton)
+                        }
+                    }
                 }
             }
             ColumnLayout {
@@ -89,7 +102,7 @@ NamedScrollView {
                             Kit.StatusBadge { text: page.t("lang_en") + " → " + page.t("lang_" + page.t("previewTarget")) }
                             Label { text: page.t("previewSource"); color: palette.placeholderText; wrapMode: Text.Wrap; Layout.fillWidth: true }
                             Label { text: page.t("previewTranslated"); font.weight: Font.Medium; wrapMode: Text.Wrap; Layout.fillWidth: true }
-                            Label { text: page.bridge.shortModelName(page.session?.model || ""); color: palette.placeholderText; elide: Text.ElideRight; Layout.fillWidth: true }
+                            Label { text: page.bridge.shortModelName(page.snapshot.defaultModel || page.session?.model || ""); color: palette.placeholderText; elide: Text.ElideRight; Layout.fillWidth: true }
                         }
                     }
                 }

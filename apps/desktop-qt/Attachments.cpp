@@ -1,4 +1,5 @@
 #include "Attachments.h"
+#include <QBuffer>
 #include <QSet>
 #include <QDateTime>
 #include <functional>
@@ -30,12 +31,18 @@ QVariantMap ingest(const QUrl &source) {
     QFile file(source.toLocalFile());
     const QFileInfo info(file);
     if (!info.isFile() || info.size() <= 0 || info.size() > 20000000 || !file.open(QIODevice::ReadOnly)) return {};
-    QImageReader reader(&file); reader.setDecideFormatFromContent(true);
+    return ingest(file.read(20000001), info.fileName());
+}
+QVariantMap ingest(const QByteArray &bytes, const QString &name) {
+    if (bytes.isEmpty() || bytes.size() > 20000000) return {};
+    QBuffer buffer;
+    buffer.setData(bytes);
+    if (!buffer.open(QIODevice::ReadOnly)) return {};
+    QImageReader reader(&buffer); reader.setDecideFormatFromContent(true);
     const auto format = reader.format();
     const auto size = reader.size();
     if (!QList<QByteArray>{"jpeg", "png", "webp", "gif"}.contains(format) || !size.isValid() || qint64(size.width()) * size.height() > 40000000) return {};
-    file.seek(0); const auto bytes = file.read(20000001);
-    if (bytes.isEmpty() || bytes.size() > 20000000) return {};
+    if (reader.read().isNull()) return {};
     const auto id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     if (!QDir().mkpath(directory())) return {};
     QFile::setPermissions(directory(), QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
@@ -43,7 +50,12 @@ QVariantMap ingest(const QUrl &source) {
     if (!output.open(QIODevice::WriteOnly) || output.write(bytes) != bytes.size() || !output.commit()) return {};
     QFile::setPermissions(output.fileName(), QFileDevice::ReadOwner | QFileDevice::WriteOwner);
     // Pixel size travels with the attachment (Swift ImageAttachment.width/height); older ones have none.
-    return {{"id", id}, {"name", info.fileName()}, {"mime", "image/" + QString::fromLatin1(format)}, {"width", size.width()}, {"height", size.height()}};
+    return {{"id", id}, {"name", name}, {"mime", "image/" + QString::fromLatin1(format)}, {"width", size.width()}, {"height", size.height()}};
+}
+void discardNew(const QVariantMap &attachment) {
+    const auto id = attachment.value("id").toString();
+    if (!QUuid(id).isNull() && id == QUuid(id).toString(QUuid::WithoutBraces))
+        QFile::remove(directory() + '/' + id);
 }
 bool restore(const QVariantMap &attachment, const QByteArray &bytes) {
     const auto id = attachment.value("id").toString();

@@ -17,7 +17,7 @@ ColumnLayout {
             required property var modelData
             title: settings.t(modelData.id)
             detail: settings.t("shortcutDetail_" + modelData.id)
-            Kit.GlassButton { visible: settings.route !== "everywhere" && modelData.id !== "translateSelection"; text: settings.t("shortcutTry"); enabled: !settings.desktop.busy; onClicked: settings.desktop.trigger(modelData.id) }
+            Kit.QuietButton { Accessible.name: text; visible: settings.route !== "everywhere" && modelData.id !== "translateSelection"; text: settings.t("shortcutTry"); enabled: !settings.desktop.busy; onClicked: settings.desktop.trigger(modelData.id) }
             ShortcutKeyButton {
                 id: keyButton
                 objectName: "shortcut-edit-" + modelData.id
@@ -37,7 +37,7 @@ ColumnLayout {
             required property var modelData
             CheckBox { text: settings.t(modelData.id); checked: modelData.enabled; enabled: !settings.desktop.busy; onToggled: settings.desktop.configure(modelData.id, keyInput.text, checked) }
             RowLayout {
-                TextField { id: keyInput; text: modelData.key; Accessible.name: settings.t("shortcut"); Layout.fillWidth: true }
+                Kit.GlassField { id: keyInput; text: modelData.key; Accessible.name: settings.t("shortcut"); Layout.fillWidth: true }
                 Kit.GlassButton { text: settings.t("apply"); enabled: !settings.desktop.busy; onClicked: settings.desktop.configure(modelData.id, keyInput.text, modelData.enabled) }
             }
         }

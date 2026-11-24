@@ -493,6 +493,12 @@ Trong Tuỳ chọn có công tắc “Làm mới lượt đã hoàn tất”, m�
 
 Lỗi lưu là thông báo toàn ứng dụng có “Thử lưu lại”, tự tắt khi lưu thành công. Không đọc được kho phục hồi thì giữ dữ liệu cũ, không ghi đè và thông báo giới hạn phục hồi cho phiên hiện tại.
 
+Trên macOS, hàng đang tải model gợi ý hoặc model nhập tay có nút Dừng và thanh tiến độ bên dưới. Khi chưa có dung lượng, thanh chờ hiển thị trạng thái. Khi Ollama báo từng lớp, số byte đã nhận và tổng số byte tính trên các lớp đã biết. Tổng có thể tăng khi phát hiện lớp mới. Khi chuyển sang xác minh và ghi manifest, hàng giữ số byte và đổi nhãn theo ngôn ngữ ứng dụng. Rời rồi mở lại Cài đặt vẫn thấy lượt tải đang chạy. Danh mục Ollama cung cấp cả tên và dung lượng trong một lần khám phá hoặc làm mới. Cả hai bản native dùng cùng nhãn GPU và CPU + GPU cho hàng model đã đo và kết quả so sánh. Khi chưa có phép đo, bản tiếng Việt ghi “Chưa đo”.
+
+Trên macOS và Qt, chỉ khi chọn **Khôi phục cài đặt**, danh sách model đã ghim mới được khôi phục theo thứ tự trong bản sao lưu. Nếu bản cũ thiếu trường này, các ghim hiện tại được giữ nguyên. Danh sách rỗng trong bản mới sẽ bỏ toàn bộ ghim.
+
+Khi nhập sao lưu trên macOS, ảnh có sẵn cùng nội dung được giữ lại. Nếu một ảnh trùng mã nhưng khác nội dung, hoặc một kho ghi lỗi, Viezan thu hồi các ảnh vừa nhập. Nếu ghi lại workspace cũ cũng thất bại, ảnh của workspace đang nằm trên đĩa được giữ nguyên. Dải lỗi cho phép đọc lại kho trước khi tiếp tục ghi.
+
 ## Native implementation follow-up — 2026-10-28 (SwiftUI)
 
 Đã chạy thật trên macOS: Chung hiện "Đã cấp"/"Chưa cấp" cho Micro, Ghi màn hình, Trợ năng (đọc lại khi
@@ -505,3 +511,7 @@ trang và khối nội dung (Model AI local, Chrome, Dữ liệu, Cập nhật).
 Qt: cùng thay đổi cho Model AI local (thẻ dịch vụ AI cục bộ), Tiện ích Chrome (thẻ, trạng thái, 7/30/90/365),
 Dữ liệu (thẻ), Cập nhật và Giới thiệu (phiên bản `Qt.application.version`, liên kết mã nguồn). Quyền hệ thống
 không thêm vào Chung (Windows/Linux không có mô hình quyền tương ứng).
+
+Cài đặt Qt dùng lens cho mục đã chọn, bộ chọn vừa nội dung và hai tin nhắn mẫu theo cỡ chữ hiện hành. Popup tìm rộng tối đa 420 px. Các nhóm nhà cung cấp, module và kết quả đo chỉ có vạch ngăn giữa các hàng. Xem trước bản sao lưu có công tắc khôi phục cài đặt. Nếu giao diện lưu trong bản cũ cần chuyển sang Glass, bật công tắc sẽ hiện giải thích trước khi nhập trên cả hai nền tảng. Nút trong hộp cập nhật Qt căn phải khi đủ chỗ, tự xuống hàng khi hẹp.
+
+Trên macOS, dung lượng model, RAM và tiến độ tải ở Cài đặt AI local dùng ngôn ngữ ứng dụng. Hai số đã tải và tổng cùng đơn vị.

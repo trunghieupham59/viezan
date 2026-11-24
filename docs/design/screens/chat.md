@@ -1,12 +1,16 @@
 # AI Chat
 
+## AI mặc định dùng chung (2026-11-25)
+
+Chọn model trong Chat đặt mặc định cho toàn ứng dụng. Chat mới dùng mặc định mới nhất. Chat đã có tin nhắn giữ model riêng cho đến khi người dùng đổi ngay trong chat đó. Yêu cầu đang chạy và lần tạo lại dùng model ban đầu.
+
 ## Native hiện tại — Glass, 2026-11-02
 
 - 2026-11-08: Bản ghi Chat nhanh và ô soạn Launcher dùng cỡ chữ đọc đã chọn; Reduce Motion tắt cuộn có hoạt ảnh. Bản ghi AI Chat có nhóm và giá trị trạng thái trợ năng.
 - macOS (2026-11-08): "Thường làm" hiện tối đa ba chip lặng dưới "Tiếp tục" trong Chat trống; lấy hành động lặp trong 30 ngày, suy giảm theo thời gian và tăng điểm theo giờ. Thiếu dữ liệu thì không hiện, module đã tắt và chế độ chat đang dùng không được gợi ý.
 - Qt (2026-11-24): AI Chat gửi bằng Enter, Shift+Enter xuống dòng, Ctrl+Enter vẫn gửi; Enter khi IME đang soạn chỉ xác nhận chữ (qt-parity-16). Chat nhanh, Launcher Quick AI, Dịch và Từ điển giữ phím cũ.
 - macOS (2026-11-24): Khi nghiên cứu (chế độ Web hoặc Nghiên cứu) đang chạy, chip dưới câu trả lời ghi "Đang nghiên cứu · 1:42" thay cho "Đang trả lời…"; tên trợ năng cố định ([native-code-66](../../migration/native-implementation/native-code-66.md)).
-- macOS (2026-11-24): Panel model có nhóm **Đã ghim** dưới Mục đích; hàng model có nút ghim ở mép phải (hiện khi trỏ, khi phím mũi tên ở hàng, hoặc đã ghim), ⌘P, menu ngữ cảnh; tối đa 8. ⌘⇧M mở panel model, ⌘⇧T mở menu "+" ([native-code-64](../../migration/native-implementation/native-code-64.md)).
+- macOS (2026-11-24): Panel model có nhóm **Đã ghim** dưới Mục đích; hàng model có nút ghim ngay trước dấu chọn ở mép phải (hiện khi trỏ, khi phím mũi tên ở hàng, hoặc đã ghim), ⌘P, menu ngữ cảnh; tối đa 8. ⌘⇧M mở panel model, ⌘⇧T mở menu "+" ([native-code-64](../../migration/native-implementation/native-code-64.md)). Chân panel hiện ⌘P và số ghim trên 8. Ở 8/8, các model đã ghim vẫn cho bỏ ghim. Phím mũi tên giữ vị trí riêng cho từng hàng của mỗi nhóm.
 - macOS (2026-11-08): Panel "+" có bốn mức Suy luận (Tự động, Thấp, Vừa, Kỹ); Thấp/Vừa bị vô hiệu khi model không hỗ trợ effort, Kỹ vẫn thêm chỉ dẫn cẩn thận. Chip model chỉ thêm tiền tố "Kỹ ·" ở mức Kỹ. Qt chưa port hai thay đổi này.
 
 Phần native tuân theo [direction.md](../direction.md), không lấy thông số
@@ -137,7 +141,7 @@ Viết tắt kiểu Button: `size · variant · appearance`. "Ẩn" nghĩa là �
 | # | Điều khiển | Loại | Kích hoạt | Kết quả | Phản hồi | Khi bị tắt |
 | --- | --- | --- | --- | --- | --- | --- |
 | C1 | Ô nhập | `textarea.chat-input-field` | Gõ, dán, kéo thả | Lưu bản nháp theo cuộc trò chuyện (`setChatSessionDraft` / `setChatPendingDraft`). Dán ảnh từ clipboard → đính kèm | Tự giãn tới 140 px; > 600 ký tự hiện bộ đếm | Vẫn gõ được khi đang gửi (Enter không gửi cho tới khi trả lời xong); `readOnly` + `aria-busy` khi đang thu âm/chép giọng nói |
-| C2 | Gửi bằng phím | — | `Enter` (mặc định) hoặc `⌘/Ctrl+Enter` theo Cài đặt › Chat › Phím gửi (`shouldSendChatMessage`) | Như C9 | Như C9 | Như C9 |
+| C2 | Gửi bằng phím | — | Trên Qt, Enter và Ctrl+Enter đều gửi, Shift+Enter xuống dòng. Enter khi IME đang soạn chỉ xác nhận chữ. Trên macOS, Enter gửi, Shift+Enter xuống dòng. | Như C9 | Như C9 | Như C9 |
 | C3 | "+" (đính kèm) | `md · neutral · ghost` (mở: `primary · soft`), `aria-haspopup="menu"`, `aria-expanded` | Click | Mở menu một mục "Thêm ảnh và tệp" | — | Tắt khi đang thu âm |
 | C4 | Mục "Thêm ảnh và tệp" | Nút menu `.btn-menu-item` | Click | Mở hộp chọn tệp `accept="image/*"` | Ảnh hiện thành thumbnail trong ô soạn | — |
 | C5 | Bỏ ảnh | Nút X trên `ImagePreviewThumbnail`, `title="Xoá ảnh"` | Click | Bỏ ảnh đính kèm | Thumbnail biến mất | — |
@@ -209,7 +213,7 @@ Viết tắt kiểu Button: `size · variant · appearance`. "Ẩn" nghĩa là �
 ### 6.1 Gửi một tin nhắn
 
 1. Người dùng gõ vào ô nhập. Bản nháp được lưu theo cuộc trò chuyện ngay mỗi phím. Nút Gửi chuyển từ xám sang xanh khi có chữ.
-2. Nhấn Enter (hoặc ⌘Enter nếu đã chọn) hoặc bấm Gửi. Shift+Enter xuống dòng ở chế độ Enter.
+2. Nhấn Enter hoặc bấm Gửi. Trên Qt, Ctrl+Enter cũng gửi. Shift+Enter xuống dòng.
 3. Nếu chưa có phiên, `ensureSession()` tạo phiên mới với provider/model đang chọn và hút bản nháp + tác vụ chờ. Popover tác vụ (nếu mở) đóng.
 4. Cấu hình yêu cầu được chụp một lần (`requestConfiguration`: provider, model, system prompt, tác vụ, web) và lưu trên tin người dùng để Tạo lại dùng đúng cấu hình cũ.
 5. Tin người dùng xuất hiện bên phải; ô nhập trống và vẫn gõ được (Enter không gửi, Esc dừng); Gửi → Dừng (đỏ nhạt). Tiêu đề phiên = dòng đầu tin.
@@ -248,7 +252,7 @@ Viết tắt kiểu Button: `size · variant · appearance`. "Ẩn" nghĩa là �
 
 ### 6.5 Đính kèm ảnh
 
-1. Bấm "+" → "Thêm ảnh và tệp" → chọn ảnh; hoặc dán ảnh vào ô nhập; hoặc kéo thả vào bất cứ đâu trên trang (lớp `DragOverlay` hiện khi kéo).
+1. Bấm "+" → "Thêm ảnh và tệp" → chọn ảnh; hoặc dán ảnh vào ô nhập; hoặc kéo thả vào bất cứ đâu trên trang (lớp `DragOverlay` hiện khi kéo). Trong Chat chính trên Qt, phím Dán nhận cả PNG trong clipboard và ảnh chụp màn hình chưa lưu thành tệp. Ảnh thuộc về bản nháp đang mở lúc dán. Tối đa 4 ảnh mỗi tin nhắn.
 2. Ảnh > 25 MB hoặc không phải ảnh: toast lỗi, ảnh không được thêm. Ảnh hợp lệ được thu về cạnh dài 1200 px.
 3. Thumbnail hiện trên ô nhập với nút X. Nếu model không đọc ảnh: dòng gợi ý dưới thumbnail.
 4. Gửi (được phép gửi ảnh không kèm chữ, trừ tác vụ Tạo ảnh). Tuỳ chữ đi kèm: chữ mang ý "sửa/đổi/xoá…" → API chỉnh ảnh; bật Nguồn web → Smart Thinking có tìm web; còn lại → chat thị giác (stream).
@@ -290,7 +294,7 @@ Hai cơ chế độc lập: sidebar lịch sử theo **bề rộng cửa sổ** 
 ## 8. Bàn phím và trợ năng
 
 - **Thứ tự Tab:** điều hướng chính → H1 → (sidebar mở: ô tìm → từng hàng → nút xoá của hàng) → chip model → Chat mới → vùng tin (nút hành động của từng tin, bảng nghiên cứu) → ô soạn: + → Nguồn web → Tác vụ → ô nhập → Micro → Gửi/Dừng. Lưu ý: trong DOM ô nhập đứng **trước** thanh công cụ, nên Tab thực tế là ô nhập → + → web → Tác vụ → Micro → Gửi.
-- **Phím tắt:** Enter hoặc ⌘/Ctrl+Enter gửi (Cài đặt › Chat › Phím gửi); ⌘/Ctrl+N chat mới (đổi được); Esc trong ô soạn khi đang trả lời = Dừng (trừ lúc bộ gõ đang soạn chữ); Esc đóng popover/lớp phủ/menu chọn và trả focus về nút đã mở; ↑/↓ chọn trong danh sách tác vụ, → mở menu phụ tuỳ chọn; trong menu phụ ↑/↓, Home/End di chuyển, Enter chọn, Esc hoặc ← đóng riêng menu phụ; ô tìm ngôn ngữ: ↓ vào danh sách, Enter chọn kết quả, Esc đóng.
+- **Phím tắt:** Phím gửi và xuống dòng theo hàng C2; ⌘/Ctrl+N chat mới (đổi được); Esc trong ô soạn khi đang trả lời = Dừng (trừ lúc bộ gõ đang soạn chữ); Esc đóng popover/lớp phủ/menu chọn và trả focus về nút đã mở; ↑/↓ chọn trong danh sách tác vụ, → mở menu phụ tuỳ chọn; trong menu phụ ↑/↓, Home/End di chuyển, Enter chọn, Esc hoặc ← đóng riêng menu phụ; ô tìm ngôn ngữ: ↓ vào danh sách, Enter chọn kết quả, Esc đóng.
 - **ARIA:**
   - Sidebar: `aside` có `aria-label="Các cuộc trò chuyện AI Chat"`, mỗi nhóm là `section aria-label="Hôm nay"`; hàng đang mở `aria-current="true"`; nhãn hàng gộp tên, provider, model, thời gian, số tin, "Tiếp tục nghiên cứu" nếu dang dở.
   - H1 `aria-expanded` + `aria-controls`; chip model và nút Tác vụ `aria-haspopup="dialog"` + `aria-expanded`; "+" `aria-haspopup="menu"`; Nguồn web `aria-pressed`; Chat mới `aria-keyshortcuts`.
@@ -361,7 +365,7 @@ Bản vẽ gốc có mà app chưa có (tất cả là **đề xuất** cho tớ
 1. **Đọc to** câu trả lời (`Chat.dc.html` có nút loa): mã không có hành động đọc to trong `MessageBubble.tsx`. Đề xuất: nút `xs · neutral · ghost` sau Sao chép, dùng TTS của hệ thống.
 2. **Chip nguồn [1] [2] [3]** dưới câu trả lời có tìm web: Smart Thinking cố ý bỏ nguồn khỏi bong bóng (`ChatPage.tsx`, `onStepStart` "ignore … sources"). Đề xuất: hiện chip nguồn khi câu trả lời có dùng web.
 3. **Tóm tắt đầu câu trả lời** "Nghiên cứu · tổng quan nhanh · 3 bước, 3 nguồn" dạng `<details>` cho chế độ Tổng quan: không có; Tổng quan nhanh chỉ là một hướng dẫn gửi kèm, không chạy pipeline.
-4. **Pha nghiên cứu**: bản vẽ `ChatExtras` có 5 pha (Lập kế hoạch, Tìm nguồn, Đọc và trích dẫn, Đối chiếu, Viết báo cáo) và nút **Dừng ngay trong bảng**; mã có 6 pha khác tên và chỉ dừng bằng nút Dừng của ô soạn. Lý do dừng ("vì mất mạng") không được ghi nhận, chỉ có câu chung.
+4. **Pha nghiên cứu**. Trên hai bản native, khi nghiên cứu đang chạy, bảng nghiên cứu và ô soạn đều có nút **Dừng** cho cùng tác vụ. Bản vẽ có 5 pha. Việc đối chiếu tên pha và lý do dừng chi tiết còn mở.
 5. **Tệp không phải ảnh** (PDF có tên và dung lượng trong `ChatExtras`): input chỉ nhận `image/*`; nhãn menu "Thêm ảnh và tệp" vì vậy hứa nhiều hơn mã làm.
 6. **Lời nhắc hệ thống trong popover model** (`Popovers.dc.html`): `ChatAIConfiguration` chỉ có phần "Mô hình". System prompt và preset chỉ chỉnh ở Cài đặt › Chat (`src/pages/settings/ChatPresetsSection.tsx`); chat dùng `chatSystemPrompt` toàn cục.
 7. **Popover model kiểu phân đoạn provider + "Đã tải/Tải về" model local + "Model ID khác (nâng cao)"**: popover thật dùng danh sách trực tiếp có tìm, "Gần đây" và nhóm theo provider; không tải model Ollama từ đây.
@@ -383,3 +387,5 @@ Lỗi và mâu thuẫn tìm thấy khi đối chiếu mã (chưa sửa):
 - Mở lại app giữ đúng thread đang chọn và bản nháp chữ của thread; chọn Chat mới được lưu thành lựa chọn riêng. ID không còn tồn tại thì về Chat mới.
 - Không có hạn dùng theo thời gian cho lựa chọn thread; không tự chạy tiếp research hay gửi bản nháp. Ảnh đính kèm chưa gửi giữ hành vi tạm thời hiện có.
 - Giới hạn 20 thread còn giữ trong V1, có cảnh báo khi chạm giới hạn. Lỗi ghi không được tự cắt lịch sử để làm nhỏ payload.
+
+Nút “+”, phím tắt mở công cụ và panel trong Chat có tên trợ năng “Công cụ ô soạn”. Hành động chọn tệp bên trong giữ tên “Đính kèm ảnh”. Nhóm “Thường làm” nằm trong Chat trống trên cả hai nền tảng. Trên Qt nhóm này cũng nằm trên Trang chủ theo phạm vi của qt-parity-1.

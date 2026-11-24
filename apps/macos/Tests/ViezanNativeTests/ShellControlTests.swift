@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import Testing
 import ViezanDomain
 @testable import ViezanNative
@@ -10,12 +11,28 @@ extension AppKitFixtureTests {
             button.setAccessibilityIdentifier(identifier)
             return button
         }
+        @Test func dictionaryContextShortcutFoldsSavedTextAndLeavesCompositionAlone() {
+            let key = DictionaryContextField.shortcut
+            #expect(key.key == "c" && key.modifiers == [.command, .shift])
+            var field = DictionaryContextField()
+            let value = "文脈"
+            #expect(field.isVisible(value))
+            DictionaryContextField.performShortcut(composing: true) { field.toggle(value) }
+            #expect(field.isVisible(value))
+            DictionaryContextField.performShortcut(composing: false) { field.toggle(value) }
+            #expect(!field.isVisible(value))
+            DictionaryContextField.performShortcut(composing: false) { field.toggle(value) }
+            #expect(field.isVisible(value))
+            field = DictionaryContextField()
+            #expect(!field.isVisible("") && field.isVisible(value))
+        }
         @Test func historyEmptyMessageFollowsSearchAndArchiveFilter() {
             #expect(HistoryEmptyMessage.keys(query: "", archived: false) == ("historyEmpty", nil))
             #expect(HistoryEmptyMessage.keys(query: "  ", archived: true) == ("historyArchivedEmpty", nil))
             let search = HistoryEmptyMessage.keys(query: "abc", archived: true)
             #expect(search.title == "noHistory" && search.hint == "historyNoMatchesHint")
-            for key in ["historyEmpty", "historyArchivedEmpty", "historyNoMatchesHint", "historyRenameHint", "historyRenamed"] {
+            #expect(HistoryEmptyMessage.keys(query: "abc", archived: false).hint == "historySearchAgainHint")
+            for key in ["historyEmpty", "historyArchivedEmpty", "historyNoMatchesHint", "historySearchAgainHint", "historyRenameHint", "historyRenamed"] {
                 for locale in ["vi", "en", "ja"] { #expect(NativeResources.shared.text(key, locale: locale) != key) }
             }
         }
@@ -51,14 +68,15 @@ extension AppKitFixtureTests {
             #expect(ThermalStatus.helperTone("helperApproval") == .warning)
             #expect(ThermalStatus.helperTone("helperUnavailable") == .idle)
             #expect(ThermalStatus.helperTone("") == .idle)
-            #expect(ThermalStatus.canRetry(error: "thermalReadError", monitoring: false))
-            #expect(!ThermalStatus.canRetry(error: "thermalReadError", monitoring: true))
-            #expect(!ThermalStatus.canRetry(error: "fanCommandError", monitoring: false))
-            #expect(ThermalStatus.isReaderError("thermalReaderMissing") && !ThermalStatus.isReaderError("fanProfileSaveError"))
-            #expect(ThermalStatus.waiting(monitoring: true, hasSnapshot: false, hasError: false))
-            #expect(!ThermalStatus.waiting(monitoring: false, hasSnapshot: false, hasError: false))
-            #expect(!ThermalStatus.waiting(monitoring: true, hasSnapshot: true, hasError: false))
-            #expect(!ThermalStatus.waiting(monitoring: true, hasSnapshot: false, hasError: true))
+        }
+        @Test func readerNoticeDistinguishesIdleWaitingEmptyAndFailureWithOldReadings() {
+            #expect(ThermalStatus.readerState(error: nil, monitoring: false, sensorCount: nil) == .idle)
+            #expect(ThermalStatus.readerState(error: "fanCommandError", monitoring: true, sensorCount: nil) == .waiting)
+            #expect(ThermalStatus.readerState(error: "thermalReaderMissing", monitoring: false, sensorCount: nil) == .missing)
+            #expect(ThermalStatus.readerState(error: "thermalReadError", monitoring: true, sensorCount: 2) == .failed)
+            #expect(ThermalStatus.readerState(error: nil, monitoring: true, sensorCount: 0) == .empty)
+            #expect(ThermalStatus.readerState(error: nil, monitoring: true, sensorCount: 2) == .reading)
+            #expect(ThermalStatus.isReaderError("thermalReadError") && !ThermalStatus.isReaderError("fanProfileSaveError"))
         }
         @Test func helperWaitingForApprovalIsNotAFanError() {
             #expect(ThermalMonitor.registrationError(status: "helperApproval") == nil)
@@ -69,6 +87,18 @@ extension AppKitFixtureTests {
             #expect(ThermalMonitor.errorAfterHelperChange("fanCommandError", from: "helperEnabled", to: "helperEnabled") == "fanCommandError")
             #expect(ThermalMonitor.errorAfterHelperChange("fanCommandError", from: "helperUnavailable", to: "helperApproval") == "fanCommandError")
             #expect(ThermalMonitor.errorAfterHelperChange("thermalReadError", from: "helperApproval", to: "helperEnabled") == "thermalReadError")
+        }
+        @Test func pendingFanHelperOffersRemovalSettingsAndStatusRefresh() {
+            #expect(FanHelperAction.available(for: "helperApproval") == [.unregisterHelper, .openSystemSettings, .retry])
+            #expect(FanHelperAction.available(for: "helperUnavailable") == [.registerHelper])
+            #expect(FanHelperAction.available(for: "helperEnabled") == [.unregisterHelper])
+            #expect(FanHelperAction.available(for: "thermal_fan_helper_missing_short").isEmpty)
+            #expect(FanHelperAction.available(for: "").isEmpty)
+            for locale in ["en", "vi", "ja"] {
+                for action in FanHelperAction.available(for: "helperApproval") {
+                    #expect(NativeResources.shared.text(action.rawValue, locale: locale) != action.rawValue)
+                }
+            }
         }
         @Test func everyFanErrorHasItsOwnSentenceInEachLanguage() {
             let keys = ["fanCommandError", "fanProfileApplyError", "fanProfileSaveError", "fanCalibrationError", "helperRegisterError", "helperUnregisterError"]

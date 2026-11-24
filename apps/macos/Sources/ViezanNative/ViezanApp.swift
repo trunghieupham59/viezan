@@ -18,6 +18,14 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
     var store: WorkbenchStore?
     var desktopPanels: DesktopPanels?
     var window: NSWindow?
+    // Observe the grants of the actual GUI process during an install test.
+    // The preflight APIs neither request access nor read screen or selection content.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        guard CommandLine.arguments.contains("--report-permissions") else { return }
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
+        let status = "build=\(build) pid=\(ProcessInfo.processInfo.processIdentifier) accessibility=\(AXIsProcessTrusted()) screenRecording=\(CGPreflightScreenCaptureAccess())\n"
+        FileHandle.standardOutput.write(Data(status.utf8))
+    }
     func applicationWillFinishLaunching(_ notification: Notification) {
         guard let identifier = Bundle.main.bundleIdentifier,
               let other = NSRunningApplication.runningApplications(withBundleIdentifier: identifier).first(where: { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) else { return }
@@ -43,6 +51,7 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
         }
         _store = State(initialValue: WorkbenchStore(persistence: FilePersistence(url: FilePersistence.previewURL())))
     }
+    @FocusedValue(\.dictionaryContextAction) private var dictionaryContextAction
     @State private var screen = "home"
     @State private var shell = ShellPresentation()
     #if DEBUG
@@ -112,8 +121,12 @@ func metric(_ key: String) -> CGFloat { nativeResources.metric(key) }
                 Button(store.text("activity")) { shell.issue("activity") }.keyboardShortcut("a", modifiers: [.command, .shift])
                 Divider()
                 // The composer's model panel and "+" menu; each acts only where its control is on screen.
-                Button(store.text("model")) { shell.issue("models") }.keyboardShortcut("m", modifiers: [.command, .shift]).disabled(store.loadBlocked || shell.library || store.updatePrompt != nil || !["chat", "translate", "dictionary"].contains(screen))
+                Button(store.text("model")) { shell.issue("models") }.keyboardShortcut("m", modifiers: [.command, .shift]).disabled(store.loadBlocked || shell.library || store.updatePrompt != nil || (!["chat", "translate", "dictionary", "interpret", "everywhere"].contains(screen) || (screen == "interpret" && store.interpretation.busy)))
                 Button(store.text("composerTools")) { shell.issue("tools") }.keyboardShortcut("t", modifiers: [.command, .shift]).disabled(store.loadBlocked || shell.library || store.updatePrompt != nil || screen != "chat")
+                Button(store.text("dictionaryAddContext")) {
+                    DictionaryContextField.performShortcut(composing: (NSApp.keyWindow?.firstResponder as? NSTextInputClient)?.hasMarkedText() == true, action: dictionaryContextAction)
+                }.keyboardShortcut(DictionaryContextField.shortcut)
+                    .disabled(dictionaryContextAction == nil || screen != "dictionary" || shell.library || shell.overlay != nil || store.loadBlocked || store.updatePrompt != nil)
             }
 
         }
@@ -313,7 +326,8 @@ struct WorkbenchView: View {
                             // aligned so the panel's edge stays against the control whatever its height.
                             Group {
                                 if overlay == .models {
-                                    ModelPanel(store: store, dismiss: dismissOverlay, availableHeight: height)
+                                    ModelPanel(store: store, dismiss: dismissOverlay, availableHeight: height, ownerID: ["interpret", "everywhere"].contains(screen) ? nil : store.session.id,
+                                               modelOverride: screen == "interpret" ? store.interpretationModel : nil)
                                 } else if overlay == .instructions {
                                     InstructionsPanel(store: store, dismiss: dismissOverlay, availableHeight: height)
                                 } else {
@@ -458,7 +472,7 @@ struct WorkbenchView: View {
                     ChromeDivider(vertical: true).frame(height: separatorHeight)
                 }
                 if screen == "interpret" {
-                    ShellToolbarButton(label: store.text("summarizeShort"), symbol: "sparkles", identifier: "interpret-summarize", showsLabel: !layout.compact, glass: true, enabled: !store.interpretation.busy && !(store.interpretation.current?.segments.isEmpty ?? true)) { store.interpretation.summarize(kind: "summary") }
+                    ShellToolbarButton(label: store.text("summarizeShort"), symbol: "sparkles", identifier: "interpret-summarize", showsLabel: !layout.compact, glass: true, enabled: !store.interpretation.busy && !(store.interpretation.current?.segments.isEmpty ?? true)) { store.interpretation.summarize(kind: "summary", model: store.workspace.defaultModel) }
                     ShellToolbarButton(label: store.text("history"), symbol: "clock", identifier: "interpret-history", showsLabel: !layout.compact, glass: true, enabled: !store.interpretation.busy) { NotificationCenter.default.post(name: .viezanInterpretHistory, object: nil) }
                     ShellToolbarButton(label: store.text("newInterpretation"), symbol: "plus", identifier: "interpret-new", showsLabel: !layout.compact, glass: true, soft: true, enabled: !store.interpretation.busy) { store.interpretation.clearSelection() }
                     ChromeDivider(vertical: true).frame(height: separatorHeight)
@@ -580,6 +594,8 @@ struct ModelPicker: View {
     var glassChat = false
     /// Shell-Minimum composer: only the accent sparkle shows; the name stays in help and the label.
     var iconOnly = false
+    var modelOverride: String?
+    private var model: String { modelOverride ?? store.workspace.modelForNextRequest(store.session) }
     @Environment(\.colorScheme) private var scheme
     var body: some View { compactMenu }
     /// Language pages on Glass read like the composer chip: "✦ Haiku 5.5 ⌄" (Translate board).
@@ -589,20 +605,20 @@ struct ModelPicker: View {
     // model panel anchored to itself, so the picker is a quiet layer of the app, not a system menu.
     // Kept out of the view builder: inline, the chained string made the body too slow to type-check.
     private var chipName: String {
-        let careful = store.session.reasoningEffort == "high" || (store.session.reasoningEffort == nil && store.session.carefulReasoning == true)
-        return (careful ? store.text("tierCareful") + " · " : "") + ModelLineup.shortName(store.session.model)
+        let careful = modelOverride == nil && (store.session.reasoningEffort == "high" || (store.session.reasoningEffort == nil && store.session.carefulReasoning == true))
+        return (careful ? store.text("tierCareful") + " · " : "") + ModelLineup.shortName(model)
     }
     private var chipAccessibilityLabel: String {
-        let unavailable = modelUnavailable(store.session.model, store: store) ? ", " + store.text("unavailable") : ""
-        return store.text("model") + ": " + chipName + " · " + store.session.model + unavailable
+        let unavailable = modelUnavailable(model, store: store) ? ", " + store.text("unavailable") : ""
+        return store.text("model") + ": " + chipName + " · " + model + unavailable
     }
     private var compactMenu: some View {
         HStack(spacing: metric("tight")) {
-            if modelUnavailable(store.session.model, store: store) { StatusDot(tone: .failed) }
+            if modelUnavailable(model, store: store) { StatusDot(tone: .failed) }
             // Glass composer chip (`✦ Haiku 5.5 ⌄`): an accent sparkle drawn over the
             // control's leading room, the chevron after the name.
             ShellToolbarButton(label: chipName, symbol: iconOnly ? "sparkles" : "chevron.down", identifier: "model-toggle", showsLabel: !iconOnly, glass: !glassChat, quiet: true, small: (dense || badge) && !glassChat,
-                               expanded: shellLayer == .models, hint: store.session.model,
+                               expanded: shellLayer == .models, hint: model,
                                trailingSymbol: sparkleChip, leadingRoom: sparkleChip ? metric("inset") + metric("tight") : 0, enabled: !store.loadingModels,
                                frameAction: { frame in NotificationCenter.default.post(name: .viezanOpenModels, object: NSValue(rect: frame)) }) {}
                 .overlay(alignment: .leading) {

@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import Testing
 @testable import ViezanDomain
 
@@ -59,6 +60,33 @@ import Testing
     let persistence = MemoryPersistence()
     persistence.failLoad = true
     let blocked = WorkbenchStore(persistence: persistence, automaticProvider: false)
+    #expect(!blocked.canPinModel("openai:gpt-5.5"))
     blocked.togglePinnedModel("openai:gpt-5.5")
     #expect(blocked.pinnedModels.isEmpty && persistence.writes == 0)
+}
+
+@Test @MainActor func backupRestoresModelPinsOnlyWhenRequested() throws {
+    let store = WorkbenchStore(persistence: MemoryPersistence(), automaticProvider: false)
+    store.togglePinnedModel("openai:gpt-4.1")
+    var source = Workspace()
+    source.pinnedModels = ["ollama:gemma3", "claude:claude-sonnet-4"]
+    let preview = try NativeBackup.preview(NativeBackup.export(source))
+    try store.importBackup(preview)
+    #expect(store.pinnedModels == ["openai:gpt-4.1"])
+    try store.importBackup(preview, restorePreferences: true)
+    #expect(store.pinnedModels == source.pinnedModels)
+    source.pinnedModels = nil
+    // Older exporters encoded the workspace directly and omitted an absent pin list.
+    let snapshot = try JSONEncoder().encode(source)
+    let oldFormat: [String: Any] = [
+        "format": "viezan-native-backup", "version": 1, "workspace": snapshot.base64EncodedString(),
+        "sha256": SHA256.hash(data: snapshot).map { String(format: "%02x", $0) }.joined(), "attachments": [],
+    ]
+    let legacy = try NativeBackup.preview(JSONSerialization.data(withJSONObject: oldFormat))
+    #expect(legacy.preferences.pinnedModels == nil)
+    try store.importBackup(legacy, restorePreferences: true)
+    #expect(store.pinnedModels == preview.preferences.pinnedModels)
+    let empty = try NativeBackup.preview(NativeBackup.export(source))
+    try store.importBackup(empty, restorePreferences: true)
+    #expect(store.pinnedModels.isEmpty)
 }

@@ -21,6 +21,7 @@
 #include <QImage>
 #include <QTemporaryFile>
 #include <memory>
+#include <functional>
 #include <QSet>
 
 class WorkbenchBridge final : public QObject {
@@ -152,6 +153,7 @@ public:
     Q_INVOKABLE void exportImage(const QUrl &url, const QVariantMap &image);
     Q_INVOKABLE void reuseImage(const QString &sessionID, const QVariantMap &image);
     Q_INVOKABLE void attachImage(const QUrl &url, const QString &sessionID);
+    Q_INVOKABLE bool pasteChatImage(const QString &sessionID);
     Q_INVOKABLE void startRecording();
     Q_INVOKABLE void insertTranscript();
     bool credentialBusy() const { return m_credentialBusy; }
@@ -175,6 +177,7 @@ public:
     /// empty), picking one (Careful also turns on careful reasoning in Chat), recent picks, short names
     /// and the panel's sections for a query.
     Q_INVOKABLE QVariantMap modelTiers(const QString &sessionID) const;
+    Q_INVOKABLE QString modelForNextRequest(const QVariantMap &session) const;
     Q_INVOKABLE void applyModelTier(const QString &sessionID, const QString &tier);
     Q_INVOKABLE bool canPinModel(const QString &model) const;
     Q_INVOKABLE QStringList recentPicks() const;
@@ -227,6 +230,9 @@ signals:
 private slots:
     void screenshotResponse(uint code, const QVariantMap &results);
 private:
+    void loadAttachment(const QString &sessionID, std::function<QVariantMap()> load);
+    int attachmentSlots(const QString &sessionID) const;
+    QHash<QString, int> m_pendingAttachments;
     QString writeWorkspace(const QVariantMap &state, QSaveFile *transcripts = nullptr);
     quint64 m_autoTranslationEpoch = 0;
     void scheduleTranslation(const QString &sessionID);

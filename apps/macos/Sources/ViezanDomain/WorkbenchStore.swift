@@ -121,7 +121,9 @@ enum FileSearchPlanner {
     public private(set) var providers = ProviderDiscovery.Snapshot()
     @ObservationIgnored private var discovery: Task<Void, Never>?
     public private(set) var discovering = false
-    @ObservationIgnored private let listModels: @Sendable (String) async throws -> [String]
+    @ObservationIgnored private let listCatalog: @Sendable (String) async throws -> ModelCatalog.Listing
+    @ObservationIgnored private var listingSequence = 0
+    @ObservationIgnored private var publishedOllamaSequence = 0
     @ObservationIgnored private let hasKey: @Sendable (String) -> Bool
     @ObservationIgnored private let persistence: any WorkspacePersistence
     @ObservationIgnored private var workers: [String: Task<Void, Never>] = [:]
@@ -131,12 +133,18 @@ enum FileSearchPlanner {
 
     /// Moves attachments no session references into recovery after bulk deletes; tests replace it.
     @ObservationIgnored public var quarantine: (Workspace) throws -> Void = { try Attachments.quarantineUnreferenced(workspace: $0) }
+    public convenience init(persistence: any WorkspacePersistence, automaticProvider: Bool = true, interpretation: Interpretation? = nil,
+                            listModels: @escaping @Sendable (String) async throws -> [String],
+                            hasKey: @escaping @Sendable (String) -> Bool = { CredentialStore.has($0) }) {
+        self.init(persistence: persistence, automaticProvider: automaticProvider, interpretation: interpretation,
+                  listCatalog: { try await ModelCatalog.Listing(models: listModels($0)) }, hasKey: hasKey)
+    }
     public init(persistence: any WorkspacePersistence, automaticProvider: Bool = true, interpretation: Interpretation? = nil,
-                listModels: @escaping @Sendable (String) async throws -> [String] = { try await ModelCatalog.models(provider: $0) },
+                listCatalog: @escaping @Sendable (String) async throws -> ModelCatalog.Listing = { try await ModelCatalog.listing(provider: $0) },
                 hasKey: @escaping @Sendable (String) -> Bool = { CredentialStore.has($0) }) {
         self.interpretation = interpretation ?? Interpretation()
         self.persistence = persistence; self.automaticProvider = automaticProvider
-        self.listModels = listModels; self.hasKey = hasKey
+        self.listCatalog = listCatalog; self.hasKey = hasKey
         reload()
         // Quitting recorded when the current feature was left; reopening applies the same rule.
         applySmartReset(workspace.feature)
@@ -195,7 +203,12 @@ enum FileSearchPlanner {
         var candidate = workspace; candidate.sessions.removeAll { ids.contains($0.id) }; candidate.tasks.removeAll { ids.contains($0.request.sessionID) }
         if candidate.active[item.feature.rawValue] == id {
             if let next = candidate.sessions.first(where: { $0.feature == item.feature && $0.archived != true && $0.comparisonParent == nil }) { candidate.active[item.feature.rawValue] = next.id }
-            else { let next = Session(feature: item.feature); candidate.sessions.insert(next, at: 0); candidate.active[item.feature.rawValue] = next.id }
+            else {
+                var next = Session(feature: item.feature)
+                next.model = workspace.defaultModel ?? next.model
+                candidate.sessions.insert(next, at: 0)
+                candidate.active[item.feature.rawValue] = next.id
+            }
         }
         _ = try candidate.validated(); try persistence.save(candidate); workspace = candidate
         return (item, index)
@@ -224,7 +237,7 @@ enum FileSearchPlanner {
         var leftTimes = workspace.featureLeft ?? [:]; leftTimes.removeValue(forKey: feature.rawValue); workspace.featureLeft = leftTimes
         guard clock() - left >= after, let activeID = workspace.active[feature.rawValue], let active = session(activeID),
               !active.output.isEmpty, running(activeID) == nil, workspace.tasks.first(where: { $0.request.sessionID == activeID })?.status != .interrupted else { return }
-        var item = Session(feature: feature); if let preferredModel { item.model = preferredModel }
+        var item = Session(feature: feature); if let model = workspace.defaultModel ?? preferredModel { item.model = model }
         item.source = active.source; item.target = active.target
         workspace.sessions.insert(item, at: 0); workspace.active[feature.rawValue] = item.id
         resetNotice = ResetNotice(feature: feature, previousID: activeID)
@@ -257,11 +270,13 @@ enum FileSearchPlanner {
         workspace.feature = session.feature; workspace.active[session.feature.rawValue] = id; save()
     }
     public func importBackup(_ preview: BackupPreview, restorePreferences: Bool = false) throws {
+        try importBackup(preview, restorePreferences: restorePreferences, attachmentDirectory: Attachments.directory)
+    }
+    func importBackup(_ preview: BackupPreview, restorePreferences: Bool = false, attachmentDirectory: URL) throws {
         autoTranslationRequest?.cancel(); autoTranslationRequest = nil
         guard !loadBlocked else { throw StorageFailure.invalidData }
         let known = Set(workspace.sessions.map(\.id))
         let additions = preview.sessions.filter { !known.contains($0.id) }
-        try NativeBackup.materialize(preview)
         var candidate = workspace; candidate.sessions.append(contentsOf: additions)
         let importedIDs = Set(additions.map(\.id)), taskIDs = Set(candidate.tasks.map(\.id))
         candidate.tasks.append(contentsOf: preview.tasks.filter { importedIDs.contains($0.request.sessionID) && !taskIDs.contains($0.id) })
@@ -272,19 +287,34 @@ enum FileSearchPlanner {
             candidate.autoTranslate = preview.preferences.autoTranslate; candidate.autoTranslateDelay = preview.preferences.autoTranslateDelay
             candidate.voice = preview.preferences.voice; candidate.speechProvider = preview.preferences.speechProvider
             candidate.runtime = preview.preferences.runtime; candidate.rates = preview.preferences.rates
+            if let model = preview.preferences.defaultModel { candidate.defaultModel = model }
+            if let pins = preview.preferences.pinnedModels { candidate.pinnedModels = pins }
         }
         _ = try candidate.validated()
-        // Persist before publishing: import must never report success on a failed save. The
-        // workspace is written first and put back if the meetings cannot be, so a failure never
-        // leaves half a backup imported.
-        let previous = workspace
-        // Anything that would make the meetings refuse is found before the workspace is written,
-        // so only a write failure is left to undo.
         if !preview.interpretation.isEmpty { try interpretation.checkImport(preview.interpretation) }
-        try persistence.save(candidate)
-        if !preview.interpretation.isEmpty {
-            do { try interpretation.importArchive(preview.interpretation) }
-            catch { try? persistence.save(previous); throw error }
+        var installed: [Attachments.InstalledFile] = []
+        do {
+            try NativeBackup.materialize(preview, in: attachmentDirectory, installed: &installed)
+            try persistence.save(candidate)
+            if !preview.interpretation.isEmpty {
+                do { try interpretation.importArchive(preview.interpretation) }
+                catch {
+                    do { try persistence.save(workspace) }
+                    catch {
+                        // The durable workspace still references the imported images. Reload it before allowing writes.
+                        loadBlocked = true
+                        storageError = "storageLoadError"
+                        throw error
+                    }
+                    throw error
+                }
+            }
+        } catch {
+            if !loadBlocked {
+                do { try NativeBackup.discard(installed) }
+                catch { storageError = "storageError"; throw error }
+            }
+            throw error
         }
         workspace = candidate; applyVoice()
     }
@@ -305,7 +335,8 @@ enum FileSearchPlanner {
             if let next = workspace.sessions.first(where: { $0.feature == target.feature && $0.archived != true }) {
                 workspace.active[target.feature.rawValue] = next.id
             } else {
-                let next = Session(feature: target.feature)
+                var next = Session(feature: target.feature)
+                next.model = workspace.defaultModel ?? next.model
                 workspace.sessions.insert(next, at: 0); workspace.active[target.feature.rawValue] = next.id
             }
         }
@@ -338,7 +369,7 @@ enum FileSearchPlanner {
         var candidate = workspace; candidate.sessions = []; candidate.tasks = []
         for feature in Feature.allCases {
             var fresh = Session(feature: feature)
-            if let previous = workspace.active[feature.rawValue].flatMap(session) { fresh.model = previous.model; fresh.source = previous.source; fresh.target = previous.target }
+            if let previous = workspace.active[feature.rawValue].flatMap(session) { fresh.model = workspace.defaultModel ?? previous.model; fresh.source = previous.source; fresh.target = previous.target }
             candidate.sessions.append(fresh); candidate.active[feature.rawValue] = fresh.id
         }
         _ = try candidate.validated()
@@ -366,7 +397,7 @@ enum FileSearchPlanner {
     }
     @discardableResult public func createDetachedSession(feature: Feature, draft: String = "") -> String {
         var item = Session(feature: feature)
-        item.model = detachedSessionModel
+        item.model = appModel
         item.source = session.source; item.target = session.target; item.draft = draft
         guard !loadBlocked else { return session.id }
         workspace.sessions.insert(item, at: 0); save(); return item.id
@@ -375,7 +406,7 @@ enum FileSearchPlanner {
         guard !loadBlocked else { return }
         if resetNotice?.feature == workspace.feature { resetNotice = nil }
         var item = Session(feature: workspace.feature)
-        if let preferredModel { item.model = preferredModel }
+        if let model = workspace.defaultModel ?? preferredModel { item.model = model }
         // Earlier sessions of this feature that never got any work are not history: sweep them,
         // so "New chat" pressed ten times leaves one chat, not ten.
         let feature = workspace.feature
@@ -402,7 +433,8 @@ enum FileSearchPlanner {
     /// The three purposes for the session's provider, or nil when they would not differ.
     public func modelTiers(_ id: String) -> [ModelTier: String]? {
         guard let current = session(id) else { return nil }
-        return ModelLineup.tiers(for: current.model, listing: providers.models[ModelLineup.provider(current.model)] ?? [])
+        let model = workspace.modelForNextRequest(current)
+        return ModelLineup.tiers(for: model, listing: providers.models[ModelLineup.provider(model)] ?? [])
     }
     /// Pick by purpose: the tier's model, and careful reasoning only for Careful.
     public func applyModelTier(_ id: String, _ tier: ModelTier) {
@@ -423,11 +455,11 @@ enum FileSearchPlanner {
               let value = session(id), value.feature == .translate, value.archived != true,
               workspace.feature == .translate, workspace.active["translate"] == id, comparisons(id).isEmpty,
               !value.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !(value.images ?? []).isEmpty else { return }
-        let revision = value.revision, model = value.model, delay = workspace.autoTranslateDelay ?? 800
+        let revision = value.revision, model = workspace.modelForNextRequest(value), delay = workspace.autoTranslateDelay ?? 800
         autoTranslationRequest = Task { [weak self] in
             do { try await Task.sleep(for: .milliseconds(delay)); try Task.checkCancellation() } catch { return }
             guard let self, self.workspace.autoTranslate == true, self.workspace.feature == .translate,
-                  self.workspace.active["translate"] == id, self.session(id)?.revision == revision, self.session(id)?.model == model, self.session(id)?.archived != true,
+                  self.workspace.active["translate"] == id, let owner = self.session(id), owner.revision == revision, self.workspace.modelForNextRequest(owner) == model, owner.archived != true,
                   self.audio.recordingOwner == nil, !self.audio.permissionPending, self.audio.transcribingOwner == nil,
                   self.storageError == nil, self.running(id) == nil else { return }
             self.autoTranslationRequest = nil; self.submit(id)
@@ -445,9 +477,20 @@ enum FileSearchPlanner {
         scheduleSave()
         scheduleTranslation(id)
     }
-    public func setModel(_ id: String, _ model: String) {
-        guard NativeModel.valid(model) else { return }
-        edit(id) { $0.model = model }; scheduleTranslation(id)
+    public func setModel(_ id: String?, _ model: String) {
+        guard !loadBlocked, NativeModel.valid(model) else { return }
+        if let id {
+            guard let owner = session(id), owner.archived != true, owner.comparisonParent == nil else { return }
+            // Preserve attribution on an existing translation or lookup until the next submission.
+            if owner.feature == .chat || (owner.output.isEmpty && running(id) == nil) {
+                edit(id, persist: false) { $0.model = model }
+            }
+        }
+        workspace.defaultModel = model
+        save()
+        if let id, id == workspace.active[Feature.translate.rawValue], workspace.feature == .translate {
+            scheduleTranslation(id)
+        }
     }
     public func setPair(_ id: String, source: String, target: String) {
         guard (NativeResources.shared.nativeLanguages + ["auto"]).contains(source), NativeResources.shared.nativeLanguages.contains(target) else { return }
@@ -501,7 +544,7 @@ enum FileSearchPlanner {
     /// The picker's Pinned group. Bounded so the panel stays a short list.
     public nonisolated static let pinnedModelLimit = 8
     public var pinnedModels: [String] { workspace.pinnedModels ?? [] }
-    public func canPinModel(_ model: String) -> Bool { pinnedModels.contains(model) || pinnedModels.count < Self.pinnedModelLimit }
+    public func canPinModel(_ model: String) -> Bool { !loadBlocked && (pinnedModels.contains(model) || pinnedModels.count < Self.pinnedModelLimit) }
     public func togglePinnedModel(_ model: String) {
         guard !loadBlocked, NativeModel.valid(model), canPinModel(model) else { return }
         var pins = pinnedModels
@@ -566,7 +609,7 @@ enum FileSearchPlanner {
     }
     public func setDictionaryContext(_ id: String, _ context: String) {
         // Same rule as setDraft: an unchanged context neither cancels work nor clears the entry.
-        guard session(id)?.feature == .dictionary, context.count <= 500, (session(id)?.dictionaryContext ?? "") != context else { return }
+        guard session(id)?.feature == .dictionary, (session(id)?.dictionaryContext ?? "") != context else { return }
         if let task = running(id) { cancel(task.id) }
         edit(id) { $0.dictionaryContext = context; $0.revision += 1; $0.output = "" }
     }
@@ -642,8 +685,15 @@ enum FileSearchPlanner {
     }
     /// Longest source Translate sends (characters); longer text is refused before any provider call.
     public static let translateLimit = 5000
-    package var detachedSessionModel: String {
-        providers.availability(session.model) == .available ? session.model : preferredModel ?? session.model
+    public static let dictionaryContextLimit = 500
+    package var appModel: String {
+        workspace.defaultModel ?? (providers.availability(session.model) == .available ? session.model : preferredModel ?? session.model)
+    }
+
+    package var interpretationModel: String {
+        if let model = interpretation.summaryModel { return model }
+        if interpretation.busy, let current = interpretation.current { return current.model }
+        return workspace.defaultModel ?? interpretation.current?.model ?? appModel
     }
 
     /// The caller supplies the raw model displayed in the Launcher privacy note.
@@ -662,10 +712,10 @@ enum FileSearchPlanner {
 
     @discardableResult public func submit(_ id: String) -> WorkTask? {
         autoTranslationRequest?.cancel(); autoTranslationRequest = nil
-        guard !loadBlocked, let current = session(id), moduleEnabled(current.feature.rawValue), !(current.model.hasPrefix("ollama:") && localPerformance.busy), (!current.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || ([.chat, .translate].contains(current.feature) && !(current.images ?? []).isEmpty)),
-              current.feature != .dictionary || (current.draft.count <= 120 && (current.dictionaryContext?.count ?? 0) <= 500),
+        guard !loadBlocked, let current = session(id), moduleEnabled(current.feature.rawValue), !(workspace.modelForNextRequest(current).hasPrefix("ollama:") && localPerformance.busy), (!current.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || ([.chat, .translate].contains(current.feature) && !(current.images ?? []).isEmpty)),
+              current.feature != .dictionary || (current.draft.count <= 120 && (current.dictionaryContext?.count ?? 0) <= Self.dictionaryContextLimit),
               current.feature != .translate || current.draft.count <= Self.translateLimit, running(id) == nil else { return nil }
-        var request = Request(sessionID: id, feature: current.feature, model: current.model, input: current.draft, source: current.source, target: current.target, revision: current.revision, locale: workspace.locale)
+        var request = Request(sessionID: id, feature: current.feature, model: workspace.modelForNextRequest(current), input: current.draft, source: current.source, target: current.target, revision: current.revision, locale: workspace.locale)
         request.reasoningEffort = current.reasoningEffort
         request.translationStyle = current.translationStyle; request.translationMode = current.translationMode
         request.systemPrompt = current.systemPrompt; request.chatMode = current.chatMode; request.carefulReasoning = current.carefulReasoning
@@ -676,6 +726,7 @@ enum FileSearchPlanner {
         var task = WorkTask(id: UUID().uuidString, attemptID: UUID().uuidString, request: request, status: .running, output: "")
         task.started = clock()
         edit(id, persist: false) { item in
+            item.model = request.model
             if item.title.isEmpty { item.title = Session.derivedTitle(draft: current.draft, images: current.images) }
             if current.feature == .chat {
                 item.messages.append(Message(id: UUID().uuidString, role: "user", text: current.draft, images: current.images))
@@ -703,6 +754,7 @@ enum FileSearchPlanner {
     }
     public func canRetry(_ task: WorkTask) -> Bool {
         guard !loadBlocked, let owner = session(task.request.sessionID), moduleEnabled(owner.feature.rawValue),
+              task.request.feature != .dictionary || (task.request.dictionaryContext?.count ?? 0) <= Self.dictionaryContextLimit,
               !(task.request.model.hasPrefix("ollama:") && localPerformance.busy) else { return false }
         // A finished chat answer can be regenerated while it is still the newest message.
         let regenerate = task.request.feature == .chat && owner.messages.last?.id == task.id
@@ -726,7 +778,7 @@ enum FileSearchPlanner {
         workspace.tasks[index].started = clock(); workspace.tasks[index].finished = nil
         let task = workspace.tasks[index]
         edit(task.request.sessionID, persist: false) { item in
-            if item.feature != .chat { item.output = "" }
+            if item.feature != .chat { item.model = task.request.model; item.output = "" }
             else if let i = item.messages.firstIndex(where: { $0.id == id }) { item.messages[i].text = "" }
         }
         save(); if savedForDispatch(task) { start(task) }
@@ -788,31 +840,42 @@ enum FileSearchPlanner {
     /// Probes every provider concurrently and lets sessions without work follow what
     /// this device can run. A new call supersedes one still in flight.
     /// A provider's model listing as a Result (the async `Result { }` initializer needs a newer toolchain than CI's).
-    private nonisolated static func listing(_ provider: String, _ list: @Sendable (String) async throws -> [String]) async -> Result<[String], Error> {
+    private nonisolated static func listing(_ provider: String, _ list: @Sendable (String) async throws -> ModelCatalog.Listing) async -> Result<ModelCatalog.Listing, Error> {
         do { return .success(try await list(provider)) } catch { return .failure(error) }
     }
     @discardableResult public func discoverProviders() -> Task<Void, Never> {
         discovery?.cancel(); discovering = true
-        let list = listModels, hasKey = hasKey
+        listingSequence += 1
+        let sequence = listingSequence, list = listCatalog, hasKey = hasKey
         let probe = Task { [weak self] in
             var next = ProviderDiscovery.Snapshot()
             // Key presence never unlocks the keychain, so it is known immediately.
             next.keyed = Set(ProviderDiscovery.cloudProviders.filter(hasKey))
             next.speechKeyed = Set(["openai", "gemini", "groq"].filter(hasKey))
-            await withTaskGroup(of: (String, Result<[String], Error>).self) { group in
+            await withTaskGroup(of: (String, Result<ModelCatalog.Listing, Error>).self) { group in
                 for provider in ProviderDiscovery.localProviders { group.addTask { await (provider, Self.listing(provider, list)) } }
-                for await (provider, result) in group { if case .success(let models) = result { next.models[provider] = models } }
+                for await (provider, result) in group {
+                    if case .success(let listing) = result {
+                        next.models[provider] = listing.models
+                        if provider == "ollama" { next.ollamaSizes = listing.sizes }
+                    }
+                }
             }
             guard !Task.isCancelled, let self else { return }
             // Publish loopback results first: cloud listings may wait on the network or on
             // a keychain prompt, and readiness must not hang behind them.
+            if publishedOllamaSequence > sequence {
+                next.models["ollama"] = providers.models["ollama"]
+                next.ollamaSizes = providers.ollamaSizes
+            } else { publishedOllamaSequence = sequence }
             next.checked = true; publishProviders(next)
-            await withTaskGroup(of: (String, Result<[String], Error>).self) { group in
+            await withTaskGroup(of: (String, Result<ModelCatalog.Listing, Error>).self) { group in
                 for provider in next.keyed.sorted() { group.addTask { await (provider, Self.listing(provider, list)) } }
                 for await (provider, result) in group {
                     guard !Task.isCancelled else { continue }
+                    next = providers
                     switch result {
-                    case .success(let models): next.models[provider] = models
+                    case .success(let listing): next.models[provider] = listing.models
                     // Kept for Settings: a rejected key reads differently from a network fault.
                     case .failure(let error): next.failures[provider] = WorkbenchStore.failureCode(error, model: provider + ":")
                     }
@@ -839,7 +902,7 @@ enum FileSearchPlanner {
     // Sessions that have produced nothing yet follow the device; sessions with work keep
     // their model (conversation-aware), and the view offers a one-click switch instead.
     private func adoptAvailableModels() {
-        guard !loadBlocked, let preferred = preferredModel else { return }
+        guard !loadBlocked, workspace.defaultModel == nil, let preferred = preferredModel else { return }
         var changed = false
         for index in workspace.sessions.indices {
             let item = workspace.sessions[index]
@@ -853,11 +916,20 @@ enum FileSearchPlanner {
         guard !loadingModels else { return }
         loadingModels = true; modelError = nil
         defer { loadingModels = false }
-        let provider = requestedProvider ?? session.model.split(separator: ":", maxSplits: 1).first.map(String.init) ?? "ollama"
+        let requested = requestedProvider ?? session.model.split(separator: ":", maxSplits: 1).first.map(String.init) ?? "ollama"
+        let provider = requested.hasPrefix("demo.") ? "ollama" : requested
+        listingSequence += 1
+        let sequence = listingSequence
         do {
-            let models = try await listModels(provider.hasPrefix("demo.") ? "ollama" : provider)
-            localModels = localModels.filter { !$0.hasPrefix(provider + ":") } + models
-            if providers.checked { providers.models[provider] = models }
+            let listing = try await listCatalog(provider)
+            try Task.checkCancellation()
+            if provider == "ollama" {
+                guard sequence >= publishedOllamaSequence else { return }
+                publishedOllamaSequence = sequence
+                providers.ollamaSizes = listing.sizes
+            }
+            localModels = localModels.filter { !$0.hasPrefix(provider + ":") } + listing.models
+            providers.models[provider] = listing.models
         }
         catch is CancellationError { }
         catch let failure as CloudFailure { modelError = failure.rawValue }
@@ -865,7 +937,7 @@ enum FileSearchPlanner {
         catch { modelError = ProviderDiscovery.localProviders.contains(provider) ? "providerOffline" : "providerError" }
     }
     public var availableModels: [String] {
-        Array(Set(localModels + [session.model])).filter { !$0.hasPrefix("demo.") }.sorted()
+        Array(Set(localModels + [workspace.modelForNextRequest(session)])).filter { !$0.hasPrefix("demo.") }.sorted()
     }
     private func researchCheckpoint(_ state: ResearchState, taskID: String, attemptID: String) {
         guard let index = workspace.tasks.firstIndex(where: { $0.id == taskID && $0.attemptID == attemptID && $0.status == .running }) else { return }
